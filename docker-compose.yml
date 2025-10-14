@@ -39,6 +39,17 @@ services:
     depends_on:
       - postgis
 
+  geoserver:
+    image: kartoza/geoserver:latest
+    ports:
+      - "8081:8080"
+    environment:
+      GEOSERVER_DATA_DIR: /opt/geoserver/data_dir
+      GEOSERVER_ADMIN_USER: admin
+      GEOSERVER_ADMIN_PASSWORD: geoserver
+    volumes:
+      - geoserver-data:/opt/geoserver/data_dir
+
   localstack:
     image: localstack/localstack:latest
     environment:
@@ -76,3 +87,4 @@ services:
 volumes:
   postgis_data:
   localstack_data:
+  geoserver-data:
