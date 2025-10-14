@@ -44,7 +44,6 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     environment:
-      NODE_ENV: development
       DATABASE_URL: postgres://dbuser:dbpass@postgis:5432/database
       LOCALSTACK_ENDPOINT: http://localstack:4566
     ports:
@@ -52,8 +51,6 @@ services:
     depends_on:
       - postgis
       - localstack
-    volumes:
-      - ./backend:/usr/src/app
 
   frontend:
     build:
@@ -63,8 +60,6 @@ services:
       - "3000:3000"
     stdin_open: true
     tty: true
-    volumes:
-      - ./frontend:/usr/src/app
     command: npm start
 
 volumes:
