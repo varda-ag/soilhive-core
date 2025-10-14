@@ -28,6 +28,17 @@ services:
     ports:
       - "5432:5432"
 
+  martin:
+    image: urbica/martin
+    restart: unless-stopped
+    ports:
+      - 3003:3000
+    environment:
+      - WATCH_MODE=true
+      - DATABASE_URL=postgres://dbuser:dbpass@postgis:5432/database
+    depends_on:
+      - postgis
+
   localstack:
     image: localstack/localstack:latest
     environment:
