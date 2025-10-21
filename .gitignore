@@ -149,3 +149,6 @@ dist
 # Vite logs files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# module-federation types
+@mf-types

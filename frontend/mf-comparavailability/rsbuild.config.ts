@@ -4,18 +4,16 @@ import { pluginModuleFederation } from '@module-federation/rsbuild-plugin';
 
 export default defineConfig({
   server: {
-    port: 3000
-  },
-  html: {
-    title: 'Soilhive'
+    port: 3001
   },
   plugins: [
     pluginReact(),
     pluginModuleFederation({
-      name: 'soilhive-app',
-      remotes: {
-        remote: 'comparavailability@http://localhost:3001/remoteEntry.js'
+      name: 'comparavailability',
+      exposes: {
+        './module': './src/module'
       },
+      filename: 'remoteEntry.js',
       shared: {
         react: {
           singleton: true

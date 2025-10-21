@@ -6,11 +6,14 @@ function MainLayout() {
       <div className="menu">
         <ul>
           <li><Link to="/">Home</Link></li>
+          <li><Link to="/comparavailability">Comparavailability</Link></li>
           <li><Link to="/donation">Donation</Link></li>
           <li><Link to="/admin">Admin</Link></li>
         </ul>
       </div>
-      <Outlet />
+      <div className="content">
+        <Outlet />
+      </div>
     </>
   );
 };
