@@ -1,0 +1,10 @@
+{
+  "name": "soilhive-frontend-project",
+  "private": true,
+  "description": "",
+  "version": "0.0.0",
+  "scripts": {
+    "dev": "pnpm --filter=!common --parallel dev",
+    "build": "pnpm --filter dynamic-remotes_app* --parallel build"
+  }
+}
