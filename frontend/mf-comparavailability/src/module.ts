@@ -1,9 +1,13 @@
 import Page from "./Page";
 
-const shortName = 'comparavailability';
-
 const name = 'Comparavailability';
+
+const shortName = 'comparavailability';
 
 const description = 'It allows to compare data and see its availability on a map.';
 
-export { shortName, name, description, Page };
+const type = 'single-page';
+
+const route = shortName;
+
+export { shortName, name, description, type, route, Page };

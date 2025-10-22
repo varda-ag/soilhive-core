@@ -4,7 +4,7 @@ import MainLayout from "./layouts/MainLayout";
 import Homepage from "./pages/Homepage";
 import Donation from "./pages/Donation";
 import Admin from "./pages/Admin";
-import {shortName, Page} from "remote/module";
+import {singlePages} from "./utilities/moduleFederation";
 
 function App() {
   return (
@@ -14,7 +14,9 @@ function App() {
           <Route index element={<Homepage />} />
           <Route path="/donation" element={<Donation />} />
           <Route path="/admin" element={<Admin />} />
-          <Route path={`/${shortName}`} element={<Page />} />
+          {singlePages.map(({route, Page}) =>
+            <Route path={`/${route}`} element={<Page />} />
+          )}
         </Route>        
       </Routes>
     </BrowserRouter>

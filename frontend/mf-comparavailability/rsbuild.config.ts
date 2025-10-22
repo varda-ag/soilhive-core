@@ -4,7 +4,7 @@ import { pluginModuleFederation } from '@module-federation/rsbuild-plugin';
 
 export default defineConfig({
   server: {
-    port: 3001
+    port: 3002
   },
   plugins: [
     pluginReact(),
