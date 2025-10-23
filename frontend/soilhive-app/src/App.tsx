@@ -1,5 +1,6 @@
 import { BrowserRouter, Route, Routes } from "react-router";
-import './App.css';
+import './styles/App.css';
+import PageTitle from "./components/PageTitle";
 import MainLayout from "./layouts/MainLayout";
 import Homepage from "./pages/Homepage";
 import Donation from "./pages/Donation";
@@ -11,11 +12,31 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route element={<MainLayout />}>
-          <Route index element={<Homepage />} />
-          <Route path="/donation" element={<Donation />} />
-          <Route path="/admin" element={<Admin />} />
-          {singlePages.map(({route, Page}) =>
-            <Route path={`/${route}`} element={<Page />} />
+          <Route index element={
+            <>
+              <PageTitle title="Soilhive - Home" />
+              <Homepage />
+            </>
+          } />
+          <Route path="/donation" element={
+            <>
+              <PageTitle title="Soilhive - Donation" />
+              <Donation />
+            </>
+          } />
+          <Route path="/admin" element={
+            <>
+              <PageTitle title="Soilhive - Admin" />
+              <Admin />
+            </>
+          } />
+          {singlePages.map(({name, route, Page}) =>
+            <Route path={`/${route}`} element={
+              <>
+                <PageTitle title={`Soilhive - ${name}`} />
+                <Page />
+              </>
+            } />
           )}
         </Route>        
       </Routes>
