@@ -1,4 +1,6 @@
 import express, { Request, Response } from "express";
+import { renderToStaticMarkup } from 'react-dom/server';
+import Donation from "./pages/donation.page";
 
 const app = express();
 const port = 3000;
@@ -16,7 +18,12 @@ app.get("/modules.json", (req: Request, res: Response) => {
     }
   ];
   res.json(modules);
-})
+});
+
+app.get("/pages/donation", (req: Request, res: Response) => {
+  const html = renderToStaticMarkup(<Donation />);
+  res.send(html);
+});
 
 app.listen(port, () => {
   console.log(`Server is running at http://localhost:${port}`);
