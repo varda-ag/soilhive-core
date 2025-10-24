@@ -1,0 +1,56 @@
+{
+  // Visit https://aka.ms/tsconfig to read more about this file
+  "compilerOptions": {
+    "strictPropertyInitialization": false,
+    "esModuleInterop": true,
+    "noImplicitAny": false,
+    "noImplicitReturns": true,
+    "noImplicitThis": true,
+    //"module": "commonjs",
+    "resolveJsonModule": true,
+    //"target": "es2021",
+    "pretty": true,
+    "outDir": "dist",
+    "allowJs": true,
+    "baseUrl": ".",
+    // File Layout
+    // "rootDir": "./src",
+    // "outDir": "./dist",
+
+    // Environment Settings
+    // See also https://aka.ms/tsconfig/module
+    "module": "nodenext",
+    "target": "esnext",
+    "types": [],
+    // For nodejs:
+    // "lib": ["esnext"],
+    // "types": ["node"],
+    // and npm install -D @types/node
+
+    // Other Outputs
+    "sourceMap": true,
+    "declaration": true,
+    "declarationMap": true,
+
+    // Stricter Typechecking Options
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+
+    // Style Options
+    "noImplicitOverride": true,
+    "noUnusedLocals": true,
+    //"noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "noPropertyAccessFromIndexSignature": true,
+
+    // Recommended Options
+    "strict": true,
+    "jsx": "react-jsx",
+    "isolatedModules": true,
+    "noUncheckedSideEffectImports": true,
+    "moduleDetection": "force",
+    "skipLibCheck": true
+  },
+  "include": ["*.ts", "./src/**/*.ts", "./scripts/**/*.ts"],
+  "exclude": ["node_modules", "src/**/*.test.ts", "src/**/*.test.ts", "src/**/__tests__"]
+}
