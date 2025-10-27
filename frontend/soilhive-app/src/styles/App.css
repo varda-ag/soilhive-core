@@ -1,0 +1,23 @@
+body {
+  margin: 0;
+  font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
+}
+
+.menu {
+  margin: 0;
+  ul {
+    margin: 0;
+    padding: 0 24px;
+    list-style: none;
+    li {
+      display: inline-block;
+    }
+    li + li {
+      margin-left: 12px;
+    }
+  }
+}
+
+.content {
+  padding: 0 24px;
+}
