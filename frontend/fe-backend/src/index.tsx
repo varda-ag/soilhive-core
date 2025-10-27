@@ -1,6 +1,6 @@
 import express, { Request, Response } from "express";
 import { renderToStaticMarkup } from 'react-dom/server';
-import Donation from "./pages/Donation.page";
+import Donation from "./pages/donation.page";
 
 const app = express();
 const port = 3000;
