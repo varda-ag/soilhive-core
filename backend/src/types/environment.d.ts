@@ -8,5 +8,6 @@ declare namespace NodeJS {
     readonly POSTGRES_DB?: string;
     readonly POSTGRES_USER?: string;
     readonly POSTGRES_PASSWORD?: string;
+    readonly POSTGRES_SCHEMA?: string;
   }
 }
