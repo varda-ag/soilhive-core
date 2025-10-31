@@ -51,6 +51,6 @@
     "moduleDetection": "force",
     "skipLibCheck": true
   },
-  "include": ["*.ts", "./src/**/*.ts", "./scripts/**/*.ts"],
-  "exclude": ["node_modules", "src/**/*.test.ts", "src/**/*.test.ts", "src/**/__tests__"]
+  "include": ["*.ts", "*.tsx", "./src/**/*.ts", "./src/**/*.tsx", "./scripts/**/*.ts", "./scripts/**/*.ts"],
+  "exclude": ["node_modules", "src/**/*.test.ts", "src/**/__tests__"]
 }
