@@ -9,5 +9,5 @@ export const errorMiddleware = async (err: any, req: Request, res: Response, nex
     instance: req.originalUrl,
     errors: err.errors,
   };
-  res.status(err.status).type("application/problem+json").json(problemDetails);
+  res.status(err.status || 500).type("application/problem+json").json(problemDetails);
 };

@@ -9,6 +9,7 @@ export const startDockerCompose = async () => {
   const yaml = path.join(__dirname, "docker-compose.yml");
   exec(`docker compose -f ${yaml} up -d`);
   let count = 0;
+  let error = undefined;
   while (count++ < 10) {
     try {
       const dataSource = await getDataSource();
@@ -17,11 +18,12 @@ export const startDockerCompose = async () => {
       }
     } catch (e) {
       // Ignore, retry
+      error = e;
     }
     // Waiting for Postgres to be ready...
     await sleep(500);
   }
-  throw new Error("Failed to connect to Dockerized Postgres. Is the deamon running?");
+  throw new Error("Failed to connect to Dockerized Postgres (is the deamon running?): " + error);
 };
 
 export const teardown = async () => {
