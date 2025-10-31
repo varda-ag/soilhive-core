@@ -1,20 +1,29 @@
-import { ErrorResponse } from "../utils/error";
 import { JsonStorage } from "../entities/JsonStorage";
 import { Request, Response } from "express";
+import ConfigService from "../services/ConfigService";
+
+const configService = new ConfigService();
 
 export const putConfig = async (req: Request, res: Response) => {
-  res.json({ message: "PUT config not implemented yet" });
+  const { repo, id } = getRepoAndId(req);
+  const data = await configService.putConfig(repo, id, req.body);
+  res.json(data);
 };
 
 export const getConfig = async (req: Request, res: Response) => {
-  const repo = req.customData.entityManager.getRepository(JsonStorage);
-  const data = await repo.findOneBy({ id: req.params['id']! });
-  if (!data) {
-    throw new ErrorResponse("Configuration not found", 404);
-  }
+  const { repo, id } = getRepoAndId(req);
+  const data = await configService.getConfig(repo, id);
   res.json(data);
 };
 
 export const deleteConfig = async (req: Request, res: Response) => {
-  res.json({ message: "DELETE config not implemented yet" });
+  const { repo, id } = getRepoAndId(req);
+  await configService.deleteConfig(repo, id);
+  res.sendStatus(204);
+};
+
+const getRepoAndId = (req: Request) => {
+  const repo = req.customData.entityManager.getRepository(JsonStorage);
+  const id = req.params["id"]!;
+  return { repo, id };
 };

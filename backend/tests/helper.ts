@@ -28,7 +28,7 @@ export const teardown = async () => {
   await destroyDataSource();
 };
 
-export const setupTestData = async () => {
+export const clearDatabase = async () => {
   const dataSource = await getDataSource();
   const tableNames = dataSource?.entityMetadatas.map((entity) => `"${entity.tableName}"`).join(", ");
   await dataSource?.query(`TRUNCATE TABLE ${tableNames} CASCADE;`);
