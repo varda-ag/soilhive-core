@@ -56,3 +56,27 @@ const entityManager = await getEntityManager();
 const repo = await entityManager.getRepository(Location);
 const saved = await repo.save(location);
 ```
+
+### Migrations
+
+TypeORM provides a built in CLI tool to work with migrations.
+The tool is written in JavaScript, so migrations needs to be run from `dist` folder after transpile step.
+That is why a separate database connection is defined in `src/utils/migrations-data-source.ts`.
+
+Migration commands:
+```
+# Transpile (do this before working with migrations)
+npm run build
+
+# Creating a new (empty) migration
+npm run typeorm migration:create src/migrations/MyNewMigration
+
+# Generating "init" migration from current DB schema
+npm run typeorm migration:generate -- CreateSchema -d dist/utils/migrations-data-source.js
+
+# Applying migrations
+npm run typeorm migration:run -- -d dist/utils/migrations-data-source.js
+
+# Reverting migrations
+npm run typeorm migration:revert -- -d dist/utils/migrations-data-source.js
+```

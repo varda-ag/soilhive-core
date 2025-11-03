@@ -2,6 +2,7 @@ import "reflect-metadata";
 import { DataSource, EntityManager } from "typeorm";
 import assert from "assert";
 import path from "path";
+import { isJest } from "./utils";
 
 // This global variable at module level
 // is used to apply lazy loading to DB connection
@@ -13,6 +14,8 @@ async function createDataSource(createSchema: boolean) {
     assert(process.env[name], `Missing environment variable: ${name}`);
   }
 
+  const schema = isJest() ? "testschema" : process.env.POSTGRES_SCHEMA;
+
   const dataSource = new DataSource({
     type: "postgres",
     host: process.env.POSTGRES_HOST!,
@@ -20,14 +23,19 @@ async function createDataSource(createSchema: boolean) {
     username: process.env.POSTGRES_USER!,
     password: process.env.POSTGRES_PASSWORD!,
     database: process.env.POSTGRES_DB!,
-    ...(!createSchema && { schema: process.env.POSTGRES_SCHEMA! }),
-    entities: [path.join(__dirname, "/../entities/**/*{.ts,.js}")],
-    synchronize: true,
+    ...(!createSchema && { schema }),
+    entities: [path.join(__dirname, "../entities/**/*{.ts,.js}")],
+    migrations: [path.join(__dirname, "../migrations/**/*{.ts,.js}")],
+    synchronize: isJest(),
     logging: false,
   });
   await dataSource.initialize();
+  const escapedSchema = `"${schema}"`;
   if (createSchema) {
-    await dataSource.query(`CREATE SCHEMA IF NOT EXISTS ${process.env.POSTGRES_SCHEMA}`);
+    await dataSource.query(`CREATE SCHEMA IF NOT EXISTS ${escapedSchema}`);
+    await dataSource.query(`CREATE EXTENSION IF NOT EXISTS postgis SCHEMA ${escapedSchema}`);
+  } else {
+    await dataSource.query(`SET search_path TO ${escapedSchema}, public`);
   }
   return dataSource;
 }
