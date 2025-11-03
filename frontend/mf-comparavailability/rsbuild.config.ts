@@ -6,6 +6,9 @@ export default defineConfig({
   server: {
     port: 3002
   },
+  output: {
+    cleanDistPath: true
+  },
   plugins: [
     pluginReact(),
     pluginModuleFederation({
@@ -16,11 +19,14 @@ export default defineConfig({
       filename: 'remoteEntry.js',
       shared: {
         react: {
-          singleton: true
+          singleton: true,
+          eager: true
         },
         'react-dom': {
-          singleton: true
-        }
+          singleton: true,
+          eager: true
+        },
+        "./src/components/Map.tsx": {}
       }
     })
   ],
