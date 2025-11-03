@@ -20,6 +20,9 @@ importers:
       react-router:
         specifier: ^7.9.4
         version: 7.9.4(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+      react-singleton-context:
+        specifier: ^1.1.1
+        version: 1.1.1(react@19.2.0)
     devDependencies:
       '@module-federation/rsbuild-plugin':
         specifier: ^0.21.1
@@ -1360,6 +1363,11 @@ packages:
     peerDependenciesMeta:
       react-dom:
         optional: true
+
+  react-singleton-context@1.1.1:
+    resolution: {integrity: sha512-Ge55f1RwO7hw0PaFecgU9VQwajIUp0419prVQ22jbpiTpaCF/mmnaw0NkOrJOhQdmT0S69ZTR+AOWAEY9wgSXQ==}
+    peerDependencies:
+      react: ^17.0.0 || ^18.0.0 || ^19.0.0
 
   react@19.2.0:
     resolution: {integrity: sha512-tmbWg6W31tQLeB5cdIBOicJDJRR2KzXsV7uSK9iNfLWQ5bIZfxuPEHp7M8wiHyHnn0DD1i7w3Zmin0FtkrwoCQ==}
@@ -2994,6 +3002,10 @@ snapshots:
       set-cookie-parser: 2.7.1
     optionalDependencies:
       react-dom: 19.2.0(react@19.2.0)
+
+  react-singleton-context@1.1.1(react@19.2.0):
+    dependencies:
+      react: 19.2.0
 
   react@19.2.0: {}
 
