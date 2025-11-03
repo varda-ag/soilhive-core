@@ -4,7 +4,7 @@ import { Repository } from "typeorm";
 
 export default class ConfigService {
   putConfig = async (repo: Repository<JsonStorage>, id: string, data: any): Promise<any> => {
-    await repo.upsert([{ id, data }], ["id"]);
+    await repo.upsert([{ id, data, deletedAt: null }], ["id"]);
     return await this.getConfig(repo, id);
   };
 
@@ -17,6 +17,6 @@ export default class ConfigService {
   };
 
   deleteConfig = async (repo: Repository<JsonStorage>, id: string): Promise<void> => {
-    await repo.delete({ id });
+    await repo.softDelete({ id });
   };
 }

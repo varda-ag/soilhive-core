@@ -1,3 +1,4 @@
+import "dotenv/config";
 import express from "express";
 import swaggerUi from "swagger-ui-express";
 import { transactionMiddleware } from "./middlewares/transaction";

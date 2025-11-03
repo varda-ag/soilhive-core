@@ -5,10 +5,10 @@ abstract class BaseTable extends BaseEntity {
   createdAt: Date;
 
   @UpdateDateColumn()
-  updatedAt: Date;
+  updatedAt: Date | null;
 
   @DeleteDateColumn()
-  deletedAt: Date;
+  deletedAt: Date | null;
 }
 
 export default BaseTable;

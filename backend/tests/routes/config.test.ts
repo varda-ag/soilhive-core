@@ -36,6 +36,17 @@ describe("Testing /config/{id} routes", () => {
     const row = await getTestConfigFromDB();
     expect(row).toBeNull();
   });
+
+  it("Deletes (soft) an existing config, then creates it again: it should be restored", async () => {
+    const data = { key: "value" };
+    await createTestConfigInDB(data);
+    await request(app).delete("/config/test-config");
+    const row = await getTestConfigFromDB();
+    expect(row).toBeNull();
+    await request(app).put("/config/test-config").send(data);
+    const row2 = await getTestConfigFromDB();
+    expect(row2).not.toBeNull();
+  });
 });
 
 const createTestConfigInDB = async (data: any) => {
