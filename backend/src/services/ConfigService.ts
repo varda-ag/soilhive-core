@@ -19,4 +19,13 @@ export default class ConfigService {
   deleteConfig = async (repo: Repository<JsonStorage>, id: string): Promise<void> => {
     await repo.softDelete({ id });
   };
+
+  exportConfigs = async (repo: Repository<JsonStorage>): Promise<any> => {
+    const rows = await repo.find();
+    const output = {}
+    for (const r of rows) {
+      output[r.id] = r.data;
+    }
+    return output;
+  };
 }

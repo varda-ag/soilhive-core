@@ -22,6 +22,12 @@ export const deleteConfig = async (req: Request, res: Response) => {
   res.sendStatus(204);
 };
 
+export const exportConfigs = async (req: Request, res: Response) => {
+  const { repo } = getRepoAndId(req);
+  const data = await configService.exportConfigs(repo);
+  res.json(data);
+};
+
 const getRepoAndId = (req: Request) => {
   const repo = req.customData.entityManager.getRepository(JsonStorage);
   const id = req.params["id"]!;

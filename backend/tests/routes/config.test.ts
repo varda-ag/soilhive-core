@@ -47,6 +47,18 @@ describe("Testing /config/{id} routes", () => {
     const row2 = await getTestConfigFromDB();
     expect(row2).not.toBeNull();
   });
+
+  it("Exports all the configs", async () => {
+    const a = { customValue: 123.456 };
+    const b = { anotherValue: "test" };
+    await request(app).put("/config/a").send(a);
+    await request(app).put("/config/b").send(b);
+    const res = await request(app).post("/config-export");
+    expect(res.body).toEqual({
+      a: a,
+      b: b,
+    });
+  });
 });
 
 const createTestConfigInDB = async (data: any) => {
