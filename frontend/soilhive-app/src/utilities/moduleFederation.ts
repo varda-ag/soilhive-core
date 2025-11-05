@@ -23,4 +23,6 @@ const singlePages = remoteModules.filter(module => module.type === 'single-page'
 /** Store loaded dynamically from the host itself so that it shares its instance */
 const store: any = await mf.loadRemote(`soilhiveapp/store`);
 
+(window as any).store_host = store;
+
 export { remoteModules as modules, singlePages, store };

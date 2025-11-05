@@ -13,4 +13,6 @@ const mf = createInstance({
 /** Store loaded dynamically from the host itself so that it shares its instance */
 const store: any = await mf.loadRemote(`soilhiveapp/store`);
 
+(window as any).store_module = store;
+
 export { store };
