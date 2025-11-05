@@ -1,8 +1,8 @@
 import { createContext, useContext, useState } from "react";
 
-const CountContext = createContext([0, () => {}]);
+const CountContext: any = createContext([0, () => {}]);
 
-export function CountProvider({ children }) {
+export function CountProvider({ children }: {children: any}) {
   return (
     <CountContext.Provider value={useState(0)}>
       {children}

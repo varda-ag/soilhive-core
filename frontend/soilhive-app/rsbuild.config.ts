@@ -22,6 +22,9 @@ export default defineConfig({
         "./store": "./src/store",
       },
       filename: 'remoteEntry.js',
+      // remotes: {
+      //   soilhiveapp: "soilhiveapp@http://localhost:3001/remoteEntry.js",
+      // },
       shared: {
         ...deps,
         react: {
