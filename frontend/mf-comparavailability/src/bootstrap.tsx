@@ -1,13 +1,13 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import Page from './Page';
+import InternalPage from './InternalPage';
 
 const rootEl = document.getElementById('root');
 if (rootEl) {
   const root = createRoot(rootEl);
   root.render(
     <React.StrictMode>
-      <Page />
+      <InternalPage />
     </React.StrictMode>,
   );
 }
