@@ -9,7 +9,9 @@ export const openApiMiddleware = OpenApiValidator({
   apiSpec: apiSpecFile,
   validateRequests: true,
   validateResponses: false,
-  operationHandlers: path.join(__dirname, ".."), // This points to "controllers" folder
+  // operationHandlers points to "src"
+  // "x-eov-operation-handler" will reference "controllers" folder
+  operationHandlers: path.join(__dirname, ".."),
 });
 
 export const swaggerDocument = yaml.load(readFileSync(apiSpecFile, "utf8"));
