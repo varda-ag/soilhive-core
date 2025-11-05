@@ -1,10 +1,11 @@
 // import { Map as MLibreMap } from 'react-map-gl/maplibre';
 // import 'maplibre-gl/dist/maplibre-gl.css';
 
-import { useCount } from "soilhiveapp/store";
+// import { useCount } from "soilhiveapp/store";
+import {store} from '../../moduleFederation';
 
 function Map() {
-  const [count, setCount] = useCount();
+  const [count, setCount] = store.useCount();
   return (
     <div style={{width:'100%', height: '100%'}}>
       {/* <MLibreMap
