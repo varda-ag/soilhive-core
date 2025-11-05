@@ -6,7 +6,13 @@ const remotes: any[] = modulesList;
 
 const mf = createInstance({
   name: 'mf_host',
-  remotes
+  remotes: [
+    ...remotes,
+    {
+      name: 'soilhiveapp',
+      entry: 'http://localhost:3001/mf-manifest.json'
+    }
+  ]
 });
 
 // Top level await, the module pauses until it resolves the promise and then it does the export
@@ -14,4 +20,7 @@ const remoteModules: any[] = await Promise.all(remotes.map(remote => mf.loadRemo
 
 const singlePages = remoteModules.filter(module => module.type === 'single-page');
 
-export { remoteModules as modules, singlePages };
+/** Store loaded dynamically from the host itself so that it shares its instance */
+const store: any = await mf.loadRemote(`soilhiveapp/store`);
+
+export { remoteModules as modules, singlePages, store };

@@ -23,6 +23,7 @@ export default defineConfig({
         soilhiveapp: "soilhiveapp@http://localhost:3001/remoteEntry.js",
       },
       shared: {
+        ...deps,
         react: {
           singleton: true,
           requiredVersion: deps.react,

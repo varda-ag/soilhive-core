@@ -1,9 +1,9 @@
 import { Link, Outlet } from 'react-router';
-import { singlePages } from '../utilities/moduleFederation';
-import { useCount } from "../store";
+import { singlePages, store } from '../utilities/moduleFederation';
+// import { useCount } from "../store";
 
 function MainLayout() {
-  const [count] = useCount();
+  const [count] = store.useCount();
   return (
     <>
       <div className="menu">
