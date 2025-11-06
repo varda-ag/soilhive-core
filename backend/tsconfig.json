@@ -49,8 +49,12 @@
     "isolatedModules": true,
     "noUncheckedSideEffectImports": true,
     "moduleDetection": "force",
-    "skipLibCheck": true
+    "skipLibCheck": true,
+
+    // TypeORM
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true
   },
-  "include": ["*.ts", "./src/**/*.ts", "./scripts/**/*.ts"],
+  "include": ["*.ts", "./src/**/*.ts", "./types/**/*.ts", "jest.config.js", "jest.env.js"],
   "exclude": ["node_modules", "src/**/*.test.ts", "src/**/*.test.ts", "src/**/__tests__"]
 }

@@ -66,8 +66,11 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     environment:
-      DATABASE_URL: postgres://dbuser:dbpass@postgis:5432/database
-      LOCALSTACK_ENDPOINT: http://localstack:4566
+      POSTGRES_HOST: postgis
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: database
+      POSTGRES_USER: dbuser
+      POSTGRES_PASSWORD: dbpass
     ports:
       - "3001:3001"
     depends_on:
