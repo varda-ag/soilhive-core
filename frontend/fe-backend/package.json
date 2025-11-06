@@ -12,18 +12,18 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "express": "^5.1.0"
+    "express": "5.1.0"
   },
   "devDependencies": {
-    "@tsconfig/node-lts": "^22.0.2",
-    "@types/express": "^5.0.3",
-    "@types/node": "^24.9.1",
-    "@types/react": "^19.2.2",
-    "@types/react-dom": "^19.2.2",
-    "nodemon": "^3.1.10",
-    "react": "^19.2.0",
-    "react-dom": "^19.2.0",
-    "ts-node": "^10.9.2",
-    "typescript": "^5.9.3"
+    "@tsconfig/node-lts": "22.0.2",
+    "@types/express": "5.0.3",
+    "@types/node": "24.9.1",
+    "@types/react": "19.2.0",
+    "@types/react-dom": "19.2.0",
+    "nodemon": "3.1.10",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "ts-node": "10.9.2",
+    "typescript": "5.9.3"
   }
 }

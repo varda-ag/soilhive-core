@@ -1,38 +1,43 @@
-import { defineConfig } from '@rsbuild/core';
-import { pluginReact } from '@rsbuild/plugin-react';
-import { pluginModuleFederation } from '@module-federation/rsbuild-plugin';
+import { defineConfig } from "@rsbuild/core";
+import { pluginReact } from "@rsbuild/plugin-react";
+import { pluginModuleFederation } from "@module-federation/rsbuild-plugin";
 
-import {dependencies as deps} from "./package.json";
+import { dependencies as deps } from "./package.json";
 
 export default defineConfig({
   server: {
-    port: 3002
+    port: 3002,
   },
   output: {
-    cleanDistPath: true
+    cleanDistPath: true,
+  },
+  html: {
+    title: "mf-comparavailability",
   },
   plugins: [
-    pluginReact(),
+    //pluginReact(),
     pluginModuleFederation({
-      name: 'comparavailability',
+      name: "comparavailability",
       exposes: {
-        './module': './src/module'
+        "./module": "./src/module",
       },
-      filename: 'remoteEntry.js',
+      filename: "remoteEntry.js",
       // remotes: {
       //   soilhiveapp: "soilhiveapp@http://localhost:3001/remoteEntry.js",
       // },
       shared: {
-        ...deps,
-        react: {
-          singleton: true,
-          requiredVersion: deps.react,
-        },
-        'react-dom': {
-          singleton: true,
-          requiredVersion: deps["react-dom"],
-        }
-      }
-    })
+        //...deps,
+        // react: {
+        //   singleton: true,
+        //   eager: true,
+        //   requiredVersion: "19.2.0",
+        // },
+        // 'react-dom': {
+        //   singleton: true,
+        //   eager: true,
+        //   requiredVersion: "19.2.0",
+        // }
+      },
+    }),
   ],
 });
