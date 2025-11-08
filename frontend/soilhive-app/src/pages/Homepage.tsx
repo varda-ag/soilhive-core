@@ -1,16 +1,7 @@
-import React from "react";
-
-function hashString(str: string): number {
-  let hash = 5381;
-  for (let i = 0; i < str.length; i++) {
-    hash = (hash * 33) ^ str.charCodeAt(i);
-  }
-  // Convert to positive 32-bit integer
-  return hash >>> 0;
-}
-
-console.log("[APP] React version:", React.version, hashString(JSON.stringify(React)));
-window.stringApp = JSON.stringify(React);
+(window as any).React1 = require("react");
+const r1 = (window as any).React1;
+const r2 = (window as any).React2;
+console.log(`[app] React1 ${r1} === React2 ${r2} is`, r1 === r2);
 
 function Homepage() {
   return (

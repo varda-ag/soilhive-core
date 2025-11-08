@@ -1,26 +1,16 @@
 import { Map as MLibreMap } from "react-map-gl/maplibre";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { store } from "../../moduleFederation";
 
-import React from "react";
-
-function hashString(str: string): number {
-  let hash = 5381;
-  for (let i = 0; i < str.length; i++) {
-    hash = (hash * 33) ^ str.charCodeAt(i);
-  }
-  // Convert to positive 32-bit integer
-  return hash >>> 0;
-}
-
-console.log("[MAP] React version:", React.version, hashString(JSON.stringify(React)));
-window.stringMap = JSON.stringify(React);
+(window as any).React2 = require("react");
+const r1 = (window as any).React1;
+const r2 = (window as any).React2;
+console.log(`[module] React1 ${r1} === React2 ${r2} is`, r1 === r2);
 
 function Map() {
-  const [count, setCount] = store.useCount();
+  //const [count, setCount] = store.useCount();
   return (
     <div style={{ width: "100%", height: "100%" }}>
-      {count > 3 && (
+      {
         <MLibreMap
           initialViewState={{
             longitude: -100,
@@ -30,9 +20,9 @@ function Map() {
           style={{ width: 600, height: 400 }}
           mapStyle="https://demotiles.maplibre.org/style.json"
         ></MLibreMap>
-      )}
-      <p>Context count = {count}</p>
-      <button onClick={() => setCount((cnt: number) => cnt + 1)}>Increment</button>
+      }
+      <p>Context count = {123}</p>
+      <button>Increment</button>
     </div>
   );
 }

@@ -14,9 +14,9 @@ import { useState } from "react";
 // console.log("React1 === React2 = ", (window as any).React1 === (window as any).React2); // Should be true
 
 function App() {
-  const countState = useState(0);
+  //const countState = useState(0);
   return (
-    <store.CountProvider value={countState}>
+    //<store.CountProvider value={countState}>
       <BrowserRouter>
         <Routes>
           <Route element={<MainLayout />}>
@@ -49,7 +49,7 @@ function App() {
           </Route>
         </Routes>
       </BrowserRouter>
-    </store.CountProvider>
+    //</store.CountProvider>
   );
 };
 

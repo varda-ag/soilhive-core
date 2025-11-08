@@ -3,11 +3,11 @@ import {store} from '../moduleFederation';
 import { useState } from 'react';
 
 function InternalPage() {
-  const countState = useState(0);
+  //const countState = useState(0);
   return (
-      <store.CountProvider value={countState}>
+      // <store.CountProvider value={countState}>
         <Page />
-      </store.CountProvider>      
+      // </store.CountProvider>      
   );
 };
 

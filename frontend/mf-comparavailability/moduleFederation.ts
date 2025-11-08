@@ -1,3 +1,4 @@
+/*
 import { createInstance } from '@module-federation/enhanced/runtime';
 
 const mf = createInstance({
@@ -10,9 +11,11 @@ const mf = createInstance({
   ]
 });
 
-/** Store loaded dynamically from the host itself so that it shares its instance */
+// Store loaded dynamically from the host itself so that it shares its instance
 const store: any = await mf.loadRemote(`soilhiveapp/store`);
+*/
 
+const store: any = {};
 (window as any).store_module = store;
 
 export { store };
