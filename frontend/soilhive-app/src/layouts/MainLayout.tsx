@@ -10,7 +10,6 @@ function MainLayout() {
           {singlePages.map(({route, name}) => 
             <li key={route}><Link to={`/${route}`}>{name}</Link></li>
           )}
-          <li><Link to="/donation">Donation</Link></li>
           <li><Link to="/admin">Admin</Link></li>
         </ul>
       </div>
