@@ -2,9 +2,7 @@ import { createInstance } from "@module-federation/enhanced/runtime";
 import React from "react";
 import ReactDOM from "react-dom";
 
-const modulesListResponse = await fetch("http://localhost:3000/modules.json");
-const modulesList = await modulesListResponse.json();
-const remotes: any[] = modulesList;
+import remotes from '../../remotes.json'
 
 const mf = createInstance({
   name: "mf_host",

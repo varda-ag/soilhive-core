@@ -1,9 +1,7 @@
 import { Link, Outlet } from 'react-router';
-import { singlePages, store } from '../utilities/moduleFederation';
-// import { useCount } from "../store";
+import { singlePages } from '../utilities/moduleFederation';
 
 function MainLayout() {
-  //const [count, setCount] = store.useCount();
   return (
     <>
       <div className="menu">
@@ -12,7 +10,6 @@ function MainLayout() {
           {singlePages.map(({route, name}) => 
             <li key={route}><Link to={`/${route}`}>{name}</Link></li>
           )}
-          <li><Link to="/donation">Donation</Link></li>
           <li><Link to="/admin">Admin</Link></li>
           <li>Counter: {123} <button>Increment</button></li>
         </ul>
