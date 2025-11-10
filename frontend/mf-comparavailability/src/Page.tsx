@@ -1,4 +1,3 @@
-import Map from './components/Map';
 import './Page.css';
 
 function Page() {
@@ -6,8 +5,6 @@ function Page() {
     <div className="page-comparavailability">
       <h1>Comparavailability</h1>
       <p>This is the comparavailability page</p>
-      <Map />
-      hello!
     </div>
   );
 };

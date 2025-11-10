@@ -11,10 +11,8 @@
   },
   "dependencies": {
     "@module-federation/enhanced": "0.21.2",
-    "maplibre-gl": "5.10.0",
     "react": "19.2.0",
-    "react-dom": "19.2.0",
-    "react-map-gl": "8.1.0"
+    "react-dom": "19.2.0"
   },
   "devDependencies": {
     "@module-federation/rsbuild-plugin": "0.21.2",
