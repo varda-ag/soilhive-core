@@ -20,6 +20,7 @@ export default defineConfig({
         "./module": "./src/module",
       },
       filename: "remoteEntry.js",
+      // Shared section must be declared to avoid dup React issue
       shared: {
         react: { singleton: true },
         "react-dom": { singleton: true },

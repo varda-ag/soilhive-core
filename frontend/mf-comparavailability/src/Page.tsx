@@ -1,7 +1,5 @@
 import Map from './components/Map';
 import './Page.css';
-// import { CountProvider } from "soilhiveapp/store";
-// import {store} from '../moduleFederation';
 
 function Page() {
   return (
