@@ -6,10 +6,6 @@ import Homepage from "./pages/Homepage";
 import Admin from "./pages/Admin";
 import { singlePages } from "./utilities/moduleFederation";
 
-// require('react-dom');
-// (window as any).React2 = require('react');
-// console.log("React1 === React2 = ", (window as any).React1 === (window as any).React2); // Should be true
-
 function App() {
   return (
       <BrowserRouter>

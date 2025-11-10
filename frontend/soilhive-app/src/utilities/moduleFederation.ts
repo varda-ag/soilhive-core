@@ -2,7 +2,17 @@ import { createInstance } from "@module-federation/enhanced/runtime";
 import React from "react";
 import ReactDOM from "react-dom";
 
-import remotes from '../../remotes.json'
+interface RemoteConfig {
+  name: string;
+  entry: string; // mf-manifest.json url for the module
+}
+
+// Stub function - will fetch from configuration service later
+async function loadRemotesConfig(): Promise<RemoteConfig[]> {
+  return []; 
+}
+
+const remotes = await loadRemotesConfig();
 
 const mf = createInstance({
   name: "mf_host",

@@ -11,7 +11,6 @@ function MainLayout() {
             <li key={route}><Link to={`/${route}`}>{name}</Link></li>
           )}
           <li><Link to="/admin">Admin</Link></li>
-          <li>Counter: {123} <button>Increment</button></li>
         </ul>
       </div>
       <div className="content">
