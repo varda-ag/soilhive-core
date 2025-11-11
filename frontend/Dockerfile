@@ -8,7 +8,6 @@ ENV PATH="$PNPM_HOME:$PATH"
 
 WORKDIR /app
 COPY . .
-#COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile --recursive
 RUN pnpm run build
 

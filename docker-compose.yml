@@ -62,10 +62,9 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     ports:
-      - "3000:3000"
+      - "3000:80"
     stdin_open: true
     tty: true
-    command: npm start
 
 volumes:
   postgis_data:
