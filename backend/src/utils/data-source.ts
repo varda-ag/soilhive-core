@@ -26,7 +26,7 @@ async function createDataSource(createSchema: boolean) {
     ...(!createSchema && { schema }),
     entities: [path.join(__dirname, "../entities/**/*{.ts,.js}")],
     migrations: [path.join(__dirname, "../migrations/**/*{.ts,.js}")],
-    synchronize: isJest(),
+    synchronize: false,
     logging: false,
   });
   await dataSource.initialize();
@@ -63,3 +63,14 @@ export const destroyDataSource = async () => {
     dataSource = null;
   }
 };
+
+export const runConditionalMigrations = async () => {
+  const dataSource = await getDataSource();
+  const queryRunner = dataSource.createQueryRunner();
+  const tableExists = await queryRunner.hasTable("jsonstorage"); // Any table would be fine
+  if (!tableExists) {
+    await dataSource.runMigrations();
+  }
+  await queryRunner.release();
+};
+

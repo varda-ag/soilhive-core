@@ -28,28 +28,6 @@ services:
     ports:
       - "5432:5432"
 
-  martin:
-    image: urbica/martin
-    restart: unless-stopped
-    ports:
-      - 3003:3000
-    environment:
-      - WATCH_MODE=true
-      - DATABASE_URL=postgres://dbuser:dbpass@postgis:5432/database
-    depends_on:
-      - postgis
-
-  geoserver:
-    image: kartoza/geoserver:latest
-    ports:
-      - "8081:8080"
-    environment:
-      GEOSERVER_DATA_DIR: /opt/geoserver/data_dir
-      GEOSERVER_ADMIN_USER: admin
-      GEOSERVER_ADMIN_PASSWORD: geoserver
-    volumes:
-      - geoserver-data:/opt/geoserver/data_dir
-
   localstack:
     image: localstack/localstack:latest
     environment:
@@ -61,6 +39,7 @@ services:
     volumes:
       - localstack_data:/var/lib/localstack
       - /var/run/docker.sock:/var/run/docker.sock
+
   backend:
     build:
       context: ./backend
@@ -71,8 +50,9 @@ services:
       POSTGRES_DB: database
       POSTGRES_USER: dbuser
       POSTGRES_PASSWORD: dbpass
+      POSTGRES_SCHEMA: soilhive
     ports:
-      - "3001:3001"
+      - "4001:4001"
     depends_on:
       - postgis
       - localstack
@@ -82,12 +62,10 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     ports:
-      - "3000:3000"
+      - "3000:80"
     stdin_open: true
     tty: true
-    command: npm start
 
 volumes:
   postgis_data:
   localstack_data:
-  geoserver-data:

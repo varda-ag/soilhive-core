@@ -8,7 +8,6 @@ docker compose up -d
 
 Entry points:
 
-- http://localhost:8081/geoserver/web
-- http://localhost:8080/admin/master/console/
-- http://localhost:3001/
-- http://localhost:3000/
+- Keycloak: http://localhost:8080/admin/master/console/
+- Frontend: http://localhost:3000/
+- Backend:  http://localhost:4001/docs/
