@@ -4,43 +4,53 @@ import PageTitle from "./components/PageTitle";
 import MainLayout from "./layouts/MainLayout";
 import Homepage from "./pages/Homepage";
 import Admin from "./pages/Admin";
+import ThemeConfig from "./pages/ThemeConfig";
 import { singlePages } from "./utilities/moduleFederation";
 import { AuthContextProvider } from "./auth/AuthContextProvider";
+import { ThemeProvider } from './contexts/ThemeContext';
 
 function App() {
   return (
     <AuthContextProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route element={<MainLayout />}>
-            <Route index element={
-              <>
-                <PageTitle title="Soilhive - Home" />
-                <Homepage />
-              </>
-            } />
-            <Route path="/donation" element={
-              <>
-                <PageTitle title="Soilhive - Donation" />
-              </>
-            } />
-            <Route path="/admin" element={
-              <>
-                <PageTitle title="Soilhive - Admin" />
-                <Admin />
-              </>
-            } />
-            {singlePages.map(({ name, route, Page }) =>
-              <Route path={`/${route}`} element={
+      <ThemeProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route element={<MainLayout />}>
+              <Route index element={
                 <>
-                  <PageTitle title={`Soilhive - ${name}`} />
-                  <Page />
+                  <PageTitle title="Soilhive - Home" />
+                  <Homepage />
                 </>
               } />
-            )}
-          </Route>
-        </Routes>
-      </BrowserRouter>
+              <Route path="/donation" element={
+                <>
+                  <PageTitle title="Soilhive - Donation" />
+                </>
+              } />
+              <Route path="/admin" element={
+                <>
+                  <PageTitle title="Soilhive - Admin" />
+                  <Admin />
+                </>
+              } />
+              <Route path="/theme" element={
+                <>
+                  <PageTitle title="Soilhive - Theme" />
+                  <ThemeConfig />
+                </>
+              } />  
+              {singlePages.map(({ name, route, Page }) =>
+                <Route path={`/${route}`} element={
+                  <>
+                    <PageTitle title={`Soilhive - ${name}`} />
+                    <Page />
+                  </>
+                } />
+              )}
+            </Route>
+          </Routes>
+        </BrowserRouter>
+        </ThemeProvider>
       </AuthContextProvider>
   );
 };
