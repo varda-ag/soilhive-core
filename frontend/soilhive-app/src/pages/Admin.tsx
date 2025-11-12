@@ -3,7 +3,19 @@ import { useAuthContext } from "../auth/AuthContextProvider";
 
 function Admin() {
 
-  const authContext = useAuthContext()
+  const { isAuthenticated, isLoading, login, logout, token } = useAuthContext();
+
+  if (isLoading) {
+    return <div>Loading...</div>;
+  }
+
+  if (!isAuthenticated) {
+    return (
+    <div>
+      <h2>Access denied. Please log in.</h2>
+      <button onClick={ () => login() }>Login</button>
+    </div>)
+  }
 
   return (
     <div className="admin-page">
@@ -22,14 +34,8 @@ function Admin() {
           );
         }) }
       </ol>
-      <h2>Authorization</h2>
-      <h3>Loged in user: {authContext.token?.profile?.name}</h3>
-      {(
-        authContext.isAuthenticated ? 
-          <button onClick={() => authContext.logout()}>Logout</button>
-          :
-          <button onClick={() => authContext.login()}>Login</button>
-      )}
+      <h2>Authenticated user: {token?.profile?.name}</h2>
+      <button onClick={ () => logout() }>Logout</button>
     </div>
   );
 };
