@@ -5,7 +5,7 @@ import MainLayout from "./layouts/MainLayout";
 import Homepage from "./pages/Homepage";
 import Admin from "./pages/Admin";
 import { singlePages } from "./utilities/moduleFederation";
-import AuthContextProvider from "@soilhive/auth";
+import { AuthContextProvider } from "./auth/AuthContextProvider";
 
 function App() {
   return (
