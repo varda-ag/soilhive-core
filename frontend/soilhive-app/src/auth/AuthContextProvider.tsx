@@ -6,7 +6,7 @@ export function AuthContextProvider({children}: {children:React.ReactNode}) {
     const [authConfig, setAuthConfig] = useState<AuthConfig>()
     return (
         <div>
-            ok
+            {children}
         </div>
     )
 }
