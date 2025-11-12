@@ -5,7 +5,7 @@ import { pluginSvgr } from '@rsbuild/plugin-svgr';
 
 export default defineConfig({
   server: {
-    port: 3001
+    port: 3000
   },
   output: {
     cleanDistPath: true

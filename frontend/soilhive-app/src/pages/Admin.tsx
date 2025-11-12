@@ -1,6 +1,10 @@
 import { modules } from "../utilities/moduleFederation";
+import { useAuthContext } from "../auth/AuthContextProvider";
 
 function Admin() {
+
+  const authContext = useAuthContext()
+
   return (
     <div className="admin-page">
       <h1>Administration</h1>
@@ -18,6 +22,14 @@ function Admin() {
           );
         }) }
       </ol>
+      <h2>Authorization</h2>
+      <h3>Loged in user: {authContext.user?.profile?.name}</h3>
+      {(
+        authContext.isAuthenticated ? 
+          <button onClick={() => authContext.logout()}>Logout</button>
+          :
+          <button onClick={() => authContext.login()}>Login</button>
+      )}
     </div>
   );
 };

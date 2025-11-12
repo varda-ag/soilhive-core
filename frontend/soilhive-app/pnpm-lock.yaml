@@ -20,6 +20,9 @@ importers:
       maplibre-gl:
         specifier: ^5.12.0
         version: 5.12.0
+      oidc-client-ts:
+        specifier: ^3.4.0
+        version: 3.4.0
       react:
         specifier: 19.2.0
         version: 19.2.0
@@ -29,6 +32,9 @@ importers:
       react-map-gl:
         specifier: ^8.1.0
         version: 8.1.0(maplibre-gl@5.12.0)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+      react-oidc-context:
+        specifier: ^3.3.0
+        version: 3.3.0(oidc-client-ts@3.4.0)(react@19.2.0)
       react-router:
         specifier: 7.9.4
         version: 7.9.4(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
@@ -1729,6 +1735,10 @@ packages:
   jsonfile@6.2.0:
     resolution: {integrity: sha512-FGuPw30AdOIUTRMC2OMRtQV+jkVj2cfPqSeWXv1NEAJ1qZ5zb1X6z1mFhbfOB/iy3ssJCD+3KuZ8r8C3uVFlAg==}
 
+  jwt-decode@4.0.0:
+    resolution: {integrity: sha512-+KJGIyHgkGuIq3IEBNftfhW/LfWhXUIY6OmyVWjliu5KH1y0fw7VQ8YndE2O4qZdMSd9SqbnC8GOcZEy0Om7sA==}
+    engines: {node: '>=18'}
+
   kdbush@4.0.2:
     resolution: {integrity: sha512-WbCVYJ27Sz8zi9Q7Q0xHC+05iwkm3Znipc2XTlrnJbsHMYktW4hPhXUE8Ys1engBrvffoSCqbil1JQAa7clRpA==}
 
@@ -1887,6 +1897,10 @@ packages:
   nth-check@2.1.1:
     resolution: {integrity: sha512-lqjrjmaOoAnWfMmBPL+XNnynZh2+swxiX3WUE0s4yEHI6m+AwrK2UZOimIRl3X/4QctVqS8AiZjFqyOGrMXb/w==}
 
+  oidc-client-ts@3.4.0:
+    resolution: {integrity: sha512-Fe4EKXYxT1SkKfvEv4qOkVlPWYBjrV+4XXKLSvX9U4s5EHchawF1x2sguO+6u0tOa/Xw6lOvD/ClzCAxJUI25g==}
+    engines: {node: '>=18'}
+
   on-finished@2.4.1:
     resolution: {integrity: sha512-oVlzkg3ENAhCk2zdv7IJwd/QUD4z2RxRwpkcGY8psCVcCYZNq4wYnVWALHM+brtuJjePWiYF/ClmuDr8Ch5+kg==}
     engines: {node: '>= 0.8'}
@@ -1978,6 +1992,13 @@ packages:
         optional: true
       maplibre-gl:
         optional: true
+
+  react-oidc-context@3.3.0:
+    resolution: {integrity: sha512-302T/ma4AOVAxrHdYctDSKXjCq9KNHT564XEO2yOPxRfxEP58xa4nz+GQinNl8x7CnEXECSM5JEjQJk3Cr5BvA==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      oidc-client-ts: ^3.1.0
+      react: '>=16.14.0'
 
   react-refresh@0.17.0:
     resolution: {integrity: sha512-z6F7K9bV85EfseRCp2bzrpyQ0Gkw1uLoCel9XBVWPg/TjRj94SkJzUTGfOa4bs7iJvBWtQG0Wq7wnI0syw3EBQ==}
@@ -4222,6 +4243,8 @@ snapshots:
     optionalDependencies:
       graceful-fs: 4.2.11
 
+  jwt-decode@4.0.0: {}
+
   kdbush@4.0.2: {}
 
   keygrip@1.1.0:
@@ -4391,6 +4414,10 @@ snapshots:
     dependencies:
       boolbase: 1.0.0
 
+  oidc-client-ts@3.4.0:
+    dependencies:
+      jwt-decode: 4.0.0
+
   on-finished@2.4.1:
     dependencies:
       ee-first: 1.1.1
@@ -4470,6 +4497,11 @@ snapshots:
       react-dom: 19.2.0(react@19.2.0)
     optionalDependencies:
       maplibre-gl: 5.12.0
+
+  react-oidc-context@3.3.0(oidc-client-ts@3.4.0)(react@19.2.0):
+    dependencies:
+      oidc-client-ts: 3.4.0
+      react: 19.2.0
 
   react-refresh@0.17.0: {}
 
