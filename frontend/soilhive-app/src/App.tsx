@@ -5,9 +5,11 @@ import MainLayout from "./layouts/MainLayout";
 import Homepage from "./pages/Homepage";
 import Admin from "./pages/Admin";
 import { singlePages } from "./utilities/moduleFederation";
+import AuthContextProvider from "@soilhive/auth";
 
 function App() {
   return (
+    <AuthContextProvider>
       <BrowserRouter>
         <Routes>
           <Route element={<MainLayout />}>
@@ -39,6 +41,7 @@ function App() {
           </Route>
         </Routes>
       </BrowserRouter>
+      </AuthContextProvider>
   );
 };
 

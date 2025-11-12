@@ -14,7 +14,8 @@
     "@module-federation/enhanced": "0.21.2",
     "react": "19.2.0",
     "react-dom": "19.2.0",
-    "react-router": "7.9.4"
+    "react-router": "7.9.4",
+    "@soilhive/auth": "../auth"
   },
   "devDependencies": {
     "@module-federation/rsbuild-plugin": "0.21.2",
