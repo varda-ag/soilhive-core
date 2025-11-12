@@ -1,6 +1,7 @@
 import { JsonStorage } from "../entities/JsonStorage";
 import { Request, Response } from "express";
 import ConfigService from "../services/ConfigService";
+import StatusCodes from "http-status-codes";
 
 const configService = new ConfigService();
 
@@ -19,7 +20,7 @@ export const getConfig = async (req: Request, res: Response) => {
 export const deleteConfig = async (req: Request, res: Response) => {
   const { repo, id } = getRepoAndId(req);
   await configService.deleteConfig(repo, id);
-  res.sendStatus(204);
+  res.sendStatus(StatusCodes.NO_CONTENT);
 };
 
 export const exportConfigs = async (req: Request, res: Response) => {

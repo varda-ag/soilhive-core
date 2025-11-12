@@ -1,21 +1,10 @@
-const statusNameFor = Object.freeze(
-  new Map([
-    [400, 'Bad Request'],
-    [401, 'Unauthorized'],
-    [403, 'Forbidden'],
-    [404, 'Not Found'],
-    [413, 'Content Too Large'],
-    [422, 'Unprocessable Entity'],
-    [429, 'Too Many Requests'],
-    [500, 'Internal server error'],
-  ]),
-);
+import { getReasonPhrase } from "http-status-codes";
 
 export class ErrorResponse extends Error {
   status: number;
-  constructor(message: string, status: number) {
+  constructor(message: string, status: number | undefined) {
     super(message);
-    this.status = status;
-    this.name = statusNameFor.get(status) ?? statusNameFor.get(500)!;
+    this.status = status || 500;
+    this.name = getReasonPhrase(this.status);
   }
 }

@@ -18,6 +18,8 @@ paths:
       summary: Create or update configuration item
       tags:
         - config
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -78,6 +80,12 @@ paths:
           description: Object containing all the stored configurations
 
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
   schemas:
     ConfigItem:
       type: object

@@ -6,6 +6,7 @@
 2. Copy `.env-example` to `.env` and set proper values (defaults are provided) 
 3. Install dependencies with `npm i`
 4. Test everything with `npm run test`
+5. Run development environment with `npm run dev`
 
 ### Useful commands
 
