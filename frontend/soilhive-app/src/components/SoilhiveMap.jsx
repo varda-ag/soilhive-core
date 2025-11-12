@@ -25,10 +25,11 @@ function SoilhiveMap({
       <Map
         style={{ width: "100%" }}
         mapStyle={mapStyles[0].mapStyle}
-      // mapStyle="https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json"
-      // mapStyle="https://openmaptiles.geo.data.gouv.fr/styles/osm-bright/style.json"
-      // mapStyle="https://demotiles.maplibre.org/globe.json"
-      // mapStyle="https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json"
+        // mapStyle="https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json"
+        // mapStyle="https://openmaptiles.geo.data.gouv.fr/styles/osm-bright/style.json"
+        // mapStyle="https://demotiles.maplibre.org/globe.json"
+        // mapStyle="https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json"
+        {...(initialViewBoundingBox ? {initialViewState: { bounds: initialViewBoundingBox }} : {})}
       >
         {showGeocoder && <GeocoderControl position="top-left" onLoading={() => { }} onResults={() => { }} onResult={() => { }} onError={() => { }} />}
         <GeolocateControl position="bottom-right" />
