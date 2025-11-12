@@ -29,7 +29,7 @@ function Homepage() {
   return (
     <div className="home-page">
       <h1>Homepage</h1>
-      <p>This is the homepage</p>
+      <p style={{color: 'var(--primary-color)'}}>This is the homepage</p>
       <SoilhiveMap />
       <p>Altra mappa</p>
       <SoilhiveMap initialViewBoundingBox={[6.6272658, 35.2889616, 18.7844746, 47.0921462]} showGeocoder={true} mapStyles={[{name: 'Mapbox Satellite', mapStyle: MAPBOX_SATELLITE_MAP_STYLE}]}/>

@@ -13,6 +13,7 @@
   "dependencies": {
     "@maplibre/maplibre-gl-geocoder": "^1.9.1",
     "@module-federation/enhanced": "0.21.2",
+    "classnames": "^2.5.1",
     "maplibre-gl": "^5.12.0",
     "react": "19.2.0",
     "react-dom": "19.2.0",
@@ -23,6 +24,8 @@
     "@module-federation/rsbuild-plugin": "0.21.2",
     "@rsbuild/core": "1.5.14",
     "@rsbuild/plugin-react": "1.4.1",
+    "@rsbuild/plugin-sass": "^1.4.0",
+    "@rsbuild/plugin-svgr": "^1.2.2",
     "@rstest/core": "0.5.4",
     "@testing-library/dom": "10.4.1",
     "@testing-library/jest-dom": "6.9.1",
