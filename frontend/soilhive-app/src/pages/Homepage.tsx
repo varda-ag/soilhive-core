@@ -30,13 +30,15 @@ function Homepage() {
     <div className="home-page">
       <h1>Homepage</h1>
       <p style={{color: 'var(--primary-color)'}}>This is the homepage</p>
-      <SoilhiveMap />
+      <SoilhiveMap showNavigation={false} showGeolocation={false} showScale={false} scrollZoom={false} dragPan={false} />
       <p>Altra mappa</p>
       <SoilhiveMap
         initialViewBoundingBox={[6.6272658, 35.2889616, 18.7844746, 47.0921462]} showGeocoder={true}
         mapStyles={[
           {name: 'CartoCDN Voyager', mapStyle: 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json'},
-          {name: 'Mapbox Satellite', mapStyle: MAPBOX_SATELLITE_MAP_STYLE}
+          {name: 'Mapbox Satellite', mapStyle: MAPBOX_SATELLITE_MAP_STYLE},
+          {name: 'Maplibre Demotile Globe', mapStyle: 'https://demotiles.maplibre.org/globe.json'},
+          {name: 'OpenMap Tiles OSM Bright', mapStyle: 'https://openmaptiles.geo.data.gouv.fr/styles/osm-bright/style.json'}
         ]}
       />
     </div>
