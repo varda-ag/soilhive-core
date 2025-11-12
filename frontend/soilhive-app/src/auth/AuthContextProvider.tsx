@@ -3,6 +3,7 @@ import type { AuthConfig } from "./AuthConfig";
 import { fetchAuthConfig } from "./authApi";
 import { AuthProvider as ReactOidcProvider, useAuth as useReactOidcAuth } from 'react-oidc-context';
 import { type AuthContext } from "./AuthContext";
+import { usePasswordAuth } from "./usePasswordAuth";
 
 const authContext = createContext<AuthContext | undefined>(undefined)
 
@@ -61,22 +62,24 @@ function InnerProvider({ children, oidcEnabled }: { children: React.ReactNode, o
             isAuthenticated: !!reactOidcAuth.isAuthenticated,
             isLoading: reactOidcAuth.isLoading,
             error: reactOidcAuth.error,
-            user: reactOidcAuth.user,
-            login: reactOidcAuth.signinRedirect, 
-            logout: reactOidcAuth.signoutRedirect, 
+            token: reactOidcAuth.user,
+            login: () => reactOidcAuth.signinRedirect(), 
+            logout: () => reactOidcAuth.signoutRedirect(), 
             authMode: 'oidc'
         }
     }
     else {
         
+        const passwordAuth = usePasswordAuth()
+
         value = {
-            isAuthenticated: false,
-            isLoading: false,
-            error: undefined,
-            user: undefined,
-            login: () => { console.warn("Login called, but OIDC is not configured.") }, 
-            logout: () => { console.warn("Logout called, but OIDC is not configured.") }, 
-            authMode: 'none'
+            isAuthenticated: passwordAuth.isAuthenticated,
+            isLoading: passwordAuth.isLoading,
+            error: passwordAuth.error,
+            token: passwordAuth.token,
+            login: passwordAuth.login,
+            logout: passwordAuth.logout,
+            authMode: 'password'
         }
     }
 

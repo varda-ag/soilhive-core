@@ -1,11 +1,11 @@
-import { type User } from "./User";
+import { type Token } from "./Token";
 
 export type AuthContext = {
   isAuthenticated: boolean;
   isLoading: boolean;
   error?: unknown;
-  user?: User | null;
-  login: () => void;
+  token?: Token | null;
+  login: (password?: string) => void;
   logout: () => void;
   authMode: string;
 };

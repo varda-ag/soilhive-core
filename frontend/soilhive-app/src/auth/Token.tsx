@@ -1,4 +1,4 @@
-export type User = {
+export type Token = {
   id_token?: string;
   session_state?: string | null;
   access_token?: string;

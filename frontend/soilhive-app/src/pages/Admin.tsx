@@ -23,7 +23,7 @@ function Admin() {
         }) }
       </ol>
       <h2>Authorization</h2>
-      <h3>Loged in user: {authContext.user?.profile?.name}</h3>
+      <h3>Loged in user: {authContext.token?.profile?.name}</h3>
       {(
         authContext.isAuthenticated ? 
           <button onClick={() => authContext.logout()}>Logout</button>
