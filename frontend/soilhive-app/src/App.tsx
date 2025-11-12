@@ -6,12 +6,12 @@ import Homepage from "./pages/Homepage";
 import Admin from "./pages/Admin";
 import ThemeConfig from "./pages/ThemeConfig";
 import { singlePages } from "./utilities/moduleFederation";
-import { AuthContextProvider } from "./auth/AuthContextProvider";
+// import { AuthContextProvider } from "./auth/AuthContextProvider";
 import { ThemeProvider } from './contexts/ThemeContext';
 
 function App() {
   return (
-    <AuthContextProvider>
+    // <AuthContextProvider>
       <ThemeProvider>
         <BrowserRouter>
           <Routes>
@@ -51,7 +51,7 @@ function App() {
           </Routes>
         </BrowserRouter>
         </ThemeProvider>
-      </AuthContextProvider>
+      // </AuthContextProvider>
   );
 };
 
