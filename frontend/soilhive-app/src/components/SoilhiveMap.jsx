@@ -1,42 +1,77 @@
-import { GeolocateControl, Map, NavigationControl, ScaleControl, TerrainControl, type StyleSpecification } from 'react-map-gl/maplibre';
+import { useId, useState } from 'react';
+import { GeolocateControl, Map, NavigationControl, ScaleControl, TerrainControl, type StyleSpecification, type ImmutableLike } from 'react-map-gl/maplibre';
 import GeocoderControl from './GeocoderControl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import '@maplibre/maplibre-gl-geocoder/dist/maplibre-gl-geocoder.css';
+import '../styles/SoilhiveMap.scss';
 
-function MapStyleSwitcher() {
+type MapStyle = string | StyleSpecification | ImmutableLike<StyleSpecification>;
+type MapStyles = Array<{ name: string, mapStyle: MapStyle }>;
+
+function MapStyleSwitcher({mapStyles, onMapStyleChange}: {
+  mapStyles: MapStyles;
+  onMapStyleChange: Dispatch<MapStyle>;
+}) {
+  const id = useId();
   return (
-    <div>MapStyleSwitcher skeleton</div>
+    <div className="map-style-switcher">
+      {/* <label for={id}>Map style</label>  */}
+      <select name="map-styles"
+        id={id} 
+        defaultValue={0}
+        onChange={
+          event => {
+            const selectedIndex = Number(event.target.value);
+            onMapStyleChange(mapStyles[selectedIndex].mapStyle);
+          } 
+        }
+      >
+        { mapStyles.map(({name}, index) => {
+            return (<option key={index} value={index}>{name}</option>)
+          })
+        }
+      </select>
+    </div>
   );
 }
 
 interface SoilhiveMapProps {
-  initialViewBoundingBox?: [number, number, number, number],
-  showGeocoder?: boolean,
-  mapStyles?: Array<{ name: string, mapStyle: StyleSpecification }>
+  initialViewBoundingBox?: [number, number, number, number];
+  showGeocoder?: boolean;
+  showNavigation?: boolean;
+  showGeolocation?: boolean;
+  showScale?: boolean;
+  mapStyles?: MapStyles;
+  scrollZoom?: boolean;
+  dragPan?: boolean;
 };
 
 function SoilhiveMap({
   initialViewBoundingBox,
   showGeocoder = false,
-  mapStyles = [{name: 'CartoCDN Basemaps: Voyager', mapStyle: 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json'}]
+  showNavigation = true,
+  showGeolocation = true,
+  showScale = true,
+  mapStyles = [{name: 'CartoCDN Voyager', mapStyle: 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json'}],
+  scrollZoom = true,
+  dragPan = true
 }: SoilhiveMapProps) {
+  const [currentMapStyle, setCurrentMapStyle] = useState(mapStyles[0].mapStyle);
   return (
-    <div className="soilhive-map" style={{ width: '100%', height: "100%" }}>
+    <div className="soilhive-map">
       <Map
-        style={{ width: "100%" }}
-        mapStyle={mapStyles[0].mapStyle}
-        // mapStyle="https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json"
-        // mapStyle="https://openmaptiles.geo.data.gouv.fr/styles/osm-bright/style.json"
-        // mapStyle="https://demotiles.maplibre.org/globe.json"
-        // mapStyle="https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json"
+        scrollZoom={scrollZoom}
+        dragPan={dragPan}
+        className="map"
+        mapStyle={currentMapStyle}
         {...(initialViewBoundingBox ? {initialViewState: { bounds: initialViewBoundingBox }} : {})}
       >
         {showGeocoder && <GeocoderControl position="top-left" onLoading={() => { }} onResults={() => { }} onResult={() => { }} onError={() => { }} />}
-        <GeolocateControl position="bottom-right" />
-        <NavigationControl position="bottom-right" showCompass={false} showZoom={true} visualizePitch={false} />
-        <ScaleControl />
+        { showGeolocation && <GeolocateControl position="bottom-right" /> }
+        { showNavigation && <NavigationControl position="bottom-right" showCompass={false} showZoom={true} visualizePitch={false} /> }
+        { showScale && <ScaleControl /> }
       </Map>
-      <MapStyleSwitcher />
+      { mapStyles.length > 1 && <MapStyleSwitcher mapStyles={mapStyles} onMapStyleChange={setCurrentMapStyle} /> }
     </div>
   );
 };
