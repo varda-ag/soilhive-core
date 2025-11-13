@@ -11,8 +11,16 @@ declare namespace NodeJS {
     readonly POSTGRES_PASSWORD?: string;
     readonly POSTGRES_SCHEMA?: string;
     // Auth settings
-    readonly AUTH_JWKS_URL?: string;
-    readonly AUTH_AUDIENCE?: string;
-    readonly AUTH_ISSUER?: string;
+    readonly SUPER_ADMIN_PASSWORD?: string;
+    readonly DATA_ADMIN_PASSWORD?: string;
+    readonly SELF_SIGNING_SECRET?: string;
+    // OIDC settings
+    readonly OIDC_JWKS_URL?: string;
+    readonly OIDC_AUTHORITY?: string;
+    readonly OIDC_CLIENT_ID?: string;
+    readonly OIDC_REDIRECT_URI?: string;
+    readonly OIDC_POST_LOGOUT_REDIRECT_URI?: string;
+    readonly OIDC_SILENT_REDIRECT_URI?: string;
+    readonly OIDC_SCOPE?: string;
   }
 }

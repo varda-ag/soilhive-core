@@ -4,6 +4,6 @@ export interface Token extends JwtPayload {
   raw: string;
   email: string;
   scope: string;
-  isPlatformAdmin(): boolean;
+  isSuperAdmin(): boolean;
   isDataAdmin(): boolean;
 }

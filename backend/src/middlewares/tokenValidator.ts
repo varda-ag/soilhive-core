@@ -1,16 +1,26 @@
 import { Request } from "express";
 import jwt, { JwtPayload, PublicKey, Secret, VerifyErrors } from "jsonwebtoken";
-import { ErrorResponse } from "src/utils/error";
+import jwksClient from 'jwks-rsa';
+import { ErrorResponse } from "../../src/utils/error";
 import StatusCodes from "http-status-codes";
 import { Token } from "../interfaces/Token";
-import { TokenScopes } from "../types/types";
+import { AuthModes, TokenScopes } from "../types/types";
+import assert from "assert";
+import { AuthConfig } from "../interfaces/AuthConfig";
+import ConfigService from "../services/ConfigService";
 
 // Global JWKS client based on env var to fetch the public key
 let client: any | undefined = undefined;
+// Config can only change on server restart because it depends on env vars
+let authConfig: AuthConfig | undefined = undefined;
 
 // Function to get the signing key from JWKS based on the JWT header (kid)
 const getSigningKeyAsync = async (kid: string): Promise<string> => {
   return new Promise((resolve, reject) => {
+    if (!client) {
+      assert(process.env.OIDC_JWKS_URL, "Missing environment variable: OIDC_JWKS_URL");
+      client = jwksClient({ jwksUri: process.env.OIDC_JWKS_URL });
+    }
     client.getSigningKey(kid, (err, key) => {
       if (err) {
         return reject(err);
@@ -34,8 +44,17 @@ const verifyAsync = (token: string, secretOrPublicKey: Secret | PublicKey): Prom
 };
 
 export const tokenValidator = async (req: Request): Promise<boolean> => {
+  if (!authConfig) {
+    authConfig = ConfigService.getAuthConfig();
+  }
+
+  if (authConfig.authMode === AuthModes.NONE) {
+    throw new ErrorResponse("No authentication system has been configured in the platform", StatusCodes.UNAUTHORIZED);
+  }
+
   const tokenString = req.headers["authorization"]?.split(" ")[1];
   if (!tokenString) {
+    // No token has been provided
     return false;
   }
 
@@ -50,7 +69,7 @@ export const tokenValidator = async (req: Request): Promise<boolean> => {
   }
 
   try {
-    const publicKey = await getSigningKeyAsync(kid);
+    const publicKey = authConfig.authMode === AuthModes.OIDC ? await getSigningKeyAsync(kid) : process.env.SELF_SIGNING_SECRET!;
     const decoded = await verifyAsync(tokenString, publicKey);
     if (!decoded) {
       new ErrorResponse("Invalid token (decode failure)", StatusCodes.UNAUTHORIZED);
@@ -60,8 +79,8 @@ export const tokenValidator = async (req: Request): Promise<boolean> => {
     }
     req.customData.token = decoded as Token;
     req.customData.token.raw = tokenString; // Putting original token string here
-    req.customData.token.isPlatformAdmin = function () {
-      return this.scope?.includes(TokenScopes.PLATFORM_ADMIN);
+    req.customData.token.isSuperAdmin = function () {
+      return this.scope?.includes(TokenScopes.SUPER_ADMIN);
     };
     req.customData.token.isDataAdmin = function () {
       return this.scope?.includes(TokenScopes.DATA_ADMIN);

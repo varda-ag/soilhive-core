@@ -2,7 +2,7 @@ import { readFileSync } from "fs";
 import path from "path";
 import yaml from "js-yaml";
 import { middleware as OpenApiValidator } from "express-openapi-validator";
-import { tokenValidator } from "./token";
+import { tokenValidator } from "./tokenValidator";
 
 const apiSpecFile = path.join(__dirname, "..", "openapi.yaml");
 

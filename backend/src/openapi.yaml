@@ -4,6 +4,38 @@ info:
   version: 1.0.0
 
 paths:
+  /oauth/token:
+    post:
+      x-eov-operation-handler: controllers/auth
+      x-eov-operation-id: getToken
+      summary: Obtain JWT token using password
+      tags:
+        - auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                password:
+                  type: string
+              required:
+                - password
+      responses:
+        "200":
+          description: JWT token response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                  token_type:
+                    type: string
+                  expires_in:
+                    type: integer
   /config/{id}:
     parameters:
       - name: id
@@ -93,17 +125,11 @@ components:
     ErrorResponse:
       type: object
       required:
-        - type
         - title
         - status
         - detail
         - instance
       properties:
-        type:
-          type: string
-          format: uri
-          description: A URI reference that identifies the problem type. When dereferenced, it should provide human-readable documentation for the problem type.
-          example: "https://example.com/probs/not-found"
         title:
           type: string
           description: A short, human-readable summary of the problem type.
@@ -120,4 +146,3 @@ components:
           type: string
           format: uri
           description: A URI reference that identifies the specific occurrence of the problem. It may yield further information if dereferenced.
-          example: "/config/cfg123"
