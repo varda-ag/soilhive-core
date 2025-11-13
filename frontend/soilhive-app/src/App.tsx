@@ -7,9 +7,11 @@ import Admin from "./pages/Admin";
 import ThemeConfig from "./pages/ThemeConfig";
 import { singlePages } from "./utilities/moduleFederation";
 import { ThemeProvider } from './contexts/ThemeContext';
+import { AuthContextProvider } from "./auth/AuthContextProvider";
 
 function App() {
   return (
+    <AuthContextProvider>
       <ThemeProvider>
         <BrowserRouter>
           <Routes>
@@ -36,7 +38,7 @@ function App() {
                   <PageTitle title="Soilhive - Theme" />
                   <ThemeConfig />
                 </>
-              } />  
+              } />
               {singlePages.map(({ name, route, Page }) =>
                 <Route path={`/${route}`} element={
                   <>
@@ -48,7 +50,8 @@ function App() {
             </Route>
           </Routes>
         </BrowserRouter>
-        </ThemeProvider>
+      </ThemeProvider>
+    </AuthContextProvider>
   );
 };
 
