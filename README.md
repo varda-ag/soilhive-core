@@ -11,3 +11,98 @@ Entry points:
 - Keycloak: http://localhost:8080/admin/master/console/
 - Frontend: http://localhost:3000/
 - Backend:  http://localhost:4001/docs/
+
+## Authentication Setup
+
+This application supports two authentication methods:
+
+1. **Password-based authentication** - Simple password protection for admin access
+2. **OIDC authentication** - Integration with identity providers like Keycloak
+
+Authentication is configured through backend environment variables.
+
+### Password-Based Authentication
+
+Set the following environment variables to enable password authentication:
+
+- `SUPER_ADMIN_PASSWORD` - Password required to access the admin section
+- `DATA_ADMIN_PASSWORD` - Password required to manage data
+- `SELF_SIGNING_SECRET` - Secret used to sign authentication tokens
+
+### OIDC Authentication
+
+Set the following environment variables to enable OIDC authentication:
+
+- `OIDC_AUTHORITY` - Identity provider URL (e.g., `https://<host>/realms/<realm>` for Keycloak)
+- `OIDC_CLIENT_ID` - Client name as configured in your identity provider
+- `OIDC_REDIRECT_URI` - URL to redirect after successful login (e.g., `http://<host>/admin`)
+- `OIDC_POST_LOGOUT_REDIRECT_URI` - URL to redirect after logout (typically the app main page)
+- `OIDC_SILENT_REDIRECT_URI` - URL to redirect after token refresh (typically the app main page)
+- `OIDC_SCOPE` - Set to `openid`
+
+### Authentication Priority
+
+- If both password and OIDC variables are set, **OIDC takes precedence**
+- If no variables are set or only partially configured, **no authentication will be enabled**
+
+---
+
+## Keycloak Setup Example
+
+This example uses the Keycloak instance included in the SoilHiveCore docker-compose setup.
+
+### 1. Start Keycloak
+
+Run `docker-compose up`. Keycloak will be available at `http://localhost:8080`.
+
+### 2. Login to Keycloak
+
+Use the default credentials found in the `docker-compose.yaml` file.
+
+### 3. Create a Realm
+
+1. Create a new realm (only the name is required)
+2. Select the newly created realm
+
+### 4. Create a Test User
+
+Create a user within the realm for testing purposes. You can set the password in the credential tab
+
+### 5. Create a Client
+
+1. Click "Create Client"
+2. Set a **Client ID** (this represents your application)
+3. Select **OpenID Connect** as the client type
+4. In the **Capability config**, enable:
+   - Standard flow
+   - Direct Access Grants
+5. In the **Access settings**, configure:
+   - **Valid Redirect URIs**: `http://<host>/*` and `http://<host>`
+   - **Valid post logout redirect URIs**: `+`
+   - **Web origins**: `+`
+
+### 6. Configure Application Environment Variables
+
+Set the following environment variables for your application:
+```bash
+OIDC_AUTHORITY=http://localhost:8080/realms/<your-realm-name>
+OIDC_CLIENT_ID=<your-client-id>
+OIDC_REDIRECT_URI=http://<host>/admin
+OIDC_POST_LOGOUT_REDIRECT_URI=http://<host>
+OIDC_SILENT_REDIRECT_URI=http://<host>
+OIDC_SCOPE=openid
+```
+
+### 7. Test Authentication
+
+When you try to access the admin page, you should be redirected to Keycloak for authentication.
+
+### Important: HTTP/HTTPS Considerations
+
+⚠️ **In this configuration, Keycloak runs on HTTP (not HTTPS).** 
+
+For redirects to work properly:
+- If Keycloak is served over HTTP, your application must also be served over HTTP
+- If your application is served over HTTPS, Keycloak must also be served over HTTPS
+
+Ensure both services use the same protocol to avoid redirect issues.
