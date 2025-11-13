@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
-import ConfigService from "../services/ConfigService";
+import AuthService from "../services/AuthService";
 
-const configService = new ConfigService();
+const authService = new AuthService();
 
 export const getToken = async (req: Request, res: Response) => {
   const data = await authService.getToken(req.body);
