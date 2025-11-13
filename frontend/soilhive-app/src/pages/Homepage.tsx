@@ -1,7 +1,6 @@
 import type { StyleSpecification } from "react-map-gl/maplibre";
 import SoilhiveMap from "../components/SoilhiveMap";
-
-const MAPBOX_ACCESS_TOKEN = 'pk.eyJ1IjoidmFyZGEtbWFwYm94LWFkbWluIiwiYSI6ImNsZmttZTQweTA5ZTg0M3MwMGlpanplZmsifQ.Tg6f5VFvnSPjGrwV_g6nVg';
+import { MAPBOX_ACCESS_TOKEN } from "../utilities/environmentVariables";
 
 const MAPBOX_SATELLITE_MAP_STYLE: StyleSpecification = {
   version: 8,
@@ -18,9 +17,7 @@ const MAPBOX_SATELLITE_MAP_STYLE: StyleSpecification = {
     {
       id: "osm-tiles",
       type: "raster",
-      source: "raster-tiles",
-      // minzoom: 0,
-      // maxzoom: 19
+      source: "raster-tiles"
     }
   ]
 };
