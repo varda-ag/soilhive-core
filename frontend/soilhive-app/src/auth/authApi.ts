@@ -8,5 +8,10 @@ export function fetchAuthConfig(): Promise<AuthConfig> {
 }
 
 export function loginWithPassword(password?: string): Promise<Token> {
-    return Promise.resolve(token)
+    if(password === 'password') {
+        return Promise.resolve(token)
+    }
+    else{
+        throw Error("Invalid password")
+    }
 }

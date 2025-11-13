@@ -4,12 +4,13 @@ import { fetchAuthConfig } from "./authApi";
 import { AuthProvider as ReactOidcProvider, useAuth as useReactOidcAuth } from 'react-oidc-context';
 import { type AuthContext } from "./AuthContext";
 import { usePasswordAuth } from "./usePasswordAuth";
+import { LoginModal } from "./LoginModal";
 
 const authContext = createContext<AuthContext | undefined>(undefined)
 
 export function useAuthContext(): AuthContext {
     const ctx = useContext(authContext)
-    if(!ctx)
+    if (!ctx)
         throw Error("Auth Context not defined")
     return ctx
 }
@@ -53,24 +54,33 @@ export function AuthContextProvider({ children }: { children: React.ReactNode })
 
 // an inner provider is needed to grab the auth configuration from the respective hooks
 function InnerProvider({ children, oidcEnabled }: { children: React.ReactNode, oidcEnabled: boolean }) {
-    let value: AuthContext; 
+
+    const [shoLoginModal, setShowLoginModal] = useState(false)
+
+    let value: AuthContext;
 
     if (oidcEnabled) {
 
         const reactOidcAuth = useReactOidcAuth()
 
-        value = { 
+        value = {
             isAuthenticated: !!reactOidcAuth.isAuthenticated,
             isLoading: reactOidcAuth.isLoading,
             error: reactOidcAuth.error,
             token: reactOidcAuth.user,
-            login: () => reactOidcAuth.signinRedirect(), 
-            logout: () => reactOidcAuth.signoutRedirect(), 
+            login: () => reactOidcAuth.signinRedirect(),
+            logout: () => reactOidcAuth.signoutRedirect(),
             authMode: 'oidc'
         }
+
+        return (
+            <authContext.Provider value={value}>
+                {children}
+            </authContext.Provider>
+        )
     }
     else {
-        
+
         const passwordAuth = usePasswordAuth()
 
         value = {
@@ -78,15 +88,24 @@ function InnerProvider({ children, oidcEnabled }: { children: React.ReactNode, o
             isLoading: passwordAuth.isLoading,
             error: passwordAuth.error,
             token: passwordAuth.token,
-            login: passwordAuth.login,
+            login: () => setShowLoginModal(true),
             logout: passwordAuth.logout,
             authMode: 'password'
         }
+
+        return (
+            <authContext.Provider value={value}>
+                {children}
+                <LoginModal
+                    isOpen={shoLoginModal}
+                    onClose={() => setShowLoginModal(false)}
+                    onLogin={passwordAuth.login}
+                    error={passwordAuth.error}
+                />
+
+            </authContext.Provider>
+        )
     }
 
-    return ( 
-        <authContext.Provider value={value}>
-            {children}
-        </authContext.Provider>
-    )
+
 }
