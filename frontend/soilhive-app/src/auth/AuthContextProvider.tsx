@@ -51,6 +51,7 @@ export function AuthContextProvider({ children }: { children: React.ReactNode })
     }
 }
 
+// an inner provider is needed to grab the auth configuration from the respective hooks
 function InnerProvider({ children, oidcEnabled }: { children: React.ReactNode, oidcEnabled: boolean }) {
     let value: AuthContext; 
 
