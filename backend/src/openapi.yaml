@@ -36,9 +36,9 @@ paths:
                     type: string
                   expires_in:
                     type: integer
-  /config/{id}:
+  /config/{configId}:
     parameters:
-      - name: id
+      - name: configId
         in: path
         required: true
         schema:
@@ -111,6 +111,60 @@ paths:
         "200":
           description: Object containing all the stored configurations
 
+  /files/{fileId}:
+    parameters:
+      - name: fileId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Unique file identifier
+    post:
+      x-eov-operation-handler: controllers/files
+      x-eov-operation-id: fileUpload
+      summary: Upload a file
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+              required:
+                - file
+      responses:
+        "201":
+          description: File uploaded successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FileDescriptor"
+        "400":
+          $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - bearerAuth: [super-admin, data-admin]
+    get:
+      x-eov-operation-handler: controllers/files
+      x-eov-operation-id: fileDownload
+      summary: Download a file
+      parameters:
+        - in: query
+          name: token
+          required: false
+          description: Temporary access token to download access-protected files
+          schema:
+            type: string
+      responses:
+        "200":
+          description: File downloaded successfully
+
 components:
   securitySchemes:
     bearerAuth:
@@ -146,3 +200,32 @@ components:
           type: string
           format: uri
           description: A URI reference that identifies the specific occurrence of the problem. It may yield further information if dereferenced.
+
+    FileDescriptor:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Internal file identifier
+        key:
+          type: string
+          description: Storage key (path-like)
+        size:
+          type: integer
+          description: File size in bytes
+        mimeType:
+          type: string
+          description: MIME type of the file
+        uploadedAt:
+          type: string
+          format: date-time
+          description: Upload timestamp
+        metadata:
+          type: object
+          additionalProperties: true
+      required:
+        - id
+        - key
+        - size
+        - mimeType
+        - uploadedAt

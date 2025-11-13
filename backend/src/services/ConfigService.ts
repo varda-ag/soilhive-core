@@ -3,6 +3,7 @@ import { JsonStorage } from "../entities/JsonStorage";
 import { ErrorResponse } from "../utils/error";
 import { Repository } from "typeorm";
 import { AuthConfig, OIDCConfig } from "../interfaces/AuthConfig";
+import { defaultStorageConfig } from "../interfaces/StorageConfig";
 
 export default class ConfigService {
   putConfig = async (repo: Repository<JsonStorage>, id: string, data: any): Promise<any> => {
@@ -17,6 +18,9 @@ export default class ConfigService {
     }
     const row = await repo.findOneBy({ id });
     if (!row) {
+      if (id === ReservedConfigs.STORAGE) {
+        return defaultStorageConfig;
+      }
       throw new ErrorResponse("Configuration not found", 404);
     }
     return row.data;
