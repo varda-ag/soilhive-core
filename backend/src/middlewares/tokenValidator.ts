@@ -1,7 +1,7 @@
 import { Request } from "express";
 import jwt, { JwtPayload, PublicKey, Secret, VerifyErrors } from "jsonwebtoken";
 import jwksClient from "jwks-rsa";
-import { ErrorResponse } from "../../src/utils/error";
+import { ErrorResponse } from "../utils/error";
 import StatusCodes from "http-status-codes";
 import { Token } from "../interfaces/Token";
 import { AuthModes, TokenScopes } from "../types/types";

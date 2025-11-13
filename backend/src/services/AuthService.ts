@@ -4,7 +4,7 @@ import { AuthModes, TokenScopes } from "../types/types";
 import ConfigService from "./ConfigService";
 import { ErrorResponse } from "../utils/error";
 import { StatusCodes } from "http-status-codes";
-import { TokenResponse } from "src/interfaces/Token";
+import { TokenResponse } from "../interfaces/Token";
 
 const TOKEN_EXPIRATION_SECONDS = 24 * 60 * 60; // 24 hours
 
