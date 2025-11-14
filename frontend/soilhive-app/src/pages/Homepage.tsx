@@ -27,7 +27,9 @@ function Homepage() {
     <div className="home-page">
       <h1 style={{color: 'var(--primary-color)'}}>Homepage</h1>
       <SoilhiveMap
-        initialViewBoundingBox={[6.6272658, 35.2889616, 18.7844746, 47.0921462]} showGeocoder={true}
+        initialViewBoundingBox={[6.6272658, 35.2889616, 18.7844746, 47.0921462]}
+        showGeocoder={true}
+        geocoder={'nominatim'}
         mapStyles={[
           {name: 'CartoCDN Voyager', mapStyle: 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json'},
           {name: 'Mapbox Satellite', mapStyle: MAPBOX_SATELLITE_MAP_STYLE},

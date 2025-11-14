@@ -38,6 +38,7 @@ function MapStyleSwitcher({mapStyles, onMapStyleChange}: {
 interface SoilhiveMapProps {
   initialViewBoundingBox?: [number, number, number, number];
   showGeocoder?: boolean;
+  geocoder?: 'nominatim' | 'mapbox';
   showNavigation?: boolean;
   showGeolocation?: boolean;
   showScale?: boolean;
@@ -49,6 +50,7 @@ interface SoilhiveMapProps {
 function SoilhiveMap({
   initialViewBoundingBox,
   showGeocoder = false,
+  geocoder = 'nominatim',
   showNavigation = true,
   showGeolocation = true,
   showScale = true,
@@ -66,7 +68,7 @@ function SoilhiveMap({
         mapStyle={currentMapStyle}
         {...(initialViewBoundingBox ? {initialViewState: { bounds: initialViewBoundingBox }} : {})}
       >
-        {showGeocoder && <GeocoderControl position="top-left" onLoading={() => { }} onResults={() => { }} onResult={() => { }} onError={() => { }} />}
+        {showGeocoder && <GeocoderControl position="top-left" geocoder={geocoder} onLoading={() => { }} onResults={() => { }} onResult={() => { }} onError={() => { }} />}
         { showGeolocation && <GeolocateControl position="bottom-right" /> }
         { showNavigation && <NavigationControl position="bottom-right" showCompass={false} showZoom={true} visualizePitch={false} /> }
         { showScale && <ScaleControl /> }
