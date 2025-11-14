@@ -25,8 +25,7 @@ const MAPBOX_SATELLITE_MAP_STYLE: StyleSpecification = {
 function Homepage() {
   return (
     <div className="home-page">
-      <h1>Homepage</h1>
-      <p style={{color: 'var(--primary-color)'}}>This is the homepage</p>
+      <h1 style={{color: 'var(--primary-color)'}}>Homepage</h1>
       <SoilhiveMap
         initialViewBoundingBox={[6.6272658, 35.2889616, 18.7844746, 47.0921462]} showGeocoder={true}
         mapStyles={[
