@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import useTheme from '../hooks/useTheme';
 
-function ThemeConfig() {
+export function ThemeConfig() {
     const {theme, logo, handleChange, handleLogoChange, saveThemeConfig} = useTheme();
 
     const onChange = useCallback(({target: {name, value}}) => {

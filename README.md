@@ -12,6 +12,18 @@ Entry points:
 - Frontend: http://localhost:3000/
 - Backend:  http://localhost:4001/docs/
 
+# Development
+
+First start the app infrastructure services with:
+
+```docker-compose -f docker-compose-dev.yaml```
+
+Then start both backend and frontend with:
+
+```pnpm i -r```
+
+```pnpm run dev```
+
 
 # Authentication mode
 
@@ -106,7 +118,7 @@ Use the default credentials found in the `docker-compose.yaml` file.
 4. Set its **Client ID** (take note of this, since it wil be used to setup the application authentication configuration) 
 5. In the **Capability config**, enable "Standard flow"
 6. In the **Access settings**, configure:
-   - **Valid Redirect URIs**: `http://<BASE_APP_URL>/*` and `http://<BASE_APP_URL>`
+   - **Valid Redirect URIs**: `http://<BASE_APP_URL>/*`
    - **Valid post logout redirect URIs**: `+`
    - **Web origins**: `+`
 
