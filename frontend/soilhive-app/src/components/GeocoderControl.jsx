@@ -26,7 +26,6 @@ const nominatimGeocoderAPI: MaplibreGeocoderApi = {
       const request = `https://nominatim.openstreetmap.org/search?q=${config.query}&format=geojson&polygon_geojson=1&addressdetails=1`;
       const response = await fetch(request);
       const geojson = await response.json();
-      console.log(geojson)
       for (const feature of geojson.features) {
         const center = [
           feature.bbox[0] + (feature.bbox[2] - feature.bbox[0]) / 2,
@@ -66,7 +65,6 @@ const mapboxGeocoderAPI: MaplibreGeocoderApi = {
       const request = `https://api.mapbox.com/search/geocode/v6/forward?q=${config.query}&access_token=${MAPBOX_ACCESS_TOKEN}`;
       const response = await fetch(request);
       const geojson = await response.json();
-      console.log(geojson)
       for (const feature of geojson.features) {
         const carmenGeoJSONFeature = {
           type: 'Feature',
