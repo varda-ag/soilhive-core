@@ -1,7 +1,7 @@
 import { Request } from "express";
 import jwt, { JwtPayload, PublicKey, Secret, VerifyErrors } from "jsonwebtoken";
-import jwksClient from 'jwks-rsa';
-import { ErrorResponse } from "../../src/utils/error";
+import jwksClient from "jwks-rsa";
+import { ErrorResponse } from "../utils/error";
 import StatusCodes from "http-status-codes";
 import { Token } from "../interfaces/Token";
 import { AuthModes, TokenScopes } from "../types/types";
@@ -43,7 +43,7 @@ const verifyAsync = (token: string, secretOrPublicKey: Secret | PublicKey): Prom
   });
 };
 
-export const tokenValidator = async (req: Request): Promise<boolean> => {
+export const tokenValidator = async (req: Request, scopes: string[]): Promise<boolean> => {
   if (!authConfig) {
     authConfig = ConfigService.getAuthConfig();
   }
@@ -77,7 +77,13 @@ export const tokenValidator = async (req: Request): Promise<boolean> => {
     if (!decoded.sub) {
       throw new ErrorResponse("Invalid token (no sub)", StatusCodes.UNAUTHORIZED);
     }
-    req.customData.token = decoded as Token;
+    const decodedToken = decoded as Token;
+    for (const s of scopes) {
+      if (!decodedToken.scope || !decodedToken.scope.includes(s)) {
+        throw new ErrorResponse(`Token missing required scope: ${s}`, StatusCodes.FORBIDDEN);
+      }
+    }
+    req.customData.token = decodedToken;
     req.customData.token.raw = tokenString; // Putting original token string here
     req.customData.token.isSuperAdmin = function () {
       return this.scope?.includes(TokenScopes.SUPER_ADMIN);
@@ -87,6 +93,9 @@ export const tokenValidator = async (req: Request): Promise<boolean> => {
     };
     return true;
   } catch (err: any) {
+    if (err instanceof ErrorResponse) {
+      throw err;
+    }
     const errorMessage = err["name"] === "TokenExpiredError" ? "Token has expired" : `Invalid token: ${err.message}`;
     new ErrorResponse(errorMessage, StatusCodes.UNAUTHORIZED);
   }

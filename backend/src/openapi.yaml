@@ -8,19 +8,30 @@ paths:
     post:
       x-eov-operation-handler: controllers/auth
       x-eov-operation-id: getToken
-      summary: Obtain JWT token using password
+      summary: Obtain JWT token using password grant
       tags:
         - auth
       requestBody:
         required: true
         content:
-          application/json:
+          application/x-www-form-urlencoded:
             schema:
               type: object
               properties:
+                grant_type:
+                  type: string
+                  enum:
+                    - password
+                  description: The OAuth2 grant type (only password is supported)
+                username:
+                  type: string
+                  description: Username (required for password grant, value is ignored)
                 password:
                   type: string
+                  format: password
+                  description: Password (required for password grant)
               required:
+                - grant_type
                 - password
       responses:
         "200":
@@ -51,7 +62,7 @@ paths:
       tags:
         - config
       security:
-        - bearerAuth: []
+        - bearerAuth: [super-admin]
       requestBody:
         required: true
         content:
@@ -96,6 +107,8 @@ paths:
       summary: Delete configuration item
       tags:
         - config
+      security:
+        - bearerAuth: [super-admin]
       responses:
         "204":
           description: Configuration deleted successfully
@@ -107,6 +120,8 @@ paths:
       summary: Exports all configuration items
       tags:
         - config
+      security:
+        - bearerAuth: [super-admin]
       responses:
         "200":
           description: Object containing all the stored configurations

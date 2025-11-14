@@ -23,12 +23,11 @@ function Admin() {
       <p>This is the administration page</p>
       <h2>Installed modules</h2>
       <ol>
-        { modules.map(({shortName, name, type, description}) => {
+        { modules.map(({name, type, description}) => {
           return (
-            <li key={shortName}>
+            <li key={name}>
               <h3>{name}</h3>
               <p>Type: {type}</p>
-              <p>Short name: {shortName}</p>
               <p>{description}</p>
             </li>
           );

@@ -81,3 +81,34 @@ npm run typeorm migration:run -- -d dist/utils/migrations-data-source.js
 # Reverting migrations
 npm run typeorm migration:revert -- -d dist/utils/migrations-data-source.js
 ```
+
+# Authentication mode
+
+Three authentication options are provided:
+
+1. `none`: authentication is disabled
+2. `password`: "super admin" and "data admin" roles are linked to passwords stored in environment variables
+3. `oidc`: environment variables are pointing to an external OIDC Identity Provider
+
+### `none`
+
+Platform is in read-only mode. All token protected endpoints are not reachable.
+
+### `password`
+
+Basic support for "super admin" and "data admin" roles with a hardcoded password.
+No user support is provided.
+
+### `oidc`
+
+External IDP will be used to validate tokens.
+Frontend will receive the login configuration from this backend.
+
+### Token scopes
+
+Platform supports two built-in scopes:
+
+1. `super-admin`
+2. `data-admin`
+
+Endpoints may require a specific scope to return a successful response.
