@@ -10,8 +10,8 @@ interface RemoteConfig {
 
 // Stub function - will fetch from configuration service later
 async function loadRemotesConfig(): Promise<RemoteConfig[]> {
-  console.log("Loading remote module from:", REMOTE_MODULE_URL);
   if (REMOTE_MODULE_URL) {
+    console.log("Remote module:", REMOTE_MODULE_URL);
     return [
       {
         name: "module_example",
@@ -51,9 +51,18 @@ mf.registerShared({
 });
 
 // Top level await, the module pauses until it resolves the promise and then it does the export
-const remoteModules: any[] = await Promise.all(remotes.map((remote) => mf.loadRemote(remote.name)));
+const remoteModules: any[] = await Promise.all(
+  remotes.map((remote) => {
+    try {
+      return mf.loadRemote(remote.name);
+    } catch (error) {
+      console.error(`Error loading remote ${remote.name}:`, error);
+      return null;
+    }
+  })
+);
 
-const singlePages = remoteModules.filter((module) => module.type === "single-page");
+const singlePages = remoteModules.filter((module) => module && module.type === "single-page");
 
 const store = {};
 

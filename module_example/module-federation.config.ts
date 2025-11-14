@@ -5,7 +5,6 @@ export default createModuleFederationConfig({
   exposes: {
     '.': './src/components/ProviderComponent.tsx',
   },
-  filename: 'remoteEntry.js',
   shared: {
     react: { singleton: true },
     'react-dom': { singleton: true },
