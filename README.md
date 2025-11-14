@@ -96,7 +96,7 @@ Use the default credentials found in the `docker-compose.yaml` file.
 
 1. In the menu select "Clients" and search for the newly created client. Select it
 2. Click on the "Client scopes" tab and click "Add client scope"
-3.  Search the newly created scope and add it to this client
+3. Search the newly created scope and add it to this client
 
 ### 8. Configure Application Environment Variables
 
