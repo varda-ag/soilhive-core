@@ -33,12 +33,6 @@ function App() {
                   <Admin />
                 </>
               } />
-              <Route path="/theme" element={
-                <>
-                  <PageTitle title="Soilhive - Theme" />
-                  <ThemeConfig />
-                </>
-              } />
               {singlePages.map(({ name, route, Page }) =>
                 <Route path={`/${route}`} element={
                   <>
