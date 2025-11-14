@@ -1,7 +1,6 @@
 import { createInstance, type ModuleFederationRuntimePlugin } from "@module-federation/enhanced/runtime";
 import React from "react";
 import ReactDOM from "react-dom";
-import { REMOTE_MODULE_URL } from "./environmentVariables";
 
 interface RemoteConfig {
   name: string;
@@ -28,16 +27,12 @@ const fallbackPlugin = (): ModuleFederationRuntimePlugin => {
 
 // Stub function - will fetch from configuration service later
 async function loadRemotesConfig(): Promise<RemoteConfig[]> {
-  if (REMOTE_MODULE_URL) {
-    console.log("Remote module:", REMOTE_MODULE_URL);
-    return [
-      {
-        name: "module_example",
-        entry: REMOTE_MODULE_URL,
-      },
-    ];
-  }
-  return [];
+  return [
+    {
+      name: "module_example",
+      entry: "http://localhost:3333/mf-manifest.json",
+    },
+  ];
 }
 
 const remotes = await loadRemotesConfig();
