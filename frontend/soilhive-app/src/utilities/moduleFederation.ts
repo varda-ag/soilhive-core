@@ -1,4 +1,4 @@
-import { createInstance } from "@module-federation/enhanced/runtime";
+import { createInstance, type ModuleFederationRuntimePlugin } from "@module-federation/enhanced/runtime";
 import React from "react";
 import ReactDOM from "react-dom";
 import { REMOTE_MODULE_URL } from "./environmentVariables";
@@ -7,6 +7,24 @@ interface RemoteConfig {
   name: string;
   entry: string; // mf-manifest.json url for the module
 }
+
+// Custom fallback plugin implementing errorLoadRemote hook
+const fallbackPlugin = (): ModuleFederationRuntimePlugin => {
+  return {
+    name: "fallback-plugin",
+    async errorLoadRemote(args) {
+      const { lifecycle, error, id } = args;
+      console.error(`Failed to load remote ${id} at lifecycle stage: ${lifecycle}`, error);
+      if (lifecycle === "onLoad") {
+        return {
+          // Returning a fallback React component for error boundary rendering
+          fallback: "<div />",
+        };
+      }
+      return;
+    },
+  };
+};
 
 // Stub function - will fetch from configuration service later
 async function loadRemotesConfig(): Promise<RemoteConfig[]> {
@@ -27,6 +45,7 @@ const remotes = await loadRemotesConfig();
 const mf = createInstance({
   name: "mf_host",
   remotes,
+  plugins: [fallbackPlugin()],
 });
 
 mf.registerShared({
