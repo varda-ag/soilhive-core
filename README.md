@@ -19,7 +19,7 @@ This application supports two authentication methods:
 1. **Password-based authentication** - Simple password protection for admin access
 2. **OIDC authentication** - Integration with identity providers like Keycloak
 
-Authentication is configured through backend environment variables.
+Authentication is configured setting backend environment variables.
 
 ### Password-Based Authentication
 
@@ -100,7 +100,7 @@ Use the default credentials found in the `docker-compose.yaml` file.
 
 ### 8. Configure Application Environment Variables
 
-Set the following environment variables for your application:
+Set the following environment variables in the backend of your application:
 ```bash
 OIDC_AUTHORITY=http://localhost:8080/realms/<your-realm-name>
 OIDC_CLIENT_ID=<your-client-id>
