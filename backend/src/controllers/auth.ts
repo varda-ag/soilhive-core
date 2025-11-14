@@ -4,6 +4,8 @@ import AuthService from "../services/AuthService";
 const authService = new AuthService();
 
 export const getToken = async (req: Request, res: Response) => {
-  const data = await authService.getToken(req.body);
-  res.json(data);
+  const password = req.body.password;
+  const data = await authService.getToken(password);
+  const response = authService.getTokenResponse(data);
+  res.json(response);
 };

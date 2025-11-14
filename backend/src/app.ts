@@ -14,6 +14,7 @@ app.use(
     origin: '*',
   }),
 );
+app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(transactionMiddleware);
 app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));

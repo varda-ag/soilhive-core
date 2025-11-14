@@ -8,7 +8,7 @@
     "copy-openapi": "copyfiles -u 1 'src/openapi.yaml' 'dist/'",
     "copy-assets": "copyfiles -u 1 'src/assets/**/*' 'dist/'",
     "start": "node dist/app.js",
-    "dev": "nodemon --exec 'ts-node --transpile-only' src/app.ts --watch src/* src/openapi.yaml",
+    "dev": "nodemon --exec 'ts-node --transpile-only' src/app.ts --watch src/**/*.ts src/openapi.yaml",
     "test": "jest --detectOpenHandles",
     "test:watch": "jest --detectOpenHandles",
     "typeorm": "typeorm-ts-node-commonjs"
