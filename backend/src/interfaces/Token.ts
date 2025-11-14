@@ -7,3 +7,9 @@ export interface Token extends JwtPayload {
   isSuperAdmin(): boolean;
   isDataAdmin(): boolean;
 }
+
+export interface TokenResponse {
+  access_token: string;
+  token_type: string;
+  expires_in: number;
+}

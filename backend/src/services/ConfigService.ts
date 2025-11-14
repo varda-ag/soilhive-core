@@ -3,6 +3,7 @@ import { JsonStorage } from "../entities/JsonStorage";
 import { ErrorResponse } from "../utils/error";
 import { Repository } from "typeorm";
 import { AuthConfig, OIDCConfig } from "../interfaces/AuthConfig";
+import { StatusCodes } from "http-status-codes";
 
 export default class ConfigService {
   putConfig = async (repo: Repository<JsonStorage>, id: string, data: any): Promise<any> => {
@@ -13,11 +14,11 @@ export default class ConfigService {
   getConfig = async (repo: Repository<JsonStorage>, id: string): Promise<any> => {
     switch (id) {
       case ReservedConfigs.AUTH:
-        throw new ErrorResponse("Access to reserved configuration 'auth' is not allowed", 403);
+        throw new ErrorResponse("Access to reserved configuration 'auth' is not allowed", StatusCodes.FORBIDDEN);
     }
     const row = await repo.findOneBy({ id });
     if (!row) {
-      throw new ErrorResponse("Configuration not found", 404);
+      throw new ErrorResponse("Configuration not found", StatusCodes.NOT_FOUND);
     }
     return row.data;
   };
