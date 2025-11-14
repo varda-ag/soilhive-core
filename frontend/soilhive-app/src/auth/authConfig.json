@@ -1,9 +1,9 @@
 {
-  "oidcConfigured": false,
+  "oidcConfigured": true,
   "oidcConfig": {
-    "authority": "https://auth.dev.soilhive.ag/realms/soilhive",
+    "authority": "http://localhost:8080/realms/soilhive",
     "clientId": "soilhive-ui",
-    "redirectUri": "http://localhost:3000",
+    "redirectUri": "http://localhost:3000/admin",
     "postLogoutRedirectUri": "http://localhost:3000",
     "silentRedirectUri": "http://localhost:3000/auth/silent-redirect",
     "scope": "openid"
