@@ -12,6 +12,18 @@ Entry points:
 - Frontend: http://localhost:3000/
 - Backend:  http://localhost:4001/docs/
 
+# Development
+
+First start the app infrastructure services with:
+
+```docker-compose -f docker-compose-dev.yaml```
+
+Then start both backend and frontend with:
+
+```pnpm i -r```
+
+```pnpm run dev```
+
 
 # Authentication mode
 
