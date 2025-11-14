@@ -12,7 +12,7 @@ const Page: React.FC = () => {
   );
 };
 
-const name = "Remote module";
+const name = "★ Name of remote module ★";
 const type = "single-page";
 const route = "remote-module";
 export { name, route, type, Page };
