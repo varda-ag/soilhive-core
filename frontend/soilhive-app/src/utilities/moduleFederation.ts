@@ -1,6 +1,7 @@
 import { createInstance } from "@module-federation/enhanced/runtime";
 import React from "react";
 import ReactDOM from "react-dom";
+import { REMOTE_MODULE_URL } from "./environmentVariables";
 
 interface RemoteConfig {
   name: string;
@@ -9,7 +10,16 @@ interface RemoteConfig {
 
 // Stub function - will fetch from configuration service later
 async function loadRemotesConfig(): Promise<RemoteConfig[]> {
-  return []; 
+  console.log("Loading remote module from:", REMOTE_MODULE_URL);
+  if (REMOTE_MODULE_URL) {
+    return [
+      {
+        name: "module_example",
+        entry: REMOTE_MODULE_URL,
+      },
+    ];
+  }
+  return [];
 }
 
 const remotes = await loadRemotesConfig();
@@ -41,7 +51,7 @@ mf.registerShared({
 });
 
 // Top level await, the module pauses until it resolves the promise and then it does the export
-const remoteModules: any[] = await Promise.all(remotes.map((remote) => mf.loadRemote(`${remote.name}/module`)));
+const remoteModules: any[] = await Promise.all(remotes.map((remote) => mf.loadRemote(remote.name)));
 
 const singlePages = remoteModules.filter((module) => module.type === "single-page");
 

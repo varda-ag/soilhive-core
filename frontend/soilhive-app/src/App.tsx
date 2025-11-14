@@ -10,6 +10,7 @@ import { ThemeProvider } from './contexts/ThemeContext';
 import { AuthContextProvider } from "./auth/AuthContextProvider";
 
 function App() {
+  console.log("Loaded remote single pages:", singlePages);
   return (
     <AuthContextProvider>
       <ThemeProvider>
