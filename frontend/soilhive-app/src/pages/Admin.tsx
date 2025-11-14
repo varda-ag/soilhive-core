@@ -13,13 +13,13 @@ function Admin() {
     return <div>Loading...</div>;
   }
 
-  // if (!isAuthenticated) {
-  //   return (
-  //   <div>
-  //     <h2>Access denied. Please log in.</h2>
-  //     <button onClick={ () => login() }>Login</button>
-  //   </div>)
-  // }
+  if (!isAuthenticated) {
+    return (
+    <div>
+      <h2>Access denied. Please log in.</h2>
+      <button onClick={ () => login() }>Login</button>
+    </div>)
+  }
 
   return (
     <div className="admin-page">
