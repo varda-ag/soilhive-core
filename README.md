@@ -106,7 +106,7 @@ Use the default credentials found in the `docker-compose.yaml` file.
 4. Set its **Client ID** (take note of this, since it wil be used to setup the application authentication configuration) 
 5. In the **Capability config**, enable "Standard flow"
 6. In the **Access settings**, configure:
-   - **Valid Redirect URIs**: `http://<BASE_APP_URL>/*` and `http://<BASE_APP_URL>`
+   - **Valid Redirect URIs**: `http://<BASE_APP_URL>/*`
    - **Valid post logout redirect URIs**: `+`
    - **Web origins**: `+`
 
