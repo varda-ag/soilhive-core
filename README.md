@@ -12,26 +12,51 @@ Entry points:
 - Frontend: http://localhost:3000/
 - Backend:  http://localhost:4001/docs/
 
-## Authentication Setup
 
-This application supports two authentication methods:
+# Authentication mode
 
-1. **Password-based authentication** - Simple password protection for admin access
-2. **OIDC authentication** - Integration with identity providers like Keycloak
+Three authentication options are provided:
 
-Authentication is configured setting backend environment variables.
+1. `none`: authentication is disabled
+2. `password`: "super admin" and "data admin" roles are linked to passwords stored in environment variables
+3. `oidc`: environment variables are pointing to an external OIDC Identity Provider
+
+### `none`
+
+Platform is in read-only mode. All token protected endpoints are not reachable.
+
+### `password`
+
+Basic support for "super admin" and "data admin" roles with a hardcoded password.
+No user support is provided.
+
+### `oidc`
+
+External IDP will be used to validate tokens.
+Frontend will receive the login configuration from this backend.
+
+### Token scopes
+
+Platform supports two built-in scopes:
+
+1. `super-admin`
+2. `data-admin`
+
+Endpoints may require a specific scope to return a successful response.
+
+## How to setup Authentication
 
 ### Password-Based Authentication
 
-Set the following environment variables to enable password authentication:
+Set the following backend environment variables to enable password authentication:
 
 - `SUPER_ADMIN_PASSWORD` - Password required to access the admin section
 - `DATA_ADMIN_PASSWORD` - Password required to manage data
-- `SELF_SIGNING_SECRET` - Secret used to sign authentication tokens
+- `SELF_SIGNING_SECRET` - Secret used to sign authentication tokens (can be any string of your choice)
 
 ### OIDC Authentication
 
-Set the following environment variables to enable OIDC authentication:
+Set the following backend environment variables to enable OIDC authentication (see below for an exampe on how to setup an oidc provider):
 
 - `OIDC_AUTHORITY` - Identity provider URL (e.g., `https://<BASE_KEYCLOAK_URL>/realms/<realm>` for Keycloak)
 - `OIDC_CLIENT_ID` - Client name as configured in your identity provider
