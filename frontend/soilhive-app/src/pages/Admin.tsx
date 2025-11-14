@@ -1,5 +1,6 @@
 import { modules } from "../utilities/moduleFederation";
 import { useAuthContext } from "../auth/AuthContextProvider";
+import {ThemeConfig} from './ThemeConfig'
 
 function Admin() {
 
@@ -35,6 +36,7 @@ function Admin() {
       </ol>
       <h2>Authenticated user: {token?.profile?.name}</h2>
       <button onClick={ () => logout() }>Logout</button>
+      <ThemeConfig></ThemeConfig>
     </div>
   );
 };
