@@ -1,13 +1,13 @@
 /* global fetch */
 import * as React from 'react';
 import {useState} from 'react';
-import {useControl, Marker/*, type MarkerProps, type ControlPosition*/} from 'react-map-gl/maplibre';
-import MaplibreGeocoder /*, {
+import {useControl, Marker, Source,/*, type MarkerProps, type ControlPosition*/
+Layer} from 'react-map-gl/maplibre';
+import MaplibreGeocoder, {
   type MaplibreGeocoderApi,
   type MaplibreGeocoderOptions
-}*/ from '@maplibre/maplibre-gl-geocoder';
+} from '@maplibre/maplibre-gl-geocoder';
 
-/*
 type GeocoderControlProps = Omit<MaplibreGeocoderOptions, 'maplibregl' | 'marker'> & {
   marker?: boolean | Omit<MarkerProps, 'longitude' | 'latitude'>;
 
@@ -18,16 +18,17 @@ type GeocoderControlProps = Omit<MaplibreGeocoderOptions, 'maplibregl' | 'marker
   onResult?: (e: object) => void;
   onError?: (e: object) => void;
 };
-*/
 
 /* eslint-disable camelcase */
-const geocoderApi/*: MaplibreGeocoderApi*/ = {
+const geocoderApi: MaplibreGeocoderApi = {
   forwardGeocode: async config => {
+    console.log("FORWARD GEOCODE");
     const features = [];
     try {
       const request = `https://nominatim.openstreetmap.org/search?q=${config.query}&format=geojson&polygon_geojson=1&addressdetails=1`;
       const response = await fetch(request);
       const geojson = await response.json();
+      console.log(geojson);
       for (const feature of geojson.features) {
         const center = [
           feature.bbox[0] + (feature.bbox[2] - feature.bbox[0]) / 2,
@@ -35,10 +36,13 @@ const geocoderApi/*: MaplibreGeocoderApi*/ = {
         ];
         const point = {
           type: 'Feature',
+          bbox: feature.bbox,
           geometry: {
             type: 'Point',
             coordinates: center
           },
+          // geometry: feature.geometry,
+          original_feature: feature,
           place_name: feature.properties.display_name,
           properties: feature.properties,
           text: feature.properties.display_name,
@@ -66,7 +70,10 @@ export default function GeocoderControl(props/*: GeocoderControlProps */) {
       const ctrl = new MaplibreGeocoder(geocoderApi, {
         ...props,
         marker: false,
-        maplibregl: mapLib
+        maplibregl: mapLib,
+        showResultsWhileTyping: true,
+        // placeholder: "Search a city or address",
+        proximityMinZoom: 9 // only prioritize the viewport when zoomed in to z9
       });
       ctrl.on('loading', props.onLoading);
       ctrl.on('results', props.onResults);
@@ -74,15 +81,28 @@ export default function GeocoderControl(props/*: GeocoderControlProps */) {
         props.onResult(evt);
 
         const {result} = evt;
-        const location =
-          result &&
-          (result.center || (result.geometry?.type === 'Point' && result.geometry.coordinates));
-        if (location && props.marker) {
-          const markerProps = typeof props.marker === 'object' ? props.marker : {};
-          setMarker(<Marker {...markerProps} longitude={location[0]} latitude={location[1]} />);
+        console.log('RESULT', result);
+        if(result) {
+          setMarker(
+            <Source type="geojson" data={result.original_feature}>
+              <Layer id='confines' type="line" paint={{'line-color': 'red', 'line-width': 3 }}></Layer>
+            </Source>
+          );
         } else {
           setMarker(null);
         }
+
+        // const location =
+        //   result &&
+        //   (result.center || (result.geometry?.type === 'Point' && result.geometry.coordinates));
+        // if (location && props.marker) {
+        //   const markerProps = typeof props.marker === 'object' ? props.marker : {};
+        //   setMarker(<Marker {...markerProps} longitude={location[0]} latitude={location[1]} />);
+        //   console.log('NON-NULL MARKER');
+        // } else {
+        //   console.log('NULL MARKER');
+        //   setMarker(null);
+        // }
       });
       ctrl.on('error', props.onError);
       return ctrl;
