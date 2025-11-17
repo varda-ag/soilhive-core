@@ -120,6 +120,10 @@ export default function GeocoderControl(props/*: GeocoderControlProps */) {
       });
       ctrl.on('loading', props.onLoading);
       ctrl.on('results', props.onResults);
+      ctrl.on('clear', (evt) => {
+        console.log("CLEAR EVENT", evt);
+        setMarker(null);
+      });
       ctrl.on('result', evt => {
         props.onResult(evt);
         const {result} = evt;
