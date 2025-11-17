@@ -1,6 +1,7 @@
 import { useId, useState } from "react";
 import { modules } from "../utilities/moduleFederation";
 import { useAuthContext } from "../auth/AuthContextProvider";
+import {ThemeConfig} from './ThemeConfig'
 
 function Admin() {
   const { isAuthenticated, isLoading, login, logout, token } = useAuthContext();
@@ -60,6 +61,8 @@ function Admin() {
           <option value='mapbox'>Mapbox Geocoding API (v6)</option>
         </select>
       </div>
+
+      <ThemeConfig></ThemeConfig>
     </div>
   );
 };

@@ -28,7 +28,6 @@ function MainLayout() {
             <li key={route}><Link to={`/${route}`}>{name}</Link></li>
           )}
           <li><Link to="/admin">Admin</Link></li>
-          <li><Link to="/theme">Theme</Link></li>
         </ul>
       </div>
       <div className="content">
