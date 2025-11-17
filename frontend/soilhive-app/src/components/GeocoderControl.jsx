@@ -110,7 +110,6 @@ export default function GeocoderControl(props/*: GeocoderControlProps */) {
   const geocoder = useControl<MaplibreGeocoder>(
     ({mapLib}) => {
       const ctrl = new MaplibreGeocoder(geocoderAPI, {
-        ...props,
         marker: false,
         maplibregl: mapLib,
         showResultsWhileTyping: props.geocoder !== 'nominatim' ? true : false, // Nominatim's policy doesn't allow the implementation of an auto-complete https://operations.osmfoundation.org/policies/nominatim/
@@ -118,22 +117,17 @@ export default function GeocoderControl(props/*: GeocoderControlProps */) {
         debounceSearch: props.geocoder !== 'nominatim' ? 200 : 1000, // Nominatim's policy requires to limit searches to maximum 1 request per second https://operations.osmfoundation.org/policies/nominatim/
         clearAndBlurOnEsc: true,
       });
-      ctrl.on('loading', props.onLoading);
-      ctrl.on('results', props.onResults);
       ctrl.on('clear', (evt) => {
-        console.log("CLEAR EVENT", evt);
         setMarker(null);
       });
       ctrl.on('result', evt => {
-        props.onResult(evt);
         const {result} = evt;
         if(!result) {
           setMarker(null);
         }
         if(result.original_geometry.type === 'Point') {
           const [lat, lon] = result.original_geometry.coordinates;
-          const markerProps = typeof props.marker === 'object' ? props.marker : {};
-          setMarker(<Marker {...markerProps} longitude={lat} latitude={lon} />);
+          setMarker(<Marker longitude={lat} latitude={lon} />);
         } else {
           setMarker(
             <Source type="geojson" data={result.original_feature}>
@@ -142,7 +136,6 @@ export default function GeocoderControl(props/*: GeocoderControlProps */) {
           );
         }
       });
-      ctrl.on('error', props.onError);
       return ctrl;
     },
     {
@@ -203,13 +196,3 @@ export default function GeocoderControl(props/*: GeocoderControlProps */) {
   }
   return marker;
 }
-
-const noop = () => {};
-
-GeocoderControl.defaultProps = {
-  marker: true,
-  onLoading: noop,
-  onResults: noop,
-  onResult: noop,
-  onError: noop
-};

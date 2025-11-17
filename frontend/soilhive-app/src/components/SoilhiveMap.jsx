@@ -68,7 +68,7 @@ function SoilhiveMap({
         mapStyle={currentMapStyle}
         {...(initialViewBoundingBox ? {initialViewState: { bounds: initialViewBoundingBox }} : {})}
       >
-        {showGeocoder && <GeocoderControl position="top-left" geocoder={geocoder} onLoading={() => { }} onResults={() => { }} onResult={() => { }} onError={() => { }} />}
+        {showGeocoder && <GeocoderControl position="top-left" geocoder={geocoder} />}
         { showGeolocation && <GeolocateControl position="bottom-right" /> }
         { showNavigation && <NavigationControl position="bottom-right" showCompass={false} showZoom={true} visualizePitch={false} /> }
         { showScale && <ScaleControl /> }
