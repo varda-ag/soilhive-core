@@ -5,6 +5,7 @@ import { type AuthContext } from "./AuthContext";
 import { usePasswordAuth } from "./usePasswordAuth";
 import { LoginModal } from "./LoginModal";
 import { useRequest } from "../api-client";
+import  { AuthModes } from "./types";
 
 const authContext = createContext<AuthContext | undefined>(undefined)
 
@@ -26,7 +27,7 @@ export function AuthContextProvider({ children }: { children: React.ReactNode })
             .catch(console.error)
     }, [])
 
-    if (authConfig && authConfig.oidcConfigured && authConfig.oidcConfig) {
+    if (authConfig && authConfig.authMode == AuthModes.OIDC && authConfig.oidcConfig) {
         return (
             <ReactOidcProvider
                 authority={authConfig.oidcConfig?.authority}
