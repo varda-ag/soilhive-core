@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { Token } from "./Token";
-import { loginWithPassword } from "./authApi";
+import { useRequest } from "../api-client";
 
 const TOKEN_STORAGE_KKEY = 'soilhive_token'
 
@@ -12,6 +12,8 @@ interface PasswordAuthState {
 }
 
 export function usePasswordAuth() {
+
+    const { request } = useRequest()
 
     // try and load token from the session storage
     const [state, setState] = useState<PasswordAuthState>(() => {
@@ -28,8 +30,23 @@ export function usePasswordAuth() {
     const login = async (password?: string) => {
         setState(prev => ({ ...prev, isLoading: true, error: undefined }));
 
+        const body = {
+            grant_type: 'password',
+            username: '_',
+            password: password || ''
+        };
+
+        const urlEncodedBody = new URLSearchParams(body).toString();
+
         try {
-            const token = await loginWithPassword(password);
+            const token = await request({
+                url: 'http://localhost:4001/oauth/token',
+                method: 'POST',
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded"
+                },
+                body: urlEncodedBody
+            })
 
             sessionStorage.setItem(TOKEN_STORAGE_KKEY, JSON.stringify(token))
 

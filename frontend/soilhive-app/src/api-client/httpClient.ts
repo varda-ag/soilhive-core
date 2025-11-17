@@ -17,7 +17,11 @@ export async function httpClient<T = any>(config: APIRequestConfig): Promise<T> 
     const response = await fetch(url, {
       method,
       headers: finalHeaders,
-      body: body ? JSON.stringify(body) : undefined,
+      body: body 
+        ? (finalHeaders['Content-Type'].includes('application/json') 
+            ? JSON.stringify(body) 
+            : body)
+        : undefined,
       signal,
     });
 
