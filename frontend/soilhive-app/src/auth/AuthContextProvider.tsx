@@ -1,10 +1,10 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import type { AuthConfig } from "./AuthConfig";
-import { fetchAuthConfig } from "./authApi";
 import { AuthProvider as ReactOidcProvider, useAuth as useReactOidcAuth } from 'react-oidc-context';
 import { type AuthContext } from "./AuthContext";
 import { usePasswordAuth } from "./usePasswordAuth";
 import { LoginModal } from "./LoginModal";
+import { useRequest } from "../api-client";
 
 const authContext = createContext<AuthContext | undefined>(undefined)
 
@@ -18,8 +18,10 @@ export function useAuthContext(): AuthContext {
 export function AuthContextProvider({ children }: { children: React.ReactNode }) {
     const [authConfig, setAuthConfig] = useState<AuthConfig>()
 
+    const { request } = useRequest();
+
     useEffect(() => {
-        fetchAuthConfig()
+        request({url: 'http://localhost:4001/auth/config'})
             .then(setAuthConfig)
             .catch(console.error)
     }, [])
