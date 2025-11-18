@@ -4,7 +4,7 @@ import { useAuthContext } from "../auth/AuthContextProvider";
 import {ThemeConfig} from './ThemeConfig'
 
 function Admin() {
-  const { isAuthenticated, isLoading, login, logout, token } = useAuthContext();
+  const { isAuthenticated, isLoading, login, logout, user } = useAuthContext();
   
   const mapGeocoderInputId = useId();
   const [mapGeocoder, setMapGeocoder] = useState(localStorage.getItem('MAP_GEOCODER') ?? 'nominatim');
@@ -39,8 +39,7 @@ function Admin() {
           );
         }) }
       </ol>
-
-      <h2>Authenticated user: {token?.profile?.name}</h2>
+      <h2>Authenticated user: {user?.profile?.name}</h2>
       <button onClick={ () => logout() }>Logout</button>
 
       <h2>Maps:</h2>

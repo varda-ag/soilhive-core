@@ -1,39 +1,43 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import type { AuthConfig } from "./AuthConfig";
-import { fetchAuthConfig } from "./authApi";
 import { AuthProvider as ReactOidcProvider, useAuth as useReactOidcAuth } from 'react-oidc-context';
 import { type AuthContext } from "./AuthContext";
 import { usePasswordAuth } from "./usePasswordAuth";
 import { LoginModal } from "./LoginModal";
+import { useRequest } from "../api-client";
+import { AuthModes, type AuthModesType } from "./types";
+import { clearToken, saveToken } from "./tokenStore";
 
-const authContext = createContext<AuthContext | undefined>(undefined)
+const authContext = createContext<AuthContext | undefined>(undefined);
 
 export function useAuthContext(): AuthContext {
-    const ctx = useContext(authContext)
+    const ctx = useContext(authContext);
     if (!ctx)
-        throw Error("Auth Context not defined")
-    return ctx
+        throw Error("Auth Context not defined");
+    return ctx;
 }
 
 export function AuthContextProvider({ children }: { children: React.ReactNode }) {
-    const [authConfig, setAuthConfig] = useState<AuthConfig>()
+    const [authConfig, setAuthConfig] = useState<AuthConfig>();
+
+    const { request } = useRequest();
 
     useEffect(() => {
-        fetchAuthConfig()
+        request({ url: 'http://localhost:4001/auth/config' })
             .then(setAuthConfig)
-            .catch(console.error)
-    }, [])
+            .catch(console.error);
+    }, []);
 
-    if (authConfig && authConfig.oidcConfigured && authConfig.oidcConfig) {
+    if (authConfig && authConfig.authMode === AuthModes.OIDC && authConfig.oidcConfig) {
         return (
             <ReactOidcProvider
-                authority={authConfig.oidcConfig?.authority}
-                client_id={authConfig.oidcConfig?.clientId}
-                redirect_uri={authConfig.oidcConfig?.redirectUri}
-                post_logout_redirect_uri={authConfig.oidcConfig?.postLogoutRedirectUri}
-                scope={authConfig.oidcConfig?.scope}
+                authority={authConfig.oidcConfig.authority}
+                client_id={authConfig.oidcConfig.clientId}
+                redirect_uri={authConfig.oidcConfig.redirectUri}
+                post_logout_redirect_uri={authConfig.oidcConfig.postLogoutRedirectUri}
+                scope={authConfig.oidcConfig.scope}
                 automaticSilentRenew
-                silent_redirect_uri={authConfig.oidcConfig?.silentRedirectUri}
+                silent_redirect_uri={authConfig.oidcConfig.silentRedirectUri}
                 loadUserInfo
                 revokeTokensOnSignout
                 onSigninCallback={() => {
@@ -41,71 +45,100 @@ export function AuthContextProvider({ children }: { children: React.ReactNode })
                     window.history.replaceState({}, document.title, url.pathname);
                 }}
             >
-                <InnerProvider oidcEnabled={true}>
+                <InnerProvider authMode={authConfig.authMode}>
                     {children}
                 </InnerProvider>
             </ReactOidcProvider>
         );
-    }
-    else {
-        return <InnerProvider oidcEnabled={false}>{children}</InnerProvider>
+    } else {
+        return (
+            <InnerProvider authMode={authConfig ? authConfig.authMode : AuthModes.NONE}>
+                {children}
+            </InnerProvider>
+        );
     }
 }
 
-// an inner provider is needed to grab the auth configuration from the respective hooks
-function InnerProvider({ children, oidcEnabled }: { children: React.ReactNode, oidcEnabled: boolean }) {
-
-    const [shoLoginModal, setShowLoginModal] = useState(false)
-
-    let value: AuthContext;
-
-    if (oidcEnabled) {
-
-        const reactOidcAuth = useReactOidcAuth()
-
-        value = {
-            isAuthenticated: !!reactOidcAuth.isAuthenticated,
-            isLoading: reactOidcAuth.isLoading,
-            error: reactOidcAuth.error,
-            token: reactOidcAuth.user,
-            login: () => reactOidcAuth.signinRedirect(),
-            logout: () => reactOidcAuth.signoutRedirect(),
-            authMode: 'oidc'
-        }
-
-        return (
-            <authContext.Provider value={value}>
-                {children}
-            </authContext.Provider>
-        )
+// this is to prevent conditionally rendering hooks
+function InnerProvider({ children, authMode }: { children: React.ReactNode, authMode: AuthModesType }) {
+    switch (authMode) {
+        case AuthModes.OIDC:
+            return <OidcAuthProvider>{children}</OidcAuthProvider>;
+        case AuthModes.PASSWORD:
+            return <PasswordAuthProvider>{children}</PasswordAuthProvider>;
+        default:
+            return <NoAuthProvider>{children}</NoAuthProvider>;
     }
-    else {
+}
 
-        const passwordAuth = usePasswordAuth()
+function OidcAuthProvider({ children }: { children: React.ReactNode }) {
+    const reactOidcAuth = useReactOidcAuth();
+    
+    useEffect(() => {
+        saveToken(reactOidcAuth.user?.access_token);
+    }, [reactOidcAuth.user?.access_token]);
 
-        value = {
-            isAuthenticated: passwordAuth.isAuthenticated,
-            isLoading: passwordAuth.isLoading,
-            error: passwordAuth.error,
-            token: passwordAuth.token,
-            login: () => setShowLoginModal(true),
-            logout: passwordAuth.logout,
-            authMode: 'password'
-        }
+    const value: AuthContext = {
+        isAuthenticated: !!reactOidcAuth.isAuthenticated,
+        isLoading: reactOidcAuth.isLoading,
+        error: reactOidcAuth.error,
+        user: reactOidcAuth.user,
+        login: () => reactOidcAuth.signinRedirect(),
+        logout: () => {
+            clearToken();
+            reactOidcAuth.signoutRedirect(); 
+        },
+        authMode: AuthModes.OIDC
+    };
 
-        return (
-            <authContext.Provider value={value}>
-                {children}
-                <LoginModal
-                    isOpen={shoLoginModal}
-                    onClose={() => setShowLoginModal(false)}
-                    onLogin={passwordAuth.login}
-                    error={passwordAuth.error}
-                />
+    return (
+        <authContext.Provider value={value}>
+            {children}
+        </authContext.Provider>
+    );
+}
 
-            </authContext.Provider>
-        )
-    }
+function PasswordAuthProvider({ children }: { children: React.ReactNode }) {
+    const [showLoginModal, setShowLoginModal] = useState(false);
+    const passwordAuth = usePasswordAuth();
 
+    const value: AuthContext = {
+        isAuthenticated: passwordAuth.isAuthenticated,
+        isLoading: passwordAuth.isLoading,
+        error: passwordAuth.error,
+        user: passwordAuth.user,
+        login: () => setShowLoginModal(true),
+        logout: passwordAuth.logout,
+        authMode: AuthModes.PASSWORD
+    };
 
+    return (
+        <authContext.Provider value={value}>
+            {children}
+            <LoginModal
+                isOpen={showLoginModal}
+                onClose={() => setShowLoginModal(false)}
+                onLogin={passwordAuth.login}
+                error={passwordAuth.error}
+            />
+        </authContext.Provider>
+    );
+}
+
+function NoAuthProvider({ children }: { children: React.ReactNode }) {
+    const value: AuthContext = {
+        isAuthenticated: true,
+        isLoading: false,
+        error: undefined,
+        user: {profile: {name: 'Anonymous User'}},
+        login: () => {},
+        logout: () => {},
+        authMode: AuthModes.NONE
+    };
+
+    return (
+        <authContext.Provider value={value}>
+            {children}
+        </authContext.Provider>
+    );
 }
