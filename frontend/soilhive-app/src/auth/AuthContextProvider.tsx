@@ -66,8 +66,6 @@ function InnerProvider({ children, authMode }: { children: React.ReactNode, auth
             return <OidcAuthProvider>{children}</OidcAuthProvider>;
         case AuthModes.PASSWORD:
             return <PasswordAuthProvider>{children}</PasswordAuthProvider>;
-        case AuthModes.NONE:
-            return <NoAuthProvider>{children}</NoAuthProvider>;
         default:
             return <NoAuthProvider>{children}</NoAuthProvider>;
     }
