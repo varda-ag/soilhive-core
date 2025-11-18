@@ -84,7 +84,7 @@ function OidcAuthProvider({ children }: { children: React.ReactNode }) {
         isAuthenticated: !!reactOidcAuth.isAuthenticated,
         isLoading: reactOidcAuth.isLoading,
         error: reactOidcAuth.error,
-        token: reactOidcAuth.user,
+        user: reactOidcAuth.user,
         login: () => reactOidcAuth.signinRedirect(),
         logout: () => {
             clearToken();
@@ -108,7 +108,7 @@ function PasswordAuthProvider({ children }: { children: React.ReactNode }) {
         isAuthenticated: passwordAuth.isAuthenticated,
         isLoading: passwordAuth.isLoading,
         error: passwordAuth.error,
-        token: passwordAuth.token,
+        user: passwordAuth.user,
         login: () => setShowLoginModal(true),
         logout: passwordAuth.logout,
         authMode: AuthModes.PASSWORD
@@ -132,7 +132,7 @@ function NoAuthProvider({ children }: { children: React.ReactNode }) {
         isAuthenticated: true,
         isLoading: false,
         error: undefined,
-        token: {profile: {name: 'Anonymous User'}},
+        user: {profile: {name: 'Anonymous User'}},
         login: () => {},
         logout: () => {},
         authMode: AuthModes.NONE

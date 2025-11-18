@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { Token } from "./Token";
+import type { User } from "./Token";
 import { useRequest } from "../api-client";
 import { jwtDecode, type JwtPayload } from "jwt-decode";
 import { clearToken, saveToken } from "./tokenStore";
@@ -10,7 +10,7 @@ interface PasswordAuthState {
     isAuthenticated: boolean;
     isLoading: boolean;
     error?: Error;
-    token?: Token | null;
+    user?: User | null;
 }
 
 interface RawToken {
@@ -20,11 +20,11 @@ interface RawToken {
 }
 
 
-function adaptToken(rawToken: RawToken): Token {
+function extractUser(rawToken: RawToken): User {
 
     const decodedToken: JwtPayload = jwtDecode(rawToken.access_token)
 
-    const token: Token = {
+    const token: User = {
         scope: (decodedToken as any).scope,
         expires_at: decodedToken.exp,
         access_token: rawToken.access_token,
@@ -57,7 +57,7 @@ export function usePasswordAuth() {
             isAuthenticated: !!token,
             isLoading: false,
             error: undefined,
-            token: parsedToken ? adaptToken(parsedToken) : null,
+            token: parsedToken ? extractUser(parsedToken) : null,
         };
     });
 
@@ -89,14 +89,14 @@ export function usePasswordAuth() {
                 isAuthenticated: true,
                 isLoading: false,
                 error: undefined,
-                token: adaptToken(token),
+                user: extractUser(token),
             });
         } catch (error) {
             setState({
                 isAuthenticated: false,
                 isLoading: false,
                 error: error as Error,
-                token: null,
+                user: null,
             });
             throw error;
         }
@@ -110,7 +110,7 @@ export function usePasswordAuth() {
             isAuthenticated: false,
             isLoading: false,
             error: undefined,
-            token: null,
+            user: null,
         });
     }
 
