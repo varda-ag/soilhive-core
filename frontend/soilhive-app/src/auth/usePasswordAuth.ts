@@ -1,8 +1,9 @@
 import { useState } from "react";
 import type { Token } from "./Token";
 import { useRequest } from "../api-client";
+import { jwtDecode, type JwtPayload } from "jwt-decode";
 
-const TOKEN_STORAGE_KKEY = 'soilhive_token'
+const TOKEN_STORAGE_KEY = 'soilhive_token'
 
 interface PasswordAuthState {
     isAuthenticated: boolean;
@@ -11,19 +12,44 @@ interface PasswordAuthState {
     token?: Token | null;
 }
 
+interface RawToken {
+    access_token: string,
+    expires_in: number,
+    token_type: string
+}
+
+
+function adaptToken(rawToken: RawToken): Token {
+
+    const decodedToken: JwtPayload = jwtDecode(rawToken.access_token)
+
+    const token: Token = {
+        scope: (decodedToken as any).scope,
+        expires_at: decodedToken.exp,
+        access_token: rawToken.access_token,
+        profile: {
+            iat: decodedToken.iat,
+            sub: decodedToken.sub,
+            name: decodedToken.sub
+        }
+    }
+
+    return token
+}
+
 export function usePasswordAuth() {
 
     const { request } = useRequest()
 
     // try and load token from the session storage
     const [state, setState] = useState<PasswordAuthState>(() => {
-        const token = sessionStorage.getItem(TOKEN_STORAGE_KKEY);
+        const token = sessionStorage.getItem(TOKEN_STORAGE_KEY);
 
         return {
             isAuthenticated: !!token,
             isLoading: false,
             error: undefined,
-            token: token ? JSON.parse(token) : null,
+            token: token ? adaptToken(JSON.parse(token)) : null,
         };
     });
 
@@ -48,13 +74,13 @@ export function usePasswordAuth() {
                 body: urlEncodedBody
             })
 
-            sessionStorage.setItem(TOKEN_STORAGE_KKEY, JSON.stringify(token))
+            sessionStorage.setItem(TOKEN_STORAGE_KEY, JSON.stringify(token))
 
             setState({
                 isAuthenticated: true,
                 isLoading: false,
                 error: undefined,
-                token: token,
+                token: adaptToken(token),
             });
         } catch (error) {
             setState({
@@ -68,7 +94,7 @@ export function usePasswordAuth() {
     }
 
     const logout = () => {
-        sessionStorage.removeItem(TOKEN_STORAGE_KKEY)
+        sessionStorage.removeItem(TOKEN_STORAGE_KEY)
 
         setState({
             isAuthenticated: false,
