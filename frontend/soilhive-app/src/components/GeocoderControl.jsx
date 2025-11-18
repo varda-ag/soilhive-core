@@ -8,6 +8,7 @@ import MaplibreGeocoder, {
   type MaplibreGeocoderApiConfig
 } from '@maplibre/maplibre-gl-geocoder';
 import { MAPBOX_ACCESS_TOKEN } from '../utilities/environmentVariables';
+import { bbox, featureCollection } from '@turf/turf';
 
 type GeocoderControlProps = Omit<MaplibreGeocoderOptions, 'maplibregl' | 'marker'> & {
   marker?: boolean | Omit<MarkerProps, 'longitude' | 'latitude'>;
@@ -43,8 +44,7 @@ const nominatimGeocoderAPI: MaplibreGeocoderApi = {
           place_name: feature.properties.display_name,
           properties: feature.properties,
           text: feature.properties.display_name,
-          place_type: ['place'],
-          center
+          place_type: ['place']
         };
         features.push(carmenGeoJSONFeature);
       }
@@ -117,6 +117,13 @@ export default function GeocoderControl(props/*: GeocoderControlProps */) {
         debounceSearch: props.geocoder !== 'nominatim' ? 200 : 1000, // Nominatim's policy requires to limit searches to maximum 1 request per second https://operations.osmfoundation.org/policies/nominatim/
         clearAndBlurOnEsc: true,
       });
+      ctrl.on('results', (evt) => {
+        if(props.geocoder === 'nominatim') {
+          const originalFeatures = evt.features.map(feature => feature.original_feature);
+          const boundingBox = bbox(featureCollection(originalFeatures));
+          geocoder._map.fitBounds(boundingBox);
+        }
+      });
       ctrl.on('clear', (evt) => {
         setMarker(null);
       });
@@ -139,7 +146,7 @@ export default function GeocoderControl(props/*: GeocoderControlProps */) {
       return ctrl;
     },
     {
-      position: props.position
+      position: props.position // Position of the search input inside the Maplibre map component
     }
   );
 
