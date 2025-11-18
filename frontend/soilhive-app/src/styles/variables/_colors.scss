@@ -1,0 +1,84 @@
+:root {
+	--color-neutral-white: #ffffff;
+	--color-neutral-light: #f6f7f8;
+	--color-neutral-dark-100: #dddddd;
+	--color-neutral-dark-200: #bebcc0;
+	--color-neutral-dark-300: #eeeff0;
+	--color-neutral-dark-400: #868686;
+	--color-neutral-dark-600: #666666;
+	--color-neutral-black: #000000;
+
+	--color-brand-dark-green-100: #dfe1e1;
+	--color-brand-dark-green-600: #7d8989;
+	--color-brand-dark-green-1000: #2e4343;
+
+	--color-brand-green-100: #e0e7e6;
+	--color-brand-green-600: #86ada8;
+	--color-brand-green-1000: #3e7f77;
+
+	--color-brand-light-green-100: #eaefe0;
+	--color-brand-light-green-600: #d2e5ab;
+	--color-brand-light-green-1000: #a2d141;
+
+	--color-brand-yellow-100: #f3f1e6;
+	--color-brand-yellow-400: #fff4d7;
+	--color-brand-yellow-600: #fae89d;
+	--color-brand-yellow-800: #ffc107;
+	--color-brand-yellow-900: #f5b200;
+	--color-brand-yellow-1000: #ffe164;
+	--color-brand-yellow-bg: #fff9e8;
+
+	--color-brand-gold-100: #ebe8e2;
+	--color-brand-gold-600: #c7b48f;
+	--color-brand-gold-1000: #aa8b4d;
+
+	--color-accent-success-100: #dae2de;
+	--color-accent-success-600: #61907a;
+	--color-accent-success-1000: #004f29;
+
+	--color-accent-warning-100: #f3e8de;
+	--color-accent-warning-600: #fab67a;
+	--color-accent-warning-1000: #ff8e29;
+	--color-accent-warning-1500: #c24a00;
+
+	--color-accent-danger-050: #fff2f8;
+	--color-accent-danger-100: #f4e1e4;
+	--color-accent-danger-600: #d26174;
+	--color-accent-danger-1000: #bc001f;
+
+	--color-accent-tech-100: #daf3f3;
+	--color-accent-tech-600: #61fafa;
+	--color-accent-tech-1000: #00ffff;
+
+	--color-cta-default-solid: var(--color-primary, #3e7f77);
+	--color-cta-default-hover: var(--color-primary-hover, #004f29);
+	--color-cta-default-pressed: var(--color-primary-active, #3f9521);
+	--color-cta-default-disabled: var(--color-primary-disabled, #86ada8);
+
+	--color-cta-danger-solid: #bc001f;
+	--color-cta-danger-hover: #820005;
+	--color-cta-danger-pressed: #e91e25;
+	--color-cta-danger-disabled: #d26174;
+
+	--color-bg-primary: var(--color-neutral-white);
+	--color-text-primary: #262626;
+	--color-text-gold: #a58c56;
+	--color-interactive-tertiary: #6fc8bd;
+	--color-bg-secondary: #d4f7f2;
+	--color-btn-bg-tertiary-active: #dee0e1;
+	--color-place-holder: #c4c4c4;
+	--color-tooltip-bg: #29323c;
+
+	--color-dai-chart-green: #3f9521;
+	--color-dai-chart-red: #d26174;
+	--color-dai-chart-orange: #ff8e29;
+	--color-dai-chart-yellow: #faff7f;
+
+	--color-shadow-interface: rgba(0, 0, 0, 0.08);
+	--color-shadow-hover-default: rgba(0, 79, 41, 0.16);
+	--color-shadow-hover-danger: rgba(188, 0, 31, 0.16);
+
+	--shadow-interface: 0 0.15rem .625rem var(--color-shadow-interface);
+	--shadow-hover-default: 0 0.15rem .625rem var(--color-shadow-hover-default);
+	--shadow-hover-danger: 0 0.15rem .625rem var(--color-shadow-hover-danger);
+}
