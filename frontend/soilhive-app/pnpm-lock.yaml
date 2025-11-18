@@ -14,9 +14,15 @@ importers:
       '@module-federation/enhanced':
         specifier: 0.21.2
         version: 0.21.2(@rspack/core@1.5.8(@swc/helpers@0.5.17))(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(typescript@5.9.3)(webpack@5.102.1)
+      '@turf/turf':
+        specifier: ^7.3.0
+        version: 7.3.0
       classnames:
         specifier: ^2.5.1
         version: 2.5.1
+      jwt-decode:
+        specifier: ^4.0.0
+        version: 4.0.0
       maplibre-gl:
         specifier: ^5.12.0
         version: 5.12.0
@@ -915,6 +921,351 @@ packages:
     resolution: {integrity: sha512-L7z9BgrNEcYyUYtF+HaEfiS5ebkh9jXqbszz7pC0hRBPaatV0XjSD3+eHrpqFemQfgwiFF0QPIarnIihIDn7OA==}
     engines: {node: '>=10.13.0'}
 
+  '@turf/along@7.3.0':
+    resolution: {integrity: sha512-j7ia4nS6Ii1PmGnaP6kOxDiA/fF8PnxgiL/OjGpln/AoYbauoP+tZqGvTvCiCTGB1kg/VqwNrvxUZ1bc2Lr5Sg==}
+
+  '@turf/angle@7.3.0':
+    resolution: {integrity: sha512-qtV3mjF40BRLn/nWrxOw7ohDPZfMn/ATtK5Wwy9gVBKYkBHISif2YBHkq1sl9YM7DZ1MDY++2Ad2XdjQ6tGYzQ==}
+
+  '@turf/area@7.3.0':
+    resolution: {integrity: sha512-N1feXkRzwiNakzloykPWwTBmZcmHFfL/raGMwJmZ9QoHQZqDNVFrI0bmuX8hALUJ8jzpt/c/91M1CIuRMF9vIw==}
+
+  '@turf/bbox-clip@7.3.0':
+    resolution: {integrity: sha512-jucgxPXClaB36EFAiGR1RDSG6SGtel92Xy6oA1inM7Xu2RKignBXy4oqRMVBxABdhmgOzePVMqVy2xHYZ7ZFBQ==}
+
+  '@turf/bbox-polygon@7.3.0':
+    resolution: {integrity: sha512-ITtYx64WRzuEo71Nu/ZGxTrJSN9EarUWKxDo2zMza22AG42pZjDVpehA9wRLmHn/tybbWSF4D/gyk1hd8hlXug==}
+
+  '@turf/bbox@7.3.0':
+    resolution: {integrity: sha512-EC5GSUJlhXSiCVCEmgCSheZYm0s1ouKzUNqeEOsEYlqTbMAZ19RWgsg/xH2tjnuUw2JP9eGAUzQnCFX6JEV53w==}
+
+  '@turf/bearing@7.3.0':
+    resolution: {integrity: sha512-2HVfi8c2qDIIuRLko+BFPeV2AKatrLJZqWh1E9vEzd9gLfFGHubyubuFX/W5wP3NK5vru/U3bqyOsQ9d9HPacw==}
+
+  '@turf/bezier-spline@7.3.0':
+    resolution: {integrity: sha512-CkBHgfnU87htfXtZFCpOVPOyfXnRt5+44M69zdHH3jG1XxQKhR7GirA4cEhVdtXyRrJNJXmzhCinYySgQukNgQ==}
+
+  '@turf/boolean-clockwise@7.3.0':
+    resolution: {integrity: sha512-39ZAGrTjey9sxasOCB1zgDqvXfWJ92S881gjOUFKp6UOTfNUibW0fjrZW5SLI72/LRNUkr4XeT09FXWYt+J/Tw==}
+
+  '@turf/boolean-concave@7.3.0':
+    resolution: {integrity: sha512-YW9Z6RXmIo4YISJlwSg8bpkVvg2T3rnLBXc3T5mO087eanEB2vUo/UG03CJamzl7jFWJOcGGXy8rR0Lbwp4qJw==}
+
+  '@turf/boolean-contains@7.3.0':
+    resolution: {integrity: sha512-rqtatC8tNpeSWbG4IM03B1jkzA74JiZbSCDgObZdPl0SS1FfRUYmiyjUUbd5wxTarLGcTsYrTGYfVNRfCvfxdA==}
+
+  '@turf/boolean-crosses@7.3.0':
+    resolution: {integrity: sha512-B7VFp8UDm1h+q3e54BS7oVQVPEto7L5O2s1KcJGe03DB3XrA/kFUVepaiaTxuKQL2kZrMMTqQjxNYpAiIEEygA==}
+
+  '@turf/boolean-disjoint@7.3.0':
+    resolution: {integrity: sha512-u7b0thAtaw/+ZQPQJE/qK+Pe0sXbr2wvmm4uxEs4mOEhsoN0Wu4HcWtbWZuL4JoGBbmLV3+tnUC0tUn54jYEuA==}
+
+  '@turf/boolean-equal@7.3.0':
+    resolution: {integrity: sha512-6ZxBkWNpzM3+DvqRVB0UiSGYgwmmhZ+PHwpvGTeQM7wW3+RGfnjRJ8auyI1UNnvpWZBY5lESHxcOAHuve587yQ==}
+
+  '@turf/boolean-intersects@7.3.0':
+    resolution: {integrity: sha512-+S7YJFrrQ7LxIImHqeaU8yiXG+65dB3qTnbpIx0aKJjJhUS6IAMc96O2e4kUNPWhjJKvRWf0Weu43stVPP90KQ==}
+
+  '@turf/boolean-overlap@7.3.0':
+    resolution: {integrity: sha512-qHi8TxDp8CN8xkl7yLsAbvH82tFm5tgWl7GTIbLP1jDdyR4uQJ+3qD2WBYcnstKk7Nai9YPrLpxJJxzOB9HKBQ==}
+
+  '@turf/boolean-parallel@7.3.0':
+    resolution: {integrity: sha512-WXtXBr6/gP7qgM+F0577xmsbPwm/4Yqlg7x2ULdhwJziTwQNtfOkxVO0DBRt0nqAPfxSyr3hHQHosQoHpVKvNA==}
+
+  '@turf/boolean-point-in-polygon@7.3.0':
+    resolution: {integrity: sha512-zTVCH77sRJyzUPWVmoS/UCl4pDmChSpNhoVA+BC9XDGkLuBSKhAvK7hcOn/KF55z7RgbvQFNNR2lRqmQUi/OFg==}
+
+  '@turf/boolean-point-on-line@7.3.0':
+    resolution: {integrity: sha512-K4PxA23/pxqmv5roUxKnLm+mY92DWUVfjv+6SzrNBymHQOjDoDp/RcpTHHFM3koaUJiQx7MZ8txus5kkw+mDOA==}
+
+  '@turf/boolean-touches@7.3.0':
+    resolution: {integrity: sha512-5fgNlOd15eSI75zvGq3RrYlRaDyzvpEZxFrXjyRRQV8ks6VShU7HVl+rjBD8evFOigE0uApSpKGtsDk6wiN8cA==}
+
+  '@turf/boolean-valid@7.3.0':
+    resolution: {integrity: sha512-NG4/ekbNy4/U+3nkOs643a9z1MV+lOjGqJrmyjcJwE9LQC2NAD20aNk0ms5hFivOEzcgEzfmXFfu/zZgJUIHag==}
+
+  '@turf/boolean-within@7.3.0':
+    resolution: {integrity: sha512-rGhKc/F4l/MI61OvZtCp8rB0Dr2ekuBNFXHlovFEKfn9z3Q5k5uananoK+Gma/w1XmVasut6Z1S3xLC8QOmnDg==}
+
+  '@turf/buffer@7.3.0':
+    resolution: {integrity: sha512-egIGQjDYiJTYDeXgS9rf569KYCQ9OOE5+FM/lNIYkP2xRrGbSMB/2zT6VPZvcvjfiawNkOZEa8OlwhygacK2gA==}
+
+  '@turf/center-mean@7.3.0':
+    resolution: {integrity: sha512-ThGhJU2SVak6Ol331Do+xSDr2gougYpBVdwGs9hLCudcdK8c9565BlQTAGY4py3EatjWV2l8rP1INebRwDTFvA==}
+
+  '@turf/center-median@7.3.0':
+    resolution: {integrity: sha512-Lp0kUGHM0HahZl54qb/B7zD3DXfFuBLhUS0t7fRlNfRywNUJSYh6SjCoLd1gYj7EFyOFWh4H8SUYgHDkh2U9oQ==}
+
+  '@turf/center-of-mass@7.3.0':
+    resolution: {integrity: sha512-7v7gx56xRgeEXL+WOs5GoBaNXawkGDAYB7MyrZGy4aJw9hJdsEiK+0jX1vqniYlTL0WJ6u4tMJ3jhn6W4CTS3A==}
+
+  '@turf/center@7.3.0':
+    resolution: {integrity: sha512-OrXgY9Hz9qnfhuEUrB2PHJnyiC0T1al292ZNTvG382G9ZdjUTRhzz4ajT5a4Mtar/QF+p2KwN8SiFlB2H2N7oQ==}
+
+  '@turf/centroid@7.3.0':
+    resolution: {integrity: sha512-6skXlwv6fCkdKsrkniizpEuC1IsAYQEyZG4XIzK5d3FGQTM/lVInLQP+wd9I6FLtW8b/6UbZcIjSU9wP/MMbTA==}
+
+  '@turf/circle@7.3.0':
+    resolution: {integrity: sha512-aOkYxDABFyv9qtz8vB2GyYF6kmROgplnaR1IHpWSfHnoFH3/2mIlhhGdY17x+FSN4b7SYLskKRDSCTG4p90VEA==}
+
+  '@turf/clean-coords@7.3.0':
+    resolution: {integrity: sha512-bdUS8hoWe0IBMCJu5i+2E+3TUQQ/tQqlBdUjGvRwZhy4QDlosXlx8ZZ7SG+H9M7rRaaOIvE7srDgr++yoKkv/Q==}
+
+  '@turf/clone@7.3.0':
+    resolution: {integrity: sha512-mf6TFxrNrNs64hyXjkFqhEXi3m+0WduQ8Ixqh4VcHV7LdkXg+rW0CxuSGoOlLgjYa6iscHoGCycOrTDyYyD6EA==}
+
+  '@turf/clusters-dbscan@7.3.0':
+    resolution: {integrity: sha512-dZ+Uk7bCP4zSzcOltafUCLk1wmyvllXbHbAWPNOhtOOEqRxvKMCmEoaBHG4ECd6vSRcIqrfeYEYa8faCeZYyqg==}
+
+  '@turf/clusters-kmeans@7.3.0':
+    resolution: {integrity: sha512-tNhIwr1Mmzb0bpCcCJYDjKsZF+G1zf70czmLq5pg9kJGgTXF/ZmYJ9rWjd+U8w6xImyxHNrw0x+XpGXRjQ8FHw==}
+
+  '@turf/clusters@7.3.0':
+    resolution: {integrity: sha512-5DoUkSoUGM3NJEi5aGNAvP59pJkqgWXnP3RU6h31MxwJeJhTjEKv/U8OqRxwoQKXUJ9z/BNjhkcz9TJovn23Hg==}
+
+  '@turf/collect@7.3.0':
+    resolution: {integrity: sha512-M5gp5H5jusyMfo66J7sZ+8PSAlbe9TX9Wew0zHKkyAcdk6BCZJMnxzOxH6C1Ir67BcMhDlav7x5ni2Yp4rE+2g==}
+
+  '@turf/combine@7.3.0':
+    resolution: {integrity: sha512-PzHl5cjSlw316tex8nmkaZKrqvno8onQInKqYaMz1ke/1SH+ceoaRU9+o5VvF8n9OPNG1mqyt7ZIY/TEc0Q49g==}
+
+  '@turf/concave@7.3.0':
+    resolution: {integrity: sha512-YpyHZJ+/DSxRT6N1Jy9ni1XNADGMnbPSFd5y7F3R4cka68g4nRrThHsUdQ5ae1Gk0+Zr9Rc0oTbUkLfQRVIRRg==}
+
+  '@turf/convex@7.3.0':
+    resolution: {integrity: sha512-Luh6OfidPCPiYV2VMKR/XM5+qjSS6N7mgMJNsj6eh8lXDpVhbi553qKNf1FYZ1R+x5hpE3QgX2PVwshRFf4TYw==}
+
+  '@turf/destination@7.3.0':
+    resolution: {integrity: sha512-N3K/zs8htrLkJ43qvaaDupL7ePMuAuQ9lSuV4q0CmaeqhKUhrpyGbXEu68uUPHpEALC/Ozp8nFtkmizbRBy+QA==}
+
+  '@turf/difference@7.3.0':
+    resolution: {integrity: sha512-6mpNfjZZ5SnjXeRkO6d5KAVruhL3jntwRWIUuS7+oDVMgm4Y7mN+kDZsDz+YPonCGkBbQUYScoT9mzn+IPofXw==}
+
+  '@turf/dissolve@7.3.0':
+    resolution: {integrity: sha512-Gxh7q7d/O1YK//ZdZa7Dex8VnnD24vto9PVxRtkEx+RhXSHLd2DyKu3aStOgW1MJoBLwTRUO4bKXSAmjZBA+9g==}
+
+  '@turf/distance-weight@7.3.0':
+    resolution: {integrity: sha512-NZAKwvW/UI1YzuctLX7S2a0AcTm9BSwusu1XVbbuXBGULxJLHIQDYpJhXNBRkBQbH8kYaXO6LSgH+V5HVjvxuQ==}
+
+  '@turf/distance@7.3.0':
+    resolution: {integrity: sha512-8FXmJxL8s80v7ZRRgCGNK6ufVlehhsBRxlV2rBiMQTC4nWfYNGVV42OFf17HlK2Mlbllv3Cp1jY3Ecu7fOdjxg==}
+
+  '@turf/ellipse@7.3.0':
+    resolution: {integrity: sha512-9w62TQuso3TeIAtyZ8mDi1GQBqXvLlssRlEE6dZFyE7ekwzRtaxezRyfTjk/aPD4FV5W7nk8YjVtaEkrZ9zkmg==}
+
+  '@turf/envelope@7.3.0':
+    resolution: {integrity: sha512-0pkFaRfEaknmsaQ2M9FmogWmBgP4NJU5HXReiF5PcpIxbNWfGoxDcw+1USTQJRHRNbP8PRnh0xRwt6WZQCXaeQ==}
+
+  '@turf/explode@7.3.0':
+    resolution: {integrity: sha512-oFnJbJz6rWSSnPUMSfGmSi7hYB8kx9TL8lc0naLwnmqmFkGEdYp98E9hhhIog5nl7XOw+maQjUj6g5NenR8AHw==}
+
+  '@turf/flatten@7.3.0':
+    resolution: {integrity: sha512-rzH//zTZQH93W0jh+0H+EDtvBD37jd1szxkOnOpOuUOJtDvdqH/3C7b0MFjvwcPCYhurtG90uW+y0mchjMbgoQ==}
+
+  '@turf/flip@7.3.0':
+    resolution: {integrity: sha512-ovRyjMSZ9ztJefZy3oWa3WDIj/sYWqN4bO8vUor3SlX8PuXzqX5LxBvINZBcX3BqI+u56I08uCQSL3Tl8H9+Yg==}
+
+  '@turf/geojson-rbush@7.3.0':
+    resolution: {integrity: sha512-pej4q6pZGye/jYiQVehIHw2vcsSqubvGw93WBkuj8cZJm2OC7YAYzNpG5lcmdsr2HGR1Yrb1tCprVEUnsX92sQ==}
+
+  '@turf/great-circle@7.3.0':
+    resolution: {integrity: sha512-DMBSFLD2/zAZAhAX2EQin+sogoT+arJ7dq9x2hRNTiEQYRZrKQyUMKPz9wNEsWB+evCLt3JsCn5djoVJByBSRw==}
+
+  '@turf/helpers@7.3.0':
+    resolution: {integrity: sha512-5kWdgwI6e2vGbkt2qOD+Z2BiKQ7dfKN/PtWRLCpvzyOO59rk19R53CHi8nUT/Y1vQLgWmT6eNpiKwsWwPZGIdg==}
+
+  '@turf/hex-grid@7.3.0':
+    resolution: {integrity: sha512-ySFWMwZTS1LSabtIPWMA7XAlEfBQW3WWteRYM1v+mypK14Vba0dNxf2hbbWaZIvoG3vFM/eWe6gvSTMFcw/8Qw==}
+
+  '@turf/interpolate@7.3.0':
+    resolution: {integrity: sha512-/Dw3xonymbFWgzKIi7AGyIMcPI7P1t3KCj6tD+NWm9f58xbooYbcP8//fd4EZcBprAH5uaLV/iuv4hG1dKfLtw==}
+
+  '@turf/intersect@7.3.0':
+    resolution: {integrity: sha512-ASgfNwg7WBMacsHTEVNI5qbrzo7wQezwIZ44ndVvTl3MJbeoDdQ1FhLNNGAK3VCH7MH/c7cdqV2IkicqTIyUuQ==}
+
+  '@turf/invariant@7.3.0':
+    resolution: {integrity: sha512-AmDFmdhpbLZv0zlI4EF4bVFE0iYmKcOBI2m8DTcFFUQDRusgjc+NLCnX1RIENfYyeI2FKHg84E9vSt6XytUDvw==}
+
+  '@turf/isobands@7.3.0':
+    resolution: {integrity: sha512-g/CqRgaF+Q1ECqOm5p0CQ1sxEgjPbuxMRSqOqfg7eI/T4/3f9QUEj2VuoISP8DL5nMYH9C6ohzppJHuN/XxYCw==}
+
+  '@turf/isolines@7.3.0':
+    resolution: {integrity: sha512-uGFJviPFSzLmEsZzJw3Beajm66Gyy2V2MS8tgej7Brat3CO7ChejNoMcPCeZ8P4Uk6k6Olc5CdcVWQqph6Ul4w==}
+
+  '@turf/jsts@2.7.2':
+    resolution: {integrity: sha512-zAezGlwWHPyU0zxwcX2wQY3RkRpwuoBmhhNE9HY9kWhFDkCxZ3aWK5URKwa/SWKJbj9aztO+8vtdiBA28KVJFg==}
+
+  '@turf/kinks@7.3.0':
+    resolution: {integrity: sha512-9JdgGbOVI8DV/Gyp25cOVTAcRj9YThEj31RsUPBrKmyelZWU/SgQKquCkMrfBXNKNkfaAsKmPwPGGhQes26X+A==}
+
+  '@turf/length@7.3.0':
+    resolution: {integrity: sha512-vZjSEPC5lM3tBB7RaiXVujvSe62jxaAHYl9E+yd4Egcv/zOKkFlK26j+1mtSyDwKE/r7nE4gd34KpT9k889vjA==}
+
+  '@turf/line-arc@7.3.0':
+    resolution: {integrity: sha512-mClyl2eFWUQFEYsQGc+ml9aJC917dELAvVvvNyIKuI4T6lUkzpfRE8478dky+9Hw/5biDREJqdnIsZOWKYbtFg==}
+
+  '@turf/line-chunk@7.3.0':
+    resolution: {integrity: sha512-FQfeoNDptoAh6YTKufjDfMFUpVeIXJ+h6FDltUtun8+SjvfRfTizH2dpGz3ocCICmAupPjA5bWVj9R/z1NY7XQ==}
+
+  '@turf/line-intersect@7.3.0':
+    resolution: {integrity: sha512-OJi54/VHBox+mRdK7IJLT1A/TJI+ORoYuYDtX2dqSMHeb2NnDS/9W6ipZ2wqt9aZDQzWKSlg2AkWtQWyVmlFfA==}
+
+  '@turf/line-offset@7.3.0':
+    resolution: {integrity: sha512-B3chEsRsS52tXWdWCXK5hcC53293yLqVj3G+s71BYEtDPvOT9maE23e889ThqvxbXWHtPIzWxX0rNr4AT+qDYw==}
+
+  '@turf/line-overlap@7.3.0':
+    resolution: {integrity: sha512-wFgDhZuXTrQt/W7deO6rF6x9FPZntHh6r4VL9SqvllQ/H+Wq7eqV2ET8grDg939YWTzYbg5lfnxSVLSAVQFCzQ==}
+
+  '@turf/line-segment@7.3.0':
+    resolution: {integrity: sha512-ZXWXUDqdx/R5YIab5OztjjmPsZ7d9kUSHxVjHKPR2c/q1Ji10eZzHGKfMPoTDaQSTfVaiifyBuFyg2lKxJpolg==}
+
+  '@turf/line-slice-along@7.3.0':
+    resolution: {integrity: sha512-Xl3d5351ap1gnlT4c+PWYTMHukLgRyiwnNVJBMGVB7nB2FXN9/XWUmD5kHJ/NymSg1e0/EYT0u3TdCV5q+j85w==}
+
+  '@turf/line-slice@7.3.0':
+    resolution: {integrity: sha512-TpsQEZDMed0jMLPFY6OPjlvJL0oAae3XBV3D/TNx8bfBJ1F6daUWAL021FtUOZBzveDZQ+aH5IF5V0XOT/qdDA==}
+
+  '@turf/line-split@7.3.0':
+    resolution: {integrity: sha512-SGgIqv53UQolYts5Ejwz1I4d2KzeS4zS7wpKzOvDQIOld2e6aaze0PZunWTV6qnTyO5udOnCcBSO+3b9D/tozA==}
+
+  '@turf/line-to-polygon@7.3.0':
+    resolution: {integrity: sha512-Dis/BB/zgKmFO3nskv6fGtVhTIUuVLrvm+w09uSUwiN4NdHqguBL8sQVddmQdy8jykSLQmYcYSuZhKYF2Ny2pQ==}
+
+  '@turf/mask@7.3.0':
+    resolution: {integrity: sha512-tnTZJg9CrGi9PXzSX/YKsFdsgsihSyksCP7qzV2uA2scLVm4XNwDcSusc27jQu8IyH7V2JvkiZews+bRQwhe1A==}
+
+  '@turf/meta@7.3.0':
+    resolution: {integrity: sha512-fTLqdQqRm8qA2zHHUbBMY++YT9LDQejLG7OD70XF2dwg9nPiF9mUxO7nrsDp2IY8vNmH9OTAiMtlIjb0ssYccg==}
+
+  '@turf/midpoint@7.3.0':
+    resolution: {integrity: sha512-PHIZ1dYXLdTQy4MFG8trRFaJwEecasX9tJ4bXZQRg7VzfjoF83b/+7VmWD4j8H4hpX49PTfNC1w/6MD++uGSkA==}
+
+  '@turf/moran-index@7.3.0':
+    resolution: {integrity: sha512-NsFp1/D3CB/PkzqHUHlXYupE3Mkd9CzVDByA9Rj8T1HPo6aUa6qlhqs1ah2b/VcYhtATzvYwuoIOC5pVkBE+IQ==}
+
+  '@turf/nearest-neighbor-analysis@7.3.0':
+    resolution: {integrity: sha512-fefZokkUFU7p8nptQ4vAsj1qTWX5JpQEaFRA3HNWIMw6kHvqQts7eHYAOkZEX4DODH+BEGe+7I7HcBpPrlu5mA==}
+
+  '@turf/nearest-point-on-line@7.3.0':
+    resolution: {integrity: sha512-IqwvZ/IuFXE30tsOYs+aoSKpLz1RljqIW0FJZb9OVcZzvbhv+R1nUCh95zzPTlNtifRuHkreKVBUYzLNlsC6Sg==}
+
+  '@turf/nearest-point-to-line@7.3.0':
+    resolution: {integrity: sha512-C9dg9J1KfNAhvtrc+G5or9/JEAiLE303+dlanu/WhCBOAS12osfbFMlc93cEKA9GKVVOvll0hQxDRdik3akmRw==}
+
+  '@turf/nearest-point@7.3.0':
+    resolution: {integrity: sha512-EGfucsrDrcBuZ9YSD3djPBBpYEoX6S/VLDANEuku7OPmCd5UVyjKWBswFW1DKrksh+Cx5ZmSeCk9tz+RVPjJNw==}
+
+  '@turf/planepoint@7.3.0':
+    resolution: {integrity: sha512-eIlwqVXb+W8QwFyuHvItRqo+2tbQcYJzfT2ySvqCHNwzBXrJSYtY0cF0GTQsSRnGYVw8PK/3aBmFNtDGBoBbCw==}
+
+  '@turf/point-grid@7.3.0':
+    resolution: {integrity: sha512-O5pfVOllskiiFQK36G0I7t2Zi3C+wqzt/hBKYPyGEMno8fO6w022IXEtibXyuhAEF63xrDm3SMTBnL9bAFnDLw==}
+
+  '@turf/point-on-feature@7.3.0':
+    resolution: {integrity: sha512-B2MepPZTt5J/2iz75wa47HTOGV0ChAwy/hcl9EVMm0f9prcz33nYPqRu5iXfqGTQTw0jkIl5PESUkYbd7HERTQ==}
+
+  '@turf/point-to-line-distance@7.3.0':
+    resolution: {integrity: sha512-ijl+WPQ4D4cZJ4jWXYshRs9rLvDPMvIfodQxZibYFf7dq0V/MN45CmmUSR05se66oJJeNyZnwWiXpz4j/uS78g==}
+
+  '@turf/point-to-polygon-distance@7.3.0':
+    resolution: {integrity: sha512-hhb4xIBuyE0PDHJH8MX+bHVYIWK21qliM51vkBuvbRf6ktpcwnj+ZtpPzkK+M2VJwyIhouNdcza4K5VfmK3mtA==}
+
+  '@turf/points-within-polygon@7.3.0':
+    resolution: {integrity: sha512-hctQeP25rCxdWc9Kek+KIWXukicPFwY8kGIbN0//M/PETY8VqW4beWrpf/3uGYwzMP6NRAjczMeb1BkP78ooDA==}
+
+  '@turf/polygon-smooth@7.3.0':
+    resolution: {integrity: sha512-ugSAl9AAPQFsXATXwEKg0PNpw5LlLF+hHhJmhfpj7MfCsRlks9cUlMXwFcwTPAmi13AjBNK2n1F5vUeWkKiQ/w==}
+
+  '@turf/polygon-tangents@7.3.0':
+    resolution: {integrity: sha512-+gQDD3zP+eDTyeo0egw6hV4roZUhPRVLaBXGKhbMHUE5PiDR3ye4ggrBhuwDJVWwmHwfeLags2ZMcjBZ7qUXUg==}
+
+  '@turf/polygon-to-line@7.3.0':
+    resolution: {integrity: sha512-dVU2iK3cXacAaHUpobH1VWhcHhiCvRBblgYlI5Co2+ailbjt8aO76FUWfXzYM9ULobc2Tv1rrfk8Nkd2yqg4bQ==}
+
+  '@turf/polygonize@7.3.0':
+    resolution: {integrity: sha512-GRY5h1SdTRlpHukzR+WZ5r1SnhwG15BXkRQFwqOWVz84fIGva2DV60S7Nlgn4SfoN1Udfwx506YJ8IDCb0x2LA==}
+
+  '@turf/projection@7.3.0':
+    resolution: {integrity: sha512-Dd0E77RnhyBdL5jvZP/FvXsKKnxXrDuHKr2iFBsNTc4OwonUrmvC/UVSMhRxHl7GI4S0shi0VI/NQ5dsAleMKg==}
+
+  '@turf/quadrat-analysis@7.3.0':
+    resolution: {integrity: sha512-P3xUXgFLPL5WgzZ+4Ent6uuGM2Gee3NXkhBWz9OH4eersDN5NuqOEErQ8sZGLWGKTleS/pyNfIea9KXKgKi11A==}
+
+  '@turf/random@7.3.0':
+    resolution: {integrity: sha512-44qM8wxLy65nYNtP28+TJ5y4SK3kVPvi9Q1u25abqoJcuAf0EJBLXH3o1AHGz+GLv//h1/jbS4tzsB7wKBWM3g==}
+
+  '@turf/rectangle-grid@7.3.0':
+    resolution: {integrity: sha512-K7BykOs1LJcJhuXNL3I7HcAd6YCq8POqlb9S2Zzd2tjbZtml2x5u8/PgxK6QXHbOaUD8GFmZornTymtvKPMepg==}
+
+  '@turf/rewind@7.3.0':
+    resolution: {integrity: sha512-T1lhSAeYl5I0DWPSHCftZlVdQEyPll6EaFw9p8ydbTsJ2vLc6UkD7ZLbHJQxlh8IvIR6A1YYjzbnl2YQ1Vu5+w==}
+
+  '@turf/rhumb-bearing@7.3.0':
+    resolution: {integrity: sha512-xrHGmEEjTHkWh3b68569ESxe+4F2Y0cLDe3Qf7S2ZNm9TTGQ4bgUfpsOTq0snTo00Ss/H+hGBZA5nJe2+il3GA==}
+
+  '@turf/rhumb-destination@7.3.0':
+    resolution: {integrity: sha512-Xt/JXB0JtXvTUq9kP+s3HJhsTrJCTVnl5hmNMUV7HvUxEnMcImFfFHc8GCBjXEMx8dqEK0OtRLZTqHl558v8Qg==}
+
+  '@turf/rhumb-distance@7.3.0':
+    resolution: {integrity: sha512-j4WPrgvKOw1AwhD4os1k7Mtv3F58QRHlLLLm+WBnMeu8AaXyJPwwxy2SfhB4tm6uEZCErR9daRGZNOn2RV6PfQ==}
+
+  '@turf/sample@7.3.0':
+    resolution: {integrity: sha512-O/mVGWE+3SFLl8qtwu9ca183Qn2Fe8hHGjfQSCTBGSYk41mkwgmcKCp1aHI9GBh6MrKaZrHtPH8BgcTEztl85Q==}
+
+  '@turf/sector@7.3.0':
+    resolution: {integrity: sha512-Kah3Vffri+wzbx8oc6QCp1wZyzPIWkUaUtMfdWXVB7VW3yIduD6AGQPWWsAnlRtNrJFAZtzRzJ15dHmZnWAP/A==}
+
+  '@turf/shortest-path@7.3.0':
+    resolution: {integrity: sha512-UDwuSrX8YVgQf/uDLyg4TrxnMR4vEuptqJ/eDN8AEdTQH/RVqPIeVrP00stsLMJyTsyYsUie2FRa25vCcFtZ9g==}
+
+  '@turf/simplify@7.3.0':
+    resolution: {integrity: sha512-5akWNR7CZQOCwpKUV7qlQGoi9e1tVUA76kCePUQ+dOuTx8lodXKBfjrDiBX/qNzzbSO7gcJHiwI7IwkZfO4zIg==}
+
+  '@turf/square-grid@7.3.0':
+    resolution: {integrity: sha512-+01bCjQto9rqY7yA56+6Od4+uGrEdPP0sg4V899Fj191yhgzumFljdBneiD6shAo+Ly2wiqUn+UY7TYNS9tKsw==}
+
+  '@turf/square@7.3.0':
+    resolution: {integrity: sha512-RN8U3TMT/gZpccB+SOwtOEJZGfMHbH3J8kgg/hiXo5xya9oewLdFEdKmqjRy+IgmXf5pMxGN0/PEz7XQvP7m5g==}
+
+  '@turf/standard-deviational-ellipse@7.3.0':
+    resolution: {integrity: sha512-ZQRo2uEQUQGFcL4GNXp7vCjPorW7/9B44s2/azYsk8qrlirj8FBUAMXkCr5EioTWJ9CHbcwGyyXoIHgvfG1fBQ==}
+
+  '@turf/tag@7.3.0':
+    resolution: {integrity: sha512-IVPr4UR2VmHtOlrE8TKLfVmeT77A8ca2Mkdag+zoVTecHCPcb+M7X98VtaVjW8ZXZhX0rwn8Jc5PtsSxthvwtA==}
+
+  '@turf/tesselate@7.3.0':
+    resolution: {integrity: sha512-f3FInc/+BGsStCcVXwKXugnBB4j9jgse6mI9mB0YHqdap4Q23DYVo15HdSMFgSUGaffDDv7y4yMdU/9Uxuk9aw==}
+
+  '@turf/tin@7.3.0':
+    resolution: {integrity: sha512-JomnJsyEYvZ5OX5sUNNss4hZVQisnPXzdz77hUjOYU42NE7krF+0WQEgQVHhG520AHWO6Ihd+LA8bzD8r20Ksg==}
+
+  '@turf/transform-rotate@7.3.0':
+    resolution: {integrity: sha512-DAllZaae7LJ5KPYaCNztEwKcu+7PudHuAFcvNTxl3gIaVqvtOe2PuCH0Tdp95Zkvw8BOXxJzwEMMP0qCR22gkQ==}
+
+  '@turf/transform-scale@7.3.0':
+    resolution: {integrity: sha512-FouKS0QMhYXTzH6nSX4XoMejhR9VrRHrsRF2XjPkVNB/TiyRjufr0S3WT4wINlXWMg97me9M5O5MOM9YBo0T3A==}
+
+  '@turf/transform-translate@7.3.0':
+    resolution: {integrity: sha512-qm+2zrQsqhoOK2sT3NnkPkJoEYgr1/+6bPkgHxe/uCAlqyXFR1oqoiTmvDfmqxrspUbgP09d1XLgJP1A5A2L3w==}
+
+  '@turf/triangle-grid@7.3.0':
+    resolution: {integrity: sha512-Fv0Zjm4gl6YhStTsMn42bYj7Y7W0SG2oa7kQgKj5pD+iXpHkuy67F8WjxfZ8Ei4EMDBHZFgInNLLW7KDxo7BSg==}
+
+  '@turf/truncate@7.3.0':
+    resolution: {integrity: sha512-Y0Xzl74CgZEeWydQn3+5p3Vd3HWP1w8+IWi/cYO6OeXyda/EeegUTvqzosfr29YV1nSNLQ5Q8/xYlxzjZ6P7pw==}
+
+  '@turf/turf@7.3.0':
+    resolution: {integrity: sha512-jMeUUq+r67K0V/ZucwiUfvZ3rE+bgnXbtkHux12pxMgoYRdFA5kouBj+Ja7irgC7HIsYDTZaoIuoLaQdUM8Qqg==}
+
+  '@turf/union@7.3.0':
+    resolution: {integrity: sha512-W6A4R/FR6HuffmlFFE+3/zYQYzJsCccmVRQRDGBlWj+zy8Qdrraz+gGs213JzKgdWlJ7FT3SPAYAMUit1TuWIw==}
+
+  '@turf/unkink-polygon@7.3.0':
+    resolution: {integrity: sha512-B0VLWtsBIoSzTxpJNbZgAR3J4QNk4LgehRNDv3+Dr4p9pJ7Z1Vz32tQtdXB3nvQOFteYrRIaZNJwZekJUCCiUA==}
+
+  '@turf/voronoi@7.3.0':
+    resolution: {integrity: sha512-wJ6eCTeuj8aKX8e/kTOcgcIMPv7llcYXQ02woQz/3dG/g0gAVSqnHILHAwXiObL5fq7IUwwTCc2k+88dzQgsWQ==}
+
   '@tybys/wasm-util@0.10.1':
     resolution: {integrity: sha512-9tTaPJLSiejZKx+Bmog4uSubteqTvFrVrURwkmHixBo0G4seD0zUxp98E1DzUBJxLQ3NPwXrGKDiVjwx/DpPsg==}
 
@@ -923,6 +1274,9 @@ packages:
 
   '@types/chai@5.2.3':
     resolution: {integrity: sha512-Mw558oeA9fFbv65/y4mHtXDs9bPnFMZAL/jxdPFUpOHHIXX91mcgEHbS5Lahr+pwZFR8A7GQleRWeI6cGFC2UA==}
+
+  '@types/d3-voronoi@1.1.12':
+    resolution: {integrity: sha512-DauBl25PKZZ0WVJr42a6CNvI6efsdzofl9sajqZr2Gf5Gu733WkDdUGiPkUHXiUvYGzNNlFQde2wdZdfQPG+yw==}
 
   '@types/deep-eql@4.0.2':
     resolution: {integrity: sha512-c9h9dVVMigMPc4bwTvC5dxqtqJZwQPePsWjPlpSOnojbor6pGqdk541lfA7AqFQr5pB1BRdq0juY9db81BwyFw==}
@@ -1130,6 +1484,9 @@ packages:
   big.js@5.2.2:
     resolution: {integrity: sha512-vyL2OymJxmarO8gxMr0mhChsO9QGwhynfuu4+MHTAW6czfq9humCB7rKpUjDd9YUiDPU4mzpyupFSvOClAwbmQ==}
 
+  bignumber.js@9.3.1:
+    resolution: {integrity: sha512-Ko0uX15oIUS7wJ3Rb30Fs6SkVbLmPBAKdlm7q9+ak9bbIeFf0MwuBsQV6z7+X768/cHsfg+WlysDWJcmthjsjQ==}
+
   boolbase@1.0.0:
     resolution: {integrity: sha512-JZOSA7Mo9sNGB8+UjSgzdLtokWAky1zbztM3WRLCbZ70/3cTANmQmOdR7y2g+J0e2WXywy1yS468tY+IruqEww==}
 
@@ -1214,6 +1571,9 @@ packages:
     resolution: {integrity: sha512-QrWXB+ZQSVPmIWIhtEO9H+gwHaMGYiF5ChvoJ+K9ZGHG/sVsa6yiesAD1GC/x46sET00Xlwo1u49RVVVzvcSkw==}
     engines: {node: '>= 10'}
 
+  concaveman@1.2.1:
+    resolution: {integrity: sha512-PwZYKaM/ckQSa8peP5JpVr7IMJ4Nn/MHIaWUjP4be+KoZ7Botgs8seAZGpmaOM+UZXawcdYRao/px9ycrCihHw==}
+
   content-disposition@0.5.4:
     resolution: {integrity: sha512-FveZTNuGw04cxlAiWbzi6zTAL/lhehaWbTtgluJh4/E95DqMwTmha3KZN1aAWA8cFIhHzMZUvLevkw5Rqk+tSQ==}
     engines: {node: '>= 0.6'}
@@ -1281,6 +1641,15 @@ packages:
 
   csstype@3.1.3:
     resolution: {integrity: sha512-M1uQkMl8rQK/szD0LNhtqxIPLpimGm8sOBwU7lLnCpSbTyY3yeU1Vc7l4KT5zT4s/yOxHH5O7tIuuLOCnLADRw==}
+
+  d3-array@1.2.4:
+    resolution: {integrity: sha512-KHW6M86R+FUPYGb3R5XiYjXPq7VzwxZ22buHhAEVG5ztoEcZZMLov530mmccaqA1GghZArjQV46fuc8kUqhhHw==}
+
+  d3-geo@1.7.1:
+    resolution: {integrity: sha512-O4AempWAr+P5qbk2bC2FuN/sDW4z+dN2wDf9QV3bxQt4M5HfOEeXLgJ/UKQW0+o1Dj8BE+L5kiDbdWUMjsmQpw==}
+
+  d3-voronoi@1.1.2:
+    resolution: {integrity: sha512-RhGS1u2vavcO7ay7ZNAPo4xeDh/VYeGof3x5ZLJBQgYhLegxr3s5IykvWmJ94FTU6mcbtp4sloqZ54mP6R4Utw==}
 
   data-urls@6.0.0:
     resolution: {integrity: sha512-BnBS08aLUM+DKamupXs3w2tJJoqU+AkaE/+6vQxi/G/DPmIZFJJp9Dkb1kM03AZx8ADehDUZgsNxju3mPXZYIA==}
@@ -1362,6 +1731,9 @@ packages:
   dunder-proto@1.0.1:
     resolution: {integrity: sha512-KIN/nDJBQRcXw0MLVhZE9iQHmG68qAVIBg9CqmUYjmQIhgij9U5MFvrqkUL5FbtyyzZuOeOt0zdeRe4UY7ct+A==}
     engines: {node: '>= 0.4'}
+
+  earcut@2.2.4:
+    resolution: {integrity: sha512-/pjZsA1b4RPHbeWZQn66SWS8nZZWLQQ23oE3Eam7aroEFGEvwKAsJfZ9ytiEMycfzXWpca4FA9QIOehf7PocBQ==}
 
   earcut@3.0.2:
     resolution: {integrity: sha512-X7hshQbLyMJ/3RPhyObLARM2sNxxmRALLKx1+NVFFnQ9gKzmCrxm9+uLIAdBcvc8FNLpctqlQ2V6AE92Ol9UDQ==}
@@ -1524,6 +1896,12 @@ packages:
   gensync@1.0.0-beta.2:
     resolution: {integrity: sha512-3hN7NaskYvMDLQY55gnW3NQ+mesEAepTqlg+VEbj7zzqEMBVNhzcGYYeqFo/TlYz6eQiFcp1HcsCZO+nGgS8zg==}
     engines: {node: '>=6.9.0'}
+
+  geojson-equality-ts@1.0.2:
+    resolution: {integrity: sha512-h3Ryq+0mCSN/7yLs0eDgrZhvc9af23o/QuC4aTiuuzP/MRCtd6mf5rLsLRY44jX0RPUfM8c4GqERQmlUxPGPoQ==}
+
+  geojson-polygon-self-intersections@1.2.1:
+    resolution: {integrity: sha512-/QM1b5u2d172qQVO//9CGRa49jEmclKEsYOQmWP9ooEjj63tBM51m2805xsbxkzlEELQ2REgTf700gUhhlegxA==}
 
   geojson-vt@4.0.2:
     resolution: {integrity: sha512-AV9ROqlNqoZEIJGfm1ncNjEXfkz2hdFlZf0qkVfmkwdKa8vj7H16YUOT81rJw1rdFhyEDlN2Tds91p/glzbl5A==}
@@ -1735,6 +2113,10 @@ packages:
   jsonfile@6.2.0:
     resolution: {integrity: sha512-FGuPw30AdOIUTRMC2OMRtQV+jkVj2cfPqSeWXv1NEAJ1qZ5zb1X6z1mFhbfOB/iy3ssJCD+3KuZ8r8C3uVFlAg==}
 
+  jsts@2.7.1:
+    resolution: {integrity: sha512-x2wSZHEBK20CY+Wy+BPE7MrFQHW6sIsdaGUMEqmGAio+3gFzQaBYPwLRonUfQf9Ak8pBieqj9tUofX1+WtAEIg==}
+    engines: {node: '>= 12'}
+
   jwt-decode@4.0.0:
     resolution: {integrity: sha512-+KJGIyHgkGuIq3IEBNftfhW/LfWhXUIY6OmyVWjliu5KH1y0fw7VQ8YndE2O4qZdMSd9SqbnC8GOcZEy0Om7sA==}
     engines: {node: '>=18'}
@@ -1942,6 +2324,15 @@ packages:
     resolution: {integrity: sha512-JU3teHTNjmE2VCGFzuY8EXzCDVwEqB2a8fsIvwaStHhAWJEeVd1o1QD80CU6+ZdEXXSLbSsuLwJjkCBWqRQUVA==}
     engines: {node: '>=8.6'}
 
+  point-in-polygon-hao@1.2.4:
+    resolution: {integrity: sha512-x2pcvXeqhRHlNRdhLs/tgFapAbSSe86wa/eqmj1G6pWftbEs5aVRJhRGM6FYSUERKu0PjekJzMq0gsI2XyiclQ==}
+
+  point-in-polygon@1.1.0:
+    resolution: {integrity: sha512-3ojrFwjnnw8Q9242TzgXuTD+eKiutbzyslcq1ydfu82Db2y+Ogbmyrkpv0Hgj31qwT3lbS9+QAAO/pIQM35XRw==}
+
+  polyclip-ts@0.16.8:
+    resolution: {integrity: sha512-JPtKbDRuPEuAjuTdhR62Gph7Is2BS1Szx69CFOO3g71lpJDFo78k4tFyi+qFOMVPePEzdSKkpGU3NBXPHHjvKQ==}
+
   postcss@8.5.6:
     resolution: {integrity: sha512-3Ybi1tAuwAP9s0r1UQ2J4n5Y0G05bJkpUIO0/bI9MhwmD70S5aTWbXGBwxHrelT+XM1k6dM0pk+SwNkpTRN7Pg==}
     engines: {node: ^10 || ^12 || >=14}
@@ -1963,6 +2354,12 @@ packages:
     resolution: {integrity: sha512-vYt7UD1U9Wg6138shLtLOvdAu+8DsC/ilFtEVHcH+wydcSpNE20AfSOduf6MkRFahL5FY7X1oU7nKVZFtfq8Fg==}
     engines: {node: '>=6'}
 
+  quickselect@1.1.1:
+    resolution: {integrity: sha512-qN0Gqdw4c4KGPsBOQafj6yj/PA6c/L63f6CaZ/DCF/xF4Esu3jVmKLUDYxghFx8Kb/O7y9tI7x2RjTSXwdK1iQ==}
+
+  quickselect@2.0.0:
+    resolution: {integrity: sha512-RKJ22hX8mHe3Y6wH/N3wCM6BWtjaxIyyUIkpHOvfFnxdI4yD4tBXEBKSbriGujF6jnSVkJrffuo6vxACiSSxIw==}
+
   quickselect@3.0.0:
     resolution: {integrity: sha512-XdjUArbK4Bm5fLLvlm5KpTFOiOThgfWWI4axAZDWg4E/0mKdZyI9tNEfds27qCi1ze/vwTR16kvmmGhRra3c2g==}
 
@@ -1971,6 +2368,12 @@ packages:
 
   randombytes@2.1.0:
     resolution: {integrity: sha512-vYl3iOX+4CKUWuxGi9Ukhie6fsqXqS9FE2Zaic4tNFD2N2QQaXOMFbuKK4QmDHC0JO6B1Zp41J0LpT0oR68amQ==}
+
+  rbush@2.0.2:
+    resolution: {integrity: sha512-XBOuALcTm+O/H8G90b6pzu6nX6v2zCKiFG4BJho8a+bY6AER6t8uQUZdi5bomQc0AprCWhEGa7ncAbbRap0bRA==}
+
+  rbush@3.0.1:
+    resolution: {integrity: sha512-XRaVO0YecOpEuIvbhbpTrZgoiI6xBlz6hnlr6EHhd+0x9ase6EmeN+hdwwUaJvLcsFFQ8iWVF1GAK1yB0BWi0w==}
 
   react-dom@19.2.0:
     resolution: {integrity: sha512-UlbRu4cAiGaIewkPyiRGJk0imDN2T3JjieT6spoL2UeSf5od4n5LB/mQ4ejmxhCFT1tYe8IvaFulzynWovsEFQ==}
@@ -2050,6 +2453,12 @@ packages:
 
   rfdc@1.4.1:
     resolution: {integrity: sha512-q1b3N5QkRUWUl7iyylaaj3kOpIT0N2i9MqIEQXP73GVsN9cw3fdx8X63cEmWhJGi2PPCF23Ijp7ktmd39rawIA==}
+
+  robust-predicates@2.0.4:
+    resolution: {integrity: sha512-l4NwboJM74Ilm4VKfbAtFeGq7aEjWL+5kVFcmgFA2MrdnQWx9iE/tUGvxY5HyMI7o/WpSIUFLbC5fbeaHgSCYg==}
+
+  robust-predicates@3.0.2:
+    resolution: {integrity: sha512-IXgzBWvWQwE6PrDI05OvmXUIruQTcoMDzRsOd5CDvHCVLcLHMTSYvOK5Cm46kWqlV3yAbuSpBZdJ5oP5OUoStg==}
 
   rrweb-cssom@0.8.0:
     resolution: {integrity: sha512-guoltQEx+9aMf2gDZ0s62EcV8lsXR+0w8915TC3ITdn2YueuNjdAYh/levpU9nFaoChh9RUS5ZdQMrKfVEN9tw==}
@@ -2216,6 +2625,9 @@ packages:
   setprototypeof@1.2.0:
     resolution: {integrity: sha512-E5LDX7Wrp85Kil5bhZv46j8jOeboKq5JMmYM3gVGdGH8xFpPWXUMsNrlODCrkoxMEeNi/XZIwuRvY4XNwYMJpw==}
 
+  skmeans@0.9.7:
+    resolution: {integrity: sha512-hNj1/oZ7ygsfmPZ7ZfN5MUBRoGg1gtpnImuJBgLO0ljQ67DtJuiQaiYdS4lUA6s0KCwnPhGivtC/WRwIZLkHyg==}
+
   snake-case@3.0.4:
     resolution: {integrity: sha512-LAOh4z89bGQvl9pFfNF8V146i7o7/CqFPbqzYgP+yYzDIDeS9HaNFtXABamRW+AQzEVODcvE79ljJ+8a9YSdMg==}
 
@@ -2244,6 +2656,9 @@ packages:
   source-map@0.6.1:
     resolution: {integrity: sha512-UjgapumWlbMhkBgzT7Ykc5YXUT46F0iKu8SGXq0bcwP5dz/h0Plj6enJqjz1Zbq2l5WaqYnrVbwWOWMyF3F47g==}
     engines: {node: '>=0.10.0'}
+
+  splaytree-ts@1.0.2:
+    resolution: {integrity: sha512-0kGecIZNIReCSiznK3uheYB8sbstLjCZLiwcQwbmLhgHJj2gz6OnSPkVzJQCMnmEz1BQ4gPK59ylhBoEWOhGNA==}
 
   split-string@3.1.0:
     resolution: {integrity: sha512-NzNVhJDYpwceVVii8/Hu6DKfD2G+NrQHlS/V/qgv763EYudVwEcMQNxd2lh+0VrUByXN/oJkl5grOhYWvQUYiw==}
@@ -2301,6 +2716,9 @@ packages:
     engines: {node: '>=14.0.0'}
     hasBin: true
 
+  sweepline-intersections@1.5.0:
+    resolution: {integrity: sha512-AoVmx72QHpKtItPu72TzFL+kcYjd67BPLDoR0LarIk+xyaRg+pDTMFXndIEvZf9xEKnJv6JdhgRMnocoG0D3AQ==}
+
   symbol-tree@3.2.4:
     resolution: {integrity: sha512-9QNk5KwDF+Bvz+PyObkmSYjI5ksVUYtjW7AU22r2NKcfLJcXp96hkDWU3+XndOsUb+AQ9QhfzfCT2O+CNWT5Tw==}
 
@@ -2341,6 +2759,9 @@ packages:
     resolution: {integrity: sha512-Zba82s87IFq9A9XmjiX5uZA/ARWDrB03OHlq+Vw1fSdt0I+4/Kutwy8BP4Y/y/aORMo61FQ0vIb5j44vSo5Pkg==}
     engines: {node: ^18.0.0 || >=20.0.0}
 
+  tinyqueue@2.0.3:
+    resolution: {integrity: sha512-ppJZNDuKGgxzkHihX8v9v9G5f+18gzaTfrukGrq6ueg0lmH4nqVnA2IPG0AEH3jKEk2GRJCUhDoqpoiw3PHLBA==}
+
   tinyqueue@3.0.0:
     resolution: {integrity: sha512-gRa9gwYU3ECmQYv3lslts5hxuIa90veaEcxDYuu3QGOIAEM2mOZkVHp48ANJuu1CURtRdHKUBY5Lm1tHV+sD4g==}
 
@@ -2358,6 +2779,14 @@ packages:
   toidentifier@1.0.1:
     resolution: {integrity: sha512-o5sSPKEkg/DIQNmH43V0/uerLrpzVedkUh8tGNvaeXpfpuwjKenlSox/2O/BTlZUtEe+JG7s5YhEz608PlAHRA==}
     engines: {node: '>=0.6'}
+
+  topojson-client@3.1.0:
+    resolution: {integrity: sha512-605uxS6bcYxGXw9qi62XyrV6Q3xwbndjachmNxu8HWTtVPxZfEJN9fd/SZS1Q54Sn2y0TMyMxFj/cJINqGHrKw==}
+    hasBin: true
+
+  topojson-server@3.0.1:
+    resolution: {integrity: sha512-/VS9j/ffKr2XAOjlZ9CgyyeLmgJ9dMwq6Y0YEON8O7p/tGGk+dCWnrE03zEdu7i4L7YsFZLEPZPzCvcB7lEEXw==}
+    hasBin: true
 
   tough-cookie@6.0.0:
     resolution: {integrity: sha512-kXuRi1mtaKMrsLUxz3sQYvVl37B0Ns6MzfrtV5DvJceE9bPyspOqk9xxv7XbZWcfLWbFmm997vl83qUWVJA64w==}
@@ -3427,6 +3856,1115 @@ snapshots:
 
   '@trysound/sax@0.2.0': {}
 
+  '@turf/along@7.3.0':
+    dependencies:
+      '@turf/bearing': 7.3.0
+      '@turf/destination': 7.3.0
+      '@turf/distance': 7.3.0
+      '@turf/helpers': 7.3.0
+      '@turf/invariant': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/angle@7.3.0':
+    dependencies:
+      '@turf/bearing': 7.3.0
+      '@turf/helpers': 7.3.0
+      '@turf/invariant': 7.3.0
+      '@turf/rhumb-bearing': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/area@7.3.0':
+    dependencies:
+      '@turf/helpers': 7.3.0
+      '@turf/meta': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/bbox-clip@7.3.0':
+    dependencies:
+      '@turf/helpers': 7.3.0
+      '@turf/invariant': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/bbox-polygon@7.3.0':
+    dependencies:
+      '@turf/helpers': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/bbox@7.3.0':
+    dependencies:
+      '@turf/helpers': 7.3.0
+      '@turf/meta': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/bearing@7.3.0':
+    dependencies:
+      '@turf/helpers': 7.3.0
+      '@turf/invariant': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/bezier-spline@7.3.0':
+    dependencies:
+      '@turf/helpers': 7.3.0
+      '@turf/invariant': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/boolean-clockwise@7.3.0':
+    dependencies:
+      '@turf/helpers': 7.3.0
+      '@turf/invariant': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/boolean-concave@7.3.0':
+    dependencies:
+      '@turf/helpers': 7.3.0
+      '@turf/invariant': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/boolean-contains@7.3.0':
+    dependencies:
+      '@turf/bbox': 7.3.0
+      '@turf/boolean-point-in-polygon': 7.3.0
+      '@turf/boolean-point-on-line': 7.3.0
+      '@turf/helpers': 7.3.0
+      '@turf/invariant': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/boolean-crosses@7.3.0':
+    dependencies:
+      '@turf/boolean-point-in-polygon': 7.3.0
+      '@turf/helpers': 7.3.0
+      '@turf/invariant': 7.3.0
+      '@turf/line-intersect': 7.3.0
+      '@turf/polygon-to-line': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/boolean-disjoint@7.3.0':
+    dependencies:
+      '@turf/boolean-point-in-polygon': 7.3.0
+      '@turf/helpers': 7.3.0
+      '@turf/line-intersect': 7.3.0
+      '@turf/meta': 7.3.0
+      '@turf/polygon-to-line': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/boolean-equal@7.3.0':
+    dependencies:
+      '@turf/clean-coords': 7.3.0
+      '@turf/helpers': 7.3.0
+      '@turf/invariant': 7.3.0
+      '@types/geojson': 7946.0.16
+      geojson-equality-ts: 1.0.2
+      tslib: 2.8.1
+
+  '@turf/boolean-intersects@7.3.0':
+    dependencies:
+      '@turf/boolean-disjoint': 7.3.0
+      '@turf/helpers': 7.3.0
+      '@turf/meta': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/boolean-overlap@7.3.0':
+    dependencies:
+      '@turf/helpers': 7.3.0
+      '@turf/invariant': 7.3.0
+      '@turf/line-intersect': 7.3.0
+      '@turf/line-overlap': 7.3.0
+      '@turf/meta': 7.3.0
+      '@types/geojson': 7946.0.16
+      geojson-equality-ts: 1.0.2
+      tslib: 2.8.1
+
+  '@turf/boolean-parallel@7.3.0':
+    dependencies:
+      '@turf/clean-coords': 7.3.0
+      '@turf/helpers': 7.3.0
+      '@turf/line-segment': 7.3.0
+      '@turf/rhumb-bearing': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/boolean-point-in-polygon@7.3.0':
+    dependencies:
+      '@turf/helpers': 7.3.0
+      '@turf/invariant': 7.3.0
+      '@types/geojson': 7946.0.16
+      point-in-polygon-hao: 1.2.4
+      tslib: 2.8.1
+
+  '@turf/boolean-point-on-line@7.3.0':
+    dependencies:
+      '@turf/helpers': 7.3.0
+      '@turf/invariant': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/boolean-touches@7.3.0':
+    dependencies:
+      '@turf/boolean-point-in-polygon': 7.3.0
+      '@turf/boolean-point-on-line': 7.3.0
+      '@turf/helpers': 7.3.0
+      '@turf/invariant': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/boolean-valid@7.3.0':
+    dependencies:
+      '@turf/bbox': 7.3.0
+      '@turf/boolean-crosses': 7.3.0
+      '@turf/boolean-disjoint': 7.3.0
+      '@turf/boolean-overlap': 7.3.0
+      '@turf/boolean-point-in-polygon': 7.3.0
+      '@turf/boolean-point-on-line': 7.3.0
+      '@turf/helpers': 7.3.0
+      '@turf/invariant': 7.3.0
+      '@turf/line-intersect': 7.3.0
+      '@types/geojson': 7946.0.16
+      geojson-polygon-self-intersections: 1.2.1
+      tslib: 2.8.1
+
+  '@turf/boolean-within@7.3.0':
+    dependencies:
+      '@turf/bbox': 7.3.0
+      '@turf/boolean-point-in-polygon': 7.3.0
+      '@turf/boolean-point-on-line': 7.3.0
+      '@turf/helpers': 7.3.0
+      '@turf/invariant': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/buffer@7.3.0':
+    dependencies:
+      '@turf/bbox': 7.3.0
+      '@turf/center': 7.3.0
+      '@turf/helpers': 7.3.0
+      '@turf/jsts': 2.7.2
+      '@turf/meta': 7.3.0
+      '@turf/projection': 7.3.0
+      '@types/geojson': 7946.0.16
+      d3-geo: 1.7.1
+
+  '@turf/center-mean@7.3.0':
+    dependencies:
+      '@turf/bbox': 7.3.0
+      '@turf/helpers': 7.3.0
+      '@turf/meta': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/center-median@7.3.0':
+    dependencies:
+      '@turf/center-mean': 7.3.0
+      '@turf/centroid': 7.3.0
+      '@turf/distance': 7.3.0
+      '@turf/helpers': 7.3.0
+      '@turf/meta': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/center-of-mass@7.3.0':
+    dependencies:
+      '@turf/centroid': 7.3.0
+      '@turf/convex': 7.3.0
+      '@turf/helpers': 7.3.0
+      '@turf/invariant': 7.3.0
+      '@turf/meta': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/center@7.3.0':
+    dependencies:
+      '@turf/bbox': 7.3.0
+      '@turf/helpers': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/centroid@7.3.0':
+    dependencies:
+      '@turf/helpers': 7.3.0
+      '@turf/meta': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/circle@7.3.0':
+    dependencies:
+      '@turf/destination': 7.3.0
+      '@turf/helpers': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/clean-coords@7.3.0':
+    dependencies:
+      '@turf/boolean-point-on-line': 7.3.0
+      '@turf/helpers': 7.3.0
+      '@turf/invariant': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/clone@7.3.0':
+    dependencies:
+      '@turf/helpers': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/clusters-dbscan@7.3.0':
+    dependencies:
+      '@turf/clone': 7.3.0
+      '@turf/distance': 7.3.0
+      '@turf/helpers': 7.3.0
+      '@turf/meta': 7.3.0
+      '@types/geojson': 7946.0.16
+      rbush: 3.0.1
+      tslib: 2.8.1
+
+  '@turf/clusters-kmeans@7.3.0':
+    dependencies:
+      '@turf/clone': 7.3.0
+      '@turf/helpers': 7.3.0
+      '@turf/invariant': 7.3.0
+      '@turf/meta': 7.3.0
+      '@types/geojson': 7946.0.16
+      skmeans: 0.9.7
+      tslib: 2.8.1
+
+  '@turf/clusters@7.3.0':
+    dependencies:
+      '@turf/helpers': 7.3.0
+      '@turf/meta': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/collect@7.3.0':
+    dependencies:
+      '@turf/bbox': 7.3.0
+      '@turf/boolean-point-in-polygon': 7.3.0
+      '@turf/helpers': 7.3.0
+      '@types/geojson': 7946.0.16
+      rbush: 3.0.1
+      tslib: 2.8.1
+
+  '@turf/combine@7.3.0':
+    dependencies:
+      '@turf/helpers': 7.3.0
+      '@turf/meta': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/concave@7.3.0':
+    dependencies:
+      '@turf/clone': 7.3.0
+      '@turf/distance': 7.3.0
+      '@turf/helpers': 7.3.0
+      '@turf/invariant': 7.3.0
+      '@turf/meta': 7.3.0
+      '@turf/tin': 7.3.0
+      '@types/geojson': 7946.0.16
+      topojson-client: 3.1.0
+      topojson-server: 3.0.1
+      tslib: 2.8.1
+
+  '@turf/convex@7.3.0':
+    dependencies:
+      '@turf/helpers': 7.3.0
+      '@turf/meta': 7.3.0
+      '@types/geojson': 7946.0.16
+      concaveman: 1.2.1
+      tslib: 2.8.1
+
+  '@turf/destination@7.3.0':
+    dependencies:
+      '@turf/helpers': 7.3.0
+      '@turf/invariant': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/difference@7.3.0':
+    dependencies:
+      '@turf/helpers': 7.3.0
+      '@turf/meta': 7.3.0
+      '@types/geojson': 7946.0.16
+      polyclip-ts: 0.16.8
+      tslib: 2.8.1
+
+  '@turf/dissolve@7.3.0':
+    dependencies:
+      '@turf/flatten': 7.3.0
+      '@turf/helpers': 7.3.0
+      '@turf/invariant': 7.3.0
+      '@turf/meta': 7.3.0
+      '@types/geojson': 7946.0.16
+      polyclip-ts: 0.16.8
+      tslib: 2.8.1
+
+  '@turf/distance-weight@7.3.0':
+    dependencies:
+      '@turf/centroid': 7.3.0
+      '@turf/helpers': 7.3.0
+      '@turf/invariant': 7.3.0
+      '@turf/meta': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/distance@7.3.0':
+    dependencies:
+      '@turf/helpers': 7.3.0
+      '@turf/invariant': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/ellipse@7.3.0':
+    dependencies:
+      '@turf/destination': 7.3.0
+      '@turf/distance': 7.3.0
+      '@turf/helpers': 7.3.0
+      '@turf/invariant': 7.3.0
+      '@turf/transform-rotate': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/envelope@7.3.0':
+    dependencies:
+      '@turf/bbox': 7.3.0
+      '@turf/bbox-polygon': 7.3.0
+      '@turf/helpers': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/explode@7.3.0':
+    dependencies:
+      '@turf/helpers': 7.3.0
+      '@turf/meta': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/flatten@7.3.0':
+    dependencies:
+      '@turf/helpers': 7.3.0
+      '@turf/meta': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/flip@7.3.0':
+    dependencies:
+      '@turf/clone': 7.3.0
+      '@turf/helpers': 7.3.0
+      '@turf/meta': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/geojson-rbush@7.3.0':
+    dependencies:
+      '@turf/bbox': 7.3.0
+      '@turf/helpers': 7.3.0
+      '@turf/meta': 7.3.0
+      '@types/geojson': 7946.0.16
+      rbush: 3.0.1
+
+  '@turf/great-circle@7.3.0':
+    dependencies:
+      '@turf/helpers': 7.3.0
+      '@turf/invariant': 7.3.0
+      '@types/geojson': 7946.0.16
+
+  '@turf/helpers@7.3.0':
+    dependencies:
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/hex-grid@7.3.0':
+    dependencies:
+      '@turf/distance': 7.3.0
+      '@turf/helpers': 7.3.0
+      '@turf/intersect': 7.3.0
+      '@turf/invariant': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/interpolate@7.3.0':
+    dependencies:
+      '@turf/bbox': 7.3.0
+      '@turf/centroid': 7.3.0
+      '@turf/clone': 7.3.0
+      '@turf/distance': 7.3.0
+      '@turf/helpers': 7.3.0
+      '@turf/hex-grid': 7.3.0
+      '@turf/invariant': 7.3.0
+      '@turf/meta': 7.3.0
+      '@turf/point-grid': 7.3.0
+      '@turf/square-grid': 7.3.0
+      '@turf/triangle-grid': 7.3.0
+      '@types/geojson': 7946.0.16
+
+  '@turf/intersect@7.3.0':
+    dependencies:
+      '@turf/helpers': 7.3.0
+      '@turf/meta': 7.3.0
+      '@types/geojson': 7946.0.16
+      polyclip-ts: 0.16.8
+      tslib: 2.8.1
+
+  '@turf/invariant@7.3.0':
+    dependencies:
+      '@turf/helpers': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/isobands@7.3.0':
+    dependencies:
+      '@turf/area': 7.3.0
+      '@turf/bbox': 7.3.0
+      '@turf/boolean-point-in-polygon': 7.3.0
+      '@turf/explode': 7.3.0
+      '@turf/helpers': 7.3.0
+      '@turf/invariant': 7.3.0
+      '@turf/meta': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/isolines@7.3.0':
+    dependencies:
+      '@turf/bbox': 7.3.0
+      '@turf/helpers': 7.3.0
+      '@turf/invariant': 7.3.0
+      '@turf/meta': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/jsts@2.7.2':
+    dependencies:
+      jsts: 2.7.1
+
+  '@turf/kinks@7.3.0':
+    dependencies:
+      '@turf/helpers': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/length@7.3.0':
+    dependencies:
+      '@turf/distance': 7.3.0
+      '@turf/helpers': 7.3.0
+      '@turf/meta': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/line-arc@7.3.0':
+    dependencies:
+      '@turf/circle': 7.3.0
+      '@turf/destination': 7.3.0
+      '@turf/helpers': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/line-chunk@7.3.0':
+    dependencies:
+      '@turf/helpers': 7.3.0
+      '@turf/length': 7.3.0
+      '@turf/line-slice-along': 7.3.0
+      '@turf/meta': 7.3.0
+      '@types/geojson': 7946.0.16
+
+  '@turf/line-intersect@7.3.0':
+    dependencies:
+      '@turf/helpers': 7.3.0
+      '@types/geojson': 7946.0.16
+      sweepline-intersections: 1.5.0
+      tslib: 2.8.1
+
+  '@turf/line-offset@7.3.0':
+    dependencies:
+      '@turf/helpers': 7.3.0
+      '@turf/invariant': 7.3.0
+      '@turf/meta': 7.3.0
+      '@types/geojson': 7946.0.16
+
+  '@turf/line-overlap@7.3.0':
+    dependencies:
+      '@turf/boolean-point-on-line': 7.3.0
+      '@turf/geojson-rbush': 7.3.0
+      '@turf/helpers': 7.3.0
+      '@turf/invariant': 7.3.0
+      '@turf/line-segment': 7.3.0
+      '@turf/meta': 7.3.0
+      '@turf/nearest-point-on-line': 7.3.0
+      '@types/geojson': 7946.0.16
+      fast-deep-equal: 3.1.3
+      tslib: 2.8.1
+
+  '@turf/line-segment@7.3.0':
+    dependencies:
+      '@turf/helpers': 7.3.0
+      '@turf/invariant': 7.3.0
+      '@turf/meta': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/line-slice-along@7.3.0':
+    dependencies:
+      '@turf/bearing': 7.3.0
+      '@turf/destination': 7.3.0
+      '@turf/distance': 7.3.0
+      '@turf/helpers': 7.3.0
+      '@types/geojson': 7946.0.16
+
+  '@turf/line-slice@7.3.0':
+    dependencies:
+      '@turf/helpers': 7.3.0
+      '@turf/invariant': 7.3.0
+      '@turf/nearest-point-on-line': 7.3.0
+      '@types/geojson': 7946.0.16
+
+  '@turf/line-split@7.3.0':
+    dependencies:
+      '@turf/bbox': 7.3.0
+      '@turf/geojson-rbush': 7.3.0
+      '@turf/helpers': 7.3.0
+      '@turf/invariant': 7.3.0
+      '@turf/line-intersect': 7.3.0
+      '@turf/line-segment': 7.3.0
+      '@turf/meta': 7.3.0
+      '@turf/nearest-point-on-line': 7.3.0
+      '@turf/truncate': 7.3.0
+      '@types/geojson': 7946.0.16
+
+  '@turf/line-to-polygon@7.3.0':
+    dependencies:
+      '@turf/bbox': 7.3.0
+      '@turf/clone': 7.3.0
+      '@turf/helpers': 7.3.0
+      '@turf/invariant': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/mask@7.3.0':
+    dependencies:
+      '@turf/clone': 7.3.0
+      '@turf/helpers': 7.3.0
+      '@types/geojson': 7946.0.16
+      polyclip-ts: 0.16.8
+      tslib: 2.8.1
+
+  '@turf/meta@7.3.0':
+    dependencies:
+      '@turf/helpers': 7.3.0
+      '@types/geojson': 7946.0.16
+
+  '@turf/midpoint@7.3.0':
+    dependencies:
+      '@turf/bearing': 7.3.0
+      '@turf/destination': 7.3.0
+      '@turf/distance': 7.3.0
+      '@turf/helpers': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/moran-index@7.3.0':
+    dependencies:
+      '@turf/distance-weight': 7.3.0
+      '@turf/helpers': 7.3.0
+      '@turf/meta': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/nearest-neighbor-analysis@7.3.0':
+    dependencies:
+      '@turf/area': 7.3.0
+      '@turf/bbox': 7.3.0
+      '@turf/bbox-polygon': 7.3.0
+      '@turf/centroid': 7.3.0
+      '@turf/distance': 7.3.0
+      '@turf/helpers': 7.3.0
+      '@turf/meta': 7.3.0
+      '@turf/nearest-point': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/nearest-point-on-line@7.3.0':
+    dependencies:
+      '@turf/distance': 7.3.0
+      '@turf/helpers': 7.3.0
+      '@turf/invariant': 7.3.0
+      '@turf/meta': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/nearest-point-to-line@7.3.0':
+    dependencies:
+      '@turf/helpers': 7.3.0
+      '@turf/invariant': 7.3.0
+      '@turf/meta': 7.3.0
+      '@turf/point-to-line-distance': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/nearest-point@7.3.0':
+    dependencies:
+      '@turf/clone': 7.3.0
+      '@turf/distance': 7.3.0
+      '@turf/helpers': 7.3.0
+      '@turf/meta': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/planepoint@7.3.0':
+    dependencies:
+      '@turf/helpers': 7.3.0
+      '@turf/invariant': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/point-grid@7.3.0':
+    dependencies:
+      '@turf/boolean-within': 7.3.0
+      '@turf/distance': 7.3.0
+      '@turf/helpers': 7.3.0
+      '@turf/invariant': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/point-on-feature@7.3.0':
+    dependencies:
+      '@turf/boolean-point-in-polygon': 7.3.0
+      '@turf/center': 7.3.0
+      '@turf/explode': 7.3.0
+      '@turf/helpers': 7.3.0
+      '@turf/nearest-point': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/point-to-line-distance@7.3.0':
+    dependencies:
+      '@turf/bearing': 7.3.0
+      '@turf/distance': 7.3.0
+      '@turf/helpers': 7.3.0
+      '@turf/invariant': 7.3.0
+      '@turf/meta': 7.3.0
+      '@turf/nearest-point-on-line': 7.3.0
+      '@turf/projection': 7.3.0
+      '@turf/rhumb-bearing': 7.3.0
+      '@turf/rhumb-distance': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/point-to-polygon-distance@7.3.0':
+    dependencies:
+      '@turf/boolean-point-in-polygon': 7.3.0
+      '@turf/helpers': 7.3.0
+      '@turf/invariant': 7.3.0
+      '@turf/meta': 7.3.0
+      '@turf/point-to-line-distance': 7.3.0
+      '@turf/polygon-to-line': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/points-within-polygon@7.3.0':
+    dependencies:
+      '@turf/boolean-point-in-polygon': 7.3.0
+      '@turf/helpers': 7.3.0
+      '@turf/meta': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/polygon-smooth@7.3.0':
+    dependencies:
+      '@turf/helpers': 7.3.0
+      '@turf/meta': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/polygon-tangents@7.3.0':
+    dependencies:
+      '@turf/bbox': 7.3.0
+      '@turf/boolean-within': 7.3.0
+      '@turf/explode': 7.3.0
+      '@turf/helpers': 7.3.0
+      '@turf/invariant': 7.3.0
+      '@turf/nearest-point': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/polygon-to-line@7.3.0':
+    dependencies:
+      '@turf/helpers': 7.3.0
+      '@turf/invariant': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/polygonize@7.3.0':
+    dependencies:
+      '@turf/boolean-point-in-polygon': 7.3.0
+      '@turf/envelope': 7.3.0
+      '@turf/helpers': 7.3.0
+      '@turf/invariant': 7.3.0
+      '@turf/meta': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/projection@7.3.0':
+    dependencies:
+      '@turf/clone': 7.3.0
+      '@turf/helpers': 7.3.0
+      '@turf/meta': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/quadrat-analysis@7.3.0':
+    dependencies:
+      '@turf/area': 7.3.0
+      '@turf/bbox': 7.3.0
+      '@turf/bbox-polygon': 7.3.0
+      '@turf/centroid': 7.3.0
+      '@turf/helpers': 7.3.0
+      '@turf/invariant': 7.3.0
+      '@turf/point-grid': 7.3.0
+      '@turf/random': 7.3.0
+      '@turf/square-grid': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/random@7.3.0':
+    dependencies:
+      '@turf/helpers': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/rectangle-grid@7.3.0':
+    dependencies:
+      '@turf/boolean-intersects': 7.3.0
+      '@turf/distance': 7.3.0
+      '@turf/helpers': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/rewind@7.3.0':
+    dependencies:
+      '@turf/boolean-clockwise': 7.3.0
+      '@turf/clone': 7.3.0
+      '@turf/helpers': 7.3.0
+      '@turf/invariant': 7.3.0
+      '@turf/meta': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/rhumb-bearing@7.3.0':
+    dependencies:
+      '@turf/helpers': 7.3.0
+      '@turf/invariant': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/rhumb-destination@7.3.0':
+    dependencies:
+      '@turf/helpers': 7.3.0
+      '@turf/invariant': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/rhumb-distance@7.3.0':
+    dependencies:
+      '@turf/helpers': 7.3.0
+      '@turf/invariant': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/sample@7.3.0':
+    dependencies:
+      '@turf/helpers': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/sector@7.3.0':
+    dependencies:
+      '@turf/circle': 7.3.0
+      '@turf/helpers': 7.3.0
+      '@turf/invariant': 7.3.0
+      '@turf/line-arc': 7.3.0
+      '@turf/meta': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/shortest-path@7.3.0':
+    dependencies:
+      '@turf/bbox': 7.3.0
+      '@turf/bbox-polygon': 7.3.0
+      '@turf/boolean-point-in-polygon': 7.3.0
+      '@turf/clean-coords': 7.3.0
+      '@turf/distance': 7.3.0
+      '@turf/helpers': 7.3.0
+      '@turf/invariant': 7.3.0
+      '@turf/meta': 7.3.0
+      '@turf/transform-scale': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/simplify@7.3.0':
+    dependencies:
+      '@turf/clean-coords': 7.3.0
+      '@turf/clone': 7.3.0
+      '@turf/helpers': 7.3.0
+      '@turf/meta': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/square-grid@7.3.0':
+    dependencies:
+      '@turf/helpers': 7.3.0
+      '@turf/rectangle-grid': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/square@7.3.0':
+    dependencies:
+      '@turf/distance': 7.3.0
+      '@turf/helpers': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/standard-deviational-ellipse@7.3.0':
+    dependencies:
+      '@turf/center-mean': 7.3.0
+      '@turf/ellipse': 7.3.0
+      '@turf/helpers': 7.3.0
+      '@turf/invariant': 7.3.0
+      '@turf/meta': 7.3.0
+      '@turf/points-within-polygon': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/tag@7.3.0':
+    dependencies:
+      '@turf/boolean-point-in-polygon': 7.3.0
+      '@turf/clone': 7.3.0
+      '@turf/helpers': 7.3.0
+      '@turf/meta': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/tesselate@7.3.0':
+    dependencies:
+      '@turf/helpers': 7.3.0
+      '@types/geojson': 7946.0.16
+      earcut: 2.2.4
+      tslib: 2.8.1
+
+  '@turf/tin@7.3.0':
+    dependencies:
+      '@turf/helpers': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/transform-rotate@7.3.0':
+    dependencies:
+      '@turf/centroid': 7.3.0
+      '@turf/clone': 7.3.0
+      '@turf/helpers': 7.3.0
+      '@turf/invariant': 7.3.0
+      '@turf/meta': 7.3.0
+      '@turf/rhumb-bearing': 7.3.0
+      '@turf/rhumb-destination': 7.3.0
+      '@turf/rhumb-distance': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/transform-scale@7.3.0':
+    dependencies:
+      '@turf/bbox': 7.3.0
+      '@turf/center': 7.3.0
+      '@turf/centroid': 7.3.0
+      '@turf/clone': 7.3.0
+      '@turf/helpers': 7.3.0
+      '@turf/invariant': 7.3.0
+      '@turf/meta': 7.3.0
+      '@turf/rhumb-bearing': 7.3.0
+      '@turf/rhumb-destination': 7.3.0
+      '@turf/rhumb-distance': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/transform-translate@7.3.0':
+    dependencies:
+      '@turf/clone': 7.3.0
+      '@turf/helpers': 7.3.0
+      '@turf/invariant': 7.3.0
+      '@turf/meta': 7.3.0
+      '@turf/rhumb-destination': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/triangle-grid@7.3.0':
+    dependencies:
+      '@turf/distance': 7.3.0
+      '@turf/helpers': 7.3.0
+      '@turf/intersect': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/truncate@7.3.0':
+    dependencies:
+      '@turf/helpers': 7.3.0
+      '@turf/meta': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/turf@7.3.0':
+    dependencies:
+      '@turf/along': 7.3.0
+      '@turf/angle': 7.3.0
+      '@turf/area': 7.3.0
+      '@turf/bbox': 7.3.0
+      '@turf/bbox-clip': 7.3.0
+      '@turf/bbox-polygon': 7.3.0
+      '@turf/bearing': 7.3.0
+      '@turf/bezier-spline': 7.3.0
+      '@turf/boolean-clockwise': 7.3.0
+      '@turf/boolean-concave': 7.3.0
+      '@turf/boolean-contains': 7.3.0
+      '@turf/boolean-crosses': 7.3.0
+      '@turf/boolean-disjoint': 7.3.0
+      '@turf/boolean-equal': 7.3.0
+      '@turf/boolean-intersects': 7.3.0
+      '@turf/boolean-overlap': 7.3.0
+      '@turf/boolean-parallel': 7.3.0
+      '@turf/boolean-point-in-polygon': 7.3.0
+      '@turf/boolean-point-on-line': 7.3.0
+      '@turf/boolean-touches': 7.3.0
+      '@turf/boolean-valid': 7.3.0
+      '@turf/boolean-within': 7.3.0
+      '@turf/buffer': 7.3.0
+      '@turf/center': 7.3.0
+      '@turf/center-mean': 7.3.0
+      '@turf/center-median': 7.3.0
+      '@turf/center-of-mass': 7.3.0
+      '@turf/centroid': 7.3.0
+      '@turf/circle': 7.3.0
+      '@turf/clean-coords': 7.3.0
+      '@turf/clone': 7.3.0
+      '@turf/clusters': 7.3.0
+      '@turf/clusters-dbscan': 7.3.0
+      '@turf/clusters-kmeans': 7.3.0
+      '@turf/collect': 7.3.0
+      '@turf/combine': 7.3.0
+      '@turf/concave': 7.3.0
+      '@turf/convex': 7.3.0
+      '@turf/destination': 7.3.0
+      '@turf/difference': 7.3.0
+      '@turf/dissolve': 7.3.0
+      '@turf/distance': 7.3.0
+      '@turf/distance-weight': 7.3.0
+      '@turf/ellipse': 7.3.0
+      '@turf/envelope': 7.3.0
+      '@turf/explode': 7.3.0
+      '@turf/flatten': 7.3.0
+      '@turf/flip': 7.3.0
+      '@turf/geojson-rbush': 7.3.0
+      '@turf/great-circle': 7.3.0
+      '@turf/helpers': 7.3.0
+      '@turf/hex-grid': 7.3.0
+      '@turf/interpolate': 7.3.0
+      '@turf/intersect': 7.3.0
+      '@turf/invariant': 7.3.0
+      '@turf/isobands': 7.3.0
+      '@turf/isolines': 7.3.0
+      '@turf/kinks': 7.3.0
+      '@turf/length': 7.3.0
+      '@turf/line-arc': 7.3.0
+      '@turf/line-chunk': 7.3.0
+      '@turf/line-intersect': 7.3.0
+      '@turf/line-offset': 7.3.0
+      '@turf/line-overlap': 7.3.0
+      '@turf/line-segment': 7.3.0
+      '@turf/line-slice': 7.3.0
+      '@turf/line-slice-along': 7.3.0
+      '@turf/line-split': 7.3.0
+      '@turf/line-to-polygon': 7.3.0
+      '@turf/mask': 7.3.0
+      '@turf/meta': 7.3.0
+      '@turf/midpoint': 7.3.0
+      '@turf/moran-index': 7.3.0
+      '@turf/nearest-neighbor-analysis': 7.3.0
+      '@turf/nearest-point': 7.3.0
+      '@turf/nearest-point-on-line': 7.3.0
+      '@turf/nearest-point-to-line': 7.3.0
+      '@turf/planepoint': 7.3.0
+      '@turf/point-grid': 7.3.0
+      '@turf/point-on-feature': 7.3.0
+      '@turf/point-to-line-distance': 7.3.0
+      '@turf/point-to-polygon-distance': 7.3.0
+      '@turf/points-within-polygon': 7.3.0
+      '@turf/polygon-smooth': 7.3.0
+      '@turf/polygon-tangents': 7.3.0
+      '@turf/polygon-to-line': 7.3.0
+      '@turf/polygonize': 7.3.0
+      '@turf/projection': 7.3.0
+      '@turf/quadrat-analysis': 7.3.0
+      '@turf/random': 7.3.0
+      '@turf/rectangle-grid': 7.3.0
+      '@turf/rewind': 7.3.0
+      '@turf/rhumb-bearing': 7.3.0
+      '@turf/rhumb-destination': 7.3.0
+      '@turf/rhumb-distance': 7.3.0
+      '@turf/sample': 7.3.0
+      '@turf/sector': 7.3.0
+      '@turf/shortest-path': 7.3.0
+      '@turf/simplify': 7.3.0
+      '@turf/square': 7.3.0
+      '@turf/square-grid': 7.3.0
+      '@turf/standard-deviational-ellipse': 7.3.0
+      '@turf/tag': 7.3.0
+      '@turf/tesselate': 7.3.0
+      '@turf/tin': 7.3.0
+      '@turf/transform-rotate': 7.3.0
+      '@turf/transform-scale': 7.3.0
+      '@turf/transform-translate': 7.3.0
+      '@turf/triangle-grid': 7.3.0
+      '@turf/truncate': 7.3.0
+      '@turf/union': 7.3.0
+      '@turf/unkink-polygon': 7.3.0
+      '@turf/voronoi': 7.3.0
+      '@types/geojson': 7946.0.16
+      tslib: 2.8.1
+
+  '@turf/union@7.3.0':
+    dependencies:
+      '@turf/helpers': 7.3.0
+      '@turf/meta': 7.3.0
+      '@types/geojson': 7946.0.16
+      polyclip-ts: 0.16.8
+      tslib: 2.8.1
+
+  '@turf/unkink-polygon@7.3.0':
+    dependencies:
+      '@turf/area': 7.3.0
+      '@turf/boolean-point-in-polygon': 7.3.0
+      '@turf/helpers': 7.3.0
+      '@turf/meta': 7.3.0
+      '@types/geojson': 7946.0.16
+      rbush: 3.0.1
+      tslib: 2.8.1
+
+  '@turf/voronoi@7.3.0':
+    dependencies:
+      '@turf/clone': 7.3.0
+      '@turf/helpers': 7.3.0
+      '@turf/invariant': 7.3.0
+      '@types/d3-voronoi': 1.1.12
+      '@types/geojson': 7946.0.16
+      d3-voronoi: 1.1.2
+      tslib: 2.8.1
+
   '@tybys/wasm-util@0.10.1':
     dependencies:
       tslib: 2.8.1
@@ -3438,6 +4976,8 @@ snapshots:
     dependencies:
       '@types/deep-eql': 4.0.2
       assertion-error: 2.0.1
+
+  '@types/d3-voronoi@1.1.12': {}
 
   '@types/deep-eql@4.0.2': {}
 
@@ -3647,6 +5187,8 @@ snapshots:
 
   big.js@5.2.2: {}
 
+  bignumber.js@9.3.1: {}
+
   boolbase@1.0.0: {}
 
   braces@3.0.3:
@@ -3720,6 +5262,13 @@ snapshots:
 
   commander@7.2.0: {}
 
+  concaveman@1.2.1:
+    dependencies:
+      point-in-polygon: 1.1.0
+      rbush: 3.0.1
+      robust-predicates: 2.0.4
+      tinyqueue: 2.0.3
+
   content-disposition@0.5.4:
     dependencies:
       safe-buffer: 5.2.1
@@ -3791,6 +5340,14 @@ snapshots:
 
   csstype@3.1.3: {}
 
+  d3-array@1.2.4: {}
+
+  d3-geo@1.7.1:
+    dependencies:
+      d3-array: 1.2.4
+
+  d3-voronoi@1.1.2: {}
+
   data-urls@6.0.0:
     dependencies:
       whatwg-mimetype: 4.0.0
@@ -3855,6 +5412,8 @@ snapshots:
       call-bind-apply-helpers: 1.0.2
       es-errors: 1.3.0
       gopd: 1.2.0
+
+  earcut@2.2.4: {}
 
   earcut@3.0.2: {}
 
@@ -4019,6 +5578,14 @@ snapshots:
   fuzzy@0.1.3: {}
 
   gensync@1.0.0-beta.2: {}
+
+  geojson-equality-ts@1.0.2:
+    dependencies:
+      '@types/geojson': 7946.0.16
+
+  geojson-polygon-self-intersections@1.2.1:
+    dependencies:
+      rbush: 2.0.2
 
   geojson-vt@4.0.2: {}
 
@@ -4243,6 +5810,8 @@ snapshots:
     optionalDependencies:
       graceful-fs: 4.2.11
 
+  jsts@2.7.1: {}
+
   jwt-decode@4.0.0: {}
 
   kdbush@4.0.2: {}
@@ -4454,6 +6023,17 @@ snapshots:
   picomatch@2.3.1:
     optional: true
 
+  point-in-polygon-hao@1.2.4:
+    dependencies:
+      robust-predicates: 3.0.2
+
+  point-in-polygon@1.1.0: {}
+
+  polyclip-ts@0.16.8:
+    dependencies:
+      bignumber.js: 9.3.1
+      splaytree-ts: 1.0.2
+
   postcss@8.5.6:
     dependencies:
       nanoid: 3.3.11
@@ -4474,6 +6054,10 @@ snapshots:
 
   punycode@2.3.1: {}
 
+  quickselect@1.1.1: {}
+
+  quickselect@2.0.0: {}
+
   quickselect@3.0.0: {}
 
   rambda@9.4.2: {}
@@ -4481,6 +6065,14 @@ snapshots:
   randombytes@2.1.0:
     dependencies:
       safe-buffer: 5.2.1
+
+  rbush@2.0.2:
+    dependencies:
+      quickselect: 1.1.1
+
+  rbush@3.0.1:
+    dependencies:
+      quickselect: 2.0.0
 
   react-dom@19.2.0(react@19.2.0):
     dependencies:
@@ -4545,6 +6137,10 @@ snapshots:
       supports-preserve-symlinks-flag: 1.0.0
 
   rfdc@1.4.1: {}
+
+  robust-predicates@2.0.4: {}
+
+  robust-predicates@3.0.2: {}
 
   rrweb-cssom@0.8.0: {}
 
@@ -4689,6 +6285,8 @@ snapshots:
 
   setprototypeof@1.2.0: {}
 
+  skmeans@0.9.7: {}
+
   snake-case@3.0.4:
     dependencies:
       dot-case: 3.0.4
@@ -4717,6 +6315,8 @@ snapshots:
       source-map: 0.6.1
 
   source-map@0.6.1: {}
+
+  splaytree-ts@1.0.2: {}
 
   split-string@3.1.0:
     dependencies:
@@ -4775,6 +6375,10 @@ snapshots:
       csso: 5.0.5
       picocolors: 1.1.1
 
+  sweepline-intersections@1.5.0:
+    dependencies:
+      tinyqueue: 2.0.3
+
   symbol-tree@3.2.4: {}
 
   sync-child-process@1.0.2:
@@ -4803,6 +6407,8 @@ snapshots:
 
   tinypool@1.1.1: {}
 
+  tinyqueue@2.0.3: {}
+
   tinyqueue@3.0.0: {}
 
   tldts-core@7.0.17: {}
@@ -4817,6 +6423,14 @@ snapshots:
     optional: true
 
   toidentifier@1.0.1: {}
+
+  topojson-client@3.1.0:
+    dependencies:
+      commander: 2.20.3
+
+  topojson-server@3.0.1:
+    dependencies:
+      commander: 2.20.3
 
   tough-cookie@6.0.0:
     dependencies:
