@@ -5,7 +5,9 @@ type Theme = Record<string, string>;
 
 type ThemeContextType = {
   theme: Theme | null;
+  logo: string | null;
   handleChange: (name: string, value: string) => void;
+  handleLogoChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
   saveThemeConfig: () => void;
 };
 
@@ -16,8 +18,14 @@ type ThemeProviderProps = {
 };
 
 const defaultTheme: Theme = {
-    primary: '#3498db',
-    secondary: '#2ecc71',
+    'primary': '#3498db',
+    'primary-hover': '#3498db',
+    'primary-active': '#3498db',
+    'primary-disabled': '#3498db',
+    'secondary': '#3498db',
+    'secondary-hover': '#3498db',
+    'secondary-active': '#3498db',
+    'secondary-disabled': '#3498db',
 };
 
 export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
@@ -35,7 +43,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     })
   }, [theme]);
 
-  const handleLogoChange = useCallback((event) => {
+  const handleLogoChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = event.target.files?.[0];
     if (selectedFile) {
       const url = URL.createObjectURL(selectedFile);
@@ -69,9 +77,12 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
       } catch (e) {
           console.log('error', e);
       }
-    })
+    }, [])
 
   useEffect(() => {
+    if (loading) {
+      return;
+    }
     async function loadTheme() {
       const fetchedTheme = await fetchTheme();
       setTheme(fetchedTheme || defaultTheme);
@@ -82,10 +93,10 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     } else {
         const root = document.documentElement;
         Object.entries(theme).forEach(([key, value]) => {
-            root.style.setProperty(`--${key}-color`, value);
+            root.style.setProperty(`--color-${key}`, value);
         });
     }
-  }, [fetchTheme, theme]);
+  }, [fetchTheme, theme, loading]);
 
   return (
     <ThemeContext.Provider value={{ theme, logo, handleChange, saveThemeConfig, handleLogoChange }}>
@@ -93,14 +104,3 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     </ThemeContext.Provider>
   );
 };
-
-export const useTheme = () => {
-    const theme = useContext(ThemeContext)
-    if (theme === undefined) {
-        throw new Error(
-            'useTheme must be used within a ThemeContext'
-        )
-    }
-
-    return theme
-}
