@@ -6,6 +6,7 @@ import { usePasswordAuth } from "./usePasswordAuth";
 import { LoginModal } from "./LoginModal";
 import { useRequest } from "../api-client";
 import { AuthModes, type AuthModesType } from "./types";
+import { clearToken, saveToken } from "./tokenStore";
 
 const authContext = createContext<AuthContext | undefined>(undefined);
 
@@ -74,6 +75,10 @@ function InnerProvider({ children, authMode }: { children: React.ReactNode, auth
 
 function OidcAuthProvider({ children }: { children: React.ReactNode }) {
     const reactOidcAuth = useReactOidcAuth();
+    
+    useEffect(() => {
+        saveToken(reactOidcAuth.user?.access_token);
+    }, [reactOidcAuth.user?.access_token]);
 
     const value: AuthContext = {
         isAuthenticated: !!reactOidcAuth.isAuthenticated,
@@ -81,7 +86,10 @@ function OidcAuthProvider({ children }: { children: React.ReactNode }) {
         error: reactOidcAuth.error,
         token: reactOidcAuth.user,
         login: () => reactOidcAuth.signinRedirect(),
-        logout: () => reactOidcAuth.signoutRedirect(),
+        logout: () => {
+            clearToken();
+            reactOidcAuth.signoutRedirect(); 
+        },
         authMode: AuthModes.OIDC
     };
 

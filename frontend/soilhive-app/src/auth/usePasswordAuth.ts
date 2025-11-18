@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { Token } from "./Token";
 import { useRequest } from "../api-client";
 import { jwtDecode, type JwtPayload } from "jwt-decode";
+import { clearToken, saveToken } from "./tokenStore";
 
 const TOKEN_STORAGE_KEY = 'soilhive_token'
 
@@ -45,11 +46,18 @@ export function usePasswordAuth() {
     const [state, setState] = useState<PasswordAuthState>(() => {
         const token = sessionStorage.getItem(TOKEN_STORAGE_KEY);
 
+        let parsedToken = null
+
+        if(token) {
+            parsedToken = JSON.parse(token)
+            saveToken(parsedToken.access_token)
+        }
+
         return {
             isAuthenticated: !!token,
             isLoading: false,
             error: undefined,
-            token: token ? adaptToken(JSON.parse(token)) : null,
+            token: parsedToken ? adaptToken(parsedToken) : null,
         };
     });
 
@@ -75,6 +83,7 @@ export function usePasswordAuth() {
             })
 
             sessionStorage.setItem(TOKEN_STORAGE_KEY, JSON.stringify(token))
+            saveToken(token.access_token)
 
             setState({
                 isAuthenticated: true,
@@ -95,6 +104,7 @@ export function usePasswordAuth() {
 
     const logout = () => {
         sessionStorage.removeItem(TOKEN_STORAGE_KEY)
+        clearToken()
 
         setState({
             isAuthenticated: false,

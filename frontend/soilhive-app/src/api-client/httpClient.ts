@@ -1,11 +1,11 @@
-import { getAuthToken } from './auth';
+import { getToken } from '../auth/tokenStore';
 import { handleError } from './error';
 import { APIRequestConfig } from './types/api';
 
 export async function httpClient<T = any>(config: APIRequestConfig): Promise<T> {
   const { url, method = 'GET', headers = {}, body, signal } = config;
 
-  const token = getAuthToken();
+  const token = getToken()
 
   const finalHeaders: HeadersInit = {
     'Content-Type': 'application/json',
