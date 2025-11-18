@@ -1,10 +1,14 @@
+import { useId, useState } from "react";
 import { modules } from "../utilities/moduleFederation";
 import { useAuthContext } from "../auth/AuthContextProvider";
 import {ThemeConfig} from './ThemeConfig'
 
 function Admin() {
-
   const { isAuthenticated, isLoading, login, logout, token } = useAuthContext();
+  
+  const mapGeocoderInputId = useId();
+  const [mapGeocoder, setMapGeocoder] = useState(localStorage.getItem('MAP_GEOCODER') ?? 'nominatim');
+  
 
   if (isLoading) {
     return <div>Loading...</div>;
@@ -22,6 +26,7 @@ function Admin() {
     <div className="admin-page">
       <h1>Administration</h1>
       <p>This is the administration page</p>
+
       <h2>Installed modules</h2>
       <ol>
         { modules.map(({name, type, description}) => {
@@ -34,8 +39,29 @@ function Admin() {
           );
         }) }
       </ol>
+
       <h2>Authenticated user: {token?.profile?.name}</h2>
       <button onClick={ () => logout() }>Logout</button>
+
+      <h2>Maps:</h2>
+      <div>
+        <label htmlFor={mapGeocoderInputId}>Geocoder API</label>
+        <select name="map-geocoder"
+          id={mapGeocoderInputId} 
+          defaultValue={mapGeocoder}
+          onChange={
+            event => {
+              const selectedGeocoder = event.target.value;
+              localStorage.setItem('MAP_GEOCODER', selectedGeocoder);
+              setMapGeocoder(selectedGeocoder);
+            } 
+          }
+        >
+          <option value='nominatim'>Nominatim OpenStreetMap search engine</option>
+          <option value='mapbox'>Mapbox Geocoding API (v6)</option>
+        </select>
+      </div>
+
       <ThemeConfig></ThemeConfig>
     </div>
   );
