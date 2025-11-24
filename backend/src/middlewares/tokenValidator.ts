@@ -78,11 +78,7 @@ export const tokenValidator = async (req: Request, scopes: string[]): Promise<bo
       throw new ErrorResponse("Invalid token (no sub)", StatusCodes.UNAUTHORIZED);
     }
     const decodedToken = decoded as Token;
-    for (const s of scopes) {
-      if (!decodedToken.scope || !decodedToken.scope.includes(s)) {
-        throw new ErrorResponse(`Token missing required scope: ${s}`, StatusCodes.FORBIDDEN);
-      }
-    }
+    assertTokenScope(decodedToken, scopes);
     req.customData.token = decodedToken;
     req.customData.token.raw = tokenString; // Putting original token string here
     req.customData.token.isSuperAdmin = function () {
@@ -100,4 +96,16 @@ export const tokenValidator = async (req: Request, scopes: string[]): Promise<bo
     new ErrorResponse(errorMessage, StatusCodes.UNAUTHORIZED);
   }
   return false;
+};
+
+const assertTokenScope = (token: Token, scopes: string[]) => {
+  if (!scopes) {
+    return;
+  }
+  for (const s of scopes) {
+    if (token.scope.includes(s)) {
+      return;
+    }
+  }
+  throw new ErrorResponse(`Token missing required scope: ${scopes}`, StatusCodes.FORBIDDEN);
 };

@@ -154,7 +154,7 @@ paths:
         required: true
         schema:
           type: string
-        description: Unique file identifier
+        description: Unique file identifier. Folder separators should be encoded as %2F
     post:
       x-eov-operation-handler: controllers/files
       x-eov-operation-id: fileUpload

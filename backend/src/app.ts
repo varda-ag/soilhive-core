@@ -1,19 +1,20 @@
+import cors from "cors";
 import "dotenv/config";
 import express from "express";
-import cors from 'cors';
 import swaggerUi from "swagger-ui-express";
-import { transactionMiddleware } from "./middlewares/transaction";
 import { errorMiddleware } from "./middlewares/error";
 import { openApiMiddleware, swaggerDocument } from "./middlewares/openapi";
-import { isJest } from "./utils/utils";
+import { transactionMiddleware } from "./middlewares/transaction";
 import { runConditionalMigrations } from "./utils/data-source";
+import { isJest } from "./utils/utils";
 
 export const app = express();
 app.use(
   cors({
-    origin: '*',
-  }),
+    origin: "*",
+  })
 );
+
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(transactionMiddleware);

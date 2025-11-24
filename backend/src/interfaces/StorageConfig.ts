@@ -1,4 +1,4 @@
-import { StorageModes, StorageModesType } from "src/types/types";
+import { StorageModes, StorageModesType } from "../types/types";
 
 export interface LocalStorageConfig {
   rootFolder: string;
@@ -8,6 +8,7 @@ export interface S3StorageConfig {
   role: string;
   region: string;
   bucketName: string;
+  rootFolder?: string;
 }
 
 export interface AzureStorageConfig {
@@ -28,6 +29,6 @@ export interface StorageConfig {
 export const defaultStorageConfig: StorageConfig = {
   storageMode: StorageModes.LOCAL,
   config: {
-    rootFolder: "./data",
+    rootFolder: "/tmp/soilhive-storage",
   },
 };
