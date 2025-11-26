@@ -5,8 +5,8 @@ import swaggerUi from "swagger-ui-express";
 import { errorMiddleware } from "./middlewares/error";
 import { openApiMiddleware, swaggerDocument } from "./middlewares/openapi";
 import { transactionMiddleware } from "./middlewares/transaction";
-import { runConditionalMigrations } from "./utils/data-source";
 import { isJest } from "./utils/utils";
+import { initializeSchema } from "./utils/data-source";
 
 export const app = express();
 app.use(
@@ -23,13 +23,12 @@ app.use(openApiMiddleware);
 app.use(errorMiddleware);
 
 (async () => {
-  // Running migrations here to initialize DB tables only once
-  await runConditionalMigrations();
-
   if (isJest()) {
     console.log("Running in test mode, not starting server.");
     return;
   }
+
+  initializeSchema();
 
   const port = process.env.PORT || 4001;
   app.listen(port, () => {
