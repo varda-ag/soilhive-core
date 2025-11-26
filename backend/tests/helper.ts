@@ -1,19 +1,20 @@
 import path from "path";
 import { exec } from "child_process";
-import { destroyDataSource, getDataSource } from "../src/utils/data-source";
+import { destroyDataSource, getDataSource, initializeSchema, isDBAvailable } from "../src/utils/data-source";
 import { sleep } from "../src/utils/utils";
-import { loadEnvFile } from "./environment";
+import { setupTestEnv } from "./environment";
 
 export const startDockerCompose = async () => {
-  loadEnvFile();
+  setupTestEnv();
   const yaml = path.join(__dirname, "docker-compose.yml");
   exec(`docker compose -f ${yaml} up -d`);
   let count = 0;
   let error = undefined;
   while (count++ < 10) {
     try {
-      const dataSource = await getDataSource();
-      if (dataSource.isInitialized) {
+      const ok = await isDBAvailable();
+      if (ok) {
+        await initializeSchema();
         return;
       }
     } catch (e) {
@@ -35,3 +36,5 @@ export const clearDatabase = async () => {
   const tableNames = dataSource?.entityMetadatas.map((entity) => `"${entity.tableName}"`).join(", ");
   await dataSource?.query(`TRUNCATE TABLE ${tableNames} CASCADE;`);
 };
+
+export const superAdminToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZCJ9.eyJzdWIiOiJzdXBlci1hZG1pbiIsInNjb3BlIjoic3VwZXItYWRtaW4iLCJpYXQiOjE3NjQxNDYwNTAsImV4cCI6MTc2NDIzMjQ1MH0.IoFLK8VjDwzHtqKYm7ch0rHuj5LCISiqLjlxEgvPSnY";

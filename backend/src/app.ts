@@ -1,19 +1,20 @@
+import cors from "cors";
 import "dotenv/config";
 import express from "express";
-import cors from 'cors';
 import swaggerUi from "swagger-ui-express";
-import { transactionMiddleware } from "./middlewares/transaction";
 import { errorMiddleware } from "./middlewares/error";
 import { openApiMiddleware, swaggerDocument } from "./middlewares/openapi";
+import { transactionMiddleware } from "./middlewares/transaction";
 import { isJest } from "./utils/utils";
-import { runConditionalMigrations } from "./utils/data-source";
+import { initializeSchema } from "./utils/data-source";
 
 export const app = express();
 app.use(
   cors({
-    origin: '*',
-  }),
+    origin: "*",
+  })
 );
+
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(transactionMiddleware);
@@ -22,13 +23,12 @@ app.use(openApiMiddleware);
 app.use(errorMiddleware);
 
 (async () => {
-  // Running migrations here to initialize DB tables only once
-  await runConditionalMigrations();
-
   if (isJest()) {
     console.log("Running in test mode, not starting server.");
     return;
   }
+
+  initializeSchema();
 
   const port = process.env.PORT || 4001;
   app.listen(port, () => {

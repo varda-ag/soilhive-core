@@ -18,6 +18,10 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@flystorage/aws-s3": "^1.2.0",
+    "@flystorage/file-storage": "^1.2.0",
+    "@flystorage/local-fs": "^1.2.0",
+    "@flystorage/multer-storage": "^1.2.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
@@ -26,6 +30,7 @@
     "js-yaml": "^4.1.0",
     "jsonwebtoken": "^9.0.2",
     "jwks-rsa": "^3.2.0",
+    "multer": "^2.0.2",
     "pg": "^8.16.3",
     "reflect-metadata": "^0.2.2",
     "swagger-ui-express": "^5.0.1",

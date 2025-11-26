@@ -1,20 +1,20 @@
-import { readFileSync } from "fs";
-import path from "path";
-
-export const loadEnvFile = (envFilePath = ".env") => {
-  const envPath = path.join(__dirname, "..", envFilePath);
-  const envFile = readFileSync(envPath, "utf-8");
-  envFile.split("\n").forEach((line) => {
-    const trimmedLine = line.trim();
-    if (!trimmedLine || trimmedLine.startsWith("#")) {
-      return;
-    }
-    const [key, ...valueParts] = trimmedLine.split("=");
-    const value = valueParts.join("=").trim();
-    if (key && !(key in process.env)) {
-      // Remove possible surrounding quotes
-      const unquotedValue = value.replace(/^(['"])(.*)\1$/, "$2");
-      process.env[key.trim()] = unquotedValue;
-    }
-  });
+export const setupTestEnv = () => {
+  const env = {
+    POSTGRES_HOST: "localhost",
+    POSTGRES_PORT: 5432,
+    POSTGRES_DB: "database",
+    POSTGRES_USER: "dbuser",
+    POSTGRES_PASSWORD: "dbpass",
+    POSTGRES_SCHEMA: "testschema",
+    SUPER_ADMIN_PASSWORD: "superadmin",
+    DATA_ADMIN_PASSWORD: "dataadmin",
+    SELF_SIGNING_SECRET: "put-any-random-string-here",
+    AWS_ROLE_ARN: "arn:aws:iam::000000000000:role/localstack-role",
+    AWS_PROFILE: "localstack",
+    STORAGE_MODE: "local",
+    LOCAL_STORAGE_ROOT_FOLDER: "/tmp/soilhive-storage",
+  };
+  for (const [key, value] of Object.entries(env)) {
+    process.env[key] = value.toString();
+  }
 };

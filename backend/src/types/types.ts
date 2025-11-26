@@ -5,12 +5,6 @@ export const TokenScopes = {
 
 export type TokenScopesType = (typeof TokenScopes)[keyof typeof TokenScopes];
 
-export const ReservedConfigs = {
-  AUTH: "auth",
-} as const;
-
-export type ReservedConfigsType = (typeof ReservedConfigs)[keyof typeof ReservedConfigs];
-
 export const AuthModes = {
   NONE: "none",
   PASSWORD: "password",
@@ -18,3 +12,12 @@ export const AuthModes = {
 } as const;
 
 export type AuthModesType = (typeof AuthModes)[keyof typeof AuthModes];
+
+export const StorageModes = {
+  LOCAL: "local",
+  S3: "s3",
+  AZURE: "azure",
+  GCP: "gcp",
+} as const;
+
+export type StorageModesType = (typeof StorageModes)[keyof typeof StorageModes];

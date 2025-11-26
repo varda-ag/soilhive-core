@@ -22,5 +22,11 @@ declare namespace NodeJS {
     readonly OIDC_POST_LOGOUT_REDIRECT_URI?: string;
     readonly OIDC_SILENT_REDIRECT_URI?: string;
     readonly OIDC_SCOPE?: string;
+    // Storage settings
+    readonly STORAGE_MODE?: string;
+    readonly LOCAL_STORAGE_ROOT_FOLDER?: string;
+    readonly S3_STORAGE_REGION?: string;
+    readonly S3_STORAGE_BUCKET?: string;
+    readonly S3_STORAGE_ROOT_FOLDER?: string;
   }
 }

@@ -31,6 +31,6 @@ export const exportConfigs = async (req: Request, res: Response) => {
 
 const getRepoAndId = (req: Request) => {
   const repo = req.customData.entityManager.getRepository(JsonStorage);
-  const id = req.params["id"]!;
+  const id = req.params["configId"]!;
   return { repo, id };
 };

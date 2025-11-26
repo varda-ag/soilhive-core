@@ -81,3 +81,39 @@ npm run typeorm migration:run -- -d dist/utils/migrations-data-source.js
 # Reverting migrations
 npm run typeorm migration:revert -- -d dist/utils/migrations-data-source.js
 ```
+
+# Configuration
+
+## Storage
+
+Storage is configured using environment variables.
+
+### Local filesystem (default)
+
+```
+STORAGE_MODE=local
+LOCAL_STORAGE_ROOT_FOLDER=/tmp/soilhive-storage
+```
+
+### S3 compatible storage
+
+Please follow [AWS guide](https://docs.aws.amazon.com/cli/v1/userguide/cli-configure-envvars.html) to setup environment variables related to S3 access control. The AWS SDK v3 for JavaScript/TypeScript uses a credentials provider chain to authenticate the S3 client.
+
+```
+STORAGE_MODE=s3
+S3_STORAGE_REGION=...
+S3_STORAGE_BUCKET=...
+S3_STORAGE_ROOT_FOLDER=...
+```
+
+# Logo
+
+Default is Varda SoilHive logo.
+Custom logo can be applied to platform.
+Logo will be stored in configured storage at `/frontend/logo` location.
+
+```
+GET /frontend/logo
+PUT /frontend/logo
+DELETE /frontend/logo
+```

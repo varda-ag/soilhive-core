@@ -1,13 +1,15 @@
 import request from "supertest";
 import { app } from "../../src/app";
 import { getDataSource } from "../../src/utils/data-source";
+import { superAdminToken } from "../helper";
 
 const ID = "test-config";
+const superAdminAuthHeader = { Authorization: `Bearer ${superAdminToken}` };
 
 describe("Testing /config/{id} routes", () => {
   it("PUT saves the config", async () => {
     const data = { customValue: 123.456 };
-    const res = await request(app).put("/config/test-config").send(data);
+    const res = await request(app).put("/config/test-config").set(superAdminAuthHeader).send(data);
     expect(res.statusCode).toBe(200);
     const row = await getTestConfigFromDB();
     expect(row).toBeDefined();
@@ -31,7 +33,7 @@ describe("Testing /config/{id} routes", () => {
   it("DELETE removes the config", async () => {
     const data = { key: "value" };
     await createTestConfigInDB(data);
-    const res = await request(app).delete("/config/test-config");
+    const res = await request(app).delete("/config/test-config").set(superAdminAuthHeader);
     expect(res.statusCode).toBe(204);
     const row = await getTestConfigFromDB();
     expect(row).toBeNull();
@@ -40,10 +42,10 @@ describe("Testing /config/{id} routes", () => {
   it("Deletes (soft) an existing config, then creates it again: it should be restored", async () => {
     const data = { key: "value" };
     await createTestConfigInDB(data);
-    await request(app).delete("/config/test-config");
+    await request(app).delete("/config/test-config").set(superAdminAuthHeader);
     const row = await getTestConfigFromDB();
     expect(row).toBeNull();
-    await request(app).put("/config/test-config").send(data);
+    await request(app).put("/config/test-config").set(superAdminAuthHeader).send(data);
     const row2 = await getTestConfigFromDB();
     expect(row2).not.toBeNull();
   });
@@ -51,13 +53,19 @@ describe("Testing /config/{id} routes", () => {
   it("Exports all the configs", async () => {
     const a = { customValue: 123.456 };
     const b = { anotherValue: "test" };
-    await request(app).put("/config/a").send(a);
-    await request(app).put("/config/b").send(b);
-    const res = await request(app).post("/config-export");
+    await request(app).put("/config/a").set(superAdminAuthHeader).send(a);
+    await request(app).put("/config/b").set(superAdminAuthHeader).send(b);
+    const res = await request(app).post("/config-export").set(superAdminAuthHeader);
     expect(res.body).toEqual({
       a: a,
       b: b,
     });
+  });
+
+  it("Tries to save a config without authorization", async () => {
+    const data = { customValue: 123.456 };
+    const res = await request(app).put("/config/test-config").send(data);
+    expect(res.statusCode).toBe(401);
   });
 });
 
