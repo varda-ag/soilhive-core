@@ -1,22 +1,40 @@
 import { NextFunction, Request, Response } from "express";
 import FileService from "../services/FileService";
-import multer from "multer";
-import { JsonStorage } from "../entities/JsonStorage";
+import { FileStorage } from "@flystorage/file-storage";
+import { StatusCodes } from "http-status-codes";
+import { LOGO_FILE_ID } from "../constants/constants";
 
 const fileService = new FileService();
 
 export const fileUpload = async (req: Request, res: Response, next: NextFunction) => {
-  const repo = req.customData.entityManager.getRepository(JsonStorage);
-  const upload = multer({ storage: await fileService.getStorageEngine(repo) });
-  upload.single("file")(req, res, (err: any) => {
-    if (err) {
-      return next(err);
-    }
-    res.json({ message: "File uploaded successfully", file: req.file });
+  res.json({ message: "File uploaded successfully", file: req.files?.[0] });
+};
+
+export const fileDownload = async (req: Request, res: Response, next: NextFunction) => {
+  const filename = req.params["fileId"]!;
+  const storage: FileStorage = FileService.getStorageEngine();
+  const fileStream = await storage.read(filename);
+  // Pipe the file stream to the response
+  fileStream.pipe(res);
+  fileStream.on("error", (err) => {
+    next(err);
   });
 };
 
-export const fileDownload = async (req: Request, res: Response) => {
-  const data = await fileService.fileDownload(req.body);
-  res.json(data);
+export const logoDownload = async (req: Request, res: Response, next: NextFunction) => {
+  const customLogoExists = await fileService.exists(LOGO_FILE_ID);
+  if (!customLogoExists) {
+    // If no custom logo, serve the default one from the public folder
+    return res.sendFile("soilhive-logo.svg", { root: "src/assets" });
+  }
+  req.params["fileId"] = LOGO_FILE_ID;
+  return await fileDownload(req, res, next);
+};
+
+export const logoDelete = async (req: Request, res: Response, next: NextFunction) => {
+  const customLogoExists = await fileService.exists(LOGO_FILE_ID);
+  if (customLogoExists) {
+    await fileService.deleteFile(LOGO_FILE_ID);
+  }
+  res.sendStatus(StatusCodes.NO_CONTENT);
 };

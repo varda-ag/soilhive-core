@@ -93,7 +93,7 @@ export const tokenValidator = async (req: Request, scopes: string[]): Promise<bo
       throw err;
     }
     const errorMessage = err["name"] === "TokenExpiredError" ? "Token has expired" : `Invalid token: ${err.message}`;
-    new ErrorResponse(errorMessage, StatusCodes.UNAUTHORIZED);
+    throw new ErrorResponse(errorMessage, StatusCodes.UNAUTHORIZED);
   }
   return false;
 };

@@ -4,27 +4,31 @@ import { FileStorage } from "@flystorage/file-storage";
 import { AwsS3StorageAdapter } from "@flystorage/aws-s3";
 import { LocalStorageAdapter } from "@flystorage/local-fs";
 import { FlystorageMulterStorageEngine } from "@flystorage/multer-storage";
-import { Repository } from "typeorm";
-import { JsonStorage } from "../entities/JsonStorage";
 import { LocalStorageConfig, S3StorageConfig, StorageConfig } from "../interfaces/StorageConfig";
-import { ReservedConfigs, StorageModes } from "../types/types";
+import { StorageModes } from "../types/types";
 import ConfigService from "./ConfigService";
+import { LOGO_FILE_ID } from "../constants/constants";
 
 export default class FileService {
-  fileDownload = (data: any): any => {
-    return {
-      todo: true,
-    };
+  exists = async (fileId: string): Promise<boolean> => {
+    const storage = await FileService.getStorageEngine();
+    return await storage.fileExists(fileId);
   };
 
-  getStorageEngine = async (repo: Repository<JsonStorage>): Promise<FlystorageMulterStorageEngine> => {
-    const configService = new ConfigService();
-    const config: StorageConfig = await configService.getConfig(repo, ReservedConfigs.STORAGE);
-    // Configure Flystorage
-    const adapter = getAdapter(config);
+  deleteFile = async (fileId: string): Promise<void> => {
+    const storage = await FileService.getStorageEngine();
+    await storage.deleteFile(fileId);
+  };
+
+  static getUploadStorageEngine = (): FlystorageMulterStorageEngine => {
+    const adapter = FileService.getAdapter();
     const fileStorage = new FileStorage(adapter);
     const storage = new FlystorageMulterStorageEngine(fileStorage, async (action, req, file) => {
       if (action === "handle") {
+        if (req.path === "/frontend/logo") {
+          // Special case for logo upload
+          return LOGO_FILE_ID;
+        }
         // Use ID parameter to setup filename
         return req.params["fileId"]!;
       } else {
@@ -34,29 +38,35 @@ export default class FileService {
     });
     return storage;
   };
-}
 
-// Creates adapter based on storage config (TODO: caching?)
-const getAdapter = (config: StorageConfig): any => {
-  let adapter: any;
-  switch (config.storageMode) {
-    case StorageModes.LOCAL:
-      const localConfig = config.config as LocalStorageConfig;
-      if (!fs.existsSync(localConfig.rootFolder)) {
-        fs.mkdirSync(localConfig.rootFolder, { recursive: true });
-      }
-      adapter = new LocalStorageAdapter(localConfig.rootFolder);
-      break;
-    case StorageModes.S3:
-      const s3Config = config.config as S3StorageConfig;
-      const s3Client = new S3Client({ region: s3Config.region });
-      adapter = new AwsS3StorageAdapter(s3Client, {
-        bucket: s3Config.bucketName,
-        ...(s3Config.rootFolder ? { prefix: s3Config.rootFolder } : {}),
-      });
-      break;
-    default:
-      throw new Error(`Unsupported storage mode: ${config.storageMode}`);
-  }
-  return adapter;
-};
+  static getStorageEngine = (): FileStorage => {
+    const adapter = FileService.getAdapter();
+    return new FileStorage(adapter);
+  };
+  
+  static getAdapter = (): any => {
+    // Creates adapter based on storage config (TODO: caching?)
+    let adapter: any;
+    const config: StorageConfig = ConfigService.getStorageConfig();
+    switch (config.storageMode) {
+      case StorageModes.LOCAL:
+        const localConfig = config.config as LocalStorageConfig;
+        if (!fs.existsSync(localConfig.rootFolder)) {
+          fs.mkdirSync(localConfig.rootFolder, { recursive: true });
+        }
+        adapter = new LocalStorageAdapter(localConfig.rootFolder);
+        break;
+      case StorageModes.S3:
+        const s3Config = config.config as S3StorageConfig;
+        const s3Client = new S3Client({ region: s3Config.region });
+        adapter = new AwsS3StorageAdapter(s3Client, {
+          bucket: s3Config.bucketName,
+          ...(s3Config.rootFolder ? { prefix: s3Config.rootFolder } : {}),
+        });
+        break;
+      default:
+        throw new Error(`Unsupported storage mode: ${config.storageMode}`);
+    }
+    return adapter;
+  };
+}

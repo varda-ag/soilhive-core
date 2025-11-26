@@ -147,6 +147,64 @@ paths:
         "200":
           description: Object containing all the stored configurations
 
+  /frontend/logo:
+    post:
+      x-eov-operation-handler: controllers/files
+      x-eov-operation-id: fileUpload
+      summary: Upload platform logo
+      tags:
+        - frontend
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+              required:
+                - file
+            encoding:
+              file:
+                contentType: image/svg+xml
+      responses:
+        "201":
+          description: Logo uploaded successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FileDescriptor"
+        "400":
+          $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          $ref: "#/components/schemas/ErrorResponse"
+      security:
+        - bearerAuth: [super-admin]
+    get:
+      x-eov-operation-handler: controllers/files
+      x-eov-operation-id: logoDownload
+      summary: Download platform logo
+      tags:
+        - frontend
+      responses:
+        "200":
+          description: Logo downloaded successfully
+    delete:
+      x-eov-operation-handler: controllers/files
+      x-eov-operation-id: logoDelete
+      summary: Remove custom logo
+      tags:
+        - frontend
+      security:
+        - bearerAuth: [super-admin]
+      responses:
+        "204":
+          description: Logo deleted successfully
+
   /files/{fileId}:
     parameters:
       - name: fileId
@@ -159,6 +217,8 @@ paths:
       x-eov-operation-handler: controllers/files
       x-eov-operation-id: fileUpload
       summary: Upload a file
+      tags:
+        - TODO
       requestBody:
         required: true
         content:
@@ -182,14 +242,19 @@ paths:
           $ref: "#/components/schemas/ErrorResponse"
         "401":
           $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          $ref: "#/components/schemas/ErrorResponse"
         "409":
           $ref: "#/components/schemas/ErrorResponse"
       security:
         - bearerAuth: [super-admin, data-admin]
+
     get:
       x-eov-operation-handler: controllers/files
       x-eov-operation-id: fileDownload
       summary: Download a file
+      tags:
+        - TODO
       parameters:
         - in: query
           name: token

@@ -1,0 +1,1 @@
+export const LOGO_FILE_ID = "frontend/logo.svg";

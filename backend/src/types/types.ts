@@ -5,13 +5,6 @@ export const TokenScopes = {
 
 export type TokenScopesType = (typeof TokenScopes)[keyof typeof TokenScopes];
 
-export const ReservedConfigs = {
-  AUTH: "auth",
-  STORAGE: "storage",
-} as const;
-
-export type ReservedConfigsType = (typeof ReservedConfigs)[keyof typeof ReservedConfigs];
-
 export const AuthModes = {
   NONE: "none",
   PASSWORD: "password",
