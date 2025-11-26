@@ -218,7 +218,7 @@ paths:
       x-eov-operation-id: fileUpload
       summary: Upload a file
       tags:
-        - TODO
+        - TODO (to be removed or specialized)
       requestBody:
         required: true
         content:
@@ -254,7 +254,7 @@ paths:
       x-eov-operation-id: fileDownload
       summary: Download a file
       tags:
-        - TODO
+        - TODO (to be removed or specialized)
       parameters:
         - in: query
           name: token
