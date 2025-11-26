@@ -1,7 +1,8 @@
 /* global fetch */
 import {useState, useMemo} from 'react';
 import {useControl, Marker, Source,/*, type MarkerProps, type ControlPosition*/
-Layer} from 'react-map-gl/maplibre';
+Layer,
+LngLatBounds} from 'react-map-gl/maplibre';
 import MaplibreGeocoder, {
   type MaplibreGeocoderApi,
   type MaplibreGeocoderOptions,
@@ -24,7 +25,10 @@ const nominatimGeocoderAPI: MaplibreGeocoderApi = {
   forwardGeocode: async (config: MaplibreGeocoderApiConfig) => {
     const features = [];
     try {
-      const request = `https://nominatim.openstreetmap.org/search?q=${config.query}&format=geojson&polygon_geojson=1&addressdetails=1`;
+      let request = `https://nominatim.openstreetmap.org/search?q=${config.query}&format=geojson&polygon_geojson=1&addressdetails=1`;
+      if(config.bbox) {
+        request += `&viewbox=${config.bbox.join(',')}&bounded=0`;
+      }
       const response = await fetch(request);
       const geojson = await response.json();
       for (const feature of geojson.features) {
@@ -62,7 +66,10 @@ const mapboxGeocoderAPI: MaplibreGeocoderApi = {
   forwardGeocode: async (config: MaplibreGeocoderApiConfig) => {
     const features = [];
     try {
-      const request = `https://api.mapbox.com/search/geocode/v6/forward?q=${config.query}&access_token=${MAPBOX_ACCESS_TOKEN}`;
+      let request = `https://api.mapbox.com/search/geocode/v6/forward?q=${config.query}&access_token=${MAPBOX_ACCESS_TOKEN}`;
+      if(config.proximity) {
+        request += `&proximity=${config.proximity.join(',')}`;
+      }
       const response = await fetch(request);
       const geojson = await response.json();
       for (const feature of geojson.features) {
@@ -116,6 +123,16 @@ export default function GeocoderControl(props/*: GeocoderControlProps */) {
         proximityMinZoom: 9, // only prioritize the viewport when zoomed in to z9
         debounceSearch: props.geocoder !== 'nominatim' ? 200 : 1000, // Nominatim's policy requires to limit searches to maximum 1 request per second https://operations.osmfoundation.org/policies/nominatim/
         clearAndBlurOnEsc: true,
+      });
+      ctrl.on('loading', (evt) => {
+        const bounds = geocoder?._map?.getBounds();
+        if(bounds) {
+          geocoder.setBbox(bounds.toArray().flat());
+        }
+        const center = geocoder?._map?.getCenter();
+        if(center) {
+          geocoder.setProximity({latitude: center.lat, longitude: center.lng });
+        }
       });
       ctrl.on('results', (evt) => {
         if(props.geocoder === 'nominatim') {
