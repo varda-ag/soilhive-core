@@ -40,4 +40,59 @@
             display: none;
         }
     }
+
+    .maplibregl-popup {
+        margin-top: 32px;
+        &-content {
+            border-radius: 8px;
+            padding: 0px 0px;
+            box-shadow: 0px 4px 4px 0px #00000040;
+            min-width: 250px;
+        }
+        &-close-button {
+            font-size: 30px;
+        }
+    }
+    
+    .maplibregl-popup-anchor-left {
+        .maplibregl-popup-tip {
+            align-self: unset;
+            margin-top: 26px;
+            border-right-color: #D2E5AB;
+        }
+    }
+
+    &-popup-header {
+        border-top-left-radius: 8px;
+        border-top-right-radius: 8px;
+        background-color: #D2E5AB;
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        padding: 8px 14px;
+        &-left {
+            svg {
+                width: 24px;
+                height: 24px;
+            }
+        }
+        &-right {
+            &-title {
+                font-family: Inter;
+                font-weight: 700;
+                font-style: Bold;
+                font-size: 14px;
+                line-height: 20px;
+                letter-spacing: 0px;
+                vertical-align: middle;
+            }
+            &-subtitle {
+
+            }
+        }
+    }
+
+    &-popup-content {
+        padding: 15px;
+    }
 }
