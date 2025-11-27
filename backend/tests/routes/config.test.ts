@@ -1,12 +1,18 @@
 import request from "supertest";
 import { app } from "../../src/app";
 import { getDataSource } from "../../src/utils/data-source";
-import { superAdminToken } from "../helper";
+import { getSuperAdminToken } from "../helper";
+import { IncomingHttpHeaders } from "http";
 
 const ID = "test-config";
-const superAdminAuthHeader = { Authorization: `Bearer ${superAdminToken}` };
 
 describe("Testing /config/{id} routes", () => {
+  let superAdminAuthHeader: IncomingHttpHeaders;
+  beforeAll(async () => {
+    // Get super admin token
+    const token = await getSuperAdminToken();
+    superAdminAuthHeader = { Authorization: `Bearer ${token}` };
+  });
   it("PUT saves the config", async () => {
     const data = { customValue: 123.456 };
     const res = await request(app).put("/config/test-config").set(superAdminAuthHeader).send(data);
