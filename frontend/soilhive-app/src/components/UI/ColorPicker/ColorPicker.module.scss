@@ -1,0 +1,13 @@
+.ColorPicker {
+    display: block;
+    width: 2.25rem;
+    height: 2.25rem;
+    min-width: 2.25rem;
+    min-height: 2.25rem;
+    border: 1px solid var(--color-neutral-dark-100);
+    border-radius: .25rem;
+    cursor: pointer;
+}
+.InputField {
+    display: none;
+}

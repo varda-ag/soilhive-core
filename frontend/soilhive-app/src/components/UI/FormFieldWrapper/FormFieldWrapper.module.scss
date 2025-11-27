@@ -1,7 +1,7 @@
 .Label {
     display: flex;
     flex-direction: column;
-    gap: .25rem;
+    gap: .125rem;
 
     &.Invalid {
         color: var(--color-cta-danger-solid);
@@ -16,7 +16,7 @@
         }
 
         > .LabelTooltip {
-            color: var(--color-neutral-dark-600);
+            color: var(--color-text-primary);
             align-self: center;
             cursor: pointer;
         }

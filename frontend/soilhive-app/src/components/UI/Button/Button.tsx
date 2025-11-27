@@ -26,7 +26,7 @@ export function Button({
     children,
     className,
     type = 'primary',
-    size = 'medium',
+    size = 'small',
     to,
     href,
     form,

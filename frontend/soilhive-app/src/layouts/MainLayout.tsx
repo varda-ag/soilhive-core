@@ -1,22 +1,13 @@
-import { useMemo } from 'react';
 import { Link, Outlet } from 'react-router';
 import classnames from 'classnames'
 
 import { singlePages } from '../utilities/moduleFederation';
 import useTheme from '../hooks/useTheme';
-import SoilHiveLogo from '../assets/images/soil-hive-logo.svg?react';
 
 import styles from './MainLayout.module.scss'
 
 function MainLayout() {
   const {logo, theme} = useTheme();
-
-  const Logo = useMemo(() => {
-    if (logo) {
-      return () => <img src={logo} style={{width: '167px', height: '59px'}} />;
-    }
-    return SoilHiveLogo;
-  }, [logo])
 
   if (!theme) {
     return null;
@@ -25,7 +16,7 @@ function MainLayout() {
   return (
     <>
       <div className={classnames(styles.MenuWrapper, 'menu')}>
-        <Logo />
+        {logo && <img src={logo} style={{width: '167px', height: '59px'}} />}
         <ul>
           <li><Link to="/">Home</Link></li>
           {singlePages.map(({route, name}) => 

@@ -1,61 +1,39 @@
-import { useCallback } from 'react';
 import useTheme from '../../hooks/useTheme';
 import { Button, TextInput } from 'components/UI';
 import { config } from './config';
+import { ThemeColorField } from './ThemeColorField';
 
 import styles from './ThemeConfig.module.scss';
 
-export function ThemeConfig() {
-    const {theme, logo, handleChange, handleLogoChange, saveThemeConfig} = useTheme();
 
-    const onChange = useCallback(({target: {name, value}}: React.ChangeEvent<HTMLInputElement>) => {
-        console.log(name, value);
-        handleChange(name, value)
-    }, [handleChange]);
+export function ThemeConfig() {
+    const {theme, logo, handleColorChange, handleLogoChange, saveThemeConfig, deleteLogo} = useTheme();
 
   return (
     <div className={styles.Wrapper}>
       <h1>Theme config</h1>
-      {config.map(({label, name, type}) => {
-        if (type === 'color') {
-            return (
-                <>
-                    <div>
-                        <label htmlFor={name}>{label}:</label>
-                        <input id={name} name={name} type="color" value={theme?.[name]} onChange={onChange}/>
-                    </div>
-                </>
-            )
-        }
 
-        if (type === 'file') {
+      <div className={styles.Section}>
+        {config.map(({label, name}) => {
             return (
-                <>
-                    <div>
-                        <label htmlFor={name}>{label}:</label>
-                        <input id={name} name={name} type="file" onChange={handleLogoChange} multiple={false}/>
-                        {!!logo && <img src={logo} style={{width: '50px', height: '20px'}} />}
-                    </div>
-                </>
+                <ThemeColorField
+                    key={name}
+                    label={label}
+                    initialValue={theme?.[name]}
+                    name={name}
+                    onChange={handleColorChange}
+                />
             )
-        }
-
-        return null;
-      })}
-      <div><Button onClick={saveThemeConfig}>Save</Button></div>
-      <div><Button to="/">Go Home</Button></div>
-      <div><Button href="https://google.com">Google</Button></div>
-      <div><TextInput isClearable={true} /></div>
-        <div>
-            <TextInput
-                label="Label"
-                labelTooltip='Tooltip'
-                isRequired={true}
-                helperMessage='Helper message'
-                errorMessage='errorMessage'
-                isError={true}
-            />
+        })}
+        <div className={styles.FlexRow}>
+            <label htmlFor="logo">Logo: </label>
+            <input id="logo" name="logo" type="file" onChange={handleLogoChange} multiple={false}/>
+            {!!logo && <img src={logo} style={{width: '50px', height: '20px'}} />}
+            <Button type="secondary" size="tiny" onClick={deleteLogo}>Delete logo</Button>
         </div>
+      </div>
+
+      <div><Button onClick={saveThemeConfig}>Save</Button></div>
     </div>
   );
 };

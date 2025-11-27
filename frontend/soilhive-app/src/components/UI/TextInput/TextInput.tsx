@@ -36,7 +36,7 @@ interface Props {
 export function TextInput({
   className,
   inputClassName,
-  size = 'medium',
+  size = 'small',
   type = 'text',
   name,
   label,
