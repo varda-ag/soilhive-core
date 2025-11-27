@@ -11,8 +11,8 @@ declare namespace NodeJS {
     readonly POSTGRES_PASSWORD?: string;
     readonly POSTGRES_SCHEMA?: string;
     // Auth settings
-    readonly SUPER_ADMIN_PASSWORD?: string;
-    readonly DATA_ADMIN_PASSWORD?: string;
+    readonly SUPER_ADMIN_PASSWORD_HASH?: string;
+    readonly DATA_ADMIN_PASSWORD_HASH?: string;
     readonly SELF_SIGNING_SECRET?: string;
     // OIDC settings
     readonly OIDC_JWKS_URL?: string;
