@@ -1,4 +1,6 @@
 import path from "path";
+import request from "supertest";
+import { app } from "../src/app";
 import { exec } from "child_process";
 import { destroyDataSource, getDataSource, initializeSchema, isDBAvailable } from "../src/utils/data-source";
 import { sleep } from "../src/utils/utils";
@@ -34,7 +36,15 @@ export const teardown = async () => {
 export const clearDatabase = async () => {
   const dataSource = await getDataSource();
   const tableNames = dataSource?.entityMetadatas.map((entity) => `"${entity.tableName}"`).join(", ");
+  await dataSource?.query(`SET search_path TO ${process.env.POSTGRES_SCHEMA}, public`);
   await dataSource?.query(`TRUNCATE TABLE ${tableNames} CASCADE;`);
 };
 
-export const superAdminToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZCJ9.eyJzdWIiOiJzdXBlci1hZG1pbiIsInNjb3BlIjoic3VwZXItYWRtaW4iLCJpYXQiOjE3NjQxNDYwNTAsImV4cCI6MTc2NDIzMjQ1MH0.IoFLK8VjDwzHtqKYm7ch0rHuj5LCISiqLjlxEgvPSnY";
+export const getSuperAdminToken = async (): Promise<string> => {
+  const res = await request(app).post("/oauth/token").type("form").send({
+    grant_type: "password",
+    username: "mock",
+    password: "superadmin",
+  });
+  return res.body.access_token;
+};

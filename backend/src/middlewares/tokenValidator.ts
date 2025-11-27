@@ -72,7 +72,7 @@ export const tokenValidator = async (req: Request, scopes: string[]): Promise<bo
     const publicKey = authConfig.authMode === AuthModes.OIDC ? await getSigningKeyAsync(kid) : process.env.SELF_SIGNING_SECRET!;
     const decoded = await verifyAsync(tokenString, publicKey);
     if (!decoded) {
-      new ErrorResponse("Invalid token (decode failure)", StatusCodes.UNAUTHORIZED);
+      throw new ErrorResponse("Invalid token (decode failure)", StatusCodes.UNAUTHORIZED);
     }
     if (!decoded.sub) {
       throw new ErrorResponse("Invalid token (no sub)", StatusCodes.UNAUTHORIZED);
@@ -95,7 +95,6 @@ export const tokenValidator = async (req: Request, scopes: string[]): Promise<bo
     const errorMessage = err["name"] === "TokenExpiredError" ? "Token has expired" : `Invalid token: ${err.message}`;
     throw new ErrorResponse(errorMessage, StatusCodes.UNAUTHORIZED);
   }
-  return false;
 };
 
 const assertTokenScope = (token: Token, scopes: string[]) => {

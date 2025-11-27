@@ -22,6 +22,8 @@
     "@flystorage/file-storage": "^1.2.0",
     "@flystorage/local-fs": "^1.2.0",
     "@flystorage/multer-storage": "^1.2.0",
+    "@types/bcrypt": "^6.0.0",
+    "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",

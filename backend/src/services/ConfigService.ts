@@ -35,7 +35,7 @@ export default class ConfigService {
   };
 
   static getAuthConfig = (): AuthConfig => {
-    const passwordConfigured = !!(process.env.SUPER_ADMIN_PASSWORD && process.env.DATA_ADMIN_PASSWORD && process.env.SELF_SIGNING_SECRET);
+    const passwordConfigured = !!(process.env.SUPER_ADMIN_PASSWORD_HASH && process.env.DATA_ADMIN_PASSWORD_HASH && process.env.SELF_SIGNING_SECRET);
     const oidcConfigured = !!(process.env.OIDC_AUTHORITY && process.env.OIDC_CLIENT_ID && process.env.OIDC_REDIRECT_URI && process.env.OIDC_POST_LOGOUT_REDIRECT_URI && process.env.OIDC_SILENT_REDIRECT_URI && process.env.OIDC_SCOPE);
 
     if (!passwordConfigured && !oidcConfigured) {
