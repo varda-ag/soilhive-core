@@ -1,6 +1,5 @@
 import { useId, useState } from 'react';
-import { GeolocateControl, Map, NavigationControl, ScaleControl, TerrainControl, type StyleSpecification, type ImmutableLike, Marker, Popup } from 'react-map-gl/maplibre';
-import Pin from './Pin';
+import { GeolocateControl, Map, NavigationControl, ScaleControl, TerrainControl, type StyleSpecification, type ImmutableLike, Popup } from 'react-map-gl/maplibre';
 import GeocoderControl from './GeocoderControl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import '@maplibre/maplibre-gl-geocoder/dist/maplibre-gl-geocoder.css';
@@ -76,56 +75,39 @@ function SoilhiveMap({
         }}
       >
         { selectedPoint &&
-          <>
-            {/*             
-            <Marker
-              key={`marker-user-selection`}
-              longitude={selectedPoint.lng}
-              latitude={selectedPoint.lat}
-              anchor="bottom"
-              onClick={e => {
-                // If we let the click event propagates to the map, it will immediately close the popup
-                // with `closeOnClick: true`
-                e.originalEvent.stopPropagation();
-              }}
-            > 
-              <Pin />
-            </Marker> */}
-
-            <Popup
-              anchor="left"
-              longitude={selectedPoint.lng}
-              latitude={selectedPoint.lat}
-              offset={{
-                left: 0,
-                top: 0,
-                "top-left": 0,
-                bottom: 0
-              }}
-              onClose={() => {
-                setSelectedPoint(null);
-              }}
-            >
-              <div className="soilhive-map-popup-header">
-                <div className="soilhive-map-popup-header-left" style={{minWidth: '24px'}}>
-                  <Flower />
+          <Popup
+            anchor="left"
+            longitude={selectedPoint.lng}
+            latitude={selectedPoint.lat}
+            offset={{
+              left: 0,
+              top: 0,
+              "top-left": 0,
+              bottom: 0
+            }}
+            onClose={() => {
+              setSelectedPoint(null);
+            }}
+          >
+            <div className="soilhive-map-popup-header">
+              <div className="soilhive-map-popup-header-left" style={{minWidth: '24px'}}>
+                <Flower />
+              </div>
+              <div className="soilhive-map-popup-header-right">
+                <div className="soilhive-map-popup-header-right-title">
+                  SOIL DATA
                 </div>
-                <div className="soilhive-map-popup-header-right">
-                  <div className="soilhive-map-popup-header-right-title">
-                    SOIL DATA
-                  </div>
-                  <div className="soilhive-map-popup-header-right-subtitle">
-                    H3 Cell ID: 8a390cc4189ffff
-                  </div>
+                <div className="soilhive-map-popup-header-right-subtitle">
+                  H3 Cell ID: 8a390cc4189ffff
                 </div>
               </div>
-              <div className="soilhive-map-popup-content">
-                <strong>Coordinates</strong><br />
-                Longitude {selectedPoint.lng}<br />
-                Latitude {selectedPoint.lat}
-              </div>
-            </Popup>
-          </>
+            </div>
+            <div className="soilhive-map-popup-content">
+              <strong>Coordinates</strong><br />
+              Longitude {selectedPoint.lng}<br />
+              Latitude {selectedPoint.lat}
+            </div>
+          </Popup>
         }
         {showGeocoder && <GeocoderControl position="top-left" geocoder={geocoder} />}
         { showGeolocation && <GeolocateControl position="bottom-right" /> }
