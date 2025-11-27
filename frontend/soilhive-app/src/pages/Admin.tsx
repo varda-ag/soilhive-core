@@ -1,7 +1,8 @@
-import { useId, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { modules } from "../utilities/moduleFederation";
 import { useAuthContext } from "../auth/AuthContextProvider";
-import {ThemeConfig} from './ThemeConfig'
+import {ThemeConfig} from '../components/ThemeConfig/ThemeConfig'
+import { Button, Dropdown } from "components/UI";
 
 function Admin() {
   const { isAuthenticated, isLoading, login, logout, user } = useAuthContext();
@@ -9,6 +10,16 @@ function Admin() {
   const mapGeocoderInputId = useId();
   const [mapGeocoder, setMapGeocoder] = useState(localStorage.getItem('MAP_GEOCODER') ?? 'nominatim');
   
+  const geocoderAPIOptions = [
+    {
+      name: 'Nominatim OpenStreetMap search engine',
+      code: 'nominatim',
+    },
+    {
+      name: 'Mapbox Geocoding API (v6)',
+      code: 'mapbox',
+    }
+  ];
 
   if (isLoading) {
     return <div>Loading...</div>;
@@ -40,12 +51,24 @@ function Admin() {
         }) }
       </ol>
       <h2>Authenticated user: {user?.profile?.name}</h2>
-      <button onClick={ () => logout() }>Logout</button>
+      <Button onClick={ () => logout() }>Logout</Button>
 
       <h2>Maps:</h2>
       <div>
-        <label htmlFor={mapGeocoderInputId}>Geocoder API</label>
-        <select name="map-geocoder"
+        <label htmlFor={mapGeocoderInputId}>Geocoder API: {mapGeocoder}</label><br />
+        <Dropdown
+          name="map-geocoder"
+          options={geocoderAPIOptions}
+          value={mapGeocoder}
+          onChange={
+            (option) => {
+              const selectedGeocoder = option;
+              localStorage.setItem('MAP_GEOCODER', selectedGeocoder);
+              setMapGeocoder(selectedGeocoder);
+            } 
+          }
+        />
+        {/* <select name="map-geocoder"
           id={mapGeocoderInputId} 
           defaultValue={mapGeocoder}
           onChange={
@@ -58,7 +81,7 @@ function Admin() {
         >
           <option value='nominatim'>Nominatim OpenStreetMap search engine</option>
           <option value='mapbox'>Mapbox Geocoding API (v6)</option>
-        </select>
+        </select> */}
       </div>
 
       <ThemeConfig></ThemeConfig>

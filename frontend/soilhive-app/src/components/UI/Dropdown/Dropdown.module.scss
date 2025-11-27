@@ -1,0 +1,119 @@
+.Dropdown {
+    position: relative;
+    display: block;
+    // display: inline-block;
+    background: var(--color-neutral-white);
+    border: var(--color-neutral-dark-100) solid 0.125rem;
+    border-radius: 0.25rem;
+    min-width: 16.25rem;
+
+    > .DropdownInput {
+        display: flex;
+        align-items: center;
+        column-gap: 0.5rem;
+
+        > .SelectedOption {
+            flex-grow: 1;
+            flex-shrink: 0;
+            color: var(--color-neutral-black);
+            line-height: var(--line-height-lg);
+
+            &.Placeholder {
+                color: var(--color-neutral-dark-400);
+            }
+        }
+
+        > .ArrowIcon {
+            flex-shrink: 0;
+            color: var(--color-neutral-dark-400);
+        }
+    }
+
+    > .OptionsList {
+        position: absolute;
+        top: calc(100% + 0.125rem);
+        left: -0.125rem;
+        min-width: calc(100% + 0.25rem);
+        max-width: calc(100% + 0.25rem);
+        max-height: 15rem;
+        overflow: auto;
+        z-index: 10;
+
+        &:hover {
+            cursor: initial;
+        }
+    }
+
+    &:hover {
+        cursor: pointer;
+
+        &:not(.Disabled):not(.ReadOnly) {
+            box-shadow: var(--shadow-hover-default);
+
+            &:not(.Active):not(.Invalid) {
+                border-color: var(--color-neutral-dark-200);
+            }
+        }
+
+        &.Disabled {
+            cursor: not-allowed;
+        }
+
+        &.ReadOnly {
+            cursor: text;
+        }
+    }
+
+    &.Active {
+        border-radius: 0.25rem 0.25rem 0 0;
+        border-color: var(--color-cta-default-pressed);
+    }
+
+    &.Invalid {
+        border-color: var(--color-accent-danger-1000);
+    }
+
+    &.Disabled > .DropdownInput > .SelectedOption {
+        color: var(--color-neutral-dark-400);
+    }
+
+    &.Disabled,
+    &.ReadOnly {
+        background: var(--color-neutral-dark-300);
+
+        > .DropdownInput > .SelectedOption.Placeholder {
+            color: var(--color-neutral-dark-200);
+        }
+
+        > .ArrowIcon {
+            color: var(--color-neutral-dark-200);
+        }
+    }
+
+    &.Medium > .DropdownInput {
+        padding: 0.6565rem 1rem;
+
+        > .SelectedOption {
+            height: 1.688rem;
+            font-size: var(--font-size-xl);
+        }
+    }
+
+    &.Small > .DropdownInput {
+        padding: 0.375rem 0.75rem;
+
+        > .SelectedOption {
+            height: 1.5rem;
+            font-size: var(--font-size-md);
+        }
+    }
+
+    &.Tiny > .DropdownInput {
+        padding: 0.2195rem 0.5rem;
+
+        > .SelectedOption {
+            height: 1.313rem;
+            font-size: var(--font-size-sm);
+        }
+    }
+}

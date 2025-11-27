@@ -2,24 +2,31 @@ import { useCallback, useEffect, useMemo, useState, type ChangeEvent } from 'rea
 
 import classnames from 'classnames';
 
-import SmallCrossIcon from '../../../assets/icons/small-cross-icon.svg?react';
+import SmallCrossIcon from 'assets/icons/small-cross-icon.svg?react';
+import { FormFieldWrapper } from 'components/UI';
+import type { ComponentSizeType } from 'types/components';
 
 import styles from './TextInput.module.scss';
 
-type TextInputSize = 'medium' | 'small' | 'tiny';
 type TextInputType = 'text' | 'email' | 'number';
 
-export interface TextInputProps {
+interface Props {
   className?: string;
+  inputClassName?: string;
   type?: TextInputType;
-  size?: TextInputSize;
+  size?: ComponentSizeType;
   name?: string;
+  label?: string;
+  labelTooltip?: string;
   placeholder?: string;
   value?: string;
+  isRequired?: boolean;
   isDisabled?: boolean;
   isReadOnly?: boolean;
   isClearable?: boolean;
   isError?: boolean;
+  errorMessage?: string;
+  helperMessage?: string;
   onClear?: (name?: string) => void;
   onChange?: (value: string, name?: string) => void;
   onFocus?: () => void;
@@ -28,20 +35,26 @@ export interface TextInputProps {
 
 export function TextInput({
   className,
+  inputClassName,
   size = 'medium',
   type = 'text',
   name,
+  label,
+  labelTooltip,
   placeholder = '',
   value = '',
+  isRequired = false,
   isDisabled = false,
   isReadOnly = false,
   isClearable = false,
   isError = false,
+  errorMessage,
+  helperMessage,
   onClear,
   onChange,
   onFocus,
   onBlur,
-}: TextInputProps) {
+}: Props) {
   const [currentValue, setCurrentValue] = useState(value);
   const [isFocused, setFocused] = useState(false);
 
@@ -92,42 +105,49 @@ export function TextInput({
   }, [value]);
 
   return (
-    <label
-      data-testid="sh-ui-textinput"
-      className={classnames(
-        styles.TextInput,
-        sizeClass,
-        { [styles.Invalid]: isError },
-        { [styles.Focused]: isFocused },
-        { [styles.Filled]: !!currentValue },
-        { [styles.Disabled]: isDisabled },
-        { [styles.ReadOnly]: isReadOnly },
-        className
-      )}
+    <FormFieldWrapper 
+      className={className}
+      label={label}
+      labelTooltip={labelTooltip}
+      isRequired={isRequired}
+      isError={isError}
+      errorMessage={errorMessage}
+      helperMessage={helperMessage}
     >
-
-      <input
-        data-testid="sh-ui-textinputfield"
-        type={type}
-        name={name}
-        placeholder={placeholder}
-        value={currentValue}
-        onChange={handleChange}
-        className={styles.InputField}
-        disabled={isDisabled || isReadOnly}
-        onFocus={handleFocus}
-        onBlur={handleBlur}
-      />
-
-      {isClearable && (
-        <SmallCrossIcon
-          data-testid="sh-ui-cleartexticon"
-          className={styles.ClearTextIcon}
-          onClick={clearInput}
+      <div
+        data-testid="sh-ui-textinput"
+        className={classnames(
+          styles.TextInput,
+          sizeClass,
+          { [styles.Invalid]: isError },
+          { [styles.Focused]: isFocused },
+          { [styles.Filled]: !!currentValue },
+          { [styles.Disabled]: isDisabled },
+          { [styles.ReadOnly]: isReadOnly },
+          inputClassName
+        )}
+      >
+        <input
+          data-testid="sh-ui-textinputfield"
+          type={type}
+          name={name}
+          placeholder={placeholder}
+          value={currentValue}
+          onChange={handleChange}
+          className={styles.InputField}
+          disabled={isDisabled || isReadOnly}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
         />
-      )}
-    </label>
+
+        {isClearable && (
+          <SmallCrossIcon
+            data-testid="sh-ui-cleartexticon"
+            className={styles.ClearTextIcon}
+            onClick={clearInput}
+          />
+        )}
+      </div>
+    </FormFieldWrapper>
   );
 };
-
-export default TextInput;

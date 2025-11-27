@@ -1,0 +1,53 @@
+.FormMessage {
+    display: flex;
+	align-items: flex-start;
+	gap: 0.25rem;
+
+    &.Global {
+        padding: 0.5rem 0.75rem;
+		border-radius: 0.25rem;
+    }
+
+    > .FormMessageIcon {
+        min-width: 1rem;
+    }
+
+    &.ErrorMessage {
+		> .FormMessageText {
+			color: var(--color-accent-danger-1000);
+		}
+
+		> .FormMessageIcon {
+			color: var(--color-accent-danger-1000);
+		}
+
+		&.Global {
+			background-color: var(--color-accent-danger-050);
+		}
+	}
+
+	&.WarningMessage {
+		> .FormMessageText {
+			color: var(--color-accent-warning-1500);
+		}
+
+		> .FormMessageIcon {
+			color: var(--color-accent-warning-1500);
+		}
+
+		&.Global {
+			background-color: var(--color-brand-yellow-bg);
+			border: 1px solid var(--color-accent-warning-1000);
+		}
+	}
+
+    &.InfoMessage {
+        > .FormMessageText {
+            color: var(--color-neutral-black);
+        }
+
+        > .FormMessageIcon {
+            color: var(--color-neutral-black);
+        }
+    }
+}

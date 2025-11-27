@@ -32,6 +32,7 @@ body {
 	height: 100%;
 	overflow: auto;
 	background-color: var(--color-bg-primary);
+	color: var(--color-neutral-black);
 }
 
 /* Chrome, Safari, Edge, Opera */
@@ -78,4 +79,9 @@ input:-internal-autofill-selected {
 }
 input[data-autocompleted] {
 	background-color: transparent !important;
+}
+
+.small-text {
+    font-size: var(--font-size-xs);
+    line-height: var(--line-height-lg);
 }

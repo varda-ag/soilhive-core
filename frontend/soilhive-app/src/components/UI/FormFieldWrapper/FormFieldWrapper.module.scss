@@ -1,0 +1,24 @@
+.Label {
+    display: flex;
+    flex-direction: column;
+    gap: .25rem;
+
+    &.Invalid {
+        color: var(--color-cta-danger-solid);
+    }
+
+    > .LabelText {
+        display: flex;
+        gap: .25rem;
+
+        > .RequiredMark {
+            color: var(--color-cta-danger-solid);
+        }
+
+        > .LabelTooltip {
+            color: var(--color-neutral-dark-600);
+            align-self: center;
+            cursor: pointer;
+        }
+    }
+}

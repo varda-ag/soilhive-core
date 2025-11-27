@@ -9,7 +9,7 @@ import SoilHiveLogo from '../assets/images/soil-hive-logo.svg?react';
 import styles from './MainLayout.module.scss'
 
 function MainLayout() {
-  const {logo} = useTheme();
+  const {logo, theme} = useTheme();
 
   const Logo = useMemo(() => {
     if (logo) {
@@ -17,6 +17,10 @@ function MainLayout() {
     }
     return SoilHiveLogo;
   }, [logo])
+
+  if (!theme) {
+    return null;
+  }
   
   return (
     <>

@@ -4,7 +4,6 @@ import PageTitle from "./components/PageTitle";
 import MainLayout from "./layouts/MainLayout";
 import Homepage from "./pages/Homepage";
 import Admin from "./pages/Admin";
-import ThemeConfig from "./pages/ThemeConfig";
 import { singlePages } from "./utilities/moduleFederation";
 import { ThemeProvider } from './contexts/ThemeContext';
 import { AuthContextProvider } from "./auth/AuthContextProvider";

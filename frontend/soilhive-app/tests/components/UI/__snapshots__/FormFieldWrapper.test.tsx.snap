@@ -1,0 +1,387 @@
+// Rstest Snapshot v1
+
+exports[`FormFieldWrapper > matches snapshot 1`] = `
+<div>
+  <label
+    class="Label Invalid"
+    data-testid="sh-ui-label"
+  >
+    <div
+      class="LabelText"
+    >
+      <span>
+        Email
+      </span>
+      <span
+        class="RequiredMark"
+      >
+        *
+      </span>
+      <svg
+        class="LabelTooltip"
+        data-tooltip-content="Tooltip here"
+        data-tooltip-id="label-tooltip"
+        fill="none"
+        height="16"
+        viewBox="0 0 16 16"
+        width="16"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <circle
+          cx="8"
+          cy="8"
+          r="5.75"
+          stroke="currentColor"
+          stroke-width="1.5"
+        />
+        <path
+          d="M8 8v3"
+          stroke="currentColor"
+          stroke-linecap="round"
+          stroke-width="1.5"
+        />
+        <circle
+          cx="8"
+          cy="5.75"
+          fill="currentColor"
+          r="0.75"
+        />
+      </svg>
+    </div>
+    <input />
+    <div
+      class="FormMessage ErrorMessage"
+      data-testid="sh-form-message"
+    >
+      <svg
+        class="FormMessageIcon"
+        data-testid="sh-form-message-icon-error"
+        fill="none"
+        height="17"
+        viewBox="0 0 16 17"
+        width="16"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <mask
+          fill="#000"
+          height="3"
+          id="warning-icon_svg__a"
+          maskUnits="userSpaceOnUse"
+          width="3"
+          x="6.463"
+          y="9.9"
+        >
+          <path
+            d="M6.463 9.9h3v3h-3z"
+            fill="#fff"
+          />
+          <path
+            d="M8.003 11.892H7.91a.54.54 0 0 1-.26-.113.5.5 0 0 1-.174-.267.5.5 0 0 1 .04-.333.55.55 0 0 1 .214-.213.59.59 0 0 1 .627.053.48.48 0 0 1 .073.687.54.54 0 0 1-.247.166.5.5 0 0 1-.18.02"
+          />
+        </mask>
+        <path
+          d="M8.003 11.892H7.91a.54.54 0 0 1-.26-.113.5.5 0 0 1-.174-.267.5.5 0 0 1 .04-.333.55.55 0 0 1 .214-.213.59.59 0 0 1 .627.053.48.48 0 0 1 .073.687.54.54 0 0 1-.247.166.5.5 0 0 1-.18.02"
+          fill="#BC001F"
+        />
+        <path
+          d="M8.003 11.892H7.91a.54.54 0 0 1-.26-.113.5.5 0 0 1-.174-.267.5.5 0 0 1 .04-.333.55.55 0 0 1 .214-.213.59.59 0 0 1 .627.053.48.48 0 0 1 .073.687.54.54 0 0 1-.247.166.5.5 0 0 1-.18.02Z"
+          mask="url(#warning-icon_svg__a)"
+          stroke="#BC001F"
+          stroke-width="0.8"
+        />
+        <mask
+          fill="#000"
+          height="5"
+          id="warning-icon_svg__b"
+          maskUnits="userSpaceOnUse"
+          width="3"
+          x="6.67"
+          y="5.5"
+        >
+          <path
+            d="M6.67 5.5h3v5h-3z"
+            fill="#fff"
+          />
+          <path
+            d="M8.003 9.833A.333.333 0 0 1 7.67 9.5V6.833a.333.333 0 0 1 .667 0V9.5a.333.333 0 0 1-.334.333"
+          />
+        </mask>
+        <path
+          d="M8.003 9.833A.333.333 0 0 1 7.67 9.5V6.833a.333.333 0 0 1 .667 0V9.5a.333.333 0 0 1-.334.333"
+          fill="#BC001F"
+        />
+        <path
+          d="M8.003 9.833A.333.333 0 0 1 7.67 9.5V6.833a.333.333 0 0 1 .667 0V9.5a.333.333 0 0 1-.334.333Z"
+          mask="url(#warning-icon_svg__b)"
+          stroke="#BC001F"
+          stroke-width="0.8"
+        />
+        <mask
+          fill="#000"
+          height="13"
+          id="warning-icon_svg__c"
+          maskUnits="userSpaceOnUse"
+          width="15"
+          x="0.421"
+          y="2.176"
+        >
+          <path
+            d="M.421 2.176h15v13h-15z"
+            fill="#fff"
+          />
+          <path
+            d="M13.41 13.833H2.597c-.188 0-.374-.039-.547-.113a1.2 1.2 0 0 1-.433-.333.9.9 0 0 1-.06-1.034l5.26-8.58c.13-.194.31-.35.52-.453a1.61 1.61 0 0 1 1.333 0c.205.105.38.26.507.453l5.26 8.58c.1.157.146.342.133.527a.9.9 0 0 1-.193.507c-.118.144-.269.259-.44.333a1.3 1.3 0 0 1-.527.113m-5.406-10a.9.9 0 0 0-.38.087.54.54 0 0 0-.234.2L2.124 12.7a.22.22 0 0 0-.034.14q.003.076.054.133a.37.37 0 0 0 .18.134c.085.039.179.06.273.06H13.41a.8.8 0 0 0 .274-.054.43.43 0 0 0 .18-.14.2.2 0 0 0 .053-.133.22.22 0 0 0-.033-.14L8.617 4.12a.54.54 0 0 0-.233-.2.9.9 0 0 0-.38-.087"
+          />
+        </mask>
+        <path
+          d="M13.41 13.833H2.597c-.188 0-.374-.039-.547-.113a1.2 1.2 0 0 1-.433-.333.9.9 0 0 1-.06-1.034l5.26-8.58c.13-.194.31-.35.52-.453a1.61 1.61 0 0 1 1.333 0c.205.105.38.26.507.453l5.26 8.58c.1.157.146.342.133.527a.9.9 0 0 1-.193.507c-.118.144-.269.259-.44.333a1.3 1.3 0 0 1-.527.113m-5.406-10a.9.9 0 0 0-.38.087.54.54 0 0 0-.234.2L2.124 12.7a.22.22 0 0 0-.034.14q.003.076.054.133a.37.37 0 0 0 .18.134c.085.039.179.06.273.06H13.41a.8.8 0 0 0 .274-.054.43.43 0 0 0 .18-.14.2.2 0 0 0 .053-.133.22.22 0 0 0-.033-.14L8.617 4.12a.54.54 0 0 0-.233-.2.9.9 0 0 0-.38-.087"
+          fill="#BC001F"
+        />
+        <path
+          d="M13.41 13.833H2.597c-.188 0-.374-.039-.547-.113a1.2 1.2 0 0 1-.433-.333.9.9 0 0 1-.06-1.034l5.26-8.58c.13-.194.31-.35.52-.453a1.61 1.61 0 0 1 1.333 0c.205.105.38.26.507.453l5.26 8.58c.1.157.146.342.133.527a.9.9 0 0 1-.193.507c-.118.144-.269.259-.44.333a1.3 1.3 0 0 1-.527.113Zm-5.406-10a.9.9 0 0 0-.38.087.54.54 0 0 0-.234.2L2.124 12.7a.22.22 0 0 0-.034.14q.003.076.054.133a.37.37 0 0 0 .18.134c.085.039.179.06.273.06H13.41a.8.8 0 0 0 .274-.054.43.43 0 0 0 .18-.14.2.2 0 0 0 .053-.133.22.22 0 0 0-.033-.14L8.617 4.12a.54.54 0 0 0-.233-.2.9.9 0 0 0-.38-.087Z"
+          mask="url(#warning-icon_svg__c)"
+          stroke="#BC001F"
+          stroke-width="0.8"
+        />
+      </svg>
+      <span
+        class="small-text FormMessageText"
+      >
+        Invalid email
+      </span>
+    </div>
+    <div
+      class="FormMessage InfoMessage"
+      data-testid="sh-form-message"
+    >
+      <svg
+        class="FormMessageIcon"
+        data-testid="sh-form-message-icon-info"
+        fill="none"
+        height="16"
+        viewBox="0 0 16 16"
+        width="16"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <circle
+          cx="8"
+          cy="8"
+          r="5.75"
+          stroke="currentColor"
+          stroke-width="1.5"
+        />
+        <path
+          d="M8 8v3"
+          stroke="currentColor"
+          stroke-linecap="round"
+          stroke-width="1.5"
+        />
+        <circle
+          cx="8"
+          cy="5.75"
+          fill="currentColor"
+          r="0.75"
+        />
+      </svg>
+      <span
+        class="small-text FormMessageText"
+      >
+        Helper text
+      </span>
+    </div>
+  </label>
+</div>
+`;
+
+exports[`FormFieldWrapper component > matches snapshot 1`] = `
+<div>
+  <label
+    class="Label Invalid"
+    data-testid="sh-ui-label"
+  >
+    <div
+      class="LabelText"
+    >
+      <span>
+        Email
+      </span>
+      <span
+        class="RequiredMark"
+      >
+        *
+      </span>
+      <svg
+        class="LabelTooltip"
+        data-tooltip-content="Tooltip here"
+        data-tooltip-id="label-tooltip"
+        fill="none"
+        height="16"
+        viewBox="0 0 16 16"
+        width="16"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <circle
+          cx="8"
+          cy="8"
+          r="5.75"
+          stroke="currentColor"
+          stroke-width="1.5"
+        />
+        <path
+          d="M8 8v3"
+          stroke="currentColor"
+          stroke-linecap="round"
+          stroke-width="1.5"
+        />
+        <circle
+          cx="8"
+          cy="5.75"
+          fill="currentColor"
+          r="0.75"
+        />
+      </svg>
+    </div>
+    <input />
+    <div
+      class="FormMessage ErrorMessage"
+      data-testid="sh-form-message"
+    >
+      <svg
+        class="FormMessageIcon"
+        data-testid="sh-form-message-icon-error"
+        fill="none"
+        height="17"
+        viewBox="0 0 16 17"
+        width="16"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <mask
+          fill="#000"
+          height="3"
+          id="warning-icon_svg__a"
+          maskUnits="userSpaceOnUse"
+          width="3"
+          x="6.463"
+          y="9.9"
+        >
+          <path
+            d="M6.463 9.9h3v3h-3z"
+            fill="#fff"
+          />
+          <path
+            d="M8.003 11.892H7.91a.54.54 0 0 1-.26-.113.5.5 0 0 1-.174-.267.5.5 0 0 1 .04-.333.55.55 0 0 1 .214-.213.59.59 0 0 1 .627.053.48.48 0 0 1 .073.687.54.54 0 0 1-.247.166.5.5 0 0 1-.18.02"
+          />
+        </mask>
+        <path
+          d="M8.003 11.892H7.91a.54.54 0 0 1-.26-.113.5.5 0 0 1-.174-.267.5.5 0 0 1 .04-.333.55.55 0 0 1 .214-.213.59.59 0 0 1 .627.053.48.48 0 0 1 .073.687.54.54 0 0 1-.247.166.5.5 0 0 1-.18.02"
+          fill="#BC001F"
+        />
+        <path
+          d="M8.003 11.892H7.91a.54.54 0 0 1-.26-.113.5.5 0 0 1-.174-.267.5.5 0 0 1 .04-.333.55.55 0 0 1 .214-.213.59.59 0 0 1 .627.053.48.48 0 0 1 .073.687.54.54 0 0 1-.247.166.5.5 0 0 1-.18.02Z"
+          mask="url(#warning-icon_svg__a)"
+          stroke="#BC001F"
+          stroke-width="0.8"
+        />
+        <mask
+          fill="#000"
+          height="5"
+          id="warning-icon_svg__b"
+          maskUnits="userSpaceOnUse"
+          width="3"
+          x="6.67"
+          y="5.5"
+        >
+          <path
+            d="M6.67 5.5h3v5h-3z"
+            fill="#fff"
+          />
+          <path
+            d="M8.003 9.833A.333.333 0 0 1 7.67 9.5V6.833a.333.333 0 0 1 .667 0V9.5a.333.333 0 0 1-.334.333"
+          />
+        </mask>
+        <path
+          d="M8.003 9.833A.333.333 0 0 1 7.67 9.5V6.833a.333.333 0 0 1 .667 0V9.5a.333.333 0 0 1-.334.333"
+          fill="#BC001F"
+        />
+        <path
+          d="M8.003 9.833A.333.333 0 0 1 7.67 9.5V6.833a.333.333 0 0 1 .667 0V9.5a.333.333 0 0 1-.334.333Z"
+          mask="url(#warning-icon_svg__b)"
+          stroke="#BC001F"
+          stroke-width="0.8"
+        />
+        <mask
+          fill="#000"
+          height="13"
+          id="warning-icon_svg__c"
+          maskUnits="userSpaceOnUse"
+          width="15"
+          x="0.421"
+          y="2.176"
+        >
+          <path
+            d="M.421 2.176h15v13h-15z"
+            fill="#fff"
+          />
+          <path
+            d="M13.41 13.833H2.597c-.188 0-.374-.039-.547-.113a1.2 1.2 0 0 1-.433-.333.9.9 0 0 1-.06-1.034l5.26-8.58c.13-.194.31-.35.52-.453a1.61 1.61 0 0 1 1.333 0c.205.105.38.26.507.453l5.26 8.58c.1.157.146.342.133.527a.9.9 0 0 1-.193.507c-.118.144-.269.259-.44.333a1.3 1.3 0 0 1-.527.113m-5.406-10a.9.9 0 0 0-.38.087.54.54 0 0 0-.234.2L2.124 12.7a.22.22 0 0 0-.034.14q.003.076.054.133a.37.37 0 0 0 .18.134c.085.039.179.06.273.06H13.41a.8.8 0 0 0 .274-.054.43.43 0 0 0 .18-.14.2.2 0 0 0 .053-.133.22.22 0 0 0-.033-.14L8.617 4.12a.54.54 0 0 0-.233-.2.9.9 0 0 0-.38-.087"
+          />
+        </mask>
+        <path
+          d="M13.41 13.833H2.597c-.188 0-.374-.039-.547-.113a1.2 1.2 0 0 1-.433-.333.9.9 0 0 1-.06-1.034l5.26-8.58c.13-.194.31-.35.52-.453a1.61 1.61 0 0 1 1.333 0c.205.105.38.26.507.453l5.26 8.58c.1.157.146.342.133.527a.9.9 0 0 1-.193.507c-.118.144-.269.259-.44.333a1.3 1.3 0 0 1-.527.113m-5.406-10a.9.9 0 0 0-.38.087.54.54 0 0 0-.234.2L2.124 12.7a.22.22 0 0 0-.034.14q.003.076.054.133a.37.37 0 0 0 .18.134c.085.039.179.06.273.06H13.41a.8.8 0 0 0 .274-.054.43.43 0 0 0 .18-.14.2.2 0 0 0 .053-.133.22.22 0 0 0-.033-.14L8.617 4.12a.54.54 0 0 0-.233-.2.9.9 0 0 0-.38-.087"
+          fill="#BC001F"
+        />
+        <path
+          d="M13.41 13.833H2.597c-.188 0-.374-.039-.547-.113a1.2 1.2 0 0 1-.433-.333.9.9 0 0 1-.06-1.034l5.26-8.58c.13-.194.31-.35.52-.453a1.61 1.61 0 0 1 1.333 0c.205.105.38.26.507.453l5.26 8.58c.1.157.146.342.133.527a.9.9 0 0 1-.193.507c-.118.144-.269.259-.44.333a1.3 1.3 0 0 1-.527.113Zm-5.406-10a.9.9 0 0 0-.38.087.54.54 0 0 0-.234.2L2.124 12.7a.22.22 0 0 0-.034.14q.003.076.054.133a.37.37 0 0 0 .18.134c.085.039.179.06.273.06H13.41a.8.8 0 0 0 .274-.054.43.43 0 0 0 .18-.14.2.2 0 0 0 .053-.133.22.22 0 0 0-.033-.14L8.617 4.12a.54.54 0 0 0-.233-.2.9.9 0 0 0-.38-.087Z"
+          mask="url(#warning-icon_svg__c)"
+          stroke="#BC001F"
+          stroke-width="0.8"
+        />
+      </svg>
+      <span
+        class="small-text FormMessageText"
+      >
+        Invalid email
+      </span>
+    </div>
+    <div
+      class="FormMessage InfoMessage"
+      data-testid="sh-form-message"
+    >
+      <svg
+        class="FormMessageIcon"
+        data-testid="sh-form-message-icon-info"
+        fill="none"
+        height="16"
+        viewBox="0 0 16 16"
+        width="16"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <circle
+          cx="8"
+          cy="8"
+          r="5.75"
+          stroke="currentColor"
+          stroke-width="1.5"
+        />
+        <path
+          d="M8 8v3"
+          stroke="currentColor"
+          stroke-linecap="round"
+          stroke-width="1.5"
+        />
+        <circle
+          cx="8"
+          cy="5.75"
+          fill="currentColor"
+          r="0.75"
+        />
+      </svg>
+      <span
+        class="small-text FormMessageText"
+      >
+        Helper text
+      </span>
+    </div>
+  </label>
+</div>
+`;

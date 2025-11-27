@@ -1,22 +1,21 @@
-import { useMemo, type ReactNode, type MouseEventHandler } from 'react'
-
-import classnames from 'classnames'
-
-import styles from './Button.module.scss'
+import { useMemo, type ReactNode, type MouseEventHandler } from 'react';
 import { Link } from 'react-router';
+import classnames from 'classnames';
+import type { ComponentSizeType } from 'types/components';
 
-export type ButtonType = 'primary' | 'secondary' | 'tertiary';
-export type ButtonSize = 'medium' | 'small' | 'tiny';
-export type ButtonForm = 'button' | 'submit';
+import styles from './Button.module.scss';
 
-export interface ButtonProps {
+type ButtonType = 'primary' | 'secondary' | 'tertiary';
+type ButtonForm = 'button' | 'submit';
+
+export interface Props {
   children?: ReactNode;
   className?: string;
   type?: ButtonType;
-  size?: ButtonSize;
+  size?: ComponentSizeType;
   to?: string;
   href?: string;
-  form?: string;
+  form?: ButtonForm;
   isIconOnly?: boolean;
   isDanger?: boolean;
   isDisabled?: boolean;
@@ -35,7 +34,7 @@ export function Button({
     isDanger,
     isDisabled,
     onClick,
-}: ButtonProps) {
+}: Props) {
 
     const typeClass = useMemo(
         () =>

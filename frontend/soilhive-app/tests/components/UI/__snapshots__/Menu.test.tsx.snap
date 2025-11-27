@@ -1,0 +1,41 @@
+// Rstest Snapshot v1
+
+exports[`Menu Component > renders all options 1`] = `
+<div>
+  <div
+    class="Menu Medium"
+    data-testid="sh-ui-menu"
+  >
+    <div
+      class="MenuOption"
+      data-testid="sh-ui-menuoption"
+    >
+      <span
+        class="OptionName"
+      >
+        Option 1
+      </span>
+    </div>
+    <div
+      class="MenuOption"
+      data-testid="sh-ui-menuoption"
+    >
+      <span
+        class="OptionName"
+      >
+        Option 2
+      </span>
+    </div>
+    <div
+      class="MenuOption Disabled"
+      data-testid="sh-ui-menuoption"
+    >
+      <span
+        class="OptionName"
+      >
+        Option 3
+      </span>
+    </div>
+  </div>
+</div>
+`;
