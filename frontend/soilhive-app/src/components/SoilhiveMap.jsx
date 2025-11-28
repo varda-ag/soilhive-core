@@ -1,5 +1,5 @@
-import { useId, useState } from 'react';
-import { GeolocateControl, Map, NavigationControl, ScaleControl, TerrainControl, type StyleSpecification, type ImmutableLike, Popup } from 'react-map-gl/maplibre';
+import { useEffect, useId, useRef, useState } from 'react';
+import { GeolocateControl, Map, NavigationControl, ScaleControl, TerrainControl,type MapGeoJSONFeature, type StyleSpecification, type ImmutableLike, type LayerProps, type MapRef, Popup, Source, Layer, useMap } from 'react-map-gl/maplibre';
 import GeocoderControl from './GeocoderControl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import '@maplibre/maplibre-gl-geocoder/dist/maplibre-gl-geocoder.css';
@@ -48,6 +48,121 @@ interface SoilhiveMapProps {
   dragPan?: boolean;
 };
 
+const mockGeoJSON = {
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "north Italy",
+        "id": "fake-id"
+      },
+      "geometry": {
+        "coordinates": [
+          [
+            [
+              6.245097999284241,
+              46.96330835188107
+            ],
+            [
+              6.245097999284241,
+              43.3252713058084
+            ],
+            [
+              13.798863455376875,
+              43.3252713058084
+            ],
+            [
+              13.798863455376875,
+              46.96330835188107
+            ],
+            [
+              6.245097999284241,
+              46.96330835188107
+            ]
+          ]
+        ],
+        "type": "Polygon"
+      },
+      "id": 0
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "other square",
+        "id": "fake-id-2"
+      },
+      "geometry": {
+        "coordinates": [
+          [
+            [
+              12.695394714131567,
+              50.221428927093285
+            ],
+            [
+              12.695394714131567,
+              48.03077689789666
+            ],
+            [
+              16.377644841743205,
+              48.03077689789666
+            ],
+            [
+              16.377644841743205,
+              50.221428927093285
+            ],
+            [
+              12.695394714131567,
+              50.221428927093285
+            ]
+          ]
+        ],
+        "type": "Polygon"
+      },
+      "id": 1
+    }
+  ]
+};
+
+const dataLayerFills: LayerProps = {
+  id: 'data-fills',
+  type: 'fill',
+  paint: {
+    'fill-color': '#3288bd',
+    'fill-opacity': [
+      'case',
+      ['boolean', ['feature-state', 'selected'], false],
+      1,
+      0
+    ]
+  }
+};
+
+const dataLayerBorders: LayerProps = {
+  id: 'data-borders',
+  type: 'line',
+  paint: {
+    "line-color": 'red',
+    "line-width": 2,
+    "line-opacity": 0.8
+  }
+};
+
+// function H3CellsLayer() {
+//   const {current: map}= useMap();
+
+//   useEffect(() => {
+    
+//   }, []);
+
+//   return (
+//     <Source type="geojson" data={mockGeoJSON}>
+//       <Layer {...dataLayer} />
+//       <Layer {...dataLayerBorders} />
+//     </Source>
+//   );
+// }
+
 function SoilhiveMap({
   initialViewBoundingBox,
   showGeocoder = false,
@@ -61,18 +176,51 @@ function SoilhiveMap({
 }: SoilhiveMapProps) {
   const [currentMapStyle, setCurrentMapStyle] = useState(mapStyles[0].mapStyle);
   const [selectedPoint, setSelectedPoint] = useState(null);
+  const mapRef = useRef<MapRef>();
+  const selectedFeatureRef = useRef<MapGeoJSONFeature>();
 
   return (
     <div className="soilhive-map">
       <Map
+        ref={mapRef}
         scrollZoom={scrollZoom}
         dragPan={dragPan}
         className="map"
         mapStyle={currentMapStyle}
         {...(initialViewBoundingBox ? {initialViewState: { bounds: initialViewBoundingBox }} : {})}
+        onMouseMove={(event) => {
+          // if(event.features.length === 0) return;
+          // console.log('onHover', event);
+          // console.log('onHover features', event.features);
+        }}
         onClick={(event) => {
+          if(event.features?.length > 0) {
+            const selectedFeature = event.features[0];
+            if(selectedFeature.id !== selectedFeatureRef.current?.id) {
+              (mapRef.current as MapRef).setFeatureState(
+                { source: 'data', id: selectedFeature.id },
+                { selected: true }
+              );
+              if(selectedFeatureRef.current) {
+                (mapRef.current as MapRef).setFeatureState(
+                  { source: 'data', id: selectedFeatureRef.current.id },
+                  { selected: false }
+                );
+              }
+              selectedFeatureRef.current = selectedFeature;
+            }
+          } else {
+            if(selectedFeatureRef.current) {
+              (mapRef.current as MapRef).setFeatureState(
+                { source: 'data', id: selectedFeatureRef.current.id },
+                { selected: false }
+              );
+            }
+            selectedFeatureRef.current = null;
+          }
           setSelectedPoint(event.lngLat);
         }}
+        interactiveLayerIds={['data-fills']}
       >
         { selectedPoint &&
           <Popup
@@ -109,6 +257,16 @@ function SoilhiveMap({
             </div>
           </Popup>
         }
+
+        {/* <Source type="geojson" data={mockGeoJSON}>
+          <Layer {...dataLayer} />
+        </Source> */}
+        {/* <H3CellsLayer /> */}
+         <Source id="data" type="geojson" data={mockGeoJSON}>
+          <Layer {...dataLayerFills} />
+          <Layer {...dataLayerBorders} />
+        </Source>
+
         {showGeocoder && <GeocoderControl position="top-left" geocoder={geocoder} />}
         { showGeolocation && <GeolocateControl position="bottom-right" /> }
         { showNavigation && <NavigationControl position="bottom-right" showCompass={false} showZoom={true} visualizePitch={false} /> }
