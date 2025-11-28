@@ -1,0 +1,128 @@
+.Menu {
+    min-width: 12.5rem;
+    background: var(--color-neutral-white);
+    box-shadow: var(--shadow-interface);
+    border-radius: 0.25rem;
+
+    > .MenuOption {
+        display: flex;
+        align-items: center;
+
+        &:not(:last-child) {
+            border-bottom: 0.063rem solid var(--color-neutral-dark-100);
+        }
+
+        > .OptionIcon,
+        > .CheckIcon {
+            flex-shrink: 0;
+        }
+
+        > .OptionName {
+            flex-grow: 1;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+        }
+
+        > .OptionIcon,
+        > .OptionName {
+            color: var(--color-neutral-black);
+        }
+
+        &.Selected {
+            > .OptionIcon,
+            > .OptionName,
+            > .CheckIcon {
+                color: var(--color-cta-default-solid);
+            }
+        }
+
+        &:hover {
+            cursor: pointer;
+
+            > .OptionIcon,
+            > .OptionName,
+            > .CheckIcon {
+                color: var(--color-cta-default-hover);
+            }
+        }
+
+        &:active {
+            > .OptionIcon,
+            > .OptionName,
+            > .CheckIcon {
+                color: var(--color-cta-default-pressed);
+            }
+        }
+
+        &.Disabled {
+            pointer-events: none;
+
+            > .OptionIcon,
+            > .OptionName,
+            > .CheckIcon {
+                color: var(--color-cta-default-disabled);
+            }
+        }
+    }
+
+    &.Medium {
+        width: 17.5rem;
+        padding: 0.38rem 1.25rem;
+
+        > .MenuOption {
+            column-gap: 0.5rem;
+            padding: 0.88rem 0;
+
+            > .OptionIcon {
+                width: 1.5rem;
+                height: 1.5rem;
+            }
+
+            > .OptionName {
+                font-size: var(--font-size-md);
+                line-height: var(--line-height-lg);
+            }
+        }
+    }
+
+    &.Small {
+        width: 15rem;
+        padding: 0.25rem 1rem;
+
+        > .MenuOption {
+            column-gap: 0.38rem;
+            padding: 0.5rem 0;
+
+            > .OptionIcon {
+                width: 1rem;
+                height: 1rem;
+            }
+
+            > .OptionName {
+                font-size: var(--font-size-md);
+                line-height: var(--line-height-lg);
+            }
+        }
+    }
+
+    &.Tiny {
+        width: 12.5rem;
+        padding: 0.12rem 0.75rem;
+
+        > .MenuOption {
+            column-gap: 0.25rem;
+            padding: 0.38rem 0;
+
+            > .OptionIcon {
+                width: 1rem;
+                height: 1rem;
+            }
+
+            > .OptionName {
+                font-size: var(--font-size-sm);
+                line-height: var(--line-height-lg);
+            }
+        }
+    }
+}

@@ -8,7 +8,8 @@
     "dev": "rsbuild dev --open",
     "preview": "rsbuild preview",
     "test": "rstest run",
-    "test:watch": "rstest -w"
+    "test:watch": "rstest -w",
+    "test:coverage": "rstest --coverage"
   },
   "dependencies": {
     "@maplibre/maplibre-gl-geocoder": "^1.9.1",
@@ -22,7 +23,9 @@
     "react-dom": "19.2.0",
     "react-map-gl": "^8.1.0",
     "react-oidc-context": "^3.3.0",
-    "react-router": "7.9.4"
+    "react-router": "7.9.4",
+    "react-tooltip": "^5.30.0",
+    "react-use": "^17.6.0"
   },
   "devDependencies": {
     "@module-federation/rsbuild-plugin": "0.21.2",
@@ -31,6 +34,7 @@
     "@rsbuild/plugin-sass": "^1.4.0",
     "@rsbuild/plugin-svgr": "^1.2.2",
     "@rstest/core": "0.5.4",
+    "@rstest/coverage-istanbul": "^0.0.5",
     "@testing-library/dom": "10.4.1",
     "@testing-library/jest-dom": "6.9.1",
     "@testing-library/react": "16.3.0",

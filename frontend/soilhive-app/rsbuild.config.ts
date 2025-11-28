@@ -13,6 +13,13 @@ export default defineConfig({
   html: {
     title: 'Soilhive'
   },
+  resolve: {
+    alias: {
+      assets: './src/assets',
+      components: './src/components',
+      types: './src/types'
+    }
+  },
   plugins: [
     pluginReact(),
     pluginSass(),

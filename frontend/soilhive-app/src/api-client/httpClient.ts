@@ -3,13 +3,18 @@ import { handleError } from './error';
 import { APIRequestConfig } from './types/api';
 
 export async function httpClient<T = any>(config: APIRequestConfig): Promise<T> {
-  const { url, method = 'GET', headers = {}, body, signal } = config;
+  const { url, method = 'GET', headers = {}, body, signal, isBlobResponse } = config;
 
   const token = getToken()
-
-  const finalHeaders: HeadersInit = {
-    'Content-Type': 'application/json',
+  const defaultHeaders: HeadersInit = {
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  }
+  if (body && !(body instanceof FormData)) {
+    defaultHeaders['Content-Type'] = 'application/json';
+  }
+  
+  const finalHeaders: HeadersInit = {
+    ...defaultHeaders,
     ...headers,
   };
 
@@ -18,7 +23,7 @@ export async function httpClient<T = any>(config: APIRequestConfig): Promise<T> 
       method,
       headers: finalHeaders,
       body: body 
-        ? (finalHeaders['Content-Type'].includes('application/json') 
+        ? (finalHeaders['Content-Type']?.includes('application/json') 
             ? JSON.stringify(body) 
             : body)
         : undefined,
@@ -37,7 +42,7 @@ export async function httpClient<T = any>(config: APIRequestConfig): Promise<T> 
     }
 
     // if it’s a blob (file download)
-    if (contentType?.includes('application/octet-stream')) {
+    if (contentType?.includes('application/octet-stream') || contentType?.includes('image/svg+xml') || isBlobResponse) {
       return (await response.blob()) as T;
     }
 

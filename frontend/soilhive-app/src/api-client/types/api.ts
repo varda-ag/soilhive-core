@@ -4,4 +4,5 @@ export interface APIRequestConfig {
   headers?: Record<string, string>;
   body?: any;
   signal?: AbortSignal;
+  isBlobResponse?: boolean;
 }
