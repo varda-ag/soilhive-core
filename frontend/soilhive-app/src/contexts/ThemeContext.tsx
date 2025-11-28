@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect, type ReactNode, useCallback } from 'react';
 import { useRequest } from '../api-client';
+import { BACKEND_BASE_URL, REST_END_POINTS } from '../configuration/api';
 
 type Theme = Record<string, string>;
 
@@ -29,6 +30,8 @@ const defaultTheme: Theme = {
   'secondary-disabled': '#3498db',
 };
 
+const THEME_ID = 'frontend_theme';
+
 export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   const [theme, setTheme] = useState<Theme | null>(null);
   const [logo, setLogo] = useState<string | null>(null);
@@ -50,7 +53,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
 
     try {
         await request({
-          url: 'http://localhost:4001/frontend/logo',
+          url: `${BACKEND_BASE_URL}/${REST_END_POINTS.LOGO}`,
           method: 'POST',
           body: formData,
         });
@@ -73,7 +76,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     try {
       await request(
         {
-          url: 'http://localhost:4001/config/testId',
+          url: `${BACKEND_BASE_URL}/${REST_END_POINTS.CONFIG.replace(':id', THEME_ID)}`,
           method: 'PUT',
           body: theme,
         },
@@ -86,7 +89,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   const fetchTheme = useCallback(async () => {
     try {
       const response = await request({
-        url: 'http://localhost:4001/config/testId'
+        url: `${BACKEND_BASE_URL}/${REST_END_POINTS.CONFIG.replace(':id', THEME_ID)}`,
       });
 
       return response;
@@ -98,7 +101,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   const fetchLogo = useCallback(async () => {
     try {
       const response = await request({
-        url: 'http://localhost:4001/frontend/logo',
+        url: `${BACKEND_BASE_URL}/${REST_END_POINTS.LOGO}`,
         isBlobResponse: true
       });
 
@@ -112,7 +115,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     const deleteLogo = useCallback(async () => {
       try {
         await request({
-          url: 'http://localhost:4001/frontend/logo',
+          url: `${BACKEND_BASE_URL}/${REST_END_POINTS.LOGO}`,
           method: 'DELETE'
         });
 
