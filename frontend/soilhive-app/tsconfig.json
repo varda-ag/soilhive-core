@@ -7,6 +7,7 @@
     "noEmit": true,
     "skipLibCheck": true,
     "useDefineForClassFields": true,
+    "types": ["node", "jest", "@testing-library/jest-dom"],
     "paths": {
       "components/*": ["./src/components/*"],
       "types/*": ["./src/types/*"]

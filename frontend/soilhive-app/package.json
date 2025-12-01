@@ -7,7 +7,7 @@
     "build": "rsbuild build",
     "dev": "rsbuild dev --open",
     "preview": "rsbuild preview",
-    "test": "jest --clearCache && jest --passWithNoTests",
+    "test": "jest --passWithNoTests",
     "test:watch": "jest --clearCache && jest --watch",
     "test:coverage": "jest --clearCache && jest --coverage"
   },
