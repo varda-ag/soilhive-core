@@ -1,6 +1,6 @@
-import useTheme from "../../../hooks/useTheme";
-import { singlePages } from "../../../utilities/moduleFederation";
-import { Button } from "../Button/Button";
+import useTheme from "../../hooks/useTheme";
+import { singlePages } from "../../utilities/moduleFederation";
+import { Button } from "../UI/Button/Button";
 import styles from './Header.module.scss'
 
 export default function Header() {
