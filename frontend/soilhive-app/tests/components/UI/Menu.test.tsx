@@ -37,12 +37,11 @@ describe('Menu Component', () => {
 
     const secondOption = screen.getAllByTestId('sh-ui-menuoption')[1];
     expect(secondOption).toHaveClass('Selected');
-
     expect(container.querySelector('.CheckIcon')).toBeInTheDocument();
   });
 
   it('disabled option cannot be clicked', () => {
-    const onSelect = rs.fn();
+    const onSelect = jest.fn();
 
     render(<Menu options={baseOptions} onSelect={onSelect} />);
 
@@ -53,7 +52,7 @@ describe('Menu Component', () => {
   });
 
   it('clicking an option triggers onSelect', () => {
-    const onSelect = rs.fn();
+    const onSelect = jest.fn();
 
     render(<Menu options={baseOptions} onSelect={onSelect} />);
 
@@ -63,7 +62,7 @@ describe('Menu Component', () => {
   });
 
   it('keepSelection = true updates internal state', () => {
-    const onSelect = rs.fn();
+    const onSelect = jest.fn();
 
     render(
       <Menu

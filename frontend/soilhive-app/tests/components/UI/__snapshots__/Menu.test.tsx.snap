@@ -1,6 +1,6 @@
-// Rstest Snapshot v1
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
 
-exports[`Menu Component > renders all options 1`] = `
+exports[`Menu Component renders all options 1`] = `
 <div>
   <div
     class="Menu Medium"

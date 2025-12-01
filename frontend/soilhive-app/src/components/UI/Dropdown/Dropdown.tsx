@@ -80,9 +80,7 @@ export function Dropdown({
     )
 
     const toggleDropdown = useCallback(() => {
-        console.log('CLICK');
         if (!isDisabled && !isReadOnly) {
-            console.log('ISOPEN', isOpen);
             setIsOpen(!isOpen)
         }
     }, [isOpen, isDisabled, isReadOnly])
