@@ -5,6 +5,7 @@ import { exec } from "child_process";
 import { destroyDataSource, getDataSource, initializeSchema, isDBAvailable } from "../src/utils/data-source";
 import { sleep } from "../src/utils/utils";
 import { setupTestEnv } from "./environment";
+import assert from "assert";
 
 export const startDockerCompose = async () => {
   setupTestEnv();
@@ -46,5 +47,6 @@ export const getSuperAdminToken = async (): Promise<string> => {
     username: "mock",
     password: "superadmin",
   });
+  assert(res.body.access_token, `There was an error getting the test access token: ${res.body.detail}`)
   return res.body.access_token;
 };

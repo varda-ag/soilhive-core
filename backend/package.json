@@ -9,7 +9,7 @@
     "copy-assets": "copyfiles -u 1 'src/assets/**/*' 'dist/'",
     "start": "node dist/app.js",
     "dev": "nodemon --exec 'ts-node --transpile-only' src/app.ts --watch src/**/*.ts src/openapi.yaml",
-    "test": "jest --detectOpenHandles",
+    "test": "jest --detectOpenHandles --coverage --collectCoverageFrom='src/**/*.ts'",
     "test:watch": "jest --detectOpenHandles",
     "typeorm": "typeorm-ts-node-commonjs"
   },
@@ -22,6 +22,7 @@
     "@flystorage/file-storage": "^1.2.0",
     "@flystorage/local-fs": "^1.2.0",
     "@flystorage/multer-storage": "^1.2.0",
+    "@turf/turf": "^7.3.1",
     "@types/bcrypt": "^6.0.0",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
@@ -37,7 +38,7 @@
     "reflect-metadata": "^0.2.2",
     "swagger-ui-express": "^5.0.1",
     "typeorm": "^0.3.27",
-    "uuid": "^13.0.0"
+    "uuid": "11.1.0"
   },
   "devDependencies": {
     "@tsconfig/node-lts": "^22.0.2",
@@ -63,6 +64,7 @@
       "<rootDir>/tests/jest.beforeEach.ts"
     ],
     "globalSetup": "<rootDir>/tests/jest.setup.ts",
-    "globalTeardown": "<rootDir>/tests/jest.teardown.ts"
+    "globalTeardown": "<rootDir>/tests/jest.teardown.ts",
+    "forceExit": true
   }
 }
