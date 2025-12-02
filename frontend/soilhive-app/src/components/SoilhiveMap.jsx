@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { GeolocateControl, Map, NavigationControl, ScaleControl, TerrainControl,type MapGeoJSONFeature, type StyleSpecification, type ImmutableLike, type LayerProps, type MapRef, Popup, Source, Layer, useMap } from 'react-map-gl/maplibre';
+import { GeolocateControl, Map, NavigationControl, ScaleControl, TerrainControl,type MapGeoJSONFeature, type StyleSpecification, type ImmutableLike, type LayerProps, Popup, Source, Layer, useMap } from 'react-map-gl/maplibre';
 import GeocoderControl from './GeocoderControl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import '@maplibre/maplibre-gl-geocoder/dist/maplibre-gl-geocoder.css';
@@ -132,11 +132,11 @@ const dataLayerFills: LayerProps = {
   id: 'data-fills',
   type: 'fill',
   paint: {
-    'fill-color': '#3288bd',
+    'fill-color': '#F5B200',
     'fill-opacity': [
       'case',
       ['boolean', ['feature-state', 'selected'], false],
-      1,
+      0.5,
       0
     ]
   }
@@ -180,7 +180,6 @@ function SoilhiveMap({
 }: SoilhiveMapProps) {
   const [currentMapStyle, setCurrentMapStyle] = useState(mapStyles[0].mapStyle);
   const [selectedPoint, setSelectedPoint] = useState(null);
-  const mapRef = useRef<MapRef>();
   const selectedFeatureRef = useRef<MapGeoJSONFeature>();
   const [h3Cells, setH3Cells] = useState(null);
 
@@ -200,7 +199,6 @@ function SoilhiveMap({
   return (
     <div className="soilhive-map">
       <Map
-        ref={mapRef}
         scrollZoom={scrollZoom}
         dragPan={dragPan}
         className="map"
@@ -214,17 +212,19 @@ function SoilhiveMap({
         onDragEnd={updateH3Cells}
         onLoad={updateH3Cells}
         onZoomEnd={updateH3Cells}
-        onMoveEnd={updateH3Cells}
+        onMoveEnd={updateH3Cells}        
         onClick={(event) => {
+          const map = event.target;
+          console.log('selected feature', event.features)
           if(event.features?.length > 0) {
             const selectedFeature = event.features[0];
             if(selectedFeature.id !== selectedFeatureRef.current?.id) {
-              (mapRef.current as MapRef).setFeatureState(
+              map.setFeatureState(
                 { source: 'data', id: selectedFeature.id },
                 { selected: true }
               );
               if(selectedFeatureRef.current) {
-                (mapRef.current as MapRef).setFeatureState(
+                map.setFeatureState(
                   { source: 'data', id: selectedFeatureRef.current.id },
                   { selected: false }
                 );
@@ -233,7 +233,7 @@ function SoilhiveMap({
             }
           } else {
             if(selectedFeatureRef.current) {
-              (mapRef.current as MapRef).setFeatureState(
+              map.setFeatureState(
                 { source: 'data', id: selectedFeatureRef.current.id },
                 { selected: false }
               );
@@ -288,7 +288,7 @@ function SoilhiveMap({
           <Layer {...dataLayerBorders} />
         </Source> */}
         { h3Cells &&
-          <Source id="data" type="geojson" data={h3Cells}>
+          <Source id="data" type="geojson" data={h3Cells} promoteId='h3Index'>
             <Layer {...dataLayerFills} />
             <Layer {...dataLayerBorders} />
           </Source>
