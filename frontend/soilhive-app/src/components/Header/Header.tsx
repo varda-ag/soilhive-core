@@ -23,7 +23,7 @@ export default function Header() {
   return (
     <header className={styles.header}>
       <div className={styles.logo}>
-        {logo && <img src={logo} alt="Logo" />}
+        {logo && <img src={logo} alt="Logo" style={{height: '47px'}}/>}
       </div>
       <nav className={styles.nav}>
           <NavLink 
