@@ -12,64 +12,72 @@ export default function Header() {
   const { logo } = useTheme()
   const { isAuthenticated, isLoading, login, logout } = useAuthContext();
 
-  const getNavLinkClass = ( { isActive }: {isActive: boolean}) => {
+  const getNavLinkClass = ({ isActive }: { isActive: boolean }) => {
     return isActive ? `${styles.active}` : ''
   }
 
   return (
     <header className={styles.header}>
       <div className={styles.logo}>
-        {logo && <img src={logo} alt="Logo" style={{height: '47px'}}/>}
+        {logo && <img src={logo} alt="Logo" style={{ height: '47px' }} />}
       </div>
       <nav className={styles.nav}>
-          <NavLink 
-            to="/"
+        <NavLink
+          to="/"
+          className={getNavLinkClass}
+        >
+          <span className={styles.linkText}>Availability</span>
+        </NavLink>
+
+        <NavLink
+          to="/legal"
+          className={getNavLinkClass}
+        >
+          <span className={styles.linkText}>Legal</span>
+        </NavLink>
+
+        {singlePages.map(({ route, name }) =>
+          <NavLink
+            key={route}
+            to={`/${route}`}
             className={getNavLinkClass}
           >
-              <span className={styles.linkText}>Availability</span>
+            <span className={styles.linkText}>{name}</span>
           </NavLink>
+        )}
 
-          <NavLink 
-            to="/legal"
-            className={getNavLinkClass}
-          >
-              <span className={styles.linkText}>Legal</span>
-          </NavLink>
-
-          {singlePages.map(({ route, name }) =>
-            <NavLink 
-              key={route} 
-              to={`/${route}`}
-              className={getNavLinkClass}
-            >
-              <span className={styles.linkText}>{name}</span>
-            </NavLink>
-          )}
-
-          <NavLink 
-            to="/admin"
-            className={getNavLinkClass}
-          >
-            <span className={styles.linkText}>Admin</span>
-          </NavLink>
+        <NavLink
+          to="/admin"
+          className={getNavLinkClass}
+        >
+          <span className={styles.linkText}>Admin</span>
+        </NavLink>
 
 
-          {isLoading ? (
-            <span>Loading...</span>
-          ) : isAuthenticated ? (
-            <>
-              <Button type={'tertiary'} onClick={logout}>
-                <UserIcon />
-                Log out
-              </Button>
-            </>
-          ) : (
-            <Button type={'tertiary'} onClick={() => login()}>
+        {isLoading ? (
+          <span>Loading...</span>
+        ) : isAuthenticated ? (
+          <>
+            <Button type={'tertiary'} onClick={logout}>
               <UserIcon />
-              Log in
+              Log out
             </Button>
-          )}
+          </>
+        ) : (
+          <Button type={'tertiary'} onClick={() => login()}>
+            <UserIcon />
+            Log in
+          </Button>
+        )}
       </nav>
+
+
+      <button className={styles.hamburger} aria-label="Menu">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+
     </header>
   );
 }

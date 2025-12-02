@@ -3,8 +3,16 @@
   justify-content: space-between;
   align-items: center;
   padding: 0 2rem;
-  height: 55px; // Estimated height from the image
+  height: 55px; 
   box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+
+  @media (max-width: 768px) {
+    height: 50px;
+    padding-top: 0.2rem;
+    padding-left: 0.6rem;
+    padding-right: 0.6rem;
+    justify-content: flex-end
+  }
 }
 
 .nav {
@@ -12,6 +20,7 @@
   align-items: center;
   height: 100%;
   gap: 5rem;
+  margin-left: auto;
 
   a {
     color: #000;
@@ -33,11 +42,40 @@
         padding: 0 0.75rem 0.4rem 0.75rem;
         border-bottom: 0.5rem solid transparent;
     }
+
+    @media (max-width: 768px) {
+      display: none; 
+    }
   }
 
   .active {
     .linkText {
         border-bottom-color: var(--color-brand-yellow-900); // Orange color
     }
+  }
+}
+
+// Hamburger menu button
+.hamburger {
+  display: none;
+  flex-direction: column;
+  justify-content: space-around;
+  width: 24px;
+  height: 24px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+
+  @media (max-width: 768px) {
+    display: flex;
+  }
+
+  span {
+    width: 24px;
+    height: 3px;
+    background-color: #000;
+    border-radius: 2px;
+    transition: all 0.3s ease;
   }
 }
