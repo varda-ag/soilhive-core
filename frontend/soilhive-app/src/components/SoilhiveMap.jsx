@@ -8,6 +8,7 @@ import Flower from '../assets/images/flower.svg?react';
 import { polygonToCells } from 'h3-js';
 import { bboxToGeoJSONPolygonCoordinates, bBoxToH3Cells, h3IndexesToGeoJSONPolygons } from '../utilities/geo';
 import { bboxPolygon } from '@turf/turf';
+import { h3ResolutionForZoomLevel } from '../utilities/map';
 
 type MapStyle = string | StyleSpecification | ImmutableLike<StyleSpecification>;
 type MapStyles = Array<{ name: string, mapStyle: MapStyle }>;
@@ -145,9 +146,9 @@ const dataLayerBorders: LayerProps = {
   id: 'data-borders',
   type: 'line',
   paint: {
-    "line-color": 'red',
-    "line-width": 2,
-    "line-opacity": 0.8
+    "line-color": 'black',
+    "line-width": 0.1,
+    "line-opacity": 0.5
   }
 };
 
@@ -183,6 +184,19 @@ function SoilhiveMap({
   const selectedFeatureRef = useRef<MapGeoJSONFeature>();
   const [h3Cells, setH3Cells] = useState(null);
 
+  function updateH3Cells(mapEvent) {
+    try {
+      const map = mapEvent.target;
+      const zoomLevel = map.getZoom()
+      const bounds = map.getBounds().toArray().flat();
+      const h3Indexes = bBoxToH3Cells(bounds, h3ResolutionForZoomLevel(zoomLevel));
+      const h3CellsFeatureCollection = h3IndexesToGeoJSONPolygons(h3Indexes);
+      setH3Cells(h3CellsFeatureCollection);
+    } catch (error) {
+      console.error('onDrag error', error);
+    }
+  }
+
   return (
     <div className="soilhive-map">
       <Map
@@ -197,21 +211,10 @@ function SoilhiveMap({
         //   console.log('onHover', event);
         //   console.log('onHover features', event.features);
         // }}
-        onDragEnd={(event) => {
-          try {
-            const map = event.target;
-            console.log('onDrag', event);
-            const bounds = map.getBounds().toArray().flat();
-            console.log('bounds', bounds);
-            const h3Indexes = bBoxToH3Cells(bounds, 1);
-            console.log('h3Indexes', h3Indexes);
-            const h3CellsFeatureCollection = h3IndexesToGeoJSONPolygons(h3Indexes);
-            console.log('h3CellsFeatureCollection', h3CellsFeatureCollection);
-            setH3Cells(h3CellsFeatureCollection);
-          } catch (error) {
-            console.error('onDrag error', error);
-          }
-        }}
+        onDragEnd={updateH3Cells}
+        onLoad={updateH3Cells}
+        onZoomEnd={updateH3Cells}
+        onMoveEnd={updateH3Cells}
         onClick={(event) => {
           if(event.features?.length > 0) {
             const selectedFeature = event.features[0];
