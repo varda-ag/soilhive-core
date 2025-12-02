@@ -32,7 +32,7 @@ export function ColorPicker({ initialValue = '', name, className, onChange }: Pr
             data-testid="sh-colorpicker"
             className={classnames(styles.ColorPicker, className)}
             style={{
-                backgroundColor: currentValue ?? 'transparent'
+                backgroundColor: currentValue || 'transparent'
             }}
         >
                 <input

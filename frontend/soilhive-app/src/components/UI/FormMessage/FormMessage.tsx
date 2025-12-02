@@ -43,7 +43,7 @@ export function FormMessage({ message, withBackground, type = 'info' }: Props) {
 				[styles.Global]: withBackground
 			})}
 		>
-			<Icon data-testid={`sh-form-message-icon-${type}`}className={styles.FormMessageIcon} />
+			<Icon data-testid={`sh-form-message-icon-${type}`} className={styles.FormMessageIcon} />
 			<span className={classnames('small-text', styles.FormMessageText)}>{message}</span>
 		</div>
 	);
