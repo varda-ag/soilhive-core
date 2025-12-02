@@ -1,4 +1,4 @@
-import { MultiPolygon, Polygon } from "geojson";
+import { Polygon, MultiPolygon } from "geojson";
 
 export interface FilterableDatasetMetadata {
   licenses?: string[];
@@ -13,8 +13,9 @@ export interface FilterableDatasetMetadata {
   soil_groups?: string[];
 }
 
-export interface DatasetFilter extends FilterableDatasetMetadata {
-  geometry: Polygon | MultiPolygon;
+export interface DatasetFilter {
+  geometries: (Polygon | MultiPolygon)[];
+  parameters: FilterableDatasetMetadata;
 }
 
 export interface FilteredDataset extends FilterableDatasetMetadata {
@@ -23,10 +24,12 @@ export interface FilteredDataset extends FilterableDatasetMetadata {
   data_type: string;
 }
 
-export interface PostDatasetFilterResponse {
-  id: string;
-  name: string;
-  filter: DatasetFilter;
+export interface ResultItem {
   datasets: FilteredDataset[];
 }
 
+export interface PostDatasetFilterResponse extends DatasetFilter {
+  id: string;
+  name: string;
+  results: ResultItem[];
+}

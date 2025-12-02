@@ -217,10 +217,8 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                filter:
-                  $ref: "#/components/schemas/DatasetFilter"
+              $ref: "#/components/schemas/DatasetFilter"
+
       responses:
         "201":
           description: Filter created successfully
@@ -428,19 +426,19 @@ components:
           type: array
           items:
             type: string
-      required:
-        - geometry
 
     DatasetFilter:
-      allOf:
-      - $ref: "#/components/schemas/FilterableDatasetMetadata"
-      - type: object
-        properties:
-          geometry:
-            anyOf:
-            - $ref: './GeoJSON-OAS3.yaml#/components/schemas/Geometry'
-        required:
-          - geometry
+      type: object
+      properties:
+        geometries:
+          type: array
+          items:
+            $ref: "./GeoJSON-OAS3.yaml#/components/schemas/Geometry"
+        parameters:
+          $ref: "#/components/schemas/FilterableDatasetMetadata"
+      required:
+        - geometries
+        - parameters
 
     FilteredDataset:
       allOf:
@@ -462,18 +460,22 @@ components:
             - data_type
 
     PostDatasetFilterResponse:
-      type: object
-      properties:
-        id:
-          type: string
-          description: Filter identifier
-        name:
-          type: string
-          description: Human readable name for the filter
-        filter:
-          $ref: "#/components/schemas/DatasetFilter"
-        datasets:
-          type: array
-          items:
-            $ref: "#/components/schemas/FilteredDataset"
-      
+      allOf:
+        - $ref: "#/components/schemas/DatasetFilter"
+        - type: object
+          properties:
+            id:
+              type: string
+              description: Filter identifier
+            name:
+              type: string
+              description: Human readable name for the filter
+            results:
+              type: array
+              items:
+                type: object
+                properties:
+                  datasets:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/FilteredDataset"

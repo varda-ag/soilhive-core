@@ -10,11 +10,21 @@ describe("Testing /datasets/filters routes", () => {
     const token = await getSuperAdminToken();
     superAdminAuthHeader = { Authorization: `Bearer ${token}` };
   });
-  it("Creates a new filter", async () => {
-    const filter = {
-      geometry: {},
+  it.each([
+    ["Point", 400],
+    ["Polygon", 201],
+    ["MultiPolygon", 201],
+  ])("Tests filter geometry type validation", async (type, expectedStatus) => {
+    const payload = {
+      parameters: {},
+      geometries: [
+        {
+          coordinates: {},
+          type,
+        },
+      ],
     };
-    const res = await request(app).post("/datasets/filters").set(superAdminAuthHeader).send(filter);
-    expect(res.statusCode).toBe(201);
+    const res = await request(app).post("/datasets/filters").send(payload);
+    expect(res.statusCode).toBe(expectedStatus);
   });
 });
