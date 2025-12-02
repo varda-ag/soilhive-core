@@ -16,10 +16,6 @@ export default function Header() {
     return isActive ? `${styles.active}` : ''
   }
 
-  /*if (!theme) { // Can this really happen?
-    return null;
-  }*/
-
   return (
     <header className={styles.header}>
       <div className={styles.logo}>
@@ -31,6 +27,13 @@ export default function Header() {
             className={getNavLinkClass}
           >
               Availability
+          </NavLink>
+
+          <NavLink 
+            to="/legal"
+            className={getNavLinkClass}
+          >
+              Legal
           </NavLink>
 
           {singlePages.map(({ route, name }) =>
