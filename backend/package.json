@@ -18,6 +18,7 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@apidevtools/swagger-cli": "^4.0.4",
     "@flystorage/aws-s3": "^1.2.0",
     "@flystorage/file-storage": "^1.2.0",
     "@flystorage/local-fs": "^1.2.0",

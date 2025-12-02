@@ -437,8 +437,8 @@ components:
       - type: object
         properties:
           geometry:
-            type: object
-            description: Geometry (in GeoJSON format) defining the area of interest. Allowed types are Polygon and MultiPolygon
+            anyOf:
+            - $ref: './GeoJSON-OAS3.yaml#/components/schemas/Geometry'
         required:
           - geometry
 
@@ -476,3 +476,4 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/FilteredDataset"
+      
