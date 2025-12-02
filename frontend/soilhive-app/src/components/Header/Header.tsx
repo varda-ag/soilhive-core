@@ -26,14 +26,14 @@ export default function Header() {
             to="/"
             className={getNavLinkClass}
           >
-              Availability
+              <span className={styles.linkText}>Availability</span>
           </NavLink>
 
           <NavLink 
             to="/legal"
             className={getNavLinkClass}
           >
-              Legal
+              <span className={styles.linkText}>Legal</span>
           </NavLink>
 
           {singlePages.map(({ route, name }) =>
@@ -42,7 +42,7 @@ export default function Header() {
               to={`/${route}`}
               className={getNavLinkClass}
             >
-              {name}
+              <span className={styles.linkText}>{name}</span>
             </NavLink>
           )}
 
@@ -50,7 +50,7 @@ export default function Header() {
             to="/admin"
             className={getNavLinkClass}
           >
-            Admin
+            <span className={styles.linkText}>Admin</span>
           </NavLink>
 
 
