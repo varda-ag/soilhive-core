@@ -36,6 +36,7 @@ function Homepage() {
           {name: 'Maplibre Demotile Globe', mapStyle: 'https://demotiles.maplibre.org/globe.json'},
           {name: 'OpenMap Tiles OSM Bright', mapStyle: 'https://openmaptiles.geo.data.gouv.fr/styles/osm-bright/style.json'}
         ]}
+        // onSelectionChange={({geoJSON}) => { setGeoJSONFilters(geoJSON) }}
       />
     </div>
   );

@@ -5,6 +5,9 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import '@maplibre/maplibre-gl-geocoder/dist/maplibre-gl-geocoder.css';
 import '../styles/SoilhiveMap.scss';
 import Flower from '../assets/images/flower.svg?react';
+import { polygonToCells } from 'h3-js';
+import { bboxToGeoJSONPolygonCoordinates, h3IndexesToGeoJSONPolygons } from '../utilities/geo';
+import { bboxPolygon } from '@turf/turf';
 
 type MapStyle = string | StyleSpecification | ImmutableLike<StyleSpecification>;
 type MapStyles = Array<{ name: string, mapStyle: MapStyle }>;
@@ -178,6 +181,7 @@ function SoilhiveMap({
   const [selectedPoint, setSelectedPoint] = useState(null);
   const mapRef = useRef<MapRef>();
   const selectedFeatureRef = useRef<MapGeoJSONFeature>();
+  const [h3Cells, setH3Cells] = useState(null);
 
   return (
     <div className="soilhive-map">
@@ -188,10 +192,25 @@ function SoilhiveMap({
         className="map"
         mapStyle={currentMapStyle}
         {...(initialViewBoundingBox ? {initialViewState: { bounds: initialViewBoundingBox }} : {})}
-        onMouseMove={(event) => {
+        // onMouseMove={(event) => {
+        //   // if(event.features.length === 0) return;
+        //   console.log('onHover', event);
+        //   console.log('onHover features', event.features);
+        // }}
+        onDragEnd={(event) => {
+          const map = event.target;
           // if(event.features.length === 0) return;
-          // console.log('onHover', event);
-          // console.log('onHover features', event.features);
+          console.log('onDrag', event);
+          const bounds = map.getBounds();
+          console.log('bounds', bounds);
+          const coordinates = bboxToGeoJSONPolygonCoordinates(bounds);
+          console.log('bboxToGeoJSONPolygonCoordinates', coordinates);
+          const h3Indexes = polygonToCells(coordinates, 2, true);
+          console.log('h3Indexes', h3Indexes);
+          const h3CellsFeatureCollection = h3IndexesToGeoJSONPolygons(h3Indexes);
+          console.log('h3CellsFeatureCollection', h3CellsFeatureCollection);
+          // console.log(JSON.stringify(h3CellsFeatureCollection, null, 2));
+          setH3Cells(h3CellsFeatureCollection);
         }}
         onClick={(event) => {
           if(event.features?.length > 0) {
@@ -218,7 +237,7 @@ function SoilhiveMap({
             }
             selectedFeatureRef.current = null;
           }
-          setSelectedPoint(event.lngLat);
+          // setSelectedPoint(event.lngLat);
         }}
         interactiveLayerIds={['data-fills']}
       >
@@ -261,11 +280,16 @@ function SoilhiveMap({
         {/* <Source type="geojson" data={mockGeoJSON}>
           <Layer {...dataLayer} />
         </Source> */}
-        {/* <H3CellsLayer /> */}
-         <Source id="data" type="geojson" data={mockGeoJSON}>
+        {/* <Source id="data" type="geojson" data={mockGeoJSON}>
           <Layer {...dataLayerFills} />
           <Layer {...dataLayerBorders} />
-        </Source>
+        </Source> */}
+        { h3Cells &&
+          <Source id="data" type="geojson" data={h3Cells}>
+            <Layer {...dataLayerFills} />
+            <Layer {...dataLayerBorders} />
+          </Source>
+        }
 
         {showGeocoder && <GeocoderControl position="top-left" geocoder={geocoder} />}
         { showGeolocation && <GeolocateControl position="bottom-right" /> }
