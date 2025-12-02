@@ -64,7 +64,7 @@ export function TextInput({
         medium: styles.Medium,
         small: styles.Small,
         tiny: styles.Tiny,
-      }[size] || ''
+      }[size]
     );
   }, [size]);
 

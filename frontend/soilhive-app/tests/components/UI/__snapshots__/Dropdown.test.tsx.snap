@@ -1,0 +1,33 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`Dropdown component matches snapshot 1`] = `
+<div>
+  <div
+    data-testid="mock-wrapper"
+    errormessage="Error"
+    helpermessage="Helpful"
+    label="Label"
+  >
+    <div
+      class="Dropdown Medium Invalid"
+      data-testid="sh-ui-dropdown"
+    >
+      <div
+        class="DropdownInput"
+      >
+        <div
+          class="SelectedOption"
+        >
+          Option A
+        </div>
+        <svg
+          class="ArrowIcon"
+          data-testid="svg-icon-mock"
+        >
+          mock-svg
+        </svg>
+      </div>
+    </div>
+  </div>
+</div>
+`;

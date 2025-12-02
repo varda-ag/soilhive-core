@@ -6,7 +6,6 @@ import type { ComponentSizeType } from 'types/components';
 import styles from './Button.module.scss';
 
 type ButtonType = 'primary' | 'secondary' | 'tertiary';
-type ButtonForm = 'button' | 'submit';
 
 export interface Props {
   children?: ReactNode;
@@ -15,7 +14,7 @@ export interface Props {
   size?: ComponentSizeType;
   to?: string;
   href?: string;
-  form?: ButtonForm;
+  form?: string;
   isIconOnly?: boolean;
   isDanger?: boolean;
   isDisabled?: boolean;

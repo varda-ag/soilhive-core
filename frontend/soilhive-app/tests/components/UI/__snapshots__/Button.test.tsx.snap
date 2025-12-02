@@ -1,0 +1,39 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`Button component renders a normal button by default 1`] = `
+<div>
+  <button
+    class="Button Primary Small"
+    data-testid="sh-ui-button"
+    type="button"
+  >
+    Click me
+  </button>
+</div>
+`;
+
+exports[`Button component renders as an internal Link when "to" is provided 1`] = `
+<div>
+  <a
+    class="Button Primary Small"
+    data-testid="mock-router-link"
+    href="/dashboard"
+  >
+    Go
+  </a>
+</div>
+`;
+
+exports[`Button component renders as external link when "href" is provided 1`] = `
+<div>
+  <a
+    class="Button Primary Small"
+    data-testid="sh-ui-button-link"
+    href="https://example.com"
+    rel="noreferrer"
+    target="_blank"
+  >
+    External
+  </a>
+</div>
+`;

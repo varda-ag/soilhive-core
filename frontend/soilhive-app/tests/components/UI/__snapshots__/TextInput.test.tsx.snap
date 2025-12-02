@@ -1,0 +1,30 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`TextInput component matches snapshot 1`] = `
+<div>
+  <div
+    data-testid="mock-wrapper"
+    errormessage="Wrong!"
+    label="Email"
+  >
+    <div
+      class="TextInput Small Invalid Filled"
+      data-testid="sh-ui-textinput"
+    >
+      <input
+        class="InputField"
+        data-testid="sh-ui-textinputfield"
+        placeholder="Type..."
+        type="text"
+        value="hello"
+      />
+      <svg
+        class="ClearTextIcon"
+        data-testid="sh-ui-cleartexticon"
+      >
+        mock-svg
+      </svg>
+    </div>
+  </div>
+</div>
+`;
