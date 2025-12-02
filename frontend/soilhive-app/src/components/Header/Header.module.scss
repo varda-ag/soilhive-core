@@ -1,16 +1,38 @@
 .header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-}
-
-.logo {
-    display: flex;
-    align-items: center;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 2rem;
+  height: 55px; // Estimated height from the image
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 
 .nav {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  gap: 2.5rem;
+
+  a {
+    color: #000;
+    text-decoration: none;
+    font-weight: 700;
+    line-height: 1.5rem;
     display: flex;
     align-items: center;
-    gap: 1rem;
+    height: 100%;
+    
+    border-bottom: 4px solid transparent;
+
+    &:first-child {
+      border-bottom-color: #f5a623; // Orange color from the image
+    }
+
+    &:visited,
+    &:hover,
+    &:active,
+    &:focus {
+      color: #000000; /* Force black for all states */
+    }
+  }
 }
