@@ -6,7 +6,7 @@ import '@maplibre/maplibre-gl-geocoder/dist/maplibre-gl-geocoder.css';
 import '../styles/SoilhiveMap.scss';
 import Flower from '../assets/images/flower.svg?react';
 import { polygonToCells } from 'h3-js';
-import { bboxToGeoJSONPolygonCoordinates, h3IndexesToGeoJSONPolygons } from '../utilities/geo';
+import { bboxToGeoJSONPolygonCoordinates, bBoxToH3Cells, h3IndexesToGeoJSONPolygons } from '../utilities/geo';
 import { bboxPolygon } from '@turf/turf';
 
 type MapStyle = string | StyleSpecification | ImmutableLike<StyleSpecification>;
@@ -198,19 +198,19 @@ function SoilhiveMap({
         //   console.log('onHover features', event.features);
         // }}
         onDragEnd={(event) => {
-          const map = event.target;
-          // if(event.features.length === 0) return;
-          console.log('onDrag', event);
-          const bounds = map.getBounds();
-          console.log('bounds', bounds);
-          const coordinates = bboxToGeoJSONPolygonCoordinates(bounds);
-          console.log('bboxToGeoJSONPolygonCoordinates', coordinates);
-          const h3Indexes = polygonToCells(coordinates, 2, true);
-          console.log('h3Indexes', h3Indexes);
-          const h3CellsFeatureCollection = h3IndexesToGeoJSONPolygons(h3Indexes);
-          console.log('h3CellsFeatureCollection', h3CellsFeatureCollection);
-          // console.log(JSON.stringify(h3CellsFeatureCollection, null, 2));
-          setH3Cells(h3CellsFeatureCollection);
+          try {
+            const map = event.target;
+            console.log('onDrag', event);
+            const bounds = map.getBounds().toArray().flat();
+            console.log('bounds', bounds);
+            const h3Indexes = bBoxToH3Cells(bounds, 1);
+            console.log('h3Indexes', h3Indexes);
+            const h3CellsFeatureCollection = h3IndexesToGeoJSONPolygons(h3Indexes);
+            console.log('h3CellsFeatureCollection', h3CellsFeatureCollection);
+            setH3Cells(h3CellsFeatureCollection);
+          } catch (error) {
+            console.error('onDrag error', error);
+          }
         }}
         onClick={(event) => {
           if(event.features?.length > 0) {
