@@ -5,16 +5,20 @@ import { singlePages } from "../../utilities/moduleFederation";
 import UserIcon from 'assets/icons/small-user-icon.svg?react';
 
 import styles from './Header.module.scss'
-import { Link } from 'react-router';
+import { NavLink } from 'react-router';
 
 export default function Header() {
 
-  const { logo, theme } = useTheme()
+  const { logo } = useTheme()
   const { isAuthenticated, isLoading, login, logout } = useAuthContext();
 
-  if (!theme) { // Can this really happen?
-    return null;
+  const getNavLinkClass = ( { isActive }: {isActive: boolean}) => {
+    return isActive ? `${styles.active}` : ''
   }
+
+  /*if (!theme) { // Can this really happen?
+    return null;
+  }*/
 
   return (
     <header className={styles.header}>
@@ -22,11 +26,31 @@ export default function Header() {
         {logo && <img src={logo} alt="Logo" />}
       </div>
       <nav className={styles.nav}>
-          <Link to="/">Availability</Link>
+          <NavLink 
+            to="/"
+            className={getNavLinkClass}
+          >
+              Availability
+          </NavLink>
+
           {singlePages.map(({ route, name }) =>
-            <Link key={route} to={`/${route}`}>{name}</Link>
+            <NavLink 
+              key={route} 
+              to={`/${route}`}
+              className={getNavLinkClass}
+            >
+              {name}
+            </NavLink>
           )}
-          <Link to="/admin">Admin</Link>
+
+          <NavLink 
+            to="/admin"
+            className={getNavLinkClass}
+          >
+            Admin
+          </NavLink>
+
+
           {isLoading ? (
             <span>Loading...</span>
           ) : isAuthenticated ? (

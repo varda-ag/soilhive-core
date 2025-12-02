@@ -24,15 +24,15 @@
     
     border-bottom: 4px solid transparent;
 
-    &:first-child {
-      border-bottom-color: #f5a623; // Orange color from the image
-    }
-
     &:visited,
     &:hover,
     &:active,
     &:focus {
-      color: #000000; /* Force black for all states */
+      color: #000000; 
     }
+  }
+
+  .active {
+    border-bottom-color: var(--color-brand-yellow-900); // Orange color
   }
 }
