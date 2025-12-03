@@ -33,8 +33,7 @@ jest.mock('assets/icons/small-user-icon.svg?react', () => ({
 describe('Header component', () => {
     it('snapshot with authenticated user', () => {
 
-        const mockUseAuthContext = useAuthContext as jest.Mock
-        mockUseAuthContext.mockReturnValue({
+        (useAuthContext as jest.Mock).mockReturnValue({
             isAuthenticated: true,
             isLoading: false,
             login: jest.fn(),
