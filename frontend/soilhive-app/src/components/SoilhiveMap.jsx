@@ -52,82 +52,6 @@ interface SoilhiveMapProps {
   dragPan?: boolean;
 };
 
-const mockGeoJSON = {
-  "type": "FeatureCollection",
-  "features": [
-    {
-      "type": "Feature",
-      "properties": {
-        "name": "north Italy",
-        "id": "fake-id"
-      },
-      "geometry": {
-        "coordinates": [
-          [
-            [
-              6.245097999284241,
-              46.96330835188107
-            ],
-            [
-              6.245097999284241,
-              43.3252713058084
-            ],
-            [
-              13.798863455376875,
-              43.3252713058084
-            ],
-            [
-              13.798863455376875,
-              46.96330835188107
-            ],
-            [
-              6.245097999284241,
-              46.96330835188107
-            ]
-          ]
-        ],
-        "type": "Polygon"
-      },
-      "id": 0
-    },
-    {
-      "type": "Feature",
-      "properties": {
-        "name": "other square",
-        "id": "fake-id-2"
-      },
-      "geometry": {
-        "coordinates": [
-          [
-            [
-              12.695394714131567,
-              50.221428927093285
-            ],
-            [
-              12.695394714131567,
-              48.03077689789666
-            ],
-            [
-              16.377644841743205,
-              48.03077689789666
-            ],
-            [
-              16.377644841743205,
-              50.221428927093285
-            ],
-            [
-              12.695394714131567,
-              50.221428927093285
-            ]
-          ]
-        ],
-        "type": "Polygon"
-      },
-      "id": 1
-    }
-  ]
-};
-
 const dataLayerFills: LayerProps = {
   id: 'data-fills',
   type: 'fill',
@@ -151,21 +75,6 @@ const dataLayerBorders: LayerProps = {
     "line-opacity": 0.5
   }
 };
-
-// function H3CellsLayer() {
-//   const {current: map}= useMap();
-
-//   useEffect(() => {
-    
-//   }, []);
-
-//   return (
-//     <Source type="geojson" data={mockGeoJSON}>
-//       <Layer {...dataLayer} />
-//       <Layer {...dataLayerBorders} />
-//     </Source>
-//   );
-// }
 
 function SoilhiveMap({
   initialViewBoundingBox,
@@ -204,18 +113,12 @@ function SoilhiveMap({
         className="map"
         mapStyle={currentMapStyle}
         {...(initialViewBoundingBox ? {initialViewState: { bounds: initialViewBoundingBox }} : {})}
-        // onMouseMove={(event) => {
-        //   // if(event.features.length === 0) return;
-        //   console.log('onHover', event);
-        //   console.log('onHover features', event.features);
-        // }}
         onDragEnd={updateH3Cells}
         onLoad={updateH3Cells}
         onZoomEnd={updateH3Cells}
         onMoveEnd={updateH3Cells}        
         onClick={(event) => {
           const map = event.target;
-          console.log('selected feature', event.features)
           if(event.features?.length > 0) {
             const selectedFeature = event.features[0];
             if(selectedFeature.id !== selectedFeatureRef.current?.id) {
@@ -280,13 +183,6 @@ function SoilhiveMap({
           </Popup>
         }
 
-        {/* <Source type="geojson" data={mockGeoJSON}>
-          <Layer {...dataLayer} />
-        </Source> */}
-        {/* <Source id="data" type="geojson" data={mockGeoJSON}>
-          <Layer {...dataLayerFills} />
-          <Layer {...dataLayerBorders} />
-        </Source> */}
         { h3Cells &&
           <Source id="data" type="geojson" data={h3Cells} promoteId='h3Index'>
             <Layer {...dataLayerFills} />
