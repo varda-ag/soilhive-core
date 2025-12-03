@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 
 jest.mock('../../../src/auth/AuthContextProvider', () => ({
-        useAuthContext: jest.fn()
+    useAuthContext: jest.fn()
 }))
 import { useAuthContext } from '../../../src/auth/AuthContextProvider';
 
@@ -26,8 +26,8 @@ jest.mock('react-router', () => ({
 }))
 
 jest.mock('assets/icons/small-user-icon.svg?react', () => ({
-  __esModule: true,
-  default: () => <svg data-testid="user-icon" />,
+    __esModule: true,
+    default: () => <svg data-testid="user-icon" />,
 }));
 
 describe('Header component', () => {
@@ -49,5 +49,24 @@ describe('Header component', () => {
         const btn = screen.getByTestId('sh-ui-button');
         expect(btn).toHaveTextContent('Log out')
         expect(container).toMatchSnapshot()
+    })
+
+    it('renders hamburger menu button', () => {
+        (useAuthContext as jest.Mock).mockReturnValue({
+            isAuthenticated: false,
+            isLoading: false,
+            login: jest.fn(),
+            logout: jest.fn(),
+        })
+
+        const mockUseTheme = useTheme as jest.Mock
+        mockUseTheme.mockReturnValue({
+            logo: 'logo.png'
+        })
+
+        render(<Header />)
+
+        const hamburger = screen.getByRole('button', { name: /menu/i })
+        expect(hamburger).toBeInTheDocument()
     })
 })
