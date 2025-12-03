@@ -47,4 +47,9 @@ export default class AuthService {
       expires_in: TOKEN_EXPIRATION_SECONDS,
     };
   };
+
+  resetAuthConfig = () => {
+    // Used in tests
+    authConfig = undefined;
+  }
 }
