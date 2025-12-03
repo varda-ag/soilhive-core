@@ -1,6 +1,7 @@
 import { Polygon, MultiPolygon } from "geojson";
 
 export interface FilterableDatasetMetadata {
+  data_types?: string[];
   licenses?: string[];
   min_sampling_date?: string;
   max_sampling_date?: string;
@@ -26,7 +27,6 @@ export interface StoredDatasetFilter extends DatasetFilter {
 export interface FilteredDataset extends FilterableDatasetMetadata {
   id: string;
   feature_count: number;
-  data_type: string;
 }
 
 export interface ResultItem {

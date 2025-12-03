@@ -397,6 +397,11 @@ components:
     FilterableDatasetMetadata:
       type: object
       properties:
+        data_types:
+          type: array
+          items:
+            type: string
+            description: Type of data contained in the dataset (e.g., point samples, raster data)
         licenses:
           type: array
           items:
@@ -454,13 +459,9 @@ components:
             feature_count:
               type: integer
               description: Number of features matching the filter in this dataset
-            data_type:
-              type: string
-              description: Type of data contained in the dataset (e.g., point samples, raster data)
           required:
             - id
             - feature_count
-            - data_type
 
     PostDatasetFilterResponse:
       allOf:
