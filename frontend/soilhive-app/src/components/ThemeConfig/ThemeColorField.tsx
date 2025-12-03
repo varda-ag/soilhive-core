@@ -1,4 +1,4 @@
-import { useCallback, useState, useEffect } from 'react';
+import { useCallback } from 'react';
 import classnames from 'classnames';
 
 import styles from './ThemeColorField.module.scss';
@@ -13,21 +13,13 @@ interface Props {
 };
 
 export function ThemeColorField({ initialValue = '', label, name, className, onChange }: Props) {
-	const [currentValue, setCurrentValue] = useState<string>('');
 
 	const handleChange = useCallback(
 		(value: string) => {
-			setCurrentValue(value);
 			onChange(name, value);
 		},
 		[onChange]
 	);
-
-	useEffect(() => {
-		if (currentValue !== initialValue) {
-			setCurrentValue(initialValue);
-		}
-	}, [initialValue, currentValue]);
 
 	return (
         <div data-testid="sh-theme-color-field" className={classnames(styles.ThemeColorField, className)}>

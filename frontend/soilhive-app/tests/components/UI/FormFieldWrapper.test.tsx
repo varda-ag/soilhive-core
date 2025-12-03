@@ -1,17 +1,17 @@
 import { render, screen } from '@testing-library/react';
 import { FormFieldWrapper } from 'components/UI/FormFieldWrapper/FormFieldWrapper';
 
-// rs.mock('components/UI', () => ({
-//   FormMessage: ({ type, message }: any) => (
-//     <div data-testid={`form-message-${type}`}>{message}</div>
-//   ),
-// }));
+jest.mock('components/UI', () => ({
+  FormMessage: ({ type, message }: any) => (
+    <div data-testid={`form-message-${type}`}>{message}</div>
+  ),
+}));
 
-// rs.mock('react-tooltip', () => ({
-//   Tooltip: ({ id }: { id: string }) => (
-//     <div data-testid={`tooltip-${id}`} />
-//   ),
-// }));
+jest.mock('react-tooltip', () => ({
+  Tooltip: ({ id }: { id: string }) => (
+    <div data-testid={`tooltip-${id}`} />
+  ),
+}));
 
 describe('FormFieldWrapper component', () => {
   it('renders child input field', () => {
@@ -42,14 +42,13 @@ describe('FormFieldWrapper component', () => {
   });
 
   it('renders  tooltip when labelTooltip is provided', () => {
-    const { container } = render(
+    render(
       <FormFieldWrapper label="Email" labelTooltip="Tooltip text">
         <input data-testid="test-input" />
       </FormFieldWrapper>
     );
 
-    expect(container.querySelector('.LabelTooltip')).toBeInTheDocument();
-    // expect(screen.getByTestId('tooltip-label-tooltip')).toBeInTheDocument();
+    expect(screen.getByTestId('tooltip-label-tooltip')).toBeInTheDocument();
   });
 
   it('renders in error satate with error message when errorMessage and isError=true', () => {
@@ -63,10 +62,7 @@ describe('FormFieldWrapper component', () => {
     );
 
     expect(container.firstChild).toHaveClass('Invalid');
-    // expect(screen.getByTestId('form-message-error')).toHaveTextContent(
-    //   'Error occurred'
-    // );
-    expect(screen.getByTestId('sh-form-message')).toHaveTextContent(
+    expect(screen.getByTestId('form-message-error')).toHaveTextContent(
       'Error occurred'
     );
   });
@@ -80,8 +76,7 @@ describe('FormFieldWrapper component', () => {
         <input data-testid="test-input" />
       </FormFieldWrapper> 
     );
-    // expect(screen.queryByTestId('form-message-error')).toBeNull();
-    expect(screen.queryByTestId('sh-form-message')).toBeNull();
+    expect(screen.queryByTestId('form-message-error')).toBeNull();
   });
 
   it('renders helper message always when provided', () => {
@@ -90,10 +85,7 @@ describe('FormFieldWrapper component', () => {
         <input data-testid="test-input" />
       </FormFieldWrapper> 
     );
-    // expect(screen.getByTestId('form-message-info')).toHaveTextContent(
-    //   'Helpful info'
-    // );
-    expect(screen.getByTestId('sh-form-message')).toHaveTextContent(
+    expect(screen.getByTestId('form-message-info')).toHaveTextContent(
       'Helpful info'
     );
   });

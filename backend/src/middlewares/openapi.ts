@@ -1,6 +1,6 @@
-import { readFileSync } from "fs";
 import path from "path";
 import yaml from "js-yaml";
+import SwaggerCli from "@apidevtools/swagger-cli";
 import { middleware as OpenApiValidator } from "express-openapi-validator";
 import { tokenValidator } from "./tokenValidator";
 import FileService from "../services/FileService";
@@ -23,7 +23,10 @@ export const openApiMiddleware = OpenApiValidator({
     // Internally Multer is used for file uploads.
     // Storage destination is configured based on environment variables.
     storage: FileService.getUploadStorageEngine(),
-  }
+  },
 });
 
-export const swaggerDocument = yaml.load(readFileSync(apiSpecFile, "utf8"));
+export const getSwaggerDocument = async () => {
+  const apiBundle = await SwaggerCli.bundle(apiSpecFile, {});
+  return yaml.load(apiBundle);
+};

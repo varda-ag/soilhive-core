@@ -1,7 +1,10 @@
 {
   "extends": "../tsconfig.json",
   "compilerOptions": {
-    "types": ["@testing-library/jest-dom", "@rstest/core/globals"]
+    "moduleResolution": "node",
+    "types": ["jest", "node", "@testing-library/jest-dom"],
+    "lib": ["DOM", "ES2020"],
+    "allowSyntheticDefaultImports": true
   },
   "include": ["./"]
 }

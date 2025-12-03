@@ -205,6 +205,35 @@ paths:
         "204":
           description: Logo deleted successfully
 
+  /datasets/filters:
+    post:
+      x-eov-operation-handler: controllers/datasets
+      x-eov-operation-id: postDatasetsFilters
+      summary: Creates a new filter and retrieves information about datasets matching it
+      tags:
+        - datasets
+      security:
+        - bearerAuth: []
+        - {}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DatasetFilter"
+
+      responses:
+        "201":
+          description: Filter created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PostDatasetFilterResponse"
+        "400":
+          $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          $ref: "#/components/schemas/ErrorResponse"
+
   /files/{fileId}:
     parameters:
       - name: fileId
@@ -364,3 +393,93 @@ components:
         - size
         - mimeType
         - uploadedAt
+
+    FilterableDatasetMetadata:
+      type: object
+      properties:
+        data_types:
+          type: array
+          items:
+            type: string
+            description: Type of data contained in the dataset (e.g., point samples, raster data)
+        licenses:
+          type: array
+          items:
+            type: string
+        min_sampling_date:
+          type: string
+        max_sampling_date:
+          type: string
+        min_depth:
+          type: number
+        max_depth:
+          type: number
+        horizons:
+          type: array
+          items:
+            type: string
+        soil_properties:
+          type: array
+          items:
+            type: string
+        agroecological_zones:
+          type: array
+          items:
+            type: string
+        land_cover:
+          type: array
+          items:
+            type: string
+        soil_groups:
+          type: array
+          items:
+            type: string
+
+    DatasetFilter:
+      type: object
+      properties:
+        geometries:
+          type: array
+          items:
+            $ref: "./GeoJSON-OAS3.yaml#/components/schemas/Geometry"
+        parameters:
+          $ref: "#/components/schemas/FilterableDatasetMetadata"
+      required:
+        - geometries
+        - parameters
+
+    FilteredDataset:
+      allOf:
+        - $ref: "#/components/schemas/FilterableDatasetMetadata"
+        - type: object
+          properties:
+            id:
+              type: string
+              description: Dataset identifier
+            feature_count:
+              type: integer
+              description: Number of features matching the filter in this dataset
+          required:
+            - id
+            - feature_count
+
+    PostDatasetFilterResponse:
+      allOf:
+        - $ref: "#/components/schemas/DatasetFilter"
+        - type: object
+          properties:
+            id:
+              type: string
+              description: Filter identifier
+            name:
+              type: string
+              description: Human readable name for the filter
+            results:
+              type: array
+              items:
+                type: object
+                properties:
+                  datasets:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/FilteredDataset"
