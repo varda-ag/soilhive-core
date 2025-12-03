@@ -1,9 +1,7 @@
 import { render } from '@testing-library/react';
 
 jest.mock('../../../src/auth/AuthContextProvider', () => {
-    const actual = jest.requireActual('../../../src/auth/AuthContextProvider')
     return {
-        ...actual,
         useAuthContext: jest.fn()
     }
 })
