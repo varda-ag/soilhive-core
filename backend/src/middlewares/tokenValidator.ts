@@ -98,7 +98,7 @@ export const tokenValidator = async (req: Request, scopes: string[]): Promise<bo
 };
 
 const assertTokenScope = (token: Token, scopes: string[]) => {
-  if (!scopes) {
+  if (scopes.length === 0) {
     return;
   }
   for (const s of scopes) {

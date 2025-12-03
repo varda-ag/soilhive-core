@@ -1,7 +1,7 @@
 import { StatusCodes } from "http-status-codes";
-import { v7 as uuidv7 } from "uuid";
+import { hasher } from "node-object-hash";
 import { JsonStorage } from "../entities/JsonStorage";
-import { DatasetFilter, PostDatasetFilterResponse } from "../interfaces/DatasetFilter";
+import { DatasetFilter, PostDatasetFilterResponse, StoredDatasetFilter } from "../interfaces/DatasetFilter";
 import { RequestData } from "../interfaces/RequestData";
 import { ErrorResponse } from "../utils/error";
 
@@ -14,36 +14,46 @@ export default class DatasetService {
       }
     }
 
-    const userId = requestData.token ? requestData.token.sub : "anonymous";
-    const storageId = `filter_${userId}`;
-    const repo = requestData.entityManager.getRepository(JsonStorage);
-    const row = await repo.findOneBy({ id: storageId });
-
+    const filterId = hasher().hash(filter);
     const response: PostDatasetFilterResponse = {
-      id: uuidv7(),
+      id: filterId,
       name: new Date().toISOString(),
       ...filter,
       results: [],
     };
 
-    // TODO: fill results
+    // TODO: query DB and fill results
     for (const _ of filter.geometries) {
       response.results.push({ datasets: [] });
     }
 
+    await this.saveFilterInDB(requestData, response);
+
+    return response;
+  };
+
+  saveFilterInDB = async (requestData: RequestData, filter: StoredDatasetFilter) => {
+    if (!requestData.token) {
+      // Only logged in users can save filters
+      return;
+    }
+
+    const userId = requestData.token.sub;
+    const storageId = `filter_${userId}`;
+    const repo = requestData.entityManager.getRepository(JsonStorage);
+    const row = await repo.findOneBy({ id: storageId });
+
     if (row) {
       // Adding this filter to the existing user defined ones
-      row.data[response.id] = response;
-      row.save();
+      row.data[filter.id] = filter;
+      await row.save();
     } else {
       // Creating user filter preferences
       const newRow = new JsonStorage();
       newRow.id = storageId;
       newRow.data = {};
-      newRow.data[response.id] = response;
+      newRow.data[filter.id] = filter;
       await repo.save(newRow);
     }
-
-    return response;
   };
 }

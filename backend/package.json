@@ -10,7 +10,7 @@
     "start": "node dist/app.js",
     "dev": "nodemon --exec 'ts-node --transpile-only' src/app.ts --watch src/**/*.ts src/openapi.yaml",
     "test": "jest --detectOpenHandles --coverage --collectCoverageFrom='src/**/*.ts'",
-    "test:watch": "jest --detectOpenHandles",
+    "test:watch": "jest --detectOpenHandles --watch",
     "typeorm": "typeorm-ts-node-commonjs"
   },
   "keywords": [],
@@ -35,6 +35,7 @@
     "jsonwebtoken": "^9.0.2",
     "jwks-rsa": "^3.2.0",
     "multer": "^2.0.2",
+    "node-object-hash": "^3.1.1",
     "pg": "^8.16.3",
     "reflect-metadata": "^0.2.2",
     "swagger-ui-express": "^5.0.1",

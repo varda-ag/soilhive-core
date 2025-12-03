@@ -18,6 +18,11 @@ export interface DatasetFilter {
   parameters: FilterableDatasetMetadata;
 }
 
+export interface StoredDatasetFilter extends DatasetFilter {
+  id: string;
+  name: string;
+}
+
 export interface FilteredDataset extends FilterableDatasetMetadata {
   id: string;
   feature_count: number;
@@ -28,8 +33,6 @@ export interface ResultItem {
   datasets: FilteredDataset[];
 }
 
-export interface PostDatasetFilterResponse extends DatasetFilter {
-  id: string;
-  name: string;
+export interface PostDatasetFilterResponse extends StoredDatasetFilter {
   results: ResultItem[];
 }
