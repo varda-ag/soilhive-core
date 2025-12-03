@@ -101,7 +101,7 @@ function SoilhiveMap({
       const h3CellsFeatureCollection = h3IndexesToGeoJSONPolygons(h3Indexes);
       setH3Cells(h3CellsFeatureCollection);
     } catch (error) {
-      console.error('onDrag error', error);
+      console.error('Error while updating the H3 Cells:', error);
     }
   }
 
