@@ -47,6 +47,7 @@ interface SoilhiveMapProps {
   showNavigation?: boolean;
   showGeolocation?: boolean;
   showScale?: boolean;
+  showH3Cells?: boolean;
   mapStyles?: MapStyles;
   scrollZoom?: boolean;
   dragPan?: boolean;
@@ -83,6 +84,7 @@ function SoilhiveMap({
   showNavigation = true,
   showGeolocation = true,
   showScale = true,
+  showH3Cells = false,
   mapStyles = [{name: 'CartoCDN Voyager', mapStyle: 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json'}],
   scrollZoom = true,
   dragPan = true
@@ -93,6 +95,10 @@ function SoilhiveMap({
   const [h3Cells, setH3Cells] = useState(null);
 
   function updateH3Cells(mapEvent) {
+    if(!showH3Cells) {
+      setH3Cells(null);
+      return;
+    };
     try {
       const map = mapEvent.target;
       const zoomLevel = map.getZoom()
@@ -183,7 +189,7 @@ function SoilhiveMap({
           </Popup>
         }
 
-        { h3Cells &&
+        { showH3Cells && h3Cells &&
           <Source id="data" type="geojson" data={h3Cells} promoteId='h3Index'>
             <Layer {...dataLayerFills} />
             <Layer {...dataLayerBorders} />
