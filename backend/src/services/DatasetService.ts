@@ -14,20 +14,19 @@ export default class DatasetService {
       }
     }
 
-    const filterId = hasher().hash(filter);
-    const response: PostDatasetFilterResponse = {
-      id: filterId,
+    const storedFilter = {
+      id: hasher().hash(filter),
       name: new Date().toISOString(),
       ...filter,
-      results: [],
     };
 
+    await this.saveFilterInDB(requestData, storedFilter);
+
     // TODO: query DB and fill results
+    const response: PostDatasetFilterResponse = { ...storedFilter, results: [] };
     for (const _ of filter.geometries) {
       response.results.push({ datasets: [] });
     }
-
-    await this.saveFilterInDB(requestData, response);
 
     return response;
   };
