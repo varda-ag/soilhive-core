@@ -38,4 +38,18 @@ describe("Testing /datasets/filters routes", () => {
     const row = await repo.findOneBy({ id: `filter_${TokenScopes.SUPER_ADMIN}` });
     expect(row).toBeTruthy();
   });
+
+  it("Filter should be stored in DB only once if parameters are the same", async () => {
+    const payload = {
+      parameters: {},
+      geometries: [{ coordinates: {}, type: "Polygon" }],
+    };
+    await request(app).post("/datasets/filters").set(superAdminAuthHeader).send(payload);
+    await request(app).post("/datasets/filters").set(superAdminAuthHeader).send(payload);
+    const dataSource = await getDataSource();
+    const repo = dataSource.getRepository("JsonStorage");
+    const rows = await repo.findBy({ id: `filter_${TokenScopes.SUPER_ADMIN}` });
+    expect(rows.length).toEqual(1);
+    expect(Object.keys(rows[0].data).length).toEqual(1);
+  });
 });
