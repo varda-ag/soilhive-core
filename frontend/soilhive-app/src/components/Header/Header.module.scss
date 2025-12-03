@@ -58,24 +58,17 @@
 // Hamburger menu button
 .hamburger {
   display: none;
-  flex-direction: column;
-  justify-content: space-around;
   width: 24px;
   height: 24px;
   background: transparent;
   border: none;
   cursor: pointer;
   padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 
   @media (max-width: 768px) {
     display: flex;
-  }
-
-  span {
-    width: 24px;
-    height: 3px;
-    background-color: #000;
-    border-radius: 2px;
-    transition: all 0.3s ease;
   }
 }

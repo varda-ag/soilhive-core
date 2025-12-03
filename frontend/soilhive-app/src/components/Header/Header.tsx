@@ -3,6 +3,7 @@ import { useAuthContext } from "../../auth/AuthContextProvider";
 import useTheme from "../../hooks/useTheme";
 import { singlePages } from "../../utilities/moduleFederation";
 import UserIcon from 'assets/icons/small-user-icon.svg?react';
+import HamburgerIcon from 'assets/icons/hamburger-menu-icon.svg?react'; 
 
 import styles from './Header.module.scss'
 import { NavLink } from 'react-router';
@@ -73,9 +74,7 @@ export default function Header() {
 
 
       <button className={styles.hamburger} aria-label="Menu">
-        <span></span>
-        <span></span>
-        <span></span>
+        <HamburgerIcon /> 
       </button>
 
     </header>
