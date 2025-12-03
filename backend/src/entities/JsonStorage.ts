@@ -7,5 +7,5 @@ export class JsonStorage extends BaseTable {
   id: string;
 
   @Column("jsonb", { nullable: false })
-  data: string;
+  data: object;
 }
