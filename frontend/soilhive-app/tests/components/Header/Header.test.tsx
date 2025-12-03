@@ -1,4 +1,4 @@
-import { render } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 
 jest.mock('../../../src/auth/AuthContextProvider', () => ({
         useAuthContext: jest.fn()
@@ -46,6 +46,8 @@ describe('Header component', () => {
         })
 
         const { container } = render(<Header />)
+        const btn = screen.getByTestId('sh-ui-button');
+        expect(btn).toHaveTextContent('Log out')
         expect(container).toMatchSnapshot()
     })
 })
