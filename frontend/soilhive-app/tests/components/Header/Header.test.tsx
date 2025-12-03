@@ -1,10 +1,8 @@
 import { render } from '@testing-library/react';
 
-jest.mock('../../../src/auth/AuthContextProvider', () => {
-    return {
+jest.mock('../../../src/auth/AuthContextProvider', () => ({
         useAuthContext: jest.fn()
-    }
-})
+}))
 import { useAuthContext } from '../../../src/auth/AuthContextProvider';
 
 jest.mock('../../../src/utilities/moduleFederation', () => ({
