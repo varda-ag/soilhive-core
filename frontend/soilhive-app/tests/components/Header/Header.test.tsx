@@ -18,8 +18,8 @@ import useTheme from '../../../src/hooks/useTheme'
 import Header from 'components/Header/Header'
 
 jest.mock('react-router', () => ({
-    NavLink: ({ to, children, className }: any) => (
-        <a href={to} className={className}>
+    NavLink: ({ to, children }: any) => (
+        <a href={to} >
             {children}
         </a>
     )
