@@ -7,6 +7,7 @@ import Admin from "./pages/Admin";
 import { singlePages } from "./utilities/moduleFederation";
 import { ThemeProvider } from './contexts/ThemeContext';
 import { AuthContextProvider } from "./auth/AuthContextProvider";
+import Legal from "./pages/Legal";
 
 function App() {
   return (
@@ -24,6 +25,12 @@ function App() {
               <Route path="/donation" element={
                 <>
                   <PageTitle title="Soilhive - Donation" />
+                </>
+              } />
+              <Route path="/legal" element={
+                <>
+                  <PageTitle title="Soilhive - Admin" />
+                  <Legal />
                 </>
               } />
               <Route path="/admin" element={
