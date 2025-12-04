@@ -1,6 +1,7 @@
 import type { StyleSpecification } from "react-map-gl/maplibre";
 import SoilhiveMap from "../components/SoilhiveMap";
 import { MAPBOX_ACCESS_TOKEN } from "../utilities/environmentVariables";
+import styles from './Homepage.module.scss'
 
 const MAPBOX_SATELLITE_MAP_STYLE: StyleSpecification = {
   version: 8,
@@ -24,7 +25,7 @@ const MAPBOX_SATELLITE_MAP_STYLE: StyleSpecification = {
 
 function Homepage() {
   return (
-    <div className="home-page">
+    <div className={styles.homepage}>
       <h1 style={{color: 'var(--color-primary)'}}>Homepage</h1>
       <SoilhiveMap
         initialViewBoundingBox={[6.6272658, 35.2889616, 18.7844746, 47.0921462]}
