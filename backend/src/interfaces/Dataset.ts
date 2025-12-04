@@ -32,7 +32,7 @@ export interface IDataset {
   publication_date?: Date;
   reference_period_start?: string;
   reference_period_stop?: string;
-  licenses?: License[];
+  licenses?: string[];
   citation?: string;
   geographical_extent?: string;
   gis_datatype?: GISDataTypeType;

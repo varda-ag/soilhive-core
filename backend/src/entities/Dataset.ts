@@ -1,6 +1,6 @@
 import { Entity, Column, PrimaryGeneratedColumn, Unique } from "typeorm";
 import type { Polygon } from "typeorm";
-import { IDataset, License, VariableMeasured } from "../interfaces/Dataset";
+import { IDataset, VariableMeasured } from "../interfaces/Dataset";
 import BaseTable from "./BaseTable";
 import type { GISDataTypeType } from "../types/data";
 
@@ -31,7 +31,7 @@ export class Dataset extends BaseTable implements IDataset {
   @Column({ type: "text", nullable: true })
   data_producer?: string;
 
-  @Column({ type: "jsonb", nullable: true })
+  @Column({ type: "jsonb", nullable: true, array: true })
   variables_measured?: VariableMeasured[];
 
   @Column({ type: "text", nullable: true })
@@ -46,8 +46,11 @@ export class Dataset extends BaseTable implements IDataset {
   @Column({ type: "text", nullable: true })
   reference_period_stop?: string;
 
-  @Column({ type: "jsonb", nullable: true })
-  licenses?: License[];
+  @Column({ type: "uuid", array: true })
+  licenses?: string[];
+
+  @Column({ type: "text", nullable: true })
+  citation?: string;
 
   @Column({ type: "text", nullable: true })
   geographical_extent?: string;
