@@ -3,26 +3,33 @@ import { useAuthContext } from "../../auth/AuthContextProvider";
 import useTheme from "../../hooks/useTheme";
 import { singlePages } from "../../utilities/moduleFederation";
 import UserIcon from 'assets/icons/small-user-icon.svg?react';
-import HamburgerIcon from 'assets/icons/medium-hamburger-menu-icon.svg?react'; 
+import HamburgerIcon from 'assets/icons/medium-hamburger-menu-icon.svg?react';
+import CloseIcon from 'assets/icons/medium-cross-menu-icon.svg?react'; 
 
 import styles from './Header.module.scss'
 import { NavLink } from 'react-router';
+import { useState } from 'react';
 
 export default function Header() {
 
   const { logo } = useTheme()
   const { isAuthenticated, isLoading, login, logout } = useAuthContext();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const getNavLinkClass = ({ isActive }: { isActive: boolean }) => {
     return isActive ? `${styles.active}` : ''
   }
+  
+  const toggleMenu = () => {
+    setIsMenuOpen(!isMenuOpen);
+  };
 
   return (
     <header className={styles.header}>
       <div className={styles.logo}>
         {logo && <img src={logo} alt="Logo" style={{ height: '47px' }} />}
       </div>
-      <nav className={styles.nav}>
+      <nav className={`${styles.nav} ${isMenuOpen ? styles.mobileOpen : ''}`}>
         <NavLink
           to="/"
           className={getNavLinkClass}
@@ -73,8 +80,12 @@ export default function Header() {
       </nav>
 
 
-      <button className={styles.hamburger} aria-label="Menu">
-        <HamburgerIcon /> 
+      <button 
+        className={`${styles.hamburger} ${isMenuOpen ? styles.open : ''}`} 
+        aria-label="Menu"
+        onClick={toggleMenu}
+      >
+        {isMenuOpen ? <CloseIcon /> : <HamburgerIcon />}
       </button>
 
     </header>
