@@ -6,7 +6,7 @@ import type { GISDataTypeType } from "../types/data";
 
 @Entity("datasets")
 @Unique(["slug"])
-export class Dataset extends BaseTable implements IDataset {
+export default class Dataset extends BaseTable implements IDataset {
   @PrimaryGeneratedColumn("uuid")
   id: string; // Uses PostgreSQL UUID, with default uuid_generate_v7() in DB
 
@@ -46,7 +46,7 @@ export class Dataset extends BaseTable implements IDataset {
   @Column({ type: "text", nullable: true })
   reference_period_stop?: string;
 
-  @Column({ type: "uuid", array: true })
+  @Column({ type: "uuid", nullable: true, array: true })
   licenses?: string[];
 
   @Column({ type: "text", nullable: true })
@@ -83,9 +83,9 @@ export class Dataset extends BaseTable implements IDataset {
   @Column({ type: "text" })
   created_by: string;
 
-  @Column({ type: "text" })
+  @Column({ type: "text", nullable: true })
   updated_by?: string;
 
-  @Column({ type: "text" })
+  @Column({ type: "text", nullable: true })
   service_location?: string;
 }
