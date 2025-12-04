@@ -1,24 +1,20 @@
 import "reflect-metadata";
 import { DataSource, EntityManager } from "typeorm";
-import assert from "assert";
 import path from "path";
+import { getDBPassword, getSSL } from "./db-credentials";
 
 // This global variable at module level
 // is used to apply lazy loading to DB connection
 let dataSource: DataSource | null = null;
 
 const createDataSource = async (schema: string): Promise<DataSource> => {
-  for (const v of ["HOST", "PORT", "DB", "USER", "PASSWORD", "SCHEMA"]) {
-    const name = `POSTGRES_${v}`;
-    assert(process.env[name], `Missing environment variable: ${name}`);
-  }
-
   const dataSource = new DataSource({
     type: "postgres",
     host: process.env.POSTGRES_HOST!,
     port: Number(process.env.POSTGRES_PORT!),
     username: process.env.POSTGRES_USER!,
-    password: process.env.POSTGRES_PASSWORD!,
+    password: getDBPassword,
+    ...(process.env.POSTGRES_PASSWORD ? {} : { ssl: getSSL() }),
     database: process.env.POSTGRES_DB!,
     schema,
     entities: [path.join(__dirname, "../entities/**/*{.ts,.js}")],

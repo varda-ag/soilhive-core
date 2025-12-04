@@ -1,7 +1,7 @@
 name: backend
 services:
   postgis:
-    image: postgis/postgis:16-3.4
+    image: postgis/postgis:18-3.6
     environment:
       POSTGRES_DB: database
       POSTGRES_USER: dbuser

@@ -10,6 +10,7 @@ declare namespace NodeJS {
     readonly POSTGRES_USER?: string;
     readonly POSTGRES_PASSWORD?: string;
     readonly POSTGRES_SCHEMA?: string;
+    readonly POSTGRES_AWS_REGION?: string;
     // Auth settings
     readonly SUPER_ADMIN_PASSWORD_HASH?: string;
     readonly DATA_ADMIN_PASSWORD_HASH?: string;

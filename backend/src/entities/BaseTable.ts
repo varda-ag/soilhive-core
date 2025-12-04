@@ -2,13 +2,13 @@ import { BaseEntity, DeleteDateColumn, UpdateDateColumn, CreateDateColumn } from
 
 abstract class BaseTable extends BaseEntity {
   @CreateDateColumn({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
-  createdAt: Date;
+  created_at: Date;
 
   @UpdateDateColumn()
-  updatedAt: Date | null;
+  updated_at: Date | null;
 
   @DeleteDateColumn()
-  deletedAt: Date | null;
+  deleted_at: Date | null;
 }
 
 export default BaseTable;
