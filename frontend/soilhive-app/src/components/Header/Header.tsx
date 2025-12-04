@@ -4,13 +4,28 @@ import useTheme from "../../hooks/useTheme";
 import { singlePages } from "../../utilities/moduleFederation";
 import UserIcon from 'assets/icons/small-user-icon.svg?react';
 import HamburgerIcon from 'assets/icons/medium-hamburger-menu-icon.svg?react';
-import CloseIcon from 'assets/icons/medium-cross-menu-icon.svg?react'; 
+import CloseIcon from 'assets/icons/medium-cross-menu-icon.svg?react';
 
 import styles from './Header.module.scss'
 import { NavLink } from 'react-router';
 import { useState } from 'react';
 
 export default function Header() {
+
+  const menuEntries = [
+    {
+      name: 'Availability',
+      route: '/'
+    },
+    {
+      name: 'Legal',
+      route: '/legal'
+    },
+    {
+      name: 'Admin',
+      route: '/admin'
+    }
+  ]
 
   const { logo } = useTheme()
   const { isAuthenticated, isLoading, login, logout } = useAuthContext();
@@ -19,75 +34,79 @@ export default function Header() {
   const getNavLinkClass = ({ isActive }: { isActive: boolean }) => {
     return isActive ? `${styles.active}` : ''
   }
-  
+
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
   };
 
   return (
-    <header className={styles.header}>
-      <div className={styles.logo}>
-        {logo && <img src={logo} alt="Logo" style={{ height: '47px' }} />}
-      </div>
-      <nav className={`${styles.nav} ${isMenuOpen ? styles.mobileOpen : ''}`}>
-        <NavLink
-          to="/"
-          className={getNavLinkClass}
-        >
-          <span className={styles.linkText}>Availability</span>
-        </NavLink>
+    <>
+      <header className={styles.header}>
+        <div className={styles.logo}>
+          {logo && <img src={logo} alt="Logo" style={{ height: '47px' }} />}
+        </div>
+        <nav className={`${styles.nav} ${isMenuOpen ? styles.mobileOpen : ''}`}>
 
-        <NavLink
-          to="/legal"
-          className={getNavLinkClass}
-        >
-          <span className={styles.linkText}>Legal</span>
-        </NavLink>
-
-        {singlePages.map(({ route, name }) =>
-          <NavLink
-            key={route}
-            to={`/${route}`}
+        {menuEntries.map(({ name, route }) =>
+            <NavLink
+            to={`${route}`}
             className={getNavLinkClass}
           >
             <span className={styles.linkText}>{name}</span>
           </NavLink>
-        )}
+          )}
 
-        <NavLink
-          to="/admin"
-          className={getNavLinkClass}
-        >
-          <span className={styles.linkText}>Admin</span>
-        </NavLink>
+          {singlePages.map(({ route, name }) =>
+            <NavLink
+              key={route}
+              to={`/${route}`}
+              className={getNavLinkClass}
+            >
+              <span className={styles.linkText}>{name}</span>
+            </NavLink>
+          )}
 
-
-        {isLoading ? (
-          <span>Loading...</span>
-        ) : isAuthenticated ? (
-          <>
-            <Button type={'tertiary'} onClick={logout}>
+          {isLoading ? (
+            <span>Loading...</span>
+          ) : isAuthenticated ? (
+            <>
+              <Button type={'tertiary'} onClick={logout}>
+                <UserIcon />
+                Log out
+              </Button>
+            </>
+          ) : (
+            <Button type={'tertiary'} onClick={() => login()}>
               <UserIcon />
-              Log out
+              Log in
             </Button>
-          </>
-        ) : (
-          <Button type={'tertiary'} onClick={() => login()}>
-            <UserIcon />
-            Log in
-          </Button>
-        )}
-      </nav>
+          )}
+        </nav>
 
 
-      <button 
-        className={`${styles.hamburger} ${isMenuOpen ? styles.open : ''}`} 
-        aria-label="Menu"
-        onClick={toggleMenu}
-      >
-        {isMenuOpen ? <CloseIcon /> : <HamburgerIcon />}
-      </button>
+        <button
+          className={`${styles.hamburger} ${isMenuOpen ? styles.open : ''}`}
+          aria-label="Menu"
+          onClick={toggleMenu}
+        >
+          {isMenuOpen ? <CloseIcon /> : <HamburgerIcon />}
+        </button>
 
-    </header>
+      </header>
+      {isMenuOpen && (
+        <div className={styles.mobileMenu}>
+          {menuEntries.map(({ name, route }) => (
+            <NavLink
+              key={route}
+              to={route}
+              className={styles.mobileLink}
+              onClick={() => setIsMenuOpen(false)}
+            >
+              <span className={styles.linkText}>{name}</span>
+            </NavLink>
+          ))}
+        </div>
+      )}
+    </>
   );
 }
