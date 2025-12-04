@@ -86,7 +86,7 @@ export default function Header() {
 
 
         <button
-          className={`${styles.hamburger} ${isMenuOpen ? styles.open : ''}`}
+          className={styles.hamburger}
           aria-label="Menu"
           onClick={toggleMenu}
         >
