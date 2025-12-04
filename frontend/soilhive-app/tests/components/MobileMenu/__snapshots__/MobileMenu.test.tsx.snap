@@ -1,0 +1,30 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`Mobile menu should render nav link from menu entries config 1`] = `
+<div>
+  <div
+    class="mobileMenu"
+  >
+    <a
+      data-testid="mock-router-navlink"
+      href="/a"
+    >
+      <span
+        class="linkText"
+      >
+        a
+      </span>
+    </a>
+    <a
+      data-testid="mock-router-navlink"
+      href="/b"
+    >
+      <span
+        class="linkText"
+      >
+        b
+      </span>
+    </a>
+  </div>
+</div>
+`;
