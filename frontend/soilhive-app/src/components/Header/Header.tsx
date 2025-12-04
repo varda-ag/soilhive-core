@@ -9,6 +9,7 @@ import CloseIcon from 'assets/icons/medium-cross-menu-icon.svg?react';
 import styles from './Header.module.scss'
 import { NavLink } from 'react-router';
 import { useState } from 'react';
+import MobileMenu from "components/MobileMenu/MobileMenu";
 
 export default function Header() {
 
@@ -94,18 +95,7 @@ export default function Header() {
 
       </header>
       {isMenuOpen && (
-        <div className={styles.mobileMenu}>
-          {menuEntries.map(({ name, route }) => (
-            <NavLink
-              key={route}
-              to={route}
-              className={styles.mobileLink}
-              onClick={() => setIsMenuOpen(false)}
-            >
-              <span className={styles.linkText}>{name}</span>
-            </NavLink>
-          ))}
-        </div>
+        <MobileMenu menuEntries={menuEntries} setIsMenuOpen={setIsMenuOpen} />
       )}
     </>
   );
