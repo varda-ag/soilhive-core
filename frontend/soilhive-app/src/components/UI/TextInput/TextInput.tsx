@@ -109,6 +109,7 @@ export function TextInput({
       className={className}
       label={label}
       labelTooltip={labelTooltip}
+      size={size}
       isRequired={isRequired}
       isError={isError}
       errorMessage={errorMessage}

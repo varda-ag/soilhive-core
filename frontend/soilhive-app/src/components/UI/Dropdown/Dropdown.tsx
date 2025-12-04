@@ -107,6 +107,7 @@ export function Dropdown({
             className={className}
             label={label}
             labelTooltip={labelTooltip}
+            size={size}
             isRequired={isRequired}
             isError={isError}
             errorMessage={errorMessage}

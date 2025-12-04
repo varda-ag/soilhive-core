@@ -1,11 +1,9 @@
 .Dropdown {
     position: relative;
     display: block;
-    // display: inline-block;
     background: var(--color-neutral-white);
     border: var(--color-neutral-dark-100) solid 0.125rem;
     border-radius: 0.25rem;
-    min-width: 16.25rem;
 
     > .DropdownInput {
         display: flex;
@@ -17,13 +15,16 @@
             flex-shrink: 0;
             color: var(--color-neutral-black);
             line-height: var(--line-height-lg);
+            width: 100%;
 
             &.Placeholder {
                 color: var(--color-neutral-dark-400);
             }
+            z-index: 1;
         }
 
         > .ArrowIcon {
+            position: absolute;
             flex-shrink: 0;
             color: var(--color-neutral-dark-400);
         }
@@ -97,6 +98,10 @@
             height: 1.688rem;
             font-size: var(--font-size-lg);
         }
+
+        > .ArrowIcon {
+            right: 0.794rem;
+        }
     }
 
     &.Small > .DropdownInput {
@@ -106,6 +111,10 @@
             height: 1.5rem;
             font-size: var(--font-size-md);
         }
+
+        > .ArrowIcon {
+            right: 0.5rem;
+        }
     }
 
     &.Tiny > .DropdownInput {
@@ -114,6 +123,10 @@
         > .SelectedOption {
             height: 1.313rem;
             font-size: var(--font-size-sm);
+        }
+
+        > .ArrowIcon {
+            right: 0.3445rem;
         }
     }
 }

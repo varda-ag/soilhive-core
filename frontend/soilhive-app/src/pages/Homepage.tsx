@@ -1,7 +1,15 @@
+import { useState } from "react";
 import type { StyleSpecification } from "react-map-gl/maplibre";
-import SoilhiveMap from "../components/SoilhiveMap";
+import SoilhiveMap from "components/SoilhiveMap";
 import { MAPBOX_ACCESS_TOKEN } from "../utilities/environmentVariables";
 import styles from './Homepage.module.scss'
+
+import DatasetsIcon from 'assets/icons/paste-icon.svg?react';
+import { Button } from "components/UI";
+import { DatasetsSidebar } from "components/DatasetsSidebar/DatasetsSidebar";
+
+import styles from "./Homepage.module.scss";
+
 
 const MAPBOX_SATELLITE_MAP_STYLE: StyleSpecification = {
   version: 8,
@@ -24,20 +32,40 @@ const MAPBOX_SATELLITE_MAP_STYLE: StyleSpecification = {
 };
 
 function Homepage() {
+  const [isDatasetsOpened, setIsDatasetsOpened] = useState<boolean>(false);
+
+
   return (
-    <div className={styles.homepage}>
-      <SoilhiveMap
-        initialViewBoundingBox={[6.6272658, 35.2889616, 18.7844746, 47.0921462]}
-        showGeocoder={true}
-        showH3Cells={true}
-        geocoder={localStorage.getItem('MAP_GEOCODER') ?? 'nominatim' as any}
-        mapStyles={[
-          {name: 'CartoCDN Voyager', mapStyle: 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json'},
-          {name: 'Mapbox Satellite', mapStyle: MAPBOX_SATELLITE_MAP_STYLE},
-          {name: 'Maplibre Demotile Globe', mapStyle: 'https://demotiles.maplibre.org/globe.json'},
-          {name: 'OpenMap Tiles OSM Bright', mapStyle: 'https://openmaptiles.geo.data.gouv.fr/styles/osm-bright/style.json'}
-        ]}
-      />
+    <div className={styles.Homepage}>
+      <div className={styles.Content}>
+        <SoilhiveMap
+          initialViewBoundingBox={[6.6272658, 35.2889616, 18.7844746, 47.0921462]}
+          showGeocoder={true}
+          showH3Cells={true}
+          geocoder={localStorage.getItem('MAP_GEOCODER') ?? 'nominatim' as any}
+          mapStyles={[
+            {name: 'CartoCDN Voyager', mapStyle: 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json'},
+            {name: 'Mapbox Satellite', mapStyle: MAPBOX_SATELLITE_MAP_STYLE},
+            {name: 'Maplibre Demotile Globe', mapStyle: 'https://demotiles.maplibre.org/globe.json'},
+            {name: 'OpenMap Tiles OSM Bright', mapStyle: 'https://openmaptiles.geo.data.gouv.fr/styles/osm-bright/style.json'}
+          ]}
+        />
+        {isDatasetsOpened && (
+          <DatasetsSidebar onClose={() => setIsDatasetsOpened(false)}/>
+        )}
+      </div>
+
+      {!isDatasetsOpened && (
+        <Button
+          className={styles.DatasetsButton}
+          type="custom"
+          onClick={() => setIsDatasetsOpened(true)}
+        >
+          <>
+            <DatasetsIcon /> Datasets
+          </>
+        </Button>
+      )}
     </div>
   );
 };

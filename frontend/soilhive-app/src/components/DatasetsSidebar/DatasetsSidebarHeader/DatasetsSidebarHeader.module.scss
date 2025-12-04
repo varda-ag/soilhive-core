@@ -1,0 +1,32 @@
+.DatasetsSidebarHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: .75rem .438rem .75rem .937rem;
+    background-color: var(--color-brand-light-green-600);
+    cursor: pointer;
+
+    > .Title {
+        display: flex;
+        align-items: center;
+        gap: .5rem;
+        font-size: var(--font-size-md);
+        font-weight: var(--font-weight-bold);
+        text-transform: uppercase;
+
+        > .DatasetsIconWrapper {
+            display: flex;
+            padding: .25rem;
+            border-radius: .25rem;
+            background-color: var(--color-cta-default-solid);
+            color: var(--color-neutral-white);
+        }
+    }
+
+    > .SidebarIconWrapper {
+        display: flex;
+        padding: .375rem .25rem;
+        border-radius: .25rem;
+        background-color: var(--color-brand-light-green-100);
+    }
+}
