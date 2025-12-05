@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { GeolocateControl, Map, NavigationControl, ScaleControl, TerrainControl,type MapGeoJSONFeature, type StyleSpecification, type ImmutableLike, type LayerProps, Popup, Source, Layer, useMap } from 'react-map-gl/maplibre';
+import { GeolocateControl, Map, NavigationControl, ScaleControl, TerrainControl, type MapGeoJSONFeature, type StyleSpecification, type ImmutableLike, type LayerProps, Popup, Source, Layer, useMap } from 'react-map-gl/maplibre';
 import GeocoderControl from './GeocoderControl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import '@maplibre/maplibre-gl-geocoder/dist/maplibre-gl-geocoder.css';
@@ -13,7 +13,7 @@ import { h3ResolutionForZoomLevel } from '../utilities/map';
 type MapStyle = string | StyleSpecification | ImmutableLike<StyleSpecification>;
 type MapStyles = Array<{ name: string, mapStyle: MapStyle }>;
 
-function MapStyleSwitcher({mapStyles, onMapStyleChange}: {
+function MapStyleSwitcher({ mapStyles, onMapStyleChange }: {
   mapStyles: MapStyles;
   onMapStyleChange: Dispatch<MapStyle>;
 }) {
@@ -31,9 +31,9 @@ function MapStyleSwitcher({mapStyles, onMapStyleChange}: {
           } 
         }
       >
-        { mapStyles.map(({name}, index) => {
-            return (<option key={index} value={index}>{name}</option>)
-          })
+        {mapStyles.map(({ name }, index) => {
+          return (<option key={index} value={index}>{name}</option>)
+        })
         }
       </select>
     </div>
@@ -67,6 +67,15 @@ const dataLayerFills: LayerProps = {
   }
 };
 
+const dataLayerSelection: LayerProps = {
+  id: 'data-selection',
+  type: 'fill',
+  paint: {
+    'fill-color': '#F5B200',
+    'fill-opacity': 0.5
+  }
+};
+
 const dataLayerBorders: LayerProps = {
   id: 'data-borders',
   type: 'line',
@@ -85,17 +94,21 @@ function SoilhiveMap({
   showGeolocation = true,
   showScale = true,
   showH3Cells = false,
-  mapStyles = [{name: 'CartoCDN Voyager', mapStyle: 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json'}],
+  mapStyles = [{ name: 'CartoCDN Voyager', mapStyle: 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json' }],
   scrollZoom = true,
   dragPan = true
 }: SoilhiveMapProps) {
   const [currentMapStyle, setCurrentMapStyle] = useState(mapStyles[0].mapStyle);
   const [selectedPoint, setSelectedPoint] = useState(null);
-  const selectedFeatureRef = useRef<MapGeoJSONFeature>();
+  const selectedFeatureRef = useRef < MapGeoJSONFeature > ();
   const [h3Cells, setH3Cells] = useState(null);
+  const [selection, setSelection] = useState({
+    type: 'FeatureCollection',
+    features: []
+  });
 
   function updateH3Cells(mapEvent) {
-    if(!showH3Cells) {
+    if (!showH3Cells) {
       setH3Cells(null);
       return;
     };
@@ -118,21 +131,24 @@ function SoilhiveMap({
         dragPan={dragPan}
         className="map"
         mapStyle={currentMapStyle}
-        {...(initialViewBoundingBox ? {initialViewState: { bounds: initialViewBoundingBox }} : {})}
+        {...(initialViewBoundingBox ? { initialViewState: { bounds: initialViewBoundingBox } } : {})}
         onDragEnd={updateH3Cells}
         onLoad={updateH3Cells}
         onZoomEnd={updateH3Cells}
         onMoveEnd={updateH3Cells}        
         onClick={(event) => {
           const map = event.target;
-          if(event.features?.length > 0) {
+          if (event.features?.length > 0) {
             const selectedFeature = event.features[0];
-            if(selectedFeature.id !== selectedFeatureRef.current?.id) {
+            if (selectedFeature.id !== selectedFeatureRef.current?.id) {
+              setSelection({ type: 'FeatureCollection', features: [selectedFeature] })
+              setSelectedPoint(event.lngLat);
+            
               map.setFeatureState(
                 { source: 'data', id: selectedFeature.id },
                 { selected: true }
               );
-              if(selectedFeatureRef.current) {
+              if (selectedFeatureRef.current) {
                 map.setFeatureState(
                   { source: 'data', id: selectedFeatureRef.current.id },
                   { selected: false }
@@ -141,7 +157,7 @@ function SoilhiveMap({
               selectedFeatureRef.current = selectedFeature;
             }
           } else {
-            if(selectedFeatureRef.current) {
+            if (selectedFeatureRef.current) {
               map.setFeatureState(
                 { source: 'data', id: selectedFeatureRef.current.id },
                 { selected: false }
@@ -149,15 +165,15 @@ function SoilhiveMap({
             }
             selectedFeatureRef.current = null;
           }
-          // setSelectedPoint(event.lngLat);
         }}
         interactiveLayerIds={['data-fills']}
       >
-        { selectedPoint &&
+        {selectedPoint &&
           <Popup
             anchor="left"
             longitude={selectedPoint.lng}
             latitude={selectedPoint.lat}
+            closeOnClick={false}
             offset={{
               left: 0,
               top: 0,
@@ -169,7 +185,7 @@ function SoilhiveMap({
             }}
           >
             <div className="soilhive-map-popup-header">
-              <div className="soilhive-map-popup-header-left" style={{minWidth: '24px'}}>
+              <div className="soilhive-map-popup-header-left" style={{ minWidth: '24px' }}>
                 <Flower />
               </div>
               <div className="soilhive-map-popup-header-right">
@@ -177,31 +193,36 @@ function SoilhiveMap({
                   SOIL DATA
                 </div>
                 <div className="soilhive-map-popup-header-right-subtitle">
-                  H3 Cell ID: 8a390cc4189ffff
+                  H3 Cell ID: {selectedFeatureRef.current?.id}
                 </div>
               </div>
             </div>
             <div className="soilhive-map-popup-content">
               <strong>Coordinates</strong><br />
-              Longitude {selectedPoint.lng}<br />
-              Latitude {selectedPoint.lat}
+              Longitude {selectedPoint.lng.toFixed(6)}<br />
+              Latitude {selectedPoint.lat.toFixed(6)}
             </div>
           </Popup>
         }
 
-        { showH3Cells && h3Cells &&
-          <Source id="data" type="geojson" data={h3Cells} promoteId='h3Index'>
-            <Layer {...dataLayerFills} />
-            <Layer {...dataLayerBorders} />
-          </Source>
+        {showH3Cells && h3Cells &&
+          <>
+            <Source id="data" type="geojson" data={h3Cells} promoteId='h3Index'>
+              <Layer {...dataLayerFills} />
+              <Layer {...dataLayerBorders} />
+            </Source>
+            <Source id="selection" type="geojson" data={selection}>
+              <Layer {...dataLayerSelection} />
+            </Source>
+          </>
         }
 
         {showGeocoder && <GeocoderControl position="top-left" geocoder={geocoder} />}
-        { showGeolocation && <GeolocateControl position="bottom-right" /> }
-        { showNavigation && <NavigationControl position="bottom-right" showCompass={false} showZoom={true} visualizePitch={false} /> }
-        { showScale && <ScaleControl /> }
+        {showGeolocation && <GeolocateControl position="bottom-right" />}
+        {showNavigation && <NavigationControl position="bottom-right" showCompass={false} showZoom={true} visualizePitch={false} />}
+        {showScale && <ScaleControl />}
       </Map>
-      { mapStyles.length > 1 && <MapStyleSwitcher mapStyles={mapStyles} onMapStyleChange={setCurrentMapStyle} /> }
+      {mapStyles.length > 1 && <MapStyleSwitcher mapStyles={mapStyles} onMapStyleChange={setCurrentMapStyle} />}
     </div>
   );
 };
