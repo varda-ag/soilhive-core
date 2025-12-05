@@ -67,6 +67,15 @@ const dataLayerFills: LayerProps = {
   }
 };
 
+const dataLayerSelection: LayerProps = {
+  id: 'data-selection',
+  type: 'fill',
+  paint: {
+    'fill-color': '#F5B200',
+    'fill-opacity': 0.5
+  }
+};
+
 const dataLayerBorders: LayerProps = {
   id: 'data-borders',
   type: 'line',
@@ -93,6 +102,10 @@ function SoilhiveMap({
   const [selectedPoint, setSelectedPoint] = useState(null);
   const selectedFeatureRef = useRef<MapGeoJSONFeature>();
   const [h3Cells, setH3Cells] = useState(null);
+  const [selection, setSelection] = useState({
+    type: 'FeatureCollection',
+    features: []
+  });
 
   function updateH3Cells(mapEvent) {
     if(!showH3Cells) {
@@ -128,6 +141,8 @@ function SoilhiveMap({
           if(event.features?.length > 0) {
             const selectedFeature = event.features[0];
             if(selectedFeature.id !== selectedFeatureRef.current?.id) {
+              setSelection({ type: 'FeatureCollection', features: [selectedFeature] })
+
               map.setFeatureState(
                 { source: 'data', id: selectedFeature.id },
                 { selected: true }
@@ -149,7 +164,7 @@ function SoilhiveMap({
             }
             selectedFeatureRef.current = null;
           }
-          // setSelectedPoint(event.lngLat);
+          setSelectedPoint(event.lngLat);
         }}
         interactiveLayerIds={['data-fills']}
       >
@@ -177,7 +192,7 @@ function SoilhiveMap({
                   SOIL DATA
                 </div>
                 <div className="soilhive-map-popup-header-right-subtitle">
-                  H3 Cell ID: 8a390cc4189ffff
+                  H3 Cell ID: {selectedFeatureRef.current?.id}
                 </div>
               </div>
             </div>
@@ -190,10 +205,15 @@ function SoilhiveMap({
         }
 
         { showH3Cells && h3Cells &&
-          <Source id="data" type="geojson" data={h3Cells} promoteId='h3Index'>
-            <Layer {...dataLayerFills} />
-            <Layer {...dataLayerBorders} />
-          </Source>
+          <>
+            <Source id="data" type="geojson" data={h3Cells} promoteId='h3Index'>
+              <Layer {...dataLayerFills} />
+              <Layer {...dataLayerBorders} />
+            </Source>
+            <Source id="selection" type="geojson" data={selection}>
+              <Layer {...dataLayerSelection} />
+            </Source>
+          </>
         }
 
         {showGeocoder && <GeocoderControl position="top-left" geocoder={geocoder} />}
