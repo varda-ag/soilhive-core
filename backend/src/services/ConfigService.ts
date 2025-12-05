@@ -9,7 +9,7 @@ import assert from "assert";
 
 export default class ConfigService {
   putConfig = async (repo: Repository<JsonStorage>, id: string, data: any): Promise<any> => {
-    await repo.upsert([{ id, data, deletedAt: null }], ["id"]);
+    await repo.upsert([{ id, data, deleted_at: null }], ["id"]);
     return await this.getConfig(repo, id);
   };
 
