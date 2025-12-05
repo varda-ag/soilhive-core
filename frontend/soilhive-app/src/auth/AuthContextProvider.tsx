@@ -7,6 +7,7 @@ import { LoginModal } from "./LoginModal";
 import { useRequest } from "../api-client";
 import { AuthModes, type AuthModesType } from "./types";
 import { clearToken, saveToken } from "./tokenStore";
+import { BACKEND_BASE_URL } from '../configuration/api';
 
 const authContext = createContext<AuthContext | undefined>(undefined);
 
@@ -23,7 +24,7 @@ export function AuthContextProvider({ children }: { children: React.ReactNode })
     const { request } = useRequest();
 
     useEffect(() => {
-        request({ url: 'http://localhost:4001/auth/config' })
+        request({ url: `${BACKEND_BASE_URL}/auth/config` })
             .then(setAuthConfig)
             .catch(console.error);
     }, []);
