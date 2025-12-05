@@ -50,6 +50,7 @@ export default function Header() {
 
         {menuEntries.map(({ name, route }) =>
             <NavLink
+            key={route}
             to={`${route}`}
             className={getNavLinkClass}
           >
