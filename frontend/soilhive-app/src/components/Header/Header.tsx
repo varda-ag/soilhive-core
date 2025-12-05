@@ -1,8 +1,5 @@
-import { Button } from "components/UI";
-import { useAuthContext } from "../../auth/AuthContextProvider";
 import useTheme from "../../hooks/useTheme";
 import { singlePages } from "../../utilities/moduleFederation";
-import UserIcon from 'assets/icons/small-user-icon.svg?react';
 import HamburgerIcon from 'assets/icons/medium-hamburger-menu-icon.svg?react';
 import CloseIcon from 'assets/icons/medium-cross-menu-icon.svg?react';
 
@@ -10,6 +7,8 @@ import styles from './Header.module.scss'
 import { NavLink } from 'react-router';
 import { useState } from 'react';
 import MobileMenu from "components/MobileMenu/MobileMenu";
+import AuthButton from "components/AuthButton/AuthButton";
+
 
 export default function Header() {
 
@@ -29,7 +28,6 @@ export default function Header() {
   ]
 
   const { logo } = useTheme()
-  const { isAuthenticated, isLoading, login, logout } = useAuthContext();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const getNavLinkClass = ({ isActive }: { isActive: boolean }) => {
@@ -44,11 +42,11 @@ export default function Header() {
     <>
       <header className={styles.header}>
         <div className={styles.logo}>
-          {logo && <img src={logo} alt="Logo" style={{ height: '47px' }} />}
+          {logo && <img src={logo} alt="Logo"  />}
         </div>
         <nav className={`${styles.nav} ${isMenuOpen ? styles.mobileOpen : ''}`}>
 
-        {menuEntries.map(({ name, route }) =>
+          {menuEntries.map(({ name, route }) =>
             <NavLink
             key={route}
             to={`${route}`}
@@ -68,21 +66,7 @@ export default function Header() {
             </NavLink>
           )}
 
-          {isLoading ? (
-            <span>Loading...</span>
-          ) : isAuthenticated ? (
-            <>
-              <Button type={'tertiary'} onClick={logout}>
-                <UserIcon />
-                Log out
-              </Button>
-            </>
-          ) : (
-            <Button type={'tertiary'} onClick={() => login()}>
-              <UserIcon />
-              Log in
-            </Button>
-          )}
+          <AuthButton></AuthButton>
         </nav>
 
 
