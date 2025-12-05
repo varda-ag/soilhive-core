@@ -199,8 +199,8 @@ function SoilhiveMap({
             </div>
             <div className="soilhive-map-popup-content">
               <strong>Coordinates</strong><br />
-              Longitude {selectedPoint.lng}<br />
-              Latitude {selectedPoint.lat}
+              Longitude {selectedPoint.lng.toFixed(6)}<br />
+              Latitude {selectedPoint.lat.toFixed(6)}
             </div>
           </Popup>
         }
