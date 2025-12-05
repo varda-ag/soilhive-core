@@ -3,6 +3,7 @@ import type { User } from "./Token";
 import { useRequest } from "../api-client";
 import { jwtDecode, type JwtPayload } from "jwt-decode";
 import { clearToken, saveToken } from "./tokenStore";
+import { BACKEND_BASE_URL } from '../configuration/api';
 
 const TOKEN_STORAGE_KEY = 'soilhive_token'
 
@@ -74,7 +75,7 @@ export function usePasswordAuth() {
 
         try {
             const token = await request({
-                url: 'http://localhost:4001/oauth/token',
+                url: `${BACKEND_BASE_URL}/oauth/token`,
                 method: 'POST',
                 headers: {
                     "Content-Type": "application/x-www-form-urlencoded"
