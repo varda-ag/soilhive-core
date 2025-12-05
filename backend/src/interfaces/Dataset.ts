@@ -18,7 +18,7 @@ export interface VariableMeasured {
   unit_of_measurement: string;
 }
 
-export interface IDataset {
+export interface Dataset {
   id: string;
   slug: string;
   name: string;

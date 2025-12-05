@@ -1,12 +1,12 @@
 import { Entity, Column, PrimaryGeneratedColumn, Unique } from "typeorm";
 import type { Polygon } from "typeorm";
-import { IDataset, VariableMeasured } from "../interfaces/Dataset";
+import { Dataset, VariableMeasured } from "../interfaces/Dataset";
 import BaseTable from "./BaseTable";
 import type { GISDataTypeType } from "../types/data";
 
 @Entity("datasets")
 @Unique(["slug"])
-export default class Dataset extends BaseTable implements IDataset {
+export default class DatasetEntity extends BaseTable implements Dataset {
   @PrimaryGeneratedColumn("uuid")
   id: string; // Uses PostgreSQL UUID, with default uuid_generate_v7() in DB
 
