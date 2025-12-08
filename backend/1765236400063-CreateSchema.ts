@@ -4,7 +4,6 @@ export class CreateSchema1765236400063 implements MigrationInterface {
     name = 'CreateSchema1765236400063'
 
     public async up(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(`SET search_path TO ${process.env.POSTGRES_SCHEMA}, public`);
         await queryRunner.query(`CREATE TABLE "soilhive"."unit_conversions" ("created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP, "id" uuid NOT NULL DEFAULT uuidv7(), "slug" text NOT NULL, "original_unit_of_measurement" text, "standard_unit" text, "conversion_formula" text, CONSTRAINT "UQ_8f65c37e0e3cad54385813d36cd" UNIQUE ("slug"), CONSTRAINT "PK_26f4340a0a834dbe6cf8b241c71" PRIMARY KEY ("id"))`);
         await queryRunner.query(`CREATE TABLE "soilhive"."soil_property_categories" ("created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP, "id" uuid NOT NULL DEFAULT uuidv7(), "slug" text NOT NULL, "category_name" text NOT NULL, "category_acronym" text NOT NULL, "description" text, CONSTRAINT "UQ_ddcd17717fa71afabfad6ebe17f" UNIQUE ("slug"), CONSTRAINT "PK_d111296e414b54267fef8392765" PRIMARY KEY ("id"))`);
         await queryRunner.query(`CREATE TABLE "soilhive"."datasets" ("created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP, "id" uuid NOT NULL DEFAULT uuidv7(), "slug" text NOT NULL, "name" text NOT NULL, "full_name" text, "version" text, "author" text, "description" text, "data_producer" text, "variables_measured" jsonb array, "spatial_resolution" text, "publication_date" date, "reference_period_start" text, "reference_period_stop" text, "licenses" uuid array, "citation" text, "geographical_extent" text, "gis_datatype" text, "spatial_extent" geometry(Polygon,4326), "n_observations" bigint, "n_raster_layers" integer, "soil_depth" jsonb, "status" text NOT NULL DEFAULT 'PENDING', "is_archived" boolean NOT NULL DEFAULT false, "created_by" text NOT NULL, "updated_by" text, "service_location" text, CONSTRAINT "UQ_8c3769423bf107f9ac88e5ab67d" UNIQUE ("slug"), CONSTRAINT "PK_1bf831e43c559a240303e23d038" PRIMARY KEY ("id"))`);
@@ -47,28 +46,6 @@ export class CreateSchema1765236400063 implements MigrationInterface {
         await queryRunner.query(`ALTER TABLE "soilhive"."dataset_file_mappings" ADD CONSTRAINT "FK_fbf14d6b83a5f450b3ed23c410e" FOREIGN KEY ("data_mapping_id") REFERENCES "soilhive"."data_mappings"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "soilhive"."dataset_file_mappings" ADD CONSTRAINT "FK_cb4f539ba5fff9d00110aa91aef" FOREIGN KEY ("file_id") REFERENCES "soilhive"."files"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "soilhive"."dataset_file_mappings" ADD CONSTRAINT "FK_c95cffb2a976245915bf68e3293" FOREIGN KEY ("dataset_id") REFERENCES "soilhive"."datasets"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "soilhive"."features" SET (
-            autovacuum_vacuum_insert_scale_factor=0.005,
-            autovacuum_analyze_scale_factor=0.005,
-            autovacuum_vacuum_scale_factor=0.005
-        )`);
-        await queryRunner.query(`ALTER TABLE "soilhive"."layers" SET (
-            autovacuum_vacuum_insert_scale_factor=0.005,
-            autovacuum_analyze_scale_factor=0.005,
-            autovacuum_vacuum_scale_factor=0.005
-        )`);
-        await queryRunner.query(`ALTER TABLE "soilhive"."observations" SET (
-            autovacuum_vacuum_insert_scale_factor=0.005,
-            autovacuum_analyze_scale_factor=0.005,
-            autovacuum_vacuum_scale_factor=0.005
-        )`);
-        await queryRunner.query(`CREATE INDEX idx_geometry_geography ON "soilhive"."features" USING gist (((geom)::geography))`);
-        await queryRunner.query(`CREATE INDEX idx_geometry_type ON "soilhive"."features" USING btree (st_geometrytype(geom))`);
-        await queryRunner.query(`CREATE INDEX idx_layers_depthrange on "soilhive"."layers" using gist(int4range(min_depth, max_depth))`);
-        await queryRunner.query(`ALTER TABLE "soilhive"."layers"
-            ADD CONSTRAINT layers_unq UNIQUE NULLS NOT DISTINCT (license, sampling_date, min_depth, max_depth, horizon)`);
-            await queryRunner.query(`ALTER TABLE "soilhive"."observations"
-            ADD CONSTRAINT observations_unq unique NULLS NOT distinct (dataset_layer_id, value, analytical_methodology_id)`);
     }
 
     public async down(queryRunner: QueryRunner): Promise<void> {
@@ -114,26 +91,6 @@ export class CreateSchema1765236400063 implements MigrationInterface {
         await queryRunner.query(`DROP TABLE "soilhive"."datasets"`);
         await queryRunner.query(`DROP TABLE "soilhive"."soil_property_categories"`);
         await queryRunner.query(`DROP TABLE "soilhive"."unit_conversions"`);
-        await queryRunner.query(`ALTER TABLE "soilhive"."features" RESET (
-            autovacuum_vacuum_insert_scale_factor,
-            autovacuum_analyze_scale_factor,
-            autovacuum_vacuum_scale_factor
-        )`);
-        await queryRunner.query(`ALTER TABLE "soilhive"."layers" RESET (
-            autovacuum_vacuum_insert_scale_factor,
-            autovacuum_analyze_scale_factor,
-            autovacuum_vacuum_scale_factor
-        )`);
-        await queryRunner.query(`ALTER TABLE "soilhive"."observations" RESET (
-            autovacuum_vacuum_insert_scale_factor,
-            autovacuum_analyze_scale_factor,
-            autovacuum_vacuum_scale_factor
-        )`);
-        await queryRunner.query(`DROP INDEX idx_geometry_geography`);
-        await queryRunner.query(`DROP INDEX idx_geometry_type`);
-        await queryRunner.query(`DROP INDEX idx_layers_depthrange`);
-        await queryRunner.query(`ALTER TABLE "soilhive"."layers" DROP CONSTRAINT layers_unq`);
-        await queryRunner.query(`ALTER TABLE "soilhive"."observations" DROP CONSTRAINT observations_unq`);
     }
 
 }
