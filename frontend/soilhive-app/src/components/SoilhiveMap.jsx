@@ -98,6 +98,7 @@ function SoilhiveMap({
   scrollZoom = true,
   dragPan = true
 }: SoilhiveMapProps) {
+  const mapRef = useRef();
   const [currentMapStyle, setCurrentMapStyle] = useState(mapStyles[0].mapStyle);
   const [selectedPoint, setSelectedPoint] = useState(null);
   const selectedFeatureRef = useRef < MapGeoJSONFeature > ();
@@ -124,9 +125,44 @@ function SoilhiveMap({
     }
   }
 
+  function resetSelection() {
+    if (selectedFeatureRef.current) {
+      mapRef.current.setFeatureState(
+        { source: 'data', id: selectedFeatureRef.current.id },
+        { selected: false }
+      );
+      selectedFeatureRef.current = null;
+    }
+    setSelectedPoint(null);
+    setSelection({
+      type: 'FeatureCollection',
+      features: []
+    });
+  }
+
+  function applySelection(feature, coordinates) {
+    if (feature.id === selectedFeatureRef.current?.id) {
+      return;
+    }
+    setSelection({ type: 'FeatureCollection', features: [feature] })
+    setSelectedPoint(coordinates);   
+    mapRef.current.setFeatureState(
+      { source: 'data', id: feature.id },
+      { selected: true }
+    );
+    if (selectedFeatureRef.current) {
+      mapRef.current.setFeatureState(
+        { source: 'data', id: selectedFeatureRef.current.id },
+        { selected: false }
+      );
+    }
+    selectedFeatureRef.current = feature;
+  }
+            
   return (
     <div className="soilhive-map">
       <Map
+        ref={mapRef}
         scrollZoom={scrollZoom}
         dragPan={dragPan}
         className="map"
@@ -137,33 +173,10 @@ function SoilhiveMap({
         onZoomEnd={updateH3Cells}
         onMoveEnd={updateH3Cells}        
         onClick={(event) => {
-          const map = event.target;
           if (event.features?.length > 0) {
-            const selectedFeature = event.features[0];
-            if (selectedFeature.id !== selectedFeatureRef.current?.id) {
-              setSelection({ type: 'FeatureCollection', features: [selectedFeature] })
-              setSelectedPoint(event.lngLat);
-            
-              map.setFeatureState(
-                { source: 'data', id: selectedFeature.id },
-                { selected: true }
-              );
-              if (selectedFeatureRef.current) {
-                map.setFeatureState(
-                  { source: 'data', id: selectedFeatureRef.current.id },
-                  { selected: false }
-                );
-              }
-              selectedFeatureRef.current = selectedFeature;
-            }
+            applySelection(event.features[0], event.lngLat)
           } else {
-            if (selectedFeatureRef.current) {
-              map.setFeatureState(
-                { source: 'data', id: selectedFeatureRef.current.id },
-                { selected: false }
-              );
-            }
-            selectedFeatureRef.current = null;
+            resetSelection();
           }
         }}
         interactiveLayerIds={['data-fills']}
@@ -181,7 +194,7 @@ function SoilhiveMap({
               bottom: 0
             }}
             onClose={() => {
-              setSelectedPoint(null);
+              resetSelection();
             }}
           >
             <div className="soilhive-map-popup-header">
