@@ -1,19 +1,13 @@
 import type { Polygon } from "geojson";
-import type { GISDataTypeType } from "../types/data";
-
-export interface License {
-  name: string;
-  url: string;
-  citation?: string;
-}
+import type { GISDataTypeType, IngestionStatusType } from "../types/data";
 
 export interface VariableMeasured {
   description: string;
   soil_parameter: string;
-  analytical_tool: string;
-  analytical_method: string;
-  limit_of_detection: string;
-  reference_standard: string;
+  analytical_tool?: string;
+  analytical_method?: string;
+  limit_of_detection?: string;
+  reference_standard?: string;
   soil_parameter_code: string;
   unit_of_measurement: string;
 }
@@ -40,7 +34,7 @@ export interface Dataset {
   n_observations?: string;
   n_raster_layers?: number;
   soil_depth?: object;
-  status: string;
+  status: IngestionStatusType;
   is_archived: boolean;
   created_at: Date;
   updated_at: Date | null;
