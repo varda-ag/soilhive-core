@@ -11,10 +11,6 @@ import type {ControlPosition} from 'react-map-gl/maplibre';
 // };
 
 export default function DrawControl({position = 'bottom-right'}: {position?: ControlPosition;}) {
-  function onFinish(event) {
-    console.log('On finish event', arguments);
-  }
-
   const drawControl = useControl<MaplibreTerradrawControl>(
     () => new MaplibreTerradrawControl({
       modes: [
@@ -39,27 +35,22 @@ export default function DrawControl({position = 'bottom-right'}: {position?: Con
     }),
     ({map}) => {
       const drawInstance = drawControl.getTerraDrawInstance();
-      // drawInstance.on('select', onEvent);
-      drawInstance.on('finish', () => {
-        const snapshot = drawInstance.getSnapshot();
-        console.log('Features', snapshot);
-      });
-      // drawInstance.on('select', onEvent);
-      // onAddEvent.map.on('select', onEvent);
-      // map.on('draw.update', props.onUpdate);
-      // map.on('draw.delete', props.onDelete);
+      drawInstance.on('finish', onFinish);
     },
     ({map}) => {
       const drawInstance = drawControl.getTerraDrawInstance();
-      drawInstance.off('finish', onFinish);
-      // map.off('draw.create', props.onCreate);
-      // map.off('draw.update', props.onUpdate);
-      // map.off('draw.delete', props.onDelete);
+      drawInstance?.off('finish', onFinish);
     },
     {
       position
     }
   );
+
+  function onFinish(event) {
+    const drawInstance = drawControl.getTerraDrawInstance();
+    const snapshot = drawInstance.getSnapshot();
+    console.log('onFinish - features:', snapshot);
+  }
 
   return null;
 }
