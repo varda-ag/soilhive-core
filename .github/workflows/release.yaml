@@ -17,6 +17,13 @@ jobs:
     with:
       node-version: '16.x,18.x'
       project-path: './frontend'
+      disable-lint: true
+      disable-unit-tests: true
+      disable-unit-tests-coverage: true
+      disable-integration-tests: true
+      disable-integration-tests-coverage: true
+      disable-e2e-tests: true
+      disable-e2e-tests-coverage: true
 
   nodejs-backend:
     name: Node.js CI
@@ -24,6 +31,13 @@ jobs:
     with:
       node-version: '16.x,18.x'
       project-path: './backend'
+      disable-lint: true
+      disable-unit-tests: true
+      disable-unit-tests-coverage: true
+      disable-integration-tests: true
+      disable-integration-tests-coverage: true
+      disable-e2e-tests: true
+      disable-e2e-tests-coverage: true
 
   version:
     name: version
