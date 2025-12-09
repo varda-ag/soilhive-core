@@ -28,7 +28,7 @@ export default class SoilPropertyEntity extends BaseTable implements SoilPropert
   @Column({ type: "text", nullable: true })
   standard_unit?: string;
 
-  @Column({ type: "text", nullable: true })
+  @Column({ type: "int", nullable: true })
   property_level?: number;
 
   @Column({ type: "text", nullable: true })
