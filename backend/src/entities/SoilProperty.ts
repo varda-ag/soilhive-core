@@ -4,7 +4,7 @@ import BaseTable from "./BaseTable";
 import SoilPropertyCategoryEntity from "./SoilPropertyCategory";
 import { MAX_PROPERTY_LEVEL } from "../constants/constants";
 
-@Entity("soil_property_categories")
+@Entity("soil_properties")
 @Unique(["slug"])
 @Check(`((property_level >= 1) AND (property_level <= ${MAX_PROPERTY_LEVEL}))`)
 export default class SoilPropertyEntity extends BaseTable implements SoilProperty {
