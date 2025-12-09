@@ -18,13 +18,14 @@ services:
     command: start-dev
 
   postgis:
-    image: postgis/postgis:16-3.4
+    image: postgis/postgis:18-3.6
+    platform: linux/amd64
     environment:
       POSTGRES_DB: database
       POSTGRES_USER: dbuser
       POSTGRES_PASSWORD: dbpass
     volumes:
-      - postgis_data:/var/lib/postgresql/data
+      - postgis_data:/var/lib/postgresql
     ports:
       - "5432:5432"
 

@@ -205,7 +205,46 @@ paths:
         "204":
           description: Logo deleted successfully
 
-  /datasets/filters:
+  /datasets:
+    get:
+      x-eov-operation-handler: controllers/datasets
+      x-eov-operation-id: getDatasets
+      summary: Get metadata for all datasets
+      tags:
+        - datasets
+      responses:
+        "200":
+          description: Dataset array
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Dataset"
+
+  /datasets/{datasetSlug}:
+    parameters:
+      - name: datasetSlug
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Dataset slug
+    get:
+      x-eov-operation-handler: controllers/datasets
+      x-eov-operation-id: getDataset
+      summary: Get metadata for a specific dataset
+      tags:
+        - datasets
+      responses:
+        "200":
+          description: Dataset information
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Dataset"
+
+  /datasets-filters:
     post:
       x-eov-operation-handler: controllers/datasets
       x-eov-operation-id: postDatasetsFilters
@@ -441,7 +480,7 @@ components:
         geometries:
           type: array
           items:
-            $ref: "./GeoJSON-OAS3.yaml#/components/schemas/Geometry"
+            $ref: "../src/GeoJSON-OAS3.yaml#/components/schemas/Geometry"
         parameters:
           $ref: "#/components/schemas/FilterableDatasetMetadata"
       required:
@@ -483,3 +522,133 @@ components:
                     type: array
                     items:
                       $ref: "#/components/schemas/FilteredDataset"
+
+    VariableMeasured:
+      type: object
+      properties:
+        description:
+          type: string
+        soil_parameter:
+          type: string
+        analytical_tool:
+          type: string
+        analytical_method:
+          type: string
+        limit_of_detection:
+          type: string
+        reference_standard:
+          type: string
+        soil_parameter_code:
+          type: string
+        unit_of_measurement:
+          type: string
+      required:
+        - description
+        - soil_parameter
+        - analytical_tool
+        - analytical_method
+        - limit_of_detection
+        - reference_standard
+        - soil_parameter_code
+        - unit_of_measurement
+
+    Dataset:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        slug:
+          type: string
+        name:
+          type: string
+        full_name:
+          type: string
+          nullable: true
+        version:
+          type: string
+          nullable: true
+        author:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        data_producer:
+          type: string
+          nullable: true
+        variables_measured:
+          type: array
+          items:
+            $ref: '#/components/schemas/VariableMeasured'
+          nullable: true
+        spatial_resolution:
+          type: string
+          nullable: true
+        publication_date:
+          type: string
+          format: date-time
+          nullable: true
+        reference_period_start:
+          type: string
+          format: date
+          nullable: true
+        reference_period_stop:
+          type: string
+          format: date
+          nullable: true
+        licenses:
+          type: array
+          items:
+            type: string
+          nullable: true
+        citation:
+          type: string
+          nullable: true
+        geographical_extent:
+          type: string
+          nullable: true
+        gis_datatype:
+          type: string
+          nullable: true
+        spatial_extent:
+          type: object
+          # TODO: this triggers an OpenApiValidator bug
+          # $ref: "../src/GeoJSON-OAS3.yaml#/components/schemas/Polygon"
+        n_observations:
+          type: string
+          nullable: true
+        n_raster_layers:
+          type: integer
+          nullable: true
+        soil_depth:
+          type: object
+          nullable: true
+        status:
+          type: string
+        is_archived:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_by:
+          type: string
+        updated_by:
+          type: string
+          nullable: true
+        service_location:
+          type: string
+          nullable: true
+      required:
+        - id
+        - slug
+        - name
+        - spatial_extent
+        - status
+        - is_archived
+        - created_at
+        - created_by

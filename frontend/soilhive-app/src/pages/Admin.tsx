@@ -29,7 +29,6 @@ function Admin() {
     return (
     <div>
       <h2>Access denied. Please log in.</h2>
-      <button onClick={ () => login() }>Login</button>
     </div>)
   }
 
@@ -51,7 +50,7 @@ function Admin() {
         }) }
       </ol>
       <h2>Authenticated user: {user?.profile?.name}</h2>
-      <Button onClick={ () => logout() }>Logout</Button>
+
 
       <h2>Maps:</h2>
       <div>
