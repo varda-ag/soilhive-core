@@ -148,3 +148,6 @@ vite.config.ts.timestamp-*
 
 # module-federation types
 @mf-types
+
+# TODO: REMOVE once we have dynamic env loading (Check also .dockerignore)
+!frontend/soilhive-app/.env
