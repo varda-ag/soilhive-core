@@ -3,12 +3,14 @@ import { GeolocateControl, Map, NavigationControl, ScaleControl, TerrainControl,
 import GeocoderControl from './GeocoderControl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import '@maplibre/maplibre-gl-geocoder/dist/maplibre-gl-geocoder.css';
+import '@watergis/maplibre-gl-terradraw/dist/maplibre-gl-terradraw.css'
 import '../styles/SoilhiveMap.scss';
 import Flower from '../assets/images/flower.svg?react';
 import { polygonToCells } from 'h3-js';
 import { bboxToGeoJSONPolygonCoordinates, bBoxToH3Cells, h3IndexesToGeoJSONPolygons } from '../utilities/geo';
 import { bboxPolygon } from '@turf/turf';
 import { h3ResolutionForZoomLevel } from '../utilities/map';
+import DrawControl from './DrawControl';
 
 type MapStyle = string | StyleSpecification | ImmutableLike<StyleSpecification>;
 type MapStyles = Array<{ name: string, mapStyle: MapStyle }>;
@@ -197,8 +199,22 @@ function SoilhiveMap({
         }
 
         {showGeocoder && <GeocoderControl position="top-left" geocoder={geocoder} />}
+              
         { showGeolocation && <GeolocateControl position="bottom-right" /> }
         { showNavigation && <NavigationControl position="bottom-right" showCompass={false} showZoom={true} visualizePitch={false} /> }
+        <DrawControl
+          position="bottom-right"
+          // displayControlsDefault={false}
+          // controls={{
+          //   polygon: true,
+          //   trash: true
+          // }}
+          // defaultMode="draw_polygon"
+          // onCreate={onUpdate}
+          // onUpdate={onUpdate}
+          // onDelete={onDelete}
+        />  
+
         { showScale && <ScaleControl /> }
       </Map>
       { mapStyles.length > 1 && <MapStyleSwitcher mapStyles={mapStyles} onMapStyleChange={setCurrentMapStyle} /> }
