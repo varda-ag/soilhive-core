@@ -11,7 +11,8 @@ export default class UnitConversionSlugHistoryEntity extends BaseTable implement
   @Column({ type: "uuid" })
   unit_conversion_id: string;
 
-  @ManyToOne(() => UnitConversionEntity, (unit_conversion) => unit_conversion.id)
+  @ManyToOne(() => UnitConversionEntity, (unit_conversion) => unit_conversion.id, {
+    deferrable: 'INITIALLY DEFERRED'})
   @JoinColumn({ name: "unit_conversion_id" })
   unit_conversion: UnitConversionEntity;
 

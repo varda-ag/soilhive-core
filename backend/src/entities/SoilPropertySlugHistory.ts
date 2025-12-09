@@ -11,7 +11,8 @@ export default class SoilPropertySlugHistoryEntity extends BaseTable implements 
   @Column({ type: "uuid" })
   property_id: string;
 
-  @ManyToOne(() => SoilPropertyEntity, (soil_property) => soil_property.id)
+  @ManyToOne(() => SoilPropertyEntity, (soil_property) => soil_property.id, {
+    deferrable: 'INITIALLY DEFERRED'})
   @JoinColumn({ name: "property_id" })
   soil_property: SoilPropertyEntity;
 

@@ -11,7 +11,8 @@ export default class DatasetSlugHistoryEntity extends BaseTable implements Datas
   @Column({ type: "uuid" })
   dataset_id: string;
 
-  @ManyToOne(() => DatasetEntity, (dataset) => dataset.id)
+  @ManyToOne(() => DatasetEntity, (dataset) => dataset.id, {
+    deferrable: 'INITIALLY DEFERRED'})
   @JoinColumn({ name: "dataset_id" })
   dataset: DatasetEntity;
 

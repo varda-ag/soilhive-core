@@ -31,11 +31,11 @@ export class CreateSchema1765266417182 implements MigrationInterface {
         await queryRunner.query(`CREATE TABLE "soilhive"."data_mappings" ("created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP, "id" uuid NOT NULL DEFAULT uuidv7(), "data_mapping" jsonb NOT NULL, "created_by" text NOT NULL, CONSTRAINT "PK_c904beedc99759d627d42a240d5" PRIMARY KEY ("id"))`);
         await queryRunner.query(`CREATE TABLE "soilhive"."dataset_file_mappings" ("created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP, "id" uuid NOT NULL DEFAULT uuidv7(), "data_mapping_id" uuid NOT NULL, "file_id" uuid, "dataset_id" uuid, CONSTRAINT "UQ_23bb05305bffe2d927279931d5e" UNIQUE ("data_mapping_id", "file_id", "dataset_id"), CONSTRAINT "PK_a850769f5e2e8d5a9e80c3ba226" PRIMARY KEY ("id"))`);
         await queryRunner.query(`CREATE TABLE "soilhive"."analytical_method_slug_history" ("created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP, "id" SERIAL NOT NULL, "analytical_method_id" uuid NOT NULL, "old_slug" text NOT NULL, CONSTRAINT "PK_3b71cda5dac3729f9f720215dfb" PRIMARY KEY ("id"))`);
-        await queryRunner.query(`ALTER TABLE "soilhive"."unit_conversion_slug_history" ADD CONSTRAINT "FK_744e12a935a99646a7d00d95c63" FOREIGN KEY ("unit_conversion_id") REFERENCES "soilhive"."unit_conversions"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
+        await queryRunner.query(`ALTER TABLE "soilhive"."unit_conversion_slug_history" ADD CONSTRAINT "FK_744e12a935a99646a7d00d95c63" FOREIGN KEY ("unit_conversion_id") REFERENCES "soilhive"."unit_conversions"("id") ON DELETE NO ACTION ON UPDATE NO ACTION DEFERRABLE INITIALLY DEFERRED`);
         await queryRunner.query(`ALTER TABLE "soilhive"."soil_properties" ADD CONSTRAINT "FK_fb090fa98e33248039bafacc0cf" FOREIGN KEY ("parent_property_id") REFERENCES "soilhive"."soil_properties"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "soilhive"."soil_properties" ADD CONSTRAINT "FK_bb63f8ef8911d1a2e4103b500a0" FOREIGN KEY ("category_id") REFERENCES "soilhive"."soil_property_categories"("id") ON DELETE NO ACTION ON UPDATE NO ACTION DEFERRABLE INITIALLY DEFERRED`);
-        await queryRunner.query(`ALTER TABLE "soilhive"."soil_property_slug_history" ADD CONSTRAINT "FK_38b4fbcb4860324e0d39ed44b90" FOREIGN KEY ("property_id") REFERENCES "soilhive"."soil_properties"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "soilhive"."soil_property_category_slug_history" ADD CONSTRAINT "FK_3304168c82e710acac6df14568c" FOREIGN KEY ("property_category_id") REFERENCES "soilhive"."soil_property_categories"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
+        await queryRunner.query(`ALTER TABLE "soilhive"."soil_property_slug_history" ADD CONSTRAINT "FK_38b4fbcb4860324e0d39ed44b90" FOREIGN KEY ("property_id") REFERENCES "soilhive"."soil_properties"("id") ON DELETE NO ACTION ON UPDATE NO ACTION DEFERRABLE INITIALLY DEFERRED`);
+        await queryRunner.query(`ALTER TABLE "soilhive"."soil_property_category_slug_history" ADD CONSTRAINT "FK_3304168c82e710acac6df14568c" FOREIGN KEY ("property_category_id") REFERENCES "soilhive"."soil_property_categories"("id") ON DELETE NO ACTION ON UPDATE NO ACTION DEFERRABLE INITIALLY DEFERRED`);
         await queryRunner.query(`ALTER TABLE "soilhive"."layers" ADD CONSTRAINT "FK_31bb41cd0ddace92149b86629a2" FOREIGN KEY ("license") REFERENCES "soilhive"."licenses"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "soilhive"."dataset_layers" ADD CONSTRAINT "FK_71e0d33a5ee49e3609b0544c7b3" FOREIGN KEY ("dataset_id") REFERENCES "soilhive"."datasets"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "soilhive"."dataset_layers" ADD CONSTRAINT "FK_0bbc4523dc5f3dfb115d6136d39" FOREIGN KEY ("layer_id") REFERENCES "soilhive"."layers"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
@@ -43,8 +43,8 @@ export class CreateSchema1765266417182 implements MigrationInterface {
         await queryRunner.query(`ALTER TABLE "soilhive"."dataset_layers" ADD CONSTRAINT "FK_89d62c0f76f226157e341b005cb" FOREIGN KEY ("soil_property_id") REFERENCES "soilhive"."soil_properties"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "soilhive"."observations" ADD CONSTRAINT "FK_d4f9ab2e6c5f432163d3d3a30bf" FOREIGN KEY ("dataset_layer_id") REFERENCES "soilhive"."dataset_layers"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "soilhive"."observations" ADD CONSTRAINT "FK_159a9ef2802f59058f7b53fd0d3" FOREIGN KEY ("analytical_methodology_id") REFERENCES "soilhive"."analytical_methods"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "soilhive"."license_slug_history" ADD CONSTRAINT "FK_02534be388c024b4a2eecad891f" FOREIGN KEY ("license") REFERENCES "soilhive"."licenses"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
-        await queryRunner.query(`ALTER TABLE "soilhive"."dataset_slug_history" ADD CONSTRAINT "FK_9ba23f58655f7ea970692feea9f" FOREIGN KEY ("dataset_id") REFERENCES "soilhive"."datasets"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
+        await queryRunner.query(`ALTER TABLE "soilhive"."license_slug_history" ADD CONSTRAINT "FK_02534be388c024b4a2eecad891f" FOREIGN KEY ("license") REFERENCES "soilhive"."licenses"("id") ON DELETE NO ACTION ON UPDATE NO ACTION DEFERRABLE INITIALLY DEFERRED`);
+        await queryRunner.query(`ALTER TABLE "soilhive"."dataset_slug_history" ADD CONSTRAINT "FK_9ba23f58655f7ea970692feea9f" FOREIGN KEY ("dataset_id") REFERENCES "soilhive"."datasets"("id") ON DELETE NO ACTION ON UPDATE NO ACTION DEFERRABLE INITIALLY DEFERRED`);
         await queryRunner.query(`ALTER TABLE "soilhive"."dataset_file_mappings" ADD CONSTRAINT "FK_fbf14d6b83a5f450b3ed23c410e" FOREIGN KEY ("data_mapping_id") REFERENCES "soilhive"."data_mappings"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "soilhive"."dataset_file_mappings" ADD CONSTRAINT "FK_cb4f539ba5fff9d00110aa91aef" FOREIGN KEY ("file_id") REFERENCES "soilhive"."files"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
         await queryRunner.query(`ALTER TABLE "soilhive"."dataset_file_mappings" ADD CONSTRAINT "FK_c95cffb2a976245915bf68e3293" FOREIGN KEY ("dataset_id") REFERENCES "soilhive"."datasets"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
@@ -69,8 +69,15 @@ export class CreateSchema1765266417182 implements MigrationInterface {
         await queryRunner.query(`CREATE INDEX idx_layers_depthrange on "soilhive"."layers" using gist(int4range(min_depth, max_depth))`);
         await queryRunner.query(`ALTER TABLE "soilhive"."layers"
             ADD CONSTRAINT layers_unq UNIQUE NULLS NOT DISTINCT (license, sampling_date, min_depth, max_depth, horizon)`);
-            await queryRunner.query(`ALTER TABLE "soilhive"."observations"
-            ADD CONSTRAINT observations_unq unique NULLS NOT distinct (dataset_layer_id, value, analytical_methodology_id)`);
+        await queryRunner.query(`ALTER TABLE "soilhive"."observations"
+        ADD CONSTRAINT observations_unq unique NULLS NOT distinct (dataset_layer_id, value, analytical_methodology_id)`);
+        await queryRunner.query(`CREATE OR REPLACE FUNCTION check_std_unit(unit_name text)
+                                    RETURNS bool AS
+                                $func$
+                                    SELECT EXISTS (SELECT 1 FROM soil_properties WHERE COALESCE(standard_unit, '') = coalesce($1, ''));
+                                $func$  LANGUAGE sql STABLE;`);
+        await queryRunner.query(`ALTER TABLE "soilhive"."unit_conversions" ADD CONSTRAINT check_standard_unit_exists
+                                    CHECK (check_std_unit(standard_unit)) NOT VALID;`);
     }
 
     public async down(queryRunner: QueryRunner): Promise<void> {
@@ -138,6 +145,8 @@ export class CreateSchema1765266417182 implements MigrationInterface {
         await queryRunner.query(`DROP INDEX idx_layers_depthrange`);
         await queryRunner.query(`ALTER TABLE "soilhive"."layers" DROP CONSTRAINT layers_unq`);
         await queryRunner.query(`ALTER TABLE "soilhive"."observations" DROP CONSTRAINT observations_unq`);
+        await queryRunner.query(`ALTER TABLE "soilhive"."unit_conversions" DROP CONSTRAINT check_standard_unit_exists`);
+        await queryRunner.query(`DROP FUNCTION check_std_unit`);
     }
 
 }

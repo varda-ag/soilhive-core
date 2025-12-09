@@ -11,7 +11,8 @@ export default class SoilPropertyCategorySlugHistoryEntity extends BaseTable imp
   @Column({ type: "uuid" })
   property_category_id: string;
 
-  @ManyToOne(() => SoilPropertyCategoryEntity, (soil_property_category) => soil_property_category.id)
+  @ManyToOne(() => SoilPropertyCategoryEntity, (soil_property_category) => soil_property_category.id, {
+    deferrable: 'INITIALLY DEFERRED'})
   @JoinColumn({ name: "property_category_id" })
   soil_property_category: SoilPropertyCategoryEntity;
 

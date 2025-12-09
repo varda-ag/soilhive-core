@@ -11,7 +11,8 @@ export default class LicensetSlugHistoryEntity extends BaseTable implements Lice
   @Column({ type: "uuid" })
   license: string;
 
-  @ManyToOne(() => LicenseEntity, (license) => license.id)
+  @ManyToOne(() => LicenseEntity, (license) => license.id, {
+    deferrable: 'INITIALLY DEFERRED'})
   @JoinColumn({ name: "license" })
   license_obj: LicenseEntity;
 
