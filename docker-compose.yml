@@ -25,7 +25,7 @@ services:
       POSTGRES_USER: dbuser
       POSTGRES_PASSWORD: dbpass
     volumes:
-      - postgis_data:/var/lib/postgresql/data
+      - postgis_data:/var/lib/postgresql
     ports:
       - "5432:5432"
 
