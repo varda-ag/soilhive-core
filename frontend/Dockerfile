@@ -9,7 +9,7 @@ ENV PATH="$PNPM_HOME:$PATH"
 WORKDIR /app
 COPY . .
 RUN pnpm install --frozen-lockfile --recursive
-RUN pnpm run build
+RUN pnpm run build --loglevel verbose
 
 FROM nginx:alpine
 
