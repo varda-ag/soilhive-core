@@ -32,9 +32,13 @@ export default function DrawControl({position = 'bottom-right'}: {position?: Con
         // 'download'
       ],
       open: true,
+      
     }),
     ({map}) => {
       const drawInstance = drawControl.getTerraDrawInstance();
+      drawInstance.on('ready', () => {
+        drawInstance.setMode('polygon'); // TODO: NOT WORKING
+      })
       drawInstance.on('finish', onFinish);
     },
     ({map}) => {

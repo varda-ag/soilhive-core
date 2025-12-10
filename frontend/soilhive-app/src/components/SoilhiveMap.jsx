@@ -11,6 +11,7 @@ import { bboxToGeoJSONPolygonCoordinates, bBoxToH3Cells, h3IndexesToGeoJSONPolyg
 import { bboxPolygon } from '@turf/turf';
 import { h3ResolutionForZoomLevel } from '../utilities/map';
 import DrawControl from './DrawControl';
+import SoilhiveMapToolbar from './SoilhiveMapToolbar';
 
 type MapStyle = string | StyleSpecification | ImmutableLike<StyleSpecification>;
 type MapStyles = Array<{ name: string, mapStyle: MapStyle }>;
@@ -109,6 +110,7 @@ function SoilhiveMap({
     type: 'FeatureCollection',
     features: []
   });
+  const [showDrawContol, setShowDrawControl] = useState(false);
 
   function updateH3Cells(mapEvent) {
     if (!showH3Cells) {
@@ -183,6 +185,10 @@ function SoilhiveMap({
         }}
         interactiveLayerIds={['data-fills']}
       >
+        <SoilhiveMapToolbar onDrawClick={() => {
+          setShowDrawControl(true);
+        }} />
+
         {selectedPoint &&
           <Popup
             anchor="left"
@@ -236,18 +242,20 @@ function SoilhiveMap({
               
         { showGeolocation && <GeolocateControl position="bottom-right" /> }
         { showNavigation && <NavigationControl position="bottom-right" showCompass={false} showZoom={true} visualizePitch={false} /> }
-        <DrawControl
-          position="bottom-right"
-          // displayControlsDefault={false}
-          // controls={{
-          //   polygon: true,
-          //   trash: true
-          // }}
-          // defaultMode="draw_polygon"
-          // onCreate={onUpdate}
-          // onUpdate={onUpdate}
-          // onDelete={onDelete}
-        />  
+        { showDrawContol && 
+          <DrawControl
+            position="bottom-right"
+            // displayControlsDefault={false}
+            // controls={{
+            //   polygon: true,
+            //   trash: true
+            // }}
+            // defaultMode="draw_polygon"
+            // onCreate={onUpdate}
+            // onUpdate={onUpdate}
+            // onDelete={onDelete}
+          />  
+        }
 
         { showScale && <ScaleControl /> }
       </Map>
