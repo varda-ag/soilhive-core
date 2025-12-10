@@ -21,4 +21,16 @@
             cursor: pointer;
         }
     }
+
+    &.Medium {
+        font-size: var(--font-size-lg);
+    }
+
+    &.Small {
+        font-size: var(--font-size-md);
+    }
+
+    &.Tiny {
+        font-size: var(--font-size-sm);
+    }
 }

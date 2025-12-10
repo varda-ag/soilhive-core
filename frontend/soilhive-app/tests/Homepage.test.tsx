@@ -7,6 +7,14 @@ jest.mock('components/SoilhiveMap', () => (() => (
 jest.mock('../src/utilities/environmentVariables', () => ({
   MAPBOX_ACCESS_TOKEN: 'mock_access_token'
 }));
+jest.mock('react-router', () => ({
+    Link: ({ to, children }: any) => (
+      <a href={to} >
+            {children}
+      </a>
+    )
+}))
+jest.mock('hooks/useDevice')
 
 test('Renders the home', () => {
   const {container} = render(<Homepage />);

@@ -83,6 +83,10 @@ input[data-autocompleted] {
 }
 
 .small-text {
-    font-size: var(--font-size-xs);
+    font-size: var(--font-size-sm);
+    line-height: var(--line-height-lg);
+}
+.normal-text {
+    font-size: var(--font-size-lg);
     line-height: var(--line-height-lg);
 }

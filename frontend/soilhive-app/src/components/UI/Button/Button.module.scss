@@ -9,13 +9,14 @@
     font-weight: 700;
     line-height: 150%;
     text-decoration: none;
+    cursor: pointer;
 
-    &:not(:disabled) {
-        cursor: pointer;
+    &:disabled {
+        cursor: not-allowed;
     }
 
     &.Primary {
-        color: var(--color-neutral-000);
+        color: var(--color-neutral-white);
 
         &:disabled {
             background: var(--color-cta-default-disabled);

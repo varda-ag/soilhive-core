@@ -1,0 +1,20 @@
+.DatasetsSidebarSummaryItem {
+    width: 129px;
+    height: 65px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: .187rem;
+    border-radius: .5rem;
+    background-color: var(--color-neutral-white);
+    box-shadow: var(--shadow-interface);
+
+    > .Value {
+        font-size: var(--font-size-md);
+        font-weight: var(--font-weight-bold);
+    }
+    > .Name {
+        font-size: var(--font-size-xs);
+    }
+}

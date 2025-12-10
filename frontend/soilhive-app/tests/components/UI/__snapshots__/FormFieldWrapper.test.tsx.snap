@@ -3,7 +3,7 @@
 exports[`FormFieldWrapper component matches snapshot 1`] = `
 <div>
   <label
-    class="Label Invalid"
+    class="Label Invalid Medium"
     data-testid="sh-ui-label"
   >
     <div
