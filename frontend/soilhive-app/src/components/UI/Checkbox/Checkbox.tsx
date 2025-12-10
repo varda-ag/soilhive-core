@@ -3,7 +3,7 @@ import classnames from 'classnames'
 
 import type { ComponentSizeType } from 'types/components';
 
-import styles from './CheckBox.module.scss'
+import styles from './Checkbox.module.scss'
 
 interface Props {
     className?: string;

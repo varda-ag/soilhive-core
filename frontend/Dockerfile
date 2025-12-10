@@ -7,9 +7,15 @@ ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 
 WORKDIR /app
-COPY . .
+COPY package.json pnpm-lock.yaml ./
+COPY soilhive-app/package.json soilhive-app/pnpm-lock.yaml ./soilhive-app/
+
 RUN pnpm install --frozen-lockfile --recursive
-RUN pnpm run build --loglevel verbose
+
+COPY common ./common
+COPY soilhive-app ./soilhive-app
+
+RUN pnpm run build
 
 FROM nginx:alpine
 
