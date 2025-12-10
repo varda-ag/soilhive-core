@@ -17,6 +17,9 @@ importers:
       '@turf/turf':
         specifier: ^7.3.0
         version: 7.3.0
+      '@watergis/maplibre-gl-terradraw':
+        specifier: ^1.9.6
+        version: 1.9.6(maplibre-gl@5.12.0)(terra-draw@1.20.0)
       classnames:
         specifier: ^2.5.1
         version: 2.5.1
@@ -1755,6 +1758,20 @@ packages:
       react-dom: '>=16.3.0'
     peerDependenciesMeta:
       maplibre-gl:
+        optional: true
+
+  '@watergis/maplibre-gl-terradraw@1.9.6':
+    resolution: {integrity: sha512-kWBjfxGsDz0Xx1/0Yz1NpE4+M4JSeIbPWKctMNvnijaIaoTjOyO/G0FX1sTP8lgxRtFQA+iF5VtQr5r/nVjtfA==}
+    engines: {pnpm: ^10.0.0}
+    peerDependencies:
+      maplibre-gl: ^4.0.0 || ^5.0.0
+      terra-draw: ^1.0.0
+      terra-draw-maplibre-gl-adapter: ^1.0.0
+      terradraw: '*'
+    peerDependenciesMeta:
+      terra-draw-maplibre-gl-adapter:
+        optional: true
+      terradraw:
         optional: true
 
   '@webassemblyjs/ast@1.14.1':
@@ -3873,6 +3890,9 @@ packages:
   tapable@2.3.0:
     resolution: {integrity: sha512-g9ljZiwki/LfxmQADO3dEY1CbpmXT5Hm2fJ+QaGKwSXUylMybePR7/67YW7jOrrvjEgL1Fmz5kzyAjWVWLlucg==}
     engines: {node: '>=6'}
+
+  terra-draw@1.20.0:
+    resolution: {integrity: sha512-aWJswr+U4Sr47m371wH1nWx/ij4Ymud3YsycWoYPmGecQ/nlQnm26eDm8r5UX6vPm0gYLGwNmYJCZNrr8RL4tA==}
 
   terser-webpack-plugin@5.3.14:
     resolution: {integrity: sha512-vkZjpUjb6OMS7dhV+tILUW6BhpDR7P2L/aQSAv+Uwk+m8KATX9EccViHTJR2qDtACKPIYndLGCyl3FMo+r2LMw==}
@@ -6776,6 +6796,11 @@ snapshots:
     optionalDependencies:
       maplibre-gl: 5.12.0
 
+  '@watergis/maplibre-gl-terradraw@1.9.6(maplibre-gl@5.12.0)(terra-draw@1.20.0)':
+    dependencies:
+      maplibre-gl: 5.12.0
+      terra-draw: 1.20.0
+
   '@webassemblyjs/ast@1.14.1':
     dependencies:
       '@webassemblyjs/helper-numbers': 1.13.2
@@ -9054,6 +9079,8 @@ snapshots:
       '@pkgr/core': 0.2.9
 
   tapable@2.3.0: {}
+
+  terra-draw@1.20.0: {}
 
   terser-webpack-plugin@5.3.14(webpack@5.102.1):
     dependencies:
