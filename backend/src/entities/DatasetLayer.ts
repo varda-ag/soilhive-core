@@ -1,5 +1,4 @@
-import { Entity, Column, Unique, PrimaryColumn, ManyToOne, JoinColumn } from "typeorm";
-import BaseTable from "./BaseTable";
+import { Entity, Column, Unique, PrimaryColumn, ManyToOne, JoinColumn, BaseEntity } from "typeorm";
 import DatasetEntity from "./Dataset";
 import FeatureEntity from "./Feature";
 import LayerEntity from "./Layer";
@@ -7,7 +6,7 @@ import SoilPropertyEntity from "./SoilProperty";
 
 @Entity("dataset_layers")
 @Unique(["dataset_id", "feature_id", "layer_id", "soil_property_id"])
-export default class DatasetLayerEntity extends BaseTable {
+export default class DatasetLayerEntity extends BaseEntity {
   @PrimaryColumn("uuid", {
     default: () => 'uuidv7()',
   })

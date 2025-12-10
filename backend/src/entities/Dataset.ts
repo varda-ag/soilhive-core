@@ -1,12 +1,14 @@
-import { Entity, Column, PrimaryColumn, Unique, Index } from "typeorm";
+import { Entity, Column, PrimaryColumn, Unique, Index, ForeignKey } from "typeorm";
 import type { Polygon } from "typeorm";
 import { Dataset, VariableMeasured } from "../interfaces/Dataset";
 import BaseTable from "./BaseTable";
+import SlugHistoryEntity from "./SlugHistory";
 import type { IngestionStatusType, GISDataTypeType } from "../types/data";
 import { IngestionStatus } from "../types/data";
 
 @Entity("datasets")
 @Unique(["slug"])
+@ForeignKey(() => SlugHistoryEntity, ["id", "slug"], ["entity_id", "slug"])
 export default class DatasetEntity extends BaseTable implements Dataset {
   @PrimaryColumn("uuid", {
     default: () => 'uuidv7()',
@@ -81,9 +83,6 @@ export default class DatasetEntity extends BaseTable implements Dataset {
 
   @Column({ type: "text", default: IngestionStatus.PENDING })
   status: IngestionStatusType;
-
-  @Column({ type: "boolean", default: false })
-  is_archived: boolean;
 
   @Column({ type: "text" })
   created_by: string;

@@ -1,8 +1,10 @@
-import { Entity, Column, PrimaryColumn } from "typeorm";
+import { Entity, Column, PrimaryColumn, ForeignKey } from "typeorm";
 import { AnalyticalMethod } from "../interfaces/AnalyticalMethod";
 import BaseTable from "./BaseTable";
+import SlugHistoryEntity from "./SlugHistory";
 
 @Entity("analytical_methods")
+@ForeignKey(() => SlugHistoryEntity, ["id", "slug"], ["entity_id", "slug"])
 export default class AnalyticalMethodEntity extends BaseTable implements AnalyticalMethod {
   @PrimaryColumn("uuid", {
     default: () => 'uuidv7()',

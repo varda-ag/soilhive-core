@@ -35,7 +35,6 @@ export interface Dataset {
   n_raster_layers?: number;
   soil_depth?: object;
   status: IngestionStatusType;
-  is_archived: boolean;
   created_at: Date;
   updated_at: Date | null;
   created_by: string;

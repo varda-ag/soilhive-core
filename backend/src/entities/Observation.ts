@@ -1,12 +1,11 @@
-import { Entity, Column, Unique, PrimaryColumn, ManyToOne, JoinColumn, Index } from "typeorm";
-import BaseTable from "./BaseTable";
+import { Entity, Column, Unique, PrimaryColumn, ManyToOne, JoinColumn, Index, BaseEntity } from "typeorm";
 import DatasetLayerEntity from "./DatasetLayer";
 import AnalyticalMethodEntity from "./AnalyticalMethod";
 import { Observation } from "../interfaces/Observation";
 
 @Entity("observations")
 @Unique(["dataset_layer_id", "value", "analytical_methodology_id"])
-export default class ObservationEntity extends BaseTable implements Observation {
+export default class ObservationEntity extends BaseEntity implements Observation {
   @PrimaryColumn("uuid", {
     default: () => 'uuidv7()',
   })

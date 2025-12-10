@@ -1,12 +1,14 @@
-import { Entity, Column, PrimaryColumn, Unique, ManyToOne, JoinColumn, Check } from "typeorm";
+import { Entity, Column, PrimaryColumn, Unique, ManyToOne, JoinColumn, Check, ForeignKey } from "typeorm";
 import { SoilProperty } from "../interfaces/SoilProperty";
 import BaseTable from "./BaseTable";
+import SlugHistoryEntity from "./SlugHistory";
 import SoilPropertyCategoryEntity from "./SoilPropertyCategory";
 import { MAX_PROPERTY_LEVEL } from "../constants/constants";
 
 @Entity("soil_properties")
 @Unique(["slug"])
-@Check(`((property_level >= 1) AND (property_level <= ${MAX_PROPERTY_LEVEL}))`)
+@Check(`(("property_level" >= 1) AND ("property_level" <= ${MAX_PROPERTY_LEVEL}))`)
+@ForeignKey(() => SlugHistoryEntity, ["id", "slug"], ["entity_id", "slug"])
 export default class SoilPropertyEntity extends BaseTable implements SoilProperty {
   @PrimaryColumn("uuid", {
     default: () => 'uuidv7()',

@@ -6,7 +6,6 @@ export interface File {
   slug?: string;
   file_path: string;
   status?: IngestionStatusType;
-  is_archived: boolean;
   created_at: Date;
   updated_at: Date | null;
   created_by: string;

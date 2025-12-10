@@ -1,11 +1,10 @@
-import { Entity, Column, Unique, PrimaryColumn, ManyToOne, JoinColumn, Index } from "typeorm";
-import BaseTable from "./BaseTable";
+import { Entity, Column, Unique, PrimaryColumn, ManyToOne, JoinColumn, Index, BaseEntity } from "typeorm";
 import { Layer } from "../interfaces/Layer";
 import LicenseEntity from "./License";
 
 @Entity("layers")
 @Unique(["license", "sampling_date", "min_depth", "max_depth", "horizon"])
-export default class LayerEntity extends BaseTable implements Layer {
+export default class LayerEntity extends BaseEntity implements Layer {
   @PrimaryColumn("uuid", {
     default: () => 'uuidv7()',
   })
