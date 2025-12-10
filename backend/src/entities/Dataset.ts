@@ -1,14 +1,19 @@
-import { Entity, Column, PrimaryGeneratedColumn, Unique } from "typeorm";
+import { Entity, Column, PrimaryColumn, Unique, Index, ForeignKey } from "typeorm";
 import type { Polygon } from "typeorm";
 import { Dataset, VariableMeasured } from "../interfaces/Dataset";
 import BaseTable from "./BaseTable";
-import type { GISDataTypeType } from "../types/data";
+import SlugHistoryEntity from "./SlugHistory";
+import type { IngestionStatusType, GISDataTypeType } from "../types/data";
+import { IngestionStatus } from "../types/data";
 
 @Entity("datasets")
 @Unique(["slug"])
+@ForeignKey(() => SlugHistoryEntity, ["id", "slug"], ["entity_id", "slug"])
 export default class DatasetEntity extends BaseTable implements Dataset {
-  @PrimaryGeneratedColumn("uuid")
-  id: string; // Uses PostgreSQL UUID, with default uuid_generate_v7() in DB
+  @PrimaryColumn("uuid", {
+    default: () => 'uuidv7()',
+  })
+  id: string;
 
   @Column({ type: "text" })
   slug: string;
@@ -62,7 +67,9 @@ export default class DatasetEntity extends BaseTable implements Dataset {
     type: "geometry",
     srid: 4326,
     spatialFeatureType: "Polygon",
+    nullable: true
   })
+  @Index({ spatial: true })
   spatial_extent: Polygon;
 
   @Column({ type: "bigint", nullable: true })
@@ -74,11 +81,8 @@ export default class DatasetEntity extends BaseTable implements Dataset {
   @Column({ type: "jsonb", nullable: true })
   soil_depth?: object;
 
-  @Column({ type: "text", default: "PENDING" })
-  status: string;
-
-  @Column({ type: "boolean", default: false })
-  is_archived: boolean;
+  @Column({ type: "text", default: IngestionStatus.PENDING })
+  status: IngestionStatusType;
 
   @Column({ type: "text" })
   created_by: string;
