@@ -38,6 +38,9 @@ jobs:
       disable-integration-tests-coverage: true
       disable-e2e-tests: true
       disable-e2e-tests-coverage: true
+      # TODO: use pnpm instead of npm
+      use-npm: true
+      use-pnpm: false
 
   commitlint:
     name: Commitlint
