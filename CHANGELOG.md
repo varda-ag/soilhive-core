@@ -1,3 +1,10 @@
+## [0.1.1](https://github.com/varda-ag/soilhive-core/compare/v0.1.0...v0.1.1) (2025-12-10)
+
+
+### Bug Fixes
+
+* **soilhive-core-frontend:** docker build ([#45](https://github.com/varda-ag/soilhive-core/issues/45)) ([2d302b8](https://github.com/varda-ag/soilhive-core/commit/2d302b81c2a932e8f98862eda1079b781858e57f))
+
 ## 0.1.0 (2025-12-10)
 
 
