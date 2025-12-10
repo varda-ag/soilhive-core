@@ -73,7 +73,7 @@ jobs:
         id: changelog
         with:
           skip-git-pull: true
-          skip-on-empty: true
+          skip-on-empty: false
           preset: conventionalcommits
           skip-commit: true
           skip-tag: true
@@ -142,7 +142,7 @@ jobs:
           git-user-email: 'github-actions[bot]@users.noreply.github.com'
           skip-git-pull: true
           input-file: CHANGELOG.md
-          skip-on-empty: true
+          skip-on-empty: false
           create-summary: true
           preset: conventionalcommits
           skip-commit: false
