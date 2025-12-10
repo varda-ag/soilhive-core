@@ -1,3 +1,10 @@
+## [0.2.0](https://github.com/varda-ag/soilhive-core/compare/v0.1.1...v0.2.0) (2025-12-10)
+
+
+### Features
+
+* **ci:** add docker image cleanup on any failure ([ac4e5a4](https://github.com/varda-ag/soilhive-core/commit/ac4e5a44d214aa1aea1db10a324eed78a57e08f6))
+
 ## [0.1.1](https://github.com/varda-ag/soilhive-core/compare/v0.1.0...v0.1.1) (2025-12-10)
 
 
