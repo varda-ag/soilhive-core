@@ -29,7 +29,7 @@ describe('Menu Component', () => {
     const { container } = render(
       <Menu
         options={baseOptions}
-        selectedOption="2"
+        selectedOptions={['2']}
         onSelect={() => {}}
         showSelectedCheckIcon
       />
@@ -58,7 +58,7 @@ describe('Menu Component', () => {
 
     fireEvent.click(screen.getByText('Option 1'));
 
-    expect(onSelect).toHaveBeenCalledWith('1');
+    expect(onSelect).toHaveBeenCalledWith(['1']);
   });
 
   it('keepSelection = true updates internal state', () => {
@@ -75,7 +75,7 @@ describe('Menu Component', () => {
 
     fireEvent.click(screen.getByText('Option 2'));
 
-    expect(onSelect).toHaveBeenCalledWith('2');
+    expect(onSelect).toHaveBeenCalledWith(['2']);
 
     const second = screen.getAllByTestId('sh-ui-menuoption')[1];
     expect(second).toHaveClass('Selected');
@@ -96,6 +96,57 @@ describe('Menu Component', () => {
     options.forEach((opt) => {
       expect(opt).not.toHaveClass('Selected');
     });
+  });
+
+  it('supports multiselect behaviour', () => {
+    const onSelect = jest.fn();
+
+    render(
+      <Menu
+        options={baseOptions}
+        onSelect={onSelect}
+        keepSelection
+        showSelectedCheckIcon
+        isMultiselect
+      />
+    );
+
+    fireEvent.click(screen.getByText('Option 1'));
+    fireEvent.click(screen.getByText('Option 2'));
+
+    expect(onSelect).toHaveBeenCalledWith(['1', '2']);
+
+    const first = screen.getAllByTestId('sh-ui-menuoption')[0];
+    const second = screen.getAllByTestId('sh-ui-menuoption')[1];
+    expect(first).toHaveClass('Selected');
+    expect(second).toHaveClass('Selected');
+
+    // Deselect first
+    fireEvent.click(screen.getByText('Option 1'));
+    expect(onSelect).toHaveBeenCalledWith(['2']);
+    expect(first).not.toHaveClass('Selected');
+  });
+
+  it('handles incorrect selected options', () => {
+    const onSelect = jest.fn();
+
+    const { container } = render(
+      <Menu
+        options={baseOptions}
+        onSelect={onSelect}
+        selectedOptions={['unknown']}
+        keepSelection
+        showSelectedCheckIcon
+        isMultiselect
+      />
+    );
+
+    expect(container.querySelector('.Selected')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Option 1'));
+
+    expect(onSelect).toHaveBeenCalledWith(['1']);
+    expect(container.querySelector('.Selected')).toBeInTheDocument();
   });
 
   it('renders custom option icon when provided', () => {

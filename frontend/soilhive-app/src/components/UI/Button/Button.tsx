@@ -5,7 +5,7 @@ import type { ComponentSizeType } from 'types/components';
 
 import styles from './Button.module.scss';
 
-type ButtonType = 'primary' | 'secondary' | 'tertiary';
+type ButtonType = 'primary' | 'secondary' | 'tertiary' | 'custom';
 
 export interface Props {
   children?: ReactNode;
@@ -41,6 +41,7 @@ export function Button({
                 primary: styles.Primary,
                 secondary: styles.Secondary,
                 tertiary: styles.Tertiary,
+                custom: styles.Custom,
             }[type]),
         [type]
     )

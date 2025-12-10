@@ -16,7 +16,7 @@ jest.mock('react-tooltip', () => ({
 describe('FormFieldWrapper component', () => {
   it('renders child input field', () => {
     render(
-      <FormFieldWrapper>
+      <FormFieldWrapper size="medium">
         <input data-testid="test-input" />
       </FormFieldWrapper>
     );
@@ -25,7 +25,7 @@ describe('FormFieldWrapper component', () => {
 
   it('renders label text', () => {
     render(
-      <FormFieldWrapper label="Email">
+      <FormFieldWrapper label="Email" size="medium">
         <input data-testid="test-input" />
       </FormFieldWrapper>
     );
@@ -34,7 +34,7 @@ describe('FormFieldWrapper component', () => {
 
   it('renders required mark (*) when isRequired=true', () => {
     render(
-      <FormFieldWrapper label="Email" isRequired={true}>
+      <FormFieldWrapper label="Email" isRequired={true} size="medium">
         <input data-testid="test-input" />
       </FormFieldWrapper>
     );
@@ -43,7 +43,7 @@ describe('FormFieldWrapper component', () => {
 
   it('renders  tooltip when labelTooltip is provided', () => {
     render(
-      <FormFieldWrapper label="Email" labelTooltip="Tooltip text">
+      <FormFieldWrapper label="Email" labelTooltip="Tooltip text" size="medium">
         <input data-testid="test-input" />
       </FormFieldWrapper>
     );
@@ -56,6 +56,7 @@ describe('FormFieldWrapper component', () => {
       <FormFieldWrapper
         isError={true}
         errorMessage="Error occurred"
+        size="medium"
       >
         <input data-testid="test-input" />
       </FormFieldWrapper> 
@@ -72,6 +73,7 @@ describe('FormFieldWrapper component', () => {
       <FormFieldWrapper
         errorMessage="Should NOT render"
         isError={false}
+        size="medium"
       >
         <input data-testid="test-input" />
       </FormFieldWrapper> 
@@ -81,7 +83,7 @@ describe('FormFieldWrapper component', () => {
 
   it('renders helper message always when provided', () => {
     render(
-      <FormFieldWrapper helperMessage="Helpful info">
+      <FormFieldWrapper helperMessage="Helpful info" size="medium">
         <input data-testid="test-input" />
       </FormFieldWrapper> 
     );
@@ -92,7 +94,7 @@ describe('FormFieldWrapper component', () => {
 
   it('accepts custom className', () => {
     const { container } = render(
-      <FormFieldWrapper className="custom-class">
+      <FormFieldWrapper className="custom-class" size="medium">
         <input data-testid="test-input" />
       </FormFieldWrapper> 
     );
@@ -108,6 +110,7 @@ describe('FormFieldWrapper component', () => {
         isError={true}
         errorMessage="Invalid email"
         helperMessage="Helper text"
+        size="medium"
       >
         <input />
       </FormFieldWrapper>

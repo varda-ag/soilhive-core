@@ -1,0 +1,14 @@
+.DatasetsList {
+    padding: .75rem .625rem;
+    overflow-y: auto;
+
+    > .SelectAllWrapper {
+        padding: .875rem .75rem;
+    }
+    > .Wrapper {
+        display: flex;
+        flex-direction: column;
+        gap: .5rem;
+        padding-right: .75rem;
+    }
+}

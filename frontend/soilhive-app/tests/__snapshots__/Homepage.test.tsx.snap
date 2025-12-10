@@ -3,15 +3,604 @@
 exports[`Renders the home 1`] = `
 <div>
   <div
-    class="home-page"
+    class="Homepage"
   >
-    <h1
-      style="color: var(--color-primary);"
+    <div
+      class="Content"
     >
-      Homepage
-    </h1>
-    <div>
-      Mock SoilhiveMap
+      <div>
+        Mock SoilhiveMap
+      </div>
+      <div
+        class="DatasetsSidebar"
+      >
+        <div
+          class="Wrapper"
+        >
+          <div
+            class="DatasetsSidebarHeader"
+            data-testid="sh-datasets-sidebar-header"
+            role="button"
+          >
+            <div
+              class="Title"
+            >
+              <div
+                class="DatasetsIconWrapper"
+              >
+                <svg
+                  data-testid="svg-icon-mock"
+                >
+                  mock-svg
+                </svg>
+              </div>
+              Available Datasets
+            </div>
+            <div
+              class="SidebarIconWrapper"
+            >
+              <svg
+                data-testid="svg-icon-mock"
+              >
+                mock-svg
+              </svg>
+            </div>
+          </div>
+          <div
+            class="DatasetsSidebarSummary"
+          >
+            <div
+              class="List"
+            >
+              <div
+                class="DatasetsSidebarSummaryItem"
+              >
+                <span
+                  class="Value"
+                  style="color: rgb(162, 209, 209);"
+                >
+                  3
+                </span>
+                <span
+                  class="Name"
+                >
+                  Datasets
+                </span>
+              </div>
+              <div
+                class="DatasetsSidebarSummaryItem"
+              >
+                <span
+                  class="Value"
+                  style="color: rgb(245, 178, 0);"
+                >
+                  283638
+                </span>
+                <span
+                  class="Name"
+                >
+                  Data Points
+                </span>
+              </div>
+              <div
+                class="DatasetsSidebarSummaryItem"
+              >
+                <span
+                  class="Value"
+                  style="color: rgb(255, 0, 122);"
+                >
+                  14
+                </span>
+                <span
+                  class="Name"
+                >
+                  Raster layers
+                </span>
+              </div>
+              <div
+                class="DatasetsSidebarSummaryItem"
+              >
+                <span
+                  class="Value"
+                  style="color: rgb(170, 139, 77);"
+                >
+                  0 - 60
+                </span>
+                <span
+                  class="Name"
+                >
+                  Depth range
+                </span>
+              </div>
+            </div>
+            <div
+              class="Date"
+            >
+              <svg
+                class="Icon"
+                data-testid="svg-icon-mock"
+              >
+                mock-svg
+              </svg>
+               
+              2006 - 2025
+            </div>
+          </div>
+          <div
+            class="DatasetsList"
+          >
+            <div
+              class="DatasetsFilters"
+            >
+              <label
+                class="Label Tiny Search"
+                data-testid="sh-ui-label"
+              >
+                <div
+                  class="TextInput Tiny"
+                  data-testid="sh-ui-textinput"
+                >
+                  <input
+                    class="InputField"
+                    data-testid="sh-ui-textinputfield"
+                    placeholder="Search by name"
+                    type="text"
+                    value=""
+                  />
+                </div>
+              </label>
+              <button
+                class="Button Custom Medium FilterButton"
+                data-testid="sh-ui-button"
+                type="button"
+              >
+                <svg
+                  data-testid="svg-icon-mock"
+                >
+                  mock-svg
+                </svg>
+                 Filter
+              </button>
+            </div>
+            <div
+              class="SelectAllWrapper"
+            >
+              <label
+                class="CheckBox Small"
+                data-testid="sh-ui-checkbox"
+              >
+                <input
+                  class="Input"
+                  type="checkbox"
+                />
+                <div
+                  class="Label small-text"
+                >
+                  Select all
+                </div>
+              </label>
+            </div>
+            <div
+              class="Wrapper"
+            >
+              <div
+                class="DatasetsListItem"
+                data-testid="sh-datasets-list-item"
+              >
+                <div
+                  class="Main"
+                >
+                  <div
+                    class="Top"
+                  >
+                    <div
+                      class="Title"
+                    >
+                      <label
+                        class="CheckBox Small"
+                        data-testid="sh-ui-checkbox"
+                      >
+                        <input
+                          class="Input"
+                          type="checkbox"
+                        />
+                        <div
+                          class="Label small-text"
+                        >
+                          SoilGrids 250m
+                        </div>
+                      </label>
+                      <svg
+                        class="DropdownIcon"
+                        data-testid="svg-icon-mock"
+                      >
+                        mock-svg
+                      </svg>
+                    </div>
+                    <div
+                      class="Tags"
+                    >
+                      <span
+                        class="Tag Default"
+                        data-testid="sh-ui-tag"
+                      >
+                        Global
+                      </span>
+                    </div>
+                  </div>
+                  <div
+                    class="Bottom"
+                  >
+                    <button
+                      class="Button Primary Tiny"
+                      data-testid="sh-ui-button"
+                      type="button"
+                    >
+                      Metadata
+                    </button>
+                    <div
+                      class="Views"
+                    >
+                      <svg
+                        data-testid="svg-icon-mock"
+                      >
+                        mock-svg
+                      </svg>
+                       
+                      12.3k
+                    </div>
+                  </div>
+                </div>
+                <div
+                  class="MetaWrapper"
+                >
+                  <div
+                    class="Meta"
+                  >
+                    <p
+                      class="MetaItem"
+                    >
+                      <svg
+                        class="PointsIcon"
+                        data-testid="svg-icon-mock"
+                      >
+                        mock-svg
+                      </svg>
+                       
+                      34546
+                       points
+                    </p>
+                    <p
+                      class="MetaItem"
+                    >
+                      <svg
+                        class="LayersIcon"
+                        data-testid="svg-icon-mock"
+                      >
+                        mock-svg
+                      </svg>
+                       
+                      12
+                       raster layers
+                    </p>
+                    <p
+                      class="MetaItem"
+                    >
+                      <svg
+                        class="DepthIcon"
+                        data-testid="svg-icon-mock"
+                      >
+                        mock-svg
+                      </svg>
+                       
+                      0
+                      -
+                      60
+                       cm
+                    </p>
+                    <p
+                      class="MetaItem"
+                    >
+                      <svg
+                        class="DateIcon"
+                        data-testid="svg-icon-mock"
+                      >
+                        mock-svg
+                      </svg>
+                       
+                      2012
+                       - 
+                      2025
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div
+                class="DatasetsListItem"
+                data-testid="sh-datasets-list-item"
+              >
+                <div
+                  class="Main"
+                >
+                  <div
+                    class="Top"
+                  >
+                    <div
+                      class="Title"
+                    >
+                      <label
+                        class="CheckBox Small"
+                        data-testid="sh-ui-checkbox"
+                      >
+                        <input
+                          class="Input"
+                          type="checkbox"
+                        />
+                        <div
+                          class="Label small-text"
+                        >
+                          GSOCmap
+                        </div>
+                      </label>
+                      <svg
+                        class="DropdownIcon"
+                        data-testid="svg-icon-mock"
+                      >
+                        mock-svg
+                      </svg>
+                    </div>
+                    <div
+                      class="Tags"
+                    >
+                      <span
+                        class="Tag Default"
+                        data-testid="sh-ui-tag"
+                      >
+                        Global
+                      </span>
+                    </div>
+                  </div>
+                  <div
+                    class="Bottom"
+                  >
+                    <button
+                      class="Button Primary Tiny"
+                      data-testid="sh-ui-button"
+                      type="button"
+                    >
+                      Metadata
+                    </button>
+                    <div
+                      class="Views"
+                    >
+                      <svg
+                        data-testid="svg-icon-mock"
+                      >
+                        mock-svg
+                      </svg>
+                       
+                      12.3k
+                    </div>
+                  </div>
+                </div>
+                <div
+                  class="MetaWrapper"
+                >
+                  <div
+                    class="Meta"
+                  >
+                    <p
+                      class="MetaItem"
+                    >
+                      <svg
+                        class="PointsIcon"
+                        data-testid="svg-icon-mock"
+                      >
+                        mock-svg
+                      </svg>
+                       
+                      234546
+                       points
+                    </p>
+                    <p
+                      class="MetaItem"
+                    >
+                      <svg
+                        class="LayersIcon"
+                        data-testid="svg-icon-mock"
+                      >
+                        mock-svg
+                      </svg>
+                       
+                      8
+                       raster layers
+                    </p>
+                    <p
+                      class="MetaItem"
+                    >
+                      <svg
+                        class="DepthIcon"
+                        data-testid="svg-icon-mock"
+                      >
+                        mock-svg
+                      </svg>
+                       
+                      0
+                      -
+                      60
+                       cm
+                    </p>
+                    <p
+                      class="MetaItem"
+                    >
+                      <svg
+                        class="DateIcon"
+                        data-testid="svg-icon-mock"
+                      >
+                        mock-svg
+                      </svg>
+                       
+                      2006
+                       - 
+                      2024
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div
+                class="DatasetsListItem"
+                data-testid="sh-datasets-list-item"
+              >
+                <div
+                  class="Main"
+                >
+                  <div
+                    class="Top"
+                  >
+                    <div
+                      class="Title"
+                    >
+                      <label
+                        class="CheckBox Small"
+                        data-testid="sh-ui-checkbox"
+                      >
+                        <input
+                          class="Input"
+                          type="checkbox"
+                        />
+                        <div
+                          class="Label small-text"
+                        >
+                          Downforce Technologies
+                        </div>
+                      </label>
+                      <svg
+                        class="DropdownIcon"
+                        data-testid="svg-icon-mock"
+                      >
+                        mock-svg
+                      </svg>
+                    </div>
+                    <div
+                      class="Tags"
+                    >
+                      <span
+                        class="Tag Default"
+                        data-testid="sh-ui-tag"
+                      >
+                        Global
+                      </span>
+                      <span
+                        class="Tag Primary"
+                        data-testid="sh-ui-tag"
+                      >
+                        Global
+                      </span>
+                    </div>
+                  </div>
+                  <div
+                    class="Bottom"
+                  >
+                    <button
+                      class="Button Primary Tiny"
+                      data-testid="sh-ui-button"
+                      type="button"
+                    >
+                      Metadata
+                    </button>
+                    <div
+                      class="Views"
+                    >
+                      <svg
+                        data-testid="svg-icon-mock"
+                      >
+                        mock-svg
+                      </svg>
+                       
+                      12.3k
+                    </div>
+                  </div>
+                </div>
+                <div
+                  class="MetaWrapper"
+                >
+                  <div
+                    class="Meta"
+                  >
+                    <p
+                      class="MetaItem"
+                    >
+                      <svg
+                        class="PointsIcon"
+                        data-testid="svg-icon-mock"
+                      >
+                        mock-svg
+                      </svg>
+                       
+                      14546
+                       points
+                    </p>
+                    <p
+                      class="MetaItem"
+                    >
+                      <svg
+                        class="LayersIcon"
+                        data-testid="svg-icon-mock"
+                      >
+                        mock-svg
+                      </svg>
+                       
+                      14
+                       raster layers
+                    </p>
+                    <p
+                      class="MetaItem"
+                    >
+                      <svg
+                        class="DepthIcon"
+                        data-testid="svg-icon-mock"
+                      >
+                        mock-svg
+                      </svg>
+                       
+                      0
+                      -
+                      60
+                       cm
+                    </p>
+                    <p
+                      class="MetaItem"
+                    >
+                      <svg
+                        class="DateIcon"
+                        data-testid="svg-icon-mock"
+                      >
+                        mock-svg
+                      </svg>
+                       
+                      2014
+                       - 
+                      2024
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div
+            class="Action"
+          >
+            <button
+              class="Button Primary Small Button"
+              data-testid="sh-ui-button"
+              disabled=""
+              type="button"
+            >
+              Download data
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </div>

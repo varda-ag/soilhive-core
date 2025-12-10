@@ -6,8 +6,5 @@
   "scripts": {
     "dev": "pnpm --filter=!common --parallel dev",
     "build": "pnpm --filter=!common --parallel build"
-  },
-  "dependencies": {
-    "h3-js": "^4.3.0"
   }
 }

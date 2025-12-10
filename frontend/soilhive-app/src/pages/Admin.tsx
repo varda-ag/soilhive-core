@@ -61,7 +61,7 @@ function Admin() {
           value={mapGeocoder}
           onChange={
             (option) => {
-              const selectedGeocoder = option;
+              const selectedGeocoder = option as string;
               localStorage.setItem('MAP_GEOCODER', selectedGeocoder);
               setMapGeocoder(selectedGeocoder);
             } 

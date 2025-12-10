@@ -5,3 +5,5 @@ export * from './Dropdown/Dropdown';
 export * from './FormFieldWrapper/FormFieldWrapper';
 export * from './FormMessage/FormMessage';
 export * from './ColorPicker/ColorPicker';
+export * from './Checkbox/Checkbox';
+export * from './Tag/Tag';

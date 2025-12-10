@@ -1,0 +1,40 @@
+.DatasetsSidebar {
+    min-width: 0;
+    width: 0;
+    max-height: calc(100vh - 56px);
+    transition: min-width .3s ease-in, width .5s ease-in;
+    overflow-x: hidden;
+    z-index: 1;
+
+    // position: absolute;
+    // top: 0;
+    // bottom: 0;
+    // right: 0;
+    // background-color: var(--color-neutral-white);
+
+    &.Opened {
+        min-width: 18.5rem;
+        transition: min-width .5s ease-out, width .3s ease-out;;
+    }
+    > .Wrapper {
+        display: flex;
+        flex-direction: column;
+        position: relative;
+        width: 18.5rem;
+        min-width: 18.5rem;
+        padding-bottom: 3.625rem;
+        max-height: calc(100vh - 56px);
+    }
+}
+
+.Action {
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+    padding: .562rem 2.5rem;
+    background-color: var(--color-brand-light-green-100);
+
+    > .Button {
+        width: 100%;
+    }
+}

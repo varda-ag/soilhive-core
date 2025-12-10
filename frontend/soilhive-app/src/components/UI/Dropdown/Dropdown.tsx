@@ -19,7 +19,8 @@ interface Props {
     labelTooltip?: string;
     placeholder?: string;
     options: MenuOption[],
-    value?: string;
+    value?: string | string[];
+    isMultiselect?: boolean;
     isRequired?: boolean;
     isDisabled?: boolean;
     isReadOnly?: boolean;
@@ -27,7 +28,7 @@ interface Props {
     errorMessage?: string;
     helperMessage?: string;
     showSelectedCheckIcon?: boolean;
-    onChange: (selectedOption: string, name?: string) => void;
+    onChange: (selectedOption: string | string[], name?: string) => void;
 };
 
 export function Dropdown({
@@ -40,6 +41,7 @@ export function Dropdown({
     placeholder = '',
     options,
     value,
+    isMultiselect,
     isRequired = false,
     isDisabled,
     isReadOnly,
@@ -50,14 +52,17 @@ export function Dropdown({
     onChange,
 }: Props) {
 
-    const getOptionData = useCallback(
-        (optionCode: string): MenuOption | undefined => options.find(({ code }) => code === optionCode),
+    const getOptionsData = useCallback(
+        (selected: string | string[]): MenuOption[] | undefined => {
+            return options.filter(({ code }) => selected.includes(code))
+        },
         [options]
     )
 
-    const [currentValue, setCurrentValue] = useState(value)
+    const [currentValues, setCurrentValues] = useState<string[]>([]);
     const [isOpen, setIsOpen] = useState(false)
     const dropdownRef = useRef(null)
+    const menuRef = useRef<HTMLDivElement>(null);
 
     const sizeClass = useMemo(
         () =>
@@ -74,9 +79,19 @@ export function Dropdown({
         [isOpen]
     )
 
-    const currentlySelectedOption = useMemo(
-        () => (currentValue ? getOptionData(currentValue) : null),
-        [getOptionData, currentValue]
+    const currentlySelectedOptions = useMemo(
+        () => currentValues.length ? getOptionsData(currentValues) : null,
+        [getOptionsData, currentValues]
+    )
+
+    const currentlySelectedOptionsCodes = useMemo(
+        () => currentlySelectedOptions?.map(({code}) => code) || [],
+        [currentlySelectedOptions]
+    )
+
+    const currentlySelectedOptionsString = useMemo(
+        () => currentlySelectedOptions?.map(({name}) => name).join(', ') || '',
+        [currentlySelectedOptions]
     )
 
     const toggleDropdown = useCallback(() => {
@@ -86,19 +101,23 @@ export function Dropdown({
     }, [isOpen, isDisabled, isReadOnly])
 
     const handleSelection = useCallback(
-        (option: string) => {
-            setCurrentValue(option)
-            setIsOpen(false)
-            onChange(option, name)
+        (options: string[]) => {
+            setCurrentValues(options)
+            if (isMultiselect) {
+                onChange(options, name);
+                return;
+            }
+            setIsOpen(false);
+            onChange(options[0], name)
         },
-        [onChange, name]
+        [onChange, name, isMultiselect]
     )
 
     useClickAway(dropdownRef, () => setIsOpen(false), ['click'])
 
     useEffect(() => {
-        if (value !== currentValue) {
-            setCurrentValue(value)
+        if (value?.toString() !== currentValues.toString()) {
+            setCurrentValues(value ? Array.isArray(value) ? value : [value] : []);
         }
     }, [value])
 
@@ -107,6 +126,7 @@ export function Dropdown({
             className={className}
             label={label}
             labelTooltip={labelTooltip}
+            size={size}
             isRequired={isRequired}
             isError={isError}
             errorMessage={errorMessage}
@@ -128,19 +148,22 @@ export function Dropdown({
                 <div className={styles.DropdownInput} onClick={toggleDropdown}>
                     <div
                         className={classnames(styles.SelectedOption, {
-                            [styles.Placeholder]: !currentlySelectedOption,
+                            [styles.Placeholder]: !currentlySelectedOptionsString,
                         })}
                     >
-                        {currentlySelectedOption?.name || placeholder}
+                        {currentlySelectedOptionsString || placeholder}
                     </div>
                     <ArrowIcon className={styles.ArrowIcon} />
                 </div>
                 {isOpen && (
                     <Menu
+                        ref={menuRef}
                         size={size}
                         className={styles.OptionsList}
                         options={options}
-                        selectedOption={currentlySelectedOption?.code}
+                        isMultiselect={isMultiselect}
+                        keepSelection={true}
+                        selectedOptions={currentlySelectedOptionsCodes}
                         showSelectedCheckIcon={showSelectedCheckIcon}
                         onSelect={handleSelection}
                     />
