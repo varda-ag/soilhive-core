@@ -17,10 +17,11 @@ interface Props {
   className?: string;
   size?: ComponentSizeType;
   options: MenuOption[];
-  selectedOption?: string | null;
+  selectedOptions?: string[] | null;
+  isMultiselect?: boolean;
   keepSelection?: boolean;
   showSelectedCheckIcon?: boolean;
-  onSelect: (code: string) => void;
+  onSelect: (codes: string[]) => void;
 }
 
 export const Menu = forwardRef<HTMLDivElement, Props>(function Menu(
@@ -28,15 +29,16 @@ export const Menu = forwardRef<HTMLDivElement, Props>(function Menu(
     className,
     size = 'medium',
     options,
-    selectedOption,
-    keepSelection = true,
+    selectedOptions,
+    isMultiselect,
+    keepSelection = false,
     showSelectedCheckIcon = false,
     onSelect,
   },
   ref: ForwardedRef<HTMLDivElement>
 ) {
-  const [currentlySelectedOption, setCurrentlySelectedOption] = useState<string | null>(
-    options?.find(({ code }) => code === selectedOption)?.code ?? null
+  const [currentlySelectedOptions, setCurrentlySelectedOptions] = useState<string[]>(
+    options.filter(({ code }) => selectedOptions?.includes(code)).map(({code}) => code)
   );
 
   const sizeClass = useMemo(() => {
@@ -57,20 +59,29 @@ export const Menu = forwardRef<HTMLDivElement, Props>(function Menu(
     () =>
       options.map((option) => ({
         ...option,
-        isSelected: currentlySelectedOption === option.code,
+        isSelected: currentlySelectedOptions?.includes(option.code),
       })),
-    [options, currentlySelectedOption]
+    [options, currentlySelectedOptions]
   );
 
   const selectOption = useCallback(
-    (optionCode: string) => {
-      onSelect(optionCode);
+    (optionCode: string, isSelected: boolean) => {
+      if (isMultiselect) {
+        const newValue = isSelected ?
+          currentlySelectedOptions.filter((code) => code !== optionCode) :
+          [...currentlySelectedOptions, optionCode];
 
+        onSelect(newValue);
+        setCurrentlySelectedOptions(newValue);
+        return;
+      }
+
+      onSelect([optionCode]);
       if (keepSelection) {
-        setCurrentlySelectedOption(optionCode);
+        setCurrentlySelectedOptions([optionCode]);
       }
     },
-    [onSelect, keepSelection]
+    [onSelect, keepSelection, isMultiselect, currentlySelectedOptions]
   );
 
   return (
@@ -87,7 +98,7 @@ export const Menu = forwardRef<HTMLDivElement, Props>(function Menu(
             [styles.Selected]: isSelected,
             [styles.Disabled]: isDisabled,
           })}
-          onClick={() => !isSelected && !isDisabled && selectOption(code)}
+          onClick={() => !isDisabled && selectOption(code, !!isSelected)}
         >
           {Icon && <Icon className={styles.OptionIcon} />}
           <span className={styles.OptionName}>{name}</span>

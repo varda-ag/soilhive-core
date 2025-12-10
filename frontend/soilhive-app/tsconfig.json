@@ -10,6 +10,7 @@
     "types": ["node", "jest", "@testing-library/jest-dom"],
     "paths": {
       "components/*": ["./src/components/*"],
+      "hooks/*": ["./src/hooks/*"],
       "types/*": ["./src/types/*"]
     },
 

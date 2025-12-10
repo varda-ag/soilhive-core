@@ -15,7 +15,7 @@ exports[`Header component snapshot with authenticated user 1`] = `
       />
     </div>
     <nav
-      class="nav"
+      class="nav "
     >
       <a
         href="/"
@@ -59,9 +59,9 @@ exports[`Header component snapshot with authenticated user 1`] = `
       aria-label="Menu"
       class="hamburger"
     >
-      <span />
-      <span />
-      <span />
+      <svg
+        data-testid="user-icon"
+      />
     </button>
   </header>
 </div>

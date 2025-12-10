@@ -23,6 +23,8 @@ export default {
     "^.+\\.svg(\\?react)?$": "<rootDir>/tests/mocks/svgMock.tsx",
     "^assets/(.*)$": "<rootDir>/src/assets/$1",
     "^components/(.*)$": "<rootDir>/src/components/$1",
+    "^hooks/(.*)$": "<rootDir>/src/hooks/$1",
+    "^types/(.*)$": "<rootDir>/src/types/$1",
   },
 
   extensionsToTreatAsEsm: [".ts", ".tsx"],

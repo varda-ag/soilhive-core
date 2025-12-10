@@ -2,7 +2,7 @@ import styles from './DatasetsSidebarSummaryItem.module.scss';
 
 interface Props {
     name: string,
-    value?: string,
+    value: string | number,
     color: string,
 }
 
