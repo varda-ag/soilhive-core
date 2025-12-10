@@ -12,7 +12,7 @@ permissions:
 jobs:
 
   nodejs-frontend:
-    name: Node.js CI
+    name: Node.js soilhive-core-frontend
     uses: varda-ag/.github/.github/workflows/nodejs.yaml@main
     with:
       node-version: '22'
@@ -26,7 +26,7 @@ jobs:
       disable-e2e-tests-coverage: true
 
   nodejs-backend:
-    name: Node.js CI
+    name: Node.js soilhive-core-backend
     uses: varda-ag/.github/.github/workflows/nodejs.yaml@main
     with:
       node-version: '22'
@@ -80,6 +80,7 @@ jobs:
           skip-version-file: true
 
   build-push-docker-frontend:
+    name: Docker soilhive-core-frontend Build and Push
     uses: varda-ag/.github/.github/workflows/docker-build.yaml@main
     needs:
       - version
@@ -94,6 +95,7 @@ jobs:
       id-token: write   # This is required for requesting the JWT token from OIDC
 
   build-push-docker-backend:
+    name: Docker soilhive-core-backend Build and Push
     uses: varda-ag/.github/.github/workflows/docker-build.yaml@main
     needs:
       - version
@@ -168,3 +170,55 @@ jobs:
 
             ${{ needs.changelog.outputs.clean_changelog }}
             </details>
+
+  cleanup-docker-frontend:
+    name: Cleanup soilhive-core-frontend Docker
+    uses: varda-ag/.github/.github/workflows/docker-cleanup.yaml@main
+    needs:
+      - version
+      - build-push-docker-frontend
+      - build-push-docker-backend
+      - changelog
+      - release
+    if: >
+      always() &&
+      (
+        needs.version.result == 'failure' ||
+        needs.build-push-docker-frontend.result == 'failure' ||
+        needs.build-push-docker-backend.result == 'failure' ||
+        needs.changelog.result == 'failure' ||
+        needs.release.result == 'failure'
+      )
+    with:
+      imageName: soilhive-core-frontend
+      imageVersion: ${{ needs.version.outputs.tag }}
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+  
+  cleanup-docker-backend:
+    name: Cleanup soilhive-core-backend Docker
+    uses: varda-ag/.github/.github/workflows/docker-cleanup.yaml@main
+    needs:
+      - version
+      - build-push-docker-frontend
+      - build-push-docker-backend
+      - changelog
+      - release
+    if: >
+      always() &&
+        (
+          needs.version.result == 'failure' ||
+          needs.build-push-docker-frontend.result == 'failure' ||
+          needs.build-push-docker-backend.result == 'failure' ||
+          needs.changelog.result == 'failure' ||
+          needs.release.result == 'failure'
+        )
+    with:
+      imageName: soilhive-core-backend
+      imageVersion: ${{ needs.version.outputs.tag }}
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
