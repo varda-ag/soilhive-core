@@ -2,15 +2,11 @@ import { render, screen } from '@testing-library/react';
 import { FormFieldWrapper } from 'components/UI/FormFieldWrapper/FormFieldWrapper';
 
 jest.mock('components/UI', () => ({
-  FormMessage: ({ type, message }: any) => (
-    <div data-testid={`form-message-${type}`}>{message}</div>
-  ),
+  FormMessage: ({ type, message }: any) => <div data-testid={`form-message-${type}`}>{message}</div>,
 }));
 
 jest.mock('react-tooltip', () => ({
-  Tooltip: ({ id }: { id: string }) => (
-    <div data-testid={`tooltip-${id}`} />
-  ),
+  Tooltip: ({ id }: { id: string }) => <div data-testid={`tooltip-${id}`} />,
 }));
 
 describe('FormFieldWrapper component', () => {
@@ -18,7 +14,7 @@ describe('FormFieldWrapper component', () => {
     render(
       <FormFieldWrapper size="medium">
         <input data-testid="test-input" />
-      </FormFieldWrapper>
+      </FormFieldWrapper>,
     );
     expect(screen.getByTestId('test-input')).toBeInTheDocument();
   });
@@ -27,7 +23,7 @@ describe('FormFieldWrapper component', () => {
     render(
       <FormFieldWrapper label="Email" size="medium">
         <input data-testid="test-input" />
-      </FormFieldWrapper>
+      </FormFieldWrapper>,
     );
     expect(screen.getByText('Email')).toBeInTheDocument();
   });
@@ -36,7 +32,7 @@ describe('FormFieldWrapper component', () => {
     render(
       <FormFieldWrapper label="Email" isRequired={true} size="medium">
         <input data-testid="test-input" />
-      </FormFieldWrapper>
+      </FormFieldWrapper>,
     );
     expect(screen.getByText('*')).toBeInTheDocument();
   });
@@ -45,7 +41,7 @@ describe('FormFieldWrapper component', () => {
     render(
       <FormFieldWrapper label="Email" labelTooltip="Tooltip text" size="medium">
         <input data-testid="test-input" />
-      </FormFieldWrapper>
+      </FormFieldWrapper>,
     );
 
     expect(screen.getByTestId('tooltip-label-tooltip')).toBeInTheDocument();
@@ -53,30 +49,20 @@ describe('FormFieldWrapper component', () => {
 
   it('renders in error satate with error message when errorMessage and isError=true', () => {
     const { container } = render(
-      <FormFieldWrapper
-        isError={true}
-        errorMessage="Error occurred"
-        size="medium"
-      >
+      <FormFieldWrapper isError={true} errorMessage="Error occurred" size="medium">
         <input data-testid="test-input" />
-      </FormFieldWrapper> 
+      </FormFieldWrapper>,
     );
 
     expect(container.firstChild).toHaveClass('Invalid');
-    expect(screen.getByTestId('form-message-error')).toHaveTextContent(
-      'Error occurred'
-    );
+    expect(screen.getByTestId('form-message-error')).toHaveTextContent('Error occurred');
   });
 
   it('does NOT render error message if isError=false', () => {
     render(
-      <FormFieldWrapper
-        errorMessage="Should NOT render"
-        isError={false}
-        size="medium"
-      >
+      <FormFieldWrapper errorMessage="Should NOT render" isError={false} size="medium">
         <input data-testid="test-input" />
-      </FormFieldWrapper> 
+      </FormFieldWrapper>,
     );
     expect(screen.queryByTestId('form-message-error')).toBeNull();
   });
@@ -85,18 +71,16 @@ describe('FormFieldWrapper component', () => {
     render(
       <FormFieldWrapper helperMessage="Helpful info" size="medium">
         <input data-testid="test-input" />
-      </FormFieldWrapper> 
+      </FormFieldWrapper>,
     );
-    expect(screen.getByTestId('form-message-info')).toHaveTextContent(
-      'Helpful info'
-    );
+    expect(screen.getByTestId('form-message-info')).toHaveTextContent('Helpful info');
   });
 
   it('accepts custom className', () => {
     const { container } = render(
       <FormFieldWrapper className="custom-class" size="medium">
         <input data-testid="test-input" />
-      </FormFieldWrapper> 
+      </FormFieldWrapper>,
     );
     expect(container.firstChild).toHaveClass('custom-class');
   });
@@ -113,7 +97,7 @@ describe('FormFieldWrapper component', () => {
         size="medium"
       >
         <input />
-      </FormFieldWrapper>
+      </FormFieldWrapper>,
     );
 
     expect(container).toMatchSnapshot();

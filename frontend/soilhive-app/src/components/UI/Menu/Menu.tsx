@@ -1,10 +1,4 @@
-import {
-  forwardRef,
-  useCallback,
-  useMemo,
-  useState,
-  type ForwardedRef,
-} from 'react';
+import { forwardRef, useCallback, useMemo, useState, type ForwardedRef } from 'react';
 import classnames from 'classnames';
 
 import BigCheckIcon from 'assets/icons/big-check-mark-icon.svg?react';
@@ -25,30 +19,19 @@ interface Props {
 }
 
 export const Menu = forwardRef<HTMLDivElement, Props>(function Menu(
-  {
-    className,
-    size = 'medium',
-    options,
-    selectedOptions,
-    isMultiselect,
-    keepSelection = false,
-    showSelectedCheckIcon = false,
-    onSelect,
-  },
-  ref: ForwardedRef<HTMLDivElement>
+  { className, size = 'medium', options, selectedOptions, isMultiselect, keepSelection = false, showSelectedCheckIcon = false, onSelect },
+  ref: ForwardedRef<HTMLDivElement>,
 ) {
   const [currentlySelectedOptions, setCurrentlySelectedOptions] = useState<string[]>(
-    options.filter(({ code }) => selectedOptions?.includes(code)).map(({code}) => code)
+    options.filter(({ code }) => selectedOptions?.includes(code)).map(({ code }) => code),
   );
 
   const sizeClass = useMemo(() => {
-    return (
-      {
-        medium: styles.Medium,
-        small: styles.Small,
-        tiny: styles.Tiny,
-      }[size]
-    );
+    return {
+      medium: styles.Medium,
+      small: styles.Small,
+      tiny: styles.Tiny,
+    }[size];
   }, [size]);
 
   const CheckIcon = useMemo(() => {
@@ -57,19 +40,19 @@ export const Menu = forwardRef<HTMLDivElement, Props>(function Menu(
 
   const menuOptions = useMemo(
     () =>
-      options.map((option) => ({
+      options.map(option => ({
         ...option,
         isSelected: currentlySelectedOptions?.includes(option.code),
       })),
-    [options, currentlySelectedOptions]
+    [options, currentlySelectedOptions],
   );
 
   const selectOption = useCallback(
     (optionCode: string, isSelected: boolean) => {
       if (isMultiselect) {
-        const newValue = isSelected ?
-          currentlySelectedOptions.filter((code) => code !== optionCode) :
-          [...currentlySelectedOptions, optionCode];
+        const newValue = isSelected
+          ? currentlySelectedOptions.filter(code => code !== optionCode)
+          : [...currentlySelectedOptions, optionCode];
 
         onSelect(newValue);
         setCurrentlySelectedOptions(newValue);
@@ -81,15 +64,11 @@ export const Menu = forwardRef<HTMLDivElement, Props>(function Menu(
         setCurrentlySelectedOptions([optionCode]);
       }
     },
-    [onSelect, keepSelection, isMultiselect, currentlySelectedOptions]
+    [onSelect, keepSelection, isMultiselect, currentlySelectedOptions],
   );
 
   return (
-    <div
-      ref={ref}
-      data-testid="sh-ui-menu"
-      className={classnames(styles.Menu, sizeClass, className)}
-    >
+    <div ref={ref} data-testid="sh-ui-menu" className={classnames(styles.Menu, sizeClass, className)}>
       {menuOptions.map(({ code, name, Icon, isDisabled, isSelected }) => (
         <div
           key={code}

@@ -1,17 +1,15 @@
-import { useContext } from 'react'
+import { useContext } from 'react';
 
-import { AvailabilityContext } from '../contexts/AvailabilityContext'
+import { AvailabilityContext } from '../contexts/AvailabilityContext';
 
 const useAvailability = () => {
-    const theme = useContext(AvailabilityContext)
+  const theme = useContext(AvailabilityContext);
 
-    if (theme === undefined) {
-        throw new Error(
-            'useAvailability must be used within a AvailabilityContext'
-        )
-    }
+  if (theme === undefined) {
+    throw new Error('useAvailability must be used within a AvailabilityContext');
+  }
 
-    return theme
-}
+  return theme;
+};
 
-export default useAvailability
+export default useAvailability;

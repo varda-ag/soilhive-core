@@ -1,4 +1,4 @@
-import { AuthModesType } from "../types/types";
+import { AuthModesType } from '../types/types';
 
 export interface OIDCConfig {
   authority: string;

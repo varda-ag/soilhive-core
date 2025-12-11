@@ -5,25 +5,21 @@ import { pluginSvgr } from '@rsbuild/plugin-svgr';
 
 export default defineConfig({
   server: {
-    port: 3000
+    port: 3000,
   },
   output: {
-    cleanDistPath: true
+    cleanDistPath: true,
   },
   html: {
-    title: 'Soilhive'
+    title: 'Soilhive',
   },
   resolve: {
     alias: {
       assets: './src/assets',
       components: './src/components',
       hooks: './src/hooks',
-      types: './src/types'
-    }
+      types: './src/types',
+    },
   },
-  plugins: [
-    pluginReact(),
-    pluginSass(),
-    pluginSvgr()
-  ],
+  plugins: [pluginReact(), pluginSass(), pluginSvgr()],
 });

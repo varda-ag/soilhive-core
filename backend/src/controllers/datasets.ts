@@ -1,6 +1,6 @@
-import { Request, Response } from "express";
-import DatasetService from "../services/DatasetService";
-import { StatusCodes } from "http-status-codes";
+import { Request, Response } from 'express';
+import DatasetService from '../services/DatasetService';
+import { StatusCodes } from 'http-status-codes';
 
 const datasetService = new DatasetService();
 
@@ -15,6 +15,6 @@ export const getDatasets = async (req: Request, res: Response) => {
 };
 
 export const getDataset = async (req: Request, res: Response) => {
-  const data = await datasetService.getDataset(req.customData, req.params["datasetSlug"]!);
+  const data = await datasetService.getDataset(req.customData, req.params['datasetSlug']!);
   res.json(data);
 };

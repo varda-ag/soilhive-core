@@ -1,5 +1,5 @@
-import type { Polygon } from "geojson";
-import type { GISDataTypeType, IngestionStatusType } from "../types/data";
+import type { Polygon } from 'geojson';
+import type { GISDataTypeType, IngestionStatusType } from '../types/data';
 
 export interface VariableMeasured {
   description: string;

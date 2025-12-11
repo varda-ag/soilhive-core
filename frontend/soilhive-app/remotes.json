@@ -1,6 +1,6 @@
 [
-    {
-        "name": "comparavailability",
-        "entry": "http://localhost:3002/mf-manifest.json"
-    }
+  {
+    "name": "comparavailability",
+    "entry": "http://localhost:3002/mf-manifest.json"
+  }
 ]

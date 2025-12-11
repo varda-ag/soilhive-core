@@ -26,14 +26,7 @@ describe('Menu Component', () => {
   });
 
   it('marks selected option when selectedOption is passed', () => {
-    const { container } = render(
-      <Menu
-        options={baseOptions}
-        selectedOptions={['2']}
-        onSelect={() => {}}
-        showSelectedCheckIcon
-      />
-    );
+    const { container } = render(<Menu options={baseOptions} selectedOptions={['2']} onSelect={() => {}} showSelectedCheckIcon />);
 
     const secondOption = screen.getAllByTestId('sh-ui-menuoption')[1];
     expect(secondOption).toHaveClass('Selected');
@@ -64,14 +57,7 @@ describe('Menu Component', () => {
   it('keepSelection = true updates internal state', () => {
     const onSelect = jest.fn();
 
-    render(
-      <Menu
-        options={baseOptions}
-        onSelect={onSelect}
-        keepSelection
-        showSelectedCheckIcon
-      />
-    );
+    render(<Menu options={baseOptions} onSelect={onSelect} keepSelection showSelectedCheckIcon />);
 
     fireEvent.click(screen.getByText('Option 2'));
 
@@ -82,18 +68,12 @@ describe('Menu Component', () => {
   });
 
   it('keepSelection = false does NOT update internal state', () => {
-    render(
-      <Menu
-        options={baseOptions}
-        onSelect={() => {}}
-        keepSelection={false}
-      />
-    );
+    render(<Menu options={baseOptions} onSelect={() => {}} keepSelection={false} />);
 
     fireEvent.click(screen.getByText('Option 2'));
 
     const options = screen.getAllByTestId('sh-ui-menuoption');
-    options.forEach((opt) => {
+    options.forEach(opt => {
       expect(opt).not.toHaveClass('Selected');
     });
   });
@@ -101,15 +81,7 @@ describe('Menu Component', () => {
   it('supports multiselect behaviour', () => {
     const onSelect = jest.fn();
 
-    render(
-      <Menu
-        options={baseOptions}
-        onSelect={onSelect}
-        keepSelection
-        showSelectedCheckIcon
-        isMultiselect
-      />
-    );
+    render(<Menu options={baseOptions} onSelect={onSelect} keepSelection showSelectedCheckIcon isMultiselect />);
 
     fireEvent.click(screen.getByText('Option 1'));
     fireEvent.click(screen.getByText('Option 2'));
@@ -131,14 +103,7 @@ describe('Menu Component', () => {
     const onSelect = jest.fn();
 
     const { container } = render(
-      <Menu
-        options={baseOptions}
-        onSelect={onSelect}
-        selectedOptions={['unknown']}
-        keepSelection
-        showSelectedCheckIcon
-        isMultiselect
-      />
+      <Menu options={baseOptions} onSelect={onSelect} selectedOptions={['unknown']} keepSelection showSelectedCheckIcon isMultiselect />,
     );
 
     expect(container.querySelector('.Selected')).not.toBeInTheDocument();
@@ -152,9 +117,7 @@ describe('Menu Component', () => {
   it('renders custom option icon when provided', () => {
     const TestIcon = () => <svg data-testid="test-icon" />;
 
-    const optionsWithIcon: MenuOption[] = [
-      { code: '1', name: 'Option 1', Icon: TestIcon },
-    ];
+    const optionsWithIcon: MenuOption[] = [{ code: '1', name: 'Option 1', Icon: TestIcon }];
 
     render(<Menu options={optionsWithIcon} onSelect={() => {}} />);
 

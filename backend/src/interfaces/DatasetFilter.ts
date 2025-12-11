@@ -1,4 +1,4 @@
-import { Polygon, MultiPolygon } from "geojson";
+import { Polygon, MultiPolygon } from 'geojson';
 
 export interface FilterableDatasetMetadata {
   data_types?: string[];

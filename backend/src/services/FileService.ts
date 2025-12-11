@@ -1,13 +1,13 @@
-import fs from "fs";
-import { S3Client } from "@aws-sdk/client-s3";
-import { FileStorage } from "@flystorage/file-storage";
-import { AwsS3StorageAdapter } from "@flystorage/aws-s3";
-import { LocalStorageAdapter } from "@flystorage/local-fs";
-import { FlystorageMulterStorageEngine } from "@flystorage/multer-storage";
-import { LocalStorageConfig, S3StorageConfig, StorageConfig } from "../interfaces/StorageConfig";
-import { StorageModes } from "../types/types";
-import ConfigService from "./ConfigService";
-import { LOGO_FILE_ID } from "../constants/constants";
+import fs from 'fs';
+import { S3Client } from '@aws-sdk/client-s3';
+import { FileStorage } from '@flystorage/file-storage';
+import { AwsS3StorageAdapter } from '@flystorage/aws-s3';
+import { LocalStorageAdapter } from '@flystorage/local-fs';
+import { FlystorageMulterStorageEngine } from '@flystorage/multer-storage';
+import { LocalStorageConfig, S3StorageConfig, StorageConfig } from '../interfaces/StorageConfig';
+import { StorageModes } from '../types/types';
+import ConfigService from './ConfigService';
+import { LOGO_FILE_ID } from '../constants/constants';
 
 export default class FileService {
   exists = async (fileId: string): Promise<boolean> => {
@@ -24,13 +24,13 @@ export default class FileService {
     const adapter = FileService.getAdapter();
     const fileStorage = new FileStorage(adapter);
     const storage = new FlystorageMulterStorageEngine(fileStorage, async (action, req, file) => {
-      if (action === "handle") {
-        if (req.path === "/frontend/logo") {
+      if (action === 'handle') {
+        if (req.path === '/frontend/logo') {
           // Special case for logo upload
           return LOGO_FILE_ID;
         }
         // Use ID parameter to setup filename
-        return req.params["fileId"]!;
+        return req.params['fileId']!;
       } else {
         // Return folder name/destination if needed
         return file.destination;
@@ -43,7 +43,7 @@ export default class FileService {
     const adapter = FileService.getAdapter();
     return new FileStorage(adapter);
   };
-  
+
   static getAdapter = (): any => {
     // Creates adapter based on storage config (TODO: caching?)
     let adapter: any;

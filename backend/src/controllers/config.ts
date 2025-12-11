@@ -1,7 +1,7 @@
-import { JsonStorage } from "../entities/JsonStorage";
-import { Request, Response } from "express";
-import ConfigService from "../services/ConfigService";
-import StatusCodes from "http-status-codes";
+import { JsonStorage } from '../entities/JsonStorage';
+import { Request, Response } from 'express';
+import ConfigService from '../services/ConfigService';
+import StatusCodes from 'http-status-codes';
 
 const configService = new ConfigService();
 
@@ -31,6 +31,6 @@ export const exportConfigs = async (req: Request, res: Response) => {
 
 const getRepoAndId = (req: Request) => {
   const repo = req.customData.entityManager.getRepository(JsonStorage);
-  const id = req.params["configId"]!;
+  const id = req.params['configId']!;
   return { repo, id };
 };

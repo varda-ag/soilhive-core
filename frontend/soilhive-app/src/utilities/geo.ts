@@ -1,7 +1,7 @@
-import { bboxPolygon, featureCollection } from "@turf/turf";
-import { featureToH3Set } from "geojson2h3";
-import { cellToBoundary, cellToLatLng, type CoordPair, type H3Index } from "h3-js";
-import { lerp } from "math.gl";
+import { bboxPolygon, featureCollection } from '@turf/turf';
+import { featureToH3Set } from 'geojson2h3';
+import { cellToBoundary, cellToLatLng, type CoordPair, type H3Index } from 'h3-js';
+import { lerp } from 'math.gl';
 
 export function h3IndexesToGeoJSONPolygon(h3Index: H3Index) {
   const [lat, lng] = cellToLatLng(h3Index);
@@ -10,39 +10,39 @@ export function h3IndexesToGeoJSONPolygon(h3Index: H3Index) {
   const factor = 1;
 
   // normalize with respect to center
-	normalizeLongitudes(vertices, lng);
+  normalizeLongitudes(vertices, lng);
 
-	// `cellToBoundary` returns same array object for first and last vertex (closed polygon),
-	// if so skip scaling the last vertex
-	const vertexCount = vertices[0] === vertices[actualCount - 1] ? actualCount - 1 : actualCount;
-	for (let i = 0; i < vertexCount; i++) {
-		vertices[i][0] = lerp(lng, vertices[i][0], factor);
-		vertices[i][1] = lerp(lat, vertices[i][1], factor);
-	}
+  // `cellToBoundary` returns same array object for first and last vertex (closed polygon),
+  // if so skip scaling the last vertex
+  const vertexCount = vertices[0] === vertices[actualCount - 1] ? actualCount - 1 : actualCount;
+  for (let i = 0; i < vertexCount; i++) {
+    vertices[i][0] = lerp(lng, vertices[i][0], factor);
+    vertices[i][1] = lerp(lat, vertices[i][1], factor);
+  }
 
-	return {
-		type: 'Feature',
-		properties: { h3Index },
-		geometry: {
-			type: 'Polygon',
-			coordinates: [vertices]
-		}
-	};
+  return {
+    type: 'Feature',
+    properties: { h3Index },
+    geometry: {
+      type: 'Polygon',
+      coordinates: [vertices],
+    },
+  };
 }
 
 function normalizeLongitudes(vertices: CoordPair[], refLng: number) {
-	for (const pt of vertices) {
-		const deltaLng = pt[0] - (refLng === undefined ? vertices[0][0] : refLng);
-		if (deltaLng > 180) {
-			pt[0] -= 360;
-		} else if (deltaLng < -180) {
-			pt[0] += 360;
-		}
-	}
+  for (const pt of vertices) {
+    const deltaLng = pt[0] - (refLng === undefined ? vertices[0][0] : refLng);
+    if (deltaLng > 180) {
+      pt[0] -= 360;
+    } else if (deltaLng < -180) {
+      pt[0] += 360;
+    }
+  }
 }
 
-export function h3IndexesToGeoJSONPolygons(h3Indexes: Array<H3Index>) {	
-	return featureCollection(h3Indexes.map(h3IndexesToGeoJSONPolygon) as any);
+export function h3IndexesToGeoJSONPolygons(h3Indexes: Array<H3Index>) {
+  return featureCollection(h3Indexes.map(h3IndexesToGeoJSONPolygon) as any);
 }
 
 /**

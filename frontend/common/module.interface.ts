@@ -1,3 +1,1 @@
-interface Module {
-    
-}
+interface Module {}

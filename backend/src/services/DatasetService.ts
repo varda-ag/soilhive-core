@@ -1,18 +1,21 @@
-import { StatusCodes } from "http-status-codes";
-import { hasher } from "node-object-hash";
-import { JsonStorage } from "../entities/JsonStorage";
-import { DatasetFilter, PostDatasetFilterResponse, StoredDatasetFilter } from "../interfaces/DatasetFilter";
-import { RequestData } from "../interfaces/RequestData";
-import { ErrorResponse } from "../utils/error";
-import { Dataset } from "../interfaces/Dataset";
-import DatasetEntity from "../entities/Dataset";
+import { StatusCodes } from 'http-status-codes';
+import { hasher } from 'node-object-hash';
+import { JsonStorage } from '../entities/JsonStorage';
+import { DatasetFilter, PostDatasetFilterResponse, StoredDatasetFilter } from '../interfaces/DatasetFilter';
+import { RequestData } from '../interfaces/RequestData';
+import { ErrorResponse } from '../utils/error';
+import { Dataset } from '../interfaces/Dataset';
+import DatasetEntity from '../entities/Dataset';
 
 export default class DatasetService {
   postFilter = async (requestData: RequestData, filter: DatasetFilter): Promise<PostDatasetFilterResponse> => {
     // Validate geometries in the payload
     for (const geometry of filter.geometries) {
-      if (!["Polygon", "MultiPolygon"].includes(geometry.type)) {
-        throw new ErrorResponse(`Unsupported filtering geometry type: ${geometry.type} (allowed: Polygon, MultiPolygon)`, StatusCodes.BAD_REQUEST);
+      if (!['Polygon', 'MultiPolygon'].includes(geometry.type)) {
+        throw new ErrorResponse(
+          `Unsupported filtering geometry type: ${geometry.type} (allowed: Polygon, MultiPolygon)`,
+          StatusCodes.BAD_REQUEST,
+        );
       }
     }
 

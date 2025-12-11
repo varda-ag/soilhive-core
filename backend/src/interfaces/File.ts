@@ -1,5 +1,4 @@
-import type { IngestionStatusType } from "../types/data";
-
+import type { IngestionStatusType } from '../types/data';
 
 export interface File {
   id: string;

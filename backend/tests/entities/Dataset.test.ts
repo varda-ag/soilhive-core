@@ -1,9 +1,9 @@
-import Dataset from "../../src/entities/Dataset";
-import { getEntityManager } from "../../src/utils/data-source";
-import { Polygon } from "typeorm";
+import Dataset from '../../src/entities/Dataset';
+import { getEntityManager } from '../../src/utils/data-source';
+import { Polygon } from 'typeorm';
 
-describe("Dataset entity", () => {
-  it("Creates and saves a new dataset", async () => {
+describe('Dataset entity', () => {
+  it('Creates and saves a new dataset', async () => {
     const polygon: Polygon = {
       coordinates: [
         [
@@ -14,12 +14,12 @@ describe("Dataset entity", () => {
           [11.322484394, 44.503691914],
         ],
       ],
-      type: "Polygon",
+      type: 'Polygon',
     };
     const dataset = new Dataset();
-    dataset.name = "name";
-    dataset.slug = "slug";
-    dataset.created_by = "created_by";
+    dataset.name = 'name';
+    dataset.slug = 'slug';
+    dataset.created_by = 'created_by';
     dataset.spatial_extent = polygon;
 
     const entityManager = await getEntityManager();
