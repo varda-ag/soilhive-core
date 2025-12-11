@@ -22,6 +22,8 @@ FROM nginx:alpine
 RUN rm -rf /usr/share/nginx/html/*
 
 COPY --from=build /app/soilhive-app/dist /usr/share/nginx/html
+COPY --from=build /app/soilhive-app/env.sh /usr/share/nginx/html
+
 EXPOSE 80
 
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["/bin/bash", "-c", "/usr/share/nginx/html/env.sh && nginx -g \"daemon off;\""]
