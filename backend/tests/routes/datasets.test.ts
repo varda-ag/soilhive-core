@@ -17,16 +17,14 @@ describe('Testing /datasets/filters routes', () => {
     ['Point', 400],
     ['Polygon', 201],
     ['MultiPolygon', 201],
-  ])(
-    'Tests filter geometry type validation',
-    async (type, expectedStatus) => {
-      const payload = {
-        parameters: {},
-        geometries: [{ coordinates: {}, type }],
-      };
-      const res = await request(app).post('/datasets-filters').send(payload);
-      expect(res.statusCode).toBe(expectedStatus);
-    });
+  ])('Tests filter geometry type validation', async (type, expectedStatus) => {
+    const payload = {
+      parameters: {},
+      geometries: [{ coordinates: {}, type }],
+    };
+    const res = await request(app).post('/datasets-filters').send(payload);
+    expect(res.statusCode).toBe(expectedStatus);
+  });
 
   it('Filter should be stored in DB', async () => {
     const payload = {
