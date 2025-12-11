@@ -111,7 +111,8 @@ function SoilhiveMap({
     type: 'FeatureCollection',
     features: []
   });
-  const [showDrawContol, setShowDrawControl] = useState(false);
+  const [showDrawControl, setShowDrawControl] = useState(false);
+  const [showSelectionToolbar, setShowSelectionToolbar] = useState(false);
 
   function updateH3Cells(mapEvent) {
     if (!showH3Cells) {
@@ -143,14 +144,15 @@ function SoilhiveMap({
       type: 'FeatureCollection',
       features: []
     });
+    setShowSelectionToolbar(false);
   }
 
   function applySelection(feature, coordinates) {
     if (feature.id === selectedFeatureRef.current?.id) {
       return;
     }
-    setSelection({ type: 'FeatureCollection', features: [feature] })
-    setSelectedPoint(coordinates);   
+    setSelection({ type: 'FeatureCollection', features: [feature] });
+    setSelectedPoint(coordinates);
     mapRef.current.setFeatureState(
       { source: 'data', id: feature.id },
       { selected: true }
@@ -179,22 +181,38 @@ function SoilhiveMap({
         onMoveEnd={updateH3Cells}        
         onClick={(event) => {
           if (event.features?.length > 0) {
-            applySelection(event.features[0], event.lngLat)
+            applySelection(event.features[0], event.lngLat);
+            setShowSelectionToolbar(true);
           } else {
-            resetSelection();
+            // resetSelection();
           }
         }}
         interactiveLayerIds={['data-fills']}
       >
-        <SoilhiveMapToolbar onDrawClick={() => {
-          setShowDrawControl(true);
-          setTimeout(() => {
-            // Makes selection
-            document.querySelector('button.maplibregl-terradraw-add-polygon-button')?.click();
-          }, 0);          
-        }} />
+        { !showSelectionToolbar &&
+          <SoilhiveMapToolbar onDrawClick={() => {
+            setShowDrawControl(true);
+            setShowSelectionToolbar(true);
+            setTimeout(() => {
+              // Makes selection
+              document.querySelector('button.maplibregl-terradraw-add-polygon-button')?.click();
+            }, 0);          
+          }} />
+        }
+        
 
-        <SoilhiveMapSelectionToolbar />
+        { showSelectionToolbar &&
+          <SoilhiveMapSelectionToolbar
+            onCancel={() => {
+              setShowDrawControl(false);
+              resetSelection();
+            }}
+            onReset={() => {
+              setShowDrawControl(false);
+              resetSelection();
+            }}
+          />
+        }
 
         {selectedPoint &&
           <Popup
@@ -233,7 +251,7 @@ function SoilhiveMap({
           </Popup>
         }
 
-        {showH3Cells && h3Cells &&
+        {showH3Cells && h3Cells && !showDrawControl &&
           <>
             <Source id="data" type="geojson" data={h3Cells} promoteId='h3Index'>
               <Layer {...dataLayerFills} />
@@ -249,9 +267,13 @@ function SoilhiveMap({
               
         { showGeolocation && <GeolocateControl position="bottom-right" /> }
         { showNavigation && <NavigationControl position="bottom-right" showCompass={false} showZoom={true} visualizePitch={false} /> }
-        { showDrawContol && 
+        { showDrawControl && 
           <DrawControl
             position="bottom-right"
+            onFinish={(feature) => {
+              console.log('onFinish - feature:', feature);
+              setShowDrawControl(false);
+            }}
             // displayControlsDefault={false}
             // controls={{
             //   polygon: true,
