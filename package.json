@@ -5,6 +5,24 @@
   "version": "0.2.0",
   "scripts": {
     "dev": "pnpm --filter=!common --parallel dev",
-    "build": "pnpm --filter=!common --parallel build"
+    "build": "pnpm --filter=!common --parallel build",
+    "format": "prettier --write \"**/*.{ts,tsx,json,css,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,json,css,md}\"",
+    "lint": "eslint \"**/*.{ts,tsx}\"",
+    "lint:fix": "eslint \"**/*.{ts,tsx}\" --fix",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "@eslint/compat": "2.0.0",
+    "@eslint/eslintrc": "3.3.3",
+    "@typescript-eslint/eslint-plugin": "8.49.0",
+    "@typescript-eslint/parser": "8.49.0",
+    "eslint": "9.39.1",
+    "eslint-config-prettier": "10.1.8",
+    "eslint-plugin-prettier": "5.5.4",
+    "eslint-plugin-react": "7.37.5",
+    "eslint-plugin-react-hooks": "7.0.1",
+    "husky": "9.1.7",
+    "prettier": "3.7.4"
   }
 }

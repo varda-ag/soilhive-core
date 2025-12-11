@@ -59,13 +59,11 @@ export function TextInput({
   const [isFocused, setFocused] = useState(false);
 
   const sizeClass = useMemo(() => {
-    return (
-      {
-        medium: styles.Medium,
-        small: styles.Small,
-        tiny: styles.Tiny,
-      }[size]
-    );
+    return {
+      medium: styles.Medium,
+      small: styles.Small,
+      tiny: styles.Tiny,
+    }[size];
   }, [size]);
 
   const handleChange = useCallback(
@@ -74,7 +72,7 @@ export function TextInput({
       setCurrentValue(value);
       onChange?.(value, name);
     },
-    [onChange, name]
+    [onChange, name],
   );
 
   const handleFocus = useCallback(() => {
@@ -95,17 +93,17 @@ export function TextInput({
       onChange?.('', name);
       onClear?.(name);
     },
-    [onChange, onClear, name]
+    [onChange, onClear, name],
   );
 
   useEffect(() => {
     if (value !== currentValue) {
       setCurrentValue(value);
     }
-  }, [value]);
+  }, [value, currentValue]);
 
   return (
-    <FormFieldWrapper 
+    <FormFieldWrapper
       className={className}
       label={label}
       labelTooltip={labelTooltip}
@@ -125,7 +123,7 @@ export function TextInput({
           { [styles.Filled]: !!currentValue },
           { [styles.Disabled]: isDisabled },
           { [styles.ReadOnly]: isReadOnly },
-          inputClassName
+          inputClassName,
         )}
       >
         <input
@@ -141,14 +139,8 @@ export function TextInput({
           onBlur={handleBlur}
         />
 
-        {isClearable && (
-          <SmallCrossIcon
-            data-testid="sh-ui-cleartexticon"
-            className={styles.ClearTextIcon}
-            onClick={clearInput}
-          />
-        )}
+        {isClearable && <SmallCrossIcon data-testid="sh-ui-cleartexticon" className={styles.ClearTextIcon} onClick={clearInput} />}
       </div>
     </FormFieldWrapper>
   );
-};
+}

@@ -1,5 +1,5 @@
-import React from "react";
-import "./ProviderComponent.css";
+import React from 'react';
+import './ProviderComponent.css';
 
 const Page: React.FC = () => {
   return (
@@ -12,7 +12,7 @@ const Page: React.FC = () => {
   );
 };
 
-const name = "★ Name of remote module ★";
-const type = "single-page";
-const route = "remote-module";
+const name = '★ Name of remote module ★';
+const type = 'single-page';
+const route = 'remote-module';
 export { name, route, type, Page };

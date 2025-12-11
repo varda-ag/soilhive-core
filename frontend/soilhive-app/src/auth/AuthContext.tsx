@@ -1,4 +1,4 @@
-import { type User } from "./Token";
+import { type User } from './Token';
 
 export type AuthContext = {
   isAuthenticated: boolean;

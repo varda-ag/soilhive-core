@@ -1,15 +1,15 @@
-import path from "path";
-import yaml from "js-yaml";
-import SwaggerCli from "@apidevtools/swagger-cli";
-import { middleware as OpenApiValidator } from "express-openapi-validator";
-import { tokenValidator } from "./tokenValidator";
-import FileService from "../services/FileService";
+import path from 'path';
+import yaml from 'js-yaml';
+import SwaggerCli from '@apidevtools/swagger-cli';
+import { middleware as OpenApiValidator } from 'express-openapi-validator';
+import { tokenValidator } from './tokenValidator';
+import FileService from '../services/FileService';
 
 let cachedSwaggerDocument = undefined;
 
 export const getSwaggerDocument = async () => {
   if (!cachedSwaggerDocument) {
-    const apiSpecFile = path.join(__dirname, "..", "openapi.yaml");
+    const apiSpecFile = path.join(__dirname, '..', 'openapi.yaml');
     const apiBundle = await SwaggerCli.bundle(apiSpecFile, {});
     cachedSwaggerDocument = yaml.load(apiBundle);
   }
@@ -24,7 +24,7 @@ export const getOpenApiMiddleware = async () => {
     validateResponses: false,
     // operationHandlers points to "src"
     // "x-eov-operation-handler" will have root at "src" folder
-    operationHandlers: path.join(__dirname, ".."),
+    operationHandlers: path.join(__dirname, '..'),
     validateSecurity: {
       handlers: {
         bearerAuth: tokenValidator,

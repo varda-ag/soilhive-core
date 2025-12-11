@@ -1,4 +1,4 @@
-import { teardown } from "./helper";
+import { teardown } from './helper';
 
 module.exports = async () => {
   await teardown();

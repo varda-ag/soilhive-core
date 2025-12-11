@@ -1,7 +1,8 @@
-import { MaplibreTerradrawControl } from '@watergis/maplibre-gl-terradraw'
-import {useControl} from 'react-map-gl/maplibre';
+/* eslint-disable */
+import { MaplibreTerradrawControl } from '@watergis/maplibre-gl-terradraw';
+import { useControl } from 'react-map-gl/maplibre';
 
-import type {ControlPosition} from 'react-map-gl/maplibre';
+import type { ControlPosition } from 'react-map-gl/maplibre';
 
 // type DrawControlProps = ConstructorParameters<typeof TerradrawControlOptions>[0] & {
 //   position?: ControlPosition;
@@ -10,44 +11,44 @@ import type {ControlPosition} from 'react-map-gl/maplibre';
 //   // onDelete?: (evt: {features: object[]}) => void;
 // };
 
-export default function DrawControl({position = 'bottom-right'}: {position?: ControlPosition;}) {
+export default function DrawControl({ position = 'bottom-right' }: { position?: ControlPosition }) {
   const drawControl = useControl<MaplibreTerradrawControl>(
-    () => new MaplibreTerradrawControl({
-      modes: [
-        // 'render',
-        // 'point',
-        // 'marker',
-        // 'linestring',
-        'polygon',
-        'rectangle',
-        'circle',
-        // 'freehand',
-        // 'freehand-linestring',
-        // 'angled-rectangle',
-        // 'sensor',
-        // 'sector',
-        'select',
-        'delete-selection',
-        'delete',
-        // 'download'
-      ],
-      open: true,
-      
-    }),
-    ({map}) => {
+    () =>
+      new MaplibreTerradrawControl({
+        modes: [
+          // 'render',
+          // 'point',
+          // 'marker',
+          // 'linestring',
+          'polygon',
+          'rectangle',
+          'circle',
+          // 'freehand',
+          // 'freehand-linestring',
+          // 'angled-rectangle',
+          // 'sensor',
+          // 'sector',
+          'select',
+          'delete-selection',
+          'delete',
+          // 'download'
+        ],
+        open: true,
+      }),
+    ({ map }) => {
       const drawInstance = drawControl.getTerraDrawInstance();
       drawInstance.on('ready', () => {
         drawInstance.setMode('polygon'); // TODO: NOT WORKING
-      })
+      });
       drawInstance.on('finish', onFinish);
     },
-    ({map}) => {
+    ({ map }) => {
       const drawInstance = drawControl.getTerraDrawInstance();
       drawInstance?.off('finish', onFinish);
     },
     {
-      position
-    }
+      position,
+    },
   );
 
   function onFinish(event) {
@@ -62,5 +63,5 @@ export default function DrawControl({position = 'bottom-right'}: {position?: Con
 DrawControl.defaultProps = {
   onCreate: () => {},
   onUpdate: () => {},
-  onDelete: () => {}
+  onDelete: () => {},
 };

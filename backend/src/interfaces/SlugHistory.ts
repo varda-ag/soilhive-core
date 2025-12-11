@@ -1,7 +1,7 @@
-import { EntityType } from "../types/data";
+import { EntityType } from '../types/data';
 
 export interface SlugHistory {
-  slug: string,
+  slug: string;
   entity_id: string;
   entity_type: EntityType;
   created_at: Date;

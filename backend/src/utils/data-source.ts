@@ -1,7 +1,7 @@
-import "reflect-metadata";
-import { DataSource, EntityManager } from "typeorm";
-import path from "path";
-import { getDBPassword, getSSL } from "./db-credentials";
+import 'reflect-metadata';
+import { DataSource, EntityManager } from 'typeorm';
+import path from 'path';
+import { getDBPassword, getSSL } from './db-credentials';
 
 // This global variable at module level
 // is used to apply lazy loading to DB connection
@@ -9,7 +9,7 @@ let dataSource: DataSource | null = null;
 
 const createDataSource = async (schema: string): Promise<DataSource> => {
   const dataSource = new DataSource({
-    type: "postgres",
+    type: 'postgres',
     host: process.env.POSTGRES_HOST!,
     port: Number(process.env.POSTGRES_PORT!),
     username: process.env.POSTGRES_USER!,
@@ -17,8 +17,8 @@ const createDataSource = async (schema: string): Promise<DataSource> => {
     ...(process.env.POSTGRES_PASSWORD ? {} : { ssl: getSSL() }),
     database: process.env.POSTGRES_DB!,
     schema,
-    entities: [path.join(__dirname, "../entities/**/*{.ts,.js}")],
-    migrations: [path.join(__dirname, "../migrations/**/*{.ts,.js}")],
+    entities: [path.join(__dirname, '../entities/**/*{.ts,.js}')],
+    migrations: [path.join(__dirname, '../migrations/**/*{.ts,.js}')],
     synchronize: false,
     logging: false,
   });
@@ -30,7 +30,7 @@ const createDataSource = async (schema: string): Promise<DataSource> => {
 
 export const initializeSchema = async () => {
   // Connect to "public" schema to create desired schema
-  const dataSourcePublic = await createDataSource("public");
+  const dataSourcePublic = await createDataSource('public');
   const escapedSchema = `"${process.env.POSTGRES_SCHEMA}"`;
   await dataSourcePublic.query(`CREATE SCHEMA IF NOT EXISTS ${escapedSchema}`);
   await dataSourcePublic.query(`CREATE EXTENSION IF NOT EXISTS postgis SCHEMA ${escapedSchema}`);
@@ -40,7 +40,7 @@ export const initializeSchema = async () => {
 };
 
 export const isDBAvailable = async (): Promise<boolean> => {
-  const dataSourcePublic = await createDataSource("public");
+  const dataSourcePublic = await createDataSource('public');
   return dataSourcePublic.isInitialized;
 };
 
@@ -67,7 +67,7 @@ export const destroyDataSource = async () => {
 
 const runConditionalMigrations = async (dataSource: DataSource) => {
   const queryRunner = dataSource.createQueryRunner();
-  const tableExists = await queryRunner.hasTable("jsonstorage"); // Any table would be fine
+  const tableExists = await queryRunner.hasTable('jsonstorage'); // Any table would be fine
   if (!tableExists) {
     await dataSource.runMigrations();
   }

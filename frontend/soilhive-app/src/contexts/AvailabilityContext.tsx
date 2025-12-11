@@ -2,29 +2,29 @@ import React, { createContext, useState, useEffect, type ReactNode, useCallback,
 import type { AvailabilityDataset } from 'types/availability';
 
 type DatasetFilters = {
-  type: string[],
-  ownership: string,
+  type: string[];
+  ownership: string;
 };
 
 type DatasetsSummary = {
-  count: number,
-  dataPoints: number,
-  layers: number,
-  depth: string,
-  date: string,
+  count: number;
+  dataPoints: number;
+  layers: number;
+  depth: string;
+  date: string;
 };
 
 type AvailabilityContextType = {
-  datasets: AvailabilityDataset[],
-  selectedDatasets: string[],
-  isAllSelected: boolean,
-  searchValue: string,
-  selectedFilters: DatasetFilters,
-  datasetsSummary: DatasetsSummary,
-  selectDataset: (id: string) => void,
-  setSearchValue: (value: string) => void,
-  setFilters: (value: string | string[], name: string) => void,
-  selectAllDatasets: (select: boolean) => void,
+  datasets: AvailabilityDataset[];
+  selectedDatasets: string[];
+  isAllSelected: boolean;
+  searchValue: string;
+  selectedFilters: DatasetFilters;
+  datasetsSummary: DatasetsSummary;
+  selectDataset: (id: string) => void;
+  setSearchValue: (value: string) => void;
+  setFilters: (value: string | string[], name: string) => void;
+  selectAllDatasets: (select: boolean) => void;
 };
 
 export const AvailabilityContext = createContext<AvailabilityContextType | undefined>(undefined);
@@ -46,7 +46,7 @@ const MOCK_DATASETS: AvailabilityDataset[] = [
       maxDepth: 60,
       dateStart: 2012,
       dateEnd: 2025,
-    }
+    },
   },
   {
     id: 'dataset-2',
@@ -60,7 +60,7 @@ const MOCK_DATASETS: AvailabilityDataset[] = [
       maxDepth: 60,
       dateStart: 2006,
       dateEnd: 2024,
-    }
+    },
   },
   {
     id: 'dataset-3',
@@ -74,8 +74,8 @@ const MOCK_DATASETS: AvailabilityDataset[] = [
       maxDepth: 60,
       dateStart: 2014,
       dateEnd: 2024,
-    }
-  }
+    },
+  },
 ];
 
 export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ children }) => {
@@ -88,28 +88,35 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
   });
   const [isAllSelected, setIsAllSelected] = useState<boolean>(false);
 
-  const selectDataset = useCallback((id: string) => {
-    const newValue = selectedDatasets.includes(id) ?
-      (selectedDatasets).filter((selectedId) => selectedId !== id) :
-      [...selectedDatasets, id];
-    
-    setSelectedDatasets(newValue);
-    setIsAllSelected(false);
-  }, [selectedDatasets])
+  const selectDataset = useCallback(
+    (id: string) => {
+      const newValue = selectedDatasets.includes(id) ? selectedDatasets.filter(selectedId => selectedId !== id) : [...selectedDatasets, id];
 
-  const setFilters = useCallback((value: string | string[], name?: string) => {
+      setSelectedDatasets(newValue);
+      setIsAllSelected(false);
+    },
+    [selectedDatasets],
+  );
+
+  const setFilters = useCallback(
+    (value: string | string[], name?: string) => {
       if (!name) return;
 
       setSelectedFilters({
-          ...selectedFilters,
-          [name]: value,
+        ...selectedFilters,
+        [name]: value,
       });
-  }, [selectedFilters]);
+    },
+    [selectedFilters],
+  );
 
-  const selectAllDatasets = useCallback((select: boolean) => {
-    setSelectedDatasets(select ? datasets.map((dataset: AvailabilityDataset) => dataset.id) : []);
-    setIsAllSelected(select);
-  }, [datasets]);
+  const selectAllDatasets = useCallback(
+    (select: boolean) => {
+      setSelectedDatasets(select ? datasets.map((dataset: AvailabilityDataset) => dataset.id) : []);
+      setIsAllSelected(select);
+    },
+    [datasets],
+  );
 
   const datasetsSummary = useMemo(() => {
     let globalDataPoints = 0;
@@ -120,21 +127,13 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
     let globalDateEnd: number | null = null;
 
     for (const dataset of datasets) {
-      globalMinDepth = globalMinDepth === null
-        ? dataset.properties.minDepth
-        : Math.min(globalMinDepth, dataset.properties.minDepth);
-      
-      globalMaxDepth = globalMaxDepth === null
-        ? dataset.properties.maxDepth
-        : Math.max(globalMaxDepth, dataset.properties.maxDepth);
+      globalMinDepth = globalMinDepth === null ? dataset.properties.minDepth : Math.min(globalMinDepth, dataset.properties.minDepth);
 
-      globalDateStart = globalDateStart === null
-        ? dataset.properties.dateStart
-        : Math.min(globalDateStart, dataset.properties.dateStart);
-      
-      globalDateEnd = globalDateEnd === null
-        ? dataset.properties.dateEnd
-        : Math.max(globalDateEnd, dataset.properties.dateEnd);
+      globalMaxDepth = globalMaxDepth === null ? dataset.properties.maxDepth : Math.max(globalMaxDepth, dataset.properties.maxDepth);
+
+      globalDateStart = globalDateStart === null ? dataset.properties.dateStart : Math.min(globalDateStart, dataset.properties.dateStart);
+
+      globalDateEnd = globalDateEnd === null ? dataset.properties.dateEnd : Math.max(globalDateEnd, dataset.properties.dateEnd);
 
       globalLayers = Math.max(globalLayers, dataset.properties.layers);
 
@@ -147,26 +146,28 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
       layers: globalLayers,
       depth: `${globalMinDepth} - ${globalMaxDepth}`,
       date: `${globalDateStart} - ${globalDateEnd}`,
-    }
-  }, [datasets])
+    };
+  }, [datasets]);
 
   useEffect(() => {
     setDatasets(MOCK_DATASETS);
   }, []);
 
   return (
-    <AvailabilityContext.Provider value={{
-      datasets,
-      selectedDatasets,
-      isAllSelected,
-      searchValue,
-      selectedFilters,
-      datasetsSummary,
-      selectDataset,
-      setSearchValue,
-      setFilters,
-      selectAllDatasets,
-    }}>
+    <AvailabilityContext.Provider
+      value={{
+        datasets,
+        selectedDatasets,
+        isAllSelected,
+        searchValue,
+        selectedFilters,
+        datasetsSummary,
+        selectDataset,
+        setSearchValue,
+        setFilters,
+        selectAllDatasets,
+      }}
+    >
       {children}
     </AvailabilityContext.Provider>
   );

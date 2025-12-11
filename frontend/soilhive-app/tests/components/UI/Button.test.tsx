@@ -11,7 +11,7 @@ jest.mock('react-router', () => ({
 
 describe('Button component', () => {
   it('renders a normal button by default', () => {
-    const {container} = render(<Button>Click me</Button>);
+    const { container } = render(<Button>Click me</Button>);
 
     const btn = screen.getByTestId('sh-ui-button');
     expect(btn).toBeInTheDocument();
@@ -44,7 +44,7 @@ describe('Button component', () => {
     render(
       <Button isDisabled onClick={handleClick}>
         Disabled
-      </Button>
+      </Button>,
     );
 
     const btn = screen.getByTestId('sh-ui-button');
@@ -54,7 +54,7 @@ describe('Button component', () => {
   });
 
   it('renders as an internal Link when "to" is provided', () => {
-    const {container} = render(<Button to="/dashboard">Go</Button>);
+    const { container } = render(<Button to="/dashboard">Go</Button>);
 
     const link = screen.getByTestId('mock-router-link');
     expect(link).toBeInTheDocument();
@@ -64,7 +64,7 @@ describe('Button component', () => {
   });
 
   it('renders as external link when "href" is provided', () => {
-    const {container} = render(<Button href="https://example.com">External</Button>);
+    const { container } = render(<Button href="https://example.com">External</Button>);
 
     const link = screen.getByTestId('sh-ui-button-link');
     expect(link).toBeInTheDocument();

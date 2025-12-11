@@ -15,13 +15,7 @@ describe('ColorPicker component', () => {
   });
 
   it('uses initialValue on mount', () => {
-    render(
-      <ColorPicker
-        name="accent"
-        initialValue="#ff0000"
-        onChange={() => {}}
-      />
-    );
+    render(<ColorPicker name="accent" initialValue="#ff0000" onChange={() => {}} />);
 
     const input = screen.getByTestId('sh-colorpicker-input');
     expect(input).toHaveValue('#ff0000');
@@ -33,13 +27,7 @@ describe('ColorPicker component', () => {
   it('calls onChange when the value changes', () => {
     const handleChange = jest.fn();
 
-    render(
-      <ColorPicker
-        name="accent"
-        initialValue="#123456"
-        onChange={handleChange}
-      />
-    );
+    render(<ColorPicker name="accent" initialValue="#123456" onChange={handleChange} />);
 
     const input = screen.getByTestId('sh-colorpicker-input');
 
@@ -50,36 +38,18 @@ describe('ColorPicker component', () => {
   });
 
   it('updates internal state when initialValue changes from props', () => {
-    const { rerender } = render(
-      <ColorPicker
-        name="primary"
-        initialValue="#111111"
-        onChange={() => {}}
-      />
-    );
+    const { rerender } = render(<ColorPicker name="primary" initialValue="#111111" onChange={() => {}} />);
 
     const input = screen.getByTestId('sh-colorpicker-input');
     expect(input).toHaveValue('#111111');
 
-    rerender(
-      <ColorPicker
-        name="primary"
-        initialValue="#222222"
-        onChange={() => {}}
-      />
-    );
+    rerender(<ColorPicker name="primary" initialValue="#222222" onChange={() => {}} />);
 
     expect(input).toHaveValue('#222222');
   });
 
   it('accepts custom className', () => {
-    render(
-      <ColorPicker
-        name="custom"
-        className="my-custom-class"
-        onChange={() => {}}
-      />
-    );
+    render(<ColorPicker name="custom" className="my-custom-class" onChange={() => {}} />);
 
     const wrapper = screen.getByTestId('sh-colorpicker');
     expect(wrapper).toHaveClass('my-custom-class');

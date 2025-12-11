@@ -1,6 +1,6 @@
-import { Request, Response } from "express";
-import AuthService from "../services/AuthService";
-import ConfigService from "../services/ConfigService";
+import { Request, Response } from 'express';
+import AuthService from '../services/AuthService';
+import ConfigService from '../services/ConfigService';
 
 const authService = new AuthService();
 
@@ -12,6 +12,6 @@ export const getToken = async (req: Request, res: Response) => {
 };
 
 export const getConfig = (req: Request, res: Response): void => {
-  const config = ConfigService.getAuthConfig()
-  res.json(config)
-}
+  const config = ConfigService.getAuthConfig();
+  res.json(config);
+};

@@ -1,4 +1,4 @@
-import { StorageModesType } from "../types/types";
+import { StorageModesType } from '../types/types';
 
 export interface LocalStorageConfig {
   rootFolder: string;

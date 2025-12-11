@@ -1,5 +1,4 @@
-
-import type { Point, Polygon } from "typeorm";
+import type { Point, Polygon } from 'typeorm';
 
 export interface Feature {
   id: string;

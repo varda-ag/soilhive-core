@@ -22,92 +22,81 @@ export interface Props {
 }
 
 export function Button({
-    children,
-    className,
-    type = 'primary',
-    size = 'small',
-    to,
-    href,
-    form,
-    isIconOnly,
-    isDanger,
-    isDisabled,
-    onClick,
+  children,
+  className,
+  type = 'primary',
+  size = 'small',
+  to,
+  href,
+  form,
+  isIconOnly,
+  isDanger,
+  isDisabled,
+  onClick,
 }: Props) {
+  const typeClass = useMemo(
+    () =>
+      ({
+        primary: styles.Primary,
+        secondary: styles.Secondary,
+        tertiary: styles.Tertiary,
+        custom: styles.Custom,
+      })[type],
+    [type],
+  );
 
-    const typeClass = useMemo(
-        () =>
-            ({
-                primary: styles.Primary,
-                secondary: styles.Secondary,
-                tertiary: styles.Tertiary,
-                custom: styles.Custom,
-            }[type]),
-        [type]
-    )
+  const sizeClass = useMemo(
+    () =>
+      ({
+        medium: styles.Medium,
+        small: styles.Small,
+        tiny: styles.Tiny,
+      })[size],
+    [size],
+  );
 
-    const sizeClass = useMemo(
-        () =>
-            ({
-                medium: styles.Medium,
-                small: styles.Small,
-                tiny: styles.Tiny,
-            }[size]),
-        [size]
-    )
+  const composedClassNames = classnames(
+    styles.Button,
+    { [typeClass]: !isDanger || typeClass === styles.Tertiary },
+    sizeClass,
+    { [styles.Danger]: isDanger },
+    { [styles.IconOnly]: isIconOnly },
+    className,
+  );
 
-    const composedClassNames = classnames(
+  if (to) {
+    return (
+      <Link data-testid="sh-ui-button-internal-link" to={to} className={composedClassNames}>
+        {children}
+      </Link>
+    );
+  }
+
+  if (href) {
+    return (
+      <a data-testid="sh-ui-button-link" href={href} className={composedClassNames} target="_blank" rel="noreferrer">
+        {children}
+      </a>
+    );
+  }
+
+  return (
+    <button
+      data-testid="sh-ui-button"
+      type={form ? 'submit' : 'button'}
+      form={form}
+      className={classnames(
         styles.Button,
-        { [typeClass]: !isDanger || typeClass === styles.Tertiary },
+        typeClass,
         sizeClass,
         { [styles.Danger]: isDanger },
         { [styles.IconOnly]: isIconOnly },
         className,
-    );
-
-    if (to) {
-        return (
-            <Link
-                data-testid='sh-ui-button-internal-link'
-                to={to}
-                className={composedClassNames}
-            >
-                {children}
-            </Link>
-        );
-    }
-
-    if (href) {
-        return (
-            <a
-                data-testid='sh-ui-button-link'
-                href={href}
-                className={composedClassNames}
-                target='_blank'
-                rel='noreferrer'
-            >
-                {children}
-            </a>
-        );
-    }
-
-    return (
-        <button
-            data-testid='sh-ui-button'
-            type={form ? 'submit' : 'button'}
-            form={form}
-            className={classnames(
-                styles.Button,
-                typeClass,
-                sizeClass,
-                { [styles.Danger]: isDanger },
-                { [styles.IconOnly]: isIconOnly },
-                className
-            )}
-            disabled={isDisabled}
-            onClick={onClick}
-        >
-            {children}
-        </button>
-    )
+      )}
+      disabled={isDisabled}
+      onClick={onClick}
+    >
+      {children}
+    </button>
+  );
 }

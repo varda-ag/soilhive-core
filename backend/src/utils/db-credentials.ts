@@ -1,9 +1,9 @@
-import { Signer } from "@aws-sdk/rds-signer";
-import { fromNodeProviderChain } from "@aws-sdk/credential-providers";
-import { readFileSync } from "fs";
-import assert from "assert";
+import { Signer } from '@aws-sdk/rds-signer';
+import { fromNodeProviderChain } from '@aws-sdk/credential-providers';
+import { readFileSync } from 'fs';
+import assert from 'assert';
 
-let cachedToken = "";
+let cachedToken = '';
 let tokenExpiry = 0;
 
 const getAuthToken = async () => {
@@ -24,11 +24,14 @@ const getAuthToken = async () => {
 };
 
 const validateEnvironmentVariables = () => {
-  for (const v of ["HOST", "PORT", "DB", "USER", "SCHEMA"]) {
+  for (const v of ['HOST', 'PORT', 'DB', 'USER', 'SCHEMA']) {
     const name = `POSTGRES_${v}`;
     assert(process.env[name], `Missing environment variable: ${name}`);
   }
-  assert(process.env.POSTGRES_PASSWORD || process.env.POSTGRES_AWS_REGION, "Either POSTGRES_PASSWORD or POSTGRES_AWS_REGION must be specified");
+  assert(
+    process.env.POSTGRES_PASSWORD || process.env.POSTGRES_AWS_REGION,
+    'Either POSTGRES_PASSWORD or POSTGRES_AWS_REGION must be specified',
+  );
 };
 
 export const getDBPassword = async () => {
@@ -39,6 +42,6 @@ export const getDBPassword = async () => {
 export const getSSL = () => {
   // Certificate downloaded from: https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem
   // TODO: include global-bundle.pem in the final build directory and use `const bundleFile = path.join(__dirname, "global-bundle.pem");` instead
-  const bundleFile = "/app/src/utils/global-bundle.pem"
-  return { ca: readFileSync(bundleFile, "utf8") };
+  const bundleFile = '/app/src/utils/global-bundle.pem';
+  return { ca: readFileSync(bundleFile, 'utf8') };
 };

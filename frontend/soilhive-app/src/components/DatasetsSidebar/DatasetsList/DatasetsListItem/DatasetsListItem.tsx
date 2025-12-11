@@ -14,20 +14,14 @@ import styles from './DatasetsListItem.module.scss';
 import useAvailability from 'hooks/useAvailability';
 
 type Props = {
-  dataset: AvailabilityDataset
-}
-export function DatasetsListItem({dataset}: Props) {
+  dataset: AvailabilityDataset;
+};
+export function DatasetsListItem({ dataset }: Props) {
   const { selectedDatasets, selectDataset } = useAvailability();
   const [isOpened, setIsOpened] = useState<boolean>(false);
 
   return (
-    <div
-      data-testid="sh-datasets-list-item"
-      className={classnames(
-        styles.DatasetsListItem,
-        {[styles.Opened]: isOpened}
-      )}
-    >
+    <div data-testid="sh-datasets-list-item" className={classnames(styles.DatasetsListItem, { [styles.Opened]: isOpened })}>
       <div className={styles.Main}>
         <div className={styles.Top}>
           <div className={styles.Title}>
@@ -37,10 +31,7 @@ export function DatasetsListItem({dataset}: Props) {
               value={selectedDatasets.includes(dataset.id)}
               onChange={() => selectDataset(dataset.id)}
             />
-            <ArrowDownIcon
-              className={styles.DropdownIcon}
-              onClick={() => setIsOpened(!isOpened)}
-            />
+            <ArrowDownIcon className={styles.DropdownIcon} onClick={() => setIsOpened(!isOpened)} />
           </div>
           <div className={styles.Tags}>
             {dataset.tags.map((tag, index) => (
@@ -49,8 +40,12 @@ export function DatasetsListItem({dataset}: Props) {
           </div>
         </div>
         <div className={styles.Bottom}>
-          <Button size="tiny" onClick={() => console.log('Metadata click')}>Metadata</Button>
-          <div className={styles.Views}><EyeIcon /> {dataset.views}</div>
+          <Button size="tiny" onClick={() => console.log('Metadata click')}>
+            Metadata
+          </Button>
+          <div className={styles.Views}>
+            <EyeIcon /> {dataset.views}
+          </div>
         </div>
       </div>
       <div className={styles.MetaWrapper}>
@@ -71,4 +66,4 @@ export function DatasetsListItem({dataset}: Props) {
       </div>
     </div>
   );
-};
+}

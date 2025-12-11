@@ -1,5 +1,5 @@
-import { Request, Response, NextFunction } from "express";
-import { getDataSource } from "../utils/data-source";
+import { Request, Response, NextFunction } from 'express';
+import { getDataSource } from '../utils/data-source';
 
 export const transactionMiddleware = async (req: Request, res: Response, next: NextFunction) => {
   const dataSource = await getDataSource();
@@ -20,15 +20,15 @@ export const transactionMiddleware = async (req: Request, res: Response, next: N
       } else {
         await queryRunner.rollbackTransaction();
       }
-    } catch (err) {
+    } catch {
       await queryRunner.rollbackTransaction();
     } finally {
       await queryRunner.release();
     }
   };
 
-  res.on("finish", cleanup); // response completed successfully
-  res.on("close", cleanup); // connection closed
+  res.on('finish', cleanup); // response completed successfully
+  res.on('close', cleanup); // connection closed
 
   next();
 };

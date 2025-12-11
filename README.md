@@ -10,20 +10,19 @@ Entry points:
 
 - Keycloak: http://localhost:8080/admin/master/console/
 - Frontend: http://localhost:3000/
-- Backend:  http://localhost:4001/docs/
+- Backend: http://localhost:4001/docs/
 
 # Development
 
 First start the app infrastructure services with:
 
-```docker-compose -f docker-compose-dev.yaml```
+`docker-compose -f docker-compose-dev.yaml`
 
 Then start both backend and frontend with:
 
-```pnpm i -r```
+`pnpm i -r`
 
-```pnpm run dev```
-
+`pnpm run dev`
 
 # Authentication mode
 
@@ -106,8 +105,8 @@ Use the default credentials found in the `docker-compose.yaml` file.
 
 ### 4. Create a Test User
 
-1. In the menu select "Users" 
-2. Click "Add user" and give it a username and click "Create". 
+1. In the menu select "Users"
+2. Click "Add user" and give it a username and click "Create".
 3. Select the newly created user, and then click on the "Credentials" tab to give it a password
 
 ### 5. Create a Client
@@ -115,7 +114,7 @@ Use the default credentials found in the `docker-compose.yaml` file.
 1. In the menu select "Clients"
 2. Click "Create Client"
 3. Select **OpenID Connect** as the client type
-4. Set its **Client ID** (take note of this, since it wil be used to setup the application authentication configuration) 
+4. Set its **Client ID** (take note of this, since it wil be used to setup the application authentication configuration)
 5. In the **Capability config**, enable "Standard flow"
 6. In the **Access settings**, configure:
    - **Valid Redirect URIs**: `http://<BASE_APP_URL>/*`
@@ -138,6 +137,7 @@ Use the default credentials found in the `docker-compose.yaml` file.
 ### 8. Configure Application Environment Variables
 
 Set the following environment variables in the backend of your application:
+
 ```bash
 OIDC_AUTHORITY=http://localhost:8080/realms/<your-realm-name>
 OIDC_CLIENT_ID=<your-client-id>
@@ -153,9 +153,10 @@ When you try to access the admin page, you should be redirected to Keycloak for 
 
 ### Important: HTTP/HTTPS Considerations
 
-⚠️ **In this configuration, Keycloak runs on HTTP (not HTTPS).** 
+⚠️ **In this configuration, Keycloak runs on HTTP (not HTTPS).**
 
 For redirects to work properly:
+
 - If Keycloak is served over HTTP, your application must also be served over HTTP
 - If your application is served over HTTPS, Keycloak must also be served over HTTPS
 

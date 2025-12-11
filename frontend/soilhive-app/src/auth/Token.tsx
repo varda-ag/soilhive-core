@@ -20,6 +20,6 @@ export type User = {
     family_name?: string;
     user_organisation?: string;
     email?: string;
-  },
+  };
   expires_at?: number;
-}
+};

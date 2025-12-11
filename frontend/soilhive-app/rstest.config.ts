@@ -17,7 +17,7 @@ export default defineConfig({
     alias: {
       assets: './src/assets',
       components: './src/components',
-      types: './src/types'
+      types: './src/types',
     },
   },
   coverage: {
@@ -25,9 +25,5 @@ export default defineConfig({
     include: ['src/**/*.{js,jsx,ts,tsx}'],
     exclude: ['**/node_modules/**', '**/dist/**'],
   },
-  plugins: [
-    pluginReact(),
-    pluginSass(),
-    pluginSvgr()
-  ],
+  plugins: [pluginReact(), pluginSass(), pluginSvgr()],
 });

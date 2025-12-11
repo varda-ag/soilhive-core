@@ -1,13 +1,13 @@
-import { Request } from "express";
-import jwt, { JwtPayload, PublicKey, Secret, VerifyErrors } from "jsonwebtoken";
-import jwksClient from "jwks-rsa";
-import { ErrorResponse } from "../utils/error";
-import StatusCodes from "http-status-codes";
-import { Token } from "../interfaces/Token";
-import { AuthModes, TokenScopes } from "../types/types";
-import assert from "assert";
-import { AuthConfig } from "../interfaces/AuthConfig";
-import ConfigService from "../services/ConfigService";
+import { Request } from 'express';
+import jwt, { JwtPayload, PublicKey, Secret, VerifyErrors } from 'jsonwebtoken';
+import jwksClient from 'jwks-rsa';
+import { ErrorResponse } from '../utils/error';
+import StatusCodes from 'http-status-codes';
+import { Token } from '../interfaces/Token';
+import { AuthModes, TokenScopes } from '../types/types';
+import assert from 'assert';
+import { AuthConfig } from '../interfaces/AuthConfig';
+import ConfigService from '../services/ConfigService';
 
 // Global JWKS client based on env var to fetch the public key
 let client: any | undefined = undefined;
@@ -18,7 +18,7 @@ let authConfig: AuthConfig | undefined = undefined;
 const getSigningKeyAsync = async (kid: string): Promise<string> => {
   return new Promise((resolve, reject) => {
     if (!client) {
-      assert(process.env.OIDC_JWKS_URL, "Missing environment variable: OIDC_JWKS_URL");
+      assert(process.env.OIDC_JWKS_URL, 'Missing environment variable: OIDC_JWKS_URL');
       client = jwksClient({ jwksUri: process.env.OIDC_JWKS_URL });
     }
     client.getSigningKey(kid, (err, key) => {
@@ -49,10 +49,10 @@ export const tokenValidator = async (req: Request, scopes: string[]): Promise<bo
   }
 
   if (authConfig.authMode === AuthModes.NONE) {
-    throw new ErrorResponse("No authentication system has been configured in the platform", StatusCodes.UNAUTHORIZED);
+    throw new ErrorResponse('No authentication system has been configured in the platform', StatusCodes.UNAUTHORIZED);
   }
 
-  const tokenString = req.headers["authorization"]?.split(" ")[1];
+  const tokenString = req.headers['authorization']?.split(' ')[1];
   if (!tokenString) {
     // No token has been provided
     return false;
@@ -60,22 +60,22 @@ export const tokenValidator = async (req: Request, scopes: string[]): Promise<bo
 
   // First token decode to get the kid from header
   const decodedHeader = jwt.decode(tokenString, { complete: true });
-  if (!decodedHeader || typeof decodedHeader === "string") {
-    throw new ErrorResponse("Invalid token (header decode failure)", StatusCodes.UNAUTHORIZED);
+  if (!decodedHeader || typeof decodedHeader === 'string') {
+    throw new ErrorResponse('Invalid token (header decode failure)', StatusCodes.UNAUTHORIZED);
   }
   const kid = decodedHeader.header.kid;
   if (!kid) {
-    throw new ErrorResponse("Invalid token (no kid)", StatusCodes.UNAUTHORIZED);
+    throw new ErrorResponse('Invalid token (no kid)', StatusCodes.UNAUTHORIZED);
   }
 
   try {
     const publicKey = authConfig.authMode === AuthModes.OIDC ? await getSigningKeyAsync(kid) : process.env.SELF_SIGNING_SECRET!;
     const decoded = await verifyAsync(tokenString, publicKey);
     if (!decoded) {
-      throw new ErrorResponse("Invalid token (decode failure)", StatusCodes.UNAUTHORIZED);
+      throw new ErrorResponse('Invalid token (decode failure)', StatusCodes.UNAUTHORIZED);
     }
     if (!decoded.sub) {
-      throw new ErrorResponse("Invalid token (no sub)", StatusCodes.UNAUTHORIZED);
+      throw new ErrorResponse('Invalid token (no sub)', StatusCodes.UNAUTHORIZED);
     }
     const decodedToken = decoded as Token;
     assertTokenScope(decodedToken, scopes);
@@ -92,7 +92,7 @@ export const tokenValidator = async (req: Request, scopes: string[]): Promise<bo
     if (err instanceof ErrorResponse) {
       throw err;
     }
-    const errorMessage = err["name"] === "TokenExpiredError" ? "Token has expired" : `Invalid token: ${err.message}`;
+    const errorMessage = err['name'] === 'TokenExpiredError' ? 'Token has expired' : `Invalid token: ${err.message}`;
     throw new ErrorResponse(errorMessage, StatusCodes.UNAUTHORIZED);
   }
 };

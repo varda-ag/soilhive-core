@@ -1,3 +1,4 @@
+/* eslint-disable */
 import { useState } from 'react';
 import PolygonIcon from 'assets/icons/polygon-icon.svg?react';
 import ArrowDownIcon from 'assets/icons/arrow-down-icon.svg?react';
@@ -15,29 +16,37 @@ export default function SoilhiveMapToolbar({ onDrawClick, onUploadClick }: Soilh
   return (
     <div className="soilhive-map-toolbar">
       <input type="search" placeholder="Country, coordinates or H3cellID" />
-      <button onClick={() => {
-        setOpen(!open);
-      }}>
+      <button
+        onClick={() => {
+          setOpen(!open);
+        }}
+      >
         <span className="text-container">
           <PolygonIcon className="polygon" />
           Polygon
         </span>
         <span className="arrow-container">
           <ArrowDownIcon className="arrow" />
-        </span>        
+        </span>
       </button>
-      <div className={`selection-list${ open ? ' open' : '' }`}>
-        <button onClick={() => {
-          setOpen(false);
-          onDrawClick();
-        }}>
-            <PencilIcon />Draw a polygon
+      <div className={`selection-list${open ? ' open' : ''}`}>
+        <button
+          onClick={() => {
+            setOpen(false);
+            onDrawClick();
+          }}
+        >
+          <PencilIcon />
+          Draw a polygon
         </button>
-        <button onClick={() => {
-          setOpen(false);
-          onUploadClick();
-        }}>
-          <UploadIcon />Upload a polygon
+        <button
+          onClick={() => {
+            setOpen(false);
+            onUploadClick();
+          }}
+        >
+          <UploadIcon />
+          Upload a polygon
         </button>
       </div>
     </div>

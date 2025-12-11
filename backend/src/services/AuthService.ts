@@ -1,11 +1,11 @@
-import jwt from "jsonwebtoken";
-import bcrypt from "bcrypt";
-import { AuthConfig } from "../interfaces/AuthConfig";
-import { AuthModes, TokenScopes } from "../types/types";
-import ConfigService from "./ConfigService";
-import { ErrorResponse } from "../utils/error";
-import { StatusCodes } from "http-status-codes";
-import { TokenResponse } from "../interfaces/Token";
+import jwt from 'jsonwebtoken';
+import bcrypt from 'bcrypt';
+import { AuthConfig } from '../interfaces/AuthConfig';
+import { AuthModes, TokenScopes } from '../types/types';
+import ConfigService from './ConfigService';
+import { ErrorResponse } from '../utils/error';
+import { StatusCodes } from 'http-status-codes';
+import { TokenResponse } from '../interfaces/Token';
 
 const TOKEN_EXPIRATION_SECONDS = 24 * 60 * 60; // 24 hours
 
@@ -19,7 +19,7 @@ export default class AuthService {
     }
 
     if (authConfig.authMode !== AuthModes.PASSWORD) {
-      throw new ErrorResponse("Platform is not configured for password authentication", StatusCodes.BAD_REQUEST);
+      throw new ErrorResponse('Platform is not configured for password authentication', StatusCodes.BAD_REQUEST);
     }
 
     let payload = {};
@@ -34,16 +34,20 @@ export default class AuthService {
         scope: TokenScopes.DATA_ADMIN,
       };
     } else {
-      throw new ErrorResponse("Invalid password", StatusCodes.UNAUTHORIZED);
+      throw new ErrorResponse('Invalid password', StatusCodes.UNAUTHORIZED);
     }
 
-    return jwt.sign(payload, process.env.SELF_SIGNING_SECRET!, { expiresIn: TOKEN_EXPIRATION_SECONDS, algorithm: "HS256", header: { alg: "HS256", kid: "kid" } });
+    return jwt.sign(payload, process.env.SELF_SIGNING_SECRET!, {
+      expiresIn: TOKEN_EXPIRATION_SECONDS,
+      algorithm: 'HS256',
+      header: { alg: 'HS256', kid: 'kid' },
+    });
   };
 
   getTokenResponse = (token: string): TokenResponse => {
     return {
       access_token: token,
-      token_type: "Bearer",
+      token_type: 'Bearer',
       expires_in: TOKEN_EXPIRATION_SECONDS,
     };
   };
@@ -51,5 +55,5 @@ export default class AuthService {
   resetAuthConfig = () => {
     // Used in tests
     authConfig = undefined;
-  }
+  };
 }

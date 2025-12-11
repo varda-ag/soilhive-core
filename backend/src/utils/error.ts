@@ -1,4 +1,4 @@
-import { getReasonPhrase } from "http-status-codes";
+import { getReasonPhrase } from 'http-status-codes';
 
 export class ErrorResponse extends Error {
   status: number;

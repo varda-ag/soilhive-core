@@ -16,9 +16,7 @@ describe('TextInput component', () => {
   });
 
   it('renders placeholder and initial value', () => {
-    render(
-      <TextInput placeholder="Type here" value="Hello" />
-    );
+    render(<TextInput placeholder="Type here" value="Hello" />);
 
     const input = screen.getByTestId('sh-ui-textinputfield');
     expect(input).toHaveAttribute('placeholder', 'Type here');
@@ -28,12 +26,7 @@ describe('TextInput component', () => {
   it('calls onChange when user types', () => {
     const handleChange = jest.fn();
 
-    render(
-      <TextInput
-        name="email"
-        onChange={handleChange}
-      />
-    );
+    render(<TextInput name="email" onChange={handleChange} />);
 
     const input = screen.getByTestId('sh-ui-textinputfield');
 
@@ -84,15 +77,7 @@ describe('TextInput component', () => {
     const handleClear = jest.fn();
     const handleChange = jest.fn();
 
-    render(
-      <TextInput
-        isClearable
-        value="abc"
-        name="field"
-        onClear={handleClear}
-        onChange={handleChange}
-      />
-    );
+    render(<TextInput isClearable value="abc" name="field" onClear={handleClear} onChange={handleChange} />);
 
     const clearIcon = screen.getByTestId('sh-ui-cleartexticon');
     fireEvent.click(clearIcon);
@@ -126,9 +111,7 @@ describe('TextInput component', () => {
   });
 
   it('applies custom classnames', () => {
-    render(
-      <TextInput className="outer" inputClassName="inner" />
-    );
+    render(<TextInput className="outer" inputClassName="inner" />);
 
     const wrapper = screen.getByTestId('sh-ui-textinput');
     expect(wrapper).toHaveClass('inner');
@@ -136,16 +119,7 @@ describe('TextInput component', () => {
   });
 
   it('matches snapshot', () => {
-    const { container } = render(
-      <TextInput
-        label="Email"
-        value="hello"
-        placeholder="Type..."
-        isClearable
-        isError
-        errorMessage="Wrong!"
-      />
-    );
+    const { container } = render(<TextInput label="Email" value="hello" placeholder="Type..." isClearable isError errorMessage="Wrong!" />);
 
     expect(container).toMatchSnapshot();
   });
