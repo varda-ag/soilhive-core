@@ -1,0 +1,11 @@
+node_modules
+dist
+build
+coverage
+*.min.js
+package-lock.json
+pnpm-lock.yaml
+.next
+.turbo
+
+**/*.jsx

@@ -5,6 +5,11 @@
   "version": "0.2.0",
   "scripts": {
     "dev": "pnpm --filter=!common --parallel dev",
-    "build": "pnpm --filter=!common --parallel build"
+    "build": "pnpm --filter=!common --parallel build",
+    "format": "prettier --write \"**/*.{ts,tsx,json,css,md}\"", 
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,css,md}\""
+  },
+  "devDependencies": {
+    "prettier": "3.7.4"
   }
 }
