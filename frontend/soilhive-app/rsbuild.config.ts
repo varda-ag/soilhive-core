@@ -11,7 +11,17 @@ export default defineConfig({
     cleanDistPath: true,
   },
   html: {
-    title: 'Soilhive',
+    title: 'SoilHive',
+    tags: [
+      {
+        tag: 'script',
+        attrs: {
+          src: '/env-config.js',
+        },
+        head: true,
+        append: true,
+      },
+    ],
   },
   resolve: {
     alias: {
