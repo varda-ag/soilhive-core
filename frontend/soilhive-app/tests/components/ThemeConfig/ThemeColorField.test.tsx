@@ -2,7 +2,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { ThemeColorField } from 'components/ThemeConfig/ThemeColorField';
 
 jest.mock('components/UI', () => ({
-  ColorPicker: ({ initialValue, name, onChange }: any) => (
+  ColorPicker: ({ initialValue, onChange }: any) => (
     <input data-testid="mock-colorpicker" type="color" defaultValue={initialValue} onChange={e => onChange(e.target.value)} />
   ),
 

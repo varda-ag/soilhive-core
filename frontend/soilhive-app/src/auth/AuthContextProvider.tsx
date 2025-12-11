@@ -26,7 +26,7 @@ export function AuthContextProvider({ children }: { children: React.ReactNode })
     request({ url: `${BACKEND_BASE_URL}/auth/config` })
       .then(setAuthConfig)
       .catch(console.error);
-  }, []);
+  }, [request]);
 
   if (authConfig && authConfig.authMode === AuthModes.OIDC && authConfig.oidcConfig) {
     return (

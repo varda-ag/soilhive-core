@@ -100,7 +100,7 @@ export function TextInput({
     if (value !== currentValue) {
       setCurrentValue(value);
     }
-  }, [value]);
+  }, [value, currentValue]);
 
   return (
     <FormFieldWrapper

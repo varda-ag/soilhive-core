@@ -40,7 +40,7 @@ export function Checkbox({
 
   const handleChange = useCallback(
     (e: ChangeEvent<HTMLInputElement>) => {
-      let { checked } = e.target;
+      const { checked } = e.target;
       setCurrentValue(checked);
       onChange?.(checked, name);
     },
@@ -51,7 +51,7 @@ export function Checkbox({
     if (value !== currentValue) {
       setCurrentValue(value);
     }
-  }, [value]);
+  }, [value, currentValue]);
 
   return (
     <label

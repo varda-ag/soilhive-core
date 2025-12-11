@@ -48,32 +48,38 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     [theme],
   );
 
-  const saveLogo = useCallback(async (selectedFile: File) => {
-    if (!selectedFile) return;
+  const saveLogo = useCallback(
+    async (selectedFile: File) => {
+      if (!selectedFile) return;
 
-    const formData = new FormData();
-    formData.append('file', selectedFile);
+      const formData = new FormData();
+      formData.append('file', selectedFile);
 
-    try {
-      await request({
-        url: `${BACKEND_BASE_URL}/${REST_END_POINTS.LOGO}`,
-        method: 'POST',
-        body: formData,
-      });
-    } catch (e) {
-      console.error('logo save error', e);
-    }
-  }, []);
+      try {
+        await request({
+          url: `${BACKEND_BASE_URL}/${REST_END_POINTS.LOGO}`,
+          method: 'POST',
+          body: formData,
+        });
+      } catch (e) {
+        console.error('logo save error', e);
+      }
+    },
+    [request],
+  );
 
-  const handleLogoChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = event.target.files?.[0];
+  const handleLogoChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const selectedFile = event.target.files?.[0];
 
-    if (selectedFile) {
-      const url = URL.createObjectURL(selectedFile);
-      setLogo(url);
-      saveLogo(selectedFile);
-    }
-  }, []);
+      if (selectedFile) {
+        const url = URL.createObjectURL(selectedFile);
+        setLogo(url);
+        saveLogo(selectedFile);
+      }
+    },
+    [saveLogo],
+  );
 
   const saveThemeConfig = useCallback(async () => {
     try {
@@ -85,7 +91,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     } catch (e) {
       console.error('save config error', e);
     }
-  }, [theme]);
+  }, [theme, request]);
 
   const fetchTheme = useCallback(async () => {
     try {
@@ -97,7 +103,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     } catch (e) {
       console.error('get theme error', e);
     }
-  }, []);
+  }, [request]);
 
   const fetchLogo = useCallback(async () => {
     try {
@@ -111,7 +117,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     } catch (e) {
       console.error('get logo error', e);
     }
-  }, []);
+  }, [request]);
 
   const deleteLogo = useCallback(async () => {
     try {
@@ -124,7 +130,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     } catch (e) {
       console.error('delete logo error', e);
     }
-  }, []);
+  }, [fetchLogo, request]);
 
   useEffect(() => {
     if (loading) return;
@@ -148,7 +154,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     if (!logo) {
       fetchLogo();
     }
-  }, [logo]);
+  }, [logo, fetchLogo]);
 
   return (
     <ThemeContext.Provider value={{ theme, logo, handleColorChange, saveThemeConfig, handleLogoChange, deleteLogo }}>

@@ -20,7 +20,7 @@ export const transactionMiddleware = async (req: Request, res: Response, next: N
       } else {
         await queryRunner.rollbackTransaction();
       }
-    } catch (err) {
+    } catch {
       await queryRunner.rollbackTransaction();
     } finally {
       await queryRunner.release();

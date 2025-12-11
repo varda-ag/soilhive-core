@@ -3,7 +3,9 @@ export async function handleError(response: Response) {
 
   try {
     details = await response.json();
-  } catch {}
+  } catch {
+    // Intentionally left empty
+  }
 
   const error = {
     status: response.status,

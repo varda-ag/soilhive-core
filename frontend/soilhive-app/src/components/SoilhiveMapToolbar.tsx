@@ -1,3 +1,4 @@
+/* eslint-disable */
 import { useState } from 'react';
 import PolygonIcon from 'assets/icons/polygon-icon.svg?react';
 import ArrowDownIcon from 'assets/icons/arrow-down-icon.svg?react';

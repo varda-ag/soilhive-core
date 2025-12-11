@@ -1,5 +1,5 @@
 import useTheme from '../../hooks/useTheme';
-import { Button, TextInput } from 'components/UI';
+import { Button } from 'components/UI';
 import { config } from './config';
 import { ThemeColorField } from './ThemeColorField';
 

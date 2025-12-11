@@ -112,7 +112,7 @@ export function Dropdown({
     if (value?.toString() !== currentValues.toString()) {
       setCurrentValues(value ? (Array.isArray(value) ? value : [value]) : []);
     }
-  }, [value]);
+  }, [value, currentValues]);
 
   return (
     <FormFieldWrapper

@@ -49,14 +49,15 @@ export default class FileService {
     let adapter: any;
     const config: StorageConfig = ConfigService.getStorageConfig();
     switch (config.storageMode) {
-      case StorageModes.LOCAL:
+      case StorageModes.LOCAL: {
         const localConfig = config.config as LocalStorageConfig;
         if (!fs.existsSync(localConfig.rootFolder)) {
           fs.mkdirSync(localConfig.rootFolder, { recursive: true });
         }
         adapter = new LocalStorageAdapter(localConfig.rootFolder);
         break;
-      case StorageModes.S3:
+      }
+      case StorageModes.S3: {
         const s3Config = config.config as S3StorageConfig;
         const s3Client = new S3Client({ region: s3Config.region });
         adapter = new AwsS3StorageAdapter(s3Client, {
@@ -64,6 +65,7 @@ export default class FileService {
           ...(s3Config.rootFolder ? { prefix: s3Config.rootFolder } : {}),
         });
         break;
+      }
       default:
         throw new Error(`Unsupported storage mode: ${config.storageMode}`);
     }

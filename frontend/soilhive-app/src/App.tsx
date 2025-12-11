@@ -53,6 +53,7 @@ function App() {
               />
               {singlePages.map(({ name, route, Page }) => (
                 <Route
+                  key={`/${route}`}
                   path={`/${route}`}
                   element={
                     <>

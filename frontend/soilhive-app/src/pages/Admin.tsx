@@ -1,11 +1,11 @@
-import { useId, useMemo, useState } from 'react';
+import { useId, useState } from 'react';
 import { modules } from '../utilities/moduleFederation';
 import { useAuthContext } from '../auth/AuthContextProvider';
 import { ThemeConfig } from '../components/ThemeConfig/ThemeConfig';
-import { Button, Dropdown } from 'components/UI';
+import { Dropdown } from 'components/UI';
 
 function Admin() {
-  const { isAuthenticated, isLoading, login, logout, user } = useAuthContext();
+  const { isAuthenticated, isLoading, user } = useAuthContext();
 
   const mapGeocoderInputId = useId();
   const [mapGeocoder, setMapGeocoder] = useState(localStorage.getItem('MAP_GEOCODER') ?? 'nominatim');

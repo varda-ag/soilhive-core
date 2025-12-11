@@ -1,7 +1,13 @@
 import { render } from '@testing-library/react';
 import Homepage from '../src/pages/Homepage';
 
-jest.mock('components/SoilhiveMap', () => () => <div>Mock SoilhiveMap</div>);
+jest.mock('components/SoilhiveMap', () => {
+  // Define the mock component with a name
+  const MockSoilhiveMap = () => <div>Mock SoilhiveMap</div>;
+
+  // The component name is inferred from the function name
+  return MockSoilhiveMap;
+});
 jest.mock('../src/utilities/environmentVariables', () => ({
   MAPBOX_ACCESS_TOKEN: 'mock_access_token',
 }));

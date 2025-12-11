@@ -18,7 +18,7 @@ export function ColorPicker({ initialValue = '', name, className, onChange }: Pr
       setCurrentValue(event.target.value);
       onChange(event.target.value, name);
     },
-    [onChange],
+    [onChange, name],
   );
 
   useEffect(() => {

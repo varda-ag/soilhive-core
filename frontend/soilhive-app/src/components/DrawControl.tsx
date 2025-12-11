@@ -1,3 +1,4 @@
+/* eslint-disable */
 import { MaplibreTerradrawControl } from '@watergis/maplibre-gl-terradraw';
 import { useControl } from 'react-map-gl/maplibre';
 

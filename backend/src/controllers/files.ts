@@ -6,7 +6,7 @@ import { LOGO_FILE_ID } from '../constants/constants';
 
 const fileService = new FileService();
 
-export const fileUpload = async (req: Request, res: Response, next: NextFunction) => {
+export const fileUpload = async (req: Request, res: Response) => {
   res.json({ message: 'File uploaded successfully', file: req.files?.[0] });
 };
 
@@ -31,7 +31,7 @@ export const logoDownload = async (req: Request, res: Response, next: NextFuncti
   return await fileDownload(req, res, next);
 };
 
-export const logoDelete = async (req: Request, res: Response, next: NextFunction) => {
+export const logoDelete = async (req: Request, res: Response) => {
   const customLogoExists = await fileService.exists(LOGO_FILE_ID);
   if (customLogoExists) {
     await fileService.deleteFile(LOGO_FILE_ID);

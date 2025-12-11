@@ -17,7 +17,7 @@ export function ThemeColorField({ initialValue = '', label, name, className, onC
     (value: string) => {
       onChange(name, value);
     },
-    [onChange],
+    [onChange, name],
   );
 
   return (
