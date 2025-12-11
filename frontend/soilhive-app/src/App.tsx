@@ -20,7 +20,7 @@ function App() {
                 index
                 element={
                   <>
-                    <PageTitle title="Soilhive - Home" />
+                    <PageTitle title="SoilHive - Home" />
                     <Homepage />
                   </>
                 }
@@ -29,7 +29,7 @@ function App() {
                 path="/donation"
                 element={
                   <>
-                    <PageTitle title="Soilhive - Donation" />
+                    <PageTitle title="SoilHive - Donation" />
                   </>
                 }
               />
@@ -37,7 +37,7 @@ function App() {
                 path="/legal"
                 element={
                   <>
-                    <PageTitle title="Soilhive - Admin" />
+                    <PageTitle title="SoilHive - Admin" />
                     <Legal />
                   </>
                 }
@@ -46,7 +46,7 @@ function App() {
                 path="/admin"
                 element={
                   <>
-                    <PageTitle title="Soilhive - Admin" />
+                    <PageTitle title="SoilHive - Admin" />
                     <Admin />
                   </>
                 }
@@ -57,7 +57,7 @@ function App() {
                   path={`/${route}`}
                   element={
                     <>
-                      <PageTitle title={`Soilhive - ${name}`} />
+                      <PageTitle title={`SoilHive - ${name}`} />
                       <Page />
                     </>
                   }
