@@ -187,6 +187,10 @@ function SoilhiveMap({
       >
         <SoilhiveMapToolbar onDrawClick={() => {
           setShowDrawControl(true);
+          setTimeout(() => {
+            // Makes selection
+            document.querySelector('button.maplibregl-terradraw-add-polygon-button')?.click();
+          }, 0);          
         }} />
 
         {selectedPoint &&
