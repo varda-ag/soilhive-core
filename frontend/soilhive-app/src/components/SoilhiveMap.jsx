@@ -12,6 +12,7 @@ import { bboxPolygon } from '@turf/turf';
 import { h3ResolutionForZoomLevel } from '../utilities/map';
 import DrawControl from './DrawControl';
 import SoilhiveMapToolbar from './SoilhiveMapToolbar';
+import SoilhiveMapSelectionToolbar from './SoilhiveMapSelectionToolbar';
 
 type MapStyle = string | StyleSpecification | ImmutableLike<StyleSpecification>;
 type MapStyles = Array<{ name: string, mapStyle: MapStyle }>;
@@ -192,6 +193,8 @@ function SoilhiveMap({
             document.querySelector('button.maplibregl-terradraw-add-polygon-button')?.click();
           }, 0);          
         }} />
+
+        <SoilhiveMapSelectionToolbar />
 
         {selectedPoint &&
           <Popup

@@ -9,8 +9,8 @@
 
     .map-style-switcher {
         position: absolute;
-        bottom: 40px;
-        right: 50px;
+        bottom: 50px;
+        left: 10px;
         background-color: white;
         /* padding: 10px; */
         box-shadow: 0 0 0 2px #0000001a;
@@ -222,6 +222,45 @@
                         border-top: 1px dashed #BEBCC0;
                     }
                 }
+            }
+        }
+    }
+
+    &-selection-toolbar {
+        display: flex;
+        gap: 8px;
+        white-space: nowrap;
+        position: absolute;
+        bottom: 16px;
+        left: 50%;
+        transform: translateX(-50%);
+        background-color: white;
+        padding: 8px;
+        border-radius: 4px;
+        box-shadow: 0px 4px 16px 0px #00000014;
+        .reset-icon {
+            width: 24px !important; height: 24px;
+        }
+        .selection-area {
+            position: relative;
+            display: inline-block;
+            border: 2px solid #DDDDDD;
+            border-radius: 4px;
+            padding: 4px 8px;
+            width: 118px;
+            font-family: Inter;
+            font-weight: 400;
+            font-style: Regular;
+            font-size: 14px;
+            line-height: 150%;
+            letter-spacing: 0px;
+            vertical-align: middle;
+            background-color: #EEEFF0;
+            svg {
+                position: absolute;
+                right: 8px;
+                top: 50%;
+                transform: translateY(-50%);
             }
         }
     }
