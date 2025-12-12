@@ -1,7 +1,7 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class CreateSchema1765535639232 implements MigrationInterface {
-  name = 'CreateSchema1765535639232';
+export class CreateSchema1765549507801 implements MigrationInterface {
+  name = 'CreateSchema1765549507801';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`SET search_path TO ${process.env.POSTGRES_SCHEMA}, public`);
@@ -9,7 +9,7 @@ export class CreateSchema1765535639232 implements MigrationInterface {
       `CREATE TYPE "public"."slug_history_entity_type_enum" AS ENUM('datasets', 'licenses', 'soil_property_categories', 'soil_properties', 'unit_conversions', 'analytical_methods', 'files')`,
     );
     await queryRunner.query(
-      `CREATE TABLE "slug_history" ("created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP, "entity_id" uuid NOT NULL, "entity_type" "public"."slug_history_entity_type_enum" NOT NULL, "slug" text NOT NULL, CONSTRAINT "PK_88eb7f1e0fc807da95e7a78b8d3" PRIMARY KEY ("entity_id", "entity_type", "slug"))`,
+      `CREATE TABLE "slug_history" ("created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP, "entity_id" uuid NOT NULL, "entity_type" "public"."slug_history_entity_type_enum" NOT NULL, "slug" text NOT NULL, CONSTRAINT "PK_8a081bbe16d88d78868ec734204" PRIMARY KEY ("entity_id", "slug"))`,
     );
     await queryRunner.query(
       `CREATE TABLE "unit_conversions" ("created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP, "id" uuid NOT NULL DEFAULT uuidv7(), "slug" text NOT NULL, "original_unit_of_measurement" text, "standard_unit" text, "conversion_formula" text, CONSTRAINT "UQ_8f65c37e0e3cad54385813d36cd" UNIQUE ("slug"), CONSTRAINT "PK_26f4340a0a834dbe6cf8b241c71" PRIMARY KEY ("id"))`,
@@ -119,103 +119,104 @@ export class CreateSchema1765535639232 implements MigrationInterface {
     await queryRunner.query(`CREATE INDEX idx_geometry_type ON "features" USING btree (st_geometrytype(geom))`);
     await queryRunner.query(`CREATE INDEX idx_layers_depthrange on "layers" using gist(int4range(min_depth, max_depth))`);
     await queryRunner.query(`ALTER TABLE "unit_conversions"
-                ADD CONSTRAINT unit_conversions_unq UNIQUE NULLS NOT DISTINCT (original_unit_of_measurement, standard_unit, conversion_formula)`);
+                    ADD CONSTRAINT unit_conversions_unq UNIQUE NULLS NOT DISTINCT (original_unit_of_measurement, standard_unit, conversion_formula)`);
     await queryRunner.query(`ALTER TABLE "analytical_methods"
-                ADD CONSTRAINT analytical_methods_unq UNIQUE NULLS NOT DISTINCT (analytical_method, analytical_tool, limit_of_detection, reference_standard)`);
+                    ADD CONSTRAINT analytical_methods_unq UNIQUE NULLS NOT DISTINCT (analytical_method, analytical_tool, limit_of_detection, reference_standard)`);
     await queryRunner.query(`ALTER TABLE "layers"
-                ADD CONSTRAINT layers_unq UNIQUE NULLS NOT DISTINCT (license, sampling_date, min_depth, max_depth, horizon)`);
+                    ADD CONSTRAINT layers_unq UNIQUE NULLS NOT DISTINCT (license, sampling_date, min_depth, max_depth, horizon)`);
     await queryRunner.query(`ALTER TABLE "observations"
-            ADD CONSTRAINT observations_unq unique NULLS NOT distinct (dataset_layer_id, value, analytical_methodology_id)`);
+                ADD CONSTRAINT observations_unq unique NULLS NOT distinct (dataset_layer_id, value, analytical_methodology_id)`);
     await queryRunner.query(`CREATE OR REPLACE FUNCTION check_std_unit(unit_name text)
-                                        RETURNS bool AS
-                                    $func$
-                                        SELECT EXISTS (SELECT 1 FROM "soil_properties" WHERE COALESCE(standard_unit, '') = coalesce($1, ''));
-                                    $func$  LANGUAGE sql STABLE;`);
+                                            RETURNS bool AS
+                                        $func$
+                                            SELECT EXISTS (SELECT 1 FROM "soil_properties" WHERE COALESCE(standard_unit, '') = coalesce($1, ''));
+                                        $func$  LANGUAGE sql STABLE;`);
     await queryRunner.query(`ALTER TABLE "unit_conversions" ADD CONSTRAINT check_standard_unit_exists
-                                        CHECK (check_std_unit(standard_unit)) NOT VALID;`);
+                                            CHECK (check_std_unit(standard_unit)) NOT VALID;`);
     // TODO: implement this with typeorm entity subscribers
-    await queryRunner.query(`CREATE EXTENSION IF NOT EXISTS "unaccent"`);
     /* eslint-disable */
-    await queryRunner.query(`CREATE OR REPLACE FUNCTION slugify(value TEXT)
-                                    RETURNS TEXT AS $$
-                                    -- removes accents (diacritic signs) from a given string --
-                                    WITH unaccented AS (
-                                        SELECT unaccent(value) AS value
-                                    ),
-                                    -- lowercases the string
-                                    lowercase AS (
-                                        SELECT lower(value) AS value
-                                        FROM unaccented
-                                    ),
-                                    -- remove single and double quotes
-                                    removed_quotes AS (
-                                        SELECT regexp_replace(value, '[''"]+', '', 'gi') AS value
-                                        FROM lowercase
-                                    ),
-                                    -- replaces anything that's not a letter, number, hyphen('-'), or underscore('_') with a hyphen('-')
-                                    hyphenated AS (
-                                        SELECT regexp_replace(value, '[^a-z0-9\\-_]+', '-', 'gi') AS value
-                                        FROM removed_quotes
-                                    ),
-                                    -- trims hyphens('-') if they exist on the head or tail of the string
-                                    trimmed AS (
-                                        SELECT regexp_replace(regexp_replace(value, '\-+$', ''), '^\-', '') AS value
-                                        FROM hyphenated
-                                    )
-                                    SELECT value FROM trimmed;
-                                    $$ LANGUAGE SQL STRICT IMMUTABLE`);
-    /* eslint-enable */
+        await queryRunner.query(`CREATE EXTENSION IF NOT EXISTS "unaccent" SCHEMA ${process.env.POSTGRES_SCHEMA}`);
+        await queryRunner.query(`CREATE OR REPLACE FUNCTION slugify(value TEXT)
+                                        RETURNS TEXT AS $$
+                                        -- removes accents (diacritic signs) from a given string --
+                                        WITH unaccented AS (
+                                            SELECT unaccent(value) AS value
+                                        ),
+                                        -- lowercases the string
+                                        lowercase AS (
+                                            SELECT lower(value) AS value
+                                            FROM unaccented
+                                        ),
+                                        -- remove single and double quotes
+                                        removed_quotes AS (
+                                            SELECT regexp_replace(value, '[''"]+', '', 'gi') AS value
+                                            FROM lowercase
+                                        ),
+                                        -- replaces anything that's not a letter, number, hyphen('-'), or underscore('_') with a hyphen('-')
+                                        hyphenated AS (
+                                            SELECT regexp_replace(value, '[^a-z0-9\\-_]+', '-', 'gi') AS value
+                                            FROM removed_quotes
+                                        ),
+                                        -- trims hyphens('-') if they exist on the head or tail of the string
+                                        trimmed AS (
+                                            SELECT regexp_replace(regexp_replace(value, '\-+$', ''), '^\-', '') AS value
+                                            FROM hyphenated
+                                        )
+                                        SELECT value FROM trimmed;
+                                        $$ LANGUAGE SQL STRICT IMMUTABLE`);
+        /* eslint-enable */
     await queryRunner.query(`CREATE OR REPLACE FUNCTION slug_generate_store_old()
-                                    RETURNS trigger as $$
-                                    declare
-                                    slug_cols_in text[] := TG_ARGV[0]::text[];
-                                        lv_base_slug text;
-                                    lv_new_slug TEXT;
-                                    lv_counter INTEGER := 1;
-                                    lv_exists boolean;
-                                    begin
-                                    -- Generate the base slug
-                                    EXECUTE format('SELECT slugify(concat_ws(''-'', %s))', array_to_string(slug_cols_in, ', ')) using NEW into lv_base_slug;
-                                    lv_new_slug := lv_base_slug;
-                                
-                                    EXECUTE format('SELECT EXISTS (SELECT 1 FROM %I WHERE slug = %L)', TG_TABLE_NAME, lv_new_slug) into lv_exists;
-                                    -- Check if the slug already exists
-                                    WHILE lv_exists LOOP
-                                    -- If it exists, append a number and increment
-                                        lv_new_slug := lv_base_slug || '-' || lv_counter;
-                                        lv_counter := lv_counter + 1;
+                                        RETURNS trigger as $$
+                                        declare
+                                        slug_cols_in text[] := TG_ARGV[0]::text[];
+                                            lv_base_slug text;
+                                        lv_new_slug TEXT;
+                                        lv_counter INTEGER := 1;
+                                        lv_exists boolean;
+                                        begin
+                                        -- Generate the base slug
+                                        EXECUTE format('SELECT slugify(concat_ws(''-'', %s))', array_to_string(slug_cols_in, ', ')) using NEW into lv_base_slug;
+                                        lv_new_slug := lv_base_slug;
+                                    
                                         EXECUTE format('SELECT EXISTS (SELECT 1 FROM %I WHERE slug = %L)', TG_TABLE_NAME, lv_new_slug) into lv_exists;
-                                    END LOOP;
-                                
-                                    NEW.slug := lv_new_slug;
-                                    insert into slug_history(entity_id, entity_type, slug) values (new.id, TG_TABLE_NAME::slug_history_entity_type_enum, new.slug);
-                                    RETURN NEW;
-                                    end;
-                                $$ LANGUAGE plpgsql`);
+                                        -- Check if the slug already exists
+                                        WHILE lv_exists LOOP
+                                        -- If it exists, append a number and increment
+                                            lv_new_slug := lv_base_slug || '-' || lv_counter;
+                                            lv_counter := lv_counter + 1;
+                                            EXECUTE format('SELECT EXISTS (SELECT 1 FROM %I WHERE slug = %L)', TG_TABLE_NAME, lv_new_slug) into lv_exists;
+                                        END LOOP;
+                                    
+                                        NEW.slug := lv_new_slug;
+                                        insert into slug_history(entity_id, entity_type, slug) values (new.id, TG_TABLE_NAME::slug_history_entity_type_enum, new.slug);
+                                        RETURN NEW;
+                                        end;
+                                    $$ LANGUAGE plpgsql`);
     await queryRunner.query(`CREATE OR REPLACE TRIGGER dataset_slug
-                                    BEFORE INSERT OR update of name ON datasets
-                                    FOR EACH ROW EXECUTE PROCEDURE slug_generate_store_old('{$1.name}')`);
+                                        BEFORE INSERT OR update of name ON datasets
+                                        FOR EACH ROW EXECUTE PROCEDURE slug_generate_store_old('{$1.name}')`);
     await queryRunner.query(`CREATE or replace TRIGGER property_slug
-                                    BEFORE INSERT OR update of property_name ON soil_properties
-                                    FOR EACH ROW EXECUTE PROCEDURE slug_generate_store_old('{$1.property_name}')`);
+                                        BEFORE INSERT OR update of property_name ON soil_properties
+                                        FOR EACH ROW EXECUTE PROCEDURE slug_generate_store_old('{$1.property_name}')`);
     await queryRunner.query(`CREATE OR REPLACE TRIGGER analytical_method_slug
-                                    BEFORE INSERT OR update ON analytical_methods
-                                    FOR EACH ROW EXECUTE PROCEDURE slug_generate_store_old('{$1.analytical_method,$1.analytical_tool,$1.limit_of_detection,$1.reference_standard}')`);
+                                        BEFORE INSERT OR update ON analytical_methods
+                                        FOR EACH ROW EXECUTE PROCEDURE slug_generate_store_old('{$1.analytical_method,$1.analytical_tool,$1.limit_of_detection,$1.reference_standard}')`);
     await queryRunner.query(`CREATE OR REPLACE TRIGGER property_category_slug
-                                    BEFORE INSERT OR update of category_name ON soil_property_categories
-                                    FOR EACH ROW EXECUTE PROCEDURE slug_generate_store_old('{$1.category_name}')`);
+                                        BEFORE INSERT OR update of category_name ON soil_property_categories
+                                        FOR EACH ROW EXECUTE PROCEDURE slug_generate_store_old('{$1.category_name}')`);
     await queryRunner.query(`CREATE OR REPLACE TRIGGER unit_conversion_slug
-                                    BEFORE INSERT OR update of category_name ON unit_conversions
-                                    FOR EACH ROW EXECUTE PROCEDURE slug_generate_store_old('{$1.original_unit_of_measurement,$1.standard_unit}')`);
+                                        BEFORE INSERT OR update ON unit_conversions
+                                        FOR EACH ROW EXECUTE PROCEDURE slug_generate_store_old('{$1.original_unit_of_measurement,$1.standard_unit}')`);
     await queryRunner.query(`CREATE OR REPLACE TRIGGER license_slug
-                                    BEFORE INSERT OR update of name ON licenses
-                                    FOR EACH ROW EXECUTE PROCEDURE slug_generate_store_old('{$1.name}')`);
+                                        BEFORE INSERT OR update of name ON licenses
+                                        FOR EACH ROW EXECUTE PROCEDURE slug_generate_store_old('{$1.name}')`);
     await queryRunner.query(`CREATE OR REPLACE TRIGGER file_slug
-                                    BEFORE INSERT OR update of name ON files
-                                    FOR EACH ROW EXECUTE PROCEDURE slug_generate_store_old('{$1.name}')`);
+                                        BEFORE INSERT OR update of name ON files
+                                        FOR EACH ROW EXECUTE PROCEDURE slug_generate_store_old('{$1.name}')`);
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`SET search_path TO ${process.env.POSTGRES_SCHEMA}, public`);
     await queryRunner.query(`ALTER TABLE "dataset_file_mappings" DROP CONSTRAINT "FK_c95cffb2a976245915bf68e3293"`);
     await queryRunner.query(`ALTER TABLE "dataset_file_mappings" DROP CONSTRAINT "FK_cb4f539ba5fff9d00110aa91aef"`);
     await queryRunner.query(`ALTER TABLE "dataset_file_mappings" DROP CONSTRAINT "FK_fbf14d6b83a5f450b3ed23c410e"`);
@@ -257,20 +258,20 @@ export class CreateSchema1765535639232 implements MigrationInterface {
     await queryRunner.query(`DROP TABLE "slug_history"`);
     await queryRunner.query(`DROP TYPE "public"."slug_history_entity_type_enum"`);
     await queryRunner.query(`ALTER TABLE "features" RESET (
-                autovacuum_vacuum_insert_scale_factor,
-                autovacuum_analyze_scale_factor,
-                autovacuum_vacuum_scale_factor
-            )`);
+                    autovacuum_vacuum_insert_scale_factor,
+                    autovacuum_analyze_scale_factor,
+                    autovacuum_vacuum_scale_factor
+                )`);
     await queryRunner.query(`ALTER TABLE "layers" RESET (
-                autovacuum_vacuum_insert_scale_factor,
-                autovacuum_analyze_scale_factor,
-                autovacuum_vacuum_scale_factor
-            )`);
+                    autovacuum_vacuum_insert_scale_factor,
+                    autovacuum_analyze_scale_factor,
+                    autovacuum_vacuum_scale_factor
+                )`);
     await queryRunner.query(`ALTER TABLE "observations" RESET (
-                autovacuum_vacuum_insert_scale_factor,
-                autovacuum_analyze_scale_factor,
-                autovacuum_vacuum_scale_factor
-            )`);
+                    autovacuum_vacuum_insert_scale_factor,
+                    autovacuum_analyze_scale_factor,
+                    autovacuum_vacuum_scale_factor
+                )`);
     await queryRunner.query(`DROP INDEX idx_geometry_geography`);
     await queryRunner.query(`DROP INDEX idx_geometry_type`);
     await queryRunner.query(`DROP INDEX idx_layers_depthrange`);

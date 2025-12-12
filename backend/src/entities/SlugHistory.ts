@@ -9,7 +9,6 @@ export default class SlugHistoryEntity extends BaseTable implements SlugHistory 
   entity_id: string;
 
   @Column({
-    primary: true,
     type: 'enum',
     enum: EntityType,
   })
