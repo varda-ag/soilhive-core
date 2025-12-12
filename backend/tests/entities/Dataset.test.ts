@@ -19,7 +19,7 @@ describe('Dataset entity', () => {
       ],
       type: 'Polygon',
     };
-    const datasetId = uuidv7(); 
+    const datasetId = uuidv7();
 
     const entityManager = await getEntityManager();
 
@@ -32,13 +32,12 @@ describe('Dataset entity', () => {
     await slugHistoryRepo.save(slugHistory);
 
     const dataset = new Dataset();
-    dataset.id = datasetId
+    dataset.id = datasetId;
     dataset.name = 'name';
     dataset.slug = 'slug';
     dataset.created_by = 'created_by';
     dataset.spatial_extent = polygon;
 
-    
     const repo = await entityManager.getRepository(Dataset);
     const saved = await repo.save(dataset);
 
@@ -47,4 +46,3 @@ describe('Dataset entity', () => {
     expect(savedLocation?.spatial_extent).toEqual(polygon);
   });
 });
-
