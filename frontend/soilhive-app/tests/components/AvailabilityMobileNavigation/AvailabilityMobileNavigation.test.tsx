@@ -4,10 +4,6 @@ import {
   AVAILABILITY_MOBILE_TABS,
 } from 'components/AvailabilityMobileNavigation/AvailabilityMobileNavigation';
 
-// Mock SVG icons so they don't break Jest
-// jest.mock("assets/icons/earth-icon.svg?react", () => () => <div data-testid="icon-map" />);
-// jest.mock("assets/icons/filter2-icon.svg?react", () => () => <div data-testid="icon-filters" />);
-// jest.mock("assets/icons/newspaper-icon.svg?react", () => () => <div data-testid="icon-datasets" />);
 jest.mock('react-router');
 describe('AvailabilityMobileNavigation component', () => {
   it('renders all three mobile navigation tabs', () => {
