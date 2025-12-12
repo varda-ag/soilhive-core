@@ -1,8 +1,8 @@
-import classnames from 'classnames';
 import { DatasetsSidebarHeader } from './DatasetsSidebarHeader/DatasetsSidebarHeader';
 import { DatasetsSidebarSummary } from './DatasetsSidebarSummary/DatasetsSidebarSummary';
 import { DatasetsList } from './DatasetsList/DatasetsList';
-import { Button } from 'components/UI';
+import { Button, PageSidebar } from 'components/UI';
+import useDevice from 'hooks/useDevice';
 
 import styles from './DatasetsSidebar.module.scss';
 
@@ -12,10 +12,12 @@ interface Props {
 }
 
 export function DatasetsSidebar({ isOpened, onClose }: Props) {
+  const { isDesktopLayout } = useDevice();
+
   return (
-    <div className={classnames(styles.DatasetsSidebar, { [styles.Opened]: isOpened })}>
+    <PageSidebar className={styles.DatasetsSidebar} isOpened={isOpened} position="right">
       <div className={styles.Wrapper}>
-        <DatasetsSidebarHeader onClose={onClose} />
+        {isDesktopLayout && <DatasetsSidebarHeader onClose={onClose} />}
         <DatasetsSidebarSummary />
         <DatasetsList />
         <div className={styles.Action}>
@@ -24,6 +26,6 @@ export function DatasetsSidebar({ isOpened, onClose }: Props) {
           </Button>
         </div>
       </div>
-    </div>
+    </PageSidebar>
   );
 }

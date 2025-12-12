@@ -3,6 +3,10 @@
     border-radius: .5rem;
     box-shadow: var(--shadow-interface);
 
+    @media (min-width: 768px) and  (max-width: 1023px) {
+        width: calc(50% - .25rem);
+    }
+
     &.Opened {
         .DropdownIcon {
             transform: rotate(-180deg);

@@ -11,7 +11,6 @@ exports[`Header component snapshot with authenticated user 1`] = `
       <img
         alt="Logo"
         src="logo.png"
-        style="height: 47px;"
       />
     </div>
     <nav
