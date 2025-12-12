@@ -10,7 +10,6 @@ export default new DataSource({
   password: getDBPassword,
   ...(process.env.POSTGRES_PASSWORD ? {} : { ssl: getSSL() }),
   database: process.env.POSTGRES_DB!,
-  ...(process.env.POSTGRES_SCHEMA ? { schema: process.env.POSTGRES_SCHEMA } : {}),
   entities: ['dist/entities/*.js'],
   migrations: ['dist/migrations/*.js'],
 });
