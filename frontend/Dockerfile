@@ -26,4 +26,4 @@ COPY --from=build /app/soilhive-app/env.sh /usr/share/nginx/html/env.sh
 
 EXPOSE 80
 
-CMD ["/bin/sh", "-c", "/usr/share/nginx/html/env.sh && nginx -g \"daemon off;\""]
+CMD ["/bin/sh", "-c", "/usr/share/nginx/html/env.sh /usr/share/nginx/html && nginx -g \"daemon off;\""]
