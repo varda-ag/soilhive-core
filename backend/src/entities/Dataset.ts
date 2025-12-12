@@ -7,8 +7,11 @@ import type { IngestionStatusType, GISDataTypeType } from '../types/data';
 import { IngestionStatus } from '../types/data';
 
 @Entity('datasets')
+@Unique(['name'])
 @Unique(['slug'])
-@ForeignKey(() => SlugHistoryEntity, ['id', 'slug'], ['entity_id', 'slug'])
+@ForeignKey(() => SlugHistoryEntity, ['id', 'slug'], ['entity_id', 'slug'], {
+  deferrable: 'INITIALLY DEFERRED',
+})
 export default class DatasetEntity extends BaseTable implements Dataset {
   @PrimaryColumn('uuid', {
     default: () => 'uuidv7()',
@@ -43,13 +46,13 @@ export default class DatasetEntity extends BaseTable implements Dataset {
   spatial_resolution?: string;
 
   @Column({ type: 'date', nullable: true })
-  publication_date?: Date;
+  publication_date?: string;
 
   @Column({ type: 'text', nullable: true })
-  reference_period_start?: string;
+  reference_period_start?: Date;
 
   @Column({ type: 'text', nullable: true })
-  reference_period_stop?: string;
+  reference_period_stop?: Date;
 
   @Column({ type: 'uuid', nullable: true, array: true })
   licenses?: string[];
