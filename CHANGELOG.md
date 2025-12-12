@@ -1,3 +1,16 @@
+## [0.2.4](https://github.com/varda-ag/soilhive-core/compare/v0.2.3...v0.2.4) (2025-12-12)
+
+
+### Bug Fixes
+
+* :bug: Fixing 404 on page reload using nginx config ([#55](https://github.com/varda-ag/soilhive-core/issues/55)) ([72e21ef](https://github.com/varda-ag/soilhive-core/commit/72e21efa607fe66477420d658d09e54e39924c01))
+
+## [0.2.3](https://github.com/varda-ag/soilhive-core/compare/v0.2.2...v0.2.3) (2025-12-12)
+
+## [0.2.2](https://github.com/varda-ag/soilhive-core/compare/v0.2.1...v0.2.2) (2025-12-12)
+
+## [0.2.1](https://github.com/varda-ag/soilhive-core/compare/v0.2.0...v0.2.1) (2025-12-11)
+
 ## [0.2.0](https://github.com/varda-ag/soilhive-core/compare/v0.1.1...v0.2.0) (2025-12-10)
 
 ### Features
