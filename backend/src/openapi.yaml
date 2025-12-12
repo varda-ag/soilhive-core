@@ -587,7 +587,7 @@ components:
           nullable: true
         publication_date:
           type: string
-          format: date-time
+          format: date
           nullable: true
         reference_period_start:
           type: string
