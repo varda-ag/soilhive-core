@@ -1,3 +1,10 @@
+## [0.3.0](https://github.com/varda-ag/soilhive-core/compare/v0.2.6...v0.3.0) (2025-12-12)
+
+
+### Features
+
+* SP-4674 - datasets sidebar mobile layout and unit tests ([#56](https://github.com/varda-ag/soilhive-core/issues/56)) ([14f295b](https://github.com/varda-ag/soilhive-core/commit/14f295ba2f893f1188392c05f039cb4f3227a8b5))
+
 ## [0.2.6](https://github.com/varda-ag/soilhive-core/compare/v0.2.5...v0.2.6) (2025-12-12)
 
 ## [0.2.5](https://github.com/varda-ag/soilhive-core/compare/v0.2.4...v0.2.5) (2025-12-12)
