@@ -23,4 +23,5 @@ export enum EntityType {
   SOIL_PROPERTY = 'soil_properties',
   UNIT_CONVERSION = 'unit_conversions',
   ANALYTICAL_METHOD = 'analytical_methods',
+  FILE = 'files',
 }

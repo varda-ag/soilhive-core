@@ -1,8 +1,9 @@
-import { Entity, Column, PrimaryColumn } from 'typeorm';
+import { Entity, Column, PrimaryColumn, Unique } from 'typeorm';
 import { DataMapping } from '../interfaces/DataMapping';
 import BaseTable from './BaseTable';
 
 @Entity('data_mappings')
+@Unique(['data_mapping'])
 export default class DataMappingEntity extends BaseTable implements DataMapping {
   @PrimaryColumn('uuid', {
     default: () => 'uuidv7()',

@@ -4,7 +4,9 @@ import BaseTable from './BaseTable';
 import SlugHistoryEntity from './SlugHistory';
 
 @Entity('analytical_methods')
-@ForeignKey(() => SlugHistoryEntity, ['id', 'slug'], ['entity_id', 'slug'])
+@ForeignKey(() => SlugHistoryEntity, ['id', 'slug'], ['entity_id', 'slug'], {
+  deferrable: 'INITIALLY DEFERRED',
+})
 export default class AnalyticalMethodEntity extends BaseTable implements AnalyticalMethod {
   @PrimaryColumn('uuid', {
     default: () => 'uuidv7()',

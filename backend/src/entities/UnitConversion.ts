@@ -5,7 +5,9 @@ import SlugHistoryEntity from './SlugHistory';
 
 @Entity('unit_conversions')
 @Unique(['slug'])
-@ForeignKey(() => SlugHistoryEntity, ['id', 'slug'], ['entity_id', 'slug'])
+@ForeignKey(() => SlugHistoryEntity, ['id', 'slug'], ['entity_id', 'slug'], {
+  deferrable: 'INITIALLY DEFERRED',
+})
 export default class UnitConversionEntity extends BaseTable implements UnitConversion {
   @PrimaryColumn('uuid', {
     default: () => 'uuidv7()',
