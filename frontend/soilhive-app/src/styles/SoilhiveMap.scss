@@ -243,10 +243,11 @@
         }
         .selection-area {
             position: relative;
-            display: inline-block;
+            display: flex;
+            align-items: center;
             border: 2px solid #DDDDDD;
             border-radius: 4px;
-            padding: 4px 8px;
+            padding-left: 8px;
             width: 118px;
             font-family: Inter;
             font-weight: 400;
@@ -256,6 +257,12 @@
             letter-spacing: 0px;
             vertical-align: middle;
             background-color: #EEEFF0;
+            .area {
+                display: inline-block;
+                overflow-x: hidden;
+                text-overflow: ellipsis;
+                max-width: 80px;
+            }
             svg {
                 position: absolute;
                 right: 8px;

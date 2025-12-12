@@ -20,7 +20,7 @@ export default function SoilhiveMapSelectionToolbar({ area = 0, onCancel, onRese
       <Button size="tiny" type="tertiary" onClick={onCancel}>Cancel</Button>
       <Button size="tiny" type="secondary" onClick={onDrawAnother} isDisabled={true}><PlusIcon />Draw another area</Button>
       <Button size="tiny" type="primary" onClick={onShowResults}><MarkerIcon />Show results</Button>
-      <div className="selection-area">{`${area}`} km2 <InfoIcon /></div>
+      <div className="selection-area"><span className="area" title={`${area} km²`}>{`${area}`} km²</span><InfoIcon /></div>
     </div>
   );
 }

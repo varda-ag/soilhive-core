@@ -8,7 +8,7 @@ import '../styles/SoilhiveMap.scss';
 import Flower from '../assets/images/flower.svg?react';
 import { polygonToCells } from 'h3-js';
 import { bboxToGeoJSONPolygonCoordinates, bBoxToH3Cells, h3IndexesToGeoJSONPolygons } from '../utilities/geo';
-import { bboxPolygon } from '@turf/turf';
+import { area, bboxPolygon, convertArea, round } from '@turf/turf';
 import { h3ResolutionForZoomLevel } from '../utilities/map';
 import DrawControl from './DrawControl';
 import SoilhiveMapToolbar from './SoilhiveMapToolbar';
@@ -114,6 +114,10 @@ function SoilhiveMap({
   const [showDrawControl, setShowDrawControl] = useState(false);
   const [showSelectionToolbar, setShowSelectionToolbar] = useState(false);
 
+  // const selectedArea = useMemo(() => {
+  //   area
+  // }, [selection]);
+
   function updateH3Cells(mapEvent) {
     if (!showH3Cells) {
       setH3Cells(null);
@@ -203,6 +207,9 @@ function SoilhiveMap({
 
         { showSelectionToolbar &&
           <SoilhiveMapSelectionToolbar
+            area={
+              round(convertArea(area(selection), 'meters', 'kilometers'), 3)
+            }
             onCancel={() => {
               setShowDrawControl(false);
               resetSelection();
@@ -271,8 +278,11 @@ function SoilhiveMap({
           <DrawControl
             position="bottom-right"
             onFinish={(feature) => {
-              console.log('onFinish - feature:', feature);
               setShowDrawControl(false);
+              setSelection({
+                type: 'FeatureCollection',
+                features: [feature]
+              });
             }}
             // displayControlsDefault={false}
             // controls={{
