@@ -1,16 +1,17 @@
 import { useState } from 'react';
 import type { StyleSpecification } from 'react-map-gl/maplibre';
-import classnames from 'classnames';
 
 import SoilhiveMap from 'components/SoilhiveMap';
 import { MAPBOX_ACCESS_TOKEN } from '../utilities/environmentVariables';
 import { AvailabilityProvider } from '../contexts/AvailabilityContext';
 import DatasetsIcon from 'assets/icons/paste-icon.svg?react';
-import MapIcon from 'assets/icons/earth-icon.svg?react';
-import FiltersIcon from 'assets/icons/filter2-icon.svg?react';
-import DatasetsMobileIcon from 'assets/icons/newspaper-icon.svg?react';
 import { Button } from 'components/UI';
 import { DatasetsSidebar } from 'components/DatasetsSidebar/DatasetsSidebar';
+import {
+  AVAILABILITY_MOBILE_TABS,
+  AvailabilityMobileNavigation,
+  DEFAULT_AVAILABILITY_MOBILE_TAB,
+} from 'components/AvailabilityMobileNavigation/AvailabilityMobileNavigation';
 import useDevice from 'hooks/useDevice';
 
 import styles from './Homepage.module.scss';
@@ -35,7 +36,8 @@ const MAPBOX_SATELLITE_MAP_STYLE: StyleSpecification = {
 
 function Homepage() {
   const [isDatasetsOpened, setIsDatasetsOpened] = useState<boolean>(false);
-  const { isMobileLayout, isDesktopLayout } = useDevice();
+  const [activeMobileTab, setActiveMobileTab] = useState<string>(DEFAULT_AVAILABILITY_MOBILE_TAB);
+  const { isDesktopLayout } = useDevice();
 
   return (
     <AvailabilityProvider>
@@ -53,7 +55,10 @@ function Homepage() {
               { name: 'OpenMap Tiles OSM Bright', mapStyle: 'https://openmaptiles.geo.data.gouv.fr/styles/osm-bright/style.json' },
             ]}
           />
-          <DatasetsSidebar isOpened={isDatasetsOpened} onClose={() => setIsDatasetsOpened(false)} />
+          <DatasetsSidebar
+            isOpened={isDesktopLayout ? isDatasetsOpened : activeMobileTab === AVAILABILITY_MOBILE_TABS.DATASETS}
+            onClose={() => setIsDatasetsOpened(false)}
+          />
         </div>
 
         {isDesktopLayout && !isDatasetsOpened && (
@@ -64,19 +69,7 @@ function Homepage() {
           </Button>
         )}
 
-        {isMobileLayout && (
-          <div className={styles.MobilePanel}>
-            <div className={classnames(styles.MobilePanelItem, styles.Active)}>
-              <MapIcon /> Map
-            </div>
-            <div className={styles.MobilePanelItem}>
-              <FiltersIcon /> Filters
-            </div>
-            <div className={styles.MobilePanelItem}>
-              <DatasetsMobileIcon /> Datasets
-            </div>
-          </div>
-        )}
+        {!isDesktopLayout && <AvailabilityMobileNavigation active={activeMobileTab} onChange={setActiveMobileTab} />}
       </div>
     </AvailabilityProvider>
   );

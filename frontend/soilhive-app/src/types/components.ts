@@ -6,3 +6,9 @@ export interface MenuOption {
   isDisabled?: boolean;
   Icon?: React.FC<React.SVGProps<SVGSVGElement>>;
 }
+
+export type MobileTabNavigationConfig = {
+  name: string;
+  id: string;
+  Icon?: React.FC<React.SVGProps<SVGSVGElement>>;
+};

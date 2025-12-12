@@ -1,0 +1,50 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`AvailabilityMobileNavigation component renders all three mobile navigation tabs 1`] = `
+<div>
+  <div
+    class="MobileTabNavigation"
+    data-testid="sh-ui-mobile-tab-navigation"
+  >
+    <div
+      class="MobileTabNavigationItem Active"
+      data-testid="sh-ui-mobile-tab-navigation-item"
+      role="button"
+    >
+      <svg
+        data-testid="svg-icon-mock"
+      >
+        mock-svg
+      </svg>
+       
+      Map
+    </div>
+    <div
+      class="MobileTabNavigationItem"
+      data-testid="sh-ui-mobile-tab-navigation-item"
+      role="button"
+    >
+      <svg
+        data-testid="svg-icon-mock"
+      >
+        mock-svg
+      </svg>
+       
+      Filters
+    </div>
+    <div
+      class="MobileTabNavigationItem"
+      data-testid="sh-ui-mobile-tab-navigation-item"
+      role="button"
+    >
+      <svg
+        data-testid="svg-icon-mock"
+      >
+        mock-svg
+      </svg>
+       
+      Datasets
+    </div>
+  </div>
+</div>
+`;

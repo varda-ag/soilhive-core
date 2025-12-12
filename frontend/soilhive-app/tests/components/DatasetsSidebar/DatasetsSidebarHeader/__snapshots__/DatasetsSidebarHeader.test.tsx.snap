@@ -1,0 +1,35 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`DatasetsSidebarHeader renders sidebar header 1`] = `
+<div>
+  <div
+    class="DatasetsSidebarHeader"
+    data-testid="sh-datasets-sidebar-header"
+    role="button"
+  >
+    <div
+      class="Title"
+    >
+      <div
+        class="DatasetsIconWrapper"
+      >
+        <svg
+          data-testid="svg-icon-mock"
+        >
+          mock-svg
+        </svg>
+      </div>
+      Available Datasets
+    </div>
+    <div
+      class="SidebarIconWrapper"
+    >
+      <svg
+        data-testid="svg-icon-mock"
+      >
+        mock-svg
+      </svg>
+    </div>
+  </div>
+</div>
+`;

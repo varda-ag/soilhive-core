@@ -1,0 +1,25 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`DatasetsFilters renders component 1`] = `
+<div>
+  <div
+    class="DatasetsFilters"
+  >
+    <input
+      data-testid="mock-textinput"
+      placeholder="Search by name"
+      value=""
+    />
+    <button
+      data-testid="mock-button"
+    >
+      <svg
+        data-testid="svg-icon-mock"
+      >
+        mock-svg
+      </svg>
+       Filter
+    </button>
+  </div>
+</div>
+`;

@@ -1,0 +1,23 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`Tag component renders default type 1`] = `
+<div>
+  <span
+    class="Tag Default"
+    data-testid="sh-ui-tag"
+  >
+    Default Tag
+  </span>
+</div>
+`;
+
+exports[`Tag component renders primary type 1`] = `
+<div>
+  <span
+    class="Tag Primary"
+    data-testid="sh-ui-tag"
+  >
+    Primary Tag
+  </span>
+</div>
+`;

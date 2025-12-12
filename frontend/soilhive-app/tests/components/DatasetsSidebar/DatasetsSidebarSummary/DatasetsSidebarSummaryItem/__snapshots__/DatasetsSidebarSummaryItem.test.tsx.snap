@@ -1,0 +1,22 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`DatasetsSidebarSummaryItem renders summary item 1`] = `
+<div>
+  <div
+    class="DatasetsSidebarSummaryItem"
+    data-testid="sh-datasets-sidebar-summary-item"
+  >
+    <span
+      class="Value"
+      style="color: rgb(0, 171, 0);"
+    >
+      25
+    </span>
+    <span
+      class="Name"
+    >
+      test
+    </span>
+  </div>
+</div>
+`;

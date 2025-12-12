@@ -1,0 +1,82 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`DatasetsSidebarSummary renders all summary items with correct values 1`] = `
+<div>
+  <div
+    class="DatasetsSidebarSummary"
+  >
+    <div
+      class="List"
+    >
+      <div
+        data-testid="summary-item-Datasets"
+      >
+        <span
+          data-testid="value-Datasets"
+        >
+          12
+        </span>
+        <span
+          data-testid="color-Datasets"
+        >
+          #A2D1D1
+        </span>
+      </div>
+      <div
+        data-testid="summary-item-Data Points"
+      >
+        <span
+          data-testid="value-Data Points"
+        >
+          345000
+        </span>
+        <span
+          data-testid="color-Data Points"
+        >
+          #F5B200
+        </span>
+      </div>
+      <div
+        data-testid="summary-item-Raster layers"
+      >
+        <span
+          data-testid="value-Raster layers"
+        >
+          15
+        </span>
+        <span
+          data-testid="color-Raster layers"
+        >
+          #FF007A
+        </span>
+      </div>
+      <div
+        data-testid="summary-item-Depth range"
+      >
+        <span
+          data-testid="value-Depth range"
+        >
+          0–60 cm
+        </span>
+        <span
+          data-testid="color-Depth range"
+        >
+          #AA8B4D
+        </span>
+      </div>
+    </div>
+    <div
+      class="Date"
+    >
+      <svg
+        class="Icon"
+        data-testid="svg-icon-mock"
+      >
+        mock-svg
+      </svg>
+       
+      2020 – 2024
+    </div>
+  </div>
+</div>
+`;

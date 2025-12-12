@@ -1,0 +1,133 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`DatasetsListItem renders main dataset info 1`] = `
+<div>
+  <div
+    class="DatasetsListItem"
+    data-testid="sh-datasets-list-item"
+  >
+    <div
+      class="Main"
+    >
+      <div
+        class="Top"
+      >
+        <div
+          class="Title"
+        >
+          <div
+            data-checked="true"
+            data-testid="mock-checkbox"
+          >
+            SoilGrid Global
+          </div>
+          <svg
+            class="DropdownIcon"
+            data-testid="svg-icon-mock"
+          >
+            mock-svg
+          </svg>
+        </div>
+        <div
+          class="Tags"
+        >
+          <span
+            data-testid="tag-Global"
+          >
+            Global
+          </span>
+          <span
+            data-testid="tag-Primary"
+            data-type="primary"
+          >
+            Primary
+          </span>
+        </div>
+      </div>
+      <div
+        class="Bottom"
+      >
+        <button
+          data-testid="mock-button"
+        >
+          Metadata
+        </button>
+        <div
+          class="Views"
+        >
+          <svg
+            data-testid="svg-icon-mock"
+          >
+            mock-svg
+          </svg>
+           
+          12.3k
+        </div>
+      </div>
+    </div>
+    <div
+      class="MetaWrapper"
+    >
+      <div
+        class="Meta"
+      >
+        <p
+          class="MetaItem"
+        >
+          <svg
+            class="PointsIcon"
+            data-testid="svg-icon-mock"
+          >
+            mock-svg
+          </svg>
+           
+          34546
+           points
+        </p>
+        <p
+          class="MetaItem"
+        >
+          <svg
+            class="LayersIcon"
+            data-testid="svg-icon-mock"
+          >
+            mock-svg
+          </svg>
+           
+          12
+           raster layers
+        </p>
+        <p
+          class="MetaItem"
+        >
+          <svg
+            class="DepthIcon"
+            data-testid="svg-icon-mock"
+          >
+            mock-svg
+          </svg>
+           
+          0
+          -
+          60
+           cm
+        </p>
+        <p
+          class="MetaItem"
+        >
+          <svg
+            class="DateIcon"
+            data-testid="svg-icon-mock"
+          >
+            mock-svg
+          </svg>
+           
+          2012
+           - 
+          2024
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+`;

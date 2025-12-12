@@ -35,14 +35,12 @@ export function DatasetsListItem({ dataset }: Props) {
           </div>
           <div className={styles.Tags}>
             {dataset.tags.map((tag, index) => (
-              <Tag key={tag} text="Global" type={index > 0 ? 'primary' : undefined} />
+              <Tag key={tag} text={tag} type={index > 0 ? 'primary' : undefined} />
             ))}
           </div>
         </div>
         <div className={styles.Bottom}>
-          <Button size="tiny" onClick={() => console.log('Metadata click')}>
-            Metadata
-          </Button>
+          <Button size="tiny">Metadata</Button>
           <div className={styles.Views}>
             <EyeIcon /> {dataset.views}
           </div>

@@ -15,7 +15,6 @@ jest.mock('components/UI', () => ({
         const newValue = selected.includes(code) ? [...selected.filter(selectedCode => code !== selectedCode)] : [...selected, code];
         setSelected(newValue);
         onSelect(newValue);
-        console.log('selected', selected);
         return;
       }
 

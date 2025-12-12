@@ -1,0 +1,57 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`DatasetsList renders datasets list 1`] = `
+<div>
+  <div
+    class="DatasetsList"
+    data-testid="sh-datasets-list"
+  >
+    <div
+      data-testid="mock-datasets-filters"
+    >
+      Mock DatasetsFilters
+    </div>
+    <div
+      class="SelectAllWrapper"
+    >
+      <label
+        class="CheckBox Small"
+        data-testid="sh-ui-checkbox"
+      >
+        <input
+          class="Input"
+          type="checkbox"
+        />
+        <div
+          class="Label small-text"
+          data-testid="sh-ui-checkbox-label"
+        >
+          Select all
+        </div>
+      </label>
+    </div>
+    <div
+      class="Wrapper"
+    >
+      <div
+        data-testid="mock-datasets-list-item"
+      >
+        Mock DatasetsListItem with props: 
+        {"dataset":{"name":"Test dataset 1","id":"test-dataset-1"}}
+      </div>
+      <div
+        data-testid="mock-datasets-list-item"
+      >
+        Mock DatasetsListItem with props: 
+        {"dataset":{"name":"Test dataset 2","id":"test-dataset-2"}}
+      </div>
+      <div
+        data-testid="mock-datasets-list-item"
+      >
+        Mock DatasetsListItem with props: 
+        {"dataset":{"name":"Test dataset 3","id":"test-dataset-3"}}
+      </div>
+    </div>
+  </div>
+</div>
+`;

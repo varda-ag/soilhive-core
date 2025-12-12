@@ -1,0 +1,12 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`PageSidebar component matches snapshot 1`] = `
+<div>
+  <div
+    class="PageSidebar Left Opened"
+    data-testid="sh-ui-page-sidebar"
+  >
+    Snapshot Content
+  </div>
+</div>
+`;
