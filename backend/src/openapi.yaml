@@ -3,8 +3,8 @@ info:
   title: SoilHive core API
   version: 1.0.0
 servers:
-  - url: /
   - url: /v1
+  - url: /
 
 paths:
   /auth/config:

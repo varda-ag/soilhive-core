@@ -1,6 +1,6 @@
 import cors from 'cors';
 import 'dotenv/config';
-import express from 'express';
+import express, { Application } from 'express';
 import swaggerUi from 'swagger-ui-express';
 import { errorMiddleware } from './middlewares/error';
 import { getOpenApiMiddleware, getSwaggerDocument } from './middlewares/openapi';
@@ -8,9 +8,9 @@ import { transactionMiddleware } from './middlewares/transaction';
 import { isJest } from './utils/utils';
 import { initializeSchema } from './utils/data-source';
 
-export const app = express();
+export const app: Application = express();
 
-(async () => {
+export const initApp = async (app: Application) => {
   app.use(
     cors({
       origin: '*',
@@ -35,4 +35,8 @@ export const app = express();
   app.listen(port, () => {
     console.log(`Server is running at http://localhost:${port}`);
   });
+};
+
+(async () => {
+  await initApp(app);
 })();
