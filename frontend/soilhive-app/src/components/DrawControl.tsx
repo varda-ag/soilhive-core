@@ -11,7 +11,7 @@ import type { ControlPosition } from 'react-map-gl/maplibre';
 //   // onDelete?: (evt: {features: object[]}) => void;
 // };
 
-export default function DrawControl({ position = 'bottom-right' }: { position?: ControlPosition }) {
+export default function DrawControl({ position = 'bottom-right', onFinish }: { position?: ControlPosition, onFinish: (feature: any) => {} }) {
   const drawControl = useControl<MaplibreTerradrawControl>(
     () =>
       new MaplibreTerradrawControl({
@@ -28,9 +28,9 @@ export default function DrawControl({ position = 'bottom-right' }: { position?: 
           // 'angled-rectangle',
           // 'sensor',
           // 'sector',
-          'select',
-          'delete-selection',
-          'delete',
+          // 'select',
+          // 'delete-selection',
+          // 'delete',
           // 'download'
         ],
         open: true,
@@ -40,21 +40,22 @@ export default function DrawControl({ position = 'bottom-right' }: { position?: 
       drawInstance.on('ready', () => {
         drawInstance.setMode('polygon'); // TODO: NOT WORKING
       });
-      drawInstance.on('finish', onFinish);
+      drawInstance.on('finish', onDrawFinish);
     },
     ({ map }) => {
       const drawInstance = drawControl.getTerraDrawInstance();
-      drawInstance?.off('finish', onFinish);
+      drawInstance?.off('finish', onDrawFinish);
     },
     {
       position,
     },
   );
 
-  function onFinish(event) {
+  function onDrawFinish(event) {
     const drawInstance = drawControl.getTerraDrawInstance();
     const snapshot = drawInstance.getSnapshot();
-    console.log('onFinish - features:', snapshot);
+    const feature = snapshot[0];
+    onFinish(feature)
   }
 
   return null;
