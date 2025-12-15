@@ -6,10 +6,10 @@ export class CreateSchema1765549507801 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`SET search_path TO ${process.env.POSTGRES_SCHEMA}, public`);
     await queryRunner.query(
-      `CREATE TYPE "public"."slug_history_entity_type_enum" AS ENUM('datasets', 'licenses', 'soil_property_categories', 'soil_properties', 'unit_conversions', 'analytical_methods', 'files')`,
+      `CREATE TYPE "slug_history_entity_type_enum" AS ENUM('datasets', 'licenses', 'soil_property_categories', 'soil_properties', 'unit_conversions', 'analytical_methods', 'files');`,
     );
     await queryRunner.query(
-      `CREATE TABLE "slug_history" ("created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP, "entity_id" uuid NOT NULL, "entity_type" "public"."slug_history_entity_type_enum" NOT NULL, "slug" text NOT NULL, CONSTRAINT "PK_8a081bbe16d88d78868ec734204" PRIMARY KEY ("entity_id", "slug"))`,
+      `CREATE TABLE "slug_history" ("created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP, "entity_id" uuid NOT NULL, "entity_type" "slug_history_entity_type_enum" NOT NULL, "slug" text NOT NULL, CONSTRAINT "PK_8a081bbe16d88d78868ec734204" PRIMARY KEY ("entity_id", "slug"))`,
     );
     await queryRunner.query(
       `CREATE TABLE "unit_conversions" ("created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP, "id" uuid NOT NULL DEFAULT uuidv7(), "slug" text NOT NULL, "original_unit_of_measurement" text, "standard_unit" text, "conversion_formula" text, CONSTRAINT "UQ_8f65c37e0e3cad54385813d36cd" UNIQUE ("slug"), CONSTRAINT "PK_26f4340a0a834dbe6cf8b241c71" PRIMARY KEY ("id"))`,
@@ -135,7 +135,7 @@ export class CreateSchema1765549507801 implements MigrationInterface {
                                             CHECK (check_std_unit(standard_unit)) NOT VALID;`);
     // TODO: implement this with typeorm entity subscribers
     /* eslint-disable */
-        await queryRunner.query(`CREATE EXTENSION IF NOT EXISTS "unaccent" SCHEMA ${process.env.POSTGRES_SCHEMA}`);
+        await queryRunner.query(`CREATE EXTENSION IF NOT EXISTS "unaccent" SCHEMA public`);
         await queryRunner.query(`CREATE OR REPLACE FUNCTION slugify(value TEXT)
                                         RETURNS TEXT AS $$
                                         -- removes accents (diacritic signs) from a given string --
@@ -256,7 +256,7 @@ export class CreateSchema1765549507801 implements MigrationInterface {
     await queryRunner.query(`DROP TABLE "soil_property_categories"`);
     await queryRunner.query(`DROP TABLE "unit_conversions"`);
     await queryRunner.query(`DROP TABLE "slug_history"`);
-    await queryRunner.query(`DROP TYPE "public"."slug_history_entity_type_enum"`);
+    await queryRunner.query(`DROP TYPE "slug_history_entity_type_enum"`);
     await queryRunner.query(`ALTER TABLE "features" RESET (
                     autovacuum_vacuum_insert_scale_factor,
                     autovacuum_analyze_scale_factor,
