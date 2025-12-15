@@ -1,3 +1,10 @@
+## [0.4.1](https://github.com/varda-ag/soilhive-core/compare/v0.4.0...v0.4.1) (2025-12-15)
+
+
+### Bug Fixes
+
+* :rocket: Fixing global-bundle location, OpenAPI servers ([#61](https://github.com/varda-ag/soilhive-core/issues/61)) ([cd9b725](https://github.com/varda-ag/soilhive-core/commit/cd9b725bfaa555fba0c8c2480eadc6b77f5e065f))
+
 ## [0.4.0](https://github.com/varda-ag/soilhive-core/compare/v0.3.2...v0.4.0) (2025-12-15)
 
 
