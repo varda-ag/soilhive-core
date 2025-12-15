@@ -1,3 +1,5 @@
+pnpm i -r --quiet
+
 npm run lint:fix
 
 cd backend && npm test && cd ..
