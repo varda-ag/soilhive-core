@@ -8,7 +8,7 @@ import '../styles/SoilhiveMap.scss';
 import Flower from '../assets/images/flower.svg?react';
 import { polygonToCells } from 'h3-js';
 import { bboxToGeoJSONPolygonCoordinates, bBoxToH3Cells, h3IndexesToGeoJSONPolygons } from '../utilities/geo';
-import { area, bboxPolygon, convertArea, round } from '@turf/turf';
+import { area, bbox, bboxPolygon, convertArea, round } from '@turf/turf';
 import { h3ResolutionForZoomLevel } from '../utilities/map';
 import DrawControl from './DrawControl';
 import SoilhiveMapToolbar from './SoilhiveMapToolbar';
@@ -194,14 +194,25 @@ function SoilhiveMap({
         interactiveLayerIds={['data-fills']}
       >
         { !showSelectionToolbar &&
-          <SoilhiveMapToolbar onDrawClick={() => {
-            setShowDrawControl(true);
-            setShowSelectionToolbar(true);
-            setTimeout(() => {
-              // Makes selection
-              document.querySelector('button.maplibregl-terradraw-add-polygon-button')?.click();
-            }, 0);          
-          }} />
+          <SoilhiveMapToolbar
+            onDrawClick={() => {
+              setShowDrawControl(true);
+              setShowSelectionToolbar(true);
+              setTimeout(() => {
+                // Makes selection
+                document.querySelector('button.maplibregl-terradraw-add-polygon-button')?.click();
+              }, 0);          
+            }}
+            onUpload={(geojson) => {
+              console.log('GeoJSON uploaded', geojson);
+              setSelection({
+                type: 'FeatureCollection',
+                features: [geojson]
+              });
+              setShowSelectionToolbar(true);
+              mapRef.current.fitBounds(bbox(geojson), { padding: 40 });
+            }}
+          />
         }
         
 
