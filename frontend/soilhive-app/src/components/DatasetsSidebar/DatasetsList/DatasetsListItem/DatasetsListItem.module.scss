@@ -1,104 +1,106 @@
+@import 'styles/variables/breakpoints';
+
 .DatasetsListItem {
-    border: 1px solid var(--color-neutral-dark-300);
-    border-radius: .5rem;
-    box-shadow: var(--shadow-interface);
+  border: 1px solid var(--color-neutral-dark-300);
+  border-radius: 0.5rem;
+  box-shadow: var(--shadow-interface);
 
-    @media (min-width: 768px) and  (max-width: 1023px) {
-        width: calc(50% - .25rem);
+  @media (min-width: $bp-tablet) and (max-width: $bp-tablet-max) {
+    width: calc(50% - 0.25rem);
+  }
+
+  &.Opened {
+    .DropdownIcon {
+      transform: rotate(-180deg);
+      transition: transform 0.5s ease-in;
     }
-
-    &.Opened {
-        .DropdownIcon {
-            transform: rotate(-180deg);
-            transition: transform .5s ease-in;
-        }
-        .MetaWrapper {
-            max-height: 500px;
-            transition: max-height .5s ease-in;
-        }
+    .MetaWrapper {
+      max-height: 500px;
+      transition: max-height 0.5s ease-in;
     }
+  }
 
-    .Main {
-        height: 120px;
-        position: relative;
+  .Main {
+    height: 120px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 11px 14px 14px 12px;
+
+    > .Top {
+      > .Title {
+        font-weight: bold;
+        padding-right: 1.125rem;
+        margin-bottom: 2px;
+
+        > .DropdownIcon {
+          position: absolute;
+          top: 0.5rem;
+          right: 0.5rem;
+          cursor: pointer;
+          transition: transform 0.3s ease-out;
+        }
+      }
+      > .Tags {
         display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-        padding: 11px 14px 14px 12px;
-
-        > .Top {
-            > .Title {
-                font-weight: bold;
-                padding-right: 1.125rem;
-                margin-bottom: 2px;
-
-                > .DropdownIcon {
-                    position: absolute;
-                    top: .5rem;
-                    right: .5rem;
-                    cursor: pointer;
-                    transition: transform .3s ease-out;
-                }
-            }
-            > .Tags {
-                display: flex;
-                gap: .5rem;
-                padding-left: 31px;
-            }
-        }
-
-        > .Bottom {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-
-            > .Views {
-                display: flex;
-                align-items: center;
-                color: var(--color-neutral-dark-600);
-            }
-        }
+        gap: 0.5rem;
+        padding-left: 31px;
+      }
     }
 
-    > .MetaWrapper {
-        max-height: 0;
-        transition: max-height .3s ease-out;
-        overflow: hidden;
+    > .Bottom {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
 
-        > .Meta {
-            display: flex;
-            flex-wrap: wrap;
-            gap: .375rem;
-            padding: .75rem;
-            background-color: var(--color-brand-light-green-600);
-            border-radius: 0 0 .5rem .5rem;
-            width: 100%;
-
-            > .MetaItem {
-                width: calc(50% - .375rem/2);
-                display: flex;
-                align-items: center;
-                gap: .25rem;
-                font-size: .6875rem;
-                line-height: 200%;
-                color: var(--color-neutral-dark-600);
-
-                > .PointsIcon {
-                    color: var(--color-brand-yellow-900);
-                }
-
-                > .LayersIcon {
-                    color: var(--color-brand-gold-1000);
-                }
-
-                > .DepthIcon {
-                    color: var(--color-brand-prompt-1000);
-                }
-
-                > .DateIcon {
-                    color: var(--color-neutral-black);
-                }
-            }
-        }
+      > .Views {
+        display: flex;
+        align-items: center;
+        color: var(--color-neutral-dark-600);
+      }
     }
+  }
+
+  > .MetaWrapper {
+    max-height: 0;
+    transition: max-height 0.3s ease-out;
+    overflow: hidden;
+
+    > .Meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.375rem;
+      padding: 0.75rem;
+      background-color: var(--color-brand-light-green-600);
+      border-radius: 0 0 0.5rem 0.5rem;
+      width: 100%;
+
+      > .MetaItem {
+        width: calc(50% - 0.375rem / 2);
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+        font-size: 0.6875rem;
+        line-height: 200%;
+        color: var(--color-neutral-dark-600);
+
+        > .PointsIcon {
+          color: var(--color-brand-yellow-900);
+        }
+
+        > .LayersIcon {
+          color: var(--color-brand-gold-1000);
+        }
+
+        > .DepthIcon {
+          color: var(--color-brand-prompt-1000);
+        }
+
+        > .DateIcon {
+          color: var(--color-neutral-black);
+        }
+      }
+    }
+  }
 }
