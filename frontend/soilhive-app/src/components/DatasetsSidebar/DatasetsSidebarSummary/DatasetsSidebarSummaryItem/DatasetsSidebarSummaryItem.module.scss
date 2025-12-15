@@ -1,32 +1,34 @@
+@import 'styles/variables/breakpoints';
+
 .DatasetsSidebarSummaryItem {
-    width: 92px;
-    min-width: 92px;
-    height: 63px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: .187rem;
-    border-radius: .5rem;
-    background-color: var(--color-neutral-white);
-    box-shadow: var(--shadow-interface);
+  width: 92px;
+  min-width: 92px;
+  height: 63px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.187rem;
+  border-radius: 0.5rem;
+  background-color: var(--color-neutral-white);
+  box-shadow: var(--shadow-interface);
 
-    @media (min-width: 768px) and  (max-width: 1023px) {
-        width: calc(25% - .141rem);
-    }
+  @media (min-width: $bp-tablet) and (max-width: $bp-tablet-max) {
+    width: calc(25% - 0.141rem);
+  }
 
-    @media (min-width: 1024px) {
-        width: 129px;
-        min-width: 129px;
-        height: 65px;
-        gap: .5rem;
-    }
+  @media (min-width: $bp-desktop) {
+    width: 129px;
+    min-width: 129px;
+    height: 65px;
+    gap: 0.5rem;
+  }
 
-    > .Value {
-        font-size: var(--font-size-md);
-        font-weight: var(--font-weight-bold);
-    }
-    > .Name {
-        font-size: var(--font-size-xs);
-    }
+  > .Value {
+    font-size: var(--font-size-md);
+    font-weight: var(--font-weight-bold);
+  }
+  > .Name {
+    font-size: var(--font-size-xs);
+  }
 }

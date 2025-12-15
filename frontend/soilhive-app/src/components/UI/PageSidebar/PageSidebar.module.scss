@@ -1,32 +1,38 @@
+@import 'styles/variables/breakpoints';
+
 .PageSidebar {
-    min-width: 0;
-    width: 0;
-    overflow-x: hidden;
-    z-index: 2;
-    position: absolute;
-    top: 0;
-    bottom: 54px;
-    background-color: var(--color-neutral-white);
+  min-width: 0;
+  width: 0;
+  overflow-x: hidden;
+  z-index: 2;
+  position: absolute;
+  top: 0;
+  bottom: 54px;
+  background-color: var(--color-neutral-white);
 
-    @media (min-width: 1024px) {
-        position: static;
-        transition: min-width .3s ease-in, width .5s ease-in;
-    }
+  @media (min-width: $bp-desktop) {
+    position: static;
+    transition:
+      min-width 0.3s ease-in,
+      width 0.5s ease-in;
+  }
 
-    &.Right {
-        right: 0;
-    }
+  &.Right {
+    right: 0;
+  }
 
-    &.Left {
-        left: 0;
-    }
+  &.Left {
+    left: 0;
+  }
 
-    &.Opened {
-        min-width: 100%;
-    
-        @media (min-width: 1024px) {
-            min-width: 18.5rem;
-            transition: min-width .5s ease-out, width .3s ease-out;
-        }
+  &.Opened {
+    min-width: 100%;
+
+    @media (min-width: $bp-desktop) {
+      min-width: 18.5rem;
+      transition:
+        min-width 0.5s ease-out,
+        width 0.3s ease-out;
     }
+  }
 }

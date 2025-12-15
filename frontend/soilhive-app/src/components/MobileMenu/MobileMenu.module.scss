@@ -1,38 +1,40 @@
+@import 'styles/variables/breakpoints';
+
 .mobileMenu {
-    display: none;
-    position: fixed;
-    align-items: center;
-    flex-direction: column;
-    top: 55px;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: #ffffff;
-    z-index: 900;
+  display: none;
+  position: fixed;
+  align-items: center;
+  flex-direction: column;
+  top: 55px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: #ffffff;
+  z-index: 900;
+  display: flex;
+
+  gap: 1.5rem;
+  padding: 1.5rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  overflow-y: auto;
+
+  @media (max-width: $bp-mobile-max) {
     display: flex;
-
-    gap: 1.5rem;
-    padding: 1.5rem;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    overflow-y: auto;
-
-    @media (max-width: 768px) {
-        display: flex;
-    }
+  }
 }
 
 .mobileLink {
-    font-weight: 700;
-    font-size: 1.1rem;
-    color: #000;
-    text-decoration: none;
-    padding-bottom: 0.5rem;
-    border-bottom: 2px solid transparent;
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: #000;
+  text-decoration: none;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid transparent;
 
-    &:visited,
-    &:hover,
-    &:active,
-    &:focus {
-        color: #000;
-    }
+  &:visited,
+  &:hover,
+  &:active,
+  &:focus {
+    color: #000;
+  }
 }
