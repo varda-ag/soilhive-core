@@ -1,3 +1,10 @@
+## [0.4.2](https://github.com/varda-ag/soilhive-core/compare/v0.4.1...v0.4.2) (2025-12-15)
+
+
+### Bug Fixes
+
+* :rocket: Fixing type and extension schema location ([#63](https://github.com/varda-ag/soilhive-core/issues/63)) ([66e0a8e](https://github.com/varda-ag/soilhive-core/commit/66e0a8e7f34d8ea96904ade3a2180c4ad1695484))
+
 ## [0.4.1](https://github.com/varda-ag/soilhive-core/compare/v0.4.0...v0.4.1) (2025-12-15)
 
 
