@@ -5,7 +5,7 @@ import { IncomingHttpHeaders } from 'http';
 import { getDataSource } from '../../src/utils/data-source';
 import { TokenScopes } from '../../src/types/types';
 
-describe('Testing /datasets/filters routes', () => {
+describe('Testing /datasets-filters routes', () => {
   let superAdminAuthHeader: IncomingHttpHeaders;
   beforeAll(async () => {
     // Get super admin token
@@ -22,7 +22,7 @@ describe('Testing /datasets/filters routes', () => {
       parameters: {},
       geometries: [{ coordinates: {}, type }],
     };
-    const res = await request(app).post('/datasets/filters').send(payload);
+    const res = await request(app).post('/datasets-filters').send(payload);
     expect(res.statusCode).toBe(expectedStatus);
   });
 
@@ -31,7 +31,7 @@ describe('Testing /datasets/filters routes', () => {
       parameters: {},
       geometries: [{ coordinates: {}, type: 'Polygon' }],
     };
-    const res = await request(app).post('/datasets/filters').set(superAdminAuthHeader).send(payload);
+    const res = await request(app).post('/datasets-filters').set(superAdminAuthHeader).send(payload);
     expect(res.statusCode).toBe(201);
     const dataSource = await getDataSource();
     const repo = dataSource.getRepository('JsonStorage');
@@ -44,8 +44,8 @@ describe('Testing /datasets/filters routes', () => {
       parameters: {},
       geometries: [{ coordinates: {}, type: 'Polygon' }],
     };
-    await request(app).post('/datasets/filters').set(superAdminAuthHeader).send(payload);
-    await request(app).post('/datasets/filters').set(superAdminAuthHeader).send(payload);
+    await request(app).post('/datasets-filters').set(superAdminAuthHeader).send(payload);
+    await request(app).post('/datasets-filters').set(superAdminAuthHeader).send(payload);
     const dataSource = await getDataSource();
     const repo = dataSource.getRepository('JsonStorage');
     const rows = await repo.findBy({ id: `filter_${TokenScopes.SUPER_ADMIN}` });

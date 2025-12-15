@@ -14,7 +14,7 @@ case "$1" in
         echo "Running the migrations..."
         npm run typeorm migration:run -- -d dist/utils/migrations-data-source.js
         ;;
-    "create")
+    "generate")
         echo "Creating the migrations..."
         npm run typeorm migration:generate -- CreateSchema -d dist/utils/migrations-data-source.js
         ;;
