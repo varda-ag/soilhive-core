@@ -1,6 +1,10 @@
 .DatasetsList {
-    padding: .75rem .625rem;
+    padding: .625rem 1rem;
     overflow-y: auto;
+
+    @media (min-width: 1024px) {
+        padding: .75rem .625rem;
+    }
 
     > .SelectAllWrapper {
         padding: .875rem .75rem;
@@ -9,6 +13,15 @@
         display: flex;
         flex-direction: column;
         gap: .5rem;
-        padding-right: .75rem;
+
+        @media (min-width: 768px) and  (max-width: 1023px) {
+            flex-direction: row;
+            flex-wrap: wrap;
+            align-items: flex-start;
+        }
+        
+        @media (min-width: 1024px) {
+            padding-right: .75rem;
+        }
     }
 }

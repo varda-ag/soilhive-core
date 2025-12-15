@@ -1,0 +1,22 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`Checkbox component matches snapshot 1`] = `
+<div>
+  <label
+    class="CheckBox Small Checked Error"
+    data-testid="sh-ui-checkbox"
+  >
+    <input
+      checked=""
+      class="Input"
+      type="checkbox"
+    />
+    <div
+      class="Label small-text"
+      data-testid="sh-ui-checkbox-label"
+    >
+      Accept
+    </div>
+  </label>
+</div>
+`;

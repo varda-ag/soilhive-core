@@ -3,10 +3,18 @@
     border-bottom: 1px soild var(--color-brand-light-green-600);
     background-color: var(--color-brand-light-green-100);
 
+    @media (min-width: 768px) and  (max-width: 1023px) {
+        padding: 1rem 1.5rem .625rem;
+    }
+
     > .List {
         display: flex;
-        flex-wrap: wrap;
         gap: .875rem;
+        overflow-y: scroll;
+
+        @media (min-width: 1024px) {
+            flex-wrap: wrap;
+        }
     }
     > .Date {
         display: flex;

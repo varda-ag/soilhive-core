@@ -28,5 +28,5 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true
   },
-  "include": ["src"]
+  "include": ["src", "tests/__mocks__"]
 }

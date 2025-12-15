@@ -1,6 +1,7 @@
 .DatasetsSidebarSummaryItem {
-    width: 129px;
-    height: 65px;
+    width: 92px;
+    min-width: 92px;
+    height: 63px;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -9,6 +10,17 @@
     border-radius: .5rem;
     background-color: var(--color-neutral-white);
     box-shadow: var(--shadow-interface);
+
+    @media (min-width: 768px) and  (max-width: 1023px) {
+        width: calc(25% - .141rem);
+    }
+
+    @media (min-width: 1024px) {
+        width: 129px;
+        min-width: 129px;
+        height: 65px;
+        gap: .5rem;
+    }
 
     > .Value {
         font-size: var(--font-size-md);

@@ -7,3 +7,5 @@ export * from './FormMessage/FormMessage';
 export * from './ColorPicker/ColorPicker';
 export * from './Checkbox/Checkbox';
 export * from './Tag/Tag';
+export * from './PageSidebar/PageSidebar';
+export * from './MobileTabNavigation/MobileTabNavigation';

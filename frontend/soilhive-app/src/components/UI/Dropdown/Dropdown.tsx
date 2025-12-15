@@ -109,10 +109,12 @@ export function Dropdown({
   useClickAway(dropdownRef, () => setIsOpen(false), ['click']);
 
   useEffect(() => {
-    if (value?.toString() !== currentValues.toString()) {
-      setCurrentValues(value ? (Array.isArray(value) ? value : [value]) : []);
+    if (Array.isArray(value)) {
+      setCurrentValues(value);
+    } else {
+      setCurrentValues(value ? [value] : []);
     }
-  }, [value, currentValues]);
+  }, [value]);
 
   return (
     <FormFieldWrapper

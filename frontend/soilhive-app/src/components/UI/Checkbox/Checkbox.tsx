@@ -40,11 +40,13 @@ export function Checkbox({
 
   const handleChange = useCallback(
     (e: ChangeEvent<HTMLInputElement>) => {
+      if (isDisabled) return;
+
       const { checked } = e.target;
       setCurrentValue(checked);
       onChange?.(checked, name);
     },
-    [onChange, name],
+    [onChange, name, isDisabled],
   );
 
   useEffect(() => {
@@ -76,6 +78,7 @@ export function Checkbox({
       />
       {label && (
         <div
+          data-testid="sh-ui-checkbox-label"
           className={classnames(
             styles.Label,
             {

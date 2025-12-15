@@ -1,0 +1,21 @@
+.MobileTabNavigation {
+    display: flex;
+
+    > .MobileTabNavigationItem {
+        width: calc(100%/3);
+        padding: 0.3125rem;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: .25rem;
+        border-top: .25rem solid transparent;
+        font-size: var(--font-size-xs);
+        line-height: 100%;
+        cursor: pointer;
+
+        &.Active {
+            color: var(--color-primary);
+            border-color: var(--color-primary);
+        }
+    }
+}

@@ -6,8 +6,11 @@ import type { IngestionStatusType } from '../types/data';
 import { IngestionStatus } from '../types/data';
 
 @Entity('files')
+@Unique(['name'])
 @Unique(['slug'])
-@ForeignKey(() => SlugHistoryEntity, ['id', 'slug'], ['entity_id', 'slug'])
+@ForeignKey(() => SlugHistoryEntity, ['id', 'slug'], ['entity_id', 'slug'], {
+  deferrable: 'INITIALLY DEFERRED',
+})
 export default class FileEntity extends BaseTable implements File {
   @PrimaryColumn('uuid', {
     default: () => 'uuidv7()',
@@ -16,6 +19,9 @@ export default class FileEntity extends BaseTable implements File {
 
   @Column({ type: 'text' })
   slug: string;
+
+  @Column({ type: 'text' })
+  name: string;
 
   @Column({ type: 'text' })
   file_path: string;

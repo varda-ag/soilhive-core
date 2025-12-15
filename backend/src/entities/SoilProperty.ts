@@ -6,9 +6,13 @@ import SoilPropertyCategoryEntity from './SoilPropertyCategory';
 import { MAX_PROPERTY_LEVEL } from '../constants/constants';
 
 @Entity('soil_properties')
+@Unique(['property_name'])
 @Unique(['slug'])
+// TODO: Move this logic out of the DB
 @Check(`(("property_level" >= 1) AND ("property_level" <= ${MAX_PROPERTY_LEVEL}))`)
-@ForeignKey(() => SlugHistoryEntity, ['id', 'slug'], ['entity_id', 'slug'])
+@ForeignKey(() => SlugHistoryEntity, ['id', 'slug'], ['entity_id', 'slug'], {
+  deferrable: 'INITIALLY DEFERRED',
+})
 export default class SoilPropertyEntity extends BaseTable implements SoilProperty {
   @PrimaryColumn('uuid', {
     default: () => 'uuidv7()',
@@ -36,7 +40,9 @@ export default class SoilPropertyEntity extends BaseTable implements SoilPropert
   @Column({ type: 'text', nullable: true })
   parent_property_id?: string;
 
-  @ManyToOne(() => SoilPropertyEntity, soil_property => soil_property.id)
+  @ManyToOne(() => SoilPropertyEntity, soil_property => soil_property.id, {
+    deferrable: 'INITIALLY DEFERRED',
+  })
   @JoinColumn({ name: 'parent_property_id' })
   parent_property: SoilPropertyEntity;
 

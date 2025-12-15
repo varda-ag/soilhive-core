@@ -6,9 +6,9 @@ interface Props {
   color: string;
 }
 
-export function DatasetsSidebarSummaryItem({ name, value = '-', color }: Props) {
+export function DatasetsSidebarSummaryItem({ name, value, color }: Props) {
   return (
-    <div className={styles.DatasetsSidebarSummaryItem}>
+    <div data-testid="sh-datasets-sidebar-summary-item" className={styles.DatasetsSidebarSummaryItem}>
       <span className={styles.Value} style={{ color: color }}>
         {value}
       </span>

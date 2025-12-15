@@ -19,9 +19,7 @@ export function DatasetsFilters() {
   const [isFiltersOpened, setIsFiltersOpened] = useState<boolean>(false);
 
   const handleFilterChange = useCallback(
-    (value: string | string[], name?: string) => {
-      if (!name) return;
-
+    (value: string | string[], name: string) => {
       setFiltersValue({
         ...filtersValue,
         [name]: value,
@@ -73,7 +71,7 @@ export function DatasetsFilters() {
                 ]}
                 size="tiny"
                 isMultiselect={true}
-                onChange={handleFilterChange}
+                onChange={(value, name) => handleFilterChange(value, name as string)}
               />
 
               <Dropdown
@@ -87,7 +85,7 @@ export function DatasetsFilters() {
                   { code: 'private', name: 'Private' },
                 ]}
                 size="tiny"
-                onChange={handleFilterChange}
+                onChange={(value, name) => handleFilterChange(value, name as string)}
               />
             </div>
           </div>

@@ -4,9 +4,11 @@ import BaseTable from './BaseTable';
 import SlugHistoryEntity from './SlugHistory';
 
 @Entity('licenses')
-@Unique(['slug'])
 @Unique(['name'])
-@ForeignKey(() => SlugHistoryEntity, ['id', 'slug'], ['entity_id', 'slug'])
+@Unique(['slug'])
+@ForeignKey(() => SlugHistoryEntity, ['id', 'slug'], ['entity_id', 'slug'], {
+  deferrable: 'INITIALLY DEFERRED',
+})
 export default class LicenseEntity extends BaseTable implements License {
   @PrimaryColumn('uuid', {
     default: () => 'uuidv7()',

@@ -6,8 +6,21 @@
     padding-bottom: .75rem;
     border-bottom: 1px solid var(--color-neutral-dark-100);
 
+    @media (min-width: 768px) and  (max-width: 1023px) {
+        justify-content: center;
+        gap: .75rem;
+    }
+
     > .Search {
-        width: 11.875rem;
+        width: calc(100% - 4.75rem);
+
+        @media (min-width: 768px) and  (max-width: 1023px) {
+            width: 15.25rem;
+        }
+        
+        @media (min-width: 1024px) {
+            width: 11.875rem;
+        }
     }
 
     > .FilterButton {
@@ -20,13 +33,18 @@
     > .FilterMenu {
         position: absolute;
         top: calc(100% - .25rem);
-        left: 0;
+        right: 0;
         width: 16.375rem;
         border: 1px solid var(--color-neutral-dark-300);
         border-radius: .5rem;
         box-shadow: var(--shadow-interface);
         background-color: var(--color-neutral-white);
         z-index: 1;
+
+        @media (min-width: 1024px) {
+            left: 0;
+            right: auto;
+        }
 
         > .FilterHeader {
             border-radius: .5rem .5rem 0 0;

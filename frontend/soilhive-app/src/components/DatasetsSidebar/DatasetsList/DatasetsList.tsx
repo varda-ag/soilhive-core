@@ -8,7 +8,7 @@ import styles from './DatasetsList.module.scss';
 export function DatasetsList() {
   const { datasets, selectAllDatasets, isAllSelected } = useAvailability();
   return (
-    <div className={styles.DatasetsList}>
+    <div data-testid="sh-datasets-list" className={styles.DatasetsList}>
       <DatasetsFilters />
       <div className={styles.SelectAllWrapper}>
         <Checkbox size="small" label="Select all" value={isAllSelected} onChange={selectAllDatasets} />
