@@ -1,3 +1,10 @@
+## [0.4.0](https://github.com/varda-ag/soilhive-core/compare/v0.3.2...v0.4.0) (2025-12-15)
+
+
+### Features
+
+* SP-4713 - css variables-for-mobile-tablet-breakpoints ([#62](https://github.com/varda-ag/soilhive-core/issues/62)) ([eacc074](https://github.com/varda-ag/soilhive-core/commit/eacc074b64a55eae9afd7b5b510e51cf7fb3c64a))
+
 ## [0.3.2](https://github.com/varda-ag/soilhive-core/compare/v0.3.1...v0.3.2) (2025-12-15)
 
 ## [0.3.1](https://github.com/varda-ag/soilhive-core/compare/v0.3.0...v0.3.1) (2025-12-12)
