@@ -32,6 +32,3 @@
 **/dist
 LICENSE
 README.md
-
-# TODO: REMOVE once we have dynamic env loading (Check also .gitignore)
-!frontend/soilhive-app/.env
