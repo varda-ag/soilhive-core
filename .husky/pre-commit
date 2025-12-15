@@ -1,1 +1,5 @@
 npm run lint:fix
+
+cd backend && npm test && cd ..
+
+cd frontend/soilhive-app && pnpm test && cd ../..
