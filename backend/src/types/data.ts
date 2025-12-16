@@ -1,21 +1,18 @@
-export const GISDataType = {
-  POINT: 'point',
-  POLYGONAL: 'polygonal',
-  RASTER: 'raster',
-} as const;
+export const enum GISDataType {
+  POINT = 'point',
+  POLYGONAL = 'polygonal',
+  RASTER = 'raster',
+}
 
-export type GISDataTypeType = (typeof GISDataType)[keyof typeof GISDataType];
+export const enum IngestionStatus {
+  PENDING = 'PENDING',
+  ONGOING = 'ONGOING',
+  INGESTED = 'INGESTED',
+  RELEASED = 'RELEASED',
+  ARCHIVED = 'ARCHIVED',
+}
 
-export const IngestionStatus = {
-  PENDING: 'PENDING',
-  ONGOING: 'ONGOING',
-  INGESTED: 'INGESTED',
-  RELEASED: 'RELEASED',
-  ARCHIVED: 'ARCHIVED',
-} as const;
-
-export type IngestionStatusType = (typeof IngestionStatus)[keyof typeof IngestionStatus];
-
+// Cannot be const enum because used in TypeORM decorators
 export enum EntityType {
   DATASET = 'datasets', // named as table names
   LICENSE = 'licenses',

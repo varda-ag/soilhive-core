@@ -3,8 +3,7 @@ import type { Polygon } from 'typeorm';
 import { Dataset, VariableMeasured } from '../interfaces/Dataset';
 import BaseTable from './BaseTable';
 import SlugHistoryEntity from './SlugHistory';
-import type { IngestionStatusType, GISDataTypeType } from '../types/data';
-import { IngestionStatus } from '../types/data';
+import { GISDataType, IngestionStatus } from '../types/data';
 
 @Entity('datasets')
 @Unique(['name'])
@@ -64,7 +63,7 @@ export default class DatasetEntity extends BaseTable implements Dataset {
   geographical_extent?: string;
 
   @Column({ type: 'text', nullable: true })
-  gis_datatype?: GISDataTypeType;
+  gis_datatype?: GISDataType;
 
   @Column({
     type: 'geometry',
@@ -85,7 +84,7 @@ export default class DatasetEntity extends BaseTable implements Dataset {
   soil_depth?: object;
 
   @Column({ type: 'text', default: IngestionStatus.PENDING })
-  status: IngestionStatusType;
+  status: IngestionStatus;
 
   @Column({ type: 'text' })
   created_by: string;

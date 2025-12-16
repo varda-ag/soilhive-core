@@ -1,4 +1,4 @@
-import { AuthModes, StorageModes } from '../types/types';
+import { AuthModes, StorageModes } from '../types/enums';
 import { JsonStorage } from '../entities/JsonStorage';
 import { ErrorResponse } from '../utils/error';
 import { Repository } from 'typeorm';
