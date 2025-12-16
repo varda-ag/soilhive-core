@@ -1,4 +1,4 @@
-import { AuthModesType } from '../types/types';
+import { AuthModes } from '../types/enums';
 
 export interface OIDCConfig {
   authority: string;
@@ -10,6 +10,6 @@ export interface OIDCConfig {
 }
 
 export interface AuthConfig {
-  authMode: AuthModesType;
+  authMode: AuthModes;
   oidcConfig?: OIDCConfig;
 }

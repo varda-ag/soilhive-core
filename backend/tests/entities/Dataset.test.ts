@@ -1,4 +1,4 @@
-import Dataset from '../../src/entities/Dataset';
+import DatasetEntity from '../../src/entities/Dataset';
 import SlugHistoryEntity from '../../src/entities/SlugHistory';
 import { EntityType } from '../../src/types/data';
 import { getEntityManager } from '../../src/utils/data-source';
@@ -31,14 +31,14 @@ describe('Dataset entity', () => {
     const slugHistoryRepo = await entityManager.getRepository(SlugHistoryEntity);
     await slugHistoryRepo.save(slugHistory);
 
-    const dataset = new Dataset();
+    const dataset = new DatasetEntity();
     dataset.id = datasetId;
     dataset.name = 'name';
     dataset.slug = 'slug';
     dataset.created_by = 'created_by';
     dataset.spatial_extent = polygon;
 
-    const repo = await entityManager.getRepository(Dataset);
+    const repo = await entityManager.getRepository(DatasetEntity);
     const saved = await repo.save(dataset);
 
     const savedLocation = await repo.findOneBy({ id: saved.id });

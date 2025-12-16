@@ -3,7 +3,7 @@ import { app } from '../../src/app';
 import { getSuperAdminToken } from '../helper';
 import { IncomingHttpHeaders } from 'http';
 import { getDataSource } from '../../src/utils/data-source';
-import { TokenScopes } from '../../src/types/types';
+import { TokenScopes } from '../../src/types/enums';
 
 describe('Testing /datasets-filters routes', () => {
   let superAdminAuthHeader: IncomingHttpHeaders;

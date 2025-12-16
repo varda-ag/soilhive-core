@@ -20,7 +20,7 @@ const createDataSource = async (schema: string): Promise<DataSource> => {
     entities: [path.join(__dirname, '../entities/**/*{.ts,.js}')],
     migrations: [path.join(__dirname, '../migrations/**/*{.ts,.js}')],
     synchronize: false,
-    logging: false,
+    logging: false, //['query'],
   });
   await dataSource.initialize();
   const escapedSchema = `"${schema}"`;
