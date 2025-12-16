@@ -68,7 +68,6 @@ export default function SoilhiveMapToolbar({ onDrawClick, onUpload }: SoilhiveMa
 
   return (
     <div className="soilhive-map-toolbar">
-      <input type="search" placeholder="Country, coordinates or H3cellID" />
       <button
         ref={selectionButtonRef}
         onClick={() => {

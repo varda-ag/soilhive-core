@@ -114,21 +114,29 @@
         box-shadow: 0px 4px 4px 0px #00000040;
         border-radius: 20px;
         padding: 6px 9px;
-        & > input {            
+        .maplibregl-ctrl-geocoder {
+            box-shadow: none;
+            display: inline-block;
             width: 298px;
             height: 32px;
-            padding: 6px 8px;
-            border: none;
-            width: 298;
-            border-radius: 20px;
-            background-color: #EAEFE0;
-            font-family: Inter;
-            font-weight: 400;
-            font-style: Regular;
-            font-size: 14px;
-            line-height: 20px;
-            letter-spacing: 0px;
-            vertical-align: middle;
+            input {
+                border: none;
+                border-radius: 20px;
+                background-color: #EAEFE0;
+                font-family: Inter;
+                font-weight: 400;
+                font-style: Regular;
+                font-size: 14px;
+                line-height: 20px;
+                letter-spacing: 0px;
+                vertical-align: middle;
+            }
+            .maplibregl-ctrl-geocoder--button {
+                background-color: transparent;
+                &:hover {
+                    background-color: transparent;
+                }
+            }
         }
         & > button {
             margin-left: 9px;
@@ -193,6 +201,9 @@
                 line-height: 18px;
                 letter-spacing: 0px;
                 vertical-align: middle;
+                &:hover {
+                    background-color: #EEEFF0;
+                }
                 svg {
                     margin-right: 5px;
                     width: 16px;
@@ -215,7 +226,6 @@
                     &::before {
                         position: absolute;
                         content: '';
-                        // width: 70%;
                         top: 0;
                         left: 5px;
                         right: 8px;
