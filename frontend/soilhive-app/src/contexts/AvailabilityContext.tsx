@@ -1,3 +1,4 @@
+import { useDatasetFilter, type DatasetFilter, type PostDatasetFilterResponse } from 'hooks/useDatasetFilter';
 import React, { createContext, useState, useEffect, type ReactNode, useCallback, useMemo } from 'react';
 import type { AvailabilityDataset } from 'types/availability';
 
@@ -25,6 +26,8 @@ type AvailabilityContextType = {
   setSearchValue: (value: string) => void;
   setFilters: (value: string | string[], name: string) => void;
   selectAllDatasets: (select: boolean) => void;
+  setDatasetFilters: (filter: DatasetFilter) => void;
+  data: PostDatasetFilterResponse | undefined;
 };
 
 export const AvailabilityContext = createContext<AvailabilityContextType | undefined>(undefined);
@@ -87,6 +90,13 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
     ownership: '',
   });
   const [isAllSelected, setIsAllSelected] = useState<boolean>(false);
+
+  const initialFilters = {
+    geometries: [],
+    parameters: {},
+  };
+  const [datasetFilters, setDatasetFilters] = useState<DatasetFilter>(initialFilters);
+  const { data } = useDatasetFilter(datasetFilters);
 
   const selectDataset = useCallback(
     (id: string) => {
@@ -166,6 +176,8 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
         setSearchValue,
         setFilters,
         selectAllDatasets,
+        setDatasetFilters,
+        data,
       }}
     >
       {children}

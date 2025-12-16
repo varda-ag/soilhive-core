@@ -1,15 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRequest } from '../api-client';
 import { BACKEND_BASE_URL } from '../configuration/api';
-import { Polygon, MultiPolygon } from 'geojson';
+import { type Polygon, type MultiPolygon } from 'geojson';
 
-export function useDatasetFilter(filter: DatasetFilter) {
+export function useDatasetFilter(filter?: DatasetFilter) {
   const [data, setData] = useState<PostDatasetFilterResponse>();
   const abortControllerRef = useRef<AbortController>(null);
   const { request, loading, error } = useRequest();
 
   const fetchDatasets = useCallback(
-    async (filter: DatasetFilter) => {
+    async (filter?: DatasetFilter) => {
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
