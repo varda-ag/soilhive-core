@@ -1,4 +1,4 @@
-import { Activity, useEffect, useId, useRef, useState } from 'react';
+import { Activity, useId, useRef, useState } from 'react';
 import { GeolocateControl, Map, NavigationControl, ScaleControl, TerrainControl, type MapGeoJSONFeature, type StyleSpecification, type ImmutableLike, type LayerProps, Popup, Source, Layer, useMap } from 'react-map-gl/maplibre';
 import GeocoderControl from './GeocoderControl';
 import 'maplibre-gl/dist/maplibre-gl.css';

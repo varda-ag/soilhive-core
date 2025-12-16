@@ -1,6 +1,6 @@
 /* global fetch */
 import { useState, useMemo, useEffect } from 'react';
-import { useControl, Marker, Source, Layer, LngLatBounds } from 'react-map-gl/maplibre';
+import { useControl, Marker, Source, Layer } from 'react-map-gl/maplibre';
 import MaplibreGeocoder, { type MaplibreGeocoderApi, type MaplibreGeocoderOptions, type MaplibreGeocoderApiConfig } from '@maplibre/maplibre-gl-geocoder';
 import { MAPBOX_ACCESS_TOKEN } from '../utilities/environmentVariables';
 import { bbox, featureCollection } from '@turf/turf';
