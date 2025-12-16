@@ -3,8 +3,7 @@ import type { Polygon } from 'typeorm';
 import { Dataset, VariableMeasured } from '../interfaces/Dataset';
 import BaseTable from './BaseTable';
 import SlugHistoryEntity from './SlugHistory';
-import { GISDataType,
-IngestionStatus } from '../types/data';
+import { GISDataType, IngestionStatus } from '../types/data';
 
 @Entity('datasets')
 @Unique(['name'])
