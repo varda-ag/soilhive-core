@@ -8,7 +8,6 @@ export default class SoilDataStorage {
     const repo = entityManager.getRepository(DatasetEntity);
     const results = await repo
       .createQueryBuilder('datasets')
-      .select('user.id', 'id')
       .addCommonTableExpression('SELECT ST_GeomFromGeoJSON(:input) as geom', 'input')
       .select([
         'datasets.id as dataset_id',
