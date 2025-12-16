@@ -2,7 +2,6 @@ import { Entity, Column, PrimaryColumn, Unique, ForeignKey } from 'typeorm';
 import { File } from '../interfaces/File';
 import BaseTable from './BaseTable';
 import SlugHistoryEntity from './SlugHistory';
-import type { IngestionStatusType } from '../types/data';
 import { IngestionStatus } from '../types/data';
 
 @Entity('files')
@@ -27,7 +26,7 @@ export default class FileEntity extends BaseTable implements File {
   file_path: string;
 
   @Column({ type: 'text', default: IngestionStatus.PENDING })
-  status: IngestionStatusType;
+  status: IngestionStatus;
 
   @Column({ type: 'text' })
   created_by: string;

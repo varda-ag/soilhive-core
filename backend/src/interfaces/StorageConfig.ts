@@ -1,4 +1,4 @@
-import { StorageModesType } from '../types/types';
+import { StorageModes } from '../types/enums';
 
 export interface LocalStorageConfig {
   rootFolder: string;
@@ -21,6 +21,6 @@ export interface GCPStorageConfig {
 }
 
 export interface StorageConfig {
-  storageMode: StorageModesType;
+  storageMode: StorageModes;
   config: LocalStorageConfig | S3StorageConfig | AzureStorageConfig | GCPStorageConfig;
 }

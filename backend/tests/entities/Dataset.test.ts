@@ -1,9 +1,10 @@
-import Dataset from '../../src/entities/Dataset';
+import DatasetEntity from '../../src/entities/Dataset';
 import SlugHistoryEntity from '../../src/entities/SlugHistory';
 import { EntityType } from '../../src/types/data';
 import { getEntityManager } from '../../src/utils/data-source';
 import { Polygon } from 'typeorm';
 import { v7 as uuidv7 } from 'uuid';
+import { newDataset } from '../mock';
 
 describe('Dataset entity', () => {
   it('Creates and saves a new dataset', async () => {
@@ -11,9 +12,9 @@ describe('Dataset entity', () => {
       coordinates: [
         [
           [11.322484394, 44.503691914],
-          [11.322484394, 44.481483367],
-          [11.364550612, 44.481483367],
           [11.364550612, 44.503691914],
+          [11.364550612, 44.481483367],
+          [11.322484394, 44.481483367],
           [11.322484394, 44.503691914],
         ],
       ],
@@ -31,14 +32,11 @@ describe('Dataset entity', () => {
     const slugHistoryRepo = await entityManager.getRepository(SlugHistoryEntity);
     await slugHistoryRepo.save(slugHistory);
 
-    const dataset = new Dataset();
+    const dataset = newDataset('slug', [11.322484394, 44.503691914, 11.364550612, 44.481483367]);
     dataset.id = datasetId;
-    dataset.name = 'name';
-    dataset.slug = 'slug';
-    dataset.created_by = 'created_by';
-    dataset.spatial_extent = polygon;
+    dataset.created_by = 'tests';
 
-    const repo = await entityManager.getRepository(Dataset);
+    const repo = await entityManager.getRepository(DatasetEntity);
     const saved = await repo.save(dataset);
 
     const savedLocation = await repo.findOneBy({ id: saved.id });

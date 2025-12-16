@@ -5,7 +5,7 @@ import { AwsS3StorageAdapter } from '@flystorage/aws-s3';
 import { LocalStorageAdapter } from '@flystorage/local-fs';
 import { FlystorageMulterStorageEngine } from '@flystorage/multer-storage';
 import { LocalStorageConfig, S3StorageConfig, StorageConfig } from '../interfaces/StorageConfig';
-import { StorageModes } from '../types/types';
+import { StorageModes } from '../types/enums';
 import ConfigService from './ConfigService';
 import { LOGO_FILE_ID } from '../constants/constants';
 
