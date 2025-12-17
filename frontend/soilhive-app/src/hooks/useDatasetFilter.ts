@@ -4,7 +4,7 @@ import { BACKEND_BASE_URL } from '../configuration/api';
 import { type Polygon, type MultiPolygon } from 'geojson';
 
 export function useDatasetFilter(filter?: DatasetFilter) {
-  const [data, setData] = useState<PostDatasetFilterResponse>();
+  const [fetchedDatasets, setFetchedDatasets] = useState<PostDatasetFilterResponse>();
   const abortControllerRef = useRef<AbortController>(null);
   const { request, loading, error } = useRequest();
 
@@ -23,7 +23,7 @@ export function useDatasetFilter(filter?: DatasetFilter) {
           body: filter,
           signal: abortControllerRef.current.signal,
         });
-        setData(res);
+        setFetchedDatasets(res);
         return res;
       } catch (err) {
         // Don't set error if it was aborted
@@ -34,7 +34,7 @@ export function useDatasetFilter(filter?: DatasetFilter) {
         }
       }
     },
-    [request, filter],
+    [request],
   );
 
   useEffect(() => {
@@ -54,7 +54,7 @@ export function useDatasetFilter(filter?: DatasetFilter) {
   }, [fetchDatasets, filter]);
 
   return {
-    data,
+    fetchedDatasets,
     loading,
     error,
   };
