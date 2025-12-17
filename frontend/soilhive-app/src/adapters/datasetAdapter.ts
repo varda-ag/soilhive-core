@@ -13,7 +13,7 @@ export function mapFilteredDatasetToAvailabilityDataset(dataset: FilteredDataset
       minDepth: dataset.min_depth ?? 0,
       maxDepth: dataset.max_depth ?? 0,
       dateStart: dataset.min_sampling_date ? Number(dataset.min_sampling_date) : 0,
-      dateEnd: dataset.max_sampling_date ? Number(dataset.max_sampling_date) : 0
+      dateEnd: dataset.max_sampling_date ? Number(dataset.max_sampling_date) : 0,
     },
   };
 }

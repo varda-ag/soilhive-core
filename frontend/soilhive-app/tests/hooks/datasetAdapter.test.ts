@@ -31,7 +31,7 @@ describe('mapFilteredDatasetToAvailabilityDataset adapter', () => {
     expect(actualAvailabilityDataset).toEqual(expectedAvailabilityDataset);
   });
 
-  it("shuold adapt valid object", () => {
+  it('shuold adapt valid object', () => {
     // Arrange
     const filteredDataset: FilteredDataset = {
       id: 'dataset-2',
@@ -39,28 +39,28 @@ describe('mapFilteredDatasetToAvailabilityDataset adapter', () => {
       min_depth: 10,
       max_depth: 20,
       min_sampling_date: '2023',
-      max_sampling_date: '2025'
+      max_sampling_date: '2025',
     };
 
     const expectedAvailabilityDataset: AvailabilityDataset = {
-        id: 'dataset-2',
-        name: 'dataset-2',
-        views: '0',
-        tags: [],
-        properties: {
-            points: 10,
-            layers: 0,
-            minDepth: 10,
-            maxDepth: 20,
-            dateStart: 2023,
-            dateEnd: 2025
-        }
-    }
+      id: 'dataset-2',
+      name: 'dataset-2',
+      views: '0',
+      tags: [],
+      properties: {
+        points: 10,
+        layers: 0,
+        minDepth: 10,
+        maxDepth: 20,
+        dateStart: 2023,
+        dateEnd: 2025,
+      },
+    };
 
     // Act
-    const actualAvailabilityDataset = mapFilteredDatasetToAvailabilityDataset(filteredDataset)
+    const actualAvailabilityDataset = mapFilteredDatasetToAvailabilityDataset(filteredDataset);
 
     // Assert
-    expect(actualAvailabilityDataset).toEqual(expectedAvailabilityDataset)
-  })
+    expect(actualAvailabilityDataset).toEqual(expectedAvailabilityDataset);
+  });
 });
