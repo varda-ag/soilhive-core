@@ -10,7 +10,7 @@ export default class LayerEntity extends BaseEntity implements Layer {
   })
   id: string;
 
-  @Column({ type: 'text', nullable: true })
+  @Column({ type: 'uuid', nullable: true })
   license?: string;
 
   @ManyToOne(() => LicenseEntity, license => license.id)

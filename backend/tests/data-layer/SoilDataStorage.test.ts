@@ -2,7 +2,7 @@ import { Polygon } from 'geojson';
 import { getEntityManager } from '../../src/utils/data-source';
 import DatasetEntity from '../../src/entities/Dataset';
 import { getPolygonFromBbox } from '../../src/utils/geometry';
-import { newDataset } from '../mock';
+import { addDataset } from '../mock';
 import SoilDataStorage from '../../src/data-layer/SoilDataStorage';
 
 describe('SoilDataStorage class', () => {
@@ -14,7 +14,7 @@ describe('SoilDataStorage class', () => {
     const entityManager = await getEntityManager();
     const repo = await entityManager.getRepository(DatasetEntity);
 
-    const dataset = newDataset(`dataset_overlap_test_${expectedType}`, datasetBbox);
+    const dataset = await addDataset(`dataset_overlap_test_${expectedType}`, datasetBbox);
     const saved = await repo.save(dataset);
 
     const query: Polygon = getPolygonFromBbox(queryBbox);

@@ -9,7 +9,7 @@
     "copy-assets": "copyfiles -u 1 'src/assets/**/*' 'dist/'",
     "start": "node dist/app.js",
     "dev": "nodemon --exec 'ts-node --transpile-only' src/app.ts --watch src/**/*.ts src/openapi.yaml",
-    "test": "jest --bail --detectOpenHandles --coverage --collectCoverageFrom='src/**/*.ts'",
+    "test": "jest --runInBand --bail --detectOpenHandles --coverage --collectCoverageFrom='src/**/*.ts'",
     "test:watch": "jest --detectOpenHandles --watch",
     "typeorm": "typeorm-ts-node-commonjs"
   },
@@ -32,6 +32,7 @@
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
     "express-openapi-validator": "^5.6.0",
+    "geojson-validation": "^1.0.2",
     "http-status-codes": "^2.3.0",
     "js-yaml": "^4.1.0",
     "jsonwebtoken": "^9.0.2",
@@ -69,6 +70,7 @@
     ],
     "globalSetup": "<rootDir>/tests/jest.setup.ts",
     "globalTeardown": "<rootDir>/tests/jest.teardown.ts",
-    "forceExit": true
+    "forceExit": true,
+    "maxWorkers": 1
   }
 }
