@@ -5,7 +5,7 @@ export function mapFilteredDatasetToAvailabilityDataset(dataset: FilteredDataset
   return {
     id: dataset.id,
     name: dataset.id, // TODO: name will come
-    views: 'N/A', // TODO: views not supported at the moment
+    views: '0', // TODO: views not supported at the moment
     tags: [], // TODO: tags not supported at the moment
     properties: {
       points: dataset.feature_count,

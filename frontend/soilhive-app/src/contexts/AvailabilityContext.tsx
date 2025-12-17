@@ -1,4 +1,4 @@
-import { useDatasetFilter } from 'hooks/useDatasetFilter';
+import { useDatasetsFetch } from 'hooks/useDatasetsFetch';
 import React, { createContext, useState, type ReactNode, useCallback, useMemo } from 'react';
 import type { AvailabilityDataset } from 'types/availability';
 import { mapFilteredDatasetToAvailabilityDataset } from '../adapters';
@@ -37,51 +37,6 @@ type AvailabilityProviderProps = {
   children: ReactNode;
 };
 
-/*const MOCK_DATASETS: AvailabilityDataset[] = [
-  {
-    id: 'dataset-1',
-    name: 'SoilGrids 250m',
-    views: '12.3k',
-    tags: ['Global'],
-    properties: {
-      points: 34546,
-      layers: 12,
-      minDepth: 0,
-      maxDepth: 60,
-      dateStart: 2012,
-      dateEnd: 2025,
-    },
-  },
-  {
-    id: 'dataset-2',
-    name: 'GSOCmap',
-    views: '12.3k',
-    tags: ['Global'],
-    properties: {
-      points: 234546,
-      layers: 8,
-      minDepth: 0,
-      maxDepth: 60,
-      dateStart: 2006,
-      dateEnd: 2024,
-    },
-  },
-  {
-    id: 'dataset-3',
-    name: 'Downforce Technologies',
-    views: '12.3k',
-    tags: ['Kenya', 'Private'],
-    properties: {
-      points: 14546,
-      layers: 14,
-      minDepth: 0,
-      maxDepth: 60,
-      dateStart: 2014,
-      dateEnd: 2024,
-    },
-  },
-];*/
-
 export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ children }) => {
   const [selectedDatasets, setSelectedDatasets] = useState<string[]>([]);
   const [searchValue, setSearchValue] = useState<string>('');
@@ -96,7 +51,7 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
     parameters: {},
   };
   const [datasetFilters, setDatasetFilters] = useState<DatasetFilter>(initialFilters);
-  const { fetchedDatasets } = useDatasetFilter(datasetFilters);
+  const { fetchedDatasets } = useDatasetsFetch(datasetFilters);
 
   const selectDataset = useCallback(
     (id: string) => {
