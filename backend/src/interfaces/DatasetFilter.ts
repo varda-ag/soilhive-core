@@ -26,7 +26,7 @@ export interface StoredDatasetFilter extends DatasetFilter {
 
 export interface FilteredDataset extends FilterableDatasetMetadata {
   id: string;
-  feature_count: number;
+  dataset_layer_count: number;
 }
 
 export interface ResultItem {

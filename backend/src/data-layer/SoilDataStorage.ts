@@ -42,12 +42,12 @@ export default class SoilDataStorage {
         geom: JSON.stringify(geometry),
       })
       .select('dataset_layers.dataset_id', 'dataset_id')
-      .addSelect('COUNT(dataset_layers.dataset_id)', 'feature_count')
+      .addSelect('COUNT(dataset_layers.dataset_id)', 'dataset_layer_count')
       .groupBy('dataset_layers.dataset_id')
       .getRawMany();
     return results.map(row => ({
       id: row.dataset_id,
-      feature_count: parseInt(row.feature_count),
+      dataset_layer_count: parseInt(row.dataset_layer_count),
     }));
   };
 }

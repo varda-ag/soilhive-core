@@ -498,12 +498,12 @@ components:
             id:
               type: string
               description: Dataset identifier
-            feature_count:
+            dataset_layer_count:
               type: integer
               description: Number of features matching the filter in this dataset
           required:
             - id
-            - feature_count
+            - dataset_layer_count
 
     PostDatasetFilterResponse:
       allOf:

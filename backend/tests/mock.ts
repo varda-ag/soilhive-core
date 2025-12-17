@@ -134,6 +134,7 @@ export const addSyntheticData = async (
   spatial_extent: number[],
   featureCount: number,
   observationsPerFeature: number,
+  depthLayers: number = 5,
 ): Promise<DatasetEntity> => {
   const dataset = await addDataset(`test_dataset_${id}`, spatial_extent);
   const category = await addCategory(`test_category_${id}`);
@@ -149,7 +150,8 @@ export const addSyntheticData = async (
     );
     features.push(feature);
   }
-  for (const depth of [0, 10, 20, 30, 40]) {
+  for (let depthLayer = 0; depthLayer < depthLayers; depthLayer++) {
+    const depth = depthLayer * 10;
     const layer = await addLayer(license.id, new Date(`${year}-01-01`), depth, depth + 10, 'A');
     for (let i = 0; i < featureCount; i++) {
       const feature = features[i];
