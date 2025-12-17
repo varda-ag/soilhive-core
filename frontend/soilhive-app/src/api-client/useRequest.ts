@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { httpClient } from './httpClient';
-import { APIRequestConfig } from './types/api';
+import { type APIRequestConfig } from './types/api';
 
 export function useRequest<T = any>() {
   const [loading, setLoading] = useState(false);
