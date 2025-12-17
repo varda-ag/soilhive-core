@@ -3,7 +3,7 @@ import type { FilteredDataset } from 'types/backend';
 import { mapFilteredDatasetToAvailabilityDataset } from '../../src/adapters';
 
 describe('mapFilteredDatasetToAvailabilityDataset adapter', () => {
-  it('should adapt valid object', () => {
+  it('should adapt empty object', () => {
     // Arrange
     const filteredDataset: FilteredDataset = {
       id: 'dataset-1',
@@ -30,4 +30,37 @@ describe('mapFilteredDatasetToAvailabilityDataset adapter', () => {
 
     expect(actualAvailabilityDataset).toEqual(expectedAvailabilityDataset);
   });
+
+  it("shuold adapt valid object", () => {
+    // Arrange
+    const filteredDataset: FilteredDataset = {
+      id: 'dataset-2',
+      feature_count: 10,
+      min_depth: 10,
+      max_depth: 20,
+      min_sampling_date: '2023',
+      max_sampling_date: '2025'
+    };
+
+    const expectedAvailabilityDataset: AvailabilityDataset = {
+        id: 'dataset-2',
+        name: 'dataset-2',
+        views: '0',
+        tags: [],
+        properties: {
+            points: 10,
+            layers: 0,
+            minDepth: 10,
+            maxDepth: 20,
+            dateStart: 2023,
+            dateEnd: 2025
+        }
+    }
+
+    // Act
+    const actualAvailabilityDataset = mapFilteredDatasetToAvailabilityDataset(filteredDataset)
+
+    // Assert
+    expect(actualAvailabilityDataset).toEqual(expectedAvailabilityDataset)
+  })
 });

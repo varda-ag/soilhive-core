@@ -12,8 +12,8 @@ export function mapFilteredDatasetToAvailabilityDataset(dataset: FilteredDataset
       layers: 0, // TODO: raster not supported at the moment
       minDepth: dataset.min_depth ?? 0,
       maxDepth: dataset.max_depth ?? 0,
-      dateStart: dataset.min_sampling_date ? new Date(dataset.min_sampling_date).getFullYear() : 0,
-      dateEnd: dataset.max_sampling_date ? new Date(dataset.max_sampling_date).getFullYear() : 0,
+      dateStart: dataset.min_sampling_date ? Number(dataset.min_sampling_date) : 0,
+      dateEnd: dataset.max_sampling_date ? Number(dataset.max_sampling_date) : 0
     },
   };
 }
