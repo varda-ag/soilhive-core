@@ -1,7 +1,8 @@
-import { useDatasetFilter, type DatasetFilter } from 'hooks/useDatasetFilter';
+import { useDatasetFilter } from 'hooks/useDatasetFilter';
 import React, { createContext, useState, type ReactNode, useCallback, useMemo } from 'react';
 import type { AvailabilityDataset } from 'types/availability';
 import { mapFilteredDatasetToAvailabilityDataset } from '../adapters';
+import type { DatasetFilter } from 'types/backend';
 
 type DatasetFilters = {
   type: string[];

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRequest } from '../api-client';
 import { BACKEND_BASE_URL } from '../configuration/api';
-import { type Polygon, type MultiPolygon } from 'geojson';
+import type { DatasetFilter, PostDatasetFilterResponse } from 'types/backend';
 
 export function useDatasetFilter(filter?: DatasetFilter) {
   const [fetchedDatasets, setFetchedDatasets] = useState<PostDatasetFilterResponse>();
@@ -58,41 +58,4 @@ export function useDatasetFilter(filter?: DatasetFilter) {
     loading,
     error,
   };
-}
-
-export interface FilterableDatasetMetadata {
-  data_types?: string[];
-  licenses?: string[];
-  min_sampling_date?: string;
-  max_sampling_date?: string;
-  min_depth?: number;
-  max_depth?: number;
-  horizons?: string[];
-  soil_properties?: string[];
-  agroecological_zones?: string[];
-  land_cover?: string[];
-  soil_groups?: string[];
-}
-
-export interface DatasetFilter {
-  geometries: (Polygon | MultiPolygon)[];
-  parameters: FilterableDatasetMetadata;
-}
-
-export interface StoredDatasetFilter extends DatasetFilter {
-  id: string;
-  name: string;
-}
-
-export interface FilteredDataset extends FilterableDatasetMetadata {
-  id: string;
-  feature_count: number;
-}
-
-export interface ResultItem {
-  datasets: FilteredDataset[];
-}
-
-export interface PostDatasetFilterResponse extends StoredDatasetFilter {
-  results: ResultItem[];
 }

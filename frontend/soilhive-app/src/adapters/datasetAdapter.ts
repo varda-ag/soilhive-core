@@ -1,5 +1,5 @@
-import type { FilteredDataset } from 'hooks/useDatasetFilter';
 import type { AvailabilityDataset } from 'types/availability';
+import type { FilteredDataset } from 'types/backend';
 
 export function mapFilteredDatasetToAvailabilityDataset(dataset: FilteredDataset): AvailabilityDataset {
   return {
