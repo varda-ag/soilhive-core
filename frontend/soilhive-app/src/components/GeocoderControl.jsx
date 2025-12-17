@@ -1,13 +1,7 @@
 /* global fetch */
-import {useState, useMemo} from 'react';
-import {useControl, Marker, Source,/*, type MarkerProps, type ControlPosition*/
-Layer,
-LngLatBounds} from 'react-map-gl/maplibre';
-import MaplibreGeocoder, {
-  type MaplibreGeocoderApi,
-  type MaplibreGeocoderOptions,
-  type MaplibreGeocoderApiConfig
-} from '@maplibre/maplibre-gl-geocoder';
+import { useState, useMemo, useEffect } from 'react';
+import { useControl, Marker, Source, Layer } from 'react-map-gl/maplibre';
+import MaplibreGeocoder, { type MaplibreGeocoderApi, type MaplibreGeocoderOptions, type MaplibreGeocoderApiConfig } from '@maplibre/maplibre-gl-geocoder';
 import { MAPBOX_ACCESS_TOKEN } from '../utilities/environmentVariables';
 import { bbox, featureCollection } from '@turf/turf';
 
@@ -123,6 +117,7 @@ export default function GeocoderControl(props/*: GeocoderControlProps */) {
         proximityMinZoom: 9, // only prioritize the viewport when zoomed in to z9
         debounceSearch: props.geocoder !== 'nominatim' ? 200 : 1000, // Nominatim's policy requires to limit searches to maximum 1 request per second https://operations.osmfoundation.org/policies/nominatim/
         clearAndBlurOnEsc: true,
+        placeholder: 'Country, coordinates or H3cellID'
       });
       ctrl.on('loading', (evt) => {
         const bounds = geocoder?._map?.getBounds();
@@ -166,6 +161,12 @@ export default function GeocoderControl(props/*: GeocoderControlProps */) {
       position: props.position // Position of the search input inside the Maplibre map component
     }
   );
+
+  useEffect(()=> {
+    if(geocoder.container) {
+      document.querySelector('.soilhive-map-toolbar')?.prepend(geocoder.container);
+    }
+  }, []);
 
   // @ts-ignore (TS2339) private member
   if (geocoder._map) {

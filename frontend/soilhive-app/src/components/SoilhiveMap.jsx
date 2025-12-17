@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { Activity, useId, useRef, useState } from 'react';
 import { GeolocateControl, Map, NavigationControl, ScaleControl, TerrainControl, type MapGeoJSONFeature, type StyleSpecification, type ImmutableLike, type LayerProps, Popup, Source, Layer, useMap } from 'react-map-gl/maplibre';
 import GeocoderControl from './GeocoderControl';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -114,10 +114,6 @@ function SoilhiveMap({
   const [showDrawControl, setShowDrawControl] = useState(false);
   const [showSelectionToolbar, setShowSelectionToolbar] = useState(false);
 
-  // const selectedArea = useMemo(() => {
-  //   area
-  // }, [selection]);
-
   function updateH3Cells(mapEvent) {
     if (!showH3Cells) {
       setH3Cells(null);
@@ -193,7 +189,7 @@ function SoilhiveMap({
         }}
         interactiveLayerIds={['data-fills']}
       >
-        { !showSelectionToolbar &&
+        <Activity mode={!showSelectionToolbar ? "visible" : "hidden"}>
           <SoilhiveMapToolbar
             onDrawClick={() => {
               setShowDrawControl(true);
@@ -204,7 +200,6 @@ function SoilhiveMap({
               }, 0);          
             }}
             onUpload={(geojson) => {
-              console.log('GeoJSON uploaded', geojson);
               setSelection({
                 type: 'FeatureCollection',
                 features: [geojson]
@@ -213,8 +208,7 @@ function SoilhiveMap({
               mapRef.current.fitBounds(bbox(geojson), { padding: 40 });
             }}
           />
-        }
-        
+        </Activity>        
 
         { showSelectionToolbar &&
           <SoilhiveMapSelectionToolbar
@@ -281,7 +275,7 @@ function SoilhiveMap({
           </>
         }
 
-        {showGeocoder && <GeocoderControl position="top-left" geocoder={geocoder} />}
+        { showGeocoder && <GeocoderControl position="top-left" geocoder={geocoder} />}
               
         { showGeolocation && <GeolocateControl position="bottom-right" /> }
         { showNavigation && <NavigationControl position="bottom-right" showCompass={false} showZoom={true} visualizePitch={false} /> }
@@ -295,15 +289,6 @@ function SoilhiveMap({
                 features: [feature]
               });
             }}
-            // displayControlsDefault={false}
-            // controls={{
-            //   polygon: true,
-            //   trash: true
-            // }}
-            // defaultMode="draw_polygon"
-            // onCreate={onUpdate}
-            // onUpdate={onUpdate}
-            // onDelete={onDelete}
           />  
         }
 
