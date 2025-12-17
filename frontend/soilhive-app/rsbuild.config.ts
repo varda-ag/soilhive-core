@@ -30,6 +30,7 @@ export default defineConfig({
       hooks: './src/hooks',
       types: './src/types',
       styles: './src/styles',
+      adapters: './src/adapters'
     },
   },
   plugins: [pluginReact(), pluginSass(), pluginSvgr()],
