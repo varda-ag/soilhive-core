@@ -1,4 +1,4 @@
-import { bboxPolygon, featureCollection } from '@turf/turf';
+import { area, bboxPolygon, featureCollection, polygon } from '@turf/turf';
 import { featureToH3Set } from 'geojson2h3';
 import { cellToBoundary, cellToLatLng, type CoordPair, type H3Index } from 'h3-js';
 import { lerp } from 'math.gl';
@@ -152,3 +152,18 @@ export const bBoxToPolygon = (boundingBox: number[]) => {
   const coordinates = polygon.geometry.coordinates[0];
   return coordinates;
 };
+
+export function largestPolygonInsideMultipolygon(feature: any) {
+  console.assert(feature?.geometry?.type === 'MultiPolygon', '"feature" must be a GeoJSON feature containing a MultiPolygon');
+  let maxArea = 0;
+  let largestPolygon = null;
+  feature.geometry.coordinates.forEach((polygonCoords: any) => {
+    const polyFeature = polygon(polygonCoords);
+    const polyArea = area(polyFeature);
+    if (polyArea > maxArea) {
+      maxArea = polyArea;
+      largestPolygon = polyFeature;
+    }
+  });
+  return largestPolygon;
+}

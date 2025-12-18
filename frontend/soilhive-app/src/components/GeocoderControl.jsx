@@ -3,7 +3,8 @@ import { useState, useMemo, useEffect } from 'react';
 import { useControl, Marker, Source, Layer } from 'react-map-gl/maplibre';
 import MaplibreGeocoder, { type MaplibreGeocoderApi, type MaplibreGeocoderOptions, type MaplibreGeocoderApiConfig } from '@maplibre/maplibre-gl-geocoder';
 import { MAPBOX_ACCESS_TOKEN } from '../utilities/environmentVariables';
-import { bbox, featureCollection } from '@turf/turf';
+import { bbox as bboxFn, centerOfMass, featureCollection } from '@turf/turf';
+import { centroidOfLargestPolygonInsideMultipolygon, largestPolygonInsideMultipolygon as largestPolygonInsideMultipolygonFn } from '../utilities/geo';
 
 type GeocoderControlProps = Omit<MaplibreGeocoderOptions, 'maplibregl' | 'marker'> & {
   marker?: boolean | Omit<MarkerProps, 'longitude' | 'latitude'>;
@@ -27,19 +28,34 @@ const nominatimGeocoderAPI: MaplibreGeocoderApi = {
       const response = await fetch(request);
       const geojson = await response.json();
       for (const feature of geojson.features) {
-        const center = [
-          feature.bbox[0] + (feature.bbox[2] - feature.bbox[0]) / 2,
-          feature.bbox[1] + (feature.bbox[3] - feature.bbox[1]) / 2
-        ];
-        const carmenGeoJSONFeature = {
-          type: 'Feature',
-          bbox: feature.bbox,
-          geometry: {
+        let geometry;
+        let bbox;
+        let largestPolygonInsideMultiPolygon = null;
+        if(feature?.geometry?.type === 'MultiPolygon') {
+          largestPolygonInsideMultiPolygon = largestPolygonInsideMultipolygonFn(feature);
+          console.assert(largestPolygonInsideMultiPolygon !== null, 'A valid MultiPolygon should contain at least a Polygon');
+          // Used center of mass so it's guaranteed to be withing the polygon (good for concave shapes)
+          // if we use centroid for the geometric center it might fall outside concave shapes
+          geometry = centerOfMass(largestPolygonInsideMultiPolygon).geometry;
+          bbox = bboxFn(largestPolygonInsideMultiPolygon);
+        } else {
+          const center = [
+            feature.bbox[0] + (feature.bbox[2] - feature.bbox[0]) / 2,
+            feature.bbox[1] + (feature.bbox[3] - feature.bbox[1]) / 2
+          ];
+          geometry = {
             type: 'Point',
             coordinates: center
-          },
+          };
+          bbox = feature.bbox;
+        }
+        const carmenGeoJSONFeature = {
+          type: 'Feature',
+          bbox,
+          geometry,
           original_feature: feature,
           original_geometry: feature.geometry,
+          largestPolygonInsideMultiPolygon,
           place_name: feature.properties.display_name,
           properties: feature.properties,
           text: feature.properties.display_name,
@@ -132,8 +148,8 @@ export default function GeocoderControl(props: GeocoderControlProps) {
       });
       ctrl.on('results', (evt) => {
         if(props.geocoder === 'nominatim') {
-          const originalFeatures = evt.features.map(feature => feature.original_feature);
-          const boundingBox = bbox(featureCollection(originalFeatures));
+          const originalFeatures = evt.features.map(feature => feature.largestPolygonInsideMultiPolygon ?? feature.original_feature);
+          const boundingBox = bboxFn(featureCollection(originalFeatures));
           geocoder._map.fitBounds(boundingBox);
         }
       });
@@ -150,7 +166,10 @@ export default function GeocoderControl(props: GeocoderControlProps) {
           setMarker(<Marker longitude={lat} latitude={lon} />);
         } else {
           ctrl.clear();
-          props.onFeatureSelect?.(result.original_feature);
+          props.onFeatureSelect?.({
+            feature: result.original_feature,
+            center: result.geometry
+          });
         }
       });
       return ctrl;

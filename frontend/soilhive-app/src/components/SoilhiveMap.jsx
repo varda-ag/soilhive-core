@@ -7,8 +7,8 @@ import '@watergis/maplibre-gl-terradraw/dist/maplibre-gl-terradraw.css'
 import '../styles/SoilhiveMap.scss';
 import Flower from '../assets/images/flower.svg?react';
 import { polygonToCells } from 'h3-js';
-import { bBoxToH3Cells, h3IndexesToGeoJSONPolygons } from '../utilities/geo';
-import { area, bbox, bboxPolygon, convertArea, round } from '@turf/turf';
+import { bboxToGeoJSONPolygonCoordinates, bBoxToH3Cells, h3IndexesToGeoJSONPolygons } from '../utilities/geo';
+import { area, bbox, bboxPolygon, centerOfMass, convertArea, polygon, round } from '@turf/turf';
 import { h3ResolutionForZoomLevel } from '../utilities/map';
 import DrawControl from './DrawControl';
 import SoilhiveMapToolbar from './SoilhiveMapToolbar';
@@ -296,11 +296,13 @@ function SoilhiveMap({
           <GeocoderControl
             position="top-left"
             geocoder={geocoder}
-            onFeatureSelect={(geojson) => {
+            onFeatureSelect={({feature, center}) => {
               setSelection({
                 type: 'FeatureCollection',
-                features: [geojson]
+                features: [feature]
               });
+              const [lng, lat] = center.coordinates;
+              setSelectedPoint({ lng, lat });
               setShowSelectionToolbar(true);
             }}
           />
