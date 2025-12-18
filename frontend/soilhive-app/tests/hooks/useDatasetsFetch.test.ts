@@ -1,5 +1,5 @@
 import { renderHook, waitFor } from '@testing-library/react';
-import { useFetchFilteredDatasets } from 'hooks/useDatasetsFetch';
+import { useFetchFilteredDatasets } from 'hooks/useFetchFilteredDatasets';
 import type { DatasetFilter, PostDatasetFilterResponse } from 'types/backend';
 
 jest.mock('../../src/api-client/useRequest', () => ({

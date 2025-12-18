@@ -1,4 +1,4 @@
-import { useFetchFilteredDatasets } from 'hooks/useDatasetsFetch';
+import { useFetchFilteredDatasets } from 'hooks/useFetchFilteredDatasets';
 import React, { createContext, useState, type ReactNode, useCallback, useMemo } from 'react';
 import type { AvailabilityDataset } from 'types/availability';
 import { mapFilteredDatasetToAvailabilityDataset } from '../adapters';
