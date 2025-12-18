@@ -3,15 +3,15 @@ import { useRequest } from '../api-client';
 import { BACKEND_BASE_URL } from '../configuration/api';
 import type { DatasetFilter, PostDatasetFilterResponse } from 'types/backend';
 
-export function useDatasetsFetch(filter?: DatasetFilter, useMock = true) {
-  const [fetchedDatasets, setFetchedDatasets] = useState<PostDatasetFilterResponse>();
+export function useFetchFilteredDatasets(filter?: DatasetFilter, useMock = true) {
+  const [fetchedFilteredResults, setFetchedFilteredResults] = useState<PostDatasetFilterResponse>();
   const abortControllerRef = useRef<AbortController>(null);
   const { request, loading, error } = useRequest();
 
   const fetchDatasets = useCallback(
     async (filter?: DatasetFilter) => {
       if (useMock) {
-        setFetchedDatasets(MOCK_RESPONSE);
+        setFetchedFilteredResults(MOCK_RESPONSE);
         return MOCK_RESPONSE;
       }
 
@@ -28,7 +28,7 @@ export function useDatasetsFetch(filter?: DatasetFilter, useMock = true) {
           body: filter,
           signal: abortControllerRef.current.signal,
         });
-        setFetchedDatasets(res);
+        setFetchedFilteredResults(res);
         return res;
       } catch (err) {
         // Don't set error if it was aborted
@@ -59,7 +59,7 @@ export function useDatasetsFetch(filter?: DatasetFilter, useMock = true) {
   }, [fetchDatasets, filter]);
 
   return {
-    fetchedDatasets,
+    fetchedFilteredResults,
     loading,
     error,
   };

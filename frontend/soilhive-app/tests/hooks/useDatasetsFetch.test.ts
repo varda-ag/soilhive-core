@@ -1,5 +1,5 @@
 import { renderHook, waitFor } from '@testing-library/react';
-import { useDatasetsFetch } from 'hooks/useDatasetsFetch';
+import { useFetchFilteredDatasets } from 'hooks/useDatasetsFetch';
 import type { DatasetFilter, PostDatasetFilterResponse } from 'types/backend';
 
 jest.mock('../../src/api-client/useRequest', () => ({
@@ -60,14 +60,14 @@ describe('useDatasetFetch hook', () => {
     });
 
     // Act 1
-    const { result, rerender } = renderHook(({ filter, useMock }) => useDatasetsFetch(filter, useMock), {
+    const { result, rerender } = renderHook(({ filter, useMock }) => useFetchFilteredDatasets(filter, useMock), {
       initialProps: { filter: initialFilter, useMock: false },
     });
 
     // Assert 1
     await waitFor(
       () => {
-        expect(result.current.fetchedDatasets).toEqual(mockInitialFilterReply);
+        expect(result.current.fetchedFilteredResults).toEqual(mockInitialFilterReply);
       },
       { timeout: 500 },
     );
@@ -125,7 +125,7 @@ describe('useDatasetFetch hook', () => {
 
     // Assert 2
     await waitFor(() => {
-      expect(result.current.fetchedDatasets).toBe(mockUpdatedFilterReply);
+      expect(result.current.fetchedFilteredResults).toBe(mockUpdatedFilterReply);
     });
   });
 });

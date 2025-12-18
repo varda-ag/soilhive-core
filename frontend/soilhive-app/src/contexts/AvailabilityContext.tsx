@@ -1,4 +1,4 @@
-import { useDatasetsFetch } from 'hooks/useDatasetsFetch';
+import { useFetchFilteredDatasets } from 'hooks/useDatasetsFetch';
 import React, { createContext, useState, type ReactNode, useCallback, useMemo } from 'react';
 import type { AvailabilityDataset } from 'types/availability';
 import { mapFilteredDatasetToAvailabilityDataset } from '../adapters';
@@ -51,7 +51,7 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
     parameters: {},
   };
   const [datasetFilters, setDatasetFilters] = useState<DatasetFilter>(initialFilters);
-  const { fetchedDatasets } = useDatasetsFetch(datasetFilters);
+  const { fetchedFilteredResults } = useFetchFilteredDatasets(datasetFilters, false);
 
   const selectDataset = useCallback(
     (id: string) => {
@@ -78,18 +78,20 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
   const selectAllDatasets = useCallback(
     (select: boolean) => {
       setSelectedDatasets(
-        select && fetchedDatasets?.results ? fetchedDatasets?.results?.flatMap(result => result.datasets.map(dataset => dataset.id)) : [],
+        select && fetchedFilteredResults?.results
+          ? fetchedFilteredResults?.results?.flatMap(result => result.datasets.map(dataset => dataset.id))
+          : [],
       );
       setIsAllSelected(select);
     },
-    [fetchedDatasets],
+    [fetchedFilteredResults],
   );
 
   const datasets = useMemo(() => {
-    if (!fetchedDatasets || !fetchedDatasets.results) return [];
+    if (!fetchedFilteredResults || !fetchedFilteredResults.results) return [];
 
-    return fetchedDatasets.results.flatMap(res => res.datasets.map(mapFilteredDatasetToAvailabilityDataset));
-  }, [fetchedDatasets]);
+    return fetchedFilteredResults.results.flatMap(res => res.datasets.map(mapFilteredDatasetToAvailabilityDataset));
+  }, [fetchedFilteredResults]);
 
   const datasetsSummary = useMemo(() => {
     let globalDataPoints = 0;
@@ -100,8 +102,8 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
     let globalDateEnd: string | null = null;
     let count = 0;
 
-    if (fetchedDatasets && fetchedDatasets?.results) {
-      for (const result of fetchedDatasets.results) {
+    if (fetchedFilteredResults && fetchedFilteredResults?.results) {
+      for (const result of fetchedFilteredResults.results) {
         for (const dataset of result.datasets) {
           count++;
           globalDataPoints += dataset.feature_count;
@@ -143,7 +145,7 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
       depth,
       date,
     };
-  }, [fetchedDatasets]);
+  }, [fetchedFilteredResults]);
 
   return (
     <AvailabilityContext.Provider
