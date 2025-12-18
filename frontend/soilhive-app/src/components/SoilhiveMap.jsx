@@ -292,7 +292,19 @@ function SoilhiveMap({
           </>
         }
 
-        { showGeocoder && <GeocoderControl position="top-left" geocoder={geocoder} />}
+        { showGeocoder &&
+          <GeocoderControl
+            position="top-left"
+            geocoder={geocoder}
+            onFeatureSelect={(geojson) => {
+              setSelection({
+                type: 'FeatureCollection',
+                features: [geojson]
+              });
+              setShowSelectionToolbar(true);
+            }}
+          />
+        }
               
         { showGeolocation && <GeolocateControl position="bottom-right" /> }
         { showNavigation && <NavigationControl position="bottom-right" showCompass={false} showZoom={true} visualizePitch={false} /> }

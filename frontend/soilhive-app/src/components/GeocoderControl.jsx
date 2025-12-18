@@ -12,6 +12,7 @@ type GeocoderControlProps = Omit<MaplibreGeocoderOptions, 'maplibregl' | 'marker
   onResults?: (e: object) => void;
   onResult?: (e: object) => void;
   onError?: (e: object) => void;
+  onFeatureSelect?: (feature: any) => void;
 };
 
 /* eslint-disable camelcase */
@@ -91,7 +92,7 @@ const mapboxGeocoderAPI: MaplibreGeocoderApi = {
 };
 
 /* eslint-disable complexity,max-statements */
-export default function GeocoderControl(props/*: GeocoderControlProps */) {
+export default function GeocoderControl(props: GeocoderControlProps) {
   const [marker, setMarker] = useState(null);
 
   const geocoderAPI = useMemo(() => {
@@ -148,11 +149,8 @@ export default function GeocoderControl(props/*: GeocoderControlProps */) {
           const [lat, lon] = result.original_geometry.coordinates;
           setMarker(<Marker longitude={lat} latitude={lon} />);
         } else {
-          setMarker(
-            <Source type="geojson" data={result.original_feature}>
-              <Layer id='confines' type="line" paint={{'line-color': 'red', 'line-width': 3 }}></Layer>
-            </Source>
-          );
+          ctrl.clear();
+          props.onFeatureSelect?.(result.original_feature);
         }
       });
       return ctrl;
