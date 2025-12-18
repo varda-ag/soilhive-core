@@ -7,6 +7,6 @@ beforeEach(async () => {
   await clearDatabase();
   setupTestEnv();
   if (inspector.url()) {
-    jest.setTimeout(10 * 60 * 1000); // 10 minutes
+    jest.setTimeout(10 * 60 * 1000); // 10 minutes timeout when debugger is attached
   }
 });
