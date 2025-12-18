@@ -48,10 +48,10 @@ export default class DatasetEntity extends BaseTable implements Dataset {
   publication_date?: string;
 
   @Column({ type: 'text', nullable: true })
-  reference_period_start?: Date;
+  reference_period_start?: string;
 
   @Column({ type: 'text', nullable: true })
-  reference_period_stop?: Date;
+  reference_period_stop?: string;
 
   @Column({ type: 'uuid', nullable: true, array: true })
   licenses?: string[];

@@ -68,6 +68,8 @@ describe('SoilDataStorage class', () => {
     [0, 90, 1, 10],
     [0, 100, 1, 10],
     [-1000, 1000, 1, 10],
+    [-2000, -1000, 0, 0],
+    [1000, 2000, 0, 0],
   ])('Filtering by depth should return expected layers', async (min_depth, max_depth, expectedResultCount, expectedLayerCount) => {
     const bbox = [0, 0, 1, 1];
     await addSyntheticData(1, bbox, 1, 1, 10); // 10 layers with depths 0-100
@@ -78,5 +80,30 @@ describe('SoilDataStorage class', () => {
     if (expectedResultCount > 0) {
       expect(results[0].dataset_layer_count).toBe(expectedLayerCount);
     }
+  });
+
+  it.each([
+    [undefined, undefined, 5],
+    ['1999-01-01', undefined, 5],
+    [undefined, '2222-01-01', 5],
+    ['2020-01-01', undefined, 5], // Default synthetic data sampling date is (2020 + id)-01-01 to (2020 + id)-12-31
+    [undefined, '2020-01-01', 1],
+    ['2222-01-01', undefined, 0], // No overlap
+    [undefined, '1999-01-01', 0], // No depth interval overlap
+    ['2020-01-01', '2022-01-01', 3], // touches layers 2021 and 2022
+    ['2020-01-01', '2023-01-01', 4], // touches layers 2021, 2022, 2023
+    ['2020-01-01', '2024-01-01', 5],
+    ['1999-01-01', '2222-01-01', 5],
+    ['1000-01-01', '1999-01-01', 0],
+    ['2222-01-01', '3333-01-01', 0],
+  ])('Filtering by sampling date should return expected layers', async (min_sampling_date, max_sampling_date, expectedResultCount) => {
+    const bbox = [0, 0, 1, 1];
+    for (let i = 0; i < 5; i++) {
+      await addSyntheticData(i, bbox, 1, 1, 1); // 5 iterations covering 2020-01-01 to 2024-01-01
+    }
+    const sds = new SoilDataStorage();
+    const entityManager = await getEntityManager();
+    const results = await sds.filter(entityManager, getPolygonFromBbox(bbox), { min_sampling_date, max_sampling_date });
+    expect(results.length).toBe(expectedResultCount);
   });
 });
