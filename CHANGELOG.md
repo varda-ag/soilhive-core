@@ -1,3 +1,10 @@
+## [0.7.0](https://github.com/varda-ag/soilhive-core/compare/v0.6.1...v0.7.0) (2025-12-18)
+
+
+### Features
+
+* **data:** :construction: Supporting some data filters ([#71](https://github.com/varda-ag/soilhive-core/issues/71)) ([ec31699](https://github.com/varda-ag/soilhive-core/commit/ec316999b137872bd7784c69e40b9b0fe31473da))
+
 ## [0.6.1](https://github.com/varda-ag/soilhive-core/compare/v0.6.0...v0.6.1) (2025-12-18)
 
 ## [0.6.0](https://github.com/varda-ag/soilhive-core/compare/v0.5.1...v0.6.0) (2025-12-18)
