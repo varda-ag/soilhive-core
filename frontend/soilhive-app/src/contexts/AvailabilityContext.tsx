@@ -51,7 +51,7 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
     parameters: {},
   };
   const [datasetFilters, setDatasetFilters] = useState<DatasetFilter>(initialFilters);
-  const { fetchedFilteredResults } = useFetchFilteredDatasets(datasetFilters, false);
+  const { fetchedFilteredResults } = useFetchFilteredDatasets(datasetFilters);
 
   const selectDataset = useCallback(
     (id: string) => {
