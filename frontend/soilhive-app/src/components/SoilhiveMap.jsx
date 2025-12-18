@@ -1,4 +1,4 @@
-import { Activity, useId, useRef, useState } from 'react';
+import { Activity, useId, useRef, useState, useContext } from 'react';
 import { GeolocateControl, Map, NavigationControl, ScaleControl, TerrainControl, type MapGeoJSONFeature, type StyleSpecification, type ImmutableLike, type LayerProps, Popup, Source, Layer, useMap } from 'react-map-gl/maplibre';
 import GeocoderControl from './GeocoderControl';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -7,12 +7,13 @@ import '@watergis/maplibre-gl-terradraw/dist/maplibre-gl-terradraw.css'
 import '../styles/SoilhiveMap.scss';
 import Flower from '../assets/images/flower.svg?react';
 import { polygonToCells } from 'h3-js';
-import { bboxToGeoJSONPolygonCoordinates, bBoxToH3Cells, h3IndexesToGeoJSONPolygons } from '../utilities/geo';
+import { bBoxToH3Cells, h3IndexesToGeoJSONPolygons } from '../utilities/geo';
 import { area, bbox, bboxPolygon, convertArea, round } from '@turf/turf';
 import { h3ResolutionForZoomLevel } from '../utilities/map';
 import DrawControl from './DrawControl';
 import SoilhiveMapToolbar from './SoilhiveMapToolbar';
 import SoilhiveMapSelectionToolbar from './SoilhiveMapSelectionToolbar';
+import {AvailabilityContext} from '../contexts/AvailabilityContext'
 
 type MapStyle = string | StyleSpecification | ImmutableLike<StyleSpecification>;
 type MapStyles = Array<{ name: string, mapStyle: MapStyle }>;
@@ -114,6 +115,8 @@ function SoilhiveMap({
   const [showDrawControl, setShowDrawControl] = useState(false);
   const [showSelectionToolbar, setShowSelectionToolbar] = useState(false);
 
+  const { setDatasetFilters } = useContext(AvailabilityContext);
+
   function updateH3Cells(mapEvent) {
     if (!showH3Cells) {
       setH3Cells(null);
@@ -126,6 +129,16 @@ function SoilhiveMap({
       const h3Indexes = bBoxToH3Cells(bounds, h3ResolutionForZoomLevel(zoomLevel));
       const h3CellsFeatureCollection = h3IndexesToGeoJSONPolygons(h3Indexes);
       setH3Cells(h3CellsFeatureCollection);
+
+      // TODO: temporary fix for demo
+      if (setDatasetFilters) {
+        const polygonCoordinates = bboxPolygon(bounds);
+        setDatasetFilters({
+          geometries: [polygonCoordinates.geometry],
+          parameters: {}
+        });
+      }
+
     } catch (error) {
       console.error('Error while updating the H3 Cells:', error);
     }
