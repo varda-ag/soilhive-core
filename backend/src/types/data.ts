@@ -25,3 +25,9 @@ export enum EntityType {
   ANALYTICAL_METHOD = 'analytical_methods',
   FILE = 'files',
 }
+
+export enum ProcedureTechnique {
+  LAB_PROCEDURE = 'lab procedure',
+  SPECTRAL = 'spectral',
+  CALCULATED = 'calculated',
+}

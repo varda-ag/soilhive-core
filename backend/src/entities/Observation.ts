@@ -1,10 +1,10 @@
 import { Entity, Column, Unique, PrimaryColumn, ManyToOne, JoinColumn, Index, BaseEntity } from 'typeorm';
 import DatasetLayerEntity from './DatasetLayer';
-import AnalyticalMethodEntity from './AnalyticalMethod';
+import ProcedureEntity from './Procedure';
 import { Observation } from '../interfaces/Observation';
 
 @Entity('observations')
-@Unique(['dataset_layer_id', 'value', 'analytical_methodology_id'])
+@Unique(['dataset_layer_id', 'value', 'procedure_id'])
 export default class ObservationEntity extends BaseEntity implements Observation {
   @PrimaryColumn('uuid', {
     default: () => 'uuidv7()',
@@ -24,9 +24,9 @@ export default class ObservationEntity extends BaseEntity implements Observation
 
   @Index()
   @Column({ type: 'uuid', nullable: true })
-  analytical_methodology_id?: string;
+  procedure_id?: string;
 
-  @ManyToOne(() => AnalyticalMethodEntity, analytical_method => analytical_method.id)
-  @JoinColumn({ name: 'analytical_methodology_id' })
-  analytical_method: AnalyticalMethodEntity;
+  @ManyToOne(() => ProcedureEntity, procedure => procedure.id)
+  @JoinColumn({ name: 'procedure_id' })
+  procedure: ProcedureEntity;
 }
