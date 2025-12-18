@@ -173,6 +173,9 @@ function SoilhiveMap({
         scrollZoom={scrollZoom}
         dragPan={dragPan}
         className="map"
+        minZoom={3}
+        maxZoom={15}
+        renderWorldCopies={false}
         mapStyle={currentMapStyle}
         {...(initialViewBoundingBox ? { initialViewState: { bounds: initialViewBoundingBox } } : {})}
         onDragEnd={updateH3Cells}
