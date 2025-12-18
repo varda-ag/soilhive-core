@@ -1,3 +1,10 @@
+## [0.5.0](https://github.com/varda-ag/soilhive-core/compare/v0.4.4...v0.5.0) (2025-12-18)
+
+
+### Features
+
+* SP-4663 Disabled map wrapping and restricted min and max zoom levels ([#68](https://github.com/varda-ag/soilhive-core/issues/68)) ([6ee69af](https://github.com/varda-ag/soilhive-core/commit/6ee69afc3cfdf252d34572e5e1dd99813f4b3d72))
+
 ## [0.4.4](https://github.com/varda-ag/soilhive-core/compare/v0.4.3...v0.4.4) (2025-12-17)
 
 ## [0.4.3](https://github.com/varda-ag/soilhive-core/compare/v0.4.2...v0.4.3) (2025-12-16)
