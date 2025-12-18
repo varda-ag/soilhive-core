@@ -44,6 +44,7 @@ describe('useDatasetFetch hook', () => {
           datasets: [
             {
               id: 'dataset-id-1',
+              name: 'dataset-name-1',
               dataset_layer_count: 10,
             },
           ],
@@ -60,8 +61,8 @@ describe('useDatasetFetch hook', () => {
     });
 
     // Act 1
-    const { result, rerender } = renderHook(({ filter, useMock }) => useFetchFilteredDatasets(filter, useMock), {
-      initialProps: { filter: initialFilter, useMock: false },
+    const { result, rerender } = renderHook(({ filter }) => useFetchFilteredDatasets(filter), {
+      initialProps: { filter: initialFilter },
     });
 
     // Assert 1
@@ -101,10 +102,12 @@ describe('useDatasetFetch hook', () => {
           datasets: [
             {
               id: 'dataset-id-2',
+              name: 'dataset-name-2',
               dataset_layer_count: 10,
             },
             {
               id: 'dataset-id-3',
+              name: 'dataset-name-3',
               dataset_layer_count: 20,
             },
           ],
@@ -121,7 +124,7 @@ describe('useDatasetFetch hook', () => {
     });
 
     // Act 2
-    rerender({ filter: updatedFilter, useMock: false });
+    rerender({ filter: updatedFilter });
 
     // Assert 2
     await waitFor(() => {

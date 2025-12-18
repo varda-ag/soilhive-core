@@ -12,7 +12,6 @@
   > .List {
     display: flex;
     gap: 0.875rem;
-    overflow-y: scroll;
 
     @media (min-width: $bp-desktop) {
       flex-wrap: wrap;
