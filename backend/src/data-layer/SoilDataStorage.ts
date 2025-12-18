@@ -73,10 +73,14 @@ const applyFiltersToQuery = (query: any, filters: FilterableDatasetMetadata) => 
   if (filters.min_depth !== undefined) {
     // We just need overlap with input interval
     query.andWhere("(ds.soil_depth->>'max')::int >= :min_depth", { min_depth: filters.min_depth });
+    query.leftJoin('dataset_layers.layer', 'layers_min_depth');
+    query.where('layers_min_depth.max_depth >= :min_depth', { min_depth: filters.min_depth });
   }
   if (filters.max_depth !== undefined) {
     // We just need overlap with input interval
     query.andWhere("(ds.soil_depth->>'min')::int <= :max_depth", { max_depth: filters.max_depth });
+    query.leftJoin('dataset_layers.layer', 'layers_max_depth');
+    query.where('layers_max_depth.min_depth <= :max_depth', { max_depth: filters.max_depth });
   }
   if (filters.horizons && filters.horizons.length > 0) {
     // TODO

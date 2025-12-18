@@ -503,6 +503,7 @@ components:
               description: Number of features matching the filter in this dataset
           required:
             - id
+            - name
             - dataset_layer_count
 
     PostDatasetFilterResponse:

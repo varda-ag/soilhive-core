@@ -59,12 +59,15 @@ describe('SoilDataStorage class', () => {
     [undefined, undefined, 1, 10],
     [-100, undefined, 1, 10],
     [undefined, 100, 1, 10],
-    [100, undefined, 1, 10], // 100 touches max depth
-    [undefined, 0, 1, 10], // 00 touches min depth
-    [200, undefined, 0, 0],
-    [undefined, -200, 0, 0],
+    [100, undefined, 1, 1], // 100 touches max depth
+    [undefined, 0, 1, 1], // 0 touches min depth
+    [200, undefined, 0, 0], // No depth interval overlap
+    [undefined, -200, 0, 0], // No depth interval overlap
+    [0, 10, 1, 2], // 0-10 touches layers 0-10 and 10-20
+    [0, 50, 1, 6], // 0-50 touches layers 0-10, 10-20, 20-30, 30-40, 40-50, 50-60
+    [0, 90, 1, 10],
     [0, 100, 1, 10],
-    [0, 10, 1, 10],
+    [-1000, 1000, 1, 10],
   ])('Filtering by depth should return expected layers', async (min_depth, max_depth, expectedResultCount, expectedLayerCount) => {
     const bbox = [0, 0, 1, 1];
     await addSyntheticData(1, bbox, 1, 1, 10); // 10 layers with depths 0-100
