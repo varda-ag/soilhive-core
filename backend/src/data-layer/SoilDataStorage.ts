@@ -32,22 +32,61 @@ export default class SoilDataStorage {
   filter = async (
     entityManager: EntityManager,
     geometry: Polygon | MultiPolygon,
-    _: FilterableDatasetMetadata,
+    filters: FilterableDatasetMetadata,
   ): Promise<FilteredDataset[]> => {
     const repo = entityManager.getRepository(DatasetLayerEntity);
-    const results = await repo
+    const query = await repo
       .createQueryBuilder('dataset_layers')
       .innerJoin('dataset_layers.feature', 'features')
-      .where('ST_Intersects(features.geom, ST_GeomFromGeoJSON(:geom))', {
-        geom: JSON.stringify(geometry),
-      })
+      .where('ST_Intersects(features.geom, ST_GeomFromGeoJSON(:geom))', { geom: JSON.stringify(geometry) })
+      .leftJoin('dataset_layers.dataset', 'ds')
       .select('dataset_layers.dataset_id', 'dataset_id')
+      .addSelect('ds.name', 'dataset_name')
       .addSelect('COUNT(dataset_layers.dataset_id)', 'dataset_layer_count')
       .groupBy('dataset_layers.dataset_id')
-      .getRawMany();
+      .addGroupBy('ds.name');
+
+    applyFiltersToQuery(query, filters);
+    const results = await query.getRawMany();
+
     return results.map(row => ({
       id: row.dataset_id,
+      name: row.dataset_name,
       dataset_layer_count: parseInt(row.dataset_layer_count),
     }));
   };
 }
+
+const applyFiltersToQuery = (query: any, filters: FilterableDatasetMetadata) => {
+  if (filters.data_types && filters.data_types.length > 0) {
+    query.andWhere('ds.gis_datatype IN (:...data_types)', { data_types: filters.data_types });
+  }
+  if (filters.licenses && filters.licenses.length > 0) {
+    // TODO
+  }
+  if (filters.min_sampling_date) {
+    // TODO
+  }
+  if (filters.max_sampling_date) {
+    // TODO
+  }
+  if (filters.min_depth !== undefined) {
+    // We just need overlap with input interval
+    query.andWhere("(ds.soil_depth->>'max')::int >= :min_depth", { min_depth: filters.min_depth });
+    query.leftJoin('dataset_layers.layer', 'layers_min_depth');
+    query.where('layers_min_depth.max_depth >= :min_depth', { min_depth: filters.min_depth });
+  }
+  if (filters.max_depth !== undefined) {
+    // We just need overlap with input interval
+    query.andWhere("(ds.soil_depth->>'min')::int <= :max_depth", { max_depth: filters.max_depth });
+    query.leftJoin('dataset_layers.layer', 'layers_max_depth');
+    query.where('layers_max_depth.min_depth <= :max_depth', { max_depth: filters.max_depth });
+  }
+  if (filters.horizons && filters.horizons.length > 0) {
+    // TODO
+  }
+  if (filters.soil_properties && filters.soil_properties.length > 0) {
+    // TODO
+  }
+  return query;
+};

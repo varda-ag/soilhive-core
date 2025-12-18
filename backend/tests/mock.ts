@@ -11,7 +11,7 @@ import LicenseEntity from '../src/entities/License';
 import { getPolygonFromBbox } from '../src/utils/geometry';
 import { getDataSource } from '../src/utils/data-source';
 import SlugHistoryEntity from '../src/entities/SlugHistory';
-import { EntityType } from '../src/types/data';
+import { EntityType, GISDataType, IngestionStatus } from '../src/types/data';
 
 const randomInRange = (min: number, max: number): number => {
   return Math.random() * (max - min) + min;
@@ -31,6 +31,8 @@ export const addDataset = async (name: string, spatial_extent: number[]): Promis
     id: uuidv7(),
     name,
     created_by: 'tests',
+    gis_datatype: GISDataType.POINT,
+    status: IngestionStatus.INGESTED,
     spatial_extent: getPolygonFromBbox(spatial_extent),
   });
   return await repo.save(dataset);
@@ -135,6 +137,8 @@ export const addSyntheticData = async (
   depthLayers: number = 5,
 ): Promise<DatasetEntity> => {
   const dataset = await addDataset(`test_dataset_${id}`, spatial_extent);
+  dataset.soil_depth = { min: 0, max: depthLayers * 10 };
+  await dataset.save();
   const category = await addCategory(`test_category_${id}`);
   const soilProperty = await addSoilProperty(`test_soil_property_${id}`, category.id);
   const analyticalMethod = await addAnalyticalMethod(`test_analytical_method_${id}`);
