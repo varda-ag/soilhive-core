@@ -13,9 +13,7 @@ export default class DataMappingEntity extends BaseTable implements DataMapping 
   @Column({ type: 'jsonb' })
   data_mapping: object;
 
-  @Column({ type: 'text',
-    generatedType: "STORED",
-    asExpression: `encode(sha256(data_mapping::TEXT::BYTEA), 'hex')` })
+  @Column({ type: 'text', generatedType: 'STORED', asExpression: `encode(sha256(data_mapping::TEXT::BYTEA), 'hex')` })
   data_mapping_hash: string;
 
   @Column({ type: 'text' })

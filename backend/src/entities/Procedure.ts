@@ -43,5 +43,4 @@ export default class ProcedureEntity extends BaseTable implements Procedure {
 
   @Column({ type: 'text', nullable: true })
   limit_of_detection?: string;
-
 }

@@ -25,8 +25,13 @@ export class CreateSchema1765549507801 implements MigrationInterface {
       `CREATE TABLE "datasets" ("created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP, "id" uuid NOT NULL DEFAULT uuidv7(), "slug" text NOT NULL, "name" text NOT NULL, "full_name" text, "version" text, "author" text, "description" text, "data_producer" text, "variables_measured" jsonb array, "spatial_resolution" text, "publication_date" date, "reference_period_start" text, "reference_period_stop" text, "licenses" uuid array, "citation" text, "geographical_extent" text, "gis_datatype" text, "spatial_extent" geometry(Polygon,4326), "n_observations" bigint, "n_raster_layers" integer, "soil_depth" jsonb, "status" text NOT NULL DEFAULT 'PENDING', "created_by" text NOT NULL, "updated_by" text, "service_location" text, CONSTRAINT "UQ_8c3769423bf107f9ac88e5ab67d" UNIQUE ("slug"), CONSTRAINT "UQ_4a40dadf87d8be1c12c51a13f10" UNIQUE ("name"), CONSTRAINT "PK_1bf831e43c559a240303e23d038" PRIMARY KEY ("id"))`,
     );
     await queryRunner.query(`CREATE INDEX "IDX_0eb197e8bd07e096370cddc79a" ON "datasets" USING GiST ("spatial_extent") `);
-    await queryRunner.query(`INSERT INTO "typeorm_metadata"("database", "schema", "table", "type", "name", "value") VALUES ($1, $2, $3, $4, $5, $6)`, ["database",process.env.POSTGRES_SCHEMA,"features","GENERATED_COLUMN","geom_hash","(encode(sha256(geom::TEXT::BYTEA), 'hex'))"]);
-    await queryRunner.query(`CREATE TABLE "features" ("id" uuid NOT NULL DEFAULT uuidv7(), "geom" geometry, "geom_hash" text GENERATED ALWAYS AS (encode(sha256(geom::TEXT::BYTEA), 'hex')) STORED NOT NULL, CONSTRAINT "UQ_ddb88cdd92edd4fbdde2092ca5d" UNIQUE ("geom_hash"), CONSTRAINT "PK_5c1e336df2f4a7051e5bf08a941" PRIMARY KEY ("id"))`);
+    await queryRunner.query(
+      `INSERT INTO "typeorm_metadata"("database", "schema", "table", "type", "name", "value") VALUES ($1, $2, $3, $4, $5, $6)`,
+      ['database', process.env.POSTGRES_SCHEMA, 'features', 'GENERATED_COLUMN', 'geom_hash', "(encode(sha256(geom::TEXT::BYTEA), 'hex'))"],
+    );
+    await queryRunner.query(
+      `CREATE TABLE "features" ("id" uuid NOT NULL DEFAULT uuidv7(), "geom" geometry, "geom_hash" text GENERATED ALWAYS AS (encode(sha256(geom::TEXT::BYTEA), 'hex')) STORED NOT NULL, CONSTRAINT "UQ_ddb88cdd92edd4fbdde2092ca5d" UNIQUE ("geom_hash"), CONSTRAINT "PK_5c1e336df2f4a7051e5bf08a941" PRIMARY KEY ("id"))`,
+    );
     await queryRunner.query(`CREATE INDEX "IDX_fd2b660b29727fb91bd1e0b1bc" ON "features" USING GiST ("geom") `);
     await queryRunner.query(
       `CREATE TABLE "licenses" ("created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP, "id" uuid NOT NULL DEFAULT uuidv7(), "name" text NOT NULL, "slug" text NOT NULL, "full_name" text, "url" text, CONSTRAINT "UQ_34c1133363605aac1c3dcd519dd" UNIQUE ("slug"), CONSTRAINT "UQ_543cfb437043963bb8fc6e67c69" UNIQUE ("name"), CONSTRAINT "PK_da5021501ce80efa03de6f40086" PRIMARY KEY ("id"))`,
@@ -38,8 +43,12 @@ export class CreateSchema1765549507801 implements MigrationInterface {
     await queryRunner.query(
       `CREATE TABLE "dataset_layers" ("id" uuid NOT NULL DEFAULT uuidv7(), "dataset_id" uuid NOT NULL, "layer_id" uuid NOT NULL, "feature_id" uuid NOT NULL, "soil_property_id" uuid NOT NULL, CONSTRAINT "UQ_d6e8b760914c5369e3cd8a76aae" UNIQUE ("dataset_id", "feature_id", "layer_id", "soil_property_id"), CONSTRAINT "PK_ae93098f513eadb205700a04e77" PRIMARY KEY ("id"))`,
     );
-    await queryRunner.query(`CREATE TABLE "procedures" ("created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP, "id" uuid NOT NULL DEFAULT uuidv7(), "slug" text NOT NULL, "sample_pretreatment" text, "technique" "procedures_technique_enum" NOT NULL, "extractant_formulation" text, "extractant_concentration" text, "extraction_ratio" text, "extraction_base" text, "instrument" text, "limit_of_detection" text, CONSTRAINT "PK_e7775bab78f27b4c47580b6cb4b" PRIMARY KEY ("id"))`);
-    await queryRunner.query(`CREATE TABLE "observations" ("id" uuid NOT NULL DEFAULT uuidv7(), "dataset_layer_id" uuid NOT NULL, "value" numeric NOT NULL, "procedure_id" uuid, CONSTRAINT "UQ_b2ec3dd70bb6e50938d3e04dbde" UNIQUE ("dataset_layer_id", "value", "procedure_id"), CONSTRAINT "PK_f9208d64f50a76030758087c0ef" PRIMARY KEY ("id"))`);
+    await queryRunner.query(
+      `CREATE TABLE "procedures" ("created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP, "id" uuid NOT NULL DEFAULT uuidv7(), "slug" text NOT NULL, "sample_pretreatment" text, "technique" "procedures_technique_enum" NOT NULL, "extractant_formulation" text, "extractant_concentration" text, "extraction_ratio" text, "extraction_base" text, "instrument" text, "limit_of_detection" text, CONSTRAINT "PK_e7775bab78f27b4c47580b6cb4b" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `CREATE TABLE "observations" ("id" uuid NOT NULL DEFAULT uuidv7(), "dataset_layer_id" uuid NOT NULL, "value" numeric NOT NULL, "procedure_id" uuid, CONSTRAINT "UQ_b2ec3dd70bb6e50938d3e04dbde" UNIQUE ("dataset_layer_id", "value", "procedure_id"), CONSTRAINT "PK_f9208d64f50a76030758087c0ef" PRIMARY KEY ("id"))`,
+    );
     await queryRunner.query(`CREATE INDEX "IDX_d4f9ab2e6c5f432163d3d3a30b" ON "observations" ("dataset_layer_id") `);
     await queryRunner.query(`CREATE INDEX "IDX_c1ac36839e1d802160e5d714c2" ON "observations" ("procedure_id") `);
     await queryRunner.query(
@@ -48,8 +57,20 @@ export class CreateSchema1765549507801 implements MigrationInterface {
     await queryRunner.query(
       `CREATE TABLE "files" ("created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP, "id" uuid NOT NULL DEFAULT uuidv7(), "slug" text NOT NULL, "name" text NOT NULL, "file_path" text NOT NULL, "status" text NOT NULL DEFAULT 'PENDING', "created_by" text NOT NULL, "updated_by" text, CONSTRAINT "UQ_67434370162217cf583370f0e74" UNIQUE ("slug"), CONSTRAINT "UQ_332d10755187ac3c580e21fbc02" UNIQUE ("name"), CONSTRAINT "PK_6c16b9093a142e0e7613b04a3d9" PRIMARY KEY ("id"))`,
     );
-    await queryRunner.query(`INSERT INTO "typeorm_metadata"("database", "schema", "table", "type", "name", "value") VALUES ($1, $2, $3, $4, $5, $6)`, ["database",process.env.POSTGRES_SCHEMA,"data_mappings","GENERATED_COLUMN","data_mapping_hash","(encode(sha256(data_mapping::TEXT::BYTEA), 'hex'))"]);
-    await queryRunner.query(`CREATE TABLE "data_mappings" ("created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP, "id" uuid NOT NULL DEFAULT uuidv7(), "data_mapping" jsonb NOT NULL, "data_mapping_hash" text GENERATED ALWAYS AS (encode(sha256(data_mapping::TEXT::BYTEA), 'hex')) STORED NOT NULL, "created_by" text NOT NULL, CONSTRAINT "UQ_7d2b7e799299121f0d7056c4aee" UNIQUE ("data_mapping_hash"), CONSTRAINT "PK_c904beedc99759d627d42a240d5" PRIMARY KEY ("id"))`);
+    await queryRunner.query(
+      `INSERT INTO "typeorm_metadata"("database", "schema", "table", "type", "name", "value") VALUES ($1, $2, $3, $4, $5, $6)`,
+      [
+        'database',
+        process.env.POSTGRES_SCHEMA,
+        'data_mappings',
+        'GENERATED_COLUMN',
+        'data_mapping_hash',
+        "(encode(sha256(data_mapping::TEXT::BYTEA), 'hex'))",
+      ],
+    );
+    await queryRunner.query(
+      `CREATE TABLE "data_mappings" ("created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP, "id" uuid NOT NULL DEFAULT uuidv7(), "data_mapping" jsonb NOT NULL, "data_mapping_hash" text GENERATED ALWAYS AS (encode(sha256(data_mapping::TEXT::BYTEA), 'hex')) STORED NOT NULL, "created_by" text NOT NULL, CONSTRAINT "UQ_7d2b7e799299121f0d7056c4aee" UNIQUE ("data_mapping_hash"), CONSTRAINT "PK_c904beedc99759d627d42a240d5" PRIMARY KEY ("id"))`,
+    );
     await queryRunner.query(
       `CREATE TABLE "dataset_file_mappings" ("created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP, "id" uuid NOT NULL DEFAULT uuidv7(), "data_mapping_id" uuid NOT NULL, "file_id" uuid, "dataset_id" uuid, CONSTRAINT "UQ_23bb05305bffe2d927279931d5e" UNIQUE ("data_mapping_id", "file_id", "dataset_id"), CONSTRAINT "PK_a850769f5e2e8d5a9e80c3ba226" PRIMARY KEY ("id"))`,
     );
@@ -74,7 +95,9 @@ export class CreateSchema1765549507801 implements MigrationInterface {
     await queryRunner.query(
       `ALTER TABLE "licenses" ADD CONSTRAINT "FK_ee237df2b602117509506e0a1b7" FOREIGN KEY ("id", "slug") REFERENCES "slug_history"("entity_id","slug") ON DELETE NO ACTION ON UPDATE NO ACTION DEFERRABLE INITIALLY DEFERRED`,
     );
-    await queryRunner.query(`ALTER TABLE "procedures" ADD CONSTRAINT "FK_f578b0bbb2e017ba5b7928e5608" FOREIGN KEY ("id", "slug") REFERENCES "slug_history"("entity_id","slug") ON DELETE NO ACTION ON UPDATE NO ACTION DEFERRABLE INITIALLY DEFERRED`);
+    await queryRunner.query(
+      `ALTER TABLE "procedures" ADD CONSTRAINT "FK_f578b0bbb2e017ba5b7928e5608" FOREIGN KEY ("id", "slug") REFERENCES "slug_history"("entity_id","slug") ON DELETE NO ACTION ON UPDATE NO ACTION DEFERRABLE INITIALLY DEFERRED`,
+    );
     await queryRunner.query(
       `ALTER TABLE "layers" ADD CONSTRAINT "FK_31bb41cd0ddace92149b86629a2" FOREIGN KEY ("license") REFERENCES "licenses"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`,
     );
@@ -93,7 +116,9 @@ export class CreateSchema1765549507801 implements MigrationInterface {
     await queryRunner.query(
       `ALTER TABLE "observations" ADD CONSTRAINT "FK_d4f9ab2e6c5f432163d3d3a30bf" FOREIGN KEY ("dataset_layer_id") REFERENCES "dataset_layers"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`,
     );
-    await queryRunner.query(`ALTER TABLE "observations" ADD CONSTRAINT "FK_c1ac36839e1d802160e5d714c26" FOREIGN KEY ("procedure_id") REFERENCES "procedures"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`);
+    await queryRunner.query(
+      `ALTER TABLE "observations" ADD CONSTRAINT "FK_c1ac36839e1d802160e5d714c26" FOREIGN KEY ("procedure_id") REFERENCES "procedures"("id") ON DELETE NO ACTION ON UPDATE NO ACTION`,
+    );
     await queryRunner.query(
       `ALTER TABLE "files" ADD CONSTRAINT "FK_d6921b298823caf4fd254a8b271" FOREIGN KEY ("id", "slug") REFERENCES "slug_history"("entity_id","slug") ON DELETE NO ACTION ON UPDATE NO ACTION DEFERRABLE INITIALLY DEFERRED`,
     );
@@ -247,8 +272,14 @@ export class CreateSchema1765549507801 implements MigrationInterface {
     await queryRunner.query(`DROP TABLE "soil_property_categories"`);
     await queryRunner.query(`DROP TABLE "unit_conversions"`);
     await queryRunner.query(`DROP TABLE "slug_history"`);
-    await queryRunner.query(`DELETE FROM "typeorm_metadata" WHERE "type" = $1 AND "name" = $2 AND "database" = $3 AND "schema" = $4 AND "table" = $5`, ["GENERATED_COLUMN","geom_hash","database",process.env.POSTGRES_SCHEMA,"features"]);
-    await queryRunner.query(`DELETE FROM "typeorm_metadata" WHERE "type" = $1 AND "name" = $2 AND "database" = $3 AND "schema" = $4 AND "table" = $5`, ["GENERATED_COLUMN","data_mapping_hash","database",process.env.POSTGRES_SCHEMA,"data_mappings"]);
+    await queryRunner.query(
+      `DELETE FROM "typeorm_metadata" WHERE "type" = $1 AND "name" = $2 AND "database" = $3 AND "schema" = $4 AND "table" = $5`,
+      ['GENERATED_COLUMN', 'geom_hash', 'database', process.env.POSTGRES_SCHEMA, 'features'],
+    );
+    await queryRunner.query(
+      `DELETE FROM "typeorm_metadata" WHERE "type" = $1 AND "name" = $2 AND "database" = $3 AND "schema" = $4 AND "table" = $5`,
+      ['GENERATED_COLUMN', 'data_mapping_hash', 'database', process.env.POSTGRES_SCHEMA, 'data_mappings'],
+    );
     await queryRunner.query(`DROP TYPE "slug_history_entity_type_enum"`);
     await queryRunner.query(`DROP TYPE "procedures_technique_enum"`);
     await queryRunner.query(`ALTER TABLE "features" RESET (

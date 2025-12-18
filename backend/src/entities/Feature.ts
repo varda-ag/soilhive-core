@@ -18,8 +18,6 @@ export default class FeatureEntity extends BaseEntity implements Feature {
   @Index({ spatial: true })
   geom: Point | Polygon;
 
-  @Column({ type: 'text',
-    generatedType: "STORED",
-    asExpression: `encode(sha256(geom::TEXT::BYTEA), 'hex')` })
+  @Column({ type: 'text', generatedType: 'STORED', asExpression: `encode(sha256(geom::TEXT::BYTEA), 'hex')` })
   geom_hash: string;
 }
