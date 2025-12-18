@@ -1,3 +1,10 @@
+## [0.8.0](https://github.com/varda-ag/soilhive-core/compare/v0.7.1...v0.8.0) (2025-12-18)
+
+
+### Features
+
+* **data:** :sparkles: Added sampling date filtering ([#74](https://github.com/varda-ag/soilhive-core/issues/74)) ([cb25ed2](https://github.com/varda-ag/soilhive-core/commit/cb25ed273da51e577c9c600d9be6cc62c4feb73f))
+
 ## [0.7.1](https://github.com/varda-ag/soilhive-core/compare/v0.7.0...v0.7.1) (2025-12-18)
 
 ## [0.7.0](https://github.com/varda-ag/soilhive-core/compare/v0.6.1...v0.7.0) (2025-12-18)
