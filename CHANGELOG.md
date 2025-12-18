@@ -1,3 +1,10 @@
+## [0.6.0](https://github.com/varda-ag/soilhive-core/compare/v0.5.1...v0.6.0) (2025-12-18)
+
+
+### Features
+
+* **UI - datasets:** SP-4718 update dataset panel according to backend reply ([c4f7b98](https://github.com/varda-ag/soilhive-core/commit/c4f7b988399d812bc768f0b72a12bdc72f2e3472))
+
 ## [0.5.1](https://github.com/varda-ag/soilhive-core/compare/v0.5.0...v0.5.1) (2025-12-18)
 
 ## [0.5.0](https://github.com/varda-ag/soilhive-core/compare/v0.4.4...v0.5.0) (2025-12-18)

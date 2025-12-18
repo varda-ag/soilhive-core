@@ -24,19 +24,17 @@ export const addSlug = async (slug: string, entity_id: string, entity_type: Enti
   return await repo.save(slugEntity);
 };
 
-export const addDataset = async (slug: string, spatial_extent: number[]): Promise<DatasetEntity> => {
+export const addDataset = async (name: string, spatial_extent: number[]): Promise<DatasetEntity> => {
   const dataSource = await getDataSource();
   const repo = dataSource.getRepository(DatasetEntity);
   const dataset = repo.create({
     id: uuidv7(),
-    slug,
-    name: `Name ${slug}`,
+    name,
     created_by: 'tests',
     gis_datatype: GISDataType.POINT,
     status: IngestionStatus.INGESTED,
     spatial_extent: getPolygonFromBbox(spatial_extent),
   });
-  await addSlug(slug, dataset.id, EntityType.DATASET);
   return await repo.save(dataset);
 };
 
