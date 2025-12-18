@@ -50,6 +50,9 @@ importers:
       express-openapi-validator:
         specifier: ^5.6.0
         version: 5.6.0(@types/json-schema@7.0.15)(express@5.1.0)
+      geojson-validation:
+        specifier: ^1.0.2
+        version: 1.0.2
       http-status-codes:
         specifier: ^2.3.0
         version: 2.3.0
@@ -2115,6 +2118,10 @@ packages:
 
   geojson-polygon-self-intersections@1.2.1:
     resolution: {integrity: sha512-/QM1b5u2d172qQVO//9CGRa49jEmclKEsYOQmWP9ooEjj63tBM51m2805xsbxkzlEELQ2REgTf700gUhhlegxA==}
+
+  geojson-validation@1.0.2:
+    resolution: {integrity: sha512-K5jrJ4wFvORn2pRKeg181LL0QPYuEKn2KHPvfH1m2QtFlAXFLKdseqt0XwBM3ELOY7kNM1fglRQ6ZwUQZ5S00A==}
+    hasBin: true
 
   get-caller-file@2.0.5:
     resolution: {integrity: sha512-DyFP3BM/3YHTQOCUL/w0OZHR0lpKeGrxotcHWcqNEdnltqFwXVfhEBQ94eIo34AfQpo0rGki4cyIiftY06h2Fg==}
@@ -7130,6 +7137,8 @@ snapshots:
   geojson-polygon-self-intersections@1.2.1:
     dependencies:
       rbush: 2.0.2
+
+  geojson-validation@1.0.2: {}
 
   get-caller-file@2.0.5: {}
 

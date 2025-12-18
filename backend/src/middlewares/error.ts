@@ -1,6 +1,6 @@
-import { Request, Response } from 'express';
+import { NextFunction, Request, Response } from 'express';
 
-export const errorMiddleware = async (err: any, req: Request, res: Response) => {
+export const errorMiddleware = async (err: any, req: Request, res: Response, _: NextFunction) => {
   // Customize errors into RFC 7807 problem format
   const problemDetails = {
     title: err.name || 'Invalid request',
