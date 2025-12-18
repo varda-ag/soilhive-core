@@ -7,12 +7,13 @@ describe('mapFilteredDatasetToAvailabilityDataset adapter', () => {
     // Arrange
     const filteredDataset: FilteredDataset = {
       id: 'dataset-1',
+      name: 'dataset-name-1',
       dataset_layer_count: 0,
     };
 
     const expectedAvailabilityDataset: AvailabilityDataset = {
       id: 'dataset-1',
-      name: 'dataset-1',
+      name: 'dataset-name-1',
       views: '0',
       tags: [],
       properties: {
@@ -31,10 +32,11 @@ describe('mapFilteredDatasetToAvailabilityDataset adapter', () => {
     expect(actualAvailabilityDataset).toEqual(expectedAvailabilityDataset);
   });
 
-  it('shuold adapt valid object', () => {
+  it('should adapt valid object', () => {
     // Arrange
     const filteredDataset: FilteredDataset = {
       id: 'dataset-2',
+      name: 'dataset-name-2',
       dataset_layer_count: 10,
       min_depth: 10,
       max_depth: 20,
@@ -44,7 +46,7 @@ describe('mapFilteredDatasetToAvailabilityDataset adapter', () => {
 
     const expectedAvailabilityDataset: AvailabilityDataset = {
       id: 'dataset-2',
-      name: 'dataset-2',
+      name: 'dataset-name-2',
       views: '0',
       tags: [],
       properties: {

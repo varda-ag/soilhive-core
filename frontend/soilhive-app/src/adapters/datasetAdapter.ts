@@ -4,7 +4,7 @@ import type { FilteredDataset } from 'types/backend';
 export function mapFilteredDatasetToAvailabilityDataset(dataset: FilteredDataset): AvailabilityDataset {
   return {
     id: dataset.id,
-    name: dataset.id, // TODO: name will come
+    name: dataset.name, // TODO: name will come
     views: '0', // TODO: views not supported at the moment
     tags: [], // TODO: tags not supported at the moment
     properties: {
