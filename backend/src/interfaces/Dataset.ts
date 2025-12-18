@@ -24,8 +24,8 @@ export interface Dataset {
   variables_measured?: VariableMeasured[];
   spatial_resolution?: string;
   publication_date?: string;
-  reference_period_start?: Date;
-  reference_period_stop?: Date;
+  reference_period_start?: string;
+  reference_period_stop?: string;
   licenses?: string[];
   citation?: string;
   geographical_extent?: string;
