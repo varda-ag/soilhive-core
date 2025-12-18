@@ -106,7 +106,7 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
       for (const result of fetchedFilteredResults.results) {
         for (const dataset of result.datasets) {
           count++;
-          globalDataPoints += dataset.feature_count;
+          globalDataPoints += dataset.dataset_layer_count;
 
           if (dataset.min_depth !== undefined) {
             globalMinDepth = globalMinDepth === null ? dataset.min_depth : Math.min(globalMinDepth, dataset.min_depth);

@@ -7,7 +7,7 @@ describe('mapFilteredDatasetToAvailabilityDataset adapter', () => {
     // Arrange
     const filteredDataset: FilteredDataset = {
       id: 'dataset-1',
-      feature_count: 0,
+      dataset_layer_count: 0,
     };
 
     const expectedAvailabilityDataset: AvailabilityDataset = {
@@ -35,7 +35,7 @@ describe('mapFilteredDatasetToAvailabilityDataset adapter', () => {
     // Arrange
     const filteredDataset: FilteredDataset = {
       id: 'dataset-2',
-      feature_count: 10,
+      dataset_layer_count: 10,
       min_depth: 10,
       max_depth: 20,
       min_sampling_date: '2023',

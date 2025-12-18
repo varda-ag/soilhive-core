@@ -75,7 +75,7 @@ const MOCK_RESPONSE: PostDatasetFilterResponse = {
       datasets: [
         {
           id: 'dataset-1',
-          feature_count: 34546,
+          dataset_layer_count: 34546,
           min_depth: 0,
           max_depth: 60,
           min_sampling_date: '2012-01-01',
@@ -84,7 +84,7 @@ const MOCK_RESPONSE: PostDatasetFilterResponse = {
         },
         {
           id: 'dataset-2',
-          feature_count: 234546,
+          dataset_layer_count: 234546,
           min_depth: 0,
           max_depth: 60,
           min_sampling_date: '2006-01-01',
@@ -93,7 +93,7 @@ const MOCK_RESPONSE: PostDatasetFilterResponse = {
         },
         {
           id: 'dataset-3',
-          feature_count: 14546,
+          dataset_layer_count: 14546,
           min_depth: 0,
           max_depth: 60,
           min_sampling_date: '2014-01-01',

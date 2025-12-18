@@ -44,7 +44,7 @@ describe('useDatasetFetch hook', () => {
           datasets: [
             {
               id: 'dataset-id-1',
-              feature_count: 10,
+              dataset_layer_count: 10,
             },
           ],
         },
@@ -101,11 +101,11 @@ describe('useDatasetFetch hook', () => {
           datasets: [
             {
               id: 'dataset-id-2',
-              feature_count: 10,
+              dataset_layer_count: 10,
             },
             {
               id: 'dataset-id-3',
-              feature_count: 20,
+              dataset_layer_count: 20,
             },
           ],
         },
