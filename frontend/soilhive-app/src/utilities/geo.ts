@@ -175,7 +175,10 @@ export function largestPolygonInsideMultipolygon(feature: any) {
  * @returns true or false according to if the given point is contained in the feature collection or not
  */
 export function isPointInFeatureCollection(point: [number, number], featureCollection: any) {
-  console.assert(featureCollection?.type === 'FeatureCollection' && Array.isArray(featureCollection?.features), '"featureCollection" must be a valid feature collection');
+  console.assert(
+    featureCollection?.type === 'FeatureCollection' && Array.isArray(featureCollection?.features),
+    '"featureCollection" must be a valid feature collection',
+  );
   const [lng, lat] = point;
   return featureCollection.features.some((feature: any) => booleanPointInPolygon([lng, lat], feature));
 }
