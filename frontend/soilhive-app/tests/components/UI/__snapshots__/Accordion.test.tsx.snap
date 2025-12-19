@@ -1,0 +1,28 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`Accordion component renders with title and is closed by default 1`] = `
+<div>
+  <div
+    class="Accordion Primary"
+    data-testid="sh-ui-accordion"
+  >
+    <div
+      class="Header"
+      role="button"
+    >
+      <p
+        class="Title"
+      >
+        My Accordion
+         
+        <svg
+          class="ArrowIcon"
+          data-testid="svg-icon-mock"
+        >
+          mock-svg
+        </svg>
+      </p>
+    </div>
+  </div>
+</div>
+`;

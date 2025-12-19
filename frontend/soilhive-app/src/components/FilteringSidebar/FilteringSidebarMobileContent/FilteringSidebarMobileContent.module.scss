@@ -1,0 +1,19 @@
+@import 'styles/variables/breakpoints';
+
+.FilteringSidebarMobileContent {
+  display: flex;
+  flex-direction: column;
+
+  > .TabsWrapper {
+    padding: 0.4375rem 1rem 0.375rem;
+    background-color: var(--color-neutral-light);
+    box-shadow: inset var(--shadow-interface-large);
+
+    > .Tabs {
+      @media (min-width: $bp-tablet) {
+        max-width: 29.8rem;
+        margin: 0 auto;
+      }
+    }
+  }
+}
