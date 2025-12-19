@@ -30,24 +30,9 @@ describe('Homepage', () => {
     expect(container).toMatchSnapshot();
   });
 
-  it('opens DatasetsSidebar by clicking on the DatasetsButton homepage', () => {
-    __setIsDesktopLayout(true);
-    const { container } = render(<Homepage />);
-
-    expect(screen.getByTestId('mock-datasets-sidebar')).toHaveAttribute('data-opened', 'false');
-
-    const datasetsButton = container.querySelector('.DatasetsButton') as Element;
-    fireEvent.click(datasetsButton);
-
-    expect(datasetsButton).not.toBeInTheDocument();
-    expect(screen.getByTestId('mock-datasets-sidebar')).toHaveAttribute('data-opened', 'true');
-  });
-
   it('closes DatasetsSidebar by clicking on the close button in the sidebar', () => {
     __setIsDesktopLayout(true);
     const { container } = render(<Homepage />);
-
-    fireEvent.click(container.querySelector('.DatasetsButton') as Element);
 
     expect(screen.getByTestId('mock-datasets-sidebar')).toHaveAttribute('data-opened', 'true');
 
@@ -55,6 +40,20 @@ describe('Homepage', () => {
 
     expect(screen.getByTestId('mock-datasets-sidebar')).toHaveAttribute('data-opened', 'false');
     expect(container.querySelector('.DatasetsButton') as Element).toBeInTheDocument();
+  });
+
+  it('reopens DatasetsSidebar by clicking on the DatasetsButton homepage', () => {
+    __setIsDesktopLayout(true);
+    const { container } = render(<Homepage />);
+
+    expect(screen.getByTestId('mock-datasets-sidebar')).toHaveAttribute('data-opened', 'true');
+
+    fireEvent.click(screen.getByText('Close DatasetsSidebar'));
+    const datasetsButton = container.querySelector('.DatasetsButton') as Element;
+    fireEvent.click(datasetsButton);
+
+    expect(datasetsButton).not.toBeInTheDocument();
+    expect(screen.getByTestId('mock-datasets-sidebar')).toHaveAttribute('data-opened', 'true');
   });
 
   it('renders homepage on mobile', () => {

@@ -10,7 +10,6 @@ export function useFetchFilteredDatasets(filter?: DatasetFilter) {
 
   const fetchDatasets = useCallback(
     async (filter?: DatasetFilter) => {
-
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
