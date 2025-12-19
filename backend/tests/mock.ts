@@ -12,9 +12,20 @@ import { getPolygonFromBbox } from '../src/utils/geometry';
 import { getDataSource } from '../src/utils/data-source';
 import SlugHistoryEntity from '../src/entities/SlugHistory';
 import { EntityType, GISDataType, IngestionStatus } from '../src/types/data';
+import assert from 'assert';
 
 const randomInRange = (min: number, max: number): number => {
   return Math.random() * (max - min) + min;
+};
+
+export const syntheticDataOptions = {
+  id: 1,
+  spatial_extent: [0, 0, 1, 1],
+  featureCount: 1,
+  observationsPerLayer: 1,
+  depthLayers: 1,
+  soilPropertiesCount: 1,
+  addNullValues: false,
 };
 
 export const addSlug = async (slug: string, entity_id: string, entity_type: EntityType) => {
@@ -56,10 +67,10 @@ export const addLicense = async (name: string = 'test_license') => {
 
 export const addLayer = async (
   license: string,
-  sampling_date = new Date('2020-01-01'),
-  min_depth = 0,
-  max_depth = 100,
-  horizon = 'A',
+  sampling_date: Date | undefined = new Date('2020-01-01'),
+  min_depth: number | undefined = 0,
+  max_depth: number | undefined = 100,
+  horizon: string | undefined = 'A',
 ): Promise<LayerEntity> => {
   const dataSource = await getDataSource();
   const repo = dataSource.getRepository(LayerEntity);
@@ -129,13 +140,12 @@ export const addObservation = async (value: number, analytical_methodology_id: s
   return await repo.save(observation);
 };
 
-export const addSyntheticData = async (
-  id: number,
-  spatial_extent: number[],
-  featureCount: number,
-  observationsPerFeature: number,
-  depthLayers: number = 5,
-): Promise<DatasetEntity> => {
+export const addSyntheticData = async (syntheticDataOptions): Promise<DatasetEntity> => {
+  const { id, spatial_extent, featureCount, observationsPerLayer, soilPropertiesCount, depthLayers, addNullValues } = syntheticDataOptions;
+  assert(featureCount > 0, 'featureCount must be greater than 0');
+  assert(observationsPerLayer > 0, 'observationsPerLayer must be greater than 0');
+  assert(depthLayers > 0, 'depthLayers must be greater than 0');
+  assert(spatial_extent.length === 4, 'spatial_extent must be an array of 4 numbers [minX, minY, maxX, maxY]');
   const year = 2020 + id;
   const dataset = await addDataset(`test_dataset_${id}`, spatial_extent);
   dataset.soil_depth = { min: 0, max: depthLayers * 10 };
@@ -143,7 +153,10 @@ export const addSyntheticData = async (
   dataset.reference_period_stop = `${year}-12-31`;
   await dataset.save();
   const category = await addCategory(`test_category_${id}`);
-  const soilProperty = await addSoilProperty(`test_soil_property_${id}`, category.id);
+  const soilProperties: SoilPropertyEntity[] = [];
+  for (let i = 0; i < soilPropertiesCount; i++) {
+    soilProperties.push(await addSoilProperty(`test_soil_property_${id}`, category.id));
+  }
   const analyticalMethod = await addAnalyticalMethod(`test_analytical_method_${id}`);
   const license = await addLicense(`test_license_${id}`);
   const features: FeatureEntity[] = [];
@@ -156,11 +169,17 @@ export const addSyntheticData = async (
   }
   for (let depthLayer = 0; depthLayer < depthLayers; depthLayer++) {
     const depth = depthLayer * 10;
-    const layer = await addLayer(license.id, new Date(`${year}-01-01`), depth, depth + 10, 'A');
+    const layer = await addLayer(license.id, new Date(`${year}-01-01`), depth, depth + 10, `A${depthLayer}`);
     for (let i = 0; i < featureCount; i++) {
       const feature = features[i];
+      const soilProperty = soilProperties[i % soilPropertiesCount];
       const datasetLayer = await addDatasetLayer(dataset.id, layer.id, feature.id, soilProperty.id);
-      for (let j = 0; j < observationsPerFeature; j++) {
+      for (let j = 0; j < observationsPerLayer; j++) {
+        await addObservation(randomInRange(0, 100), analyticalMethod.id, datasetLayer.id);
+      }
+      if (addNullValues && depthLayer === 0 && i === 0) {
+        const layer = await addLayer(license.id, undefined, undefined, undefined, undefined);
+        const datasetLayer = await addDatasetLayer(dataset.id, layer.id, feature.id, soilProperty.id);
         await addObservation(randomInRange(0, 100), analyticalMethod.id, datasetLayer.id);
       }
     }
