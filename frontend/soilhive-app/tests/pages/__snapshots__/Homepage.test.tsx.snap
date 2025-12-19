@@ -8,6 +8,15 @@ exports[`Homepage renders homepage on desktop 1`] = `
     <div
       class="Content"
     >
+      <div
+        data-opened="false"
+        data-testid="mock-filtering-sidebar"
+      >
+        Mock FilteringSidebar
+        <button>
+          Close FilteringSidebar
+        </button>
+      </div>
       <div>
         Mock SoilhiveMap
       </div>
@@ -21,6 +30,23 @@ exports[`Homepage renders homepage on desktop 1`] = `
         </button>
       </div>
     </div>
+    <button
+      class="Button Custom Small FiltersButton"
+      data-testid="sh-ui-button"
+      type="button"
+    >
+      <svg
+        data-testid="svg-icon-mock"
+      >
+        mock-svg
+      </svg>
+       Filters 
+      <div
+        data-testid="mock-filters-counter"
+      >
+        Mock FiltersCounter
+      </div>
+    </button>
   </div>
 </div>
 `;
@@ -33,6 +59,15 @@ exports[`Homepage renders homepage on mobile 1`] = `
     <div
       class="Content"
     >
+      <div
+        data-opened="false"
+        data-testid="mock-filtering-sidebar"
+      >
+        Mock FilteringSidebar
+        <button>
+          Close FilteringSidebar
+        </button>
+      </div>
       <div>
         Mock SoilhiveMap
       </div>
@@ -47,7 +82,7 @@ exports[`Homepage renders homepage on mobile 1`] = `
       </div>
     </div>
     <div
-      class="MobileTabNavigation"
+      class="MobileTabNavigation Primary"
       data-testid="sh-ui-mobile-tab-navigation"
     >
       <div

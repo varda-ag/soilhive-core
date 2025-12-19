@@ -24,4 +24,15 @@
     font-size: var(--font-size-sm);
     padding: 0.625rem 1rem;
   }
+
+  .FiltersButton {
+    position: absolute;
+    top: 0.875rem;
+    left: 2rem;
+    background-color: var(--color-neutral-white);
+    border: 1px solid var(--color-neutral-dark-100);
+    border-radius: 1.25rem;
+    font-size: var(--font-size-sm);
+    padding: 0.625rem 1.125rem 0.625rem 1rem;
+  }
 }
