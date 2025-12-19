@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import type { StyleSpecification } from 'react-map-gl/maplibre';
 
-import SoilhiveMap from 'components/SoilhiveMap';
+import SoilhiveMap from 'components/Map/SoilhiveMap';
+// import SoilhiveSimpleMap from 'components/Map/SoilhiveSimpleMap';
 import { MAPBOX_ACCESS_TOKEN } from '../utilities/environmentVariables';
 import { AvailabilityProvider } from '../contexts/AvailabilityContext';
 import DatasetsIcon from 'assets/icons/paste-icon.svg?react';
@@ -51,7 +52,6 @@ function Homepage() {
             isOpened={isDesktopLayout ? isFiltersOpened : activeMobileTab === AVAILABILITY_MOBILE_TABS.FILTERS}
             onClose={() => setIsFiltersOpened(false)}
           />
-
           <SoilhiveMap
             initialViewBoundingBox={[6.6272658, 35.2889616, 18.7844746, 47.0921462]}
             showGeocoder={true}
@@ -64,6 +64,57 @@ function Homepage() {
               { name: 'OpenMap Tiles OSM Bright', mapStyle: 'https://openmaptiles.geo.data.gouv.fr/styles/osm-bright/style.json' },
             ]}
           />
+          {/* Example of usage of the soilhive sidebar map to be used in the future download preview page */}
+          {/* <SoilhiveSimpleMap
+            initialViewBoundingBox={[6.6272658, 35.2889616, 18.7844746, 47.0921462]}
+            showH3Cells={true}
+            showNavigation={true}
+            mapStyle={MAPBOX_SATELLITE_MAP_STYLE}
+            selectedPoint={[10.522015854087698, 44.441902924546724]}
+            selectedFeature={{
+              type: 'FeatureCollection',
+              features: [
+                {
+                  geometry: {
+                    type: 'Polygon',
+                    coordinates: [
+                      [
+                        [9.66796875, 44.9375850039109],
+                        [10.404052734375, 45.31352900692258],
+                        [11.2060546875, 45.06964120886863],
+                        [11.260986328125, 44.45338880030178],
+                        [10.52490234375, 44.083639282846434],
+                        [9.73388671875, 44.323848072506905],
+                        [9.66796875, 44.9375850039109],
+                      ],
+                    ],
+                  },
+                  type: 'Feature',
+                  properties: {
+                    h3Index: '831ea6fffffffff',
+                  },
+                  id: '831ea6fffffffff',
+                  layer: {
+                    id: 'data-fills',
+                    type: 'fill',
+                    source: 'data',
+                    paint: {
+                      'fill-color': {
+                        r: 0.9607843137254902,
+                        g: 0.6980392156862745,
+                        b: 0,
+                        a: 1,
+                      },
+                      'fill-opacity': 0,
+                    },
+                    layout: {},
+                  },
+                  source: 'data',
+                  state: {},
+                },
+              ],
+            }}
+          /> */}
           <DatasetsSidebar
             isOpened={isDesktopLayout ? isDatasetsOpened : activeMobileTab === AVAILABILITY_MOBILE_TABS.DATASETS}
             onClose={() => setIsDatasetsOpened(false)}
