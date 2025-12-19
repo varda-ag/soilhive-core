@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import Homepage from '../../src/pages/Homepage';
 import { __setIsDesktopLayout } from 'hooks/useDevice';
 
-jest.mock('components/SoilhiveMap', () => {
+jest.mock('components/Map/SoilhiveMap', () => {
   // Define the mock component with a name
   const MockSoilhiveMap = () => <div>Mock SoilhiveMap</div>;
 
