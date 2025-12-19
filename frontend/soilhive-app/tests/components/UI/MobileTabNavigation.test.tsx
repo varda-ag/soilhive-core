@@ -10,13 +10,26 @@ const mockConfig = [
 ];
 
 describe('MobileTabNavigation component', () => {
-  it('renders all tabs', () => {
+  it('renders all tabs with primary styles by default', () => {
     const { container } = render(<MobileTabNavigation config={mockConfig} active="tab1" onChange={() => {}} />);
 
     expect(screen.getByText('Tab 1')).toBeInTheDocument();
     expect(screen.getByText('Tab 2')).toBeInTheDocument();
     expect(screen.getByText('Tab 3')).toBeInTheDocument();
+    expect(screen.getByTestId('sh-ui-mobile-tab-navigation')).toHaveClass('Primary');
     expect(container).toMatchSnapshot();
+  });
+
+  it('renders secondary type tabs', () => {
+    render(<MobileTabNavigation config={mockConfig} type="secondary" active="tab1" onChange={() => {}} />);
+
+    expect(screen.getByTestId('sh-ui-mobile-tab-navigation')).toHaveClass('Secondary');
+  });
+
+  it('accepts additional className', () => {
+    render(<MobileTabNavigation config={mockConfig} className="testClass" active="tab1" onChange={() => {}} />);
+
+    expect(screen.getByTestId('sh-ui-mobile-tab-navigation')).toHaveClass('testClass');
   });
 
   it('renders icons when provided', () => {

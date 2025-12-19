@@ -2,6 +2,7 @@ import { Signer } from '@aws-sdk/rds-signer';
 import { fromNodeProviderChain } from '@aws-sdk/credential-providers';
 import { readFileSync } from 'fs';
 import assert from 'assert';
+import path from 'path';
 
 let cachedToken = '';
 let tokenExpiry = 0;
@@ -41,7 +42,6 @@ export const getDBPassword = async () => {
 
 export const getSSL = () => {
   // Certificate downloaded from: https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem
-  // TODO: include global-bundle.pem in the final build directory and use `const bundleFile = path.join(__dirname, "global-bundle.pem");` instead
-  const bundleFile = '/app/src/utils/global-bundle.pem';
+  const bundleFile = path.join(__dirname, '..', 'assets', 'global-bundle.pem');
   return { ca: readFileSync(bundleFile, 'utf8') };
 };

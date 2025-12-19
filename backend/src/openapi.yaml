@@ -3,8 +3,8 @@ info:
   title: SoilHive core API
   version: 1.0.0
 servers:
-  - url: /
   - url: /v1
+  - url: /
 
 paths:
   /auth/config:
@@ -498,12 +498,13 @@ components:
             id:
               type: string
               description: Dataset identifier
-            feature_count:
+            dataset_layer_count:
               type: integer
               description: Number of features matching the filter in this dataset
           required:
             - id
-            - feature_count
+            - name
+            - dataset_layer_count
 
     PostDatasetFilterResponse:
       allOf:

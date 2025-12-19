@@ -5,7 +5,7 @@ import { AwsS3StorageAdapter } from '@flystorage/aws-s3';
 import { LocalStorageAdapter } from '@flystorage/local-fs';
 import { FlystorageMulterStorageEngine } from '@flystorage/multer-storage';
 import { LocalStorageConfig, S3StorageConfig, StorageConfig } from '../interfaces/StorageConfig';
-import { StorageModes } from '../types/types';
+import { StorageModes } from '../types/enums';
 import ConfigService from './ConfigService';
 import { LOGO_FILE_ID } from '../constants/constants';
 
@@ -59,7 +59,7 @@ export default class FileService {
       }
       case StorageModes.S3: {
         const s3Config = config.config as S3StorageConfig;
-        const s3Client = new S3Client({ region: s3Config.region });
+        const s3Client = new S3Client({ region: s3Config.region }) as any;
         adapter = new AwsS3StorageAdapter(s3Client, {
           bucket: s3Config.bucketName,
           ...(s3Config.rootFolder ? { prefix: s3Config.rootFolder } : {}),

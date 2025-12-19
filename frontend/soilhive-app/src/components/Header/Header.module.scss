@@ -1,17 +1,19 @@
+@import 'styles/variables/breakpoints';
+
 .header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 0 2rem;
-  height: 55px; 
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  height: 55px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 
-  @media (max-width: 768px) {
+  @media (max-width: $bp-mobile-max) {
     height: 50px;
     padding-top: 0.2rem;
     padding-left: 0.6rem;
     padding-right: 0.6rem;
-    justify-content: flex-end
+    justify-content: flex-end;
   }
 }
 
@@ -39,22 +41,22 @@
     &:hover,
     &:active,
     &:focus {
-      color: #000000; 
+      color: #000000;
     }
 
     .linkText {
-        padding: 0 0.75rem 0.4rem 0.75rem;
-        border-bottom: 0.5rem solid transparent;
+      padding: 0 0.75rem 0.4rem 0.75rem;
+      border-bottom: 0.5rem solid transparent;
     }
 
-    @media (max-width: 768px) {
-      display: none; 
+    @media (max-width: $bp-mobile-max) {
+      display: none;
     }
   }
 
   .active {
     .linkText {
-        border-bottom-color: var(--color-brand-yellow-900); // Orange color
+      border-bottom-color: var(--color-brand-yellow-900); // Orange color
     }
   }
 }
@@ -71,8 +73,7 @@
   align-items: center;
   justify-content: center;
 
-  @media (max-width: 768px) {
+  @media (max-width: $bp-mobile-max) {
     display: flex;
   }
 }
-

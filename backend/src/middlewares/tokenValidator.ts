@@ -4,7 +4,7 @@ import jwksClient from 'jwks-rsa';
 import { ErrorResponse } from '../utils/error';
 import StatusCodes from 'http-status-codes';
 import { Token } from '../interfaces/Token';
-import { AuthModes, TokenScopes } from '../types/types';
+import { AuthModes, TokenScopes } from '../types/enums';
 import assert from 'assert';
 import { AuthConfig } from '../interfaces/AuthConfig';
 import ConfigService from '../services/ConfigService';

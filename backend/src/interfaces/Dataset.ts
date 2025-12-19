@@ -1,5 +1,5 @@
 import type { Polygon } from 'geojson';
-import type { GISDataTypeType, IngestionStatusType } from '../types/data';
+import { GISDataType, IngestionStatus } from '../types/data';
 
 export interface VariableMeasured {
   description: string;
@@ -24,17 +24,17 @@ export interface Dataset {
   variables_measured?: VariableMeasured[];
   spatial_resolution?: string;
   publication_date?: string;
-  reference_period_start?: Date;
-  reference_period_stop?: Date;
+  reference_period_start?: string;
+  reference_period_stop?: string;
   licenses?: string[];
   citation?: string;
   geographical_extent?: string;
-  gis_datatype?: GISDataTypeType;
+  gis_datatype?: GISDataType;
   spatial_extent: Polygon;
   n_observations?: string;
   n_raster_layers?: number;
   soil_depth?: object;
-  status: IngestionStatusType;
+  status: IngestionStatus;
   created_at: Date;
   updated_at: Date | null;
   created_by: string;

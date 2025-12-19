@@ -1,92 +1,94 @@
+@import 'styles/variables/breakpoints';
+
 .DatasetsFilters {
-    position: relative;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding-bottom: .75rem;
-    border-bottom: 1px solid var(--color-neutral-dark-100);
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--color-neutral-dark-100);
 
-    @media (min-width: 768px) and  (max-width: 1023px) {
-        justify-content: center;
-        gap: .75rem;
+  @media (min-width: $bp-tablet) and (max-width: $bp-tablet-max) {
+    justify-content: center;
+    gap: 0.75rem;
+  }
+
+  > .Search {
+    width: calc(100% - 4.75rem);
+
+    @media (min-width: $bp-tablet) and (max-width: $bp-tablet-max) {
+      width: 15.25rem;
     }
 
-    > .Search {
-        width: calc(100% - 4.75rem);
+    @media (min-width: $bp-desktop) {
+      width: 11.875rem;
+    }
+  }
 
-        @media (min-width: 768px) and  (max-width: 1023px) {
-            width: 15.25rem;
-        }
-        
-        @media (min-width: 1024px) {
-            width: 11.875rem;
-        }
+  > .FilterButton {
+    background-color: transparent;
+    padding: 0.25rem 0.75rem 0.25rem 0.375rem;
+    font-weight: var(--font-weight-regular);
+    font-size: var(--font-size-xs);
+    gap: 0.125rem;
+  }
+  > .FilterMenu {
+    position: absolute;
+    top: calc(100% - 0.25rem);
+    right: 0;
+    width: 16.375rem;
+    border: 1px solid var(--color-neutral-dark-300);
+    border-radius: 0.5rem;
+    box-shadow: var(--shadow-interface);
+    background-color: var(--color-neutral-white);
+    z-index: 1;
+
+    @media (min-width: $bp-desktop) {
+      left: 0;
+      right: auto;
     }
 
-    > .FilterButton {
-        background-color: transparent;
-        padding: .25rem .75rem .25rem .375rem;
-        font-weight: var(--font-weight-regular);
-        font-size: var(--font-size-xs);
-        gap: .125rem;
-    }
-    > .FilterMenu {
+    > .FilterHeader {
+      border-radius: 0.5rem 0.5rem 0 0;
+      position: relative;
+      padding: 0.375rem 1rem;
+      font-size: var(--font-size-sm);
+      background-color: var(--color-neutral-dark-300);
+
+      > .CloseIcon {
         position: absolute;
-        top: calc(100% - .25rem);
-        right: 0;
-        width: 16.375rem;
-        border: 1px solid var(--color-neutral-dark-300);
-        border-radius: .5rem;
-        box-shadow: var(--shadow-interface);
-        background-color: var(--color-neutral-white);
-        z-index: 1;
-
-        @media (min-width: 1024px) {
-            left: 0;
-            right: auto;
-        }
-
-        > .FilterHeader {
-            border-radius: .5rem .5rem 0 0;
-            position: relative;
-            padding: .375rem 1rem;
-            font-size: var(--font-size-sm);
-            background-color: var(--color-neutral-dark-300);
-
-            > .CloseIcon {
-                position: absolute;
-                top: .375rem;
-                right: .375rem;
-                cursor: pointer;
-            }
-        }
-
-        > .FilterBody {
-            padding: .625rem 1rem 1.25rem;
-
-            > .ClearWrapper {
-                display: flex;
-                justify-content: flex-end;
-                margin-bottom: .25rem;
-
-                > .Clear {
-                    font-size: var(--font-size-xs);
-                    color: var(--color-accent-danger-1000);
-                    cursor: pointer;
-                }
-            }
-
-            > .Inputs {
-                display: flex;
-                flex-direction: column;
-                gap: 1rem;
-
-                > .Dropdown {
-                    width: 100%;
-                    color: var(--color-neutral-dark-600);
-                    font-size: var(--font-size-xs);
-                }
-            }
-        }
+        top: 0.375rem;
+        right: 0.375rem;
+        cursor: pointer;
+      }
     }
+
+    > .FilterBody {
+      padding: 0.625rem 1rem 1.25rem;
+
+      > .ClearWrapper {
+        display: flex;
+        justify-content: flex-end;
+        margin-bottom: 0.25rem;
+
+        > .Clear {
+          font-size: var(--font-size-xs);
+          color: var(--color-accent-danger-1000);
+          cursor: pointer;
+        }
+      }
+
+      > .Inputs {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+
+        > .Dropdown {
+          width: 100%;
+          color: var(--color-neutral-dark-600);
+          font-size: var(--font-size-xs);
+        }
+      }
+    }
+  }
 }

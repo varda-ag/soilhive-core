@@ -1,7 +1,7 @@
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
 import { AuthConfig } from '../interfaces/AuthConfig';
-import { AuthModes, TokenScopes } from '../types/types';
+import { AuthModes, TokenScopes } from '../types/enums';
 import ConfigService from './ConfigService';
 import { ErrorResponse } from '../utils/error';
 import { StatusCodes } from 'http-status-codes';

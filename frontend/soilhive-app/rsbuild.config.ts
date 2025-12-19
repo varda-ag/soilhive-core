@@ -29,6 +29,8 @@ export default defineConfig({
       components: './src/components',
       hooks: './src/hooks',
       types: './src/types',
+      styles: './src/styles',
+      adapters: './src/adapters'
     },
   },
   plugins: [pluginReact(), pluginSass(), pluginSvgr()],

@@ -3,7 +3,7 @@
 exports[`AvailabilityMobileNavigation component renders all three mobile navigation tabs 1`] = `
 <div>
   <div
-    class="MobileTabNavigation"
+    class="MobileTabNavigation Primary"
     data-testid="sh-ui-mobile-tab-navigation"
   >
     <div

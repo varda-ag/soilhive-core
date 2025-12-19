@@ -23,6 +23,19 @@ jest.mock('components/DatasetsSidebar/DatasetsSidebar', () => ({
   ),
 }));
 
+jest.mock('components/FilteringSidebar/FilteringSidebar', () => ({
+  FilteringSidebar: ({ onClose, isOpened }: any) => (
+    <div data-testid="mock-filtering-sidebar" data-opened={isOpened}>
+      Mock FilteringSidebar
+      <button onClick={onClose}>Close FilteringSidebar</button>
+    </div>
+  ),
+}));
+
+jest.mock('components/FilteringSidebar/FiltersCounter/FiltersCounter', () => ({
+  FiltersCounter: () => <div data-testid="mock-filters-counter">Mock FiltersCounter</div>,
+}));
+
 describe('Homepage', () => {
   it('renders homepage on desktop', () => {
     __setIsDesktopLayout(true);
@@ -30,24 +43,9 @@ describe('Homepage', () => {
     expect(container).toMatchSnapshot();
   });
 
-  it('opens DatasetsSidebar by clicking on the DatasetsButton homepage', () => {
-    __setIsDesktopLayout(true);
-    const { container } = render(<Homepage />);
-
-    expect(screen.getByTestId('mock-datasets-sidebar')).toHaveAttribute('data-opened', 'false');
-
-    const datasetsButton = container.querySelector('.DatasetsButton') as Element;
-    fireEvent.click(datasetsButton);
-
-    expect(datasetsButton).not.toBeInTheDocument();
-    expect(screen.getByTestId('mock-datasets-sidebar')).toHaveAttribute('data-opened', 'true');
-  });
-
   it('closes DatasetsSidebar by clicking on the close button in the sidebar', () => {
     __setIsDesktopLayout(true);
     const { container } = render(<Homepage />);
-
-    fireEvent.click(container.querySelector('.DatasetsButton') as Element);
 
     expect(screen.getByTestId('mock-datasets-sidebar')).toHaveAttribute('data-opened', 'true');
 
@@ -55,6 +53,47 @@ describe('Homepage', () => {
 
     expect(screen.getByTestId('mock-datasets-sidebar')).toHaveAttribute('data-opened', 'false');
     expect(container.querySelector('.DatasetsButton') as Element).toBeInTheDocument();
+  });
+
+  it('reopens DatasetsSidebar by clicking on the DatasetsButton homepage', () => {
+    __setIsDesktopLayout(true);
+    const { container } = render(<Homepage />);
+
+    expect(screen.getByTestId('mock-datasets-sidebar')).toHaveAttribute('data-opened', 'true');
+
+    fireEvent.click(screen.getByText('Close DatasetsSidebar'));
+    const datasetsButton = container.querySelector('.DatasetsButton') as Element;
+    fireEvent.click(datasetsButton);
+
+    expect(datasetsButton).not.toBeInTheDocument();
+    expect(screen.getByTestId('mock-datasets-sidebar')).toHaveAttribute('data-opened', 'true');
+  });
+
+  it('opens FilteringSidebar by clicking on the FiltersButton homepage', () => {
+    __setIsDesktopLayout(true);
+    const { container } = render(<Homepage />);
+
+    expect(screen.getByTestId('mock-filtering-sidebar')).toHaveAttribute('data-opened', 'false');
+
+    const filtersButton = container.querySelector('.FiltersButton') as Element;
+    fireEvent.click(filtersButton);
+
+    expect(filtersButton).not.toBeInTheDocument();
+    expect(screen.getByTestId('mock-filtering-sidebar')).toHaveAttribute('data-opened', 'true');
+  });
+
+  it('closes FilteringSidebar by clicking on the close button in the sidebar', () => {
+    __setIsDesktopLayout(true);
+    const { container } = render(<Homepage />);
+
+    fireEvent.click(container.querySelector('.FiltersButton') as Element);
+
+    expect(screen.getByTestId('mock-filtering-sidebar')).toHaveAttribute('data-opened', 'true');
+
+    fireEvent.click(screen.getByText('Close FilteringSidebar'));
+
+    expect(screen.getByTestId('mock-filtering-sidebar')).toHaveAttribute('data-opened', 'false');
+    expect(container.querySelector('.FiltersButton') as Element).toBeInTheDocument();
   });
 
   it('renders homepage on mobile', () => {

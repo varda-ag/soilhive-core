@@ -1,3 +1,79 @@
+## [0.9.1](https://github.com/varda-ag/soilhive-core/compare/v0.9.0...v0.9.1) (2025-12-19)
+
+## [0.9.0](https://github.com/varda-ag/soilhive-core/compare/v0.8.2...v0.9.0) (2025-12-19)
+
+
+### Features
+
+* SP-4703 - filtering panel part 1 ([#76](https://github.com/varda-ag/soilhive-core/issues/76)) ([8e4ee28](https://github.com/varda-ag/soilhive-core/commit/8e4ee286aeeeeebd3ff280de34167060e2dcea64))
+
+## [0.8.2](https://github.com/varda-ag/soilhive-core/compare/v0.8.1...v0.8.2) (2025-12-19)
+
+## [0.8.1](https://github.com/varda-ag/soilhive-core/compare/v0.8.0...v0.8.1) (2025-12-19)
+
+## [0.8.0](https://github.com/varda-ag/soilhive-core/compare/v0.7.1...v0.8.0) (2025-12-18)
+
+
+### Features
+
+* **data:** :sparkles: Added sampling date filtering ([#74](https://github.com/varda-ag/soilhive-core/issues/74)) ([cb25ed2](https://github.com/varda-ag/soilhive-core/commit/cb25ed273da51e577c9c600d9be6cc62c4feb73f))
+
+## [0.7.1](https://github.com/varda-ag/soilhive-core/compare/v0.7.0...v0.7.1) (2025-12-18)
+
+## [0.7.0](https://github.com/varda-ag/soilhive-core/compare/v0.6.1...v0.7.0) (2025-12-18)
+
+
+### Features
+
+* **data:** :construction: Supporting some data filters ([#71](https://github.com/varda-ag/soilhive-core/issues/71)) ([ec31699](https://github.com/varda-ag/soilhive-core/commit/ec316999b137872bd7784c69e40b9b0fe31473da))
+
+## [0.6.1](https://github.com/varda-ag/soilhive-core/compare/v0.6.0...v0.6.1) (2025-12-18)
+
+## [0.6.0](https://github.com/varda-ag/soilhive-core/compare/v0.5.1...v0.6.0) (2025-12-18)
+
+
+### Features
+
+* **UI - datasets:** SP-4718 update dataset panel according to backend reply ([c4f7b98](https://github.com/varda-ag/soilhive-core/commit/c4f7b988399d812bc768f0b72a12bdc72f2e3472))
+
+## [0.5.1](https://github.com/varda-ag/soilhive-core/compare/v0.5.0...v0.5.1) (2025-12-18)
+
+## [0.5.0](https://github.com/varda-ag/soilhive-core/compare/v0.4.4...v0.5.0) (2025-12-18)
+
+
+### Features
+
+* SP-4663 Disabled map wrapping and restricted min and max zoom levels ([#68](https://github.com/varda-ag/soilhive-core/issues/68)) ([6ee69af](https://github.com/varda-ag/soilhive-core/commit/6ee69afc3cfdf252d34572e5e1dd99813f4b3d72))
+
+## [0.4.4](https://github.com/varda-ag/soilhive-core/compare/v0.4.3...v0.4.4) (2025-12-17)
+
+## [0.4.3](https://github.com/varda-ag/soilhive-core/compare/v0.4.2...v0.4.3) (2025-12-16)
+
+## [0.4.2](https://github.com/varda-ag/soilhive-core/compare/v0.4.1...v0.4.2) (2025-12-15)
+
+
+### Bug Fixes
+
+* :rocket: Fixing type and extension schema location ([#63](https://github.com/varda-ag/soilhive-core/issues/63)) ([66e0a8e](https://github.com/varda-ag/soilhive-core/commit/66e0a8e7f34d8ea96904ade3a2180c4ad1695484))
+
+## [0.4.1](https://github.com/varda-ag/soilhive-core/compare/v0.4.0...v0.4.1) (2025-12-15)
+
+
+### Bug Fixes
+
+* :rocket: Fixing global-bundle location, OpenAPI servers ([#61](https://github.com/varda-ag/soilhive-core/issues/61)) ([cd9b725](https://github.com/varda-ag/soilhive-core/commit/cd9b725bfaa555fba0c8c2480eadc6b77f5e065f))
+
+## [0.4.0](https://github.com/varda-ag/soilhive-core/compare/v0.3.2...v0.4.0) (2025-12-15)
+
+
+### Features
+
+* SP-4713 - css variables-for-mobile-tablet-breakpoints ([#62](https://github.com/varda-ag/soilhive-core/issues/62)) ([eacc074](https://github.com/varda-ag/soilhive-core/commit/eacc074b64a55eae9afd7b5b510e51cf7fb3c64a))
+
+## [0.3.2](https://github.com/varda-ag/soilhive-core/compare/v0.3.1...v0.3.2) (2025-12-15)
+
+## [0.3.1](https://github.com/varda-ag/soilhive-core/compare/v0.3.0...v0.3.1) (2025-12-12)
+
 ## [0.3.0](https://github.com/varda-ag/soilhive-core/compare/v0.2.6...v0.3.0) (2025-12-12)
 
 
