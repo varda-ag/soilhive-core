@@ -1,0 +1,63 @@
+.Accordion {
+  &.Opened {
+    padding-bottom: 0;
+    > .Header {
+      padding-bottom: 0.4375rem;
+
+      .ArrowIcon {
+        transform: rotate(-180deg);
+      }
+    }
+
+    &.Primary {
+      > .Header {
+        border-bottom: 1px solid var(--color-neutral-dark-100);
+      }
+    }
+  }
+
+  > .Header {
+    padding: 0 0.875rem;
+    cursor: pointer;
+
+    .Title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.375rem;
+      font-size: var(--font-size-sm);
+    }
+  }
+
+  &.Primary {
+    background-color: var(--color-neutral-light);
+    border-radius: 0.5rem;
+    padding: 0.5625rem 0;
+    border: 1px solid var(--color-neutral-dark-300);
+
+    > .Header {
+      font-weight: var(--font-weight-bold);
+      text-transform: uppercase;
+    }
+  }
+
+  &.Secondary {
+    > .Header {
+      > .Title {
+        padding: 0.5625rem 0;
+        border-bottom: 1px dashed var(--color-neutral-dark-100);
+      }
+      .ArrowIcon {
+        color: var(--color-primary);
+      }
+    }
+
+    &:last-of-type {
+      > .Header {
+        > .Title {
+          border-bottom: none;
+        }
+      }
+    }
+  }
+}

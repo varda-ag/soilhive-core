@@ -5,8 +5,11 @@ import SoilhiveMap from 'components/SoilhiveMap';
 import { MAPBOX_ACCESS_TOKEN } from '../utilities/environmentVariables';
 import { AvailabilityProvider } from '../contexts/AvailabilityContext';
 import DatasetsIcon from 'assets/icons/paste-icon.svg?react';
+import FiltersIcon from 'assets/icons/filter2-icon.svg?react';
 import { Button } from 'components/UI';
 import { DatasetsSidebar } from 'components/DatasetsSidebar/DatasetsSidebar';
+import { FilteringSidebar } from 'components/FilteringSidebar/FilteringSidebar';
+import { FiltersCounter } from 'components/FilteringSidebar/FiltersCounter/FiltersCounter';
 import {
   AVAILABILITY_MOBILE_TABS,
   AvailabilityMobileNavigation,
@@ -36,6 +39,7 @@ const MAPBOX_SATELLITE_MAP_STYLE: StyleSpecification = {
 
 function Homepage() {
   const [isDatasetsOpened, setIsDatasetsOpened] = useState<boolean>(true);
+  const [isFiltersOpened, setIsFiltersOpened] = useState<boolean>(false);
   const [activeMobileTab, setActiveMobileTab] = useState<string>(DEFAULT_AVAILABILITY_MOBILE_TAB);
   const { isDesktopLayout } = useDevice();
 
@@ -43,6 +47,11 @@ function Homepage() {
     <AvailabilityProvider>
       <div className={styles.Homepage}>
         <div className={styles.Content}>
+          <FilteringSidebar
+            isOpened={isDesktopLayout ? isFiltersOpened : activeMobileTab === AVAILABILITY_MOBILE_TABS.FILTERS}
+            onClose={() => setIsFiltersOpened(false)}
+          />
+
           <SoilhiveMap
             initialViewBoundingBox={[6.6272658, 35.2889616, 18.7844746, 47.0921462]}
             showGeocoder={true}
@@ -60,6 +69,14 @@ function Homepage() {
             onClose={() => setIsDatasetsOpened(false)}
           />
         </div>
+
+        {isDesktopLayout && !isFiltersOpened && (
+          <Button className={styles.FiltersButton} type="custom" onClick={() => setIsFiltersOpened(true)}>
+            <>
+              <FiltersIcon /> Filters <FiltersCounter />
+            </>
+          </Button>
+        )}
 
         {isDesktopLayout && !isDatasetsOpened && (
           <Button className={styles.DatasetsButton} type="custom" onClick={() => setIsDatasetsOpened(true)}>
