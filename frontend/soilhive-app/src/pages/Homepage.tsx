@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { StyleSpecification } from 'react-map-gl/maplibre';
 
-import SoilhiveMap from 'components/SoilhiveMap';
+import SoilhiveMap from 'components/Map/SoilhiveMap';
 import { MAPBOX_ACCESS_TOKEN } from '../utilities/environmentVariables';
 import { AvailabilityProvider } from '../contexts/AvailabilityContext';
 import DatasetsIcon from 'assets/icons/paste-icon.svg?react';
