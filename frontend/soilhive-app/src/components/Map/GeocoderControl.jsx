@@ -2,9 +2,9 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useControl, Marker, Source, Layer } from 'react-map-gl/maplibre';
 import MaplibreGeocoder, { type MaplibreGeocoderApi, type MaplibreGeocoderOptions, type MaplibreGeocoderApiConfig } from '@maplibre/maplibre-gl-geocoder';
-import { MAPBOX_ACCESS_TOKEN } from '../utilities/environmentVariables';
+import { MAPBOX_ACCESS_TOKEN } from '../../utilities/environmentVariables';
 import { bbox as bboxFn, centerOfMass, featureCollection } from '@turf/turf';
-import { largestPolygonInsideMultipolygon as largestPolygonInsideMultipolygonFn } from '../utilities/geo';
+import { largestPolygonInsideMultipolygon as largestPolygonInsideMultipolygonFn } from '../../utilities/geo';
 
 type GeocoderControlProps = Omit<MaplibreGeocoderOptions, 'maplibregl' | 'marker'> & {
   marker?: boolean | Omit<MarkerProps, 'longitude' | 'latitude'>;

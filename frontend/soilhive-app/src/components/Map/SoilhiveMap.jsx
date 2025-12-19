@@ -4,16 +4,16 @@ import GeocoderControl from './GeocoderControl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import '@maplibre/maplibre-gl-geocoder/dist/maplibre-gl-geocoder.css';
 import '@watergis/maplibre-gl-terradraw/dist/maplibre-gl-terradraw.css'
-import '../styles/SoilhiveMap.scss';
-import Flower from '../assets/images/flower.svg?react';
+import '../../styles/SoilhiveMap.scss';
+import Flower from 'assets/images/flower.svg?react';
 import { polygonToCells } from 'h3-js';
-import { bBoxToH3Cells, h3IndexesToGeoJSONPolygons, isPointInFeatureCollection, largestPolygonInsideMultipolygon as largestPolygonInsideMultipolygonFn } from '../utilities/geo';
+import { bBoxToH3Cells, h3IndexesToGeoJSONPolygons, isPointInFeatureCollection, largestPolygonInsideMultipolygon as largestPolygonInsideMultipolygonFn } from '../../utilities/geo';
 import { area, bbox as bboxFn, bboxPolygon, centerOfMass, convertArea, round } from '@turf/turf';
-import { h3ResolutionForZoomLevel } from '../utilities/map';
-import DrawControl from './DrawControl';
+import { h3ResolutionForZoomLevel } from '../../utilities/map';
+import DrawControl from '../DrawControl';
 import SoilhiveMapToolbar from './SoilhiveMapToolbar';
 import SoilhiveMapSelectionToolbar from './SoilhiveMapSelectionToolbar';
-import {AvailabilityContext} from '../contexts/AvailabilityContext'
+import {AvailabilityContext} from '../../contexts/AvailabilityContext'
 
 type MapStyle = string | StyleSpecification | ImmutableLike<StyleSpecification>;
 type MapStyles = Array<{ name: string, mapStyle: MapStyle }>;

@@ -2,7 +2,7 @@
 import ResetIcon from 'assets/icons/small-reset-icon.svg?react';
 import MarkerIcon from 'assets/icons/small-marker-icon.svg?react';
 import PlusIcon from 'assets/icons/small-plus-icon.svg?react';
-import { Button } from './UI';
+import { Button } from '../UI';
 
 interface SoilhiveMapSelectionToolbarProps {
   area?: number;
