@@ -1,10 +1,10 @@
-import { Activity, useId, useRef, useState, useEffect, useContext, useCallback } from 'react';
-import { Map, NavigationControl, type MapGeoJSONFeature, type StyleSpecification, type ImmutableLike, type LayerProps, Popup, Source, Layer, useMap, Marker } from 'react-map-gl/maplibre';
+import { useRef, useState, useEffect, useCallback } from 'react';
+import { Map, NavigationControl, type MapGeoJSONFeature, type StyleSpecification, type ImmutableLike, type LayerProps, Source, Layer, Marker } from 'react-map-gl/maplibre';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import '../../styles/SoilhiveMap.scss';
-import { polygonToCells } from 'h3-js';
-import { bBoxToH3Cells, h3IndexesToGeoJSONPolygons, isPointInFeatureCollection, largestPolygonInsideMultipolygon as largestPolygonInsideMultipolygonFn } from '../../utilities/geo';
-import { area, bbox as bboxFn, bboxPolygon, centerOfMass, convertArea, round } from '@turf/turf';
+import Flower from 'assets/images/flower.svg?react';
+import { bBoxToH3Cells, h3IndexesToGeoJSONPolygons } from '../../utilities/geo';
+import { bbox as bboxFn, centerOfMass } from '@turf/turf';
 import { h3ResolutionForZoomLevel } from '../../utilities/map';
 
 type MapStyle = string | StyleSpecification | ImmutableLike<StyleSpecification>;
@@ -73,8 +73,6 @@ function SoilhiveSimpleMap({
     if(!selectedFeature) {
         return;
     }
-    const center = centerOfMass(selectedFeature);
-    const [lng, lat] = center.geometry.coordinates;                
     const bbox = bboxFn(selectedFeature);
     mapRef.current?.fitBounds(bbox, { padding: 40 });
   }, [selectedFeature])
