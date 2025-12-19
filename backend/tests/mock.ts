@@ -136,14 +136,16 @@ export const addSyntheticData = async (
   observationsPerFeature: number,
   depthLayers: number = 5,
 ): Promise<DatasetEntity> => {
+  const year = 2020 + id;
   const dataset = await addDataset(`test_dataset_${id}`, spatial_extent);
   dataset.soil_depth = { min: 0, max: depthLayers * 10 };
+  dataset.reference_period_start = `${year}-01-01`;
+  dataset.reference_period_stop = `${year}-12-31`;
   await dataset.save();
   const category = await addCategory(`test_category_${id}`);
   const soilProperty = await addSoilProperty(`test_soil_property_${id}`, category.id);
   const analyticalMethod = await addAnalyticalMethod(`test_analytical_method_${id}`);
   const license = await addLicense(`test_license_${id}`);
-  const year = 2020 + id;
   const features: FeatureEntity[] = [];
   for (let i = 0; i < featureCount; i++) {
     const feature = await addFeature(

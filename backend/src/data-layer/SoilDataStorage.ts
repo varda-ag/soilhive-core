@@ -34,12 +34,14 @@ export default class SoilDataStorage {
     geometry: Polygon | MultiPolygon,
     filters: FilterableDatasetMetadata,
   ): Promise<FilteredDataset[]> => {
+    const geom = JSON.stringify(geometry);
     const repo = entityManager.getRepository(DatasetLayerEntity);
     const query = await repo
       .createQueryBuilder('dataset_layers')
-      .innerJoin('dataset_layers.feature', 'features')
-      .where('ST_Intersects(features.geom, ST_GeomFromGeoJSON(:geom))', { geom: JSON.stringify(geometry) })
       .leftJoin('dataset_layers.dataset', 'ds')
+      .where('ST_Intersects(ds.spatial_extent, ST_GeomFromGeoJSON(:geom))', { geom }) // Testing intersection with entire dataset
+      .innerJoin('dataset_layers.feature', 'features')
+      .andWhere('ST_Intersects(features.geom, ST_GeomFromGeoJSON(:geom))', { geom }) // Testing intersection with individual features
       .select('dataset_layers.dataset_id', 'dataset_id')
       .addSelect('ds.name', 'dataset_name')
       .addSelect('COUNT(dataset_layers.dataset_id)', 'dataset_layer_count')
@@ -61,31 +63,48 @@ const applyFiltersToQuery = (query: any, filters: FilterableDatasetMetadata) => 
   if (filters.data_types && filters.data_types.length > 0) {
     query.andWhere('ds.gis_datatype IN (:...data_types)', { data_types: filters.data_types });
   }
-  if (filters.licenses && filters.licenses.length > 0) {
-    // TODO
-  }
   if (filters.min_sampling_date) {
-    // TODO
+    // TODO: consider NULL values
+    // We just need dataset to overlap with input interval
+    query.andWhere('ds.reference_period_stop >= :min_sampling_date', { min_sampling_date: filters.min_sampling_date });
+    // Filtering actual layers
+    query.leftJoin('dataset_layers.layer', 'layers_min_sampling_date');
+    query.andWhere("TO_CHAR(layers_min_sampling_date.sampling_date, 'YYYY-MM-DD') >= :min_sampling_date", {
+      min_sampling_date: filters.min_sampling_date,
+    });
   }
   if (filters.max_sampling_date) {
-    // TODO
+    // We just need dataset to overlap with input interval
+    query.andWhere('ds.reference_period_start <= :max_sampling_date', { max_sampling_date: filters.max_sampling_date });
+    // Filtering actual layers
+    query.leftJoin('dataset_layers.layer', 'layers_max_sampling_date'); // Note: join on the same table needs a different alias
+    query.andWhere("TO_CHAR(layers_max_sampling_date.sampling_date, 'YYYY-MM-DD') <= :max_sampling_date", {
+      max_sampling_date: filters.max_sampling_date,
+    });
   }
   if (filters.min_depth !== undefined) {
-    // We just need overlap with input interval
+    // TODO: consider NULL values
+    // We just need dataset to overlap with input interval
     query.andWhere("(ds.soil_depth->>'max')::int >= :min_depth", { min_depth: filters.min_depth });
+    // Filtering actual layers
     query.leftJoin('dataset_layers.layer', 'layers_min_depth');
-    query.where('layers_min_depth.max_depth >= :min_depth', { min_depth: filters.min_depth });
+    query.andWhere('layers_min_depth.max_depth >= :min_depth', { min_depth: filters.min_depth });
   }
   if (filters.max_depth !== undefined) {
-    // We just need overlap with input interval
+    // We just need dataset to overlap with input interval
     query.andWhere("(ds.soil_depth->>'min')::int <= :max_depth", { max_depth: filters.max_depth });
+    // Filtering actual layers
     query.leftJoin('dataset_layers.layer', 'layers_max_depth');
-    query.where('layers_max_depth.min_depth <= :max_depth', { max_depth: filters.max_depth });
+    query.andWhere('layers_max_depth.min_depth <= :max_depth', { max_depth: filters.max_depth });
   }
   if (filters.horizons && filters.horizons.length > 0) {
-    // TODO
+    query.leftJoin('dataset_layers.layer', 'layers_horizons');
+    query.andWhere('layers_horizons.horizon IN (:...horizons)', { horizons: filters.horizons });
   }
   if (filters.soil_properties && filters.soil_properties.length > 0) {
+    // TODO
+  }
+  if (filters.licenses && filters.licenses.length > 0) {
     // TODO
   }
   return query;
