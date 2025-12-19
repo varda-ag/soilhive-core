@@ -14,3 +14,11 @@ export type AvailabilityDataset = {
   tags: string[];
   properties: DatasetProperties;
 };
+
+export type DatasetSummary = {
+  count: number;
+  dataPoints: number;
+  layers: number;
+  depth: string;
+  date: string;
+};
