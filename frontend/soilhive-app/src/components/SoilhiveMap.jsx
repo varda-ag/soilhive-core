@@ -7,8 +7,8 @@ import '@watergis/maplibre-gl-terradraw/dist/maplibre-gl-terradraw.css'
 import '../styles/SoilhiveMap.scss';
 import Flower from '../assets/images/flower.svg?react';
 import { polygonToCells } from 'h3-js';
-import { bBoxToH3Cells, h3IndexesToGeoJSONPolygons, isPointInFeatureCollection } from '../utilities/geo';
-import { area, bbox, bboxPolygon, centerOfMass, convertArea, round } from '@turf/turf';
+import { bBoxToH3Cells, h3IndexesToGeoJSONPolygons, isPointInFeatureCollection, largestPolygonInsideMultipolygon as largestPolygonInsideMultipolygonFn } from '../utilities/geo';
+import { area, bbox as bboxFn, bboxPolygon, centerOfMass, convertArea, round } from '@turf/turf';
 import { h3ResolutionForZoomLevel } from '../utilities/map';
 import DrawControl from './DrawControl';
 import SoilhiveMapToolbar from './SoilhiveMapToolbar';
@@ -228,8 +228,23 @@ function SoilhiveMap({
                 type: 'FeatureCollection',
                 features: [geojson]
               });
+              if(geojson?.geometry?.type === 'MultiPolygon') {
+                const largestPolygonInsideMultiPolygon = largestPolygonInsideMultipolygonFn(geojson);
+                console.assert(largestPolygonInsideMultiPolygon !== null, 'A valid MultiPolygon should contain at least a Polygon');
+                // Used center of mass so it's guaranteed to be withing the polygon (good for concave shapes)
+                // if we use centroid for the geometric center it might fall outside concave shapes
+                const center = centerOfMass(largestPolygonInsideMultiPolygon);
+                const [lng, lat] = center.geometry.coordinates;                
+                const bbox = bboxFn(largestPolygonInsideMultiPolygon);
+                mapRef.current.fitBounds(bbox, { padding: 40 });
+                setSelectedPoint({ lng, lat });
+              } else {
+                const center = centerOfMass(geojson);
+                const [lng, lat] = center.geometry.coordinates;       
+                mapRef.current.fitBounds(bboxFn(geojson), { padding: 40 });
+                setSelectedPoint({ lng, lat });
+              }
               setShowSelectionToolbar(true);
-              mapRef.current.fitBounds(bbox(geojson), { padding: 40 });
             }}
           />
         </Activity>        
