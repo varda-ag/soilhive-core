@@ -2,9 +2,8 @@ import { useRef, useState, useEffect, useCallback } from 'react';
 import { Map, NavigationControl, type MapGeoJSONFeature, type StyleSpecification, type ImmutableLike, type LayerProps, Source, Layer, Marker } from 'react-map-gl/maplibre';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import '../../styles/SoilhiveMap.scss';
-import Flower from 'assets/images/flower.svg?react';
 import { bBoxToH3Cells, h3IndexesToGeoJSONPolygons } from '../../utilities/geo';
-import { bbox as bboxFn, centerOfMass } from '@turf/turf';
+import { bbox as bboxFn } from '@turf/turf';
 import { h3ResolutionForZoomLevel } from '../../utilities/map';
 
 type MapStyle = string | StyleSpecification | ImmutableLike<StyleSpecification>;
