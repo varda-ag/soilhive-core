@@ -42,7 +42,7 @@ export default class SoilPropertyEntity extends BaseTable implements SoilPropert
 
   @ManyToOne(() => SoilPropertyEntity, soil_property => soil_property.id, {
     deferrable: 'INITIALLY DEFERRED',
-    onDelete: 'SET NULL'
+    onDelete: 'SET NULL',
   })
   @JoinColumn({ name: 'parent_property_id' })
   parent_property: SoilPropertyEntity;

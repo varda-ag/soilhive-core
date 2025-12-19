@@ -5,7 +5,7 @@ import LayerEntity from '../src/entities/Layer';
 import SoilPropertyEntity from '../src/entities/SoilProperty';
 import SoilPropertyCategoryEntity from '../src/entities/SoilPropertyCategory';
 import DatasetLayerEntity from '../src/entities/DatasetLayer';
-import AnalyticalMethodEntity from '../src/entities/AnalyticalMethod';
+import ProcedureEntity from '../src/entities/Procedure';
 import ObservationEntity from '../src/entities/Observation';
 import LicenseEntity from '../src/entities/License';
 import { getPolygonFromBbox } from '../src/utils/geometry';
@@ -119,22 +119,21 @@ export const addDatasetLayer = async (dataset_id: string, layer_id: string, feat
   return await repo.save(datasetLayer);
 };
 
-export const addAnalyticalMethod = async (analytical_method: string = 'test_analytical_method') => {
+export const addProcedure = async (procedure: string = 'test_procedure') => {
   const dataSource = await getDataSource();
-  const repo = dataSource.getRepository(AnalyticalMethodEntity);
-  const analyticalMethod = repo.create({
-    analytical_method,
-    slug: analytical_method,
+  const repo = dataSource.getRepository(ProcedureEntity);
+  const newProcedure = repo.create({
+    sample_pretreatment: procedure,
   });
-  return await repo.save(analyticalMethod);
+  return await repo.save(newProcedure);
 };
 
-export const addObservation = async (value: number, analytical_methodology_id: string, dataset_layer_id: string) => {
+export const addObservation = async (value: number, procedure_id: string, dataset_layer_id: string) => {
   const dataSource = await getDataSource();
   const repo = dataSource.getRepository(ObservationEntity);
   const observation = repo.create({
     value,
-    analytical_methodology_id,
+    procedure_id,
     dataset_layer_id,
   });
   return await repo.save(observation);
@@ -157,7 +156,7 @@ export const addSyntheticData = async (syntheticDataOptions): Promise<DatasetEnt
   for (let i = 0; i < soilPropertiesCount; i++) {
     soilProperties.push(await addSoilProperty(`test_soil_property_${id}`, category.id));
   }
-  const analyticalMethod = await addAnalyticalMethod(`test_analytical_method_${id}`);
+  const procedure = await addProcedure(`test_procedure_${id}`);
   const license = await addLicense(`test_license_${id}`);
   const features: FeatureEntity[] = [];
   for (let i = 0; i < featureCount; i++) {
@@ -175,12 +174,12 @@ export const addSyntheticData = async (syntheticDataOptions): Promise<DatasetEnt
       const soilProperty = soilProperties[i % soilPropertiesCount];
       const datasetLayer = await addDatasetLayer(dataset.id, layer.id, feature.id, soilProperty.id);
       for (let j = 0; j < observationsPerLayer; j++) {
-        await addObservation(randomInRange(0, 100), analyticalMethod.id, datasetLayer.id);
+        await addObservation(randomInRange(0, 100), procedure.id, datasetLayer.id);
       }
       if (addNullValues && depthLayer === 0 && i === 0) {
         const layer = await addLayer(license.id, undefined, undefined, undefined, undefined);
         const datasetLayer = await addDatasetLayer(dataset.id, layer.id, feature.id, soilProperty.id);
-        await addObservation(randomInRange(0, 100), analyticalMethod.id, datasetLayer.id);
+        await addObservation(randomInRange(0, 100), procedure.id, datasetLayer.id);
       }
     }
   }

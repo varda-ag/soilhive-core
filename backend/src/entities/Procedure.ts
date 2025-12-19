@@ -23,6 +23,7 @@ export default class ProcedureEntity extends BaseTable implements Procedure {
   @Column({
     type: 'enum',
     enum: ProcedureTechnique,
+    nullable: true,
   })
   technique?: ProcedureTechnique;
 

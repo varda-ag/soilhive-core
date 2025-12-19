@@ -1,8 +1,8 @@
 #!/bin/bash
 if [ $# -ne 1 ]; then
-    echo "Usage: $0 <run|create>"
+    echo "Usage: $0 <run|generate>"
     echo "  run    - Executes the migrations"
-    echo "  create - Generates migration file"
+    echo "  generate - Generates migration file"
     exit 1
 fi
 
@@ -19,7 +19,7 @@ case "$1" in
         npm run typeorm migration:generate -- CreateSchema -d dist/utils/migrations-data-source.js
         ;;
     *)
-        echo "Error: Invalid option '$1'. Use 'run' or 'create'."
+        echo "Error: Invalid option '$1'. Use 'run' or 'generate'."
         exit 1
         ;;
 esac
