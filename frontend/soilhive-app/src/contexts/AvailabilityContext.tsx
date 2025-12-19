@@ -3,7 +3,7 @@ import React, { createContext, useState, type ReactNode, useCallback, useMemo } 
 import type { AvailabilityDataset, DatasetSummary } from 'types/availability';
 import { mapFilteredDatasetToAvailabilityDataset } from '../adapters';
 import type { DatasetFilter } from 'types/backend';
-import computeDatasetSummary from '../domain/computeDasetSummary';
+import { computeDatasetSummary } from '../domain';
 
 type DatasetFilters = {
   type: string[];

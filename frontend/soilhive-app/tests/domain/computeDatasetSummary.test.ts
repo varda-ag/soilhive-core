@@ -1,4 +1,4 @@
-import computeDatasetSummary from '../../src/domain/computeDasetSummary';
+import { computeDatasetSummary } from '../../src/domain/computeDatasetSummary';
 
 describe('computeDatasetSummary domain logic', () => {
   test.each([

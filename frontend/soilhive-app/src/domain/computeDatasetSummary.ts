@@ -1,7 +1,7 @@
 import type { DatasetSummary } from 'types/availability';
 import type { PostDatasetFilterResponse } from 'types/backend';
 
-export default function computeDatasetSummary(fetchedFilteredResults: PostDatasetFilterResponse | undefined): DatasetSummary {
+export function computeDatasetSummary(fetchedFilteredResults: PostDatasetFilterResponse | undefined): DatasetSummary {
   let globalDataPoints = 0;
   const globalLayers = 0;
   let globalMinDepth: number | null = null;
