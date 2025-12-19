@@ -8,7 +8,7 @@ export interface FilterableDatasetMetadata {
   max_sampling_date?: string;
   min_depth?: number;
   max_depth?: number;
-  horizons?: string[]; // Single-letter strings
+  horizons?: string[]; // Short strings
   soil_properties?: string[]; // UUIDs
   agroecological_zones?: string[];
   land_cover?: string[];

@@ -108,7 +108,7 @@ const applyFiltersToQuery = (query: any, filters: FilterableDatasetMetadata) => 
     // Each dataset can have multiple licenses, need to check that at least one matches
     // TODO: consider querying dataset.licenses
     query.leftJoin('dataset_layers.layer', 'layers_licenses');
-    query.andWhere('layers_licenses.license IN (:...licenses)', { horizons: filters.licenses });
+    query.andWhere('layers_licenses.license IN (:...licenses)', { licenses: filters.licenses });
   }
   return query;
 };
