@@ -2,7 +2,6 @@ import { Activity, useId, useRef, useState, useEffect, useContext, useCallback }
 import { Map, NavigationControl, type MapGeoJSONFeature, type StyleSpecification, type ImmutableLike, type LayerProps, Popup, Source, Layer, useMap, Marker } from 'react-map-gl/maplibre';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import '../../styles/SoilhiveMap.scss';
-import Flower from 'assets/images/flower.svg?react';
 import { polygonToCells } from 'h3-js';
 import { bBoxToH3Cells, h3IndexesToGeoJSONPolygons, isPointInFeatureCollection, largestPolygonInsideMultipolygon as largestPolygonInsideMultipolygonFn } from '../../utilities/geo';
 import { area, bbox as bboxFn, bboxPolygon, centerOfMass, convertArea, round } from '@turf/turf';
