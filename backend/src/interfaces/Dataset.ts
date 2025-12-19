@@ -4,10 +4,13 @@ import { GISDataType, IngestionStatus } from '../types/data';
 export interface VariableMeasured {
   description: string;
   soil_parameter: string;
-  analytical_tool?: string;
-  analytical_method?: string;
+  sample_pretreatment?: string;
+  technique?: string;
+  extractant_concentration?: string;
+  extraction_ratio?: string;
+  extraction_base?: string;
+  instrument?: string;
   limit_of_detection?: string;
-  reference_standard?: string;
   soil_parameter_code: string;
   unit_of_measurement: string;
 }

@@ -15,28 +15,28 @@ export default class DatasetLayerEntity extends BaseEntity {
   @Column({ type: 'uuid' })
   dataset_id: string;
 
-  @ManyToOne(() => DatasetEntity, dataset => dataset.id)
+  @ManyToOne(() => DatasetEntity, dataset => dataset.id, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'dataset_id' })
   dataset: DatasetEntity;
 
   @Column({ type: 'uuid' })
   layer_id: string;
 
-  @ManyToOne(() => LayerEntity, layer => layer.id)
+  @ManyToOne(() => LayerEntity, layer => layer.id, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'layer_id' })
   layer: LayerEntity;
 
   @Column({ type: 'uuid' })
   feature_id: string;
 
-  @ManyToOne(() => FeatureEntity, feature => feature.id)
+  @ManyToOne(() => FeatureEntity, feature => feature.id, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'feature_id' })
   feature: FeatureEntity;
 
   @Column({ type: 'uuid' })
   soil_property_id: string;
 
-  @ManyToOne(() => SoilPropertyEntity, soil_property => soil_property.id)
+  @ManyToOne(() => SoilPropertyEntity, soil_property => soil_property.id, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'soil_property_id' })
   soil_property: SoilPropertyEntity;
 }

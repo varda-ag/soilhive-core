@@ -96,7 +96,7 @@ BEFORE INSERT OR update of name ON datasets
 FOR EACH ROW EXECUTE PROCEDURE dataset_slug_generate_store_old();
 
 
-CREATE OR REPLACE FUNCTION analytical_method_slug_generate_store_old()
+CREATE OR REPLACE FUNCTION procedure_slug_generate_store_old()
   RETURNS trigger 
 as $$
   declare
@@ -109,7 +109,7 @@ as $$
     lv_new_slug := lv_base_slug;
 
 	-- Check if the slug already exists
-    WHILE EXISTS (SELECT 1 FROM analytical_methods WHERE slug = lv_new_slug) LOOP
+    WHILE EXISTS (SELECT 1 FROM procedures WHERE slug = lv_new_slug) LOOP
 	-- If it exists, append a number and increment
         lv_new_slug := lv_base_slug || '-' || lv_counter;
         lv_counter := lv_counter + 1;
@@ -124,7 +124,7 @@ $$ LANGUAGE plpgsql;
 
 
 CREATE TRIGGER analytical_method_slug
-BEFORE INSERT OR update ON analytical_methods
+BEFORE INSERT OR update ON procedures
 FOR EACH ROW EXECUTE PROCEDURE analytical_method_slug_generate_store_old();
 
 

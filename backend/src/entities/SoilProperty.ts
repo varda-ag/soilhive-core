@@ -42,6 +42,7 @@ export default class SoilPropertyEntity extends BaseTable implements SoilPropert
 
   @ManyToOne(() => SoilPropertyEntity, soil_property => soil_property.id, {
     deferrable: 'INITIALLY DEFERRED',
+    onDelete: 'SET NULL',
   })
   @JoinColumn({ name: 'parent_property_id' })
   parent_property: SoilPropertyEntity;
@@ -51,6 +52,7 @@ export default class SoilPropertyEntity extends BaseTable implements SoilPropert
 
   @ManyToOne(() => SoilPropertyCategoryEntity, soil_property_category => soil_property_category.id, {
     deferrable: 'INITIALLY DEFERRED',
+    onDelete: 'CASCADE',
   })
   @JoinColumn({ name: 'category_id' })
   soil_property_category: SoilPropertyCategoryEntity;

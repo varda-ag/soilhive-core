@@ -534,27 +534,39 @@ components:
           type: string
         soil_parameter:
           type: string
-        analytical_tool:
+        sample_pretreatment:
           type: string
-        analytical_method:
+          nullable: true
+        technique:
           type: string
+          nullable: true
+        extractant_formulation:
+          type: string
+          nullable: true
+        extractant_concentration:
+          type: string
+          nullable: true
+        extraction_ratio:
+          type: string
+          nullable: true
+        extraction_base:
+          type: string
+          nullable: true
+        instrument:
+          type: string
+          nullable: true
         limit_of_detection:
           type: string
-        reference_standard:
-          type: string
+          nullable: true
         soil_parameter_code:
           type: string
         unit_of_measurement:
           type: string
+          nullable: true
       required:
         - description
         - soil_parameter
-        - analytical_tool
-        - analytical_method
-        - limit_of_detection
-        - reference_standard
         - soil_parameter_code
-        - unit_of_measurement
 
     Dataset:
       type: object
