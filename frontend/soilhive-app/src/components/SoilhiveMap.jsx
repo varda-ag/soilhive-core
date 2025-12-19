@@ -1,4 +1,4 @@
-import { Activity, useId, useRef, useState, useContext } from 'react';
+import { Activity, useId, useRef, useState, useContext, useCallback } from 'react';
 import { GeolocateControl, Map, NavigationControl, ScaleControl, TerrainControl, type MapGeoJSONFeature, type StyleSpecification, type ImmutableLike, type LayerProps, Popup, Source, Layer, useMap } from 'react-map-gl/maplibre';
 import GeocoderControl from './GeocoderControl';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -7,7 +7,7 @@ import '@watergis/maplibre-gl-terradraw/dist/maplibre-gl-terradraw.css'
 import '../styles/SoilhiveMap.scss';
 import Flower from '../assets/images/flower.svg?react';
 import { polygonToCells } from 'h3-js';
-import { bBoxToH3Cells, h3IndexesToGeoJSONPolygons } from '../utilities/geo';
+import { bBoxToH3Cells, h3IndexesToGeoJSONPolygons, isPointInFeatureCollection } from '../utilities/geo';
 import { area, bbox, bboxPolygon, convertArea, round } from '@turf/turf';
 import { h3ResolutionForZoomLevel } from '../utilities/map';
 import DrawControl from './DrawControl';
@@ -178,7 +178,21 @@ function SoilhiveMap({
     }
     selectedFeatureRef.current = feature;
   }
-            
+
+  const onMapClick = useCallback((event) => {
+    const {lng, lat} = event.lngLat;
+    if(selection && isPointInFeatureCollection([lng, lat], selection)) {
+      setSelectedPoint(event.lngLat);
+    // Check for H3 cells selection
+    } else if (event.features?.length > 0) {
+      setSelection({ type: 'FeatureCollection', features: [event.features[0]] });
+      setSelectedPoint(event.lngLat);
+      setShowSelectionToolbar(true);
+      // applySelection(event.features[0], event.lngLat);
+      // setShowSelectionToolbar(true);
+    }
+  }, [selection]);
+
   return (
     <div className="soilhive-map">
       <Map
@@ -189,20 +203,14 @@ function SoilhiveMap({
         minZoom={3}
         maxZoom={15}
         renderWorldCopies={false}
+        dragRotate={false}
         mapStyle={currentMapStyle}
         {...(initialViewBoundingBox ? { initialViewState: { bounds: initialViewBoundingBox } } : {})}
         onDragEnd={updateH3Cells}
         onLoad={updateH3Cells}
         onZoomEnd={updateH3Cells}
         onMoveEnd={updateH3Cells}        
-        onClick={(event) => {
-          if (event.features?.length > 0) {
-            applySelection(event.features[0], event.lngLat);
-            setShowSelectionToolbar(true);
-          } else {
-            // resetSelection();
-          }
-        }}
+        onClick={onMapClick}
         interactiveLayerIds={['data-fills']}
       >
         <Activity mode={!showSelectionToolbar ? "visible" : "hidden"}>
@@ -291,7 +299,21 @@ function SoilhiveMap({
           </>
         }
 
-        { showGeocoder && <GeocoderControl position="top-left" geocoder={geocoder} />}
+        { showGeocoder &&
+          <GeocoderControl
+            position="top-left"
+            geocoder={geocoder}
+            onFeatureSelect={({feature, center}) => {
+              setSelection({
+                type: 'FeatureCollection',
+                features: [feature]
+              });
+              const [lng, lat] = center.coordinates;
+              setSelectedPoint({ lng, lat });
+              setShowSelectionToolbar(true);
+            }}
+          />
+        }
               
         { showGeolocation && <GeolocateControl position="bottom-right" /> }
         { showNavigation && <NavigationControl position="bottom-right" showCompass={false} showZoom={true} visualizePitch={false} /> }

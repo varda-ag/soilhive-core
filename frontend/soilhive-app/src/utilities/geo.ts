@@ -1,4 +1,4 @@
-import { bboxPolygon, featureCollection } from '@turf/turf';
+import { area, bboxPolygon, booleanPointInPolygon, featureCollection, polygon } from '@turf/turf';
 import { featureToH3Set } from 'geojson2h3';
 import { cellToBoundary, cellToLatLng, type CoordPair, type H3Index } from 'h3-js';
 import { lerp } from 'math.gl';
@@ -152,3 +152,33 @@ export const bBoxToPolygon = (boundingBox: number[]) => {
   const coordinates = polygon.geometry.coordinates[0];
   return coordinates;
 };
+
+export function largestPolygonInsideMultipolygon(feature: any) {
+  console.assert(feature?.geometry?.type === 'MultiPolygon', '"feature" must be a GeoJSON feature containing a MultiPolygon');
+  let maxArea = 0;
+  let largestPolygon = null;
+  feature.geometry.coordinates.forEach((polygonCoords: any) => {
+    const polyFeature = polygon(polygonCoords);
+    const polyArea = area(polyFeature);
+    if (polyArea > maxArea) {
+      maxArea = polyArea;
+      largestPolygon = polyFeature;
+    }
+  });
+  return largestPolygon;
+}
+
+/**
+ * Tells if the given point is inside of a feature collection.
+ * @param point format of the point is [longitude, latitude]
+ * @param featureCollection a GeoJSON feature collection. IT MUST CONTAIN ONLY POLYGONS OR MULTIPOLYGONS
+ * @returns true or false according to if the given point is contained in the feature collection or not
+ */
+export function isPointInFeatureCollection(point: [number, number], featureCollection: any) {
+  console.assert(
+    featureCollection?.type === 'FeatureCollection' && Array.isArray(featureCollection?.features),
+    '"featureCollection" must be a valid feature collection',
+  );
+  const [lng, lat] = point;
+  return featureCollection.features.some((feature: any) => booleanPointInPolygon([lng, lat], feature));
+}
