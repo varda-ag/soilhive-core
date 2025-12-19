@@ -10,11 +10,12 @@ import { h3ResolutionForZoomLevel } from '../../utilities/map';
 
 type MapStyle = string | StyleSpecification | ImmutableLike<StyleSpecification>;
 
-interface SoilhiveMapProps {
+interface SoilhiveSimpleMapProps {
   initialViewBoundingBox?: [number, number, number, number];
   selectedPoint?: [number, number];
   selectedFeature?: any;
   showH3Cells?: boolean;
+  showNavigation?: boolean;
   mapStyle: MapStyle;
   scrollZoom?: boolean;
   dragPan?: boolean;
@@ -39,19 +40,16 @@ const dataLayerBorders: LayerProps = {
   }
 };
 
-function SoilhiveSidebarMap({
+function SoilhiveSimpleMap({
   initialViewBoundingBox,
   selectedPoint = null,
   selectedFeature = null,
-  showGeocoder = false,
-  geocoder = 'nominatim',
   showNavigation = true,
-  showScale = true,
   showH3Cells = false,
   mapStyle = 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json',
   scrollZoom = true,
   dragPan = true
-}: SoilhiveMapProps) {
+}: SoilhiveSimpleMapProps) {
   const mapRef = useRef();
   const [h3Cells, setH3Cells] = useState(null);
 
@@ -126,4 +124,4 @@ function SoilhiveSidebarMap({
   );
 };
 
-export default SoilhiveSidebarMap;
+export default SoilhiveSimpleMap;

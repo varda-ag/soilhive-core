@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { StyleSpecification } from 'react-map-gl/maplibre';
 
 import SoilhiveMap from 'components/Map/SoilhiveMap';
-// import SoilhiveSidebarMap from 'components/Map/SoilhiveSidebarMap';
+// import SoilhiveSimpleMap from 'components/Map/SoilhiveSimpleMap';
 import { MAPBOX_ACCESS_TOKEN } from '../utilities/environmentVariables';
 import { AvailabilityProvider } from '../contexts/AvailabilityContext';
 import DatasetsIcon from 'assets/icons/paste-icon.svg?react';
@@ -65,9 +65,10 @@ function Homepage() {
             ]}
           />
           {/* Example of usage of the soilhive sidebar map to be used in the future download preview page */}
-          {/* <SoilhiveSidebarMap
+          {/* <SoilhiveSimpleMap
             initialViewBoundingBox={[6.6272658, 35.2889616, 18.7844746, 47.0921462]}
             showH3Cells={true}
+            showNavigation={true}
             mapStyle={MAPBOX_SATELLITE_MAP_STYLE}
             selectedPoint={[10.522015854087698, 44.441902924546724]}
             selectedFeature={{
