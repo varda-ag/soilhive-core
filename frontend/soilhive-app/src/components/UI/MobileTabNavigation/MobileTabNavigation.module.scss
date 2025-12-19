@@ -1,21 +1,49 @@
 .MobileTabNavigation {
+  display: flex;
+
+  > .MobileTabNavigationItem {
     display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: var(--font-size-xs);
+    line-height: 100%;
+    cursor: pointer;
+  }
+
+  &.Primary {
+    > .MobileTabNavigationItem {
+      width: calc(100% / 3);
+      padding: 0.3125rem;
+      border-top: 0.25rem solid transparent;
+
+      &.Active {
+        color: var(--color-primary);
+        border-color: var(--color-primary);
+      }
+    }
+  }
+
+  &.Secondary {
+    justify-content: space-between;
 
     > .MobileTabNavigationItem {
-        width: calc(100%/3);
-        padding: 0.3125rem;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: .25rem;
-        border-top: .25rem solid transparent;
-        font-size: var(--font-size-xs);
-        line-height: 100%;
-        cursor: pointer;
+      position: relative;
+      padding: 0.3125rem 0.3125rem 0.75rem;
 
-        &.Active {
-            color: var(--color-primary);
-            border-color: var(--color-primary);
+      &.Active {
+        &:after {
+          content: '';
+          display: block;
+          width: 2.625rem;
+          height: 0.1875rem;
+          position: absolute;
+          bottom: 0;
+          left: 50%;
+          transform: translateX(-50%);
+          background-color: var(--color-secondary);
         }
+      }
     }
+  }
 }

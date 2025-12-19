@@ -1,3 +1,16 @@
+## [0.9.1](https://github.com/varda-ag/soilhive-core/compare/v0.9.0...v0.9.1) (2025-12-19)
+
+## [0.9.0](https://github.com/varda-ag/soilhive-core/compare/v0.8.2...v0.9.0) (2025-12-19)
+
+
+### Features
+
+* SP-4703 - filtering panel part 1 ([#76](https://github.com/varda-ag/soilhive-core/issues/76)) ([8e4ee28](https://github.com/varda-ag/soilhive-core/commit/8e4ee286aeeeeebd3ff280de34167060e2dcea64))
+
+## [0.8.2](https://github.com/varda-ag/soilhive-core/compare/v0.8.1...v0.8.2) (2025-12-19)
+
+## [0.8.1](https://github.com/varda-ag/soilhive-core/compare/v0.8.0...v0.8.1) (2025-12-19)
+
 ## [0.8.0](https://github.com/varda-ag/soilhive-core/compare/v0.7.1...v0.8.0) (2025-12-18)
 
 

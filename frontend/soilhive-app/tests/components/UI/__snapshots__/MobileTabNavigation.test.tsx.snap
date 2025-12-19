@@ -1,9 +1,9 @@
 // Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
 
-exports[`MobileTabNavigation component renders all tabs 1`] = `
+exports[`MobileTabNavigation component renders all tabs with primary styles by default 1`] = `
 <div>
   <div
-    class="MobileTabNavigation"
+    class="MobileTabNavigation Primary"
     data-testid="sh-ui-mobile-tab-navigation"
   >
     <div

@@ -11,7 +11,7 @@ import type { ControlPosition } from 'react-map-gl/maplibre';
 //   // onDelete?: (evt: {features: object[]}) => void;
 // };
 
-export default function DrawControl({ position = 'bottom-right', onFinish }: { position?: ControlPosition, onFinish: (feature: any) => {} }) {
+export default function DrawControl({ position = 'bottom-right', onFinish }: { position?: ControlPosition; onFinish: (feature: any) => {}}) {
   const drawControl = useControl<MaplibreTerradrawControl>(
     () =>
       new MaplibreTerradrawControl({
