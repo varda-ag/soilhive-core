@@ -8,7 +8,7 @@ import '../styles/SoilhiveMap.scss';
 import Flower from '../assets/images/flower.svg?react';
 import { polygonToCells } from 'h3-js';
 import { bBoxToH3Cells, h3IndexesToGeoJSONPolygons, isPointInFeatureCollection } from '../utilities/geo';
-import { area, bbox, bboxPolygon, convertArea, round } from '@turf/turf';
+import { area, bbox, bboxPolygon, centerOfMass, convertArea, round } from '@turf/turf';
 import { h3ResolutionForZoomLevel } from '../utilities/map';
 import DrawControl from './DrawControl';
 import SoilhiveMapToolbar from './SoilhiveMapToolbar';
@@ -326,6 +326,14 @@ function SoilhiveMap({
                 type: 'FeatureCollection',
                 features: [feature]
               });
+              const center = centerOfMass(feature);
+              const [lng, lat] = center.geometry.coordinates;
+              // Using a state and a ref to keep track of when drawing started and ended didn't work
+              // to prevent the popup showing into the last point you clicked on to close the drawn shape
+              // so I use this timeout trick so that the popup appears in the correct center position.
+              setTimeout(() => {
+                setSelectedPoint({ lng, lat });
+              }, 0);
             }}
           />  
         }
