@@ -35,7 +35,7 @@ const MAPBOX_SATELLITE_MAP_STYLE: StyleSpecification = {
 };
 
 function Homepage() {
-  const [isDatasetsOpened, setIsDatasetsOpened] = useState<boolean>(false);
+  const [isDatasetsOpened, setIsDatasetsOpened] = useState<boolean>(true);
   const [activeMobileTab, setActiveMobileTab] = useState<string>(DEFAULT_AVAILABILITY_MOBILE_TAB);
   const { isDesktopLayout } = useDevice();
 

@@ -12,7 +12,7 @@ exports[`Homepage renders homepage on desktop 1`] = `
         Mock SoilhiveMap
       </div>
       <div
-        data-opened="false"
+        data-opened="true"
         data-testid="mock-datasets-sidebar"
       >
         Mock DatasetsSidebar
@@ -21,18 +21,6 @@ exports[`Homepage renders homepage on desktop 1`] = `
         </button>
       </div>
     </div>
-    <button
-      class="Button Custom Small DatasetsButton"
-      data-testid="sh-ui-button"
-      type="button"
-    >
-      <svg
-        data-testid="svg-icon-mock"
-      >
-        mock-svg
-      </svg>
-       Datasets
-    </button>
   </div>
 </div>
 `;
