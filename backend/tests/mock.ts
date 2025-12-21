@@ -67,10 +67,10 @@ export const addLicense = async (name: string = 'test_license') => {
 
 export const addLayer = async (
   license: string,
-  sampling_date: Date | undefined = new Date('2020-01-01'),
-  min_depth: number | undefined = 0,
-  max_depth: number | undefined = 100,
-  horizon: string | undefined = 'A',
+  sampling_date?: Date,
+  min_depth?: number,
+  max_depth?: number,
+  horizon?: string,
 ): Promise<LayerEntity> => {
   const dataSource = await getDataSource();
   const repo = dataSource.getRepository(LayerEntity);

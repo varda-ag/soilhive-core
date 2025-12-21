@@ -168,4 +168,24 @@ describe('SoilDataStorage class', () => {
       expect(total).toBe(expectedCount);
     }
   });
+
+  it.each([
+    [{ min_depth: null }, 1, 1],
+    [{ max_depth: null }, 1, 1],
+    [{ min_depth: null, max_depth: null }, 1, 1],
+    [{ min_sampling_date: null }, 1, 1],
+    [{ max_sampling_date: null }, 1, 1],
+    [{ min_sampling_date: null, max_sampling_date: null }, 1, 1],
+    [{ horizons: [null] }, 1, 1],
+    [{ horizons: ['A0', null] }, 1, 2],
+  ])('Filtering NULL values should return expected data points', async (filter, expectedResultCount, expectedCount) => {
+    await addSyntheticData({ ...syntheticDataOptions, depthLayers: 1, addNullValues: true }); // Adding another layer with NULL values
+    const sds = new SoilDataStorage();
+    const entityManager = await getEntityManager();
+    const results = await sds.filter(entityManager, bboxPolygon, { ...filter });
+    expect(results.length).toBe(expectedResultCount);
+    if (expectedResultCount > 0) {
+      expect(results[0].dataset_layer_count).toBe(expectedCount);
+    }
+  });
 });

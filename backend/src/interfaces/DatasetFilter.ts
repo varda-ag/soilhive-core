@@ -4,11 +4,11 @@ import { GISDataType } from '../types/data';
 export interface FilterableDatasetMetadata {
   data_types?: GISDataType[]; // Enum
   licenses?: string[]; // UUIDs
-  min_sampling_date?: string;
-  max_sampling_date?: string;
-  min_depth?: number;
-  max_depth?: number;
-  horizons?: string[]; // Short strings
+  min_sampling_date?: string | null;
+  max_sampling_date?: string | null;
+  min_depth?: number | null;
+  max_depth?: number | null;
+  horizons?: (string | null)[]; // Short strings
   soil_properties?: string[]; // UUIDs
   agroecological_zones?: string[];
   land_cover?: string[];
