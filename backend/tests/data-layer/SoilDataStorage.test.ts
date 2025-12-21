@@ -6,6 +6,7 @@ import SoilDataStorage from '../../src/data-layer/SoilDataStorage';
 import DatasetEntity from '../../src/entities/Dataset';
 
 const bbox = [0, 0, 1, 1];
+const bboxPolygon: Polygon = getPolygonFromBbox(bbox);
 
 describe('SoilDataStorage class', () => {
   it.each([
@@ -27,7 +28,7 @@ describe('SoilDataStorage class', () => {
 
   it('Filtering should return some results', async () => {
     const layers = 5;
-    const dataset = await addSyntheticData({ ...syntheticDataOptions, depthLayers: layers });
+    const { dataset } = await addSyntheticData({ ...syntheticDataOptions, depthLayers: layers });
     const sds = new SoilDataStorage();
     const entityManager = await getEntityManager();
     const results = await sds.filter(entityManager, getPolygonFromBbox([0, 0, 10, 10]), {});
@@ -48,11 +49,11 @@ describe('SoilDataStorage class', () => {
     const datasets: DatasetEntity[] = [];
     for (let i = 0; i < expectedDatasetCount; i++) {
       // Always a point dataset
-      datasets.push(await addSyntheticData({ ...syntheticDataOptions, id: i, spatial_extent: bbox }));
+      datasets.push((await addSyntheticData({ ...syntheticDataOptions, id: i, soilPropertyNames: `${i}` })).dataset);
     }
     const sds = new SoilDataStorage();
     const entityManager = await getEntityManager();
-    const results = await sds.filter(entityManager, getPolygonFromBbox(bbox), { data_types: [filterType] });
+    const results = await sds.filter(entityManager, bboxPolygon, { data_types: [filterType] });
     expect(results.length).toBe(expectedDatasetCount);
     for (let i = 0; i < expectedDatasetCount; i++) {
       expect(datasets.map(d => d.id)).toContain(results[i].id);
@@ -75,10 +76,10 @@ describe('SoilDataStorage class', () => {
     [-2000, -1000, 0, 0],
     [1000, 2000, 0, 0],
   ])('Filtering by depth should return expected data points', async (min_depth, max_depth, expectedResultCount, expectedCount) => {
-    await addSyntheticData({ ...syntheticDataOptions, spatial_extent: bbox, depthLayers: 10 }); // 10 layers with depths 0-100
+    await addSyntheticData({ ...syntheticDataOptions, depthLayers: 10 }); // 10 layers with depths 0-100
     const sds = new SoilDataStorage();
     const entityManager = await getEntityManager();
-    const results = await sds.filter(entityManager, getPolygonFromBbox(bbox), { min_depth, max_depth });
+    const results = await sds.filter(entityManager, bboxPolygon, { min_depth, max_depth });
     expect(results.length).toBe(expectedResultCount);
     if (expectedResultCount > 0) {
       expect(results[0].dataset_layer_count).toBe(expectedCount);
@@ -101,11 +102,11 @@ describe('SoilDataStorage class', () => {
     ['2222-01-01', '3333-01-01', 0],
   ])('Filtering by sampling date should return expected data points', async (min_sampling_date, max_sampling_date, expectedResultCount) => {
     for (let i = 0; i < 5; i++) {
-      await addSyntheticData({ ...syntheticDataOptions, id: i, spatial_extent: bbox }); // 5 iterations covering 2020-01-01 to 2024-01-01
+      await addSyntheticData({ ...syntheticDataOptions, id: i, soilPropertyNames: `${i}` }); // 5 iterations covering 2020-01-01 to 2024-01-01
     }
     const sds = new SoilDataStorage();
     const entityManager = await getEntityManager();
-    const results = await sds.filter(entityManager, getPolygonFromBbox(bbox), { min_sampling_date, max_sampling_date });
+    const results = await sds.filter(entityManager, bboxPolygon, { min_sampling_date, max_sampling_date });
     expect(results.length).toBe(expectedResultCount);
   });
 
@@ -119,18 +120,48 @@ describe('SoilDataStorage class', () => {
     [['A1', 'A2'], 2, 6],
     [['A8', 'A9'], 1, 2],
   ])('Filtering by horizon should return expected data points', async (horizons, expectedResultCount, expectedCount) => {
-    await addSyntheticData({ ...syntheticDataOptions, id: 1, spatial_extent: bbox, depthLayers: 10 }); // 10 layers with horizons A0 -> A9
+    await addSyntheticData({ ...syntheticDataOptions, depthLayers: 10 }); // 10 layers with horizons A0 -> A9
     await addSyntheticData({
       ...syntheticDataOptions,
       id: 2,
-      spatial_extent: bbox,
       depthLayers: 5,
       featureCount: 2,
       observationsPerLayer: 2,
+      soilPropertyNames: ['x'],
     }); // 5 layers with horizons A0 -> A4, two observations per layer
     const sds = new SoilDataStorage();
     const entityManager = await getEntityManager();
-    const results = await sds.filter(entityManager, getPolygonFromBbox(bbox), { horizons });
+    const results = await sds.filter(entityManager, bboxPolygon, { horizons });
+    expect(results.length).toBe(expectedResultCount);
+    if (expectedResultCount > 0) {
+      const total: number = results.reduce((acc, curr) => acc + curr.dataset_layer_count, 0);
+      expect(total).toBe(expectedCount);
+    }
+  });
+
+  it.each([
+    [undefined, 2, 20],
+    [[], 2, 20],
+    [[undefined], 0, 0],
+    [['a'], 1, 5],
+    [['a', 'b'], 1, 10],
+    [['c'], 1, 5],
+    [['a', 'c'], 2, 10],
+    [['a', 'b', 'c', 'd'], 2, 20],
+    [['x'], 0, 0],
+  ])('Filtering by soil properties should return expected data points', async (filter, expectedResultCount, expectedCount) => {
+    const data1 = await addSyntheticData({ ...syntheticDataOptions, id: 1, soilPropertyNames: ['a', 'b'], depthLayers: 10 });
+    const data2 = await addSyntheticData({ ...syntheticDataOptions, id: 2, soilPropertyNames: ['c', 'd'], depthLayers: 10 });
+    const allSoilProperties = [...data1.soilProperties, ...data2.soilProperties];
+    const soilPropertyMap = new Map<string, string>();
+    allSoilProperties.forEach(sp => {
+      soilPropertyMap.set(sp.slug, sp.id);
+    });
+    const sds = new SoilDataStorage();
+    const entityManager = await getEntityManager();
+    const results = await sds.filter(entityManager, bboxPolygon, {
+      soil_properties: filter?.map(f => soilPropertyMap.get(f)),
+    });
     expect(results.length).toBe(expectedResultCount);
     if (expectedResultCount > 0) {
       const total: number = results.reduce((acc, curr) => acc + curr.dataset_layer_count, 0);
