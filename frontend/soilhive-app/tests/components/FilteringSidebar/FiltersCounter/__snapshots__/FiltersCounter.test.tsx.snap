@@ -1,0 +1,12 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`FiltersCounter renders filters counter 1`] = `
+<div>
+  <span
+    class="FiltersCounter"
+    data-testid="sh-filters-counter"
+  >
+    0
+  </span>
+</div>
+`;

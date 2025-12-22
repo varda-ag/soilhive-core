@@ -1,3 +1,10 @@
+## [0.10.0](https://github.com/varda-ag/soilhive-core/compare/v0.9.4...v0.10.0) (2025-12-22)
+
+
+### Features
+
+* SP-4703 - filtering panel unit tests ([#83](https://github.com/varda-ag/soilhive-core/issues/83)) ([71b3888](https://github.com/varda-ag/soilhive-core/commit/71b38888ac93f53030665b060b5fcd6b5151d968))
+
 ## [0.9.4](https://github.com/varda-ag/soilhive-core/compare/v0.9.3...v0.9.4) (2025-12-19)
 
 ## [0.9.3](https://github.com/varda-ag/soilhive-core/compare/v0.9.2...v0.9.3) (2025-12-19)

@@ -1,0 +1,38 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`FilteringSidebarDataScope renders two accordion components 1`] = `
+<div>
+  <div
+    class="FilteringSidebarDataScope"
+  >
+    <div
+      data-testid="accordion"
+    >
+      <div
+        data-testid="accordion-title"
+      >
+        Data type
+      </div>
+      <div
+        data-testid="accordion-content"
+      >
+        Data type content
+      </div>
+    </div>
+    <div
+      data-testid="accordion"
+    >
+      <div
+        data-testid="accordion-title"
+      >
+        Time
+      </div>
+      <div
+        data-testid="accordion-content"
+      >
+        Time content
+      </div>
+    </div>
+  </div>
+</div>
+`;
