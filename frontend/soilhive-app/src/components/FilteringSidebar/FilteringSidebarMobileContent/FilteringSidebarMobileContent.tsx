@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { MobileTabNavigation } from 'components/UI';
 import type { MobileTabNavigationConfig } from 'types/components';
 import { FilteringSidebarDataScope } from '../FilteringSidebarDataScope/FilteringSidebarDataScope';
-import { FiltertingSidebarParameters } from '../FiltertingSidebarParameters/FiltertingSidebarParameters';
-import { FiltertingSidebarLandEcosystem } from '../FilteringSidebarLandEcosystem/FiltertingSidebarLandEcosystem';
+import { FilteringSidebarParameters } from '../FilteringSidebarParameters/FilteringSidebarParameters';
+import { FilteringSidebarLandEcosystem } from '../FilteringSidebarLandEcosystem/FilteringSidebarLandEcosystem';
 
 import styles from './FilteringSidebarMobileContent.module.scss';
 
@@ -32,8 +32,8 @@ export function FilteringSidebarMobileContent() {
       </div>
 
       {activeTab === 'scope' && <FilteringSidebarDataScope />}
-      {activeTab === 'parameters' && <FiltertingSidebarParameters />}
-      {activeTab === 'ecosystem' && <FiltertingSidebarLandEcosystem />}
+      {activeTab === 'parameters' && <FilteringSidebarParameters />}
+      {activeTab === 'ecosystem' && <FilteringSidebarLandEcosystem />}
     </div>
   );
 }

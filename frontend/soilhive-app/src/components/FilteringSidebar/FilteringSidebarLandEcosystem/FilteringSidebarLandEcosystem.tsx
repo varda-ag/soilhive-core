@@ -1,10 +1,10 @@
 import { Accordion } from 'components/UI';
 
-import styles from './FiltertingSidebarLandEcosystem.module.scss';
+import styles from './FilteringSidebarLandEcosystem.module.scss';
 
-export function FiltertingSidebarLandEcosystem() {
+export function FilteringSidebarLandEcosystem() {
   return (
-    <div className={styles.FiltertingSidebarLandEcosystem}>
+    <div className={styles.FilteringSidebarLandEcosystem}>
       <Accordion title="Agroecological zones" type="secondary">
         Agroecological zones content
       </Accordion>

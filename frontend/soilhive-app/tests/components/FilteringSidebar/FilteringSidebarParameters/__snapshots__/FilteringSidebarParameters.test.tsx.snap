@@ -1,0 +1,66 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`FilteringSidebarParameters renders four accordion components 1`] = `
+<div>
+  <div
+    class="FilteringSidebarParameters"
+  >
+    <div
+      data-testid="accordion"
+    >
+      <div
+        data-testid="accordion-title"
+      >
+        Soil Properties
+      </div>
+      <div
+        data-testid="accordion-content"
+      >
+        Soil Properties content
+      </div>
+    </div>
+    <div
+      data-testid="accordion"
+    >
+      <div
+        data-testid="accordion-title"
+      >
+        Soil Groups
+      </div>
+      <div
+        data-testid="accordion-content"
+      >
+        Soil Groups content
+      </div>
+    </div>
+    <div
+      data-testid="accordion"
+    >
+      <div
+        data-testid="accordion-title"
+      >
+        Soil Depth
+      </div>
+      <div
+        data-testid="accordion-content"
+      >
+        Soil Depth content
+      </div>
+    </div>
+    <div
+      data-testid="accordion"
+    >
+      <div
+        data-testid="accordion-title"
+      >
+        Horizon
+      </div>
+      <div
+        data-testid="accordion-content"
+      >
+        Horizon content
+      </div>
+    </div>
+  </div>
+</div>
+`;
