@@ -8,6 +8,7 @@ import { singlePages } from './utilities/moduleFederation';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { AuthContextProvider } from './auth/AuthContextProvider';
 import Legal from './pages/Legal';
+import { AvailabilityProvider } from './contexts/AvailabilityContext';
 
 function App() {
   return (
@@ -21,7 +22,9 @@ function App() {
                 element={
                   <>
                     <PageTitle title="SoilHive - Home" />
-                    <Homepage />
+                    <AvailabilityProvider>
+                      <Homepage />
+                    </AvailabilityProvider>
                   </>
                 }
               />

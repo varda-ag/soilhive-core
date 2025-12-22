@@ -1,3 +1,4 @@
+import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import Homepage from '../../src/pages/Homepage';
 import { __setIsDesktopLayout } from 'hooks/useDevice';
@@ -34,6 +35,12 @@ jest.mock('components/FilteringSidebar/FilteringSidebar', () => ({
 
 jest.mock('components/FilteringSidebar/FiltersCounter/FiltersCounter', () => ({
   FiltersCounter: () => <div data-testid="mock-filters-counter">Mock FiltersCounter</div>,
+}));
+
+jest.mock('../../src/contexts/AvailabilityContext', () => ({
+  AvailabilityContext: React.createContext({
+    setDatasetFilters: jest.fn(),
+  }),
 }));
 
 describe('Homepage', () => {
