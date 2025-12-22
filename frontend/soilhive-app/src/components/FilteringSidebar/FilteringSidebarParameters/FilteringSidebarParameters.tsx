@@ -1,10 +1,10 @@
 import { Accordion } from 'components/UI';
 
-import styles from './FiltertingSidebarParameters.module.scss';
+import styles from './FilteringSidebarParameters.module.scss';
 
-export function FiltertingSidebarParameters() {
+export function FilteringSidebarParameters() {
   return (
-    <div className={styles.FiltertingSidebarParameters}>
+    <div className={styles.FilteringSidebarParameters}>
       <Accordion title="Soil Properties" type="secondary">
         Soil Properties content
       </Accordion>

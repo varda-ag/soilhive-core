@@ -1,0 +1,48 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`FilteringSidebarMobileContent renders component by default 1`] = `
+<div>
+  <div
+    class="FilteringSidebarMobileContent"
+  >
+    <div
+      class="TabsWrapper"
+    >
+      <div
+        class="MobileTabNavigation Secondary Tabs"
+        data-testid="sh-ui-mobile-tab-navigation"
+      >
+        <div
+          class="MobileTabNavigationItem Active"
+          data-testid="sh-ui-mobile-tab-navigation-item"
+          role="button"
+        >
+           
+          Data scope
+        </div>
+        <div
+          class="MobileTabNavigationItem"
+          data-testid="sh-ui-mobile-tab-navigation-item"
+          role="button"
+        >
+           
+          Soil parameters
+        </div>
+        <div
+          class="MobileTabNavigationItem"
+          data-testid="sh-ui-mobile-tab-navigation-item"
+          role="button"
+        >
+           
+          Land & ecosystem
+        </div>
+      </div>
+    </div>
+    <div
+      data-testid="mock-filtering-sidebar-datascope"
+    >
+      Mock FilteringSidebarDataScope
+    </div>
+  </div>
+</div>
+`;

@@ -1,0 +1,38 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`FilteringSidebarLandEcosystem renders two accordion components 1`] = `
+<div>
+  <div
+    class="FilteringSidebarLandEcosystem"
+  >
+    <div
+      data-testid="accordion"
+    >
+      <div
+        data-testid="accordion-title"
+      >
+        Agroecological zones
+      </div>
+      <div
+        data-testid="accordion-content"
+      >
+        Agroecological zones content
+      </div>
+    </div>
+    <div
+      data-testid="accordion"
+    >
+      <div
+        data-testid="accordion-title"
+      >
+        Land Cover
+      </div>
+      <div
+        data-testid="accordion-content"
+      >
+        Land Cover content
+      </div>
+    </div>
+  </div>
+</div>
+`;
