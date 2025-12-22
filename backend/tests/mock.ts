@@ -24,7 +24,7 @@ export const syntheticDataOptions = {
   featureCount: 1,
   observationsPerLayer: 1,
   depthLayers: 1,
-  soilPropertiesCount: 1,
+  soilPropertyNames: ['ph'],
   addNullValues: false,
 };
 
@@ -67,10 +67,10 @@ export const addLicense = async (name: string = 'test_license') => {
 
 export const addLayer = async (
   license: string,
-  sampling_date: Date | undefined = new Date('2020-01-01'),
-  min_depth: number | undefined = 0,
-  max_depth: number | undefined = 100,
-  horizon: string | undefined = 'A',
+  sampling_date?: Date,
+  min_depth?: number,
+  max_depth?: number,
+  horizon?: string,
 ): Promise<LayerEntity> => {
   const dataSource = await getDataSource();
   const repo = dataSource.getRepository(LayerEntity);
@@ -139,12 +139,19 @@ export const addObservation = async (value: number, procedure_id: string, datase
   return await repo.save(observation);
 };
 
-export const addSyntheticData = async (syntheticDataOptions): Promise<DatasetEntity> => {
-  const { id, spatial_extent, featureCount, observationsPerLayer, soilPropertiesCount, depthLayers, addNullValues } = syntheticDataOptions;
+export interface SyntheticDataset {
+  dataset: DatasetEntity;
+  features: FeatureEntity[];
+  soilProperties: SoilPropertyEntity[];
+}
+
+export const addSyntheticData = async (syntheticDataOptions): Promise<SyntheticDataset> => {
+  const { id, spatial_extent, featureCount, observationsPerLayer, soilPropertyNames, depthLayers, addNullValues } = syntheticDataOptions;
   assert(featureCount > 0, 'featureCount must be greater than 0');
   assert(observationsPerLayer > 0, 'observationsPerLayer must be greater than 0');
   assert(depthLayers > 0, 'depthLayers must be greater than 0');
   assert(spatial_extent.length === 4, 'spatial_extent must be an array of 4 numbers [minX, minY, maxX, maxY]');
+  assert(soilPropertyNames.length > 0, 'soilPropertyNames must be a non-empty array of strings');
   const year = 2020 + id;
   const dataset = await addDataset(`test_dataset_${id}`, spatial_extent);
   dataset.soil_depth = { min: 0, max: depthLayers * 10 };
@@ -153,8 +160,8 @@ export const addSyntheticData = async (syntheticDataOptions): Promise<DatasetEnt
   await dataset.save();
   const category = await addCategory(`test_category_${id}`);
   const soilProperties: SoilPropertyEntity[] = [];
-  for (let i = 0; i < soilPropertiesCount; i++) {
-    soilProperties.push(await addSoilProperty(`test_soil_property_${id}`, category.id));
+  for (let i = 0; i < soilPropertyNames.length; i++) {
+    soilProperties.push(await addSoilProperty(soilPropertyNames[i], category.id));
   }
   const procedure = await addProcedure(`test_procedure_${id}`);
   const license = await addLicense(`test_license_${id}`);
@@ -171,7 +178,7 @@ export const addSyntheticData = async (syntheticDataOptions): Promise<DatasetEnt
     const layer = await addLayer(license.id, new Date(`${year}-01-01`), depth, depth + 10, `A${depthLayer}`);
     for (let i = 0; i < featureCount; i++) {
       const feature = features[i];
-      const soilProperty = soilProperties[i % soilPropertiesCount];
+      const soilProperty = soilProperties[depthLayer % soilPropertyNames.length];
       const datasetLayer = await addDatasetLayer(dataset.id, layer.id, feature.id, soilProperty.id);
       for (let j = 0; j < observationsPerLayer; j++) {
         await addObservation(randomInRange(0, 100), procedure.id, datasetLayer.id);
@@ -183,5 +190,5 @@ export const addSyntheticData = async (syntheticDataOptions): Promise<DatasetEnt
       }
     }
   }
-  return dataset;
+  return { dataset, features, soilProperties };
 };
