@@ -12,7 +12,7 @@ jest.mock('../../src/configuration/api', () => ({
 }));
 
 describe('useDatasetFetch hook', () => {
-  it('fetch datasets when filter changes', async () => {
+  it('fetch datasets when coordinates change', async () => {
     const mockUseRequest = useRequest as jest.Mock;
 
     // Arrange 1
