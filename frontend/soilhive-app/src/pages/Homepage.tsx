@@ -55,10 +55,10 @@ function Homepage() {
   const { setDatasetFilters } = availabilityContext;
 
   const handleMapChange = (event: SoilhiveMapChangeEvent) => {
-    const { bounds } = event;
-    const polygonCoordinates = bboxPolygon(bounds);
+    const { bounds, geometry } = event;
+    const geom = geometry ?? bboxPolygon(bounds).geometry;
     setDatasetFilters({
-      geometries: [polygonCoordinates.geometry],
+      geometries: [geom],
       parameters: {},
     });
   };

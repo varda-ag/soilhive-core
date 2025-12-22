@@ -123,7 +123,8 @@ function SoilhiveMap({
     const zoomLevel = map.getZoom();
 
     if (onMapChange) {
-      onMapChange({ bounds, zoomLevel });
+      const geometry = selection.features.length > 0 ? selection.features[0].geometry : undefined;
+      onMapChange({ bounds, zoomLevel, geometry });
     }
 
     if (!showH3Cells) {
@@ -241,6 +242,11 @@ function SoilhiveMap({
                 setSelectedPoint({ lng, lat });
               }
               setShowSelectionToolbar(true);
+              if (onMapChange) {
+                const bounds = mapRef.current.getBounds().toArray().flat();
+                const zoomLevel = mapRef.current.getZoom();
+                onMapChange({ bounds, zoomLevel, geometry: geojson.geometry });
+              }
             }}
           />
         </Activity>
@@ -345,6 +351,11 @@ function SoilhiveMap({
               setTimeout(() => {
                 setSelectedPoint({ lng, lat });
               }, 0);
+              if (onMapChange) {
+                const bounds = mapRef.current.getBounds().toArray().flat();
+                const zoomLevel = mapRef.current.getZoom();
+                onMapChange({ bounds, zoomLevel, geometry: feature.geometry });
+              }
             }}
           />
         }
