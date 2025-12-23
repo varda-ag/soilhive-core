@@ -124,8 +124,8 @@ function SoilhiveMap({
 
     if (onMapChange) {
       // A selection can be a H3 cell, an uploaded polygon, a drawn lolygon or a geocoder position
-      const geometry = selection.features.length > 0 ? selection.features[0].geometry : undefined;
-      onMapChange({ bounds, zoomLevel, geometry: geometry, eventType: 'bounds' });
+      const geometries = selection.features.length > 0 ? selection.features.map(f => f.geometry) : undefined;
+      onMapChange({ bounds, zoomLevel, geometries: geometries, eventType: 'bounds' });
     }
 
     if (!showH3Cells) {
@@ -192,7 +192,7 @@ function SoilhiveMap({
       if (onMapChange) {
         onMapChange({
           bounds: mapRef.current.getBounds().toArray().flat(),
-          geometry: event.features[0].geometry,
+          geometries: event.features.map(f => f.geometry),
         })
       }
     }
@@ -253,7 +253,7 @@ function SoilhiveMap({
               if (onMapChange) {
                 onMapChange({ 
                   bounds: mapRef.current.getBounds().toArray().flat(), 
-                  geometry: geojson.geometry
+                  geometries: [geojson.geometry]
                 });
               }
             }}
@@ -341,7 +341,7 @@ function SoilhiveMap({
               if(onMapChange){
                 onMapChange({
                   bounds: mapRef.current.getBounds().toArray().flat(),
-                  geometry: feature.geometry
+                  geometries: [feature.geometry]
                 })
               }
             }}
@@ -370,7 +370,7 @@ function SoilhiveMap({
               if (onMapChange) {
                 onMapChange({ 
                   bounds: mapRef.current.getBounds().toArray().flat(), 
-                  geometry: feature.geometry, 
+                  geometries: [feature.geometry], 
                 });
               }
             }}

@@ -55,13 +55,13 @@ function Homepage() {
   const { setDatasetFilters } = availabilityContext;
 
   const handleMapChange = (event: SoilhiveMapChangeEvent) => {
-    const { bounds, geometry } = event;
+    const { bounds, geometries } = event;
 
-    const geom = geometry ?? bboxPolygon(bounds).geometry;
+    const geom = geometries ?? [bboxPolygon(bounds).geometry];
 
     setDatasetFilters(prevFilters => ({
       ...prevFilters,
-      geometries: [geom],
+      geometries: geom,
     }));
   };
 
