@@ -54,14 +54,14 @@ function Homepage() {
 
   const { setDatasetFilters } = availabilityContext;
 
-  const handleMapChange = (event: SoilhiveMapChangeEvent) => {
+  const handleMapSelectionChange = (event: SoilhiveMapChangeEvent) => {
     const { bounds, geometries } = event;
 
-    const geom = geometries ?? [bboxPolygon(bounds).geometry];
+    const geoms = geometries ?? [bboxPolygon(bounds).geometry];
 
     setDatasetFilters(prevFilters => ({
       ...prevFilters,
-      geometries: geom,
+      geometries: geoms,
     }));
   };
 
@@ -76,7 +76,7 @@ function Homepage() {
           initialViewBoundingBox={[6.6272658, 35.2889616, 18.7844746, 47.0921462]}
           showGeocoder={true}
           showH3Cells={true}
-          onMapChange={handleMapChange}
+          onSelectionChange={handleMapSelectionChange}
           geocoder={localStorage.getItem('MAP_GEOCODER') ?? ('nominatim' as any)}
           mapStyles={[
             { name: 'CartoCDN Voyager', mapStyle: 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json' },

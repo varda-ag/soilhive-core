@@ -56,7 +56,7 @@ interface SoilhiveMapProps {
   mapStyles?: MapStyles;
   scrollZoom?: boolean;
   dragPan?: boolean;
-  onMapChange?: (event: SoilhiveMapChangeEvent) => void;
+  onSelectionChange?:Selectionvent: SoilhiveMapChangeEvent) => void;
 };
 
 const dataLayerFills: LayerProps = {
@@ -103,7 +103,7 @@ function SoilhiveMap({
   mapStyles = [{ name: 'CartoCDN Voyager', mapStyle: 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json' }],
   scrollZoom = true,
   dragPan = true,
-  onMapChange
+  onSelectionChange
 }: SoilhiveMapProps) {
   const mapRef = useRef();
   const [currentMapStyle, setCurrentMapStyle] = useState(mapStyles[0].mapStyle);
@@ -122,10 +122,10 @@ function SoilhiveMap({
     const bounds = map.getBounds().toArray().flat();
     const zoomLevel = map.getZoom();
 
-    if (onMapChange) {
+    if (onSelectionChange) {
       // A selection can be a H3 cell, an uploaded polygon, a drawn lolygon or a geocoder position
       const geometries = selection.features.length > 0 ? selection.features.map(f => f.geometry) : undefined;
-      onMapChange({ bounds, zoomLevel, geometries: geometries, eventType: 'bounds' });
+      onSelectionChange({ bounds, zoomLevel, geometries: geometries, eventType: 'bounds' });
     }
 
     if (!showH3Cells) {
@@ -189,14 +189,14 @@ function SoilhiveMap({
       // applySelection(event.features[0], event.lngLat);
       // setShowSelectionToolbar(true);
 
-      if (onMapChange) {
-        onMapChange({
+      if (onSelectionChange) {
+        onSelectionChange({
           bounds: mapRef.current.getBounds().toArray().flat(),
           geometries: event.features.map(f => f.geometry),
         })
       }
     }
-  }, [selection, onMapChange]);
+  }, [selection, onSelectionChange]);
 
   return (
     <div className="soilhive-map">
@@ -250,8 +250,8 @@ function SoilhiveMap({
                 setSelectedPoint({ lng, lat });
               }
               setShowSelectionToolbar(true);
-              if (onMapChange) {
-                onMapChange({ 
+              if (onSelectionChange) {
+                onSelectionChange({ 
                   bounds: mapRef.current.getBounds().toArray().flat(), 
                   geometries: [geojson.geometry]
                 });
@@ -338,8 +338,8 @@ function SoilhiveMap({
               setSelectedPoint({ lng, lat });
               setShowSelectionToolbar(true);
 
-              if(onMapChange){
-                onMapChange({
+              if(onSelectionChange){
+                onSelectionChange({
                   bounds: mapRef.current.getBounds().toArray().flat(),
                   geometries: [feature.geometry]
                 })
@@ -367,8 +367,8 @@ function SoilhiveMap({
               setTimeout(() => {
                 setSelectedPoint({ lng, lat });
               }, 0);
-              if (onMapChange) {
-                onMapChange({ 
+              if (onSelectionChange) {
+                onSelectionChange({ 
                   bounds: mapRef.current.getBounds().toArray().flat(), 
                   geometries: [feature.geometry], 
                 });
