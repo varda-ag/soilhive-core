@@ -17,7 +17,9 @@ exports[`Homepage renders homepage on desktop 1`] = `
           Close FilteringSidebar
         </button>
       </div>
-      <div>
+      <div
+        data-test-id="mock-soilhive-map"
+      >
         Mock SoilhiveMap
       </div>
       <div
@@ -68,7 +70,9 @@ exports[`Homepage renders homepage on mobile 1`] = `
           Close FilteringSidebar
         </button>
       </div>
-      <div>
+      <div
+        data-test-id="mock-soilhive-map"
+      >
         Mock SoilhiveMap
       </div>
       <div
