@@ -123,7 +123,9 @@ function SoilhiveMap({
     const zoomLevel = map.getZoom();
 
     if (onMapChange) {
-      onMapChange({ bounds, zoomLevel, geometry: undefined, eventType: 'bounds' });
+      // A selection can be a H3 cell, an uploaded polygon, a drawn lolygon or a geocoder position
+      const geometry = selection.features.length > 0 ? selection.features[0].geometry : undefined;
+      onMapChange({ bounds, zoomLevel, geometry: geometry, eventType: 'bounds' });
     }
 
     if (!showH3Cells) {
@@ -187,12 +189,10 @@ function SoilhiveMap({
       // applySelection(event.features[0], event.lngLat);
       // setShowSelectionToolbar(true);
 
-      if(onMapChange) {
+      if (onMapChange) {
         onMapChange({
-          bounds: undefined,
-          zoomLevel: undefined,
-          h3CellId: event.features[0].id,
-          eventType: 'cellClick',
+          bounds: mapRef.current.getBounds().toArray().flat(),
+          geometry: event.features[0].geometry,
         })
       }
     }
@@ -251,7 +251,10 @@ function SoilhiveMap({
               }
               setShowSelectionToolbar(true);
               if (onMapChange) {
-                onMapChange({ bounds: undefined, zoomLevel: undefined, geometry: geojson.geometry, eventType: 'upload' });
+                onMapChange({ 
+                  bounds: mapRef.current.getBounds().toArray().flat(), 
+                  geometry: geojson.geometry
+                });
               }
             }}
           />
@@ -334,6 +337,13 @@ function SoilhiveMap({
               const [lng, lat] = center.coordinates;
               setSelectedPoint({ lng, lat });
               setShowSelectionToolbar(true);
+
+              if(onMapChange){
+                onMapChange({
+                  bounds: mapRef.current.getBounds().toArray().flat(),
+                  geometry: feature.geometry
+                })
+              }
             }}
           />
         }
@@ -358,7 +368,10 @@ function SoilhiveMap({
                 setSelectedPoint({ lng, lat });
               }, 0);
               if (onMapChange) {
-                onMapChange({ bounds: undefined, zoomLevel: undefined, geometry: feature.geometry, eventType: 'draw' });
+                onMapChange({ 
+                  bounds: mapRef.current.getBounds().toArray().flat(), 
+                  geometry: feature.geometry, 
+                });
               }
             }}
           />
