@@ -21,6 +21,8 @@ import type { SoilhiveMapChangeEvent } from 'components/Map/SoilhiveMapChangeEve
 import styles from './Homepage.module.scss';
 import { AvailabilityContext } from '../contexts/AvailabilityContext';
 import { bboxPolygon } from '@turf/turf';
+import type { MultiPolygon, Polygon } from 'geojson';
+import { cellToBoundary } from 'h3-js';
 
 const MAPBOX_SATELLITE_MAP_STYLE: StyleSpecification = {
   version: 8,
@@ -55,8 +57,20 @@ function Homepage() {
   const { setDatasetFilters } = availabilityContext;
 
   const handleMapChange = (event: SoilhiveMapChangeEvent) => {
-    const { bounds, geometry } = event;
-    const geom = geometry ?? bboxPolygon(bounds).geometry;
+    const { bounds, geometry, eventType, h3CellId } = event;
+
+    let geom: Polygon | MultiPolygon;
+
+    if (eventType === 'cellClick' && h3CellId) {
+      const boundary = cellToBoundary(h3CellId, true);
+      geom = {
+        type: 'Polygon',
+        coordinates: [boundary],
+      };
+    } else {
+      geom = geometry ?? bboxPolygon(bounds).geometry;
+    }
+
     setDatasetFilters({
       geometries: [geom],
       parameters: {},

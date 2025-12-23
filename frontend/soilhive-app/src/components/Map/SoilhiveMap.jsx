@@ -123,8 +123,7 @@ function SoilhiveMap({
     const zoomLevel = map.getZoom();
 
     if (onMapChange) {
-      const geometry = selection.features.length > 0 ? selection.features[0].geometry : undefined;
-      onMapChange({ bounds, zoomLevel, geometry });
+      onMapChange({ bounds, zoomLevel, geometry: undefined, eventType: 'bounds' });
     }
 
     if (!showH3Cells) {
@@ -187,8 +186,17 @@ function SoilhiveMap({
       setShowSelectionToolbar(true);
       // applySelection(event.features[0], event.lngLat);
       // setShowSelectionToolbar(true);
+
+      if(onMapChange) {
+        onMapChange({
+          bounds: undefined,
+          zoomLevel: undefined,
+          h3CellId: event.features[0].id,
+          eventType: 'cellClick',
+        })
+      }
     }
-  }, [selection]);
+  }, [selection, onMapChange]);
 
   return (
     <div className="soilhive-map">
@@ -243,9 +251,7 @@ function SoilhiveMap({
               }
               setShowSelectionToolbar(true);
               if (onMapChange) {
-                const bounds = mapRef.current.getBounds().toArray().flat();
-                const zoomLevel = mapRef.current.getZoom();
-                onMapChange({ bounds, zoomLevel, geometry: geojson.geometry });
+                onMapChange({ bounds: undefined, zoomLevel: undefined, geometry: geojson.geometry, eventType: 'upload' });
               }
             }}
           />
@@ -352,9 +358,7 @@ function SoilhiveMap({
                 setSelectedPoint({ lng, lat });
               }, 0);
               if (onMapChange) {
-                const bounds = mapRef.current.getBounds().toArray().flat();
-                const zoomLevel = mapRef.current.getZoom();
-                onMapChange({ bounds, zoomLevel, geometry: feature.geometry });
+                onMapChange({ bounds: undefined, zoomLevel: undefined, geometry: feature.geometry, eventType: 'draw' });
               }
             }}
           />
