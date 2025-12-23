@@ -59,10 +59,10 @@ function Homepage() {
 
     const geom = geometry ?? bboxPolygon(bounds).geometry;
 
-    setDatasetFilters({
+    setDatasetFilters(prevFilters => ({
+      ...prevFilters,
       geometries: [geom],
-      parameters: {},
-    });
+    }));
   };
 
   return (
