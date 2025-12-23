@@ -13,7 +13,7 @@ import { h3ResolutionForZoomLevel } from '../../utilities/map';
 import DrawControl from '../DrawControl';
 import SoilhiveMapToolbar from './SoilhiveMapToolbar';
 import SoilhiveMapSelectionToolbar from './SoilhiveMapSelectionToolbar';
-import type { SoilhiveMapChangeEvent } from './SoilhiveMapChangeEvent'
+import type { SoilhiveMapChangeEvent } from './SoilhiveMapSelectionChangeEvent'
 
 type MapStyle = string | StyleSpecification | ImmutableLike<StyleSpecification>;
 type MapStyles = Array<{ name: string, mapStyle: MapStyle }>;

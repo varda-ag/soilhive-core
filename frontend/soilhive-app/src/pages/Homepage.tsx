@@ -16,7 +16,7 @@ import {
   DEFAULT_AVAILABILITY_MOBILE_TAB,
 } from 'components/AvailabilityMobileNavigation/AvailabilityMobileNavigation';
 import useDevice from 'hooks/useDevice';
-import type { SoilhiveMapSelectionChangeEvent } from 'components/Map/SoilhiveMapChangeEvent';
+import type { SoilhiveMapSelectionChangeEvent } from 'components/Map/SoilhiveMapSelectionChangeEvent';
 
 import styles from './Homepage.module.scss';
 import { AvailabilityContext } from '../contexts/AvailabilityContext';
