@@ -121,5 +121,30 @@ const applyFiltersToQuery = (query: any, filters: FilterableDatasetMetadata) => 
     query.leftJoin('dataset_layers.layer', 'layers_licenses');
     query.andWhere('layers_licenses.license IN (:...licenses)', { licenses: filters.licenses });
   }
+
+  // Raster filtering
+  if (filters.raster_filters && filters.raster_filters.size > 0) {
+    for (const [table, values] of filters.raster_filters.entries()) {
+      applyRasterFilterToQuery(query, table, values);
+    }
+  }
   return query;
+};
+
+const applyRasterFilterToQuery = (query: any, table: string, values: number[]) => {
+  query.innerJoin('features', 'f', 'f.id = dataset_layers.feature_id');
+
+  const t = `joined_${table}`;
+  const subQuery = `SELECT rast FROM ${table} WHERE ST_Intersects(rast, f.geom) LIMIT 1`;
+  query.leftJoin(
+    qb => {
+      qb.getQuery = () => `LATERAL (${subQuery})`;
+      return qb;
+    },
+    t,
+    'true',
+  );
+
+  query.andWhere(`ST_Value(${t}.rast, f.geom, TRUE) IN (:...values)`, { values });
+  query.andWhere(`ST_Value(${t}.rast, f.geom, TRUE) IS NOT NULL`);
 };

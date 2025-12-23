@@ -13,6 +13,8 @@ import { getDataSource } from '../src/utils/data-source';
 import SlugHistoryEntity from '../src/entities/SlugHistory';
 import { EntityType, GISDataType, IngestionStatus } from '../src/types/data';
 import assert from 'assert';
+import path from 'path';
+import RasterFilter from '../src/data-layer/RasterFilter';
 
 const randomInRange = (min: number, max: number): number => {
   return Math.random() * (max - min) + min;
@@ -26,6 +28,7 @@ export const syntheticDataOptions = {
   depthLayers: 1,
   soilPropertyNames: ['ph'],
   addNullValues: false,
+  featureCoordinates: undefined, // number[][] array of [lng, lat]
 };
 
 export const addSlug = async (slug: string, entity_id: string, entity_type: EntityType) => {
@@ -50,6 +53,8 @@ export const addDataset = async (name: string, spatial_extent: number[]): Promis
 };
 
 export const addFeature = async (lng: number, lat: number) => {
+  assert(!isNaN(lng), 'Longitude must be a number');
+  assert(!isNaN(lat), 'Latitude must be a number');
   const dataSource = await getDataSource();
   const repo = dataSource.getRepository(FeatureEntity);
   const feature = repo.create({
@@ -146,7 +151,8 @@ export interface SyntheticDataset {
 }
 
 export const addSyntheticData = async (syntheticDataOptions): Promise<SyntheticDataset> => {
-  const { id, spatial_extent, featureCount, observationsPerLayer, soilPropertyNames, depthLayers, addNullValues } = syntheticDataOptions;
+  const { id, spatial_extent, featureCount, featureCoordinates, observationsPerLayer, soilPropertyNames, depthLayers, addNullValues } =
+    syntheticDataOptions;
   assert(featureCount > 0, 'featureCount must be greater than 0');
   assert(observationsPerLayer > 0, 'observationsPerLayer must be greater than 0');
   assert(depthLayers > 0, 'depthLayers must be greater than 0');
@@ -166,12 +172,21 @@ export const addSyntheticData = async (syntheticDataOptions): Promise<SyntheticD
   const procedure = await addProcedure(`test_procedure_${id}`);
   const license = await addLicense(`test_license_${id}`);
   const features: FeatureEntity[] = [];
-  for (let i = 0; i < featureCount; i++) {
-    const feature = await addFeature(
-      randomInRange(spatial_extent[0], spatial_extent[2]),
-      randomInRange(spatial_extent[1], spatial_extent[3]),
-    );
-    features.push(feature);
+  if (featureCoordinates) {
+    // Coordinates provided explicitly
+    for (let i = 0; i < featureCoordinates.length; i++) {
+      const feature = await addFeature(featureCoordinates[i][0], featureCoordinates[i][1]);
+      features.push(feature);
+    }
+  } else {
+    // Random coordinates within spatial_extent
+    for (let i = 0; i < featureCount; i++) {
+      const feature = await addFeature(
+        randomInRange(spatial_extent[0], spatial_extent[2]),
+        randomInRange(spatial_extent[1], spatial_extent[3]),
+      );
+      features.push(feature);
+    }
   }
   for (let depthLayer = 0; depthLayer < depthLayers; depthLayer++) {
     const depth = depthLayer * 10;
@@ -191,4 +206,17 @@ export const addSyntheticData = async (syntheticDataOptions): Promise<SyntheticD
     }
   }
   return { dataset, features, soilProperties };
+};
+
+export const addLandCover = async (): Promise<string> => {
+  const rasterFilter = new RasterFilter();
+  const tableName = 'test_land_cover';
+  const filePath = path.join(
+    __dirname,
+    'assets',
+    'land_cover',
+    'W100S20_PROBAV_LC100_global_v3.0.1_2019-nrt_Discrete-Classification-map_EPSG-4326.tif',
+  );
+  await rasterFilter.addRasterFiles([filePath], tableName);
+  return tableName;
 };

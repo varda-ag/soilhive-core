@@ -464,18 +464,12 @@ components:
           type: array
           items:
             type: string
-        agroecological_zones:
-          type: array
-          items:
-            type: string
-        land_cover:
-          type: array
-          items:
-            type: string
-        soil_groups:
-          type: array
-          items:
-            type: string
+        raster_filters:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: number
 
     DatasetFilter:
       type: object

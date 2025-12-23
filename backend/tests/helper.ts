@@ -35,8 +35,12 @@ export const teardown = async () => {
 };
 
 export const clearDatabase = async () => {
+  const excludeTables = ['land_cover'];
   const dataSource = await getDataSource();
-  const tableNames = dataSource?.entityMetadatas.map(entity => `"${entity.tableName}"`).join(', ');
+  const tableNames = dataSource?.entityMetadatas
+    .filter(entity => !excludeTables.includes(entity.tableName))
+    .map(entity => `"${entity.tableName}"`)
+    .join(', ');
   await dataSource?.query(`SET search_path TO ${process.env.POSTGRES_SCHEMA}, public`);
   await dataSource?.query(`TRUNCATE TABLE ${tableNames} CASCADE;`);
 };

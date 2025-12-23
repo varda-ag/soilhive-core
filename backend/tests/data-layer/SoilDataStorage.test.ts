@@ -188,4 +188,22 @@ describe('SoilDataStorage class', () => {
       expect(results[0].dataset_layer_count).toBe(expectedCount);
     }
   });
+
+  it.skip.each([[[[-80.7811, -33.7413]], [30], 1, 1]])(
+    'Filtering using land cover should return expected data points',
+    async (featureCoordinates, values, expectedResultCount, expectedCount) => {
+      const bbox = [-81, -34, -80, -33];
+      const tableName = 'land_cover'; //await addLandCover();
+      await addSyntheticData({ ...syntheticDataOptions, depthLayers: 1, featureCoordinates, spatial_extent: bbox });
+      const sds = new SoilDataStorage();
+      const entityManager = await getEntityManager();
+      const raster_filters = new Map<string, number[]>();
+      raster_filters.set(tableName, values);
+      const results = await sds.filter(entityManager, getPolygonFromBbox(bbox), { raster_filters });
+      expect(results.length).toBe(expectedResultCount);
+      if (expectedResultCount > 0) {
+        expect(results[0].dataset_layer_count).toBe(expectedCount);
+      }
+    },
+  );
 });
