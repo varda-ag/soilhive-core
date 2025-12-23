@@ -16,7 +16,7 @@ import {
   DEFAULT_AVAILABILITY_MOBILE_TAB,
 } from 'components/AvailabilityMobileNavigation/AvailabilityMobileNavigation';
 import useDevice from 'hooks/useDevice';
-import type { SoilhiveMapChangeEvent } from 'components/Map/SoilhiveMapChangeEvent';
+import type { SoilhiveMapSelectionChangeEvent } from 'components/Map/SoilhiveMapChangeEvent';
 
 import styles from './Homepage.module.scss';
 import { AvailabilityContext } from '../contexts/AvailabilityContext';
@@ -54,7 +54,7 @@ function Homepage() {
 
   const { setDatasetFilters } = availabilityContext;
 
-  const handleMapSelectionChange = (event: SoilhiveMapChangeEvent) => {
+  const handleMapSelectionChange = (event: SoilhiveMapSelectionChangeEvent) => {
     const { bounds, geometries } = event;
 
     const geoms = geometries ?? [bboxPolygon(bounds).geometry];

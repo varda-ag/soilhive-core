@@ -1,5 +1,5 @@
 import { type Polygon, type MultiPolygon } from 'geojson';
-export interface SoilhiveMapChangeEvent {
+export interface SoilhiveMapSelectionChangeEvent {
   bounds: [number, number, number, number];
   geometries?: (Polygon | MultiPolygon)[];
 }

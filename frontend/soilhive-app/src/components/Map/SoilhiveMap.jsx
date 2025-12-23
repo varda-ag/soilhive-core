@@ -56,7 +56,7 @@ interface SoilhiveMapProps {
   mapStyles?: MapStyles;
   scrollZoom?: boolean;
   dragPan?: boolean;
-  onSelectionChange?:Selectionvent: SoilhiveMapChangeEvent) => void;
+  onSelectionChange?: (event: SoilhiveMapSelectionChangeEvent) => void;
 };
 
 const dataLayerFills: LayerProps = {
