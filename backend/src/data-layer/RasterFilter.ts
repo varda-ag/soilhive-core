@@ -2,7 +2,7 @@ import { spawn } from 'child_process';
 
 export default class RasterFilter {
   /**
-   * @returns A map of dataset UUIDs to their overlap type with the provided geometry
+   * TODO: fix this partial implementation to properly connect to DB and load rasters
    */
   addRasterFiles = async (files: string[], table: string): Promise<void> => {
     for (const file of files) {
