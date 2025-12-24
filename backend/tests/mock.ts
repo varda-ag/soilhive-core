@@ -44,6 +44,7 @@ export const addDataset = async (name: string, spatial_extent: number[]): Promis
   const dataset = repo.create({
     id: uuidv7(),
     name,
+    slug: name,
     created_by: 'tests',
     gis_datatype: GISDataType.POINT,
     status: IngestionStatus.INGESTED,
