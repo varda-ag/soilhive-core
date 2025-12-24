@@ -2,7 +2,7 @@ import { useFetchFilteredDatasets } from 'hooks/useFetchFilteredDatasets';
 import React, { createContext, useState, type ReactNode, useCallback, useMemo } from 'react';
 import type { AvailabilityDataset, DatasetSummary } from 'types/availability';
 import { mapFilteredDatasetToAvailabilityDataset } from '../adapters';
-import type { DatasetFilter } from 'types/backend';
+import type { DatasetFilter, FilterableDatasetMetadata } from 'types/backend';
 import { computeDatasetSummary } from '../domain';
 
 type DatasetFilters = {
@@ -29,7 +29,7 @@ type AvailabilityContextType = {
   setSearchValue: (value: string) => void;
   setFilters: (value: string | string[], name: string) => void;
   selectAllDatasets: (select: boolean) => void;
-  setDatasetFilters: (filter: DatasetFilter) => void;
+  setDatasetFilters: React.Dispatch<React.SetStateAction<DatasetFilter>>;
 };
 
 export const AvailabilityContext = createContext<AvailabilityContextType | undefined>(undefined);
@@ -47,9 +47,9 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
   });
   const [isAllSelected, setIsAllSelected] = useState<boolean>(false);
 
-  const initialFilters = {
+  const initialFilters: DatasetFilter = {
     geometries: [],
-    parameters: {},
+    parameters: {} as FilterableDatasetMetadata,
   };
   const [datasetFilters, setDatasetFilters] = useState<DatasetFilter>(initialFilters);
   const { fetchedFilteredResults } = useFetchFilteredDatasets(datasetFilters);
