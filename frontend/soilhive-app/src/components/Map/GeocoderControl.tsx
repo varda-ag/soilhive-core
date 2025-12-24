@@ -136,10 +136,8 @@ export default function GeocoderControl(props: GeocoderControlProps) {
 
   const geocoder = useControl<MaplibreGeocoder>(
     () => {
-      // { mapLib }
       const ctrl = new MaplibreGeocoder(geocoderAPI, {
         marker: false,
-        //maplibregl: mapLib,
         showResultsWhileTyping: props.geocoder !== 'nominatim' ? true : false, // Nominatim's policy doesn't allow the implementation of an auto-complete https://operations.osmfoundation.org/policies/nominatim/
         proximityMinZoom: 9, // only prioritize the viewport when zoomed in to z9
         debounceSearch: props.geocoder !== 'nominatim' ? 200 : 1000, // Nominatim's policy requires to limit searches to maximum 1 request per second https://operations.osmfoundation.org/policies/nominatim/

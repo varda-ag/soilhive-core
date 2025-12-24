@@ -2,6 +2,7 @@ import { area, bboxPolygon, booleanPointInPolygon, featureCollection, polygon } 
 import { featureToH3Set } from 'geojson2h3';
 import { cellToBoundary, cellToLatLng, type CoordPair, type H3Index } from 'h3-js';
 import { lerp } from 'math.gl';
+import type { FeatureCollection } from 'geojson';
 
 export function h3IndexesToGeoJSONPolygon(h3Index: H3Index) {
   const [lat, lng] = cellToLatLng(h3Index);
@@ -41,7 +42,7 @@ function normalizeLongitudes(vertices: CoordPair[], refLng: number) {
   }
 }
 
-export function h3IndexesToGeoJSONPolygons(h3Indexes: Array<H3Index>) {
+export function h3IndexesToGeoJSONPolygons(h3Indexes: Array<H3Index>): FeatureCollection {
   return featureCollection(h3Indexes.map(h3IndexesToGeoJSONPolygon) as any);
 }
 
