@@ -49,7 +49,7 @@ describe('SoilDataStorage class', () => {
     const datasets: DatasetEntity[] = [];
     for (let i = 0; i < expectedDatasetCount; i++) {
       // Always a point dataset
-      datasets.push((await addSyntheticData({ ...syntheticDataOptions, id: i, soilPropertyNames: `${i}` })).dataset);
+      datasets.push((await addSyntheticData({ ...syntheticDataOptions, id: i, soilPropertyNames: [`${i}`] })).dataset);
     }
     const sds = new SoilDataStorage();
     const entityManager = await getEntityManager();
@@ -102,7 +102,7 @@ describe('SoilDataStorage class', () => {
     ['2222-01-01', '3333-01-01', 0],
   ])('Filtering by sampling date should return expected data points', async (min_sampling_date, max_sampling_date, expectedResultCount) => {
     for (let i = 0; i < 5; i++) {
-      await addSyntheticData({ ...syntheticDataOptions, id: i, soilPropertyNames: `${i}` }); // 5 iterations covering 2020-01-01 to 2024-01-01
+      await addSyntheticData({ ...syntheticDataOptions, id: i, soilPropertyNames: [`${i}`] }); // 5 iterations covering 2020-01-01 to 2024-01-01
     }
     const sds = new SoilDataStorage();
     const entityManager = await getEntityManager();

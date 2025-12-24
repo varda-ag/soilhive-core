@@ -1,0 +1,20 @@
+import { StatusCodes } from 'http-status-codes';
+import { RequestData } from '../interfaces/RequestData';
+import { ErrorResponse } from '../utils/error';
+import SoilProperty from '../entities/SoilProperty';
+
+export default class SoilPropertyService {
+  getSoilProperties = async (requestData: RequestData): Promise<SoilProperty[]> => {
+    const repo = requestData.entityManager.getRepository(SoilProperty);
+    return await repo.find();
+  };
+
+  getSoilProperty = async (requestData: RequestData, slug: string): Promise<SoilProperty> => {
+    const repo = requestData.entityManager.getRepository(SoilProperty);
+    const soilProperty = await repo.findOneBy({ slug });
+    if (!soilProperty) {
+      throw new ErrorResponse(`Soil property ${slug} not found`, StatusCodes.NOT_FOUND);
+    }
+    return soilProperty;
+  };
+}

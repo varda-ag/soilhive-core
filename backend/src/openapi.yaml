@@ -15,18 +15,18 @@ paths:
       tags:
         - auth
       responses:
-        "200":
+        '200':
           description: Authentication configuration
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AuthConfig"
-        "404":
+                $ref: '#/components/schemas/AuthConfig'
+        '404':
           description: Configuration not found
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                $ref: '#/components/schemas/ErrorResponse'
 
   /oauth/token:
     post:
@@ -58,7 +58,7 @@ paths:
                 - grant_type
                 - password
       responses:
-        "200":
+        '200':
           description: JWT token response
           content:
             application/json:
@@ -92,20 +92,20 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/ConfigItem"
+              $ref: '#/components/schemas/ConfigItem'
       responses:
-        "200":
+        '200':
           description: Configuration updated successfully
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ConfigItem"
-        "400":
+                $ref: '#/components/schemas/ConfigItem'
+        '400':
           description: Invalid input data
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                $ref: '#/components/schemas/ErrorResponse'
     get:
       x-eov-operation-handler: controllers/config
       x-eov-operation-id: getConfig
@@ -113,18 +113,18 @@ paths:
       tags:
         - config
       responses:
-        "200":
+        '200':
           description: Configuration object
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ConfigItem"
-        "404":
+                $ref: '#/components/schemas/ConfigItem'
+        '404':
           description: Configuration not found
           content:
             application/problem+json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
+                $ref: '#/components/schemas/ErrorResponse'
     delete:
       x-eov-operation-handler: controllers/config
       x-eov-operation-id: deleteConfig
@@ -134,7 +134,7 @@ paths:
       security:
         - bearerAuth: [super-admin]
       responses:
-        "204":
+        '204':
           description: Configuration deleted successfully
 
   /config-export:
@@ -147,7 +147,7 @@ paths:
       security:
         - bearerAuth: [super-admin]
       responses:
-        "200":
+        '200':
           description: Object containing all the stored configurations
 
   /frontend/logo:
@@ -173,18 +173,18 @@ paths:
               file:
                 contentType: image/svg+xml
       responses:
-        "201":
+        '201':
           description: Logo uploaded successfully
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/FileDescriptor"
-        "400":
-          $ref: "#/components/schemas/ErrorResponse"
-        "401":
-          $ref: "#/components/schemas/ErrorResponse"
-        "409":
-          $ref: "#/components/schemas/ErrorResponse"
+                $ref: '#/components/schemas/FileDescriptor'
+        '400':
+          $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          $ref: '#/components/schemas/ErrorResponse'
       security:
         - bearerAuth: [super-admin]
     get:
@@ -194,7 +194,7 @@ paths:
       tags:
         - frontend
       responses:
-        "200":
+        '200':
           description: Logo downloaded successfully
     delete:
       x-eov-operation-handler: controllers/files
@@ -205,7 +205,7 @@ paths:
       security:
         - bearerAuth: [super-admin]
       responses:
-        "204":
+        '204':
           description: Logo deleted successfully
 
   /datasets:
@@ -216,14 +216,14 @@ paths:
       tags:
         - datasets
       responses:
-        "200":
+        '200':
           description: Dataset array
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/Dataset"
+                  $ref: '#/components/schemas/Dataset'
 
   /datasets/{datasetSlug}:
     parameters:
@@ -240,12 +240,51 @@ paths:
       tags:
         - datasets
       responses:
-        "200":
+        '200':
           description: Dataset information
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Dataset"
+                $ref: '#/components/schemas/Dataset'
+
+  /soil-properties:
+    get:
+      x-eov-operation-handler: controllers/soil-properties
+      x-eov-operation-id: getSoilProperties
+      summary: Get metadata for all soil properties
+      tags:
+        - soil-properties
+      responses:
+        '200':
+          description: Soil property array
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SoilProperty'
+
+  /soil-properties/{soilPropertySlug}:
+    parameters:
+      - name: soilPropertySlug
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Soil property slug
+    get:
+      x-eov-operation-handler: controllers/soil-properties
+      x-eov-operation-id: getSoilProperty
+      summary: Get metadata for a specific soil property
+      tags:
+        - soil-properties
+      responses:
+        '200':
+          description: Dataset information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SoilProperty'
 
   /datasets-filters:
     post:
@@ -262,19 +301,19 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/DatasetFilter"
+              $ref: '#/components/schemas/DatasetFilter'
 
       responses:
-        "201":
+        '201':
           description: Filter created successfully
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PostDatasetFilterResponse"
-        "400":
-          $ref: "#/components/schemas/ErrorResponse"
-        "401":
-          $ref: "#/components/schemas/ErrorResponse"
+                $ref: '#/components/schemas/PostDatasetFilterResponse'
+        '400':
+          $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/schemas/ErrorResponse'
 
   /files/{fileId}:
     parameters:
@@ -303,20 +342,20 @@ paths:
               required:
                 - file
       responses:
-        "201":
+        '201':
           description: File uploaded successfully
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/FileDescriptor"
-        "400":
-          $ref: "#/components/schemas/ErrorResponse"
-        "401":
-          $ref: "#/components/schemas/ErrorResponse"
-        "404":
-          $ref: "#/components/schemas/ErrorResponse"
-        "409":
-          $ref: "#/components/schemas/ErrorResponse"
+                $ref: '#/components/schemas/FileDescriptor'
+        '400':
+          $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          $ref: '#/components/schemas/ErrorResponse'
       security:
         - bearerAuth: [super-admin, data-admin]
 
@@ -334,7 +373,7 @@ paths:
           schema:
             type: string
       responses:
-        "200":
+        '200':
           description: File downloaded successfully
 
 components:
@@ -354,7 +393,7 @@ components:
           type: string
           description: Authentication mode type
         oidcConfig:
-          $ref: "#/components/schemas/OIDCConfig"
+          $ref: '#/components/schemas/OIDCConfig'
 
     OIDCConfig:
       type: object
@@ -393,7 +432,7 @@ components:
         title:
           type: string
           description: A short, human-readable summary of the problem type.
-          example: "Not Found"
+          example: 'Not Found'
         status:
           type: integer
           description: The HTTP status code
@@ -401,7 +440,7 @@ components:
         detail:
           type: string
           description: A human-readable explanation specific to this occurrence of the problem.
-          example: "The requested configuration resource was not found."
+          example: 'The requested configuration resource was not found.'
         instance:
           type: string
           format: uri
@@ -477,16 +516,16 @@ components:
         geometries:
           type: array
           items:
-            $ref: "../src/GeoJSON-OAS3.yaml#/components/schemas/Geometry"
+            $ref: '../src/GeoJSON-OAS3.yaml#/components/schemas/Geometry'
         parameters:
-          $ref: "#/components/schemas/FilterableDatasetMetadata"
+          $ref: '#/components/schemas/FilterableDatasetMetadata'
       required:
         - geometries
         - parameters
 
     FilteredDataset:
       allOf:
-        - $ref: "#/components/schemas/FilterableDatasetMetadata"
+        - $ref: '#/components/schemas/FilterableDatasetMetadata'
         - type: object
           properties:
             id:
@@ -502,7 +541,7 @@ components:
 
     PostDatasetFilterResponse:
       allOf:
-        - $ref: "#/components/schemas/DatasetFilter"
+        - $ref: '#/components/schemas/DatasetFilter'
         - type: object
           properties:
             id:
@@ -519,7 +558,7 @@ components:
                   datasets:
                     type: array
                     items:
-                      $ref: "#/components/schemas/FilteredDataset"
+                      $ref: '#/components/schemas/FilteredDataset'
 
     VariableMeasured:
       type: object
@@ -662,3 +701,44 @@ components:
         - is_archived
         - created_at
         - created_by
+
+    SoilProperty:
+      type: object
+      required:
+        - id
+        - slug
+        - property_name
+        - property_acronym
+        - category_id
+      properties:
+        id:
+          type: string
+          description: Unique identifier
+        slug:
+          type: string
+          description: URL-friendly identifier
+        property_name:
+          type: string
+          description: Human-readable name
+        property_acronym:
+          type: string
+          description: Abbreviation
+        description:
+          type: string
+          nullable: true
+          description: Optional description
+        standard_unit:
+          type: string
+          nullable: true
+          description: Standard unit
+        property_level:
+          type: integer
+          nullable: true
+          description: Hierarchical level
+        parent_property_id:
+          type: string
+          nullable: true
+          description: Parent property ID, if applicable
+        category_id:
+          type: string
+          description: Category identifier
