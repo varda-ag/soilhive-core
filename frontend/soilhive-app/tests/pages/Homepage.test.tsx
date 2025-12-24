@@ -169,6 +169,8 @@ describe('Homepage', () => {
           ],
         },
       ],
+      eventType: 'draw',
+      zoomLevel: 10,
     };
 
     const onSelectionChange = mockOnMapSelectionChange;
@@ -204,6 +206,8 @@ describe('Homepage', () => {
     const mockEvent: SoilhiveMapSelectionChangeEvent = {
       bounds: [6.0, 35.0, 18.0, 47.0],
       // No geometries provided
+      eventType: 'draw',
+      zoomLevel: 10,
     };
 
     // Act

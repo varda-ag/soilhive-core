@@ -4,11 +4,12 @@ import PolygonIcon from 'assets/icons/polygon-icon.svg?react';
 import ArrowDownIcon from 'assets/icons/arrow-down-icon.svg?react';
 import PencilIcon from 'assets/icons/pencil-icon.svg?react';
 import UploadIcon from 'assets/icons/upload-icon.svg?react';
-import { booleanValid, type AllGeoJSON } from '@turf/turf';
+import { booleanValid } from '@turf/turf';
+import type { Feature } from 'geojson';
 
 interface SoilhiveMapToolbarProps {
   onDrawClick: () => void;
-  onUpload: (geojson: AllGeoJSON) => {};
+  onUpload: (geojson: Feature) => void;
 }
 
 export default function SoilhiveMapToolbar({ onDrawClick, onUpload }: SoilhiveMapToolbarProps) {
@@ -21,7 +22,7 @@ export default function SoilhiveMapToolbar({ onDrawClick, onUpload }: SoilhiveMa
     const target = event.target as Node;
     const insideSelectionButton = selectionButtonRef.current?.contains(target);
     const insideSelectionList = selectionListRef.current?.contains(target);
-    if(!insideSelectionButton && !insideSelectionList) {
+    if (!insideSelectionButton && !insideSelectionList) {
       setOpen(false);
     }
   }
@@ -30,15 +31,15 @@ export default function SoilhiveMapToolbar({ onDrawClick, onUpload }: SoilhiveMa
     window.addEventListener('click', onWindowClick);
     const fileInput = document.createElement('input');
     fileInput.type = 'file';
-    fileInput.accept = '.geojson';
+    fileInput.accept = '.geojson,.json';
     fileInput.onchange = async function onFileInputChange(event) {
-      const file = (event as any).target?.files?.item(0);;
-      if(!file) {
+      const file = (event as any).target?.files?.item(0);
+      if (!file) {
         console.error('No file uploaded');
         return;
       }
       const text = await file.text();
-      if(!text) {
+      if (!text) {
         console.error('Cannot read uploaded file as text');
         return;
       }
@@ -46,24 +47,33 @@ export default function SoilhiveMapToolbar({ onDrawClick, onUpload }: SoilhiveMa
       try {
         json = JSON.parse(text);
       } catch {}
-      if(!json) {
+      if (!json) {
         console.error('Cannot read uploaded file as JSON');
         return;
       }
-      if(!booleanValid(json)) {
+      if (!booleanValid(json)) {
         console.error('Uploaded file does not contain valid GeoJSON');
         return;
       }
-      onUpload(json);
+      const feature = json.type === 'FeatureCollection' ? json.features[0] : json;
+      switch (feature.geometry.type) {
+        case 'Polygon':
+        case 'MultiPolygon':
+          onUpload(json);
+          break;
+        default:
+          console.error('Uploaded file does not contain Polygon or MultiPolygon', json);
+          break;
+      }
     };
     fileInputRef.current = fileInput;
-    return (() => {
+    return () => {
       window.removeEventListener('click', onWindowClick);
-      if(fileInputRef.current) {
+      if (fileInputRef.current) {
         fileInputRef.current.onchange = null;
         fileInputRef.current = null;
       }
-    });
+    };
   }, []);
 
   return (

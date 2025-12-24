@@ -11,7 +11,13 @@ import type { ControlPosition } from 'react-map-gl/maplibre';
 //   // onDelete?: (evt: {features: object[]}) => void;
 // };
 
-export default function DrawControl({ position = 'bottom-right', onFinish }: { position?: ControlPosition; onFinish: (feature: any) => {}}) {
+export default function DrawControl({
+  position = 'bottom-right',
+  onFinish,
+}: {
+  position?: ControlPosition;
+  onFinish: (feature: any) => void;
+}) {
   const drawControl = useControl<MaplibreTerradrawControl>(
     () =>
       new MaplibreTerradrawControl({
@@ -35,14 +41,14 @@ export default function DrawControl({ position = 'bottom-right', onFinish }: { p
         ],
         open: true,
       }),
-    ({ map }) => {
+    () => {
       const drawInstance = drawControl.getTerraDrawInstance();
       drawInstance.on('ready', () => {
         drawInstance.setMode('polygon'); // TODO: NOT WORKING
       });
       drawInstance.on('finish', onDrawFinish);
     },
-    ({ map }) => {
+    () => {
       const drawInstance = drawControl.getTerraDrawInstance();
       drawInstance?.off('finish', onDrawFinish);
     },
@@ -51,11 +57,11 @@ export default function DrawControl({ position = 'bottom-right', onFinish }: { p
     },
   );
 
-  function onDrawFinish(event) {
+  function onDrawFinish() {
     const drawInstance = drawControl.getTerraDrawInstance();
     const snapshot = drawInstance.getSnapshot();
     const feature = snapshot[0];
-    onFinish(feature)
+    onFinish(feature);
   }
 
   return null;

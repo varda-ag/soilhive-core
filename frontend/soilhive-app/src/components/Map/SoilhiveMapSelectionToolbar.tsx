@@ -6,10 +6,10 @@ import { Button } from '../UI';
 
 interface SoilhiveMapSelectionToolbarProps {
   area?: number;
-  onCancel: () => {};
-  onReset: () => {};
-  onDrawAnother: () => {};
-  onShowResults: () => {};
+  onCancel: () => void;
+  onReset: () => void;
+  onDrawAnother: () => void;
+  onShowResults: () => void;
 }
 
 export default function SoilhiveMapSelectionToolbar({ area = 0, onCancel, onReset, onDrawAnother, onShowResults }: SoilhiveMapSelectionToolbarProps) {

@@ -1,12 +1,19 @@
 /* global fetch */
-import { useState, useMemo, useEffect } from 'react';
-import { useControl, Marker, Source, Layer } from 'react-map-gl/maplibre';
-import MaplibreGeocoder, { type MaplibreGeocoderApi, type MaplibreGeocoderOptions, type MaplibreGeocoderApiConfig } from '@maplibre/maplibre-gl-geocoder';
+import { useState, useMemo, useEffect, type JSX } from 'react';
+import { useControl, Marker, type ControlPosition, type MarkerProps } from 'react-map-gl/maplibre';
+import MaplibreGeocoder, {
+  type MaplibreGeocoderApi,
+  type MaplibreGeocoderFeatureResults,
+  type MaplibreGeocoderOptions,
+  type MaplibreGeocoderApiConfig,
+  type CarmenGeojsonFeature,
+} from '@maplibre/maplibre-gl-geocoder';
 import { MAPBOX_ACCESS_TOKEN } from '../../utilities/environmentVariables';
 import { bbox as bboxFn, centerOfMass, featureCollection } from '@turf/turf';
 import { largestPolygonInsideMultipolygon as largestPolygonInsideMultipolygonFn } from '../../utilities/geo';
 
 type GeocoderControlProps = Omit<MaplibreGeocoderOptions, 'maplibregl' | 'marker'> & {
+  geocoder?: 'nominatim' | 'mapbox';
   marker?: boolean | Omit<MarkerProps, 'longitude' | 'latitude'>;
   position: ControlPosition;
   onLoading?: (e: object) => void;
@@ -16,41 +23,41 @@ type GeocoderControlProps = Omit<MaplibreGeocoderOptions, 'maplibregl' | 'marker
   onFeatureSelect?: (feature: any) => void;
 };
 
-/* eslint-disable camelcase */
 const nominatimGeocoderAPI: MaplibreGeocoderApi = {
-  forwardGeocode: async (config: MaplibreGeocoderApiConfig) => {
-    const features = [];
+  forwardGeocode: async (config: MaplibreGeocoderApiConfig): Promise<MaplibreGeocoderFeatureResults> => {
+    const features: CarmenGeojsonFeature[] = [];
     try {
       let request = `https://nominatim.openstreetmap.org/search?q=${config.query}&format=geojson&polygon_geojson=1&addressdetails=1`;
-      if(config.bbox) {
+      if (config.bbox) {
         request += `&viewbox=${config.bbox.join(',')}&bounded=0`;
       }
       const response = await fetch(request);
       const geojson = await response.json();
       for (const feature of geojson.features) {
-        let geometry;
+        let geometry: GeoJSON.Point;
         let bbox;
         let largestPolygonInsideMultiPolygon = null;
-        if(feature?.geometry?.type === 'MultiPolygon') {
+        if (feature?.geometry?.type === 'MultiPolygon') {
           largestPolygonInsideMultiPolygon = largestPolygonInsideMultipolygonFn(feature);
           console.assert(largestPolygonInsideMultiPolygon !== null, 'A valid MultiPolygon should contain at least a Polygon');
           // Used center of mass so it's guaranteed to be withing the polygon (good for concave shapes)
           // if we use centroid for the geometric center it might fall outside concave shapes
-          geometry = centerOfMass(largestPolygonInsideMultiPolygon).geometry;
-          bbox = bboxFn(largestPolygonInsideMultiPolygon);
+          geometry = centerOfMass(largestPolygonInsideMultiPolygon).geometry as GeoJSON.Point;
+          bbox = bboxFn(largestPolygonInsideMultiPolygon!);
         } else {
           const center = [
             feature.bbox[0] + (feature.bbox[2] - feature.bbox[0]) / 2,
-            feature.bbox[1] + (feature.bbox[3] - feature.bbox[1]) / 2
+            feature.bbox[1] + (feature.bbox[3] - feature.bbox[1]) / 2,
           ];
           geometry = {
             type: 'Point',
-            coordinates: center
-          };
+            coordinates: center,
+          } as GeoJSON.Point;
           bbox = feature.bbox;
         }
         const carmenGeoJSONFeature = {
           type: 'Feature',
+          id: feature.id,
           bbox,
           geometry,
           original_feature: feature,
@@ -59,26 +66,27 @@ const nominatimGeocoderAPI: MaplibreGeocoderApi = {
           place_name: feature.properties.display_name,
           properties: feature.properties,
           text: feature.properties.display_name,
-          place_type: ['place']
-        };
+          place_type: ['place'],
+        } as CarmenGeojsonFeature;
         features.push(carmenGeoJSONFeature);
       }
     } catch (e) {
-      console.error(`Failed to forwardGeocode with error: ${e}`); // eslint-disable-line
+      console.error(`Failed to forwardGeocode with error: ${e}`);
     }
 
     return {
-      features
+      type: 'FeatureCollection',
+      features,
     };
-  }
+  },
 };
 
 const mapboxGeocoderAPI: MaplibreGeocoderApi = {
-  forwardGeocode: async (config: MaplibreGeocoderApiConfig) => {
-    const features = [];
+  forwardGeocode: async (config: MaplibreGeocoderApiConfig): Promise<MaplibreGeocoderFeatureResults> => {
+    const features: CarmenGeojsonFeature[] = [];
     try {
       let request = `https://api.mapbox.com/search/geocode/v6/forward?q=${config.query}&access_token=${MAPBOX_ACCESS_TOKEN}`;
-      if(config.proximity) {
+      if (config.proximity) {
         request += `&proximity=${config.proximity.join(',')}`;
       }
       const response = await fetch(request);
@@ -86,6 +94,7 @@ const mapboxGeocoderAPI: MaplibreGeocoderApi = {
       for (const feature of geojson.features) {
         const carmenGeoJSONFeature = {
           type: 'Feature',
+          id: feature.id,
           bbox: feature.properties.bbox,
           geometry: feature.geometry, // Always a point, since Mapbox supports only that
           original_feature: feature,
@@ -94,99 +103,97 @@ const mapboxGeocoderAPI: MaplibreGeocoderApi = {
           properties: feature.properties,
           text: feature.properties.name,
           place_type: ['place'],
-        };
+        } as CarmenGeojsonFeature;
         features.push(carmenGeoJSONFeature);
       }
     } catch (e) {
-      console.error(`Failed to forwardGeocode with error: ${e}`); // eslint-disable-line
+      console.error(`Failed to forwardGeocode with error: ${e}`);
     }
 
     return {
-      features
+      type: 'FeatureCollection',
+      features,
     };
-  }
+  },
 };
 
-/* eslint-disable complexity,max-statements */
 export default function GeocoderControl(props: GeocoderControlProps) {
-  const [marker, setMarker] = useState(null);
+  const [marker, setMarker] = useState<JSX.Element | null>(null);
 
   const geocoderAPI = useMemo(() => {
-    if(props.geocoder === 'nominatim') {
+    if (props.geocoder === 'nominatim') {
       return nominatimGeocoderAPI;
-    } else if(props.geocoder === 'mapbox') {
-      if(!MAPBOX_ACCESS_TOKEN) {
+    } else if (props.geocoder === 'mapbox') {
+      if (!MAPBOX_ACCESS_TOKEN) {
         console.error('Mapbox Geocoder API requires a mapbox access token to be used');
       }
-      return mapboxGeocoderAPI
+      return mapboxGeocoderAPI;
     } else {
-      console.warn('Non-existing or no geocoder specified. Defaulting to nominatim.')
+      console.warn('Non-existing or no geocoder specified. Defaulting to nominatim.');
       return nominatimGeocoderAPI;
     }
   }, [props.geocoder]);
 
   const geocoder = useControl<MaplibreGeocoder>(
-    ({mapLib}) => {
+    () => {
       const ctrl = new MaplibreGeocoder(geocoderAPI, {
         marker: false,
-        maplibregl: mapLib,
         showResultsWhileTyping: props.geocoder !== 'nominatim' ? true : false, // Nominatim's policy doesn't allow the implementation of an auto-complete https://operations.osmfoundation.org/policies/nominatim/
         proximityMinZoom: 9, // only prioritize the viewport when zoomed in to z9
         debounceSearch: props.geocoder !== 'nominatim' ? 200 : 1000, // Nominatim's policy requires to limit searches to maximum 1 request per second https://operations.osmfoundation.org/policies/nominatim/
         clearAndBlurOnEsc: true,
-        placeholder: 'Country, coordinates or H3cellID'
+        placeholder: 'Country, coordinates or H3cellID',
       });
-      ctrl.on('loading', (evt) => {
-        const bounds = geocoder?._map?.getBounds();
-        if(bounds) {
-          geocoder.setBbox(bounds.toArray().flat());
+      ctrl.on('loading', _ => {
+        const bounds = (ctrl as any)?._map?.getBounds();
+        if (bounds) {
+          ctrl.setBbox(bounds.toArray().flat());
         }
-        const center = geocoder?._map?.getCenter();
-        if(center) {
-          geocoder.setProximity({latitude: center.lat, longitude: center.lng });
+        const center = (ctrl as any)?._map?.getCenter();
+        if (center) {
+          ctrl.setProximity({ latitude: center.lat, longitude: center.lng });
         }
       });
-      ctrl.on('results', (evt) => {
-        if(props.geocoder === 'nominatim') {
-          const originalFeatures = evt.features.map(feature => feature.largestPolygonInsideMultiPolygon ?? feature.original_feature);
+      ctrl.on('results', evt => {
+        if (props.geocoder === 'nominatim') {
+          const originalFeatures = evt.features.map((feature: any) => feature.largestPolygonInsideMultiPolygon ?? feature.original_feature);
           const boundingBox = bboxFn(featureCollection(originalFeatures));
-          geocoder._map.fitBounds(boundingBox);
+          (ctrl as any)._map.fitBounds(boundingBox);
         }
       });
-      ctrl.on('clear', (evt) => {
+      ctrl.on('clear', _ => {
         setMarker(null);
       });
       ctrl.on('result', evt => {
-        const {result} = evt;
-        if(!result) {
+        const { result } = evt;
+        if (!result) {
           setMarker(null);
         }
-        if(result.original_geometry.type === 'Point') {
+        if (result.original_geometry.type === 'Point') {
           const [lat, lon] = result.original_geometry.coordinates;
           setMarker(<Marker longitude={lat} latitude={lon} />);
         } else {
           ctrl.clear();
           props.onFeatureSelect?.({
             feature: result.original_feature,
-            center: result.geometry
+            center: result.geometry,
           });
         }
       });
       return ctrl;
     },
     {
-      position: props.position // Position of the search input inside the Maplibre map component
-    }
+      position: props.position, // Position of the search input inside the Maplibre map component
+    },
   );
 
-  useEffect(()=> {
-    if(geocoder.container) {
-      document.querySelector('.soilhive-map-toolbar')?.prepend(geocoder.container);
+  useEffect(() => {
+    if ((geocoder as any).container) {
+      document.querySelector('.soilhive-map-toolbar')?.prepend((geocoder as any).container);
     }
-  }, []);
+  }, [geocoder]);
 
-  // @ts-ignore (TS2339) private member
-  if (geocoder._map) {
+  if ((geocoder as any)._map) {
     if (geocoder.getProximity() !== props.proximity && props.proximity !== undefined) {
       geocoder.setProximity(props.proximity);
     }
