@@ -1,5 +1,14 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
-import { Map, NavigationControl, type MapGeoJSONFeature, type StyleSpecification, type ImmutableLike, type LayerProps, Source, Layer, Marker } from 'react-map-gl/maplibre';
+import {
+  Map,
+  NavigationControl,
+  type StyleSpecification,
+  type ImmutableLike,
+  type LayerProps,
+  Source,
+  Layer,
+  Marker,
+} from 'react-map-gl/maplibre';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import '../../styles/SoilhiveMap.scss';
 import { bBoxToH3Cells, h3IndexesToGeoJSONPolygons } from '../../utilities/geo';
@@ -17,48 +26,48 @@ interface SoilhiveSimpleMapProps {
   mapStyle: MapStyle;
   scrollZoom?: boolean;
   dragPan?: boolean;
-};
+}
 
 const dataLayerSelection: LayerProps = {
   id: 'data-selection',
   type: 'fill',
   paint: {
     'fill-color': '#F5B200',
-    'fill-opacity': 0.5
-  }
+    'fill-opacity': 0.5,
+  },
 };
 
 const dataLayerBorders: LayerProps = {
   id: 'data-borders',
   type: 'line',
   paint: {
-    "line-color": 'black',
-    "line-width": 0.1,
-    "line-opacity": 0.5
-  }
+    'line-color': 'black',
+    'line-width': 0.1,
+    'line-opacity': 0.5,
+  },
 };
 
 function SoilhiveSimpleMap({
   initialViewBoundingBox,
-  selectedPoint = null,
+  selectedPoint = undefined,
   selectedFeature = null,
   showNavigation = true,
   showH3Cells = false,
   mapStyle = 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json',
   scrollZoom = true,
-  dragPan = true
+  dragPan = true,
 }: SoilhiveSimpleMapProps) {
-  const mapRef = useRef();
-  const [h3Cells, setH3Cells] = useState(null);
+  const mapRef = useRef<any>(null);
+  const [h3Cells, setH3Cells] = useState<any | null>(null);
 
   function updateH3Cells(mapEvent) {
     if (!showH3Cells) {
       setH3Cells(null);
       return;
-    };
+    }
     try {
       const map = mapEvent.target;
-      const zoomLevel = map.getZoom()
+      const zoomLevel = map.getZoom();
       const bounds = map.getBounds().toArray().flat();
       const h3Indexes = bBoxToH3Cells(bounds, h3ResolutionForZoomLevel(zoomLevel));
       const h3CellsFeatureCollection = h3IndexesToGeoJSONPolygons(h3Indexes);
@@ -69,20 +78,20 @@ function SoilhiveSimpleMap({
   }
 
   const fitBoundsToSelectedFeature = useCallback(() => {
-    if(!selectedFeature) {
-        return;
+    if (!selectedFeature) {
+      return;
     }
     const bbox = bboxFn(selectedFeature);
     mapRef.current?.fitBounds(bbox, { padding: 40 });
-  }, [selectedFeature])
+  }, [selectedFeature]);
 
   useEffect(() => {
     fitBoundsToSelectedFeature();
-  }, [selectedFeature])
+  }, [fitBoundsToSelectedFeature, selectedFeature]);
 
   function onMapLoad(mapEvent) {
     updateH3Cells(mapEvent);
-    fitBoundsToSelectedFeature()
+    fitBoundsToSelectedFeature();
   }
 
   return (
@@ -91,7 +100,6 @@ function SoilhiveSimpleMap({
         ref={mapRef}
         scrollZoom={scrollZoom}
         dragPan={dragPan}
-        className="map"
         minZoom={3}
         maxZoom={15}
         renderWorldCopies={false}
@@ -102,22 +110,22 @@ function SoilhiveSimpleMap({
         onLoad={onMapLoad}
         onZoomEnd={updateH3Cells}
         onMoveEnd={updateH3Cells}
-      >   
-        {showH3Cells && h3Cells &&
+      >
+        {showH3Cells && h3Cells && (
           <>
-            <Source id="data" type="geojson" data={h3Cells} promoteId='h3Index'>
+            <Source id="data" type="geojson" data={h3Cells} promoteId="h3Index">
               <Layer {...dataLayerBorders} />
             </Source>
             <Source id="selection" type="geojson" data={selectedFeature}>
               <Layer {...dataLayerSelection} />
             </Source>
           </>
-        }
-        { selectedPoint && <Marker longitude={selectedPoint[0]} latitude={selectedPoint[1]} /> }
-        { showNavigation && <NavigationControl position="bottom-right" showCompass={false} showZoom={true} visualizePitch={false} /> }
+        )}
+        {selectedPoint && <Marker longitude={selectedPoint[0]} latitude={selectedPoint[1]} />}
+        {showNavigation && <NavigationControl position="bottom-right" showCompass={false} showZoom={true} visualizePitch={false} />}
       </Map>
     </div>
   );
-};
+}
 
 export default SoilhiveSimpleMap;
