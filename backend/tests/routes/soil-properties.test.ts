@@ -17,7 +17,7 @@ describe('Testing /soil-properties routes', () => {
     expect(slugs).toContain('oc');
   });
 
-  it.each(['ph', 'oc'])('GET /soil-properties/:soilPropertySlug responds with the expected soil property', async (slug) => {
+  it.each(['ph', 'oc'])('GET /soil-properties/:soilPropertySlug responds with the expected soil property', async slug => {
     const res = await request(app).get(`/soil-properties/${slug}`);
     expect(res.statusCode).toBe(200);
     expect(res.body).toHaveProperty('slug', slug);
