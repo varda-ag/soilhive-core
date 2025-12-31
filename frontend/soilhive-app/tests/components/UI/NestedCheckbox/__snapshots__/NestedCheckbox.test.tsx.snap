@@ -1,0 +1,55 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`NestedCheckbox renders top-level items 1`] = `
+<div>
+  <div
+    class="NestedCheckbox"
+    data-testid="nested-checkbox"
+  >
+    <div
+      class="NestedCheckboxItem"
+    >
+      <label
+        class="CheckBox Small"
+        data-testid="sh-ui-checkbox"
+      >
+        <input
+          class="Input NestedCheckboxInput NestedCheckboxParent"
+          type="checkbox"
+        />
+        <div
+          class="Label small-text NestedCheckboxLabel"
+          data-testid="sh-ui-checkbox-label"
+        >
+          <svg
+            class="ToggleIcon"
+            data-testid="sh-plus-icon"
+          >
+            mock-svg
+          </svg>
+          First
+        </div>
+      </label>
+    </div>
+    <div
+      class="NestedCheckboxItem"
+    >
+      <label
+        class="CheckBox Small"
+        data-testid="sh-ui-checkbox"
+      >
+        <input
+          class="Input NestedCheckboxInput NestedCheckboxWithSpace"
+          type="checkbox"
+        />
+        <div
+          class="Label small-text NestedCheckboxLabel"
+          data-testid="sh-ui-checkbox-label"
+        >
+          Second
+        </div>
+      </label>
+    </div>
+  </div>
+</div>
+`;

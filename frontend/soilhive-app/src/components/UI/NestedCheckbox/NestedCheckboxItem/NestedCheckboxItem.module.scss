@@ -1,0 +1,29 @@
+.NestedCheckboxItem {
+  margin-left: 1.5rem;
+
+  &:not(:last-child) {
+    margin-bottom: 0.5rem;
+  }
+}
+.NestedCheckboxChildren {
+  margin-top: 0.5rem;
+}
+.NestedCheckboxInput {
+  &.NestedCheckboxParent {
+    margin-right: 0.375rem;
+  }
+
+  &.NestedCheckboxWithSpace {
+    margin-right: 1.875rem;
+  }
+}
+.NestedCheckboxLabel {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+
+  .ToggleIcon {
+    color: var(--color-cta-default-solid);
+    cursor: pointer;
+  }
+}

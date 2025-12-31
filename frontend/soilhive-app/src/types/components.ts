@@ -12,3 +12,10 @@ export type MobileTabNavigationConfig = {
   id: string;
   Icon?: React.FC<React.SVGProps<SVGSVGElement>>;
 };
+
+export type NestedCheckboxItemType = {
+  id: string;
+  label: string;
+  className?: string;
+  children?: NestedCheckboxItemType[];
+};
