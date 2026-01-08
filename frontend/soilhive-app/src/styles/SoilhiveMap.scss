@@ -1,3 +1,5 @@
+@import 'styles/variables/breakpoints';
+
 .soilhive-map {
   position: relative;
   width: 100%;
@@ -119,7 +121,10 @@
       display: inline-block;
       width: 298px;
       height: 32px;
+      font-size: 15px;
       input {
+        height: 36px;
+        padding: 6px 35px;
         border: none;
         border-radius: 20px;
         background-color: #eaefe0;
@@ -136,6 +141,14 @@
         &:hover {
           background-color: transparent;
         }
+      }
+      .maplibregl-ctrl-geocoder--icon {
+        top: 8px;
+      }
+      .maplibregl-ctrl-geocoder--icon-search {
+        width: 20px;
+        height: 20px;
+        left: 7px;
       }
     }
     & > button {
@@ -180,6 +193,16 @@
         justify-content: center;
       }
     }
+    @media (max-width: $bp-tablet) {
+      & > button {
+        padding: 8px;
+        background-color: #D2E5AB;
+        .text-only,
+        .arrow-container {
+          display: none;
+        }
+      }
+    }
     .selection-list {
       visibility: hidden;
       &.open {
@@ -190,6 +213,13 @@
       bottom: -72px;
       display: flex;
       flex-direction: column;
+
+      @media (max-width: $bp-mobile-max) {
+        bottom: -77px;
+        right: 0;
+        left: 0;
+      }
+
       button {
         cursor: pointer;
         min-width: 136px;
