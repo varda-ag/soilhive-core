@@ -321,9 +321,7 @@ describe('Homepage', () => {
       zoomLevel: 10,
     };
 
-    await act(async () =>
-      mockOnMapSelectionChange!(selectEvent)
-    );
+    await act(async () => mockOnMapSelectionChange!(selectEvent));
 
     expect(mockSetDatasetFilters).toHaveBeenCalledTimes(1);
     mockSetDatasetFilters.mockClear();
@@ -335,9 +333,7 @@ describe('Homepage', () => {
       zoomLevel: 10,
     };
 
-    await act(async () =>
-      mockOnMapSelectionChange!(resetEvent)
-    );
+    await act(async () => mockOnMapSelectionChange!(resetEvent));
 
     // Assert - filter update should happen immediately with bounding box
     expect(mockSetDatasetFilters).toHaveBeenCalledTimes(1);
@@ -369,9 +365,7 @@ describe('Homepage', () => {
       zoomLevel: 10,
     };
 
-    await act(async () =>
-      mockOnMapSelectionChange!(selectEvent)
-    )
+    await act(async () => mockOnMapSelectionChange!(selectEvent));
 
     // Reset the geometry
     const resetEvent: SoilhiveMapSelectionChangeEvent = {
@@ -380,9 +374,7 @@ describe('Homepage', () => {
       zoomLevel: 10,
     };
 
-    await act(async () =>
-      mockOnMapSelectionChange!(resetEvent)
-    )
+    await act(async () => mockOnMapSelectionChange!(resetEvent));
 
     mockSetDatasetFilters.mockClear();
 
@@ -393,9 +385,7 @@ describe('Homepage', () => {
       zoomLevel: 11,
     };
 
-    await act(async () =>
-      mockOnMapSelectionChange!(boundsEvent)
-    )
+    await act(async () => mockOnMapSelectionChange!(boundsEvent));
 
     // Assert - filter update should happen (geometry no longer selected)
     expect(mockSetDatasetFilters).toHaveBeenCalledTimes(1);
@@ -427,9 +417,7 @@ describe('Homepage', () => {
       zoomLevel: 10,
     };
 
-    await act(async () =>
-      mockOnMapSelectionChange!(drawEvent)
-    )
+    await act(async () => mockOnMapSelectionChange!(drawEvent));
 
     expect(mockSetDatasetFilters).toHaveBeenCalledTimes(1);
     mockSetDatasetFilters.mockClear();
@@ -455,9 +443,7 @@ describe('Homepage', () => {
       zoomLevel: 11,
     };
 
-    await act(async () =>
-      mockOnMapSelectionChange!(uploadEvent)
-    )
+    await act(async () => mockOnMapSelectionChange!(uploadEvent));
 
     // Assert - filter update should happen
     expect(mockSetDatasetFilters).toHaveBeenCalledTimes(1);
@@ -468,5 +454,4 @@ describe('Homepage', () => {
 
     expect(result.geometries).toEqual(uploadEvent.geometries);
   });
-
 });
