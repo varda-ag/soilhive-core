@@ -14,6 +14,7 @@
   "dependencies": {
     "@maplibre/maplibre-gl-geocoder": "^1.9.1",
     "@module-federation/enhanced": "0.21.2",
+    "@placemarkio/check-geojson": "^0.1.14",
     "@turf/turf": "^7.3.0",
     "@watergis/maplibre-gl-terradraw": "^1.9.6",
     "classnames": "^2.5.1",

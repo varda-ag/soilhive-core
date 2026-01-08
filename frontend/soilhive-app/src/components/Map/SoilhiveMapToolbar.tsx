@@ -4,7 +4,7 @@ import PolygonIcon from 'assets/icons/polygon-icon.svg?react';
 import ArrowDownIcon from 'assets/icons/arrow-down-icon.svg?react';
 import PencilIcon from 'assets/icons/pencil-icon.svg?react';
 import UploadIcon from 'assets/icons/upload-icon.svg?react';
-import { booleanValid } from '@turf/turf';
+import { check } from '@placemarkio/check-geojson';
 import type { Feature } from 'geojson';
 
 interface SoilhiveMapToolbarProps {
@@ -44,6 +44,7 @@ export default function SoilhiveMapToolbar({ onDrawClick, onUpload }: SoilhiveMa
         return;
       }
       let json;
+      /*
       try {
         json = JSON.parse(text);
       } catch {}
@@ -51,18 +52,27 @@ export default function SoilhiveMapToolbar({ onDrawClick, onUpload }: SoilhiveMa
         console.error('Cannot read uploaded file as JSON');
         return;
       }
-      if (!booleanValid(json)) {
+      // if (!booleanValid(json)) {
+      if (!valid(json)) {
         console.error('Uploaded file does not contain valid GeoJSON');
+        return;
+      }
+      */
+      try {
+        json = check(text);
+      } catch (e) {
+        console.error('Uploaded file does not contain valid GeoJSON');
+        console.error(e); // Specifies the parsing issue
         return;
       }
       const feature = json.type === 'FeatureCollection' ? json.features[0] : json;
       switch (feature.geometry.type) {
         case 'Polygon':
         case 'MultiPolygon':
-          onUpload(json);
+          onUpload(feature);
           break;
         default:
-          console.error('Uploaded file does not contain Polygon or MultiPolygon', json);
+          console.error('Uploaded file does not contain Polygon or MultiPolygon', feature);
           break;
       }
     };
