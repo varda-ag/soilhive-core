@@ -1,3 +1,10 @@
+## [0.10.7](https://github.com/varda-ag/soilhive-core/compare/v0.10.6...v0.10.7) (2026-01-08)
+
+
+### Bug Fixes
+
+* SP-4737 Used a quicker way to check the validity of the GeoJSON upload so that the app doesn't freeze when the file is big ([#89](https://github.com/varda-ag/soilhive-core/issues/89)) ([4bcfef7](https://github.com/varda-ag/soilhive-core/commit/4bcfef730391dc5f81637fd98e8b5d8ad22248df))
+
 ## [0.10.6](https://github.com/varda-ag/soilhive-core/compare/v0.10.5...v0.10.6) (2025-12-24)
 
 ## [0.10.5](https://github.com/varda-ag/soilhive-core/compare/v0.10.4...v0.10.5) (2025-12-24)
