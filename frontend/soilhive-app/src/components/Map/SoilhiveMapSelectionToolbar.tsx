@@ -17,9 +17,11 @@ export default function SoilhiveMapSelectionToolbar({ area = 0, onCancel, onRese
     <div className="soilhive-map-selection-toolbar">      
       <Button size="tiny" type="tertiary" onClick={onReset} className="reset-button"><ResetIcon />Reset</Button>
       <Button size="tiny" type="tertiary" onClick={onCancel}>Cancel</Button>
-      <Button size="tiny" type="secondary" onClick={onDrawAnother} isDisabled={true}><PlusIcon />Draw another area</Button>
-      <Button size="tiny" type="primary" onClick={onShowResults}><MarkerIcon />Show results</Button>
+      <Button className="draw-another-button" size="tiny" type="secondary" onClick={onDrawAnother} isDisabled={true}><PlusIcon />Draw another area</Button>
+      <Button className="show-results-button" size="tiny" type="primary" onClick={onShowResults}><MarkerIcon />Show results</Button>
       <div className="selection-area">{area} km²</div>
+      <div className="break"></div>
+      <Button className="draw-another-button-mobile" size="tiny" type="secondary" onClick={onDrawAnother} isDisabled={true}><PlusIcon />Draw another area</Button>
     </div>
   );
 }

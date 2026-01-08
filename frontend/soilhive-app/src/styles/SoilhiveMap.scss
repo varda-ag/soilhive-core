@@ -270,8 +270,9 @@
   }
 
   &-selection-toolbar {
-    display: flex;
+    display: flex;    
     gap: 8px;
+    // z-index: 99;
     white-space: nowrap;
     position: absolute;
     bottom: 16px;
@@ -281,6 +282,37 @@
     padding: 8px;
     border-radius: 4px;
     box-shadow: 0px 4px 16px 0px #00000014;
+    .break,
+    .draw-another-button-mobile {
+      display: none;
+    }
+    @media (max-width: $bp-tablet) {
+      flex-wrap: wrap; 
+      bottom: 0;
+      left: 0;
+      right: 0;
+      transform: none;
+      .draw-another-button,
+      .show-results-button {
+        display: none;
+      }
+      .selection-area {
+        flex-grow: 1;
+      }
+      .draw-another-button-mobile {
+        flex-grow: 1;
+      }
+      /* Inserting this collapsed row between two flex items will make 
+       * the flex item that comes after it break to a new row */
+      .break {
+        flex-basis: 100%;
+        height: 0;
+      }
+      .break,
+      .draw-another-button-mobile {
+        display: block;
+      }
+    }
     .reset-button svg {
       color: #868686;
       width: 24px !important;
