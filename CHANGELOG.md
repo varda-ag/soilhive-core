@@ -1,3 +1,10 @@
+## [0.11.0](https://github.com/varda-ag/soilhive-core/compare/v0.10.7...v0.11.0) (2026-01-08)
+
+
+### Features
+
+* **map:** :adhesive_bandage: prevent filter updates during map movent when geometry is selected ([#90](https://github.com/varda-ag/soilhive-core/issues/90)) ([72c40df](https://github.com/varda-ag/soilhive-core/commit/72c40dfd0bf9c05342d6f7ec86c9ca0da9c9337b))
+
 ## [0.10.7](https://github.com/varda-ag/soilhive-core/compare/v0.10.6...v0.10.7) (2026-01-08)
 
 
