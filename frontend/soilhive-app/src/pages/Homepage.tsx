@@ -43,6 +43,7 @@ const MAPBOX_SATELLITE_MAP_STYLE: StyleSpecification = {
 function Homepage() {
   const [isDatasetsOpened, setIsDatasetsOpened] = useState<boolean>(true);
   const [isFiltersOpened, setIsFiltersOpened] = useState<boolean>(false);
+  const [isGeometrySelected, setIsGeometrySelected] = useState<boolean>(false);
   const [activeMobileTab, setActiveMobileTab] = useState<string>(DEFAULT_AVAILABILITY_MOBILE_TAB);
   const { isDesktopLayout } = useDevice();
 
@@ -55,7 +56,18 @@ function Homepage() {
   const { setDatasetFilters } = availabilityContext;
 
   const handleMapSelectionChange = (event: SoilhiveMapSelectionChangeEvent) => {
-    const { bounds, geometries } = event;
+    const { bounds, geometries, eventType } = event;
+
+    if (eventType === 'draw' || eventType === 'upload' || eventType === 'geocoder') {
+      setIsGeometrySelected(true);
+    } else if (eventType === 'reset') {
+      setIsGeometrySelected(false);
+    }
+
+    // Skip filter updates when map moves but a geometry is already selected
+    if (eventType === 'bounds' && isGeometrySelected) {
+      return;
+    }
 
     const geoms = geometries ?? [bboxPolygon(bounds).geometry];
 

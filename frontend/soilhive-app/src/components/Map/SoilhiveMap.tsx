@@ -165,6 +165,15 @@ function SoilhiveMap({
       features: [],
     });
     setShowSelectionToolbar(false);
+
+    if (onSelectionChange && mapRef.current) {
+      const map = mapRef.current.getMap();
+      onSelectionChange({
+        bounds: map.getBounds().toArray().flat(),
+        eventType: 'reset',
+        zoomLevel: map.getZoom(),
+      });
+    }
   }
 
   const onMapClick = useCallback(
