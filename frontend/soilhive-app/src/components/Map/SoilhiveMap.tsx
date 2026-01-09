@@ -74,6 +74,7 @@ interface SoilhiveMapProps {
   scrollZoom?: boolean;
   dragPan?: boolean;
   onSelectionChange?: (event: SoilhiveMapSelectionChangeEvent) => void;
+  onSelectionToolbarVisibilityChange?: (isVisible: boolean) => void;
 }
 
 const dataLayerFills: LayerProps = {
@@ -116,6 +117,7 @@ function SoilhiveMap({
   scrollZoom = true,
   dragPan = true,
   onSelectionChange,
+  onSelectionToolbarVisibilityChange,
 }: SoilhiveMapProps) {
   const mapRef = useRef<any>(null);
   const [currentMapStyle, setCurrentMapStyle] = useState(mapStyles[0].mapStyle);
@@ -165,6 +167,7 @@ function SoilhiveMap({
       features: [],
     });
     setShowSelectionToolbar(false);
+    onSelectionToolbarVisibilityChange?.(false);
 
     if (onSelectionChange && mapRef.current) {
       const map = mapRef.current.getMap();
@@ -188,6 +191,7 @@ function SoilhiveMap({
         setSelectedPoint(event.lngLat);
         setSelectedH3Cell(features[0]);
         setShowSelectionToolbar(true);
+        onSelectionToolbarVisibilityChange?.(true);
         if (onSelectionChange) {
           const geometries = features
             .map(f => f.geometry)
@@ -201,11 +205,11 @@ function SoilhiveMap({
         }
       }
     },
-    [selection, onSelectionChange],
+    [selection, onSelectionChange, onSelectionToolbarVisibilityChange],
   );
 
   return (
-    <div className="soilhive-map">
+    <div className={`soilhive-map${showSelectionToolbar ? ' soilhive-map-show-selection-toolbar' : ''}`}>
       <Map
         ref={mapRef}
         scrollZoom={scrollZoom}
@@ -228,6 +232,7 @@ function SoilhiveMap({
             onDrawClick={() => {
               setShowDrawControl(true);
               setShowSelectionToolbar(true);
+              onSelectionToolbarVisibilityChange?.(true);
               setTimeout(() => {
                 // Makes selection
                 const btn = document.querySelector('button.maplibregl-terradraw-add-polygon-button') as HTMLButtonElement | null;
@@ -256,6 +261,7 @@ function SoilhiveMap({
                 setSelectedPoint(new LngLat(lng, lat));
               }
               setShowSelectionToolbar(true);
+              onSelectionToolbarVisibilityChange?.(true);
               if (onSelectionChange) {
                 onSelectionChange({
                   bounds: mapRef.current.getBounds().toArray().flat(),
@@ -345,6 +351,7 @@ function SoilhiveMap({
               const [lng, lat] = center.coordinates;
               setSelectedPoint(new LngLat(lng, lat));
               setShowSelectionToolbar(true);
+              onSelectionToolbarVisibilityChange?.(true);
 
               if (onSelectionChange) {
                 onSelectionChange({

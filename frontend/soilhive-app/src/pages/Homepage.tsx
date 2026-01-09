@@ -44,6 +44,7 @@ function Homepage() {
   const [isDatasetsOpened, setIsDatasetsOpened] = useState<boolean>(true);
   const [isFiltersOpened, setIsFiltersOpened] = useState<boolean>(false);
   const [isGeometrySelected, setIsGeometrySelected] = useState<boolean>(false);
+  const [isMapSelectionToolbarVisible, setIsMapSelectionToolbarVisible] = useState<boolean>(false);
   const [activeMobileTab, setActiveMobileTab] = useState<string>(DEFAULT_AVAILABILITY_MOBILE_TAB);
   const { isDesktopLayout } = useDevice();
 
@@ -89,6 +90,9 @@ function Homepage() {
           showGeocoder={true}
           showH3Cells={true}
           onSelectionChange={handleMapSelectionChange}
+          onSelectionToolbarVisibilityChange={isVisible => {
+            setIsMapSelectionToolbarVisible(isVisible);
+          }}
           geocoder={localStorage.getItem('MAP_GEOCODER') ?? ('nominatim' as any)}
           mapStyles={[
             { name: 'CartoCDN Voyager', mapStyle: 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json' },
@@ -170,7 +174,9 @@ function Homepage() {
         </Button>
       )}
 
-      {!isDesktopLayout && <AvailabilityMobileNavigation active={activeMobileTab} onChange={setActiveMobileTab} />}
+      {!isDesktopLayout && !isMapSelectionToolbarVisible && (
+        <AvailabilityMobileNavigation active={activeMobileTab} onChange={setActiveMobileTab} />
+      )}
     </div>
   );
 }

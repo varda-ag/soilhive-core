@@ -8,7 +8,7 @@
 
   .Content {
     display: flex;
-    height: calc(100% - 54px);
+    height: 100%;
 
     @media (min-width: $bp-desktop) {
       height: 100%;
