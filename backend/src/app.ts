@@ -18,7 +18,7 @@ export const initApp = async (app: Application) => {
   );
 
   app.use(express.urlencoded({ extended: true }));
-  app.use(express.json());
+  app.use(express.json({ limit: process.env.JSON_PAYLOAD_LIMIT || undefined }));
   app.use(transactionMiddleware);
   app.use('/docs', swaggerUi.serve, swaggerUi.setup(await getSwaggerDocument()));
   app.use(await getOpenApiMiddleware());
