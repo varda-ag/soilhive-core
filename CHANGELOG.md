@@ -1,3 +1,21 @@
+## [0.12.1](https://github.com/varda-ag/soilhive-core/compare/v0.12.0...v0.12.1) (2026-01-12)
+
+## [0.12.0](https://github.com/varda-ag/soilhive-core/compare/v0.11.1...v0.12.0) (2026-01-12)
+
+
+### Features
+
+* SP-4717 Map Toolbar component added support for mobile size ([#92](https://github.com/varda-ag/soilhive-core/issues/92)) ([2059a21](https://github.com/varda-ag/soilhive-core/commit/2059a21a352dc687aed4ff8a85842cafa81ff935))
+
+## [0.11.1](https://github.com/varda-ag/soilhive-core/compare/v0.11.0...v0.11.1) (2026-01-12)
+
+## [0.11.0](https://github.com/varda-ag/soilhive-core/compare/v0.10.7...v0.11.0) (2026-01-08)
+
+
+### Features
+
+* **map:** :adhesive_bandage: prevent filter updates during map movent when geometry is selected ([#90](https://github.com/varda-ag/soilhive-core/issues/90)) ([72c40df](https://github.com/varda-ag/soilhive-core/commit/72c40dfd0bf9c05342d6f7ec86c9ca0da9c9337b))
+
 ## [0.10.7](https://github.com/varda-ag/soilhive-core/compare/v0.10.6...v0.10.7) (2026-01-08)
 
 
