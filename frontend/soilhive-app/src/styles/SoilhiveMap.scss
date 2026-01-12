@@ -320,9 +320,11 @@
         flex-basis: 100%;
         height: 0;
       }
-      .break,
-      .draw-another-button-mobile {
+      .break {
         display: block;
+      }
+      .draw-another-button-mobile {
+        display: flex;
       }
     }
     .reset-button svg {
