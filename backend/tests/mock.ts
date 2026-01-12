@@ -105,13 +105,15 @@ export const addLayer = async (
 ): Promise<LayerEntity> => {
   const dataSource = await getDataSource();
   const repo = dataSource.getRepository(LayerEntity);
-  const layer = repo.create({
-    license,
-    min_depth,
-    max_depth,
-    sampling_date,
-    horizon,
-  });
+
+  // Build object excluding undefined
+  const layerData: Partial<LayerEntity> = { license };
+  if (sampling_date !== undefined) layerData.sampling_date = sampling_date;
+  if (min_depth !== undefined) layerData.min_depth = min_depth;
+  if (max_depth !== undefined) layerData.max_depth = max_depth;
+  if (horizon !== undefined) layerData.horizon = horizon;
+
+  const layer = repo.create(layerData);
   return await repo.save(layer);
 };
 

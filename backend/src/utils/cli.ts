@@ -32,8 +32,8 @@ function validInt(value) {
 }
 
 async function createSyntheticData(featureCount: number, spatial_extent: [number, number, number, number]) {
-  while (!isDBAvailable()) {
-    sleep(1000);
+  while (!(await isDBAvailable())) {
+    await sleep(1000);
   }
   const id = randomInt(1000, 9999);
   await addSyntheticData({
