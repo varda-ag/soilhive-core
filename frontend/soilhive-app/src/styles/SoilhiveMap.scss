@@ -1,7 +1,21 @@
+@import 'styles/variables/breakpoints';
+
 .soilhive-map {
   position: relative;
   width: 100%;
   height: 100%;
+
+  @media (max-width: $bp-mobile-max) {
+    &.soilhive-map-show-selection-toolbar {
+      .maplibregl-ctrl-bottom-left,
+      .maplibregl-ctrl-bottom-right {
+        bottom: 100px;
+      }
+      .map-style-switcher {
+        bottom: 150px !important;
+      }
+    }
+  }
 
   .map {
     width: 100%;
@@ -119,7 +133,10 @@
       display: inline-block;
       width: 298px;
       height: 32px;
+      font-size: 15px;
       input {
+        height: 36px;
+        padding: 6px 35px;
         border: none;
         border-radius: 20px;
         background-color: #eaefe0;
@@ -136,6 +153,14 @@
         &:hover {
           background-color: transparent;
         }
+      }
+      .maplibregl-ctrl-geocoder--icon {
+        top: 8px;
+      }
+      .maplibregl-ctrl-geocoder--icon-search {
+        width: 20px;
+        height: 20px;
+        left: 7px;
       }
     }
     & > button {
@@ -180,6 +205,16 @@
         justify-content: center;
       }
     }
+    @media (max-width: $bp-tablet) {
+      & > button {
+        padding: 8px;
+        background-color: #D2E5AB;
+        .text-only,
+        .arrow-container {
+          display: none;
+        }
+      }
+    }
     .selection-list {
       visibility: hidden;
       &.open {
@@ -190,6 +225,13 @@
       bottom: -72px;
       display: flex;
       flex-direction: column;
+
+      @media (max-width: $bp-mobile-max) {
+        bottom: -77px;
+        right: 0;
+        left: 0;
+      }
+
       button {
         cursor: pointer;
         min-width: 136px;
@@ -240,8 +282,9 @@
   }
 
   &-selection-toolbar {
-    display: flex;
+    display: flex;    
     gap: 8px;
+    // z-index: 99;
     white-space: nowrap;
     position: absolute;
     bottom: 16px;
@@ -251,16 +294,45 @@
     padding: 8px;
     border-radius: 4px;
     box-shadow: 0px 4px 16px 0px #00000014;
+    .break,
+    .draw-another-button-mobile {
+      display: none;
+    }
+    @media (max-width: $bp-tablet) {
+      flex-wrap: wrap; 
+      bottom: 0;
+      left: 0;
+      right: 0;
+      transform: none;
+      .draw-another-button,
+      .show-results-button {
+        display: none;
+      }
+      .selection-area {
+        flex-grow: 1;
+      }
+      .draw-another-button-mobile {
+        flex-grow: 1;
+      }
+      /* Inserting this collapsed row between two flex items will make 
+       * the flex item that comes after it break to a new row */
+      .break {
+        flex-basis: 100%;
+        height: 0;
+      }
+      .break,
+      .draw-another-button-mobile {
+        display: block;
+      }
+    }
     .reset-button svg {
       color: #868686;
       width: 24px !important;
       height: 24px;
     }
     .selection-area {
-      text-align: right;
       display: flex;
       align-items: center;
-      justify-content: right;
       border: 2px solid #dddddd;
       border-radius: 4px;
       padding-left: 2px;

@@ -96,7 +96,7 @@ export default function SoilhiveMapToolbar({ onDrawClick, onUpload }: SoilhiveMa
       >
         <span className="text-container">
           <PolygonIcon className="polygon" />
-          Polygon
+          <span className='text-only'>Polygon</span>
         </span>
         <span className="arrow-container">
           <ArrowDownIcon className="arrow" />
