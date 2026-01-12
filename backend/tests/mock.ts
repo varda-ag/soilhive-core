@@ -20,6 +20,14 @@ const randomInRange = (min: number, max: number): number => {
   return Math.random() * (max - min) + min;
 };
 
+const randomsInRange = (min: number, max: number, count: number): number[] => {
+  const arr: number[] = [];
+  for (let i = 0; i < count; i++) {
+    arr.push(randomInRange(min, max));
+  }
+  return arr;
+};
+
 export const syntheticDataOptions = {
   id: 1,
   spatial_extent: [0, 0, 1, 1],
@@ -29,6 +37,7 @@ export const syntheticDataOptions = {
   soilPropertyNames: ['ph'],
   addNullValues: false,
   featureCoordinates: undefined, // number[][] array of [lng, lat]
+  showProgress: false,
 };
 
 export const addSlug = async (slug: string, entity_id: string, entity_type: EntityType) => {
@@ -62,6 +71,22 @@ export const addFeature = async (lng: number, lat: number) => {
     geom: { type: 'Point', coordinates: [lng, lat] },
   });
   return await repo.save(feature);
+};
+
+export const addFeatures = async (lngLatArray: [number, number][]) => {
+  const dataSource = await getDataSource();
+  const result = await dataSource
+    .createQueryBuilder()
+    .insert()
+    .into(FeatureEntity)
+    .values(
+      lngLatArray.map(([lng, lat]) => ({
+        geom: { type: 'Point', coordinates: [lng, lat] },
+      })),
+    )
+    .returning('*')
+    .execute();
+  return result.raw;
 };
 
 export const addLicense = async (name: string = 'test_license') => {
@@ -125,6 +150,23 @@ export const addDatasetLayer = async (dataset_id: string, layer_id: string, feat
   return await repo.save(datasetLayer);
 };
 
+export const addDatasetLayers = async (dataset_id: string, layer_id: string, feature_ids: string[], soil_property_ids: string[]) => {
+  assert(feature_ids.length === soil_property_ids.length, 'feature_ids and soil_property_ids must have the same length');
+  const values: any = [];
+  for (let i = 0; i < feature_ids.length; i++) {
+    values.push({
+      dataset_id,
+      layer_id,
+      feature_id: feature_ids[i],
+      soil_property_id: soil_property_ids[i],
+    });
+  }
+
+  const dataSource = await getDataSource();
+  const result = await dataSource.createQueryBuilder().insert().into(DatasetLayerEntity).values(values).returning('*').execute();
+  return result.raw;
+};
+
 export const addProcedure = async (procedure: string = 'test_procedure') => {
   const dataSource = await getDataSource();
   const repo = dataSource.getRepository(ProcedureEntity);
@@ -134,15 +176,22 @@ export const addProcedure = async (procedure: string = 'test_procedure') => {
   return await repo.save(newProcedure);
 };
 
-export const addObservation = async (value: number, procedure_id: string, dataset_layer_id: string) => {
+export const addObservations = async (values: number[], procedure_id: string, dataset_layer_id: string) => {
   const dataSource = await getDataSource();
-  const repo = dataSource.getRepository(ObservationEntity);
-  const observation = repo.create({
-    value,
-    procedure_id,
-    dataset_layer_id,
-  });
-  return await repo.save(observation);
+  const result = await dataSource
+    .createQueryBuilder()
+    .insert()
+    .into(ObservationEntity)
+    .values(
+      values.map(value => ({
+        value,
+        procedure_id,
+        dataset_layer_id,
+      })),
+    )
+    .returning('*')
+    .execute();
+  return result.raw;
 };
 
 export interface SyntheticDataset {
@@ -159,7 +208,7 @@ export const addSyntheticData = async (syntheticDataOptions): Promise<SyntheticD
   assert(depthLayers > 0, 'depthLayers must be greater than 0');
   assert(spatial_extent.length === 4, 'spatial_extent must be an array of 4 numbers [minX, minY, maxX, maxY]');
   assert(soilPropertyNames.length > 0, 'soilPropertyNames must be a non-empty array of strings');
-  const year = 2020 + id;
+  const year = 2020 + (id % 10); // Vary year between 2020-2029
   const dataset = await addDataset(`test_dataset_${id}`, spatial_extent);
   dataset.soil_depth = { min: 0, max: depthLayers * 10 };
   dataset.reference_period_start = `${year}-01-01`;
@@ -175,36 +224,43 @@ export const addSyntheticData = async (syntheticDataOptions): Promise<SyntheticD
   const features: FeatureEntity[] = [];
   if (featureCoordinates) {
     // Coordinates provided explicitly
-    for (let i = 0; i < featureCoordinates.length; i++) {
-      const feature = await addFeature(featureCoordinates[i][0], featureCoordinates[i][1]);
-      features.push(feature);
-    }
+    const rows = await addFeatures(featureCoordinates);
+    features.push(...rows);
   } else {
     // Random coordinates within spatial_extent
+    const randomCoordinates: [number, number][] = [];
     for (let i = 0; i < featureCount; i++) {
-      const feature = await addFeature(
-        randomInRange(spatial_extent[0], spatial_extent[2]),
-        randomInRange(spatial_extent[1], spatial_extent[3]),
-      );
-      features.push(feature);
+      randomCoordinates.push([randomInRange(spatial_extent[0], spatial_extent[2]), randomInRange(spatial_extent[1], spatial_extent[3])]);
+    }
+    const rows = await addFeatures(randomCoordinates);
+    features.push(...rows);
+    if (syntheticDataOptions.showProgress) {
+      console.log(`Generated ${featureCount} random features.`);
     }
   }
   for (let depthLayer = 0; depthLayer < depthLayers; depthLayer++) {
     const depth = depthLayer * 10;
     const layer = await addLayer(license.id, new Date(`${year}-01-01`), depth, depth + 10, `A${depthLayer}`);
+    const datasetLayers = await addDatasetLayers(
+      dataset.id,
+      layer.id,
+      features.map(f => f.id),
+      features.map(_ => soilProperties[depthLayer % soilPropertyNames.length]!.id),
+    );
     for (let i = 0; i < featureCount; i++) {
-      const feature = features[i];
-      const soilProperty = soilProperties[depthLayer % soilPropertyNames.length];
-      const datasetLayer = await addDatasetLayer(dataset.id, layer.id, feature.id, soilProperty.id);
-      for (let j = 0; j < observationsPerLayer; j++) {
-        await addObservation(randomInRange(0, 100), procedure.id, datasetLayer.id);
-      }
-      if (addNullValues && depthLayer === 0 && i === 0) {
-        const layer = await addLayer(license.id, undefined, undefined, undefined, undefined);
-        const datasetLayer = await addDatasetLayer(dataset.id, layer.id, feature.id, soilProperty.id);
-        await addObservation(randomInRange(0, 100), procedure.id, datasetLayer.id);
-      }
+      await addObservations(randomsInRange(0, 100, observationsPerLayer), procedure.id, datasetLayers[i].id);
     }
+    if (addNullValues && depthLayer === 0) {
+      const layer = await addLayer(license.id, undefined, undefined, undefined, undefined);
+      const datasetLayer = await addDatasetLayer(dataset.id, layer.id, features[0]!.id, soilProperties[0]!.id);
+      await addObservations([randomInRange(0, 100)], procedure.id, datasetLayer.id);
+    }
+    if (syntheticDataOptions.showProgress) {
+      console.log(`Added depth layer ${depthLayer + 1}/${depthLayers}`);
+    }
+  }
+  if (syntheticDataOptions.showProgress) {
+    console.log(`Synthetic data creation complete. Dataset ID: ${dataset.id}`);
   }
   return { dataset, features, soilProperties };
 };

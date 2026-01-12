@@ -28,6 +28,7 @@
     "@turf/turf": "^7.3.1",
     "@types/bcrypt": "^6.0.0",
     "bcrypt": "^6.0.0",
+    "commander": "^14.0.2",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
