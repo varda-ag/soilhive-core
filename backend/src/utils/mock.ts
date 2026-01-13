@@ -223,7 +223,6 @@ export const addSyntheticData = async (syntheticDataOptions): Promise<SyntheticD
   }
   const procedure = await addProcedure(`test_procedure_${id}`);
   const license = await addLicense(`test_license_${id}`);
-  const features: FeatureEntity[] = [];
   const coordinates: [number, number][] = [];
   if (featureCoordinates) {
     // Coordinates provided explicitly
@@ -234,8 +233,7 @@ export const addSyntheticData = async (syntheticDataOptions): Promise<SyntheticD
       coordinates.push([randomInRange(spatial_extent[0], spatial_extent[2]), randomInRange(spatial_extent[1], spatial_extent[3])]);
     }
   }
-  const rows = await addFeatures(coordinates);
-  features.push(...rows);
+  const features: FeatureEntity[] = await addFeatures(coordinates);
   if (syntheticDataOptions.showProgress) {
     console.log(`Generated ${featureCount} random features.`);
   }
