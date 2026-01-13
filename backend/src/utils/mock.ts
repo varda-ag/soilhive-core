@@ -224,21 +224,20 @@ export const addSyntheticData = async (syntheticDataOptions): Promise<SyntheticD
   const procedure = await addProcedure(`test_procedure_${id}`);
   const license = await addLicense(`test_license_${id}`);
   const features: FeatureEntity[] = [];
+  const coordinates: [number, number][] = [];
   if (featureCoordinates) {
     // Coordinates provided explicitly
-    const rows = await addFeatures(featureCoordinates);
-    features.push(...rows);
+    coordinates.push(...featureCoordinates);
   } else {
     // Random coordinates within spatial_extent
-    const randomCoordinates: [number, number][] = [];
     for (let i = 0; i < featureCount; i++) {
-      randomCoordinates.push([randomInRange(spatial_extent[0], spatial_extent[2]), randomInRange(spatial_extent[1], spatial_extent[3])]);
+      coordinates.push([randomInRange(spatial_extent[0], spatial_extent[2]), randomInRange(spatial_extent[1], spatial_extent[3])]);
     }
-    const rows = await addFeatures(randomCoordinates);
-    features.push(...rows);
-    if (syntheticDataOptions.showProgress) {
-      console.log(`Generated ${featureCount} random features.`);
-    }
+  }
+  const rows = await addFeatures(coordinates);
+  features.push(...rows);
+  if (syntheticDataOptions.showProgress) {
+    console.log(`Generated ${featureCount} random features.`);
   }
   for (let depthLayer = 0; depthLayer < depthLayers; depthLayer++) {
     const depth = depthLayer * 10;
