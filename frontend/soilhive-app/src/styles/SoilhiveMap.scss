@@ -337,16 +337,15 @@
       align-items: center;
       border: 2px solid #dddddd;
       border-radius: 4px;
-      padding-left: 2px;
-      padding-right: 2px;
-      width: 118px;
+      padding: 0 8px;
+      min-width: 118px;
+      max-width: 250px;
       font-family: Inter;
       font-weight: 400;
       font-style: Regular;
       font-size: 14px;
       line-height: 150%;
       letter-spacing: 0px;
-      vertical-align: middle;
       background-color: #eeeff0;
     }
   }
