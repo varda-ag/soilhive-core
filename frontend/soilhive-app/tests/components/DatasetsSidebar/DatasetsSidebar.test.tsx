@@ -1,3 +1,4 @@
+import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { DatasetsSidebar } from 'components/DatasetsSidebar/DatasetsSidebar';
 import useDevice from 'hooks/useDevice';
@@ -14,12 +15,31 @@ jest.mock('components/DatasetsSidebar/DatasetsSidebarHeader/DatasetsSidebarHeade
     </div>
   ),
 }));
+
 jest.mock('components/DatasetsSidebar/DatasetsSidebarSummary/DatasetsSidebarSummary', () => ({
   DatasetsSidebarSummary: () => <div data-testid="mock-sidebar-summary">SUMMARY</div>,
 }));
+
 jest.mock('components/DatasetsSidebar/DatasetsList/DatasetsList', () => ({
   DatasetsList: () => <div data-testid="mock-datasets-list">LIST</div>,
 }));
+
+jest.mock('../../../src/contexts/AvailabilityContext', () => {
+  // let's define the mockSetPreview mock function here and export here down below
+  // so that we can later grab it
+  const mockSetPreview = jest.fn();
+
+  return {
+    __esModule: true,
+    AvailabilityContext: React.createContext({
+      setPreview: mockSetPreview,
+    }),
+    mockSetPreview,
+  };
+});
+
+// grab the mock mockSetPreview function that was passed to availability context
+const { mockSetPreview } = jest.requireMock('../../../src/contexts/AvailabilityContext');
 
 describe('DatasetsSidebar', () => {
   beforeEach(() => {
@@ -60,9 +80,8 @@ describe('DatasetsSidebar', () => {
 
     render(<DatasetsSidebar isOpened={true} onClose={() => {}} />);
 
-    const button = screen.getByTestId('sh-ui-button');
+    const button = screen.getByText('Download');
     expect(button).toBeDisabled();
-    expect(button).toHaveTextContent('Download data');
   });
 
   it('passes isOpened correctly to PageSidebar', () => {
@@ -75,5 +94,20 @@ describe('DatasetsSidebar', () => {
     rerender(<DatasetsSidebar isOpened={true} onClose={() => {}} />);
 
     expect(screen.getByTestId('sh-ui-page-sidebar')).toHaveClass('Opened');
+  });
+
+  it('calls setPreview when clicking on preview button', () => {
+    (useDevice as jest.Mock).mockReturnValue({ isDesktopLayout: true });
+
+    render(<DatasetsSidebar isOpened={true} onClose={() => {}} />);
+
+    expect(mockSetPreview).not.toHaveBeenCalled();
+
+    const button = screen.getByText('Preview');
+    expect(button).toBeEnabled();
+    button.click();
+
+    expect(mockSetPreview).toHaveBeenCalledTimes(1);
+    expect(mockSetPreview).toHaveBeenCalledWith(true);
   });
 });
