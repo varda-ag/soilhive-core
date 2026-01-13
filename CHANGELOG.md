@@ -1,3 +1,10 @@
+## [0.14.0](https://github.com/varda-ag/soilhive-core/compare/v0.13.1...v0.14.0) (2026-01-13)
+
+
+### Features
+
+* SP-4701 - nested checkbox component ([#88](https://github.com/varda-ag/soilhive-core/issues/88)) ([99e9b11](https://github.com/varda-ag/soilhive-core/commit/99e9b11dae14a99c4dc3e3869d2ec7aedbd5dcc2))
+
 ## [0.13.1](https://github.com/varda-ag/soilhive-core/compare/v0.13.0...v0.13.1) (2026-01-13)
 
 ## [0.13.0](https://github.com/varda-ag/soilhive-core/compare/v0.12.2...v0.13.0) (2026-01-13)
