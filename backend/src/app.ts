@@ -12,7 +12,7 @@ import { setupCLI } from './utils/cli';
 export const app: Application = express();
 
 export const initApp = async (app: Application) => {
-  setupCLI();
+  await setupCLI();
 
   app.use(
     cors({

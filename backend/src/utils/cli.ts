@@ -4,7 +4,7 @@ import { sleep } from './utils';
 import { addSyntheticData, syntheticDataOptions } from '../utils/mock';
 import { randomInt } from 'crypto';
 
-export const setupCLI = () => {
+export const setupCLI = async () => {
   program
     .allowUnknownOption(true)
     .allowExcessArguments(true)
@@ -19,7 +19,7 @@ export const setupCLI = () => {
       throw new InvalidArgumentError('bbox must be provided when creating synthetic data.');
     }
     const spatial_extent = options['bbox'].split(',').map(Number);
-    createSyntheticData(options['createData'], spatial_extent);
+    await createSyntheticData(options['createData'], spatial_extent);
   }
 };
 
