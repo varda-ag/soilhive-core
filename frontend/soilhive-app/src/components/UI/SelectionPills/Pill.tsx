@@ -1,6 +1,11 @@
-import type { PillProps } from './SelectionPills.types';
 import CloseIcon from 'assets/icons/small-cross-icon.svg?react';
 import styles from './Pill.module.scss';
+import type { Selection } from 'types/components';
+
+interface PillProps {
+  selection: Selection;
+  onRemove: (id: string) => void;
+}
 
 export function Pill({ selection, onRemove }: PillProps) {
   const handleRemove = () => {

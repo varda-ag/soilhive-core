@@ -1,5 +1,11 @@
-import type { SelectionPillsProps } from './SelectionPills.types';
 import { Pill } from './Pill';
+import type { Selection } from 'types/components';
+import styles from './SelectionPills.module.scss';
+
+interface SelectionPillsProps {
+  selections: Selection[];
+  onRemove: (id: string) => void;
+}
 
 export function SelectionPills({ selections, onRemove }: SelectionPillsProps) {
   if (selections.length === 0) {
@@ -7,7 +13,7 @@ export function SelectionPills({ selections, onRemove }: SelectionPillsProps) {
   }
 
   return (
-    <div>
+    <div className={styles.SelectionPills}>
       {selections.map(selection => (
         <Pill key={selection.id} selection={selection} onRemove={onRemove} />
       ))}
