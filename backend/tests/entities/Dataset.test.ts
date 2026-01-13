@@ -1,7 +1,7 @@
 import DatasetEntity from '../../src/entities/Dataset';
 import { getEntityManager } from '../../src/utils/data-source';
 import { Polygon } from 'typeorm';
-import { addDataset } from '../mock';
+import { addDataset } from '../../src/utils/mock';
 
 const polygon: Polygon = {
   coordinates: [

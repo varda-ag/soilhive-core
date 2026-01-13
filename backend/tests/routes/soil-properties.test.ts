@@ -1,6 +1,6 @@
 import request from 'supertest';
 import { app } from '../../src/app';
-import { addSyntheticData, syntheticDataOptions } from '../mock';
+import { addSyntheticData, syntheticDataOptions } from '../../src/utils/mock';
 
 describe('Testing /soil-properties routes', () => {
   beforeEach(async () => {

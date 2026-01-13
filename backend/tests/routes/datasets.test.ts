@@ -4,7 +4,7 @@ import { getSuperAdminToken } from '../helper';
 import { IncomingHttpHeaders } from 'http';
 import { getDataSource } from '../../src/utils/data-source';
 import { TokenScopes } from '../../src/types/enums';
-import { addSyntheticData, syntheticDataOptions } from '../mock';
+import { addSyntheticData, syntheticDataOptions } from '../../src/utils/mock';
 
 const filteringPolygon = {
   coordinates: [
