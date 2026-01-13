@@ -1,3 +1,10 @@
+## [0.13.0](https://github.com/varda-ag/soilhive-core/compare/v0.12.2...v0.13.0) (2026-01-13)
+
+
+### Features
+
+* **data:** :zap: Adding synthetic data using CLI ([#95](https://github.com/varda-ag/soilhive-core/issues/95)) ([28773fe](https://github.com/varda-ag/soilhive-core/commit/28773fe28f110e6334707bcbe45a94cab1128ee7))
+
 ## [0.12.2](https://github.com/varda-ag/soilhive-core/compare/v0.12.1...v0.12.2) (2026-01-12)
 
 ## [0.12.1](https://github.com/varda-ag/soilhive-core/compare/v0.12.0...v0.12.1) (2026-01-12)
