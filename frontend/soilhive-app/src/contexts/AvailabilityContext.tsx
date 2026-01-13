@@ -25,11 +25,13 @@ type AvailabilityContextType = {
   searchValue: string;
   selectedFilters: DatasetFilters;
   datasetsSummary: DatasetsSummary;
+  preview: boolean;
   selectDataset: (id: string) => void;
   setSearchValue: (value: string) => void;
   setFilters: (value: string | string[], name: string) => void;
   selectAllDatasets: (select: boolean) => void;
   setDatasetFilters: React.Dispatch<React.SetStateAction<DatasetFilter>>;
+  setPreview: React.Dispatch<React.SetStateAction<boolean>>;
 };
 
 export const AvailabilityContext = createContext<AvailabilityContextType | undefined>(undefined);
@@ -46,6 +48,7 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
     ownership: '',
   });
   const [isAllSelected, setIsAllSelected] = useState<boolean>(false);
+  const [preview, setPreview] = useState<boolean>(false);
 
   const initialFilters: DatasetFilter = {
     geometries: [],
@@ -107,11 +110,13 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
         searchValue,
         selectedFilters,
         datasetsSummary,
+        preview,
         selectDataset,
         setSearchValue,
         setFilters,
         selectAllDatasets,
         setDatasetFilters,
+        setPreview,
       }}
     >
       {children}

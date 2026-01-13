@@ -3,7 +3,7 @@
 exports[`Homepage renders homepage on desktop 1`] = `
 <div>
   <div
-    class="Homepage"
+    class="Availability"
   >
     <div
       class="Content"
@@ -56,7 +56,7 @@ exports[`Homepage renders homepage on desktop 1`] = `
 exports[`Homepage renders homepage on mobile 1`] = `
 <div>
   <div
-    class="Homepage"
+    class="Availability"
   >
     <div
       class="Content"

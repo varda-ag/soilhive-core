@@ -2,9 +2,12 @@ import { DatasetsSidebarHeader } from './DatasetsSidebarHeader/DatasetsSidebarHe
 import { DatasetsSidebarSummary } from './DatasetsSidebarSummary/DatasetsSidebarSummary';
 import { DatasetsList } from './DatasetsList/DatasetsList';
 import { Button, PageSidebar } from 'components/UI';
+import DownloadIcon from 'assets/icons/download-icon.svg?react';
 import useDevice from 'hooks/useDevice';
 
 import styles from './DatasetsSidebar.module.scss';
+import { AvailabilityContext } from '../../contexts/AvailabilityContext';
+import { useContext } from 'react';
 
 interface Props {
   isOpened: boolean;
@@ -13,6 +16,11 @@ interface Props {
 
 export function DatasetsSidebar({ isOpened, onClose }: Props) {
   const { isDesktopLayout } = useDevice();
+  const availabilityContext = useContext(AvailabilityContext);
+  if (!availabilityContext) {
+    throw new Error('AvailabilityContext must be used within AvailabilityProvider');
+  }
+  const { setPreview } = availabilityContext;
 
   return (
     <PageSidebar className={styles.DatasetsSidebar} isOpened={isOpened} position="right">
@@ -21,8 +29,19 @@ export function DatasetsSidebar({ isOpened, onClose }: Props) {
         <DatasetsSidebarSummary />
         <DatasetsList />
         <div className={styles.Action}>
+          <Button
+            className={styles.Button}
+            type="secondary"
+            isDisabled={false}
+            onClick={() => {
+              setPreview(true);
+            }}
+          >
+            Preview
+          </Button>
           <Button className={styles.Button} isDisabled={true}>
-            Download data
+            <DownloadIcon />
+            Download
           </Button>
         </div>
       </div>

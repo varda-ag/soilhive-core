@@ -20,16 +20,25 @@
 }
 
 .Action {
+  display: flex;
+  gap: 13px;
   position: absolute;
+  width: 295px;
   bottom: 0;
-  width: 100%;
-  padding: 0.562rem 2.5rem;
+  right: 0;
+  padding: 10px 15px;
   background-color: var(--color-brand-light-green-100);
 
   > .Button {
     width: 100%;
     max-width: 21.875rem;
     margin: 0 auto;
-    display: block;
+    display: flex;
+    white-space: nowrap;
+    gap: 4px;
+    svg {
+      width: 16px;
+      height: 16px;
+    }
   }
 }
