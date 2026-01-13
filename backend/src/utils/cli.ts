@@ -1,7 +1,7 @@
 import { InvalidArgumentError, program } from 'commander';
 import { isDBAvailable } from './data-source';
 import { sleep } from './utils';
-import { addSyntheticData, syntheticDataOptions } from '../../tests/mock';
+import { addSyntheticData, syntheticDataOptions } from '../utils/mock';
 import { randomInt } from 'crypto';
 
 export const setupCLI = () => {

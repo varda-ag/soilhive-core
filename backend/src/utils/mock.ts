@@ -1,20 +1,20 @@
 import { v7 as uuidv7 } from 'uuid';
-import DatasetEntity from '../src/entities/Dataset';
-import FeatureEntity from '../src/entities/Feature';
-import LayerEntity from '../src/entities/Layer';
-import SoilPropertyEntity from '../src/entities/SoilProperty';
-import SoilPropertyCategoryEntity from '../src/entities/SoilPropertyCategory';
-import DatasetLayerEntity from '../src/entities/DatasetLayer';
-import ProcedureEntity from '../src/entities/Procedure';
-import ObservationEntity from '../src/entities/Observation';
-import LicenseEntity from '../src/entities/License';
-import { getPolygonFromBbox } from '../src/utils/geometry';
-import { getDataSource } from '../src/utils/data-source';
-import SlugHistoryEntity from '../src/entities/SlugHistory';
-import { EntityType, GISDataType, IngestionStatus } from '../src/types/data';
+import DatasetEntity from '../entities/Dataset';
+import FeatureEntity from '../entities/Feature';
+import LayerEntity from '../entities/Layer';
+import SoilPropertyEntity from '../entities/SoilProperty';
+import SoilPropertyCategoryEntity from '../entities/SoilPropertyCategory';
+import DatasetLayerEntity from '../entities/DatasetLayer';
+import ProcedureEntity from '../entities/Procedure';
+import ObservationEntity from '../entities/Observation';
+import LicenseEntity from '../entities/License';
+import { getPolygonFromBbox } from './geometry';
+import { getDataSource } from './data-source';
+import SlugHistoryEntity from '../entities/SlugHistory';
+import { EntityType, GISDataType, IngestionStatus } from '../types/data';
 import assert from 'assert';
 import path from 'path';
-import RasterFilter from '../src/data-layer/RasterFilter';
+import RasterFilter from '../data-layer/RasterFilter';
 
 const randomInRange = (min: number, max: number): number => {
   return Math.random() * (max - min) + min;
@@ -272,6 +272,9 @@ export const addLandCover = async (): Promise<string> => {
   const tableName = 'test_land_cover';
   const filePath = path.join(
     __dirname,
+    '..',
+    '..',
+    'tests',
     'assets',
     'land_cover',
     'W100S20_PROBAV_LC100_global_v3.0.1_2019-nrt_Discrete-Classification-map_EPSG-4326.tif',
