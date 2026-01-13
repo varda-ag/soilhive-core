@@ -100,7 +100,7 @@ describe('DatasetsSidebar', () => {
     (useDevice as jest.Mock).mockReturnValue({ isDesktopLayout: true });
 
     render(<DatasetsSidebar isOpened={true} onClose={() => {}} />);
-    
+
     expect(mockSetPreview).not.toHaveBeenCalled();
 
     const button = screen.getByText('Preview');
