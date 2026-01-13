@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type ChangeEvent } from 'react';
+import { useCallback, useEffect, useState, type ChangeEvent, type ReactNode } from 'react';
 import classnames from 'classnames';
 
 import type { ComponentSizeType } from 'types/components';
@@ -10,7 +10,7 @@ interface Props {
   inputClassName?: string;
   labelClassName?: string;
   name?: string;
-  label?: string;
+  label?: string | ReactNode;
   size?: ComponentSizeType;
   value?: boolean;
   isError?: boolean;

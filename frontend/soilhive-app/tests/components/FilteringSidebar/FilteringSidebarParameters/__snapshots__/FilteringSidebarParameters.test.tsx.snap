@@ -16,7 +16,27 @@ exports[`FilteringSidebarParameters renders four accordion components 1`] = `
       <div
         data-testid="accordion-content"
       >
-        Soil Properties content
+        <div
+          class="SoilProperties"
+        >
+          <div
+            data-testid="nested-checkbox"
+          >
+            <div
+              data-testid="nested-checkbox-items"
+            >
+              [{"id":"1","label":"First","children":[{"id":"1-1","label":"First-First","children":[{"id":"1-1-1","label":"First first first"},{"id":"1-1-2","label":"First first second"}]},{"id":"1-2","label":"First-Second"}]},{"id":"2","label":"Second","children":[{"id":"2-1","label":"Second-First"},{"id":"2-2","label":"Second-Second"}]}]
+            </div>
+            <div
+              data-testid="nested-checkbox-selected"
+            >
+              []
+            </div>
+            <button
+              data-testid="nested-checkbox-change"
+            />
+          </div>
+        </div>
       </div>
     </div>
     <div

@@ -1,0 +1,43 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`NestedCheckboxItem toggles children visibility when plus icon is clicked 1`] = `
+<div>
+  <div
+    class="NestedCheckboxItem"
+  >
+    <div
+      data-testid="mock-checkbox"
+    >
+      <svg
+        class="ToggleIcon"
+        data-testid="sh-minus-icon"
+      >
+        mock-svg
+      </svg>
+      Root item
+    </div>
+    <div
+      class="NestedCheckboxChildren"
+    >
+      <div
+        class="NestedCheckboxItem"
+      >
+        <div
+          data-testid="mock-checkbox"
+        >
+          Child 1
+        </div>
+      </div>
+      <div
+        class="NestedCheckboxItem"
+      >
+        <div
+          data-testid="mock-checkbox"
+        >
+          Child 2
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+`;

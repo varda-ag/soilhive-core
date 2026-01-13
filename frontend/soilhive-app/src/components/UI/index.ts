@@ -10,3 +10,4 @@ export * from './Tag/Tag';
 export * from './PageSidebar/PageSidebar';
 export * from './MobileTabNavigation/MobileTabNavigation';
 export * from './Accordion/Accordion';
+export * from './NestedCheckbox/NestedCheckbox';
