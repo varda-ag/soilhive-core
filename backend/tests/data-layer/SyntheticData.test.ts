@@ -1,4 +1,4 @@
-import { addSyntheticData, syntheticDataOptions } from '../mock';
+import { addSyntheticData, syntheticDataOptions } from '../../src/utils/mock';
 
 describe('Synthetic data tests', () => {
   it.each([[[-7, 38, 0, 42]], [[35, 0, 40, 5]], [[0, 45, 5, 50]], [[0, 50, 5, 55]]])(

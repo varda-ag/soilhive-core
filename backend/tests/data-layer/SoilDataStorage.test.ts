@@ -1,7 +1,7 @@
 import { Polygon } from 'geojson';
 import { getEntityManager } from '../../src/utils/data-source';
 import { getPolygonFromBbox } from '../../src/utils/geometry';
-import { addDataset, addSyntheticData, syntheticDataOptions } from '../mock';
+import { addDataset, addSyntheticData, syntheticDataOptions } from '../../src/utils/mock';
 import SoilDataStorage from '../../src/data-layer/SoilDataStorage';
 import DatasetEntity from '../../src/entities/Dataset';
 

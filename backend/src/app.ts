@@ -7,10 +7,13 @@ import { getOpenApiMiddleware, getSwaggerDocument } from './middlewares/openapi'
 import { transactionMiddleware } from './middlewares/transaction';
 import { isJest } from './utils/utils';
 import { initializeSchema } from './utils/data-source';
+import { setupCLI } from './utils/cli';
 
 export const app: Application = express();
 
 export const initApp = async (app: Application) => {
+  await setupCLI();
+
   app.use(
     cors({
       origin: '*',
