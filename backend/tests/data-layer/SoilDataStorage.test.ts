@@ -28,12 +28,15 @@ describe('SoilDataStorage class', () => {
 
   it('Filtering should return some results', async () => {
     const layers = 5;
-    const { dataset } = await addSyntheticData({ ...syntheticDataOptions, depthLayers: layers });
+    const { dataset } = await addSyntheticData({ ...syntheticDataOptions, depthLayers: layers, soilPropertyNames: ['prop1', 'prop2'] });
     const sds = new SoilDataStorage();
     const entityManager = await getEntityManager();
     const results = await sds.filter(entityManager, getPolygonFromBbox([0, 0, 10, 10]), {});
     expect(results.length).toBe(1);
     expect(results[0].dataset_layer_count).toBe(layers);
+    expect(results[0].soil_properties).toContain('prop1');
+    expect(results[0].soil_properties).toContain('prop2');
+    expect(results[0].licenses).toContain('test_license_1');
     const resultDatasetIds = results.map(r => r.id);
     expect(resultDatasetIds).toContain(dataset.id);
   });

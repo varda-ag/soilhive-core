@@ -40,20 +40,22 @@ export default class SoilDataStorage {
       .createQueryBuilder('dataset_layers')
       .leftJoin('dataset_layers.dataset', 'ds')
       .leftJoin('dataset_layers.layer', 'layer')
+      .leftJoin('dataset_layers.soil_property', 'soil_property')
+      .leftJoin('layer.license_obj', 'license')
       .innerJoin('dataset_layers.feature', 'features')
       .where('ST_Intersects(ds.spatial_extent, ST_GeomFromGeoJSON(:geom))', { geom }) // Testing intersection with entire dataset
       .andWhere('ST_Intersects(features.geom, ST_GeomFromGeoJSON(:geom))', { geom }) // Testing intersection with individual features
       .select('dataset_layers.dataset_id', 'dataset_id')
       .addSelect('ds.gis_datatype', 'gis_datatype')
       .addSelect('ds.name', 'dataset_name')
-      .addSelect("STRING_AGG(DISTINCT layer.license::text, ',')", 'licenses')
+      .addSelect("STRING_AGG(DISTINCT license.slug, ',')", 'licenses')
       .addSelect('COUNT(dataset_layers.dataset_id)', 'dataset_layer_count')
       .addSelect('MIN(layer.sampling_date)', 'min_sampling_date')
       .addSelect('MAX(layer.sampling_date)', 'max_sampling_date')
       .addSelect('MIN(layer.min_depth)', 'min_depth')
       .addSelect('MAX(layer.max_depth)', 'max_depth')
       .addSelect("STRING_AGG(DISTINCT layer.horizon, ',')", 'horizons')
-      .addSelect("STRING_AGG(DISTINCT dataset_layers.soil_property_id::text, ',')", 'soil_properties')
+      .addSelect("STRING_AGG(DISTINCT soil_property.slug, ',')", 'soil_properties')
       .groupBy('dataset_layers.dataset_id, ds.name, ds.gis_datatype');
 
     applyFiltersToQuery(query, filters);
