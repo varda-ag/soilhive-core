@@ -39,14 +39,16 @@ export default class SoilDataStorage {
     const query = await repo
       .createQueryBuilder('dataset_layers')
       .leftJoin('dataset_layers.dataset', 'ds')
-      .where('ST_Intersects(ds.spatial_extent, ST_GeomFromGeoJSON(:geom))', { geom }) // Testing intersection with entire dataset
+      .leftJoin('dataset_layers.layer', 'layer')
       .innerJoin('dataset_layers.feature', 'features')
+      .where('ST_Intersects(ds.spatial_extent, ST_GeomFromGeoJSON(:geom))', { geom }) // Testing intersection with entire dataset
       .andWhere('ST_Intersects(features.geom, ST_GeomFromGeoJSON(:geom))', { geom }) // Testing intersection with individual features
       .select('dataset_layers.dataset_id', 'dataset_id')
+      .addSelect('ds.gis_datatype', 'gis_datatype')
       .addSelect('ds.name', 'dataset_name')
+      .addSelect("STRING_AGG(DISTINCT layer.license::text, ',')", 'licenses')
       .addSelect('COUNT(dataset_layers.dataset_id)', 'dataset_layer_count')
-      .groupBy('dataset_layers.dataset_id')
-      .addGroupBy('ds.name');
+      .groupBy('dataset_layers.dataset_id, ds.name, ds.gis_datatype');
 
     applyFiltersToQuery(query, filters);
     const results = await query.getRawMany();
@@ -54,6 +56,8 @@ export default class SoilDataStorage {
     return results.map(row => ({
       id: row.dataset_id,
       name: row.dataset_name,
+      data_types: [row.gis_datatype],
+      licenses: row.licenses ? row.licenses.split(',') : [],
       dataset_layer_count: parseInt(row.dataset_layer_count),
     }));
   };
