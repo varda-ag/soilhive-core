@@ -79,4 +79,25 @@ describe('Accordion component', () => {
     const accordion = screen.getByTestId('sh-ui-accordion');
     expect(accordion).toHaveClass('Opened');
   });
+
+  it('renders pillSlot when provided', () => {
+    render(
+      <Accordion title="With Pills" pillsSlot={<div data-testid="pills">Pills content</div>}>
+        <div>Content</div>
+      </Accordion>,
+    );
+
+    expect(screen.getByTestId('pills')).toBeInTheDocument();
+    expect(screen.getByText('Pills content')).toBeInTheDocument();
+  });
+
+  it('does not render PillsContainer when PillsSlot undefined', () => {
+    const { container } = render(
+      <Accordion title="No Pills">
+        <div>Content</div>
+      </Accordion>,
+    );
+
+    expect(container.querySelector('.SelectionPills ')).not.toBeInTheDocument();
+  });
 });
