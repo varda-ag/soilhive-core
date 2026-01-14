@@ -59,12 +59,12 @@ describe('getTopLevelSelections', () => {
   ];
 
   it.each([
-  ['leaf when only leaf selected', ['1-1'], ['1-1']],
-  ['parent when all children selected', ['1-1', '1-2'], ['1']],
-  ['mix when partial selection', ['1-1', '2-1-1', '2-1-2'], ['1-1', '2']],
-  ['empty array when nothing selected', [], []],
-])('returns %s', (_desc, selected, expectedIds) => {
-  const result = getTopLevelSelections(mockItems, selected);
-  expect(result.map(item => item.id)).toEqual(expectedIds);
-});
+    ['leaf when only leaf selected', ['1-1'], ['1-1']],
+    ['parent when all children selected', ['1-1', '1-2'], ['1']],
+    ['mix when partial selection', ['1-1', '2-1-1', '2-1-2'], ['1-1', '2']],
+    ['empty array when nothing selected', [], []],
+  ])('returns %s', (_desc, selected, expectedIds) => {
+    const result = getTopLevelSelections(mockItems, selected);
+    expect(result.map(item => item.id)).toEqual(expectedIds);
+  });
 });
