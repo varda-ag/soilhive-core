@@ -28,6 +28,10 @@ const MAPBOX_SATELLITE_MAP_STYLE: StyleSpecification = {
   ],
 };
 
+// console.log(numberFormatter.format(1234567));
+// Output: "1.234.567"
+const numberFormatter = new Intl.NumberFormat('de-DE');
+
 interface DownloadPreviewSummaryProps {
   selectionType?: string;
   initialViewBoundingBox?: [number, number, number, number];
@@ -94,14 +98,14 @@ function DownloadPreviewSummary({
             <MapPinIcon />
             Data points
           </div>
-          <div className={styles.DataSummaryRowData}>{dataPoints ?? '-'}</div>
+          <div className={styles.DataSummaryRowData}>{dataPoints ? numberFormatter.format(dataPoints) : '-'}</div>
         </div>
         <div className={styles.DataSummaryRow}>
           <div className={styles.DataSummaryRowTitle}>
             <LayersIcon />
             Raster Layers
           </div>
-          <div className={styles.DataSummaryRowData}>{rasterLayers ?? '-'}</div>
+          <div className={styles.DataSummaryRowData}>{rasterLayers ? numberFormatter.format(rasterLayers) : '-'}</div>
         </div>
       </div>
       <div className={styles.Separator}></div>
