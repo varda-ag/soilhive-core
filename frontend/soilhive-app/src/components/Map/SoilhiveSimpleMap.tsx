@@ -112,14 +112,14 @@ function SoilhiveSimpleMap({
         onMoveEnd={updateH3Cells}
       >
         {showH3Cells && h3Cells && (
-          <>
             <Source id="data" type="geojson" data={h3Cells} promoteId="h3Index">
               <Layer {...dataLayerBorders} />
             </Source>
+        )}
+        {selectedFeature && (
             <Source id="selection" type="geojson" data={selectedFeature}>
               <Layer {...dataLayerSelection} />
             </Source>
-          </>
         )}
         {selectedPoint && <Marker longitude={selectedPoint[0]} latitude={selectedPoint[1]} />}
         {showNavigation && <NavigationControl position="bottom-right" showCompass={false} showZoom={true} visualizePitch={false} />}

@@ -28,9 +28,13 @@ const MAPBOX_SATELLITE_MAP_STYLE: StyleSpecification = {
   ],
 };
 
-function DownloadPreviewSummary() {
+interface DownloadPreviewSummaryProps {
+  selectionType?: string;
+}
+
+function DownloadPreviewSummary({ selectionType = 'drawn-polygon' }: DownloadPreviewSummaryProps) {
   const [expanded, setExpanded] = useState(true);
-  const selectionType: string = 'drawn-polygon';
+
   let selectionTitle: string = 'Selection';
   if (selectionType === 'h3-cell') {
     selectionTitle = 'H3cell selected';
@@ -45,7 +49,7 @@ function DownloadPreviewSummary() {
       <div className={styles.Map}>
         <SoilhiveSimpleMap
           initialViewBoundingBox={[6.6272658, 35.2889616, 18.7844746, 47.0921462]}
-          showH3Cells={true}
+          showH3Cells={selectionType === 'h3-cell'}
           showNavigation={expanded}
           mapStyle={MAPBOX_SATELLITE_MAP_STYLE}
           selectedPoint={[10.522015854087698, 44.441902924546724]}
