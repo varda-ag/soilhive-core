@@ -132,13 +132,12 @@ const applyFiltersToQuery = (query: any, filters: FilterableDatasetMetadata) => 
     query.andWhere(`layers_horizons.horizon IN (:...horizons) ${nullQuery}`, { horizons: filters.horizons });
   }
   if (filters.soil_properties && filters.soil_properties.length > 0) {
-    query.andWhere('dataset_layers.soil_property_id IN (:...soil_properties)', { soil_properties: filters.soil_properties });
+    query.andWhere('soil_property.slug IN (:...soil_properties)', { soil_properties: filters.soil_properties });
   }
   if (filters.licenses && filters.licenses.length > 0) {
     // Each dataset can have multiple licenses, need to check that at least one matches
     // TODO: consider querying dataset.licenses
-    query.leftJoin('dataset_layers.layer', 'layers_licenses');
-    query.andWhere('layers_licenses.license IN (:...licenses)', { licenses: filters.licenses });
+    query.andWhere('license.slug IN (:...licenses)', { licenses: filters.licenses });
   }
 
   // Raster filtering

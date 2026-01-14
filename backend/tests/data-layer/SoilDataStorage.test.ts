@@ -153,17 +153,12 @@ describe('SoilDataStorage class', () => {
     [['a', 'b', 'c', 'd'], 2, 20],
     [['x'], 0, 0],
   ])('Filtering by soil properties should return expected data points', async (filter, expectedResultCount, expectedCount) => {
-    const data1 = await addSyntheticData({ ...syntheticDataOptions, id: 1, soilPropertyNames: ['a', 'b'], depthLayers: 10 });
-    const data2 = await addSyntheticData({ ...syntheticDataOptions, id: 2, soilPropertyNames: ['c', 'd'], depthLayers: 10 });
-    const allSoilProperties = [...data1.soilProperties, ...data2.soilProperties];
-    const soilPropertyMap = new Map<string, string>();
-    allSoilProperties.forEach(sp => {
-      soilPropertyMap.set(sp.slug, sp.id);
-    });
+    await addSyntheticData({ ...syntheticDataOptions, id: 1, soilPropertyNames: ['a', 'b'], depthLayers: 10 });
+    await addSyntheticData({ ...syntheticDataOptions, id: 2, soilPropertyNames: ['c', 'd'], depthLayers: 10 });
     const sds = new SoilDataStorage();
     const entityManager = await getEntityManager();
     const results = await sds.filter(entityManager, bboxPolygon, {
-      soil_properties: filter?.map(f => soilPropertyMap.get(f)),
+      soil_properties: filter as any,
     });
     expect(results.length).toBe(expectedResultCount);
     if (expectedResultCount > 0) {
