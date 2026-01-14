@@ -48,6 +48,12 @@ export default class SoilDataStorage {
       .addSelect('ds.name', 'dataset_name')
       .addSelect("STRING_AGG(DISTINCT layer.license::text, ',')", 'licenses')
       .addSelect('COUNT(dataset_layers.dataset_id)', 'dataset_layer_count')
+      .addSelect('MIN(layer.sampling_date)', 'min_sampling_date')
+      .addSelect('MAX(layer.sampling_date)', 'max_sampling_date')
+      .addSelect('MIN(layer.min_depth)', 'min_depth')
+      .addSelect('MAX(layer.max_depth)', 'max_depth')
+      .addSelect("STRING_AGG(DISTINCT layer.horizon, ',')", 'horizons')
+      .addSelect("STRING_AGG(DISTINCT dataset_layers.soil_property_id::text, ',')", 'soil_properties')
       .groupBy('dataset_layers.dataset_id, ds.name, ds.gis_datatype');
 
     applyFiltersToQuery(query, filters);
@@ -58,6 +64,13 @@ export default class SoilDataStorage {
       name: row.dataset_name,
       data_types: [row.gis_datatype],
       licenses: row.licenses ? row.licenses.split(',') : [],
+      min_sampling_date: row.min_sampling_date ? row.min_sampling_date.toISOString() : null,
+      max_sampling_date: row.max_sampling_date ? row.max_sampling_date.toISOString() : null,
+      min_depth: row.min_depth ? parseFloat(row.min_depth) : null,
+      max_depth: row.max_depth ? parseFloat(row.max_depth) : null,
+      horizons: row.horizons ? row.horizons.split(',') : [],
+      soil_properties: row.soil_properties ? row.soil_properties.split(',') : [],
+      raster_filters: undefined, // TODO: assess feasibility
       dataset_layer_count: parseInt(row.dataset_layer_count),
     }));
   };
