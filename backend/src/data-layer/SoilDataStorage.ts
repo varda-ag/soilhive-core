@@ -72,7 +72,7 @@ export default class SoilDataStorage {
       max_depth: row.max_depth ? parseFloat(row.max_depth) : null,
       horizons: row.horizons ? row.horizons.split(',') : [],
       soil_properties: row.soil_properties ? row.soil_properties.split(',') : [],
-      raster_filters: undefined, // TODO: assess feasibility
+      //raster_filters // TODO: assess feasibility
       dataset_layer_count: parseInt(row.dataset_layer_count),
     }));
   };
