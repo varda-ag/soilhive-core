@@ -1,7 +1,7 @@
 import { Accordion, NestedCheckbox, SelectionPills} from 'components/UI';
 import { AvailabilityContext } from '../../../contexts/AvailabilityContext';
 import type { NestedCheckboxItemType } from 'types/components';
-import { getLeafSelections } from 'components/UI/NestedCheckbox/nestedCheckboxHelpers';
+import { getTopLevelSelections } from 'components/UI/NestedCheckbox/nestedCheckboxHelpers';
 import type { Selection } from 'types/components';
 
 import styles from './FilteringSidebarParameters.module.scss';
@@ -51,7 +51,7 @@ export function FilteringSidebarParameters() {
     setSelectedProperties(prev => prev.filter(selectedId => selectedId !== id));
   };
 
-  const leafSelections = getLeafSelections(mockProperties, selectedProperties);
+  const leafSelections = getTopLevelSelections(mockProperties, selectedProperties);
 
   const pillSelections: Selection[] = leafSelections.map(item => ({
     id: item.id,

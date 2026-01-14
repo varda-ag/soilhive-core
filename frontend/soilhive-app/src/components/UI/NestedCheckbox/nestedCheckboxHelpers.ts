@@ -5,21 +5,39 @@ export const isNestedLevelHasChildren = (items?: NestedCheckboxItemType[]) => {
   return !!items.find(item => item.children);
 };
 
-export const getLeafSelections = (items: NestedCheckboxItemType[], selected: string[]): NestedCheckboxItemType[] => {
+/**
+ * Flattens a selection of nested items by returning the highest-level
+ * nodes that are fully selected.
+ * @param {NestedCheckboxItemType[]} items - The hierarchy of checkbox items.
+ * @param {string[]} selected - List of currently selected leaf node IDs.
+ * @returns {NestedCheckboxItemType[]} Top level list of selected nodes.
+ */
+export const getTopLevelSelections = (items: NestedCheckboxItemType[], selected: string[]): NestedCheckboxItemType[] => {
   const result: NestedCheckboxItemType[] = [];
 
-  const traverse = (items: NestedCheckboxItemType[]) => {
-    items.forEach(item => {
-      if (item.children && item.children.length > 0) {
-        // Has children, traverse them regardless of parent selection
-        traverse(item.children);
-      } else if (selected.includes(item.id)) {
-        // It's a leaf node and it's selected
-        result.push(item);
-      }
-    });
+  const getAllDescendantIds = (item: NestedCheckboxItemType): string[] => {
+    if (!item.children || item.children.length === 0) {
+      return [item.id];
+    }
+    return item.children.flatMap(getAllDescendantIds);
   };
 
-  traverse(items);
+  const traverse = (item: NestedCheckboxItemType) => {
+    const descendantIds = getAllDescendantIds(item);
+    const allDescendantsSelected = descendantIds.every(id => selected.includes(id));
+
+    if (allDescendantsSelected && descendantIds.length > 0) {
+      // All descendants selected, add parent
+      result.push(item);
+    } else if (item.children) {
+      // Some descendants selected, traverse children
+      item.children.forEach(traverse);
+    } else if (selected.includes(item.id)) {
+      // Leaf node selected
+      result.push(item);
+    }
+  };
+
+  items.forEach(traverse);
   return result;
 };
