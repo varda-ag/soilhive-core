@@ -30,9 +30,27 @@ const MAPBOX_SATELLITE_MAP_STYLE: StyleSpecification = {
 
 interface DownloadPreviewSummaryProps {
   selectionType?: string;
+  initialViewBoundingBox?: [number, number, number, number];
+  selectedPoint?: [number, number];
+  selectedFeature?: any;
+  locationName: string;
+  dataPoints?: number;
+  rasterLayers?: number;
+  depthRange?: string;
+  soilProperties?: Array<string>;
 }
 
-function DownloadPreviewSummary({ selectionType = 'drawn-polygon' }: DownloadPreviewSummaryProps) {
+function DownloadPreviewSummary({
+  selectionType = 'drawn-polygon',
+  initialViewBoundingBox,
+  selectedPoint,
+  selectedFeature,
+  locationName,
+  dataPoints,
+  rasterLayers,
+  depthRange = '-',
+  soilProperties = [],
+}: DownloadPreviewSummaryProps) {
   const [expanded, setExpanded] = useState(true);
 
   let selectionTitle: string = 'Selection';
@@ -48,54 +66,12 @@ function DownloadPreviewSummary({ selectionType = 'drawn-polygon' }: DownloadPre
     <div className={classNames(styles.DownloadPreviewSummary, { [styles.Expanded]: expanded })}>
       <div className={styles.Map}>
         <SoilhiveSimpleMap
-          initialViewBoundingBox={[6.6272658, 35.2889616, 18.7844746, 47.0921462]}
+          initialViewBoundingBox={initialViewBoundingBox}
           showH3Cells={selectionType === 'h3-cell'}
           showNavigation={expanded}
           mapStyle={MAPBOX_SATELLITE_MAP_STYLE}
-          selectedPoint={[10.522015854087698, 44.441902924546724]}
-          selectedFeature={{
-            type: 'FeatureCollection',
-            features: [
-              {
-                geometry: {
-                  type: 'Polygon',
-                  coordinates: [
-                    [
-                      [9.66796875, 44.9375850039109],
-                      [10.404052734375, 45.31352900692258],
-                      [11.2060546875, 45.06964120886863],
-                      [11.260986328125, 44.45338880030178],
-                      [10.52490234375, 44.083639282846434],
-                      [9.73388671875, 44.323848072506905],
-                      [9.66796875, 44.9375850039109],
-                    ],
-                  ],
-                },
-                type: 'Feature',
-                properties: {
-                  h3Index: '831ea6fffffffff',
-                },
-                id: '831ea6fffffffff',
-                layer: {
-                  id: 'data-fills',
-                  type: 'fill',
-                  source: 'data',
-                  paint: {
-                    'fill-color': {
-                      r: 0.9607843137254902,
-                      g: 0.6980392156862745,
-                      b: 0,
-                      a: 1,
-                    },
-                    'fill-opacity': 0,
-                  },
-                  layout: {},
-                },
-                source: 'data',
-                state: {},
-              },
-            ],
-          }}
+          selectedPoint={selectedPoint}
+          selectedFeature={selectedFeature}
         />
         {expanded && (
           <Button type="tertiary" isIconOnly={true} onClick={() => setExpanded(false)}>
@@ -107,7 +83,7 @@ function DownloadPreviewSummary({ selectionType = 'drawn-polygon' }: DownloadPre
         <div className={styles.SectionTitle}>{selectionTitle}</div>
         <div className={styles.Location}>
           <WorldIcon />
-          France
+          {locationName}
         </div>
       </div>
       <div className={styles.Separator}></div>
@@ -118,14 +94,14 @@ function DownloadPreviewSummary({ selectionType = 'drawn-polygon' }: DownloadPre
             <MapPinIcon />
             Data points
           </div>
-          <div className={styles.DataSummaryRowData}>7367</div>
+          <div className={styles.DataSummaryRowData}>{dataPoints ?? '-'}</div>
         </div>
         <div className={styles.DataSummaryRow}>
           <div className={styles.DataSummaryRowTitle}>
             <LayersIcon />
             Raster Layers
           </div>
-          <div className={styles.DataSummaryRowData}>4</div>
+          <div className={styles.DataSummaryRowData}>{rasterLayers ?? '-'}</div>
         </div>
       </div>
       <div className={styles.Separator}></div>
@@ -134,11 +110,11 @@ function DownloadPreviewSummary({ selectionType = 'drawn-polygon' }: DownloadPre
         <div className={styles.FiltersList}>
           <div className={styles.Filter}>
             <div className={styles.FilterName}>Depth range</div>
-            <div className={styles.FilterValue}>0-50cm</div>
+            <div className={styles.FilterValue}>{depthRange}</div>
           </div>
           <div className={styles.Filter}>
             <div className={styles.FilterName}>Soil Properties</div>
-            <div className={styles.FilterValue}>pH, Organic Carbon Content</div>
+            <div className={styles.FilterValue}>{soilProperties.length > 0 ? soilProperties.join(', ') : '-'}</div>
           </div>
         </div>
       </div>

@@ -17,7 +17,15 @@ jest.mock('../../../src/utilities/environmentVariables', () => ({
 
 describe('DownloadPreviewSummary', () => {
   it('renders the download preview summary (sidebar)', () => {
-    const { container } = render(<DownloadPreviewSummary />);
+    const { container } = render(
+      <DownloadPreviewSummary
+        locationName="France"
+        depthRange="0-50cm"
+        dataPoints={7367}
+        rasterLayers={4}
+        soilProperties={['pH', 'Organic Carbon Content']}
+      />,
+    );
     expect(container).toMatchSnapshot();
   });
 });
