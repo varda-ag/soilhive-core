@@ -1,0 +1,141 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`DownloadPreviewSummary renders the download preview summary (sidebar) 1`] = `
+<div>
+  <div
+    class="DownloadPreviewSummary Expanded"
+  >
+    <div
+      class="Map"
+    >
+      <div>
+        Mock SoilhiveSimpleMap
+      </div>
+      <button
+        class="Button Tertiary Small IconOnly"
+        data-testid="sh-ui-button"
+        type="button"
+      >
+        <svg
+          data-testid="svg-icon-mock"
+        >
+          mock-svg
+        </svg>
+      </button>
+    </div>
+    <div
+      class="SubMap"
+    >
+      <div
+        class="SectionTitle"
+      >
+        Drawn polygon
+      </div>
+      <div
+        class="Location"
+      >
+        <svg
+          data-testid="svg-icon-mock"
+        >
+          mock-svg
+        </svg>
+        France
+      </div>
+    </div>
+    <div
+      class="Separator"
+    />
+    <div
+      class="DataSummary"
+    >
+      <div
+        class="SectionTitle"
+      >
+        Data summary
+      </div>
+      <div
+        class="DataSummaryRow"
+      >
+        <div
+          class="DataSummaryRowTitle"
+        >
+          <svg
+            data-testid="svg-icon-mock"
+          >
+            mock-svg
+          </svg>
+          Data points
+        </div>
+        <div
+          class="DataSummaryRowData"
+        >
+          7367
+        </div>
+      </div>
+      <div
+        class="DataSummaryRow"
+      >
+        <div
+          class="DataSummaryRowTitle"
+        >
+          <svg
+            data-testid="svg-icon-mock"
+          >
+            mock-svg
+          </svg>
+          Raster Layers
+        </div>
+        <div
+          class="DataSummaryRowData"
+        >
+          4
+        </div>
+      </div>
+    </div>
+    <div
+      class="Separator"
+    />
+    <div
+      class="AppliedFilters"
+    >
+      <div
+        class="SectionTitle"
+      >
+        Applied Filters
+      </div>
+      <div
+        class="FiltersList"
+      >
+        <div
+          class="Filter"
+        >
+          <div
+            class="FilterName"
+          >
+            Depth range
+          </div>
+          <div
+            class="FilterValue"
+          >
+            0-50cm
+          </div>
+        </div>
+        <div
+          class="Filter"
+        >
+          <div
+            class="FilterName"
+          >
+            Soil Properties
+          </div>
+          <div
+            class="FilterValue"
+          >
+            pH, Organic Carbon Content
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+`;

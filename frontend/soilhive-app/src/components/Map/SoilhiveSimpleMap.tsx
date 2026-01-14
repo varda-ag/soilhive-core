@@ -60,7 +60,7 @@ function SoilhiveSimpleMap({
   const mapRef = useRef<any>(null);
   const [h3Cells, setH3Cells] = useState<any | null>(null);
 
-  function updateH3Cells(mapEvent) {
+  function updateH3Cells(mapEvent: any) {
     if (!showH3Cells) {
       setH3Cells(null);
       return;
@@ -89,7 +89,7 @@ function SoilhiveSimpleMap({
     fitBoundsToSelectedFeature();
   }, [fitBoundsToSelectedFeature, selectedFeature]);
 
-  function onMapLoad(mapEvent) {
+  function onMapLoad(mapEvent: any) {
     updateH3Cells(mapEvent);
     fitBoundsToSelectedFeature();
   }
