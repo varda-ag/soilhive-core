@@ -1,3 +1,10 @@
+## [0.15.0](https://github.com/varda-ag/soilhive-core/compare/v0.14.0...v0.15.0) (2026-01-15)
+
+
+### Features
+
+* :art: Updating soil_properties filter payload ([#100](https://github.com/varda-ag/soilhive-core/issues/100)) ([baa7782](https://github.com/varda-ag/soilhive-core/commit/baa7782108c1a00496448036aed73efc925f0fe5))
+
 ## [0.14.0](https://github.com/varda-ag/soilhive-core/compare/v0.13.1...v0.14.0) (2026-01-13)
 
 
