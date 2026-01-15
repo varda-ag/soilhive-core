@@ -1,4 +1,4 @@
-import { Accordion, NestedCheckbox, SelectionPills} from 'components/UI';
+import { Accordion, NestedCheckbox, SelectionPills } from 'components/UI';
 import { AvailabilityContext } from '../../../contexts/AvailabilityContext';
 import type { NestedCheckboxItemType } from 'types/components';
 import { getBranchIds, getTopLevelSelections } from 'components/UI/NestedCheckbox/nestedCheckboxHelpers';
