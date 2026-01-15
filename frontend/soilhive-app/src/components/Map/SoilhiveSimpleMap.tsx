@@ -60,7 +60,7 @@ function SoilhiveSimpleMap({
   const mapRef = useRef<any>(null);
   const [h3Cells, setH3Cells] = useState<any | null>(null);
 
-  function updateH3Cells(mapEvent) {
+  function updateH3Cells(mapEvent: any) {
     if (!showH3Cells) {
       setH3Cells(null);
       return;
@@ -89,7 +89,7 @@ function SoilhiveSimpleMap({
     fitBoundsToSelectedFeature();
   }, [fitBoundsToSelectedFeature, selectedFeature]);
 
-  function onMapLoad(mapEvent) {
+  function onMapLoad(mapEvent: any) {
     updateH3Cells(mapEvent);
     fitBoundsToSelectedFeature();
   }
@@ -112,14 +112,14 @@ function SoilhiveSimpleMap({
         onMoveEnd={updateH3Cells}
       >
         {showH3Cells && h3Cells && (
-          <>
-            <Source id="data" type="geojson" data={h3Cells} promoteId="h3Index">
-              <Layer {...dataLayerBorders} />
-            </Source>
-            <Source id="selection" type="geojson" data={selectedFeature}>
-              <Layer {...dataLayerSelection} />
-            </Source>
-          </>
+          <Source id="data" type="geojson" data={h3Cells} promoteId="h3Index">
+            <Layer {...dataLayerBorders} />
+          </Source>
+        )}
+        {selectedFeature && (
+          <Source id="selection" type="geojson" data={selectedFeature}>
+            <Layer {...dataLayerSelection} />
+          </Source>
         )}
         {selectedPoint && <Marker longitude={selectedPoint[0]} latitude={selectedPoint[1]} />}
         {showNavigation && <NavigationControl position="bottom-right" showCompass={false} showZoom={true} visualizePitch={false} />}
