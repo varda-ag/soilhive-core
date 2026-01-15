@@ -1,0 +1,176 @@
+@import 'styles/variables/breakpoints';
+
+.DownloadPreviewSummary {
+  transition: width 0.5s ease-out;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 255px;
+  padding-top: 19px;
+
+  &.Expanded {
+    width: 448px;
+
+    .Map {
+      width: 410px;
+      height: 322px;
+    }
+
+    .Separator {
+      width: 410px;
+    }
+
+    .SubMap,
+    .DataSummary,
+    .AppliedFilters {
+      width: 344px;
+    }
+  }
+
+  .Map {
+    transition-property: width, height;
+    transition-duration: 0.5s;
+    transition-timing-function: ease-out;
+    position: relative;
+    width: 214px;
+    height: 106px;
+    border-radius: 8px;
+    overflow: hidden;
+
+    > button {
+      position: absolute;
+      top: 9px;
+      right: 9px;
+      padding: 0 !important;
+      > svg {
+        width: 32px;
+        height: 30px;
+      }
+    }
+  }
+
+  .SubMap {
+    width: 214px;
+    padding-top: 10px;
+    padding-bottom: 12px;
+
+    .SectionTitle {
+      padding-bottom: 5px;
+    }
+
+    .Location {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+
+      >svg {
+        width: 16px;
+        height: 16px;
+      }
+    }
+  }
+
+  .DataSummary {
+    width: 214px;
+    padding-top: 19px;
+    padding-bottom: 28px;
+
+    .SectionTitle {
+      padding-bottom: 16px;
+    }
+
+    .DataSummaryRow {
+      display: flex;
+      justify-content: space-between;
+      width: 173px;
+
+      .DataSummaryRowTitle {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        font-family: 'Inter', Arial, Helvetica, sans-serif;
+        font-weight: var(--font-weight-regular);
+        font-style: Regular;
+        font-size: 14px;
+        line-height: 150%;
+        letter-spacing: 0px;
+
+        >svg {
+          width: 16px;
+          height: 16px;
+        }
+      }
+
+      .DataSummaryRowData {
+        font-family: 'Inter', Arial, Helvetica, sans-serif;
+        font-weight: var(--font-weight-bold);
+        font-style: Bold;
+        font-size: 14px;
+        line-height: 150%;
+        letter-spacing: 0px;
+        text-align: right;
+      }
+    }
+  }
+
+  .AppliedFilters {
+    padding-top: 12px;
+    width: 214px;
+
+    .SectionTitle {
+      padding-bottom: 17px;
+    }
+
+    .FiltersList {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+
+      .Filter {
+        padding: 5px 21px 4px 21px;
+        border-radius: 4px;
+
+        &:first-of-type {
+          background-color: var(--color-accent-tech-100);
+        }
+
+        &:last-of-type {
+          background-color: var(--color-brand-yellow-600);
+        }
+
+        .FilterName {
+          font-family: 'Inter', Arial, Helvetica, sans-serif;
+          font-weight: var(--font-weight-bold);
+          font-style: Bold;
+          font-size: 12px;
+          line-height: 150%;
+          letter-spacing: 0px;
+        }
+
+        .FilterValue {
+          font-family: 'Inter', Arial, Helvetica, sans-serif;
+          font-weight: var(--font-weight-regular);
+          font-style: Regular;
+          font-size: 12px;
+          line-height: 150%;
+          letter-spacing: 0px;
+        }
+      }
+    }
+  }
+
+  .Separator {
+    height: 1px;
+    width: 100%;
+    background-color: var(--color-neutral-dark-200);
+  }
+
+  .SectionTitle {
+    font-family: 'Inter', Arial, Helvetica, sans-serif;
+    font-weight: var(--font-weight-bold);
+    font-style: Bold;
+    font-size: 16px;
+    line-height: 150%;
+    letter-spacing: 0px;
+  }
+}
