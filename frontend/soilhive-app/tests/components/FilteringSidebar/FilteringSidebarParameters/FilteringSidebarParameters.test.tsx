@@ -1,6 +1,21 @@
+import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { FilteringSidebarParameters } from 'components/FilteringSidebar/FilteringSidebarParameters/FilteringSidebarParameters';
 import type { NestedCheckboxItemType } from 'types/components';
+
+jest.mock('../../../../src/contexts/AvailabilityContext', () => {
+  const mockSetDatasetFilters = jest.fn();
+
+  return {
+    __esModule: true,
+    AvailabilityContext: React.createContext({
+      setDatasetFilters: mockSetDatasetFilters,
+    }),
+    mockSetDatasetFilters,
+  };
+});
+
+const { mockSetDatasetFilters } = jest.requireMock('../../../../src/contexts/AvailabilityContext');
 
 jest.mock('components/UI', () => ({
   Accordion: ({ title, children }: { title: string; children: React.ReactNode }) => (
@@ -33,6 +48,7 @@ describe('FilteringSidebarParameters', () => {
     const accordions = screen.getAllByTestId('accordion');
     expect(accordions).toHaveLength(4);
     expect(container).toMatchSnapshot();
+    expect(mockSetDatasetFilters).toHaveBeenCalledTimes(0);
   });
 
   it('changes selected parameters on the nested checbox component change', () => {
@@ -41,5 +57,18 @@ describe('FilteringSidebarParameters', () => {
     fireEvent.click(screen.getByTestId('nested-checkbox-change'));
 
     expect(screen.getByTestId('nested-checkbox-selected')).toHaveTextContent('["1"]');
+    expect(mockSetDatasetFilters).toHaveBeenCalledTimes(1);
+
+    // updaterFn is the function that was passed to setDatasetFilter in the original component and caught by
+    // the mockSetDatasetFilters
+    const updaterFn = mockSetDatasetFilters.mock.calls[0][0];
+    const prevFilters = { mock: 'data' };
+    const result = updaterFn(prevFilters);
+
+    // in this way we verify that just the geompetries are updated, but not the rest of the filters
+    expect(result).toEqual({
+      mock: 'data',
+      soil_properties: ['1'],
+    });
   });
 });
