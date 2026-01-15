@@ -31,11 +31,9 @@
     transition-property: width, height;
     transition-duration: 0.5s;
     transition-timing-function: ease-out;
-    // transition: width 1s ease-out;
     position: relative;
     width: 214px;
     height: 106px;
-    width: 214;
     border-radius: 8px;
     overflow: hidden;
 
@@ -91,7 +89,7 @@
         align-items: center;
         gap: 5px;
         font-family: 'Inter', Arial, Helvetica, sans-serif;
-        font-weight: 400;
+        font-weight: var(--font-weight-regular);
         font-style: Regular;
         font-size: 14px;
         line-height: 150%;
@@ -105,7 +103,7 @@
 
       .DataSummaryRowData {
         font-family: 'Inter', Arial, Helvetica, sans-serif;
-        font-weight: 700;
+        font-weight: var(--font-weight-bold);
         font-style: Bold;
         font-size: 14px;
         line-height: 150%;
@@ -133,16 +131,16 @@
         border-radius: 4px;
 
         &:first-of-type {
-          background-color: #DAF3F3;
+          background-color: var(--color-accent-tech-100);
         }
 
         &:last-of-type {
-          background-color: #FAE89D;
+          background-color: var(--color-brand-yellow-600);
         }
 
         .FilterName {
           font-family: 'Inter', Arial, Helvetica, sans-serif;
-          font-weight: 700;
+          font-weight: var(--font-weight-bold);
           font-style: Bold;
           font-size: 12px;
           line-height: 150%;
@@ -151,7 +149,7 @@
 
         .FilterValue {
           font-family: 'Inter', Arial, Helvetica, sans-serif;
-          font-weight: 400;
+          font-weight: var(--font-weight-regular);
           font-style: Regular;
           font-size: 12px;
           line-height: 150%;
@@ -164,12 +162,12 @@
   .Separator {
     height: 1px;
     width: 100%;
-    background-color: #BEBCC0;
+    background-color: var(--color-neutral-dark-200);
   }
 
   .SectionTitle {
     font-family: 'Inter', Arial, Helvetica, sans-serif;
-    font-weight: 700;
+    font-weight: var(--font-weight-bold);
     font-style: Bold;
     font-size: 16px;
     line-height: 150%;
