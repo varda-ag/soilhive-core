@@ -83,53 +83,44 @@ const applyFiltersToQuery = (query: any, filters: FilterableDatasetMetadata) => 
     query.andWhere('ds.gis_datatype IN (:...data_types)', { data_types: filters.data_types });
   }
   if (filters.min_sampling_date === null) {
-    query.leftJoin('dataset_layers.layer', 'layers_min_sampling_date');
-    query.andWhere('layers_min_sampling_date.sampling_date IS NULL');
+    query.andWhere('layer.sampling_date IS NULL');
   } else if (filters.min_sampling_date) {
     // We just need dataset to overlap with input interval
     query.andWhere('ds.reference_period_stop >= :min_sampling_date', { min_sampling_date: filters.min_sampling_date });
     // Filtering actual layers
-    query.leftJoin('dataset_layers.layer', 'layers_min_sampling_date');
-    query.andWhere("TO_CHAR(layers_min_sampling_date.sampling_date, 'YYYY-MM-DD') >= :min_sampling_date", {
+    query.andWhere("TO_CHAR(layer.sampling_date, 'YYYY-MM-DD') >= :min_sampling_date", {
       min_sampling_date: filters.min_sampling_date,
     });
   }
   if (filters.max_sampling_date === null) {
-    query.leftJoin('dataset_layers.layer', 'layers_max_sampling_date');
-    query.andWhere('layers_max_sampling_date.sampling_date IS NULL');
+    query.andWhere('layer.sampling_date IS NULL');
   } else if (filters.max_sampling_date) {
     // We just need dataset to overlap with input interval
     query.andWhere('ds.reference_period_start <= :max_sampling_date', { max_sampling_date: filters.max_sampling_date });
     // Filtering actual layers
-    query.leftJoin('dataset_layers.layer', 'layers_max_sampling_date'); // Note: join on the same table needs a different alias
-    query.andWhere("TO_CHAR(layers_max_sampling_date.sampling_date, 'YYYY-MM-DD') <= :max_sampling_date", {
+    query.andWhere("TO_CHAR(layer.sampling_date, 'YYYY-MM-DD') <= :max_sampling_date", {
       max_sampling_date: filters.max_sampling_date,
     });
   }
   if (filters.min_depth === null) {
-    query.leftJoin('dataset_layers.layer', 'layers_min_depth');
-    query.andWhere('layers_min_depth.min_depth IS NULL');
+    query.andWhere('layer.min_depth IS NULL');
   } else if (filters.min_depth !== undefined) {
     // We just need dataset to overlap with input interval
     query.andWhere("(ds.soil_depth->>'max')::int >= :min_depth", { min_depth: filters.min_depth });
     // Filtering actual layers
-    query.leftJoin('dataset_layers.layer', 'layers_min_depth');
-    query.andWhere('layers_min_depth.max_depth >= :min_depth', { min_depth: filters.min_depth });
+    query.andWhere('layer.max_depth >= :min_depth', { min_depth: filters.min_depth });
   }
   if (filters.max_depth === null) {
-    query.leftJoin('dataset_layers.layer', 'layers_max_depth');
-    query.andWhere('layers_max_depth.max_depth IS NULL');
+    query.andWhere('layer.max_depth IS NULL');
   } else if (filters.max_depth !== undefined) {
     // We just need dataset to overlap with input interval
     query.andWhere("(ds.soil_depth->>'min')::int <= :max_depth", { max_depth: filters.max_depth });
     // Filtering actual layers
-    query.leftJoin('dataset_layers.layer', 'layers_max_depth');
-    query.andWhere('layers_max_depth.min_depth <= :max_depth', { max_depth: filters.max_depth });
+    query.andWhere('layer.min_depth <= :max_depth', { max_depth: filters.max_depth });
   }
   if (filters.horizons && filters.horizons.length > 0) {
-    const nullQuery = filters.horizons.includes(null) ? 'OR layers_horizons.horizon IS NULL' : '';
-    query.leftJoin('dataset_layers.layer', 'layers_horizons');
-    query.andWhere(`layers_horizons.horizon IN (:...horizons) ${nullQuery}`, { horizons: filters.horizons });
+    const nullQuery = filters.horizons.includes(null) ? 'OR layer.horizon IS NULL' : '';
+    query.andWhere(`layer.horizon IN (:...horizons) ${nullQuery}`, { horizons: filters.horizons });
   }
   if (filters.soil_properties && filters.soil_properties.length > 0) {
     query.andWhere('soil_property.slug IN (:...soil_properties)', { soil_properties: filters.soil_properties });
