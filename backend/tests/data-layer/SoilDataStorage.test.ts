@@ -28,12 +28,15 @@ describe('SoilDataStorage class', () => {
 
   it('Filtering should return some results', async () => {
     const layers = 5;
-    const { dataset } = await addSyntheticData({ ...syntheticDataOptions, depthLayers: layers });
+    const { dataset } = await addSyntheticData({ ...syntheticDataOptions, depthLayers: layers, soilPropertyNames: ['prop1', 'prop2'] });
     const sds = new SoilDataStorage();
     const entityManager = await getEntityManager();
     const results = await sds.filter(entityManager, getPolygonFromBbox([0, 0, 10, 10]), {});
     expect(results.length).toBe(1);
     expect(results[0].dataset_layer_count).toBe(layers);
+    expect(results[0].soil_properties).toContain('prop1');
+    expect(results[0].soil_properties).toContain('prop2');
+    expect(results[0].licenses).toContain('test_license_1');
     const resultDatasetIds = results.map(r => r.id);
     expect(resultDatasetIds).toContain(dataset.id);
   });
@@ -150,17 +153,12 @@ describe('SoilDataStorage class', () => {
     [['a', 'b', 'c', 'd'], 2, 20],
     [['x'], 0, 0],
   ])('Filtering by soil properties should return expected data points', async (filter, expectedResultCount, expectedCount) => {
-    const data1 = await addSyntheticData({ ...syntheticDataOptions, id: 1, soilPropertyNames: ['a', 'b'], depthLayers: 10 });
-    const data2 = await addSyntheticData({ ...syntheticDataOptions, id: 2, soilPropertyNames: ['c', 'd'], depthLayers: 10 });
-    const allSoilProperties = [...data1.soilProperties, ...data2.soilProperties];
-    const soilPropertyMap = new Map<string, string>();
-    allSoilProperties.forEach(sp => {
-      soilPropertyMap.set(sp.slug, sp.id);
-    });
+    await addSyntheticData({ ...syntheticDataOptions, id: 1, soilPropertyNames: ['a', 'b'], depthLayers: 10 });
+    await addSyntheticData({ ...syntheticDataOptions, id: 2, soilPropertyNames: ['c', 'd'], depthLayers: 10 });
     const sds = new SoilDataStorage();
     const entityManager = await getEntityManager();
     const results = await sds.filter(entityManager, bboxPolygon, {
-      soil_properties: filter?.map(f => soilPropertyMap.get(f)),
+      soil_properties: filter as any,
     });
     expect(results.length).toBe(expectedResultCount);
     if (expectedResultCount > 0) {

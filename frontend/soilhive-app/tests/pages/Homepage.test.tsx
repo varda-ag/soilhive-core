@@ -46,21 +46,21 @@ jest.mock('components/FilteringSidebar/FiltersCounter/FiltersCounter', () => ({
 }));
 
 jest.mock('../../src/contexts/AvailabilityContext', () => {
-  // let's define the setDatasetFilters mock function here and export here down below
+  // let's define the setGeometryFilter mock function here and export here down below
   // so that we can later grab it
-  const mockSetDatasetFilters = jest.fn();
+  const mockSetGeometryFilter = jest.fn();
 
   return {
     __esModule: true,
     AvailabilityContext: React.createContext({
-      setDatasetFilters: mockSetDatasetFilters,
+      setGeometryFilter: mockSetGeometryFilter,
     }),
-    mockSetDatasetFilters,
+    mockSetGeometryFilter,
   };
 });
 
-// grab the mock setDatasetFilters function that was passed to availability context
-const { mockSetDatasetFilters } = jest.requireMock('../../src/contexts/AvailabilityContext');
+// grab the mock setGeometryFilter function that was passed to availability context
+const { mockSetGeometryFilter } = jest.requireMock('../../src/contexts/AvailabilityContext');
 
 describe('Homepage', () => {
   beforeEach(() => {
@@ -148,27 +148,28 @@ describe('Homepage', () => {
     expect(screen.getByTestId('mock-datasets-sidebar')).toHaveAttribute('data-opened', 'false');
   });
 
-  it('calls setDatasetFilters when map selection changes with geometries', () => {
+  it('calls setGeometryFilter when map selection changes with geometries', () => {
     // Arrange
     __setIsDesktopLayout(true);
     render(<Homepage />);
 
+    const geometries = [
+      {
+        type: 'Polygon' as any,
+        coordinates: [
+          [
+            [6.0, 35.0],
+            [18.0, 35.0],
+            [18.0, 47.0],
+            [6.0, 47.0],
+            [6.0, 35.0],
+          ],
+        ],
+      },
+    ];
     const mockEvent: SoilhiveMapSelectionChangeEvent = {
       bounds: [6.0, 35.0, 18.0, 47.0],
-      geometries: [
-        {
-          type: 'Polygon',
-          coordinates: [
-            [
-              [6.0, 35.0],
-              [18.0, 35.0],
-              [18.0, 47.0],
-              [6.0, 47.0],
-              [6.0, 35.0],
-            ],
-          ],
-        },
-      ],
+      geometries,
       eventType: 'draw',
       zoomLevel: 10,
     };
@@ -179,26 +180,11 @@ describe('Homepage', () => {
     onSelectionChange!(mockEvent);
 
     // Assert
-    expect(mockSetDatasetFilters).toHaveBeenCalledTimes(1);
-
-    // the original setDatasetFilters is passed a function as an argument,
-    // this is because it needs the previous value of datasetFilters
-    expect(mockSetDatasetFilters).toHaveBeenCalledWith(expect.any(Function));
-
-    // updaterFn is the function that was passed to setDatasetFilter in the original component and caught by
-    // the mockSetDatasetFilters
-    const updaterFn = mockSetDatasetFilters.mock.calls[0][0];
-    const prevFilters = { parameters: 'data' };
-    const result = updaterFn(prevFilters);
-
-    // in this way we verify that just the geompetries are updated, but not the rest of the filters
-    expect(result).toEqual({
-      parameters: 'data',
-      geometries: mockEvent.geometries,
-    });
+    expect(mockSetGeometryFilter).toHaveBeenCalledTimes(1);
+    expect(mockSetGeometryFilter).toHaveBeenCalledWith(geometries);
   });
 
-  it('calls setDatasetFilters with bbox geometry when no geometries provided', () => {
+  it('calls setGeometryFilter with bbox geometry when no geometries provided', () => {
     // Arrange
     __setIsDesktopLayout(true);
     render(<Homepage />);
@@ -214,19 +200,13 @@ describe('Homepage', () => {
     mockOnMapSelectionChange!(mockEvent);
 
     // Assert
-    expect(mockSetDatasetFilters).toHaveBeenCalledTimes(1);
-
-    // setDatasetFilters receives a function as a parameter
-    const updaterFn = mockSetDatasetFilters.mock.calls[0][0];
-    const prevFilters = { parameters: 'data' };
-    const result = updaterFn(prevFilters);
+    expect(mockSetGeometryFilter).toHaveBeenCalledTimes(1);
 
     // The geometry should be created from bboxPolygon
-    expect(result).toHaveProperty('geometries');
-    expect(result).toHaveProperty('parameters'); // make sure we don't delete the parameters property
-    expect(result.geometries).toHaveLength(1);
-    expect(result.geometries[0].type).toBe('Polygon');
-    expect(result.geometries[0].coordinates).toBeDefined();
+    const geometries = mockSetGeometryFilter.mock.calls[0][0];
+    expect(geometries).toHaveLength(1);
+    expect(geometries[0].type).toBe('Polygon');
+    expect(geometries[0].coordinates).toBeDefined();
   });
 
   it('skips filter updates when map moves with geometry already selected', async () => {
@@ -259,8 +239,8 @@ describe('Homepage', () => {
       mockOnMapSelectionChange!(selectEvent);
     });
 
-    expect(mockSetDatasetFilters).toHaveBeenCalledTimes(1);
-    mockSetDatasetFilters.mockClear();
+    expect(mockSetGeometryFilter).toHaveBeenCalledTimes(1);
+    mockSetGeometryFilter.mockClear();
 
     // Act - now move the map (bounds event)
     const boundsEvent: SoilhiveMapSelectionChangeEvent = {
@@ -274,7 +254,7 @@ describe('Homepage', () => {
     });
 
     // Assert - filter update should be skipped
-    expect(mockSetDatasetFilters).not.toHaveBeenCalled();
+    expect(mockSetGeometryFilter).not.toHaveBeenCalled();
   });
 
   it('updates filters when map moves without geometry selected', () => {
@@ -292,7 +272,7 @@ describe('Homepage', () => {
     mockOnMapSelectionChange!(boundsEvent);
 
     // Assert - filter update should happen
-    expect(mockSetDatasetFilters).toHaveBeenCalledTimes(1);
+    expect(mockSetGeometryFilter).toHaveBeenCalledTimes(1);
   });
 
   it('updates filters immediately on geometry reset', async () => {
@@ -323,8 +303,8 @@ describe('Homepage', () => {
 
     await act(async () => mockOnMapSelectionChange!(selectEvent));
 
-    expect(mockSetDatasetFilters).toHaveBeenCalledTimes(1);
-    mockSetDatasetFilters.mockClear();
+    expect(mockSetGeometryFilter).toHaveBeenCalledTimes(1);
+    mockSetGeometryFilter.mockClear();
 
     // Act - reset the geometry
     const resetEvent: SoilhiveMapSelectionChangeEvent = {
@@ -336,7 +316,7 @@ describe('Homepage', () => {
     await act(async () => mockOnMapSelectionChange!(resetEvent));
 
     // Assert - filter update should happen immediately with bounding box
-    expect(mockSetDatasetFilters).toHaveBeenCalledTimes(1);
+    expect(mockSetGeometryFilter).toHaveBeenCalledTimes(1);
   });
 
   it('resumes filter updates after geometry reset when map moves', async () => {
@@ -376,7 +356,7 @@ describe('Homepage', () => {
 
     await act(async () => mockOnMapSelectionChange!(resetEvent));
 
-    mockSetDatasetFilters.mockClear();
+    mockSetGeometryFilter.mockClear();
 
     // Act - now move the map after reset
     const boundsEvent: SoilhiveMapSelectionChangeEvent = {
@@ -388,7 +368,7 @@ describe('Homepage', () => {
     await act(async () => mockOnMapSelectionChange!(boundsEvent));
 
     // Assert - filter update should happen (geometry no longer selected)
-    expect(mockSetDatasetFilters).toHaveBeenCalledTimes(1);
+    expect(mockSetGeometryFilter).toHaveBeenCalledTimes(1);
   });
 
   it('updates filters when uploading new geometry while one is already selected', async () => {
@@ -419,26 +399,27 @@ describe('Homepage', () => {
 
     await act(async () => mockOnMapSelectionChange!(drawEvent));
 
-    expect(mockSetDatasetFilters).toHaveBeenCalledTimes(1);
-    mockSetDatasetFilters.mockClear();
+    expect(mockSetGeometryFilter).toHaveBeenCalledTimes(1);
+    mockSetGeometryFilter.mockClear();
 
     // Act - upload a new geometry
+    const geometries = [
+      {
+        type: 'Polygon' as any,
+        coordinates: [
+          [
+            [8.0, 37.0],
+            [20.0, 37.0],
+            [20.0, 49.0],
+            [8.0, 49.0],
+            [8.0, 37.0],
+          ],
+        ],
+      },
+    ];
     const uploadEvent: SoilhiveMapSelectionChangeEvent = {
       bounds: [8.0, 37.0, 20.0, 49.0],
-      geometries: [
-        {
-          type: 'Polygon',
-          coordinates: [
-            [
-              [8.0, 37.0],
-              [20.0, 37.0],
-              [20.0, 49.0],
-              [8.0, 49.0],
-              [8.0, 37.0],
-            ],
-          ],
-        },
-      ],
+      geometries,
       eventType: 'upload',
       zoomLevel: 11,
     };
@@ -446,12 +427,8 @@ describe('Homepage', () => {
     await act(async () => mockOnMapSelectionChange!(uploadEvent));
 
     // Assert - filter update should happen
-    expect(mockSetDatasetFilters).toHaveBeenCalledTimes(1);
-
-    const updaterFn = mockSetDatasetFilters.mock.calls[0][0];
-    const prevFilters = { parameters: 'data' };
-    const result = updaterFn(prevFilters);
-
-    expect(result.geometries).toEqual(uploadEvent.geometries);
+    expect(mockSetGeometryFilter).toHaveBeenCalledTimes(1);
+    const geometriesParam = mockSetGeometryFilter.mock.calls[0][0];
+    expect(geometriesParam).toEqual(uploadEvent.geometries);
   });
 });

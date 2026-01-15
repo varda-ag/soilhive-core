@@ -2,8 +2,9 @@ import { useFetchFilteredDatasets } from 'hooks/useFetchFilteredDatasets';
 import React, { createContext, useState, type ReactNode, useCallback, useMemo } from 'react';
 import type { AvailabilityDataset, DatasetSummary } from 'types/availability';
 import { mapFilteredDatasetToAvailabilityDataset } from '../adapters';
-import type { DatasetFilter, FilterableDatasetMetadata } from 'types/backend';
+import type { FilterableDatasetMetadata } from 'types/backend';
 import { computeDatasetSummary } from '../domain';
+import type { MultiPolygon, Polygon } from 'geojson';
 
 type DatasetFilters = {
   type: string[];
@@ -30,7 +31,8 @@ type AvailabilityContextType = {
   setSearchValue: (value: string) => void;
   setFilters: (value: string | string[], name: string) => void;
   selectAllDatasets: (select: boolean) => void;
-  setDatasetFilters: React.Dispatch<React.SetStateAction<DatasetFilter>>;
+  setGeometryFilter: React.Dispatch<React.SetStateAction<(Polygon | MultiPolygon)[]>>;
+  setDatasetFilters: React.Dispatch<React.SetStateAction<FilterableDatasetMetadata>>;
   setPreview: React.Dispatch<React.SetStateAction<boolean>>;
 };
 
@@ -49,13 +51,11 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
   });
   const [isAllSelected, setIsAllSelected] = useState<boolean>(false);
   const [preview, setPreview] = useState<boolean>(false);
+  const [geometryfilter, setGeometryFilter] = useState<(Polygon | MultiPolygon)[]>([]);
+  const [datasetFilters, setDatasetFilters] = useState<FilterableDatasetMetadata>({});
 
-  const initialFilters: DatasetFilter = {
-    geometries: [],
-    parameters: {} as FilterableDatasetMetadata,
-  };
-  const [datasetFilters, setDatasetFilters] = useState<DatasetFilter>(initialFilters);
-  const { fetchedFilteredResults } = useFetchFilteredDatasets(datasetFilters);
+  const filter = useMemo(() => ({ geometries: geometryfilter, parameters: datasetFilters }), [geometryfilter, datasetFilters]);
+  const { fetchedFilteredResults } = useFetchFilteredDatasets(filter);
 
   const selectDataset = useCallback(
     (id: string) => {
@@ -117,6 +117,7 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
         selectAllDatasets,
         setDatasetFilters,
         setPreview,
+        setGeometryFilter,
       }}
     >
       {children}

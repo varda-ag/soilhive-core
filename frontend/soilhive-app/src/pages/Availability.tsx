@@ -54,7 +54,7 @@ function Availability() {
     throw new Error('AvailabilityContext must be used within AvailabilityProvider');
   }
 
-  const { setDatasetFilters } = availabilityContext;
+  const { setGeometryFilter } = availabilityContext;
 
   const handleMapSelectionChange = (event: SoilhiveMapSelectionChangeEvent) => {
     const { bounds, geometries, eventType } = event;
@@ -71,11 +71,7 @@ function Availability() {
     }
 
     const geoms = geometries ?? [bboxPolygon(bounds).geometry];
-
-    setDatasetFilters(prevFilters => ({
-      ...prevFilters,
-      geometries: geoms,
-    }));
+    setGeometryFilter(geoms);
   };
 
   return (
