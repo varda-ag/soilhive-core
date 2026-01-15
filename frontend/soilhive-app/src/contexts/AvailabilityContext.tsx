@@ -1,4 +1,4 @@
-import { useFetchFilteredDatasets } from 'hooks/useFetchFilteredDatasets';
+import { useFilteredDatasets } from 'hooks/useFilteredDatasets';
 import React, { createContext, useState, type ReactNode, useCallback, useMemo } from 'react';
 import type { AvailabilityDataset, DatasetSummary } from 'types/availability';
 import { mapFilteredDatasetToAvailabilityDataset } from '../adapters';
@@ -58,8 +58,11 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
   const [datasetFilters, setDatasetFilters] = useState<FilterableDatasetMetadata>({});
   const { data: allSoilProperties, isLoading: isLoadingSoilProperties } = useSoilProperties();
 
-  const filter = useMemo(() => ({ geometries: geometryfilter, parameters: datasetFilters }), [geometryfilter, datasetFilters]);
-  const { fetchedFilteredResults } = useFetchFilteredDatasets(filter);
+  const geometryFilter = useMemo(() => ({ geometries: geometryfilter, parameters: {} }), [geometryfilter]);
+  const fullFilter = useMemo(() => ({ geometries: geometryfilter, parameters: datasetFilters }), [geometryfilter, datasetFilters]);
+
+  const { filteredResults: geometryFilterResults } = useFilteredDatasets(geometryFilter);
+  const { filteredResults: fullFilterResults } = useFilteredDatasets(fullFilter);
 
   const selectDataset = useCallback(
     (id: string) => {
@@ -86,34 +89,33 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
   const selectAllDatasets = useCallback(
     (select: boolean) => {
       setSelectedDatasets(
-        select && fetchedFilteredResults?.results
-          ? fetchedFilteredResults?.results?.flatMap(result => result.datasets.map(dataset => dataset.id))
+        select && fullFilterResults?.results
+          ? fullFilterResults?.results?.flatMap(result => result.datasets.map(dataset => dataset.id))
           : [],
       );
       setIsAllSelected(select);
     },
-    [fetchedFilteredResults],
+    [fullFilterResults],
   );
 
   const datasets = useMemo(() => {
-    if (!fetchedFilteredResults || !fetchedFilteredResults.results) return [];
-
-    return fetchedFilteredResults.results.flatMap(res => res.datasets.map(mapFilteredDatasetToAvailabilityDataset));
-  }, [fetchedFilteredResults]);
+    if (!fullFilterResults || !fullFilterResults.results) return [];
+    return fullFilterResults.results.flatMap(res => res.datasets.map(mapFilteredDatasetToAvailabilityDataset));
+  }, [fullFilterResults]);
 
   const datasetsSummary = useMemo<DatasetSummary>(() => {
-    return computeDatasetSummary(fetchedFilteredResults);
-  }, [fetchedFilteredResults]);
+    return computeDatasetSummary(fullFilterResults);
+  }, [fullFilterResults]);
 
   const soilProperties = useMemo<SoilProperty[]>(() => {
     const properties = new Set<string>();
-    fetchedFilteredResults?.results.forEach(result =>
+    geometryFilterResults?.results.forEach(result =>
       result.datasets.forEach((dataset: FilteredDataset) => {
         dataset.soil_properties?.forEach(prop => properties.add(prop));
       }),
     );
     return allSoilProperties?.filter(prop => properties.has(prop.slug)) ?? [];
-  }, [allSoilProperties, fetchedFilteredResults?.results]);
+  }, [allSoilProperties, geometryFilterResults?.results]);
 
   return (
     <AvailabilityContext.Provider
