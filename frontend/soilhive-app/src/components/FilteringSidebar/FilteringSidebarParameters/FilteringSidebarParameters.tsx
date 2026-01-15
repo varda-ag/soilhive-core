@@ -3,53 +3,35 @@ import { AvailabilityContext } from '../../../contexts/AvailabilityContext';
 import type { NestedCheckboxItemType } from 'types/components';
 
 import styles from './FilteringSidebarParameters.module.scss';
-import { useContext, useState } from 'react';
-
-export const mockProperties: NestedCheckboxItemType[] = [
-  {
-    id: '1',
-    label: 'First',
-    children: [
-      {
-        id: '1-1',
-        label: 'First-First',
-        children: [
-          { id: '1-1-1', label: 'First first first' },
-          { id: '1-1-2', label: 'First first second' },
-        ],
-      },
-      {
-        id: '1-2',
-        label: 'First-Second',
-      },
-    ],
-  },
-  {
-    id: '2',
-    label: 'Second',
-    children: [
-      { id: '2-1', label: 'Second-First' },
-      { id: '2-2', label: 'Second-Second' },
-    ],
-  },
-];
+import { useContext, useMemo, useState } from 'react';
 
 export function FilteringSidebarParameters() {
   const availabilityContext = useContext(AvailabilityContext);
-
   if (!availabilityContext) {
     throw new Error('AvailabilityContext must be used within AvailabilityProvider');
   }
 
-  const { setDatasetFilters } = availabilityContext;
+  const { setDatasetFilters, soilProperties, isLoadingSoilProperties } = availabilityContext;
 
   const [selectedProperties, setSelectedProperties] = useState<string[]>([]);
 
+  const nestedSoilProperties = useMemo((): NestedCheckboxItemType[] => {
+    const output: NestedCheckboxItemType[] = [];
+    soilProperties.forEach(property => {
+      if (!property.parent_property_id) {
+        output.push({ id: property.slug, label: property.property_name, children: [] });
+      }
+    });
+    // TODO: support nesting
+    return output;
+  }, [soilProperties]);
+
   return (
     <div className={styles.FilteringSidebarParameters}>
+      {isLoadingSoilProperties && <p>Loading soil properties...</p>}
       <Accordion title="Soil Properties" type="secondary">
         <div className={styles.SoilProperties}>
-          <NestedCheckbox items={mockProperties} selected={selectedProperties} onChange={onChange} />
+          <NestedCheckbox items={nestedSoilProperties} selected={selectedProperties} onChange={onChange} />
         </div>
       </Accordion>
       <Accordion title="Soil Groups" type="secondary">

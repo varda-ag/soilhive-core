@@ -2,9 +2,10 @@ import { useFetchFilteredDatasets } from 'hooks/useFetchFilteredDatasets';
 import React, { createContext, useState, type ReactNode, useCallback, useMemo } from 'react';
 import type { AvailabilityDataset, DatasetSummary } from 'types/availability';
 import { mapFilteredDatasetToAvailabilityDataset } from '../adapters';
-import type { FilterableDatasetMetadata } from 'types/backend';
+import type { FilterableDatasetMetadata, SoilProperty, FilteredDataset } from 'types/backend';
 import { computeDatasetSummary } from '../domain';
 import type { MultiPolygon, Polygon } from 'geojson';
+import { useSoilProperties } from '../hooks/useSoilProperties';
 
 type DatasetFilters = {
   type: string[];
@@ -20,6 +21,8 @@ type DatasetsSummary = {
 };
 
 type AvailabilityContextType = {
+  soilProperties: SoilProperty[];
+  isLoadingSoilProperties: boolean;
   datasets: AvailabilityDataset[];
   selectedDatasets: string[];
   isAllSelected: boolean;
@@ -53,6 +56,7 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
   const [preview, setPreview] = useState<boolean>(false);
   const [geometryfilter, setGeometryFilter] = useState<(Polygon | MultiPolygon)[]>([]);
   const [datasetFilters, setDatasetFilters] = useState<FilterableDatasetMetadata>({});
+  const { data: allSoilProperties, isLoading: isLoadingSoilProperties } = useSoilProperties();
 
   const filter = useMemo(() => ({ geometries: geometryfilter, parameters: datasetFilters }), [geometryfilter, datasetFilters]);
   const { fetchedFilteredResults } = useFetchFilteredDatasets(filter);
@@ -101,9 +105,21 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
     return computeDatasetSummary(fetchedFilteredResults);
   }, [fetchedFilteredResults]);
 
+  const soilProperties = useMemo<SoilProperty[]>(() => {
+    const properties = new Set<string>();
+    fetchedFilteredResults?.results.forEach(result =>
+      result.datasets.forEach((dataset: FilteredDataset) => {
+        dataset.soil_properties?.forEach(prop => properties.add(prop));
+      }),
+    );
+    return allSoilProperties?.filter(prop => properties.has(prop.slug)) ?? [];
+  }, [allSoilProperties, fetchedFilteredResults?.results]);
+
   return (
     <AvailabilityContext.Provider
       value={{
+        soilProperties,
+        isLoadingSoilProperties,
         datasets,
         selectedDatasets,
         isAllSelected,

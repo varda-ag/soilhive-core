@@ -3,6 +3,35 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { FilteringSidebarParameters } from 'components/FilteringSidebar/FilteringSidebarParameters/FilteringSidebarParameters';
 import type { NestedCheckboxItemType } from 'types/components';
 
+const mockProperties: NestedCheckboxItemType[] = [
+  {
+    id: '1',
+    label: 'First',
+    children: [
+      {
+        id: '1-1',
+        label: 'First-First',
+        children: [
+          { id: '1-1-1', label: 'First first first' },
+          { id: '1-1-2', label: 'First first second' },
+        ],
+      },
+      {
+        id: '1-2',
+        label: 'First-Second',
+      },
+    ],
+  },
+  {
+    id: '2',
+    label: 'Second',
+    children: [
+      { id: '2-1', label: 'Second-First' },
+      { id: '2-2', label: 'Second-Second' },
+    ],
+  },
+];
+
 jest.mock('../../../../src/contexts/AvailabilityContext', () => {
   const mockSetDatasetFilters = jest.fn();
 
@@ -42,6 +71,10 @@ jest.mock('components/UI', () => ({
 }));
 
 describe('FilteringSidebarParameters', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.spyOn(React, 'useMemo').mockReturnValue(mockProperties);
+  });
   it('renders four accordion components', () => {
     const { container } = render(<FilteringSidebarParameters />);
 
