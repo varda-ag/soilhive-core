@@ -1,4 +1,4 @@
-import { isNestedLevelHasChildren, getTopLevelSelections } from 'components/UI/NestedCheckbox/nestedCheckboxHelpers';
+import { isNestedLevelHasChildren, getTopLevelSelections, getBranchIds } from 'components/UI/NestedCheckbox/nestedCheckboxHelpers';
 import type { NestedCheckboxItemType } from 'types/components';
 
 describe('isNestedLevelHasChildren', () => {
@@ -66,5 +66,34 @@ describe('getTopLevelSelections', () => {
   ])('returns %s', (_desc, selected, expectedIds) => {
     const result = getTopLevelSelections(mockItems, selected);
     expect(result.map(item => item.id)).toEqual(expectedIds);
+  });
+});
+
+describe('getBranchIds', () => {
+  const mockItems: NestedCheckboxItemType[] = [
+    {
+      id: '1',
+      label: 'Parent 1',
+      children: [
+        {
+          id: '1-1',
+          label: 'Child 1-1',
+          children: [{ id: '1-1-1', label: 'Grandchild 1-1-1' }],
+        },
+        { id: '1-2', label: 'Child 1-2' },
+      ],
+    },
+    { id: '2', label: 'Standalone Leaf' },
+  ];
+
+  it.each([
+    ['entire branch from root', '1', ['1', '1-1', '1-1-1', '1-2']],
+    ['sub-branch from middle', '1-1', ['1-1', '1-1-1']],
+    ['nested leaf only', '1-2', ['1-2']],
+    ['root-level leaf only', '2', ['2']],
+    ['nothing for invalid ID', '999', []],
+  ])('returns %s when targetId is %s', (_desc, targetId, expectedIds) => {
+    const result = getBranchIds(mockItems, targetId);
+    expect(result).toEqual(expectedIds);
   });
 });

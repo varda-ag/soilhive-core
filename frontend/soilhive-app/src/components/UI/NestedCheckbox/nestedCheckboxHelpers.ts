@@ -41,3 +41,38 @@ export const getTopLevelSelections = (items: NestedCheckboxItemType[], selected:
   items.forEach(traverse);
   return result;
 };
+
+/**
+ * Collects every single ID inside a node,
+ * regardless of what the ID is.
+ */
+const collectAllIds = (item: NestedCheckboxItemType): string[] => {
+  const ids = [item.id];
+  if (item.children) {
+    for (const child of item.children) {
+      ids.push(...collectAllIds(child));
+    }
+  }
+  return ids;
+};
+
+/**
+ * Get all ids from the parent down to the children
+ */
+export const getBranchIds = (items: NestedCheckboxItemType[], targetId: string): string[] => {
+  for (const item of items) {
+    if (item.id === targetId) {
+      // once found, collect this item and all its descendants
+      return collectAllIds(item);
+    }
+
+    // if not found yet, look inside the children
+    if (item.children) {
+      const foundInChildren = getBranchIds(item.children, targetId);
+      if (foundInChildren.length > 0) {
+        return foundInChildren;
+      }
+    }
+  }
+  return [];
+};
