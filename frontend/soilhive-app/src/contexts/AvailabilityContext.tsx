@@ -1,5 +1,5 @@
 import { useFilteredDatasets } from 'hooks/useFilteredDatasets';
-import React, { createContext, useState, type ReactNode, useCallback, useMemo } from 'react';
+import React, { createContext, useState, type ReactNode, useCallback, useMemo, useEffect } from 'react';
 import type { AvailabilityDataset, DatasetSummary } from 'types/availability';
 import { mapFilteredDatasetToAvailabilityDataset } from '../adapters';
 import type { FilterableDatasetMetadata, SoilProperty, FilteredDataset } from 'types/backend';
@@ -21,7 +21,8 @@ type DatasetsSummary = {
 };
 
 type AvailabilityContextType = {
-  soilProperties: SoilProperty[];
+  allSoilProperties: SoilProperty[];
+  filteredSoilProperties: SoilProperty[];
   isLoadingSoilProperties: boolean;
   datasets: AvailabilityDataset[];
   selectedDatasets: string[];
@@ -58,11 +59,17 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
   const [datasetFilters, setDatasetFilters] = useState<FilterableDatasetMetadata>({});
   const { data: allSoilProperties, isLoading: isLoadingSoilProperties } = useSoilProperties();
 
-  const geometryFilter = useMemo(() => ({ geometries: geometryfilter, parameters: {} }), [geometryfilter]);
-  const fullFilter = useMemo(() => ({ geometries: geometryfilter, parameters: datasetFilters }), [geometryfilter, datasetFilters]);
+  const partialFilterPayload = useMemo(() => ({ geometries: geometryfilter, parameters: {} }), [geometryfilter]);
+  const fullFilterPayload = useMemo(() => ({ geometries: geometryfilter, parameters: datasetFilters }), [geometryfilter, datasetFilters]);
 
-  const { filteredResults: geometryFilterResults } = useFilteredDatasets(geometryFilter);
-  const { filteredResults: fullFilterResults } = useFilteredDatasets(fullFilter);
+  const { filteredResults: geometryFilterResults } = useFilteredDatasets(partialFilterPayload);
+  const { filteredResults: fullFilterResults } = useFilteredDatasets(fullFilterPayload);
+
+  useEffect(() => {
+    // TODO: this resets user-selected filters when geometry changes.
+    // Replace this with merging logic.
+    setDatasetFilters({});
+  }, [geometryfilter]);
 
   const selectDataset = useCallback(
     (id: string) => {
@@ -107,7 +114,7 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
     return computeDatasetSummary(fullFilterResults);
   }, [fullFilterResults]);
 
-  const soilProperties = useMemo<SoilProperty[]>(() => {
+  const filteredSoilProperties = useMemo<SoilProperty[]>(() => {
     const properties = new Set<string>();
     geometryFilterResults?.results.forEach(result =>
       result.datasets.forEach((dataset: FilteredDataset) => {
@@ -120,7 +127,8 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
   return (
     <AvailabilityContext.Provider
       value={{
-        soilProperties,
+        allSoilProperties: allSoilProperties || [],
+        filteredSoilProperties,
         isLoadingSoilProperties,
         datasets,
         selectedDatasets,

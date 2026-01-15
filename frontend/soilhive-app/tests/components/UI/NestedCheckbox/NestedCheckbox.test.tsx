@@ -5,14 +5,17 @@ const mockItems = [
   {
     id: 'first',
     label: 'First',
+    isRoot: true,
     children: [
-      { id: 'first-child-1', label: 'First child 1' },
-      { id: 'first-child-2', label: 'First child 2' },
+      { id: 'first-child-1', label: 'First child 1', isRoot: false, children: [] },
+      { id: 'first-child-2', label: 'First child 2', isRoot: false, children: [] },
     ],
   },
   {
     id: 'second',
     label: 'Second',
+    isRoot: true,
+    children: [],
   },
 ];
 

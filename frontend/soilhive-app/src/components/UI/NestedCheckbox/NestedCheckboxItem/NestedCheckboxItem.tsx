@@ -31,7 +31,7 @@ export function NestedCheckboxItem({ item, selected, className, hasChildrenOnCur
   );
 
   const itemLabel = useMemo((): string | ReactNode => {
-    if (item.children) {
+    if (item.children.length) {
       return (
         <>
           {!isOpened && <PlusIcon data-testid="sh-plus-icon" className={styles.ToggleIcon} onClick={toggleChildrenVisibility} />}

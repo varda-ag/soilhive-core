@@ -7,27 +7,32 @@ const mockProperties: NestedCheckboxItemType[] = [
   {
     id: '1',
     label: 'First',
+    isRoot: true,
     children: [
       {
         id: '1-1',
         label: 'First-First',
+        isRoot: false,
         children: [
-          { id: '1-1-1', label: 'First first first' },
-          { id: '1-1-2', label: 'First first second' },
+          { id: '1-1-1', label: 'First first first', isRoot: false, children: [] },
+          { id: '1-1-2', label: 'First first second', isRoot: false, children: [] },
         ],
       },
       {
         id: '1-2',
         label: 'First-Second',
+        isRoot: false,
+        children: [],
       },
     ],
   },
   {
     id: '2',
     label: 'Second',
+    isRoot: true,
     children: [
-      { id: '2-1', label: 'Second-First' },
-      { id: '2-2', label: 'Second-Second' },
+      { id: '2-1', label: 'Second-First', isRoot: false, children: [] },
+      { id: '2-2', label: 'Second-Second', isRoot: false, children: [] },
     ],
   },
 ];
