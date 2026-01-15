@@ -3,13 +3,13 @@ import { GISDataType } from '../types/data';
 
 export interface FilterableDatasetMetadata {
   data_types?: GISDataType[]; // Enum
-  licenses?: string[]; // UUIDs
+  licenses?: string[]; // slugs
   min_sampling_date?: string | null;
   max_sampling_date?: string | null;
   min_depth?: number | null;
   max_depth?: number | null;
   horizons?: (string | null)[]; // Short strings
-  soil_properties?: string[]; // UUIDs
+  soil_properties?: string[]; // slugs
   raster_filters?: Map<string, number[]>; // Map <table_name, raster_values>
 }
 

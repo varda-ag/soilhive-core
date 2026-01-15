@@ -39,14 +39,24 @@ export default class SoilDataStorage {
     const query = await repo
       .createQueryBuilder('dataset_layers')
       .leftJoin('dataset_layers.dataset', 'ds')
-      .where('ST_Intersects(ds.spatial_extent, ST_GeomFromGeoJSON(:geom))', { geom }) // Testing intersection with entire dataset
+      .leftJoin('dataset_layers.layer', 'layer')
+      .leftJoin('dataset_layers.soil_property', 'soil_property')
+      .leftJoin('layer.license_obj', 'license')
       .innerJoin('dataset_layers.feature', 'features')
+      .where('ST_Intersects(ds.spatial_extent, ST_GeomFromGeoJSON(:geom))', { geom }) // Testing intersection with entire dataset
       .andWhere('ST_Intersects(features.geom, ST_GeomFromGeoJSON(:geom))', { geom }) // Testing intersection with individual features
       .select('dataset_layers.dataset_id', 'dataset_id')
+      .addSelect('ds.gis_datatype', 'gis_datatype')
       .addSelect('ds.name', 'dataset_name')
+      .addSelect("STRING_AGG(DISTINCT license.slug, ',')", 'licenses')
       .addSelect('COUNT(dataset_layers.dataset_id)', 'dataset_layer_count')
-      .groupBy('dataset_layers.dataset_id')
-      .addGroupBy('ds.name');
+      .addSelect('MIN(layer.sampling_date)', 'min_sampling_date')
+      .addSelect('MAX(layer.sampling_date)', 'max_sampling_date')
+      .addSelect('MIN(layer.min_depth)', 'min_depth')
+      .addSelect('MAX(layer.max_depth)', 'max_depth')
+      .addSelect("STRING_AGG(DISTINCT layer.horizon, ',')", 'horizons')
+      .addSelect("STRING_AGG(DISTINCT soil_property.slug, ',')", 'soil_properties')
+      .groupBy('dataset_layers.dataset_id, ds.name, ds.gis_datatype');
 
     applyFiltersToQuery(query, filters);
     const results = await query.getRawMany();
@@ -54,6 +64,15 @@ export default class SoilDataStorage {
     return results.map(row => ({
       id: row.dataset_id,
       name: row.dataset_name,
+      data_types: [row.gis_datatype],
+      licenses: row.licenses ? row.licenses.split(',') : [],
+      min_sampling_date: row.min_sampling_date ? row.min_sampling_date.toISOString() : null,
+      max_sampling_date: row.max_sampling_date ? row.max_sampling_date.toISOString() : null,
+      min_depth: row.min_depth ? parseFloat(row.min_depth) : null,
+      max_depth: row.max_depth ? parseFloat(row.max_depth) : null,
+      horizons: row.horizons ? row.horizons.split(',') : [],
+      soil_properties: row.soil_properties ? row.soil_properties.split(',') : [],
+      //raster_filters // TODO: assess feasibility
       dataset_layer_count: parseInt(row.dataset_layer_count),
     }));
   };
@@ -64,62 +83,52 @@ const applyFiltersToQuery = (query: any, filters: FilterableDatasetMetadata) => 
     query.andWhere('ds.gis_datatype IN (:...data_types)', { data_types: filters.data_types });
   }
   if (filters.min_sampling_date === null) {
-    query.leftJoin('dataset_layers.layer', 'layers_min_sampling_date');
-    query.andWhere('layers_min_sampling_date.sampling_date IS NULL');
+    query.andWhere('layer.sampling_date IS NULL');
   } else if (filters.min_sampling_date) {
     // We just need dataset to overlap with input interval
     query.andWhere('ds.reference_period_stop >= :min_sampling_date', { min_sampling_date: filters.min_sampling_date });
     // Filtering actual layers
-    query.leftJoin('dataset_layers.layer', 'layers_min_sampling_date');
-    query.andWhere("TO_CHAR(layers_min_sampling_date.sampling_date, 'YYYY-MM-DD') >= :min_sampling_date", {
+    query.andWhere("TO_CHAR(layer.sampling_date, 'YYYY-MM-DD') >= :min_sampling_date", {
       min_sampling_date: filters.min_sampling_date,
     });
   }
   if (filters.max_sampling_date === null) {
-    query.leftJoin('dataset_layers.layer', 'layers_max_sampling_date');
-    query.andWhere('layers_max_sampling_date.sampling_date IS NULL');
+    query.andWhere('layer.sampling_date IS NULL');
   } else if (filters.max_sampling_date) {
     // We just need dataset to overlap with input interval
     query.andWhere('ds.reference_period_start <= :max_sampling_date', { max_sampling_date: filters.max_sampling_date });
     // Filtering actual layers
-    query.leftJoin('dataset_layers.layer', 'layers_max_sampling_date'); // Note: join on the same table needs a different alias
-    query.andWhere("TO_CHAR(layers_max_sampling_date.sampling_date, 'YYYY-MM-DD') <= :max_sampling_date", {
+    query.andWhere("TO_CHAR(layer.sampling_date, 'YYYY-MM-DD') <= :max_sampling_date", {
       max_sampling_date: filters.max_sampling_date,
     });
   }
   if (filters.min_depth === null) {
-    query.leftJoin('dataset_layers.layer', 'layers_min_depth');
-    query.andWhere('layers_min_depth.min_depth IS NULL');
+    query.andWhere('layer.min_depth IS NULL');
   } else if (filters.min_depth !== undefined) {
     // We just need dataset to overlap with input interval
     query.andWhere("(ds.soil_depth->>'max')::int >= :min_depth", { min_depth: filters.min_depth });
     // Filtering actual layers
-    query.leftJoin('dataset_layers.layer', 'layers_min_depth');
-    query.andWhere('layers_min_depth.max_depth >= :min_depth', { min_depth: filters.min_depth });
+    query.andWhere('layer.max_depth >= :min_depth', { min_depth: filters.min_depth });
   }
   if (filters.max_depth === null) {
-    query.leftJoin('dataset_layers.layer', 'layers_max_depth');
-    query.andWhere('layers_max_depth.max_depth IS NULL');
+    query.andWhere('layer.max_depth IS NULL');
   } else if (filters.max_depth !== undefined) {
     // We just need dataset to overlap with input interval
     query.andWhere("(ds.soil_depth->>'min')::int <= :max_depth", { max_depth: filters.max_depth });
     // Filtering actual layers
-    query.leftJoin('dataset_layers.layer', 'layers_max_depth');
-    query.andWhere('layers_max_depth.min_depth <= :max_depth', { max_depth: filters.max_depth });
+    query.andWhere('layer.min_depth <= :max_depth', { max_depth: filters.max_depth });
   }
   if (filters.horizons && filters.horizons.length > 0) {
-    const nullQuery = filters.horizons.includes(null) ? 'OR layers_horizons.horizon IS NULL' : '';
-    query.leftJoin('dataset_layers.layer', 'layers_horizons');
-    query.andWhere(`layers_horizons.horizon IN (:...horizons) ${nullQuery}`, { horizons: filters.horizons });
+    const nullQuery = filters.horizons.includes(null) ? 'OR layer.horizon IS NULL' : '';
+    query.andWhere(`layer.horizon IN (:...horizons) ${nullQuery}`, { horizons: filters.horizons });
   }
   if (filters.soil_properties && filters.soil_properties.length > 0) {
-    query.andWhere('dataset_layers.soil_property_id IN (:...soil_properties)', { soil_properties: filters.soil_properties });
+    query.andWhere('soil_property.slug IN (:...soil_properties)', { soil_properties: filters.soil_properties });
   }
   if (filters.licenses && filters.licenses.length > 0) {
     // Each dataset can have multiple licenses, need to check that at least one matches
     // TODO: consider querying dataset.licenses
-    query.leftJoin('dataset_layers.layer', 'layers_licenses');
-    query.andWhere('layers_licenses.license IN (:...licenses)', { licenses: filters.licenses });
+    query.andWhere('license.slug IN (:...licenses)', { licenses: filters.licenses });
   }
 
   // Raster filtering
