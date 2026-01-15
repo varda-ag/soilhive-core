@@ -1,8 +1,9 @@
 import { Accordion, NestedCheckbox } from 'components/UI';
+import { AvailabilityContext } from '../../../contexts/AvailabilityContext';
 import type { NestedCheckboxItemType } from 'types/components';
 
 import styles from './FilteringSidebarParameters.module.scss';
-import { useState } from 'react';
+import { useContext, useState } from 'react';
 
 export const mockProperties: NestedCheckboxItemType[] = [
   {
@@ -34,13 +35,21 @@ export const mockProperties: NestedCheckboxItemType[] = [
 ];
 
 export function FilteringSidebarParameters() {
+  const availabilityContext = useContext(AvailabilityContext);
+
+  if (!availabilityContext) {
+    throw new Error('AvailabilityContext must be used within AvailabilityProvider');
+  }
+
+  const { setDatasetFilters } = availabilityContext;
+
   const [selectedProperties, setSelectedProperties] = useState<string[]>([]);
 
   return (
     <div className={styles.FilteringSidebarParameters}>
       <Accordion title="Soil Properties" type="secondary">
         <div className={styles.SoilProperties}>
-          <NestedCheckbox items={mockProperties} selected={selectedProperties} onChange={setSelectedProperties} />
+          <NestedCheckbox items={mockProperties} selected={selectedProperties} onChange={onChange} />
         </div>
       </Accordion>
       <Accordion title="Soil Groups" type="secondary">
@@ -54,4 +63,11 @@ export function FilteringSidebarParameters() {
       </Accordion>
     </div>
   );
+
+  function onChange(selected: string[]) {
+    setSelectedProperties(selected);
+    setDatasetFilters(prevFilters => {
+      return selected.length === 0 ? { ...prevFilters, soil_properties: undefined } : { ...prevFilters, soil_properties: selected };
+    });
+  }
 }
