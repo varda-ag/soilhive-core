@@ -1,3 +1,5 @@
+## [0.15.5](https://github.com/varda-ag/soilhive-core/compare/v0.15.4...v0.15.5) (2026-01-16)
+
 ## [0.15.4](https://github.com/varda-ag/soilhive-core/compare/v0.15.3...v0.15.4) (2026-01-16)
 
 ## [0.15.3](https://github.com/varda-ag/soilhive-core/compare/v0.15.2...v0.15.3) (2026-01-15)
