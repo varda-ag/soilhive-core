@@ -19,3 +19,8 @@ export type NestedCheckboxItemType = {
   className?: string;
   children?: NestedCheckboxItemType[];
 };
+
+export interface Selection {
+  id: string;
+  label: string;
+}
