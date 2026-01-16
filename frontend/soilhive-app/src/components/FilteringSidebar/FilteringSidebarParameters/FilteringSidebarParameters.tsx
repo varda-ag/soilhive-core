@@ -5,7 +5,7 @@ import { getBranchIds, getTopLevelSelections } from 'components/UI/NestedCheckbo
 import type { Selection } from 'types/components';
 
 import styles from './FilteringSidebarParameters.module.scss';
-import { useContext, useMemo, useState } from 'react';
+import { useContext, useMemo } from 'react';
 
 export function FilteringSidebarParameters() {
   const availabilityContext = useContext(AvailabilityContext);
@@ -13,9 +13,14 @@ export function FilteringSidebarParameters() {
     throw new Error('AvailabilityContext must be used within AvailabilityProvider');
   }
 
-  const { setDatasetFilters, allSoilProperties, filteredSoilProperties, isLoadingSoilProperties } = availabilityContext;
-
-  const [selectedProperties, setSelectedProperties] = useState<string[]>([]);
+  const {
+    setDatasetFilters,
+    allSoilProperties,
+    filteredSoilProperties,
+    isLoadingSoilProperties,
+    selectedSoilProperties,
+    setSelectedSoilProperties,
+  } = availabilityContext;
 
   const nestedSoilProperties = useMemo((): NestedCheckboxItemType[] => {
     const nodeMap: { [id: string]: NestedCheckboxItemType } = {};
@@ -57,17 +62,17 @@ export function FilteringSidebarParameters() {
   const handlePillRemove = (id: string) => {
     // identify all leaf IDs that belong to the pill being removed
     const leafIdsToRemove = getBranchIds(nestedSoilProperties, id);
-    onChange(selectedProperties.filter(selectedId => !leafIdsToRemove.includes(selectedId)));
+    onChange(selectedSoilProperties.filter(selectedId => !leafIdsToRemove.includes(selectedId)));
   };
 
   const onChange = (selected: string[]) => {
-    setSelectedProperties(selected);
+    setSelectedSoilProperties(selected);
     setDatasetFilters(prevFilters => {
       return selected.length === 0 ? { ...prevFilters, soil_properties: undefined } : { ...prevFilters, soil_properties: selected };
     });
   };
 
-  const leafSelections = getTopLevelSelections(nestedSoilProperties, selectedProperties);
+  const leafSelections = getTopLevelSelections(nestedSoilProperties, selectedSoilProperties);
 
   const pillSelections: Selection[] = leafSelections.map(item => ({
     id: item.id,
@@ -83,7 +88,7 @@ export function FilteringSidebarParameters() {
         pillsSlot={<SelectionPills selections={pillSelections} onRemove={handlePillRemove} />}
       >
         <div className={styles.SoilProperties}>
-          <NestedCheckbox items={nestedSoilProperties} selected={selectedProperties} onChange={onChange} />
+          <NestedCheckbox items={nestedSoilProperties} selected={selectedSoilProperties} onChange={onChange} />
         </div>
       </Accordion>
       <Accordion title="Soil Groups" type="secondary">

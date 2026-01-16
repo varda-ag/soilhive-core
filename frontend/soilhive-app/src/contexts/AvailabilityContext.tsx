@@ -30,6 +30,8 @@ type AvailabilityContextType = {
   setGeometryFilter: React.Dispatch<React.SetStateAction<(Polygon | MultiPolygon)[]>>;
   setDatasetFilters: React.Dispatch<React.SetStateAction<FilterableDatasetMetadata>>;
   setPreview: React.Dispatch<React.SetStateAction<boolean>>;
+  selectedSoilProperties: string[];
+  setSelectedSoilProperties: React.Dispatch<React.SetStateAction<string[]>>;
 };
 
 export const AvailabilityContext = createContext<AvailabilityContextType | undefined>(undefined);
@@ -56,6 +58,8 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
 
   const { filteredResults: geometryFilterResults } = useFilteredDatasets(partialFilterPayload);
   const { filteredResults: fullFilterResults } = useFilteredDatasets(fullFilterPayload);
+
+  const [selectedSoilProperties, setSelectedSoilProperties] = useState<string[]>([]);
 
   useEffect(() => {
     // TODO: this resets user-selected filters when geometry changes.
@@ -136,6 +140,8 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
         setDatasetFilters,
         setPreview,
         setGeometryFilter,
+        selectedSoilProperties,
+        setSelectedSoilProperties,
       }}
     >
       {children}
