@@ -39,13 +39,19 @@ const mockProperties: NestedCheckboxItemType[] = [
 
 jest.mock('../../../../src/contexts/AvailabilityContext', () => {
   const mockSetDatasetFilters = jest.fn();
+  const mockSetSelectedSoilProperties = jest.fn();
 
   return {
     __esModule: true,
     AvailabilityContext: React.createContext({
       setDatasetFilters: mockSetDatasetFilters,
+      setSelectedSoilProperties: mockSetSelectedSoilProperties,
+      selectedSoilProperties: [],
+      allSoilProperties: [],
+      filteredSoilProperties: [],
     }),
     mockSetDatasetFilters,
+    mockSetSelectedSoilProperties,
   };
 });
 
@@ -58,6 +64,7 @@ jest.mock('components/UI', () => ({
       <div data-testid="accordion-content">{children}</div>
     </div>
   ),
+  SelectionPills: () => null,
   NestedCheckbox: ({
     items,
     selected,
@@ -66,13 +73,23 @@ jest.mock('components/UI', () => ({
     items: NestedCheckboxItemType[];
     selected: string[];
     onChange: (selected: string[]) => void;
-  }) => (
-    <div data-testid="nested-checkbox">
-      <div data-testid="nested-checkbox-items">{JSON.stringify(items)}</div>
-      <div data-testid="nested-checkbox-selected">{JSON.stringify(selected)}</div>
-      <button data-testid="nested-checkbox-change" onClick={() => onChange([items[0].id])} />
-    </div>
-  ),
+  }) => {
+    const [localSelected, setLocalSelected] = React.useState(selected);
+
+    const handleClick = () => {
+      const newSelection = [items[0].id];
+      setLocalSelected(newSelection);
+      onChange(newSelection);
+    };
+
+    return (
+      <div data-testid="nested-checkbox">
+        <div data-testid="nested-checkbox-items">{JSON.stringify(items)}</div>
+        <div data-testid="nested-checkbox-selected">{JSON.stringify(localSelected)}</div>
+        <button data-testid="nested-checkbox-change" onClick={handleClick} />
+      </div>
+    );
+  },
 }));
 
 describe('FilteringSidebarParameters', () => {
