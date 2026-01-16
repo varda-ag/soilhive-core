@@ -12,14 +12,6 @@ type DatasetFilters = {
   ownership: string;
 };
 
-type DatasetsSummary = {
-  count: number;
-  dataPoints: number;
-  layers: number;
-  depth: string;
-  date: string;
-};
-
 type AvailabilityContextType = {
   allSoilProperties: SoilProperty[];
   filteredSoilProperties: SoilProperty[];
@@ -29,7 +21,7 @@ type AvailabilityContextType = {
   isAllSelected: boolean;
   searchValue: string;
   selectedFilters: DatasetFilters;
-  datasetsSummary: DatasetsSummary;
+  datasetsSummary: DatasetSummary;
   preview: boolean;
   selectDataset: (id: string) => void;
   setSearchValue: (value: string) => void;

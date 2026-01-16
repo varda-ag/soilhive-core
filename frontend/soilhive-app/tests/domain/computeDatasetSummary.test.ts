@@ -25,8 +25,8 @@ describe('computeDatasetSummary domain logic', () => {
         count: 1,
         dataPoints: 25,
         layers: 0,
-        depth: 'N/A',
-        date: 'N/A',
+        depth: '?-?',
+        date: '?-?',
       },
     },
     {
