@@ -12,19 +12,20 @@ describe('isNestedLevelHasChildren', () => {
 
   it('returns false if no item contains children', () => {
     const items: NestedCheckboxItemType[] = [
-      { id: '1', label: 'Item 1' },
-      { id: '2', label: 'Item 2' },
+      { id: '1', label: 'Item 1', isRoot: true, children: [] },
+      { id: '2', label: 'Item 2', isRoot: true, children: [] },
     ];
     expect(isNestedLevelHasChildren(items)).toBe(false);
   });
 
   it('returns true if at least one item contains children', () => {
     const items: NestedCheckboxItemType[] = [
-      { id: '1', label: 'Item 1' },
+      { id: '1', label: 'Item 1', isRoot: true, children: [] },
       {
         id: '2',
         label: 'Item 2',
-        children: [{ id: '2-1', label: 'Child' }],
+        isRoot: true,
+        children: [{ id: '2-1', label: 'Child', isRoot: false, children: [] }],
       },
     ];
     expect(isNestedLevelHasChildren(items)).toBe(true);
@@ -36,26 +37,29 @@ describe('getTopLevelSelections', () => {
     {
       id: '1',
       label: 'Parent 1',
+      isRoot: true,
       children: [
-        { id: '1-1', label: 'Child 1-1' },
-        { id: '1-2', label: 'Child 1-2' },
+        { id: '1-1', label: 'Child 1-1', isRoot: false, children: [] },
+        { id: '1-2', label: 'Child 1-2', isRoot: false, children: [] },
       ],
     },
     {
       id: '2',
       label: 'Parent 2',
+      isRoot: true,
       children: [
         {
           id: '2-1',
           label: 'Parent 2-1',
+          isRoot: false,
           children: [
-            { id: '2-1-1', label: 'Child 2-1-1' },
-            { id: '2-1-2', label: 'Child 2-1-2' },
+            { id: '2-1-1', label: 'Child 2-1-1', isRoot: false, children: [] },
+            { id: '2-1-2', label: 'Child 2-1-2', isRoot: false, children: [] },
           ],
         },
       ],
     },
-    { id: '3', label: 'Leaf without parent' },
+    { id: '3', label: 'Leaf without parent', isRoot: true, children: [] },
   ];
 
   it.each([
@@ -74,16 +78,18 @@ describe('getBranchIds', () => {
     {
       id: '1',
       label: 'Parent 1',
+      isRoot: true,
       children: [
         {
           id: '1-1',
           label: 'Child 1-1',
-          children: [{ id: '1-1-1', label: 'Grandchild 1-1-1' }],
+          isRoot: false,
+          children: [{ id: '1-1-1', label: 'Grandchild 1-1-1', isRoot: false, children: [] }],
         },
-        { id: '1-2', label: 'Child 1-2' },
+        { id: '1-2', label: 'Child 1-2', isRoot: false, children: [] },
       ],
     },
-    { id: '2', label: 'Standalone Leaf' },
+    { id: '2', label: 'Standalone Leaf', isRoot: true, children: [] },
   ];
 
   it.each([

@@ -1,5 +1,6 @@
 import type { DatasetSummary } from 'types/availability';
 import type { PostDatasetFilterResponse } from 'types/backend';
+import { getYear } from '../adapters';
 
 export function computeDatasetSummary(fetchedFilteredResults: PostDatasetFilterResponse | undefined): DatasetSummary {
   let globalDataPoints = 0;
@@ -43,8 +44,8 @@ export function computeDatasetSummary(fetchedFilteredResults: PostDatasetFilterR
     }
   }
 
-  const depth = globalMinDepth !== null && globalMaxDepth !== null ? `${globalMinDepth}-${globalMaxDepth}` : 'N/A';
-  const date = globalDateStart !== null && globalDateEnd !== null ? `${globalDateStart}-${globalDateEnd}` : 'N/A';
+  const depth = getIntervalString(globalMinDepth, globalMaxDepth);
+  const date = getIntervalString(getYear(globalDateStart), getYear(globalDateEnd));
 
   return {
     count,
@@ -54,3 +55,9 @@ export function computeDatasetSummary(fetchedFilteredResults: PostDatasetFilterR
     date,
   };
 }
+
+const getIntervalString = (min?: number | null, max?: number | null): string => {
+  const minString = min !== null && min !== undefined ? min.toString() : '?';
+  const maxString = max !== null && max !== undefined ? max.toString() : '?';
+  return `${minString}-${maxString}`;
+};

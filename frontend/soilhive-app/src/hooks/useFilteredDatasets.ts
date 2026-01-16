@@ -3,8 +3,8 @@ import { useRequest } from '../api-client';
 import { BACKEND_BASE_URL } from '../configuration/api';
 import type { DatasetFilter, PostDatasetFilterResponse } from 'types/backend';
 
-export function useFetchFilteredDatasets(filter?: DatasetFilter) {
-  const [fetchedFilteredResults, setFetchedFilteredResults] = useState<PostDatasetFilterResponse>();
+export function useFilteredDatasets(filter?: DatasetFilter) {
+  const [filteredResults, setFilteredResults] = useState<PostDatasetFilterResponse>();
   const abortControllerRef = useRef<AbortController>(null);
   const { request, loading, error } = useRequest();
 
@@ -23,7 +23,7 @@ export function useFetchFilteredDatasets(filter?: DatasetFilter) {
           body: filter,
           signal: abortControllerRef.current.signal,
         });
-        setFetchedFilteredResults(res);
+        setFilteredResults(res);
         return res;
       } catch (err) {
         // Don't set error if it was aborted
@@ -54,7 +54,7 @@ export function useFetchFilteredDatasets(filter?: DatasetFilter) {
   }, [fetchDatasets, filter]);
 
   return {
-    fetchedFilteredResults,
+    filteredResults,
     loading,
     error,
   };

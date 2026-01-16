@@ -1,4 +1,5 @@
 import { BrowserRouter, Route, Routes } from 'react-router';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import './App.module.scss';
 import PageTitle from './components/PageTitle';
 import MainLayout from './layouts/MainLayout';
@@ -10,67 +11,71 @@ import { AuthContextProvider } from './auth/AuthContextProvider';
 import Legal from './pages/Legal';
 import { AvailabilityProvider } from './contexts/AvailabilityContext';
 
+const queryClient = new QueryClient();
+
 function App() {
   return (
-    <AuthContextProvider>
-      <ThemeProvider>
-        <BrowserRouter>
-          <Routes>
-            <Route element={<MainLayout />}>
-              <Route
-                index
-                element={
-                  <>
-                    <PageTitle title="SoilHive - Home" />
-                    <AvailabilityProvider>
-                      <Homepage />
-                    </AvailabilityProvider>
-                  </>
-                }
-              />
-              <Route
-                path="/donation"
-                element={
-                  <>
-                    <PageTitle title="SoilHive - Donation" />
-                  </>
-                }
-              />
-              <Route
-                path="/legal"
-                element={
-                  <>
-                    <PageTitle title="SoilHive - Admin" />
-                    <Legal />
-                  </>
-                }
-              />
-              <Route
-                path="/admin"
-                element={
-                  <>
-                    <PageTitle title="SoilHive - Admin" />
-                    <Admin />
-                  </>
-                }
-              />
-              {singlePages.map(({ name, route, Page }) => (
+    <QueryClientProvider client={queryClient}>
+      <AuthContextProvider>
+        <ThemeProvider>
+          <BrowserRouter>
+            <Routes>
+              <Route element={<MainLayout />}>
                 <Route
-                  key={`/${route}`}
-                  path={`/${route}`}
+                  index
                   element={
                     <>
-                      <PageTitle title={`SoilHive - ${name}`} />
-                      <Page />
+                      <PageTitle title="SoilHive - Home" />
+                      <AvailabilityProvider>
+                        <Homepage />
+                      </AvailabilityProvider>
                     </>
                   }
                 />
-              ))}
-            </Route>
-          </Routes>
-        </BrowserRouter>
-      </ThemeProvider>
-    </AuthContextProvider>
+                <Route
+                  path="/donation"
+                  element={
+                    <>
+                      <PageTitle title="SoilHive - Donation" />
+                    </>
+                  }
+                />
+                <Route
+                  path="/legal"
+                  element={
+                    <>
+                      <PageTitle title="SoilHive - Admin" />
+                      <Legal />
+                    </>
+                  }
+                />
+                <Route
+                  path="/admin"
+                  element={
+                    <>
+                      <PageTitle title="SoilHive - Admin" />
+                      <Admin />
+                    </>
+                  }
+                />
+                {singlePages.map(({ name, route, Page }) => (
+                  <Route
+                    key={`/${route}`}
+                    path={`/${route}`}
+                    element={
+                      <>
+                        <PageTitle title={`SoilHive - ${name}`} />
+                        <Page />
+                      </>
+                    }
+                  />
+                ))}
+              </Route>
+            </Routes>
+          </BrowserRouter>
+        </ThemeProvider>
+      </AuthContextProvider>
+    </QueryClientProvider>
   );
 }
 

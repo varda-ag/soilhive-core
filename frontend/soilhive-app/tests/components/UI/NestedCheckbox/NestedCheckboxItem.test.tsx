@@ -13,9 +13,10 @@ jest.mock('components/UI/Checkbox/Checkbox', () => ({
 const mockItem: NestedCheckboxItemType = {
   id: 'root',
   label: 'Root item',
+  isRoot: true,
   children: [
-    { id: 'child-1', label: 'Child 1' },
-    { id: 'child-2', label: 'Child 2' },
+    { id: 'child-1', label: 'Child 1', isRoot: false, children: [] },
+    { id: 'child-2', label: 'Child 2', isRoot: false, children: [] },
   ],
 };
 
@@ -49,7 +50,7 @@ describe('NestedCheckboxItem', () => {
   });
 
   it('does not render children when item has none', () => {
-    const rootItem: NestedCheckboxItemType = { id: 'root', label: 'Root' };
+    const rootItem: NestedCheckboxItemType = { id: 'root', label: 'Root', isRoot: true, children: [] };
 
     render(<NestedCheckboxItem item={rootItem} selected={[]} onToggle={jest.fn()} />);
 

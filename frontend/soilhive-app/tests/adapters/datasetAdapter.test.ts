@@ -19,10 +19,10 @@ describe('mapFilteredDatasetToAvailabilityDataset adapter', () => {
       properties: {
         points: 0,
         layers: 0,
-        minDepth: 0,
-        maxDepth: 0,
-        dateStart: 0,
-        dateEnd: 0,
+        minDepth: undefined,
+        maxDepth: undefined,
+        dateStart: undefined,
+        dateEnd: undefined,
       },
     };
 

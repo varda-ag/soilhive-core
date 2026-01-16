@@ -1,5 +1,5 @@
 import { renderHook, waitFor } from '@testing-library/react';
-import { useFetchFilteredDatasets } from 'hooks/useFetchFilteredDatasets';
+import { useFilteredDatasets } from 'hooks/useFilteredDatasets';
 import type { DatasetFilter, PostDatasetFilterResponse } from 'types/backend';
 
 jest.mock('../../src/api-client/useRequest', () => ({
@@ -11,7 +11,7 @@ jest.mock('../../src/configuration/api', () => ({
   BACKEND_BASE_URL: '',
 }));
 
-describe('useDatasetFetch hook', () => {
+describe('useDataset hook', () => {
   it('fetch datasets when coordinates change', async () => {
     const mockUseRequest = useRequest as jest.Mock;
 
@@ -61,14 +61,14 @@ describe('useDatasetFetch hook', () => {
     });
 
     // Act 1
-    const { result, rerender } = renderHook(({ filter }) => useFetchFilteredDatasets(filter), {
+    const { result, rerender } = renderHook(({ filter }) => useFilteredDatasets(filter), {
       initialProps: { filter: initialFilter },
     });
 
     // Assert 1
     await waitFor(
       () => {
-        expect(result.current.fetchedFilteredResults).toEqual(mockInitialFilterReply);
+        expect(result.current.filteredResults).toEqual(mockInitialFilterReply);
       },
       { timeout: 500 },
     );
@@ -128,7 +128,7 @@ describe('useDatasetFetch hook', () => {
 
     // Assert 2
     await waitFor(() => {
-      expect(result.current.fetchedFilteredResults).toBe(mockUpdatedFilterReply);
+      expect(result.current.filteredResults).toBe(mockUpdatedFilterReply);
     });
   });
 });

@@ -1,31 +1,27 @@
-import { useFetchFilteredDatasets } from 'hooks/useFetchFilteredDatasets';
-import React, { createContext, useState, type ReactNode, useCallback, useMemo } from 'react';
+import { useFilteredDatasets } from 'hooks/useFilteredDatasets';
+import React, { createContext, useState, type ReactNode, useCallback, useMemo, useEffect } from 'react';
 import type { AvailabilityDataset, DatasetSummary } from 'types/availability';
 import { mapFilteredDatasetToAvailabilityDataset } from '../adapters';
-import type { FilterableDatasetMetadata } from 'types/backend';
+import type { FilterableDatasetMetadata, SoilProperty, FilteredDataset } from 'types/backend';
 import { computeDatasetSummary } from '../domain';
 import type { MultiPolygon, Polygon } from 'geojson';
+import { useSoilProperties } from '../hooks/useSoilProperties';
 
 type DatasetFilters = {
   type: string[];
   ownership: string;
 };
 
-type DatasetsSummary = {
-  count: number;
-  dataPoints: number;
-  layers: number;
-  depth: string;
-  date: string;
-};
-
 type AvailabilityContextType = {
+  allSoilProperties: SoilProperty[];
+  filteredSoilProperties: SoilProperty[];
+  isLoadingSoilProperties: boolean;
   datasets: AvailabilityDataset[];
   selectedDatasets: string[];
   isAllSelected: boolean;
   searchValue: string;
   selectedFilters: DatasetFilters;
-  datasetsSummary: DatasetsSummary;
+  datasetsSummary: DatasetSummary;
   preview: boolean;
   selectDataset: (id: string) => void;
   setSearchValue: (value: string) => void;
@@ -53,9 +49,19 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
   const [preview, setPreview] = useState<boolean>(false);
   const [geometryfilter, setGeometryFilter] = useState<(Polygon | MultiPolygon)[]>([]);
   const [datasetFilters, setDatasetFilters] = useState<FilterableDatasetMetadata>({});
+  const { data: allSoilProperties, isLoading: isLoadingSoilProperties } = useSoilProperties();
 
-  const filter = useMemo(() => ({ geometries: geometryfilter, parameters: datasetFilters }), [geometryfilter, datasetFilters]);
-  const { fetchedFilteredResults } = useFetchFilteredDatasets(filter);
+  const partialFilterPayload = useMemo(() => ({ geometries: geometryfilter, parameters: {} }), [geometryfilter]);
+  const fullFilterPayload = useMemo(() => ({ geometries: geometryfilter, parameters: datasetFilters }), [geometryfilter, datasetFilters]);
+
+  const { filteredResults: geometryFilterResults } = useFilteredDatasets(partialFilterPayload);
+  const { filteredResults: fullFilterResults } = useFilteredDatasets(fullFilterPayload);
+
+  useEffect(() => {
+    // TODO: this resets user-selected filters when geometry changes.
+    // Replace this with merging logic.
+    setDatasetFilters({});
+  }, [geometryfilter]);
 
   const selectDataset = useCallback(
     (id: string) => {
@@ -82,28 +88,40 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
   const selectAllDatasets = useCallback(
     (select: boolean) => {
       setSelectedDatasets(
-        select && fetchedFilteredResults?.results
-          ? fetchedFilteredResults?.results?.flatMap(result => result.datasets.map(dataset => dataset.id))
+        select && fullFilterResults?.results
+          ? fullFilterResults?.results?.flatMap(result => result.datasets.map(dataset => dataset.id))
           : [],
       );
       setIsAllSelected(select);
     },
-    [fetchedFilteredResults],
+    [fullFilterResults],
   );
 
   const datasets = useMemo(() => {
-    if (!fetchedFilteredResults || !fetchedFilteredResults.results) return [];
-
-    return fetchedFilteredResults.results.flatMap(res => res.datasets.map(mapFilteredDatasetToAvailabilityDataset));
-  }, [fetchedFilteredResults]);
+    if (!fullFilterResults || !fullFilterResults.results) return [];
+    return fullFilterResults.results.flatMap(res => res.datasets.map(mapFilteredDatasetToAvailabilityDataset));
+  }, [fullFilterResults]);
 
   const datasetsSummary = useMemo<DatasetSummary>(() => {
-    return computeDatasetSummary(fetchedFilteredResults);
-  }, [fetchedFilteredResults]);
+    return computeDatasetSummary(fullFilterResults);
+  }, [fullFilterResults]);
+
+  const filteredSoilProperties = useMemo<SoilProperty[]>(() => {
+    const properties = new Set<string>();
+    geometryFilterResults?.results.forEach(result =>
+      result.datasets.forEach((dataset: FilteredDataset) => {
+        dataset.soil_properties?.forEach(prop => properties.add(prop));
+      }),
+    );
+    return allSoilProperties?.filter(prop => properties.has(prop.slug)) ?? [];
+  }, [allSoilProperties, geometryFilterResults?.results]);
 
   return (
     <AvailabilityContext.Provider
       value={{
+        allSoilProperties: allSoilProperties || [],
+        filteredSoilProperties,
+        isLoadingSoilProperties,
         datasets,
         selectedDatasets,
         isAllSelected,
