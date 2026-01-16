@@ -1,10 +1,5 @@
-import { render } from '@testing-library/react';
+import { act, render } from '@testing-library/react';
 import DownloadPreviewSummary from 'components/DownloadPreview/DownloadPreviewSummary';
-
-// /* eslint-disable react-hooks/globals */
-// jest.mock('components/Map/SoilhiveSimpleMap', () => {
-//     return <div data-test-id="mock-soilhive-map">Mock SoilhiveMap</div>;
-// });
 
 jest.mock('components/Map/SoilhiveSimpleMap', () => {
   const SoilhiveSimpleMap = () => <div>Mock SoilhiveSimpleMap</div>;
@@ -17,7 +12,7 @@ jest.mock('../../../src/utilities/environmentVariables', () => ({
 
 describe('DownloadPreviewSummary', () => {
   it('renders the download preview summary (sidebar)', () => {
-    const { container } = render(
+    const { container, getByText } = render(
       <DownloadPreviewSummary
         locationName="France"
         depthRange="0-50cm"
@@ -27,5 +22,85 @@ describe('DownloadPreviewSummary', () => {
       />,
     );
     expect(container).toMatchSnapshot();
+    expect(getByText('Drawn polygon')).not.toBeUndefined();
+  });
+
+  it('renders the expanded download preview summary (sidebar) when clicking on the expand icon', async () => {
+    const { container, getByTestId } = render(
+      <DownloadPreviewSummary
+        locationName="France"
+        depthRange="0-50cm"
+        dataPoints={7367}
+        rasterLayers={4}
+        soilProperties={['pH', 'Organic Carbon Content']}
+      />,
+    );
+    const expandButton = getByTestId('expand-download-preview-summary-button');
+    await act(async () => expandButton.click());
+    expect(container).toMatchSnapshot();
+  });
+
+  it('renders the reduced download preview summary (sidebar) when clicking on the reduce icon', async () => {
+    const { container, getByTestId } = render(
+      <DownloadPreviewSummary
+        locationName="France"
+        depthRange="0-50cm"
+        dataPoints={7367}
+        rasterLayers={4}
+        soilProperties={['pH', 'Organic Carbon Content']}
+      />,
+    );
+    // first we expand it since it's reduced by default
+    const expandButton = getByTestId('expand-download-preview-summary-button');
+    await act(async () => expandButton.click());
+    // then we reduce it
+    const reduceButton = getByTestId('reduce-download-preview-summary-button');
+    await act(async () => reduceButton.click());
+    expect(container).toMatchSnapshot();
+  });
+
+  it('renders the download preview summary (sidebar) with selectionType=h3-cell', () => {
+    const { container, getByText } = render(
+      <DownloadPreviewSummary
+        locationName="France"
+        depthRange="0-50cm"
+        dataPoints={7367}
+        rasterLayers={4}
+        soilProperties={['pH', 'Organic Carbon Content']}
+        selectionType="h3-cell"
+      />,
+    );
+    expect(container).toMatchSnapshot();
+    expect(getByText('H3cell selected')).not.toBeUndefined();
+  });
+
+  it('renders the download preview summary (sidebar) with selectionType=drawn-polygon', () => {
+    const { container, getByText } = render(
+      <DownloadPreviewSummary
+        locationName="France"
+        depthRange="0-50cm"
+        dataPoints={7367}
+        rasterLayers={4}
+        soilProperties={['pH', 'Organic Carbon Content']}
+        selectionType="drawn-polygon"
+      />,
+    );
+    expect(container).toMatchSnapshot();
+    expect(getByText('Drawn polygon')).not.toBeUndefined();
+  });
+
+  it('renders the download preview summary (sidebar) with selectionType=country', () => {
+    const { container, getByText } = render(
+      <DownloadPreviewSummary
+        locationName="France"
+        depthRange="0-50cm"
+        dataPoints={7367}
+        rasterLayers={4}
+        soilProperties={['pH', 'Organic Carbon Content']}
+        selectionType="country"
+      />,
+    );
+    expect(container).toMatchSnapshot();
+    expect(getByText('Country selected')).not.toBeUndefined();
   });
 });
