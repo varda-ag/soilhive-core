@@ -11,10 +11,11 @@ interface Props {
   items: NestedCheckboxItemType[];
   selected: string[];
   className?: string;
+  isSearching?: boolean;
   onChange: (selected: string[]) => void;
 }
 
-export function NestedCheckbox({ items, selected, className, onChange }: Props) {
+export function NestedCheckbox({ items, selected, className, isSearching = false, onChange }: Props) {
   const toggleNode = useCallback(
     (node: NestedCheckboxItemType, checked: boolean) => {
       const collectIds = (item: NestedCheckboxItemType): string[] => [item.id, ...(item.children?.flatMap(collectIds) ?? [])];
@@ -41,6 +42,7 @@ export function NestedCheckbox({ items, selected, className, onChange }: Props) 
           item={item}
           selected={selected}
           hasChildrenOnCurrentLevel={hasChildrenOnCurrentLevel}
+          isSearching={isSearching}
           onToggle={toggleNode}
         />
       ))}
