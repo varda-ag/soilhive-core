@@ -68,8 +68,8 @@ export default class SoilDataStorage {
       licenses: row.licenses ? row.licenses.split(',') : [],
       min_sampling_date: row.min_sampling_date ? row.min_sampling_date.toISOString() : null,
       max_sampling_date: row.max_sampling_date ? row.max_sampling_date.toISOString() : null,
-      min_depth: row.min_depth ? parseFloat(row.min_depth) : null,
-      max_depth: row.max_depth ? parseFloat(row.max_depth) : null,
+      min_depth: row.min_depth !== null ? parseFloat(row.min_depth) : null,
+      max_depth: row.max_depth !== null ? parseFloat(row.max_depth) : null,
       horizons: row.horizons ? row.horizons.split(',') : [],
       soil_properties: row.soil_properties ? row.soil_properties.split(',') : [],
       //raster_filters // TODO: assess feasibility
