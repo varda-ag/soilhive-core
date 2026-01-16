@@ -68,7 +68,7 @@ export function Button({
 
   if (to) {
     return (
-      <Link data-testid={dataTestId ?? "sh-ui-button-internal-link"} to={to} className={composedClassNames}>
+      <Link data-testid={dataTestId ?? 'sh-ui-button-internal-link'} to={to} className={composedClassNames}>
         {children}
       </Link>
     );
@@ -76,7 +76,7 @@ export function Button({
 
   if (href) {
     return (
-      <a data-testid={dataTestId ?? "sh-ui-button-link"} href={href} className={composedClassNames} target="_blank" rel="noreferrer">
+      <a data-testid={dataTestId ?? 'sh-ui-button-link'} href={href} className={composedClassNames} target="_blank" rel="noreferrer">
         {children}
       </a>
     );
@@ -84,7 +84,7 @@ export function Button({
 
   return (
     <button
-      data-testid={dataTestId ?? "sh-ui-button"}
+      data-testid={dataTestId ?? 'sh-ui-button'}
       type={form ? 'submit' : 'button'}
       form={form}
       className={classnames(
