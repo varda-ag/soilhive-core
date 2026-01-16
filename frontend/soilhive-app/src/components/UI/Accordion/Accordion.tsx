@@ -11,9 +11,10 @@ interface Props {
   openedFromStart?: boolean;
   type?: AccordionType;
   children: ReactNode;
+  pillsSlot?: ReactNode;
 }
 
-export function Accordion({ title, openedFromStart = false, type = 'primary', children }: Props) {
+export function Accordion({ title, openedFromStart = false, type = 'primary', children, pillsSlot }: Props) {
   const [isOpened, setIsOpened] = useState<boolean>(openedFromStart);
 
   const typeClass = useMemo(
@@ -37,6 +38,7 @@ export function Accordion({ title, openedFromStart = false, type = 'primary', ch
           {title} <ArrowDownIcon className={styles.ArrowIcon} />
         </p>
       </div>
+      {pillsSlot && <div className={styles.PillsContainer}>{pillsSlot}</div>}
       {isOpened && <div className={styles.Content}>{children}</div>}
     </div>
   );

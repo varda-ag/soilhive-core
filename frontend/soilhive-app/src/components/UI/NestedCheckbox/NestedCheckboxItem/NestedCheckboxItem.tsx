@@ -18,8 +18,24 @@ interface Props {
 }
 
 export function NestedCheckboxItem({ item, selected, className, hasChildrenOnCurrentLevel, onToggle }: Props) {
-  const isChecked = selected.includes(item.id);
   const [isOpened, setIsOpened] = useState<boolean>(false);
+
+  const isChecked = useMemo(() => {
+    if (!item.children || item.children.length === 0) {
+      return selected.includes(item.id);
+    }
+
+    // Parent node: check if ALL descendant leaf nodes are selected
+    const getAllDescendantIds = (node: NestedCheckboxItemType): string[] => {
+      if (!node.children || node.children.length === 0) {
+        return [node.id];
+      }
+      return node.children.flatMap(getAllDescendantIds);
+    };
+
+    const descendantIds = getAllDescendantIds(item);
+    return descendantIds.length > 0 && descendantIds.every(id => selected.includes(id));
+  }, [item, selected]);
 
   const toggleChildrenVisibility = useCallback(
     (e: MouseEvent<SVGSVGElement>): void => {

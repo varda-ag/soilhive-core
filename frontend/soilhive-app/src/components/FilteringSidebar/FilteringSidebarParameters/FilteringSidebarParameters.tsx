@@ -1,6 +1,8 @@
-import { Accordion, NestedCheckbox } from 'components/UI';
+import { Accordion, NestedCheckbox, SelectionPills } from 'components/UI';
 import { AvailabilityContext } from '../../../contexts/AvailabilityContext';
 import type { NestedCheckboxItemType } from 'types/components';
+import { getBranchIds, getTopLevelSelections } from 'components/UI/NestedCheckbox/nestedCheckboxHelpers';
+import type { Selection } from 'types/components';
 
 import styles from './FilteringSidebarParameters.module.scss';
 import { useContext, useMemo, useState } from 'react';
@@ -52,10 +54,34 @@ export function FilteringSidebarParameters() {
     return roots;
   }, [allSoilProperties, filteredSoilProperties]);
 
+  const handlePillRemove = (id: string) => {
+    // identify all leaf IDs that belong to the pill being removed
+    const leafIdsToRemove = getBranchIds(nestedSoilProperties, id);
+    onChange(selectedProperties.filter(selectedId => !leafIdsToRemove.includes(selectedId)));
+  };
+
+  const onChange = (selected: string[]) => {
+    setSelectedProperties(selected);
+    setDatasetFilters(prevFilters => {
+      return selected.length === 0 ? { ...prevFilters, soil_properties: undefined } : { ...prevFilters, soil_properties: selected };
+    });
+  };
+
+  const leafSelections = getTopLevelSelections(nestedSoilProperties, selectedProperties);
+
+  const pillSelections: Selection[] = leafSelections.map(item => ({
+    id: item.id,
+    label: item.label,
+  }));
+
   return (
     <div className={styles.FilteringSidebarParameters}>
       {isLoadingSoilProperties && <p>Loading soil properties...</p>}
-      <Accordion title="Soil Properties" type="secondary">
+      <Accordion
+        title="Soil Properties"
+        type="secondary"
+        pillsSlot={<SelectionPills selections={pillSelections} onRemove={handlePillRemove} />}
+      >
         <div className={styles.SoilProperties}>
           <NestedCheckbox items={nestedSoilProperties} selected={selectedProperties} onChange={onChange} />
         </div>
@@ -71,11 +97,4 @@ export function FilteringSidebarParameters() {
       </Accordion>
     </div>
   );
-
-  function onChange(selected: string[]) {
-    setSelectedProperties(selected);
-    setDatasetFilters(prevFilters => {
-      return selected.length === 0 ? { ...prevFilters, soil_properties: undefined } : { ...prevFilters, soil_properties: selected };
-    });
-  }
 }
