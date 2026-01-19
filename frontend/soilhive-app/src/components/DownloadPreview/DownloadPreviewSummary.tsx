@@ -10,6 +10,7 @@ import ReduceIcon from 'assets/icons/reduce-icon.svg?react';
 import LayersIcon from 'assets/icons/layers-icon.svg?react';
 import MapPinIcon from 'assets/icons/map-pin-icon.svg?react';
 import WorldIcon from 'assets/icons/world-icon.svg?react';
+import useDevice from 'hooks/useDevice';
 
 const MAPBOX_SATELLITE_MAP_STYLE: StyleSpecification = {
   version: 8,
@@ -56,6 +57,7 @@ function DownloadPreviewSummary({
   depthRange = '-',
   soilProperties = [],
 }: DownloadPreviewSummaryProps) {
+  const { isMobileLayout } = useDevice();
   const [expanded, setExpanded] = useState(false);
 
   let selectionTitle: string = 'Selection';
@@ -68,7 +70,7 @@ function DownloadPreviewSummary({
   }
 
   return (
-    <div className={classNames(styles.DownloadPreviewSummary, { [styles.Expanded]: expanded })}>
+    <div className={classNames(styles.DownloadPreviewSummary, { [styles.Expanded]: !isMobileLayout && expanded })}>
       <div className={styles.Map}>
         <SoilhiveSimpleMap
           initialViewBoundingBox={initialViewBoundingBox}
@@ -78,12 +80,12 @@ function DownloadPreviewSummary({
           selectedPoint={selectedPoint}
           selectedFeature={selectedFeature}
         />
-        {expanded && (
+        {!isMobileLayout && expanded && (
           <Button dataTestId="reduce-download-preview-summary-button" type="tertiary" isIconOnly={true} onClick={() => setExpanded(false)}>
             <ReduceIcon />
           </Button>
         )}
-        {!expanded && (
+        {!isMobileLayout && !expanded && (
           <Button dataTestId="expand-download-preview-summary-button" type="tertiary" isIconOnly={true} onClick={() => setExpanded(true)}>
             <ExpandIcon />
           </Button>
@@ -99,19 +101,21 @@ function DownloadPreviewSummary({
       <div className={styles.Separator}></div>
       <div className={styles.DataSummary}>
         <div className={styles.SectionTitle}>Data summary</div>
-        <div className={styles.DataSummaryRow}>
-          <div className={styles.DataSummaryRowTitle}>
-            <MapPinIcon />
-            Data points
+        <div className={styles.DataSummaryContent}>
+          <div className={styles.DataSummaryRow}>
+            <div className={styles.DataSummaryRowTitle}>
+              <MapPinIcon />
+              Data points
+            </div>
+            <div className={styles.DataSummaryRowData}>{dataPoints ? numberFormatter.format(dataPoints) : '-'}</div>
           </div>
-          <div className={styles.DataSummaryRowData}>{dataPoints ? numberFormatter.format(dataPoints) : '-'}</div>
-        </div>
-        <div className={styles.DataSummaryRow}>
-          <div className={styles.DataSummaryRowTitle}>
-            <LayersIcon />
-            Raster Layers
+          <div className={styles.DataSummaryRow}>
+            <div className={styles.DataSummaryRowTitle}>
+              <LayersIcon />
+              Raster Layers
+            </div>
+            <div className={styles.DataSummaryRowData}>{rasterLayers ? numberFormatter.format(rasterLayers) : '-'}</div>
           </div>
-          <div className={styles.DataSummaryRowData}>{rasterLayers ? numberFormatter.format(rasterLayers) : '-'}</div>
         </div>
       </div>
       <div className={styles.Separator}></div>
