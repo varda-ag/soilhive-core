@@ -7,7 +7,7 @@ function countCoords(geojson: Polygon | MultiPolygon) {
 
 export const simplifyGeometry = (geojson: Polygon | MultiPolygon, maxPoints = 10000, options = {}): Polygon | MultiPolygon => {
   if (geojson.type !== 'Polygon' && geojson.type !== 'MultiPolygon') {
-    throw new Error('Input must be MultiPolygon geometry or feature');
+    throw new Error('Input must be Polygon or MultiPolygon geometry');
   }
 
   const totalPoints = countCoords(geojson);

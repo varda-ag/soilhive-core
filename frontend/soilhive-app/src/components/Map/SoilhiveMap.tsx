@@ -13,24 +13,20 @@ import {
   Layer,
 } from 'react-map-gl/maplibre';
 import { LngLat, type MapLayerMouseEvent, type Offset } from 'maplibre-gl';
-import type { Feature, FeatureCollection, Polygon, MultiPolygon, Point } from 'geojson';
+import type { FeatureCollection, Polygon, MultiPolygon, Point } from 'geojson';
 import GeocoderControl from './GeocoderControl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import '@maplibre/maplibre-gl-geocoder/dist/maplibre-gl-geocoder.css';
 import '@watergis/maplibre-gl-terradraw/dist/maplibre-gl-terradraw.css';
 import '../../styles/SoilhiveMap.scss';
 import Flower from 'assets/images/flower.svg?react';
-import {
-  bBoxToH3Cells,
-  h3IndexesToGeoJSONPolygons,
-  isPointInFeatureCollection,
-  largestPolygonInsideMultipolygon as largestPolygonInsideMultipolygonFn,
-} from '../../utilities/geo';
+import { bBoxToH3Cells, h3IndexesToGeoJSONPolygons, isPointInFeatureCollection } from '../../utilities/geo';
 import { area, bbox as bboxFn, centerOfMass, convertArea, round } from '@turf/turf';
 import { h3ResolutionForZoomLevel } from '../../utilities/map';
 import DrawControl from '../DrawControl';
 import SoilhiveMapToolbar from './SoilhiveMapToolbar';
 import SoilhiveMapSelectionToolbar from './SoilhiveMapSelectionToolbar';
+import { largestPolygon as largestPolygonFn } from '../../utilities/geo';
 import type { SoilhiveMapSelectionChangeEvent } from './SoilhiveMapSelectionChangeEvent';
 import { simplifyGeometry } from '../../utilities/simplifyGeometry';
 
@@ -128,7 +124,7 @@ function SoilhiveMap({
   const [selectedPoint, setSelectedPoint] = useState<LngLat | null>(null);
   const [selectedH3Cell, setSelectedH3Cell] = useState<MapGeoJSONFeature | null>(null);
   const [h3Cells, setH3Cells] = useState<FeatureCollection | null>(null);
-  const [selection, setSelection] = useState<{ type: string; features: MapGeoJSONFeature[] }>(emptySelection);
+  const [selection, setSelection] = useState<{ type: string; features: GeoJSON.GeoJSON[] }>(emptySelection);
   const [showDrawControl, setShowDrawControl] = useState(false);
   const [showSelectionToolbar, setShowSelectionToolbar] = useState(false);
 
@@ -147,11 +143,10 @@ function SoilhiveMap({
   }, [onSelectionToolbarVisibilityChange]);
 
   const applySelection = useCallback(
-    (geojson: MapGeoJSONFeature, point?: Point, moveBounds?: boolean) => {
+    (geometry: Polygon | MultiPolygon, point?: Point, moveBounds?: boolean) => {
       isApplyingSelection.current = true;
-      geojson.geometry = simplifyGeometry(geojson.geometry as Polygon | MultiPolygon);
-      const isMulti = (geojson as MapGeoJSONFeature)?.geometry?.type === 'MultiPolygon';
-      const largestPolygon = isMulti ? largestPolygonInsideMultipolygonFn(geojson) : geojson;
+      const simplifiedGeometry: Polygon | MultiPolygon = simplifyGeometry(geometry);
+      const largestPolygon = simplifiedGeometry.type === 'MultiPolygon' ? largestPolygonFn(simplifiedGeometry) : simplifiedGeometry;
       console.assert(largestPolygon !== null, 'A valid MultiPolygon should contain at least a Polygon');
       const [lng, lat] = point ? point.coordinates : centerOfMass(largestPolygon).geometry.coordinates;
       const bbox = bboxFn(largestPolygon!);
@@ -159,10 +154,10 @@ function SoilhiveMap({
       setSelectedPoint(new LngLat(lng, lat));
       setShowSelectionToolbar(true);
       onSelectionToolbarVisibilityChange?.(true);
-      setSelection({ type: 'FeatureCollection', features: [geojson as MapGeoJSONFeature] });
+      setSelection({ type: 'FeatureCollection', features: [{ type: 'Feature', geometry: simplifiedGeometry, properties: {} }] });
       onSelectionChange?.({
         bounds: mapRef.current.getBounds().toArray().flat(),
-        geometries: [geojson.geometry as Polygon | MultiPolygon],
+        geometries: [geometry as Polygon | MultiPolygon],
         eventType: 'upload',
         zoomLevel: mapRef.current.getZoom(),
       });
@@ -172,9 +167,9 @@ function SoilhiveMap({
   );
 
   const onUpload = useCallback(
-    (geojson: Feature) => {
+    (geometry: Polygon | MultiPolygon) => {
       // Uploading a polygon from file
-      applySelection(geojson as MapGeoJSONFeature, undefined, true);
+      applySelection(geometry, undefined, true);
     },
     [applySelection],
   );
@@ -240,7 +235,7 @@ function SoilhiveMap({
         setSelectedPoint(event.lngLat);
       } else if (features.length > 0) {
         // H3 cell selection
-        applySelection(features[0], { type: 'Point', coordinates: [event.lngLat.lng, event.lngLat.lat] }, false);
+        applySelection(features[0].geometry as Polygon, { type: 'Point', coordinates: [event.lngLat.lng, event.lngLat.lat] }, false);
         setSelectedH3Cell(features[0]);
       }
     },
@@ -248,9 +243,14 @@ function SoilhiveMap({
   );
 
   const onSearchResultSelect = useCallback(
-    ({ feature, center }: { feature: MapGeoJSONFeature; center: Point }) => {
-      // Selecting a search result from the geocoder
-      applySelection(feature, center, true);
+    ({ feature }: { feature: MapGeoJSONFeature; center: Point }) => {
+      if (feature.geometry.type === 'Polygon' || feature.geometry.type === 'MultiPolygon') {
+        // Selecting a search result from the geocoder
+        applySelection(feature.geometry, undefined, true);
+      } else {
+        // Just move bounds
+        mapRef.current.fitBounds(bboxFn(feature), { padding: 40 });
+      }
     },
     [applySelection],
   );
@@ -258,7 +258,7 @@ function SoilhiveMap({
   const onFinishDrawing = useCallback(
     (feature: MapGeoJSONFeature) => {
       // Drawing a polygon on the map
-      applySelection(feature);
+      applySelection(feature.geometry as Polygon);
       setShowDrawControl(false);
     },
     [applySelection],
