@@ -210,8 +210,6 @@ function SoilhiveMap({
       const bounds = map.getBounds().toArray().flat();
       const zoomLevel = map.getZoom();
 
-      console.log('Map move end - bounds:', bounds, 'zoomLevel:', zoomLevel, 'selection features:', selection.features.length);
-
       if (onSelectionChange && selection.features.length === 0) {
         // Current bbox (implicit) selection
         onSelectionChange({ bounds, zoomLevel, eventType: 'bounds' });
