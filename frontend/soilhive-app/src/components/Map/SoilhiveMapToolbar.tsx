@@ -38,26 +38,13 @@ export default function SoilhiveMapToolbar({ onDrawClick, onUpload }: SoilhiveMa
         console.error('No file uploaded');
         return;
       }
+      // TODO: Show errors to user
       const text = await file.text();
       if (!text) {
         console.error('Cannot read uploaded file as text');
         return;
       }
       let json;
-      /*
-      try {
-        json = JSON.parse(text);
-      } catch {}
-      if (!json) {
-        console.error('Cannot read uploaded file as JSON');
-        return;
-      }
-      // if (!booleanValid(json)) {
-      if (!valid(json)) {
-        console.error('Uploaded file does not contain valid GeoJSON');
-        return;
-      }
-      */
       try {
         json = check(text);
       } catch (e) {
@@ -65,7 +52,11 @@ export default function SoilhiveMapToolbar({ onDrawClick, onUpload }: SoilhiveMa
         console.error(e); // Specifies the parsing issue
         return;
       }
-      const feature = json.type === 'FeatureCollection' ? json.features[0] : json;
+      const feature = (json.type === 'FeatureCollection' ? json.features[0] : json) as Feature;
+      if (!feature.geometry) {
+        console.error('Uploaded file does not contain any geometry', feature);
+        return;
+      }
       switch (feature.geometry.type) {
         case 'Polygon':
         case 'MultiPolygon':
