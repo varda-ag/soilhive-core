@@ -6,6 +6,7 @@ jest.mock('../../src/api-client/useRequest', () => ({
   useRequest: jest.fn(),
 }));
 import { useRequest } from '../../src/api-client';
+import { queryClientWrapper } from '../queryClientWrapper';
 
 jest.mock('../../src/configuration/api', () => ({
   BACKEND_BASE_URL: '',
@@ -63,12 +64,13 @@ describe('useDataset hook', () => {
     // Act 1
     const { result, rerender } = renderHook(({ filter }) => useFilteredDatasets(filter), {
       initialProps: { filter: initialFilter },
+      wrapper: queryClientWrapper,
     });
 
     // Assert 1
     await waitFor(
       () => {
-        expect(result.current.filteredResults).toEqual(mockInitialFilterReply);
+        expect(result.current.data).toEqual(mockInitialFilterReply);
       },
       { timeout: 500 },
     );
@@ -128,7 +130,7 @@ describe('useDataset hook', () => {
 
     // Assert 2
     await waitFor(() => {
-      expect(result.current.filteredResults).toBe(mockUpdatedFilterReply);
+      expect(result.current.data).toBe(mockUpdatedFilterReply);
     });
   });
 });
