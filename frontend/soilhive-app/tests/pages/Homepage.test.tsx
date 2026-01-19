@@ -177,7 +177,7 @@ describe('Homepage', () => {
     const onSelectionChange = mockOnMapSelectionChange;
 
     // Act
-    onSelectionChange!(mockEvent);
+    act(() => onSelectionChange!(mockEvent));
 
     // Assert
     expect(mockSetGeometryFilter).toHaveBeenCalledTimes(1);
@@ -197,7 +197,7 @@ describe('Homepage', () => {
     };
 
     // Act
-    mockOnMapSelectionChange!(mockEvent);
+    act(() => mockOnMapSelectionChange!(mockEvent));
 
     // Assert
     expect(mockSetGeometryFilter).toHaveBeenCalledTimes(1);

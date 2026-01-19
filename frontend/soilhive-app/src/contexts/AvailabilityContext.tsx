@@ -56,8 +56,8 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
   const partialFilterPayload = useMemo(() => ({ geometries: geometryfilter, parameters: {} }), [geometryfilter]);
   const fullFilterPayload = useMemo(() => ({ geometries: geometryfilter, parameters: datasetFilters }), [geometryfilter, datasetFilters]);
 
-  const { filteredResults: geometryFilterResults } = useFilteredDatasets(partialFilterPayload);
-  const { filteredResults: fullFilterResults } = useFilteredDatasets(fullFilterPayload);
+  const { data: geometryFilterResults } = useFilteredDatasets(partialFilterPayload);
+  const { data: fullFilterResults } = useFilteredDatasets(fullFilterPayload);
 
   const [selectedSoilProperties, setSelectedSoilProperties] = useState<string[]>([]);
 
