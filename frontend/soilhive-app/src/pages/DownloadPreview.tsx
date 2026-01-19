@@ -35,6 +35,7 @@ function DownloadPreview() {
             <BookmarkIcon />
           </Button>
           <Button
+            dataTestId="download-preview-back-button"
             className={styles.BackButton}
             type="secondary"
             onClick={() => {
@@ -42,9 +43,9 @@ function DownloadPreview() {
             }}
           >
             <ArrowLeftIcon />
-            Back to the map
+            Back
           </Button>
-          <Button type="primary">
+          <Button type="primary" className={styles.DownloadButton}>
             <DownloadIcon />
             Download data
           </Button>
