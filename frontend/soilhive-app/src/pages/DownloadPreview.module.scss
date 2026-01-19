@@ -6,19 +6,120 @@
   display: flex;
   flex-direction: column;
 
+  @media (max-width: $bp-mobile-max) {
+    flex-direction: column-reverse;
+  }
+
   .Header {
     display: flex;
     justify-content: space-between;
-    padding: 15px 32px 57px 35px;
+    padding: 15px 32px 15px 35px;
     border-bottom: 1px solid #DDDDDD;
+
+    @media (max-width: $bp-mobile-max) {
+      padding: 15px 17px 12px 17px;
+      box-shadow: 0px 4px 16px 0px #00000014;
+    }
 
     .Titles {
       display: flex;
       flex-direction: column;
+
+      @media (max-width: $bp-mobile-max) {
+        display: none;
+      }
+
+      .Title {
+        font-family: 'Inter', Arial, Helvetica, sans-serif;
+        font-weight: var(--font-weight-bold);
+        font-style: Bold;
+        font-size: 18px;
+        line-height: var(--line-height-lg);
+        letter-spacing: 0px;
+        vertical-align: middle;
+      }
+      .SubTitle {
+        font-family: 'Inter', Arial, Helvetica, sans-serif;
+        font-weight: var(--font-weight-regular);
+        font-style: Regular;
+        font-size: 14px;
+        line-height: var(--line-height-lg);
+        letter-spacing: 0px;
+      }
     }
     .Buttons {
       display: flex;
+      align-items: center;
       gap: 15px;
+
+      @media (max-width: $bp-mobile-max) {
+        flex-direction: column-reverse;
+        flex-grow: 1;
+
+        button {
+          width: 100%;
+        }
+
+        .BackButton {
+          position: relative;
+          > svg {
+            position: absolute;
+            left: 16px;
+          }
+        }
+      }
+
+      .ShareButton,
+      .BookmarkButton {
+        border: 1px solid #EEEFF0;
+        box-shadow: 0px 4px 16px 0px #00000014;
+        border-radius: 90px;
+        padding: 8px;
+        max-height: 32px;
+
+        @media (max-width: $bp-mobile-max) {
+          display: none;
+        }
+
+        svg {
+          width: 16px;
+          height: 16px;
+        }
+      }
+    }
+  }
+
+  .TabsHeader {
+    display: none;
+    background-color: var(--color-neutral-light);
+    box-shadow: 0px 4px 16px 0px #00000014;
+    padding: 13px 0 6px 23px;
+    
+    @media (max-width: $bp-mobile-max) {
+      display: block;
+    }
+
+    button {
+      padding: 0 0 calc(4px + 3px) 0;
+      background-color: transparent;      
+      border-radius: 0;
+
+      font-family: 'Inter', Arial, Helvetica, sans-serif;
+      font-weight: var(--font-weight-regular);
+      font-style: Regular;
+      font-size: var(--font-size-xs);
+      line-height: 100%;
+      letter-spacing: 0%;
+      text-align: center;
+
+      &.SelectedTabButton {
+        border-bottom: 3px solid var(--color-brand-yellow-900);
+        padding: 0 0 4px 0;
+      }
+
+      & + button {
+        margin-left: 87px;
+      }
     }
   }
 
@@ -28,10 +129,21 @@
 
     .Sidebar {
       box-shadow: 0px 4px 16px 0px #00000014;
+      
+      @media (max-width: $bp-mobile-max) {
+        flex-grow: 1;
+      }
     }
+
     .Data {
       flex-grow: 1;
-      background-color: #F6F7F8;
+      background-color: var(--color-neutral-light);
+    }
+
+    @media (max-width: $bp-mobile-max) {
+      .HideInMobile {
+        display: none;
+      }
     }
   }
 }

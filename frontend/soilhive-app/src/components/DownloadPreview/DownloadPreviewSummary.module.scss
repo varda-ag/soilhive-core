@@ -8,6 +8,10 @@
   width: 255px;
   padding-top: 19px;
 
+  @media (max-width: $bp-mobile-max) {
+    width: 100%;
+  }
+
   &.Expanded {
     width: 448px;
 
@@ -46,11 +50,21 @@
     border-radius: 8px;
     overflow: hidden;
 
+    @media (max-width: $bp-mobile-max) {
+      width: 90%;
+      height: 157px;
+    }
+
     > button {
       position: absolute;
       top: 4px;
       right: 4px;
       padding: 0 !important;
+
+      @media (max-width: $bp-mobile-max) {
+        display: none;
+      }
+
       > svg {
         width: 32px;
         height: 30px;
@@ -62,6 +76,15 @@
     width: 214px;
     padding-top: 10px;
     padding-bottom: 12px;
+
+    @media (max-width: $bp-mobile-max) {
+      width: 90%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 12x;
+      padding-bottom: 19px;
+    }
 
     .SectionTitle {
       padding-bottom: 5px;
@@ -84,6 +107,14 @@
     padding-top: 19px;
     padding-bottom: 28px;
 
+    @media (max-width: $bp-mobile-max) {
+      width: 90%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding-bottom: 17px;
+    }
+
     .SectionTitle {
       padding-bottom: 16px;
     }
@@ -92,6 +123,10 @@
       display: flex;
       justify-content: space-between;
       width: 173px;
+
+      @media (max-width: $bp-mobile-max) {
+        width: 90%;
+      }
 
       .DataSummaryRowTitle {
         display: flex;
@@ -126,6 +161,13 @@
     padding-top: 12px;
     width: 214px;
 
+    @media (max-width: $bp-mobile-max) {
+      width: 90%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
     .SectionTitle {
       padding-bottom: 17px;
     }
@@ -135,9 +177,18 @@
       flex-direction: column;
       gap: 10px;
 
+      @media (max-width: $bp-mobile-max) {
+        flex-direction: row;
+        justify-content: space-between;
+      }
+
       .Filter {
         padding: 5px 21px 4px 21px;
         border-radius: 4px;
+
+       @media (max-width: $bp-mobile-max) {
+          width: 100%;
+        } 
 
         &:first-of-type {
           background-color: var(--color-accent-tech-100);
@@ -172,6 +223,10 @@
     height: 1px;
     width: 100%;
     background-color: var(--color-neutral-dark-200);
+
+    @media (max-width: $bp-mobile-max) {
+      width: 90% !important;
+    }
   }
 
   .SectionTitle {

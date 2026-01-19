@@ -1,4 +1,4 @@
-import { useContext } from 'react';
+import { useContext, useState } from 'react';
 import { AvailabilityContext } from '../contexts/AvailabilityContext';
 import { Button } from 'components/UI';
 import styles from './DownloadPreview.module.scss';
@@ -6,7 +6,9 @@ import DownloadPreviewTable from 'components/DownloadPreview/DownloadPreviewTabl
 import DownloadPreviewSummary from 'components/DownloadPreview/DownloadPreviewSummary';
 import DownloadIcon from 'assets/icons/download-icon.svg?react';
 import ArrowLeftIcon from 'assets/icons/arrow-left-icon.svg?react';
+import ShareIcon from 'assets/icons/share-icon.svg?react';
 import BookmarkIcon from 'assets/icons/bookmark-icon.svg?react';
+import classNames from 'classnames';
 
 function DownloadPreview() {
   const availabilityContext = useContext(AvailabilityContext);
@@ -16,19 +18,24 @@ function DownloadPreview() {
   }
 
   const { setPreview } = availabilityContext;
+  const [selectedTab, setSelectedTab] = useState<'summary' | 'availability'>('summary');
 
   return (
     <div className={styles.Availability}>
       <div className={styles.Header}>
         <div className={styles.Titles}>
-          <span>DATA PREVIEW</span>
-          <span>Review your selected data before downloading</span>
+          <span className={styles.Title}>DOWNLOAD PREVIEW</span>
+          <span className={styles.SubTitle}>Customize a data preview from the area selected</span>
         </div>
         <div className={styles.Buttons}>
-          <Button type="tertiary" isIconOnly={true}>
+          <Button type="tertiary" isIconOnly={true} className={styles.ShareButton}>
+            <ShareIcon />
+          </Button>
+          <Button type="tertiary" isIconOnly={true} className={styles.BookmarkButton}>
             <BookmarkIcon />
           </Button>
           <Button
+            className={styles.BackButton}
             type="secondary"
             onClick={() => {
               setPreview(false);
@@ -44,7 +51,7 @@ function DownloadPreview() {
         </div>
       </div>
       <div className={styles.Content}>
-        <div className={styles.Sidebar}>
+        <div className={classNames(styles.Sidebar, { [styles.HideInMobile]: selectedTab !== 'summary' })}>
           <DownloadPreviewSummary
             selectionType={'drawn-polygon'}
             initialViewBoundingBox={[6.6272658, 35.2889616, 18.7844746, 47.0921462]}
@@ -99,9 +106,25 @@ function DownloadPreview() {
             soilProperties={['pH', 'Organic Carbon Content']}
           />
         </div>
-        <div className={styles.Data}>
+        <div className={classNames(styles.Data, { [styles.HideInMobile]: selectedTab !== 'availability' })}>
           <DownloadPreviewTable />
         </div>
+      </div>
+      <div className={styles.TabsHeader}>
+        <Button
+          type="custom"
+          className={classNames({ [styles.SelectedTabButton]: selectedTab === 'summary' })}
+          onClick={() => setSelectedTab('summary')}
+        >
+          Summary
+        </Button>
+        <Button
+          type="custom"
+          className={classNames({ [styles.SelectedTabButton]: selectedTab === 'availability' })}
+          onClick={() => setSelectedTab('availability')}
+        >
+          Table
+        </Button>
       </div>
     </div>
   );
