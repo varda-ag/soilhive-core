@@ -1,3 +1,10 @@
+## [0.15.9](https://github.com/varda-ag/soilhive-core/compare/v0.15.8...v0.15.9) (2026-01-20)
+
+
+### Performance Improvements
+
+* :art: Fixing selection complexity and concurrent update ([#107](https://github.com/varda-ag/soilhive-core/issues/107)) ([032a7ed](https://github.com/varda-ag/soilhive-core/commit/032a7edfa6357d41b6386a53134d9048a1fe6eb1))
+
 ## [0.15.8](https://github.com/varda-ag/soilhive-core/compare/v0.15.7...v0.15.8) (2026-01-19)
 
 ## [0.15.7](https://github.com/varda-ag/soilhive-core/compare/v0.15.6...v0.15.7) (2026-01-16)
