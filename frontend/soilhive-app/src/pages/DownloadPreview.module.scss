@@ -18,12 +18,12 @@
 
     @media (max-width: $bp-mobile-max) {
       padding: 15px 17px 12px 17px;
-      box-shadow: 0px 4px 16px 0px #00000014;
+      box-shadow: inset 0px 4px 16px 0px #00000014;
       position: sticky;
       bottom: 0;
       right: 0;
       left: 0;
-      background-color: #EBEBEB;
+      background-color: var(--color-neutral-light);
     }
 
     .Titles {
@@ -79,7 +79,7 @@
 
       .ShareButton,
       .BookmarkButton {
-        border: 1px solid #EEEFF0;
+        border: 1px solid var(--color-neutral-dark-300);
         box-shadow: 0px 4px 16px 0px #00000014;
         border-radius: 90px;
         padding: 8px;
@@ -133,6 +133,7 @@
   .Content {
     display: flex;
     height: 100%;
+    background-color: white;
 
     .Sidebar {
       box-shadow: 0px 4px 16px 0px #00000014;
@@ -146,6 +147,10 @@
     .Data {
       flex-grow: 1;
       background-color: var(--color-neutral-light);
+
+      @media (max-width: $bp-mobile-max) {
+        background-color: white;
+      }
     }
 
     @media (max-width: $bp-mobile-max) {
