@@ -9,8 +9,7 @@ import MaplibreGeocoder, {
   type CarmenGeojsonFeature,
 } from '@maplibre/maplibre-gl-geocoder';
 import { MAPBOX_ACCESS_TOKEN } from '../../utilities/environmentVariables';
-import { bbox as bboxFn, centerOfMass, featureCollection } from '@turf/turf';
-import { largestPolygonInsideMultipolygon as largestPolygonInsideMultipolygonFn } from '../../utilities/geo';
+import { bbox as bboxFn, centerOfMass } from '@turf/turf';
 
 type GeocoderControlProps = Omit<MaplibreGeocoderOptions, 'maplibregl' | 'marker'> & {
   geocoder?: 'nominatim' | 'mapbox';
@@ -34,35 +33,16 @@ const nominatimGeocoderAPI: MaplibreGeocoderApi = {
       const response = await fetch(request);
       const geojson = await response.json();
       for (const feature of geojson.features) {
-        let geometry: GeoJSON.Point;
-        let bbox;
-        let largestPolygonInsideMultiPolygon = null;
-        if (feature?.geometry?.type === 'MultiPolygon') {
-          largestPolygonInsideMultiPolygon = largestPolygonInsideMultipolygonFn(feature);
-          console.assert(largestPolygonInsideMultiPolygon !== null, 'A valid MultiPolygon should contain at least a Polygon');
-          // Used center of mass so it's guaranteed to be withing the polygon (good for concave shapes)
-          // if we use centroid for the geometric center it might fall outside concave shapes
-          geometry = centerOfMass(largestPolygonInsideMultiPolygon).geometry as GeoJSON.Point;
-          bbox = bboxFn(largestPolygonInsideMultiPolygon!);
-        } else {
-          const center = [
-            feature.bbox[0] + (feature.bbox[2] - feature.bbox[0]) / 2,
-            feature.bbox[1] + (feature.bbox[3] - feature.bbox[1]) / 2,
-          ];
-          geometry = {
-            type: 'Point',
-            coordinates: center,
-          } as GeoJSON.Point;
-          bbox = feature.bbox;
-        }
         const carmenGeoJSONFeature = {
           type: 'Feature',
           id: feature.id,
-          bbox,
-          geometry,
+          bbox: bboxFn(feature),
+          geometry: {
+            type: 'Point',
+            coordinates: centerOfMass(feature).geometry.coordinates,
+          } as GeoJSON.Point,
           original_feature: feature,
           original_geometry: feature.geometry,
-          largestPolygonInsideMultiPolygon,
           place_name: feature.properties.display_name,
           properties: feature.properties,
           text: feature.properties.display_name,
@@ -144,23 +124,8 @@ export default function GeocoderControl(props: GeocoderControlProps) {
         clearAndBlurOnEsc: true,
         placeholder: 'Country, coordinates or H3cellID',
       });
-      ctrl.on('loading', _ => {
-        const bounds = (ctrl as any)?._map?.getBounds();
-        if (bounds) {
-          ctrl.setBbox(bounds.toArray().flat());
-        }
-        const center = (ctrl as any)?._map?.getCenter();
-        if (center) {
-          ctrl.setProximity({ latitude: center.lat, longitude: center.lng });
-        }
-      });
-      ctrl.on('results', evt => {
-        if (props.geocoder === 'nominatim') {
-          const originalFeatures = evt.features.map((feature: any) => feature.largestPolygonInsideMultiPolygon ?? feature.original_feature);
-          const boundingBox = bboxFn(featureCollection(originalFeatures));
-          (ctrl as any)._map.fitBounds(boundingBox);
-        }
-      });
+      ctrl.on('loading', _ => {});
+      ctrl.on('results', _ => {});
       ctrl.on('clear', _ => {
         setMarker(null);
       });

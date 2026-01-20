@@ -2,7 +2,7 @@ import { area, bboxPolygon, booleanPointInPolygon, featureCollection, polygon } 
 import { featureToH3Set } from 'geojson2h3';
 import { cellToBoundary, cellToLatLng, type CoordPair, type H3Index } from 'h3-js';
 import { lerp } from 'math.gl';
-import type { FeatureCollection } from 'geojson';
+import type { FeatureCollection, MultiPolygon, Polygon } from 'geojson';
 
 export function h3IndexesToGeoJSONPolygon(h3Index: H3Index) {
   const [lat, lng] = cellToLatLng(h3Index);
@@ -154,19 +154,20 @@ export const bBoxToPolygon = (boundingBox: number[]) => {
   return coordinates;
 };
 
-export function largestPolygonInsideMultipolygon(feature: any) {
-  console.assert(feature?.geometry?.type === 'MultiPolygon', '"feature" must be a GeoJSON feature containing a MultiPolygon');
+export function largestPolygon(geometry: MultiPolygon): Polygon {
+  console.assert(geometry.type === 'MultiPolygon', '"geometry" must be a GeoJSON MultiPolygon');
   let maxArea = 0;
   let largestPolygon = null;
-  feature.geometry.coordinates.forEach((polygonCoords: any) => {
+  geometry.coordinates.forEach((polygonCoords: any) => {
     const polyFeature = polygon(polygonCoords);
     const polyArea = area(polyFeature);
     if (polyArea > maxArea) {
       maxArea = polyArea;
-      largestPolygon = polyFeature;
+      largestPolygon = polygonCoords;
     }
   });
-  return largestPolygon;
+  console.assert(largestPolygon !== null, 'No polygon found inside the MultiPolygon');
+  return { ...geometry, type: 'Polygon', coordinates: largestPolygon! };
 }
 
 /**
