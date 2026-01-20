@@ -90,7 +90,7 @@ export function FilteringSidebarParameters() {
       <Accordion
         title="Soil Properties"
         type="secondary"
-        pillsSlot={<SelectionPills selections={pillSelections} onRemove={handlePillRemove} />}
+        pillsSlot={pillSelections.length > 0 ? <SelectionPills selections={pillSelections} onRemove={handlePillRemove} /> : null}
       >
         <div className={styles.SoilProperties}>
           <input
@@ -101,6 +101,7 @@ export function FilteringSidebarParameters() {
             className={styles.SearchInput}
           />
           <NestedCheckbox
+            className={styles.SoilPropertiesCheckbox}
             items={filteredProperties}
             selected={selectedSoilProperties}
             isSearching={searchTerm.trim().length > 0}
