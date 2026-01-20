@@ -7,6 +7,7 @@
   padding: 0 2rem;
   height: 55px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  z-index: 1;
 
   @media (max-width: $bp-mobile-max) {
     height: 50px;
