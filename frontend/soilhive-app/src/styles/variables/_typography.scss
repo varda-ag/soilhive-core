@@ -1,15 +1,17 @@
 :root {
   /* Sizes */
   --font-size-base: 16px;
-  --font-size-2xs: .625rem;
-  --font-size-xs: .75rem;
-  --font-size-sm: .875rem;
-  --font-size-md: 1rem;
-  --font-size-lg: 1.125rem;
-  --font-size-xl: 1.5rem;
-  --font-size-2xl: 2rem;
-  --font-size-3xl: 2.5rem;
-  --font-size-4xl: 3.375rem;
+  // Measures in pixels have to be recalculated if you change the base size
+  // but it's useful to know when translating figma pixels units to rem.
+  --font-size-2xs: .625rem; // 10px
+  --font-size-xs: .75rem; // 12px
+  --font-size-sm: .875rem; // 14px
+  --font-size-md: 1rem; // 16px
+  --font-size-lg: 1.125rem; // 18px
+  --font-size-xl: 1.5rem; // 24px
+  --font-size-2xl: 2rem; // 32px
+  --font-size-3xl: 2.5rem; // 48px
+  --font-size-4xl: 3.375rem; // 64px
 
   /* Weights */
   --font-weight-light: 300;

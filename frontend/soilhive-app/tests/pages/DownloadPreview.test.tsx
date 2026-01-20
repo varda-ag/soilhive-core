@@ -1,0 +1,49 @@
+import React from 'react';
+import { act, render } from '@testing-library/react';
+import DownloadPreview from '../../src/pages/DownloadPreview';
+
+jest.mock('components/DownloadPreview/DownloadPreviewTable', () => {
+  const DownloadPreviewTable = () => <div>Mock DownloadPreviewTable</div>;
+  return DownloadPreviewTable;
+});
+
+jest.mock('components/DownloadPreview/DownloadPreviewSummary', () => {
+  const DownloadPreviewSummary = () => <div>Mock DownloadPreviewSummary</div>;
+  return DownloadPreviewSummary;
+});
+
+jest.mock('../../src/contexts/AvailabilityContext', () => {
+  // let's define the mockSetPreview mock function here and export here down below
+  // so that we can later grab it
+  const mockSetPreview = jest.fn();
+
+  return {
+    __esModule: true,
+    AvailabilityContext: React.createContext({
+      setPreview: mockSetPreview,
+    }),
+    mockSetPreview,
+  };
+});
+
+// grab the mock setGeometryFilter function that was passed to availability context
+const { mockSetPreview } = jest.requireMock('../../src/contexts/AvailabilityContext');
+
+describe('DownloadPreview', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('renders download preview page', () => {
+    const { container } = render(<DownloadPreview />);
+    expect(container).toMatchSnapshot();
+  });
+
+  it('calls setPreview(false) when clicking on the back button', async () => {
+    const { container, getByTestId } = render(<DownloadPreview />);
+    expect(container).toMatchSnapshot();
+    const backButton = getByTestId('download-preview-back-button');
+    await act(async () => backButton.click());
+    expect(mockSetPreview).toHaveBeenCalledWith(false);
+  });
+});

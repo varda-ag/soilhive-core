@@ -1,5 +1,6 @@
 import { act, render } from '@testing-library/react';
 import DownloadPreviewSummary from 'components/DownloadPreview/DownloadPreviewSummary';
+import { __setIsMobileLayout } from 'hooks/useDevice';
 
 jest.mock('components/Map/SoilhiveSimpleMap', () => {
   const SoilhiveSimpleMap = () => <div>Mock SoilhiveSimpleMap</div>;
@@ -10,7 +11,13 @@ jest.mock('../../../src/utilities/environmentVariables', () => ({
   MAPBOX_ACCESS_TOKEN: 'mock_access_token',
 }));
 
+jest.mock('hooks/useDevice');
+
 describe('DownloadPreviewSummary', () => {
+  beforeEach(() => {
+    __setIsMobileLayout(false);
+  });
+
   it('renders the download preview summary (sidebar)', () => {
     const { container, getByText } = render(
       <DownloadPreviewSummary
@@ -23,6 +30,22 @@ describe('DownloadPreviewSummary', () => {
     );
     expect(container).toMatchSnapshot();
     expect(getByText('Drawn polygon')).not.toBeUndefined();
+  });
+
+  it('renders the download preview summary (sidebar) in mobile', () => {
+    __setIsMobileLayout(true);
+    const { container, queryByTestId } = render(
+      <DownloadPreviewSummary
+        locationName="France"
+        depthRange="0-50cm"
+        dataPoints={7367}
+        rasterLayers={4}
+        soilProperties={['pH', 'Organic Carbon Content']}
+      />,
+    );
+    expect(container).toMatchSnapshot();
+    expect(queryByTestId('expand-download-preview-summary-button')).not.toBeInTheDocument();
+    expect(queryByTestId('reduce-download-preview-summary-button')).not.toBeInTheDocument();
   });
 
   it('renders the expanded download preview summary (sidebar) when clicking on the expand icon', async () => {

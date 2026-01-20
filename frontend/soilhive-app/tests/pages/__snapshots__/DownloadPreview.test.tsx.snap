@@ -1,0 +1,227 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`DownloadPreview calls setPreview(false) when clicking on the back button 1`] = `
+<div>
+  <div
+    class="Availability"
+  >
+    <div
+      class="Header"
+    >
+      <div
+        class="Titles"
+      >
+        <span
+          class="Title"
+        >
+          DOWNLOAD PREVIEW
+        </span>
+        <span
+          class="SubTitle"
+        >
+          Customize a data preview from the area selected
+        </span>
+      </div>
+      <div
+        class="Buttons"
+      >
+        <button
+          class="Button Tertiary Small IconOnly ShareButton"
+          data-testid="sh-ui-button"
+          type="button"
+        >
+          <svg
+            data-testid="svg-icon-mock"
+          >
+            mock-svg
+          </svg>
+        </button>
+        <button
+          class="Button Tertiary Small IconOnly BookmarkButton"
+          data-testid="sh-ui-button"
+          type="button"
+        >
+          <svg
+            data-testid="svg-icon-mock"
+          >
+            mock-svg
+          </svg>
+        </button>
+        <button
+          class="Button Secondary Small BackButton"
+          data-testid="download-preview-back-button"
+          type="button"
+        >
+          <svg
+            data-testid="svg-icon-mock"
+          >
+            mock-svg
+          </svg>
+          Back
+        </button>
+        <button
+          class="Button Primary Small DownloadButton"
+          data-testid="sh-ui-button"
+          type="button"
+        >
+          <svg
+            data-testid="svg-icon-mock"
+          >
+            mock-svg
+          </svg>
+          Download data
+        </button>
+      </div>
+    </div>
+    <div
+      class="Content"
+    >
+      <div
+        class="Sidebar"
+      >
+        <div>
+          Mock DownloadPreviewSummary
+        </div>
+      </div>
+      <div
+        class="Data HideInMobile"
+      >
+        <div>
+          Mock DownloadPreviewTable
+        </div>
+      </div>
+    </div>
+    <div
+      class="TabsHeader"
+    >
+      <button
+        class="Button Custom Small SelectedTabButton"
+        data-testid="sh-ui-button"
+        type="button"
+      >
+        Summary
+      </button>
+      <button
+        class="Button Custom Small"
+        data-testid="sh-ui-button"
+        type="button"
+      >
+        Table
+      </button>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`DownloadPreview renders download preview page 1`] = `
+<div>
+  <div
+    class="Availability"
+  >
+    <div
+      class="Header"
+    >
+      <div
+        class="Titles"
+      >
+        <span
+          class="Title"
+        >
+          DOWNLOAD PREVIEW
+        </span>
+        <span
+          class="SubTitle"
+        >
+          Customize a data preview from the area selected
+        </span>
+      </div>
+      <div
+        class="Buttons"
+      >
+        <button
+          class="Button Tertiary Small IconOnly ShareButton"
+          data-testid="sh-ui-button"
+          type="button"
+        >
+          <svg
+            data-testid="svg-icon-mock"
+          >
+            mock-svg
+          </svg>
+        </button>
+        <button
+          class="Button Tertiary Small IconOnly BookmarkButton"
+          data-testid="sh-ui-button"
+          type="button"
+        >
+          <svg
+            data-testid="svg-icon-mock"
+          >
+            mock-svg
+          </svg>
+        </button>
+        <button
+          class="Button Secondary Small BackButton"
+          data-testid="download-preview-back-button"
+          type="button"
+        >
+          <svg
+            data-testid="svg-icon-mock"
+          >
+            mock-svg
+          </svg>
+          Back
+        </button>
+        <button
+          class="Button Primary Small DownloadButton"
+          data-testid="sh-ui-button"
+          type="button"
+        >
+          <svg
+            data-testid="svg-icon-mock"
+          >
+            mock-svg
+          </svg>
+          Download data
+        </button>
+      </div>
+    </div>
+    <div
+      class="Content"
+    >
+      <div
+        class="Sidebar"
+      >
+        <div>
+          Mock DownloadPreviewSummary
+        </div>
+      </div>
+      <div
+        class="Data HideInMobile"
+      >
+        <div>
+          Mock DownloadPreviewTable
+        </div>
+      </div>
+    </div>
+    <div
+      class="TabsHeader"
+    >
+      <button
+        class="Button Custom Small SelectedTabButton"
+        data-testid="sh-ui-button"
+        type="button"
+      >
+        Summary
+      </button>
+      <button
+        class="Button Custom Small"
+        data-testid="sh-ui-button"
+        type="button"
+      >
+        Table
+      </button>
+    </div>
+  </div>
+</div>
+`;
