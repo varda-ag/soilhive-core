@@ -5,7 +5,8 @@ import { getBranchIds, getTopLevelSelections } from 'components/UI/NestedCheckbo
 import type { Selection } from 'types/components';
 
 import styles from './FilteringSidebarParameters.module.scss';
-import { useContext, useMemo } from 'react';
+import { useContext, useMemo, useState } from 'react';
+import { filterNestedItems } from 'components/UI/NestedCheckbox/nestedCheckboxHelpers';
 
 export function FilteringSidebarParameters() {
   const availabilityContext = useContext(AvailabilityContext);
@@ -79,16 +80,33 @@ export function FilteringSidebarParameters() {
     label: item.label,
   }));
 
+  const [searchTerm, setSearchTerm] = useState<string>('');
+
+  const filteredProperties = useMemo(() => filterNestedItems(nestedSoilProperties, searchTerm), [nestedSoilProperties, searchTerm]);
+
   return (
     <div className={styles.FilteringSidebarParameters}>
       {isLoadingSoilProperties && <p>Loading soil properties...</p>}
       <Accordion
         title="Soil Properties"
         type="secondary"
-        pillsSlot={<SelectionPills selections={pillSelections} onRemove={handlePillRemove} />}
+        pillsSlot={pillSelections.length > 0 ? <SelectionPills selections={pillSelections} onRemove={handlePillRemove} /> : null}
       >
         <div className={styles.SoilProperties}>
-          <NestedCheckbox items={nestedSoilProperties} selected={selectedSoilProperties} onChange={onChange} />
+          <input
+            type="text"
+            placeholder="Search soil properties"
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            className={styles.SearchInput}
+          />
+          <NestedCheckbox
+            className={styles.SoilPropertiesCheckbox}
+            items={filteredProperties}
+            selected={selectedSoilProperties}
+            isSearching={searchTerm.trim().length > 0}
+            onChange={onChange}
+          />
         </div>
       </Accordion>
       <Accordion title="Soil Groups" type="secondary">

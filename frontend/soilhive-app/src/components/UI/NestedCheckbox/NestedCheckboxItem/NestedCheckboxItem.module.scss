@@ -1,5 +1,5 @@
 .NestedCheckboxItem {
-  margin-left: 1.5rem;
+  margin-left: 0em;
 
   &:not(:last-child) {
     margin-bottom: 0.5rem;
@@ -7,6 +7,7 @@
 }
 .NestedCheckboxChildren {
   margin-top: 0.5rem;
+  margin-left: 1.5rem;
 }
 .NestedCheckboxInput {
   &.NestedCheckboxParent {
