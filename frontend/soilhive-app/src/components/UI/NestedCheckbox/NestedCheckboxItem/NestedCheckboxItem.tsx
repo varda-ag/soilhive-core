@@ -39,6 +39,27 @@ export function NestedCheckboxItem({ item, selected, className, hasChildrenOnCur
     return descendantIds.length > 0 && descendantIds.every(id => selected.includes(id));
   }, [item, selected]);
 
+  const isPartiallyChecked = useMemo(() => {
+    if (!item.children || item.children.length === 0) {
+      return false;
+    }
+
+    if (isChecked) {
+      return false;
+    }
+
+    // Check if at least one descendant is selected
+    const getAllDescendantIds = (node: NestedCheckboxItemType): string[] => {
+      if (!node.children || node.children.length === 0) {
+        return [node.id];
+      }
+      return node.children.flatMap(getAllDescendantIds);
+    };
+
+    const descendantIds = getAllDescendantIds(item);
+    return descendantIds.some(id => selected.includes(id));
+  }, [item, selected, isChecked]);
+
   const toggleChildrenVisibility = useCallback(
     (e: MouseEvent<SVGSVGElement>): void => {
       e.preventDefault();
@@ -77,6 +98,7 @@ export function NestedCheckboxItem({ item, selected, className, hasChildrenOnCur
         label={itemLabel}
         size="small"
         value={isChecked}
+        indeterminate={isPartiallyChecked}
         onChange={checked => onToggle(item, checked)}
       />
 
