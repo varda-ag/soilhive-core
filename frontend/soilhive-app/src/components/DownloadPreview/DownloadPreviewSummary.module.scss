@@ -134,6 +134,10 @@
         display: flex;
         justify-content: space-between;
         width: 173px;
+        font-family: 'Inter', Arial, Helvetica, sans-serif;
+        font-size: var(--font-size-sm);
+        line-height: var(--line-height-lg);
+        letter-spacing: 0px;
 
         @media (max-width: $bp-mobile-max) {
           width: 100%;
@@ -144,11 +148,7 @@
           display: flex;
           align-items: center;
           gap: 5px;
-          font-family: 'Inter', Arial, Helvetica, sans-serif;
           font-weight: var(--font-weight-regular);
-          font-size: var(--font-size-sm);
-          line-height: var(--line-height-lg);
-          letter-spacing: 0px;
           text-wrap: nowrap;
     
           >svg {
@@ -158,11 +158,7 @@
         }
     
         .DataSummaryRowData {
-          font-family: 'Inter', Arial, Helvetica, sans-serif;
           font-weight: var(--font-weight-bold);
-          font-size: var(--font-size-sm);
-          line-height: var(--line-height-lg);
-          letter-spacing: 0px;
           text-align: right;
         }
       }
@@ -198,6 +194,10 @@
       .Filter {
         padding: 5px 21px 4px 21px;
         border-radius: 4px;
+        font-family: 'Inter', Arial, Helvetica, sans-serif;
+        font-size: var(--font-size-xs);
+        line-height: var(--line-height-lg);
+        letter-spacing: 0px;
 
        @media (max-width: $bp-mobile-max) {
           width: 100%;
@@ -213,19 +213,11 @@
         }
 
         .FilterName {
-          font-family: 'Inter', Arial, Helvetica, sans-serif;
           font-weight: var(--font-weight-bold);
-          font-size: var(--font-size-xs);
-          line-height: var(--line-height-lg);
-          letter-spacing: 0px;
         }
 
         .FilterValue {
-          font-family: 'Inter', Arial, Helvetica, sans-serif;
           font-weight: var(--font-weight-regular);
-          font-size: var(--font-size-xs);
-          line-height: var(--line-height-lg);
-          letter-spacing: 0px;
         }
       }
     }

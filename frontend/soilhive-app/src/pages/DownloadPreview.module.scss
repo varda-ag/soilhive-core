@@ -29,25 +29,22 @@
     .Titles {
       display: flex;
       flex-direction: column;
+      font-family: 'Inter', Arial, Helvetica, sans-serif;
+      line-height: var(--line-height-lg);
+      letter-spacing: 0px;
 
       @media (max-width: $bp-mobile-max) {
         display: none;
       }
 
       .Title {
-        font-family: 'Inter', Arial, Helvetica, sans-serif;
         font-weight: var(--font-weight-bold);
         font-size: var(--font-size-lg);
-        line-height: var(--line-height-lg);
-        letter-spacing: 0px;
         vertical-align: middle;
       }
       .SubTitle {
-        font-family: 'Inter', Arial, Helvetica, sans-serif;
         font-weight: var(--font-weight-regular);
         font-size: var(--font-size-sm);
-        line-height: var(--line-height-lg);
-        letter-spacing: 0px;
       }
     }
     .Buttons {
