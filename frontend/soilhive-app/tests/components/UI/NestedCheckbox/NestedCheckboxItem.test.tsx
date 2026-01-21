@@ -3,8 +3,8 @@ import { NestedCheckboxItem } from 'components/UI/NestedCheckbox/NestedCheckboxI
 import type { NestedCheckboxItemType } from 'types/components';
 
 jest.mock('components/UI/Checkbox/Checkbox', () => ({
-  Checkbox: ({ label, value, onChange }: any) => (
-    <div data-testid="mock-checkbox" onClick={() => onChange(!value)}>
+  Checkbox: ({ label, value, indeterminate, onChange }: any) => (
+    <div data-testid="mock-checkbox" data-value={value} data-indeterminate={indeterminate} onClick={() => onChange(!value)}>
       {label}
     </div>
   ),
@@ -55,5 +55,28 @@ describe('NestedCheckboxItem', () => {
     render(<NestedCheckboxItem item={rootItem} selected={[]} onToggle={jest.fn()} />);
 
     expect(screen.queryByTestId('sh-plus-icon')).not.toBeInTheDocument();
+  });
+
+  it('shows intermidiate state when some children are selected', () => {
+    render(<NestedCheckboxItem item={mockItem} selected={['child-1']} onToggle={jest.fn()} />);
+
+    const checkbox = screen.getByTestId('mock-checkbox');
+    expect(checkbox).toHaveAttribute('data-indeterminate', 'true');
+    expect(checkbox).toHaveAttribute('data-value', 'false');
+  });
+
+  it('shows check state when all childrent are selected', () => {
+    render(<NestedCheckboxItem item={mockItem} selected={['child-1', 'child-2']} onToggle={jest.fn} />);
+
+    const chekcbox = screen.getByTestId('mock-checkbox');
+    expect(chekcbox).toHaveAttribute('data-indeterminate', 'false');
+    expect(chekcbox).toHaveAttribute('data-value', 'true');
+  });
+
+  it('shows unchecked state when no children is selected', () => {
+    render(<NestedCheckboxItem item={mockItem} selected={[]} onToggle={jest.fn()} />);
+
+    expect(screen.getByTestId('mock-checkbox')).toHaveAttribute('data-indeterminate', 'false');
+    expect(screen.getByTestId('mock-checkbox')).toHaveAttribute('data-value', 'false');
   });
 });

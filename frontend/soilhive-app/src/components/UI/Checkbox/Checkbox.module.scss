@@ -5,27 +5,34 @@
     &:hover {
         cursor: pointer;
 
-        > * {
+        >* {
             cursor: pointer;
         }
 
-        > .Input {
+        >.Input {
             box-shadow: var(--shadow-hover-default);
         }
     }
 
-    &.Medium > .Input {
+    &.Medium>.Input {
         width: 1.5rem;
         height: 1.5rem;
     }
 
-    &.Small > .Input {
+    &.Small>.Input {
         width: 1.25rem;
         height: 1.25rem;
     }
 
-    &.Checked > .Input {
+    &.Checked>.Input {
         background-image: url('../../../assets/icons/check-icon.svg');
+        background-repeat: no-repeat;
+        background-position: 50%;
+        background-size: 80%;
+    }
+
+    &.Indeterminate > .Input {
+        background-image: url('../../../assets/icons/small-minus-icon.svg');
         background-repeat: no-repeat;
         background-position: 50%;
         background-size: 80%;
@@ -34,38 +41,38 @@
     &.Disabled {
         pointer-events: none;
 
-        > .Label {
+        >.Label {
             color: var(--color-neutral-dark-400);
         }
     }
 
     &:not(.Error) {
         &.Disabled {
-            > .Input {
+            >.Input {
                 border-color: var(--color-cta-default-disabled);
             }
 
-            &.Checked > .Input {
+            &.Checked>.Input {
                 background-color: var(--color-cta-default-disabled);
             }
         }
 
         &:not(.Disabled) {
-            > .Input {
+            >.Input {
                 border-color: var(--color-cta-default-solid);
             }
 
             &.Checked {
-                > .Input {
+                >.Input {
                     background-color: var(--color-cta-default-solid);
                 }
 
-                &:active > .Input {
+                &:active>.Input {
                     background-color: var(--color-cta-default-pressed);
                 }
             }
 
-            &:active > .Input {
+            &:active>.Input {
                 border-color: var(--color-cta-default-pressed);
             }
         }
@@ -73,37 +80,37 @@
 
     &.Error {
         &.Disabled {
-            > .Input {
+            >.Input {
                 border-color: var(--color-cta-danger-disabled);
             }
 
-            &.Checked > .Input {
+            &.Checked>.Input {
                 background-color: var(--color-cta-danger-disabled);
             }
         }
 
         &:not(.Disabled) {
-            > .Input {
+            >.Input {
                 border-color: var(--color-cta-danger-solid);
             }
 
             &.Checked {
-                > .Input {
+                >.Input {
                     background-color: var(--color-cta-danger-solid);
                 }
 
-                &:active > .Input {
+                &:active>.Input {
                     background-color: var(--color-cta-danger-pressed);
                 }
             }
 
-            &:active > .Input {
+            &:active>.Input {
                 border-color: var(--color-cta-danger-pressed);
             }
         }
     }
 
-    > .Input {
+    >.Input {
         appearance: none;
         border-width: 0.125rem;
         border-style: solid;
@@ -113,7 +120,7 @@
         flex-shrink: 0;
     }
 
-    &.Marginless > .Input {
+    &.Marginless>.Input {
         margin-right: 0;
     }
 }
