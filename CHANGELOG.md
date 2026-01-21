@@ -1,3 +1,12 @@
+## [0.15.12](https://github.com/varda-ag/soilhive-core/compare/v0.15.11...v0.15.12) (2026-01-20)
+
+## [0.15.11](https://github.com/varda-ag/soilhive-core/compare/v0.15.10...v0.15.11) (2026-01-20)
+
+
+### Bug Fixes
+
+* SP-4785 Fixed header shadow and preview backgrounds and shadows ([#109](https://github.com/varda-ag/soilhive-core/issues/109)) ([15d5b3b](https://github.com/varda-ag/soilhive-core/commit/15d5b3b4a4b669143362a297f4348113f8d71307))
+
 ## [0.15.10](https://github.com/varda-ag/soilhive-core/compare/v0.15.9...v0.15.10) (2026-01-20)
 
 ## [0.15.9](https://github.com/varda-ag/soilhive-core/compare/v0.15.8...v0.15.9) (2026-01-20)

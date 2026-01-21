@@ -14,11 +14,13 @@ interface Props {
   selected: string[];
   className?: string;
   hasChildrenOnCurrentLevel?: boolean;
+  isSearching?: boolean;
   onToggle: (node: NestedCheckboxItemType, checked: boolean) => void;
 }
 
-export function NestedCheckboxItem({ item, selected, className, hasChildrenOnCurrentLevel, onToggle }: Props) {
-  const [isOpened, setIsOpened] = useState<boolean>(false);
+export function NestedCheckboxItem({ item, selected, className, hasChildrenOnCurrentLevel, isSearching = false, onToggle }: Props) {
+  const [isOpenedInternal, setIsOpenedInternal] = useState<boolean>(false);
+  const isOpened = isSearching ? item.children !== undefined : isOpenedInternal;
 
   const isChecked = useMemo(() => {
     if (!item.children || item.children.length === 0) {
@@ -41,13 +43,13 @@ export function NestedCheckboxItem({ item, selected, className, hasChildrenOnCur
     (e: MouseEvent<SVGSVGElement>): void => {
       e.preventDefault();
       e.stopPropagation();
-      setIsOpened(!isOpened);
+      setIsOpenedInternal(!isOpenedInternal);
     },
-    [isOpened],
+    [isOpenedInternal],
   );
 
   const itemLabel = useMemo((): string | ReactNode => {
-    if (item.children.length) {
+    if (item.children?.length) {
       return (
         <>
           {!isOpened && <PlusIcon data-testid="sh-plus-icon" className={styles.ToggleIcon} onClick={toggleChildrenVisibility} />}
@@ -86,6 +88,7 @@ export function NestedCheckboxItem({ item, selected, className, hasChildrenOnCur
               item={child}
               selected={selected}
               hasChildrenOnCurrentLevel={isCurrentLevelHasChildren}
+              isSearching={isSearching}
               onToggle={onToggle}
             />
           ))}

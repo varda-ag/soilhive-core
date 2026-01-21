@@ -19,6 +19,12 @@ exports[`FilteringSidebarParameters renders four accordion components 1`] = `
         <div
           class="SoilProperties"
         >
+          <input
+            class="SearchInput"
+            placeholder="Search soil properties"
+            type="text"
+            value=""
+          />
           <div
             data-testid="nested-checkbox"
           >

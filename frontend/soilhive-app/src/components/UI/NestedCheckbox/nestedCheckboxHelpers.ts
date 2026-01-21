@@ -76,3 +76,42 @@ export const getBranchIds = (items: NestedCheckboxItemType[], targetId: string):
   }
   return [];
 };
+
+export const filterNestedItems = (items: NestedCheckboxItemType[], searchTerm: string): NestedCheckboxItemType[] => {
+  const query = searchTerm.trim().toLowerCase();
+
+  // If no search term, return the original list immediately
+  if (!query) return items;
+
+  // Recursive helper to process a single node
+  const getFilteredNode = (item: NestedCheckboxItemType): NestedCheckboxItemType | null => {
+    const isMatch = item.label.toLowerCase().includes(query);
+
+    // Recursively filter children if they exist
+    const filteredChildren = item.children
+      ? item.children.map(getFilteredNode).filter((child): child is NestedCheckboxItemType => !!child)
+      : [];
+
+    const hasMatchingChildren = filteredChildren.length > 0;
+
+    // Return node if it matches OR if it has children that match
+    if (hasMatchingChildren) {
+      return {
+        ...item,
+        children: filteredChildren,
+      };
+    }
+    if (isMatch) {
+      return {
+        ...item,
+      };
+    }
+
+    return null;
+  };
+
+  // Map and filter the top-level items
+
+  const res = items.map(getFilteredNode).filter((item): item is NestedCheckboxItemType => !!item);
+  return res;
+};
