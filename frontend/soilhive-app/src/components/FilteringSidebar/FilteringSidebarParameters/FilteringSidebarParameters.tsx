@@ -116,6 +116,7 @@ export function FilteringSidebarParameters() {
             items={filteredProperties}
             selected={selectedSoilProperties}
             isSearching={searchTerm.trim().length > 0}
+            isExpanded={soilPropertiesExpanded}
             onChange={onChange}
           />
         </div>
