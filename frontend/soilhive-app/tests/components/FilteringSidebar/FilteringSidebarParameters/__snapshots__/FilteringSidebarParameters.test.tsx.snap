@@ -26,6 +26,13 @@ exports[`FilteringSidebarParameters renders four accordion components 1`] = `
             value=""
           />
           <div
+            class="LinkToggle"
+          >
+            <span>
+              Expand All
+            </span>
+          </div>
+          <div
             data-testid="nested-checkbox"
           >
             <div

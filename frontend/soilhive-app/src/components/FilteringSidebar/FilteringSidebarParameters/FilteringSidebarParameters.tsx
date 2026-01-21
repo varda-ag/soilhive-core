@@ -7,6 +7,7 @@ import type { Selection } from 'types/components';
 import styles from './FilteringSidebarParameters.module.scss';
 import { useContext, useMemo, useState } from 'react';
 import { filterNestedItems } from 'components/UI/NestedCheckbox/nestedCheckboxHelpers';
+import { Toggle } from 'components/UI/Toggle/Toggle';
 
 export function FilteringSidebarParameters() {
   const availabilityContext = useContext(AvailabilityContext);
@@ -22,6 +23,8 @@ export function FilteringSidebarParameters() {
     selectedSoilProperties,
     setSelectedSoilProperties,
   } = availabilityContext;
+
+  const [soilPropertiesExpanded, setSoilPropertiesExpanded] = useState(false);
 
   const nestedSoilProperties = useMemo((): NestedCheckboxItemType[] => {
     const nodeMap: { [id: string]: NestedCheckboxItemType } = {};
@@ -99,6 +102,14 @@ export function FilteringSidebarParameters() {
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
             className={styles.SearchInput}
+          />
+          <Toggle
+            labelOne="Expand All"
+            labelTwo="Collapse All"
+            isToggled={soilPropertiesExpanded}
+            onToggle={() => {
+              setSoilPropertiesExpanded(!soilPropertiesExpanded);
+            }}
           />
           <NestedCheckbox
             className={styles.SoilPropertiesCheckbox}
