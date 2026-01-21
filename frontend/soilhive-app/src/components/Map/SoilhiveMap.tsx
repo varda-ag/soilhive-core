@@ -158,7 +158,6 @@ function SoilhiveMap({
       onSelectionChange?.({
         bounds: mapRef.current.getBounds().toArray().flat(),
         geometries: [geometry as Polygon | MultiPolygon],
-        eventType: 'upload',
         zoomLevel: mapRef.current.getZoom(),
       });
       isApplyingSelection.current = false;
@@ -202,7 +201,7 @@ function SoilhiveMap({
 
       if (selection.features.length === 0) {
         // Current bbox (implicit) selection
-        onSelectionChange?.({ bounds, zoomLevel, eventType: 'bounds' });
+        onSelectionChange?.({ bounds, zoomLevel });
       }
 
       updateH3Cells({ bounds, zoomLevel });
@@ -222,7 +221,6 @@ function SoilhiveMap({
     onSelectionToolbarVisibilityChange?.(false);
     onSelectionChange?.({
       bounds: mapRef.current.getMap().getBounds().toArray().flat(),
-      eventType: 'reset',
       zoomLevel: mapRef.current.getZoom(),
     });
   }, [emptySelection, onSelectionChange, onSelectionToolbarVisibilityChange, selectedH3Cell]);

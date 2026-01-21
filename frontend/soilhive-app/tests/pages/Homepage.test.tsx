@@ -148,7 +148,7 @@ describe('Homepage', () => {
     expect(screen.getByTestId('mock-datasets-sidebar')).toHaveAttribute('data-opened', 'false');
   });
 
-  it('calls setGeometryFilter when map selection changes with geometries', () => {
+  it('calls setGeometryFilter with geometries when both bbox and geometries are provided', () => {
     // Arrange
     __setIsDesktopLayout(true);
     render(<Homepage />);
@@ -170,7 +170,6 @@ describe('Homepage', () => {
     const mockEvent: SoilhiveMapSelectionChangeEvent = {
       bounds: [6.0, 35.0, 18.0, 47.0],
       geometries,
-      eventType: 'draw',
       zoomLevel: 10,
     };
 
@@ -184,15 +183,13 @@ describe('Homepage', () => {
     expect(mockSetGeometryFilter).toHaveBeenCalledWith(geometries);
   });
 
-  it('calls setGeometryFilter with bbox geometry when no geometries provided', () => {
+  it('calls setGeometryFilter with bbox (as Polygon) when no geometries provided', () => {
     // Arrange
-    __setIsDesktopLayout(true);
     render(<Homepage />);
 
     const mockEvent: SoilhiveMapSelectionChangeEvent = {
       bounds: [6.0, 35.0, 18.0, 47.0],
       // No geometries provided
-      eventType: 'draw',
       zoomLevel: 10,
     };
 
@@ -207,228 +204,5 @@ describe('Homepage', () => {
     expect(geometries).toHaveLength(1);
     expect(geometries[0].type).toBe('Polygon');
     expect(geometries[0].coordinates).toBeDefined();
-  });
-
-  it('skips filter updates when map moves with geometry already selected', async () => {
-    // Arrange
-    __setIsDesktopLayout(true);
-    render(<Homepage />);
-
-    // First, select a geometry
-    const selectEvent: SoilhiveMapSelectionChangeEvent = {
-      bounds: [6.0, 35.0, 18.0, 47.0],
-      geometries: [
-        {
-          type: 'Polygon',
-          coordinates: [
-            [
-              [6.0, 35.0],
-              [18.0, 35.0],
-              [18.0, 47.0],
-              [6.0, 47.0],
-              [6.0, 35.0],
-            ],
-          ],
-        },
-      ],
-      eventType: 'draw',
-      zoomLevel: 10,
-    };
-
-    await act(async () => {
-      mockOnMapSelectionChange!(selectEvent);
-    });
-
-    expect(mockSetGeometryFilter).toHaveBeenCalledTimes(1);
-    mockSetGeometryFilter.mockClear();
-
-    // Act - now move the map (bounds event)
-    const boundsEvent: SoilhiveMapSelectionChangeEvent = {
-      bounds: [7.0, 36.0, 19.0, 48.0],
-      eventType: 'bounds',
-      zoomLevel: 11,
-    };
-
-    await act(async () => {
-      mockOnMapSelectionChange!(boundsEvent);
-    });
-
-    // Assert - filter update should be skipped
-    expect(mockSetGeometryFilter).not.toHaveBeenCalled();
-  });
-
-  it('updates filters when map moves without geometry selected', () => {
-    // Arrange
-    __setIsDesktopLayout(true);
-    render(<Homepage />);
-
-    // Act - move the map without any geometry selected
-    const boundsEvent: SoilhiveMapSelectionChangeEvent = {
-      bounds: [7.0, 36.0, 19.0, 48.0],
-      eventType: 'bounds',
-      zoomLevel: 11,
-    };
-
-    mockOnMapSelectionChange!(boundsEvent);
-
-    // Assert - filter update should happen
-    expect(mockSetGeometryFilter).toHaveBeenCalledTimes(1);
-  });
-
-  it('updates filters immediately on geometry reset', async () => {
-    // Arrange
-    __setIsDesktopLayout(true);
-    render(<Homepage />);
-
-    // First, select a geometry
-    const selectEvent: SoilhiveMapSelectionChangeEvent = {
-      bounds: [6.0, 35.0, 18.0, 47.0],
-      geometries: [
-        {
-          type: 'Polygon',
-          coordinates: [
-            [
-              [6.0, 35.0],
-              [18.0, 35.0],
-              [18.0, 47.0],
-              [6.0, 47.0],
-              [6.0, 35.0],
-            ],
-          ],
-        },
-      ],
-      eventType: 'draw',
-      zoomLevel: 10,
-    };
-
-    await act(async () => mockOnMapSelectionChange!(selectEvent));
-
-    expect(mockSetGeometryFilter).toHaveBeenCalledTimes(1);
-    mockSetGeometryFilter.mockClear();
-
-    // Act - reset the geometry
-    const resetEvent: SoilhiveMapSelectionChangeEvent = {
-      bounds: [6.0, 35.0, 18.0, 47.0],
-      eventType: 'reset',
-      zoomLevel: 10,
-    };
-
-    await act(async () => mockOnMapSelectionChange!(resetEvent));
-
-    // Assert - filter update should happen immediately with bounding box
-    expect(mockSetGeometryFilter).toHaveBeenCalledTimes(1);
-  });
-
-  it('resumes filter updates after geometry reset when map moves', async () => {
-    // Arrange
-    __setIsDesktopLayout(true);
-    render(<Homepage />);
-
-    // First, select a geometry
-    const selectEvent: SoilhiveMapSelectionChangeEvent = {
-      bounds: [6.0, 35.0, 18.0, 47.0],
-      geometries: [
-        {
-          type: 'Polygon',
-          coordinates: [
-            [
-              [6.0, 35.0],
-              [18.0, 35.0],
-              [18.0, 47.0],
-              [6.0, 47.0],
-              [6.0, 35.0],
-            ],
-          ],
-        },
-      ],
-      eventType: 'draw',
-      zoomLevel: 10,
-    };
-
-    await act(async () => mockOnMapSelectionChange!(selectEvent));
-
-    // Reset the geometry
-    const resetEvent: SoilhiveMapSelectionChangeEvent = {
-      bounds: [6.0, 35.0, 18.0, 47.0],
-      eventType: 'reset',
-      zoomLevel: 10,
-    };
-
-    await act(async () => mockOnMapSelectionChange!(resetEvent));
-
-    mockSetGeometryFilter.mockClear();
-
-    // Act - now move the map after reset
-    const boundsEvent: SoilhiveMapSelectionChangeEvent = {
-      bounds: [7.0, 36.0, 19.0, 48.0],
-      eventType: 'bounds',
-      zoomLevel: 11,
-    };
-
-    await act(async () => mockOnMapSelectionChange!(boundsEvent));
-
-    // Assert - filter update should happen (geometry no longer selected)
-    expect(mockSetGeometryFilter).toHaveBeenCalledTimes(1);
-  });
-
-  it('updates filters when uploading new geometry while one is already selected', async () => {
-    // Arrange
-    __setIsDesktopLayout(true);
-    render(<Homepage />);
-
-    // First, select a geometry via draw
-    const drawEvent: SoilhiveMapSelectionChangeEvent = {
-      bounds: [6.0, 35.0, 18.0, 47.0],
-      geometries: [
-        {
-          type: 'Polygon',
-          coordinates: [
-            [
-              [6.0, 35.0],
-              [18.0, 35.0],
-              [18.0, 47.0],
-              [6.0, 47.0],
-              [6.0, 35.0],
-            ],
-          ],
-        },
-      ],
-      eventType: 'draw',
-      zoomLevel: 10,
-    };
-
-    await act(async () => mockOnMapSelectionChange!(drawEvent));
-
-    expect(mockSetGeometryFilter).toHaveBeenCalledTimes(1);
-    mockSetGeometryFilter.mockClear();
-
-    // Act - upload a new geometry
-    const geometries = [
-      {
-        type: 'Polygon' as any,
-        coordinates: [
-          [
-            [8.0, 37.0],
-            [20.0, 37.0],
-            [20.0, 49.0],
-            [8.0, 49.0],
-            [8.0, 37.0],
-          ],
-        ],
-      },
-    ];
-    const uploadEvent: SoilhiveMapSelectionChangeEvent = {
-      bounds: [8.0, 37.0, 20.0, 49.0],
-      geometries,
-      eventType: 'upload',
-      zoomLevel: 11,
-    };
-
-    await act(async () => mockOnMapSelectionChange!(uploadEvent));
-
-    // Assert - filter update should happen
-    expect(mockSetGeometryFilter).toHaveBeenCalledTimes(1);
-    const geometriesParam = mockSetGeometryFilter.mock.calls[0][0];
-    expect(geometriesParam).toEqual(uploadEvent.geometries);
   });
 });
