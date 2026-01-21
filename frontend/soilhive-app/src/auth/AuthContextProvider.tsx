@@ -13,7 +13,7 @@ const authContext = createContext<AuthContext | undefined>(undefined);
 
 export function useAuthContext(): AuthContext {
   const ctx = useContext(authContext);
-  if (!ctx) throw Error('Auth Context not defined');
+  if (!ctx) throw new Error('Auth Context not defined');
   return ctx;
 }
 

@@ -147,7 +147,7 @@ function SoilhiveMap({
       isApplyingSelection.current = true;
       const simplifiedGeometry: Polygon | MultiPolygon = simplifyGeometry(geometry);
       const largestPolygon = simplifiedGeometry.type === 'MultiPolygon' ? largestPolygonFn(simplifiedGeometry) : simplifiedGeometry;
-      console.assert(largestPolygon !== null, 'A valid MultiPolygon should contain at least a Polygon');
+      if (largestPolygon === null) throw new Error('A valid MultiPolygon should contain at least a Polygon');
       const [lng, lat] = point ? point.coordinates : centerOfMass(largestPolygon).geometry.coordinates;
       const bbox = bboxFn(largestPolygon!);
       if (moveBounds) mapRef.current.fitBounds(bbox, { padding: 40 });
