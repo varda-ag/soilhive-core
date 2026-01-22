@@ -157,7 +157,7 @@ function SoilhiveMap({
       setSelection({ type: 'FeatureCollection', features: [{ type: 'Feature', geometry: simplifiedGeometry, properties: {} }] });
       onSelectionChange?.({
         bounds: mapRef.current.getBounds().toArray().flat(),
-        geometries: [geometry as Polygon | MultiPolygon],
+        geometries: [simplifiedGeometry as Polygon | MultiPolygon],
         zoomLevel: mapRef.current.getZoom(),
       });
       isApplyingSelection.current = false;
