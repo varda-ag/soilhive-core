@@ -1,5 +1,7 @@
 import { v7 as uuidv7 } from 'uuid';
 import DatasetEntity from '../entities/Dataset';
+import FileEntity from '../entities/File';
+import DataMappingEntity from '../entities/DataMapping';
 import FeatureEntity from '../entities/Feature';
 import LayerEntity from '../entities/Layer';
 import SoilPropertyEntity from '../entities/SoilProperty';
@@ -8,13 +10,16 @@ import DatasetLayerEntity from '../entities/DatasetLayer';
 import ProcedureEntity from '../entities/Procedure';
 import ObservationEntity from '../entities/Observation';
 import LicenseEntity from '../entities/License';
+import UnitConversionEntity from '../entities/UnitConversion';
 import { getPolygonFromBbox } from './geometry';
-import { getDataSource } from './data-source';
+import { destroyDataSource, getDataSource } from './data-source';
 import SlugHistoryEntity from '../entities/SlugHistory';
 import { EntityType, GISDataType, IngestionStatus } from '../types/data';
+import RasterFilter from '../data-layer/RasterFilter';
+import { PropertyInfo, PropertyMapping } from '../interfaces/PropertyMapping';
 import assert from 'assert';
 import path from 'path';
-import RasterFilter from '../data-layer/RasterFilter';
+import fs from 'fs';
 
 const randomInRange = (min: number, max: number): number => {
   return Math.random() * (max - min) + min;
@@ -40,6 +45,35 @@ export const syntheticDataOptions = {
   showProgress: false,
 };
 
+export const syntheticIngestionDataOptions = {
+  id: 1,
+  spatial_extent: [0, 0, 1, 1],
+  columnMapping: {
+    "upper_depth": "min_depth",
+    "lower_depth": "max_depth",
+    "date": "sampling_date",
+    "licence": "license",
+    "layer_name": "horizon_code",
+    "bdfi33": {
+      "property_name": "Bulk Density",
+      "procedure_name": "Fine earth 33kPa",
+      "conversion_formula": "x*10",
+      "original_unit": "kg/dm3",
+      "standard_unit": "mmolc/dm3",
+      "min_val": 5
+    },
+    "bdfiod": {
+      "property_name": "Bulk Density 2",
+      "procedure_name": "Fine earth oven dry",
+      "conversion_formula": "x/10",
+      "original_unit": "kg/cm3",
+      "standard_unit": "mmolc/dm3",
+      "max_val": 0.1
+    },
+  },
+  showProgress: false,
+};
+
 export const addSlug = async (slug: string, entity_id: string, entity_type: EntityType) => {
   const dataSource = await getDataSource();
   const repo = dataSource.getRepository(SlugHistoryEntity);
@@ -60,6 +94,27 @@ export const addDataset = async (name: string, spatial_extent: number[]): Promis
     spatial_extent: getPolygonFromBbox(spatial_extent),
   });
   return await repo.save(dataset);
+};
+
+export const addFile = async (name: string = 'test_file'): Promise<FileEntity> => {
+  const dataSource = await getDataSource();
+  const repo = dataSource.getRepository(FileEntity);
+  const file = repo.create({
+    name,
+    file_path: name,
+    created_by: 'tests',
+  });
+  return await repo.save(file);
+};
+
+export const addDataMapping = async (data_mapping: Object): Promise<DataMappingEntity> => {
+  const dataSource = await getDataSource();
+  const repo = dataSource.getRepository(DataMappingEntity);
+  const mapping = repo.create({
+    data_mapping,
+    created_by: 'tests',
+  });
+  return await repo.save(mapping);
 };
 
 export const addFeature = async (lng: number, lat: number) => {
@@ -96,6 +151,18 @@ export const addLicense = async (name: string = 'test_license') => {
   return await repo.save(license);
 };
 
+export const addUnitConversion = async (original_unit: string = 'test_unit', standard_unit: string = 'test_std_unit', conversion_formula: string = 'x / 10'): Promise<UnitConversionEntity> => {
+  const dataSource = await getDataSource();
+  const repo = dataSource.getRepository(UnitConversionEntity);
+  const unitConversion = repo.create({
+    original_unit_of_measurement: original_unit,
+    standard_unit,
+    conversion_formula,
+  });
+  await repo.save(unitConversion);
+  return await repo.findOneByOrFail({id: unitConversion.id});
+};
+
 export const addLayer = async (
   license: string,
   sampling_date?: Date,
@@ -128,16 +195,17 @@ export const addCategory = async (name: string = 'test_category') => {
   return await repo.save(soilProperty);
 };
 
-export const addSoilProperty = async (name: string, category_id: string) => {
+export const addSoilProperty = async (name: string, category_id: string, standard_unit: string = 'mg/kg') => {
   const dataSource = await getDataSource();
   const repo = dataSource.getRepository(SoilPropertyEntity);
   const soilProperty = repo.create({
     property_name: name,
     property_acronym: name,
-    slug: name,
     category_id,
+    standard_unit
   });
-  return await repo.save(soilProperty);
+  await repo.save(soilProperty);
+  return await repo.findOneByOrFail({id: soilProperty.id});
 };
 
 export const addDatasetLayer = async (dataset_id: string, layer_id: string, feature_id: string, soil_property_id: string) => {
@@ -175,7 +243,8 @@ export const addProcedure = async (procedure: string = 'test_procedure') => {
   const newProcedure = repo.create({
     sample_pretreatment: procedure,
   });
-  return await repo.save(newProcedure);
+  await repo.save(newProcedure);
+  return await repo.findOneByOrFail({id: newProcedure.id});
 };
 
 export const addObservations = async (values: number[], procedure_id: string, dataset_layer_id: string) => {
@@ -278,4 +347,63 @@ export const addLandCover = async (): Promise<string> => {
   );
   await rasterFilter.addRasterFiles([filePath], tableName);
   return tableName;
+};
+
+export interface SyntheticIngestionDataset {
+  dataset: DatasetEntity;
+  file: FileEntity;
+  dataMapping: DataMappingEntity;
+}
+
+export const addSyntheticIngestionData = async (syntheticIngestionDataOptions): Promise<SyntheticIngestionDataset> => {
+  const { id, spatial_extent, columnMapping } =
+    syntheticIngestionDataOptions;
+  assert(spatial_extent.length === 4, 'spatial_extent must be an array of 4 numbers [minX, minY, maxX, maxY]');
+  assert(typeof columnMapping === 'object', 'columnMapping must be a non-empty object');
+  const dataset = await addDataset(`test_dataset_${id}`, spatial_extent);
+  const category = await addCategory(`test_category_${id}`);
+  await addLicense(`test_license_raw_data`);
+  const file = await addFile(`test_file_${id}`);
+  const createdDataMapping: Object = {};
+
+  for (const [field, mapping] of Object.entries(columnMapping)) {
+    if (typeof mapping === 'string' || mapping instanceof String) { // metadata fields
+      createdDataMapping[field] =  mapping;
+    }
+    else if (typeof mapping === 'object') {
+      const props = mapping as PropertyInfo;
+      const soilProperty = await addSoilProperty(props.property_name, category.id, props.standard_unit);
+      const createdMapping: PropertyMapping = { property_slug: soilProperty.slug };
+      const procedure = await addProcedure(props.procedure_name);
+      if (procedure) {
+        createdMapping.procedure_slug = procedure.slug;
+      }
+      const unitConversion = await addUnitConversion(props.original_unit, props.standard_unit, props.conversion_formula);
+      if (unitConversion) {
+        createdMapping.conversion_slug = unitConversion.slug;
+      }
+      if (props.max_val) {
+        createdMapping.max_val = props.max_val;
+      }
+      if (props.min_val) {
+        createdMapping.min_val = props.min_val;
+      }
+
+      createdDataMapping[field] =  createdMapping;
+    }
+  }
+
+  const dataMapping = await addDataMapping(createdDataMapping);
+  // Load raw data sample
+  const sqlFile = path.join(__dirname, '..', '..', 'tests', 'assets', 'raw_data', 'raw_data_insert.sql');
+  const sqlTemplate = fs.readFileSync(sqlFile, 'utf8');
+  const sql = sqlTemplate.replace(/{{table}}/g, `"file_${file.id}_raw"`);
+  const dataSource = await getDataSource();
+  await dataSource.query(sql);
+  await destroyDataSource();
+
+  if (syntheticIngestionDataOptions.showProgress) {
+    console.log(`Synthetic ingestion data creation complete. Dataset ID: ${dataset.id}`);
+  }
+  return { dataset, file, dataMapping };
 };
