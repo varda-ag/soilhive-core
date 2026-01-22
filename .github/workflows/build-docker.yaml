@@ -1,0 +1,62 @@
+name: Docker build
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*.*.*"
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  image-version:
+    name: Determine Image Version
+    runs-on: ubuntu-latest
+    outputs:
+      imageVersion: ${{ steps.image_version.outputs.imageVersion }}
+    steps:
+      - name: Set imageVersion
+        id: image_version
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            echo "imageVersion=pr-${{ github.event.pull_request.number }}-${{ github.sha }}" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "imageVersion=${{ github.sha }}" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            echo "imageVersion=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          fi
+
+  build-push-docker-backend:
+    uses: varda-ag/.github/.github/workflows/docker-build.yaml@main
+    needs:
+      - image-version
+    with:
+      context: backend
+      imageName: soilhive-core-backend
+      imageVersion: ${{ needs.image-version.outputs.imageVersion }}
+      push: true
+    permissions:
+      contents: read
+      packages: write
+      id-token: write # This is required for requesting the JWT token from OIDC
+
+  build-push-docker-frontend:
+    uses: varda-ag/.github/.github/workflows/docker-build.yaml@main
+    needs:
+      - image-version
+    with:
+      context: frontend
+      imageName: soilhive-core-frontend
+      imageVersion: ${{ needs.image-version.outputs.imageVersion }}
+      push: true
+    permissions:
+      contents: read
+      packages: write
+      id-token: write # This is required for requesting the JWT token from OIDC
+
