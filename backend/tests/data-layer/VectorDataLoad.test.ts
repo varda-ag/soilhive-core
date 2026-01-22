@@ -18,5 +18,8 @@ describe('VectorDataLoad class', () => {
     const resultBdfiod = results.map(r => parseFloat(r.bdfiod));
     const maxBdfiod = Math.max(...resultBdfiod.filter(n => !isNaN(n)));
     expect(maxBdfiod).toBeLessThanOrEqual(syntheticIngestionDataOptions.columnMapping.bdfiod.max_val);
+    const resultRecordIds = results.map(r => parseFloat(r.record_id));
+    const minRecordId = Math.min(...resultRecordIds);
+    expect(minRecordId).toBe(10003);
   });
 });

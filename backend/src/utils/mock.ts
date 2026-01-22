@@ -70,6 +70,7 @@ export const syntheticIngestionDataOptions = {
       standard_unit: 'mmolc/dm3',
       max_val: 0.1,
     },
+    drop_records: [10001, 10002]
   },
   showProgress: false,
 };
@@ -370,7 +371,7 @@ export const addSyntheticIngestionData = async (syntheticIngestionDataOptions): 
   const createdDataMapping: object = {};
 
   for (const [field, mapping] of Object.entries(columnMapping)) {
-    if (typeof mapping === 'string' || mapping instanceof String) {
+    if (typeof mapping === 'string' || mapping instanceof String || field === 'drop_records') {
       // metadata fields
       createdDataMapping[field] = mapping;
     } else if (typeof mapping === 'object') {

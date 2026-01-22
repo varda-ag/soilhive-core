@@ -40,6 +40,7 @@ export default class VectorDataLoad {
     let propertiesCleanup = '';
     let metadataCols = '';
     for (const [field, mapping] of Object.entries(dataMapping)) {
+      if (field === 'drop_records') continue;
       if (typeof mapping === 'string' || mapping instanceof String) {
         // metadata fields
         metadataCols += `"${field}" AS "${mapping}", `;
@@ -68,10 +69,10 @@ export default class VectorDataLoad {
       .from(`file_${fileId}_raw`, 'raw');
 
     if (dataMapping.drop_records && Array.isArray(dataMapping.drop_records)) {
-      query = query.where('raw.record_id IN (:...drop_records)', { drop_records: dataMapping.drop_records });
+      query = query.where('raw.record_id NOT IN (:...drop_records)', { drop_records: dataMapping.drop_records });
     }
     // Workaround using raw query to be able to use dynamic table name without entity
-    const results = await dataSource.manager.query(query.take(DATA_PREVIEW_SIZE).getSql());
+    const results = await dataSource.manager.query(...query.take(DATA_PREVIEW_SIZE).getQueryAndParameters());
     return results;
   };
 }
