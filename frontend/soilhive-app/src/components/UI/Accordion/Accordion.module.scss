@@ -2,16 +2,34 @@
   &.Opened {
     padding-bottom: 0;
     > .Header {
-      padding-bottom: 0.4375rem;
+      padding-bottom: 0.5625rem;
 
       .ArrowIcon {
         transform: rotate(-180deg);
       }
     }
 
+    > .PillsContainer {
+      padding: 0 0.875rem 0.5rem;
+    }
+
     &.Primary {
       > .Header {
         border-bottom: 1px solid var(--color-neutral-dark-100);
+      }
+    }
+
+    &.Secondary {
+      padding-bottom: 0.5rem;
+
+      &:last-of-type {
+        padding-bottom: 0;
+      }
+
+      > .Header {
+        > .Title {
+          padding-bottom: 0;
+        }
       }
     }
   }
@@ -42,10 +60,10 @@
   }
 
   &.Secondary {
+    border-bottom: 1px dashed var(--color-neutral-dark-100);
     > .Header {
       > .Title {
         padding: 0.5625rem 0;
-        border-bottom: 1px dashed var(--color-neutral-dark-100);
       }
       .ArrowIcon {
         color: var(--color-primary);
@@ -53,9 +71,18 @@
     }
 
     &:last-of-type {
+      border-bottom: none;
       > .Header {
         > .Title {
-          border-bottom: none;
+          padding-bottom: 0;
+        }
+      }
+
+      &:has(.PillsContainer):not(.Opened) {
+        > .Header {
+          > .Title {
+            padding-bottom: 0.5625rem;
+          }
         }
       }
     }
@@ -63,5 +90,5 @@
 }
 
 .PillsContainer {
-  padding: 0.5rem 0.875rem 0;
+  padding: 0 0.875rem 0.5rem;
 }

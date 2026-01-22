@@ -1,0 +1,17 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`MultiselectButton renders unhecked checkbox when selected=false 1`] = `
+<div>
+  <label
+    class="MultiselectButton"
+    data-testid="sh-ui-multiselect-button"
+  >
+    Option 1
+    <input
+      class="Checkbox"
+      name="opt-1"
+      type="checkbox"
+    />
+  </label>
+</div>
+`;

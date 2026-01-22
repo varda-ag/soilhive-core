@@ -1,0 +1,44 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`MultiselectButtons renders component 1`] = `
+<div>
+  <div
+    class="MultiselectButtons"
+    data-testid="sh-ui-multiselect-buttons"
+  >
+    <label
+      class="MultiselectButton"
+      data-testid="sh-ui-multiselect-button"
+    >
+      Option A
+      <input
+        class="Checkbox"
+        name="a"
+        type="checkbox"
+      />
+    </label>
+    <label
+      class="MultiselectButton"
+      data-testid="sh-ui-multiselect-button"
+    >
+      Option B
+      <input
+        class="Checkbox"
+        name="b"
+        type="checkbox"
+      />
+    </label>
+    <label
+      class="MultiselectButton"
+      data-testid="sh-ui-multiselect-button"
+    >
+      Option C
+      <input
+        class="Checkbox"
+        name="c"
+        type="checkbox"
+      />
+    </label>
+  </div>
+</div>
+`;
