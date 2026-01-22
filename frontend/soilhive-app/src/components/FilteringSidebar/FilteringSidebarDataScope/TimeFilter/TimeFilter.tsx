@@ -9,7 +9,6 @@ const MAX_TIME = 2022;
 
 interface Props {
   initialState: TimeFilterState;
-  initialMax?: number;
   onChange: (state: TimeFilterState) => void;
 }
 
@@ -23,7 +22,6 @@ export function TimeFilter({ initialState, onChange }: Props) {
   const onTimeChange = useCallback((min: number, max: number) => {
     setSelectedTime({ min, max });
     setIsApplyDisabled(false);
-    console.log(min, max);
   }, []);
 
   const setInitialState = useCallback(() => {

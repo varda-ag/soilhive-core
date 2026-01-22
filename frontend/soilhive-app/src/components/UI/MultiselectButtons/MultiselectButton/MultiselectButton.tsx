@@ -1,17 +1,19 @@
 import { type ChangeEvent } from 'react';
 
 import styles from './MultiselectButton.module.scss';
+import classnames from 'classnames';
 
 interface Props {
   id: string;
   label: string;
   selected: boolean;
+  className?: string;
   onChange: (selected: boolean, id: string) => void;
 }
 
-export function MultiselectButton({ id, label, selected, onChange }: Props) {
+export function MultiselectButton({ id, label, selected, className, onChange }: Props) {
   return (
-    <label data-testid="sh-ui-multiselect-button" className={styles.MultiselectButton}>
+    <label data-testid="sh-ui-multiselect-button" className={classnames(styles.MultiselectButton, className)}>
       {label}
       <input
         type="checkbox"

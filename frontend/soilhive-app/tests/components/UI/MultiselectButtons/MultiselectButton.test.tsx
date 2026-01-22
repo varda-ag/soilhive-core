@@ -12,6 +12,14 @@ describe('MultiselectButton', () => {
     expect(container).toMatchSnapshot();
   });
 
+  it('accepts additional className', () => {
+    const { container } = render(
+      <MultiselectButton className="test-class" id="opt-1" label="Option 1" selected={false} onChange={jest.fn()} />,
+    );
+
+    expect(container.querySelector('.test-class')).toBeInTheDocument();
+  });
+
   it('checkbox is checked when selected=true', () => {
     render(<MultiselectButton id="opt-1" label="Option 1" selected={true} onChange={jest.fn()} />);
 

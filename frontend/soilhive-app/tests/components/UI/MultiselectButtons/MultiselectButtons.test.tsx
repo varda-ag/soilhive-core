@@ -15,6 +15,20 @@ describe('MultiselectButtons', () => {
     expect(container).toMatchSnapshot();
   });
 
+  it('accepts additional className', () => {
+    const { container } = render(<MultiselectButtons className="test-class" items={items} selected={[]} onChange={jest.fn()} />);
+
+    expect(container.querySelector('.test-class')).toBeInTheDocument();
+  });
+
+  it('accepts additional className for buttons', () => {
+    const { container } = render(
+      <MultiselectButtons buttonClassName="test-button-class" items={items} selected={[]} onChange={jest.fn()} />,
+    );
+
+    expect(container.querySelector('.test-button-class')).toBeInTheDocument();
+  });
+
   it('marks checkboxes as checked if their id is in selected', () => {
     render(<MultiselectButtons items={items} selected={['b']} onChange={jest.fn()} />);
     const checkboxes = screen.getAllByRole('checkbox');
