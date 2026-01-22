@@ -15,6 +15,7 @@ interface Props {
   value?: boolean;
   isError?: boolean;
   isDisabled?: boolean;
+  indeterminate?: boolean;
   onChange?: (value: boolean, name?: string) => void;
 }
 
@@ -28,6 +29,7 @@ export function Checkbox({
   value = false,
   isError,
   isDisabled,
+  indeterminate = false,
   onChange,
 }: Props) {
   const [currentValue, setCurrentValue] = useState(value);
@@ -61,7 +63,8 @@ export function Checkbox({
       className={classnames(
         styles.CheckBox,
         sizeClass,
-        { [styles.Checked]: currentValue },
+        { [styles.Checked]: currentValue && !indeterminate },
+        { [styles.Indeterminate]: indeterminate },
         { [styles.Marginless]: !label },
         { [styles.Error]: isError },
         { [styles.Disabled]: isDisabled },

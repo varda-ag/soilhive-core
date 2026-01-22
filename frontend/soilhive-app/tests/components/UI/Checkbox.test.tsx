@@ -77,4 +77,20 @@ describe('Checkbox component', () => {
 
     expect(container).toMatchSnapshot();
   });
+
+  it('applies Indeterminate class when indeterminate=true', () => {
+    render(<Checkbox indeterminate={true} />);
+    expect(screen.getByTestId('sh-ui-checkbox')).toHaveClass('Indeterminate');
+  });
+
+  it('does not apply Checked class when indeterminate=true even if checked=true', () => {
+    render(<Checkbox value={true} indeterminate={true} />);
+    expect(screen.getByTestId('sh-ui-checkbox')).toHaveClass('Indeterminate');
+    expect(screen.getByTestId('sh-ui-checkbox')).not.toHaveClass('Checked');
+  });
+
+  it('applies Checked class when indeterminate=false and value=true', () => {
+    render(<Checkbox value={true} />);
+    expect(screen.getByTestId('sh-ui-checkbox')).toHaveClass('Checked');
+  });
 });
