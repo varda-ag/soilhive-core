@@ -191,7 +191,7 @@ jobs:
       )
     with:
       imageName: soilhive-core-frontend
-      imageVersion: ${{ needs.version.outputs.tag }}
+      imageVersions: ${{ needs.version.outputs.tag }}
     permissions:
       contents: read
       packages: write
@@ -217,7 +217,7 @@ jobs:
         )
     with:
       imageName: soilhive-core-backend
-      imageVersion: ${{ needs.version.outputs.tag }}
+      imageVersions: ${{ needs.version.outputs.tag }}
     permissions:
       contents: read
       packages: write
