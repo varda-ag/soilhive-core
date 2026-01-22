@@ -1,4 +1,4 @@
-import { Accordion, NestedCheckbox, SelectionPills } from 'components/UI';
+import { Accordion, NestedCheckbox, SelectionPills, Toggle } from 'components/UI';
 import { AvailabilityContext } from '../../../contexts/AvailabilityContext';
 import type { NestedCheckboxItemType } from 'types/components';
 import { getBranchIds, getTopLevelSelections } from 'components/UI/NestedCheckbox/nestedCheckboxHelpers';
@@ -7,7 +7,6 @@ import type { Selection } from 'types/components';
 import styles from './FilteringSidebarParameters.module.scss';
 import { useContext, useMemo, useState } from 'react';
 import { filterNestedItems } from 'components/UI/NestedCheckbox/nestedCheckboxHelpers';
-import { Toggle } from 'components/UI/Toggle/Toggle';
 
 export function FilteringSidebarParameters() {
   const availabilityContext = useContext(AvailabilityContext);

@@ -28,7 +28,7 @@ export function NestedCheckboxItem({
   isExpanded = false,
   onToggle,
 }: Props) {
-  const [isOpenedInternal, setIsOpenedInternal] = useState<boolean>(false);
+  const [isOpenedInternal, setIsOpenedInternal] = useState<boolean>(isExpanded);
   const isOpened = isSearching ? item.children !== undefined : isOpenedInternal;
 
   const [prevExpanded, setPrevExpanded] = useState(isExpanded);

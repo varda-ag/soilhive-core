@@ -63,4 +63,11 @@ describe('NestedCheckbox', () => {
     render(<NestedCheckbox items={mockItems} selected={[]} className="custom" onChange={() => {}} />);
     expect(screen.getByTestId('nested-checkbox')).toHaveClass('custom');
   });
+
+  it('passes isExpanded prop down to NestedCheckboxItem children', () => {
+    render(<NestedCheckbox items={mockItems} isExpanded={true} selected={[]} onChange={() => {}} />);
+
+    expect(screen.getByTestId('sh-minus-icon')).toBeInTheDocument();
+    expect(screen.queryByText('First child 2')).toBeInTheDocument();
+  });
 });
