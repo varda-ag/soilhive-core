@@ -68,10 +68,12 @@ jest.mock('components/UI', () => ({
   NestedCheckbox: ({
     items,
     selected,
+    isExpanded,
     onChange,
   }: {
     items: NestedCheckboxItemType[];
     selected: string[];
+    isExpanded: boolean;
     onChange: (selected: string[]) => void;
   }) => {
     const [localSelected, setLocalSelected] = React.useState(selected);
@@ -83,13 +85,18 @@ jest.mock('components/UI', () => ({
     };
 
     return (
-      <div data-testid="nested-checkbox">
+      <div data-testid="nested-checkbox" data-expanded={isExpanded}>
         <div data-testid="nested-checkbox-items">{JSON.stringify(items)}</div>
         <div data-testid="nested-checkbox-selected">{JSON.stringify(localSelected)}</div>
         <button data-testid="nested-checkbox-change" onClick={handleClick} />
       </div>
     );
   },
+  Toggle: ({ labelOne, labelTwo, isToggled, onToggled, className }: any) => (
+    <div data-testid="global-toggle" onClick={onToggled} className={className}>
+      {isToggled ? labelTwo : labelOne}
+    </div>
+  ),
 }));
 
 describe('FilteringSidebarParameters', () => {
@@ -125,5 +132,20 @@ describe('FilteringSidebarParameters', () => {
       mock: 'data',
       soil_properties: ['1'],
     });
+  });
+
+  it('toggles the expansion state when the toggle is clicked', () => {
+    render(<FilteringSidebarParameters />);
+
+    const toggle = screen.getByTestId('global-toggle');
+    const checkox = screen.getByTestId('nested-checkbox');
+
+    fireEvent.click(toggle);
+
+    expect(checkox).toHaveAttribute('data-expanded', 'false');
+
+    fireEvent.click(toggle);
+
+    expect(checkox).toHaveAttribute('data-expanded', 'false');
   });
 });

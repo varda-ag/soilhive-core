@@ -1,4 +1,4 @@
-import { Accordion, NestedCheckbox, SelectionPills } from 'components/UI';
+import { Accordion, NestedCheckbox, SelectionPills, Toggle } from 'components/UI';
 import { AvailabilityContext } from '../../../contexts/AvailabilityContext';
 import type { NestedCheckboxItemType } from 'types/components';
 import { getBranchIds, getTopLevelSelections } from 'components/UI/NestedCheckbox/nestedCheckboxHelpers';
@@ -22,6 +22,8 @@ export function FilteringSidebarParameters() {
     selectedSoilProperties,
     setSelectedSoilProperties,
   } = availabilityContext;
+
+  const [soilPropertiesExpanded, setSoilPropertiesExpanded] = useState(false);
 
   const nestedSoilProperties = useMemo((): NestedCheckboxItemType[] => {
     const nodeMap: { [id: string]: NestedCheckboxItemType } = {};
@@ -100,11 +102,20 @@ export function FilteringSidebarParameters() {
             onChange={e => setSearchTerm(e.target.value)}
             className={styles.SearchInput}
           />
+          <Toggle
+            labelOne="Expand All"
+            labelTwo="Collapse All"
+            isToggled={soilPropertiesExpanded}
+            onToggle={() => {
+              setSoilPropertiesExpanded(!soilPropertiesExpanded);
+            }}
+          />
           <NestedCheckbox
             className={styles.SoilPropertiesCheckbox}
             items={filteredProperties}
             selected={selectedSoilProperties}
             isSearching={searchTerm.trim().length > 0}
+            isExpanded={soilPropertiesExpanded}
             onChange={onChange}
           />
         </div>

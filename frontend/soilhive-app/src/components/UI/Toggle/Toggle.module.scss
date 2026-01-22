@@ -1,0 +1,10 @@
+.LinkToggle {
+  display: flex;
+  justify-content: end;
+
+  span {
+    color: var(--color-cta-default-solid);
+    text-decoration: underline;
+    cursor: pointer;
+  }
+}
