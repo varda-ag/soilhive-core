@@ -1,8 +1,9 @@
-import { DataSource } from 'typeorm';
+import { DataSource, In } from 'typeorm';
 import { PropertyMapping } from '../interfaces/PropertyMapping';
 import UnitConversionEntity from '../entities/UnitConversion';
 import DataMappingEntity from '../entities/DataMapping';
-import { PREVIEW_PAGE_SIZE } from '../constants/constants';
+import FileEntity from '../entities/File';
+import { DATA_PREVIEW_SIZE } from '../constants/constants';
 
 export default class VectorDataLoad {
   /**
@@ -17,7 +18,24 @@ export default class VectorDataLoad {
     }
     const dataMapping: any = mapping.data_mapping;
 
-    // Process property columns (object types) - equivalent to jsonb_each
+    const file_repo = dataSource.getRepository(FileEntity);
+    await file_repo.findOneByOrFail({ id: fileId });
+
+    const conversionSlugs: string[] = Object.values(dataMapping)
+      .filter((mapping) => typeof mapping === 'object' && (mapping as PropertyMapping).conversion_slug !== undefined)
+      .map((mapping) => (mapping as PropertyMapping).conversion_slug!);
+
+    const uc_repo = dataSource.getRepository(UnitConversionEntity);
+    const propInfos: UnitConversionEntity[] = conversionSlugs.length > 0
+      ? await uc_repo.findBy({ slug: In(conversionSlugs) })
+      : [];
+
+    const propInfoMap = propInfos.reduce((acc, info) => {
+      acc[info.slug] = info;
+      return acc;
+    }, {} as Map<string, UnitConversionEntity>);
+
+    // Process metadata (string types) and property columns (object types)
     let propertiesCleanup = '';
     let metadataCols = '';
     for (const [field, mapping] of Object.entries(dataMapping)) {
@@ -26,13 +44,9 @@ export default class VectorDataLoad {
         metadataCols += `"${field}" AS "${mapping}", `;
       } else if (typeof mapping === 'object') {
         const props = mapping as PropertyMapping;
-        const uc_repo = dataSource.getRepository(UnitConversionEntity);
 
-        const propInfo: UnitConversionEntity | null =
-          props.conversion_slug !== undefined ? await uc_repo.findOneBy({ slug: props.conversion_slug }) : null;
-
+        const propInfo = props.conversion_slug ? propInfoMap[props.conversion_slug] ?? null : null;
         const conversionFormula = propInfo?.conversion_formula ? propInfo.conversion_formula.replace(/"/g, '').trim() : null;
-
         const expr = conversionFormula ? conversionFormula.replace(/x/g, `(raw."${field}")::numeric`) : `(raw."${field}")::numeric`;
 
         if (props.min_val !== undefined && props.max_val !== undefined) {
@@ -56,7 +70,7 @@ export default class VectorDataLoad {
       query = query.where('raw.record_id IN (:...drop_records)', { drop_records: dataMapping.drop_records });
     }
     // Workaround using raw query to be able to use dynamic table name without entity
-    const results = await dataSource.manager.query(query.take(PREVIEW_PAGE_SIZE).getSql());
+    const results = await dataSource.manager.query(query.take(DATA_PREVIEW_SIZE).getSql());
     return results;
   };
 }
