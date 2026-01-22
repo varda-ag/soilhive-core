@@ -1,3 +1,11 @@
+## [0.15.18](https://github.com/varda-ag/soilhive-core/compare/v0.15.17...v0.15.18) (2026-01-22)
+
+
+### Bug Fixes
+
+* **UI:** :bug: SP-4786 fix collapse for nested checkbox ([#117](https://github.com/varda-ag/soilhive-core/issues/117)) ([1e8f93b](https://github.com/varda-ag/soilhive-core/commit/1e8f93bf79215019accf8f5978c8d74b2a4c7d41))
+* update reference on docker-cleanup workflow ([8dd4795](https://github.com/varda-ag/soilhive-core/commit/8dd4795fda1f681ebd6b097a1b46bd24b104fbc8))
+
 ## [0.15.17](https://github.com/varda-ag/soilhive-core/compare/v0.15.16...v0.15.17) (2026-01-22)
 
 
