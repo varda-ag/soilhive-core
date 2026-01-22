@@ -1,0 +1,48 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`DownloadPreview renders download preview page 1`] = `
+<div>
+  <div
+    class="DownloadPreviewTable"
+  >
+    <div
+      class="SectionTitle"
+    >
+      Tabular preview
+    </div>
+    <div
+      class="Content"
+    >
+      <div>
+        Mock PrimeReactProvider 
+        <div>
+          Mock DataTable 
+          <div>
+            Mock Column
+          </div>
+          <div>
+            Mock Column
+          </div>
+          <div>
+            Mock Column
+          </div>
+          <div>
+            Mock Column
+          </div>
+          <div>
+            Mock Column
+          </div>
+          <div>
+            Mock Column
+          </div>
+        </div>
+      </div>
+    </div>
+    <div
+      class="Footer"
+    >
+      This is just a preview of the soil data we have filtered by area and the filters you selected, to see all the data available, download it.
+    </div>
+  </div>
+</div>
+`;

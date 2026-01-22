@@ -2,14 +2,14 @@ import React from 'react';
 import { act, render } from '@testing-library/react';
 import DownloadPreview from '../../src/pages/DownloadPreview';
 
-jest.mock('components/DownloadPreview/DownloadPreviewTable', () => {
-  const DownloadPreviewTable = () => <div>Mock DownloadPreviewTable</div>;
-  return DownloadPreviewTable;
-});
-
 jest.mock('components/DownloadPreview/DownloadPreviewSummary', () => {
   const DownloadPreviewSummary = () => <div>Mock DownloadPreviewSummary</div>;
   return DownloadPreviewSummary;
+});
+
+jest.mock('components/DownloadPreview/DownloadPreviewDataSection', () => {
+  const DownloadPreviewDataSection = () => <div>Mock DownloadPreviewDataSection</div>;
+  return DownloadPreviewDataSection;
 });
 
 jest.mock('../../src/contexts/AvailabilityContext', () => {

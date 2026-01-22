@@ -1,0 +1,46 @@
+@import 'styles/variables/breakpoints';
+
+.DownloadPreviewTable {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+
+  .SectionTitle, .Footer {
+    font-family: 'Inter', Arial, Helvetica, sans-serif;
+    letter-spacing: 0px;
+    vertical-align: middle;
+  }
+
+  .SectionTitle {    
+    font-weight: var(--font-weight-bold);
+    font-size: var(--font-size-xs);
+    line-height: var(--line-height-lg);
+    padding: 9px 20px 18px 20px;
+    color: var(--color-neutral-dark-400);
+
+    @media (max-width: $bp-mobile-max) {
+      display: none;
+    }
+  }
+
+  .Content {
+    flex-grow: 1;
+    padding: 9px 20px 27px 20px;
+
+    @media (max-width: $bp-mobile-max) {
+      padding: 0;
+    }
+  }
+
+  .Footer {
+    padding: 8px 12px;
+    background-color: var(--color-neutral-light);
+    font-weight: var(--font-weight-regular);
+    font-size: var(--font-size-sm);
+    line-height: 20px;
+
+    @media (max-width: $bp-mobile-max) {
+      display: none;
+    }
+  }
+}

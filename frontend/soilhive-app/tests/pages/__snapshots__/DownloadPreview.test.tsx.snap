@@ -87,7 +87,7 @@ exports[`DownloadPreview calls setPreview(false) when clicking on the back butto
         class="Data HideInMobile"
       >
         <div>
-          Mock DownloadPreviewTable
+          Mock DownloadPreviewDataSection
         </div>
       </div>
     </div>
@@ -200,7 +200,7 @@ exports[`DownloadPreview renders download preview page 1`] = `
         class="Data HideInMobile"
       >
         <div>
-          Mock DownloadPreviewTable
+          Mock DownloadPreviewDataSection
         </div>
       </div>
     </div>
