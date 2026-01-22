@@ -1,3 +1,10 @@
+## [0.15.17](https://github.com/varda-ag/soilhive-core/compare/v0.15.16...v0.15.17) (2026-01-22)
+
+
+### Bug Fixes
+
+* :bug: Using simplified geometry in BE requests ([#115](https://github.com/varda-ag/soilhive-core/issues/115)) ([b66eb5d](https://github.com/varda-ag/soilhive-core/commit/b66eb5d9f8fcbcc5e91e18bd26dd0793d8115380))
+
 ## [0.15.16](https://github.com/varda-ag/soilhive-core/compare/v0.15.15...v0.15.16) (2026-01-22)
 
 ## [0.15.15](https://github.com/varda-ag/soilhive-core/compare/v0.15.14...v0.15.15) (2026-01-21)
