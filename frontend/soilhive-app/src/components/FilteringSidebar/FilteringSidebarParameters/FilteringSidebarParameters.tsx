@@ -114,7 +114,7 @@ export function FilteringSidebarParameters() {
             className={styles.SoilPropertiesCheckbox}
             items={filteredProperties}
             selected={selectedSoilProperties}
-            isSearching={searchTerm.trim().length > 0}
+            isSearching={searchTerm.trim().length > 0 && soilPropertiesExpanded}
             isExpanded={soilPropertiesExpanded}
             onChange={onChange}
           />
