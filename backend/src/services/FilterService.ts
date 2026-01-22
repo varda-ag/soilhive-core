@@ -2,13 +2,13 @@ import { valid } from 'geojson-validation';
 import { StatusCodes } from 'http-status-codes';
 import { hasher } from 'node-object-hash';
 import { JsonStorage } from '../entities/JsonStorage';
-import { DatasetFilter, FilteredDataset, PostDatasetFilterResponse, StoredDatasetFilter } from '../interfaces/DatasetFilter';
+import { DataFilter, FilteredDataset, PostDatasetFilterResponse, StoredDataFilter } from '../interfaces/DatasetFilter';
 import { RequestData } from '../interfaces/RequestData';
 import { ErrorResponse } from '../utils/error';
 import SoilDataStorage from '../data-layer/SoilDataStorage';
 
 export default class FilterService {
-  postFilter = async (requestData: RequestData, filter: DatasetFilter): Promise<PostDatasetFilterResponse> => {
+  createFilter = async (requestData: RequestData, filter: DataFilter): Promise<PostDatasetFilterResponse> => {
     // Validate geometries in the payload
     for (const geometry of filter.geometries) {
       if (!['Polygon', 'MultiPolygon'].includes(geometry.type)) {
@@ -49,7 +49,7 @@ export default class FilterService {
     };
   };
 
-  saveFilterInDB = async (requestData: RequestData, filter: StoredDatasetFilter) => {
+  saveFilterInDB = async (requestData: RequestData, filter: StoredDataFilter) => {
     if (!requestData.token) {
       // Only logged in users can save filters
       return;

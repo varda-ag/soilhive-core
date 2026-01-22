@@ -5,7 +5,7 @@ import FilterService from '../services/FilterService';
 const filterService = new FilterService();
 
 export const postDataFilters = async (req: Request, res: Response) => {
-  const data = await filterService.postFilter(req.customData, req.body);
+  const data = await filterService.createFilter(req.customData, req.body);
   res.status(StatusCodes.CREATED).json(data);
 };
 
