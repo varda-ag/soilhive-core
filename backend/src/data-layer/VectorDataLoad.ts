@@ -22,18 +22,19 @@ export default class VectorDataLoad {
     await file_repo.findOneByOrFail({ id: fileId });
 
     const conversionSlugs: string[] = Object.values(dataMapping)
-      .filter((mapping) => typeof mapping === 'object' && (mapping as PropertyMapping).conversion_slug !== undefined)
-      .map((mapping) => (mapping as PropertyMapping).conversion_slug!);
+      .filter(mapping => typeof mapping === 'object' && (mapping as PropertyMapping).conversion_slug !== undefined)
+      .map(mapping => (mapping as PropertyMapping).conversion_slug!);
 
     const uc_repo = dataSource.getRepository(UnitConversionEntity);
-    const propInfos: UnitConversionEntity[] = conversionSlugs.length > 0
-      ? await uc_repo.findBy({ slug: In(conversionSlugs) })
-      : [];
+    const propInfos: UnitConversionEntity[] = conversionSlugs.length > 0 ? await uc_repo.findBy({ slug: In(conversionSlugs) }) : [];
 
-    const propInfoMap = propInfos.reduce((acc, info) => {
-      acc[info.slug] = info;
-      return acc;
-    }, {} as Map<string, UnitConversionEntity>);
+    const propInfoMap = propInfos.reduce(
+      (acc, info) => {
+        acc[info.slug] = info;
+        return acc;
+      },
+      {} as Map<string, UnitConversionEntity>,
+    );
 
     // Process metadata (string types) and property columns (object types)
     let propertiesCleanup = '';
@@ -45,7 +46,7 @@ export default class VectorDataLoad {
       } else if (typeof mapping === 'object') {
         const props = mapping as PropertyMapping;
 
-        const propInfo = props.conversion_slug ? propInfoMap[props.conversion_slug] ?? null : null;
+        const propInfo = props.conversion_slug ? (propInfoMap[props.conversion_slug] ?? null) : null;
         const conversionFormula = propInfo?.conversion_formula ? propInfo.conversion_formula.replace(/"/g, '').trim() : null;
         const expr = conversionFormula ? conversionFormula.replace(/x/g, `(raw."${field}")::numeric`) : `(raw."${field}")::numeric`;
 
