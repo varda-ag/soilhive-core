@@ -59,7 +59,7 @@ export default class FilterService {
   };
 
   getCoverage = async (requestData: RequestData, _filterId: string): Promise<FilteredDataset[]> => {
-    const filter: StoredDataFilter = {}; // TODO: get filter from DB
+    const filter: StoredDataFilter = { geometries: [], parameters: {}, id: '', name: '' }; // TODO: get filter from DB
 
     const sds = new SoilDataStorage();
 
@@ -69,10 +69,6 @@ export default class FilterService {
       filteringPromises.push(sds.filter(requestData.entityManager, g, filter.parameters));
     }
     // Wait for all filtering to complete
-    const results = (await Promise.all(filteringPromises)).map(res => {
-      return { datasets: res };
-    });
-
-    return results;
+    return (await Promise.all(filteringPromises)).flat();
   };
 }

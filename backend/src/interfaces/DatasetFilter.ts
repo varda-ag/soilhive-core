@@ -28,7 +28,3 @@ export interface FilteredDataset extends FilterCriteria {
   name: string;
   dataset_layer_count: number;
 }
-
-export interface ResultItem {
-  datasets: FilteredDataset[];
-}
