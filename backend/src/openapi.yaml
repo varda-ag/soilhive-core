@@ -378,20 +378,13 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /data-filters/{filterId}/data:
-    parameters:
-      - name: filterId
-        in: path
-        required: true
-        schema:
-          type: string
-        description: Unique filter identifier
+  /soil-data:
     get:
-      x-eov-operation-handler: controllers/data-filters
+      x-eov-operation-handler: controllers/soil-data
       x-eov-operation-id: getSoilData
       summary: Retrieves soil data
       tags:
-        - data-filters
+        - soil-data
       security:
         - bearerAuth: []
         - {}
@@ -404,6 +397,13 @@ paths:
             type: array
             items:
               type: string
+          explode: false
+        - in: query
+          name: filterId
+          required: false
+          description: ID of a stored data filter to apply
+          schema:
+            type: string
           explode: false
         - in: query
           name: limit
@@ -424,7 +424,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SoilDataResponse'
+                type: array
+                items:
+                  $ref: '#/components/schemas/SoilDataSample'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -628,7 +630,7 @@ components:
         - mimeType
         - uploadedAt
 
-    FilterableMetadata:
+    FilterCriteria:
       type: object
       properties:
         data_types:
@@ -671,14 +673,14 @@ components:
           items:
             $ref: '../src/GeoJSON-OAS3.yaml#/components/schemas/Geometry'
         parameters:
-          $ref: '#/components/schemas/FilterableMetadata'
+          $ref: '#/components/schemas/FilterCriteria'
       required:
         - geometries
         - parameters
 
     FilteredDataset:
       allOf:
-        - $ref: '#/components/schemas/FilterableMetadata'
+        - $ref: '#/components/schemas/FilterCriteria'
         - type: object
           properties:
             id:
@@ -693,23 +695,23 @@ components:
             - dataset_layer_count
 
     StoredDataFilter:
-      allOf:
-        - $ref: '#/components/schemas/DataFilter'
-        - type: object
-          properties:
-            id:
-              type: string
-              description: Filter identifier
-            name:
-              type: string
-              description: Human readable name for the filter
+      type: object
+      properties:
+        id:
+          type: string
+          description: Filter identifier
+        name:
+          type: string
+          description: Human readable name for the filter
+        filter:
+          $ref: '#/components/schemas/DataFilter'
 
     FilteredDatasetsList:
       type: array
       items:
         $ref: '#/components/schemas/FilteredDataset'
 
-    SoilDataResponse:
+    SoilDataSample:
       type: object
       properties:
         dataset:
