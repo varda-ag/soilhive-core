@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.16.0 (2026-01-23)
+
+## What's Changed
+* chore(ci): remove release-please bootstrap config by @Butterneck in https://github.com/varda-ag/soilhive-core/pull/121
+* refactor: :art: Endpoint renaming by @svaccari in https://github.com/varda-ag/soilhive-core/pull/118
+* feat: SP-4806 - FilteringSidebarDatascope filters UI part by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/116
+* refactor: filter refactor by @svaccari in https://github.com/varda-ag/soilhive-core/pull/123
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.15.19...v0.16.0
+
 ## 0.15.19 (2026-01-23)
 
 **Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.15.18...v0.15.19
