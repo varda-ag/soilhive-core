@@ -378,20 +378,13 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /data-filters/{filterId}/data:
-    parameters:
-      - name: filterId
-        in: path
-        required: true
-        schema:
-          type: string
-        description: Unique filter identifier
+  /soil-data:
     get:
-      x-eov-operation-handler: controllers/data-filters
+      x-eov-operation-handler: controllers/soil-data
       x-eov-operation-id: getSoilData
       summary: Retrieves soil data
       tags:
-        - data-filters
+        - soil-data
       security:
         - bearerAuth: []
         - {}
@@ -404,6 +397,13 @@ paths:
             type: array
             items:
               type: string
+          explode: false
+        - in: query
+          name: filterId
+          required: false
+          description: ID of a stored data filter to apply
+          schema:
+            type: string
           explode: false
         - in: query
           name: limit
@@ -424,7 +424,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SoilDataResponse'
+                type: array
+                items:
+                  $ref: '#/components/schemas/SoilDataSample'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -709,7 +711,7 @@ components:
       items:
         $ref: '#/components/schemas/FilteredDataset'
 
-    SoilDataResponse:
+    SoilDataSample:
       type: object
       properties:
         dataset:
