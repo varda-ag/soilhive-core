@@ -628,7 +628,7 @@ components:
         - mimeType
         - uploadedAt
 
-    FilterableMetadata:
+    FilterCriteria:
       type: object
       properties:
         data_types:
@@ -671,14 +671,14 @@ components:
           items:
             $ref: '../src/GeoJSON-OAS3.yaml#/components/schemas/Geometry'
         parameters:
-          $ref: '#/components/schemas/FilterableMetadata'
+          $ref: '#/components/schemas/FilterCriteria'
       required:
         - geometries
         - parameters
 
     FilteredDataset:
       allOf:
-        - $ref: '#/components/schemas/FilterableMetadata'
+        - $ref: '#/components/schemas/FilterCriteria'
         - type: object
           properties:
             id:

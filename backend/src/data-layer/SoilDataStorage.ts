@@ -1,7 +1,7 @@
 import { Polygon, MultiPolygon } from 'geojson';
 import { OverlapType } from '../types/enums';
 import { EntityManager } from 'typeorm';
-import { FilteredDataset, FilterableMetadata } from '../interfaces/DatasetFilter';
+import { FilteredDataset, FilterCriteria } from '../interfaces/DatasetFilter';
 import DatasetEntity from '../entities/Dataset';
 import DatasetLayerEntity from '../entities/DatasetLayer';
 
@@ -29,11 +29,7 @@ export default class SoilDataStorage {
     return new Map(results.map(row => [row.dataset_id, row.overlap_type as OverlapType]));
   };
 
-  filter = async (
-    entityManager: EntityManager,
-    geometry: Polygon | MultiPolygon,
-    filters: FilterableMetadata,
-  ): Promise<FilteredDataset[]> => {
+  filter = async (entityManager: EntityManager, geometry: Polygon | MultiPolygon, filters: FilterCriteria): Promise<FilteredDataset[]> => {
     const geom = JSON.stringify(geometry);
     const repo = entityManager.getRepository(DatasetLayerEntity);
     const query = await repo
@@ -78,7 +74,7 @@ export default class SoilDataStorage {
   };
 }
 
-const applyFiltersToQuery = (query: any, filters: FilterableMetadata) => {
+const applyFiltersToQuery = (query: any, filters: FilterCriteria) => {
   if (filters.data_types && filters.data_types.length > 0) {
     query.andWhere('ds.gis_datatype IN (:...data_types)', { data_types: filters.data_types });
   }
