@@ -1,9 +1,7 @@
 {
-    "bootstrap-sha": "74090eec9aff784bdb4856477a2bdaad77ba0ac3",
     "include-component-in-tag": false,
     "release-type": "node",
     "changelog-type": "github",
-    "release-as": "0.15.19",
     "packages": {
         ".": {}
     }
