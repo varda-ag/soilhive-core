@@ -2,7 +2,7 @@ import { useFilteredDatasets } from 'hooks/useFilteredDatasets';
 import React, { createContext, useState, type ReactNode, useCallback, useMemo, useEffect } from 'react';
 import type { AvailabilityDataset, DatasetSummary } from 'types/availability';
 import { mapFilteredDatasetToAvailabilityDataset } from '../adapters';
-import type { SoilProperty, FilteredDataset, FilterCriteria } from 'types/backend';
+import type { SoilProperty, FilterCriteria } from 'types/backend';
 import { computeDatasetSummary } from '../domain';
 import type { MultiPolygon, Polygon } from 'geojson';
 import { useSoilProperties } from '../hooks/useSoilProperties';
@@ -91,19 +91,15 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
 
   const selectAllDatasets = useCallback(
     (select: boolean) => {
-      setSelectedDatasets(
-        select && fullFilterResults?.results
-          ? fullFilterResults?.results?.flatMap(result => result.datasets.map(dataset => dataset.id))
-          : [],
-      );
+      setSelectedDatasets(select && fullFilterResults ? fullFilterResults?.map(result => result.id) : []);
       setIsAllSelected(select);
     },
     [fullFilterResults],
   );
 
   const datasets = useMemo(() => {
-    if (!fullFilterResults || !fullFilterResults.results) return [];
-    return fullFilterResults.results.flatMap(res => res.datasets.map(mapFilteredDatasetToAvailabilityDataset));
+    if (!fullFilterResults) return [];
+    return fullFilterResults.map(mapFilteredDatasetToAvailabilityDataset);
   }, [fullFilterResults]);
 
   const datasetsSummary = useMemo<DatasetSummary>(() => {
@@ -112,13 +108,9 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
 
   const filteredSoilProperties = useMemo<SoilProperty[]>(() => {
     const properties = new Set<string>();
-    geometryFilterResults?.results.forEach(result =>
-      result.datasets.forEach((dataset: FilteredDataset) => {
-        dataset.soil_properties?.forEach(prop => properties.add(prop));
-      }),
-    );
+    geometryFilterResults?.forEach(dataset => dataset.soil_properties?.forEach(prop => properties.add(prop)));
     return allSoilProperties?.filter(prop => properties.has(prop.slug)) ?? [];
-  }, [allSoilProperties, geometryFilterResults?.results]);
+  }, [allSoilProperties, geometryFilterResults]);
 
   return (
     <AvailabilityContext.Provider

@@ -1,4 +1,4 @@
-import type { DataFilter, PostDatasetFilterResponse, StoredDataFilter } from 'types/backend';
+import type { DataFilter, FilteredDataset, StoredDataFilter } from 'types/backend';
 import { useApiQuery } from './useApiQuery';
 import { useDebounce } from './useDebounce';
 
@@ -13,7 +13,7 @@ export function useFilteredDatasets(filters: DataFilter) {
     enabled: !!debouncedFilters.geometries.length,
   });
 
-  return useApiQuery<PostDatasetFilterResponse>({
+  return useApiQuery<FilteredDataset[]>({
     endpoint: `/data-filters/${filterData?.id}/coverage`,
     method: 'GET',
     queryKey: ['data-filter-coverage', filterData?.id],
