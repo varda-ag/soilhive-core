@@ -18,9 +18,11 @@ export interface DataFilter {
   parameters: FilterCriteria;
 }
 
-export interface StoredDataFilter extends DataFilter {
+export interface StoredDataFilter {
   id: string;
-  name: string;
+  filter: DataFilter;
+  name?: string;
+  owner?: string;
 }
 
 export interface FilteredDataset extends FilterCriteria {

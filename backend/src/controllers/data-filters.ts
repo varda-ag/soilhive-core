@@ -11,12 +11,14 @@ export const postDataFilters = async (req: Request, res: Response) => {
   res.status(StatusCodes.CREATED).json(data);
 };
 
-export const getDataFilters = async (_: Request, __: Response) => {
-  throw new Error('Not implemented');
+export const getDataFilters = async (req: Request, res: Response) => {
+  const data = await filterService.getFilters(req.customData);
+  res.json(data);
 };
 
-export const getDataFilterById = async (_: Request, __: Response) => {
-  throw new Error('Not implemented');
+export const getDataFilterById = async (req: Request, res: Response) => {
+  const data = await filterService.getFilterById(req.customData, req.params['filterId']!);
+  res.json(data);
 };
 
 export const getDataFilterCoverage = async (req: Request, res: Response) => {

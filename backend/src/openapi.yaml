@@ -693,16 +693,16 @@ components:
             - dataset_layer_count
 
     StoredDataFilter:
-      allOf:
-        - $ref: '#/components/schemas/DataFilter'
-        - type: object
-          properties:
-            id:
-              type: string
-              description: Filter identifier
-            name:
-              type: string
-              description: Human readable name for the filter
+      type: object
+      properties:
+        id:
+          type: string
+          description: Filter identifier
+        name:
+          type: string
+          description: Human readable name for the filter
+        filter:
+          $ref: '#/components/schemas/DataFilter'
 
     FilteredDatasetsList:
       type: array
