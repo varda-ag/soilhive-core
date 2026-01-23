@@ -1,8 +1,10 @@
+import { IncomingHttpHeaders } from 'http';
 import request from 'supertest';
 import { app } from '../../src/app';
-import { getSuperAdminToken } from '../helper';
-import { IncomingHttpHeaders } from 'http';
+import { FilteredDataset } from '../../src/interfaces/DatasetFilter';
 import { getDataSource } from '../../src/utils/data-source';
+import { addSyntheticData, syntheticDataOptions } from '../../src/utils/mock';
+import { getSuperAdminToken } from '../helper';
 
 const filteringPolygon = {
   coordinates: [
@@ -151,5 +153,27 @@ describe('Testing /data-filters routes', () => {
   it('Getting a single filter with the wrong ID should return 404', async () => {
     const res = await request(app).get(`/data-filters/078983f9-0d92-46bb-9e7f-70f93b4a94b0`);
     expect(res.statusCode).toBe(404);
+  });
+
+  it('Coverage should return some results', async () => {
+    const layers = 5;
+    const { dataset } = await addSyntheticData({ ...syntheticDataOptions, depthLayers: layers, soilPropertyNames: ['prop1', 'prop2'] });
+    const payload = {
+      parameters: {},
+      geometries: [filteringPolygon],
+    };
+    // Create filter
+    const resPost = await request(app).post('/data-filters').send(payload);
+    const id = resPost.body.id;
+    // Get coverage
+    const resCoverage = await request(app).get(`/data-filters/${id}/coverage`);
+    const results: FilteredDataset[] = resCoverage.body;
+    expect(results.length).toBe(1);
+    expect(results[0].dataset_layer_count).toBe(layers);
+    expect(results[0].soil_properties).toContain('prop1');
+    expect(results[0].soil_properties).toContain('prop2');
+    expect(results[0].licenses).toContain('test_license_1');
+    const resultDatasetIds = results.map(r => r.id);
+    expect(resultDatasetIds).toContain(dataset.id);
   });
 });
