@@ -22,3 +22,8 @@ export type DatasetSummary = {
   depth: string;
   date: string;
 };
+
+export type TimeFilterState = {
+  min?: number;
+  max?: number;
+};

@@ -1,0 +1,54 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`MultirangeSlider renders range inputs with predefined selectedMin/selectedMax 1`] = `
+<div>
+  <div
+    class="Multirange"
+    data-testid="sh-ui-multirange"
+  >
+    <input
+      class="MultirangeThumb MultirangeThumbLeft"
+      max="100"
+      min="0"
+      type="range"
+      value="10"
+    />
+    <input
+      class="MultirangeThumb MultirangeThumbRight"
+      max="100"
+      min="0"
+      type="range"
+      value="90"
+    />
+    <div
+      class="MultirangeSlider"
+    >
+      <div
+        class="MultirangeSliderTrack"
+      />
+      <div
+        class="MultirangeSliderRange"
+        style="left: 10%; width: 80%;"
+      />
+    </div>
+    <div
+      class="MultirangeSliderBox"
+    >
+      <input
+        class="MultirangeSliderInput"
+        max="90"
+        min="0"
+        type="number"
+        value="10"
+      />
+      <input
+        class="MultirangeSliderInput"
+        max="100"
+        min="0"
+        type="number"
+        value="90"
+      />
+    </div>
+  </div>
+</div>
+`;
