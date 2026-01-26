@@ -54,9 +54,9 @@ export function h3IndexesToGeoJSONPolygons(h3Indexes: Array<H3Index>): FeatureCo
  * @returns An array of strings.
  */
 export const bBoxToH3Cells = (bbox: number[], resolution: number): string[] => {
-  console.assert(bbox.length === 4, 'bbox must contain 4 values (minx, miny, maxx, maxy)');
-  console.assert(bbox[0] < bbox[2], `bbox X validation failed: ${bbox[0]} < ${bbox[2]}`);
-  console.assert(bbox[1] < bbox[3], `bbox Y validation failed: ${bbox[1]} < ${bbox[3]}`);
+  if (!(bbox.length === 4)) throw new Error('bbox must contain 4 values (minx, miny, maxx, maxy)');
+  if (!(bbox[0] < bbox[2])) throw new Error(`bbox X validation failed: ${bbox[0]} < ${bbox[2]}`);
+  if (!(bbox[1] < bbox[3])) throw new Error(`bbox Y validation failed: ${bbox[1]} < ${bbox[3]}`);
 
   const longitudeWidth = bbox[2] - bbox[0];
   if (longitudeWidth < Number.EPSILON) {
@@ -155,7 +155,7 @@ export const bBoxToPolygon = (boundingBox: number[]) => {
 };
 
 export function largestPolygon(geometry: MultiPolygon): Polygon {
-  console.assert(geometry.type === 'MultiPolygon', '"geometry" must be a GeoJSON MultiPolygon');
+  if (!(geometry.type === 'MultiPolygon')) throw new Error('"geometry" must be a GeoJSON MultiPolygon');
   let maxArea = 0;
   let largestPolygon = null;
   geometry.coordinates.forEach((polygonCoords: any) => {
@@ -166,7 +166,7 @@ export function largestPolygon(geometry: MultiPolygon): Polygon {
       largestPolygon = polygonCoords;
     }
   });
-  console.assert(largestPolygon !== null, 'No polygon found inside the MultiPolygon');
+  if (!(largestPolygon !== null)) throw new Error('No polygon found inside the MultiPolygon');
   return { ...geometry, type: 'Polygon', coordinates: largestPolygon! };
 }
 
@@ -177,10 +177,9 @@ export function largestPolygon(geometry: MultiPolygon): Polygon {
  * @returns true or false according to if the given point is contained in the feature collection or not
  */
 export function isPointInFeatureCollection(point: [number, number], featureCollection: any) {
-  console.assert(
-    featureCollection?.type === 'FeatureCollection' && Array.isArray(featureCollection?.features),
-    '"featureCollection" must be a valid feature collection',
-  );
+  if (featureCollection?.type !== 'FeatureCollection' || !Array.isArray(featureCollection?.features)) {
+    throw new Error('"featureCollection" must be a valid feature collection');
+  }
   const [lng, lat] = point;
   return featureCollection.features.some((feature: any) => booleanPointInPolygon([lng, lat], feature));
 }

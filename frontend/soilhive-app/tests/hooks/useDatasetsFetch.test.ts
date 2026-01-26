@@ -1,6 +1,6 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { useFilteredDatasets } from 'hooks/useFilteredDatasets';
-import type { DatasetFilter, PostDatasetFilterResponse } from 'types/backend';
+import type { DataFilter, PostDatasetFilterResponse } from 'types/backend';
 
 jest.mock('../../src/api-client/useRequest', () => ({
   useRequest: jest.fn(),
@@ -18,7 +18,7 @@ describe('useDataset hook', () => {
 
     // Arrange 1
     // Some random polygon in northen Africa
-    const initialFilter: DatasetFilter = {
+    const initialFilter: DataFilter = {
       geometries: [
         {
           type: 'Polygon',
@@ -77,7 +77,7 @@ describe('useDataset hook', () => {
 
     // Arrange 2 - change filter
     // Some random polygon in Europe
-    const updatedFilter: DatasetFilter = {
+    const updatedFilter: DataFilter = {
       geometries: [
         {
           type: 'Polygon',

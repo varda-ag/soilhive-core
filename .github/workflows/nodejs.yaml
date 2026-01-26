@@ -1,0 +1,49 @@
+name: NodeJS
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+  workflow_dispatch: {}
+
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+
+  nodejs-frontend:
+    name: Node.js CI
+    uses: varda-ag/.github/.github/workflows/nodejs.yaml@main
+    with:
+      node-version: '22'
+      project-path: './frontend'
+      disable-lint: true
+      disable-unit-tests: true
+      disable-unit-tests-coverage: true
+      disable-integration-tests: true
+      disable-integration-tests-coverage: true
+      disable-e2e-tests: true
+      disable-e2e-tests-coverage: true
+
+  nodejs-backend:
+    name: Node.js CI
+    uses: varda-ag/.github/.github/workflows/nodejs.yaml@main
+    with:
+      node-version: '22'
+      project-path: './backend'
+      disable-lint: true
+      disable-unit-tests: true
+      disable-unit-tests-coverage: true
+      disable-integration-tests: true
+      disable-integration-tests-coverage: true
+      disable-e2e-tests: true
+      disable-e2e-tests-coverage: true
+      # TODO: use pnpm instead of npm
+      use-npm: true
+      use-pnpm: false
+

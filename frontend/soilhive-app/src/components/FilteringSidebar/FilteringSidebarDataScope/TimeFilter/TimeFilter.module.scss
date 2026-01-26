@@ -1,0 +1,12 @@
+.TimeFilter {
+  padding: 0 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+
+  > .TimeFilterActions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+  }
+}

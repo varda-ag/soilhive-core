@@ -1,6 +1,6 @@
 import { type Polygon, type MultiPolygon } from 'geojson';
 
-export interface FilterableDatasetMetadata {
+export interface FilterCriteria {
   data_types?: string[];
   licenses?: string[];
   min_sampling_date?: string;
@@ -14,17 +14,17 @@ export interface FilterableDatasetMetadata {
   soil_groups?: string[];
 }
 
-export interface DatasetFilter {
+export interface DataFilter {
   geometries: (Polygon | MultiPolygon)[];
-  parameters: FilterableDatasetMetadata;
+  parameters: FilterCriteria;
 }
 
-export interface StoredDatasetFilter extends DatasetFilter {
+export interface StoredDataFilter extends DataFilter {
   id: string;
   name: string;
 }
 
-export interface FilteredDataset extends FilterableDatasetMetadata {
+export interface FilteredDataset extends FilterCriteria {
   id: string;
   name: string;
   dataset_layer_count: number;
@@ -34,7 +34,7 @@ export interface ResultItem {
   datasets: FilteredDataset[];
 }
 
-export interface PostDatasetFilterResponse extends StoredDatasetFilter {
+export interface PostDatasetFilterResponse extends StoredDataFilter {
   results: ResultItem[];
 }
 

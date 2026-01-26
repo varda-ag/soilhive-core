@@ -1,10 +1,11 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { NestedCheckboxItem } from 'components/UI/NestedCheckbox/NestedCheckboxItem/NestedCheckboxItem';
+import { useState } from 'react';
 import type { NestedCheckboxItemType } from 'types/components';
 
 jest.mock('components/UI/Checkbox/Checkbox', () => ({
-  Checkbox: ({ label, value, onChange }: any) => (
-    <div data-testid="mock-checkbox" onClick={() => onChange(!value)}>
+  Checkbox: ({ label, value, indeterminate, onChange }: any) => (
+    <div data-testid="mock-checkbox" data-value={value} data-indeterminate={indeterminate} onClick={() => onChange(!value)}>
       {label}
     </div>
   ),
@@ -55,5 +56,68 @@ describe('NestedCheckboxItem', () => {
     render(<NestedCheckboxItem item={rootItem} selected={[]} onToggle={jest.fn()} />);
 
     expect(screen.queryByTestId('sh-plus-icon')).not.toBeInTheDocument();
+  });
+
+  it('shows intermidiate state when some children are selected', () => {
+    render(<NestedCheckboxItem item={mockItem} selected={['child-1']} onToggle={jest.fn()} />);
+
+    const checkbox = screen.getByTestId('mock-checkbox');
+    expect(checkbox).toHaveAttribute('data-indeterminate', 'true');
+    expect(checkbox).toHaveAttribute('data-value', 'false');
+  });
+
+  it('shows check state when all childrent are selected', () => {
+    render(<NestedCheckboxItem item={mockItem} selected={['child-1', 'child-2']} onToggle={jest.fn} />);
+
+    const chekcbox = screen.getByTestId('mock-checkbox');
+    expect(chekcbox).toHaveAttribute('data-indeterminate', 'false');
+    expect(chekcbox).toHaveAttribute('data-value', 'true');
+  });
+
+  it('shows unchecked state when no children is selected', () => {
+    render(<NestedCheckboxItem item={mockItem} selected={[]} onToggle={jest.fn()} />);
+
+    expect(screen.getByTestId('mock-checkbox')).toHaveAttribute('data-indeterminate', 'false');
+    expect(screen.getByTestId('mock-checkbox')).toHaveAttribute('data-value', 'false');
+  });
+
+  it('expands automatically when isExpanded prop is set to true', () => {
+    render(<NestedCheckboxItem item={mockItem} selected={[]} isExpanded={true} onToggle={jest.fn} />);
+
+    expect(screen.getByText('Child 1')).toBeInTheDocument();
+    expect(screen.getByText('Child 2')).toBeInTheDocument();
+  });
+
+  it('syncs internal state when isExpanded prop changes from false to true', () => {
+    const TestHelper = ({ initiallyExpanded }: { initiallyExpanded: boolean }) => {
+      const [expanded, setExpanded] = useState(initiallyExpanded);
+
+      return (
+        <>
+          <button data-testid="toggle-btn" onClick={() => setExpanded(prev => !prev)}>
+            Toggle
+          </button>
+          <NestedCheckboxItem item={mockItem} selected={[]} isExpanded={expanded} onToggle={jest.fn()} />
+        </>
+      );
+    };
+
+    render(<TestHelper initiallyExpanded={false} />);
+
+    expect(screen.queryByText('Child 1')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('toggle-btn'));
+
+    expect(screen.queryByText('Child 1')).toBeInTheDocument();
+  });
+
+  it('allows manual collapse even if global isExpanded is true', () => {
+    render(<NestedCheckboxItem item={mockItem} selected={[]} isExpanded={true} onToggle={jest.fn()} />);
+
+    const toggleIcon = screen.getByTestId('sh-minus-icon');
+    fireEvent.click(toggleIcon);
+
+    expect(screen.queryByText('Child 1')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('sh-plus-icon')).toBeInTheDocument();
   });
 });

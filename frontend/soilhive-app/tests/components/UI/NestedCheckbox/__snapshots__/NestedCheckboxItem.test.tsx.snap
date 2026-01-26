@@ -6,7 +6,9 @@ exports[`NestedCheckboxItem toggles children visibility when plus icon is clicke
     class="NestedCheckboxItem"
   >
     <div
+      data-indeterminate="false"
       data-testid="mock-checkbox"
+      data-value="false"
     >
       <svg
         class="ToggleIcon"
@@ -23,7 +25,9 @@ exports[`NestedCheckboxItem toggles children visibility when plus icon is clicke
         class="NestedCheckboxItem"
       >
         <div
+          data-indeterminate="false"
           data-testid="mock-checkbox"
+          data-value="false"
         >
           Child 1
         </div>
@@ -32,7 +36,9 @@ exports[`NestedCheckboxItem toggles children visibility when plus icon is clicke
         class="NestedCheckboxItem"
       >
         <div
+          data-indeterminate="false"
           data-testid="mock-checkbox"
+          data-value="false"
         >
           Child 2
         </div>

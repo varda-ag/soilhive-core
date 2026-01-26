@@ -1,0 +1,23 @@
+name: Commitlint
+
+on:
+  pull_request:
+    types: 
+      - 'opened'
+      - 'edited'
+      - 'reopened'
+      - 'synchronize'
+    branches:
+      - main
+
+jobs:
+
+  commitlint:
+    uses: varda-ag/.github/.github/workflows/commitlint.yaml@main
+    with:
+      pr_base_sha: ${{ github.event.pull_request.base.sha }}
+      pr_head_sha: ${{ github.event.pull_request.head.sha }}
+      pr_title: ${{ github.event.pull_request.title }}
+    permissions:
+      contents: read
+      pull-requests: write

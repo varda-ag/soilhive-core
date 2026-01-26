@@ -1,11 +1,12 @@
-import { Accordion, NestedCheckbox, SelectionPills } from 'components/UI';
+import { Accordion, NestedCheckbox, SelectionPills, Toggle } from 'components/UI';
 import { AvailabilityContext } from '../../../contexts/AvailabilityContext';
 import type { NestedCheckboxItemType } from 'types/components';
 import { getBranchIds, getTopLevelSelections } from 'components/UI/NestedCheckbox/nestedCheckboxHelpers';
 import type { Selection } from 'types/components';
 
 import styles from './FilteringSidebarParameters.module.scss';
-import { useContext, useMemo } from 'react';
+import { useContext, useMemo, useState } from 'react';
+import { filterNestedItems } from 'components/UI/NestedCheckbox/nestedCheckboxHelpers';
 
 export function FilteringSidebarParameters() {
   const availabilityContext = useContext(AvailabilityContext);
@@ -21,6 +22,8 @@ export function FilteringSidebarParameters() {
     selectedSoilProperties,
     setSelectedSoilProperties,
   } = availabilityContext;
+
+  const [soilPropertiesExpanded, setSoilPropertiesExpanded] = useState(false);
 
   const nestedSoilProperties = useMemo((): NestedCheckboxItemType[] => {
     const nodeMap: { [id: string]: NestedCheckboxItemType } = {};
@@ -79,16 +82,42 @@ export function FilteringSidebarParameters() {
     label: item.label,
   }));
 
+  const [searchTerm, setSearchTerm] = useState<string>('');
+
+  const filteredProperties = useMemo(() => filterNestedItems(nestedSoilProperties, searchTerm), [nestedSoilProperties, searchTerm]);
+
   return (
     <div className={styles.FilteringSidebarParameters}>
       {isLoadingSoilProperties && <p>Loading soil properties...</p>}
       <Accordion
         title="Soil Properties"
         type="secondary"
-        pillsSlot={<SelectionPills selections={pillSelections} onRemove={handlePillRemove} />}
+        pillsSlot={pillSelections.length > 0 ? <SelectionPills selections={pillSelections} onRemove={handlePillRemove} /> : null}
       >
         <div className={styles.SoilProperties}>
-          <NestedCheckbox items={nestedSoilProperties} selected={selectedSoilProperties} onChange={onChange} />
+          <input
+            type="text"
+            placeholder="Search soil properties"
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            className={styles.SearchInput}
+          />
+          <Toggle
+            labelOne="Expand All"
+            labelTwo="Collapse All"
+            isToggled={soilPropertiesExpanded}
+            onToggle={() => {
+              setSoilPropertiesExpanded(!soilPropertiesExpanded);
+            }}
+          />
+          <NestedCheckbox
+            className={styles.SoilPropertiesCheckbox}
+            items={filteredProperties}
+            selected={selectedSoilProperties}
+            isSearching={searchTerm.trim().length > 0 && soilPropertiesExpanded}
+            isExpanded={soilPropertiesExpanded}
+            onChange={onChange}
+          />
         </div>
       </Accordion>
       <Accordion title="Soil Groups" type="secondary">

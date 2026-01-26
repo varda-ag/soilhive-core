@@ -1,6 +1,6 @@
 import { getToken } from '../auth/tokenStore';
 import { handleError } from './error';
-import { APIRequestConfig } from './types/api';
+import { type APIRequestConfig } from './types/api';
 
 export async function httpClient<T = any>(config: APIRequestConfig): Promise<T> {
   const { url, method = 'GET', headers = {}, body, signal, isBlobResponse } = config;

@@ -22,11 +22,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/AuthConfig'
         '404':
-          description: Configuration not found
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
 
   /oauth/token:
     post:
@@ -101,11 +99,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ConfigItem'
         '400':
-          description: Invalid input data
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          $ref: '#/components/responses/BadRequest'
     get:
       x-eov-operation-handler: controllers/config
       x-eov-operation-id: getConfig
@@ -120,11 +114,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ConfigItem'
         '404':
-          description: Configuration not found
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+          $ref: '#/components/responses/NotFound'
     delete:
       x-eov-operation-handler: controllers/config
       x-eov-operation-id: deleteConfig
@@ -180,11 +170,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/FileDescriptor'
         '400':
-          $ref: '#/components/schemas/ErrorResponse'
+          $ref: '#/components/responses/BadRequest'
         '401':
-          $ref: '#/components/schemas/ErrorResponse'
+          $ref: '#/components/responses/Unauthorized'
         '409':
-          $ref: '#/components/schemas/ErrorResponse'
+          $ref: '#/components/responses/Conflict'
       security:
         - bearerAuth: [super-admin]
     get:
@@ -286,13 +276,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/SoilProperty'
 
-  /datasets-filters:
+  /data-filters:
     post:
-      x-eov-operation-handler: controllers/datasets
-      x-eov-operation-id: postDatasetsFilters
-      summary: Creates a new filter and retrieves information about datasets matching it
+      x-eov-operation-handler: controllers/data-filters
+      x-eov-operation-id: postDataFilters
+      summary: Creates a new data filter
       tags:
-        - datasets
+        - data-filters
       security:
         - bearerAuth: []
         - {}
@@ -301,19 +291,146 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/DatasetFilter'
-
+              $ref: '#/components/schemas/DataFilter'
       responses:
         '201':
           description: Filter created successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PostDatasetFilterResponse'
+                $ref: '#/components/schemas/StoredDataFilter'
         '400':
-          $ref: '#/components/schemas/ErrorResponse'
+          $ref: '#/components/responses/BadRequest'
         '401':
-          $ref: '#/components/schemas/ErrorResponse'
+          $ref: '#/components/responses/Unauthorized'
+    get:
+      x-eov-operation-handler: controllers/data-filters
+      x-eov-operation-id: getDataFilters
+      summary: Retrieves all data filters owned by the user
+      tags:
+        - data-filters
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of data filters
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StoredDataFilter'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /data-filters/{filterId}:
+    parameters:
+      - name: filterId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Unique filter identifier
+    get:
+      x-eov-operation-handler: controllers/data-filters
+      x-eov-operation-id: getDataFilterById
+      summary: Retrieves a filter by ID
+      tags:
+        - data-filters
+      responses:
+        '200':
+          description: Filter information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StoredDataFilter'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /data-filters/{filterId}/coverage:
+    parameters:
+      - name: filterId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Unique filter identifier
+    get:
+      x-eov-operation-handler: controllers/data-filters
+      x-eov-operation-id: getDataFilterCoverage
+      summary: Retrieves what data is available for the given filter
+      tags:
+        - data-filters
+      security:
+        - bearerAuth: []
+        - {}
+      responses:
+        '200':
+          description: List of datasets matching the filter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FilteredDatasetsList'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /soil-data:
+    get:
+      x-eov-operation-handler: controllers/soil-data
+      x-eov-operation-id: getSoilData
+      summary: Retrieves soil data
+      tags:
+        - soil-data
+      security:
+        - bearerAuth: []
+        - {}
+      parameters:
+        - in: query
+          name: datasets
+          required: true
+          description: Slugs of datasets to retrieve data from (comma-separated)
+          schema:
+            type: array
+            items:
+              type: string
+          explode: false
+        - in: query
+          name: filterId
+          required: false
+          description: ID of a stored data filter to apply
+          schema:
+            type: string
+          explode: false
+        - in: query
+          name: limit
+          required: true
+          description: Number of items in the response
+          schema:
+            type: number
+            default: 100
+        - in: query
+          name: cursor
+          required: false
+          description: Pagination cursor
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Soil data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SoilDataSample'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
 
   /files/{fileId}:
     parameters:
@@ -349,13 +466,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/FileDescriptor'
         '400':
-          $ref: '#/components/schemas/ErrorResponse'
+          $ref: '#/components/responses/BadRequest'
         '401':
-          $ref: '#/components/schemas/ErrorResponse'
+          $ref: '#/components/responses/Unauthorized'
         '404':
-          $ref: '#/components/schemas/ErrorResponse'
+          $ref: '#/components/responses/NotFound'
         '409':
-          $ref: '#/components/schemas/ErrorResponse'
+          $ref: '#/components/responses/Conflict'
       security:
         - bearerAuth: [super-admin, data-admin]
 
@@ -377,6 +494,44 @@ paths:
           description: File downloaded successfully
 
 components:
+  responses:
+    NotFound:
+      description: The specified resource was not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Forbidden:
+      description: Forbidden
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Conflict:
+      description: Conflict
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    TooManyRequests:
+      description: Too many requests
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
   securitySchemes:
     bearerAuth:
       type: http
@@ -475,7 +630,7 @@ components:
         - mimeType
         - uploadedAt
 
-    FilterableDatasetMetadata:
+    FilterCriteria:
       type: object
       properties:
         data_types:
@@ -510,7 +665,7 @@ components:
             items:
               type: number
 
-    DatasetFilter:
+    DataFilter:
       type: object
       properties:
         geometries:
@@ -518,14 +673,14 @@ components:
           items:
             $ref: '../src/GeoJSON-OAS3.yaml#/components/schemas/Geometry'
         parameters:
-          $ref: '#/components/schemas/FilterableDatasetMetadata'
+          $ref: '#/components/schemas/FilterCriteria'
       required:
         - geometries
         - parameters
 
     FilteredDataset:
       allOf:
-        - $ref: '#/components/schemas/FilterableDatasetMetadata'
+        - $ref: '#/components/schemas/FilterCriteria'
         - type: object
           properties:
             id:
@@ -539,26 +694,32 @@ components:
             - name
             - dataset_layer_count
 
-    PostDatasetFilterResponse:
-      allOf:
-        - $ref: '#/components/schemas/DatasetFilter'
-        - type: object
-          properties:
-            id:
-              type: string
-              description: Filter identifier
-            name:
-              type: string
-              description: Human readable name for the filter
-            results:
-              type: array
-              items:
-                type: object
-                properties:
-                  datasets:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/FilteredDataset'
+    StoredDataFilter:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Filter identifier
+        name:
+          type: string
+          description: Human readable name for the filter
+        filter:
+          $ref: '#/components/schemas/DataFilter'
+
+    FilteredDatasetsList:
+      type: array
+      items:
+        $ref: '#/components/schemas/FilteredDataset'
+
+    SoilDataSample:
+      type: object
+      properties:
+        dataset:
+          type: string
+        soil_property:
+          type: string
+        value:
+          type: number
 
     VariableMeasured:
       type: object
