@@ -19,5 +19,5 @@ export interface SoilDataSample {
   extraction_ratio: string | null;
   extraction_base: string | null;
   instrument: string | null;
-  limit_of_detection: number | null;
+  limit_of_detection: string | null;
 }

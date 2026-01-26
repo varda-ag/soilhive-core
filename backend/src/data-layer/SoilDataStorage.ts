@@ -172,7 +172,7 @@ export default class SoilDataStorage {
       extraction_ratio: row.extraction_ratio,
       extraction_base: row.extraction_base,
       instrument: row.instrument,
-      limit_of_detection: row.limit_of_detection !== null ? parseFloat(row.limit_of_detection) : null,
+      limit_of_detection: row.limit_of_detection,
     }));
   };
 }
