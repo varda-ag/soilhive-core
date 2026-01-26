@@ -108,7 +108,11 @@ export default class SoilDataStorage {
       query.andWhere(`(${geomWhereClause})`, geomParams);
     }
 
-    query.select('ds.slug', 'dataset').addSelect('soil_property.slug', 'soil_property').addSelect('obs.value', 'value');
+    query
+      .select('obs.id', 'id')
+      .addSelect('ds.slug', 'dataset')
+      .addSelect('soil_property.slug', 'soil_property')
+      .addSelect('obs.value', 'value');
 
     applyFiltersToQuery(query, dataFilter.parameters);
 
@@ -122,13 +126,15 @@ export default class SoilDataStorage {
       sortField = sortField.substring(1);
       sortDirection = 'DESC';
     }
-    query.orderBy(sortField, sortDirection);
+    // Use stable secondary sort by obs.id for consistent pagination
+    query.orderBy(sortField, sortDirection).addOrderBy('obs.id', sortDirection);
 
     query.limit(limit);
 
     const results = await query.getRawMany();
 
     return results.map(row => ({
+      id: row.id,
       dataset: row.dataset,
       soil_property: row.soil_property,
       value: parseFloat(row.value),

@@ -212,4 +212,242 @@ describe('Testing /soil-data routes', () => {
     const descValues = descRes.body.map((item: any) => item.value);
     expect(descValues).toEqual(ascValues.reverse());
   });
+
+  it('Should respect limit parameter for pagination', async () => {
+    // Create synthetic data with many features
+    const { dataset } = await addSyntheticData({
+      ...syntheticDataOptions,
+      spatial_extent: [0, 0, 10, 10],
+      id: 1006,
+      soilPropertyNames: ['limit_test'],
+      featureCount: 10, // Create 10 features to ensure we have enough data
+    });
+
+    // Create a data filter covering the entire extent
+    const filterPayload = {
+      parameters: {},
+      geometries: [
+        {
+          type: 'Polygon',
+          coordinates: [
+            [
+              [0, 0],
+              [10, 0],
+              [10, 10],
+              [0, 10],
+              [0, 0],
+            ],
+          ],
+        },
+      ],
+    };
+    const filterRes = await request(app).post('/data-filters').set(superAdminAuthHeader).send(filterPayload);
+    expect(filterRes.statusCode).toBe(201);
+    const filterId = filterRes.body.id;
+
+    // Get data with limit of 3
+    const limitedRes = await request(app).get(`/soil-data?filterId=${filterId}&datasets=${dataset.slug}&limit=3`);
+    expect(limitedRes.statusCode).toBe(200);
+    expect(limitedRes.body.length).toBe(3);
+
+    // Get data with limit of 5
+    const limitedRes2 = await request(app).get(`/soil-data?filterId=${filterId}&datasets=${dataset.slug}&limit=5`);
+    expect(limitedRes2.statusCode).toBe(200);
+    expect(limitedRes2.body.length).toBe(5);
+
+    // Get data with no limit (should default to some reasonable number)
+    const unlimitedRes = await request(app).get(`/soil-data?filterId=${filterId}&datasets=${dataset.slug}`);
+    expect(unlimitedRes.statusCode).toBe(200);
+    expect(unlimitedRes.body.length).toBeGreaterThan(0);
+  });
+
+  it('Should support cursor-based pagination', async () => {
+    // Create synthetic data with many features
+    const { dataset } = await addSyntheticData({
+      ...syntheticDataOptions,
+      spatial_extent: [0, 0, 10, 10],
+      id: 1007,
+      soilPropertyNames: ['cursor_test'],
+      featureCount: 8,
+    });
+
+    // Create a data filter covering the entire extent
+    const filterPayload = {
+      parameters: {},
+      geometries: [
+        {
+          type: 'Polygon',
+          coordinates: [
+            [
+              [0, 0],
+              [10, 0],
+              [10, 10],
+              [0, 10],
+              [0, 0],
+            ],
+          ],
+        },
+      ],
+    };
+    const filterRes = await request(app).post('/data-filters').set(superAdminAuthHeader).send(filterPayload);
+    expect(filterRes.statusCode).toBe(201);
+    const filterId = filterRes.body.id;
+
+    // Get first page with limit 3
+    const firstPageRes = await request(app).get(`/soil-data?filterId=${filterId}&datasets=${dataset.slug}&limit=3&sort=obs.id`);
+    expect(firstPageRes.statusCode).toBe(200);
+    expect(firstPageRes.body.length).toBe(3);
+    const firstPageIds = firstPageRes.body.map((item: any) => item.id || item.value);
+
+    // Get second page using cursor from last item of first page
+    const lastItemId = firstPageRes.body[firstPageRes.body.length - 1].id;
+    const secondPageRes = await request(app).get(
+      `/soil-data?filterId=${filterId}&datasets=${dataset.slug}&limit=3&cursor=${lastItemId}&sort=obs.id`,
+    );
+    expect(secondPageRes.statusCode).toBe(200);
+    expect(secondPageRes.body.length).toBe(3);
+    const secondPageIds = secondPageRes.body.map((item: any) => item.id);
+
+    // Verify no overlap between pages
+    const overlap = firstPageIds.filter((id: any) => secondPageIds.includes(id));
+    expect(overlap.length).toBe(0);
+
+    // Get third page
+    const lastItemId2 = secondPageRes.body[secondPageRes.body.length - 1].id;
+    const thirdPageRes = await request(app).get(
+      `/soil-data?filterId=${filterId}&datasets=${dataset.slug}&limit=3&cursor=${lastItemId2}&sort=obs.id`,
+    );
+    expect(thirdPageRes.statusCode).toBe(200);
+    expect(thirdPageRes.body.length).toBe(2); // Should have remaining 2 items
+  });
+
+  it('Should sort by different fields correctly', async () => {
+    // Create synthetic data
+    const { dataset } = await addSyntheticData({
+      ...syntheticDataOptions,
+      spatial_extent: [0, 0, 10, 10],
+      id: 1008,
+      soilPropertyNames: ['sort_field_test'],
+      featureCount: 5,
+    });
+
+    // Create a data filter covering the entire extent
+    const filterPayload = {
+      parameters: {},
+      geometries: [
+        {
+          type: 'Polygon',
+          coordinates: [
+            [
+              [0, 0],
+              [10, 0],
+              [10, 10],
+              [0, 10],
+              [0, 0],
+            ],
+          ],
+        },
+      ],
+    };
+    const filterRes = await request(app).post('/data-filters').set(superAdminAuthHeader).send(filterPayload);
+    expect(filterRes.statusCode).toBe(201);
+    const filterId = filterRes.body.id;
+
+    // Test sorting by dataset (should be consistent since all same dataset)
+    const datasetAscRes = await request(app).get(`/soil-data?filterId=${filterId}&datasets=${dataset.slug}&limit=100&sort=dataset`);
+    expect(datasetAscRes.statusCode).toBe(200);
+    expect(datasetAscRes.body.length).toBeGreaterThan(0);
+
+    const datasetDescRes = await request(app).get(`/soil-data?filterId=${filterId}&datasets=${dataset.slug}&limit=100&sort=-dataset`);
+    expect(datasetDescRes.statusCode).toBe(200);
+    expect(datasetDescRes.body.length).toBe(datasetAscRes.body.length);
+
+    // Test sorting by soil_property
+    const propertyAscRes = await request(app).get(`/soil-data?filterId=${filterId}&datasets=${dataset.slug}&limit=100&sort=soil_property`);
+    expect(propertyAscRes.statusCode).toBe(200);
+
+    const propertyDescRes = await request(app).get(
+      `/soil-data?filterId=${filterId}&datasets=${dataset.slug}&limit=100&sort=-soil_property`,
+    );
+    expect(propertyDescRes.statusCode).toBe(200);
+
+    // Test default sorting (obs.id)
+    const defaultSortRes = await request(app).get(`/soil-data?filterId=${filterId}&datasets=${dataset.slug}&limit=100`);
+    expect(defaultSortRes.statusCode).toBe(200);
+    expect(defaultSortRes.body.length).toBeGreaterThan(0);
+  });
+
+  it('Should combine pagination and sorting correctly', async () => {
+    // Create synthetic data with many features
+    const { dataset } = await addSyntheticData({
+      ...syntheticDataOptions,
+      spatial_extent: [0, 0, 10, 10],
+      id: 1009,
+      soilPropertyNames: ['combined_test'],
+      featureCount: 7,
+    });
+
+    // Create a data filter covering the entire extent
+    const filterPayload = {
+      parameters: {},
+      geometries: [
+        {
+          type: 'Polygon',
+          coordinates: [
+            [
+              [0, 0],
+              [10, 0],
+              [10, 10],
+              [0, 10],
+              [0, 0],
+            ],
+          ],
+        },
+      ],
+    };
+    const filterRes = await request(app).post('/data-filters').set(superAdminAuthHeader).send(filterPayload);
+    expect(filterRes.statusCode).toBe(201);
+    const filterId = filterRes.body.id;
+
+    // Get all data sorted by value ascending to establish baseline
+    const allDataAsc = await request(app).get(`/soil-data?filterId=${filterId}&datasets=${dataset.slug}&limit=100&sort=value`);
+    expect(allDataAsc.statusCode).toBe(200);
+    expect(allDataAsc.body.length).toBeGreaterThan(3);
+
+    // Get first 3 items with ascending sort
+    const firstPageAsc = await request(app).get(`/soil-data?filterId=${filterId}&datasets=${dataset.slug}&limit=3&sort=value`);
+    expect(firstPageAsc.statusCode).toBe(200);
+    expect(firstPageAsc.body.length).toBe(3);
+
+    // Verify first page items are in ascending order
+    const firstPageValues = firstPageAsc.body.map((item: any) => item.value);
+    for (let i = 1; i < firstPageValues.length; i++) {
+      expect(firstPageValues[i]).toBeGreaterThanOrEqual(firstPageValues[i - 1]);
+    }
+
+    // Get next page with cursor
+    const lastItemId = firstPageAsc.body[2].id;
+    const secondPageAsc = await request(app).get(
+      `/soil-data?filterId=${filterId}&datasets=${dataset.slug}&limit=3&cursor=${lastItemId}&sort=value`,
+    );
+    expect(secondPageAsc.statusCode).toBe(200);
+    expect(secondPageAsc.body.length).toBeGreaterThan(0); // Should have remaining items
+
+    // Verify second page items are also in ascending order
+    const secondPageValues = secondPageAsc.body.map((item: any) => item.value);
+    for (let i = 1; i < secondPageValues.length; i++) {
+      expect(secondPageValues[i]).toBeGreaterThanOrEqual(secondPageValues[i - 1]);
+    }
+
+    // Test descending sort with pagination
+    const firstPageDesc = await request(app).get(`/soil-data?filterId=${filterId}&datasets=${dataset.slug}&limit=3&sort=-value`);
+    expect(firstPageDesc.statusCode).toBe(200);
+    expect(firstPageDesc.body.length).toBe(3);
+
+    // Verify first page items are in descending order
+    const firstPageDescValues = firstPageDesc.body.map((item: any) => item.value);
+    for (let i = 1; i < firstPageDescValues.length; i++) {
+      expect(firstPageDescValues[i]).toBeLessThanOrEqual(firstPageDescValues[i - 1]);
+    }
+  });
 });
