@@ -22,6 +22,18 @@ describe('Testing /soil-data routes', () => {
     expect(res.body.detail).toContain('must match format "uuid"');
   });
 
+  it('Invalid filter UUID should trigger 400 error', async () => {
+    const res = await request(app).get(`/soil-data`).query({ datasets: 'dataset1', filterId: 'invalid-filter-id' });
+    expect(res.statusCode).toBe(400);
+    expect(res.body.detail).toContain('must match format "uuid"');
+  });
+
+  it('Unexistent filter id should trigger 404 error', async () => {
+    const res = await request(app).get(`/soil-data`).query({ datasets: 'dataset1', filterId: '42f4c2bf-e678-42b8-8e7c-95fd110645a3' });
+    expect(res.statusCode).toBe(404);
+    expect(res.body.detail).toContain('not found');
+  });
+
   it('Should retrieve data when searching inside spatial extent', async () => {
     const { dataset } = await addSyntheticData({
       ...syntheticDataOptions,
