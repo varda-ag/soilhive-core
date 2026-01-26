@@ -13,27 +13,62 @@ exports[`DownloadPreview renders download preview page 1`] = `
     <div
       class="Content"
     >
-      <div>
-        Mock PrimeReactProvider 
+      <div
+        class="TableControls"
+      >
         <div>
-          Mock DataTable 
+          Mock Multiselect
+        </div>
+        <button
+          class="Button Tertiary Small MetadataButton"
+          data-testid="sh-ui-button"
+          type="button"
+        >
+          <svg
+            data-testid="svg-icon-mock"
+          >
+            mock-svg
+          </svg>
+          Metadata
+        </button>
+      </div>
+      <div
+        class="TableContainer"
+      >
+        <div>
+          Mock PrimeReactProvider 
           <div>
-            Mock Column
-          </div>
-          <div>
-            Mock Column
-          </div>
-          <div>
-            Mock Column
-          </div>
-          <div>
-            Mock Column
-          </div>
-          <div>
-            Mock Column
-          </div>
-          <div>
-            Mock Column
+            Mock DataTable 
+            <div>
+              Mock Column
+            </div>
+            <div>
+              Mock Column
+            </div>
+            <div>
+              Mock Column
+            </div>
+            <div>
+              Mock Column
+            </div>
+            <div>
+              Mock Column
+            </div>
+            <div>
+              Mock Column
+            </div>
+            <div>
+              Mock Column
+            </div>
+            <div>
+              Mock Column
+            </div>
+            <div>
+              Mock Column
+            </div>
+            <div>
+              Mock Column
+            </div>
           </div>
         </div>
       </div>

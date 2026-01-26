@@ -1,6 +1,11 @@
 import { render } from '@testing-library/react';
 import DownloadPreviewTable from 'components/DownloadPreview/DownloadPreviewTable';
 
+jest.mock('primereact/multiselect', () => {
+  const MultiSelect = () => <div>Mock Multiselect</div>;
+  return { MultiSelect };
+});
+
 jest.mock('primereact/datatable', () => {
   const DataTable = ({ children }: { children: React.ReactNode }) => <div>Mock DataTable {children}</div>;
   return { DataTable };

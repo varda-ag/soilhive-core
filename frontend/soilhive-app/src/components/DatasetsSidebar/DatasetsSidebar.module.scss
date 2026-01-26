@@ -29,13 +29,38 @@
   padding: 10px 15px;
   background-color: var(--color-brand-light-green-100);
 
-  > .Button {
+  @media (max-width: $bp-tablet-max) {
+    width: unset;
+    left: 0;
+    justify-content: center;
+
+    .PreviewButton {
+      padding-left: 36px;
+      padding-right: 36px;
+    }
+
+    .DownloadButton {
+      padding-left: 20px;
+      padding-right: 36px;
+      svg {
+        margin-right: 16px;
+      }
+    }
+  }
+
+  > button {
     width: 100%;
     max-width: 21.875rem;
     margin: 0 auto;
     display: flex;
     white-space: nowrap;
     gap: 4px;
+
+    @media (max-width: $bp-tablet-max) {
+      width: unset;
+      margin: unset;
+    }
+
     svg {
       width: 16px;
       height: 16px;
