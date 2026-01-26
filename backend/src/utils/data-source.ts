@@ -22,8 +22,8 @@ const createDataSource = async (schema: string): Promise<DataSource> => {
     synchronize: false,
     logging: false, //['query'],
     invalidWhereValuesBehavior: {
-        null:  "sql-null",
-        undefined: "throw",
+      null: 'sql-null',
+      undefined: 'throw',
     },
   });
   await dataSource.initialize();

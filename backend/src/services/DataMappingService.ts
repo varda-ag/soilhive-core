@@ -30,13 +30,11 @@ export default class DataMappingService {
   parseDataMapping = async (requestData: RequestData, id: string, fileId: string): Promise<DataCleaningConfig> => {
     const file_repo = requestData.entityManager.getRepository(FileEntity);
     await file_repo.findOneByOrFail({ id: fileId });
-  
     let result: DataCleaningConfig = {
       metadata_cols: {},
       property_cols: {},
       file_id: fileId,
     };
-    // check types, get unit conversions, 
     const dataMapping = await this.getDataMapping(requestData, id);
 
     const conversionSlugs: string[] = Object.values(dataMapping)

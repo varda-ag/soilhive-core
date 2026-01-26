@@ -6,16 +6,19 @@ export default class VectorDataLoad {
   /**
    * TODO: add remaining ingestion related functions (raw data to data model, load raw data), rename DataPreview (clashing concept)
    */
-  getDataPreview = async (entityManager: EntityManager, dataMappingConfig: DataCleaningConfig, nRecords: number = DATA_PREVIEW_SIZE, includeGeom: boolean = true): Promise<any> => {
-    let query = await entityManager
-      .createQueryBuilder()
-      .from(`file_${dataMappingConfig.file_id}_raw`, 'raw');
+  getDataPreview = async (
+    entityManager: EntityManager,
+    dataMappingConfig: DataCleaningConfig,
+    nRecords: number = DATA_PREVIEW_SIZE,
+    includeGeom: boolean = true,
+  ): Promise<any> => {
+    let query = await entityManager.createQueryBuilder().from(`file_${dataMappingConfig.file_id}_raw`, 'raw');
     query = getDataPreviewQuery(query, dataMappingConfig, includeGeom);
     // Workaround using raw query to be able to use dynamic table name without entity
     const results = await entityManager.query(...query.take(nRecords).getQueryAndParameters());
     return results;
   };
-};
+}
 
 const getDataPreviewQuery = (query: any, dataMappingConfig: DataCleaningConfig, includeGeom: boolean = true): any => {
   query.select('raw.record_id', 'record_id');
