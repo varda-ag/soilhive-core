@@ -3,6 +3,7 @@ import request from 'supertest';
 import { app } from '../../src/app';
 import { addSyntheticData, syntheticDataOptions } from '../../src/utils/mock';
 import { getSuperAdminToken } from '../helper';
+import { getPolygonFromBbox } from '../../src/utils/geometry';
 
 describe('Testing /soil-data routes', () => {
   let superAdminAuthHeader: IncomingHttpHeaders;
@@ -32,7 +33,6 @@ describe('Testing /soil-data routes', () => {
   });
 
   it('Should retrieve data when searching inside spatial extent', async () => {
-    // Create synthetic data in bbox [0,0,10,10]
     const { dataset } = await addSyntheticData({
       ...syntheticDataOptions,
       spatial_extent: [0, 0, 10, 10],
@@ -41,27 +41,8 @@ describe('Testing /soil-data routes', () => {
       featureCount: 5,
     });
 
-    // Create a data filter with geometry inside the extent [0,0,10,10]
-    const filterPayload = {
-      parameters: {},
-      geometries: [
-        {
-          type: 'Polygon',
-          coordinates: [
-            [
-              [0, 0],
-              [10, 0],
-              [10, 10],
-              [0, 10],
-              [0, 0],
-            ],
-          ],
-        },
-      ],
-    };
-    const filterRes = await request(app).post('/data-filters').set(superAdminAuthHeader).send(filterPayload);
-    expect(filterRes.statusCode).toBe(201);
-    const filterId = filterRes.body.id;
+    // Create a data filter with geometry inside the extent
+    const filterId = await createFilter([0, 0, 10, 10]);
 
     // Call soil-data endpoint
     const soilDataRes = await request(app).get(`/soil-data?filterId=${filterId}&datasets=${dataset.slug}&limit=100`);
@@ -70,7 +51,6 @@ describe('Testing /soil-data routes', () => {
   });
 
   it('Should return zero data when searching outside spatial extent', async () => {
-    // Create synthetic data in bbox [0,0,10,10]
     const { dataset } = await addSyntheticData({
       ...syntheticDataOptions,
       spatial_extent: [0, 0, 10, 10],
@@ -79,27 +59,8 @@ describe('Testing /soil-data routes', () => {
       featureCount: 5,
     });
 
-    // Create a data filter with geometry outside the extent [20,20,30,30]
-    const filterPayload = {
-      parameters: {},
-      geometries: [
-        {
-          type: 'Polygon',
-          coordinates: [
-            [
-              [20, 20],
-              [30, 20],
-              [30, 30],
-              [20, 30],
-              [20, 20],
-            ],
-          ],
-        },
-      ],
-    };
-    const filterRes = await request(app).post('/data-filters').set(superAdminAuthHeader).send(filterPayload);
-    expect(filterRes.statusCode).toBe(201);
-    const filterId = filterRes.body.id;
+    // Create a data filter with geometry outside the extent
+    const filterId = await createFilter([20, 20, 30, 30]);
 
     // Call soil-data endpoint
     const soilDataRes = await request(app).get(`/soil-data?filterId=${filterId}&datasets=${dataset.slug}&limit=100`);
@@ -163,6 +124,14 @@ describe('Testing /soil-data routes', () => {
     const soilDataRes = await request(app).get(`/soil-data?filterId=${filterId}&datasets=${datasets}&limit=100`);
     expect(soilDataRes.statusCode).toBe(200);
     expect(soilDataRes.body.length).toBeGreaterThan(0); // Should have data from both areas
+    // Verify data contains entries from both soil properties
+    const soilProperties = soilDataRes.body.map((item: any) => item.soil_property);
+    expect(soilProperties).toContain('multi1');
+    expect(soilProperties).toContain('multi2');
+    // Verify data contains entries from both datasets
+    const datasetSlugs = soilDataRes.body.map((item: any) => item.dataset);
+    expect(datasetSlugs).toContain(data1.dataset.slug);
+    expect(datasetSlugs).toContain(data2.dataset.slug);
   });
 
   it('Should sort data in ascending and descending order', async () => {
@@ -176,26 +145,7 @@ describe('Testing /soil-data routes', () => {
     });
 
     // Create a data filter covering the entire extent
-    const filterPayload = {
-      parameters: {},
-      geometries: [
-        {
-          type: 'Polygon',
-          coordinates: [
-            [
-              [0, 0],
-              [10, 0],
-              [10, 10],
-              [0, 10],
-              [0, 0],
-            ],
-          ],
-        },
-      ],
-    };
-    const filterRes = await request(app).post('/data-filters').set(superAdminAuthHeader).send(filterPayload);
-    expect(filterRes.statusCode).toBe(201);
-    const filterId = filterRes.body.id;
+    const filterId = await createFilter([0, 0, 10, 10]);
 
     // Get data sorted by value ascending
     const ascRes = await request(app).get(`/soil-data?filterId=${filterId}&datasets=${dataset.slug}&limit=100&sort=value`);
@@ -224,26 +174,7 @@ describe('Testing /soil-data routes', () => {
     });
 
     // Create a data filter covering the entire extent
-    const filterPayload = {
-      parameters: {},
-      geometries: [
-        {
-          type: 'Polygon',
-          coordinates: [
-            [
-              [0, 0],
-              [10, 0],
-              [10, 10],
-              [0, 10],
-              [0, 0],
-            ],
-          ],
-        },
-      ],
-    };
-    const filterRes = await request(app).post('/data-filters').set(superAdminAuthHeader).send(filterPayload);
-    expect(filterRes.statusCode).toBe(201);
-    const filterId = filterRes.body.id;
+    const filterId = await createFilter([0, 0, 10, 10]);
 
     // Get data with limit of 3
     const limitedRes = await request(app).get(`/soil-data?filterId=${filterId}&datasets=${dataset.slug}&limit=3`);
@@ -272,38 +203,17 @@ describe('Testing /soil-data routes', () => {
     });
 
     // Create a data filter covering the entire extent
-    const filterPayload = {
-      parameters: {},
-      geometries: [
-        {
-          type: 'Polygon',
-          coordinates: [
-            [
-              [0, 0],
-              [10, 0],
-              [10, 10],
-              [0, 10],
-              [0, 0],
-            ],
-          ],
-        },
-      ],
-    };
-    const filterRes = await request(app).post('/data-filters').set(superAdminAuthHeader).send(filterPayload);
-    expect(filterRes.statusCode).toBe(201);
-    const filterId = filterRes.body.id;
+    const filterId = await createFilter([0, 0, 10, 10]);
 
     // Get first page with limit 3
-    const firstPageRes = await request(app).get(`/soil-data?filterId=${filterId}&datasets=${dataset.slug}&limit=3&sort=obs.id`);
+    const firstPageRes = await request(app).get(`/soil-data?filterId=${filterId}&datasets=${dataset.slug}&limit=3`);
     expect(firstPageRes.statusCode).toBe(200);
     expect(firstPageRes.body.length).toBe(3);
     const firstPageIds = firstPageRes.body.map((item: any) => item.id || item.value);
 
     // Get second page using cursor from last item of first page
     const lastItemId = firstPageRes.body[firstPageRes.body.length - 1].id;
-    const secondPageRes = await request(app).get(
-      `/soil-data?filterId=${filterId}&datasets=${dataset.slug}&limit=3&cursor=${lastItemId}&sort=obs.id`,
-    );
+    const secondPageRes = await request(app).get(`/soil-data?filterId=${filterId}&datasets=${dataset.slug}&limit=3&cursor=${lastItemId}`);
     expect(secondPageRes.statusCode).toBe(200);
     expect(secondPageRes.body.length).toBe(3);
     const secondPageIds = secondPageRes.body.map((item: any) => item.id);
@@ -314,9 +224,7 @@ describe('Testing /soil-data routes', () => {
 
     // Get third page
     const lastItemId2 = secondPageRes.body[secondPageRes.body.length - 1].id;
-    const thirdPageRes = await request(app).get(
-      `/soil-data?filterId=${filterId}&datasets=${dataset.slug}&limit=3&cursor=${lastItemId2}&sort=obs.id`,
-    );
+    const thirdPageRes = await request(app).get(`/soil-data?filterId=${filterId}&datasets=${dataset.slug}&limit=3&cursor=${lastItemId2}`);
     expect(thirdPageRes.statusCode).toBe(200);
     expect(thirdPageRes.body.length).toBe(2); // Should have remaining 2 items
   });
@@ -332,26 +240,7 @@ describe('Testing /soil-data routes', () => {
     });
 
     // Create a data filter covering the entire extent
-    const filterPayload = {
-      parameters: {},
-      geometries: [
-        {
-          type: 'Polygon',
-          coordinates: [
-            [
-              [0, 0],
-              [10, 0],
-              [10, 10],
-              [0, 10],
-              [0, 0],
-            ],
-          ],
-        },
-      ],
-    };
-    const filterRes = await request(app).post('/data-filters').set(superAdminAuthHeader).send(filterPayload);
-    expect(filterRes.statusCode).toBe(201);
-    const filterId = filterRes.body.id;
+    const filterId = await createFilter([0, 0, 10, 10]);
 
     // Test sorting by dataset (should be consistent since all same dataset)
     const datasetAscRes = await request(app).get(`/soil-data?filterId=${filterId}&datasets=${dataset.slug}&limit=100&sort=dataset`);
@@ -370,11 +259,6 @@ describe('Testing /soil-data routes', () => {
       `/soil-data?filterId=${filterId}&datasets=${dataset.slug}&limit=100&sort=-soil_property`,
     );
     expect(propertyDescRes.statusCode).toBe(200);
-
-    // Test default sorting (obs.id)
-    const defaultSortRes = await request(app).get(`/soil-data?filterId=${filterId}&datasets=${dataset.slug}&limit=100`);
-    expect(defaultSortRes.statusCode).toBe(200);
-    expect(defaultSortRes.body.length).toBeGreaterThan(0);
   });
 
   it('Should combine pagination and sorting correctly', async () => {
@@ -388,26 +272,7 @@ describe('Testing /soil-data routes', () => {
     });
 
     // Create a data filter covering the entire extent
-    const filterPayload = {
-      parameters: {},
-      geometries: [
-        {
-          type: 'Polygon',
-          coordinates: [
-            [
-              [0, 0],
-              [10, 0],
-              [10, 10],
-              [0, 10],
-              [0, 0],
-            ],
-          ],
-        },
-      ],
-    };
-    const filterRes = await request(app).post('/data-filters').set(superAdminAuthHeader).send(filterPayload);
-    expect(filterRes.statusCode).toBe(201);
-    const filterId = filterRes.body.id;
+    const filterId = await createFilter([0, 0, 10, 10]);
 
     // Get all data sorted by value ascending to establish baseline
     const allDataAsc = await request(app).get(`/soil-data?filterId=${filterId}&datasets=${dataset.slug}&limit=100&sort=value`);
@@ -451,3 +316,15 @@ describe('Testing /soil-data routes', () => {
     }
   });
 });
+
+const createFilter = async (spatial_extent: number[]): Promise<string> => {
+  const polygon = getPolygonFromBbox(spatial_extent);
+  // Create a data filter covering the entire extent
+  const filterPayload = {
+    parameters: {},
+    geometries: [polygon],
+  };
+  const filterRes = await request(app).post('/data-filters').send(filterPayload);
+  expect(filterRes.statusCode).toBe(201);
+  return filterRes.body.id;
+};
