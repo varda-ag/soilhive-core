@@ -1,5 +1,6 @@
 import { Entity, Column, PrimaryColumn, Unique } from 'typeorm';
 import { DataMapping } from '../interfaces/DataMapping';
+import type { DataMappingObject } from '../types/DataMapping';
 import BaseTable from './BaseTable';
 
 @Entity('data_mappings')
@@ -11,7 +12,7 @@ export default class DataMappingEntity extends BaseTable implements DataMapping 
   id: string;
 
   @Column({ type: 'jsonb' })
-  data_mapping: object;
+  data_mapping: DataMappingObject;
 
   @Column({ type: 'text', generatedType: 'STORED', asExpression: `encode(sha256(data_mapping::TEXT::BYTEA), 'hex')` })
   data_mapping_hash: string;
