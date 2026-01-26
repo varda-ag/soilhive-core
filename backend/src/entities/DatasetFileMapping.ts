@@ -15,7 +15,7 @@ export default class DatasetFileMappingEntity extends BaseTable {
   @Column({ type: 'uuid' })
   data_mapping_id: string;
 
-  @ManyToOne(() => DataMappingEntity, data_mapping => data_mapping.id, { onDelete: 'CASCADE' })
+  @ManyToOne(() => DataMappingEntity, data_mapping => data_mapping.id)
   @JoinColumn({ name: 'data_mapping_id' })
   data_mapping: DataMappingEntity;
 
@@ -29,7 +29,7 @@ export default class DatasetFileMappingEntity extends BaseTable {
   @Column({ type: 'uuid', nullable: true })
   dataset_id?: string;
 
-  @ManyToOne(() => DatasetEntity, dataset => dataset.id, { onDelete: 'CASCADE' })
+  @ManyToOne(() => DatasetEntity, dataset => dataset.id)
   @JoinColumn({ name: 'dataset_id' })
   dataset: DatasetEntity;
 }
