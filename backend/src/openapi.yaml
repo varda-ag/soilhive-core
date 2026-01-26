@@ -418,6 +418,13 @@ paths:
           description: Pagination cursor
           schema:
             type: string
+            format: uuid
+        - in: query
+          name: sort
+          required: false
+          description: Sort column. Prepend with '-' for descending order
+          schema:
+            type: string
       responses:
         '200':
           description: Soil data

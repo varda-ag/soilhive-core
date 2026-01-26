@@ -1,9 +1,11 @@
 import { Polygon, MultiPolygon } from 'geojson';
 import { OverlapType } from '../types/enums';
 import { EntityManager } from 'typeorm';
-import { FilteredDataset, FilterCriteria } from '../interfaces/DatasetFilter';
+import { FilteredDataset, FilterCriteria, DataFilter } from '../interfaces/DatasetFilter';
 import DatasetEntity from '../entities/Dataset';
 import DatasetLayerEntity from '../entities/DatasetLayer';
+import { SoilDataSample } from '../interfaces/SoilDataSample';
+import assert from 'assert';
 
 export default class SoilDataStorage {
   /**
@@ -70,6 +72,66 @@ export default class SoilDataStorage {
       soil_properties: row.soil_properties ? row.soil_properties.split(',') : [],
       //raster_filters // TODO: assess feasibility
       dataset_layer_count: parseInt(row.dataset_layer_count),
+    }));
+  };
+
+  getSoilData = async (
+    entityManager: EntityManager,
+    dataFilter: DataFilter,
+    datasetSlugs: string[],
+    limit: number,
+    cursor?: string,
+    sort?: string,
+  ): Promise<SoilDataSample[]> => {
+    assert(datasetSlugs.length > 0, 'At least one dataset slug must be provided');
+    const repo = entityManager.getRepository(DatasetLayerEntity);
+    const query = repo
+      .createQueryBuilder('dataset_layers')
+      .leftJoin('dataset_layers.dataset', 'ds')
+      .leftJoin('dataset_layers.layer', 'layer')
+      .leftJoin('dataset_layers.soil_property', 'soil_property')
+      .leftJoin('layer.license_obj', 'license')
+      .innerJoin('dataset_layers.feature', 'features')
+      .innerJoin('observations', 'obs', 'obs.dataset_layer_id = dataset_layers.id')
+      .where('ds.slug IN (:...datasetSlugs)', { datasetSlugs });
+
+    // Build geometry intersection condition for all geometries
+    if (dataFilter.geometries.length > 0) {
+      let geomWhereClause = '';
+      const geomParams: any = {};
+      for (let i = 0; i < dataFilter.geometries.length; i++) {
+        const geomParam = `geom${i}`;
+        geomParams[geomParam] = JSON.stringify(dataFilter.geometries[i]);
+        if (i > 0) geomWhereClause += ' OR ';
+        geomWhereClause += `ST_Intersects(features.geom, ST_GeomFromGeoJSON(:${geomParam}))`;
+      }
+      query.andWhere(`(${geomWhereClause})`, geomParams);
+    }
+
+    query.select('ds.slug', 'dataset').addSelect('soil_property.slug', 'soil_property').addSelect('obs.value', 'value');
+
+    applyFiltersToQuery(query, dataFilter.parameters);
+
+    if (cursor) {
+      query.andWhere('obs.id > :cursor', { cursor });
+    }
+
+    let sortField = sort || 'obs.id';
+    let sortDirection: 'ASC' | 'DESC' = 'ASC';
+    if (sortField.startsWith('-')) {
+      sortField = sortField.substring(1);
+      sortDirection = 'DESC';
+    }
+    query.orderBy(sortField, sortDirection);
+
+    query.limit(limit);
+
+    const results = await query.getRawMany();
+
+    return results.map(row => ({
+      dataset: row.dataset,
+      soil_property: row.soil_property,
+      value: parseFloat(row.value),
     }));
   };
 }
