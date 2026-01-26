@@ -1,18 +1,9 @@
 import type { Polygon } from 'geojson';
 import { GISDataType, IngestionStatus } from '../types/data';
 
-export interface VariableMeasured {
-  description: string;
-  soil_parameter: string;
-  sample_pretreatment?: string;
-  technique?: string;
-  extractant_concentration?: string;
-  extraction_ratio?: string;
-  extraction_base?: string;
-  instrument?: string;
-  limit_of_detection?: string;
-  soil_parameter_code: string;
-  unit_of_measurement: string;
+export interface MeasuredProperty {
+  soil_parameter_slug: string;
+  procedure_slug: string;
 }
 
 export interface Dataset {
@@ -24,7 +15,7 @@ export interface Dataset {
   author?: string;
   description?: string;
   data_producer?: string;
-  variables_measured?: VariableMeasured[];
+  measured_properties?: MeasuredProperty[];
   spatial_resolution?: string;
   publication_date?: string;
   reference_period_start?: string;

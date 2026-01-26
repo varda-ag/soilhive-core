@@ -1,6 +1,6 @@
 import { Entity, Column, PrimaryColumn, Unique, Index, ForeignKey } from 'typeorm';
 import type { Polygon } from 'typeorm';
-import { Dataset, VariableMeasured } from '../interfaces/Dataset';
+import { Dataset, MeasuredProperty } from '../interfaces/Dataset';
 import BaseTable from './BaseTable';
 import SlugHistoryEntity from './SlugHistory';
 import { GISDataType, IngestionStatus } from '../types/data';
@@ -39,7 +39,7 @@ export default class DatasetEntity extends BaseTable implements Dataset {
   data_producer?: string;
 
   @Column({ type: 'jsonb', nullable: true, array: true })
-  variables_measured?: VariableMeasured[];
+  variables_measured?: MeasuredProperty[];
 
   @Column({ type: 'text', nullable: true })
   spatial_resolution?: string;
