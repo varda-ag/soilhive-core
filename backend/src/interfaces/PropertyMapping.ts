@@ -6,6 +6,10 @@ export interface PropertyMapping {
   procedure_slug?: string;
 }
 
+export interface PropertyCleaningConfig extends PropertyMapping {
+  conversion_formula?: string;
+}
+
 export interface PropertyInfo {
   property_name: string;
   procedure_name?: string;

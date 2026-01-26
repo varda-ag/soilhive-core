@@ -12,7 +12,7 @@ import ObservationEntity from '../entities/Observation';
 import LicenseEntity from '../entities/License';
 import UnitConversionEntity from '../entities/UnitConversion';
 import { getPolygonFromBbox } from './geometry';
-import { destroyDataSource, getDataSource } from './data-source';
+import { getDataSource } from './data-source';
 import SlugHistoryEntity from '../entities/SlugHistory';
 import { EntityType, GISDataType, IngestionStatus } from '../types/data';
 import RasterFilter from '../data-layer/RasterFilter';
@@ -70,7 +70,7 @@ export const syntheticIngestionDataOptions = {
       standard_unit: 'mmolc/dm3',
       max_val: 0.1,
     },
-    drop_records: [10001, 10002]
+    drop_records: [10001, 10002],
   },
   showProgress: false,
 };
@@ -404,7 +404,6 @@ export const addSyntheticIngestionData = async (syntheticIngestionDataOptions): 
   const sql = sqlTemplate.replace(/{{table}}/g, `"file_${file.id}_raw"`);
   const dataSource = await getDataSource();
   await dataSource.query(sql);
-  await destroyDataSource();
 
   if (syntheticIngestionDataOptions.showProgress) {
     console.log(`Synthetic ingestion data creation complete. Dataset ID: ${dataset.id}`);
