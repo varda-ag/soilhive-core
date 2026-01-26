@@ -8,15 +8,11 @@ import DataMappingEntity from '../entities/DataMapping';
 import UnitConversionEntity from '../entities/UnitConversion';
 import FileEntity from '../entities/File';
 
-
 export default class DataMappingService {
   postDataMapping = async (requestData: RequestData, dataMapping: DataMappingObject): Promise<DataMapping> => {
     // Validate
     if (dataMapping.drop_records && !Array.isArray(dataMapping.drop_records)) {
-      throw new ErrorResponse(
-        `drop_records must be an array of numbers`,
-        StatusCodes.BAD_REQUEST,
-      );
+      throw new ErrorResponse(`drop_records must be an array of numbers`, StatusCodes.BAD_REQUEST);
     }
 
     const repo = requestData.entityManager.getRepository(DataMappingEntity);
@@ -30,7 +26,7 @@ export default class DataMappingService {
   parseDataMapping = async (requestData: RequestData, id: string, fileId: string): Promise<DataCleaningConfig> => {
     const file_repo = requestData.entityManager.getRepository(FileEntity);
     await file_repo.findOneByOrFail({ id: fileId });
-    let result: DataCleaningConfig = {
+    const result: DataCleaningConfig = {
       metadata_cols: {},
       property_cols: {},
       file_id: fileId,
