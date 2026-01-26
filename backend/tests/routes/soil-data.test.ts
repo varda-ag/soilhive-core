@@ -1,19 +1,9 @@
-import { IncomingHttpHeaders } from 'http';
 import request from 'supertest';
 import { app } from '../../src/app';
 import { addSyntheticData, syntheticDataOptions } from '../../src/utils/mock';
-import { getSuperAdminToken } from '../helper';
 import { getPolygonFromBbox } from '../../src/utils/geometry';
 
 describe('Testing /soil-data routes', () => {
-  let superAdminAuthHeader: IncomingHttpHeaders;
-
-  beforeAll(async () => {
-    // Get super admin token
-    const token = await getSuperAdminToken();
-    superAdminAuthHeader = { Authorization: `Bearer ${token}` };
-  });
-
   it('Getting soil data without required parameter should fail', async () => {
     const res = await request(app).get(`/soil-data`);
     expect(res.statusCode).toBe(400);
@@ -115,7 +105,7 @@ describe('Testing /soil-data routes', () => {
         },
       ],
     };
-    const filterRes = await request(app).post('/data-filters').set(superAdminAuthHeader).send(filterPayload);
+    const filterRes = await request(app).post('/data-filters').send(filterPayload);
     expect(filterRes.statusCode).toBe(201);
     const filterId = filterRes.body.id;
 
