@@ -1,25 +1,22 @@
-import { useQuery } from '@tanstack/react-query';
-import type { DatasetFilter, PostDatasetFilterResponse } from 'types/backend';
-import { useRequest } from '../api-client';
-import { BACKEND_BASE_URL } from '../configuration/api';
+import type { DataFilter, FilteredDataset, StoredDataFilter } from 'types/backend';
+import { useApiQuery } from './useApiQuery';
 import { useDebounce } from './useDebounce';
 
-export function useFilteredDatasets(filters: DatasetFilter) {
-  const { request } = useRequest();
+export function useFilteredDatasets(filters: DataFilter) {
   const debouncedFilters = useDebounce(filters, 300);
 
-  const fetchFilteredDatasets = async (filter?: DatasetFilter): Promise<PostDatasetFilterResponse> => {
-    const res = await request({
-      url: `${BACKEND_BASE_URL}/datasets-filters`,
-      method: 'POST',
-      body: filter,
-    });
-    return res;
-  };
-
-  return useQuery({
-    queryKey: ['datasets', debouncedFilters],
-    queryFn: () => fetchFilteredDatasets(debouncedFilters),
+  const { data: filterData } = useApiQuery<StoredDataFilter, DataFilter>({
+    endpoint: '/data-filters',
+    method: 'POST',
+    body: debouncedFilters,
+    queryKey: ['data-filter', debouncedFilters],
     enabled: !!debouncedFilters.geometries.length,
+  });
+
+  return useApiQuery<FilteredDataset[]>({
+    endpoint: `/data-filters/${filterData?.id}/coverage`,
+    method: 'GET',
+    queryKey: ['data-filter-coverage', filterData?.id],
+    enabled: !!filterData?.id,
   });
 }

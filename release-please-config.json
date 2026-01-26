@@ -1,0 +1,8 @@
+{
+    "include-component-in-tag": false,
+    "release-type": "node",
+    "changelog-type": "github",
+    "packages": {
+        ".": {}
+    }
+}

@@ -1,0 +1,26 @@
+name: PR Cleanup
+
+on:
+  pull_request:
+    types: 
+      - 'closed'
+    branches:
+      - main
+
+jobs:
+
+  docker-backend-cleanup:
+    uses: varda-ag/.github/.github/workflows/docker-cleanup.yaml@main
+    with:
+      imageName: soilhive-core-backend
+      imageVersionsPrefix: pr-${{ github.event.pull_request.number }}-
+    permissions:
+      id-token: write # This is required for requesting the JWT token from OIDC
+  
+  docker-frontend-cleanup:
+    uses: varda-ag/.github/.github/workflows/docker-cleanup.yaml@main
+    with:
+      imageName: soilhive-core-frontend
+      imageVersionsPrefix: pr-${{ github.event.pull_request.number }}-
+    permissions:
+      id-token: write # This is required for requesting the JWT token from OIDC

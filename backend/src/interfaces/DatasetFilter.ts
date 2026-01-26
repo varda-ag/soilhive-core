@@ -1,7 +1,7 @@
 import { Polygon, MultiPolygon } from 'geojson';
 import { GISDataType } from '../types/data';
 
-export interface FilterableDatasetMetadata {
+export interface FilterCriteria {
   data_types?: GISDataType[]; // Enum
   licenses?: string[]; // slugs
   min_sampling_date?: string | null;
@@ -13,26 +13,20 @@ export interface FilterableDatasetMetadata {
   raster_filters?: Map<string, number[]>; // Map <table_name, raster_values>
 }
 
-export interface DatasetFilter {
+export interface DataFilter {
   geometries: (Polygon | MultiPolygon)[];
-  parameters: FilterableDatasetMetadata;
+  parameters: FilterCriteria;
 }
 
-export interface StoredDatasetFilter extends DatasetFilter {
+export interface StoredDataFilter {
   id: string;
-  name: string;
+  filter: DataFilter;
+  name?: string;
+  owner?: string;
 }
 
-export interface FilteredDataset extends FilterableDatasetMetadata {
+export interface FilteredDataset extends FilterCriteria {
   id: string;
   name: string;
   dataset_layer_count: number;
-}
-
-export interface ResultItem {
-  datasets: FilteredDataset[];
-}
-
-export interface PostDatasetFilterResponse extends StoredDatasetFilter {
-  results: ResultItem[];
 }

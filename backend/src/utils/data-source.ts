@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-import { DataSource, EntityManager } from 'typeorm';
+import { DataSource, EntityManager, MigrationExecutor } from 'typeorm';
 import path from 'path';
 import { getDBPassword, getSSL } from './db-credentials';
 
@@ -70,10 +70,9 @@ export const destroyDataSource = async () => {
 };
 
 const runConditionalMigrations = async (dataSource: DataSource) => {
-  const queryRunner = dataSource.createQueryRunner();
-  const tableExists = await queryRunner.hasTable('jsonstorage'); // Any table would be fine
-  if (!tableExists) {
+  const migrationExecutor = new MigrationExecutor(dataSource);
+  const pending = await migrationExecutor.getPendingMigrations();
+  if (pending.length !== 0) {
     await dataSource.runMigrations();
   }
-  await queryRunner.release();
 };

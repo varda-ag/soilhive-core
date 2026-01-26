@@ -15,12 +15,28 @@ interface Props {
   className?: string;
   hasChildrenOnCurrentLevel?: boolean;
   isSearching?: boolean;
+  isExpanded?: boolean;
   onToggle: (node: NestedCheckboxItemType, checked: boolean) => void;
 }
 
-export function NestedCheckboxItem({ item, selected, className, hasChildrenOnCurrentLevel, isSearching = false, onToggle }: Props) {
-  const [isOpenedInternal, setIsOpenedInternal] = useState<boolean>(false);
+export function NestedCheckboxItem({
+  item,
+  selected,
+  className,
+  hasChildrenOnCurrentLevel,
+  isSearching = false,
+  isExpanded = false,
+  onToggle,
+}: Props) {
+  const [isOpenedInternal, setIsOpenedInternal] = useState<boolean>(isExpanded);
   const isOpened = isSearching ? item.children !== undefined : isOpenedInternal;
+
+  const [prevExpanded, setPrevExpanded] = useState(isExpanded);
+
+  if (isExpanded !== prevExpanded) {
+    setIsOpenedInternal(isExpanded); // force open
+    setPrevExpanded(isExpanded);
+  }
 
   const isChecked = useMemo(() => {
     if (!item.children || item.children.length === 0) {
@@ -111,6 +127,7 @@ export function NestedCheckboxItem({ item, selected, className, hasChildrenOnCur
               selected={selected}
               hasChildrenOnCurrentLevel={isCurrentLevelHasChildren}
               isSearching={isSearching}
+              isExpanded={isExpanded}
               onToggle={onToggle}
             />
           ))}

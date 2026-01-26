@@ -1,0 +1,17 @@
+.MultiselectButton {
+  font-size: var(--font-size-sm);
+  padding: 0.1875rem 0.9375rem;
+  box-sizing: padding-box;
+  border: 1px solid var(--color-neutral-dark-200);
+  border-radius: 0.5rem;
+  background-color: var(--color-neutral-white);
+  cursor: pointer;
+
+  &:has(.Checkbox:checked) {
+    background-color: var(--color-neutral-dark-100);
+  }
+
+  > .Checkbox {
+    display: none;
+  }
+}

@@ -1,38 +1,115 @@
 // Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
 
-exports[`FilteringSidebarDataScope renders two accordion components 1`] = `
+exports[`FilteringSidebarDataScope renders 3 accordion components 1`] = `
 <div>
   <div
     class="FilteringSidebarDataScope"
   >
-    <div
-      data-testid="accordion"
+    <section
+      data-testid="mock-accordion-Data type"
     >
-      <div
-        data-testid="accordion-title"
-      >
+      <h2>
         Data type
-      </div>
+      </h2>
       <div
-        data-testid="accordion-content"
+        data-testid="mock-accordion-pills-Data type"
+      />
+      <div
+        data-testid="mock-accordion-content-Data type"
       >
-        Data type content
+        <div
+          class="AccordionContent"
+        >
+          <div
+            data-testid="mock-multiselect"
+          >
+            <button
+              data-testid="mock-select-point"
+              type="button"
+            >
+              Point
+            </button>
+            <button
+              data-testid="mock-select-raster"
+              type="button"
+            >
+              Raster
+            </button>
+            <button
+              data-testid="mock-select-polygonal"
+              type="button"
+            >
+              Polygonal
+            </button>
+          </div>
+        </div>
       </div>
-    </div>
-    <div
-      data-testid="accordion"
+    </section>
+    <section
+      data-testid="mock-accordion-Time"
     >
-      <div
-        data-testid="accordion-title"
-      >
+      <h2>
         Time
-      </div>
+      </h2>
       <div
-        data-testid="accordion-content"
+        data-testid="mock-accordion-pills-Time"
+      />
+      <div
+        data-testid="mock-accordion-content-Time"
       >
-        Time content
+        <div
+          data-testid="mock-timefilter"
+        >
+          <div
+            data-testid="mock-timefilter-initial"
+          >
+            no-min
+            -
+            no-max
+          </div>
+          <button
+            data-testid="mock-timefilter-apply"
+            type="button"
+          >
+            apply-time
+          </button>
+        </div>
       </div>
-    </div>
+    </section>
+    <section
+      data-testid="mock-accordion-Data access"
+    >
+      <h2>
+        Data access
+      </h2>
+      <div
+        data-testid="mock-accordion-pills-Data access"
+      />
+      <div
+        data-testid="mock-accordion-content-Data access"
+      >
+        <div
+          class="AccordionContent"
+        >
+          <div
+            data-testid="mock-multiselect"
+          >
+            <button
+              data-testid="mock-select-private"
+              type="button"
+            >
+              Private
+            </button>
+            <button
+              data-testid="mock-select-public"
+              type="button"
+            >
+              Public
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
   </div>
 </div>
 `;
