@@ -1,5 +1,6 @@
 import { Entity, Column, PrimaryColumn, Unique } from 'typeorm';
-import { DataMapping, DataMappingObject } from '../interfaces/DataMapping';
+import { DataMapping } from '../interfaces/DataMapping';
+import type { DataMappingObject } from '../types/DataMapping';
 import BaseTable from './BaseTable';
 
 @Entity('data_mappings')

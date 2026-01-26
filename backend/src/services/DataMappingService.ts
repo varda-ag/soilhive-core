@@ -1,8 +1,9 @@
 import { StatusCodes } from 'http-status-codes';
 import { In } from 'typeorm';
-import { DataMapping, DataMappingObject, DataCleaningConfig } from '../interfaces/DataMapping';
+import { DataMapping, DataCleaningConfig } from '../interfaces/DataMapping';
 import { PropertyMapping, PropertyCleaningConfig } from '../interfaces/PropertyMapping';
 import { RequestData } from '../interfaces/RequestData';
+import type { DataMappingObject } from '../types/DataMapping';
 import { ErrorResponse } from '../utils/error';
 import DataMappingEntity from '../entities/DataMapping';
 import UnitConversionEntity from '../entities/UnitConversion';

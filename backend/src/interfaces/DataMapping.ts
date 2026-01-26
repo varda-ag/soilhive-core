@@ -1,4 +1,5 @@
-import { PropertyMapping, PropertyCleaningConfig } from './PropertyMapping';
+import { PropertyCleaningConfig } from './PropertyMapping';
+import type { DataMappingObject } from '../types/DataMapping';
 
 export interface DataMapping {
   id: string;
@@ -8,12 +9,6 @@ export interface DataMapping {
   updated_at: Date | null;
   created_by: string;
 }
-
-export type DataMappingObject = {
-  [key: string]: PropertyMapping | string; // dynamic entries for property columns (PropertyMapping values) and metadata columns (string values)
-} & {
-  drop_records?: number[]; // fixed entries
-};
 
 export interface DataCleaningConfig {
   metadata_cols: {
