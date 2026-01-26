@@ -1,0 +1,55 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`DownloadPreviewDataSection renders the download preview data section 1`] = `
+<div>
+  <div
+    class="DownloadPreviewDataSection"
+  >
+    <div
+      class="Controls"
+    >
+      <div
+        class="ControlsButtons"
+      >
+        <button
+          class="Button Tertiary Small FiltersButton"
+          data-testid="download-preview-data-section-filters-button"
+          type="button"
+        >
+          <svg
+            data-testid="svg-icon-mock"
+          >
+            mock-svg
+          </svg>
+          Filters
+        </button>
+      </div>
+      <button
+        class="Button Tertiary Small IconOnly ShareButton"
+        data-testid="sh-ui-button"
+        type="button"
+      >
+        <svg
+          data-testid="svg-icon-mock"
+        >
+          mock-svg
+        </svg>
+      </button>
+    </div>
+    <div
+      class="Filters"
+    >
+      <div>
+        Mock DownloadPreviewFilters
+      </div>
+    </div>
+    <div
+      class="TabularPreview"
+    >
+      <div>
+        Mock DownloadPreviewTable
+      </div>
+    </div>
+  </div>
+</div>
+`;
