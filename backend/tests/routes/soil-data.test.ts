@@ -277,7 +277,7 @@ describe('Testing /soil-data routes', () => {
     // Get all data sorted by value ascending to establish baseline
     const allDataAsc = await request(app).get(`/soil-data?filterId=${filterId}&datasets=${dataset.slug}&limit=100&sort=value`);
     expect(allDataAsc.statusCode).toBe(200);
-    expect(allDataAsc.body.length).toBeGreaterThan(3);
+    expect(allDataAsc.body.length).toBe(7);
 
     // Get first 3 items with ascending sort
     const firstPageAsc = await request(app).get(`/soil-data?filterId=${filterId}&datasets=${dataset.slug}&limit=3&sort=value`);

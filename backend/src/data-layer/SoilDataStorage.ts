@@ -93,6 +93,7 @@ export default class SoilDataStorage {
       .leftJoin('layer.license_obj', 'license')
       .innerJoin('dataset_layers.feature', 'features')
       .innerJoin('observations', 'obs', 'obs.dataset_layer_id = dataset_layers.id')
+      .leftJoin('obs.procedure', 'procedure')
       .where('ds.slug IN (:...datasetSlugs)', { datasetSlugs });
 
     // Build geometry intersection condition for all geometries
@@ -111,8 +112,25 @@ export default class SoilDataStorage {
     query
       .select('obs.id', 'id')
       .addSelect('ds.slug', 'dataset')
+      .addSelect('ds.name', 'dataset_name')
       .addSelect('soil_property.slug', 'soil_property')
-      .addSelect('obs.value', 'value');
+      .addSelect('soil_property.property_acronym', 'property_acronym')
+      .addSelect('soil_property.standard_unit', 'standard_unit')
+      .addSelect('obs.value', 'value')
+      .addSelect('features.geom', 'geometry')
+      .addSelect('license.name', 'license_name')
+      .addSelect('layer.sampling_date', 'sampling_date')
+      .addSelect('layer.min_depth', 'min_depth')
+      .addSelect('layer.max_depth', 'max_depth')
+      .addSelect('layer.horizon', 'horizon')
+      .addSelect('procedure.sample_pretreatment', 'sample_pretreatment')
+      .addSelect('procedure.technique', 'technique')
+      .addSelect('procedure.extractant_formulation', 'extractant_formulation')
+      .addSelect('procedure.extractant_concentration', 'extractant_concentration')
+      .addSelect('procedure.extraction_ratio', 'extraction_ratio')
+      .addSelect('procedure.extraction_base', 'extraction_base')
+      .addSelect('procedure.instrument', 'instrument')
+      .addSelect('procedure.limit_of_detection', 'limit_of_detection');
 
     applyFiltersToQuery(query, dataFilter.parameters);
 
@@ -136,8 +154,25 @@ export default class SoilDataStorage {
     return results.map(row => ({
       id: row.id,
       dataset: row.dataset,
+      dataset_name: row.dataset_name,
       soil_property: row.soil_property,
+      property_acronym: row.property_acronym,
+      standard_unit: row.standard_unit,
       value: parseFloat(row.value),
+      geometry: row.geometry,
+      license_name: row.license_name,
+      sampling_date: row.sampling_date ? row.sampling_date.toISOString() : null,
+      min_depth: row.min_depth !== null ? parseFloat(row.min_depth) : null,
+      max_depth: row.max_depth !== null ? parseFloat(row.max_depth) : null,
+      horizon: row.horizon,
+      sample_pretreatment: row.sample_pretreatment,
+      technique: row.technique,
+      extractant_formulation: row.extractant_formulation,
+      extractant_concentration: row.extractant_concentration,
+      extraction_ratio: row.extraction_ratio,
+      extraction_base: row.extraction_base,
+      instrument: row.instrument,
+      limit_of_detection: row.limit_of_detection !== null ? parseFloat(row.limit_of_detection) : null,
     }));
   };
 }
