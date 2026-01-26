@@ -37,12 +37,7 @@ export default class DataMappingService {
       file_id: fileId,
     };
     // check types, get unit conversions, 
-    const mapping = await this.getDataMapping(requestData, id);
-
-    if (!mapping?.data_mapping) {
-      throw new Error('Data mapping not found');
-    }
-    const dataMapping: DataMappingObject = mapping.data_mapping;
+    const dataMapping = await this.getDataMapping(requestData, id);
 
     const conversionSlugs: string[] = Object.values(dataMapping)
       .filter(mapping => typeof mapping === 'object' && (mapping as PropertyMapping).conversion_slug !== undefined)
@@ -80,12 +75,12 @@ export default class DataMappingService {
     return result;
   };
 
-  getDataMapping = async (requestData: RequestData, id: string): Promise<DataMapping> => {
+  getDataMapping = async (requestData: RequestData, id: string): Promise<DataMappingObject> => {
     const repo = requestData.entityManager.getRepository(DataMappingEntity);
     const dataMapping = await repo.findOneBy({ id });
     if (!dataMapping) {
       throw new ErrorResponse(`Data mapping ${id} not found`, StatusCodes.NOT_FOUND);
     }
-    return dataMapping;
+    return dataMapping.data_mapping;
   };
 }
