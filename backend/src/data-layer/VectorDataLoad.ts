@@ -1,6 +1,7 @@
-import { EntityManager } from 'typeorm';
+import { EntityManager, In } from 'typeorm';
 import { DATA_PREVIEW_SIZE } from '../constants/constants';
 import { DataCleaningConfig } from '../interfaces/DataMapping';
+import { PropertyCleaningConfig } from '../interfaces/PropertyMapping';
 import FeatureEntity from '../entities/Feature';
 import LicenseEntity from '../entities/License';
 import LayerEntity from '../entities/Layer';
@@ -11,7 +12,7 @@ import ProcedureEntity from '../entities/Procedure';
 
 export default class VectorDataLoad {
   /**
-   * TODO: add remaining ingestion related functions (raw data to data model, load raw data), rename DataPreview (clashing concept)
+   * TODO: add remaining ingestion related functions (load raw data), rename DataPreview (clashing concept)
    */
   getDataPreview = async (
     entityManager: EntityManager,
@@ -37,6 +38,8 @@ export default class VectorDataLoad {
     const LayerRepo = entityManager.getRepository(LayerEntity);
     const DatasetLayerRepo = entityManager.getRepository(DatasetLayerEntity);
     const ObservationRepo = entityManager.getRepository(ObservationEntity);
+    const SoilPropertyRepo = entityManager.getRepository(SoilPropertyEntity);
+    const ProcedureRepo = entityManager.getRepository(ProcedureEntity);
 
     let subQuery = await entityManager.createQueryBuilder().from(`file_${dataMappingConfig.file_id}_raw`, 'raw');
     subQuery = getDataPreviewQuery(subQuery, dataMappingConfig);
@@ -79,7 +82,34 @@ export default class VectorDataLoad {
       }
     }
     record.license = licenseId;
-    // TODO: fetch all soil props and procedures at once
+
+    const propertySlugs: string[] = Object.values(dataMappingConfig.property_cols).map(
+      mapping => (mapping as PropertyCleaningConfig).property_slug,
+    );
+
+    const soilPropInfos: SoilPropertyEntity[] = propertySlugs.length > 0 ? await SoilPropertyRepo.findBy({ slug: In(propertySlugs) }) : [];
+
+    const soilPropMap = soilPropInfos.reduce(
+      (acc, info) => {
+        acc[info.slug] = info;
+        return acc;
+      },
+      {} as Map<string, SoilPropertyEntity>,
+    );
+
+    const procedureSlugs: string[] = Object.values(dataMappingConfig.property_cols)
+      .filter(mapping => (mapping as PropertyCleaningConfig).procedure_slug !== undefined)
+      .map(mapping => (mapping as PropertyCleaningConfig).procedure_slug!);
+
+    const procedureInfos: ProcedureEntity[] = propertySlugs.length > 0 ? await ProcedureRepo.findBy({ slug: In(procedureSlugs) }) : [];
+
+    const procedureMap = procedureInfos.reduce(
+      (acc, info) => {
+        acc[info.slug] = info;
+        return acc;
+      },
+      {} as Map<string, ProcedureEntity>,
+    );
 
     // Dynamic layer select/insert
     const metadataVals: Record<string, any> = {};
@@ -101,11 +131,7 @@ export default class VectorDataLoad {
     for (const [col, data] of Object.entries(dataMappingConfig.property_cols)) {
       const value = record[col];
       if (value) {
-        const soilPropertyId: string = (
-          await entityManager.findOneByOrFail(SoilPropertyEntity, {
-            slug: data.property_slug,
-          })
-        ).id;
+        const soilPropertyId: string = soilPropMap[data.property_slug];
         // Upsert dataset_layer
         const datasetLayer = await DatasetLayerRepo.createQueryBuilder()
           .insert()
@@ -114,7 +140,7 @@ export default class VectorDataLoad {
             dataset_id: datasetId,
             layer_id: layerId!,
             feature_id: featureId!,
-            soil_property_id: soilPropertyId,
+            soil_property_id: soilPropertyId!,
           })
           .orUpdate(
             ['dataset_id', 'layer_id', 'feature_id', 'soil_property_id'],
@@ -124,14 +150,7 @@ export default class VectorDataLoad {
           .execute();
         const datasetLayerId = datasetLayer.raw[0]?.id;
 
-        let procedureId: string | undefined = undefined;
-        if (data.procedure_slug) {
-          procedureId = (
-            await entityManager.findOneByOrFail(ProcedureEntity, {
-              slug: data.procedure_slug,
-            })
-          ).id;
-        }
+        const procedureId: string = data.procedure_slug ? (procedureMap[data.procedure_slug] ?? null) : null;
         // Upsert observation
         await ObservationRepo.createQueryBuilder()
           .insert()

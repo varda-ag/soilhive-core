@@ -65,7 +65,6 @@ export default class DataMappingService {
         result.property_cols[sanitizedField] = propsProcessed;
       }
     }
-    // TODO: add remaining metadata cols
     for (const requiredField of REQUIRED_METADATA_FIELDS) {
       if (!result.metadata_cols[requiredField]) {
         result.metadata_cols[requiredField] = null;
