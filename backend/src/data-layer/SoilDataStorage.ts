@@ -1,9 +1,11 @@
 import { Polygon, MultiPolygon } from 'geojson';
 import { OverlapType } from '../types/enums';
 import { EntityManager } from 'typeorm';
-import { FilteredDataset, FilterCriteria } from '../interfaces/DatasetFilter';
+import { FilteredDataset, FilterCriteria, DataFilter } from '../interfaces/DatasetFilter';
 import DatasetEntity from '../entities/Dataset';
 import DatasetLayerEntity from '../entities/DatasetLayer';
+import { SoilDataSample } from '../interfaces/SoilDataSample';
+import assert from 'assert';
 
 export default class SoilDataStorage {
   /**
@@ -60,7 +62,7 @@ export default class SoilDataStorage {
     return results.map(row => ({
       id: row.dataset_id,
       name: row.dataset_name,
-      data_types: [row.gis_datatype],
+      data_type: row.gis_datatype,
       licenses: row.licenses ? row.licenses.split(',') : [],
       min_sampling_date: row.min_sampling_date ? row.min_sampling_date.toISOString() : null,
       max_sampling_date: row.max_sampling_date ? row.max_sampling_date.toISOString() : null,
@@ -70,6 +72,107 @@ export default class SoilDataStorage {
       soil_properties: row.soil_properties ? row.soil_properties.split(',') : [],
       //raster_filters // TODO: assess feasibility
       dataset_layer_count: parseInt(row.dataset_layer_count),
+    }));
+  };
+
+  getSoilData = async (
+    entityManager: EntityManager,
+    dataFilter: DataFilter,
+    datasetSlugs: string[],
+    limit: number,
+    cursor?: string,
+    sort?: string,
+  ): Promise<SoilDataSample[]> => {
+    assert(datasetSlugs.length > 0, 'At least one dataset slug must be provided');
+    const repo = entityManager.getRepository(DatasetLayerEntity);
+    const query = repo
+      .createQueryBuilder('dataset_layers')
+      .leftJoin('dataset_layers.dataset', 'ds')
+      .leftJoin('dataset_layers.layer', 'layer')
+      .leftJoin('dataset_layers.soil_property', 'soil_property')
+      .leftJoin('layer.license_obj', 'license')
+      .innerJoin('dataset_layers.feature', 'features')
+      .innerJoin('observations', 'obs', 'obs.dataset_layer_id = dataset_layers.id')
+      .leftJoin('obs.procedure', 'procedure')
+      .where('ds.slug IN (:...datasetSlugs)', { datasetSlugs });
+
+    // Build geometry intersection condition for all geometries
+    if (dataFilter.geometries.length > 0) {
+      let geomWhereClause = '';
+      const geomParams: any = {};
+      for (let i = 0; i < dataFilter.geometries.length; i++) {
+        const geomParam = `geom${i}`;
+        geomParams[geomParam] = JSON.stringify(dataFilter.geometries[i]);
+        if (i > 0) geomWhereClause += ' OR ';
+        geomWhereClause += `ST_Intersects(features.geom, ST_GeomFromGeoJSON(:${geomParam}))`;
+      }
+      query.andWhere(`(${geomWhereClause})`, geomParams);
+    }
+
+    query
+      .select('obs.id', 'id')
+      .addSelect('ds.slug', 'dataset')
+      .addSelect('ds.name', 'dataset_name')
+      .addSelect('soil_property.slug', 'soil_property')
+      .addSelect('soil_property.property_acronym', 'property_acronym')
+      .addSelect('soil_property.standard_unit', 'standard_unit')
+      .addSelect('obs.value', 'value')
+      .addSelect('features.geom', 'geometry')
+      .addSelect('license.name', 'license_name')
+      .addSelect('layer.sampling_date', 'sampling_date')
+      .addSelect('layer.min_depth', 'min_depth')
+      .addSelect('layer.max_depth', 'max_depth')
+      .addSelect('layer.horizon', 'horizon')
+      .addSelect('procedure.sample_pretreatment', 'sample_pretreatment')
+      .addSelect('procedure.technique', 'technique')
+      .addSelect('procedure.extractant_formulation', 'extractant_formulation')
+      .addSelect('procedure.extractant_concentration', 'extractant_concentration')
+      .addSelect('procedure.extraction_ratio', 'extraction_ratio')
+      .addSelect('procedure.extraction_base', 'extraction_base')
+      .addSelect('procedure.instrument', 'instrument')
+      .addSelect('procedure.limit_of_detection', 'limit_of_detection');
+
+    applyFiltersToQuery(query, dataFilter.parameters);
+
+    if (cursor) {
+      query.andWhere('obs.id > :cursor', { cursor });
+    }
+
+    let sortField = sort || 'obs.id';
+    let sortDirection: 'ASC' | 'DESC' = 'ASC';
+    if (sortField.startsWith('-')) {
+      sortField = sortField.substring(1);
+      sortDirection = 'DESC';
+    }
+    // Use stable secondary sort by obs.id for consistent pagination
+    query.orderBy(sortField, sortDirection).addOrderBy('obs.id', sortDirection);
+
+    query.limit(limit);
+
+    const results = await query.getRawMany();
+
+    return results.map(row => ({
+      id: row.id,
+      dataset: row.dataset,
+      dataset_name: row.dataset_name,
+      soil_property: row.soil_property,
+      property_acronym: row.property_acronym,
+      standard_unit: row.standard_unit,
+      value: parseFloat(row.value),
+      geometry: row.geometry,
+      license_name: row.license_name,
+      sampling_date: row.sampling_date ? row.sampling_date.toISOString() : null,
+      min_depth: row.min_depth !== null ? parseFloat(row.min_depth) : null,
+      max_depth: row.max_depth !== null ? parseFloat(row.max_depth) : null,
+      horizon: row.horizon,
+      sample_pretreatment: row.sample_pretreatment,
+      technique: row.technique,
+      extractant_formulation: row.extractant_formulation,
+      extractant_concentration: row.extractant_concentration,
+      extraction_ratio: row.extraction_ratio,
+      extraction_base: row.extraction_base,
+      instrument: row.instrument,
+      limit_of_detection: row.limit_of_detection,
     }));
   };
 }

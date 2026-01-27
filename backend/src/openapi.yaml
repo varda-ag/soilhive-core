@@ -332,6 +332,7 @@ paths:
         required: true
         schema:
           type: string
+          format: uuid
         description: Unique filter identifier
     get:
       x-eov-operation-handler: controllers/data-filters
@@ -358,6 +359,7 @@ paths:
         required: true
         schema:
           type: string
+          format: uuid
         description: Unique filter identifier
     get:
       x-eov-operation-handler: controllers/data-filters
@@ -404,6 +406,7 @@ paths:
           description: ID of a stored data filter to apply
           schema:
             type: string
+            format: uuid
           explode: false
         - in: query
           name: limit
@@ -416,6 +419,13 @@ paths:
           name: cursor
           required: false
           description: Pagination cursor
+          schema:
+            type: string
+            format: uuid
+        - in: query
+          name: sort
+          required: false
+          description: Sort column. Prepend with '-' for descending order
           schema:
             type: string
       responses:
@@ -637,6 +647,10 @@ components:
           type: array
           items:
             type: string
+            enum:
+            - point
+            - polygonal
+            - raster
             description: Type of data contained in the dataset (e.g., point samples, raster data)
         licenses:
           type: array
@@ -686,6 +700,16 @@ components:
             id:
               type: string
               description: Dataset identifier
+            name:
+              type: string
+              description: Human-readable dataset name
+            data_type:
+              type: string
+              enum:
+              - point
+              - polygonal
+              - raster
+              description: Type of data contained in the dataset (e.g., point samples, raster data)
             dataset_layer_count:
               type: integer
               description: Number of features matching the filter in this dataset
