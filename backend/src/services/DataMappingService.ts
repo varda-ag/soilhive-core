@@ -8,6 +8,7 @@ import { ErrorResponse } from '../utils/error';
 import DataMappingEntity from '../entities/DataMapping';
 import UnitConversionEntity from '../entities/UnitConversion';
 import FileEntity from '../entities/File';
+import { REQUIRED_METADATA_FIELDS } from '../constants/constants';
 
 export default class DataMappingService {
   postDataMapping = async (requestData: RequestData, dataMapping: DataMappingObject): Promise<DataMapping> => {
@@ -55,13 +56,19 @@ export default class DataMappingService {
       const sanitizedField = field.toLowerCase().replace(/[^a-z0-9_]/g, '');
       if (sanitizedField === 'drop_records') continue;
       if (typeof mapping === 'string' || mapping instanceof String) {
-        result.metadata_cols[sanitizedField] = mapping as string;
+        result.metadata_cols[mapping as string] = sanitizedField;
       } else if (typeof mapping === 'object') {
         const props = mapping as PropertyMapping;
         const propsProcessed: PropertyCleaningConfig = props;
         const propInfo = props.conversion_slug ? (propInfoMap[props.conversion_slug] ?? null) : null;
         propsProcessed.conversion_formula = propInfo?.conversion_formula;
         result.property_cols[sanitizedField] = propsProcessed;
+      }
+    }
+    // TODO: add remaining metadata cols
+    for (const requiredField of REQUIRED_METADATA_FIELDS) {
+      if (!result.metadata_cols[requiredField]) {
+        result.metadata_cols[requiredField] = null;
       }
     }
     if (dataMapping.drop_records && Array.isArray(dataMapping.drop_records)) {
