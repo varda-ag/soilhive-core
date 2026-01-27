@@ -33,14 +33,6 @@ export default class VectorDataLoad {
     recordId: number,
     datasetId: string,
   ): Promise<any> => {
-    const FeatureRepo = entityManager.getRepository(FeatureEntity);
-    const LicenseRepo = entityManager.getRepository(LicenseEntity);
-    const LayerRepo = entityManager.getRepository(LayerEntity);
-    const DatasetLayerRepo = entityManager.getRepository(DatasetLayerEntity);
-    const ObservationRepo = entityManager.getRepository(ObservationEntity);
-    const SoilPropertyRepo = entityManager.getRepository(SoilPropertyEntity);
-    const ProcedureRepo = entityManager.getRepository(ProcedureEntity);
-
     let subQuery = await entityManager.createQueryBuilder().from(`file_${dataMappingConfig.file_id}_raw`, 'raw');
     subQuery = getDataPreviewQuery(subQuery, dataMappingConfig);
 
@@ -55,7 +47,7 @@ export default class VectorDataLoad {
     if (!record) throw new Error('Record not found');
 
     // Upsert feature by geom
-    const feature = await FeatureRepo.createQueryBuilder()
+    const feature = await entityManager.createQueryBuilder()
       .insert()
       .into(FeatureEntity)
       .values({
@@ -72,12 +64,12 @@ export default class VectorDataLoad {
     if (record.license) {
       licenseId =
         (
-          await LicenseRepo.findOne({
+          await entityManager.findOne(LicenseEntity, {
             where: [{ name: record.license }, { full_name: record.license }],
           })
         )?.id || null;
       if (!licenseId && record.license) {
-        const newLicense = LicenseRepo.create({ name: record.license });
+        const newLicense = entityManager.create(LicenseEntity, { name: record.license });
         licenseId = (await entityManager.save(newLicense)).id;
       }
     }
@@ -87,7 +79,7 @@ export default class VectorDataLoad {
       mapping => (mapping as PropertyCleaningConfig).property_slug,
     );
 
-    const soilPropInfos: SoilPropertyEntity[] = propertySlugs.length > 0 ? await SoilPropertyRepo.findBy({ slug: In(propertySlugs) }) : [];
+    const soilPropInfos: SoilPropertyEntity[] = propertySlugs.length > 0 ? await entityManager.findBy(SoilPropertyEntity, { slug: In(propertySlugs) }) : [];
 
     const soilPropMap = soilPropInfos.reduce(
       (acc, info) => {
@@ -101,7 +93,7 @@ export default class VectorDataLoad {
       .filter(mapping => (mapping as PropertyCleaningConfig).procedure_slug !== undefined)
       .map(mapping => (mapping as PropertyCleaningConfig).procedure_slug!);
 
-    const procedureInfos: ProcedureEntity[] = propertySlugs.length > 0 ? await ProcedureRepo.findBy({ slug: In(procedureSlugs) }) : [];
+    const procedureInfos: ProcedureEntity[] = propertySlugs.length > 0 ? await entityManager.findBy(ProcedureEntity, { slug: In(procedureSlugs) }) : [];
 
     const procedureMap = procedureInfos.reduce(
       (acc, info) => {
@@ -119,7 +111,7 @@ export default class VectorDataLoad {
       metadataCols.push(mappedData);
     }
 
-    const layer = await LayerRepo.createQueryBuilder()
+    const layer = await entityManager.createQueryBuilder()
       .insert()
       .into(LayerEntity)
       .values(metadataVals)
@@ -133,7 +125,7 @@ export default class VectorDataLoad {
       if (value) {
         const soilPropertyId: string = soilPropMap[data.property_slug];
         // Upsert dataset_layer
-        const datasetLayer = await DatasetLayerRepo.createQueryBuilder()
+        const datasetLayer = await entityManager.createQueryBuilder()
           .insert()
           .into(DatasetLayerEntity)
           .values({
@@ -152,7 +144,7 @@ export default class VectorDataLoad {
 
         const procedureId: string = data.procedure_slug ? (procedureMap[data.procedure_slug] ?? null) : null;
         // Upsert observation
-        await ObservationRepo.createQueryBuilder()
+        await entityManager.createQueryBuilder()
           .insert()
           .into(ObservationEntity)
           .values({
