@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.18.0 (2026-01-27)
+
+## What's Changed
+* feat(data): raw record to data model by @d-rom in https://github.com/varda-ag/soilhive-core/pull/129
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.17.1...v0.18.0
+
 ## 0.17.1 (2026-01-27)
 
 ## What's Changed
