@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.17.0 (2026-01-27)
+
+## What's Changed
+* feat:SP-4762 Ingestion data mapping logic by @d-rom in https://github.com/varda-ag/soilhive-core/pull/114
+* feat(data): ✨ retrieving soil data by @svaccari in https://github.com/varda-ag/soilhive-core/pull/125
+* fix(data): adding filtered dataset data_type to be used in UI filtering by @svaccari in https://github.com/varda-ag/soilhive-core/pull/130
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.16.0...v0.17.0
+
 ## 0.16.0 (2026-01-23)
 
 ## What's Changed
