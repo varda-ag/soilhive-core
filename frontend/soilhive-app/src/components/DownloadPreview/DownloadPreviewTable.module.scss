@@ -1,5 +1,15 @@
 @import 'styles/variables/breakpoints';
 
+.MultiSelectItem {
+  padding-top: 8px;
+  padding-bottom: 8px;
+
+  span {
+    padding-left: 4px;
+  }
+}
+
+
 .DownloadPreviewTable {
   display: flex;
   flex-direction: column;
@@ -40,17 +50,29 @@
       justify-content: space-between;
       margin-bottom: 8px;
 
-      .MultiSelect {
-        max-width: 250px;
+      @media (max-width: $bp-mobile-max) {
+        padding: 0;
+        flex-direction: column;
+        gap: 4px;
+
+        .MultiSelect {
+          max-width: 100% !important;
+        }
       }
 
-      // .MultiSelectPanel {
-      //   max-width: 150px;
-      // }
+      .MultiSelect {
+        max-width: 250px;
 
-      // .MultiSelectItem {
-      //   max-width: 150px;
-      // }
+        div:first-of-type {
+          padding: 10px;
+        }
+      }
+
+      .MultiSelectItem {
+        padding-top: 8px !important;
+        padding-bottom: 8px !important;
+        background-color: red;
+      }
 
       .MetadataButton {
         font-family: 'Inter', Arial, Helvetica, sans-serif;
@@ -73,8 +95,6 @@
 
       // p-datatable
       & > div {
-        // height: 100%;
-        
         // .p-paginator-bottom
         & > div:nth-of-type(2) {
           margin-top: 13px;
@@ -97,7 +117,11 @@
               line-height: 18px;
               letter-spacing: 0px;
               color: black;
-              // min-width: 100px;
+              cursor: grab;
+              
+              &:active {
+                cursor: grabbing;
+              }
 
               & + th {
                 border-left: none;
@@ -124,7 +148,6 @@
 
         & > tbody {
           & > tr {
-            // border-bottom: 1px dashed var(--color-neutral-dark-100);
             padding-left: 10px;
 
             &:hover {
