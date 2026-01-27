@@ -1,5 +1,4 @@
 import { StatusCodes } from 'http-status-codes';
-import { In } from 'typeorm';
 import { DataMapping, DataCleaningConfig } from '../interfaces/DataMapping';
 import { PropertyMapping, PropertyCleaningConfig } from '../interfaces/PropertyMapping';
 import { RequestData } from '../interfaces/RequestData';
@@ -9,6 +8,11 @@ import DataMappingEntity from '../entities/DataMapping';
 import UnitConversionEntity from '../entities/UnitConversion';
 import FileEntity from '../entities/File';
 import { REQUIRED_METADATA_FIELDS } from '../constants/constants';
+import UnitConversionService from './UnitConversionService';
+import SoilPropertyService from './SoilPropertyService';
+import SoilPropertyEntity from '../entities/SoilProperty';
+import ProcedureService from './ProcedureService';
+import ProcedureEntity from '../entities/Procedure';
 
 export default class DataMappingService {
   postDataMapping = async (requestData: RequestData, dataMapping: DataMappingObject): Promise<DataMapping> => {
@@ -39,15 +43,45 @@ export default class DataMappingService {
       .filter(mapping => typeof mapping === 'object' && (mapping as PropertyMapping).conversion_slug !== undefined)
       .map(mapping => (mapping as PropertyMapping).conversion_slug!);
 
-    const uc_repo = requestData.entityManager.getRepository(UnitConversionEntity);
-    const propInfos: UnitConversionEntity[] = conversionSlugs.length > 0 ? await uc_repo.findBy({ slug: In(conversionSlugs) }) : [];
+    const ucService = new UnitConversionService();
+    const ucInfos = await ucService.getUnitConversionsBySlug(requestData, conversionSlugs);
 
-    const propInfoMap = propInfos.reduce(
+    const ucInfoMap = ucInfos.reduce(
       (acc, info) => {
         acc[info.slug] = info;
         return acc;
       },
       {} as Map<string, UnitConversionEntity>,
+    );
+
+    const propertySlugs: string[] = Object.values(dataMapping)
+      .filter(mapping => typeof mapping === 'object')
+      .map(mapping => (mapping as PropertyMapping).property_slug);
+
+    const spService = new SoilPropertyService();
+    const spInfos = await spService.getSoilPropertiesBySlug(requestData, propertySlugs);
+
+    const spInfoMap = spInfos.reduce(
+      (acc, info) => {
+        acc[info.slug] = info;
+        return acc;
+      },
+      {} as Map<string, SoilPropertyEntity>,
+    );
+
+    const procedureSlugs: string[] = Object.values(dataMapping)
+      .filter(mapping => typeof mapping === 'object' && (mapping as PropertyMapping).procedure_slug !== undefined)
+      .map(mapping => (mapping as PropertyMapping).procedure_slug!);
+
+    const pService = new ProcedureService();
+    const pInfos = await pService.getProceduresBySlug(requestData, procedureSlugs);
+
+    const pInfoMap = pInfos.reduce(
+      (acc, info) => {
+        acc[info.slug] = info;
+        return acc;
+      },
+      {} as Map<string, ProcedureEntity>,
     );
 
     // Process metadata (string types) and property columns (object types)
@@ -60,8 +94,12 @@ export default class DataMappingService {
       } else if (typeof mapping === 'object') {
         const props = mapping as PropertyMapping;
         const propsProcessed: PropertyCleaningConfig = props;
-        const propInfo = props.conversion_slug ? (propInfoMap[props.conversion_slug] ?? null) : null;
-        propsProcessed.conversion_formula = propInfo?.conversion_formula;
+        const spInfo = spInfoMap[props.property_slug];
+        const ucInfo = props.conversion_slug ? (ucInfoMap[props.conversion_slug] ?? null) : null;
+        const pInfo = props.procedure_slug ? (pInfoMap[props.procedure_slug] ?? null) : null;
+        propsProcessed.property_id = spInfo.id;
+        propsProcessed.conversion_formula = ucInfo?.conversion_formula;
+        propsProcessed.procedure_id = pInfo?.id;
         result.property_cols[sanitizedField] = propsProcessed;
       }
     }

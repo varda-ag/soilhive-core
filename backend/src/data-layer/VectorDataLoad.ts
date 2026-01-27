@@ -1,14 +1,11 @@
-import { EntityManager, In } from 'typeorm';
+import { EntityManager } from 'typeorm';
 import { DATA_PREVIEW_SIZE } from '../constants/constants';
 import { DataCleaningConfig } from '../interfaces/DataMapping';
-import { PropertyCleaningConfig } from '../interfaces/PropertyMapping';
 import FeatureEntity from '../entities/Feature';
 import LicenseEntity from '../entities/License';
 import LayerEntity from '../entities/Layer';
 import DatasetLayerEntity from '../entities/DatasetLayer';
 import ObservationEntity from '../entities/Observation';
-import SoilPropertyEntity from '../entities/SoilProperty';
-import ProcedureEntity from '../entities/Procedure';
 
 export default class VectorDataLoad {
   /**
@@ -76,36 +73,6 @@ export default class VectorDataLoad {
     }
     record.license = licenseId;
 
-    const propertySlugs: string[] = Object.values(dataMappingConfig.property_cols).map(
-      mapping => (mapping as PropertyCleaningConfig).property_slug,
-    );
-
-    const soilPropInfos: SoilPropertyEntity[] =
-      propertySlugs.length > 0 ? await entityManager.findBy(SoilPropertyEntity, { slug: In(propertySlugs) }) : [];
-
-    const soilPropMap = soilPropInfos.reduce(
-      (acc, info) => {
-        acc[info.slug] = info;
-        return acc;
-      },
-      {} as Map<string, SoilPropertyEntity>,
-    );
-
-    const procedureSlugs: string[] = Object.values(dataMappingConfig.property_cols)
-      .filter(mapping => (mapping as PropertyCleaningConfig).procedure_slug !== undefined)
-      .map(mapping => (mapping as PropertyCleaningConfig).procedure_slug!);
-
-    const procedureInfos: ProcedureEntity[] =
-      propertySlugs.length > 0 ? await entityManager.findBy(ProcedureEntity, { slug: In(procedureSlugs) }) : [];
-
-    const procedureMap = procedureInfos.reduce(
-      (acc, info) => {
-        acc[info.slug] = info;
-        return acc;
-      },
-      {} as Map<string, ProcedureEntity>,
-    );
-
     // Dynamic layer select/insert
     const metadataVals: Record<string, any> = {};
     const metadataCols: string[] = [];
@@ -124,44 +91,69 @@ export default class VectorDataLoad {
       .execute();
     const layerId = layer.raw[0]?.id;
 
+    // create rows with internal mapping key
+    const datasetLayerRows: Record<string, any>[] = [];
+    const observationRows: Record<string, any>[] = [];
+
     for (const [col, data] of Object.entries(dataMappingConfig.property_cols)) {
       const value = record[col];
-      if (value) {
-        const soilPropertyId: string = soilPropMap[data.property_slug];
-        // Upsert dataset_layer
-        const datasetLayer = await entityManager
-          .createQueryBuilder()
-          .insert()
-          .into(DatasetLayerEntity)
-          .values({
-            dataset_id: datasetId,
-            layer_id: layerId!,
-            feature_id: featureId!,
-            soil_property_id: soilPropertyId!,
-          })
-          .orUpdate(
-            ['dataset_id', 'layer_id', 'feature_id', 'soil_property_id'],
-            ['dataset_id', 'layer_id', 'feature_id', 'soil_property_id'],
-          )
-          .returning('id')
-          .execute();
-        const datasetLayerId = datasetLayer.raw[0]?.id;
+      if (!value) continue;
 
-        const procedureId: string = data.procedure_slug ? (procedureMap[data.procedure_slug] ?? null) : null;
-        // Upsert observation
-        await entityManager
-          .createQueryBuilder()
-          .insert()
-          .into(ObservationEntity)
-          .values({
-            dataset_layer_id: datasetLayerId,
-            procedure_id: procedureId,
-            value: value,
-          })
-          .orUpdate(['dataset_layer_id', 'procedure_id', 'value'], ['dataset_layer_id', 'procedure_id', 'value'])
-          .returning('id')
-          .execute();
+      const soilPropertyId: string = data.property_id!;
+
+      datasetLayerRows.push({
+        dataset_id: datasetId,
+        layer_id: layerId!,
+        feature_id: featureId!,
+        soil_property_id: soilPropertyId!,
+        _key: `${datasetId}_${layerId}_${featureId}_${soilPropertyId}`,
+      });
+
+      const procedureId: string | null = data.procedure_id ?? null;
+
+      observationRows.push({
+        soil_property_key: `${datasetId}_${layerId}_${featureId}_${soilPropertyId}`,
+        procedure_id: procedureId,
+        value: value,
+      });
+    }
+    const dedupedDatasetLayerRows = Array.from(new Map(datasetLayerRows.map(r => [r._key, r])).values());
+    // upsert datasetLayers
+    const insertedDatasetLayers = await entityManager
+      .createQueryBuilder()
+      .insert()
+      .into(DatasetLayerEntity)
+      .values(dedupedDatasetLayerRows)
+      .orUpdate(['dataset_id', 'layer_id', 'feature_id', 'soil_property_id'], ['dataset_id', 'layer_id', 'feature_id', 'soil_property_id'])
+      .returning(['id', 'dataset_id', 'layer_id', 'feature_id', 'soil_property_id'])
+      .execute();
+
+    const datasetLayerIdMap = new Map<string, string>();
+    for (const row of insertedDatasetLayers.raw) {
+      const key = `${row.dataset_id}_${row.layer_id}_${row.feature_id}_${row.soil_property_id}`;
+      datasetLayerIdMap.set(key, row.id);
+    }
+    // prep observations with dataset_layer_id
+    const finalObservationRows = observationRows.map(r => {
+      const datasetLayerId = datasetLayerIdMap.get(r.soil_property_key);
+      if (!datasetLayerId) {
+        throw new Error(`datasetLayerId missing for observation key: ${r.soil_property_key}`);
       }
+      return {
+        dataset_layer_id: datasetLayerId,
+        procedure_id: r.procedure_id,
+        value: r.value,
+      };
+    });
+    // upsert observations
+    if (finalObservationRows.length > 0) {
+      await entityManager
+        .createQueryBuilder()
+        .insert()
+        .into(ObservationEntity)
+        .values(finalObservationRows)
+        .orUpdate(['dataset_layer_id', 'procedure_id', 'value'], ['dataset_layer_id', 'procedure_id', 'value'])
+        .execute();
     }
   };
 }
