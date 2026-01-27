@@ -77,14 +77,14 @@ describe('Testing /soil-data routes', () => {
       spatial_extent: [0, 0, 5, 5],
       id: 1003,
       soilPropertyNames: ['multi1'],
-      featureCount: 3,
+      featureCount: 10,
     });
     const data2 = await addSyntheticData({
       ...syntheticDataOptions,
       spatial_extent: [10, 10, 15, 15],
       id: 1004,
       soilPropertyNames: ['multi2'],
-      featureCount: 3,
+      featureCount: 10,
     });
 
     // Create a data filter with geometries covering both areas
@@ -137,7 +137,6 @@ describe('Testing /soil-data routes', () => {
   });
 
   it('Should sort data in ascending and descending order', async () => {
-    // Create synthetic data
     const { dataset } = await addSyntheticData({
       ...syntheticDataOptions,
       spatial_extent: [0, 0, 10, 10],
@@ -166,7 +165,6 @@ describe('Testing /soil-data routes', () => {
   });
 
   it('Should respect limit parameter for pagination', async () => {
-    // Create synthetic data with many features
     const { dataset } = await addSyntheticData({
       ...syntheticDataOptions,
       spatial_extent: [0, 0, 10, 10],
@@ -195,7 +193,6 @@ describe('Testing /soil-data routes', () => {
   });
 
   it('Should support cursor-based pagination', async () => {
-    // Create synthetic data with many features
     const { dataset } = await addSyntheticData({
       ...syntheticDataOptions,
       spatial_extent: [0, 0, 10, 10],
@@ -232,7 +229,6 @@ describe('Testing /soil-data routes', () => {
   });
 
   it('Should sort by different fields correctly', async () => {
-    // Create synthetic data
     const { dataset } = await addSyntheticData({
       ...syntheticDataOptions,
       spatial_extent: [0, 0, 10, 10],
@@ -264,7 +260,6 @@ describe('Testing /soil-data routes', () => {
   });
 
   it('Should combine pagination and sorting correctly', async () => {
-    // Create synthetic data with many features
     const { dataset } = await addSyntheticData({
       ...syntheticDataOptions,
       spatial_extent: [0, 0, 10, 10],
@@ -317,13 +312,47 @@ describe('Testing /soil-data routes', () => {
       expect(firstPageDescValues[i]).toBeLessThanOrEqual(firstPageDescValues[i - 1]);
     }
   });
+
+  it('Should retrieve data using property filtering', async () => {
+    const data1 = await addSyntheticData({
+      ...syntheticDataOptions,
+      spatial_extent: [0, 0, 5, 5],
+      id: 1003,
+      soilPropertyNames: ['prop1'],
+      featureCount: 5,
+    });
+    const data2 = await addSyntheticData({
+      ...syntheticDataOptions,
+      spatial_extent: [10, 10, 15, 15],
+      id: 1004,
+      soilPropertyNames: ['prop2'],
+      featureCount: 5,
+    });
+
+    // Create a data filter covering the entire extent selecting only 'prop1'
+    const filterId = await createFilter([0, 0, 20, 20], { soil_properties: ['prop1'] });
+
+    // Call soil-data endpoint with both datasets
+    const datasets = `${data1.dataset.slug},${data2.dataset.slug}`;
+    const soilDataRes = await request(app).get(`/soil-data?filterId=${filterId}&datasets=${datasets}`);
+    expect(soilDataRes.statusCode).toBe(200);
+    expect(soilDataRes.body.length).toBe(5);
+    // Verify data contains entries only for soil property 'prop1'
+    const soilProperties = soilDataRes.body.map((item: any) => item.soil_property);
+    expect(soilProperties).toContain('prop1');
+    expect(soilProperties).not.toContain('prop2');
+    // Verify data contains entries from only dataset1
+    const datasetSlugs = soilDataRes.body.map((item: any) => item.dataset);
+    expect(datasetSlugs).toContain(data1.dataset.slug);
+    expect(datasetSlugs).not.toContain(data2.dataset.slug);
+  });
 });
 
-const createFilter = async (spatial_extent: number[]): Promise<string> => {
+const createFilter = async (spatial_extent: number[], parameters = {}): Promise<string> => {
   const polygon = getPolygonFromBbox(spatial_extent);
   // Create a data filter covering the entire extent
   const filterPayload = {
-    parameters: {},
+    parameters,
     geometries: [polygon],
   };
   const filterRes = await request(app).post('/data-filters').send(filterPayload);
