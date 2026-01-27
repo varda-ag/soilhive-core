@@ -1,5 +1,4 @@
 import { StatusCodes } from 'http-status-codes';
-import { In } from 'typeorm';
 import { DataMapping, DataCleaningConfig } from '../interfaces/DataMapping';
 import { PropertyMapping, PropertyCleaningConfig } from '../interfaces/PropertyMapping';
 import { RequestData } from '../interfaces/RequestData';
@@ -7,7 +6,13 @@ import type { DataMappingObject } from '../types/DataMapping';
 import { ErrorResponse } from '../utils/error';
 import DataMappingEntity from '../entities/DataMapping';
 import UnitConversionEntity from '../entities/UnitConversion';
-import FileEntity from '../entities/File';
+import SoilPropertyEntity from '../entities/SoilProperty';
+import ProcedureEntity from '../entities/Procedure';
+import { REQUIRED_METADATA_FIELDS } from '../constants/constants';
+import UnitConversionService from './UnitConversionService';
+import SoilPropertyService from './SoilPropertyService';
+import ProcedureService from './ProcedureService';
+import FileService from './FileService';
 
 export default class DataMappingService {
   postDataMapping = async (requestData: RequestData, dataMapping: DataMappingObject): Promise<DataMapping> => {
@@ -24,13 +29,13 @@ export default class DataMappingService {
     return newRow;
   };
 
-  parseDataMapping = async (requestData: RequestData, id: string, fileId: string): Promise<DataCleaningConfig> => {
-    const file_repo = requestData.entityManager.getRepository(FileEntity);
-    await file_repo.findOneByOrFail({ id: fileId });
+  parseDataMapping = async (requestData: RequestData, id: string, fileSlug: string): Promise<DataCleaningConfig> => {
+    const fService = new FileService();
+    const file = await fService.getFile(requestData, fileSlug);
     const result: DataCleaningConfig = {
       metadata_cols: {},
       property_cols: {},
-      file_id: fileId,
+      file_id: file.id,
     };
     const dataMapping = await this.getDataMapping(requestData, id);
 
@@ -38,15 +43,45 @@ export default class DataMappingService {
       .filter(mapping => typeof mapping === 'object' && (mapping as PropertyMapping).conversion_slug !== undefined)
       .map(mapping => (mapping as PropertyMapping).conversion_slug!);
 
-    const uc_repo = requestData.entityManager.getRepository(UnitConversionEntity);
-    const propInfos: UnitConversionEntity[] = conversionSlugs.length > 0 ? await uc_repo.findBy({ slug: In(conversionSlugs) }) : [];
+    const ucService = new UnitConversionService();
+    const ucInfos = await ucService.getUnitConversionsBySlug(requestData, conversionSlugs);
 
-    const propInfoMap = propInfos.reduce(
+    const ucInfoMap = ucInfos.reduce(
       (acc, info) => {
         acc[info.slug] = info;
         return acc;
       },
       {} as Map<string, UnitConversionEntity>,
+    );
+
+    const propertySlugs: string[] = Object.values(dataMapping)
+      .filter(mapping => typeof mapping === 'object')
+      .map(mapping => (mapping as PropertyMapping).property_slug);
+
+    const spService = new SoilPropertyService();
+    const spInfos = await spService.getSoilPropertiesBySlug(requestData, propertySlugs);
+
+    const spInfoMap = spInfos.reduce(
+      (acc, info) => {
+        acc[info.slug] = info;
+        return acc;
+      },
+      {} as Map<string, SoilPropertyEntity>,
+    );
+
+    const procedureSlugs: string[] = Object.values(dataMapping)
+      .filter(mapping => typeof mapping === 'object' && (mapping as PropertyMapping).procedure_slug !== undefined)
+      .map(mapping => (mapping as PropertyMapping).procedure_slug!);
+
+    const pService = new ProcedureService();
+    const pInfos = await pService.getProceduresBySlug(requestData, procedureSlugs);
+
+    const pInfoMap = pInfos.reduce(
+      (acc, info) => {
+        acc[info.slug] = info;
+        return acc;
+      },
+      {} as Map<string, ProcedureEntity>,
     );
 
     // Process metadata (string types) and property columns (object types)
@@ -55,13 +90,22 @@ export default class DataMappingService {
       const sanitizedField = field.toLowerCase().replace(/[^a-z0-9_]/g, '');
       if (sanitizedField === 'drop_records') continue;
       if (typeof mapping === 'string' || mapping instanceof String) {
-        result.metadata_cols[sanitizedField] = mapping as string;
+        result.metadata_cols[mapping as string] = sanitizedField;
       } else if (typeof mapping === 'object') {
         const props = mapping as PropertyMapping;
         const propsProcessed: PropertyCleaningConfig = props;
-        const propInfo = props.conversion_slug ? (propInfoMap[props.conversion_slug] ?? null) : null;
-        propsProcessed.conversion_formula = propInfo?.conversion_formula;
+        const spInfo = spInfoMap[props.property_slug];
+        const ucInfo = props.conversion_slug ? (ucInfoMap[props.conversion_slug] ?? null) : null;
+        const pInfo = props.procedure_slug ? (pInfoMap[props.procedure_slug] ?? null) : null;
+        propsProcessed.property_id = spInfo.id;
+        propsProcessed.conversion_formula = ucInfo?.conversion_formula;
+        propsProcessed.procedure_id = pInfo?.id;
         result.property_cols[sanitizedField] = propsProcessed;
+      }
+    }
+    for (const requiredField of REQUIRED_METADATA_FIELDS) {
+      if (!result.metadata_cols[requiredField]) {
+        result.metadata_cols[requiredField] = null;
       }
     }
     if (dataMapping.drop_records && Array.isArray(dataMapping.drop_records)) {
