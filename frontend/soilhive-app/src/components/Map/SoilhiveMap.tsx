@@ -209,9 +209,9 @@ function SoilhiveMap({
     [onSelectionChange, selection.features.length, updateH3Cells],
   );
 
-  const resetSelection = useCallback(() => {    
-    if(!mapRef.current) {
-      // Otherwise when the popup is closed when changing page it won't find any Map as it has been already unmounted 
+  const resetSelection = useCallback(() => {
+    if (!mapRef.current) {
+      // Otherwise when the popup is closed when changing page it won't find any Map as it has been already unmounted
       return;
     }
     if (selectedH3Cell) {
