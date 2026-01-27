@@ -1,12 +1,12 @@
 import { render } from '@testing-library/react';
-import DownloadPreviewDataSection from 'components/DownloadPreview/DownloadPreviewDataSection';
+import DownloadPreviewDataSection from 'components/DownloadPreview/DownloadPreviewDataSection/DownloadPreviewDataSection';
 
-jest.mock('components/DownloadPreview/DownloadPreviewFilters', () => {
+jest.mock('components/DownloadPreview/DownloadPreviewFilters/DownloadPreviewFilters', () => {
   const DownloadPreviewFilters = () => <div>Mock DownloadPreviewFilters</div>;
   return DownloadPreviewFilters;
 });
 
-jest.mock('components/DownloadPreview/DownloadPreviewTable', () => {
+jest.mock('components/DownloadPreview/DownloadPreviewTable/DownloadPreviewTable', () => {
   const DownloadPreviewTable = () => <div>Mock DownloadPreviewTable</div>;
   return DownloadPreviewTable;
 });

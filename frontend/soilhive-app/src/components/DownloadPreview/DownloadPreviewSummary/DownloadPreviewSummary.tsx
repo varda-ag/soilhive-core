@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import classNames from 'classnames';
 import type { StyleSpecification } from 'maplibre-gl';
-import { MAPBOX_ACCESS_TOKEN } from '../../utilities/environmentVariables';
+import { MAPBOX_ACCESS_TOKEN } from '../../../utilities/environmentVariables';
 import SoilhiveSimpleMap from 'components/Map/SoilhiveSimpleMap';
 import { Button } from 'components/UI';
 import styles from './DownloadPreviewSummary.module.scss';

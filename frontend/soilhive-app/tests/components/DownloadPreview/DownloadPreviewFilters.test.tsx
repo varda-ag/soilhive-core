@@ -1,5 +1,5 @@
 import { render } from '@testing-library/react';
-import DownloadPreviewFilters from 'components/DownloadPreview/DownloadPreviewFilters';
+import DownloadPreviewFilters from 'components/DownloadPreview/DownloadPreviewFilters/DownloadPreviewFilters';
 
 describe('DownloadPreviewFilters', () => {
   it('renders the download preview filters', () => {

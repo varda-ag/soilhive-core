@@ -2,13 +2,13 @@ import { useContext, useState } from 'react';
 import { AvailabilityContext } from '../contexts/AvailabilityContext';
 import { Button } from 'components/UI';
 import styles from './DownloadPreview.module.scss';
-import DownloadPreviewSummary from 'components/DownloadPreview/DownloadPreviewSummary';
+import DownloadPreviewSummary from 'components/DownloadPreview//DownloadPreviewSummary/DownloadPreviewSummary';
 import DownloadIcon from 'assets/icons/download-icon.svg?react';
 import ArrowLeftIcon from 'assets/icons/arrow-left-icon.svg?react';
 import ShareIcon from 'assets/icons/share-icon.svg?react';
 import BookmarkIcon from 'assets/icons/bookmark-icon.svg?react';
 import classNames from 'classnames';
-import DownloadPreviewDataSection from 'components/DownloadPreview/DownloadPreviewDataSection';
+import DownloadPreviewDataSection from 'components/DownloadPreview/DownloadPreviewDataSection/DownloadPreviewDataSection';
 
 function DownloadPreview() {
   const availabilityContext = useContext(AvailabilityContext);

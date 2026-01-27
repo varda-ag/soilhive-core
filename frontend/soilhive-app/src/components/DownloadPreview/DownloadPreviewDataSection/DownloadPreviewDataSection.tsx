@@ -1,9 +1,9 @@
 import { Button } from 'components/UI';
 import FilterIcon from 'assets/icons/filter-icon.svg?react';
 import styles from './DownloadPreviewDataSection.module.scss';
-import DownloadPreviewTable from './DownloadPreviewTable';
 import ShareIcon from 'assets/icons/share-icon.svg?react';
-import DownloadPreviewFilters from './DownloadPreviewFilters';
+import DownloadPreviewFilters from '../DownloadPreviewFilters/DownloadPreviewFilters';
+import DownloadPreviewTable from '../DownloadPreviewTable/DownloadPreviewTable';
 
 function DownloadPreviewDataSection() {
   return (

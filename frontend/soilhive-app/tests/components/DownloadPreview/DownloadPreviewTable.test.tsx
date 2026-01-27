@@ -1,5 +1,5 @@
 import { render } from '@testing-library/react';
-import DownloadPreviewTable from 'components/DownloadPreview/DownloadPreviewTable';
+import DownloadPreviewTable from 'components/DownloadPreview/DownloadPreviewTable/DownloadPreviewTable';
 
 jest.mock('primereact/multiselect', () => {
   const MultiSelect = () => <div>Mock Multiselect</div>;
