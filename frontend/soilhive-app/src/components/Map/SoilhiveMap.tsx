@@ -210,6 +210,10 @@ function SoilhiveMap({
   );
 
   const resetSelection = useCallback(() => {
+    if (!mapRef.current) {
+      // Otherwise when the popup is closed when changing page it won't find any Map as it has been already unmounted
+      return;
+    }
     if (selectedH3Cell) {
       mapRef.current.setFeatureState({ source: 'data', id: selectedH3Cell.id }, { selected: false });
       setSelectedH3Cell(null);
