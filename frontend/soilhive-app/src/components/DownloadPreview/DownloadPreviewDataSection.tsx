@@ -10,12 +10,12 @@ function DownloadPreviewDataSection() {
     <div className={styles.DownloadPreviewDataSection}>
       <div className={styles.Controls}>
         <div className={styles.ControlsButtons}>
-          <Button dataTestId="download-preview-data-section-filters-button" className={styles.FiltersButton} type="tertiary" size="small">
+          <Button dataTestId="download-preview-data-section-filters-button" className={styles.FiltersButton} type="primary" size="small">
             <FilterIcon />
             Filters
           </Button>
         </div>
-        <Button type="tertiary" isIconOnly={true} className={styles.ShareButton}>
+        <Button dataTestId="download-preview-data-section-share-button" type="tertiary" isIconOnly={true} className={styles.ShareButton}>
           <ShareIcon />
         </Button>
       </div>

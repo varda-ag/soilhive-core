@@ -12,7 +12,7 @@ exports[`DownloadPreviewDataSection renders the download preview data section 1`
         class="ControlsButtons"
       >
         <button
-          class="Button Tertiary Small FiltersButton"
+          class="Button Primary Small FiltersButton"
           data-testid="download-preview-data-section-filters-button"
           type="button"
         >
@@ -26,7 +26,7 @@ exports[`DownloadPreviewDataSection renders the download preview data section 1`
       </div>
       <button
         class="Button Tertiary Small IconOnly ShareButton"
-        data-testid="sh-ui-button"
+        data-testid="download-preview-data-section-share-button"
         type="button"
       >
         <svg
