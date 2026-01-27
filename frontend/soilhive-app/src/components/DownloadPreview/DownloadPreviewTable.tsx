@@ -90,7 +90,17 @@ function DownloadPreviewTable() {
         </div>
         <div className={styles.TableContainer}>
           <PrimeReactProvider>
-            <DataTable value={products} paginator rows={20} resizableColumns columnResizeMode="expand" reorderableColumns removableSort>
+            <DataTable
+              value={products}
+              paginator
+              rows={20}
+              resizableColumns
+              columnResizeMode="expand"
+              reorderableColumns
+              removableSort
+              scrollable
+              scrollHeight="flex"
+            >
               {columns
                 .filter(({ value }) => visibleColumns.includes(value))
                 .map(({ name, value }) => {

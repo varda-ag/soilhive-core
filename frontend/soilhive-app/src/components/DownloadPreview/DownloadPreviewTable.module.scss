@@ -71,13 +71,12 @@
       .MultiSelectItem {
         padding-top: 8px !important;
         padding-bottom: 8px !important;
-        background-color: red;
       }
 
       .MetadataButton {
         font-family: 'Inter', Arial, Helvetica, sans-serif;
-        font-weight: 700;
-        font-size: 14px;
+        font-weight: var(--font-weight-bold);
+        font-size: var(--font-size-sm);
         line-height: 20px;
         letter-spacing: 0px;
         text-align: center;
@@ -112,8 +111,8 @@
               background-color: var(--color-neutral-dark-100);
               padding: 13px 0 11px 0;
               font-family: 'Inter', Arial, Helvetica, sans-serif;
-              font-weight: 700;
-              font-size: 12px;
+              font-weight: var(--font-weight-bold);
+              font-size: var(--font-size-xs);
               line-height: 18px;
               letter-spacing: 0px;
               color: black;
@@ -158,9 +157,9 @@
               min-width: 100px;
               border: none;
               font-family: 'Inter', Arial, Helvetica, sans-serif;
-              font-weight: 400;
-              font-size: 14px;
-              line-height: 150%;
+              font-weight: var(--font-weight-regular);
+              font-size: var(--font-size-sm);
+              line-height: var(--line-height-lg);
               letter-spacing: 0px;
               color: black;
               padding: 10px 0 10px 0;
@@ -182,9 +181,9 @@
 
             & > .DateCell {
               font-family: 'Inter', Arial, Helvetica, sans-serif;
-              font-weight: 700;
-              font-size: 12px;
-              line-height: 150%;
+              font-weight: var(--font-weight-bold);
+              font-size: var(--font-size-xs);
+              line-height: var(--line-height-lg);
               letter-spacing: 0px;
               padding-left: 6px !important;
               button {
