@@ -209,7 +209,11 @@ function SoilhiveMap({
     [onSelectionChange, selection.features.length, updateH3Cells],
   );
 
-  const resetSelection = useCallback(() => {
+  const resetSelection = useCallback(() => {    
+    if(!mapRef.current) {
+      // Otherwise when the popup is closed when changing page it won't find any Map as it has been already unmounted 
+      return;
+    }
     if (selectedH3Cell) {
       mapRef.current.setFeatureState({ source: 'data', id: selectedH3Cell.id }, { selected: false });
       setSelectedH3Cell(null);
@@ -309,7 +313,10 @@ function SoilhiveMap({
                 bottom: [0, 0],
               } as Offset
             }
-            onClose={resetSelection}
+            onClose={() => {
+              console.log('onPopupClose');
+              resetSelection();
+            }}
           >
             <div className="soilhive-map-popup-header">
               <div className="soilhive-map-popup-header-left" style={{ minWidth: '24px' }}>
