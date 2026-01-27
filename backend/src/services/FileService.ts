@@ -1,3 +1,4 @@
+import { StatusCodes } from 'http-status-codes';
 import fs from 'fs';
 import { S3Client } from '@aws-sdk/client-s3';
 import { FileStorage } from '@flystorage/file-storage';
@@ -5,9 +6,13 @@ import { AwsS3StorageAdapter } from '@flystorage/aws-s3';
 import { LocalStorageAdapter } from '@flystorage/local-fs';
 import { FlystorageMulterStorageEngine } from '@flystorage/multer-storage';
 import { LocalStorageConfig, S3StorageConfig, StorageConfig } from '../interfaces/StorageConfig';
+import { RequestData } from '../interfaces/RequestData';
+import { File } from '../interfaces/File';
+import { ErrorResponse } from '../utils/error';
 import { StorageModes } from '../types/enums';
 import ConfigService from './ConfigService';
 import { LOGO_FILE_ID } from '../constants/constants';
+import FileEntity from '../entities/File';
 
 export default class FileService {
   exists = async (fileId: string): Promise<boolean> => {
@@ -70,5 +75,19 @@ export default class FileService {
         throw new Error(`Unsupported storage mode: ${config.storageMode}`);
     }
     return adapter;
+  };
+
+  getFiles = async (requestData: RequestData): Promise<File[]> => {
+    const repo = requestData.entityManager.getRepository(FileEntity);
+    return await repo.find();
+  };
+
+  getFile = async (requestData: RequestData, slug: string): Promise<File> => {
+    const repo = requestData.entityManager.getRepository(FileEntity);
+    const file = await repo.findOneBy({ slug });
+    if (!file) {
+      throw new ErrorResponse(`File ${slug} not found`, StatusCodes.NOT_FOUND);
+    }
+    return file;
   };
 }
