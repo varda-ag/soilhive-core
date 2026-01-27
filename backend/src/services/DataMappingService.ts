@@ -6,13 +6,13 @@ import type { DataMappingObject } from '../types/DataMapping';
 import { ErrorResponse } from '../utils/error';
 import DataMappingEntity from '../entities/DataMapping';
 import UnitConversionEntity from '../entities/UnitConversion';
-import FileEntity from '../entities/File';
+import SoilPropertyEntity from '../entities/SoilProperty';
+import ProcedureEntity from '../entities/Procedure';
 import { REQUIRED_METADATA_FIELDS } from '../constants/constants';
 import UnitConversionService from './UnitConversionService';
 import SoilPropertyService from './SoilPropertyService';
-import SoilPropertyEntity from '../entities/SoilProperty';
 import ProcedureService from './ProcedureService';
-import ProcedureEntity from '../entities/Procedure';
+import FileService from './FileService';
 
 export default class DataMappingService {
   postDataMapping = async (requestData: RequestData, dataMapping: DataMappingObject): Promise<DataMapping> => {
@@ -29,13 +29,13 @@ export default class DataMappingService {
     return newRow;
   };
 
-  parseDataMapping = async (requestData: RequestData, id: string, fileId: string): Promise<DataCleaningConfig> => {
-    const file_repo = requestData.entityManager.getRepository(FileEntity);
-    await file_repo.findOneByOrFail({ id: fileId });
+  parseDataMapping = async (requestData: RequestData, id: string, fileSlug: string): Promise<DataCleaningConfig> => {
+    const fService = new FileService();
+    const file = await fService.getFile(requestData, fileSlug);
     const result: DataCleaningConfig = {
       metadata_cols: {},
       property_cols: {},
-      file_id: fileId,
+      file_id: file.id,
     };
     const dataMapping = await this.getDataMapping(requestData, id);
 
