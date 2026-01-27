@@ -313,10 +313,7 @@ function SoilhiveMap({
                 bottom: [0, 0],
               } as Offset
             }
-            onClose={() => {
-              console.log('onPopupClose');
-              resetSelection();
-            }}
+            onClose={resetSelection}
           >
             <div className="soilhive-map-popup-header">
               <div className="soilhive-map-popup-header-left" style={{ minWidth: '24px' }}>
