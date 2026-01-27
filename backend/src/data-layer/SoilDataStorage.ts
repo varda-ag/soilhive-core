@@ -62,7 +62,7 @@ export default class SoilDataStorage {
     return results.map(row => ({
       id: row.dataset_id,
       name: row.dataset_name,
-      data_types: [row.gis_datatype],
+      data_type: row.gis_datatype,
       licenses: row.licenses ? row.licenses.split(',') : [],
       min_sampling_date: row.min_sampling_date ? row.min_sampling_date.toISOString() : null,
       max_sampling_date: row.max_sampling_date ? row.max_sampling_date.toISOString() : null,
