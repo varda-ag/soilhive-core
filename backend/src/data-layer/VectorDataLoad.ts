@@ -117,7 +117,7 @@ export default class VectorDataLoad {
         value: value,
       });
     }
-    const dedupedDatasetLayerRows = Array.from(new Map(datasetLayerRows.map(r => [r._key, r])).values());
+    const dedupedDatasetLayerRows = Array.from(new Map(datasetLayerRows.map(r => [r['_key'], r])).values());
     // upsert datasetLayers
     const insertedDatasetLayers = await entityManager
       .createQueryBuilder()
@@ -135,14 +135,14 @@ export default class VectorDataLoad {
     }
     // prep observations with dataset_layer_id
     const finalObservationRows = observationRows.map(r => {
-      const datasetLayerId = datasetLayerIdMap.get(r.soil_property_key);
+      const datasetLayerId = datasetLayerIdMap.get(r['soil_property_key']);
       if (!datasetLayerId) {
-        throw new Error(`datasetLayerId missing for observation key: ${r.soil_property_key}`);
+        throw new Error(`datasetLayerId missing for observation key: ${r['soil_property_key']}`);
       }
       return {
         dataset_layer_id: datasetLayerId,
-        procedure_id: r.procedure_id,
-        value: r.value,
+        procedure_id: r['procedure_id'],
+        value: r['value'],
       };
     });
     // upsert observations
