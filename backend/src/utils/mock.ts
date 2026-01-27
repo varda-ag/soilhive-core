@@ -369,7 +369,6 @@ export const addSyntheticIngestionData = async (syntheticIngestionDataOptions): 
   const category = await addCategory(`test_category_${id}`);
   await addLicense(`test_license_raw_data`);
   const file = await addFile(`test_file_${id}`);
-  console.log(file);
   const createdDataMapping: object = {};
 
   for (const [field, mapping] of Object.entries(columnMapping)) {
@@ -378,7 +377,7 @@ export const addSyntheticIngestionData = async (syntheticIngestionDataOptions): 
       createdDataMapping[field] = mapping;
     } else if (typeof mapping === 'object') {
       const props = mapping as PropertyInfo;
-      const soilProperty = await addOrFindSoilProperty(props.property_name, category.id, props.standard_unit);
+      const soilProperty = await addSoilProperty(props.property_name, category.id, props.standard_unit);
       const createdMapping: PropertyMapping = { property_slug: soilProperty.slug };
       const procedure = await addProcedure(props.procedure_name);
       if (procedure) {
