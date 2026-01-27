@@ -3,7 +3,7 @@ import DatasetService from '../../src/services/DatasetService';
 import { getEntityManager } from '../../src/utils/data-source';
 import { Token } from '../../src/interfaces/Token';
 import { RequestData } from '../../src/interfaces/RequestData';
-import { CreateDatasetInput } from '../../src/types/DatasetInput';
+import { CreateDatasetInput, UpdateDatasetInput } from '../../src/types/DatasetInput';
 import { GISDataType, IngestionStatus } from '../../src/types/data';
 
 const mockToken: Token = {
@@ -116,5 +116,129 @@ describe('DatasetService', () => {
 
       await expect(service.createDataset(requestData, input)).rejects.toThrow('Token subject is missing');
     });
+  });
+
+  describe('updateDataset', () => {
+    it('should update only the name field and generate new slug', async () => {
+      const service = new DatasetService();
+      const entityManager = await getEntityManager();
+      const requestData: RequestData = {
+        entityManager,
+        token: mockToken,
+      };
+
+      const createInput: CreateDatasetInput = {
+        name: 'Original Dataset',
+        full_name: 'Original Full Name',
+        version: '1.0.0',
+        author: 'Original Author',
+        description: 'Original description',
+      };
+      const created = await service.createDataset(requestData, createInput);
+      const originalSlug = created.slug;
+      const originalId = created.id;
+
+      const updateInput: UpdateDatasetInput = {
+        name: 'Updated Dataset',
+      };
+      const updated = await service.updateDataset(requestData, originalSlug, updateInput);
+
+      expect(updated.name).toBe('Updated Dataset');
+      expect(updated.slug).not.toBe(originalSlug);
+      expect(updated.slug).toBeDefined();
+
+      expect(updated.id).toBe(originalId);
+      expect(updated.full_name).toBe('Original Full Name');
+      expect(updated.version).toBe('1.0.0');
+      expect(updated.author).toBe('Original Author');
+      expect(updated.description).toBe('Original description');
+
+      expect(updated.updated_by).toBe('test-user-id');
+      expect(updated.updated_at).toBeDefined();
+    });
+  });
+
+  it('should set a field to null', async () => {
+    const service = new DatasetService();
+    const entityManager = await getEntityManager();
+    const requestData: RequestData = {
+      entityManager,
+      token: mockToken,
+    };
+
+    // Create dataset with full_name
+    const createInput: CreateDatasetInput = {
+      name: 'Dataset With Full Name',
+      full_name: 'This is the full name',
+      description: 'Some description',
+    };
+    const created = await service.createDataset(requestData, createInput);
+
+    // Update to set full_name to null
+    const updateInput: UpdateDatasetInput = {
+      full_name: null,
+    };
+    const updated = await service.updateDataset(requestData, created.slug, updateInput);
+
+    // Verify full_name is now null
+    expect(updated.full_name).toBeNull();
+
+    // Verify other fields remain unchanged
+    expect(updated.name).toBe('Dataset With Full Name');
+    expect(updated.description).toBe('Some description');
+  });
+
+  it('should allow update using old slug after name change', async () => {
+    const service = new DatasetService();
+    const entityManager = await getEntityManager();
+    const requestData: RequestData = {
+      entityManager,
+      token: mockToken,
+    };
+
+    const createInput: CreateDatasetInput = {
+      name: 'First Name',
+      description: 'Original description',
+    };
+    const created = await service.createDataset(requestData, createInput);
+    const oldSlug = created.slug;
+
+    // change name (which changes slug)
+    const firstUpdate: UpdateDatasetInput = {
+      name: 'Second Name',
+    };
+    const afterFirstUpdate = await service.updateDataset(requestData, oldSlug, firstUpdate);
+    const newSlug = afterFirstUpdate.slug;
+
+    expect(newSlug).not.toBe(oldSlug);
+
+    // use the old slug to update description
+    const secondUpdate: UpdateDatasetInput = {
+      description: 'Updated description',
+    };
+    const afterSecondUpdate = await service.updateDataset(requestData, oldSlug, secondUpdate);
+
+    // Verify update worked with old slug
+    expect(afterSecondUpdate.id).toBe(created.id);
+    expect(afterSecondUpdate.slug).toBe(newSlug);
+    expect(afterSecondUpdate.name).toBe('Second Name');
+    expect(afterSecondUpdate.description).toBe('Updated description');
+  });
+
+  it('should throw error when updating non-existent dataset', async () => {
+    const service = new DatasetService();
+    const entityManager = await getEntityManager();
+    const requestData: RequestData = {
+      entityManager,
+      token: mockToken,
+    };
+
+    const updateInput: UpdateDatasetInput = {
+      description: 'Some description',
+    };
+
+    await expect(service.updateDataset(requestData, 'non-existent-slug', updateInput)).rejects.toThrow(
+      "Dataset with slug 'non-existent-slug' not found",
+    );
   });
 });

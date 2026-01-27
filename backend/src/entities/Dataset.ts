@@ -24,46 +24,46 @@ export default class DatasetEntity extends BaseTable implements Dataset {
   name: string;
 
   @Column({ type: 'text', nullable: true })
-  full_name?: string;
+  full_name?: string | null;
 
   @Column({ type: 'text', nullable: true })
-  version?: string;
+  version?: string | null;
 
   @Column({ type: 'text', nullable: true })
-  author?: string;
+  author?: string | null;
 
   @Column({ type: 'text', nullable: true })
-  description?: string;
+  description?: string | null;
 
   @Column({ type: 'text', nullable: true })
-  data_producer?: string;
+  data_producer?: string | null;
 
   @Column({ type: 'jsonb', nullable: true, array: true })
-  variables_measured?: MeasuredProperty[];
+  variables_measured?: MeasuredProperty[] | null;
 
   @Column({ type: 'text', nullable: true })
-  spatial_resolution?: string;
+  spatial_resolution?: string | null;
 
   @Column({ type: 'date', nullable: true })
-  publication_date?: string;
+  publication_date?: string | null;
 
   @Column({ type: 'text', nullable: true })
-  reference_period_start?: string;
+  reference_period_start?: string | null;
 
   @Column({ type: 'text', nullable: true })
-  reference_period_stop?: string;
+  reference_period_stop?: string | null;
 
   @Column({ type: 'uuid', nullable: true, array: true })
-  licenses?: string[];
+  licenses?: string[] | null;
 
   @Column({ type: 'text', nullable: true })
-  citation?: string;
+  citation?: string | null;
 
   @Column({ type: 'text', nullable: true })
-  geographical_extent?: string;
+  geographical_extent?: string | null;
 
   @Column({ type: 'text', nullable: true })
-  gis_datatype?: GISDataType;
+  gis_datatype?: GISDataType | null;
 
   @Column({
     type: 'geometry',
@@ -72,16 +72,16 @@ export default class DatasetEntity extends BaseTable implements Dataset {
     nullable: true,
   })
   @Index({ spatial: true })
-  spatial_extent: Polygon;
+  spatial_extent: Polygon | null;
 
   @Column({ type: 'bigint', nullable: true })
-  n_observations?: string; // bigint stored as string to avoid JS number precision issues
+  n_observations?: string | null; // bigint stored as string to avoid JS number precision issues
 
   @Column({ type: 'int', nullable: true })
-  n_raster_layers?: number;
+  n_raster_layers?: number | null;
 
   @Column({ type: 'jsonb', nullable: true })
-  soil_depth?: object;
+  soil_depth?: object | null;
 
   @Column({ type: 'text', default: IngestionStatus.PENDING })
   status: IngestionStatus;
@@ -90,8 +90,8 @@ export default class DatasetEntity extends BaseTable implements Dataset {
   created_by: string;
 
   @Column({ type: 'text', nullable: true })
-  updated_by?: string;
+  updated_by?: string | null;
 
   @Column({ type: 'text', nullable: true })
-  service_location?: string;
+  service_location?: string | null;
 }
