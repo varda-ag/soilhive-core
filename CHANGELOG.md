@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.18.1 (2026-01-27)
+
+## What's Changed
+* fix: dedupedDatasetLayerRows properties access by @d-rom in https://github.com/varda-ag/soilhive-core/pull/135
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.18.0...v0.18.1
+
 ## 0.18.0 (2026-01-27)
 
 ## What's Changed
