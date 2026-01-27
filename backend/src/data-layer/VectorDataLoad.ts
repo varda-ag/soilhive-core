@@ -47,7 +47,8 @@ export default class VectorDataLoad {
     if (!record) throw new Error('Record not found');
 
     // Upsert feature by geom
-    const feature = await entityManager.createQueryBuilder()
+    const feature = await entityManager
+      .createQueryBuilder()
       .insert()
       .into(FeatureEntity)
       .values({
@@ -79,7 +80,8 @@ export default class VectorDataLoad {
       mapping => (mapping as PropertyCleaningConfig).property_slug,
     );
 
-    const soilPropInfos: SoilPropertyEntity[] = propertySlugs.length > 0 ? await entityManager.findBy(SoilPropertyEntity, { slug: In(propertySlugs) }) : [];
+    const soilPropInfos: SoilPropertyEntity[] =
+      propertySlugs.length > 0 ? await entityManager.findBy(SoilPropertyEntity, { slug: In(propertySlugs) }) : [];
 
     const soilPropMap = soilPropInfos.reduce(
       (acc, info) => {
@@ -93,7 +95,8 @@ export default class VectorDataLoad {
       .filter(mapping => (mapping as PropertyCleaningConfig).procedure_slug !== undefined)
       .map(mapping => (mapping as PropertyCleaningConfig).procedure_slug!);
 
-    const procedureInfos: ProcedureEntity[] = propertySlugs.length > 0 ? await entityManager.findBy(ProcedureEntity, { slug: In(procedureSlugs) }) : [];
+    const procedureInfos: ProcedureEntity[] =
+      propertySlugs.length > 0 ? await entityManager.findBy(ProcedureEntity, { slug: In(procedureSlugs) }) : [];
 
     const procedureMap = procedureInfos.reduce(
       (acc, info) => {
@@ -111,7 +114,8 @@ export default class VectorDataLoad {
       metadataCols.push(mappedData);
     }
 
-    const layer = await entityManager.createQueryBuilder()
+    const layer = await entityManager
+      .createQueryBuilder()
       .insert()
       .into(LayerEntity)
       .values(metadataVals)
@@ -125,7 +129,8 @@ export default class VectorDataLoad {
       if (value) {
         const soilPropertyId: string = soilPropMap[data.property_slug];
         // Upsert dataset_layer
-        const datasetLayer = await entityManager.createQueryBuilder()
+        const datasetLayer = await entityManager
+          .createQueryBuilder()
           .insert()
           .into(DatasetLayerEntity)
           .values({
@@ -144,7 +149,8 @@ export default class VectorDataLoad {
 
         const procedureId: string = data.procedure_slug ? (procedureMap[data.procedure_slug] ?? null) : null;
         // Upsert observation
-        await entityManager.createQueryBuilder()
+        await entityManager
+          .createQueryBuilder()
           .insert()
           .into(ObservationEntity)
           .values({
