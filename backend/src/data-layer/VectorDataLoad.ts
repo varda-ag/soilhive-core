@@ -1,10 +1,15 @@
 import { EntityManager } from 'typeorm';
 import { DATA_PREVIEW_SIZE } from '../constants/constants';
 import { DataCleaningConfig } from '../interfaces/DataMapping';
+import FeatureEntity from '../entities/Feature';
+import LicenseEntity from '../entities/License';
+import LayerEntity from '../entities/Layer';
+import DatasetLayerEntity from '../entities/DatasetLayer';
+import ObservationEntity from '../entities/Observation';
 
 export default class VectorDataLoad {
   /**
-   * TODO: add remaining ingestion related functions (raw data to data model, load raw data), rename DataPreview (clashing concept)
+   * TODO: add remaining ingestion related functions (load raw data), rename DataPreview (clashing concept)
    */
   getDataPreview = async (
     entityManager: EntityManager,
@@ -18,13 +23,150 @@ export default class VectorDataLoad {
     const results = await entityManager.query(...query.take(nRecords).getQueryAndParameters());
     return results;
   };
+
+  rawRecordToDataModel = async (
+    entityManager: EntityManager,
+    dataMappingConfig: DataCleaningConfig,
+    recordId: number,
+    datasetId: string,
+  ): Promise<any> => {
+    let subQuery = await entityManager.createQueryBuilder().from(`file_${dataMappingConfig.file_id}_raw`, 'raw');
+    subQuery = getDataPreviewQuery(subQuery, dataMappingConfig);
+
+    const record = await entityManager
+      .createQueryBuilder()
+      .select('*, ST_AsGeoJSON(geom) as geom_geojson')
+      .from(`(${subQuery.getQuery()})`, 'cleaned')
+      .setParameters(subQuery.getParameters())
+      .where('cleaned.record_id = :record_id', { record_id: recordId })
+      .getRawOne();
+
+    if (!record) throw new Error('Record not found');
+
+    // Upsert feature by geom
+    const feature = await entityManager
+      .createQueryBuilder()
+      .insert()
+      .into(FeatureEntity)
+      .values({
+        geom: () => `ST_GeomFromGeoJSON(:geom)`,
+      })
+      .setParameter('geom', record.geom_geojson)
+      .orUpdate(['geom'], ['geom_hash'])
+      .returning('id')
+      .execute();
+    const featureId = feature.raw[0]?.id;
+
+    // Upsert license
+    let licenseId: string | null = null;
+    if (record.license) {
+      licenseId =
+        (
+          await entityManager.findOne(LicenseEntity, {
+            where: [{ name: record.license }, { full_name: record.license }],
+          })
+        )?.id || null;
+      if (!licenseId && record.license) {
+        const newLicense = entityManager.create(LicenseEntity, { name: record.license });
+        licenseId = (await entityManager.save(newLicense)).id;
+      }
+    }
+    record.license = licenseId;
+
+    // Dynamic layer select/insert
+    const metadataVals: Record<string, any> = {};
+    const metadataCols: string[] = [];
+    for (const mappedData of Object.keys(dataMappingConfig.metadata_cols)) {
+      metadataVals[mappedData] = record[mappedData];
+      metadataCols.push(mappedData);
+    }
+
+    const layer = await entityManager
+      .createQueryBuilder()
+      .insert()
+      .into(LayerEntity)
+      .values(metadataVals)
+      .orUpdate(metadataCols, metadataCols)
+      .returning('id')
+      .execute();
+    const layerId = layer.raw[0]?.id;
+
+    // create rows with internal mapping key
+    const datasetLayerRows: Record<string, any>[] = [];
+    const observationRows: Record<string, any>[] = [];
+
+    for (const [col, data] of Object.entries(dataMappingConfig.property_cols)) {
+      const value = record[col];
+      if (!value) continue;
+
+      const soilPropertyId: string = data.property_id!;
+
+      datasetLayerRows.push({
+        dataset_id: datasetId,
+        layer_id: layerId!,
+        feature_id: featureId!,
+        soil_property_id: soilPropertyId!,
+        _key: `${datasetId}_${layerId}_${featureId}_${soilPropertyId}`,
+      });
+
+      const procedureId: string | null = data.procedure_id ?? null;
+
+      observationRows.push({
+        soil_property_key: `${datasetId}_${layerId}_${featureId}_${soilPropertyId}`,
+        procedure_id: procedureId,
+        value: value,
+      });
+    }
+    const dedupedDatasetLayerRows = Array.from(new Map(datasetLayerRows.map(r => [r['_key'], r])).values());
+    // upsert datasetLayers
+    const insertedDatasetLayers = await entityManager
+      .createQueryBuilder()
+      .insert()
+      .into(DatasetLayerEntity)
+      .values(dedupedDatasetLayerRows)
+      .orUpdate(['dataset_id', 'layer_id', 'feature_id', 'soil_property_id'], ['dataset_id', 'layer_id', 'feature_id', 'soil_property_id'])
+      .returning(['id', 'dataset_id', 'layer_id', 'feature_id', 'soil_property_id'])
+      .execute();
+
+    const datasetLayerIdMap = new Map<string, string>();
+    for (const row of insertedDatasetLayers.raw) {
+      const key = `${row.dataset_id}_${row.layer_id}_${row.feature_id}_${row.soil_property_id}`;
+      datasetLayerIdMap.set(key, row.id);
+    }
+    // prep observations with dataset_layer_id
+    const finalObservationRows = observationRows.map(r => {
+      const datasetLayerId = datasetLayerIdMap.get(r['soil_property_key']);
+      if (!datasetLayerId) {
+        throw new Error(`datasetLayerId missing for observation key: ${r['soil_property_key']}`);
+      }
+      return {
+        dataset_layer_id: datasetLayerId,
+        procedure_id: r['procedure_id'],
+        value: r['value'],
+      };
+    });
+    // upsert observations
+    if (finalObservationRows.length > 0) {
+      await entityManager
+        .createQueryBuilder()
+        .insert()
+        .into(ObservationEntity)
+        .values(finalObservationRows)
+        .orUpdate(['dataset_layer_id', 'procedure_id', 'value'], ['dataset_layer_id', 'procedure_id', 'value'])
+        .execute();
+    }
+  };
 }
 
 const getDataPreviewQuery = (query: any, dataMappingConfig: DataCleaningConfig, includeGeom: boolean = true): any => {
   query.select('raw.record_id', 'record_id');
 
-  for (const [field, mapping] of Object.entries(dataMappingConfig.metadata_cols)) {
-    query.addSelect(field, mapping);
+  for (const [mapping, field] of Object.entries(dataMappingConfig.metadata_cols)) {
+    if (field) {
+      query.addSelect(field, mapping);
+    } else {
+      query.addSelect('NULL', mapping);
+    }
   }
   // Process metadata (string types) and property columns (object types)
   const params: Record<string, any> = {};

@@ -54,14 +54,14 @@ export const syntheticIngestionDataOptions = {
     lower_depth: 'max_depth',
     date: 'sampling_date',
     licence: 'license',
-    layer_name: 'horizon_code',
+    layer_name: 'horizon',
     bdfi33: {
       property_name: 'Bulk Density',
       procedure_name: 'Fine earth 33kPa',
       conversion_formula: 'x*10',
       original_unit: 'kg/dm3',
       standard_unit: 'mmolc/dm3',
-      min_val: 5,
+      max_val: 14,
     },
     bdfiod: {
       property_name: 'Bulk Density 2',
@@ -69,9 +69,9 @@ export const syntheticIngestionDataOptions = {
       conversion_formula: 'x/10',
       original_unit: 'kg/cm3',
       standard_unit: 'mmolc/dm3',
-      max_val: 0.1,
+      min_val: 0.1,
     },
-    drop_records: [10001, 10002],
+    drop_records: [10136, 10137],
   },
   showProgress: false,
 };
@@ -106,7 +106,8 @@ export const addFile = async (name: string = 'test_file'): Promise<FileEntity> =
     file_path: name,
     created_by: 'tests',
   });
-  return await repo.save(file);
+  const newFile = await repo.save(file, { reload: true });
+  return await repo.findOneByOrFail({ id: newFile.id });
 };
 
 export const addDataMapping = async (data_mapping: object): Promise<DataMappingEntity> => {
