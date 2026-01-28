@@ -91,6 +91,7 @@
 
     .TableContainer {
       flex-grow: 1;
+      height: 50vh;
 
       // p-datatable
       & > div {
@@ -102,7 +103,6 @@
 
       table {
         border-radius: 8px;
-        overflow: hidden;
         box-shadow: 0px 4px 16px 0px #00000014;
 
         & > thead {
