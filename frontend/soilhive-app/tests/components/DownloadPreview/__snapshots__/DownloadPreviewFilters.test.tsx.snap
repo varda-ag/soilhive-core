@@ -1,0 +1,11 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`DownloadPreviewFilters renders the download preview filters 1`] = `
+<div>
+  <div
+    class="DownloadPreviewFilters"
+  >
+    Filters
+  </div>
+</div>
+`;
