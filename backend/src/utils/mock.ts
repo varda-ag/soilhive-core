@@ -43,6 +43,7 @@ export const syntheticDataOptions = {
   addNullValues: false,
   featureCoordinates: undefined, // number[][] array of [lng, lat]
   showProgress: false,
+  useProgressiveObservationValues: false,
 };
 
 export const syntheticIngestionDataOptions = {
@@ -278,8 +279,17 @@ export interface SyntheticDataset {
 }
 
 export const addSyntheticData = async (syntheticDataOptions): Promise<SyntheticDataset> => {
-  const { id, spatial_extent, featureCount, featureCoordinates, observationsPerLayer, soilPropertyNames, depthLayers, addNullValues } =
-    syntheticDataOptions;
+  const {
+    id,
+    spatial_extent,
+    featureCount,
+    featureCoordinates,
+    observationsPerLayer,
+    soilPropertyNames,
+    depthLayers,
+    addNullValues,
+    useProgressiveObservationValues,
+  } = syntheticDataOptions;
   assert(featureCount > 0, 'featureCount must be greater than 0');
   assert(observationsPerLayer > 0, 'observationsPerLayer must be greater than 0');
   assert(depthLayers > 0, 'depthLayers must be greater than 0');
@@ -312,6 +322,7 @@ export const addSyntheticData = async (syntheticDataOptions): Promise<SyntheticD
   if (syntheticDataOptions.showProgress) {
     console.log(`Generated ${featureCount} random features.`);
   }
+  let counter = 1;
   for (let depthLayer = 0; depthLayer < depthLayers; depthLayer++) {
     const depth = depthLayer * 10;
     const layer = await addLayer(license.id, new Date(`${year}-01-01`), depth, depth + 10, `A${depthLayer}`);
@@ -322,7 +333,15 @@ export const addSyntheticData = async (syntheticDataOptions): Promise<SyntheticD
       features.map(_ => soilProperties[depthLayer % soilPropertyNames.length]!.id),
     );
     for (let i = 0; i < featureCount; i++) {
-      await addObservations(randomsInRange(0, 100, observationsPerLayer), procedure.id, datasetLayers[i].id);
+      if (useProgressiveObservationValues) {
+        const values: number[] = [];
+        for (let i = 0; i < observationsPerLayer; i++) {
+          values.push(counter++);
+        }
+        await addObservations(values, procedure.id, datasetLayers[i].id);
+      } else {
+        await addObservations(randomsInRange(0, 100, observationsPerLayer), procedure.id, datasetLayers[i].id);
+      }
     }
     if (addNullValues && depthLayer === 0) {
       const layer = await addLayer(license.id, undefined, undefined, undefined, undefined);
