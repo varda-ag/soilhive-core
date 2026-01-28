@@ -1,14 +1,11 @@
-import assert from 'assert';
 import { Cursor } from '../interfaces/Cursor';
 import { ErrorResponse } from './error';
 import { StatusCodes } from 'http-status-codes';
 
 export const createCursor = (id: string, column?: string, value?: any): Cursor => {
-  if (!column || value === undefined || value === null) {
+  if (typeof column !== 'string' || value === undefined || value === null) {
     return { id };
   }
-  assert(column, 'Column must be provided when value is specified');
-  assert(value !== undefined && value !== null, 'Value must be provided when column is specified');
   return { column, value, id };
 };
 
