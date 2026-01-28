@@ -14,7 +14,7 @@
     display: flex;
     justify-content: space-between;
     padding: 15px 32px 15px 35px;
-    border-bottom: 1px solid #DDDDDD;
+    border-bottom: 1px solid var(--color-neutral-dark-100);
 
     @media (max-width: $bp-mobile-max) {
       padding: 15px 17px 12px 17px;
@@ -24,6 +24,7 @@
       right: 0;
       left: 0;
       background-color: var(--color-neutral-light);
+      z-index: 1;
     }
 
     .Titles {
@@ -55,7 +56,7 @@
       @media (max-width: $bp-mobile-max) {
         flex-direction: row;
         gap: 11px;
-        width: 100%;
+        width: 100%;        
 
         button {
           width: 100%;
@@ -147,6 +148,8 @@
     .Data {
       flex-grow: 1;
       background-color: var(--color-neutral-light);
+      width: 100%;
+      overflow-x: hidden;
 
       @media (max-width: $bp-mobile-max) {
         background-color: white;

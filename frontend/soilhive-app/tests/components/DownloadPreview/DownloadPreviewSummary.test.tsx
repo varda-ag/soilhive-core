@@ -1,5 +1,5 @@
 import { act, render } from '@testing-library/react';
-import DownloadPreviewSummary from 'components/DownloadPreview/DownloadPreviewSummary';
+import DownloadPreviewSummary from 'components/DownloadPreview/DownloadPreviewSummary/DownloadPreviewSummary';
 import { __setIsMobileLayout } from 'hooks/useDevice';
 
 jest.mock('components/Map/SoilhiveSimpleMap', () => {

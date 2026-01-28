@@ -30,7 +30,7 @@ export function DatasetsSidebar({ isOpened, onClose }: Props) {
         <DatasetsList />
         <div className={styles.Action}>
           <Button
-            className={styles.Button}
+            className={styles.PreviewButton}
             type="secondary"
             isDisabled={false}
             onClick={() => {
@@ -39,7 +39,7 @@ export function DatasetsSidebar({ isOpened, onClose }: Props) {
           >
             Preview
           </Button>
-          <Button className={styles.Button} isDisabled={true}>
+          <Button className={styles.DownloadButton} isDisabled={true}>
             <DownloadIcon />
             Download
           </Button>
