@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.20.0 (2026-01-28)
+
+## What's Changed
+* feat: sp-4734 preview table: enabled table-only scrolling support... by @cristbello in https://github.com/varda-ag/soilhive-core/pull/139
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.19.0...v0.20.0
+
 ## 0.19.0 (2026-01-28)
 
 ## What's Changed
