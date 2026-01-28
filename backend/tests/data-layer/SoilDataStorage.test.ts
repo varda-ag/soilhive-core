@@ -1,3 +1,4 @@
+import { describe, it, expect } from '@jest/globals';
 import { Polygon } from 'geojson';
 import { getEntityManager } from '../../src/utils/data-source';
 import { getPolygonFromBbox } from '../../src/utils/geometry';

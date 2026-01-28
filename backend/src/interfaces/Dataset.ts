@@ -1,46 +1,37 @@
 import type { Polygon } from 'geojson';
 import { GISDataType, IngestionStatus } from '../types/data';
 
-export interface VariableMeasured {
-  description: string;
-  soil_parameter: string;
-  sample_pretreatment?: string;
-  technique?: string;
-  extractant_concentration?: string;
-  extraction_ratio?: string;
-  extraction_base?: string;
-  instrument?: string;
-  limit_of_detection?: string;
-  soil_parameter_code: string;
-  unit_of_measurement: string;
+export interface MeasuredProperty {
+  soil_parameter_slug: string;
+  procedure_slug: string;
 }
 
 export interface Dataset {
   id: string;
   slug: string;
   name: string;
-  full_name?: string;
-  version?: string;
-  author?: string;
-  description?: string;
-  data_producer?: string;
-  variables_measured?: VariableMeasured[];
-  spatial_resolution?: string;
-  publication_date?: string;
-  reference_period_start?: string;
-  reference_period_stop?: string;
-  licenses?: string[];
-  citation?: string;
-  geographical_extent?: string;
-  gis_datatype?: GISDataType;
-  spatial_extent: Polygon;
-  n_observations?: string;
-  n_raster_layers?: number;
-  soil_depth?: object;
+  full_name?: string | null;
+  version?: string | null;
+  author?: string | null;
+  description?: string | null;
+  data_producer?: string | null;
+  measured_properties?: MeasuredProperty[] | null;
+  spatial_resolution?: string | null;
+  publication_date?: string | null;
+  reference_period_start?: string | null;
+  reference_period_stop?: string | null;
+  licenses?: string[] | null;
+  citation?: string | null;
+  geographical_extent?: string | null;
+  gis_datatype?: GISDataType | null;
+  spatial_extent: Polygon | null;
+  n_observations?: string | null;
+  n_raster_layers?: number | null;
+  soil_depth?: object | null;
   status: IngestionStatus;
   created_at: Date;
   updated_at: Date | null;
   created_by: string;
-  updated_by?: string;
-  service_location?: string;
+  updated_by?: string | null;
+  service_location?: string | null;
 }
