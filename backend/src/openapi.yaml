@@ -421,13 +421,53 @@ paths:
           description: Pagination cursor
           schema:
             type: string
-            format: uuid
         - in: query
           name: sort
           required: false
           description: Sort column. Prepend with '-' for descending order
           schema:
             type: string
+            enum:
+            - dataset
+            - dataset_name
+            - extractant_concentration
+            - extractant_formulation
+            - extraction_base
+            - extraction_ratio
+            - geometry
+            - horizon
+            - instrument
+            - license_name
+            - limit_of_detection
+            - max_depth
+            - min_depth
+            - property_acronym
+            - sample_pretreatment
+            - sampling_date
+            - soil_property
+            - standard_unit
+            - technique
+            - value
+            - -dataset
+            - -dataset_name
+            - -extractant_concentration
+            - -extractant_formulation
+            - -extraction_base
+            - -extraction_ratio
+            - -geometry
+            - -horizon
+            - -instrument
+            - -license_name
+            - -limit_of_detection
+            - -max_depth
+            - -min_depth
+            - -property_acronym
+            - -sample_pretreatment
+            - -sampling_date
+            - -soil_property
+            - -standard_unit
+            - -technique
+            - -value
       responses:
         '200':
           description: Soil data

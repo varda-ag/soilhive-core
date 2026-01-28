@@ -6,6 +6,10 @@ import DatasetEntity from '../entities/Dataset';
 import DatasetLayerEntity from '../entities/DatasetLayer';
 import { SoilDataSample } from '../interfaces/SoilDataSample';
 import assert from 'assert';
+import { createCursor, decodeCursor, encodeCursor } from '../utils/cursor';
+import { Cursor } from '../interfaces/Cursor';
+import { ErrorResponse } from '../utils/error';
+import { StatusCodes } from 'http-status-codes';
 
 export default class SoilDataStorage {
   /**
@@ -135,45 +139,17 @@ export default class SoilDataStorage {
     applyFiltersToQuery(query, dataFilter.parameters);
 
     if (cursor) {
-      query.andWhere('obs.id > :cursor', { cursor });
+      const decodedCursor = validateAndGetCursor(cursor, sort);
+      applyCursorToQuery(query, decodedCursor);
     }
 
-    let sortField = sort || 'obs.id';
-    let sortDirection: 'ASC' | 'DESC' = 'ASC';
-    if (sortField.startsWith('-')) {
-      sortField = sortField.substring(1);
-      sortDirection = 'DESC';
-    }
-    // Use stable secondary sort by obs.id for consistent pagination
-    query.orderBy(sortField, sortDirection).addOrderBy('obs.id', sortDirection);
+    applySortingToQuery(query, sort);
 
     query.limit(limit);
 
     const results = await query.getRawMany();
 
-    return results.map(row => ({
-      id: row.id,
-      dataset: row.dataset,
-      dataset_name: row.dataset_name,
-      soil_property: row.soil_property,
-      property_acronym: row.property_acronym,
-      standard_unit: row.standard_unit,
-      value: parseFloat(row.value),
-      geometry: row.geometry,
-      license_name: row.license_name,
-      sampling_date: row.sampling_date ? row.sampling_date.toISOString() : null,
-      min_depth: row.min_depth !== null ? parseFloat(row.min_depth) : null,
-      max_depth: row.max_depth !== null ? parseFloat(row.max_depth) : null,
-      horizon: row.horizon,
-      sample_pretreatment: row.sample_pretreatment,
-      technique: row.technique,
-      extractant_formulation: row.extractant_formulation,
-      extractant_concentration: row.extractant_concentration,
-      extraction_ratio: row.extraction_ratio,
-      extraction_base: row.extraction_base,
-      instrument: row.instrument,
-      limit_of_detection: row.limit_of_detection,
-    }));
+    return results.map(row => dataRowTranslation(row, sort));
   };
 }
 
@@ -255,4 +231,124 @@ const applyRasterFilterToQuery = (query: any, table: string, values: number[]) =
 
   query.andWhere(`ST_Value(${t}.rast, f.geom, TRUE) IN (:...values)`, { values });
   query.andWhere(`ST_Value(${t}.rast, f.geom, TRUE) IS NOT NULL`);
+};
+
+const dataRowTranslation = (row: any, sort?: string): SoilDataSample => {
+  const output = {
+    id: row.id,
+    dataset: row.dataset,
+    dataset_name: row.dataset_name,
+    soil_property: row.soil_property,
+    property_acronym: row.property_acronym,
+    standard_unit: row.standard_unit,
+    value: parseFloat(row.value),
+    geometry: row.geometry,
+    license_name: row.license_name,
+    sampling_date: row.sampling_date ? row.sampling_date.toISOString() : null,
+    min_depth: row.min_depth !== null ? parseFloat(row.min_depth) : null,
+    max_depth: row.max_depth !== null ? parseFloat(row.max_depth) : null,
+    horizon: row.horizon,
+    sample_pretreatment: row.sample_pretreatment,
+    technique: row.technique,
+    extractant_formulation: row.extractant_formulation,
+    extractant_concentration: row.extractant_concentration,
+    extraction_ratio: row.extraction_ratio,
+    extraction_base: row.extraction_base,
+    instrument: row.instrument,
+    limit_of_detection: row.limit_of_detection,
+  };
+
+  // Create and encode a cursor containing current row sorting value
+  const cursor = encodeCursor(createCursor(row.id, sort, sort ? output[sort.replace('-', '')] : undefined));
+
+  return { ...output, cursor };
+};
+
+const validateAndGetCursor = (cursor: string, sort?: string): Cursor => {
+  // Decode from base64 string
+  const decodedCursor = decodeCursor(cursor);
+  if (!sort) {
+    return decodedCursor;
+  }
+  // Sorting field, if present, should be consistent with cursor sorting
+  if (decodedCursor.column !== sort) {
+    throw new ErrorResponse(`Sort field is not matching cursor: ${sort} != ${decodedCursor.column}`, StatusCodes.BAD_REQUEST);
+  }
+  return decodedCursor;
+};
+
+// Map selected field aliases to their table-qualified column names
+const getSortFieldMapping = (): Record<string, string> => ({
+  id: 'obs.id',
+  value: 'obs.value',
+  dataset: 'ds.slug',
+  dataset_name: 'ds.name',
+  soil_property: 'soil_property.slug',
+  property_acronym: 'soil_property.property_acronym',
+  standard_unit: 'soil_property.standard_unit',
+  geometry: 'features.geom',
+  license_name: 'license.name',
+  sampling_date: 'layer.sampling_date',
+  min_depth: 'layer.min_depth',
+  max_depth: 'layer.max_depth',
+  horizon: 'layer.horizon',
+  sample_pretreatment: 'procedure.sample_pretreatment',
+  technique: 'procedure.technique',
+  extractant_formulation: 'procedure.extractant_formulation',
+  extractant_concentration: 'procedure.extractant_concentration',
+  extraction_ratio: 'procedure.extraction_ratio',
+  extraction_base: 'procedure.extraction_base',
+  instrument: 'procedure.instrument',
+  limit_of_detection: 'procedure.limit_of_detection',
+});
+
+const getMappedSortField = (sort: string): string => {
+  const sortFieldMapping = getSortFieldMapping();
+  const qualifiedColumn = sortFieldMapping[sort];
+  if (!qualifiedColumn) {
+    throw new ErrorResponse(`Unknown sort field: ${sort}`, StatusCodes.BAD_REQUEST);
+  }
+  return qualifiedColumn;
+};
+
+const applyCursorToQuery = (query: any, cursor: Cursor) => {
+  if (cursor.column && cursor.value) {
+    // WHERE clause should take into account two fields (sorting column first, then ID)
+    const cursorId = cursor.id;
+    const cursorValue = cursor.value;
+    const isDesc = cursor.column.startsWith('-');
+    const operator = isDesc ? '<' : '>';
+    let sortCol = cursor.column;
+    if (sortCol.startsWith('-')) {
+      sortCol = sortCol.substring(1);
+    }
+    // Get the correct table-qualified column name
+    const qualifiedColumn = getMappedSortField(sortCol);
+    query.andWhere(`(${qualifiedColumn}, obs.id) ${operator} (:cursorValue, :cursorId)`, { cursorValue, cursorId });
+    return;
+  }
+
+  // Basic cursor: filter by observation.id
+  query.andWhere('obs.id > :cursorId', { cursorId: cursor.id });
+};
+
+const applySortingToQuery = (query: any, sort?: string) => {
+  if (!sort) {
+    // Default: sort by obs.id ascending
+    query.orderBy('obs.id', 'ASC');
+    return;
+  }
+
+  let sortField = sort;
+  let sortDirection: 'ASC' | 'DESC' = 'ASC';
+  if (sortField.startsWith('-')) {
+    sortField = sortField.substring(1);
+    sortDirection = 'DESC';
+  }
+
+  // Get the correct table-qualified column name
+  const qualifiedColumn = getMappedSortField(sortField);
+
+  // Use stable secondary sort by obs.id for consistent pagination
+  query.orderBy(qualifiedColumn, sortDirection).addOrderBy('obs.id', sortDirection);
 };

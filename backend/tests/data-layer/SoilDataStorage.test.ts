@@ -4,6 +4,8 @@ import { getPolygonFromBbox } from '../../src/utils/geometry';
 import { addDataset, addSyntheticData, syntheticDataOptions } from '../../src/utils/mock';
 import SoilDataStorage from '../../src/data-layer/SoilDataStorage';
 import DatasetEntity from '../../src/entities/Dataset';
+import { decodeCursor } from '../../src/utils/cursor';
+import { GISDataType } from '../../src/types/data';
 
 const bbox = [0, 0, 1, 1];
 const bboxPolygon: Polygon = getPolygonFromBbox(bbox);
@@ -56,7 +58,7 @@ describe('SoilDataStorage class', () => {
     }
     const sds = new SoilDataStorage();
     const entityManager = await getEntityManager();
-    const results = await sds.filter(entityManager, bboxPolygon, { data_types: [filterType] });
+    const results = await sds.filter(entityManager, bboxPolygon, { data_types: [filterType as GISDataType] });
     expect(results.length).toBe(expectedDatasetCount);
     for (let i = 0; i < expectedDatasetCount; i++) {
       expect(datasets.map(d => d.id)).toContain(results[i].id);
@@ -134,7 +136,7 @@ describe('SoilDataStorage class', () => {
     }); // 5 layers with horizons A0 -> A4, two observations per layer
     const sds = new SoilDataStorage();
     const entityManager = await getEntityManager();
-    const results = await sds.filter(entityManager, bboxPolygon, { horizons });
+    const results = await sds.filter(entityManager, bboxPolygon, { horizons } as any);
     expect(results.length).toBe(expectedResultCount);
     if (expectedResultCount > 0) {
       const total: number = results.reduce((acc, curr) => acc + curr.dataset_layer_count, 0);
@@ -204,4 +206,110 @@ describe('SoilDataStorage class', () => {
       }
     },
   );
+
+  it('Filtering using cursor and sorting at the same time should return consistent results', async () => {
+    const layers = 5;
+    const totalObservations = 20;
+    const { dataset } = await addSyntheticData({
+      ...syntheticDataOptions,
+      depthLayers: layers,
+      soilPropertyNames: ['prop1'],
+      featureCount: 2,
+      observationsPerLayer: 2,
+      useProgressiveObservationValues: true, // Values in the range 1, 2, ..., layers*features*observations = 5*2*2 = 20
+    });
+    const sds = new SoilDataStorage();
+    const entityManager = await getEntityManager();
+    const filter = { geometries: [], parameters: {} };
+    const limit = 10;
+    // Get 10 results sorting by value DESC (20 -> 11)
+    const results = await sds.getSoilData(entityManager, filter, [dataset.slug], limit, undefined, '-value');
+    expect(results.length).toBe(limit);
+    for (let i = 0; i < limit; i++) {
+      // Check that values are in the expected order (20, 19, ..., 11)
+      expect(results[i].value).toBe(totalObservations - i);
+      // Check that decoded cursors contain expected values
+      const cursor = decodeCursor(results[i].cursor);
+      expect(cursor.id).toBe(results[i].id);
+      expect(cursor.column).toBe('-value');
+      expect(cursor.value).toBe(totalObservations - i);
+    }
+    // Take 10th cursor and get the following 10 results, preserving the sort order
+    const moreResults = await sds.getSoilData(entityManager, filter, [dataset.slug], limit, results[9].cursor, '-value');
+    expect(moreResults.length).toBe(limit);
+    // Check result values (10 -> 1)
+    for (let i = 0; i < limit; i++) {
+      expect(moreResults[i].value).toBe(10 - i);
+      const cursor = decodeCursor(moreResults[i].cursor);
+      expect(cursor.id).toBe(moreResults[i].id);
+      expect(cursor.column).toBe('-value');
+      expect(cursor.value).toBe(10 - i);
+    }
+  });
+
+  it('Cursor and sorting should work with fields from different tables', async () => {
+    const layers = 5;
+    const { dataset } = await addSyntheticData({
+      ...syntheticDataOptions,
+      depthLayers: layers,
+      soilPropertyNames: ['prop1'],
+      featureCount: 2,
+      observationsPerLayer: 2,
+    });
+    const sds = new SoilDataStorage();
+    const entityManager = await getEntityManager();
+    const filter = { geometries: [], parameters: {} };
+    const limit = 5;
+
+    // Test sorting by min_depth (from layer table) ASC
+    const resultsByDepth = await sds.getSoilData(entityManager, filter, [dataset.slug], limit, undefined, 'min_depth');
+    expect(resultsByDepth.length).toBe(limit);
+    // Verify depths are in ascending order
+    for (let i = 0; i < resultsByDepth.length - 1; i++) {
+      expect(resultsByDepth[i].min_depth).toBeLessThanOrEqual(resultsByDepth[i + 1].min_depth!);
+      const cursor = decodeCursor(resultsByDepth[i].cursor);
+      expect(cursor.column).toBe('min_depth');
+    }
+
+    // Get next page using cursor
+    const moreDepthResults = await sds.getSoilData(entityManager, filter, [dataset.slug], limit, resultsByDepth[4].cursor, 'min_depth');
+    if (moreDepthResults.length > 0) {
+      // Verify next page starts after previous max depth (or same if there are ties)
+      expect(moreDepthResults[0].min_depth).toBeGreaterThanOrEqual(resultsByDepth[4].min_depth!);
+    }
+
+    // Test sorting by dataset_name (from dataset table) ASC
+    const resultsByDataset = await sds.getSoilData(entityManager, filter, [dataset.slug], limit, undefined, 'dataset_name');
+    expect(resultsByDataset.length).toBe(limit);
+    // All results should have the same dataset name
+    for (let i = 0; i < resultsByDataset.length; i++) {
+      expect(resultsByDataset[i].dataset_name).toBe(dataset.name);
+      const cursor = decodeCursor(resultsByDataset[i].cursor);
+      expect(cursor.column).toBe('dataset_name');
+    }
+
+    // Test sorting by soil_property (from soil_property table) DESC
+    const resultsByProperty = await sds.getSoilData(entityManager, filter, [dataset.slug], limit, undefined, '-soil_property');
+    expect(resultsByProperty.length).toBe(limit);
+    for (let i = 0; i < resultsByProperty.length; i++) {
+      const cursor = decodeCursor(resultsByProperty[i].cursor);
+      expect(cursor.column).toBe('-soil_property');
+    }
+    // Verify cursor pagination works with this sort field
+    const morePropertyResults = await sds.getSoilData(
+      entityManager,
+      filter,
+      [dataset.slug],
+      limit,
+      resultsByProperty[4].cursor,
+      '-soil_property',
+    );
+    // Should either have more results or be at the end
+    if (morePropertyResults.length > 0) {
+      // Verify we got fresh results
+      const firstPageIds = resultsByProperty.map(r => r.id);
+      const hasNewIds = morePropertyResults.some(r => !firstPageIds.includes(r.id));
+      expect(hasNewIds).toBe(true);
+    }
+  });
 });
