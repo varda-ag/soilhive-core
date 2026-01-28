@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.19.0 (2026-01-28)
+
+## What's Changed
+* feat(BE): :sparkles: SP-4757 dataset service create/update by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/132
+* feat: sp-4734 implemented preview page table section by @cristbello in https://github.com/varda-ag/soilhive-core/pull/127
+* feat: :bug: added proper cursor sorting logic by @svaccari in https://github.com/varda-ag/soilhive-core/pull/137
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.18.1...v0.19.0
+
 ## 0.18.1 (2026-01-27)
 
 ## What's Changed
