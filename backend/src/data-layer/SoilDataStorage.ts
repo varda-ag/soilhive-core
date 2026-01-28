@@ -113,36 +113,9 @@ export default class SoilDataStorage {
       query.andWhere(`(${geomWhereClause})`, geomParams);
     }
 
-    query
-      .select('obs.id', 'id')
-      .addSelect('ds.slug', 'dataset')
-      .addSelect('ds.name', 'dataset_name')
-      .addSelect('soil_property.slug', 'soil_property')
-      .addSelect('soil_property.property_acronym', 'property_acronym')
-      .addSelect('soil_property.standard_unit', 'standard_unit')
-      .addSelect('obs.value', 'value')
-      .addSelect('features.geom', 'geometry')
-      .addSelect('license.name', 'license_name')
-      .addSelect('layer.sampling_date', 'sampling_date')
-      .addSelect('layer.min_depth', 'min_depth')
-      .addSelect('layer.max_depth', 'max_depth')
-      .addSelect('layer.horizon', 'horizon')
-      .addSelect('procedure.sample_pretreatment', 'sample_pretreatment')
-      .addSelect('procedure.technique', 'technique')
-      .addSelect('procedure.extractant_formulation', 'extractant_formulation')
-      .addSelect('procedure.extractant_concentration', 'extractant_concentration')
-      .addSelect('procedure.extraction_ratio', 'extraction_ratio')
-      .addSelect('procedure.extraction_base', 'extraction_base')
-      .addSelect('procedure.instrument', 'instrument')
-      .addSelect('procedure.limit_of_detection', 'limit_of_detection');
-
+    applySelectToQuery(query);
     applyFiltersToQuery(query, dataFilter.parameters);
-
-    if (cursor) {
-      const decodedCursor = validateAndGetCursor(cursor, sort);
-      applyCursorToQuery(query, decodedCursor);
-    }
-
+    applyCursorToQuery(query, cursor, sort);
     applySortingToQuery(query, sort);
 
     query.limit(limit);
@@ -152,6 +125,31 @@ export default class SoilDataStorage {
     return results.map(row => dataRowTranslation(row, sort));
   };
 }
+
+const applySelectToQuery = (query: any) => {
+  query
+    .select('obs.id', 'id')
+    .addSelect('ds.slug', 'dataset')
+    .addSelect('ds.name', 'dataset_name')
+    .addSelect('soil_property.slug', 'soil_property')
+    .addSelect('soil_property.property_acronym', 'property_acronym')
+    .addSelect('soil_property.standard_unit', 'standard_unit')
+    .addSelect('obs.value', 'value')
+    .addSelect('features.geom', 'geometry')
+    .addSelect('license.name', 'license_name')
+    .addSelect('layer.sampling_date', 'sampling_date')
+    .addSelect('layer.min_depth', 'min_depth')
+    .addSelect('layer.max_depth', 'max_depth')
+    .addSelect('layer.horizon', 'horizon')
+    .addSelect('procedure.sample_pretreatment', 'sample_pretreatment')
+    .addSelect('procedure.technique', 'technique')
+    .addSelect('procedure.extractant_formulation', 'extractant_formulation')
+    .addSelect('procedure.extractant_concentration', 'extractant_concentration')
+    .addSelect('procedure.extraction_ratio', 'extraction_ratio')
+    .addSelect('procedure.extraction_base', 'extraction_base')
+    .addSelect('procedure.instrument', 'instrument')
+    .addSelect('procedure.limit_of_detection', 'limit_of_detection');
+};
 
 const applyFiltersToQuery = (query: any, filters: FilterCriteria) => {
   if (filters.data_types && filters.data_types.length > 0) {
@@ -311,7 +309,11 @@ const getMappedSortField = (sort: string): string => {
   return qualifiedColumn;
 };
 
-const applyCursorToQuery = (query: any, cursor: Cursor) => {
+const applyCursorToQuery = (query: any, encodedCursor?: string, sort?: string) => {
+  if (!encodedCursor) {
+    return;
+  }
+  const cursor = validateAndGetCursor(encodedCursor!, sort);
   if (cursor.column && cursor.value) {
     // WHERE clause should take into account two fields (sorting column first, then ID)
     const cursorId = cursor.id;
