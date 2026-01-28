@@ -20,4 +20,5 @@ export interface SoilDataSample {
   extraction_base: string | null;
   instrument: string | null;
   limit_of_detection: string | null;
+  cursor: string;
 }
