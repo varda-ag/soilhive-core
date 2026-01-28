@@ -12,7 +12,7 @@ export interface DataMapping {
 
 export interface DataCleaningConfig {
   metadata_cols: {
-    [key: string]: string;
+    [key: string]: string | null;
   };
   property_cols: {
     [key: string]: PropertyCleaningConfig;

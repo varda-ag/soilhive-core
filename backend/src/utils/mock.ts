@@ -43,6 +43,7 @@ export const syntheticDataOptions = {
   addNullValues: false,
   featureCoordinates: undefined, // number[][] array of [lng, lat]
   showProgress: false,
+  useProgressiveObservationValues: false,
 };
 
 export const syntheticIngestionDataOptions = {
@@ -53,14 +54,14 @@ export const syntheticIngestionDataOptions = {
     lower_depth: 'max_depth',
     date: 'sampling_date',
     licence: 'license',
-    layer_name: 'horizon_code',
+    layer_name: 'horizon',
     bdfi33: {
       property_name: 'Bulk Density',
       procedure_name: 'Fine earth 33kPa',
       conversion_formula: 'x*10',
       original_unit: 'kg/dm3',
       standard_unit: 'mmolc/dm3',
-      min_val: 5,
+      max_val: 14,
     },
     bdfiod: {
       property_name: 'Bulk Density 2',
@@ -68,9 +69,9 @@ export const syntheticIngestionDataOptions = {
       conversion_formula: 'x/10',
       original_unit: 'kg/cm3',
       standard_unit: 'mmolc/dm3',
-      max_val: 0.1,
+      min_val: 0.1,
     },
-    drop_records: [10001, 10002],
+    drop_records: [10136, 10137],
   },
   showProgress: false,
 };
@@ -105,7 +106,8 @@ export const addFile = async (name: string = 'test_file'): Promise<FileEntity> =
     file_path: name,
     created_by: 'tests',
   });
-  return await repo.save(file);
+  const newFile = await repo.save(file, { reload: true });
+  return await repo.findOneByOrFail({ id: newFile.id });
 };
 
 export const addDataMapping = async (data_mapping: object): Promise<DataMappingEntity> => {
@@ -277,8 +279,17 @@ export interface SyntheticDataset {
 }
 
 export const addSyntheticData = async (syntheticDataOptions): Promise<SyntheticDataset> => {
-  const { id, spatial_extent, featureCount, featureCoordinates, observationsPerLayer, soilPropertyNames, depthLayers, addNullValues } =
-    syntheticDataOptions;
+  const {
+    id,
+    spatial_extent,
+    featureCount,
+    featureCoordinates,
+    observationsPerLayer,
+    soilPropertyNames,
+    depthLayers,
+    addNullValues,
+    useProgressiveObservationValues,
+  } = syntheticDataOptions;
   assert(featureCount > 0, 'featureCount must be greater than 0');
   assert(observationsPerLayer > 0, 'observationsPerLayer must be greater than 0');
   assert(depthLayers > 0, 'depthLayers must be greater than 0');
@@ -311,6 +322,7 @@ export const addSyntheticData = async (syntheticDataOptions): Promise<SyntheticD
   if (syntheticDataOptions.showProgress) {
     console.log(`Generated ${featureCount} random features.`);
   }
+  let counter = 1;
   for (let depthLayer = 0; depthLayer < depthLayers; depthLayer++) {
     const depth = depthLayer * 10;
     const layer = await addLayer(license.id, new Date(`${year}-01-01`), depth, depth + 10, `A${depthLayer}`);
@@ -321,7 +333,15 @@ export const addSyntheticData = async (syntheticDataOptions): Promise<SyntheticD
       features.map(_ => soilProperties[depthLayer % soilPropertyNames.length]!.id),
     );
     for (let i = 0; i < featureCount; i++) {
-      await addObservations(randomsInRange(0, 100, observationsPerLayer), procedure.id, datasetLayers[i].id);
+      if (useProgressiveObservationValues) {
+        const values: number[] = [];
+        for (let i = 0; i < observationsPerLayer; i++) {
+          values.push(counter++);
+        }
+        await addObservations(values, procedure.id, datasetLayers[i].id);
+      } else {
+        await addObservations(randomsInRange(0, 100, observationsPerLayer), procedure.id, datasetLayers[i].id);
+      }
     }
     if (addNullValues && depthLayer === 0) {
       const layer = await addLayer(license.id, undefined, undefined, undefined, undefined);

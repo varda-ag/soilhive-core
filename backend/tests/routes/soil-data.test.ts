@@ -1,3 +1,4 @@
+import { describe, it, expect } from '@jest/globals';
 import request from 'supertest';
 import { app } from '../../src/app';
 import { addSyntheticData, syntheticDataOptions } from '../../src/utils/mock';
@@ -19,7 +20,13 @@ describe('Testing /soil-data routes', () => {
   it('Validation of cursor parameter is working', async () => {
     const res = await request(app).get(`/soil-data`).query({ datasets: 'dataset1', limit: 100, cursor: 'invalid-cursor' });
     expect(res.statusCode).toBe(400);
-    expect(res.body.detail).toContain('must match format "uuid"');
+    expect(res.body.detail).toContain('Cursor decoding failure');
+  });
+
+  it('Validation of sort parameter is working', async () => {
+    const res = await request(app).get(`/soil-data`).query({ datasets: 'dataset1', sort: 'wrong-field' });
+    expect(res.statusCode).toBe(400);
+    expect(res.body.detail).toContain('sort must be equal to one of the allowed values');
   });
 
   it('Invalid filter UUID should trigger 400 error', async () => {
@@ -211,8 +218,10 @@ describe('Testing /soil-data routes', () => {
     const firstPageIds = firstPageRes.body.map((item: any) => item.id || item.value);
 
     // Get second page using cursor from last item of first page
-    const lastItemId = firstPageRes.body[firstPageRes.body.length - 1].id;
-    const secondPageRes = await request(app).get(`/soil-data?filterId=${filterId}&datasets=${dataset.slug}&limit=3&cursor=${lastItemId}`);
+    const lastItemCursor = firstPageRes.body[firstPageRes.body.length - 1].cursor;
+    const secondPageRes = await request(app).get(
+      `/soil-data?filterId=${filterId}&datasets=${dataset.slug}&limit=3&cursor=${lastItemCursor}`,
+    );
     expect(secondPageRes.statusCode).toBe(200);
     expect(secondPageRes.body.length).toBe(3);
     const secondPageIds = secondPageRes.body.map((item: any) => item.id);
@@ -222,8 +231,10 @@ describe('Testing /soil-data routes', () => {
     expect(overlap.length).toBe(0);
 
     // Get third page
-    const lastItemId2 = secondPageRes.body[secondPageRes.body.length - 1].id;
-    const thirdPageRes = await request(app).get(`/soil-data?filterId=${filterId}&datasets=${dataset.slug}&limit=3&cursor=${lastItemId2}`);
+    const lastItemCursor2 = secondPageRes.body[secondPageRes.body.length - 1].cursor;
+    const thirdPageRes = await request(app).get(
+      `/soil-data?filterId=${filterId}&datasets=${dataset.slug}&limit=3&cursor=${lastItemCursor2}`,
+    );
     expect(thirdPageRes.statusCode).toBe(200);
     expect(thirdPageRes.body.length).toBe(2); // Should have remaining 2 items
   });
@@ -288,9 +299,9 @@ describe('Testing /soil-data routes', () => {
     }
 
     // Get next page with cursor
-    const lastItemId = firstPageAsc.body[2].id;
+    const lastItemCursor = firstPageAsc.body[2].cursor;
     const secondPageAsc = await request(app).get(
-      `/soil-data?filterId=${filterId}&datasets=${dataset.slug}&limit=3&cursor=${lastItemId}&sort=value`,
+      `/soil-data?filterId=${filterId}&datasets=${dataset.slug}&limit=3&cursor=${lastItemCursor}&sort=value`,
     );
     expect(secondPageAsc.statusCode).toBe(200);
     expect(secondPageAsc.body.length).toBeGreaterThan(0); // Should have remaining items
