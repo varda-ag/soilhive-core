@@ -37,9 +37,9 @@ export default class DatasetService {
     });
 
     try {
-      await repo.save(dataset);
-      await dataset.reload();
-      return dataset;
+      const saved = await repo.save(dataset);
+      const reloaded = await repo.findOneBy({ id: saved.id });
+      return reloaded!;
     } catch (error: any) {
       if (error.code === '23505') {
         // unique violation
@@ -65,9 +65,9 @@ export default class DatasetService {
       updated_at: new Date(),
     });
 
-    await repo.save(dataset);
-    await dataset.reload();
-    return dataset;
+    const saved = await repo.save(dataset);
+    const reloaded = await repo.findOneBy({ id: saved.id });
+    return reloaded!;
   };
 
   private findBySlug = async (requestData: RequestData, slug: string): Promise<DatasetEntity> => {

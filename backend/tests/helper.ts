@@ -46,10 +46,18 @@ export const clearDatabase = async () => {
 };
 
 export const getSuperAdminToken = async (): Promise<string> => {
+  return getToken('superadmin');
+};
+
+export const getDataAdminToken = async (): Promise<string> => {
+  return getToken('dataadmin');
+};
+
+const getToken = async (password: string): Promise<string> => {
   const res = await request(app).post('/oauth/token').type('form').send({
     grant_type: 'password',
     username: 'mock',
-    password: 'superadmin',
+    password: password,
   });
   assert(res.body.access_token, `There was an error getting the test access token: ${res.body.detail}`);
   return res.body.access_token;

@@ -214,6 +214,33 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Dataset'
+    post:
+      x-eov-operation-handler: controllers/datasets
+      x-eov-operation-id: createDataset
+      summary: Create a new dataset
+      tags:
+        - datasets
+      security:
+        - bearerAuth: [data-admin]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDatasetInput'
+      responses:
+        '200':
+          description: Dataset created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dataset'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/Conflict'
 
   /datasets/{datasetSlug}:
     parameters:
@@ -236,6 +263,34 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Dataset'
+
+    patch:
+      x-eov-operation-handler: controllers/datasets
+      x-eov-operation-id: updateDataset
+      summary: Update an existing dataset
+      tags:
+        - datasets
+      security:
+        - bearerAuth: [data-admin]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Dataset'
+      responses:
+        '200':
+          description: Dataset updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dataset'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /soil-properties:
     get:
@@ -785,46 +840,19 @@ components:
         value:
           type: number
 
-    VariableMeasured:
+    MeasuredProperty:
       type: object
       properties:
-        description:
+        soil_parameter_slug:
           type: string
-        soil_parameter:
+        procedure_slug:
           type: string
-        sample_pretreatment:
-          type: string
-          nullable: true
-        technique:
-          type: string
-          nullable: true
-        extractant_formulation:
-          type: string
-          nullable: true
-        extractant_concentration:
-          type: string
-          nullable: true
-        extraction_ratio:
-          type: string
-          nullable: true
-        extraction_base:
-          type: string
-          nullable: true
-        instrument:
-          type: string
-          nullable: true
-        limit_of_detection:
-          type: string
-          nullable: true
-        soil_parameter_code:
-          type: string
-        unit_of_measurement:
-          type: string
-          nullable: true
+
+    CreateDatasetInput:
+      allOf:
+        - $ref: '#/components/schemas/Dataset'
       required:
-        - description
-        - soil_parameter
-        - soil_parameter_code
+        - name
 
     Dataset:
       type: object
@@ -832,8 +860,10 @@ components:
         id:
           type: string
           format: uuid
+          readOnly: true
         slug:
           type: string
+          readOnly: true
         name:
           type: string
         full_name:
@@ -851,11 +881,11 @@ components:
         data_producer:
           type: string
           nullable: true
-        variables_measured:
+        measured_properties:
           type: array
           items:
-            $ref: '#/components/schemas/VariableMeasured'
-          nullable: true
+            $ref: '#/components/schemas/MeasuredProperty'
+          readOnly: true
         spatial_resolution:
           type: string
           nullable: true
@@ -887,6 +917,7 @@ components:
           nullable: true
         spatial_extent:
           type: object
+          nullable: true
           # TODO: this triggers an OpenApiValidator bug
           # $ref: "../src/GeoJSON-OAS3.yaml#/components/schemas/Polygon"
         n_observations:
@@ -900,32 +931,27 @@ components:
           nullable: true
         status:
           type: string
+          readOnly: true
         is_archived:
           type: boolean
+          readOnly: true
         created_at:
           type: string
           format: date-time
+          readOnly: true
         updated_at:
           type: string
           format: date-time
-          nullable: true
+          readOnly: true
         created_by:
           type: string
+          readOnly: true
         updated_by:
           type: string
-          nullable: true
+          readOnly: true
         service_location:
           type: string
           nullable: true
-      required:
-        - id
-        - slug
-        - name
-        - spatial_extent
-        - status
-        - is_archived
-        - created_at
-        - created_by
 
     SoilProperty:
       type: object

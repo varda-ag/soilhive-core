@@ -151,8 +151,8 @@ export class CreateSchema1765549507801 implements MigrationInterface {
                                             CHECK (check_std_unit(standard_unit)) NOT VALID;`);
     // TODO: implement this with typeorm entity subscribers
     /* eslint-disable */
-        await queryRunner.query(`CREATE EXTENSION IF NOT EXISTS "unaccent" SCHEMA public`);
-        await queryRunner.query(`CREATE OR REPLACE FUNCTION slugify(value TEXT)
+    await queryRunner.query(`CREATE EXTENSION IF NOT EXISTS "unaccent" SCHEMA public`);
+    await queryRunner.query(`CREATE OR REPLACE FUNCTION slugify(value TEXT)
                                         RETURNS TEXT AS $$
                                         -- removes accents (diacritic signs) from a given string --
                                         WITH unaccented AS (
@@ -180,9 +180,11 @@ export class CreateSchema1765549507801 implements MigrationInterface {
                                         )
                                         SELECT value FROM trimmed;
                                         $$ LANGUAGE SQL STRICT IMMUTABLE`);
-        /* eslint-enable */
+    /* eslint-enable */
     await queryRunner.query(`CREATE OR REPLACE FUNCTION slug_generate_store_old()
-                                        RETURNS trigger as $$
+                                        RETURNS trigger
+                                        LANGUAGE plpgsql
+                                        AS $function$
                                         declare
                                         slug_cols_in text[] := TG_ARGV[0]::text[];
                                             lv_base_slug text;
@@ -191,23 +193,39 @@ export class CreateSchema1765549507801 implements MigrationInterface {
                                         lv_exists boolean;
                                         begin
                                         -- Generate the base slug
-                                        EXECUTE format('SELECT slugify(concat_ws(''-'', %s))', array_to_string(slug_cols_in, ', ')) using NEW into lv_base_slug;
+                                        EXECUTE format('SELECT %I.slugify(concat_ws(''-'', %s))', TG_TABLE_SCHEMA, array_to_string(slug_cols_in, ', ')) using NEW into lv_base_slug;
                                         lv_new_slug := lv_base_slug;
                                     
-                                        EXECUTE format('SELECT EXISTS (SELECT 1 FROM %I WHERE slug = %L)', TG_TABLE_NAME, lv_new_slug) into lv_exists;
+                                        -- IMPORTANT: schema-qualify, do not rely on search_path (pool connections can differ)
+                                        EXECUTE format(
+                                          'SELECT EXISTS (SELECT 1 FROM %I.%I WHERE slug = %L)',
+                                          TG_TABLE_SCHEMA,
+                                          TG_TABLE_NAME,
+                                          lv_new_slug
+                                        ) into lv_exists;
                                         -- Check if the slug already exists
                                         WHILE lv_exists LOOP
                                         -- If it exists, append a number and increment
                                             lv_new_slug := lv_base_slug || '-' || lv_counter;
                                             lv_counter := lv_counter + 1;
-                                            EXECUTE format('SELECT EXISTS (SELECT 1 FROM %I WHERE slug = %L)', TG_TABLE_NAME, lv_new_slug) into lv_exists;
+                                            EXECUTE format(
+                                              'SELECT EXISTS (SELECT 1 FROM %I.%I WHERE slug = %L)',
+                                              TG_TABLE_SCHEMA,
+                                              TG_TABLE_NAME,
+                                              lv_new_slug
+                                            ) into lv_exists;
                                         END LOOP;
                                     
                                         NEW.slug := lv_new_slug;
-                                        insert into slug_history(entity_id, entity_type, slug) values (new.id, TG_TABLE_NAME::slug_history_entity_type_enum, new.slug);
+                                        -- Also schema-qualify slug_history + enum type
+                                        EXECUTE format(
+                                          'INSERT INTO %I.slug_history(entity_id, entity_type, slug) VALUES ($1, $2::%I.slug_history_entity_type_enum, $3)',
+                                          TG_TABLE_SCHEMA,
+                                          TG_TABLE_SCHEMA
+                                        ) USING NEW.id, TG_TABLE_NAME, NEW.slug;
                                         RETURN NEW;
                                         end;
-                                    $$ LANGUAGE plpgsql`);
+                                    $function$`);
     await queryRunner.query(`CREATE OR REPLACE TRIGGER dataset_slug
                                         BEFORE INSERT OR update of name ON datasets
                                         FOR EACH ROW EXECUTE PROCEDURE slug_generate_store_old('{$1.name}')`);
