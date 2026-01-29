@@ -1,5 +1,5 @@
 import { useFilteredDatasets } from 'hooks/useFilteredDatasets';
-import React, { createContext, useState, type ReactNode, useCallback, useMemo, useEffect } from 'react';
+import React, { createContext, useState, type ReactNode, useCallback, useMemo } from 'react';
 import type { AvailabilityDataset, DatasetSummary } from 'types/availability';
 import { mapFilteredDatasetToAvailabilityDataset } from '../adapters';
 import type { SoilProperty, FilterCriteria } from 'types/backend';
@@ -7,9 +7,14 @@ import { computeDatasetSummary } from '../domain';
 import type { MultiPolygon, Polygon } from 'geojson';
 import { useSoilProperties } from '../hooks/useSoilProperties';
 
-type DatasetFilters = {
+type DatasetFrontendFilters = {
   type: string[];
-  ownership: string;
+  ownership: string[];
+};
+
+type TimeFilterRange = {
+  min: number;
+  max: number;
 };
 
 type AvailabilityContextType = {
@@ -20,12 +25,15 @@ type AvailabilityContextType = {
   selectedDatasets: string[];
   isAllSelected: boolean;
   searchValue: string;
-  selectedFilters: DatasetFilters;
+  datasetFrontendFilters: DatasetFrontendFilters;
   datasetsSummary: DatasetSummary;
+  datasetFilters: FilterCriteria;
+  timeFilterRange: TimeFilterRange;
+  typeFilterOptions: string[];
   preview: boolean;
   selectDataset: (id: string) => void;
   setSearchValue: (value: string) => void;
-  setFilters: (value: string | string[], name: string) => void;
+  setFrontendFilters: (value: string[], name: string) => void;
   selectAllDatasets: (select: boolean) => void;
   setGeometryFilter: React.Dispatch<React.SetStateAction<(Polygon | MultiPolygon)[]>>;
   setDatasetFilters: React.Dispatch<React.SetStateAction<FilterCriteria>>;
@@ -43,9 +51,9 @@ type AvailabilityProviderProps = {
 export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ children }) => {
   const [selectedDatasets, setSelectedDatasets] = useState<string[]>([]);
   const [searchValue, setSearchValue] = useState<string>('');
-  const [selectedFilters, setSelectedFilters] = useState<DatasetFilters>({
+  const [datasetFrontendFilters, setDatasetFrontendFilters] = useState<DatasetFrontendFilters>({
     type: [],
-    ownership: '',
+    ownership: [],
   });
   const [isAllSelected, setIsAllSelected] = useState<boolean>(false);
   const [preview, setPreview] = useState<boolean>(false);
@@ -61,12 +69,6 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
 
   const [selectedSoilProperties, setSelectedSoilProperties] = useState<string[]>([]);
 
-  useEffect(() => {
-    // TODO: this resets user-selected filters when geometry changes.
-    // Replace this with merging logic.
-    setDatasetFilters({});
-  }, [geometryfilter]);
-
   const selectDataset = useCallback(
     (id: string) => {
       const newValue = selectedDatasets.includes(id) ? selectedDatasets.filter(selectedId => selectedId !== id) : [...selectedDatasets, id];
@@ -77,16 +79,16 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
     [selectedDatasets],
   );
 
-  const setFilters = useCallback(
-    (value: string | string[], name?: string) => {
+  const setFrontendFilters = useCallback(
+    (value: string[], name?: string) => {
       if (!name) return;
 
-      setSelectedFilters({
-        ...selectedFilters,
+      setDatasetFrontendFilters({
+        ...datasetFrontendFilters,
         [name]: value,
       });
     },
-    [selectedFilters],
+    [datasetFrontendFilters],
   );
 
   const selectAllDatasets = useCallback(
@@ -97,10 +99,50 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
     [fullFilterResults],
   );
 
-  const datasets = useMemo(() => {
+  const allDatasets = useMemo(() => {
     if (!fullFilterResults) return [];
     return fullFilterResults.map(mapFilteredDatasetToAvailabilityDataset);
   }, [fullFilterResults]);
+
+  const datasets = useMemo(() => {
+    return allDatasets.filter(dataset => {
+      return !dataset.dataType || !datasetFrontendFilters.type.length || datasetFrontendFilters.type.includes(dataset.dataType);
+    });
+  }, [allDatasets, datasetFrontendFilters]);
+
+  const timeFilterRange = useMemo((): TimeFilterRange => {
+    if (!allDatasets.length) return { min: 0, max: 0 };
+
+    let min: number = Infinity;
+    let max: number = -Infinity;
+
+    for (const dataset of allDatasets) {
+      if (dataset.properties.dateStart) {
+        min = Math.min(min, dataset.properties.dateStart);
+      }
+      if (dataset.properties.dateEnd) {
+        max = Math.max(max, dataset.properties.dateEnd);
+      }
+    }
+
+    return {
+      min: Number.isFinite(min) ? min : 0,
+      max: Number.isFinite(max) ? max : 0,
+    };
+  }, [allDatasets]);
+
+  const typeFilterOptions = useMemo((): string[] => {
+    if (!allDatasets.length) return [];
+    const types: string[] = [];
+
+    for (const dataset of allDatasets) {
+      if (dataset.dataType && !types.includes(dataset.dataType)) {
+        types.push(dataset.dataType);
+      }
+    }
+
+    return types;
+  }, [allDatasets]);
 
   const datasetsSummary = useMemo<DatasetSummary>(() => {
     return computeDatasetSummary(fullFilterResults);
@@ -122,12 +164,15 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
         selectedDatasets,
         isAllSelected,
         searchValue,
-        selectedFilters,
+        datasetFrontendFilters,
         datasetsSummary,
+        datasetFilters,
+        timeFilterRange,
+        typeFilterOptions,
         preview,
         selectDataset,
         setSearchValue,
-        setFilters,
+        setFrontendFilters,
         selectAllDatasets,
         setDatasetFilters,
         setPreview,

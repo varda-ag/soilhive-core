@@ -8,10 +8,11 @@ interface Props {
   max: number;
   selectedMin: number;
   selectedMax: number;
+  disabled?: boolean;
   onChange: (min: number, max: number) => void;
 }
 
-export function MultirangeSlider({ min, max, selectedMin, selectedMax, onChange }: Props) {
+export function MultirangeSlider({ min, max, selectedMin, selectedMax, disabled, onChange }: Props) {
   const [minVal, setMinVal] = useState(selectedMin);
   const [maxVal, setMaxVal] = useState(selectedMax);
   const minInputRef = useRef<HTMLInputElement | null>(null);
@@ -112,13 +113,19 @@ export function MultirangeSlider({ min, max, selectedMin, selectedMax, onChange 
   }, [selectedMin, selectedMax]);
 
   return (
-    <div data-testid="sh-ui-multirange" className={styles.Multirange}>
+    <div
+      data-testid="sh-ui-multirange"
+      className={classnames(styles.Multirange, {
+        [styles.Disabled]: disabled,
+      })}
+    >
       <input
         type="range"
         min={min}
         max={max}
         value={minVal}
         onChange={handleMinChange}
+        disabled={disabled}
         className={classnames(styles.MultirangeThumb, styles.MultirangeThumbLeft)}
         style={{ zIndex: minVal === max ? '5' : '' }}
       />
@@ -128,9 +135,9 @@ export function MultirangeSlider({ min, max, selectedMin, selectedMax, onChange 
         max={max}
         value={maxVal}
         onChange={handleMaxChange}
+        disabled={disabled}
         className={classnames(styles.MultirangeThumb, styles.MultirangeThumbRight)}
       />
-
       <div className={styles.MultirangeSlider}>
         <div className={styles.MultirangeSliderTrack} />
         <div style={{ left: rangeLeftStyle, width: rangeWidthStyle }} className={styles.MultirangeSliderRange} />
@@ -145,6 +152,7 @@ export function MultirangeSlider({ min, max, selectedMin, selectedMax, onChange 
           onBlur={handleMinInputFocusOut}
           defaultValue={minVal}
           className={styles.MultirangeSliderInput}
+          disabled={disabled}
         />
         <input
           ref={maxInputRef}
@@ -155,6 +163,7 @@ export function MultirangeSlider({ min, max, selectedMin, selectedMax, onChange 
           onBlur={handleMaxInputFocusOut}
           defaultValue={maxVal}
           className={styles.MultirangeSliderInput}
+          disabled={disabled}
         />
       </div>
     </div>

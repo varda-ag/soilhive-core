@@ -1,5 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { TimeFilter } from 'components/FilteringSidebar/FilteringSidebarDataScope/TimeFilter/TimeFilter';
+import useAvailability from 'hooks/useAvailability';
 
 jest.mock('components/UI', () => ({
   __esModule: true,
@@ -23,7 +24,25 @@ jest.mock('components/UI', () => ({
   ),
 }));
 
+jest.mock('hooks/useAvailability', () => ({
+  __esModule: true,
+  default: jest.fn(),
+}));
+
 describe('TimeFilter', () => {
+  beforeEach(() => {
+    (useAvailability as jest.Mock).mockReturnValue({
+      timeFilterRange: {
+        min: 1964,
+        max: 2022,
+      },
+    });
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
   it('renders with initialState and Apply is disabled initially', () => {
     const { container } = render(<TimeFilter initialState={{ min: 1990, max: 2000 }} onChange={jest.fn()} />);
 

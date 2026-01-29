@@ -159,4 +159,16 @@ describe('MultirangeSlider', () => {
 
     expect(numbers[1].value).toBe('95');
   });
+
+  it('accepts disabled property correctly', () => {
+    const { container } = render(
+      <MultirangeSlider min={0} max={100} selectedMin={10} selectedMax={90} disabled={true} onChange={jest.fn()} />,
+    );
+
+    const { numbers } = getInputs(container);
+
+    expect(numbers[1].disabled).toBeTruthy();
+    expect(numbers[0].disabled).toBeTruthy();
+    expect(screen.getByTestId('sh-ui-multirange')).toHaveClass('Disabled');
+  });
 });
