@@ -6,6 +6,24 @@
   position: relative;
   flex-direction: column;
 
+  &.Disabled {
+    .MultirangeSliderTrack,
+    .MultirangeSliderRange {
+      background-color: var(--color-neutral-dark-400);
+      cursor: not-allowed;
+    }
+
+    .MultirangeThumb::-webkit-slider-thumb {
+      cursor: not-allowed;
+      border: 2px solid var(--color-neutral-dark-400);
+    }
+
+    .MultirangeThumb::-moz-range-thumb {
+      cursor: not-allowed;
+      border: 2px solid var(--color-neutral-dark-400);
+    }
+  }
+
   .MultirangeSlider {
     position: relative;
     width: 100%;
@@ -45,6 +63,11 @@
     text-align: center;
     font-size: var(--font-size-md);
     line-height: var(--line-height-lg);
+
+    &:disabled {
+      color: var(--color-neutral-dark-400);
+      cursor: not-allowed;
+    }
   }
 
   .MultirangeThumb {

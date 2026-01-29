@@ -1,7 +1,7 @@
 import { type Polygon, type MultiPolygon } from 'geojson';
 
 export interface FilterCriteria {
-  data_types?: string[];
+  data_type?: string;
   licenses?: string[];
   min_sampling_date?: string;
   max_sampling_date?: string;
