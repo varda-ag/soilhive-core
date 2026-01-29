@@ -52,17 +52,6 @@ exports[`DatasetsListItem renders main dataset info 1`] = `
         >
           Metadata
         </button>
-        <div
-          class="Views"
-        >
-          <svg
-            data-testid="svg-icon-mock"
-          >
-            mock-svg
-          </svg>
-           
-          12.3k
-        </div>
       </div>
     </div>
     <div

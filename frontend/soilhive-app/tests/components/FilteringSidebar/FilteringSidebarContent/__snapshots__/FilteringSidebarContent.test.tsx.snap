@@ -41,24 +41,6 @@ exports[`FilteringSidebarContent renders three accordion components 1`] = `
         </div>
       </div>
     </div>
-    <div
-      data-testid="accordion"
-    >
-      <div
-        data-testid="accordion-title"
-      >
-        Land & ecosystem
-      </div>
-      <div
-        data-testid="accordion-content"
-      >
-        <div
-          data-testid="mock-filtering-sidebar-landecosystem"
-        >
-          Mock FilteringSidebarLandEcosystem
-        </div>
-      </div>
-    </div>
   </div>
 </div>
 `;

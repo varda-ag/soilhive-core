@@ -10,16 +10,6 @@ exports[`DatasetsFilters renders component 1`] = `
       placeholder="Search by name"
       value=""
     />
-    <button
-      data-testid="mock-button"
-    >
-      <svg
-        data-testid="svg-icon-mock"
-      >
-        mock-svg
-      </svg>
-       Filter
-    </button>
   </div>
 </div>
 `;

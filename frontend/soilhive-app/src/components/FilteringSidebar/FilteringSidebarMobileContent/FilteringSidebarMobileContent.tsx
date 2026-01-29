@@ -3,7 +3,6 @@ import { MobileTabNavigation } from 'components/UI';
 import type { MobileTabNavigationConfig } from 'types/components';
 import { FilteringSidebarDataScope } from '../FilteringSidebarDataScope/FilteringSidebarDataScope';
 import { FilteringSidebarParameters } from '../FilteringSidebarParameters/FilteringSidebarParameters';
-import { FilteringSidebarLandEcosystem } from '../FilteringSidebarLandEcosystem/FilteringSidebarLandEcosystem';
 
 import styles from './FilteringSidebarMobileContent.module.scss';
 
@@ -15,10 +14,6 @@ const config: MobileTabNavigationConfig[] = [
   {
     name: 'Soil parameters',
     id: 'parameters',
-  },
-  {
-    name: 'Land & ecosystem',
-    id: 'ecosystem',
   },
 ];
 
@@ -33,7 +28,6 @@ export function FilteringSidebarMobileContent() {
 
       {activeTab === 'scope' && <FilteringSidebarDataScope />}
       {activeTab === 'parameters' && <FilteringSidebarParameters />}
-      {activeTab === 'ecosystem' && <FilteringSidebarLandEcosystem />}
     </div>
   );
 }

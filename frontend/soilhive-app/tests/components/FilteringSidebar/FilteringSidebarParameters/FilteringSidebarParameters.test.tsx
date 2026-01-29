@@ -108,7 +108,7 @@ describe('FilteringSidebarParameters', () => {
     const { container } = render(<FilteringSidebarParameters />);
 
     const accordions = screen.getAllByTestId('accordion');
-    expect(accordions).toHaveLength(4);
+    expect(accordions).toHaveLength(1);
     expect(container).toMatchSnapshot();
     expect(mockSetDatasetFilters).toHaveBeenCalledTimes(0);
   });
