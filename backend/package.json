@@ -50,7 +50,6 @@
     "uuid": "11.1.0"
   },
   "devDependencies": {
-    "@mapbox/node-pre-gyp": "^2.0.3",
     "@tsconfig/node-lts": "^22.0.2",
     "@types/express": "^5.0.3",
     "@types/jest": "^30.0.0",
