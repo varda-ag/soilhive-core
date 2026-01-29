@@ -1,7 +1,6 @@
 import { Accordion } from 'components/UI';
 import { FilteringSidebarDataScope } from '../FilteringSidebarDataScope/FilteringSidebarDataScope';
 import { FilteringSidebarParameters } from '../FilteringSidebarParameters/FilteringSidebarParameters';
-import { FilteringSidebarLandEcosystem } from '../FilteringSidebarLandEcosystem/FilteringSidebarLandEcosystem';
 
 import styles from './FilteringSidebarContent.module.scss';
 
@@ -13,9 +12,6 @@ export function FilteringSidebarContent() {
       </Accordion>
       <Accordion title="Soil parameters" openedFromStart={true}>
         <FilteringSidebarParameters />
-      </Accordion>
-      <Accordion title="Land & ecosystem" openedFromStart={true}>
-        <FilteringSidebarLandEcosystem />
       </Accordion>
     </div>
   );
