@@ -292,6 +292,27 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+    delete:
+      x-eov-operation-handler: controllers/datasets
+      x-eov-operation-id: deleteDataset
+      summary: Delete a specific dataset
+      tags:
+        - datasets
+      security:
+        - bearerAuth: [data-admin]
+      parameters:
+        - name: datasetSlug
+          in: path
+          required: true
+          description: The slug of the dataset to delete
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Dataset successfully deleted (no content returned)
+        '401':
+          description: Unauthorized - Token subject is missing
+
   /soil-properties:
     get:
       x-eov-operation-handler: controllers/soil-properties

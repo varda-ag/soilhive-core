@@ -25,3 +25,8 @@ export const updateDataset = async (req: Request, res: Response) => {
   const data = await datasetService.updateDataset(req.customData, req.params['datasetSlug']!, input);
   res.json(data);
 };
+
+export const deleteDataset = async (req: Request, res: Response) => {
+  await datasetService.deleteDataset(req.customData, req.params['datasetSlug']!);
+  res.status(204).send();
+};
