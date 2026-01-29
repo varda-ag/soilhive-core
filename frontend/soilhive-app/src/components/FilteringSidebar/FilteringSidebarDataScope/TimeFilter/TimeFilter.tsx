@@ -16,11 +16,9 @@ export function TimeFilter({ initialState, onChange }: Props) {
     min: initialState.min || timeFilterRange.min,
     max: initialState.max || timeFilterRange.max,
   });
-  const [isApplyDisabled, setIsApplyDisabled] = useState<boolean>(true);
 
   const onTimeChange = useCallback((min: number, max: number) => {
     setSelectedTime({ min, max });
-    setIsApplyDisabled(false);
   }, []);
 
   const setInitialState = useCallback(() => {
@@ -28,17 +26,19 @@ export function TimeFilter({ initialState, onChange }: Props) {
       min: !initialState.min || initialState.min < timeFilterRange.min ? timeFilterRange.min : initialState.min,
       max: !initialState.max || initialState.max > timeFilterRange.max ? timeFilterRange.max : initialState.max,
     });
-    setIsApplyDisabled(true);
   }, [initialState, timeFilterRange]);
 
   const handleApply = useCallback(() => {
     onChange(selectedTime);
-    setIsApplyDisabled(true);
   }, [selectedTime, onChange]);
 
   useEffect(() => {
     setInitialState();
   }, [setInitialState]);
+
+  if (!timeFilterRange.min || !timeFilterRange.max) {
+    return null;
+  }
 
   return (
     <div className={styles.TimeFilter}>
@@ -54,7 +54,7 @@ export function TimeFilter({ initialState, onChange }: Props) {
         <Button size="tiny" type="tertiary" onClick={setInitialState}>
           Cancel
         </Button>
-        <Button size="tiny" onClick={handleApply} isDisabled={isApplyDisabled}>
+        <Button size="tiny" onClick={handleApply}>
           Apply
         </Button>
       </div>
