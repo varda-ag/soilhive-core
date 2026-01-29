@@ -26,8 +26,8 @@ describe('VectorDataLoad class', () => {
       token: mockToken,
     };
     const service = new DataMappingService();
-    const dataMappingConfig = await service.parseDataMapping(requestData, dataMapping.id, file.slug);
-    const results = await vdl.getDataPreview(entityManager, dataMappingConfig);
+    const dataMappingConfig = await service.parseDataMapping(requestData, dataMapping.id);
+    const results = await vdl.getDataPreview(entityManager, dataMappingConfig, file.id);
     await entityManager.query(`DROP TABLE IF EXISTS "file_${file.id}_raw" CASCADE`);
     expect(results.length).toBe(DATA_PREVIEW_SIZE - (dataMappingConfig.drop_records ? dataMappingConfig.drop_records.length : 0));
     const resultBdfi33 = results.map(r => parseFloat(r.bdfi33)).filter(n => !isNaN(n));
@@ -56,7 +56,7 @@ describe('VectorDataLoad class', () => {
       token: mockToken,
     };
     const service = new DataMappingService();
-    const dataMappingConfig = await service.parseDataMapping(requestData, dataMapping.id, file.slug);
+    const dataMappingConfig = await service.parseDataMapping(requestData, dataMapping.id);
     await vdl.rawRecordToDataModel(entityManager, dataMappingConfig, 10002, dataset.id);
     await entityManager.query(`DROP TABLE IF EXISTS "file_${file.id}_raw" CASCADE`);
     const features = await entityManager.find(FeatureEntity);
