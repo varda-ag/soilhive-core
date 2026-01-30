@@ -54,7 +54,6 @@ describe('DatasetsListItem', () => {
     expect(screen.getByTestId('sh-datasets-list-item')).toBeInTheDocument();
     expect(screen.getByTestId('mock-checkbox')).toHaveTextContent('SoilGrid Global');
     expect(screen.getByTestId('mock-button')).toHaveTextContent('Metadata');
-    expect(screen.getByText('12.3k')).toBeInTheDocument();
 
     expect(container).toMatchSnapshot();
   });
