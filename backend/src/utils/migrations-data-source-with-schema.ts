@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { DataSource } from 'typeorm';
 import { getDBPassword, getSSL } from './db-credentials';
+import { DatabaseNamingStrategy } from './naming-strategy';
 
 export default new DataSource({
   type: 'postgres',
@@ -13,4 +14,5 @@ export default new DataSource({
   ...(process.env.POSTGRES_SCHEMA ? { schema: process.env.POSTGRES_SCHEMA } : {}),
   entities: ['dist/entities/*.js'],
   migrations: ['dist/migrations/*.js'],
+  namingStrategy: new DatabaseNamingStrategy(),
 });
