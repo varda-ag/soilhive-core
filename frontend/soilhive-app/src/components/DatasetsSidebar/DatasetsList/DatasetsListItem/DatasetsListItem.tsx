@@ -3,7 +3,6 @@ import classnames from 'classnames';
 
 import { Button, Checkbox, Tag } from 'components/UI';
 import ArrowDownIcon from 'assets/icons/dropdown-arrow-down-icon.svg?react';
-import EyeIcon from 'assets/icons/small-eye-icon.svg?react';
 import MapIcon from 'assets/icons/small-map-icon.svg?react';
 import RullerIcon from 'assets/icons/small-ruller-icon.svg?react';
 import LayersIcon from 'assets/icons/small-layers-icon.svg?react';
@@ -41,9 +40,6 @@ export function DatasetsListItem({ dataset }: Props) {
         </div>
         <div className={styles.Bottom}>
           <Button size="tiny">Metadata</Button>
-          <div className={styles.Views}>
-            <EyeIcon /> {dataset.views}
-          </div>
         </div>
       </div>
       <div className={styles.MetaWrapper}>

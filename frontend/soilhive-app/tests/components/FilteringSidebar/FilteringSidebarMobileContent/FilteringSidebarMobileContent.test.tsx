@@ -9,10 +9,6 @@ jest.mock('components/FilteringSidebar/FilteringSidebarDataScope/FilteringSideba
   FilteringSidebarDataScope: () => <div data-testid="mock-filtering-sidebar-datascope">Mock FilteringSidebarDataScope</div>,
 }));
 
-jest.mock('components/FilteringSidebar/FilteringSidebarLandEcosystem/FilteringSidebarLandEcosystem', () => ({
-  FilteringSidebarLandEcosystem: () => <div data-testid="mock-filtering-sidebar-landecosystem">Mock FilteringSidebarLandEcosystem</div>,
-}));
-
 describe('FilteringSidebarMobileContent', () => {
   it('renders component by default', () => {
     const { container } = render(<FilteringSidebarMobileContent />);
@@ -25,19 +21,11 @@ describe('FilteringSidebarMobileContent', () => {
 
     expect(screen.getByTestId('mock-filtering-sidebar-datascope')).toBeInTheDocument();
     expect(screen.queryByTestId('mock-filtering-sidebar-parameters')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('mock-filtering-sidebar-landecosystem')).not.toBeInTheDocument();
 
     const navButtons = screen.getAllByTestId('sh-ui-mobile-tab-navigation-item');
     fireEvent.click(navButtons[1]);
 
     expect(screen.queryByTestId('mock-filtering-sidebar-datascope')).not.toBeInTheDocument();
     expect(screen.getByTestId('mock-filtering-sidebar-parameters')).toBeInTheDocument();
-    expect(screen.queryByTestId('mock-filtering-sidebar-landecosystem')).not.toBeInTheDocument();
-
-    fireEvent.click(navButtons[2]);
-
-    expect(screen.queryByTestId('mock-filtering-sidebar-datascope')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('mock-filtering-sidebar-parameters')).not.toBeInTheDocument();
-    expect(screen.getByTestId('mock-filtering-sidebar-landecosystem')).toBeInTheDocument();
   });
 });

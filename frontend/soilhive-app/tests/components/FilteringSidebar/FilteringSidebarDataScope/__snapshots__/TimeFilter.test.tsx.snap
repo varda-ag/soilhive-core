@@ -1,6 +1,6 @@
 // Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
 
-exports[`TimeFilter renders with initialState and Apply is disabled initially 1`] = `
+exports[`TimeFilter renders with initialState 1`] = `
 <div>
   <div
     class="TimeFilter"
@@ -33,7 +33,6 @@ exports[`TimeFilter renders with initialState and Apply is disabled initially 1`
       </button>
       <button
         data-testid="mock-button-apply"
-        disabled=""
         type="button"
       >
         Apply

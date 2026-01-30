@@ -1,6 +1,6 @@
 import type { AvailabilityDataset } from 'types/availability';
 import type { FilteredDataset } from 'types/backend';
-import { mapFilteredDatasetToAvailabilityDataset } from '../../src/adapters';
+import { mapFilteredDatasetToAvailabilityDataset, yearRangeToDatasetFilters } from '../../src/adapters';
 
 describe('mapFilteredDatasetToAvailabilityDataset adapter', () => {
   it('should adapt empty object', () => {
@@ -42,6 +42,7 @@ describe('mapFilteredDatasetToAvailabilityDataset adapter', () => {
       max_depth: 20,
       min_sampling_date: '2023',
       max_sampling_date: '2025',
+      data_type: 'point',
     };
 
     const expectedAvailabilityDataset: AvailabilityDataset = {
@@ -49,6 +50,7 @@ describe('mapFilteredDatasetToAvailabilityDataset adapter', () => {
       name: 'dataset-name-2',
       views: '0',
       tags: [],
+      dataType: 'point',
       properties: {
         points: 10,
         layers: 0,
@@ -64,5 +66,13 @@ describe('mapFilteredDatasetToAvailabilityDataset adapter', () => {
 
     // Assert
     expect(actualAvailabilityDataset).toEqual(expectedAvailabilityDataset);
+  });
+});
+
+describe('yearRangeToDatasetFilters', () => {
+  it('converts years range to dataset dates', () => {
+    const dates = yearRangeToDatasetFilters({ min: 1990, max: 2025 });
+    expect(new Date(dates.min_sampling_date).getFullYear()).toEqual(1990);
+    expect(new Date(dates.max_sampling_date).getFullYear()).toEqual(2025);
   });
 });
