@@ -5,12 +5,14 @@ export const transactionMiddleware = async (req: Request, res: Response, next: N
   const dataSource = await getDataSource();
   const queryRunner = dataSource.createQueryRunner();
   await queryRunner.connect();
+
+  await queryRunner.startTransaction();
+
   const schema = process.env.POSTGRES_SCHEMA;
   if (schema) {
     const escapedSchema = `"${schema.replaceAll('"', '""')}"`;
     await queryRunner.query(`SET LOCAL search_path TO ${escapedSchema}, public`);
   }
-  await queryRunner.startTransaction();
 
   req.customData = req.customData || { entityManager: queryRunner.manager };
 
