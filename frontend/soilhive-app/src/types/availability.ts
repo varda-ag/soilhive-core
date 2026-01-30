@@ -12,6 +12,7 @@ export type AvailabilityDataset = {
   name: string;
   views: string;
   tags: string[];
+  dataType?: string;
   properties: DatasetProperties;
 };
 

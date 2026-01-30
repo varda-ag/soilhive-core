@@ -19,7 +19,7 @@ exports[`DownloadPreview calls setPreview(false) when clicking on the back butto
         <span
           class="SubTitle"
         >
-          Customize a data preview from the area selected
+          This is a preview of the soil data filtered by the selected area and criteria. To download the data press the button on the top-right of this page
         </span>
       </div>
       <div
@@ -70,6 +70,17 @@ exports[`DownloadPreview calls setPreview(false) when clicking on the back butto
             mock-svg
           </svg>
           Download data
+        </button>
+        <button
+          class="Button Tertiary Small IconOnly ShareButtonForTablet"
+          data-testid="sh-ui-button"
+          type="button"
+        >
+          <svg
+            data-testid="svg-icon-mock"
+          >
+            mock-svg
+          </svg>
         </button>
       </div>
     </div>
@@ -132,7 +143,7 @@ exports[`DownloadPreview renders download preview page 1`] = `
         <span
           class="SubTitle"
         >
-          Customize a data preview from the area selected
+          This is a preview of the soil data filtered by the selected area and criteria. To download the data press the button on the top-right of this page
         </span>
       </div>
       <div
@@ -183,6 +194,17 @@ exports[`DownloadPreview renders download preview page 1`] = `
             mock-svg
           </svg>
           Download data
+        </button>
+        <button
+          class="Button Tertiary Small IconOnly ShareButtonForTablet"
+          data-testid="sh-ui-button"
+          type="button"
+        >
+          <svg
+            data-testid="svg-icon-mock"
+          >
+            mock-svg
+          </svg>
         </button>
       </div>
     </div>

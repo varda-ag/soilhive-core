@@ -32,6 +32,10 @@
     @media (max-width: $bp-mobile-max) {
       display: none;
     }
+
+    @media (min-width: $bp-tablet) and (max-width: $bp-tablet-max) {
+      padding: 9px 0 9px 0;
+    }
   }
 
   .Content {
@@ -43,6 +47,10 @@
 
     @media (max-width: $bp-mobile-max) {
       padding: 0;
+    }
+
+    @media (min-width: $bp-tablet) and (max-width: $bp-tablet-max) {
+      padding: 9px 0 0 0;
     }
 
     .TableControls {
@@ -95,14 +103,20 @@
 
       // p-datatable
       & > div {
+        // .p-datatable-wrapper
+        & > div:nth-of-type(1) {
+          border-bottom-left-radius: 8px;
+          border-bottom-right-radius: 8px;
+          box-shadow: 0px 4px 16px 0px #00000014;
+        }
+
         // .p-paginator-bottom
         & > div:nth-of-type(2) {
           margin-top: 13px;
         }
       }
 
-      table {
-        border-radius: 8px;
+      table {        
         box-shadow: 0px 4px 16px 0px #00000014;
 
         & > thead {
@@ -127,12 +141,14 @@
               }
 
               &:first-of-type {
-                padding-left: 16px; 
+                padding-left: 16px;
+                border-top-left-radius: 8px;
               }
 
               &:last-of-type {
                 padding-right: 16px; 
                 text-align: right;
+                border-top-right-radius: 8px;
                 > div {
                   display: inline;
                 }
@@ -213,7 +229,7 @@
     font-size: var(--font-size-sm);
     line-height: 20px;
 
-    @media (max-width: $bp-mobile-max) {
+    @media (max-width: $bp-tablet-max) {
       display: none;
     }
   }

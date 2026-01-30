@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.22.0 (2026-01-30)
+
+## What's Changed
+* feat(BE): ✨ SP-4757 implement dataset POST/PATCH/DELETE methods by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/144
+* feat: sp-4821 changed preview page's header description by @cristbello in https://github.com/varda-ag/soilhive-core/pull/147
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.21.0...v0.22.0
+
+## 0.21.0 (2026-01-30)
+
+## What's Changed
+* feat: sp-4823 - remove unsupported ui elements by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/142
+* feat: sp-4807 - datasets filtering by time and type by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/141
+* feat: sp-4821 implemented tablet support for preview page and its sub-components by @cristbello in https://github.com/varda-ag/soilhive-core/pull/145
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.20.0...v0.21.0
+
 ## 0.20.0 (2026-01-28)
 
 ## What's Changed

@@ -18,19 +18,14 @@ jest.mock('components/FilteringSidebar/FilteringSidebarDataScope/FilteringSideba
   FilteringSidebarDataScope: () => <div data-testid="mock-filtering-sidebar-datascope">Mock FilteringSidebarDataScope</div>,
 }));
 
-jest.mock('components/FilteringSidebar/FilteringSidebarLandEcosystem/FilteringSidebarLandEcosystem', () => ({
-  FilteringSidebarLandEcosystem: () => <div data-testid="mock-filtering-sidebar-landecosystem">Mock FilteringSidebarLandEcosystem</div>,
-}));
-
 describe('FilteringSidebarContent', () => {
   it('renders three accordion components', () => {
     const { container } = render(<FilteringSidebarContent />);
 
     const accordions = screen.getAllByTestId('accordion');
-    expect(accordions).toHaveLength(3);
+    expect(accordions).toHaveLength(2);
     expect(screen.getByTestId('mock-filtering-sidebar-parameters')).toBeInTheDocument();
     expect(screen.getByTestId('mock-filtering-sidebar-datascope')).toBeInTheDocument();
-    expect(screen.getByTestId('mock-filtering-sidebar-landecosystem')).toBeInTheDocument();
     expect(container).toMatchSnapshot();
   });
 });

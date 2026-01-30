@@ -1,7 +1,6 @@
 @import 'styles/variables/breakpoints';
 
 .DownloadPreviewSummary {
-  transition: width 0.5s ease-out;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -12,92 +11,138 @@
     width: 100%;
   }
 
-  &.Expanded {
-    width: 448px;
+  @media (min-width: $bp-tablet) and (max-width: $bp-tablet-max) {
+    width: 100%;
+    flex-direction: row;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 16px;
+    padding-bottom: 13px;
+    padding-left: 25px;
+    padding-right: 20px;
+    max-height: 228px;
+  }
 
-    .Map {
-        width: 410px;
-        height: 322px;
-    
-        >button {
-          top: 9px;
-          right: 8.5px;
-          >svg {
-            width: 28.5px;
-            height: 28.3px;
+  @media (min-width: $bp-desktop) {
+    transition: width 0.5s ease-out;
+  }
+
+  &.Expanded {
+    @media (min-width: $bp-desktop) {
+      width: 448px;
+
+      .MapSection {
+        align-items: center;
+
+        .Map {
+          width: 410px;
+          height: 322px;
+      
+          >button {
+            top: 9px;
+            right: 8.5px;
+            >svg {
+              width: 28.5px;
+              height: 28.3px;
+            }
           }
+        }
+
+        .SubMap {
+          width: 344px;
         }
       }
 
-    .Separator {
-      width: 410px;
-    }
+      .Separator {
+        width: 410px;
+      }
 
-    .SubMap,
-    .DataSummary,
-    .AppliedFilters {
-      width: 344px;
+      .DataSummary,
+      .AppliedFilters {
+        width: 344px;
+      }
     }
   }
 
-  .Map {
-    transition-property: width, height;
-    transition-duration: 0.5s;
-    transition-timing-function: ease-out;
-    position: relative;
-    width: 214px;
-    height: 106px;
-    border-radius: 8px;
-    overflow: hidden;
+  .MapSection {
+    display: flex;
+    flex-direction: column;
 
     @media (max-width: $bp-mobile-max) {
-      width: 90%;
-      height: 157px;
+      width: 100%;
+      align-items: center;
     }
 
-    > button {
-      position: absolute;
-      top: 4px;
-      right: 4px;
-      padding: 0 !important;
+    @media (min-width: $bp-tablet) and (max-width: $bp-tablet-max) {
+      width: 100%;
+    }
 
+    .Map {
+      position: relative;
+      width: 214px;
+      height: 106px;
+      border-radius: 8px;
+      overflow: hidden;
+  
       @media (max-width: $bp-mobile-max) {
-        display: none;
+        width: 90%;
+        height: 157px;
       }
 
-      > svg {
-        width: 32px;
-        height: 30px;
+      @media (min-width: $bp-tablet) and (max-width: $bp-tablet-max) {
+        width: 100%;
+      }
+
+      @media (min-width: $bp-desktop) {
+        transition-property: width, height;
+        transition-duration: 0.5s;
+        transition-timing-function: ease-out;
+      }
+  
+      >button {
+        position: absolute;
+        top: 4px;
+        right: 4px;
+        padding: 0 !important;
+  
+        @media (max-width: $bp-mobile-max) {
+          display: none;
+        }
+  
+        >svg {
+          width: 28px;
+          height: 28px;
+        }
       }
     }
-  }
-
-  .SubMap {
-    width: 214px;
-    padding-top: 10px;
-    padding-bottom: 12px;
-
-    @media (max-width: $bp-mobile-max) {
-      width: 90%;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding-top: 12x;
-      padding-bottom: 19px;
-    }
-
-    .SectionTitle {
-      padding-bottom: 5px;
-    }
-
-    .Location {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-
-      >svg {
-        width: 16px;
-        height: 16px;
+  
+    .SubMap {
+      width: 214px;
+      padding-top: 10px;
+      padding-bottom: 12px;
+  
+      @media (max-width: $bp-mobile-max) {
+        width: 90%;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding-top: 12x;
+        padding-bottom: 19px;
+      }
+  
+      .SectionTitle {
+        padding-bottom: 5px;
+      }
+  
+      .Location {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+  
+        >svg {
+          width: 16px;
+          height: 16px;
+        }
       }
     }
   }
@@ -113,6 +158,12 @@
       flex-direction: column;
       align-items: center;
       padding-bottom: 17px;
+    }
+
+    @media (min-width: $bp-tablet) and (max-width: $bp-tablet-max) {
+      padding-top: 0;
+      padding-bottom: 0;
+      width: 100%;
     }
 
     .SectionTitle {
@@ -142,6 +193,10 @@
         @media (max-width: $bp-mobile-max) {
           width: 100%;
           flex-grow: 1;
+        }
+
+        @media (min-width: $bp-tablet) and (max-width: $bp-tablet-max) {
+          width: 100%;
         }
     
         .DataSummaryRowTitle {
@@ -174,6 +229,12 @@
       display: flex;
       flex-direction: column;
       align-items: center;
+    }
+
+    @media (min-width: $bp-tablet) and (max-width: $bp-tablet-max) {
+      padding-top: 0;
+      padding-bottom: 0;
+      width: 100%;
     }
 
     .SectionTitle {
@@ -230,6 +291,13 @@
 
     @media (max-width: $bp-mobile-max) {
       width: 90% !important;
+    }
+
+    @media (min-width: $bp-tablet) and (max-width: $bp-tablet-max) {
+      width: 1px;
+      height: stretch;
+      border-top: 17px solid white;
+      border-bottom: 10px solid white;
     }
   }
 
