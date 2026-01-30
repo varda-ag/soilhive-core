@@ -5,3 +5,16 @@ export type DataMappingObject = {
 } & {
   drop_records?: number[]; // fixed entries
 };
+
+export const enum DetectableFields {
+  GEOMETRY = 'geometry',
+  LICENSE = 'license',
+  SAMPLING_DATE = 'sampling_date',
+  DEPTH = 'depth',
+  MIN_DEPTH = 'min_depth',
+  MAX_DEPTH = 'max_depth',
+  HORIZON = 'horizon',
+  CRS = 'crs',
+  LATITUDE = 'latitude',
+  LONGITUDE = 'longitude',
+}

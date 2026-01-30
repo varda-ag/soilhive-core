@@ -1,0 +1,1029 @@
+{
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    39.6544,
+                    -3.79168
+                ]
+            },
+            "properties": {
+                "metadata": {
+                    "Site": "Chasimba",
+                    "Cluster": 1,
+                    "Plot": 3,
+                    "samplingYear": "2019"
+                },
+                "rawParameters": {
+                    "predClay": {
+                        "depth": [
+                            {
+                                "minDepth": 0,
+                                "maxDepth": 20,
+                                "horizon": "",
+                                "value": 47.0
+                            },
+                            {
+                                "minDepth": 20,
+                                "maxDepth": 50,
+                                "horizon": "",
+                                "value": 50.0
+                            }
+                        ],
+                        "unit": "%",
+                        "analiticalMethodology": "MIR"
+                    },
+                    "predExBas": {
+                        "depth": [
+                            {
+                                "minDepth": 0,
+                                "maxDepth": 20,
+                                "horizon": "",
+                                "value": 4.93
+                            },
+                            {
+                                "minDepth": 20,
+                                "maxDepth": 50,
+                                "horizon": "",
+                                "value": 5.55
+                            }
+                        ],
+                        "unit": "cmolc/kg",
+                        "analiticalMethodology": "MIR"
+                    },
+                    "predSOC": {
+                        "depth": [
+                            {
+                                "minDepth": 0,
+                                "maxDepth": 20,
+                                "horizon": "",
+                                "value": 6.93
+                            },
+                            {
+                                "minDepth": 20,
+                                "maxDepth": 50,
+                                "horizon": "",
+                                "value": 7.31
+                            }
+                        ],
+                        "unit": "g/kg",
+                        "analiticalMethodology": "MIR"
+                    },
+                    "predSand": {
+                        "depth": [
+                            {
+                                "minDepth": 0,
+                                "maxDepth": 20,
+                                "horizon": "",
+                                "value": 35.0
+                            },
+                            {
+                                "minDepth": 20,
+                                "maxDepth": 50,
+                                "horizon": "",
+                                "value": 33.0
+                            }
+                        ],
+                        "unit": "%",
+                        "analiticalMethodology": "MIR"
+                    },
+                    "predTN": {
+                        "depth": [
+                            {
+                                "minDepth": 0,
+                                "maxDepth": 20,
+                                "horizon": "",
+                                "value": 0.06
+                            },
+                            {
+                                "minDepth": 20,
+                                "maxDepth": 50,
+                                "horizon": "",
+                                "value": 0.06
+                            }
+                        ],
+                        "unit": "%",
+                        "analiticalMethodology": "MIR"
+                    },
+                    "predpH": {
+                        "depth": [
+                            {
+                                "minDepth": 0,
+                                "maxDepth": 20,
+                                "horizon": "",
+                                "value": 6.07
+                            },
+                            {
+                                "minDepth": 20,
+                                "maxDepth": 50,
+                                "horizon": "",
+                                "value": 6.2
+                            }
+                        ],
+                        "unit": "",
+                        "analiticalMethodology": "MIR"
+                    }
+                }
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    39.6499,
+                    -3.78608
+                ]
+            },
+            "properties": {
+                "metadata": {
+                    "Site": "Chasimba",
+                    "Cluster": 1,
+                    "Plot": 10,
+                    "samplingYear": "2019"
+                },
+                "rawParameters": {
+                    "predClay": {
+                        "depth": [
+                            {
+                                "minDepth": 0,
+                                "maxDepth": 20,
+                                "horizon": "",
+                                "value": 50.0
+                            },
+                            {
+                                "minDepth": 20,
+                                "maxDepth": 50,
+                                "horizon": "",
+                                "value": 62.0
+                            }
+                        ],
+                        "unit": "%",
+                        "analiticalMethodology": "MIR"
+                    },
+                    "predExBas": {
+                        "depth": [
+                            {
+                                "minDepth": 0,
+                                "maxDepth": 20,
+                                "horizon": "",
+                                "value": 7.25
+                            },
+                            {
+                                "minDepth": 20,
+                                "maxDepth": 50,
+                                "horizon": "",
+                                "value": 7.15
+                            }
+                        ],
+                        "unit": "cmolc/kg",
+                        "analiticalMethodology": "MIR"
+                    },
+                    "predSOC": {
+                        "depth": [
+                            {
+                                "minDepth": 0,
+                                "maxDepth": 20,
+                                "horizon": "",
+                                "value": 8.41
+                            },
+                            {
+                                "minDepth": 20,
+                                "maxDepth": 50,
+                                "horizon": "",
+                                "value": 7.03
+                            }
+                        ],
+                        "unit": "g/kg",
+                        "analiticalMethodology": "MIR"
+                    },
+                    "predSand": {
+                        "depth": [
+                            {
+                                "minDepth": 0,
+                                "maxDepth": 20,
+                                "horizon": "",
+                                "value": 42.0
+                            },
+                            {
+                                "minDepth": 20,
+                                "maxDepth": 50,
+                                "horizon": "",
+                                "value": 22.0
+                            }
+                        ],
+                        "unit": "%",
+                        "analiticalMethodology": "MIR"
+                    },
+                    "predTN": {
+                        "depth": [
+                            {
+                                "minDepth": 0,
+                                "maxDepth": 20,
+                                "horizon": "",
+                                "value": 0.06
+                            },
+                            {
+                                "minDepth": 20,
+                                "maxDepth": 50,
+                                "horizon": "",
+                                "value": 0.06
+                            }
+                        ],
+                        "unit": "%",
+                        "analiticalMethodology": "MIR"
+                    },
+                    "predpH": {
+                        "depth": [
+                            {
+                                "minDepth": 0,
+                                "maxDepth": 20,
+                                "horizon": "",
+                                "value": 6.31
+                            },
+                            {
+                                "minDepth": 20,
+                                "maxDepth": 50,
+                                "horizon": "",
+                                "value": 6.32
+                            }
+                        ],
+                        "unit": "",
+                        "analiticalMethodology": "MIR"
+                    }
+                }
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    39.6516,
+                    -3.75973
+                ]
+            },
+            "properties": {
+                "metadata": {
+                    "Site": "Chasimba",
+                    "Cluster": 2,
+                    "Plot": 1,
+                    "samplingYear": "2019"
+                },
+                "rawParameters": {
+                    "predClay": {
+                        "depth": [
+                            {
+                                "minDepth": 0,
+                                "maxDepth": 20,
+                                "horizon": "",
+                                "value": 36.0
+                            },
+                            {
+                                "minDepth": 20,
+                                "maxDepth": 50,
+                                "horizon": "",
+                                "value": 47.0
+                            }
+                        ],
+                        "unit": "%",
+                        "analiticalMethodology": "MIR"
+                    },
+                    "predExBas": {
+                        "depth": [
+                            {
+                                "minDepth": 0,
+                                "maxDepth": 20,
+                                "horizon": "",
+                                "value": 2.57
+                            },
+                            {
+                                "minDepth": 20,
+                                "maxDepth": 50,
+                                "horizon": "",
+                                "value": 2.71
+                            }
+                        ],
+                        "unit": "cmolc/kg",
+                        "analiticalMethodology": "MIR"
+                    },
+                    "predSOC": {
+                        "depth": [
+                            {
+                                "minDepth": 0,
+                                "maxDepth": 20,
+                                "horizon": "",
+                                "value": 4.0
+                            },
+                            {
+                                "minDepth": 20,
+                                "maxDepth": 50,
+                                "horizon": "",
+                                "value": 4.08
+                            }
+                        ],
+                        "unit": "g/kg",
+                        "analiticalMethodology": "MIR"
+                    },
+                    "predSand": {
+                        "depth": [
+                            {
+                                "minDepth": 0,
+                                "maxDepth": 20,
+                                "horizon": "",
+                                "value": 45.0
+                            },
+                            {
+                                "minDepth": 20,
+                                "maxDepth": 50,
+                                "horizon": "",
+                                "value": 37.0
+                            }
+                        ],
+                        "unit": "%",
+                        "analiticalMethodology": "MIR"
+                    },
+                    "predTN": {
+                        "depth": [
+                            {
+                                "minDepth": 0,
+                                "maxDepth": 20,
+                                "horizon": "",
+                                "value": 0.04
+                            },
+                            {
+                                "minDepth": 20,
+                                "maxDepth": 50,
+                                "horizon": "",
+                                "value": 0.04
+                            }
+                        ],
+                        "unit": "%",
+                        "analiticalMethodology": "MIR"
+                    },
+                    "predpH": {
+                        "depth": [
+                            {
+                                "minDepth": 0,
+                                "maxDepth": 20,
+                                "horizon": "",
+                                "value": 5.52
+                            },
+                            {
+                                "minDepth": 20,
+                                "maxDepth": 50,
+                                "horizon": "",
+                                "value": 5.96
+                            }
+                        ],
+                        "unit": "",
+                        "analiticalMethodology": "MIR"
+                    }
+                }
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    39.6469,
+                    -3.75864
+                ]
+            },
+            "properties": {
+                "metadata": {
+                    "Site": "Chasimba",
+                    "Cluster": 2,
+                    "Plot": 2,
+                    "samplingYear": "2019"
+                },
+                "rawParameters": {
+                    "predClay": {
+                        "depth": [
+                            {
+                                "minDepth": 0,
+                                "maxDepth": 20,
+                                "horizon": "",
+                                "value": 31.0
+                            },
+                            {
+                                "minDepth": 20,
+                                "maxDepth": 50,
+                                "horizon": "",
+                                "value": 51.0
+                            }
+                        ],
+                        "unit": "%",
+                        "analiticalMethodology": "MIR"
+                    },
+                    "predExBas": {
+                        "depth": [
+                            {
+                                "minDepth": 0,
+                                "maxDepth": 20,
+                                "horizon": "",
+                                "value": 3.41
+                            },
+                            {
+                                "minDepth": 20,
+                                "maxDepth": 50,
+                                "horizon": "",
+                                "value": 3.71
+                            }
+                        ],
+                        "unit": "cmolc/kg",
+                        "analiticalMethodology": "MIR"
+                    },
+                    "predSOC": {
+                        "depth": [
+                            {
+                                "minDepth": 0,
+                                "maxDepth": 20,
+                                "horizon": "",
+                                "value": 4.31
+                            },
+                            {
+                                "minDepth": 20,
+                                "maxDepth": 50,
+                                "horizon": "",
+                                "value": 3.82
+                            }
+                        ],
+                        "unit": "g/kg",
+                        "analiticalMethodology": "MIR"
+                    },
+                    "predSand": {
+                        "depth": [
+                            {
+                                "minDepth": 0,
+                                "maxDepth": 20,
+                                "horizon": "",
+                                "value": 52.0
+                            },
+                            {
+                                "minDepth": 20,
+                                "maxDepth": 50,
+                                "horizon": "",
+                                "value": 35.0
+                            }
+                        ],
+                        "unit": "%",
+                        "analiticalMethodology": "MIR"
+                    },
+                    "predTN": {
+                        "depth": [
+                            {
+                                "minDepth": 0,
+                                "maxDepth": 20,
+                                "horizon": "",
+                                "value": 0.03
+                            },
+                            {
+                                "minDepth": 20,
+                                "maxDepth": 50,
+                                "horizon": "",
+                                "value": 0.03
+                            }
+                        ],
+                        "unit": "%",
+                        "analiticalMethodology": "MIR"
+                    },
+                    "predpH": {
+                        "depth": [
+                            {
+                                "minDepth": 0,
+                                "maxDepth": 20,
+                                "horizon": "",
+                                "value": 6.01
+                            },
+                            {
+                                "minDepth": 20,
+                                "maxDepth": 50,
+                                "horizon": "",
+                                "value": 5.91
+                            }
+                        ],
+                        "unit": "",
+                        "analiticalMethodology": "MIR"
+                    }
+                }
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    39.6563,
+                    -3.73748
+                ]
+            },
+            "properties": {
+                "metadata": {
+                    "Site": "Chasimba",
+                    "Cluster": 3,
+                    "Plot": 6,
+                    "samplingYear": "2019"
+                },
+                "rawParameters": {
+                    "predClay": {
+                        "depth": [
+                            {
+                                "minDepth": 0,
+                                "maxDepth": 20,
+                                "horizon": "",
+                                "value": 38.0
+                            },
+                            {
+                                "minDepth": 20,
+                                "maxDepth": 50,
+                                "horizon": "",
+                                "value": 55.0
+                            }
+                        ],
+                        "unit": "%",
+                        "analiticalMethodology": "MIR"
+                    },
+                    "predExBas": {
+                        "depth": [
+                            {
+                                "minDepth": 0,
+                                "maxDepth": 20,
+                                "horizon": "",
+                                "value": 6.37
+                            },
+                            {
+                                "minDepth": 20,
+                                "maxDepth": 50,
+                                "horizon": "",
+                                "value": 5.88
+                            }
+                        ],
+                        "unit": "cmolc/kg",
+                        "analiticalMethodology": "MIR"
+                    },
+                    "predSOC": {
+                        "depth": [
+                            {
+                                "minDepth": 0,
+                                "maxDepth": 20,
+                                "horizon": "",
+                                "value": 7.68
+                            },
+                            {
+                                "minDepth": 20,
+                                "maxDepth": 50,
+                                "horizon": "",
+                                "value": 5.94
+                            }
+                        ],
+                        "unit": "g/kg",
+                        "analiticalMethodology": "MIR"
+                    },
+                    "predSand": {
+                        "depth": [
+                            {
+                                "minDepth": 0,
+                                "maxDepth": 20,
+                                "horizon": "",
+                                "value": 44.0
+                            },
+                            {
+                                "minDepth": 20,
+                                "maxDepth": 50,
+                                "horizon": "",
+                                "value": 31.0
+                            }
+                        ],
+                        "unit": "%",
+                        "analiticalMethodology": "MIR"
+                    },
+                    "predTN": {
+                        "depth": [
+                            {
+                                "minDepth": 0,
+                                "maxDepth": 20,
+                                "horizon": "",
+                                "value": 0.06
+                            },
+                            {
+                                "minDepth": 20,
+                                "maxDepth": 50,
+                                "horizon": "",
+                                "value": 0.06
+                            }
+                        ],
+                        "unit": "%",
+                        "analiticalMethodology": "MIR"
+                    },
+                    "predpH": {
+                        "depth": [
+                            {
+                                "minDepth": 0,
+                                "maxDepth": 20,
+                                "horizon": "",
+                                "value": 6.39
+                            },
+                            {
+                                "minDepth": 20,
+                                "maxDepth": 50,
+                                "horizon": "",
+                                "value": 5.87
+                            }
+                        ],
+                        "unit": "",
+                        "analiticalMethodology": "MIR"
+                    }
+                }
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    39.648,
+                    -3.74467
+                ]
+            },
+            "properties": {
+                "metadata": {
+                    "Site": "Chasimba",
+                    "Cluster": 3,
+                    "Plot": 7,
+                    "samplingYear": "2019"
+                },
+                "rawParameters": {
+                    "predClay": {
+                        "depth": [
+                            {
+                                "minDepth": 0,
+                                "maxDepth": 20,
+                                "horizon": "",
+                                "value": 18.0
+                            },
+                            {
+                                "minDepth": 20,
+                                "maxDepth": 50,
+                                "horizon": "",
+                                "value": 20.0
+                            }
+                        ],
+                        "unit": "%",
+                        "analiticalMethodology": "MIR"
+                    },
+                    "predExBas": {
+                        "depth": [
+                            {
+                                "minDepth": 0,
+                                "maxDepth": 20,
+                                "horizon": "",
+                                "value": 4.83
+                            },
+                            {
+                                "minDepth": 20,
+                                "maxDepth": 50,
+                                "horizon": "",
+                                "value": 5.5
+                            }
+                        ],
+                        "unit": "cmolc/kg",
+                        "analiticalMethodology": "MIR"
+                    },
+                    "predSOC": {
+                        "depth": [
+                            {
+                                "minDepth": 0,
+                                "maxDepth": 20,
+                                "horizon": "",
+                                "value": 3.42
+                            },
+                            {
+                                "minDepth": 20,
+                                "maxDepth": 50,
+                                "horizon": "",
+                                "value": 3.19
+                            }
+                        ],
+                        "unit": "g/kg",
+                        "analiticalMethodology": "MIR"
+                    },
+                    "predSand": {
+                        "depth": [
+                            {
+                                "minDepth": 0,
+                                "maxDepth": 20,
+                                "horizon": "",
+                                "value": 68.0
+                            },
+                            {
+                                "minDepth": 20,
+                                "maxDepth": 50,
+                                "horizon": "",
+                                "value": 67.0
+                            }
+                        ],
+                        "unit": "%",
+                        "analiticalMethodology": "MIR"
+                    },
+                    "predTN": {
+                        "depth": [
+                            {
+                                "minDepth": 0,
+                                "maxDepth": 20,
+                                "horizon": "",
+                                "value": 0.03
+                            },
+                            {
+                                "minDepth": 20,
+                                "maxDepth": 50,
+                                "horizon": "",
+                                "value": 0.03
+                            }
+                        ],
+                        "unit": "%",
+                        "analiticalMethodology": "MIR"
+                    },
+                    "predpH": {
+                        "depth": [
+                            {
+                                "minDepth": 0,
+                                "maxDepth": 20,
+                                "horizon": "",
+                                "value": 6.54
+                            },
+                            {
+                                "minDepth": 20,
+                                "maxDepth": 50,
+                                "horizon": "",
+                                "value": 6.57
+                            }
+                        ],
+                        "unit": "",
+                        "analiticalMethodology": "MIR"
+                    }
+                }
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    39.7114,
+                    -3.75598
+                ]
+            },
+            "properties": {
+                "metadata": {
+                    "Site": "Chasimba",
+                    "Cluster": 14,
+                    "Plot": 9,
+                    "samplingYear": "2019"
+                },
+                "rawParameters": {
+                    "predClay": {
+                        "depth": [
+                            {
+                                "minDepth": 0,
+                                "maxDepth": 20,
+                                "horizon": "",
+                                "value": 51.0
+                            },
+                            {
+                                "minDepth": 20,
+                                "maxDepth": 50,
+                                "horizon": "",
+                                "value": 57.0
+                            }
+                        ],
+                        "unit": "%",
+                        "analiticalMethodology": "MIR"
+                    },
+                    "predExBas": {
+                        "depth": [
+                            {
+                                "minDepth": 0,
+                                "maxDepth": 20,
+                                "horizon": "",
+                                "value": 7.78
+                            },
+                            {
+                                "minDepth": 20,
+                                "maxDepth": 50,
+                                "horizon": "",
+                                "value": 6.76
+                            }
+                        ],
+                        "unit": "cmolc/kg",
+                        "analiticalMethodology": "MIR"
+                    },
+                    "predSOC": {
+                        "depth": [
+                            {
+                                "minDepth": 0,
+                                "maxDepth": 20,
+                                "horizon": "",
+                                "value": 12.67
+                            },
+                            {
+                                "minDepth": 20,
+                                "maxDepth": 50,
+                                "horizon": "",
+                                "value": 8.94
+                            }
+                        ],
+                        "unit": "g/kg",
+                        "analiticalMethodology": "MIR"
+                    },
+                    "predSand": {
+                        "depth": [
+                            {
+                                "minDepth": 0,
+                                "maxDepth": 20,
+                                "horizon": "",
+                                "value": 33.0
+                            },
+                            {
+                                "minDepth": 20,
+                                "maxDepth": 50,
+                                "horizon": "",
+                                "value": 32.0
+                            }
+                        ],
+                        "unit": "%",
+                        "analiticalMethodology": "MIR"
+                    },
+                    "predTN": {
+                        "depth": [
+                            {
+                                "minDepth": 0,
+                                "maxDepth": 20,
+                                "horizon": "",
+                                "value": 0.13
+                            },
+                            {
+                                "minDepth": 20,
+                                "maxDepth": 50,
+                                "horizon": "",
+                                "value": 0.1
+                            }
+                        ],
+                        "unit": "%",
+                        "analiticalMethodology": "MIR"
+                    },
+                    "predpH": {
+                        "depth": [
+                            {
+                                "minDepth": 0,
+                                "maxDepth": 20,
+                                "horizon": "",
+                                "value": 6.44
+                            },
+                            {
+                                "minDepth": 20,
+                                "maxDepth": 50,
+                                "horizon": "",
+                                "value": 6.4
+                            }
+                        ],
+                        "unit": "",
+                        "analiticalMethodology": "MIR"
+                    }
+                }
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    37.6871,
+                    -0.637193
+                ]
+            },
+            "properties": {
+                "metadata": {
+                    "Site": "Muminji",
+                    "Cluster": 6,
+                    "Plot": 5,
+                    "samplingYear": "2018"
+                },
+                "rawParameters": {
+                    "predClay": {
+                        "depth": [
+                            {
+                                "minDepth": 0,
+                                "maxDepth": 20,
+                                "horizon": "",
+                                "value": 26.0
+                            },
+                            {
+                                "minDepth": 20,
+                                "maxDepth": 50,
+                                "horizon": "",
+                                "value": 31.0
+                            }
+                        ],
+                        "unit": "%",
+                        "analiticalMethodology": "MIR"
+                    },
+                    "predExBas": {
+                        "depth": [
+                            {
+                                "minDepth": 0,
+                                "maxDepth": 20,
+                                "horizon": "",
+                                "value": 3.45
+                            },
+                            {
+                                "minDepth": 20,
+                                "maxDepth": 50,
+                                "horizon": "",
+                                "value": 3.6
+                            }
+                        ],
+                        "unit": "cmolc/kg",
+                        "analiticalMethodology": "MIR"
+                    },
+                    "predSOC": {
+                        "depth": [
+                            {
+                                "minDepth": 0,
+                                "maxDepth": 20,
+                                "horizon": "",
+                                "value": 6.38
+                            },
+                            {
+                                "minDepth": 20,
+                                "maxDepth": 50,
+                                "horizon": "",
+                                "value": 5.79
+                            }
+                        ],
+                        "unit": "g/kg",
+                        "analiticalMethodology": "MIR"
+                    },
+                    "predSand": {
+                        "depth": [
+                            {
+                                "minDepth": 0,
+                                "maxDepth": 20,
+                                "horizon": "",
+                                "value": 58.0
+                            },
+                            {
+                                "minDepth": 20,
+                                "maxDepth": 50,
+                                "horizon": "",
+                                "value": 53.0
+                            }
+                        ],
+                        "unit": "%",
+                        "analiticalMethodology": "MIR"
+                    },
+                    "predTN": {
+                        "depth": [
+                            {
+                                "minDepth": 0,
+                                "maxDepth": 20,
+                                "horizon": "",
+                                "value": 0.05
+                            },
+                            {
+                                "minDepth": 20,
+                                "maxDepth": 50,
+                                "horizon": "",
+                                "value": 0.05
+                            }
+                        ],
+                        "unit": "%",
+                        "analiticalMethodology": "MIR"
+                    },
+                    "predpH": {
+                        "depth": [
+                            {
+                                "minDepth": 0,
+                                "maxDepth": 20,
+                                "horizon": "",
+                                "value": 5.45
+                            },
+                            {
+                                "minDepth": 20,
+                                "maxDepth": 50,
+                                "horizon": "",
+                                "value": 5.45
+                            }
+                        ],
+                        "unit": "",
+                        "analiticalMethodology": "MIR"
+                    }
+                }
+            }
+        }
+    ]
+}
