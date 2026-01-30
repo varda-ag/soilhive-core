@@ -179,7 +179,7 @@ describe('FileService', () => {
       // Check detected_fields structure
       expect(metadata.detected_fields).toHaveProperty('geometry');
       expect(metadata.detected_fields).toHaveProperty('license');
-      expect(metadata.detected_fields).toHaveProperty('date');
+      expect(metadata.detected_fields).toHaveProperty('sampling_date');
       expect(metadata.detected_fields).toHaveProperty('crs');
     });
 

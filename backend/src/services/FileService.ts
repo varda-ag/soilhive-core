@@ -162,7 +162,8 @@ export default class FileService {
 
   private static detectField = (fields: string[], expected: string[], partialMatch: boolean): string | null => {
     for (const field of fields) {
-      if (expected.includes(field.toLowerCase())) {
+      const cleanField = field.toLowerCase().replace(/[^a-z]/g, '');
+      if (expected.includes(cleanField)) {
         return field;
       }
     }
@@ -170,8 +171,9 @@ export default class FileService {
       return null;
     }
     for (const field of fields) {
+      const cleanField = field.toLowerCase().replace(/[^a-z]/g, '');
       for (const p of expected) {
-        if (field.toLowerCase().includes(p)) {
+        if (cleanField.includes(p)) {
           return field;
         }
       }
@@ -274,6 +276,10 @@ export default class FileService {
         }
       }
 
+      if (!samplingDateFieldName) {
+        samplingDateFieldName = FileService.detectField(fieldNames, ['date', 'time'], true);
+      }
+
       if (!geometryDetected) {
         // Try to detect geometry field name
         geometryFieldName = FileService.detectField(fieldNames, ['geom', 'geometry', 'shape', 'wkb'], true);
@@ -281,12 +287,20 @@ export default class FileService {
 
       // Try to detect other fields
       latitudeFieldName = FileService.detectField(fieldNames, ['latitude', 'lat'], true);
+      if (!latitudeFieldName) {
+        latitudeFieldName = FileService.detectField(fieldNames, ['y'], false); // No partial match
+      }
       longitudeFieldName = FileService.detectField(fieldNames, ['longitude', 'lon', 'lng'], true);
+      if (!longitudeFieldName) {
+        longitudeFieldName = FileService.detectField(fieldNames, ['x'], false); // No partial match
+      }
       licenseFieldName = FileService.detectField(fieldNames, ['license', 'licence', 'lic', 'copyright', 'attribution'], true);
-      minDepthFieldName = FileService.detectField(fieldNames, ['mindepth', 'min_depth', 'depth'], true);
-      maxDepthFieldName = FileService.detectField(fieldNames, ['maxdepth', 'max_depth', 'depth'], true);
-      depthFieldName = FileService.detectField(fieldNames, ['depth'], true);
-      horizonFieldName = FileService.detectField(fieldNames, ['horizon'], true);
+      minDepthFieldName = FileService.detectField(fieldNames, ['mindepth', 'upperdepth', 'upperhorizon'], true);
+      maxDepthFieldName = FileService.detectField(fieldNames, ['maxdepth', 'lowerdepth', 'lowerhorizon'], true);
+      if (!minDepthFieldName && !maxDepthFieldName) {
+        depthFieldName = FileService.detectField(fieldNames, ['depth'], true);
+      }
+      horizonFieldName = FileService.detectField(fieldNames, ['horizon', 'layername'], true);
 
       // Get CRS/SRID
       let crsString: string | null = null;

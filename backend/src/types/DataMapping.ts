@@ -9,7 +9,7 @@ export type DataMappingObject = {
 export const enum DetectableFields {
   GEOMETRY = 'geometry',
   LICENSE = 'license',
-  SAMPLING_DATE = 'date',
+  SAMPLING_DATE = 'sampling_date',
   DEPTH = 'depth',
   MIN_DEPTH = 'min_depth',
   MAX_DEPTH = 'max_depth',
