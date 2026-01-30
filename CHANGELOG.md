@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.22.0 (2026-01-30)
+
+## What's Changed
+* feat(BE): ✨ SP-4757 implement dataset POST/PATCH/DELETE methods by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/144
+* feat: sp-4821 changed preview page's header description by @cristbello in https://github.com/varda-ag/soilhive-core/pull/147
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.21.0...v0.22.0
+
 ## 0.21.0 (2026-01-30)
 
 ## What's Changed
