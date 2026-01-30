@@ -63,6 +63,10 @@
       align-items: center;
       gap: 15px;
 
+      .DownloadButton {
+        white-space: nowrap;
+      }
+
       @media (max-width: $bp-mobile-max) {
         flex-direction: row;
         gap: 11px;
@@ -84,7 +88,6 @@
 
         .DownloadButton {
           flex-grow: 1;
-          white-space: nowrap;
         }
       }
 

@@ -25,7 +25,10 @@ function DownloadPreview() {
       <div className={styles.Header}>
         <div className={styles.Titles}>
           <span className={styles.Title}>DOWNLOAD PREVIEW</span>
-          <span className={styles.SubTitle}>Customize a data preview from the area selected</span>
+          <span className={styles.SubTitle}>
+            This is a preview of the soil data filtered by the selected area and criteria. To download the data press the button on the
+            top-right of this page
+          </span>
         </div>
         <div className={styles.Buttons}>
           <Button type="tertiary" isIconOnly={true} className={styles.ShareButton}>
