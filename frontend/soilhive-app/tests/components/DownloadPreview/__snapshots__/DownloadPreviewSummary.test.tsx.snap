@@ -6,40 +6,44 @@ exports[`DownloadPreviewSummary renders the download preview summary (sidebar) 1
     class="DownloadPreviewSummary"
   >
     <div
-      class="Map"
-    >
-      <div>
-        Mock SoilhiveSimpleMap
-      </div>
-      <button
-        class="Button Tertiary Small IconOnly"
-        data-testid="expand-download-preview-summary-button"
-        type="button"
-      >
-        <svg
-          data-testid="svg-icon-mock"
-        >
-          mock-svg
-        </svg>
-      </button>
-    </div>
-    <div
-      class="SubMap"
+      class="MapSection"
     >
       <div
-        class="SectionTitle"
+        class="Map"
       >
-        Drawn polygon
+        <div>
+          Mock SoilhiveSimpleMap
+        </div>
+        <button
+          class="Button Tertiary Small IconOnly"
+          data-testid="expand-download-preview-summary-button"
+          type="button"
+        >
+          <svg
+            data-testid="svg-icon-mock"
+          >
+            mock-svg
+          </svg>
+        </button>
       </div>
       <div
-        class="Location"
+        class="SubMap"
       >
-        <svg
-          data-testid="svg-icon-mock"
+        <div
+          class="SectionTitle"
         >
-          mock-svg
-        </svg>
-        France
+          Drawn polygon
+        </div>
+        <div
+          class="Location"
+        >
+          <svg
+            data-testid="svg-icon-mock"
+          >
+            mock-svg
+          </svg>
+          France
+        </div>
       </div>
     </div>
     <div
@@ -144,35 +148,39 @@ exports[`DownloadPreviewSummary renders the download preview summary (sidebar) 1
 </div>
 `;
 
-exports[`DownloadPreviewSummary renders the download preview summary (sidebar) in mobile 1`] = `
+exports[`DownloadPreviewSummary renders the download preview summary (sidebar) in mobile and tablet 1`] = `
 <div>
   <div
     class="DownloadPreviewSummary"
   >
     <div
-      class="Map"
-    >
-      <div>
-        Mock SoilhiveSimpleMap
-      </div>
-    </div>
-    <div
-      class="SubMap"
+      class="MapSection"
     >
       <div
-        class="SectionTitle"
+        class="Map"
       >
-        Drawn polygon
+        <div>
+          Mock SoilhiveSimpleMap
+        </div>
       </div>
       <div
-        class="Location"
+        class="SubMap"
       >
-        <svg
-          data-testid="svg-icon-mock"
+        <div
+          class="SectionTitle"
         >
-          mock-svg
-        </svg>
-        France
+          Drawn polygon
+        </div>
+        <div
+          class="Location"
+        >
+          <svg
+            data-testid="svg-icon-mock"
+          >
+            mock-svg
+          </svg>
+          France
+        </div>
       </div>
     </div>
     <div
@@ -283,40 +291,44 @@ exports[`DownloadPreviewSummary renders the download preview summary (sidebar) w
     class="DownloadPreviewSummary"
   >
     <div
-      class="Map"
-    >
-      <div>
-        Mock SoilhiveSimpleMap
-      </div>
-      <button
-        class="Button Tertiary Small IconOnly"
-        data-testid="expand-download-preview-summary-button"
-        type="button"
-      >
-        <svg
-          data-testid="svg-icon-mock"
-        >
-          mock-svg
-        </svg>
-      </button>
-    </div>
-    <div
-      class="SubMap"
+      class="MapSection"
     >
       <div
-        class="SectionTitle"
+        class="Map"
       >
-        Country selected
+        <div>
+          Mock SoilhiveSimpleMap
+        </div>
+        <button
+          class="Button Tertiary Small IconOnly"
+          data-testid="expand-download-preview-summary-button"
+          type="button"
+        >
+          <svg
+            data-testid="svg-icon-mock"
+          >
+            mock-svg
+          </svg>
+        </button>
       </div>
       <div
-        class="Location"
+        class="SubMap"
       >
-        <svg
-          data-testid="svg-icon-mock"
+        <div
+          class="SectionTitle"
         >
-          mock-svg
-        </svg>
-        France
+          Country selected
+        </div>
+        <div
+          class="Location"
+        >
+          <svg
+            data-testid="svg-icon-mock"
+          >
+            mock-svg
+          </svg>
+          France
+        </div>
       </div>
     </div>
     <div
@@ -427,40 +439,44 @@ exports[`DownloadPreviewSummary renders the download preview summary (sidebar) w
     class="DownloadPreviewSummary"
   >
     <div
-      class="Map"
-    >
-      <div>
-        Mock SoilhiveSimpleMap
-      </div>
-      <button
-        class="Button Tertiary Small IconOnly"
-        data-testid="expand-download-preview-summary-button"
-        type="button"
-      >
-        <svg
-          data-testid="svg-icon-mock"
-        >
-          mock-svg
-        </svg>
-      </button>
-    </div>
-    <div
-      class="SubMap"
+      class="MapSection"
     >
       <div
-        class="SectionTitle"
+        class="Map"
       >
-        Drawn polygon
+        <div>
+          Mock SoilhiveSimpleMap
+        </div>
+        <button
+          class="Button Tertiary Small IconOnly"
+          data-testid="expand-download-preview-summary-button"
+          type="button"
+        >
+          <svg
+            data-testid="svg-icon-mock"
+          >
+            mock-svg
+          </svg>
+        </button>
       </div>
       <div
-        class="Location"
+        class="SubMap"
       >
-        <svg
-          data-testid="svg-icon-mock"
+        <div
+          class="SectionTitle"
         >
-          mock-svg
-        </svg>
-        France
+          Drawn polygon
+        </div>
+        <div
+          class="Location"
+        >
+          <svg
+            data-testid="svg-icon-mock"
+          >
+            mock-svg
+          </svg>
+          France
+        </div>
       </div>
     </div>
     <div
@@ -571,40 +587,44 @@ exports[`DownloadPreviewSummary renders the download preview summary (sidebar) w
     class="DownloadPreviewSummary"
   >
     <div
-      class="Map"
-    >
-      <div>
-        Mock SoilhiveSimpleMap
-      </div>
-      <button
-        class="Button Tertiary Small IconOnly"
-        data-testid="expand-download-preview-summary-button"
-        type="button"
-      >
-        <svg
-          data-testid="svg-icon-mock"
-        >
-          mock-svg
-        </svg>
-      </button>
-    </div>
-    <div
-      class="SubMap"
+      class="MapSection"
     >
       <div
-        class="SectionTitle"
+        class="Map"
       >
-        H3cell selected
+        <div>
+          Mock SoilhiveSimpleMap
+        </div>
+        <button
+          class="Button Tertiary Small IconOnly"
+          data-testid="expand-download-preview-summary-button"
+          type="button"
+        >
+          <svg
+            data-testid="svg-icon-mock"
+          >
+            mock-svg
+          </svg>
+        </button>
       </div>
       <div
-        class="Location"
+        class="SubMap"
       >
-        <svg
-          data-testid="svg-icon-mock"
+        <div
+          class="SectionTitle"
         >
-          mock-svg
-        </svg>
-        France
+          H3cell selected
+        </div>
+        <div
+          class="Location"
+        >
+          <svg
+            data-testid="svg-icon-mock"
+          >
+            mock-svg
+          </svg>
+          France
+        </div>
       </div>
     </div>
     <div
@@ -715,40 +735,44 @@ exports[`DownloadPreviewSummary renders the expanded download preview summary (s
     class="DownloadPreviewSummary Expanded"
   >
     <div
-      class="Map"
-    >
-      <div>
-        Mock SoilhiveSimpleMap
-      </div>
-      <button
-        class="Button Tertiary Small IconOnly"
-        data-testid="reduce-download-preview-summary-button"
-        type="button"
-      >
-        <svg
-          data-testid="svg-icon-mock"
-        >
-          mock-svg
-        </svg>
-      </button>
-    </div>
-    <div
-      class="SubMap"
+      class="MapSection"
     >
       <div
-        class="SectionTitle"
+        class="Map"
       >
-        Drawn polygon
+        <div>
+          Mock SoilhiveSimpleMap
+        </div>
+        <button
+          class="Button Tertiary Small IconOnly"
+          data-testid="reduce-download-preview-summary-button"
+          type="button"
+        >
+          <svg
+            data-testid="svg-icon-mock"
+          >
+            mock-svg
+          </svg>
+        </button>
       </div>
       <div
-        class="Location"
+        class="SubMap"
       >
-        <svg
-          data-testid="svg-icon-mock"
+        <div
+          class="SectionTitle"
         >
-          mock-svg
-        </svg>
-        France
+          Drawn polygon
+        </div>
+        <div
+          class="Location"
+        >
+          <svg
+            data-testid="svg-icon-mock"
+          >
+            mock-svg
+          </svg>
+          France
+        </div>
       </div>
     </div>
     <div
@@ -859,40 +883,44 @@ exports[`DownloadPreviewSummary renders the reduced download preview summary (si
     class="DownloadPreviewSummary"
   >
     <div
-      class="Map"
-    >
-      <div>
-        Mock SoilhiveSimpleMap
-      </div>
-      <button
-        class="Button Tertiary Small IconOnly"
-        data-testid="expand-download-preview-summary-button"
-        type="button"
-      >
-        <svg
-          data-testid="svg-icon-mock"
-        >
-          mock-svg
-        </svg>
-      </button>
-    </div>
-    <div
-      class="SubMap"
+      class="MapSection"
     >
       <div
-        class="SectionTitle"
+        class="Map"
       >
-        Drawn polygon
+        <div>
+          Mock SoilhiveSimpleMap
+        </div>
+        <button
+          class="Button Tertiary Small IconOnly"
+          data-testid="expand-download-preview-summary-button"
+          type="button"
+        >
+          <svg
+            data-testid="svg-icon-mock"
+          >
+            mock-svg
+          </svg>
+        </button>
       </div>
       <div
-        class="Location"
+        class="SubMap"
       >
-        <svg
-          data-testid="svg-icon-mock"
+        <div
+          class="SectionTitle"
         >
-          mock-svg
-        </svg>
-        France
+          Drawn polygon
+        </div>
+        <div
+          class="Location"
+        >
+          <svg
+            data-testid="svg-icon-mock"
+          >
+            mock-svg
+          </svg>
+          France
+        </div>
       </div>
     </div>
     <div

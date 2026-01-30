@@ -49,6 +49,9 @@ function DownloadPreview() {
             <DownloadIcon />
             Download data
           </Button>
+          <Button type="tertiary" isIconOnly={true} className={styles.ShareButtonForTablet}>
+            <ShareIcon />
+          </Button>
         </div>
       </div>
       <div className={styles.Content}>
