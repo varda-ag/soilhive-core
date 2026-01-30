@@ -22,8 +22,9 @@ export class CreateSchema1765549507801 implements MigrationInterface {
       `CREATE TABLE "soil_properties" ("created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP, "id" uuid NOT NULL DEFAULT uuidv7(), "slug" text NOT NULL, "property_name" text NOT NULL, "property_acronym" text NOT NULL, "description" text, "standard_unit" text, "property_level" integer, "parent_property_id" uuid, "category_id" uuid NOT NULL, CONSTRAINT "UQ_ae95facc8e38a92e3e05dc155a0" UNIQUE ("slug"), CONSTRAINT "UQ_ddf4397c4670f9fc4923411b881" UNIQUE ("property_name"), CONSTRAINT "CHK_188f69807f9e9e83f7220b272b" CHECK ((("property_level" >= 1) AND ("property_level" <= 5))), CONSTRAINT "PK_b5f83d4e2fc51b7ae06d66695f3" PRIMARY KEY ("id"))`,
     );
     await queryRunner.query(
-      `CREATE TABLE "datasets" ("created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP, "id" uuid NOT NULL DEFAULT uuidv7(), "slug" text NOT NULL, "name" text NOT NULL, "full_name" text, "version" text, "author" text, "description" text, "data_producer" text, "variables_measured" jsonb array, "spatial_resolution" text, "publication_date" date, "reference_period_start" text, "reference_period_stop" text, "licenses" uuid array, "citation" text, "geographical_extent" text, "gis_datatype" text, "spatial_extent" geometry(Polygon,4326), "n_observations" bigint, "n_raster_layers" integer, "soil_depth" jsonb, "status" text NOT NULL DEFAULT 'PENDING', "created_by" text NOT NULL, "updated_by" text, "service_location" text, CONSTRAINT "UQ_8c3769423bf107f9ac88e5ab67d" UNIQUE ("slug"), CONSTRAINT "UQ_4a40dadf87d8be1c12c51a13f10" UNIQUE ("name"), CONSTRAINT "PK_1bf831e43c559a240303e23d038" PRIMARY KEY ("id"))`,
+      `CREATE TABLE "datasets" ("created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP, "id" uuid NOT NULL DEFAULT uuidv7(), "slug" text NOT NULL, "name" text NOT NULL, "full_name" text, "version" text, "author" text, "description" text, "data_producer" text, "variables_measured" jsonb array, "spatial_resolution" text, "publication_date" date, "reference_period_start" text, "reference_period_stop" text, "licenses" uuid array, "citation" text, "geographical_extent" text, "gis_datatype" text, "spatial_extent" geometry(Polygon,4326), "n_observations" bigint, "n_raster_layers" integer, "soil_depth" jsonb, "status" text NOT NULL DEFAULT 'PENDING', "created_by" text NOT NULL, "updated_by" text, "service_location" text, CONSTRAINT "UQ_8c3769423bf107f9ac88e5ab67d" UNIQUE ("slug"), CONSTRAINT "PK_1bf831e43c559a240303e23d038" PRIMARY KEY ("id"))`,
     );
+    await queryRunner.query(`CREATE UNIQUE INDEX "IDX_f3f6090d177f15ba122fd16f55" ON "datasets" ("name") WHERE "deleted_at" IS NULL`);
     await queryRunner.query(`CREATE INDEX "IDX_0eb197e8bd07e096370cddc79a" ON "datasets" USING GiST ("spatial_extent") `);
     await queryRunner.query(
       `INSERT INTO "typeorm_metadata"("database", "schema", "table", "type", "name", "value") VALUES ($1, $2, $3, $4, $5, $6)`,
@@ -151,8 +152,8 @@ export class CreateSchema1765549507801 implements MigrationInterface {
                                             CHECK (check_std_unit(standard_unit)) NOT VALID;`);
     // TODO: implement this with typeorm entity subscribers
     /* eslint-disable */
-        await queryRunner.query(`CREATE EXTENSION IF NOT EXISTS "unaccent" SCHEMA public`);
-        await queryRunner.query(`CREATE OR REPLACE FUNCTION slugify(value TEXT)
+    await queryRunner.query(`CREATE EXTENSION IF NOT EXISTS "unaccent" SCHEMA public`);
+    await queryRunner.query(`CREATE OR REPLACE FUNCTION slugify(value TEXT)
                                         RETURNS TEXT AS $$
                                         -- removes accents (diacritic signs) from a given string --
                                         WITH unaccented AS (
@@ -180,9 +181,11 @@ export class CreateSchema1765549507801 implements MigrationInterface {
                                         )
                                         SELECT value FROM trimmed;
                                         $$ LANGUAGE SQL STRICT IMMUTABLE`);
-        /* eslint-enable */
+    /* eslint-enable */
     await queryRunner.query(`CREATE OR REPLACE FUNCTION slug_generate_store_old()
-                                        RETURNS trigger as $$
+                                        RETURNS trigger
+                                        LANGUAGE plpgsql
+                                        AS $function$
                                         declare
                                         slug_cols_in text[] := TG_ARGV[0]::text[];
                                             lv_base_slug text;
@@ -191,23 +194,39 @@ export class CreateSchema1765549507801 implements MigrationInterface {
                                         lv_exists boolean;
                                         begin
                                         -- Generate the base slug
-                                        EXECUTE format('SELECT slugify(concat_ws(''-'', %s))', array_to_string(slug_cols_in, ', ')) using NEW into lv_base_slug;
+                                        EXECUTE format('SELECT %I.slugify(concat_ws(''-'', %s))', TG_TABLE_SCHEMA, array_to_string(slug_cols_in, ', ')) using NEW into lv_base_slug;
                                         lv_new_slug := lv_base_slug;
                                     
-                                        EXECUTE format('SELECT EXISTS (SELECT 1 FROM %I WHERE slug = %L)', TG_TABLE_NAME, lv_new_slug) into lv_exists;
+                                        -- IMPORTANT: schema-qualify, do not rely on search_path (pool connections can differ)
+                                        EXECUTE format(
+                                          'SELECT EXISTS (SELECT 1 FROM %I.%I WHERE slug = %L)',
+                                          TG_TABLE_SCHEMA,
+                                          TG_TABLE_NAME,
+                                          lv_new_slug
+                                        ) into lv_exists;
                                         -- Check if the slug already exists
                                         WHILE lv_exists LOOP
                                         -- If it exists, append a number and increment
                                             lv_new_slug := lv_base_slug || '-' || lv_counter;
                                             lv_counter := lv_counter + 1;
-                                            EXECUTE format('SELECT EXISTS (SELECT 1 FROM %I WHERE slug = %L)', TG_TABLE_NAME, lv_new_slug) into lv_exists;
+                                            EXECUTE format(
+                                              'SELECT EXISTS (SELECT 1 FROM %I.%I WHERE slug = %L)',
+                                              TG_TABLE_SCHEMA,
+                                              TG_TABLE_NAME,
+                                              lv_new_slug
+                                            ) into lv_exists;
                                         END LOOP;
                                     
                                         NEW.slug := lv_new_slug;
-                                        insert into slug_history(entity_id, entity_type, slug) values (new.id, TG_TABLE_NAME::slug_history_entity_type_enum, new.slug);
+                                        -- Also schema-qualify slug_history + enum type
+                                        EXECUTE format(
+                                          'INSERT INTO %I.slug_history(entity_id, entity_type, slug) VALUES ($1, $2::%I.slug_history_entity_type_enum, $3)',
+                                          TG_TABLE_SCHEMA,
+                                          TG_TABLE_SCHEMA
+                                        ) USING NEW.id, TG_TABLE_NAME, NEW.slug;
                                         RETURN NEW;
                                         end;
-                                    $$ LANGUAGE plpgsql`);
+                                    $function$`);
     await queryRunner.query(`CREATE OR REPLACE TRIGGER dataset_slug
                                         BEFORE INSERT OR update of name ON datasets
                                         FOR EACH ROW EXECUTE PROCEDURE slug_generate_store_old('{$1.name}')`);
