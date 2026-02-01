@@ -71,7 +71,8 @@ export default class DatasetService {
   };
 
   deleteDataset = async (requestData: RequestData, slug: string): Promise<void> => {
-    await requestData.entityManager.getRepository(DatasetEntity).softDelete({ slug });
+    const dataset = await this.findBySlug(requestData, slug);
+    await requestData.entityManager.getRepository(DatasetEntity).softDelete({ id: dataset.id });
   };
 
   private findBySlug = async (requestData: RequestData, slug: string): Promise<DatasetEntity> => {

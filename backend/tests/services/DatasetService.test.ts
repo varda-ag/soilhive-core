@@ -270,7 +270,7 @@ describe('DatasetService', () => {
       expect(allDatasets.find(d => d.slug === slug)).toBeUndefined();
     });
 
-    it('should not throw an error when attempting to delete a non-existent dataset', async () => {
+    it('should throw 404 when attempting to delete a non-existent dataset', async () => {
       const service = new DatasetService();
       const entityManager = await getEntityManager();
       const requestData: RequestData = {
@@ -278,7 +278,9 @@ describe('DatasetService', () => {
         token: mockToken,
       };
 
-      await expect(service.deleteDataset(requestData, 'non-existent-slug')).resolves.not.toThrow();
+      await expect(service.deleteDataset(requestData, 'non-existent-slug')).rejects.toThrow(
+        "Dataset with slug 'non-existent-slug' not found",
+      );
     });
   });
 });
