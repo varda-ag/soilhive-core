@@ -128,15 +128,27 @@ describe('Testing /datasets routes', () => {
       expect(getRes.statusCode).toBe(404);
     });
 
-    it('should return 404 even if the dataset does not exist (idempotency)', async () => {
+    it('should return 404 even if the dataset does not exist', async () => {
       const token = await getDataAdminToken();
 
       // Attempting to delete a non-existent slug
       const res = await request(app).delete('/datasets/i-do-not-exist').set('Authorization', `Bearer ${token}`);
 
-      // Standard API design: DELETE is usually idempotent.
-      // Since your controller/service doesn't throw on missing records, it returns 204.
       expect(res.statusCode).toBe(404);
+    });
+    it('should successfully delete a dataset using an old slug after name change (204)', async () => {
+      const token = await getDataAdminToken();
+
+      const postRes = await request(app).post('/datasets').set('Authorization', `Bearer ${token}`).send({ name: 'Old Name' });
+      const oldSlug = postRes.body.slug;
+
+      await request(app).patch(`/datasets/${oldSlug}`).set('Authorization', `Bearer ${token}`).send({ name: 'New Name' });
+
+      const deleteRes = await request(app).delete(`/datasets/${oldSlug}`).set('Authorization', `Bearer ${token}`);
+      expect(deleteRes.statusCode).toBe(204);
+
+      const getRes = await request(app).get(`/datasets/${oldSlug}`);
+      expect(getRes.statusCode).toBe(404);
     });
   });
 });

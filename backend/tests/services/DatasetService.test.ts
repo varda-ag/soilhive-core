@@ -282,5 +282,25 @@ describe('DatasetService', () => {
         "Dataset with slug 'non-existent-slug' not found",
       );
     });
+    it('should successfully delete a dataset using an old slug after name change', async () => {
+      const service = new DatasetService();
+      const entityManager = await getEntityManager();
+      const requestData: RequestData = {
+        entityManager,
+        token: mockToken,
+      };
+
+      const created = await service.createDataset(requestData, { name: 'Delete Me Original' });
+      const oldSlug = created.slug;
+
+      await service.updateDataset(requestData, oldSlug, { name: 'Delete Me Renamed' });
+
+      // old slug should still resolve and delete successfully
+      await service.deleteDataset(requestData, oldSlug);
+
+      // verify it's gone via both old and new slug
+      await expect(service.getDataset(requestData, oldSlug)).rejects.toThrow();
+      await expect(service.getDataset(requestData, 'delete-me-renamed')).rejects.toThrow();
+    });
   });
 });
