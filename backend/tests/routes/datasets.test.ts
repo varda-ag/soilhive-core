@@ -29,6 +29,23 @@ describe('Testing /datasets routes', () => {
       const res = await request(app).get(`/datasets/wrong`);
       expect(res.statusCode).toBe(404);
     });
+
+    it('GET /datasets/:datasetSlug responds with 301 when using an old slug', async () => {
+      const token = await getDataAdminToken();
+
+      const postRes = await request(app).post('/datasets').set('Authorization', `Bearer ${token}`).send({ name: 'Redirect Me' });
+      const oldSlug = postRes.body.slug;
+
+      const patchRes = await request(app)
+        .patch(`/datasets/${oldSlug}`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ name: 'Redirect Me Renamed' });
+      const newSlug = patchRes.body.slug;
+
+      const res = await request(app).get(`/datasets/${oldSlug}`);
+      expect(res.statusCode).toBe(301);
+      expect(res.headers.location).toBe(`/datasets/${newSlug}`);
+    });
   });
 
   describe('POST /datasets', () => {

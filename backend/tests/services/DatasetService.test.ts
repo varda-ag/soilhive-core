@@ -263,7 +263,7 @@ describe('DatasetService', () => {
 
       // 3. Verify it can no longer be retrieved via getDataset
       // getDataset throws a 404 ErrorResponse when not found
-      await expect(service.getDataset(requestData, slug)).rejects.toThrow(`Dataset ${slug} not found`);
+      await expect(service.getDataset(requestData, slug)).rejects.toThrow(`Dataset with slug '${slug}' not found`);
 
       // 4. Verify it's removed from the list of datasets
       const allDatasets = await service.getDatasets(requestData);

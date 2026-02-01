@@ -10,7 +10,12 @@ export const getDatasets = async (req: Request, res: Response) => {
 };
 
 export const getDataset = async (req: Request, res: Response) => {
-  const data = await datasetService.getDataset(req.customData, req.params['datasetSlug']!);
+  const slug = req.params['datasetSlug']!;
+  const data = await datasetService.getDataset(req.customData, slug);
+  if (data.slug !== slug) {
+    res.redirect(301, `/datasets/${data.slug}`);
+    return;
+  }
   res.json(data);
 };
 
