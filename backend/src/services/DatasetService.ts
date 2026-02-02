@@ -14,12 +14,7 @@ export default class DatasetService {
   };
 
   getDataset = async (requestData: RequestData, slug: string): Promise<Dataset> => {
-    const repo = requestData.entityManager.getRepository(DatasetEntity);
-    const dataset = await repo.findOneBy({ slug });
-    if (!dataset) {
-      throw new ErrorResponse(`Dataset ${slug} not found`, StatusCodes.NOT_FOUND);
-    }
-    return dataset;
+    return await this.findBySlug(requestData, slug);
   };
 
   createDataset = async (requestData: RequestData, data: CreateDatasetInput): Promise<Dataset> => {
@@ -71,7 +66,8 @@ export default class DatasetService {
   };
 
   deleteDataset = async (requestData: RequestData, slug: string): Promise<void> => {
-    await requestData.entityManager.getRepository(DatasetEntity).softDelete({ slug });
+    const dataset = await this.findBySlug(requestData, slug);
+    await requestData.entityManager.getRepository(DatasetEntity).softDelete({ id: dataset.id });
   };
 
   private findBySlug = async (requestData: RequestData, slug: string): Promise<DatasetEntity> => {
