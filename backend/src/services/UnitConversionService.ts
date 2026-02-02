@@ -1,7 +1,7 @@
 import { RequestData } from '../interfaces/RequestData';
 import { UnitConversion } from '../interfaces/UnitConversion';
 import UnitConversionEntity from '../entities/UnitConversion';
-import { getEntity } from '../utils/slugs';
+import { getEntity, getEntities } from '../utils/slugs';
 import { EntityType } from '../types/data';
 
 export default class UnitConversionService {
@@ -14,7 +14,7 @@ export default class UnitConversionService {
     return await getEntity(requestData, UnitConversionEntity, EntityType.UNIT_CONVERSION, slug);
   };
 
-  getUnitConversionsBySlug = async (requestData: RequestData, slugs: string[]): Promise<UnitConversionEntity[]> => {
-    return await Promise.all(slugs.map(slug => getEntity(requestData, UnitConversionEntity, EntityType.UNIT_CONVERSION, slug)));
+  getUnitConversionsBySlug = async (requestData: RequestData, slugs: string[]): Promise<UnitConversion[]> => {
+    return await getEntities(requestData, UnitConversionEntity, EntityType.UNIT_CONVERSION, slugs);
   };
 }

@@ -1,7 +1,7 @@
 import { RequestData } from '../interfaces/RequestData';
 import { Procedure } from '../interfaces/Procedure';
 import ProcedureEntity from '../entities/Procedure';
-import { getEntity } from '../utils/slugs';
+import { getEntity, getEntities } from '../utils/slugs';
 import { EntityType } from '../types/data';
 
 export default class ProcedureService {
@@ -14,7 +14,7 @@ export default class ProcedureService {
     return await getEntity(requestData, ProcedureEntity, EntityType.PROCEDURE, slug);
   };
 
-  getProceduresBySlug = async (requestData: RequestData, slugs: string[]): Promise<ProcedureEntity[]> => {
-    return await Promise.all(slugs.map(slug => getEntity(requestData, ProcedureEntity, EntityType.PROCEDURE, slug)));
+  getProceduresBySlug = async (requestData: RequestData, slugs: string[]): Promise<Procedure[]> => {
+    return await getEntities(requestData, ProcedureEntity, EntityType.PROCEDURE, slugs);
   };
 }
