@@ -57,7 +57,7 @@ function DownloadPreviewSummary({
   depthRange = '-',
   soilProperties = [],
 }: DownloadPreviewSummaryProps) {
-  const { isMobileLayout } = useDevice();
+  const { isDesktopLayout } = useDevice();
   const [expanded, setExpanded] = useState(false);
 
   let selectionTitle: string = 'Selection';
@@ -70,32 +70,39 @@ function DownloadPreviewSummary({
   }
 
   return (
-    <div className={classNames(styles.DownloadPreviewSummary, { [styles.Expanded]: !isMobileLayout && expanded })}>
-      <div className={styles.Map}>
-        <SoilhiveSimpleMap
-          initialViewBoundingBox={initialViewBoundingBox}
-          showH3Cells={selectionType === 'h3-cell'}
-          showNavigation={expanded}
-          mapStyle={MAPBOX_SATELLITE_MAP_STYLE}
-          selectedPoint={selectedPoint}
-          selectedFeature={selectedFeature}
-        />
-        {!isMobileLayout && expanded && (
-          <Button dataTestId="reduce-download-preview-summary-button" type="tertiary" isIconOnly={true} onClick={() => setExpanded(false)}>
-            <ReduceIcon />
-          </Button>
-        )}
-        {!isMobileLayout && !expanded && (
-          <Button dataTestId="expand-download-preview-summary-button" type="tertiary" isIconOnly={true} onClick={() => setExpanded(true)}>
-            <ExpandIcon />
-          </Button>
-        )}
-      </div>
-      <div className={styles.SubMap}>
-        <div className={styles.SectionTitle}>{selectionTitle}</div>
-        <div className={styles.Location}>
-          <WorldIcon />
-          {locationName}
+    <div className={classNames(styles.DownloadPreviewSummary, { [styles.Expanded]: isDesktopLayout && expanded })}>
+      <div className={styles.MapSection}>
+        <div className={styles.Map}>
+          <SoilhiveSimpleMap
+            initialViewBoundingBox={initialViewBoundingBox}
+            showH3Cells={selectionType === 'h3-cell'}
+            showNavigation={expanded && isDesktopLayout}
+            mapStyle={MAPBOX_SATELLITE_MAP_STYLE}
+            selectedPoint={selectedPoint}
+            selectedFeature={selectedFeature}
+          />
+          {isDesktopLayout && expanded && (
+            <Button
+              dataTestId="reduce-download-preview-summary-button"
+              type="tertiary"
+              isIconOnly={true}
+              onClick={() => setExpanded(false)}
+            >
+              <ReduceIcon />
+            </Button>
+          )}
+          {isDesktopLayout && !expanded && (
+            <Button dataTestId="expand-download-preview-summary-button" type="tertiary" isIconOnly={true} onClick={() => setExpanded(true)}>
+              <ExpandIcon />
+            </Button>
+          )}
+        </div>
+        <div className={styles.SubMap}>
+          <div className={styles.SectionTitle}>{selectionTitle}</div>
+          <div className={styles.Location}>
+            <WorldIcon />
+            {locationName}
+          </div>
         </div>
       </div>
       <div className={styles.Separator}></div>

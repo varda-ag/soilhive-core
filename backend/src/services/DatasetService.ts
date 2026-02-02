@@ -14,12 +14,7 @@ export default class DatasetService {
   };
 
   getDataset = async (requestData: RequestData, slug: string): Promise<Dataset> => {
-    const repo = requestData.entityManager.getRepository(DatasetEntity);
-    const dataset = await repo.findOneBy({ slug });
-    if (!dataset) {
-      throw new ErrorResponse(`Dataset ${slug} not found`, StatusCodes.NOT_FOUND);
-    }
-    return dataset;
+    return await this.findBySlug(requestData, slug);
   };
 
   createDataset = async (requestData: RequestData, data: CreateDatasetInput): Promise<Dataset> => {
@@ -37,9 +32,9 @@ export default class DatasetService {
     });
 
     try {
-      await repo.save(dataset);
-      await dataset.reload();
-      return dataset;
+      const saved = await repo.save(dataset);
+      const reloaded = await repo.findOneBy({ id: saved.id });
+      return reloaded!;
     } catch (error: any) {
       if (error.code === '23505') {
         // unique violation
@@ -65,9 +60,14 @@ export default class DatasetService {
       updated_at: new Date(),
     });
 
-    await repo.save(dataset);
-    await dataset.reload();
-    return dataset;
+    const saved = await repo.save(dataset);
+    const reloaded = await repo.findOneBy({ id: saved.id });
+    return reloaded!;
+  };
+
+  deleteDataset = async (requestData: RequestData, slug: string): Promise<void> => {
+    const dataset = await this.findBySlug(requestData, slug);
+    await requestData.entityManager.getRepository(DatasetEntity).softDelete({ id: dataset.id });
   };
 
   private findBySlug = async (requestData: RequestData, slug: string): Promise<DatasetEntity> => {

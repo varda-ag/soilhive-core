@@ -11,6 +11,14 @@
     padding: 15px 21px 15px 21px;
   }
 
+  @media (min-width: $bp-tablet) and (max-width: $bp-tablet-max) {
+    padding: 15px 25px 15px 25px;
+  }
+
+  @media (min-width: $bp-tablet) and (max-width: $bp-tablet-max) {
+    background-color: white;
+  }
+
   .Controls {
     display: none;
     justify-content: space-between;
@@ -55,6 +63,10 @@
     background-color: white;
     border: 1px solid var(--color-neutral-dark-100);
     border-radius: 8px;
+
+    @media (min-width: $bp-tablet) and (max-width: $bp-tablet-max) {
+      border: none;
+    }
   }
 
   .Filters {

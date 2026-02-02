@@ -2,7 +2,7 @@
   "name": "soilhive-project",
   "private": true,
   "description": "",
-  "version": "0.20.0",
+  "version": "0.23.0",
   "scripts": {
     "dev": "pnpm --filter=!common --parallel dev",
     "build": "pnpm --filter=!common --parallel build",

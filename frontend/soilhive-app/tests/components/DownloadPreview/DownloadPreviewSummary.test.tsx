@@ -1,6 +1,6 @@
 import { act, render } from '@testing-library/react';
 import DownloadPreviewSummary from 'components/DownloadPreview/DownloadPreviewSummary/DownloadPreviewSummary';
-import { __setIsMobileLayout } from 'hooks/useDevice';
+import { __setIsDesktopLayout } from 'hooks/useDevice';
 
 jest.mock('components/Map/SoilhiveSimpleMap', () => {
   const SoilhiveSimpleMap = () => <div>Mock SoilhiveSimpleMap</div>;
@@ -15,7 +15,7 @@ jest.mock('hooks/useDevice');
 
 describe('DownloadPreviewSummary', () => {
   beforeEach(() => {
-    __setIsMobileLayout(false);
+    __setIsDesktopLayout(true);
   });
 
   it('renders the download preview summary (sidebar)', () => {
@@ -32,8 +32,8 @@ describe('DownloadPreviewSummary', () => {
     expect(getByText('Drawn polygon')).not.toBeUndefined();
   });
 
-  it('renders the download preview summary (sidebar) in mobile', () => {
-    __setIsMobileLayout(true);
+  it('renders the download preview summary (sidebar) in mobile and tablet', () => {
+    __setIsDesktopLayout(false);
     const { container, queryByTestId } = render(
       <DownloadPreviewSummary
         locationName="France"

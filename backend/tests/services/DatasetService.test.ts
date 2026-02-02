@@ -156,89 +156,151 @@ describe('DatasetService', () => {
       expect(updated.updated_by).toBe('test-user-id');
       expect(updated.updated_at).toBeDefined();
     });
+
+    it('should set a field to null', async () => {
+      const service = new DatasetService();
+      const entityManager = await getEntityManager();
+      const requestData: RequestData = {
+        entityManager,
+        token: mockToken,
+      };
+
+      // Create dataset with full_name
+      const createInput: CreateDatasetInput = {
+        name: 'Dataset With Full Name',
+        full_name: 'This is the full name',
+        description: 'Some description',
+      };
+      const created = await service.createDataset(requestData, createInput);
+
+      // Update to set full_name to null
+      const updateInput: UpdateDatasetInput = {
+        full_name: null,
+      };
+      const updated = await service.updateDataset(requestData, created.slug, updateInput);
+
+      // Verify full_name is now null
+      expect(updated.full_name).toBeNull();
+
+      // Verify other fields remain unchanged
+      expect(updated.name).toBe('Dataset With Full Name');
+      expect(updated.description).toBe('Some description');
+    });
+
+    it('should allow update using old slug after name change', async () => {
+      const service = new DatasetService();
+      const entityManager = await getEntityManager();
+      const requestData: RequestData = {
+        entityManager,
+        token: mockToken,
+      };
+
+      const createInput: CreateDatasetInput = {
+        name: 'First Name',
+        description: 'Original description',
+      };
+      const created = await service.createDataset(requestData, createInput);
+      const oldSlug = created.slug;
+
+      // change name (which changes slug)
+      const firstUpdate: UpdateDatasetInput = {
+        name: 'Second Name',
+      };
+      const afterFirstUpdate = await service.updateDataset(requestData, oldSlug, firstUpdate);
+      const newSlug = afterFirstUpdate.slug;
+
+      expect(newSlug).not.toBe(oldSlug);
+
+      // use the old slug to update description
+      const secondUpdate: UpdateDatasetInput = {
+        description: 'Updated description',
+      };
+      const afterSecondUpdate = await service.updateDataset(requestData, oldSlug, secondUpdate);
+
+      // Verify update worked with old slug
+      expect(afterSecondUpdate.id).toBe(created.id);
+      expect(afterSecondUpdate.slug).toBe(newSlug);
+      expect(afterSecondUpdate.name).toBe('Second Name');
+      expect(afterSecondUpdate.description).toBe('Updated description');
+    });
+
+    it('should throw error when updating non-existent dataset', async () => {
+      const service = new DatasetService();
+      const entityManager = await getEntityManager();
+      const requestData: RequestData = {
+        entityManager,
+        token: mockToken,
+      };
+
+      const updateInput: UpdateDatasetInput = {
+        description: 'Some description',
+      };
+
+      await expect(service.updateDataset(requestData, 'non-existent-slug', updateInput)).rejects.toThrow(
+        "Dataset with slug 'non-existent-slug' not found",
+      );
+    });
   });
 
-  it('should set a field to null', async () => {
-    const service = new DatasetService();
-    const entityManager = await getEntityManager();
-    const requestData: RequestData = {
-      entityManager,
-      token: mockToken,
-    };
+  describe('deleteDataset', () => {
+    it('should successfully soft-delete an existing dataset', async () => {
+      const service = new DatasetService();
+      const entityManager = await getEntityManager();
+      const requestData: RequestData = {
+        entityManager,
+        token: mockToken,
+      };
 
-    // Create dataset with full_name
-    const createInput: CreateDatasetInput = {
-      name: 'Dataset With Full Name',
-      full_name: 'This is the full name',
-      description: 'Some description',
-    };
-    const created = await service.createDataset(requestData, createInput);
+      // 1. Create a dataset to delete
+      const createInput: CreateDatasetInput = {
+        name: 'Dataset to Delete',
+      };
+      const created = await service.createDataset(requestData, createInput);
+      const slug = created.slug;
 
-    // Update to set full_name to null
-    const updateInput: UpdateDatasetInput = {
-      full_name: null,
-    };
-    const updated = await service.updateDataset(requestData, created.slug, updateInput);
+      // 2. Delete the dataset
+      await service.deleteDataset(requestData, slug);
 
-    // Verify full_name is now null
-    expect(updated.full_name).toBeNull();
+      // 3. Verify it can no longer be retrieved via getDataset
+      // getDataset throws a 404 ErrorResponse when not found
+      await expect(service.getDataset(requestData, slug)).rejects.toThrow(`Dataset with slug '${slug}' not found`);
 
-    // Verify other fields remain unchanged
-    expect(updated.name).toBe('Dataset With Full Name');
-    expect(updated.description).toBe('Some description');
-  });
+      // 4. Verify it's removed from the list of datasets
+      const allDatasets = await service.getDatasets(requestData);
+      expect(allDatasets.find(d => d.slug === slug)).toBeUndefined();
+    });
 
-  it('should allow update using old slug after name change', async () => {
-    const service = new DatasetService();
-    const entityManager = await getEntityManager();
-    const requestData: RequestData = {
-      entityManager,
-      token: mockToken,
-    };
+    it('should throw 404 when attempting to delete a non-existent dataset', async () => {
+      const service = new DatasetService();
+      const entityManager = await getEntityManager();
+      const requestData: RequestData = {
+        entityManager,
+        token: mockToken,
+      };
 
-    const createInput: CreateDatasetInput = {
-      name: 'First Name',
-      description: 'Original description',
-    };
-    const created = await service.createDataset(requestData, createInput);
-    const oldSlug = created.slug;
+      await expect(service.deleteDataset(requestData, 'non-existent-slug')).rejects.toThrow(
+        "Dataset with slug 'non-existent-slug' not found",
+      );
+    });
+    it('should successfully delete a dataset using an old slug after name change', async () => {
+      const service = new DatasetService();
+      const entityManager = await getEntityManager();
+      const requestData: RequestData = {
+        entityManager,
+        token: mockToken,
+      };
 
-    // change name (which changes slug)
-    const firstUpdate: UpdateDatasetInput = {
-      name: 'Second Name',
-    };
-    const afterFirstUpdate = await service.updateDataset(requestData, oldSlug, firstUpdate);
-    const newSlug = afterFirstUpdate.slug;
+      const created = await service.createDataset(requestData, { name: 'Delete Me Original' });
+      const oldSlug = created.slug;
 
-    expect(newSlug).not.toBe(oldSlug);
+      await service.updateDataset(requestData, oldSlug, { name: 'Delete Me Renamed' });
 
-    // use the old slug to update description
-    const secondUpdate: UpdateDatasetInput = {
-      description: 'Updated description',
-    };
-    const afterSecondUpdate = await service.updateDataset(requestData, oldSlug, secondUpdate);
+      // old slug should still resolve and delete successfully
+      await service.deleteDataset(requestData, oldSlug);
 
-    // Verify update worked with old slug
-    expect(afterSecondUpdate.id).toBe(created.id);
-    expect(afterSecondUpdate.slug).toBe(newSlug);
-    expect(afterSecondUpdate.name).toBe('Second Name');
-    expect(afterSecondUpdate.description).toBe('Updated description');
-  });
-
-  it('should throw error when updating non-existent dataset', async () => {
-    const service = new DatasetService();
-    const entityManager = await getEntityManager();
-    const requestData: RequestData = {
-      entityManager,
-      token: mockToken,
-    };
-
-    const updateInput: UpdateDatasetInput = {
-      description: 'Some description',
-    };
-
-    await expect(service.updateDataset(requestData, 'non-existent-slug', updateInput)).rejects.toThrow(
-      "Dataset with slug 'non-existent-slug' not found",
-    );
+      // verify it's gone via both old and new slug
+      await expect(service.getDataset(requestData, oldSlug)).rejects.toThrow();
+      await expect(service.getDataset(requestData, 'delete-me-renamed')).rejects.toThrow();
+    });
   });
 });

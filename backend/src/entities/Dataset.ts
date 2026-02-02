@@ -21,6 +21,7 @@ export default class DatasetEntity extends BaseTable implements Dataset {
   slug: string;
 
   @Column({ type: 'text' })
+  @Index({ unique: true, where: '"deleted_at" IS NULL' })
   name: string;
 
   @Column({ type: 'text', nullable: true })

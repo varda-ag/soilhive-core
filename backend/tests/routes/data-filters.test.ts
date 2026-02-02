@@ -1,10 +1,11 @@
+import { describe, it, expect, beforeAll } from '@jest/globals';
 import { IncomingHttpHeaders } from 'http';
 import request from 'supertest';
 import { app } from '../../src/app';
 import { FilteredDataset } from '../../src/interfaces/DatasetFilter';
 import { getDataSource } from '../../src/utils/data-source';
 import { addSyntheticData, syntheticDataOptions } from '../../src/utils/mock';
-import { getSuperAdminToken } from '../helper';
+import { getDataAdminToken, getSuperAdminToken } from '../helper';
 
 const filteringPolygon = {
   coordinates: [
@@ -175,5 +176,30 @@ describe('Testing /data-filters routes', () => {
     expect(results[0].licenses).toContain('test_license_1');
     const resultDatasetIds = results.map(r => r.id);
     expect(resultDatasetIds).toContain(dataset.id);
+  });
+
+  it('Coverage should not return data for a deleted dataset', async () => {
+    // 1. Prepare a dataset with its observations
+    const layers = 5;
+    const { dataset } = await addSyntheticData({ ...syntheticDataOptions, depthLayers: layers, soilPropertyNames: ['prop1', 'prop2'] });
+
+    // 2. Delete the dataset
+    const token = await getDataAdminToken();
+    await request(app).delete(`/datasets/${dataset.slug}`).set('Authorization', `Bearer ${token}`);
+
+    // 3. Retrieve coverage
+    const payload = {
+      parameters: {},
+      geometries: [filteringPolygon],
+    };
+    // Create filter
+    const resPost = await request(app).post('/data-filters').send(payload);
+    const id = resPost.body.id;
+    // Get coverage
+    const resCoverage = await request(app).get(`/data-filters/${id}/coverage`);
+    const results: FilteredDataset[] = resCoverage.body;
+
+    // No data is expected to be returned
+    expect(results.length).toBe(0);
   });
 });
