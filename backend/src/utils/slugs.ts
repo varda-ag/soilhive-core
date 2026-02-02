@@ -81,10 +81,7 @@ export const getEntities = async <T extends { id: string | number; slug: string 
   return slugs.map(slug => {
     const entity = entityBySlug.get(slug);
     if (!entity) {
-      throw new ErrorResponse(
-        `Entity with slug '${slug}' not found in table "${entityType}"`,
-        StatusCodes.NOT_FOUND,
-      );
+      throw new ErrorResponse(`Entity with slug '${slug}' not found in table "${entityType}"`, StatusCodes.NOT_FOUND);
     }
     return entity;
   });

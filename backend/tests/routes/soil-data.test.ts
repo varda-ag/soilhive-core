@@ -1,7 +1,13 @@
 import { describe, it, expect } from '@jest/globals';
 import request from 'supertest';
 import { app } from '../../src/app';
-import { addSyntheticData, syntheticDataOptions, addSyntheticIngestionData, syntheticIngestionDataOptions, getLoadedDataCount } from '../../src/utils/mock';
+import {
+  addSyntheticData,
+  syntheticDataOptions,
+  addSyntheticIngestionData,
+  syntheticIngestionDataOptions,
+  getLoadedDataCount,
+} from '../../src/utils/mock';
 import { getPolygonFromBbox } from '../../src/utils/geometry';
 import { getDataAdminToken } from '../helper';
 
@@ -371,13 +377,16 @@ describe('Testing /soil-data routes', () => {
       min_depth: 0,
       bdfi33: '2',
       bdfiod: '8',
-      geometry: {"type":"Point","coordinates":[-148.0432434,64.814888]}
+      geometry: { type: 'Point', coordinates: [-148.0432434, 64.814888] },
     };
 
     // Call soil-data endpoint
-    const soilDataRes = await request(app).post(`/soil-data?dataMappingId=${dataMapping.id}&datasetSlug=${dataset.slug}`).set('Authorization', `Bearer ${token}`).send(payload);
+    const soilDataRes = await request(app)
+      .post(`/soil-data?dataMappingId=${dataMapping.id}&datasetSlug=${dataset.slug}`)
+      .set('Authorization', `Bearer ${token}`)
+      .send(payload);
     expect(soilDataRes.statusCode).toBe(201);
-    // Verify that one feature (one geom), one layer (one combination of date/license/min and max depth/horizon), 
+    // Verify that one feature (one geom), one layer (one combination of date/license/min and max depth/horizon),
     // two dataset layers (two combinations of feature/layer/soil property), and two observations (two combinations of soil property/procedure) have been created.
     const createdData = await getLoadedDataCount();
     expect(createdData.n_features).toBe(1);

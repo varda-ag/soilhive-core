@@ -441,7 +441,7 @@ export interface DataCount {
   n_observations: number;
 }
 
-export const getLoadedDataCount = async (): Promise<DataCount> => {  
+export const getLoadedDataCount = async (): Promise<DataCount> => {
   const dataSource = await getDataSource();
   const featureRepo = dataSource.getRepository(FeatureEntity);
   const layerRepo = dataSource.getRepository(LayerEntity);
@@ -456,6 +456,6 @@ export const getLoadedDataCount = async (): Promise<DataCount> => {
     n_layers: layers.length ?? 0,
     n_dataset_layers: datasetLayers.length ?? 0,
     n_observations: observations.length ?? 0,
-  }
+  };
   return result;
 };
