@@ -4,19 +4,14 @@
   &:not(:last-child) {
     margin-bottom: 0.5rem;
   }
+
+  .NestedCheckboxInput {
+    margin-right: 0.375rem;
+  }
 }
 .NestedCheckboxChildren {
   margin-top: 0.5rem;
   margin-left: 1.5rem;
-}
-.NestedCheckboxInput {
-  &.NestedCheckboxParent {
-    margin-right: 0.375rem;
-  }
-
-  &.NestedCheckboxWithSpace {
-    margin-right: 1.875rem;
-  }
 }
 .NestedCheckboxLabel {
   display: flex;

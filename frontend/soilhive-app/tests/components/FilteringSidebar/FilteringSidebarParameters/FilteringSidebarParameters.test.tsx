@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { type Ref } from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { FilteringSidebarParameters } from 'components/FilteringSidebar/FilteringSidebarParameters/FilteringSidebarParameters';
-import type { NestedCheckboxItemType } from 'types/components';
+import type { NestedCheckboxItemType, NestedCheckboxRef } from 'types/components';
 
 const mockProperties: NestedCheckboxItemType[] = [
   {
@@ -57,6 +57,14 @@ jest.mock('../../../../src/contexts/AvailabilityContext', () => {
 
 const { mockSetDatasetFilters } = jest.requireMock('../../../../src/contexts/AvailabilityContext');
 
+type NestedCheckboxPropsType = {
+  ref: Ref<NestedCheckboxRef>;
+  items: NestedCheckboxItemType[];
+  selected: string[];
+  onChange: (selected: string[]) => void;
+  onToggleVisibility?: (expandedIds: string[]) => void;
+};
+
 jest.mock('components/UI', () => ({
   Accordion: ({ title, children }: { title: string; children: React.ReactNode }) => (
     <div data-testid="accordion">
@@ -65,18 +73,9 @@ jest.mock('components/UI', () => ({
     </div>
   ),
   SelectionPills: () => null,
-  NestedCheckbox: ({
-    items,
-    selected,
-    isExpanded,
-    onChange,
-  }: {
-    items: NestedCheckboxItemType[];
-    selected: string[];
-    isExpanded: boolean;
-    onChange: (selected: string[]) => void;
-  }) => {
+  NestedCheckbox: ({ ref, items, selected, onChange, onToggleVisibility }: NestedCheckboxPropsType) => {
     const [localSelected, setLocalSelected] = React.useState(selected);
+    const [isExpanded, setIsExpanded] = React.useState<boolean>(false);
 
     const handleClick = () => {
       const newSelection = [items[0].id];
@@ -84,16 +83,31 @@ jest.mock('components/UI', () => ({
       onChange(newSelection);
     };
 
+    React.useImperativeHandle(
+      ref,
+      () => ({
+        expandAll() {
+          setIsExpanded(true);
+        },
+
+        collapseAll() {
+          setIsExpanded(false);
+        },
+      }),
+      [],
+    );
+
     return (
       <div data-testid="nested-checkbox" data-expanded={isExpanded}>
         <div data-testid="nested-checkbox-items">{JSON.stringify(items)}</div>
         <div data-testid="nested-checkbox-selected">{JSON.stringify(localSelected)}</div>
         <button data-testid="nested-checkbox-change" onClick={handleClick} />
+        <button data-testid="nested-checkbox-toggle-visibility" onClick={() => onToggleVisibility?.(['1'])} />
       </div>
     );
   },
-  Toggle: ({ labelOne, labelTwo, isToggled, onToggled, className }: any) => (
-    <div data-testid="global-toggle" onClick={onToggled} className={className}>
+  Toggle: ({ labelOne, labelTwo, isToggled, onToggle, className }: any) => (
+    <div data-testid="global-toggle" onClick={onToggle} className={className}>
       {isToggled ? labelTwo : labelOne}
     </div>
   ),
@@ -142,10 +156,29 @@ describe('FilteringSidebarParameters', () => {
 
     fireEvent.click(toggle);
 
-    expect(checkox).toHaveAttribute('data-expanded', 'false');
+    expect(checkox).toHaveAttribute('data-expanded', 'true');
 
     fireEvent.click(toggle);
 
     expect(checkox).toHaveAttribute('data-expanded', 'false');
+  });
+
+  it('toggles the expansion state when the single item was toggled in the nested checkbox', () => {
+    render(<FilteringSidebarParameters />);
+
+    const toggle = screen.getByTestId('global-toggle');
+
+    expect(screen.getByText('Expand All')).toBeInTheDocument();
+    expect(screen.queryByText('Collapse All')).not.toBeInTheDocument();
+
+    fireEvent.click(toggle);
+
+    expect(screen.getByText('Collapse All')).toBeInTheDocument();
+    expect(screen.queryByText('Expand All')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('nested-checkbox-toggle-visibility'));
+
+    expect(screen.getByText('Expand All')).toBeInTheDocument();
+    expect(screen.queryByText('Collapse All')).not.toBeInTheDocument();
   });
 });

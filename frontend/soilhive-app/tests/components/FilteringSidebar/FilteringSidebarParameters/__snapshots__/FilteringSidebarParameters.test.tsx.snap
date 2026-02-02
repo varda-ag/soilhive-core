@@ -47,6 +47,9 @@ exports[`FilteringSidebarParameters renders four accordion components 1`] = `
             <button
               data-testid="nested-checkbox-change"
             />
+            <button
+              data-testid="nested-checkbox-toggle-visibility"
+            />
           </div>
         </div>
       </div>
