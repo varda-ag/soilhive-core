@@ -1,25 +1,25 @@
-import { useCallback, useMemo } from 'react';
+import React, { useCallback, useState, type Ref } from 'react';
 import classnames from 'classnames';
 
-import type { NestedCheckboxItemType } from 'types/components';
+import type { NestedCheckboxItemType, NestedCheckboxRef } from 'types/components';
 import { NestedCheckboxItem } from './NestedCheckboxItem/NestedCheckboxItem';
-import { isNestedLevelHasChildren } from './nestedCheckboxHelpers';
 
 import styles from './NestedCheckbox.module.scss';
 
 interface Props {
+  ref?: Ref<NestedCheckboxRef>;
   items: NestedCheckboxItemType[];
   selected: string[];
   className?: string;
-  isSearching?: boolean;
-  isExpanded?: boolean;
   onChange: (selected: string[]) => void;
+  onToggleVisibility?: (expandedIds: string[]) => void;
 }
 
-export function NestedCheckbox({ items, selected, className, isSearching = false, isExpanded = false, onChange }: Props) {
+export function NestedCheckbox({ ref, items, selected, className, onChange, onToggleVisibility }: Props) {
+  const [expandedIds, setExpandedIds] = useState<string[]>([]);
   const toggleNode = useCallback(
     (node: NestedCheckboxItemType, checked: boolean) => {
-      const collectIds = (item: NestedCheckboxItemType): string[] => [item.id, ...(item.children?.flatMap(collectIds) ?? [])];
+      const collectIds = (item: NestedCheckboxItemType): string[] => [item.id, ...item.children.flatMap(collectIds)];
 
       const ids = collectIds(node);
 
@@ -30,9 +30,36 @@ export function NestedCheckbox({ items, selected, className, isSearching = false
     [selected, onChange],
   );
 
-  const hasChildrenOnCurrentLevel = useMemo(() => {
-    return isNestedLevelHasChildren(items);
-  }, [items]);
+  const handleToggleVisibility = useCallback(
+    (id: string, isVisible: boolean) => {
+      const newVisibleIds = isVisible ? [...expandedIds, id] : expandedIds.filter(item => item !== id);
+      setExpandedIds(newVisibleIds);
+      onToggleVisibility?.(newVisibleIds);
+    },
+    [expandedIds, onToggleVisibility],
+  );
+
+  React.useImperativeHandle(
+    ref,
+    () => ({
+      expandAll() {
+        const ids: string[] = [];
+        const collectIds = (items: NestedCheckboxItemType[]) => {
+          for (const item of items) {
+            ids.push(item.id);
+            if (item.children?.length) collectIds(item.children);
+          }
+        };
+        collectIds(items);
+        setExpandedIds(ids);
+      },
+
+      collapseAll() {
+        setExpandedIds([]);
+      },
+    }),
+    [items],
+  );
 
   return (
     <div data-testid="nested-checkbox" className={classnames(styles.NestedCheckbox, className)}>
@@ -42,10 +69,9 @@ export function NestedCheckbox({ items, selected, className, isSearching = false
           className={item.className}
           item={item}
           selected={selected}
-          hasChildrenOnCurrentLevel={hasChildrenOnCurrentLevel}
-          isSearching={isSearching}
-          isExpanded={isExpanded}
           onToggle={toggleNode}
+          expandedIds={expandedIds}
+          onToggleVisibility={handleToggleVisibility}
         />
       ))}
     </div>

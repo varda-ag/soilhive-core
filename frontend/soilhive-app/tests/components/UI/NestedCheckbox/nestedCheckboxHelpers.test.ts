@@ -1,4 +1,9 @@
-import { isNestedLevelHasChildren, getTopLevelSelections, getBranchIds } from 'components/UI/NestedCheckbox/nestedCheckboxHelpers';
+import {
+  isNestedLevelHasChildren,
+  getTopLevelSelections,
+  getBranchIds,
+  collectParentsIds,
+} from 'components/UI/NestedCheckbox/nestedCheckboxHelpers';
 import type { NestedCheckboxItemType } from 'types/components';
 
 describe('isNestedLevelHasChildren', () => {
@@ -101,5 +106,62 @@ describe('getBranchIds', () => {
   ])('returns %s when targetId is %s', (_desc, targetId, expectedIds) => {
     const result = getBranchIds(mockItems, targetId);
     expect(result).toEqual(expectedIds);
+  });
+});
+
+describe('collectParentsIds', () => {
+  it('returns empty array for empty input', () => {
+    expect(collectParentsIds([])).toEqual([]);
+  });
+
+  it('returns empty array when all items have no parents', () => {
+    const items = [
+      {
+        id: '1',
+        label: 'Item 1',
+        isRoot: true,
+        children: [],
+      },
+      {
+        id: '1',
+        label: 'Item 2',
+        isRoot: true,
+        children: [],
+      },
+    ];
+    expect(collectParentsIds(items)).toEqual([]);
+  });
+
+  it('returns parent items ids', () => {
+    const mockItems: NestedCheckboxItemType[] = [
+      {
+        id: '1',
+        label: 'Parent 1',
+        isRoot: true,
+        children: [
+          { id: '1-1', label: 'Child 1-1', isRoot: false, children: [] },
+          { id: '1-2', label: 'Child 1-2', isRoot: false, children: [] },
+        ],
+      },
+      {
+        id: '2',
+        label: 'Parent 2',
+        isRoot: true,
+        children: [
+          {
+            id: '2-1',
+            label: 'Parent 2-1',
+            isRoot: false,
+            children: [
+              { id: '2-1-1', label: 'Child 2-1-1', isRoot: false, children: [] },
+              { id: '2-1-2', label: 'Child 2-1-2', isRoot: false, children: [] },
+            ],
+          },
+        ],
+      },
+      { id: '3', label: 'Without parent', isRoot: true, children: [] },
+    ];
+    const items = mockItems;
+    expect(collectParentsIds(items)).toEqual(['1', '2', '2-1']);
   });
 });
