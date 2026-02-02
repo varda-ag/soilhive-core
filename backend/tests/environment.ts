@@ -1,7 +1,7 @@
 export const setupTestEnv = () => {
   const env = {
     POSTGRES_HOST: 'localhost',
-    POSTGRES_PORT: 5433,
+    POSTGRES_PORT: 5432,
     POSTGRES_DB: 'database',
     POSTGRES_USER: 'dbuser',
     POSTGRES_PASSWORD: 'dbpass',

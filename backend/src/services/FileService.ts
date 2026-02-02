@@ -1,4 +1,3 @@
-import { StatusCodes } from 'http-status-codes';
 import fs from 'fs';
 import { S3Client } from '@aws-sdk/client-s3';
 import { FileStorage } from '@flystorage/file-storage';
@@ -8,11 +7,12 @@ import { FlystorageMulterStorageEngine } from '@flystorage/multer-storage';
 import { LocalStorageConfig, S3StorageConfig, StorageConfig } from '../interfaces/StorageConfig';
 import { RequestData } from '../interfaces/RequestData';
 import { File } from '../interfaces/File';
-import { ErrorResponse } from '../utils/error';
 import { StorageModes } from '../types/enums';
 import ConfigService from './ConfigService';
 import { LOGO_FILE_ID } from '../constants/constants';
 import FileEntity from '../entities/File';
+import { getEntity } from '../utils/slugs';
+import { EntityType } from '../types/data';
 
 export default class FileService {
   exists = async (fileId: string): Promise<boolean> => {
@@ -83,11 +83,6 @@ export default class FileService {
   };
 
   getFile = async (requestData: RequestData, slug: string): Promise<File> => {
-    const repo = requestData.entityManager.getRepository(FileEntity);
-    const file = await repo.findOneBy({ slug });
-    if (!file) {
-      throw new ErrorResponse(`File ${slug} not found`, StatusCodes.NOT_FOUND);
-    }
-    return file;
+    return await getEntity(requestData, FileEntity, EntityType.FILE, slug);
   };
 }

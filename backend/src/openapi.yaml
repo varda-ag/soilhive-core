@@ -558,6 +558,41 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
+    post:
+      x-eov-operation-handler: controllers/soil-data
+      x-eov-operation-id: postSoilData
+      summary: Loads soil data record into the system
+      tags:
+        - soil-data
+      security:
+        - bearerAuth: [data-admin]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PreviewRecord'
+      parameters:
+        - name: dataMappingId
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Unique identifier of the mapping to be applied to the raw record
+        - name: datasetSlug
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Slug of the dataset to assign to the created soil data
+      responses:
+        '201':
+          description: Soil data loaded successfully
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
   /files/{fileId}:
     parameters:
       - name: fileId
@@ -726,7 +761,10 @@ components:
           type: string
           format: uri
           description: A URI reference that identifies the specific occurrence of the problem. It may yield further information if dereferenced.
-
+    
+    Geometry:
+      $ref: '../src/GeoJSON-OAS3.yaml#/components/schemas/Geometry'
+    
     FileDescriptor:
       type: object
       properties:
@@ -801,7 +839,7 @@ components:
         geometries:
           type: array
           items:
-            $ref: '../src/GeoJSON-OAS3.yaml#/components/schemas/Geometry'
+            $ref: '#/components/schemas/Geometry'
         parameters:
           $ref: '#/components/schemas/FilterCriteria'
       required:
@@ -1014,3 +1052,37 @@ components:
         category_id:
           type: string
           description: Category identifier
+
+    PreviewRecord:
+      type: object
+      required:
+        - record_id
+        - geometry
+      properties:
+        record_id:
+          type: integer
+          description: Row numeric identifier
+        sampling_date:
+          type: string
+          format: date
+          nullable: true
+        license:
+          type: string
+          nullable: true
+        horizon:
+          type: string
+          nullable: true
+        max_depth:
+          type: number
+          nullable: true
+        min_depth:
+          type: number
+          nullable: true
+        geometry:
+          $ref: '#/components/schemas/Geometry'
+      additionalProperties:
+        oneOf:
+          - type: string
+            nullable: true
+          - type: number
+            nullable: true

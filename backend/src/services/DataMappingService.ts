@@ -12,7 +12,6 @@ import { REQUIRED_METADATA_FIELDS } from '../constants/constants';
 import UnitConversionService from './UnitConversionService';
 import SoilPropertyService from './SoilPropertyService';
 import ProcedureService from './ProcedureService';
-import FileService from './FileService';
 
 export default class DataMappingService {
   postDataMapping = async (requestData: RequestData, dataMapping: DataMappingObject): Promise<DataMapping> => {
@@ -52,7 +51,7 @@ export default class DataMappingService {
     );
 
     const propertySlugs: string[] = Object.values(dataMapping)
-      .filter(mapping => typeof mapping === 'object')
+      .filter(mapping => typeof mapping === 'object' && (mapping as PropertyMapping).property_slug !== undefined)
       .map(mapping => (mapping as PropertyMapping).property_slug);
 
     const spService = new SoilPropertyService();

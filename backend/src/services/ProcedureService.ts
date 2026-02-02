@@ -1,9 +1,8 @@
-import { StatusCodes } from 'http-status-codes';
-import { In } from 'typeorm';
 import { RequestData } from '../interfaces/RequestData';
-import { ErrorResponse } from '../utils/error';
 import { Procedure } from '../interfaces/Procedure';
 import ProcedureEntity from '../entities/Procedure';
+import { getEntity } from '../utils/slugs';
+import { EntityType } from '../types/data';
 
 export default class ProcedureService {
   getProcedures = async (requestData: RequestData): Promise<Procedure[]> => {
@@ -12,16 +11,22 @@ export default class ProcedureService {
   };
 
   getProcedure = async (requestData: RequestData, slug: string): Promise<Procedure> => {
-    const repo = requestData.entityManager.getRepository(ProcedureEntity);
-    const procedure = await repo.findOneBy({ slug });
-    if (!procedure) {
-      throw new ErrorResponse(`Procedure ${slug} not found`, StatusCodes.NOT_FOUND);
-    }
-    return procedure;
+    return await getEntity(requestData, ProcedureEntity, EntityType.PROCEDURE, slug);
   };
 
-  getProceduresBySlug = async (requestData: RequestData, slugs: string[]) => {
-    const repo = requestData.entityManager.getRepository(ProcedureEntity);
-    return await repo.findBy({ slug: In(slugs) });
+  getProceduresBySlug = async (
+    requestData: RequestData,
+    slugs: string[]
+  ): Promise<ProcedureEntity[]> => {
+    return await Promise.all(
+      slugs.map((slug) =>
+      getEntity(
+          requestData,
+          ProcedureEntity,
+          EntityType.PROCEDURE,
+          slug
+        )
+      )
+    );
   };
 }

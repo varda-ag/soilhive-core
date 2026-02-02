@@ -1,7 +1,7 @@
 import { EntityManager } from 'typeorm';
 import { DATA_PREVIEW_SIZE } from '../constants/constants';
 import { DataCleaningConfig } from '../interfaces/DataMapping';
-import { RawRecord } from '../interfaces/RawRecord';
+import { PreviewRecord } from '../interfaces/Record';
 import FeatureEntity from '../entities/Feature';
 import LicenseEntity from '../entities/License';
 import LayerEntity from '../entities/Layer';
@@ -17,8 +17,8 @@ export default class VectorDataLoad {
     dataMappingConfig: DataCleaningConfig,
     fileId: string,
     limit: number = DATA_PREVIEW_SIZE,
-  ): Promise<any> => {
-    let query = await entityManager.createQueryBuilder().from(`file_${fileId}_raw`, 'raw');
+  ): Promise<PreviewRecord[]> => {
+    let query = await entityManager.createQueryBuilder().from(`${process.env.POSTGRES_SCHEMA}.file_${fileId}_raw`, 'raw');
     query = getDataPreviewQuery(query, dataMappingConfig);
     // Workaround using raw query to be able to use dynamic table name without entity
     const results = await entityManager.query(...query.take(limit).getQueryAndParameters());
@@ -28,7 +28,7 @@ export default class VectorDataLoad {
   rawRecordToDataModel = async (
     entityManager: EntityManager,
     dataMappingConfig: DataCleaningConfig,
-    record: RawRecord,
+    record: PreviewRecord,
     datasetId: string,
   ): Promise<any> => {
     // Upsert feature by geom
@@ -179,7 +179,7 @@ const getDataPreviewQuery = (query: any, dataMappingConfig: DataCleaningConfig):
     query.addSelect(propertyCleanup, field);
   }
   query.setParameters(params);
-  query.addSelect('raw.geom', 'geom');
+  query.addSelect('ST_AsGeoJSON(raw.geometry)', 'geometry');
 
   if (dataMappingConfig.drop_records) {
     query = query.where('raw.record_id NOT IN (:...drop_records)', { drop_records: dataMappingConfig.drop_records });

@@ -4,7 +4,7 @@ import { ErrorResponse } from '../utils/error';
 import { Dataset } from '../interfaces/Dataset';
 import DatasetEntity from '../entities/Dataset';
 import { CreateDatasetInput, UpdateDatasetInput } from '../types/DatasetInput';
-import SlugHistoryEntity from '../entities/SlugHistory';
+import { getEntity } from '../utils/slugs';
 import { EntityType } from '../types/data';
 
 export default class DatasetService {
@@ -14,12 +14,7 @@ export default class DatasetService {
   };
 
   getDataset = async (requestData: RequestData, slug: string): Promise<Dataset> => {
-    const repo = requestData.entityManager.getRepository(DatasetEntity);
-    const dataset = await repo.findOneBy({ slug });
-    if (!dataset) {
-      throw new ErrorResponse(`Dataset ${slug} not found`, StatusCodes.NOT_FOUND);
-    }
-    return dataset;
+    return await getEntity(requestData, DatasetEntity, EntityType.DATASET, slug);
   };
 
   createDataset = async (requestData: RequestData, data: CreateDatasetInput): Promise<Dataset> => {
@@ -57,7 +52,7 @@ export default class DatasetService {
       throw new ErrorResponse('Token subject is missing', StatusCodes.UNAUTHORIZED);
     }
 
-    const dataset = await this.findBySlug(requestData, slug);
+    const dataset = await getEntity(requestData, DatasetEntity, EntityType.DATASET, slug) as DatasetEntity;
 
     repo.merge(dataset, {
       ...data,
@@ -71,43 +66,7 @@ export default class DatasetService {
   };
 
   deleteDataset = async (requestData: RequestData, slug: string): Promise<void> => {
-    await requestData.entityManager.getRepository(DatasetEntity).softDelete({ slug });
-  };
-
-  private findBySlug = async (requestData: RequestData, slug: string): Promise<DatasetEntity> => {
-    const datasetRepo = requestData.entityManager.getRepository(DatasetEntity);
-
-    // try slug in dataset first
-    let dataset = await datasetRepo.findOne({
-      where: { slug },
-    });
-
-    if (dataset) {
-      return dataset;
-    }
-
-    // otherwise search in the slug history
-    const slugHistoryRepo = requestData.entityManager.getRepository(SlugHistoryEntity);
-    const slugHistory = await slugHistoryRepo.findOne({
-      where: {
-        slug,
-        entity_type: EntityType.DATASET,
-      },
-    });
-
-    if (!slugHistory) {
-      throw new ErrorResponse(`Dataset with slug '${slug}' not found`, StatusCodes.NOT_FOUND);
-    }
-
-    // Get the dataset by entity_id from history
-    dataset = await datasetRepo.findOne({
-      where: { id: slugHistory.entity_id },
-    });
-
-    if (!dataset) {
-      throw new ErrorResponse(`Dataset with slug '${slug}' not found`, StatusCodes.NOT_FOUND);
-    }
-
-    return dataset;
+    const dataset = await getEntity(requestData, DatasetEntity, EntityType.DATASET, slug);
+    await requestData.entityManager.getRepository(DatasetEntity).softRemove(dataset);
   };
 }
