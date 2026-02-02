@@ -14,19 +14,7 @@ export default class SoilPropertyService {
     return await getEntity(requestData, SoilPropertyEntity, EntityType.SOIL_PROPERTY, slug);
   };
 
-  getSoilPropertiesBySlug = async (
-    requestData: RequestData,
-    slugs: string[]
-  ): Promise<SoilPropertyEntity[]> => {
-    return await Promise.all(
-      slugs.map((slug) =>
-      getEntity(
-          requestData,
-          SoilPropertyEntity,
-          EntityType.SOIL_PROPERTY,
-          slug
-        )
-      )
-    );
+  getSoilPropertiesBySlug = async (requestData: RequestData, slugs: string[]): Promise<SoilPropertyEntity[]> => {
+    return await Promise.all(slugs.map(slug => getEntity(requestData, SoilPropertyEntity, EntityType.SOIL_PROPERTY, slug)));
   };
 }

@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.23.0 (2026-02-02)
+
+## What's Changed
+* feat(data): :sparkles: metadata extraction from vector files by @svaccari in https://github.com/varda-ag/soilhive-core/pull/128
+* fix(DB): :card_file_box: SP-4757 change typeorm naming strategy by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/150
+* fix(BE): 🩹 SP-4757 fix GET and DELETE dataset behavior by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/151
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.22.0...v0.23.0
+
+## 0.22.0 (2026-01-30)
+
+## What's Changed
+* feat(BE): ✨ SP-4757 implement dataset POST/PATCH/DELETE methods by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/144
+* feat: sp-4821 changed preview page's header description by @cristbello in https://github.com/varda-ag/soilhive-core/pull/147
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.21.0...v0.22.0
+
 ## 0.21.0 (2026-01-30)
 
 ## What's Changed

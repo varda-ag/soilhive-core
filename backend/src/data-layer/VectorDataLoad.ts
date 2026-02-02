@@ -46,7 +46,7 @@ export default class VectorDataLoad {
     const featureId = feature.raw[0]?.id;
 
     // Upsert license
-    let license = record.license as string;
+    const license = record.license as string;
     let licenseId: string | null = null;
     if (license) {
       licenseId =

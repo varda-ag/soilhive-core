@@ -25,5 +25,6 @@ export function useApiQuery<TResponse, TBody = void>({ endpoint, method, body, q
     queryKey,
     queryFn: fetchData,
     enabled,
+    staleTime: 600000, // Caching the responses for 10 minutes (use @tanstack/react-query-devtools for useQuery debugging)
   });
 }

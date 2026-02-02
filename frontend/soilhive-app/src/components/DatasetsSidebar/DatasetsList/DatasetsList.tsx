@@ -6,8 +6,14 @@ import useAvailability from 'hooks/useAvailability';
 import styles from './DatasetsList.module.scss';
 
 export function DatasetsList() {
-  const { datasets, selectAllDatasets, isAllSelected } = useAvailability();
-  return (
+  const { datasets, selectAllDatasets, isAllSelected, isLoading, isNoData, isNoFilteredData } = useAvailability();
+  return isLoading ? (
+    <span>⌛</span>
+  ) : isNoData ? (
+    <i>No data in selected area</i>
+  ) : isNoFilteredData ? (
+    <i>No data in selected area due to applied filters</i>
+  ) : (
     <div data-testid="sh-datasets-list" className={styles.DatasetsList}>
       <DatasetsFilters />
       <div className={styles.SelectAllWrapper}>

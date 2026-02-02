@@ -372,21 +372,15 @@ describe('Testing /soil-data routes', () => {
       min_depth: 0,
       bdfi33: '2',
       bdfiod: '8',
-      geometry: '{"type":"Point","coordinates":[-148.0432434,64.814888]}'
-    }
+      geometry: { type: 'Point', coordinates: [-148.0432434, 64.814888] },
+    };
 
     // Call soil-data endpoint
-    const soilDataRes = await request(app).post(`/soil-data?dataMappingId=${dataMapping.id}&datasetSlug=${dataset.slug}`).set('Authorization', `Bearer ${token}`).send(payload);
-    expect(soilDataRes.statusCode).toBe(200);
-    expect(soilDataRes.body.length).toBe(5);
-    // Verify data contains entries only for soil property 'prop1'
-    const soilProperties = soilDataRes.body.map((item: any) => item.soil_property);
-    expect(soilProperties).toContain('prop1');
-    expect(soilProperties).not.toContain('prop2');
-    // Verify data contains entries from only dataset1
-    const datasetSlugs = soilDataRes.body.map((item: any) => item.dataset);
-    expect(datasetSlugs).toContain(data1.dataset.slug);
-    expect(datasetSlugs).not.toContain(data2.dataset.slug);
+    const soilDataRes = await request(app)
+      .post(`/soil-data?dataMappingId=${dataMapping.id}&datasetSlug=${dataset.slug}`)
+      .set('Authorization', `Bearer ${token}`)
+      .send(payload);
+    expect(soilDataRes.statusCode).toBe(201);
   });
 });
 

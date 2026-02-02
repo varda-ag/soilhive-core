@@ -14,19 +14,7 @@ export default class ProcedureService {
     return await getEntity(requestData, ProcedureEntity, EntityType.PROCEDURE, slug);
   };
 
-  getProceduresBySlug = async (
-    requestData: RequestData,
-    slugs: string[]
-  ): Promise<ProcedureEntity[]> => {
-    return await Promise.all(
-      slugs.map((slug) =>
-      getEntity(
-          requestData,
-          ProcedureEntity,
-          EntityType.PROCEDURE,
-          slug
-        )
-      )
-    );
+  getProceduresBySlug = async (requestData: RequestData, slugs: string[]): Promise<ProcedureEntity[]> => {
+    return await Promise.all(slugs.map(slug => getEntity(requestData, ProcedureEntity, EntityType.PROCEDURE, slug)));
   };
 }

@@ -9,7 +9,7 @@ export const getEntity = async <T extends { id: string | number; slug: string }>
   requestData: RequestData,
   entityClass: EntityTarget<T>,
   entityType: EntityType,
-  slug: string
+  slug: string,
 ): Promise<T> => {
   const entityManager = requestData.entityManager;
   const entityRepo = entityManager.getRepository(entityClass);
@@ -31,10 +31,7 @@ export const getEntity = async <T extends { id: string | number; slug: string }>
   });
 
   if (!slugHistory) {
-    throw new ErrorResponse(
-      `Entity with slug '${slug}' not found in table "${entityType}"`,
-      StatusCodes.NOT_FOUND
-    );
+    throw new ErrorResponse(`Entity with slug '${slug}' not found in table "${entityType}"`, StatusCodes.NOT_FOUND);
   }
 
   entity = await entityRepo.findOne({
@@ -42,11 +39,8 @@ export const getEntity = async <T extends { id: string | number; slug: string }>
   });
 
   if (!entity) {
-    throw new ErrorResponse(
-      `Entity with slug '${slug}' not found in table "${entityType}"`,
-      StatusCodes.NOT_FOUND
-    );
+    throw new ErrorResponse(`Entity with slug '${slug}' not found in table "${entityType}"`, StatusCodes.NOT_FOUND);
   }
 
   return entity;
-}
+};

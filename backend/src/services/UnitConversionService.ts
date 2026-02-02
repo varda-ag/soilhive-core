@@ -14,19 +14,7 @@ export default class UnitConversionService {
     return await getEntity(requestData, UnitConversionEntity, EntityType.UNIT_CONVERSION, slug);
   };
 
-  getUnitConversionsBySlug = async (
-    requestData: RequestData,
-    slugs: string[]
-  ): Promise<UnitConversionEntity[]> => {
-    return await Promise.all(
-      slugs.map((slug) =>
-      getEntity(
-          requestData,
-          UnitConversionEntity,
-          EntityType.UNIT_CONVERSION,
-          slug
-        )
-      )
-    );
+  getUnitConversionsBySlug = async (requestData: RequestData, slugs: string[]): Promise<UnitConversionEntity[]> => {
+    return await Promise.all(slugs.map(slug => getEntity(requestData, UnitConversionEntity, EntityType.UNIT_CONVERSION, slug)));
   };
 }

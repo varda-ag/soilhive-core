@@ -34,9 +34,7 @@ const getDataFilter = async (req: Request): Promise<DataFilter> => {
 
 export const postSoilData = async (req: Request, res: Response) => {
   const dmService = new DataMappingService();
-  const dataMappingConfig = await dmService.parseDataMapping(req.customData, 
-    req.query['dataMappingId'] as string,
-  );
+  const dataMappingConfig = await dmService.parseDataMapping(req.customData, req.query['dataMappingId'] as string);
   const datasetService = new DatasetService();
   const dataset = await datasetService.getDataset(req.customData, req.query['datasetSlug'] as string);
 

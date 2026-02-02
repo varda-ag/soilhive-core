@@ -1,0 +1,5 @@
+﻿Lat,Lon,H3Index,Datasources,Property,Depth (cm),Value,Unit of measurement,Conversion,Sampling Date,Publication Date,Data Type,Resolution_value,Resolution_unit,Licence
+40.195651,-4.33328,8a390cc66917fff,Mercury in European topsoils,Hg_dnn_mukg_250m_0_20_cm,0-20,24.265535354614258,μg/kg, ,,2021,raster,250,m,LICENCE LUCAS SOIL DATA
+40.195651,-4.33328,8a390cc66917fff,Mercury in European topsoils,Hg_dnn_mukg_250m_0_20_cm,0-20,23.99213981628418,μg/kg, ,,2021,raster,250,m,LICENCE LUCAS SOIL DATA
+40.195651,-4.33328,8a390cc66917fff,Mercury in European topsoils,Hg_dnn_mukg_250m_0_20_cm,0-20,26.098979949951172,μg/kg, ,,2021,raster,250,m,LICENCE LUCAS SOIL DATA
+40.195651,-4.33328,8a390cc66917fff,Mercury in European topsoils,Hg_dnn_mukg_250m_0_20_cm,0-20,26.080738067626953,μg/kg, ,,2021,raster,250,m,LICENCE LUCAS SOIL DATA

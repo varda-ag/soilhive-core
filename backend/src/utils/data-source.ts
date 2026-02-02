@@ -2,6 +2,7 @@ import 'reflect-metadata';
 import { DataSource, EntityManager, MigrationExecutor } from 'typeorm';
 import path from 'path';
 import { getDBPassword, getSSL } from './db-credentials';
+import { DatabaseNamingStrategy } from './naming-strategy';
 
 // This global variable at module level
 // is used to apply lazy loading to DB connection
@@ -26,6 +27,7 @@ const createDataSource = async (schema: string): Promise<DataSource> => {
       null: 'sql-null',
       undefined: 'throw',
     },
+    namingStrategy: new DatabaseNamingStrategy(),
   });
   await dataSource.initialize();
   const escapedSchema = `"${schema}"`;

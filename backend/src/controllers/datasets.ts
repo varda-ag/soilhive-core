@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import DatasetService from '../services/DatasetService';
 import { CreateDatasetInput, UpdateDatasetInput } from '../types/DatasetInput';
+import StatusCodes from 'http-status-codes';
 
 const datasetService = new DatasetService();
 
@@ -10,7 +11,12 @@ export const getDatasets = async (req: Request, res: Response) => {
 };
 
 export const getDataset = async (req: Request, res: Response) => {
-  const data = await datasetService.getDataset(req.customData, req.params['datasetSlug']!);
+  const slug = req.params['datasetSlug']!;
+  const data = await datasetService.getDataset(req.customData, slug);
+  if (data.slug !== slug) {
+    res.redirect(StatusCodes.MOVED_PERMANENTLY, `/datasets/${data.slug}`);
+    return;
+  }
   res.json(data);
 };
 
@@ -28,5 +34,5 @@ export const updateDataset = async (req: Request, res: Response) => {
 
 export const deleteDataset = async (req: Request, res: Response) => {
   await datasetService.deleteDataset(req.customData, req.params['datasetSlug']!);
-  res.status(204).send();
+  res.status(StatusCodes.NO_CONTENT).send();
 };

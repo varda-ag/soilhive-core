@@ -52,7 +52,7 @@ export default class DatasetService {
       throw new ErrorResponse('Token subject is missing', StatusCodes.UNAUTHORIZED);
     }
 
-    const dataset = await getEntity(requestData, DatasetEntity, EntityType.DATASET, slug) as DatasetEntity;
+    const dataset = (await getEntity(requestData, DatasetEntity, EntityType.DATASET, slug)) as DatasetEntity;
 
     repo.merge(dataset, {
       ...data,
