@@ -62,6 +62,7 @@ type NestedCheckboxPropsType = {
   items: NestedCheckboxItemType[];
   selected: string[];
   onChange: (selected: string[]) => void;
+  onToggleVisibility?: (expandedIds: string[]) => void;
 };
 
 jest.mock('components/UI', () => ({
@@ -72,7 +73,7 @@ jest.mock('components/UI', () => ({
     </div>
   ),
   SelectionPills: () => null,
-  NestedCheckbox: ({ ref, items, selected, onChange }: NestedCheckboxPropsType) => {
+  NestedCheckbox: ({ ref, items, selected, onChange, onToggleVisibility }: NestedCheckboxPropsType) => {
     const [localSelected, setLocalSelected] = React.useState(selected);
     const [isExpanded, setIsExpanded] = React.useState<boolean>(false);
 
@@ -101,6 +102,7 @@ jest.mock('components/UI', () => ({
         <div data-testid="nested-checkbox-items">{JSON.stringify(items)}</div>
         <div data-testid="nested-checkbox-selected">{JSON.stringify(localSelected)}</div>
         <button data-testid="nested-checkbox-change" onClick={handleClick} />
+        <button data-testid="nested-checkbox-toggle-visibility" onClick={() => onToggleVisibility?.(['1'])} />
       </div>
     );
   },
@@ -159,5 +161,24 @@ describe('FilteringSidebarParameters', () => {
     fireEvent.click(toggle);
 
     expect(checkox).toHaveAttribute('data-expanded', 'false');
+  });
+
+  it('toggles the expansion state when the single item was toggled in the nested checkbox', () => {
+    render(<FilteringSidebarParameters />);
+
+    const toggle = screen.getByTestId('global-toggle');
+
+    expect(screen.getByText('Expand All')).toBeInTheDocument();
+    expect(screen.queryByText('Collapse All')).not.toBeInTheDocument();
+
+    fireEvent.click(toggle);
+
+    expect(screen.getByText('Collapse All')).toBeInTheDocument();
+    expect(screen.queryByText('Expand All')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('nested-checkbox-toggle-visibility'));
+
+    expect(screen.getByText('Expand All')).toBeInTheDocument();
+    expect(screen.queryByText('Collapse All')).not.toBeInTheDocument();
   });
 });

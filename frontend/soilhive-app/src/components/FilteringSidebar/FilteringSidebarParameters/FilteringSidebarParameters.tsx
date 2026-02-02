@@ -2,7 +2,7 @@ import { useContext, useMemo, useState, useCallback, type ChangeEvent, useRef } 
 import { Accordion, NestedCheckbox, SelectionPills, Toggle } from 'components/UI';
 import { AvailabilityContext } from '../../../contexts/AvailabilityContext';
 import type { NestedCheckboxItemType, NestedCheckboxRef, Selection } from 'types/components';
-import { getBranchIds, getTopLevelSelections } from 'components/UI/NestedCheckbox/nestedCheckboxHelpers';
+import { getBranchIds, getTopLevelSelections, collectParentsIds } from 'components/UI/NestedCheckbox/nestedCheckboxHelpers';
 import { filterNestedItems } from 'components/UI/NestedCheckbox/nestedCheckboxHelpers';
 
 import styles from './FilteringSidebarParameters.module.scss';
@@ -62,6 +62,10 @@ export function FilteringSidebarParameters() {
     return roots;
   }, [allSoilProperties, filteredSoilProperties]);
 
+  const parentProperties = useMemo((): string[] => {
+    return collectParentsIds(nestedSoilProperties);
+  }, [nestedSoilProperties]);
+
   const handlePillRemove = (id: string) => {
     // identify all leaf IDs that belong to the pill being removed
     const leafIdsToRemove = getBranchIds(nestedSoilProperties, id);
@@ -99,6 +103,20 @@ export function FilteringSidebarParameters() {
     setSoilPropertiesExpanded(!soilPropertiesExpanded);
   }, [soilPropertiesExpanded]);
 
+  const handleToggleVisibility = useCallback(
+    (expandedIds: string[]) => {
+      const allExpanded = parentProperties.every(item => expandedIds.includes(item));
+      if (allExpanded && !soilPropertiesExpanded) {
+        setSoilPropertiesExpanded(true);
+      }
+
+      if (!allExpanded && soilPropertiesExpanded) {
+        setSoilPropertiesExpanded(false);
+      }
+    },
+    [parentProperties, soilPropertiesExpanded],
+  );
+
   const filteredProperties = useMemo(() => filterNestedItems(nestedSoilProperties, searchTerm), [nestedSoilProperties, searchTerm]);
 
   return (
@@ -129,6 +147,7 @@ export function FilteringSidebarParameters() {
             items={filteredProperties}
             selected={selectedSoilProperties}
             onChange={onChange}
+            onToggleVisibility={handleToggleVisibility}
           />
         </div>
       </Accordion>

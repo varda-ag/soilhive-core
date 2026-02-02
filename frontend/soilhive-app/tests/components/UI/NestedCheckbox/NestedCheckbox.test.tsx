@@ -98,4 +98,14 @@ describe('NestedCheckbox', () => {
     expect(screen.queryByTestId('sh-minus-icon')).not.toBeInTheDocument();
     expect(screen.queryByText('First child 2')).not.toBeInTheDocument();
   });
+
+  it('calls onToggleVisibility on visibility change if provided', () => {
+    const onChange = jest.fn();
+    const onToggleVisibility = jest.fn();
+    render(<NestedCheckbox items={mockItems} selected={[]} onChange={onChange} onToggleVisibility={onToggleVisibility} />);
+
+    fireEvent.click(screen.getByTestId('sh-plus-icon'));
+
+    expect(onToggleVisibility).toHaveBeenCalledWith(['first']);
+  });
 });

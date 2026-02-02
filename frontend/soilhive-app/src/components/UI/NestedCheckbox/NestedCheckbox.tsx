@@ -12,9 +12,10 @@ interface Props {
   selected: string[];
   className?: string;
   onChange: (selected: string[]) => void;
+  onToggleVisibility?: (expandedIds: string[]) => void;
 }
 
-export function NestedCheckbox({ ref, items, selected, className, onChange }: Props) {
+export function NestedCheckbox({ ref, items, selected, className, onChange, onToggleVisibility }: Props) {
   const [expandedIds, setExpandedIds] = useState<string[]>([]);
   const toggleNode = useCallback(
     (node: NestedCheckboxItemType, checked: boolean) => {
@@ -29,11 +30,13 @@ export function NestedCheckbox({ ref, items, selected, className, onChange }: Pr
     [selected, onChange],
   );
 
-  const onToggleVisibility = useCallback(
+  const handleToggleVisibility = useCallback(
     (id: string, isVisible: boolean) => {
-      setExpandedIds(isVisible ? [...expandedIds, id] : expandedIds.filter(item => item !== id));
+      const newVisibleIds = isVisible ? [...expandedIds, id] : expandedIds.filter(item => item !== id);
+      setExpandedIds(newVisibleIds);
+      onToggleVisibility?.(newVisibleIds);
     },
-    [expandedIds],
+    [expandedIds, onToggleVisibility],
   );
 
   React.useImperativeHandle(
@@ -68,7 +71,7 @@ export function NestedCheckbox({ ref, items, selected, className, onChange }: Pr
           selected={selected}
           onToggle={toggleNode}
           expandedIds={expandedIds}
-          onToggleVisibility={onToggleVisibility}
+          onToggleVisibility={handleToggleVisibility}
         />
       ))}
     </div>
