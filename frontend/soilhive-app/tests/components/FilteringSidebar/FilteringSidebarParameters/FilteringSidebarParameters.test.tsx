@@ -1,4 +1,4 @@
-import React, { forwardRef, type ForwardedRef } from 'react';
+import React, { type Ref } from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { FilteringSidebarParameters } from 'components/FilteringSidebar/FilteringSidebarParameters/FilteringSidebarParameters';
 import type { NestedCheckboxItemType, NestedCheckboxRef } from 'types/components';
@@ -58,6 +58,7 @@ jest.mock('../../../../src/contexts/AvailabilityContext', () => {
 const { mockSetDatasetFilters } = jest.requireMock('../../../../src/contexts/AvailabilityContext');
 
 type NestedCheckboxPropsType = {
+  ref: Ref<NestedCheckboxRef>;
   items: NestedCheckboxItemType[];
   selected: string[];
   onChange: (selected: string[]) => void;
@@ -71,10 +72,7 @@ jest.mock('components/UI', () => ({
     </div>
   ),
   SelectionPills: () => null,
-  NestedCheckbox: forwardRef<NestedCheckboxRef, NestedCheckboxPropsType>(function NestedCheckbox(
-    { items, selected, onChange }: NestedCheckboxPropsType,
-    ref: ForwardedRef<NestedCheckboxRef>,
-  ) {
+  NestedCheckbox: ({ ref, items, selected, onChange }: NestedCheckboxPropsType) => {
     const [localSelected, setLocalSelected] = React.useState(selected);
     const [isExpanded, setIsExpanded] = React.useState<boolean>(false);
 
@@ -105,7 +103,7 @@ jest.mock('components/UI', () => ({
         <button data-testid="nested-checkbox-change" onClick={handleClick} />
       </div>
     );
-  }),
+  },
   Toggle: ({ labelOne, labelTwo, isToggled, onToggle, className }: any) => (
     <div data-testid="global-toggle" onClick={onToggle} className={className}>
       {isToggled ? labelTwo : labelOne}

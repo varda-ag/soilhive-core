@@ -1,5 +1,4 @@
-import React from 'react';
-import { forwardRef, useCallback, useState, type ForwardedRef } from 'react';
+import React, { useCallback, useState, type Ref } from 'react';
 import classnames from 'classnames';
 
 import type { NestedCheckboxItemType, NestedCheckboxRef } from 'types/components';
@@ -8,16 +7,14 @@ import { NestedCheckboxItem } from './NestedCheckboxItem/NestedCheckboxItem';
 import styles from './NestedCheckbox.module.scss';
 
 interface Props {
+  ref?: Ref<NestedCheckboxRef>;
   items: NestedCheckboxItemType[];
   selected: string[];
   className?: string;
   onChange: (selected: string[]) => void;
 }
 
-export const NestedCheckbox = forwardRef<NestedCheckboxRef, Props>(function NestedCheckbox(
-  { items, selected, className, onChange }: Props,
-  ref: ForwardedRef<NestedCheckboxRef>,
-) {
+export function NestedCheckbox({ ref, items, selected, className, onChange }: Props) {
   const [expandedIds, setExpandedIds] = useState<string[]>([]);
   const toggleNode = useCallback(
     (node: NestedCheckboxItemType, checked: boolean) => {
@@ -76,4 +73,4 @@ export const NestedCheckbox = forwardRef<NestedCheckboxRef, Props>(function Nest
       ))}
     </div>
   );
-});
+}
