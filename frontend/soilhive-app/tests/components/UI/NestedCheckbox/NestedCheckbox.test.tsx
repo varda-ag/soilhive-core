@@ -1,4 +1,5 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import React from 'react';
+import { act, render, screen, fireEvent } from '@testing-library/react';
 import { NestedCheckbox } from 'components/UI/NestedCheckbox/NestedCheckbox';
 
 const mockItems = [
@@ -64,10 +65,37 @@ describe('NestedCheckbox', () => {
     expect(screen.getByTestId('nested-checkbox')).toHaveClass('custom');
   });
 
-  it('passes isExpanded prop down to NestedCheckboxItem children', () => {
-    render(<NestedCheckbox items={mockItems} isExpanded={true} selected={[]} onChange={() => {}} />);
+  it('toggles visibility on a single item independently', () => {
+    const onChange = jest.fn();
+    render(<NestedCheckbox items={mockItems} selected={[]} onChange={onChange} />);
+
+    fireEvent.click(screen.getByTestId('sh-plus-icon'));
+
+    expect(screen.getByLabelText('First child 1')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('sh-minus-icon'));
+
+    expect(screen.queryByLabelText('First child 1')).not.toBeInTheDocument();
+  });
+
+  it('expandAll and collapsAll functionslity works as expected', () => {
+    const ref = React.createRef<any>();
+    render(<NestedCheckbox ref={ref} items={mockItems} selected={[]} onChange={() => {}} />);
+
+    expect(ref.current).toBeTruthy();
+
+    act(() => {
+      ref.current.expandAll();
+    });
 
     expect(screen.getByTestId('sh-minus-icon')).toBeInTheDocument();
-    expect(screen.queryByText('First child 2')).toBeInTheDocument();
+    expect(screen.getByText('First child 2')).toBeInTheDocument();
+
+    act(() => {
+      ref.current.collapseAll();
+    });
+
+    expect(screen.queryByTestId('sh-minus-icon')).not.toBeInTheDocument();
+    expect(screen.queryByText('First child 2')).not.toBeInTheDocument();
   });
 });
