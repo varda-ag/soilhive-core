@@ -1,4 +1,4 @@
-import { Activity, useId, useRef, useState, useCallback, type Dispatch, useMemo, useEffect } from 'react';
+import { Activity, useId, useRef, useState, useCallback, type Dispatch, useMemo } from 'react';
 import {
   GeolocateControl,
   Map,
