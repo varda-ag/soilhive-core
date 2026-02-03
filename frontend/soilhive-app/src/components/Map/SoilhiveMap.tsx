@@ -135,10 +135,6 @@ function SoilhiveMap({
   const { isMobileLayout } = useDevice();
 
   useEffect(() => {
-    console.log('isMobileLayout', isMobileLayout);
-  }, [isMobileLayout]);
-
-  useEffect(() => {
     // Closes the attribution controls on mount so as to occupate less space by default
     setTimeout(() => {
       // Makes selection
