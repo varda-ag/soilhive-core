@@ -67,7 +67,7 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
 
   const partialFilterPayload = useMemo(() => ({ geometries: geometryfilter, parameters: {} }), [geometryfilter]);
   const fullFilterPayload = useMemo(() => ({ geometries: geometryfilter, parameters: datasetFilters }), [geometryfilter, datasetFilters]);
-  console.log(datasetFilters, datasetFrontendFilters);
+
   const { data: geometryFilterResults, isLoading: isLoadingPartialFilter } = useFilteredDatasets(partialFilterPayload);
   const { data: fullFilterResults, isLoading: isLoadingFullFilter } = useFilteredDatasets(fullFilterPayload);
 
