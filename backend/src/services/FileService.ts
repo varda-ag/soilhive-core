@@ -11,7 +11,7 @@ import { FlystorageMulterStorageEngine } from '@flystorage/multer-storage';
 import * as gdal from 'gdal-async';
 import { LocalStorageConfig, S3StorageConfig, StorageConfig } from '../interfaces/StorageConfig';
 import { RequestData } from '../interfaces/RequestData';
-import { File, FileMetadata } from '../interfaces/File';
+import { File, FileMetadata, ExtractedFilePath } from '../interfaces/File';
 import { ErrorResponse } from '../utils/error';
 import { StorageModes } from '../types/enums';
 import { DetectableFields } from '../types/DataMapping';
@@ -181,7 +181,7 @@ export default class FileService {
     return null;
   };
 
-  extractMetadata = async (fileId: string): Promise<FileMetadata> => {
+  getDatasetPath = async (fileId: string): Promise<ExtractedFilePath> => {
     const config: StorageConfig = ConfigService.getStorageConfig();
     let datasetPath: string;
     let tempZipExtractPath: string | null = null;
@@ -213,6 +213,25 @@ export default class FileService {
       } else {
         throw new ErrorResponse(`Unsupported storage mode: ${config.storageMode}`, StatusCodes.INTERNAL_SERVER_ERROR);
       }
+
+      const result: ExtractedFilePath = {
+        datasetPath,
+        tempZipExtractPath
+      }
+      return result;
+    } catch (error) {
+      if (error instanceof ErrorResponse) {
+        throw error;
+      }
+      throw new ErrorResponse(`Failed to extract file path: ${error}`, StatusCodes.BAD_REQUEST);
+    }
+  };
+
+  extractMetadata = async (fileId: string): Promise<FileMetadata> => {
+    let datasetPath: string;
+    let tempZipExtractPath: string | null = null;
+    try {
+      ({ datasetPath, tempZipExtractPath } = await this.getDatasetPath(fileId));
 
       // Open dataset with GDAL
       const dataset = await gdal.openAsync(datasetPath);
@@ -341,6 +360,49 @@ export default class FileService {
         throw error;
       }
       throw new ErrorResponse(`Failed to extract metadata: ${error}`, StatusCodes.BAD_REQUEST);
+    } finally {
+      // Clean up temporary directory if ZIP was extracted
+      if (tempZipExtractPath) {
+        FileService.removeTempFolder(tempZipExtractPath);
+      }
+    }
+  };
+
+  fileToTable = async (fileId: string, fileMetadata: FileMetadata): Promise<any> => {
+    let datasetPath: string;
+    let tempZipExtractPath: string | null = null;
+    let gdalOpts: string[] = ['-f', 'PostgreSQL', '-explodecollections', '-t_srs', 'EPSG:4326', '--config', 'PG_USE_COPY=YES', '-lco', 'FID=record_id', '-lco', 'SPATIAL_INDEX=NONE', '-lco', 'GEOMETRY_NAME=geometry', '-oo', 'EMPTY_STRING_AS_NULL=YES', '-oo', 'AUTODETECT_TYPE=YES'];
+    const tableName = `"file_${fileId}_raw"`
+    gdalOpts.push('-nln', tableName)
+
+    try {
+      ({ datasetPath, tempZipExtractPath } = await this.getDatasetPath(fileId));
+
+      if (!fileMetadata.geometry_detected) {
+        if (fileMetadata.detected_fields[DetectableFields.GEOMETRY]) {
+          gdalOpts.push('-oo', `GEOM_POSSIBLE_NAMES=${fileMetadata.detected_fields[DetectableFields.GEOMETRY]}`);
+        } else if (fileMetadata.detected_fields[DetectableFields.LATITUDE] && fileMetadata.detected_fields[DetectableFields.LONGITUDE]) {
+          gdalOpts.push('-oo', `X_POSSIBLE_NAMES=${fileMetadata.detected_fields[DetectableFields.LONGITUDE]}`, '-oo', `Y_POSSIBLE_NAMES=${fileMetadata.detected_fields[DetectableFields.LATITUDE]}`);
+        } else {
+          throw new ErrorResponse('Geometry not found in input file.', StatusCodes.BAD_REQUEST);
+        }
+      }
+
+      if (fileMetadata.detected_fields[DetectableFields.CRS]) {
+        gdalOpts.push('-s_srs', `"${fileMetadata.detected_fields[DetectableFields.CRS]}"`);
+      }
+  
+      // Open dataset with GDAL
+      const dataset = await gdal.openAsync(datasetPath);
+      const pgDataset = `PG:"host=${process.env.POSTGRES_HOST} post=${process.env.POSTGRES_PORT} user=${process.env.POSTGRES_USER} dbname=${process.env.POSTGRES_DB} password=${process.env.POSTGRES_PASSWORD} schemas=${process.env.POSTGRES_SCHEMA}"`;
+      const loadedDataset = await gdal.vectorTranslateAsync(pgDataset, dataset, gdalOpts);
+      
+      return loadedDataset;
+    } catch (error) {
+      if (error instanceof ErrorResponse) {
+        throw error;
+      }
+      throw new ErrorResponse(`Failed to load file to table: ${error}`, StatusCodes.BAD_REQUEST);
     } finally {
       // Clean up temporary directory if ZIP was extracted
       if (tempZipExtractPath) {

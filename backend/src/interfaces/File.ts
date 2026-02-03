@@ -17,3 +17,8 @@ export interface FileMetadata {
   detected_fields: Record<DetectableFields, string | null>;
   geometry_detected: boolean;
 }
+
+export interface ExtractedFilePath {    
+  datasetPath: string;
+  tempZipExtractPath: string | null;
+}
