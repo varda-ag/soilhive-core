@@ -79,6 +79,8 @@ function DownloadPreviewFilters({
           hideOnRangeSelection
           placeholder="Select a date range"
           showIcon
+          maxDate={new Date()}
+          showMinMaxRange={true}
         />
       </>
     );
