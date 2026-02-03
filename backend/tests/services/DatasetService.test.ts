@@ -263,14 +263,14 @@ describe('DatasetService', () => {
 
       // 3. Verify it can no longer be retrieved via getDataset
       // getDataset throws a 404 ErrorResponse when not found
-      await expect(service.getDataset(requestData, slug)).rejects.toThrow(`Dataset ${slug} not found`);
+      await expect(service.getDataset(requestData, slug)).rejects.toThrow(`Dataset with slug '${slug}' not found`);
 
       // 4. Verify it's removed from the list of datasets
       const allDatasets = await service.getDatasets(requestData);
       expect(allDatasets.find(d => d.slug === slug)).toBeUndefined();
     });
 
-    it('should not throw an error when attempting to delete a non-existent dataset', async () => {
+    it('should throw 404 when attempting to delete a non-existent dataset', async () => {
       const service = new DatasetService();
       const entityManager = await getEntityManager();
       const requestData: RequestData = {
@@ -278,7 +278,29 @@ describe('DatasetService', () => {
         token: mockToken,
       };
 
-      await expect(service.deleteDataset(requestData, 'non-existent-slug')).resolves.not.toThrow();
+      await expect(service.deleteDataset(requestData, 'non-existent-slug')).rejects.toThrow(
+        "Dataset with slug 'non-existent-slug' not found",
+      );
+    });
+    it('should successfully delete a dataset using an old slug after name change', async () => {
+      const service = new DatasetService();
+      const entityManager = await getEntityManager();
+      const requestData: RequestData = {
+        entityManager,
+        token: mockToken,
+      };
+
+      const created = await service.createDataset(requestData, { name: 'Delete Me Original' });
+      const oldSlug = created.slug;
+
+      await service.updateDataset(requestData, oldSlug, { name: 'Delete Me Renamed' });
+
+      // old slug should still resolve and delete successfully
+      await service.deleteDataset(requestData, oldSlug);
+
+      // verify it's gone via both old and new slug
+      await expect(service.getDataset(requestData, oldSlug)).rejects.toThrow();
+      await expect(service.getDataset(requestData, 'delete-me-renamed')).rejects.toThrow();
     });
   });
 });

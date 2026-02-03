@@ -62,4 +62,51 @@ describe('DatasetsList', () => {
 
     expect(mockSelectAllDatasets).toHaveBeenCalledWith(true, undefined);
   });
+
+  it('renders loading state', () => {
+    (useAvailability as jest.Mock).mockReturnValue({
+      datasets: [],
+      selectAllDatasets: mockSelectAllDatasets,
+      isAllSelected: false,
+      isLoading: true,
+      isNoData: false,
+      isNoFilteredData: false,
+    });
+
+    render(<DatasetsList />);
+
+    expect(screen.queryByTestId('skeleton-container')).toBeInTheDocument();
+  });
+
+  it('renders no data state', () => {
+    (useAvailability as jest.Mock).mockReturnValue({
+      datasets: [],
+      selectAllDatasets: mockSelectAllDatasets,
+      isAllSelected: false,
+      isLoading: false,
+      isNoData: true,
+      isNoFilteredData: false,
+    });
+
+    render(<DatasetsList />);
+
+    expect(screen.getByText('No data in selected area')).toBeInTheDocument();
+    expect(screen.queryByTestId('sh-datasets-list')).not.toBeInTheDocument();
+  });
+
+  it('renders no filtered data state', () => {
+    (useAvailability as jest.Mock).mockReturnValue({
+      datasets: [],
+      selectAllDatasets: mockSelectAllDatasets,
+      isAllSelected: false,
+      isLoading: false,
+      isNoData: false,
+      isNoFilteredData: true,
+    });
+
+    render(<DatasetsList />);
+
+    expect(screen.getByText('No data in selected area due to applied filters')).toBeInTheDocument();
+    expect(screen.queryByTestId('sh-datasets-list')).not.toBeInTheDocument();
+  });
 });

@@ -115,3 +115,14 @@ export const filterNestedItems = (items: NestedCheckboxItemType[], searchTerm: s
   const res = items.map(getFilteredNode).filter((item): item is NestedCheckboxItemType => !!item);
   return res;
 };
+
+export const collectParentsIds = (items: NestedCheckboxItemType[]): string[] => {
+  const ids: string[] = [];
+  for (const item of items) {
+    if (item.children.length) {
+      ids.push(item.id, ...collectParentsIds(item.children));
+    }
+  }
+
+  return ids;
+};

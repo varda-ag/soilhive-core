@@ -14,7 +14,7 @@ exports[`NestedCheckbox renders top-level items 1`] = `
         data-testid="sh-ui-checkbox"
       >
         <input
-          class="Input NestedCheckboxInput NestedCheckboxParent"
+          class="Input NestedCheckboxInput"
           type="checkbox"
         />
         <div
@@ -39,7 +39,7 @@ exports[`NestedCheckbox renders top-level items 1`] = `
         data-testid="sh-ui-checkbox"
       >
         <input
-          class="Input NestedCheckboxInput NestedCheckboxParent"
+          class="Input NestedCheckboxInput"
           type="checkbox"
         />
         <div

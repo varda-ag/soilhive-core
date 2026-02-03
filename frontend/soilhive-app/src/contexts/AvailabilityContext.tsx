@@ -24,6 +24,9 @@ type AvailabilityContextType = {
   datasets: AvailabilityDataset[];
   selectedDatasets: string[];
   isAllSelected: boolean;
+  isNoData: boolean;
+  isNoFilteredData: boolean;
+  isLoading: boolean;
   searchValue: string;
   datasetFrontendFilters: DatasetFrontendFilters;
   datasetsSummary: DatasetSummary;
@@ -64,8 +67,8 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
   const partialFilterPayload = useMemo(() => ({ geometries: geometryfilter, parameters: {} }), [geometryfilter]);
   const fullFilterPayload = useMemo(() => ({ geometries: geometryfilter, parameters: datasetFilters }), [geometryfilter, datasetFilters]);
 
-  const { data: geometryFilterResults } = useFilteredDatasets(partialFilterPayload);
-  const { data: fullFilterResults } = useFilteredDatasets(fullFilterPayload);
+  const { data: geometryFilterResults, isLoading: isLoadingPartialFilter } = useFilteredDatasets(partialFilterPayload);
+  const { data: fullFilterResults, isLoading: isLoadingFullFilter } = useFilteredDatasets(fullFilterPayload);
 
   const [selectedSoilProperties, setSelectedSoilProperties] = useState<string[]>([]);
 
@@ -109,6 +112,18 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
       return !dataset.dataType || !datasetFrontendFilters.type.length || datasetFrontendFilters.type.includes(dataset.dataType);
     });
   }, [allDatasets, datasetFrontendFilters]);
+
+  const isLoading = useMemo(() => {
+    return isLoadingPartialFilter || isLoadingFullFilter || isLoadingSoilProperties;
+  }, [isLoadingFullFilter, isLoadingPartialFilter, isLoadingSoilProperties]);
+
+  const isNoFilteredData = useMemo(() => {
+    return fullFilterResults?.length === 0;
+  }, [fullFilterResults]);
+
+  const isNoData = useMemo(() => {
+    return geometryFilterResults?.length === 0;
+  }, [geometryFilterResults]);
 
   const timeFilterRange = useMemo((): TimeFilterRange => {
     if (!allDatasets.length) return { min: 0, max: 0 };
@@ -163,6 +178,9 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
         datasets,
         selectedDatasets,
         isAllSelected,
+        isNoData,
+        isNoFilteredData,
+        isLoading,
         searchValue,
         datasetFrontendFilters,
         datasetsSummary,

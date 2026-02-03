@@ -74,6 +74,7 @@ describe('FilteringSidebarDataScope', () => {
       typeFilterOptions: ['point', 'raster', 'polygonal'],
       setFrontendFilters: mockSetFrontendFilters,
       setDatasetFilters: mockSetDatasetFilters,
+      isLoading: false,
     });
   });
 
@@ -193,5 +194,20 @@ describe('FilteringSidebarDataScope', () => {
       min_sampling_date: undefined,
       max_sampling_date: undefined,
     });
+  });
+
+  it('renders loading state', () => {
+    (useAvailability as jest.Mock).mockReturnValue({
+      datasetFrontendFilters: { type: [], ownership: [] },
+      typeFilterOptions: ['point', 'raster', 'polygonal'],
+      setFrontendFilters: mockSetFrontendFilters,
+      setDatasetFilters: mockSetDatasetFilters,
+      isLoading: true,
+    });
+
+    render(<FilteringSidebarDataScope />);
+
+    expect(screen.queryByTestId('skeleton-container-data-type')).toBeInTheDocument();
+    expect(screen.queryByTestId('skeleton-container-time')).toBeInTheDocument();
   });
 });
