@@ -60,6 +60,16 @@ function SoilhiveSimpleMap({
   const mapRef = useRef<any>(null);
   const [h3Cells, setH3Cells] = useState<any | null>(null);
 
+  useEffect(() => {
+    // Closes the attribution controls on mount so as to occupate less space by default
+    setTimeout(() => {
+      // Makes selection
+      const details = document.querySelector('details.maplibregl-ctrl-attrib') as HTMLDetailsElement | null;
+      details?.removeAttribute('open');
+      details?.classList.remove('maplibregl-compact-show');
+    }, 0);
+  }, []);
+
   function updateH3Cells(mapEvent: any) {
     if (!showH3Cells) {
       setH3Cells(null);
