@@ -2,6 +2,7 @@ import React, { type Ref } from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { FilteringSidebarParameters } from 'components/FilteringSidebar/FilteringSidebarParameters/FilteringSidebarParameters';
 import type { NestedCheckboxItemType, NestedCheckboxRef } from 'types/components';
+import { AvailabilityContext } from '../../../../src/contexts/AvailabilityContext';
 
 const mockProperties: NestedCheckboxItemType[] = [
   {
@@ -49,6 +50,7 @@ jest.mock('../../../../src/contexts/AvailabilityContext', () => {
       selectedSoilProperties: [],
       allSoilProperties: [],
       filteredSoilProperties: [],
+      isLoading: false,
     }),
     mockSetDatasetFilters,
     mockSetSelectedSoilProperties,
@@ -180,5 +182,19 @@ describe('FilteringSidebarParameters', () => {
 
     expect(screen.getByText('Expand All')).toBeInTheDocument();
     expect(screen.queryByText('Collapse All')).not.toBeInTheDocument();
+  });
+
+  it('renders loading state', () => {
+    const mockContextValue = {
+      ...jest.requireMock('../../../../src/contexts/AvailabilityContext').default,
+      selectedSoilProperties: [],
+      isLoading: true,
+    };
+
+    render(<FilteringSidebarParameters />, {
+      wrapper: ({ children }) => <AvailabilityContext.Provider value={mockContextValue}>{children}</AvailabilityContext.Provider>,
+    });
+
+    expect(screen.queryByTestId('skeleton-container')).toBeInTheDocument();
   });
 });

@@ -1,9 +1,15 @@
-import { useContext, useMemo, useState, useCallback, type ChangeEvent, useRef } from 'react';
 import { Accordion, NestedCheckbox, SelectionPills, Toggle } from 'components/UI';
-import { AvailabilityContext } from '../../../contexts/AvailabilityContext';
+import {
+  collectParentsIds,
+  filterNestedItems,
+  getBranchIds,
+  getTopLevelSelections,
+} from 'components/UI/NestedCheckbox/nestedCheckboxHelpers';
+import { useCallback, useContext, useMemo, useRef, useState, type ChangeEvent } from 'react';
+import Skeleton from 'react-loading-skeleton';
+import 'react-loading-skeleton/dist/skeleton.css';
 import type { NestedCheckboxItemType, NestedCheckboxRef, Selection } from 'types/components';
-import { getBranchIds, getTopLevelSelections, collectParentsIds } from 'components/UI/NestedCheckbox/nestedCheckboxHelpers';
-import { filterNestedItems } from 'components/UI/NestedCheckbox/nestedCheckboxHelpers';
+import { AvailabilityContext } from '../../../contexts/AvailabilityContext';
 
 import styles from './FilteringSidebarParameters.module.scss';
 
@@ -17,7 +23,9 @@ export function FilteringSidebarParameters() {
     setDatasetFilters,
     allSoilProperties,
     filteredSoilProperties,
-    isLoadingSoilProperties,
+    isLoading,
+    isNoData,
+    isNoFilteredData,
     selectedSoilProperties,
     setSelectedSoilProperties,
   } = availabilityContext;
@@ -121,35 +129,46 @@ export function FilteringSidebarParameters() {
 
   return (
     <div className={styles.FilteringSidebarParameters}>
-      {isLoadingSoilProperties && <p>Loading soil properties...</p>}
       <Accordion
         title="Soil Properties"
         type="secondary"
         pillsSlot={pillSelections.length > 0 ? <SelectionPills selections={pillSelections} onRemove={handlePillRemove} /> : null}
       >
-        <div className={styles.SoilProperties}>
-          <input
-            type="text"
-            placeholder="Search soil properties"
-            value={searchTerm}
-            onChange={handleSearch}
-            className={styles.SearchInput}
-          />
-          <Toggle
-            labelOne="Expand All"
-            labelTwo="Collapse All"
-            isToggled={soilPropertiesExpanded}
-            onToggle={handleProperitesExpansionToggle}
-          />
-          <NestedCheckbox
-            ref={soilPropertiesRef}
-            className={styles.SoilPropertiesCheckbox}
-            items={filteredProperties}
-            selected={selectedSoilProperties}
-            onChange={onChange}
-            onToggleVisibility={handleToggleVisibility}
-          />
-        </div>
+        {isNoData ? (
+          <i>No data in selected area</i>
+        ) : isNoFilteredData ? (
+          <i>No data in selected area due to applied filters</i>
+        ) : (
+          <div className={styles.SoilProperties}>
+            <input
+              type="text"
+              placeholder="Search soil properties"
+              value={searchTerm}
+              onChange={handleSearch}
+              className={styles.SearchInput}
+            />
+            <Toggle
+              labelOne="Expand All"
+              labelTwo="Collapse All"
+              isToggled={soilPropertiesExpanded}
+              onToggle={handleProperitesExpansionToggle}
+            />
+            {isLoading ? (
+              <span data-testid="skeleton-container">
+                <Skeleton count={1} height={120} />
+              </span>
+            ) : (
+              <NestedCheckbox
+                ref={soilPropertiesRef}
+                className={styles.SoilPropertiesCheckbox}
+                items={filteredProperties}
+                selected={selectedSoilProperties}
+                onChange={onChange}
+                onToggleVisibility={handleToggleVisibility}
+              />
+            )}
+          </div>
+        )}
       </Accordion>
     </div>
   );
