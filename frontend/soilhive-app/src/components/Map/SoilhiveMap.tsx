@@ -1,4 +1,4 @@
-import { Activity, useId, useRef, useState, useCallback, type Dispatch, useMemo } from 'react';
+import { Activity, useId, useRef, useState, useCallback, type Dispatch, useMemo, useEffect } from 'react';
 import {
   GeolocateControl,
   Map,
@@ -29,6 +29,7 @@ import SoilhiveMapSelectionToolbar from './SoilhiveMapSelectionToolbar';
 import { largestPolygon as largestPolygonFn } from '../../utilities/geo';
 import type { SoilhiveMapSelectionChangeEvent } from './SoilhiveMapSelectionChangeEvent';
 import { simplifyGeometry } from '../../utilities/simplifyGeometry';
+import useDevice from 'hooks/useDevice';
 
 type MapStyle = string | StyleSpecification | ImmutableLike<StyleSpecification>;
 type MapStyles = Array<{ name: string; mapStyle: MapStyle }>;
@@ -130,6 +131,22 @@ function SoilhiveMap({
 
   // This prevents onMapMoveEnd from being called concurrently with applySelection
   const isApplyingSelection = useRef(false);
+
+  const { isMobileLayout } = useDevice();
+
+  useEffect(() => {
+    console.log('isMobileLayout', isMobileLayout);
+  }, [isMobileLayout]);
+
+  useEffect(() => {
+    // Closes the attribution controls on mount so as to occupate less space by default
+    setTimeout(() => {
+      // Makes selection
+      const details = document.querySelector('details.maplibregl-ctrl-attrib') as HTMLDetailsElement | null;
+      details?.removeAttribute('open');
+      details?.classList.remove('maplibregl-compact-show');
+    }, 0);
+  }, []);
 
   const onDrawClick = useCallback(() => {
     setShowDrawControl(true);
@@ -348,7 +365,19 @@ function SoilhiveMap({
 
         {showGeocoder && <GeocoderControl position="top-left" geocoder={geocoder} onFeatureSelect={onSearchResultSelect} />}
         {showGeolocation && <GeolocateControl position="bottom-right" />}
-        {showNavigation && <NavigationControl position="bottom-right" showCompass={false} showZoom={true} visualizePitch={false} />}
+        {showNavigation && (
+          <NavigationControl
+            // `key` forces re-creation otherwise it won't change the showZoom status when isMobileLayout changes
+            // because since mapbox-gl internally uses an imperative method to add controls (e.g. `map.addControl()`)
+            // the react wrapper library probably doesn't implement correctly a `useEffect` to update them and so the
+            // component remains in the initial state.
+            key={isMobileLayout ? 'mobile' : 'desktop'}
+            position="bottom-right"
+            showCompass={false}
+            showZoom={isMobileLayout}
+            visualizePitch={false}
+          />
+        )}
         {showDrawControl && <DrawControl position="bottom-right" onFinish={onFinishDrawing} />}
 
         {showScale && <ScaleControl />}
