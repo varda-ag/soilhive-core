@@ -134,16 +134,6 @@ function SoilhiveMap({
 
   const { isMobileLayout } = useDevice();
 
-  useEffect(() => {
-    // Closes the attribution controls on mount so as to occupate less space by default
-    setTimeout(() => {
-      // Makes selection
-      const details = document.querySelector('details.maplibregl-ctrl-attrib') as HTMLDetailsElement | null;
-      details?.removeAttribute('open');
-      details?.classList.remove('maplibregl-compact-show');
-    }, 0);
-  }, []);
-
   const onDrawClick = useCallback(() => {
     setShowDrawControl(true);
     setShowSelectionToolbar(true);
@@ -297,6 +287,7 @@ function SoilhiveMap({
         onMoveEnd={onMapMoveEnd}
         onClick={onMapClick}
         interactiveLayerIds={['data-fills']}
+        attributionControl={{ compact: false }}
       >
         <Activity mode={!showSelectionToolbar ? 'visible' : 'hidden'}>
           <SoilhiveMapToolbar onDrawClick={onDrawClick} onUpload={onUpload} />
