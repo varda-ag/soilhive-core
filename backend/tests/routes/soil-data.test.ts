@@ -369,7 +369,6 @@ describe('Testing /soil-data routes', () => {
     const { dataset, dataMapping } = await addSyntheticIngestionData({ ...syntheticIngestionDataOptions, createTable: false });
     const token = await getDataAdminToken();
     const payload = {
-      record_id: 10001,
       sampling_date: null,
       license: 'test_license_raw_data',
       horizon: null,

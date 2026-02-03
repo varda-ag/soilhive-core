@@ -4,7 +4,6 @@ export interface RawRecord {
 }
 
 export interface PreviewRecord {
-  record_id: number;
   sampling_date: string | null;
   license: string | null;
   horizon: string | null;

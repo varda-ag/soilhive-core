@@ -18,7 +18,7 @@ export default class VectorDataLoad {
     fileId: string,
     limit: number = DATA_PREVIEW_SIZE,
   ): Promise<PreviewRecord[]> => {
-    let query = await entityManager.createQueryBuilder().from(`${process.env.POSTGRES_SCHEMA}.file_${fileId}_raw`, 'raw');
+    let query = entityManager.createQueryBuilder().from(`${process.env.POSTGRES_SCHEMA}.file_${fileId}_raw`, 'raw');
     query = getDataPreviewQuery(query, dataMappingConfig);
     // Workaround using raw query to be able to use dynamic table name without entity
     const results = await entityManager.query(...query.take(limit).getQueryAndParameters());
@@ -55,7 +55,7 @@ export default class VectorDataLoad {
             where: [{ name: license }, { full_name: license }],
           })
         )?.id || null;
-      if (!licenseId && license) {
+      if (!licenseId && license !== null) {
         const newLicense = entityManager.create(LicenseEntity, { name: license });
         licenseId = (await entityManager.save(newLicense)).id;
       }
@@ -94,7 +94,7 @@ export default class VectorDataLoad {
         dataset_id: datasetId,
         layer_id: layerId!,
         feature_id: featureId!,
-        soil_property_id: soilPropertyId!,
+        soil_property_id: soilPropertyId,
         _key: `${datasetId}_${layerId}_${featureId}_${soilPropertyId}`,
       });
 

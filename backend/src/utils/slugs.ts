@@ -31,7 +31,7 @@ export const getEntity = async <T extends { id: string | number; slug: string }>
   });
 
   if (!slugHistory) {
-    throw new ErrorResponse(`Entity with slug '${slug}' not found in table "${entityType}"`, StatusCodes.NOT_FOUND);
+    throw new ErrorResponse(`Entity with slug '${slug}' not found`, StatusCodes.NOT_FOUND);
   }
 
   entity = await entityRepo.findOne({
@@ -39,7 +39,7 @@ export const getEntity = async <T extends { id: string | number; slug: string }>
   });
 
   if (!entity) {
-    throw new ErrorResponse(`Entity with slug '${slug}' not found in table "${entityType}"`, StatusCodes.NOT_FOUND);
+    throw new ErrorResponse(`Entity with slug '${slug}' not found`, StatusCodes.NOT_FOUND);
   }
 
   return entity;
@@ -69,7 +69,7 @@ export const getEntities = async <T extends { id: string | number; slug: string 
   });
 
   if (slugHistories.length === 0) {
-    throw new ErrorResponse(`Some slugs not found`, StatusCodes.NOT_FOUND);
+    throw new ErrorResponse(`Slugs ${slugHistories.map((sh)=> sh.slug).join(', ')} not found`, StatusCodes.NOT_FOUND);
   }
 
   const missingIds = slugHistories.map(sh => sh.entity_id);
@@ -81,7 +81,7 @@ export const getEntities = async <T extends { id: string | number; slug: string 
   return slugs.map(slug => {
     const entity = entityBySlug.get(slug);
     if (!entity) {
-      throw new ErrorResponse(`Entity with slug '${slug}' not found in table "${entityType}"`, StatusCodes.NOT_FOUND);
+      throw new ErrorResponse(`Entity with slug '${slug}' not found`, StatusCodes.NOT_FOUND);
     }
     return entity;
   });
