@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.24.0 (2026-02-03)
+
+## What's Changed
+* feat: :zap: caching backend requests for 10 minutes, showing loading … by @svaccari in https://github.com/varda-ag/soilhive-core/pull/148
+* fix: sp-4827 - soil properties expanding functionality by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/152
+* feat: :sparkles: adding skeleton loader by @svaccari in https://github.com/varda-ag/soilhive-core/pull/155
+* feat: sp-4796 - filters counter by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/156
+* feat: sp-4735 added filtering support to preview page by @cristbello in https://github.com/varda-ag/soilhive-core/pull/157
+* chore(soilhive-backend): improve dockerfile by @Butterneck in https://github.com/varda-ag/soilhive-core/pull/158
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.23.0...v0.24.0
+
 ## 0.23.0 (2026-02-02)
 
 ## What's Changed

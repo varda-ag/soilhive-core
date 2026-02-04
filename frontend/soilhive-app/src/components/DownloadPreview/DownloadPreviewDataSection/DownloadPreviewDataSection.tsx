@@ -4,13 +4,21 @@ import styles from './DownloadPreviewDataSection.module.scss';
 import ShareIcon from 'assets/icons/share-icon.svg?react';
 import DownloadPreviewFilters from '../DownloadPreviewFilters/DownloadPreviewFilters';
 import DownloadPreviewTable from '../DownloadPreviewTable/DownloadPreviewTable';
+import { useState } from 'react';
 
 function DownloadPreviewDataSection() {
+  const [filtersDialogOpen, setFiltersDialogOpen] = useState(false);
   return (
     <div className={styles.DownloadPreviewDataSection}>
       <div className={styles.Controls}>
         <div className={styles.ControlsButtons}>
-          <Button dataTestId="download-preview-data-section-filters-button" className={styles.FiltersButton} type="primary" size="small">
+          <Button
+            dataTestId="download-preview-data-section-filters-button"
+            className={styles.FiltersButton}
+            type={filtersDialogOpen ? 'primary' : 'secondary'}
+            size="small"
+            onClick={() => setFiltersDialogOpen(true)}
+          >
             <FilterIcon />
             Filters
           </Button>
@@ -20,7 +28,7 @@ function DownloadPreviewDataSection() {
         </Button>
       </div>
       <div className={styles.Filters}>
-        <DownloadPreviewFilters />
+        <DownloadPreviewFilters dialogOpen={filtersDialogOpen} setDialogOpen={setFiltersDialogOpen} />
       </div>
       <div className={styles.TabularPreview}>
         <DownloadPreviewTable />

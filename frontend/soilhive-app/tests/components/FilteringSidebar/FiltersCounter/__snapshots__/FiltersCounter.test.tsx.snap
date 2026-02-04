@@ -6,7 +6,7 @@ exports[`FiltersCounter renders filters counter 1`] = `
     class="FiltersCounter"
     data-testid="sh-filters-counter"
   >
-    0
+    3
   </span>
 </div>
 `;

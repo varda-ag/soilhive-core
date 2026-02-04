@@ -1,6 +1,8 @@
 import { useCallback, useMemo, useState } from 'react';
 import { TimeFilter } from './TimeFilter/TimeFilter';
 import { Accordion, MultiselectButtons, SelectionPills } from 'components/UI';
+import Skeleton from 'react-loading-skeleton';
+import 'react-loading-skeleton/dist/skeleton.css';
 import type { Selection } from 'types/components';
 import type { TimeFilterState } from 'types/availability';
 import useAvailability from 'hooks/useAvailability';
@@ -35,7 +37,7 @@ const DATA_ACCESS_ITEMS: Selection[] = [
 ];
 
 export function FilteringSidebarDataScope() {
-  const { datasetFrontendFilters, typeFilterOptions, setFrontendFilters, setDatasetFilters } = useAvailability();
+  const { isLoading, datasetFrontendFilters, typeFilterOptions, setFrontendFilters, setDatasetFilters } = useAvailability();
   const [selectedTime, setSelectedTime] = useState<TimeFilterState>({});
 
   const onDataTypeChange = useCallback(
@@ -126,16 +128,28 @@ export function FilteringSidebarDataScope() {
         type="secondary"
         pillsSlot={dataTypePills.length ? <SelectionPills selections={dataTypePills} onRemove={dataTypePillRemove} /> : null}
       >
-        <div className={styles.AccordionContent}>
-          <MultiselectButtons items={availableTypeFilters} selected={datasetFrontendFilters.type} onChange={onDataTypeChange} />
-        </div>
+        {isLoading ? (
+          <span data-testid="skeleton-container-data-type">
+            <Skeleton count={1} height={26} />
+          </span>
+        ) : (
+          <div className={styles.AccordionContent}>
+            <MultiselectButtons items={availableTypeFilters} selected={datasetFrontendFilters.type} onChange={onDataTypeChange} />
+          </div>
+        )}
       </Accordion>
       <Accordion
         title="Time"
         type="secondary"
         pillsSlot={timeFilterPill ? <SelectionPills selections={timeFilterPill} onRemove={TimePillRemove} /> : null}
       >
-        {!timeFilterPill && <TimeFilter initialState={selectedTime} onChange={onTimeFilterChange} />}
+        {isLoading ? (
+          <span data-testid="skeleton-container-time">
+            <Skeleton count={1} height={110} />
+          </span>
+        ) : (
+          !timeFilterPill && <TimeFilter initialState={selectedTime} onChange={onTimeFilterChange} />
+        )}
       </Accordion>
       <Accordion
         title="Data access"
