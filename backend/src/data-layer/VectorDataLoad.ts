@@ -46,7 +46,7 @@ export default class VectorDataLoad {
     const featureId = feature.raw[0]?.id;
 
     // Upsert license
-    const license = record.license as string;
+    const license = record.license;
     let licenseId: string | null = null;
     if (license) {
       licenseId =
@@ -55,7 +55,7 @@ export default class VectorDataLoad {
             where: [{ name: license }, { full_name: license }],
           })
         )?.id || null;
-      if (!licenseId && license !== null) {
+      if (!licenseId) {
         const newLicense = entityManager.create(LicenseEntity, { name: license });
         licenseId = (await entityManager.save(newLicense)).id;
       }
