@@ -1056,12 +1056,8 @@ components:
     PreviewRecord:
       type: object
       required:
-        - record_id
         - geometry
       properties:
-        record_id:
-          type: integer
-          description: Row numeric identifier
         sampling_date:
           type: string
           format: date

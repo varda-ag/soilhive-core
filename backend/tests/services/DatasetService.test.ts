@@ -237,7 +237,7 @@ describe('DatasetService', () => {
       };
 
       await expect(service.updateDataset(requestData, 'non-existent-slug', updateInput)).rejects.toThrow(
-        'Entity with slug \'non-existent-slug\' not found',
+        "Entity with slug 'non-existent-slug' not found",
       );
     });
   });
@@ -279,7 +279,7 @@ describe('DatasetService', () => {
       };
 
       await expect(service.deleteDataset(requestData, 'non-existent-slug')).rejects.toThrow(
-        'Entity with slug \'non-existent-slug\' not found',
+        "Entity with slug 'non-existent-slug' not found",
       );
     });
     it('should successfully delete a dataset using an old slug after name change', async () => {

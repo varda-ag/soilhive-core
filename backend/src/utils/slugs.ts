@@ -69,7 +69,7 @@ export const getEntities = async <T extends { id: string | number; slug: string 
   });
 
   if (slugHistories.length === 0) {
-    throw new ErrorResponse(`Slugs ${slugHistories.map((sh)=> sh.slug).join(', ')} not found`, StatusCodes.NOT_FOUND);
+    throw new ErrorResponse(`Slugs ${slugHistories.map(sh => sh.slug).join(', ')} not found`, StatusCodes.NOT_FOUND);
   }
 
   const missingIds = slugHistories.map(sh => sh.entity_id);
