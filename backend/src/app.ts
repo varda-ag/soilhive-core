@@ -22,14 +22,6 @@ export const initApp = async (app: Application) => {
 
   app.use(express.urlencoded({ extended: true }));
   app.use(express.json({ limit: process.env.JSON_PAYLOAD_LIMIT || undefined }));
-  app.use((req, res, next) => {
-    console.log('--- NEW REQUEST ---');
-    console.log('OriginalUrl:', req.originalUrl);
-    console.log('BaseUrl:', req.baseUrl);
-    console.log('Path:', req.path);
-    console.log('Method:', req.method);
-    next();
-  });
   app.use(transactionMiddleware);
   app.use('/docs', swaggerUi.serve, swaggerUi.setup(await getSwaggerDocument()));
   app.use(await getOpenApiMiddleware());

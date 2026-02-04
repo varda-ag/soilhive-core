@@ -11,12 +11,21 @@ export const getDatasets = async (req: Request, res: Response) => {
 };
 
 export const getDataset = async (req: Request, res: Response) => {
-  const slug = req.params['datasetSlug']!;
-  const data = await datasetService.getDataset(req.customData, slug);
-  if (data.slug !== slug) {
-    res.redirect(StatusCodes.MOVED_PERMANENTLY, `/datasets/${data.slug}`);
+  const oldSlug = req.params['datasetSlug']!;
+  const data = await datasetService.getDataset(req.customData, oldSlug);
+
+  if (data.slug !== oldSlug) {
+    const pathSegments = req.path.split('/');
+
+    pathSegments[pathSegments.length - 1] = data.slug;
+
+    const newPath = pathSegments.join('/');
+
+    res.redirect(StatusCodes.MOVED_PERMANENTLY, newPath);
+
     return;
   }
+
   res.json(data);
 };
 
