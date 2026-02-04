@@ -23,7 +23,7 @@ interface SoilhiveSimpleMapProps {
   selectedFeature?: any;
   showH3Cells?: boolean;
   showNavigation?: boolean;
-  mapStyle: MapStyle;
+  mapStyle?: MapStyle;
   scrollZoom?: boolean;
   dragPan?: boolean;
 }
