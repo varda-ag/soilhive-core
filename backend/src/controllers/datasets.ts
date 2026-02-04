@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import DatasetService from '../services/DatasetService';
 import { CreateDatasetInput, UpdateDatasetInput } from '../types/DatasetInput';
 import StatusCodes from 'http-status-codes';
+import { getNewPath } from '../utils/slug';
 
 const datasetService = new DatasetService();
 
@@ -15,11 +16,7 @@ export const getDataset = async (req: Request, res: Response) => {
   const data = await datasetService.getDataset(req.customData, oldSlug);
 
   if (data.slug !== oldSlug) {
-    const pathSegments = req.path.split('/');
-
-    pathSegments[pathSegments.length - 1] = data.slug;
-
-    const newPath = pathSegments.join('/');
+    const newPath = getNewPath(req.path, oldSlug, data.slug);
 
     res.redirect(StatusCodes.MOVED_PERMANENTLY, newPath);
 
