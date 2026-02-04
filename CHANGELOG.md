@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.25.1 (2026-02-04)
+
+## What's Changed
+* fix: sp-4804 fixed zoom level only visible for mobile instead of hidden by @cristbello in https://github.com/varda-ag/soilhive-core/pull/164
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.25.0...v0.25.1
+
+## 0.25.0 (2026-02-04)
+
+## What's Changed
+* fix: adding BACKEND_BASE_URL to docker compose by @svaccari in https://github.com/varda-ag/soilhive-core/pull/159
+* feat: sp-4804 various visual changes to availability map and preview page map by @cristbello in https://github.com/varda-ag/soilhive-core/pull/162
+* feat: sp-4804 mobile bottom menu is now shown even when a selection is active by @cristbello in https://github.com/varda-ag/soilhive-core/pull/163
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.24.0...v0.25.0
+
 ## 0.24.0 (2026-02-03)
 
 ## What's Changed
