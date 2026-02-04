@@ -361,7 +361,7 @@ function SoilhiveMap({
             key={isMobileLayout ? 'mobile' : 'desktop'}
             position="bottom-right"
             showCompass={false}
-            showZoom={isMobileLayout}
+            showZoom={!isMobileLayout}
             visualizePitch={false}
           />
         )}
