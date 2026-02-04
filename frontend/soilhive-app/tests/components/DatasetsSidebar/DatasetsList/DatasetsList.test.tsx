@@ -75,8 +75,7 @@ describe('DatasetsList', () => {
 
     render(<DatasetsList />);
 
-    expect(screen.getByText('⌛')).toBeInTheDocument(); // Spinner placeholder
-    expect(screen.queryByTestId('h-datasets-list')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('skeleton-container')).toBeInTheDocument();
   });
 
   it('renders no data state', () => {
@@ -92,7 +91,7 @@ describe('DatasetsList', () => {
     render(<DatasetsList />);
 
     expect(screen.getByText('No data in selected area')).toBeInTheDocument();
-    expect(screen.queryByTestId('h-datasets-list')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('sh-datasets-list')).not.toBeInTheDocument();
   });
 
   it('renders no filtered data state', () => {
@@ -108,6 +107,6 @@ describe('DatasetsList', () => {
     render(<DatasetsList />);
 
     expect(screen.getByText('No data in selected area due to applied filters')).toBeInTheDocument();
-    expect(screen.queryByTestId('h-datasets-list')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('sh-datasets-list')).not.toBeInTheDocument();
   });
 });

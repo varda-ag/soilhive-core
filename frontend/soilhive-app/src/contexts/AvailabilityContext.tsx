@@ -34,6 +34,7 @@ type AvailabilityContextType = {
   timeFilterRange: TimeFilterRange;
   typeFilterOptions: string[];
   preview: boolean;
+  appliedFiltersCount: number;
   selectDataset: (id: string) => void;
   setSearchValue: (value: string) => void;
   setFrontendFilters: (value: string[], name: string) => void;
@@ -169,6 +170,15 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
     return allSoilProperties?.filter(prop => properties.has(prop.slug)) ?? [];
   }, [allSoilProperties, geometryFilterResults]);
 
+  const appliedFiltersCount = useMemo<number>(() => {
+    return (
+      (datasetFilters.soil_properties?.length || 0) +
+      (datasetFilters.min_sampling_date && datasetFilters.max_sampling_date ? 1 : 0) +
+      datasetFrontendFilters.type.length +
+      datasetFrontendFilters.ownership.length
+    );
+  }, [datasetFilters, datasetFrontendFilters]);
+
   return (
     <AvailabilityContext.Provider
       value={{
@@ -188,6 +198,7 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
         timeFilterRange,
         typeFilterOptions,
         preview,
+        appliedFiltersCount,
         selectDataset,
         setSearchValue,
         setFrontendFilters,

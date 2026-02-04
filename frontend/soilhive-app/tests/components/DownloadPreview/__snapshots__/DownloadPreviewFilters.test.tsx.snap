@@ -1,11 +1,82 @@
 // Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
 
-exports[`DownloadPreviewFilters renders the download preview filters 1`] = `
+exports[`DownloadPreviewFilters renders the download preview filters in mobile 1`] = `
 <div>
   <div
     class="DownloadPreviewFilters"
   >
-    Filters
+    <div
+      class="SectionTitle"
+    >
+      Filters
+    </div>
+    <div
+      class="Filters"
+    />
+    <div>
+      Mock Dialog 
+      <div
+        class="DialogContent"
+      >
+        <div
+          class="Controls"
+        >
+          <div>
+            Mock Dropdown
+          </div>
+          <div>
+            Mock Dropdown
+          </div>
+          <div>
+            Mock Dropdown
+          </div>
+          <div>
+            Mock Calendar
+          </div>
+        </div>
+        <div
+          class="Footer"
+        >
+          <button
+            class="Button Primary Small"
+            data-testid="sh-ui-button"
+            type="button"
+          >
+            Apply filters
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`DownloadPreviewFilters renders the download preview filters in tablet and desktop 1`] = `
+<div>
+  <div
+    class="DownloadPreviewFilters"
+  >
+    <div
+      class="SectionTitle"
+    >
+      Filters
+    </div>
+    <div
+      class="Filters"
+    >
+      <div>
+        Mock Dropdown
+      </div>
+      <div>
+        Mock Dropdown
+      </div>
+      <div>
+        Mock Dropdown
+      </div>
+      <div>
+        Mock Calendar
+      </div>
+    </div>
   </div>
 </div>
 `;

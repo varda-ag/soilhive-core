@@ -70,7 +70,9 @@
   }
 
   .Filters {
-    height: 93px;
+    @media (max-width: $bp-mobile-max) {
+      display: none;
+    }
   }
 
   .TabularPreview {

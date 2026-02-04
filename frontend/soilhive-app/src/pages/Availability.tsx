@@ -43,7 +43,6 @@ const MAPBOX_SATELLITE_MAP_STYLE: StyleSpecification = {
 function Availability() {
   const [isDatasetsOpened, setIsDatasetsOpened] = useState<boolean>(true);
   const [isFiltersOpened, setIsFiltersOpened] = useState<boolean>(false);
-  const [isMapSelectionToolbarVisible, setIsMapSelectionToolbarVisible] = useState<boolean>(false);
   const [activeMobileTab, setActiveMobileTab] = useState<string>(DEFAULT_AVAILABILITY_MOBILE_TAB);
   const { isDesktopLayout } = useDevice();
 
@@ -74,9 +73,6 @@ function Availability() {
           showGeocoder={true}
           showH3Cells={true}
           onSelectionChange={handleMapSelectionChange}
-          onSelectionToolbarVisibilityChange={isVisible => {
-            setIsMapSelectionToolbarVisible(isVisible);
-          }}
           geocoder={localStorage.getItem('MAP_GEOCODER') ?? ('nominatim' as any)}
           mapStyles={[
             { name: 'CartoCDN Voyager', mapStyle: 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json' },
@@ -158,9 +154,7 @@ function Availability() {
         </Button>
       )}
 
-      {!isDesktopLayout && !isMapSelectionToolbarVisible && (
-        <AvailabilityMobileNavigation active={activeMobileTab} onChange={setActiveMobileTab} />
-      )}
+      {!isDesktopLayout && <AvailabilityMobileNavigation active={activeMobileTab} onChange={setActiveMobileTab} />}
     </div>
   );
 }

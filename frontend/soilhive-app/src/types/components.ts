@@ -21,6 +21,11 @@ export type NestedCheckboxItemType = {
   isRoot: boolean;
 };
 
+export type NestedCheckboxRef = {
+  expandAll: () => void;
+  collapseAll: () => void;
+};
+
 export interface Selection {
   id: string;
   label: string;

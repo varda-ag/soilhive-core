@@ -1,7 +1,5 @@
 import { useState } from 'react';
 import classNames from 'classnames';
-import type { StyleSpecification } from 'maplibre-gl';
-import { MAPBOX_ACCESS_TOKEN } from '../../../utilities/environmentVariables';
 import SoilhiveSimpleMap from 'components/Map/SoilhiveSimpleMap';
 import { Button } from 'components/UI';
 import styles from './DownloadPreviewSummary.module.scss';
@@ -11,24 +9,6 @@ import LayersIcon from 'assets/icons/layers-icon.svg?react';
 import MapPinIcon from 'assets/icons/map-pin-icon.svg?react';
 import WorldIcon from 'assets/icons/world-icon.svg?react';
 import useDevice from 'hooks/useDevice';
-
-const MAPBOX_SATELLITE_MAP_STYLE: StyleSpecification = {
-  version: 8,
-  sources: {
-    'raster-tiles': {
-      type: 'raster',
-      tiles: [`https://api.mapbox.com/v4/mapbox.satellite/{z}/{x}/{y}@2x.png?access_token=${MAPBOX_ACCESS_TOKEN}`],
-      tileSize: 256,
-    },
-  },
-  layers: [
-    {
-      id: 'osm-tiles',
-      type: 'raster',
-      source: 'raster-tiles',
-    },
-  ],
-};
 
 // console.log(numberFormatter.format(1234567));
 // Output: "1.234.567"
@@ -77,7 +57,6 @@ function DownloadPreviewSummary({
             initialViewBoundingBox={initialViewBoundingBox}
             showH3Cells={selectionType === 'h3-cell'}
             showNavigation={expanded && isDesktopLayout}
-            mapStyle={MAPBOX_SATELLITE_MAP_STYLE}
             selectedPoint={selectedPoint}
             selectedFeature={selectedFeature}
           />
