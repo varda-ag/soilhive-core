@@ -8,7 +8,7 @@ import FeatureEntity from '../../src/entities/Feature';
 import LayerEntity from '../../src/entities/Layer';
 import DatasetLayerEntity from '../../src/entities/DatasetLayer';
 import ObservationEntity from '../../src/entities/Observation';
-import { PreviewRecord } from '../../src/interfaces/Record';
+import { SoilRecord } from '../../src/interfaces/Record';
 
 describe('VectorDataLoad class', () => {
   it('Data preview should be generated based on parsed data mapping', async () => {
@@ -58,7 +58,7 @@ describe('VectorDataLoad class', () => {
     };
     const service = new DataMappingService();
     const dataMappingConfig = await service.parseDataMapping(requestData, dataMapping.id);
-    const record = (await vdl.getDataPreview(entityManager, dataMappingConfig, file.id, 1))[0] as PreviewRecord;
+    const record = (await vdl.getDataPreview(entityManager, dataMappingConfig, file.id, 1))[0] as SoilRecord;
     await vdl.rawRecordToDataModel(entityManager, dataMappingConfig, record, dataset.id);
     await entityManager.query(`DROP TABLE IF EXISTS ${process.env.POSTGRES_SCHEMA}."file_${file.id}_raw" CASCADE`);
     const features = await entityManager.find(FeatureEntity);

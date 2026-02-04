@@ -3,7 +3,7 @@ export interface RawRecord {
   geometry: any;
 }
 
-export interface PreviewRecord {
+export interface SoilRecord {
   sampling_date: string | null;
   license: string | null;
   horizon: string | null;

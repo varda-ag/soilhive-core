@@ -1,7 +1,7 @@
 import { EntityManager } from 'typeorm';
 import { DATA_PREVIEW_SIZE } from '../constants/constants';
 import { DataCleaningConfig } from '../interfaces/DataMapping';
-import { PreviewRecord } from '../interfaces/Record';
+import { SoilRecord } from '../interfaces/Record';
 import FeatureEntity from '../entities/Feature';
 import LicenseEntity from '../entities/License';
 import LayerEntity from '../entities/Layer';
@@ -17,7 +17,7 @@ export default class VectorDataLoad {
     dataMappingConfig: DataCleaningConfig,
     fileId: string,
     limit: number = DATA_PREVIEW_SIZE,
-  ): Promise<PreviewRecord[]> => {
+  ): Promise<SoilRecord[]> => {
     let query = entityManager.createQueryBuilder().from(`${process.env.POSTGRES_SCHEMA}.file_${fileId}_raw`, 'raw');
     query = getDataPreviewQuery(query, dataMappingConfig);
     // Workaround using raw query to be able to use dynamic table name without entity
@@ -28,7 +28,7 @@ export default class VectorDataLoad {
   rawRecordToDataModel = async (
     entityManager: EntityManager,
     dataMappingConfig: DataCleaningConfig,
-    record: PreviewRecord,
+    record: SoilRecord,
     datasetId: string,
   ): Promise<any> => {
     // Upsert feature by geom

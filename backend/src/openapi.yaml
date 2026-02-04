@@ -572,7 +572,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/PreviewRecord'
+              $ref: '#/components/schemas/SoilRecord'
       parameters:
         - name: dataMappingId
           in: query
@@ -1054,7 +1054,7 @@ components:
           type: string
           description: Category identifier
 
-    PreviewRecord:
+    SoilRecord:
       type: object
       required:
         - geometry

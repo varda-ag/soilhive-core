@@ -55,28 +55,56 @@ export const getEntities = async <T extends { id: string | number; slug: string 
   const entityRepo = entityManager.getRepository(entityClass);
   const slugHistoryRepo = entityManager.getRepository(SlugHistoryEntity);
 
-  const entities = await entityRepo.find({ where: { slug: In(slugs) } as any });
+  const entities = await entityRepo.find({
+    where: { slug: In(slugs) } as any,
+  });
 
-  const foundSlugs = new Set(entities.map(sp => sp.slug));
+  const entityBySlug = new Map<string, T>();
+  const entityById = new Map<string | number, T>();
+
+  for (const entity of entities) {
+    entityBySlug.set(entity.slug, entity);
+    entityById.set(entity.id, entity);
+  }
+
+  const foundSlugs = new Set(entityBySlug.keys());
   const missingSlugs = slugs.filter(slug => !foundSlugs.has(slug));
 
   if (missingSlugs.length === 0) {
-    return slugs.map(slug => entities.find(sp => sp.slug === slug)!);
+    return slugs.map(slug => entityBySlug.get(slug)!);
   }
 
   const slugHistories = await slugHistoryRepo.find({
-    where: { slug: In(missingSlugs), entity_type: entityType },
+    where: {
+      slug: In(missingSlugs),
+      entity_type: entityType,
+    },
   });
 
   if (slugHistories.length === 0) {
-    throw new ErrorResponse(`Slugs ${slugHistories.map(sh => sh.slug).join(', ')} not found`, StatusCodes.NOT_FOUND);
+    throw new ErrorResponse(`Slugs ${missingSlugs.join(', ')} not found`, StatusCodes.NOT_FOUND);
   }
 
-  const missingIds = slugHistories.map(sh => sh.entity_id);
+  const missingIds = slugHistories.map(sh => sh.entity_id).filter(id => !entityById.has(id));
 
-  const missingEntities = await entityRepo.find({ where: { id: In(missingIds) } as any });
-  const allEntities = [...entities, ...missingEntities];
-  const entityBySlug = new Map(allEntities.map(e => [e.slug, e]));
+  if (missingIds.length > 0) {
+    const missingEntities = await entityRepo.find({
+      where: { id: In(missingIds) } as any,
+    });
+
+    for (const entity of missingEntities) {
+      entityById.set(entity.id, entity);
+      entityBySlug.set(entity.slug, entity);
+    }
+  }
+
+  for (const sh of slugHistories) {
+    const entity = entityById.get(sh.entity_id);
+    if (!entity) {
+      throw new ErrorResponse(`Entity with slug '${sh.slug}' not found`, StatusCodes.NOT_FOUND);
+    }
+    entityBySlug.set(sh.slug, entity);
+  }
 
   return slugs.map(slug => {
     const entity = entityBySlug.get(slug);
