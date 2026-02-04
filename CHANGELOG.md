@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.25.1 (2026-02-04)
+
+## What's Changed
+* fix: sp-4804 fixed zoom level only visible for mobile instead of hidden by @cristbello in https://github.com/varda-ag/soilhive-core/pull/164
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.25.0...v0.25.1
+
 ## 0.25.0 (2026-02-04)
 
 ## What's Changed
