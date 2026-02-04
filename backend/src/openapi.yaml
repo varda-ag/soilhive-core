@@ -558,7 +558,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
-    # TODO: change current POST /soil-data?dataset=&mapping= with POST /datasets/{datasetSlug}/dataset-file-mapping/{datasetFileMappingId}/soil-data
+    # TODO: replace current POST /soil-data?dataset=&mapping= with POST /datasets/{datasetSlug}/dataset-file-mapping/{datasetFileMappingId}/soil-data
     post:
       x-eov-operation-handler: controllers/soil-data
       x-eov-operation-id: postSoilData
