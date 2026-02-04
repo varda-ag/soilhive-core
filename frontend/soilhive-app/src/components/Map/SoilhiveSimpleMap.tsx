@@ -23,7 +23,7 @@ interface SoilhiveSimpleMapProps {
   selectedFeature?: any;
   showH3Cells?: boolean;
   showNavigation?: boolean;
-  mapStyle: MapStyle;
+  mapStyle?: MapStyle;
   scrollZoom?: boolean;
   dragPan?: boolean;
 }
@@ -110,6 +110,7 @@ function SoilhiveSimpleMap({
         onLoad={onMapLoad}
         onZoomEnd={updateH3Cells}
         onMoveEnd={updateH3Cells}
+        attributionControl={{ compact: false }}
       >
         {showH3Cells && h3Cells && (
           <Source id="data" type="geojson" data={h3Cells} promoteId="h3Index">
