@@ -18,7 +18,7 @@ export interface FileMetadata {
   geometry_detected: boolean;
 }
 
-export interface ExtractedFilePath {    
+export interface ExtractedFilePath {
   datasetPath: string;
   tempZipExtractPath: string | null;
 }

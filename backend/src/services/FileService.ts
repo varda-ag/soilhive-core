@@ -18,6 +18,7 @@ import { DetectableFields } from '../types/DataMapping';
 import ConfigService from './ConfigService';
 import { LOGO_FILE_ID } from '../constants/constants';
 import FileEntity from '../entities/File';
+import { sanitizeField } from '../utils/utils';
 
 const allowedGeometryTypes = [
   gdal.wkbNone, // This allows generic tabular file support
@@ -32,14 +33,14 @@ const allowedGeometryTypes = [
 ];
 
 export default class FileService {
-  exists = async (fileId: string): Promise<boolean> => {
+  exists = async (fileKey: string): Promise<boolean> => {
     const storage = await FileService.getStorageEngine();
-    return await storage.fileExists(fileId);
+    return await storage.fileExists(fileKey);
   };
 
-  deleteFile = async (fileId: string): Promise<void> => {
+  deleteFile = async (fileKey: string): Promise<void> => {
     const storage = await FileService.getStorageEngine();
-    await storage.deleteFile(fileId);
+    await storage.deleteFile(fileKey);
   };
 
   static getUploadStorageEngine = (): FlystorageMulterStorageEngine => {
@@ -52,6 +53,7 @@ export default class FileService {
           return LOGO_FILE_ID;
         }
         // Use ID parameter to setup filename
+        // TODO: replace parameter name
         return req.params['fileId']!;
       } else {
         // Return folder name/destination if needed
@@ -162,7 +164,7 @@ export default class FileService {
 
   private static detectField = (fields: string[], expected: string[], partialMatch: boolean): string | null => {
     for (const field of fields) {
-      const cleanField = field.toLowerCase().replace(/[^a-z]/g, '');
+      const cleanField = sanitizeField(field);
       if (expected.includes(cleanField)) {
         return field;
       }
@@ -181,7 +183,7 @@ export default class FileService {
     return null;
   };
 
-  getDatasetPath = async (fileId: string): Promise<ExtractedFilePath> => {
+  private static getDatasetPath = async (fileKey: string): Promise<ExtractedFilePath> => {
     const config: StorageConfig = ConfigService.getStorageConfig();
     let datasetPath: string;
     let tempZipExtractPath: string | null = null;
@@ -190,13 +192,13 @@ export default class FileService {
       // Get dataset path based on storage mode
       if (config.storageMode === StorageModes.LOCAL) {
         const localConfig = config.config as LocalStorageConfig;
-        datasetPath = path.join(localConfig.rootFolder, fileId);
+        datasetPath = path.join(localConfig.rootFolder, fileKey);
         if (!fs.existsSync(datasetPath)) {
-          throw new ErrorResponse(`File ${fileId} not found`, StatusCodes.NOT_FOUND);
+          throw new ErrorResponse(`File ${fileKey} not found`, StatusCodes.NOT_FOUND);
         }
 
         // Handle ZIP files
-        if (fileId.toLowerCase().endsWith('.zip')) {
+        if (fileKey.toLowerCase().endsWith('.zip')) {
           const { tempFolder, mainFilePath } = await FileService.extractZipAndFindMainFile(datasetPath);
           tempZipExtractPath = tempFolder;
           datasetPath = mainFilePath;
@@ -205,7 +207,7 @@ export default class FileService {
         // For S3, we would need to download the file first to extract it
         // For now, use GDAL's S3 VSI support (which may not support ZIP)
         const s3Config = config.config as S3StorageConfig;
-        const key = s3Config.rootFolder ? `${s3Config.rootFolder}/${fileId}` : fileId;
+        const key = s3Config.rootFolder ? `${s3Config.rootFolder}/${fileKey}` : fileKey;
         datasetPath = `/vsis3/${s3Config.bucketName}/${key}`;
 
         // If it's a ZIP file on S3, we'd need to handle it differently
@@ -216,8 +218,8 @@ export default class FileService {
 
       const result: ExtractedFilePath = {
         datasetPath,
-        tempZipExtractPath
-      }
+        tempZipExtractPath,
+      };
       return result;
     } catch (error) {
       if (error instanceof ErrorResponse) {
@@ -227,45 +229,49 @@ export default class FileService {
     }
   };
 
-  extractMetadata = async (fileId: string): Promise<FileMetadata> => {
+  getDataLayer = (layers: gdal.DatasetLayers): { layer: gdal.Layer; geometryDetected: boolean } => {
+    let layer: gdal.Layer | null = null;
+    let geometryDetected = false;
+
+    for (let i = 0; i < layers.count(); i++) {
+      const currentLayer = layers.get(i);
+      // Check that layer contains point or polygon geometry
+      const layerGeometry = currentLayer.geomType;
+      if (!layerGeometry) {
+        continue;
+      }
+      geometryDetected = layerGeometry !== gdal.wkbNone;
+      if (!allowedGeometryTypes.includes(layerGeometry)) {
+        continue;
+      }
+      // Valid layer found
+      layer = currentLayer;
+      break;
+    }
+
+    if (!layer) {
+      if (geometryDetected) {
+        throw new ErrorResponse('Only Point or Polygon geometry types are supported.', StatusCodes.BAD_REQUEST);
+      } else {
+        throw new ErrorResponse('No vector layers found in input file.', StatusCodes.BAD_REQUEST);
+      }
+    }
+
+    if (layer.features.count() === 0) {
+      throw new ErrorResponse('No features found in input file', StatusCodes.BAD_REQUEST);
+    }
+    return { layer, geometryDetected };
+  };
+
+  extractMetadata = async (fileKey: string): Promise<FileMetadata> => {
     let datasetPath: string;
     let tempZipExtractPath: string | null = null;
     try {
-      ({ datasetPath, tempZipExtractPath } = await this.getDatasetPath(fileId));
+      ({ datasetPath, tempZipExtractPath } = await FileService.getDatasetPath(fileKey));
 
       // Open dataset with GDAL
       const dataset = await gdal.openAsync(datasetPath);
-
-      let layer: any = null;
-      let geometryDetected = false;
-
-      for (let i = 0; i < dataset.layers.count(); i++) {
-        const currentLayer = dataset.layers.get(i);
-        // Check that layer contains point or polygon geometry
-        const layerGeometry = currentLayer.geomType;
-        if (!layerGeometry) {
-          continue;
-        }
-        geometryDetected = layerGeometry !== gdal.wkbNone;
-        if (!allowedGeometryTypes.includes(layerGeometry)) {
-          continue;
-        }
-        // Valid layer found
-        layer = currentLayer;
-        break;
-      }
-
-      if (!layer) {
-        if (geometryDetected) {
-          throw new ErrorResponse('Only Point or Polygon geometry types are supported.', StatusCodes.BAD_REQUEST);
-        } else {
-          throw new ErrorResponse('No vector layers found in input file.', StatusCodes.BAD_REQUEST);
-        }
-      }
-
-      if (layer.features.count() === 0) {
-        throw new ErrorResponse('No features found in input file', StatusCodes.BAD_REQUEST);
-      }
+      const { layer, geometryDetected } = this.getDataLayer(dataset.layers);
 
       // Extract field names
       const fieldNames: string[] = [];
@@ -368,36 +374,67 @@ export default class FileService {
     }
   };
 
-  fileToTable = async (fileId: string, fileMetadata: FileMetadata): Promise<any> => {
+  fileToDB = async (fileId: string, fileKey: string, fileMetadata: FileMetadata) => {
     let datasetPath: string;
     let tempZipExtractPath: string | null = null;
-    let gdalOpts: string[] = ['-f', 'PostgreSQL', '-explodecollections', '-t_srs', 'EPSG:4326', '--config', 'PG_USE_COPY=YES', '-lco', 'FID=record_id', '-lco', 'SPATIAL_INDEX=NONE', '-lco', 'GEOMETRY_NAME=geometry', '-oo', 'EMPTY_STRING_AS_NULL=YES', '-oo', 'AUTODETECT_TYPE=YES'];
-    const tableName = `"file_${fileId}_raw"`
-    gdalOpts.push('-nln', tableName)
+    const gdalOpts: string[] = [
+      '-f',
+      'PostgreSQL',
+      '-explodecollections',
+      '-t_srs',
+      'EPSG:4326',
+      '-lco',
+      'FID=record_id',
+      '-lco',
+      'SPATIAL_INDEX=NONE',
+      '-lco',
+      'LAUNDER=NO',
+      '-lco',
+      'GEOMETRY_NAME=geometry',
+      '-oo',
+      'EMPTY_STRING_AS_NULL=YES',
+      '-oo',
+      'AUTODETECT_TYPE=YES',
+    ];
+    const tableName = `file_${sanitizeField(fileId)}_raw`;
+    gdalOpts.push('-nln', tableName);
+    const selectClause = fileMetadata.field_names.map(field => `"${field}" AS ${sanitizeField(field)}`).join(', ');
 
     try {
-      ({ datasetPath, tempZipExtractPath } = await this.getDatasetPath(fileId));
+      if (fileMetadata.field_names.length === 0) {
+        throw new ErrorResponse('No data besides geometry detected', StatusCodes.BAD_REQUEST);
+      }
+      ({ datasetPath, tempZipExtractPath } = await FileService.getDatasetPath(fileKey));
 
       if (!fileMetadata.geometry_detected) {
         if (fileMetadata.detected_fields[DetectableFields.GEOMETRY]) {
           gdalOpts.push('-oo', `GEOM_POSSIBLE_NAMES=${fileMetadata.detected_fields[DetectableFields.GEOMETRY]}`);
         } else if (fileMetadata.detected_fields[DetectableFields.LATITUDE] && fileMetadata.detected_fields[DetectableFields.LONGITUDE]) {
-          gdalOpts.push('-oo', `X_POSSIBLE_NAMES=${fileMetadata.detected_fields[DetectableFields.LONGITUDE]}`, '-oo', `Y_POSSIBLE_NAMES=${fileMetadata.detected_fields[DetectableFields.LATITUDE]}`);
+          gdalOpts.push(
+            '-oo',
+            `X_POSSIBLE_NAMES=${fileMetadata.detected_fields[DetectableFields.LONGITUDE]}`,
+            '-oo',
+            `Y_POSSIBLE_NAMES=${fileMetadata.detected_fields[DetectableFields.LATITUDE]}`,
+          );
         } else {
           throw new ErrorResponse('Geometry not found in input file.', StatusCodes.BAD_REQUEST);
         }
       }
 
       if (fileMetadata.detected_fields[DetectableFields.CRS]) {
-        gdalOpts.push('-s_srs', `"${fileMetadata.detected_fields[DetectableFields.CRS]}"`);
+        gdalOpts.push('-s_srs', `${fileMetadata.detected_fields[DetectableFields.CRS]}`);
       }
-  
       // Open dataset with GDAL
       const dataset = await gdal.openAsync(datasetPath);
-      const pgDataset = `PG:"host=${process.env.POSTGRES_HOST} post=${process.env.POSTGRES_PORT} user=${process.env.POSTGRES_USER} dbname=${process.env.POSTGRES_DB} password=${process.env.POSTGRES_PASSWORD} schemas=${process.env.POSTGRES_SCHEMA}"`;
-      const loadedDataset = await gdal.vectorTranslateAsync(pgDataset, dataset, gdalOpts);
-      
-      return loadedDataset;
+      const { layer } = this.getDataLayer(dataset.layers);
+      gdalOpts.push('-sql', `SELECT ${selectClause} FROM ${layer.name}`);
+      const pgDataset =
+        `PG:host=${process.env.POSTGRES_HOST} port=${process.env.POSTGRES_PORT} user=${process.env.POSTGRES_USER} dbname=${process.env.POSTGRES_DB} password=${process.env.POSTGRES_PASSWORD} schemas=${process.env.POSTGRES_SCHEMA}`.replace(
+          /\n/g,
+          ' ',
+        );
+      gdalOpts.unshift(layer.name);
+      await gdal.vectorTranslateAsync(pgDataset, dataset, gdalOpts);
     } catch (error) {
       if (error instanceof ErrorResponse) {
         throw error;

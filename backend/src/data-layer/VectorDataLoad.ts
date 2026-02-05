@@ -6,18 +6,16 @@ import LicenseEntity from '../entities/License';
 import LayerEntity from '../entities/Layer';
 import DatasetLayerEntity from '../entities/DatasetLayer';
 import ObservationEntity from '../entities/Observation';
+import { sanitizeField } from '../utils/utils';
 
 export default class VectorDataLoad {
-  /**
-   * TODO: add remaining ingestion related functions (load raw data), rename DataPreview (clashing concept)
-   */
   getDataPreview = async (
     entityManager: EntityManager,
     dataMappingConfig: DataCleaningConfig,
     nRecords: number = DATA_PREVIEW_SIZE,
     includeGeom: boolean = true,
   ): Promise<any> => {
-    let query = await entityManager.createQueryBuilder().from(`file_${dataMappingConfig.file_id}_raw`, 'raw');
+    let query = entityManager.createQueryBuilder().from(`file_${sanitizeField(dataMappingConfig.file_id)}_raw`, 'raw');
     query = getDataPreviewQuery(query, dataMappingConfig, includeGeom);
     // Workaround using raw query to be able to use dynamic table name without entity
     const results = await entityManager.query(...query.take(nRecords).getQueryAndParameters());
@@ -29,8 +27,8 @@ export default class VectorDataLoad {
     dataMappingConfig: DataCleaningConfig,
     recordId: number,
     datasetId: string,
-  ): Promise<any> => {
-    let subQuery = await entityManager.createQueryBuilder().from(`file_${dataMappingConfig.file_id}_raw`, 'raw');
+  ) => {
+    let subQuery = entityManager.createQueryBuilder().from(`file_${sanitizeField(dataMappingConfig.file_id)}_raw`, 'raw');
     subQuery = getDataPreviewQuery(subQuery, dataMappingConfig);
 
     const record = await entityManager
