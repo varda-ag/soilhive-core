@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.26.1 (2026-02-05)
+
+## What's Changed
+* fix(be): :truck: harmonized slug utils file by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/170
+* refactor: :bug: fixing test dependency from .env file, adding slug to… by @svaccari in https://github.com/varda-ag/soilhive-core/pull/172
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.26.0...v0.26.1
+
 ## 0.26.0 (2026-02-05)
 
 ## What's Changed
