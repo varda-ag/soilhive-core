@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import DatasetService from '../services/DatasetService';
 import { CreateDatasetInput, UpdateDatasetInput } from '../types/DatasetInput';
 import StatusCodes from 'http-status-codes';
-import { getNewPath } from '../utils/slug';
+import { getNewPath } from '../utils/slugs';
 
 const datasetService = new DatasetService();
 
