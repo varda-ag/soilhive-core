@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.26.0 (2026-02-05)
+
+## What's Changed
+* feat: sp-4839 POST /soil-data endpoint (cleaned record to data model) by @d-rom in https://github.com/varda-ag/soilhive-core/pull/154
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.25.2...v0.26.0
+
 ## 0.25.2 (2026-02-05)
 
 ## What's Changed

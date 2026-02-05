@@ -170,6 +170,8 @@ describe('Testing /data-filters routes', () => {
     const resCoverage = await request(app).get(`/data-filters/${id}/coverage`);
     const results: FilteredDataset[] = resCoverage.body;
     expect(results.length).toBe(1);
+    expect(results[0].name).toBe(dataset.name);
+    expect(results[0].slug).toBe(dataset.slug);
     expect(results[0].dataset_layer_count).toBe(layers);
     expect(results[0].soil_properties).toContain('prop1');
     expect(results[0].soil_properties).toContain('prop2');

@@ -1,5 +1,5 @@
 import cors from 'cors';
-import 'dotenv/config';
+import { config } from 'dotenv';
 import express, { Application } from 'express';
 import swaggerUi from 'swagger-ui-express';
 import { errorMiddleware } from './middlewares/error';
@@ -8,6 +8,11 @@ import { transactionMiddleware } from './middlewares/transaction';
 import { isJest } from './utils/utils';
 import { initializeSchema } from './utils/data-source';
 import { setupCLI } from './utils/cli';
+
+if (process.env.NODE_ENV !== 'test') {
+  // Load local .env only outside tests
+  config({ path: '.env' });
+}
 
 export const app: Application = express();
 

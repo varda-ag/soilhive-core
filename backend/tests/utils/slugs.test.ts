@@ -10,6 +10,7 @@ import { EntityManager } from 'typeorm';
 import SoilPropertyCategoryEntity from '../../src/entities/SoilPropertyCategory';
 import SlugHistoryEntity from '../../src/entities/SlugHistory';
 import FileEntity from '../../src/entities/File';
+import { getNewPath } from '../../src/utils/slugs';
 
 let requestData: RequestData;
 let entityManager: EntityManager;
@@ -112,5 +113,27 @@ describe('getEntities', () => {
       .execute();
     const result = await getEntities(requestData, FileEntity, EntityType.FILE, ['slug-file-2', 'slug-file-1']);
     expect(result.map(e => e.id)).toEqual([file2.id, file1.id]);
+  });
+});
+
+describe('getNewPath', () => {
+  it('should replace the old slug with the new slug in a simple path', () => {
+    const originalUrl = '/api/datasets/old-dataset-name';
+    const oldSlug = 'old-dataset-name';
+    const newSlug = 'new-shiny-dataset';
+
+    const result = getNewPath(originalUrl, oldSlug, newSlug);
+
+    expect(result).toBe('/api/datasets/new-shiny-dataset');
+  });
+
+  it('should preserve query parameters when replacing the slug', () => {
+    const originalUrl = '/api/datasets/old-slug?version=1&sort=desc';
+    const oldSlug = 'old-slug';
+    const newSlug = 'new-slug';
+
+    const result = getNewPath(originalUrl, oldSlug, newSlug);
+
+    expect(result).toBe('/api/datasets/new-slug?version=1&sort=desc');
   });
 });

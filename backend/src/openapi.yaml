@@ -504,7 +504,7 @@ paths:
           schema:
             type: string
             enum:
-            - dataset
+            - dataset_slug
             - dataset_name
             - extractant_concentration
             - extractant_formulation
@@ -524,7 +524,7 @@ paths:
             - standard_unit
             - technique
             - value
-            - -dataset
+            - -dataset_slug
             - -dataset_name
             - -extractant_concentration
             - -extractant_formulation
@@ -855,6 +855,9 @@ components:
             id:
               type: string
               description: Dataset identifier
+            slug:
+              type: string
+              description: Dataset slug
             name:
               type: string
               description: Human-readable dataset name
@@ -893,12 +896,96 @@ components:
     SoilDataSample:
       type: object
       properties:
-        dataset:
+        id:
           type: string
+          description: Unique identifier for the soil data sample
+        dataset_slug:
+          type: string
+          description: Slug identifier for the dataset
+        dataset_name:
+          type: string
+          description: Human-readable dataset name
         soil_property:
           type: string
+          description: Full name of the soil property measured
+        property_acronym:
+          type: string
+          description: Acronym or shorthand for the soil property
+        standard_unit:
+          type: string
+          description: Standard unit of measurement for the value
         value:
           type: number
+          description: Measured numerical value
+        geometry:
+          type: object
+          description: Spatial representation of the sample location
+        license_name:
+          type: string
+          description: Name of the data license
+        sampling_date:
+          type: string
+          format: date
+          nullable: true
+          description: Sampling date, if available
+        min_depth:
+          type: number
+          nullable: true
+          description: Minimum sampling depth in centimeters
+        max_depth:
+          type: number
+          nullable: true
+          description: Maximum sampling depth in centimeters
+        horizon:
+          type: string
+          nullable: true
+          description: Soil horizon name or code
+        sample_pretreatment:
+          type: string
+          nullable: true
+          description: Pretreatment applied before analysis
+        technique:
+          type: string
+          nullable: true
+          description: Analytical or experimental technique used
+        extractant_formulation:
+          type: string
+          nullable: true
+          description: Extractant chemical composition
+        extractant_concentration:
+          type: string
+          nullable: true
+          description: Extractant concentration details
+        extraction_ratio:
+          type: string
+          nullable: true
+          description: Ratio of sample to extractant used
+        extraction_base:
+          type: string
+          nullable: true
+          description: Base or solvent used in extraction
+        instrument:
+          type: string
+          nullable: true
+          description: Instrument or device used for analysis
+        limit_of_detection:
+          type: string
+          nullable: true
+          description: Limit of detection for the measurement
+        cursor:
+          type: string
+          description: Cursor for pagination or sequential retrieval
+      required:
+        - id
+        - dataset_slug
+        - dataset_name
+        - soil_property
+        - property_acronym
+        - standard_unit
+        - value
+        - geometry
+        - license_name
+        - cursor
 
     MeasuredProperty:
       type: object
