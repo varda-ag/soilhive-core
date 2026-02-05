@@ -1,9 +1,8 @@
-import { StatusCodes } from 'http-status-codes';
-import { In } from 'typeorm';
 import { RequestData } from '../interfaces/RequestData';
-import { ErrorResponse } from '../utils/error';
 import { UnitConversion } from '../interfaces/UnitConversion';
 import UnitConversionEntity from '../entities/UnitConversion';
+import { getEntity, getEntities } from '../utils/slugs';
+import { EntityType } from '../types/data';
 
 export default class UnitConversionService {
   getUnitConversions = async (requestData: RequestData): Promise<UnitConversion[]> => {
@@ -12,16 +11,10 @@ export default class UnitConversionService {
   };
 
   getUnitConversion = async (requestData: RequestData, slug: string): Promise<UnitConversion> => {
-    const repo = requestData.entityManager.getRepository(UnitConversionEntity);
-    const unitConversion = await repo.findOneBy({ slug });
-    if (!unitConversion) {
-      throw new ErrorResponse(`Unit conversion ${slug} not found`, StatusCodes.NOT_FOUND);
-    }
-    return unitConversion;
+    return await getEntity(requestData, UnitConversionEntity, EntityType.UNIT_CONVERSION, slug);
   };
 
-  getUnitConversionsBySlug = async (requestData: RequestData, slugs: string[]) => {
-    const repo = requestData.entityManager.getRepository(UnitConversionEntity);
-    return await repo.findBy({ slug: In(slugs) });
+  getUnitConversionsBySlug = async (requestData: RequestData, slugs: string[]): Promise<UnitConversion[]> => {
+    return await getEntities(requestData, UnitConversionEntity, EntityType.UNIT_CONVERSION, slugs);
   };
 }
