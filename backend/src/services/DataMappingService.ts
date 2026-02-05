@@ -12,7 +12,6 @@ import { REQUIRED_METADATA_FIELDS } from '../constants/constants';
 import UnitConversionService from './UnitConversionService';
 import SoilPropertyService from './SoilPropertyService';
 import ProcedureService from './ProcedureService';
-import FileService from './FileService';
 import { sanitizeField } from '../utils/utils';
 
 export default class DataMappingService {
@@ -30,13 +29,10 @@ export default class DataMappingService {
     return newRow;
   };
 
-  parseDataMapping = async (requestData: RequestData, id: string, fileSlug: string): Promise<DataCleaningConfig> => {
-    const fService = new FileService();
-    const file = await fService.getFile(requestData, fileSlug);
+  parseDataMapping = async (requestData: RequestData, id: string): Promise<DataCleaningConfig> => {
     const result: DataCleaningConfig = {
       metadata_cols: {},
       property_cols: {},
-      file_id: file.id,
     };
     const dataMapping = await this.getDataMapping(requestData, id);
 
@@ -56,7 +52,7 @@ export default class DataMappingService {
     );
 
     const propertySlugs: string[] = Object.values(dataMapping)
-      .filter(mapping => typeof mapping === 'object')
+      .filter(mapping => typeof mapping === 'object' && (mapping as PropertyMapping).property_slug !== undefined)
       .map(mapping => (mapping as PropertyMapping).property_slug);
 
     const spService = new SoilPropertyService();

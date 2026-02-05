@@ -1,9 +1,8 @@
-import { StatusCodes } from 'http-status-codes';
-import { In } from 'typeorm';
 import { RequestData } from '../interfaces/RequestData';
-import { ErrorResponse } from '../utils/error';
 import { SoilProperty } from '../interfaces/SoilProperty';
 import SoilPropertyEntity from '../entities/SoilProperty';
+import { getEntity, getEntities } from '../utils/slugs';
+import { EntityType } from '../types/data';
 
 export default class SoilPropertyService {
   getSoilProperties = async (requestData: RequestData): Promise<SoilProperty[]> => {
@@ -12,16 +11,10 @@ export default class SoilPropertyService {
   };
 
   getSoilProperty = async (requestData: RequestData, slug: string): Promise<SoilProperty> => {
-    const repo = requestData.entityManager.getRepository(SoilPropertyEntity);
-    const soilProperty = await repo.findOneBy({ slug });
-    if (!soilProperty) {
-      throw new ErrorResponse(`Soil property ${slug} not found`, StatusCodes.NOT_FOUND);
-    }
-    return soilProperty;
+    return await getEntity(requestData, SoilPropertyEntity, EntityType.SOIL_PROPERTY, slug);
   };
 
-  getSoilPropertiesBySlug = async (requestData: RequestData, slugs: string[]) => {
-    const repo = requestData.entityManager.getRepository(SoilPropertyEntity);
-    return await repo.findBy({ slug: In(slugs) });
+  getSoilPropertiesBySlug = async (requestData: RequestData, slugs: string[]): Promise<SoilProperty[]> => {
+    return await getEntities(requestData, SoilPropertyEntity, EntityType.SOIL_PROPERTY, slugs);
   };
 }

@@ -8,6 +8,7 @@ import FeatureEntity from '../../src/entities/Feature';
 import LayerEntity from '../../src/entities/Layer';
 import DatasetLayerEntity from '../../src/entities/DatasetLayer';
 import ObservationEntity from '../../src/entities/Observation';
+import { SoilRecord } from '../../src/interfaces/Record';
 
 describe('VectorDataLoad class', () => {
   it('Data preview should be generated based on parsed data mapping', async () => {
@@ -26,8 +27,8 @@ describe('VectorDataLoad class', () => {
       token: mockToken,
     };
     const service = new DataMappingService();
-    const dataMappingConfig = await service.parseDataMapping(requestData, dataMapping.id, file.slug);
-    const results = await vdl.getDataPreview(entityManager, dataMappingConfig);
+    const dataMappingConfig = await service.parseDataMapping(requestData, dataMapping.id);
+    const results = await vdl.getDataPreview(entityManager, dataMappingConfig, file.id);
     expect(results.length).toBe(DATA_PREVIEW_SIZE - (dataMappingConfig.drop_records ? dataMappingConfig.drop_records.length : 0));
     const resultBdfi33 = results.map(r => parseFloat(r.bdfi33)).filter(n => !isNaN(n));
     const maxBdfi33 = resultBdfi33.length ? Math.max(...resultBdfi33) : null;
@@ -55,8 +56,9 @@ describe('VectorDataLoad class', () => {
       token: mockToken,
     };
     const service = new DataMappingService();
-    const dataMappingConfig = await service.parseDataMapping(requestData, dataMapping.id, file.slug);
-    await vdl.rawRecordToDataModel(entityManager, dataMappingConfig, 10002, dataset.id);
+    const dataMappingConfig = await service.parseDataMapping(requestData, dataMapping.id);
+    const record = (await vdl.getDataPreview(entityManager, dataMappingConfig, file.id, 1))[0] as SoilRecord;
+    await vdl.rawRecordToDataModel(entityManager, dataMappingConfig, record, dataset.id);
     const features = await entityManager.find(FeatureEntity);
     expect(features.length).toBeGreaterThan(0);
     const layers = await entityManager.find(LayerEntity);

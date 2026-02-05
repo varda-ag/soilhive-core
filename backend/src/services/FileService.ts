@@ -13,12 +13,14 @@ import { LocalStorageConfig, S3StorageConfig, StorageConfig } from '../interface
 import { RequestData } from '../interfaces/RequestData';
 import { File, FileMetadata, ExtractedFilePath } from '../interfaces/File';
 import { ErrorResponse } from '../utils/error';
+import { getEntity } from '../utils/slugs';
+import { sanitizeField } from '../utils/utils';
 import { StorageModes } from '../types/enums';
+import { EntityType } from '../types/data';
 import { DetectableFields } from '../types/DataMapping';
 import ConfigService from './ConfigService';
 import { LOGO_FILE_ID } from '../constants/constants';
 import FileEntity from '../entities/File';
-import { sanitizeField } from '../utils/utils';
 
 const allowedGeometryTypes = [
   gdal.wkbNone, // This allows generic tabular file support
@@ -102,12 +104,7 @@ export default class FileService {
   };
 
   getFile = async (requestData: RequestData, slug: string): Promise<File> => {
-    const repo = requestData.entityManager.getRepository(FileEntity);
-    const file = await repo.findOneBy({ slug });
-    if (!file) {
-      throw new ErrorResponse(`File ${slug} not found`, StatusCodes.NOT_FOUND);
-    }
-    return file;
+    return await getEntity(requestData, FileEntity, EntityType.FILE, slug);
   };
 
   /**
