@@ -1282,7 +1282,6 @@ components:
         upper_depth: "min_depth"
         lower_depth: "max_depth"
         date: "sampling_date"
-        drop_records: [0, 5, 12]
 
     PropertyMapping:
       type: object
@@ -1301,7 +1300,7 @@ components:
         max_val:
           type: number
           description: Optional maximum value constraint
-        procedure_slug:
+        procedure_id:
           type: string
           description: Optional slug for the procedure
 
