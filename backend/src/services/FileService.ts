@@ -161,7 +161,7 @@ export default class FileService {
 
   private static detectField = (fields: string[], expected: string[], partialMatch: boolean): string | null => {
     for (const field of fields) {
-      const cleanField = sanitizeField(field);
+      const cleanField = sanitizeField(field, true);
       if (expected.includes(cleanField)) {
         return field;
       }
@@ -170,7 +170,7 @@ export default class FileService {
       return null;
     }
     for (const field of fields) {
-      const cleanField = field.toLowerCase().replace(/[^a-z]/g, '');
+      const cleanField = sanitizeField(field, true);
       for (const p of expected) {
         if (cleanField.includes(p)) {
           return field;
