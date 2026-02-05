@@ -145,7 +145,7 @@ describe('Testing /soil-data routes', () => {
     expect(soilProperties).toContain('multi1');
     expect(soilProperties).toContain('multi2');
     // Verify data contains entries from both datasets
-    const datasetSlugs = soilDataRes.body.map((item: any) => item.dataset);
+    const datasetSlugs = soilDataRes.body.map((item: any) => item.dataset_slug);
     expect(datasetSlugs).toContain(data1.dataset.slug);
     expect(datasetSlugs).toContain(data2.dataset.slug);
   });
@@ -259,11 +259,11 @@ describe('Testing /soil-data routes', () => {
     const filterId = await createFilter([0, 0, 10, 10]);
 
     // Test sorting by dataset (should be consistent since all same dataset)
-    const datasetAscRes = await request(app).get(`/soil-data?filterId=${filterId}&datasets=${dataset.slug}&limit=100&sort=dataset`);
+    const datasetAscRes = await request(app).get(`/soil-data?filterId=${filterId}&datasets=${dataset.slug}&limit=100&sort=dataset_slug`);
     expect(datasetAscRes.statusCode).toBe(200);
     expect(datasetAscRes.body.length).toBeGreaterThan(0);
 
-    const datasetDescRes = await request(app).get(`/soil-data?filterId=${filterId}&datasets=${dataset.slug}&limit=100&sort=-dataset`);
+    const datasetDescRes = await request(app).get(`/soil-data?filterId=${filterId}&datasets=${dataset.slug}&limit=100&sort=-dataset_slug`);
     expect(datasetDescRes.statusCode).toBe(200);
     expect(datasetDescRes.body.length).toBe(datasetAscRes.body.length);
 
@@ -360,7 +360,7 @@ describe('Testing /soil-data routes', () => {
     expect(soilProperties).toContain('prop1');
     expect(soilProperties).not.toContain('prop2');
     // Verify data contains entries from only dataset1
-    const datasetSlugs = soilDataRes.body.map((item: any) => item.dataset);
+    const datasetSlugs = soilDataRes.body.map((item: any) => item.dataset_slug);
     expect(datasetSlugs).toContain(data1.dataset.slug);
     expect(datasetSlugs).not.toContain(data2.dataset.slug);
   });
