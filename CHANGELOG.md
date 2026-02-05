@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.25.2 (2026-02-05)
+
+## What's Changed
+* fix(BE): fix dataset redirect path by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/166
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.25.1...v0.25.2
+
 ## 0.25.1 (2026-02-04)
 
 ## What's Changed
