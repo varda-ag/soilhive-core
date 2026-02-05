@@ -1,0 +1,20 @@
+import { Request, Response } from 'express';
+import DataMappingService from '../services/DataMappingService';
+
+const dataMappingService = new DataMappingService();
+
+export const createDataMapping = async (req: Request, res: Response) => {
+  const apiInput = req.body;
+
+  const dataMapping = await dataMappingService.postDataMapping(req.customData, apiInput);
+
+  res.json(dataMapping);
+};
+
+export const getDataMapping = async (req: Request, res: Response) => {
+  const id = req.params['mappingId']!;
+
+  const dataMapping = await dataMappingService.getDataMapping(req.customData, id);
+
+  res.json(dataMapping);
+};

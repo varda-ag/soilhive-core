@@ -16,6 +16,11 @@ import { sanitizeField } from '../utils/utils';
 
 export default class DataMappingService {
   postDataMapping = async (requestData: RequestData, dataMapping: DataMappingObject): Promise<DataMapping> => {
+    const { sub } = requestData.token;
+    if (!sub) {
+      throw new ErrorResponse('Token subject is missing', StatusCodes.UNAUTHORIZED);
+    }
+
     // Validate
     if (dataMapping.drop_records && !Array.isArray(dataMapping.drop_records)) {
       throw new ErrorResponse(`drop_records must be an array of numbers`, StatusCodes.BAD_REQUEST);
@@ -24,6 +29,7 @@ export default class DataMappingService {
     const repo = requestData.entityManager.getRepository(DataMappingEntity);
     const newRow = new DataMappingEntity();
     newRow.data_mapping = dataMapping;
+    newRow.created_by = sub;
     await repo.save(newRow);
 
     return newRow;
@@ -34,11 +40,11 @@ export default class DataMappingService {
       metadata_cols: {},
       property_cols: {},
     };
-    const dataMapping = await this.getDataMapping(requestData, id);
+    const { data_mapping } = await this.getDataMapping(requestData, id);
 
-    const conversionSlugs: string[] = Object.values(dataMapping)
-      .filter(mapping => typeof mapping === 'object' && (mapping as PropertyMapping).conversion_slug !== undefined)
-      .map(mapping => (mapping as PropertyMapping).conversion_slug!);
+    const conversionSlugs: string[] = Object.values(data_mapping)
+      .filter(mapping => typeof mapping === 'object' && (mapping as PropertyMapping).conversion_id !== undefined)
+      .map(mapping => (mapping as PropertyMapping).conversion_id!);
 
     const ucService = new UnitConversionService();
     const ucInfos = await ucService.getUnitConversionsBySlug(requestData, conversionSlugs);
@@ -51,9 +57,9 @@ export default class DataMappingService {
       {} as Map<string, UnitConversionEntity>,
     );
 
-    const propertySlugs: string[] = Object.values(dataMapping)
-      .filter(mapping => typeof mapping === 'object' && (mapping as PropertyMapping).property_slug !== undefined)
-      .map(mapping => (mapping as PropertyMapping).property_slug);
+    const propertySlugs: string[] = Object.values(data_mapping)
+      .filter(mapping => typeof mapping === 'object' && (mapping as PropertyMapping).property_id !== undefined)
+      .map(mapping => (mapping as PropertyMapping).property_id);
 
     const spService = new SoilPropertyService();
     const spInfos = await spService.getSoilPropertiesBySlug(requestData, propertySlugs);
@@ -66,9 +72,9 @@ export default class DataMappingService {
       {} as Map<string, SoilPropertyEntity>,
     );
 
-    const procedureSlugs: string[] = Object.values(dataMapping)
-      .filter(mapping => typeof mapping === 'object' && (mapping as PropertyMapping).procedure_slug !== undefined)
-      .map(mapping => (mapping as PropertyMapping).procedure_slug!);
+    const procedureSlugs: string[] = Object.values(data_mapping)
+      .filter(mapping => typeof mapping === 'object' && (mapping as PropertyMapping).procedure_id !== undefined)
+      .map(mapping => (mapping as PropertyMapping).procedure_id!);
 
     const pService = new ProcedureService();
     const pInfos = await pService.getProceduresBySlug(requestData, procedureSlugs);
@@ -82,17 +88,18 @@ export default class DataMappingService {
     );
 
     // Process metadata (string types) and property columns (object types)
-    for (const [field, mapping] of Object.entries(dataMapping)) {
-      const sanitizedField = sanitizeField(field);
+    for (const [field, mapping] of Object.entries(data_mapping)) {
+      // TODO: update based on raw data load configuration (by default ogr2ogr converts to lowercase, option LAUNDER_ASCII=YES removes latin special characters, columns can be renamed with -sql option)
+      const sanitizedField = field.toLowerCase().replace(/[^a-z0-9_]/g, '');
       if (sanitizedField === 'drop_records') continue;
       if (typeof mapping === 'string' || mapping instanceof String) {
         result.metadata_cols[sanitizeField(mapping as string)] = sanitizedField;
       } else if (typeof mapping === 'object') {
         const props = mapping as PropertyMapping;
         const propsProcessed: PropertyCleaningConfig = props;
-        const spInfo = spInfoMap[props.property_slug];
-        const ucInfo = props.conversion_slug ? (ucInfoMap[props.conversion_slug] ?? null) : null;
-        const pInfo = props.procedure_slug ? (pInfoMap[props.procedure_slug] ?? null) : null;
+        const spInfo = spInfoMap[props.property_id];
+        const ucInfo = props.conversion_id ? (ucInfoMap[props.conversion_id] ?? null) : null;
+        const pInfo = props.procedure_id ? (pInfoMap[props.procedure_id] ?? null) : null;
         propsProcessed.property_id = spInfo.id;
         propsProcessed.conversion_formula = ucInfo?.conversion_formula;
         propsProcessed.procedure_id = pInfo?.id;
@@ -104,18 +111,18 @@ export default class DataMappingService {
         result.metadata_cols[requiredField] = null;
       }
     }
-    if (dataMapping.drop_records && Array.isArray(dataMapping.drop_records)) {
-      result.drop_records = dataMapping.drop_records;
+    if (data_mapping.drop_records && Array.isArray(data_mapping.drop_records)) {
+      result.drop_records = data_mapping.drop_records;
     }
     return result;
   };
 
-  getDataMapping = async (requestData: RequestData, id: string): Promise<DataMappingObject> => {
+  getDataMapping = async (requestData: RequestData, id: string): Promise<DataMapping> => {
     const repo = requestData.entityManager.getRepository(DataMappingEntity);
     const dataMapping = await repo.findOneBy({ id });
     if (!dataMapping) {
       throw new ErrorResponse(`Data mapping ${id} not found`, StatusCodes.NOT_FOUND);
     }
-    return dataMapping.data_mapping;
+    return dataMapping;
   };
 }
