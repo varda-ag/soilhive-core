@@ -987,7 +987,7 @@ components:
     MeasuredProperty:
       type: object
       properties:
-        soil_parameter_id:
+        soil_property_id:
           type: string
         procedure_id:
           type: string
