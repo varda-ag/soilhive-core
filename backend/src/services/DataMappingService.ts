@@ -12,6 +12,7 @@ import { REQUIRED_METADATA_FIELDS } from '../constants/constants';
 import UnitConversionService from './UnitConversionService';
 import SoilPropertyService from './SoilPropertyService';
 import ProcedureService from './ProcedureService';
+import { sanitizeField } from '../utils/utils';
 
 export default class DataMappingService {
   postDataMapping = async (requestData: RequestData, dataMapping: DataMappingObject): Promise<DataMapping> => {
@@ -82,11 +83,10 @@ export default class DataMappingService {
 
     // Process metadata (string types) and property columns (object types)
     for (const [field, mapping] of Object.entries(dataMapping)) {
-      // TODO: update based on raw data load configuration (by default ogr2ogr converts to lowercase, option LAUNDER_ASCII=YES removes latin special characters, columns can be renamed with -sql option)
-      const sanitizedField = field.toLowerCase().replace(/[^a-z0-9_]/g, '');
+      const sanitizedField = sanitizeField(field);
       if (sanitizedField === 'drop_records') continue;
       if (typeof mapping === 'string' || mapping instanceof String) {
-        result.metadata_cols[mapping as string] = sanitizedField;
+        result.metadata_cols[sanitizeField(mapping as string)] = sanitizedField;
       } else if (typeof mapping === 'object') {
         const props = mapping as PropertyMapping;
         const propsProcessed: PropertyCleaningConfig = props;

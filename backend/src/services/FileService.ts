@@ -11,15 +11,16 @@ import { FlystorageMulterStorageEngine } from '@flystorage/multer-storage';
 import * as gdal from 'gdal-async';
 import { LocalStorageConfig, S3StorageConfig, StorageConfig } from '../interfaces/StorageConfig';
 import { RequestData } from '../interfaces/RequestData';
-import { File, FileMetadata } from '../interfaces/File';
+import { File, FileMetadata, ExtractedFilePath } from '../interfaces/File';
 import { ErrorResponse } from '../utils/error';
+import { getEntity } from '../utils/slugs';
+import { sanitizeField } from '../utils/utils';
 import { StorageModes } from '../types/enums';
+import { EntityType } from '../types/data';
 import { DetectableFields } from '../types/DataMapping';
 import ConfigService from './ConfigService';
 import { LOGO_FILE_ID } from '../constants/constants';
 import FileEntity from '../entities/File';
-import { getEntity } from '../utils/slugs';
-import { EntityType } from '../types/data';
 
 const allowedGeometryTypes = [
   gdal.wkbNone, // This allows generic tabular file support
@@ -34,14 +35,14 @@ const allowedGeometryTypes = [
 ];
 
 export default class FileService {
-  exists = async (fileId: string): Promise<boolean> => {
+  exists = async (fileKey: string): Promise<boolean> => {
     const storage = await FileService.getStorageEngine();
-    return await storage.fileExists(fileId);
+    return await storage.fileExists(fileKey);
   };
 
-  deleteFile = async (fileId: string): Promise<void> => {
+  deleteFile = async (fileKey: string): Promise<void> => {
     const storage = await FileService.getStorageEngine();
-    await storage.deleteFile(fileId);
+    await storage.deleteFile(fileKey);
   };
 
   static getUploadStorageEngine = (): FlystorageMulterStorageEngine => {
@@ -54,6 +55,7 @@ export default class FileService {
           return LOGO_FILE_ID;
         }
         // Use ID parameter to setup filename
+        // TODO: replace parameter name
         return req.params['fileId']!;
       } else {
         // Return folder name/destination if needed
@@ -109,18 +111,18 @@ export default class FileService {
    * Extracts ZIP file to a temporary directory and finds the main data file
    * Looks for common geospatial file extensions in order: .shp, .gpkg, .geojson, .gml, .kml
    */
-  private static extractZipAndFindMainFile = async (zipPath: string): Promise<{ tempFolder: string; mainFilePath: string }> => {
-    const tempFolder = fs.mkdtempSync(path.join(os.tmpdir(), 'gdal-zip-tmp'));
+  private static extractZipAndFindMainFile = async (zipPath: string): Promise<{ tempZipExtractPath: string; mainFilePath: string }> => {
+    const tempZipExtractPath = fs.mkdtempSync(path.join(os.tmpdir(), 'gdal-zip-tmp'));
 
     try {
       // Extract ZIP to temporary directory using extract-zip
-      await extractZip(zipPath, { dir: tempFolder });
+      await extractZip(zipPath, { dir: tempZipExtractPath });
 
-      const files = fs.readdirSync(tempFolder);
+      const files = fs.readdirSync(tempZipExtractPath);
       if (files.length === 1) {
         // Only one file, return it
-        const mainFilePath = path.join(tempFolder, files[0]!);
-        return { tempFolder, mainFilePath };
+        const mainFilePath = path.join(tempZipExtractPath, files[0]!);
+        return { tempZipExtractPath, mainFilePath };
       }
 
       // Find main data file with common geospatial extensions
@@ -129,8 +131,8 @@ export default class FileService {
       for (const ext of extensions) {
         for (const file of files) {
           if (file.toLowerCase().endsWith(ext)) {
-            const mainFilePath = path.join(tempFolder, file);
-            return { tempFolder, mainFilePath };
+            const mainFilePath = path.join(tempZipExtractPath, file);
+            return { tempZipExtractPath, mainFilePath };
           }
         }
       }
@@ -141,7 +143,7 @@ export default class FileService {
       );
     } catch (error) {
       // Clean up on error
-      this.removeTempFolder(tempFolder);
+      this.removeTempFolder(tempZipExtractPath);
       if (error instanceof ErrorResponse) {
         throw error;
       }
@@ -159,7 +161,7 @@ export default class FileService {
 
   private static detectField = (fields: string[], expected: string[], partialMatch: boolean): string | null => {
     for (const field of fields) {
-      const cleanField = field.toLowerCase().replace(/[^a-z]/g, '');
+      const cleanField = sanitizeField(field, true);
       if (expected.includes(cleanField)) {
         return field;
       }
@@ -168,7 +170,7 @@ export default class FileService {
       return null;
     }
     for (const field of fields) {
-      const cleanField = field.toLowerCase().replace(/[^a-z]/g, '');
+      const cleanField = sanitizeField(field, true);
       for (const p of expected) {
         if (cleanField.includes(p)) {
           return field;
@@ -178,32 +180,30 @@ export default class FileService {
     return null;
   };
 
-  extractMetadata = async (fileId: string): Promise<FileMetadata> => {
+  private static getMainFilePath = async (fileKey: string): Promise<ExtractedFilePath> => {
     const config: StorageConfig = ConfigService.getStorageConfig();
-    let datasetPath: string;
+    let mainFilePath: string;
     let tempZipExtractPath: string | null = null;
 
     try {
       // Get dataset path based on storage mode
       if (config.storageMode === StorageModes.LOCAL) {
         const localConfig = config.config as LocalStorageConfig;
-        datasetPath = path.join(localConfig.rootFolder, fileId);
-        if (!fs.existsSync(datasetPath)) {
-          throw new ErrorResponse(`File ${fileId} not found`, StatusCodes.NOT_FOUND);
+        mainFilePath = path.join(localConfig.rootFolder, fileKey);
+        if (!fs.existsSync(mainFilePath)) {
+          throw new ErrorResponse(`File ${fileKey} not found`, StatusCodes.NOT_FOUND);
         }
 
         // Handle ZIP files
-        if (fileId.toLowerCase().endsWith('.zip')) {
-          const { tempFolder, mainFilePath } = await FileService.extractZipAndFindMainFile(datasetPath);
-          tempZipExtractPath = tempFolder;
-          datasetPath = mainFilePath;
+        if (fileKey.toLowerCase().endsWith('.zip')) {
+          ({ tempZipExtractPath, mainFilePath } = await FileService.extractZipAndFindMainFile(mainFilePath));
         }
       } else if (config.storageMode === StorageModes.S3) {
         // For S3, we would need to download the file first to extract it
         // For now, use GDAL's S3 VSI support (which may not support ZIP)
         const s3Config = config.config as S3StorageConfig;
-        const key = s3Config.rootFolder ? `${s3Config.rootFolder}/${fileId}` : fileId;
-        datasetPath = `/vsis3/${s3Config.bucketName}/${key}`;
+        const key = s3Config.rootFolder ? `${s3Config.rootFolder}/${fileKey}` : fileKey;
+        mainFilePath = `/vsis3/${s3Config.bucketName}/${key}`;
 
         // If it's a ZIP file on S3, we'd need to handle it differently
         // For now, this will be attempted directly with GDAL
@@ -211,39 +211,62 @@ export default class FileService {
         throw new ErrorResponse(`Unsupported storage mode: ${config.storageMode}`, StatusCodes.INTERNAL_SERVER_ERROR);
       }
 
+      const result: ExtractedFilePath = {
+        mainFilePath,
+        tempZipExtractPath,
+      };
+      return result;
+    } catch (error) {
+      if (error instanceof ErrorResponse) {
+        throw error;
+      }
+      throw new ErrorResponse(`Failed to extract file path: ${error}`, StatusCodes.BAD_REQUEST);
+    }
+  };
+
+  getDataLayer = (layers: gdal.DatasetLayers): { layer: gdal.Layer; geometryDetected: boolean } => {
+    let layer: gdal.Layer | null = null;
+    let geometryDetected = false;
+
+    for (let i = 0; i < layers.count(); i++) {
+      const currentLayer = layers.get(i);
+      // Check that layer contains point or polygon geometry
+      const layerGeometry = currentLayer.geomType;
+      if (!layerGeometry) {
+        continue;
+      }
+      geometryDetected = layerGeometry !== gdal.wkbNone;
+      if (!allowedGeometryTypes.includes(layerGeometry)) {
+        continue;
+      }
+      // Valid layer found
+      layer = currentLayer;
+      break;
+    }
+
+    if (!layer) {
+      if (geometryDetected) {
+        throw new ErrorResponse('Only Point or Polygon geometry types are supported.', StatusCodes.BAD_REQUEST);
+      } else {
+        throw new ErrorResponse('No vector layers found in input file.', StatusCodes.BAD_REQUEST);
+      }
+    }
+
+    if (layer.features.count() === 0) {
+      throw new ErrorResponse('No features found in input file', StatusCodes.BAD_REQUEST);
+    }
+    return { layer, geometryDetected };
+  };
+
+  extractMetadata = async (fileKey: string): Promise<FileMetadata> => {
+    let mainFilePath: string;
+    let tempZipExtractPath: string | null = null;
+    try {
+      ({ mainFilePath, tempZipExtractPath } = await FileService.getMainFilePath(fileKey));
+
       // Open dataset with GDAL
-      const dataset = await gdal.openAsync(datasetPath);
-
-      let layer: any = null;
-      let geometryDetected = false;
-
-      for (let i = 0; i < dataset.layers.count(); i++) {
-        const currentLayer = dataset.layers.get(i);
-        // Check that layer contains point or polygon geometry
-        const layerGeometry = currentLayer.geomType;
-        if (!layerGeometry) {
-          continue;
-        }
-        geometryDetected = layerGeometry !== gdal.wkbNone;
-        if (!allowedGeometryTypes.includes(layerGeometry)) {
-          continue;
-        }
-        // Valid layer found
-        layer = currentLayer;
-        break;
-      }
-
-      if (!layer) {
-        if (geometryDetected) {
-          throw new ErrorResponse('Only Point or Polygon geometry types are supported.', StatusCodes.BAD_REQUEST);
-        } else {
-          throw new ErrorResponse('No vector layers found in input file.', StatusCodes.BAD_REQUEST);
-        }
-      }
-
-      if (layer.features.count() === 0) {
-        throw new ErrorResponse('No features found in input file', StatusCodes.BAD_REQUEST);
-      }
+      const dataset = await gdal.openAsync(mainFilePath);
+      const { layer, geometryDetected } = this.getDataLayer(dataset.layers);
 
       // Extract field names
       const fieldNames: string[] = [];
@@ -338,6 +361,80 @@ export default class FileService {
         throw error;
       }
       throw new ErrorResponse(`Failed to extract metadata: ${error}`, StatusCodes.BAD_REQUEST);
+    } finally {
+      // Clean up temporary directory if ZIP was extracted
+      if (tempZipExtractPath) {
+        FileService.removeTempFolder(tempZipExtractPath);
+      }
+    }
+  };
+
+  fileToDB = async (fileId: string, fileKey: string, fileMetadata: FileMetadata) => {
+    let mainFilePath: string;
+    let tempZipExtractPath: string | null = null;
+    const gdalOpts: string[] = [
+      '-f',
+      'PostgreSQL',
+      '-explodecollections',
+      '-t_srs',
+      'EPSG:4326',
+      '-lco',
+      'FID=record_id',
+      '-lco',
+      'SPATIAL_INDEX=NONE',
+      '-lco',
+      'LAUNDER=NO',
+      '-lco',
+      'GEOMETRY_NAME=geometry',
+      '-oo',
+      'EMPTY_STRING_AS_NULL=YES',
+      '-oo',
+      'AUTODETECT_TYPE=YES',
+    ];
+    const tableName = `file_${sanitizeField(fileId)}_raw`;
+    gdalOpts.push('-nln', tableName);
+    const selectClause = fileMetadata.field_names.map(field => `"${field}" AS ${sanitizeField(field)}`).join(', ');
+
+    try {
+      if (fileMetadata.field_names.length === 0) {
+        throw new ErrorResponse('No data besides geometry detected', StatusCodes.BAD_REQUEST);
+      }
+      ({ mainFilePath, tempZipExtractPath } = await FileService.getMainFilePath(fileKey));
+
+      if (!fileMetadata.geometry_detected) {
+        if (fileMetadata.detected_fields[DetectableFields.GEOMETRY]) {
+          gdalOpts.push('-oo', `GEOM_POSSIBLE_NAMES=${fileMetadata.detected_fields[DetectableFields.GEOMETRY]}`);
+        } else if (fileMetadata.detected_fields[DetectableFields.LATITUDE] && fileMetadata.detected_fields[DetectableFields.LONGITUDE]) {
+          gdalOpts.push(
+            '-oo',
+            `X_POSSIBLE_NAMES=${fileMetadata.detected_fields[DetectableFields.LONGITUDE]}`,
+            '-oo',
+            `Y_POSSIBLE_NAMES=${fileMetadata.detected_fields[DetectableFields.LATITUDE]}`,
+          );
+        } else {
+          throw new ErrorResponse('Geometry not found in input file.', StatusCodes.BAD_REQUEST);
+        }
+      }
+
+      if (fileMetadata.detected_fields[DetectableFields.CRS]) {
+        gdalOpts.push('-s_srs', `${fileMetadata.detected_fields[DetectableFields.CRS]}`);
+      }
+      // Open dataset with GDAL
+      const dataset = await gdal.openAsync(mainFilePath);
+      const { layer } = this.getDataLayer(dataset.layers);
+      gdalOpts.push('-sql', `SELECT ${selectClause} FROM ${layer.name}`);
+      const pgDataset =
+        `PG:host=${process.env.POSTGRES_HOST} port=${process.env.POSTGRES_PORT} user=${process.env.POSTGRES_USER} dbname=${process.env.POSTGRES_DB} password=${process.env.POSTGRES_PASSWORD} schemas=${process.env.POSTGRES_SCHEMA}`.replace(
+          /\n/g,
+          ' ',
+        );
+      gdalOpts.unshift(layer.name);
+      await gdal.vectorTranslateAsync(pgDataset, dataset, gdalOpts);
+    } catch (error) {
+      if (error instanceof ErrorResponse) {
+        throw error;
+      }
+      throw new ErrorResponse(`Failed to load file to table: ${error}`, StatusCodes.BAD_REQUEST);
     } finally {
       // Clean up temporary directory if ZIP was extracted
       if (tempZipExtractPath) {

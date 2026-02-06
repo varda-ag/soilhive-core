@@ -20,6 +20,7 @@ import { PropertyInfo, PropertyMapping } from '../interfaces/PropertyMapping';
 import assert from 'assert';
 import path from 'path';
 import fs from 'fs';
+import { sanitizeField } from './utils';
 
 const randomInRange = (min: number, max: number): number => {
   return Math.random() * (max - min) + min;
@@ -423,7 +424,7 @@ export const addSyntheticIngestionData = async (syntheticIngestionDataOptions): 
     // Load raw data sample
     const sqlFile = path.join(__dirname, '..', '..', 'tests', 'assets', 'raw_data', 'raw_data_insert.sql');
     const sqlTemplate = fs.readFileSync(sqlFile, 'utf8');
-    const sql = sqlTemplate.replace(/{{table}}/g, `"file_${file.id}_raw"`);
+    const sql = sqlTemplate.replace(/{{table}}/g, `"file_${sanitizeField(file.id)}_raw"`);
     const dataSource = await getDataSource();
     await dataSource.query(sql);
   }
