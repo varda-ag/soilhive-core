@@ -1242,31 +1242,12 @@ components:
       required:
         - id
         - data_mapping
-        - data_mapping_hash
-        - created_at
-        - created_by
       properties:
         id:
           type: string
           description: Unique identifier for the data mapping
         data_mapping:
           $ref: '#/components/schemas/DataMappingObject'
-        data_mapping_hash:
-          type: string
-          description: Hash of the data mapping for deduplication
-        created_at:
-          type: string
-          format: date-time
-          description: Timestamp when the mapping was created
-        updated_at:
-          type: string
-          format: date-time
-          nullable: true
-          description: Timestamp when the mapping was last updated
-        created_by:
-          type: string
-          description: User who created the mapping
-
     DataMappingObject:
       type: object
       additionalProperties:

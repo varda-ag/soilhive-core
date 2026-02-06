@@ -32,8 +32,6 @@ describe('DataMappingService', () => {
       expect(result).toBeDefined();
       expect(result.id).toBeDefined();
       expect(result.data_mapping).toEqual(dataMapping);
-      expect(result.created_by).toBe('test-user-id');
-      expect(result.data_mapping_hash).toBeDefined();
     });
 
     it('should return the existing record (idempotency) when the same data mapping is posted', async () => {
@@ -49,15 +47,11 @@ describe('DataMappingService', () => {
 
       const firstResult = await service.postDataMapping(requestData, dataMapping);
       const originalId = firstResult.id;
-      const originalCreatedAt = firstResult.created_at;
 
       const secondResult = await service.postDataMapping(requestData, dataMapping);
 
       expect(secondResult.id).toBe(originalId);
-      expect(secondResult.data_mapping_hash).toBe(firstResult.data_mapping_hash);
-
-      // verify that the updated_at has been updated
-      expect(new Date(secondResult.updated_at!).getTime()).toBeGreaterThanOrEqual(new Date(originalCreatedAt).getTime());
+      expect(secondResult.data_mapping).toEqual(firstResult.data_mapping);
     });
   });
 

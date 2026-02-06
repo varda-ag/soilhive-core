@@ -8,8 +8,6 @@ export interface PropertyMapping {
 
 export interface PropertyCleaningConfig extends PropertyMapping {
   conversion_formula?: string;
-  procedure_id?: string;
-  property_id: string;
 }
 
 export interface PropertyInfo {

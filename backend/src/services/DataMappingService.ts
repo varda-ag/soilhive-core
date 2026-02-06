@@ -14,8 +14,10 @@ import SoilPropertyService from './SoilPropertyService';
 import ProcedureService from './ProcedureService';
 import { sanitizeField } from '../utils/utils';
 
+type PostMappingResponse = Pick<DataMapping, 'id' | 'data_mapping'>;
+
 export default class DataMappingService {
-  postDataMapping = async (requestData: RequestData, dataMapping: DataMappingObject): Promise<DataMapping> => {
+  postDataMapping = async (requestData: RequestData, dataMapping: DataMappingObject): Promise<PostMappingResponse> => {
     const { sub } = requestData.token;
     if (!sub) {
       throw new ErrorResponse('Token subject is missing', StatusCodes.UNAUTHORIZED);
@@ -43,7 +45,12 @@ export default class DataMappingService {
       .returning('*') // ensure we get the full record back (Postgres specific)
       .execute();
 
-    return result.generatedMaps[0] as DataMapping;
+    const row = result.generatedMaps[0] as DataMapping;
+
+    return {
+      id: row.id,
+      data_mapping: row.data_mapping,
+    } as PostMappingResponse;
   };
 
   parseDataMapping = async (requestData: RequestData, id: string): Promise<DataCleaningConfig> => {
@@ -51,7 +58,7 @@ export default class DataMappingService {
       metadata_cols: {},
       property_cols: {},
     };
-    const { data_mapping } = await this.getDataMapping(requestData, id);
+    const data_mapping = await this.getDataMapping(requestData, id);
 
     const conversionSlugs: string[] = Object.values(data_mapping)
       .filter(mapping => typeof mapping === 'object' && (mapping as PropertyMapping).conversion_id !== undefined)
@@ -100,8 +107,7 @@ export default class DataMappingService {
 
     // Process metadata (string types) and property columns (object types)
     for (const [field, mapping] of Object.entries(data_mapping)) {
-      // TODO: update based on raw data load configuration (by default ogr2ogr converts to lowercase, option LAUNDER_ASCII=YES removes latin special characters, columns can be renamed with -sql option)
-      const sanitizedField = field.toLowerCase().replace(/[^a-z0-9_]/g, '');
+      const sanitizedField = sanitizeField(field);
       if (sanitizedField === 'drop_records') continue;
       if (typeof mapping === 'string' || mapping instanceof String) {
         result.metadata_cols[sanitizeField(mapping as string)] = sanitizedField;
@@ -128,13 +134,13 @@ export default class DataMappingService {
     return result;
   };
 
-  getDataMapping = async (requestData: RequestData, id: string): Promise<DataMapping> => {
+  getDataMapping = async (requestData: RequestData, id: string): Promise<DataMappingObject> => {
     const repo = requestData.entityManager.getRepository(DataMappingEntity);
     const dataMapping = await repo.findOneBy({ id });
     if (!dataMapping) {
-      throw new ErrorResponse(`Data mapping ${id} not found`, StatusCodes.NOT_FOUND);
+      throw new ErrorResponse(`Mapping with ID ${id} not found`, StatusCodes.NOT_FOUND);
     }
-    return dataMapping;
+    return dataMapping.data_mapping;
   };
 
   deleteDataMapping = async (requestData: RequestData, id: string): Promise<void> => {
