@@ -1,9 +1,9 @@
 {
   "name": "soilhive-project",
   "private": true,
-	"license": "MIT",
-  "description": "",
+  "license": "MIT",
   "version": "0.26.0",
+  "description": "",
   "scripts": {
     "dev": "pnpm --filter=!common --parallel dev",
     "build": "pnpm --filter=!common --parallel build",
