@@ -19,10 +19,6 @@ type PostMappingResponse = Pick<DataMapping, 'id' | 'data_mapping'>;
 export default class DataMappingService {
   postDataMapping = async (requestData: RequestData, dataMapping: DataMappingObject): Promise<PostMappingResponse> => {
     const { sub } = requestData.token;
-    if (!sub) {
-      throw new ErrorResponse('Token subject is missing', StatusCodes.UNAUTHORIZED);
-    }
-
     // Validate
     if (dataMapping.drop_records && !Array.isArray(dataMapping.drop_records)) {
       throw new ErrorResponse(`drop_records must be an array of numbers`, StatusCodes.BAD_REQUEST);
@@ -36,7 +32,7 @@ export default class DataMappingService {
       .into(DataMappingEntity)
       .values({
         data_mapping: dataMapping,
-        created_by: sub,
+        created_by: sub!,
       })
       .orUpdate(
         ['updated_at'], // on conflict update updated_at timestamp
