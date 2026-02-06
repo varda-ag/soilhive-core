@@ -1,6 +1,7 @@
 {
   "name": "soilhive-project",
   "private": true,
+	"license": "MIT",
   "description": "",
   "version": "0.26.0",
   "scripts": {
