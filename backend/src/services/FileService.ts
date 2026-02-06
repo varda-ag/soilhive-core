@@ -109,6 +109,34 @@ export default class FileService {
     return file;
   };
 
+  createFile = async (requestData: RequestData, data: CreateFileInput): Promise<File> => {
+    const repo = requestData.entityManager.getRepository(FileEntity);
+
+    const { sub } = requestData.token;
+    if (!sub) {
+      throw new ErrorResponse('Token subject is missing', StatusCodes.UNAUTHORIZED);
+    }
+
+    const file = repo.create({
+      ...data,
+      created_by: String(sub),
+      updated_by: String(sub),
+    });
+
+    try {
+      const saved = await repo.save(file);
+      const reloaded = await repo.findOneBy({ id: saved.id });
+      return reloaded!;
+    } catch (error: any) {
+      if (error.code === '23505') {
+        // unique violation
+        throw new ErrorResponse(`File with name '${data.name}' already exists`, StatusCodes.CONFLICT);
+      }
+      throw error;
+    }
+  };
+
+
   /**
    * Extracts ZIP file to a temporary directory and finds the main data file
    * Looks for common geospatial file extensions in order: .shp, .gpkg, .geojson, .gml, .kml

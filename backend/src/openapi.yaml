@@ -558,14 +558,14 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
-  /files/{fileId}:
+  /files/{fileSlug}:
     parameters:
-      - name: fileId
+      - name: fileSlug
         in: path
         required: true
         schema:
           type: string
-        description: Unique file identifier. Folder separators should be encoded as %2F
+        description: Unique file human-readable identifier
     get:
       x-eov-operation-handler: controllers/files
       x-eov-operation-id: fileDownload
