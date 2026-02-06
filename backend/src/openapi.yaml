@@ -688,6 +688,7 @@ paths:
         required: true
         schema:
           type: string
+          format: uuid
         description: Data mapping ID
     get:
       x-eov-operation-handler: controllers/mappings
@@ -1257,12 +1258,6 @@ components:
 
     DataMappingObject:
       type: object
-      properties:
-        drop_records:
-          type: array
-          items:
-            type: number
-          description: Optional array of record indices to drop
       additionalProperties:
         oneOf:
           - type: string
