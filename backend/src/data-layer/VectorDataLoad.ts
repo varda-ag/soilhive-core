@@ -27,7 +27,7 @@ export default class VectorDataLoad {
     dataMappingConfig: DataCleaningConfig,
     recordId: number,
     datasetId: string,
-  ) => {
+  ): Promise<void> => {
     let subQuery = entityManager.createQueryBuilder().from(`file_${sanitizeField(dataMappingConfig.file_id)}_raw`, 'raw');
     subQuery = getDataPreviewQuery(subQuery, dataMappingConfig);
 

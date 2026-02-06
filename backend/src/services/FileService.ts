@@ -7,6 +7,7 @@ import { S3Client } from '@aws-sdk/client-s3';
 import { FileStorage } from '@flystorage/file-storage';
 import { AwsS3StorageAdapter } from '@flystorage/aws-s3';
 import { LocalStorageAdapter } from '@flystorage/local-fs';
+import * as multer from 'multer';
 import { FlystorageMulterStorageEngine } from '@flystorage/multer-storage';
 import * as gdal from 'gdal-async';
 import { LocalStorageConfig, S3StorageConfig, StorageConfig } from '../interfaces/StorageConfig';
@@ -33,14 +34,14 @@ const allowedGeometryTypes = [
 ];
 
 export default class FileService {
-  exists = async (fileKey: string): Promise<boolean> => {
-    const storage = await FileService.getStorageEngine();
-    return await storage.fileExists(fileKey);
+  exists = async (filePath: string): Promise<boolean> => {
+    const storage = FileService.getStorageEngine();
+    return await storage.fileExists(filePath);
   };
 
-  deleteFile = async (fileKey: string): Promise<void> => {
-    const storage = await FileService.getStorageEngine();
-    await storage.deleteFile(fileKey);
+  deleteFile = async (filePath: string): Promise<void> => {
+    const storage = FileService.getStorageEngine();
+    await storage.deleteFile(filePath);
   };
 
   static getUploadStorageEngine = (): FlystorageMulterStorageEngine => {
@@ -52,9 +53,7 @@ export default class FileService {
           // Special case for logo upload
           return LOGO_FILE_ID;
         }
-        // Use ID parameter to setup filename
-        // TODO: replace parameter name
-        return req.params['fileId']!;
+        return file.originalname;
       } else {
         // Return folder name/destination if needed
         return file.destination;
@@ -183,7 +182,7 @@ export default class FileService {
     return null;
   };
 
-  private static getDatasetPath = async (fileKey: string): Promise<ExtractedFilePath> => {
+  private static getDatasetPath = async (filePath: string): Promise<ExtractedFilePath> => {
     const config: StorageConfig = ConfigService.getStorageConfig();
     let datasetPath: string;
     let tempZipExtractPath: string | null = null;
@@ -192,13 +191,13 @@ export default class FileService {
       // Get dataset path based on storage mode
       if (config.storageMode === StorageModes.LOCAL) {
         const localConfig = config.config as LocalStorageConfig;
-        datasetPath = path.join(localConfig.rootFolder, fileKey);
+        datasetPath = path.join(localConfig.rootFolder, filePath);
         if (!fs.existsSync(datasetPath)) {
-          throw new ErrorResponse(`File ${fileKey} not found`, StatusCodes.NOT_FOUND);
+          throw new ErrorResponse(`File ${filePath} not found`, StatusCodes.NOT_FOUND);
         }
 
         // Handle ZIP files
-        if (fileKey.toLowerCase().endsWith('.zip')) {
+        if (filePath.toLowerCase().endsWith('.zip')) {
           const { tempFolder, mainFilePath } = await FileService.extractZipAndFindMainFile(datasetPath);
           tempZipExtractPath = tempFolder;
           datasetPath = mainFilePath;
@@ -207,7 +206,7 @@ export default class FileService {
         // For S3, we would need to download the file first to extract it
         // For now, use GDAL's S3 VSI support (which may not support ZIP)
         const s3Config = config.config as S3StorageConfig;
-        const key = s3Config.rootFolder ? `${s3Config.rootFolder}/${fileKey}` : fileKey;
+        const key = s3Config.rootFolder ? `${s3Config.rootFolder}/${filePath}` : filePath;
         datasetPath = `/vsis3/${s3Config.bucketName}/${key}`;
 
         // If it's a ZIP file on S3, we'd need to handle it differently
@@ -263,11 +262,11 @@ export default class FileService {
     return { layer, geometryDetected };
   };
 
-  extractMetadata = async (fileKey: string): Promise<FileMetadata> => {
+  extractMetadata = async (filePath: string): Promise<FileMetadata> => {
     let datasetPath: string;
     let tempZipExtractPath: string | null = null;
     try {
-      ({ datasetPath, tempZipExtractPath } = await FileService.getDatasetPath(fileKey));
+      ({ datasetPath, tempZipExtractPath } = await FileService.getDatasetPath(filePath));
 
       // Open dataset with GDAL
       const dataset = await gdal.openAsync(datasetPath);
@@ -374,7 +373,7 @@ export default class FileService {
     }
   };
 
-  fileToDB = async (fileId: string, fileKey: string, fileMetadata: FileMetadata) => {
+  fileToDB = async (fileId: string, filePath: string, fileMetadata: FileMetadata): Promise<void> => {
     let datasetPath: string;
     let tempZipExtractPath: string | null = null;
     const gdalOpts: string[] = [
@@ -404,7 +403,7 @@ export default class FileService {
       if (fileMetadata.field_names.length === 0) {
         throw new ErrorResponse('No data besides geometry detected', StatusCodes.BAD_REQUEST);
       }
-      ({ datasetPath, tempZipExtractPath } = await FileService.getDatasetPath(fileKey));
+      ({ datasetPath, tempZipExtractPath } = await FileService.getDatasetPath(filePath));
 
       if (!fileMetadata.geometry_detected) {
         if (fileMetadata.detected_fields[DetectableFields.GEOMETRY]) {

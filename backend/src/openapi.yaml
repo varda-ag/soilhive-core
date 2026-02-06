@@ -566,12 +566,30 @@ paths:
         schema:
           type: string
         description: Unique file identifier. Folder separators should be encoded as %2F
+    get:
+      x-eov-operation-handler: controllers/files
+      x-eov-operation-id: fileDownload
+      summary: Download a file
+      tags:
+        - files
+      parameters:
+        - in: query
+          name: token
+          required: false
+          description: Temporary access token to download access-protected files
+          schema:
+            type: string
+      responses:
+        '200':
+          description: File downloaded successfully
+
+  /files:
     post:
       x-eov-operation-handler: controllers/files
-      x-eov-operation-id: fileUpload
-      summary: Upload a file
+      x-eov-operation-id: postFile
+      summary: Create a file to load (upload, create entity and extract metadata)
       tags:
-        - TODO (to be removed or specialized)
+        - files
       requestBody:
         required: true
         content:
@@ -602,22 +620,6 @@ paths:
       security:
         - bearerAuth: [super-admin, data-admin]
 
-    get:
-      x-eov-operation-handler: controllers/files
-      x-eov-operation-id: fileDownload
-      summary: Download a file
-      tags:
-        - TODO (to be removed or specialized)
-      parameters:
-        - in: query
-          name: token
-          required: false
-          description: Temporary access token to download access-protected files
-          schema:
-            type: string
-      responses:
-        '200':
-          description: File downloaded successfully
 
 components:
   responses:
