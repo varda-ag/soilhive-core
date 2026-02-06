@@ -111,18 +111,18 @@ export default class FileService {
    * Extracts ZIP file to a temporary directory and finds the main data file
    * Looks for common geospatial file extensions in order: .shp, .gpkg, .geojson, .gml, .kml
    */
-  private static extractZipAndFindMainFile = async (zipPath: string): Promise<{ tempFolder: string; mainFilePath: string }> => {
-    const tempFolder = fs.mkdtempSync(path.join(os.tmpdir(), 'gdal-zip-tmp'));
+  private static extractZipAndFindMainFile = async (zipPath: string): Promise<{ tempZipExtractPath: string; mainFilePath: string }> => {
+    const tempZipExtractPath = fs.mkdtempSync(path.join(os.tmpdir(), 'gdal-zip-tmp'));
 
     try {
       // Extract ZIP to temporary directory using extract-zip
-      await extractZip(zipPath, { dir: tempFolder });
+      await extractZip(zipPath, { dir: tempZipExtractPath });
 
-      const files = fs.readdirSync(tempFolder);
+      const files = fs.readdirSync(tempZipExtractPath);
       if (files.length === 1) {
         // Only one file, return it
-        const mainFilePath = path.join(tempFolder, files[0]!);
-        return { tempFolder, mainFilePath };
+        const mainFilePath = path.join(tempZipExtractPath, files[0]!);
+        return { tempZipExtractPath, mainFilePath };
       }
 
       // Find main data file with common geospatial extensions
@@ -131,8 +131,8 @@ export default class FileService {
       for (const ext of extensions) {
         for (const file of files) {
           if (file.toLowerCase().endsWith(ext)) {
-            const mainFilePath = path.join(tempFolder, file);
-            return { tempFolder, mainFilePath };
+            const mainFilePath = path.join(tempZipExtractPath, file);
+            return { tempZipExtractPath, mainFilePath };
           }
         }
       }
@@ -143,7 +143,7 @@ export default class FileService {
       );
     } catch (error) {
       // Clean up on error
-      this.removeTempFolder(tempFolder);
+      this.removeTempFolder(tempZipExtractPath);
       if (error instanceof ErrorResponse) {
         throw error;
       }
@@ -180,32 +180,30 @@ export default class FileService {
     return null;
   };
 
-  private static getDatasetPath = async (fileKey: string): Promise<ExtractedFilePath> => {
+  private static getMainFilePath = async (fileKey: string): Promise<ExtractedFilePath> => {
     const config: StorageConfig = ConfigService.getStorageConfig();
-    let datasetPath: string;
+    let mainFilePath: string;
     let tempZipExtractPath: string | null = null;
 
     try {
       // Get dataset path based on storage mode
       if (config.storageMode === StorageModes.LOCAL) {
         const localConfig = config.config as LocalStorageConfig;
-        datasetPath = path.join(localConfig.rootFolder, fileKey);
-        if (!fs.existsSync(datasetPath)) {
+        mainFilePath = path.join(localConfig.rootFolder, fileKey);
+        if (!fs.existsSync(mainFilePath)) {
           throw new ErrorResponse(`File ${fileKey} not found`, StatusCodes.NOT_FOUND);
         }
 
         // Handle ZIP files
         if (fileKey.toLowerCase().endsWith('.zip')) {
-          const { tempFolder, mainFilePath } = await FileService.extractZipAndFindMainFile(datasetPath);
-          tempZipExtractPath = tempFolder;
-          datasetPath = mainFilePath;
+          ({ tempZipExtractPath, mainFilePath } = await FileService.extractZipAndFindMainFile(mainFilePath));
         }
       } else if (config.storageMode === StorageModes.S3) {
         // For S3, we would need to download the file first to extract it
         // For now, use GDAL's S3 VSI support (which may not support ZIP)
         const s3Config = config.config as S3StorageConfig;
         const key = s3Config.rootFolder ? `${s3Config.rootFolder}/${fileKey}` : fileKey;
-        datasetPath = `/vsis3/${s3Config.bucketName}/${key}`;
+        mainFilePath = `/vsis3/${s3Config.bucketName}/${key}`;
 
         // If it's a ZIP file on S3, we'd need to handle it differently
         // For now, this will be attempted directly with GDAL
@@ -214,7 +212,7 @@ export default class FileService {
       }
 
       const result: ExtractedFilePath = {
-        datasetPath,
+        mainFilePath,
         tempZipExtractPath,
       };
       return result;
@@ -261,13 +259,13 @@ export default class FileService {
   };
 
   extractMetadata = async (fileKey: string): Promise<FileMetadata> => {
-    let datasetPath: string;
+    let mainFilePath: string;
     let tempZipExtractPath: string | null = null;
     try {
-      ({ datasetPath, tempZipExtractPath } = await FileService.getDatasetPath(fileKey));
+      ({ mainFilePath, tempZipExtractPath } = await FileService.getMainFilePath(fileKey));
 
       // Open dataset with GDAL
-      const dataset = await gdal.openAsync(datasetPath);
+      const dataset = await gdal.openAsync(mainFilePath);
       const { layer, geometryDetected } = this.getDataLayer(dataset.layers);
 
       // Extract field names
@@ -372,7 +370,7 @@ export default class FileService {
   };
 
   fileToDB = async (fileId: string, fileKey: string, fileMetadata: FileMetadata) => {
-    let datasetPath: string;
+    let mainFilePath: string;
     let tempZipExtractPath: string | null = null;
     const gdalOpts: string[] = [
       '-f',
@@ -401,7 +399,7 @@ export default class FileService {
       if (fileMetadata.field_names.length === 0) {
         throw new ErrorResponse('No data besides geometry detected', StatusCodes.BAD_REQUEST);
       }
-      ({ datasetPath, tempZipExtractPath } = await FileService.getDatasetPath(fileKey));
+      ({ mainFilePath, tempZipExtractPath } = await FileService.getMainFilePath(fileKey));
 
       if (!fileMetadata.geometry_detected) {
         if (fileMetadata.detected_fields[DetectableFields.GEOMETRY]) {
@@ -422,7 +420,7 @@ export default class FileService {
         gdalOpts.push('-s_srs', `${fileMetadata.detected_fields[DetectableFields.CRS]}`);
       }
       // Open dataset with GDAL
-      const dataset = await gdal.openAsync(datasetPath);
+      const dataset = await gdal.openAsync(mainFilePath);
       const { layer } = this.getDataLayer(dataset.layers);
       gdalOpts.push('-sql', `SELECT ${selectClause} FROM ${layer.name}`);
       const pgDataset =

@@ -7,7 +7,7 @@ export const sleep = async (ms: number) => {
 export const sanitizeField = (field: string, removeSpacePlaceholders: boolean = false) => {
   let replaceString = /[^a-z0-9_]/g;
   if (removeSpacePlaceholders) {
-    replaceString = /[^a-z0-9]/g;
+    replaceString = /[^a-z]/g;
   }
   return field.toLowerCase().replace('-', '_').replace(replaceString, '');
 };

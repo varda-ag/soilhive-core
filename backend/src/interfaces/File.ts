@@ -19,6 +19,6 @@ export interface FileMetadata {
 }
 
 export interface ExtractedFilePath {
-  datasetPath: string;
+  mainFilePath: string;
   tempZipExtractPath: string | null;
 }
