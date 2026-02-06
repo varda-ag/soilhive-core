@@ -34,6 +34,29 @@ describe('Testing /mappings routes', () => {
       expect(res.body.data_mapping.upper_depth).toBe('min_depth');
     });
 
+    it('should return 400 Bad Request when mapping property has no id', async () => {
+      const token = await getDataAdminToken();
+      const payload = {
+        magnesium: {
+          // property_id: 'magnesium', <-- missing
+          procedure_id: 'sieved-over-2-mm-sieve-lab-procedure-water-h2o--01-05-weight-volume-electrode',
+          conversion_id: 'cm',
+        },
+        total_nitrogen: {
+          property_id: 'nitrogen-total',
+        },
+        upper_depth: 'min_depth',
+        lower_depth: 'max_depth',
+        date: 'sampling_date',
+      };
+
+      const res = await request(app).post('/mappings').set('Authorization', `Bearer ${token}`).send(payload);
+
+      expect(res.statusCode).toBe(400);
+      expect(res.body).toHaveProperty('detail');
+      expect(res.body).toHaveProperty('errors');
+    });
+
     it('should return 401 Unauthorized when no token is provided', async () => {
       const payload = {
         total_nitrogen: {
