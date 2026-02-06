@@ -136,4 +136,17 @@ export default class DataMappingService {
     }
     return dataMapping;
   };
+
+  deleteDataMapping = async (requestData: RequestData, id: string): Promise<void> => {
+    const repo = requestData.entityManager.getRepository(DataMappingEntity);
+
+    // check if it exists first to throw a 404 if not found
+    const mapping = await repo.findOneBy({ id });
+    if (!mapping) {
+      throw new ErrorResponse(`Mapping with ID ${id} not found`, StatusCodes.NOT_FOUND);
+    }
+
+    // Soft delete sets the deleted_at column
+    await repo.softDelete(id);
+  };
 }

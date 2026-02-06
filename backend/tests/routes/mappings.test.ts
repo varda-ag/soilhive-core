@@ -140,4 +140,38 @@ describe('Testing /mappings routes', () => {
       expect(res.statusCode).toBe(401);
     });
   });
+
+  describe('DELETE /mappings/:mappingId', () => {
+    describe('DELETE /mappings/:id', () => {
+      it('should return 204 when successfully deleted', async () => {
+        const token = await getDataAdminToken();
+
+        const payload = {
+          magnesium: {
+            property_id: 'magnesium',
+            procedure_id: 'sieved-over-2-mm-sieve-lab-procedure-water-h2o--01-05-weight-volume-electrode',
+            conversion_id: 'cm',
+          },
+          total_nitrogen: {
+            property_id: 'nitrogen-total',
+          },
+          upper_depth: 'min_depth',
+          lower_depth: 'max_depth',
+          date: 'sampling_date',
+        };
+
+        const setupRes = await request(app).post('/mappings').set('Authorization', `Bearer ${token}`).send(payload);
+
+        const id = setupRes.body.id;
+
+        const deleteRes = await request(app).delete(`/mappings/${id}`).set('Authorization', `Bearer ${token}`);
+
+        expect(deleteRes.statusCode).toBe(204);
+
+        // verify GET now returns 404
+        const getRes = await request(app).get(`/mappings/${id}`).set('Authorization', `Bearer ${token}`);
+        expect(getRes.statusCode).toBe(404);
+      });
+    });
+  });
 });

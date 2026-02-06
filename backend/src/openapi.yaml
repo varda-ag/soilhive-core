@@ -709,6 +709,17 @@ paths:
           $ref: '#/components/responses/NotFound'
         '401':
           $ref: '#/components/responses/Unauthorized'
+    delete:
+      x-eov-operation-handler: controllers/mappings
+      x-eov-operation-id: deleteDataMapping
+      summary: Delete mapping item
+      tags:
+        - mappings
+      security:
+        - bearerAuth: [data-admin]
+      responses:
+        '204':
+          description: Mapping deleted successfully
 
 components:
   responses:

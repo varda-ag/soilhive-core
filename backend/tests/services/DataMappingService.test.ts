@@ -3,6 +3,7 @@ import DataMappingService from '../../src/services/DataMappingService';
 import { getEntityManager } from '../../src/utils/data-source';
 import { RequestData } from '../../src/interfaces/RequestData';
 import { Token } from '../../src/interfaces/Token';
+import DataMappingEntity from '../../src/entities/DataMapping';
 
 const mockToken: Token = {
   sub: 'test-user-id',
@@ -58,5 +59,19 @@ describe('DataMappingService', () => {
       // verify that the updated_at has been updated
       expect(new Date(secondResult.updated_at!).getTime()).toBeGreaterThanOrEqual(new Date(originalCreatedAt).getTime());
     });
+  });
+
+  it('should soft delete an existing mapping', async () => {
+    const service = new DataMappingService();
+    const entityManager = await getEntityManager();
+    const requestData = { entityManager, token: mockToken };
+
+    const created = await service.postDataMapping(requestData, { test: 'data' });
+
+    await service.deleteDataMapping(requestData, created.id);
+
+    // findOneBy ignores soft-deleted rows by default in TypeORM
+    const found = await entityManager.getRepository(DataMappingEntity).findOneBy({ id: created.id });
+    expect(found).toBeNull();
   });
 });
