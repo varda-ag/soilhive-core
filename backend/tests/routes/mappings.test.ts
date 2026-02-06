@@ -34,6 +34,32 @@ describe('Testing /mappings routes', () => {
       expect(res.body.data_mapping.upper_depth).toBe('min_depth');
     });
 
+    it('should be idempotent: returning the same ID when the same payload is sent twice', async () => {
+      const token = await getDataAdminToken();
+      const payload = {
+        iron: {
+          property_id: 'iron',
+          conversion_id: 'mg/kg',
+        },
+        upper_depth: 'top',
+      };
+
+      const res1 = await request(app).post('/mappings').set('Authorization', `Bearer ${token}`).send(payload);
+
+      expect(res1.statusCode).toBe(200);
+      const firstId = res1.body.id;
+
+      // send identical payload
+      const res2 = await request(app).post('/mappings').set('Authorization', `Bearer ${token}`).send(payload);
+
+      // status is still 200 (not 409 Conflict or 500 Error)
+      expect(res2.statusCode).toBe(200);
+
+      expect(res2.body.id).toBe(firstId);
+
+      expect(res2.body.data_mapping_hash).toBe(res1.body.data_mapping_hash);
+    });
+
     it('should return 400 Bad Request when mapping property has no id', async () => {
       const token = await getDataAdminToken();
       const payload = {

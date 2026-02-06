@@ -27,12 +27,23 @@ export default class DataMappingService {
     }
 
     const repo = requestData.entityManager.getRepository(DataMappingEntity);
-    const newRow = new DataMappingEntity();
-    newRow.data_mapping = dataMapping;
-    newRow.created_by = sub;
-    await repo.save(newRow);
 
-    return newRow;
+    const result = await repo
+      .createQueryBuilder()
+      .insert()
+      .into(DataMappingEntity)
+      .values({
+        data_mapping: dataMapping,
+        created_by: sub,
+      })
+      .orUpdate(
+        ['updated_at'], // on conflict update updated_at timestamp
+        ['data_mapping_hash'], // the column with the UNIQUE constraint
+      )
+      .returning('*') // ensure we get the full record back (Postgres specific)
+      .execute();
+
+    return result.generatedMaps[0] as DataMapping;
   };
 
   parseDataMapping = async (requestData: RequestData, id: string): Promise<DataCleaningConfig> => {
