@@ -3,7 +3,7 @@ import { v7 as uuidv7 } from 'uuid';
 import DatasetEntity from '../../src/entities/Dataset';
 import { getEntityManager } from '../../src/utils/data-source';
 import { addCategory, addDataset, addFile } from '../../src/utils/mock';
-import { getEntity, getEntities } from '../../src/utils/slugs';
+import { getEntity, getEntities, idToSlug } from '../../src/utils/slugs';
 import { RequestData } from '../../src/interfaces/RequestData';
 import { EntityType } from '../../src/types/data';
 import { EntityManager } from 'typeorm';
@@ -38,6 +38,7 @@ describe('getEntity', () => {
     const result = await getEntity(requestData, DatasetEntity, EntityType.DATASET, 'slug-dataset');
     expect(result).toEqual(expected);
   });
+
   it('should return entity via slug history if current slug not found', async () => {
     const category = await addCategory('slug-soil-prop-category-old');
     await entityManager
@@ -56,11 +57,13 @@ describe('getEntity', () => {
     );
     expect(result).toEqual(expected);
   });
+
   it('should throw NOT_FOUND when slug and slug history do not exist', async () => {
     await expect(getEntity(requestData, SoilPropertyCategoryEntity, EntityType.SOIL_PROPERTY_CATEGORY, 'missing-slug')).rejects.toThrow(
       "Entity with slug 'missing-slug' not found",
     );
   });
+
   it('should throw NOT_FOUND when slug history exists but entity does not', async () => {
     await entityManager.getRepository(SlugHistoryEntity).save({
       slug: 'old-slug',
@@ -81,6 +84,7 @@ describe('getEntities', () => {
     const result = await getEntities(requestData, DatasetEntity, EntityType.DATASET, dataset_slugs);
     expect(result.map(e => e.slug)).toEqual(['slug-dataset-0', 'slug-dataset-1']);
   });
+
   it('should resolve missing slugs via slug history', async () => {
     const category = await addCategory('slug-soil-prop-category-old');
     await entityManager
@@ -97,11 +101,13 @@ describe('getEntities', () => {
     expect(result).toHaveLength(1);
     expect(result[0].id).toBe(expected!.id);
   });
+
   it('should throw NOT_FOUND when missing slugs have no slug history', async () => {
     await expect(getEntities(requestData, SoilPropertyCategoryEntity, EntityType.SOIL_PROPERTY_CATEGORY, ['missing-slug'])).rejects.toThrow(
       'Slugs missing-slug not found',
     );
   });
+
   it('should preserve input slug order regardless of DB return order', async () => {
     const file1 = await addFile(`slug-file-1`);
     const file2 = await addFile(`slug-file-2`);
@@ -121,9 +127,7 @@ describe('getNewPath', () => {
     const originalUrl = '/api/datasets/old-dataset-name';
     const oldSlug = 'old-dataset-name';
     const newSlug = 'new-shiny-dataset';
-
     const result = getNewPath(originalUrl, oldSlug, newSlug);
-
     expect(result).toBe('/api/datasets/new-shiny-dataset');
   });
 
@@ -131,9 +135,29 @@ describe('getNewPath', () => {
     const originalUrl = '/api/datasets/old-slug?version=1&sort=desc';
     const oldSlug = 'old-slug';
     const newSlug = 'new-slug';
-
     const result = getNewPath(originalUrl, oldSlug, newSlug);
-
     expect(result).toBe('/api/datasets/new-slug?version=1&sort=desc');
+  });
+
+  it.each([
+    [{}, {}],
+    [undefined, undefined],
+    [1, 1],
+    ['a', 'a'],
+    [{ id: 1 }, { id: 1 }],
+    [{ id: 'a' }, { id: 'a' }],
+    [
+      { id: 'a', slug: null },
+      { id: 'a', slug: null },
+    ],
+    [{ id: 'a', slug: 'b' }, { id: 'b' }],
+    [{ slug: 'b' }, { slug: 'b' }],
+  ])('should replace IDs with slugs', (input, expected) => {
+    // Testing single object
+    expect(idToSlug(input)).toEqual(expected);
+    // Testing arrays
+    expect(idToSlug([])).toEqual([]);
+    expect(idToSlug([input])).toEqual([expected]);
+    expect(idToSlug([input, input])).toEqual([expected, expected]);
   });
 });
