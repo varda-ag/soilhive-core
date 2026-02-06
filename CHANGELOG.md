@@ -1,5 +1,61 @@
 # Changelog
 
+## 0.26.1 (2026-02-05)
+
+## What's Changed
+* fix(be): :truck: harmonized slug utils file by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/170
+* refactor: :bug: fixing test dependency from .env file, adding slug to… by @svaccari in https://github.com/varda-ag/soilhive-core/pull/172
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.26.0...v0.26.1
+
+## 0.26.0 (2026-02-05)
+
+## What's Changed
+* feat: sp-4839 POST /soil-data endpoint (cleaned record to data model) by @d-rom in https://github.com/varda-ag/soilhive-core/pull/154
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.25.2...v0.26.0
+
+## 0.25.2 (2026-02-05)
+
+## What's Changed
+* fix(BE): fix dataset redirect path by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/166
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.25.1...v0.25.2
+
+## 0.25.1 (2026-02-04)
+
+## What's Changed
+* fix: sp-4804 fixed zoom level only visible for mobile instead of hidden by @cristbello in https://github.com/varda-ag/soilhive-core/pull/164
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.25.0...v0.25.1
+
+## 0.25.0 (2026-02-04)
+
+## What's Changed
+* fix: adding BACKEND_BASE_URL to docker compose by @svaccari in https://github.com/varda-ag/soilhive-core/pull/159
+* feat: sp-4804 various visual changes to availability map and preview page map by @cristbello in https://github.com/varda-ag/soilhive-core/pull/162
+* feat: sp-4804 mobile bottom menu is now shown even when a selection is active by @cristbello in https://github.com/varda-ag/soilhive-core/pull/163
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.24.0...v0.25.0
+
+## 0.24.0 (2026-02-03)
+
+## What's Changed
+* feat: :zap: caching backend requests for 10 minutes, showing loading … by @svaccari in https://github.com/varda-ag/soilhive-core/pull/148
+* fix: sp-4827 - soil properties expanding functionality by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/152
+* feat: :sparkles: adding skeleton loader by @svaccari in https://github.com/varda-ag/soilhive-core/pull/155
+* feat: sp-4796 - filters counter by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/156
+* feat: sp-4735 added filtering support to preview page by @cristbello in https://github.com/varda-ag/soilhive-core/pull/157
+* chore(soilhive-backend): improve dockerfile by @Butterneck in https://github.com/varda-ag/soilhive-core/pull/158
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.23.0...v0.24.0
+
 ## 0.23.0 (2026-02-02)
 
 ## What's Changed

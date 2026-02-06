@@ -27,6 +27,7 @@ export interface StoredDataFilter {
 
 export interface FilteredDataset extends FilterCriteria {
   id: string;
+  slug: string;
   name: string;
   data_type: GISDataType;
   dataset_layer_count: number;

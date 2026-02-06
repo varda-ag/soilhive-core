@@ -237,7 +237,7 @@ describe('DatasetService', () => {
       };
 
       await expect(service.updateDataset(requestData, 'non-existent-slug', updateInput)).rejects.toThrow(
-        "Dataset with slug 'non-existent-slug' not found",
+        "Entity with slug 'non-existent-slug' not found",
       );
     });
   });
@@ -263,7 +263,7 @@ describe('DatasetService', () => {
 
       // 3. Verify it can no longer be retrieved via getDataset
       // getDataset throws a 404 ErrorResponse when not found
-      await expect(service.getDataset(requestData, slug)).rejects.toThrow(`Dataset with slug '${slug}' not found`);
+      await expect(service.getDataset(requestData, slug)).rejects.toThrow(`Entity with slug '${slug}' not found`);
 
       // 4. Verify it's removed from the list of datasets
       const allDatasets = await service.getDatasets(requestData);
@@ -279,7 +279,7 @@ describe('DatasetService', () => {
       };
 
       await expect(service.deleteDataset(requestData, 'non-existent-slug')).rejects.toThrow(
-        "Dataset with slug 'non-existent-slug' not found",
+        "Entity with slug 'non-existent-slug' not found",
       );
     });
     it('should successfully delete a dataset using an old slug after name change', async () => {

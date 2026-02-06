@@ -18,5 +18,4 @@ export interface DataCleaningConfig {
     [key: string]: PropertyCleaningConfig;
   };
   drop_records?: number[];
-  file_id: string;
 }

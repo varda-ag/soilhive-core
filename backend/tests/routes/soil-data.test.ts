@@ -1,8 +1,15 @@
 import { describe, it, expect } from '@jest/globals';
 import request from 'supertest';
 import { app } from '../../src/app';
-import { addSyntheticData, syntheticDataOptions } from '../../src/utils/mock';
+import {
+  addSyntheticData,
+  syntheticDataOptions,
+  addSyntheticIngestionData,
+  syntheticIngestionDataOptions,
+  getLoadedDataCount,
+} from '../../src/utils/mock';
 import { getPolygonFromBbox } from '../../src/utils/geometry';
+import { getDataAdminToken } from '../helper';
 
 describe('Testing /soil-data routes', () => {
   it('Getting soil data without required parameter should fail', async () => {
@@ -138,7 +145,7 @@ describe('Testing /soil-data routes', () => {
     expect(soilProperties).toContain('multi1');
     expect(soilProperties).toContain('multi2');
     // Verify data contains entries from both datasets
-    const datasetSlugs = soilDataRes.body.map((item: any) => item.dataset);
+    const datasetSlugs = soilDataRes.body.map((item: any) => item.dataset_slug);
     expect(datasetSlugs).toContain(data1.dataset.slug);
     expect(datasetSlugs).toContain(data2.dataset.slug);
   });
@@ -252,11 +259,11 @@ describe('Testing /soil-data routes', () => {
     const filterId = await createFilter([0, 0, 10, 10]);
 
     // Test sorting by dataset (should be consistent since all same dataset)
-    const datasetAscRes = await request(app).get(`/soil-data?filterId=${filterId}&datasets=${dataset.slug}&limit=100&sort=dataset`);
+    const datasetAscRes = await request(app).get(`/soil-data?filterId=${filterId}&datasets=${dataset.slug}&limit=100&sort=dataset_slug`);
     expect(datasetAscRes.statusCode).toBe(200);
     expect(datasetAscRes.body.length).toBeGreaterThan(0);
 
-    const datasetDescRes = await request(app).get(`/soil-data?filterId=${filterId}&datasets=${dataset.slug}&limit=100&sort=-dataset`);
+    const datasetDescRes = await request(app).get(`/soil-data?filterId=${filterId}&datasets=${dataset.slug}&limit=100&sort=-dataset_slug`);
     expect(datasetDescRes.statusCode).toBe(200);
     expect(datasetDescRes.body.length).toBe(datasetAscRes.body.length);
 
@@ -353,9 +360,38 @@ describe('Testing /soil-data routes', () => {
     expect(soilProperties).toContain('prop1');
     expect(soilProperties).not.toContain('prop2');
     // Verify data contains entries from only dataset1
-    const datasetSlugs = soilDataRes.body.map((item: any) => item.dataset);
+    const datasetSlugs = soilDataRes.body.map((item: any) => item.dataset_slug);
     expect(datasetSlugs).toContain(data1.dataset.slug);
     expect(datasetSlugs).not.toContain(data2.dataset.slug);
+  });
+
+  it('Should load data', async () => {
+    const { dataset, dataMapping } = await addSyntheticIngestionData({ ...syntheticIngestionDataOptions, createTable: false });
+    const token = await getDataAdminToken();
+    const payload = {
+      sampling_date: null,
+      license: 'test_license_raw_data',
+      horizon: null,
+      max_depth: 30,
+      min_depth: 0,
+      bdfi33: '2',
+      bdfiod: '8',
+      geometry: { type: 'Point', coordinates: [-148.0432434, 64.814888] },
+    };
+
+    // Call soil-data endpoint
+    const soilDataRes = await request(app)
+      .post(`/soil-data?dataMappingId=${dataMapping.id}&datasetSlug=${dataset.slug}`)
+      .set('Authorization', `Bearer ${token}`)
+      .send(payload);
+    expect(soilDataRes.statusCode).toBe(201);
+    // Verify that one feature (one geom), one layer (one combination of date/license/min and max depth/horizon),
+    // two dataset layers (two combinations of feature/layer/soil property), and two observations (two combinations of soil property/procedure) have been created.
+    const createdData = await getLoadedDataCount();
+    expect(createdData.n_features).toBe(1);
+    expect(createdData.n_layers).toBe(1);
+    expect(createdData.n_dataset_layers).toBe(2);
+    expect(createdData.n_observations).toBe(2);
   });
 });
 

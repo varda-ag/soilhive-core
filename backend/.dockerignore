@@ -6,8 +6,9 @@
 
 **/.classpath
 **/.dockerignore
-**/.env
+**/.env*
 **/.git
+**/.github
 **/.gitignore
 **/.project
 **/.settings
@@ -24,11 +25,23 @@
 **/compose.y*ml
 **/Dockerfile*
 **/node_modules
-**/npm-debug.log
+**/*.log
 **/obj
 **/secrets.dev.yaml
 **/values.dev.yaml
 **/build
 **/dist
+**/coverage
+**/.eslintcache
+**/.DS_Store
+**/Thumbs.db
+**/.md
+**/docs
+*.config.js
+!vite.config.ts
+!esbuild.config.js
+!tailwind.config.js
+!postcss.config.js
+!tsconfig.json
 LICENSE
 README.md
