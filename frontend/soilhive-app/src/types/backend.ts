@@ -40,7 +40,6 @@ export interface PostDatasetFilterResponse extends StoredDataFilter {
 
 export interface SoilProperty {
   id: string;
-  slug: string;
   property_name: string;
   property_acronym: string;
   description?: string;
@@ -79,7 +78,6 @@ export const enum IngestionStatus {
 }
 export interface Dataset {
   id: string;
-  slug: string;
   name: string;
   full_name?: string;
   version?: string;

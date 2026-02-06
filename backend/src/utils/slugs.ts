@@ -134,3 +134,19 @@ export const getNewPath = (originalUrl: string, oldSlug: string, newSlug: string
 
   return queryString ? `${newPath}?${queryString}` : newPath;
 };
+
+/**
+ *
+ * Replaces "id" value with "slug" value and removes "slug" key
+ */
+
+export const idToSlug = (input: any): any => {
+  if (Array.isArray(input)) {
+    return input.map(e => idToSlug(e));
+  }
+  if (input && typeof input['id'] === 'string' && typeof input['slug'] === 'string') {
+    input['id'] = input['slug'];
+    delete input['slug'];
+  }
+  return input;
+};

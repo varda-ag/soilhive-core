@@ -65,8 +65,7 @@ export default class SoilDataStorage {
     const results = await query.getRawMany();
 
     return results.map(row => ({
-      id: row.dataset_id,
-      slug: row.dataset_slug,
+      id: row.dataset_slug,
       name: row.dataset_name,
       data_type: row.gis_datatype,
       licenses: row.licenses ? row.licenses.split(',') : [],
@@ -236,7 +235,7 @@ const applyRasterFilterToQuery = (query: any, table: string, values: number[]) =
 const dataRowTranslation = (row: any, sort?: string): SoilDataSample => {
   const output = {
     id: row.id,
-    dataset_slug: row.dataset_slug,
+    dataset_id: row.dataset_slug,
     dataset_name: row.dataset_name,
     soil_property: row.soil_property,
     property_acronym: row.property_acronym,
@@ -281,7 +280,7 @@ const validateAndGetCursor = (cursor: string, sort?: string): Cursor => {
 const getSortFieldMapping = (): Record<string, string> => ({
   id: 'obs.id',
   value: 'obs.value',
-  dataset_slug: 'ds.slug',
+  dataset_id: 'ds.slug',
   dataset_name: 'ds.name',
   soil_property: 'soil_property.slug',
   property_acronym: 'soil_property.property_acronym',
