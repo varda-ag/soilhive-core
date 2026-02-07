@@ -36,7 +36,7 @@ const getDataFilter = async (req: Request): Promise<DataFilter> => {
 
 export const postSoilData = async (req: Request, res: Response) => {
   const dataMappingConfig = await dataMappingService.parseDataMapping(req.customData, req.query['dataMappingId'] as string);
-  const dataset = await datasetService.getDataset(req.customData, req.query['datasetSlug'] as string);
+  const dataset = await datasetService.getDataset(req.customData, req.query['datasetId'] as string);
 
   await vectorDataLoad.rawRecordToDataModel(req.customData.entityManager, dataMappingConfig, req.body, dataset.id);
   res.status(201).send();

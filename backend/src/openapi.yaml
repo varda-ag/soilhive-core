@@ -242,14 +242,14 @@ paths:
         '409':
           $ref: '#/components/responses/Conflict'
 
-  /datasets/{datasetSlug}:
+  /datasets/{datasetId}:
     parameters:
-      - name: datasetSlug
+      - name: datasetId
         in: path
         required: true
         schema:
           type: string
-        description: Dataset slug
+        description: Dataset ID
     get:
       x-eov-operation-handler: controllers/datasets
       x-eov-operation-id: getDataset
@@ -301,10 +301,10 @@ paths:
       security:
         - bearerAuth: [data-admin]
       parameters:
-        - name: datasetSlug
+        - name: datasetId
           in: path
           required: true
-          description: The slug of the dataset to delete
+          description: The ID of the dataset to delete
           schema:
             type: string
       responses:
@@ -330,14 +330,14 @@ paths:
                 items:
                   $ref: '#/components/schemas/SoilProperty'
 
-  /soil-properties/{soilPropertySlug}:
+  /soil-properties/{soilPropertyId}:
     parameters:
-      - name: soilPropertySlug
+      - name: soilPropertyId
         in: path
         required: true
         schema:
           type: string
-        description: Soil property slug
+        description: Soil property ID
     get:
       x-eov-operation-handler: controllers/soil-properties
       x-eov-operation-id: getSoilProperty
@@ -470,7 +470,7 @@ paths:
         - in: query
           name: datasets
           required: true
-          description: Slugs of datasets to retrieve data from (comma-separated)
+          description: IDs of datasets to retrieve data from (comma-separated)
           schema:
             type: array
             items:
@@ -504,7 +504,7 @@ paths:
           schema:
             type: string
             enum:
-            - dataset_slug
+            - dataset_id
             - dataset_name
             - extractant_concentration
             - extractant_formulation
@@ -524,7 +524,7 @@ paths:
             - standard_unit
             - technique
             - value
-            - -dataset_slug
+            - -dataset_id
             - -dataset_name
             - -extractant_concentration
             - -extractant_formulation
@@ -558,7 +558,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
-    # TODO: replace current POST /soil-data?dataset=&mapping= with POST /datasets/{datasetSlug}/dataset-file-mapping/{datasetFileMappingId}/soil-data
+    # TODO: replace current POST /soil-data?dataset=&mapping= with POST /datasets/{datasetId}/dataset-file-mapping/{datasetFileMappingId}/soil-data
     post:
       x-eov-operation-handler: controllers/soil-data
       x-eov-operation-id: postSoilData
@@ -580,12 +580,12 @@ paths:
           schema:
             type: string
           description: Unique identifier of the mapping to be applied to the raw record
-        - name: datasetSlug
+        - name: datasetId
           in: query
           required: true
           schema:
             type: string
-          description: Slug of the dataset to assign to the created soil data
+          description: ID of the dataset to assign to the created soil data
       responses:
         '201':
           description: Soil data loaded successfully
@@ -921,9 +921,6 @@ components:
             id:
               type: string
               description: Dataset identifier
-            slug:
-              type: string
-              description: Dataset slug
             name:
               type: string
               description: Human-readable dataset name
@@ -965,9 +962,9 @@ components:
         id:
           type: string
           description: Unique identifier for the soil data sample
-        dataset_slug:
+        dataset_id:
           type: string
-          description: Slug identifier for the dataset
+          description: Dataset identifier
         dataset_name:
           type: string
           description: Human-readable dataset name
@@ -1043,7 +1040,7 @@ components:
           description: Cursor for pagination or sequential retrieval
       required:
         - id
-        - dataset_slug
+        - dataset_id
         - dataset_name
         - soil_property
         - property_acronym
@@ -1056,9 +1053,9 @@ components:
     MeasuredProperty:
       type: object
       properties:
-        soil_parameter_slug:
+        soil_property_id:
           type: string
-        procedure_slug:
+        procedure_id:
           type: string
 
     CreateDatasetInput:
@@ -1073,9 +1070,6 @@ components:
         id:
           type: string
           format: uuid
-          readOnly: true
-        slug:
-          type: string
           readOnly: true
         name:
           type: string
@@ -1170,7 +1164,6 @@ components:
       type: object
       required:
         - id
-        - slug
         - property_name
         - property_acronym
         - category_id
@@ -1178,9 +1171,6 @@ components:
         id:
           type: string
           description: Unique identifier
-        slug:
-          type: string
-          description: URL-friendly identifier
         property_name:
           type: string
           description: Human-readable name

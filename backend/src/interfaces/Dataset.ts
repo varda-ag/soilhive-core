@@ -2,8 +2,8 @@ import type { Polygon } from 'geojson';
 import { GISDataType, IngestionStatus } from '../types/data';
 
 export interface MeasuredProperty {
-  soil_parameter_slug: string;
-  procedure_slug: string;
+  soil_property_id: string;
+  procedure_id: string;
 }
 
 export interface Dataset {

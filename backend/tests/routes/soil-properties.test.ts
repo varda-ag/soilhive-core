@@ -13,16 +13,16 @@ describe('Testing /soil-properties routes', () => {
     expect(res.statusCode).toBe(200);
     expect(Array.isArray(res.body)).toBe(true);
     expect(res.body.length).toBe(2);
-    const slugs = res.body.map((item: any) => item.slug);
-    expect(slugs).toContain('ph');
-    expect(slugs).toContain('oc');
+    const ids = res.body.map((item: any) => item.id);
+    expect(ids).toContain('ph');
+    expect(ids).toContain('oc');
   });
 
-  it.each(['ph', 'oc'])('GET /soil-properties/:soilPropertySlug responds with the expected soil property', async slug => {
-    const res = await request(app).get(`/soil-properties/${slug}`);
+  it.each(['ph', 'oc'])('GET /soil-properties/:soilPropertyId responds with the expected soil property', async id => {
+    const res = await request(app).get(`/soil-properties/${id}`);
     expect(res.statusCode).toBe(200);
-    expect(res.body).toHaveProperty('slug', slug);
-    expect(res.body).toHaveProperty('property_name', slug);
+    expect(res.body).toHaveProperty('id', id);
+    expect(res.body).toHaveProperty('property_name', id);
   });
 
   it('GET /soil-properties responds with 404 if soil property does not exist', async () => {
