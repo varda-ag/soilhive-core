@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.27.0 (2026-02-07)
+
+## What's Changed
+* feat: sp-4761 file to DB by @d-rom in https://github.com/varda-ag/soilhive-core/pull/167
+* chore: 🎨 added MIT license, moved module_example folder by @svaccari in https://github.com/varda-ag/soilhive-core/pull/174
+* chore(ci): pin varda workflows version by @Butterneck in https://github.com/varda-ag/soilhive-core/pull/177
+* refactor(data): 🎨 replacing slugs with IDs by @svaccari in https://github.com/varda-ag/soilhive-core/pull/178
+* feat(be): :sparkles: SP-4755 data mappings endpoint by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/176
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.26.1...v0.27.0
+
 ## 0.26.1 (2026-02-05)
 
 ## What's Changed
