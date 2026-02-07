@@ -655,6 +655,72 @@ paths:
         '200':
           description: File downloaded successfully
 
+  /mappings:
+      post:
+        x-eov-operation-handler: controllers/mappings
+        x-eov-operation-id: createDataMapping
+        summary: Create a new data mapping
+        tags:
+          - mappings
+        security:
+          - bearerAuth: [data-admin]
+        requestBody:
+          required: true
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataMappingObject'
+        responses:
+          '200':
+            description: Data mapping created successfully
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/DataMapping'
+          '400':
+            $ref: '#/components/responses/BadRequest'
+          '401':
+            $ref: '#/components/responses/Unauthorized'
+  /mappings/{mappingId}:
+    parameters:
+      - name: mappingId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Data mapping ID
+    get:
+      x-eov-operation-handler: controllers/mappings
+      x-eov-operation-id: getDataMapping
+      summary: Get a specific data mapping
+      tags:
+        - mappings
+      security:
+        - bearerAuth: [data-admin]
+      responses:
+        '200':
+          description: Data mapping retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataMapping'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    delete:
+      x-eov-operation-handler: controllers/mappings
+      x-eov-operation-id: deleteDataMapping
+      summary: Delete mapping item
+      tags:
+        - mappings
+      security:
+        - bearerAuth: [data-admin]
+      responses:
+        '204':
+          description: Mapping deleted successfully
+
 components:
   responses:
     NotFound:
@@ -1160,3 +1226,59 @@ components:
             nullable: true
           - type: number
             nullable: true
+
+    DataMapping:
+      type: object
+      required:
+        - id
+        - data_mapping
+      properties:
+        id:
+          type: string
+          description: Unique identifier for the data mapping
+        data_mapping:
+          $ref: '#/components/schemas/DataMappingObject'
+    DataMappingObject:
+      type: object
+      additionalProperties:
+        oneOf:
+          - type: string
+          - $ref: '#/components/schemas/PropertyMapping'
+      description: >
+        Dynamic object where keys are column names from the source data.
+        Values can be either:
+        - A string (for metadata columns like 'min_depth', 'max_depth', 'sampling_date', etc.)
+        - A PropertyMapping object (for property columns with conversion/procedure info)
+      example:
+        magnesium:
+          property_id: "magnesium"
+          procedure_id: "sieved-over-2-mm-sieve-lab-procedure-water-h2o--01-05-weight-volume-electrode"
+          conversion_id: "cm"
+        total_nitrogen:
+          property_id: "nitrogen-total"
+        upper_depth: "min_depth"
+        lower_depth: "max_depth"
+        date: "sampling_date"
+
+    PropertyMapping:
+      type: object
+      required:
+        - property_id
+      properties:
+        property_id:
+          type: string
+          description: ID of the soil property
+        conversion_id:
+          type: string
+          description: Optional ID for unit conversion
+        min_val:
+          type: number
+          description: Optional minimum value constraint
+        max_val:
+          type: number
+          description: Optional maximum value constraint
+        procedure_id:
+          type: string
+          description: Optional slug for the procedure
+
+    
