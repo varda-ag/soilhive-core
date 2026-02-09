@@ -18,6 +18,12 @@ export default class SoilPropertyService {
     return await getEntities(requestData, SoilPropertyEntity, EntityType.SOIL_PROPERTY, slugs);
   };
 
+  /**
+   * 
+   * @param requestData Mandatory request information
+   * @param input Single soil property or array. Note: when using an array, all properties must be included in the input (i.e., no missing parent properties).
+   * @returns Input with slugs in place of IDs
+   */
   propertiesIdToSlugs = async (requestData: RequestData, input: SoilProperty | SoilProperty[]): Promise<SoilProperty | SoilProperty[]> => {
     if (Array.isArray(input)) {
       const idMap = input.reduce(
