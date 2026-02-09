@@ -78,13 +78,13 @@ const useDataScopeFilters = (): DataScopeFiltresType => {
         {
           id: 'time',
           label: `${selectedTimeFilter.min}-${selectedTimeFilter.max}`,
-          disabled: !timeFilterRange.min || !timeFilterRange.max,
+          disabled: !isLoading && (!timeFilterRange.min || !timeFilterRange.max),
         },
       ];
     }
 
     return null;
-  }, [selectedTimeFilter, timeFilterRange]);
+  }, [isLoading, selectedTimeFilter, timeFilterRange]);
 
   const typeFilterOptions = useMemo((): Selection[] => {
     if (!allDatasets.length) return [];
