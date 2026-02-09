@@ -313,9 +313,9 @@ paths:
         '401':
           description: Unauthorized - Token subject is missing
 
-  /datasets/{datasetSlug}/dataset-file-mapping:
+  /datasets/{datasetId}/dataset-file-mapping:
     post:
-      x-eov-operation-handler: controllers/datasetFileMappings
+      x-eov-operation-handler: controllers/dataset-file-mappings
       x-eov-operation-id: createDatasetFileMapping
       summary: Creates a dataset-file-mapping triplet (or placeholder)
       tags:
@@ -323,7 +323,7 @@ paths:
       security:
         - bearerAuth: [data-admin]
       parameters:
-        - name: datasetSlug
+        - name: datasetId
           in: path
           required: true
           schema:
@@ -346,9 +346,9 @@ paths:
         '401':
           description: Unauthorized - Token subject is missing
 
-  /datasets/{datasetSlug}/dataset-file-mapping/{datasetFileMappingId}:
+  /datasets/{datasetId}/dataset-file-mapping/{datasetFileMappingId}:
     patch:
-      x-eov-operation-handler: controllers/datasetFileMappings
+      x-eov-operation-handler: controllers/dataset-file-mappings
       x-eov-operation-id: updateDatasetFileMapping
       summary: Updates a dataset-file-mapping triplet (or placeholder)
       tags:
@@ -356,7 +356,7 @@ paths:
       security:
         - bearerAuth: [data-admin]
       parameters:
-        - name: datasetSlug
+        - name: datasetId
           in: path
           required: true
           schema:
