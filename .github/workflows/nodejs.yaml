@@ -21,7 +21,7 @@ jobs:
     uses: varda-ag/.github/.github/workflows/nodejs.yaml@dfbf503b1c958885bb1e71732936cc4a1d25739b # v0.2.1
     with:
       node-version: '22'
-      project-path: './frontend'
+      project-path: './frontend/soilhive-app'
       disable-lint: true
       disable-unit-tests: true
       disable-unit-tests-coverage: true
