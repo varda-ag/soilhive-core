@@ -5,7 +5,6 @@ exports[`FilteringSidebarHeader renders sidebar header 1`] = `
   <div
     class="FilteringSidebarHeader"
     data-testid="sh-filtering-sidebar-header"
-    role="button"
   >
     <div
       class="Title"
@@ -22,11 +21,15 @@ exports[`FilteringSidebarHeader renders sidebar header 1`] = `
         Mock FiltersCounter
       </div>
     </div>
-    <svg
-      data-testid="svg-icon-mock"
+    <div
+      class="Actions"
     >
-      mock-svg
-    </svg>
+      <svg
+        data-testid="sh-close-icon"
+      >
+        mock-svg
+      </svg>
+    </div>
   </div>
 </div>
 `;
