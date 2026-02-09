@@ -381,7 +381,7 @@ describe('Testing /soil-data routes', () => {
 
     // Call soil-data endpoint
     const soilDataRes = await request(app)
-      .post(`/soil-data?dataMappingId=${dataMapping.id}&datasetId=${dataset.slug}`)
+      .post(`/datasets/${dataset.slug}/dataset-file-mapping/${dataMapping.id}/soil-data`)
       .set('Authorization', `Bearer ${token}`)
       .send(payload);
     expect(soilDataRes.statusCode).toBe(201);
