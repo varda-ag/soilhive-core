@@ -78,7 +78,6 @@ export const enum IngestionStatus {
 }
 export interface Dataset {
   id: string;
-  slug: string;
   name: string;
   full_name?: string;
   version?: string;

@@ -10,7 +10,7 @@ on:
 jobs:
 
   docker-backend-cleanup:
-    uses: varda-ag/.github/.github/workflows/docker-cleanup.yaml@main
+    uses: varda-ag/.github/.github/workflows/docker-cleanup.yaml@dfbf503b1c958885bb1e71732936cc4a1d25739b # v0.2.1
     with:
       imageName: soilhive-core-backend
       imageVersionsPrefix: pr-${{ github.event.pull_request.number }}-
@@ -18,7 +18,7 @@ jobs:
       id-token: write # This is required for requesting the JWT token from OIDC
   
   docker-frontend-cleanup:
-    uses: varda-ag/.github/.github/workflows/docker-cleanup.yaml@main
+    uses: varda-ag/.github/.github/workflows/docker-cleanup.yaml@dfbf503b1c958885bb1e71732936cc4a1d25739b # v0.2.1
     with:
       imageName: soilhive-core-frontend
       imageVersionsPrefix: pr-${{ github.event.pull_request.number }}-

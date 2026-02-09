@@ -1,6 +1,6 @@
 export interface SoilDataSample {
   id: string;
-  dataset: string;
+  dataset_id: string;
   dataset_name: string;
   soil_property: string;
   property_acronym: string;

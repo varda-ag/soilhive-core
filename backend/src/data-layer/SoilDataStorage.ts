@@ -50,6 +50,7 @@ export default class SoilDataStorage {
       .select('dataset_layers.dataset_id', 'dataset_id')
       .addSelect('ds.gis_datatype', 'gis_datatype')
       .addSelect('ds.name', 'dataset_name')
+      .addSelect('ds.slug', 'dataset_slug')
       .addSelect("STRING_AGG(DISTINCT license.slug, ',')", 'licenses')
       .addSelect('COUNT(dataset_layers.dataset_id)', 'dataset_layer_count')
       .addSelect('MIN(layer.sampling_date)', 'min_sampling_date')
@@ -58,13 +59,13 @@ export default class SoilDataStorage {
       .addSelect('MAX(layer.max_depth)', 'max_depth')
       .addSelect("STRING_AGG(DISTINCT layer.horizon, ',')", 'horizons')
       .addSelect("STRING_AGG(DISTINCT soil_property.slug, ',')", 'soil_properties')
-      .groupBy('dataset_layers.dataset_id, ds.name, ds.gis_datatype');
+      .groupBy('dataset_layers.dataset_id, ds.name, ds.slug, ds.gis_datatype');
 
     applyFiltersToQuery(query, filters);
     const results = await query.getRawMany();
 
     return results.map(row => ({
-      id: row.dataset_id,
+      id: row.dataset_slug,
       name: row.dataset_name,
       data_type: row.gis_datatype,
       licenses: row.licenses ? row.licenses.split(',') : [],
@@ -129,7 +130,7 @@ export default class SoilDataStorage {
 const applySelectToQuery = (query: any) => {
   query
     .select('obs.id', 'id')
-    .addSelect('ds.slug', 'dataset')
+    .addSelect('ds.slug', 'dataset_slug')
     .addSelect('ds.name', 'dataset_name')
     .addSelect('soil_property.slug', 'soil_property')
     .addSelect('soil_property.property_acronym', 'property_acronym')
@@ -234,7 +235,7 @@ const applyRasterFilterToQuery = (query: any, table: string, values: number[]) =
 const dataRowTranslation = (row: any, sort?: string): SoilDataSample => {
   const output = {
     id: row.id,
-    dataset: row.dataset,
+    dataset_id: row.dataset_slug,
     dataset_name: row.dataset_name,
     soil_property: row.soil_property,
     property_acronym: row.property_acronym,
@@ -279,7 +280,7 @@ const validateAndGetCursor = (cursor: string, sort?: string): Cursor => {
 const getSortFieldMapping = (): Record<string, string> => ({
   id: 'obs.id',
   value: 'obs.value',
-  dataset: 'ds.slug',
+  dataset_id: 'ds.slug',
   dataset_name: 'ds.name',
   soil_property: 'soil_property.slug',
   property_acronym: 'soil_property.property_acronym',

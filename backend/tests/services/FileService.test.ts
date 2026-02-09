@@ -1,7 +1,12 @@
-import { describe, it, expect, beforeAll } from '@jest/globals';
+import { describe, it, expect, beforeAll, beforeEach } from '@jest/globals';
 import fs from 'fs';
 import path from 'path';
+import { v7 as uuidv7 } from 'uuid';
 import FileService from '../../src/services/FileService';
+import { FileMetadata } from '../../src/interfaces/File';
+import { getTableColumns } from '../helper';
+import { sanitizeField } from '../../src/utils/utils';
+import { DetectableFields } from '../../src/types/DataMapping';
 
 // Use absolute path from package root
 const vectorFilesPassPath = path.join(__dirname, '../assets/vector_files/pass');
@@ -18,11 +23,20 @@ describe('FileService', () => {
     process.env.LOCAL_STORAGE_ROOT_FOLDER = rootFolder;
   };
 
-  describe('extractMetadata - valid files', () => {
-    it('should extract metadata from sample_point GeoJSON file', async () => {
-      setLocalStorageRootFolder(vectorFilesPassPath);
-      const metadata = await fileService.extractMetadata('sample_point.geojson');
+  describe('extractMetadata and fileToDB - valid file sample_point GeoJSON file', () => {
+    const fileKey = 'sample_point.geojson';
+    let metadata: FileMetadata;
 
+    beforeAll(async () => {
+      setLocalStorageRootFolder(vectorFilesPassPath);
+      metadata = await fileService.extractMetadata(fileKey);
+    });
+
+    beforeEach(() => {
+      setLocalStorageRootFolder(vectorFilesPassPath);
+    });
+
+    it('should extract metadata from sample_point GeoJSON file', async () => {
       expect(metadata).toBeDefined();
       expect(metadata.field_names).toBeDefined();
       expect(Array.isArray(metadata.field_names)).toBe(true);
@@ -33,25 +47,122 @@ describe('FileService', () => {
       expect(metadata.geometry_detected).toBeTruthy();
     });
 
-    it('should extract metadata from valid area GeoJSON file', async () => {
-      setLocalStorageRootFolder(vectorFilesPassPath);
-      const metadata = await fileService.extractMetadata('valid_area_in_spain.geojson');
+    it('should load to DB sample_point GeoJSON file', async () => {
+      const fileId = uuidv7();
 
+      await fileService.fileToDB(fileId, fileKey, metadata);
+      const tableColumns = await getTableColumns(`file_${sanitizeField(fileId)}_raw`);
+      expect(metadata.field_names.map(field => sanitizeField(field)).sort()).toEqual(
+        tableColumns
+          .filter(({ column_name }) => !['record_id', 'geometry'].includes(column_name))
+          .map(item => item.column_name)
+          .sort(),
+      );
+      if (metadata.geometry_detected) {
+        expect(tableColumns.map(item => item.column_name)).toContain('geometry');
+      }
+      expect(tableColumns.map(item => item.column_name)).toContain('record_id');
+    });
+  });
+
+  describe('extractMetadata and fileToDB - area GeoJSON file', () => {
+    const fileKey = 'valid_area_in_spain.geojson';
+    let metadata: FileMetadata;
+
+    beforeAll(async () => {
+      metadata = await fileService.extractMetadata(fileKey);
+    });
+
+    beforeEach(() => {
+      setLocalStorageRootFolder(vectorFilesPassPath);
+    });
+    it('should extract metadata from area GeoJSON file', async () => {
       expect(metadata).toBeDefined();
       expect(metadata.field_names).toBeDefined();
       expect(Array.isArray(metadata.field_names)).toBe(true);
       expect(metadata.geometry_detected).toBeTruthy();
     });
+    it('should detect CRS when available', async () => {
+      expect(metadata.detected_fields.crs).toBe('EPSG:4326');
+    });
+    it('should fail to load to DB only area GeoJSON file', async () => {
+      const fileId = uuidv7();
+      await expect(fileService.fileToDB(fileId, fileKey, metadata)).rejects.toThrow('No data besides geometry detected');
+    });
+  });
 
-    it('should extract metadata from another GeoJSON file', async () => {
+  describe('extractMetadata and fileToDB - another area GeoJSON file', () => {
+    const fileKey = '211.geojson';
+    let metadata: FileMetadata;
+
+    beforeAll(async () => {
+      metadata = await fileService.extractMetadata(fileKey);
+    });
+
+    beforeEach(() => {
       setLocalStorageRootFolder(vectorFilesPassPath);
-      const csvFile = '211.geojson';
-      const metadata = await fileService.extractMetadata(csvFile);
-
+    });
+    it('should extract metadata from another GeoJSON file', async () => {
       expect(metadata).toBeDefined();
       expect(metadata.field_names).toBeDefined();
       expect(Array.isArray(metadata.field_names)).toBe(true);
       expect(metadata.geometry_detected).toBeTruthy();
+    });
+    it('should fail to load to DB only area GeoJSON file', async () => {
+      const fileId = uuidv7();
+      await expect(fileService.fileToDB(fileId, fileKey, metadata)).rejects.toThrow('No data besides geometry detected');
+    });
+  });
+
+  describe('extractMetadata and fileToDB - special characters in fields file', () => {
+    const fileKey = 'special_characters_fields.csv';
+    let metadata: FileMetadata;
+
+    beforeAll(async () => {
+      metadata = await fileService.extractMetadata(fileKey);
+    });
+
+    beforeEach(() => {
+      setLocalStorageRootFolder(vectorFilesPassPath);
+    });
+    it('should extract metadata fields even with special characters', async () => {
+      expect(metadata).toBeDefined();
+      expect(metadata.field_names).toBeDefined();
+      expect(Array.isArray(metadata.field_names)).toBe(true);
+      expect(metadata.geometry_detected).toBeFalsy();
+      expect(metadata.detected_fields).toBeDefined();
+
+      // Check detected_fields structure
+      expect(metadata.detected_fields).toHaveProperty(DetectableFields.GEOMETRY);
+      expect(metadata.detected_fields[DetectableFields.GEOMETRY]).toBeDefined();
+      expect(metadata.detected_fields).toHaveProperty(DetectableFields.LICENSE);
+      expect(metadata.detected_fields[DetectableFields.LICENSE]).toBeDefined();
+      expect(metadata.detected_fields).toHaveProperty(DetectableFields.SAMPLING_DATE);
+      expect(metadata.detected_fields[DetectableFields.SAMPLING_DATE]).toBeDefined();
+      expect(metadata.detected_fields).toHaveProperty(DetectableFields.CRS);
+      expect(metadata.detected_fields[DetectableFields.CRS]).toBeNull();
+    });
+    it('should create table in DB with column names as sanititized field_names', async () => {
+      const fileId = uuidv7();
+      await fileService.fileToDB(fileId, fileKey, metadata);
+      const tableColumns = await getTableColumns(`file_${sanitizeField(fileId)}_raw`);
+      expect(metadata.field_names.map(field => sanitizeField(field)).sort()).toEqual(
+        tableColumns
+          .filter(({ column_name }) => !['record_id', 'geometry'].includes(column_name))
+          .map(item => item.column_name.replace('-', '_').replace(/[^a-z0-9_]/g, ''))
+          .sort(),
+      );
+      if (metadata.geometry_detected) {
+        expect(tableColumns.map(item => item.column_name)).toContain('geometry');
+      }
+      expect(tableColumns.map(item => item.column_name)).toContain('record_id');
+    });
+  });
+
+  // TODO: adapt tests for fileToDB
+  describe('extractMetadata - remaining valid tests', () => {
+    beforeEach(() => {
+      setLocalStorageRootFolder(vectorFilesPassPath);
     });
 
     it('should detect geometry field from multi-layer vector files', async () => {
@@ -61,15 +172,7 @@ describe('FileService', () => {
       expect(metadata.geometry_detected).toBeTruthy();
     });
 
-    it('should detect CRS when available', async () => {
-      setLocalStorageRootFolder(vectorFilesPassPath);
-      const metadata = await fileService.extractMetadata('valid_area_in_spain.geojson');
-
-      expect(metadata.detected_fields.crs).toBe('EPSG:4326');
-    });
-
     it('should handle files without CRS gracefully', async () => {
-      setLocalStorageRootFolder(vectorFilesPassPath);
       const metadata = await fileService.extractMetadata('valid1.csv');
 
       // Field should exist even if empty
@@ -77,7 +180,6 @@ describe('FileService', () => {
     });
 
     it('should extract metadata from ZIP files with Shapefiles', async () => {
-      setLocalStorageRootFolder(vectorFilesPassPath);
       const metadata = await fileService.extractMetadata('gis_osm_natural_07_1.zip');
 
       expect(metadata).toBeDefined();
@@ -88,7 +190,6 @@ describe('FileService', () => {
     });
 
     it.each(['audit.csv', 'data_download.csv'])('should not detect geometry column for non-spatial CSV files', async file => {
-      setLocalStorageRootFolder(vectorFilesPassPath);
       const metadata = await fileService.extractMetadata(file);
       expect(metadata.geometry_detected).toBeFalsy();
       expect(metadata.detected_fields.geometry).toBeNull();

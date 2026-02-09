@@ -1,15 +1,13 @@
 export interface PropertyMapping {
-  property_slug: string;
-  conversion_slug?: string;
+  property_id: string;
+  conversion_id?: string;
   min_val?: number;
   max_val?: number;
-  procedure_slug?: string;
+  procedure_id?: string;
 }
 
 export interface PropertyCleaningConfig extends PropertyMapping {
   conversion_formula?: string;
-  procedure_id?: string;
-  property_id?: string;
 }
 
 export interface PropertyInfo {

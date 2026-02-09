@@ -43,6 +43,36 @@ export const clearDatabase = async () => {
     .join(', ');
   await dataSource?.query(`SET search_path TO ${process.env.POSTGRES_SCHEMA}, public`);
   await dataSource?.query(`TRUNCATE TABLE ${tableNames} CASCADE;`);
+
+  // Drop raw data tables
+  const tables: Array<{ table_name: string }> = await dataSource.query(
+    `
+      SELECT table_name
+      FROM information_schema.tables
+      WHERE table_schema = $1
+        AND table_type = 'BASE TABLE'
+        AND table_name LIKE 'file\\_%\\_raw' ESCAPE '\\'`,
+    [process.env.POSTGRES_SCHEMA],
+  );
+
+  await dataSource.transaction(async manager => {
+    for (const { table_name } of tables) {
+      await manager.query(`DROP TABLE IF EXISTS "${process.env.POSTGRES_SCHEMA}"."${table_name}" CASCADE`);
+    }
+  });
+};
+
+export const getTableColumns = async (tableName: string): Promise<Array<{ column_name: string; data_type: string }>> => {
+  const dataSource = await getDataSource();
+  const result = await dataSource.query(
+    `
+      SELECT column_name, data_type
+      FROM information_schema.columns
+      WHERE table_schema = $1
+        AND table_name = $2`,
+    [process.env.POSTGRES_SCHEMA, tableName],
+  );
+  return result;
 };
 
 export const getSuperAdminToken = async (): Promise<string> => {

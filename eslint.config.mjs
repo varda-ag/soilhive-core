@@ -78,6 +78,10 @@ export default defineConfig([globalIgnores([
         "@typescript-eslint/no-explicit-any": "off",
         "react/react-in-jsx-scope": "off",
         "react/prop-types": "off",
-        "react-hooks/set-state-in-effect": "off"
+        "react-hooks/set-state-in-effect": "off",
+
+        // Prevents debug logs from ending up in commits unless they areexplicitly marked
+        // with eslint directives
+        "no-console": ["error", { "allow": ['log', 'warn', 'error', 'info', 'trace'] }]
     },
 }]);

@@ -41,7 +41,7 @@ describe('SoilDataStorage class', () => {
     expect(results[0].soil_properties).toContain('prop2');
     expect(results[0].licenses).toContain('test_license_1');
     const resultDatasetIds = results.map(r => r.id);
-    expect(resultDatasetIds).toContain(dataset.id);
+    expect(resultDatasetIds).toContain(dataset.slug);
   });
 
   it.each([
@@ -62,7 +62,7 @@ describe('SoilDataStorage class', () => {
     const results = await sds.filter(entityManager, bboxPolygon, { data_types: [filterType as GISDataType] });
     expect(results.length).toBe(expectedDatasetCount);
     for (let i = 0; i < expectedDatasetCount; i++) {
-      expect(datasets.map(d => d.id)).toContain(results[i].id);
+      expect(datasets.map(d => d.slug)).toContain(results[i].id);
     }
   });
 

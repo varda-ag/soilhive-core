@@ -12,9 +12,9 @@ CREATE TABLE {{table}} (
 	licence varchar NULL,
 	bdfi33 float8 NULL,
 	bdfiod float8 NULL,
-	geom public.geometry(point, 4326) NULL
+	geometry public.geometry(point, 4326) NULL
 );
-INSERT INTO {{table}} (record_id,longitude,latitude,profile_id,layer_id,profile_code,layer_name,upper_depth,lower_depth,"date",licence,bdfi33,bdfiod,geom) VALUES
+INSERT INTO {{table}} (record_id,longitude,latitude,profile_id,layer_id,profile_code,layer_name,upper_depth,lower_depth,"date",licence,bdfi33,bdfiod,geometry) VALUES
 	 (10001,-148.043243399999,64.814888,1055899,633132,'04N0971',NULL,10,15,'2004-07-16','test_license_raw_data',0.42333335,0.38,'SRID=4326;POINT (-148.043243399999 64.814888)'::public.geometry),
 	 (10002,-148.043243399999,64.814888,1055899,633133,'04N0971','Bgjj1',15,29,'2004-07-16','test_license_raw_data',1.3233334,1.22,'SRID=4326;POINT (-148.043243399999 64.814888)'::public.geometry),
 	 (10003,-148.043243399999,64.814888,1055899,633134,'04N0971','Bgjj2',29,42,'2004-07-16','test_license_raw_data',1.365,1.255,'SRID=4326;POINT (-148.043243399999 64.814888)'::public.geometry),
@@ -25,7 +25,7 @@ INSERT INTO {{table}} (record_id,longitude,latitude,profile_id,layer_id,profile_
 	 (10089,-148.011993408203,64.9757995605469,1107287,3134745,'MDU_3',NULL,0,15,'2001-08-01','test_license_raw_data',NULL,0.08,'SRID=4326;POINT (-148.011993408203 64.9757995605469)'::public.geometry),
 	 (10090,-148.011993408203,64.9757995605469,1107287,3134746,'MDU_3',NULL,15,18,'2001-08-01','test_license_raw_data',NULL,0.41,'SRID=4326;POINT (-148.011993408203 64.9757995605469)'::public.geometry),
 	 (10091,-148.011993408203,64.9757995605469,1107287,3134747,'MDU_3',NULL,18,23,'2001-08-01','test_license_raw_data',NULL,0.81,'SRID=4326;POINT (-148.011993408203 64.9757995605469)'::public.geometry);
-INSERT INTO {{table}} (record_id,longitude,latitude,profile_id,layer_id,profile_code,layer_name,upper_depth,lower_depth,"date",licence,bdfi33,bdfiod,geom) VALUES
+INSERT INTO {{table}} (record_id,longitude,latitude,profile_id,layer_id,profile_code,layer_name,upper_depth,lower_depth,"date",licence,bdfi33,bdfiod,geometry) VALUES
 	 (10096,-148.011993408203,64.9757995605469,1109669,3145590,'MDU_1',NULL,0,16,'2001-08-01','test_license_raw_data',NULL,0.11,'SRID=4326;POINT (-148.011993408203 64.9757995605469)'::public.geometry),
 	 (10097,-148.011993408203,64.9757995605469,1109669,3145591,'MDU_1',NULL,16,18,'2001-08-01','test_license_raw_data',NULL,0.36,'SRID=4326;POINT (-148.011993408203 64.9757995605469)'::public.geometry),
 	 (10098,-148.011993408203,64.9757995605469,1109669,3145592,'MDU_1',NULL,18,23,'2001-08-01','test_license_raw_data',NULL,0.88,'SRID=4326;POINT (-148.011993408203 64.9757995605469)'::public.geometry),
