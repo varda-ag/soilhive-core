@@ -14,8 +14,8 @@ describe('Testing /datasets routes', () => {
       expect(Array.isArray(res.body)).toBe(true);
       expect(res.body.length).toBe(2);
       const ids = res.body.map((item: any) => item.id);
-      expect(ids).toContain(s1.dataset.id);
-      expect(ids).toContain(s2.dataset.id);
+      expect(ids).toContain(s1.dataset.slug);
+      expect(ids).toContain(s2.dataset.slug);
     });
 
     it('GET /datasets/:datasetId responds with the expected dataset', async () => {

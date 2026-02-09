@@ -8,7 +8,7 @@ const datasetService = new DatasetService();
 
 export const getDatasets = async (req: Request, res: Response) => {
   const data = await datasetService.getDatasets(req.customData);
-  res.json(data);
+  res.json(idToSlug(data));
 };
 
 export const getDataset = async (req: Request, res: Response) => {
