@@ -14,7 +14,7 @@ RUN pnpm install --frozen-lockfile --recursive
 #COPY common ./common
 COPY soilhive-app ./soilhive-app
 
-RUN pnpm run build
+RUN pnpm --filter=!common --parallel build
 
 FROM nginx:alpine
 
