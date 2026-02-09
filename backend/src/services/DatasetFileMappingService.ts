@@ -20,9 +20,19 @@ export default class DatasetFileMappingService {
 
     const values: any = {
       dataset_id: dataset.id,
-      file_id: payload.fileID ?? null,
-      data_mapping_id: payload.mappingId ?? null,
     };
+
+    const updateColumns: string[] = ['updated_at'];
+
+    if (payload.fileID !== undefined) {
+      values.file_id = payload.fileID;
+      updateColumns.push('file_id');
+    }
+
+    if (payload.mappingId !== undefined) {
+      values.data_mapping_id = payload.mappingId;
+      updateColumns.push('data_mapping_id');
+    }
 
     if (existingMappingId) {
       values.id = existingMappingId;
@@ -36,7 +46,7 @@ export default class DatasetFileMappingService {
       .into(DatasetFileMappingEntity)
       .values(values)
       .orUpdate(
-        ['file_id', 'data_mapping_id', 'updated_at'],
+        updateColumns,
         ['id'], // If ID is provided, conflict on ID
       )
       .returning('id')
