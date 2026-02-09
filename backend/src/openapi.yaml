@@ -313,6 +313,78 @@ paths:
         '401':
           description: Unauthorized - Token subject is missing
 
+  /datasets/{datasetSlug}/dataset-file-mapping:
+    post:
+      x-eov-operation-handler: controllers/datasetFileMappings
+      x-eov-operation-id: createDatasetFileMapping
+      summary: Creates a dataset-file-mapping triplet (or placeholder)
+      tags:
+        - datasets
+      security:
+        - bearerAuth: [data-admin]
+      parameters:
+        - name: datasetSlug
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DatasetFileMappingRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetFileMappingResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          description: Unauthorized - Token subject is missing
+
+  /datasets/{datasetSlug}/dataset-file-mapping/{datasetFileMappingId}:
+    patch:
+      x-eov-operation-handler: controllers/datasetFileMappings
+      x-eov-operation-id: updateDatasetFileMapping
+      summary: Updates a dataset-file-mapping triplet (or placeholder)
+      tags:
+        - datasets
+      security:
+        - bearerAuth: [data-admin]
+      parameters:
+        - name: datasetSlug
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: datasetFileMappingId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DatasetFileMappingRequest'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetFileMappingResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          description: Unauthorized - Token subject is missing
+
   /soil-properties:
     get:
       x-eov-operation-handler: controllers/soil-properties
@@ -1280,5 +1352,22 @@ components:
         procedure_id:
           type: string
           description: Optional slug for the procedure
+
+    DatasetFileMappingRequest:
+      type: object
+      properties:
+        fileID:
+          type: string
+          format: uuid
+        mappingId:
+          type: string
+          format: uuid
+          
+    DatasetFileMappingResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
 
     
