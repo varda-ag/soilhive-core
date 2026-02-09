@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.27.1 (2026-02-09)
+
+## What's Changed
+* fix: build fix by @svaccari in https://github.com/varda-ag/soilhive-core/pull/179
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.27.0...v0.27.1
+
 ## 0.27.0 (2026-02-07)
 
 ## What's Changed
