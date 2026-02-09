@@ -6,6 +6,7 @@ import FileService from '../../src/services/FileService';
 import { FileMetadata } from '../../src/interfaces/File';
 import { getTableColumns } from '../helper';
 import { sanitizeField } from '../../src/utils/utils';
+import { DetectableFields } from '../../src/types/DataMapping';
 
 // Use absolute path from package root
 const vectorFilesPassPath = path.join(__dirname, '../assets/vector_files/pass');
@@ -110,6 +111,51 @@ describe('FileService', () => {
     it('should fail to load to DB only area GeoJSON file', async () => {
       const fileId = uuidv7();
       await expect(fileService.fileToDB(fileId, fileKey, metadata)).rejects.toThrow('No data besides geometry detected');
+    });
+  });
+
+  describe('extractMetadata and fileToDB - special characters in fields file', () => {
+    const fileKey = 'special_characters_fields.csv';
+    let metadata: FileMetadata;
+
+    beforeAll(async () => {
+      metadata = await fileService.extractMetadata(fileKey);
+    });
+
+    beforeEach(() => {
+      setLocalStorageRootFolder(vectorFilesPassPath);
+    });
+    it('should extract metadata fields even with special characters', async () => {
+      expect(metadata).toBeDefined();
+      expect(metadata.field_names).toBeDefined();
+      expect(Array.isArray(metadata.field_names)).toBe(true);
+      expect(metadata.geometry_detected).toBeFalsy();
+      expect(metadata.detected_fields).toBeDefined();
+
+      // Check detected_fields structure
+      expect(metadata.detected_fields).toHaveProperty(DetectableFields.GEOMETRY);
+      expect(metadata.detected_fields[DetectableFields.GEOMETRY]).toBeDefined();
+      expect(metadata.detected_fields).toHaveProperty(DetectableFields.LICENSE);
+      expect(metadata.detected_fields[DetectableFields.LICENSE]).toBeDefined();
+      expect(metadata.detected_fields).toHaveProperty(DetectableFields.SAMPLING_DATE);
+      expect(metadata.detected_fields[DetectableFields.SAMPLING_DATE]).toBeDefined();
+      expect(metadata.detected_fields).toHaveProperty(DetectableFields.CRS);
+      expect(metadata.detected_fields[DetectableFields.CRS]).toBeNull();
+    });
+    it('should create table in DB with column names as sanititized field_names', async () => {
+      const fileId = uuidv7();
+      await fileService.fileToDB(fileId, fileKey, metadata);
+      const tableColumns = await getTableColumns(`file_${sanitizeField(fileId)}_raw`);
+      expect(metadata.field_names.map(field => sanitizeField(field)).sort()).toEqual(
+        tableColumns
+          .filter(({ column_name }) => !['record_id', 'geometry'].includes(column_name))
+          .map(item => item.column_name.replace('-', '_').replace(/[^a-z0-9_]/g, ''))
+          .sort(),
+      );
+      if (metadata.geometry_detected) {
+        expect(tableColumns.map(item => item.column_name)).toContain('geometry');
+      }
+      expect(tableColumns.map(item => item.column_name)).toContain('record_id');
     });
   });
 

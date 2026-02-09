@@ -74,6 +74,7 @@ export const syntheticIngestionDataOptions = {
     },
     drop_records: [10136, 10137],
   },
+  createTable: true,
   showProgress: false,
 };
 
@@ -398,14 +399,14 @@ export const addSyntheticIngestionData = async (syntheticIngestionDataOptions): 
     } else if (typeof mapping === 'object') {
       const props = mapping as PropertyInfo;
       const soilProperty = await addSoilProperty(props.property_name, category.id, props.standard_unit);
-      const createdMapping: PropertyMapping = { property_slug: soilProperty.slug };
+      const createdMapping: PropertyMapping = { property_id: soilProperty.slug };
       const procedure = await addProcedure(props.procedure_name);
       if (procedure) {
-        createdMapping.procedure_slug = procedure.slug;
+        createdMapping.procedure_id = procedure.slug;
       }
       const unitConversion = await addUnitConversion(props.original_unit, props.standard_unit, props.conversion_formula);
       if (unitConversion) {
-        createdMapping.conversion_slug = unitConversion.slug;
+        createdMapping.conversion_id = unitConversion.slug;
       }
       if (props.max_val) {
         createdMapping.max_val = props.max_val;
@@ -419,15 +420,43 @@ export const addSyntheticIngestionData = async (syntheticIngestionDataOptions): 
   }
 
   const dataMapping = await addDataMapping(createdDataMapping);
-  // Load raw data sample
-  const sqlFile = path.join(__dirname, '..', '..', 'tests', 'assets', 'raw_data', 'raw_data_insert.sql');
-  const sqlTemplate = fs.readFileSync(sqlFile, 'utf8');
-  const sql = sqlTemplate.replace(/{{table}}/g, `"file_${sanitizeField(file.id)}_raw"`);
-  const dataSource = await getDataSource();
-  await dataSource.query(sql);
+  if (syntheticIngestionDataOptions.createTable) {
+    // Load raw data sample
+    const sqlFile = path.join(__dirname, '..', '..', 'tests', 'assets', 'raw_data', 'raw_data_insert.sql');
+    const sqlTemplate = fs.readFileSync(sqlFile, 'utf8');
+    const sql = sqlTemplate.replace(/{{table}}/g, `"file_${sanitizeField(file.id)}_raw"`);
+    const dataSource = await getDataSource();
+    await dataSource.query(sql);
+  }
 
   if (syntheticIngestionDataOptions.showProgress) {
     console.log(`Synthetic ingestion data creation complete. Dataset ID: ${dataset.id}`);
   }
   return { dataset, file, dataMapping };
+};
+
+export interface DataCount {
+  n_features: number;
+  n_layers: number;
+  n_dataset_layers: number;
+  n_observations: number;
+}
+
+export const getLoadedDataCount = async (): Promise<DataCount> => {
+  const dataSource = await getDataSource();
+  const featureRepo = dataSource.getRepository(FeatureEntity);
+  const layerRepo = dataSource.getRepository(LayerEntity);
+  const datasetLayerRepo = dataSource.getRepository(DatasetLayerEntity);
+  const observationRepo = dataSource.getRepository(ObservationEntity);
+  const features = await featureRepo.find();
+  const layers = await layerRepo.find();
+  const datasetLayers = await datasetLayerRepo.find();
+  const observations = await observationRepo.find();
+  const result: DataCount = {
+    n_features: features.length ?? 0,
+    n_layers: layers.length ?? 0,
+    n_dataset_layers: datasetLayers.length ?? 0,
+    n_observations: observations.length ?? 0,
+  };
+  return result;
 };

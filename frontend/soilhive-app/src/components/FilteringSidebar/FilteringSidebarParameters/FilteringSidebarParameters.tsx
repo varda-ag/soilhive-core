@@ -40,7 +40,7 @@ export function FilteringSidebarParameters() {
     // Initialize all nodes with empty children array
     allSoilProperties.forEach(property => {
       nodeMap[property.id] = {
-        id: property.slug,
+        id: property.id,
         label: property.property_name,
         children: [],
         isRoot: property.parent_property_id === null,

@@ -1,5 +1,6 @@
 import { Entity, Column, PrimaryColumn, Unique, ForeignKey } from 'typeorm';
-import type { File, FileMetadata } from '../interfaces/File';
+// import type { File, FileMetadata } from '../interfaces/File';
+import type { File } from '../interfaces/File';
 import BaseTable from './BaseTable';
 import SlugHistoryEntity from './SlugHistory';
 import { IngestionStatus } from '../types/data';
@@ -25,8 +26,8 @@ export default class FileEntity extends BaseTable implements File {
   @Column({ type: 'text', nullable: true })
   file_path?: string;
 
-  @Column({ type: 'jsonb', nullable: true })
-  metadata?: FileMetadata;
+  // @Column({ type: 'jsonb', nullable: true })
+  // metadata?: FileMetadata;
 
   @Column({ type: 'text', default: IngestionStatus.PENDING })
   status: IngestionStatus;

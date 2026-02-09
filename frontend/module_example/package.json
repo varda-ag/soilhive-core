@@ -1,6 +1,7 @@
 {
   "name": "module_example",
   "private": true,
+  "license": "MIT",
   "version": "1.0.0",
   "scripts": {
     "dev": "rsbuild dev --open",

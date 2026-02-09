@@ -1,6 +1,7 @@
 import { EntityManager } from 'typeorm';
 import { DATA_PREVIEW_SIZE } from '../constants/constants';
 import { DataCleaningConfig } from '../interfaces/DataMapping';
+import { SoilRecord } from '../interfaces/Record';
 import FeatureEntity from '../entities/Feature';
 import LicenseEntity from '../entities/License';
 import LayerEntity from '../entities/Layer';
@@ -12,35 +13,22 @@ export default class VectorDataLoad {
   getDataPreview = async (
     entityManager: EntityManager,
     dataMappingConfig: DataCleaningConfig,
-    nRecords: number = DATA_PREVIEW_SIZE,
-    includeGeom: boolean = true,
-  ): Promise<any> => {
-    let query = entityManager.createQueryBuilder().from(`file_${sanitizeField(dataMappingConfig.file_id)}_raw`, 'raw');
-    query = getDataPreviewQuery(query, dataMappingConfig, includeGeom);
+    fileId: string,
+    limit: number = DATA_PREVIEW_SIZE,
+  ): Promise<SoilRecord[]> => {
+    let query = entityManager.createQueryBuilder().from(`${process.env.POSTGRES_SCHEMA}.file_${sanitizeField(fileId)}_raw`, 'raw');
+    query = getDataPreviewQuery(query, dataMappingConfig);
     // Workaround using raw query to be able to use dynamic table name without entity
-    const results = await entityManager.query(...query.take(nRecords).getQueryAndParameters());
+    const results = await entityManager.query(...query.take(limit).getQueryAndParameters());
     return results;
   };
 
   rawRecordToDataModel = async (
     entityManager: EntityManager,
     dataMappingConfig: DataCleaningConfig,
-    recordId: number,
+    record: SoilRecord,
     datasetId: string,
-  ): Promise<void> => {
-    let subQuery = entityManager.createQueryBuilder().from(`file_${sanitizeField(dataMappingConfig.file_id)}_raw`, 'raw');
-    subQuery = getDataPreviewQuery(subQuery, dataMappingConfig);
-
-    const record = await entityManager
-      .createQueryBuilder()
-      .select('*, ST_AsGeoJSON(geom) as geom_geojson')
-      .from(`(${subQuery.getQuery()})`, 'cleaned')
-      .setParameters(subQuery.getParameters())
-      .where('cleaned.record_id = :record_id', { record_id: recordId })
-      .getRawOne();
-
-    if (!record) throw new Error('Record not found');
-
+  ): Promise<any> => {
     // Upsert feature by geom
     const feature = await entityManager
       .createQueryBuilder()
@@ -49,23 +37,24 @@ export default class VectorDataLoad {
       .values({
         geom: () => `ST_GeomFromGeoJSON(:geom)`,
       })
-      .setParameter('geom', record.geom_geojson)
+      .setParameter('geom', record.geometry)
       .orUpdate(['geom'], ['geom_hash'])
       .returning('id')
       .execute();
     const featureId = feature.raw[0]?.id;
 
     // Upsert license
+    const license = record.license;
     let licenseId: string | null = null;
-    if (record.license) {
+    if (license) {
       licenseId =
         (
           await entityManager.findOne(LicenseEntity, {
-            where: [{ name: record.license }, { full_name: record.license }],
+            where: [{ name: license }, { full_name: license }],
           })
         )?.id || null;
-      if (!licenseId && record.license) {
-        const newLicense = entityManager.create(LicenseEntity, { name: record.license });
+      if (!licenseId) {
+        const newLicense = entityManager.create(LicenseEntity, { name: license });
         licenseId = (await entityManager.save(newLicense)).id;
       }
     }
@@ -103,7 +92,7 @@ export default class VectorDataLoad {
         dataset_id: datasetId,
         layer_id: layerId!,
         feature_id: featureId!,
-        soil_property_id: soilPropertyId!,
+        soil_property_id: soilPropertyId,
         _key: `${datasetId}_${layerId}_${featureId}_${soilPropertyId}`,
       });
 
@@ -156,7 +145,7 @@ export default class VectorDataLoad {
   };
 }
 
-const getDataPreviewQuery = (query: any, dataMappingConfig: DataCleaningConfig, includeGeom: boolean = true): any => {
+const getDataPreviewQuery = (query: any, dataMappingConfig: DataCleaningConfig): any => {
   query.select('raw.record_id', 'record_id');
 
   for (const [mapping, field] of Object.entries(dataMappingConfig.metadata_cols)) {
@@ -188,9 +177,7 @@ const getDataPreviewQuery = (query: any, dataMappingConfig: DataCleaningConfig, 
     query.addSelect(propertyCleanup, field);
   }
   query.setParameters(params);
-  if (includeGeom) {
-    query.addSelect('raw.geom', 'geom');
-  }
+  query.addSelect('ST_AsGeoJSON(raw.geometry)', 'geometry');
 
   if (dataMappingConfig.drop_records) {
     query = query.where('raw.record_id NOT IN (:...drop_records)', { drop_records: dataMappingConfig.drop_records });

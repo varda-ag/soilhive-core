@@ -6,7 +6,7 @@ export interface File {
   slug?: string;
   file_path?: string;
   status?: IngestionStatus;
-  metadata?: FileMetadata;
+  // metadata?: FileMetadata;
   created_at: Date;
   updated_at: Date | null;
   created_by: string;
@@ -20,6 +20,6 @@ export interface FileMetadata {
 }
 
 export interface ExtractedFilePath {
-  datasetPath: string;
+  mainFilePath: string;
   tempZipExtractPath: string | null;
 }

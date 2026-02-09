@@ -1,5 +1,58 @@
 # Changelog
 
+## 0.27.2 (2026-02-09)
+
+## What's Changed
+* fix(data): replacing IDs with slugs by @svaccari in https://github.com/varda-ag/soilhive-core/pull/182
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.27.1...v0.27.2
+
+## 0.27.1 (2026-02-09)
+
+## What's Changed
+* fix: build fix by @svaccari in https://github.com/varda-ag/soilhive-core/pull/179
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.27.0...v0.27.1
+
+## 0.27.0 (2026-02-07)
+
+## What's Changed
+* feat: sp-4761 file to DB by @d-rom in https://github.com/varda-ag/soilhive-core/pull/167
+* chore: 🎨 added MIT license, moved module_example folder by @svaccari in https://github.com/varda-ag/soilhive-core/pull/174
+* chore(ci): pin varda workflows version by @Butterneck in https://github.com/varda-ag/soilhive-core/pull/177
+* refactor(data): 🎨 replacing slugs with IDs by @svaccari in https://github.com/varda-ag/soilhive-core/pull/178
+* feat(be): :sparkles: SP-4755 data mappings endpoint by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/176
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.26.1...v0.27.0
+
+## 0.26.1 (2026-02-05)
+
+## What's Changed
+* fix(be): :truck: harmonized slug utils file by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/170
+* refactor: :bug: fixing test dependency from .env file, adding slug to… by @svaccari in https://github.com/varda-ag/soilhive-core/pull/172
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.26.0...v0.26.1
+
+## 0.26.0 (2026-02-05)
+
+## What's Changed
+* feat: sp-4839 POST /soil-data endpoint (cleaned record to data model) by @d-rom in https://github.com/varda-ag/soilhive-core/pull/154
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.25.2...v0.26.0
+
+## 0.25.2 (2026-02-05)
+
+## What's Changed
+* fix(BE): fix dataset redirect path by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/166
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.25.1...v0.25.2
+
 ## 0.25.1 (2026-02-04)
 
 ## What's Changed
