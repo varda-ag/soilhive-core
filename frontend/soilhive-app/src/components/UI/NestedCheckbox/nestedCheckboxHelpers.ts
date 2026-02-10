@@ -46,7 +46,7 @@ export const getTopLevelSelections = (items: NestedCheckboxItemType[], selected:
  * Collects every single ID inside a node,
  * regardless of what the ID is.
  */
-const collectAllIds = (item: NestedCheckboxItemType): string[] => {
+export const collectAllIds = (item: NestedCheckboxItemType): string[] => {
   const ids = [item.id];
   if (item.children) {
     for (const child of item.children) {

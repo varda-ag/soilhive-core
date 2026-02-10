@@ -400,12 +400,12 @@ export const addSyntheticIngestionData = async (syntheticIngestionDataOptions): 
       const props = mapping as PropertyInfo;
       const soilProperty = await addSoilProperty(props.property_name, category.id, props.standard_unit);
       const createdMapping: PropertyMapping = { property_id: soilProperty.slug };
-      const procedure = await addProcedure(props.procedure_name);
-      if (procedure) {
+      if (props.procedure_name) {
+        const procedure = await addProcedure(props.procedure_name);
         createdMapping.procedure_id = procedure.slug;
       }
-      const unitConversion = await addUnitConversion(props.original_unit, props.standard_unit, props.conversion_formula);
-      if (unitConversion) {
+      if (props.conversion_formula) {
+        const unitConversion = await addUnitConversion(props.original_unit, props.standard_unit, props.conversion_formula);
         createdMapping.conversion_id = unitConversion.slug;
       }
       if (props.max_val) {

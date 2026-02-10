@@ -1,8 +1,8 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { FilteringSidebarDataScope } from 'components/FilteringSidebar/FilteringSidebarDataScope/FilteringSidebarDataScope';
-import useAvailability from 'hooks/useAvailability';
+import useDataScopeFilters from 'hooks/useDataScopeFilters';
 
-jest.mock('hooks/useAvailability', () => ({
+jest.mock('hooks/useDataScopeFilters', () => ({
   __esModule: true,
   default: jest.fn(),
 }));
@@ -66,16 +66,33 @@ jest.mock('components/FilteringSidebar/FilteringSidebarDataScope/TimeFilter/Time
 
 describe('FilteringSidebarDataScope', () => {
   const mockSetFrontendFilters = jest.fn();
-  const mockSetDatasetFilters = jest.fn();
+  const mockTypeFilterPillRemove = jest.fn();
+  const mockAccessFilterPillRemove = jest.fn();
+  const mockHandleTimeFilterChange = jest.fn();
+
+  const defaultHookValue = {
+    isLoading: false,
+    datasetFrontendFilters: { type: [], ownership: [] },
+    typeFilterOptions: [
+      { id: 'point', label: 'Point' },
+      { id: 'raster', label: 'Raster' },
+      { id: 'polygonal', label: 'Polygonal' },
+    ],
+    typeFilterPills: [],
+    accessFilterOptions: [
+      { id: 'private', label: 'Private' },
+      { id: 'public', label: 'Public' },
+    ],
+    accessFilterPills: [],
+    timeFilterPills: null,
+    typeFilterPillRemove: mockTypeFilterPillRemove,
+    accessFilterPillRemove: mockAccessFilterPillRemove,
+    handleTimeFilterChange: mockHandleTimeFilterChange,
+    setFrontendFilters: mockSetFrontendFilters,
+  };
 
   beforeEach(() => {
-    (useAvailability as jest.Mock).mockReturnValue({
-      datasetFrontendFilters: { type: [], ownership: [] },
-      typeFilterOptions: ['point', 'raster', 'polygonal'],
-      setFrontendFilters: mockSetFrontendFilters,
-      setDatasetFilters: mockSetDatasetFilters,
-      isLoading: false,
-    });
+    (useDataScopeFilters as jest.Mock).mockReturnValue(defaultHookValue);
   });
 
   afterEach(() => {
@@ -88,22 +105,19 @@ describe('FilteringSidebarDataScope', () => {
     expect(container).toMatchSnapshot();
   });
 
-  it('Data type: sets frontend filter on the type select', () => {
+  it('Data type: sets type frontend filter on the type select', () => {
     render(<FilteringSidebarDataScope />);
-
-    expect(screen.queryByTestId('pill-point')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId('mock-select-point'));
 
     expect(mockSetFrontendFilters).toHaveBeenCalledWith(['point'], 'type');
   });
 
-  it('Data type: shows pillsSlot if filter is selected and clears filter on pill removing', () => {
-    (useAvailability as jest.Mock).mockReturnValueOnce({
+  it('Data type: shows pillsSlot if filter is selected and calls typeFilterPillRemove on pill removing', () => {
+    (useDataScopeFilters as jest.Mock).mockReturnValueOnce({
+      ...defaultHookValue,
       datasetFrontendFilters: { type: ['point'], ownership: [] },
-      typeFilterOptions: ['point', 'raster', 'polygonal'],
-      setFrontendFilters: mockSetFrontendFilters,
-      setDatasetFilters: mockSetDatasetFilters,
+      typeFilterPills: [{ id: 'point', label: 'Point' }],
     });
 
     render(<FilteringSidebarDataScope />);
@@ -113,15 +127,14 @@ describe('FilteringSidebarDataScope', () => {
 
     fireEvent.click(screen.getByTestId('pill-remove-point'));
 
-    expect(mockSetFrontendFilters).toHaveBeenCalledWith([], 'type');
+    expect(mockTypeFilterPillRemove).toHaveBeenCalledWith('point');
   });
 
   it('Data type: supports multiple selections', () => {
-    (useAvailability as jest.Mock).mockReturnValueOnce({
+    (useDataScopeFilters as jest.Mock).mockReturnValueOnce({
+      ...defaultHookValue,
       datasetFrontendFilters: { type: ['point'], ownership: [] },
-      typeFilterOptions: ['point', 'raster', 'polygonal'],
-      setFrontendFilters: mockSetFrontendFilters,
-      setDatasetFilters: mockSetDatasetFilters,
+      typeFilterPills: [{ id: 'point', label: 'Point' }],
     });
 
     render(<FilteringSidebarDataScope />);
@@ -134,19 +147,16 @@ describe('FilteringSidebarDataScope', () => {
   it('Data access: sets frontend filter on the ownership select', () => {
     render(<FilteringSidebarDataScope />);
 
-    expect(screen.queryByTestId('pill-private')).not.toBeInTheDocument();
-
     fireEvent.click(screen.getByTestId('mock-select-private'));
 
     expect(mockSetFrontendFilters).toHaveBeenCalledWith(['private'], 'ownership');
   });
 
   it('Data access: shows pillsSlot if filter is selected and clears filter on pill removing', () => {
-    (useAvailability as jest.Mock).mockReturnValueOnce({
+    (useDataScopeFilters as jest.Mock).mockReturnValueOnce({
+      ...defaultHookValue,
       datasetFrontendFilters: { type: [], ownership: ['private'] },
-      typeFilterOptions: ['point', 'raster', 'polygonal'],
-      setFrontendFilters: mockSetFrontendFilters,
-      setDatasetFilters: mockSetDatasetFilters,
+      accessFilterPills: [{ id: 'private', label: 'Private' }],
     });
 
     render(<FilteringSidebarDataScope />);
@@ -156,52 +166,35 @@ describe('FilteringSidebarDataScope', () => {
 
     fireEvent.click(screen.getByTestId('pill-remove-private'));
 
-    expect(mockSetFrontendFilters).toHaveBeenCalledWith([], 'ownership');
+    expect(mockAccessFilterPillRemove).toHaveBeenCalledWith('private');
   });
 
-  it('Time: applying time filter shows time pill and removing it clears it', () => {
+  it('Time: renders time filter if there is no selected time range', () => {
     render(<FilteringSidebarDataScope />);
 
     expect(screen.queryByTestId('pill-time')).not.toBeInTheDocument();
+    expect(screen.getByTestId('mock-timefilter-apply')).toBeInTheDocument();
+  });
 
-    fireEvent.click(screen.getByTestId('mock-timefilter-apply'));
+  it('Time: pill removing calls handleTimeFilterChange with empty object', () => {
+    (useDataScopeFilters as jest.Mock).mockReturnValueOnce({
+      ...defaultHookValue,
+      timeFilterPills: [{ id: 'time', label: '2000-2010' }],
+    });
+    render(<FilteringSidebarDataScope />);
 
     expect(screen.getByTestId('pill-time')).toBeInTheDocument();
     expect(screen.getByTestId('pill-time')).toHaveTextContent('2000-2010');
     expect(screen.queryByTestId('mock-timefilter-apply')).not.toBeInTheDocument();
 
-    expect(mockSetDatasetFilters).toHaveBeenCalledTimes(1);
-
-    const setFilterCallbackFunction = mockSetDatasetFilters.mock.calls[0][0];
-    expect(typeof setFilterCallbackFunction).toBe('function');
-
-    const { min_sampling_date, max_sampling_date } = setFilterCallbackFunction({});
-
-    expect(new Date(min_sampling_date).getFullYear()).toBe(2000);
-    expect(new Date(max_sampling_date).getFullYear()).toBe(2010);
-
     fireEvent.click(screen.getByTestId('pill-remove-time'));
 
-    expect(screen.queryByTestId('pill-time')).not.toBeInTheDocument();
-    expect(screen.getByTestId('mock-timefilter-apply')).toBeInTheDocument();
-
-    expect(mockSetDatasetFilters).toHaveBeenCalledTimes(2);
-
-    const resetFilterCallbackFunction = mockSetDatasetFilters.mock.calls[1][0];
-    expect(typeof resetFilterCallbackFunction).toBe('function');
-
-    expect(resetFilterCallbackFunction({})).toEqual({
-      min_sampling_date: undefined,
-      max_sampling_date: undefined,
-    });
+    expect(mockHandleTimeFilterChange).toHaveBeenCalledWith({});
   });
 
   it('renders loading state', () => {
-    (useAvailability as jest.Mock).mockReturnValue({
-      datasetFrontendFilters: { type: [], ownership: [] },
-      typeFilterOptions: ['point', 'raster', 'polygonal'],
-      setFrontendFilters: mockSetFrontendFilters,
-      setDatasetFilters: mockSetDatasetFilters,
+    (useDataScopeFilters as jest.Mock).mockReturnValueOnce({
+      ...defaultHookValue,
       isLoading: true,
     });
 

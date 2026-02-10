@@ -34,4 +34,11 @@ describe('SelectionPills', () => {
     expect(mockOnRemove).toHaveBeenCalledWith('1');
     expect(mockOnRemove).toHaveBeenCalledTimes(1);
   });
+
+  it('renders disabled pills if disabled is true in the selection', () => {
+    const selections = [{ id: '1', label: 'Test', disabled: true }];
+    const { container } = render(<SelectionPills selections={selections} onRemove={mockOnRemove} />);
+
+    expect(container.querySelector('.Pill.Disabled')).toBeInTheDocument();
+  });
 });

@@ -1,6 +1,9 @@
+import classnames from 'classnames';
 import CloseIcon from 'assets/icons/small-cross-icon.svg?react';
-import styles from './Pill.module.scss';
+import WarningIcon from 'assets/icons/warning-icon.svg?react';
 import type { Selection } from 'types/components';
+
+import styles from './Pill.module.scss';
 
 interface PillProps {
   selection: Selection;
@@ -13,9 +16,10 @@ export function Pill({ selection, onRemove }: PillProps) {
   };
 
   return (
-    <div className={styles.Pill}>
+    <div className={classnames(styles.Pill, { [styles.Disabled]: selection.disabled })}>
       <span className={styles.Label}>{selection.label}</span>
       <button type="button" className={styles.RemoveButton} onClick={handleRemove} aria-label={`Remove ${selection.label}`}>
+        {selection.disabled && <WarningIcon />}
         <CloseIcon />
       </button>
     </div>

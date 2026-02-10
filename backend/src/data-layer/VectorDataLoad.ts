@@ -32,6 +32,11 @@ export default class VectorDataLoad {
     record: SoilRecord,
     datasetId: string,
   ): Promise<any> => {
+    const sanitizedRecord = Object.fromEntries(
+      Object.entries(record).map(([key, value]) => {
+        return [sanitizeField(key), value];
+      }),
+    ) as SoilRecord;
     // Upsert feature by geom
     const feature = await entityManager
       .createQueryBuilder()
@@ -40,14 +45,14 @@ export default class VectorDataLoad {
       .values({
         geom: () => `ST_GeomFromGeoJSON(:geom)`,
       })
-      .setParameter('geom', record.geometry)
+      .setParameter('geom', sanitizedRecord.geometry)
       .orUpdate(['geom'], ['geom_hash'])
       .returning('id')
       .execute();
     const featureId = feature.raw[0]?.id;
 
     // Upsert license
-    const license = record.license;
+    const license = sanitizedRecord.license;
     let licenseId: string | null = null;
     if (license) {
       licenseId =
@@ -61,13 +66,13 @@ export default class VectorDataLoad {
         licenseId = (await entityManager.save(newLicense)).id;
       }
     }
-    record.license = licenseId;
+    sanitizedRecord.license = licenseId;
 
     // Dynamic layer select/insert
     const metadataVals: Record<string, any> = {};
     const metadataCols: string[] = [];
     for (const mappedData of Object.keys(dataMappingConfig.metadata_cols)) {
-      metadataVals[mappedData] = record[mappedData];
+      metadataVals[mappedData] = sanitizedRecord[mappedData];
       metadataCols.push(mappedData);
     }
 
@@ -86,7 +91,7 @@ export default class VectorDataLoad {
     const observationRows: Record<string, any>[] = [];
 
     for (const [col, data] of Object.entries(dataMappingConfig.property_cols)) {
-      const value = record[col];
+      const value = sanitizedRecord[col];
       if (!value) continue;
 
       const soilPropertyId: string = data.property_id!;

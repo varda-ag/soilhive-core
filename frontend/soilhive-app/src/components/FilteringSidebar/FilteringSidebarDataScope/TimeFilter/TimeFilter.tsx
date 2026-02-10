@@ -1,20 +1,16 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Button, MultirangeSlider } from 'components/UI';
 import type { TimeFilterState } from 'types/availability';
-import useAvailability from 'hooks/useAvailability';
+import useDataScopeFilters from 'hooks/useDataScopeFilters';
 
 import styles from './TimeFilter.module.scss';
 
-interface Props {
-  initialState: TimeFilterState;
-  onChange: (state: TimeFilterState) => void;
-}
+export function TimeFilter() {
+  const { timeFilterRange, selectedTimeFilter, handleTimeFilterChange } = useDataScopeFilters();
 
-export function TimeFilter({ initialState, onChange }: Props) {
-  const { timeFilterRange } = useAvailability();
   const [selectedTime, setSelectedTime] = useState<Required<TimeFilterState>>({
-    min: initialState.min || timeFilterRange.min,
-    max: initialState.max || timeFilterRange.max,
+    min: selectedTimeFilter.min || timeFilterRange.min,
+    max: selectedTimeFilter.max || timeFilterRange.max,
   });
 
   const onTimeChange = useCallback((min: number, max: number) => {
@@ -23,14 +19,14 @@ export function TimeFilter({ initialState, onChange }: Props) {
 
   const setInitialState = useCallback(() => {
     setSelectedTime({
-      min: !initialState.min || initialState.min < timeFilterRange.min ? timeFilterRange.min : initialState.min,
-      max: !initialState.max || initialState.max > timeFilterRange.max ? timeFilterRange.max : initialState.max,
+      min: !selectedTimeFilter.min || selectedTimeFilter.min < timeFilterRange.min ? timeFilterRange.min : selectedTimeFilter.min,
+      max: !selectedTimeFilter.max || selectedTimeFilter.max > timeFilterRange.max ? timeFilterRange.max : selectedTimeFilter.max,
     });
-  }, [initialState, timeFilterRange]);
+  }, [selectedTimeFilter, timeFilterRange]);
 
   const handleApply = useCallback(() => {
-    onChange(selectedTime);
-  }, [selectedTime, onChange]);
+    handleTimeFilterChange(selectedTime);
+  }, [selectedTime, handleTimeFilterChange]);
 
   useEffect(() => {
     setInitialState();
