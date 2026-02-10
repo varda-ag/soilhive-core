@@ -16,5 +16,9 @@
       min-width: 18.5rem;
       max-height: calc(100vh - 56px);
     }
+
+    > .WarningMessage {
+      padding: 0.625rem 0.5rem 0;
+    }
   }
 }

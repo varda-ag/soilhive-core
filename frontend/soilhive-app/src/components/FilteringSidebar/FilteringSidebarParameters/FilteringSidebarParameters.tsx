@@ -1,98 +1,31 @@
 import { Accordion, NestedCheckbox, SelectionPills, Toggle } from 'components/UI';
-import {
-  collectParentsIds,
-  filterNestedItems,
-  getBranchIds,
-  getTopLevelSelections,
-} from 'components/UI/NestedCheckbox/nestedCheckboxHelpers';
-import { useCallback, useContext, useMemo, useRef, useState, type ChangeEvent } from 'react';
+import { collectParentsIds, filterNestedItems } from 'components/UI/NestedCheckbox/nestedCheckboxHelpers';
+import { useCallback, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import Skeleton from 'react-loading-skeleton';
 import 'react-loading-skeleton/dist/skeleton.css';
-import type { NestedCheckboxItemType, NestedCheckboxRef, Selection } from 'types/components';
-import { AvailabilityContext } from '../../../contexts/AvailabilityContext';
+import type { NestedCheckboxRef } from 'types/components';
+import useSoilPropertiesFilters from 'hooks/useSoilPropertiesFilters';
 
 import styles from './FilteringSidebarParameters.module.scss';
 
 export function FilteringSidebarParameters() {
-  const availabilityContext = useContext(AvailabilityContext);
-  if (!availabilityContext) {
-    throw new Error('AvailabilityContext must be used within AvailabilityProvider');
-  }
-
   const {
-    setDatasetFilters,
-    allSoilProperties,
-    filteredSoilProperties,
     isLoading,
     isNoData,
     isNoFilteredData,
+    nestedSoilProperties,
     selectedSoilProperties,
-    setSelectedSoilProperties,
-  } = availabilityContext;
+    pillSelections,
+    handleOnChange,
+    handlePillRemove,
+  } = useSoilPropertiesFilters();
 
   const [soilPropertiesExpanded, setSoilPropertiesExpanded] = useState(false);
   const soilPropertiesRef = useRef<NestedCheckboxRef>(null);
 
-  const nestedSoilProperties = useMemo((): NestedCheckboxItemType[] => {
-    const nodeMap: { [id: string]: NestedCheckboxItemType } = {};
-    const roots: NestedCheckboxItemType[] = [];
-
-    // Initialize all nodes with empty children array
-    allSoilProperties.forEach(property => {
-      nodeMap[property.id] = {
-        id: property.id,
-        label: property.property_name,
-        children: [],
-        isRoot: property.parent_property_id === null,
-      };
-    });
-
-    // Link children to parents and collect roots
-    filteredSoilProperties.forEach(property => {
-      const node = nodeMap[property.id];
-      if (property.parent_property_id) {
-        const parent = nodeMap[property.parent_property_id];
-        if (parent) {
-          parent.children!.push(node);
-        }
-      } else {
-        roots.push(node);
-      }
-    });
-
-    // Add roots that are not in filteredSoilProperties
-    Object.values(nodeMap).forEach(node => {
-      if (!roots.includes(node) && node.children!.length && node.isRoot) {
-        roots.push(node);
-      }
-    });
-
-    return roots;
-  }, [allSoilProperties, filteredSoilProperties]);
-
   const parentProperties = useMemo((): string[] => {
     return collectParentsIds(nestedSoilProperties);
   }, [nestedSoilProperties]);
-
-  const handlePillRemove = (id: string) => {
-    // identify all leaf IDs that belong to the pill being removed
-    const leafIdsToRemove = getBranchIds(nestedSoilProperties, id);
-    onChange(selectedSoilProperties.filter(selectedId => !leafIdsToRemove.includes(selectedId)));
-  };
-
-  const onChange = (selected: string[]) => {
-    setSelectedSoilProperties(selected);
-    setDatasetFilters(prevFilters => {
-      return selected.length === 0 ? { ...prevFilters, soil_properties: undefined } : { ...prevFilters, soil_properties: selected };
-    });
-  };
-
-  const leafSelections = getTopLevelSelections(nestedSoilProperties, selectedSoilProperties);
-
-  const pillSelections: Selection[] = leafSelections.map(item => ({
-    id: item.id,
-    label: item.label,
-  }));
 
   const [searchTerm, setSearchTerm] = useState<string>('');
 
@@ -163,7 +96,7 @@ export function FilteringSidebarParameters() {
                 className={styles.SoilPropertiesCheckbox}
                 items={filteredProperties}
                 selected={selectedSoilProperties}
-                onChange={onChange}
+                onChange={handleOnChange}
                 onToggleVisibility={handleToggleVisibility}
               />
             )}

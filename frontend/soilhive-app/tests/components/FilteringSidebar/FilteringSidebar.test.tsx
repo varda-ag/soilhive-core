@@ -1,8 +1,20 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { FilteringSidebar } from 'components/FilteringSidebar/FilteringSidebar';
 import { __setIsDesktopLayout } from 'hooks/useDevice';
+import useDataScopeFilters from 'hooks/useDataScopeFilters';
+import useSoilPropertiesFilters from 'hooks/useSoilPropertiesFilters';
 
 jest.mock('hooks/useDevice');
+
+jest.mock('hooks/useDataScopeFilters', () => ({
+  __esModule: true,
+  default: jest.fn(),
+}));
+
+jest.mock('hooks/useSoilPropertiesFilters', () => ({
+  __esModule: true,
+  default: jest.fn(),
+}));
 
 jest.mock('components/FilteringSidebar/FilteringSidebarHeader/FilteringSidebarHeader', () => ({
   FilteringSidebarHeader: ({ onClose }: any) => (
@@ -22,6 +34,16 @@ jest.mock('components/FilteringSidebar/FilteringSidebarMobileContent/FilteringSi
 
 describe('FilteringSidebar', () => {
   beforeEach(() => {
+    (useDataScopeFilters as jest.Mock).mockReturnValue({
+      isLoading: false,
+      hasUnavailableScopeSelected: false,
+    });
+    (useSoilPropertiesFilters as jest.Mock).mockReturnValue({
+      hasUnavailablePropertySelected: false,
+    });
+  });
+
+  afterEach(() => {
     jest.clearAllMocks();
   });
 
@@ -66,5 +88,40 @@ describe('FilteringSidebar', () => {
     rerender(<FilteringSidebar isOpened={true} onClose={() => {}} />);
 
     expect(screen.getByTestId('sh-ui-page-sidebar')).toHaveClass('Opened');
+  });
+
+  it('shows "unavailable filters" message if theree is an unavailable filter selected in the data scope filters', () => {
+    (useDataScopeFilters as jest.Mock).mockReturnValue({
+      isLoading: false,
+      hasUnavailableScopeSelected: true,
+    });
+
+    render(<FilteringSidebar isOpened={false} onClose={() => {}} />);
+
+    expect(screen.getByTestId('sh-unavailable-filter-message')).toBeInTheDocument();
+  });
+
+  it('shows "unavailable filters" message if theree is an unavailable filter selected in the soil parameters filters', () => {
+    (useSoilPropertiesFilters as jest.Mock).mockReturnValue({
+      hasUnavailablePropertySelected: true,
+    });
+
+    render(<FilteringSidebar isOpened={false} onClose={() => {}} />);
+
+    expect(screen.getByTestId('sh-unavailable-filter-message')).toBeInTheDocument();
+  });
+
+  it('does not show "unavailable filters" message if theree is a loading state', () => {
+    (useDataScopeFilters as jest.Mock).mockReturnValue({
+      isLoading: true,
+      hasUnavailableScopeSelected: true,
+    });
+    (useSoilPropertiesFilters as jest.Mock).mockReturnValue({
+      hasUnavailablePropertySelected: true,
+    });
+
+    render(<FilteringSidebar isOpened={false} onClose={() => {}} />);
+
+    expect(screen.queryByTestId('sh-unavailable-filter-message')).not.toBeInTheDocument();
   });
 });
