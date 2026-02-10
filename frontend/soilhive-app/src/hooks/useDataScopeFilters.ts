@@ -10,7 +10,7 @@ type TimeFilterRange = {
   max: number;
 };
 
-type DataScopeFiltresType = {
+type DataScopeFiltersType = {
   isLoading: boolean;
   datasetFrontendFilters: DatasetFrontendFilters;
   selectedTimeFilter: TimeFilterState;
@@ -29,7 +29,7 @@ type DataScopeFiltresType = {
   isDataAccessHidden: boolean;
 };
 
-const useDataScopeFilters = (): DataScopeFiltresType => {
+const useDataScopeFilters = (): DataScopeFiltersType => {
   const {
     isLoading,
     allDatasets,
