@@ -84,6 +84,8 @@ describe('DatasetFileMappingService', () => {
     // Assert
     expect(result).toBeDefined();
     expect(result.id).toBeDefined();
+    expect(result.fileID).toBeDefined();
+    expect(result.mappingId).not.toBeDefined();
 
     const saved = await entityManager.getRepository(DatasetFileMappingEntity).findOneBy({ id: result.id });
 

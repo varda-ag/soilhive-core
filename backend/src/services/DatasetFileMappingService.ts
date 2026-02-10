@@ -49,11 +49,21 @@ export default class DatasetFileMappingService {
         updateColumns,
         ['id'], // If ID is provided, conflict on ID
       )
-      .returning('id')
+      .returning(['id', 'file_id', 'data_mapping_id'])
       .execute();
 
-    const generatedId = result.generatedMaps[0]?.['id'];
+    const retVal: any = {
+      id: result.generatedMaps[0]?.['id'],
+    };
 
-    return { id: generatedId };
+    if (result.generatedMaps[0]?.['file_id']) {
+      retVal.fileID = result.generatedMaps[0]?.['file_id'];
+    }
+
+    if (result.generatedMaps[0]?.['data_mapping_id']) {
+      retVal.mappingId = result.generatedMaps[0]?.['data_mapping_id'];
+    }
+
+    return retVal;
   };
 }

@@ -6,7 +6,7 @@ import { StatusCodes } from 'http-status-codes';
 
 describe('Testing /mappings routes', () => {
   describe('POST /mappings', () => {
-    it('should create a new data mapping successfully (200)', async () => {
+    it('should create a new data mapping successfully (201)', async () => {
       const token = await getDataAdminToken();
       const payload = {
         magnesium: {
