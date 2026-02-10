@@ -10,6 +10,8 @@ export interface BulkLoad {
   id: string;
   dataset_id: string;
   status: BulkLoadStatus;
+  progress_percentage: number;
+  progress_description?: string;
   created_by: string;
   created_at: Date;
   updated_at: Date | null;

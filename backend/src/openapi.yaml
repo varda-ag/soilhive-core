@@ -340,6 +340,8 @@ paths:
           $ref: '#/components/responses/UnprocessableContent'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
     get:
       x-eov-operation-handler: controllers/datasets
@@ -360,6 +362,8 @@ paths:
                   $ref: '#/components/schemas/BulkLoad'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /datasets/{datasetId}/bulk-load/{bulkLoadId}:
     parameters:
@@ -374,6 +378,7 @@ paths:
         required: true
         schema:
           type: string
+          format: uuid
         description: ID of the bulk load
     get:
       x-eov-operation-handler: controllers/datasets
@@ -390,10 +395,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/BulkLoad'
-        '404':
-          $ref: '#/components/responses/NotFound'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /datasets/{datasetId}/dataset-file-mapping:
     post:
@@ -1463,6 +1468,7 @@ components:
       properties:
         id:
           type: string
+          format: uuid
           description: Unique identifier for the bulk load
         dataset_id:
           type: string

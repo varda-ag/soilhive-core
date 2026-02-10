@@ -169,4 +169,61 @@ describe('Testing /datasets routes', () => {
       expect(getRes.statusCode).toBe(404);
     });
   });
+
+  describe('Testing /bulk-load routes', () => {
+    it('POST /datasets/:datasetId/bulk-load creates a bulk load (200) and GET endpoints return it', async () => {
+      const token = await getDataAdminToken();
+
+      // create dataset
+      const postRes = await request(app).post('/datasets').set('Authorization', `Bearer ${token}`).send({ name: 'Bulk Dataset' });
+      expect(postRes.statusCode).toBe(200);
+      const datasetId = postRes.body.id;
+
+      // create bulk load
+      const bulkRes = await request(app).post(`/datasets/${datasetId}/bulk-load`).set('Authorization', `Bearer ${token}`);
+      expect(bulkRes.statusCode).toBe(201);
+      expect(bulkRes.body).toHaveProperty('id');
+      expect(bulkRes.body).toHaveProperty('dataset_id', datasetId);
+
+      const bulkId = bulkRes.body.id;
+
+      // list bulk loads
+      const listRes = await request(app).get(`/datasets/${datasetId}/bulk-load`).set('Authorization', `Bearer ${token}`);
+      expect(listRes.statusCode).toBe(200);
+      expect(Array.isArray(listRes.body)).toBe(true);
+      const ids = listRes.body.map((b: any) => b.id);
+      expect(ids).toContain(bulkId);
+
+      // GET by ID
+      const getByIdRes = await request(app).get(`/datasets/${datasetId}/bulk-load/${bulkId}`).set('Authorization', `Bearer ${token}`);
+      expect(getByIdRes.statusCode).toBe(200);
+      expect(getByIdRes.body).toHaveProperty('id', bulkId);
+    });
+
+    it('GET /datasets/:datasetId/bulk-load/:id returns 404 for unknown bulk load id', async () => {
+      const token = await getDataAdminToken();
+      const postRes = await request(app).post('/datasets').set('Authorization', `Bearer ${token}`).send({ name: 'Bulk Dataset 2' });
+      const datasetId = postRes.body.id;
+
+      const res = await request(app).get(`/datasets/${datasetId}/bulk-load/not-a-real-id`).set('Authorization', `Bearer ${token}`);
+      expect(res.statusCode).toBe(400);
+
+      const randomUUID = '4d214191-5998-4c42-aace-726dada50ba4';
+      const res2 = await request(app).get(`/datasets/${datasetId}/bulk-load/${randomUUID}`).set('Authorization', `Bearer ${token}`);
+      expect(res2.statusCode).toBe(404);
+    });
+
+    it('POST and GET without authorization return 401', async () => {
+      // create dataset with auth so slug exists
+      const token = await getDataAdminToken();
+      const postRes = await request(app).post('/datasets').set('Authorization', `Bearer ${token}`).send({ name: 'Bulk Dataset 3' });
+      const datasetId = postRes.body.id;
+
+      const postNoAuth = await request(app).post(`/datasets/${datasetId}/bulk-load`);
+      expect(postNoAuth.statusCode).toBe(401);
+
+      const getNoAuth = await request(app).get(`/datasets/${datasetId}/bulk-load`);
+      expect(getNoAuth.statusCode).toBe(401);
+    });
+  });
 });

@@ -43,7 +43,7 @@ export const deleteDataset = async (req: Request, res: Response) => {
 
 export const postBulkLoad = async (req: Request, res: Response) => {
   const data = await datasetService.createBulkLoad(req.customData, req.params['datasetId']!);
-  res.json(data);
+  res.status(StatusCodes.CREATED).json(data);
 };
 
 export const getBulkLoad = async (req: Request, res: Response) => {
