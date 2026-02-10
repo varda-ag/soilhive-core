@@ -122,7 +122,7 @@ export default function GeocoderControl(props: GeocoderControlProps) {
         proximityMinZoom: 9, // only prioritize the viewport when zoomed in to z9
         debounceSearch: props.geocoder !== 'nominatim' ? 200 : 1000, // Nominatim's policy requires to limit searches to maximum 1 request per second https://operations.osmfoundation.org/policies/nominatim/
         clearAndBlurOnEsc: true,
-        placeholder: 'Country, coordinates or H3cellID',
+        placeholder: 'Search by any location',
       });
       ctrl.on('loading', _ => {});
       ctrl.on('results', _ => {});

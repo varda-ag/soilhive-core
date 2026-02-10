@@ -1,132 +1,34 @@
-import { useCallback, useMemo, useState } from 'react';
 import { TimeFilter } from './TimeFilter/TimeFilter';
 import { Accordion, MultiselectButtons, SelectionPills } from 'components/UI';
 import Skeleton from 'react-loading-skeleton';
 import 'react-loading-skeleton/dist/skeleton.css';
-import type { Selection } from 'types/components';
-import type { TimeFilterState } from 'types/availability';
-import useAvailability from 'hooks/useAvailability';
-import { yearRangeToDatasetFilters } from '../../../adapters';
+import useDataScopeFilters from 'hooks/useDataScopeFilters';
 
 import styles from './FilteringSidebarDataScope.module.scss';
 
-const DATA_TYPE_ITEMS: Selection[] = [
-  {
-    id: 'point',
-    label: 'Point',
-  },
-  {
-    id: 'raster',
-    label: 'Raster',
-  },
-  {
-    id: 'polygonal',
-    label: 'Polygonal',
-  },
-];
-
-const DATA_ACCESS_ITEMS: Selection[] = [
-  {
-    id: 'private',
-    label: 'Private',
-  },
-  {
-    id: 'public',
-    label: 'Public',
-  },
-];
-
 export function FilteringSidebarDataScope() {
-  const { isLoading, datasetFrontendFilters, typeFilterOptions, setFrontendFilters, setDatasetFilters } = useAvailability();
-  const [selectedTime, setSelectedTime] = useState<TimeFilterState>({});
+  const {
+    isLoading,
+    datasetFrontendFilters,
+    typeFilterOptions,
+    typeFilterPills,
+    accessFilterOptions,
+    accessFilterPills,
+    timeFilterPills,
+    typeFilterPillRemove,
+    accessFilterPillRemove,
+    handleTimeFilterChange,
+    setFrontendFilters,
 
-  const onDataTypeChange = useCallback(
-    (selected: string[]) => {
-      setFrontendFilters(selected, 'type');
-    },
-    [setFrontendFilters],
-  );
-
-  const availableTypeFilters = useMemo((): Selection[] => {
-    return DATA_TYPE_ITEMS.filter(item => typeFilterOptions.includes(item.id));
-  }, [typeFilterOptions]);
-
-  const dataTypePills = useMemo((): Selection[] => {
-    return DATA_TYPE_ITEMS.filter(item => datasetFrontendFilters.type.includes(item.id));
-  }, [datasetFrontendFilters.type]);
-
-  const dataTypePillRemove = useCallback(
-    (id: string) => {
-      setFrontendFilters(
-        datasetFrontendFilters.type.filter(selectedId => selectedId !== id),
-        'type',
-      );
-    },
-    [datasetFrontendFilters.type, setFrontendFilters],
-  );
-
-  const resetTimeFilter = useCallback(() => {
-    setDatasetFilters(prevFilters => {
-      return { ...prevFilters, min_sampling_date: undefined, max_sampling_date: undefined };
-    });
-  }, [setDatasetFilters]);
-
-  const onTimeFilterChange = useCallback(
-    (value: TimeFilterState) => {
-      setSelectedTime(value);
-
-      setDatasetFilters(prevFilters => {
-        return { ...prevFilters, ...yearRangeToDatasetFilters(value) };
-      });
-    },
-    [setDatasetFilters],
-  );
-
-  const timeFilterPill = useMemo(() => {
-    if (selectedTime.max && selectedTime.min) {
-      return [
-        {
-          id: 'time',
-          label: `${selectedTime.min}-${selectedTime.max}`,
-        },
-      ];
-    }
-
-    return null;
-  }, [selectedTime]);
-
-  const TimePillRemove = useCallback(() => {
-    setSelectedTime({});
-    resetTimeFilter();
-  }, [resetTimeFilter]);
-
-  const onDataAccessChange = useCallback(
-    (selected: string[]) => {
-      setFrontendFilters(selected, 'ownership');
-    },
-    [setFrontendFilters],
-  );
-
-  const dataAccessPills = useMemo((): Selection[] => {
-    return DATA_ACCESS_ITEMS.filter(item => datasetFrontendFilters.ownership.includes(item.id));
-  }, [datasetFrontendFilters.ownership]);
-
-  const dataAccessPillRemove = useCallback(
-    (id: string) => {
-      setFrontendFilters(
-        datasetFrontendFilters.ownership.filter(selectedId => selectedId !== id),
-        'ownership',
-      );
-    },
-    [datasetFrontendFilters.ownership, setFrontendFilters],
-  );
+    isDataAccessHidden,
+  } = useDataScopeFilters();
 
   return (
     <div className={styles.FilteringSidebarDataScope}>
       <Accordion
         title="Data type"
         type="secondary"
-        pillsSlot={dataTypePills.length ? <SelectionPills selections={dataTypePills} onRemove={dataTypePillRemove} /> : null}
+        pillsSlot={typeFilterPills.length ? <SelectionPills selections={typeFilterPills} onRemove={typeFilterPillRemove} /> : null}
       >
         {isLoading ? (
           <span data-testid="skeleton-container-data-type">
@@ -134,32 +36,42 @@ export function FilteringSidebarDataScope() {
           </span>
         ) : (
           <div className={styles.AccordionContent}>
-            <MultiselectButtons items={availableTypeFilters} selected={datasetFrontendFilters.type} onChange={onDataTypeChange} />
+            <MultiselectButtons
+              items={typeFilterOptions}
+              selected={datasetFrontendFilters.type}
+              onChange={selected => setFrontendFilters(selected, 'type')}
+            />
           </div>
         )}
       </Accordion>
       <Accordion
         title="Time"
         type="secondary"
-        pillsSlot={timeFilterPill ? <SelectionPills selections={timeFilterPill} onRemove={TimePillRemove} /> : null}
+        pillsSlot={timeFilterPills ? <SelectionPills selections={timeFilterPills} onRemove={() => handleTimeFilterChange({})} /> : null}
       >
         {isLoading ? (
           <span data-testid="skeleton-container-time">
             <Skeleton count={1} height={110} />
           </span>
         ) : (
-          !timeFilterPill && <TimeFilter initialState={selectedTime} onChange={onTimeFilterChange} />
+          !timeFilterPills && <TimeFilter />
         )}
       </Accordion>
-      <Accordion
-        title="Data access"
-        type="secondary"
-        pillsSlot={dataAccessPills.length ? <SelectionPills selections={dataAccessPills} onRemove={dataAccessPillRemove} /> : null}
-      >
-        <div className={styles.AccordionContent}>
-          <MultiselectButtons items={DATA_ACCESS_ITEMS} selected={datasetFrontendFilters.ownership} onChange={onDataAccessChange} />
-        </div>
-      </Accordion>
+      {!isDataAccessHidden && (
+        <Accordion
+          title="Data access"
+          type="secondary"
+          pillsSlot={accessFilterPills.length ? <SelectionPills selections={accessFilterPills} onRemove={accessFilterPillRemove} /> : null}
+        >
+          <div className={styles.AccordionContent}>
+            <MultiselectButtons
+              items={accessFilterOptions}
+              selected={datasetFrontendFilters.ownership}
+              onChange={selected => setFrontendFilters(selected, 'ownership')}
+            />
+          </div>
+        </Accordion>
+      )}
     </div>
   );
 }
