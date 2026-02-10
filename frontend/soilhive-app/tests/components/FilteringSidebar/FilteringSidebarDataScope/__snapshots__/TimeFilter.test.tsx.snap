@@ -1,6 +1,6 @@
 // Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
 
-exports[`TimeFilter renders with initialState 1`] = `
+exports[`TimeFilter renders with default selected time filter range 1`] = `
 <div>
   <div
     class="TimeFilter"
@@ -13,7 +13,49 @@ exports[`TimeFilter renders with initialState 1`] = `
       >
         1990
         -
-        2000
+        2010
+      </div>
+      <button
+        data-testid="mock-slider-change"
+        type="button"
+      >
+        change
+      </button>
+    </div>
+    <div
+      class="TimeFilterActions"
+    >
+      <button
+        data-testid="mock-button-cancel"
+        type="tertiary"
+      >
+        Cancel
+      </button>
+      <button
+        data-testid="mock-button-apply"
+        type="button"
+      >
+        Apply
+      </button>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`TimeFilter renders with default timeFilterRange if time filter is not selected 1`] = `
+<div>
+  <div
+    class="TimeFilter"
+  >
+    <div
+      data-testid="mock-slider"
+    >
+      <div
+        data-testid="mock-slider-values"
+      >
+        1964
+        -
+        2022
       </div>
       <button
         data-testid="mock-slider-change"

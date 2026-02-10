@@ -1,6 +1,6 @@
 // Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
 
-exports[`FilteringSidebarParameters renders four accordion components 1`] = `
+exports[`FilteringSidebarParameters renders accordion components 1`] = `
 <div>
   <div
     class="FilteringSidebarParameters"

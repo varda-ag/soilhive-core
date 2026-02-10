@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.28.0 (2026-02-10)
+
+## What's Changed
+* fix(ci): frontend path on nodejs workflow by @Butterneck in https://github.com/varda-ag/soilhive-core/pull/188
+* test: post soil-data tests, added sanitize keys in rawRecordToDataModel by @d-rom in https://github.com/varda-ag/soilhive-core/pull/191
+* feat(be): dataset file mapping api by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/192
+* feat: sp-4830 logic to grey out non available selected filters by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/186
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.27.3...v0.28.0
+
 ## 0.27.3 (2026-02-09)
 
 ## What's Changed

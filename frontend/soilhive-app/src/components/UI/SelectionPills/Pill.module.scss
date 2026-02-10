@@ -2,11 +2,17 @@
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  background-color: var( --color-brand-yellow-900);
-  border-radius: .5rem;
+  background-color: var(--color-brand-yellow-900);
+  border-radius: 0.5rem;
   padding: 0.375rem 0.5rem 0.375rem 0.5rem;
-  font-size: var( --font-size-xs);
+  font-size: var(--font-size-xs);
   font-weight: var(--font-weight-regular);
+  border: 1px solid transparent;
+
+  &.Disabled {
+    background: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMgAAADICAYAAACtWK6eAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAASNSURBVHgB7drBaSA5EAXQ2TR27JONkzU+O8ZdmBwGBSDJDYKqUj3dGh6/hKChG/1fv362/nl5efn9/f39P8839Ouw9/f3l8/Pz/9eX1//5flmfh/29fX15+3t7XU883wnfzSM52/zocN5PrsPHc7zBXypzfJ8mHcYPO/l4Pln3mHw/MyPy5JxafLDMJ7v5cd1+8fHx++fhPF8dz9bujp8Z78OG99oujp8U78P88PGd/VHw3j+Nh86nOez+9DhPF/Al9osz7tR5/ls3mHwvJeD5x963Rue18Xi+SN+tnR1+M5+HTa+0XR1+KZ+H+aHje/qj4bx/G0+dDjPZ/ehw3m+gC+1WZ53o87z2bzD4HkvB88/9Lo3PK+LxfNH/Gzp6vCd/TpsfKPp6vBN/T7MDxvf1R8N4/nbfOhwns/uQ4fzfAFfarM870ad57N5h8HzXg6ef+h1b3heF4vnj/jZ0tXhO/t12PhG09Xhm/p9mB82vqs/Gsbzt/nQ4Tyf3YcO5/kCvtRmed6NOs9n8w6D570cPP/Q697wvC4Wzx/xs6Wrw3f267Dxjaarwzf1+zA/bHxXfzSM52/zocN5PrsPHc7zBXypzfK8G3Wez+YdBs97OXj+ode94XldLJ4/4mdLV4fv7Ndh4xtNV4dv6vdhftj4rv5oGM/f5kOH83x2Hzqc5wv4UpvleTfqPJ/NOwye93Lw/EOve8Pzulg8f8TPlq4O39mvw8Y3mq4O39Tvw/yw8V390TCev82HDuf57D50OM8X8KU2y/Nu1Hk+m3cYPO/l4PmHXveG53WxeP6Iny1dHb6zX4eNbzRdHb6p34f5YeO7+qNhPH+bDx3O89l96HCeL+BLbZbn3ajzfDbvMHjey8HzD73uDc/rYvH8ET9bujp8Z78OG99oujp8U78P88PGd/VHw3j+Nh86nOez+9DhPF/Al9osz7tR5/ls3mHwvJeD5x963Rue18Xi+SN+tnR1+M5+HTa+0XR1+KZ+H+aHje/qj4bx/G0+dDjPZ/ehw3m+gC+1WZ53o87z2bzD4HkvB88/9Lo3PK+LxfNH/Gzp6vCd/TpsfKPp6vBN/T7MDxvf1R8N4/nbfOhwns/uQ4fzfAFfarM870ad57N5h8HzXg6ef+h1b3heF4vnj/jZ0tXhO/t12PhG09Xhm/p9mB82vqs/Gsbzt/nQ4Tyf3YcO5/kCvtRmed6NOs9n8w6D570cPP/Q697wvC4Wzx/xs6Wrw3f267Dxjaarwzf1+zA/bHxXfzSM52/zocN5PrsPHc7zBXypzfK8G3Wez+YdBs97OXj+ode94XldLJ4/4mdLV4fv7Ndh4xtNV4dv6vdhftj4rv5oGM/f5kOH83x2Hzqc5wv4UpvleTfqPJ/NOwye93Lw/EOve8Pzulg8f8TPlq4O39mvw8Y3mq4O39Tvw/yw8V390TCev82HDuf57D50OM8X8KU2y/Nu1Hk+m3cYPO/l4PmHXveG53WxeP6Iny1dHb6zX4eNbzRdHb6p34f5YeO7+qNhPH+bDx3O89l96HCeL+BLbZbn3ajzfBb/FwBCJIUJck1bAAAAAElFTkSuQmCC);
+    border-color: var(--color-neutral-dark-100);
+  }
 
   .Label {
     line-height: 1;
@@ -21,9 +27,9 @@
     padding: 0;
     cursor: pointer;
     color: inherit;
-    width: 1rem;
     height: 1rem;
-    
+    gap: 0.25rem;
+
     svg {
       width: 100%;
       height: 100%;
