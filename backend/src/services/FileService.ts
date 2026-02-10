@@ -421,7 +421,7 @@ export default class FileService {
     ];
     const tableName = `file_${sanitizeField(fileId)}_raw`;
     gdalOpts.push('-nln', tableName);
-    const selectClause = fileMetadata.field_names.map(field => `"${field}" AS ${sanitizeField(field)}`).join(', ');
+    let selectClause = fileMetadata.field_names.map(field => `"${field}" AS ${sanitizeField(field)}`).join(', ');
 
     try {
       if (fileMetadata.field_names.length === 0) {
@@ -440,7 +440,7 @@ export default class FileService {
             `Y_POSSIBLE_NAMES=${fileMetadata.detected_fields[DetectableFields.LATITUDE]}`,
           );
         } else {
-          throw new ErrorResponse('Geometry not found in input file.', StatusCodes.BAD_REQUEST);
+          throw new ErrorResponse('Geometry not found in input file', StatusCodes.BAD_REQUEST);
         }
       }
 
@@ -450,6 +450,11 @@ export default class FileService {
       // Open dataset with GDAL
       const dataset = await gdal.openAsync(mainFilePath);
       const { layer } = this.getDataLayer(dataset.layers);
+
+      if (fileMetadata.geometry_detected && layer.geomColumn) {
+        selectClause = `${selectClause}, ${layer.geomColumn}`;
+      }
+
       gdalOpts.push('-sql', `SELECT ${selectClause} FROM ${layer.name}`);
       const pgDataset =
         `PG:host=${process.env.POSTGRES_HOST} port=${process.env.POSTGRES_PORT} user=${process.env.POSTGRES_USER} dbname=${process.env.POSTGRES_DB} password=${process.env.POSTGRES_PASSWORD} schemas=${process.env.POSTGRES_SCHEMA}`.replace(

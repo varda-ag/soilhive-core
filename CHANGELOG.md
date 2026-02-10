@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.27.3 (2026-02-09)
+
+## What's Changed
+* fix(data): replacing IDs with slugs by @svaccari in https://github.com/varda-ag/soilhive-core/pull/184
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.27.2...v0.27.3
+
 ## 0.27.2 (2026-02-09)
 
 ## What's Changed
