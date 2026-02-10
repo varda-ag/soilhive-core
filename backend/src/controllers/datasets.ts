@@ -27,7 +27,7 @@ export const getDataset = async (req: Request, res: Response) => {
 export const createDataset = async (req: Request, res: Response) => {
   const input: CreateDatasetInput = req.body;
   const data = await datasetService.createDataset(req.customData, input);
-  res.json(idToSlug(data));
+  res.status(StatusCodes.CREATED).json(idToSlug(data));
 };
 
 export const updateDataset = async (req: Request, res: Response) => {
