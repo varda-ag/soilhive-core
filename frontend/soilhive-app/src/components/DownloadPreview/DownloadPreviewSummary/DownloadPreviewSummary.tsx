@@ -93,14 +93,14 @@ function DownloadPreviewSummary({
               <MapPinIcon />
               Data points
             </div>
-            <div className={styles.DataSummaryRowData}>{dataPoints ? numberFormatter.format(dataPoints) : '-'}</div>
+            <div className={styles.DataSummaryRowData}>{dataPoints ? numberFormatter.format(dataPoints) : '0'}</div>
           </div>
           <div className={styles.DataSummaryRow}>
             <div className={styles.DataSummaryRowTitle}>
               <LayersIcon />
               Raster Layers
             </div>
-            <div className={styles.DataSummaryRowData}>{rasterLayers ? numberFormatter.format(rasterLayers) : '-'}</div>
+            <div className={styles.DataSummaryRowData}>{rasterLayers ? numberFormatter.format(rasterLayers) : '0'}</div>
           </div>
         </div>
       </div>

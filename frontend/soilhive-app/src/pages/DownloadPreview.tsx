@@ -1,4 +1,4 @@
-import { useContext, useState } from 'react';
+import { useContext, useMemo, useRef, useState } from 'react';
 import { AvailabilityContext } from '../contexts/AvailabilityContext';
 import { Button } from 'components/UI';
 import styles from './DownloadPreview.module.scss';
@@ -9,6 +9,10 @@ import ShareIcon from 'assets/icons/share-icon.svg?react';
 import BookmarkIcon from 'assets/icons/bookmark-icon.svg?react';
 import classNames from 'classnames';
 import DownloadPreviewDataSection from 'components/DownloadPreview/DownloadPreviewDataSection/DownloadPreviewDataSection';
+import { useSoilData } from 'hooks/useSoilData';
+import { useFilteredDatasets } from 'hooks/useFilteredDatasets';
+
+const MAXIMUM_SOIL_DATA_PER_REQUEST = 100;
 
 function DownloadPreview() {
   const availabilityContext = useContext(AvailabilityContext);
@@ -17,7 +21,17 @@ function DownloadPreview() {
     throw new Error('AvailabilityContext must be used within AvailabilityProvider');
   }
 
-  const { setPreview } = availabilityContext;
+  // const { setPreview, geometryFilter, datasetsSummary, filterId, selectedFilters: availabilitySelectedFilters, datasets, selectedDatasets } = availabilityContext;
+  const { setPreview, geometryFilter, datasetsSummary, filterId, selectedSoilProperties, filteredSoilProperties } = availabilityContext; // TODO rimuovi filterid e te lo ricrei ogni volta con la POST quando cambiano i parametri
+  console.debug('availabilityContext', availabilityContext);
+
+  const [filters, setFilters] = useState<{ soil_properties?: string[] }>({});
+  const [sort, setSort] = useState<string>();
+  const [cursor, setCursor] = useState<string>();
+
+  // const { filte, } = useFilteredDatasets();
+  const { data, isLoading } = useSoilData({ datasets: [], filterId, limit: MAXIMUM_SOIL_DATA_PER_REQUEST + 1, cursor, sort });
+
   const [selectedTab, setSelectedTab] = useState<'summary' | 'availability'>('summary');
 
   return (
@@ -65,56 +79,36 @@ function DownloadPreview() {
             selectedPoint={[10.522015854087698, 44.441902924546724]}
             selectedFeature={{
               type: 'FeatureCollection',
-              features: [
-                {
-                  geometry: {
-                    type: 'Polygon',
-                    coordinates: [
-                      [
-                        [9.66796875, 44.9375850039109],
-                        [10.404052734375, 45.31352900692258],
-                        [11.2060546875, 45.06964120886863],
-                        [11.260986328125, 44.45338880030178],
-                        [10.52490234375, 44.083639282846434],
-                        [9.73388671875, 44.323848072506905],
-                        [9.66796875, 44.9375850039109],
-                      ],
-                    ],
-                  },
-                  type: 'Feature',
-                  properties: {
-                    h3Index: '831ea6fffffffff',
-                  },
-                  id: '831ea6fffffffff',
-                  layer: {
-                    id: 'data-fills',
-                    type: 'fill',
-                    source: 'data',
-                    paint: {
-                      'fill-color': {
-                        r: 0.9607843137254902,
-                        g: 0.6980392156862745,
-                        b: 0,
-                        a: 1,
-                      },
-                      'fill-opacity': 0,
-                    },
-                    layout: {},
-                  },
-                  source: 'data',
-                  state: {},
-                },
-              ],
+              features: geometryFilter.map(geometry => ({ geometry })),
             }}
             locationName="France"
-            dataPoints={7367}
-            rasterLayers={4}
-            depthRange="0-50cm"
-            soilProperties={['pH', 'Organic Carbon Content']}
+            dataPoints={datasetsSummary.dataPoints}
+            rasterLayers={datasetsSummary.layers}
+            depthRange={`${datasetsSummary.depth}cm`}
+            soilProperties={filteredSoilProperties
+              .filter(property => selectedSoilProperties.includes(property.id))
+              .map(property => property.property_name)}
           />
         </div>
         <div className={classNames(styles.Data, { [styles.HideInMobile]: selectedTab !== 'availability' })}>
-          <DownloadPreviewDataSection />
+          <DownloadPreviewDataSection
+            // datasets={}
+            // onDatasetSelect={}
+            // datasetsDisabled={}
+            soilProperties={
+              selectedSoilProperties.length === 0
+                ? filteredSoilProperties
+                : filteredSoilProperties.filter(property => selectedSoilProperties.includes(property.id))
+            }
+            filters={filters}
+            onFiltersChange={newFilters => setFilters(newFilters)}
+            data={data}
+            isDataLoading={isLoading}
+            onTableSort={sort => setSort(sort)}
+            onTableLastPage={() => {
+              if (data !== undefined && data.length > 0) setCursor(data[data.length - 1].cursor);
+            }}
+          />
         </div>
       </div>
       <div className={styles.TabsHeader}>

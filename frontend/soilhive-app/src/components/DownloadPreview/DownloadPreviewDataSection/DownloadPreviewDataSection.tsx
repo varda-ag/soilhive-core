@@ -5,8 +5,25 @@ import ShareIcon from 'assets/icons/share-icon.svg?react';
 import DownloadPreviewFilters from '../DownloadPreviewFilters/DownloadPreviewFilters';
 import DownloadPreviewTable from '../DownloadPreviewTable/DownloadPreviewTable';
 import { useState } from 'react';
+import type { SoilDataSample, SoilProperty } from 'types/backend';
 
-function DownloadPreviewDataSection() {
+function DownloadPreviewDataSection({
+  data = [],
+  isDataLoading = true,
+  onTableSort,
+  onTableLastPage,
+  soilProperties = [],
+  filters = {},
+  onFiltersChange,
+}: {
+  data?: SoilDataSample[];
+  isDataLoading?: boolean;
+  onTableSort?: (sort: string | undefined) => void;
+  onTableLastPage?: () => void;
+  soilProperties?: SoilProperty[];
+  filters?: { soil_properties?: string[] };
+  onFiltersChange?: (newFilters: { soil_properties?: string[] }) => void;
+}) {
   const [filtersDialogOpen, setFiltersDialogOpen] = useState(false);
   return (
     <div className={styles.DownloadPreviewDataSection}>
@@ -28,10 +45,16 @@ function DownloadPreviewDataSection() {
         </Button>
       </div>
       <div className={styles.Filters}>
-        <DownloadPreviewFilters dialogOpen={filtersDialogOpen} setDialogOpen={setFiltersDialogOpen} />
+        <DownloadPreviewFilters
+          soilProperties={soilProperties}
+          filters={filters}
+          onFiltersChange={onFiltersChange}
+          dialogOpen={filtersDialogOpen}
+          setDialogOpen={setFiltersDialogOpen}
+        />
       </div>
       <div className={styles.TabularPreview}>
-        <DownloadPreviewTable />
+        <DownloadPreviewTable data={data} isDataLoading={isDataLoading} onTableSort={onTableSort} onTableLastPage={onTableLastPage} />
       </div>
     </div>
   );

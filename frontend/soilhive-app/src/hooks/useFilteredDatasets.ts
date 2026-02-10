@@ -13,10 +13,12 @@ export function useFilteredDatasets(filters: DataFilter) {
     enabled: !!debouncedFilters.geometries.length,
   });
 
-  return useApiQuery<FilteredDataset[]>({
+  const coverage = useApiQuery<FilteredDataset[]>({
     endpoint: `/data-filters/${filterData?.id}/coverage`,
     method: 'GET',
     queryKey: ['data-filter-coverage', filterData?.id],
     enabled: !!filterData?.id,
   });
+
+  return { filterId: filterData?.id, selectedFilters: filterData, coverage };
 }

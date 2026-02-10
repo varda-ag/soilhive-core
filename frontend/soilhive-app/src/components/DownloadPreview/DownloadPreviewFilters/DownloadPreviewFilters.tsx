@@ -6,6 +6,7 @@ import { useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import styles from './DownloadPreviewFilters.module.scss';
 import useDevice from 'hooks/useDevice';
 import { Button } from 'components/UI';
+import type { SoilProperty } from 'types/backend';
 
 const datasets = [
   { name: 'iSDA Africa Field Data', value: 'isda' },
@@ -13,12 +14,12 @@ const datasets = [
   { name: 'Dataset 3', value: 'dset3' },
 ];
 
-const soilProperties = [
-  { name: 'Arsernic', value: 'arsenic' },
-  { name: 'pH', value: 'ph' },
-  { name: 'Nematode Hell', value: 'nematodehell' },
-  { name: 'Very long soil property supercalifragilistichespiralidoso', value: 'longstringproperty' },
-];
+// const soilProperties = [
+//   { name: 'Arsernic', value: 'arsenic' },
+//   { name: 'pH', value: 'ph' },
+//   { name: 'Nematode Hell', value: 'nematodehell' },
+//   { name: 'Very long soil property supercalifragilistichespiralidoso', value: 'longstringproperty' },
+// ];
 
 const depths = [
   { name: '0-15 cm', value: 'depth1' },
@@ -27,9 +28,15 @@ const depths = [
 ];
 
 function DownloadPreviewFilters({
+  soilProperties = [],
+  filters = {},
+  onFiltersChange,
   dialogOpen = false,
   setDialogOpen,
 }: {
+  soilProperties?: SoilProperty[];
+  filters?: { soil_properties?: string[] };
+  onFiltersChange?: (newFilters: { soil_properties?: string[] }) => void;
   dialogOpen?: boolean;
   setDialogOpen?: Dispatch<SetStateAction<boolean>>;
 }) {
@@ -54,10 +61,17 @@ function DownloadPreviewFilters({
         <Dropdown
           className={styles.Dropdown}
           panelClassName={styles.DropdownPanel}
-          value={selectedSoilProperty}
-          onChange={e => setSelectedSoilProperty(e.value)}
+          value={filters.soil_properties?.[0]}
+          onChange={e => {
+            onFiltersChange?.({
+              ...filters,
+              soil_properties: e.value ? [e.value] : undefined,
+            });
+          }}
+          showClear
           options={soilProperties}
-          optionLabel="name"
+          optionLabel="property_name"
+          optionValue="id"
           placeholder="Select a soil property"
         />
         <Dropdown
@@ -84,7 +98,7 @@ function DownloadPreviewFilters({
         />
       </>
     );
-  }, [selectedDataset, selectedSoilProperty, selectedDepth, selectedDateRange]);
+  }, [selectedDataset, filters, selectedDepth, selectedDateRange]);
 
   const closeDialog = () => {
     if (!dialogOpen) return;

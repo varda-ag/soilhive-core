@@ -19,7 +19,7 @@ export default class SoilPropertyService {
   };
 
   /**
-   * 
+   *
    * @param requestData Mandatory request information
    * @param input Single soil property or array. Note: when using an array, all properties must be included in the input (i.e., no missing parent properties).
    * @returns Input with slugs in place of IDs
