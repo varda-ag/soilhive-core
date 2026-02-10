@@ -2,6 +2,7 @@ import { describe, it, expect } from '@jest/globals';
 import request from 'supertest';
 import { app } from '../../src/app';
 import { getDataAdminToken } from '../helper';
+import { StatusCodes } from 'http-status-codes';
 
 describe('Testing /mappings routes', () => {
   describe('POST /mappings', () => {
@@ -23,7 +24,7 @@ describe('Testing /mappings routes', () => {
 
       const res = await request(app).post('/mappings').set('Authorization', `Bearer ${token}`).send(payload);
 
-      expect(res.statusCode).toBe(200);
+      expect(res.statusCode).toBe(StatusCodes.CREATED);
       expect(res.body).toHaveProperty('id');
       expect(res.body).toHaveProperty('data_mapping');
       expect(res.body.data_mapping).toHaveProperty('magnesium');
@@ -43,14 +44,14 @@ describe('Testing /mappings routes', () => {
 
       const res1 = await request(app).post('/mappings').set('Authorization', `Bearer ${token}`).send(payload);
 
-      expect(res1.statusCode).toBe(200);
+      expect(res1.statusCode).toBe(StatusCodes.CREATED);
       const firstId = res1.body.id;
 
       // send identical payload
       const res2 = await request(app).post('/mappings').set('Authorization', `Bearer ${token}`).send(payload);
 
       // status is still 200 (not 409 Conflict or 500 Error)
-      expect(res2.statusCode).toBe(200);
+      expect(res2.statusCode).toBe(StatusCodes.CREATED);
 
       expect(res2.body.id).toBe(firstId);
 
@@ -75,7 +76,7 @@ describe('Testing /mappings routes', () => {
 
       const res = await request(app).post('/mappings').set('Authorization', `Bearer ${token}`).send(payload);
 
-      expect(res.statusCode).toBe(400);
+      expect(res.statusCode).toBe(StatusCodes.BAD_REQUEST);
       expect(res.body).toHaveProperty('detail');
       expect(res.body).toHaveProperty('errors');
     });
@@ -113,7 +114,7 @@ describe('Testing /mappings routes', () => {
       // Now retrieve it
       const getRes = await request(app).get(`/mappings/${mappingId}`).set('Authorization', `Bearer ${token}`);
 
-      expect(getRes.statusCode).toBe(200);
+      expect(getRes.statusCode).toBe(StatusCodes.OK);
       expect(getRes.body).toEqual(createPayload);
     });
 
@@ -123,7 +124,7 @@ describe('Testing /mappings routes', () => {
 
       const res = await request(app).get(`/mappings/${fakeId}`).set('Authorization', `Bearer ${token}`);
 
-      expect(res.statusCode).toBe(404);
+      expect(res.statusCode).toBe(StatusCodes.NOT_FOUND);
     });
 
     it('should return 401 Unauthorized when no token is provided', async () => {
@@ -131,7 +132,7 @@ describe('Testing /mappings routes', () => {
 
       const res = await request(app).get(`/mappings/${fakeId}`);
 
-      expect(res.statusCode).toBe(401);
+      expect(res.statusCode).toBe(StatusCodes.UNAUTHORIZED);
     });
   });
 
@@ -160,11 +161,11 @@ describe('Testing /mappings routes', () => {
 
         const deleteRes = await request(app).delete(`/mappings/${id}`).set('Authorization', `Bearer ${token}`);
 
-        expect(deleteRes.statusCode).toBe(204);
+        expect(deleteRes.statusCode).toBe(StatusCodes.NO_CONTENT);
 
         // verify GET now returns 404
         const getRes = await request(app).get(`/mappings/${id}`).set('Authorization', `Bearer ${token}`);
-        expect(getRes.statusCode).toBe(404);
+        expect(getRes.statusCode).toBe(StatusCodes.NOT_FOUND);
       });
     });
   });
