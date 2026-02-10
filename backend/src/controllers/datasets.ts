@@ -47,6 +47,11 @@ export const postBulkLoad = async (req: Request, res: Response) => {
 };
 
 export const getBulkLoad = async (req: Request, res: Response) => {
-  const data = await datasetService.getBulkLoad(req.customData, req.params['bulkLoadId']!);
+  const data = await datasetService.getBulkLoad(req.customData, req.params['datasetId']!);
+  res.json(data);
+};
+
+export const getBulkLoadById = async (req: Request, res: Response) => {
+  const data = await datasetService.getBulkLoadById(req.customData, req.params['bulkLoadId']!);
   res.json(data);
 };

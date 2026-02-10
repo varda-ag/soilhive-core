@@ -84,7 +84,12 @@ export default class DatasetService {
     return await repo.findOneByOrFail({ id: saved.id });
   };
 
-  getBulkLoad = async (requestData: RequestData, bulkLoadId: string): Promise<BulkLoad> => {
+  getBulkLoad = async (requestData: RequestData, datasetSlug: string): Promise<BulkLoad[]> => {
+    const repo = requestData.entityManager.getRepository(BulkLoadEntity);
+    return await repo.find({ where: { dataset_id: datasetSlug }, order: { created_at: 'ASC' } });
+  };
+
+  getBulkLoadById = async (requestData: RequestData, bulkLoadId: string): Promise<BulkLoad> => {
     const repo = requestData.entityManager.getRepository(BulkLoadEntity);
     const data = await repo.findOneBy({ id: bulkLoadId });
     if (!data) {

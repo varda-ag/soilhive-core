@@ -331,13 +331,33 @@ paths:
         - bearerAuth: [data-admin]
       responses:
         '201':
-          description: Bulk load job started successfully
+          description: Bulk load started successfull
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/BulkLoad'
-        '400':
-          $ref: '#/components/responses/BadRequest'
+        '422':
+          $ref: '#/components/responses/UnprocessableContent'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    get:
+      x-eov-operation-handler: controllers/datasets
+      x-eov-operation-id: getBulkLoad
+      summary: Get all bulk load operation statuses for a dataset
+      tags:
+        - datasets
+      security:
+        - bearerAuth: [data-admin]
+      responses:
+        '200':
+          description: Bulk load array
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BulkLoad'
         '401':
           $ref: '#/components/responses/Unauthorized'
 
@@ -348,16 +368,16 @@ paths:
         required: true
         schema:
           type: string
-        description: ID of the dataset to load data into
+        description: ID of the dataset related to the bulk load
       - name: bulkLoadId
         in: path
         required: true
         schema:
           type: string
-        description: ID of the bulk load job
+        description: ID of the bulk load
     get:
       x-eov-operation-handler: controllers/datasets
-      x-eov-operation-id: getBulkLoad
+      x-eov-operation-id: getBulkLoadById
       summary: Get bulk load operation status
       tags:
         - datasets
@@ -365,7 +385,7 @@ paths:
         - bearerAuth: [data-admin]
       responses:
         '200':
-          description: Job status
+          description: Bulk load status
           content:
             application/json:
               schema:
@@ -883,6 +903,12 @@ components:
             $ref: '#/components/schemas/ErrorResponse'
     Conflict:
       description: Conflict
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    UnprocessableContent:
+      description: Unprocessable content
       content:
         application/json:
           schema:
@@ -1424,7 +1450,7 @@ components:
         mappingId:
           type: string
           format: uuid
-          
+
     DatasetFileMappingResponse:
       type: object
       properties:
@@ -1437,30 +1463,30 @@ components:
       properties:
         id:
           type: string
-          description: Unique identifier for the bulk load job
+          description: Unique identifier for the bulk load
         dataset_id:
           type: string
-          description: ID of the dataset the job is associated with
+          description: ID of the dataset the bulk load is associated with
         status:
           type: string
           enum: [pending, in_progress, completed, failed, canceled]
-          description: Current status of the bulk load job
+          description: Current status of the bulk load
         created_by:
           type: string
-          description: ID of the user who initiated the job
+          description: ID of the user who initiated the bulk load
         created_at:
           type: string
           format: date-time
-          description: Timestamp when the job was created
+          description: Timestamp when the bulk load was created
         updated_at:
           type: string
           format: date-time
-          description: Timestamp when the job was last updated
+          description: Timestamp when the bulk load was last updated
         completed_at:
           type: string
           format: date-time
-          description: Timestamp when the job was completed
+          description: Timestamp when the bulk load was completed
         failed_at:
           type: string
           format: date-time
-          description: Timestamp when the job failed
+          description: Timestamp when the bulk load failed
