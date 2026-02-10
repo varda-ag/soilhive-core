@@ -12,15 +12,8 @@ export default class DatasetFileMappingEntity extends BaseTable {
   })
   id: string;
 
-  @Column({ type: 'uuid' })
-  dataset_id: string;
-
-  @ManyToOne(() => DatasetEntity, dataset => dataset.id)
-  @JoinColumn({ name: 'dataset_id' })
-  dataset: DatasetEntity;
-
   @Column({ type: 'uuid', nullable: true })
-  data_mapping_id: string;
+  data_mapping_id?: string;
 
   @ManyToOne(() => DataMappingEntity, data_mapping => data_mapping.id)
   @JoinColumn({ name: 'data_mapping_id' })
@@ -32,4 +25,11 @@ export default class DatasetFileMappingEntity extends BaseTable {
   @ManyToOne(() => FileEntity, file => file.id)
   @JoinColumn({ name: 'file_id' })
   file: FileEntity;
+
+  @Column({ type: 'uuid' })
+  dataset_id: string;
+
+  @ManyToOne(() => DatasetEntity, dataset => dataset.id)
+  @JoinColumn({ name: 'dataset_id' })
+  dataset: DatasetEntity;
 }
