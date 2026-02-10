@@ -366,7 +366,10 @@ describe('Testing /soil-data routes', () => {
   });
 
   it('Should load data', async () => {
-    const { dataset, dataMapping } = await addSyntheticIngestionData({ ...syntheticIngestionDataOptions, createTable: false });
+    const { dataset, datasetFileMapping } = await addSyntheticIngestionData({
+      ...syntheticIngestionDataOptions,
+      createTable: false,
+    });
     const token = await getDataAdminToken();
     const payload = {
       sampling_date: null,
@@ -381,7 +384,7 @@ describe('Testing /soil-data routes', () => {
 
     // Call soil-data endpoint
     const soilDataRes = await request(app)
-      .post(`/datasets/${dataset.slug}/dataset-file-mapping/${dataMapping.id}/soil-data`)
+      .post(`/datasets/${dataset.slug}/dataset-file-mapping/${datasetFileMapping.id}/soil-data`)
       .set('Authorization', `Bearer ${token}`)
       .send(payload);
     expect(soilDataRes.statusCode).toBe(201);

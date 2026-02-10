@@ -4,6 +4,8 @@ import DatasetFileMappingEntity from '../entities/DatasetFileMapping';
 import DatasetEntity from '../entities/Dataset';
 import { getEntity } from '../utils/slugs';
 import { EntityType } from '../types/data';
+import { ErrorResponse } from '../utils/error';
+import { StatusCodes } from 'http-status-codes';
 
 export default class DatasetFileMappingService {
   upsertMapping = async (
@@ -55,5 +57,19 @@ export default class DatasetFileMappingService {
     const generatedId = result.generatedMaps[0]?.['id'];
 
     return { id: generatedId };
+  };
+
+  getDatasetFileMapping = async (requestData: RequestData, id: string): Promise<DatasetFileMappingEntity> => {
+    const { entityManager } = requestData;
+
+    const repo = entityManager.getRepository(DatasetFileMappingEntity);
+
+    const datasetFileMapping = await repo.findOneBy({ id });
+
+    if (!datasetFileMapping) {
+      throw new ErrorResponse(`Dataset File Mapping with ID ${id} not found`, StatusCodes.NOT_FOUND);
+    }
+
+    return datasetFileMapping;
   };
 }

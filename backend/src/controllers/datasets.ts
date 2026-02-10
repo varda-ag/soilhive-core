@@ -5,10 +5,12 @@ import DataMappingService from '../services/DataMappingService';
 import DatasetService from '../services/DatasetService';
 import { CreateDatasetInput, UpdateDatasetInput } from '../types/DatasetInput';
 import { getNewPath, idToSlug } from '../utils/slugs';
+import DatasetFileMappingService from '../services/DatasetFileMappingService';
 
 const vectorDataLoad = new VectorDataLoad();
 const dataMappingService = new DataMappingService();
 const datasetService = new DatasetService();
+const datasetFileMappingService = new DatasetFileMappingService();
 
 export const getDatasets = async (req: Request, res: Response) => {
   const data = await datasetService.getDatasets(req.customData);
@@ -46,7 +48,11 @@ export const deleteDataset = async (req: Request, res: Response) => {
 };
 
 export const postSoilData = async (req: Request, res: Response) => {
-  const dataMappingConfig = await dataMappingService.parseDataMapping(req.customData, req.params['datasetFileMappingId'] as string);
+  const datasetFileMapping = await datasetFileMappingService.getDatasetFileMapping(
+    req.customData,
+    req.params['datasetFileMappingId'] as string,
+  );
+  const dataMappingConfig = await dataMappingService.parseDataMapping(req.customData, datasetFileMapping.data_mapping_id);
   const dataset = await datasetService.getDataset(req.customData, req.params['datasetId'] as string);
   await vectorDataLoad.rawRecordToDataModel(req.customData.entityManager, dataMappingConfig, req.body, dataset.id);
   res.status(201).send();
