@@ -4,17 +4,34 @@ import DatasetFileMappingEntity from '../entities/DatasetFileMapping';
 import DatasetEntity from '../entities/Dataset';
 import { getEntity } from '../utils/slugs';
 import { EntityType } from '../types/data';
+import { ErrorResponse } from '../utils/error';
+import { StatusCodes } from 'http-status-codes';
 
 export default class DatasetFileMappingService {
-  upsertMapping = async (
+  private mapResultToResponse = (resultData: any): DatasetFileMappingResponse => {
+    const retVal: any = {
+      id: resultData?.['id'],
+    };
+
+    if (resultData?.['file_id']) {
+      retVal.fileID = resultData?.['file_id'];
+    }
+
+    if (resultData?.['data_mapping_id']) {
+      retVal.mappingId = resultData?.['data_mapping_id'];
+    }
+
+    return retVal;
+  };
+
+  createMapping = async (
     requestData: RequestData,
-    datasetSlug: string,
+    datasetId: string,
     payload: DatasetFileMappingRequest,
-    existingMappingId?: string, // Used for PATCH logic if specific ID provided
   ): Promise<DatasetFileMappingResponse> => {
     const { entityManager } = requestData;
 
-    const dataset = await getEntity(requestData, DatasetEntity, EntityType.DATASET, datasetSlug);
+    const dataset = await getEntity(requestData, DatasetEntity, EntityType.DATASET, datasetId);
 
     const repo = entityManager.getRepository(DatasetFileMappingEntity);
 
@@ -22,48 +39,71 @@ export default class DatasetFileMappingService {
       dataset_id: dataset.id,
     };
 
-    const updateColumns: string[] = ['updated_at'];
-
     if (payload.fileID !== undefined) {
       values.file_id = payload.fileID;
-      updateColumns.push('file_id');
     }
 
     if (payload.mappingId !== undefined) {
       values.data_mapping_id = payload.mappingId;
-      updateColumns.push('data_mapping_id');
     }
 
-    if (existingMappingId) {
-      values.id = existingMappingId;
+    // Insert new mapping
+    try {
+      const result = await repo
+        .createQueryBuilder()
+        .insert()
+        .into(DatasetFileMappingEntity)
+        .values(values)
+        .returning(['id', 'file_id', 'data_mapping_id'])
+        .execute();
+
+      return this.mapResultToResponse(result.generatedMaps[0]);
+    } catch (error: any) {
+      if (error.code === '23505') {
+        // unique violation
+        throw new ErrorResponse(
+          `DatasetFileMapping with the same dataset_id ('${datasetId}), file_id (${payload.fileID}) and mappingId (${payload.mappingId})' already exists`,
+          StatusCodes.CONFLICT,
+        );
+      }
+      throw error;
+    }
+  };
+
+  updateMapping = async (
+    requestData: RequestData,
+    datasetSlug: string,
+    mappingId: string,
+    payload: DatasetFileMappingRequest,
+  ): Promise<DatasetFileMappingResponse> => {
+    const { entityManager } = requestData;
+
+    const dataset = await getEntity(requestData, DatasetEntity, EntityType.DATASET, datasetSlug);
+
+    const repo = entityManager.getRepository(DatasetFileMappingEntity);
+
+    const updateValues: any = {
+      updated_at: new Date(),
+    };
+
+    if (payload.fileID !== undefined) {
+      updateValues.file_id = payload.fileID;
     }
 
-    // 2. Perform Upsert
-    // We target the unique constraint: data_mapping_id, file_id, dataset_id
+    if (payload.mappingId !== undefined) {
+      updateValues.data_mapping_id = payload.mappingId;
+    }
+
+    // Update existing mapping
     const result = await repo
       .createQueryBuilder()
-      .insert()
-      .into(DatasetFileMappingEntity)
-      .values(values)
-      .orUpdate(
-        updateColumns,
-        ['id'], // If ID is provided, conflict on ID
-      )
+      .update(DatasetFileMappingEntity)
+      .set(updateValues)
+      .where('id = :id', { id: mappingId })
+      .andWhere('dataset_id = :datasetId', { datasetId: dataset.id })
       .returning(['id', 'file_id', 'data_mapping_id'])
       .execute();
 
-    const retVal: any = {
-      id: result.generatedMaps[0]?.['id'],
-    };
-
-    if (result.generatedMaps[0]?.['file_id']) {
-      retVal.fileID = result.generatedMaps[0]?.['file_id'];
-    }
-
-    if (result.generatedMaps[0]?.['data_mapping_id']) {
-      retVal.mappingId = result.generatedMaps[0]?.['data_mapping_id'];
-    }
-
-    return retVal;
+    return this.mapResultToResponse(result.raw[0]);
   };
 }

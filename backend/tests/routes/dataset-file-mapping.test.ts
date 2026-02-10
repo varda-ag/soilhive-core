@@ -58,6 +58,50 @@ describe('Testing /datasets{datasetId}/dataset-file-mapping routes', () => {
       expect(datasetFileMapping.statusCode).toBe(StatusCodes.CREATED);
       expect(datasetFileMapping.body.mappingId).toBe(mapping.body.id);
     });
+
+    it('should return 409 when creating a duplicate dataset file mapping', async () => {
+      const token = await getDataAdminToken();
+
+      const datasetPayload = {
+        name: 'New Unique Dataset',
+        full_name: 'The Full Name Example',
+      };
+
+      const dataset = await request(app).post('/datasets').set('Authorization', `Bearer ${token}`).send(datasetPayload);
+
+      const mappingsPayload = {
+        iron: {
+          property_id: 'iron',
+          conversion_id: 'mg/kg',
+        },
+        upper_depth: 'top',
+      };
+
+      const mapping = await request(app).post('/mappings').set('Authorization', `Bearer ${token}`).send(mappingsPayload);
+
+      const file = await addFile('test-file');
+
+      const datasetFileMappingPayload = {
+        mappingId: mapping.body.id,
+        fileID: file.id,
+      };
+
+      // Create the first mapping successfully
+      const firstMapping = await request(app)
+        .post(`/datasets/${dataset.body.id}/dataset-file-mapping`)
+        .set('Authorization', `Bearer ${token}`)
+        .send(datasetFileMappingPayload);
+
+      expect(firstMapping.statusCode).toBe(StatusCodes.CREATED);
+
+      // Attempt to create a duplicate mapping with the same dataset, file, and mapping IDs
+      const duplicateMapping = await request(app)
+        .post(`/datasets/${dataset.body.id}/dataset-file-mapping`)
+        .set('Authorization', `Bearer ${token}`)
+        .send(datasetFileMappingPayload);
+
+      expect(duplicateMapping.statusCode).toBe(StatusCodes.CONFLICT);
+    });
   });
 
   describe('PATCH /datasets{datasetId}/dataset-file-mapping', () => {
