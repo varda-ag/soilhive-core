@@ -6,6 +6,8 @@ import DatasetEntity from '../entities/Dataset';
 import { CreateDatasetInput, UpdateDatasetInput } from '../types/DatasetInput';
 import { getEntity } from '../utils/slugs';
 import { EntityType } from '../types/data';
+import { BulkLoad } from '../interfaces/BulkLoad';
+import BulkLoadEntity from '../entities/BulkLoad';
 
 export default class DatasetService {
   getDatasets = async (requestData: RequestData): Promise<Dataset[]> => {
@@ -68,5 +70,26 @@ export default class DatasetService {
   deleteDataset = async (requestData: RequestData, slug: string): Promise<void> => {
     const dataset = await getEntity(requestData, DatasetEntity, EntityType.DATASET, slug);
     await requestData.entityManager.getRepository(DatasetEntity).softRemove(dataset);
+  };
+
+  createBulkLoad = async (requestData: RequestData, datasetSlug: string): Promise<BulkLoad> => {
+    const repo = requestData.entityManager.getRepository(BulkLoadEntity);
+    const { sub } = requestData.token;
+    const job = repo.create({
+      dataset_id: datasetSlug,
+      created_by: String(sub),
+      updated_by: String(sub),
+    });
+    const saved = await repo.save(job);
+    return await repo.findOneByOrFail({ id: saved.id });
+  };
+
+  getBulkLoad = async (requestData: RequestData, bulkLoadId: string): Promise<BulkLoad> => {
+    const repo = requestData.entityManager.getRepository(BulkLoadEntity);
+    const data = await repo.findOneBy({ id: bulkLoadId });
+    if (!data) {
+      throw new ErrorResponse(`Bulk load '${bulkLoadId}' not found`, StatusCodes.NOT_FOUND);
+    }
+    return data;
   };
 }

@@ -313,6 +313,67 @@ paths:
         '401':
           description: Unauthorized - Token subject is missing
 
+  /datasets/{datasetId}/bulk-load:
+    parameters:
+      - name: datasetId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: ID of the dataset to load data into
+    post:
+      x-eov-operation-handler: controllers/datasets
+      x-eov-operation-id: postBulkLoad
+      summary: Starts bulk operation to load soil data records into the system
+      tags:
+        - datasets
+      security:
+        - bearerAuth: [data-admin]
+      responses:
+        '201':
+          description: Bulk load job started successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkLoad'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /datasets/{datasetId}/bulk-load/{bulkLoadId}:
+    parameters:
+      - name: datasetId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: ID of the dataset to load data into
+      - name: bulkLoadId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: ID of the bulk load job
+    get:
+      x-eov-operation-handler: controllers/datasets
+      x-eov-operation-id: getBulkLoad
+      summary: Get bulk load operation status
+      tags:
+        - datasets
+      security:
+        - bearerAuth: [data-admin]
+      responses:
+        '200':
+          description: Job status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkLoad'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
   /soil-properties:
     get:
       x-eov-operation-handler: controllers/soil-properties
@@ -504,46 +565,46 @@ paths:
           schema:
             type: string
             enum:
-            - dataset_id
-            - dataset_name
-            - extractant_concentration
-            - extractant_formulation
-            - extraction_base
-            - extraction_ratio
-            - geometry
-            - horizon
-            - instrument
-            - license_name
-            - limit_of_detection
-            - max_depth
-            - min_depth
-            - property_acronym
-            - sample_pretreatment
-            - sampling_date
-            - soil_property
-            - standard_unit
-            - technique
-            - value
-            - -dataset_id
-            - -dataset_name
-            - -extractant_concentration
-            - -extractant_formulation
-            - -extraction_base
-            - -extraction_ratio
-            - -geometry
-            - -horizon
-            - -instrument
-            - -license_name
-            - -limit_of_detection
-            - -max_depth
-            - -min_depth
-            - -property_acronym
-            - -sample_pretreatment
-            - -sampling_date
-            - -soil_property
-            - -standard_unit
-            - -technique
-            - -value
+              - dataset_id
+              - dataset_name
+              - extractant_concentration
+              - extractant_formulation
+              - extraction_base
+              - extraction_ratio
+              - geometry
+              - horizon
+              - instrument
+              - license_name
+              - limit_of_detection
+              - max_depth
+              - min_depth
+              - property_acronym
+              - sample_pretreatment
+              - sampling_date
+              - soil_property
+              - standard_unit
+              - technique
+              - value
+              - -dataset_id
+              - -dataset_name
+              - -extractant_concentration
+              - -extractant_formulation
+              - -extraction_base
+              - -extraction_ratio
+              - -geometry
+              - -horizon
+              - -instrument
+              - -license_name
+              - -limit_of_detection
+              - -max_depth
+              - -min_depth
+              - -property_acronym
+              - -sample_pretreatment
+              - -sampling_date
+              - -soil_property
+              - -standard_unit
+              - -technique
+              - -value
       responses:
         '200':
           description: Soil data
@@ -656,31 +717,31 @@ paths:
           description: File downloaded successfully
 
   /mappings:
-      post:
-        x-eov-operation-handler: controllers/mappings
-        x-eov-operation-id: createDataMapping
-        summary: Create a new data mapping
-        tags:
-          - mappings
-        security:
-          - bearerAuth: [data-admin]
-        requestBody:
-          required: true
+    post:
+      x-eov-operation-handler: controllers/mappings
+      x-eov-operation-id: createDataMapping
+      summary: Create a new data mapping
+      tags:
+        - mappings
+      security:
+        - bearerAuth: [data-admin]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DataMappingObject'
+      responses:
+        '200':
+          description: Data mapping created successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DataMappingObject'
-        responses:
-          '200':
-            description: Data mapping created successfully
-            content:
-              application/json:
-                schema:
-                  $ref: '#/components/schemas/DataMapping'
-          '400':
-            $ref: '#/components/responses/BadRequest'
-          '401':
-            $ref: '#/components/responses/Unauthorized'
+                $ref: '#/components/schemas/DataMapping'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
   /mappings/{mappingId}:
     parameters:
       - name: mappingId
@@ -728,37 +789,37 @@ components:
       content:
         application/json:
           schema:
-            $ref: "#/components/schemas/ErrorResponse"
+            $ref: '#/components/schemas/ErrorResponse'
     BadRequest:
       description: Bad request
       content:
         application/json:
           schema:
-            $ref: "#/components/schemas/ErrorResponse"
+            $ref: '#/components/schemas/ErrorResponse'
     Unauthorized:
       description: Unauthorized
       content:
         application/json:
           schema:
-            $ref: "#/components/schemas/ErrorResponse"
+            $ref: '#/components/schemas/ErrorResponse'
     Forbidden:
       description: Forbidden
       content:
         application/json:
           schema:
-            $ref: "#/components/schemas/ErrorResponse"
+            $ref: '#/components/schemas/ErrorResponse'
     Conflict:
       description: Conflict
       content:
         application/json:
           schema:
-            $ref: "#/components/schemas/ErrorResponse"
+            $ref: '#/components/schemas/ErrorResponse'
     TooManyRequests:
       description: Too many requests
       content:
         application/json:
           schema:
-            $ref: "#/components/schemas/ErrorResponse"
+            $ref: '#/components/schemas/ErrorResponse'
 
   securitySchemes:
     bearerAuth:
@@ -828,10 +889,10 @@ components:
           type: string
           format: uri
           description: A URI reference that identifies the specific occurrence of the problem. It may yield further information if dereferenced.
-    
+
     Geometry:
       $ref: '../src/GeoJSON-OAS3.yaml#/components/schemas/Geometry'
-    
+
     FileDescriptor:
       type: object
       properties:
@@ -869,9 +930,9 @@ components:
           items:
             type: string
             enum:
-            - point
-            - polygonal
-            - raster
+              - point
+              - polygonal
+              - raster
             description: Type of data contained in the dataset (e.g., point samples, raster data)
         licenses:
           type: array
@@ -927,9 +988,9 @@ components:
             data_type:
               type: string
               enum:
-              - point
-              - polygonal
-              - raster
+                - point
+                - polygonal
+                - raster
               description: Type of data contained in the dataset (e.g., point samples, raster data)
             dataset_layer_count:
               type: integer
@@ -1251,14 +1312,14 @@ components:
         - A PropertyMapping object (for property columns with conversion/procedure info)
       example:
         magnesium:
-          property_id: "magnesium"
-          procedure_id: "sieved-over-2-mm-sieve-lab-procedure-water-h2o--01-05-weight-volume-electrode"
-          conversion_id: "cm"
+          property_id: 'magnesium'
+          procedure_id: 'sieved-over-2-mm-sieve-lab-procedure-water-h2o--01-05-weight-volume-electrode'
+          conversion_id: 'cm'
         total_nitrogen:
-          property_id: "nitrogen-total"
-        upper_depth: "min_depth"
-        lower_depth: "max_depth"
-        date: "sampling_date"
+          property_id: 'nitrogen-total'
+        upper_depth: 'min_depth'
+        lower_depth: 'max_depth'
+        date: 'sampling_date'
 
     PropertyMapping:
       type: object
@@ -1281,4 +1342,35 @@ components:
           type: string
           description: Optional slug for the procedure
 
-    
+    BulkLoad:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique identifier for the bulk load job
+        dataset_id:
+          type: string
+          description: ID of the dataset the job is associated with
+        status:
+          type: string
+          enum: [pending, in_progress, completed, failed, canceled]
+          description: Current status of the bulk load job
+        created_by:
+          type: string
+          description: ID of the user who initiated the job
+        created_at:
+          type: string
+          format: date-time
+          description: Timestamp when the job was created
+        updated_at:
+          type: string
+          format: date-time
+          description: Timestamp when the job was last updated
+        completed_at:
+          type: string
+          format: date-time
+          description: Timestamp when the job was completed
+        failed_at:
+          type: string
+          format: date-time
+          description: Timestamp when the job failed
