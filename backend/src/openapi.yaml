@@ -314,6 +314,41 @@ paths:
           description: Unauthorized - Token subject is missing
 
   /datasets/{datasetId}/dataset-file-mapping:
+    get:
+      x-eov-operation-handler: controllers/dataset-file-mappings
+      x-eov-operation-id: getDatasetFileMappings
+      summary: Get all dataset file mappings for a dataset
+      tags:
+        - datasets
+      security:
+        - bearerAuth: [data-admin]
+      parameters:
+        - name: datasetId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Dataset ID
+        - name: fileId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+          description: Optional file ID to filter mappings
+      responses:
+        '200':
+          description: List of dataset file mappings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DatasetFileMappingResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
     post:
       x-eov-operation-handler: controllers/dataset-file-mappings
       x-eov-operation-id: createDatasetFileMapping
@@ -347,6 +382,39 @@ paths:
           description: Unauthorized - Token subject is missing
 
   /datasets/{datasetId}/dataset-file-mapping/{datasetFileMappingId}:
+    get:
+      x-eov-operation-handler: controllers/dataset-file-mappings
+      x-eov-operation-id: getDatasetFileMapping
+      summary: Get a specific dataset file mapping
+      tags:
+        - datasets
+      security:
+        - bearerAuth: [data-admin]
+      parameters:
+        - name: datasetId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Dataset ID
+        - name: datasetFileMappingId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Dataset file mapping ID
+      responses:
+        '200':
+          description: Dataset file mapping retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetFileMappingResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
     patch:
       x-eov-operation-handler: controllers/dataset-file-mappings
       x-eov-operation-id: updateDatasetFileMapping
