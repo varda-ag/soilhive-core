@@ -21,6 +21,7 @@ import assert from 'assert';
 import path from 'path';
 import fs from 'fs';
 import { sanitizeField } from './utils';
+import DatasetFileMappingEntity from '../entities/DatasetFileMapping';
 
 const randomInRange = (min: number, max: number): number => {
   return Math.random() * (max - min) + min;
@@ -120,6 +121,16 @@ export const addDataMapping = async (data_mapping: object): Promise<DataMappingE
     created_by: 'tests',
   });
   return await repo.save(mapping);
+};
+
+export const addDatasetFileMapping = async (datasetId: string, dataMappingId: string): Promise<DatasetFileMappingEntity> => {
+  const dataSource = await getDataSource();
+  const repo = dataSource.getRepository(DatasetFileMappingEntity);
+  const datasetFileMapping = repo.create({
+    dataset_id: datasetId,
+    data_mapping_id: dataMappingId,
+  });
+  return await repo.save(datasetFileMapping);
 };
 
 export const addFeature = async (lng: number, lat: number) => {
@@ -380,6 +391,7 @@ export interface SyntheticIngestionDataset {
   dataset: DatasetEntity;
   file: FileEntity;
   dataMapping: DataMappingEntity;
+  datasetFileMapping: DatasetFileMappingEntity;
 }
 
 export const addSyntheticIngestionData = async (syntheticIngestionDataOptions): Promise<SyntheticIngestionDataset> => {
@@ -420,6 +432,7 @@ export const addSyntheticIngestionData = async (syntheticIngestionDataOptions): 
   }
 
   const dataMapping = await addDataMapping(createdDataMapping);
+  const datasetFileMapping = await addDatasetFileMapping(dataset.id, dataMapping.id);
   if (syntheticIngestionDataOptions.createTable) {
     // Load raw data sample
     const sqlFile = path.join(__dirname, '..', '..', 'tests', 'assets', 'raw_data', 'raw_data_insert.sql');
@@ -432,7 +445,7 @@ export const addSyntheticIngestionData = async (syntheticIngestionDataOptions): 
   if (syntheticIngestionDataOptions.showProgress) {
     console.log(`Synthetic ingestion data creation complete. Dataset ID: ${dataset.id}`);
   }
-  return { dataset, file, dataMapping };
+  return { dataset, file, dataMapping, datasetFileMapping };
 };
 
 export interface DataCount {
