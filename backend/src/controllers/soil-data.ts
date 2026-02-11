@@ -5,6 +5,7 @@ import FilterService from '../services/FilterService';
 import DatasetService from '../services/DatasetService';
 import DataMappingService from '../services/DataMappingService';
 import VectorDataLoad from '../data-layer/VectorDataLoad';
+import { StatusCodes } from 'http-status-codes';
 
 const soilDataStorage = new SoilDataStorage();
 const vectorDataLoad = new VectorDataLoad();
@@ -39,5 +40,5 @@ export const postSoilData = async (req: Request, res: Response) => {
   const dataset = await datasetService.getDataset(req.customData, req.query['datasetId'] as string);
 
   await vectorDataLoad.rawRecordToDataModel(req.customData.entityManager, dataMappingConfig, req.body, dataset.id);
-  res.status(201).send();
+  res.status(StatusCodes.CREATED).send();
 };

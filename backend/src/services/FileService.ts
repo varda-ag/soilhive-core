@@ -21,7 +21,6 @@ import { DetectableFields } from '../types/DataMapping';
 import ConfigService from './ConfigService';
 import { LOGO_FILE_ID } from '../constants/constants';
 import FileEntity from '../entities/File';
-import { sanitizeField } from '../utils/utils';
 
 const allowedGeometryTypes = [
   gdal.wkbNone, // This allows generic tabular file support
@@ -55,9 +54,8 @@ export default class FileService {
           // Special case for logo upload
           return LOGO_FILE_ID;
         }
-        // Use ID parameter to setup filename
-        // TODO: replace parameter name
-        return req.params['fileId']!;
+        const fileEntity = (req as any).fileEntity;
+        return `${fileEntity.slug}/${fileEntity.name}`;
       } else {
         // Return folder name/destination if needed
         return file.destination;
@@ -108,7 +106,7 @@ export default class FileService {
     return await getEntity(requestData, FileEntity, EntityType.FILE, slug);
   };
 
-  createFile = async (requestData: RequestData, data: CreateFileInput): Promise<File> => {
+  createFile = async (requestData: RequestData, data: Partial<File>): Promise<File> => {
     const repo = requestData.entityManager.getRepository(FileEntity);
 
     const { sub } = requestData.token;
@@ -133,6 +131,27 @@ export default class FileService {
       }
       throw error;
     }
+  };
+
+  updateFile = async (requestData: RequestData, slug: string, data: Partial<File>): Promise<File> => {
+    const repo = requestData.entityManager.getRepository(FileEntity);
+    const { sub } = requestData.token;
+
+    if (!sub) {
+      throw new ErrorResponse('Token subject is missing', StatusCodes.UNAUTHORIZED);
+    }
+
+    const file = (await getEntity(requestData, FileEntity, EntityType.DATASET, slug)) as FileEntity;
+
+    repo.merge(file, {
+      ...data,
+      updated_by: String(sub),
+      updated_at: new Date(),
+    });
+
+    const saved = await repo.save(file);
+    const reloaded = await repo.findOneBy({ id: saved.id });
+    return reloaded!;
   };
 
   /**

@@ -694,10 +694,12 @@ paths:
   /files:
     post:
       x-eov-operation-handler: controllers/files
-      x-eov-operation-id: fileUpload #postFile
+      x-eov-operation-id: createFile
       summary: Create a file to load (upload, create entity and extract metadata)
       tags:
         - files
+      security:
+        - bearerAuth: [super-admin, data-admin]
       requestBody:
         required: true
         content:
@@ -721,28 +723,55 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
-      security:
-        - bearerAuth: [super-admin, data-admin]
+
+  /files/{fileId}:
+    parameters:
+      - name: fileId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: File unique internal identifier
+    get:
+      x-eov-operation-handler: controllers/files
+      x-eov-operation-id: getFile
+      summary: Download a file
+      tags:
+        - files
+      responses:
+        '200':
+          description: Data mapping retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/File'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /files/{fileId}/download:
+    parameters:
+      - name: fileId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: File unique internal identifier
     get:
       x-eov-operation-handler: controllers/files
       x-eov-operation-id: fileDownload
       summary: Download a file
       tags:
-        - TODO (to be removed or specialized)
-      parameters:
-        - in: query
-          name: token
-          required: false
-          description: Temporary access token to download access-protected files
-          schema:
-            type: string
+        - files
+      security:
+        - bearerAuth: [data-admin]
       responses:
         '200':
           description: File downloaded successfully
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /mappings:
       post:
@@ -760,7 +789,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/DataMappingObject'
         responses:
-          '200':
+          '201':
             description: Data mapping created successfully
             content:
               application/json:
@@ -927,29 +956,42 @@ components:
       properties:
         id:
           type: string
-          description: Internal file identifier
-        key:
+          description: Unique file identifier
+        name:
+          type: string
+          description:File name
+        file_path:
           type: string
           description: Storage key (path-like)
-        size:
-          type: integer
-          description: File size in bytes
-        mimeType:
+        status:
           type: string
-          description: MIME type of the file
-        uploadedAt:
-          type: string
-          format: date-time
-          description: Upload timestamp
+          readOnly: true
         metadata:
           type: object
+          description: Spatial file fields, CRS and geometry information.
           additionalProperties: true
+        is_archived:
+          type: boolean
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        created_by:
+          type: string
+          readOnly: true
+        updated_by:
+          type: string
+          readOnly: true
       required:
         - id
-        - key
-        - size
-        - mimeType
-        - uploadedAt
+        - name
+        - created_at
+        - created_by
 
     FilterCriteria:
       type: object

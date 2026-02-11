@@ -10,6 +10,7 @@ export const enum IngestionStatus {
   INGESTED = 'INGESTED',
   RELEASED = 'RELEASED',
   ARCHIVED = 'ARCHIVED',
+  FAILED = 'FAILED',
 }
 
 // Cannot be const enum because used in TypeORM decorators
