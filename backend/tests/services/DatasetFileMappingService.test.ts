@@ -42,7 +42,7 @@ describe('DatasetFileMappingService', () => {
 
     const dataset = await addDataset('test-dataset', [0, 0, 1, 1]);
 
-    const dataMapping = await addDataMapping({})
+    const dataMapping = await addDataMapping({});
 
     const datasetFileMapping = await service.createMapping(requestData, dataset.slug, {
       mappingId: dataMapping.id,
@@ -59,9 +59,7 @@ describe('DatasetFileMappingService', () => {
   it('should throw 404 when dataset file mapping not found', async () => {
     const service = new DatasetFileMappingService();
 
-    await expect(
-      service.getDatasetFileMapping(requestData, '00000000-0000-0000-0000-000000000000')
-    ).rejects.toThrow('not found');
+    await expect(service.getDatasetFileMapping(requestData, '00000000-0000-0000-0000-000000000000')).rejects.toThrow('not found');
   });
 
   it('should retrieve all mappings for a dataset', async () => {
@@ -69,8 +67,8 @@ describe('DatasetFileMappingService', () => {
 
     const dataset = await addDataset('test-dataset-mappings', [0, 0, 1, 1]);
 
-    const file1 = await addFile("path 1")
-    const file2 = await addFile("path 2")
+    const file1 = await addFile('path 1');
+    const file2 = await addFile('path 2');
 
     await service.createMapping(requestData, dataset.slug, { fileID: file1.id });
     await service.createMapping(requestData, dataset.slug, { fileID: file2.id });
@@ -86,8 +84,8 @@ describe('DatasetFileMappingService', () => {
 
     const dataset = await addDataset('test-dataset-file-filter', [0, 0, 1, 1]);
 
-    const file1 = await addFile("path 1")
-    const file2 = await addFile("path 2")
+    const file1 = await addFile('path 1');
+    const file2 = await addFile('path 2');
 
     await service.createMapping(requestData, dataset.slug, { fileID: file1.id });
     await service.createMapping(requestData, dataset.slug, { fileID: file2.id });
@@ -107,9 +105,7 @@ describe('DatasetFileMappingService', () => {
     // Create empty dataset
     const dataset = await addDataset('empty-dataset', [0, 0, 1, 1]);
 
-    await expect(
-      service.getMappings(requestData, dataset.slug)
-    ).rejects.toThrow('No DatasetFileMappings found');
+    await expect(service.getMappings(requestData, dataset.slug)).rejects.toThrow('No DatasetFileMappings found');
   });
 
   it('should insert a dataset_mapping_file with no file and no mappingId', async () => {

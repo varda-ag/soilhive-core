@@ -161,10 +161,7 @@ describe('Testing /datasets{datasetId}/dataset-file-mapping routes', () => {
         full_name: 'Full Name for GET',
       };
 
-      const dataset = await request(app)
-        .post('/datasets')
-        .set('Authorization', `Bearer ${token}`)
-        .send(datasetPayload);
+      const dataset = await request(app).post('/datasets').set('Authorization', `Bearer ${token}`).send(datasetPayload);
 
       const datasetFileMapping = await request(app)
         .post(`/datasets/${dataset.body.id}/dataset-file-mapping`)
@@ -192,10 +189,7 @@ describe('Testing /datasets{datasetId}/dataset-file-mapping routes', () => {
         full_name: 'Full Name for 404',
       };
 
-      const dataset = await request(app)
-        .post('/datasets')
-        .set('Authorization', `Bearer ${token}`)
-        .send(datasetPayload);
+      const dataset = await request(app).post('/datasets').set('Authorization', `Bearer ${token}`).send(datasetPayload);
 
       const getResponse = await request(app)
         .get(`/datasets/${dataset.body.id}/dataset-file-mapping/00000000-0000-0000-0000-000000000000`)
@@ -213,10 +207,7 @@ describe('Testing /datasets{datasetId}/dataset-file-mapping routes', () => {
         full_name: 'Full Name for GET all',
       };
 
-      const dataset = await request(app)
-        .post('/datasets')
-        .set('Authorization', `Bearer ${token}`)
-        .send(datasetPayload);
+      const dataset = await request(app).post('/datasets').set('Authorization', `Bearer ${token}`).send(datasetPayload);
 
       await request(app)
         .post(`/datasets/${dataset.body.id}/dataset-file-mapping`)
@@ -256,10 +247,7 @@ describe('Testing /datasets{datasetId}/dataset-file-mapping routes', () => {
         full_name: 'Full Name for fileId filter',
       };
 
-      const dataset = await request(app)
-        .post('/datasets')
-        .set('Authorization', `Bearer ${token}`)
-        .send(datasetPayload);
+      const dataset = await request(app).post('/datasets').set('Authorization', `Bearer ${token}`).send(datasetPayload);
 
       const file = await addFile('filter-test-file');
 
