@@ -1,6 +1,6 @@
-ARG NODE_VERSION=22
+ARG NODE_VERSION=22-alpine3.22
 
-FROM node:${NODE_VERSION}-alpine3.22 AS base
+FROM node:${NODE_VERSION} AS base
 
 # Set working directory
 WORKDIR /app
@@ -69,7 +69,7 @@ RUN chown -R nodejs:nodejs /app
 # ========================================
 # Final Stage
 # ========================================
-FROM node:${NODE_VERSION}-alpine3.22
+FROM node:${NODE_VERSION}
 
 # Set working directory
 WORKDIR /app

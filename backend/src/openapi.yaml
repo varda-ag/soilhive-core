@@ -630,13 +630,26 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
-    # TODO: replace current POST /soil-data?dataset=&mapping= with POST /datasets/{datasetId}/dataset-file-mapping/{datasetFileMappingId}/soil-data
+  /datasets/{datasetId}/dataset-file-mapping/{datasetFileMappingId}/soil-data:
+    parameters:
+      - name: datasetId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: ID of the dataset to assign to the created soil data
+      - name: datasetFileMappingId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Unique identifier of the mapping to be applied to the raw record
     post:
-      x-eov-operation-handler: controllers/soil-data
+      x-eov-operation-handler: controllers/datasets
       x-eov-operation-id: postSoilData
       summary: Loads soil data record into the system
       tags:
-        - soil-data
+        - datasets
       security:
         - bearerAuth: [data-admin]
       requestBody:
@@ -645,19 +658,6 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/SoilRecord'
-      parameters:
-        - name: dataMappingId
-          in: query
-          required: true
-          schema:
-            type: string
-          description: Unique identifier of the mapping to be applied to the raw record
-        - name: datasetId
-          in: query
-          required: true
-          schema:
-            type: string
-          description: ID of the dataset to assign to the created soil data
       responses:
         '201':
           description: Soil data loaded successfully
@@ -777,7 +777,7 @@ paths:
       post:
         x-eov-operation-handler: controllers/mappings
         x-eov-operation-id: createDataMapping
-        summary: Create a new data mapping
+        summary: Create a new data mapping. This operation is idempotent
         tags:
           - mappings
         security:
@@ -799,6 +799,7 @@ paths:
             $ref: '#/components/responses/BadRequest'
           '401':
             $ref: '#/components/responses/Unauthorized'
+  
   /mappings/{mappingId}:
     parameters:
       - name: mappingId
@@ -1429,5 +1430,12 @@ components:
         id:
           type: string
           format: uuid
+        fileID:
+          type: string
+          format: uuid
+        mappingId:
+          type: string
+          format: uuid
+        
 
     

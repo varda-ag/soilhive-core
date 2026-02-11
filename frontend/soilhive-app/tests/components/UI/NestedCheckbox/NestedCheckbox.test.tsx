@@ -35,12 +35,12 @@ describe('NestedCheckbox', () => {
     const parentCheckbox = screen.getByLabelText(/First/i);
     fireEvent.click(parentCheckbox);
 
-    expect(onChange).toHaveBeenCalledWith(['first', 'first-child-1', 'first-child-2']);
+    expect(onChange).toHaveBeenCalledWith(['first-child-1', 'first-child-2']);
   });
 
   it('removes parent and children when unchecked', () => {
     const onChange = jest.fn();
-    render(<NestedCheckbox items={mockItems} selected={['first', 'first-child-1', 'first-child-2']} onChange={onChange} />);
+    render(<NestedCheckbox items={mockItems} selected={['first-child-1', 'first-child-2']} onChange={onChange} />);
 
     const parentCheckbox = screen.getByLabelText(/First/i);
     fireEvent.click(parentCheckbox);

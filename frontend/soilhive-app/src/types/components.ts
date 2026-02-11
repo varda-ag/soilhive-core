@@ -29,4 +29,5 @@ export type NestedCheckboxRef = {
 export interface Selection {
   id: string;
   label: string;
+  disabled?: boolean;
 }

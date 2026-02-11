@@ -28,3 +28,8 @@ export type TimeFilterState = {
   min?: number;
   max?: number;
 };
+
+export type DatasetFrontendFilters = {
+  type: string[];
+  ownership: string[];
+};

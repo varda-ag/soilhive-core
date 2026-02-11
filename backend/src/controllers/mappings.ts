@@ -9,7 +9,7 @@ export const createDataMapping = async (req: Request, res: Response) => {
 
   const dataMapping = await dataMappingService.postDataMapping(req.customData, apiInput);
 
-  res.json(dataMapping);
+  res.status(StatusCodes.CREATED).json(dataMapping);
 };
 
 export const getDataMapping = async (req: Request, res: Response) => {
