@@ -731,7 +731,7 @@ paths:
       post:
         x-eov-operation-handler: controllers/mappings
         x-eov-operation-id: createDataMapping
-        summary: Create a new data mapping
+        summary: Create a new data mapping. This operation is idempotent
         tags:
           - mappings
         security:
@@ -743,7 +743,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/DataMappingObject'
         responses:
-          '200':
+          '201':
             description: Data mapping created successfully
             content:
               application/json:
@@ -753,6 +753,7 @@ paths:
             $ref: '#/components/responses/BadRequest'
           '401':
             $ref: '#/components/responses/Unauthorized'
+  
   /mappings/{mappingId}:
     parameters:
       - name: mappingId
@@ -1369,5 +1370,12 @@ components:
         id:
           type: string
           format: uuid
+        fileID:
+          type: string
+          format: uuid
+        mappingId:
+          type: string
+          format: uuid
+        
 
     
