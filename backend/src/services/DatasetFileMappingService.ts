@@ -107,17 +107,47 @@ export default class DatasetFileMappingService {
     return this.mapResultToResponse(result.raw[0]);
   };
 
-  getDatasetFileMapping = async (requestData: RequestData, id: string): Promise<DatasetFileMappingEntity> => {
+  getDatasetFileMapping = async (requestData: RequestData, datasetFileMappingId: string): Promise<DatasetFileMappingResponse> => {
     const { entityManager } = requestData;
 
     const repo = entityManager.getRepository(DatasetFileMappingEntity);
 
-    const datasetFileMapping = await repo.findOneBy({ id });
+    // Find mapping by ID (primary key)
+    const mapping = await repo.findOneBy({ id: datasetFileMappingId });
 
-    if (!datasetFileMapping) {
-      throw new ErrorResponse(`Dataset File Mapping with ID ${id} not found`, StatusCodes.NOT_FOUND);
+    if (!mapping) {
+      throw new ErrorResponse(`DatasetFileMapping with ID '${datasetFileMappingId}' not found`, StatusCodes.NOT_FOUND);
     }
 
-    return datasetFileMapping;
+    return this.mapResultToResponse(mapping);
+  };
+
+  getMappings = async (requestData: RequestData, datasetId: string, fileId?: string): Promise<DatasetFileMappingResponse[]> => {
+    const { entityManager } = requestData;
+
+    // the id coming in as parameter is the slug that allow us to load the dataset iwth it's actual uuid
+    const dataset = await getEntity(requestData, DatasetEntity, EntityType.DATASET, datasetId);
+
+    const repo = entityManager.getRepository(DatasetFileMappingEntity);
+
+    const whereConditions: any = {
+      dataset_id: dataset.id,
+    };
+
+    if (fileId !== undefined) {
+      whereConditions.file_id = fileId;
+    }
+
+    // Find all mappings for the dataset, optionally filtered by fileId
+    const datasetFileMappings = await repo.find({
+      where: whereConditions,
+    });
+
+    if (datasetFileMappings.length === 0) {
+      const fileIdMsg = fileId ? ` and fileId '${fileId}'` : '';
+      throw new ErrorResponse(`No DatasetFileMappings found for dataset '${datasetId}'${fileIdMsg}`, StatusCodes.NOT_FOUND);
+    }
+
+    return datasetFileMappings.map(mapping => this.mapResultToResponse(mapping));
   };
 }

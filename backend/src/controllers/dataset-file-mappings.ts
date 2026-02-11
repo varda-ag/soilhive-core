@@ -21,3 +21,20 @@ export const updateDatasetFileMapping = async (req: Request, res: Response) => {
 
   res.json(result);
 };
+
+export const getDatasetFileMapping = async (req: Request, res: Response) => {
+  const { datasetFileMappingId } = req.params;
+
+  const result = await datasetFileMappingService.getDatasetFileMapping(req.customData, datasetFileMappingId!);
+
+  res.json(result);
+};
+
+export const getDatasetFileMappings = async (req: Request, res: Response) => {
+  const { datasetId } = req.params;
+  const { fileId } = req.query;
+
+  const result = await datasetFileMappingService.getMappings(req.customData, datasetId!, fileId as string | undefined);
+
+  res.json(result);
+};
