@@ -151,4 +151,131 @@ describe('Testing /datasets{datasetId}/dataset-file-mapping routes', () => {
       expect(datasetFileMappingUpdate.body.fileID).toBe(file.id);
     });
   });
+
+  describe('GET /datasets/{datasetId}/dataset-file-mapping/{datasetFileMappingId}', () => {
+    it('should get a specific dataset file mapping (200)', async () => {
+      const token = await getDataAdminToken();
+
+      const datasetPayload = {
+        name: 'Dataset for GET test',
+        full_name: 'Full Name for GET',
+      };
+
+      const dataset = await request(app)
+        .post('/datasets')
+        .set('Authorization', `Bearer ${token}`)
+        .send(datasetPayload);
+
+      const datasetFileMapping = await request(app)
+        .post(`/datasets/${dataset.body.id}/dataset-file-mapping`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          iron: {
+            property_id: 'iron',
+            conversion_id: 'mg/kg',
+          },
+          upper_depth: 'top',
+        });
+
+      const getResponse = await request(app)
+        .get(`/datasets/${dataset.body.id}/dataset-file-mapping/${datasetFileMapping.body.id}`)
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(getResponse.statusCode).toBe(StatusCodes.OK);
+      expect(getResponse.body.id).toBe(datasetFileMapping.body.id);
+    });
+    it('should return 404 for non-existent mapping (404)', async () => {
+      const token = await getDataAdminToken();
+
+      const datasetPayload = {
+        name: 'Dataset for 404 test',
+        full_name: 'Full Name for 404',
+      };
+
+      const dataset = await request(app)
+        .post('/datasets')
+        .set('Authorization', `Bearer ${token}`)
+        .send(datasetPayload);
+
+      const getResponse = await request(app)
+        .get(`/datasets/${dataset.body.id}/dataset-file-mapping/00000000-0000-0000-0000-000000000000`)
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(getResponse.statusCode).toBe(StatusCodes.NOT_FOUND);
+    });
+  });
+  describe('GET /datasets/{datasetId}/dataset-file-mapping', () => {
+    it('should get all mappings for a dataset (200)', async () => {
+      const token = await getDataAdminToken();
+
+      const datasetPayload = {
+        name: 'Dataset for GET all test',
+        full_name: 'Full Name for GET all',
+      };
+
+      const dataset = await request(app)
+        .post('/datasets')
+        .set('Authorization', `Bearer ${token}`)
+        .send(datasetPayload);
+
+      await request(app)
+        .post(`/datasets/${dataset.body.id}/dataset-file-mapping`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          iron: {
+            property_id: 'iron',
+            conversion_id: 'mg/kg',
+          },
+          upper_depth: 'top',
+        });
+
+      await request(app)
+        .post(`/datasets/${dataset.body.id}/dataset-file-mapping`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          aluminium: {
+            property_id: 'aluminium',
+            conversion_id: 'mg/kg',
+          },
+          upper_depth: 'top',
+        });
+
+      const getResponse = await request(app)
+        .get(`/datasets/${dataset.body.id}/dataset-file-mapping`)
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(getResponse.statusCode).toBe(StatusCodes.OK);
+      expect(Array.isArray(getResponse.body)).toBe(true);
+      expect(getResponse.body.length).toBe(2);
+    });
+    it('should filter mappings by fileId query parameter (200)', async () => {
+      const token = await getDataAdminToken();
+
+      const datasetPayload = {
+        name: 'Dataset for fileId filter',
+        full_name: 'Full Name for fileId filter',
+      };
+
+      const dataset = await request(app)
+        .post('/datasets')
+        .set('Authorization', `Bearer ${token}`)
+        .send(datasetPayload);
+
+      const file = await addFile('filter-test-file');
+
+      await request(app)
+        .post(`/datasets/${dataset.body.id}/dataset-file-mapping`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ fileID: file.id });
+
+      const getResponse = await request(app)
+        .get(`/datasets/${dataset.body.id}/dataset-file-mapping?fileId=${file.id}`)
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(getResponse.statusCode).toBe(StatusCodes.OK);
+      expect(Array.isArray(getResponse.body)).toBe(true);
+      expect(getResponse.body.length).toBeGreaterThanOrEqual(1);
+      expect(getResponse.body[0].fileID).toBe(file.id);
+    });
+  });
 });
