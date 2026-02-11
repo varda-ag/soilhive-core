@@ -52,7 +52,7 @@ export const postSoilData = async (req: Request, res: Response) => {
     req.customData,
     req.params['datasetFileMappingId'] as string,
   );
-  const dataMappingConfig = await dataMappingService.parseDataMapping(req.customData, datasetFileMapping.data_mapping_id);
+  const dataMappingConfig = await dataMappingService.parseDataMapping(req.customData, datasetFileMapping.mappingId as string);
   const dataset = await datasetService.getDataset(req.customData, req.params['datasetId'] as string);
   await vectorDataLoad.rawRecordToDataModel(req.customData.entityManager, dataMappingConfig, req.body, dataset.id);
   res.status(201).send();

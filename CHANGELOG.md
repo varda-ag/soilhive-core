@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.30.0 (2026-02-11)
+
+## What's Changed
+* feat(be): :sparkles: sp-4755 add get endpoints for dataset file mappings by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/198
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.29.0...v0.30.0
+
 ## 0.29.0 (2026-02-11)
 
 ## What's Changed
