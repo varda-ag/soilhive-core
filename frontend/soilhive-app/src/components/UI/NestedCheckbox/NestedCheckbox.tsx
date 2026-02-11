@@ -19,7 +19,19 @@ export function NestedCheckbox({ ref, items, selected, className, onChange, onTo
   const [expandedIds, setExpandedIds] = useState<string[]>([]);
   const toggleNode = useCallback(
     (node: NestedCheckboxItemType, checked: boolean) => {
-      const collectIds = (item: NestedCheckboxItemType): string[] => [item.id, ...item.children.flatMap(collectIds)];
+      const collectIds = (item: NestedCheckboxItemType): string[] => {
+        const items = [];
+
+        if (item.children.length) {
+          for (const child of item.children) {
+            items.push(...collectIds(child));
+          }
+        } else {
+          items.push(item.id);
+        }
+
+        return items;
+      };
 
       const ids = collectIds(node);
 
