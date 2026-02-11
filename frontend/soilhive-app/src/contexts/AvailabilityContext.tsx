@@ -2,7 +2,7 @@ import { useFilteredDatasets } from 'hooks/useFilteredDatasets';
 import React, { createContext, useState, type ReactNode, useCallback, useMemo } from 'react';
 import type { AvailabilityDataset, DatasetFrontendFilters, DatasetSummary, TimeFilterState } from 'types/availability';
 import { mapFilteredDatasetToAvailabilityDataset } from '../adapters';
-import type { SoilProperty, FilterCriteria, StoredDataFilter } from 'types/backend';
+import type { SoilProperty, FilterCriteria, StoredDataFilter, FilteredDataset } from 'types/backend';
 import { computeDatasetSummary } from '../domain';
 import type { MultiPolygon, Polygon } from 'geojson';
 import { useSoilProperties } from '../hooks/useSoilProperties';
@@ -12,6 +12,7 @@ type AvailabilityContextType = {
   filteredSoilProperties: SoilProperty[];
   isLoadingSoilProperties: boolean;
   allDatasets: AvailabilityDataset[];
+  filteredDatasets: FilteredDataset[];
   datasets: AvailabilityDataset[];
   selectedDatasets: string[];
   isAllSelected: boolean;
@@ -64,14 +65,8 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
   const partialFilterPayload = useMemo(() => ({ geometries: geometryFilter, parameters: {} }), [geometryFilter]);
   const fullFilterPayload = useMemo(() => ({ geometries: geometryFilter, parameters: datasetFilters }), [geometryFilter, datasetFilters]);
 
-  const {
-    coverage: { data: geometryFilterResults, isLoading: isLoadingPartialFilter },
-  } = useFilteredDatasets(partialFilterPayload);
-  const {
-    filterId,
-    selectedFilters,
-    coverage: { data: fullFilterResults, isLoading: isLoadingFullFilter },
-  } = useFilteredDatasets(fullFilterPayload);
+  const { data: geometryFilterResults, isLoading: isLoadingPartialFilter } = useFilteredDatasets(partialFilterPayload);
+  const { filterId, selectedFilters, data: fullFilterResults, isLoading: isLoadingFullFilter } = useFilteredDatasets(fullFilterPayload);
 
   const [selectedSoilProperties, setSelectedSoilProperties] = useState<string[]>([]);
   const [selectedTimeFilter, setSelectedTimeFilter] = useState<TimeFilterState>({});
@@ -175,6 +170,7 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
         filteredSoilProperties,
         isLoadingSoilProperties,
         allDatasets,
+        filteredDatasets: fullFilterResults ?? [],
         datasets,
         selectedDatasets,
         isAllSelected,

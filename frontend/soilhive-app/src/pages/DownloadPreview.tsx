@@ -1,4 +1,4 @@
-import { useContext, useMemo, useRef, useState } from 'react';
+import { useContext, useMemo, useState } from 'react';
 import { AvailabilityContext } from '../contexts/AvailabilityContext';
 import { Button } from 'components/UI';
 import styles from './DownloadPreview.module.scss';
@@ -21,16 +21,69 @@ function DownloadPreview() {
     throw new Error('AvailabilityContext must be used within AvailabilityProvider');
   }
 
-  // const { setPreview, geometryFilter, datasetsSummary, filterId, selectedFilters: availabilitySelectedFilters, datasets, selectedDatasets } = availabilityContext;
-  const { setPreview, geometryFilter, datasetsSummary, filterId, selectedSoilProperties, filteredSoilProperties } = availabilityContext; // TODO rimuovi filterid e te lo ricrei ogni volta con la POST quando cambiano i parametri
-  console.debug('availabilityContext', availabilityContext);
+  const {
+    setPreview,
+    geometryFilter,
+    datasetsSummary,
+    selectedSoilProperties: availabilitySelectedSoilProperties,
+    filteredSoilProperties: availabilityFilteredSoilProperties,
+    selectedFilters: availabilitySelectedFilters,
+    selectedDatasets: availabilitySelectedDatasets,
+    // datasets: availabilityDatasets,
+    filteredDatasets: availabilityFilteredDatasets,
+  } = availabilityContext; // TODO rimuovi filterid e te lo ricrei ogni volta con la POST quando cambiano i parametri
 
+  const [selectedDatasets, setSelectedDatasets] = useState<string[]>();
   const [filters, setFilters] = useState<{ soil_properties?: string[] }>({});
   const [sort, setSort] = useState<string>();
   const [cursor, setCursor] = useState<string>();
 
-  // const { filte, } = useFilteredDatasets();
-  const { data, isLoading } = useSoilData({ datasets: [], filterId, limit: MAXIMUM_SOIL_DATA_PER_REQUEST + 1, cursor, sort });
+  const parameters = {
+    geometries: geometryFilter,
+    parameters: {
+      ...(availabilitySelectedFilters?.parameters ?? {}),
+      ...filters,
+    },
+  };
+
+  const { filterId, data: filteredDatasets, isLoading: areFiltersLoading } = useFilteredDatasets(parameters);
+
+  // const availableDatasets = availabilitySelectedDatasets.length > 0 ? (filteredDatasets ?? availabilityDatasets).filter(dataset => availabilitySelectedDatasets.includes(dataset.id)) : (filteredDatasets ?? availabilityDatasets);
+  // const availableSoilProperties = availabilitySelectedSoilProperties.length > 0 ? availabilityFilteredSoilProperties.filter(soilProperty => availabilitySelectedSoilProperties.includes(soilProperty.id)) : availabilityFilteredSoilProperties;
+
+  const availableDatasets =
+    availabilitySelectedDatasets.length > 0
+      ? (filteredDatasets ?? availabilityFilteredDatasets).filter(dataset => availabilitySelectedDatasets.includes(dataset.id))
+      : (filteredDatasets ?? availabilityFilteredDatasets);
+  const availableSoilProperties = useMemo(() => {
+    console.debug('availableDatasets', availableDatasets);
+    const soilPropertiesIds = [
+      ...new Set(
+        (selectedDatasets ? availableDatasets.filter(dataset => selectedDatasets.includes(dataset.id)) : availableDatasets).flatMap(
+          dataset => dataset.soil_properties ?? [],
+        ),
+      ),
+    ];
+    return availabilityFilteredSoilProperties.filter(soilProperty => soilPropertiesIds.includes(soilProperty.id));
+  }, [availableDatasets, availabilityFilteredSoilProperties, selectedDatasets]);
+  // const availableSoilProperties = availabilitySelectedSoilProperties.length > 0 ? availabilityFilteredSoilProperties.filter(soilProperty => availabilitySelectedSoilProperties.includes(soilProperty.id)) : availabilityFilteredSoilProperties;
+
+  // const availabilitySoilProperties = availabilitySelectedSoilProperties.length === 0 ? availabilityFilteredSoilProperties : availabilityFilteredSoilProperties.filter(property => availabilitySelectedSoilProperties.includes(property.id));
+  // const filteredSoilPropertiesIds = filteredDatasets?.flatMap(dataset => dataset.soil_properties ?? []) ?? [];
+  // const soilProperties = filteredSoilPropertiesIds.length > 0 ? availabilitySoilProperties.filter(soilProperty => filteredSoilPropertiesIds.includes(soilProperty.id)) : availabilitySoilProperties;
+
+  const { data, isLoading } = useSoilData({
+    // datasets:
+    //   selectedDatasets ??
+    //   (availabilitySelectedDatasets.length > 0
+    //     ? availabilitySelectedDatasets
+    //     : (filteredDatasets ?? availabilityDatasets).map(dataset => dataset.id)),
+    datasets: selectedDatasets ?? availableDatasets.map(dataset => dataset.id),
+    filterId,
+    limit: MAXIMUM_SOIL_DATA_PER_REQUEST + 1,
+    cursor,
+    sort,
+  });
 
   const [selectedTab, setSelectedTab] = useState<'summary' | 'availability'>('summary');
 
@@ -85,25 +138,30 @@ function DownloadPreview() {
             dataPoints={datasetsSummary.dataPoints}
             rasterLayers={datasetsSummary.layers}
             depthRange={`${datasetsSummary.depth}cm`}
-            soilProperties={filteredSoilProperties
-              .filter(property => selectedSoilProperties.includes(property.id))
+            soilProperties={availabilityFilteredSoilProperties
+              .filter(property => availabilitySelectedSoilProperties.includes(property.id))
               .map(property => property.property_name)}
           />
         </div>
         <div className={classNames(styles.Data, { [styles.HideInMobile]: selectedTab !== 'availability' })}>
           <DownloadPreviewDataSection
-            // datasets={}
-            // onDatasetSelect={}
-            // datasetsDisabled={}
-            soilProperties={
-              selectedSoilProperties.length === 0
-                ? filteredSoilProperties
-                : filteredSoilProperties.filter(property => selectedSoilProperties.includes(property.id))
-            }
+            // datasets={
+            //   availabilitySelectedDatasets.length > 0
+            //     ? filteredDatasets?.filter(dataset => availabilitySelectedDatasets.includes(dataset.id))
+            //     : filteredDatasets
+            // }
+            datasets={availableDatasets}
+            onDatasetsChange={newDatasets => {
+              setSelectedDatasets(newDatasets);
+            }}
+            // soilProperties={soilProperties}
+            soilProperties={availableSoilProperties}
             filters={filters}
-            onFiltersChange={newFilters => setFilters(newFilters)}
+            onFiltersChange={newFilters => {
+              setFilters(newFilters);
+            }}
             data={data}
-            isDataLoading={isLoading}
+            isDataLoading={areFiltersLoading || isLoading}
             onTableSort={sort => setSort(sort)}
             onTableLastPage={() => {
               if (data !== undefined && data.length > 0) setCursor(data[data.length - 1].cursor);

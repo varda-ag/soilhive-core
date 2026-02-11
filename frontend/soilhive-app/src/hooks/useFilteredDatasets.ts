@@ -21,6 +21,8 @@ export function useFilteredDatasets(filters: DataFilter) {
   });
 
   return {
+    filterId: filterData?.id,
+    selectedFilters: filterData,
     data: coverageData,
     isLoading: isFilterLoading || isCoverageLoading,
   };

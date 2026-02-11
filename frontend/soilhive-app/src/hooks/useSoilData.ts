@@ -1,8 +1,7 @@
 import type { SoilDataParameters, SoilDataSample } from 'types/backend';
 import { useApiQuery } from './useApiQuery';
 import { useDebounce } from './useDebounce';
-import { useEffect, useState } from 'react';
-import { BACKEND_BASE_URL } from '../utilities/environmentVariables';
+import { useState } from 'react';
 
 export function useSoilData(parameters: SoilDataParameters) {
   const [allData, setAllData] = useState();
@@ -11,7 +10,7 @@ export function useSoilData(parameters: SoilDataParameters) {
   const { datasets, filterId, limit, cursor, sort } = debouncedParameters;
 
   const queryParameters: [string, string][] = [
-    ['datasets', 'test_dataset_2328'],
+    ['datasets', datasets.join(',')],
     ['limit', `${limit}`],
   ];
   if (filterId) {

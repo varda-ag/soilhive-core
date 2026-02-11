@@ -15,6 +15,8 @@ function DownloadPreviewDataSection({
   soilProperties = [],
   filters = {},
   onFiltersChange,
+  datasets = [],
+  onDatasetsChange,
 }: {
   data?: SoilDataSample[];
   isDataLoading?: boolean;
@@ -23,6 +25,8 @@ function DownloadPreviewDataSection({
   soilProperties?: SoilProperty[];
   filters?: { soil_properties?: string[] };
   onFiltersChange?: (newFilters: { soil_properties?: string[] }) => void;
+  datasets?: { id: string; name: string }[];
+  onDatasetsChange?: (dataset: string[] | undefined) => void;
 }) {
   const [filtersDialogOpen, setFiltersDialogOpen] = useState(false);
   return (
@@ -51,6 +55,9 @@ function DownloadPreviewDataSection({
           onFiltersChange={onFiltersChange}
           dialogOpen={filtersDialogOpen}
           setDialogOpen={setFiltersDialogOpen}
+          datasets={datasets}
+          onDatasetsChange={onDatasetsChange}
+          isLoading={isDataLoading}
         />
       </div>
       <div className={styles.TabularPreview}>

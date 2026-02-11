@@ -8,19 +8,6 @@ import useDevice from 'hooks/useDevice';
 import { Button } from 'components/UI';
 import type { SoilProperty } from 'types/backend';
 
-const datasets = [
-  { name: 'iSDA Africa Field Data', value: 'isda' },
-  { name: 'Dataset 2', value: 'dset2' },
-  { name: 'Dataset 3', value: 'dset3' },
-];
-
-// const soilProperties = [
-//   { name: 'Arsernic', value: 'arsenic' },
-//   { name: 'pH', value: 'ph' },
-//   { name: 'Nematode Hell', value: 'nematodehell' },
-//   { name: 'Very long soil property supercalifragilistichespiralidoso', value: 'longstringproperty' },
-// ];
-
 const depths = [
   { name: '0-15 cm', value: 'depth1' },
   { name: '15-30 cm', value: 'depth2' },
@@ -33,16 +20,21 @@ function DownloadPreviewFilters({
   onFiltersChange,
   dialogOpen = false,
   setDialogOpen,
+  datasets,
+  onDatasetsChange,
+  isLoading = true,
 }: {
   soilProperties?: SoilProperty[];
   filters?: { soil_properties?: string[] };
   onFiltersChange?: (newFilters: { soil_properties?: string[] }) => void;
   dialogOpen?: boolean;
   setDialogOpen?: Dispatch<SetStateAction<boolean>>;
+  datasets?: { id: string; name: string }[];
+  onDatasetsChange?: (dataset: string[] | undefined) => void;
+  isLoading: boolean;
 }) {
   const { isMobileLayout } = useDevice();
   const [selectedDataset, setSelectedDataset] = useState<string>();
-  const [selectedSoilProperty, setSelectedSoilProperty] = useState<string>();
   const [selectedDepth, setSelectedDepth] = useState<string>();
   const [selectedDateRange, setSelectedDateRange] = useState<Nullable<Array<Date | null>>>();
 
@@ -53,26 +45,38 @@ function DownloadPreviewFilters({
           className={styles.Dropdown}
           panelClassName={styles.DropdownPanel}
           value={selectedDataset}
-          onChange={e => setSelectedDataset(e.value)}
+          onChange={e => {
+            setSelectedDataset(e.value);
+            onDatasetsChange?.(e.value ? [e.value] : undefined);
+          }}
+          showClear
           options={datasets}
+          optionValue="id"
           optionLabel="name"
           placeholder="Select a dataset"
+          disabled={isLoading}
         />
         <Dropdown
           className={styles.Dropdown}
           panelClassName={styles.DropdownPanel}
           value={filters.soil_properties?.[0]}
           onChange={e => {
-            onFiltersChange?.({
-              ...filters,
-              soil_properties: e.value ? [e.value] : undefined,
-            });
+            if (e.value) {
+              onFiltersChange?.({
+                ...filters,
+                soil_properties: [e.value],
+              });
+            } else {
+              const { soil_properties: _, ...filtersWithoutSoilProperties } = filters;
+              onFiltersChange?.(filtersWithoutSoilProperties);
+            }
           }}
           showClear
           options={soilProperties}
           optionLabel="property_name"
           optionValue="id"
           placeholder="Select a soil property"
+          disabled={isLoading}
         />
         <Dropdown
           className={styles.Dropdown}
@@ -82,6 +86,7 @@ function DownloadPreviewFilters({
           options={depths}
           optionLabel="name"
           placeholder="Select a depth"
+          disabled={isLoading}
         />
         <Calendar
           className={styles.Calendar}
@@ -95,10 +100,11 @@ function DownloadPreviewFilters({
           showIcon
           maxDate={new Date()}
           showMinMaxRange={true}
+          disabled={isLoading}
         />
       </>
     );
-  }, [selectedDataset, filters, selectedDepth, selectedDateRange]);
+  }, [selectedDataset, datasets, filters, filters.soil_properties, selectedDepth, selectedDateRange, isLoading]);
 
   const closeDialog = () => {
     if (!dialogOpen) return;
