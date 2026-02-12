@@ -8,7 +8,8 @@ import { DatasetsListItem } from './DatasetsListItem/DatasetsListItem';
 import styles from './DatasetsList.module.scss';
 
 export function DatasetsList() {
-  const { datasets, selectAllDatasets, isAllSelected, isLoading, isNoData, isNoFilteredData } = useAvailability();
+  const { datasets, selectAllDatasets, isAllSelected, isLoading, isNoData, isNoFilteredData, searchValue } = useAvailability();
+
   return isNoData ? (
     <i>No data in selected area</i>
   ) : isNoFilteredData ? (
@@ -16,9 +17,11 @@ export function DatasetsList() {
   ) : (
     <div data-testid="sh-datasets-list" className={styles.DatasetsList}>
       <DatasetsFilters />
-      <div className={styles.SelectAllWrapper}>
-        <Checkbox size="small" label="Select all" value={isAllSelected} onChange={selectAllDatasets} />
-      </div>
+      {!!datasets.length && (
+        <div className={styles.SelectAllWrapper}>
+          <Checkbox size="small" label="Select all" value={isAllSelected} onChange={selectAllDatasets} />
+        </div>
+      )}
       <div className={styles.Wrapper}>
         {isLoading ? (
           <span data-testid="skeleton-container">
@@ -26,6 +29,8 @@ export function DatasetsList() {
             <Skeleton count={1} height={120} />
             <Skeleton count={1} height={120} />
           </span>
+        ) : !datasets.length && searchValue ? (
+          <i>No data in selected area matching your search query</i>
         ) : (
           datasets.map(dataset => <DatasetsListItem key={dataset.id} dataset={dataset} />)
         )}

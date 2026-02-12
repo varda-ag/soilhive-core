@@ -104,9 +104,12 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
 
   const datasets = useMemo(() => {
     return allDatasets.filter(dataset => {
-      return !dataset.dataType || !datasetFrontendFilters.type.length || datasetFrontendFilters.type.includes(dataset.dataType);
+      return (
+        (!dataset.dataType || !datasetFrontendFilters.type.length || datasetFrontendFilters.type.includes(dataset.dataType)) &&
+        (!searchValue || dataset.name.toLowerCase().includes(searchValue.toLowerCase()))
+      );
     });
-  }, [allDatasets, datasetFrontendFilters]);
+  }, [searchValue, allDatasets, datasetFrontendFilters]);
 
   const isLoading = useMemo(() => {
     return isLoadingPartialFilter || isLoadingFullFilter || isLoadingSoilProperties;
