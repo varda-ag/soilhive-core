@@ -67,11 +67,7 @@ export function FilteringSidebarParameters() {
         type="secondary"
         pillsSlot={pillSelections.length > 0 ? <SelectionPills selections={pillSelections} onRemove={handlePillRemove} /> : null}
       >
-        {isNoData ? (
-          <i>No data in selected area</i>
-        ) : isNoFilteredData ? (
-          <i>No data in selected area due to applied filters</i>
-        ) : (
+        {!isNoData && !isNoFilteredData && (
           <div className={styles.SoilProperties}>
             <input
               type="text"

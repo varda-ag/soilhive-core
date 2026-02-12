@@ -85,8 +85,12 @@ const useSoilPropertiesFilters = (): SoilPropertiesFiltersType => {
 
   const handlePillRemove = (id: string) => {
     // identify all leaf IDs that belong to the pill being removed
-    const leafIdsToRemove = getBranchIds(nestedSoilProperties, id);
-    handleOnChange(selectedSoilProperties.filter(selectedId => !leafIdsToRemove.includes(selectedId)));
+    const branchIdsToRemove = getBranchIds(nestedSoilProperties, id);
+
+    // if selected property is not available in the current area getBranchIds will return an empty array
+    const idsToRemove = branchIdsToRemove.length ? branchIdsToRemove : [id];
+
+    handleOnChange(selectedSoilProperties.filter(selectedId => !idsToRemove.includes(selectedId)));
   };
 
   const handleOnChange = (selected: string[]) => {
