@@ -129,9 +129,11 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
 
   const filteredSoilProperties = useMemo<SoilProperty[]>(() => {
     const properties = new Set<string>();
-    geometryFilterResults?.forEach(dataset => dataset.soil_properties?.forEach(prop => properties.add(prop)));
+    geometryFilterResults
+      ?.filter(dataset => !datasetFrontendFilters.type.length || datasetFrontendFilters.type.includes(dataset.data_type as string))
+      .forEach(dataset => dataset.soil_properties?.forEach(prop => properties.add(prop)));
     return allSoilProperties?.filter(prop => properties.has(prop.id)) ?? [];
-  }, [allSoilProperties, geometryFilterResults]);
+  }, [allSoilProperties, geometryFilterResults, datasetFrontendFilters]);
 
   const appliedFiltersCount = useMemo<number>(() => {
     return (
