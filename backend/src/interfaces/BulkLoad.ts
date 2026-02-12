@@ -1,6 +1,5 @@
 export const enum BulkLoadStatus {
-  PENDING = 'pending',
-  IN_PROGRESS = 'in_progress',
+  ONGOING = 'ongoing',
   COMPLETED = 'completed',
   FAILED = 'failed',
   CANCELED = 'canceled',

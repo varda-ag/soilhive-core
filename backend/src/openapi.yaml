@@ -337,7 +337,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/BulkLoad'
         '422':
-          $ref: '#/components/responses/UnprocessableContent'
+          $ref: '#/components/responses/UnprocessableEntity'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
@@ -345,7 +345,7 @@ paths:
 
     get:
       x-eov-operation-handler: controllers/datasets
-      x-eov-operation-id: getBulkLoad
+      x-eov-operation-id: getBulkLoadList
       summary: Get all bulk load operation statuses for a dataset
       tags:
         - datasets
@@ -395,6 +395,21 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/BulkLoad'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      x-eov-operation-handler: controllers/datasets
+      x-eov-operation-id: deleteBulkLoadById
+      summary: Cancel bulk load operation
+      tags:
+        - datasets
+      security:
+        - bearerAuth: [data-admin]
+      responses:
+        '204':
+          description: Bulk load canceled successfully
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
@@ -912,8 +927,8 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
-    UnprocessableContent:
-      description: Unprocessable content
+    UnprocessableEntity:
+      description: Unprocessable entity
       content:
         application/json:
           schema:

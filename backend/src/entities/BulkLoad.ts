@@ -12,7 +12,7 @@ export default class BulkLoadEntity extends BaseTable implements BulkLoad {
   @Column({ type: 'text' })
   dataset_id: string;
 
-  @Column({ type: 'text', default: BulkLoadStatus.PENDING })
+  @Column({ type: 'text', default: BulkLoadStatus.ONGOING })
   status: BulkLoadStatus;
 
   @Column({ type: 'numeric', default: 0 })
