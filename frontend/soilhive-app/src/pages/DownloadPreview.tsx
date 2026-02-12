@@ -11,6 +11,8 @@ import classNames from 'classnames';
 import DownloadPreviewDataSection from 'components/DownloadPreview/DownloadPreviewDataSection/DownloadPreviewDataSection';
 import { useSoilData } from 'hooks/useSoilData';
 import { useFilteredDatasets } from 'hooks/useFilteredDatasets';
+import type { PreviewFilters } from 'types/downloadPreview';
+import { computeDatasetSummary } from '../domain';
 
 const MAXIMUM_SOIL_DATA_PER_REQUEST = 100;
 
@@ -29,34 +31,30 @@ function DownloadPreview() {
     filteredSoilProperties: availabilityFilteredSoilProperties,
     selectedFilters: availabilitySelectedFilters,
     selectedDatasets: availabilitySelectedDatasets,
-    // datasets: availabilityDatasets,
     filteredDatasets: availabilityFilteredDatasets,
   } = availabilityContext; // TODO rimuovi filterid e te lo ricrei ogni volta con la POST quando cambiano i parametri
 
   const [selectedDatasets, setSelectedDatasets] = useState<string[]>();
-  const [filters, setFilters] = useState<{ soil_properties?: string[] }>({});
+  const [filters, setFilters] = useState<PreviewFilters>({});
   const [sort, setSort] = useState<string>();
   const [cursor, setCursor] = useState<string>();
 
   const parameters = {
     geometries: geometryFilter,
     parameters: {
-      ...(availabilitySelectedFilters?.parameters ?? {}),
+      ...(availabilitySelectedFilters?.filter.parameters ?? {}),
       ...filters,
     },
   };
 
   const { filterId, data: filteredDatasets, isLoading: areFiltersLoading } = useFilteredDatasets(parameters);
 
-  // const availableDatasets = availabilitySelectedDatasets.length > 0 ? (filteredDatasets ?? availabilityDatasets).filter(dataset => availabilitySelectedDatasets.includes(dataset.id)) : (filteredDatasets ?? availabilityDatasets);
-  // const availableSoilProperties = availabilitySelectedSoilProperties.length > 0 ? availabilityFilteredSoilProperties.filter(soilProperty => availabilitySelectedSoilProperties.includes(soilProperty.id)) : availabilityFilteredSoilProperties;
-
   const availableDatasets =
     availabilitySelectedDatasets.length > 0
       ? (filteredDatasets ?? availabilityFilteredDatasets).filter(dataset => availabilitySelectedDatasets.includes(dataset.id))
       : (filteredDatasets ?? availabilityFilteredDatasets);
+
   const availableSoilProperties = useMemo(() => {
-    console.debug('availableDatasets', availableDatasets);
     const soilPropertiesIds = [
       ...new Set(
         (selectedDatasets ? availableDatasets.filter(dataset => selectedDatasets.includes(dataset.id)) : availableDatasets).flatMap(
@@ -66,18 +64,19 @@ function DownloadPreview() {
     ];
     return availabilityFilteredSoilProperties.filter(soilProperty => soilPropertiesIds.includes(soilProperty.id));
   }, [availableDatasets, availabilityFilteredSoilProperties, selectedDatasets]);
-  // const availableSoilProperties = availabilitySelectedSoilProperties.length > 0 ? availabilityFilteredSoilProperties.filter(soilProperty => availabilitySelectedSoilProperties.includes(soilProperty.id)) : availabilityFilteredSoilProperties;
 
-  // const availabilitySoilProperties = availabilitySelectedSoilProperties.length === 0 ? availabilityFilteredSoilProperties : availabilityFilteredSoilProperties.filter(property => availabilitySelectedSoilProperties.includes(property.id));
-  // const filteredSoilPropertiesIds = filteredDatasets?.flatMap(dataset => dataset.soil_properties ?? []) ?? [];
-  // const soilProperties = filteredSoilPropertiesIds.length > 0 ? availabilitySoilProperties.filter(soilProperty => filteredSoilPropertiesIds.includes(soilProperty.id)) : availabilitySoilProperties;
+  const { min_sampling_date, max_sampling_date, min_depth, max_depth } = availabilitySelectedFilters?.filter.parameters ?? {};
+
+  const fixedCalendarRange = min_sampling_date && max_sampling_date ? [new Date(min_sampling_date), new Date(max_sampling_date)] : null;
+  const fixedDepthRange = min_depth && max_depth ? [min_depth, max_depth] : null;
+
+  const { globalDateStart, globalDateEnd, globalMinDepth, globalMaxDepth } = computeDatasetSummary(availableDatasets);
+  const calendarMinMaxRange: [Date | undefined, Date | undefined] =
+    globalDateStart && globalDateEnd ? [globalDateStart, globalDateEnd] : [undefined, undefined];
+  const depthMinMaxRange: [number | undefined, number | undefined] =
+    globalMinDepth && globalMaxDepth ? [globalMinDepth, globalMaxDepth] : [undefined, undefined];
 
   const { data, isLoading } = useSoilData({
-    // datasets:
-    //   selectedDatasets ??
-    //   (availabilitySelectedDatasets.length > 0
-    //     ? availabilitySelectedDatasets
-    //     : (filteredDatasets ?? availabilityDatasets).map(dataset => dataset.id)),
     datasets: selectedDatasets ?? availableDatasets.map(dataset => dataset.id),
     filterId,
     limit: MAXIMUM_SOIL_DATA_PER_REQUEST + 1,
@@ -145,17 +144,13 @@ function DownloadPreview() {
         </div>
         <div className={classNames(styles.Data, { [styles.HideInMobile]: selectedTab !== 'availability' })}>
           <DownloadPreviewDataSection
-            // datasets={
-            //   availabilitySelectedDatasets.length > 0
-            //     ? filteredDatasets?.filter(dataset => availabilitySelectedDatasets.includes(dataset.id))
-            //     : filteredDatasets
-            // }
             datasets={availableDatasets}
             onDatasetsChange={newDatasets => {
               setSelectedDatasets(newDatasets);
             }}
-            // soilProperties={soilProperties}
             soilProperties={availableSoilProperties}
+            calendarMinMaxRange={calendarMinMaxRange}
+            fixedCalendarRange={fixedCalendarRange}
             filters={filters}
             onFiltersChange={newFilters => {
               setFilters(newFilters);

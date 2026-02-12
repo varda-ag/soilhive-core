@@ -2,11 +2,12 @@ import { Dropdown } from 'primereact/dropdown';
 import { Calendar } from 'primereact/calendar';
 import { Dialog } from 'primereact/dialog';
 import type { Nullable } from 'primereact/ts-helpers';
-import { useMemo, useState, type Dispatch, type SetStateAction } from 'react';
+import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import styles from './DownloadPreviewFilters.module.scss';
 import useDevice from 'hooks/useDevice';
 import { Button } from 'components/UI';
 import type { SoilProperty } from 'types/backend';
+import type { PreviewFilters } from 'types/downloadPreview';
 
 const depths = [
   { name: '0-15 cm', value: 'depth1' },
@@ -21,22 +22,39 @@ function DownloadPreviewFilters({
   dialogOpen = false,
   setDialogOpen,
   datasets,
+  fixedCalendarRange = null,
+  calendarMinMaxRange = [undefined, undefined],
   onDatasetsChange,
   isLoading = true,
 }: {
   soilProperties?: SoilProperty[];
-  filters?: { soil_properties?: string[] };
-  onFiltersChange?: (newFilters: { soil_properties?: string[] }) => void;
+  filters?: PreviewFilters;
+  onFiltersChange?: (newFilters: PreviewFilters) => void;
   dialogOpen?: boolean;
   setDialogOpen?: Dispatch<SetStateAction<boolean>>;
   datasets?: { id: string; name: string }[];
+  calendarMinMaxRange?: [Date | undefined, Date | undefined];
+  fixedCalendarRange?: Nullable<Array<Date | null>>;
   onDatasetsChange?: (dataset: string[] | undefined) => void;
   isLoading: boolean;
 }) {
   const { isMobileLayout } = useDevice();
   const [selectedDataset, setSelectedDataset] = useState<string>();
   const [selectedDepth, setSelectedDepth] = useState<string>();
-  const [selectedDateRange, setSelectedDateRange] = useState<Nullable<Array<Date | null>>>();
+  const [selectedDateRange, setSelectedDateRange] = useState<Nullable<Array<Date | null>>>(fixedCalendarRange);
+
+  useEffect(() => {
+    if (fixedCalendarRange) return;
+
+    const { min_sampling_date, max_sampling_date } = filters;
+
+    if (min_sampling_date && max_sampling_date) {
+      setSelectedDateRange([new Date(min_sampling_date), new Date(max_sampling_date)]);
+      return;
+    }
+
+    setSelectedDateRange(null);
+  }, [fixedCalendarRange, filters]);
 
   const controls = useMemo(() => {
     return (
@@ -94,17 +112,45 @@ function DownloadPreviewFilters({
           inputClassName={styles.CalendarInput}
           value={selectedDateRange}
           onChange={e => setSelectedDateRange(e.value)}
+          onHide={() => {
+            if (!selectedDateRange || selectedDateRange?.some(date => date === null)) {
+              const { min_sampling_date: _, max_sampling_date: __, ...filtersWithoutDates } = filters;
+              onFiltersChange?.(filtersWithoutDates);
+              setSelectedDateRange(null);
+              return;
+            }
+            onFiltersChange?.({
+              ...filters,
+              // we know them not to be null because of the earlier range check
+              min_sampling_date: (selectedDateRange[0] as unknown as Date).toISOString(),
+              max_sampling_date: (selectedDateRange[1] as unknown as Date).toISOString(),
+            });
+          }}
+          showButtonBar
           selectionMode="range"
           hideOnRangeSelection
           placeholder="Select a date range"
           showIcon
-          maxDate={new Date()}
+          minDate={calendarMinMaxRange[0]}
+          maxDate={calendarMinMaxRange[1]}
           showMinMaxRange={true}
-          disabled={isLoading}
+          disabled={isLoading || !!fixedCalendarRange}
         />
       </>
     );
-  }, [selectedDataset, datasets, filters, filters.soil_properties, selectedDepth, selectedDateRange, isLoading]);
+  }, [
+    selectedDataset,
+    datasets,
+    filters,
+    selectedDepth,
+    selectedDateRange,
+    calendarMinMaxRange,
+    fixedCalendarRange,
+    isLoading,
+    onFiltersChange,
+    onDatasetsChange,
+    soilProperties,
+  ]);
 
   const closeDialog = () => {
     if (!dialogOpen) return;

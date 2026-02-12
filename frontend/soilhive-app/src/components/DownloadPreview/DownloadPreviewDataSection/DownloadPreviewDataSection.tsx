@@ -6,6 +6,8 @@ import DownloadPreviewFilters from '../DownloadPreviewFilters/DownloadPreviewFil
 import DownloadPreviewTable from '../DownloadPreviewTable/DownloadPreviewTable';
 import { useState } from 'react';
 import type { SoilDataSample, SoilProperty } from 'types/backend';
+import type { PreviewFilters } from 'types/downloadPreview';
+import type { Nullable } from 'primereact/ts-helpers';
 
 function DownloadPreviewDataSection({
   data = [],
@@ -14,6 +16,8 @@ function DownloadPreviewDataSection({
   onTableLastPage,
   soilProperties = [],
   filters = {},
+  calendarMinMaxRange = [undefined, undefined],
+  fixedCalendarRange = null,
   onFiltersChange,
   datasets = [],
   onDatasetsChange,
@@ -23,8 +27,10 @@ function DownloadPreviewDataSection({
   onTableSort?: (sort: string | undefined) => void;
   onTableLastPage?: () => void;
   soilProperties?: SoilProperty[];
-  filters?: { soil_properties?: string[] };
-  onFiltersChange?: (newFilters: { soil_properties?: string[] }) => void;
+  calendarMinMaxRange?: [Date | undefined, Date | undefined];
+  fixedCalendarRange?: Nullable<Array<Date | null>>;
+  filters?: PreviewFilters;
+  onFiltersChange?: (newFilters: PreviewFilters) => void;
   datasets?: { id: string; name: string }[];
   onDatasetsChange?: (dataset: string[] | undefined) => void;
 }) {
@@ -56,6 +62,8 @@ function DownloadPreviewDataSection({
           dialogOpen={filtersDialogOpen}
           setDialogOpen={setFiltersDialogOpen}
           datasets={datasets}
+          calendarMinMaxRange={calendarMinMaxRange}
+          fixedCalendarRange={fixedCalendarRange}
           onDatasetsChange={onDatasetsChange}
           isLoading={isDataLoading}
         />

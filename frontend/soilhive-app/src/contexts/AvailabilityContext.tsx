@@ -2,7 +2,7 @@ import { useFilteredDatasets } from 'hooks/useFilteredDatasets';
 import React, { createContext, useState, type ReactNode, useCallback, useMemo } from 'react';
 import type { AvailabilityDataset, DatasetFrontendFilters, DatasetSummary, TimeFilterState } from 'types/availability';
 import { mapFilteredDatasetToAvailabilityDataset } from '../adapters';
-import type { SoilProperty, FilterCriteria, StoredDataFilter, FilteredDataset } from 'types/backend';
+import type { SoilProperty, FilterCriteria, FilteredDataset, BackendStoredDataFilter } from 'types/backend';
 import { computeDatasetSummary } from '../domain';
 import type { MultiPolygon, Polygon } from 'geojson';
 import { useSoilProperties } from '../hooks/useSoilProperties';
@@ -27,7 +27,7 @@ type AvailabilityContextType = {
   preview: boolean;
   appliedFiltersCount: number;
   filterId: string | undefined;
-  selectedFilters: StoredDataFilter | undefined;
+  selectedFilters: BackendStoredDataFilter | undefined;
   isFiltersSelected: boolean;
   selectDataset: (id: string) => void;
   setSearchValue: (value: string) => void;

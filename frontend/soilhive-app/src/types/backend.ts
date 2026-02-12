@@ -1,5 +1,31 @@
 import { type Polygon, type MultiPolygon } from 'geojson';
 
+// THE FOLLOWING DEFINITIONS FOR StoredDataFilter ARE TAKEN STRAIGHT OUT OF THE BACKEND
+export interface BackendFilterCriteria {
+  data_types?: GISDataType[];
+  licenses?: string[];
+  min_sampling_date?: string | null;
+  max_sampling_date?: string | null;
+  min_depth?: number | null;
+  max_depth?: number | null;
+  horizons?: (string | null)[];
+  soil_properties?: string[];
+  raster_filters?: Map<string, number[]>;
+}
+
+export interface BackendDataFilter {
+  geometries: (Polygon | MultiPolygon)[];
+  parameters: FilterCriteria;
+}
+
+export interface BackendStoredDataFilter {
+  id: string;
+  filter: DataFilter;
+  name?: string;
+  owner?: string;
+}
+
+// THE FOLLOWING DEFINITIONS DO NOT CORRESPOND TO THE BACKEND ONES
 export interface FilterCriteria {
   data_type?: string;
   licenses?: string[];

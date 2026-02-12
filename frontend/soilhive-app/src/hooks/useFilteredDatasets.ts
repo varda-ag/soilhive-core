@@ -1,11 +1,11 @@
-import type { DataFilter, FilteredDataset, StoredDataFilter } from 'types/backend';
+import type { BackendStoredDataFilter, DataFilter, FilteredDataset } from 'types/backend';
 import { useApiQuery } from './useApiQuery';
 import { useDebounce } from './useDebounce';
 
 export function useFilteredDatasets(filters: DataFilter) {
   const debouncedFilters = useDebounce(filters, 300);
 
-  const { data: filterData, isLoading: isFilterLoading } = useApiQuery<StoredDataFilter, DataFilter>({
+  const { data: filterData, isLoading: isFilterLoading } = useApiQuery<BackendStoredDataFilter, DataFilter>({
     endpoint: '/data-filters',
     method: 'POST',
     body: debouncedFilters,
