@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.31.0 (2026-02-13)
+
+## What's Changed
+* feat: sp-4887 - searching by name in datasets list by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/200
+* feat: sp-4892 - filter properties by selected data type by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/202
+* feat(data): adding soil-property-categories endpoints by @svaccari in https://github.com/varda-ag/soilhive-core/pull/204
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.30.0...v0.31.0
+
 ## 0.30.0 (2026-02-11)
 
 ## What's Changed
