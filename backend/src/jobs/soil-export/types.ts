@@ -1,3 +1,4 @@
+import * as wellknown from 'wellknown';
 import { SoilDataSample } from '../../interfaces/SoilDataSample';
 
 /**
@@ -48,13 +49,12 @@ export interface ExportRecord {
   unit?: string;
   sample_pretreatment: string | null;
   technique: string | null;
-  // TODO: laboratory_method field missing in SoilDataSample
-  laboratory_method?: string;
+  laboratory_method: string | null;
   extractant_concentration: string | null;
   extraction_ratio: string | null;
   extraction_base: string | null;
   // TODO: measurement_procedure field missing in SoilDataSample
-  measurement_procedure?: string;
+  measurement_procedure: string | null;
   limit_of_detection: string | null;
 }
 
@@ -103,7 +103,7 @@ export const EXPORT_CONFIG = {
  */
 export function soilSampleToExportRecord(sample: SoilDataSample): ExportRecord {
   // Convert geometry to WKT format
-  const geom = sample.geometry ? `POINT (${sample.geometry.coordinates[0]} ${sample.geometry.coordinates[1]})` : '';
+  const geom = sample.geometry ? wellknown.stringify(sample.geometry) || '' : '';
 
   return {
     geom,
@@ -116,9 +116,11 @@ export function soilSampleToExportRecord(sample: SoilDataSample): ExportRecord {
     value: sample.value,
     sample_pretreatment: sample.sample_pretreatment,
     technique: sample.technique,
+    laboratory_method: sample.extractant_formulation, // TODO: rename extractant_formulation to laboratory_method
     extractant_concentration: sample.extractant_concentration,
     extraction_ratio: sample.extraction_ratio,
     extraction_base: sample.extraction_base,
+    measurement_procedure: sample.instrument, // TODO: rename instrument to measurement_procedure
     limit_of_detection: sample.limit_of_detection,
   };
 }
