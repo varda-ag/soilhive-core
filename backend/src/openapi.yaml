@@ -313,29 +313,23 @@ paths:
         '401':
           description: Unauthorized - Token subject is missing
 
-  /datasets/{datasetId}/bulk-load:
-    parameters:
-      - name: datasetId
-        in: path
-        required: true
-        schema:
-          type: string
-        description: ID of the dataset to load data into
+  /jobs:
     post:
-      x-eov-operation-handler: controllers/datasets
-      x-eov-operation-id: postBulkLoad
-      summary: Starts bulk operation to load soil data records into the system
+      x-eov-operation-handler: controllers/jobs
+      x-eov-operation-id: postJob
+      summary: Starts async job
       tags:
-        - datasets
+        - jobs
       security:
-        - bearerAuth: [data-admin]
+        - bearerAuth: []
+        - {}
       responses:
         '201':
-          description: Bulk load started successfull
+          description: Async job started successfull
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/BulkLoad'
+                $ref: '#/components/schemas/Job'
         '422':
           $ref: '#/components/responses/UnprocessableEntity'
         '401':
@@ -344,72 +338,66 @@ paths:
           $ref: '#/components/responses/NotFound'
 
     get:
-      x-eov-operation-handler: controllers/datasets
-      x-eov-operation-id: getBulkLoadList
-      summary: Get all bulk load operation statuses for a dataset
+      x-eov-operation-handler: controllers/jobs
+      x-eov-operation-id: getJobs
+      summary: Get all async jobs for the user
       tags:
-        - datasets
+        - jobs
       security:
-        - bearerAuth: [data-admin]
+        - bearerAuth: []
       responses:
         '200':
-          description: Bulk load array
+          description: Job array
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/BulkLoad'
+                  $ref: '#/components/schemas/Job'
         '401':
           $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
 
-  /datasets/{datasetId}/bulk-load/{bulkLoadId}:
+  /jobs/{jobId}:
     parameters:
-      - name: datasetId
-        in: path
-        required: true
-        schema:
-          type: string
-        description: ID of the dataset related to the bulk load
-      - name: bulkLoadId
+      - name: jobId
         in: path
         required: true
         schema:
           type: string
           format: uuid
-        description: ID of the bulk load
+        description: ID of the async job
     get:
-      x-eov-operation-handler: controllers/datasets
-      x-eov-operation-id: getBulkLoadById
-      summary: Get bulk load operation status
+      x-eov-operation-handler: controllers/jobs
+      x-eov-operation-id: getJobById
+      summary: Get async job status
       tags:
-        - datasets
+        - jobs
       security:
-        - bearerAuth: [data-admin]
+        - bearerAuth: []
+        - {}
       responses:
         '200':
-          description: Bulk load status
+          description: Job status
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/BulkLoad'
+                $ref: '#/components/schemas/Job'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
     delete:
-      x-eov-operation-handler: controllers/datasets
-      x-eov-operation-id: deleteBulkLoadById
-      summary: Cancel bulk load operation
+      x-eov-operation-handler: controllers/jobs
+      x-eov-operation-id: deleteJobById
+      summary: Cancel async job
       tags:
-        - datasets
+        - jobs
       security:
-        - bearerAuth: [data-admin]
+        - bearerAuth: []
+        - {}
       responses:
         '204':
-          description: Bulk load canceled successfully
+          description: Job canceled successfully
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
@@ -1478,36 +1466,33 @@ components:
           type: string
           format: uuid
 
-    BulkLoad:
+    Job:
       type: object
       properties:
         id:
           type: string
           format: uuid
-          description: Unique identifier for the bulk load
-        dataset_id:
-          type: string
-          description: ID of the dataset the bulk load is associated with
+          description: Unique identifier for the job
         status:
           type: string
           enum: [pending, in_progress, completed, failed, canceled]
-          description: Current status of the bulk load
+          description: Current status of the job
         created_by:
           type: string
-          description: ID of the user who initiated the bulk load
+          description: ID of the user who initiated the job
         created_at:
           type: string
           format: date-time
-          description: Timestamp when the bulk load was created
+          description: Timestamp when the job was created
         updated_at:
           type: string
           format: date-time
-          description: Timestamp when the bulk load was last updated
+          description: Timestamp when the job was last updated
         completed_at:
           type: string
           format: date-time
-          description: Timestamp when the bulk load was completed
+          description: Timestamp when the job was completed
         failed_at:
           type: string
           format: date-time
-          description: Timestamp when the bulk load failed
+          description: Timestamp when the job failed

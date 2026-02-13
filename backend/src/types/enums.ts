@@ -21,3 +21,8 @@ export const enum OverlapType {
   PARTIAL = 'partial',
   FULL = 'full',
 }
+
+export const enum JobQueues {
+  BULK_LOAD = 'bulk-load',
+  EXPORT = 'export',
+}

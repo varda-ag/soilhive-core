@@ -40,23 +40,3 @@ export const deleteDataset = async (req: Request, res: Response) => {
   await datasetService.deleteDataset(req.customData, req.params['datasetId']!);
   res.status(StatusCodes.NO_CONTENT).send();
 };
-
-export const postBulkLoad = async (req: Request, res: Response) => {
-  const data = await datasetService.createBulkLoad(req.customData, req.params['datasetId']!);
-  res.status(StatusCodes.CREATED).json(data);
-};
-
-export const getBulkLoadList = async (req: Request, res: Response) => {
-  const data = await datasetService.getBulkLoadList(req.customData, req.params['datasetId']!);
-  res.json(data);
-};
-
-export const getBulkLoadById = async (req: Request, res: Response) => {
-  const data = await datasetService.getBulkLoadById(req.customData, req.params['bulkLoadId']!);
-  res.json(data);
-};
-
-export const deleteBulkLoadById = async (req: Request, res: Response) => {
-  await datasetService.deleteBulkLoadById(req.customData, req.params['bulkLoadId']!);
-  res.sendStatus(StatusCodes.NO_CONTENT);
-};
