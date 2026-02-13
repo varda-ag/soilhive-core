@@ -26,7 +26,7 @@ export default class DatasetFileMappingEntity extends BaseTable {
   @JoinColumn({ name: 'file_id' })
   file: FileEntity;
 
-  @Column({ type: 'uuid', nullable: true })
+  @Column({ type: 'uuid' })
   dataset_id?: string;
 
   @ManyToOne(() => DatasetEntity, dataset => dataset.id)

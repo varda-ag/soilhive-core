@@ -3,6 +3,7 @@ import request from 'supertest';
 import { app } from '../../src/app';
 import { addSyntheticData, syntheticDataOptions } from '../../src/utils/mock';
 import { getDataAdminToken } from '../helper';
+import StatusCodes from 'http-status-codes';
 
 describe('Testing /datasets routes', () => {
   describe('GET /datasets', () => {
@@ -10,7 +11,7 @@ describe('Testing /datasets routes', () => {
       const s1 = await addSyntheticData({ ...syntheticDataOptions, id: 1, soilPropertyNames: ['ph'] });
       const s2 = await addSyntheticData({ ...syntheticDataOptions, id: 2, soilPropertyNames: ['oc'] });
       const res = await request(app).get('/datasets');
-      expect(res.statusCode).toBe(200);
+      expect(res.statusCode).toBe(StatusCodes.OK);
       expect(Array.isArray(res.body)).toBe(true);
       expect(res.body.length).toBe(2);
       const ids = res.body.map((item: any) => item.id);
@@ -21,13 +22,13 @@ describe('Testing /datasets routes', () => {
     it('GET /datasets/:datasetId responds with the expected dataset', async () => {
       const s1 = await addSyntheticData({ ...syntheticDataOptions, id: 1, soilPropertyNames: ['ph'] });
       const res = await request(app).get(`/datasets/${s1.dataset.slug}`);
-      expect(res.statusCode).toBe(200);
+      expect(res.statusCode).toBe(StatusCodes.OK);
       expect(res.body).toHaveProperty('id', s1.dataset.slug);
     });
 
     it('GET /datasets responds with 404 if dataset does not exist', async () => {
       const res = await request(app).get(`/datasets/wrong`);
-      expect(res.statusCode).toBe(404);
+      expect(res.statusCode).toBe(StatusCodes.NOT_FOUND);
     });
 
     it('GET /datasets/:datasetId responds with 301 when using an old slug', async () => {
@@ -43,13 +44,13 @@ describe('Testing /datasets routes', () => {
       const newSlug = patchRes.body.id;
 
       const res = await request(app).get(`/datasets/${oldSlug}`);
-      expect(res.statusCode).toBe(301);
+      expect(res.statusCode).toBe(StatusCodes.MOVED_PERMANENTLY);
       expect(res.headers.location).toBe(`/datasets/${newSlug}`);
     });
   });
 
   describe('POST /datasets', () => {
-    it('should create a new dataset successfully (200)', async () => {
+    it('should create a new dataset successfully (201)', async () => {
       const token = await getDataAdminToken();
       const payload = {
         name: 'New Unique Dataset',
@@ -58,7 +59,7 @@ describe('Testing /datasets routes', () => {
 
       const res = await request(app).post('/datasets').set('Authorization', `Bearer ${token}`).send(payload);
 
-      expect(res.statusCode).toBe(200);
+      expect(res.statusCode).toBe(StatusCodes.CREATED);
       expect(res.body.name).toBe(payload.name);
       expect(res.body).toHaveProperty('id');
       expect(res.body).toHaveProperty('status');
@@ -75,7 +76,7 @@ describe('Testing /datasets routes', () => {
       // Attempting to create the same name again
       const res = await request(app).post('/datasets').set('Authorization', `Bearer ${token}`).send(existingData);
 
-      expect(res.statusCode).toBe(409);
+      expect(res.statusCode).toBe(StatusCodes.CONFLICT);
     });
 
     it('should return 400 Bad Request when mandatory "name" is missing', async () => {
@@ -84,7 +85,7 @@ describe('Testing /datasets routes', () => {
 
       const res = await request(app).post('/datasets').set('Authorization', `Bearer ${token}`).send(invalidPayload);
 
-      expect(res.statusCode).toBe(400);
+      expect(res.statusCode).toBe(StatusCodes.BAD_REQUEST);
     });
   });
 
@@ -103,7 +104,7 @@ describe('Testing /datasets routes', () => {
 
       const res = await request(app).patch(`/datasets/${postRes.body.id}`).set('Authorization', `Bearer ${token}`).send(updatePayload);
 
-      expect(res.statusCode).toBe(200);
+      expect(res.statusCode).toBe(StatusCodes.OK);
       expect(res.body.author).toBe(updatePayload.author);
     });
 
@@ -122,7 +123,7 @@ describe('Testing /datasets routes', () => {
 
       const res = await request(app).patch(`/datasets/${originalId}`).set('Authorization', `Bearer ${token}`).send(forbiddenPayload);
 
-      expect(res.statusCode).toBe(400);
+      expect(res.statusCode).toBe(StatusCodes.BAD_REQUEST);
     });
   });
 
@@ -139,11 +140,11 @@ describe('Testing /datasets routes', () => {
       // 2. Delete the dataset
       const deleteRes = await request(app).delete(`/datasets/${id}`).set('Authorization', `Bearer ${token}`);
 
-      expect(deleteRes.statusCode).toBe(204);
+      expect(deleteRes.statusCode).toBe(StatusCodes.NO_CONTENT);
 
       // 3. Verify it is gone (GET should now return 404)
       const getRes = await request(app).get(`/datasets/${id}`);
-      expect(getRes.statusCode).toBe(404);
+      expect(getRes.statusCode).toBe(StatusCodes.NOT_FOUND);
     });
 
     it('should return 404 even if the dataset does not exist', async () => {
@@ -152,7 +153,7 @@ describe('Testing /datasets routes', () => {
       // Attempting to delete a non-existent slug
       const res = await request(app).delete('/datasets/i-do-not-exist').set('Authorization', `Bearer ${token}`);
 
-      expect(res.statusCode).toBe(404);
+      expect(res.statusCode).toBe(StatusCodes.NOT_FOUND);
     });
     it('should successfully delete a dataset using an old slug after name change (204)', async () => {
       const token = await getDataAdminToken();
@@ -163,10 +164,10 @@ describe('Testing /datasets routes', () => {
       await request(app).patch(`/datasets/${oldId}`).set('Authorization', `Bearer ${token}`).send({ name: 'New Name' });
 
       const deleteRes = await request(app).delete(`/datasets/${oldId}`).set('Authorization', `Bearer ${token}`);
-      expect(deleteRes.statusCode).toBe(204);
+      expect(deleteRes.statusCode).toBe(StatusCodes.NO_CONTENT);
 
       const getRes = await request(app).get(`/datasets/${oldId}`);
-      expect(getRes.statusCode).toBe(404);
+      expect(getRes.statusCode).toBe(StatusCodes.NOT_FOUND);
     });
   });
 

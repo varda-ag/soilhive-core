@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.30.0 (2026-02-11)
+
+## What's Changed
+* feat(be): :sparkles: sp-4755 add get endpoints for dataset file mappings by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/198
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.29.0...v0.30.0
+
+## 0.29.0 (2026-02-11)
+
+## What's Changed
+* chore: update dockerfile for soilhive frontend by @Butterneck in https://github.com/varda-ag/soilhive-core/pull/187
+* chore: moving post soil-data endpoint by @svaccari in https://github.com/varda-ag/soilhive-core/pull/190
+* chore(be): sp-4755 cumulative fixes for data management portal by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/195
+* feat: sp-4830 logic to grey out non available selected filters by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/197
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.28.0...v0.29.0
+
 ## 0.28.0 (2026-02-10)
 
 ## What's Changed

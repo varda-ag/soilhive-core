@@ -13,7 +13,7 @@ exports[`FormMessage component applies withBackground class 1`] = `
       mock-svg
     </svg>
     <span
-      class="small-text FormMessageText"
+      class="FormMessageText"
     >
       With background
     </span>
@@ -34,7 +34,7 @@ exports[`FormMessage component renders error type 1`] = `
       mock-svg
     </svg>
     <span
-      class="small-text FormMessageText"
+      class="FormMessageText"
     >
       Error!
     </span>
@@ -55,7 +55,7 @@ exports[`FormMessage component renders info message by default 1`] = `
       mock-svg
     </svg>
     <span
-      class="small-text FormMessageText"
+      class="FormMessageText"
     >
       Info message
     </span>
@@ -76,7 +76,7 @@ exports[`FormMessage component renders message text 1`] = `
       mock-svg
     </svg>
     <span
-      class="small-text FormMessageText"
+      class="FormMessageText"
     >
       Hello world
     </span>
@@ -97,7 +97,7 @@ exports[`FormMessage component renders warning type 1`] = `
       mock-svg
     </svg>
     <span
-      class="small-text FormMessageText"
+      class="FormMessageText"
     >
       Warn
     </span>

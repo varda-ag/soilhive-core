@@ -404,6 +404,41 @@ paths:
           $ref: '#/components/responses/NotFound'
 
   /datasets/{datasetId}/dataset-file-mapping:
+    get:
+      x-eov-operation-handler: controllers/dataset-file-mappings
+      x-eov-operation-id: getDatasetFileMappings
+      summary: Get all dataset file mappings for a dataset
+      tags:
+        - datasets
+      security:
+        - bearerAuth: [data-admin]
+      parameters:
+        - name: datasetId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Dataset ID
+        - name: fileId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+          description: Optional file ID to filter mappings
+      responses:
+        '200':
+          description: List of dataset file mappings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DatasetFileMappingResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
     post:
       x-eov-operation-handler: controllers/dataset-file-mappings
       x-eov-operation-id: createDatasetFileMapping
@@ -437,6 +472,39 @@ paths:
           description: Unauthorized - Token subject is missing
 
   /datasets/{datasetId}/dataset-file-mapping/{datasetFileMappingId}:
+    get:
+      x-eov-operation-handler: controllers/dataset-file-mappings
+      x-eov-operation-id: getDatasetFileMapping
+      summary: Get a specific dataset file mapping
+      tags:
+        - datasets
+      security:
+        - bearerAuth: [data-admin]
+      parameters:
+        - name: datasetId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Dataset ID
+        - name: datasetFileMappingId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Dataset file mapping ID
+      responses:
+        '200':
+          description: Dataset file mapping retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetFileMappingResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
     patch:
       x-eov-operation-handler: controllers/dataset-file-mappings
       x-eov-operation-id: updateDatasetFileMapping
@@ -513,6 +581,45 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SoilProperty'
+
+  /soil-property-categories:
+    get:
+      x-eov-operation-handler: controllers/soil-property-categories
+      x-eov-operation-id: getSoilPropertyCategories
+      summary: Get soil property categories
+      tags:
+        - soil-properties
+      responses:
+        '200':
+          description: Array of categories
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SoilPropertyCategory'
+
+  /soil-property-categories/{soilPropertyCategoryId}:
+    parameters:
+      - name: soilPropertyCategoryId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Soil property category ID
+    get:
+      x-eov-operation-handler: controllers/soil-property-categories
+      x-eov-operation-id: getSoilPropertyCategory
+      summary: Get specific soil property category
+      tags:
+        - soil-properties
+      responses:
+        '200':
+          description: Dataset information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SoilPropertyCategory'
 
   /data-filters:
     post:
@@ -720,13 +827,26 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
-    # TODO: replace current POST /soil-data?dataset=&mapping= with POST /datasets/{datasetId}/dataset-file-mapping/{datasetFileMappingId}/soil-data
+  /datasets/{datasetId}/dataset-file-mapping/{datasetFileMappingId}/soil-data:
+    parameters:
+      - name: datasetId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: ID of the dataset to assign to the created soil data
+      - name: datasetFileMappingId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Unique identifier of the mapping to be applied to the raw record
     post:
-      x-eov-operation-handler: controllers/soil-data
+      x-eov-operation-handler: controllers/datasets
       x-eov-operation-id: postSoilData
       summary: Loads soil data record into the system
       tags:
-        - soil-data
+        - datasets
       security:
         - bearerAuth: [data-admin]
       requestBody:
@@ -735,19 +855,6 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/SoilRecord'
-      parameters:
-        - name: dataMappingId
-          in: query
-          required: true
-          schema:
-            type: string
-          description: Unique identifier of the mapping to be applied to the raw record
-        - name: datasetId
-          in: query
-          required: true
-          schema:
-            type: string
-          description: ID of the dataset to assign to the created soil data
       responses:
         '201':
           description: Soil data loaded successfully
@@ -821,7 +928,7 @@ paths:
     post:
       x-eov-operation-handler: controllers/mappings
       x-eov-operation-id: createDataMapping
-      summary: Create a new data mapping
+      summary: Create a new data mapping. This operation is idempotent
       tags:
         - mappings
       security:
@@ -833,7 +940,7 @@ paths:
             schema:
               $ref: '#/components/schemas/DataMappingObject'
       responses:
-        '200':
+        '201':
           description: Data mapping created successfully
           content:
             application/json:
@@ -1365,6 +1472,26 @@ components:
           type: string
           description: Category identifier
 
+    SoilPropertyCategory:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Identifier for the soil property category
+        category_name:
+          type: string
+          description: Full name of the category
+        category_acronym:
+          type: string
+          description: Short acronym representing the category
+        description:
+          type: string
+          description: Optional description of the category
+      required:
+        - id
+        - category_name
+        - category_acronym
+
     SoilRecord:
       type: object
       required:
@@ -1463,6 +1590,12 @@ components:
       type: object
       properties:
         id:
+          type: string
+          format: uuid
+        fileID:
+          type: string
+          format: uuid
+        mappingId:
           type: string
           format: uuid
 

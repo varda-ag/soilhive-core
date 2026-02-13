@@ -185,6 +185,26 @@ describe('useSoilPropertiesFilters', () => {
     expect(mockSetSelectedSoilProperties).toHaveBeenCalledWith(['3']);
   });
 
+  it('handlePillRemove removes property with provided id if getBranchIds returns empty array', () => {
+    (getBranchIds as jest.Mock).mockReturnValue([]);
+
+    (useAvailability as jest.Mock).mockReturnValue({
+      ...defaultAvailabilityState,
+      selectedSoilProperties: ['2', '3', '4'],
+    });
+
+    const { result } = renderHook(() => useSoilPropertiesFilters());
+
+    act(() => {
+      result.current.handlePillRemove('3');
+    });
+
+    expect(getBranchIds as jest.Mock).toHaveBeenCalledTimes(1);
+    expect((getBranchIds as jest.Mock).mock.calls[0][1]).toBe('3');
+
+    expect(mockSetSelectedSoilProperties).toHaveBeenCalledWith(['2', '4']);
+  });
+
   it('returns context flags and selectedSoilProperties passthrough', () => {
     (useAvailability as jest.Mock).mockReturnValue({
       ...defaultAvailabilityState,
