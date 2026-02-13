@@ -65,6 +65,12 @@
     "typescript": "^5.9.3"
   },
   "jest": {
+    "transform": {
+      "^.+\\.(ts|js)x?$": "ts-jest"
+    },
+    "transformIgnorePatterns": [
+      "<rootDir>/node_modules/(?!(pg-boss|serialize-error|non-error)/)"
+    ],
     "preset": "ts-jest",
     "testEnvironment": "node",
     "testMatch": [
