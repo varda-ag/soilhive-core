@@ -14,7 +14,7 @@ import { RequestData } from '../interfaces/RequestData';
 import { File, FileMetadata, ExtractedFilePath } from '../interfaces/File';
 import { ErrorResponse } from '../utils/error';
 import { getEntity } from '../utils/slugs';
-import { sanitizeField } from '../utils/utils';
+import { sanitizeField, buildDatedFileKey } from '../utils/utils';
 import { StorageModes } from '../types/enums';
 import { EntityType } from '../types/data';
 import { DetectableFields } from '../types/DataMapping';
@@ -36,16 +36,17 @@ const allowedGeometryTypes = [
 
 export default class FileService {
   exists = async (fileKey: string): Promise<boolean> => {
-    const storage = await FileService.getStorageEngine();
+    const storage = FileService.getStorageEngine();
     return await storage.fileExists(fileKey);
   };
 
-  deleteFile = async (fileKey: string): Promise<void> => {
-    const storage = await FileService.getStorageEngine();
+  deleteFileFromStorage = async (fileKey: string): Promise<void> => {
+    const storage = FileService.getStorageEngine();
     await storage.deleteFile(fileKey);
   };
 
   static getUploadStorageEngine = (): FlystorageMulterStorageEngine => {
+    // TODO: implement logic to check for available storage space if StorageModes.LOCAL and handle related errors properly
     const adapter = FileService.getAdapter();
     const fileStorage = new FileStorage(adapter);
     const storage = new FlystorageMulterStorageEngine(fileStorage, async (action, req, file) => {
@@ -54,8 +55,20 @@ export default class FileService {
           // Special case for logo upload
           return LOGO_FILE_ID;
         }
-        const fileEntity = (req as any).fileEntity;
-        return `${fileEntity.slug}/${fileEntity.name}`;
+        const destination = buildDatedFileKey(file.originalname);
+        const uploadedFileInfo = {
+          originalname: file.originalname,
+          fileKey: destination,
+        };
+        req.customData = req.customData || {};
+        req.customData.uploadedFileInfo = uploadedFileInfo;
+        if (adapter.constructor.name === 'LocalStorageAdapter') {
+          const fullPath = path.join(adapter.rootDir, path.dirname(destination));
+          if (!fs.existsSync(fullPath)) {
+            fs.mkdirSync(fullPath, { recursive: true });
+          }
+        }
+        return destination;
       } else {
         // Return folder name/destination if needed
         return file.destination;
@@ -76,6 +89,7 @@ export default class FileService {
     switch (config.storageMode) {
       case StorageModes.LOCAL: {
         const localConfig = config.config as LocalStorageConfig;
+        console.log(localConfig.rootFolder);
         if (!fs.existsSync(localConfig.rootFolder)) {
           fs.mkdirSync(localConfig.rootFolder, { recursive: true });
         }
@@ -102,17 +116,24 @@ export default class FileService {
     return await repo.find();
   };
 
-  getFile = async (requestData: RequestData, slug: string): Promise<File> => {
-    return await getEntity(requestData, FileEntity, EntityType.FILE, slug);
+  getFile = async (requestData: RequestData, fileId: string): Promise<File> => {
+    const { entityManager } = requestData;
+
+    const repo = entityManager.getRepository(FileEntity);
+
+    // Find file by ID (primary key)
+    const file = await repo.findOneBy({ id: fileId });
+
+    if (!file) {
+      throw new ErrorResponse(`DatasetFileMapping with ID '${fileId}' not found`, StatusCodes.NOT_FOUND);
+    }
+
+    return file;
   };
 
   createFile = async (requestData: RequestData, data: Partial<File>): Promise<File> => {
     const repo = requestData.entityManager.getRepository(FileEntity);
-
     const { sub } = requestData.token;
-    if (!sub) {
-      throw new ErrorResponse('Token subject is missing', StatusCodes.UNAUTHORIZED);
-    }
 
     const file = repo.create({
       ...data,
@@ -137,10 +158,6 @@ export default class FileService {
     const repo = requestData.entityManager.getRepository(FileEntity);
     const { sub } = requestData.token;
 
-    if (!sub) {
-      throw new ErrorResponse('Token subject is missing', StatusCodes.UNAUTHORIZED);
-    }
-
     const file = (await getEntity(requestData, FileEntity, EntityType.DATASET, slug)) as FileEntity;
 
     repo.merge(file, {
@@ -152,6 +169,11 @@ export default class FileService {
     const saved = await repo.save(file);
     const reloaded = await repo.findOneBy({ id: saved.id });
     return reloaded!;
+  };
+
+  deleteFile = async (requestData: RequestData, slug: string): Promise<void> => {
+    const file = await getEntity(requestData, FileEntity, EntityType.FILE, slug);
+    await requestData.entityManager.getRepository(FileEntity).softRemove(file);
   };
 
   /**
@@ -238,7 +260,7 @@ export default class FileService {
         const localConfig = config.config as LocalStorageConfig;
         mainFilePath = path.join(localConfig.rootFolder, fileKey);
         if (!fs.existsSync(mainFilePath)) {
-          throw new ErrorResponse(`File ${fileKey} not found`, StatusCodes.NOT_FOUND);
+          throw new ErrorResponse(`File ${mainFilePath} not found`, StatusCodes.NOT_FOUND);
         }
 
         // Handle ZIP files

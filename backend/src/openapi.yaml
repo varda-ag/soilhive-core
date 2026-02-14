@@ -734,31 +734,6 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
-  /files/{fileId}:
-    parameters:
-      - name: fileSlug
-        in: path
-        required: true
-        schema:
-          type: string
-        description: Unique file human-readable identifier
-    get:
-      x-eov-operation-handler: controllers/files
-      x-eov-operation-id: fileDownload
-      summary: Download a file
-      tags:
-        - files
-      parameters:
-        - in: query
-          name: token
-          required: false
-          description: Temporary access token to download access-protected files
-          schema:
-            type: string
-      responses:
-        '200':
-          description: File downloaded successfully
-
   /files:
     post:
       x-eov-operation-handler: controllers/files
@@ -806,16 +781,18 @@ paths:
     get:
       x-eov-operation-handler: controllers/files
       x-eov-operation-id: getFile
-      summary: Download a file
+      summary: Get information for a given soil file
       tags:
         - files
+      security:
+        - bearerAuth: [data-admin]
       responses:
         '200':
-          description: Data mapping retrieved successfully
+          description: File retrieved successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/File'
+                $ref: '#/components/schemas/FileDescriptor'
         '404':
           $ref: '#/components/responses/NotFound'
   /files/{fileId}/download:
@@ -834,7 +811,7 @@ paths:
       tags:
         - files
       security:
-        - bearerAuth: [data-admin]
+        - bearerAuth: [super-admin, data-admin]
       responses:
         '200':
           description: File downloaded successfully
@@ -1028,7 +1005,7 @@ components:
           description: Unique file identifier
         name:
           type: string
-          description:File name
+          description: File name
         file_path:
           type: string
           description: Storage key (path-like)

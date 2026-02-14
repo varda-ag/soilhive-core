@@ -28,7 +28,7 @@ export default class FileEntity extends BaseTable implements File {
   @Column({ type: 'jsonb', nullable: true })
   metadata?: FileMetadata;
 
-  @Column({ type: 'text', default: IngestionStatus.PENDING })
+  @Column({ type: 'text', nullable: true })
   status: IngestionStatus;
 
   @Column({ type: 'text' })
