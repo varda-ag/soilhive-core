@@ -1,7 +1,7 @@
 export const setupTestEnv = () => {
   const env = {
     POSTGRES_HOST: 'localhost',
-    POSTGRES_PORT: 5433,
+    POSTGRES_PORT: 5432,
     POSTGRES_DB: 'database',
     POSTGRES_USER: 'dbuser',
     POSTGRES_PASSWORD: 'dbpass',
@@ -13,7 +13,6 @@ export const setupTestEnv = () => {
     AWS_PROFILE: 'localstack',
     STORAGE_MODE: 'local',
     LOCAL_STORAGE_ROOT_FOLDER: '/tmp/soilhive-storage',
-    // LOCAL_STORAGE_ROOT_FOLDER: '/Users/dariaruiz-ogarriomarassanova/Documents/gsdp_repos/soilhive-core/backend/tests/assets/vector_files/pass',
     PORT: undefined,
     POSTGRES_AWS_REGION: undefined,
     OIDC_JWKS_URL: undefined,
