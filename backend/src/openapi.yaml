@@ -313,6 +313,104 @@ paths:
         '401':
           description: Unauthorized - Token subject is missing
 
+  /jobs:
+    post:
+      x-eov-operation-handler: controllers/jobs
+      x-eov-operation-id: postJob
+      summary: Starts async job
+      tags:
+        - jobs
+      security:
+        - bearerAuth: []
+        - {}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/BulkLoadJob'
+                - $ref: '#/components/schemas/ExportJob'
+      responses:
+        '201':
+          description: Async job started successfull
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    get:
+      x-eov-operation-handler: controllers/jobs
+      x-eov-operation-id: getJobs
+      summary: Get all async jobs for the user
+      tags:
+        - jobs
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Job array
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Job'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /jobs/{jobId}:
+    parameters:
+      - name: jobId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: ID of the async job
+    get:
+      x-eov-operation-handler: controllers/jobs
+      x-eov-operation-id: getJobById
+      summary: Get async job status
+      tags:
+        - jobs
+      security:
+        - bearerAuth: []
+        - {}
+      responses:
+        '200':
+          description: Job status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      x-eov-operation-handler: controllers/jobs
+      x-eov-operation-id: deleteJobById
+      summary: Cancel async job
+      tags:
+        - jobs
+      security:
+        - bearerAuth: []
+        - {}
+      responses:
+        '204':
+          description: Job canceled successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /datasets/{datasetId}/dataset-file-mapping:
     get:
       x-eov-operation-handler: controllers/dataset-file-mappings
@@ -860,7 +958,6 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
-
   /mappings/{mappingId}:
     parameters:
       - name: mappingId
@@ -929,6 +1026,12 @@ components:
             $ref: '#/components/schemas/ErrorResponse'
     Conflict:
       description: Conflict
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    UnprocessableEntity:
+      description: Unprocessable entity
       content:
         application/json:
           schema:
@@ -1503,3 +1606,55 @@ components:
         mappingId:
           type: string
           format: uuid
+
+    BulkLoadJob:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [bulk-load]
+          description: Job type
+        dataset_id:
+          type: string
+
+    ExportJob:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [export]
+          description: Job type
+        filterId:
+          type: string
+          format: uuid
+          description: Filter ID to specify which data to export
+
+    Job:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier for the job
+        queue:
+          type: string
+          description: Queue containing the job
+        status:
+          type: string
+          enum: [created, retry, active, completed, cancelled, failed]
+          description: Current status of the job
+        created_by:
+          type: string
+          description: ID of the user who initiated the job
+        created_at:
+          type: string
+          format: date-time
+          description: Timestamp when the job was created
+        completed_at:
+          type: string
+          format: date-time
+          description: Timestamp when the job was completed
+        data:
+          oneOf:
+            - $ref: '#/components/schemas/BulkLoadJob'
+            - $ref: '#/components/schemas/ExportJob'

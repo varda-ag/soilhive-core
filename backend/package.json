@@ -44,6 +44,7 @@
     "multer": "^2.0.2",
     "node-object-hash": "^3.1.1",
     "pg": "^8.16.3",
+    "pg-boss": "^12.11.1",
     "reflect-metadata": "^0.2.2",
     "swagger-ui-express": "^5.0.1",
     "typeorm": "^0.3.27",
@@ -65,6 +66,12 @@
     "typescript": "^5.9.3"
   },
   "jest": {
+    "transform": {
+      "^.+\\.(ts|js)x?$": "ts-jest"
+    },
+    "transformIgnorePatterns": [
+      "<rootDir>/node_modules/(?!(pg-boss|serialize-error|non-error)/)"
+    ],
     "preset": "ts-jest",
     "testEnvironment": "node",
     "testMatch": [
