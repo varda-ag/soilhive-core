@@ -686,12 +686,12 @@ paths:
               - dataset_id
               - dataset_name
               - extractant_concentration
-              - extractant_formulation
+              - laboratory_method
               - extraction_base
               - extraction_ratio
               - geometry
               - horizon
-              - instrument
+              - measurement_procedure
               - license_name
               - limit_of_detection
               - max_depth
@@ -706,12 +706,12 @@ paths:
               - -dataset_id
               - -dataset_name
               - -extractant_concentration
-              - -extractant_formulation
+              - -laboratory_method
               - -extraction_base
               - -extraction_ratio
               - -geometry
               - -horizon
-              - -instrument
+              - -measurement_procedure
               - -license_name
               - -limit_of_detection
               - -max_depth
@@ -1191,10 +1191,10 @@ components:
           type: string
           nullable: true
           description: Analytical or experimental technique used
-        extractant_formulation:
+        laboratory_method:
           type: string
           nullable: true
-          description: Extractant chemical composition
+          description: The named laboratory method or protocol used to generate the result, including standard protocols or digestion/combustion approaches where applicable
         extractant_concentration:
           type: string
           nullable: true
@@ -1207,10 +1207,10 @@ components:
           type: string
           nullable: true
           description: Base or solvent used in extraction
-        instrument:
+        measurement_procedure:
           type: string
           nullable: true
-          description: Instrument or device used for analysis
+          description: Measurement procedure or instrument used for analysis
         limit_of_detection:
           type: string
           nullable: true
