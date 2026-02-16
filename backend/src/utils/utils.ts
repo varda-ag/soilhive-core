@@ -1,3 +1,6 @@
+import { config } from 'dotenv';
+import { setupTestEnv } from '../../tests/environment';
+
 export const isJest = () => process.env.JEST_WORKER_ID !== undefined || process.env.NODE_ENV === 'test';
 
 export const sleep = async (ms: number) => {
@@ -10,4 +13,13 @@ export const sanitizeField = (field: string, removeSpacePlaceholders: boolean = 
     replaceString = /[^a-z]/g;
   }
   return field.toLowerCase().replace('-', '_').replace(replaceString, '');
+};
+
+export const setupEnv = () => {
+  if (isJest()) {
+    setupTestEnv();
+  } else {
+    // Load local .env only outside tests
+    config({ path: '.env' });
+  }
 };
