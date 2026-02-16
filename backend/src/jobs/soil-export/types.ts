@@ -37,7 +37,7 @@ export interface SoilExportJobState {
  * Processed record with formatted fields for export
  */
 export interface ExportRecord {
-  geom: string; // WKT format: POINT (lon lat)
+  geom: string; // WKT format:
   dataset_name: string;
   license: string;
   sampling_date: string | null;
@@ -45,17 +45,50 @@ export interface ExportRecord {
   max_depth: number | null;
   horizon: string | null;
   value: number;
-  // TODO: unit field missing in SoilDataSample
-  unit?: string;
+  unit?: string; // TODO: missing in SoilDataSample
   sample_pretreatment: string | null;
   technique: string | null;
   laboratory_method: string | null;
   extractant_concentration: string | null;
   extraction_ratio: string | null;
   extraction_base: string | null;
-  measurement_procedure: string | null;
+  measurement_procedure?: string | null;
   limit_of_detection: string | null;
 }
+
+/**
+ * Field metadata for export schema
+ */
+export interface FieldMetadata {
+  key: keyof ExportRecord;
+  title: string;
+  type: 'string' | 'number';
+  gdalType?: 'OFTString' | 'OFTReal';
+}
+
+/**
+ * Centralized export schema - single source of truth
+ * Modify this array to add/remove/reorder fields
+ */
+export const EXPORT_SCHEMA: FieldMetadata[] = [
+  { key: 'geom', title: 'geom', type: 'string', gdalType: 'OFTString' },
+  { key: 'dataset_name', title: 'dataset_name', type: 'string', gdalType: 'OFTString' },
+  { key: 'license', title: 'license', type: 'string', gdalType: 'OFTString' },
+  { key: 'sampling_date', title: 'sampling_date', type: 'string', gdalType: 'OFTString' },
+  { key: 'min_depth', title: 'min_depth', type: 'number', gdalType: 'OFTReal' },
+  { key: 'max_depth', title: 'max_depth', type: 'number', gdalType: 'OFTReal' },
+  { key: 'horizon', title: 'horizon', type: 'string', gdalType: 'OFTString' },
+  { key: 'value', title: 'value', type: 'number', gdalType: 'OFTReal' },
+  { key: 'unit', title: 'unit', type: 'string', gdalType: 'OFTString' }, // TODO: missing in SoilDataSample
+  { key: 'sample_pretreatment', title: 'sample_pretreatment', type: 'string', gdalType: 'OFTString' },
+  { key: 'technique', title: 'technique', type: 'string', gdalType: 'OFTString' },
+  { key: 'laboratory_method', title: 'laboratory_method', type: 'string', gdalType: 'OFTString' }, // TODO: missing in SoilDataSample
+  { key: 'extractant_concentration', title: 'extractant_concentration', type: 'string', gdalType: 'OFTString' },
+  { key: 'extraction_ratio', title: 'extraction_ratio', type: 'string', gdalType: 'OFTString' },
+  { key: 'extraction_base', title: 'extraction_base', type: 'string', gdalType: 'OFTString' },
+  { key: 'measurement_procedure', title: 'measurement_procedure', type: 'string', gdalType: 'OFTString' }, // TODO: missing in SoilDataSample
+  { key: 'limit_of_detection', title: 'limit_of_detection', type: 'string', gdalType: 'OFTString' },
+];
 
 /**
  * Records grouped by property acronym
@@ -122,4 +155,15 @@ export function soilSampleToExportRecord(sample: SoilDataSample): ExportRecord {
     measurement_procedure: sample.measurement_procedure,
     limit_of_detection: sample.limit_of_detection,
   };
+}
+
+/**
+ * Helper to convert ExportRecord to flat object following schema order
+ */
+export function recordToOrderedObject(record: ExportRecord): Record<string, any> {
+  const result: Record<string, any> = {};
+  for (const field of EXPORT_SCHEMA) {
+    result[field.key] = record[field.key] ?? null;
+  }
+  return result;
 }
