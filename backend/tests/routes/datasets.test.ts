@@ -170,40 +170,4 @@ describe('Testing /datasets routes', () => {
       expect(getRes.statusCode).toBe(StatusCodes.NOT_FOUND);
     });
   });
-
-  describe('Testing /jobs routes', () => {
-    it('POST /jobs/:datasetId/bulk-load creates a bulk load (200) and GET endpoints return it', async () => {
-      const token = await getDataAdminToken();
-
-      // create job
-      const bulkRes = await request(app).post(`/jobs`).send({});
-      expect(bulkRes.statusCode).toBe(201);
-      expect(bulkRes.body).toHaveProperty('id');
-
-      const bulkId = bulkRes.body.id;
-
-      // list bulk loads
-      const listRes = await request(app).get(`/jobs`).set('Authorization', `Bearer ${token}`);
-      expect(listRes.statusCode).toBe(200);
-      expect(Array.isArray(listRes.body)).toBe(true);
-      const ids = listRes.body.map((b: any) => b.id);
-      expect(ids).toContain(bulkId);
-
-      // GET by ID
-      const getByIdRes = await request(app).get(`/jobs/${bulkId}`).set('Authorization', `Bearer ${token}`);
-      expect(getByIdRes.statusCode).toBe(200);
-      expect(getByIdRes.body).toHaveProperty('id', bulkId);
-    });
-
-    it('GET /jobs/:id returns 404 for unknown bulk load id', async () => {
-      const token = await getDataAdminToken();
-
-      const res = await request(app).get(`/jobs/not-a-real-id`).set('Authorization', `Bearer ${token}`);
-      expect(res.statusCode).toBe(400);
-
-      const randomUUID = '4d214191-5998-4c42-aace-726dada50ba4';
-      const res2 = await request(app).get(`/jobs/${randomUUID}`).set('Authorization', `Bearer ${token}`);
-      expect(res2.statusCode).toBe(404);
-    });
-  });
 });

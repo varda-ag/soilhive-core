@@ -1,25 +1,24 @@
-import { Token } from './Token';
-
-export const enum JobStatus {
-  ONGOING = 'ongoing',
-  COMPLETED = 'completed',
-  FAILED = 'failed',
-  CANCELED = 'canceled',
-}
-
 export interface Job {
   id: string | null;
-  // status: JobStatus;
-  // progress_percentage: number;
-  // progress_description?: string;
-  // created_by: string;
-  // created_at: Date;
-  // updated_at: Date | null;
-  // completed_at: Date | null;
-  // failed_at: Date | null;
+  queue: string;
+  status: string;
+  created_at: Date;
+  completed_at: Date | null;
+  data: BulkLoadJob | ExportJob;
 }
 
-export interface BulkLoadJob {
+export interface CommonJobData {
+  type: string;
+  created_by: string | null;
+  progress_percentage: number;
+  progress_description?: string;
+}
+
+export interface BulkLoadJob extends CommonJobData {
   dataset_id: string;
-  token: Token;
+}
+
+export interface ExportJob extends CommonJobData {
+  filter_id: string;
+  format: string;
 }

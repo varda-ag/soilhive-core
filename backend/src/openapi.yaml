@@ -323,6 +323,14 @@ paths:
       security:
         - bearerAuth: []
         - {}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/BulkLoadJob'
+                - $ref: '#/components/schemas/ExportJob'
       responses:
         '201':
           description: Async job started successfull
@@ -1599,6 +1607,28 @@ components:
           type: string
           format: uuid
 
+    BulkLoadJob:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [bulk-load]
+          description: Job type
+        dataset_id:
+          type: string
+
+    ExportJob:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [export]
+          description: Job type
+        filterId:
+          type: string
+          format: uuid
+          description: Filter ID to specify which data to export
+
     Job:
       type: object
       properties:
@@ -1606,9 +1636,12 @@ components:
           type: string
           format: uuid
           description: Unique identifier for the job
+        queue:
+          type: string
+          description: Queue containing the job
         status:
           type: string
-          enum: [pending, in_progress, completed, failed, canceled]
+          enum: [created, retry, active, completed, cancelled, failed]
           description: Current status of the job
         created_by:
           type: string
@@ -1617,15 +1650,11 @@ components:
           type: string
           format: date-time
           description: Timestamp when the job was created
-        updated_at:
-          type: string
-          format: date-time
-          description: Timestamp when the job was last updated
         completed_at:
           type: string
           format: date-time
           description: Timestamp when the job was completed
-        failed_at:
-          type: string
-          format: date-time
-          description: Timestamp when the job failed
+        data:
+          oneOf:
+            - $ref: '#/components/schemas/BulkLoadJob'
+            - $ref: '#/components/schemas/ExportJob'

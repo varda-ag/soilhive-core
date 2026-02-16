@@ -5,6 +5,9 @@ import BulkLoader from '../data-layer/BulkLoader';
 import { JobQueues } from '../types/enums';
 
 let globalBoss: PgBoss | null = null;
+let globalInitialized = false;
+
+export const PG_BOSS_SCHEMA = `${process.env.POSTGRES_SCHEMA!}_pgboss`;
 
 export const getPgBoss = () => {
   if (globalBoss) {
@@ -17,18 +20,18 @@ export const getPgBoss = () => {
     password: getDBPassword,
     ...(process.env.POSTGRES_PASSWORD ? {} : { ssl: getSSL() }),
     database: process.env.POSTGRES_DB!,
-    schema: `${process.env.POSTGRES_SCHEMA!}_pgboss`,
+    schema: `${PG_BOSS_SCHEMA}`,
   });
   globalBoss.on('error', err => console.error('pg-boss error:', err));
   return globalBoss;
 };
 
-export const startPgBoss = async () => {
+const startPgBoss = async () => {
   const boss = getPgBoss();
   await boss.start();
 };
 
-export const setupQueues = async () => {
+const setupQueues = async () => {
   const options = {
     retryLimit: 0, // Zero retries
     expireInSeconds: 60 * 60 * 24 - 1, // 24 hours (minus one according to pg-boss policy)
@@ -38,7 +41,7 @@ export const setupQueues = async () => {
   await boss.createQueue(JobQueues.EXPORT, options);
 };
 
-export const setupWorkers = async () => {
+const setupWorkers = async () => {
   const options = {
     localConcurrency: 1,
     groupConcurrency: 5,
@@ -48,8 +51,17 @@ export const setupWorkers = async () => {
     if (!job) {
       return;
     }
-    console.log(`Bulk load ${job.id}:`, job.data);
     const worker = new BulkLoader();
     worker.startBulkLoad(job.data);
   });
+};
+
+export const initPgBoss = async () => {
+  if (globalInitialized) {
+    return;
+  }
+  globalInitialized = true;
+  await startPgBoss();
+  await setupQueues();
+  await setupWorkers();
 };

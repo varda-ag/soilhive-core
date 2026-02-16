@@ -8,10 +8,14 @@ import { transactionMiddleware } from './middlewares/transaction';
 import { isJest } from './utils/utils';
 import { initializeSchema } from './utils/data-source';
 import { setupCLI } from './utils/cli';
+import { setupTestEnv } from '../tests/environment';
+import { initPgBoss } from './services/PgBoss';
 
 if (process.env.NODE_ENV !== 'test') {
   // Load local .env only outside tests
   config({ path: '.env' });
+} else {
+  setupTestEnv();
 }
 
 export const app: Application = express();
@@ -37,6 +41,7 @@ export const initApp = async (app: Application) => {
     return;
   }
 
+  await initPgBoss();
   initializeSchema();
 
   const port = process.env.PORT || 4001;

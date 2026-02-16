@@ -22,7 +22,8 @@ export const enum OverlapType {
   FULL = 'full',
 }
 
-export const enum JobQueues {
+export enum JobQueues {
+  // Not using const to be able to iterate over values
   BULK_LOAD = 'bulk-load',
   EXPORT = 'export',
 }
