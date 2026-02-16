@@ -48,7 +48,8 @@
     "reflect-metadata": "^0.2.2",
     "swagger-ui-express": "^5.0.1",
     "typeorm": "^0.3.27",
-    "uuid": "11.1.0"
+    "uuid": "11.1.0",
+    "wellknown": "^0.5.0"
   },
   "devDependencies": {
     "@tsconfig/node-lts": "^22.0.2",
