@@ -14,7 +14,7 @@ export default class JobService {
 
     // Checking preconditions
     if (data.type === JobQueues.BULK_LOAD) {
-      if (!requestData.token) {
+      if (!sub) {
         throw new ErrorResponse('Authentication required for bulk load jobs', StatusCodes.UNAUTHORIZED);
       }
     }

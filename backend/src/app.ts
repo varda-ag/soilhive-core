@@ -1,22 +1,15 @@
 import cors from 'cors';
-import { config } from 'dotenv';
 import express, { Application } from 'express';
 import swaggerUi from 'swagger-ui-express';
 import { errorMiddleware } from './middlewares/error';
 import { getOpenApiMiddleware, getSwaggerDocument } from './middlewares/openapi';
 import { transactionMiddleware } from './middlewares/transaction';
-import { isJest } from './utils/utils';
-import { initializeSchema } from './utils/data-source';
-import { setupCLI } from './utils/cli';
-import { setupTestEnv } from '../tests/environment';
 import { initPgBoss } from './services/PgBoss';
+import { setupCLI } from './utils/cli';
+import { initializeSchema } from './utils/data-source';
+import { isJest, setupEnv } from './utils/utils';
 
-if (process.env.NODE_ENV !== 'test') {
-  // Load local .env only outside tests
-  config({ path: '.env' });
-} else {
-  setupTestEnv();
-}
+setupEnv();
 
 export const app: Application = express();
 

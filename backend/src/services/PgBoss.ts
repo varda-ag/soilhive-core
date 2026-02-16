@@ -1,13 +1,15 @@
 import { PgBoss, Job } from 'pg-boss';
 import { getDBPassword, getSSL } from '../utils/db-credentials';
-import { BulkLoadJob } from '../interfaces/Job';
-import BulkLoader from '../data-layer/BulkLoader';
+import { BulkLoadJob, ExportJob } from '../interfaces/Job';
 import { JobQueues } from '../types/enums';
+import { isJest, setupEnv, sleep } from '../utils/utils';
+
+setupEnv();
+
+export const PG_BOSS_SCHEMA = `${process.env.POSTGRES_SCHEMA!}_pgboss`;
 
 let globalBoss: PgBoss | null = null;
 let globalInitialized = false;
-
-export const PG_BOSS_SCHEMA = `${process.env.POSTGRES_SCHEMA!}_pgboss`;
 
 export const getPgBoss = () => {
   if (globalBoss) {
@@ -21,6 +23,7 @@ export const getPgBoss = () => {
     ...(process.env.POSTGRES_PASSWORD ? {} : { ssl: getSSL() }),
     database: process.env.POSTGRES_DB!,
     schema: `${PG_BOSS_SCHEMA}`,
+    ...(isJest() ? { __test__enableSpies: true } : {}),
   });
   globalBoss.on('error', err => console.error('pg-boss error:', err));
   return globalBoss;
@@ -47,12 +50,19 @@ const setupWorkers = async () => {
     groupConcurrency: 5,
   };
   const boss = getPgBoss();
-  await boss.work<BulkLoadJob>(JobQueues.BULK_LOAD, options, async ([job]: Job<BulkLoadJob>[]) => {
-    if (!job) {
-      return;
+  await boss.work<BulkLoadJob>(JobQueues.BULK_LOAD, options, async (jobs: Job<BulkLoadJob>[]) => {
+    for (const job of jobs) {
+      // TODO: call real worker
+      console.log(job);
+      await sleep(1000);
     }
-    const worker = new BulkLoader();
-    worker.startBulkLoad(job.data);
+  });
+  await boss.work<ExportJob>(JobQueues.EXPORT, options, async (jobs: Job<ExportJob>[]) => {
+    for (const job of jobs) {
+      // TODO: call real worker
+      console.log(job);
+      await sleep(1000);
+    }
   });
 };
 
@@ -64,4 +74,13 @@ export const initPgBoss = async () => {
   await startPgBoss();
   await setupQueues();
   await setupWorkers();
+};
+
+export const stopPgBoss = async () => {
+  if (!globalInitialized) {
+    return;
+  }
+  globalInitialized = false;
+  const boss = getPgBoss();
+  await boss.stop();
 };

@@ -2,9 +2,10 @@ import { describe, it, expect } from '@jest/globals';
 import request from 'supertest';
 import { app } from '../../src/app';
 import { getDataAdminToken } from '../helper';
-import { initPgBoss, PG_BOSS_SCHEMA } from '../../src/services/PgBoss';
+import { getPgBoss, initPgBoss, PG_BOSS_SCHEMA, stopPgBoss } from '../../src/services/PgBoss';
 import { JobQueues } from '../../src/types/enums';
 import { getDataSource } from '../../src/utils/data-source';
+import { sleep } from '../../src/utils/utils';
 
 describe('Testing /jobs routes', () => {
   beforeAll(async () => {
@@ -12,7 +13,15 @@ describe('Testing /jobs routes', () => {
     const dataSource = await getDataSource();
     await dataSource?.query(`DROP SCHEMA IF EXISTS ${PG_BOSS_SCHEMA} CASCADE;`);
     await initPgBoss();
-    await new Promise(r => setTimeout(r, 2000)); // Wait for pg-boss table to be ready
+    await sleep(2000); // Wait for pg-boss table to be ready
+  });
+
+  afterEach(async () => {
+    getPgBoss().clearSpies();
+  });
+
+  afterAll(async () => {
+    await stopPgBoss();
   });
 
   it('POST /jobs without a token trying to create a bulk load job fails with HTTP 401', async () => {
@@ -74,6 +83,16 @@ describe('Testing /jobs routes', () => {
     const getByIdResNoToken2 = await request(app).get(`/jobs/${exportId}`).set('Authorization', `Bearer ${token}`);
     expect(getByIdResNoToken2.statusCode).toBe(200);
     expect(getByIdResNoToken2.body).toHaveProperty('id', exportId);
+
+    // TODO: fix this part
+    // Wait for bulk load job to complete
+    // const spy = getPgBoss().getSpy(JobQueues.BULK_LOAD);
+    // await spy.waitForJobWithId(bulkId, 'completed');
+
+    // // Check on job status
+    // const statusRes = await request(app).get(`/jobs/${bulkId}`).set('Authorization', `Bearer ${token}`);
+    // expect(statusRes.statusCode).toBe(200);
+    // expect(statusRes.body.status).toBe('completed');
   });
 
   it('GET /jobs/:id returns 404 for unknown ID', async () => {
