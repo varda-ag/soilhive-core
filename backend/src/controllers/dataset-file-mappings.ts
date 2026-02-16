@@ -9,8 +9,9 @@ export const createDatasetFileMapping = async (req: Request, res: Response) => {
   const apiInput = req.body;
 
   const result = await datasetFileMappingService.createMapping(req.customData, datasetId!, apiInput);
+  const response = datasetFileMappingService.toResponse(result);
 
-  res.status(StatusCodes.CREATED).json(result);
+  res.status(StatusCodes.CREATED).json(response);
 };
 
 export const updateDatasetFileMapping = async (req: Request, res: Response) => {
@@ -18,16 +19,18 @@ export const updateDatasetFileMapping = async (req: Request, res: Response) => {
   const apiInput = req.body;
 
   const result = await datasetFileMappingService.updateMapping(req.customData, datasetId!, datasetFileMappingId!, apiInput);
+  const response = datasetFileMappingService.toResponse(result);
 
-  res.json(result);
+  res.json(response);
 };
 
 export const getDatasetFileMapping = async (req: Request, res: Response) => {
   const { datasetFileMappingId } = req.params;
 
   const result = await datasetFileMappingService.getDatasetFileMapping(req.customData, datasetFileMappingId!);
+  const response = datasetFileMappingService.toResponse(result);
 
-  res.json(result);
+  res.json(response);
 };
 
 export const getDatasetFileMappings = async (req: Request, res: Response) => {
@@ -35,6 +38,7 @@ export const getDatasetFileMappings = async (req: Request, res: Response) => {
   const { fileId } = req.query;
 
   const result = await datasetFileMappingService.getMappings(req.customData, datasetId!, fileId as string | undefined);
+  const response = datasetFileMappingService.toResponse(result);
 
-  res.json(result);
+  res.json(response);
 };
