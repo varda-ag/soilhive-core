@@ -19,11 +19,17 @@ export type NestedCheckboxItemType = {
   className?: string;
   children: NestedCheckboxItemType[];
   isRoot: boolean;
+  categoryId?: string;
 };
 
 export type NestedCheckboxRef = {
   expandAll: () => void;
   collapseAll: () => void;
+};
+
+export type AccordionRef = {
+  expand: () => void;
+  collapse: () => void;
 };
 
 export interface Selection {
