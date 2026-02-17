@@ -371,16 +371,18 @@ describe('Testing /soil-data routes', () => {
       createTable: false,
     });
     const token = await getDataAdminToken();
-    const payload = {
-      sampling_date: null,
-      license: 'test_license_raw_data',
-      horizon: null,
-      max_depth: 30,
-      min_depth: 0,
-      bdfi33: '2',
-      bdfiod: '8',
-      geometry: { type: 'Point', coordinates: [-148.0432434, 64.814888] },
-    };
+    const payload = [
+      {
+        sampling_date: null,
+        license: 'test_license_raw_data',
+        horizon: null,
+        max_depth: 30,
+        min_depth: 0,
+        bdfi33: '2',
+        bdfiod: '8',
+        geometry: { type: 'Point', coordinates: [-148.0432434, 64.814888] },
+      },
+    ];
 
     // Call soil-data endpoint
     const soilDataRes = await request(app)

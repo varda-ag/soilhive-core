@@ -10,6 +10,10 @@ import ObservationEntity from '../entities/Observation';
 import { sanitizeField } from '../utils/utils';
 
 export default class VectorDataLoad {
+  static getRawTableName = (fileId: string): string => {
+    return `${process.env.POSTGRES_SCHEMA}.file_${sanitizeField(fileId)}_raw`;
+  };
+
   /**
    * TODO: add remaining ingestion related functions (load raw data)
    */
@@ -18,9 +22,10 @@ export default class VectorDataLoad {
     dataMappingConfig: DataCleaningConfig,
     fileId: string,
     limit: number = DATA_PREVIEW_SIZE,
+    cursor?: string,
   ): Promise<SoilRecord[]> => {
-    let query = entityManager.createQueryBuilder().from(`${process.env.POSTGRES_SCHEMA}.file_${sanitizeField(fileId)}_raw`, 'raw');
-    query = getDataPreviewQuery(query, dataMappingConfig);
+    let query = entityManager.createQueryBuilder().from(VectorDataLoad.getRawTableName(fileId), 'raw');
+    query = getDataPreviewQuery(query, dataMappingConfig, cursor);
     // Workaround using raw query to be able to use dynamic table name without entity
     const results = await entityManager.query(...query.take(limit).getQueryAndParameters());
     return results;
@@ -153,8 +158,12 @@ export default class VectorDataLoad {
   };
 }
 
-const getDataPreviewQuery = (query: any, dataMappingConfig: DataCleaningConfig): any => {
+const getDataPreviewQuery = (query: any, dataMappingConfig: DataCleaningConfig, cursor?: string): any => {
   query.select('raw.record_id', 'record_id');
+  query.orderBy('raw.record_id', 'ASC');
+  if (cursor) {
+    query.andWhere('raw.record_id > :cursor', { cursor });
+  }
 
   for (const [mapping, field] of Object.entries(dataMappingConfig.metadata_cols)) {
     if (field) {
