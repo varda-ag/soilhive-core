@@ -8,13 +8,18 @@
   padding: 0.5rem 0.875rem;
   display: flex;
   flex-direction: column;
-  gap: 1rem; 
-  background-color: var( --color-neutral-white);
+  gap: 1rem;
+  background-color: var(--color-neutral-white);
+}
+
+.SoilPropertiesList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
 }
 
 .SoilPropertiesCheckbox {
-  background-color: var(--color-neutral-light);
-  padding: .5rem;
+  padding: 0.375rem 0.5rem 0.5rem;
 }
 
 .SearchInput {
@@ -22,7 +27,7 @@
   padding: 0.5rem 0.75rem 0.5rem 2.5rem;
   border: 2px solid var(--color-neutral-dark-100);
   border-radius: 0.5rem;
-  background-color: var( --color-neutral-white);
+  background-color: var(--color-neutral-white);
   background-image: url('../../../assets/icons/small-search-icon.svg');
   background-repeat: no-repeat;
   background-position: 0.75rem center;
@@ -38,4 +43,3 @@
     outline-offset: 1px;
   }
 }
-

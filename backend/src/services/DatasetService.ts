@@ -20,7 +20,7 @@ export default class DatasetService {
   createDataset = async (requestData: RequestData, data: CreateDatasetInput): Promise<Dataset> => {
     const repo = requestData.entityManager.getRepository(DatasetEntity);
 
-    const { sub } = requestData.token;
+    const { sub } = requestData.token ?? {};
     if (!sub) {
       throw new ErrorResponse('Token subject is missing', StatusCodes.UNAUTHORIZED);
     }
@@ -46,7 +46,7 @@ export default class DatasetService {
 
   updateDataset = async (requestData: RequestData, slug: string, data: UpdateDatasetInput): Promise<Dataset> => {
     const repo = requestData.entityManager.getRepository(DatasetEntity);
-    const { sub } = requestData.token;
+    const { sub } = requestData.token ?? {};
 
     if (!sub) {
       throw new ErrorResponse('Token subject is missing', StatusCodes.UNAUTHORIZED);

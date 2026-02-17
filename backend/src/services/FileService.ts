@@ -89,7 +89,6 @@ export default class FileService {
     switch (config.storageMode) {
       case StorageModes.LOCAL: {
         const localConfig = config.config as LocalStorageConfig;
-        console.log(localConfig.rootFolder);
         if (!fs.existsSync(localConfig.rootFolder)) {
           fs.mkdirSync(localConfig.rootFolder, { recursive: true });
         }

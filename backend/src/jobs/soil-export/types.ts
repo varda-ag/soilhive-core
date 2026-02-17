@@ -53,7 +53,6 @@ export interface ExportRecord {
   extractant_concentration: string | null;
   extraction_ratio: string | null;
   extraction_base: string | null;
-  // TODO: measurement_procedure field missing in SoilDataSample
   measurement_procedure: string | null;
   limit_of_detection: string | null;
 }
@@ -116,11 +115,11 @@ export function soilSampleToExportRecord(sample: SoilDataSample): ExportRecord {
     value: sample.value,
     sample_pretreatment: sample.sample_pretreatment,
     technique: sample.technique,
-    laboratory_method: sample.extractant_formulation, // TODO: rename extractant_formulation to laboratory_method
+    laboratory_method: sample.laboratory_method,
     extractant_concentration: sample.extractant_concentration,
     extraction_ratio: sample.extraction_ratio,
     extraction_base: sample.extraction_base,
-    measurement_procedure: sample.instrument, // TODO: rename instrument to measurement_procedure
+    measurement_procedure: sample.measurement_procedure,
     limit_of_detection: sample.limit_of_detection,
   };
 }

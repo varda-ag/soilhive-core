@@ -1,4 +1,6 @@
 import path from 'path';
+import { config } from 'dotenv';
+import { setupTestEnv } from '../../tests/environment';
 
 export const isJest = () => process.env.JEST_WORKER_ID !== undefined || process.env.NODE_ENV === 'test';
 
@@ -31,4 +33,13 @@ export const buildDatedFileKey = (filename: string, date: Date = new Date()): st
   const formatted = date.toISOString().split('.')[0]!.replace(/:/g, '-');
 
   return `${year}/${month}/${formatted}_${safeName}`;
+};
+
+export const setupEnv = () => {
+  if (isJest()) {
+    setupTestEnv();
+  } else {
+    // Load local .env only outside tests
+    config({ path: '.env' });
+  }
 };
