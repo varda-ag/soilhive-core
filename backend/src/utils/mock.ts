@@ -168,15 +168,15 @@ export const addLicense = async (name: string = 'test_license') => {
 };
 
 export const addUnitConversion = async (
+  property_id: string,
   original_unit: string = 'test_unit',
-  standard_unit: string = 'test_std_unit',
   conversion_formula: string = 'x / 10',
 ): Promise<UnitConversionEntity> => {
   const dataSource = await getDataSource();
   const repo = dataSource.getRepository(UnitConversionEntity);
   const unitConversion = repo.create({
     original_unit_of_measurement: original_unit,
-    standard_unit,
+    property_id,
     conversion_formula,
   });
   await repo.save(unitConversion);
@@ -417,7 +417,7 @@ export const addSyntheticIngestionData = async (syntheticIngestionDataOptions): 
         createdMapping.procedure_id = procedure.slug;
       }
       if (props.conversion_formula) {
-        const unitConversion = await addUnitConversion(props.original_unit, props.standard_unit, props.conversion_formula);
+        const unitConversion = await addUnitConversion(soilProperty.id, props.original_unit, props.conversion_formula);
         createdMapping.conversion_id = unitConversion.slug;
       }
       if (props.max_val) {
