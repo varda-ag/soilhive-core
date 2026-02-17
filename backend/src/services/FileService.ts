@@ -97,7 +97,10 @@ export default class FileService {
       }
       case StorageModes.S3: {
         const s3Config = config.config as S3StorageConfig;
-        const s3Client = new S3Client({ region: s3Config.region }) as any;
+        const s3Client = new S3Client({ region: s3Config.region,
+          ...(s3Config.endpoint ? { endpoint: s3Config.endpoint, forcePathStyle: true, } : {}),
+          ...(s3Config.credentials ? { credentials: s3Config.credentials } : {}),
+        }) as any;
         adapter = new AwsS3StorageAdapter(s3Client, {
           bucket: s3Config.bucketName,
           ...(s3Config.rootFolder ? { prefix: s3Config.rootFolder } : {}),

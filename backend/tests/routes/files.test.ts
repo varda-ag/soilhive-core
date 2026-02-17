@@ -1,4 +1,4 @@
-import { jest, describe, it, expect, beforeAll, afterEach } from '@jest/globals';
+import { jest, describe, it, expect, beforeAll, afterEach, beforeEach } from '@jest/globals';
 import { IncomingHttpHeaders } from 'http';
 import path from 'path';
 import request from 'supertest';
@@ -16,11 +16,11 @@ import { FileStorage } from '@flystorage/file-storage';
 // Use absolute path from package root
 const vectorFilesPassPath = path.join(__dirname, '../assets/vector_files/pass');
 const fakeId = '00000000-0000-0000-0000-000000000000';
+const fileName = 'sample_point.geojson';
 
-describe('Testing /files routes', () => {
-  const fileName = 'sample_point.geojson';
+describe('Testing /files routes (local storage)', () => {
   let dataAdminAuthHeader: IncomingHttpHeaders;
-  const setLocalStorageRootFolder = (rootFolder: string) => {
+  const setLocalStorageRootFolder = async (rootFolder: string) => {
     process.env.LOCAL_STORAGE_ROOT_FOLDER = rootFolder;
   };
   setLocalStorageRootFolder(vectorFilesPassPath);
@@ -40,8 +40,10 @@ describe('Testing /files routes', () => {
   });
 
   describe('POST /files', () => {
-    it('uploads file and persists entity with correct path', async () => {
+    beforeEach(() => {
       setLocalStorageRootFolder(vectorFilesPassPath);
+    });
+    it('uploads file and persists entity with correct path', async () => {
       const res = await request(app)
         .post('/files')
         .set(dataAdminAuthHeader)
@@ -56,10 +58,8 @@ describe('Testing /files routes', () => {
       expect(fs.existsSync(`${vectorFilesPassPath}/${res.body.file_path}`)).toBeTruthy();
     });
     it('Removes file entity and file from storage when upload fails', async () => {
-      setLocalStorageRootFolder(vectorFilesPassPath);
       // Request should fail in extractMetadata function
       const res = await request(app).post('/files').set(dataAdminAuthHeader).attach('file', Buffer.from('bad data'), 'fail.gpkg');
-
       // Request fails
       expect(res.statusCode).toBe(StatusCodes.BAD_REQUEST);
 
@@ -113,6 +113,9 @@ describe('Testing /files routes', () => {
   });
 
   describe('GET /files/:fileId/download', () => {
+    beforeEach(() => {
+      setLocalStorageRootFolder(vectorFilesPassPath);
+    });
     it('should retrieve an existing file successfully (200)', async () => {
       const mockStream = Readable.from(['Test stream']);
 
