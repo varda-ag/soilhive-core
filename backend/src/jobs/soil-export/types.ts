@@ -79,14 +79,14 @@ export const EXPORT_SCHEMA: FieldMetadata[] = [
   { key: 'max_depth', title: 'max_depth', type: 'number', gdalType: 'OFTReal' },
   { key: 'horizon', title: 'horizon', type: 'string', gdalType: 'OFTString' },
   { key: 'value', title: 'value', type: 'number', gdalType: 'OFTReal' },
-  { key: 'unit', title: 'unit', type: 'string', gdalType: 'OFTString' }, // TODO: missing in SoilDataSample
+  { key: 'unit', title: 'unit', type: 'string', gdalType: 'OFTString' },
   { key: 'sample_pretreatment', title: 'sample_pretreatment', type: 'string', gdalType: 'OFTString' },
   { key: 'technique', title: 'technique', type: 'string', gdalType: 'OFTString' },
-  { key: 'laboratory_method', title: 'laboratory_method', type: 'string', gdalType: 'OFTString' }, // TODO: missing in SoilDataSample
+  { key: 'laboratory_method', title: 'laboratory_method', type: 'string', gdalType: 'OFTString' },
   { key: 'extractant_concentration', title: 'extractant_concentration', type: 'string', gdalType: 'OFTString' },
   { key: 'extraction_ratio', title: 'extraction_ratio', type: 'string', gdalType: 'OFTString' },
   { key: 'extraction_base', title: 'extraction_base', type: 'string', gdalType: 'OFTString' },
-  { key: 'measurement_procedure', title: 'measurement_procedure', type: 'string', gdalType: 'OFTString' }, // TODO: missing in SoilDataSample
+  { key: 'measurement_procedure', title: 'measurement_procedure', type: 'string', gdalType: 'OFTString' },
   { key: 'limit_of_detection', title: 'limit_of_detection', type: 'string', gdalType: 'OFTString' },
 ];
 
@@ -95,29 +95,6 @@ export const EXPORT_SCHEMA: FieldMetadata[] = [
  */
 export interface GroupedRecords {
   [propertyAcronym: string]: ExportRecord[];
-}
-
-/**
- * File writer interface for different export formats
- */
-export interface IFileWriter {
-  /**
-   * Open/create file for writing
-   * @param filePath - Full path to the file
-   * @param propertyAcronym - Property identifier for the file/sheet/layer
-   */
-  open(filePath: string, propertyAcronym: string): Promise<void>;
-
-  /**
-   * Write a single record to the file
-   * @param record - The export record to write
-   */
-  writeRecord(record: ExportRecord): Promise<void>;
-
-  /**
-   * Close the file and flush any buffered data
-   */
-  close(): Promise<void>;
 }
 
 /**
