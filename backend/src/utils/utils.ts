@@ -23,3 +23,11 @@ export const setupEnv = () => {
     config({ path: '.env' });
   }
 };
+
+export const getServerPort = (): number => {
+  return Number(process.env.PORT) || 4001;
+};
+
+export const getLoopbackUrl = (): string => {
+  return process.env.LOOPBACK_URL || `http://localhost:${getServerPort()}`;
+};

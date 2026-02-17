@@ -1,9 +1,11 @@
 declare namespace NodeJS {
   interface ProcessEnv {
+    // Server settings
     readonly PORT?: string;
     readonly JSON_PAYLOAD_LIMIT?: string;
     readonly JEST_WORKER_ID?: string;
     readonly NODE_ENV?: 'development' | 'production' | 'test';
+    readonly LOOPBACK_URL?: string;
     // Postgres connection env vars
     readonly POSTGRES_HOST?: string;
     readonly POSTGRES_PORT?: string;

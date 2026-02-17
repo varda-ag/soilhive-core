@@ -1,13 +1,21 @@
+import assert from 'assert';
+import http from 'http';
+import pLimit from 'p-limit';
 import { EntityManager, In } from 'typeorm';
 import DatasetFileMappingEntity from '../entities/DatasetFileMapping';
 import FileEntity from '../entities/File';
 import { BulkLoadJob } from '../interfaces/Job';
+import { RequestData } from '../interfaces/RequestData';
 import { Token } from '../interfaces/Token';
+import DataMappingService from '../services/DataMappingService';
 import DatasetFileMappingService from '../services/DatasetFileMappingService';
 import DatasetService from '../services/DatasetService';
 import { IngestionStatus } from '../types/data';
 import { getEntityManager } from '../utils/data-source';
+import { getLoopbackUrl } from '../utils/utils';
 import VectorDataLoad from './VectorDataLoad';
+import { ErrorResponse } from '../utils/error';
+import { StatusCodes } from 'http-status-codes';
 
 export default class BulkLoader {
   startBulkLoad = async (input: BulkLoadJob): Promise<void> => {
@@ -23,15 +31,15 @@ export default class BulkLoader {
       const mappingService = new DatasetFileMappingService();
       const datasetFileMappings = await mappingService.getMappings(requestData, dataset.slug);
       const files = await this.getPendingFilesWithMapping(entityManager, datasetFileMappings);
-      const tables = this.getTables(files);
-      tables.forEach(_table => {
-        // TODO: call bulk load endpoint
+      files.forEach(file => async () => {
+        const datasetFileMapping = datasetFileMappings.find(m => m.file_id === file.id);
+        assert(datasetFileMapping, `No dataset file mapping found for file ${file.id}`);
+        await this.processFile(file, requestData, datasetFileMapping, input.dataset_id);
       });
 
       dataset.status = IngestionStatus.INGESTED;
       await dataset.save();
     } catch (error: any) {
-      // TODO: confirm dataset status on error
       dataset.status = IngestionStatus.PENDING;
       await dataset.save();
       throw error;
@@ -47,7 +55,60 @@ export default class BulkLoader {
     return files;
   };
 
-  private getTables = (files: FileEntity[]): string[] => {
-    return files.map(f => VectorDataLoad.getRawTableName(f.id));
+  private processFile = async (
+    file: FileEntity,
+    requestData: RequestData,
+    datasetFileMapping: DatasetFileMappingEntity,
+    datasetSlug: string,
+  ) => {
+    let cursor: string | undefined = undefined;
+    const vdl = new VectorDataLoad();
+    const service = new DataMappingService();
+    const dataMappingConfig = await service.parseDataMapping(requestData, datasetFileMapping.data_mapping_id);
+    const BATCH_SIZE = 100;
+    const PARALLELISM = 1;
+    const limit = pLimit(PARALLELISM);
+    while (true) {
+      // Get the data from the preview
+      const results = await vdl.getDataPreview(requestData.entityManager, dataMappingConfig, file.id, BATCH_SIZE, cursor);
+
+      // Make parallel requests to the loopback endpoint for each record in the preview
+      const promises = results.map(result => limit(() => this.makeRequest(datasetSlug, datasetFileMapping.id, result)));
+
+      try {
+        await Promise.all(promises);
+      } catch (error) {
+        throw new ErrorResponse(`Failed to process file ${file.id}: ${(error as Error).message}`, StatusCodes.INTERNAL_SERVER_ERROR);
+      }
+
+      if (results.length < BATCH_SIZE) {
+        break;
+      }
+
+      cursor = results[results.length - 1]!['record_id'] as string;
+    }
   };
+
+  private makeRequest = (datasetSlug: string, datasetFileMappingId: string, payload: any) =>
+    new Promise((resolve, reject) => {
+      const postData = JSON.stringify(payload);
+      const url = `${getLoopbackUrl()}/datasets/${datasetSlug}/dataset-file-mapping/${datasetFileMappingId}/soil-data`;
+      const options = {
+        url,
+        method: 'POST',
+        payload: JSON.stringify(payload),
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(postData),
+        },
+      };
+      const clientReq = http.request(options, serverRes => {
+        let data = '';
+        serverRes.on('data', chunk => (data += chunk));
+        serverRes.on('end', () => resolve({ status: serverRes.statusCode, data: JSON.parse(data) }));
+      });
+      clientReq.on('error', reject);
+      clientReq.write(postData); // Send JSON payload
+      clientReq.end();
+    });
 }
