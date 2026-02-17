@@ -61,7 +61,8 @@ export function useApiQuery<TResponse, TBody = void>({ endpoint, method, body, p
   };
 
   return useQuery({
-    queryKey: parameters && parameters.length > 0 ? [...queryKey, ...url] : queryKey,
+    // queryKey: parameters && parameters.length > 0 ? [...queryKey, ...url] : queryKey,
+    queryKey,
     queryFn: fetchData,
     enabled,
     staleTime: 600000, // Caching the responses for 10 minutes (use @tanstack/react-query-devtools for useQuery debugging)

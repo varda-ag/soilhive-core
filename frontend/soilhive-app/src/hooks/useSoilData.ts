@@ -1,13 +1,17 @@
 import type { SoilDataParameters, SoilDataSample } from 'types/backend';
 import { useApiQuery } from './useApiQuery';
 import { useDebounce } from './useDebounce';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+// import { usePrevious, usePreviousDistinct } from 'react-use';
 
 export function useSoilData(parameters: SoilDataParameters) {
-  const [allData, setAllData] = useState();
+  const [allDataMap, setAllDataMap] = useState(new Map<string, SoilDataSample[]>());
+  const [cursor, setCursor] = useState<string>();
 
   const debouncedParameters = useDebounce(parameters, 300);
-  const { datasets, filterId, limit, cursor, sort } = debouncedParameters;
+  // const previousParameters = usePrevious(debouncedParameters) ?? debouncedParameters;
+
+  const { datasets, filterId, limit, sort } = debouncedParameters;
 
   const queryParameters: [string, string][] = [
     ['datasets', datasets.join(',')],
@@ -26,12 +30,53 @@ export function useSoilData(parameters: SoilDataParameters) {
   const { data, isLoading } = useApiQuery<SoilDataSample[]>({
     endpoint: `/soil-data`,
     method: 'GET',
-    queryKey: ['soil-data'],
+    queryKey: ['soil-data', queryParameters],
     parameters: queryParameters,
     enabled: true,
   });
 
-  return { data, isLoading, allData };
+  useEffect(() => {
+    if (data) {
+      const lastElement = data[data.length - 1];
+      if (lastElement) {
+        setAllDataMap(prevAllDataMap => {
+          const newAllDataMap = new Map(prevAllDataMap);
+          newAllDataMap.set(lastElement.cursor, data);
+          return newAllDataMap;
+        });
+      }
+    }
+  }, [data]);
+
+  useEffect(() => {
+    console.debug('allDataMap', allDataMap);
+  }, [allDataMap]);
+
+  const allData = [...allDataMap.values()].flatMap(data => data);
+
+  function loadMore() {
+    const lastElement = allData[allData.length - 1];
+    if (lastElement) {
+      setCursor(lastElement.cursor);
+    }
+  }
+
+  function reset() {
+    setAllDataMap(new Map());
+    setCursor(undefined);
+  }
+
+  // useEffect(() => {
+  //   const { cursor: _, sort: prevSort, ...prevParams } = previousParameters;
+  //   const { cursor: __, sort: curSort, ...curParams } = debouncedParameters;
+  //   console.debug('previousParameters', previousParameters)
+  //   console.debug('debouncedParameters', debouncedParameters)
+  //   if(prevSort !== curSort || JSON.stringify(prevParams) !== JSON.stringify(curParams)) reset();
+  // }, [previousParameters, debouncedParameters]);
+
+  const hasMore = data !== undefined && data.length > 0;
+
+  return { allData, isLoading, hasMore, loadMore, reset };
 }
 
 // export function useSoilData(parameters: SoilDataParameters) {

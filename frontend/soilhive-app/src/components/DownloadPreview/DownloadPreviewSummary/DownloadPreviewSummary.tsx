@@ -34,8 +34,8 @@ function DownloadPreviewSummary({
   locationName,
   dataPoints,
   rasterLayers,
-  depthRange = '-',
-  soilProperties = [],
+  depthRange,
+  soilProperties,
 }: DownloadPreviewSummaryProps) {
   const { isDesktopLayout } = useDevice();
   const [expanded, setExpanded] = useState(false);
@@ -105,19 +105,26 @@ function DownloadPreviewSummary({
         </div>
       </div>
       <div className={styles.Separator}></div>
-      <div className={styles.AppliedFilters}>
-        <div className={styles.SectionTitle}>Applied Filters</div>
-        <div className={styles.FiltersList}>
-          <div className={styles.Filter}>
-            <div className={styles.FilterName}>Depth range</div>
-            <div className={styles.FilterValue}>{depthRange}</div>
+      {!!depthRange ||
+        (soilProperties && soilProperties?.length > 0 && (
+          <div className={styles.AppliedFilters}>
+            <div className={styles.SectionTitle}>Applied Filters</div>
+            <div className={styles.FiltersList}>
+              {!!depthRange && (
+                <div className={styles.Filter}>
+                  <div className={styles.FilterName}>Depth range</div>
+                  <div className={styles.FilterValue}>{depthRange}</div>
+                </div>
+              )}
+              {soilProperties.length > 0 && (
+                <div className={styles.Filter}>
+                  <div className={styles.FilterName}>Soil Properties</div>
+                  <div className={styles.FilterValue}>{soilProperties.length > 0 ? soilProperties.join(', ') : '-'}</div>
+                </div>
+              )}
+            </div>
           </div>
-          <div className={styles.Filter}>
-            <div className={styles.FilterName}>Soil Properties</div>
-            <div className={styles.FilterValue}>{soilProperties.length > 0 ? soilProperties.join(', ') : '-'}</div>
-          </div>
-        </div>
-      </div>
+        ))}
     </div>
   );
 }

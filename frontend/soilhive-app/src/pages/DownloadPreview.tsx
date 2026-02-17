@@ -13,6 +13,7 @@ import { useSoilData } from 'hooks/useSoilData';
 import { useFilteredDatasets } from 'hooks/useFilteredDatasets';
 import type { PreviewFilters } from 'types/downloadPreview';
 import { computeDatasetSummary } from '../domain';
+import type { Nullable } from 'primereact/ts-helpers';
 
 const MAXIMUM_SOIL_DATA_PER_REQUEST = 100;
 
@@ -37,7 +38,7 @@ function DownloadPreview() {
   const [selectedDatasets, setSelectedDatasets] = useState<string[]>();
   const [filters, setFilters] = useState<PreviewFilters>({});
   const [sort, setSort] = useState<string>();
-  const [cursor, setCursor] = useState<string>();
+  // const [cursor, setCursor] = useState<string>();
 
   const parameters = {
     geometries: geometryFilter,
@@ -68,19 +69,27 @@ function DownloadPreview() {
   const { min_sampling_date, max_sampling_date, min_depth, max_depth } = availabilitySelectedFilters?.filter.parameters ?? {};
 
   const fixedCalendarRange = min_sampling_date && max_sampling_date ? [new Date(min_sampling_date), new Date(max_sampling_date)] : null;
-  const fixedDepthRange = min_depth && max_depth ? [min_depth, max_depth] : null;
+  const fixedDepthRange: Nullable<[number, number]> = min_depth && max_depth ? [min_depth, max_depth] : null;
 
-  const { globalDateStart, globalDateEnd, globalMinDepth, globalMaxDepth } = computeDatasetSummary(availableDatasets);
+  const { globalDateStart, globalDateEnd /*globalMinDepth, globalMaxDepth*/ } = computeDatasetSummary(availableDatasets);
   const calendarMinMaxRange: [Date | undefined, Date | undefined] =
     globalDateStart && globalDateEnd ? [globalDateStart, globalDateEnd] : [undefined, undefined];
-  const depthMinMaxRange: [number | undefined, number | undefined] =
-    globalMinDepth && globalMaxDepth ? [globalMinDepth, globalMaxDepth] : [undefined, undefined];
 
-  const { data, isLoading } = useSoilData({
+  // Implementation of min/max depth range where it changes with the datasets available
+  // const depthMinMaxRange: [number | undefined, number | undefined] =
+  //   globalMinDepth !== null && globalMaxDepth !== null ? [globalMinDepth, globalMaxDepth] : [undefined, undefined];
+
+  // Implementation of min/max depth range where it stays the same that was in availability page
+  const depthMinMaxRange: [number | undefined, number | undefined] =
+    datasetsSummary.globalMinDepth !== null && datasetsSummary.globalMaxDepth !== null
+      ? [datasetsSummary.globalMinDepth, datasetsSummary.globalMaxDepth]
+      : [undefined, undefined];
+
+  const { allData, isLoading, hasMore, loadMore, reset } = useSoilData({
     datasets: selectedDatasets ?? availableDatasets.map(dataset => dataset.id),
     filterId,
     limit: MAXIMUM_SOIL_DATA_PER_REQUEST + 1,
-    cursor,
+    // cursor,
     sort,
   });
 
@@ -136,7 +145,7 @@ function DownloadPreview() {
             locationName="France"
             dataPoints={datasetsSummary.dataPoints}
             rasterLayers={datasetsSummary.layers}
-            depthRange={`${datasetsSummary.depth}cm`}
+            depthRange={fixedDepthRange ? `${datasetsSummary.depth}cm` : undefined}
             soilProperties={availabilityFilteredSoilProperties
               .filter(property => availabilitySelectedSoilProperties.includes(property.id))
               .map(property => property.property_name)}
@@ -146,20 +155,27 @@ function DownloadPreview() {
           <DownloadPreviewDataSection
             datasets={availableDatasets}
             onDatasetsChange={newDatasets => {
+              reset();
               setSelectedDatasets(newDatasets);
             }}
             soilProperties={availableSoilProperties}
             calendarMinMaxRange={calendarMinMaxRange}
             fixedCalendarRange={fixedCalendarRange}
+            depthMinMaxRange={depthMinMaxRange}
+            fixedDepthRange={fixedDepthRange}
             filters={filters}
             onFiltersChange={newFilters => {
+              reset();
               setFilters(newFilters);
             }}
-            data={data}
+            data={allData}
             isDataLoading={areFiltersLoading || isLoading}
-            onTableSort={sort => setSort(sort)}
+            onTableSort={sort => {
+              reset();
+              setSort(sort);
+            }}
             onTableLastPage={() => {
-              if (data !== undefined && data.length > 0) setCursor(data[data.length - 1].cursor);
+              if (hasMore) loadMore();
             }}
           />
         </div>

@@ -9,11 +9,11 @@ import { Button } from 'components/UI';
 import type { SoilProperty } from 'types/backend';
 import type { PreviewFilters } from 'types/downloadPreview';
 
-const depths = [
-  { name: '0-15 cm', value: 'depth1' },
-  { name: '15-30 cm', value: 'depth2' },
-  { name: '30-60 cm', value: 'depth3' },
-];
+// const depths = [
+//   { name: '0-15 cm', value: 'depth1' },
+//   { name: '15-30 cm', value: 'depth2' },
+//   { name: '30-60 cm', value: 'depth3' },
+// ];
 
 function DownloadPreviewFilters({
   soilProperties = [],
@@ -24,6 +24,8 @@ function DownloadPreviewFilters({
   datasets,
   fixedCalendarRange = null,
   calendarMinMaxRange = [undefined, undefined],
+  depthMinMaxRange = [undefined, undefined],
+  fixedDepthRange = null,
   onDatasetsChange,
   isLoading = true,
 }: {
@@ -35,12 +37,13 @@ function DownloadPreviewFilters({
   datasets?: { id: string; name: string }[];
   calendarMinMaxRange?: [Date | undefined, Date | undefined];
   fixedCalendarRange?: Nullable<Array<Date | null>>;
-  onDatasetsChange?: (dataset: string[] | undefined) => void;
+  depthMinMaxRange?: [number | undefined, number | undefined];
+  fixedDepthRange?: Nullable<[number, number]>;
+  onDatasetsChange?: (datasets: string[] | undefined) => void;
   isLoading: boolean;
 }) {
   const { isMobileLayout } = useDevice();
   const [selectedDataset, setSelectedDataset] = useState<string>();
-  const [selectedDepth, setSelectedDepth] = useState<string>();
   const [selectedDateRange, setSelectedDateRange] = useState<Nullable<Array<Date | null>>>(fixedCalendarRange);
 
   useEffect(() => {
@@ -55,6 +58,21 @@ function DownloadPreviewFilters({
 
     setSelectedDateRange(null);
   }, [fixedCalendarRange, filters]);
+
+  const depths = [
+    ...Array.from({ length: Math.ceil((depthMinMaxRange?.[1] ?? 150) / 15) }, (_, i) => ({
+      name: `${i * 15}cm - ${i * 15 + 15}cm`,
+      id: `${i * 15}-${i * 15 + 15}`,
+      range: [i * 15, i * 15 + 15],
+    })),
+    ...(fixedDepthRange ? [{ name: `${fixedDepthRange[0]}cm - ${fixedDepthRange[1]}cm`, id: 'fixed-range', range: fixedDepthRange }] : []),
+  ];
+
+  const { min_depth, max_depth } = filters;
+  const selectedDepth =
+    min_depth !== undefined && max_depth !== undefined
+      ? depths.find(({ range }) => min_depth >= range[0] && max_depth <= range[1])?.id
+      : undefined;
 
   const controls = useMemo(() => {
     return (
@@ -99,17 +117,32 @@ function DownloadPreviewFilters({
         <Dropdown
           className={styles.Dropdown}
           panelClassName={styles.DropdownPanel}
-          value={selectedDepth}
-          onChange={e => setSelectedDepth(e.value)}
+          value={fixedDepthRange ? 'fixed-range' : selectedDepth}
+          onChange={e => {
+            const range = depths.find(({ id }) => e.value === id)?.range;
+            if (range) {
+              onFiltersChange?.({
+                ...filters,
+                min_depth: range[0],
+                max_depth: range[1],
+              });
+            } else {
+              const { min_depth: _, max_depth: __, ...filtersWithoutDepth } = filters;
+              onFiltersChange?.(filtersWithoutDepth);
+            }
+          }}
           options={depths}
           optionLabel="name"
+          optionValue="id"
           placeholder="Select a depth"
-          disabled={isLoading}
+          showClear
+          disabled={isLoading || !!fixedDepthRange}
         />
         <Calendar
           className={styles.Calendar}
           panelClassName={styles.DropdownPanel}
           inputClassName={styles.CalendarInput}
+          readOnlyInput
           value={selectedDateRange}
           onChange={e => setSelectedDateRange(e.value)}
           onHide={() => {
@@ -142,7 +175,8 @@ function DownloadPreviewFilters({
     selectedDataset,
     datasets,
     filters,
-    selectedDepth,
+    depthMinMaxRange,
+    fixedDepthRange,
     selectedDateRange,
     calendarMinMaxRange,
     fixedCalendarRange,
@@ -150,6 +184,7 @@ function DownloadPreviewFilters({
     onFiltersChange,
     onDatasetsChange,
     soilProperties,
+    depths,
   ]);
 
   const closeDialog = () => {

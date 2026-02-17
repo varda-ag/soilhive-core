@@ -6,7 +6,7 @@ import styles from './DownloadPreviewTable.module.scss';
 import { Button } from 'components/UI';
 import NewspaperIcon from 'assets/icons/newspaper-icon.svg?react';
 import MapPinIcon from 'assets/icons/small-map-icon.svg?react';
-import { useState } from 'react';
+import { useState, type Dispatch, type SetStateAction } from 'react';
 import type { SoilDataSample } from 'types/backend';
 
 const columns = [
@@ -35,11 +35,15 @@ function DownloadPreviewTable({
   isDataLoading = true,
   onTableSort,
   onTableLastPage,
+  first = 0,
+  setFirst,
 }: {
   data?: SoilDataSample[];
   isDataLoading?: boolean;
   onTableSort?: (sort: string | undefined) => void;
   onTableLastPage?: () => void;
+  first?: number;
+  setFirst?: Dispatch<SetStateAction<number>>;
 }) {
   const [visibleColumns, setVisibleColumns] = useState<string[]>([
     'sampling_date',
@@ -52,7 +56,6 @@ function DownloadPreviewTable({
   ]);
   const [sortOrder, setSortOrder] = useState<SortOrder>();
   const [sortField, setSortField] = useState<string>();
-  const [first, setFirst] = useState<number>(0);
 
   const dateCell = ({ sampling_date, geometry }: SoilDataSample) => {
     return (
@@ -115,7 +118,7 @@ function DownloadPreviewTable({
                   const isLastPage = totalPages - 1 - page === 0;
                   if (isLastPage) onTableLastPage?.();
                 }
-                setFirst(event.first);
+                setFirst?.(event.first);
               }}
               first={first}
               emptyMessage="No data available"
