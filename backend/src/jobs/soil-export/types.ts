@@ -45,7 +45,7 @@ export interface ExportRecord {
   max_depth: number | null;
   horizon: string | null;
   value: number;
-  unit?: string; // TODO: missing in SoilDataSample
+  unit: string;
   sample_pretreatment: string | null;
   technique: string | null;
   laboratory_method: string | null;
@@ -123,6 +123,7 @@ export function soilSampleToExportRecord(sample: SoilDataSample): ExportRecord {
     max_depth: sample.max_depth,
     horizon: sample.horizon,
     value: sample.value,
+    unit: sample.standard_unit,
     sample_pretreatment: sample.sample_pretreatment,
     technique: sample.technique,
     laboratory_method: sample.laboratory_method,
