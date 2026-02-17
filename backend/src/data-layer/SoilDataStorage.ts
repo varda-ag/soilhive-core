@@ -144,11 +144,11 @@ const applySelectToQuery = (query: any) => {
     .addSelect('layer.horizon', 'horizon')
     .addSelect('procedure.sample_pretreatment', 'sample_pretreatment')
     .addSelect('procedure.technique', 'technique')
-    .addSelect('procedure.extractant_formulation', 'extractant_formulation')
+    .addSelect('procedure.laboratory_method', 'laboratory_method')
     .addSelect('procedure.extractant_concentration', 'extractant_concentration')
     .addSelect('procedure.extraction_ratio', 'extraction_ratio')
     .addSelect('procedure.extraction_base', 'extraction_base')
-    .addSelect('procedure.instrument', 'instrument')
+    .addSelect('procedure.measurement_procedure', 'measurement_procedure')
     .addSelect('procedure.limit_of_detection', 'limit_of_detection');
 };
 
@@ -249,11 +249,11 @@ const dataRowTranslation = (row: any, sort?: string): SoilDataSample => {
     horizon: row.horizon,
     sample_pretreatment: row.sample_pretreatment,
     technique: row.technique,
-    extractant_formulation: row.extractant_formulation,
+    laboratory_method: row.laboratory_method,
     extractant_concentration: row.extractant_concentration,
     extraction_ratio: row.extraction_ratio,
     extraction_base: row.extraction_base,
-    instrument: row.instrument,
+    measurement_procedure: row.measurement_procedure,
     limit_of_detection: row.limit_of_detection,
   };
 
@@ -293,11 +293,11 @@ const getSortFieldMapping = (): Record<string, string> => ({
   horizon: 'layer.horizon',
   sample_pretreatment: 'procedure.sample_pretreatment',
   technique: 'procedure.technique',
-  extractant_formulation: 'procedure.extractant_formulation',
+  laboratory_method: 'procedure.laboratory_method',
   extractant_concentration: 'procedure.extractant_concentration',
   extraction_ratio: 'procedure.extraction_ratio',
   extraction_base: 'procedure.extraction_base',
-  instrument: 'procedure.instrument',
+  measurement_procedure: 'procedure.measurement_procedure',
   limit_of_detection: 'procedure.limit_of_detection',
 });
 

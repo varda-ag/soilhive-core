@@ -2,14 +2,16 @@ import { useFilteredDatasets } from 'hooks/useFilteredDatasets';
 import React, { createContext, useState, type ReactNode, useCallback, useMemo } from 'react';
 import type { AvailabilityDataset, DatasetFrontendFilters, DatasetSummary, TimeFilterState } from 'types/availability';
 import { mapFilteredDatasetToAvailabilityDataset } from '../adapters';
-import type { SoilProperty, FilterCriteria } from 'types/backend';
+import type { SoilProperty, FilterCriteria, SoilPropertyCategory } from 'types/backend';
 import { computeDatasetSummary } from '../domain';
 import type { MultiPolygon, Polygon } from 'geojson';
 import { useSoilProperties } from '../hooks/useSoilProperties';
+import { usePropertiesCategories } from 'hooks/usePropertiesCategories';
 
 type AvailabilityContextType = {
   allSoilProperties: SoilProperty[];
   filteredSoilProperties: SoilProperty[];
+  categories: SoilPropertyCategory[];
   isLoadingSoilProperties: boolean;
   allDatasets: AvailabilityDataset[];
   datasets: AvailabilityDataset[];
@@ -56,6 +58,7 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
   const [preview, setPreview] = useState<boolean>(false);
   const [geometryfilter, setGeometryFilter] = useState<(Polygon | MultiPolygon)[]>([]);
   const [datasetFilters, setDatasetFilters] = useState<FilterCriteria>({});
+  const { data: categories, isLoading: isLoadingCategories } = usePropertiesCategories();
   const { data: allSoilProperties, isLoading: isLoadingSoilProperties } = useSoilProperties();
 
   const partialFilterPayload = useMemo(() => ({ geometries: geometryfilter, parameters: {} }), [geometryfilter]);
@@ -112,8 +115,8 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
   }, [searchValue, allDatasets, datasetFrontendFilters]);
 
   const isLoading = useMemo(() => {
-    return isLoadingPartialFilter || isLoadingFullFilter || isLoadingSoilProperties;
-  }, [isLoadingFullFilter, isLoadingPartialFilter, isLoadingSoilProperties]);
+    return isLoadingPartialFilter || isLoadingFullFilter || isLoadingSoilProperties || isLoadingCategories;
+  }, [isLoadingFullFilter, isLoadingPartialFilter, isLoadingSoilProperties, isLoadingCategories]);
 
   const isNoFilteredData = useMemo(() => {
     return fullFilterResults?.length === 0;
@@ -170,6 +173,7 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
         allSoilProperties: allSoilProperties || [],
         filteredSoilProperties,
         isLoadingSoilProperties,
+        categories: categories || [],
         allDatasets,
         datasets,
         selectedDatasets,

@@ -1,4 +1,8 @@
 .Accordion {
+  > .Content {
+    display: none;
+  }
+
   &.Opened {
     padding-bottom: 0;
     > .Header {
@@ -11,6 +15,10 @@
 
     > .PillsContainer {
       padding: 0 0.875rem 0.5rem;
+    }
+
+    > .Content {
+      display: block;
     }
 
     &.Primary {
@@ -29,6 +37,23 @@
       > .Header {
         > .Title {
           padding-bottom: 0;
+        }
+      }
+    }
+
+    &.Tertiary {
+      &:last-of-type {
+        padding-bottom: 0;
+      }
+
+      > .Header {
+        padding-bottom: 0.4687rem;
+        > .Title {
+          padding-bottom: 0;
+
+          > .ArrowIcon {
+            transform: rotate(-90deg);
+          }
         }
       }
     }
@@ -83,6 +108,23 @@
           > .Title {
             padding-bottom: 0.5625rem;
           }
+        }
+      }
+    }
+  }
+
+  &.Tertiary {
+    background-color: var(--color-neutral-dark-300);
+    border-radius: 0.25rem;
+
+    > .Header {
+      padding: 0.5rem 0.4687rem;
+      > .Title {
+        justify-content: flex-start;
+
+        .ArrowIcon,
+        .Icon {
+          color: var(--color-neutral-dark-600);
         }
       }
     }

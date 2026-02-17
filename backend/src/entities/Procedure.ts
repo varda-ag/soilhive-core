@@ -28,7 +28,7 @@ export default class ProcedureEntity extends BaseTable implements Procedure {
   technique?: ProcedureTechnique;
 
   @Column({ type: 'text', nullable: true })
-  extractant_formulation?: string;
+  laboratory_method?: string;
 
   @Column({ type: 'text', nullable: true })
   extractant_concentration?: string;
@@ -40,7 +40,7 @@ export default class ProcedureEntity extends BaseTable implements Procedure {
   extraction_base?: string;
 
   @Column({ type: 'text', nullable: true })
-  instrument?: string;
+  measurement_procedure?: string;
 
   @Column({ type: 'text', nullable: true })
   limit_of_detection?: string;

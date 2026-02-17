@@ -14,11 +14,11 @@ export interface SoilDataSample {
   horizon: string | null;
   sample_pretreatment: string | null;
   technique: string | null;
-  extractant_formulation: string | null;
+  laboratory_method: string | null;
   extractant_concentration: string | null;
   extraction_ratio: string | null;
   extraction_base: string | null;
-  instrument: string | null;
+  measurement_procedure: string | null;
   limit_of_detection: string | null;
   cursor: string;
 }

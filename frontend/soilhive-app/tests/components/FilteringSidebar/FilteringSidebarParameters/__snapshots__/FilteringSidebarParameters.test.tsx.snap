@@ -6,10 +6,12 @@ exports[`FilteringSidebarParameters renders accordion components 1`] = `
     class="FilteringSidebarParameters"
   >
     <div
+      data-open="false"
       data-testid="accordion"
     >
       <div
-        data-testid="accordion-title"
+        data-testid="accordion-header-Soil Properties"
+        role="button"
       >
         Soil Properties
       </div>
@@ -31,25 +33,81 @@ exports[`FilteringSidebarParameters renders accordion components 1`] = `
             Expand All
           </div>
           <div
-            data-expanded="false"
-            data-testid="nested-checkbox"
+            class="SoilPropertiesList"
+            data-testid="properties-list"
           >
             <div
-              data-testid="nested-checkbox-items"
+              data-open="false"
+              data-testid="accordion"
             >
-              [{"id":"1","label":"First","isRoot":true,"children":[{"id":"1-1","label":"First-First","isRoot":false,"children":[{"id":"1-1-1","label":"First first first","isRoot":false,"children":[]},{"id":"1-1-2","label":"First first second","isRoot":false,"children":[]}]},{"id":"1-2","label":"First-Second","isRoot":false,"children":[]}]},{"id":"2","label":"Second","isRoot":true,"children":[{"id":"2-1","label":"Second-First","isRoot":false,"children":[]},{"id":"2-2","label":"Second-Second","isRoot":false,"children":[]}]}]
+              <div
+                data-testid="accordion-header-Biological"
+                role="button"
+              >
+                Biological
+              </div>
+              <div
+                data-testid="accordion-content"
+              >
+                <div
+                  data-expanded="false"
+                  data-testid="nested-checkbox"
+                >
+                  <div
+                    data-testid="nested-checkbox-items"
+                  >
+                    [{"id":"b-1","label":"B1","isRoot":true,"children":[{"id":"b-1-1","label":"First first first","isRoot":false,"children":[]},{"id":"b-1-2","label":"First first second","isRoot":false,"children":[]}]},{"id":"b-2","label":"B2","isRoot":true,"children":[]}]
+                  </div>
+                  <div
+                    data-testid="nested-checkbox-selected"
+                  >
+                    []
+                  </div>
+                  <button
+                    data-testid="nested-checkbox-change"
+                  />
+                  <button
+                    data-testid="nested-checkbox-toggle-visibility"
+                  />
+                </div>
+              </div>
             </div>
             <div
-              data-testid="nested-checkbox-selected"
+              data-open="false"
+              data-testid="accordion"
             >
-              []
+              <div
+                data-testid="accordion-header-Chemical"
+                role="button"
+              >
+                Chemical
+              </div>
+              <div
+                data-testid="accordion-content"
+              >
+                <div
+                  data-expanded="false"
+                  data-testid="nested-checkbox"
+                >
+                  <div
+                    data-testid="nested-checkbox-items"
+                  >
+                    [{"id":"c-1","label":"C1","isRoot":true,"children":[]}]
+                  </div>
+                  <div
+                    data-testid="nested-checkbox-selected"
+                  >
+                    []
+                  </div>
+                  <button
+                    data-testid="nested-checkbox-change"
+                  />
+                  <button
+                    data-testid="nested-checkbox-toggle-visibility"
+                  />
+                </div>
+              </div>
             </div>
-            <button
-              data-testid="nested-checkbox-change"
-            />
-            <button
-              data-testid="nested-checkbox-toggle-visibility"
-            />
           </div>
         </div>
       </div>
