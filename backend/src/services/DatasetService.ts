@@ -1,23 +1,22 @@
 import { StatusCodes } from 'http-status-codes';
 import { RequestData } from '../interfaces/RequestData';
 import { ErrorResponse } from '../utils/error';
-import { Dataset } from '../interfaces/Dataset';
 import DatasetEntity from '../entities/Dataset';
 import { CreateDatasetInput, UpdateDatasetInput } from '../types/DatasetInput';
 import { getEntity } from '../utils/slugs';
 import { EntityType } from '../types/data';
 
 export default class DatasetService {
-  getDatasets = async (requestData: RequestData): Promise<Dataset[]> => {
+  getDatasets = async (requestData: RequestData): Promise<DatasetEntity[]> => {
     const repo = requestData.entityManager.getRepository(DatasetEntity);
     return await repo.find();
   };
 
-  getDataset = async (requestData: RequestData, slug: string): Promise<Dataset> => {
+  getDataset = async (requestData: RequestData, slug: string): Promise<DatasetEntity> => {
     return await getEntity(requestData, DatasetEntity, EntityType.DATASET, slug);
   };
 
-  createDataset = async (requestData: RequestData, data: CreateDatasetInput): Promise<Dataset> => {
+  createDataset = async (requestData: RequestData, data: CreateDatasetInput): Promise<DatasetEntity> => {
     const repo = requestData.entityManager.getRepository(DatasetEntity);
 
     const { sub } = requestData.token ?? {};
@@ -44,7 +43,7 @@ export default class DatasetService {
     }
   };
 
-  updateDataset = async (requestData: RequestData, slug: string, data: UpdateDatasetInput): Promise<Dataset> => {
+  updateDataset = async (requestData: RequestData, slug: string, data: UpdateDatasetInput): Promise<DatasetEntity> => {
     const repo = requestData.entityManager.getRepository(DatasetEntity);
     const { sub } = requestData.token ?? {};
 

@@ -53,7 +53,7 @@ describe('DatasetFileMappingService', () => {
 
     expect(result).toBeDefined();
     expect(result.id).toBe(datasetFileMapping.id);
-    expect(result.mappingId).toBe(dataMapping.id);
+    expect(result.data_mapping_id).toBe(dataMapping.id);
   });
 
   it('should throw 404 when dataset file mapping not found', async () => {
@@ -94,7 +94,7 @@ describe('DatasetFileMappingService', () => {
 
     expect(result).toBeDefined();
     expect(result.length).toBeGreaterThanOrEqual(1);
-    expect(result[0].fileID).toBe(file1.id);
+    expect(result[0].file_id).toBe(file1.id);
   });
 
   it('should throw 404 when no mappings found for dataset', async () => {
@@ -156,8 +156,8 @@ describe('DatasetFileMappingService', () => {
     // Assert
     expect(result).toBeDefined();
     expect(result.id).toBeDefined();
-    expect(result.fileID).toBeDefined();
-    expect(result.mappingId).not.toBeDefined();
+    expect(result.file_id).toBeDefined();
+    expect(result.data_mapping_id).toBeNull();
 
     const saved = await entityManager.getRepository(DatasetFileMappingEntity).findOneBy({ id: result.id });
 

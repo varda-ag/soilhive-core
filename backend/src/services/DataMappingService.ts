@@ -1,5 +1,5 @@
 import { StatusCodes } from 'http-status-codes';
-import { DataMapping, DataCleaningConfig } from '../interfaces/DataMapping';
+import { DataCleaningConfig } from '../interfaces/DataMapping';
 import { PropertyMapping, PropertyCleaningConfig } from '../interfaces/PropertyMapping';
 import { RequestData } from '../interfaces/RequestData';
 import type { DataMappingObject } from '../types/DataMapping';
@@ -14,10 +14,8 @@ import SoilPropertyService from './SoilPropertyService';
 import ProcedureService from './ProcedureService';
 import { sanitizeField } from '../utils/utils';
 
-type PostMappingResponse = Pick<DataMapping, 'id' | 'data_mapping'>;
-
 export default class DataMappingService {
-  postDataMapping = async (requestData: RequestData, dataMapping: DataMappingObject): Promise<PostMappingResponse> => {
+  postDataMapping = async (requestData: RequestData, dataMapping: DataMappingObject): Promise<DataMappingEntity> => {
     const { sub } = requestData.token ?? {};
     // Validate
     if (dataMapping.drop_records && !Array.isArray(dataMapping.drop_records)) {
@@ -41,12 +39,9 @@ export default class DataMappingService {
       .returning('*') // ensure we get the full record back (Postgres specific)
       .execute();
 
-    const row = result.generatedMaps[0] as DataMapping;
+    const row = result.raw[0] as DataMappingEntity;
 
-    return {
-      id: row.id,
-      data_mapping: row.data_mapping,
-    } as PostMappingResponse;
+    return repo.create(row);
   };
 
   parseDataMapping = async (requestData: RequestData, id: string): Promise<DataCleaningConfig> => {
@@ -54,7 +49,8 @@ export default class DataMappingService {
       metadata_cols: {},
       property_cols: {},
     };
-    const data_mapping = await this.getDataMapping(requestData, id);
+    const dataMappingEntity = await this.getDataMapping(requestData, id);
+    const data_mapping = dataMappingEntity.data_mapping;
 
     const conversionSlugs: string[] = Object.values(data_mapping)
       .filter(mapping => typeof mapping === 'object' && (mapping as PropertyMapping).conversion_id !== undefined)
@@ -130,13 +126,13 @@ export default class DataMappingService {
     return result;
   };
 
-  getDataMapping = async (requestData: RequestData, id: string): Promise<DataMappingObject> => {
+  getDataMapping = async (requestData: RequestData, id: string): Promise<DataMappingEntity> => {
     const repo = requestData.entityManager.getRepository(DataMappingEntity);
     const dataMapping = await repo.findOneBy({ id });
     if (!dataMapping) {
       throw new ErrorResponse(`Mapping with ID ${id} not found`, StatusCodes.NOT_FOUND);
     }
-    return dataMapping.data_mapping;
+    return dataMapping;
   };
 
   deleteDataMapping = async (requestData: RequestData, id: string): Promise<void> => {

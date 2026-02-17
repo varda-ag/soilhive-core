@@ -8,7 +8,7 @@ import { ErrorResponse } from '../utils/error';
 import { StatusCodes } from 'http-status-codes';
 
 export default class DatasetFileMappingService {
-  private mapResultToResponse = (resultData: any): DatasetFileMappingResponse => {
+  static mapResultToResponse = (resultData: any): DatasetFileMappingResponse => {
     const retVal: any = {
       id: resultData?.['id'],
     };
@@ -28,7 +28,7 @@ export default class DatasetFileMappingService {
     requestData: RequestData,
     datasetId: string,
     payload: DatasetFileMappingRequest,
-  ): Promise<DatasetFileMappingResponse> => {
+  ): Promise<DatasetFileMappingEntity> => {
     const { entityManager } = requestData;
 
     const dataset = await getEntity(requestData, DatasetEntity, EntityType.DATASET, datasetId);
@@ -49,15 +49,11 @@ export default class DatasetFileMappingService {
 
     // Insert new mapping
     try {
-      const result = await repo
-        .createQueryBuilder()
-        .insert()
-        .into(DatasetFileMappingEntity)
-        .values(values)
-        .returning(['id', 'file_id', 'data_mapping_id'])
-        .execute();
+      const result = await repo.createQueryBuilder().insert().into(DatasetFileMappingEntity).values(values).returning('*').execute();
 
-      return this.mapResultToResponse(result.generatedMaps[0]);
+      const row = result.raw[0] as DatasetFileMappingEntity;
+
+      return repo.create(row);
     } catch (error: any) {
       if (error.code === '23505') {
         // unique violation
@@ -75,7 +71,7 @@ export default class DatasetFileMappingService {
     datasetSlug: string,
     mappingId: string,
     payload: DatasetFileMappingRequest,
-  ): Promise<DatasetFileMappingResponse> => {
+  ): Promise<DatasetFileMappingEntity> => {
     const { entityManager } = requestData;
 
     const dataset = await getEntity(requestData, DatasetEntity, EntityType.DATASET, datasetSlug);
@@ -101,13 +97,15 @@ export default class DatasetFileMappingService {
       .set(updateValues)
       .where('id = :id', { id: mappingId })
       .andWhere('dataset_id = :datasetId', { datasetId: dataset.id })
-      .returning(['id', 'file_id', 'data_mapping_id'])
+      .returning('*')
       .execute();
 
-    return this.mapResultToResponse(result.raw[0]);
+    const row = result.raw[0] as DatasetFileMappingEntity;
+
+    return repo.create(row);
   };
 
-  getDatasetFileMapping = async (requestData: RequestData, datasetFileMappingId: string): Promise<DatasetFileMappingResponse> => {
+  getDatasetFileMapping = async (requestData: RequestData, datasetFileMappingId: string): Promise<DatasetFileMappingEntity> => {
     const { entityManager } = requestData;
 
     const repo = entityManager.getRepository(DatasetFileMappingEntity);
@@ -119,10 +117,10 @@ export default class DatasetFileMappingService {
       throw new ErrorResponse(`DatasetFileMapping with ID '${datasetFileMappingId}' not found`, StatusCodes.NOT_FOUND);
     }
 
-    return this.mapResultToResponse(mapping);
+    return mapping;
   };
 
-  getMappings = async (requestData: RequestData, datasetId: string, fileId?: string): Promise<DatasetFileMappingResponse[]> => {
+  getMappings = async (requestData: RequestData, datasetId: string, fileId?: string): Promise<DatasetFileMappingEntity[]> => {
     const { entityManager } = requestData;
 
     // the id coming in as parameter is the slug that allow us to load the dataset iwth it's actual uuid
@@ -148,6 +146,6 @@ export default class DatasetFileMappingService {
       throw new ErrorResponse(`No DatasetFileMappings found for dataset '${datasetId}'${fileIdMsg}`, StatusCodes.NOT_FOUND);
     }
 
-    return datasetFileMappings.map(mapping => this.mapResultToResponse(mapping));
+    return datasetFileMappings;
   };
 }

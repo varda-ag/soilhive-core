@@ -15,6 +15,7 @@ import { FileStorage } from '@flystorage/file-storage';
 
 // Use absolute path from package root
 const vectorFilesPassPath = path.join(__dirname, '../assets/vector_files/pass');
+const fakeId = '00000000-0000-0000-0000-000000000000';
 
 describe('Testing /files routes', () => {
   const fileName = 'sample_point.geojson';
@@ -99,16 +100,12 @@ describe('Testing /files routes', () => {
     });
 
     it('should return 404 when file does not exist', async () => {
-      const fakeId = '00000000-0000-0000-0000-000000000000';
-
       const res = await request(app).get(`/files/${fakeId}`).set(dataAdminAuthHeader);
 
       expect(res.statusCode).toBe(StatusCodes.NOT_FOUND);
     });
 
     it('should return 401 Unauthorized when no token is provided', async () => {
-      const fakeId = '00000000-0000-0000-0000-000000000000';
-
       const res = await request(app).get(`/files/${fakeId}`);
 
       expect(res.statusCode).toBe(StatusCodes.UNAUTHORIZED);
@@ -147,16 +144,12 @@ describe('Testing /files routes', () => {
     });
 
     it('should return 404 when file does not exist', async () => {
-      const fakeId = '00000000-0000-0000-0000-000000000000';
-
       const res = await request(app).get(`/files/${fakeId}/download`).set(dataAdminAuthHeader);
 
       expect(res.statusCode).toBe(StatusCodes.NOT_FOUND);
     });
 
     it('should return 401 Unauthorized when no token is provided', async () => {
-      const fakeId = '00000000-0000-0000-0000-000000000000';
-
       const res = await request(app).get(`/files/${fakeId}/download`);
 
       expect(res.statusCode).toBe(StatusCodes.UNAUTHORIZED);

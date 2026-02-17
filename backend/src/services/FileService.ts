@@ -110,12 +110,12 @@ export default class FileService {
     return adapter;
   };
 
-  getFiles = async (requestData: RequestData): Promise<File[]> => {
+  getFiles = async (requestData: RequestData): Promise<FileEntity[]> => {
     const repo = requestData.entityManager.getRepository(FileEntity);
     return await repo.find();
   };
 
-  getFile = async (requestData: RequestData, fileId: string): Promise<File> => {
+  getFile = async (requestData: RequestData, fileId: string): Promise<FileEntity> => {
     const { entityManager } = requestData;
 
     const repo = entityManager.getRepository(FileEntity);
@@ -130,7 +130,7 @@ export default class FileService {
     return file;
   };
 
-  createFile = async (requestData: RequestData, data: Partial<File>): Promise<File> => {
+  createFile = async (requestData: RequestData, data: Partial<File>): Promise<FileEntity> => {
     const repo = requestData.entityManager.getRepository(FileEntity);
     const { sub } = requestData.token;
 
@@ -153,7 +153,7 @@ export default class FileService {
     }
   };
 
-  updateFile = async (requestData: RequestData, slug: string, data: Partial<File>): Promise<File> => {
+  updateFile = async (requestData: RequestData, slug: string, data: Partial<File>): Promise<FileEntity> => {
     const repo = requestData.entityManager.getRepository(FileEntity);
     const { sub } = requestData.token;
 
