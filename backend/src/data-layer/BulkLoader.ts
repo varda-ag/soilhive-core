@@ -16,6 +16,7 @@ import { getLoopbackUrl } from '../utils/utils';
 import VectorDataLoad from './VectorDataLoad';
 import { ErrorResponse } from '../utils/error';
 import { StatusCodes } from 'http-status-codes';
+import { SoilRecord } from '../interfaces/Record';
 
 export default class BulkLoader {
   startBulkLoad = async (input: BulkLoadJob): Promise<void> => {
@@ -31,11 +32,11 @@ export default class BulkLoader {
       const mappingService = new DatasetFileMappingService();
       const datasetFileMappings = await mappingService.getMappings(requestData, dataset.slug);
       const files = await this.getPendingFilesWithMapping(entityManager, datasetFileMappings);
-      files.forEach(file => async () => {
+      for (const file of files) {
         const datasetFileMapping = datasetFileMappings.find(m => m.file_id === file.id);
         assert(datasetFileMapping, `No dataset file mapping found for file ${file.id}`);
         await this.processFile(file, requestData, datasetFileMapping, input.dataset_id);
-      });
+      }
 
       dataset.status = IngestionStatus.INGESTED;
       await dataset.save();
@@ -66,14 +67,20 @@ export default class BulkLoader {
     const service = new DataMappingService();
     const dataMappingConfig = await service.parseDataMapping(requestData, datasetFileMapping.data_mapping_id);
     const BATCH_SIZE = 100;
+    const PAYLOAD_SIZE = 10;
     const PARALLELISM = 1;
     const limit = pLimit(PARALLELISM);
     while (true) {
       // Get the data from the preview
       const results = await vdl.getDataPreview(requestData.entityManager, dataMappingConfig, file.id, BATCH_SIZE, cursor);
 
+      const payloads: SoilRecord[][] = [];
+      for (let i = 0; i < results.length; i += PAYLOAD_SIZE) {
+        payloads.push(results.slice(i, i + PAYLOAD_SIZE));
+      }
+
       // Make parallel requests to the loopback endpoint for each record in the preview
-      const promises = results.map(result => limit(() => this.makeRequest(datasetSlug, datasetFileMapping.id, result)));
+      const promises = payloads.map(payload => limit(() => this.makeRequest(datasetSlug, datasetFileMapping.id, payload)));
 
       try {
         await Promise.all(promises);
@@ -89,7 +96,7 @@ export default class BulkLoader {
     }
   };
 
-  private makeRequest = (datasetSlug: string, datasetFileMappingId: string, payload: any) =>
+  public makeRequest = (datasetSlug: string, datasetFileMappingId: string, payload: any) =>
     new Promise((resolve, reject) => {
       const postData = JSON.stringify(payload);
       const url = `${getLoopbackUrl()}/datasets/${datasetSlug}/dataset-file-mapping/${datasetFileMappingId}/soil-data`;

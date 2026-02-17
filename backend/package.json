@@ -71,7 +71,7 @@
       "^.+\\.(ts|js)x?$": "ts-jest"
     },
     "transformIgnorePatterns": [
-      "<rootDir>/node_modules/(?!(pg-boss|serialize-error|non-error)/)"
+      "<rootDir>/node_modules/(?!(pg-boss|serialize-error|non-error|p-limit|yocto-queue)/)"
     ],
     "preset": "ts-jest",
     "testEnvironment": "node",

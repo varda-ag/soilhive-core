@@ -433,6 +433,9 @@ export const addSyntheticIngestionData = async (syntheticIngestionDataOptions): 
 
   const dataMapping = await addDataMapping(createdDataMapping);
   const datasetFileMapping = await addDatasetFileMapping(dataset.id, dataMapping.id);
+  datasetFileMapping.file_id = file.id;
+  datasetFileMapping.save();
+
   if (syntheticIngestionDataOptions.createTable) {
     // Load raw data sample
     const sqlFile = path.join(__dirname, '..', '..', 'tests', 'assets', 'raw_data', 'raw_data_insert.sql');

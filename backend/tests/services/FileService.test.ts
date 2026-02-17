@@ -142,7 +142,7 @@ describe('FileService', () => {
       expect(metadata.detected_fields).toHaveProperty(DetectableFields.CRS);
       expect(metadata.detected_fields[DetectableFields.CRS]).toBeNull();
     });
-    it('should create table in DB with column names as sanititized field_names', async () => {
+    it('should create table in DB with column names as sanitized field_names', async () => {
       const fileId = uuidv7();
       await fileService.fileToDB(fileId, fileKey, metadata);
       const tableColumns = await getTableColumns(`file_${sanitizeField(fileId)}_raw`);
@@ -164,6 +164,7 @@ describe('FileService', () => {
     let metadata: FileMetadata;
 
     beforeAll(async () => {
+      setLocalStorageRootFolder(vectorFilesPassPath);
       metadata = await fileService.extractMetadata(fileKey);
     });
 

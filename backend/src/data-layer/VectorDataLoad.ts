@@ -11,7 +11,7 @@ import { sanitizeField } from '../utils/utils';
 
 export default class VectorDataLoad {
   static getRawTableName = (fileId: string): string => {
-    return `${process.env.POSTGRES_SCHEMA}.file_${sanitizeField(fileId)}_raw`;
+    return `file_${sanitizeField(fileId)}_raw`;
   };
 
   /**
