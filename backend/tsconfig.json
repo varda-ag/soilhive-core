@@ -55,6 +55,6 @@
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true
   },
-  "include": ["./src/**/*.ts", "./tests/**/*.ts", "jest.config.js", "jest.env.js"],
+  "include": ["./src/**/*.ts", "jest.config.js", "jest.env.js"],
   "exclude": ["node_modules", "src/**/*.test.ts", "src/**/*.test.ts", "src/**/__tests__"]
 }
