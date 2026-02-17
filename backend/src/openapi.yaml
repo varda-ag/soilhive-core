@@ -1508,9 +1508,13 @@ components:
         - geometry
       properties:
         sampling_date:
-          type: string
-          format: date
-          nullable: true
+          anyOf:
+          - type: string
+            format: date
+            nullable: true
+          - type: string
+            format: date-time
+            nullable: true
         license:
           type: string
           nullable: true
@@ -1526,7 +1530,7 @@ components:
         geometry:
           $ref: '#/components/schemas/Geometry'
       additionalProperties:
-        oneOf:
+        anyOf:
           - type: string
             nullable: true
           - type: number

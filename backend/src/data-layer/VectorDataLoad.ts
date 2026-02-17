@@ -28,7 +28,10 @@ export default class VectorDataLoad {
     query = getDataPreviewQuery(query, dataMappingConfig, cursor);
     // Workaround using raw query to be able to use dynamic table name without entity
     const results = await entityManager.query(...query.take(limit).getQueryAndParameters());
-    return results;
+    // Convert geometry string to JSON
+    return results.map(r => {
+      return { ...r, geometry: JSON.parse(r.geometry) };
+    });
   };
 
   rawRecordToDataModel = async (
@@ -129,9 +132,11 @@ export default class VectorDataLoad {
       .execute();
 
     const datasetLayerIdMap = new Map<string, string>();
-    for (const row of insertedDatasetLayers.raw) {
-      const key = `${row.dataset_id}_${row.layer_id}_${row.feature_id}_${row.soil_property_id}`;
-      datasetLayerIdMap.set(key, row.id);
+    if (insertedDatasetLayers.raw) {
+      for (const row of insertedDatasetLayers.raw) {
+        const key = `${row.dataset_id}_${row.layer_id}_${row.feature_id}_${row.soil_property_id}`;
+        datasetLayerIdMap.set(key, row.id);
+      }
     }
     // prep observations with dataset_layer_id
     const finalObservationRows = observationRows.map(r => {

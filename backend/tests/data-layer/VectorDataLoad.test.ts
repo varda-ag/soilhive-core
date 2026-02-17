@@ -30,13 +30,13 @@ describe('VectorDataLoad class', () => {
     const dataMappingConfig = await service.parseDataMapping(requestData, dataMapping.id);
     const results = await vdl.getDataPreview(entityManager, dataMappingConfig, file.id);
     expect(results.length).toBe(DATA_PREVIEW_SIZE - (dataMappingConfig.drop_records ? dataMappingConfig.drop_records.length : 0));
-    const resultBdfi33 = results.map(r => parseFloat(r.bdfi33)).filter(n => !isNaN(n));
+    const resultBdfi33 = results.map(r => parseFloat(r.bdfi33 as string)).filter(n => !isNaN(n));
     const maxBdfi33 = resultBdfi33.length ? Math.max(...resultBdfi33) : null;
     expect(maxBdfi33).toBeLessThanOrEqual(syntheticIngestionDataOptions.columnMapping.bdfi33.max_val);
-    const resultBdfiod = results.map(r => parseFloat(r.bdfiod)).filter(n => !isNaN(n));
+    const resultBdfiod = results.map(r => parseFloat(r.bdfiod as string)).filter(n => !isNaN(n));
     const minBdfiod = resultBdfiod.length ? Math.min(...resultBdfiod) : null;
     expect(minBdfiod).toBeGreaterThanOrEqual(syntheticIngestionDataOptions.columnMapping.bdfiod.min_val);
-    const resultRecordIds = results.map(r => parseFloat(r.record_id));
+    const resultRecordIds = results.map(r => parseFloat(r.record_id as string));
     const maxRecordId = Math.max(...resultRecordIds);
     expect(maxRecordId).toBe(10135);
   });

@@ -36,6 +36,8 @@ export default class BulkLoader {
         const datasetFileMapping = datasetFileMappings.find(m => m.file_id === file.id);
         assert(datasetFileMapping, `No dataset file mapping found for file ${file.id}`);
         await this.processFile(file, requestData, datasetFileMapping, input.dataset_id);
+        file.status = IngestionStatus.INGESTED;
+        await file.save();
       }
 
       dataset.status = IngestionStatus.INGESTED;
