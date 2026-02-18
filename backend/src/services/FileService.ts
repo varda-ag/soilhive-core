@@ -62,12 +62,6 @@ export default class FileService {
         };
         req.customData = req.customData || {};
         req.customData.uploadedFileInfo = uploadedFileInfo;
-        if (adapter.constructor.name === 'LocalStorageAdapter') {
-          const fullPath = path.join(adapter.rootDir, path.dirname(destination));
-          if (!fs.existsSync(fullPath)) {
-            fs.mkdirSync(fullPath, { recursive: true });
-          }
-        }
         return destination;
       } else {
         // Return folder name/destination if needed
@@ -97,8 +91,9 @@ export default class FileService {
       }
       case StorageModes.S3: {
         const s3Config = config.config as S3StorageConfig;
-        const s3Client = new S3Client({ region: s3Config.region,
-          ...(s3Config.endpoint ? { endpoint: s3Config.endpoint, forcePathStyle: true, } : {}),
+        const s3Client = new S3Client({
+          region: s3Config.region,
+          ...(s3Config.endpoint ? { endpoint: s3Config.endpoint, forcePathStyle: true } : {}),
           ...(s3Config.credentials ? { credentials: s3Config.credentials } : {}),
         }) as any;
         adapter = new AwsS3StorageAdapter(s3Client, {
