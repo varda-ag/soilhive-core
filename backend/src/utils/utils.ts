@@ -1,5 +1,4 @@
 import { config } from 'dotenv';
-import { setupTestEnv } from '../../tests/environment';
 
 export const isJest = () => process.env.JEST_WORKER_ID !== undefined || process.env.NODE_ENV === 'test';
 
@@ -17,11 +16,11 @@ export const sanitizeField = (field: string, removeSpacePlaceholders: boolean = 
 
 export const setupEnv = () => {
   if (isJest()) {
-    setupTestEnv();
-  } else {
-    // Load local .env only outside tests
-    config({ path: '.env' });
+    // Tests have a custom environment
+    return;
   }
+  // Load local .env only outside tests
+  config({ path: '.env' });
 };
 
 export const getServerPort = (): number => {
