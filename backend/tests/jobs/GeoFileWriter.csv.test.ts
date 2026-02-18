@@ -5,7 +5,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import * as gdal from 'gdal-async';
 import { GeoFileWriter } from '../../src/jobs/soil-export/GeoFileWriter';
-import { FileFormat, soilSampleToExportRecord } from '../../src/jobs/soil-export/types';
+import { EXPORT_SCHEMA, FileFormat, soilSampleToExportRecord } from '../../src/jobs/soil-export/types';
 import { SoilDataSample } from '../../src/interfaces/SoilDataSample';
 
 const TEST_OUTPUT_DIR = path.join(__dirname, 'output');
@@ -195,6 +195,48 @@ describe('GeoFileWriter', () => {
       // --- Verify no cross-contamination ---
       expect(alValues).not.toEqual(expect.arrayContaining([55.5, 66.6, 77.7]));
       expect(caValues).not.toEqual(expect.arrayContaining([10.1, 20.2, 30.3]));
+    });
+  });
+
+  describe('ESRI Shapefile field name truncation', () => {
+    it('should use truncated field names for SHP format to comply with 10-character limit', async () => {
+      // We only care about SHP for this specific logic
+      const format = FileFormat.SHP;
+      const writer = new GeoFileWriter(format);
+      const property = 'Al';
+
+      await writer.openFile(TEST_OUTPUT_DIR);
+      await writer.setProperty(property);
+
+      // Write a sample record
+      const sample = makeSample({ id: '1', property_acronym: property });
+      await writer.writeRecord(soilSampleToExportRecord(sample));
+      await writer.closeFile();
+
+      // Verify via GDAL
+      const dataset = gdal.open(getVerificationPath(format, property), 'r');
+      const layer = dataset.layers.get(0);
+
+      // Get all field names currently in the SHP file
+      const actualFieldNames: string[] = [];
+      for (let i = 0; i < layer.fields.count(); i++) {
+        actualFieldNames.push(layer.fields.get(i).name);
+      }
+
+      // Check against EXPORT_SCHEMA
+      // For SHP, every field name in the file should match field.title_truncated
+      EXPORT_SCHEMA.forEach(field => {
+        // 'geom' is handled as geometry, not a field, in SHP
+        if (field.key !== 'geom') {
+          expect(actualFieldNames).toContain(field.title_truncated);
+          // Also verify it did NOT use the full title if they are different
+          if (field.title !== field.title_truncated) {
+            expect(actualFieldNames).not.toContain(field.title);
+          }
+        }
+      });
+
+      dataset.close();
     });
   });
 });

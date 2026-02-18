@@ -39,13 +39,13 @@ export interface SoilExportJobState {
 export interface ExportRecord {
   geom: string; // WKT format:
   dataset_name: string;
-  license: string;
+  license: string | null;
   sampling_date: string | null;
   min_depth: number | null;
   max_depth: number | null;
   horizon: string | null;
   value: number;
-  unit: string;
+  unit: string | null;
   sample_pretreatment: string | null;
   technique: string | null;
   laboratory_method: string | null;
@@ -62,6 +62,7 @@ export interface ExportRecord {
 export interface FieldMetadata {
   key: keyof ExportRecord;
   title: string;
+  title_truncated: string;
   type: 'string' | 'number';
   gdalType?: 'OFTString' | 'OFTReal';
 }
@@ -69,25 +70,32 @@ export interface FieldMetadata {
 /**
  * Centralized export schema - single source of truth
  * Modify this array to add/remove/reorder fields
+ * Important! Title truncated is used for shape files. Can'r exceed 10 chars
  */
 export const EXPORT_SCHEMA: FieldMetadata[] = [
-  { key: 'geom', title: 'geom', type: 'string', gdalType: 'OFTString' },
-  { key: 'dataset_name', title: 'dataset_name', type: 'string', gdalType: 'OFTString' },
-  { key: 'license', title: 'license', type: 'string', gdalType: 'OFTString' },
-  { key: 'sampling_date', title: 'sampling_date', type: 'string', gdalType: 'OFTString' },
-  { key: 'min_depth', title: 'min_depth', type: 'number', gdalType: 'OFTReal' },
-  { key: 'max_depth', title: 'max_depth', type: 'number', gdalType: 'OFTReal' },
-  { key: 'horizon', title: 'horizon', type: 'string', gdalType: 'OFTString' },
-  { key: 'value', title: 'value', type: 'number', gdalType: 'OFTReal' },
-  { key: 'unit', title: 'unit', type: 'string', gdalType: 'OFTString' },
-  { key: 'sample_pretreatment', title: 'sample_pretreatment', type: 'string', gdalType: 'OFTString' },
-  { key: 'technique', title: 'technique', type: 'string', gdalType: 'OFTString' },
-  { key: 'laboratory_method', title: 'laboratory_method', type: 'string', gdalType: 'OFTString' },
-  { key: 'extractant_concentration', title: 'extractant_concentration', type: 'string', gdalType: 'OFTString' },
-  { key: 'extraction_ratio', title: 'extraction_ratio', type: 'string', gdalType: 'OFTString' },
-  { key: 'extraction_base', title: 'extraction_base', type: 'string', gdalType: 'OFTString' },
-  { key: 'measurement_procedure', title: 'measurement_procedure', type: 'string', gdalType: 'OFTString' },
-  { key: 'limit_of_detection', title: 'limit_of_detection', type: 'string', gdalType: 'OFTString' },
+  { key: 'geom', title: 'geom', title_truncated: 'geom', type: 'string', gdalType: 'OFTString' },
+  { key: 'dataset_name', title: 'dataset_name', title_truncated: 'dataset', type: 'string', gdalType: 'OFTString' },
+  { key: 'license', title: 'license', title_truncated: 'license', type: 'string', gdalType: 'OFTString' },
+  { key: 'sampling_date', title: 'sampling_date', title_truncated: 'date', type: 'string', gdalType: 'OFTString' },
+  { key: 'min_depth', title: 'min_depth', title_truncated: 'min_depth', type: 'number', gdalType: 'OFTReal' },
+  { key: 'max_depth', title: 'max_depth', title_truncated: 'max_depth', type: 'number', gdalType: 'OFTReal' },
+  { key: 'horizon', title: 'horizon', title_truncated: 'horizon', type: 'string', gdalType: 'OFTString' },
+  { key: 'value', title: 'value', title_truncated: 'value', type: 'number', gdalType: 'OFTReal' },
+  { key: 'unit', title: 'unit', title_truncated: 'unit', type: 'string', gdalType: 'OFTString' },
+  { key: 'sample_pretreatment', title: 'sample_pretreatment', title_truncated: 'pretreat', type: 'string', gdalType: 'OFTString' },
+  { key: 'technique', title: 'technique', title_truncated: 'technique', type: 'string', gdalType: 'OFTString' },
+  { key: 'laboratory_method', title: 'laboratory_method', title_truncated: 'lab_method', type: 'string', gdalType: 'OFTString' },
+  {
+    key: 'extractant_concentration',
+    title: 'extractant_concentration',
+    title_truncated: 'extrac_con',
+    type: 'string',
+    gdalType: 'OFTString',
+  },
+  { key: 'extraction_ratio', title: 'extraction_ratio', title_truncated: 'ratio', type: 'string', gdalType: 'OFTString' },
+  { key: 'extraction_base', title: 'extraction_base', title_truncated: 'base', type: 'string', gdalType: 'OFTString' },
+  { key: 'measurement_procedure', title: 'measurement_procedure', title_truncated: 'measure', type: 'string', gdalType: 'OFTString' },
+  { key: 'limit_of_detection', title: 'limit_of_detection', title_truncated: 'lod', type: 'string', gdalType: 'OFTString' },
 ];
 
 /**

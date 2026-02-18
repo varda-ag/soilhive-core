@@ -4,10 +4,10 @@ export interface SoilDataSample {
   dataset_name: string;
   soil_property: string;
   property_acronym: string;
-  standard_unit: string;
+  standard_unit: string | null;
   value: number;
   geometry: any;
-  license_name: string;
+  license_name: string | null;
   sampling_date: string | null;
   min_depth: number | null;
   max_depth: number | null;

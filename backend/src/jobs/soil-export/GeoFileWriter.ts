@@ -3,7 +3,7 @@
 import * as path from 'path';
 import * as fs from 'fs';
 import * as gdal from 'gdal-async';
-import { ExportRecord, FileFormat, EXPORT_SCHEMA } from './types';
+import { ExportRecord, FileFormat, EXPORT_SCHEMA, FieldMetadata } from './types';
 
 export class GeoFileWriter {
   private dataset: gdal.Dataset | null = null;
@@ -78,7 +78,7 @@ export class GeoFileWriter {
         if (this.isTabularFormat()) if (record.geom) feature.fields.set('geom', record.geom);
         continue;
       }
-      const fieldName = this.truncateFieldName(field.title);
+      const fieldName = this.getFieldName(field);
 
       const value = record[field.key];
 
@@ -157,7 +157,7 @@ export class GeoFileWriter {
     for (const field of EXPORT_SCHEMA) {
       if (field.key === 'geom' && !this.isTabularFormat()) continue; // geometry is always handled separately for some formats
 
-      const fieldName = this.truncateFieldName(field.title);
+      const fieldName = this.getFieldName(field);
       const gdalFieldType = field.gdalType === 'OFTReal' ? gdal.OFTReal : gdal.OFTString;
       layer.fields.add(new gdal.FieldDefn(fieldName, gdalFieldType));
     }
@@ -226,10 +226,11 @@ export class GeoFileWriter {
     }
   }
 
-  private truncateFieldName(name: string): string {
-    if (this.fileFormat === FileFormat.SHP && name.length > 10) {
-      return name.substring(0, 10);
+  private getFieldName(field: FieldMetadata): string {
+    if (this.fileFormat === FileFormat.SHP) {
+      return field.title_truncated;
     }
-    return name;
+
+    return field.title;
   }
 }
