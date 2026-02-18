@@ -2,42 +2,81 @@ import { Dropdown } from 'primereact/dropdown';
 import { Calendar } from 'primereact/calendar';
 import { Dialog } from 'primereact/dialog';
 import type { Nullable } from 'primereact/ts-helpers';
-import { useMemo, useState, type Dispatch, type SetStateAction } from 'react';
+import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import styles from './DownloadPreviewFilters.module.scss';
 import useDevice from 'hooks/useDevice';
 import { Button } from 'components/UI';
+import type { SoilProperty } from 'types/backend';
+import type { PreviewFilters } from 'types/downloadPreview';
 
-const datasets = [
-  { name: 'iSDA Africa Field Data', value: 'isda' },
-  { name: 'Dataset 2', value: 'dset2' },
-  { name: 'Dataset 3', value: 'dset3' },
-];
-
-const soilProperties = [
-  { name: 'Arsernic', value: 'arsenic' },
-  { name: 'pH', value: 'ph' },
-  { name: 'Nematode Hell', value: 'nematodehell' },
-  { name: 'Very long soil property supercalifragilistichespiralidoso', value: 'longstringproperty' },
-];
-
-const depths = [
-  { name: '0-15 cm', value: 'depth1' },
-  { name: '15-30 cm', value: 'depth2' },
-  { name: '30-60 cm', value: 'depth3' },
-];
+// const depths = [
+//   { name: '0-15 cm', value: 'depth1' },
+//   { name: '15-30 cm', value: 'depth2' },
+//   { name: '30-60 cm', value: 'depth3' },
+// ];
 
 function DownloadPreviewFilters({
+  soilProperties = [],
+  filters = {},
+  onFiltersChange,
   dialogOpen = false,
   setDialogOpen,
+  datasets,
+  fixedCalendarRange = null,
+  calendarMinMaxRange = [undefined, undefined],
+  depthMinMaxRange = [undefined, undefined],
+  fixedDepthRange = null,
+  onDatasetsChange,
+  isLoading = true,
 }: {
+  soilProperties?: SoilProperty[];
+  filters?: PreviewFilters;
+  onFiltersChange?: (newFilters: PreviewFilters) => void;
   dialogOpen?: boolean;
   setDialogOpen?: Dispatch<SetStateAction<boolean>>;
+  datasets?: { id: string; name: string }[];
+  calendarMinMaxRange?: [Date | undefined, Date | undefined];
+  fixedCalendarRange?: Nullable<Array<Date | null>>;
+  depthMinMaxRange?: [number | undefined, number | undefined];
+  fixedDepthRange?: Nullable<[number, number]>;
+  onDatasetsChange?: (datasets: string[] | undefined) => void;
+  isLoading?: boolean;
 }) {
   const { isMobileLayout } = useDevice();
   const [selectedDataset, setSelectedDataset] = useState<string>();
-  const [selectedSoilProperty, setSelectedSoilProperty] = useState<string>();
-  const [selectedDepth, setSelectedDepth] = useState<string>();
-  const [selectedDateRange, setSelectedDateRange] = useState<Nullable<Array<Date | null>>>();
+  const [selectedDateRange, setSelectedDateRange] = useState<Nullable<Array<Date | null>>>(fixedCalendarRange);
+
+  useEffect(() => {
+    if (fixedCalendarRange) return;
+
+    const { min_sampling_date, max_sampling_date } = filters;
+
+    if (min_sampling_date && max_sampling_date) {
+      setSelectedDateRange([new Date(min_sampling_date), new Date(max_sampling_date)]);
+      return;
+    }
+
+    setSelectedDateRange(null);
+  }, [fixedCalendarRange, filters]);
+
+  const depths = useMemo(() => {
+    return [
+      ...Array.from({ length: Math.ceil((depthMinMaxRange?.[1] ?? 150) / 15) }, (_, i) => ({
+        name: `${i * 15}cm - ${i * 15 + 15}cm`,
+        id: `${i * 15}-${i * 15 + 15}`,
+        range: [i * 15, i * 15 + 15],
+      })),
+      ...(fixedDepthRange
+        ? [{ name: `${fixedDepthRange[0]}cm - ${fixedDepthRange[1]}cm`, id: 'fixed-range', range: fixedDepthRange }]
+        : []),
+    ];
+  }, [depthMinMaxRange, fixedDepthRange]);
+
+  const { min_depth, max_depth } = filters;
+  const selectedDepth =
+    min_depth !== undefined && max_depth !== undefined
+      ? depths.find(({ range }) => min_depth >= range[0] && max_depth <= range[1])?.id
+      : undefined;
 
   const controls = useMemo(() => {
     return (
@@ -46,45 +85,111 @@ function DownloadPreviewFilters({
           className={styles.Dropdown}
           panelClassName={styles.DropdownPanel}
           value={selectedDataset}
-          onChange={e => setSelectedDataset(e.value)}
+          onChange={e => {
+            setSelectedDataset(e.value);
+            onDatasetsChange?.(e.value ? [e.value] : undefined);
+          }}
+          showClear
           options={datasets}
+          optionValue="id"
           optionLabel="name"
           placeholder="Select a dataset"
+          disabled={isLoading}
         />
         <Dropdown
           className={styles.Dropdown}
           panelClassName={styles.DropdownPanel}
-          value={selectedSoilProperty}
-          onChange={e => setSelectedSoilProperty(e.value)}
+          value={filters.soil_properties?.[0]}
+          onChange={e => {
+            if (e.value) {
+              onFiltersChange?.({
+                ...filters,
+                soil_properties: [e.value],
+              });
+            } else {
+              const { soil_properties: _, ...filtersWithoutSoilProperties } = filters;
+              onFiltersChange?.(filtersWithoutSoilProperties);
+            }
+          }}
+          showClear
           options={soilProperties}
-          optionLabel="name"
+          optionLabel="property_name"
+          optionValue="id"
           placeholder="Select a soil property"
+          disabled={isLoading}
         />
         <Dropdown
           className={styles.Dropdown}
           panelClassName={styles.DropdownPanel}
-          value={selectedDepth}
-          onChange={e => setSelectedDepth(e.value)}
+          value={fixedDepthRange ? 'fixed-range' : selectedDepth}
+          onChange={e => {
+            const range = depths.find(({ id }) => e.value === id)?.range;
+            if (range) {
+              onFiltersChange?.({
+                ...filters,
+                min_depth: range[0],
+                max_depth: range[1],
+              });
+            } else {
+              const { min_depth: _, max_depth: __, ...filtersWithoutDepth } = filters;
+              onFiltersChange?.(filtersWithoutDepth);
+            }
+          }}
           options={depths}
           optionLabel="name"
+          optionValue="id"
           placeholder="Select a depth"
+          showClear
+          disabled={isLoading || !!fixedDepthRange}
         />
         <Calendar
           className={styles.Calendar}
           panelClassName={styles.DropdownPanel}
           inputClassName={styles.CalendarInput}
+          readOnlyInput
           value={selectedDateRange}
           onChange={e => setSelectedDateRange(e.value)}
+          onHide={() => {
+            if (!selectedDateRange || selectedDateRange?.some(date => date === null)) {
+              const { min_sampling_date: _, max_sampling_date: __, ...filtersWithoutDates } = filters;
+              onFiltersChange?.(filtersWithoutDates);
+              setSelectedDateRange(null);
+              return;
+            }
+            onFiltersChange?.({
+              ...filters,
+              // we know them not to be null because of the earlier range check
+              min_sampling_date: (selectedDateRange[0] as unknown as Date).toISOString(),
+              max_sampling_date: (selectedDateRange[1] as unknown as Date).toISOString(),
+            });
+          }}
+          showButtonBar
           selectionMode="range"
           hideOnRangeSelection
           placeholder="Select a date range"
           showIcon
-          maxDate={new Date()}
+          minDate={calendarMinMaxRange[0]}
+          maxDate={calendarMinMaxRange[1]}
           showMinMaxRange={true}
+          disabled={isLoading || !!fixedCalendarRange}
         />
       </>
     );
-  }, [selectedDataset, selectedSoilProperty, selectedDepth, selectedDateRange]);
+  }, [
+    selectedDataset,
+    datasets,
+    filters,
+    fixedDepthRange,
+    selectedDateRange,
+    calendarMinMaxRange,
+    fixedCalendarRange,
+    isLoading,
+    onFiltersChange,
+    onDatasetsChange,
+    soilProperties,
+    depths,
+    selectedDepth,
+  ]);
 
   const closeDialog = () => {
     if (!dialogOpen) return;

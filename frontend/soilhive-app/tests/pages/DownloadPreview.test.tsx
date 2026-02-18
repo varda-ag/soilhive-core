@@ -2,6 +2,16 @@ import React from 'react';
 import { act, render } from '@testing-library/react';
 import DownloadPreview from '../../src/pages/DownloadPreview';
 
+jest.mock('hooks/useFilteredDatasets', () => {
+  return { useFilteredDatasets: jest.fn().mockReturnValue({ filterId: 'test-filter-id', isLoading: false }) };
+});
+
+jest.mock('hooks/useSoilData', () => {
+  return {
+    useSoilData: jest.fn().mockReturnValue({ allData: [], isLoading: false, hasMore: false, loadMore: jest.fn(), reset: jest.fn() }),
+  };
+});
+
 jest.mock('components/DownloadPreview/DownloadPreviewSummary/DownloadPreviewSummary', () => {
   const DownloadPreviewSummary = () => <div>Mock DownloadPreviewSummary</div>;
   return DownloadPreviewSummary;
@@ -21,6 +31,15 @@ jest.mock('../../src/contexts/AvailabilityContext', () => {
     __esModule: true,
     AvailabilityContext: React.createContext({
       setPreview: mockSetPreview,
+      geometryFilter: [],
+      selectedDatasets: [],
+      filteredDatasets: [],
+      selectedSoilProperties: [],
+      filteredSoilProperties: [],
+      datasetsSummary: {
+        globalMinDepth: null,
+        globalMaxDepth: null,
+      },
     }),
     mockSetPreview,
   };

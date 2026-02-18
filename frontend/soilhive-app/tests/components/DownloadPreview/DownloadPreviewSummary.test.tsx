@@ -48,7 +48,8 @@ describe('DownloadPreviewSummary', () => {
     expect(queryByTestId('reduce-download-preview-summary-button')).not.toBeInTheDocument();
   });
 
-  it('renders the expanded download preview summary (sidebar) when clicking on the expand icon', async () => {
+  it('renders the expanded download preview summary (sidebar)', async () => {
+    const mockOnExpandClicked = jest.fn();
     const { container, getByTestId } = render(
       <DownloadPreviewSummary
         locationName="France"
@@ -56,14 +57,18 @@ describe('DownloadPreviewSummary', () => {
         dataPoints={7367}
         rasterLayers={4}
         soilProperties={['pH', 'Organic Carbon Content']}
+        expanded={true}
+        onExpandClicked={mockOnExpandClicked}
       />,
     );
-    const expandButton = getByTestId('expand-download-preview-summary-button');
-    await act(async () => expandButton.click());
+    const reduceButton = getByTestId('reduce-download-preview-summary-button');
+    await act(async () => reduceButton.click());
+    expect(mockOnExpandClicked).toHaveBeenCalledWith(false);
     expect(container).toMatchSnapshot();
   });
 
-  it('renders the reduced download preview summary (sidebar) when clicking on the reduce icon', async () => {
+  it('renders the reduced download preview summary (sidebar)', async () => {
+    const mockOnExpandClicked = jest.fn();
     const { container, getByTestId } = render(
       <DownloadPreviewSummary
         locationName="France"
@@ -71,14 +76,13 @@ describe('DownloadPreviewSummary', () => {
         dataPoints={7367}
         rasterLayers={4}
         soilProperties={['pH', 'Organic Carbon Content']}
+        expanded={false}
+        onExpandClicked={mockOnExpandClicked}
       />,
     );
-    // first we expand it since it's reduced by default
     const expandButton = getByTestId('expand-download-preview-summary-button');
     await act(async () => expandButton.click());
-    // then we reduce it
-    const reduceButton = getByTestId('reduce-download-preview-summary-button');
-    await act(async () => reduceButton.click());
+    expect(mockOnExpandClicked).toHaveBeenCalledWith(true);
     expect(container).toMatchSnapshot();
   });
 

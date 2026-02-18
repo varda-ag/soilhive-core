@@ -1,68 +1,74 @@
 import { PrimeReactProvider } from 'primereact/api';
-import { DataTable } from 'primereact/datatable';
+import { DataTable, type SortOrder } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { MultiSelect } from 'primereact/multiselect';
 import styles from './DownloadPreviewTable.module.scss';
 import { Button } from 'components/UI';
 import NewspaperIcon from 'assets/icons/newspaper-icon.svg?react';
 import MapPinIcon from 'assets/icons/small-map-icon.svg?react';
-import { useState } from 'react';
+import { useState, type Dispatch, type SetStateAction } from 'react';
+import type { SoilDataSample } from 'types/backend';
 
-const mockProducts: any[] = [];
-for (let i = 1; i <= 60; i++) {
-  const product = {
-    date: `date-${i}`,
-    depth: `depth-${i}`,
-    valueUnit: `value/unit-${i}`,
-    horizon: `horizon-${i}`,
-    tecnique: `technique-${i}`,
-    license: `license-${i}`,
-    code: `code-${i}`,
-    name: `name-${i}`,
-    category: `category-${i}`,
-    quantity: `quantity-${i}`,
-    otherColumn1: `other-first-${i}`,
-    otherColumn2: `other-second-${i}`,
-  };
-  mockProducts.push(product);
-}
-
-const mockColumns = [
-  { name: 'Date', value: 'date' },
-  { name: 'Depth (cm)', value: 'depth' },
-  { name: 'Value / Unit', value: 'valueUnit' },
+const columns = [
+  { name: 'Date', value: 'sampling_date' },
+  { name: 'Depth (min)', value: 'min_depth' },
+  { name: 'Depth (max)', value: 'max_depth' },
+  { name: 'Value', value: 'value' },
+  { name: 'Standard unit', value: 'standard_unit' },
   { name: 'Horizon', value: 'horizon' },
-  { name: 'Tecnique', value: 'tecnique' },
-  { name: 'License', value: 'license' },
-  { name: 'Code', value: 'code' },
-  { name: 'Name', value: 'name' },
-  { name: 'Category', value: 'category' },
-  { name: 'Quantity', value: 'quantity' },
-  { name: 'Other column', value: 'otherColumn1' },
-  { name: 'Other column 2', value: 'otherColumn2' },
+  { name: 'Technique', value: 'technique' },
+  { name: 'Soil property', value: 'soil_property' },
+  { name: 'Soil property acronym', value: 'property_acronym' },
+  { name: 'Sample pretreatment', value: 'sample_pretreatment' },
+  { name: 'Extractant formulation', value: 'extractant_formulation' },
+  { name: 'Extractant concentration', value: 'extractant_concentration' },
+  { name: 'Extraction ratio', value: 'extraction_ratio' },
+  { name: 'Extraction base', value: 'extraction_base' },
+  { name: 'Instrument', value: 'instrument' },
+  { name: 'Limit of detection', value: 'limit_of_detection' },
+  { name: 'Dataset', value: 'dataset_name' },
+  { name: 'License', value: 'license_name' },
 ];
 
-function DownloadPreviewTable() {
-  const products: any[] = mockProducts;
-  const columns: any[] = mockColumns;
+function DownloadPreviewTable({
+  data = [],
+  isDataLoading = true,
+  onTableSort,
+  onTableLastPage,
+  first = 0,
+  setFirst,
+  onPointSelected,
+}: {
+  data?: SoilDataSample[];
+  isDataLoading?: boolean;
+  onTableSort?: (sort: string | undefined) => void;
+  onTableLastPage?: () => void;
+  first?: number;
+  setFirst?: Dispatch<SetStateAction<number>>;
+  onPointSelected?: (point: [number, number] | undefined) => void;
+}) {
   const [visibleColumns, setVisibleColumns] = useState<string[]>([
-    'date',
-    'depth',
-    'valueUnit',
+    'sampling_date',
+    'min_depth',
+    'max_depth',
+    'value',
     'horizon',
-    'tecnique',
-    'license',
-    'code',
-    'name',
-    'category',
-    'quantity',
+    'technique',
+    'license_name',
   ]);
+  const [sortOrder, setSortOrder] = useState<SortOrder>();
+  const [sortField, setSortField] = useState<string>();
 
-  const dateCell = (rowData: any) => {
+  const dateCell = ({ sampling_date, geometry }: SoilDataSample) => {
     return (
-      <Button type="tertiary">
-        <MapPinIcon />
-        {rowData.date}
+      <Button
+        type="tertiary"
+        onClick={() => {
+          onPointSelected?.(geometry ? geometry.coordinates : undefined);
+        }}
+      >
+        {geometry && <MapPinIcon />}
+        {sampling_date ? new Date(sampling_date).toLocaleDateString() : '-'}
       </Button>
     );
   };
@@ -91,7 +97,7 @@ function DownloadPreviewTable() {
         <div className={styles.TableContainer}>
           <PrimeReactProvider>
             <DataTable
-              value={products}
+              value={data}
               paginator
               rows={20}
               resizableColumns
@@ -100,6 +106,27 @@ function DownloadPreviewTable() {
               removableSort
               scrollable
               scrollHeight="flex"
+              sortField={sortField}
+              sortOrder={sortOrder}
+              onSort={event => {
+                const { sortField, sortOrder } = event;
+                if (!sortOrder) onTableSort?.(undefined);
+                else {
+                  onTableSort?.(`${sortOrder < 0 ? '-' : ''}${sortField}`);
+                }
+                setSortField(sortField);
+                setSortOrder(sortOrder);
+              }}
+              onPage={event => {
+                const { page, totalPages } = event;
+                if (page && totalPages) {
+                  const isLastPage = totalPages - 1 - page === 0;
+                  if (isLastPage) onTableLastPage?.();
+                }
+                setFirst?.(event.first);
+              }}
+              first={first}
+              emptyMessage="No data available"
             >
               {columns
                 .filter(({ value }) => visibleColumns.includes(value))
@@ -107,7 +134,7 @@ function DownloadPreviewTable() {
                   const options = {
                     field: value,
                     header: name,
-                    ...(value === 'date'
+                    ...(value === 'sampling_date'
                       ? {
                           bodyClassName: styles.DateCell,
                           body: dateCell,
@@ -119,6 +146,11 @@ function DownloadPreviewTable() {
                 })}
             </DataTable>
           </PrimeReactProvider>
+          {isDataLoading && (
+            <div className={styles.LoaderOverlay}>
+              <div className={styles.Loader}></div>
+            </div>
+          )}
         </div>
       </div>
       <div className={styles.Footer}>

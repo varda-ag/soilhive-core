@@ -52,13 +52,16 @@ function Availability() {
     throw new Error('AvailabilityContext must be used within AvailabilityProvider');
   }
 
-  const { setGeometryFilter } = availabilityContext;
+  const { setGeometryFilter, setSelectionType, setLocationName, setBoundingBox } = availabilityContext;
 
   const handleMapSelectionChange = (event: SoilhiveMapSelectionChangeEvent) => {
     const { bounds, geometries } = event;
 
     const geoms = geometries ?? [bboxPolygon(bounds).geometry];
     setGeometryFilter(geoms);
+    setBoundingBox(bounds);
+    setSelectionType(event.selectionType);
+    setLocationName(event.locationName);
   };
 
   return (

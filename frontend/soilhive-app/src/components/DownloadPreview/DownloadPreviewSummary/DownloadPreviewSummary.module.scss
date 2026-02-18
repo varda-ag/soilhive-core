@@ -139,9 +139,14 @@
         align-items: center;
         gap: 4px;
   
-        >svg {
+        >svg {          
+          flex-grow: 0;
           width: 16px;
           height: 16px;
+          /* Prevents the SVG from shrinking when space is tight */
+          flex-shrink: 0; 
+          /* Prevents the SVG from expanding beyond its set width */
+          flex-grow: 0;
         }
       }
     }
