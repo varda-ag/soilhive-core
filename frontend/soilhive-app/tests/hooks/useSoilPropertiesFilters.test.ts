@@ -18,16 +18,24 @@ describe('useSoilPropertiesFilters', () => {
   const mockSetDatasetFilters = jest.fn();
 
   const allSoilProperties = [
-    { id: '1', property_name: 'Root A', parent_property_id: null },
-    { id: '2', property_name: 'Leaf A1', parent_property_id: '1' },
-    { id: '3', property_name: 'Root B', parent_property_id: null },
-    { id: '4', property_name: 'Leaf B1', parent_property_id: '3' },
+    { id: '1', property_name: 'Root A', parent_property_id: null, category_id: 'chemical' },
+    { id: '2', property_name: 'Leaf A1', parent_property_id: '1', category_id: 'chemical' },
+    { id: '3', property_name: 'Root B', parent_property_id: null, category_id: 'biological' },
+    { id: '4', property_name: 'Leaf B1', parent_property_id: '3', category_id: 'biological' },
+    { id: '5', property_name: 'Root C', parent_property_id: null, category_id: 'chemical' },
   ];
 
   const filteredSoilProperties = [
-    { id: '1', property_name: 'Root A', parent_property_id: null },
-    { id: '2', property_name: 'Leaf A1', parent_property_id: '1' },
-    { id: '4', property_name: 'Leaf B1', parent_property_id: '3' },
+    { id: '1', property_name: 'Root A', parent_property_id: null, category_id: 'chemical' },
+    { id: '2', property_name: 'Leaf A1', parent_property_id: '1', category_id: 'chemical' },
+    { id: '4', property_name: 'Leaf B1', parent_property_id: '3', category_id: 'biological' },
+    { id: '5', property_name: 'Root C', parent_property_id: null, category_id: 'chemical' },
+  ];
+
+  const categories = [
+    { id: 'biological', category_name: 'Biological' },
+    { id: 'chemical', category_name: 'Chemical' },
+    { id: 'physical', category_name: 'Physical' },
   ];
 
   const defaultAvailabilityState = {
@@ -37,6 +45,7 @@ describe('useSoilPropertiesFilters', () => {
     allSoilProperties,
     filteredSoilProperties,
     selectedSoilProperties: [],
+    categories,
     setSelectedSoilProperties: mockSetSelectedSoilProperties,
     setDatasetFilters: mockSetDatasetFilters,
   };
@@ -61,7 +70,7 @@ describe('useSoilPropertiesFilters', () => {
 
     // Expect roots include "1" and "3" (3 wasn't in filtered roots, but has child "4" so it's added)
     const roots = result.current.nestedSoilProperties.map(n => n.id).sort();
-    expect(roots).toEqual(['1', '3']);
+    expect(roots).toEqual(['1', '3', '5']);
 
     // Root A has child Leaf A1
     const rootA = result.current.nestedSoilProperties.find(n => n.id === '1')!;
@@ -70,6 +79,19 @@ describe('useSoilPropertiesFilters', () => {
     // Root B has child Leaf B1
     const rootB = result.current.nestedSoilProperties.find(n => n.id === '3')!;
     expect(rootB.children?.map(c => c.id)).toEqual(['4']);
+  });
+
+  it('calculates categorizedSoilProperties correctly', () => {
+    const { result } = renderHook(() => useSoilPropertiesFilters());
+
+    const cats = result.current.categorizedSoilProperties;
+    expect(cats.map(c => c.id)).toEqual(['biological', 'chemical']);
+
+    const chemical = result.current.categorizedSoilProperties.find(c => c.id === 'chemical')!;
+    const biological = result.current.categorizedSoilProperties.find(c => c.id === 'biological')!;
+
+    expect(chemical.nodes.map(n => n.id)).toEqual(['1', '5']);
+    expect(biological.nodes.map(n => n.id)).toEqual(['3']);
   });
 
   it('links children to existing parents properties', () => {
@@ -183,6 +205,26 @@ describe('useSoilPropertiesFilters', () => {
     expect((getBranchIds as jest.Mock).mock.calls[0][1]).toBe('3');
 
     expect(mockSetSelectedSoilProperties).toHaveBeenCalledWith(['3']);
+  });
+
+  it('handlePillRemove removes property with provided id if getBranchIds returns empty array', () => {
+    (getBranchIds as jest.Mock).mockReturnValue([]);
+
+    (useAvailability as jest.Mock).mockReturnValue({
+      ...defaultAvailabilityState,
+      selectedSoilProperties: ['2', '3', '4'],
+    });
+
+    const { result } = renderHook(() => useSoilPropertiesFilters());
+
+    act(() => {
+      result.current.handlePillRemove('3');
+    });
+
+    expect(getBranchIds as jest.Mock).toHaveBeenCalledTimes(1);
+    expect((getBranchIds as jest.Mock).mock.calls[0][1]).toBe('3');
+
+    expect(mockSetSelectedSoilProperties).toHaveBeenCalledWith(['2', '4']);
   });
 
   it('returns context flags and selectedSoilProperties passthrough', () => {

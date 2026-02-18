@@ -2,14 +2,16 @@ import { useFilteredDatasets } from 'hooks/useFilteredDatasets';
 import React, { createContext, useState, type ReactNode, useCallback, useMemo } from 'react';
 import type { AvailabilityDataset, DatasetFrontendFilters, DatasetSummary, TimeFilterState } from 'types/availability';
 import { mapFilteredDatasetToAvailabilityDataset } from '../adapters';
-import type { SoilProperty, FilterCriteria, FilteredDataset, BackendStoredDataFilter } from 'types/backend';
+import type { SoilProperty, FilterCriteria, SoilPropertyCategory, FilteredDataset, BackendStoredDataFilter } from 'types/backend';
 import { computeDatasetSummary } from '../domain';
 import type { MultiPolygon, Polygon } from 'geojson';
 import { useSoilProperties } from '../hooks/useSoilProperties';
+import { usePropertiesCategories } from 'hooks/usePropertiesCategories';
 
 type AvailabilityContextType = {
   allSoilProperties: SoilProperty[];
   filteredSoilProperties: SoilProperty[];
+  categories: SoilPropertyCategory[];
   isLoadingSoilProperties: boolean;
   allDatasets: AvailabilityDataset[];
   filteredDatasets: FilteredDataset[];
@@ -69,6 +71,7 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
   const [preview, setPreview] = useState<boolean>(false);
   const [geometryFilter, setGeometryFilter] = useState<(Polygon | MultiPolygon)[]>([]);
   const [datasetFilters, setDatasetFilters] = useState<FilterCriteria>({});
+  const { data: categories, isLoading: isLoadingCategories } = usePropertiesCategories();
   const { data: allSoilProperties, isLoading: isLoadingSoilProperties } = useSoilProperties();
 
   const partialFilterPayload = useMemo(() => ({ geometries: geometryFilter, parameters: {} }), [geometryFilter]);
@@ -117,13 +120,16 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
 
   const datasets = useMemo(() => {
     return allDatasets.filter(dataset => {
-      return !dataset.dataType || !datasetFrontendFilters.type.length || datasetFrontendFilters.type.includes(dataset.dataType);
+      return (
+        (!dataset.dataType || !datasetFrontendFilters.type.length || datasetFrontendFilters.type.includes(dataset.dataType)) &&
+        (!searchValue || dataset.name.toLowerCase().includes(searchValue.toLowerCase()))
+      );
     });
-  }, [allDatasets, datasetFrontendFilters]);
+  }, [searchValue, allDatasets, datasetFrontendFilters]);
 
   const isLoading = useMemo(() => {
-    return isLoadingPartialFilter || isLoadingFullFilter || isLoadingSoilProperties;
-  }, [isLoadingFullFilter, isLoadingPartialFilter, isLoadingSoilProperties]);
+    return isLoadingPartialFilter || isLoadingFullFilter || isLoadingSoilProperties || isLoadingCategories;
+  }, [isLoadingFullFilter, isLoadingPartialFilter, isLoadingSoilProperties, isLoadingCategories]);
 
   const isNoFilteredData = useMemo(() => {
     return fullFilterResults?.length === 0;
@@ -139,9 +145,11 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
 
   const filteredSoilProperties = useMemo<SoilProperty[]>(() => {
     const properties = new Set<string>();
-    geometryFilterResults?.forEach(dataset => dataset.soil_properties?.forEach(prop => properties.add(prop)));
+    geometryFilterResults
+      ?.filter(dataset => !datasetFrontendFilters.type.length || datasetFrontendFilters.type.includes(dataset.data_type as string))
+      .forEach(dataset => dataset.soil_properties?.forEach(prop => properties.add(prop)));
     return allSoilProperties?.filter(prop => properties.has(prop.id)) ?? [];
-  }, [allSoilProperties, geometryFilterResults]);
+  }, [allSoilProperties, geometryFilterResults, datasetFrontendFilters]);
 
   const appliedFiltersCount = useMemo<number>(() => {
     return (
@@ -178,6 +186,7 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
         allSoilProperties: allSoilProperties || [],
         filteredSoilProperties,
         isLoadingSoilProperties,
+        categories: categories || [],
         allDatasets,
         filteredDatasets: fullFilterResults ?? [],
         datasets,

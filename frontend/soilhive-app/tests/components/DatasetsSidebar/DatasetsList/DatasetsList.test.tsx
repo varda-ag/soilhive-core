@@ -109,4 +109,20 @@ describe('DatasetsList', () => {
     expect(screen.getByText('No data in selected area due to applied filters')).toBeInTheDocument();
     expect(screen.queryByTestId('sh-datasets-list')).not.toBeInTheDocument();
   });
+
+  it('renders not matching search query state', () => {
+    (useAvailability as jest.Mock).mockReturnValue({
+      datasets: [],
+      selectAllDatasets: mockSelectAllDatasets,
+      isAllSelected: false,
+      isLoading: false,
+      isNoData: false,
+      isNoFilteredData: false,
+      searchValue: 'test-search',
+    });
+
+    render(<DatasetsList />);
+
+    expect(screen.getByText('No data in selected area matching your search query')).toBeInTheDocument();
+  });
 });

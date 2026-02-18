@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.32.0 (2026-02-18)
+
+## What's Changed
+* feat(be):  sp-4883 soil data export by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/203
+* feat: adding pg-boss as a job manager by @svaccari in https://github.com/varda-ag/soilhive-core/pull/194
+* feat: sp-4893 - group soil properties by categories by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/210
+* feat: procedures and unit_conversions fields update by @d-rom in https://github.com/varda-ag/soilhive-core/pull/208
+* feat: sp-4814 - generic error by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/211
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.31.0...v0.32.0
+
+## 0.31.0 (2026-02-13)
+
+## What's Changed
+* feat: sp-4887 - searching by name in datasets list by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/200
+* feat: sp-4892 - filter properties by selected data type by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/202
+* feat(data): adding soil-property-categories endpoints by @svaccari in https://github.com/varda-ag/soilhive-core/pull/204
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.30.0...v0.31.0
+
 ## 0.30.0 (2026-02-11)
 
 ## What's Changed

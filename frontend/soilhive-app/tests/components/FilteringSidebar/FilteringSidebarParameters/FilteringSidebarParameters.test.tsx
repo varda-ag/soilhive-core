@@ -1,40 +1,30 @@
 import React, { type Ref } from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { FilteringSidebarParameters } from 'components/FilteringSidebar/FilteringSidebarParameters/FilteringSidebarParameters';
-import type { NestedCheckboxItemType, NestedCheckboxRef } from 'types/components';
+import type { NestedCheckboxItemType, NestedCheckboxRef, AccordionRef } from 'types/components';
 import useSoilPropertiesFilters from 'hooks/useSoilPropertiesFilters';
 
-const mockProperties: NestedCheckboxItemType[] = [
+const mockCategorizedSoilProperties = [
   {
-    id: '1',
-    label: 'First',
-    isRoot: true,
-    children: [
+    id: 'biological',
+    category_name: 'Biological',
+    nodes: [
       {
-        id: '1-1',
-        label: 'First-First',
-        isRoot: false,
+        id: 'b-1',
+        label: 'B1',
+        isRoot: true,
         children: [
-          { id: '1-1-1', label: 'First first first', isRoot: false, children: [] },
-          { id: '1-1-2', label: 'First first second', isRoot: false, children: [] },
+          { id: 'b-1-1', label: 'First first first', isRoot: false, children: [] },
+          { id: 'b-1-2', label: 'First first second', isRoot: false, children: [] },
         ],
       },
-      {
-        id: '1-2',
-        label: 'First-Second',
-        isRoot: false,
-        children: [],
-      },
+      { id: 'b-2', label: 'B2', isRoot: true, children: [] },
     ],
   },
   {
-    id: '2',
-    label: 'Second',
-    isRoot: true,
-    children: [
-      { id: '2-1', label: 'Second-First', isRoot: false, children: [] },
-      { id: '2-2', label: 'Second-Second', isRoot: false, children: [] },
-    ],
+    id: 'chemical',
+    category_name: 'Chemical',
+    nodes: [{ id: 'c-1', label: 'C1', isRoot: true, children: [] }],
   },
 ];
 
@@ -52,12 +42,49 @@ type NestedCheckboxPropsType = {
 };
 
 jest.mock('components/UI', () => ({
-  Accordion: ({ title, children }: { title: string; children: React.ReactNode }) => (
-    <div data-testid="accordion">
-      <div data-testid="accordion-title">{title}</div>
-      <div data-testid="accordion-content">{children}</div>
-    </div>
-  ),
+  Accordion: ({
+    ref,
+    title,
+    onToggle,
+    children,
+  }: {
+    ref: Ref<AccordionRef>;
+    title: string;
+    onToggle: (isExpanded: boolean) => void;
+    children: React.ReactNode;
+  }) => {
+    const [isExpanded, setIsExpanded] = React.useState(false);
+
+    React.useImperativeHandle(
+      ref,
+      () => ({
+        expand() {
+          setIsExpanded(true);
+        },
+
+        collapse() {
+          setIsExpanded(false);
+        },
+      }),
+      [],
+    );
+
+    return (
+      <div data-testid="accordion" data-open={String(isExpanded)}>
+        <div
+          data-testid={`accordion-header-${title}`}
+          role="button"
+          onClick={() => {
+            setIsExpanded(!isExpanded);
+            onToggle?.(!isExpanded);
+          }}
+        >
+          {title}
+        </div>
+        <div data-testid="accordion-content">{children}</div>
+      </div>
+    );
+  },
   SelectionPills: () => null,
   NestedCheckbox: ({ ref, items, selected, onChange, onToggleVisibility }: NestedCheckboxPropsType) => {
     const [localSelected, setLocalSelected] = React.useState(selected);
@@ -107,7 +134,7 @@ describe('FilteringSidebarParameters', () => {
     isLoading: false,
     isNoData: false,
     isNoFilteredData: false,
-    nestedSoilProperties: mockProperties,
+    categorizedSoilProperties: mockCategorizedSoilProperties,
     selectedSoilProperties: [],
     pillSelections: [],
     handleOnChange: mockHandleOnChange,
@@ -116,7 +143,6 @@ describe('FilteringSidebarParameters', () => {
 
   beforeEach(() => {
     (useSoilPropertiesFilters as jest.Mock).mockReturnValue(defaultHookValue);
-    jest.spyOn(React, 'useMemo').mockReturnValue(mockProperties);
   });
 
   afterEach(() => {
@@ -126,25 +152,30 @@ describe('FilteringSidebarParameters', () => {
     const { container } = render(<FilteringSidebarParameters />);
 
     const accordions = screen.getAllByTestId('accordion');
-    expect(accordions).toHaveLength(1);
+    expect(accordions).toHaveLength(3);
+
+    expect(screen.getByTestId('accordion-header-Soil Properties')).toBeInTheDocument();
+    expect(screen.getByTestId('accordion-header-Biological')).toBeInTheDocument();
+    expect(screen.getByTestId('accordion-header-Chemical')).toBeInTheDocument();
+
     expect(container).toMatchSnapshot();
   });
 
   it('changes selected parameters on the nested checbox component change', () => {
     render(<FilteringSidebarParameters />);
 
-    fireEvent.click(screen.getByTestId('nested-checkbox-change'));
+    fireEvent.click(screen.getAllByTestId('nested-checkbox-change')[0]);
 
-    expect(screen.getByTestId('nested-checkbox-selected')).toHaveTextContent('["1"]');
+    expect(screen.getAllByTestId('nested-checkbox-selected')[0]).toHaveTextContent('["b-1"]');
     expect(mockHandleOnChange).toHaveBeenCalledTimes(1);
-    expect(mockHandleOnChange).toHaveBeenCalledWith(['1']);
+    expect(mockHandleOnChange).toHaveBeenCalledWith(['b-1']);
   });
 
   it('toggles the expansion state when the toggle is clicked', () => {
     render(<FilteringSidebarParameters />);
 
     const toggle = screen.getByTestId('global-toggle');
-    const checkox = screen.getByTestId('nested-checkbox');
+    const checkox = screen.getAllByTestId('nested-checkbox')[0];
 
     fireEvent.click(toggle);
 
@@ -168,10 +199,45 @@ describe('FilteringSidebarParameters', () => {
     expect(screen.getByText('Collapse All')).toBeInTheDocument();
     expect(screen.queryByText('Expand All')).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByTestId('nested-checkbox-toggle-visibility'));
+    fireEvent.click(screen.getAllByTestId('nested-checkbox-toggle-visibility')[0]);
 
     expect(screen.getByText('Expand All')).toBeInTheDocument();
     expect(screen.queryByText('Collapse All')).not.toBeInTheDocument();
+  });
+
+  it('toggles the expansion state when the single accordion was toggled', () => {
+    render(<FilteringSidebarParameters />);
+
+    const toggle = screen.getByTestId('global-toggle');
+
+    expect(screen.getByText('Expand All')).toBeInTheDocument();
+    expect(screen.queryByText('Collapse All')).not.toBeInTheDocument();
+
+    fireEvent.click(toggle);
+
+    expect(screen.getByText('Collapse All')).toBeInTheDocument();
+    expect(screen.queryByText('Expand All')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('accordion-header-Biological'));
+
+    expect(screen.getByText('Expand All')).toBeInTheDocument();
+    expect(screen.queryByText('Collapse All')).not.toBeInTheDocument();
+  });
+
+  it('expands all properties on the search', () => {
+    render(<FilteringSidebarParameters />);
+
+    const input = screen.getByPlaceholderText('Search soil properties');
+
+    expect(screen.getByText('Expand All')).toBeInTheDocument();
+    expect(screen.queryByText('Collapse All')).not.toBeInTheDocument();
+
+    act(() => {
+      fireEvent.change(input, { target: { value: 'B1' } });
+    });
+
+    expect(screen.getByText('Collapse All')).toBeInTheDocument();
+    expect(screen.queryByText('Expand All')).not.toBeInTheDocument();
   });
 
   it('renders loading state', () => {

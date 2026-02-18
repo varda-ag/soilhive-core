@@ -1,5 +1,7 @@
 export type ComponentSizeType = 'medium' | 'small' | 'tiny';
 
+export type NotificationType = 'error' | 'warning' | 'success';
+
 export interface MenuOption {
   code: string;
   name: string;
@@ -19,11 +21,17 @@ export type NestedCheckboxItemType = {
   className?: string;
   children: NestedCheckboxItemType[];
   isRoot: boolean;
+  categoryId?: string;
 };
 
 export type NestedCheckboxRef = {
   expandAll: () => void;
   collapseAll: () => void;
+};
+
+export type AccordionRef = {
+  expand: () => void;
+  collapse: () => void;
 };
 
 export interface Selection {

@@ -10,14 +10,12 @@ export const getEntity = async <T extends { id: string | number; slug: string }>
   entityClass: EntityTarget<T>,
   entityType: EntityType,
   slug: string,
+  relations: string[] = [],
 ): Promise<T> => {
   const entityManager = requestData.entityManager;
   const entityRepo = entityManager.getRepository(entityClass);
 
-  let entity = await entityRepo.findOne({
-    where: { slug } as any,
-  });
-
+  let entity = await entityRepo.findOne({ where: { slug } as any, relations });
   if (entity) {
     return entity;
   }
@@ -34,10 +32,7 @@ export const getEntity = async <T extends { id: string | number; slug: string }>
     throw new ErrorResponse(`Entity with slug '${slug}' not found`, StatusCodes.NOT_FOUND);
   }
 
-  entity = await entityRepo.findOne({
-    where: { id: slugHistory.entity_id } as any,
-  });
-
+  entity = await entityRepo.findOne({ where: { id: slugHistory.entity_id } as any, relations });
   if (!entity) {
     throw new ErrorResponse(`Entity with slug '${slug}' not found`, StatusCodes.NOT_FOUND);
   }
@@ -50,14 +45,13 @@ export const getEntities = async <T extends { id: string | number; slug: string 
   entityClass: EntityTarget<T>,
   entityType: EntityType,
   slugs: string[],
+  relations: string[] = [],
 ): Promise<T[]> => {
   const entityManager = requestData.entityManager;
   const entityRepo = entityManager.getRepository(entityClass);
   const slugHistoryRepo = entityManager.getRepository(SlugHistoryEntity);
 
-  const entities = await entityRepo.find({
-    where: { slug: In(slugs) } as any,
-  });
+  const entities = await entityRepo.find({ where: { slug: In(slugs) } as any, relations });
 
   const entityBySlug = new Map<string, T>();
   const entityById = new Map<string | number, T>();
@@ -88,9 +82,7 @@ export const getEntities = async <T extends { id: string | number; slug: string 
   const missingIds = slugHistories.map(sh => sh.entity_id).filter(id => !entityById.has(id));
 
   if (missingIds.length > 0) {
-    const missingEntities = await entityRepo.find({
-      where: { id: In(missingIds) } as any,
-    });
+    const missingEntities = await entityRepo.find({ where: { id: In(missingIds) } as any, relations });
 
     for (const entity of missingEntities) {
       entityById.set(entity.id, entity);
@@ -139,7 +131,6 @@ export const getNewPath = (originalUrl: string, oldSlug: string, newSlug: string
  *
  * Replaces "id" value with "slug" value and removes "slug" key
  */
-
 export const idToSlug = (input: any): any => {
   if (Array.isArray(input)) {
     return input.map(e => idToSlug(e));

@@ -10,6 +10,7 @@ import { ThemeProvider } from './contexts/ThemeContext';
 import { AuthContextProvider } from './auth/AuthContextProvider';
 import Legal from './pages/Legal';
 import { AvailabilityProvider } from './contexts/AvailabilityContext';
+import { NotificationProvider } from './contexts/NotificationsContext';
 
 const queryClient = new QueryClient();
 
@@ -18,61 +19,63 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <AuthContextProvider>
         <ThemeProvider>
-          <BrowserRouter>
-            <Routes>
-              <Route element={<MainLayout />}>
-                <Route
-                  index
-                  element={
-                    <>
-                      <PageTitle title="SoilHive - Home" />
-                      <AvailabilityProvider>
-                        <Homepage />
-                      </AvailabilityProvider>
-                    </>
-                  }
-                />
-                <Route
-                  path="/donation"
-                  element={
-                    <>
-                      <PageTitle title="SoilHive - Donation" />
-                    </>
-                  }
-                />
-                <Route
-                  path="/legal"
-                  element={
-                    <>
-                      <PageTitle title="SoilHive - Admin" />
-                      <Legal />
-                    </>
-                  }
-                />
-                <Route
-                  path="/admin"
-                  element={
-                    <>
-                      <PageTitle title="SoilHive - Admin" />
-                      <Admin />
-                    </>
-                  }
-                />
-                {singlePages.map(({ name, route, Page }) => (
+          <NotificationProvider>
+            <BrowserRouter>
+              <Routes>
+                <Route element={<MainLayout />}>
                   <Route
-                    key={`/${route}`}
-                    path={`/${route}`}
+                    index
                     element={
                       <>
-                        <PageTitle title={`SoilHive - ${name}`} />
-                        <Page />
+                        <PageTitle title="SoilHive - Home" />
+                        <AvailabilityProvider>
+                          <Homepage />
+                        </AvailabilityProvider>
                       </>
                     }
                   />
-                ))}
-              </Route>
-            </Routes>
-          </BrowserRouter>
+                  <Route
+                    path="/donation"
+                    element={
+                      <>
+                        <PageTitle title="SoilHive - Donation" />
+                      </>
+                    }
+                  />
+                  <Route
+                    path="/legal"
+                    element={
+                      <>
+                        <PageTitle title="SoilHive - Admin" />
+                        <Legal />
+                      </>
+                    }
+                  />
+                  <Route
+                    path="/admin"
+                    element={
+                      <>
+                        <PageTitle title="SoilHive - Admin" />
+                        <Admin />
+                      </>
+                    }
+                  />
+                  {singlePages.map(({ name, route, Page }) => (
+                    <Route
+                      key={`/${route}`}
+                      path={`/${route}`}
+                      element={
+                        <>
+                          <PageTitle title={`SoilHive - ${name}`} />
+                          <Page />
+                        </>
+                      }
+                    />
+                  ))}
+                </Route>
+              </Routes>
+            </BrowserRouter>
+          </NotificationProvider>
         </ThemeProvider>
       </AuthContextProvider>
     </QueryClientProvider>

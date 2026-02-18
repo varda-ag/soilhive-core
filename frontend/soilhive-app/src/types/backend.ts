@@ -75,6 +75,14 @@ export interface SoilProperty {
   category_id: string;
 }
 
+export interface SoilPropertyCategory {
+  id: string;
+  slug: string;
+  category_name: string;
+  category_acronym: string;
+  description?: string;
+}
+
 export interface VariableMeasured {
   description: string;
   soil_parameter: string;

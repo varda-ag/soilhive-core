@@ -1,11 +1,9 @@
-import { config } from 'dotenv';
 import { DataSource } from 'typeorm';
 import { getDBPassword, getSSL } from './db-credentials';
 import { DatabaseNamingStrategy } from './naming-strategy';
+import { setupEnv } from './utils';
 
-if (process.env.NODE_ENV !== 'test') {
-  config({ path: '.env' });
-}
+setupEnv();
 
 export default new DataSource({
   type: 'postgres',

@@ -1,4 +1,6 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import React from 'react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
+import type { AccordionRef } from 'types/components';
 import { Accordion } from 'components/UI/Accordion/Accordion';
 
 describe('Accordion component', () => {
@@ -11,8 +13,8 @@ describe('Accordion component', () => {
 
     const accordion = screen.getByTestId('sh-ui-accordion');
     expect(accordion).toBeInTheDocument();
-
-    expect(screen.queryByText('Content')).not.toBeInTheDocument();
+    expect(accordion).not.toHaveClass('Opened');
+    expect(screen.getByText('Content')).toBeInTheDocument();
     expect(container).toMatchSnapshot();
   });
 
@@ -23,25 +25,34 @@ describe('Accordion component', () => {
       </Accordion>,
     );
 
+    const accordion = screen.getByTestId('sh-ui-accordion');
+    expect(accordion).toHaveClass('Opened');
     expect(screen.getByText('Visible content')).toBeInTheDocument();
   });
 
   it('toggles open/close on click', () => {
+    const onToggle = jest.fn();
+
     render(
-      <Accordion title="Toggle me">
+      <Accordion title="Toggle me" onToggle={onToggle}>
         <div>Toggle content</div>
       </Accordion>,
     );
 
+    const accordion = screen.getByTestId('sh-ui-accordion');
     const header = screen.getByRole('button');
 
-    expect(screen.queryByText('Toggle content')).not.toBeInTheDocument();
+    expect(accordion).not.toHaveClass('Opened');
 
     fireEvent.click(header);
-    expect(screen.getByText('Toggle content')).toBeInTheDocument();
+    expect(accordion).toHaveClass('Opened');
+    expect(onToggle).toHaveBeenCalledWith(true);
 
     fireEvent.click(header);
-    expect(screen.queryByText('Toggle content')).not.toBeInTheDocument();
+    expect(accordion).not.toHaveClass('Opened');
+    expect(onToggle).toHaveBeenCalledWith(false);
+
+    expect(onToggle).toHaveBeenCalledTimes(2);
   });
 
   it('applies the correct type class (primary)', () => {
@@ -66,18 +77,15 @@ describe('Accordion component', () => {
     expect(accordion).toHaveClass('Secondary');
   });
 
-  it('adds the Opened class when expanded', () => {
+  it('applies the correct type class (tertiary)', () => {
     render(
-      <Accordion title="Check opened">
+      <Accordion title="Tertiary accordion" type="tertiary">
         <div>Content</div>
       </Accordion>,
     );
 
-    const header = screen.getByRole('button');
-    fireEvent.click(header);
-
     const accordion = screen.getByTestId('sh-ui-accordion');
-    expect(accordion).toHaveClass('Opened');
+    expect(accordion).toHaveClass('Tertiary');
   });
 
   it('renders pillSlot when provided', () => {
@@ -98,6 +106,42 @@ describe('Accordion component', () => {
       </Accordion>,
     );
 
-    expect(container.querySelector('.SelectionPills ')).not.toBeInTheDocument();
+    expect(container.querySelector('.SelectionPills')).not.toBeInTheDocument();
+  });
+
+  it('renders Icon when provided', () => {
+    const TestIcon = (props: React.SVGProps<SVGSVGElement>) => <svg data-testid="icon" {...props} />;
+
+    render(
+      <Accordion title="With Icon" type="tertiary" Icon={TestIcon}>
+        <div>Content</div>
+      </Accordion>,
+    );
+
+    expect(screen.getByTestId('icon')).toBeInTheDocument();
+  });
+
+  it('supports imperative ref expand/collapse', () => {
+    const ref = React.createRef<AccordionRef>();
+
+    render(
+      <Accordion ref={ref} title="Imperative">
+        <div>Content</div>
+      </Accordion>,
+    );
+
+    const accordion = screen.getByTestId('sh-ui-accordion');
+    expect(accordion).not.toHaveClass('Opened');
+
+    act(() => {
+      ref.current?.expand();
+    });
+
+    expect(accordion).toHaveClass('Opened');
+
+    act(() => {
+      ref.current?.collapse();
+    });
+    expect(accordion).not.toHaveClass('Opened');
   });
 });

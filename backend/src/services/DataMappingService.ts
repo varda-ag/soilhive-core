@@ -18,7 +18,7 @@ type PostMappingResponse = Pick<DataMapping, 'id' | 'data_mapping'>;
 
 export default class DataMappingService {
   postDataMapping = async (requestData: RequestData, dataMapping: DataMappingObject): Promise<PostMappingResponse> => {
-    const { sub } = requestData.token;
+    const { sub } = requestData.token ?? {};
     // Validate
     if (dataMapping.drop_records && !Array.isArray(dataMapping.drop_records)) {
       throw new ErrorResponse(`drop_records must be an array of numbers`, StatusCodes.BAD_REQUEST);

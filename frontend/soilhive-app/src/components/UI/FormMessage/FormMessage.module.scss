@@ -13,6 +13,11 @@
     margin-top: 0.125rem;
   }
 
+  > .FormMessageText {
+    font-size: var(--font-size-xs);
+    line-height: var(--line-height-lg);
+  }
+
   &.ErrorMessage {
     > .FormMessageText {
       color: var(--color-accent-danger-1000);

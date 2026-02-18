@@ -3,62 +3,150 @@ import { collectParentsIds, filterNestedItems } from 'components/UI/NestedCheckb
 import { useCallback, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import Skeleton from 'react-loading-skeleton';
 import 'react-loading-skeleton/dist/skeleton.css';
-import type { NestedCheckboxRef } from 'types/components';
+import BiologicalIcon from 'assets/icons/biological-icon.svg?react';
+import ChemicalIcon from 'assets/icons/chemical-icon.svg?react';
+import DerivedIcon from 'assets/icons/derived-icon.svg?react';
+import PhysicalIcon from 'assets/icons/physical-icon.svg?react';
+import type { AccordionRef, NestedCheckboxRef } from 'types/components';
 import useSoilPropertiesFilters from 'hooks/useSoilPropertiesFilters';
 
 import styles from './FilteringSidebarParameters.module.scss';
+
+const CATEGORIES_ICONS_MAP: Record<string, React.FC<React.SVGProps<SVGSVGElement>>> = {
+  biological: BiologicalIcon,
+  chemical: ChemicalIcon,
+  derived: DerivedIcon,
+  physical: PhysicalIcon,
+};
 
 export function FilteringSidebarParameters() {
   const {
     isLoading,
     isNoData,
     isNoFilteredData,
-    nestedSoilProperties,
+    categorizedSoilProperties,
     selectedSoilProperties,
     pillSelections,
     handleOnChange,
     handlePillRemove,
   } = useSoilPropertiesFilters();
 
-  const [soilPropertiesExpanded, setSoilPropertiesExpanded] = useState(false);
-  const soilPropertiesRef = useRef<NestedCheckboxRef>(null);
-
-  const parentProperties = useMemo((): string[] => {
-    return collectParentsIds(nestedSoilProperties);
-  }, [nestedSoilProperties]);
-
   const [searchTerm, setSearchTerm] = useState<string>('');
+  const [accordionOpenByCategory, setAccordionOpenByCategory] = useState<Record<string, boolean>>({});
+  const [checkboxExpandedByCategory, setCheckboxExpandedByCategory] = useState<Record<string, boolean>>({});
+  const accordionRefs = useRef<Record<string, AccordionRef | null>>({});
+  const checkboxRefs = useRef<Record<string, NestedCheckboxRef | null>>({});
 
-  const handleSearch = useCallback((e: ChangeEvent<HTMLInputElement>) => {
-    setSearchTerm(e.target.value);
-    setSoilPropertiesExpanded(true);
-    soilPropertiesRef.current?.expandAll();
+  const setCheckboxRef = useCallback((categoryId: string) => {
+    return (instance: NestedCheckboxRef | null) => {
+      checkboxRefs.current[categoryId] = instance;
+    };
   }, []);
+
+  const setAccordionRef = useCallback((categoryId: string) => {
+    return (instance: AccordionRef | null) => {
+      accordionRefs.current[categoryId] = instance;
+    };
+  }, []);
+
+  const filteredProperties = useMemo(
+    () =>
+      categorizedSoilProperties
+        .map(category => ({ ...category, nodes: filterNestedItems(category.nodes, searchTerm) }))
+        .filter(category => category.nodes.length),
+    [categorizedSoilProperties, searchTerm],
+  );
+
+  const expandAll = useCallback(() => {
+    Object.values(checkboxRefs.current).forEach(ref => ref?.expandAll());
+    Object.values(accordionRefs.current).forEach(ref => ref?.expand());
+
+    setAccordionOpenByCategory(prev => {
+      const next = { ...prev };
+      for (const cat of filteredProperties) next[cat.id] = true;
+      return next;
+    });
+
+    setCheckboxExpandedByCategory(prev => {
+      const next = { ...prev };
+      for (const prop of filteredProperties) next[prop.id] = true;
+      return next;
+    });
+  }, [filteredProperties]);
+
+  const collapseAll = useCallback(() => {
+    Object.values(checkboxRefs.current).forEach(ref => ref?.collapseAll());
+    Object.values(accordionRefs.current).forEach(ref => ref?.collapse());
+
+    setAccordionOpenByCategory(prev => {
+      const next = { ...prev };
+      for (const prop of filteredProperties) next[prop.id] = false;
+      return next;
+    });
+    setCheckboxExpandedByCategory(prev => {
+      const next = { ...prev };
+      for (const prop of filteredProperties) next[prop.id] = false;
+      return next;
+    });
+  }, [filteredProperties]);
+
+  const parentPropertiesByCategory = useMemo(() => {
+    const map: Record<string, string[]> = {};
+    for (const category of categorizedSoilProperties) {
+      map[category.id] = collectParentsIds(category.nodes);
+    }
+    return map;
+  }, [categorizedSoilProperties]);
+
+  const handleSearch = useCallback(
+    (e: ChangeEvent<HTMLInputElement>) => {
+      setSearchTerm(e.target.value);
+      expandAll();
+    },
+    [expandAll],
+  );
+
+  const isCategoryCheckboxExpanded = useCallback(
+    (categoryId: string) => {
+      const parents = parentPropertiesByCategory[categoryId] ?? [];
+      if (parents.length === 0) return true;
+      return checkboxExpandedByCategory[categoryId] ?? false;
+    },
+    [parentPropertiesByCategory, checkboxExpandedByCategory],
+  );
+
+  const soilPropertiesExpanded = useMemo(() => {
+    const ids = filteredProperties.map(c => c.id);
+    if (ids.length === 0) return false;
+
+    return ids.every(id => {
+      const accOpen = accordionOpenByCategory[id] ?? false;
+      const cbOpen = isCategoryCheckboxExpanded(id);
+      return accOpen && cbOpen;
+    });
+  }, [filteredProperties, accordionOpenByCategory, isCategoryCheckboxExpanded]);
 
   const handleProperitesExpansionToggle = useCallback(() => {
     if (soilPropertiesExpanded) {
-      soilPropertiesRef.current?.collapseAll();
+      collapseAll();
     } else {
-      soilPropertiesRef.current?.expandAll();
+      expandAll();
     }
-    setSoilPropertiesExpanded(!soilPropertiesExpanded);
-  }, [soilPropertiesExpanded]);
+  }, [collapseAll, expandAll, soilPropertiesExpanded]);
+
+  const handleAccordionToggle = useCallback((categoryId: string, isOpened: boolean) => {
+    setAccordionOpenByCategory(prev => ({ ...prev, [categoryId]: isOpened }));
+  }, []);
 
   const handleToggleVisibility = useCallback(
-    (expandedIds: string[]) => {
-      const allExpanded = parentProperties.every(item => expandedIds.includes(item));
-      if (allExpanded && !soilPropertiesExpanded) {
-        setSoilPropertiesExpanded(true);
-      }
+    (categoryId: string, expandedIds: string[]) => {
+      const parents = parentPropertiesByCategory[categoryId] ?? [];
+      const allExpandedForThisCategory = parents.length === 0 ? true : parents.every(id => expandedIds.includes(id));
 
-      if (!allExpanded && soilPropertiesExpanded) {
-        setSoilPropertiesExpanded(false);
-      }
+      setCheckboxExpandedByCategory(prev => ({ ...prev, [categoryId]: allExpandedForThisCategory }));
     },
-    [parentProperties, soilPropertiesExpanded],
+    [parentPropertiesByCategory],
   );
-
-  const filteredProperties = useMemo(() => filterNestedItems(nestedSoilProperties, searchTerm), [nestedSoilProperties, searchTerm]);
 
   return (
     <div className={styles.FilteringSidebarParameters}>
@@ -67,11 +155,7 @@ export function FilteringSidebarParameters() {
         type="secondary"
         pillsSlot={pillSelections.length > 0 ? <SelectionPills selections={pillSelections} onRemove={handlePillRemove} /> : null}
       >
-        {isNoData ? (
-          <i>No data in selected area</i>
-        ) : isNoFilteredData ? (
-          <i>No data in selected area due to applied filters</i>
-        ) : (
+        {!isNoData && !isNoFilteredData && (
           <div className={styles.SoilProperties}>
             <input
               type="text"
@@ -91,14 +175,28 @@ export function FilteringSidebarParameters() {
                 <Skeleton count={1} height={120} />
               </span>
             ) : (
-              <NestedCheckbox
-                ref={soilPropertiesRef}
-                className={styles.SoilPropertiesCheckbox}
-                items={filteredProperties}
-                selected={selectedSoilProperties}
-                onChange={handleOnChange}
-                onToggleVisibility={handleToggleVisibility}
-              />
+              <div data-testid="properties-list" className={styles.SoilPropertiesList}>
+                {filteredProperties.map(category => (
+                  <Accordion
+                    ref={setAccordionRef(category.id)}
+                    key={category.id}
+                    openedFromStart={soilPropertiesExpanded}
+                    title={category.category_name}
+                    type="tertiary"
+                    Icon={CATEGORIES_ICONS_MAP[category.id]}
+                    onToggle={isOpened => handleAccordionToggle(category.id, isOpened)}
+                  >
+                    <NestedCheckbox
+                      ref={setCheckboxRef(category.id)}
+                      className={styles.SoilPropertiesCheckbox}
+                      items={category.nodes}
+                      selected={selectedSoilProperties}
+                      onChange={handleOnChange}
+                      onToggleVisibility={expandedIds => handleToggleVisibility(category.id, expandedIds)}
+                    />
+                  </Accordion>
+                ))}
+              </div>
             )}
           </div>
         )}

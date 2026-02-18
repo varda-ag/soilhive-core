@@ -313,6 +313,104 @@ paths:
         '401':
           description: Unauthorized - Token subject is missing
 
+  /jobs:
+    post:
+      x-eov-operation-handler: controllers/jobs
+      x-eov-operation-id: postJob
+      summary: Starts async job
+      tags:
+        - jobs
+      security:
+        - bearerAuth: []
+        - {}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/BulkLoadJob'
+                - $ref: '#/components/schemas/ExportJob'
+      responses:
+        '201':
+          description: Async job started successfull
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    get:
+      x-eov-operation-handler: controllers/jobs
+      x-eov-operation-id: getJobs
+      summary: Get all async jobs for the user
+      tags:
+        - jobs
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Job array
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Job'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /jobs/{jobId}:
+    parameters:
+      - name: jobId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: ID of the async job
+    get:
+      x-eov-operation-handler: controllers/jobs
+      x-eov-operation-id: getJobById
+      summary: Get async job status
+      tags:
+        - jobs
+      security:
+        - bearerAuth: []
+        - {}
+      responses:
+        '200':
+          description: Job status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      x-eov-operation-handler: controllers/jobs
+      x-eov-operation-id: deleteJobById
+      summary: Cancel async job
+      tags:
+        - jobs
+      security:
+        - bearerAuth: []
+        - {}
+      responses:
+        '204':
+          description: Job canceled successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /datasets/{datasetId}/dataset-file-mapping:
     get:
       x-eov-operation-handler: controllers/dataset-file-mappings
@@ -492,6 +590,45 @@ paths:
               schema:
                 $ref: '#/components/schemas/SoilProperty'
 
+  /soil-property-categories:
+    get:
+      x-eov-operation-handler: controllers/soil-property-categories
+      x-eov-operation-id: getSoilPropertyCategories
+      summary: Get soil property categories
+      tags:
+        - soil-properties
+      responses:
+        '200':
+          description: Array of categories
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SoilPropertyCategory'
+
+  /soil-property-categories/{soilPropertyCategoryId}:
+    parameters:
+      - name: soilPropertyCategoryId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Soil property category ID
+    get:
+      x-eov-operation-handler: controllers/soil-property-categories
+      x-eov-operation-id: getSoilPropertyCategory
+      summary: Get specific soil property category
+      tags:
+        - soil-properties
+      responses:
+        '200':
+          description: Dataset information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SoilPropertyCategory'
+
   /data-filters:
     post:
       x-eov-operation-handler: controllers/data-filters
@@ -644,46 +781,46 @@ paths:
           schema:
             type: string
             enum:
-            - dataset_id
-            - dataset_name
-            - extractant_concentration
-            - extractant_formulation
-            - extraction_base
-            - extraction_ratio
-            - geometry
-            - horizon
-            - instrument
-            - license_name
-            - limit_of_detection
-            - max_depth
-            - min_depth
-            - property_acronym
-            - sample_pretreatment
-            - sampling_date
-            - soil_property
-            - standard_unit
-            - technique
-            - value
-            - -dataset_id
-            - -dataset_name
-            - -extractant_concentration
-            - -extractant_formulation
-            - -extraction_base
-            - -extraction_ratio
-            - -geometry
-            - -horizon
-            - -instrument
-            - -license_name
-            - -limit_of_detection
-            - -max_depth
-            - -min_depth
-            - -property_acronym
-            - -sample_pretreatment
-            - -sampling_date
-            - -soil_property
-            - -standard_unit
-            - -technique
-            - -value
+              - dataset_id
+              - dataset_name
+              - extractant_concentration
+              - laboratory_method
+              - extraction_base
+              - extraction_ratio
+              - geometry
+              - horizon
+              - measurement_procedure
+              - license_name
+              - limit_of_detection
+              - max_depth
+              - min_depth
+              - property_acronym
+              - sample_pretreatment
+              - sampling_date
+              - soil_property
+              - standard_unit
+              - technique
+              - value
+              - -dataset_id
+              - -dataset_name
+              - -extractant_concentration
+              - -laboratory_method
+              - -extraction_base
+              - -extraction_ratio
+              - -geometry
+              - -horizon
+              - -measurement_procedure
+              - -license_name
+              - -limit_of_detection
+              - -max_depth
+              - -min_depth
+              - -property_acronym
+              - -sample_pretreatment
+              - -sampling_date
+              - -soil_property
+              - -standard_unit
+              - -technique
+              - -value
       responses:
         '200':
           description: Soil data
@@ -796,32 +933,31 @@ paths:
           description: File downloaded successfully
 
   /mappings:
-      post:
-        x-eov-operation-handler: controllers/mappings
-        x-eov-operation-id: createDataMapping
-        summary: Create a new data mapping. This operation is idempotent
-        tags:
-          - mappings
-        security:
-          - bearerAuth: [data-admin]
-        requestBody:
-          required: true
+    post:
+      x-eov-operation-handler: controllers/mappings
+      x-eov-operation-id: createDataMapping
+      summary: Create a new data mapping. This operation is idempotent
+      tags:
+        - mappings
+      security:
+        - bearerAuth: [data-admin]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DataMappingObject'
+      responses:
+        '201':
+          description: Data mapping created successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DataMappingObject'
-        responses:
-          '201':
-            description: Data mapping created successfully
-            content:
-              application/json:
-                schema:
-                  $ref: '#/components/schemas/DataMapping'
-          '400':
-            $ref: '#/components/responses/BadRequest'
-          '401':
-            $ref: '#/components/responses/Unauthorized'
-  
+                $ref: '#/components/schemas/DataMapping'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
   /mappings/{mappingId}:
     parameters:
       - name: mappingId
@@ -869,37 +1005,43 @@ components:
       content:
         application/json:
           schema:
-            $ref: "#/components/schemas/ErrorResponse"
+            $ref: '#/components/schemas/ErrorResponse'
     BadRequest:
       description: Bad request
       content:
         application/json:
           schema:
-            $ref: "#/components/schemas/ErrorResponse"
+            $ref: '#/components/schemas/ErrorResponse'
     Unauthorized:
       description: Unauthorized
       content:
         application/json:
           schema:
-            $ref: "#/components/schemas/ErrorResponse"
+            $ref: '#/components/schemas/ErrorResponse'
     Forbidden:
       description: Forbidden
       content:
         application/json:
           schema:
-            $ref: "#/components/schemas/ErrorResponse"
+            $ref: '#/components/schemas/ErrorResponse'
     Conflict:
       description: Conflict
       content:
         application/json:
           schema:
-            $ref: "#/components/schemas/ErrorResponse"
+            $ref: '#/components/schemas/ErrorResponse'
+    UnprocessableEntity:
+      description: Unprocessable entity
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
     TooManyRequests:
       description: Too many requests
       content:
         application/json:
           schema:
-            $ref: "#/components/schemas/ErrorResponse"
+            $ref: '#/components/schemas/ErrorResponse'
 
   securitySchemes:
     bearerAuth:
@@ -969,10 +1111,10 @@ components:
           type: string
           format: uri
           description: A URI reference that identifies the specific occurrence of the problem. It may yield further information if dereferenced.
-    
+
     Geometry:
       $ref: '../src/GeoJSON-OAS3.yaml#/components/schemas/Geometry'
-    
+
     FileDescriptor:
       type: object
       properties:
@@ -1010,9 +1152,9 @@ components:
           items:
             type: string
             enum:
-            - point
-            - polygonal
-            - raster
+              - point
+              - polygonal
+              - raster
             description: Type of data contained in the dataset (e.g., point samples, raster data)
         licenses:
           type: array
@@ -1068,9 +1210,9 @@ components:
             data_type:
               type: string
               enum:
-              - point
-              - polygonal
-              - raster
+                - point
+                - polygonal
+                - raster
               description: Type of data contained in the dataset (e.g., point samples, raster data)
             dataset_layer_count:
               type: integer
@@ -1152,10 +1294,10 @@ components:
           type: string
           nullable: true
           description: Analytical or experimental technique used
-        extractant_formulation:
+        laboratory_method:
           type: string
           nullable: true
-          description: Extractant chemical composition
+          description: The named laboratory method or protocol used to generate the result, including standard protocols or digestion/combustion approaches where applicable
         extractant_concentration:
           type: string
           nullable: true
@@ -1168,10 +1310,10 @@ components:
           type: string
           nullable: true
           description: Base or solvent used in extraction
-        instrument:
+        measurement_procedure:
           type: string
           nullable: true
-          description: Instrument or device used for analysis
+          description: Measurement procedure or instrument used for analysis
         limit_of_detection:
           type: string
           nullable: true
@@ -1338,6 +1480,26 @@ components:
           type: string
           description: Category identifier
 
+    SoilPropertyCategory:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Identifier for the soil property category
+        category_name:
+          type: string
+          description: Full name of the category
+        category_acronym:
+          type: string
+          description: Short acronym representing the category
+        description:
+          type: string
+          description: Optional description of the category
+      required:
+        - id
+        - category_name
+        - category_acronym
+
     SoilRecord:
       type: object
       required:
@@ -1392,14 +1554,14 @@ components:
         - A PropertyMapping object (for property columns with conversion/procedure info)
       example:
         magnesium:
-          property_id: "magnesium"
-          procedure_id: "sieved-over-2-mm-sieve-lab-procedure-water-h2o--01-05-weight-volume-electrode"
-          conversion_id: "cm"
+          property_id: 'magnesium'
+          procedure_id: 'sieved-over-2-mm-sieve-lab-procedure-water-h2o--01-05-weight-volume-electrode'
+          conversion_id: 'cm'
         total_nitrogen:
-          property_id: "nitrogen-total"
-        upper_depth: "min_depth"
-        lower_depth: "max_depth"
-        date: "sampling_date"
+          property_id: 'nitrogen-total'
+        upper_depth: 'min_depth'
+        lower_depth: 'max_depth'
+        date: 'sampling_date'
 
     PropertyMapping:
       type: object
@@ -1431,7 +1593,7 @@ components:
         mappingId:
           type: string
           format: uuid
-          
+
     DatasetFileMappingResponse:
       type: object
       properties:
@@ -1444,6 +1606,55 @@ components:
         mappingId:
           type: string
           format: uuid
-        
 
-    
+    BulkLoadJob:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [bulk-load]
+          description: Job type
+        dataset_id:
+          type: string
+
+    ExportJob:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [export]
+          description: Job type
+        filterId:
+          type: string
+          format: uuid
+          description: Filter ID to specify which data to export
+
+    Job:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier for the job
+        queue:
+          type: string
+          description: Queue containing the job
+        status:
+          type: string
+          enum: [created, retry, active, completed, cancelled, failed]
+          description: Current status of the job
+        created_by:
+          type: string
+          description: ID of the user who initiated the job
+        created_at:
+          type: string
+          format: date-time
+          description: Timestamp when the job was created
+        completed_at:
+          type: string
+          format: date-time
+          description: Timestamp when the job was completed
+        data:
+          oneOf:
+            - $ref: '#/components/schemas/BulkLoadJob'
+            - $ref: '#/components/schemas/ExportJob'

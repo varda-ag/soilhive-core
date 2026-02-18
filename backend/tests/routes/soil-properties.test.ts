@@ -1,3 +1,4 @@
+import { validate } from 'uuid';
 import { describe, it, expect } from '@jest/globals';
 import request from 'supertest';
 import { app } from '../../src/app';
@@ -26,6 +27,11 @@ describe('Testing /soil-properties routes', () => {
     const ids = res.body.map((item: any) => item.id);
     expect(ids).toContain('ph');
     expect(ids).toContain('oc');
+    const categories = res.body.map((item: any) => item.category_id);
+    categories.forEach((categoryId: string) => {
+      const isValidUUID = validate(categoryId);
+      expect(isValidUUID).toBeFalsy();
+    });
   });
 
   it.each(['ph', 'oc'])('GET /soil-properties/:soilPropertyId responds with the expected soil property', async id => {
@@ -33,6 +39,8 @@ describe('Testing /soil-properties routes', () => {
     expect(res.statusCode).toBe(200);
     expect(res.body).toHaveProperty('id', id);
     expect(res.body).toHaveProperty('property_name', id);
+    const isValidUUID = validate(res.body.category_id);
+    expect(isValidUUID).toBeFalsy();
   });
 
   it('GET /soil-properties responds with 404 if soil property does not exist', async () => {
