@@ -51,7 +51,7 @@ export interface ExportRecord {
   extractant_concentration: string | null;
   extraction_ratio: string | null;
   extraction_base: string | null;
-  measurement_procedure?: string | null;
+  measurement_procedure: string | null;
   limit_of_detection: string | null;
 }
 
