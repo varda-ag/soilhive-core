@@ -28,6 +28,9 @@ function DownloadPreview() {
     setPreview,
     geometryFilter,
     datasetsSummary,
+    selectionType,
+    locationName,
+    boundingBox,
     selectedSoilProperties: availabilitySelectedSoilProperties,
     filteredSoilProperties: availabilityFilteredSoilProperties,
     selectedFilters: availabilitySelectedFilters,
@@ -35,10 +38,11 @@ function DownloadPreview() {
     filteredDatasets: availabilityFilteredDatasets,
   } = availabilityContext; // TODO rimuovi filterid e te lo ricrei ogni volta con la POST quando cambiano i parametri
 
+  const [summaryExpanded, setSummaryExpanded] = useState(false);
+  const [selectedPoint, setSelectedPoint] = useState<[number, number]>();
   const [selectedDatasets, setSelectedDatasets] = useState<string[]>();
   const [filters, setFilters] = useState<PreviewFilters>({});
   const [sort, setSort] = useState<string>();
-  // const [cursor, setCursor] = useState<string>();
 
   const parameters = {
     geometries: geometryFilter,
@@ -50,10 +54,18 @@ function DownloadPreview() {
 
   const { filterId, data: filteredDatasets, isLoading: areFiltersLoading } = useFilteredDatasets(parameters);
 
+  // TODO FIXME: if you select both soil property (or any other filter) and a dataset and then remove the dataset the page will
+  // show empty results instead of returning to the results for all datasets.
   const availableDatasets =
     availabilitySelectedDatasets.length > 0
       ? (filteredDatasets ?? availabilityFilteredDatasets).filter(dataset => availabilitySelectedDatasets.includes(dataset.id))
       : (filteredDatasets ?? availabilityFilteredDatasets);
+
+  // With this the bug doesn't occur but the list of datasets remains fixed and doesn't change when other filters do
+  // const availableDatasets =
+  //   availabilitySelectedDatasets.length > 0
+  //     ? availabilityFilteredDatasets.filter(dataset => availabilitySelectedDatasets.includes(dataset.id))
+  //     : availabilityFilteredDatasets;
 
   const availableSoilProperties = useMemo(() => {
     const soilPropertiesIds = [
@@ -89,7 +101,6 @@ function DownloadPreview() {
     datasets: selectedDatasets ?? availableDatasets.map(dataset => dataset.id),
     filterId,
     limit: MAXIMUM_SOIL_DATA_PER_REQUEST + 1,
-    // cursor,
     sort,
   });
 
@@ -135,20 +146,22 @@ function DownloadPreview() {
       <div className={styles.Content}>
         <div className={classNames(styles.Sidebar, { [styles.HideInMobile]: selectedTab !== 'summary' })}>
           <DownloadPreviewSummary
-            selectionType={'drawn-polygon'}
-            initialViewBoundingBox={[6.6272658, 35.2889616, 18.7844746, 47.0921462]}
-            selectedPoint={[10.522015854087698, 44.441902924546724]}
+            selectionType={selectionType}
+            initialViewBoundingBox={boundingBox}
+            selectedPoint={selectedPoint}
             selectedFeature={{
               type: 'FeatureCollection',
               features: geometryFilter.map(geometry => ({ geometry })),
             }}
-            locationName="France"
+            locationName={locationName}
             dataPoints={datasetsSummary.dataPoints}
             rasterLayers={datasetsSummary.layers}
             depthRange={fixedDepthRange ? `${datasetsSummary.depth}cm` : undefined}
             soilProperties={availabilityFilteredSoilProperties
               .filter(property => availabilitySelectedSoilProperties.includes(property.id))
               .map(property => property.property_name)}
+            expanded={summaryExpanded}
+            onExpandClicked={newExpanded => setSummaryExpanded(newExpanded)}
           />
         </div>
         <div className={classNames(styles.Data, { [styles.HideInMobile]: selectedTab !== 'availability' })}>
@@ -176,6 +189,10 @@ function DownloadPreview() {
             }}
             onTableLastPage={() => {
               if (hasMore) loadMore();
+            }}
+            onPointSelected={point => {
+              setSummaryExpanded(true);
+              setSelectedPoint(point);
             }}
           />
         </div>

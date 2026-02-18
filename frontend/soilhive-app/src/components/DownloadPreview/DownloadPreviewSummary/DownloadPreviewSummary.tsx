@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import classNames from 'classnames';
 import SoilhiveSimpleMap from 'components/Map/SoilhiveSimpleMap';
 import { Button } from 'components/UI';
@@ -10,7 +9,7 @@ import MapPinIcon from 'assets/icons/map-pin-icon.svg?react';
 import WorldIcon from 'assets/icons/world-icon.svg?react';
 import useDevice from 'hooks/useDevice';
 
-// console.log(numberFormatter.format(1234567));
+// console.debug(numberFormatter.format(1234567));
 // Output: "1.234.567"
 const numberFormatter = new Intl.NumberFormat('de-DE');
 
@@ -19,11 +18,13 @@ interface DownloadPreviewSummaryProps {
   initialViewBoundingBox?: [number, number, number, number];
   selectedPoint?: [number, number];
   selectedFeature?: any;
-  locationName: string;
+  locationName?: string;
   dataPoints?: number;
   rasterLayers?: number;
   depthRange?: string;
   soilProperties?: Array<string>;
+  expanded?: boolean;
+  onExpandClicked?: (expanded: boolean) => void;
 }
 
 function DownloadPreviewSummary({
@@ -36,9 +37,10 @@ function DownloadPreviewSummary({
   rasterLayers,
   depthRange,
   soilProperties,
+  expanded = false,
+  onExpandClicked,
 }: DownloadPreviewSummaryProps) {
   const { isDesktopLayout } = useDevice();
-  const [expanded, setExpanded] = useState(false);
 
   let selectionTitle: string = 'Selection';
   if (selectionType === 'h3-cell') {
@@ -65,23 +67,30 @@ function DownloadPreviewSummary({
               dataTestId="reduce-download-preview-summary-button"
               type="tertiary"
               isIconOnly={true}
-              onClick={() => setExpanded(false)}
+              onClick={() => onExpandClicked?.(false)}
             >
               <ReduceIcon />
             </Button>
           )}
           {isDesktopLayout && !expanded && (
-            <Button dataTestId="expand-download-preview-summary-button" type="tertiary" isIconOnly={true} onClick={() => setExpanded(true)}>
+            <Button
+              dataTestId="expand-download-preview-summary-button"
+              type="tertiary"
+              isIconOnly={true}
+              onClick={() => onExpandClicked?.(true)}
+            >
               <ExpandIcon />
             </Button>
           )}
         </div>
         <div className={styles.SubMap}>
           <div className={styles.SectionTitle}>{selectionTitle}</div>
-          <div className={styles.Location}>
-            <WorldIcon />
-            {locationName}
-          </div>
+          {locationName && (
+            <div className={styles.Location}>
+              <WorldIcon />
+              {locationName}
+            </div>
+          )}
         </div>
       </div>
       <div className={styles.Separator}></div>

@@ -23,6 +23,7 @@ function DownloadPreviewDataSection({
   onFiltersChange,
   datasets = [],
   onDatasetsChange,
+  onPointSelected,
 }: {
   data?: SoilDataSample[];
   isDataLoading?: boolean;
@@ -37,6 +38,7 @@ function DownloadPreviewDataSection({
   onFiltersChange?: (newFilters: PreviewFilters) => void;
   datasets?: { id: string; name: string }[];
   onDatasetsChange?: (dataset: string[] | undefined) => void;
+  onPointSelected?: (point: [number, number] | undefined) => void;
 }) {
   const [filtersDialogOpen, setFiltersDialogOpen] = useState(false);
 
@@ -98,6 +100,7 @@ function DownloadPreviewDataSection({
             onTableSort?.(sort);
           }}
           onTableLastPage={onTableLastPage}
+          onPointSelected={onPointSelected}
         />
       </div>
     </div>

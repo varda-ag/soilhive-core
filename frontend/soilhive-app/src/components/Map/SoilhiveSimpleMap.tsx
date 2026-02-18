@@ -11,16 +11,19 @@ import {
 } from 'react-map-gl/maplibre';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import '../../styles/SoilhiveMap.scss';
-import { bBoxToH3Cells, h3IndexesToGeoJSONPolygons } from '../../utilities/geo';
+import { bBoxToH3Cells, h3IndexesToGeoJSONPolygons, largestPolygon as largestPolygonFn } from '../../utilities/geo';
 import { bbox as bboxFn } from '@turf/turf';
 import { h3ResolutionForZoomLevel } from '../../utilities/map';
+import { simplifyGeometry } from '../../utilities/simplifyGeometry';
+import type { FeatureCollection, MultiPolygon, Polygon } from 'geojson';
+import type { MapLibreEvent } from 'maplibre-gl';
 
 type MapStyle = string | StyleSpecification | ImmutableLike<StyleSpecification>;
 
 interface SoilhiveSimpleMapProps {
   initialViewBoundingBox?: [number, number, number, number];
   selectedPoint?: [number, number];
-  selectedFeature?: any;
+  selectedFeature?: FeatureCollection;
   showH3Cells?: boolean;
   showNavigation?: boolean;
   mapStyle?: MapStyle;
@@ -50,7 +53,7 @@ const dataLayerBorders: LayerProps = {
 function SoilhiveSimpleMap({
   initialViewBoundingBox,
   selectedPoint = undefined,
-  selectedFeature = null,
+  selectedFeature = undefined,
   showNavigation = true,
   showH3Cells = false,
   mapStyle = 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json',
@@ -60,7 +63,7 @@ function SoilhiveSimpleMap({
   const mapRef = useRef<any>(null);
   const [h3Cells, setH3Cells] = useState<any | null>(null);
 
-  function updateH3Cells(mapEvent: any) {
+  function updateH3Cells(mapEvent: MapLibreEvent) {
     if (!showH3Cells) {
       setH3Cells(null);
       return;
@@ -78,18 +81,23 @@ function SoilhiveSimpleMap({
   }
 
   const fitBoundsToSelectedFeature = useCallback(() => {
-    if (!selectedFeature) {
-      return;
-    }
-    const bbox = bboxFn(selectedFeature);
+    if (!selectedFeature) return;
+    const simplifiedGeometry: Polygon | MultiPolygon = simplifyGeometry(selectedFeature.features[0].geometry as Polygon | MultiPolygon);
+    const largestPolygon = simplifiedGeometry.type === 'MultiPolygon' ? largestPolygonFn(simplifiedGeometry) : simplifiedGeometry;
+    if (largestPolygon === null) throw new Error('A valid MultiPolygon should contain at least a Polygon');
+    const bbox = bboxFn(largestPolygon!) as [number, number, number, number];
     mapRef.current?.fitBounds(bbox, { padding: 40 });
   }, [selectedFeature]);
 
   useEffect(() => {
-    fitBoundsToSelectedFeature();
-  }, [fitBoundsToSelectedFeature, selectedFeature]);
+    if (selectedPoint) {
+      mapRef.current?.flyTo({ center: selectedPoint });
+    } else {
+      fitBoundsToSelectedFeature();
+    }
+  }, [fitBoundsToSelectedFeature, selectedFeature, selectedPoint]);
 
-  function onMapLoad(mapEvent: any) {
+  function onMapLoad(mapEvent: MapLibreEvent) {
     updateH3Cells(mapEvent);
     fitBoundsToSelectedFeature();
   }
@@ -101,7 +109,7 @@ function SoilhiveSimpleMap({
         scrollZoom={scrollZoom}
         dragPan={dragPan}
         minZoom={3}
-        maxZoom={15}
+        maxZoom={24}
         renderWorldCopies={false}
         dragRotate={false}
         mapStyle={mapStyle}

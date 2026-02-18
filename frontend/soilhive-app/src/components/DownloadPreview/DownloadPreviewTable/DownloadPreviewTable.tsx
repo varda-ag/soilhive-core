@@ -37,6 +37,7 @@ function DownloadPreviewTable({
   onTableLastPage,
   first = 0,
   setFirst,
+  onPointSelected,
 }: {
   data?: SoilDataSample[];
   isDataLoading?: boolean;
@@ -44,6 +45,7 @@ function DownloadPreviewTable({
   onTableLastPage?: () => void;
   first?: number;
   setFirst?: Dispatch<SetStateAction<number>>;
+  onPointSelected?: (point: [number, number] | undefined) => void;
 }) {
   const [visibleColumns, setVisibleColumns] = useState<string[]>([
     'sampling_date',
@@ -59,7 +61,12 @@ function DownloadPreviewTable({
 
   const dateCell = ({ sampling_date, geometry }: SoilDataSample) => {
     return (
-      <Button type="tertiary">
+      <Button
+        type="tertiary"
+        onClick={() => {
+          onPointSelected?.(geometry ? geometry.coordinates : undefined);
+        }}
+      >
         {geometry && <MapPinIcon />}
         {sampling_date ? new Date(sampling_date).toLocaleDateString() : '-'}
       </Button>
@@ -102,7 +109,6 @@ function DownloadPreviewTable({
               sortField={sortField}
               sortOrder={sortOrder}
               onSort={event => {
-                console.debug('onSort event', event);
                 const { sortField, sortOrder } = event;
                 if (!sortOrder) onTableSort?.(undefined);
                 else {
@@ -112,7 +118,6 @@ function DownloadPreviewTable({
                 setSortOrder(sortOrder);
               }}
               onPage={event => {
-                console.debug('onPage event', event);
                 const { page, totalPages } = event;
                 if (page && totalPages) {
                   const isLastPage = totalPages - 1 - page === 0;

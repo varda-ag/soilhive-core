@@ -1,7 +1,7 @@
 import type { SoilDataParameters, SoilDataSample } from 'types/backend';
 import { useApiQuery } from './useApiQuery';
 import { useDebounce } from './useDebounce';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 // import { usePrevious, usePreviousDistinct } from 'react-use';
 
 export function useSoilData(parameters: SoilDataParameters) {
@@ -9,28 +9,40 @@ export function useSoilData(parameters: SoilDataParameters) {
   const [cursor, setCursor] = useState<string>();
 
   const debouncedParameters = useDebounce(parameters, 300);
+
   // const previousParameters = usePrevious(debouncedParameters) ?? debouncedParameters;
 
   const { datasets, filterId, limit, sort } = debouncedParameters;
 
-  const queryParameters: [string, string][] = [
-    ['datasets', datasets.join(',')],
-    ['limit', `${limit}`],
-  ];
-  if (filterId) {
-    queryParameters.push(['filterId', filterId]);
-  }
-  if (cursor) {
-    queryParameters.push(['cursor', cursor]);
-  }
-  if (sort) {
-    queryParameters.push(['sort', sort]);
-  }
+  const queryParameters = useMemo(() => {
+    const params: [string, string][] = [
+      ['datasets', datasets.join(',')],
+      ['limit', `${limit}`],
+    ];
+    if (filterId) params.push(['filterId', filterId]);
+    if (cursor) params.push(['cursor', cursor]);
+    if (sort) params.push(['sort', sort]);
+    return params;
+  }, [datasets, limit, filterId, cursor, sort]);
+
+  // const queryParameters: [string, string][] = [
+  //   ['datasets', datasets.join(',')],
+  //   ['limit', `${limit}`],
+  // ];
+  // if (filterId) {
+  //   queryParameters.push(['filterId', filterId]);
+  // }
+  // if (cursor) {
+  //   queryParameters.push(['cursor', cursor]);
+  // }
+  // if (sort) {
+  //   queryParameters.push(['sort', sort]);
+  // }
 
   const { data, isLoading } = useApiQuery<SoilDataSample[]>({
     endpoint: `/soil-data`,
     method: 'GET',
-    queryKey: ['soil-data', queryParameters],
+    queryKey: ['soil-data', JSON.stringify(queryParameters)],
     parameters: queryParameters,
     enabled: true,
   });
@@ -46,11 +58,11 @@ export function useSoilData(parameters: SoilDataParameters) {
         });
       }
     }
-  }, [data]);
+  }, [data, debouncedParameters]);
 
-  useEffect(() => {
-    console.debug('allDataMap', allDataMap);
-  }, [allDataMap]);
+  // useEffect(() => {
+  //   console.debug('allDataMap', allDataMap);
+  // }, [allDataMap]);
 
   const allData = [...allDataMap.values()].flatMap(data => data);
 

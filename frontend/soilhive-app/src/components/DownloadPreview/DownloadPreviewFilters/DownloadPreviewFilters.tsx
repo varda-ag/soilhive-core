@@ -59,14 +59,18 @@ function DownloadPreviewFilters({
     setSelectedDateRange(null);
   }, [fixedCalendarRange, filters]);
 
-  const depths = [
-    ...Array.from({ length: Math.ceil((depthMinMaxRange?.[1] ?? 150) / 15) }, (_, i) => ({
-      name: `${i * 15}cm - ${i * 15 + 15}cm`,
-      id: `${i * 15}-${i * 15 + 15}`,
-      range: [i * 15, i * 15 + 15],
-    })),
-    ...(fixedDepthRange ? [{ name: `${fixedDepthRange[0]}cm - ${fixedDepthRange[1]}cm`, id: 'fixed-range', range: fixedDepthRange }] : []),
-  ];
+  const depths = useMemo(() => {
+    return [
+      ...Array.from({ length: Math.ceil((depthMinMaxRange?.[1] ?? 150) / 15) }, (_, i) => ({
+        name: `${i * 15}cm - ${i * 15 + 15}cm`,
+        id: `${i * 15}-${i * 15 + 15}`,
+        range: [i * 15, i * 15 + 15],
+      })),
+      ...(fixedDepthRange
+        ? [{ name: `${fixedDepthRange[0]}cm - ${fixedDepthRange[1]}cm`, id: 'fixed-range', range: fixedDepthRange }]
+        : []),
+    ];
+  }, [depthMinMaxRange, fixedDepthRange]);
 
   const { min_depth, max_depth } = filters;
   const selectedDepth =
@@ -175,7 +179,6 @@ function DownloadPreviewFilters({
     selectedDataset,
     datasets,
     filters,
-    depthMinMaxRange,
     fixedDepthRange,
     selectedDateRange,
     calendarMinMaxRange,
@@ -185,6 +188,7 @@ function DownloadPreviewFilters({
     onDatasetsChange,
     soilProperties,
     depths,
+    selectedDepth,
   ]);
 
   const closeDialog = () => {

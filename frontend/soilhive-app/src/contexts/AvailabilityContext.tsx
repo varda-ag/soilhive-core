@@ -41,6 +41,12 @@ type AvailabilityContextType = {
   setSelectedSoilProperties: React.Dispatch<React.SetStateAction<string[]>>;
   setSelectedTimeFilter: React.Dispatch<React.SetStateAction<TimeFilterState>>;
   clearAllFilters: () => void;
+  selectionType: 'h3-cell' | 'drawn-polygon' | 'country';
+  setSelectionType: React.Dispatch<React.SetStateAction<'h3-cell' | 'drawn-polygon' | 'country'>>;
+  locationName?: string;
+  setLocationName: React.Dispatch<React.SetStateAction<string | undefined>>;
+  boundingBox?: [number, number, number, number];
+  setBoundingBox: React.Dispatch<React.SetStateAction<[number, number, number, number] | undefined>>;
 };
 
 export const AvailabilityContext = createContext<AvailabilityContextType | undefined>(undefined);
@@ -50,6 +56,9 @@ type AvailabilityProviderProps = {
 };
 
 export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ children }) => {
+  const [selectionType, setSelectionType] = useState<'h3-cell' | 'drawn-polygon' | 'country'>('drawn-polygon');
+  const [locationName, setLocationName] = useState<string>();
+  const [boundingBox, setBoundingBox] = useState<[number, number, number, number]>();
   const [selectedDatasets, setSelectedDatasets] = useState<string[]>([]);
   const [searchValue, setSearchValue] = useState<string>('');
   const [datasetFrontendFilters, setDatasetFrontendFilters] = useState<DatasetFrontendFilters>({
@@ -199,6 +208,12 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
         setSelectedTimeFilter,
         setSelectedSoilProperties,
         clearAllFilters,
+        selectionType,
+        setSelectionType,
+        locationName,
+        setLocationName,
+        boundingBox,
+        setBoundingBox,
       }}
     >
       {children}
