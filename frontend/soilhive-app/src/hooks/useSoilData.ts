@@ -21,12 +21,14 @@ export function useSoilData(parameters: SoilDataParameters) {
     return params;
   }, [datasets, limit, filterId, cursor, sort]);
 
-  const { data, isLoading } = useApiQuery<SoilDataSample[]>({
+  const { data = [], isLoading } = useApiQuery<SoilDataSample[]>({
     endpoint: `/soil-data`,
     method: 'GET',
     queryKey: ['soil-data', queryParameters],
     parameters: queryParameters,
-    enabled: true,
+    // The query gets executed only if there are available datasets
+    // otherwise the API would return an error.
+    enabled: datasets.length > 0,
   });
 
   useEffect(() => {
