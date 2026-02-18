@@ -1,0 +1,42 @@
+.Notification {
+  position: relative;
+  width: 21.75rem;
+  padding: 0.5rem 1rem 0.75rem;
+  border-radius: 0.25rem;
+  border-left: 0.25rem solid;
+  background-color: var(--color-neutral-white);
+  box-shadow: var(--shadow-interface-large);
+  line-height: var(--line-height-lg);
+
+  &.Error {
+    border-color: var(--color-accent-danger-1000);
+  }
+
+  &.Warning {
+    border-color: var(--color-accent-warning-1000);
+  }
+
+  &.Success {
+    border-color: var(--color-cta-default-solid);
+  }
+
+  > .Title {
+    padding-right: 1rem;
+    font-size: var(--font-size-md);
+    font-weight: var(--font-weight-bold);
+  }
+
+  > .Message {
+    margin-top: 0.125rem;
+    color: var(--color-neutral-dark-600);
+    font-size: var(--font-size-sm);
+  }
+
+  > .CloseIcon {
+    position: absolute;
+    top: 0.75rem;
+    right: 1rem;
+    cursor: pointer;
+    color: var(--color-neutral-dark-400);
+  }
+}
