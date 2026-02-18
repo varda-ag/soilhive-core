@@ -140,7 +140,8 @@ export interface Dataset {
 }
 
 export interface SoilDataParameters {
-  datasets: string[];
+  selectedDatasets?: string[];
+  availableDatasets: string[];
   filterId?: string;
   filters?: { soil_properties: string[] | undefined };
   limit: number;

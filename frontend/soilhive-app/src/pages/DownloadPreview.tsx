@@ -98,7 +98,8 @@ function DownloadPreview() {
       : [undefined, undefined];
 
   const { allData, isLoading, hasMore, loadMore, reset } = useSoilData({
-    datasets: selectedDatasets ?? availableDatasets.map(dataset => dataset.id),
+    selectedDatasets,
+    availableDatasets: availableDatasets.map(dataset => dataset.id),
     filterId,
     limit: MAXIMUM_SOIL_DATA_PER_REQUEST + 1,
     sort,

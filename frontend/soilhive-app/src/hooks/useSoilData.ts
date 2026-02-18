@@ -8,7 +8,9 @@ export function useSoilData(parameters: SoilDataParameters) {
   const [cursor, setCursor] = useState<string>();
 
   const debouncedParameters = useDebounce(parameters, 300);
-  const { datasets, filterId, limit, sort } = debouncedParameters;
+  const { selectedDatasets, availableDatasets, filterId, limit, sort } = debouncedParameters;
+
+  const datasets = selectedDatasets ?? availableDatasets;
 
   const queryParameters = useMemo(() => {
     const params: [string, string][] = [
@@ -24,7 +26,7 @@ export function useSoilData(parameters: SoilDataParameters) {
   const { data = [], isLoading } = useApiQuery<SoilDataSample[]>({
     endpoint: `/soil-data`,
     method: 'GET',
-    queryKey: ['soil-data', queryParameters],
+    queryKey: ['soil-data', queryParameters, selectedDatasets],
     parameters: queryParameters,
     // The query gets executed only if there are available datasets
     // otherwise the API would return an error.
