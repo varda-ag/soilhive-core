@@ -40,7 +40,7 @@ function DownloadPreviewFilters({
   depthMinMaxRange?: [number | undefined, number | undefined];
   fixedDepthRange?: Nullable<[number, number]>;
   onDatasetsChange?: (datasets: string[] | undefined) => void;
-  isLoading: boolean;
+  isLoading?: boolean;
 }) {
   const { isMobileLayout } = useDevice();
   const [selectedDataset, setSelectedDataset] = useState<string>();
