@@ -9,12 +9,6 @@ import { Button } from 'components/UI';
 import type { SoilProperty } from 'types/backend';
 import type { PreviewFilters } from 'types/downloadPreview';
 
-// const depths = [
-//   { name: '0-15 cm', value: 'depth1' },
-//   { name: '15-30 cm', value: 'depth2' },
-//   { name: '30-60 cm', value: 'depth3' },
-// ];
-
 function DownloadPreviewFilters({
   soilProperties = [],
   filters = {},

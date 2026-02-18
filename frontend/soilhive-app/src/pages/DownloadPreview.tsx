@@ -36,7 +36,7 @@ function DownloadPreview() {
     selectedFilters: availabilitySelectedFilters,
     selectedDatasets: availabilitySelectedDatasets,
     filteredDatasets: availabilityFilteredDatasets,
-  } = availabilityContext; // TODO rimuovi filterid e te lo ricrei ogni volta con la POST quando cambiano i parametri
+  } = availabilityContext;
 
   const [summaryExpanded, setSummaryExpanded] = useState(false);
   const [selectedPoint, setSelectedPoint] = useState<[number, number]>();
