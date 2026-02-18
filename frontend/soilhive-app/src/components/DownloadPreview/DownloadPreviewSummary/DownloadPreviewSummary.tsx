@@ -114,12 +114,12 @@ function DownloadPreviewSummary({
         </div>
       </div>
       <div className={styles.Separator}></div>
-      { depthRange !== undefined ||
+      {depthRange !== undefined ||
         (soilProperties && soilProperties?.length > 0 && (
           <div className={styles.AppliedFilters}>
             <div className={styles.SectionTitle}>Applied Filters</div>
             <div className={styles.FiltersList}>
-              { depthRange !== undefined && (
+              {depthRange !== undefined && (
                 <div className={styles.Filter}>
                   <div className={styles.FilterName}>Depth range</div>
                   <div className={styles.FilterValue}>{depthRange}</div>
