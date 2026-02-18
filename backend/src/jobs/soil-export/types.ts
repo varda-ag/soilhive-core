@@ -43,7 +43,6 @@ export interface ExportRecord {
   sampling_date: string | null;
   min_depth: number | null;
   max_depth: number | null;
-  horizon: string | null;
   value: number;
   unit: string | null;
   sample_pretreatment: string | null;
@@ -79,7 +78,6 @@ export const EXPORT_SCHEMA: FieldMetadata[] = [
   { key: 'sampling_date', title: 'sampling_date', title_truncated: 'date', type: 'string', gdalType: 'OFTString' },
   { key: 'min_depth', title: 'min_depth', title_truncated: 'min_depth', type: 'number', gdalType: 'OFTReal' },
   { key: 'max_depth', title: 'max_depth', title_truncated: 'max_depth', type: 'number', gdalType: 'OFTReal' },
-  { key: 'horizon', title: 'horizon', title_truncated: 'horizon', type: 'string', gdalType: 'OFTString' },
   { key: 'value', title: 'value', title_truncated: 'value', type: 'number', gdalType: 'OFTReal' },
   { key: 'unit', title: 'unit', title_truncated: 'unit', type: 'string', gdalType: 'OFTString' },
   { key: 'sample_pretreatment', title: 'sample_pretreatment', title_truncated: 'pretreat', type: 'string', gdalType: 'OFTString' },
@@ -129,7 +127,6 @@ export function soilSampleToExportRecord(sample: SoilDataSample): ExportRecord {
     sampling_date: sample.sampling_date,
     min_depth: sample.min_depth,
     max_depth: sample.max_depth,
-    horizon: sample.horizon,
     value: sample.value,
     unit: sample.standard_unit,
     sample_pretreatment: sample.sample_pretreatment,
