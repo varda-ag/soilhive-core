@@ -15,3 +15,4 @@ export * from './SelectionPills/SelectionPills';
 export * from './Toggle/Toggle';
 export * from './MultiselectButtons/MultiselectButtons';
 export * from './MultirangeSlider/MultirangeSlider';
+export * from './Notification/Notification';
