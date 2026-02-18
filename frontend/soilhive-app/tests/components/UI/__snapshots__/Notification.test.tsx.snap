@@ -1,0 +1,48 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`Notification renders message when provided 1`] = `
+<div>
+  <div
+    class="Notification Error"
+    data-testid="sh-ui-notification"
+  >
+    <svg
+      class="CloseIcon"
+      data-testid="sh-ui-notification-close"
+    >
+      mock-svg
+    </svg>
+    <div
+      class="Title"
+    >
+      Title
+    </div>
+    <div
+      class="Message"
+    >
+      My message
+    </div>
+  </div>
+</div>
+`;
+
+exports[`Notification renders title and no message when message is not provided 1`] = `
+<div>
+  <div
+    class="Notification Error"
+    data-testid="sh-ui-notification"
+  >
+    <svg
+      class="CloseIcon"
+      data-testid="sh-ui-notification-close"
+    >
+      mock-svg
+    </svg>
+    <div
+      class="Title"
+    >
+      Title
+    </div>
+  </div>
+</div>
+`;

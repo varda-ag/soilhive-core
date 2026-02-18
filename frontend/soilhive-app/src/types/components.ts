@@ -1,5 +1,7 @@
 export type ComponentSizeType = 'medium' | 'small' | 'tiny';
 
+export type NotificationType = 'error' | 'warning' | 'success';
+
 export interface MenuOption {
   code: string;
   name: string;

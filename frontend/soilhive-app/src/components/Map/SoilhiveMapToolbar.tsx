@@ -6,6 +6,7 @@ import PencilIcon from 'assets/icons/pencil-icon.svg?react';
 import UploadIcon from 'assets/icons/upload-icon.svg?react';
 import { check } from '@placemarkio/check-geojson';
 import type { Polygon, MultiPolygon } from 'geojson';
+import useNotifications from 'hooks/useNotifications';
 
 interface SoilhiveMapToolbarProps {
   onDrawClick: () => void;
@@ -17,6 +18,8 @@ export default function SoilhiveMapToolbar({ onDrawClick, onUpload }: SoilhiveMa
   const selectionButtonRef = useRef<HTMLButtonElement>(null);
   const selectionListRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const { showNotification } = useNotifications();
 
   const onWindowClick = (event: PointerEvent) => {
     const target = event.target as Node;
@@ -55,26 +58,31 @@ export default function SoilhiveMapToolbar({ onDrawClick, onUpload }: SoilhiveMa
     fileInput.accept = '.geojson,.json';
     fileInput.onchange = async function onFileInputChange(event) {
       const file = (event as any).target?.files?.item(0);
+
+      const fail = (id: string, message: string) => {
+        showNotification({ id, title: 'Upload failed', message });
+        fileInput.value = '';
+      };
+
       if (!file) {
-        console.error('No file uploaded');
+        fail('no-file-uploaded', 'No file uploaded');
         return;
       }
-      // TODO: Show errors to user
       const text = await file.text();
       if (!text) {
-        console.error('Cannot read uploaded file as text');
+        fail('cant-read-file', 'Cannot read uploaded file as text');
         return;
       }
       let json;
       try {
         json = check(text);
       } catch (e) {
-        console.error('Uploaded file does not contain valid GeoJSON', e);
+        fail('invalid-json', 'Uploaded file does not contain valid GeoJSON');
         return;
       }
       const polygon = selectFirstPolygon(json);
       if (!polygon) {
-        console.error('Uploaded file does not contain any valid Polygon or MultiPolygon');
+        fail('invalid-polygon', 'Uploaded file does not contain any valid Polygon or MultiPolygon');
         return;
       }
       onUpload(polygon);
