@@ -145,16 +145,21 @@ function DownloadPreviewFilters({
           onChange={e => setSelectedDateRange(e.value)}
           onHide={() => {
             if (!selectedDateRange || selectedDateRange?.some(date => date === null)) {
-              const { min_sampling_date: _, max_sampling_date: __, ...filtersWithoutDates } = filters;
+              const { min_sampling_date, max_sampling_date, ...filtersWithoutDates } = filters;
+              if (!selectedDateRange?.[0] && !min_sampling_date && !selectedDateRange?.[1] && !max_sampling_date) return;
               onFiltersChange?.(filtersWithoutDates);
               setSelectedDateRange(null);
               return;
             }
+
+            const min = (selectedDateRange[0] as unknown as Date).toISOString();
+            const max = (selectedDateRange[1] as unknown as Date).toISOString();
+            if (filters.min_sampling_date === min && filters.max_sampling_date === max) return;
             onFiltersChange?.({
               ...filters,
               // we know them not to be null because of the earlier range check
-              min_sampling_date: (selectedDateRange[0] as unknown as Date).toISOString(),
-              max_sampling_date: (selectedDateRange[1] as unknown as Date).toISOString(),
+              min_sampling_date: min,
+              max_sampling_date: max,
             });
           }}
           showButtonBar
