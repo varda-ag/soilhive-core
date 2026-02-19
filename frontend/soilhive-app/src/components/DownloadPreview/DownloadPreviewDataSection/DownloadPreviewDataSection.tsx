@@ -5,9 +5,49 @@ import ShareIcon from 'assets/icons/share-icon.svg?react';
 import DownloadPreviewFilters from '../DownloadPreviewFilters/DownloadPreviewFilters';
 import DownloadPreviewTable from '../DownloadPreviewTable/DownloadPreviewTable';
 import { useState } from 'react';
+import type { SoilDataSample, SoilProperty } from 'types/backend';
+import type { PreviewFilters } from 'types/downloadPreview';
+import type { Nullable } from 'primereact/ts-helpers';
 
-function DownloadPreviewDataSection() {
+function DownloadPreviewDataSection({
+  data = [],
+  isDataLoading = true,
+  onTableSort,
+  onTableLastPage,
+  soilProperties = [],
+  filters = {},
+  calendarMinMaxRange = [undefined, undefined],
+  fixedCalendarRange = null,
+  depthMinMaxRange = [undefined, undefined],
+  fixedDepthRange = null,
+  onFiltersChange,
+  datasets = [],
+  onDatasetsChange,
+  onPointSelected,
+}: {
+  data?: SoilDataSample[];
+  isDataLoading?: boolean;
+  onTableSort?: (sort: string | undefined) => void;
+  onTableLastPage?: () => void;
+  soilProperties?: SoilProperty[];
+  calendarMinMaxRange?: [Date | undefined, Date | undefined];
+  fixedCalendarRange?: Nullable<Array<Date | null>>;
+  depthMinMaxRange?: [number | undefined, number | undefined];
+  fixedDepthRange?: Nullable<[number, number]>;
+  filters?: PreviewFilters;
+  onFiltersChange?: (newFilters: PreviewFilters) => void;
+  datasets?: { id: string; name: string }[];
+  onDatasetsChange?: (dataset: string[] | undefined) => void;
+  onPointSelected?: (point: [number, number] | undefined) => void;
+}) {
   const [filtersDialogOpen, setFiltersDialogOpen] = useState(false);
+
+  const [tableFirst, setTableFirst] = useState<number>(0);
+
+  function resetPagination() {
+    setTableFirst(0);
+  }
+
   return (
     <div className={styles.DownloadPreviewDataSection}>
       <div className={styles.Controls}>
@@ -28,10 +68,40 @@ function DownloadPreviewDataSection() {
         </Button>
       </div>
       <div className={styles.Filters}>
-        <DownloadPreviewFilters dialogOpen={filtersDialogOpen} setDialogOpen={setFiltersDialogOpen} />
+        <DownloadPreviewFilters
+          soilProperties={soilProperties}
+          filters={filters}
+          onFiltersChange={newFilters => {
+            resetPagination();
+            onFiltersChange?.(newFilters);
+          }}
+          dialogOpen={filtersDialogOpen}
+          setDialogOpen={setFiltersDialogOpen}
+          datasets={datasets}
+          calendarMinMaxRange={calendarMinMaxRange}
+          fixedCalendarRange={fixedCalendarRange}
+          depthMinMaxRange={depthMinMaxRange}
+          fixedDepthRange={fixedDepthRange}
+          onDatasetsChange={datasets => {
+            resetPagination();
+            onDatasetsChange?.(datasets);
+          }}
+          isLoading={isDataLoading}
+        />
       </div>
       <div className={styles.TabularPreview}>
-        <DownloadPreviewTable />
+        <DownloadPreviewTable
+          data={data}
+          isDataLoading={isDataLoading}
+          first={tableFirst}
+          setFirst={setTableFirst}
+          onTableSort={sort => {
+            resetPagination();
+            onTableSort?.(sort);
+          }}
+          onTableLastPage={onTableLastPage}
+          onPointSelected={onPointSelected}
+        />
       </div>
     </div>
   );

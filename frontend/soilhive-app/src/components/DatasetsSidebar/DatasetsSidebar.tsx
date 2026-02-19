@@ -20,7 +20,7 @@ export function DatasetsSidebar({ isOpened, onClose }: Props) {
   if (!availabilityContext) {
     throw new Error('AvailabilityContext must be used within AvailabilityProvider');
   }
-  const { setPreview } = availabilityContext;
+  const { setPreview, datasets } = availabilityContext;
 
   return (
     <PageSidebar className={styles.DatasetsSidebar} isOpened={isOpened} position="right">
@@ -32,7 +32,7 @@ export function DatasetsSidebar({ isOpened, onClose }: Props) {
           <Button
             className={styles.PreviewButton}
             type="secondary"
-            isDisabled={false}
+            isDisabled={datasets.length === 0}
             onClick={() => {
               setPreview(true);
             }}

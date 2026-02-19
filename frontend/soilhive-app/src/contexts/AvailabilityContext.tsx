@@ -2,7 +2,7 @@ import { useFilteredDatasets } from 'hooks/useFilteredDatasets';
 import React, { createContext, useState, type ReactNode, useCallback, useMemo } from 'react';
 import type { AvailabilityDataset, DatasetFrontendFilters, DatasetSummary, TimeFilterState } from 'types/availability';
 import { mapFilteredDatasetToAvailabilityDataset } from '../adapters';
-import type { SoilProperty, FilterCriteria, SoilPropertyCategory } from 'types/backend';
+import type { SoilProperty, FilterCriteria, SoilPropertyCategory, FilteredDataset, BackendStoredDataFilter } from 'types/backend';
 import { computeDatasetSummary } from '../domain';
 import type { MultiPolygon, Polygon } from 'geojson';
 import { useSoilProperties } from '../hooks/useSoilProperties';
@@ -14,6 +14,7 @@ type AvailabilityContextType = {
   categories: SoilPropertyCategory[];
   isLoadingSoilProperties: boolean;
   allDatasets: AvailabilityDataset[];
+  filteredDatasets: FilteredDataset[];
   datasets: AvailabilityDataset[];
   selectedDatasets: string[];
   isAllSelected: boolean;
@@ -27,11 +28,14 @@ type AvailabilityContextType = {
   datasetFilters: FilterCriteria;
   preview: boolean;
   appliedFiltersCount: number;
+  filterId: string | undefined;
+  selectedFilters: BackendStoredDataFilter | undefined;
   isFiltersSelected: boolean;
   selectDataset: (id: string) => void;
   setSearchValue: (value: string) => void;
   setFrontendFilters: (value: string[], name: string) => void;
   selectAllDatasets: (select: boolean) => void;
+  geometryFilter: (Polygon | MultiPolygon)[];
   setGeometryFilter: React.Dispatch<React.SetStateAction<(Polygon | MultiPolygon)[]>>;
   setDatasetFilters: React.Dispatch<React.SetStateAction<FilterCriteria>>;
   setPreview: React.Dispatch<React.SetStateAction<boolean>>;
@@ -39,6 +43,12 @@ type AvailabilityContextType = {
   setSelectedSoilProperties: React.Dispatch<React.SetStateAction<string[]>>;
   setSelectedTimeFilter: React.Dispatch<React.SetStateAction<TimeFilterState>>;
   clearAllFilters: () => void;
+  selectionType: 'h3-cell' | 'drawn-polygon' | 'country';
+  setSelectionType: React.Dispatch<React.SetStateAction<'h3-cell' | 'drawn-polygon' | 'country'>>;
+  locationName?: string;
+  setLocationName: React.Dispatch<React.SetStateAction<string | undefined>>;
+  boundingBox?: [number, number, number, number];
+  setBoundingBox: React.Dispatch<React.SetStateAction<[number, number, number, number] | undefined>>;
 };
 
 export const AvailabilityContext = createContext<AvailabilityContextType | undefined>(undefined);
@@ -48,6 +58,9 @@ type AvailabilityProviderProps = {
 };
 
 export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ children }) => {
+  const [selectionType, setSelectionType] = useState<'h3-cell' | 'drawn-polygon' | 'country'>('drawn-polygon');
+  const [locationName, setLocationName] = useState<string>();
+  const [boundingBox, setBoundingBox] = useState<[number, number, number, number]>();
   const [selectedDatasets, setSelectedDatasets] = useState<string[]>([]);
   const [searchValue, setSearchValue] = useState<string>('');
   const [datasetFrontendFilters, setDatasetFrontendFilters] = useState<DatasetFrontendFilters>({
@@ -56,16 +69,16 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
   });
   const [isAllSelected, setIsAllSelected] = useState<boolean>(false);
   const [preview, setPreview] = useState<boolean>(false);
-  const [geometryfilter, setGeometryFilter] = useState<(Polygon | MultiPolygon)[]>([]);
+  const [geometryFilter, setGeometryFilter] = useState<(Polygon | MultiPolygon)[]>([]);
   const [datasetFilters, setDatasetFilters] = useState<FilterCriteria>({});
   const { data: categories, isLoading: isLoadingCategories } = usePropertiesCategories();
   const { data: allSoilProperties, isLoading: isLoadingSoilProperties } = useSoilProperties();
 
-  const partialFilterPayload = useMemo(() => ({ geometries: geometryfilter, parameters: {} }), [geometryfilter]);
-  const fullFilterPayload = useMemo(() => ({ geometries: geometryfilter, parameters: datasetFilters }), [geometryfilter, datasetFilters]);
+  const partialFilterPayload = useMemo(() => ({ geometries: geometryFilter, parameters: {} }), [geometryFilter]);
+  const fullFilterPayload = useMemo(() => ({ geometries: geometryFilter, parameters: datasetFilters }), [geometryFilter, datasetFilters]);
 
   const { data: geometryFilterResults, isLoading: isLoadingPartialFilter } = useFilteredDatasets(partialFilterPayload);
-  const { data: fullFilterResults, isLoading: isLoadingFullFilter } = useFilteredDatasets(fullFilterPayload);
+  const { filterId, selectedFilters, data: fullFilterResults, isLoading: isLoadingFullFilter } = useFilteredDatasets(fullFilterPayload);
 
   const [selectedSoilProperties, setSelectedSoilProperties] = useState<string[]>([]);
   const [selectedTimeFilter, setSelectedTimeFilter] = useState<TimeFilterState>({});
@@ -175,6 +188,7 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
         isLoadingSoilProperties,
         categories: categories || [],
         allDatasets,
+        filteredDatasets: fullFilterResults ?? [],
         datasets,
         selectedDatasets,
         isAllSelected,
@@ -188,6 +202,8 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
         selectedTimeFilter,
         preview,
         appliedFiltersCount,
+        filterId,
+        selectedFilters,
         isFiltersSelected,
         selectDataset,
         setSearchValue,
@@ -195,11 +211,18 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
         selectAllDatasets,
         setDatasetFilters,
         setPreview,
+        geometryFilter,
         setGeometryFilter,
         selectedSoilProperties,
         setSelectedTimeFilter,
         setSelectedSoilProperties,
         clearAllFilters,
+        selectionType,
+        setSelectionType,
+        locationName,
+        setLocationName,
+        boundingBox,
+        setBoundingBox,
       }}
     >
       {children}

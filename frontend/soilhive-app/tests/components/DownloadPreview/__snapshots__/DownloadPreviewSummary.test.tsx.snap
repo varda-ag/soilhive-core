@@ -103,47 +103,6 @@ exports[`DownloadPreviewSummary renders the download preview summary (sidebar) 1
     <div
       class="Separator"
     />
-    <div
-      class="AppliedFilters"
-    >
-      <div
-        class="SectionTitle"
-      >
-        Applied Filters
-      </div>
-      <div
-        class="FiltersList"
-      >
-        <div
-          class="Filter"
-        >
-          <div
-            class="FilterName"
-          >
-            Depth range
-          </div>
-          <div
-            class="FilterValue"
-          >
-            0-50cm
-          </div>
-        </div>
-        <div
-          class="Filter"
-        >
-          <div
-            class="FilterName"
-          >
-            Soil Properties
-          </div>
-          <div
-            class="FilterValue"
-          >
-            pH, Organic Carbon Content
-          </div>
-        </div>
-      </div>
-    </div>
   </div>
 </div>
 `;
@@ -240,47 +199,6 @@ exports[`DownloadPreviewSummary renders the download preview summary (sidebar) i
     <div
       class="Separator"
     />
-    <div
-      class="AppliedFilters"
-    >
-      <div
-        class="SectionTitle"
-      >
-        Applied Filters
-      </div>
-      <div
-        class="FiltersList"
-      >
-        <div
-          class="Filter"
-        >
-          <div
-            class="FilterName"
-          >
-            Depth range
-          </div>
-          <div
-            class="FilterValue"
-          >
-            0-50cm
-          </div>
-        </div>
-        <div
-          class="Filter"
-        >
-          <div
-            class="FilterName"
-          >
-            Soil Properties
-          </div>
-          <div
-            class="FilterValue"
-          >
-            pH, Organic Carbon Content
-          </div>
-        </div>
-      </div>
-    </div>
   </div>
 </div>
 `;
@@ -388,47 +306,6 @@ exports[`DownloadPreviewSummary renders the download preview summary (sidebar) w
     <div
       class="Separator"
     />
-    <div
-      class="AppliedFilters"
-    >
-      <div
-        class="SectionTitle"
-      >
-        Applied Filters
-      </div>
-      <div
-        class="FiltersList"
-      >
-        <div
-          class="Filter"
-        >
-          <div
-            class="FilterName"
-          >
-            Depth range
-          </div>
-          <div
-            class="FilterValue"
-          >
-            0-50cm
-          </div>
-        </div>
-        <div
-          class="Filter"
-        >
-          <div
-            class="FilterName"
-          >
-            Soil Properties
-          </div>
-          <div
-            class="FilterValue"
-          >
-            pH, Organic Carbon Content
-          </div>
-        </div>
-      </div>
-    </div>
   </div>
 </div>
 `;
@@ -536,47 +413,6 @@ exports[`DownloadPreviewSummary renders the download preview summary (sidebar) w
     <div
       class="Separator"
     />
-    <div
-      class="AppliedFilters"
-    >
-      <div
-        class="SectionTitle"
-      >
-        Applied Filters
-      </div>
-      <div
-        class="FiltersList"
-      >
-        <div
-          class="Filter"
-        >
-          <div
-            class="FilterName"
-          >
-            Depth range
-          </div>
-          <div
-            class="FilterValue"
-          >
-            0-50cm
-          </div>
-        </div>
-        <div
-          class="Filter"
-        >
-          <div
-            class="FilterName"
-          >
-            Soil Properties
-          </div>
-          <div
-            class="FilterValue"
-          >
-            pH, Organic Carbon Content
-          </div>
-        </div>
-      </div>
-    </div>
   </div>
 </div>
 `;
@@ -684,52 +520,11 @@ exports[`DownloadPreviewSummary renders the download preview summary (sidebar) w
     <div
       class="Separator"
     />
-    <div
-      class="AppliedFilters"
-    >
-      <div
-        class="SectionTitle"
-      >
-        Applied Filters
-      </div>
-      <div
-        class="FiltersList"
-      >
-        <div
-          class="Filter"
-        >
-          <div
-            class="FilterName"
-          >
-            Depth range
-          </div>
-          <div
-            class="FilterValue"
-          >
-            0-50cm
-          </div>
-        </div>
-        <div
-          class="Filter"
-        >
-          <div
-            class="FilterName"
-          >
-            Soil Properties
-          </div>
-          <div
-            class="FilterValue"
-          >
-            pH, Organic Carbon Content
-          </div>
-        </div>
-      </div>
-    </div>
   </div>
 </div>
 `;
 
-exports[`DownloadPreviewSummary renders the expanded download preview summary (sidebar) when clicking on the expand icon 1`] = `
+exports[`DownloadPreviewSummary renders the expanded download preview summary (sidebar) 1`] = `
 <div>
   <div
     class="DownloadPreviewSummary Expanded"
@@ -832,52 +627,11 @@ exports[`DownloadPreviewSummary renders the expanded download preview summary (s
     <div
       class="Separator"
     />
-    <div
-      class="AppliedFilters"
-    >
-      <div
-        class="SectionTitle"
-      >
-        Applied Filters
-      </div>
-      <div
-        class="FiltersList"
-      >
-        <div
-          class="Filter"
-        >
-          <div
-            class="FilterName"
-          >
-            Depth range
-          </div>
-          <div
-            class="FilterValue"
-          >
-            0-50cm
-          </div>
-        </div>
-        <div
-          class="Filter"
-        >
-          <div
-            class="FilterName"
-          >
-            Soil Properties
-          </div>
-          <div
-            class="FilterValue"
-          >
-            pH, Organic Carbon Content
-          </div>
-        </div>
-      </div>
-    </div>
   </div>
 </div>
 `;
 
-exports[`DownloadPreviewSummary renders the reduced download preview summary (sidebar) when clicking on the reduce icon 1`] = `
+exports[`DownloadPreviewSummary renders the reduced download preview summary (sidebar) 1`] = `
 <div>
   <div
     class="DownloadPreviewSummary"
@@ -980,47 +734,6 @@ exports[`DownloadPreviewSummary renders the reduced download preview summary (si
     <div
       class="Separator"
     />
-    <div
-      class="AppliedFilters"
-    >
-      <div
-        class="SectionTitle"
-      >
-        Applied Filters
-      </div>
-      <div
-        class="FiltersList"
-      >
-        <div
-          class="Filter"
-        >
-          <div
-            class="FilterName"
-          >
-            Depth range
-          </div>
-          <div
-            class="FilterValue"
-          >
-            0-50cm
-          </div>
-        </div>
-        <div
-          class="Filter"
-        >
-          <div
-            class="FilterName"
-          >
-            Soil Properties
-          </div>
-          <div
-            class="FilterValue"
-          >
-            pH, Organic Carbon Content
-          </div>
-        </div>
-      </div>
-    </div>
   </div>
 </div>
 `;

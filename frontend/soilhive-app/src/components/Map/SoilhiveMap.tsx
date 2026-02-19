@@ -128,6 +128,8 @@ function SoilhiveMap({
   const [selection, setSelection] = useState<{ type: string; features: GeoJSON.GeoJSON[] }>(emptySelection);
   const [showDrawControl, setShowDrawControl] = useState(false);
   const [showSelectionToolbar, setShowSelectionToolbar] = useState(false);
+  const selectionTypeRef = useRef<'drawn-polygon' | 'h3-cell' | 'country'>('drawn-polygon');
+  const locationNameRef = useRef<string>(undefined);
 
   // This prevents onMapMoveEnd from being called concurrently with applySelection
   const isApplyingSelection = useRef(false);
@@ -162,7 +164,10 @@ function SoilhiveMap({
         bounds: mapRef.current.getBounds().toArray().flat(),
         geometries: [simplifiedGeometry as Polygon | MultiPolygon],
         zoomLevel: mapRef.current.getZoom(),
+        selectionType: selectionTypeRef.current,
+        locationName: locationNameRef.current,
       });
+      locationNameRef.current = undefined;
       isApplyingSelection.current = false;
     },
     [onSelectionChange, onSelectionToolbarVisibilityChange],
@@ -171,6 +176,7 @@ function SoilhiveMap({
   const onUpload = useCallback(
     (geometry: Polygon | MultiPolygon) => {
       // Uploading a polygon from file
+      selectionTypeRef.current = 'drawn-polygon';
       applySelection(geometry, undefined, true);
     },
     [applySelection],
@@ -204,7 +210,8 @@ function SoilhiveMap({
 
       if (selection.features.length === 0) {
         // Current bbox (implicit) selection
-        onSelectionChange?.({ bounds, zoomLevel });
+        selectionTypeRef.current = 'drawn-polygon';
+        onSelectionChange?.({ bounds, zoomLevel, selectionType: selectionTypeRef.current });
       }
 
       updateH3Cells({ bounds, zoomLevel });
@@ -223,12 +230,14 @@ function SoilhiveMap({
     }
     setSelectedPoint(null);
     setSelection(emptySelection);
+    selectionTypeRef.current = 'drawn-polygon';
     setShowDrawControl(false);
     setShowSelectionToolbar(false);
     onSelectionToolbarVisibilityChange?.(false);
     onSelectionChange?.({
       bounds: mapRef.current.getMap().getBounds().toArray().flat(),
       zoomLevel: mapRef.current.getZoom(),
+      selectionType: selectionTypeRef.current,
     });
   }, [emptySelection, onSelectionChange, onSelectionToolbarVisibilityChange, selectedH3Cell]);
 
@@ -240,6 +249,7 @@ function SoilhiveMap({
         setSelectedPoint(event.lngLat);
       } else if (features.length > 0) {
         // H3 cell selection
+        selectionTypeRef.current = 'h3-cell';
         applySelection(features[0].geometry as Polygon, { type: 'Point', coordinates: [event.lngLat.lng, event.lngLat.lat] }, false);
         setSelectedH3Cell(features[0]);
       }
@@ -249,6 +259,9 @@ function SoilhiveMap({
 
   const onSearchResultSelect = useCallback(
     ({ feature }: { feature: MapGeoJSONFeature; center: Point }) => {
+      selectionTypeRef.current = 'country';
+      locationNameRef.current = feature?.properties?.display_name;
+
       if (feature.geometry.type === 'Polygon' || feature.geometry.type === 'MultiPolygon') {
         // Selecting a search result from the geocoder
         applySelection(feature.geometry, undefined, true);
@@ -263,6 +276,7 @@ function SoilhiveMap({
   const onFinishDrawing = useCallback(
     (feature: MapGeoJSONFeature) => {
       // Drawing a polygon on the map
+      selectionTypeRef.current = 'drawn-polygon';
       applySelection(feature.geometry as Polygon);
       setShowDrawControl(false);
     },

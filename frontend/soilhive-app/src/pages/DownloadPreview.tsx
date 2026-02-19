@@ -1,4 +1,4 @@
-import { useContext, useState } from 'react';
+import { useContext, useMemo, useState } from 'react';
 import { AvailabilityContext } from '../contexts/AvailabilityContext';
 import { Button } from 'components/UI';
 import styles from './DownloadPreview.module.scss';
@@ -9,6 +9,13 @@ import ShareIcon from 'assets/icons/share-icon.svg?react';
 import BookmarkIcon from 'assets/icons/bookmark-icon.svg?react';
 import classNames from 'classnames';
 import DownloadPreviewDataSection from 'components/DownloadPreview/DownloadPreviewDataSection/DownloadPreviewDataSection';
+import { useSoilData } from 'hooks/useSoilData';
+import { useFilteredDatasets } from 'hooks/useFilteredDatasets';
+import type { PreviewFilters } from 'types/downloadPreview';
+import { computeDatasetSummary } from '../domain';
+import type { Nullable } from 'primereact/ts-helpers';
+
+const MAXIMUM_SOIL_DATA_PER_REQUEST = 100;
 
 function DownloadPreview() {
   const availabilityContext = useContext(AvailabilityContext);
@@ -17,7 +24,87 @@ function DownloadPreview() {
     throw new Error('AvailabilityContext must be used within AvailabilityProvider');
   }
 
-  const { setPreview } = availabilityContext;
+  const {
+    setPreview,
+    geometryFilter,
+    datasetsSummary,
+    selectionType,
+    locationName,
+    boundingBox,
+    selectedSoilProperties: availabilitySelectedSoilProperties,
+    filteredSoilProperties: availabilityFilteredSoilProperties,
+    selectedFilters: availabilitySelectedFilters,
+    selectedDatasets: availabilitySelectedDatasets,
+    filteredDatasets: availabilityFilteredDatasets,
+  } = availabilityContext;
+
+  const [summaryExpanded, setSummaryExpanded] = useState(false);
+  const [selectedPoint, setSelectedPoint] = useState<[number, number]>();
+  const [selectedDatasets, setSelectedDatasets] = useState<string[]>();
+  const [filters, setFilters] = useState<PreviewFilters>({});
+  const [sort, setSort] = useState<string>();
+
+  const parameters = {
+    geometries: geometryFilter,
+    parameters: {
+      ...(availabilitySelectedFilters?.filter.parameters ?? {}),
+      ...filters,
+    },
+  };
+
+  const { filterId, data: filteredDatasets, isLoading: areFiltersLoading } = useFilteredDatasets(parameters);
+
+  // TODO FIXME: if you select both soil property (or any other filter) and a dataset and then remove the dataset the page will
+  // show empty results instead of returning to the results for all datasets.
+  const availableDatasets =
+    availabilitySelectedDatasets.length > 0
+      ? (filteredDatasets ?? availabilityFilteredDatasets).filter(dataset => availabilitySelectedDatasets.includes(dataset.id))
+      : (filteredDatasets ?? availabilityFilteredDatasets);
+
+  // With this the bug doesn't occur but the list of datasets remains fixed and doesn't change when other filters do
+  // const availableDatasets =
+  //   availabilitySelectedDatasets.length > 0
+  //     ? availabilityFilteredDatasets.filter(dataset => availabilitySelectedDatasets.includes(dataset.id))
+  //     : availabilityFilteredDatasets;
+
+  const availableSoilProperties = useMemo(() => {
+    const soilPropertiesIds = [
+      ...new Set(
+        (selectedDatasets ? availableDatasets.filter(dataset => selectedDatasets.includes(dataset.id)) : availableDatasets).flatMap(
+          dataset => dataset.soil_properties ?? [],
+        ),
+      ),
+    ];
+    return availabilityFilteredSoilProperties.filter(soilProperty => soilPropertiesIds.includes(soilProperty.id));
+  }, [availableDatasets, availabilityFilteredSoilProperties, selectedDatasets]);
+
+  const { min_sampling_date, max_sampling_date, min_depth, max_depth } = availabilitySelectedFilters?.filter.parameters ?? {};
+
+  const fixedCalendarRange = min_sampling_date && max_sampling_date ? [new Date(min_sampling_date), new Date(max_sampling_date)] : null;
+  const fixedDepthRange: Nullable<[number, number]> = min_depth && max_depth ? [min_depth, max_depth] : null;
+
+  const { globalDateStart, globalDateEnd /*globalMinDepth, globalMaxDepth*/ } = computeDatasetSummary(availableDatasets);
+  const calendarMinMaxRange: [Date | undefined, Date | undefined] =
+    globalDateStart && globalDateEnd ? [globalDateStart, globalDateEnd] : [undefined, undefined];
+
+  // Implementation of min/max depth range where it changes with the datasets available
+  // const depthMinMaxRange: [number | undefined, number | undefined] =
+  //   globalMinDepth !== null && globalMaxDepth !== null ? [globalMinDepth, globalMaxDepth] : [undefined, undefined];
+
+  // Implementation of min/max depth range where it stays the same that was in availability page
+  const depthMinMaxRange: [number | undefined, number | undefined] =
+    datasetsSummary.globalMinDepth !== null && datasetsSummary.globalMaxDepth !== null
+      ? [datasetsSummary.globalMinDepth, datasetsSummary.globalMaxDepth]
+      : [undefined, undefined];
+
+  const { allData, isLoading, hasMore, loadMore, reset } = useSoilData({
+    selectedDatasets,
+    availableDatasets: availableDatasets.map(dataset => dataset.id),
+    filterId,
+    limit: MAXIMUM_SOIL_DATA_PER_REQUEST + 1,
+    sort,
+  });
+
   const [selectedTab, setSelectedTab] = useState<'summary' | 'availability'>('summary');
 
   return (
@@ -60,61 +147,55 @@ function DownloadPreview() {
       <div className={styles.Content}>
         <div className={classNames(styles.Sidebar, { [styles.HideInMobile]: selectedTab !== 'summary' })}>
           <DownloadPreviewSummary
-            selectionType={'drawn-polygon'}
-            initialViewBoundingBox={[6.6272658, 35.2889616, 18.7844746, 47.0921462]}
-            selectedPoint={[10.522015854087698, 44.441902924546724]}
+            selectionType={selectionType}
+            initialViewBoundingBox={boundingBox}
+            selectedPoint={selectedPoint}
             selectedFeature={{
               type: 'FeatureCollection',
-              features: [
-                {
-                  geometry: {
-                    type: 'Polygon',
-                    coordinates: [
-                      [
-                        [9.66796875, 44.9375850039109],
-                        [10.404052734375, 45.31352900692258],
-                        [11.2060546875, 45.06964120886863],
-                        [11.260986328125, 44.45338880030178],
-                        [10.52490234375, 44.083639282846434],
-                        [9.73388671875, 44.323848072506905],
-                        [9.66796875, 44.9375850039109],
-                      ],
-                    ],
-                  },
-                  type: 'Feature',
-                  properties: {
-                    h3Index: '831ea6fffffffff',
-                  },
-                  id: '831ea6fffffffff',
-                  layer: {
-                    id: 'data-fills',
-                    type: 'fill',
-                    source: 'data',
-                    paint: {
-                      'fill-color': {
-                        r: 0.9607843137254902,
-                        g: 0.6980392156862745,
-                        b: 0,
-                        a: 1,
-                      },
-                      'fill-opacity': 0,
-                    },
-                    layout: {},
-                  },
-                  source: 'data',
-                  state: {},
-                },
-              ],
+              features: geometryFilter.map(geometry => ({ geometry })),
             }}
-            locationName="France"
-            dataPoints={7367}
-            rasterLayers={4}
-            depthRange="0-50cm"
-            soilProperties={['pH', 'Organic Carbon Content']}
+            locationName={locationName}
+            dataPoints={datasetsSummary.dataPoints}
+            rasterLayers={datasetsSummary.layers}
+            depthRange={fixedDepthRange ? `${datasetsSummary.depth}cm` : undefined}
+            soilProperties={availabilityFilteredSoilProperties
+              .filter(property => availabilitySelectedSoilProperties.includes(property.id))
+              .map(property => property.property_name)}
+            expanded={summaryExpanded}
+            onExpandClicked={newExpanded => setSummaryExpanded(newExpanded)}
           />
         </div>
         <div className={classNames(styles.Data, { [styles.HideInMobile]: selectedTab !== 'availability' })}>
-          <DownloadPreviewDataSection />
+          <DownloadPreviewDataSection
+            datasets={availableDatasets}
+            onDatasetsChange={newDatasets => {
+              reset();
+              setSelectedDatasets(newDatasets);
+            }}
+            soilProperties={availableSoilProperties}
+            calendarMinMaxRange={calendarMinMaxRange}
+            fixedCalendarRange={fixedCalendarRange}
+            depthMinMaxRange={depthMinMaxRange}
+            fixedDepthRange={fixedDepthRange}
+            filters={filters}
+            onFiltersChange={newFilters => {
+              reset();
+              setFilters(newFilters);
+            }}
+            data={allData}
+            isDataLoading={areFiltersLoading || isLoading}
+            onTableSort={sort => {
+              reset();
+              setSort(sort);
+            }}
+            onTableLastPage={() => {
+              if (hasMore) loadMore();
+            }}
+            onPointSelected={point => {
+              setSummaryExpanded(true);
+              setSelectedPoint(point);
+            }}
+          />
         </div>
       </div>
       <div className={styles.TabsHeader}>

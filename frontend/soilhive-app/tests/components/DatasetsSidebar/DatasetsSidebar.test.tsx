@@ -33,6 +33,7 @@ jest.mock('../../../src/contexts/AvailabilityContext', () => {
     __esModule: true,
     AvailabilityContext: React.createContext({
       setPreview: mockSetPreview,
+      datasets: ['test-dataset'],
     }),
     mockSetPreview,
   };
