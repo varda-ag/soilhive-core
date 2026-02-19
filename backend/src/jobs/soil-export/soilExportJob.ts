@@ -6,7 +6,7 @@ import { ExportJob } from '../../interfaces/Job';
 import { EXPORT_CONFIG, FileFormat } from './types';
 import { getEntityManager } from '../../utils/data-source';
 import { getTotalRecordsCount, createReadmeFile, fetchBatch, groupByProperty } from './exportHelpers';
-import { getPgBoss } from '../../services/PgBoss';
+import { getPgBoss, PG_BOSS_SCHEMA } from '../../services/PgBoss';
 import { GeoFileWriter } from './GeoFileWriter';
 import { cleanupTempFiles, generateDownloadPath, moveToDownloadFolder, zipFiles } from './storageHelpers';
 
@@ -124,5 +124,9 @@ function parseFileFormat(format: string): FileFormat {
 
 async function updateJobState(jobId: string, update: Partial<ExportJob>): Promise<void> {
   const boss = getPgBoss();
-  await boss.getDb().executeSql("UPDATE pgboss.job SET data = $1::jsonb WHERE id = $2 AND state = 'active'", [update, jobId]);
+  const db = boss.getDb();
+  await db.executeSql(`UPDATE ${PG_BOSS_SCHEMA}.job SET data = data || $1::jsonb WHERE id = $2 AND state = 'active'`, [
+    JSON.stringify(update),
+    jobId,
+  ]);
 }
