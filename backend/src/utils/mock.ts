@@ -399,6 +399,8 @@ export const addSyntheticIngestionData = async (syntheticIngestionDataOptions): 
   assert(spatial_extent.length === 4, 'spatial_extent must be an array of 4 numbers [minX, minY, maxX, maxY]');
   assert(typeof columnMapping === 'object', 'columnMapping must be a non-empty object');
   const dataset = await addDataset(`test_dataset_${id}`, spatial_extent);
+  dataset.status = IngestionStatus.PENDING;
+  await dataset.save();
   const category = await addCategory(`test_category_${id}`);
   await addLicense(`test_license_raw_data`);
   const file = await addFile(`test_file_${id}`);

@@ -87,7 +87,7 @@ export default class BulkLoader {
       try {
         await Promise.all(promises);
       } catch (error) {
-        throw new ErrorResponse(`Failed to process file ${file.id}: ${(error as Error).message}`, StatusCodes.INTERNAL_SERVER_ERROR);
+        throw new ErrorResponse(`Failed to process file ${file.id}: ${error}`, StatusCodes.INTERNAL_SERVER_ERROR);
       }
 
       if (results.length < BATCH_SIZE) {
@@ -114,7 +114,14 @@ export default class BulkLoader {
       const clientReq = http.request(options, serverRes => {
         let data = '';
         serverRes.on('data', chunk => (data += chunk));
-        serverRes.on('end', () => resolve({ status: serverRes.statusCode, data: JSON.parse(data) }));
+        serverRes.on('end', () => {
+          if (serverRes.statusCode !== 201) {
+            reject(new ErrorResponse('Failed to load data', serverRes.statusCode));
+          } else {
+            const response = { status: serverRes.statusCode, data: data ? JSON.parse(data) : undefined };
+            resolve(response);
+          }
+        });
       });
       clientReq.on('error', reject);
       clientReq.write(postData); // Send JSON payload
