@@ -1,6 +1,6 @@
 import { Polygon, MultiPolygon } from 'geojson';
 import { OverlapType } from '../types/enums';
-import { EntityManager } from 'typeorm';
+import { EntityManager, SelectQueryBuilder } from 'typeorm';
 import { FilteredDataset, FilterCriteria, DataFilter } from '../interfaces/DatasetFilter';
 import DatasetEntity from '../entities/Dataset';
 import DatasetLayerEntity from '../entities/DatasetLayer';
@@ -88,6 +88,33 @@ export default class SoilDataStorage {
     cursor?: string,
     sort?: string,
   ): Promise<SoilDataSample[]> => {
+    const query = await this.buildSoilBaseQuery(entityManager, dataFilter, datasetSlugs);
+
+    applySelectToQuery(query);
+    applyCursorToQuery(query, cursor, sort);
+    applySortingToQuery(query, sort);
+
+    query.limit(limit);
+
+    const results = await query.getRawMany();
+
+    return results.map(row => dataRowTranslation(row, sort));
+  };
+
+  getSoilDataCount = async (entityManager: EntityManager, dataFilter: DataFilter, datasetSlugs: string[]): Promise<number> => {
+    const query = await this.buildSoilBaseQuery(entityManager, dataFilter, datasetSlugs);
+
+    // otherwise typeorm count by distinct("dataset_layers"."id"
+    const result = await query.select('COUNT(*)', 'count').getRawOne();
+
+    return parseInt(result.count, 10);
+  };
+
+  buildSoilBaseQuery = async (
+    entityManager: EntityManager,
+    dataFilter: DataFilter,
+    datasetSlugs: string[],
+  ): Promise<SelectQueryBuilder<DatasetLayerEntity>> => {
     assert(datasetSlugs.length > 0, 'At least one dataset slug must be provided');
     const repo = entityManager.getRepository(DatasetLayerEntity);
     const query = repo
@@ -114,16 +141,9 @@ export default class SoilDataStorage {
       query.andWhere(`(${geomWhereClause})`, geomParams);
     }
 
-    applySelectToQuery(query);
     applyFiltersToQuery(query, dataFilter.parameters);
-    applyCursorToQuery(query, cursor, sort);
-    applySortingToQuery(query, sort);
 
-    query.limit(limit);
-
-    const results = await query.getRawMany();
-
-    return results.map(row => dataRowTranslation(row, sort));
+    return query;
   };
 }
 

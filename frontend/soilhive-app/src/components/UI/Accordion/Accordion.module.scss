@@ -52,7 +52,7 @@
           padding-bottom: 0;
 
           > .ArrowIcon {
-            transform: rotate(-90deg);
+            transform: rotate(-180deg);
           }
         }
       }
@@ -118,13 +118,17 @@
     border-radius: 0.25rem;
 
     > .Header {
-      padding: 0.5rem 0.4687rem;
+      padding: 0.5rem 0.75rem;
       > .Title {
         justify-content: flex-start;
 
         .ArrowIcon,
         .Icon {
           color: var(--color-neutral-dark-600);
+        }
+
+        .ArrowIcon {
+          transform: rotate(-90deg);
         }
       }
     }

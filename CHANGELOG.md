@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.33.0 (2026-02-18)
+
+## What's Changed
+* feat(be): sp-4883 soil data export job - functions by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/207
+* feat(be): :construction: add getSoilDataCount function by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/213
+* feat: sp-4893 - filtering soil parameters styles fixes by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/215
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.32.0...v0.33.0
+
 ## 0.32.0 (2026-02-18)
 
 ## What's Changed
