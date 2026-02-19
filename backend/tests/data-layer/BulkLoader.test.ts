@@ -1,5 +1,5 @@
 //import { v7 as uuidv7 } from 'uuid';
-import { addSyntheticIngestionData, syntheticIngestionDataOptions } from '../../src/utils/mock';
+import { addSyntheticIngestionData, syntheticIngestionDataOptions, getLoadedDataCount } from '../../src/utils/mock';
 import BulkLoader from '../../src/jobs/bulk-load/BulkLoader';
 import { BulkLoadJob } from '../../src/interfaces/Job';
 import path from 'path';
@@ -13,7 +13,13 @@ describe('BulkLoader class', () => {
   });
 
   it('Bulk loading synthetic data', async () => {
-    const { dataset } = await addSyntheticIngestionData({ ...syntheticIngestionDataOptions });
+    // Clone options and remove filters
+    const options = JSON.parse(JSON.stringify(syntheticIngestionDataOptions));
+    delete options.columnMapping.bdfi33.max_val;
+    delete options.columnMapping.bdfiod.min_val;
+    delete options.columnMapping.drop_records;
+
+    const { dataset } = await addSyntheticIngestionData({ ...options });
 
     const token = await getDataAdminToken();
 
@@ -37,6 +43,12 @@ describe('BulkLoader class', () => {
     };
 
     await bulkLoader.startBulkLoad(job);
+
+    const createdData = await getLoadedDataCount();
+    expect(createdData.n_features).toBe(2);
+    expect(createdData.n_layers).toBe(17);
+    expect(createdData.n_dataset_layers).toBe(20);
+    expect(createdData.n_observations).toBe(22);
 
     mockMakeRequest.mockRestore();
   });

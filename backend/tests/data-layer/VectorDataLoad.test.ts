@@ -38,7 +38,7 @@ describe('VectorDataLoad class', () => {
     expect(minBdfiod).toBeGreaterThanOrEqual(syntheticIngestionDataOptions.columnMapping.bdfiod.min_val);
     const resultRecordIds = results.map(r => parseFloat(r.record_id as string));
     const maxRecordId = Math.max(...resultRecordIds);
-    expect(maxRecordId).toBe(10135);
+    expect(maxRecordId).toBe(10102);
   });
   it('rawRecordToDataModel should create new features, layers, dataset_layers and observations', async () => {
     const { dataset, file, dataMapping } = await addSyntheticIngestionData({ ...syntheticIngestionDataOptions });

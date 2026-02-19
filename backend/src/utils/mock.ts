@@ -185,7 +185,7 @@ export const addUnitConversion = async (
 
 export const addLayer = async (
   license: string,
-  sampling_date?: Date,
+  sampling_date?: string,
   min_depth?: number,
   max_depth?: number,
   horizon?: string,
@@ -338,7 +338,7 @@ export const addSyntheticData = async (syntheticDataOptions): Promise<SyntheticD
   let counter = 1;
   for (let depthLayer = 0; depthLayer < depthLayers; depthLayer++) {
     const depth = depthLayer * 10;
-    const layer = await addLayer(license.id, new Date(`${year}-01-01`), depth, depth + 10, `A${depthLayer}`);
+    const layer = await addLayer(license.id, `${year}-01-01`, depth, depth + 10, `A${depthLayer}`);
     const datasetLayers = await addDatasetLayers(
       dataset.id,
       layer.id,
