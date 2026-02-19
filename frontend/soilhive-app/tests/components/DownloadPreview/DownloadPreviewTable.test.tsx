@@ -27,7 +27,12 @@ describe('DownloadPreview', () => {
   });
 
   it('renders download preview page', () => {
-    const { container } = render(<DownloadPreviewTable />);
+    const { container } = render(<DownloadPreviewTable isDataLoading={false} />);
+    expect(container).toMatchSnapshot();
+  });
+
+  it('renders the loading download preview page', () => {
+    const { container } = render(<DownloadPreviewTable isDataLoading={true} />);
     expect(container).toMatchSnapshot();
   });
 });

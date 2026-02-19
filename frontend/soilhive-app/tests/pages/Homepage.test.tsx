@@ -54,6 +54,9 @@ jest.mock('../../src/contexts/AvailabilityContext', () => {
     __esModule: true,
     AvailabilityContext: React.createContext({
       setGeometryFilter: mockSetGeometryFilter,
+      setBoundingBox: jest.fn(),
+      setLocationName: jest.fn(),
+      setSelectionType: jest.fn(),
     }),
     mockSetGeometryFilter,
   };
@@ -171,6 +174,7 @@ describe('Homepage', () => {
       bounds: [6.0, 35.0, 18.0, 47.0],
       geometries,
       zoomLevel: 10,
+      selectionType: 'drawn-polygon',
     };
 
     const onSelectionChange = mockOnMapSelectionChange;
@@ -191,6 +195,7 @@ describe('Homepage', () => {
       bounds: [6.0, 35.0, 18.0, 47.0],
       // No geometries provided
       zoomLevel: 10,
+      selectionType: 'drawn-polygon',
     };
 
     // Act

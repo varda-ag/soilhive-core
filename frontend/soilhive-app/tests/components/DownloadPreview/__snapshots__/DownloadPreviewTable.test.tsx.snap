@@ -60,6 +60,70 @@ exports[`DownloadPreview renders download preview page 1`] = `
             <div>
               Mock Column
             </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div
+      class="Footer"
+    >
+      This is just a preview of the soil data we have filtered by area and the filters you selected, to see all the data available, download it.
+    </div>
+  </div>
+</div>
+`;
+
+exports[`DownloadPreview renders the loading download preview page 1`] = `
+<div>
+  <div
+    class="DownloadPreviewTable"
+  >
+    <div
+      class="SectionTitle"
+    >
+      Tabular preview
+    </div>
+    <div
+      class="Content"
+    >
+      <div
+        class="TableControls"
+      >
+        <div>
+          Mock Multiselect
+        </div>
+        <button
+          class="Button Tertiary Small MetadataButton"
+          data-testid="sh-ui-button"
+          type="button"
+        >
+          <svg
+            data-testid="svg-icon-mock"
+          >
+            mock-svg
+          </svg>
+          Metadata
+        </button>
+      </div>
+      <div
+        class="TableContainer"
+      >
+        <div>
+          Mock PrimeReactProvider 
+          <div>
+            Mock DataTable 
+            <div>
+              Mock Column
+            </div>
+            <div>
+              Mock Column
+            </div>
+            <div>
+              Mock Column
+            </div>
+            <div>
+              Mock Column
+            </div>
             <div>
               Mock Column
             </div>
@@ -70,6 +134,13 @@ exports[`DownloadPreview renders download preview page 1`] = `
               Mock Column
             </div>
           </div>
+        </div>
+        <div
+          class="LoaderOverlay"
+        >
+          <div
+            class="Loader"
+          />
         </div>
       </div>
     </div>
