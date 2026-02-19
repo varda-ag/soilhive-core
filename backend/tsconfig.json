@@ -10,13 +10,10 @@
     "resolveJsonModule": true,
     //"target": "es2021",
     "pretty": true,
+    "rootDir": "./src",
     "outDir": "dist",
     "allowJs": true,
     "paths": { "*": ["./*"] },
-    // File Layout
-    // "rootDir": "./src",
-    // "outDir": "./dist",
-
     // Environment Settings
     // See also https://aka.ms/tsconfig/module
     "module": "nodenext",

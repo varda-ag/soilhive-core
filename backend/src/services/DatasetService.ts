@@ -8,12 +8,12 @@ import { getEntity } from '../utils/slugs';
 import { EntityType } from '../types/data';
 
 export default class DatasetService {
-  getDatasets = async (requestData: RequestData): Promise<Dataset[]> => {
+  getDatasets = async (requestData: RequestData): Promise<DatasetEntity[]> => {
     const repo = requestData.entityManager.getRepository(DatasetEntity);
     return await repo.find();
   };
 
-  getDataset = async (requestData: RequestData, slug: string): Promise<Dataset> => {
+  getDataset = async (requestData: RequestData, slug: string): Promise<DatasetEntity> => {
     return await getEntity(requestData, DatasetEntity, EntityType.DATASET, slug);
   };
 
@@ -44,7 +44,7 @@ export default class DatasetService {
     }
   };
 
-  updateDataset = async (requestData: RequestData, slug: string, data: UpdateDatasetInput): Promise<Dataset> => {
+  updateDataset = async (requestData: RequestData, slug: string, data: UpdateDatasetInput): Promise<DatasetEntity> => {
     const repo = requestData.entityManager.getRepository(DatasetEntity);
     const { sub } = requestData.token ?? {};
 
@@ -52,7 +52,7 @@ export default class DatasetService {
       throw new ErrorResponse('Token subject is missing', StatusCodes.UNAUTHORIZED);
     }
 
-    const dataset = (await getEntity(requestData, DatasetEntity, EntityType.DATASET, slug)) as DatasetEntity;
+    const dataset: DatasetEntity = await getEntity(requestData, DatasetEntity, EntityType.DATASET, slug);
 
     repo.merge(dataset, {
       ...data,

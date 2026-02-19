@@ -7,7 +7,7 @@ import { transactionMiddleware } from './middlewares/transaction';
 import { initPgBoss } from './services/PgBoss';
 import { setupCLI } from './utils/cli';
 import { initializeSchema } from './utils/data-source';
-import { isJest, setupEnv } from './utils/utils';
+import { getServerPort, isJest, setupEnv } from './utils/utils';
 
 setupEnv();
 
@@ -37,7 +37,7 @@ export const initApp = async (app: Application) => {
   await initPgBoss();
   initializeSchema();
 
-  const port = process.env.PORT || 4001;
+  const port = getServerPort();
   app.listen(port, () => {
     console.log(`Server is running at http://localhost:${port}`);
   });

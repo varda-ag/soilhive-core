@@ -44,6 +44,7 @@
     "jwks-rsa": "^3.2.0",
     "multer": "^2.0.2",
     "node-object-hash": "^3.1.1",
+    "p-limit": "^7.3.0",
     "pg": "^8.16.3",
     "pg-boss": "^12.11.1",
     "reflect-metadata": "^0.2.2",
@@ -71,7 +72,7 @@
       "^.+\\.(ts|js)x?$": "ts-jest"
     },
     "transformIgnorePatterns": [
-      "<rootDir>/node_modules/(?!(pg-boss|serialize-error|non-error)/)"
+      "<rootDir>/node_modules/(?!(pg-boss|serialize-error|non-error|p-limit|yocto-queue)/)"
     ],
     "preset": "ts-jest",
     "testEnvironment": "node",
