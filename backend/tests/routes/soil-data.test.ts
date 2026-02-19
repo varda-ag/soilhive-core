@@ -365,7 +365,11 @@ describe('Testing /soil-data routes', () => {
     expect(datasetIds).not.toContain(data2.dataset.slug);
   });
 
-  it('Should load data', async () => {
+  it.each([
+    [null, null],
+    ['2020-01-01', '2020-01-01'],
+    ['2020-01-01T00:00:05Z', '2020-01-01'],
+  ])('Should load data', async (sampling_date, expected_sampling_date) => {
     const { dataset, datasetFileMapping } = await addSyntheticIngestionData({
       ...syntheticIngestionDataOptions,
       createTable: false,
@@ -373,7 +377,7 @@ describe('Testing /soil-data routes', () => {
     const token = await getDataAdminToken();
     const payload = [
       {
-        sampling_date: null,
+        sampling_date,
         license: 'test_license_raw_data',
         horizon: null,
         max_depth: 30,
@@ -397,6 +401,13 @@ describe('Testing /soil-data routes', () => {
     expect(createdData.n_layers).toBe(1);
     expect(createdData.n_dataset_layers).toBe(2);
     expect(createdData.n_observations).toBe(2);
+    // Verify sampling date
+    const dataResponse = await request(app).get(`/soil-data`).query({ datasets: dataset.slug });
+    const data = dataResponse.body;
+    expect(data.length).toBe(2);
+    for (const item of data) {
+      expect(item.sampling_date).toBe(expected_sampling_date);
+    }
   });
 });
 

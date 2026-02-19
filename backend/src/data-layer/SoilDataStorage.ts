@@ -53,8 +53,8 @@ export default class SoilDataStorage {
       .addSelect('ds.slug', 'dataset_slug')
       .addSelect("STRING_AGG(DISTINCT license.slug, ',')", 'licenses')
       .addSelect('COUNT(dataset_layers.dataset_id)', 'dataset_layer_count')
-      .addSelect('MIN(layer.sampling_date)', 'min_sampling_date')
-      .addSelect('MAX(layer.sampling_date)', 'max_sampling_date')
+      .addSelect('MIN(layer.sampling_date::text)', 'min_sampling_date')
+      .addSelect('MAX(layer.sampling_date::text)', 'max_sampling_date')
       .addSelect('MIN(layer.min_depth)', 'min_depth')
       .addSelect('MAX(layer.max_depth)', 'max_depth')
       .addSelect("STRING_AGG(DISTINCT layer.horizon, ',')", 'horizons')
@@ -69,8 +69,8 @@ export default class SoilDataStorage {
       name: row.dataset_name,
       data_type: row.gis_datatype,
       licenses: row.licenses ? row.licenses.split(',') : [],
-      min_sampling_date: row.min_sampling_date ? row.min_sampling_date.toISOString() : null,
-      max_sampling_date: row.max_sampling_date ? row.max_sampling_date.toISOString() : null,
+      min_sampling_date: row.min_sampling_date,
+      max_sampling_date: row.max_sampling_date,
       min_depth: row.min_depth !== null ? parseFloat(row.min_depth) : null,
       max_depth: row.max_depth !== null ? parseFloat(row.max_depth) : null,
       horizons: row.horizons ? row.horizons.split(',') : [],
@@ -158,7 +158,7 @@ const applySelectToQuery = (query: any) => {
     .addSelect('obs.value', 'value')
     .addSelect('features.geom', 'geometry')
     .addSelect('license.name', 'license_name')
-    .addSelect('layer.sampling_date', 'sampling_date')
+    .addSelect('layer.sampling_date::text', 'sampling_date')
     .addSelect('layer.min_depth', 'min_depth')
     .addSelect('layer.max_depth', 'max_depth')
     .addSelect('layer.horizon', 'horizon')
@@ -263,7 +263,7 @@ const dataRowTranslation = (row: any, sort?: string): SoilDataSample => {
     value: parseFloat(row.value),
     geometry: row.geometry,
     license_name: row.license_name,
-    sampling_date: row.sampling_date ? row.sampling_date.toISOString() : null,
+    sampling_date: row.sampling_date,
     min_depth: row.min_depth !== null ? parseFloat(row.min_depth) : null,
     max_depth: row.max_depth !== null ? parseFloat(row.max_depth) : null,
     horizon: row.horizon,
