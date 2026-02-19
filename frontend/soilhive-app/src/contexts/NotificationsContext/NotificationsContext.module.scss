@@ -1,0 +1,9 @@
+.NotificationsWrapper {
+  position: absolute;
+  top: 4.375rem;
+  right: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  z-index: 100;
+}
