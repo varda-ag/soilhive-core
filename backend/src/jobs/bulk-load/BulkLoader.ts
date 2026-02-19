@@ -2,21 +2,21 @@ import assert from 'assert';
 import http from 'http';
 import pLimit from 'p-limit';
 import { EntityManager, In } from 'typeorm';
-import DatasetFileMappingEntity from '../entities/DatasetFileMapping';
-import FileEntity from '../entities/File';
-import { BulkLoadJob } from '../interfaces/Job';
-import { RequestData } from '../interfaces/RequestData';
-import { Token } from '../interfaces/Token';
-import DataMappingService from '../services/DataMappingService';
-import DatasetFileMappingService from '../services/DatasetFileMappingService';
-import DatasetService from '../services/DatasetService';
-import { IngestionStatus } from '../types/data';
-import { getEntityManager } from '../utils/data-source';
-import { getLoopbackUrl } from '../utils/utils';
-import VectorDataLoad from './VectorDataLoad';
-import { ErrorResponse } from '../utils/error';
+import DatasetFileMappingEntity from '../../entities/DatasetFileMapping';
+import FileEntity from '../../entities/File';
+import { BulkLoadJob } from '../../interfaces/Job';
+import { RequestData } from '../../interfaces/RequestData';
+import { Token } from '../../interfaces/Token';
+import DataMappingService from '../../services/DataMappingService';
+import DatasetFileMappingService from '../../services/DatasetFileMappingService';
+import DatasetService from '../../services/DatasetService';
+import { IngestionStatus } from '../../types/data';
+import { getEntityManager } from '../../utils/data-source';
+import { getLoopbackUrl } from '../../utils/utils';
+import VectorDataLoad from '../../data-layer/VectorDataLoad';
+import { ErrorResponse } from '../../utils/error';
 import { StatusCodes } from 'http-status-codes';
-import { SoilRecord } from '../interfaces/Record';
+import { SoilRecord } from '../../interfaces/Record';
 
 export default class BulkLoader {
   startBulkLoad = async (input: BulkLoadJob): Promise<void> => {

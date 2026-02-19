@@ -1,6 +1,6 @@
 //import { v7 as uuidv7 } from 'uuid';
 import { addSyntheticIngestionData, syntheticIngestionDataOptions } from '../../src/utils/mock';
-import BulkLoader from '../../src/data-layer/BulkLoader';
+import BulkLoader from '../../src/jobs/bulk-load/BulkLoader';
 import { BulkLoadJob } from '../../src/interfaces/Job';
 import path from 'path';
 import request from 'supertest';
