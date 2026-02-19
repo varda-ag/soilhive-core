@@ -1,4 +1,4 @@
-import { BrowserRouter, Route, Routes } from 'react-router';
+import { BrowserRouter, Outlet, Route, Routes } from 'react-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import './App.module.scss';
 import PageTitle from './components/PageTitle';
@@ -14,6 +14,14 @@ import { NotificationProvider } from './contexts/NotificationsContext';
 
 const queryClient = new QueryClient();
 
+const AvailabilityContextLayout = () => {
+  return (
+    <AvailabilityProvider>
+      <Outlet />
+    </AvailabilityProvider>
+  );
+};
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -23,17 +31,20 @@ function App() {
             <BrowserRouter>
               <Routes>
                 <Route element={<MainLayout />}>
-                  <Route
-                    index
-                    element={
-                      <>
-                        <PageTitle title="SoilHive - Home" />
-                        <AvailabilityProvider>
+                  <Route element={<AvailabilityContextLayout />}>
+                    <Route
+                      index
+                      element={
+                        <>
+                          <PageTitle title="SoilHive - Home" />
                           <Homepage />
-                        </AvailabilityProvider>
-                      </>
-                    }
-                  />
+                        </>
+                      }
+                    />
+                    {/* TODO: add here the future routes for preview
+                        and download pages so they will all share the
+                        same instance of availability context */}
+                  </Route>
                   <Route
                     path="/donation"
                     element={
