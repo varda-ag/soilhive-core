@@ -24,7 +24,8 @@ export default class VectorDataLoad {
     limit: number = DATA_PREVIEW_SIZE,
     cursor?: string,
   ): Promise<SoilRecord[]> => {
-    let query = entityManager.createQueryBuilder().from(VectorDataLoad.getRawTableName(fileId), 'raw');
+    const table = `${process.env.POSTGRES_SCHEMA}.${VectorDataLoad.getRawTableName(fileId)}`;
+    let query = entityManager.createQueryBuilder().from(table, 'raw');
     query = getDataPreviewQuery(query, dataMappingConfig, cursor);
     // Workaround using raw query to be able to use dynamic table name without entity
     const results = await entityManager.query(...query.take(limit).getQueryAndParameters());
