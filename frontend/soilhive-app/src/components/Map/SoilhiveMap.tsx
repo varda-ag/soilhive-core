@@ -132,7 +132,6 @@ function SoilhiveMap({
     setSelection,
     setShowDrawControl,
     setShowSelectionToolbar,
-    setBoundingBox,
   } = useAvailability();
 
   const mapRef = useRef<any>(null);
@@ -170,7 +169,7 @@ function SoilhiveMap({
       onSelectionToolbarVisibilityChange?.(true);
       setSelection({ type: 'FeatureCollection', features: [{ type: 'Feature', geometry: simplifiedGeometry, properties: {} }] });
       onSelectionChange?.({
-        bounds: mapRef.current.getBounds().toArray().flat(),
+        bounds: moveBounds ? bbox : mapRef.current.getBounds().toArray().flat(),
         geometries: [simplifiedGeometry as Polygon | MultiPolygon],
         zoomLevel: mapRef.current.getZoom(),
         selectionType: selectionTypeRef.current,
@@ -284,13 +283,12 @@ function SoilhiveMap({
       if (feature.geometry.type === 'Polygon' || feature.geometry.type === 'MultiPolygon') {
         // Selecting a search result from the geocoder
         applySelection(feature.geometry, undefined, true);
-        setBoundingBox(bboxFn(feature) as [number, number, number, number]);
       } else {
         // Just move bounds
         mapRef.current.fitBounds(bboxFn(feature), { padding: 40 });
       }
     },
-    [applySelection, setBoundingBox],
+    [applySelection],
   );
 
   const onFinishDrawing = useCallback(
