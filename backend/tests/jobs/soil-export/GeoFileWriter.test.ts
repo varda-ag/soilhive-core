@@ -1,12 +1,10 @@
-// src/jobs/soil-export/writers/__tests__/GeoFileWriter.test.ts
-
 import { describe, it, expect, beforeAll, afterEach } from '@jest/globals';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as gdal from 'gdal-async';
-import { GeoFileWriter } from '../../src/jobs/soil-export/GeoFileWriter';
-import { EXPORT_SCHEMA, FileFormat, soilSampleToExportRecord } from '../../src/jobs/soil-export/types';
-import { SoilDataSample } from '../../src/interfaces/SoilDataSample';
+import { GeoFileWriter } from '../../../src/jobs/soil-export/GeoFileWriter';
+import { EXPORT_SCHEMA, FileFormat, soilSampleToExportRecord } from '../../../src/jobs/soil-export/types';
+import { SoilDataSample } from '../../../src/interfaces/SoilDataSample';
 
 const TEST_OUTPUT_DIR = path.join(__dirname, 'output');
 

@@ -10,9 +10,19 @@ import { SoilExportJobPayload, GroupedRecords, EXPORT_CONFIG, soilSampleToExport
 import * as fs from 'fs';
 import * as path from 'path';
 
-export async function getTotalRecordsCount(/*entityManager: EntityManager, payload: SoilExportJobPayload*/): Promise<number> {
-  // TODO: retrieve total records to process
-  return 0;
+export async function getTotalRecordsCount(entityManager: EntityManager, payload: SoilExportJobPayload): Promise<number> {
+  const requestData: RequestData = {
+    entityManager,
+    token: {} as any,
+  };
+
+  const filterService = new FilterService();
+
+  const storedFilter = await filterService.getFilterById(requestData, payload.filterId);
+
+  const soilDataStorage = new SoilDataStorage();
+
+  return await soilDataStorage.getSoilDataCount(entityManager, storedFilter.filter, payload.datasetSlugs);
 }
 
 /**

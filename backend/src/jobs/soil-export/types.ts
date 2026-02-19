@@ -22,18 +22,6 @@ export interface SoilExportJobPayload {
 }
 
 /**
- * Job state stored in pg-boss for progress tracking and resumability
- */
-export interface SoilExportJobState {
-  status: 'in_progress' | 'completed' | 'failed';
-  currentCursor: string | null;
-  totalRecordsProcessed: number;
-  totalRecordsEstimate: number | null;
-  downloadUrl: string | null;
-  error: string | null;
-}
-
-/**
  * Processed record with formatted fields for export
  */
 export interface ExportRecord {
