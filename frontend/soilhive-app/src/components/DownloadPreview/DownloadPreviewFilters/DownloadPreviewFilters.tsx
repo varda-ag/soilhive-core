@@ -1,8 +1,8 @@
-import { Dropdown } from 'primereact/dropdown';
+import { Dropdown, type DropdownChangeEvent } from 'primereact/dropdown';
 import { Calendar } from 'primereact/calendar';
 import { Dialog } from 'primereact/dialog';
-import type { Nullable } from 'primereact/ts-helpers';
-import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
+import type { FormEvent, Nullable } from 'primereact/ts-helpers';
+import { useEffect, useState, type Dispatch, type SetStateAction, type SyntheticEvent } from 'react';
 import styles from './DownloadPreviewFilters.module.scss';
 import useDevice from 'hooks/useDevice';
 import { Button } from 'components/UI';
@@ -53,18 +53,14 @@ function DownloadPreviewFilters({
     setSelectedDateRange(null);
   }, [fixedCalendarRange, filters]);
 
-  const depths = useMemo(() => {
-    return [
-      ...Array.from({ length: Math.ceil((depthMinMaxRange?.[1] ?? 150) / 15) }, (_, i) => ({
-        name: `${i * 15}cm - ${i * 15 + 15}cm`,
-        id: `${i * 15}-${i * 15 + 15}`,
-        range: [i * 15, i * 15 + 15],
-      })),
-      ...(fixedDepthRange
-        ? [{ name: `${fixedDepthRange[0]}cm - ${fixedDepthRange[1]}cm`, id: 'fixed-range', range: fixedDepthRange }]
-        : []),
-    ];
-  }, [depthMinMaxRange, fixedDepthRange]);
+  const depths = [
+    ...Array.from({ length: Math.ceil((depthMinMaxRange?.[1] ?? 150) / 15) }, (_, i) => ({
+      name: `${i * 15}cm - ${i * 15 + 15}cm`,
+      id: `${i * 15}-${i * 15 + 15}`,
+      range: [i * 15, i * 15 + 15],
+    })),
+    ...(fixedDepthRange ? [{ name: `${fixedDepthRange[0]}cm - ${fixedDepthRange[1]}cm`, id: 'fixed-range', range: fixedDepthRange }] : []),
+  ];
 
   const { min_depth, max_depth } = filters;
   const selectedDepth =
@@ -72,123 +68,119 @@ function DownloadPreviewFilters({
       ? depths.find(({ range }) => min_depth >= range[0] && max_depth <= range[1])?.id
       : undefined;
 
-  const controls = useMemo(() => {
-    return (
-      <>
-        <Dropdown
-          className={styles.Dropdown}
-          panelClassName={styles.DropdownPanel}
-          value={selectedDataset}
-          onChange={e => {
-            setSelectedDataset(e.value);
-            onDatasetsChange?.(e.value ? [e.value] : undefined);
-          }}
-          showClear
-          options={datasets}
-          optionValue="id"
-          optionLabel="name"
-          placeholder="Select a dataset"
-          disabled={isLoading}
-        />
-        <Dropdown
-          className={styles.Dropdown}
-          panelClassName={styles.DropdownPanel}
-          value={filters.soil_properties?.[0]}
-          onChange={e => {
-            if (e.value) {
-              onFiltersChange?.({
-                ...filters,
-                soil_properties: [e.value],
-              });
-            } else {
-              const { soil_properties: _, ...filtersWithoutSoilProperties } = filters;
-              onFiltersChange?.(filtersWithoutSoilProperties);
-            }
-          }}
-          showClear
-          options={soilProperties}
-          optionLabel="property_name"
-          optionValue="id"
-          placeholder="Select a soil property"
-          disabled={isLoading}
-        />
-        <Dropdown
-          className={styles.Dropdown}
-          panelClassName={styles.DropdownPanel}
-          value={fixedDepthRange ? 'fixed-range' : selectedDepth}
-          onChange={e => {
-            const range = depths.find(({ id }) => e.value === id)?.range;
-            if (range) {
-              onFiltersChange?.({
-                ...filters,
-                min_depth: range[0],
-                max_depth: range[1],
-              });
-            } else {
-              const { min_depth: _, max_depth: __, ...filtersWithoutDepth } = filters;
-              onFiltersChange?.(filtersWithoutDepth);
-            }
-          }}
-          options={depths}
-          optionLabel="name"
-          optionValue="id"
-          placeholder="Select a depth"
-          showClear
-          disabled={isLoading || !!fixedDepthRange}
-        />
-        <Calendar
-          className={styles.Calendar}
-          panelClassName={styles.DropdownPanel}
-          inputClassName={styles.CalendarInput}
-          readOnlyInput
-          value={selectedDateRange}
-          onChange={e => setSelectedDateRange(e.value)}
-          onHide={() => {
-            if (!selectedDateRange || selectedDateRange?.some(date => date === null)) {
-              const { min_sampling_date, max_sampling_date, ...filtersWithoutDates } = filters;
-              if (!selectedDateRange?.[0] && !min_sampling_date && !selectedDateRange?.[1] && !max_sampling_date) return;
-              onFiltersChange?.(filtersWithoutDates);
-              setSelectedDateRange(null);
-              return;
-            }
+  const onDatasetsDropdownChange = (e: DropdownChangeEvent) => {
+    setSelectedDataset(e.value);
+    onDatasetsChange?.(e.value ? [e.value] : undefined);
+  };
 
-            const min = (selectedDateRange[0] as unknown as Date).toISOString();
-            const max = (selectedDateRange[1] as unknown as Date).toISOString();
-            if (filters.min_sampling_date === min && filters.max_sampling_date === max) return;
-            onFiltersChange?.({
-              ...filters,
-              // we know them not to be null because of the earlier range check
-              min_sampling_date: min,
-              max_sampling_date: max,
-            });
-          }}
-          showButtonBar
-          selectionMode="range"
-          hideOnRangeSelection
-          placeholder="Select a date range"
-          showIcon
-          minDate={calendarMinMaxRange[0]}
-          maxDate={calendarMinMaxRange[1]}
-          showMinMaxRange={true}
-          disabled={isLoading || !!fixedCalendarRange}
-        />
-      </>
-    );
-  }, [
-    selectedDataset,
-    datasets,
-    filters,
-    fixedDepthRange,
-    selectedDateRange,
-    calendarMinMaxRange,
-    fixedCalendarRange,
-    isLoading,
-    onFiltersChange,
-    onDatasetsChange,
-    soilProperties,
-    depths,
-    selectedDepth,
-  ]);
+  const onSoilPropertiesDropdownChange = (e: DropdownChangeEvent) => {
+    if (e.value) {
+      onFiltersChange?.({
+        ...filters,
+        soil_properties: [e.value],
+      });
+    } else {
+      const { soil_properties: _, ...filtersWithoutSoilProperties } = filters;
+      onFiltersChange?.(filtersWithoutSoilProperties);
+    }
+  };
+
+  const onDepthRangeDropdownChange = (e: DropdownChangeEvent) => {
+    const range = depths.find(({ id }) => e.value === id)?.range;
+    if (range) {
+      onFiltersChange?.({
+        ...filters,
+        min_depth: range[0],
+        max_depth: range[1],
+      });
+    } else {
+      const { min_depth: _, max_depth: __, ...filtersWithoutDepth } = filters;
+      onFiltersChange?.(filtersWithoutDepth);
+    }
+  };
+
+  const onCalendarChange = (e: FormEvent<(Date | null)[], SyntheticEvent<Element, Event>>) => {
+    setSelectedDateRange(e.value);
+  };
+
+  const onCalendarHide = () => {
+    if (!selectedDateRange || selectedDateRange?.some(date => date === null)) {
+      const { min_sampling_date, max_sampling_date, ...filtersWithoutDates } = filters;
+      if (!selectedDateRange?.[0] && !min_sampling_date && !selectedDateRange?.[1] && !max_sampling_date) return;
+      onFiltersChange?.(filtersWithoutDates);
+      setSelectedDateRange(null);
+      return;
+    }
+
+    const min = (selectedDateRange[0] as unknown as Date).toISOString();
+    const max = (selectedDateRange[1] as unknown as Date).toISOString();
+    if (filters.min_sampling_date === min && filters.max_sampling_date === max) return;
+    onFiltersChange?.({
+      ...filters,
+      // we know them not to be null because of the earlier range check
+      min_sampling_date: min,
+      max_sampling_date: max,
+    });
+  };
+
+  const controls = (
+    <>
+      <Dropdown
+        className={styles.Dropdown}
+        panelClassName={styles.DropdownPanel}
+        value={selectedDataset}
+        onChange={onDatasetsDropdownChange}
+        showClear
+        options={datasets}
+        optionValue="id"
+        optionLabel="name"
+        placeholder="Select a dataset"
+        disabled={isLoading}
+      />
+      <Dropdown
+        className={styles.Dropdown}
+        panelClassName={styles.DropdownPanel}
+        value={filters.soil_properties?.[0]}
+        onChange={onSoilPropertiesDropdownChange}
+        showClear
+        options={soilProperties}
+        optionLabel="property_name"
+        optionValue="id"
+        placeholder="Select a soil property"
+        disabled={isLoading}
+      />
+      <Dropdown
+        className={styles.Dropdown}
+        panelClassName={styles.DropdownPanel}
+        value={fixedDepthRange ? 'fixed-range' : selectedDepth}
+        onChange={onDepthRangeDropdownChange}
+        options={depths}
+        optionLabel="name"
+        optionValue="id"
+        placeholder="Select a depth"
+        showClear
+        disabled={isLoading || !!fixedDepthRange}
+      />
+      <Calendar
+        className={styles.Calendar}
+        panelClassName={styles.DropdownPanel}
+        inputClassName={styles.CalendarInput}
+        readOnlyInput
+        value={selectedDateRange}
+        onChange={onCalendarChange}
+        onHide={onCalendarHide}
+        showButtonBar
+        selectionMode="range"
+        hideOnRangeSelection
+        placeholder="Select a date range"
+        showIcon
+        minDate={calendarMinMaxRange[0]}
+        maxDate={calendarMinMaxRange[1]}
+        showMinMaxRange={true}
+        disabled={isLoading || !!fixedCalendarRange}
+      />
+    </>
+  );
 
   const closeDialog = () => {
     if (!dialogOpen) return;
