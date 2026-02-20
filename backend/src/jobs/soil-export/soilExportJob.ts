@@ -12,9 +12,9 @@ import { cleanupTempFiles, generateDownloadPath, moveToDownloadFolder, zipFiles 
 
 export async function processExportJob(job: Job<ExportJob>): Promise<void> {
   const { id: jobId, data } = job;
-  const { filter_id, datasetSlugs, format } = data;
+  const { filter_id, dataset_slugs, format } = data;
 
-  const fileFormat = parseFileFormat(format);
+  const file_format = parseFileFormat(format);
   const entityManager = await getEntityManager();
 
   // Create temp working directory - fresh start on every run (handles pod eviction)
@@ -22,30 +22,30 @@ export async function processExportJob(job: Job<ExportJob>): Promise<void> {
 
   try {
     // Get total records for progress tracking
-    const totalRecordsEstimate = await getTotalRecordsCount(entityManager, { filterId: filter_id, datasetSlugs, fileFormat });
+    const total_records_estimate = await getTotalRecordsCount(entityManager, { filterId: filter_id, dataset_slugs, file_format });
 
     await updateJobState(jobId, {
       ...data,
       progress_percentage: 0,
       progress_description: 'Starting export...',
-      totalRecordsEstimate,
-      totalRecordsProcessed: 0,
+      total_records_estimate,
+      total_records_processed: 0,
     });
 
     // Create README placeholder
-    await createReadmeFile(tempDir, { filterId: filter_id, datasetSlugs, fileFormat });
+    await createReadmeFile(tempDir, { filterId: filter_id, dataset_slugs, file_format });
 
     // Initialize writer
-    const writer = new GeoFileWriter(fileFormat);
+    const writer = new GeoFileWriter(file_format);
 
-    let cursor: string | undefined = data.currentCursor ?? undefined;
-    let totalRecordsProcessed = data.totalRecordsProcessed ?? 0;
+    let cursor: string | undefined = data.current_cursor ?? undefined;
+    let totalRecordsProcessed = data.total_records_processed ?? 0;
     let hasMore = true;
 
     // --- Main batch processing loop ---
     while (hasMore) {
       // 1. Fetch batch
-      const batch = await fetchBatch(entityManager, { filterId: filter_id, datasetSlugs, fileFormat }, cursor);
+      const batch = await fetchBatch(entityManager, { filterId: filter_id, dataset_slugs, file_format }, cursor);
 
       if (!batch || batch.length === 0) {
         break;
@@ -72,12 +72,12 @@ export async function processExportJob(job: Job<ExportJob>): Promise<void> {
       cursor = batch[batch.length - 1]?.cursor;
       totalRecordsProcessed += batch.length;
 
-      const progress_percentage = totalRecordsEstimate > 0 ? Math.round((totalRecordsProcessed / totalRecordsEstimate) * 100) : 0;
+      const progress_percentage = total_records_estimate > 0 ? Math.round((totalRecordsProcessed / total_records_estimate) * 100) : 0;
 
       await updateJobState(jobId, {
         ...data,
-        currentCursor: cursor ?? null,
-        totalRecordsProcessed,
+        current_cursor: cursor ?? null,
+        total_records_processed: totalRecordsProcessed,
         progress_percentage,
         progress_description: `Processed ${totalRecordsProcessed} records...`,
       });
@@ -103,9 +103,9 @@ export async function processExportJob(job: Job<ExportJob>): Promise<void> {
       ...data,
       progress_percentage: 100,
       progress_description: 'Export complete',
-      currentCursor: cursor ?? null,
-      totalRecordsProcessed,
-      downloadUrl,
+      current_cursor: cursor ?? null,
+      total_records_processed: totalRecordsProcessed,
+      download_url: downloadUrl,
     });
   } finally {
     // Always cleanup temp files, even on error

@@ -67,7 +67,7 @@ describe('Soil Export Job Integration Test', () => {
       .send({
         type: 'export',
         filter_id: filterId,
-        datasetSlugs: [dataset.slug],
+        dataset_slugs: [dataset.slug],
         format: FileFormat.CSV,
       });
 
@@ -98,11 +98,11 @@ describe('Soil Export Job Integration Test', () => {
     }
 
     expect(jobStatus).toBe('completed');
-    expect(completedJob.data.downloadUrl).toBeDefined();
+    expect(completedJob.data.download_url).toBeDefined();
     expect(completedJob.data.progress_percentage).toBe(100);
 
     // 5. Download the file
-    const downloadUrl = completedJob.data.downloadUrl;
+    const downloadUrl = completedJob.data.download_url;
     // The API expects path separators to be encoded as %2F
     const filePathForUrl = downloadUrl.replace(/\//g, '%2F');
 

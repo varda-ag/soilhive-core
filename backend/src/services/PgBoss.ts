@@ -61,8 +61,6 @@ const setupWorkers = async () => {
   await boss.work<ExportJob>(JobQueues.EXPORT, options, async (jobs: Job<ExportJob>[]) => {
     for (const job of jobs) {
       await processExportJob(job);
-      console.log(job);
-      await sleep(1000);
     }
   });
 };

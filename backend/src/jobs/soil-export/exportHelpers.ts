@@ -22,7 +22,7 @@ export async function getTotalRecordsCount(entityManager: EntityManager, payload
 
   const soilDataStorage = new SoilDataStorage();
 
-  return await soilDataStorage.getSoilDataCount(entityManager, storedFilter.filter, payload.datasetSlugs);
+  return await soilDataStorage.getSoilDataCount(entityManager, storedFilter.filter, payload.dataset_slugs);
 }
 
 /**
@@ -47,7 +47,7 @@ export async function fetchBatch(entityManager: EntityManager, payload: SoilExpo
   return await soilDataStorage.getSoilData(
     entityManager,
     storedFilter.filter,
-    payload.datasetSlugs,
+    payload.dataset_slugs,
     EXPORT_CONFIG.BATCH_SIZE,
     cursor,
     undefined,
@@ -90,8 +90,8 @@ Soil Data Export
 ================
 
 Filter ID: ${payload.filterId}
-Datasets: ${payload.datasetSlugs.join(', ')}
-Format: ${payload.fileFormat}
+Datasets: ${payload.dataset_slugs.join(', ')}
+Format: ${payload.file_format}
 Export Date: ${new Date().toISOString()}
 
 This export contains soil data organized by soil property.
