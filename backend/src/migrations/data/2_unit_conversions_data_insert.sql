@@ -1,0 +1,49 @@
+INSERT INTO unit_conversions
+  (original_unit_of_measurement, conversion_formula, property_id)
+SELECT v.original_unit_of_measurement, v.conversion_formula, c.id
+    from (
+  VALUES
+    ('ppm',NULL,'BorTot'),
+	('kg/dm³',NULL,'BulDfine'),
+	('kg/dm³',NULL,'BulDwhole'),
+	('meq%',NULL,'Calexc'),
+	('ppm',NULL,'Caltot'),
+	('%','x * 10','Carorg'),
+	('%','x * 10','Cartot'),
+	('%w','x * 10','Cartot'),
+	('g/100g',NULL,'cfgr'),
+	('cm³/100cm³',NULL,'cfvo'),
+	('%',NULL,'ClayFractionTexture'),
+	('g/100g',NULL,'ClayFractionTexture'),
+	('ppm',NULL,'Coptot'),
+	('ppm',NULL,'Cotot'),
+	('meq/100g',NULL,'ECEC'),
+	('mS/cm',NULL,'Eleccond'),
+	('mS/m','x * 100','Eleccond'),
+	('ppm',NULL,'Irotot'),
+	('meq%',NULL,'Magexc'),
+	('meq%',NULL,'Manexc'),
+	('ppm',NULL,'Mantot'),
+	('ppm',NULL,'Mgtot'),
+	('ppm',NULL,'Moltot'),
+	('%','x * 10','Nittot'),
+	('%w','x * 10','Nittot'),
+	('%','x * 10','Orgmat'),
+	('g/kg','x * 1000','Phoext'),
+	('ppm',NULL,'Phoext'),
+	('ppm',NULL,'Photot'),
+	('meq%',NULL,'Potexc'),
+	('ppm',NULL,'Pottot'),
+	('%',NULL,'SandFractionTexture'),
+	('g/100g',NULL,'SandFractionTexture'),
+	('g/100g',NULL,'SiltFractionTexture'),
+	('meq%',NULL,'Sodexp'),
+	('ppm',NULL,'Sodtot'),
+	('ppm',NULL,'Sultot'),
+	('g/100g',NULL,'WRG'),
+	('cm³/100cm³',NULL,'WRV'),
+	('ppm',NULL,'zintotal')
+) AS v(original_unit_of_measurement, conversion_formula, property_acronym)
+  JOIN soil_properties c
+	on c.property_acronym=v.property_acronym
+on conflict(property_id, original_unit_of_measurement) do nothing;
