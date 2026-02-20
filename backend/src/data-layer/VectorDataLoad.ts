@@ -10,6 +10,10 @@ import ObservationEntity from '../entities/Observation';
 import { sanitizeField } from '../utils/utils';
 
 export default class VectorDataLoad {
+  static getRawTableName = (fileId: string): string => {
+    return `file_${sanitizeField(fileId)}_raw`;
+  };
+
   /**
    * TODO: add remaining ingestion related functions (load raw data)
    */
@@ -18,12 +22,17 @@ export default class VectorDataLoad {
     dataMappingConfig: DataCleaningConfig,
     fileId: string,
     limit: number = DATA_PREVIEW_SIZE,
+    cursor?: string,
   ): Promise<SoilRecord[]> => {
-    let query = entityManager.createQueryBuilder().from(`${process.env.POSTGRES_SCHEMA}.file_${sanitizeField(fileId)}_raw`, 'raw');
-    query = getDataPreviewQuery(query, dataMappingConfig);
+    const table = `${process.env.POSTGRES_SCHEMA}.${VectorDataLoad.getRawTableName(fileId)}`;
+    let query = entityManager.createQueryBuilder().from(table, 'raw');
+    query = getDataPreviewQuery(query, dataMappingConfig, cursor);
     // Workaround using raw query to be able to use dynamic table name without entity
     const results = await entityManager.query(...query.take(limit).getQueryAndParameters());
-    return results;
+    // Convert geometry string to JSON
+    return results.map(r => {
+      return { ...r, geometry: JSON.parse(r.geometry) };
+    });
   };
 
   rawRecordToDataModel = async (
@@ -124,9 +133,11 @@ export default class VectorDataLoad {
       .execute();
 
     const datasetLayerIdMap = new Map<string, string>();
-    for (const row of insertedDatasetLayers.raw) {
-      const key = `${row.dataset_id}_${row.layer_id}_${row.feature_id}_${row.soil_property_id}`;
-      datasetLayerIdMap.set(key, row.id);
+    if (insertedDatasetLayers.raw) {
+      for (const row of insertedDatasetLayers.raw) {
+        const key = `${row.dataset_id}_${row.layer_id}_${row.feature_id}_${row.soil_property_id}`;
+        datasetLayerIdMap.set(key, row.id);
+      }
     }
     // prep observations with dataset_layer_id
     const finalObservationRows = observationRows.map(r => {
@@ -153,8 +164,12 @@ export default class VectorDataLoad {
   };
 }
 
-const getDataPreviewQuery = (query: any, dataMappingConfig: DataCleaningConfig): any => {
+const getDataPreviewQuery = (query: any, dataMappingConfig: DataCleaningConfig, cursor?: string): any => {
   query.select('raw.record_id', 'record_id');
+  query.orderBy('raw.record_id', 'ASC');
+  if (cursor) {
+    query.andWhere('raw.record_id > :cursor', { cursor });
+  }
 
   for (const [mapping, field] of Object.entries(dataMappingConfig.metadata_cols)) {
     if (field) {
