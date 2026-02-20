@@ -1,5 +1,31 @@
 import { type Polygon, type MultiPolygon } from 'geojson';
 
+// THE FOLLOWING DEFINITIONS FOR StoredDataFilter ARE TAKEN STRAIGHT OUT OF THE BACKEND
+export interface BackendFilterCriteria {
+  data_types?: GISDataType[];
+  licenses?: string[];
+  min_sampling_date?: string | null;
+  max_sampling_date?: string | null;
+  min_depth?: number | null;
+  max_depth?: number | null;
+  horizons?: (string | null)[];
+  soil_properties?: string[];
+  raster_filters?: Map<string, number[]>;
+}
+
+export interface BackendDataFilter {
+  geometries: (Polygon | MultiPolygon)[];
+  parameters: FilterCriteria;
+}
+
+export interface BackendStoredDataFilter {
+  id: string;
+  filter: DataFilter;
+  name?: string;
+  owner?: string;
+}
+
+// THE FOLLOWING DEFINITIONS DO NOT CORRESPOND TO THE BACKEND ONES
 export interface FilterCriteria {
   data_type?: string;
   licenses?: string[];
@@ -111,4 +137,39 @@ export interface Dataset {
   created_by: string;
   updated_by?: string;
   service_location?: string;
+}
+
+export interface SoilDataParameters {
+  selectedDatasets?: string[];
+  availableDatasets: string[];
+  filterId?: string;
+  filters?: { soil_properties: string[] | undefined };
+  limit: number;
+  cursor?: string;
+  sort?: string;
+}
+
+export interface SoilDataSample {
+  id: string;
+  dataset: string;
+  dataset_name: string;
+  soil_property: string;
+  property_acronym: string;
+  standard_unit: string;
+  value: number;
+  geometry: any;
+  license_name: string;
+  sampling_date: string | null;
+  min_depth: number | null;
+  max_depth: number | null;
+  horizon: string | null;
+  sample_pretreatment: string | null;
+  technique: string | null;
+  extractant_formulation: string | null;
+  extractant_concentration: string | null;
+  extraction_ratio: string | null;
+  extraction_base: string | null;
+  instrument: string | null;
+  limit_of_detection: string | null;
+  cursor: string;
 }

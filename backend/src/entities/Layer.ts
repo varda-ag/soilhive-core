@@ -19,7 +19,7 @@ export default class LayerEntity extends BaseEntity implements Layer {
 
   @Index()
   @Column({ type: 'date', nullable: true })
-  sampling_date?: Date;
+  sampling_date?: string;
 
   @Column({ type: 'int', nullable: true })
   min_depth?: number;

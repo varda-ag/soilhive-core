@@ -110,11 +110,11 @@ describe('Testing /soil-data routes', () => {
           type: 'Polygon',
           coordinates: [
             [
-              [1, 1],
-              [4, 1],
-              [4, 4],
-              [1, 4],
-              [1, 1],
+              [0, 0],
+              [5, 0],
+              [5, 5],
+              [0, 5],
+              [0, 0],
             ],
           ],
         },
@@ -122,11 +122,11 @@ describe('Testing /soil-data routes', () => {
           type: 'Polygon',
           coordinates: [
             [
-              [11, 11],
-              [14, 11],
-              [14, 14],
-              [11, 14],
-              [11, 11],
+              [10, 10],
+              [15, 10],
+              [15, 15],
+              [10, 15],
+              [10, 10],
             ],
           ],
         },
@@ -366,22 +366,28 @@ describe('Testing /soil-data routes', () => {
     expect(datasetIds).not.toContain(data2.dataset.slug);
   });
 
-  it('Should load data', async () => {
+  it.each([
+    [null, null],
+    ['2020-01-01', '2020-01-01'],
+    ['2020-01-01T00:00:05Z', '2020-01-01'],
+  ])('Should load data', async (sampling_date, expected_sampling_date) => {
     const { dataset, datasetFileMapping } = await addSyntheticIngestionData({
       ...syntheticIngestionDataOptions,
       createTable: false,
     });
     const token = await getDataAdminToken();
-    const payload = {
-      sampling_date: null,
-      license: 'test_license_raw_data',
-      horizon: null,
-      max_depth: 30,
-      min_depth: 0,
-      bdfi33: '2',
-      bdfiod: '8',
-      geometry: { type: 'Point', coordinates: [-148.0432434, 64.814888] },
-    };
+    const payload = [
+      {
+        sampling_date,
+        license: 'test_license_raw_data',
+        horizon: null,
+        max_depth: 30,
+        min_depth: 0,
+        bdfi33: '2',
+        bdfiod: '8',
+        geometry: { type: 'Point', coordinates: [-148.0432434, 64.814888] },
+      },
+    ];
 
     // Call soil-data endpoint
     const soilDataRes = await request(app)
@@ -396,6 +402,13 @@ describe('Testing /soil-data routes', () => {
     expect(createdData.n_layers).toBe(1);
     expect(createdData.n_dataset_layers).toBe(2);
     expect(createdData.n_observations).toBe(2);
+    // Verify sampling date
+    const dataResponse = await request(app).get(`/soil-data`).query({ datasets: dataset.slug });
+    const data = dataResponse.body;
+    expect(data.length).toBe(2);
+    for (const item of data) {
+      expect(item.sampling_date).toBe(expected_sampling_date);
+    }
   });
 });
 

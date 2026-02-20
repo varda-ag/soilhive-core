@@ -50,7 +50,6 @@ describe('DatasetFileMappingService', () => {
 
     // Get the mapping
     const result = await service.getDatasetFileMapping(requestData, datasetFileMapping.id);
-
     expect(result).toBeDefined();
     expect(result.id).toBe(datasetFileMapping.id);
     expect(result.data_mapping_id).toBe(dataMapping.id);
@@ -58,7 +57,6 @@ describe('DatasetFileMappingService', () => {
 
   it('should throw 404 when dataset file mapping not found', async () => {
     const service = new DatasetFileMappingService();
-
     await expect(service.getDatasetFileMapping(requestData, '00000000-0000-0000-0000-000000000000')).rejects.toThrow('not found');
   });
 
@@ -91,7 +89,6 @@ describe('DatasetFileMappingService', () => {
     await service.createMapping(requestData, dataset.slug, { fileID: file2.id });
 
     const result = await service.getMappings(requestData, dataset.slug, file1.id);
-
     expect(result).toBeDefined();
     expect(result.length).toBeGreaterThanOrEqual(1);
     expect(result[0].file_id).toBe(file1.id);
@@ -151,7 +148,8 @@ describe('DatasetFileMappingService', () => {
     };
 
     // Act
-    const result = await service.createMapping(requestData, dataset.slug, payload);
+    const result: DatasetFileMappingEntity = await service.createMapping(requestData, dataset.slug, payload);
+    expect(result).toBeDefined();
 
     // Assert
     expect(result).toBeDefined();

@@ -852,7 +852,7 @@ paths:
     post:
       x-eov-operation-handler: controllers/datasets
       x-eov-operation-id: postSoilData
-      summary: Loads soil data record into the system
+      summary: Loads soil data records into the system
       tags:
         - datasets
       security:
@@ -862,7 +862,9 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SoilRecord'
+              type: array
+              items:
+                $ref: '#/components/schemas/SoilRecord'
       responses:
         '201':
           description: Soil data loaded successfully
@@ -1543,9 +1545,13 @@ components:
         - geometry
       properties:
         sampling_date:
-          type: string
-          format: date
-          nullable: true
+          anyOf:
+          - type: string
+            format: date
+            nullable: true
+          - type: string
+            format: date-time
+            nullable: true
         license:
           type: string
           nullable: true
@@ -1561,7 +1567,7 @@ components:
         geometry:
           $ref: '#/components/schemas/Geometry'
       additionalProperties:
-        oneOf:
+        anyOf:
           - type: string
             nullable: true
           - type: number

@@ -8,8 +8,14 @@ import { ErrorResponse } from '../utils/error';
 import { StatusCodes } from 'http-status-codes';
 
 export default class DatasetFileMappingService {
-  static mapResultToResponse = (resultData: any): DatasetFileMappingResponse => {
-    const retVal: any = {
+  static toResponse = (
+    resultData: DatasetFileMappingEntity | DatasetFileMappingEntity[],
+  ): DatasetFileMappingResponse | DatasetFileMappingResponse[] => {
+    if (Array.isArray(resultData)) {
+      return resultData.map(d => this.toResponse(d)) as DatasetFileMappingResponse[];
+    }
+
+    const retVal: DatasetFileMappingResponse = {
       id: resultData?.['id'],
     };
 
@@ -50,9 +56,7 @@ export default class DatasetFileMappingService {
     // Insert new mapping
     try {
       const result = await repo.createQueryBuilder().insert().into(DatasetFileMappingEntity).values(values).returning('*').execute();
-
       const row = result.raw[0] as DatasetFileMappingEntity;
-
       return repo.create(row);
     } catch (error: any) {
       if (error.code === '23505') {
@@ -101,7 +105,6 @@ export default class DatasetFileMappingService {
       .execute();
 
     const row = result.raw[0] as DatasetFileMappingEntity;
-
     return repo.create(row);
   };
 

@@ -1,4 +1,4 @@
-import { Activity, useId, useRef, useState, useCallback, type Dispatch, useMemo } from 'react';
+import { useId, useRef, useState, useCallback, type Dispatch } from 'react';
 import {
   GeolocateControl,
   Map,
@@ -13,7 +13,7 @@ import {
   Layer,
 } from 'react-map-gl/maplibre';
 import { LngLat, type MapLayerMouseEvent, type Offset } from 'maplibre-gl';
-import type { FeatureCollection, Polygon, MultiPolygon, Point } from 'geojson';
+import type { Polygon, MultiPolygon, Point } from 'geojson';
 import GeocoderControl from './GeocoderControl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import '@maplibre/maplibre-gl-geocoder/dist/maplibre-gl-geocoder.css';
@@ -30,6 +30,7 @@ import { largestPolygon as largestPolygonFn } from '../../utilities/geo';
 import type { SoilhiveMapSelectionChangeEvent } from './SoilhiveMapSelectionChangeEvent';
 import { simplifyGeometry } from '../../utilities/simplifyGeometry';
 import useDevice from 'hooks/useDevice';
+import useAvailability from 'hooks/useAvailability';
 
 type MapStyle = string | StyleSpecification | ImmutableLike<StyleSpecification>;
 type MapStyles = Array<{ name: string; mapStyle: MapStyle }>;
@@ -117,17 +118,26 @@ function SoilhiveMap({
   onSelectionChange,
   onSelectionToolbarVisibilityChange,
 }: SoilhiveMapProps) {
-  const emptySelection = useMemo(() => {
-    return { type: 'FeatureCollection', features: [] };
-  }, []);
+  const {
+    selectedPoint,
+    selectedH3Cell,
+    h3Cells,
+    emptySelection,
+    selection,
+    showDrawControl,
+    showSelectionToolbar,
+    setSelectedPoint,
+    setSelectedH3Cell,
+    setH3Cells,
+    setSelection,
+    setShowDrawControl,
+    setShowSelectionToolbar,
+  } = useAvailability();
+
   const mapRef = useRef<any>(null);
   const [currentMapStyle, setCurrentMapStyle] = useState(mapStyles[0].mapStyle);
-  const [selectedPoint, setSelectedPoint] = useState<LngLat | null>(null);
-  const [selectedH3Cell, setSelectedH3Cell] = useState<MapGeoJSONFeature | null>(null);
-  const [h3Cells, setH3Cells] = useState<FeatureCollection | null>(null);
-  const [selection, setSelection] = useState<{ type: string; features: GeoJSON.GeoJSON[] }>(emptySelection);
-  const [showDrawControl, setShowDrawControl] = useState(false);
-  const [showSelectionToolbar, setShowSelectionToolbar] = useState(false);
+  const selectionTypeRef = useRef<'drawn-polygon' | 'h3-cell' | 'country'>('drawn-polygon');
+  const locationNameRef = useRef<string>(undefined);
 
   // This prevents onMapMoveEnd from being called concurrently with applySelection
   const isApplyingSelection = useRef(false);
@@ -143,7 +153,7 @@ function SoilhiveMap({
       const btn = document.querySelector('button.maplibregl-terradraw-add-polygon-button') as HTMLButtonElement | null;
       btn?.click();
     }, 0);
-  }, [onSelectionToolbarVisibilityChange]);
+  }, [onSelectionToolbarVisibilityChange, setShowDrawControl, setShowSelectionToolbar]);
 
   const applySelection = useCallback(
     (geometry: Polygon | MultiPolygon, point?: Point, moveBounds?: boolean) => {
@@ -159,18 +169,22 @@ function SoilhiveMap({
       onSelectionToolbarVisibilityChange?.(true);
       setSelection({ type: 'FeatureCollection', features: [{ type: 'Feature', geometry: simplifiedGeometry, properties: {} }] });
       onSelectionChange?.({
-        bounds: mapRef.current.getBounds().toArray().flat(),
+        bounds: moveBounds ? bbox : mapRef.current.getBounds().toArray().flat(),
         geometries: [simplifiedGeometry as Polygon | MultiPolygon],
         zoomLevel: mapRef.current.getZoom(),
+        selectionType: selectionTypeRef.current,
+        locationName: locationNameRef.current,
       });
+      locationNameRef.current = undefined;
       isApplyingSelection.current = false;
     },
-    [onSelectionChange, onSelectionToolbarVisibilityChange],
+    [onSelectionChange, onSelectionToolbarVisibilityChange, setSelectedPoint, setSelection, setShowSelectionToolbar],
   );
 
   const onUpload = useCallback(
     (geometry: Polygon | MultiPolygon) => {
       // Uploading a polygon from file
+      selectionTypeRef.current = 'drawn-polygon';
       applySelection(geometry, undefined, true);
     },
     [applySelection],
@@ -191,7 +205,7 @@ function SoilhiveMap({
         console.error('Error while updating the H3 Cells:', error);
       }
     },
-    [showH3Cells],
+    [setH3Cells, showH3Cells],
   );
 
   const onMapMoveEnd = useCallback(
@@ -204,7 +218,8 @@ function SoilhiveMap({
 
       if (selection.features.length === 0) {
         // Current bbox (implicit) selection
-        onSelectionChange?.({ bounds, zoomLevel });
+        selectionTypeRef.current = 'drawn-polygon';
+        onSelectionChange?.({ bounds, zoomLevel, selectionType: selectionTypeRef.current });
       }
 
       updateH3Cells({ bounds, zoomLevel });
@@ -223,14 +238,26 @@ function SoilhiveMap({
     }
     setSelectedPoint(null);
     setSelection(emptySelection);
+    selectionTypeRef.current = 'drawn-polygon';
     setShowDrawControl(false);
     setShowSelectionToolbar(false);
     onSelectionToolbarVisibilityChange?.(false);
     onSelectionChange?.({
       bounds: mapRef.current.getMap().getBounds().toArray().flat(),
       zoomLevel: mapRef.current.getZoom(),
+      selectionType: selectionTypeRef.current,
     });
-  }, [emptySelection, onSelectionChange, onSelectionToolbarVisibilityChange, selectedH3Cell]);
+  }, [
+    emptySelection,
+    onSelectionChange,
+    onSelectionToolbarVisibilityChange,
+    selectedH3Cell,
+    setSelectedH3Cell,
+    setSelectedPoint,
+    setSelection,
+    setShowDrawControl,
+    setShowSelectionToolbar,
+  ]);
 
   const onMapClick = useCallback(
     (event: MapLayerMouseEvent) => {
@@ -240,15 +267,19 @@ function SoilhiveMap({
         setSelectedPoint(event.lngLat);
       } else if (features.length > 0) {
         // H3 cell selection
+        selectionTypeRef.current = 'h3-cell';
         applySelection(features[0].geometry as Polygon, { type: 'Point', coordinates: [event.lngLat.lng, event.lngLat.lat] }, false);
         setSelectedH3Cell(features[0]);
       }
     },
-    [selection, applySelection],
+    [selection, setSelectedPoint, applySelection, setSelectedH3Cell],
   );
 
   const onSearchResultSelect = useCallback(
     ({ feature }: { feature: MapGeoJSONFeature; center: Point }) => {
+      selectionTypeRef.current = 'country';
+      locationNameRef.current = feature?.properties?.display_name;
+
       if (feature.geometry.type === 'Polygon' || feature.geometry.type === 'MultiPolygon') {
         // Selecting a search result from the geocoder
         applySelection(feature.geometry, undefined, true);
@@ -263,10 +294,11 @@ function SoilhiveMap({
   const onFinishDrawing = useCallback(
     (feature: MapGeoJSONFeature) => {
       // Drawing a polygon on the map
+      selectionTypeRef.current = 'drawn-polygon';
       applySelection(feature.geometry as Polygon);
       setShowDrawControl(false);
     },
-    [applySelection],
+    [applySelection, setShowDrawControl],
   );
 
   return (
@@ -289,9 +321,7 @@ function SoilhiveMap({
         interactiveLayerIds={['data-fills']}
         attributionControl={{ compact: false }}
       >
-        <Activity mode={!showSelectionToolbar ? 'visible' : 'hidden'}>
-          <SoilhiveMapToolbar onDrawClick={onDrawClick} onUpload={onUpload} />
-        </Activity>
+        <SoilhiveMapToolbar visible={!showSelectionToolbar} onDrawClick={onDrawClick} onUpload={onUpload} />
 
         {showSelectionToolbar && (
           <SoilhiveMapSelectionToolbar

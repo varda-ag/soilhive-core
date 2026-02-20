@@ -128,6 +128,11 @@
     box-shadow: 0px 4px 4px 0px #00000040;
     border-radius: 20px;
     padding: 6px 9px;
+
+    &.hidden {
+      display: none;
+    }
+
     .maplibregl-ctrl-geocoder {
       box-shadow: none;
       display: inline-block;
@@ -208,7 +213,7 @@
     @media (max-width: $bp-tablet) {
       & > button {
         padding: 8px;
-        background-color: #D2E5AB;
+        background-color: #d2e5ab;
         .text-only,
         .arrow-container {
           display: none;
@@ -250,7 +255,7 @@
           text-align: left;
           &:first-child {
             padding-left: 12px;
-          }          
+          }
         }
         &:hover {
           background-color: #eeeff0;
@@ -288,7 +293,7 @@
   }
 
   &-selection-toolbar {
-    display: flex;    
+    display: flex;
     gap: 8px;
     // z-index: 99;
     white-space: nowrap;
@@ -305,7 +310,7 @@
       display: none;
     }
     @media (max-width: $bp-tablet) {
-      flex-wrap: wrap; 
+      flex-wrap: wrap;
       bottom: 0;
       left: 0;
       right: 0;

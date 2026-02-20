@@ -17,6 +17,10 @@ describe('computeDatasetSummary domain logic', () => {
         layers: 0,
         depth: '?-?',
         date: '?-?',
+        globalDateEnd: null,
+        globalDateStart: null,
+        globalMaxDepth: null,
+        globalMinDepth: null,
       },
     },
     {
@@ -38,6 +42,10 @@ describe('computeDatasetSummary domain logic', () => {
         layers: 0,
         depth: '0-60',
         date: '2023-2025',
+        globalDateEnd: new Date('2025-01-01T00:00:00.000Z'),
+        globalDateStart: new Date('2023-01-01T00:00:00.000Z'),
+        globalMaxDepth: 60,
+        globalMinDepth: 0,
       },
     },
   ])('should build dataset summary with $name', ({ input, expected }) => {

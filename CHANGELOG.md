@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.35.0 (2026-02-19)
+
+## What's Changed
+* feat: bulk load worker by @svaccari in https://github.com/varda-ag/soilhive-core/pull/209
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.34.0...v0.35.0
+
+## 0.34.0 (2026-02-19)
+
+## What's Changed
+* feat: sp-4731 populated preview page by @cristbello in https://github.com/varda-ag/soilhive-core/pull/212
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.33.0...v0.34.0
+
 ## 0.33.0 (2026-02-18)
 
 ## What's Changed

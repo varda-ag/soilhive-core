@@ -51,6 +51,10 @@ export function computeDatasetSummary(fetchedFilteredResults: FilteredDataset[] 
     layers: globalLayers,
     depth,
     date,
+    globalDateStart: globalDateStart ? new Date(globalDateStart) : null,
+    globalDateEnd: globalDateEnd ? new Date(globalDateEnd) : null,
+    globalMinDepth,
+    globalMaxDepth,
   };
 }
 
