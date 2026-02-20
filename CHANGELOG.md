@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.35.1 (2026-02-20)
+
+## What's Changed
+* fix: sp-4895 - going back to map from preview fix by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/217
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.35.0...v0.35.1
+
 ## 0.35.0 (2026-02-19)
 
 ## What's Changed
