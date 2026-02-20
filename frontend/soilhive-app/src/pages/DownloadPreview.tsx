@@ -40,9 +40,25 @@ function DownloadPreview() {
 
   const [summaryExpanded, setSummaryExpanded] = useState(false);
   const [selectedPoint, setSelectedPoint] = useState<[number, number]>();
-  const [selectedDatasets, setSelectedDatasets] = useState<string[]>();
-  const [filters, setFilters] = useState<PreviewFilters>({});
   const [sort, setSort] = useState<string>();
+
+  // The datasets remain fixed
+  const availableDatasets =
+    availabilitySelectedDatasets.length > 0
+      ? availabilityFilteredDatasets.filter(dataset => availabilitySelectedDatasets.includes(dataset.id))
+      : availabilityFilteredDatasets;
+
+  const [selectedDatasets, setSelectedDatasets] = useState<string[] | undefined>([availableDatasets[0].id]);
+
+  // The soil properties remain fixed
+  const availableSoilProperties = useMemo(() => {
+    const soilPropertiesIds = [...new Set(availableDatasets.flatMap(dataset => dataset.soil_properties ?? []))];
+    return availabilityFilteredSoilProperties.filter(soilProperty => soilPropertiesIds.includes(soilProperty.id));
+  }, [availableDatasets, availabilityFilteredSoilProperties]);
+
+  const [filters, setFilters] = useState<PreviewFilters>({
+    soil_properties: [availableSoilProperties?.[0].id],
+  });
 
   const parameters = {
     geometries: geometryFilter,
@@ -52,31 +68,25 @@ function DownloadPreview() {
     },
   };
 
-  const { filterId, data: filteredDatasets, isLoading: areFiltersLoading } = useFilteredDatasets(parameters);
+  const { filterId, /*data: filteredDatasets,*/ isLoading: areFiltersLoading } = useFilteredDatasets(parameters);
 
-  // TODO FIXME: if you select both soil property (or any other filter) and a dataset and then remove the dataset the page will
-  // show empty results instead of returning to the results for all datasets.
-  const availableDatasets =
-    availabilitySelectedDatasets.length > 0
-      ? (filteredDatasets ?? availabilityFilteredDatasets).filter(dataset => availabilitySelectedDatasets.includes(dataset.id))
-      : (filteredDatasets ?? availabilityFilteredDatasets);
-
-  // With this the bug doesn't occur but the list of datasets remains fixed and doesn't change when other filters do
+  // The datasets change with the filters' selection
   // const availableDatasets =
   //   availabilitySelectedDatasets.length > 0
-  //     ? availabilityFilteredDatasets.filter(dataset => availabilitySelectedDatasets.includes(dataset.id))
-  //     : availabilityFilteredDatasets;
+  //     ? (filteredDatasets ?? availabilityFilteredDatasets).filter(dataset => availabilitySelectedDatasets.includes(dataset.id))
+  //     : (filteredDatasets ?? availabilityFilteredDatasets);
 
-  const availableSoilProperties = useMemo(() => {
-    const soilPropertiesIds = [
-      ...new Set(
-        (selectedDatasets ? availableDatasets.filter(dataset => selectedDatasets.includes(dataset.id)) : availableDatasets).flatMap(
-          dataset => dataset.soil_properties ?? [],
-        ),
-      ),
-    ];
-    return availabilityFilteredSoilProperties.filter(soilProperty => soilPropertiesIds.includes(soilProperty.id));
-  }, [availableDatasets, availabilityFilteredSoilProperties, selectedDatasets]);
+  // The soil properties change with the filters' selection
+  // const availableSoilProperties = useMemo(() => {
+  //   const soilPropertiesIds = [
+  //     ...new Set(
+  //       (selectedDatasets ? availableDatasets.filter(dataset => selectedDatasets.includes(dataset.id)) : availableDatasets).flatMap(
+  //         dataset => dataset.soil_properties ?? [],
+  //       ),
+  //     ),
+  //   ];
+  //   return availabilityFilteredSoilProperties.filter(soilProperty => soilPropertiesIds.includes(soilProperty.id));
+  // }, [availableDatasets, availabilityFilteredSoilProperties, selectedDatasets]);
 
   const { min_sampling_date, max_sampling_date, min_depth, max_depth } = availabilitySelectedFilters?.filter.parameters ?? {};
 

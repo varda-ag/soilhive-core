@@ -37,7 +37,7 @@ function DownloadPreviewFilters({
   isLoading?: boolean;
 }) {
   const { isMobileLayout } = useDevice();
-  const [selectedDataset, setSelectedDataset] = useState<string>();
+  const [selectedDataset, setSelectedDataset] = useState<string | undefined>(datasets?.[0].id);
   const [selectedDateRange, setSelectedDateRange] = useState<Nullable<Array<Date | null>>>(fixedCalendarRange);
 
   useEffect(() => {
@@ -130,7 +130,6 @@ function DownloadPreviewFilters({
         panelClassName={styles.DropdownPanel}
         value={selectedDataset}
         onChange={onDatasetsDropdownChange}
-        showClear
         options={datasets}
         optionValue="id"
         optionLabel="name"
@@ -142,7 +141,6 @@ function DownloadPreviewFilters({
         panelClassName={styles.DropdownPanel}
         value={filters.soil_properties?.[0]}
         onChange={onSoilPropertiesDropdownChange}
-        showClear
         options={soilProperties}
         optionLabel="property_name"
         optionValue="id"
@@ -158,7 +156,7 @@ function DownloadPreviewFilters({
         optionLabel="name"
         optionValue="id"
         placeholder="Select a depth"
-        showClear
+        // showClear
         disabled={isLoading || !!fixedDepthRange}
       />
       <Calendar
