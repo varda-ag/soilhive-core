@@ -48,7 +48,6 @@ export async function processExportJob(job: Job<ExportJob>): Promise<void> {
       const batch = await fetchBatch(entityManager, { filterId: filter_id, datasetSlugs, fileFormat }, cursor);
 
       if (!batch || batch.length === 0) {
-        hasMore = false;
         break;
       }
 
