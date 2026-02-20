@@ -25,5 +25,5 @@ export interface ExportJob extends CommonJobData {
   total_records_estimate: number;
   current_cursor: string | null;
   total_records_processed: number;
-  download_url: string | null;
+  download_path: string | null;
 }

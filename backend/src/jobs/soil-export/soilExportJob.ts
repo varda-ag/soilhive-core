@@ -96,7 +96,7 @@ export async function processExportJob(job: Job<ExportJob>): Promise<void> {
     await zipFiles(tempDir, localZipPath);
 
     // Move zip to download folder via storage engine
-    const downloadUrl = await moveToDownloadFolder(localZipPath, downloadPath);
+    const download_path = await moveToDownloadFolder(localZipPath, downloadPath);
 
     // Update job state as completed
     await updateJobState(jobId, {
@@ -105,7 +105,7 @@ export async function processExportJob(job: Job<ExportJob>): Promise<void> {
       progress_description: 'Export complete',
       current_cursor: cursor ?? null,
       total_records_processed: totalRecordsProcessed,
-      download_url: downloadUrl,
+      download_path: download_path,
     });
   } finally {
     // Always cleanup temp files, even on error

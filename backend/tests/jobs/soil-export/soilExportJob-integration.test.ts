@@ -98,13 +98,13 @@ describe('Soil Export Job Integration Test', () => {
     }
 
     expect(jobStatus).toBe('completed');
-    expect(completedJob.data.download_url).toBeDefined();
+    expect(completedJob.data.download_path).toBeDefined();
     expect(completedJob.data.progress_percentage).toBe(100);
 
     // 5. Download the file
-    const downloadUrl = completedJob.data.download_url;
+    const downloadPath = completedJob.data.download_path;
     // The API expects path separators to be encoded as %2F
-    const filePathForUrl = downloadUrl.replace(/\//g, '%2F');
+    const filePathForUrl = downloadPath.replace(/\//g, '%2F');
 
     const downloadResponse = await request(app)
       .get(`/files/${filePathForUrl}`)
