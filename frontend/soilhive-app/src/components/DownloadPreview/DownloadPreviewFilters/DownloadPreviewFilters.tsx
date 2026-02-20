@@ -156,7 +156,7 @@ function DownloadPreviewFilters({
         optionLabel="name"
         optionValue="id"
         placeholder="Select a depth"
-        // showClear
+        showClear
         disabled={isLoading || !!fixedDepthRange}
       />
       <Calendar

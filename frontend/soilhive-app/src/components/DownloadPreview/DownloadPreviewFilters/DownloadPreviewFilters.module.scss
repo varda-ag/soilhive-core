@@ -46,6 +46,10 @@
   gap: 9px;
   padding: 9px 14px 17px 14px;
 
+  :global(.p-dropdown-clear-icon) {
+    top: 33%;
+  }
+
   @media (min-width: $bp-tablet) and (max-width: $bp-tablet-max) {
     padding: 0;
   }
