@@ -185,7 +185,7 @@ export const addUnitConversion = async (
 
 export const addLayer = async (
   license: string,
-  sampling_date?: Date,
+  sampling_date?: string,
   min_depth?: number,
   max_depth?: number,
   horizon?: string,
@@ -338,7 +338,7 @@ export const addSyntheticData = async (syntheticDataOptions): Promise<SyntheticD
   let counter = 1;
   for (let depthLayer = 0; depthLayer < depthLayers; depthLayer++) {
     const depth = depthLayer * 10;
-    const layer = await addLayer(license.id, new Date(`${year}-01-01`), depth, depth + 10, `A${depthLayer}`);
+    const layer = await addLayer(license.id, `${year}-01-01`, depth, depth + 10, `A${depthLayer}`);
     const datasetLayers = await addDatasetLayers(
       dataset.id,
       layer.id,
@@ -399,6 +399,8 @@ export const addSyntheticIngestionData = async (syntheticIngestionDataOptions): 
   assert(spatial_extent.length === 4, 'spatial_extent must be an array of 4 numbers [minX, minY, maxX, maxY]');
   assert(typeof columnMapping === 'object', 'columnMapping must be a non-empty object');
   const dataset = await addDataset(`test_dataset_${id}`, spatial_extent);
+  dataset.status = IngestionStatus.PENDING;
+  await dataset.save();
   const category = await addCategory(`test_category_${id}`);
   await addLicense(`test_license_raw_data`);
   const file = await addFile(`test_file_${id}`);
@@ -433,6 +435,9 @@ export const addSyntheticIngestionData = async (syntheticIngestionDataOptions): 
 
   const dataMapping = await addDataMapping(createdDataMapping);
   const datasetFileMapping = await addDatasetFileMapping(dataset.id, dataMapping.id);
+  datasetFileMapping.file_id = file.id;
+  await datasetFileMapping.save();
+
   if (syntheticIngestionDataOptions.createTable) {
     // Load raw data sample
     const sqlFile = path.join(__dirname, '..', '..', 'tests', 'assets', 'raw_data', 'raw_data_insert.sql');

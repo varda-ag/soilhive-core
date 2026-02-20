@@ -1,5 +1,6 @@
 /* eslint-disable */
 import { useEffect, useRef, useState } from 'react';
+import classnames from 'classnames';
 import PolygonIcon from 'assets/icons/polygon-icon.svg?react';
 import ArrowDownIcon from 'assets/icons/arrow-down-icon.svg?react';
 import PencilIcon from 'assets/icons/pencil-icon.svg?react';
@@ -9,11 +10,12 @@ import type { Polygon, MultiPolygon } from 'geojson';
 import useNotifications from 'hooks/useNotifications';
 
 interface SoilhiveMapToolbarProps {
+  visible: boolean;
   onDrawClick: () => void;
   onUpload: (geometry: Polygon | MultiPolygon) => void;
 }
 
-export default function SoilhiveMapToolbar({ onDrawClick, onUpload }: SoilhiveMapToolbarProps) {
+export default function SoilhiveMapToolbar({ visible, onDrawClick, onUpload }: SoilhiveMapToolbarProps) {
   const [open, setOpen] = useState(false);
   const selectionButtonRef = useRef<HTMLButtonElement>(null);
   const selectionListRef = useRef<HTMLDivElement>(null);
@@ -98,7 +100,7 @@ export default function SoilhiveMapToolbar({ onDrawClick, onUpload }: SoilhiveMa
   }, []);
 
   return (
-    <div className="soilhive-map-toolbar">
+    <div className={classnames('soilhive-map-toolbar', { hidden: !visible })}>
       <button
         ref={selectionButtonRef}
         onClick={() => {
