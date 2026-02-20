@@ -3,6 +3,7 @@ import { getDBPassword, getSSL } from '../utils/db-credentials';
 import { BulkLoadJob, ExportJob } from '../interfaces/Job';
 import { JobQueues } from '../types/enums';
 import { isJest, setupEnv, sleep } from '../utils/utils';
+import { processExportJob } from '../jobs/soil-export/soilExportJob';
 
 setupEnv();
 
@@ -59,9 +60,7 @@ const setupWorkers = async () => {
   });
   await boss.work<ExportJob>(JobQueues.EXPORT, options, async (jobs: Job<ExportJob>[]) => {
     for (const job of jobs) {
-      // TODO: call real worker
-      console.log(job);
-      await sleep(1000);
+      await processExportJob(job);
     }
   });
 };

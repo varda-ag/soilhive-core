@@ -1,14 +1,25 @@
-import { useFilteredDatasets } from 'hooks/useFilteredDatasets';
 import React, { createContext, useState, type ReactNode, useCallback, useMemo } from 'react';
+import type { LngLat, MapGeoJSONFeature } from 'maplibre-gl';
+import type { FeatureCollection, MultiPolygon, Polygon } from 'geojson';
+
 import type { AvailabilityDataset, DatasetFrontendFilters, DatasetSummary, TimeFilterState } from 'types/availability';
 import { mapFilteredDatasetToAvailabilityDataset } from '../adapters';
 import type { SoilProperty, FilterCriteria, SoilPropertyCategory, FilteredDataset, BackendStoredDataFilter } from 'types/backend';
 import { computeDatasetSummary } from '../domain';
-import type { MultiPolygon, Polygon } from 'geojson';
+import { useFilteredDatasets } from 'hooks/useFilteredDatasets';
 import { useSoilProperties } from '../hooks/useSoilProperties';
 import { usePropertiesCategories } from 'hooks/usePropertiesCategories';
 
+type MapSelection = { type: string; features: GeoJSON.GeoJSON[] };
+
 type AvailabilityContextType = {
+  selectedPoint: LngLat | null;
+  selectedH3Cell: MapGeoJSONFeature | null;
+  h3Cells: FeatureCollection | null;
+  emptySelection: MapSelection;
+  selection: MapSelection;
+  showDrawControl: boolean;
+  showSelectionToolbar: boolean;
   allSoilProperties: SoilProperty[];
   filteredSoilProperties: SoilProperty[];
   categories: SoilPropertyCategory[];
@@ -36,6 +47,12 @@ type AvailabilityContextType = {
   setFrontendFilters: (value: string[], name: string) => void;
   selectAllDatasets: (select: boolean) => void;
   geometryFilter: (Polygon | MultiPolygon)[];
+  setSelectedPoint: React.Dispatch<React.SetStateAction<LngLat | null>>;
+  setSelectedH3Cell: React.Dispatch<React.SetStateAction<MapGeoJSONFeature | null>>;
+  setH3Cells: React.Dispatch<React.SetStateAction<FeatureCollection | null>>;
+  setSelection: React.Dispatch<React.SetStateAction<MapSelection>>;
+  setShowDrawControl: React.Dispatch<React.SetStateAction<boolean>>;
+  setShowSelectionToolbar: React.Dispatch<React.SetStateAction<boolean>>;
   setGeometryFilter: React.Dispatch<React.SetStateAction<(Polygon | MultiPolygon)[]>>;
   setDatasetFilters: React.Dispatch<React.SetStateAction<FilterCriteria>>;
   setPreview: React.Dispatch<React.SetStateAction<boolean>>;
@@ -57,10 +74,14 @@ type AvailabilityProviderProps = {
   children: ReactNode;
 };
 
+const emptySelection: MapSelection = { type: 'FeatureCollection', features: [] };
+
 export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ children }) => {
   const [selectionType, setSelectionType] = useState<'h3-cell' | 'drawn-polygon' | 'country'>('drawn-polygon');
   const [locationName, setLocationName] = useState<string>();
-  const [boundingBox, setBoundingBox] = useState<[number, number, number, number]>();
+  const [boundingBox, setBoundingBox] = useState<[number, number, number, number] | undefined>([
+    6.6272658, 35.2889616, 18.7844746, 47.0921462,
+  ]);
   const [selectedDatasets, setSelectedDatasets] = useState<string[]>([]);
   const [searchValue, setSearchValue] = useState<string>('');
   const [datasetFrontendFilters, setDatasetFrontendFilters] = useState<DatasetFrontendFilters>({
@@ -69,6 +90,14 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
   });
   const [isAllSelected, setIsAllSelected] = useState<boolean>(false);
   const [preview, setPreview] = useState<boolean>(false);
+
+  const [selectedPoint, setSelectedPoint] = useState<LngLat | null>(null);
+  const [selectedH3Cell, setSelectedH3Cell] = useState<MapGeoJSONFeature | null>(null);
+  const [h3Cells, setH3Cells] = useState<FeatureCollection | null>(null);
+  const [selection, setSelection] = useState<MapSelection>(emptySelection);
+  const [showDrawControl, setShowDrawControl] = useState(false);
+  const [showSelectionToolbar, setShowSelectionToolbar] = useState(false);
+
   const [geometryFilter, setGeometryFilter] = useState<(Polygon | MultiPolygon)[]>([]);
   const [datasetFilters, setDatasetFilters] = useState<FilterCriteria>({});
   const { data: categories, isLoading: isLoadingCategories } = usePropertiesCategories();
@@ -183,6 +212,13 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
   return (
     <AvailabilityContext.Provider
       value={{
+        selectedPoint,
+        selectedH3Cell,
+        h3Cells,
+        emptySelection,
+        selection,
+        showDrawControl,
+        showSelectionToolbar,
         allSoilProperties: allSoilProperties || [],
         filteredSoilProperties,
         isLoadingSoilProperties,
@@ -212,6 +248,12 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
         setDatasetFilters,
         setPreview,
         geometryFilter,
+        setSelectedPoint,
+        setSelectedH3Cell,
+        setH3Cells,
+        setSelection,
+        setShowDrawControl,
+        setShowSelectionToolbar,
         setGeometryFilter,
         selectedSoilProperties,
         setSelectedTimeFilter,

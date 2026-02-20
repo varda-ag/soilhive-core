@@ -10,9 +10,19 @@ import { SoilExportJobPayload, GroupedRecords, EXPORT_CONFIG, soilSampleToExport
 import * as fs from 'fs';
 import * as path from 'path';
 
-export async function getTotalRecordsCount(/*entityManager: EntityManager, payload: SoilExportJobPayload*/): Promise<number> {
-  // TODO: retrieve total records to process
-  return 0;
+export async function getTotalRecordsCount(entityManager: EntityManager, payload: SoilExportJobPayload): Promise<number> {
+  const requestData: RequestData = {
+    entityManager,
+    token: {} as any,
+  };
+
+  const filterService = new FilterService();
+
+  const storedFilter = await filterService.getFilterById(requestData, payload.filterId);
+
+  const soilDataStorage = new SoilDataStorage();
+
+  return await soilDataStorage.getSoilDataCount(entityManager, storedFilter.filter, payload.dataset_slugs);
 }
 
 /**
@@ -37,7 +47,7 @@ export async function fetchBatch(entityManager: EntityManager, payload: SoilExpo
   return await soilDataStorage.getSoilData(
     entityManager,
     storedFilter.filter,
-    payload.datasetSlugs,
+    payload.dataset_slugs,
     EXPORT_CONFIG.BATCH_SIZE,
     cursor,
     undefined,
@@ -80,8 +90,8 @@ Soil Data Export
 ================
 
 Filter ID: ${payload.filterId}
-Datasets: ${payload.datasetSlugs.join(', ')}
-Format: ${payload.fileFormat}
+Datasets: ${payload.dataset_slugs.join(', ')}
+Format: ${payload.file_format}
 Export Date: ${new Date().toISOString()}
 
 This export contains soil data organized by soil property.

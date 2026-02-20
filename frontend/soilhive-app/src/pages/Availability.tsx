@@ -1,5 +1,6 @@
-import { useContext, useState } from 'react';
+import { useState } from 'react';
 import type { StyleSpecification } from 'react-map-gl/maplibre';
+import { bboxPolygon } from '@turf/turf';
 
 import SoilhiveMap from 'components/Map/SoilhiveMap';
 // import SoilhiveSimpleMap from 'components/Map/SoilhiveSimpleMap';
@@ -16,11 +17,10 @@ import {
   DEFAULT_AVAILABILITY_MOBILE_TAB,
 } from 'components/AvailabilityMobileNavigation/AvailabilityMobileNavigation';
 import useDevice from 'hooks/useDevice';
+import useAvailability from 'hooks/useAvailability';
 import type { SoilhiveMapSelectionChangeEvent } from 'components/Map/SoilhiveMapSelectionChangeEvent';
 
 import styles from './Availability.module.scss';
-import { AvailabilityContext } from '../contexts/AvailabilityContext';
-import { bboxPolygon } from '@turf/turf';
 
 const MAPBOX_SATELLITE_MAP_STYLE: StyleSpecification = {
   version: 8,
@@ -46,13 +46,7 @@ function Availability() {
   const [activeMobileTab, setActiveMobileTab] = useState<string>(DEFAULT_AVAILABILITY_MOBILE_TAB);
   const { isDesktopLayout } = useDevice();
 
-  const availabilityContext = useContext(AvailabilityContext);
-
-  if (!availabilityContext) {
-    throw new Error('AvailabilityContext must be used within AvailabilityProvider');
-  }
-
-  const { setGeometryFilter, setSelectionType, setLocationName, setBoundingBox } = availabilityContext;
+  const { boundingBox, setGeometryFilter, setSelectionType, setLocationName, setBoundingBox } = useAvailability();
 
   const handleMapSelectionChange = (event: SoilhiveMapSelectionChangeEvent) => {
     const { bounds, geometries } = event;
@@ -72,7 +66,7 @@ function Availability() {
           onClose={() => setIsFiltersOpened(false)}
         />
         <SoilhiveMap
-          initialViewBoundingBox={[6.6272658, 35.2889616, 18.7844746, 47.0921462]}
+          initialViewBoundingBox={boundingBox}
           showGeocoder={true}
           showH3Cells={true}
           onSelectionChange={handleMapSelectionChange}

@@ -21,4 +21,9 @@ export interface BulkLoadJob extends CommonJobData {
 export interface ExportJob extends CommonJobData {
   filter_id: string;
   format: string;
+  dataset_slugs: string[];
+  total_records_estimate: number;
+  current_cursor: string | null;
+  total_records_processed: number;
+  download_path: string | null;
 }

@@ -17,20 +17,8 @@ export enum FileFormat {
  */
 export interface SoilExportJobPayload {
   filterId: string;
-  datasetSlugs: string[];
-  fileFormat: FileFormat;
-}
-
-/**
- * Job state stored in pg-boss for progress tracking and resumability
- */
-export interface SoilExportJobState {
-  status: 'in_progress' | 'completed' | 'failed';
-  currentCursor: string | null;
-  totalRecordsProcessed: number;
-  totalRecordsEstimate: number | null;
-  downloadUrl: string | null;
-  error: string | null;
+  dataset_slugs: string[];
+  file_format: FileFormat;
 }
 
 /**
