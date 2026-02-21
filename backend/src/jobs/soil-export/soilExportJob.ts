@@ -9,6 +9,7 @@ import { getTotalRecordsCount, createReadmeFile, fetchBatch, groupByProperty } f
 import { getPgBoss, PG_BOSS_SCHEMA } from '../../services/PgBoss';
 import { GeoFileWriter } from './GeoFileWriter';
 import { cleanupTempFiles, generateDownloadPath, moveToDownloadFolder, zipFiles } from './storageHelpers';
+import { createSignedPath } from '../../utils/presigned-url';
 
 export async function processExportJob(job: Job<ExportJob>): Promise<void> {
   const { id: jobId, data } = job;
@@ -98,6 +99,8 @@ export async function processExportJob(job: Job<ExportJob>): Promise<void> {
     // Move zip to download folder via storage engine
     const download_path = await moveToDownloadFolder(localZipPath, downloadPath);
 
+    const download_presigned_path = createSignedPath(download_path, 30); // just the time for the client to download
+
     // Update job state as completed
     await updateJobState(jobId, {
       ...data,
@@ -105,7 +108,7 @@ export async function processExportJob(job: Job<ExportJob>): Promise<void> {
       progress_description: 'Export complete',
       current_cursor: cursor ?? null,
       total_records_processed: totalRecordsProcessed,
-      download_path: download_path,
+      download_path: download_presigned_path,
     });
   } finally {
     // Always cleanup temp files, even on error

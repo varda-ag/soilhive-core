@@ -3,6 +3,7 @@ import FileService from '../services/FileService';
 import { FileStorage } from '@flystorage/file-storage';
 import { StatusCodes } from 'http-status-codes';
 import { LOGO_FILE_ID } from '../constants/constants';
+import { verifySignedPath } from '../utils/presigned-url';
 
 const fileService = new FileService();
 
@@ -37,4 +38,24 @@ export const logoDelete = async (req: Request, res: Response) => {
     await fileService.deleteFile(LOGO_FILE_ID);
   }
   res.sendStatus(StatusCodes.NO_CONTENT);
+};
+
+export const download = async (req: Request, res: Response, next: NextFunction) => {
+  const filename = req.params['fileId']!;
+  const token = req.query['token'] as string;
+
+  if (!token) {
+    return res.sendStatus(StatusCodes.UNAUTHORIZED);
+  }
+
+  verifySignedPath(filename, token);
+
+  const storage: FileStorage = FileService.getStorageEngine();
+  const fileStream = await storage.read(filename);
+  fileStream.pipe(res);
+  fileStream.on('error', err => {
+    next(err);
+  });
+
+  return;
 };
