@@ -10,6 +10,7 @@ export class CreateSchema1771603623538 implements MigrationInterface {
     const base = path.resolve(__dirname, './data');
     const files = [
       '0_licenses_data_insert.sql',
+      '0_procedures_data_insert.sql',
       '0_soil_property_categories_data_insert.sql',
       '1_soil_properties_data_insert.sql',
       '2_unit_conversions_data_insert.sql',

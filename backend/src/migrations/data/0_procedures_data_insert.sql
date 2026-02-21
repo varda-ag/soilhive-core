@@ -1,4 +1,4 @@
-﻿INSERT INTO procedures (
+INSERT INTO procedures (
     sample_pretreatment, technique, laboratory_method, extractant_concentration, extraction_ratio, extraction_base, measurement_procedure, limit_of_detection
 ) VALUES
     (NULL, 'lab procedure', NULL, NULL, NULL, NULL, NULL, NULL),
