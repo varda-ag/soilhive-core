@@ -62,4 +62,18 @@ describe('Testing /download route', () => {
 
     expect(response.status).toBe(StatusCodes.GONE);
   });
+
+  it('should return correct content-type for a csv file', async () => {
+    const fileId = 'test-file.csv';
+
+    const storage = FileService.getStorageEngine();
+    await storage.write(fileId, 'col1,col2\nval1,val2');
+
+    const validFilePath = createSignedPath(fileId);
+
+    const response = await request(app).get(`/download/${validFilePath}`);
+
+    expect(response.status).toBe(StatusCodes.OK);
+    expect(response.headers['content-type']).toContain('text/csv');
+  });
 });

@@ -4,6 +4,8 @@ import { FileStorage } from '@flystorage/file-storage';
 import { StatusCodes } from 'http-status-codes';
 import { LOGO_FILE_ID } from '../constants/constants';
 import { verifySignedPath } from '../utils/presigned-url';
+import * as path from 'path';
+import mime from 'mime-types';
 
 const fileService = new FileService();
 
@@ -46,6 +48,13 @@ export const download = async (req: Request, res: Response, next: NextFunction) 
 
   // checks token vlaidity. Token presence is checked by middleware thorugh openapi spec
   verifySignedPath(filename, token);
+
+  const cleanFilename = filename.split('?')[0];
+  const basename = path.basename(cleanFilename!);
+  res.setHeader('Content-Disposition', `attachment; filename="${basename}"`);
+
+  const contentType = mime.lookup(basename) || 'application/octet-stream';
+  res.setHeader('Content-Type', contentType);
 
   const storage: FileStorage = FileService.getStorageEngine();
   const fileStream = await storage.read(filename);
