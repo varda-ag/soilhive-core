@@ -44,10 +44,7 @@ export const download = async (req: Request, res: Response, next: NextFunction) 
   const filename = req.params['fileId']!;
   const token = req.query['token'] as string;
 
-  if (!token) {
-    return res.sendStatus(StatusCodes.UNAUTHORIZED);
-  }
-
+  // checks token vlaidity. Token presence is checked by middleware thorugh openapi spec
   verifySignedPath(filename, token);
 
   const storage: FileStorage = FileService.getStorageEngine();

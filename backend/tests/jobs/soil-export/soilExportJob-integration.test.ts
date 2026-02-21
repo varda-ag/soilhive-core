@@ -9,6 +9,7 @@ import { addSyntheticData, syntheticDataOptions } from '../../../src/utils/mock'
 import { initPgBoss, stopPgBoss } from '../../../src/services/PgBoss';
 import { sleep } from '../../../src/utils/utils';
 import { FileFormat } from '../../../src/jobs/soil-export/types';
+import { StatusCodes } from 'http-status-codes';
 
 describe('Soil Export Job Integration Test', () => {
   beforeAll(async () => {
@@ -104,10 +105,10 @@ describe('Soil Export Job Integration Test', () => {
     // 5. Download the file
     const downloadPath = completedJob.data.download_path;
     // The API expects path separators to be encoded as %2F
-    const filePathForUrl = downloadPath.replace(/\//g, '%2F');
+    const escapedDownloadPath = downloadPath.replace(/\//g, '%2F');
 
     const downloadResponse = await request(app)
-      .get(`/files/${filePathForUrl}`)
+      .get(`/download/${escapedDownloadPath}`)
       .buffer()
       // Explicitly tell SuperTest NOT to parse this as JSON/Object
       .parse((res, callback) => {
@@ -121,7 +122,7 @@ describe('Soil Export Job Integration Test', () => {
         });
       });
 
-    expect(downloadResponse.statusCode).toBe(200);
+    expect(downloadResponse.statusCode).toBe(StatusCodes.OK);
 
     // 6. Save and verify the zip file
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'export-test-'));

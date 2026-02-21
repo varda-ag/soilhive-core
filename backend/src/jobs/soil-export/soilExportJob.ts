@@ -99,7 +99,7 @@ export async function processExportJob(job: Job<ExportJob>): Promise<void> {
     // Move zip to download folder via storage engine
     const download_path = await moveToDownloadFolder(localZipPath, downloadPath);
 
-    const download_presigned_path = createSignedPath(download_path, 30); // just the time for the client to download
+    const download_presigned_path = createSignedPath(download_path, 30); // token valid just the time for the client to download the file
 
     // Update job state as completed
     await updateJobState(jobId, {
