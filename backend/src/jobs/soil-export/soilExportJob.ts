@@ -42,9 +42,17 @@ export async function processExportJob(job: Job<ExportJob>): Promise<void> {
     let cursor: string | undefined = data.current_cursor ?? undefined;
     let totalRecordsProcessed = data.total_records_processed ?? 0;
     let hasMore = true;
+    let wasCancelled = false;
 
     // --- Main batch processing loop ---
     while (hasMore) {
+      // Check if job was cancelled before processing next batch
+      if (await isJobCancelled(jobId)) {
+        hasMore = false;
+        wasCancelled = true;
+        break;
+      }
+
       // 1. Fetch batch
       const batch = await fetchBatch(entityManager, { filterId: filter_id, dataset_slugs, file_format }, cursor);
 
@@ -91,6 +99,8 @@ export async function processExportJob(job: Job<ExportJob>): Promise<void> {
 
     // --- Post-processing ---
 
+    if (wasCancelled) return;
+
     // Zip temp directory contents
     const downloadPath = generateDownloadPath(filter_id);
     const localZipPath = path.join(os.tmpdir(), path.basename(downloadPath));
@@ -131,4 +141,11 @@ async function updateJobState(jobId: string, update: Partial<ExportJob>): Promis
     JSON.stringify(update),
     jobId,
   ]);
+}
+
+async function isJobCancelled(jobId: string): Promise<boolean> {
+  const boss = getPgBoss();
+  const db = boss.getDb();
+  const result = await db.executeSql(`SELECT state FROM ${PG_BOSS_SCHEMA}.job WHERE id = $1`, [jobId]);
+  return result.rows[0]?.state === 'cancelled';
 }

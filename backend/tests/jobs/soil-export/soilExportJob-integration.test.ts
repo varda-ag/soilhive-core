@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
+import { describe, it, expect, beforeAll, afterAll, jest } from '@jest/globals';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
@@ -8,8 +8,10 @@ import { app } from '../../../src/app';
 import { addSyntheticData, syntheticDataOptions } from '../../../src/utils/mock';
 import { initPgBoss, stopPgBoss } from '../../../src/services/PgBoss';
 import { sleep } from '../../../src/utils/utils';
-import { FileFormat } from '../../../src/jobs/soil-export/types';
+import { EXPORT_CONFIG, FileFormat } from '../../../src/jobs/soil-export/types';
 import { StatusCodes } from 'http-status-codes';
+import { SoilDataSample } from '../../../src/interfaces/SoilDataSample';
+import * as exportHelpers from '../../../src/jobs/soil-export/exportHelpers';
 
 describe('Soil Export Job Integration Test', () => {
   beforeAll(async () => {
@@ -169,5 +171,76 @@ describe('Soil Export Job Integration Test', () => {
 
     // Cleanup
     fs.rmSync(tempDir, { recursive: true, force: true });
-  }, 120000); // 2 minute timeout for integration test
+  }, 6000); // 6 seconds timeout for integration test
+
+  it('should stop processing and not produce a download_path when job is cancelled mid-run', async () => {
+    const fakeRecord: SoilDataSample = {
+      id: 'fake-id',
+      dataset_id: 'fake-dataset-id',
+      dataset_name: 'fake-dataset',
+      soil_property: 'aluminum',
+      property_acronym: 'AL',
+      standard_unit: null,
+      value: 1.0,
+      geometry: { type: 'Point', coordinates: [0, 0] },
+      license_name: null,
+      sampling_date: null,
+      min_depth: null,
+      max_depth: null,
+      horizon: null,
+      sample_pretreatment: null,
+      technique: null,
+      laboratory_method: null,
+      extractant_concentration: null,
+      extraction_ratio: null,
+      extraction_base: null,
+      measurement_procedure: null,
+      limit_of_detection: null,
+      cursor: 'fake-cursor',
+    };
+
+    const fetchBatchSpy = jest.spyOn(exportHelpers, 'fetchBatch').mockResolvedValue(Array(EXPORT_CONFIG.BATCH_SIZE).fill(fakeRecord));
+
+    const getTotalRecordsCountSpy = jest.spyOn(exportHelpers, 'getTotalRecordsCount').mockResolvedValue(1000);
+
+    // 2. Queue export job (no real data needed)
+    const exportJobResponse = await request(app)
+      .post('/jobs')
+      .send({
+        type: 'export',
+        filter_id: 'fake-filter-id',
+        dataset_slugs: ['fake-dataset'],
+        format: FileFormat.CSV,
+      });
+
+    expect(exportJobResponse.statusCode).toBe(StatusCodes.CREATED);
+    const jobId = exportJobResponse.body.id;
+
+    // 3. Wait briefly to ensure job has started processing
+    await sleep(2000);
+
+    // 4. Cancel the job via API
+    const cancelResponse = await request(app).delete(`/jobs/${jobId}`);
+    expect(cancelResponse.statusCode).toBe(StatusCodes.NO_CONTENT);
+
+    // 5. Wait briefly for the cancellation to be detected in the next loop iteration
+    await sleep(2000);
+
+    // 6. Verify job has no download_path
+    const statusResponse = await request(app).get(`/jobs/${jobId}`);
+    expect(statusResponse.statusCode).toBe(StatusCodes.OK);
+    const recordsProcessedAtCancel = statusResponse.body.data.total_records_processed;
+    expect(recordsProcessedAtCancel).toBeGreaterThan(0); // job did some work
+
+    // 7. Wait a bit more and verify total_records_processed has not increased
+    await sleep(1000);
+
+    const statusFinal = await request(app).get(`/jobs/${jobId}`);
+    expect(statusFinal.statusCode).toBe(StatusCodes.OK);
+    expect(statusFinal.body.data.total_records_processed).toBe(recordsProcessedAtCancel);
+    expect(statusFinal.body.data.download_path).toBeUndefined();
+
+    fetchBatchSpy.mockRestore();
+    getTotalRecordsCountSpy.mockRestore();
+  }, 7000);
 });
