@@ -6,6 +6,7 @@ import SoilPropertyEntity from './SoilProperty';
 
 @Entity('unit_conversions')
 @Unique(['slug'])
+@Unique(['property_id', 'original_unit_of_measurement'])
 @ForeignKey(() => SlugHistoryEntity, ['id', 'slug'], ['entity_id', 'slug'], {
   deferrable: 'INITIALLY DEFERRED',
 })
