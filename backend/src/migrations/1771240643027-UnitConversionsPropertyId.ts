@@ -40,7 +40,6 @@ export class CreateSchema1771240643027 implements MigrationInterface {
     await queryRunner.query(`ALTER TABLE unit_conversions ADD standard_unit text`);
     await queryRunner.query(`ALTER TABLE unit_conversions ADD CONSTRAINT check_standard_unit_exists 
             CHECK (check_std_unit(standard_unit)) NOT VALID;`);
-    await queryRunner.query(`ALTER TABLE unit_conversions DROP CONSTRAINT FK_unit_conversions_property_id_soil_properties_id`);
     await queryRunner.query(`ALTER TABLE unit_conversions DROP COLUMN property_id`);
     await queryRunner.query(
       `ALTER TABLE procedures RENAME CONSTRAINT "UQ_procedures_sample_pretreatment_technique_laboratory_method_extractant_concentration_extraction_ratio_extraction_base_measurement_procedure_limit_of_detection" TO "UQ_procedures_sample_pretreatment_technique_extractant_formulat"`,

@@ -1022,6 +1022,35 @@ paths:
       responses:
         '204':
           description: Mapping deleted successfully
+  /downloads/{fileId}:
+    get:
+      x-eov-operation-handler: controllers/files
+      x-eov-operation-id: download
+      summary: Download a file with temporary access token
+      tags:
+        - TODO (to be removed or specialized)
+      parameters:
+        - in: query
+          name: token
+          required: true
+          description: Temporary access token to download access-protected files
+          schema:
+            type: string
+        - name: fileId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique file identifier. Folder separators should be encoded as %2F
+      responses:
+        '200':
+          description: File downloaded successfully
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '410':
+          $ref: '#/components/responses/Gone'
 
 
 components:
@@ -1064,6 +1093,12 @@ components:
             $ref: '#/components/schemas/ErrorResponse'
     TooManyRequests:
       description: Too many requests
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Gone:
+      description: The requested resource is no longer available
       content:
         application/json:
           schema:

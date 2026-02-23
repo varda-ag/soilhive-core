@@ -54,7 +54,7 @@ export default class DatasetEntity extends BaseTable implements Dataset {
   @Column({ type: 'text', nullable: true })
   reference_period_stop?: string | null;
 
-  @Column({ type: 'uuid', nullable: true, array: true })
+  @Column({ type: 'text', nullable: true, array: true })
   licenses?: string[] | null;
 
   @Column({ type: 'text', nullable: true })

@@ -6,6 +6,9 @@ import { idToSlug } from '../utils/slugs';
 import { IngestionStatus } from '../types/data';
 import FileService from '../services/FileService';
 import { ErrorResponse } from '../utils/error';
+import { verifySignedPath } from '../utils/presigned-url';
+import * as path from 'path';
+import mime from 'mime-types';
 
 const fileService = new FileService();
 
@@ -82,4 +85,25 @@ export const getFile = async (req: Request, res: Response) => {
   const result = await fileService.getFile(req.customData, fileId!);
 
   res.json(idToSlug(result));
+};
+
+export const download = async (req: Request, res: Response, next: NextFunction) => {
+  const filename = req.params['fileId']!;
+  const token = req.query['token'] as string;
+
+  // this checks token validity only. Token presence is checked by middleware thorugh openapi spec
+  verifySignedPath(filename, token);
+
+  const basename = path.basename(filename!);
+  res.setHeader('Content-Disposition', `attachment; filename="${basename}"`);
+
+  const contentType = mime.lookup(basename) || 'application/octet-stream';
+  res.setHeader('Content-Type', contentType);
+
+  const storage: FileStorage = FileService.getStorageEngine();
+  const fileStream = await storage.read(filename);
+  fileStream.pipe(res);
+  fileStream.on('error', err => {
+    next(err);
+  });
 };

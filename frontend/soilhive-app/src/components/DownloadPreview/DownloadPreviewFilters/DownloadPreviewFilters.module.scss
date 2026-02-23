@@ -17,13 +17,16 @@
   overflow: hidden;
   text-overflow: ellipsis;
 
-  // .p-dropdown-label
-  > span {
+  > :global(.p-dropdown-label) {
     padding: 10px;        
   }
 
-  // .p-dropdown-trigger
-  > div:last-of-type > svg {
+  > :global(.p-dropdown-trigger) > svg {
+    color: var(--color-neutral-dark-400);
+  }
+
+  :global(.p-dropdown-clear-icon) {
+    top: 33%;
     color: var(--color-neutral-dark-400);
   }
 }
