@@ -310,7 +310,10 @@ describe('FileService', () => {
     describe('extractMetadata - batch tests', () => {
       it('should process all valid files without errors', async () => {
         setLocalStorageRootFolder(vectorFilesPassPath);
-        const files = fs.readdirSync(vectorFilesPassPath);
+        const files = fs
+          .readdirSync(vectorFilesPassPath, { withFileTypes: true })
+          .filter(dirent => dirent.isFile())
+          .map(dirent => dirent.name); // or dirent.path for full path;
         const results = [];
 
         for (const file of files) {
