@@ -110,7 +110,7 @@ describe('Soil Export Job Integration Test', () => {
     const escapedDownloadPath = downloadPath.replace(/\//g, '%2F');
 
     const downloadResponse = await request(app)
-      .get(`/download/${escapedDownloadPath}`)
+      .get(`/downloads/${escapedDownloadPath}`)
       .buffer()
       // Explicitly tell SuperTest NOT to parse this as JSON/Object
       .parse((res, callback) => {

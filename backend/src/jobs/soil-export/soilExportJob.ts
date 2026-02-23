@@ -41,14 +41,12 @@ export async function processExportJob(job: Job<ExportJob>): Promise<void> {
 
     let cursor: string | undefined = data.current_cursor ?? undefined;
     let totalRecordsProcessed = data.total_records_processed ?? 0;
-    let hasMore = true;
     let wasCancelled = false;
 
     // --- Main batch processing loop ---
-    while (hasMore) {
+    while (true) {
       // Check if job was cancelled before processing next batch
       if (await isJobCancelled(jobId)) {
-        hasMore = false;
         wasCancelled = true;
         break;
       }
@@ -93,7 +91,7 @@ export async function processExportJob(job: Job<ExportJob>): Promise<void> {
 
       // If batch is smaller than page size, we've reached the end
       if (batch.length < EXPORT_CONFIG.BATCH_SIZE) {
-        hasMore = false;
+        break;
       }
     }
 

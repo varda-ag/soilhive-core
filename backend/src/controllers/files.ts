@@ -46,11 +46,10 @@ export const download = async (req: Request, res: Response, next: NextFunction) 
   const filename = req.params['fileId']!;
   const token = req.query['token'] as string;
 
-  // checks token vlaidity. Token presence is checked by middleware thorugh openapi spec
+  // this checks token validity only. Token presence is checked by middleware thorugh openapi spec
   verifySignedPath(filename, token);
 
-  const cleanFilename = filename.split('?')[0];
-  const basename = path.basename(cleanFilename!);
+  const basename = path.basename(filename!);
   res.setHeader('Content-Disposition', `attachment; filename="${basename}"`);
 
   const contentType = mime.lookup(basename) || 'application/octet-stream';

@@ -4,6 +4,7 @@ import { app } from '../../src/app';
 import FileService from '../../src/services/FileService';
 import StatusCodes from 'http-status-codes';
 import { createSignedPath } from '../../src/utils/presigned-url';
+import { sleep } from '../../src/utils/utils';
 
 describe('Testing /download route', () => {
   it('should return 400 (bad request) if no token is provided', async () => {
@@ -13,7 +14,7 @@ describe('Testing /download route', () => {
 
     await storage.write(fileId, 'some content');
 
-    const response = await request(app).get(`/download/${fileId}`);
+    const response = await request(app).get(`/downloads/${fileId}`);
 
     expect(response.status).toBe(StatusCodes.BAD_REQUEST);
   });
@@ -27,7 +28,7 @@ describe('Testing /download route', () => {
 
     await storage.write(fileId, 'some content');
 
-    const response = await request(app).get(`/download/${fileId}?token=${invalidToken}`);
+    const response = await request(app).get(`/downloads/${fileId}?token=${invalidToken}`);
 
     expect(response.status).toBe(StatusCodes.UNAUTHORIZED);
   });
@@ -41,7 +42,7 @@ describe('Testing /download route', () => {
 
     const validFilePath = createSignedPath(fileId);
 
-    const response = await request(app).get(`/download/${validFilePath}`);
+    const response = await request(app).get(`/downloads/${validFilePath}`);
 
     expect(response.status).toBe(StatusCodes.OK);
   });
@@ -56,9 +57,9 @@ describe('Testing /download route', () => {
     const expiredFilePath = createSignedPath(fileId, 1); // just one second of validity
 
     // wait for 2 seconds to ensure the token is expired
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    await sleep(2000);
 
-    const response = await request(app).get(`/download/${expiredFilePath}`);
+    const response = await request(app).get(`/downloads/${expiredFilePath}`);
 
     expect(response.status).toBe(StatusCodes.GONE);
   });
@@ -71,7 +72,7 @@ describe('Testing /download route', () => {
 
     const validFilePath = createSignedPath(fileId);
 
-    const response = await request(app).get(`/download/${validFilePath}`);
+    const response = await request(app).get(`/downloads/${validFilePath}`);
 
     expect(response.status).toBe(StatusCodes.OK);
     expect(response.headers['content-type']).toContain('text/csv');

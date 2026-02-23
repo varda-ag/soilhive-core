@@ -999,7 +999,7 @@ paths:
       responses:
         '204':
           description: Mapping deleted successfully
-  /download/{fileId}:
+  /downloads/{fileId}:
     get:
       x-eov-operation-handler: controllers/files
       x-eov-operation-id: download
