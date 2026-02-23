@@ -176,6 +176,8 @@ const applyFiltersToQuery = (query: any, filters: FilterCriteria) => {
   if (filters.data_types && filters.data_types.length > 0) {
     query.andWhere('ds.gis_datatype IN (:...data_types)', { data_types: filters.data_types });
   }
+  // Should date filters be like the the depth one (overlapping with min/max interval)
+  // There is a case where we might have reference period start and stop but no sampling_dates in the layers, we should fall back on the dataset info
   if (filters.min_sampling_date === null) {
     query.andWhere('layer.sampling_date IS NULL');
   } else if (filters.min_sampling_date) {

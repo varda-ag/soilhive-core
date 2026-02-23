@@ -64,6 +64,7 @@ export default class BulkLoader {
     datasetFileMapping: DatasetFileMappingEntity,
     datasetSlug: string,
   ) => {
+    assert(datasetFileMapping.data_mapping_id, `No data mapping ID found for dataset file mapping ${datasetFileMapping.id}`);
     let cursor: string | undefined = undefined;
     const vdl = new VectorDataLoad();
     const service = new DataMappingService();

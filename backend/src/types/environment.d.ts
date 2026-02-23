@@ -32,5 +32,11 @@ declare namespace NodeJS {
     readonly S3_STORAGE_REGION?: string;
     readonly S3_STORAGE_BUCKET?: string;
     readonly S3_STORAGE_ROOT_FOLDER?: string;
+    readonly S3_STORAGE_ENDPOINT?: string;
+    readonly AWS_S3_ENDPOINT?: string;
+    readonly AWS_ACCESS_KEY_ID?: string;
+    readonly AWS_SECRET_ACCESS_KEY?: string;
+    readonly AWS_VIRTUAL_HOSTING?: string;
+    readonly AWS_HTTPS?: string;
   }
 }

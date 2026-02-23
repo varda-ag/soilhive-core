@@ -3,9 +3,11 @@ import { DetectableFields } from '../types/DataMapping';
 
 export interface File {
   id: string;
-  slug?: string;
-  file_path: string;
+  slug: string;
+  name: string;
+  file_path?: string;
   status?: IngestionStatus;
+  metadata?: FileMetadata;
   created_at: Date;
   updated_at: Date | null;
   created_by: string;

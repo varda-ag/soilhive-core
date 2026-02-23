@@ -4,10 +4,16 @@ export interface LocalStorageConfig {
   rootFolder: string;
 }
 
+interface S3Credentials {
+  accessKeyId: string;
+  secretAccessKey: string;
+}
 export interface S3StorageConfig {
   region: string;
   bucketName: string;
   rootFolder?: string;
+  endpoint?: string;
+  credentials?: S3Credentials;
 }
 
 export interface AzureStorageConfig {

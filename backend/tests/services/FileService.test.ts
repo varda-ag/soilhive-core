@@ -7,10 +7,23 @@ import { FileMetadata } from '../../src/interfaces/File';
 import { getTableColumns } from '../helper';
 import { sanitizeField } from '../../src/utils/utils';
 import { DetectableFields } from '../../src/types/DataMapping';
+import { LOGO_FILE_ID } from '../../src/constants/constants';
+import { getEntityManager } from '../../src/utils/data-source';
+import { RequestData } from '../../src/interfaces/RequestData';
+import { Token } from '../../src/interfaces/Token';
 
 // Use absolute path from package root
 const vectorFilesPassPath = path.join(__dirname, '../assets/vector_files/pass');
 const vectorFilesFailPath = path.join(__dirname, '../assets/vector_files/fail');
+
+const mockToken: Token = {
+  sub: 'test-user-id',
+  email: 'test@example.com',
+  scope: 'user',
+  raw: 'mock-token',
+  isSuperAdmin: () => false,
+  isDataAdmin: () => false,
+};
 
 describe('FileService', () => {
   let fileService: FileService;
@@ -22,6 +35,48 @@ describe('FileService', () => {
   const setLocalStorageRootFolder = (rootFolder: string) => {
     process.env.LOCAL_STORAGE_ROOT_FOLDER = rootFolder;
   };
+
+  describe('getUploadStorageEngine - path resolver', () => {
+    const storage = FileService.getUploadStorageEngine();
+    it('builds expected path from req.customData.uploadedFileInfo for normal upload', async () => {
+      const req: any = {
+        path: '/files',
+      };
+      const date = new Date();
+      const file: any = { originalname: '../  test file path.gpkg' };
+      const path = await (storage as any).destinationResolver('handle', req, file);
+      const year = date.getUTCFullYear();
+      const month = (date.getUTCMonth() + 1).toString().padStart(2, '0');
+
+      expect(path.startsWith(`${year}/${month}/`)).toBeTruthy();
+      expect(path.endsWith('_test_file_path.gpkg')).toBeTruthy();
+    });
+    it('uses LOGO_FILE_ID for frontend logo upload', async () => {
+      const req: any = {
+        path: '/frontend/logo',
+      };
+      const file: any = {};
+      const path = await (storage as any).destinationResolver('handle', req, file);
+
+      expect(path).toBe(LOGO_FILE_ID);
+    });
+  });
+
+  describe('postFile', () => {
+    it('should create a new file record when the name is unique', async () => {
+      const entityManager = await getEntityManager();
+      const requestData: RequestData = { entityManager, token: mockToken };
+      const file = {
+        name: 'test.txt',
+      };
+
+      const result = await fileService.createFile(requestData, file);
+
+      expect(result).toBeDefined();
+      expect(result.id).toBeDefined();
+      expect(result.name).toEqual(file.name);
+    });
+  });
 
   describe('extractMetadata and fileToDB - valid file sample_point GeoJSON file', () => {
     const fileKey = 'sample_point.geojson';
@@ -255,7 +310,10 @@ describe('FileService', () => {
     describe('extractMetadata - batch tests', () => {
       it('should process all valid files without errors', async () => {
         setLocalStorageRootFolder(vectorFilesPassPath);
-        const files = fs.readdirSync(vectorFilesPassPath);
+        const files = fs
+          .readdirSync(vectorFilesPassPath, { withFileTypes: true })
+          .filter(dirent => dirent.isFile())
+          .map(dirent => dirent.name); // or dirent.path for full path;
         const results = [];
 
         for (const file of files) {

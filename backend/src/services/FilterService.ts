@@ -1,13 +1,13 @@
 import { valid } from 'geojson-validation';
 import { StatusCodes } from 'http-status-codes';
 import SoilDataStorage from '../data-layer/SoilDataStorage';
-import { DataFilter, FilteredDataset, StoredDataFilter } from '../interfaces/DatasetFilter';
+import { DataFilter, FilteredDataset } from '../interfaces/DatasetFilter';
 import { RequestData } from '../interfaces/RequestData';
 import { ErrorResponse } from '../utils/error';
 import DataFilterEntity from '../entities/DataFilter';
 
 export default class FilterService {
-  createFilter = async (requestData: RequestData, filter: DataFilter): Promise<StoredDataFilter> => {
+  createFilter = async (requestData: RequestData, filter: DataFilter): Promise<DataFilterEntity> => {
     // Validate geometries in the payload
     for (const geometry of filter.geometries) {
       if (!['Polygon', 'MultiPolygon'].includes(geometry.type)) {
@@ -27,7 +27,7 @@ export default class FilterService {
     return await repo.save(entity);
   };
 
-  getFilters = async (requestData: RequestData): Promise<StoredDataFilter[]> => {
+  getFilters = async (requestData: RequestData): Promise<DataFilterEntity[]> => {
     const owner = requestData.token?.sub;
     if (!owner) {
       throw new ErrorResponse('Cannot retrieve filters for unauthenticated user', StatusCodes.UNAUTHORIZED);
@@ -36,7 +36,7 @@ export default class FilterService {
     return await repo.findBy({ owner });
   };
 
-  getFilterById = async (requestData: RequestData, filterId: string): Promise<StoredDataFilter> => {
+  getFilterById = async (requestData: RequestData, filterId: string): Promise<DataFilterEntity> => {
     const repo = requestData.entityManager.getRepository(DataFilterEntity);
     const storedFilter = await repo.findOneBy({ id: filterId });
     if (!storedFilter) {

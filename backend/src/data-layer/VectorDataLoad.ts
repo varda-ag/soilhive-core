@@ -14,9 +14,6 @@ export default class VectorDataLoad {
     return `file_${sanitizeField(fileId)}_raw`;
   };
 
-  /**
-   * TODO: add remaining ingestion related functions (load raw data)
-   */
   getDataPreview = async (
     entityManager: EntityManager,
     dataMappingConfig: DataCleaningConfig,

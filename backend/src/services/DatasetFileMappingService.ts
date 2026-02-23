@@ -8,7 +8,7 @@ import { ErrorResponse } from '../utils/error';
 import { StatusCodes } from 'http-status-codes';
 
 export default class DatasetFileMappingService {
-  toResponse = (
+  static toResponse = (
     resultData: DatasetFileMappingEntity | DatasetFileMappingEntity[],
   ): DatasetFileMappingResponse | DatasetFileMappingResponse[] => {
     if (Array.isArray(resultData)) {
@@ -55,15 +55,9 @@ export default class DatasetFileMappingService {
 
     // Insert new mapping
     try {
-      const result = await repo
-        .createQueryBuilder()
-        .insert()
-        .into(DatasetFileMappingEntity)
-        .values(values)
-        .returning(['id', 'file_id', 'data_mapping_id'])
-        .execute();
-
-      return result.raw[0];
+      const result = await repo.createQueryBuilder().insert().into(DatasetFileMappingEntity).values(values).returning('*').execute();
+      const row = result.raw[0] as DatasetFileMappingEntity;
+      return repo.create(row);
     } catch (error: any) {
       if (error.code === '23505') {
         // unique violation
@@ -107,10 +101,11 @@ export default class DatasetFileMappingService {
       .set(updateValues)
       .where('id = :id', { id: mappingId })
       .andWhere('dataset_id = :datasetId', { datasetId: dataset.id })
-      .returning(['id', 'file_id', 'data_mapping_id'])
+      .returning('*')
       .execute();
 
-    return result.raw[0];
+    const row = result.raw[0] as DatasetFileMappingEntity;
+    return repo.create(row);
   };
 
   getDatasetFileMapping = async (requestData: RequestData, datasetFileMappingId: string): Promise<DatasetFileMappingEntity> => {

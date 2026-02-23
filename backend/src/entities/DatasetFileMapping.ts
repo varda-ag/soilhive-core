@@ -13,7 +13,7 @@ export default class DatasetFileMappingEntity extends BaseTable {
   id: string;
 
   @Column({ type: 'uuid', nullable: true })
-  data_mapping_id: string;
+  data_mapping_id?: string;
 
   @ManyToOne(() => DataMappingEntity, data_mapping => data_mapping.id)
   @JoinColumn({ name: 'data_mapping_id' })

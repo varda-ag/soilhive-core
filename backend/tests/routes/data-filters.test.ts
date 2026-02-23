@@ -6,6 +6,7 @@ import { FilteredDataset } from '../../src/interfaces/DatasetFilter';
 import { getDataSource } from '../../src/utils/data-source';
 import { addSyntheticData, syntheticDataOptions } from '../../src/utils/mock';
 import { getDataAdminToken, getSuperAdminToken } from '../helper';
+import { StatusCodes } from 'http-status-codes';
 
 const filteringPolygon = {
   coordinates: [
@@ -73,7 +74,7 @@ describe('Testing /data-filters routes', () => {
       geometries: [filteringPolygon],
     };
     const res = await request(app).post('/data-filters').set(superAdminAuthHeader).send(payload);
-    expect(res.statusCode).toBe(201);
+    expect(res.statusCode).toBe(StatusCodes.CREATED);
     const dataSource = await getDataSource();
     const repo = dataSource.getRepository('DataFilterEntity');
     const row = await repo.findOneBy({ id: res.body.id });

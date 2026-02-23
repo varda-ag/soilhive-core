@@ -115,7 +115,7 @@ describe('Testing /mappings routes', () => {
       const getRes = await request(app).get(`/mappings/${mappingId}`).set('Authorization', `Bearer ${token}`);
 
       expect(getRes.statusCode).toBe(StatusCodes.OK);
-      expect(getRes.body).toEqual(createPayload);
+      expect(getRes.body.data_mapping).toEqual(createPayload);
     });
 
     it('should return 404 when mapping does not exist', async () => {
