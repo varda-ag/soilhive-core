@@ -22,6 +22,7 @@ function DownloadPreviewDataSection({
   fixedDepthRange = null,
   onFiltersChange,
   datasets = [],
+  selectedDatasets,
   onDatasetsChange,
   onPointSelected,
 }: {
@@ -37,6 +38,7 @@ function DownloadPreviewDataSection({
   filters?: PreviewFilters;
   onFiltersChange?: (newFilters: PreviewFilters) => void;
   datasets?: { id: string; name: string }[];
+  selectedDatasets?: string[];
   onDatasetsChange?: (dataset: string[] | undefined) => void;
   onPointSelected?: (point: [number, number] | undefined) => void;
 }) {
@@ -82,6 +84,7 @@ function DownloadPreviewDataSection({
           fixedCalendarRange={fixedCalendarRange}
           depthMinMaxRange={depthMinMaxRange}
           fixedDepthRange={fixedDepthRange}
+          selectedDatasets={selectedDatasets}
           onDatasetsChange={datasets => {
             resetPagination();
             onDatasetsChange?.(datasets);

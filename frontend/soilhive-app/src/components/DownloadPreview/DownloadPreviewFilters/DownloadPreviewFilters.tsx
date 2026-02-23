@@ -20,6 +20,7 @@ function DownloadPreviewFilters({
   calendarMinMaxRange = [undefined, undefined],
   depthMinMaxRange = [undefined, undefined],
   fixedDepthRange = null,
+  selectedDatasets,
   onDatasetsChange,
   isLoading = true,
 }: {
@@ -33,11 +34,11 @@ function DownloadPreviewFilters({
   fixedCalendarRange?: Nullable<Array<Date | null>>;
   depthMinMaxRange?: [number | undefined, number | undefined];
   fixedDepthRange?: Nullable<[number, number]>;
+  selectedDatasets?: string[];
   onDatasetsChange?: (datasets: string[] | undefined) => void;
   isLoading?: boolean;
 }) {
   const { isMobileLayout } = useDevice();
-  const [selectedDataset, setSelectedDataset] = useState<string>();
   const [selectedDateRange, setSelectedDateRange] = useState<Nullable<Array<Date | null>>>(fixedCalendarRange);
 
   useEffect(() => {
@@ -69,7 +70,6 @@ function DownloadPreviewFilters({
       : undefined;
 
   const onDatasetsDropdownChange = (e: DropdownChangeEvent) => {
-    setSelectedDataset(e.value);
     onDatasetsChange?.(e.value ? [e.value] : undefined);
   };
 
@@ -128,9 +128,8 @@ function DownloadPreviewFilters({
       <Dropdown
         className={styles.Dropdown}
         panelClassName={styles.DropdownPanel}
-        value={selectedDataset}
+        value={selectedDatasets?.[0]}
         onChange={onDatasetsDropdownChange}
-        showClear
         options={datasets}
         optionValue="id"
         optionLabel="name"
@@ -142,7 +141,6 @@ function DownloadPreviewFilters({
         panelClassName={styles.DropdownPanel}
         value={filters.soil_properties?.[0]}
         onChange={onSoilPropertiesDropdownChange}
-        showClear
         options={soilProperties}
         optionLabel="property_name"
         optionValue="id"

@@ -1,4 +1,4 @@
-import { useContext, useMemo, useState } from 'react';
+import { useContext, useEffect, useMemo, useState } from 'react';
 import { AvailabilityContext } from '../contexts/AvailabilityContext';
 import { Button } from 'components/UI';
 import styles from './DownloadPreview.module.scss';
@@ -40,9 +40,49 @@ function DownloadPreview() {
 
   const [summaryExpanded, setSummaryExpanded] = useState(false);
   const [selectedPoint, setSelectedPoint] = useState<[number, number]>();
-  const [selectedDatasets, setSelectedDatasets] = useState<string[]>();
-  const [filters, setFilters] = useState<PreviewFilters>({});
   const [sort, setSort] = useState<string>();
+
+  const availableFixedDatasets =
+    availabilitySelectedDatasets.length > 0
+      ? availabilityFilteredDatasets.filter(dataset => availabilitySelectedDatasets.includes(dataset.id))
+      : availabilityFilteredDatasets;
+
+  const [selectedDatasets, setSelectedDatasets] = useState<string[] | undefined>(
+    availableFixedDatasets?.[0] ? [availableFixedDatasets[0].id] : undefined,
+  );
+
+  const availableSoilProperties = useMemo(() => {
+    const soilPropertiesIds = [
+      ...new Set(
+        (selectedDatasets
+          ? availableFixedDatasets.filter(dataset => selectedDatasets.includes(dataset.id))
+          : availableFixedDatasets
+        ).flatMap(dataset => dataset.soil_properties ?? []),
+      ),
+    ];
+    return availabilityFilteredSoilProperties.filter(soilProperty => soilPropertiesIds.includes(soilProperty.id));
+  }, [availableFixedDatasets, availabilityFilteredSoilProperties, selectedDatasets]);
+
+  const [filters, setFilters] = useState<PreviewFilters>(
+    availableSoilProperties?.[0]
+      ? {
+          soil_properties: [availableSoilProperties[0].id],
+        }
+      : {},
+  );
+
+  useEffect(() => {
+    const selectedSoilPropertyId = filters.soil_properties?.[0];
+    // The user has selected another dataset, so the list of available soil properties has changed. If the selected soil
+    // property is not available in the newly selected dataset, then we select the first available soil property of the
+    // newly selected dataset, otherwise we maintain the selection.
+    if (selectedSoilPropertyId && !availableSoilProperties.some(soilProperty => soilProperty.id === selectedSoilPropertyId)) {
+      setFilters(prevFilters => ({
+        ...prevFilters,
+        soil_properties: [availableSoilProperties[0].id],
+      }));
+    }
+  }, [availableSoilProperties, filters.soil_properties]);
 
   const parameters = {
     geometries: geometryFilter,
@@ -54,36 +94,17 @@ function DownloadPreview() {
 
   const { filterId, data: filteredDatasets, isLoading: areFiltersLoading } = useFilteredDatasets(parameters);
 
-  // TODO FIXME: if you select both soil property (or any other filter) and a dataset and then remove the dataset the page will
-  // show empty results instead of returning to the results for all datasets.
-  const availableDatasets =
+  const availableFilteredDatasets =
     availabilitySelectedDatasets.length > 0
       ? (filteredDatasets ?? availabilityFilteredDatasets).filter(dataset => availabilitySelectedDatasets.includes(dataset.id))
       : (filteredDatasets ?? availabilityFilteredDatasets);
-
-  // With this the bug doesn't occur but the list of datasets remains fixed and doesn't change when other filters do
-  // const availableDatasets =
-  //   availabilitySelectedDatasets.length > 0
-  //     ? availabilityFilteredDatasets.filter(dataset => availabilitySelectedDatasets.includes(dataset.id))
-  //     : availabilityFilteredDatasets;
-
-  const availableSoilProperties = useMemo(() => {
-    const soilPropertiesIds = [
-      ...new Set(
-        (selectedDatasets ? availableDatasets.filter(dataset => selectedDatasets.includes(dataset.id)) : availableDatasets).flatMap(
-          dataset => dataset.soil_properties ?? [],
-        ),
-      ),
-    ];
-    return availabilityFilteredSoilProperties.filter(soilProperty => soilPropertiesIds.includes(soilProperty.id));
-  }, [availableDatasets, availabilityFilteredSoilProperties, selectedDatasets]);
 
   const { min_sampling_date, max_sampling_date, min_depth, max_depth } = availabilitySelectedFilters?.filter.parameters ?? {};
 
   const fixedCalendarRange = min_sampling_date && max_sampling_date ? [new Date(min_sampling_date), new Date(max_sampling_date)] : null;
   const fixedDepthRange: Nullable<[number, number]> = min_depth && max_depth ? [min_depth, max_depth] : null;
 
-  const { globalDateStart, globalDateEnd /*globalMinDepth, globalMaxDepth*/ } = computeDatasetSummary(availableDatasets);
+  const { globalDateStart, globalDateEnd /*globalMinDepth, globalMaxDepth*/ } = computeDatasetSummary(availableFilteredDatasets);
   const calendarMinMaxRange: [Date | undefined, Date | undefined] =
     globalDateStart && globalDateEnd ? [globalDateStart, globalDateEnd] : [undefined, undefined];
 
@@ -99,7 +120,7 @@ function DownloadPreview() {
 
   const { allData, isLoading, hasMore, loadMore, reset } = useSoilData({
     selectedDatasets,
-    availableDatasets: availableDatasets.map(dataset => dataset.id),
+    availableDatasets: availableFilteredDatasets.map(dataset => dataset.id),
     filterId,
     limit: MAXIMUM_SOIL_DATA_PER_REQUEST + 1,
     sort,
@@ -167,7 +188,8 @@ function DownloadPreview() {
         </div>
         <div className={classNames(styles.Data, { [styles.HideInMobile]: selectedTab !== 'availability' })}>
           <DownloadPreviewDataSection
-            datasets={availableDatasets}
+            datasets={availableFixedDatasets}
+            selectedDatasets={selectedDatasets}
             onDatasetsChange={newDatasets => {
               reset();
               setSelectedDatasets(newDatasets);
