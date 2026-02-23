@@ -1,4 +1,5 @@
 import React, { createContext, useState, type ReactNode, useCallback, useMemo, useRef, useEffect } from 'react';
+import classnames from 'classnames';
 import { Notification } from 'components/UI';
 import type { NotificationType } from 'types/components';
 
@@ -25,12 +26,15 @@ type NotificationProviderProps = {
 
 const AUTO_DISMISS_MS = 4000;
 const MAX_VISIBLE = 3;
+const ANIM_MS = 250;
 
 export const NotificationProvider: React.FC<NotificationProviderProps> = ({ children }) => {
   const [visible, setVisible] = useState<NotificationObject[]>([]);
   const [queue, setQueue] = useState<NotificationObject[]>([]);
+  const [closingIds, setClosingIds] = useState<Record<string, boolean>>({});
 
   const timersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const closeTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   const clearTimer = useCallback((id: string) => {
     const t = timersRef.current[id];
@@ -40,14 +44,45 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
     }
   }, []);
 
-  const removeNotification = useCallback(
+  const clearCloseTimer = useCallback((id: string) => {
+    const t = closeTimersRef.current[id];
+    if (t) {
+      clearTimeout(t);
+      delete closeTimersRef.current[id];
+    }
+  }, []);
+
+  const finalizeRemove = useCallback(
     (id: string) => {
       clearTimer(id);
+      clearCloseTimer(id);
+
+      setClosingIds(prev => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
 
       setVisible(prev => prev.filter(n => n.id !== id));
       setQueue(prev => prev.filter(n => n.id !== id));
     },
-    [clearTimer],
+    [clearTimer, clearCloseTimer],
+  );
+
+  const startClose = useCallback(
+    (id: string) => {
+      if (closingIds[id]) return;
+
+      clearTimer(id);
+      clearCloseTimer(id);
+
+      setClosingIds(prev => ({ ...prev, [id]: true }));
+
+      closeTimersRef.current[id] = setTimeout(() => {
+        finalizeRemove(id);
+      }, ANIM_MS);
+    },
+    [closingIds, clearTimer, clearCloseTimer, finalizeRemove],
   );
 
   const scheduleAutoDismiss = useCallback(
@@ -55,10 +90,10 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
       clearTimer(id);
 
       timersRef.current[id] = setTimeout(() => {
-        removeNotification(id);
+        startClose(id);
       }, AUTO_DISMISS_MS);
     },
-    [clearTimer, removeNotification],
+    [clearTimer, startClose],
   );
 
   const showNotification = useCallback(
@@ -86,9 +121,9 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
 
   useEffect(() => {
     return () => {
-      for (const id of Object.keys(timersRef.current)) {
-        clearTimeout(timersRef.current[id]);
-      }
+      Object.values(timersRef.current).forEach(clearTimeout);
+      Object.values(closeTimersRef.current).forEach(clearTimeout);
+      closeTimersRef.current = {};
       timersRef.current = {};
     };
   }, []);
@@ -111,8 +146,8 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
   }, [visible.length, queue, scheduleAutoDismiss]);
 
   const value = useMemo(
-    () => ({ notifications: visible, showNotification, removeNotification }),
-    [visible, showNotification, removeNotification],
+    () => ({ notifications: visible, showNotification, removeNotification: startClose }),
+    [visible, showNotification, startClose],
   );
 
   return (
@@ -121,8 +156,8 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
       {!!visible.length && (
         <div className={styles.NotificationsWrapper}>
           {visible.map(({ id, ...config }) => (
-            <div key={id} className={styles.NotificationBarWrapper}>
-              <Notification {...config} onClose={() => removeNotification(id)} />
+            <div key={id} className={classnames(styles.NotificationBarWrapper, closingIds[id] && styles.NotificationBarWrapperClosing)}>
+              <Notification {...config} onClose={() => startClose(id)} />
             </div>
           ))}
         </div>
