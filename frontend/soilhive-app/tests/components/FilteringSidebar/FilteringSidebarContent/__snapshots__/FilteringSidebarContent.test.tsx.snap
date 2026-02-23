@@ -1,44 +1,38 @@
 // Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
 
-exports[`FilteringSidebarContent renders three accordion components 1`] = `
+exports[`FilteringSidebarContent renders two sections with child components 1`] = `
 <div>
   <div
     class="FilteringSidebarContent"
   >
     <div
-      data-testid="accordion"
+      class="Section"
+      data-testid="sh-filtering-sidebar-section"
     >
-      <div
-        data-testid="accordion-title"
+      <p
+        class="Title"
       >
         Data scope
-      </div>
+      </p>
       <div
-        data-testid="accordion-content"
+        data-testid="mock-filtering-sidebar-datascope"
       >
-        <div
-          data-testid="mock-filtering-sidebar-datascope"
-        >
-          Mock FilteringSidebarDataScope
-        </div>
+        Mock FilteringSidebarDataScope
       </div>
     </div>
     <div
-      data-testid="accordion"
+      class="Section"
+      data-testid="sh-filtering-sidebar-section"
     >
-      <div
-        data-testid="accordion-title"
+      <p
+        class="Title"
       >
         Soil parameters
-      </div>
+      </p>
       <div
-        data-testid="accordion-content"
+        data-testid="mock-filtering-sidebar-parameters"
       >
-        <div
-          data-testid="mock-filtering-sidebar-parameters"
-        >
-          Mock FilteringSidebarParameters
-        </div>
+        Mock FilteringSidebarParameters
       </div>
     </div>
   </div>
