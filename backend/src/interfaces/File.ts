@@ -5,7 +5,7 @@ export interface File {
   id: string;
   slug: string;
   name: string;
-  file_path?: string;
+  file_path: string;
   status?: IngestionStatus;
   metadata?: FileMetadata;
   created_at: Date;

@@ -7,13 +7,9 @@ import LicenseEntity from '../entities/License';
 import LayerEntity from '../entities/Layer';
 import DatasetLayerEntity from '../entities/DatasetLayer';
 import ObservationEntity from '../entities/Observation';
-import { sanitizeField } from '../utils/utils';
+import { getRawTableName, sanitizeField } from '../utils/utils';
 
 export default class VectorDataLoad {
-  static getRawTableName = (fileId: string): string => {
-    return `file_${sanitizeField(fileId)}_raw`;
-  };
-
   getDataPreview = async (
     entityManager: EntityManager,
     dataMappingConfig: DataCleaningConfig,
@@ -21,7 +17,7 @@ export default class VectorDataLoad {
     limit: number = DATA_PREVIEW_SIZE,
     cursor?: string,
   ): Promise<SoilRecord[]> => {
-    const table = `${process.env.POSTGRES_SCHEMA}.${VectorDataLoad.getRawTableName(fileId)}`;
+    const table = `${process.env.POSTGRES_SCHEMA}.${getRawTableName(fileId)}`;
     let query = entityManager.createQueryBuilder().from(table, 'raw');
     query = getDataPreviewQuery(query, dataMappingConfig, cursor);
     // Workaround using raw query to be able to use dynamic table name without entity

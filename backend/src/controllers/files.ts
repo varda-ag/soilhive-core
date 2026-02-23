@@ -3,7 +3,6 @@ import { FileStorage } from '@flystorage/file-storage';
 import { StatusCodes } from 'http-status-codes';
 import { LOGO_FILE_ID } from '../constants/constants';
 import { idToSlug } from '../utils/slugs';
-import { IngestionStatus } from '../types/data';
 import FileService from '../services/FileService';
 import { ErrorResponse } from '../utils/error';
 import { verifySignedPath } from '../utils/presigned-url';
@@ -60,13 +59,7 @@ export const createFile = async (req: Request, res: Response, next: NextFunction
       name: req.customData.uploadedFileInfo.originalname!,
       file_path: req.customData.uploadedFileInfo.fileKey!,
     });
-
-    const metadata = await fileService.extractMetadata(fileEntity.file_path);
-    const data = await fileService.updateFile(req.customData, fileEntity.slug, {
-      status: IngestionStatus.PENDING,
-      metadata,
-    });
-    res.status(StatusCodes.CREATED).json(idToSlug(data));
+    res.status(StatusCodes.CREATED).json(idToSlug(fileEntity));
   } catch (err) {
     console.error('Upload failed', err);
     if (req.customData.uploadedFileInfo) {
