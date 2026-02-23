@@ -22,8 +22,8 @@ export default class FileEntity extends BaseTable implements File {
   @Column({ type: 'text' })
   name: string;
 
-  @Column({ type: 'text', nullable: true })
-  file_path?: string;
+  @Column({ type: 'text' })
+  file_path: string;
 
   @Column({ type: 'jsonb', nullable: true })
   metadata?: FileMetadata;

@@ -1,16 +1,17 @@
 import { describe, it, expect, beforeAll, beforeEach } from '@jest/globals';
 import fs from 'fs';
 import path from 'path';
-import { v7 as uuidv7 } from 'uuid';
 import FileService from '../../src/services/FileService';
 import { FileMetadata } from '../../src/interfaces/File';
 import { getTableColumns } from '../helper';
-import { sanitizeField } from '../../src/utils/utils';
+import { getRawTableName, sanitizeField } from '../../src/utils/utils';
 import { DetectableFields } from '../../src/types/DataMapping';
 import { LOGO_FILE_ID } from '../../src/constants/constants';
 import { getEntityManager } from '../../src/utils/data-source';
 import { RequestData } from '../../src/interfaces/RequestData';
 import { Token } from '../../src/interfaces/Token';
+import { EntityManager } from 'typeorm';
+import FileEntity from '../../src/entities/File';
 
 // Use absolute path from package root
 const vectorFilesPassPath = path.join(__dirname, '../assets/vector_files/pass');
@@ -27,9 +28,11 @@ const mockToken: Token = {
 
 describe('FileService', () => {
   let fileService: FileService;
+  let entityManager: EntityManager;
 
   beforeAll(async () => {
     fileService = new FileService();
+    entityManager = await getEntityManager();
   });
 
   const setLocalStorageRootFolder = (rootFolder: string) => {
@@ -64,10 +67,12 @@ describe('FileService', () => {
 
   describe('postFile', () => {
     it('should create a new file record when the name is unique', async () => {
-      const entityManager = await getEntityManager();
+      setLocalStorageRootFolder(vectorFilesPassPath);
+
       const requestData: RequestData = { entityManager, token: mockToken };
       const file = {
-        name: 'test.txt',
+        name: 'sample_point.geojson',
+        file_path: 'sample_point.geojson',
       };
 
       const result = await fileService.createFile(requestData, file);
@@ -80,40 +85,46 @@ describe('FileService', () => {
 
   describe('extractMetadata and fileToDB - valid file sample_point GeoJSON file', () => {
     const fileKey = 'sample_point.geojson';
-    let metadata: FileMetadata;
+    let fileEntity: FileEntity;
+    let requestData: RequestData;
 
-    beforeAll(async () => {
+    beforeEach(async () => {
       setLocalStorageRootFolder(vectorFilesPassPath);
-      metadata = await fileService.extractMetadata(fileKey);
-    });
 
-    beforeEach(() => {
-      setLocalStorageRootFolder(vectorFilesPassPath);
+      const file = {
+        name: fileKey,
+        file_path: fileKey,
+      };
+      requestData = { entityManager, token: mockToken };
+      fileEntity = await fileService.createFile(requestData, file);
     });
 
     it('should extract metadata from sample_point GeoJSON file', async () => {
-      expect(metadata).toBeDefined();
-      expect(metadata.field_names).toBeDefined();
-      expect(Array.isArray(metadata.field_names)).toBe(true);
-      expect(metadata.field_names).toContain('metadata');
-      expect(metadata.field_names).toContain('rawParameters');
-      expect(metadata.detected_fields).toBeDefined();
-      expect(metadata.detected_fields.crs).toBe('EPSG:4326');
-      expect(metadata.geometry_detected).toBeTruthy();
+      expect(fileEntity).toBeDefined();
+      expect(fileEntity.metadata).toBeDefined();
+      expect(fileEntity.metadata!.field_names).toBeDefined();
+      expect(Array.isArray(fileEntity.metadata!.field_names)).toBe(true);
+      expect(fileEntity.metadata!.field_names).toContain('metadata');
+      expect(fileEntity.metadata!.field_names).toContain('rawParameters');
+      expect(fileEntity.metadata!.detected_fields).toBeDefined();
+      expect(fileEntity.metadata!.detected_fields.crs).toBe('EPSG:4326');
+      expect(fileEntity.metadata!.geometry_detected).toBeTruthy();
     });
 
     it('should load to DB sample_point GeoJSON file', async () => {
-      const fileId = uuidv7();
+      const fileId = fileEntity.id;
 
-      await fileService.fileToDB(fileId, fileKey, metadata);
-      const tableColumns = await getTableColumns(`file_${sanitizeField(fileId)}_raw`);
-      expect(metadata.field_names.map(field => sanitizeField(field)).sort()).toEqual(
+      await fileService.fileToDB(requestData, fileId);
+      const tableName = getRawTableName(fileId);
+      const tableColumns = await getTableColumns(tableName);
+      expect(fileEntity.metadata).toBeDefined();
+      expect(fileEntity.metadata!.field_names.map(field => sanitizeField(field)).sort()).toEqual(
         tableColumns
           .filter(({ column_name }) => !['record_id', 'geometry'].includes(column_name))
           .map(item => item.column_name)
           .sort(),
       );
-      if (metadata.geometry_detected) {
+      if (fileEntity.metadata!.geometry_detected) {
         expect(tableColumns.map(item => item.column_name)).toContain('geometry');
       }
       expect(tableColumns.map(item => item.column_name)).toContain('record_id');
@@ -123,63 +134,72 @@ describe('FileService', () => {
   describe('extractMetadata and fileToDB - area GeoJSON file', () => {
     const fileKey = 'valid_area_in_spain.geojson';
     let metadata: FileMetadata;
+    let requestData: RequestData;
+    let fileEntity: FileEntity;
 
-    beforeAll(async () => {
-      metadata = await fileService.extractMetadata(fileKey);
-    });
-
-    beforeEach(() => {
+    beforeEach(async () => {
       setLocalStorageRootFolder(vectorFilesPassPath);
+      requestData = { entityManager, token: mockToken };
+      fileEntity = await fileService.createFile(requestData, { name: fileKey, file_path: fileKey });
+      metadata = fileEntity.metadata!;
     });
+
     it('should extract metadata from area GeoJSON file', async () => {
       expect(metadata).toBeDefined();
       expect(metadata.field_names).toBeDefined();
       expect(Array.isArray(metadata.field_names)).toBe(true);
       expect(metadata.geometry_detected).toBeTruthy();
     });
+
     it('should detect CRS when available', async () => {
       expect(metadata.detected_fields.crs).toBe('EPSG:4326');
     });
+
     it('should fail to load to DB only area GeoJSON file', async () => {
-      const fileId = uuidv7();
-      await expect(fileService.fileToDB(fileId, fileKey, metadata)).rejects.toThrow('No data besides geometry detected');
+      const fileId = fileEntity.id;
+      await expect(fileService.fileToDB(requestData, fileId)).rejects.toThrow('No data besides geometry detected');
     });
   });
 
   describe('extractMetadata and fileToDB - another area GeoJSON file', () => {
     const fileKey = '211.geojson';
     let metadata: FileMetadata;
+    let requestData: RequestData;
+    let fileEntity: FileEntity;
 
-    beforeAll(async () => {
-      metadata = await fileService.extractMetadata(fileKey);
-    });
-
-    beforeEach(() => {
+    beforeEach(async () => {
       setLocalStorageRootFolder(vectorFilesPassPath);
+      metadata = await fileService.extractMetadata(fileKey);
+      requestData = { entityManager, token: mockToken };
+      fileEntity = await fileService.createFile(requestData, { name: fileKey, file_path: fileKey });
     });
+
     it('should extract metadata from another GeoJSON file', async () => {
       expect(metadata).toBeDefined();
       expect(metadata.field_names).toBeDefined();
       expect(Array.isArray(metadata.field_names)).toBe(true);
       expect(metadata.geometry_detected).toBeTruthy();
     });
+
     it('should fail to load to DB only area GeoJSON file', async () => {
-      const fileId = uuidv7();
-      await expect(fileService.fileToDB(fileId, fileKey, metadata)).rejects.toThrow('No data besides geometry detected');
+      const fileId = fileEntity.id;
+      await expect(fileService.fileToDB(requestData, fileId)).rejects.toThrow('No data besides geometry detected');
     });
   });
 
   describe('extractMetadata and fileToDB - special characters in fields file', () => {
     const fileKey = 'special_characters_fields.csv';
     let metadata: FileMetadata;
+    let requestData: RequestData;
+    let fileEntity: FileEntity;
 
-    beforeAll(async () => {
-      metadata = await fileService.extractMetadata(fileKey);
-    });
-
-    beforeEach(() => {
+    beforeEach(async () => {
       setLocalStorageRootFolder(vectorFilesPassPath);
+      metadata = await fileService.extractMetadata(fileKey);
+      requestData = { entityManager, token: mockToken };
+      fileEntity = await fileService.createFile(requestData, { name: fileKey, file_path: fileKey });
     });
+
     it('should extract metadata fields even with special characters', async () => {
       expect(metadata).toBeDefined();
       expect(metadata.field_names).toBeDefined();
@@ -198,9 +218,10 @@ describe('FileService', () => {
       expect(metadata.detected_fields[DetectableFields.CRS]).toBeNull();
     });
     it('should create table in DB with column names as sanitized field_names', async () => {
-      const fileId = uuidv7();
-      await fileService.fileToDB(fileId, fileKey, metadata);
-      const tableColumns = await getTableColumns(`file_${sanitizeField(fileId)}_raw`);
+      const fileId = fileEntity.id;
+      await fileService.fileToDB(requestData, fileId);
+      const tableName = getRawTableName(fileId);
+      const tableColumns = await getTableColumns(tableName);
       expect(metadata.field_names.map(field => sanitizeField(field)).sort()).toEqual(
         tableColumns
           .filter(({ column_name }) => !['record_id', 'geometry'].includes(column_name))
@@ -217,25 +238,28 @@ describe('FileService', () => {
   describe('extractMetadata and fileToDB - multi-layer GPKG file', () => {
     const fileKey = 'example.gpkg';
     let metadata: FileMetadata;
+    let requestData: RequestData;
+    let fileEntity: FileEntity;
 
-    beforeAll(async () => {
+    beforeEach(async () => {
       setLocalStorageRootFolder(vectorFilesPassPath);
       metadata = await fileService.extractMetadata(fileKey);
+      requestData = { entityManager, token: mockToken };
+      fileEntity = await fileService.createFile(requestData, { name: fileKey, file_path: fileKey });
     });
 
-    beforeEach(() => {
-      setLocalStorageRootFolder(vectorFilesPassPath);
-    });
     it('should detect geometry field from multi-layer vector files', async () => {
       expect(metadata).toBeDefined();
       expect(metadata.field_names).toBeDefined();
       expect(Array.isArray(metadata.field_names)).toBe(true);
       expect(metadata.geometry_detected).toBeTruthy();
     });
+
     it('should load to DB same layer as detected in metadata', async () => {
-      const fileId = uuidv7();
-      await fileService.fileToDB(fileId, fileKey, metadata);
-      const tableColumns = await getTableColumns(`file_${sanitizeField(fileId)}_raw`);
+      const fileId = fileEntity.id;
+      await fileService.fileToDB(requestData, fileId);
+      const tableName = getRawTableName(fileId);
+      const tableColumns = await getTableColumns(tableName);
       expect(metadata.field_names.map(field => sanitizeField(field)).sort()).toEqual(
         tableColumns
           .filter(({ column_name }) => !['record_id', 'geometry'].includes(column_name))
@@ -252,12 +276,14 @@ describe('FileService', () => {
 
     describe.each(fileKeys)('fileKey: %s', fileKey => {
       let metadata: FileMetadata;
-      beforeAll(async () => {
-        metadata = await fileService.extractMetadata(fileKey);
-      });
+      let requestData: RequestData;
+      let fileEntity: FileEntity;
 
-      beforeEach(() => {
+      beforeEach(async () => {
         setLocalStorageRootFolder(vectorFilesPassPath);
+        requestData = { entityManager, token: mockToken };
+        fileEntity = await fileService.createFile(requestData, { name: fileKey, file_path: fileKey });
+        metadata = fileEntity.metadata!;
       });
 
       it('should not detect geometry column for non-spatial CSV files', async () => {
@@ -266,9 +292,10 @@ describe('FileService', () => {
         expect(metadata.detected_fields.latitude).toBeNull();
         expect(metadata.detected_fields.longitude).toBeNull();
       });
+
       it('should throw error when trying to load to DB', async () => {
-        const fileId = uuidv7();
-        await expect(fileService.fileToDB(fileId, fileKey, metadata)).rejects.toThrow('Geometry not found in input file');
+        const fileId = fileEntity.id;
+        await expect(fileService.fileToDB(requestData, fileId)).rejects.toThrow('Geometry not found in input file');
       });
     });
 
