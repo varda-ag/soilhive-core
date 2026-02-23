@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.36.0 (2026-02-23)
+
+## What's Changed
+* feat(be): sp-4883 bind export function to its pgboss queue by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/219
+* fix: sp-4926 preview page various fixes by @cristbello in https://github.com/varda-ag/soilhive-core/pull/224
+* feat:sp 4758 populate vocabularies tables by @d-rom in https://github.com/varda-ag/soilhive-core/pull/225
+* feat(be): sp-4882 file download endpoint and export job cancellation by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/226
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.35.1...v0.36.0
+
 ## 0.35.1 (2026-02-20)
 
 ## What's Changed
