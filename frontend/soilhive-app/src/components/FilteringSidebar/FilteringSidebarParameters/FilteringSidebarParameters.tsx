@@ -180,7 +180,7 @@ export function FilteringSidebarParameters() {
                   <Accordion
                     ref={setAccordionRef(category.id)}
                     key={category.id}
-                    openedFromStart={soilPropertiesExpanded}
+                    openedFromStart={!!accordionOpenByCategory[category.id] || soilPropertiesExpanded}
                     title={category.category_name}
                     type="tertiary"
                     Icon={CATEGORIES_ICONS_MAP[category.id]}
