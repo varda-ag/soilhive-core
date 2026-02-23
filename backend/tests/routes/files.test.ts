@@ -35,6 +35,8 @@ describe('Testing /files routes (local storage)', () => {
   });
 
   afterEach(() => {
+    jest.restoreAllMocks();
+
     // Remove uploaded data
     const paths = fs.globSync(`${vectorFilesPassPath}/*/`);
     for (const path of paths) {
