@@ -9,6 +9,7 @@ import { getTotalRecordsCount, createReadmeFile, fetchBatch, groupByProperty } f
 import { getPgBoss, PG_BOSS_SCHEMA } from '../../services/PgBoss';
 import { GeoFileWriter } from './GeoFileWriter';
 import { cleanupTempFiles, generateDownloadPath, moveToDownloadFolder, zipFiles } from './storageHelpers';
+import { createSignedPath } from '../../utils/presigned-url';
 
 export async function processExportJob(job: Job<ExportJob>): Promise<void> {
   const { id: jobId, data } = job;
@@ -40,10 +41,16 @@ export async function processExportJob(job: Job<ExportJob>): Promise<void> {
 
     let cursor: string | undefined = data.current_cursor ?? undefined;
     let totalRecordsProcessed = data.total_records_processed ?? 0;
-    let hasMore = true;
+    let wasCancelled = false;
 
     // --- Main batch processing loop ---
-    while (hasMore) {
+    while (true) {
+      // Check if job was cancelled before processing next batch
+      if (await isJobCancelled(jobId)) {
+        wasCancelled = true;
+        break;
+      }
+
       // 1. Fetch batch
       const batch = await fetchBatch(entityManager, { filterId: filter_id, dataset_slugs, file_format }, cursor);
 
@@ -84,11 +91,13 @@ export async function processExportJob(job: Job<ExportJob>): Promise<void> {
 
       // If batch is smaller than page size, we've reached the end
       if (batch.length < EXPORT_CONFIG.BATCH_SIZE) {
-        hasMore = false;
+        break;
       }
     }
 
     // --- Post-processing ---
+
+    if (wasCancelled) return;
 
     // Zip temp directory contents
     const downloadPath = generateDownloadPath(filter_id);
@@ -98,6 +107,8 @@ export async function processExportJob(job: Job<ExportJob>): Promise<void> {
     // Move zip to download folder via storage engine
     const download_path = await moveToDownloadFolder(localZipPath, downloadPath);
 
+    const download_presigned_path = createSignedPath(download_path, 30); // token valid just the time for the client to download the file
+
     // Update job state as completed
     await updateJobState(jobId, {
       ...data,
@@ -105,7 +116,7 @@ export async function processExportJob(job: Job<ExportJob>): Promise<void> {
       progress_description: 'Export complete',
       current_cursor: cursor ?? null,
       total_records_processed: totalRecordsProcessed,
-      download_path: download_path,
+      download_path: download_presigned_path,
     });
   } finally {
     // Always cleanup temp files, even on error
@@ -128,4 +139,11 @@ async function updateJobState(jobId: string, update: Partial<ExportJob>): Promis
     JSON.stringify(update),
     jobId,
   ]);
+}
+
+async function isJobCancelled(jobId: string): Promise<boolean> {
+  const boss = getPgBoss();
+  const db = boss.getDb();
+  const result = await db.executeSql(`SELECT state FROM ${PG_BOSS_SCHEMA}.job WHERE id = $1`, [jobId]);
+  return result.rows[0]?.state === 'cancelled';
 }
