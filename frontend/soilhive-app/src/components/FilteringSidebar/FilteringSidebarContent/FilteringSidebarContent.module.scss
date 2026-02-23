@@ -3,4 +3,19 @@
   flex-direction: column;
   gap: 0.625rem;
   padding: 0.625rem 0.5rem;
+
+  > .Section {
+    background-color: var(--color-neutral-light);
+    border-radius: 0.5rem;
+    padding: 0.5625rem 0;
+    border: 1px solid var(--color-neutral-dark-300);
+
+    .Title {
+      padding: 0 0.875rem 0.5625rem;
+      font-size: var(--font-size-sm);
+      font-weight: var(--font-weight-bold);
+      text-transform: uppercase;
+      border-bottom: 1px solid var(--color-neutral-dark-100);
+    }
+  }
 }

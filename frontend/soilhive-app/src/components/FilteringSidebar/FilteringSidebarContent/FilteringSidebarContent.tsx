@@ -1,4 +1,3 @@
-import { Accordion } from 'components/UI';
 import { FilteringSidebarDataScope } from '../FilteringSidebarDataScope/FilteringSidebarDataScope';
 import { FilteringSidebarParameters } from '../FilteringSidebarParameters/FilteringSidebarParameters';
 
@@ -7,12 +6,14 @@ import styles from './FilteringSidebarContent.module.scss';
 export function FilteringSidebarContent() {
   return (
     <div className={styles.FilteringSidebarContent}>
-      <Accordion title="Data scope" openedFromStart={true}>
+      <div data-testid="sh-filtering-sidebar-section" className={styles.Section}>
+        <p className={styles.Title}>Data scope</p>
         <FilteringSidebarDataScope />
-      </Accordion>
-      <Accordion title="Soil parameters" openedFromStart={true}>
+      </div>
+      <div data-testid="sh-filtering-sidebar-section" className={styles.Section}>
+        <p className={styles.Title}>Soil parameters</p>
         <FilteringSidebarParameters />
-      </Accordion>
+      </div>
     </div>
   );
 }
