@@ -11,31 +11,27 @@
 @keyframes slideInFromRight {
   from {
     transform: translateX(120%);
-    opacity: 0;
   }
   to {
     transform: translateX(0);
-    opacity: 1;
   }
 }
 
 @keyframes slideOutToRight {
   from {
     transform: translateX(0);
-    opacity: 1;
   }
   to {
     transform: translateX(120%);
-    opacity: 0;
   }
 }
 
 .NotificationBarWrapper {
-  animation: slideInFromRight 250ms ease both;
+  animation: slideInFromRight 700ms ease both;
   will-change: transform, opacity;
 }
 
 .NotificationBarWrapperClosing {
-  animation: slideOutToRight 250ms ease both;
+  animation: slideOutToRight 700ms ease both;
   will-change: transform, opacity;
 }

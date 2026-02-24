@@ -26,7 +26,7 @@ type NotificationProviderProps = {
 
 const AUTO_DISMISS_MS = 4000;
 const MAX_VISIBLE = 3;
-const ANIM_MS = 250;
+const ANIM_MS = 700;
 
 export const NotificationProvider: React.FC<NotificationProviderProps> = ({ children }) => {
   const [visible, setVisible] = useState<NotificationObject[]>([]);
