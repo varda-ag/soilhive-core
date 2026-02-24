@@ -1,11 +1,26 @@
-import { describe, it, expect } from '@jest/globals';
+import { describe, expect, it } from '@jest/globals';
+import path from 'path';
 import request from 'supertest';
 import { app } from '../../src/app';
-import { getDataAdminToken } from '../helper';
+import { Token } from '../../src/interfaces/Token';
 import { getPgBoss, initPgBoss, PG_BOSS_SCHEMA, stopPgBoss } from '../../src/services/PgBoss';
 import { JobQueues } from '../../src/types/enums';
-import { getDataSource } from '../../src/utils/data-source';
-import { sleep } from '../../src/utils/utils';
+import { getDataSource, getEntityManager } from '../../src/utils/data-source';
+import { getRawTableName, sleep } from '../../src/utils/utils';
+import { getDataAdminToken } from '../helper';
+import { RequestData } from '../../src/interfaces/RequestData';
+import FileService from '../../src/services/FileService';
+import * as BulkLoaderModule from '../../src/jobs/bulk-load/BulkLoader';
+import * as SoilExportJobModule from '../../src/jobs/soil-export/soilExportJob';
+
+const mockToken: Token = {
+  sub: 'test-user-id',
+  email: 'test@example.com',
+  scope: 'user',
+  raw: 'mock-token',
+  isSuperAdmin: () => false,
+  isDataAdmin: () => false,
+};
 
 describe('Testing /jobs routes', () => {
   beforeAll(async () => {
@@ -27,7 +42,7 @@ describe('Testing /jobs routes', () => {
   it.each([JobQueues.BULK_LOAD, JobQueues.FILE_TO_DB])(
     'POST /jobs without a token trying to create a token protected job fails with HTTP 401',
     async (queue: string) => {
-      const bulkRes = await request(app).post(`/jobs`).send({ type: queue, dataset_id: 'test-dataset' });
+      const bulkRes = await request(app).post('/jobs').send({ type: queue, dataset_id: 'test-dataset' });
       expect(bulkRes.statusCode).toBe(401);
       expect(bulkRes.body.detail).toContain(`Authentication required for ${queue} jobs`);
     },
@@ -36,9 +51,12 @@ describe('Testing /jobs routes', () => {
   it('POST /jobs creates two jobs, GET endpoints return both', async () => {
     const token = await getDataAdminToken();
 
+    jest.spyOn(BulkLoaderModule, 'processBulkLoad').mockResolvedValue(undefined);
+    jest.spyOn(SoilExportJobModule, 'processExportJob').mockResolvedValue(undefined);
+
     // Create bulk load job
     const bulkRes = await request(app)
-      .post(`/jobs`)
+      .post('/jobs')
       .send({ type: 'bulk-load', dataset_id: 'test-dataset' })
       .set('Authorization', `Bearer ${token}`);
     expect(bulkRes.statusCode).toBe(201);
@@ -48,7 +66,8 @@ describe('Testing /jobs routes', () => {
     const bulkId = bulkRes.body.id;
 
     // Create export job (without token)
-    const exportRes = await request(app).post(`/jobs`).send({ type: 'export', filter_id: 'mock-filter-id' });
+    const mockId = '960ee487-a6bd-4da8-8ef0-da6ef23d0e80';
+    const exportRes = await request(app).post('/jobs').send({ type: 'export', filter_id: mockId, format: 'csv' });
     expect(exportRes.statusCode).toBe(201);
     expect(exportRes.body).toHaveProperty('id');
 
@@ -87,15 +106,14 @@ describe('Testing /jobs routes', () => {
     expect(getByIdResNoToken2.statusCode).toBe(200);
     expect(getByIdResNoToken2.body).toHaveProperty('id', exportId);
 
-    // TODO: fix this part
     // Wait for bulk load job to complete
-    // const spy = getPgBoss().getSpy(JobQueues.BULK_LOAD);
-    // await spy.waitForJobWithId(bulkId, 'completed');
+    const spy = getPgBoss().getSpy(JobQueues.BULK_LOAD);
+    await spy.waitForJobWithId(bulkId, 'completed');
 
-    // // Check on job status
-    // const statusRes = await request(app).get(`/jobs/${bulkId}`).set('Authorization', `Bearer ${token}`);
-    // expect(statusRes.statusCode).toBe(200);
-    // expect(statusRes.body.status).toBe('completed');
+    // Check on job status
+    const statusRes = await request(app).get(`/jobs/${bulkId}`).set('Authorization', `Bearer ${token}`);
+    expect(statusRes.statusCode).toBe(200);
+    expect(statusRes.body.status).toBe('completed');
   });
 
   it('GET /jobs/:id returns 404 for unknown ID', async () => {
@@ -107,4 +125,52 @@ describe('Testing /jobs routes', () => {
     const res2 = await request(app).get(`/jobs/${randomUUID}`).set('Authorization', `Bearer ${token}`);
     expect(res2.statusCode).toBe(404);
   });
+
+  it('POST /jobs for file-to-db job', async () => {
+    const vectorFilesPassPath = path.join(__dirname, '../assets/vector_files/pass');
+    process.env.LOCAL_STORAGE_ROOT_FOLDER = vectorFilesPassPath;
+    const token = await getDataAdminToken();
+    const entityManager = await getEntityManager();
+    const requestData: RequestData = { entityManager, token: mockToken };
+    const fileService = new FileService();
+
+    const testWorker = async (index: number): Promise<void> => {
+      // Create file in DB
+      const file = {
+        name: `sample_point_${index}.geojson`,
+        file_path: 'sample_point.geojson',
+      };
+      const fileEntity = await fileService.createFile(requestData, file);
+
+      const queue = JobQueues.FILE_TO_DB;
+      const jobResponse = await request(app)
+        .post('/jobs')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ type: queue, file_id: fileEntity.id });
+      expect(jobResponse.statusCode).toBe(201);
+
+      // Wait for bulk load job to complete
+      const jobId = jobResponse.body.id;
+      const spy = getPgBoss().getSpy(queue);
+      await spy.waitForJobWithId(jobId, 'completed');
+
+      const statusResponse = await request(app).get(`/jobs/${jobId}`).set('Authorization', `Bearer ${token}`);
+      expect(statusResponse.statusCode).toBe(200);
+      expect(statusResponse.body.status).toBe('completed');
+
+      // Check that raw table has been created
+      const rawTableName = getRawTableName(fileEntity.id);
+      const dataSource = await getDataSource();
+      const queryRunner = dataSource.createQueryRunner();
+      const hasTable = await queryRunner.hasTable(rawTableName);
+      expect(hasTable).toBeDefined();
+    };
+
+    // Run multiple jobs in parallel to stress test the system
+    const promises = [];
+    for (let i = 0; i < 4; i++) {
+      promises.push(testWorker(i));
+    }
+    await Promise.all(promises);
+  }, 10000);
 });
