@@ -41,6 +41,11 @@ function DownloadPreviewFilters({
   const { isMobileLayout } = useDevice();
   const [selectedDateRange, setSelectedDateRange] = useState<Nullable<Array<Date | null>>>(fixedCalendarRange);
 
+  const sortedDatasets = datasets?.sort((a, b) => a.name.localeCompare(b.name, 'en', { sensitivity: 'base' }));
+  const sortedSoilProperties = soilProperties?.sort((a, b) =>
+    a.property_name.localeCompare(b.property_name, 'en', { sensitivity: 'base' }),
+  );
+
   useEffect(() => {
     if (fixedCalendarRange) return;
 
@@ -130,7 +135,7 @@ function DownloadPreviewFilters({
         panelClassName={styles.DropdownPanel}
         value={selectedDatasets?.[0]}
         onChange={onDatasetsDropdownChange}
-        options={datasets}
+        options={sortedDatasets}
         optionValue="id"
         optionLabel="name"
         placeholder="Select a dataset"
@@ -141,7 +146,7 @@ function DownloadPreviewFilters({
         panelClassName={styles.DropdownPanel}
         value={filters.soil_properties?.[0]}
         onChange={onSoilPropertiesDropdownChange}
-        options={soilProperties}
+        options={sortedSoilProperties}
         optionLabel="property_name"
         optionValue="id"
         placeholder="Select a soil property"
