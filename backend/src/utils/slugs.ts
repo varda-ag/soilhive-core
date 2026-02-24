@@ -29,12 +29,12 @@ export const getEntity = async <T extends { id: string | number; slug: string }>
   });
 
   if (!slugHistory) {
-    throw new ErrorResponse(`Entity with slug '${slug}' not found`, StatusCodes.NOT_FOUND);
+    throw new ErrorResponse(`Resource '${slug}' not found`, StatusCodes.NOT_FOUND);
   }
 
   entity = await entityRepo.findOne({ where: { id: slugHistory.entity_id } as any, relations });
   if (!entity) {
-    throw new ErrorResponse(`Entity with slug '${slug}' not found`, StatusCodes.NOT_FOUND);
+    throw new ErrorResponse(`Resource '${slug}' not found`, StatusCodes.NOT_FOUND);
   }
 
   return entity;
@@ -93,7 +93,7 @@ export const getEntities = async <T extends { id: string | number; slug: string 
   for (const sh of slugHistories) {
     const entity = entityById.get(sh.entity_id);
     if (!entity) {
-      throw new ErrorResponse(`Entity with slug '${sh.slug}' not found`, StatusCodes.NOT_FOUND);
+      throw new ErrorResponse(`Resource '${sh.slug}' not found`, StatusCodes.NOT_FOUND);
     }
     entityBySlug.set(sh.slug, entity);
   }
@@ -101,7 +101,7 @@ export const getEntities = async <T extends { id: string | number; slug: string 
   return slugs.map(slug => {
     const entity = entityBySlug.get(slug);
     if (!entity) {
-      throw new ErrorResponse(`Entity with slug '${slug}' not found`, StatusCodes.NOT_FOUND);
+      throw new ErrorResponse(`Resource '${slug}' not found`, StatusCodes.NOT_FOUND);
     }
     return entity;
   });
