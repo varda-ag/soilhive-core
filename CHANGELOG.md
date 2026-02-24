@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.37.0 (2026-02-24)
+
+## What's Changed
+* feat: sp-4893 - filtering sidebar accordions changes by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/227
+* feat(be): sp-4756 files endpoints by @d-rom in https://github.com/varda-ag/soilhive-core/pull/206
+* refactor: fileToDB refactoring by @svaccari in https://github.com/varda-ag/soilhive-core/pull/230
+* feat: sp-4814 - notifications animation by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/231
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.36.0...v0.37.0
+
 ## 0.36.0 (2026-02-23)
 
 ## What's Changed
