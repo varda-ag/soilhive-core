@@ -79,7 +79,7 @@ describe('useNotifications', () => {
     });
   });
 
-  it('auto-dismisses after 4250ms (250ms for animation)', () => {
+  it('auto-dismisses after 4700ms (700ms for animation)', () => {
     const { result } = renderHook(() => useNotifications(), { wrapper });
 
     act(() => {
@@ -89,7 +89,7 @@ describe('useNotifications', () => {
     expect(result.current.notifications.map(n => n.id)).toEqual(['a']);
 
     act(() => {
-      jest.advanceTimersByTime(4249);
+      jest.advanceTimersByTime(4699);
     });
     expect(result.current.notifications.map(n => n.id)).toEqual(['a']);
 
@@ -155,7 +155,7 @@ describe('useNotifications', () => {
 
     act(() => {
       fireEvent.click(screen.getByTestId('sh-ui-notification-close'));
-      jest.advanceTimersByTime(250);
+      jest.advanceTimersByTime(700);
     });
 
     expect(screen.queryByTestId('sh-ui-notification')).not.toBeInTheDocument();
@@ -178,7 +178,7 @@ describe('useNotifications', () => {
     expect(result.current.notifications.map(n => n.id)).toEqual(['a']);
 
     act(() => {
-      jest.advanceTimersByTime(100);
+      jest.advanceTimersByTime(550);
     });
     expect(screen.queryByTestId('sh-ui-notification')).not.toBeInTheDocument();
     expect(result.current.notifications).toHaveLength(0);
