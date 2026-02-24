@@ -160,7 +160,7 @@ export const addFeatures = async (lngLatArray: [number, number][]) => {
   return result.raw;
 };
 
-export const addLicense = async (name: string = 'test_license') => {
+export const addLicense = async (name: string) => {
   const dataSource = await getDataSource();
   const repo = dataSource.getRepository(LicenseEntity);
   const license = repo.create({ name, slug: name });
@@ -402,7 +402,7 @@ export const addSyntheticIngestionData = async (syntheticIngestionDataOptions): 
   dataset.status = IngestionStatus.PENDING;
   await dataset.save();
   const category = await addCategory(`test_category_${id}`);
-  await addLicense(`test_license_raw_data`);
+  await addLicense(`test_license_raw_data_${id}`);
   const file = await addFile(`test_file_${id}`);
   const createdDataMapping: object = {};
 
