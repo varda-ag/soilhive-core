@@ -8,6 +8,7 @@ import { AuthModes, TokenScopes } from '../types/enums';
 import assert from 'assert';
 import { AuthConfig } from '../interfaces/AuthConfig';
 import ConfigService from '../services/ConfigService';
+import { getLoopbackUrl } from '../utils/utils';
 
 // Global JWKS client based on env var to fetch the public key
 let client: any | undefined = undefined;
@@ -50,6 +51,13 @@ export const tokenValidator = async (req: Request, scopes: string[]): Promise<bo
 
   if (authConfig.authMode === AuthModes.NONE) {
     throw new ErrorResponse('No authentication system has been configured in the platform', StatusCodes.UNAUTHORIZED);
+  }
+
+  const loopbackURL = new URL(getLoopbackUrl());
+  const isInternalBulkLoadReq =
+    req.hostname.startsWith(loopbackURL.hostname) && req.method == 'POST' && req.path.split('/').at(-1) == 'soil-data';
+  if (isInternalBulkLoadReq) {
+    return true; // skips validation for internal requests
   }
 
   const tokenString = req.headers['authorization']?.split(' ')[1];

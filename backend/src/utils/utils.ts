@@ -12,7 +12,7 @@ export const sanitizeField = (field: string, removeSpacePlaceholders: boolean = 
   if (removeSpacePlaceholders) {
     replaceString = /[^a-z]/g;
   }
-  return field.toLowerCase().replace('-', '_').replace(replaceString, '');
+  return field.toLowerCase().replaceAll('-', '_').replace(replaceString, '');
 };
 
 export const sanitizeFilename = (originalName: string): string => {

@@ -53,19 +53,16 @@ export default class DataMappingService {
     const data_mapping = dataMappingEntity.data_mapping;
 
     const conversionSlugs: string[] = Object.values(data_mapping)
-      .filter(mapping => typeof mapping === 'object' && (mapping as PropertyMapping).conversion_id !== undefined)
+      .filter(
+        mapping =>
+          typeof mapping === 'object' && (mapping as PropertyMapping).conversion_id && (mapping as PropertyMapping).conversion_id !== null,
+      )
       .map(mapping => (mapping as PropertyMapping).conversion_id!);
 
     const ucService = new UnitConversionService();
     const ucInfos = await ucService.getUnitConversionsBySlug(requestData, conversionSlugs);
 
-    const ucInfoMap = ucInfos.reduce(
-      (acc, info) => {
-        acc[info.slug] = info;
-        return acc;
-      },
-      {} as Map<string, UnitConversionEntity>,
-    );
+    let ucInfoMap: Map<string, UnitConversionEntity>;
 
     const propertySlugs: string[] = Object.values(data_mapping)
       .filter(mapping => typeof mapping === 'object' && (mapping as PropertyMapping).property_id !== undefined)
@@ -83,7 +80,10 @@ export default class DataMappingService {
     );
 
     const procedureSlugs: string[] = Object.values(data_mapping)
-      .filter(mapping => typeof mapping === 'object' && (mapping as PropertyMapping).procedure_id !== undefined)
+      .filter(
+        mapping =>
+          typeof mapping === 'object' && (mapping as PropertyMapping).procedure_id && (mapping as PropertyMapping).procedure_id !== null,
+      )
       .map(mapping => (mapping as PropertyMapping).procedure_id!);
 
     const pService = new ProcedureService();
@@ -106,12 +106,25 @@ export default class DataMappingService {
       } else if (typeof mapping === 'object') {
         const props = mapping as PropertyMapping;
         const propsProcessed: PropertyCleaningConfig = props;
+        ucInfoMap = ucInfos
+          .filter(ucInfo => ucInfo.soil_property.slug == props.property_id)
+          .reduce(
+            (acc, info) => {
+              acc[info.slug] = info;
+              return acc;
+            },
+            {} as Map<string, UnitConversionEntity>,
+          );
         const spInfo = spInfoMap[props.property_id];
         const ucInfo = props.conversion_id ? (ucInfoMap[props.conversion_id] ?? null) : null;
         const pInfo = props.procedure_id ? (pInfoMap[props.procedure_id] ?? null) : null;
         propsProcessed.property_id = spInfo.id;
-        propsProcessed.conversion_formula = ucInfo?.conversion_formula;
-        propsProcessed.procedure_id = pInfo?.id;
+        if (ucInfo) {
+          propsProcessed.conversion_formula = ucInfo.conversion_formula;
+        }
+        if (pInfo) {
+          propsProcessed.procedure_id = pInfo.id;
+        }
         result.property_cols[sanitizedField] = propsProcessed;
       }
     }

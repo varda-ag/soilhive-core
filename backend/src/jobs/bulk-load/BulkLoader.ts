@@ -100,9 +100,8 @@ const processFile = async (
 export const makeRequest = (datasetSlug: string, datasetFileMappingId: string, payload: any) =>
   new Promise((resolve, reject) => {
     const postData = JSON.stringify(payload);
-    const url = `${getLoopbackUrl()}/datasets/${datasetSlug}/dataset-file-mapping/${datasetFileMappingId}/soil-data`;
+    const url = new URL(`${getLoopbackUrl()}/datasets/${datasetSlug}/dataset-file-mapping/${datasetFileMappingId}/soil-data`);
     const options = {
-      url,
       method: 'POST',
       payload: JSON.stringify(payload),
       headers: {
@@ -110,7 +109,7 @@ export const makeRequest = (datasetSlug: string, datasetFileMappingId: string, p
         'Content-Length': Buffer.byteLength(postData),
       },
     };
-    const clientReq = http.request(options, serverRes => {
+    const clientReq = http.request(url, options, serverRes => {
       let data = '';
       serverRes.on('data', chunk => (data += chunk));
       serverRes.on('end', () => {
