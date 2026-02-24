@@ -1,10 +1,12 @@
+export type AnyJob = BulkLoadJob | ExportJob | FileToDbJob;
+
 export interface Job {
   id: string | null;
   queue: string;
   status: string;
   created_at: Date;
   completed_at: Date | null;
-  data: BulkLoadJob | ExportJob;
+  data: AnyJob;
 }
 
 export interface CommonJobData {
@@ -26,4 +28,8 @@ export interface ExportJob extends CommonJobData {
   current_cursor: string | null;
   total_records_processed: number;
   download_path: string | null;
+}
+
+export interface FileToDbJob extends CommonJobData {
+  file_id: string;
 }

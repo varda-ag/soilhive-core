@@ -1,5 +1,5 @@
 import { addSyntheticIngestionData, syntheticIngestionDataOptions, getLoadedDataCount } from '../../src/utils/mock';
-import BulkLoader from '../../src/jobs/bulk-load/BulkLoader';
+import * as BulkLoaderModule from '../../src/jobs/bulk-load/BulkLoader';
 import { BulkLoadJob } from '../../src/interfaces/Job';
 import path from 'path';
 import request from 'supertest';
@@ -8,6 +8,22 @@ import { getDataAdminToken } from '../helper';
 import DatasetEntity from '../../src/entities/Dataset';
 import { getDataSource } from '../../src/utils/data-source';
 import { IngestionStatus } from '../../src/types/data';
+import { Job } from 'pg-boss';
+
+const getJob = (dataset_id: string): Job<BulkLoadJob> => {
+  return {
+    id: 'mock-id',
+    name: 'mock-job',
+    expireInSeconds: 60,
+    signal: AbortSignal.timeout(10000),
+    data: {
+      type: 'bulk-load',
+      created_by: 'test-user',
+      progress_percentage: 0,
+      dataset_id,
+    },
+  };
+};
 
 describe('BulkLoader class', () => {
   beforeEach(() => {
@@ -27,10 +43,8 @@ describe('BulkLoader class', () => {
 
     const token = await getDataAdminToken();
 
-    const bulkLoader = new BulkLoader();
-
     const mockMakeRequest = jest
-      .spyOn(bulkLoader, 'makeRequest')
+      .spyOn(BulkLoaderModule, 'makeRequest')
       .mockImplementation(async (datasetSlug: string, datasetFileMappingId: string, payload: any) => {
         const response = await request(app)
           .post(`/datasets/${datasetSlug}/dataset-file-mapping/${datasetFileMappingId}/soil-data`)
@@ -39,14 +53,7 @@ describe('BulkLoader class', () => {
         return response;
       });
 
-    const job: BulkLoadJob = {
-      type: 'bulk-load',
-      created_by: 'test-user',
-      progress_percentage: 0,
-      dataset_id: dataset.slug,
-    };
-
-    await bulkLoader.startBulkLoad(job);
+    await BulkLoaderModule.processBulkLoad(getJob(dataset.slug));
 
     const createdData = await getLoadedDataCount();
     expect(createdData.n_features).toBe(2);
@@ -66,18 +73,9 @@ describe('BulkLoader class', () => {
   it('Bulk loading treats POST /soil-data error properly', async () => {
     const { dataset } = await addSyntheticIngestionData({ ...syntheticIngestionDataOptions });
 
-    const bulkLoader = new BulkLoader();
+    const mockMakeRequest = jest.spyOn(BulkLoaderModule, 'makeRequest').mockRejectedValue(new Error('Mock Server Error'));
 
-    const mockMakeRequest = jest.spyOn(bulkLoader, 'makeRequest').mockRejectedValue(new Error('Mock Server Error'));
-
-    const job: BulkLoadJob = {
-      type: 'bulk-load',
-      created_by: 'test-user',
-      progress_percentage: 0,
-      dataset_id: dataset.slug,
-    };
-
-    await expect(bulkLoader.startBulkLoad(job)).rejects.toThrow();
+    await expect(BulkLoaderModule.processBulkLoad(getJob(dataset.slug))).rejects.toThrow();
 
     const createdData = await getLoadedDataCount();
     expect(createdData.n_features).toBe(0);

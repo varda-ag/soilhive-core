@@ -1,7 +1,7 @@
 import { StatusCodes } from 'http-status-codes';
 import { RequestData } from '../interfaces/RequestData';
 import { ErrorResponse } from '../utils/error';
-import { BulkLoadJob, ExportJob, Job } from '../interfaces/Job';
+import { AnyJob, Job } from '../interfaces/Job';
 import { JobQueues } from '../types/enums';
 import { getPgBoss } from './PgBoss';
 import { JobWithMetadata } from 'pg-boss';
@@ -9,13 +9,13 @@ import { JobWithMetadata } from 'pg-boss';
 export default class JobService {
   private boss = getPgBoss();
 
-  createJob = async (requestData: RequestData, data: BulkLoadJob | ExportJob): Promise<Job> => {
+  createJob = async (requestData: RequestData, data: AnyJob): Promise<Job> => {
     const { sub } = requestData.token ?? {};
 
     // Checking preconditions
-    if (data.type === JobQueues.BULK_LOAD) {
+    if (data.type === JobQueues.BULK_LOAD || data.type === JobQueues.FILE_TO_DB) {
       if (!sub) {
-        throw new ErrorResponse('Authentication required for bulk load jobs', StatusCodes.UNAUTHORIZED);
+        throw new ErrorResponse(`Authentication required for ${data.type} jobs`, StatusCodes.UNAUTHORIZED);
       }
     }
 
@@ -74,7 +74,7 @@ export default class JobService {
       status: job.state,
       created_at: job.createdOn,
       completed_at: job.completedOn,
-      data: job.data as BulkLoadJob | ExportJob,
+      data: job.data as AnyJob,
     };
   };
 }

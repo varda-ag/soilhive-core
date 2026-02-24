@@ -24,11 +24,14 @@ describe('Testing /jobs routes', () => {
     await stopPgBoss();
   });
 
-  it('POST /jobs without a token trying to create a bulk load job fails with HTTP 401', async () => {
-    const bulkRes = await request(app).post(`/jobs`).send({ type: 'bulk-load', dataset_id: 'test-dataset' });
-    expect(bulkRes.statusCode).toBe(401);
-    expect(bulkRes.body.detail).toContain('Authentication required for bulk load jobs');
-  });
+  it.each([JobQueues.BULK_LOAD, JobQueues.FILE_TO_DB])(
+    'POST /jobs without a token trying to create a token protected job fails with HTTP 401',
+    async (queue: string) => {
+      const bulkRes = await request(app).post(`/jobs`).send({ type: queue, dataset_id: 'test-dataset' });
+      expect(bulkRes.statusCode).toBe(401);
+      expect(bulkRes.body.detail).toContain(`Authentication required for ${queue} jobs`);
+    },
+  );
 
   it('POST /jobs creates two jobs, GET endpoints return both', async () => {
     const token = await getDataAdminToken();

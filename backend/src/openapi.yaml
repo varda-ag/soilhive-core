@@ -331,6 +331,7 @@ paths:
               oneOf:
                 - $ref: '#/components/schemas/BulkLoadJob'
                 - $ref: '#/components/schemas/ExportJob'
+                - $ref: '#/components/schemas/FileToDbJob'
       responses:
         '201':
           description: Async job started successfull
@@ -1707,6 +1708,18 @@ components:
           format: uuid
           description: Filter ID to specify which data to export
 
+    FileToDbJob:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [file-to-db]
+          description: Job type
+        file_id:
+          type: string
+          format: uuid
+          description: File ID to be processed and inserted into the database
+
     Job:
       type: object
       properties:
@@ -1736,3 +1749,4 @@ components:
           oneOf:
             - $ref: '#/components/schemas/BulkLoadJob'
             - $ref: '#/components/schemas/ExportJob'
+            - $ref: '#/components/schemas/FileToDbJob'
