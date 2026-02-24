@@ -14,13 +14,14 @@ import { RequestData } from '../interfaces/RequestData';
 import { File, FileMetadata, ExtractedFilePath } from '../interfaces/File';
 import { ErrorResponse } from '../utils/error';
 import { getEntity } from '../utils/slugs';
-import { sanitizeField, buildDatedFileKey } from '../utils/utils';
+import { sanitizeField, buildDatedFileKey, getRawTableName } from '../utils/utils';
 import { StorageModes } from '../types/enums';
-import { EntityType } from '../types/data';
+import { EntityType, IngestionStatus } from '../types/data';
 import { DetectableFields } from '../types/DataMapping';
 import ConfigService from './ConfigService';
 import { LOGO_FILE_ID } from '../constants/constants';
 import FileEntity from '../entities/File';
+import assert from 'assert';
 
 const allowedGeometryTypes = [
   gdal.wkbNone, // This allows generic tabular file support
@@ -47,7 +48,7 @@ export default class FileService {
 
   static getUploadStorageEngine = (): FlystorageMulterStorageEngine => {
     // TODO: implement logic to check for available storage space if StorageModes.LOCAL and handle related errors properly
-    const adapter = FileService.getAdapter();
+    const adapter = this.getAdapter();
     const fileStorage = new FileStorage(adapter);
     const storage = new FlystorageMulterStorageEngine(fileStorage, async (action, req, file) => {
       if (action === 'handle') {
@@ -72,7 +73,7 @@ export default class FileService {
   };
 
   static getStorageEngine = (): FileStorage => {
-    const adapter = FileService.getAdapter();
+    const adapter = this.getAdapter();
     return new FileStorage(adapter);
   };
 
@@ -132,8 +133,13 @@ export default class FileService {
     const repo = requestData.entityManager.getRepository(FileEntity);
     const { sub } = requestData.token;
 
+    assert(data.file_path, 'file_path is required to create a file');
+    const metadata = await this.extractMetadata(data.file_path);
+
     const file = repo.create({
       ...data,
+      metadata,
+      status: IngestionStatus.PENDING,
       created_by: String(sub),
       updated_by: String(sub),
     });
@@ -262,7 +268,7 @@ export default class FileService {
 
         // Handle ZIP files
         if (fileKey.toLowerCase().endsWith('.zip')) {
-          ({ tempZipExtractPath, mainFilePath } = await FileService.extractZipAndFindMainFile(mainFilePath));
+          ({ tempZipExtractPath, mainFilePath } = await this.extractZipAndFindMainFile(mainFilePath));
         }
       } else if (config.storageMode === StorageModes.S3) {
         // For S3, we would need to download the file first to extract it
@@ -435,7 +441,12 @@ export default class FileService {
     }
   };
 
-  fileToDB = async (fileId: string, fileKey: string, fileMetadata: FileMetadata) => {
+  fileToDB = async (requestData: RequestData, fileId: string) => {
+    const fileEntity = await this.getFile(requestData, fileId);
+    assert(fileEntity.file_path, `File path not found for file ${fileId}`);
+    assert(fileEntity.metadata, `Metadata not found for file ${fileId}`);
+    const fileKey = fileEntity.file_path!;
+    const fileMetadata = fileEntity.metadata!;
     let mainFilePath: string;
     let tempZipExtractPath: string | null = null;
     const gdalOpts: string[] = [
@@ -457,7 +468,7 @@ export default class FileService {
       '-oo',
       'AUTODETECT_TYPE=YES',
     ];
-    const tableName = `file_${sanitizeField(fileId)}_raw`;
+    const tableName = getRawTableName(fileId);
     gdalOpts.push('-nln', tableName);
     let selectClause = fileMetadata.field_names.map(field => `"${field}" AS ${sanitizeField(field)}`).join(', ');
 

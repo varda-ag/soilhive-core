@@ -50,3 +50,7 @@ export const getServerPort = (): number => {
 export const getLoopbackUrl = (): string => {
   return process.env.LOOPBACK_URL || `http://localhost:${getServerPort()}`;
 };
+
+export const getRawTableName = (fileId: string): string => {
+  return `file_${sanitizeField(fileId)}_raw`;
+};
