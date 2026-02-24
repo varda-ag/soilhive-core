@@ -1,7 +1,7 @@
 import { StatusCodes } from 'http-status-codes';
 import { RequestData } from '../interfaces/RequestData';
 import { ErrorResponse } from '../utils/error';
-import { BulkLoadJob, ExportJob, Job } from '../interfaces/Job';
+import { AnyJob, Job } from '../interfaces/Job';
 import { JobQueues } from '../types/enums';
 import { getPgBoss } from './PgBoss';
 import { JobWithMetadata } from 'pg-boss';
@@ -9,13 +9,13 @@ import { JobWithMetadata } from 'pg-boss';
 export default class JobService {
   private boss = getPgBoss();
 
-  createJob = async (requestData: RequestData, data: BulkLoadJob | ExportJob): Promise<Job> => {
+  createJob = async (requestData: RequestData, data: AnyJob): Promise<Job> => {
     const { sub } = requestData.token ?? {};
 
     // Checking preconditions
-    if (data.type === JobQueues.BULK_LOAD) {
+    if (data.type === JobQueues.BULK_LOAD || data.type === JobQueues.FILE_TO_DB) {
       if (!sub) {
-        throw new ErrorResponse('Authentication required for bulk load jobs', StatusCodes.UNAUTHORIZED);
+        throw new ErrorResponse(`Authentication required for ${data.type} jobs`, StatusCodes.UNAUTHORIZED);
       }
     }
 
@@ -33,27 +33,27 @@ export default class JobService {
     if (!sub) {
       throw new ErrorResponse('Authentication required to list jobs', StatusCodes.UNAUTHORIZED);
     }
-    const jobs: JobWithMetadata<unknown>[] = [];
-    for (const queue of Object.values(JobQueues)) {
-      const j = await this.boss.fetch(queue, { includeMetadata: true });
-      jobs.push(...j);
-    }
+    const promises = Object.values(JobQueues).map(async queue => await this.boss.findJobs(queue));
+    const results = await Promise.all(promises);
+    const jobs: JobWithMetadata<unknown>[] = results.flat();
+
     // Filter jobs to only include those created by the user
     return jobs.map(j => this.translateJob(j)).filter(j => !sub || j.data.created_by === sub);
   };
 
   getJobById = async (requestData: RequestData, jobId: string): Promise<Job> => {
     const { sub } = requestData.token ?? {};
-    for (const queue of Object.values(JobQueues)) {
-      const jobs: JobWithMetadata<unknown>[] = await this.boss.findJobs(queue, { id: jobId });
-      if (jobs.length) {
-        // Check ownership
-        const job = this.translateJob(jobs[0]!);
-        if (job.data.created_by && job.data.created_by !== sub) {
-          throw new ErrorResponse('Unauthorized to access this job', StatusCodes.UNAUTHORIZED);
-        }
-        return job;
+
+    const promises = Object.values(JobQueues).map(async queue => await this.boss.findJobs(queue, { id: jobId }));
+    const results = await Promise.all(promises);
+    const jobs: JobWithMetadata<unknown>[] = results.flat();
+    if (jobs.length) {
+      // Check ownership
+      const job = this.translateJob(jobs[0]!);
+      if (job.data.created_by && job.data.created_by !== sub) {
+        throw new ErrorResponse('Unauthorized to access this job', StatusCodes.UNAUTHORIZED);
       }
+      return job;
     }
     throw new ErrorResponse(`Job '${jobId}' not found`, StatusCodes.NOT_FOUND);
   };
@@ -74,7 +74,7 @@ export default class JobService {
       status: job.state,
       created_at: job.createdOn,
       completed_at: job.completedOn,
-      data: job.data as BulkLoadJob | ExportJob,
+      data: job.data as AnyJob,
     };
   };
 }

@@ -61,7 +61,6 @@ export const createFile = async (req: Request, res: Response, next: NextFunction
     });
     res.status(StatusCodes.CREATED).json(idToSlug(fileEntity));
   } catch (err) {
-    console.error('Upload failed', err);
     if (req.customData.uploadedFileInfo) {
       fileService.deleteFileFromStorage(req.customData.uploadedFileInfo.fileKey!);
     }

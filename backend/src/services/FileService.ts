@@ -131,7 +131,7 @@ export default class FileService {
 
   createFile = async (requestData: RequestData, data: Partial<File>): Promise<FileEntity> => {
     const repo = requestData.entityManager.getRepository(FileEntity);
-    const { sub } = requestData.token;
+    const { sub } = requestData.token ?? {};
 
     assert(data.file_path, 'file_path is required to create a file');
     const metadata = await this.extractMetadata(data.file_path);
@@ -159,7 +159,7 @@ export default class FileService {
 
   updateFile = async (requestData: RequestData, slug: string, data: Partial<File>): Promise<FileEntity> => {
     const repo = requestData.entityManager.getRepository(FileEntity);
-    const { sub } = requestData.token;
+    const { sub } = requestData.token ?? {};
 
     const file = (await getEntity(requestData, FileEntity, EntityType.DATASET, slug)) as FileEntity;
 

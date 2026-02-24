@@ -3,7 +3,7 @@ import { Token } from '../interfaces/Token';
 
 export interface RequestData {
   entityManager: EntityManager;
-  token: Token;
+  token?: Token;
   uploadedFileInfo?: {
     originalname?: string;
     fileKey?: string;

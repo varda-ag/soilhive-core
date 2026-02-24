@@ -30,7 +30,7 @@ export const initApp = async (app: Application) => {
   app.use(errorMiddleware);
 
   if (isJest()) {
-    console.log('Running in test mode, not starting server.');
+    // Running in test mode, not starting server
     return;
   }
 

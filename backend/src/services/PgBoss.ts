@@ -1,9 +1,11 @@
 import { PgBoss, Job } from 'pg-boss';
 import { getDBPassword, getSSL } from '../utils/db-credentials';
-import { BulkLoadJob, ExportJob } from '../interfaces/Job';
+import { BulkLoadJob, ExportJob, FileToDbJob } from '../interfaces/Job';
 import { JobQueues } from '../types/enums';
-import { isJest, setupEnv, sleep } from '../utils/utils';
+import { isJest, setupEnv } from '../utils/utils';
 import { processExportJob } from '../jobs/soil-export/soilExportJob';
+import { processFileToDb } from '../jobs/file-to-db/FileToDbJob';
+import { processBulkLoad } from '../jobs/bulk-load/BulkLoader';
 
 setupEnv();
 
@@ -41,8 +43,8 @@ const setupQueues = async () => {
     expireInSeconds: 60 * 60 * 24 - 1, // 24 hours (minus one according to pg-boss policy)
   };
   const boss = getPgBoss();
-  await boss.createQueue(JobQueues.BULK_LOAD, options);
-  await boss.createQueue(JobQueues.EXPORT, options);
+  const promises = Object.values(JobQueues).map(async queue => await boss.createQueue(queue, options));
+  await Promise.all(promises);
 };
 
 const setupWorkers = async () => {
@@ -53,14 +55,17 @@ const setupWorkers = async () => {
   const boss = getPgBoss();
   await boss.work<BulkLoadJob>(JobQueues.BULK_LOAD, options, async (jobs: Job<BulkLoadJob>[]) => {
     for (const job of jobs) {
-      // TODO: call real worker
-      console.log(job);
-      await sleep(1000);
+      await processBulkLoad(job);
     }
   });
   await boss.work<ExportJob>(JobQueues.EXPORT, options, async (jobs: Job<ExportJob>[]) => {
     for (const job of jobs) {
       await processExportJob(job);
+    }
+  });
+  await boss.work<FileToDbJob>(JobQueues.FILE_TO_DB, options, async (jobs: Job<FileToDbJob>[]) => {
+    for (const job of jobs) {
+      await processFileToDb(job);
     }
   });
 };
