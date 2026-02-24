@@ -64,8 +64,8 @@ type AvailabilityContextType = {
   setSelectionType: React.Dispatch<React.SetStateAction<'h3-cell' | 'drawn-polygon' | 'country'>>;
   locationName?: string;
   setLocationName: React.Dispatch<React.SetStateAction<string | undefined>>;
-  boundingBox?: [number, number, number, number];
-  setBoundingBox: React.Dispatch<React.SetStateAction<[number, number, number, number] | undefined>>;
+  boundingBox: [number, number, number, number];
+  setBoundingBox: React.Dispatch<React.SetStateAction<[number, number, number, number]>>;
 };
 
 export const AvailabilityContext = createContext<AvailabilityContextType | undefined>(undefined);
@@ -79,9 +79,7 @@ const emptySelection: MapSelection = { type: 'FeatureCollection', features: [] }
 export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ children }) => {
   const [selectionType, setSelectionType] = useState<'h3-cell' | 'drawn-polygon' | 'country'>('drawn-polygon');
   const [locationName, setLocationName] = useState<string>();
-  const [boundingBox, setBoundingBox] = useState<[number, number, number, number] | undefined>([
-    6.6272658, 35.2889616, 18.7844746, 47.0921462,
-  ]);
+  const [boundingBox, setBoundingBox] = useState<[number, number, number, number]>([6.6272658, 35.2889616, 18.7844746, 47.0921462]);
   const [selectedDatasets, setSelectedDatasets] = useState<string[]>([]);
   const [searchValue, setSearchValue] = useState<string>('');
   const [datasetFrontendFilters, setDatasetFrontendFilters] = useState<DatasetFrontendFilters>({

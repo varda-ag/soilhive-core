@@ -8,6 +8,8 @@ import NewspaperIcon from 'assets/icons/newspaper-icon.svg?react';
 import MapPinIcon from 'assets/icons/small-map-icon.svg?react';
 import { useState, type Dispatch, type SetStateAction } from 'react';
 import type { SoilDataSample } from 'types/backend';
+import { bboxPolygon, center } from '@turf/turf';
+import useAvailability from 'hooks/useAvailability';
 
 const columns = [
   { name: 'Date', value: 'sampling_date' },
@@ -47,6 +49,7 @@ function DownloadPreviewTable({
   setFirst?: Dispatch<SetStateAction<number>>;
   onPointSelected?: (point: [number, number] | undefined) => void;
 }) {
+  const { boundingBox } = useAvailability();
   const [visibleColumns, setVisibleColumns] = useState<string[]>([
     'sampling_date',
     'min_depth',
@@ -63,9 +66,14 @@ function DownloadPreviewTable({
     return (
       <Button
         type="tertiary"
-        isDisabled={geometry?.type?.toLowerCase() !== 'point'}
         onClick={() => {
-          onPointSelected?.(geometry?.coordinates);
+          if (geometry?.type?.toLowerCase() === 'point') {
+            onPointSelected?.(geometry.coordinates);
+          } else {
+            const centerPointFeature = center(bboxPolygon(boundingBox));
+            const [x, y] = centerPointFeature.geometry.coordinates;
+            onPointSelected?.([x, y]);
+          }
         }}
       >
         {geometry && <MapPinIcon />}
