@@ -63,8 +63,9 @@ function DownloadPreviewTable({
     return (
       <Button
         type="tertiary"
+        isDisabled={geometry?.type?.toLowerCase() !== 'point'}
         onClick={() => {
-          onPointSelected?.(geometry ? geometry.coordinates : undefined);
+          onPointSelected?.(geometry?.coordinates);
         }}
       >
         {geometry && <MapPinIcon />}

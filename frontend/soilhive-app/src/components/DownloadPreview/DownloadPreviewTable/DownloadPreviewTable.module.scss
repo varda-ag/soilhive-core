@@ -253,7 +253,10 @@
                   visibility: hidden;
                   margin-right: -5px;
                 }
-                &:hover {
+                &:disabled {
+                  font-weight: var(--font-weight-regular);
+                }
+                &:not(:disabled):hover {
                   color: black;
                   svg {
                     visibility: visible;
