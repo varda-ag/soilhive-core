@@ -11,6 +11,13 @@ export const setupTestEnv = () => {
     SELF_SIGNING_SECRET: 'put-any-random-string-here',
     AWS_ROLE_ARN: 'arn:aws:iam::000000000000:role/localstack-role',
     AWS_PROFILE: 'localstack',
+    AWS_DEFAULT_REGION: 'eu-central-1',
+    AWS_S3_ENDPOINT: 'localhost:4566',
+    AWS_NO_SIGN_REQUEST: 'YES',
+    AWS_ACCESS_KEY_ID: 'test',
+    AWS_SECRET_ACCESS_KEY: 'test',
+    AWS_VIRTUAL_HOSTING: 'FALSE',
+    AWS_HTTPS: 'NO',
     STORAGE_MODE: 'local',
     LOCAL_STORAGE_ROOT_FOLDER: '/tmp/soilhive-storage',
     PORT: undefined,
@@ -22,9 +29,10 @@ export const setupTestEnv = () => {
     OIDC_POST_LOGOUT_REDIRECT_URI: undefined,
     OIDC_SILENT_REDIRECT_URI: undefined,
     OIDC_SCOPE: undefined,
-    S3_STORAGE_REGION: undefined,
-    S3_STORAGE_BUCKET: undefined,
-    S3_STORAGE_ROOT_FOLDER: undefined,
+    S3_STORAGE_REGION: 'eu-central-1',
+    S3_STORAGE_BUCKET: 'varda-local-euc1-soilhive',
+    S3_STORAGE_ROOT_FOLDER: 'Original_Data',
+    S3_STORAGE_ENDPOINT: 'http://localhost:4566',
   };
   for (const [key, value] of Object.entries(env)) {
     if (value) {

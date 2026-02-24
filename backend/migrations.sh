@@ -23,7 +23,7 @@ case "$1" in
         npm run typeorm migration:generate -- CreateSchema -d dist/utils/migrations-data-source.js
         ;;
     *)
-        echo "Error: Invalid option '$1'. Use 'run' or 'generate'."
+        echo "Error: Invalid option '$1'. Use 'run', 'revert' or 'generate'."
         exit 1
         ;;
 esac

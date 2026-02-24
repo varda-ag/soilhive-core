@@ -1,3 +1,4 @@
+import path from 'path';
 import { config } from 'dotenv';
 
 export const isJest = () => process.env.JEST_WORKER_ID !== undefined || process.env.NODE_ENV === 'test';
@@ -12,6 +13,25 @@ export const sanitizeField = (field: string, removeSpacePlaceholders: boolean = 
     replaceString = /[^a-z]/g;
   }
   return field.toLowerCase().replace('-', '_').replace(replaceString, '');
+};
+
+export const sanitizeFilename = (originalName: string): string => {
+  const baseName = path.basename(originalName).trim();
+  // Remove special characters
+  let safeName = baseName.replace(/[^a-zA-Z0-9-_.]/g, '_');
+  // Collapse multiple underscores
+  safeName = safeName.replace(/_+/g, '_');
+  return safeName;
+};
+
+export const buildDatedFileKey = (filename: string, date: Date = new Date()): string => {
+  const safeName = sanitizeFilename(filename);
+  const year = date.getUTCFullYear();
+  const month = (date.getUTCMonth() + 1).toString().padStart(2, '0');
+
+  const formatted = date.toISOString().split('.')[0]!.replace(/:/g, '-');
+
+  return `${year}/${month}/${formatted}_${safeName}`;
 };
 
 export const setupEnv = () => {
@@ -29,4 +49,8 @@ export const getServerPort = (): number => {
 
 export const getLoopbackUrl = (): string => {
   return process.env.LOOPBACK_URL || `http://localhost:${getServerPort()}`;
+};
+
+export const getRawTableName = (fileId: string): string => {
+  return `file_${sanitizeField(fileId)}_raw`;
 };

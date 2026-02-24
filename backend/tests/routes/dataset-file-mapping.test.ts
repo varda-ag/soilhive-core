@@ -198,6 +198,7 @@ describe('Testing /datasets{datasetId}/dataset-file-mapping routes', () => {
       expect(getResponse.statusCode).toBe(StatusCodes.NOT_FOUND);
     });
   });
+
   describe('GET /datasets/{datasetId}/dataset-file-mapping', () => {
     it('should get all mappings for a dataset (200)', async () => {
       const token = await getDataAdminToken();
@@ -239,6 +240,7 @@ describe('Testing /datasets{datasetId}/dataset-file-mapping routes', () => {
       expect(Array.isArray(getResponse.body)).toBe(true);
       expect(getResponse.body.length).toBe(2);
     });
+
     it('should filter mappings by fileId query parameter (200)', async () => {
       const token = await getDataAdminToken();
 

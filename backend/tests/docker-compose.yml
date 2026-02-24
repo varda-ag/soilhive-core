@@ -1,4 +1,4 @@
-name: backend
+name: backend-tests
 services:
   postgis:
     image: postgis/postgis:18-3.6
@@ -11,6 +11,21 @@ services:
       - postgis_data:/var/lib/postgresql
     ports:
       - "5432:5432"
+  localstack:
+    image: localstack/localstack:latest
+    environment:
+      SERVICES: s3
+      DEBUG: "1"
+    ports:
+      - "4566:4566"
+      - "4571:4571"
+    volumes:
+      - localstack_data:/var/lib/localstack
+      - /var/run/docker.sock:/var/run/docker.sock
+      - "./init-aws.sh:/etc/localstack/init/ready.d/init-aws.sh"  # ready hook
+      - "./assets:/app-data/assets"
+
 
 volumes:
   postgis_data:
+  localstack_data:

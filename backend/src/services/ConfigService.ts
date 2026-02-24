@@ -92,6 +92,10 @@ export default class ConfigService {
             region: process.env.S3_STORAGE_REGION!,
             bucketName: process.env.S3_STORAGE_BUCKET!,
             rootFolder: process.env.S3_STORAGE_ROOT_FOLDER!,
+            ...(process.env.S3_STORAGE_ENDPOINT ? { endpoint: process.env.S3_STORAGE_ENDPOINT } : {}),
+            ...(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY
+              ? { credentials: { accessKeyId: process.env.AWS_ACCESS_KEY_ID, secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY } }
+              : {}),
           },
         };
       default:

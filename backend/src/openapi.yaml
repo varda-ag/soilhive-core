@@ -873,20 +873,15 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
-  /files/{fileId}:
-    parameters:
-      - name: fileId
-        in: path
-        required: true
-        schema:
-          type: string
-        description: Unique file identifier. Folder separators should be encoded as %2F
+  /files:
     post:
       x-eov-operation-handler: controllers/files
-      x-eov-operation-id: fileUpload
-      summary: Upload a file
+      x-eov-operation-id: createFile
+      summary: Create a file to load (upload, create entity and extract metadata)
       tags:
-        - TODO (to be removed or specialized)
+        - files
+      security:
+        - bearerAuth: [super-admin, data-admin]
       requestBody:
         required: true
         content:
@@ -910,29 +905,57 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
-        '404':
-          $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
-      security:
-        - bearerAuth: [super-admin, data-admin]
 
+  /files/{fileId}:
+    parameters:
+      - name: fileId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: File unique internal identifier
+    get:
+      x-eov-operation-handler: controllers/files
+      x-eov-operation-id: getFile
+      summary: Get information for a given soil file
+      tags:
+        - files
+      security:
+        - bearerAuth: [data-admin]
+      responses:
+        '200':
+          description: File retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileDescriptor'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /files/{fileId}/download:
+    parameters:
+      - name: fileId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: File unique internal identifier
     get:
       x-eov-operation-handler: controllers/files
       x-eov-operation-id: fileDownload
       summary: Download a file
       tags:
-        - TODO (to be removed or specialized)
-      parameters:
-        - in: query
-          name: token
-          required: false
-          description: Temporary access token to download access-protected files
-          schema:
-            type: string
+        - files
+      security:
+        - bearerAuth: [super-admin, data-admin]
       responses:
         '200':
           description: File downloaded successfully
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /mappings:
     post:
@@ -1028,6 +1051,7 @@ paths:
           $ref: '#/components/responses/NotFound'
         '410':
           $ref: '#/components/responses/Gone'
+
 
 components:
   responses:
@@ -1157,29 +1181,42 @@ components:
       properties:
         id:
           type: string
-          description: Internal file identifier
-        key:
+          description: Unique file identifier
+        name:
+          type: string
+          description: File name
+        file_path:
           type: string
           description: Storage key (path-like)
-        size:
-          type: integer
-          description: File size in bytes
-        mimeType:
+        status:
           type: string
-          description: MIME type of the file
-        uploadedAt:
-          type: string
-          format: date-time
-          description: Upload timestamp
+          readOnly: true
         metadata:
           type: object
+          description: Spatial file fields, CRS and geometry information.
           additionalProperties: true
+        is_archived:
+          type: boolean
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        created_by:
+          type: string
+          readOnly: true
+        updated_by:
+          type: string
+          readOnly: true
       required:
         - id
-        - key
-        - size
-        - mimeType
-        - uploadedAt
+        - name
+        - created_at
+        - created_by
 
     FilterCriteria:
       type: object

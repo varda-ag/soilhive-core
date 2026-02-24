@@ -14,13 +14,14 @@ import { RequestData } from '../interfaces/RequestData';
 import { File, FileMetadata, ExtractedFilePath } from '../interfaces/File';
 import { ErrorResponse } from '../utils/error';
 import { getEntity } from '../utils/slugs';
-import { sanitizeField } from '../utils/utils';
+import { sanitizeField, buildDatedFileKey, getRawTableName } from '../utils/utils';
 import { StorageModes } from '../types/enums';
-import { EntityType } from '../types/data';
+import { EntityType, IngestionStatus } from '../types/data';
 import { DetectableFields } from '../types/DataMapping';
 import ConfigService from './ConfigService';
 import { LOGO_FILE_ID } from '../constants/constants';
 import FileEntity from '../entities/File';
+import assert from 'assert';
 
 const allowedGeometryTypes = [
   gdal.wkbNone, // This allows generic tabular file support
@@ -36,17 +37,18 @@ const allowedGeometryTypes = [
 
 export default class FileService {
   exists = async (fileKey: string): Promise<boolean> => {
-    const storage = await FileService.getStorageEngine();
+    const storage = FileService.getStorageEngine();
     return await storage.fileExists(fileKey);
   };
 
-  deleteFile = async (fileKey: string): Promise<void> => {
-    const storage = await FileService.getStorageEngine();
+  deleteFileFromStorage = async (fileKey: string): Promise<void> => {
+    const storage = FileService.getStorageEngine();
     await storage.deleteFile(fileKey);
   };
 
   static getUploadStorageEngine = (): FlystorageMulterStorageEngine => {
-    const adapter = FileService.getAdapter();
+    // TODO: implement logic to check for available storage space if StorageModes.LOCAL and handle related errors properly
+    const adapter = this.getAdapter();
     const fileStorage = new FileStorage(adapter);
     const storage = new FlystorageMulterStorageEngine(fileStorage, async (action, req, file) => {
       if (action === 'handle') {
@@ -54,9 +56,14 @@ export default class FileService {
           // Special case for logo upload
           return LOGO_FILE_ID;
         }
-        // Use ID parameter to setup filename
-        // TODO: replace parameter name
-        return req.params['fileId']!;
+        const destination = buildDatedFileKey(file.originalname);
+        const uploadedFileInfo = {
+          originalname: file.originalname,
+          fileKey: destination,
+        };
+        req.customData = req.customData || {};
+        req.customData.uploadedFileInfo = uploadedFileInfo;
+        return destination;
       } else {
         // Return folder name/destination if needed
         return file.destination;
@@ -66,7 +73,7 @@ export default class FileService {
   };
 
   static getStorageEngine = (): FileStorage => {
-    const adapter = FileService.getAdapter();
+    const adapter = this.getAdapter();
     return new FileStorage(adapter);
   };
 
@@ -85,7 +92,11 @@ export default class FileService {
       }
       case StorageModes.S3: {
         const s3Config = config.config as S3StorageConfig;
-        const s3Client = new S3Client({ region: s3Config.region }) as any;
+        const s3Client = new S3Client({
+          region: s3Config.region,
+          ...(s3Config.endpoint ? { endpoint: s3Config.endpoint, forcePathStyle: true } : {}),
+          ...(s3Config.credentials ? { credentials: s3Config.credentials } : {}),
+        }) as any;
         adapter = new AwsS3StorageAdapter(s3Client, {
           bucket: s3Config.bucketName,
           ...(s3Config.rootFolder ? { prefix: s3Config.rootFolder } : {}),
@@ -98,13 +109,74 @@ export default class FileService {
     return adapter;
   };
 
-  getFiles = async (requestData: RequestData): Promise<File[]> => {
+  getFiles = async (requestData: RequestData): Promise<FileEntity[]> => {
     const repo = requestData.entityManager.getRepository(FileEntity);
     return await repo.find();
   };
 
-  getFile = async (requestData: RequestData, slug: string): Promise<File> => {
-    return await getEntity(requestData, FileEntity, EntityType.FILE, slug);
+  getFile = async (requestData: RequestData, fileId: string): Promise<FileEntity> => {
+    const { entityManager } = requestData;
+
+    const repo = entityManager.getRepository(FileEntity);
+
+    // Find file by ID (primary key)
+    const file = await repo.findOneBy({ id: fileId });
+
+    if (!file) {
+      throw new ErrorResponse(`DatasetFileMapping with ID '${fileId}' not found`, StatusCodes.NOT_FOUND);
+    }
+
+    return file;
+  };
+
+  createFile = async (requestData: RequestData, data: Partial<File>): Promise<FileEntity> => {
+    const repo = requestData.entityManager.getRepository(FileEntity);
+    const { sub } = requestData.token;
+
+    assert(data.file_path, 'file_path is required to create a file');
+    const metadata = await this.extractMetadata(data.file_path);
+
+    const file = repo.create({
+      ...data,
+      metadata,
+      status: IngestionStatus.PENDING,
+      created_by: String(sub),
+      updated_by: String(sub),
+    });
+
+    try {
+      const saved = await repo.save(file);
+      const reloaded = await repo.findOneBy({ id: saved.id });
+      return reloaded!;
+    } catch (error: any) {
+      if (error.code === '23505') {
+        // unique violation
+        throw new ErrorResponse(`File with name '${data.name}' already exists`, StatusCodes.CONFLICT);
+      }
+      throw error;
+    }
+  };
+
+  updateFile = async (requestData: RequestData, slug: string, data: Partial<File>): Promise<FileEntity> => {
+    const repo = requestData.entityManager.getRepository(FileEntity);
+    const { sub } = requestData.token;
+
+    const file = (await getEntity(requestData, FileEntity, EntityType.DATASET, slug)) as FileEntity;
+
+    repo.merge(file, {
+      ...data,
+      updated_by: String(sub),
+      updated_at: new Date(),
+    });
+
+    const saved = await repo.save(file);
+    const reloaded = await repo.findOneBy({ id: saved.id });
+    return reloaded!;
+  };
+
+  deleteFile = async (requestData: RequestData, slug: string): Promise<void> => {
+    const file = await getEntity(requestData, FileEntity, EntityType.FILE, slug);
+    await requestData.entityManager.getRepository(FileEntity).softRemove(file);
   };
 
   /**
@@ -191,12 +263,12 @@ export default class FileService {
         const localConfig = config.config as LocalStorageConfig;
         mainFilePath = path.join(localConfig.rootFolder, fileKey);
         if (!fs.existsSync(mainFilePath)) {
-          throw new ErrorResponse(`File ${fileKey} not found`, StatusCodes.NOT_FOUND);
+          throw new ErrorResponse(`File ${mainFilePath} not found`, StatusCodes.NOT_FOUND);
         }
 
         // Handle ZIP files
         if (fileKey.toLowerCase().endsWith('.zip')) {
-          ({ tempZipExtractPath, mainFilePath } = await FileService.extractZipAndFindMainFile(mainFilePath));
+          ({ tempZipExtractPath, mainFilePath } = await this.extractZipAndFindMainFile(mainFilePath));
         }
       } else if (config.storageMode === StorageModes.S3) {
         // For S3, we would need to download the file first to extract it
@@ -369,7 +441,12 @@ export default class FileService {
     }
   };
 
-  fileToDB = async (fileId: string, fileKey: string, fileMetadata: FileMetadata) => {
+  fileToDB = async (requestData: RequestData, fileId: string) => {
+    const fileEntity = await this.getFile(requestData, fileId);
+    assert(fileEntity.file_path, `File path not found for file ${fileId}`);
+    assert(fileEntity.metadata, `Metadata not found for file ${fileId}`);
+    const fileKey = fileEntity.file_path!;
+    const fileMetadata = fileEntity.metadata!;
     let mainFilePath: string;
     let tempZipExtractPath: string | null = null;
     const gdalOpts: string[] = [
@@ -391,7 +468,7 @@ export default class FileService {
       '-oo',
       'AUTODETECT_TYPE=YES',
     ];
-    const tableName = `file_${sanitizeField(fileId)}_raw`;
+    const tableName = getRawTableName(fileId);
     gdalOpts.push('-nln', tableName);
     let selectClause = fileMetadata.field_names.map(field => `"${field}" AS ${sanitizeField(field)}`).join(', ');
 
