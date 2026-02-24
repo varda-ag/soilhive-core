@@ -173,3 +173,11 @@ export interface SoilDataSample {
   limit_of_detection: string | null;
   cursor: string;
 }
+
+export interface RasterFilterCategory {
+  id: string; // e.g., 'land_cover'
+  name: string; // e.g. Land Cover
+  description: string;
+  enabled: boolean;
+  mapping: Record<string, number>; // e.g., { "Artic": 1 }
+}
