@@ -35,9 +35,7 @@ export interface FilterCriteria {
   max_depth?: number;
   horizons?: string[];
   soil_properties?: string[];
-  agroecological_zones?: string[];
-  land_cover?: string[];
-  soil_groups?: string[];
+  raster_filters?: Map<string, number[]>; // Map <table_name, raster_values>
 }
 
 export interface DataFilter {

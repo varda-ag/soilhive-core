@@ -13,10 +13,9 @@ interface RasterFilterProps {
   };
   selectedValues: number[];
   onChange: (selected: number[]) => void;
-  icon?: React.FC<React.SVGProps<SVGSVGElement>>;
 }
 
-export function RasterFilter({ category, selectedValues, onChange, icon }: RasterFilterProps) {
+export function RasterFilter({ category, selectedValues, onChange }: RasterFilterProps) {
   const [searchTerm, setSearchTerm] = useState('');
 
   const handleSearch = (e: ChangeEvent<HTMLInputElement>) => {
@@ -56,13 +55,9 @@ export function RasterFilter({ category, selectedValues, onChange, icon }: Raste
     <Accordion
       title={category.name}
       type="secondary"
-      Icon={icon}
-      pillsSlot={<SelectionPills selections={pillSelections} onRemove={handleRemovePill} />}
+      pillsSlot={pillSelections.length > 0 && <SelectionPills selections={pillSelections} onRemove={handleRemovePill} />}
     >
       <div className={styles.Content}>
-        {/* Pills visible inside the accordion as well */}
-        <SelectionPills selections={pillSelections} onRemove={handleRemovePill} />
-
         <input
           type="text"
           placeholder={`Search ${category.name.toLowerCase()}`}
@@ -76,6 +71,7 @@ export function RasterFilter({ category, selectedValues, onChange, icon }: Raste
             <Checkbox
               key={option.value}
               label={option.label}
+              size="small"
               value={selectedValues.includes(option.value)}
               onChange={(checked: boolean) => handleCheckboxChange(option.value, checked)}
             />

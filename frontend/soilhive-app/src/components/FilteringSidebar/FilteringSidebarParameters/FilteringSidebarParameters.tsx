@@ -11,6 +11,8 @@ import type { AccordionRef, NestedCheckboxRef } from 'types/components';
 import useSoilPropertiesFilters from 'hooks/useSoilPropertiesFilters';
 
 import styles from './FilteringSidebarParameters.module.scss';
+import { useRasterFilterState } from 'hooks/useRasterFilterState';
+import { RasterFilter } from '../RasterFilter/RasterFilter';
 
 const CATEGORIES_ICONS_MAP: Record<string, React.FC<React.SVGProps<SVGSVGElement>>> = {
   biological: BiologicalIcon,
@@ -30,6 +32,8 @@ export function FilteringSidebarParameters() {
     handleOnChange,
     handlePillRemove,
   } = useSoilPropertiesFilters();
+
+  const soilGroups = useRasterFilterState('soil_groups');
 
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [accordionOpenByCategory, setAccordionOpenByCategory] = useState<Record<string, boolean>>({});
@@ -201,6 +205,9 @@ export function FilteringSidebarParameters() {
           </div>
         )}
       </Accordion>
+      {soilGroups.categoryData?.enabled && (
+        <RasterFilter category={soilGroups.categoryData} selectedValues={soilGroups.selectedValues} onChange={soilGroups.handleOnChange} />
+      )}
     </div>
   );
 }

@@ -1,25 +1,15 @@
-.FilteringSidebarParameters {
+.RasterFilter {
   display: flex;
   flex-direction: column;
-  /*gap: 1rem;*/
+  gap: 1rem;
 }
 
-.SoilProperties {
+.Content {
   padding: 0.5rem 0.875rem;
   display: flex;
   flex-direction: column;
   gap: 0.3125rem;
   background-color: var(--color-neutral-white);
-}
-
-.SoilPropertiesList {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.SoilPropertiesCheckbox {
-  padding: 0.375rem 0.5rem 0.5rem;
 }
 
 .SearchInput {
@@ -42,4 +32,11 @@
     outline: 2px solid var(--color-primary);
     outline-offset: 1px;
   }
+}
+
+.CheckboxList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.375rem 0.5rem 0.5rem;
 }
