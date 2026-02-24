@@ -4,10 +4,9 @@ import { DatasetsList } from './DatasetsList/DatasetsList';
 import { Button, PageSidebar } from 'components/UI';
 import DownloadIcon from 'assets/icons/download-icon.svg?react';
 import useDevice from 'hooks/useDevice';
+import useAvailability from 'hooks/useAvailability';
 
 import styles from './DatasetsSidebar.module.scss';
-import { AvailabilityContext } from '../../contexts/AvailabilityContext';
-import { useContext } from 'react';
 
 interface Props {
   isOpened: boolean;
@@ -16,11 +15,7 @@ interface Props {
 
 export function DatasetsSidebar({ isOpened, onClose }: Props) {
   const { isDesktopLayout } = useDevice();
-  const availabilityContext = useContext(AvailabilityContext);
-  if (!availabilityContext) {
-    throw new Error('AvailabilityContext must be used within AvailabilityProvider');
-  }
-  const { setPreview, datasets } = availabilityContext;
+  const { setPreview, datasets } = useAvailability();
 
   return (
     <PageSidebar className={styles.DatasetsSidebar} isOpened={isOpened} position="right">

@@ -1,5 +1,4 @@
-import { useContext, useEffect, useMemo, useState } from 'react';
-import { AvailabilityContext } from '../contexts/AvailabilityContext';
+import { useEffect, useMemo, useState } from 'react';
 import { Button } from 'components/UI';
 import styles from './DownloadPreview.module.scss';
 import DownloadPreviewSummary from 'components/DownloadPreview//DownloadPreviewSummary/DownloadPreviewSummary';
@@ -14,16 +13,11 @@ import { useFilteredDatasets } from 'hooks/useFilteredDatasets';
 import type { PreviewFilters } from 'types/downloadPreview';
 import { computeDatasetSummary } from '../domain';
 import type { Nullable } from 'primereact/ts-helpers';
+import useAvailability from 'hooks/useAvailability';
 
 const MAXIMUM_SOIL_DATA_PER_REQUEST = 100;
 
 function DownloadPreview() {
-  const availabilityContext = useContext(AvailabilityContext);
-
-  if (!availabilityContext) {
-    throw new Error('AvailabilityContext must be used within AvailabilityProvider');
-  }
-
   const {
     setPreview,
     geometryFilter,
@@ -36,7 +30,7 @@ function DownloadPreview() {
     selectedFilters: availabilitySelectedFilters,
     selectedDatasets: availabilitySelectedDatasets,
     filteredDatasets: availabilityFilteredDatasets,
-  } = availabilityContext;
+  } = useAvailability();
 
   const [summaryExpanded, setSummaryExpanded] = useState(false);
   const [selectedPoint, setSelectedPoint] = useState<[number, number]>();
