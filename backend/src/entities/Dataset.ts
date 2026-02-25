@@ -39,8 +39,8 @@ export default class DatasetEntity extends BaseTable implements Dataset {
   @Column({ type: 'text', nullable: true })
   data_producer?: string | null;
 
-  @Column({ type: 'jsonb', nullable: true, array: true })
-  variables_measured?: MeasuredProperty[] | null;
+  @Column({ type: 'jsonb', nullable: true, name: 'variables_measured' }) // Keeping old column name
+  measured_properties?: MeasuredProperty[] | null;
 
   @Column({ type: 'text', nullable: true })
   spatial_resolution?: string | null;

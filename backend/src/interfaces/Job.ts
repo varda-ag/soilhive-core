@@ -18,6 +18,7 @@ export interface CommonJobData {
 
 export interface BulkLoadJob extends CommonJobData {
   dataset_id: string;
+  delete_source_files?: boolean;
 }
 
 export interface ExportJob extends CommonJobData {
