@@ -39,7 +39,9 @@ export default class JobService {
     const jobs: JobWithMetadata<unknown>[] = results.flat();
 
     // Filter jobs to only include those created by the user
-    return jobs.map(j => this.translateJob(j)).filter(j => !sub || j.data.created_by === sub);
+    const userJobs = jobs.map(j => this.translateJob(j)).filter(j => !sub || j.data.created_by === sub);
+
+    return userJobs.map(job => this.prepareJobForResponse(job));
   };
 
   getJobById = async (requestData: RequestData, jobId: string): Promise<Job> => {
