@@ -1,4 +1,6 @@
+import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import useAvailability from './useAvailability';
 import type { RasterFilterCategory } from '../types/backend';
 
 // Mock data until endpoint is ready
@@ -12,10 +14,10 @@ const MOCK_RASTER_FILTERS: RasterFilterCategory[] = [
   },
   {
     id: 'land_cover',
-    name: 'Land Cover',
+    name: 'Land cover',
     description: 'Physical material at the surface of the earth',
     enabled: true,
-    mapping: { Forest: 1, Grassland: 2, Cropland: 3, Wetland: 4, Settlement: 5 },
+    mapping: { Forest: 1, Grassland: 2, Cropland: 3, Wetland: 4 },
   },
   {
     id: 'soil_groups',
@@ -26,13 +28,54 @@ const MOCK_RASTER_FILTERS: RasterFilterCategory[] = [
   },
 ];
 
-export function useRasterFilters() {
-  return useQuery({
+export function useRasterFilters(categoryId?: 'agroecological_zones' | 'land_cover' | 'soil_groups') {
+  const { datasetFilters, setDatasetFilters } = useAvailability();
+
+  // 1. Fetching Logic
+  const { data: allCategories, isLoading } = useQuery({
     queryKey: ['rasterFilters'],
     queryFn: async () => {
-      // Simulate API delay
       await new Promise(resolve => setTimeout(resolve, 500));
       return MOCK_RASTER_FILTERS;
     },
   });
+
+  // 2. State Selection Logic (Only if categoryId is provided)
+  const selectedValues = useMemo(() => {
+    if (!categoryId) return [];
+    return datasetFilters.raster_filters?.get(categoryId) || [];
+  }, [datasetFilters.raster_filters, categoryId]);
+
+  const categoryData = useMemo(() => {
+    if (!categoryId) return undefined;
+    return allCategories?.find(cat => cat.id === categoryId);
+  }, [allCategories, categoryId]);
+
+  // 3. Update Logic
+  const handleOnChange = (nextValues: number[]) => {
+    if (!categoryId) return;
+
+    setDatasetFilters(prev => {
+      const newMap = new Map(prev.raster_filters || []);
+
+      if (nextValues.length > 0) {
+        newMap.set(categoryId, nextValues);
+      } else {
+        newMap.delete(categoryId);
+      }
+
+      return {
+        ...prev,
+        raster_filters: newMap.size > 0 ? newMap : undefined,
+      };
+    });
+  };
+
+  return {
+    allCategories, // Useful for the general Land & Ecosystem block
+    categoryData, // Specific to the requested ID
+    isLoading,
+    selectedValues,
+    handleOnChange,
+  };
 }

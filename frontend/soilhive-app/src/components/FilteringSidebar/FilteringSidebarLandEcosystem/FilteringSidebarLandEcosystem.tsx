@@ -1,9 +1,9 @@
 import { RasterFilter } from '../RasterFilter/RasterFilter';
-import { useRasterFilterState } from 'hooks/useRasterFilterState';
+import { useRasterFilters } from '../../../hooks/useRasterFilters';
 
 export function FilteringSidebarLandEcosystem() {
-  const agro = useRasterFilterState('agroecological_zones');
-  const land = useRasterFilterState('land_cover');
+  const agro = useRasterFilters('agroecological_zones');
+  const land = useRasterFilters('land_cover');
 
   if (agro.isLoading || (!agro.categoryData?.enabled && !land.categoryData?.enabled)) {
     return null;

@@ -3,7 +3,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import { FilteringSidebarParameters } from 'components/FilteringSidebar/FilteringSidebarParameters/FilteringSidebarParameters';
 import type { NestedCheckboxItemType, NestedCheckboxRef, AccordionRef } from 'types/components';
 import useSoilPropertiesFilters from 'hooks/useSoilPropertiesFilters';
-import { useRasterFilterState } from 'hooks/useRasterFilterState';
+import { useRasterFilters } from 'hooks/useRasterFilters';
 
 const mockCategorizedSoilProperties = [
   {
@@ -34,9 +34,9 @@ jest.mock('hooks/useSoilPropertiesFilters', () => ({
   default: jest.fn(),
 }));
 
-jest.mock('hooks/useRasterFilterState', () => ({
+jest.mock('hooks/useRasterFilters', () => ({
   __esModule: true,
-  useRasterFilterState: jest.fn(),
+  useRasterFilters: jest.fn(),
 }));
 
 type NestedCheckboxPropsType = {
@@ -147,7 +147,7 @@ describe('FilteringSidebarParameters', () => {
     handlePillRemove: mockHandlePillRemove,
   };
 
-  const deafultRasterFilterState = {
+  const deafultRasterFilters = {
     categoryData: [],
     isLoading: false,
     selectedValues: [],
@@ -156,7 +156,7 @@ describe('FilteringSidebarParameters', () => {
 
   beforeEach(() => {
     (useSoilPropertiesFilters as jest.Mock).mockReturnValue(defaultHookValue);
-    (useRasterFilterState as jest.Mock).mockReturnValue(deafultRasterFilterState);
+    (useRasterFilters as jest.Mock).mockReturnValue(deafultRasterFilters);
   });
 
   afterEach(() => {
