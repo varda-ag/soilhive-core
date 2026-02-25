@@ -35,7 +35,7 @@ export interface FilterCriteria {
   max_depth?: number;
   horizons?: string[];
   soil_properties?: string[];
-  raster_filters?: Map<string, number[]>; // Map <table_name, raster_values>
+  raster_filters?: Record<string, number[]>; // server side is Map <table_name, raster_values>, but on FE this can lead to React equality checks errors
 }
 
 export interface DataFilter {

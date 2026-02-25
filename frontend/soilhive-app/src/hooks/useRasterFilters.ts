@@ -43,7 +43,7 @@ export function useRasterFilters(categoryId?: 'agroecological_zones' | 'land_cov
   // 2. State Selection Logic (Only if categoryId is provided)
   const selectedValues = useMemo(() => {
     if (!categoryId) return [];
-    return datasetFilters.raster_filters?.get(categoryId) || [];
+    return datasetFilters.raster_filters?.[categoryId] || [];
   }, [datasetFilters.raster_filters, categoryId]);
 
   const categoryData = useMemo(() => {
@@ -56,17 +56,18 @@ export function useRasterFilters(categoryId?: 'agroecological_zones' | 'land_cov
     if (!categoryId) return;
 
     setDatasetFilters(prev => {
-      const newMap = new Map(prev.raster_filters || []);
+      const currentRasterFilters = prev.raster_filters as Record<string, number[]> | undefined;
+      const newFilters = { ...currentRasterFilters };
 
       if (nextValues.length > 0) {
-        newMap.set(categoryId, nextValues);
+        newFilters[categoryId] = nextValues;
       } else {
-        newMap.delete(categoryId);
+        delete newFilters[categoryId];
       }
 
       return {
         ...prev,
-        raster_filters: newMap.size > 0 ? newMap : undefined,
+        raster_filters: Object.keys(newFilters).length > 0 ? newFilters : undefined,
       };
     });
   };
