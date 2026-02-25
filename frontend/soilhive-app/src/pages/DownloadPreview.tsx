@@ -14,6 +14,7 @@ import type { PreviewFilters } from 'types/downloadPreview';
 import { computeDatasetSummary } from '../domain';
 import type { Nullable } from 'primereact/ts-helpers';
 import useAvailability from 'hooks/useAvailability';
+import type { Feature, GeoJsonProperties, MultiPolygon, Point, Polygon } from 'geojson';
 
 const MAXIMUM_SOIL_DATA_PER_REQUEST = 100;
 
@@ -33,7 +34,7 @@ function DownloadPreview() {
   } = useAvailability();
 
   const [summaryExpanded, setSummaryExpanded] = useState(false);
-  const [selectedPoint, setSelectedPoint] = useState<[number, number]>();
+  const [selectedFeature, setSelectedFeature] = useState<Feature<Point | Polygon | MultiPolygon, GeoJsonProperties>>();
   const [sort, setSort] = useState<string>();
 
   const availableFixedDatasets =
@@ -164,8 +165,8 @@ function DownloadPreview() {
           <DownloadPreviewSummary
             selectionType={selectionType}
             initialViewBoundingBox={boundingBox}
-            selectedPoint={selectedPoint}
-            selectedFeature={{
+            selectedFeature={selectedFeature}
+            geometryFeature={{
               type: 'FeatureCollection',
               features: geometryFilter.map(geometry => ({ geometry })),
             }}
@@ -207,9 +208,9 @@ function DownloadPreview() {
             onTableLastPage={() => {
               if (hasMore) loadMore();
             }}
-            onPointSelected={point => {
+            onFeatureSelected={feature => {
               setSummaryExpanded(true);
-              setSelectedPoint(point);
+              setSelectedFeature(feature);
             }}
           />
         </div>

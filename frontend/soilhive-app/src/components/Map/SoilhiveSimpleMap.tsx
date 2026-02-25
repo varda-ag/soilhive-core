@@ -15,15 +15,15 @@ import { bBoxToH3Cells, h3IndexesToGeoJSONPolygons, largestPolygon as largestPol
 import { bbox as bboxFn } from '@turf/turf';
 import { h3ResolutionForZoomLevel } from '../../utilities/map';
 import { simplifyGeometry } from '../../utilities/simplifyGeometry';
-import type { FeatureCollection, MultiPolygon, Polygon } from 'geojson';
+import type { Feature, FeatureCollection, GeoJsonProperties, MultiPolygon, Point, Polygon } from 'geojson';
 import type { MapLibreEvent } from 'maplibre-gl';
 
 type MapStyle = string | StyleSpecification | ImmutableLike<StyleSpecification>;
 
 interface SoilhiveSimpleMapProps {
   initialViewBoundingBox?: [number, number, number, number];
-  selectedPoint?: [number, number];
-  selectedFeature?: FeatureCollection;
+  geometryFeature?: FeatureCollection;
+  selectedFeature?: Feature<Point | Polygon | MultiPolygon, GeoJsonProperties>;
   showH3Cells?: boolean;
   showNavigation?: boolean;
   mapStyle?: MapStyle;
@@ -31,8 +31,8 @@ interface SoilhiveSimpleMapProps {
   dragPan?: boolean;
 }
 
-const dataLayerSelection: LayerProps = {
-  id: 'data-selection',
+const geometryLayerSelection: LayerProps = {
+  id: 'geometry',
   type: 'fill',
   paint: {
     'fill-color': '#F5B200',
@@ -40,8 +40,8 @@ const dataLayerSelection: LayerProps = {
   },
 };
 
-const dataLayerBorders: LayerProps = {
-  id: 'data-borders',
+const h3CellsLayerBorders: LayerProps = {
+  id: 'h3-cells-borders',
   type: 'line',
   paint: {
     'line-color': 'black',
@@ -50,10 +50,32 @@ const dataLayerBorders: LayerProps = {
   },
 };
 
+const selectionLayer: LayerProps = {
+  id: 'selection',
+  type: 'line',
+  paint: {
+    'line-color': 'red',
+    'line-width': 1,
+    'line-opacity': 1,
+  },
+};
+
+function MapSelection({ feature }: { feature: Feature<Point | Polygon | MultiPolygon, GeoJsonProperties> }) {
+  if (feature.geometry.type === 'Point') {
+    const [lon, lat] = feature.geometry.coordinates;
+    return <Marker longitude={lon} latitude={lat} />;
+  }
+  return (
+    <Source id="selection" type="geojson" data={feature}>
+      <Layer {...selectionLayer} />
+    </Source>
+  );
+}
+
 function SoilhiveSimpleMap({
   initialViewBoundingBox,
-  selectedPoint = undefined,
   selectedFeature = undefined,
+  geometryFeature = undefined,
   showNavigation = true,
   showH3Cells = false,
   mapStyle = 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json',
@@ -80,26 +102,31 @@ function SoilhiveSimpleMap({
     }
   }
 
-  const fitBoundsToSelectedFeature = useCallback(() => {
-    if (!selectedFeature) return;
-    const simplifiedGeometry: Polygon | MultiPolygon = simplifyGeometry(selectedFeature.features[0].geometry as Polygon | MultiPolygon);
+  const fitBoundsToGeometryFeature = useCallback(() => {
+    if (!geometryFeature) return;
+    const simplifiedGeometry: Polygon | MultiPolygon = simplifyGeometry(geometryFeature.features[0].geometry as Polygon | MultiPolygon);
     const largestPolygon = simplifiedGeometry.type === 'MultiPolygon' ? largestPolygonFn(simplifiedGeometry) : simplifiedGeometry;
     if (largestPolygon === null) throw new Error('A valid MultiPolygon should contain at least a Polygon');
     const bbox = bboxFn(largestPolygon!) as [number, number, number, number];
     mapRef.current?.fitBounds(bbox, { padding: 40 });
-  }, [selectedFeature]);
+  }, [geometryFeature]);
 
   useEffect(() => {
-    if (selectedPoint) {
-      mapRef.current?.flyTo({ center: selectedPoint });
+    if (selectedFeature) {
+      if (selectedFeature.geometry.type === 'Point') {
+        mapRef.current?.flyTo({ center: selectedFeature.geometry.coordinates });
+      } else {
+        const bbox = bboxFn(selectedFeature);
+        mapRef.current?.fitBounds(bbox, { padding: 40 });
+      }
     } else {
-      fitBoundsToSelectedFeature();
+      fitBoundsToGeometryFeature();
     }
-  }, [fitBoundsToSelectedFeature, selectedFeature, selectedPoint]);
+  }, [fitBoundsToGeometryFeature, geometryFeature, selectedFeature]);
 
   function onMapLoad(mapEvent: MapLibreEvent) {
     updateH3Cells(mapEvent);
-    fitBoundsToSelectedFeature();
+    fitBoundsToGeometryFeature();
   }
 
   return (
@@ -121,16 +148,16 @@ function SoilhiveSimpleMap({
         attributionControl={{ compact: false }}
       >
         {showH3Cells && h3Cells && (
-          <Source id="data" type="geojson" data={h3Cells} promoteId="h3Index">
-            <Layer {...dataLayerBorders} />
+          <Source id="h3-cells" type="geojson" data={h3Cells} promoteId="h3Index">
+            <Layer {...h3CellsLayerBorders} />
           </Source>
         )}
-        {selectedFeature && (
-          <Source id="selection" type="geojson" data={selectedFeature}>
-            <Layer {...dataLayerSelection} />
+        {geometryFeature && (
+          <Source id="geometry" type="geojson" data={geometryFeature}>
+            <Layer {...geometryLayerSelection} />
           </Source>
         )}
-        {selectedPoint && <Marker longitude={selectedPoint[0]} latitude={selectedPoint[1]} />}
+        {selectedFeature && <MapSelection feature={selectedFeature} />}
         {showNavigation && <NavigationControl position="bottom-right" showCompass={false} showZoom={true} visualizePitch={false} />}
       </Map>
     </div>

@@ -8,7 +8,8 @@ import NewspaperIcon from 'assets/icons/newspaper-icon.svg?react';
 import MapPinIcon from 'assets/icons/small-map-icon.svg?react';
 import { useState, type Dispatch, type SetStateAction } from 'react';
 import type { SoilDataSample } from 'types/backend';
-import useAvailability from 'hooks/useAvailability';
+import { feature } from '@turf/turf';
+import type { Feature, GeoJsonProperties, MultiPolygon, Point, Polygon } from 'geojson';
 
 const columns = [
   { name: 'Date', value: 'sampling_date' },
@@ -38,7 +39,7 @@ function DownloadPreviewTable({
   onTableLastPage,
   first = 0,
   setFirst,
-  onPointSelected,
+  onFeatureSelected,
 }: {
   data?: SoilDataSample[];
   isDataLoading?: boolean;
@@ -46,9 +47,8 @@ function DownloadPreviewTable({
   onTableLastPage?: () => void;
   first?: number;
   setFirst?: Dispatch<SetStateAction<number>>;
-  onPointSelected?: (point: [number, number] | undefined) => void;
+  onFeatureSelected?: (feature: Feature<Point | Polygon | MultiPolygon, GeoJsonProperties> | undefined) => void;
 }) {
-  const { setBoundingBox } = useAvailability();
   const [visibleColumns, setVisibleColumns] = useState<string[]>([
     'sampling_date',
     'min_depth',
@@ -66,13 +66,7 @@ function DownloadPreviewTable({
       <Button
         type="tertiary"
         onClick={() => {
-          if (geometry?.type?.toLowerCase() === 'point') {
-            onPointSelected?.(geometry.coordinates);
-          } else {
-            // Makes the map center again on the geometry
-            setBoundingBox(prevBoundingBox => [...prevBoundingBox]);
-            onPointSelected?.(undefined); // Removes any pin from the map
-          }
+          onFeatureSelected?.(geometry ? feature(geometry as Point | Polygon | MultiPolygon) : undefined);
         }}
       >
         {geometry && <MapPinIcon />}

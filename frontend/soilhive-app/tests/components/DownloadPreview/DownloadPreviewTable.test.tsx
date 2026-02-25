@@ -2,13 +2,6 @@ import React from 'react';
 import { render } from '@testing-library/react';
 import DownloadPreviewTable from 'components/DownloadPreview/DownloadPreviewTable/DownloadPreviewTable';
 
-jest.mock('../../../src/contexts/AvailabilityContext', () => {
-  return {
-    __esModule: true,
-    AvailabilityContext: React.createContext({}),
-  };
-});
-
 jest.mock('primereact/multiselect', () => {
   const MultiSelect = () => <div>Mock Multiselect</div>;
   return { MultiSelect };
