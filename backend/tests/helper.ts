@@ -35,7 +35,7 @@ export const teardown = async () => {
 };
 
 export const clearDatabase = async () => {
-  const excludeTables = ['land_cover'];
+  const excludeTables = ['raster_filters', 'land_cover'];
   const dataSource = await getDataSource();
   const tableNames = dataSource?.entityMetadatas
     .filter(entity => !excludeTables.includes(entity.tableName))
