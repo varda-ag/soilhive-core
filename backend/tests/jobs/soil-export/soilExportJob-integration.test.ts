@@ -241,5 +241,5 @@ describe('Soil Export Job Integration Test', () => {
 
     fetchBatchSpy.mockRestore();
     getTotalRecordsCountSpy.mockRestore();
-  }, 70000);
+  }, 7000);
 });
