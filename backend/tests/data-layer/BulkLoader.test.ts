@@ -124,6 +124,8 @@ describe('BulkLoader class', () => {
     expect(datasetEntity!.status).toBe(IngestionStatus.RELEASED);
     expect(datasetEntity!.soil_depth!).toEqual({ min: 0, max: 100 });
     expect(datasetEntity!.licenses).toEqual(['test_license_1']);
+    expect(datasetEntity!.reference_period_start).toEqual('2021-01-01');
+    expect(datasetEntity!.reference_period_stop).toEqual('2021-01-01');
     const isValidUUID1 = validate(datasetEntity!.measured_properties![0].soil_property_id);
     const isValidUUID2 = validate(datasetEntity!.measured_properties![0].procedure_id);
     expect(isValidUUID1).toBeFalsy();
