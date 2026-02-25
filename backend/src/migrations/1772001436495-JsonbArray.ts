@@ -6,7 +6,7 @@ export class JsonbArray1772001436495 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`SET search_path TO ${process.env.POSTGRES_SCHEMA}, public`);
     await queryRunner.query(
-      `ALTER TABLE datasets ALTER COLUMN variables_measured TYPE jsonb default [] USING COALESCE(jsonb_build_array(variables_measured), '[]'::jsonb);`,
+      `ALTER TABLE datasets ALTER COLUMN variables_measured TYPE jsonb USING COALESCE(jsonb_build_array(variables_measured), '[]'::jsonb);`,
     );
   }
 
