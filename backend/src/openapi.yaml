@@ -1072,7 +1072,7 @@ paths:
       x-eov-operation-id: download
       summary: Download a file with temporary access token
       tags:
-        - TODO (to be removed or specialized)
+        - files
       parameters:
         - in: query
           name: token
