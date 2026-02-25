@@ -2,7 +2,7 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
 import * as fs from 'fs';
 import * as path from 'path';
 
-export class CreateSchema1771603623538 implements MigrationInterface {
+export class DataLoad1771603623538 implements MigrationInterface {
   name = 'DataLoad1771603623538';
 
   public async up(queryRunner: QueryRunner): Promise<void> {

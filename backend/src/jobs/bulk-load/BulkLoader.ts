@@ -18,6 +18,7 @@ import { IngestionStatus } from '../../types/data';
 import { getEntityManager } from '../../utils/data-source';
 import { ErrorResponse } from '../../utils/error';
 import { getLoopbackUrl } from '../../utils/utils';
+import { updateDatasetMetadata } from './UpdateDatasetMetadata';
 
 export async function processBulkLoad(job: Job<BulkLoadJob>): Promise<void> {
   const { data } = job;
@@ -32,6 +33,8 @@ export async function processBulkLoad(job: Job<BulkLoadJob>): Promise<void> {
 
     const mappingService = new DatasetFileMappingService();
     const datasetFileMappings = await mappingService.getMappings(requestData, dataset.slug);
+
+    // Process all pending files associated with this mapping
     const files = await getPendingFilesWithMapping(entityManager, datasetFileMappings);
     for (const file of files) {
       const datasetFileMapping = datasetFileMappings.find(m => m.file_id === file.id);
@@ -41,8 +44,8 @@ export async function processBulkLoad(job: Job<BulkLoadJob>): Promise<void> {
       await file.save();
     }
 
-    dataset.status = IngestionStatus.INGESTED;
-    await dataset.save();
+    // Calculate new dataset metadata and update status
+    await updateDatasetMetadata(entityManager, dataset.id, IngestionStatus.INGESTED);
   } catch (error: any) {
     dataset.status = IngestionStatus.PENDING;
     await dataset.save();
