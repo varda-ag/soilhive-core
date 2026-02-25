@@ -1,4 +1,4 @@
-import { useState, useMemo, type ChangeEvent } from 'react';
+import { useState } from 'react';
 import { Accordion, SelectionPills } from 'components/UI';
 import { Checkbox } from 'components/UI/Checkbox/Checkbox';
 import type { Selection } from 'types/components';
@@ -6,68 +6,44 @@ import styles from './RasterFilter.module.scss';
 
 interface RasterFilterProps {
   category: {
-    id: string;
     name: string;
-    mapping: Record<string, number>;
     enabled: boolean;
   };
+  availableOptions: { label: string; value: number }[];
   selectedValues: number[];
+  pillSelections: Selection[];
   onChange: (selected: number[]) => void;
+  onPillRemove: (id: string) => void;
 }
 
-export function RasterFilter({ category, selectedValues, onChange }: RasterFilterProps) {
+export function RasterFilter({ category, availableOptions, selectedValues, pillSelections, onChange, onPillRemove }: RasterFilterProps) {
   const [searchTerm, setSearchTerm] = useState('');
 
-  const handleSearch = (e: ChangeEvent<HTMLInputElement>) => {
-    setSearchTerm(e.target.value);
-  };
+  if (!category.enabled) return null;
 
-  const options = useMemo(() => {
-    return Object.entries(category.mapping)
-      .map(([label, value]) => ({ label, value }))
-      .filter(opt => opt.label.toLowerCase().includes(searchTerm.toLowerCase()));
-  }, [category.mapping, searchTerm]);
-
-  const pillSelections = useMemo((): Selection[] => {
-    return Object.entries(category.mapping)
-      .filter(([_, value]) => selectedValues.includes(value))
-      .map(([label, value]) => ({
-        id: value.toString(),
-        label: label,
-      }));
-  }, [category.mapping, selectedValues]);
+  const filtered = availableOptions.filter(opt => opt.label.toLowerCase().includes(searchTerm.toLowerCase()));
 
   const handleCheckboxChange = (value: number, checked: boolean) => {
     const nextValues = checked ? [...selectedValues, value] : selectedValues.filter(v => v !== value);
     onChange(nextValues);
   };
 
-  const handleRemovePill = (id: string) => {
-    onChange(selectedValues.filter(v => v !== parseInt(id, 10)));
-  };
-
-  // If category is disabled, don't show the panel
-  if (!category.enabled) {
-    return null;
-  }
-
   return (
     <Accordion
       title={category.name}
       type="secondary"
-      pillsSlot={pillSelections.length > 0 && <SelectionPills selections={pillSelections} onRemove={handleRemovePill} />}
+      pillsSlot={pillSelections.length > 0 && <SelectionPills selections={pillSelections} onRemove={onPillRemove} />}
     >
       <div className={styles.Content}>
         <input
           type="text"
           placeholder={`Search ${category.name.toLowerCase()}`}
           value={searchTerm}
-          onChange={handleSearch}
+          onChange={e => setSearchTerm(e.target.value)}
           className={styles.SearchInput}
         />
-
         <div className={styles.CheckboxList}>
-          {options.map(option => (
+          {filtered.map(option => (
             <Checkbox
               key={option.value}
               label={option.label}

@@ -12,10 +12,24 @@ export function FilteringSidebarLandEcosystem() {
   return (
     <>
       {agro.categoryData?.enabled && (
-        <RasterFilter category={agro.categoryData} selectedValues={agro.selectedValues} onChange={agro.handleOnChange} />
+        <RasterFilter
+          category={agro.categoryData}
+          availableOptions={agro.availableOptions}
+          selectedValues={agro.selectedValues}
+          pillSelections={agro.pillSelections}
+          onChange={agro.handleOnChange}
+          onPillRemove={agro.handlePillRemove}
+        />
       )}
       {land.categoryData?.enabled && (
-        <RasterFilter category={land.categoryData} selectedValues={land.selectedValues} onChange={land.handleOnChange} />
+        <RasterFilter
+          category={land.categoryData}
+          availableOptions={land.availableOptions}
+          selectedValues={land.selectedValues}
+          pillSelections={land.pillSelections}
+          onChange={land.handleOnChange}
+          onPillRemove={land.handlePillRemove}
+        />
       )}
     </>
   );

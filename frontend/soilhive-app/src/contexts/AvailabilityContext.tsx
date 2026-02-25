@@ -27,6 +27,7 @@ type AvailabilityContextType = {
   allDatasets: AvailabilityDataset[];
   filteredDatasets: FilteredDataset[];
   availableDatasets: FilteredDataset[];
+  geometryFilterResults: FilteredDataset[] | undefined;
   datasets: AvailabilityDataset[];
   selectedDatasets: string[];
   isAllSelected: boolean;
@@ -238,6 +239,7 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
         categories: categories || [],
         allDatasets,
         filteredDatasets: fullFilterResults ?? [],
+        geometryFilterResults,
         datasets,
         selectedDatasets,
         isAllSelected,

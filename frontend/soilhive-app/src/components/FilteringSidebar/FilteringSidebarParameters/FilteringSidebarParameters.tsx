@@ -206,7 +206,14 @@ export function FilteringSidebarParameters() {
         )}
       </Accordion>
       {soilGroups.categoryData?.enabled && (
-        <RasterFilter category={soilGroups.categoryData} selectedValues={soilGroups.selectedValues} onChange={soilGroups.handleOnChange} />
+        <RasterFilter
+          category={soilGroups.categoryData}
+          availableOptions={soilGroups.availableOptions}
+          selectedValues={soilGroups.selectedValues}
+          pillSelections={soilGroups.pillSelections}
+          onChange={soilGroups.handleOnChange}
+          onPillRemove={soilGroups.handlePillRemove}
+        />
       )}
     </div>
   );
