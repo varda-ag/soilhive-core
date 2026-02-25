@@ -18,6 +18,7 @@ import {
   syntheticIngestionDataOptions,
 } from '../../src/utils/mock';
 import { getDataAdminToken } from '../helper';
+import { getRawTableName } from '../../src/utils/utils';
 
 const getJob = (dataset_id: string): Job<BulkLoadJob> => {
   return {
@@ -46,7 +47,7 @@ describe('BulkLoader class', () => {
     delete options.columnMapping.bdfiod.min_val;
     delete options.columnMapping.drop_records;
 
-    const { dataset } = await addSyntheticIngestionData({ ...options });
+    const { dataset, file } = await addSyntheticIngestionData({ ...options });
 
     expect(dataset.status).toBe(IngestionStatus.PENDING);
 
@@ -75,6 +76,11 @@ describe('BulkLoader class', () => {
     const datasets = await repo.find();
     expect(datasets.length).toBe(1);
     expect(datasets[0].status).toBe(IngestionStatus.INGESTED);
+
+    const queryRunner = dataSource.createQueryRunner();
+    const rawTableName = getRawTableName(file.id);
+    const rawTableExists = await queryRunner.hasTable(rawTableName);
+    expect(rawTableExists).toBeFalsy();
 
     mockMakeRequest.mockRestore();
   });

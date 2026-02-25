@@ -17,8 +17,10 @@ import DatasetService from '../../services/DatasetService';
 import { IngestionStatus } from '../../types/data';
 import { getEntityManager } from '../../utils/data-source';
 import { ErrorResponse } from '../../utils/error';
-import { getLoopbackUrl } from '../../utils/utils';
+import { getLoopbackUrl, getRawTableName } from '../../utils/utils';
 import { updateDatasetMetadata } from './UpdateDatasetMetadata';
+import { FileStorage } from '@flystorage/file-storage';
+import FileService from '../../services/FileService';
 
 export async function processBulkLoad(job: Job<BulkLoadJob>): Promise<void> {
   const { data } = job;
@@ -42,6 +44,14 @@ export async function processBulkLoad(job: Job<BulkLoadJob>): Promise<void> {
       await processFile(file, requestData, datasetFileMapping, data.dataset_id);
       file.status = IngestionStatus.INGESTED;
       await file.save();
+      // Delete raw table
+      const rawTableName = getRawTableName(file.id);
+      await entityManager.query(`DROP TABLE IF EXISTS "${process.env.POSTGRES_SCHEMA}"."${rawTableName}"`);
+      if (data.delete_source_files) {
+        // Delete source files
+        const storage: FileStorage = FileService.getStorageEngine();
+        storage.deleteFile(file.file_path);
+      }
     }
 
     // Calculate new dataset metadata and update status
