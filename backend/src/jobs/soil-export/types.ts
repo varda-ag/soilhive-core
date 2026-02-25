@@ -17,7 +17,7 @@ export enum FileFormat {
  */
 export interface SoilExportJobPayload {
   filterId: string;
-  dataset_slugs: string[];
+  dataset_ids: string[];
   file_format: FileFormat;
 }
 

@@ -67,7 +67,9 @@ describe('Testing /jobs routes', () => {
 
     // Create export job (without token)
     const mockId = '960ee487-a6bd-4da8-8ef0-da6ef23d0e80';
-    const exportRes = await request(app).post('/jobs').send({ type: 'export', filter_id: mockId, format: 'csv' });
+    const exportRes = await request(app)
+      .post('/jobs')
+      .send({ type: 'export', filter_id: mockId, format: 'csv', dataset_ids: ['fake_dataset'] });
     expect(exportRes.statusCode).toBe(201);
     expect(exportRes.body).toHaveProperty('id');
 

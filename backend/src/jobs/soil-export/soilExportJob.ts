@@ -13,7 +13,7 @@ import { createSignedPath } from '../../utils/presigned-url';
 
 export async function processExportJob(job: Job<ExportJob>): Promise<void> {
   const { id: jobId, data } = job;
-  const { filter_id, dataset_slugs, format } = data;
+  const { filter_id, dataset_ids, format } = data;
 
   const file_format = parseFileFormat(format);
   const entityManager = await getEntityManager();
@@ -23,7 +23,7 @@ export async function processExportJob(job: Job<ExportJob>): Promise<void> {
 
   try {
     // Get total records for progress tracking
-    const total_records_estimate = await getTotalRecordsCount(entityManager, { filterId: filter_id, dataset_slugs, file_format });
+    const total_records_estimate = await getTotalRecordsCount(entityManager, { filterId: filter_id, dataset_ids, file_format });
 
     await updateJobState(jobId, {
       ...data,
@@ -34,7 +34,7 @@ export async function processExportJob(job: Job<ExportJob>): Promise<void> {
     });
 
     // Create README placeholder
-    await createReadmeFile(tempDir, { filterId: filter_id, dataset_slugs, file_format });
+    await createReadmeFile(tempDir, { filterId: filter_id, dataset_ids, file_format });
 
     // Initialize writer
     const writer = new GeoFileWriter(file_format);
@@ -52,7 +52,7 @@ export async function processExportJob(job: Job<ExportJob>): Promise<void> {
       }
 
       // 1. Fetch batch
-      const batch = await fetchBatch(entityManager, { filterId: filter_id, dataset_slugs, file_format }, cursor);
+      const batch = await fetchBatch(entityManager, { filterId: filter_id, dataset_ids, file_format }, cursor);
 
       if (!batch || batch.length === 0) {
         break;
