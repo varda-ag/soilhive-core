@@ -73,7 +73,7 @@ export default class SoilDataStorage {
       max_sampling_date: row.max_sampling_date,
       min_depth: row.min_depth !== null ? parseFloat(row.min_depth) : null,
       max_depth: row.max_depth !== null ? parseFloat(row.max_depth) : null,
-      horizons: row.horizons ? row.horizons.split(',') : [],
+      // TODO: to be restored | horizons: row.horizons ? row.horizons.split(',') : [],
       soil_properties: row.soil_properties ? row.soil_properties.split(',') : [],
       //raster_filters // TODO: assess feasibility
       dataset_layer_count: parseInt(row.dataset_layer_count),
@@ -268,7 +268,7 @@ const dataRowTranslation = (row: any, sort?: string): SoilDataSample => {
     sampling_date: row.sampling_date,
     min_depth: row.min_depth !== null ? parseFloat(row.min_depth) : null,
     max_depth: row.max_depth !== null ? parseFloat(row.max_depth) : null,
-    horizon: row.horizon,
+    // TODO: to be restored | horizon: row.horizon,
     sample_pretreatment: row.sample_pretreatment,
     technique: row.technique,
     laboratory_method: row.laboratory_method,
