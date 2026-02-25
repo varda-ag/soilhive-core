@@ -828,7 +828,6 @@ paths:
               - extraction_base
               - extraction_ratio
               - geometry
-              - horizon
               - measurement_procedure
               - license_name
               - limit_of_detection
@@ -848,7 +847,6 @@ paths:
               - -extraction_base
               - -extraction_ratio
               - -geometry
-              - -horizon
               - -measurement_procedure
               - -license_name
               - -limit_of_detection
@@ -1395,10 +1393,6 @@ components:
           type: number
           nullable: true
           description: Maximum sampling depth in centimeters
-        horizon:
-          type: string
-          nullable: true
-          description: Soil horizon name or code
         sample_pretreatment:
           type: string
           nullable: true
@@ -1627,9 +1621,6 @@ components:
               format: date-time
               nullable: true
         license:
-          type: string
-          nullable: true
-        horizon:
           type: string
           nullable: true
         max_depth:

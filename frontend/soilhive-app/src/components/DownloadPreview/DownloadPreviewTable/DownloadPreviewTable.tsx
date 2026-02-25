@@ -15,7 +15,7 @@ const columns = [
   { name: 'Depth (max)', value: 'max_depth' },
   { name: 'Value', value: 'value' },
   { name: 'Standard unit', value: 'standard_unit' },
-  { name: 'Horizon', value: 'horizon' },
+  // TODO: to be restored | { name: 'Horizon', value: 'horizon' },
   { name: 'Technique', value: 'technique' },
   { name: 'Soil property', value: 'soil_property' },
   { name: 'Soil property acronym', value: 'property_acronym' },
@@ -52,7 +52,7 @@ function DownloadPreviewTable({
     'min_depth',
     'max_depth',
     'value',
-    'horizon',
+    // TODO: to be restored | 'horizon',
     'technique',
     'license_name',
   ]);
