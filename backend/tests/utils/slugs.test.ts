@@ -60,7 +60,7 @@ describe('getEntity', () => {
 
   it('should throw NOT_FOUND when slug and slug history do not exist', async () => {
     await expect(getEntity(requestData, SoilPropertyCategoryEntity, EntityType.SOIL_PROPERTY_CATEGORY, 'missing-slug')).rejects.toThrow(
-      "Entity with slug 'missing-slug' not found",
+      "Resource 'missing-slug' not found",
     );
   });
 
@@ -70,7 +70,7 @@ describe('getEntity', () => {
       entity_type: EntityType.FILE,
       entity_id: uuidv7(),
     });
-    await expect(getEntity(requestData, FileEntity, EntityType.FILE, 'old-slug')).rejects.toThrow("Entity with slug 'old-slug' not found");
+    await expect(getEntity(requestData, FileEntity, EntityType.FILE, 'old-slug')).rejects.toThrow("Resource 'old-slug' not found");
   });
 });
 

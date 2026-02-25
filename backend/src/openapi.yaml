@@ -630,6 +630,45 @@ paths:
               schema:
                 $ref: '#/components/schemas/SoilPropertyCategory'
 
+  /licenses:
+    get:
+      x-eov-operation-handler: controllers/licenses
+      x-eov-operation-id: getLicenses
+      summary: Get licenses
+      tags:
+        - licenses
+      responses:
+        '200':
+          description: Array of licenses
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/License'
+
+  /licenses/{licenseId}:
+    parameters:
+      - name: licenseId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: License ID
+    get:
+      x-eov-operation-handler: controllers/licenses
+      x-eov-operation-id: getLicense
+      summary: Get specific license by ID
+      tags:
+        - licenses
+      responses:
+        '200':
+          description: License information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/License'
+
   /data-filters:
     post:
       x-eov-operation-handler: controllers/data-filters
@@ -1052,7 +1091,6 @@ paths:
           $ref: '#/components/responses/NotFound'
         '410':
           $ref: '#/components/responses/Gone'
-
 
 components:
   responses:
@@ -1582,12 +1620,12 @@ components:
       properties:
         sampling_date:
           anyOf:
-          - type: string
-            format: date
-            nullable: true
-          - type: string
-            format: date-time
-            nullable: true
+            - type: string
+              format: date
+              nullable: true
+            - type: string
+              format: date-time
+              nullable: true
         license:
           type: string
           nullable: true
@@ -1750,3 +1788,29 @@ components:
             - $ref: '#/components/schemas/BulkLoadJob'
             - $ref: '#/components/schemas/ExportJob'
             - $ref: '#/components/schemas/FileToDbJob'
+
+    License:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        full_name:
+          type: string
+          nullable: true
+        url:
+          type: string
+          format: uri
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+        - id
+        - name
+        - created_at
