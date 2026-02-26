@@ -53,6 +53,7 @@ jest.mock('../../src/contexts/AvailabilityContext', () => {
   return {
     __esModule: true,
     AvailabilityContext: React.createContext({
+      availableDatasets: [{ id: 'test-dataset' }],
       setGeometryFilter: mockSetGeometryFilter,
       setBoundingBox: jest.fn(),
       setLocationName: jest.fn(),
