@@ -8,7 +8,7 @@ import styles from './FilteringSidebarContent.module.scss';
 export function FilteringSidebarContent() {
   const { allRasterCategories } = useAvailability();
 
-  const hasRasterFilters = allRasterCategories && allRasterCategories.some(cat => cat.enabled);
+  const hasRasterFilters = allRasterCategories?.some(cat => cat.id !== 'soil_groups' && cat.enabled) ?? false;
 
   return (
     <div className={styles.FilteringSidebarContent}>

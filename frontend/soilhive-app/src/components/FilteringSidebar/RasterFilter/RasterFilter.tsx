@@ -1,38 +1,31 @@
 import { useState } from 'react';
 import { Accordion, SelectionPills } from 'components/UI';
 import { Checkbox } from 'components/UI/Checkbox/Checkbox';
-import type { Selection } from 'types/components';
 import styles from './RasterFilter.module.scss';
+import { useRasterFilters } from 'hooks/useRasterFilters';
 
 interface RasterFilterProps {
-  category: {
-    name: string;
-    enabled: boolean;
-  };
-  availableOptions: { label: string; value: number }[];
-  selectedValues: number[];
-  pillSelections: Selection[];
-  onChange: (selected: number[]) => void;
-  onPillRemove: (id: string) => void;
+  categoryId: string;
 }
 
-export function RasterFilter({ category, availableOptions, selectedValues, pillSelections, onChange, onPillRemove }: RasterFilterProps) {
+export function RasterFilter({ categoryId }: RasterFilterProps) {
+  const { category, availableOptions, selectedValues, pillSelections, handleOnChange, handlePillRemove } = useRasterFilters(categoryId);
   const [searchTerm, setSearchTerm] = useState('');
 
-  if (!category.enabled) return null;
+  if (!category?.enabled) return null;
 
   const filtered = availableOptions.filter(opt => opt.label.toLowerCase().includes(searchTerm.toLowerCase()));
 
   const handleCheckboxChange = (value: number, checked: boolean) => {
     const nextValues = checked ? [...selectedValues, value] : selectedValues.filter(v => v !== value);
-    onChange(nextValues);
+    handleOnChange(nextValues);
   };
 
   return (
     <Accordion
       title={category.name}
       type="secondary"
-      pillsSlot={pillSelections.length > 0 && <SelectionPills selections={pillSelections} onRemove={onPillRemove} />}
+      pillsSlot={pillSelections.length > 0 && <SelectionPills selections={pillSelections} onRemove={handlePillRemove} />}
     >
       <div className={styles.Content}>
         <input

@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import useAvailability from './useAvailability';
 import { type Selection } from '../types/components';
 
-export function useRasterFilters(categoryId?: 'agroecological_zones' | 'land_cover' | 'soil_groups') {
+export function useRasterFilters(categoryId?: string) {
   const { datasetFilters, setDatasetFilters, geometryFilterResults, allRasterCategories, isLoadingRasterCategories } = useAvailability();
 
   // These are all the options for a given raster filter category (e.g. soil_group), regardeless of the geometry

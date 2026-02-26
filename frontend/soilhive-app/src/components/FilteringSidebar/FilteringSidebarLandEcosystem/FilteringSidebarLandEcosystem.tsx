@@ -1,32 +1,16 @@
 import { RasterFilter } from 'components/FilteringSidebar/RasterFilter/RasterFilter';
-import { useRasterFilters } from 'hooks/useRasterFilters';
+import useAvailability from 'hooks/useAvailability';
 
 export function FilteringSidebarLandEcosystem() {
-  const agro = useRasterFilters('agroecological_zones');
-  const land = useRasterFilters('land_cover');
+  const { allRasterCategories } = useAvailability();
+
+  const dynamicCategories = allRasterCategories?.filter(c => c.id !== 'soil_groups') ?? []; // <- soil_groups is rendered in the FilteringSidebarParameters, so we exclude it from this section
 
   return (
     <>
-      {agro.category?.enabled && (
-        <RasterFilter
-          category={agro.category}
-          availableOptions={agro.availableOptions}
-          selectedValues={agro.selectedValues}
-          pillSelections={agro.pillSelections}
-          onChange={agro.handleOnChange}
-          onPillRemove={agro.handlePillRemove}
-        />
-      )}
-      {land.category?.enabled && (
-        <RasterFilter
-          category={land.category}
-          availableOptions={land.availableOptions}
-          selectedValues={land.selectedValues}
-          pillSelections={land.pillSelections}
-          onChange={land.handleOnChange}
-          onPillRemove={land.handlePillRemove}
-        />
-      )}
+      {dynamicCategories.map(cat => (
+        <RasterFilter key={cat.id} categoryId={cat.id} />
+      ))}
     </>
   );
 }
