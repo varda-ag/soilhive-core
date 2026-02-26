@@ -162,7 +162,7 @@ export interface SoilDataSample {
   sampling_date: string | null;
   min_depth: number | null;
   max_depth: number | null;
-  horizon: string | null;
+  // TODO: to be restored | horizon: string | null;
   sample_pretreatment: string | null;
   technique: string | null;
   laboratory_method: string | null;

@@ -1,4 +1,4 @@
-import { describe, expect, it } from '@jest/globals';
+import { describe, expect, it, beforeAll, afterEach, afterAll, jest } from '@jest/globals';
 import path from 'path';
 import request from 'supertest';
 import { app } from '../../src/app';
@@ -67,7 +67,9 @@ describe('Testing /jobs routes', () => {
 
     // Create export job (without token)
     const mockId = '960ee487-a6bd-4da8-8ef0-da6ef23d0e80';
-    const exportRes = await request(app).post('/jobs').send({ type: 'export', filter_id: mockId, format: 'csv' });
+    const exportRes = await request(app)
+      .post('/jobs')
+      .send({ type: 'export', filter_id: mockId, format: 'csv', dataset_ids: ['fake_dataset'] });
     expect(exportRes.statusCode).toBe(201);
     expect(exportRes.body).toHaveProperty('id');
 
@@ -173,4 +175,10 @@ describe('Testing /jobs routes', () => {
     }
     await Promise.all(promises);
   }, 10000);
+
+  it('POST /jobs fails if required fields are missing', async () => {
+    const mockId = '960ee487-a6bd-4da8-8ef0-da6ef23d0e80';
+    const res = await request(app).post('/jobs').send({ type: 'export', filter_id: mockId, format: 'csv' }); // Missing dataset_ids
+    expect(res.statusCode).toBe(400);
+  });
 });
