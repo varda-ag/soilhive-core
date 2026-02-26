@@ -17,7 +17,7 @@ import DatasetService from '../../services/DatasetService';
 import { IngestionStatus } from '../../types/data';
 import { getEntityManager } from '../../utils/data-source';
 import { ErrorResponse } from '../../utils/error';
-import { getLoopbackUrl } from '../../utils/utils';
+import { getLoopbackUrl, signToken } from '../../utils/utils';
 
 export async function processBulkLoad(job: Job<BulkLoadJob>): Promise<void> {
   const { data } = job;
@@ -100,6 +100,8 @@ const processFile = async (
 export const makeRequest = (datasetSlug: string, datasetFileMappingId: string, payload: any) =>
   new Promise((resolve, reject) => {
     const postData = JSON.stringify(payload);
+    const token = signToken('internal-request');
+
     const url = new URL(`${getLoopbackUrl()}/datasets/${datasetSlug}/dataset-file-mapping/${datasetFileMappingId}/soil-data`);
     const options = {
       method: 'POST',
@@ -107,6 +109,7 @@ export const makeRequest = (datasetSlug: string, datasetFileMappingId: string, p
       headers: {
         'Content-Type': 'application/json',
         'Content-Length': Buffer.byteLength(postData),
+        Authorization: `Bearer ${token}`,
       },
     };
     const clientReq = http.request(url, options, serverRes => {
@@ -114,7 +117,7 @@ export const makeRequest = (datasetSlug: string, datasetFileMappingId: string, p
       serverRes.on('data', chunk => (data += chunk));
       serverRes.on('end', () => {
         if (serverRes.statusCode !== 201) {
-          reject(new ErrorResponse('Failed to load data', serverRes.statusCode));
+          reject(new ErrorResponse(`Failed to load data: ${data}`, serverRes.statusCode));
         } else {
           const response = { status: serverRes.statusCode, data: data ? JSON.parse(data) : undefined };
           resolve(response);

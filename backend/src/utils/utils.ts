@@ -1,5 +1,7 @@
 import path from 'path';
 import { config } from 'dotenv';
+import jwt from 'jsonwebtoken';
+import assert from 'assert';
 
 export const isJest = () => process.env.JEST_WORKER_ID !== undefined || process.env.NODE_ENV === 'test';
 
@@ -53,4 +55,19 @@ export const getLoopbackUrl = (): string => {
 
 export const getRawTableName = (fileId: string): string => {
   return `file_${sanitizeField(fileId)}_raw`;
+};
+
+export const signToken = (payload: string | object | Buffer, expiresIn?: number, header?: any) => {
+  assert(process.env.SELF_SIGNING_SECRET, 'Self-signing secret is not defined');
+  let signOpts: any = {
+    algorithm: 'HS256',
+  };
+  if (expiresIn) {
+    signOpts = { ...signOpts, expiresIn };
+  }
+  if (header) {
+    signOpts = { ...signOpts, header };
+  }
+  const token = jwt.sign(payload, process.env.SELF_SIGNING_SECRET, signOpts);
+  return token;
 };

@@ -52,21 +52,30 @@ export default class DataMappingService {
     const dataMappingEntity = await this.getDataMapping(requestData, id);
     const data_mapping = dataMappingEntity.data_mapping;
 
-    const conversionSlugs: string[] = Object.values(data_mapping)
-      .filter(
-        mapping =>
-          typeof mapping === 'object' && (mapping as PropertyMapping).conversion_id && (mapping as PropertyMapping).conversion_id !== null,
-      )
-      .map(mapping => (mapping as PropertyMapping).conversion_id!);
+    const conversionSlugs: string[] = [
+      ...new Set(
+        Object.values(data_mapping)
+          .filter(
+            mapping =>
+              typeof mapping === 'object' &&
+              (mapping as PropertyMapping).conversion_id &&
+              (mapping as PropertyMapping).conversion_id !== null,
+          )
+          .map(mapping => (mapping as PropertyMapping).conversion_id!),
+      ),
+    ];
 
     const ucService = new UnitConversionService();
     const ucInfos = await ucService.getUnitConversionsBySlug(requestData, conversionSlugs);
 
     let ucInfoMap: Map<string, UnitConversionEntity>;
-
-    const propertySlugs: string[] = Object.values(data_mapping)
-      .filter(mapping => typeof mapping === 'object' && (mapping as PropertyMapping).property_id !== undefined)
-      .map(mapping => (mapping as PropertyMapping).property_id);
+    const propertySlugs: string[] = [
+      ...new Set(
+        Object.values(data_mapping)
+          .filter(mapping => typeof mapping === 'object' && (mapping as PropertyMapping).property_id !== undefined)
+          .map(mapping => (mapping as PropertyMapping).property_id),
+      ),
+    ];
 
     const spService = new SoilPropertyService();
     const spInfos = await spService.getSoilPropertiesBySlug(requestData, propertySlugs);
@@ -79,12 +88,18 @@ export default class DataMappingService {
       {} as Map<string, SoilPropertyEntity>,
     );
 
-    const procedureSlugs: string[] = Object.values(data_mapping)
-      .filter(
-        mapping =>
-          typeof mapping === 'object' && (mapping as PropertyMapping).procedure_id && (mapping as PropertyMapping).procedure_id !== null,
-      )
-      .map(mapping => (mapping as PropertyMapping).procedure_id!);
+    const procedureSlugs: string[] = [
+      ...new Set(
+        Object.values(data_mapping)
+          .filter(
+            mapping =>
+              typeof mapping === 'object' &&
+              (mapping as PropertyMapping).procedure_id &&
+              (mapping as PropertyMapping).procedure_id !== null,
+          )
+          .map(mapping => (mapping as PropertyMapping).procedure_id!),
+      ),
+    ];
 
     const pService = new ProcedureService();
     const pInfos = await pService.getProceduresBySlug(requestData, procedureSlugs);

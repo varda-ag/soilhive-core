@@ -1,9 +1,9 @@
-import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
 import { AuthConfig } from '../interfaces/AuthConfig';
 import { AuthModes, TokenScopes } from '../types/enums';
 import ConfigService from './ConfigService';
 import { ErrorResponse } from '../utils/error';
+import { signToken } from '../utils/utils';
 import { StatusCodes } from 'http-status-codes';
 import { TokenResponse } from '../interfaces/Token';
 
@@ -37,11 +37,7 @@ export default class AuthService {
       throw new ErrorResponse('Invalid password', StatusCodes.UNAUTHORIZED);
     }
 
-    return jwt.sign(payload, process.env.SELF_SIGNING_SECRET!, {
-      expiresIn: TOKEN_EXPIRATION_SECONDS,
-      algorithm: 'HS256',
-      header: { alg: 'HS256', kid: 'kid' },
-    });
+    return signToken(payload, TOKEN_EXPIRATION_SECONDS, { alg: 'HS256', kid: 'kid' });
   };
 
   getTokenResponse = (token: string): TokenResponse => {

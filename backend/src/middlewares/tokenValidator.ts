@@ -8,7 +8,6 @@ import { AuthModes, TokenScopes } from '../types/enums';
 import assert from 'assert';
 import { AuthConfig } from '../interfaces/AuthConfig';
 import ConfigService from '../services/ConfigService';
-import { getLoopbackUrl } from '../utils/utils';
 
 // Global JWKS client based on env var to fetch the public key
 let client: any | undefined = undefined;
@@ -53,13 +52,6 @@ export const tokenValidator = async (req: Request, scopes: string[]): Promise<bo
     throw new ErrorResponse('No authentication system has been configured in the platform', StatusCodes.UNAUTHORIZED);
   }
 
-  const loopbackURL = new URL(getLoopbackUrl());
-  const isInternalBulkLoadReq =
-    req.hostname.startsWith(loopbackURL.hostname) && req.method == 'POST' && req.path.split('/').at(-1) == 'soil-data';
-  if (isInternalBulkLoadReq) {
-    return true; // skips validation for internal requests
-  }
-
   const tokenString = req.headers['authorization']?.split(' ')[1];
   if (!tokenString) {
     // No token has been provided
@@ -72,6 +64,13 @@ export const tokenValidator = async (req: Request, scopes: string[]): Promise<bo
     throw new ErrorResponse('Invalid token (header decode failure)', StatusCodes.UNAUTHORIZED);
   }
   const kid = decodedHeader.header.kid;
+  // Check internal request
+  const decodedInternal = jwt.verify(tokenString, process.env.SELF_SIGNING_SECRET!, {
+    algorithms: ['HS256'],
+  }) as JwtPayload;
+  if (typeof decodedInternal === 'string' && decodedInternal === 'internal-request') {
+    return true;
+  }
   if (!kid) {
     throw new ErrorResponse('Invalid token (no kid)', StatusCodes.UNAUTHORIZED);
   }
