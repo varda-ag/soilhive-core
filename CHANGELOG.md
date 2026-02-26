@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.39.0 (2026-02-26)
+
+## What's Changed
+* feat: sp-4925 changed dataset and soil properties filters in preview page by @cristbello in https://github.com/varda-ag/soilhive-core/pull/229
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.38.2...v0.39.0
+
+## 0.38.2 (2026-02-26)
+
+## What's Changed
+* fix(be): sp-4689 export job fix by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/242
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.38.1...v0.38.2
+
 ## 0.38.1 (2026-02-25)
 
 ## What's Changed

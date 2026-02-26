@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from '@jest/globals';
-import jwt from 'jsonwebtoken';
 import { createSignedPath, verifySignedPath } from '../../src/utils/presigned-url';
+import { signToken } from '../../src/utils/utils';
 
 describe('Testing signed URL utilities', () => {
   beforeEach(() => {
@@ -39,10 +39,7 @@ describe('Testing signed URL utilities', () => {
     });
 
     it('should throw 410 if token is expired', () => {
-      const token = jwt.sign({ filePath: '/files/myfile.csv' }, process.env.SELF_SIGNING_SECRET!, {
-        expiresIn: -1, // already expired
-        algorithm: 'HS256',
-      });
+      const token = signToken({ filePath: '/files/myfile.csv' }, -1); // already expired
       expect(() => verifySignedPath('/files/myfile.csv', token)).toThrow(expect.objectContaining({ message: 'Download link has expired' }));
     });
 

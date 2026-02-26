@@ -332,6 +332,12 @@ paths:
                 - $ref: '#/components/schemas/BulkLoadJob'
                 - $ref: '#/components/schemas/ExportJob'
                 - $ref: '#/components/schemas/FileToDbJob'
+              discriminator:
+                propertyName: type
+                mapping:
+                  bulk-load: '#/components/schemas/BulkLoadJob'
+                  export: '#/components/schemas/ExportJob'
+                  file-to-db: '#/components/schemas/FileToDbJob'
       responses:
         '201':
           description: Async job started successfull
@@ -1066,7 +1072,7 @@ paths:
       x-eov-operation-id: download
       summary: Download a file with temporary access token
       tags:
-        - TODO (to be removed or specialized)
+        - files
       parameters:
         - in: query
           name: token
@@ -1766,15 +1772,29 @@ components:
 
     ExportJob:
       type: object
+      required:
+        - type
+        - filter_id
+        - dataset_ids
+        - format
       properties:
         type:
           type: string
           enum: [export]
           description: Job type
-        filterId:
+        filter_id:
           type: string
           format: uuid
           description: Filter ID to specify which data to export
+        dataset_ids:
+          type: array
+          items:
+            type: string
+          description: list of dataset IDs to include in the export
+        format:
+          type: string
+          enum: [csv, excel, json, geojson, shapefile]
+          description: Export file format
 
     FileToDbJob:
       type: object

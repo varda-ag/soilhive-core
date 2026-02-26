@@ -1,4 +1,5 @@
-import path from 'path';
+import { signToken } from '../../src/utils/utils';
+import { ErrorResponse } from '../../src/utils/error';
 import { Job } from 'pg-boss';
 import request from 'supertest';
 import { validate } from 'uuid';
@@ -17,7 +18,6 @@ import {
   syntheticDataOptions,
   syntheticIngestionDataOptions,
 } from '../../src/utils/mock';
-import { getDataAdminToken } from '../helper';
 import { getRawTableName } from '../../src/utils/utils';
 
 const getJob = (dataset_id: string): Job<BulkLoadJob> => {
@@ -36,10 +36,6 @@ const getJob = (dataset_id: string): Job<BulkLoadJob> => {
 };
 
 describe('BulkLoader class', () => {
-  beforeEach(() => {
-    process.env.LOCAL_STORAGE_ROOT_FOLDER = path.join(__dirname, '../assets/vector_files/pass');
-  });
-
   it('Bulk loading synthetic data', async () => {
     // Clone options and remove filters
     const options = JSON.parse(JSON.stringify(syntheticIngestionDataOptions));
@@ -50,8 +46,7 @@ describe('BulkLoader class', () => {
     const { dataset, file } = await addSyntheticIngestionData({ ...options });
 
     expect(dataset.status).toBe(IngestionStatus.PENDING);
-
-    const token = await getDataAdminToken();
+    const token = signToken('internal-request');
 
     const mockMakeRequest = jest
       .spyOn(BulkLoaderModule, 'makeRequest')
@@ -88,7 +83,20 @@ describe('BulkLoader class', () => {
   it('Bulk loading treats POST /soil-data error properly', async () => {
     const { dataset } = await addSyntheticIngestionData({ ...syntheticIngestionDataOptions });
 
-    const mockMakeRequest = jest.spyOn(BulkLoaderModule, 'makeRequest').mockRejectedValue(new Error('Mock Server Error'));
+    const token = signToken('failing-token');
+
+    const mockMakeRequest = jest
+      .spyOn(BulkLoaderModule, 'makeRequest')
+      .mockImplementation(async (datasetSlug: string, datasetFileMappingId: string, payload: any) => {
+        const response = await request(app)
+          .post(`/datasets/${datasetSlug}/dataset-file-mapping/${datasetFileMappingId}/soil-data`)
+          .set('Authorization', `Bearer ${token}`)
+          .send(payload);
+        if (response.statusCode !== 201) {
+          throw new ErrorResponse(`Failed to load data`, response.statusCode);
+        }
+        return response;
+      });
 
     await expect(BulkLoaderModule.processBulkLoad(getJob(dataset.slug))).rejects.toThrow();
 

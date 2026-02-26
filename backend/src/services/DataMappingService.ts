@@ -52,24 +52,30 @@ export default class DataMappingService {
     const dataMappingEntity = await this.getDataMapping(requestData, id);
     const data_mapping = dataMappingEntity.data_mapping;
 
-    const conversionSlugs: string[] = Object.values(data_mapping)
-      .filter(mapping => typeof mapping === 'object' && (mapping as PropertyMapping).conversion_id !== undefined)
-      .map(mapping => (mapping as PropertyMapping).conversion_id!);
+    const conversionSlugs: string[] = [
+      ...new Set(
+        Object.values(data_mapping)
+          .filter(
+            mapping =>
+              typeof mapping === 'object' &&
+              (mapping as PropertyMapping).conversion_id &&
+              (mapping as PropertyMapping).conversion_id !== null,
+          )
+          .map(mapping => (mapping as PropertyMapping).conversion_id!),
+      ),
+    ];
 
     const ucService = new UnitConversionService();
     const ucInfos = await ucService.getUnitConversionsBySlug(requestData, conversionSlugs);
 
-    const ucInfoMap = ucInfos.reduce(
-      (acc, info) => {
-        acc[info.slug] = info;
-        return acc;
-      },
-      {} as Map<string, UnitConversionEntity>,
-    );
-
-    const propertySlugs: string[] = Object.values(data_mapping)
-      .filter(mapping => typeof mapping === 'object' && (mapping as PropertyMapping).property_id !== undefined)
-      .map(mapping => (mapping as PropertyMapping).property_id);
+    let ucInfoMap: Map<string, UnitConversionEntity>;
+    const propertySlugs: string[] = [
+      ...new Set(
+        Object.values(data_mapping)
+          .filter(mapping => typeof mapping === 'object' && (mapping as PropertyMapping).property_id !== undefined)
+          .map(mapping => (mapping as PropertyMapping).property_id),
+      ),
+    ];
 
     const spService = new SoilPropertyService();
     const spInfos = await spService.getSoilPropertiesBySlug(requestData, propertySlugs);
@@ -82,9 +88,18 @@ export default class DataMappingService {
       {} as Map<string, SoilPropertyEntity>,
     );
 
-    const procedureSlugs: string[] = Object.values(data_mapping)
-      .filter(mapping => typeof mapping === 'object' && (mapping as PropertyMapping).procedure_id !== undefined)
-      .map(mapping => (mapping as PropertyMapping).procedure_id!);
+    const procedureSlugs: string[] = [
+      ...new Set(
+        Object.values(data_mapping)
+          .filter(
+            mapping =>
+              typeof mapping === 'object' &&
+              (mapping as PropertyMapping).procedure_id &&
+              (mapping as PropertyMapping).procedure_id !== null,
+          )
+          .map(mapping => (mapping as PropertyMapping).procedure_id!),
+      ),
+    ];
 
     const pService = new ProcedureService();
     const pInfos = await pService.getProceduresBySlug(requestData, procedureSlugs);
@@ -106,12 +121,25 @@ export default class DataMappingService {
       } else if (typeof mapping === 'object') {
         const props = mapping as PropertyMapping;
         const propsProcessed: PropertyCleaningConfig = props;
+        ucInfoMap = ucInfos
+          .filter(ucInfo => ucInfo.soil_property.slug == props.property_id)
+          .reduce(
+            (acc, info) => {
+              acc[info.slug] = info;
+              return acc;
+            },
+            {} as Map<string, UnitConversionEntity>,
+          );
         const spInfo = spInfoMap[props.property_id];
         const ucInfo = props.conversion_id ? (ucInfoMap[props.conversion_id] ?? null) : null;
         const pInfo = props.procedure_id ? (pInfoMap[props.procedure_id] ?? null) : null;
         propsProcessed.property_id = spInfo.id;
-        propsProcessed.conversion_formula = ucInfo?.conversion_formula;
-        propsProcessed.procedure_id = pInfo?.id;
+        if (ucInfo) {
+          propsProcessed.conversion_formula = ucInfo.conversion_formula;
+        }
+        if (pInfo) {
+          propsProcessed.procedure_id = pInfo.id;
+        }
         result.property_cols[sanitizedField] = propsProcessed;
       }
     }

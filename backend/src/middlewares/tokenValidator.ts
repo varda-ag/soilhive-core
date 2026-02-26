@@ -64,6 +64,13 @@ export const tokenValidator = async (req: Request, scopes: string[]): Promise<bo
     throw new ErrorResponse('Invalid token (header decode failure)', StatusCodes.UNAUTHORIZED);
   }
   const kid = decodedHeader.header.kid;
+  // Check internal request
+  const decodedInternal = jwt.verify(tokenString, process.env.SELF_SIGNING_SECRET!, {
+    algorithms: ['HS256'],
+  }) as JwtPayload;
+  if (typeof decodedInternal === 'string' && decodedInternal === 'internal-request') {
+    return true;
+  }
   if (!kid) {
     throw new ErrorResponse('Invalid token (no kid)', StatusCodes.UNAUTHORIZED);
   }

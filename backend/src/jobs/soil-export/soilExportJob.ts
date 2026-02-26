@@ -9,11 +9,10 @@ import { getTotalRecordsCount, createReadmeFile, fetchBatch, groupByProperty } f
 import { getPgBoss, PG_BOSS_SCHEMA } from '../../services/PgBoss';
 import { GeoFileWriter } from './GeoFileWriter';
 import { cleanupTempFiles, generateDownloadPath, moveToDownloadFolder, zipFiles } from './storageHelpers';
-import { createSignedPath } from '../../utils/presigned-url';
 
 export async function processExportJob(job: Job<ExportJob>): Promise<void> {
   const { id: jobId, data } = job;
-  const { filter_id, dataset_slugs, format } = data;
+  const { filter_id, dataset_ids, format } = data;
 
   const file_format = parseFileFormat(format);
   const entityManager = await getEntityManager();
@@ -23,7 +22,7 @@ export async function processExportJob(job: Job<ExportJob>): Promise<void> {
 
   try {
     // Get total records for progress tracking
-    const total_records_estimate = await getTotalRecordsCount(entityManager, { filterId: filter_id, dataset_slugs, file_format });
+    const total_records_estimate = await getTotalRecordsCount(entityManager, { filterId: filter_id, dataset_ids, file_format });
 
     await updateJobState(jobId, {
       ...data,
@@ -34,7 +33,7 @@ export async function processExportJob(job: Job<ExportJob>): Promise<void> {
     });
 
     // Create README placeholder
-    await createReadmeFile(tempDir, { filterId: filter_id, dataset_slugs, file_format });
+    await createReadmeFile(tempDir, { filterId: filter_id, dataset_ids, file_format });
 
     // Initialize writer
     const writer = new GeoFileWriter(file_format);
@@ -52,7 +51,7 @@ export async function processExportJob(job: Job<ExportJob>): Promise<void> {
       }
 
       // 1. Fetch batch
-      const batch = await fetchBatch(entityManager, { filterId: filter_id, dataset_slugs, file_format }, cursor);
+      const batch = await fetchBatch(entityManager, { filterId: filter_id, dataset_ids, file_format }, cursor);
 
       if (!batch || batch.length === 0) {
         break;
@@ -105,9 +104,7 @@ export async function processExportJob(job: Job<ExportJob>): Promise<void> {
     await zipFiles(tempDir, localZipPath);
 
     // Move zip to download folder via storage engine
-    const download_path = await moveToDownloadFolder(localZipPath, downloadPath);
-
-    const download_presigned_path = createSignedPath(download_path, 30); // token valid just the time for the client to download the file
+    const final_storage_path = await moveToDownloadFolder(localZipPath, downloadPath);
 
     // Update job state as completed
     await updateJobState(jobId, {
@@ -116,7 +113,7 @@ export async function processExportJob(job: Job<ExportJob>): Promise<void> {
       progress_description: 'Export complete',
       current_cursor: cursor ?? null,
       total_records_processed: totalRecordsProcessed,
-      download_path: download_presigned_path,
+      download_path: final_storage_path,
     });
   } finally {
     // Always cleanup temp files, even on error
