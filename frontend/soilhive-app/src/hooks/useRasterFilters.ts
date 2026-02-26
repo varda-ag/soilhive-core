@@ -64,7 +64,7 @@ export function useRasterFilters(categoryId?: 'agroecological_zones' | 'land_cov
       title: 'Failed to load raster filters',
       type: 'error',
     });
-  }, [error]);
+  }, [error, showNotification]);
 
   // These are all the options for a given raster filter category (e.g. soil_group), regardeless of the geometry
   const categoryData = useMemo(() => {

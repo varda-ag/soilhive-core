@@ -1,11 +1,20 @@
 import { RasterFilter } from '../RasterFilter/RasterFilter';
 import { useRasterFilters } from '../../../hooks/useRasterFilters';
+import Skeleton from 'react-loading-skeleton';
 
 export function FilteringSidebarLandEcosystem() {
   const agro = useRasterFilters('agroecological_zones');
   const land = useRasterFilters('land_cover');
 
-  if (agro.isLoading || (!agro.categoryData?.enabled && !land.categoryData?.enabled)) {
+  if (agro.isLoading) {
+    return (
+      <span data-testid="skeleton-container-raster-filters">
+        <Skeleton count={1} height={26} />
+      </span>
+    );
+  }
+
+  if (!agro.categoryData?.enabled && !land.categoryData?.enabled) {
     return null;
   }
 
