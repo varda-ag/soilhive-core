@@ -48,14 +48,12 @@ function Availability() {
 
   const { boundingBox, setGeometryFilter, setSelectionType, setLocationName, setBoundingBox } = useAvailability();
 
-  const handleMapSelectionChange = (event: SoilhiveMapSelectionChangeEvent) => {
-    const { bounds, geometries } = event;
-
+  const handleMapSelectionChange = ({ bounds, geometries, selectionType, locationName }: SoilhiveMapSelectionChangeEvent) => {
     const geoms = geometries ?? [bboxPolygon(bounds).geometry];
     setGeometryFilter(geoms);
     setBoundingBox(bounds);
-    setSelectionType(event.selectionType);
-    setLocationName(event.locationName);
+    setSelectionType(selectionType);
+    setLocationName(locationName);
   };
 
   return (

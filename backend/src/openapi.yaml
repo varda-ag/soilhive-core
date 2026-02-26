@@ -332,6 +332,12 @@ paths:
                 - $ref: '#/components/schemas/BulkLoadJob'
                 - $ref: '#/components/schemas/ExportJob'
                 - $ref: '#/components/schemas/FileToDbJob'
+              discriminator:
+                propertyName: type
+                mapping:
+                  bulk-load: '#/components/schemas/BulkLoadJob'
+                  export: '#/components/schemas/ExportJob'
+                  file-to-db: '#/components/schemas/FileToDbJob'
       responses:
         '201':
           description: Async job started successfull
@@ -828,7 +834,6 @@ paths:
               - extraction_base
               - extraction_ratio
               - geometry
-              - horizon
               - measurement_procedure
               - license_name
               - limit_of_detection
@@ -848,7 +853,6 @@ paths:
               - -extraction_base
               - -extraction_ratio
               - -geometry
-              - -horizon
               - -measurement_procedure
               - -license_name
               - -limit_of_detection
@@ -1068,7 +1072,7 @@ paths:
       x-eov-operation-id: download
       summary: Download a file with temporary access token
       tags:
-        - TODO (to be removed or specialized)
+        - files
       parameters:
         - in: query
           name: token
@@ -1395,10 +1399,6 @@ components:
           type: number
           nullable: true
           description: Maximum sampling depth in centimeters
-        horizon:
-          type: string
-          nullable: true
-          description: Soil horizon name or code
         sample_pretreatment:
           type: string
           nullable: true
@@ -1629,9 +1629,6 @@ components:
         license:
           type: string
           nullable: true
-        horizon:
-          type: string
-          nullable: true
         max_depth:
           type: number
           nullable: true
@@ -1736,15 +1733,29 @@ components:
 
     ExportJob:
       type: object
+      required:
+        - type
+        - filter_id
+        - dataset_ids
+        - format
       properties:
         type:
           type: string
           enum: [export]
           description: Job type
-        filterId:
+        filter_id:
           type: string
           format: uuid
           description: Filter ID to specify which data to export
+        dataset_ids:
+          type: array
+          items:
+            type: string
+          description: list of dataset IDs to include in the export
+        format:
+          type: string
+          enum: [csv, excel, json, geojson, shapefile]
+          description: Export file format
 
     FileToDbJob:
       type: object

@@ -17,7 +17,10 @@ import DatasetService from '../../services/DatasetService';
 import { IngestionStatus } from '../../types/data';
 import { getEntityManager } from '../../utils/data-source';
 import { ErrorResponse } from '../../utils/error';
-import { getLoopbackUrl, signToken } from '../../utils/utils';
+import { getLoopbackUrl, getRawTableName, signToken } from '../../utils/utils';
+import { updateDatasetMetadata } from './UpdateDatasetMetadata';
+import { FileStorage } from '@flystorage/file-storage';
+import FileService from '../../services/FileService';
 
 export async function processBulkLoad(job: Job<BulkLoadJob>): Promise<void> {
   const { data } = job;
@@ -32,6 +35,8 @@ export async function processBulkLoad(job: Job<BulkLoadJob>): Promise<void> {
 
     const mappingService = new DatasetFileMappingService();
     const datasetFileMappings = await mappingService.getMappings(requestData, dataset.slug);
+
+    // Process all pending files associated with this mapping
     const files = await getPendingFilesWithMapping(entityManager, datasetFileMappings);
     for (const file of files) {
       const datasetFileMapping = datasetFileMappings.find(m => m.file_id === file.id);
@@ -39,10 +44,18 @@ export async function processBulkLoad(job: Job<BulkLoadJob>): Promise<void> {
       await processFile(file, requestData, datasetFileMapping, data.dataset_id);
       file.status = IngestionStatus.INGESTED;
       await file.save();
+      // Delete raw table
+      const rawTableName = getRawTableName(file.id);
+      await entityManager.query(`DROP TABLE IF EXISTS "${process.env.POSTGRES_SCHEMA}"."${rawTableName}"`);
+      if (data.delete_source_files) {
+        // Delete source files
+        const storage: FileStorage = FileService.getStorageEngine();
+        storage.deleteFile(file.file_path);
+      }
     }
 
-    dataset.status = IngestionStatus.INGESTED;
-    await dataset.save();
+    // Calculate new dataset metadata and update status
+    await updateDatasetMetadata(entityManager, dataset.id, IngestionStatus.INGESTED);
   } catch (error: any) {
     dataset.status = IngestionStatus.PENDING;
     await dataset.save();

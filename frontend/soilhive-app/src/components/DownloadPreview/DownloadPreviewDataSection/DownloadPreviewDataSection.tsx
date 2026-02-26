@@ -8,6 +8,7 @@ import { useState } from 'react';
 import type { SoilDataSample, SoilProperty } from 'types/backend';
 import type { PreviewFilters } from 'types/downloadPreview';
 import type { Nullable } from 'primereact/ts-helpers';
+import type { Feature, GeoJsonProperties, MultiPolygon, Point, Polygon } from 'geojson';
 
 function DownloadPreviewDataSection({
   data = [],
@@ -15,15 +16,16 @@ function DownloadPreviewDataSection({
   onTableSort,
   onTableLastPage,
   soilProperties = [],
-  filters = {},
+  filters = { soil_properties: [] },
   calendarMinMaxRange = [undefined, undefined],
   fixedCalendarRange = null,
   depthMinMaxRange = [undefined, undefined],
   fixedDepthRange = null,
   onFiltersChange,
   datasets = [],
+  selectedDatasets,
   onDatasetsChange,
-  onPointSelected,
+  onFeatureSelected,
 }: {
   data?: SoilDataSample[];
   isDataLoading?: boolean;
@@ -37,8 +39,9 @@ function DownloadPreviewDataSection({
   filters?: PreviewFilters;
   onFiltersChange?: (newFilters: PreviewFilters) => void;
   datasets?: { id: string; name: string }[];
-  onDatasetsChange?: (dataset: string[] | undefined) => void;
-  onPointSelected?: (point: [number, number] | undefined) => void;
+  selectedDatasets?: string[];
+  onDatasetsChange?: (dataset: string[]) => void;
+  onFeatureSelected?: (feature: Feature<Point | Polygon | MultiPolygon, GeoJsonProperties> | undefined) => void;
 }) {
   const [filtersDialogOpen, setFiltersDialogOpen] = useState(false);
 
@@ -82,6 +85,7 @@ function DownloadPreviewDataSection({
           fixedCalendarRange={fixedCalendarRange}
           depthMinMaxRange={depthMinMaxRange}
           fixedDepthRange={fixedDepthRange}
+          selectedDatasets={selectedDatasets}
           onDatasetsChange={datasets => {
             resetPagination();
             onDatasetsChange?.(datasets);
@@ -100,7 +104,7 @@ function DownloadPreviewDataSection({
             onTableSort?.(sort);
           }}
           onTableLastPage={onTableLastPage}
-          onPointSelected={onPointSelected}
+          onFeatureSelected={onFeatureSelected}
         />
       </div>
     </div>

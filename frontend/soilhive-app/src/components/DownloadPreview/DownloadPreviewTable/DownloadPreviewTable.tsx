@@ -8,6 +8,8 @@ import NewspaperIcon from 'assets/icons/newspaper-icon.svg?react';
 import MapPinIcon from 'assets/icons/small-map-icon.svg?react';
 import { useState, type Dispatch, type SetStateAction } from 'react';
 import type { SoilDataSample } from 'types/backend';
+import { feature } from '@turf/turf';
+import type { Feature, GeoJsonProperties, MultiPolygon, Point, Polygon } from 'geojson';
 
 const columns = [
   { name: 'Date', value: 'sampling_date' },
@@ -15,7 +17,7 @@ const columns = [
   { name: 'Depth (max)', value: 'max_depth' },
   { name: 'Value', value: 'value' },
   { name: 'Standard unit', value: 'standard_unit' },
-  { name: 'Horizon', value: 'horizon' },
+  // TODO: to be restored | { name: 'Horizon', value: 'horizon' },
   { name: 'Technique', value: 'technique' },
   { name: 'Soil property', value: 'soil_property' },
   { name: 'Soil property acronym', value: 'property_acronym' },
@@ -37,7 +39,7 @@ function DownloadPreviewTable({
   onTableLastPage,
   first = 0,
   setFirst,
-  onPointSelected,
+  onFeatureSelected,
 }: {
   data?: SoilDataSample[];
   isDataLoading?: boolean;
@@ -45,14 +47,14 @@ function DownloadPreviewTable({
   onTableLastPage?: () => void;
   first?: number;
   setFirst?: Dispatch<SetStateAction<number>>;
-  onPointSelected?: (point: [number, number] | undefined) => void;
+  onFeatureSelected?: (feature: Feature<Point | Polygon | MultiPolygon, GeoJsonProperties> | undefined) => void;
 }) {
   const [visibleColumns, setVisibleColumns] = useState<string[]>([
     'sampling_date',
     'min_depth',
     'max_depth',
     'value',
-    'horizon',
+    // TODO: to be restored | 'horizon',
     'technique',
     'license_name',
   ]);
@@ -64,7 +66,7 @@ function DownloadPreviewTable({
       <Button
         type="tertiary"
         onClick={() => {
-          onPointSelected?.(geometry ? geometry.coordinates : undefined);
+          onFeatureSelected?.(geometry ? feature(geometry as Point | Polygon | MultiPolygon) : undefined);
         }}
       >
         {geometry && <MapPinIcon />}

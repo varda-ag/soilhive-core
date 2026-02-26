@@ -5,6 +5,7 @@ import { AnyJob, Job } from '../interfaces/Job';
 import { JobQueues } from '../types/enums';
 import { getPgBoss } from './PgBoss';
 import { JobWithMetadata } from 'pg-boss';
+import { createSignedPath } from '../utils/presigned-url';
 
 export default class JobService {
   private boss = getPgBoss();
@@ -38,7 +39,9 @@ export default class JobService {
     const jobs: JobWithMetadata<unknown>[] = results.flat();
 
     // Filter jobs to only include those created by the user
-    return jobs.map(j => this.translateJob(j)).filter(j => !sub || j.data.created_by === sub);
+    const userJobs = jobs.map(j => this.translateJob(j)).filter(j => !sub || j.data.created_by === sub);
+
+    return userJobs.map(job => this.prepareJobForResponse(job));
   };
 
   getJobById = async (requestData: RequestData, jobId: string): Promise<Job> => {
@@ -53,7 +56,7 @@ export default class JobService {
       if (job.data.created_by && job.data.created_by !== sub) {
         throw new ErrorResponse('Unauthorized to access this job', StatusCodes.UNAUTHORIZED);
       }
-      return job;
+      return this.prepareJobForResponse(job);
     }
     throw new ErrorResponse(`Job '${jobId}' not found`, StatusCodes.NOT_FOUND);
   };
@@ -77,4 +80,21 @@ export default class JobService {
       data: job.data as AnyJob,
     };
   };
+
+  private prepareJobForResponse(job: Job): Job {
+    const { data, queue, status } = job;
+
+    // Check if it's the right queue, status, and safely check for the property
+    if (queue === JobQueues.EXPORT && status === 'completed' && 'download_path' in data && data.download_path) {
+      return {
+        ...job,
+        data: {
+          ...data,
+          download_path: createSignedPath(data.download_path, 30),
+        },
+      };
+    }
+
+    return job;
+  }
 }

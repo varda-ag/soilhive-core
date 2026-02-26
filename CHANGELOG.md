@@ -1,5 +1,42 @@
 # Changelog
 
+## 0.39.0 (2026-02-26)
+
+## What's Changed
+* feat: sp-4925 changed dataset and soil properties filters in preview page by @cristbello in https://github.com/varda-ag/soilhive-core/pull/229
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.38.2...v0.39.0
+
+## 0.38.2 (2026-02-26)
+
+## What's Changed
+* fix(be): sp-4689 export job fix by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/242
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.38.1...v0.38.2
+
+## 0.38.1 (2026-02-25)
+
+## What's Changed
+* fix: migration by @svaccari in https://github.com/varda-ag/soilhive-core/pull/240
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.38.0...v0.38.1
+
+## 0.38.0 (2026-02-25)
+
+## What's Changed
+* feat: sp-4814 - notifications animation adjustments by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/232
+* feat(data): loading raw file PR2 by @svaccari in https://github.com/varda-ag/soilhive-core/pull/233
+* feat: sp-4884 - trigger debounced search on the map when typing by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/235
+* feat(data): :sparkles: added license endpoints by @svaccari in https://github.com/varda-ag/soilhive-core/pull/236
+* refactor(data): :fire: removing horizon from API responses by @svaccari in https://github.com/varda-ag/soilhive-core/pull/239
+* feat(data): :sparkles: updating dataset metadata on bulk load by @svaccari in https://github.com/varda-ag/soilhive-core/pull/238
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.37.0...v0.38.0
+
 ## 0.37.0 (2026-02-24)
 
 ## What's Changed

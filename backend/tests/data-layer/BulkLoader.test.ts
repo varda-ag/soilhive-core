@@ -1,14 +1,24 @@
-import { addSyntheticIngestionData, syntheticIngestionDataOptions, getLoadedDataCount } from '../../src/utils/mock';
-import * as BulkLoaderModule from '../../src/jobs/bulk-load/BulkLoader';
-import { BulkLoadJob } from '../../src/interfaces/Job';
-import request from 'supertest';
-import { app } from '../../src/app';
-import DatasetEntity from '../../src/entities/Dataset';
-import { getDataSource } from '../../src/utils/data-source';
-import { IngestionStatus } from '../../src/types/data';
-import { Job } from 'pg-boss';
 import { signToken } from '../../src/utils/utils';
 import { ErrorResponse } from '../../src/utils/error';
+import { Job } from 'pg-boss';
+import request from 'supertest';
+import { validate } from 'uuid';
+import { app } from '../../src/app';
+import DatasetEntity from '../../src/entities/Dataset';
+import FeatureEntity from '../../src/entities/Feature';
+import { BulkLoadJob } from '../../src/interfaces/Job';
+import * as BulkLoaderModule from '../../src/jobs/bulk-load/BulkLoader';
+import { updateDatasetMetadata } from '../../src/jobs/bulk-load/UpdateDatasetMetadata';
+import { IngestionStatus } from '../../src/types/data';
+import { getDataSource, getEntityManager } from '../../src/utils/data-source';
+import {
+  addSyntheticData,
+  addSyntheticIngestionData,
+  getLoadedDataCount,
+  syntheticDataOptions,
+  syntheticIngestionDataOptions,
+} from '../../src/utils/mock';
+import { getRawTableName } from '../../src/utils/utils';
 
 const getJob = (dataset_id: string): Job<BulkLoadJob> => {
   return {
@@ -33,7 +43,7 @@ describe('BulkLoader class', () => {
     delete options.columnMapping.bdfiod.min_val;
     delete options.columnMapping.drop_records;
 
-    const { dataset } = await addSyntheticIngestionData({ ...options });
+    const { dataset, file } = await addSyntheticIngestionData({ ...options });
 
     expect(dataset.status).toBe(IngestionStatus.PENDING);
     const token = signToken('internal-request');
@@ -61,6 +71,11 @@ describe('BulkLoader class', () => {
     const datasets = await repo.find();
     expect(datasets.length).toBe(1);
     expect(datasets[0].status).toBe(IngestionStatus.INGESTED);
+
+    const queryRunner = dataSource.createQueryRunner();
+    const rawTableName = getRawTableName(file.id);
+    const rawTableExists = await queryRunner.hasTable(rawTableName);
+    expect(rawTableExists).toBeFalsy();
 
     mockMakeRequest.mockRestore();
   });
@@ -98,5 +113,38 @@ describe('BulkLoader class', () => {
     expect(datasets[0].status).toBe(IngestionStatus.PENDING);
 
     mockMakeRequest.mockRestore();
+  });
+
+  it('updateDatasetMetadata sets data correctly', async () => {
+    const { dataset } = await addSyntheticData({
+      ...syntheticDataOptions,
+      id: 1,
+      soilPropertyNames: ['a', 'b'],
+      depthLayers: 10,
+      featureCount: 100,
+    });
+
+    const entityManager = await getEntityManager();
+    await updateDatasetMetadata(entityManager, dataset.id, IngestionStatus.RELEASED);
+
+    const datasetEntity = await entityManager.getRepository(DatasetEntity).findOneBy({ id: dataset.id });
+    expect(datasetEntity).toBeDefined();
+    expect(datasetEntity!.status).toBe(IngestionStatus.RELEASED);
+    expect(datasetEntity!.soil_depth!).toEqual({ min: 0, max: 100 });
+    expect(datasetEntity!.licenses).toEqual(['test_license_1']);
+    expect(datasetEntity!.reference_period_start).toEqual('2021-01-01');
+    expect(datasetEntity!.reference_period_stop).toEqual('2021-01-01');
+    const isValidUUID1 = validate(datasetEntity!.measured_properties![0].soil_property_id);
+    const isValidUUID2 = validate(datasetEntity!.measured_properties![0].procedure_id);
+    expect(isValidUUID1).toBeFalsy();
+    expect(isValidUUID2).toBeFalsy();
+
+    const features = await entityManager.getRepository(FeatureEntity).find();
+    const x = features.map(f => f.geom.coordinates[0]);
+    const y = features.map(f => f.geom.coordinates[1]);
+    const minX = x.reduce((min, current) => (current < min ? current : min), x[0]);
+    const minY = y.reduce((min, current) => (current < min ? current : min), y[0]);
+    expect(datasetEntity!.spatial_extent?.coordinates[0][0][0]).toBe(minX);
+    expect(datasetEntity!.spatial_extent?.coordinates[0][0][1]).toBe(minY);
   });
 });

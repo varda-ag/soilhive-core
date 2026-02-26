@@ -8,6 +8,7 @@ import LayersIcon from 'assets/icons/layers-icon.svg?react';
 import MapPinIcon from 'assets/icons/map-pin-icon.svg?react';
 import WorldIcon from 'assets/icons/world-icon.svg?react';
 import useDevice from 'hooks/useDevice';
+import type { Feature, GeoJsonProperties, MultiPolygon, Point, Polygon } from 'geojson';
 
 // console.debug(numberFormatter.format(1234567));
 // Output: "1.234.567"
@@ -16,8 +17,8 @@ const numberFormatter = new Intl.NumberFormat('de-DE');
 interface DownloadPreviewSummaryProps {
   selectionType?: string;
   initialViewBoundingBox?: [number, number, number, number];
-  selectedPoint?: [number, number];
-  selectedFeature?: any;
+  selectedFeature?: Feature<Point | Polygon | MultiPolygon, GeoJsonProperties>;
+  geometryFeature?: any;
   locationName?: string;
   dataPoints?: number;
   rasterLayers?: number;
@@ -30,7 +31,7 @@ interface DownloadPreviewSummaryProps {
 function DownloadPreviewSummary({
   selectionType = 'drawn-polygon',
   initialViewBoundingBox,
-  selectedPoint,
+  geometryFeature,
   selectedFeature,
   locationName,
   dataPoints,
@@ -59,8 +60,8 @@ function DownloadPreviewSummary({
             initialViewBoundingBox={initialViewBoundingBox}
             showH3Cells={selectionType === 'h3-cell'}
             showNavigation={expanded && isDesktopLayout}
-            selectedPoint={selectedPoint}
             selectedFeature={selectedFeature}
+            geometryFeature={geometryFeature}
           />
           {isDesktopLayout && expanded && (
             <Button
