@@ -1,4 +1,5 @@
 import path from 'path';
+import { pgRestore } from 'pg-dump-restore';
 import request from 'supertest';
 import { app } from '../src/app';
 import { exec } from 'child_process';
@@ -6,6 +7,8 @@ import { destroyDataSource, getDataSource, initializeSchema, isDBAvailable } fro
 import { sleep } from '../src/utils/utils';
 import { setupTestEnv } from './environment';
 import assert from 'assert';
+import { getDBPassword } from '../src/utils/db-credentials';
+import { readFileSync } from 'fs';
 
 export const startDockerCompose = async () => {
   setupTestEnv();
@@ -35,11 +38,13 @@ export const teardown = async () => {
 };
 
 export const clearDatabase = async () => {
-  const excludeTables = ['raster_filters', 'land_cover'];
+  const excludeTables: string[] = [];
+  const includeTables: string[] = ['land_cover'];
   const dataSource = await getDataSource();
   const tableNames = dataSource?.entityMetadatas
     .filter(entity => !excludeTables.includes(entity.tableName))
     .map(entity => `"${entity.tableName}"`)
+    .concat(includeTables.map(t => `"${t}"`))
     .join(', ');
   await dataSource?.query(`SET search_path TO ${process.env.POSTGRES_SCHEMA}, public`);
   await dataSource?.query(`TRUNCATE TABLE ${tableNames} CASCADE;`);
@@ -91,4 +96,32 @@ const getToken = async (password: string): Promise<string> => {
   });
   assert(res.body.access_token, `There was an error getting the test access token: ${res.body.detail}`);
   return res.body.access_token;
+};
+
+export const addLandCoverData = async (): Promise<string> => {
+  // Loading data (it takes a while)
+  const landCoverDump = path.join(__dirname, './assets/land_cover/land_cover.dump');
+  await pgRestore(
+    {
+      host: process.env.POSTGRES_HOST!,
+      port: Number(process.env.POSTGRES_PORT!),
+      username: process.env.POSTGRES_USER!,
+      password: await getDBPassword(),
+      database: process.env.POSTGRES_DB!,
+    },
+    {
+      filePath: landCoverDump,
+      clean: true, // Clean table if exists
+      create: false, // DB creation
+    },
+  );
+  return 'land_cover';
+};
+
+export const addLandCoverMappings = async (): Promise<string> => {
+  const landCoverMappingsFile = path.join(__dirname, './assets/land_cover/mappings.sql');
+  const sql = readFileSync(landCoverMappingsFile, 'utf8');
+  const dataSource = await getDataSource();
+  await dataSource.query(sql);
+  return 'land_cover';
 };

@@ -7,6 +7,7 @@ import SoilDataStorage from '../../src/data-layer/SoilDataStorage';
 import DatasetEntity from '../../src/entities/Dataset';
 import { decodeCursor } from '../../src/utils/cursor';
 import { GISDataType } from '../../src/types/data';
+import { addLandCoverData } from '../helper';
 
 const bbox = [0, 0, 1, 1];
 const bboxPolygon: Polygon = getPolygonFromBbox(bbox);
@@ -190,11 +191,11 @@ describe('SoilDataStorage class', () => {
     }
   });
 
-  it.skip.each([[[[-80.7811, -33.7413]], [30], 1, 1]])(
+  it.each([[[[-80.7811, -33.7413]], [30], 1, 1]])(
     'Filtering using land cover should return expected data points',
     async (featureCoordinates, values, expectedResultCount, expectedCount) => {
+      const tableName = await addLandCoverData();
       const bbox = [-81, -34, -80, -33];
-      const tableName = 'land_cover'; //await addLandCover();
       await addSyntheticData({ ...syntheticDataOptions, depthLayers: 1, featureCoordinates, spatial_extent: bbox });
       const sds = new SoilDataStorage();
       const entityManager = await getEntityManager();
@@ -206,6 +207,7 @@ describe('SoilDataStorage class', () => {
         expect(results[0].dataset_layer_count).toBe(expectedCount);
       }
     },
+    20000,
   );
 
   it('Filtering using cursor and sorting at the same time should return consistent results', async () => {

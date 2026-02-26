@@ -3,6 +3,7 @@ import { RequestData } from '../interfaces/RequestData';
 import { RasterFilterWithEnabled } from '../interfaces/RasterFilter';
 import { ErrorResponse } from '../utils/error';
 import { StatusCodes } from 'http-status-codes';
+import assert from 'assert';
 
 export default class RasterFilterService {
   getRasterFilters = async (requestData: RequestData): Promise<RasterFilterEntity[]> => {
@@ -30,8 +31,11 @@ export default class RasterFilterService {
     }
     const output = { enabled: false, ...input };
     const hasTable = await requestData.entityManager.queryRunner?.hasTable(input.id);
-    if (hasTable) {
-      output.enabled = true;
+    if (hasTable && input.mappings && Object.keys(input.mappings).length > 0) {
+      // Check also that data is there
+      const rows = await requestData.entityManager.queryRunner?.query(`SELECT COUNT(*) as count FROM ${input.id}`);
+      assert(rows.length === 1, 'Expected one row');
+      output.enabled = Number(rows[0].count) > 0;
     }
     return output;
   };

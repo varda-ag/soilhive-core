@@ -15,7 +15,6 @@ import { getPolygonFromBbox } from './geometry';
 import { getDataSource } from './data-source';
 import SlugHistoryEntity from '../entities/SlugHistory';
 import { EntityType, GISDataType, IngestionStatus } from '../types/data';
-import RasterFilter from '../data-layer/RasterFilter';
 import { PropertyInfo, PropertyMapping } from '../interfaces/PropertyMapping';
 import assert from 'assert';
 import path from 'path';
@@ -369,22 +368,6 @@ export const addSyntheticData = async (syntheticDataOptions): Promise<SyntheticD
     console.log(`Synthetic data creation complete. Dataset ID: ${dataset.id}`);
   }
   return { dataset, features, soilProperties };
-};
-
-export const addLandCover = async (): Promise<string> => {
-  const rasterFilter = new RasterFilter();
-  const tableName = 'test_land_cover';
-  const filePath = path.join(
-    __dirname,
-    '..',
-    '..',
-    'tests',
-    'assets',
-    'land_cover',
-    'W100S20_PROBAV_LC100_global_v3.0.1_2019-nrt_Discrete-Classification-map_EPSG-4326.tif',
-  );
-  await rasterFilter.addRasterFiles([filePath], tableName);
-  return tableName;
 };
 
 export interface SyntheticIngestionDataset {
