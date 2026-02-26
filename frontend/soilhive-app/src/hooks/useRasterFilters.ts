@@ -1,11 +1,10 @@
-import { useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import useAvailability from './useAvailability';
 import type { RasterFilterCategory } from '../types/backend';
 import { type Selection } from '../types/components';
 import { BACKEND_BASE_URL } from '../utilities/environmentVariables';
 import { useRequest } from '../api-client';
-import useNotifications from 'hooks/useNotifications';
 
 // Mock data until endpoint is ready
 /*const MOCK_RASTER_FILTERS: RasterFilterCategory[] = [
@@ -37,14 +36,8 @@ export function useRasterFilters(categoryId?: 'agroecological_zones' | 'land_cov
 
   const { request } = useRequest<RasterFilterCategory[]>();
 
-  const { showNotification } = useNotifications();
-
   // Load all raster filters (regardless of category)
-  const {
-    data: allCategories,
-    isLoading,
-    error,
-  } = useQuery({
+  const { data: allCategories, isLoading } = useQuery({
     queryKey: ['rasterFilters'],
     queryFn: () =>
       request({
@@ -56,15 +49,6 @@ export function useRasterFilters(categoryId?: 'agroecological_zones' | 'land_cov
       return MOCK_RASTER_FILTERS;
     }*/
   });
-
-  useEffect(() => {
-    if (!error) return;
-    showNotification({
-      id: 'raster-filters-error',
-      title: 'Failed to load raster filters',
-      type: 'error',
-    });
-  }, [error, showNotification]);
 
   // These are all the options for a given raster filter category (e.g. soil_group), regardeless of the geometry
   const categoryData = useMemo(() => {
