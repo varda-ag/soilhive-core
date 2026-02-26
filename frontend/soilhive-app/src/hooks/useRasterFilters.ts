@@ -40,12 +40,17 @@ export function useRasterFilters(categoryId?: 'agroecological_zones' | 'land_cov
   const { showNotification } = useNotifications();
 
   // Load all raster filters (regardless of category)
-  const { data: allCategories, isLoading, error } = useQuery({
+  const {
+    data: allCategories,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ['rasterFilters'],
-    queryFn: () => request({
-      url: `${BACKEND_BASE_URL}/raster-filters`,
-      method: 'GET',
-    })
+    queryFn: () =>
+      request({
+        url: `${BACKEND_BASE_URL}/raster-filters`,
+        method: 'GET',
+      }),
     /*queryFn: async () => {
       await new Promise(resolve => setTimeout(resolve, 500));
       return MOCK_RASTER_FILTERS;
