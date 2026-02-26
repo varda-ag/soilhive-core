@@ -17,7 +17,7 @@ import DatasetService from '../../services/DatasetService';
 import { IngestionStatus } from '../../types/data';
 import { getEntityManager } from '../../utils/data-source';
 import { ErrorResponse } from '../../utils/error';
-import { getLoopbackUrl, getRawTableName } from '../../utils/utils';
+import { getLoopbackUrl, getRawTableName, signToken } from '../../utils/utils';
 import { updateDatasetMetadata } from './UpdateDatasetMetadata';
 import { FileStorage } from '@flystorage/file-storage';
 import FileService from '../../services/FileService';
@@ -113,22 +113,24 @@ const processFile = async (
 export const makeRequest = (datasetSlug: string, datasetFileMappingId: string, payload: any) =>
   new Promise((resolve, reject) => {
     const postData = JSON.stringify(payload);
-    const url = `${getLoopbackUrl()}/datasets/${datasetSlug}/dataset-file-mapping/${datasetFileMappingId}/soil-data`;
+    const token = signToken('internal-request');
+
+    const url = new URL(`${getLoopbackUrl()}/datasets/${datasetSlug}/dataset-file-mapping/${datasetFileMappingId}/soil-data`);
     const options = {
-      url,
       method: 'POST',
       payload: JSON.stringify(payload),
       headers: {
         'Content-Type': 'application/json',
         'Content-Length': Buffer.byteLength(postData),
+        Authorization: `Bearer ${token}`,
       },
     };
-    const clientReq = http.request(options, serverRes => {
+    const clientReq = http.request(url, options, serverRes => {
       let data = '';
       serverRes.on('data', chunk => (data += chunk));
       serverRes.on('end', () => {
         if (serverRes.statusCode !== 201) {
-          reject(new ErrorResponse('Failed to load data', serverRes.statusCode));
+          reject(new ErrorResponse(`Failed to load data: ${data}`, serverRes.statusCode));
         } else {
           const response = { status: serverRes.statusCode, data: data ? JSON.parse(data) : undefined };
           resolve(response);

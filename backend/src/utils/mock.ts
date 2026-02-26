@@ -76,6 +76,7 @@ export const syntheticIngestionDataOptions = {
     drop_records: [10136, 10137],
   },
   createTable: true,
+  tableRows: 'ALL',
   showProgress: false,
 };
 
@@ -442,7 +443,10 @@ export const addSyntheticIngestionData = async (syntheticIngestionDataOptions): 
     // Load raw data sample
     const sqlFile = path.join(__dirname, '..', '..', 'tests', 'assets', 'raw_data', 'raw_data_insert.sql');
     const sqlTemplate = fs.readFileSync(sqlFile, 'utf8');
-    const sql = sqlTemplate.replace(/{{table}}/g, `"file_${sanitizeField(file.id)}_raw"`);
+    let sql = sqlTemplate.replace(/{{table}}/g, `"file_${sanitizeField(file.id)}_raw"`);
+    if (syntheticIngestionDataOptions.tableRows) {
+      sql = sql.replace(/{{limit}}/g, syntheticIngestionDataOptions.tableRows);
+    }
     const dataSource = await getDataSource();
     await dataSource.query(sql);
   }

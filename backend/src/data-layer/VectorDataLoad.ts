@@ -165,6 +165,13 @@ const getDataPreviewQuery = (query: any, dataMappingConfig: DataCleaningConfig, 
   }
 
   for (const [mapping, field] of Object.entries(dataMappingConfig.metadata_cols)) {
+    if (mapping === 'sampling_date') {
+      query.addSelect(
+        `to_date(CASE length(${field}::text) WHEN 4 THEN ${field}::text || '-01-01' WHEN 7 THEN ${field}::text || '-01' ELSE ${field}::text END, 'YYYY-MM-DD')::text`,
+        mapping,
+      );
+      continue;
+    }
     if (field) {
       query.addSelect(field, mapping);
     } else {
@@ -177,7 +184,7 @@ const getDataPreviewQuery = (query: any, dataMappingConfig: DataCleaningConfig, 
     let propertyCleanup: string = '';
 
     const conversionFormula = props?.conversion_formula ? props.conversion_formula.replace(/"/g, '').trim() : null;
-    const expr = conversionFormula ? conversionFormula.replace(/x/g, `(raw."${field}")::numeric`) : `(raw."${field}")::numeric`;
+    const expr = conversionFormula ? conversionFormula.replace(/x/g, `(raw.${field})::numeric`) : `(raw.${field})::numeric`;
 
     if (props.min_val !== undefined && props.max_val !== undefined) {
       propertyCleanup = `CASE WHEN ${expr} BETWEEN :min_val${field} AND :max_val${field} THEN ${expr} ELSE NULL END`;

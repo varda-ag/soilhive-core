@@ -2,16 +2,14 @@ import assert from 'assert';
 import jwt, { JwtPayload } from 'jsonwebtoken';
 import { StatusCodes } from 'http-status-codes';
 import { ErrorResponse } from '../utils/error';
+import { signToken } from '../utils/utils';
 
 const SIGNED_URL_EXPIRATION_SECONDS = 15 * 60; // 15 minutes
 
 export const createSignedPath = (filePath: string, expiresIn: number = SIGNED_URL_EXPIRATION_SECONDS): string => {
   assert(process.env.SELF_SIGNING_SECRET, 'Missing environment variable: SELF_SIGNING_SECRET');
 
-  const token = jwt.sign({ filePath }, process.env.SELF_SIGNING_SECRET, {
-    expiresIn,
-    algorithm: 'HS256',
-  });
+  const token = signToken({ filePath }, expiresIn);
 
   const separator = filePath.includes('?') ? '&' : '?';
   return `${filePath}${separator}token=${token}`;
