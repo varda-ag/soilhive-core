@@ -5,10 +5,6 @@ export function FilteringSidebarLandEcosystem() {
   const agro = useRasterFilters('agroecological_zones');
   const land = useRasterFilters('land_cover');
 
-  if (!agro.category?.enabled && !land.category?.enabled) {
-    return null;
-  }
-
   return (
     <>
       {agro.category?.enabled && (
