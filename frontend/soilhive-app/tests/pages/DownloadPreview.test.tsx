@@ -31,11 +31,12 @@ jest.mock('../../src/contexts/AvailabilityContext', () => {
     __esModule: true,
     AvailabilityContext: React.createContext({
       setPreview: mockSetPreview,
+      availableDatasets: [{ id: 'test-dataset', soil_properties: ['test-soil-property'] }],
       geometryFilter: [],
       selectedDatasets: [],
       filteredDatasets: [],
       selectedSoilProperties: [],
-      filteredSoilProperties: [],
+      filteredSoilProperties: [{ id: 'test-soil-property' }],
       datasetsSummary: {
         globalMinDepth: null,
         globalMaxDepth: null,

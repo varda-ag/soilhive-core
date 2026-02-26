@@ -16,7 +16,7 @@ function DownloadPreviewDataSection({
   onTableSort,
   onTableLastPage,
   soilProperties = [],
-  filters = {},
+  filters = { soil_properties: [] },
   calendarMinMaxRange = [undefined, undefined],
   fixedCalendarRange = null,
   depthMinMaxRange = [undefined, undefined],
@@ -40,7 +40,7 @@ function DownloadPreviewDataSection({
   onFiltersChange?: (newFilters: PreviewFilters) => void;
   datasets?: { id: string; name: string }[];
   selectedDatasets?: string[];
-  onDatasetsChange?: (dataset: string[] | undefined) => void;
+  onDatasetsChange?: (dataset: string[]) => void;
   onFeatureSelected?: (feature: Feature<Point | Polygon | MultiPolygon, GeoJsonProperties> | undefined) => void;
 }) {
   const [filtersDialogOpen, setFiltersDialogOpen] = useState(false);

@@ -15,7 +15,7 @@ interface Props {
 
 export function DatasetsSidebar({ isOpened, onClose }: Props) {
   const { isDesktopLayout } = useDevice();
-  const { setPreview, datasets } = useAvailability();
+  const { setPreview, availableDatasets } = useAvailability();
 
   return (
     <PageSidebar className={styles.DatasetsSidebar} isOpened={isOpened} position="right">
@@ -27,7 +27,7 @@ export function DatasetsSidebar({ isOpened, onClose }: Props) {
           <Button
             className={styles.PreviewButton}
             type="secondary"
-            isDisabled={datasets.length === 0}
+            isDisabled={availableDatasets.length === 0}
             onClick={() => {
               setPreview(true);
             }}

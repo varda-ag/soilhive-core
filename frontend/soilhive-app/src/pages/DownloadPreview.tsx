@@ -31,47 +31,36 @@ function DownloadPreview() {
     selectedFilters: availabilitySelectedFilters,
     selectedDatasets: availabilitySelectedDatasets,
     filteredDatasets: availabilityFilteredDatasets,
+    availableDatasets: availableFixedDatasets,
   } = useAvailability();
 
   const [summaryExpanded, setSummaryExpanded] = useState(false);
   const [selectedFeature, setSelectedFeature] = useState<Feature<Point | Polygon | MultiPolygon, GeoJsonProperties>>();
   const [sort, setSort] = useState<string>();
 
-  const availableFixedDatasets =
-    availabilitySelectedDatasets.length > 0
-      ? availabilityFilteredDatasets.filter(dataset => availabilitySelectedDatasets.includes(dataset.id))
-      : availabilityFilteredDatasets;
-
-  const [selectedDatasets, setSelectedDatasets] = useState<string[] | undefined>(
-    availableFixedDatasets?.[0] ? [availableFixedDatasets[0].id] : undefined,
-  );
+  const [selectedDatasets, setSelectedDatasets] = useState<string[]>([availableFixedDatasets[0].id]);
 
   const availableSoilProperties = useMemo(() => {
     const soilPropertiesIds = [
       ...new Set(
-        (selectedDatasets
-          ? availableFixedDatasets.filter(dataset => selectedDatasets.includes(dataset.id))
-          : availableFixedDatasets
-        ).flatMap(dataset => dataset.soil_properties ?? []),
+        availableFixedDatasets.filter(dataset => selectedDatasets.includes(dataset.id)).flatMap(dataset => dataset.soil_properties ?? []),
       ),
     ];
-    return availabilityFilteredSoilProperties.filter(soilProperty => soilPropertiesIds.includes(soilProperty.id));
+    return availabilityFilteredSoilProperties
+      .filter(soilProperty => soilPropertiesIds.includes(soilProperty.id))
+      .sort((a, b) => a.property_name.localeCompare(b.property_name, 'en', { sensitivity: 'base' }));
   }, [availableFixedDatasets, availabilityFilteredSoilProperties, selectedDatasets]);
 
-  const [filters, setFilters] = useState<PreviewFilters>(
-    availableSoilProperties?.[0]
-      ? {
-          soil_properties: [availableSoilProperties[0].id],
-        }
-      : {},
-  );
+  const [filters, setFilters] = useState<PreviewFilters>({
+    soil_properties: [availableSoilProperties[0].id],
+  });
 
   useEffect(() => {
-    const selectedSoilPropertyId = filters.soil_properties?.[0];
+    const selectedSoilPropertyId = filters.soil_properties[0];
     // The user has selected another dataset, so the list of available soil properties has changed. If the selected soil
     // property is not available in the newly selected dataset, then we select the first available soil property of the
     // newly selected dataset, otherwise we maintain the selection.
-    if (selectedSoilPropertyId && !availableSoilProperties.some(soilProperty => soilProperty.id === selectedSoilPropertyId)) {
+    if (!availableSoilProperties.some(soilProperty => soilProperty.id === selectedSoilPropertyId)) {
       setFilters(prevFilters => ({
         ...prevFilters,
         soil_properties: [availableSoilProperties[0].id],

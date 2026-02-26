@@ -26,6 +26,7 @@ type AvailabilityContextType = {
   isLoadingSoilProperties: boolean;
   allDatasets: AvailabilityDataset[];
   filteredDatasets: FilteredDataset[];
+  availableDatasets: FilteredDataset[];
   datasets: AvailabilityDataset[];
   selectedDatasets: string[];
   isAllSelected: boolean;
@@ -207,6 +208,20 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
     );
   }, [datasetFrontendFilters, selectedTimeFilter, selectedSoilProperties]);
 
+  const availableDatasets = useMemo(() => {
+    const datasets = fullFilterResults ?? [];
+    if (selectedDatasets.length > 0) {
+      const datasetIds = new Set(datasets.map(dataset => dataset.id));
+      // Excludes the selected datasets that are not available anymore in the current
+      // map view/selection
+      const validSelectedDatasets = new Set(selectedDatasets.filter(id => datasetIds.has(id)));
+      if (validSelectedDatasets.size > 0) {
+        return datasets.filter(dataset => validSelectedDatasets.has(dataset.id));
+      }
+    }
+    return datasets.sort((a, b) => a.name.localeCompare(b.name, 'en', { sensitivity: 'base' }));
+  }, [fullFilterResults, selectedDatasets]);
+
   return (
     <AvailabilityContext.Provider
       value={{
@@ -263,6 +278,7 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
         setLocationName,
         boundingBox,
         setBoundingBox,
+        availableDatasets,
       }}
     >
       {children}

@@ -11,7 +11,7 @@ import type { PreviewFilters } from 'types/downloadPreview';
 
 function DownloadPreviewFilters({
   soilProperties = [],
-  filters = {},
+  filters = { soil_properties: [] },
   onFiltersChange,
   dialogOpen = false,
   setDialogOpen,
@@ -35,16 +35,11 @@ function DownloadPreviewFilters({
   depthMinMaxRange?: [number | undefined, number | undefined];
   fixedDepthRange?: Nullable<[number, number]>;
   selectedDatasets?: string[];
-  onDatasetsChange?: (datasets: string[] | undefined) => void;
+  onDatasetsChange?: (datasets: string[]) => void;
   isLoading?: boolean;
 }) {
   const { isMobileLayout } = useDevice();
   const [selectedDateRange, setSelectedDateRange] = useState<Nullable<Array<Date | null>>>(fixedCalendarRange);
-
-  const sortedDatasets = datasets?.sort((a, b) => a.name.localeCompare(b.name, 'en', { sensitivity: 'base' }));
-  const sortedSoilProperties = soilProperties?.sort((a, b) =>
-    a.property_name.localeCompare(b.property_name, 'en', { sensitivity: 'base' }),
-  );
 
   useEffect(() => {
     if (fixedCalendarRange) return;
@@ -75,19 +70,14 @@ function DownloadPreviewFilters({
       : undefined;
 
   const onDatasetsDropdownChange = (e: DropdownChangeEvent) => {
-    onDatasetsChange?.(e.value ? [e.value] : undefined);
+    onDatasetsChange?.([e.value]);
   };
 
   const onSoilPropertiesDropdownChange = (e: DropdownChangeEvent) => {
-    if (e.value) {
-      onFiltersChange?.({
-        ...filters,
-        soil_properties: [e.value],
-      });
-    } else {
-      const { soil_properties: _, ...filtersWithoutSoilProperties } = filters;
-      onFiltersChange?.(filtersWithoutSoilProperties);
-    }
+    onFiltersChange?.({
+      ...filters,
+      soil_properties: [e.value],
+    });
   };
 
   const onDepthRangeDropdownChange = (e: DropdownChangeEvent) => {
@@ -135,7 +125,7 @@ function DownloadPreviewFilters({
         panelClassName={styles.DropdownPanel}
         value={selectedDatasets?.[0]}
         onChange={onDatasetsDropdownChange}
-        options={sortedDatasets}
+        options={datasets}
         optionValue="id"
         optionLabel="name"
         placeholder="Select a dataset"
@@ -144,9 +134,9 @@ function DownloadPreviewFilters({
       <Dropdown
         className={styles.Dropdown}
         panelClassName={styles.DropdownPanel}
-        value={filters.soil_properties?.[0]}
+        value={filters.soil_properties[0]}
         onChange={onSoilPropertiesDropdownChange}
-        options={sortedSoilProperties}
+        options={soilProperties}
         optionLabel="property_name"
         optionValue="id"
         placeholder="Select a soil property"
