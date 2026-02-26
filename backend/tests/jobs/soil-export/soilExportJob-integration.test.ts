@@ -70,7 +70,7 @@ describe('Soil Export Job Integration Test', () => {
       .send({
         type: 'export',
         filter_id: filterId,
-        dataset_slugs: [dataset.slug],
+        dataset_ids: [dataset.slug],
         format: FileFormat.CSV,
       });
 
@@ -187,7 +187,6 @@ describe('Soil Export Job Integration Test', () => {
       sampling_date: null,
       min_depth: null,
       max_depth: null,
-      horizon: null,
       sample_pretreatment: null,
       technique: null,
       laboratory_method: null,
@@ -208,8 +207,8 @@ describe('Soil Export Job Integration Test', () => {
       .post('/jobs')
       .send({
         type: 'export',
-        filter_id: 'fake-filter-id',
-        dataset_slugs: ['fake-dataset'],
+        filter_id: '3b0fab67-f73c-4cc7-b97f-2c688212f7b0',
+        dataset_ids: ['fake-dataset'],
         format: FileFormat.CSV,
       });
 
