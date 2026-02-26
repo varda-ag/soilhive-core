@@ -13,6 +13,11 @@ jest.mock('components/FilteringSidebar/FilteringSidebarLandEcosystem/FilteringSi
   FilteringSidebarLandEcosystem: () => <div data-testid="mock-filtering-sidebar-land-ecosystem">Mock FilteringSidebarLandEcosystem</div>,
 }));
 
+jest.mock('hooks/useAvailability', () => ({
+  __esModule: true,
+  default: () => ({ allRasterCategories: [{ id: 'agroecological_zones', enabled: true }] }),
+}));
+
 describe('FilteringSidebarContent', () => {
   it('renders three sections with child components', () => {
     const { container } = render(<FilteringSidebarContent />);

@@ -1,28 +1,19 @@
-import { RasterFilter } from '../RasterFilter/RasterFilter';
-import { useRasterFilters } from '../../../hooks/useRasterFilters';
-import Skeleton from 'react-loading-skeleton';
+import { RasterFilter } from 'components/FilteringSidebar/RasterFilter/RasterFilter';
+import { useRasterFilters } from 'hooks/useRasterFilters';
 
 export function FilteringSidebarLandEcosystem() {
   const agro = useRasterFilters('agroecological_zones');
   const land = useRasterFilters('land_cover');
 
-  if (agro.isLoading) {
-    return (
-      <span data-testid="skeleton-container-raster-filters">
-        <Skeleton count={1} height={26} />
-      </span>
-    );
-  }
-
-  if (!agro.categoryData?.enabled && !land.categoryData?.enabled) {
+  if (!agro.category?.enabled && !land.category?.enabled) {
     return null;
   }
 
   return (
     <>
-      {agro.categoryData?.enabled && (
+      {agro.category?.enabled && (
         <RasterFilter
-          category={agro.categoryData}
+          category={agro.category}
           availableOptions={agro.availableOptions}
           selectedValues={agro.selectedValues}
           pillSelections={agro.pillSelections}
@@ -30,9 +21,9 @@ export function FilteringSidebarLandEcosystem() {
           onPillRemove={agro.handlePillRemove}
         />
       )}
-      {land.categoryData?.enabled && (
+      {land.category?.enabled && (
         <RasterFilter
-          category={land.categoryData}
+          category={land.category}
           availableOptions={land.availableOptions}
           selectedValues={land.selectedValues}
           pillSelections={land.pillSelections}

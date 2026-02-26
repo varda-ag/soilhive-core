@@ -4,11 +4,19 @@ import type { FeatureCollection, MultiPolygon, Polygon } from 'geojson';
 
 import type { AvailabilityDataset, DatasetFrontendFilters, DatasetSummary, TimeFilterState } from 'types/availability';
 import { mapFilteredDatasetToAvailabilityDataset } from '../adapters';
-import type { SoilProperty, FilterCriteria, SoilPropertyCategory, FilteredDataset, BackendStoredDataFilter } from 'types/backend';
+import type {
+  SoilProperty,
+  FilterCriteria,
+  SoilPropertyCategory,
+  FilteredDataset,
+  BackendStoredDataFilter,
+  RasterFilterCategory,
+} from 'types/backend';
 import { computeDatasetSummary } from '../domain';
 import { useFilteredDatasets } from 'hooks/useFilteredDatasets';
 import { useSoilProperties } from '../hooks/useSoilProperties';
 import { usePropertiesCategories } from 'hooks/usePropertiesCategories';
+import { useRaster } from 'hooks/useRaster';
 
 type MapSelection = { type: string; features: GeoJSON.GeoJSON[] };
 
@@ -22,6 +30,7 @@ type AvailabilityContextType = {
   showSelectionToolbar: boolean;
   allSoilProperties: SoilProperty[];
   filteredSoilProperties: SoilProperty[];
+  allRasterCategories: RasterFilterCategory[];
   categories: SoilPropertyCategory[];
   isLoadingSoilProperties: boolean;
   allDatasets: AvailabilityDataset[];
@@ -34,6 +43,7 @@ type AvailabilityContextType = {
   isNoData: boolean;
   isNoFilteredData: boolean;
   isLoading: boolean;
+  isLoadingRasterCategories: boolean;
   searchValue: string;
   datasetFrontendFilters: DatasetFrontendFilters;
   selectedTimeFilter: TimeFilterState;
@@ -102,6 +112,7 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
   const [datasetFilters, setDatasetFilters] = useState<FilterCriteria>({});
   const { data: categories, isLoading: isLoadingCategories } = usePropertiesCategories();
   const { data: allSoilProperties, isLoading: isLoadingSoilProperties } = useSoilProperties();
+  const { allCategories: allRasterCategories, isLoading: isLoadingRasterCategories } = useRaster();
 
   const partialFilterPayload = useMemo(() => ({ geometries: geometryFilter, parameters: {} }), [geometryFilter]);
   const fullFilterPayload = useMemo(() => ({ geometries: geometryFilter, parameters: datasetFilters }), [geometryFilter, datasetFilters]);
@@ -235,6 +246,7 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
         showSelectionToolbar,
         allSoilProperties: allSoilProperties || [],
         filteredSoilProperties,
+        allRasterCategories: allRasterCategories || [],
         isLoadingSoilProperties,
         categories: categories || [],
         allDatasets,
@@ -246,6 +258,7 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
         isNoData,
         isNoFilteredData,
         isLoading,
+        isLoadingRasterCategories,
         searchValue,
         datasetFrontendFilters,
         datasetsSummary,

@@ -205,21 +205,15 @@ export function FilteringSidebarParameters() {
           </div>
         )}
       </Accordion>
-      {soilGroups.isLoading ? (
-        <span data-testid="skeleton-container-raster-filters">
-          <Skeleton count={1} height={26} />
-        </span>
-      ) : (
-        soilGroups.categoryData?.enabled && (
-          <RasterFilter
-            category={soilGroups.categoryData}
-            availableOptions={soilGroups.availableOptions}
-            selectedValues={soilGroups.selectedValues}
-            pillSelections={soilGroups.pillSelections}
-            onChange={soilGroups.handleOnChange}
-            onPillRemove={soilGroups.handlePillRemove}
-          />
-        )
+      {soilGroups.category?.enabled && (
+        <RasterFilter
+          category={soilGroups.category}
+          availableOptions={soilGroups.availableOptions}
+          selectedValues={soilGroups.selectedValues}
+          pillSelections={soilGroups.pillSelections}
+          onChange={soilGroups.handleOnChange}
+          onPillRemove={soilGroups.handlePillRemove}
+        />
       )}
     </div>
   );
