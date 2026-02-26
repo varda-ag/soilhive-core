@@ -165,7 +165,7 @@ const getDataPreviewQuery = (query: any, dataMappingConfig: DataCleaningConfig, 
   }
 
   for (const [mapping, field] of Object.entries(dataMappingConfig.metadata_cols)) {
-    if (mapping == 'sampling_date') {
+    if (mapping === 'sampling_date') {
       query.addSelect(
         `to_date(CASE length(${field}::text) WHEN 4 THEN ${field}::text || '-01-01' WHEN 7 THEN ${field}::text || '-01' ELSE ${field}::text END, 'YYYY-MM-DD')::text`,
         mapping,
