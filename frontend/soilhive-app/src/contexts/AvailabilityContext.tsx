@@ -216,9 +216,10 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
       datasetFrontendFilters.ownership.length ||
       selectedTimeFilter.min ||
       selectedTimeFilter.max ||
-      selectedSoilProperties.length
+      selectedSoilProperties.length ||
+      Object.keys(datasetFilters.raster_filters ?? {}).length
     );
-  }, [datasetFrontendFilters, selectedTimeFilter, selectedSoilProperties]);
+  }, [datasetFrontendFilters, selectedTimeFilter, selectedSoilProperties, datasetFilters.raster_filters]);
 
   const availableDatasets = useMemo(() => {
     const datasets = fullFilterResults ?? [];
