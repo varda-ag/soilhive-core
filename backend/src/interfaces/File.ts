@@ -18,6 +18,7 @@ export interface FileMetadata {
   field_names: string[];
   detected_fields: Record<DetectableFields, string | null>;
   geometry_detected: boolean;
+  driver?: string;
 }
 
 export interface ExtractedFilePath {

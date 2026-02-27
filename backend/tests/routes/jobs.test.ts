@@ -138,9 +138,27 @@ describe('Testing /jobs routes', () => {
 
     const testWorker = async (index: number): Promise<void> => {
       // Create file in DB
+      const metadata = {
+        driver: 'GeoJSON',
+        field_names: ['metadata', 'rawParameters'],
+        detected_fields: {
+          crs: 'EPSG:4326',
+          depth: null,
+          horizon: null,
+          license: null,
+          geometry: null,
+          latitude: null,
+          longitude: null,
+          max_depth: null,
+          min_depth: null,
+          sampling_date: null,
+        },
+        geometry_detected: true,
+      };
       const file = {
         name: `sample_point_${index}.geojson`,
         file_path: 'sample_point.geojson',
+        metadata,
       };
       const fileEntity = await fileService.createFile(requestData, file);
 
