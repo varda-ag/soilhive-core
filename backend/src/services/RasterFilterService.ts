@@ -20,6 +20,12 @@ export default class RasterFilterService {
     return entity;
   };
 
+  getEnabledRasterFilters = async (requestData: RequestData): Promise<RasterFilterWithEnabled[]> => {
+    const data = await this.getRasterFilters(requestData);
+    const decorated = await RasterFilterService.decorateWithEnable(requestData, data);
+    return (decorated as RasterFilterWithEnabled[]).filter(d => d.enabled);
+  };
+
   static decorateWithEnable = async (
     requestData: RequestData,
     input: RasterFilterEntity | RasterFilterEntity[],

@@ -34,6 +34,16 @@ const randomsInRange = (min: number, max: number, count: number): number[] => {
   return arr;
 };
 
+const randomSquareCoordinates = (spatial_extent: number[]) => {
+  const side = 0.00001;
+  const minX = randomInRange(spatial_extent[0]!, spatial_extent[2]!);
+  const minY = randomInRange(spatial_extent[1]!, spatial_extent[3]!);
+  const maxX = minX + side;
+  const maxY = minY + side;
+  const polygon = getPolygonFromBbox([minX, minY, maxX, maxY]);
+  return polygon.coordinates;
+};
+
 export const syntheticDataOptions = {
   id: 1,
   spatial_extent: [0, 0, 1, 1],
@@ -42,7 +52,8 @@ export const syntheticDataOptions = {
   depthLayers: 1,
   soilPropertyNames: ['ph'],
   addNullValues: false,
-  featureCoordinates: undefined, // number[][] array of [lng, lat]
+  featureCoordinates: undefined, // Same as GeoJSON coordinates
+  featureGeometryType: 'Point',
   showProgress: false,
   useProgressiveObservationValues: false,
 };
@@ -86,7 +97,11 @@ export const addSlug = async (slug: string, entity_id: string, entity_type: Enti
   return await repo.save(slugEntity);
 };
 
-export const addDataset = async (name: string, spatial_extent: number[]): Promise<DatasetEntity> => {
+export const addDataset = async (
+  name: string,
+  spatial_extent: number[],
+  gis_datatype: GISDataType = GISDataType.POINT,
+): Promise<DatasetEntity> => {
   const dataSource = await getDataSource();
   const repo = dataSource.getRepository(DatasetEntity);
   const dataset = repo.create({
@@ -94,7 +109,7 @@ export const addDataset = async (name: string, spatial_extent: number[]): Promis
     name,
     slug: name,
     created_by: 'tests',
-    gis_datatype: GISDataType.POINT,
+    gis_datatype,
     status: IngestionStatus.INGESTED,
     spatial_extent: getPolygonFromBbox(spatial_extent),
   });
@@ -144,16 +159,16 @@ export const addFeature = async (lng: number, lat: number) => {
   return await repo.save(feature);
 };
 
-export const addFeatures = async (lngLatArray: [number, number][]) => {
+export const addFeatures = async (type: string, coordinatesArray) => {
   const dataSource = await getDataSource();
   const result = await dataSource
     .createQueryBuilder()
     .insert()
     .into(FeatureEntity)
     .values(
-      lngLatArray.map(([lng, lat]) => ({
-        geom: { type: 'Point', coordinates: [lng, lat] },
-      })),
+      coordinatesArray.map(coordinates => {
+        return { geom: { type: type as any, coordinates } };
+      }),
     )
     .returning('*')
     .execute();
@@ -297,6 +312,7 @@ export const addSyntheticData = async (syntheticDataOptions): Promise<SyntheticD
     spatial_extent,
     featureCount,
     featureCoordinates,
+    featureGeometryType,
     observationsPerLayer,
     soilPropertyNames,
     depthLayers,
@@ -309,7 +325,11 @@ export const addSyntheticData = async (syntheticDataOptions): Promise<SyntheticD
   assert(spatial_extent.length === 4, 'spatial_extent must be an array of 4 numbers [minX, minY, maxX, maxY]');
   assert(soilPropertyNames.length > 0, 'soilPropertyNames must be a non-empty array of strings');
   const year = 2020 + (id % 10); // Vary year between 2020-2029
-  const dataset = await addDataset(`test_dataset_${id}`, spatial_extent);
+  const dataset = await addDataset(
+    `test_dataset_${id}`,
+    spatial_extent,
+    featureGeometryType === 'Point' ? GISDataType.POINT : GISDataType.POLYGONAL,
+  );
   dataset.soil_depth = { min: 0, max: depthLayers * 10 };
   dataset.reference_period_start = `${year}-01-01`;
   dataset.reference_period_stop = `${year}-12-31`;
@@ -328,10 +348,14 @@ export const addSyntheticData = async (syntheticDataOptions): Promise<SyntheticD
   } else {
     // Random coordinates within spatial_extent
     for (let i = 0; i < featureCount; i++) {
-      coordinates.push([randomInRange(spatial_extent[0], spatial_extent[2]), randomInRange(spatial_extent[1], spatial_extent[3])]);
+      if (featureGeometryType === 'Point') {
+        coordinates.push([randomInRange(spatial_extent[0], spatial_extent[2]), randomInRange(spatial_extent[1], spatial_extent[3])]);
+      } else {
+        coordinates.push(randomSquareCoordinates(spatial_extent) as any);
+      }
     }
   }
-  const features: FeatureEntity[] = await addFeatures(coordinates);
+  const features: FeatureEntity[] = await addFeatures(featureGeometryType, coordinates);
   if (syntheticDataOptions.showProgress) {
     console.log(`Generated ${featureCount} random features.`);
   }
