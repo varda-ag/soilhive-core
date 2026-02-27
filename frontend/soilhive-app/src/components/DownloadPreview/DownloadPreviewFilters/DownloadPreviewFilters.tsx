@@ -2,12 +2,23 @@ import { Dropdown, type DropdownChangeEvent } from 'primereact/dropdown';
 import { Calendar } from 'primereact/calendar';
 import { Dialog } from 'primereact/dialog';
 import type { FormEvent, Nullable } from 'primereact/ts-helpers';
-import { useEffect, useState, type Dispatch, type SetStateAction, type SyntheticEvent } from 'react';
+import { useEffect, useMemo, useState, type Dispatch, type SetStateAction, type SyntheticEvent } from 'react';
 import styles from './DownloadPreviewFilters.module.scss';
 import useDevice from 'hooks/useDevice';
 import { Button } from 'components/UI';
 import type { SoilProperty } from 'types/backend';
 import type { PreviewFilters } from 'types/downloadPreview';
+
+function firstDayOfTheMonth(date: Date): Date {
+  // First day of the month at the beginning of the day (00:00:00.000)
+  return new Date(date.getFullYear(), date.getMonth(), 1, 0, 0, 0, 0);
+}
+
+function lastDayOfTheMonth(date: Date): Date {
+  // Last day of the month at the end of the day (23:59:59.999)
+  // Note: using day '0' of the next month automatically rolls back to the last day of the current month
+  return new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59, 999);
+}
 
 function DownloadPreviewFilters({
   soilProperties = [],
@@ -40,6 +51,19 @@ function DownloadPreviewFilters({
 }) {
   const { isMobileLayout } = useDevice();
   const [selectedDateRange, setSelectedDateRange] = useState<Nullable<Array<Date | null>>>(fixedCalendarRange);
+
+  const [minDate, maxDate] = useMemo(() => {
+    if (!calendarMinMaxRange) return [undefined, undefined];
+    let minDate = calendarMinMaxRange[0];
+    if (minDate) {
+      minDate = firstDayOfTheMonth(minDate);
+    }
+    let maxDate = calendarMinMaxRange[1];
+    if (maxDate) {
+      maxDate = lastDayOfTheMonth(maxDate);
+    }
+    return [minDate, maxDate];
+  }, [calendarMinMaxRange]);
 
   useEffect(() => {
     if (fixedCalendarRange) return;
@@ -107,8 +131,8 @@ function DownloadPreviewFilters({
       return;
     }
 
-    const min = (selectedDateRange[0] as unknown as Date).toISOString();
-    const max = (selectedDateRange[1] as unknown as Date).toISOString();
+    const min = firstDayOfTheMonth(selectedDateRange[0] as unknown as Date).toISOString();
+    const max = lastDayOfTheMonth(selectedDateRange[1] as unknown as Date).toISOString();
     if (filters.min_sampling_date === min && filters.max_sampling_date === max) return;
     onFiltersChange?.({
       ...filters,
@@ -167,8 +191,10 @@ function DownloadPreviewFilters({
         hideOnRangeSelection
         placeholder="Select a date range"
         showIcon
-        minDate={calendarMinMaxRange[0]}
-        maxDate={calendarMinMaxRange[1]}
+        view="month"
+        dateFormat="mm/yy"
+        minDate={minDate}
+        maxDate={maxDate}
         showMinMaxRange={true}
         disabled={isLoading || !!fixedCalendarRange}
       />
