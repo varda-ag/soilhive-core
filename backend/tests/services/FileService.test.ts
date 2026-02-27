@@ -118,7 +118,17 @@ describe('FileService', () => {
       const tableName = getRawTableName(fileId);
       const tableColumns = await getTableColumns(tableName);
       expect(fileEntity.metadata).toBeDefined();
-      expect(fileEntity.metadata!.field_names.map(field => sanitizeField(field)).sort()).toEqual(
+      const originalGeomFields = [
+        fileEntity.metadata!.detected_fields[DetectableFields.GEOMETRY],
+        fileEntity.metadata!.detected_fields[DetectableFields.LONGITUDE],
+        fileEntity.metadata!.detected_fields[DetectableFields.LATITUDE],
+      ];
+      expect(
+        fileEntity
+          .metadata!.field_names.filter(item => !originalGeomFields.includes(item))
+          .map(field => sanitizeField(field))
+          .sort(),
+      ).toEqual(
         tableColumns
           .filter(({ column_name }) => !['record_id', 'geometry'].includes(column_name))
           .map(item => item.column_name)
@@ -222,15 +232,23 @@ describe('FileService', () => {
       await fileService.fileToDB(requestData, fileId);
       const tableName = getRawTableName(fileId);
       const tableColumns = await getTableColumns(tableName);
-      expect(metadata.field_names.map(field => sanitizeField(field)).sort()).toEqual(
+      const originalGeomFields = [
+        metadata.detected_fields[DetectableFields.GEOMETRY],
+        metadata.detected_fields[DetectableFields.LONGITUDE],
+        metadata.detected_fields[DetectableFields.LATITUDE],
+      ];
+      expect(
+        metadata.field_names
+          .filter(item => !originalGeomFields.includes(item))
+          .map(field => sanitizeField(field))
+          .sort(),
+      ).toEqual(
         tableColumns
           .filter(({ column_name }) => !['record_id', 'geometry'].includes(column_name))
           .map(item => item.column_name.replace('-', '_').replace(/[^a-z0-9_]/g, ''))
           .sort(),
       );
-      if (metadata.geometry_detected) {
-        expect(tableColumns.map(item => item.column_name)).toContain('geometry');
-      }
+      expect(tableColumns.map(item => item.column_name)).toContain('geometry');
       expect(tableColumns.map(item => item.column_name)).toContain('record_id');
     });
   });
@@ -260,7 +278,17 @@ describe('FileService', () => {
       await fileService.fileToDB(requestData, fileId);
       const tableName = getRawTableName(fileId);
       const tableColumns = await getTableColumns(tableName);
-      expect(metadata.field_names.map(field => sanitizeField(field)).sort()).toEqual(
+      const originalGeomFields = [
+        metadata.detected_fields[DetectableFields.GEOMETRY],
+        metadata.detected_fields[DetectableFields.LONGITUDE],
+        metadata.detected_fields[DetectableFields.LATITUDE],
+      ];
+      expect(
+        metadata.field_names
+          .filter(item => !originalGeomFields.includes(item))
+          .map(field => sanitizeField(field))
+          .sort(),
+      ).toEqual(
         tableColumns
           .filter(({ column_name }) => !['record_id', 'geometry'].includes(column_name))
           .map(item => item.column_name.replace('-', '_').replace(/[^a-z0-9_]/g, ''))
