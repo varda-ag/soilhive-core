@@ -532,7 +532,6 @@ export default class FileService {
         selectClause = `${selectClause}, ${layer.geomColumn} as geometry`;
       }
 
-      // gdalOpts.push('-dialect', 'SQLite');
       gdalOpts.push('-sql', `SELECT ${selectClause} FROM "${layer.name}"`);
       const bundleFile = path.join(__dirname, '..', 'assets', 'global-bundle.pem');
       const sslOpts = `sslmode=verify-full sslrootcert=${bundleFile}`;
