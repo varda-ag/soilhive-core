@@ -44,7 +44,6 @@ export const clearDatabase = async () => {
   const tableNames = dataSource?.entityMetadatas
     .filter(entity => !excludeTables.includes(entity.tableName))
     .map(entity => `"${entity.tableName}"`)
-    .concat(includeTables.map(t => `"${t}"`))
     .join(', ');
   await dataSource?.query(`SET search_path TO ${process.env.POSTGRES_SCHEMA}, public`);
   await dataSource?.query(`TRUNCATE TABLE ${tableNames} CASCADE;`);
@@ -130,7 +129,7 @@ export const addLandCoverData = async (): Promise<string> => {
       clean: true, // Clean table if exists
       create: false, // DB creation
     },
-  );
+  ).catch(() => {});
   return 'land_cover';
 };
 

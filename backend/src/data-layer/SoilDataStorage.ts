@@ -284,7 +284,7 @@ const applyRasterFilterToQuery = async (query: SelectQueryBuilder<DatasetLayerEn
           SELECT DISTINCT val
           FROM (
               SELECT unnest(ST_DumpValues(rast, 1)) AS val
-              FROM land_cover
+              FROM ${table}
               WHERE ST_Intersects(rast, ST_GeomFromGeoJSON(:inputGeom))
           ) t
           WHERE val IS NOT NULL
