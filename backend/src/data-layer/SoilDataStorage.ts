@@ -259,6 +259,7 @@ const applyRasterFilterToQuery = async (query: SelectQueryBuilder<DatasetLayerEn
 
     const raster_filters: Map<string, number[]> | undefined = dataFilter.parameters.raster_filters;
     const values = raster_filters?.get(table);
+    const outputColumn = `#${table}`; // Prefixing column name with "#" to detect it in the results
     if (values && values.length > 0) {
       // Filter features based on input integer values
       query.andWhere(
@@ -271,13 +272,15 @@ const applyRasterFilterToQuery = async (query: SelectQueryBuilder<DatasetLayerEn
     )`,
         { values },
       );
-    }
 
-    // Add a select column with all raster values intersecting features.geom
-    // Use ST_DumpValues to get all values as an array
-    query
-      .addSelect(
-        `ARRAY(
+      // Adding input values
+      query.addSelect(`ARRAY[${values.join(',')}]`, outputColumn);
+    } else {
+      // Add a select column with all raster values intersecting features.geom
+      // Use ST_DumpValues to get all values as an array
+      query
+        .addSelect(
+          `ARRAY(
           SELECT DISTINCT val
           FROM (
               SELECT unnest(ST_DumpValues(rast, 1)) AS val
@@ -286,9 +289,10 @@ const applyRasterFilterToQuery = async (query: SelectQueryBuilder<DatasetLayerEn
           ) t
           WHERE val IS NOT NULL
       )`,
-        `#${table}`, // Prefixing column name with "#" to detect it in the results
-      )
-      .setParameter('inputGeom', dataFilter.geometries[0]);
+          outputColumn,
+        )
+        .setParameter('inputGeom', dataFilter.geometries[0]);
+    }
   }
 };
 

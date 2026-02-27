@@ -49,6 +49,22 @@ export const clearDatabase = async () => {
   await dataSource?.query(`SET search_path TO ${process.env.POSTGRES_SCHEMA}, public`);
   await dataSource?.query(`TRUNCATE TABLE ${tableNames} CASCADE;`);
 
+  // Different method for tables that may not exist
+  for (const table of includeTables) {
+    await dataSource?.query(`
+    DO $$
+      BEGIN
+        IF EXISTS (
+          SELECT 1 FROM information_schema.tables
+          WHERE table_schema = '${process.env.POSTGRES_SCHEMA}'
+          AND table_name = '${table}'
+        ) THEN
+          TRUNCATE TABLE ${table};
+        END IF;
+      END
+      $$;`);
+  }
+
   // Drop raw data tables
   const tables: Array<{ table_name: string }> = await dataSource.query(
     `
@@ -122,6 +138,7 @@ export const addLandCoverMappings = async (): Promise<string> => {
   const landCoverMappingsFile = path.join(__dirname, './assets/land_cover/mappings.sql');
   const sql = readFileSync(landCoverMappingsFile, 'utf8');
   const dataSource = await getDataSource();
+  await dataSource.query(`SET search_path TO ${process.env.POSTGRES_SCHEMA}, public`);
   await dataSource.query(sql);
   return 'land_cover';
 };
