@@ -1,11 +1,11 @@
 import { describe, it, expect } from '@jest/globals';
 import request from 'supertest';
 import { app } from '../../src/app';
-import { addLandCoverData, addLandCoverMappings } from '../helper';
+import { addLandCoverMappings, addRasterFilters } from '../helper';
 
 describe('Testing /raster-filters routes', () => {
   beforeEach(async () => {
-    await addLandCoverMappings();
+    await addRasterFilters();
   });
 
   it('GET /raster-filters responds with the list of expected raster-filters', async () => {
@@ -40,12 +40,12 @@ describe('Testing /raster-filters routes', () => {
     expect(res.statusCode).toBe(404);
   });
 
-  it('Raster filter is enabled after adding data to it', async () => {
+  it('Raster filter is enabled after adding mappings to it', async () => {
     const filterId = 'land_cover';
     const res = await request(app).get(`/raster-filters/${filterId}`);
     expect(res.body.enabled).toBeFalsy();
-    await addLandCoverData();
+    await addLandCoverMappings();
     const resAfter = await request(app).get(`/raster-filters/${filterId}`);
     expect(resAfter.body.enabled).toBeTruthy();
-  }, 10000);
+  });
 });
