@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.39.1 (2026-02-27)
+
+## What's Changed
+* fix:sp-4905 ingestion fixes by @d-rom in https://github.com/varda-ag/soilhive-core/pull/245
+* chore: add gdal-driver-pg by @Butterneck in https://github.com/varda-ag/soilhive-core/pull/246
+* fix: fileToDB function fixes by @d-rom in https://github.com/varda-ag/soilhive-core/pull/250
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.39.0...v0.39.1
+
 ## 0.39.0 (2026-02-26)
 
 ## What's Changed
