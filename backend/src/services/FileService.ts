@@ -22,6 +22,7 @@ import ConfigService from './ConfigService';
 import { LOGO_FILE_ID } from '../constants/constants';
 import FileEntity from '../entities/File';
 import assert from 'assert';
+import { getDBPassword } from '../utils/db-credentials';
 
 const allowedGeometryTypes = [
   gdal.wkbNone, // This allows generic tabular file support
@@ -34,6 +35,8 @@ const allowedGeometryTypes = [
   gdal.wkbMultiPolygon,
   gdal.wkbMultiPolygon25D,
 ];
+
+const unknownGeomDrivers = ['CSV', 'XLSX'];
 
 export default class FileService {
   exists = async (fileKey: string): Promise<boolean> => {
@@ -123,7 +126,7 @@ export default class FileService {
     const file = await repo.findOneBy({ id: fileId });
 
     if (!file) {
-      throw new ErrorResponse(`DatasetFileMapping with ID '${fileId}' not found`, StatusCodes.NOT_FOUND);
+      throw new ErrorResponse(`File with ID '${fileId}' not found`, StatusCodes.NOT_FOUND);
     }
 
     return file;
@@ -296,18 +299,26 @@ export default class FileService {
     }
   };
 
-  getDataLayer = (layers: gdal.DatasetLayers): { layer: gdal.Layer; geometryDetected: boolean } => {
+  getDataLayer = (layers: gdal.DatasetLayers, allowWkbUnknown: boolean = false): { layer: gdal.Layer; geometryDetected: boolean } => {
     let layer: gdal.Layer | null = null;
     let geometryDetected = false;
 
     for (let i = 0; i < layers.count(); i++) {
       const currentLayer = layers.get(i);
       // Check that layer contains point or polygon geometry
-      const layerGeometry = currentLayer.geomType;
-      if (!layerGeometry) {
+      let layerGeometry = currentLayer.geomType;
+
+      if (!layerGeometry && layerGeometry !== 0) {
         continue;
       }
       geometryDetected = layerGeometry !== gdal.wkbNone;
+      if (allowWkbUnknown && layerGeometry === gdal.wkbUnknown) {
+        const firstGeom = currentLayer.features.first()?.getGeometry();
+        if (!firstGeom) {
+          continue;
+        }
+        layerGeometry = firstGeom.wkbType;
+      }
       if (!allowedGeometryTypes.includes(layerGeometry)) {
         continue;
       }
@@ -338,7 +349,8 @@ export default class FileService {
 
       // Open dataset with GDAL
       const dataset = await gdal.openAsync(mainFilePath);
-      const { layer, geometryDetected } = this.getDataLayer(dataset.layers);
+      const driver = dataset.driver.description;
+      const { layer, geometryDetected } = this.getDataLayer(dataset.layers, unknownGeomDrivers.includes(driver));
 
       // Extract field names
       const fieldNames: string[] = [];
@@ -409,6 +421,7 @@ export default class FileService {
       } catch {
         // Ignore CRS errors
       }
+      dataset.close();
 
       const metadata: FileMetadata = {
         field_names: fieldNames,
@@ -425,6 +438,7 @@ export default class FileService {
           [DetectableFields.LONGITUDE]: longitudeFieldName,
         },
         geometry_detected: geometryDetected,
+        driver,
       };
 
       return metadata;
@@ -462,15 +476,22 @@ export default class FileService {
       '-lco',
       'LAUNDER=NO',
       '-lco',
+      'GEOM_TYPE=geometry',
+      '-lco',
       'GEOMETRY_NAME=geometry',
-      '-oo',
-      'EMPTY_STRING_AS_NULL=YES',
-      '-oo',
-      'AUTODETECT_TYPE=YES',
     ];
+    const openOpts: string[] = ['AUTODETECT_TYPE=YES', 'EMPTY_STRING_AS_NULL=YES', 'KEEP_GEOM_COLUMNS=NO'];
     const tableName = getRawTableName(fileId);
     gdalOpts.push('-nln', tableName);
-    let selectClause = fileMetadata.field_names.map(field => `"${field}" AS ${sanitizeField(field)}`).join(', ');
+    const originalGeomFields = [
+      fileMetadata.detected_fields[DetectableFields.GEOMETRY],
+      fileMetadata.detected_fields[DetectableFields.LONGITUDE],
+      fileMetadata.detected_fields[DetectableFields.LATITUDE],
+    ];
+    let selectClause = fileMetadata.field_names
+      .filter(item => !originalGeomFields.includes(item))
+      .map(field => `"${field}" AS ${sanitizeField(field)}`)
+      .join(', ');
 
     try {
       if (fileMetadata.field_names.length === 0) {
@@ -480,38 +501,48 @@ export default class FileService {
 
       if (!fileMetadata.geometry_detected) {
         if (fileMetadata.detected_fields[DetectableFields.GEOMETRY]) {
-          gdalOpts.push('-oo', `GEOM_POSSIBLE_NAMES=${fileMetadata.detected_fields[DetectableFields.GEOMETRY]}`);
+          openOpts.push(`GEOM_POSSIBLE_NAMES=${fileMetadata.detected_fields[DetectableFields.GEOMETRY]}`);
+          selectClause = `${selectClause}, "${fileMetadata.detected_fields[DetectableFields.GEOMETRY]}" AS geometry`;
         } else if (fileMetadata.detected_fields[DetectableFields.LATITUDE] && fileMetadata.detected_fields[DetectableFields.LONGITUDE]) {
-          gdalOpts.push(
-            '-oo',
+          openOpts.push(
             `X_POSSIBLE_NAMES=${fileMetadata.detected_fields[DetectableFields.LONGITUDE]}`,
-            '-oo',
             `Y_POSSIBLE_NAMES=${fileMetadata.detected_fields[DetectableFields.LATITUDE]}`,
           );
+          selectClause = `${selectClause}, "_ogr_geometry_" AS geometry`;
         } else {
           throw new ErrorResponse('Geometry not found in input file', StatusCodes.BAD_REQUEST);
         }
       }
 
-      if (fileMetadata.detected_fields[DetectableFields.CRS]) {
-        gdalOpts.push('-s_srs', `${fileMetadata.detected_fields[DetectableFields.CRS]}`);
+      gdalOpts.push(
+        '-s_srs',
+        `${fileMetadata.detected_fields[DetectableFields.CRS] ? fileMetadata.detected_fields[DetectableFields.CRS] : 'EPSG:4326'}`,
+      );
+      // Open dataset with GDAL (if driver available, pass driver-specific open options)
+      let dataset: gdal.Dataset;
+      if (fileMetadata.driver) {
+        const driver = gdal.drivers.get(fileMetadata.driver);
+        dataset = driver.open(mainFilePath, 'r+', openOpts);
+      } else {
+        dataset = gdal.open(mainFilePath);
       }
-      // Open dataset with GDAL
-      const dataset = await gdal.openAsync(mainFilePath);
-      const { layer } = this.getDataLayer(dataset.layers);
 
+      const { layer } = this.getDataLayer(dataset.layers, unknownGeomDrivers.includes(fileMetadata.driver ? fileMetadata.driver : ''));
       if (fileMetadata.geometry_detected && layer.geomColumn) {
-        selectClause = `${selectClause}, ${layer.geomColumn}`;
+        selectClause = `${selectClause}, ${layer.geomColumn} as geometry`;
       }
 
-      gdalOpts.push('-sql', `SELECT ${selectClause} FROM ${layer.name}`);
+      gdalOpts.push('-sql', `SELECT ${selectClause} FROM "${layer.name}"`);
+      const bundleFile = path.join(__dirname, '..', 'assets', 'global-bundle.pem');
+      const sslOpts = `sslmode=verify-full sslrootcert=${bundleFile}`;
       const pgDataset =
-        `PG:host=${process.env.POSTGRES_HOST} port=${process.env.POSTGRES_PORT} user=${process.env.POSTGRES_USER} dbname=${process.env.POSTGRES_DB} password=${process.env.POSTGRES_PASSWORD} schemas=${process.env.POSTGRES_SCHEMA}`.replace(
+        `PG:host=${process.env.POSTGRES_HOST} port=${process.env.POSTGRES_PORT} user=${process.env.POSTGRES_USER} dbname=${process.env.POSTGRES_DB} password=${await getDBPassword()} ${process.env.POSTGRES_PASSWORD ? '' : sslOpts} schemas=${process.env.POSTGRES_SCHEMA}`.replace(
           /\n/g,
           ' ',
         );
       gdalOpts.unshift(layer.name);
       await gdal.vectorTranslateAsync(pgDataset, dataset, gdalOpts);
+      dataset.close();
     } catch (error) {
       if (error instanceof ErrorResponse) {
         throw error;
