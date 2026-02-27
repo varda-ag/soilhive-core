@@ -17,6 +17,7 @@ RUN apk update && apk add --no-cache \
     make \
     g++ \
     gdal-dev \
+    gdal-driver-pg \
     && ln -sf /usr/bin/python3 /usr/bin/python
 
 # ========================================
@@ -84,7 +85,7 @@ ENV NODE_ENV=production \
     NODE_OPTIONS="--max-old-space-size=256 --no-warnings" \
     NPM_CONFIG_LOGLEVEL=silent
 
-RUN apk add --no-cache gdal
+RUN apk add --no-cache gdal gdal-driver-pg
 
 # Copy production dependencies from deps stage
 COPY --from=deps --chown=nodejs:nodejs /app/node_modules ./node_modules
