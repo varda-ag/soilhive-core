@@ -14,12 +14,7 @@ exports[`DownloadPreview calls setPreview(false) when clicking on the back butto
         <span
           class="Title"
         >
-          DOWNLOAD PREVIEW
-        </span>
-        <span
-          class="SubTitle"
-        >
-          This is a preview of the soil data filtered by the selected area and criteria. To download the data press the button on the top-right of this page
+          PREVIEW
         </span>
       </div>
       <div
@@ -138,12 +133,7 @@ exports[`DownloadPreview renders download preview page 1`] = `
         <span
           class="Title"
         >
-          DOWNLOAD PREVIEW
-        </span>
-        <span
-          class="SubTitle"
-        >
-          This is a preview of the soil data filtered by the selected area and criteria. To download the data press the button on the top-right of this page
+          PREVIEW
         </span>
       </div>
       <div

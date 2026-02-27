@@ -40,6 +40,7 @@
     .Titles {
       display: flex;
       flex-direction: column;
+      justify-content: center;
       font-family: 'Inter', Arial, Helvetica, sans-serif;
       line-height: var(--line-height-lg);
       letter-spacing: 0px;
@@ -52,10 +53,6 @@
         font-weight: var(--font-weight-bold);
         font-size: var(--font-size-lg);
         vertical-align: middle;
-      }
-      .SubTitle {
-        font-weight: var(--font-weight-regular);
-        font-size: var(--font-size-sm);
       }
     }
     .Buttons {
