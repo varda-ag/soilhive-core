@@ -47,8 +47,11 @@ export default class SoilDataStorage {
       .leftJoin('dataset_layers.soil_property', 'soil_property')
       .leftJoin('layer.license_obj', 'license')
       .innerJoin('dataset_layers.feature', 'features')
-      .where('ST_Intersects(ds.spatial_extent, ST_GeomFromGeoJSON(:geom))', { geom }) // Testing intersection with entire dataset
-      .andWhere('ST_Intersects(features.geom, ST_GeomFromGeoJSON(:geom))', { geom }) // Testing intersection with individual features
+      .addCommonTableExpression('SELECT ST_GeomFromGeoJSON(:inputGeom) AS geom', 'aoi')
+      .setParameter('inputGeom', geom)
+      .innerJoin('aoi', 'aoi_join', '1=1')
+      .where('ST_Intersects(ds.spatial_extent, aoi_join.geom)') // Testing intersection with entire dataset
+      .andWhere('ST_Intersects(features.geom, aoi_join.geom)') // Testing intersection with individual features
       .select('dataset_layers.dataset_id', 'dataset_id')
       .addSelect('ds.gis_datatype', 'gis_datatype')
       .addSelect('ds.name', 'dataset_name')
@@ -246,52 +249,73 @@ const applyRasterFilterToQuery = async (query: SelectQueryBuilder<DatasetLayerEn
   await queryRunner.release();
 
   for (const table of enabledFilterTables) {
-    const t = `joined_${table}`;
-    const subQuery = `SELECT rast FROM ${table} WHERE ST_Intersects(rast, features.geom) LIMIT 1`;
-    query.leftJoin(
-      qb => {
-        qb.getQuery = () => `LATERAL (${subQuery})`;
-        return qb;
-      },
-      t,
-      'true',
+    const c = `clipped_${table}`;
+    query.addCommonTableExpression(
+      `
+      SELECT ST_Union(ST_Clip(${table}.rast, aoi.geom, TRUE, TRUE)) as rast FROM ${table}
+      CROSS JOIN aoi
+      WHERE ST_Intersects(${table}.rast, aoi.geom)`,
+      c,
     );
-
     const raster_filters: Map<string, number[]> | undefined = dataFilter.parameters.raster_filters;
     const values = raster_filters?.get(table);
     const outputColumn = `#${table}`; // Prefixing column name with "#" to detect it in the results
     if (values && values.length > 0) {
+      query.innerJoin(c, c, '1=1');
+
+      const t = `lateral_${table}`;
+      const subQuery = `
+        SELECT
+          GeometryType(features.geom) AS geom_type,
+          ST_Value(${c}.rast, features.geom, TRUE) AS pixel_val,
+          CASE
+            WHEN GeometryType(features.geom) IN ('POLYGON', 'MULTIPOLYGON')
+            THEN ST_Clip(${c}.rast, features.geom, TRUE)
+            ELSE NULL
+          END AS clipped_to_feature
+        `;
+      query.leftJoin(
+        qb => {
+          qb.getQuery = () => `LATERAL (${subQuery})`;
+          return qb;
+        },
+        t,
+        'true',
+      );
       // Filter features based on input integer values
       query.andWhere(
         `(
-      (GeometryType(features.geom) = 'POINT' AND ST_Value(${t}.rast, features.geom, TRUE) IN (:...values) AND ST_Value(${t}.rast, features.geom, TRUE) IS NOT NULL)
-      OR
-      (GeometryType(features.geom) IN ('POLYGON', 'MULTIPOLYGON') AND ST_Intersects(${t}.rast, features.geom) AND (
-        SELECT COUNT(*) FROM unnest(ARRAY[${values.join(',')}]) v WHERE v = ANY(ST_DumpValues(${t}.rast, 1))
-      ) > 0)
-    )`,
+            (
+              ${t}.geom_type = 'POINT' AND ${t}.pixel_val IS NOT NULL AND ${t}.pixel_val IN (:...values)
+            )
+            OR
+            (
+              ${t}.geom_type IN ('POLYGON', 'MULTIPOLYGON') AND EXISTS (
+                SELECT 1
+                FROM unnest(ST_DumpValues(${t}.clipped_to_feature, 1)) AS v
+                WHERE v = ANY(ARRAY[${values.join(',')}])
+              )
+            )
+        )`,
         { values },
       );
 
       // Adding input values
       query.addSelect(`ARRAY[${values.join(',')}]`, outputColumn);
     } else {
-      // Add a select column with all raster values intersecting features.geom
+      // Add a select column with all raster values intersecting the input geometry
       // Use ST_DumpValues to get all values as an array
-      query
-        .addSelect(
-          `ARRAY(
+      query.addSelect(
+        `ARRAY(
           SELECT DISTINCT val
           FROM (
-              SELECT unnest(ST_DumpValues(rast, 1)) AS val
-              FROM ${table}
-              WHERE ST_Intersects(rast, ST_GeomFromGeoJSON(:inputGeom))
+              SELECT unnest(ST_DumpValues(${c}.rast, 1)) AS val
+              FROM ${c}
           ) t
           WHERE val IS NOT NULL
       )`,
-          outputColumn,
-        )
-        .setParameter('inputGeom', dataFilter.geometries[0]);
+        outputColumn,
+      );
     }
   }
 };

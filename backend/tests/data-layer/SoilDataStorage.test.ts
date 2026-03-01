@@ -341,9 +341,42 @@ describe('SoilDataStorage class', () => {
         const results = await sds.filter(entityManager, getPolygonFromBbox(bbox), {});
         expect(results.length).toBe(expectedResultCount);
         if (expectedResultCount > 0) {
-          expect(results[0].raster_filters?.get('land_cover')?.sort()).toEqual(expectedRasterOptions.sort());
+          expect(results[0].raster_filters?.get('land_cover')?.sort((a, b) => a - b)).toEqual(expectedRasterOptions.sort((a, b) => a - b));
         }
       },
     );
+
+    it('Filtering with small area should return only overlapping raster values', async () => {
+      // Dataset spatial_extent
+      const bbox = [-81, -34, -80, -33];
+      // Filtering rectangle: it overlaps a small portion of the test tile containing 3 values
+      const filteringRectangle = {
+        coordinates: [
+          [
+            [-80.722896453120683, -33.772227648792125],
+            [-80.722896453120683, -33.768670417531609],
+            [-80.717031828610118, -33.768670417531609],
+            [-80.717031828610118, -33.772227648792125],
+            [-80.722896453120683, -33.772227648792125],
+          ],
+        ],
+        type: 'Polygon',
+      };
+      await addSyntheticData({
+        ...syntheticDataOptions,
+        depthLayers: 1,
+        featureCoordinates: [
+          // Array with one polygon
+          filteringRectangle.coordinates,
+        ],
+        featureGeometryType: 'Polygon',
+        spatial_extent: bbox,
+      });
+      const sds = new SoilDataStorage();
+      const entityManager = await getEntityManager();
+      const results = await sds.filter(entityManager, filteringRectangle as Polygon, {});
+      expect(results.length).toBe(1);
+      expect(results[0].raster_filters?.get('land_cover')?.sort((a, b) => a - b)).toEqual([30, 60, 200]);
+    });
   });
 });
