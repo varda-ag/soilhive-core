@@ -1,8 +1,10 @@
+import fs from 'fs';
 import { InvalidArgumentError, program } from 'commander';
 import { isDBAvailable } from './data-source';
-import { sleep } from './utils';
+import { replaceExtension, sleep } from './utils';
 import { addSyntheticData, syntheticDataOptions } from '../utils/mock';
 import { randomInt } from 'crypto';
+import { dbRestore } from './db-restore';
 
 export const setupCLI = async () => {
   program
@@ -10,6 +12,7 @@ export const setupCLI = async () => {
     .allowExcessArguments(true)
     .option('--create-data <number>', 'Create synthetic data given feature count', validInt)
     .option('--bbox <minx,miny,maxx,maxy>', 'Synthetic data bounds')
+    .option('--load-raster-filter <file.dump>', 'Load raster filter')
     .parse();
 
   const options = program.opts();
@@ -20,6 +23,17 @@ export const setupCLI = async () => {
     }
     const spatial_extent = options['bbox'].split(',').map(Number);
     await createSyntheticData(options['createData'], spatial_extent);
+    process.exit();
+  }
+  if (options['loadRasterFilter']) {
+    console.log('Loading raster filter:', options);
+    try {
+      await loadRasterFilter(options['loadRasterFilter']);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      process.exit();
+    }
   }
 };
 
@@ -47,4 +61,15 @@ async function createSyntheticData(featureCount: number, spatial_extent: [number
     addNullValues: true,
     showProgress: true,
   });
+}
+
+async function loadRasterFilter(file: string) {
+  if (!fs.existsSync(file)) {
+    throw new Error(`File ${file} not found`);
+  }
+  const mappings = replaceExtension(file, 'mappings');
+  if (!fs.existsSync(mappings)) {
+    throw new Error(`File ${mappings} not found`);
+  }
+  await dbRestore(file, mappings);
 }
