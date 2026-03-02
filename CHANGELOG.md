@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.41.1 (2026-03-02)
+
+## What's Changed
+* fix: moving dependency by @svaccari in https://github.com/varda-ag/soilhive-core/pull/256
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.41.0...v0.41.1
+
 ## 0.41.0 (2026-03-02)
 
 ## What's Changed
