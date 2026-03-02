@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.41.0 (2026-03-02)
+
+## What's Changed
+* feat: sp-4902 - implement download overlay by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/251
+* feat(fe): sp-4919 raster filters UI component by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/237
+* feat(data): :sparkles: adding raster dump restore CLI command by @svaccari in https://github.com/varda-ag/soilhive-core/pull/254
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.40.0...v0.41.0
+
 ## 0.40.0 (2026-03-02)
 
 ## What's Changed
