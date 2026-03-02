@@ -2,10 +2,11 @@ import { useState } from 'react';
 import { Button } from 'components/UI';
 import styles from './DownloadSummary.module.scss';
 import ArrowLeftIcon from 'assets/icons/arrow-left-icon.svg?react';
-import classNames from 'classnames';
+import DownloadIcon from 'assets/icons/download-icon.svg?react';
 import { useNavigate, useSearchParams } from 'react-router';
 import useAvailability from 'hooks/useAvailability';
 import DownloadSummarySidebar from 'components/DownloadSummary/DownloadSummarySidebar/DownloadSummarySidebar';
+import { Checkbox } from 'primereact/checkbox';
 
 function DownloadSummary() {
   const { geometryFilter, datasetsSummary, selectionType, locationName, boundingBox, selectedSoilProperties, filteredSoilProperties } =
@@ -14,11 +15,10 @@ function DownloadSummary() {
   const navigate = useNavigate();
 
   const [searchParams] = useSearchParams();
-
   const comingFromPreview = searchParams.get('source') === 'preview';
 
   const [summaryExpanded, setSummaryExpanded] = useState(false);
-  const [selectedTab, setSelectedTab] = useState<'summary' | 'availability'>('summary');
+  const [termsAgreed, setTermsAgreed] = useState(false);
 
   return (
     <div className={styles.DownloadSummary}>
@@ -43,7 +43,7 @@ function DownloadSummary() {
         </div>
       </div>
       <div className={styles.Content}>
-        <div className={classNames(styles.Sidebar, { [styles.HideInMobile]: selectedTab !== 'summary' })}>
+        <div className={styles.Sidebar}>
           <DownloadSummarySidebar
             selectionType={selectionType}
             initialViewBoundingBox={boundingBox}
@@ -62,32 +62,38 @@ function DownloadSummary() {
             onExpandClicked={newExpanded => setSummaryExpanded(newExpanded)}
           />
         </div>
-        <div className={classNames(styles.Data, { [styles.HideInMobile]: selectedTab !== 'availability' })}>
-          Availability
-          <div>
+        <div className={styles.Main}>
+          <div className={styles.MainContent}>
+            MainContent
             <pre>
               source: {searchParams.get('source')}
               filterId: {searchParams.get('filterId')}
               datasets: {searchParams.get('datasets')}
             </pre>
           </div>
+          <div className={styles.Footer}>
+            <div className={styles.TermsOfUse}>
+              <Checkbox
+                inputId="agree-to-terms-for-download"
+                name="category"
+                checked={termsAgreed}
+                onChange={e => {
+                  setTermsAgreed(e.checked ?? false);
+                }}
+              />
+              <label htmlFor="agree-to-terms-for-download">
+                I have read and agree to the platform’s{' '}
+                <a href="https://soilhive.ag" target="_blank" rel="noreferrer">
+                  Terms of use
+                </a>
+              </label>
+            </div>
+            <Button size="medium" type="primary" className={styles.DownloadButton} isDisabled={!termsAgreed}>
+              <DownloadIcon />
+              Download data
+            </Button>
+          </div>
         </div>
-      </div>
-      <div className={styles.TabsHeader}>
-        <Button
-          type="custom"
-          className={classNames({ [styles.SelectedTabButton]: selectedTab === 'summary' })}
-          onClick={() => setSelectedTab('summary')}
-        >
-          Summary
-        </Button>
-        <Button
-          type="custom"
-          className={classNames({ [styles.SelectedTabButton]: selectedTab === 'availability' })}
-          onClick={() => setSelectedTab('availability')}
-        >
-          Table
-        </Button>
       </div>
     </div>
   );

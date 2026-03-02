@@ -29,59 +29,6 @@
         font-size: var(--font-size-sm);
       }
     }
-    .Buttons {
-      display: flex;
-      align-items: center;
-      gap: 15px;
-
-      .DownloadButton {
-        white-space: nowrap;
-      }
-
-      .ShareButton,
-      .ShareButtonForTablet,
-      .BookmarkButton {
-        border: 1px solid var(--color-neutral-dark-300);
-        box-shadow: 0px 4px 16px 0px #00000014;
-        border-radius: 90px;
-        padding: 8px;
-        max-height: 32px;
-
-        svg {
-          width: 16px;
-          height: 16px;
-        }
-      }
-    }
-  }
-
-  .TabsHeader {
-    display: none;
-    background-color: var(--color-neutral-light);
-    box-shadow: 0px 4px 16px 0px #00000014;
-    padding: 13px 0 6px 23px;
-
-    button {
-      padding: 0 0 calc(4px + 3px) 0;
-      background-color: transparent;      
-      border-radius: 0;
-
-      font-family: 'Inter', Arial, Helvetica, sans-serif;
-      font-weight: var(--font-weight-regular);
-      font-size: var(--font-size-xs);
-      line-height: 100%;
-      letter-spacing: 0%;
-      text-align: center;
-
-      &.SelectedTabButton {
-        border-bottom: 3px solid var(--color-brand-yellow-900);
-        padding: 0 0 4px 0;
-      }
-
-      & + button {
-        margin-left: 87px;
-      }
-    }
   }
 
   .Content {
@@ -93,11 +40,40 @@
       box-shadow: 0px 4px 16px 0px #00000014;
     }
 
-    .Data {
+    .Main {
       flex-grow: 1;
       background-color: var(--color-neutral-light);
       width: 100%;
       overflow-x: hidden;
+      position: relative;
+
+      .MainContent {
+        background-color: var(--color-neutral-white);
+        width: 929px;
+        height: 739px;
+        margin: 20px auto;
+      }
+
+      .Footer {
+        padding: 12px 24px;
+        background-color: var(--color-neutral-white);
+        box-shadow: 0px 4px 16px 0px #00000014;
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        display: flex;
+        flex-direction: row;
+        justify-content: end;
+        align-items: center;
+        gap: 12px;        
+        .TermsOfUse {
+          font-size: var(--font-size-md);
+          label {
+            margin-left: 8px;
+          }
+        }
+      }
     }
   }
 }
