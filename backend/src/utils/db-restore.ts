@@ -6,6 +6,10 @@ import { readFileSync } from 'fs';
 import { isJest } from './utils';
 
 export const dbRestore = async (dumpPath: string, mappingsPath?: string): Promise<void> => {
+  // Create soilhive schema if needed
+  const dataSource = await getDataSource();
+  dataSource.query('CREATE SCHEMA IF NOT EXISTS soilhive;');
+
   await pgRestore(
     {
       host: process.env.POSTGRES_HOST!,
@@ -26,7 +30,6 @@ export const dbRestore = async (dumpPath: string, mappingsPath?: string): Promis
   if (schema !== 'soilhive' && !isJest()) {
     // Move table to custom schema
     const table = path.parse(dumpPath).name;
-    const dataSource = await getDataSource();
     dataSource.query(`ALTER TABLE soilhive.${table} SET SCHEMA ${schema};`);
   }
 
@@ -35,7 +38,6 @@ export const dbRestore = async (dumpPath: string, mappingsPath?: string): Promis
   }
 
   const sql = readFileSync(mappingsPath, 'utf8');
-  const dataSource = await getDataSource();
   await dataSource.query(`SET search_path TO ${process.env.POSTGRES_SCHEMA}, public`);
   await dataSource.query(sql);
 };
