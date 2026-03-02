@@ -147,7 +147,9 @@ function DownloadPreview() {
             type="primary"
             className={styles.DownloadButton}
             onClick={() => {
-              navigate('/download');
+              const params = new URLSearchParams();
+              params.append('source', 'preview');
+              navigate({ pathname: '/download', search: `?${params.toString()}` });
             }}
           >
             <DownloadIcon />

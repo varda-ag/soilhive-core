@@ -40,7 +40,9 @@ export function DatasetsSidebar({ isOpened, onClose }: Props) {
             className={styles.DownloadButton}
             isDisabled={availableDatasets.length === 0}
             onClick={() => {
-              navigate('/download');
+              const params = new URLSearchParams();
+              params.append('source', 'availability');
+              navigate({ pathname: '/download', search: `?${params.toString()}` });
             }}
           >
             <DownloadIcon />
