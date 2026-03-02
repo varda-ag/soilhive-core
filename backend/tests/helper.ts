@@ -1,5 +1,5 @@
 import path from 'path';
-import { pgRestore } from 'pg-dump-restore';
+import { dbRestore } from '../src/utils/db-restore';
 import request from 'supertest';
 import { app } from '../src/app';
 import { exec } from 'child_process';
@@ -7,7 +7,6 @@ import { destroyDataSource, getDataSource, initializeSchema, isDBAvailable } fro
 import { sleep } from '../src/utils/utils';
 import { setupTestEnv } from './environment';
 import assert from 'assert';
-import { getDBPassword } from '../src/utils/db-credentials';
 import { readFileSync } from 'fs';
 
 export const startDockerCompose = async () => {
@@ -116,25 +115,12 @@ const getToken = async (password: string): Promise<string> => {
 export const addLandCoverData = async (): Promise<string> => {
   // Loading data (it takes a while)
   const landCoverDump = path.join(__dirname, './assets/land_cover/land_cover.dump');
-  await pgRestore(
-    {
-      host: process.env.POSTGRES_HOST!,
-      port: Number(process.env.POSTGRES_PORT!),
-      username: process.env.POSTGRES_USER!,
-      password: await getDBPassword(),
-      database: process.env.POSTGRES_DB!,
-    },
-    {
-      filePath: landCoverDump,
-      clean: true, // Clean table if exists
-      create: false, // DB creation
-    },
-  ).catch(() => {});
+  await dbRestore(landCoverDump).catch(() => {});
   return 'land_cover';
 };
 
 export const addLandCoverMappings = async (): Promise<string> => {
-  const landCoverMappingsFile = path.join(__dirname, './assets/land_cover/mappings.sql');
+  const landCoverMappingsFile = path.join(__dirname, './assets/land_cover/land_cover.mappings');
   const sql = readFileSync(landCoverMappingsFile, 'utf8');
   const dataSource = await getDataSource();
   await dataSource.query(`SET search_path TO ${process.env.POSTGRES_SCHEMA}, public`);

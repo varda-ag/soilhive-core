@@ -154,6 +154,7 @@ export class CreateSchema1765549507801 implements MigrationInterface {
       CHECK (check_std_unit(standard_unit)) NOT VALID;`);
     // TODO: implement this with typeorm entity subscribers
     /* eslint-disable */
+    await queryRunner.query(`CREATE EXTENSION IF NOT EXISTS postgis_raster SCHEMA public`);
     await queryRunner.query(`CREATE EXTENSION IF NOT EXISTS "unaccent" SCHEMA public`);
     await queryRunner.query(`CREATE OR REPLACE FUNCTION slugify(value TEXT)
                                         RETURNS TEXT AS $$
