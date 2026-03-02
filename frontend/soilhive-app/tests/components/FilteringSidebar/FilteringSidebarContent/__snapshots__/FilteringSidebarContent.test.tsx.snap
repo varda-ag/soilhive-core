@@ -1,6 +1,6 @@
 // Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
 
-exports[`FilteringSidebarContent renders two sections with child components 1`] = `
+exports[`FilteringSidebarContent renders three sections with child components 1`] = `
 <div>
   <div
     class="FilteringSidebarContent"
@@ -33,6 +33,21 @@ exports[`FilteringSidebarContent renders two sections with child components 1`] 
         data-testid="mock-filtering-sidebar-parameters"
       >
         Mock FilteringSidebarParameters
+      </div>
+    </div>
+    <div
+      class="Section"
+      data-testid="sh-filtering-sidebar-section"
+    >
+      <p
+        class="Title"
+      >
+        LAND & ECOSYSTEM
+      </p>
+      <div
+        data-testid="mock-filtering-sidebar-land-ecosystem"
+      >
+        Mock FilteringSidebarLandEcosystem
       </div>
     </div>
   </div>
