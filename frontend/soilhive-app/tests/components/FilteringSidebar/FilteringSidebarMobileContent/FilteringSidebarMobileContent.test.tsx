@@ -9,6 +9,10 @@ jest.mock('components/FilteringSidebar/FilteringSidebarDataScope/FilteringSideba
   FilteringSidebarDataScope: () => <div data-testid="mock-filtering-sidebar-datascope">Mock FilteringSidebarDataScope</div>,
 }));
 
+jest.mock('components/FilteringSidebar/FilteringSidebarLandEcosystem/FilteringSidebarLandEcosystem', () => ({
+  FilteringSidebarLandEcosystem: () => <div data-testid="mock-filtering-sidebar-land-ecosystem">Mock FilteringSidebarLandEcosystem</div>,
+}));
+
 describe('FilteringSidebarMobileContent', () => {
   it('renders component by default', () => {
     const { container } = render(<FilteringSidebarMobileContent />);

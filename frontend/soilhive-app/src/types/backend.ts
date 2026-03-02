@@ -35,9 +35,7 @@ export interface FilterCriteria {
   max_depth?: number;
   horizons?: string[];
   soil_properties?: string[];
-  agroecological_zones?: string[];
-  land_cover?: string[];
-  soil_groups?: string[];
+  raster_filters?: Record<string, number[]>; // server side is Map <table_name, raster_values>, but on FE this can lead to React equality checks errors
 }
 
 export interface DataFilter {
@@ -172,4 +170,12 @@ export interface SoilDataSample {
   measurement_procedure: string | null;
   limit_of_detection: string | null;
   cursor: string;
+}
+
+export interface RasterFilterCategory {
+  id: string; // e.g., 'land_cover'
+  name: string; // e.g. Land Cover
+  description: string;
+  enabled: boolean;
+  mapping: Record<string, number>; // e.g., { "Artic": 1 }
 }
