@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.40.0 (2026-03-02)
+
+## What's Changed
+* feat(data): ✨ added raster filter endpoints by @svaccari in https://github.com/varda-ag/soilhive-core/pull/248
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.39.1...v0.40.0
+
 ## 0.39.1 (2026-02-27)
 
 ## What's Changed
