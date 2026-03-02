@@ -1,4 +1,5 @@
 import path from 'path';
+import { pgRestore } from 'pg-dump-restore';
 import request from 'supertest';
 import { app } from '../src/app';
 import { exec } from 'child_process';
@@ -6,6 +7,8 @@ import { destroyDataSource, getDataSource, initializeSchema, isDBAvailable } fro
 import { sleep } from '../src/utils/utils';
 import { setupTestEnv } from './environment';
 import assert from 'assert';
+import { getDBPassword } from '../src/utils/db-credentials';
+import { readFileSync } from 'fs';
 
 export const startDockerCompose = async () => {
   setupTestEnv();
@@ -35,7 +38,8 @@ export const teardown = async () => {
 };
 
 export const clearDatabase = async () => {
-  const excludeTables = ['land_cover'];
+  const excludeTables: string[] = [];
+  const includeTables: string[] = ['land_cover'];
   const dataSource = await getDataSource();
   const tableNames = dataSource?.entityMetadatas
     .filter(entity => !excludeTables.includes(entity.tableName))
@@ -43,6 +47,22 @@ export const clearDatabase = async () => {
     .join(', ');
   await dataSource?.query(`SET search_path TO ${process.env.POSTGRES_SCHEMA}, public`);
   await dataSource?.query(`TRUNCATE TABLE ${tableNames} CASCADE;`);
+
+  // Different method for tables that may not exist
+  for (const table of includeTables) {
+    await dataSource?.query(`
+    DO $$
+      BEGIN
+        IF EXISTS (
+          SELECT 1 FROM information_schema.tables
+          WHERE table_schema = '${process.env.POSTGRES_SCHEMA}'
+          AND table_name = '${table}'
+        ) THEN
+          TRUNCATE TABLE ${table};
+        END IF;
+      END
+      $$;`);
+  }
 
   // Drop raw data tables
   const tables: Array<{ table_name: string }> = await dataSource.query(
@@ -91,4 +111,45 @@ const getToken = async (password: string): Promise<string> => {
   });
   assert(res.body.access_token, `There was an error getting the test access token: ${res.body.detail}`);
   return res.body.access_token;
+};
+
+export const addLandCoverData = async (): Promise<string> => {
+  // Loading data (it takes a while)
+  const landCoverDump = path.join(__dirname, './assets/land_cover/land_cover.dump');
+  await pgRestore(
+    {
+      host: process.env.POSTGRES_HOST!,
+      port: Number(process.env.POSTGRES_PORT!),
+      username: process.env.POSTGRES_USER!,
+      password: await getDBPassword(),
+      database: process.env.POSTGRES_DB!,
+    },
+    {
+      filePath: landCoverDump,
+      clean: true, // Clean table if exists
+      create: false, // DB creation
+    },
+  ).catch(() => {});
+  return 'land_cover';
+};
+
+export const addLandCoverMappings = async (): Promise<string> => {
+  const landCoverMappingsFile = path.join(__dirname, './assets/land_cover/mappings.sql');
+  const sql = readFileSync(landCoverMappingsFile, 'utf8');
+  const dataSource = await getDataSource();
+  await dataSource.query(`SET search_path TO ${process.env.POSTGRES_SCHEMA}, public`);
+  await dataSource.query(sql);
+  // Also create empty table to have the filter enabled
+  await dataSource.query('CREATE TABLE IF NOT EXISTS land_cover();');
+  return 'land_cover';
+};
+
+export const addRasterFilters = async (): Promise<void> => {
+  const dataSource = await getDataSource();
+  await dataSource.query(`
+    SET search_path TO ${process.env.POSTGRES_SCHEMA}, public;
+      INSERT INTO "raster_filters" (id,name,description) VALUES ('land_cover','Land cover','The Copernicus Global Land Service (CGLS) provides a series of biogeophysical products (i.e. Leaf Area Index, Land Surface Temperature, soil moisture, etc.) on the status and evolution of land surface at global scale.');
+      INSERT INTO "raster_filters" (id,name,description) VALUES ('agroecological_zones', 'Agroecological zones', 'The Food and Agriculture Organization of the United Nations (FAO) and the International Institute for Applied Systems Analysis (IIASA) have cooperated over several decades to develop and implement the Agro-Ecological Zones (AEZ) modeling framework and databases. AEZ relies on well-established land evaluation principles to assess natural resources for finding suitable agricultural land utilization options. Compilation of an AEZ agro-climatic inventory using several climatic variables (e.g. temperature, precipitation, sunshine fraction, relative humidity) gives a <strong>general characterization of climatic resources, signifies their suitability for agricultural use and provides data and indicators related to climatic requirements of crop growth, development and yield formation. Source: © FAO, 2021. Global Agro-Ecological Zones v4');
+      INSERT INTO "raster_filters" (id,name,description) VALUES ('soil_groups', 'Soil Groups', 'This filter refers to the categories defined by the WRB, an international soil classification system developed by the IUSS. These groups classify soils based on their physical and chemical properties, providing a standardized framework for naming soils and creating legends for soil maps. FAO & IIASA. 2023. Harmonized World Soil Database version 2.0. Rome and Laxenburg.');
+    `);
 };

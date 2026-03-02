@@ -7,6 +7,7 @@ import SoilDataStorage from '../../src/data-layer/SoilDataStorage';
 import DatasetEntity from '../../src/entities/Dataset';
 import { decodeCursor } from '../../src/utils/cursor';
 import { GISDataType } from '../../src/types/data';
+import { addLandCoverData, addLandCoverMappings } from '../helper';
 
 const bbox = [0, 0, 1, 1];
 const bboxPolygon: Polygon = getPolygonFromBbox(bbox);
@@ -29,9 +30,14 @@ describe('SoilDataStorage class', () => {
     expect(overlapType).toEqual(expectedType);
   });
 
-  it('Filtering should return some results', async () => {
+  it.each(['Point', 'Polygon'])('Filtering should return some results', async (featureGeometryType: string) => {
     const layers = 5;
-    const { dataset } = await addSyntheticData({ ...syntheticDataOptions, depthLayers: layers, soilPropertyNames: ['prop1', 'prop2'] });
+    const { dataset } = await addSyntheticData({
+      ...syntheticDataOptions,
+      depthLayers: layers,
+      soilPropertyNames: ['prop1', 'prop2'],
+      featureGeometryType,
+    });
     const sds = new SoilDataStorage();
     const entityManager = await getEntityManager();
     const results = await sds.filter(entityManager, getPolygonFromBbox([0, 0, 10, 10]), {});
@@ -190,24 +196,6 @@ describe('SoilDataStorage class', () => {
     }
   });
 
-  it.skip.each([[[[-80.7811, -33.7413]], [30], 1, 1]])(
-    'Filtering using land cover should return expected data points',
-    async (featureCoordinates, values, expectedResultCount, expectedCount) => {
-      const bbox = [-81, -34, -80, -33];
-      const tableName = 'land_cover'; //await addLandCover();
-      await addSyntheticData({ ...syntheticDataOptions, depthLayers: 1, featureCoordinates, spatial_extent: bbox });
-      const sds = new SoilDataStorage();
-      const entityManager = await getEntityManager();
-      const raster_filters = new Map<string, number[]>();
-      raster_filters.set(tableName, values);
-      const results = await sds.filter(entityManager, getPolygonFromBbox(bbox), { raster_filters });
-      expect(results.length).toBe(expectedResultCount);
-      if (expectedResultCount > 0) {
-        expect(results[0].dataset_layer_count).toBe(expectedCount);
-      }
-    },
-  );
-
   it('Filtering using cursor and sorting at the same time should return consistent results', async () => {
     const layers = 5;
     const totalObservations = 20;
@@ -312,5 +300,83 @@ describe('SoilDataStorage class', () => {
       const hasNewIds = morePropertyResults.some(r => !firstPageIds.includes(r.id));
       expect(hasNewIds).toBe(true);
     }
+  });
+
+  describe('Raster filtering', () => {
+    beforeEach(async () => {
+      await addLandCoverData();
+      await addLandCoverMappings();
+    }, 20000);
+
+    it.each([
+      [[[-80.7811, -33.7413]], [30], 1, 1],
+      [[[-80.7811, -33.7413]], [11], 0, 0],
+    ])(
+      'Filtering using land cover should return expected data points',
+      async (featureCoordinates, values, expectedResultCount, expectedFeatureCount) => {
+        const tableName = 'land_cover';
+        const bbox = [-81, -34, -80, -33];
+        await addSyntheticData({ ...syntheticDataOptions, depthLayers: 1, featureCoordinates, spatial_extent: bbox });
+        const sds = new SoilDataStorage();
+        const entityManager = await getEntityManager();
+        const raster_filters = new Map<string, number[]>();
+        raster_filters.set(tableName, values);
+        const results = await sds.filter(entityManager, getPolygonFromBbox(bbox), { raster_filters });
+        expect(results.length).toBe(expectedResultCount);
+        if (expectedResultCount > 0) {
+          expect(results[0].dataset_layer_count).toBe(expectedFeatureCount);
+        }
+      },
+    );
+
+    it.each([
+      [[-81, -34, -80, -33], 1, [0, 90, 20, 60, 112, 30, 80, 126, 200, 116]],
+      [[-82, -35, -81, -32], 1, [200]],
+    ])(
+      'Filtering when having raster filters enabled should return all available raster options',
+      async (bbox, expectedResultCount, expectedRasterOptions: number[]) => {
+        await addSyntheticData({ ...syntheticDataOptions, depthLayers: 1, featureCount: 100, spatial_extent: bbox });
+        const sds = new SoilDataStorage();
+        const entityManager = await getEntityManager();
+        const results = await sds.filter(entityManager, getPolygonFromBbox(bbox), {});
+        expect(results.length).toBe(expectedResultCount);
+        if (expectedResultCount > 0) {
+          expect(results[0].raster_filters?.get('land_cover')?.sort((a, b) => a - b)).toEqual(expectedRasterOptions.sort((a, b) => a - b));
+        }
+      },
+    );
+
+    it('Filtering with small area should return only overlapping raster values', async () => {
+      // Dataset spatial_extent
+      const bbox = [-81, -34, -80, -33];
+      // Filtering rectangle: it overlaps a small portion of the test tile containing 3 values
+      const filteringRectangle = {
+        coordinates: [
+          [
+            [-80.722896453120683, -33.772227648792125],
+            [-80.722896453120683, -33.768670417531609],
+            [-80.717031828610118, -33.768670417531609],
+            [-80.717031828610118, -33.772227648792125],
+            [-80.722896453120683, -33.772227648792125],
+          ],
+        ],
+        type: 'Polygon',
+      };
+      await addSyntheticData({
+        ...syntheticDataOptions,
+        depthLayers: 1,
+        featureCoordinates: [
+          // Array with one polygon
+          filteringRectangle.coordinates,
+        ],
+        featureGeometryType: 'Polygon',
+        spatial_extent: bbox,
+      });
+      const sds = new SoilDataStorage();
+      const entityManager = await getEntityManager();
+      const results = await sds.filter(entityManager, filteringRectangle as Polygon, {});
+      expect(results.length).toBe(1);
+      expect(results[0].raster_filters?.get('land_cover')?.sort((a, b) => a - b)).toEqual([30, 60, 200]);
+    });
   });
 });
