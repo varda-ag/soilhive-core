@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.42.0 (2026-03-02)
+
+## What's Changed
+* feat(fe): sp-4920 integrate fe raster filters to be by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/258
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.41.1...v0.42.0
+
 ## 0.41.1 (2026-03-02)
 
 ## What's Changed
