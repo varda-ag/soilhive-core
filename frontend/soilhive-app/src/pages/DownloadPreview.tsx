@@ -15,10 +15,13 @@ import { computeDatasetSummary } from '../domain';
 import type { Nullable } from 'primereact/ts-helpers';
 import useAvailability from 'hooks/useAvailability';
 import type { Feature, GeoJsonProperties, MultiPolygon, Point, Polygon } from 'geojson';
+import { useNavigate } from 'react-router';
 
 const MAXIMUM_SOIL_DATA_PER_REQUEST = 100;
 
 function DownloadPreview() {
+  const navigate = useNavigate();
+
   const {
     setPreview,
     geometryFilter,
@@ -140,7 +143,13 @@ function DownloadPreview() {
             <ArrowLeftIcon />
             Back
           </Button>
-          <Button type="primary" className={styles.DownloadButton}>
+          <Button
+            type="primary"
+            className={styles.DownloadButton}
+            onClick={() => {
+              navigate('/download');
+            }}
+          >
             <DownloadIcon />
             Download data
           </Button>

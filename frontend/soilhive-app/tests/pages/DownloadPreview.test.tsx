@@ -12,6 +12,11 @@ jest.mock('hooks/useSoilData', () => {
   };
 });
 
+jest.mock('react-router', () => ({
+  __esModule: true,
+  useNavigate: jest.fn(),
+}));
+
 jest.mock('components/DownloadPreview/DownloadPreviewSummary/DownloadPreviewSummary', () => {
   const DownloadPreviewSummary = () => <div>Mock DownloadPreviewSummary</div>;
   return DownloadPreviewSummary;
