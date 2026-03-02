@@ -53,7 +53,8 @@
     "swagger-ui-express": "^5.0.1",
     "typeorm": "^0.3.27",
     "uuid": "11.1.0",
-    "wellknown": "^0.5.0"
+    "wellknown": "^0.5.0",
+    "pg-dump-restore": "^1.0.15"
   },
   "devDependencies": {
     "@tsconfig/node-lts": "^22.0.2",
@@ -64,7 +65,6 @@
     "copyfiles": "^2.4.1",
     "jest": "^30.2.0",
     "nodemon": "^3.1.10",
-    "pg-dump-restore": "^1.0.15",
     "supertest": "^7.1.4",
     "ts-jest": "^29.4.5",
     "ts-node": "^10.9.2",
