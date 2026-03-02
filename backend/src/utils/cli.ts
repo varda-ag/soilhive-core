@@ -23,10 +23,17 @@ export const setupCLI = async () => {
     }
     const spatial_extent = options['bbox'].split(',').map(Number);
     await createSyntheticData(options['createData'], spatial_extent);
+    process.exit();
   }
   if (options['loadRasterFilter']) {
     console.log('Loading raster filter:', options);
-    await loadRasterFilter(options['loadRasterFilter']);
+    try {
+      await loadRasterFilter(options['loadRasterFilter']);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      process.exit();
+    }
   }
 };
 
