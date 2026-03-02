@@ -1,0 +1,64 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`DownloadsMenuItem renders component with provided progress 1`] = `
+<div>
+  <div
+    class="DownloadsMenuItem"
+    data-testid="sh-downloads-menu-item"
+  >
+    <div
+      class="Left"
+    >
+      <svg
+        data-testid="svg-icon-mock"
+      >
+        mock-svg
+      </svg>
+       Extracting data
+    </div>
+    <div
+      class="Right"
+    >
+      <span
+        class="Progress"
+      >
+        42
+         %
+      </span>
+      <button
+        aria-label="Cancel"
+        class="CancelButton"
+        data-testid="sh-downloads-menu-item-cancel"
+      >
+        <svg
+          data-testid="svg-icon-mock"
+        >
+          mock-svg
+        </svg>
+      </button>
+      <div
+        data-testid="confirm-popup"
+        data-visible="false"
+      >
+        <div
+          data-testid="confirm-message"
+        >
+          Do you want to cancel the download?
+        </div>
+        <button
+          data-testid="confirm-accept"
+          type="button"
+        >
+          accept
+        </button>
+        <button
+          data-testid="confirm-hide"
+          type="button"
+        >
+          hide
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+`;

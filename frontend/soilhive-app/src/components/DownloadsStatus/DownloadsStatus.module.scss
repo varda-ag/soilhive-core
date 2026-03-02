@@ -1,0 +1,70 @@
+@keyframes dlPulse {
+  0% {
+    transform: scale(0.55);
+    opacity: 0;
+  }
+  20% {
+    opacity: 0.5;
+  }
+  60% {
+    transform: scale(1);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0;
+  }
+}
+
+.DownloadsStatus {
+  position: relative;
+  margin-left: 2rem;
+
+  .DownloadsStatusButton {
+    position: relative;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .Pulse {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: var(--color-pills);
+    opacity: 0;
+    transform: scale(0.6);
+    animation: dlPulse 1.6s ease-in-out infinite;
+    will-change: transform, opacity;
+
+    &[data-open='true'] {
+      animation: none;
+      opacity: 0;
+    }
+  }
+
+  .Counter {
+    position: absolute;
+    top: -7px;
+    right: -7px;
+    width: 0.875rem;
+    height: 0.875rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--color-pills);
+    border-radius: 50%;
+    font-size: var(--font-size-2xs);
+    line-height: var(--line-height-xs);
+    font-weight: var(--font-weight-bold);
+  }
+
+  .DownloadsMenu {
+    position: absolute;
+    top: calc(100% + 0.25rem);
+    right: -0.5rem;
+  }
+}
