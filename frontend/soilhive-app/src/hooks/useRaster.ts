@@ -1,10 +1,10 @@
-//import { useRequest } from '../api-client';
-import type { RasterFilterCategory } from '../types/backend';
-//import { BACKEND_BASE_URL } from '../utilities/environmentVariables';
+import { useRequest } from '../api-client';
+//import type { RasterFilterCategory } from '../types/backend';
+import { BACKEND_BASE_URL } from '../utilities/environmentVariables';
 import { useQuery } from '@tanstack/react-query';
 
 // Mock data until endpoint is ready
-const MOCK_RASTER_FILTERS: RasterFilterCategory[] = [
+/*const MOCK_RASTER_FILTERS: RasterFilterCategory[] = [
   {
     id: 'agroecological_zones',
     name: 'Agroecological Zones',
@@ -33,20 +33,21 @@ const MOCK_RASTER_FILTERS: RasterFilterCategory[] = [
     enabled: true,
     mapping: { Tropical: 1, Arid: 2, Temperate: 3, Continental: 4, Polar: 5 },
   },
-];
+];*/
 export function useRaster() {
+  const { request } = useRequest();
   // Load all raster filters (regardless of category)
   const { data: allCategories, isLoading } = useQuery({
     queryKey: ['rasterFilters'],
-    /*queryFn: () =>
+    queryFn: () =>
       request({
         url: `${BACKEND_BASE_URL}/raster-filters`,
         method: 'GET',
-      }),*/
-    queryFn: async () => {
+      }),
+    /*queryFn: async () => {
       await new Promise(resolve => setTimeout(resolve, 500));
       return MOCK_RASTER_FILTERS;
-    },
+    },*/
   });
 
   return {
