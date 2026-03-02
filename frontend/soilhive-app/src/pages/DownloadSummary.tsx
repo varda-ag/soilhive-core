@@ -1,21 +1,27 @@
 import { useState } from 'react';
 import { Button } from 'components/UI';
-import styles from './DownloadPreview.module.scss';
+import styles from './DownloadSummary.module.scss';
 import ArrowLeftIcon from 'assets/icons/arrow-left-icon.svg?react';
 import classNames from 'classnames';
 import { useNavigate, useSearchParams } from 'react-router';
+import useAvailability from 'hooks/useAvailability';
+import DownloadSummarySidebar from 'components/DownloadSummary/DownloadSummarySidebar/DownloadSummarySidebar';
 
 function DownloadSummary() {
+  const { geometryFilter, datasetsSummary, selectionType, locationName, boundingBox, selectedSoilProperties, filteredSoilProperties } =
+    useAvailability();
+
   const navigate = useNavigate();
 
   const [searchParams] = useSearchParams();
 
   const comingFromPreview = searchParams.get('source') === 'preview';
 
+  const [summaryExpanded, setSummaryExpanded] = useState(false);
   const [selectedTab, setSelectedTab] = useState<'summary' | 'availability'>('summary');
 
   return (
-    <div className={styles.Availability}>
+    <div className={styles.DownloadSummary}>
       <div className={styles.Header}>
         <div className={styles.Titles}>
           <span className={styles.Title}>DOWNLOAD SUMMARY</span>
@@ -38,25 +44,23 @@ function DownloadSummary() {
       </div>
       <div className={styles.Content}>
         <div className={classNames(styles.Sidebar, { [styles.HideInMobile]: selectedTab !== 'summary' })}>
-          {/* <DownloadPreviewSummary
+          <DownloadSummarySidebar
             selectionType={selectionType}
             initialViewBoundingBox={boundingBox}
-            selectedPoint={selectedPoint}
-            selectedFeature={{
+            geometryFeature={{
               type: 'FeatureCollection',
               features: geometryFilter.map(geometry => ({ geometry })),
             }}
             locationName={locationName}
             dataPoints={datasetsSummary.dataPoints}
             rasterLayers={datasetsSummary.layers}
-            depthRange={fixedDepthRange ? `${datasetsSummary.depth}cm` : undefined}
-            soilProperties={availabilityFilteredSoilProperties
-              .filter(property => availabilitySelectedSoilProperties.includes(property.id))
+            depthRange={`${datasetsSummary.depth}cm`}
+            soilProperties={filteredSoilProperties
+              .filter(property => selectedSoilProperties.includes(property.id))
               .map(property => property.property_name)}
             expanded={summaryExpanded}
             onExpandClicked={newExpanded => setSummaryExpanded(newExpanded)}
-          /> */}
-          MockDownloadPreviewSummary
+          />
         </div>
         <div className={classNames(styles.Data, { [styles.HideInMobile]: selectedTab !== 'availability' })}>
           Availability

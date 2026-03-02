@@ -1,0 +1,198 @@
+@import 'styles/variables/breakpoints';
+
+.DownloadSummarySidebar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 255px;
+  padding-top: 19px;
+  transition: width 0.5s ease-out;
+
+  &.Expanded {
+    width: 448px;
+
+    .MapSection {
+      align-items: center;
+
+      .Map {
+        width: 410px;
+        height: 322px;
+    
+        >button {
+          top: 9px;
+          right: 8.5px;
+          >svg {
+            width: 28.5px;
+            height: 28.3px;
+          }
+        }
+      }
+
+      .SubMap {
+        width: 344px;
+      }
+    }
+
+    .Separator {
+      width: 410px;
+    }
+
+    .DataSummary,
+    .AppliedFilters {
+      width: 344px;
+    }
+  }
+
+  .MapSection {
+    display: flex;
+    flex-direction: column;
+
+    .Map {
+      position: relative;
+      width: 214px;
+      height: 106px;
+      border-radius: 8px;
+      overflow: hidden;
+      transition-property: width, height;
+      transition-duration: 0.5s;
+      transition-timing-function: ease-out;
+  
+      >button {
+        position: absolute;
+        top: 4px;
+        right: 4px;
+        padding: 0 !important;
+  
+        >svg {
+          width: 28px;
+          height: 28px;
+        }
+      }
+    }
+  
+    .SubMap {
+      width: 214px;
+      padding-top: 10px;
+      padding-bottom: 12px;
+  
+      .SectionTitle {
+        padding-bottom: 5px;
+      }
+  
+      .Location {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+  
+        >svg {          
+          width: 16px;
+          height: 16px;
+          /* Prevents the SVG from shrinking when space is tight */
+          flex-shrink: 0; 
+          /* Prevents the SVG from expanding beyond its set width */
+          flex-grow: 0;
+        }
+      }
+    }
+  }
+
+  .DataSummary {
+    width: 214px;
+    padding-top: 19px;
+    padding-bottom: 28px;
+
+    .SectionTitle {
+      padding-bottom: 16px;
+    }
+
+    .DataSummaryContent {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      width: 100%;
+
+      .DataSummaryRow {
+        display: flex;
+        justify-content: space-between;
+        width: 173px;
+        font-family: 'Inter', Arial, Helvetica, sans-serif;
+        font-size: var(--font-size-sm);
+        line-height: var(--line-height-lg);
+        letter-spacing: 0px;
+    
+        .DataSummaryRowTitle {
+          display: flex;
+          align-items: center;
+          gap: 5px;
+          font-weight: var(--font-weight-regular);
+          text-wrap: nowrap;
+    
+          >svg {
+            width: 16px;
+            height: 16px;
+          }
+        }
+    
+        .DataSummaryRowData {
+          font-weight: var(--font-weight-bold);
+          text-align: right;
+        }
+      }
+    }
+  }
+
+  .AppliedFilters {
+    padding-top: 12px;
+    width: 214px;
+
+    .SectionTitle {
+      padding-bottom: 17px;
+    }
+
+    .FiltersList {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      width: 100%;
+
+      .Filter {
+        padding: 5px 21px 4px 21px;
+        border-radius: 4px;
+        font-family: 'Inter', Arial, Helvetica, sans-serif;
+        font-size: var(--font-size-xs);
+        line-height: var(--line-height-lg);
+        letter-spacing: 0px;
+
+        &:first-of-type {
+          background-color: var(--color-accent-tech-100);
+        }
+
+        &:last-of-type {
+          background-color: var(--color-brand-yellow-600);
+        }
+
+        .FilterName {
+          font-weight: var(--font-weight-bold);
+        }
+
+        .FilterValue {
+          font-weight: var(--font-weight-regular);
+        }
+      }
+    }
+  }
+
+  .Separator {
+    height: 1px;
+    width: 100%;
+    background-color: var(--color-neutral-dark-200);
+  }
+
+  .SectionTitle {
+    font-family: 'Inter', Arial, Helvetica, sans-serif;
+    font-weight: var(--font-weight-bold);
+    font-size: var(--font-size-md);
+    line-height: var(--line-height-lg);
+    letter-spacing: 0px;
+  }
+}

@@ -1,0 +1,103 @@
+@import 'styles/variables/breakpoints';
+
+.DownloadSummary {
+  position: relative;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+
+  .Header {
+    display: flex;
+    justify-content: space-between;
+    padding: 15px 32px 15px 35px;
+    border-bottom: 1px solid var(--color-neutral-dark-100);
+
+    .Titles {
+      display: flex;
+      flex-direction: column;
+      font-family: 'Inter', Arial, Helvetica, sans-serif;
+      line-height: var(--line-height-lg);
+      letter-spacing: 0px;
+
+      .Title {
+        font-weight: var(--font-weight-bold);
+        font-size: var(--font-size-lg);
+        vertical-align: middle;
+      }
+      .SubTitle {
+        font-weight: var(--font-weight-regular);
+        font-size: var(--font-size-sm);
+      }
+    }
+    .Buttons {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+
+      .DownloadButton {
+        white-space: nowrap;
+      }
+
+      .ShareButton,
+      .ShareButtonForTablet,
+      .BookmarkButton {
+        border: 1px solid var(--color-neutral-dark-300);
+        box-shadow: 0px 4px 16px 0px #00000014;
+        border-radius: 90px;
+        padding: 8px;
+        max-height: 32px;
+
+        svg {
+          width: 16px;
+          height: 16px;
+        }
+      }
+    }
+  }
+
+  .TabsHeader {
+    display: none;
+    background-color: var(--color-neutral-light);
+    box-shadow: 0px 4px 16px 0px #00000014;
+    padding: 13px 0 6px 23px;
+
+    button {
+      padding: 0 0 calc(4px + 3px) 0;
+      background-color: transparent;      
+      border-radius: 0;
+
+      font-family: 'Inter', Arial, Helvetica, sans-serif;
+      font-weight: var(--font-weight-regular);
+      font-size: var(--font-size-xs);
+      line-height: 100%;
+      letter-spacing: 0%;
+      text-align: center;
+
+      &.SelectedTabButton {
+        border-bottom: 3px solid var(--color-brand-yellow-900);
+        padding: 0 0 4px 0;
+      }
+
+      & + button {
+        margin-left: 87px;
+      }
+    }
+  }
+
+  .Content {
+    display: flex;
+    height: 100%;
+    background-color: white;
+
+    .Sidebar {
+      box-shadow: 0px 4px 16px 0px #00000014;
+    }
+
+    .Data {
+      flex-grow: 1;
+      background-color: var(--color-neutral-light);
+      width: 100%;
+      overflow-x: hidden;
+    }
+  }
+}
