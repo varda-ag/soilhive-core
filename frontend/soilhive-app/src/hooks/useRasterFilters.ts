@@ -13,7 +13,7 @@ export function useRasterFilters(categoryId?: string) {
 
   // These are those raster filter options that are actually available given the current geometry. This is what will be displayed as checkboxes
   const availableOptions = useMemo((): { label: string; value: number }[] => {
-    if (!categoryId || !currentRasterCategory) return [];
+    if (!categoryId || !currentRasterCategory || !currentRasterCategory.mapping) return [];
     const merged = new Set<number>();
     geometryFilterResults?.forEach(dataset => {
       dataset.raster_filters?.[categoryId]?.forEach(v => merged.add(v));

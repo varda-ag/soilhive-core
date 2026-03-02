@@ -6,6 +6,16 @@ jest.mock('@tanstack/react-query', () => ({
   useQuery: jest.fn(),
 }));
 
+jest.mock('../../src/api-client', () => ({
+  useRequest: () => ({
+    request: jest.fn(),
+  }),
+}));
+
+jest.mock('../../src/utilities/environmentVariables', () => ({
+  BACKEND_BASE_URL: 'http://mock-backend',
+}));
+
 const useQueryMock = useQuery as jest.MockedFunction<typeof useQuery>;
 
 const MOCK_CATEGORIES = [
