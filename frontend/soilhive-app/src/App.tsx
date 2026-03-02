@@ -11,6 +11,7 @@ import { AuthContextProvider } from './auth/AuthContextProvider';
 import Legal from './pages/Legal';
 import { AvailabilityProvider } from './contexts/AvailabilityContext';
 import { NotificationProvider } from './contexts/NotificationsContext';
+import { DownloadsProvider } from './contexts/DownloadsContext';
 
 const queryClient = new QueryClient();
 
@@ -20,61 +21,63 @@ function App() {
       <AuthContextProvider>
         <ThemeProvider>
           <NotificationProvider>
-            <BrowserRouter>
-              <Routes>
-                <Route element={<MainLayout />}>
-                  <Route
-                    index
-                    element={
-                      <>
-                        <PageTitle title="SoilHive - Home" />
-                        <AvailabilityProvider>
-                          <Homepage />
-                        </AvailabilityProvider>
-                      </>
-                    }
-                  />
-                  <Route
-                    path="/donation"
-                    element={
-                      <>
-                        <PageTitle title="SoilHive - Donation" />
-                      </>
-                    }
-                  />
-                  <Route
-                    path="/legal"
-                    element={
-                      <>
-                        <PageTitle title="SoilHive - Admin" />
-                        <Legal />
-                      </>
-                    }
-                  />
-                  <Route
-                    path="/admin"
-                    element={
-                      <>
-                        <PageTitle title="SoilHive - Admin" />
-                        <Admin />
-                      </>
-                    }
-                  />
-                  {singlePages.map(({ name, route, Page }) => (
+            <DownloadsProvider>
+              <BrowserRouter>
+                <Routes>
+                  <Route element={<MainLayout />}>
                     <Route
-                      key={`/${route}`}
-                      path={`/${route}`}
+                      index
                       element={
                         <>
-                          <PageTitle title={`SoilHive - ${name}`} />
-                          <Page />
+                          <PageTitle title="SoilHive - Home" />
+                          <AvailabilityProvider>
+                            <Homepage />
+                          </AvailabilityProvider>
                         </>
                       }
                     />
-                  ))}
-                </Route>
-              </Routes>
-            </BrowserRouter>
+                    <Route
+                      path="/donation"
+                      element={
+                        <>
+                          <PageTitle title="SoilHive - Donation" />
+                        </>
+                      }
+                    />
+                    <Route
+                      path="/legal"
+                      element={
+                        <>
+                          <PageTitle title="SoilHive - Admin" />
+                          <Legal />
+                        </>
+                      }
+                    />
+                    <Route
+                      path="/admin"
+                      element={
+                        <>
+                          <PageTitle title="SoilHive - Admin" />
+                          <Admin />
+                        </>
+                      }
+                    />
+                    {singlePages.map(({ name, route, Page }) => (
+                      <Route
+                        key={`/${route}`}
+                        path={`/${route}`}
+                        element={
+                          <>
+                            <PageTitle title={`SoilHive - ${name}`} />
+                            <Page />
+                          </>
+                        }
+                      />
+                    ))}
+                  </Route>
+                </Routes>
+              </BrowserRouter>
+            </DownloadsProvider>
           </NotificationProvider>
         </ThemeProvider>
       </AuthContextProvider>

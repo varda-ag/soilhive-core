@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Button } from 'components/UI';
 import styles from './DownloadPreview.module.scss';
 import DownloadPreviewSummary from 'components/DownloadPreview//DownloadPreviewSummary/DownloadPreviewSummary';
-import DownloadIcon from 'assets/icons/download-icon.svg?react';
+import DownloadIcon from 'assets/icons/small-download-icon.svg?react';
 import ArrowLeftIcon from 'assets/icons/arrow-left-icon.svg?react';
 import ShareIcon from 'assets/icons/share-icon.svg?react';
 import BookmarkIcon from 'assets/icons/bookmark-icon.svg?react';

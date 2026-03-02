@@ -1,0 +1,64 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`DownloadsMenu renders compenent with downloads count and downloads items 1`] = `
+<div>
+  <div
+    class="DownloadsMenu"
+    data-testid="sh-downloads-menu"
+  >
+    <div
+      class="Header"
+    >
+      <svg
+        data-testid="svg-icon-mock"
+      >
+        mock-svg
+      </svg>
+       
+      2
+       downloads in progress
+    </div>
+    <div
+      class="Body"
+    >
+      <div
+        class="DownloadsList"
+      >
+        <div
+          data-testid="downloads-menu-item"
+        >
+          <span
+            data-testid="downloads-menu-item-progress"
+          >
+            85
+          </span>
+          <button
+            data-testid="downloads-menu-item-cancel"
+          >
+            cancel
+          </button>
+        </div>
+        <div
+          data-testid="downloads-menu-item"
+        >
+          <span
+            data-testid="downloads-menu-item-progress"
+          >
+            53
+          </span>
+          <button
+            data-testid="downloads-menu-item-cancel"
+          >
+            cancel
+          </button>
+        </div>
+      </div>
+      <p
+        class="Message"
+      >
+        After extraction, data will be saved to your downloads folder.
+      </p>
+    </div>
+  </div>
+</div>
+`;
