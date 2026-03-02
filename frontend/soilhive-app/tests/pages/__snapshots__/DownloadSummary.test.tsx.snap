@@ -1,0 +1,379 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`DownloadPreview renders download preview page 1`] = `
+<div>
+  <div
+    class="DownloadSummary"
+  >
+    <div
+      class="Header"
+    >
+      <div
+        class="Titles"
+      >
+        <span
+          class="Title"
+        >
+          DOWNLOAD SUMMARY
+        </span>
+        <span
+          class="SubTitle"
+        >
+          Check the datasets you are going to download
+        </span>
+      </div>
+      <div
+        class="Buttons"
+      >
+        <button
+          class="Button Secondary Small BackButton"
+          data-testid="download-preview-back-button"
+          type="button"
+        >
+          <svg
+            data-testid="svg-icon-mock"
+          >
+            mock-svg
+          </svg>
+          Back to the map
+        </button>
+      </div>
+    </div>
+    <div
+      class="Content"
+    >
+      <div
+        class="Sidebar"
+      >
+        <div>
+          Mock DownloadSummarySidebar
+        </div>
+      </div>
+      <div
+        class="Main"
+      >
+        <div
+          class="MainContent"
+        >
+          MainContent
+          <pre>
+            source: 
+            filterId: 
+            datasets: 
+          </pre>
+        </div>
+        <div
+          class="Footer"
+        >
+          <div
+            class="TermsOfUse"
+          >
+            <div
+              class="p-checkbox p-component"
+              data-p-disabled="false"
+              data-p-highlight="false"
+              data-pc-name="checkbox"
+              data-pc-section="root"
+            >
+              <input
+                aria-invalid="false"
+                class="p-checkbox-input"
+                data-pc-section="input"
+                id="agree-to-terms-for-download"
+                name="category"
+                type="checkbox"
+              />
+              <div
+                class="p-checkbox-box"
+                data-p-disabled="false"
+                data-p-highlight="false"
+                data-pc-section="box"
+              />
+            </div>
+            <label
+              for="agree-to-terms-for-download"
+            >
+              I have read and agree to the platform’s
+               
+              <a
+                href="https://soilhive.ag"
+                rel="noreferrer"
+                target="_blank"
+              >
+                Terms of use
+              </a>
+            </label>
+          </div>
+          <button
+            class="Button Primary Medium DownloadButton"
+            data-testid="sh-ui-button"
+            disabled=""
+            type="button"
+          >
+            <svg
+              data-testid="svg-icon-mock"
+            >
+              mock-svg
+            </svg>
+            Download data
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`DownloadPreview renders download preview page coming from availability 1`] = `
+<div>
+  <div
+    class="DownloadSummary"
+  >
+    <div
+      class="Header"
+    >
+      <div
+        class="Titles"
+      >
+        <span
+          class="Title"
+        >
+          DOWNLOAD SUMMARY
+        </span>
+        <span
+          class="SubTitle"
+        >
+          Check the datasets you are going to download
+        </span>
+      </div>
+      <div
+        class="Buttons"
+      >
+        <button
+          class="Button Secondary Small BackButton"
+          data-testid="download-preview-back-button"
+          type="button"
+        >
+          <svg
+            data-testid="svg-icon-mock"
+          >
+            mock-svg
+          </svg>
+          Back to the map
+        </button>
+      </div>
+    </div>
+    <div
+      class="Content"
+    >
+      <div
+        class="Sidebar"
+      >
+        <div>
+          Mock DownloadSummarySidebar
+        </div>
+      </div>
+      <div
+        class="Main"
+      >
+        <div
+          class="MainContent"
+        >
+          MainContent
+          <pre>
+            source: 
+            availability
+            filterId: 
+            availability
+            datasets: 
+            availability
+          </pre>
+        </div>
+        <div
+          class="Footer"
+        >
+          <div
+            class="TermsOfUse"
+          >
+            <div
+              class="p-checkbox p-component"
+              data-p-disabled="false"
+              data-p-highlight="false"
+              data-pc-name="checkbox"
+              data-pc-section="root"
+            >
+              <input
+                aria-invalid="false"
+                class="p-checkbox-input"
+                data-pc-section="input"
+                id="agree-to-terms-for-download"
+                name="category"
+                type="checkbox"
+              />
+              <div
+                class="p-checkbox-box"
+                data-p-disabled="false"
+                data-p-highlight="false"
+                data-pc-section="box"
+              />
+            </div>
+            <label
+              for="agree-to-terms-for-download"
+            >
+              I have read and agree to the platform’s
+               
+              <a
+                href="https://soilhive.ag"
+                rel="noreferrer"
+                target="_blank"
+              >
+                Terms of use
+              </a>
+            </label>
+          </div>
+          <button
+            class="Button Primary Medium DownloadButton"
+            data-testid="sh-ui-button"
+            disabled=""
+            type="button"
+          >
+            <svg
+              data-testid="svg-icon-mock"
+            >
+              mock-svg
+            </svg>
+            Download data
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`DownloadPreview renders download preview page coming from preview 1`] = `
+<div>
+  <div
+    class="DownloadSummary"
+  >
+    <div
+      class="Header"
+    >
+      <div
+        class="Titles"
+      >
+        <span
+          class="Title"
+        >
+          DOWNLOAD SUMMARY
+        </span>
+        <span
+          class="SubTitle"
+        >
+          Check the datasets you are going to download
+        </span>
+      </div>
+      <div
+        class="Buttons"
+      >
+        <button
+          class="Button Secondary Small BackButton"
+          data-testid="download-preview-back-button"
+          type="button"
+        >
+          <svg
+            data-testid="svg-icon-mock"
+          >
+            mock-svg
+          </svg>
+          Back to the download preview
+        </button>
+      </div>
+    </div>
+    <div
+      class="Content"
+    >
+      <div
+        class="Sidebar"
+      >
+        <div>
+          Mock DownloadSummarySidebar
+        </div>
+      </div>
+      <div
+        class="Main"
+      >
+        <div
+          class="MainContent"
+        >
+          MainContent
+          <pre>
+            source: 
+            preview
+            filterId: 
+            preview
+            datasets: 
+            preview
+          </pre>
+        </div>
+        <div
+          class="Footer"
+        >
+          <div
+            class="TermsOfUse"
+          >
+            <div
+              class="p-checkbox p-component"
+              data-p-disabled="false"
+              data-p-highlight="false"
+              data-pc-name="checkbox"
+              data-pc-section="root"
+            >
+              <input
+                aria-invalid="false"
+                class="p-checkbox-input"
+                data-pc-section="input"
+                id="agree-to-terms-for-download"
+                name="category"
+                type="checkbox"
+              />
+              <div
+                class="p-checkbox-box"
+                data-p-disabled="false"
+                data-p-highlight="false"
+                data-pc-section="box"
+              />
+            </div>
+            <label
+              for="agree-to-terms-for-download"
+            >
+              I have read and agree to the platform’s
+               
+              <a
+                href="https://soilhive.ag"
+                rel="noreferrer"
+                target="_blank"
+              >
+                Terms of use
+              </a>
+            </label>
+          </div>
+          <button
+            class="Button Primary Medium DownloadButton"
+            data-testid="sh-ui-button"
+            disabled=""
+            type="button"
+          >
+            <svg
+              data-testid="svg-icon-mock"
+            >
+              mock-svg
+            </svg>
+            Download data
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+`;
