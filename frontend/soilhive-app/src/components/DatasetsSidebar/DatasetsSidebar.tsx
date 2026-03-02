@@ -7,6 +7,7 @@ import useDevice from 'hooks/useDevice';
 import useAvailability from 'hooks/useAvailability';
 
 import styles from './DatasetsSidebar.module.scss';
+import { useNavigate } from 'react-router';
 
 interface Props {
   isOpened: boolean;
@@ -16,6 +17,7 @@ interface Props {
 export function DatasetsSidebar({ isOpened, onClose }: Props) {
   const { isDesktopLayout } = useDevice();
   const { setPreview, availableDatasets } = useAvailability();
+  const navigate = useNavigate();
 
   return (
     <PageSidebar className={styles.DatasetsSidebar} isOpened={isOpened} position="right">
@@ -34,7 +36,13 @@ export function DatasetsSidebar({ isOpened, onClose }: Props) {
           >
             Preview
           </Button>
-          <Button className={styles.DownloadButton} isDisabled={true}>
+          <Button
+            className={styles.DownloadButton}
+            isDisabled={availableDatasets.length === 0}
+            onClick={() => {
+              navigate('/download');
+            }}
+          >
             <DownloadIcon />
             Download
           </Button>
