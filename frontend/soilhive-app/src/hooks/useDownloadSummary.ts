@@ -22,7 +22,7 @@ export function useDownloadSummary({ filterId }: { filterId: string | null }) {
 
   const minDepth = filterData?.filter.parameters.min_depth;
   const maxDepth = filterData?.filter.parameters.max_depth;
-  const depthRange: string | undefined = minDepth && maxDepth ? `${minDepth}-${maxDepth}cm` : undefined;
+  const depthRange: string | undefined = minDepth !== undefined && maxDepth !== undefined ? `${minDepth}-${maxDepth}cm` : undefined;
 
   const geometryFilter = filterData?.filter.geometries;
   const geometryFeature = geometryFilter
@@ -30,10 +30,10 @@ export function useDownloadSummary({ filterId }: { filterId: string | null }) {
     : undefined;
 
   const { data: coverageData, isLoading: isCoverageLoading } = useApiQuery<FilteredDataset[]>({
-    endpoint: `/data-filters/${filterData?.id}/coverage`,
+    endpoint: `/data-filters/${filterId}/coverage`,
     method: 'GET',
-    queryKey: ['data-filter-coverage', filterData?.id],
-    enabled: !!filterData?.id,
+    queryKey: ['data-filter-coverage', filterId],
+    enabled: true,
   });
 
   const datasetsSummary = computeDatasetSummary(coverageData);
