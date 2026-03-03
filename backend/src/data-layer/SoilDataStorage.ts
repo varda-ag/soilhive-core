@@ -314,17 +314,19 @@ const applyRasterFilterToQuery = async (query: SelectQueryBuilder<DatasetLayerEn
     } else {
       // Add a select column with all raster values intersecting the input geometry
       // Use ST_DumpValues to get all values as an array
-      query.addSelect(
-        `ARRAY(
+      let selectValues = `ARRAY(
           SELECT DISTINCT val
           FROM (
               SELECT unnest(ST_DumpValues(${c}.rast, 1)) AS val
               FROM ${c}
           ) t
           WHERE val IS NOT NULL
-      )`,
-        outputColumn,
-      );
+      )`;
+      if (aoiAreaM2 > 3_000_000_000_000) {
+        // Area is too big: put all possible values in the output array
+        selectValues = `ARRAY(SELECT value::numeric FROM jsonb_each_text((SELECT mappings FROM raster_filters WHERE id = '${baseTable}')))`;
+      }
+      query.addSelect(selectValues, outputColumn);
     }
   }
 };
