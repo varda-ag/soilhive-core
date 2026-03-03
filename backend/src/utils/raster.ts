@@ -11,7 +11,7 @@
 export const selectOverviewTable = (table: string, aoiAreaM2: number): string => {
   const BASE_PIXEL_SIZE_M = 100; // meters per pixel at overview factor 1
   const TARGET_PIXELS = 512; // minimum pixels to represent the AOI (one full tile worth)
-  const OVERVIEWS = [2, 4, 8, 16] as const;
+  const OVERVIEWS = [2, 4, 8, 16, 32] as const;
 
   // For each candidate (from coarsest to finest), check if the AOI
   // covers at least TARGET_PIXELS pixels at that overview resolution.
