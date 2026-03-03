@@ -8,7 +8,7 @@ export function FilteringSidebarLandEcosystem() {
 
   const hasNoOptions = (catId: string) => !geometryFilterResults?.some(d => (d.raster_filters?.[catId]?.length ?? 0) > 0); // do we have some options in the geomtry result?
 
-  const allEmpty = !isLoadingDatasets && dynamicCategories.length > 0 && dynamicCategories.every(cat => hasNoOptions(cat.id)); // <-- CHANGE: now reads naturally
+  const allEmpty = !isLoadingDatasets && dynamicCategories.length > 0 && dynamicCategories.every(cat => hasNoOptions(cat.id));
 
   if (allEmpty) {
     return <p>For the current geometry no raster filter is available</p>;
