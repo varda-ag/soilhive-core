@@ -13,19 +13,15 @@ export function useRasterFilters(categoryId?: string) {
 
   // These are those raster filter options that are actually available given the current geometry. This is what will be displayed as checkboxes
   const availableOptions = useMemo((): { label: string; value: number }[] => {
-    if (!categoryId || !currentRasterCategory || !currentRasterCategory.mapping) return [];
+    if (!categoryId || !currentRasterCategory || !currentRasterCategory.mappings) return [];
     const merged = new Set<number>();
     geometryFilterResults?.forEach(dataset => {
       dataset.raster_filters?.[categoryId]?.forEach(v => merged.add(v));
     });
-    // TODO: remove when backend returns raster_filters — fall back to all options
-    const hasMergedValues = merged.size > 0;
-    return (
-      Object.entries(currentRasterCategory.mapping)
-        .filter(([_, value]) => (hasMergedValues ? merged.has(value) : true)) // TODO: remove when backend returns raster_filters
-        //.filter(([_, value]) => merged.has(value))
-        .map(([label, value]) => ({ label, value }))
-    );
+
+    return Object.entries(currentRasterCategory.mappings)
+      .filter(([_, value]) => merged.has(value))
+      .map(([label, value]) => ({ label, value }));
   }, [geometryFilterResults, categoryId, currentRasterCategory]);
 
   // User currently selected raster filter values are inferred from the dataset filter in the Activity Context
@@ -36,10 +32,11 @@ export function useRasterFilters(categoryId?: string) {
 
   // This is the logic to determine which pill to render also considering that, because of the geometry, maybe it's value isn't available anymore
   const pillSelections = useMemo((): Selection[] => {
-    if (!currentRasterCategory) return [];
+    const mappings = currentRasterCategory?.mappings; // Capture it
+    if (!mappings) return []; // Narrow it
     const availableValues = availableOptions.map(o => o.value);
     return selectedValues.map(value => {
-      const label = Object.keys(currentRasterCategory.mapping).find(key => currentRasterCategory.mapping[key] === value) ?? String(value);
+      const label = Object.keys(mappings).find(key => mappings[key] === value) ?? String(value);
       return {
         id: String(value),
         label,

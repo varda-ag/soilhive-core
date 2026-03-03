@@ -177,5 +177,8 @@ export interface RasterFilterCategory {
   name: string; // e.g. Land Cover
   description: string;
   enabled: boolean;
-  mapping: Record<string, number>; // e.g., { "Artic": 1 }
+  mappings: Record<string, number> | null; // e.g., { "Artic": 1 }
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
 }
