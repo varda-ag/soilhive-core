@@ -52,6 +52,8 @@ function DownloadPreviewSummary({
     selectionTitle = 'Country selected';
   }
 
+  const isAppliedFiltersSectionVisible = depthRange !== undefined || (soilProperties && soilProperties?.length > 0);
+
   return (
     <div className={classNames(styles.DownloadPreviewSummary, { [styles.Expanded]: isDesktopLayout && expanded })}>
       <div className={styles.MapSection}>
@@ -115,26 +117,25 @@ function DownloadPreviewSummary({
         </div>
       </div>
       <div className={styles.Separator}></div>
-      {depthRange !== undefined ||
-        (soilProperties && soilProperties?.length > 0 && (
-          <div className={styles.AppliedFilters}>
-            <div className={styles.SectionTitle}>Applied Filters</div>
-            <div className={styles.FiltersList}>
-              {depthRange !== undefined && (
-                <div className={styles.Filter}>
-                  <div className={styles.FilterName}>Depth range</div>
-                  <div className={styles.FilterValue}>{depthRange}</div>
-                </div>
-              )}
-              {soilProperties.length > 0 && (
-                <div className={styles.Filter}>
-                  <div className={styles.FilterName}>Soil Properties</div>
-                  <div className={styles.FilterValue}>{soilProperties.length > 0 ? soilProperties.join(', ') : '-'}</div>
-                </div>
-              )}
-            </div>
+      {isAppliedFiltersSectionVisible && (
+        <div className={styles.AppliedFilters}>
+          <div className={styles.SectionTitle}>Applied Filters</div>
+          <div className={styles.FiltersList}>
+            {depthRange !== undefined && (
+              <div className={styles.Filter}>
+                <div className={styles.FilterName}>Depth range</div>
+                <div className={styles.FilterValue}>{depthRange}</div>
+              </div>
+            )}
+            {soilProperties && soilProperties.length > 0 && (
+              <div className={styles.Filter}>
+                <div className={styles.FilterName}>Soil Properties</div>
+                <div className={styles.FilterValue}>{soilProperties.length > 0 ? soilProperties.join(', ') : '-'}</div>
+              </div>
+            )}
           </div>
-        ))}
+        </div>
+      )}
     </div>
   );
 }

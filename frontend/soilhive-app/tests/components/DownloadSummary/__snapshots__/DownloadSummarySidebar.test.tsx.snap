@@ -103,6 +103,47 @@ exports[`DownloadSummarySidebar renders the download preview summary (sidebar) w
     <div
       class="Separator"
     />
+    <div
+      class="AppliedFilters"
+    >
+      <div
+        class="SectionTitle"
+      >
+        Applied Filters
+      </div>
+      <div
+        class="FiltersList"
+      >
+        <div
+          class="Filter"
+        >
+          <div
+            class="FilterName"
+          >
+            Depth range
+          </div>
+          <div
+            class="FilterValue"
+          >
+            0-50cm
+          </div>
+        </div>
+        <div
+          class="Filter"
+        >
+          <div
+            class="FilterName"
+          >
+            Soil Properties
+          </div>
+          <div
+            class="FilterValue"
+          >
+            pH, Organic Carbon Content
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 `;
@@ -210,6 +251,47 @@ exports[`DownloadSummarySidebar renders the download preview summary (sidebar) w
     <div
       class="Separator"
     />
+    <div
+      class="AppliedFilters"
+    >
+      <div
+        class="SectionTitle"
+      >
+        Applied Filters
+      </div>
+      <div
+        class="FiltersList"
+      >
+        <div
+          class="Filter"
+        >
+          <div
+            class="FilterName"
+          >
+            Depth range
+          </div>
+          <div
+            class="FilterValue"
+          >
+            0-50cm
+          </div>
+        </div>
+        <div
+          class="Filter"
+        >
+          <div
+            class="FilterName"
+          >
+            Soil Properties
+          </div>
+          <div
+            class="FilterValue"
+          >
+            pH, Organic Carbon Content
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 `;
@@ -317,6 +399,47 @@ exports[`DownloadSummarySidebar renders the download preview summary (sidebar) w
     <div
       class="Separator"
     />
+    <div
+      class="AppliedFilters"
+    >
+      <div
+        class="SectionTitle"
+      >
+        Applied Filters
+      </div>
+      <div
+        class="FiltersList"
+      >
+        <div
+          class="Filter"
+        >
+          <div
+            class="FilterName"
+          >
+            Depth range
+          </div>
+          <div
+            class="FilterValue"
+          >
+            0-50cm
+          </div>
+        </div>
+        <div
+          class="Filter"
+        >
+          <div
+            class="FilterName"
+          >
+            Soil Properties
+          </div>
+          <div
+            class="FilterValue"
+          >
+            pH, Organic Carbon Content
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 `;
@@ -424,6 +547,47 @@ exports[`DownloadSummarySidebar renders the download summary sidebar 1`] = `
     <div
       class="Separator"
     />
+    <div
+      class="AppliedFilters"
+    >
+      <div
+        class="SectionTitle"
+      >
+        Applied Filters
+      </div>
+      <div
+        class="FiltersList"
+      >
+        <div
+          class="Filter"
+        >
+          <div
+            class="FilterName"
+          >
+            Depth range
+          </div>
+          <div
+            class="FilterValue"
+          >
+            0-50cm
+          </div>
+        </div>
+        <div
+          class="Filter"
+        >
+          <div
+            class="FilterName"
+          >
+            Soil Properties
+          </div>
+          <div
+            class="FilterValue"
+          >
+            pH, Organic Carbon Content
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 `;
@@ -531,6 +695,47 @@ exports[`DownloadSummarySidebar renders the expanded download preview summary (s
     <div
       class="Separator"
     />
+    <div
+      class="AppliedFilters"
+    >
+      <div
+        class="SectionTitle"
+      >
+        Applied Filters
+      </div>
+      <div
+        class="FiltersList"
+      >
+        <div
+          class="Filter"
+        >
+          <div
+            class="FilterName"
+          >
+            Depth range
+          </div>
+          <div
+            class="FilterValue"
+          >
+            0-50cm
+          </div>
+        </div>
+        <div
+          class="Filter"
+        >
+          <div
+            class="FilterName"
+          >
+            Soil Properties
+          </div>
+          <div
+            class="FilterValue"
+          >
+            pH, Organic Carbon Content
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 `;
@@ -638,6 +843,47 @@ exports[`DownloadSummarySidebar renders the reduced download preview summary (si
     <div
       class="Separator"
     />
+    <div
+      class="AppliedFilters"
+    >
+      <div
+        class="SectionTitle"
+      >
+        Applied Filters
+      </div>
+      <div
+        class="FiltersList"
+      >
+        <div
+          class="Filter"
+        >
+          <div
+            class="FilterName"
+          >
+            Depth range
+          </div>
+          <div
+            class="FilterValue"
+          >
+            0-50cm
+          </div>
+        </div>
+        <div
+          class="Filter"
+        >
+          <div
+            class="FilterName"
+          >
+            Soil Properties
+          </div>
+          <div
+            class="FilterValue"
+          >
+            pH, Organic Carbon Content
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 `;

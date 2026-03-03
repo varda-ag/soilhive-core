@@ -16,7 +16,7 @@ interface Props {
 
 export function DatasetsSidebar({ isOpened, onClose }: Props) {
   const { isDesktopLayout } = useDevice();
-  const { setPreview, availableDatasets } = useAvailability();
+  const { setPreview, availableDatasets, filterId, selectionType, locationName } = useAvailability();
   const navigate = useNavigate();
 
   return (
@@ -42,6 +42,10 @@ export function DatasetsSidebar({ isOpened, onClose }: Props) {
             onClick={() => {
               const params = new URLSearchParams();
               params.append('source', 'availability');
+              params.append('selectionType', `${selectionType}`);
+              params.append('locationName', `${locationName}`);
+              params.append('filterId', `${filterId}`);
+              params.append('datasets', availableDatasets.map(dataset => dataset.id).join(','));
               navigate({ pathname: '/download', search: `?${params.toString()}` });
             }}
           >

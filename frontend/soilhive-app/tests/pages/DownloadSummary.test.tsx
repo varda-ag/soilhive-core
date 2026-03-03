@@ -1,4 +1,3 @@
-import React from 'react';
 import { render } from '@testing-library/react';
 import DownloadSummary from '../../src/pages/DownloadSummary';
 
@@ -22,42 +21,30 @@ jest.mock('components/DownloadSummary/DownloadSummarySidebar/DownloadSummarySide
   return DownloadSummarySidebar;
 });
 
-jest.mock('../../src/contexts/AvailabilityContext', () => {
+jest.mock('hooks/useDownloadSummary', () => {
   return {
-    __esModule: true,
-    AvailabilityContext: React.createContext({
-      availableDatasets: [{ id: 'test-dataset', soil_properties: ['test-soil-property'] }],
-      geometryFilter: [],
-      selectedDatasets: [],
-      filteredDatasets: [],
-      selectedSoilProperties: [],
-      filteredSoilProperties: [{ id: 'test-soil-property' }],
-      datasetsSummary: {
-        globalMinDepth: null,
-        globalMaxDepth: null,
-      },
-    }),
+    useDownloadSummary: jest.fn().mockReturnValue({ datasetsSummary: {} }),
   };
 });
 
-describe('DownloadPreview', () => {
+describe('DownloadSummary', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  it('renders download preview page', () => {
+  it('renders download summary page', () => {
     const { container } = render(<DownloadSummary />);
     expect(container).toMatchSnapshot();
   });
 
-  it('renders download preview page coming from availability', () => {
+  it('renders download summary page coming from availability', () => {
     mockSearchParamsGet.mockReturnValue('availability');
     const { container, queryByText } = render(<DownloadSummary />);
     expect(container).toMatchSnapshot();
     expect(queryByText('Back to the map')).toBeInTheDocument();
   });
 
-  it('renders download preview page coming from preview', () => {
+  it('renders download summary page coming from preview', () => {
     mockSearchParamsGet.mockReturnValue('preview');
     const { container, queryByText } = render(<DownloadSummary />);
     expect(container).toMatchSnapshot();

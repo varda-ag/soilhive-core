@@ -4,21 +4,22 @@ import styles from './DownloadSummary.module.scss';
 import ArrowLeftIcon from 'assets/icons/arrow-left-icon.svg?react';
 import DownloadIcon from 'assets/icons/download-icon.svg?react';
 import { useNavigate, useSearchParams } from 'react-router';
-import useAvailability from 'hooks/useAvailability';
 import DownloadSummarySidebar from 'components/DownloadSummary/DownloadSummarySidebar/DownloadSummarySidebar';
 import { Checkbox } from 'primereact/checkbox';
+import { useDownloadSummary } from 'hooks/useDownloadSummary';
 
 function DownloadSummary() {
-  const { geometryFilter, datasetsSummary, selectionType, locationName, boundingBox, selectedSoilProperties, filteredSoilProperties } =
-    useAvailability();
-
   const navigate = useNavigate();
 
   const [searchParams] = useSearchParams();
   const comingFromPreview = searchParams.get('source') === 'preview';
+  const selectionType = searchParams.get('selectionType') ?? undefined;
+  const locationName = searchParams.get('locationName') ?? undefined;
 
   const [summaryExpanded, setSummaryExpanded] = useState(false);
   const [termsAgreed, setTermsAgreed] = useState(false);
+
+  const { geometryFeature, datasetsSummary, soilProperties, depthRange } = useDownloadSummary({ filterId: searchParams.get('filterId') });
 
   return (
     <div className={styles.DownloadSummary}>
@@ -32,7 +33,6 @@ function DownloadSummary() {
             dataTestId="download-preview-back-button"
             className={styles.BackButton}
             type="secondary"
-            // to={comingFromPreview ? '/download' : '/'}
             onClick={() => {
               navigate(-1);
             }}
@@ -46,31 +46,18 @@ function DownloadSummary() {
         <div className={styles.Sidebar}>
           <DownloadSummarySidebar
             selectionType={selectionType}
-            initialViewBoundingBox={boundingBox}
-            geometryFeature={{
-              type: 'FeatureCollection',
-              features: geometryFilter.map(geometry => ({ geometry })),
-            }}
+            geometryFeature={geometryFeature}
             locationName={locationName}
             dataPoints={datasetsSummary.dataPoints}
             rasterLayers={datasetsSummary.layers}
-            depthRange={`${datasetsSummary.depth}cm`}
-            soilProperties={filteredSoilProperties
-              .filter(property => selectedSoilProperties.includes(property.id))
-              .map(property => property.property_name)}
+            depthRange={depthRange}
+            soilProperties={soilProperties}
             expanded={summaryExpanded}
             onExpandClicked={newExpanded => setSummaryExpanded(newExpanded)}
           />
         </div>
         <div className={styles.Main}>
-          <div className={styles.MainContent}>
-            MainContent
-            <pre>
-              source: {searchParams.get('source')}
-              filterId: {searchParams.get('filterId')}
-              datasets: {searchParams.get('datasets')}
-            </pre>
-          </div>
+          <div className={styles.MainContent}>MainContent</div>
           <div className={styles.Footer}>
             <div className={styles.TermsOfUse}>
               <Checkbox
