@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.43.0 (2026-03-03)
+
+## What's Changed
+* feat: sp-4884 - searching by enter on the map fix by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/261
+* feat(data): ⚡ using raster overviews by @svaccari in https://github.com/varda-ag/soilhive-core/pull/260
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.42.0...v0.43.0
+
 ## 0.42.0 (2026-03-02)
 
 ## What's Changed
