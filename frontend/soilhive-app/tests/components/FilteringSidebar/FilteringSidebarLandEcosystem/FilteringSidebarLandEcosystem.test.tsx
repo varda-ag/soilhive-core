@@ -42,7 +42,11 @@ describe('FilteringSidebarLandEcosystem', () => {
   });
 
   it('renders a RasterFilter for each category except soil_groups', () => {
-    useAvailabilityMock.mockReturnValue({ allRasterCategories: ALL_CATEGORIES } as any);
+    useAvailabilityMock.mockReturnValue({
+      allRasterCategories: ALL_CATEGORIES,
+      isLoadingRasterCategories: false,
+      geometryFilterResults: [{ raster_filters: { climate_zones: [1], land_cover: [2] } }],
+    } as any);
 
     render(<FilteringSidebarLandEcosystem />);
 
@@ -57,5 +61,17 @@ describe('FilteringSidebarLandEcosystem', () => {
     const { container } = render(<FilteringSidebarLandEcosystem />);
 
     expect(container).toBeEmptyDOMElement();
+  });
+
+  it('shows empty message when all categories have no geometry results', () => {
+    useAvailabilityMock.mockReturnValue({
+      allRasterCategories: ALL_CATEGORIES,
+      isLoadingRasterCategories: false,
+      geometryFilterResults: [], // no data for any category
+    } as any);
+
+    render(<FilteringSidebarLandEcosystem />);
+
+    expect(screen.getByText('For the current geometry no raster filter is available')).toBeInTheDocument();
   });
 });
