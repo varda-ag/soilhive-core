@@ -12,9 +12,9 @@ describe('raster tests', () => {
     [700_000_000, 'o_8_raster'],
     [1_000_000_000, 'o_8_raster'],
     [5_000_000_000, 'o_16_raster'],
-    [22_000_000_000, 'o_16_raster'], // Emilia Romagna
-    [300_000_000_000, 'o_16_raster'], // Italy
-    [10_000_000_000_000, 'o_16_raster'], // USA
+    [22_000_000_000, 'o_32_raster'], // Emilia Romagna
+    [300_000_000_000, 'o_32_raster'], // Italy
+    [10_000_000_000_000, 'o_32_raster'], // USA
   ])('selectOverviewTable should work as expected', (aoiM2, expected) => {
     const baseTable = 'raster';
     const table = selectOverviewTable(baseTable, aoiM2);

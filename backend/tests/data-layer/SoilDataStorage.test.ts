@@ -321,8 +321,8 @@ describe('SoilDataStorage class', () => {
         await addSyntheticData({ ...syntheticDataOptions, depthLayers: 1, featureCoordinates, spatial_extent: bbox });
         const sds = new SoilDataStorage();
         const entityManager = await getEntityManager();
-        const raster_filters = new Map<string, number[]>();
-        raster_filters.set(tableName, values);
+        const raster_filters: Record<string, number[]> = {};
+        raster_filters[tableName] = values;
         const results = await sds.filter(entityManager, getPolygonFromBbox(bboxQuery), { raster_filters });
         expect(results.length).toBe(expectedResultCount);
         if (expectedResultCount > 0) {
@@ -344,7 +344,9 @@ describe('SoilDataStorage class', () => {
         const results = await sds.filter(entityManager, getPolygonFromBbox(bbox), {});
         expect(results.length).toBe(expectedResultCount);
         if (expectedResultCount > 0) {
-          expect(results[0].raster_filters?.get('land_cover')?.sort((a, b) => a - b)).toEqual(expectedRasterOptions.sort((a, b) => a - b));
+          expect((results[0].raster_filters?.['land_cover'] as number[])?.sort((a: number, b: number) => a - b)).toEqual(
+            expectedRasterOptions.sort((a: number, b: number) => a - b),
+          );
         }
       },
     );
@@ -379,7 +381,7 @@ describe('SoilDataStorage class', () => {
       const entityManager = await getEntityManager();
       const results = await sds.filter(entityManager, filteringRectangle as Polygon, {});
       expect(results.length).toBe(1);
-      expect(results[0].raster_filters?.get('land_cover')?.sort((a, b) => a - b)).toEqual([30, 60, 200]);
+      expect((results[0].raster_filters?.['land_cover'] as number[])?.sort((a: number, b: number) => a - b)).toEqual([30, 60, 200]);
     });
   });
 });

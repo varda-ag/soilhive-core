@@ -2,7 +2,7 @@ export interface RasterFilter {
   id: string;
   name: string;
   description: string;
-  mappings: Map<string, number> | null;
+  mappings: Record<string, number> | null;
   created_at: Date;
   updated_at: Date | null;
 }

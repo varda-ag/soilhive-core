@@ -10,7 +10,7 @@ export interface FilterCriteria {
   max_depth?: number | null;
   horizons?: (string | null)[]; // Short strings
   soil_properties?: string[]; // slugs
-  raster_filters?: Map<string, number[]>; // Map <table_name, raster_values>
+  raster_filters?: Record<string, number[]>; // Map <table_name, raster_values>
 }
 
 export interface DataFilter {

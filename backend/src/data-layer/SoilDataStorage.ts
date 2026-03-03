@@ -266,9 +266,9 @@ const applyRasterFilterToQuery = async (query: SelectQueryBuilder<DatasetLayerEn
       WHERE ST_Intersects(${table}.rast, aoi.geom)`,
       c,
     );
-    const raster_filters: Map<string, number[]> | undefined = dataFilter.parameters.raster_filters;
-    const values = raster_filters?.get(table);
-    const outputColumn = `#${table}`; // Prefixing column name with "#" to detect it in the results
+    const raster_filters: Record<string, number[]> | undefined = dataFilter.parameters.raster_filters;
+    const values = raster_filters?.[table];
+    const outputColumn = `#${baseTable}`; // Prefixing column name with "#" to detect it in the results
     if (values && values.length > 0) {
       query.innerJoin(c, c, '1=1');
 
@@ -329,7 +329,7 @@ const applyRasterFilterToQuery = async (query: SelectQueryBuilder<DatasetLayerEn
   }
 };
 
-const decodeRasterColumns = (row: any): Map<string, number[]> => {
+const decodeRasterColumns = (row: any): any => {
   const output = new Map<string, number[]>();
   for (const key of Object.keys(row)) {
     if (!key.startsWith('#')) {
@@ -338,7 +338,7 @@ const decodeRasterColumns = (row: any): Map<string, number[]> => {
     const table = key.substring(1);
     output.set(table, row[key]);
   }
-  return output;
+  return Object.fromEntries(output);
 };
 
 const dataRowTranslation = (row: any, sort?: string): SoilDataSample => {
