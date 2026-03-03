@@ -3,12 +3,16 @@ import { Accordion, SelectionPills } from 'components/UI';
 import { Checkbox } from 'components/UI/Checkbox/Checkbox';
 import styles from './RasterFilter.module.scss';
 import { useRasterFilters } from 'hooks/useRasterFilters';
+import Skeleton from 'react-loading-skeleton';
+import 'react-loading-skeleton/dist/skeleton.css';
+import useAvailability from 'hooks/useAvailability';
 
 interface RasterFilterProps {
   categoryId: string;
 }
 
 export function RasterFilter({ categoryId }: RasterFilterProps) {
+  const { isLoading: isLoadingDatasets } = useAvailability();
   const { category, availableOptions, isLoadingRasterCategories, selectedValues, pillSelections, handleOnChange, handlePillRemove } =
     useRasterFilters(categoryId);
   const [searchTerm, setSearchTerm] = useState('');
@@ -31,8 +35,10 @@ export function RasterFilter({ categoryId }: RasterFilterProps) {
       pillsSlot={pillSelections.length > 0 && <SelectionPills selections={pillSelections} onRemove={handlePillRemove} />}
     >
       <div className={styles.Content}>
-        {hasNoOptions ? (
-          <p>For the current geometry no raster filter is available</p>
+        {isLoadingDatasets ? ( // <-- CHANGE: show skeleton while loading
+          <Skeleton height={120} />
+        ) : hasNoOptions ? (
+          <p className={styles.EmptyMessage}>For the current geometry no raster filter is available</p>
         ) : (
           <>
             <input

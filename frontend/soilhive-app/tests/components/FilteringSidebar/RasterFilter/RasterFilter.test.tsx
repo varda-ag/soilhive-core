@@ -1,11 +1,19 @@
 //import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { RasterFilter } from 'components/FilteringSidebar/RasterFilter/RasterFilter';
+import useAvailability from 'hooks/useAvailability';
 import { useRasterFilters } from 'hooks/useRasterFilters';
 
 jest.mock('hooks/useRasterFilters', () => ({
   useRasterFilters: jest.fn(),
 }));
+
+jest.mock('hooks/useAvailability', () => ({
+  __esModule: true,
+  default: jest.fn(),
+}));
+
+const useAvailabilityMock = useAvailability as jest.MockedFunction<typeof useAvailability>;
 
 // Minimal mocks that render just enough for us to assert on
 jest.mock('components/UI', () => ({
@@ -65,6 +73,7 @@ describe('RasterFilter', () => {
 
   it('renders nothing if category is undefined', () => {
     useRasterFiltersMock.mockReturnValue(buildHookMock({ category: undefined }) as any);
+    useAvailabilityMock.mockReturnValue({ isLoading: false } as any);
 
     const { container } = render(<RasterFilter categoryId="soil_groups" />);
 
@@ -73,6 +82,7 @@ describe('RasterFilter', () => {
 
   it('renders nothing if category is disabled', () => {
     useRasterFiltersMock.mockReturnValue(buildHookMock({ category: { ...buildHookMock().category, enabled: false } }) as any);
+    useAvailabilityMock.mockReturnValue({ isLoading: false } as any);
 
     const { container } = render(<RasterFilter categoryId="soil_groups" />);
 
