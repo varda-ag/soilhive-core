@@ -35,7 +35,7 @@ export function RasterFilter({ categoryId }: RasterFilterProps) {
       pillsSlot={pillSelections.length > 0 && <SelectionPills selections={pillSelections} onRemove={handlePillRemove} />}
     >
       <div className={styles.Content}>
-        {isLoadingDatasets ? ( // <-- CHANGE: show skeleton while loading
+        {isLoadingDatasets ? (
           <Skeleton height={120} />
         ) : hasNoOptions ? (
           <p className={styles.EmptyMessage}>For the current geometry no raster filter is available</p>
