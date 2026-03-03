@@ -12,6 +12,8 @@ import { NotificationProvider } from './contexts/NotificationsContext';
 import AvailabilityModule from './modules/AvailabilityModule';
 import { DownloadsProvider } from './contexts/DownloadsContext';
 
+import './utilities/i18n';
+
 const queryClient = new QueryClient();
 
 function App() {

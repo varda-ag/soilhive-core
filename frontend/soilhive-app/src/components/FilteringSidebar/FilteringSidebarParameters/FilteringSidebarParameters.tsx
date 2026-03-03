@@ -12,6 +12,7 @@ import useSoilPropertiesFilters from 'hooks/useSoilPropertiesFilters';
 
 import styles from './FilteringSidebarParameters.module.scss';
 import { RasterFilter } from 'components/FilteringSidebar/RasterFilter/RasterFilter';
+import { useTranslation } from 'react-i18next';
 
 const CATEGORIES_ICONS_MAP: Record<string, React.FC<React.SVGProps<SVGSVGElement>>> = {
   biological: BiologicalIcon,
@@ -31,6 +32,8 @@ export function FilteringSidebarParameters() {
     handleOnChange,
     handlePillRemove,
   } = useSoilPropertiesFilters();
+
+  const { t } = useTranslation();
 
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [accordionOpenByCategory, setAccordionOpenByCategory] = useState<Record<string, boolean>>({});
@@ -160,7 +163,7 @@ export function FilteringSidebarParameters() {
           <div className={styles.SoilProperties}>
             <input
               type="text"
-              placeholder="Search soil properties"
+              placeholder={t('filtering_sidebar_parametres.search_placeholder')}
               value={searchTerm}
               onChange={handleSearch}
               className={styles.SearchInput}

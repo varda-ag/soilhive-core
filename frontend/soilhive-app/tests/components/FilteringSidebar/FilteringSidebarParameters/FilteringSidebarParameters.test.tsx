@@ -248,7 +248,7 @@ describe('FilteringSidebarParameters', () => {
   it('expands all properties on the search', () => {
     render(<FilteringSidebarParameters />);
 
-    const input = screen.getByPlaceholderText('Search soil properties');
+    const input = screen.getByPlaceholderText('filtering_sidebar_parametres.search_placeholder');
 
     expect(screen.getByText('Expand All')).toBeInTheDocument();
     expect(screen.queryByText('Collapse All')).not.toBeInTheDocument();
