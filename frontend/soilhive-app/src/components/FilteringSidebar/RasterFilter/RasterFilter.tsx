@@ -11,13 +11,15 @@ interface RasterFilterProps {
 }
 
 export function RasterFilter({ categoryId }: RasterFilterProps) {
-  const { category, availableOptions, selectedValues, pillSelections, hasNoOptions, isLoadingDatasets, handleOnChange, handlePillRemove } =
+  const { category, availableOptions, isLoadingRasterCategories, selectedValues, pillSelections, handleOnChange, handlePillRemove } =
     useRasterFilters(categoryId);
   const [searchTerm, setSearchTerm] = useState('');
 
   if (!category?.enabled) return null;
 
   const filtered = availableOptions.filter(opt => opt.label.toLowerCase().includes(searchTerm.toLowerCase()));
+
+  const hasNoOptions = !isLoadingRasterCategories && availableOptions.length === 0;
 
   const handleCheckboxChange = (value: number, checked: boolean) => {
     const nextValues = checked ? [...selectedValues, value] : selectedValues.filter(v => v !== value);
@@ -31,10 +33,8 @@ export function RasterFilter({ categoryId }: RasterFilterProps) {
       pillsSlot={pillSelections.length > 0 && <SelectionPills selections={pillSelections} onRemove={handlePillRemove} />}
     >
       <div className={styles.Content}>
-        {isLoadingDatasets ? (
-          <Skeleton height={120} />
-        ) : hasNoOptions ? (
-          <p className={styles.EmptyMessage}>For the current geometry no raster filter is available</p>
+        {hasNoOptions ? (
+          <p>For the current geometry no raster filter is available</p>
         ) : (
           <>
             <input
