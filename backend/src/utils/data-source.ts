@@ -27,6 +27,7 @@ const createDataSource = async (schema: string): Promise<DataSource> => {
       undefined: 'throw',
     },
     namingStrategy: new DatabaseNamingStrategy(),
+    poolSize: 50,
   });
   await dataSource.initialize();
   const escapedSchema = `"${schema}"`;
