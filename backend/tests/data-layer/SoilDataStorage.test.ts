@@ -8,6 +8,7 @@ import DatasetEntity from '../../src/entities/Dataset';
 import { decodeCursor } from '../../src/utils/cursor';
 import { GISDataType } from '../../src/types/data';
 import { addLandCoverData, addLandCoverMappings } from '../helper';
+import * as RasterUtilsModule from '../../src/utils/raster';
 
 const bbox = [0, 0, 1, 1];
 const bboxPolygon: Polygon = getPolygonFromBbox(bbox);
@@ -316,12 +317,13 @@ describe('SoilDataStorage class', () => {
       async (featureCoordinates, values, expectedResultCount, expectedFeatureCount) => {
         const tableName = 'land_cover';
         const bbox = [-81, -34, -80, -33];
+        const bboxQuery = [-80.7812, -33.7414, -80.781, -33.7412];
         await addSyntheticData({ ...syntheticDataOptions, depthLayers: 1, featureCoordinates, spatial_extent: bbox });
         const sds = new SoilDataStorage();
         const entityManager = await getEntityManager();
         const raster_filters = new Map<string, number[]>();
         raster_filters.set(tableName, values);
-        const results = await sds.filter(entityManager, getPolygonFromBbox(bbox), { raster_filters });
+        const results = await sds.filter(entityManager, getPolygonFromBbox(bboxQuery), { raster_filters });
         expect(results.length).toBe(expectedResultCount);
         if (expectedResultCount > 0) {
           expect(results[0].dataset_layer_count).toBe(expectedFeatureCount);
@@ -335,6 +337,7 @@ describe('SoilDataStorage class', () => {
     ])(
       'Filtering when having raster filters enabled should return all available raster options',
       async (bbox, expectedResultCount, expectedRasterOptions: number[]) => {
+        jest.spyOn(RasterUtilsModule, 'selectOverviewTable').mockReturnValue('land_cover');
         await addSyntheticData({ ...syntheticDataOptions, depthLayers: 1, featureCount: 100, spatial_extent: bbox });
         const sds = new SoilDataStorage();
         const entityManager = await getEntityManager();

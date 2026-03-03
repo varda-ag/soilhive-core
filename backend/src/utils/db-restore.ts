@@ -23,6 +23,8 @@ export const dbRestore = async (dumpPath: string, mappingsPath?: string): Promis
       clean: true, // Clean table if exists
       create: false, // DB creation
       ifExists: true, // Cleans only if exists
+      noOwner: true, // Skips ALTER/OWNER
+      noPrivileges: true, // Skips GRANT/REVOKE
     },
   );
 

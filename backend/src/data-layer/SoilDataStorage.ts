@@ -1,3 +1,4 @@
+import * as turf from '@turf/turf';
 import { Polygon, MultiPolygon } from 'geojson';
 import { OverlapType } from '../types/enums';
 import { EntityManager, SelectQueryBuilder } from 'typeorm';
@@ -12,6 +13,7 @@ import { ErrorResponse } from '../utils/error';
 import { StatusCodes } from 'http-status-codes';
 import RasterFilterService from '../services/RasterFilterService';
 import { getDataSource } from '../utils/data-source';
+import { selectOverviewTable } from '../utils/raster';
 
 export default class SoilDataStorage {
   /**
@@ -240,6 +242,11 @@ const applyFiltersToQuery = async (query: any, dataFilter: DataFilter) => {
 };
 
 const applyRasterFilterToQuery = async (query: SelectQueryBuilder<DatasetLayerEntity>, dataFilter: DataFilter) => {
+  if (dataFilter.geometries.length === 0) {
+    // No input geometry, raster filtering cannot be applied
+    return;
+  }
+
   const rasterFilterService = new RasterFilterService();
   const dataSource = await getDataSource();
   const queryRunner = dataSource.createQueryRunner();
@@ -247,8 +254,10 @@ const applyRasterFilterToQuery = async (query: SelectQueryBuilder<DatasetLayerEn
   const enabledFilters = await rasterFilterService.getEnabledRasterFilters({ entityManager: queryRunner.manager });
   const enabledFilterTables = enabledFilters.map(f => f.id);
   await queryRunner.release();
+  const aoiAreaM2 = turf.area(dataFilter.geometries[0]!);
 
-  for (const table of enabledFilterTables) {
+  for (const baseTable of enabledFilterTables) {
+    const table = selectOverviewTable(baseTable, aoiAreaM2);
     const c = `clipped_${table}`;
     query.addCommonTableExpression(
       `
