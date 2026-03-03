@@ -267,7 +267,7 @@ const applyRasterFilterToQuery = async (query: SelectQueryBuilder<DatasetLayerEn
       c,
     );
     const raster_filters: Record<string, number[]> | undefined = dataFilter.parameters.raster_filters;
-    const values = raster_filters?.[table];
+    const values = raster_filters?.[baseTable];
     const outputColumn = `#${baseTable}`; // Prefixing column name with "#" to detect it in the results
     if (values && values.length > 0) {
       query.innerJoin(c, c, '1=1');
