@@ -3,9 +3,9 @@
   --font-size-base: 16px;
   // Measures in pixels have to be recalculated if you change the base size
   // but it's useful to know when translating figma pixels units to rem.
-  --font-size-2xs: .625rem; // 10px
-  --font-size-xs: .75rem; // 12px
-  --font-size-sm: .875rem; // 14px
+  --font-size-2xs: 0.625rem; // 10px
+  --font-size-xs: 0.75rem; // 12px
+  --font-size-sm: 0.875rem; // 14px
   --font-size-md: 1rem; // 16px
   --font-size-lg: 1.125rem; // 18px
   --font-size-2lg: 1.25rem; // 20px
@@ -22,6 +22,7 @@
   --font-weight-bold: 700;
 
   /* Line heights */
+  --line-height-xs: 100%;
   --line-height-sm: 125%;
   --line-height-md: 130%;
   --line-height-lg: 150%;

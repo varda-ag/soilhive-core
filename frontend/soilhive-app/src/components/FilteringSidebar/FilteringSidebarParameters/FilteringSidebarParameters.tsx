@@ -11,6 +11,7 @@ import type { AccordionRef, NestedCheckboxRef } from 'types/components';
 import useSoilPropertiesFilters from 'hooks/useSoilPropertiesFilters';
 
 import styles from './FilteringSidebarParameters.module.scss';
+import { RasterFilter } from 'components/FilteringSidebar/RasterFilter/RasterFilter';
 
 const CATEGORIES_ICONS_MAP: Record<string, React.FC<React.SVGProps<SVGSVGElement>>> = {
   biological: BiologicalIcon,
@@ -201,6 +202,7 @@ export function FilteringSidebarParameters() {
           </div>
         )}
       </Accordion>
+      <RasterFilter categoryId="soil_groups" />
     </div>
   );
 }

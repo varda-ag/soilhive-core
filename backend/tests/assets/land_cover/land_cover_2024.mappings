@@ -1,0 +1,15 @@
+INSERT INTO "raster_filters" (id,name,description) VALUES ('land_cover_2024','Land cover 2024','The Sentinel-2 10m Annual Land Use/Land Cover (LULC) 2024 is a global map classifying Earth surface into 9 land cover classes at 10-meter spatial resolution, derived from ESA Sentinel-2 satellite imagery.') ON CONFLICT(id) DO NOTHING;
+
+UPDATE raster_filters SET mappings = '
+{
+  "Water": 1,
+  "Trees": 2,
+  "Flooded Vegetation": 4,
+  "Crops": 5,
+  "Built Area": 7,
+  "Bare Ground": 8,
+  "Snow/Ice": 9,
+  "Rangeland": 11
+}
+'::jsonb
+WHERE id = 'land_cover_2024';

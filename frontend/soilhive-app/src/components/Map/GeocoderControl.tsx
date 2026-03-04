@@ -157,6 +157,24 @@ export default function GeocoderControl(props: GeocoderControlProps) {
     if ((geocoder as any).container) {
       document.querySelector('.soilhive-map-toolbar')?.prepend((geocoder as any).container);
     }
+
+    const input = (geocoder as any).container.querySelector('input') as HTMLInputElement | null;
+    if (!input) return;
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Enter') return;
+
+      e.preventDefault();
+      e.stopPropagation();
+
+      const q = input.value.trim();
+      if (q.length < 3) return;
+
+      (geocoder as any)._geocode(q);
+    };
+
+    input.addEventListener('keydown', onKeyDown);
+    return () => input.removeEventListener('keydown', onKeyDown);
   }, [geocoder]);
 
   if ((geocoder as any)._map) {

@@ -2,7 +2,7 @@ import { DatasetsSidebarHeader } from './DatasetsSidebarHeader/DatasetsSidebarHe
 import { DatasetsSidebarSummary } from './DatasetsSidebarSummary/DatasetsSidebarSummary';
 import { DatasetsList } from './DatasetsList/DatasetsList';
 import { Button, PageSidebar } from 'components/UI';
-import DownloadIcon from 'assets/icons/download-icon.svg?react';
+import DownloadIcon from 'assets/icons/small-download-icon.svg?react';
 import useDevice from 'hooks/useDevice';
 import useAvailability from 'hooks/useAvailability';
 

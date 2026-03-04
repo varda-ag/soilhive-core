@@ -1,0 +1,36 @@
+.DownloadsMenu {
+  width: 19.125rem;
+  border: 1px solid var(--color-neutral-dark-300);
+  border-radius: 0.5rem;
+  box-shadow: var(--shadow-interface-large);
+
+  > .Header {
+    padding: 0.75rem 1.125rem 0.5626rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    border-radius: 0.5rem 0.5rem 0 0;
+    background-color: var(--color-neutral-light);
+    color: var(--color-neutral-black);
+    font-size: var(--font-size-md);
+    font-weight: var(--font-weight-bold);
+  }
+  > .Body {
+    padding: 0.75rem 1.125rem;
+    background-color: var(--color-neutral-white);
+    border-radius: 0 0 0.5rem 0.5rem;
+
+    > .Message {
+      margin-top: 0.5rem;
+      padding: 0.375rem 0.5rem;
+      font-size: var(--font-size-xs);
+      background-color: var(--color-neutral-light);
+    }
+  }
+}
+
+.DownloadsList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3125rem;
+}

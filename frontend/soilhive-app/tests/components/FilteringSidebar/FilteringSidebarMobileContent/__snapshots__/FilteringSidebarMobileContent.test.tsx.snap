@@ -28,6 +28,14 @@ exports[`FilteringSidebarMobileContent renders component by default 1`] = `
            
           Soil parameters
         </div>
+        <div
+          class="MobileTabNavigationItem"
+          data-testid="sh-ui-mobile-tab-navigation-item"
+          role="button"
+        >
+           
+          Land & Ecosystem
+        </div>
       </div>
     </div>
     <div

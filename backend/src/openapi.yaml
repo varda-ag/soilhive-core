@@ -1096,6 +1096,45 @@ paths:
         '410':
           $ref: '#/components/responses/Gone'
 
+  /raster-filters:
+    get:
+      x-eov-operation-handler: controllers/raster-filters
+      x-eov-operation-id: getRasterFilters
+      summary: Get raster filters
+      tags:
+        - raster-filters
+      responses:
+        '200':
+          description: Array of raster filters
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RasterFilter'
+
+  /raster-filters/{rasterFilterId}:
+    parameters:
+      - name: rasterFilterId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Raster filter ID
+    get:
+      x-eov-operation-handler: controllers/raster-filters
+      x-eov-operation-id: getRasterFilter
+      summary: Get raster filter by ID
+      tags:
+        - raster-filters
+      responses:
+        '200':
+          description: Raster filter information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RasterFilter'
+
 components:
   responses:
     NotFound:
@@ -1825,3 +1864,18 @@ components:
         - id
         - name
         - created_at
+
+    RasterFilter:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        enabled:
+          type: boolean
+        mappings:
+          type: object
+          nullable: true

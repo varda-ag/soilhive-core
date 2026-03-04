@@ -4,11 +4,19 @@ import type { FeatureCollection, MultiPolygon, Polygon } from 'geojson';
 
 import type { AvailabilityDataset, DatasetFrontendFilters, DatasetSummary, TimeFilterState } from 'types/availability';
 import { mapFilteredDatasetToAvailabilityDataset } from '../adapters';
-import type { SoilProperty, FilterCriteria, SoilPropertyCategory, FilteredDataset, BackendStoredDataFilter } from 'types/backend';
+import type {
+  SoilProperty,
+  FilterCriteria,
+  SoilPropertyCategory,
+  FilteredDataset,
+  BackendStoredDataFilter,
+  RasterFilterCategory,
+} from 'types/backend';
 import { computeDatasetSummary } from '../domain';
 import { useFilteredDatasets } from 'hooks/useFilteredDatasets';
 import { useSoilProperties } from '../hooks/useSoilProperties';
 import { usePropertiesCategories } from 'hooks/usePropertiesCategories';
+import { useRaster } from 'hooks/useRaster';
 
 type MapSelection = { type: string; features: GeoJSON.GeoJSON[] };
 
@@ -22,17 +30,20 @@ type AvailabilityContextType = {
   showSelectionToolbar: boolean;
   allSoilProperties: SoilProperty[];
   filteredSoilProperties: SoilProperty[];
+  allRasterCategories: RasterFilterCategory[];
   categories: SoilPropertyCategory[];
   isLoadingSoilProperties: boolean;
   allDatasets: AvailabilityDataset[];
   filteredDatasets: FilteredDataset[];
   availableDatasets: FilteredDataset[];
+  geometryFilterResults: FilteredDataset[] | undefined;
   datasets: AvailabilityDataset[];
   selectedDatasets: string[];
   isAllSelected: boolean;
   isNoData: boolean;
   isNoFilteredData: boolean;
   isLoading: boolean;
+  isLoadingRasterCategories: boolean;
   searchValue: string;
   datasetFrontendFilters: DatasetFrontendFilters;
   selectedTimeFilter: TimeFilterState;
@@ -101,6 +112,7 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
   const [datasetFilters, setDatasetFilters] = useState<FilterCriteria>({});
   const { data: categories, isLoading: isLoadingCategories } = usePropertiesCategories();
   const { data: allSoilProperties, isLoading: isLoadingSoilProperties } = useSoilProperties();
+  const { allCategories: allRasterCategories, isLoading: isLoadingRasterCategories } = useRaster();
 
   const partialFilterPayload = useMemo(() => ({ geometries: geometryFilter, parameters: {} }), [geometryFilter]);
   const fullFilterPayload = useMemo(() => ({ geometries: geometryFilter, parameters: datasetFilters }), [geometryFilter, datasetFilters]);
@@ -184,7 +196,10 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
       (datasetFilters.soil_properties?.length || 0) +
       (datasetFilters.min_sampling_date && datasetFilters.max_sampling_date ? 1 : 0) +
       datasetFrontendFilters.type.length +
-      datasetFrontendFilters.ownership.length
+      datasetFrontendFilters.ownership.length +
+      (datasetFilters.raster_filters
+        ? Object.values(datasetFilters.raster_filters).reduce((count, filters) => count + filters.length, 0)
+        : 0)
     );
   }, [datasetFilters, datasetFrontendFilters]);
 
@@ -204,9 +219,10 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
       datasetFrontendFilters.ownership.length ||
       selectedTimeFilter.min ||
       selectedTimeFilter.max ||
-      selectedSoilProperties.length
+      selectedSoilProperties.length ||
+      Object.keys(datasetFilters.raster_filters ?? {}).length
     );
-  }, [datasetFrontendFilters, selectedTimeFilter, selectedSoilProperties]);
+  }, [datasetFrontendFilters, selectedTimeFilter, selectedSoilProperties, datasetFilters.raster_filters]);
 
   const availableDatasets = useMemo(() => {
     const datasets = fullFilterResults ?? [];
@@ -234,16 +250,19 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
         showSelectionToolbar,
         allSoilProperties: allSoilProperties || [],
         filteredSoilProperties,
+        allRasterCategories: allRasterCategories || [],
         isLoadingSoilProperties,
         categories: categories || [],
         allDatasets,
         filteredDatasets: fullFilterResults ?? [],
+        geometryFilterResults,
         datasets,
         selectedDatasets,
         isAllSelected,
         isNoData,
         isNoFilteredData,
         isLoading,
+        isLoadingRasterCategories,
         searchValue,
         datasetFrontendFilters,
         datasetsSummary,

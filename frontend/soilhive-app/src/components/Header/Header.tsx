@@ -8,28 +8,32 @@ import { NavLink } from 'react-router';
 import { useState } from 'react';
 import MobileMenu from 'components/MobileMenu/MobileMenu';
 import AuthButton from 'components/AuthButton/AuthButton';
+import { DownloadsStatus } from 'components/DownloadsStatus/DownloadsStatus';
+import useDevice from 'hooks/useDevice';
+
+const MENU_ENTRIES = [
+  {
+    name: 'Availability',
+    route: '/',
+  },
+  {
+    name: 'Legal',
+    route: '/legal',
+  },
+  {
+    name: 'Admin',
+    route: '/admin',
+  },
+];
 
 export default function Header() {
-  const menuEntries = [
-    {
-      name: 'Availability',
-      route: '/',
-    },
-    {
-      name: 'Legal',
-      route: '/legal',
-    },
-    {
-      name: 'Admin',
-      route: '/admin',
-    },
-  ];
+  const { isDesktopLayout } = useDevice();
 
   const { logo } = useTheme();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const getNavLinkClass = ({ isActive }: { isActive: boolean }) => {
-    return isActive ? `${styles.active}` : '';
+    return isActive ? `${styles.Active}` : '';
   };
 
   const toggleMenu = () => {
@@ -38,29 +42,39 @@ export default function Header() {
 
   return (
     <>
-      <header className={styles.header}>
-        <div className={styles.logo}>{logo && <img src={logo} alt="Logo" />}</div>
-        <nav className={`${styles.nav} ${isMenuOpen ? styles.mobileOpen : ''}`}>
-          {menuEntries.map(({ name, route }) => (
-            <NavLink key={route} to={`${route}`} className={getNavLinkClass}>
-              <span className={styles.linkText}>{name}</span>
-            </NavLink>
-          ))}
+      <header className={styles.Header}>
+        <div data-testid="sh-header-logo" className={styles.Logo}>
+          {logo && <img src={logo} alt="Logo" />}
+        </div>
+        <div className={styles.Menu}>
+          {isDesktopLayout && (
+            <nav data-testid="sh-header-nav" className={styles.Nav}>
+              {MENU_ENTRIES.map(({ name, route }) => (
+                <NavLink key={route} to={`${route}`} className={getNavLinkClass}>
+                  <span className={styles.LinkText}>{name}</span>
+                </NavLink>
+              ))}
 
-          {singlePages.map(({ route, name }) => (
-            <NavLink key={route} to={`/${route}`} className={getNavLinkClass}>
-              <span className={styles.linkText}>{name}</span>
-            </NavLink>
-          ))}
+              {singlePages.map(({ route, name }) => (
+                <NavLink key={route} to={`/${route}`} className={getNavLinkClass}>
+                  <span className={styles.LinkText}>{name}</span>
+                </NavLink>
+              ))}
+            </nav>
+          )}
+          <div className={styles.Additional}>
+            <DownloadsStatus />
+            <AuthButton />
+          </div>
+        </div>
 
-          <AuthButton></AuthButton>
-        </nav>
-
-        <button className={styles.hamburger} aria-label="Menu" onClick={toggleMenu}>
-          {isMenuOpen ? <CloseIcon /> : <HamburgerIcon />}
-        </button>
+        {!isDesktopLayout && (
+          <button data-testid="sh-header-hamburger" className={styles.Hamburger} aria-label="Menu" onClick={toggleMenu}>
+            {isMenuOpen ? <CloseIcon /> : <HamburgerIcon />}
+          </button>
+        )}
       </header>
-      {isMenuOpen && <MobileMenu menuEntries={menuEntries} setIsMenuOpen={setIsMenuOpen} />}
+      {!isDesktopLayout && isMenuOpen && <MobileMenu menuEntries={MENU_ENTRIES} setIsMenuOpen={setIsMenuOpen} />}
     </>
   );
 }
