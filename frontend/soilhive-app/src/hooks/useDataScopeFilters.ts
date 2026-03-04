@@ -31,7 +31,7 @@ type DataScopeFiltersType = {
 
 const useDataScopeFilters = (): DataScopeFiltersType => {
   const {
-    isLoading,
+    isLoadingPartialFilter,
     allDatasets,
     selectedTimeFilter,
     datasetFrontendFilters,
@@ -78,13 +78,13 @@ const useDataScopeFilters = (): DataScopeFiltersType => {
         {
           id: 'time',
           label: `${selectedTimeFilter.min}-${selectedTimeFilter.max}`,
-          disabled: !isLoading && (!timeFilterRange.min || !timeFilterRange.max),
+          disabled: !isLoadingPartialFilter && (!timeFilterRange.min || !timeFilterRange.max),
         },
       ];
     }
 
     return null;
-  }, [isLoading, selectedTimeFilter, timeFilterRange]);
+  }, [isLoadingPartialFilter, selectedTimeFilter, timeFilterRange]);
 
   const typeFilterOptions = useMemo((): Selection[] => {
     if (!allDatasets.length) return [];
@@ -103,9 +103,9 @@ const useDataScopeFilters = (): DataScopeFiltersType => {
     const availableOptions = typeFilterOptions.map(option => option.id);
     return DATA_TYPE_ITEMS.filter(item => datasetFrontendFilters.type.includes(item.id)).map(item => ({
       ...item,
-      disabled: !isLoading && !availableOptions.includes(item.id),
+      disabled: !isLoadingPartialFilter && !availableOptions.includes(item.id),
     }));
-  }, [isLoading, datasetFrontendFilters.type, typeFilterOptions]);
+  }, [isLoadingPartialFilter, datasetFrontendFilters.type, typeFilterOptions]);
 
   const typeFilterPillRemove = useCallback(
     (id: string) => {
@@ -136,7 +136,7 @@ const useDataScopeFilters = (): DataScopeFiltersType => {
   }, [timeFilterPills, typeFilterPills, accessFilterPills]);
 
   return {
-    isLoading,
+    isLoading: isLoadingPartialFilter,
     datasetFrontendFilters,
     selectedTimeFilter,
     timeFilterRange,
