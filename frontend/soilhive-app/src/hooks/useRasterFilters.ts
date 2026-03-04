@@ -9,7 +9,7 @@ export function useRasterFilters(categoryId?: string) {
     geometryFilterResults,
     allRasterCategories,
     isLoadingRasterCategories,
-    isLoading: isLoadingDatasets,
+    isLoadingPartialFilter,
   } = useAvailability();
 
   // These are all the options for a given raster filter category (e.g. soil_group), regardeless of the geometry
@@ -32,11 +32,11 @@ export function useRasterFilters(categoryId?: string) {
   }, [geometryFilterResults, categoryId, currentRasterCategory]);
 
   const hasNoOptions = useMemo(() => {
-    if (isLoadingRasterCategories || isLoadingDatasets || !currentRasterCategory || !currentRasterCategory.mappings) {
+    if (isLoadingRasterCategories || isLoadingPartialFilter || !currentRasterCategory || !currentRasterCategory.mappings) {
       return false;
     }
     return availableOptions.length === 0;
-  }, [isLoadingRasterCategories, isLoadingDatasets, availableOptions, currentRasterCategory]);
+  }, [isLoadingRasterCategories, isLoadingPartialFilter, availableOptions, currentRasterCategory]);
 
   // User currently selected raster filter values are inferred from the dataset filter in the Activity Context
   const selectedValues = useMemo(() => {
@@ -54,10 +54,10 @@ export function useRasterFilters(categoryId?: string) {
       return {
         id: String(value),
         label,
-        disabled: !isLoadingRasterCategories && !isLoadingDatasets && !availableValues.includes(value),
+        disabled: !isLoadingRasterCategories && !isLoadingPartialFilter && !availableValues.includes(value),
       };
     });
-  }, [currentRasterCategory, selectedValues, availableOptions, isLoadingRasterCategories, isLoadingDatasets]);
+  }, [currentRasterCategory, selectedValues, availableOptions, isLoadingRasterCategories, isLoadingPartialFilter]);
 
   const hasUnavailableRasterSelected = useMemo(() => {
     return pillSelections.some(pill => pill.disabled);
@@ -94,7 +94,7 @@ export function useRasterFilters(categoryId?: string) {
     availableOptions,
     pillSelections,
     hasNoOptions,
-    isLoadingDatasets,
+    isLoadingPartialFilter,
     hasUnavailableRasterSelected,
     handleOnChange,
     handlePillRemove,

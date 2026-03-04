@@ -43,6 +43,7 @@ type AvailabilityContextType = {
   isNoData: boolean;
   isNoFilteredData: boolean;
   isLoading: boolean;
+  isLoadingPartialFilter: boolean;
   isLoadingRasterCategories: boolean;
   searchValue: string;
   datasetFrontendFilters: DatasetFrontendFilters;
@@ -262,6 +263,7 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
         isNoData,
         isNoFilteredData,
         isLoading,
+        isLoadingPartialFilter,
         isLoadingRasterCategories,
         searchValue,
         datasetFrontendFilters,
