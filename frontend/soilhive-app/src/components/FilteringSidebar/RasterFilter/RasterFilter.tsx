@@ -5,23 +5,19 @@ import styles from './RasterFilter.module.scss';
 import { useRasterFilters } from 'hooks/useRasterFilters';
 import Skeleton from 'react-loading-skeleton';
 import 'react-loading-skeleton/dist/skeleton.css';
-import useAvailability from 'hooks/useAvailability';
 
 interface RasterFilterProps {
   categoryId: string;
 }
 
 export function RasterFilter({ categoryId }: RasterFilterProps) {
-  const { isLoading: isLoadingDatasets } = useAvailability();
-  const { category, availableOptions, isLoadingRasterCategories, selectedValues, pillSelections, handleOnChange, handlePillRemove } =
+  const { category, availableOptions, selectedValues, pillSelections, hasNoOptions, isLoadingDatasets, handleOnChange, handlePillRemove } =
     useRasterFilters(categoryId);
   const [searchTerm, setSearchTerm] = useState('');
 
   if (!category?.enabled) return null;
 
   const filtered = availableOptions.filter(opt => opt.label.toLowerCase().includes(searchTerm.toLowerCase()));
-
-  const hasNoOptions = !isLoadingRasterCategories && availableOptions.length === 0;
 
   const handleCheckboxChange = (value: number, checked: boolean) => {
     const nextValues = checked ? [...selectedValues, value] : selectedValues.filter(v => v !== value);

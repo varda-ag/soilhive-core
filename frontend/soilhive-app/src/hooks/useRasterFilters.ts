@@ -3,7 +3,14 @@ import useAvailability from './useAvailability';
 import { type Selection } from '../types/components';
 
 export function useRasterFilters(categoryId?: string) {
-  const { datasetFilters, setDatasetFilters, geometryFilterResults, allRasterCategories, isLoadingRasterCategories } = useAvailability();
+  const {
+    datasetFilters,
+    setDatasetFilters,
+    geometryFilterResults,
+    allRasterCategories,
+    isLoadingRasterCategories,
+    isLoading: isLoadingDatasets,
+  } = useAvailability();
 
   // These are all the options for a given raster filter category (e.g. soil_group), regardeless of the geometry
   const currentRasterCategory = useMemo(() => {
@@ -23,6 +30,10 @@ export function useRasterFilters(categoryId?: string) {
       .filter(([_, value]) => merged.has(value))
       .map(([label, value]) => ({ label, value }));
   }, [geometryFilterResults, categoryId, currentRasterCategory]);
+
+  const hasNoOptions = useMemo(() => {
+    return !isLoadingRasterCategories && !isLoadingDatasets && availableOptions.length == 0;
+  }, [isLoadingRasterCategories, isLoadingDatasets, availableOptions]);
 
   // User currently selected raster filter values are inferred from the dataset filter in the Activity Context
   const selectedValues = useMemo(() => {
@@ -75,6 +86,8 @@ export function useRasterFilters(categoryId?: string) {
     selectedValues,
     availableOptions,
     pillSelections,
+    hasNoOptions,
+    isLoadingDatasets,
     handleOnChange,
     handlePillRemove,
   };
