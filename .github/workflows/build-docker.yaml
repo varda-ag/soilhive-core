@@ -25,7 +25,7 @@ jobs:
         id: image_version
         run: |
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            echo "imageVersion=pr-${{ github.event.pull_request.number }}-${{ github.sha }}" >> $GITHUB_OUTPUT
+            echo "imageVersion=pr-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}" >> $GITHUB_OUTPUT
           elif [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
             echo "imageVersion=${{ github.sha }}" >> $GITHUB_OUTPUT
           elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
