@@ -32,8 +32,7 @@ export function useRasterFilters(categoryId?: string) {
   }, [geometryFilterResults, categoryId, currentRasterCategory]);
 
   const hasNoOptions = useMemo(() => {
-    // Ensure we aren't "loading" and that we actually have a valid category to check against
-    if (isLoadingRasterCategories || isLoadingDatasets || !currentRasterCategory) {
+    if (isLoadingRasterCategories || isLoadingDatasets || !currentRasterCategory || !currentRasterCategory.mappings) {
       return false;
     }
     return availableOptions.length === 0;
