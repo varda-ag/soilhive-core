@@ -43,7 +43,7 @@ export function DatasetsSidebar({ isOpened, onClose }: Props) {
               const params = new URLSearchParams();
               params.append('source', 'availability');
               params.append('selectionType', `${selectionType}`);
-              params.append('locationName', `${locationName}`);
+              if (locationName) params.append('locationName', `${locationName}`);
               params.append('filterId', `${filterId}`);
               params.append('datasets', availableDatasets.map(dataset => dataset.id).join(','));
               navigate({ pathname: '/download', search: `?${params.toString()}` });

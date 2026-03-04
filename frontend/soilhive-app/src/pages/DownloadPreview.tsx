@@ -151,7 +151,7 @@ function DownloadPreview() {
               const params = new URLSearchParams();
               params.append('source', 'preview');
               params.append('selectionType', `${selectionType}`);
-              params.append('locationName', `${locationName}`);
+              if (locationName) params.append('locationName', `${locationName}`);
               params.append('filterId', `${availabilityFilterId}`);
               params.append('datasets', availableFixedDatasets.map(dataset => dataset.id).join(','));
               navigate({ pathname: '/download', search: `?${params.toString()}` });

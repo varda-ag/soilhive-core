@@ -29,6 +29,7 @@ describe('DownloadPreviewSummary', () => {
       />,
     );
     expect(container).toMatchSnapshot();
+    expect(container.querySelector('.DownloadPreviewSummary')).not.toBeNull();
     expect(getByText('Drawn polygon')).not.toBeUndefined();
   });
 
@@ -129,5 +130,21 @@ describe('DownloadPreviewSummary', () => {
     );
     expect(container).toMatchSnapshot();
     expect(getByText('Country selected')).not.toBeUndefined();
+  });
+
+  it('renders the download preview summary (sidebar) with responsiveness turned off', () => {
+    const { container } = render(
+      <DownloadPreviewSummary
+        responsive={false}
+        locationName="France"
+        depthRange="0-50cm"
+        dataPoints={7367}
+        rasterLayers={4}
+        soilProperties={['pH', 'Organic Carbon Content']}
+        selectionType="country"
+      />,
+    );
+    expect(container).toMatchSnapshot();
+    expect(container.querySelector('.DownloadPreviewSummaryNonResponsive')).not.toBeNull();
   });
 });

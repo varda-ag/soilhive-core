@@ -4,9 +4,9 @@ import styles from './DownloadSummary.module.scss';
 import ArrowLeftIcon from 'assets/icons/arrow-left-icon.svg?react';
 import DownloadIcon from 'assets/icons/download-icon.svg?react';
 import { useNavigate, useSearchParams } from 'react-router';
-import DownloadSummarySidebar from 'components/DownloadSummary/DownloadSummarySidebar/DownloadSummarySidebar';
 import { Checkbox } from 'primereact/checkbox';
 import { useDownloadSummary } from 'hooks/useDownloadSummary';
+import DownloadPreviewSummary from 'components/DownloadPreview/DownloadPreviewSummary/DownloadPreviewSummary';
 
 function DownloadSummary() {
   const navigate = useNavigate();
@@ -44,7 +44,8 @@ function DownloadSummary() {
       </div>
       <div className={styles.Content}>
         <div className={styles.Sidebar}>
-          <DownloadSummarySidebar
+          <DownloadPreviewSummary
+            responsive={false}
             selectionType={selectionType}
             geometryFeature={geometryFeature}
             locationName={locationName}

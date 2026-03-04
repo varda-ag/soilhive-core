@@ -26,6 +26,7 @@ interface DownloadPreviewSummaryProps {
   soilProperties?: Array<string>;
   expanded?: boolean;
   onExpandClicked?: (expanded: boolean) => void;
+  responsive?: boolean;
 }
 
 function DownloadPreviewSummary({
@@ -40,6 +41,7 @@ function DownloadPreviewSummary({
   soilProperties,
   expanded = false,
   onExpandClicked,
+  responsive = true,
 }: DownloadPreviewSummaryProps) {
   const { isDesktopLayout } = useDevice();
 
@@ -52,20 +54,25 @@ function DownloadPreviewSummary({
     selectionTitle = 'Country selected';
   }
 
+  const isDesktop = !responsive || isDesktopLayout;
   const isAppliedFiltersSectionVisible = depthRange !== undefined || (soilProperties && soilProperties?.length > 0);
 
   return (
-    <div className={classNames(styles.DownloadPreviewSummary, { [styles.Expanded]: isDesktopLayout && expanded })}>
+    <div
+      className={classNames(responsive ? styles.DownloadPreviewSummary : styles.DownloadPreviewSummaryNonResponsive, {
+        [styles.Expanded]: isDesktop && expanded,
+      })}
+    >
       <div className={styles.MapSection}>
         <div className={styles.Map}>
           <SoilhiveSimpleMap
             initialViewBoundingBox={initialViewBoundingBox}
             showH3Cells={selectionType === 'h3-cell'}
-            showNavigation={expanded && isDesktopLayout}
+            showNavigation={expanded && isDesktop}
             selectedFeature={selectedFeature}
             geometryFeature={geometryFeature}
           />
-          {isDesktopLayout && expanded && (
+          {isDesktop && expanded && (
             <Button
               dataTestId="reduce-download-preview-summary-button"
               type="tertiary"
@@ -75,7 +82,7 @@ function DownloadPreviewSummary({
               <ReduceIcon />
             </Button>
           )}
-          {isDesktopLayout && !expanded && (
+          {isDesktop && !expanded && (
             <Button
               dataTestId="expand-download-preview-summary-button"
               type="tertiary"

@@ -46,7 +46,7 @@ exports[`DownloadSummary renders download summary page 1`] = `
         class="Sidebar"
       >
         <div>
-          Mock DownloadSummarySidebar
+          Mock DownloadPreviewSummary
         </div>
       </div>
       <div
@@ -165,7 +165,7 @@ exports[`DownloadSummary renders download summary page coming from availability 
         class="Sidebar"
       >
         <div>
-          Mock DownloadSummarySidebar
+          Mock DownloadPreviewSummary
         </div>
       </div>
       <div
@@ -284,7 +284,7 @@ exports[`DownloadSummary renders download summary page coming from preview 1`] =
         class="Sidebar"
       >
         <div>
-          Mock DownloadSummarySidebar
+          Mock DownloadPreviewSummary
         </div>
       </div>
       <div

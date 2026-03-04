@@ -285,6 +285,154 @@ exports[`DownloadPreviewSummary renders the download preview summary (sidebar) i
 </div>
 `;
 
+exports[`DownloadPreviewSummary renders the download preview summary (sidebar) with responsiveness turned off 1`] = `
+<div>
+  <div
+    class="DownloadPreviewSummaryNonResponsive"
+  >
+    <div
+      class="MapSection"
+    >
+      <div
+        class="Map"
+      >
+        <div>
+          Mock SoilhiveSimpleMap
+        </div>
+        <button
+          class="Button Tertiary Small IconOnly"
+          data-testid="expand-download-preview-summary-button"
+          type="button"
+        >
+          <svg
+            data-testid="svg-icon-mock"
+          >
+            mock-svg
+          </svg>
+        </button>
+      </div>
+      <div
+        class="SubMap"
+      >
+        <div
+          class="SectionTitle"
+        >
+          Country selected
+        </div>
+        <div
+          class="Location"
+        >
+          <svg
+            data-testid="svg-icon-mock"
+          >
+            mock-svg
+          </svg>
+          France
+        </div>
+      </div>
+    </div>
+    <div
+      class="Separator"
+    />
+    <div
+      class="DataSummary"
+    >
+      <div
+        class="SectionTitle"
+      >
+        Data summary
+      </div>
+      <div
+        class="DataSummaryContent"
+      >
+        <div
+          class="DataSummaryRow"
+        >
+          <div
+            class="DataSummaryRowTitle"
+          >
+            <svg
+              data-testid="svg-icon-mock"
+            >
+              mock-svg
+            </svg>
+            Data points
+          </div>
+          <div
+            class="DataSummaryRowData"
+          >
+            7.367
+          </div>
+        </div>
+        <div
+          class="DataSummaryRow"
+        >
+          <div
+            class="DataSummaryRowTitle"
+          >
+            <svg
+              data-testid="svg-icon-mock"
+            >
+              mock-svg
+            </svg>
+            Raster Layers
+          </div>
+          <div
+            class="DataSummaryRowData"
+          >
+            4
+          </div>
+        </div>
+      </div>
+    </div>
+    <div
+      class="Separator"
+    />
+    <div
+      class="AppliedFilters"
+    >
+      <div
+        class="SectionTitle"
+      >
+        Applied Filters
+      </div>
+      <div
+        class="FiltersList"
+      >
+        <div
+          class="Filter"
+        >
+          <div
+            class="FilterName"
+          >
+            Depth range
+          </div>
+          <div
+            class="FilterValue"
+          >
+            0-50cm
+          </div>
+        </div>
+        <div
+          class="Filter"
+        >
+          <div
+            class="FilterName"
+          >
+            Soil Properties
+          </div>
+          <div
+            class="FilterValue"
+          >
+            pH, Organic Carbon Content
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
 exports[`DownloadPreviewSummary renders the download preview summary (sidebar) with selectionType=country 1`] = `
 <div>
   <div
