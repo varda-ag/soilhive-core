@@ -16,9 +16,9 @@ jest.mock('react-router', () => {
 });
 const { mockSearchParamsGet } = jest.requireMock('react-router');
 
-jest.mock('components/DownloadPreview/DownloadPreviewSummary/DownloadPreviewSummary', () => {
-  const DownloadPreviewSummary = () => <div>Mock DownloadPreviewSummary</div>;
-  return DownloadPreviewSummary;
+jest.mock('components/DownloadDataSummary/DownloadDataSummary', () => {
+  const DownloadDataSummary = () => <div>Mock DownloadDataSummary</div>;
+  return DownloadDataSummary;
 });
 
 jest.mock('hooks/useDownloadSummary', () => {

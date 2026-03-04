@@ -1,5 +1,5 @@
 import { act, render } from '@testing-library/react';
-import DownloadPreviewSummary from 'components/DownloadPreview/DownloadPreviewSummary/DownloadPreviewSummary';
+import DownloadDataSummary from 'components/DownloadDataSummary/DownloadDataSummary';
 import { __setIsDesktopLayout } from 'hooks/useDevice';
 
 jest.mock('components/Map/SoilhiveSimpleMap', () => {
@@ -13,14 +13,14 @@ jest.mock('../../../src/utilities/environmentVariables', () => ({
 
 jest.mock('hooks/useDevice');
 
-describe('DownloadPreviewSummary', () => {
+describe('DownloadDataSummary', () => {
   beforeEach(() => {
     __setIsDesktopLayout(true);
   });
 
-  it('renders the download preview summary (sidebar)', () => {
+  it('renders the download data summary (sidebar)', () => {
     const { container, getByText } = render(
-      <DownloadPreviewSummary
+      <DownloadDataSummary
         locationName="France"
         depthRange="0-50cm"
         dataPoints={7367}
@@ -29,14 +29,14 @@ describe('DownloadPreviewSummary', () => {
       />,
     );
     expect(container).toMatchSnapshot();
-    expect(container.querySelector('.DownloadPreviewSummary')).not.toBeNull();
+    expect(container.querySelector('.DownloadDataSummary')).not.toBeNull();
     expect(getByText('Drawn polygon')).not.toBeUndefined();
   });
 
-  it('renders the download preview summary (sidebar) in mobile and tablet', () => {
+  it('renders the download data summary (sidebar) in mobile and tablet', () => {
     __setIsDesktopLayout(false);
     const { container, queryByTestId } = render(
-      <DownloadPreviewSummary
+      <DownloadDataSummary
         locationName="France"
         depthRange="0-50cm"
         dataPoints={7367}
@@ -45,14 +45,14 @@ describe('DownloadPreviewSummary', () => {
       />,
     );
     expect(container).toMatchSnapshot();
-    expect(queryByTestId('expand-download-preview-summary-button')).not.toBeInTheDocument();
-    expect(queryByTestId('reduce-download-preview-summary-button')).not.toBeInTheDocument();
+    expect(queryByTestId('expand-download-data-summary-button')).not.toBeInTheDocument();
+    expect(queryByTestId('reduce-download-data-summary-button')).not.toBeInTheDocument();
   });
 
-  it('renders the expanded download preview summary (sidebar)', async () => {
+  it('renders the expanded download data summary (sidebar)', async () => {
     const mockOnExpandClicked = jest.fn();
     const { container, getByTestId } = render(
-      <DownloadPreviewSummary
+      <DownloadDataSummary
         locationName="France"
         depthRange="0-50cm"
         dataPoints={7367}
@@ -62,16 +62,16 @@ describe('DownloadPreviewSummary', () => {
         onExpandClicked={mockOnExpandClicked}
       />,
     );
-    const reduceButton = getByTestId('reduce-download-preview-summary-button');
+    const reduceButton = getByTestId('reduce-download-data-summary-button');
     await act(async () => reduceButton.click());
     expect(mockOnExpandClicked).toHaveBeenCalledWith(false);
     expect(container).toMatchSnapshot();
   });
 
-  it('renders the reduced download preview summary (sidebar)', async () => {
+  it('renders the reduced download data summary (sidebar)', async () => {
     const mockOnExpandClicked = jest.fn();
     const { container, getByTestId } = render(
-      <DownloadPreviewSummary
+      <DownloadDataSummary
         locationName="France"
         depthRange="0-50cm"
         dataPoints={7367}
@@ -81,15 +81,15 @@ describe('DownloadPreviewSummary', () => {
         onExpandClicked={mockOnExpandClicked}
       />,
     );
-    const expandButton = getByTestId('expand-download-preview-summary-button');
+    const expandButton = getByTestId('expand-download-data-summary-button');
     await act(async () => expandButton.click());
     expect(mockOnExpandClicked).toHaveBeenCalledWith(true);
     expect(container).toMatchSnapshot();
   });
 
-  it('renders the download preview summary (sidebar) with selectionType=h3-cell', () => {
+  it('renders the download data summary (sidebar) with selectionType=h3-cell', () => {
     const { container, getByText } = render(
-      <DownloadPreviewSummary
+      <DownloadDataSummary
         locationName="France"
         depthRange="0-50cm"
         dataPoints={7367}
@@ -102,9 +102,9 @@ describe('DownloadPreviewSummary', () => {
     expect(getByText('H3cell selected')).not.toBeUndefined();
   });
 
-  it('renders the download preview summary (sidebar) with selectionType=drawn-polygon', () => {
+  it('renders the download data summary (sidebar) with selectionType=drawn-polygon', () => {
     const { container, getByText } = render(
-      <DownloadPreviewSummary
+      <DownloadDataSummary
         locationName="France"
         depthRange="0-50cm"
         dataPoints={7367}
@@ -117,9 +117,9 @@ describe('DownloadPreviewSummary', () => {
     expect(getByText('Drawn polygon')).not.toBeUndefined();
   });
 
-  it('renders the download preview summary (sidebar) with selectionType=country', () => {
+  it('renders the download data summary (sidebar) with selectionType=country', () => {
     const { container, getByText } = render(
-      <DownloadPreviewSummary
+      <DownloadDataSummary
         locationName="France"
         depthRange="0-50cm"
         dataPoints={7367}
@@ -132,9 +132,9 @@ describe('DownloadPreviewSummary', () => {
     expect(getByText('Country selected')).not.toBeUndefined();
   });
 
-  it('renders the download preview summary (sidebar) with responsiveness turned off', () => {
+  it('renders the download data summary (sidebar) with responsiveness turned off', () => {
     const { container } = render(
-      <DownloadPreviewSummary
+      <DownloadDataSummary
         responsive={false}
         locationName="France"
         depthRange="0-50cm"
@@ -145,6 +145,6 @@ describe('DownloadPreviewSummary', () => {
       />,
     );
     expect(container).toMatchSnapshot();
-    expect(container.querySelector('.DownloadPreviewSummaryNonResponsive')).not.toBeNull();
+    expect(container.querySelector('.DownloadDataSummaryNonResponsive')).not.toBeNull();
   });
 });

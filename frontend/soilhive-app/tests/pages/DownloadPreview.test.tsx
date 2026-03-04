@@ -17,9 +17,9 @@ jest.mock('react-router', () => ({
   useNavigate: jest.fn(),
 }));
 
-jest.mock('components/DownloadPreview/DownloadPreviewSummary/DownloadPreviewSummary', () => {
-  const DownloadPreviewSummary = () => <div>Mock DownloadPreviewSummary</div>;
-  return DownloadPreviewSummary;
+jest.mock('components/DownloadDataSummary/DownloadDataSummary', () => {
+  const DownloadDataSummary = () => <div>Mock DownloadDataSummary</div>;
+  return DownloadDataSummary;
 });
 
 jest.mock('components/DownloadPreview/DownloadPreviewDataSection/DownloadPreviewDataSection', () => {

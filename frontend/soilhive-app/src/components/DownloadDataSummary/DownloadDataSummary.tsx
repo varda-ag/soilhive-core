@@ -1,7 +1,7 @@
 import classNames from 'classnames';
 import SoilhiveSimpleMap from 'components/Map/SoilhiveSimpleMap';
 import { Button } from 'components/UI';
-import styles from './DownloadPreviewSummary.module.scss';
+import styles from './DownloadDataSummary.module.scss';
 import ExpandIcon from 'assets/icons/expand-icon.svg?react';
 import ReduceIcon from 'assets/icons/reduce-icon.svg?react';
 import LayersIcon from 'assets/icons/layers-icon.svg?react';
@@ -14,7 +14,7 @@ import type { Feature, GeoJsonProperties, MultiPolygon, Point, Polygon } from 'g
 // Output: "1.234.567"
 const numberFormatter = new Intl.NumberFormat('de-DE');
 
-interface DownloadPreviewSummaryProps {
+interface DownloadDataSummaryProps {
   selectionType?: string;
   initialViewBoundingBox?: [number, number, number, number];
   selectedFeature?: Feature<Point | Polygon | MultiPolygon, GeoJsonProperties>;
@@ -29,7 +29,7 @@ interface DownloadPreviewSummaryProps {
   responsive?: boolean;
 }
 
-function DownloadPreviewSummary({
+function DownloadDataSummary({
   selectionType = 'drawn-polygon',
   initialViewBoundingBox,
   geometryFeature,
@@ -42,7 +42,7 @@ function DownloadPreviewSummary({
   expanded = false,
   onExpandClicked,
   responsive = true,
-}: DownloadPreviewSummaryProps) {
+}: DownloadDataSummaryProps) {
   const { isDesktopLayout } = useDevice();
 
   let selectionTitle: string = 'Selection';
@@ -59,7 +59,7 @@ function DownloadPreviewSummary({
 
   return (
     <div
-      className={classNames(responsive ? styles.DownloadPreviewSummary : styles.DownloadPreviewSummaryNonResponsive, {
+      className={classNames(responsive ? styles.DownloadDataSummary : styles.DownloadDataSummaryNonResponsive, {
         [styles.Expanded]: isDesktop && expanded,
       })}
     >
@@ -74,7 +74,7 @@ function DownloadPreviewSummary({
           />
           {isDesktop && expanded && (
             <Button
-              dataTestId="reduce-download-preview-summary-button"
+              dataTestId="reduce-download-data-summary-button"
               type="tertiary"
               isIconOnly={true}
               onClick={() => onExpandClicked?.(false)}
@@ -84,7 +84,7 @@ function DownloadPreviewSummary({
           )}
           {isDesktop && !expanded && (
             <Button
-              dataTestId="expand-download-preview-summary-button"
+              dataTestId="expand-download-data-summary-button"
               type="tertiary"
               isIconOnly={true}
               onClick={() => onExpandClicked?.(true)}
@@ -147,4 +147,4 @@ function DownloadPreviewSummary({
   );
 }
 
-export default DownloadPreviewSummary;
+export default DownloadDataSummary;

@@ -6,7 +6,7 @@ import DownloadIcon from 'assets/icons/download-icon.svg?react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { Checkbox } from 'primereact/checkbox';
 import { useDownloadSummary } from 'hooks/useDownloadSummary';
-import DownloadPreviewSummary from 'components/DownloadPreview/DownloadPreviewSummary/DownloadPreviewSummary';
+import DownloadDataSummary from 'components/DownloadDataSummary/DownloadDataSummary';
 
 function DownloadSummary() {
   const navigate = useNavigate();
@@ -44,7 +44,7 @@ function DownloadSummary() {
       </div>
       <div className={styles.Content}>
         <div className={styles.Sidebar}>
-          <DownloadPreviewSummary
+          <DownloadDataSummary
             responsive={false}
             selectionType={selectionType}
             geometryFeature={geometryFeature}

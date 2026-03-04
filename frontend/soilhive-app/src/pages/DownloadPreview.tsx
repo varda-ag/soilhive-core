@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Button } from 'components/UI';
 import styles from './DownloadPreview.module.scss';
-import DownloadPreviewSummary from 'components/DownloadPreview//DownloadPreviewSummary/DownloadPreviewSummary';
+import DownloadDataSummary from 'components/DownloadDataSummary/DownloadDataSummary';
 import DownloadIcon from 'assets/icons/download-icon.svg?react';
 import ArrowLeftIcon from 'assets/icons/arrow-left-icon.svg?react';
 import ShareIcon from 'assets/icons/share-icon.svg?react';
@@ -167,7 +167,7 @@ function DownloadPreview() {
       </div>
       <div className={styles.Content}>
         <div className={classNames(styles.Sidebar, { [styles.HideInMobile]: selectedTab !== 'summary' })}>
-          <DownloadPreviewSummary
+          <DownloadDataSummary
             selectionType={selectionType}
             initialViewBoundingBox={boundingBox}
             selectedFeature={selectedFeature}

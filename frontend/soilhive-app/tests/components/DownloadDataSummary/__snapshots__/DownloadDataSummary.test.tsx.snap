@@ -1,9 +1,9 @@
 // Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
 
-exports[`DownloadPreviewSummary renders the download preview summary (sidebar) 1`] = `
+exports[`DownloadDataSummary renders the download data summary (sidebar) 1`] = `
 <div>
   <div
-    class="DownloadPreviewSummary"
+    class="DownloadDataSummary"
   >
     <div
       class="MapSection"
@@ -16,7 +16,7 @@ exports[`DownloadPreviewSummary renders the download preview summary (sidebar) 1
         </div>
         <button
           class="Button Tertiary Small IconOnly"
-          data-testid="expand-download-preview-summary-button"
+          data-testid="expand-download-data-summary-button"
           type="button"
         >
           <svg
@@ -148,10 +148,10 @@ exports[`DownloadPreviewSummary renders the download preview summary (sidebar) 1
 </div>
 `;
 
-exports[`DownloadPreviewSummary renders the download preview summary (sidebar) in mobile and tablet 1`] = `
+exports[`DownloadDataSummary renders the download data summary (sidebar) in mobile and tablet 1`] = `
 <div>
   <div
-    class="DownloadPreviewSummary"
+    class="DownloadDataSummary"
   >
     <div
       class="MapSection"
@@ -285,10 +285,10 @@ exports[`DownloadPreviewSummary renders the download preview summary (sidebar) i
 </div>
 `;
 
-exports[`DownloadPreviewSummary renders the download preview summary (sidebar) with responsiveness turned off 1`] = `
+exports[`DownloadDataSummary renders the download data summary (sidebar) with responsiveness turned off 1`] = `
 <div>
   <div
-    class="DownloadPreviewSummaryNonResponsive"
+    class="DownloadDataSummaryNonResponsive"
   >
     <div
       class="MapSection"
@@ -301,7 +301,7 @@ exports[`DownloadPreviewSummary renders the download preview summary (sidebar) w
         </div>
         <button
           class="Button Tertiary Small IconOnly"
-          data-testid="expand-download-preview-summary-button"
+          data-testid="expand-download-data-summary-button"
           type="button"
         >
           <svg
@@ -433,10 +433,10 @@ exports[`DownloadPreviewSummary renders the download preview summary (sidebar) w
 </div>
 `;
 
-exports[`DownloadPreviewSummary renders the download preview summary (sidebar) with selectionType=country 1`] = `
+exports[`DownloadDataSummary renders the download data summary (sidebar) with selectionType=country 1`] = `
 <div>
   <div
-    class="DownloadPreviewSummary"
+    class="DownloadDataSummary"
   >
     <div
       class="MapSection"
@@ -449,7 +449,7 @@ exports[`DownloadPreviewSummary renders the download preview summary (sidebar) w
         </div>
         <button
           class="Button Tertiary Small IconOnly"
-          data-testid="expand-download-preview-summary-button"
+          data-testid="expand-download-data-summary-button"
           type="button"
         >
           <svg
@@ -581,10 +581,10 @@ exports[`DownloadPreviewSummary renders the download preview summary (sidebar) w
 </div>
 `;
 
-exports[`DownloadPreviewSummary renders the download preview summary (sidebar) with selectionType=drawn-polygon 1`] = `
+exports[`DownloadDataSummary renders the download data summary (sidebar) with selectionType=drawn-polygon 1`] = `
 <div>
   <div
-    class="DownloadPreviewSummary"
+    class="DownloadDataSummary"
   >
     <div
       class="MapSection"
@@ -597,7 +597,7 @@ exports[`DownloadPreviewSummary renders the download preview summary (sidebar) w
         </div>
         <button
           class="Button Tertiary Small IconOnly"
-          data-testid="expand-download-preview-summary-button"
+          data-testid="expand-download-data-summary-button"
           type="button"
         >
           <svg
@@ -729,10 +729,10 @@ exports[`DownloadPreviewSummary renders the download preview summary (sidebar) w
 </div>
 `;
 
-exports[`DownloadPreviewSummary renders the download preview summary (sidebar) with selectionType=h3-cell 1`] = `
+exports[`DownloadDataSummary renders the download data summary (sidebar) with selectionType=h3-cell 1`] = `
 <div>
   <div
-    class="DownloadPreviewSummary"
+    class="DownloadDataSummary"
   >
     <div
       class="MapSection"
@@ -745,7 +745,7 @@ exports[`DownloadPreviewSummary renders the download preview summary (sidebar) w
         </div>
         <button
           class="Button Tertiary Small IconOnly"
-          data-testid="expand-download-preview-summary-button"
+          data-testid="expand-download-data-summary-button"
           type="button"
         >
           <svg
@@ -877,10 +877,10 @@ exports[`DownloadPreviewSummary renders the download preview summary (sidebar) w
 </div>
 `;
 
-exports[`DownloadPreviewSummary renders the expanded download preview summary (sidebar) 1`] = `
+exports[`DownloadDataSummary renders the expanded download data summary (sidebar) 1`] = `
 <div>
   <div
-    class="DownloadPreviewSummary Expanded"
+    class="DownloadDataSummary Expanded"
   >
     <div
       class="MapSection"
@@ -893,7 +893,7 @@ exports[`DownloadPreviewSummary renders the expanded download preview summary (s
         </div>
         <button
           class="Button Tertiary Small IconOnly"
-          data-testid="reduce-download-preview-summary-button"
+          data-testid="reduce-download-data-summary-button"
           type="button"
         >
           <svg
@@ -1025,10 +1025,10 @@ exports[`DownloadPreviewSummary renders the expanded download preview summary (s
 </div>
 `;
 
-exports[`DownloadPreviewSummary renders the reduced download preview summary (sidebar) 1`] = `
+exports[`DownloadDataSummary renders the reduced download data summary (sidebar) 1`] = `
 <div>
   <div
-    class="DownloadPreviewSummary"
+    class="DownloadDataSummary"
   >
     <div
       class="MapSection"
@@ -1041,7 +1041,7 @@ exports[`DownloadPreviewSummary renders the reduced download preview summary (si
         </div>
         <button
           class="Button Tertiary Small IconOnly"
-          data-testid="expand-download-preview-summary-button"
+          data-testid="expand-download-data-summary-button"
           type="button"
         >
           <svg

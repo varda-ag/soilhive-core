@@ -1,6 +1,6 @@
 @import 'styles/variables/breakpoints';
 
-.DownloadPreviewSummary, .DownloadPreviewSummaryNonResponsive {
+.DownloadDataSummary, .DownloadDataSummaryNonResponsive {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -158,7 +158,7 @@
   }
 }
 
-.DownloadPreviewSummary {
+.DownloadDataSummary {
   @media (max-width: $bp-mobile-max) {
     width: 100%;
   }
@@ -338,7 +338,7 @@
   }
 }
 
-.DownloadPreviewSummaryNonResponsive {
+.DownloadDataSummaryNonResponsive {
   transition: width 0.5s ease-out;
 
   &.Expanded {
