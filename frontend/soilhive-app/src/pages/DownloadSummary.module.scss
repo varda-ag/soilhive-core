@@ -46,27 +46,34 @@
       width: 100%;
       overflow-x: hidden;
       position: relative;
+      padding-bottom: 80px;
 
       .MainContent {
         background-color: var(--color-neutral-white);
         width: 929px;
         height: 739px;
-        margin: 20px auto;
+        margin: 20px auto;        
       }
 
       .Footer {
         padding: 12px 24px;
         background-color: var(--color-neutral-white);
         box-shadow: 0px 4px 16px 0px #00000014;
-        position: absolute;
+        position: fixed;        
         bottom: 0;
-        left: 0;
+        left: 255px;
+        transition: left 0.5s ease-out;
         right: 0;
         display: flex;
         flex-direction: row;
         justify-content: end;
         align-items: center;
-        gap: 12px;        
+        gap: 12px;    
+        
+        &.Expanded {
+          left: 448px;
+        }
+        
         .TermsOfUse {
           font-size: var(--font-size-md);
           label {

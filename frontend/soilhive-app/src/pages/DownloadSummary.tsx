@@ -7,6 +7,7 @@ import { useNavigate, useSearchParams } from 'react-router';
 import { Checkbox } from 'primereact/checkbox';
 import { useDownloadSummary } from 'hooks/useDownloadSummary';
 import DownloadDataSummary from 'components/DownloadDataSummary/DownloadDataSummary';
+import classNames from 'classnames';
 
 function DownloadSummary() {
   const navigate = useNavigate();
@@ -59,7 +60,7 @@ function DownloadSummary() {
         </div>
         <div className={styles.Main}>
           <div className={styles.MainContent}>MainContent</div>
-          <div className={styles.Footer}>
+          <div className={classNames(styles.Footer, { [styles.Expanded]: summaryExpanded })}>
             <div className={styles.TermsOfUse}>
               <Checkbox
                 inputId="agree-to-terms-for-download"
