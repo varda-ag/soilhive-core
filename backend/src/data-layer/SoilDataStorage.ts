@@ -257,11 +257,14 @@ const applyRasterFilterToQuery = async (query: SelectQueryBuilder<DatasetLayerEn
   await queryRunner.release();
   const aoiAreaM2 = turf.area(dataFilter.geometries[0]!);
   const areaOverThreshold = aoiAreaM2 > 3_000_000_000_000;
+  const raster_filters: Record<string, number[]> | undefined = dataFilter.parameters.raster_filters;
 
   for (const baseTable of enabledFilterTables) {
+    const values = raster_filters?.[baseTable];
+    const hasFilteringValues = values && values.length > 0;
     const table = selectOverviewTable(baseTable, aoiAreaM2);
     const c = `clipped_${table}`;
-    if (!areaOverThreshold) {
+    if (!areaOverThreshold || hasFilteringValues) {
       query.addCommonTableExpression(
         `
       SELECT ST_Union(ST_Clip(${table}.rast, aoi.geom, TRUE, TRUE)) as rast FROM ${table}
@@ -271,10 +274,8 @@ const applyRasterFilterToQuery = async (query: SelectQueryBuilder<DatasetLayerEn
         { materialized: true },
       );
     }
-    const raster_filters: Record<string, number[]> | undefined = dataFilter.parameters.raster_filters;
-    const values = raster_filters?.[baseTable];
     const outputColumn = `#${baseTable}`; // Prefixing column name with "#" to detect it in the results
-    if (values && values.length > 0) {
+    if (hasFilteringValues) {
       query.innerJoin(c, c, '1=1');
 
       const t = `lateral_${table}`;
