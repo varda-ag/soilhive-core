@@ -60,6 +60,10 @@ export function useRasterFilters(categoryId?: string) {
     });
   }, [currentRasterCategory, selectedValues, availableOptions, isLoadingRasterCategories]);
 
+  const hasUnavailableRasterSelected = useMemo(() => {
+    return pillSelections.some(pill => pill.disabled);
+  }, [pillSelections]);
+
   const handlePillRemove = (id: string) => {
     handleOnChange(selectedValues.filter(v => String(v) !== id));
   };
@@ -92,6 +96,7 @@ export function useRasterFilters(categoryId?: string) {
     pillSelections,
     hasNoOptions,
     isLoadingDatasets,
+    hasUnavailableRasterSelected,
     handleOnChange,
     handlePillRemove,
   };
