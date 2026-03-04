@@ -6,7 +6,7 @@ export function FilteringSidebarLandEcosystem() {
 
   const dynamicCategories = allRasterCategories?.filter(c => c.id !== 'soil_groups') ?? []; // <- soil_groups is rendered in the FilteringSidebarParameters, so we exclude it from this section
 
-  const hasNoOptions = (catId: string) => !geometryFilterResults?.some(d => (d.raster_filters?.[catId]?.length ?? 0) > 0); // do we have some options in the geomtry result?
+  const hasNoOptions = (catId: string) => !geometryFilterResults?.some(d => (d.raster_filters?.[catId]?.length ?? 0) > 0); // do we have some options in the geometry result?
 
   const allEmpty = !isLoadingDatasets && dynamicCategories.length > 0 && dynamicCategories.every(cat => hasNoOptions(cat.id));
 
