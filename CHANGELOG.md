@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.45.0 (2026-03-04)
+
+## What's Changed
+* fix(docker-build-workflow): image version for pull requests in workflow by @Butterneck in https://github.com/varda-ag/soilhive-core/pull/267
+* feat: sp-4899 download summary page by @cristbello in https://github.com/varda-ag/soilhive-core/pull/255
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.44.0...v0.45.0
+
 ## 0.44.0 (2026-03-04)
 
 ## What's Changed
