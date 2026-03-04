@@ -52,8 +52,8 @@ function DownloadPreviewFilters({
   const { isMobileLayout } = useDevice();
   const [selectedDateRange, setSelectedDateRange] = useState<Nullable<Array<Date | null>>>(fixedCalendarRange);
 
-  const [minDate, maxDate] = useMemo(() => {
-    if (!calendarMinMaxRange) return [undefined, undefined];
+  const { minDate, maxDate, minMaxDateAreSameMonth } = useMemo(() => {
+    if (!calendarMinMaxRange) return { minDate: undefined, maxDate: undefined };
     let minDate = calendarMinMaxRange[0];
     if (minDate) {
       minDate = firstDayOfTheMonth(minDate);
@@ -62,7 +62,12 @@ function DownloadPreviewFilters({
     if (maxDate) {
       maxDate = lastDayOfTheMonth(maxDate);
     }
-    return [minDate, maxDate];
+    return {
+      minDate,
+      maxDate,
+      minMaxDateAreSameMonth:
+        minDate && maxDate && minDate.getMonth() === maxDate.getMonth() && minDate.getFullYear() === maxDate.getFullYear(),
+    };
   }, [calendarMinMaxRange]);
 
   useEffect(() => {
@@ -183,7 +188,7 @@ function DownloadPreviewFilters({
         panelClassName={styles.DropdownPanel}
         inputClassName={styles.CalendarInput}
         readOnlyInput
-        value={selectedDateRange}
+        value={minMaxDateAreSameMonth ? [minDate ?? null, maxDate ?? null] : selectedDateRange}
         onChange={onCalendarChange}
         onHide={onCalendarHide}
         showButtonBar
@@ -196,7 +201,7 @@ function DownloadPreviewFilters({
         minDate={minDate}
         maxDate={maxDate}
         showMinMaxRange={true}
-        disabled={isLoading || !!fixedCalendarRange}
+        disabled={isLoading || !!fixedCalendarRange || (!selectedDateRange && minMaxDateAreSameMonth)}
       />
     </>
   );
