@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.44.0 (2026-03-04)
+
+## What's Changed
+* fix(data): :zap: fixing raster overview and output values by @svaccari in https://github.com/varda-ag/soilhive-core/pull/263
+* feat(fe): raster filter integration by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/266
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.43.0...v0.44.0
+
 ## 0.43.0 (2026-03-03)
 
 ## What's Changed
