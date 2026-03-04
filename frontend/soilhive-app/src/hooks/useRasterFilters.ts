@@ -32,8 +32,12 @@ export function useRasterFilters(categoryId?: string) {
   }, [geometryFilterResults, categoryId, currentRasterCategory]);
 
   const hasNoOptions = useMemo(() => {
-    return !isLoadingRasterCategories && !isLoadingDatasets && availableOptions.length == 0;
-  }, [isLoadingRasterCategories, isLoadingDatasets, availableOptions]);
+    // Ensure we aren't "loading" and that we actually have a valid category to check against
+    if (isLoadingRasterCategories || isLoadingDatasets || !currentRasterCategory) {
+      return false;
+    }
+    return availableOptions.length === 0;
+  }, [isLoadingRasterCategories, isLoadingDatasets, availableOptions, currentRasterCategory]);
 
   // User currently selected raster filter values are inferred from the dataset filter in the Activity Context
   const selectedValues = useMemo(() => {
