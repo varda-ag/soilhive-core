@@ -7,6 +7,11 @@ jest.mock('hooks/useRasterFilters', () => ({
   useRasterFilters: jest.fn(),
 }));
 
+jest.mock('hooks/useAvailability', () => ({
+  __esModule: true,
+  default: jest.fn(),
+}));
+
 // Minimal mocks that render just enough for us to assert on
 jest.mock('components/UI', () => ({
   Accordion: ({ title, children, pillsSlot }: any) => (

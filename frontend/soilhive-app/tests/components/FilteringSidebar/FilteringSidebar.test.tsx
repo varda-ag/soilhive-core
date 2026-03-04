@@ -3,6 +3,7 @@ import { FilteringSidebar } from 'components/FilteringSidebar/FilteringSidebar';
 import { __setIsDesktopLayout } from 'hooks/useDevice';
 import useDataScopeFilters from 'hooks/useDataScopeFilters';
 import useSoilPropertiesFilters from 'hooks/useSoilPropertiesFilters';
+import { useRasterFilters } from 'hooks/useRasterFilters';
 
 jest.mock('hooks/useDevice');
 
@@ -14,6 +15,11 @@ jest.mock('hooks/useDataScopeFilters', () => ({
 jest.mock('hooks/useSoilPropertiesFilters', () => ({
   __esModule: true,
   default: jest.fn(),
+}));
+
+jest.mock('hooks/useRasterFilters', () => ({
+  __esModule: true,
+  useRasterFilters: jest.fn(),
 }));
 
 jest.mock('components/FilteringSidebar/FilteringSidebarHeader/FilteringSidebarHeader', () => ({
@@ -40,6 +46,9 @@ describe('FilteringSidebar', () => {
     });
     (useSoilPropertiesFilters as jest.Mock).mockReturnValue({
       hasUnavailablePropertySelected: false,
+    });
+    (useRasterFilters as jest.Mock).mockReturnValue({
+      hasUnavailableRasterSelected: false,
     });
   });
 
@@ -118,6 +127,9 @@ describe('FilteringSidebar', () => {
     });
     (useSoilPropertiesFilters as jest.Mock).mockReturnValue({
       hasUnavailablePropertySelected: true,
+    });
+    (useRasterFilters as jest.Mock).mockReturnValue({
+      hasUnavailableRasterSelected: true,
     });
 
     render(<FilteringSidebar isOpened={false} onClose={() => {}} />);
