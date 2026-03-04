@@ -40,6 +40,7 @@ export default class SoilDataStorage {
   };
 
   filter = async (entityManager: EntityManager, geometry: Polygon | MultiPolygon, filters: FilterCriteria): Promise<FilteredDataset[]> => {
+    await entityManager.query("SET work_mem = '256MB';");
     const geom = JSON.stringify(geometry);
     const repo = entityManager.getRepository(DatasetLayerEntity);
     const query = await repo
@@ -255,17 +256,20 @@ const applyRasterFilterToQuery = async (query: SelectQueryBuilder<DatasetLayerEn
   const enabledFilterTables = enabledFilters.map(f => f.id);
   await queryRunner.release();
   const aoiAreaM2 = turf.area(dataFilter.geometries[0]!);
+  const areaOverThreshold = aoiAreaM2 > 3_000_000_000_000;
 
   for (const baseTable of enabledFilterTables) {
     const table = selectOverviewTable(baseTable, aoiAreaM2);
     const c = `clipped_${table}`;
-    query.addCommonTableExpression(
-      `
+    if (!areaOverThreshold) {
+      query.addCommonTableExpression(
+        `
       SELECT ST_Union(ST_Clip(${table}.rast, aoi.geom, TRUE, TRUE)) as rast FROM ${table}
       CROSS JOIN aoi
       WHERE ST_Intersects(${table}.rast, aoi.geom)`,
-      c,
-    );
+        c,
+      );
+    }
     const raster_filters: Record<string, number[]> | undefined = dataFilter.parameters.raster_filters;
     const values = raster_filters?.[baseTable];
     const outputColumn = `#${baseTable}`; // Prefixing column name with "#" to detect it in the results
@@ -322,7 +326,7 @@ const applyRasterFilterToQuery = async (query: SelectQueryBuilder<DatasetLayerEn
           ) t
           WHERE val IS NOT NULL
       )`;
-      if (aoiAreaM2 > 3_000_000_000_000) {
+      if (areaOverThreshold) {
         // Area is too big: put all possible values in the output array
         selectValues = `ARRAY(SELECT value::numeric FROM jsonb_each_text((SELECT mappings FROM raster_filters WHERE id = '${baseTable}')))`;
       }
