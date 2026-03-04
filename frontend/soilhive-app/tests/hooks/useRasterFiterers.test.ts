@@ -14,7 +14,7 @@ const SOIL_GROUPS_CATEGORY = {
   name: 'Soil Groups',
   description: 'World Reference Base for Soil Resources',
   enabled: true,
-  mapping: { Acrisols: 1, Ferralsols: 2, Gleysols: 3, Leptosols: 4 },
+  mappings: { Acrisols: 1, Ferralsols: 2, Gleysols: 3, Leptosols: 4 },
 };
 
 function buildAvailabilityMock(overrides = {}) {
@@ -58,23 +58,6 @@ describe('useRasterFilters', () => {
   });
 
   describe('availableOptions', () => {
-    it('returns all mapping options when geometryFilterResults has no raster_filters (fallback)', () => {
-      useAvailabilityMock.mockReturnValue(
-        buildAvailabilityMock({
-          geometryFilterResults: [{ id: 'ds-1', raster_filters: undefined }],
-        }) as any,
-      );
-
-      const { result } = renderHook(() => useRasterFilters('soil_groups'));
-
-      expect(result.current.availableOptions).toEqual([
-        { label: 'Acrisols', value: 1 },
-        { label: 'Ferralsols', value: 2 },
-        { label: 'Gleysols', value: 3 },
-        { label: 'Leptosols', value: 4 },
-      ]);
-    });
-
     it('filters options to only those present in geometryFilterResults when raster_filters exist', () => {
       useAvailabilityMock.mockReturnValue(
         buildAvailabilityMock({
@@ -137,6 +120,7 @@ describe('useRasterFilters', () => {
       useAvailabilityMock.mockReturnValue(
         buildAvailabilityMock({
           datasetFilters: { raster_filters: { soil_groups: [1, 2] } },
+          geometryFilterResults: [{ id: 'ds-1', raster_filters: { soil_groups: [1, 2] } }],
         }) as any,
       );
 

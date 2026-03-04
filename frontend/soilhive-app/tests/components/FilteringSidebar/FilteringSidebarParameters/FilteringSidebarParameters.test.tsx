@@ -4,6 +4,7 @@ import { FilteringSidebarParameters } from 'components/FilteringSidebar/Filterin
 import type { NestedCheckboxItemType, NestedCheckboxRef, AccordionRef } from 'types/components';
 import useSoilPropertiesFilters from 'hooks/useSoilPropertiesFilters';
 import { useRasterFilters } from 'hooks/useRasterFilters';
+import useAvailability from 'hooks/useAvailability';
 
 const mockCategorizedSoilProperties = [
   {
@@ -37,6 +38,11 @@ jest.mock('hooks/useSoilPropertiesFilters', () => ({
 jest.mock('hooks/useRasterFilters', () => ({
   __esModule: true,
   useRasterFilters: jest.fn(),
+}));
+
+jest.mock('hooks/useAvailability', () => ({
+  __esModule: true,
+  default: jest.fn(),
 }));
 
 type NestedCheckboxPropsType = {
@@ -157,6 +163,7 @@ describe('FilteringSidebarParameters', () => {
   beforeEach(() => {
     (useSoilPropertiesFilters as jest.Mock).mockReturnValue(defaultHookValue);
     (useRasterFilters as jest.Mock).mockReturnValue(deafultRasterFilters);
+    (useAvailability as jest.Mock).mockReturnValue({ isLoading: false });
   });
 
   afterEach(() => {
