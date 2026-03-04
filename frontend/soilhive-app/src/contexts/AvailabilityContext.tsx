@@ -196,7 +196,10 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
       (datasetFilters.soil_properties?.length || 0) +
       (datasetFilters.min_sampling_date && datasetFilters.max_sampling_date ? 1 : 0) +
       datasetFrontendFilters.type.length +
-      datasetFrontendFilters.ownership.length
+      datasetFrontendFilters.ownership.length +
+      (datasetFilters.raster_filters
+        ? Object.values(datasetFilters.raster_filters).reduce((count, filters) => count + filters.length, 0)
+        : 0)
     );
   }, [datasetFilters, datasetFrontendFilters]);
 

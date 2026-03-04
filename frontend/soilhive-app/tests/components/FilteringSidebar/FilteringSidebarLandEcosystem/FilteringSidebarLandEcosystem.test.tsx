@@ -42,7 +42,11 @@ describe('FilteringSidebarLandEcosystem', () => {
   });
 
   it('renders a RasterFilter for each category except soil_groups', () => {
-    useAvailabilityMock.mockReturnValue({ allRasterCategories: ALL_CATEGORIES } as any);
+    useAvailabilityMock.mockReturnValue({
+      allRasterCategories: ALL_CATEGORIES,
+      isLoadingRasterCategories: false,
+      geometryFilterResults: [{ raster_filters: { climate_zones: [1], land_cover: [2] } }],
+    } as any);
 
     render(<FilteringSidebarLandEcosystem />);
 
