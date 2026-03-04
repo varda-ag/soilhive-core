@@ -1,5 +1,48 @@
 # Changelog
 
+## 0.43.0 (2026-03-03)
+
+## What's Changed
+* feat: sp-4884 - searching by enter on the map fix by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/261
+* feat(data): ⚡ using raster overviews by @svaccari in https://github.com/varda-ag/soilhive-core/pull/260
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.42.0...v0.43.0
+
+## 0.42.0 (2026-03-02)
+
+## What's Changed
+* feat(fe): sp-4920 integrate fe raster filters to be by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/258
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.41.1...v0.42.0
+
+## 0.41.1 (2026-03-02)
+
+## What's Changed
+* fix: moving dependency by @svaccari in https://github.com/varda-ag/soilhive-core/pull/256
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.41.0...v0.41.1
+
+## 0.41.0 (2026-03-02)
+
+## What's Changed
+* feat: sp-4902 - implement download overlay by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/251
+* feat(fe): sp-4919 raster filters UI component by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/237
+* feat(data): :sparkles: adding raster dump restore CLI command by @svaccari in https://github.com/varda-ag/soilhive-core/pull/254
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.40.0...v0.41.0
+
+## 0.40.0 (2026-03-02)
+
+## What's Changed
+* feat(data): ✨ added raster filter endpoints by @svaccari in https://github.com/varda-ag/soilhive-core/pull/248
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.39.1...v0.40.0
+
 ## 0.39.1 (2026-02-27)
 
 ## What's Changed

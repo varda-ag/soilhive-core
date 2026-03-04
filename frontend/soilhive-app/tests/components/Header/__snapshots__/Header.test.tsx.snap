@@ -1,66 +1,133 @@
 // Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
 
-exports[`Header component snapshot with authenticated user 1`] = `
+exports[`Header component renders component correctly on desktop 1`] = `
 <div>
   <header
-    class="header"
+    class="Header"
   >
     <div
-      class="logo"
+      class="Logo"
+      data-testid="sh-header-logo"
     >
       <img
         alt="Logo"
         src="logo.png"
       />
     </div>
-    <nav
-      class="nav "
+    <div
+      class="Menu"
     >
-      <a
-        href="/"
+      <nav
+        class="Nav"
+        data-testid="sh-header-nav"
       >
-        <span
-          class="linkText"
+        <a
+          aria-current="page"
+          class="Active"
+          data-discover="true"
+          href="/"
         >
-          Availability
-        </span>
-      </a>
-      <a
-        href="/legal"
-      >
-        <span
-          class="linkText"
+          <span
+            class="LinkText"
+          >
+            Availability
+          </span>
+        </a>
+        <a
+          class=""
+          data-discover="true"
+          href="/legal"
         >
-          Legal
-        </span>
-      </a>
-      <a
-        href="/admin"
-      >
-        <span
-          class="linkText"
+          <span
+            class="LinkText"
+          >
+            Legal
+          </span>
+        </a>
+        <a
+          class=""
+          data-discover="true"
+          href="/admin"
         >
-          Admin
-        </span>
-      </a>
-      <button
-        class="Button Tertiary Small"
-        data-testid="sh-ui-button"
-        type="button"
+          <span
+            class="LinkText"
+          >
+            Admin
+          </span>
+        </a>
+        <a
+          class=""
+          data-discover="true"
+          href="/test-module-route"
+        >
+          <span
+            class="LinkText"
+          >
+            test-module-name
+          </span>
+        </a>
+      </nav>
+      <div
+        class="Additional"
       >
-        <svg
-          data-testid="user-icon"
-        />
-        Log out
-      </button>
-    </nav>
+        <div
+          data-testid="downloads-status-mock"
+        >
+          Downloads Status component
+        </div>
+        <div
+          data-testid="auth-button-mock"
+        >
+          Auth Button component
+        </div>
+      </div>
+    </div>
+  </header>
+</div>
+`;
+
+exports[`Header component renders component correctly on mobile and tablets 1`] = `
+<div>
+  <header
+    class="Header"
+  >
+    <div
+      class="Logo"
+      data-testid="sh-header-logo"
+    >
+      <img
+        alt="Logo"
+        src="logo.png"
+      />
+    </div>
+    <div
+      class="Menu"
+    >
+      <div
+        class="Additional"
+      >
+        <div
+          data-testid="downloads-status-mock"
+        >
+          Downloads Status component
+        </div>
+        <div
+          data-testid="auth-button-mock"
+        >
+          Auth Button component
+        </div>
+      </div>
+    </div>
     <button
       aria-label="Menu"
-      class="hamburger"
+      class="Hamburger"
+      data-testid="sh-header-hamburger"
     >
       <svg
-        data-testid="user-icon"
-      />
+        data-testid="svg-icon-mock"
+      >
+        mock-svg
+      </svg>
     </button>
   </header>
 </div>

@@ -1,0 +1,71 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`DownloadsStatus renders component with closed menu 1`] = `
+<div>
+  <div
+    class="DownloadsStatus"
+    data-testid="sh-downloads-status"
+  >
+    <button
+      aria-label="Downloads"
+      class="DownloadsStatusButton"
+      data-testid="sh-downloads-status-button"
+    >
+      <span
+        aria-hidden="true"
+        class="Pulse"
+        data-open="false"
+      />
+      <svg
+        class="DownloadIcon"
+        data-testid="svg-icon-mock"
+      >
+        mock-svg
+      </svg>
+      <span
+        class="Counter"
+      >
+        1
+      </span>
+    </button>
+  </div>
+</div>
+`;
+
+exports[`DownloadsStatus toggles menu open/close on button click 1`] = `
+<div>
+  <div
+    class="DownloadsStatus"
+    data-testid="sh-downloads-status"
+  >
+    <button
+      aria-label="Downloads"
+      class="DownloadsStatusButton"
+      data-testid="sh-downloads-status-button"
+    >
+      <span
+        aria-hidden="true"
+        class="Pulse"
+        data-open="true"
+      />
+      <svg
+        class="DownloadIcon"
+        data-testid="svg-icon-mock"
+      >
+        mock-svg
+      </svg>
+      <span
+        class="Counter"
+      >
+        1
+      </span>
+    </button>
+    <div
+      class="DownloadsMenu"
+      data-testid="mock-downloads-menu"
+    >
+      Menu
+    </div>
+  </div>
+</div>
+`;

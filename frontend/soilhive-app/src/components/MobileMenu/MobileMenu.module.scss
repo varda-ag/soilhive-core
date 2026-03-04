@@ -1,11 +1,9 @@
-@import 'styles/variables/breakpoints';
-
 .mobileMenu {
-  display: none;
+  display: flex;
   position: fixed;
   align-items: center;
   flex-direction: column;
-  top: 55px;
+  top: 50px;
   left: 0;
   right: 0;
   bottom: 0;
@@ -17,10 +15,6 @@
   padding: 1.5rem;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   overflow-y: auto;
-
-  @media (max-width: $bp-mobile-max) {
-    display: flex;
-  }
 }
 
 .mobileLink {

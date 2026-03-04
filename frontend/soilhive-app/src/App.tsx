@@ -10,6 +10,7 @@ import { AuthContextProvider } from './auth/AuthContextProvider';
 import Legal from './pages/Legal';
 import { NotificationProvider } from './contexts/NotificationsContext';
 import AvailabilityModule from './modules/AvailabilityModule';
+import { DownloadsProvider } from './contexts/DownloadsContext';
 
 const queryClient = new QueryClient();
 
@@ -19,51 +20,53 @@ function App() {
       <AuthContextProvider>
         <ThemeProvider>
           <NotificationProvider>
-            <BrowserRouter>
-              <Routes>
-                <Route element={<MainLayout />}>
-                  <Route path="/*" element={<AvailabilityModule />} />
-                  <Route
-                    path="/donation"
-                    element={
-                      <>
-                        <PageTitle title="SoilHive - Donation" />
-                      </>
-                    }
-                  />
-                  <Route
-                    path="/legal"
-                    element={
-                      <>
-                        <PageTitle title="SoilHive - Admin" />
-                        <Legal />
-                      </>
-                    }
-                  />
-                  <Route
-                    path="/admin"
-                    element={
-                      <>
-                        <PageTitle title="SoilHive - Admin" />
-                        <Admin />
-                      </>
-                    }
-                  />
-                  {singlePages.map(({ name, route, Page }) => (
+            <DownloadsProvider>
+              <BrowserRouter>
+                <Routes>
+                  <Route element={<MainLayout />}>
+                    <Route path="/*" element={<AvailabilityModule />} />
                     <Route
-                      key={`/${route}`}
-                      path={`/${route}`}
+                      path="/donation"
                       element={
                         <>
-                          <PageTitle title={`SoilHive - ${name}`} />
-                          <Page />
+                          <PageTitle title="SoilHive - Donation" />
                         </>
                       }
                     />
-                  ))}
-                </Route>
-              </Routes>
-            </BrowserRouter>
+                    <Route
+                      path="/legal"
+                      element={
+                        <>
+                          <PageTitle title="SoilHive - Admin" />
+                          <Legal />
+                        </>
+                      }
+                    />
+                    <Route
+                      path="/admin"
+                      element={
+                        <>
+                          <PageTitle title="SoilHive - Admin" />
+                          <Admin />
+                        </>
+                      }
+                    />
+                    {singlePages.map(({ name, route, Page }) => (
+                      <Route
+                        key={`/${route}`}
+                        path={`/${route}`}
+                        element={
+                          <>
+                            <PageTitle title={`SoilHive - ${name}`} />
+                            <Page />
+                          </>
+                        }
+                      />
+                    ))}
+                  </Route>
+                </Routes>
+              </BrowserRouter>
+            </DownloadsProvider>
           </NotificationProvider>
         </ThemeProvider>
       </AuthContextProvider>
