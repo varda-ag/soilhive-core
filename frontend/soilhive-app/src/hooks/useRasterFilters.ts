@@ -55,10 +55,10 @@ export function useRasterFilters(categoryId?: string) {
       return {
         id: String(value),
         label,
-        disabled: !isLoadingRasterCategories && !availableValues.includes(value),
+        disabled: !isLoadingRasterCategories && !isLoadingDatasets && !availableValues.includes(value),
       };
     });
-  }, [currentRasterCategory, selectedValues, availableOptions, isLoadingRasterCategories]);
+  }, [currentRasterCategory, selectedValues, availableOptions, isLoadingRasterCategories, isLoadingDatasets]);
 
   const hasUnavailableRasterSelected = useMemo(() => {
     return pillSelections.some(pill => pill.disabled);
