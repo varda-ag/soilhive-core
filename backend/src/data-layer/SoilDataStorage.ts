@@ -268,6 +268,7 @@ const applyRasterFilterToQuery = async (query: SelectQueryBuilder<DatasetLayerEn
       CROSS JOIN aoi
       WHERE ST_Intersects(${table}.rast, aoi.geom)`,
         c,
+        { materialized: true },
       );
     }
     const raster_filters: Record<string, number[]> | undefined = dataFilter.parameters.raster_filters;
