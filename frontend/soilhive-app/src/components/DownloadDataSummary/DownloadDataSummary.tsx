@@ -1,7 +1,7 @@
 import classNames from 'classnames';
 import SoilhiveSimpleMap from 'components/Map/SoilhiveSimpleMap';
 import { Button } from 'components/UI';
-import styles from './DownloadPreviewSummary.module.scss';
+import styles from './DownloadDataSummary.module.scss';
 import ExpandIcon from 'assets/icons/expand-icon.svg?react';
 import ReduceIcon from 'assets/icons/reduce-icon.svg?react';
 import LayersIcon from 'assets/icons/layers-icon.svg?react';
@@ -14,7 +14,7 @@ import type { Feature, GeoJsonProperties, MultiPolygon, Point, Polygon } from 'g
 // Output: "1.234.567"
 const numberFormatter = new Intl.NumberFormat('de-DE');
 
-interface DownloadPreviewSummaryProps {
+interface DownloadDataSummaryProps {
   selectionType?: string;
   initialViewBoundingBox?: [number, number, number, number];
   selectedFeature?: Feature<Point | Polygon | MultiPolygon, GeoJsonProperties>;
@@ -26,9 +26,10 @@ interface DownloadPreviewSummaryProps {
   soilProperties?: Array<string>;
   expanded?: boolean;
   onExpandClicked?: (expanded: boolean) => void;
+  responsive?: boolean;
 }
 
-function DownloadPreviewSummary({
+function DownloadDataSummary({
   selectionType = 'drawn-polygon',
   initialViewBoundingBox,
   geometryFeature,
@@ -40,7 +41,8 @@ function DownloadPreviewSummary({
   soilProperties,
   expanded = false,
   onExpandClicked,
-}: DownloadPreviewSummaryProps) {
+  responsive = true,
+}: DownloadDataSummaryProps) {
   const { isDesktopLayout } = useDevice();
 
   let selectionTitle: string = 'Selection';
@@ -52,20 +54,27 @@ function DownloadPreviewSummary({
     selectionTitle = 'Country selected';
   }
 
+  const isDesktop = !responsive || isDesktopLayout;
+  const isAppliedFiltersSectionVisible = depthRange !== undefined || (soilProperties && soilProperties?.length > 0);
+
   return (
-    <div className={classNames(styles.DownloadPreviewSummary, { [styles.Expanded]: isDesktopLayout && expanded })}>
+    <div
+      className={classNames(responsive ? styles.DownloadDataSummary : styles.DownloadDataSummaryNonResponsive, {
+        [styles.Expanded]: isDesktop && expanded,
+      })}
+    >
       <div className={styles.MapSection}>
         <div className={styles.Map}>
           <SoilhiveSimpleMap
             initialViewBoundingBox={initialViewBoundingBox}
             showH3Cells={selectionType === 'h3-cell'}
-            showNavigation={expanded && isDesktopLayout}
+            showNavigation={expanded && isDesktop}
             selectedFeature={selectedFeature}
             geometryFeature={geometryFeature}
           />
-          {isDesktopLayout && expanded && (
+          {isDesktop && expanded && (
             <Button
-              dataTestId="reduce-download-preview-summary-button"
+              dataTestId="reduce-download-data-summary-button"
               type="tertiary"
               isIconOnly={true}
               onClick={() => onExpandClicked?.(false)}
@@ -73,9 +82,9 @@ function DownloadPreviewSummary({
               <ReduceIcon />
             </Button>
           )}
-          {isDesktopLayout && !expanded && (
+          {isDesktop && !expanded && (
             <Button
-              dataTestId="expand-download-preview-summary-button"
+              dataTestId="expand-download-data-summary-button"
               type="tertiary"
               isIconOnly={true}
               onClick={() => onExpandClicked?.(true)}
@@ -115,28 +124,27 @@ function DownloadPreviewSummary({
         </div>
       </div>
       <div className={styles.Separator}></div>
-      {depthRange !== undefined ||
-        (soilProperties && soilProperties?.length > 0 && (
-          <div className={styles.AppliedFilters}>
-            <div className={styles.SectionTitle}>Applied Filters</div>
-            <div className={styles.FiltersList}>
-              {depthRange !== undefined && (
-                <div className={styles.Filter}>
-                  <div className={styles.FilterName}>Depth range</div>
-                  <div className={styles.FilterValue}>{depthRange}</div>
-                </div>
-              )}
-              {soilProperties.length > 0 && (
-                <div className={styles.Filter}>
-                  <div className={styles.FilterName}>Soil Properties</div>
-                  <div className={styles.FilterValue}>{soilProperties.length > 0 ? soilProperties.join(', ') : '-'}</div>
-                </div>
-              )}
-            </div>
+      {isAppliedFiltersSectionVisible && (
+        <div className={styles.AppliedFilters}>
+          <div className={styles.SectionTitle}>Applied Filters</div>
+          <div className={styles.FiltersList}>
+            {depthRange !== undefined && (
+              <div className={styles.Filter}>
+                <div className={styles.FilterName}>Depth range</div>
+                <div className={styles.FilterValue}>{depthRange}</div>
+              </div>
+            )}
+            {soilProperties && soilProperties.length > 0 && (
+              <div className={styles.Filter}>
+                <div className={styles.FilterName}>Soil Properties</div>
+                <div className={styles.FilterValue}>{soilProperties.length > 0 ? soilProperties.join(', ') : '-'}</div>
+              </div>
+            )}
           </div>
-        ))}
+        </div>
+      )}
     </div>
   );
 }
 
-export default DownloadPreviewSummary;
+export default DownloadDataSummary;

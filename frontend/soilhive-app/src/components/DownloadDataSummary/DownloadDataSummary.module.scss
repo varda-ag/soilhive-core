@@ -1,0 +1,386 @@
+@import 'styles/variables/breakpoints';
+
+.DownloadDataSummary, .DownloadDataSummaryNonResponsive {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 255px;
+  padding-top: 19px;
+
+  .MapSection {
+    display: flex;
+    flex-direction: column;
+
+    .Map {
+      position: relative;
+      width: 214px;
+      height: 106px;
+      border-radius: 8px;
+      overflow: hidden;
+
+      >button {
+        position: absolute;
+        top: 4px;
+        right: 4px;
+        padding: 0 !important;
+
+        >svg {
+          width: 28px;
+          height: 28px;
+        }
+      }
+    }
+
+    .SubMap {
+      width: 214px;
+      padding-top: 10px;
+      padding-bottom: 12px;
+  
+      .SectionTitle {
+        padding-bottom: 5px;
+      }
+  
+      .Location {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+  
+        >svg {          
+          width: 16px;
+          height: 16px;
+          /* Prevents the SVG from shrinking when space is tight */
+          flex-shrink: 0; 
+          /* Prevents the SVG from expanding beyond its set width */
+          flex-grow: 0;
+        }
+      }
+    }
+  }
+
+  .DataSummary {
+    width: 214px;
+    padding-top: 19px;
+    padding-bottom: 28px;
+
+    .SectionTitle {
+      padding-bottom: 16px;
+    }
+
+    .DataSummaryContent {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      width: 100%;
+
+      .DataSummaryRow {
+        display: flex;
+        justify-content: space-between;
+        width: 173px;
+        font-family: 'Inter', Arial, Helvetica, sans-serif;
+        font-size: var(--font-size-sm);
+        line-height: var(--line-height-lg);
+        letter-spacing: 0px;
+    
+        .DataSummaryRowTitle {
+          display: flex;
+          align-items: center;
+          gap: 5px;
+          font-weight: var(--font-weight-regular);
+          text-wrap: nowrap;
+    
+          >svg {
+            width: 16px;
+            height: 16px;
+          }
+        }
+    
+        .DataSummaryRowData {
+          font-weight: var(--font-weight-bold);
+          text-align: right;
+        }
+      }
+    }
+  }
+
+  .AppliedFilters {
+    padding-top: 12px;
+    width: 214px;
+
+    .SectionTitle {
+      padding-bottom: 17px;
+    }
+
+    .FiltersList {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      width: 100%;
+
+      .Filter {
+        padding: 5px 21px 4px 21px;
+        border-radius: 4px;
+        font-family: 'Inter', Arial, Helvetica, sans-serif;
+        font-size: var(--font-size-xs);
+        line-height: var(--line-height-lg);
+        letter-spacing: 0px;
+
+        &:first-of-type {
+          background-color: var(--color-accent-tech-100);
+        }
+
+        &:last-of-type {
+          background-color: var(--color-brand-yellow-600);
+        }
+
+        .FilterName {
+          font-weight: var(--font-weight-bold);
+        }
+
+        .FilterValue {
+          font-weight: var(--font-weight-regular);
+        }
+      }
+    }
+  }
+
+  .Separator {
+    height: 1px;
+    width: 100%;
+    background-color: var(--color-neutral-dark-200);
+  }
+
+  .SectionTitle {
+    font-family: 'Inter', Arial, Helvetica, sans-serif;
+    font-weight: var(--font-weight-bold);
+    font-size: var(--font-size-md);
+    line-height: var(--line-height-lg);
+    letter-spacing: 0px;
+  }
+}
+
+.DownloadDataSummary {
+  @media (max-width: $bp-mobile-max) {
+    width: 100%;
+  }
+
+  @media (min-width: $bp-tablet) and (max-width: $bp-tablet-max) {
+    width: 100%;
+    flex-direction: row;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 16px;
+    padding-bottom: 13px;
+    padding-left: 25px;
+    padding-right: 20px;
+    max-height: 228px;
+  }
+
+  @media (min-width: $bp-desktop) {
+    transition: width 0.5s ease-out;
+  }
+
+  &.Expanded {
+    @media (min-width: $bp-desktop) {
+      width: 448px;
+
+      .MapSection {
+        align-items: center;
+
+        .Map {
+          width: 410px;
+          height: 322px;
+      
+          >button {
+            top: 9px;
+            right: 8.5px;
+            >svg {
+              width: 28.5px;
+              height: 28.3px;
+            }
+          }
+        }
+
+        .SubMap {
+          width: 344px;
+        }
+      }
+
+      .Separator {
+        width: 410px;
+      }
+
+      .DataSummary,
+      .AppliedFilters {
+        width: 344px;
+      }
+    }
+  }
+
+  .MapSection {
+    @media (max-width: $bp-mobile-max) {
+      width: 100%;
+      align-items: center;
+    }
+
+    @media (min-width: $bp-tablet) and (max-width: $bp-tablet-max) {
+      width: 100%;
+    }
+
+    .Map {
+      @media (max-width: $bp-mobile-max) {
+        width: 90%;
+        height: 157px;
+      }
+
+      @media (min-width: $bp-tablet) and (max-width: $bp-tablet-max) {
+        width: 100%;
+      }
+
+      @media (min-width: $bp-desktop) {
+        transition-property: width, height;
+        transition-duration: 0.5s;
+        transition-timing-function: ease-out;
+      }
+  
+      >button {
+        @media (max-width: $bp-mobile-max) {
+          display: none;
+        }
+      }
+    }
+  
+    .SubMap {
+      @media (max-width: $bp-mobile-max) {
+        width: 90%;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding-top: 12x;
+        padding-bottom: 19px;
+      }
+    }
+  }
+
+  .DataSummary {
+    @media (max-width: $bp-mobile-max) {
+      width: 90%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding-bottom: 17px;
+    }
+
+    @media (min-width: $bp-tablet) and (max-width: $bp-tablet-max) {
+      padding-top: 0;
+      padding-bottom: 0;
+      width: 100%;
+    }
+
+    .DataSummaryContent {
+      @media (max-width: $bp-mobile-max) {
+        flex-direction: row;
+        gap: 20px;
+      }
+
+      .DataSummaryRow {
+        @media (max-width: $bp-mobile-max) {
+          width: 100%;
+          flex-grow: 1;
+        }
+
+        @media (min-width: $bp-tablet) and (max-width: $bp-tablet-max) {
+          width: 100%;
+        }
+      }
+    }
+  }
+
+  .AppliedFilters {
+    @media (max-width: $bp-mobile-max) {
+      width: 90%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    @media (min-width: $bp-tablet) and (max-width: $bp-tablet-max) {
+      padding-top: 0;
+      padding-bottom: 0;
+      width: 100%;
+    }
+
+    .FiltersList {
+      @media (max-width: $bp-mobile-max) {
+        flex-direction: row;
+        justify-content: space-between;
+      }
+
+      .Filter {
+       @media (max-width: $bp-mobile-max) {
+          width: 100%;
+          flex-grow: 1;
+        } 
+      }
+    }
+  }
+
+  .Separator {
+    @media (max-width: $bp-mobile-max) {
+      width: 90% !important;
+    }
+
+    @media (min-width: $bp-tablet) and (max-width: $bp-tablet-max) {
+      width: 1px;
+      height: stretch;
+      border-top: 17px solid white;
+      border-bottom: 10px solid white;
+    }
+  }
+}
+
+.DownloadDataSummaryNonResponsive {
+  transition: width 0.5s ease-out;
+
+  &.Expanded {
+    width: 448px;
+
+    .MapSection {
+      align-items: center;
+
+      .Map {
+        width: 410px;
+        height: 322px;
+    
+        >button {
+          top: 9px;
+          right: 8.5px;
+          >svg {
+            width: 28.5px;
+            height: 28.3px;
+          }
+        }
+      }
+
+      .SubMap {
+        width: 344px;
+      }
+    }
+
+    .Separator {
+      width: 410px;
+    }
+
+    .DataSummary,
+    .AppliedFilters {
+      width: 344px;
+    }
+  }
+
+  .MapSection {
+    .Map {
+      transition-property: width, height;
+      transition-duration: 0.5s;
+      transition-timing-function: ease-out;
+    }
+  }
+}

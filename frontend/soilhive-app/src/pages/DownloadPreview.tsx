@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Button } from 'components/UI';
 import styles from './DownloadPreview.module.scss';
-import DownloadPreviewSummary from 'components/DownloadPreview//DownloadPreviewSummary/DownloadPreviewSummary';
+import DownloadDataSummary from 'components/DownloadDataSummary/DownloadDataSummary';
 import DownloadIcon from 'assets/icons/small-download-icon.svg?react';
 import ArrowLeftIcon from 'assets/icons/arrow-left-icon.svg?react';
 import ShareIcon from 'assets/icons/share-icon.svg?react';
@@ -15,10 +15,13 @@ import { computeDatasetSummary } from '../domain';
 import type { Nullable } from 'primereact/ts-helpers';
 import useAvailability from 'hooks/useAvailability';
 import type { Feature, GeoJsonProperties, MultiPolygon, Point, Polygon } from 'geojson';
+import { useNavigate } from 'react-router';
 
 const MAXIMUM_SOIL_DATA_PER_REQUEST = 100;
 
 function DownloadPreview() {
+  const navigate = useNavigate();
+
   const {
     setPreview,
     geometryFilter,
@@ -32,6 +35,7 @@ function DownloadPreview() {
     selectedDatasets: availabilitySelectedDatasets,
     filteredDatasets: availabilityFilteredDatasets,
     availableDatasets: availableFixedDatasets,
+    filterId: availabilityFilterId,
   } = useAvailability();
 
   const [summaryExpanded, setSummaryExpanded] = useState(false);
@@ -140,7 +144,19 @@ function DownloadPreview() {
             <ArrowLeftIcon />
             Back
           </Button>
-          <Button type="primary" className={styles.DownloadButton}>
+          <Button
+            type="primary"
+            className={styles.DownloadButton}
+            onClick={() => {
+              const params = new URLSearchParams();
+              params.append('source', 'preview');
+              params.append('selectionType', `${selectionType}`);
+              if (locationName) params.append('locationName', `${locationName}`);
+              params.append('filterId', `${availabilityFilterId}`);
+              params.append('datasets', availableFixedDatasets.map(dataset => dataset.id).join(','));
+              navigate({ pathname: '/download', search: `?${params.toString()}` });
+            }}
+          >
             <DownloadIcon />
             Download data
           </Button>
@@ -151,7 +167,7 @@ function DownloadPreview() {
       </div>
       <div className={styles.Content}>
         <div className={classNames(styles.Sidebar, { [styles.HideInMobile]: selectedTab !== 'summary' })}>
-          <DownloadPreviewSummary
+          <DownloadDataSummary
             selectionType={selectionType}
             initialViewBoundingBox={boundingBox}
             selectedFeature={selectedFeature}
