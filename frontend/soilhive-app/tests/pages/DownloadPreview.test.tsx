@@ -12,9 +12,14 @@ jest.mock('hooks/useSoilData', () => {
   };
 });
 
-jest.mock('components/DownloadPreview/DownloadPreviewSummary/DownloadPreviewSummary', () => {
-  const DownloadPreviewSummary = () => <div>Mock DownloadPreviewSummary</div>;
-  return DownloadPreviewSummary;
+jest.mock('react-router', () => ({
+  __esModule: true,
+  useNavigate: jest.fn(),
+}));
+
+jest.mock('components/DownloadDataSummary/DownloadDataSummary', () => {
+  const DownloadDataSummary = () => <div>Mock DownloadDataSummary</div>;
+  return DownloadDataSummary;
 });
 
 jest.mock('components/DownloadPreview/DownloadPreviewDataSection/DownloadPreviewDataSection', () => {
