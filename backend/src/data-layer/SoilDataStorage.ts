@@ -1,5 +1,5 @@
 import * as turf from '@turf/turf';
-import { Polygon, MultiPolygon } from 'geojson';
+import { Polygon, MultiPolygon, Feature } from 'geojson';
 import { OverlapType } from '../types/enums';
 import { EntityManager, SelectQueryBuilder } from 'typeorm';
 import { FilteredDataset, FilterCriteria, DataFilter } from '../interfaces/DatasetFilter';
@@ -41,20 +41,15 @@ export default class SoilDataStorage {
 
   filter = async (entityManager: EntityManager, geometry: Polygon | MultiPolygon, filters: FilterCriteria): Promise<FilteredDataset[]> => {
     await entityManager.query("SET work_mem = '256MB';");
-    const geom = JSON.stringify(geometry);
     const repo = entityManager.getRepository(DatasetLayerEntity);
     const query = await repo
       .createQueryBuilder('dataset_layers')
+      .addCommonTableExpression('SELECT * FROM licenses WHERE deleted_at IS NULL', 'active_licenses', { materialized: true })
       .leftJoin('dataset_layers.dataset', 'ds')
       .leftJoin('dataset_layers.layer', 'layer')
       .leftJoin('dataset_layers.soil_property', 'soil_property')
-      .leftJoin('layer.license_obj', 'license')
+      .leftJoin('active_licenses', 'license', 'license.id = layer.license')
       .innerJoin('dataset_layers.feature', 'features')
-      .addCommonTableExpression('SELECT ST_GeomFromGeoJSON(:inputGeom) AS geom', 'aoi')
-      .setParameter('inputGeom', geom)
-      .innerJoin('aoi', 'aoi_join', '1=1')
-      .where('ST_Intersects(ds.spatial_extent, aoi_join.geom)') // Testing intersection with entire dataset
-      .andWhere('ST_Intersects(features.geom, aoi_join.geom)') // Testing intersection with individual features
       .select('dataset_layers.dataset_id', 'dataset_id')
       .addSelect('ds.gis_datatype', 'gis_datatype')
       .addSelect('ds.name', 'dataset_name')
@@ -131,23 +126,9 @@ export default class SoilDataStorage {
       .leftJoin('dataset_layers.layer', 'layer')
       .leftJoin('dataset_layers.soil_property', 'soil_property')
       .leftJoin('layer.license_obj', 'license')
-      .innerJoin('dataset_layers.feature', 'features')
       .innerJoin('observations', 'obs', 'obs.dataset_layer_id = dataset_layers.id')
       .leftJoin('obs.procedure', 'procedure')
       .where('ds.slug IN (:...datasetSlugs)', { datasetSlugs });
-
-    // Build geometry intersection condition for all geometries
-    if (dataFilter.geometries.length > 0) {
-      let geomWhereClause = '';
-      const geomParams: any = {};
-      for (let i = 0; i < dataFilter.geometries.length; i++) {
-        const geomParam = `geom${i}`;
-        geomParams[geomParam] = JSON.stringify(dataFilter.geometries[i]);
-        if (i > 0) geomWhereClause += ' OR ';
-        geomWhereClause += `ST_Intersects(features.geom, ST_GeomFromGeoJSON(:${geomParam}))`;
-      }
-      query.andWhere(`(${geomWhereClause})`, geomParams);
-    }
 
     applyFiltersToQuery(query, dataFilter);
 
@@ -164,7 +145,7 @@ const applySelectToQuery = (query: any) => {
     .addSelect('soil_property.property_acronym', 'property_acronym')
     .addSelect('soil_property.standard_unit', 'standard_unit')
     .addSelect('obs.value', 'value')
-    .addSelect('features.geom', 'geometry')
+    .addSelect('ST_AsGeoJSON(matching_features.geom)::json', 'geometry')
     .addSelect('license.name', 'license_name')
     .addSelect('layer.sampling_date::text', 'sampling_date')
     .addSelect('layer.min_depth', 'min_depth')
@@ -180,7 +161,33 @@ const applySelectToQuery = (query: any) => {
     .addSelect('procedure.limit_of_detection', 'limit_of_detection');
 };
 
+const geometryUnion = (geometries: (Polygon | MultiPolygon)[]): Polygon | MultiPolygon => {
+  assert(geometries.length > 0, 'Do not call geometryUnion without input geometries');
+  if (geometries.length === 1) {
+    return geometries[0]!;
+  }
+  const features = geometries.map(geom => turf.feature(geom) as Feature<Polygon | MultiPolygon>);
+  const featureCollection = turf.featureCollection(features);
+  return turf.union(featureCollection)!.geometry;
+};
+
 const applyFiltersToQuery = async (query: any, dataFilter: DataFilter) => {
+  if (dataFilter.geometries.length > 0) {
+    const geom = JSON.stringify(geometryUnion(dataFilter.geometries));
+    query.addCommonTableExpression('SELECT ST_GeomFromGeoJSON(:inputGeom) AS geom', 'aoi', { materialized: true });
+    query.setParameter('inputGeom', geom);
+    query.addCommonTableExpression(
+      `SELECT f.id, f.geom, geometrytype(f.geom) AS geom_type FROM ${process.env.POSTGRES_SCHEMA}.features f, aoi WHERE ST_Intersects(f.geom, aoi.geom)`,
+      'candidate_features',
+      { materialized: true },
+    );
+    query.andWhere('ST_Intersects(ds.spatial_extent, aoi_join.geom)'); // Testing intersection with entire dataset
+    query.innerJoin('aoi', 'aoi_join', '1=1');
+    query.innerJoin('candidate_features', 'matching_features', 'dataset_layers.feature_id = matching_features.id');
+  } else {
+    query.innerJoin('dataset_layers.feature', 'matching_features');
+  }
+
   const filters = dataFilter.parameters;
 
   if (filters.data_types && filters.data_types.length > 0) {
@@ -402,7 +409,7 @@ const getSortFieldMapping = (): Record<string, string> => ({
   soil_property: 'soil_property.slug',
   property_acronym: 'soil_property.property_acronym',
   standard_unit: 'soil_property.standard_unit',
-  geometry: 'features.geom',
+  geometry: 'matching_features.geom',
   license_name: 'license.name',
   sampling_date: 'layer.sampling_date',
   min_depth: 'layer.min_depth',
