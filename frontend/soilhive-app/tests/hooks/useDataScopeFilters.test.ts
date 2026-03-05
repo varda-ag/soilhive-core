@@ -143,7 +143,7 @@ describe('useDataScopeFilters', () => {
   it('typeFilterPills does not mark unavailable selected types disabled while loading', () => {
     (useAvailability as jest.Mock).mockReturnValue({
       ...defaultAvailabilityState,
-      isLoading: true,
+      isLoadingPartialFilter: true,
       allDatasets: [{ dataType: 'raster', properties: {} }],
       datasetFrontendFilters: { type: ['point'], ownership: [] },
     });

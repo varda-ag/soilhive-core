@@ -11,8 +11,16 @@ interface RasterFilterProps {
 }
 
 export function RasterFilter({ categoryId }: RasterFilterProps) {
-  const { category, availableOptions, selectedValues, pillSelections, hasNoOptions, isLoadingDatasets, handleOnChange, handlePillRemove } =
-    useRasterFilters(categoryId);
+  const {
+    category,
+    availableOptions,
+    selectedValues,
+    pillSelections,
+    hasNoOptions,
+    isLoadingPartialFilter,
+    handleOnChange,
+    handlePillRemove,
+  } = useRasterFilters(categoryId);
   const [searchTerm, setSearchTerm] = useState('');
 
   if (!category?.enabled) return null;
@@ -31,7 +39,7 @@ export function RasterFilter({ categoryId }: RasterFilterProps) {
       pillsSlot={pillSelections.length > 0 && <SelectionPills selections={pillSelections} onRemove={handlePillRemove} />}
     >
       <div className={styles.Content}>
-        {isLoadingDatasets ? (
+        {isLoadingPartialFilter ? (
           <Skeleton height={120} />
         ) : hasNoOptions ? (
           <p className={styles.EmptyMessage}>For the current geometry no raster filter is available</p>

@@ -307,6 +307,8 @@ describe('SoilDataStorage class', () => {
     beforeEach(async () => {
       await addLandCoverData();
       await addLandCoverMappings();
+      // Do not reference any overview (they don't exist in test dump)
+      jest.spyOn(RasterUtilsModule, 'selectOverviewTable').mockReturnValue('land_cover');
     }, 20000);
 
     it.each([
@@ -337,7 +339,6 @@ describe('SoilDataStorage class', () => {
     ])(
       'Filtering when having raster filters enabled should return all available raster options',
       async (bbox, expectedResultCount, expectedRasterOptions: number[]) => {
-        jest.spyOn(RasterUtilsModule, 'selectOverviewTable').mockReturnValue('land_cover');
         await addSyntheticData({ ...syntheticDataOptions, depthLayers: 1, featureCount: 100, spatial_extent: bbox });
         const sds = new SoilDataStorage();
         const entityManager = await getEntityManager();
@@ -382,6 +383,41 @@ describe('SoilDataStorage class', () => {
       const results = await sds.filter(entityManager, filteringRectangle as Polygon, {});
       expect(results.length).toBe(1);
       expect((results[0].raster_filters?.['land_cover'] as number[])?.sort((a: number, b: number) => a - b)).toEqual([30, 60, 200]);
+    });
+
+    it('Filtering with big area should return all the raster values', async () => {
+      // Dataset spatial_extent
+      const bbox = [-81, -34, -80, -33];
+      // Filtering rectangle (almost entire world)
+      const filteringRectangle = {
+        coordinates: [
+          [
+            [-162, 75],
+            [-162, -51],
+            [175, -51],
+            [175, 75],
+            [-162, 75],
+          ],
+        ],
+        type: 'Polygon',
+      };
+      await addSyntheticData({
+        ...syntheticDataOptions,
+        depthLayers: 1,
+        featureCoordinates: [
+          // Array with one polygon
+          filteringRectangle.coordinates,
+        ],
+        featureGeometryType: 'Polygon',
+        spatial_extent: bbox,
+      });
+      const sds = new SoilDataStorage();
+      const entityManager = await getEntityManager();
+      const results = await sds.filter(entityManager, filteringRectangle as Polygon, {});
+      expect(results.length).toBe(1);
+      expect((results[0].raster_filters?.['land_cover'] as number[])?.sort((a: number, b: number) => a - b)).toEqual([
+        0, 20, 30, 40, 50, 60, 70, 80, 90, 100, 111, 112, 113, 114, 115, 116, 121, 122, 123, 124, 125, 126, 200,
+      ]);
     });
   });
 });
