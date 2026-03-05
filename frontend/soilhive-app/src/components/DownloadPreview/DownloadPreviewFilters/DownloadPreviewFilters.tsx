@@ -136,8 +136,8 @@ function DownloadPreviewFilters({
       return;
     }
 
-    const min = firstDayOfTheMonth(selectedDateRange[0] as unknown as Date).toISOString();
-    const max = lastDayOfTheMonth(selectedDateRange[1] as unknown as Date).toISOString();
+    const min = firstDayOfTheMonth(selectedDateRange[0] as unknown as Date).toLocaleDateString('en-CA'); // e.g. "2024-05-22"
+    const max = lastDayOfTheMonth(selectedDateRange[1] as unknown as Date).toLocaleDateString('en-CA');
     if (filters.min_sampling_date === min && filters.max_sampling_date === max) return;
     onFiltersChange?.({
       ...filters,
