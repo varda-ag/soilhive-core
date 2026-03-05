@@ -147,6 +147,20 @@ function DownloadPreviewFilters({
     });
   };
 
+  const { minSamplingDate, maxSamplingDate } = useMemo(() => {
+    const { min_sampling_date, max_sampling_date } = filters;
+    if (min_sampling_date && max_sampling_date) {
+      return {
+        minSamplingDate: firstDayOfTheMonth(new Date(min_sampling_date)),
+        maxSamplingDate: lastDayOfTheMonth(new Date(max_sampling_date)),
+      };
+    }
+    return {
+      minSamplingDate: undefined,
+      maxSamplingDate: undefined,
+    };
+  }, [filters.min_sampling_date, filters.max_sampling_date]);
+
   const controls = (
     <>
       <Dropdown
@@ -198,8 +212,8 @@ function DownloadPreviewFilters({
         showIcon
         view="month"
         dateFormat="mm/yy"
-        minDate={minDate}
-        maxDate={maxDate}
+        minDate={minDate ?? minSamplingDate}
+        maxDate={maxDate ?? maxSamplingDate}
         showMinMaxRange={true}
         disabled={isLoading || !!fixedCalendarRange || (!selectedDateRange && minMaxDateAreSameMonth)}
       />
