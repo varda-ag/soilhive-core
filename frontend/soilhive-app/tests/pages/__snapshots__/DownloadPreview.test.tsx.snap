@@ -86,7 +86,7 @@ exports[`DownloadPreview calls setPreview(false) when clicking on the back butto
         class="Sidebar"
       >
         <div>
-          Mock DownloadPreviewSummary
+          Mock DownloadDataSummary
         </div>
       </div>
       <div
@@ -205,7 +205,7 @@ exports[`DownloadPreview renders download preview page 1`] = `
         class="Sidebar"
       >
         <div>
-          Mock DownloadPreviewSummary
+          Mock DownloadDataSummary
         </div>
       </div>
       <div

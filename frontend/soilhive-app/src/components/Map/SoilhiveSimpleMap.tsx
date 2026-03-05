@@ -72,6 +72,15 @@ function MapSelection({ feature }: { feature: Feature<Point | Polygon | MultiPol
   );
 }
 
+function calculateBoundingBox(geometryFeature?: FeatureCollection) {
+  if (!geometryFeature) return undefined;
+  const simplifiedGeometry: Polygon | MultiPolygon = simplifyGeometry(geometryFeature.features[0].geometry as Polygon | MultiPolygon);
+  const largestPolygon = simplifiedGeometry.type === 'MultiPolygon' ? largestPolygonFn(simplifiedGeometry) : simplifiedGeometry;
+  if (largestPolygon === null) throw new Error('A valid MultiPolygon should contain at least a Polygon');
+  const bbox = bboxFn(largestPolygon!) as [number, number, number, number];
+  return bbox;
+}
+
 function SoilhiveSimpleMap({
   initialViewBoundingBox,
   selectedFeature = undefined,
@@ -103,12 +112,9 @@ function SoilhiveSimpleMap({
   }
 
   const fitBoundsToGeometryFeature = useCallback(() => {
-    if (!geometryFeature) return;
-    const simplifiedGeometry: Polygon | MultiPolygon = simplifyGeometry(geometryFeature.features[0].geometry as Polygon | MultiPolygon);
-    const largestPolygon = simplifiedGeometry.type === 'MultiPolygon' ? largestPolygonFn(simplifiedGeometry) : simplifiedGeometry;
-    if (largestPolygon === null) throw new Error('A valid MultiPolygon should contain at least a Polygon');
-    const bbox = bboxFn(largestPolygon!) as [number, number, number, number];
-    mapRef.current?.fitBounds(bbox, { padding: 40 });
+    const bbox = calculateBoundingBox(geometryFeature);
+    if (!bbox) return;
+    mapRef.current?.fitBounds(bbox, { padding: 40, animate: false });
   }, [geometryFeature]);
 
   useEffect(() => {

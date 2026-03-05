@@ -3,14 +3,13 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import './App.module.scss';
 import PageTitle from './components/PageTitle';
 import MainLayout from './layouts/MainLayout';
-import Homepage from './pages/Homepage';
 import Admin from './pages/Admin';
 import { singlePages } from './utilities/moduleFederation';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { AuthContextProvider } from './auth/AuthContextProvider';
 import Legal from './pages/Legal';
-import { AvailabilityProvider } from './contexts/AvailabilityContext';
 import { NotificationProvider } from './contexts/NotificationsContext';
+import AvailabilityModule from './modules/AvailabilityModule';
 import { DownloadsProvider } from './contexts/DownloadsContext';
 
 const queryClient = new QueryClient();
@@ -25,17 +24,7 @@ function App() {
               <BrowserRouter>
                 <Routes>
                   <Route element={<MainLayout />}>
-                    <Route
-                      index
-                      element={
-                        <>
-                          <PageTitle title="SoilHive - Home" />
-                          <AvailabilityProvider>
-                            <Homepage />
-                          </AvailabilityProvider>
-                        </>
-                      }
-                    />
+                    <Route path="/*" element={<AvailabilityModule />} />
                     <Route
                       path="/donation"
                       element={
