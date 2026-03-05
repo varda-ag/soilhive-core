@@ -1,5 +1,10 @@
 {
     "filtering_sidebar": {
         "search_placeholder": "Search soil properties"
+    },
+    "availability_mobile_navigation": {
+        "datasets": "Datasets",
+        "filters": "Filters",
+        "map": "Map"
     }
 }
