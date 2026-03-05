@@ -40,7 +40,7 @@ export default class SoilDataStorage {
   };
 
   filter = async (entityManager: EntityManager, geometry: Polygon | MultiPolygon, filters: FilterCriteria): Promise<FilteredDataset[]> => {
-    await entityManager.query("SET work_mem = '256MB';");
+    await entityManager.query("SET LOCAL work_mem = '256MB';");
     const repo = entityManager.getRepository(DatasetLayerEntity);
     const query = await repo
       .createQueryBuilder('dataset_layers')
