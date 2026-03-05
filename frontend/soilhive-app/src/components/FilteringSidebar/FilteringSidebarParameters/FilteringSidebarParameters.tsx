@@ -163,7 +163,7 @@ export function FilteringSidebarParameters() {
           <div className={styles.SoilProperties}>
             <input
               type="text"
-              placeholder={t('filtering_sidebar.search_placeholder', 'Search soil properties')}
+              placeholder={t('filtering_sidebar.search_placeholder')}
               value={searchTerm}
               onChange={handleSearch}
               className={styles.SearchInput}

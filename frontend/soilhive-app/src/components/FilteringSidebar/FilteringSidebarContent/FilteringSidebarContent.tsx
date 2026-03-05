@@ -15,16 +15,16 @@ export function FilteringSidebarContent() {
   return (
     <div className={styles.FilteringSidebarContent}>
       <div data-testid="sh-filtering-sidebar-section" className={styles.Section}>
-        <p className={styles.Title}>{t('filtering_sidebar_content.data_scope', 'Data scope')}</p>
+        <p className={styles.Title}>{t('filtering_sidebar_content.data_scope')}</p>
         <FilteringSidebarDataScope />
       </div>
       <div data-testid="sh-filtering-sidebar-section" className={styles.Section}>
-        <p className={styles.Title}>{t('filtering_sidebar_content.soil_parameters', 'Soil parameters')}</p>
+        <p className={styles.Title}>{t('filtering_sidebar_content.soil_parameters')}</p>
         <FilteringSidebarParameters />
       </div>
       {hasRasterFilters && (
         <div data-testid="sh-filtering-sidebar-section" className={styles.Section}>
-          <p className={styles.Title}>{t('filtering_sidebar_content.land_ecosystem', 'LAND & ECOSYSTEM')}</p>
+          <p className={styles.Title}>{t('filtering_sidebar_content.land_ecosystem')}</p>
           <FilteringSidebarLandEcosystem />
         </div>
       )}

@@ -13,9 +13,9 @@ export function DatasetsList() {
   const { datasets, selectAllDatasets, isAllSelected, isLoading, isNoData, isNoFilteredData, searchValue } = useAvailability();
 
   return isNoData ? (
-    <i>{t('datasets_sidebar.no_data_in_selected_area', 'No data in selected area')}</i>
+    <i>{t('datasets_sidebar.no_data_in_selected_area')}</i>
   ) : isNoFilteredData ? (
-    <i>{t('datasets_sidebar.no_data_in_selected_area_due_to_filters', 'No data in selected area due to applied filters')}</i>
+    <i>{t('datasets_sidebar.no_data_in_selected_area_due_to_filters')}</i>
   ) : (
     <div data-testid="sh-datasets-list" className={styles.DatasetsList}>
       <DatasetsFilters />
@@ -37,7 +37,7 @@ export function DatasetsList() {
             <Skeleton count={1} height={120} />
           </span>
         ) : !datasets.length && searchValue ? (
-          <i>{t('datasets_sidebar.no_data_matching_search', 'No data in selected area matching your search query')}</i>
+          <i>{t('datasets_sidebar.no_data_matching_search')}</i>
         ) : (
           datasets.map(dataset => <DatasetsListItem key={dataset.id} dataset={dataset} />)
         )}

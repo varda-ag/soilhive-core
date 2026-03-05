@@ -36,7 +36,7 @@ export function DatasetsSidebar({ isOpened, onClose }: Props) {
               setPreview(true);
             }}
           >
-            {t('datasets_sidebar.preview', 'Preview')}
+            {t('datasets_sidebar.preview')}
           </Button>
           <Button
             className={styles.DownloadButton}
@@ -52,7 +52,7 @@ export function DatasetsSidebar({ isOpened, onClose }: Props) {
             }}
           >
             <DownloadIcon />
-            {t('datasets_sidebar.download', 'Download')}
+            {t('datasets_sidebar.download')}
           </Button>
         </div>
       </div>

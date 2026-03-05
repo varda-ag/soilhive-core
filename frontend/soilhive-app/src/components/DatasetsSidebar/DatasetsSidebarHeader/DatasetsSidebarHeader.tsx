@@ -16,7 +16,7 @@ export function DatasetsSidebarHeader({ onClose }: Props) {
         <div className={styles.DatasetsIconWrapper}>
           <DatasetsIcon />
         </div>
-        {t('datasets_sidebar.header', 'Available Datasets')}
+        {t('datasets_sidebar.header')}
       </div>
       <div className={styles.SidebarIconWrapper}>
         <SidebarIcon />

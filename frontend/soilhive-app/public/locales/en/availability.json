@@ -1,4 +1,5 @@
 {
+    "logo": "Logo",
     "filtering_sidebar": {
         "search_placeholder": "Search soil properties",
         "header": "Filters",

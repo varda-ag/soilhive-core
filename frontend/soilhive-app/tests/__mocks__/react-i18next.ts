@@ -1,17 +1,25 @@
 import { jest } from '@jest/globals';
+import translations from '../../public/locales/en/availability.json';
 
 export const Trans = ({ i18nKey }: { i18nKey: string }) => i18nKey;
 
 export const mockChangeLanguage = jest.fn();
 
-export const useTranslation = () => ({
-  t: (k: string, defaultValueOrOptions?: string | object, options?: object) => {
-    const defaultValue = typeof defaultValueOrOptions === 'string' ? defaultValueOrOptions : undefined;
-    const opts = typeof defaultValueOrOptions === 'object' ? defaultValueOrOptions : options;
+function lookup(key: string): string {
+  const parts = key.split('.');
+  let val: any = translations;
+  for (const p of parts) {
+    if (val && val[p] !== undefined) val = val[p];
+    else {
+      val = key;
+      break;
+    }
+  }
+  return typeof val === 'string' ? val : key;
+}
 
-    const base = defaultValue ?? k;
-    return `${base}${opts ? ` with options: ${JSON.stringify(opts)}` : ''}`;
-  },
+export const useTranslation = () => ({
+  t: (k: string) => lookup(k),
   i18n: {
     resolvedLanguage: __resolvedLanguage,
     changeLanguage: mockChangeLanguage,

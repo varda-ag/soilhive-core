@@ -16,13 +16,13 @@ export function FilteringSidebarHeader({ onClose }: Props) {
   return (
     <div data-testid="sh-filtering-sidebar-header" className={styles.FilteringSidebarHeader}>
       <div className={styles.Title}>
-        <FiltersIcon /> {t('filtering_sidebar.header', 'Filters')} <FiltersCounter />
+        <FiltersIcon /> {t('filtering_sidebar.header')} <FiltersCounter />
       </div>
 
       <div className={styles.Actions}>
         {isFiltersSelected && (
           <span className={styles.ClearAll} data-testid="sh-filtering-sidebar-header-clear-all" role="button" onClick={clearAllFilters}>
-            {t('filtering_sidebar.clear_all', 'Clear all')}
+            {t('filtering_sidebar.clear_all')}
           </span>
         )}
         <CrossIcon data-testid="sh-close-icon" role="button" onClick={onClose} />

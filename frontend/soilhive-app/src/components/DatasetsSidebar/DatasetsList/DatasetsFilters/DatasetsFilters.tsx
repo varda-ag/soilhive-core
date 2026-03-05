@@ -14,7 +14,7 @@ export function DatasetsFilters() {
         className={styles.Search}
         size="tiny"
         value={searchValue}
-        placeholder={t('datasets_sidebar.search_by_name', 'Search by name')}
+        placeholder={t('datasets_sidebar.search_by_name')}
         onChange={setSearchValue}
       />
     </div>

@@ -51,7 +51,7 @@ export function RasterFilter({ categoryId }: RasterFilterProps) {
           <>
             <input
               type="text"
-              placeholder={t('raster_filter.search_placeholder', `Search ${category.name.toLowerCase()}`)}
+              placeholder={`${t('raster_filter.search_placeholder')} ${category.name.toLowerCase()}`}
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
               className={styles.SearchInput}

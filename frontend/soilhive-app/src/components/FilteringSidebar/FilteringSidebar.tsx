@@ -27,11 +27,7 @@ export function FilteringSidebar({ isOpened, onClose }: Props) {
         {isDesktopLayout && <FilteringSidebarHeader onClose={onClose} />}
         {!isLoading && (hasUnavailableScopeSelected || hasUnavailablePropertySelected || hasUnavailableRasterSelected) && (
           <div data-testid="sh-unavailable-filter-message" className={styles.WarningMessage}>
-            <FormMessage
-              message={t('filtering_sidebar.unavailable_notice', 'Some of the selected filters are not available in the current area.')}
-              type="warning"
-              withBackground={true}
-            />
+            <FormMessage message={t('filtering_sidebar.unavailable_notice')} type="warning" withBackground={true} />
           </div>
         )}
         {isDesktopLayout && <FilteringSidebarContent />}
