@@ -313,7 +313,7 @@ const applyRasterFilterToQuery = async (query: SelectQueryBuilder<DatasetLayerEn
     if (hasFilteringValues) {
       query.addCommonTableExpression(
         `
-        SELECT ST_Union(ST_Clip(rr.rast, aoi.geom, TRUE, TRUE)) as rast FROM ${process.env.POSTGRES_SCHEMA}.${table} rr
+        SELECT ST_Union(ST_Clip(rr.rast, aoi.geom, touched => TRUE)) as rast FROM ${process.env.POSTGRES_SCHEMA}.${table} rr
         CROSS JOIN aoi
         WHERE ST_Intersects(rr.rast, aoi.geom)`,
         clippedRaster,
@@ -333,7 +333,7 @@ const applyRasterFilterToQuery = async (query: SelectQueryBuilder<DatasetLayerEn
             AND EXISTS (
               SELECT 1
               FROM unnest(
-                  ST_DumpValues(ST_Clip(cr.rast, cf.geom, TRUE, TRUE), 1, TRUE)
+                  ST_DumpValues(ST_Clip(cr.rast, cf.geom, touched => TRUE), 1)
                 ) v
               WHERE v = ANY(ARRAY[${values.join(',')}])
             )
@@ -381,7 +381,7 @@ const addRasterCoverage = async (query: SelectQueryBuilder<DatasetLayerEntity>, 
         // Use ST_DumpValues to get all values as an array
         query.addCommonTableExpression(
           `
-        SELECT ST_Union(ST_Clip(rr.rast, aoi.geom, TRUE, TRUE)) as rast FROM ${process.env.POSTGRES_SCHEMA}.${table} rr
+        SELECT ST_Union(ST_Clip(rr.rast, aoi.geom, touched => TRUE)) as rast FROM ${process.env.POSTGRES_SCHEMA}.${table} rr
         CROSS JOIN aoi
         WHERE ST_Intersects(rr.rast, aoi.geom)`,
           clippedRaster,
