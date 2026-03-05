@@ -3,10 +3,12 @@ import { Accordion, MultiselectButtons, SelectionPills } from 'components/UI';
 import Skeleton from 'react-loading-skeleton';
 import 'react-loading-skeleton/dist/skeleton.css';
 import useDataScopeFilters from 'hooks/useDataScopeFilters';
+import { useTranslation } from 'react-i18next';
 
 import styles from './FilteringSidebarDataScope.module.scss';
 
 export function FilteringSidebarDataScope() {
+  const { t } = useTranslation('availability');
   const {
     isLoading,
     datasetFrontendFilters,
@@ -26,7 +28,7 @@ export function FilteringSidebarDataScope() {
   return (
     <div className={styles.FilteringSidebarDataScope}>
       <Accordion
-        title="Data type"
+        title={t('filtering_sidebar_content.data_type', 'Data type')}
         type="secondary"
         pillsSlot={typeFilterPills.length ? <SelectionPills selections={typeFilterPills} onRemove={typeFilterPillRemove} /> : null}
       >
@@ -45,7 +47,7 @@ export function FilteringSidebarDataScope() {
         )}
       </Accordion>
       <Accordion
-        title="Time"
+        title={t('filtering_sidebar_content.time', 'Time')}
         type="secondary"
         pillsSlot={timeFilterPills ? <SelectionPills selections={timeFilterPills} onRemove={() => handleTimeFilterChange({})} /> : null}
       >

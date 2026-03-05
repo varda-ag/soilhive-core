@@ -155,7 +155,7 @@ export function FilteringSidebarParameters() {
   return (
     <div className={styles.FilteringSidebarParameters}>
       <Accordion
-        title="Soil Properties"
+        title={t('filtering_sidebar_content.soil_properties', 'Soil Properties')}
         type="secondary"
         pillsSlot={pillSelections.length > 0 ? <SelectionPills selections={pillSelections} onRemove={handlePillRemove} /> : null}
       >

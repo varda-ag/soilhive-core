@@ -5,32 +5,38 @@ import CloseIcon from 'assets/icons/medium-cross-menu-icon.svg?react';
 
 import styles from './Header.module.scss';
 import { NavLink } from 'react-router';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import MobileMenu from 'components/MobileMenu/MobileMenu';
 import AuthButton from 'components/AuthButton/AuthButton';
 import { DownloadsStatus } from 'components/DownloadsStatus/DownloadsStatus';
 import useDevice from 'hooks/useDevice';
-
-const MENU_ENTRIES = [
-  {
-    name: 'Availability',
-    route: '/',
-  },
-  {
-    name: 'Legal',
-    route: '/legal',
-  },
-  {
-    name: 'Admin',
-    route: '/admin',
-  },
-];
+import { useTranslation } from 'react-i18next';
 
 export default function Header() {
+  const { t } = useTranslation();
   const { isDesktopLayout } = useDevice();
-
   const { logo } = useTheme();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  // move menu inside the component so 't' is available
+  // and updates reactively if the language changes.
+  const menuEntries = useMemo(
+    () => [
+      {
+        name: t('availability', 'Availability'),
+        route: '/',
+      },
+      {
+        name: t('legal', 'Legal'),
+        route: '/legal',
+      },
+      {
+        name: t('admin', 'Admin'),
+        route: '/admin',
+      },
+    ],
+    [t],
+  );
 
   const getNavLinkClass = ({ isActive }: { isActive: boolean }) => {
     return isActive ? `${styles.Active}` : '';
@@ -44,12 +50,12 @@ export default function Header() {
     <>
       <header className={styles.Header}>
         <div data-testid="sh-header-logo" className={styles.Logo}>
-          {logo && <img src={logo} alt="Logo" />}
+          {logo && <img src={logo} alt={t('logo', 'Logo')} />}
         </div>
         <div className={styles.Menu}>
           {isDesktopLayout && (
             <nav data-testid="sh-header-nav" className={styles.Nav}>
-              {MENU_ENTRIES.map(({ name, route }) => (
+              {menuEntries.map(({ name, route }) => (
                 <NavLink key={route} to={`${route}`} className={getNavLinkClass}>
                   <span className={styles.LinkText}>{name}</span>
                 </NavLink>
@@ -74,7 +80,7 @@ export default function Header() {
           </button>
         )}
       </header>
-      {!isDesktopLayout && isMenuOpen && <MobileMenu menuEntries={MENU_ENTRIES} setIsMenuOpen={setIsMenuOpen} />}
+      {!isDesktopLayout && isMenuOpen && <MobileMenu menuEntries={menuEntries} setIsMenuOpen={setIsMenuOpen} />}
     </>
   );
 }
