@@ -5,7 +5,13 @@ export const Trans = ({ i18nKey }: { i18nKey: string }) => i18nKey;
 export const mockChangeLanguage = jest.fn();
 
 export const useTranslation = () => ({
-  t: (k: string, options?: object) => `${k}${options ? ` with options: ${JSON.stringify(options)}` : ''}`,
+  t: (k: string, defaultValueOrOptions?: string | object, options?: object) => {
+    const defaultValue = typeof defaultValueOrOptions === 'string' ? defaultValueOrOptions : undefined;
+    const opts = typeof defaultValueOrOptions === 'object' ? defaultValueOrOptions : options;
+
+    const base = defaultValue ?? k;
+    return `${base}${opts ? ` with options: ${JSON.stringify(opts)}` : ''}`;
+  },
   i18n: {
     resolvedLanguage: __resolvedLanguage,
     changeLanguage: mockChangeLanguage,

@@ -33,7 +33,7 @@ export function FilteringSidebarParameters() {
     handlePillRemove,
   } = useSoilPropertiesFilters();
 
-  const { t } = useTranslation();
+  const { t } = useTranslation('availability');
 
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [accordionOpenByCategory, setAccordionOpenByCategory] = useState<Record<string, boolean>>({});
@@ -163,7 +163,7 @@ export function FilteringSidebarParameters() {
           <div className={styles.SoilProperties}>
             <input
               type="text"
-              placeholder={t('filtering_sidebar_parametres.search_placeholder')}
+              placeholder={t('filtering_sidebar.search_placeholder', 'Search soil properties')}
               value={searchTerm}
               onChange={handleSearch}
               className={styles.SearchInput}

@@ -23,7 +23,7 @@ exports[`FilteringSidebarParameters renders accordion components 1`] = `
         >
           <input
             class="SearchInput"
-            placeholder="filtering_sidebar_parametres.search_placeholder"
+            placeholder="Search soil properties"
             type="text"
             value=""
           />
