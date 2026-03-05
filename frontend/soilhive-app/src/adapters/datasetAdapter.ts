@@ -9,8 +9,9 @@ export const getYear = (dateString?: string | null): number | undefined => {
 
 export const yearRangeToDatasetFilters = ({ min, max }: TimeFilterState) => {
   return {
-    min_sampling_date: min ? new Date(min, 0, 1).toISOString() : undefined,
-    max_sampling_date: max ? new Date(max, 11, 31, 23, 59, 59, 999).toISOString() : undefined,
+    // Date format e.g. "2024-05-22"
+    min_sampling_date: min ? new Date(min, 0, 1).toLocaleDateString('en-CA') : undefined,
+    max_sampling_date: max ? new Date(max, 11, 31, 23, 59, 59, 999).toLocaleDateString('en-CA') : undefined,
   };
 };
 
