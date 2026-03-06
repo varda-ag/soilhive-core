@@ -8,17 +8,7 @@ import useDevice from 'hooks/useDevice';
 import { Button } from 'components/UI';
 import type { SoilProperty } from 'types/backend';
 import type { PreviewFilters } from 'types/downloadPreview';
-
-function firstDayOfTheMonth(date: Date): Date {
-  // First day of the month at the beginning of the day (00:00:00.000)
-  return new Date(date.getFullYear(), date.getMonth(), 1, 0, 0, 0, 0);
-}
-
-function lastDayOfTheMonth(date: Date): Date {
-  // Last day of the month at the end of the day (23:59:59.999)
-  // Note: using day '0' of the next month automatically rolls back to the last day of the current month
-  return new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59, 999);
-}
+import { lastDayOfTheMonth } from '../../../utilities/date';
 
 function DownloadPreviewFilters({
   soilProperties = [],
@@ -54,14 +44,13 @@ function DownloadPreviewFilters({
 
   const { minDate, maxDate, minMaxDateAreSameMonth } = useMemo(() => {
     if (!calendarMinMaxRange) return { minDate: undefined, maxDate: undefined };
-    let minDate = calendarMinMaxRange[0];
-    if (minDate) {
-      minDate = firstDayOfTheMonth(minDate);
-    }
+    const minDate = calendarMinMaxRange[0];
+
     let maxDate = calendarMinMaxRange[1];
     if (maxDate) {
       maxDate = lastDayOfTheMonth(maxDate);
     }
+
     return {
       minDate,
       maxDate,
@@ -76,7 +65,8 @@ function DownloadPreviewFilters({
     const { min_sampling_date, max_sampling_date } = filters;
 
     if (min_sampling_date && max_sampling_date) {
-      setSelectedDateRange([new Date(min_sampling_date), new Date(max_sampling_date)]);
+      const dateRange = [new Date(min_sampling_date), lastDayOfTheMonth(new Date(max_sampling_date))];
+      setSelectedDateRange(dateRange);
       return;
     }
 
@@ -136,8 +126,12 @@ function DownloadPreviewFilters({
       return;
     }
 
-    const min = firstDayOfTheMonth(selectedDateRange[0] as unknown as Date).toLocaleDateString('en-CA'); // e.g. "2024-05-22"
-    const max = lastDayOfTheMonth(selectedDateRange[1] as unknown as Date).toLocaleDateString('en-CA');
+    const minDate = selectedDateRange[0] as unknown as Date;
+    const min = `${minDate.getFullYear()}-${String(minDate.getMonth() + 1).padStart(2, '0')}-01`;
+
+    const maxDate = lastDayOfTheMonth(selectedDateRange[1] as unknown as Date);
+    const max = `${maxDate.getFullYear()}-${String(maxDate.getMonth() + 1).padStart(2, '0')}-${String(maxDate.getDate()).padStart(2, '0')}`;
+
     if (filters.min_sampling_date === min && filters.max_sampling_date === max) return;
     onFiltersChange?.({
       ...filters,
@@ -151,7 +145,7 @@ function DownloadPreviewFilters({
     const { min_sampling_date, max_sampling_date } = filters;
     if (min_sampling_date && max_sampling_date) {
       return {
-        minSamplingDate: firstDayOfTheMonth(new Date(min_sampling_date)),
+        minSamplingDate: new Date(min_sampling_date),
         maxSamplingDate: lastDayOfTheMonth(new Date(max_sampling_date)),
       };
     }
