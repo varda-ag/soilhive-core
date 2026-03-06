@@ -6,31 +6,11 @@ import styles from './DownloadPreviewTable.module.scss';
 import { Button } from 'components/UI';
 import NewspaperIcon from 'assets/icons/newspaper-icon.svg?react';
 import MapPinIcon from 'assets/icons/small-map-icon.svg?react';
-import { useState, type Dispatch, type SetStateAction } from 'react';
+import { useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import type { SoilDataSample } from 'types/backend';
 import { feature } from '@turf/turf';
 import type { Feature, GeoJsonProperties, MultiPolygon, Point, Polygon } from 'geojson';
-
-const columns = [
-  { name: 'Date', value: 'sampling_date' },
-  { name: 'Depth (min)', value: 'min_depth' },
-  { name: 'Depth (max)', value: 'max_depth' },
-  { name: 'Value', value: 'value' },
-  { name: 'Standard unit', value: 'standard_unit' },
-  // TODO: to be restored | { name: 'Horizon', value: 'horizon' },
-  { name: 'Technique', value: 'technique' },
-  { name: 'Soil property', value: 'soil_property' },
-  { name: 'Soil property acronym', value: 'property_acronym' },
-  { name: 'Sample pretreatment', value: 'sample_pretreatment' },
-  { name: 'Laboratory method', value: 'laboratory_method' },
-  { name: 'Extractant concentration', value: 'extractant_concentration' },
-  { name: 'Extraction ratio', value: 'extraction_ratio' },
-  { name: 'Extraction base', value: 'extraction_base' },
-  { name: 'Measurement procedure', value: 'measurement_procedure' },
-  { name: 'Limit of detection', value: 'limit_of_detection' },
-  { name: 'Dataset', value: 'dataset_name' },
-  { name: 'License', value: 'license_name' },
-];
+import { useTranslation } from 'react-i18next';
 
 function DownloadPreviewTable({
   data = [],
@@ -49,6 +29,32 @@ function DownloadPreviewTable({
   setFirst?: Dispatch<SetStateAction<number>>;
   onFeatureSelected?: (feature: Feature<Point | Polygon | MultiPolygon, GeoJsonProperties> | undefined) => void;
 }) {
+  const { t } = useTranslation('download');
+
+  const columns = useMemo(
+    () => [
+      { name: t('download_preview.columns.date'), value: 'sampling_date' },
+      { name: t('download_preview.columns.depth_min'), value: 'min_depth' },
+      { name: t('download_preview.columns.depth_max'), value: 'max_depth' },
+      { name: t('download_preview.columns.value'), value: 'value' },
+      { name: t('download_preview.columns.standard_unit'), value: 'standard_unit' },
+      // TODO: to be restored | { name: t('download_preview.columns.horizon'), value: 'horizon' },
+      { name: t('download_preview.columns.technique'), value: 'technique' },
+      { name: t('download_preview.columns.soil_property'), value: 'soil_property' },
+      { name: t('download_preview.columns.soil_property_acronym'), value: 'property_acronym' },
+      { name: t('download_preview.columns.sample_pretreatment'), value: 'sample_pretreatment' },
+      { name: t('download_preview.columns.laboratory_method'), value: 'laboratory_method' },
+      { name: t('download_preview.columns.extractant_concentration'), value: 'extractant_concentration' },
+      { name: t('download_preview.columns.extraction_ratio'), value: 'extraction_ratio' },
+      { name: t('download_preview.columns.extraction_base'), value: 'extraction_base' },
+      { name: t('download_preview.columns.measurement_procedure'), value: 'measurement_procedure' },
+      { name: t('download_preview.columns.limit_of_detection'), value: 'limit_of_detection' },
+      { name: t('download_preview.columns.dataset'), value: 'dataset_name' },
+      { name: t('download_preview.columns.license'), value: 'license_name' },
+    ],
+    [t],
+  );
+
   const [visibleColumns, setVisibleColumns] = useState<string[]>([
     'sampling_date',
     'min_depth',
@@ -77,7 +83,7 @@ function DownloadPreviewTable({
 
   return (
     <div className={styles.DownloadPreviewTable}>
-      <div className={styles.SectionTitle}>Tabular preview</div>
+      <div className={styles.SectionTitle}>{t('download_preview.tabular_preview')}</div>
       <div className={styles.Content}>
         <div className={styles.TableControls}>
           <MultiSelect
@@ -89,11 +95,11 @@ function DownloadPreviewTable({
             onChange={e => setVisibleColumns(e.value)}
             optionLabel="name"
             optionValue="value"
-            placeholder="Select columns to show"
+            placeholder={t('download_preview.select_columns')}
           />
           <Button type="tertiary" className={styles.MetadataButton}>
             <NewspaperIcon />
-            Metadata
+            {t('download_preview.metadata')}
           </Button>
         </div>
         <div className={styles.TableContainer}>
@@ -128,7 +134,7 @@ function DownloadPreviewTable({
                 setFirst?.(event.first);
               }}
               first={first}
-              emptyMessage="No data available"
+              emptyMessage={t('download_preview.no_data_available')}
             >
               {columns
                 .filter(({ value }) => visibleColumns.includes(value))
@@ -155,10 +161,7 @@ function DownloadPreviewTable({
           )}
         </div>
       </div>
-      <div className={styles.Footer}>
-        This is just a preview of the soil data we have filtered by area and the filters you selected, to see all the data available,
-        download it.
-      </div>
+      <div className={styles.Footer}>{t('download_preview.preview_footer')}</div>
     </div>
   );
 }
