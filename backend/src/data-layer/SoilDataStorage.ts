@@ -44,10 +44,9 @@ export default class SoilDataStorage {
     const repo = entityManager.getRepository(DatasetLayerEntity);
     const query = await repo
       .createQueryBuilder('dataset_layers')
-      .addCommonTableExpression('SELECT * FROM licenses WHERE deleted_at IS NULL', 'active_licenses', { materialized: true })
       .leftJoin('dataset_layers.layer', 'layer')
       .leftJoin('dataset_layers.soil_property', 'soil_property')
-      .leftJoin('active_licenses', 'license', 'license.id = layer.license')
+      .leftJoin('licenses', 'license', 'license.deleted_at IS NULL AND license.id = layer.license')
       .select('dataset_layers.dataset_id', 'dataset_id')
       .addSelect('ds.gis_datatype', 'gis_datatype')
       .addSelect('ds.name', 'dataset_name')
