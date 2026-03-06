@@ -8,6 +8,7 @@ import UploadIcon from 'assets/icons/upload-icon.svg?react';
 import { check } from '@placemarkio/check-geojson';
 import type { Polygon, MultiPolygon } from 'geojson';
 import useNotifications from 'hooks/useNotifications';
+import { useTranslation } from 'react-i18next';
 
 interface SoilhiveMapToolbarProps {
   visible: boolean;
@@ -16,6 +17,7 @@ interface SoilhiveMapToolbarProps {
 }
 
 export default function SoilhiveMapToolbar({ visible, onDrawClick, onUpload }: SoilhiveMapToolbarProps) {
+  const { t } = useTranslation('availability');
   const [open, setOpen] = useState(false);
   const selectionButtonRef = useRef<HTMLButtonElement>(null);
   const selectionListRef = useRef<HTMLDivElement>(null);
@@ -62,7 +64,7 @@ export default function SoilhiveMapToolbar({ visible, onDrawClick, onUpload }: S
       const file = (event as any).target?.files?.item(0);
 
       const fail = (id: string, message: string) => {
-        showNotification({ id, title: 'Upload failed', message });
+        showNotification({ id, title: t('map.upload_failed'), message });
         fileInput.value = '';
       };
 
@@ -109,7 +111,7 @@ export default function SoilhiveMapToolbar({ visible, onDrawClick, onUpload }: S
       >
         <span className="text-container">
           <PolygonIcon className="polygon" />
-          <span className="text-only">Polygon</span>
+          <span className="text-only">{t('map.polygon_button')}</span>
         </span>
         <span className="arrow-container">
           <ArrowDownIcon className="arrow" />
@@ -123,7 +125,7 @@ export default function SoilhiveMapToolbar({ visible, onDrawClick, onUpload }: S
           }}
         >
           <PencilIcon />
-          Draw a polygon
+          {t('map.draw_a_polygon')}
         </button>
         <button
           onClick={() => {
@@ -132,7 +134,7 @@ export default function SoilhiveMapToolbar({ visible, onDrawClick, onUpload }: S
           }}
         >
           <UploadIcon />
-          Upload a polygon
+          {t('map.upload_a_polygon')}
         </button>
       </div>
     </div>

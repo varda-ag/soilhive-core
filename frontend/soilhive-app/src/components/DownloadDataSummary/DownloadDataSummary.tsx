@@ -8,6 +8,7 @@ import LayersIcon from 'assets/icons/layers-icon.svg?react';
 import MapPinIcon from 'assets/icons/map-pin-icon.svg?react';
 import WorldIcon from 'assets/icons/world-icon.svg?react';
 import useDevice from 'hooks/useDevice';
+import { useTranslation } from 'react-i18next';
 import type { Feature, GeoJsonProperties, MultiPolygon, Point, Polygon } from 'geojson';
 
 // console.debug(numberFormatter.format(1234567));
@@ -44,14 +45,15 @@ function DownloadDataSummary({
   responsive = true,
 }: DownloadDataSummaryProps) {
   const { isDesktopLayout } = useDevice();
+  const { t } = useTranslation('download');
 
-  let selectionTitle: string = 'Selection';
+  let selectionTitle: string = t('download_data_summary.selection.default');
   if (selectionType === 'h3-cell') {
-    selectionTitle = 'H3cell selected';
+    selectionTitle = t('download_data_summary.selection.h3cell_selected');
   } else if (selectionType === 'drawn-polygon') {
-    selectionTitle = 'Drawn polygon';
+    selectionTitle = t('download_data_summary.selection.drawn_polygon');
   } else if (selectionType === 'country') {
-    selectionTitle = 'Country selected';
+    selectionTitle = t('download_data_summary.selection.country_selected');
   }
 
   const isDesktop = !responsive || isDesktopLayout;
@@ -105,19 +107,19 @@ function DownloadDataSummary({
       </div>
       <div className={styles.Separator}></div>
       <div className={styles.DataSummary}>
-        <div className={styles.SectionTitle}>Data summary</div>
+        <div className={styles.SectionTitle}>{t('download_data_summary.data_summary')}</div>
         <div className={styles.DataSummaryContent}>
           <div className={styles.DataSummaryRow}>
             <div className={styles.DataSummaryRowTitle}>
               <MapPinIcon />
-              Data points
+              {t('download_data_summary.data_points')}
             </div>
             <div className={styles.DataSummaryRowData}>{dataPoints ? numberFormatter.format(dataPoints) : '0'}</div>
           </div>
           <div className={styles.DataSummaryRow}>
             <div className={styles.DataSummaryRowTitle}>
               <LayersIcon />
-              Raster Layers
+              {t('download_data_summary.raster_layers')}
             </div>
             <div className={styles.DataSummaryRowData}>{rasterLayers ? numberFormatter.format(rasterLayers) : '0'}</div>
           </div>
@@ -126,17 +128,17 @@ function DownloadDataSummary({
       <div className={styles.Separator}></div>
       {isAppliedFiltersSectionVisible && (
         <div className={styles.AppliedFilters}>
-          <div className={styles.SectionTitle}>Applied Filters</div>
+          <div className={styles.SectionTitle}>{t('download_data_summary.applied_filters')}</div>
           <div className={styles.FiltersList}>
             {depthRange !== undefined && (
               <div className={styles.Filter}>
-                <div className={styles.FilterName}>Depth range</div>
+                <div className={styles.FilterName}>{t('download_data_summary.depth_range')}</div>
                 <div className={styles.FilterValue}>{depthRange}</div>
               </div>
             )}
             {soilProperties && soilProperties.length > 0 && (
               <div className={styles.Filter}>
-                <div className={styles.FilterName}>Soil Properties</div>
+                <div className={styles.FilterName}>{t('download_data_summary.soil_properties')}</div>
                 <div className={styles.FilterValue}>{soilProperties.length > 0 ? soilProperties.join(', ') : '-'}</div>
               </div>
             )}

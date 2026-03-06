@@ -21,6 +21,7 @@ import useAvailability from 'hooks/useAvailability';
 import type { SoilhiveMapSelectionChangeEvent } from 'components/Map/SoilhiveMapSelectionChangeEvent';
 
 import styles from './Availability.module.scss';
+import { useTranslation } from 'react-i18next';
 
 const MAPBOX_SATELLITE_MAP_STYLE: StyleSpecification = {
   version: 8,
@@ -47,6 +48,7 @@ function Availability() {
   const { isDesktopLayout } = useDevice();
 
   const { boundingBox, setGeometryFilter, setSelectionType, setLocationName, setBoundingBox } = useAvailability();
+  const { t } = useTranslation('availability');
 
   const handleMapSelectionChange = ({ bounds, geometries, selectionType, locationName }: SoilhiveMapSelectionChangeEvent) => {
     const geoms = geometries ?? [bboxPolygon(bounds).geometry];
@@ -135,17 +137,13 @@ function Availability() {
 
       {isDesktopLayout && !isFiltersOpened && (
         <Button className={styles.FiltersButton} type="custom" onClick={() => setIsFiltersOpened(true)}>
-          <>
-            <FiltersIcon /> Filters <FiltersCounter />
-          </>
+          <FiltersIcon /> Filters <FiltersCounter />
         </Button>
       )}
 
       {isDesktopLayout && !isDatasetsOpened && (
         <Button className={styles.DatasetsButton} type="custom" onClick={() => setIsDatasetsOpened(true)}>
-          <>
-            <DatasetsIcon /> Datasets
-          </>
+          <DatasetsIcon /> {t('availability_mobile_navigation.datasets')}
         </Button>
       )}
 

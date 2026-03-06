@@ -1,5 +1,6 @@
 import { Checkbox } from 'components/UI';
 import useAvailability from 'hooks/useAvailability';
+import { useTranslation } from 'react-i18next';
 import Skeleton from 'react-loading-skeleton';
 import 'react-loading-skeleton/dist/skeleton.css';
 import { DatasetsFilters } from './DatasetsFilters/DatasetsFilters';
@@ -8,18 +9,24 @@ import { DatasetsListItem } from './DatasetsListItem/DatasetsListItem';
 import styles from './DatasetsList.module.scss';
 
 export function DatasetsList() {
+  const { t } = useTranslation('availability');
   const { datasets, selectAllDatasets, isAllSelected, isLoading, isNoData, isNoFilteredData, searchValue } = useAvailability();
 
   return isNoData ? (
-    <i>No data in selected area</i>
+    <i>{t('datasets_sidebar.no_data_in_selected_area')}</i>
   ) : isNoFilteredData ? (
-    <i>No data in selected area due to applied filters</i>
+    <i>{t('datasets_sidebar.no_data_in_selected_area_due_to_filters')}</i>
   ) : (
     <div data-testid="sh-datasets-list" className={styles.DatasetsList}>
       <DatasetsFilters />
       {!!datasets.length && (
         <div className={styles.SelectAllWrapper}>
-          <Checkbox size="small" label="Select all" value={isAllSelected} onChange={selectAllDatasets} />
+          <Checkbox
+            size="small"
+            label={t('datasets_sidebar.select_all', 'Select all')}
+            value={isAllSelected}
+            onChange={selectAllDatasets}
+          />
         </div>
       )}
       <div className={styles.Wrapper}>
@@ -30,7 +37,7 @@ export function DatasetsList() {
             <Skeleton count={1} height={120} />
           </span>
         ) : !datasets.length && searchValue ? (
-          <i>No data in selected area matching your search query</i>
+          <i>{t('datasets_sidebar.no_data_matching_search')}</i>
         ) : (
           datasets.map(dataset => <DatasetsListItem key={dataset.id} dataset={dataset} />)
         )}

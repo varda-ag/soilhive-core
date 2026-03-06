@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Accordion, SelectionPills } from 'components/UI';
 import { Checkbox } from 'components/UI/Checkbox/Checkbox';
+import { useTranslation } from 'react-i18next';
 import styles from './RasterFilter.module.scss';
 import { useRasterFilters } from 'hooks/useRasterFilters';
 import Skeleton from 'react-loading-skeleton';
@@ -22,6 +23,7 @@ export function RasterFilter({ categoryId }: RasterFilterProps) {
     handlePillRemove,
   } = useRasterFilters(categoryId);
   const [searchTerm, setSearchTerm] = useState('');
+  const { t } = useTranslation('availability');
 
   if (!category?.enabled) return null;
 
@@ -42,12 +44,14 @@ export function RasterFilter({ categoryId }: RasterFilterProps) {
         {isLoadingPartialFilter ? (
           <Skeleton height={120} />
         ) : hasNoOptions ? (
-          <p className={styles.EmptyMessage}>For the current geometry no raster filter is available</p>
+          <p className={styles.EmptyMessage}>
+            {t('raster_filter.no_filters_available', 'For the current geometry no raster filter is available')}
+          </p>
         ) : (
           <>
             <input
               type="text"
-              placeholder={`Search ${category.name.toLowerCase()}`}
+              placeholder={`${t('raster_filter.search_placeholder')} ${category.name.toLowerCase()}`}
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
               className={styles.SearchInput}

@@ -11,6 +11,7 @@ import type { AvailabilityDataset } from 'types/availability';
 
 import styles from './DatasetsListItem.module.scss';
 import useAvailability from 'hooks/useAvailability';
+import { useTranslation } from 'react-i18next';
 
 type Props = {
   dataset: AvailabilityDataset;
@@ -18,6 +19,7 @@ type Props = {
 export function DatasetsListItem({ dataset }: Props) {
   const { selectedDatasets, selectDataset } = useAvailability();
   const [isOpened, setIsOpened] = useState<boolean>(false);
+  const { t } = useTranslation('availability');
 
   return (
     <div data-testid="sh-datasets-list-item" className={classnames(styles.DatasetsListItem, { [styles.Opened]: isOpened })}>
@@ -39,7 +41,7 @@ export function DatasetsListItem({ dataset }: Props) {
           </div>
         </div>
         <div className={styles.Bottom}>
-          <Button size="tiny">Metadata</Button>
+          <Button size="tiny">{t('datasets_list.metadata')}</Button>
         </div>
       </div>
       <div className={styles.MetaWrapper}>

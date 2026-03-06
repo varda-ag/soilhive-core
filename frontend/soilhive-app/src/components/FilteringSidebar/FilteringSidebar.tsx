@@ -3,6 +3,7 @@ import { FilteringSidebarContent } from './FilteringSidebarContent/FilteringSide
 import { FilteringSidebarMobileContent } from './FilteringSidebarMobileContent/FilteringSidebarMobileContent';
 import { PageSidebar, FormMessage } from 'components/UI';
 import useDevice from 'hooks/useDevice';
+import { useTranslation } from 'react-i18next';
 import useDataScopeFilters from 'hooks/useDataScopeFilters';
 import useSoilPropertiesFilters from 'hooks/useSoilPropertiesFilters';
 import { useRasterFilters } from 'hooks/useRasterFilters';
@@ -14,6 +15,7 @@ interface Props {
 }
 
 export function FilteringSidebar({ isOpened, onClose }: Props) {
+  const { t } = useTranslation('availability');
   const { isDesktopLayout } = useDevice();
   const { isLoading, hasUnavailableScopeSelected } = useDataScopeFilters();
   const { hasUnavailablePropertySelected } = useSoilPropertiesFilters();
@@ -25,11 +27,7 @@ export function FilteringSidebar({ isOpened, onClose }: Props) {
         {isDesktopLayout && <FilteringSidebarHeader onClose={onClose} />}
         {!isLoading && (hasUnavailableScopeSelected || hasUnavailablePropertySelected || hasUnavailableRasterSelected) && (
           <div data-testid="sh-unavailable-filter-message" className={styles.WarningMessage}>
-            <FormMessage
-              message="Some of the selected filters are not available in the current area."
-              type="warning"
-              withBackground={true}
-            />
+            <FormMessage message={t('filtering_sidebar.unavailable_notice')} type="warning" withBackground={true} />
           </div>
         )}
         {isDesktopLayout && <FilteringSidebarContent />}
