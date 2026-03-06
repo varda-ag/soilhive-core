@@ -11,12 +11,14 @@ import Legal from './pages/Legal';
 import { NotificationProvider } from './contexts/NotificationsContext';
 import AvailabilityModule from './modules/AvailabilityModule';
 import { DownloadsProvider } from './contexts/DownloadsContext';
+import { useTranslation } from 'react-i18next';
 
 import './utilities/i18n';
 
 const queryClient = new QueryClient();
 
 function App() {
+  const { t } = useTranslation('common');
   return (
     <QueryClientProvider client={queryClient}>
       <AuthContextProvider>
@@ -31,7 +33,7 @@ function App() {
                       path="/donation"
                       element={
                         <>
-                          <PageTitle title="SoilHive - Donation" />
+                          <PageTitle title={t('page_titles.donation')} />
                         </>
                       }
                     />
@@ -39,7 +41,7 @@ function App() {
                       path="/legal"
                       element={
                         <>
-                          <PageTitle title="SoilHive - Admin" />
+                          <PageTitle title={t('page_titles.legal')} />
                           <Legal />
                         </>
                       }
@@ -48,7 +50,7 @@ function App() {
                       path="/admin"
                       element={
                         <>
-                          <PageTitle title="SoilHive - Admin" />
+                          <PageTitle title={t('page_titles.admin')} />
                           <Admin />
                         </>
                       }

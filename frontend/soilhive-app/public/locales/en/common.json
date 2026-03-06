@@ -1,5 +1,10 @@
 {
     "loading": "Loading...",
+    "page_titles": {
+        "donation": "SoilHive - Donation",
+        "legal": "SoilHive - Legal",
+        "admin": "SoilHive - Admin"
+    },
     "auth": {
         "login": "Log in",
         "logout": "Log out",
