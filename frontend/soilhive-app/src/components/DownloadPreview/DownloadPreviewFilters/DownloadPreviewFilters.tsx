@@ -153,7 +153,7 @@ function DownloadPreviewFilters({
       minSamplingDate: undefined,
       maxSamplingDate: undefined,
     };
-  }, [filters.min_sampling_date, filters.max_sampling_date]);
+  }, [filters]);
 
   const controls = (
     <>

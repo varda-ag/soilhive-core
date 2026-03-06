@@ -71,9 +71,9 @@ describe('mapFilteredDatasetToAvailabilityDataset adapter', () => {
 
 describe('yearRangeToDatasetFilters', () => {
   it('converts years range to dataset dates', () => {
-    const dates = yearRangeToDatasetFilters({ min: 1990, max: 2025 });
-    expect(new Date(dates.min_sampling_date as string).getFullYear()).toEqual(1990);
-    expect(new Date(dates.max_sampling_date as string).getFullYear()).toEqual(2025);
+    const { min_sampling_date, max_sampling_date } = yearRangeToDatasetFilters({ min: 1990, max: 2025 });
+    expect(min_sampling_date).toEqual('1990-01-01');
+    expect(max_sampling_date).toEqual('2025-12-31');
   });
 
   it('returns undefined if provided values are undefined', () => {
