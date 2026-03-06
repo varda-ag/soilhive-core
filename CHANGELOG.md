@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.46.0 (2026-03-06)
+
+## What's Changed
+* feat(fe): add i18n by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/270
+* perf: reducing query timeouts by @svaccari in https://github.com/varda-ag/soilhive-core/pull/273
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.45.1...v0.46.0
+
 ## 0.45.1 (2026-03-06)
 
 ## What's Changed
