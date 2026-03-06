@@ -55,8 +55,6 @@ describe('Testing /soil-data routes', () => {
     ['Polygon', {}, false],
     ['Point', { raster_filters: { land_cover: [200] } }, false],
     ['Polygon', { raster_filters: { land_cover: [200] } }, false],
-    ['Point', {}, false],
-    ['Polygon', {}, false],
     ['Point', { raster_filters: { land_cover: [200] } }, true],
     ['Polygon', { raster_filters: { land_cover: [200] } }, true],
   ])(

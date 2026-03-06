@@ -63,8 +63,9 @@ export default class SoilDataStorage {
       .groupBy('dataset_layers.dataset_id, ds.name, ds.slug, ds.gis_datatype');
 
     const dataFilter = { geometries: [geometry], parameters: filters };
-    await applyFiltersToQuery(query, dataFilter);
-    await addRasterCoverage(query, dataFilter);
+    const enabledRasterFilterTables = await getEnabledRasterFilterTables();
+    await applyFiltersToQuery(query, dataFilter, enabledRasterFilterTables);
+    await addRasterCoverage(query, dataFilter, enabledRasterFilterTables);
     const results = await query.getRawMany();
 
     return results.map(row => ({
@@ -201,7 +202,7 @@ const hasRasterFilters = (dataFilter: DataFilter): boolean => {
   return Boolean(raster_filters && Object.keys(raster_filters).length > 0);
 };
 
-const applyFiltersToQuery = async (query: any, dataFilter: DataFilter) => {
+const applyFiltersToQuery = async (query: any, dataFilter: DataFilter, rasterFilterTables?: string[]) => {
   setMatchingFeatures(query, dataFilter);
 
   let datasetJoinCondition = 'ds.id = dataset_layers.dataset_id';
@@ -268,7 +269,7 @@ const applyFiltersToQuery = async (query: any, dataFilter: DataFilter) => {
     query.andWhere('license.slug IN (:...licenses)', { licenses: filters.licenses });
   }
 
-  await applyRasterFilterToQuery(query, dataFilter);
+  await applyRasterFilterToQuery(query, dataFilter, rasterFilterTables);
 
   return query;
 };
@@ -279,12 +280,16 @@ const getEnabledRasterFilterTables = async () => {
   const queryRunner = dataSource.createQueryRunner();
   await queryRunner.connect();
   const enabledFilters = await rasterFilterService.getEnabledRasterFilters({ entityManager: queryRunner.manager });
-  const enabledFilterTables = enabledFilters.map(f => f.id);
+  const rasterFilterTables = enabledFilters.map(f => f.id);
   await queryRunner.release();
-  return enabledFilterTables;
+  return rasterFilterTables;
 };
 
-const applyRasterFilterToQuery = async (query: SelectQueryBuilder<DatasetLayerEntity>, dataFilter: DataFilter) => {
+const applyRasterFilterToQuery = async (
+  query: SelectQueryBuilder<DatasetLayerEntity>,
+  dataFilter: DataFilter,
+  enabledRasterFilterTables?: string[],
+) => {
   if (dataFilter.geometries.length === 0) {
     // No input geometry, raster filtering cannot be applied
     return;
@@ -295,8 +300,8 @@ const applyRasterFilterToQuery = async (query: SelectQueryBuilder<DatasetLayerEn
     return;
   }
 
-  const enabledFilterTables = await getEnabledRasterFilterTables();
-  if (enabledFilterTables.length === 0) {
+  const rasterFilterTables = enabledRasterFilterTables || (await getEnabledRasterFilterTables());
+  if (rasterFilterTables.length === 0) {
     // No raster data is available
     query.innerJoin('candidate_features', 'matching_features', 'dataset_layers.feature_id = matching_features.id');
     return;
@@ -305,7 +310,7 @@ const applyRasterFilterToQuery = async (query: SelectQueryBuilder<DatasetLayerEn
   const raster_filters: Record<string, number[]> | undefined = dataFilter.parameters.raster_filters;
   const aoiAreaM2 = turf.area(dataFilter.geometries[0]!);
 
-  for (const baseTable of enabledFilterTables) {
+  for (const baseTable of rasterFilterTables) {
     const values = raster_filters?.[baseTable];
     const hasFilteringValues = values && values.length > 0;
     const table = selectOverviewTable(baseTable, aoiAreaM2);
@@ -348,14 +353,18 @@ const applyRasterFilterToQuery = async (query: SelectQueryBuilder<DatasetLayerEn
   }
 };
 
-const addRasterCoverage = async (query: SelectQueryBuilder<DatasetLayerEntity>, dataFilter: DataFilter) => {
+const addRasterCoverage = async (
+  query: SelectQueryBuilder<DatasetLayerEntity>,
+  dataFilter: DataFilter,
+  enabledRasterFilterTables?: string[],
+) => {
   if (dataFilter.geometries.length === 0) {
     // No input geometry, raster coverage cannot be applied
     return;
   }
 
-  const enabledFilterTables = await getEnabledRasterFilterTables();
-  if (enabledFilterTables.length === 0) {
+  const rasterFilterTables = enabledRasterFilterTables || (await getEnabledRasterFilterTables());
+  if (rasterFilterTables.length === 0) {
     // No raster data is available
     return;
   }
@@ -364,7 +373,7 @@ const addRasterCoverage = async (query: SelectQueryBuilder<DatasetLayerEntity>, 
   const aoiAreaM2 = turf.area(dataFilter.geometries[0]!);
   const calculateRealCoverage = aoiAreaM2 < 3_000_000_000_000;
 
-  for (const baseTable of enabledFilterTables) {
+  for (const baseTable of rasterFilterTables) {
     const outputColumn = `#${baseTable}`; // Prefixing column name with "#" to detect it in the results
     const values = raster_filters?.[baseTable];
     const hasFilteringValues = values && values.length > 0;
