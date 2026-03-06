@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.45.1 (2026-03-06)
+
+## What's Changed
+* perf(data): adding max area threshold to query raster values by @svaccari in https://github.com/varda-ag/soilhive-core/pull/265
+* fix: raster coverage refactoring by @svaccari in https://github.com/varda-ag/soilhive-core/pull/271
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.45.0...v0.45.1
+
 ## 0.45.0 (2026-03-04)
 
 ## What's Changed
