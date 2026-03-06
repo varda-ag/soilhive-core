@@ -1,3 +1,6 @@
+import { useTranslation } from 'react-i18next';
+
 export default function Legal() {
-  return <h2>Legal</h2>;
+  const { t } = useTranslation('common');
+  return <h2>{t('legal_page.title')}</h2>;
 }

@@ -44,6 +44,26 @@
         "invalid_json": "Uploaded file does not contain valid GeoJSON",
         "invalid_polygon": "Uploaded file does not contain any valid Polygon or MultiPolygon"
     },
+    "map_selection_toolbar": {
+        "reset": "Reset",
+        "cancel": "Cancel",
+        "draw_another_area": "Draw another area",
+        "show_results": "Show results"
+    },
+    "map_popup": {
+        "title": "SOIL DATA",
+        "h3_cell_id": "H3 Cell ID: {{id}}",
+        "coordinates": "Coordinates",
+        "longitude": "Longitude {{lng}}",
+        "latitude": "Latitude {{lat}}"
+    },
+    "datasets_list": {
+        "metadata": "Metadata",
+        "points_suffix": "points",
+        "raster_layers_suffix": "raster layers",
+        "depth_cm_suffix": "cm",
+        "date_range_separator": " - "
+    },
     "availability_mobile_navigation": {
         "datasets": "Datasets",
         "filters": "Filters",

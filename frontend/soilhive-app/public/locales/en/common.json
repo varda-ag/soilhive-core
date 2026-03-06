@@ -2,5 +2,37 @@
     "availability": "Availability",
     "legal": "Legal",
     "admin": "Admin",
-    "logo": "Logo"
+    "logo": "Logo",
+    "loading": "Loading...",
+    "auth": {
+        "login": "Log in",
+        "logout": "Log out",
+        "login_title": "Login",
+        "password_placeholder": "Password",
+        "cancel": "Cancel",
+        "logging_in": "Logging in ..."
+    },
+    "legal_page": {
+        "title": "Legal"
+    },
+    "admin_page": {
+        "title": "Administration",
+        "description": "This is the administration page",
+        "installed_modules": "Installed modules",
+        "type": "Type",
+        "authenticated_user": "Authenticated user",
+        "maps": "Maps:",
+        "geocoder_api": "Geocoder API: {{provider}}",
+        "geocoder_options": {
+            "nominatim": "Nominatim OpenStreetMap search engine",
+            "mapbox": "Mapbox Geocoding API (v6)"
+        },
+        "access_denied": "Access denied. Please log in."
+    },
+    "theme_config": {
+        "title": "Theme config",
+        "logo_label": "Logo:",
+        "delete_logo": "Delete logo",
+        "save": "Save"
+    }
 }

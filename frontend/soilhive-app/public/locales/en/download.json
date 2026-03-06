@@ -14,6 +14,12 @@
         "soil_properties": "Soil Properties"
     },
     "download_preview": {
+        "page_title": "DOWNLOAD PREVIEW",
+        "page_subtitle": "This is a preview of the soil data filtered by the selected area and criteria. To download the data press the button on the top-right of this page",
+        "back": "Back",
+        "download_button": "Download data",
+        "tab_summary": "Summary",
+        "tab_table": "Table",
         "filters": "Filters",
         "select_dataset": "Select a dataset",
         "select_soil_property": "Select a soil property",
@@ -44,6 +50,15 @@
             "dataset": "Dataset",
             "license": "License"
         }
+    },
+    "download_summary": {
+        "page_title": "DOWNLOAD SUMMARY",
+        "page_subtitle": "Check the datasets you are going to download",
+        "back_to_preview": "Back to the download preview",
+        "back_to_map": "Back to the map",
+        "terms_label_prefix": "I have read and agree to the platform’s",
+        "terms_link": "Terms of use",
+        "download_button": "Download data"
     },
     "downloads_status": {
         "downloads": "Downloads",

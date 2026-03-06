@@ -31,6 +31,7 @@ import type { SoilhiveMapSelectionChangeEvent } from './SoilhiveMapSelectionChan
 import { simplifyGeometry } from '../../utilities/simplifyGeometry';
 import useDevice from 'hooks/useDevice';
 import useAvailability from 'hooks/useAvailability';
+import { useTranslation } from 'react-i18next';
 
 type MapStyle = string | StyleSpecification | ImmutableLike<StyleSpecification>;
 type MapStyles = Array<{ name: string; mapStyle: MapStyle }>;
@@ -143,6 +144,7 @@ function SoilhiveMap({
   const isApplyingSelection = useRef(false);
 
   const { isMobileLayout } = useDevice();
+  const { t } = useTranslation('availability');
 
   const onDrawClick = useCallback(() => {
     setShowDrawControl(true);
@@ -354,16 +356,18 @@ function SoilhiveMap({
                 <Flower />
               </div>
               <div className="soilhive-map-popup-header-right">
-                <div className="soilhive-map-popup-header-right-title">SOIL DATA</div>
-                <div className="soilhive-map-popup-header-right-subtitle">H3 Cell ID: {selectedH3Cell ? selectedH3Cell.id : '-'}</div>
+                <div className="soilhive-map-popup-header-right-title">{t('map_popup.title')}</div>
+                <div className="soilhive-map-popup-header-right-subtitle">
+                  {t('map_popup.h3_cell_id', { id: selectedH3Cell ? selectedH3Cell.id : '-' })}
+                </div>
               </div>
             </div>
             <div className="soilhive-map-popup-content">
-              <strong>Coordinates</strong>
+              <strong>{t('map_popup.coordinates')}</strong>
               <br />
-              Longitude {selectedPoint.lng.toFixed(6)}
+              {t('map_popup.longitude', { lng: selectedPoint.lng.toFixed(6) })}
               <br />
-              Latitude {selectedPoint.lat.toFixed(6)}
+              {t('map_popup.latitude', { lat: selectedPoint.lat.toFixed(6) })}
             </div>
           </Popup>
         )}
