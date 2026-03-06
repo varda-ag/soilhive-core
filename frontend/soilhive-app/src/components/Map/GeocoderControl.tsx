@@ -161,6 +161,10 @@ export default function GeocoderControl(props: GeocoderControlProps) {
     const input = (geocoder as any).container.querySelector('input') as HTMLInputElement | null;
     if (!input) return;
 
+    const onInput = () => {
+      geocoder._renderMessage('');
+    };
+
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key !== 'Enter') return;
 
@@ -174,7 +178,11 @@ export default function GeocoderControl(props: GeocoderControlProps) {
     };
 
     input.addEventListener('keydown', onKeyDown);
-    return () => input.removeEventListener('keydown', onKeyDown);
+    input.addEventListener('input', onInput);
+    return () => {
+      input.removeEventListener('keydown', onKeyDown);
+      input.removeEventListener('input', onInput);
+    };
   }, [geocoder]);
 
   if ((geocoder as any)._map) {
