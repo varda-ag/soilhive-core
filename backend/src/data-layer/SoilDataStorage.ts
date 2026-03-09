@@ -145,7 +145,7 @@ const applySelectToQuery = (query: any) => {
     .addSelect('soil_property.standard_unit', 'standard_unit')
     .addSelect('obs.value', 'value')
     .addSelect('ST_AsGeoJSON(matching_features.geom)::json', 'geometry')
-    .addSelect('license.name', 'license_name')
+    .addSelect('COALESCE(license.name, ds.licenses[1])', 'license_name')
     .addSelect('layer.sampling_date::text', 'sampling_date')
     .addSelect('layer.min_depth', 'min_depth')
     .addSelect('layer.max_depth', 'max_depth')
