@@ -82,7 +82,7 @@ export class GeoFileWriter {
 
       const value = record[field.key];
 
-      if (value) feature.fields.set(fieldName, value); // <-- only set when value exists
+      if (value !== null && value !== undefined) feature.fields.set(fieldName, value); // <-- without this check geojson driver removes the fields in the layer if a record value i null/undefined
     }
 
     await this.currentLayer.features.addAsync(feature);
