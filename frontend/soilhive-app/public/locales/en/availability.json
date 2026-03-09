@@ -1,0 +1,78 @@
+{
+    "logo": "Logo",
+    "filtering_sidebar": {
+        "search_placeholder": "Search soil properties",
+        "header": "Filters",
+        "clear_all": "Clear all",
+        "unavailable_notice": "Some of the selected filters are not available in the current area."
+    },
+    "filtering_sidebar_content": {
+        "data_scope": "Data scope",
+        "soil_parameters": "Soil parameters",
+        "land_ecosystem": "LAND & ECOSYSTEM",
+        "soil_properties": "Soil Properties",
+        "data_type": "Data type",
+        "time": "Time"
+    },
+    "raster_filter": {
+        "no_filters_available": "For the current geometry no raster filter is available",
+        "search_placeholder": "Search"
+    },
+    "datasets_sidebar": {
+        "header": "Available Datasets",
+        "preview": "Preview",
+        "download": "Download",
+        "search_by_name": "Search by name",
+        "no_data_in_selected_area": "No data in selected area",
+        "no_data_in_selected_area_due_to_filters": "No data in selected area due to applied filters",
+        "select_all": "Select all",
+        "no_data_matching_search": "No data in selected area matching your search query"
+    },
+    "datasets_sidebar_summary": {
+        "datasets": "Datasets",
+        "data_points": "Data Points",
+        "raster_layers": "Raster layers",
+        "depth_range": "Depth range"
+    },
+    "map": {
+        "polygon_button": "Polygon",
+        "draw_a_polygon": "Draw a polygon",
+        "upload_a_polygon": "Upload a polygon",
+        "upload_failed": "Upload failed",
+        "no_file_uploaded": "No file uploaded",
+        "cannot_read_file": "Cannot read uploaded file as text",
+        "invalid_json": "Uploaded file does not contain valid GeoJSON",
+        "invalid_polygon": "Uploaded file does not contain any valid Polygon or MultiPolygon"
+    },
+    "map_selection_toolbar": {
+        "reset": "Reset",
+        "cancel": "Cancel",
+        "draw_another_area": "Draw another area",
+        "show_results": "Show results"
+    },
+    "map_popup": {
+        "title": "SOIL DATA",
+        "h3_cell_id": "H3 Cell ID: {{id}}",
+        "coordinates": "Coordinates",
+        "longitude": "Longitude {{lng}}",
+        "latitude": "Latitude {{lat}}"
+    },
+    "datasets_list": {
+        "metadata": "Metadata",
+        "points_suffix": "points",
+        "raster_layers_suffix": "raster layers",
+        "depth_cm_suffix": "cm",
+        "date_range_separator": " - "
+    },
+    "availability_mobile_navigation": {
+        "datasets": "Datasets",
+        "filters": "Filters",
+        "map": "Map"
+    },
+    "menu": {
+        "availability": "Availability",
+        "legal": "Legal",
+        "admin": "Admin",
+        "hamburger_aria": "Menu"
+    }
+}

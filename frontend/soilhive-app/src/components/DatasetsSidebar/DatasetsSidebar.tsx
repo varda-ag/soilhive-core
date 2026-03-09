@@ -5,6 +5,7 @@ import { Button, PageSidebar } from 'components/UI';
 import DownloadIcon from 'assets/icons/small-download-icon.svg?react';
 import useDevice from 'hooks/useDevice';
 import useAvailability from 'hooks/useAvailability';
+import { useTranslation } from 'react-i18next';
 
 import styles from './DatasetsSidebar.module.scss';
 import { useNavigate } from 'react-router';
@@ -15,6 +16,7 @@ interface Props {
 }
 
 export function DatasetsSidebar({ isOpened, onClose }: Props) {
+  const { t } = useTranslation('availability');
   const { isDesktopLayout } = useDevice();
   const { setPreview, availableDatasets, filterId, selectionType, locationName } = useAvailability();
   const navigate = useNavigate();
@@ -34,7 +36,7 @@ export function DatasetsSidebar({ isOpened, onClose }: Props) {
               setPreview(true);
             }}
           >
-            Preview
+            {t('datasets_sidebar.preview')}
           </Button>
           <Button
             className={styles.DownloadButton}
@@ -50,7 +52,7 @@ export function DatasetsSidebar({ isOpened, onClose }: Props) {
             }}
           >
             <DownloadIcon />
-            Download
+            {t('datasets_sidebar.download')}
           </Button>
         </div>
       </div>

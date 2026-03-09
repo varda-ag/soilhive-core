@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState, type Dispatch, type SetStateAction, type 
 import styles from './DownloadPreviewFilters.module.scss';
 import useDevice from 'hooks/useDevice';
 import { Button } from 'components/UI';
+import { useTranslation } from 'react-i18next';
 import type { SoilProperty } from 'types/backend';
 import type { PreviewFilters } from 'types/downloadPreview';
 import { backendToLocalFrontendDate, lastDayOfTheMonth } from '../../../utilities/date';
@@ -40,6 +41,7 @@ function DownloadPreviewFilters({
   isLoading?: boolean;
 }) {
   const { isMobileLayout } = useDevice();
+  const { t } = useTranslation('download');
   const [selectedDateRange, setSelectedDateRange] = useState<Nullable<Array<Date | null>>>(fixedCalendarRange);
 
   const { minDate, maxDate, minMaxDateAreSameMonth } = useMemo(() => {
@@ -165,7 +167,7 @@ function DownloadPreviewFilters({
         options={datasets}
         optionValue="id"
         optionLabel="name"
-        placeholder="Select a dataset"
+        placeholder={t('download_preview.select_dataset')}
         disabled={isLoading}
       />
       <Dropdown
@@ -176,7 +178,7 @@ function DownloadPreviewFilters({
         options={soilProperties}
         optionLabel="property_name"
         optionValue="id"
-        placeholder="Select a soil property"
+        placeholder={t('download_preview.select_soil_property')}
         disabled={isLoading}
       />
       <Dropdown
@@ -187,7 +189,7 @@ function DownloadPreviewFilters({
         options={depths}
         optionLabel="name"
         optionValue="id"
-        placeholder="Select a depth"
+        placeholder={t('download_preview.select_depth')}
         showClear
         disabled={isLoading || !!fixedDepthRange}
       />
@@ -202,7 +204,7 @@ function DownloadPreviewFilters({
         showButtonBar
         selectionMode="range"
         hideOnRangeSelection
-        placeholder="Select a date range"
+        placeholder={t('download_preview.select_date_range')}
         showIcon
         view="month"
         dateFormat="mm/yy"
@@ -221,13 +223,13 @@ function DownloadPreviewFilters({
 
   return (
     <div className={styles.DownloadPreviewFilters}>
-      <div className={styles.SectionTitle}>Filters</div>
+      <div className={styles.SectionTitle}>{t('download_preview.filters')}</div>
       <div className={styles.Filters}>{!isMobileLayout && controls}</div>
       {isMobileLayout && (
         <Dialog
           className={styles.Dialog}
           headerClassName={styles.DialogHeader}
-          header="Filters"
+          header={t('download_preview.filters')}
           visible={dialogOpen}
           dismissableMask
           draggable={false}
@@ -237,7 +239,7 @@ function DownloadPreviewFilters({
             <div className={styles.Controls}>{controls}</div>
             <div className={styles.Footer}>
               <Button type="primary" size="small" onClick={closeDialog}>
-                Apply filters
+                {t('download_preview.apply_filters')}
               </Button>
             </div>
           </div>

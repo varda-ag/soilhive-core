@@ -1,5 +1,40 @@
 # Changelog
 
+## 0.47.1 (2026-03-09)
+
+## What's Changed
+* fix(be): geojson export by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/277
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.47.0...v0.47.1
+
+## 0.47.0 (2026-03-09)
+
+## What's Changed
+* feat: sp-4884 - clear suggestions list before search by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/274
+* fix(be): sp-4980 fix geojson export logic by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/276
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.46.0...v0.47.0
+
+## 0.46.0 (2026-03-06)
+
+## What's Changed
+* feat(fe): add i18n by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/270
+* perf: reducing query timeouts by @svaccari in https://github.com/varda-ag/soilhive-core/pull/273
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.45.1...v0.46.0
+
+## 0.45.1 (2026-03-06)
+
+## What's Changed
+* perf(data): adding max area threshold to query raster values by @svaccari in https://github.com/varda-ag/soilhive-core/pull/265
+* fix: raster coverage refactoring by @svaccari in https://github.com/varda-ag/soilhive-core/pull/271
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.45.0...v0.45.1
+
 ## 0.45.0 (2026-03-04)
 
 ## What's Changed

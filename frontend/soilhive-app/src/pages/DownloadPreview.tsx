@@ -17,11 +17,13 @@ import useAvailability from 'hooks/useAvailability';
 import type { Feature, GeoJsonProperties, MultiPolygon, Point, Polygon } from 'geojson';
 import { useNavigate } from 'react-router';
 import { backendToLocalFrontendDate } from '../utilities/date';
+import { useTranslation } from 'react-i18next';
 
 const MAXIMUM_SOIL_DATA_PER_REQUEST = 100;
 
 function DownloadPreview() {
   const navigate = useNavigate();
+  const { t } = useTranslation('download');
 
   const {
     setPreview,
@@ -124,7 +126,7 @@ function DownloadPreview() {
     <div className={styles.Availability}>
       <div className={styles.Header}>
         <div className={styles.Titles}>
-          <span className={styles.Title}>PREVIEW</span>
+          <span className={styles.Title}>{t('download_preview.page_title')}</span>
         </div>
         <div className={styles.Buttons}>
           <Button type="tertiary" isIconOnly={true} className={styles.ShareButton}>
@@ -142,7 +144,7 @@ function DownloadPreview() {
             }}
           >
             <ArrowLeftIcon />
-            Back
+            {t('download_preview.back')}
           </Button>
           <Button
             type="primary"
@@ -158,7 +160,7 @@ function DownloadPreview() {
             }}
           >
             <DownloadIcon />
-            Download data
+            {t('download_preview.download_button')}
           </Button>
           <Button type="tertiary" isIconOnly={true} className={styles.ShareButtonForTablet}>
             <ShareIcon />
@@ -226,14 +228,14 @@ function DownloadPreview() {
           className={classNames({ [styles.SelectedTabButton]: selectedTab === 'summary' })}
           onClick={() => setSelectedTab('summary')}
         >
-          Summary
+          {t('download_preview.tab_summary')}
         </Button>
         <Button
           type="custom"
           className={classNames({ [styles.SelectedTabButton]: selectedTab === 'availability' })}
           onClick={() => setSelectedTab('availability')}
         >
-          Table
+          {t('download_preview.tab_table')}
         </Button>
       </div>
     </div>

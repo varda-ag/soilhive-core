@@ -8,9 +8,11 @@ import { Checkbox } from 'primereact/checkbox';
 import { useDownloadSummary } from 'hooks/useDownloadSummary';
 import DownloadDataSummary from 'components/DownloadDataSummary/DownloadDataSummary';
 import classNames from 'classnames';
+import { useTranslation } from 'react-i18next';
 
 function DownloadSummary() {
   const navigate = useNavigate();
+  const { t } = useTranslation('download');
 
   const [searchParams] = useSearchParams();
   const comingFromPreview = searchParams.get('source') === 'preview';
@@ -26,8 +28,8 @@ function DownloadSummary() {
     <div className={styles.DownloadSummary}>
       <div className={styles.Header}>
         <div className={styles.Titles}>
-          <span className={styles.Title}>DOWNLOAD SUMMARY</span>
-          <span className={styles.SubTitle}>Check the datasets you are going to download</span>
+          <span className={styles.Title}>{t('download_summary.page_title')}</span>
+          <span className={styles.SubTitle}>{t('download_summary.page_subtitle')}</span>
         </div>
         <div className={styles.Buttons}>
           <Button
@@ -39,7 +41,7 @@ function DownloadSummary() {
             }}
           >
             <ArrowLeftIcon />
-            {comingFromPreview ? 'Back to the download preview' : 'Back to the map'}
+            {comingFromPreview ? t('download_summary.back_to_preview') : t('download_summary.back_to_map')}
           </Button>
         </div>
       </div>
@@ -71,15 +73,15 @@ function DownloadSummary() {
                 }}
               />
               <label htmlFor="agree-to-terms-for-download">
-                I have read and agree to the platform’s{' '}
+                {t('download_summary.terms_label_prefix')}{' '}
                 <a href="https://soilhive.ag" target="_blank" rel="noreferrer">
-                  Terms of use
+                  {t('download_summary.terms_link')}
                 </a>
               </label>
             </div>
             <Button size="medium" type="primary" className={styles.DownloadButton} isDisabled={!termsAgreed}>
               <DownloadIcon />
-              Download data
+              {t('download_summary.download_button')}
             </Button>
           </div>
         </div>

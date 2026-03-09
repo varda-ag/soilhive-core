@@ -36,6 +36,7 @@ describe('Soil Export Job Integration Test', () => {
         [-124.13, 40.47],
         [-124.14, 40.48],
       ],
+      spatial_extent: [-125, 39, 126, 41],
     });
 
     // 2. Create a filter that matches the observations

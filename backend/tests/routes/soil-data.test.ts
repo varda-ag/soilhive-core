@@ -9,8 +9,9 @@ import {
   getLoadedDataCount,
 } from '../../src/utils/mock';
 import { getPolygonFromBbox } from '../../src/utils/geometry';
-import { getDataAdminToken } from '../helper';
+import { addLandCoverData, addLandCoverMappings, getDataAdminToken } from '../helper';
 import { StatusCodes } from 'http-status-codes';
+import * as RasterUtilsModule from '../../src/utils/raster';
 
 describe('Testing /soil-data routes', () => {
   it('Getting soil data without required parameter should fail', async () => {
@@ -49,23 +50,43 @@ describe('Testing /soil-data routes', () => {
     expect(res.body.detail).toContain('not found');
   });
 
-  it('Should retrieve data when searching inside spatial extent', async () => {
-    const { dataset } = await addSyntheticData({
-      ...syntheticDataOptions,
-      spatial_extent: [0, 0, 10, 10],
-      id: 1001,
-      soilPropertyNames: ['ph_test'],
-      featureCount: 5,
-    });
+  it.each([
+    ['Point', {}, false],
+    ['Polygon', {}, false],
+    ['Point', { raster_filters: { land_cover: [200] } }, false],
+    ['Polygon', { raster_filters: { land_cover: [200] } }, false],
+    ['Point', { raster_filters: { land_cover: [200] } }, true],
+    ['Polygon', { raster_filters: { land_cover: [200] } }, true],
+  ])(
+    'Should retrieve data when searching inside spatial extent',
+    async (featureGeometryType, parameters, addRasterData) => {
+      const bbox = [-91, -31, -90, -30]; // This overlaps test land cover
+      const { dataset } = await addSyntheticData({
+        ...syntheticDataOptions,
+        spatial_extent: bbox,
+        id: 1001,
+        soilPropertyNames: ['ph_test'],
+        featureCount: 5,
+        featureGeometryType,
+      });
 
-    // Create a data filter with geometry inside the extent
-    const filterId = await createFilter([0, 0, 10, 10]);
+      if (addRasterData) {
+        await addLandCoverData();
+        await addLandCoverMappings();
+        // Do not reference any overview (they don't exist in test dump)
+        jest.spyOn(RasterUtilsModule, 'selectOverviewTable').mockReturnValue('land_cover');
+      }
 
-    // Call soil-data endpoint
-    const soilDataRes = await request(app).get(`/soil-data?filterId=${filterId}&datasets=${dataset.slug}&limit=100`);
-    expect(soilDataRes.statusCode).toBe(StatusCodes.OK);
-    expect(soilDataRes.body.length).toBeGreaterThan(0); // Should have data
-  });
+      // Create a data filter with geometry inside the extent
+      const filterId = await createFilter(bbox, parameters);
+
+      // Call soil-data endpoint
+      const soilDataRes = await request(app).get(`/soil-data?filterId=${filterId}&datasets=${dataset.slug}&limit=100`);
+      expect(soilDataRes.statusCode).toBe(StatusCodes.OK);
+      expect(soilDataRes.body.length).toBeGreaterThan(0); // Should have data
+    },
+    20000,
+  );
 
   it('Should return zero data when searching outside spatial extent', async () => {
     const { dataset } = await addSyntheticData({

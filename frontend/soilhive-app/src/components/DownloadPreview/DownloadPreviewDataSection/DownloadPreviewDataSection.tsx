@@ -5,6 +5,7 @@ import ShareIcon from 'assets/icons/share-icon.svg?react';
 import DownloadPreviewFilters from '../DownloadPreviewFilters/DownloadPreviewFilters';
 import DownloadPreviewTable from '../DownloadPreviewTable/DownloadPreviewTable';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { SoilDataSample, SoilProperty } from 'types/backend';
 import type { PreviewFilters } from 'types/downloadPreview';
 import type { Nullable } from 'primereact/ts-helpers';
@@ -44,6 +45,7 @@ function DownloadPreviewDataSection({
   onFeatureSelected?: (feature: Feature<Point | Polygon | MultiPolygon, GeoJsonProperties> | undefined) => void;
 }) {
   const [filtersDialogOpen, setFiltersDialogOpen] = useState(false);
+  const { t } = useTranslation('download');
 
   const [tableFirst, setTableFirst] = useState<number>(0);
 
@@ -63,7 +65,7 @@ function DownloadPreviewDataSection({
             onClick={() => setFiltersDialogOpen(true)}
           >
             <FilterIcon />
-            Filters
+            {t('download_preview.filters')}
           </Button>
         </div>
         <Button dataTestId="download-preview-data-section-share-button" type="tertiary" isIconOnly={true} className={styles.ShareButton}>

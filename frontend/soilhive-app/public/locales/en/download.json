@@ -1,0 +1,70 @@
+{
+    "download_data_summary": {
+        "selection": {
+            "default": "Selection",
+            "h3cell_selected": "H3cell selected",
+            "drawn_polygon": "Drawn polygon",
+            "country_selected": "Country selected"
+        },
+        "data_summary": "Data summary",
+        "data_points": "Data points",
+        "raster_layers": "Raster Layers",
+        "applied_filters": "Applied Filters",
+        "depth_range": "Depth range",
+        "soil_properties": "Soil Properties"
+    },
+    "download_preview": {
+        "page_title": "PREVIEW",
+        "back": "Back",
+        "download_button": "Download data",
+        "tab_summary": "Summary",
+        "tab_table": "Table",
+        "filters": "Filters",
+        "select_dataset": "Select a dataset",
+        "select_soil_property": "Select a soil property",
+        "select_depth": "Select a depth",
+        "select_date_range": "Select a date range",
+        "apply_filters": "Apply filters",
+        "tabular_preview": "Tabular preview",
+        "select_columns": "Select columns to show",
+        "metadata": "Metadata",
+        "no_data_available": "No data available",
+        "preview_footer": "This is just a preview of the soil data we have filtered by area and the filters you selected, to see all the data available, download it.",
+        "columns": {
+            "date": "Date",
+            "depth_min": "Depth (min)",
+            "depth_max": "Depth (max)",
+            "value": "Value",
+            "standard_unit": "Standard unit",
+            "technique": "Technique",
+            "soil_property": "Soil property",
+            "soil_property_acronym": "Soil property acronym",
+            "sample_pretreatment": "Sample pretreatment",
+            "laboratory_method": "Laboratory method",
+            "extractant_concentration": "Extractant concentration",
+            "extraction_ratio": "Extraction ratio",
+            "extraction_base": "Extraction base",
+            "measurement_procedure": "Measurement procedure",
+            "limit_of_detection": "Limit of detection",
+            "dataset": "Dataset",
+            "license": "License"
+        }
+    },
+    "download_summary": {
+        "page_title": "DOWNLOAD SUMMARY",
+        "page_subtitle": "Check the datasets you are going to download",
+        "back_to_preview": "Back to the download preview",
+        "back_to_map": "Back to the map",
+        "terms_label_prefix": "I have read and agree to the platform’s",
+        "terms_link": "Terms of use",
+        "download_button": "Download data"
+    },
+    "downloads_status": {
+        "downloads": "Downloads",
+        "downloads_in_progress": "downloads in progress",
+        "extraction_message": "After extraction, data will be saved to your downloads folder.",
+        "extracting_data": "Extracting data",
+        "cancel": "Cancel",
+        "cancel_download_confirm": "Do you want to cancel the download?"
+    }
+}

@@ -14,7 +14,9 @@ exports[`FilteringSidebarHeader renders sidebar header 1`] = `
       >
         mock-svg
       </svg>
-       Filters 
+       
+      Filters
+       
       <div
         data-testid="mock-filters-counter"
       >

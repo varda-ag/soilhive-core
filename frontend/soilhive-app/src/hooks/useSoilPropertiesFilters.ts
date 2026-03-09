@@ -23,7 +23,7 @@ type SoilPropertiesFiltersType = {
 
 const useSoilPropertiesFilters = (): SoilPropertiesFiltersType => {
   const {
-    isLoading,
+    isLoadingPartialFilter,
     isNoData,
     isNoFilteredData,
     allSoilProperties,
@@ -104,9 +104,9 @@ const useSoilPropertiesFilters = (): SoilPropertiesFiltersType => {
       .map(property => ({
         id: property.id,
         label: property.property_name,
-        disabled: !isLoading && !availableSoilPropertiesIds.includes(property.id),
+        disabled: !isLoadingPartialFilter && !availableSoilPropertiesIds.includes(property.id),
       }));
-  }, [isLoading, selectedSoilProperties, allSoilProperties, availableSoilPropertiesIds]);
+  }, [isLoadingPartialFilter, selectedSoilProperties, allSoilProperties, availableSoilPropertiesIds]);
 
   const handlePillRemove = (id: string) => {
     // identify all leaf IDs that belong to the pill being removed
@@ -130,7 +130,7 @@ const useSoilPropertiesFilters = (): SoilPropertiesFiltersType => {
   }, [pillSelections]);
 
   return {
-    isLoading,
+    isLoading: isLoadingPartialFilter,
     isNoData,
     isNoFilteredData,
     nestedSoilProperties,

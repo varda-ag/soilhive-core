@@ -1793,7 +1793,7 @@ components:
           description: list of dataset IDs to include in the export
         format:
           type: string
-          enum: [csv, excel, json, geojson, shapefile]
+          enum: [csv, xlsx, gpkg, shp, geojson]
           description: Export file format
 
     FileToDbJob:
