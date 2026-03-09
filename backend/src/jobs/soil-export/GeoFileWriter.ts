@@ -73,17 +73,24 @@ export class GeoFileWriter {
       feature.setGeometry(geometry);
     }
 
+    // Build a complete field object — every field present, null values included.
+    // When passed as an object, gdal-async calls OGR_F_SetFieldNull() for null
+    // values rather than leaving them unset, which prevents the GeoJSON driver
+    // from dropping those JSON members and corrupting the layer FeatureDefn.
+    const fieldValues: Record<string, unknown> = {};
+
     for (const field of EXPORT_SCHEMA) {
       if (field.key === 'geom') {
-        if (this.isTabularFormat()) if (record.geom) feature.fields.set('geom', record.geom);
+        if (this.isTabularFormat()) {
+          fieldValues['geom'] = record.geom ?? null;
+        }
         continue;
       }
       const fieldName = this.getFieldName(field);
-
-      const value = record[field.key];
-
-      if (value !== null && value !== undefined) feature.fields.set(fieldName, value); // <-- without this check geojson driver removes the fields in the layer if a record value i null/undefined
+      fieldValues[fieldName] = record[field.key] ?? null;
     }
+
+    feature.fields.set(fieldValues);
 
     await this.currentLayer.features.addAsync(feature);
   }
