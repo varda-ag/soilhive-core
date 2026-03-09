@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.47.0 (2026-03-09)
+
+## What's Changed
+* feat: sp-4884 - clear suggestions list before search by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/274
+* fix(be): sp-4980 fix geojson export logic by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/276
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.46.0...v0.47.0
+
 ## 0.46.0 (2026-03-06)
 
 ## What's Changed
