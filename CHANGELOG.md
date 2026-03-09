@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.47.1 (2026-03-09)
+
+## What's Changed
+* fix(be): geojson export by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/277
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.47.0...v0.47.1
+
 ## 0.47.0 (2026-03-09)
 
 ## What's Changed
