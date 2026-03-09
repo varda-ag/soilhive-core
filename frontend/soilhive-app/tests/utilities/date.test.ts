@@ -1,10 +1,41 @@
-import { lastDayOfTheMonth } from '../../src/utilities/date';
+import { backendToLocalFrontendDate, lastDayOfTheMonth } from '../../src/utilities/date';
 
-describe('lastDayOfTheMonth', () => {
-  it('returns the last day of the month of a given date', () => {
-    expect(lastDayOfTheMonth(new Date('2025-01-01')).toISOString()).toBe('2025-01-31T22:59:59.999Z');
-    expect(lastDayOfTheMonth(new Date('2025-01-31')).toISOString()).toBe('2025-01-31T22:59:59.999Z');
-    expect(lastDayOfTheMonth(new Date('2025-12-01')).toISOString()).toBe('2025-12-31T22:59:59.999Z');
-    expect(lastDayOfTheMonth(new Date('2025-02-01')).toISOString()).toBe('2025-02-28T22:59:59.999Z');
+describe('date utilities (multiple-timezones)', () => {
+  describe('lastDayOfTheMonth', () => {
+    it.each([
+      ['2025-01-01', '2025-01-31'],
+      ['2025-01-31', '2025-01-31'],
+      ['2025-12-01', '2025-12-31'],
+      ['2025-12-31', '2025-12-31'],
+      ['2025-02-01', '2025-02-28'],
+      ['2024-02-01', '2024-02-29'],
+    ])('given %s, returns the last day of the month: %s', (inputDate, expectedDate) => {
+      const [year, month, day] = inputDate.split('-').map(Number);
+      const date = new Date(year, month - 1, day);
+      const result = lastDayOfTheMonth(date);
+      const [expectedYear, expectedMonth, expectedDay] = expectedDate.split('-').map(Number);
+      expect(result.getFullYear()).toBe(expectedYear);
+      expect(result.getMonth() + 1).toBe(expectedMonth);
+      expect(result.getDate()).toBe(expectedDay);
+      expect(result.getHours()).toBe(23);
+      expect(result.getMinutes()).toBe(59);
+      expect(result.getSeconds()).toBe(59);
+    });
+  });
+
+  describe('backendToLocalFrontendDate', () => {
+    it.each([['2025-01-01'], ['2025-01-31'], ['2025-12-01'], ['2025-12-31'], ['2025-02-01'], ['2024-02-01']])(
+      'given %s, returns the correct date',
+      inputStringDate => {
+        const result = backendToLocalFrontendDate(inputStringDate);
+        const [year, month, day] = inputStringDate.split('-').map(Number);
+        expect(result.getFullYear()).toBe(year);
+        expect(result.getMonth() + 1).toBe(month);
+        expect(result.getDate()).toBe(day);
+        expect(result.getHours()).toBe(0);
+        expect(result.getMinutes()).toBe(0);
+        expect(result.getSeconds()).toBe(0);
+      },
+    );
   });
 });

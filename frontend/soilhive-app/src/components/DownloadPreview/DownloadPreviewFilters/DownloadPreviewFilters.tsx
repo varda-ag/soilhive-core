@@ -8,7 +8,7 @@ import useDevice from 'hooks/useDevice';
 import { Button } from 'components/UI';
 import type { SoilProperty } from 'types/backend';
 import type { PreviewFilters } from 'types/downloadPreview';
-import { lastDayOfTheMonth } from '../../../utilities/date';
+import { backendToLocalFrontendDate, lastDayOfTheMonth } from '../../../utilities/date';
 
 function DownloadPreviewFilters({
   soilProperties = [],
@@ -65,7 +65,7 @@ function DownloadPreviewFilters({
     const { min_sampling_date, max_sampling_date } = filters;
 
     if (min_sampling_date && max_sampling_date) {
-      const dateRange = [new Date(min_sampling_date), lastDayOfTheMonth(new Date(max_sampling_date))];
+      const dateRange = [backendToLocalFrontendDate(min_sampling_date), lastDayOfTheMonth(backendToLocalFrontendDate(max_sampling_date))];
       setSelectedDateRange(dateRange);
       return;
     }
@@ -145,8 +145,8 @@ function DownloadPreviewFilters({
     const { min_sampling_date, max_sampling_date } = filters;
     if (min_sampling_date && max_sampling_date) {
       return {
-        minSamplingDate: new Date(min_sampling_date),
-        maxSamplingDate: lastDayOfTheMonth(new Date(max_sampling_date)),
+        minSamplingDate: backendToLocalFrontendDate(min_sampling_date),
+        maxSamplingDate: lastDayOfTheMonth(backendToLocalFrontendDate(max_sampling_date)),
       };
     }
     return {

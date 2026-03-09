@@ -1,9 +1,10 @@
 import type { AvailabilityDataset, TimeFilterState } from 'types/availability';
 import type { FilteredDataset } from 'types/backend';
+import { backendToLocalFrontendDate } from '../utilities/date';
 
 export const getYear = (dateString?: string | null): number | undefined => {
   if (!dateString) return undefined;
-  const date = new Date(dateString);
+  const date = backendToLocalFrontendDate(dateString);
   return date.getFullYear();
 };
 

@@ -16,6 +16,7 @@ import type { Nullable } from 'primereact/ts-helpers';
 import useAvailability from 'hooks/useAvailability';
 import type { Feature, GeoJsonProperties, MultiPolygon, Point, Polygon } from 'geojson';
 import { useNavigate } from 'react-router';
+import { backendToLocalFrontendDate } from '../utilities/date';
 
 const MAXIMUM_SOIL_DATA_PER_REQUEST = 100;
 
@@ -89,7 +90,10 @@ function DownloadPreview() {
 
   const { min_sampling_date, max_sampling_date, min_depth, max_depth } = availabilitySelectedFilters?.filter.parameters ?? {};
 
-  const fixedCalendarRange = min_sampling_date && max_sampling_date ? [new Date(min_sampling_date), new Date(max_sampling_date)] : null;
+  const fixedCalendarRange =
+    min_sampling_date && max_sampling_date
+      ? [backendToLocalFrontendDate(min_sampling_date), backendToLocalFrontendDate(max_sampling_date)]
+      : null;
   const fixedDepthRange: Nullable<[number, number]> = min_depth && max_depth ? [min_depth, max_depth] : null;
 
   const { globalDateStart, globalDateEnd /*globalMinDepth, globalMaxDepth*/ } = computeDatasetSummary(availableFilteredDatasets);
