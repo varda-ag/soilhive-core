@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.48.0 (2026-03-10)
+
+## What's Changed
+* feat: sp-4898 changes to preview page by @cristbello in https://github.com/varda-ag/soilhive-core/pull/249
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.47.1...v0.48.0
+
 ## 0.47.1 (2026-03-09)
 
 ## What's Changed
