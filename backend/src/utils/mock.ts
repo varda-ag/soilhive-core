@@ -181,8 +181,9 @@ export const addFeatures = async (type: string, coordinatesArray) => {
 export const addLicense = async (name: string) => {
   const dataSource = await getDataSource();
   const repo = dataSource.getRepository(LicenseEntity);
-  const license = repo.create({ name, slug: name });
-  return await repo.save(license);
+  const license = repo.create({ name }); // Only set name. Slug is calculated by DB
+  const saved = await repo.save(license);
+  return await repo.findOneByOrFail({ id: saved.id });
 };
 
 export const addUnitConversion = async (
@@ -330,11 +331,12 @@ export const addSyntheticData = async (syntheticDataOptions): Promise<SyntheticD
   assert(spatial_extent.length === 4, 'spatial_extent must be an array of 4 numbers [minX, minY, maxX, maxY]');
   assert(soilPropertyNames.length > 0, 'soilPropertyNames must be a non-empty array of strings');
   const year = 2020 + (id % 10); // Vary year between 2020-2029
+  const license = await addLicense(datasetLicense ?? `test_license_${id}`);
   const dataset = await addDataset(
     `test_dataset_${id}`,
     spatial_extent,
     featureGeometryType === 'Point' ? GISDataType.POINT : GISDataType.POLYGONAL,
-    datasetLicense ? [datasetLicense] : [],
+    [license.slug],
   );
   dataset.soil_depth = { min: 0, max: depthLayers * 10 };
   dataset.reference_period_start = `${year}-01-01`;
@@ -346,7 +348,6 @@ export const addSyntheticData = async (syntheticDataOptions): Promise<SyntheticD
     soilProperties.push(await addSoilProperty(soilPropertyNames[i], category.id));
   }
   const procedure = await addProcedure(`test_procedure_${id}`);
-  const license = await addLicense(datasetLicense ?? `test_license_${id}`);
   const coordinates: [number, number][] = [];
   if (featureCoordinates) {
     // Coordinates provided explicitly

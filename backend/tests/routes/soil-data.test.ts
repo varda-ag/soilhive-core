@@ -434,7 +434,7 @@ describe('Testing /soil-data routes', () => {
 
   it('Dataset license should be returned if no license is available at layer level', async () => {
     const spatial_extent = [0, 0, 10, 10];
-    const datasetLicense = 'dataset-license';
+    const datasetLicense = 'dataset license';
     const { dataset } = await addSyntheticData({
       ...syntheticDataOptions,
       spatial_extent,
