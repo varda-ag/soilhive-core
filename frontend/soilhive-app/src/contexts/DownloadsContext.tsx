@@ -93,6 +93,21 @@ export const DownloadsProvider: React.FC<DownloadsProviderProps> = ({ children }
     });
   }, [jobsData, showNotification]);
 
+  useEffect(() => {
+    if (!downloads.length) return;
+
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [downloads.length]);
+
   const value = useMemo(() => ({ downloads, startDownload, cancelDownload }), [downloads, startDownload, cancelDownload]);
 
   return <DownloadsContext.Provider value={value}>{children}</DownloadsContext.Provider>;
