@@ -431,6 +431,24 @@ describe('Testing /soil-data routes', () => {
       expect(item.sampling_date).toBe(expected_sampling_date);
     }
   });
+
+  it('Dataset license should be returned if no license is available at layer level', async () => {
+    const spatial_extent = [0, 0, 10, 10];
+    const datasetLicense = 'dataset license';
+    const { dataset } = await addSyntheticData({
+      ...syntheticDataOptions,
+      spatial_extent,
+      datasetLicense,
+    });
+
+    // Create a data filter covering the entire extent
+    const filterId = await createFilter(spatial_extent);
+
+    const res = await request(app).get(`/soil-data?filterId=${filterId}&datasets=${dataset.slug}`);
+    expect(res.statusCode).toBe(StatusCodes.OK);
+    const licenses = res.body.map((r: any) => r.license_name);
+    licenses.forEach((l: string) => expect(l).toBe(datasetLicense));
+  });
 });
 
 const createFilter = async (spatial_extent: number[], parameters = {}): Promise<string> => {

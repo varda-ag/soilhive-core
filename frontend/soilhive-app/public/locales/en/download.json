@@ -14,8 +14,7 @@
         "soil_properties": "Soil Properties"
     },
     "download_preview": {
-        "page_title": "DOWNLOAD PREVIEW",
-        "page_subtitle": "This is a preview of the soil data filtered by the selected area and criteria. To download the data press the button on the top-right of this page",
+        "page_title": "PREVIEW",
         "back": "Back",
         "download_button": "Download data",
         "tab_summary": "Summary",

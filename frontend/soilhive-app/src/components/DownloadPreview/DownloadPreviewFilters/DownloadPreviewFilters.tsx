@@ -2,13 +2,14 @@ import { Dropdown, type DropdownChangeEvent } from 'primereact/dropdown';
 import { Calendar } from 'primereact/calendar';
 import { Dialog } from 'primereact/dialog';
 import type { FormEvent, Nullable } from 'primereact/ts-helpers';
-import { useEffect, useState, type Dispatch, type SetStateAction, type SyntheticEvent } from 'react';
+import { useEffect, useMemo, useState, type Dispatch, type SetStateAction, type SyntheticEvent } from 'react';
 import styles from './DownloadPreviewFilters.module.scss';
 import useDevice from 'hooks/useDevice';
 import { Button } from 'components/UI';
 import { useTranslation } from 'react-i18next';
 import type { SoilProperty } from 'types/backend';
 import type { PreviewFilters } from 'types/downloadPreview';
+import { backendToLocalFrontendDate, firstDayOfTheMonth, lastDayOfTheMonth } from '../../../utilities/date';
 
 function DownloadPreviewFilters({
   soilProperties = [],
@@ -43,13 +44,34 @@ function DownloadPreviewFilters({
   const { t } = useTranslation('download');
   const [selectedDateRange, setSelectedDateRange] = useState<Nullable<Array<Date | null>>>(fixedCalendarRange);
 
+  const { minDate, maxDate, minMaxDateAreSameMonth } = useMemo(() => {
+    if (!calendarMinMaxRange) return { minDate: undefined, maxDate: undefined };
+    let minDate = calendarMinMaxRange[0];
+    if (minDate) {
+      minDate = firstDayOfTheMonth(minDate);
+    }
+
+    let maxDate = calendarMinMaxRange[1];
+    if (maxDate) {
+      maxDate = lastDayOfTheMonth(maxDate);
+    }
+
+    return {
+      minDate,
+      maxDate,
+      minMaxDateAreSameMonth:
+        minDate && maxDate && minDate.getMonth() === maxDate.getMonth() && minDate.getFullYear() === maxDate.getFullYear(),
+    };
+  }, [calendarMinMaxRange]);
+
   useEffect(() => {
     if (fixedCalendarRange) return;
 
     const { min_sampling_date, max_sampling_date } = filters;
 
     if (min_sampling_date && max_sampling_date) {
-      setSelectedDateRange([new Date(min_sampling_date), new Date(max_sampling_date)]);
+      const dateRange = [backendToLocalFrontendDate(min_sampling_date), lastDayOfTheMonth(backendToLocalFrontendDate(max_sampling_date))];
+      setSelectedDateRange(dateRange);
       return;
     }
 
@@ -109,8 +131,12 @@ function DownloadPreviewFilters({
       return;
     }
 
-    const min = (selectedDateRange[0] as unknown as Date).toISOString();
-    const max = (selectedDateRange[1] as unknown as Date).toISOString();
+    const minDate = selectedDateRange[0] as unknown as Date;
+    const min = `${minDate.getFullYear()}-${String(minDate.getMonth() + 1).padStart(2, '0')}-01`;
+
+    const maxDate = lastDayOfTheMonth(selectedDateRange[1] as unknown as Date);
+    const max = `${maxDate.getFullYear()}-${String(maxDate.getMonth() + 1).padStart(2, '0')}-${String(maxDate.getDate()).padStart(2, '0')}`;
+
     if (filters.min_sampling_date === min && filters.max_sampling_date === max) return;
     onFiltersChange?.({
       ...filters,
@@ -119,6 +145,20 @@ function DownloadPreviewFilters({
       max_sampling_date: max,
     });
   };
+
+  const { minSamplingDate, maxSamplingDate } = useMemo(() => {
+    const { min_sampling_date, max_sampling_date } = filters;
+    if (min_sampling_date && max_sampling_date) {
+      return {
+        minSamplingDate: firstDayOfTheMonth(backendToLocalFrontendDate(min_sampling_date)),
+        maxSamplingDate: lastDayOfTheMonth(backendToLocalFrontendDate(max_sampling_date)),
+      };
+    }
+    return {
+      minSamplingDate: undefined,
+      maxSamplingDate: undefined,
+    };
+  }, [filters]);
 
   const controls = (
     <>
@@ -161,7 +201,7 @@ function DownloadPreviewFilters({
         panelClassName={styles.DropdownPanel}
         inputClassName={styles.CalendarInput}
         readOnlyInput
-        value={selectedDateRange}
+        value={minMaxDateAreSameMonth ? [minDate ?? null, maxDate ?? null] : selectedDateRange}
         onChange={onCalendarChange}
         onHide={onCalendarHide}
         showButtonBar
@@ -169,10 +209,12 @@ function DownloadPreviewFilters({
         hideOnRangeSelection
         placeholder={t('download_preview.select_date_range')}
         showIcon
-        minDate={calendarMinMaxRange[0]}
-        maxDate={calendarMinMaxRange[1]}
+        view="month"
+        dateFormat="mm/yy"
+        minDate={minDate ?? minSamplingDate}
+        maxDate={maxDate ?? maxSamplingDate}
         showMinMaxRange={true}
-        disabled={isLoading || !!fixedCalendarRange}
+        disabled={isLoading || !!fixedCalendarRange || (!selectedDateRange && minMaxDateAreSameMonth)}
       />
     </>
   );

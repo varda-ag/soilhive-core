@@ -1,6 +1,7 @@
 import type { DatasetSummary } from 'types/availability';
 import type { FilteredDataset } from 'types/backend';
 import { getYear } from '../adapters';
+import { backendToLocalFrontendDate } from '../utilities/date';
 
 export function computeDatasetSummary(fetchedFilteredResults: FilteredDataset[] | undefined): DatasetSummary {
   let globalDataPoints = 0;
@@ -51,8 +52,8 @@ export function computeDatasetSummary(fetchedFilteredResults: FilteredDataset[] 
     layers: globalLayers,
     depth,
     date,
-    globalDateStart: globalDateStart ? new Date(globalDateStart) : null,
-    globalDateEnd: globalDateEnd ? new Date(globalDateEnd) : null,
+    globalDateStart: globalDateStart ? backendToLocalFrontendDate(globalDateStart) : null,
+    globalDateEnd: globalDateEnd ? backendToLocalFrontendDate(globalDateEnd) : null,
     globalMinDepth,
     globalMaxDepth,
   };

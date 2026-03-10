@@ -56,6 +56,7 @@ export const syntheticDataOptions = {
   featureGeometryType: 'Point',
   showProgress: false,
   useProgressiveObservationValues: false,
+  datasetLicense: undefined,
 };
 
 export const syntheticIngestionDataOptions = {
@@ -101,6 +102,7 @@ export const addDataset = async (
   name: string,
   spatial_extent: number[],
   gis_datatype: GISDataType = GISDataType.POINT,
+  licenses: string[] = [],
 ): Promise<DatasetEntity> => {
   const dataSource = await getDataSource();
   const repo = dataSource.getRepository(DatasetEntity);
@@ -110,6 +112,7 @@ export const addDataset = async (
     slug: name,
     created_by: 'tests',
     gis_datatype,
+    licenses,
     status: IngestionStatus.INGESTED,
     spatial_extent: getPolygonFromBbox(spatial_extent),
   });
@@ -178,8 +181,9 @@ export const addFeatures = async (type: string, coordinatesArray) => {
 export const addLicense = async (name: string) => {
   const dataSource = await getDataSource();
   const repo = dataSource.getRepository(LicenseEntity);
-  const license = repo.create({ name, slug: name });
-  return await repo.save(license);
+  const license = repo.create({ name }); // Only set name. Slug is calculated by DB
+  const saved = await repo.save(license);
+  return await repo.findOneByOrFail({ id: saved.id });
 };
 
 export const addUnitConversion = async (
@@ -199,7 +203,7 @@ export const addUnitConversion = async (
 };
 
 export const addLayer = async (
-  license: string,
+  license?: string,
   sampling_date?: string,
   min_depth?: number,
   max_depth?: number,
@@ -209,7 +213,8 @@ export const addLayer = async (
   const repo = dataSource.getRepository(LayerEntity);
 
   // Build object excluding undefined
-  const layerData: Partial<LayerEntity> = { license };
+  const layerData: Partial<LayerEntity> = {};
+  if (license !== undefined) layerData.license = license;
   if (sampling_date !== undefined) layerData.sampling_date = sampling_date;
   if (min_depth !== undefined) layerData.min_depth = min_depth;
   if (max_depth !== undefined) layerData.max_depth = max_depth;
@@ -318,6 +323,7 @@ export const addSyntheticData = async (syntheticDataOptions): Promise<SyntheticD
     depthLayers,
     addNullValues,
     useProgressiveObservationValues,
+    datasetLicense,
   } = syntheticDataOptions;
   assert(featureCount > 0, 'featureCount must be greater than 0');
   assert(observationsPerLayer > 0, 'observationsPerLayer must be greater than 0');
@@ -325,10 +331,12 @@ export const addSyntheticData = async (syntheticDataOptions): Promise<SyntheticD
   assert(spatial_extent.length === 4, 'spatial_extent must be an array of 4 numbers [minX, minY, maxX, maxY]');
   assert(soilPropertyNames.length > 0, 'soilPropertyNames must be a non-empty array of strings');
   const year = 2020 + (id % 10); // Vary year between 2020-2029
+  const license = await addLicense(datasetLicense ?? `test_license_${id}`);
   const dataset = await addDataset(
     `test_dataset_${id}`,
     spatial_extent,
     featureGeometryType === 'Point' ? GISDataType.POINT : GISDataType.POLYGONAL,
+    [license.slug],
   );
   dataset.soil_depth = { min: 0, max: depthLayers * 10 };
   dataset.reference_period_start = `${year}-01-01`;
@@ -340,7 +348,6 @@ export const addSyntheticData = async (syntheticDataOptions): Promise<SyntheticD
     soilProperties.push(await addSoilProperty(soilPropertyNames[i], category.id));
   }
   const procedure = await addProcedure(`test_procedure_${id}`);
-  const license = await addLicense(`test_license_${id}`);
   const coordinates: [number, number][] = [];
   if (featureCoordinates) {
     // Coordinates provided explicitly
@@ -362,7 +369,7 @@ export const addSyntheticData = async (syntheticDataOptions): Promise<SyntheticD
   let counter = 1;
   for (let depthLayer = 0; depthLayer < depthLayers; depthLayer++) {
     const depth = depthLayer * 10;
-    const layer = await addLayer(license.id, `${year}-01-01`, depth, depth + 10, `A${depthLayer}`);
+    const layer = await addLayer(datasetLicense ? undefined : license.id, `${year}-01-01`, depth, depth + 10, `A${depthLayer}`);
     const datasetLayers = await addDatasetLayers(
       dataset.id,
       layer.id,
