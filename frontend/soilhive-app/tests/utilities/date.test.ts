@@ -1,4 +1,4 @@
-import { backendToLocalFrontendDate, lastDayOfTheMonth } from '../../src/utilities/date';
+import { backendToLocalFrontendDate, firstDayOfTheMonth, lastDayOfTheMonth } from '../../src/utilities/date';
 
 describe('date utilities (multiple-timezones)', () => {
   describe('lastDayOfTheMonth', () => {
@@ -20,6 +20,28 @@ describe('date utilities (multiple-timezones)', () => {
       expect(result.getHours()).toBe(23);
       expect(result.getMinutes()).toBe(59);
       expect(result.getSeconds()).toBe(59);
+    });
+  });
+
+  describe('firstDayOfTheMonth', () => {
+    it.each([
+      ['2025-01-01', '2025-01-01'],
+      ['2025-01-31', '2025-01-01'],
+      ['2025-12-01', '2025-12-01'],
+      ['2025-12-31', '2025-12-01'],
+      ['2025-02-01', '2025-02-01'],
+      ['2024-02-01', '2024-02-01'],
+    ])('given %s, returns the first day of the month: %s', (inputDate, expectedDate) => {
+      const [year, month, day] = inputDate.split('-').map(Number);
+      const date = new Date(year, month - 1, day);
+      const result = firstDayOfTheMonth(date);
+      const [expectedYear, expectedMonth, expectedDay] = expectedDate.split('-').map(Number);
+      expect(result.getFullYear()).toBe(expectedYear);
+      expect(result.getMonth() + 1).toBe(expectedMonth);
+      expect(result.getDate()).toBe(expectedDay);
+      expect(result.getHours()).toBe(0);
+      expect(result.getMinutes()).toBe(0);
+      expect(result.getSeconds()).toBe(0);
     });
   });
 

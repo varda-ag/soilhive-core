@@ -9,7 +9,7 @@ import { Button } from 'components/UI';
 import { useTranslation } from 'react-i18next';
 import type { SoilProperty } from 'types/backend';
 import type { PreviewFilters } from 'types/downloadPreview';
-import { backendToLocalFrontendDate, lastDayOfTheMonth } from '../../../utilities/date';
+import { backendToLocalFrontendDate, firstDayOfTheMonth, lastDayOfTheMonth } from '../../../utilities/date';
 
 function DownloadPreviewFilters({
   soilProperties = [],
@@ -46,7 +46,10 @@ function DownloadPreviewFilters({
 
   const { minDate, maxDate, minMaxDateAreSameMonth } = useMemo(() => {
     if (!calendarMinMaxRange) return { minDate: undefined, maxDate: undefined };
-    const minDate = calendarMinMaxRange[0];
+    let minDate = calendarMinMaxRange[0];
+    if (minDate) {
+      minDate = firstDayOfTheMonth(minDate);
+    }
 
     let maxDate = calendarMinMaxRange[1];
     if (maxDate) {
@@ -147,7 +150,7 @@ function DownloadPreviewFilters({
     const { min_sampling_date, max_sampling_date } = filters;
     if (min_sampling_date && max_sampling_date) {
       return {
-        minSamplingDate: backendToLocalFrontendDate(min_sampling_date),
+        minSamplingDate: firstDayOfTheMonth(backendToLocalFrontendDate(min_sampling_date)),
         maxSamplingDate: lastDayOfTheMonth(backendToLocalFrontendDate(max_sampling_date)),
       };
     }
