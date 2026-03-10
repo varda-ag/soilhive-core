@@ -1,6 +1,6 @@
 import { useQuery, type QueryKey } from '@tanstack/react-query';
 import { useRequest } from '../api-client';
-import { BACKEND_BASE_URL } from '../configuration/api';
+import { buildApiUrl } from '../utilities/buildApiUrl';
 
 type UseApiQueryOptions<TBody = void> = {
   endpoint: string;
@@ -16,14 +16,7 @@ type UseApiQueryOptions<TBody = void> = {
 export function useApiQuery<TResponse, TBody = void>({ endpoint, method, body, parameters, queryKey, enabled }: UseApiQueryOptions<TBody>) {
   const { request } = useRequest();
 
-  let url = `${BACKEND_BASE_URL}${endpoint}`;
-  if (parameters) {
-    const urlObj = new URL(url);
-    for (const parameter of parameters) {
-      urlObj.searchParams.append(parameter[0], parameter[1]);
-    }
-    url = urlObj.href;
-  }
+  const url = buildApiUrl(endpoint, parameters);
 
   const fetchData = async (): Promise<TResponse> => {
     return await request({
