@@ -1,17 +1,19 @@
 import type { AvailabilityDataset, TimeFilterState } from 'types/availability';
 import type { FilteredDataset } from 'types/backend';
+import { backendToLocalFrontendDate } from '../utilities/date';
 
 export const getYear = (dateString?: string | null): number | undefined => {
   if (!dateString) return undefined;
-  const date = new Date(dateString);
+  const date = backendToLocalFrontendDate(dateString);
   return date.getFullYear();
 };
 
 export const yearRangeToDatasetFilters = ({ min, max }: TimeFilterState) => {
-  return {
-    min_sampling_date: min ? new Date(min, 0, 1).toISOString() : undefined,
-    max_sampling_date: max ? new Date(max, 11, 31, 23, 59, 59, 999).toISOString() : undefined,
+  const toReturn = {
+    min_sampling_date: min ? `${min}-01-01` : undefined,
+    max_sampling_date: max ? `${max}-12-31` : undefined,
   };
+  return toReturn;
 };
 
 export function mapFilteredDatasetToAvailabilityDataset(dataset: FilteredDataset): AvailabilityDataset {

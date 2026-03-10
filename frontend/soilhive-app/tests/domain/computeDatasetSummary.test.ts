@@ -1,6 +1,6 @@
 import { computeDatasetSummary } from '../../src/domain/computeDatasetSummary';
 
-describe('computeDatasetSummary domain logic', () => {
+describe('computeDatasetSummary domain logic (multiple-timezones)', () => {
   test.each([
     {
       name: 'only dataset_layer_count property',
@@ -32,8 +32,8 @@ describe('computeDatasetSummary domain logic', () => {
           dataset_layer_count: 20,
           min_depth: 0,
           max_depth: 60,
-          min_sampling_date: '2023',
-          max_sampling_date: '2025',
+          min_sampling_date: '2023-01-01',
+          max_sampling_date: '2025-02-25',
         },
       ],
       expected: {
@@ -42,8 +42,8 @@ describe('computeDatasetSummary domain logic', () => {
         layers: 0,
         depth: '0-60',
         date: '2023-2025',
-        globalDateEnd: new Date('2025-01-01T00:00:00.000Z'),
-        globalDateStart: new Date('2023-01-01T00:00:00.000Z'),
+        globalDateEnd: new Date(2025, 1, 25), // Corresponding to 2025/02/25
+        globalDateStart: new Date(2023, 0, 1), // Corresponding to 2023/01/01
         globalMaxDepth: 60,
         globalMinDepth: 0,
       },

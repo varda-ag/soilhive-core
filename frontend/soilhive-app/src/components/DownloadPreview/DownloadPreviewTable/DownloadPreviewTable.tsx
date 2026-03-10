@@ -11,6 +11,7 @@ import type { SoilDataSample } from 'types/backend';
 import { feature } from '@turf/turf';
 import type { Feature, GeoJsonProperties, MultiPolygon, Point, Polygon } from 'geojson';
 import { useTranslation } from 'react-i18next';
+import { backendToLocalFrontendDate } from '../../../utilities/date';
 
 function DownloadPreviewTable({
   data = [],
@@ -76,7 +77,7 @@ function DownloadPreviewTable({
         }}
       >
         {geometry && <MapPinIcon />}
-        {sampling_date ? new Date(sampling_date).toLocaleDateString() : '-'}
+        {sampling_date ? backendToLocalFrontendDate(sampling_date).toLocaleDateString() : '-'}
       </Button>
     );
   };
