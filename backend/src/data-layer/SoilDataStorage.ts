@@ -137,6 +137,7 @@ export default class SoilDataStorage {
 
 const applySelectToQuery = (query: any) => {
   query
+    .leftJoin('licenses', 'license_fallback', 'license_fallback.slug = ds.licenses[1]')
     .select('obs.id', 'id')
     .addSelect('ds.slug', 'dataset_slug')
     .addSelect('ds.name', 'dataset_name')
@@ -145,7 +146,7 @@ const applySelectToQuery = (query: any) => {
     .addSelect('soil_property.standard_unit', 'standard_unit')
     .addSelect('obs.value', 'value')
     .addSelect('ST_AsGeoJSON(matching_features.geom)::json', 'geometry')
-    .addSelect('COALESCE(license.name, (SELECT name from licenses where slug = ds.licenses[1]))', 'license_name')
+    .addSelect('COALESCE(license.name, license_fallback.name)', 'license_name')
     .addSelect('layer.sampling_date::text', 'sampling_date')
     .addSelect('layer.min_depth', 'min_depth')
     .addSelect('layer.max_depth', 'max_depth')
