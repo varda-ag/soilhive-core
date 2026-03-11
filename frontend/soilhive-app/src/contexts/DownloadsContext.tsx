@@ -1,13 +1,18 @@
-import React, { createContext, useState, type ReactNode, useCallback, useMemo } from 'react';
+import { useCancelJobMutation, useCreateJobMutation, useJobsQueries } from 'hooks/useJobsApi';
+import React, { createContext, useState, type ReactNode, useCallback, useMemo, useEffect, useRef } from 'react';
+import type { AsyncJob } from 'types/jobs';
+import useNotifications from 'hooks/useNotifications';
+import { BACKEND_BASE_URL, REST_END_POINTS } from '../configuration/api';
 
 type DownloadsItem = {
   id: string;
+  status?: string;
   progress: number;
 };
 
 type DownloadsContextType = {
   downloads: DownloadsItem[];
-  pushDownload: (file: DownloadsItem) => void;
+  startDownload: (payload: { filter_id: string; dataset_ids: string[]; format: string }) => void;
   cancelDownload: (id: string) => void;
 };
 
@@ -17,29 +22,95 @@ type DownloadsProviderProps = {
   children: ReactNode;
 };
 
-const mockDownloads: DownloadsItem[] = [
-  {
-    id: '1',
-    progress: 85,
-  },
-  {
-    id: '2',
-    progress: 53,
-  },
-];
-
 export const DownloadsProvider: React.FC<DownloadsProviderProps> = ({ children }) => {
-  const [downloads, setDownloads] = useState<DownloadsItem[]>(mockDownloads);
+  const [jobsIds, setJobsIds] = useState<string[]>([]);
+  const prevStatusRef = useRef<Record<string, string | undefined>>({});
+  const createJob = useCreateJobMutation();
+  const cancelJob = useCancelJobMutation();
 
-  const pushDownload = useCallback((file: DownloadsItem) => {
-    setDownloads(prev => [...prev, file]);
-  }, []);
+  const { showNotification } = useNotifications();
 
-  const cancelDownload = useCallback((id: string) => {
-    setDownloads(prev => prev.filter(item => item.id !== id));
-  }, []);
+  const jobsQueries = useJobsQueries(jobsIds);
 
-  const value = useMemo(() => ({ downloads, pushDownload, cancelDownload }), [downloads, pushDownload, cancelDownload]);
+  const jobsData = useMemo(() => jobsQueries.map(query => query.data).filter((job: AsyncJob | undefined) => !!job), [jobsQueries]);
+
+  const downloads = useMemo(() => {
+    return jobsData
+      .filter(job => job.status !== 'completed' && job.status !== 'failed')
+      .map(job => ({
+        id: job.id,
+        status: job.status,
+        progress: job.data?.progress_percentage ?? 0,
+      }));
+  }, [jobsData]);
+
+  const startDownload = useCallback(
+    async (payload: { filter_id: string; dataset_ids: string[]; format: string }) => {
+      const res = await createJob.mutateAsync({ ...payload, type: 'export' });
+
+      setJobsIds(prev => [...prev, res.id]);
+      prevStatusRef.current[res.id] = 'created';
+
+      return res.id;
+    },
+    [createJob],
+  );
+
+  const cancelDownload = useCallback(
+    async (id: string) => {
+      await cancelJob.mutateAsync({ jobId: id });
+      setJobsIds(prev => prev.filter(jobId => jobId !== id));
+      delete prevStatusRef.current[id];
+    },
+    [cancelJob],
+  );
+
+  useEffect(() => {
+    jobsData.forEach(job => {
+      const prevStatus = prevStatusRef.current[job.id];
+      const nextStatus = job.status;
+
+      if (prevStatus === nextStatus) return;
+
+      if (nextStatus === 'completed') {
+        const filePath = (job.data.download_path as string).replace(/\//g, '%2F');
+        const url = `${BACKEND_BASE_URL}/${REST_END_POINTS.DOWNLOADS}/${filePath}`;
+
+        const link = document.createElement('a');
+        link.href = url;
+        link.target = '_blank';
+
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setJobsIds(prev => prev.filter(jobId => jobId !== job.id));
+      }
+
+      if (nextStatus === 'failed') {
+        showNotification({ id: `downloads-${job.id}`, title: 'Extracting data error', message: 'Please try again later' });
+        setJobsIds(prev => prev.filter(jobId => jobId !== job.id));
+      }
+
+      prevStatusRef.current[job.id] = nextStatus;
+    });
+  }, [jobsData, showNotification]);
+
+  useEffect(() => {
+    if (!downloads.length) return;
+
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [downloads.length]);
+
+  const value = useMemo(() => ({ downloads, startDownload, cancelDownload }), [downloads, startDownload, cancelDownload]);
 
   return <DownloadsContext.Provider value={value}>{children}</DownloadsContext.Provider>;
 };

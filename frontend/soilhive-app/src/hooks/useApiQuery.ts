@@ -1,8 +1,9 @@
-import { useQuery, type QueryKey } from '@tanstack/react-query';
+import { Query, useQuery, type QueryKey } from '@tanstack/react-query';
 import { useRequest } from '../api-client';
-import { BACKEND_BASE_URL } from '../configuration/api';
+import { buildApiUrl } from '../utilities/buildApiUrl';
+import { QUERY_STALE_TIME } from '../configuration/api';
 
-type UseApiQueryOptions<TBody = void> = {
+type UseApiQueryOptions<TResponse, TBody = void> = {
   endpoint: string;
   method: 'GET' | 'POST';
   body?: TBody;
@@ -11,19 +12,21 @@ type UseApiQueryOptions<TBody = void> = {
   parameters?: Array<[string, string]>;
   queryKey: QueryKey;
   enabled: boolean;
+  refetchInterval?: number | false | ((query: Query<TResponse, Error, TResponse, QueryKey>) => number | false | undefined);
 };
 
-export function useApiQuery<TResponse, TBody = void>({ endpoint, method, body, parameters, queryKey, enabled }: UseApiQueryOptions<TBody>) {
+export function useApiQuery<TResponse, TBody = void>({
+  endpoint,
+  method,
+  body,
+  parameters,
+  queryKey,
+  enabled,
+  refetchInterval,
+}: UseApiQueryOptions<TResponse, TBody>) {
   const { request } = useRequest();
 
-  let url = `${BACKEND_BASE_URL}${endpoint}`;
-  if (parameters) {
-    const urlObj = new URL(url);
-    for (const parameter of parameters) {
-      urlObj.searchParams.append(parameter[0], parameter[1]);
-    }
-    url = urlObj.href;
-  }
+  const url = buildApiUrl(endpoint, parameters);
 
   const fetchData = async (): Promise<TResponse> => {
     return await request({
@@ -37,6 +40,7 @@ export function useApiQuery<TResponse, TBody = void>({ endpoint, method, body, p
     queryKey,
     queryFn: fetchData,
     enabled,
-    staleTime: 600000, // Caching the responses for 10 minutes (use @tanstack/react-query-devtools for useQuery debugging)
+    staleTime: QUERY_STALE_TIME,
+    refetchInterval,
   });
 }
