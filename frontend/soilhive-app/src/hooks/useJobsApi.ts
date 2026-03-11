@@ -2,12 +2,13 @@ import { useApiQuery } from 'hooks/useApiQuery';
 import { useApiMutation } from 'hooks/useApiMutation';
 import type { AsyncJob } from 'types/jobs';
 import { useApiQueries } from './useApiQueries';
+import { REST_END_POINTS } from '../configuration/api';
 
 const POLL_MS = 2000;
 
 export function useJobsListQuery() {
   return useApiQuery<AsyncJob[]>({
-    endpoint: 'jobs',
+    endpoint: `/${REST_END_POINTS.JOBS}`,
     method: 'GET',
     queryKey: ['jobs'],
     enabled: true,
@@ -16,7 +17,7 @@ export function useJobsListQuery() {
 
 export function useJobQuery(jobId: string, enabled = true) {
   return useApiQuery<AsyncJob>({
-    endpoint: `jobs/${jobId}`,
+    endpoint: `/${REST_END_POINTS.JOBS}/${jobId}`,
     method: 'GET',
     queryKey: ['jobs', jobId],
     enabled,
@@ -26,7 +27,7 @@ export function useJobQuery(jobId: string, enabled = true) {
 export function useJobsQueries(jobIds: string[]) {
   return useApiQueries<AsyncJob>(
     jobIds.map(jobId => ({
-      endpoint: `/jobs/${jobId}`,
+      endpoint: `/${REST_END_POINTS.JOBS}/${jobId}`,
       method: 'GET',
       queryKey: ['jobs', jobId],
       enabled: true,
@@ -41,14 +42,14 @@ export function useJobsQueries(jobIds: string[]) {
 
 export function useCreateJobMutation() {
   return useApiMutation<{ id: string }, unknown>({
-    endpoint: 'jobs',
+    endpoint: `/${REST_END_POINTS.JOBS}`,
     method: 'POST',
   });
 }
 
 export function useCancelJobMutation() {
   return useApiMutation<void, { jobId: string }>({
-    endpoint: ({ jobId }) => `jobs/${jobId}`,
+    endpoint: ({ jobId }) => `/${REST_END_POINTS.JOBS}/${jobId}`,
     method: 'DELETE',
   });
 }

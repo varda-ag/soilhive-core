@@ -14,6 +14,10 @@ jest.mock('../../src/utilities/buildApiUrl', () => ({
   buildApiUrl: jest.fn(),
 }));
 
+jest.mock('../../src/configuration/api', () => ({
+  QUERY_STALE_TIME: 600000,
+}));
+
 function createWrapper() {
   const queryClient = new QueryClient({
     defaultOptions: {

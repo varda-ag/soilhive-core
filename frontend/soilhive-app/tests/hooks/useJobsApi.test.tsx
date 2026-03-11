@@ -16,6 +16,12 @@ jest.mock('hooks/useApiQueries', () => ({
   useApiQueries: jest.fn(),
 }));
 
+jest.mock('../../src/configuration/api', () => ({
+  REST_END_POINTS: {
+    JOBS: 'jobs',
+  },
+}));
+
 describe('useJobsApi', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -29,7 +35,7 @@ describe('useJobsApi', () => {
       const result = useJobsListQuery();
 
       expect(useApiQuery).toHaveBeenCalledWith({
-        endpoint: 'jobs',
+        endpoint: '/jobs',
         method: 'GET',
         queryKey: ['jobs'],
         enabled: true,
@@ -46,7 +52,7 @@ describe('useJobsApi', () => {
       const result = useJobQuery('123');
 
       expect(useApiQuery).toHaveBeenCalledWith({
-        endpoint: 'jobs/123',
+        endpoint: '/jobs/123',
         method: 'GET',
         queryKey: ['jobs', '123'],
         enabled: true,
@@ -60,7 +66,7 @@ describe('useJobsApi', () => {
       useJobQuery('123', false);
 
       expect(useApiQuery).toHaveBeenCalledWith({
-        endpoint: 'jobs/123',
+        endpoint: '/jobs/123',
         method: 'GET',
         queryKey: ['jobs', '123'],
         enabled: false,
@@ -170,7 +176,7 @@ describe('useJobsApi', () => {
       const result = useCreateJobMutation();
 
       expect(useApiMutation).toHaveBeenCalledWith({
-        endpoint: 'jobs',
+        endpoint: '/jobs',
         method: 'POST',
       });
       expect(result).toBe(mockedResult);
@@ -199,7 +205,7 @@ describe('useJobsApi', () => {
       const arg = (useApiMutation as jest.Mock).mock.calls[0][0];
       const endpoint = arg.endpoint as ({ jobId }: { jobId: string }) => string;
 
-      expect(endpoint({ jobId: '123' })).toBe('jobs/123');
+      expect(endpoint({ jobId: '123' })).toBe('/jobs/123');
     });
   });
 });

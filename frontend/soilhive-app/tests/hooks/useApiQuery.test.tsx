@@ -14,8 +14,9 @@ jest.mock('../../src/utilities/buildApiUrl', () => ({
   buildApiUrl: jest.fn(),
 }));
 
-// const mockedUseRequest = useRequest as jest.MockedFunction<typeof useRequest>;
-// const mockedBuildApiUrl = buildApiUrl as jest.MockedFunction<typeof buildApiUrl>;
+jest.mock('../../src/configuration/api', () => ({
+  QUERY_STALE_TIME: 600000,
+}));
 
 function createWrapper() {
   const queryClient = new QueryClient({
@@ -33,7 +34,6 @@ function createWrapper() {
 
 describe('useApiQuery', () => {
   const requestMock = jest.fn();
-  // const buildApiUrlMock = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();

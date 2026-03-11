@@ -2,7 +2,7 @@ import { useCancelJobMutation, useCreateJobMutation, useJobsQueries } from 'hook
 import React, { createContext, useState, type ReactNode, useCallback, useMemo, useEffect, useRef } from 'react';
 import type { AsyncJob } from 'types/jobs';
 import useNotifications from 'hooks/useNotifications';
-import { BACKEND_BASE_URL } from '../configuration/api';
+import { BACKEND_BASE_URL, REST_END_POINTS } from '../configuration/api';
 
 type DownloadsItem = {
   id: string;
@@ -74,7 +74,7 @@ export const DownloadsProvider: React.FC<DownloadsProviderProps> = ({ children }
 
       if (nextStatus === 'completed') {
         const filePath = (job.data.download_path as string).replace(/\//g, '%2F');
-        const url = `${BACKEND_BASE_URL}downloads/${filePath}`;
+        const url = `${BACKEND_BASE_URL}/${REST_END_POINTS.DOWNLOADS}/${filePath}`;
 
         const link = document.createElement('a');
         link.href = url;
@@ -83,10 +83,12 @@ export const DownloadsProvider: React.FC<DownloadsProviderProps> = ({ children }
         document.body.appendChild(link);
         link.click();
         link.remove();
+        setJobsIds(prev => prev.filter(jobId => jobId !== job.id));
       }
 
       if (nextStatus === 'failed') {
         showNotification({ id: `downloads-${job.id}`, title: 'Extracting data error', message: 'Please try again later' });
+        setJobsIds(prev => prev.filter(jobId => jobId !== job.id));
       }
 
       prevStatusRef.current[job.id] = nextStatus;

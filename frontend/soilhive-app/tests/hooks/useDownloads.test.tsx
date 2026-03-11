@@ -18,6 +18,9 @@ jest.mock('hooks/useNotifications', () => ({
 
 jest.mock('../../src/configuration/api', () => ({
   BACKEND_BASE_URL: 'https://test.url',
+  REST_END_POINTS: {
+    DOWNLOADS: 'downloads',
+  },
 }));
 
 describe('useDownloads', () => {

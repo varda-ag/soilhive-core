@@ -1,6 +1,7 @@
 import { useQueries, type QueryKey, type Query } from '@tanstack/react-query';
 import { useRequest } from '../api-client';
 import { buildApiUrl } from '../utilities/buildApiUrl';
+import { QUERY_STALE_TIME } from '../configuration/api';
 
 type ApiQueryItem<TResponse, TBody = void> = {
   endpoint: string;
@@ -29,7 +30,7 @@ export function useApiQueries<TResponse, TBody = void>(queries: ApiQueryItem<TRe
             body,
           });
         },
-        staleTime: 600000,
+        staleTime: QUERY_STALE_TIME,
         refetchInterval,
       };
     }),
