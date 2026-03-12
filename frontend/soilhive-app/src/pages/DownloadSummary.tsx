@@ -152,26 +152,6 @@ function DownloadSummary() {
               <CloudDownload />
               <div>These are the datasets included in the download</div>
             </div>
-            <div className={styles.TableContainer}>
-              <PrimeReactProvider>
-                <DataTable
-                  value={datasets}
-                  selectionMode="checkbox"
-                  selection={selectedDatasets}
-                  onSelectionChange={e => {
-                    setSelectedDatasets(e.value);
-                  }}
-                  dataKey="id"
-                  scrollable
-                  scrollHeight="flex"
-                >
-                  <Column selectionMode="multiple"></Column>
-                  <Column field="name" header="Dataset/s"></Column>
-                  <Column field="license" header="License/s" body={licensesCell}></Column>
-                  <Column field="numberOfDataPoints" header="Amount of data ≈"></Column>
-                </DataTable>
-              </PrimeReactProvider>
-            </div>
             <div className={styles.FormatPicker}>
               <div className={styles.FormatPickerHeader}>
                 <DownloadIcon />
@@ -193,6 +173,26 @@ function DownloadSummary() {
                   </div>
                 )}
               </div>
+            </div>
+            <div className={styles.TableContainer}>
+              <PrimeReactProvider>
+                <DataTable
+                  value={datasets}
+                  selectionMode="checkbox"
+                  selection={selectedDatasets}
+                  onSelectionChange={e => {
+                    setSelectedDatasets(e.value);
+                  }}
+                  dataKey="id"
+                  scrollable
+                  scrollHeight="flex"
+                >
+                  <Column selectionMode="multiple"></Column>
+                  <Column field="name" header="Dataset/s"></Column>
+                  <Column field="license" header="License/s" body={licensesCell}></Column>
+                  <Column field="numberOfDataPoints" header="Amount of data ≈"></Column>
+                </DataTable>
+              </PrimeReactProvider>
             </div>
           </div>
           <div className={classNames(styles.Footer, { [styles.Expanded]: summaryExpanded })}>

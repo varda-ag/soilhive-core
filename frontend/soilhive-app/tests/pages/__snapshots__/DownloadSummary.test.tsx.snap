@@ -68,28 +68,6 @@ exports[`DownloadSummary renders download summary page 1`] = `
             </div>
           </div>
           <div
-            class="TableContainer"
-          >
-            <div>
-              Mock PrimeReactProvider 
-              <div>
-                Mock DataTable 
-                <div>
-                  Mock Column
-                </div>
-                <div>
-                  Mock Column
-                </div>
-                <div>
-                  Mock Column
-                </div>
-                <div>
-                  Mock Column
-                </div>
-              </div>
-            </div>
-          </div>
-          <div
             class="FormatPicker"
           >
             <div
@@ -109,6 +87,28 @@ exports[`DownloadSummary renders download summary page 1`] = `
             >
               <div>
                 Mock Dropdown
+              </div>
+            </div>
+          </div>
+          <div
+            class="TableContainer"
+          >
+            <div>
+              Mock PrimeReactProvider 
+              <div>
+                Mock DataTable 
+                <div>
+                  Mock Column
+                </div>
+                <div>
+                  Mock Column
+                </div>
+                <div>
+                  Mock Column
+                </div>
+                <div>
+                  Mock Column
+                </div>
               </div>
             </div>
           </div>
@@ -224,28 +224,6 @@ exports[`DownloadSummary renders download summary page coming from availability 
             </div>
           </div>
           <div
-            class="TableContainer"
-          >
-            <div>
-              Mock PrimeReactProvider 
-              <div>
-                Mock DataTable 
-                <div>
-                  Mock Column
-                </div>
-                <div>
-                  Mock Column
-                </div>
-                <div>
-                  Mock Column
-                </div>
-                <div>
-                  Mock Column
-                </div>
-              </div>
-            </div>
-          </div>
-          <div
             class="FormatPicker"
           >
             <div
@@ -265,6 +243,28 @@ exports[`DownloadSummary renders download summary page coming from availability 
             >
               <div>
                 Mock Dropdown
+              </div>
+            </div>
+          </div>
+          <div
+            class="TableContainer"
+          >
+            <div>
+              Mock PrimeReactProvider 
+              <div>
+                Mock DataTable 
+                <div>
+                  Mock Column
+                </div>
+                <div>
+                  Mock Column
+                </div>
+                <div>
+                  Mock Column
+                </div>
+                <div>
+                  Mock Column
+                </div>
               </div>
             </div>
           </div>
@@ -380,28 +380,6 @@ exports[`DownloadSummary renders download summary page coming from preview 1`] =
             </div>
           </div>
           <div
-            class="TableContainer"
-          >
-            <div>
-              Mock PrimeReactProvider 
-              <div>
-                Mock DataTable 
-                <div>
-                  Mock Column
-                </div>
-                <div>
-                  Mock Column
-                </div>
-                <div>
-                  Mock Column
-                </div>
-                <div>
-                  Mock Column
-                </div>
-              </div>
-            </div>
-          </div>
-          <div
             class="FormatPicker"
           >
             <div
@@ -421,6 +399,28 @@ exports[`DownloadSummary renders download summary page coming from preview 1`] =
             >
               <div>
                 Mock Dropdown
+              </div>
+            </div>
+          </div>
+          <div
+            class="TableContainer"
+          >
+            <div>
+              Mock PrimeReactProvider 
+              <div>
+                Mock DataTable 
+                <div>
+                  Mock Column
+                </div>
+                <div>
+                  Mock Column
+                </div>
+                <div>
+                  Mock Column
+                </div>
+                <div>
+                  Mock Column
+                </div>
               </div>
             </div>
           </div>
