@@ -42,28 +42,47 @@ export default class SoilDataStorage {
   filter = async (entityManager: EntityManager, geometry: Polygon | MultiPolygon, filters: FilterCriteria): Promise<FilteredDataset[]> => {
     await entityManager.query("SET LOCAL work_mem = '256MB';");
     const repo = entityManager.getRepository(DatasetLayerEntity);
-    const query = await repo
+    const baseAggQuery = repo
       .createQueryBuilder('dataset_layers')
       .leftJoin('dataset_layers.layer', 'layer')
-      .leftJoin('dataset_layers.soil_property', 'soil_property')
-      .leftJoin('licenses', 'license', 'license.deleted_at IS NULL AND license.id = layer.license')
       .select('dataset_layers.dataset_id', 'dataset_id')
-      .addSelect('ds.gis_datatype', 'gis_datatype')
-      .addSelect('ds.name', 'dataset_name')
-      .addSelect('ds.slug', 'dataset_slug')
-      .addSelect("STRING_AGG(DISTINCT license.slug, ',')", 'licenses')
+      .addSelect('layer.license', 'license')
       .addSelect('COUNT(dataset_layers.dataset_id)', 'dataset_layer_count')
       .addSelect('MIN(layer.sampling_date::text)', 'min_sampling_date')
       .addSelect('MAX(layer.sampling_date::text)', 'max_sampling_date')
       .addSelect('MIN(layer.min_depth)', 'min_depth')
       .addSelect('MAX(layer.max_depth)', 'max_depth')
       .addSelect("STRING_AGG(DISTINCT layer.horizon, ',')", 'horizons')
-      .addSelect("STRING_AGG(DISTINCT soil_property.slug, ',')", 'soil_properties')
-      .groupBy('dataset_layers.dataset_id, ds.name, ds.slug, ds.gis_datatype');
+      .addSelect('dataset_layers.soil_property_id', 'soil_property')
+      .groupBy('dataset_layers.dataset_id, dataset_layers.soil_property_id, layer.license');
 
     const dataFilter = { geometries: [geometry], parameters: filters };
     const enabledRasterFilterTables = await getEnabledRasterFilterTables();
-    await applyFiltersToQuery(query, dataFilter, enabledRasterFilterTables);
+    await applyFiltersToQuery(baseAggQuery, dataFilter, false, enabledRasterFilterTables);
+
+    const query = entityManager.createQueryBuilder();
+    applyExternalFiltersToQuery(query, dataFilter, enabledRasterFilterTables);
+
+    query
+      .addCommonTableExpression(baseAggQuery, 'base_agg')
+      .from('base_agg', 'base_agg')
+      .innerJoin('datasets', 'ds', 'ds.id = base_agg.dataset_id')
+      .leftJoin('soil_properties', 'soil_property', 'soil_property.id = base_agg.soil_property')
+      .leftJoin('licenses', 'license', 'license.id = base_agg.license')
+      .select('base_agg.dataset_id', 'dataset_id')
+      .addSelect('ds.gis_datatype', 'gis_datatype')
+      .addSelect('ds.name', 'dataset_name')
+      .addSelect('ds.slug', 'dataset_slug')
+      .addSelect("STRING_AGG(DISTINCT license.slug, ',')", 'licenses')
+      .addSelect('SUM(base_agg.dataset_layer_count)', 'dataset_layer_count')
+      .addSelect('MIN(base_agg.min_sampling_date)', 'min_sampling_date')
+      .addSelect('MAX(base_agg.max_sampling_date)', 'max_sampling_date')
+      .addSelect('MIN(base_agg.min_depth)', 'min_depth')
+      .addSelect('MAX(base_agg.max_depth)', 'max_depth')
+      .addSelect("STRING_AGG(DISTINCT base_agg.horizons, ',')", 'horizons')
+      .addSelect("STRING_AGG(DISTINCT soil_property.slug, ',')", 'soil_properties')
+      .groupBy('base_agg.dataset_id, ds.slug, ds.name, ds.gis_datatype');
+
     await addRasterCoverage(query, dataFilter, enabledRasterFilterTables);
     const results = await query.getRawMany();
 
@@ -76,7 +95,8 @@ export default class SoilDataStorage {
       max_sampling_date: row.max_sampling_date,
       min_depth: row.min_depth !== null ? parseFloat(row.min_depth) : null,
       max_depth: row.max_depth !== null ? parseFloat(row.max_depth) : null,
-      // TODO: to be restored | horizons: row.horizons ? row.horizons.split(',') : [],
+      // TODO: to be restored  and deduplicated here due to lack of support for LATERAL JOINs in typeorm:
+      //horizons: row.horizons ? [new Set(...row.horizons.split(','))] : [],
       soil_properties: row.soil_properties ? row.soil_properties.split(',') : [],
       raster_filters: decodeRasterColumns(row),
       dataset_layer_count: parseInt(row.dataset_layer_count),
@@ -171,30 +191,28 @@ const geometryUnion = (geometries: (Polygon | MultiPolygon)[]): Polygon | MultiP
   return turf.union(featureCollection)!.geometry;
 };
 
-const setMatchingFeatures = (query: any, dataFilter: DataFilter) => {
-  if (dataFilter.geometries.length === 0) {
-    // Select all available features
-    query.innerJoin('dataset_layers.feature', 'matching_features');
-    return;
-  }
-
+const setCandidateFeatures = (query: any, geometries: (Polygon | MultiPolygon)[]) => {
   // Merge all input geometries and define candidate features by intersecting aoi
-  const geom = JSON.stringify(geometryUnion(dataFilter.geometries));
+  const geom = JSON.stringify(geometryUnion(geometries));
   query.addCommonTableExpression('SELECT ST_GeomFromGeoJSON(:inputGeom) AS geom', 'aoi', { materialized: true });
   query.setParameter('inputGeom', geom);
   query.addCommonTableExpression(
-    `SELECT f.id, f.geom, geometrytype(f.geom) AS geom_type FROM ${process.env.POSTGRES_SCHEMA}.features f, aoi WHERE ST_Intersects(f.geom, aoi.geom)`,
+    `SELECT f.id, f.geom FROM ${process.env.POSTGRES_SCHEMA}.features f, aoi WHERE ST_Intersects(f.geom, aoi.geom)`,
     'candidate_features',
     { materialized: true },
   );
+};
 
-  if (hasRasterFilters(dataFilter)) {
-    // Filtering by raster values needs a different approach, see applyRasterFilterToQuery
-    return;
+const joinMatchingFeatures = (query: any, geometries: (Polygon | MultiPolygon)[], rasterQuery: boolean = false) => {
+  if (geometries.length === 0) {
+    // Select all available features
+    query.innerJoin('dataset_layers.feature', 'matching_features');
+  } else if (rasterQuery) {
+    query.innerJoin('matching_features', 'matching_features', 'matching_features.id = dataset_layers.feature_id');
+  } else {
+    // All candidate features can be included in the query
+    query.innerJoin('candidate_features', 'matching_features', 'dataset_layers.feature_id = matching_features.id');
   }
-
-  // All candidate features can be included in the query
-  query.innerJoin('candidate_features', 'matching_features', 'dataset_layers.feature_id = matching_features.id');
 };
 
 const hasRasterFilters = (dataFilter: DataFilter): boolean => {
@@ -202,16 +220,18 @@ const hasRasterFilters = (dataFilter: DataFilter): boolean => {
   return Boolean(raster_filters && Object.keys(raster_filters).length > 0);
 };
 
-const applyFiltersToQuery = async (query: any, dataFilter: DataFilter, rasterFilterTables?: string[]) => {
-  setMatchingFeatures(query, dataFilter);
-
-  let datasetJoinCondition = 'ds.id = dataset_layers.dataset_id';
+const applyFiltersToQuery = async (
+  query: any,
+  dataFilter: DataFilter,
+  applyExternalFilters: boolean = true,
+  enabledRasterFilterTables?: string[],
+) => {
   if (dataFilter.geometries.length > 0) {
     // Testing intersection with entire dataset
-    datasetJoinCondition += ' AND ds.spatial_extent && (SELECT geom FROM aoi)'; // Checking bbox only with "&&" without CTE cross-join
+    query.innerJoin('dataset_layers.dataset', 'ds', 'ds.spatial_extent && (SELECT geom FROM aoi)'); // Checking bbox only with "&&" without CTE cross-join
+  } else {
+    query.innerJoin('dataset_layers.dataset', 'ds');
   }
-
-  query.innerJoin('dataset_layers.dataset', 'ds', datasetJoinCondition);
 
   const filters = dataFilter.parameters;
 
@@ -260,6 +280,19 @@ const applyFiltersToQuery = async (query: any, dataFilter: DataFilter, rasterFil
     const nullQuery = filters.horizons.includes(null) ? 'OR layer.horizon IS NULL' : '';
     query.andWhere(`layer.horizon IN (:...horizons) ${nullQuery}`, { horizons: filters.horizons });
   }
+
+  const rasterFilterTables = enabledRasterFilterTables || (await getEnabledRasterFilterTables());
+  const rasterQuery = hasRasterFilters(dataFilter) && rasterFilterTables.length > 0;
+  joinMatchingFeatures(query, dataFilter.geometries, rasterQuery);
+  if (applyExternalFilters) {
+    applyExternalFiltersToQuery(query, dataFilter, rasterFilterTables);
+  }
+
+  return query;
+};
+
+const applyExternalFiltersToQuery = (query: any, dataFilter: DataFilter, rasterFilterTables: string[]) => {
+  const filters = dataFilter.parameters;
   if (filters.soil_properties && filters.soil_properties.length > 0) {
     query.andWhere('soil_property.slug IN (:...soil_properties)', { soil_properties: filters.soil_properties });
   }
@@ -268,9 +301,7 @@ const applyFiltersToQuery = async (query: any, dataFilter: DataFilter, rasterFil
     // TODO: consider querying dataset.licenses
     query.andWhere('license.slug IN (:...licenses)', { licenses: filters.licenses });
   }
-
-  await applyRasterFilterToQuery(query, dataFilter, rasterFilterTables);
-
+  applyRasterFilterToQuery(query, dataFilter, rasterFilterTables);
   return query;
 };
 
@@ -285,32 +316,28 @@ const getEnabledRasterFilterTables = async () => {
   return rasterFilterTables;
 };
 
-const applyRasterFilterToQuery = async (
+const applyRasterFilterToQuery = (
   query: SelectQueryBuilder<DatasetLayerEntity>,
   dataFilter: DataFilter,
-  enabledRasterFilterTables?: string[],
+  enabledRasterFilterTables: string[],
 ) => {
   if (dataFilter.geometries.length === 0) {
     // No input geometry, raster filtering cannot be applied
     return;
   }
+  setCandidateFeatures(query, dataFilter.geometries);
 
-  if (!hasRasterFilters(dataFilter)) {
+  if (!hasRasterFilters(dataFilter) || enabledRasterFilterTables.length === 0) {
     // Nothing to do
-    return;
-  }
-
-  const rasterFilterTables = enabledRasterFilterTables || (await getEnabledRasterFilterTables());
-  if (rasterFilterTables.length === 0) {
-    // No raster data is available
-    query.innerJoin('candidate_features', 'matching_features', 'dataset_layers.feature_id = matching_features.id');
     return;
   }
 
   const raster_filters: Record<string, number[]> | undefined = dataFilter.parameters.raster_filters;
   const aoiAreaM2 = turf.area(dataFilter.geometries[0]!);
+  let joinTables = '';
+  const whereClauses: string[] = [];
 
-  for (const baseTable of rasterFilterTables) {
+  for (const baseTable of enabledRasterFilterTables) {
     const values = raster_filters?.[baseTable];
     const hasFilteringValues = values && values.length > 0;
     const table = selectOverviewTable(baseTable, aoiAreaM2);
@@ -324,40 +351,38 @@ const applyRasterFilterToQuery = async (
         clippedRaster,
         { materialized: true },
       );
-      query.addCommonTableExpression(
-        `
-        SELECT cf.id, cf.geom
-        FROM candidate_features cf
-          CROSS JOIN ${clippedRaster} cr
-        WHERE (
-            cf.geom_type = 'POINT'
-            AND ST_Value(cr.rast, cf.geom, TRUE) IN (${values.join(',')})
-          )
-          OR (
-            cf.geom_type = ANY('{POLYGON,MULTIPOLYGON}')
-            AND EXISTS (
-              SELECT 1
-              FROM unnest(
-                  ST_DumpValues(ST_Clip(cr.rast, cf.geom, touched => TRUE), 1)
-                ) v
-              WHERE v = ANY(ARRAY[${values.join(',')}])
-            )
-          )
-        `,
-        'matching_features',
-        { materialized: true },
-      );
-
-      query.innerJoin('matching_features', 'matching_features', 'matching_features.id = dataset_layers.feature_id');
+      joinTables += ` CROSS JOIN ${clippedRaster} ${clippedRaster}`;
+      whereClauses.push(`(
+        ST_GeometryType(cf.geom) = 'ST_Point'
+        AND ST_Value(${clippedRaster}.rast, cf.geom, TRUE)=ANY(ARRAY[${values.join(',')}]::double precision[])
+      )
+      OR (
+        ST_GeometryType(cf.geom) = ANY('{ST_Polygon,ST_MultiPolygon}')
+        AND (
+            SELECT SUM(cnt)
+            FROM ST_ValueCount(
+                ST_Clip(${clippedRaster}.rast, 1, cf.geom, touched => true),
+                1,
+                ARRAY[${values.join(',')}]::double precision[]
+            ) AS vc(value, cnt)
+        ) > 0
+      )`);
     }
   }
+
+  query.addCommonTableExpression(
+    `
+    SELECT cf.id, cf.geom
+    FROM candidate_features cf
+      ${joinTables}
+    WHERE ${whereClauses.join(' OR ')}
+    `,
+    'matching_features',
+    { materialized: true },
+  );
 };
 
-const addRasterCoverage = async (
-  query: SelectQueryBuilder<DatasetLayerEntity>,
-  dataFilter: DataFilter,
-  enabledRasterFilterTables?: string[],
-) => {
+const addRasterCoverage = async (query: SelectQueryBuilder<any>, dataFilter: DataFilter, enabledRasterFilterTables?: string[]) => {
   if (dataFilter.geometries.length === 0) {
     // No input geometry, raster coverage cannot be applied
     return;
@@ -387,7 +412,7 @@ const addRasterCoverage = async (
       let selectValues = `ARRAY(SELECT value::numeric FROM jsonb_each_text((SELECT mappings FROM raster_filters WHERE id = '${baseTable}')))`;
       if (calculateRealCoverage) {
         // Add a select column with all raster values intersecting the input geometry
-        // Use ST_DumpValues to get all values as an array
+        // Use ST_ValueCount to get distinct values as an array
         query.addCommonTableExpression(
           `
         SELECT ST_Union(ST_Clip(rr.rast, aoi.geom, touched => TRUE)) as rast FROM ${process.env.POSTGRES_SCHEMA}.${table} rr
@@ -397,13 +422,12 @@ const addRasterCoverage = async (
           { materialized: true },
         );
         selectValues = `ARRAY(
-            SELECT DISTINCT val
-            FROM (
-                SELECT unnest(ST_DumpValues(${clippedRaster}.rast, 1)) AS val
-                FROM ${clippedRaster}
-            ) t
-            WHERE val IS NOT NULL
-        )`;
+          SELECT value
+          FROM ${clippedRaster}, ST_ValueCount(
+            ${clippedRaster}.rast,
+              1
+          ) AS vc(value, cnt)
+      )`;
       }
       query.addSelect(selectValues, outputColumn);
     }
