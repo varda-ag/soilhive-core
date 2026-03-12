@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.49.0 (2026-03-12)
+
+## What's Changed
+* fix(data): fallback to dataset license if no layer license is available by @svaccari in https://github.com/varda-ag/soilhive-core/pull/279
+* feat: sp-4903 - downloads context connected to be by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/281
+* chore: updated data vocabularies by @d-rom in https://github.com/varda-ag/soilhive-core/pull/283
+* feat: sp-4900 created main content for download summary by @cristbello in https://github.com/varda-ag/soilhive-core/pull/284
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.48.0...v0.49.0
+
 ## 0.48.0 (2026-03-10)
 
 ## What's Changed
