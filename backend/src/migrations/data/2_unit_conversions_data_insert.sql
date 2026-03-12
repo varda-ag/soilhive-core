@@ -42,7 +42,15 @@ SELECT v.original_unit_of_measurement, v.conversion_formula, c.id
 	('ppm',NULL,'Sultot'),
 	('g/100g',NULL,'WRG'),
 	('cm³/100cm³',NULL,'WRV'),
-	('ppm',NULL,'zintotal')
+	('ppm',NULL,'zintotal'),
+	('ppm','x/391','Potexc'),
+	('ppm','x/200','Calexc'),
+	('ppm','x/121.5','Magexc'),
+	('g/kg','x/10','ClayFractionTexture'),
+	('g/kg','x/10','SandFractionTexture'),
+	('g/kg','x/10','SiltFractionTexture'),
+	('cmolc/dm³',NULL,'Sodexc'),
+	('mg/dm³',NULL,'Carorg')
 ) AS v(original_unit_of_measurement, conversion_formula, property_acronym)
   JOIN soil_properties c
 	on c.property_acronym=v.property_acronym
