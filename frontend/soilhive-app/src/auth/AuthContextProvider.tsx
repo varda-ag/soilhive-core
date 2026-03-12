@@ -8,6 +8,7 @@ import { useRequest } from '../api-client';
 import { AuthModes, type AuthModesType } from './types';
 import { clearToken, saveToken } from './tokenStore';
 import { BACKEND_BASE_URL } from '../configuration/api';
+import { WebStorageStateStore } from 'oidc-client-ts';
 
 const authContext = createContext<AuthContext | undefined>(undefined);
 
@@ -40,6 +41,7 @@ export function AuthContextProvider({ children }: { children: React.ReactNode })
         silent_redirect_uri={authConfig.oidcConfig.silentRedirectUri}
         loadUserInfo
         revokeTokensOnSignout
+        userStore={new WebStorageStateStore({ store: window.localStorage })}
         onSigninCallback={() => {
           const url = new URL(window.location.href);
           window.history.replaceState({}, document.title, url.pathname);
