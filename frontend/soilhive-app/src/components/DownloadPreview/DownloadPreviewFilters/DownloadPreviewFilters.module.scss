@@ -118,6 +118,11 @@
       text-overflow: ellipsis;
     }
   }
+
+  :global(.p-yearpicker-year)[data-p-disabled="false"] {
+    font-weight: var(--font-weight-bold);
+    color: var(--color-brand-green-1000);
+  }
 }
 
 .CalendarInput {
