@@ -1,12 +1,4 @@
-import { decodeTokenScope } from '../../src/auth/tokenScopes';
-
-jest.mock('../../src/auth/tokenStore', () => ({
-  getToken: jest.fn(),
-}));
-
-import { getToken } from '../../src/auth/tokenStore';
-
-const mockGetToken = getToken as jest.Mock;
+import { decodeTokenFromString } from '../../src/auth/tokenScopes';
 
 // helper — base64 encodes a fake JWT payload
 const makeToken = (scope: string) => {
@@ -14,36 +6,28 @@ const makeToken = (scope: string) => {
   return `header.${payload}.signature`;
 };
 
-describe('decodeTokenScope', () => {
-  afterEach(() => jest.clearAllMocks());
-
-  it('returns empty array when no token exists', () => {
-    mockGetToken.mockReturnValue(null);
-    expect(decodeTokenScope()).toEqual([]);
-  });
-
+describe('decodeTokenFromString', () => {
   it('returns empty array when token has no matching scopes', () => {
-    mockGetToken.mockReturnValue(makeToken('openid email profile'));
-    expect(decodeTokenScope()).toEqual([]);
+    expect(decodeTokenFromString(makeToken('openid email profile'))).toEqual([]);
   });
 
   it('returns super-admin role when present in scope', () => {
-    mockGetToken.mockReturnValue(makeToken('openid email super-admin'));
-    expect(decodeTokenScope()).toEqual(['super-admin']);
+    expect(decodeTokenFromString(makeToken('openid email super-admin'))).toEqual(['super-admin']);
   });
 
   it('returns data-admin role when present in scope', () => {
-    mockGetToken.mockReturnValue(makeToken('openid email data-admin'));
-    expect(decodeTokenScope()).toEqual(['data-admin']);
+    expect(decodeTokenFromString(makeToken('openid email data-admin'))).toEqual(['data-admin']);
   });
 
   it('returns multiple roles when both present in scope', () => {
-    mockGetToken.mockReturnValue(makeToken('openid super-admin data-admin'));
-    expect(decodeTokenScope()).toEqual(['super-admin', 'data-admin']);
+    expect(decodeTokenFromString(makeToken('openid super-admin data-admin'))).toEqual(['super-admin', 'data-admin']);
+  });
+
+  it('is case insensitive', () => {
+    expect(decodeTokenFromString(makeToken('SUPER-ADMIN DATA-ADMIN'))).toEqual(['super-admin', 'data-admin']);
   });
 
   it('returns empty array when token is malformed', () => {
-    mockGetToken.mockReturnValue('not-a-valid-jwt');
-    expect(decodeTokenScope()).toEqual([]);
+    expect(decodeTokenFromString('not-a-valid-jwt')).toEqual([]);
   });
 });

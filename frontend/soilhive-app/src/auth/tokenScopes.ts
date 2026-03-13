@@ -1,7 +1,3 @@
-// File: src/contexts/auth/tokenScopes.ts
-
-import { getToken } from './tokenStore';
-
 export const TokenScopes = {
   SUPER_ADMIN: 'super-admin',
   DATA_ADMIN: 'data-admin',
@@ -22,11 +18,4 @@ export function decodeTokenFromString(accessToken: string): Role[] {
   } catch {
     return [];
   }
-}
-
-export function decodeTokenScope(): Role[] {
-  // for new tab fallback
-  const raw = getToken();
-  if (!raw) return [];
-  return decodeTokenFromString(raw);
 }

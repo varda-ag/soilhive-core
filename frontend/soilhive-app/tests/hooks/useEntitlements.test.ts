@@ -7,39 +7,17 @@ import {
   DATASET_PUBLICATIONS,
   MAP_BASED_FILTERS,
 } from 'hooks/useEntitlementsHook';
+import type { User } from '../../src/auth/Token';
 
-jest.mock('../../src/auth/tokenStore', () => ({
-  getToken: jest.fn(),
-}));
-
-jest.mock('../../src/auth/tokenScopes', () => ({
-  decodeTokenScope: jest.fn(),
-}));
-
-import { getToken } from '../../src/auth/tokenStore';
-import { decodeTokenScope } from '../../src/auth/tokenScopes';
-
-const mockGetToken = getToken as jest.Mock;
-const mockDecodeTokenScope = decodeTokenScope as jest.Mock;
+// helper — base64 encodes a fake JWT payload
+const makeUser = (scope: string): User => ({
+  access_token: `header.${btoa(JSON.stringify({ scope }))}.signature`,
+});
 
 describe('useEntitlements', () => {
-  afterEach(() => jest.clearAllMocks());
-
-  // helpers
-  const asUnauthenticated = () => {
-    mockGetToken.mockReturnValue(null);
-    mockDecodeTokenScope.mockReturnValue([]);
-  };
-
-  const asAuthenticated = (roles: string[] = []) => {
-    mockGetToken.mockReturnValue('mock-token');
-    mockDecodeTokenScope.mockReturnValue(roles);
-  };
-
   describe('unauthenticated user', () => {
     it('is denied access to all actions', () => {
-      asUnauthenticated();
-      const { result } = renderHook(() => useEntitlements());
+      const { result } = renderHook(() => useEntitlements()); // no user passed
 
       expect(result.current.can(TERMS_AND_CONDITIONS)).toBe(false);
       expect(result.current.can(MAP_SETTINGS)).toBe(false);
@@ -51,8 +29,7 @@ describe('useEntitlements', () => {
 
   describe('authenticated user with no roles', () => {
     it('is denied access to all actions', () => {
-      asAuthenticated([]);
-      const { result } = renderHook(() => useEntitlements());
+      const { result } = renderHook(() => useEntitlements(makeUser('openid email profile')));
 
       expect(result.current.can(TERMS_AND_CONDITIONS)).toBe(false);
       expect(result.current.can(DATASET_PUBLICATIONS)).toBe(false);
@@ -60,10 +37,10 @@ describe('useEntitlements', () => {
   });
 
   describe('super admin', () => {
-    beforeEach(() => asAuthenticated(['super-admin']));
+    const user = makeUser('openid super-admin');
 
     it('can access super admin actions', () => {
-      const { result } = renderHook(() => useEntitlements());
+      const { result } = renderHook(() => useEntitlements(user));
 
       expect(result.current.can(TERMS_AND_CONDITIONS)).toBe(true);
       expect(result.current.can(MAP_SETTINGS)).toBe(true);
@@ -71,7 +48,7 @@ describe('useEntitlements', () => {
     });
 
     it('cannot access data admin actions', () => {
-      const { result } = renderHook(() => useEntitlements());
+      const { result } = renderHook(() => useEntitlements(user));
 
       expect(result.current.can(DATASET_PUBLICATIONS)).toBe(false);
       expect(result.current.can(MAP_BASED_FILTERS)).toBe(false);
@@ -79,17 +56,17 @@ describe('useEntitlements', () => {
   });
 
   describe('data admin', () => {
-    beforeEach(() => asAuthenticated(['data-admin']));
+    const user = makeUser('openid data-admin');
 
     it('can access data admin actions', () => {
-      const { result } = renderHook(() => useEntitlements());
+      const { result } = renderHook(() => useEntitlements(user));
 
       expect(result.current.can(DATASET_PUBLICATIONS)).toBe(true);
       expect(result.current.can(MAP_BASED_FILTERS)).toBe(true);
     });
 
     it('cannot access super admin actions', () => {
-      const { result } = renderHook(() => useEntitlements());
+      const { result } = renderHook(() => useEntitlements(user));
 
       expect(result.current.can(TERMS_AND_CONDITIONS)).toBe(false);
       expect(result.current.can(MAP_SETTINGS)).toBe(false);
@@ -99,8 +76,7 @@ describe('useEntitlements', () => {
 
   describe('invalid action', () => {
     it('throws for an action not in the matrix', () => {
-      asAuthenticated(['super-admin']);
-      const { result } = renderHook(() => useEntitlements());
+      const { result } = renderHook(() => useEntitlements(makeUser('super-admin')));
 
       expect(() => result.current.can(999 as any)).toThrow('Action 999 is not defined in the entitlement matrix.');
     });
