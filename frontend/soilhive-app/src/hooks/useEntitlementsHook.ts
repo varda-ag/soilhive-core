@@ -5,6 +5,7 @@ import { getToken } from '../auth/tokenStore';
 export const ANYONE = 'anyone' as const;
 export const LOGGED_IN = 'logged-in' as const;
 
+// To add a new role, add to TokenScopes.
 type SpecialRole = typeof ANYONE | typeof LOGGED_IN;
 type AllRoles = Role | SpecialRole;
 
@@ -55,5 +56,3 @@ export function useEntitlements() {
 
   return { can };
 }
-
-export const exportedForTesting = { ENTITLEMENT_MATRIX };
