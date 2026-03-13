@@ -73,14 +73,25 @@
           box-shadow: 0px 2px 12px 2px #5555553D;
           border-radius: 8px;
           overflow: hidden;
+          width: 100%;
 
           :global(.p-datatable) {
+            width: 100%;
+
+            tr:global(.p-datatable-emptymessage) td {
+              text-align: center;
+            }
+
             th {
               background-color: var(--color-neutral-dark-100);
               font-weight: var(--font-weight-bold);
               
               &:last-of-type :global(.p-column-header-content) {
                 justify-content: flex-end;
+              }
+
+              &:nth-of-type(3) {
+                width: 100%;
               }
             }
 

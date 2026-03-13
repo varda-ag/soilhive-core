@@ -31,12 +31,14 @@ describe('useDownloadSummary', () => {
       // Mocks request to endpoint: `/data-filters/${filterId}`
       .mockReturnValueOnce({ data: undefined, isLoading: true } as any)
       // Mocks request to endpoint: `/data-filters/${filterId}/coverage`
+      .mockReturnValueOnce({ data: undefined, isLoading: true } as any)
+      // Mocks request to endpoint: `/licenses`
       .mockReturnValueOnce({ data: undefined, isLoading: true } as any);
     computeDatasetSummaryMock.mockReturnValue({} as any);
     const {
       result: { current: resultData },
-    } = renderHook(() => useDownloadSummary({ filterId: 'test-filter-id' }));
-    expect(useApiQueryMock).toHaveBeenCalledTimes(2);
+    } = renderHook(() => useDownloadSummary({ filterId: 'test-filter-id', datasetsIds: [] }));
+    expect(useApiQueryMock).toHaveBeenCalledTimes(3);
     expect(computeDatasetSummaryMock).toHaveBeenCalledTimes(1);
     expect(useSoilPropertiesMock).toHaveBeenCalledTimes(1);
     expect(resultData).toMatchObject({
@@ -63,12 +65,14 @@ describe('useDownloadSummary', () => {
         isLoading: false,
       } as any)
       // Mocks request to endpoint: `/data-filters/${filterId}/coverage`
-      .mockReturnValueOnce({ data: undefined, isLoading: false } as any);
+      .mockReturnValueOnce({ data: undefined, isLoading: false } as any)
+      // Mocks request to endpoint: `/licenses`
+      .mockReturnValueOnce({ data: [], isLoading: false } as any);
     computeDatasetSummaryMock.mockReturnValue({} as any);
     const {
       result: { current: resultData },
-    } = renderHook(() => useDownloadSummary({ filterId: 'test-filter-id' }));
-    expect(useApiQueryMock).toHaveBeenCalledTimes(2);
+    } = renderHook(() => useDownloadSummary({ filterId: 'test-filter-id', datasetsIds: [] }));
+    expect(useApiQueryMock).toHaveBeenCalledTimes(3);
     expect(computeDatasetSummaryMock).toHaveBeenCalledTimes(1);
     expect(useSoilPropertiesMock).toHaveBeenCalledTimes(1);
     expect(resultData).toMatchObject({
