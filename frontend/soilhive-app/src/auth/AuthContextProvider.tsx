@@ -89,7 +89,7 @@ function OidcAuthProvider({ children }: { children: React.ReactNode }) {
     authMode: AuthModes.OIDC,
   };
 
-  return <authContext.Provider value={value}>{children}</authContext.Provider>;
+  return <authContext.Provider value={value}>{reactOidcAuth.isLoading ? null : children}</authContext.Provider>;
 }
 
 function PasswordAuthProvider({ children }: { children: React.ReactNode }) {
@@ -108,7 +108,7 @@ function PasswordAuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <authContext.Provider value={value}>
-      {children}
+      {passwordAuth.isLoading ? null : children}
       <LoginModal
         isOpen={showLoginModal}
         onClose={() => setShowLoginModal(false)}
