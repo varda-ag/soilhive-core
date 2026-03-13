@@ -71,7 +71,9 @@ function OidcAuthProvider({ children }: { children: React.ReactNode }) {
   const reactOidcAuth = useReactOidcAuth();
 
   useEffect(() => {
-    saveToken(reactOidcAuth.user?.access_token);
+    if (reactOidcAuth.user?.access_token) {
+      saveToken(reactOidcAuth.user.access_token);
+    }
   }, [reactOidcAuth.user?.access_token]);
 
   const value: AuthContext = {
