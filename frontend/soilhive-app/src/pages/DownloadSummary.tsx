@@ -5,7 +5,7 @@ import ArrowLeftIcon from 'assets/icons/arrow-left-icon.svg?react';
 import DownloadIcon from 'assets/icons/download-icon.svg?react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { Checkbox } from 'primereact/checkbox';
-import { useDownloadSummary } from 'hooks/useDownloadSummary';
+import { useDownloadSummary, type DownloadSummaryDataset } from 'hooks/useDownloadSummary';
 import DownloadDataSummary from 'components/DownloadDataSummary/DownloadDataSummary';
 import classNames from 'classnames';
 import { useTranslation } from 'react-i18next';
@@ -15,72 +15,38 @@ import { Dropdown, type DropdownChangeEvent } from 'primereact/dropdown';
 import { PrimeReactProvider } from 'primereact/api';
 import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
+import useAvailability from 'hooks/useAvailability';
+import useDownloads from 'hooks/useDownloads';
+import { useOnceDefined } from 'hooks/useOnceDefined';
+
+// console.debug(numberFormatter.format(1234567));
+// Output: "1.234.567"
+const numberFormatter = new Intl.NumberFormat('de-DE');
 
 const availableFormats = [
   { id: 'csv', name: 'CSV' },
-  { id: 'geopackage', name: 'Geopackage' },
+  { id: 'gpkg', name: 'Geopackage' },
   { id: 'geojson', name: 'GeoJSON' },
-  { id: 'shapefile', name: 'Shapefile' },
+  { id: 'shp', name: 'Shapefile' },
   { id: 'xlsx', name: 'XLSX' },
-];
-
-interface Dataset {
-  id: string;
-  name: string;
-  license: string;
-  numberOfDataPoints: string;
-}
-
-const datasets: Dataset[] = [
-  {
-    id: 'dataset-1',
-    name: 'CAROB',
-    license: 'CC BY 4.0, CC BY-NC-SA-3.0',
-    numberOfDataPoints: '95 data points',
-  },
-  {
-    id: 'dataset-2',
-    name: 'WoSIS',
-    license: 'CC BY 4.0, CC BY-NC 3.0, US Public Domain, CC BY-NC 4.0, CC BY 3.0, OGL-UK-3.0, CC BY-SA 4.0, CC0 1.0 ',
-    numberOfDataPoints: '1,024 data points',
-  },
-  {
-    id: 'dataset-3',
-    name: 'Global Soil Nematode DB',
-    license: 'CC BY 4.0',
-    numberOfDataPoints: '25 data points',
-  },
-  {
-    id: 'dataset-4',
-    name: 'CAROB',
-    license: 'CC BY 4.0, CC BY-NC-SA-3.0',
-    numberOfDataPoints: '95 data points',
-  },
-  {
-    id: 'dataset-5',
-    name: 'WoSIS',
-    license: 'CC BY 4.0, CC BY-NC 3.0, US Public Domain, CC BY-NC 4.0, CC BY 3.0, OGL-UK-3.0, CC BY-SA 4.0, CC0 1.0 ',
-    numberOfDataPoints: '1,024 data points',
-  },
-  {
-    id: 'dataset-6',
-    name: 'Global Soil Nematode DB',
-    license: 'CC BY 4.0',
-    numberOfDataPoints: '25 data points',
-  },
 ];
 
 function DownloadSummary() {
   const navigate = useNavigate();
   const { t } = useTranslation('download');
+  const { setPreview } = useAvailability();
+  const { startDownload } = useDownloads();
 
   const [searchParams] = useSearchParams();
   const comingFromPreview = searchParams.get('source') === 'preview';
   const selectionType = searchParams.get('selectionType') ?? undefined;
   const locationName = searchParams.get('locationName') ?? undefined;
+  const filterId = searchParams.get('filterId') ?? null;
+  const datasetsParam = searchParams.get('datasets') ?? undefined;
+  const datasetsIds = datasetsParam ? datasetsParam.split(',') : [];
 
   const [summaryExpanded, setSummaryExpanded] = useState(false);
-  const [selectedDatasets, setSelectedDatasets] = useState<Dataset[]>([]);
+  const [selectedDatasets, setSelectedDatasets] = useState<DownloadSummaryDataset[]>([]);
   const [selectedFormat, setSelectedFormat] = useState<string>('csv');
   const [showUpdatedMessage, setShowUpdatedMessage] = useState(false);
   const [termsAgreed, setTermsAgreed] = useState(false);
@@ -92,14 +58,21 @@ function DownloadSummary() {
     }
   };
 
-  const licensesCell = ({ license }: Dataset) => {
-    const licenses = license.split(',');
+  const onDownloadButtonClick = () => {
+    if (filterId) {
+      setPreview(false); // TODO: remove when we implement the /preview route
+      startDownload({ filter_id: filterId, dataset_ids: selectedDatasets.map(dataset => dataset.id), format: selectedFormat });
+      navigate('/');
+    }
+  };
+
+  const licensesCell = ({ licenses }: DownloadSummaryDataset) => {
     return (
       <>
-        {licenses.map((licenseName, index) => (
-          <span key={index}>
-            <a href="http://www.soilhive.ag" target="_blank" rel="noopener noreferrer">
-              {licenseName.trim()}
+        {licenses.map(({ id, name, url }, index) => (
+          <span key={id}>
+            <a href={url} target="_blank" rel="noopener noreferrer">
+              {name}
             </a>
             {index < licenses.length - 1 && <>, </>}
           </span>
@@ -108,7 +81,27 @@ function DownloadSummary() {
     );
   };
 
-  const { geometryFeature, datasetsSummary, soilProperties, depthRange } = useDownloadSummary({ filterId: searchParams.get('filterId') });
+  const dataCountCell = ({ dataType, layerCount }: DownloadSummaryDataset) => {
+    const formattedCount = numberFormatter.format(layerCount);
+    if (dataType === 'point') {
+      return (
+        <>
+          {formattedCount} {t('download_summary.data_points')}
+        </>
+      );
+    }
+    return <>{formattedCount}</>;
+  };
+
+  const { datasets, geometryFeature, datasetsSummary, soilProperties, depthRange, isLoading } = useDownloadSummary({
+    filterId,
+    datasetsIds,
+  });
+
+  // Select all datasets the first time they are loaded
+  useOnceDefined(datasets, newDatasets => {
+    setSelectedDatasets(newDatasets);
+  });
 
   return (
     <div className={styles.DownloadSummary}>
@@ -150,12 +143,12 @@ function DownloadSummary() {
           <div className={styles.MainContent}>
             <div className={styles.MainContentHeader}>
               <CloudDownload />
-              <div>These are the datasets included in the download</div>
+              <div>{t('download_summary.datasets_included_in_download')}</div>
             </div>
             <div className={styles.FormatPicker}>
               <div className={styles.FormatPickerHeader}>
                 <DownloadIcon />
-                <div>Download Format</div>
+                <div>{t('download_summary.download_format')}</div>
               </div>
               <div className={styles.FormatPickerContent}>
                 <Dropdown
@@ -169,7 +162,7 @@ function DownloadSummary() {
                 />
                 {showUpdatedMessage && (
                   <div className={styles.FormatPickerUpdatedMessage}>
-                    <CheckIcon /> Download format updated
+                    <CheckIcon /> {t('download_summary.download_format_updated')}
                   </div>
                 )}
               </div>
@@ -177,6 +170,7 @@ function DownloadSummary() {
             <div className={styles.TableContainer}>
               <PrimeReactProvider>
                 <DataTable
+                  disabled={isLoading}
                   value={datasets}
                   selectionMode="checkbox"
                   selection={selectedDatasets}
@@ -186,11 +180,12 @@ function DownloadSummary() {
                   dataKey="id"
                   scrollable
                   scrollHeight="flex"
+                  emptyMessage={t('download_summary.loading')}
                 >
                   <Column selectionMode="multiple"></Column>
-                  <Column field="name" header="Dataset/s"></Column>
-                  <Column field="license" header="License/s" body={licensesCell}></Column>
-                  <Column field="numberOfDataPoints" header="Amount of data ≈"></Column>
+                  <Column field="name" header={t('download_summary.dataset_column_header')}></Column>
+                  <Column field="licenses" header={t('download_summary.licenses_column_header')} body={licensesCell}></Column>
+                  <Column field="layerCount" header={t('download_summary.amount_of_data_column_header')} body={dataCountCell}></Column>
                 </DataTable>
               </PrimeReactProvider>
             </div>
@@ -212,7 +207,13 @@ function DownloadSummary() {
                 </a>
               </label>
             </div>
-            <Button size="medium" type="primary" className={styles.DownloadButton} isDisabled={!termsAgreed}>
+            <Button
+              size="medium"
+              type="primary"
+              className={styles.DownloadButton}
+              isDisabled={isLoading || !termsAgreed || selectedDatasets.length === 0}
+              onClick={onDownloadButtonClick}
+            >
               <DownloadIcon />
               {t('download_summary.download_button')}
             </Button>

@@ -57,7 +57,15 @@
         "back_to_map": "Back to the map",
         "terms_label_prefix": "I have read and agree to the platform’s",
         "terms_link": "Terms of use",
-        "download_button": "Download data"
+        "download_button": "Download data",
+        "download_format_updated": "Download format updated",
+        "loading": "Loading...",
+        "download_format": "Download Format",
+        "datasets_included_in_download": "These are the datasets included in the download",
+        "data_points": "data points",
+        "dataset_column_header": "Dataset/s",
+        "licenses_column_header": "License/s",
+        "amount_of_data_column_header": "Amount of data ≈"
     },
     "downloads_status": {
         "downloads": "Downloads",
