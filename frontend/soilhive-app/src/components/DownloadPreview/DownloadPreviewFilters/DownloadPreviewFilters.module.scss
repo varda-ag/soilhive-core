@@ -119,7 +119,8 @@
     }
   }
 
-  :global(.p-yearpicker-year)[data-p-disabled="false"] {
+  :global(.p-yearpicker-year)[data-p-disabled="false"],
+  :global(.p-monthpicker-month)[data-p-disabled="false"] {
     font-weight: var(--font-weight-bold);
     color: var(--color-brand-green-1000);
   }
