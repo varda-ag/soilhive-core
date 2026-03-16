@@ -183,9 +183,9 @@ function DownloadSummary() {
                   emptyMessage={t('download_summary.loading')}
                 >
                   <Column selectionMode="multiple"></Column>
-                  <Column field="name" header="Dataset/s"></Column>
-                  <Column field="licenses" header="License/s" body={licensesCell}></Column>
-                  <Column field="layerCount" header="Amount of data ≈" body={dataCountCell}></Column>
+                  <Column field="name" header={t('download_summary.dataset_column_header')}></Column>
+                  <Column field="licenses" header={t('download_summary.licenses_column_header')} body={licensesCell}></Column>
+                  <Column field="layerCount" header={t('download_summary.amount_of_data_column_header')} body={dataCountCell}></Column>
                 </DataTable>
               </PrimeReactProvider>
             </div>
