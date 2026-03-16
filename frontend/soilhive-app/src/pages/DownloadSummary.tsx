@@ -84,7 +84,11 @@ function DownloadSummary() {
   const dataCountCell = ({ dataType, layerCount }: DownloadSummaryDataset) => {
     const formattedCount = numberFormatter.format(layerCount);
     if (dataType === 'point') {
-      return <>{formattedCount} data points</>;
+      return (
+        <>
+          {formattedCount} {t('download_summary.data_points')}
+        </>
+      );
     }
     return <>{formattedCount}</>;
   };
@@ -139,12 +143,12 @@ function DownloadSummary() {
           <div className={styles.MainContent}>
             <div className={styles.MainContentHeader}>
               <CloudDownload />
-              <div>These are the datasets included in the download</div>
+              <div>{t('download_summary.datasets_included_in_download')}</div>
             </div>
             <div className={styles.FormatPicker}>
               <div className={styles.FormatPickerHeader}>
                 <DownloadIcon />
-                <div>Download Format</div>
+                <div>{t('download_summary.download_format')}</div>
               </div>
               <div className={styles.FormatPickerContent}>
                 <Dropdown
@@ -158,7 +162,7 @@ function DownloadSummary() {
                 />
                 {showUpdatedMessage && (
                   <div className={styles.FormatPickerUpdatedMessage}>
-                    <CheckIcon /> Download format updated
+                    <CheckIcon /> {t('download_summary.download_format_updated')}
                   </div>
                 )}
               </div>
@@ -176,7 +180,7 @@ function DownloadSummary() {
                   dataKey="id"
                   scrollable
                   scrollHeight="flex"
-                  emptyMessage="Loading..."
+                  emptyMessage={t('download_summary.loading')}
                 >
                   <Column selectionMode="multiple"></Column>
                   <Column field="name" header="Dataset/s"></Column>
