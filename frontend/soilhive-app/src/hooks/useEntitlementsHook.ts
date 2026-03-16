@@ -1,5 +1,5 @@
 import { decodeTokenFromString, type Role } from '../auth/tokenScopes';
-import type { User } from '../auth/Token';
+import { useAuthContext } from '../auth/AuthContextProvider';
 
 // Special roles — not in token, resolved at runtime
 export const ANYONE = 'anyone' as const;
@@ -33,7 +33,8 @@ const ENTITLEMENT_MATRIX: Record<Action, AllRoles[]> = {
   // NOTE: to grant universal SUPER_ADMIN access regardless of matrix, uncomment in can() below
 };
 
-export function useEntitlements(user?: User | null) {
+export function useEntitlements() {
+  const { user } = useAuthContext();
   const isAuthenticated = !!user;
   const tokenRoles: Role[] = user?.access_token ? decodeTokenFromString(user.access_token) : [];
 
