@@ -1,0 +1,11 @@
+.Layout {
+  display: flex;
+  min-height: calc(100vh - 4rem);
+  max-height: calc(100vh - 4rem);
+}
+
+.Content {
+  flex: 1;
+  padding: 24px;
+  overflow: auto;
+}

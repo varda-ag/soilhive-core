@@ -1,0 +1,27 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`AdminPortalLayout renders AdminPortalLayout and matches the snapshot 1`] = `
+<div>
+  <div
+    data-testid="header"
+  >
+    Header
+  </div>
+  <div
+    class="Layout"
+  >
+    <div
+      data-testid="sidebar"
+    >
+      Sidebar
+    </div>
+    <main
+      class="Content"
+    >
+      <div
+        data-testid="outlet"
+      />
+    </main>
+  </div>
+</div>
+`;

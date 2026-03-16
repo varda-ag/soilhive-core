@@ -1,0 +1,59 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`AdminHeader renders header and matches snapshot 1`] = `
+<div>
+  <header
+    class="AdminHeader"
+  >
+    <div
+      class="Left"
+    >
+      <div
+        class="Logo"
+        data-testid="sh-header-logo"
+      >
+        <img
+          alt="Logo"
+          src="https://example.com/logo.png"
+        />
+      </div>
+      <div
+        class="TitleWrapper"
+      >
+        <h1
+          class="Title"
+        >
+          Terms & Conditions
+        </h1>
+      </div>
+    </div>
+    <div
+      class="Right"
+    >
+      <div
+        class="Notifications"
+      >
+        <svg
+          data-testid="svg-icon-mock"
+        >
+          mock-svg
+        </svg>
+      </div>
+      <div
+        class="User"
+      >
+        <span
+          class="UserName"
+        >
+          marty.mcfly@comg.org
+        </span>
+        <div
+          class="UserAvatar"
+        >
+          mm
+        </div>
+      </div>
+    </div>
+  </header>
+</div>
+`;

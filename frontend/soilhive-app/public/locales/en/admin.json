@@ -1,0 +1,39 @@
+{
+    "page_titles": {
+        "terms_and_conditions": "SoilHive - Terms & Conditions",
+        "map_settings": "SoilHive - Map settings",
+        "look_and_feel": "SoilHive - Look & Feel",
+        "datasets": "SoilHive - Datasets publication",
+        "filters": "SoilHive - Map-based filters"
+    },
+    "sidebar": {
+        "logout": "Logout",
+        "sections": {
+            "user_interface": "User interface",
+            "data": "Data"
+        },
+        "menu": {
+            "terms_and_conditions": "Terms & Conditions",
+            "map_settings": "Map settings",
+            "look_and_feel": "Look & Feel",
+            "datasets": "Datasets publication",
+            "filters": "Map-based filters"
+        }
+    },
+    "terms_and_conditions": {
+        "title": "Terms & Conditions"
+    },
+    "map_settings": {
+        "title": "Map settings"
+    },
+    "look_and_feel": {
+        "title": "Look & Feel"
+    },
+    "datasets": {
+        "title": "Datasets publication"
+    },
+    "filters": {
+        "title":"Map-based filters"
+    },
+    "logoAlt": "Logo"
+}

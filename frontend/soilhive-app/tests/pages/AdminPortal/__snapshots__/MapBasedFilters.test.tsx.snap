@@ -1,0 +1,9 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`MapBasedFilters page matches snapshot 1`] = `
+<div>
+  <h2>
+    Map-based filters
+  </h2>
+</div>
+`;
