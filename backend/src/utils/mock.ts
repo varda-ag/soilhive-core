@@ -12,7 +12,7 @@ import ObservationEntity from '../entities/Observation';
 import LicenseEntity from '../entities/License';
 import UnitConversionEntity from '../entities/UnitConversion';
 import { getPolygonFromBbox } from './geometry';
-import { getDataSource } from './data-source';
+import { getDataSource, getEntityManager } from './data-source';
 import SlugHistoryEntity from '../entities/SlugHistory';
 import { EntityType, GISDataType, IngestionStatus } from '../types/data';
 import { PropertyInfo, PropertyMapping } from '../interfaces/PropertyMapping';
@@ -479,20 +479,20 @@ export interface DataCount {
 }
 
 export const getLoadedDataCount = async (): Promise<DataCount> => {
-  const dataSource = await getDataSource();
-  const featureRepo = dataSource.getRepository(FeatureEntity);
-  const layerRepo = dataSource.getRepository(LayerEntity);
-  const datasetLayerRepo = dataSource.getRepository(DatasetLayerEntity);
-  const observationRepo = dataSource.getRepository(ObservationEntity);
-  const features = await featureRepo.find();
-  const layers = await layerRepo.find();
-  const datasetLayers = await datasetLayerRepo.find();
-  const observations = await observationRepo.find();
+  const entityManager = await getEntityManager();
+  const featureRepo = entityManager.getRepository(FeatureEntity);
+  const layerRepo = entityManager.getRepository(LayerEntity);
+  const datasetLayerRepo = entityManager.getRepository(DatasetLayerEntity);
+  const observationRepo = entityManager.getRepository(ObservationEntity);
+  const n_features = await featureRepo.count();
+  const n_layers = await layerRepo.count();
+  const n_dataset_layers = await datasetLayerRepo.count();
+  const n_observations = await observationRepo.count();
   const result: DataCount = {
-    n_features: features.length ?? 0,
-    n_layers: layers.length ?? 0,
-    n_dataset_layers: datasetLayers.length ?? 0,
-    n_observations: observations.length ?? 0,
+    n_features,
+    n_layers,
+    n_dataset_layers,
+    n_observations,
   };
   return result;
 };

@@ -3,6 +3,7 @@ import { DataSource, EntityManager, MigrationExecutor } from 'typeorm';
 import path from 'path';
 import { getDBPassword, getSSL } from './db-credentials';
 import { DatabaseNamingStrategy } from './naming-strategy';
+import { isJest } from './utils';
 
 // This global variable at module level
 // is used to apply lazy loading to DB connection
@@ -31,6 +32,7 @@ const createDataSource = async (schema: string): Promise<DataSource> => {
     extra: {
       statement_timeout: 15000,
     },
+    cache: !isJest(),
   });
   await dataSource.initialize();
   const escapedSchema = `"${schema}"`;
