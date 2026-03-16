@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.50.0 (2026-03-16)
+
+## What's Changed
+* feat: sp-4901 populate download summary page by @cristbello in https://github.com/varda-ag/soilhive-core/pull/287
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.49.0...v0.50.0
+
 ## 0.49.0 (2026-03-12)
 
 ## What's Changed
