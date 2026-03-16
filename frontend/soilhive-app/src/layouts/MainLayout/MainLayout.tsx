@@ -1,9 +1,9 @@
 import { Outlet } from 'react-router';
-import styles from './MainLayout.module.scss';
-
 import Header from 'components/Header/Header';
 
-function MainLayout() {
+import styles from './MainLayout.module.scss';
+
+export function MainLayout() {
   return (
     <>
       <Header></Header>
@@ -13,5 +13,3 @@ function MainLayout() {
     </>
   );
 }
-
-export default MainLayout;

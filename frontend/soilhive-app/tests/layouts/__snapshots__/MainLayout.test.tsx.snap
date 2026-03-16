@@ -1,0 +1,18 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`MainLayout renders MainLayout and matches the snapshot 1`] = `
+<div>
+  <div
+    data-testid="header"
+  >
+    Header
+  </div>
+  <div
+    class="content"
+  >
+    <div
+      data-testid="outlet"
+    />
+  </div>
+</div>
+`;

@@ -1,0 +1,9 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`TermsAndConditions page matches snapshot 1`] = `
+<div>
+  <h2>
+    Terms & Conditions
+  </h2>
+</div>
+`;

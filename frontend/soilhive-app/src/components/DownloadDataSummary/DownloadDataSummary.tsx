@@ -5,7 +5,7 @@ import styles from './DownloadDataSummary.module.scss';
 import ExpandIcon from 'assets/icons/expand-icon.svg?react';
 import ReduceIcon from 'assets/icons/reduce-icon.svg?react';
 import LayersIcon from 'assets/icons/layers-icon.svg?react';
-import MapPinIcon from 'assets/icons/map-pin-icon.svg?react';
+import MapPinIcon from 'assets/icons/small-map-pin-icon.svg?react';
 import WorldIcon from 'assets/icons/world-icon.svg?react';
 import useDevice from 'hooks/useDevice';
 import { useTranslation } from 'react-i18next';
