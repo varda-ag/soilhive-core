@@ -17,15 +17,15 @@ export function ExpandableText({ text, readMoreLabel, readLessLabel, className, 
   const textParagraphRef = useRef<HTMLParagraphElement>(null);
 
   const { t } = useTranslation('common');
-  const readMoreLabelFinal = readLessLabel ? readMoreLabel : t('actions.read_more');
+  const readMoreLabelFinal = readMoreLabel ? readMoreLabel : t('actions.read_more');
   const readLessLabelFinal = readLessLabel ? readLessLabel : t('actions.read_less');
 
   useEffect(() => {
-    const elemement = textParagraphRef.current;
+    const element = textParagraphRef.current;
     // scrollHeight = total content height
     // clientHeight = height allowed by CSS (2 lines)
-    if (elemement) {
-      setIsTruncated(elemement.scrollHeight > elemement.clientHeight);
+    if (element) {
+      setIsTruncated(element.scrollHeight > element.clientHeight);
     }
   }, [text]);
 

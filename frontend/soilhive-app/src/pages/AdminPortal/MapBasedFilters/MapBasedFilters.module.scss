@@ -50,14 +50,6 @@
       font-size: var(--font-size-lg);
       font-weight: var(--font-weight-semibold);
     }
-
-    .ReadMore {
-      color: var(--color-cta-danger-solid);
-      text-decoration: underline;
-      cursor: pointer;
-      margin-left: 4px;
-      font-size: var(--font-size-sm);
-    }
   }
 }
 
@@ -115,50 +107,5 @@
   &.Inactive {
     border-color: var(--color-neutral-dark-200);
     color: var(--color-neutral-dark-400);
-  }
-}
-
-.DescriptionWrapper {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-}
-
-.Description {
-  margin: 0;
-  font-size: var(--font-size-sm);
-  line-height: var(--line-height-lg);
-  color: var(--color-text-primary);
-  
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-
-  &.Expanded {
-    display: block; // Allows the inline button to flow with text
-    -webkit-line-clamp: unset;
-    line-clamp: unset;
-    overflow: visible;
-  }
-}
-
-.InlineReadMore {
-  display: inline;
-  background: none;
-  border: none;
-  padding: 0;
-  margin-left: 6px;
-  color: var(--color-cta-danger-solid);
-  text-decoration: underline;
-  cursor: pointer;
-  font-size: var(--font-size-sm);
-  font-family: inherit;
-  font-weight: var(--font-weight-medium);
-  vertical-align: baseline;
-  
-  &:hover {
-    color: var(--color-cta-danger-hover);
   }
 }

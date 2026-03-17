@@ -34,8 +34,6 @@
     },
     "filters": {
         "common": {
-            "read_more": "Read more",
-            "read_less": "Read less",
             "active": "Active",
             "not_active": "Not active"
         },
