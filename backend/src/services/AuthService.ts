@@ -22,22 +22,16 @@ export default class AuthService {
       throw new ErrorResponse('Platform is not configured for password authentication', StatusCodes.BAD_REQUEST);
     }
 
-    let payload = {};
+    let scope: TokenScopes;
     if (process.env.SUPER_ADMIN_PASSWORD_HASH && bcrypt.compareSync(password, process.env.SUPER_ADMIN_PASSWORD_HASH)) {
-      payload = {
-        sub: TokenScopes.SUPER_ADMIN,
-        scope: TokenScopes.SUPER_ADMIN,
-      };
+      scope = TokenScopes.SUPER_ADMIN;
     } else if (process.env.DATA_ADMIN_PASSWORD_HASH && bcrypt.compareSync(password, process.env.DATA_ADMIN_PASSWORD_HASH)) {
-      payload = {
-        sub: TokenScopes.DATA_ADMIN,
-        scope: TokenScopes.DATA_ADMIN,
-      };
+      scope = TokenScopes.DATA_ADMIN;
     } else {
       throw new ErrorResponse('Invalid password', StatusCodes.UNAUTHORIZED);
     }
 
-    return signToken(payload, TOKEN_EXPIRATION_SECONDS, { alg: 'HS256', kid: 'kid' });
+    return signToken(this.getTokenPayload(scope), TOKEN_EXPIRATION_SECONDS, { alg: 'HS256', kid: 'kid' });
   };
 
   getTokenResponse = (token: string): TokenResponse => {
@@ -51,5 +45,22 @@ export default class AuthService {
   resetAuthConfig = () => {
     // Used in tests
     authConfig = undefined;
+  };
+
+  private getTokenPayload = (scope: TokenScopes) => {
+    const parts = scope.split('-');
+    const given_name = parts[0];
+    const family_name = parts[1] || parts[0];
+    const name = `${given_name} ${family_name}`;
+    const email = `${scope}@localhost`;
+    return {
+      scope,
+      sub: scope,
+      email_verified: true,
+      given_name,
+      family_name,
+      name,
+      email,
+    };
   };
 }
