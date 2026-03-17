@@ -58,10 +58,10 @@ export default class SoilDataStorage {
 
     const dataFilter = { geometries: [geometry], parameters: filters };
     const enabledRasterFilterTables = await getEnabledRasterFilterTables();
-    await applyFiltersToQuery(baseAggQuery, dataFilter, false, enabledRasterFilterTables);
+    await applyFiltersToQuery(baseAggQuery, dataFilter, enabledRasterFilterTables);
 
     const query = entityManager.createQueryBuilder();
-    applyExternalFiltersToQuery(query, dataFilter, enabledRasterFilterTables);
+    applyFiltersToExternalQuery(query, dataFilter, enabledRasterFilterTables);
 
     query
       .addCommonTableExpression(baseAggQuery, 'base_agg')
@@ -149,7 +149,9 @@ export default class SoilDataStorage {
       .leftJoin('obs.procedure', 'procedure')
       .where('ds.slug IN (:...datasetSlugs)', { datasetSlugs });
 
-    await applyFiltersToQuery(query, dataFilter);
+    const enabledRasterFilterTables = await getEnabledRasterFilterTables();
+    await applyFiltersToQuery(query, dataFilter, enabledRasterFilterTables);
+    applyFiltersToExternalQuery(query, dataFilter, enabledRasterFilterTables);
 
     return query;
   };
@@ -223,8 +225,7 @@ const hasRasterFilters = (dataFilter: DataFilter): boolean => {
 const applyFiltersToQuery = async (
   query: any,
   dataFilter: DataFilter,
-  applyExternalFilters: boolean = true,
-  enabledRasterFilterTables?: string[],
+  enabledRasterFilterTables: string[],
 ) => {
   if (dataFilter.geometries.length > 0) {
     // Testing intersection with entire dataset
@@ -281,17 +282,13 @@ const applyFiltersToQuery = async (
     query.andWhere(`layer.horizon IN (:...horizons) ${nullQuery}`, { horizons: filters.horizons });
   }
 
-  const rasterFilterTables = enabledRasterFilterTables || (await getEnabledRasterFilterTables());
-  const rasterQuery = hasRasterFilters(dataFilter) && rasterFilterTables.length > 0;
+  const rasterQuery = hasRasterFilters(dataFilter) && enabledRasterFilterTables.length > 0;
   joinMatchingFeatures(query, dataFilter.geometries, rasterQuery);
-  if (applyExternalFilters) {
-    applyExternalFiltersToQuery(query, dataFilter, rasterFilterTables);
-  }
 
   return query;
 };
 
-const applyExternalFiltersToQuery = (query: any, dataFilter: DataFilter, rasterFilterTables: string[]) => {
+const applyFiltersToExternalQuery = (query: any, dataFilter: DataFilter, rasterFilterTables: string[]) => {
   const filters = dataFilter.parameters;
   if (filters.soil_properties && filters.soil_properties.length > 0) {
     query.andWhere('soil_property.slug IN (:...soil_properties)', { soil_properties: filters.soil_properties });

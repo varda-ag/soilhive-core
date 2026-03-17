@@ -74,11 +74,9 @@ describe('Testing /soil-data routes', () => {
     }
 
     // Do not reference any overview (they don't exist in test dump)
-    const mockSelectOverview = jest
-      .spyOn(RasterUtilsModule, 'selectOverviewTable')
-      .mockImplementation((table: string) => {
-        return table;
-      });
+    const mockSelectOverview = jest.spyOn(RasterUtilsModule, 'selectOverviewTable').mockImplementation((table: string) => {
+      return table;
+    });
 
     // Create a data filter with geometry inside the extent
     const filterId = await createFilter(bbox, parameters);
