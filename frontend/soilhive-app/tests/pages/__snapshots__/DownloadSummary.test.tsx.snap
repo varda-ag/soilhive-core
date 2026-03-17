@@ -55,7 +55,63 @@ exports[`DownloadSummary renders download summary page 1`] = `
         <div
           class="MainContent"
         >
-          MainContent
+          <div
+            class="MainContentHeader"
+          >
+            <svg
+              data-testid="svg-icon-mock"
+            >
+              mock-svg
+            </svg>
+            <div>
+              These are the datasets included in the download
+            </div>
+          </div>
+          <div
+            class="FormatPicker"
+          >
+            <div
+              class="FormatPickerHeader"
+            >
+              <svg
+                data-testid="svg-icon-mock"
+              >
+                mock-svg
+              </svg>
+              <div>
+                Download Format
+              </div>
+            </div>
+            <div
+              class="FormatPickerContent"
+            >
+              <div>
+                Mock Dropdown
+              </div>
+            </div>
+          </div>
+          <div
+            class="TableContainer"
+          >
+            <div>
+              Mock PrimeReactProvider 
+              <div>
+                Mock DataTable 
+                <div>
+                  Mock Column
+                </div>
+                <div>
+                  Mock Column
+                </div>
+                <div>
+                  Mock Column
+                </div>
+                <div>
+                  Mock Column
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
         <div
           class="Footer"
@@ -63,27 +119,8 @@ exports[`DownloadSummary renders download summary page 1`] = `
           <div
             class="TermsOfUse"
           >
-            <div
-              class="p-checkbox p-component"
-              data-p-disabled="false"
-              data-p-highlight="false"
-              data-pc-name="checkbox"
-              data-pc-section="root"
-            >
-              <input
-                aria-invalid="false"
-                class="p-checkbox-input"
-                data-pc-section="input"
-                id="agree-to-terms-for-download"
-                name="category"
-                type="checkbox"
-              />
-              <div
-                class="p-checkbox-box"
-                data-p-disabled="false"
-                data-p-highlight="false"
-                data-pc-section="box"
-              />
+            <div>
+              Mock Checkbox
             </div>
             <label
               for="agree-to-terms-for-download"
@@ -174,7 +211,63 @@ exports[`DownloadSummary renders download summary page coming from availability 
         <div
           class="MainContent"
         >
-          MainContent
+          <div
+            class="MainContentHeader"
+          >
+            <svg
+              data-testid="svg-icon-mock"
+            >
+              mock-svg
+            </svg>
+            <div>
+              These are the datasets included in the download
+            </div>
+          </div>
+          <div
+            class="FormatPicker"
+          >
+            <div
+              class="FormatPickerHeader"
+            >
+              <svg
+                data-testid="svg-icon-mock"
+              >
+                mock-svg
+              </svg>
+              <div>
+                Download Format
+              </div>
+            </div>
+            <div
+              class="FormatPickerContent"
+            >
+              <div>
+                Mock Dropdown
+              </div>
+            </div>
+          </div>
+          <div
+            class="TableContainer"
+          >
+            <div>
+              Mock PrimeReactProvider 
+              <div>
+                Mock DataTable 
+                <div>
+                  Mock Column
+                </div>
+                <div>
+                  Mock Column
+                </div>
+                <div>
+                  Mock Column
+                </div>
+                <div>
+                  Mock Column
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
         <div
           class="Footer"
@@ -182,27 +275,8 @@ exports[`DownloadSummary renders download summary page coming from availability 
           <div
             class="TermsOfUse"
           >
-            <div
-              class="p-checkbox p-component"
-              data-p-disabled="false"
-              data-p-highlight="false"
-              data-pc-name="checkbox"
-              data-pc-section="root"
-            >
-              <input
-                aria-invalid="false"
-                class="p-checkbox-input"
-                data-pc-section="input"
-                id="agree-to-terms-for-download"
-                name="category"
-                type="checkbox"
-              />
-              <div
-                class="p-checkbox-box"
-                data-p-disabled="false"
-                data-p-highlight="false"
-                data-pc-section="box"
-              />
+            <div>
+              Mock Checkbox
             </div>
             <label
               for="agree-to-terms-for-download"
@@ -293,7 +367,63 @@ exports[`DownloadSummary renders download summary page coming from preview 1`] =
         <div
           class="MainContent"
         >
-          MainContent
+          <div
+            class="MainContentHeader"
+          >
+            <svg
+              data-testid="svg-icon-mock"
+            >
+              mock-svg
+            </svg>
+            <div>
+              These are the datasets included in the download
+            </div>
+          </div>
+          <div
+            class="FormatPicker"
+          >
+            <div
+              class="FormatPickerHeader"
+            >
+              <svg
+                data-testid="svg-icon-mock"
+              >
+                mock-svg
+              </svg>
+              <div>
+                Download Format
+              </div>
+            </div>
+            <div
+              class="FormatPickerContent"
+            >
+              <div>
+                Mock Dropdown
+              </div>
+            </div>
+          </div>
+          <div
+            class="TableContainer"
+          >
+            <div>
+              Mock PrimeReactProvider 
+              <div>
+                Mock DataTable 
+                <div>
+                  Mock Column
+                </div>
+                <div>
+                  Mock Column
+                </div>
+                <div>
+                  Mock Column
+                </div>
+                <div>
+                  Mock Column
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
         <div
           class="Footer"
@@ -301,27 +431,8 @@ exports[`DownloadSummary renders download summary page coming from preview 1`] =
           <div
             class="TermsOfUse"
           >
-            <div
-              class="p-checkbox p-component"
-              data-p-disabled="false"
-              data-p-highlight="false"
-              data-pc-name="checkbox"
-              data-pc-section="root"
-            >
-              <input
-                aria-invalid="false"
-                class="p-checkbox-input"
-                data-pc-section="input"
-                id="agree-to-terms-for-download"
-                name="category"
-                type="checkbox"
-              />
-              <div
-                class="p-checkbox-box"
-                data-p-disabled="false"
-                data-p-highlight="false"
-                data-pc-section="box"
-              />
+            <div>
+              Mock Checkbox
             </div>
             <label
               for="agree-to-terms-for-download"

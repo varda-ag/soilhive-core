@@ -1,9 +1,18 @@
-import type { BackendStoredDataFilter, DataFilter, FilteredDataset } from 'types/backend';
+import type { BackendStoredDataFilter, DataFilter, FilteredDataset, License } from 'types/backend';
 import { useApiQuery } from './useApiQuery';
 import { computeDatasetSummary } from '../domain';
 import { useSoilProperties } from './useSoilProperties';
+import { useMemo } from 'react';
 
-export function useDownloadSummary({ filterId }: { filterId: string | null }) {
+export interface DownloadSummaryDataset {
+  id: string;
+  name: string;
+  licenses: License[];
+  dataType?: string;
+  layerCount: number;
+}
+
+export function useDownloadSummary({ filterId, datasetsIds }: { filterId: string | null; datasetsIds: string[] }) {
   const { data: allSoilProperties, isLoading: areSoilPropertiesLoading } = useSoilProperties();
 
   const { data: filterData, isLoading: isFilterLoading } = useApiQuery<BackendStoredDataFilter, DataFilter>({
@@ -36,13 +45,36 @@ export function useDownloadSummary({ filterId }: { filterId: string | null }) {
     enabled: true,
   });
 
-  const datasetsSummary = computeDatasetSummary(coverageData);
+  const { data: allLicenses, isLoading: areLicensesLoading } = useApiQuery<License[]>({
+    endpoint: '/licenses',
+    method: 'GET',
+    queryKey: ['licenses'],
+    enabled: true,
+  });
+
+  const allLicensesMap = useMemo(() => {
+    return new Map(allLicenses?.map(license => [license.id, license]) ?? []);
+  }, [allLicenses]);
+
+  const datasets: DownloadSummaryDataset[] | undefined = coverageData
+    ?.filter(dataset => datasetsIds.includes(dataset.id))
+    ?.map(dataset => {
+      return {
+        id: dataset.id,
+        name: dataset.name,
+        licenses: (dataset.licenses ?? []).map(licenseId => allLicensesMap.get(licenseId)).filter(license => license !== undefined),
+        dataType: dataset.data_type,
+        layerCount: dataset.dataset_layer_count,
+      };
+    })
+    ?.sort((datasetA, datasetB) => datasetA.name.localeCompare(datasetB.name));
 
   return {
+    datasets,
     geometryFeature,
-    datasetsSummary,
+    datasetsSummary: computeDatasetSummary(coverageData),
     soilProperties,
     depthRange,
-    isLoading: areSoilPropertiesLoading || isFilterLoading || isCoverageLoading,
+    isLoading: areSoilPropertiesLoading || isFilterLoading || isCoverageLoading || areLicensesLoading,
   };
 }

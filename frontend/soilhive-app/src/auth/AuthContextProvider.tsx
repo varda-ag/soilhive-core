@@ -8,6 +8,7 @@ import { useRequest } from '../api-client';
 import { AuthModes, type AuthModesType } from './types';
 import { clearToken, saveToken } from './tokenStore';
 import { BACKEND_BASE_URL } from '../configuration/api';
+import { WebStorageStateStore } from 'oidc-client-ts';
 
 const authContext = createContext<AuthContext | undefined>(undefined);
 
@@ -40,6 +41,7 @@ export function AuthContextProvider({ children }: { children: React.ReactNode })
         silent_redirect_uri={authConfig.oidcConfig.silentRedirectUri}
         loadUserInfo
         revokeTokensOnSignout
+        userStore={new WebStorageStateStore({ store: window.localStorage })}
         onSigninCallback={() => {
           const url = new URL(window.location.href);
           window.history.replaceState({}, document.title, url.pathname);
@@ -69,7 +71,9 @@ function OidcAuthProvider({ children }: { children: React.ReactNode }) {
   const reactOidcAuth = useReactOidcAuth();
 
   useEffect(() => {
-    saveToken(reactOidcAuth.user?.access_token);
+    if (reactOidcAuth.user?.access_token) {
+      saveToken(reactOidcAuth.user.access_token);
+    }
   }, [reactOidcAuth.user?.access_token]);
 
   const value: AuthContext = {
@@ -85,7 +89,7 @@ function OidcAuthProvider({ children }: { children: React.ReactNode }) {
     authMode: AuthModes.OIDC,
   };
 
-  return <authContext.Provider value={value}>{children}</authContext.Provider>;
+  return <authContext.Provider value={value}>{reactOidcAuth.isLoading ? null : children}</authContext.Provider>;
 }
 
 function PasswordAuthProvider({ children }: { children: React.ReactNode }) {
@@ -104,7 +108,7 @@ function PasswordAuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <authContext.Provider value={value}>
-      {children}
+      {passwordAuth.isLoading ? null : children}
       <LoginModal
         isOpen={showLoginModal}
         onClose={() => setShowLoginModal(false)}

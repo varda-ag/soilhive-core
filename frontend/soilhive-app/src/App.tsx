@@ -1,19 +1,19 @@
 import { BrowserRouter, Route, Routes } from 'react-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import './App.module.scss';
-import PageTitle from './components/PageTitle';
-import MainLayout from './layouts/MainLayout';
-import Admin from './pages/Admin';
-import { singlePages } from './utilities/moduleFederation';
-import { ThemeProvider } from './contexts/ThemeContext';
-import { AuthContextProvider } from './auth/AuthContextProvider';
-import Legal from './pages/Legal';
-import { NotificationProvider } from './contexts/NotificationsContext';
-import AvailabilityModule from './modules/AvailabilityModule';
-import { DownloadsProvider } from './contexts/DownloadsContext';
 import { useTranslation } from 'react-i18next';
-
+import { AuthContextProvider } from './auth/AuthContextProvider';
+import { ThemeProvider, NotificationProvider, DownloadsProvider } from './contexts';
+import { ADMIN_ROOT } from './configuration/admin';
+import AvailabilityModule from './modules/AvailabilityModule';
+import { AdminPortalModule } from './modules/AdminPortalModule';
+import { MainLayout, AdminPortalLayout } from './layouts';
+import PageTitle from './components/PageTitle';
+import Admin from './pages/Admin';
+import Legal from './pages/Legal';
+import { singlePages } from './utilities/moduleFederation';
 import './utilities/i18n';
+
+import './App.module.scss';
 
 const queryClient = new QueryClient();
 
@@ -67,6 +67,9 @@ function App() {
                         }
                       />
                     ))}
+                  </Route>
+                  <Route path={`${ADMIN_ROOT}/*`} element={<AdminPortalLayout />}>
+                    <Route path="*" element={<AdminPortalModule />} />
                   </Route>
                 </Routes>
               </BrowserRouter>

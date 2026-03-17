@@ -27,6 +27,49 @@ jest.mock('hooks/useDownloadSummary', () => {
   };
 });
 
+jest.mock('hooks/useAvailability', () => {
+  return {
+    __esModule: true,
+    default: jest.fn().mockReturnValue({
+      setPreview: jest.fn(),
+    }),
+  };
+});
+
+jest.mock('hooks/useDownloads', () => {
+  return {
+    __esModule: true,
+    default: jest.fn().mockReturnValue({
+      startDownload: jest.fn(),
+    }),
+  };
+});
+
+jest.mock('primereact/checkbox', () => {
+  const Checkbox = () => <div>Mock Checkbox</div>;
+  return { Checkbox };
+});
+
+jest.mock('primereact/dropdown', () => {
+  const Dropdown = () => <div>Mock Dropdown</div>;
+  return { Dropdown };
+});
+
+jest.mock('primereact/datatable', () => {
+  const DataTable = ({ children }: { children: React.ReactNode }) => <div>Mock DataTable {children}</div>;
+  return { DataTable };
+});
+
+jest.mock('primereact/column', () => {
+  const Column = () => <div>Mock Column</div>;
+  return { Column };
+});
+
+jest.mock('primereact/api', () => {
+  const PrimeReactProvider = ({ children }: { children: React.ReactNode }) => <div>Mock PrimeReactProvider {children}</div>;
+  return { PrimeReactProvider };
+});
+
 describe('DownloadSummary', () => {
   beforeEach(() => {
     jest.clearAllMocks();

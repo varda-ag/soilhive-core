@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.51.0 (2026-03-17)
+
+## What's Changed
+* feat: sp-4976 add entitlement matrix by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/286
+* feat: sp-4977 - create page structure for admin portal by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/288
+* feat: sp-5000 made selectable calendar months green by @cristbello in https://github.com/varda-ag/soilhive-core/pull/291
+* feat: adding claims to password auth token by @svaccari in https://github.com/varda-ag/soilhive-core/pull/292
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.50.0...v0.51.0
+
+## 0.50.0 (2026-03-16)
+
+## What's Changed
+* feat: sp-4901 populate download summary page by @cristbello in https://github.com/varda-ag/soilhive-core/pull/287
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.49.0...v0.50.0
+
+## 0.49.0 (2026-03-12)
+
+## What's Changed
+* fix(data): fallback to dataset license if no layer license is available by @svaccari in https://github.com/varda-ag/soilhive-core/pull/279
+* feat: sp-4903 - downloads context connected to be by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/281
+* chore: updated data vocabularies by @d-rom in https://github.com/varda-ag/soilhive-core/pull/283
+* feat: sp-4900 created main content for download summary by @cristbello in https://github.com/varda-ag/soilhive-core/pull/284
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.48.0...v0.49.0
+
 ## 0.48.0 (2026-03-10)
 
 ## What's Changed
