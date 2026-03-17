@@ -7,7 +7,7 @@ import SoilDataStorage from '../../src/data-layer/SoilDataStorage';
 import DatasetEntity from '../../src/entities/Dataset';
 import { decodeCursor } from '../../src/utils/cursor';
 import { GISDataType } from '../../src/types/data';
-import { addLandCoverData, addLandCoverMappings } from '../helper';
+import { addRastersData, addRasterMappings } from '../helper';
 import * as RasterUtilsModule from '../../src/utils/raster';
 
 const bbox = [0, 0, 1, 1];
@@ -304,12 +304,19 @@ describe('SoilDataStorage class', () => {
   });
 
   describe('Raster filtering', () => {
+    let mockSelectOverview: any;
     beforeEach(async () => {
-      await addLandCoverData();
-      await addLandCoverMappings();
+      await addRastersData();
+      await addRasterMappings();
       // Do not reference any overview (they don't exist in test dump)
-      jest.spyOn(RasterUtilsModule, 'selectOverviewTable').mockReturnValue('land_cover');
-    }, 20000);
+      mockSelectOverview = jest.spyOn(RasterUtilsModule, 'selectOverviewTable').mockImplementation((table: string) => {
+        return table;
+      });
+    });
+
+    afterAll(() => {
+      mockSelectOverview.mockRestore();
+    });
 
     it.each([
       [[[-80.7811, -33.7413]], [30], 1, 1],
@@ -334,11 +341,11 @@ describe('SoilDataStorage class', () => {
     );
 
     it.each([
-      [[-81, -34, -80, -33], 1, [0, 90, 20, 60, 112, 30, 80, 126, 200, 116]],
-      [[-82, -35, -81, -32], 1, [200]],
+      [[-81, -34, -80, -33], 1, [0, 90, 20, 60, 112, 30, 80, 126, 200, 116], [6777]],
+      [[-82, -35, -81, -32], 1, [200], []],
     ])(
       'Filtering when having raster filters enabled should return all available raster options',
-      async (bbox, expectedResultCount, expectedRasterOptions: number[]) => {
+      async (bbox, expectedResultCount, expectedLandCoverOptions: number[], expectedSoilGroupsOptions: number[]) => {
         await addSyntheticData({ ...syntheticDataOptions, depthLayers: 1, featureCount: 100, spatial_extent: bbox });
         const sds = new SoilDataStorage();
         const entityManager = await getEntityManager();
@@ -346,18 +353,19 @@ describe('SoilDataStorage class', () => {
         expect(results.length).toBe(expectedResultCount);
         if (expectedResultCount > 0) {
           expect((results[0].raster_filters?.['land_cover'] as number[])?.sort((a: number, b: number) => a - b)).toEqual(
-            expectedRasterOptions.sort((a: number, b: number) => a - b),
+            expectedLandCoverOptions.sort((a: number, b: number) => a - b),
+          );
+          expect((results[0].raster_filters?.['soil_groups'] as number[])?.sort((a: number, b: number) => a - b)).toEqual(
+            expectedSoilGroupsOptions.sort((a: number, b: number) => a - b),
           );
         }
       },
+      10000,
     );
 
-    it('Filtering with small area should return only overlapping raster values', async () => {
-      // Dataset spatial_extent
-      const bbox = [-81, -34, -80, -33];
-      // Filtering rectangle: it overlaps a small portion of the test tile containing 3 values
-      const filteringRectangle = {
-        coordinates: [
+    it.each([
+      [
+        [
           [
             [-80.722896453120683, -33.772227648792125],
             [-80.722896453120683, -33.768670417531609],
@@ -366,24 +374,49 @@ describe('SoilDataStorage class', () => {
             [-80.722896453120683, -33.772227648792125],
           ],
         ],
-        type: 'Polygon',
-      };
-      await addSyntheticData({
-        ...syntheticDataOptions,
-        depthLayers: 1,
-        featureCoordinates: [
-          // Array with one polygon
-          filteringRectangle.coordinates,
+        'land_cover',
+        [30, 60, 200],
+      ],
+      [
+        [
+          [
+            [-80.79169849775391, -34.00175191246698],
+            [-79.98963031915663, -34.00175191246698],
+            [-79.98963031915663, -26.110457643667253],
+            [-80.79169849775391, -26.110457643667253],
+            [-80.79169849775391, -34.00175191246698],
+          ],
         ],
-        featureGeometryType: 'Polygon',
-        spatial_extent: bbox,
-      });
-      const sds = new SoilDataStorage();
-      const entityManager = await getEntityManager();
-      const results = await sds.filter(entityManager, filteringRectangle as Polygon, {});
-      expect(results.length).toBe(1);
-      expect((results[0].raster_filters?.['land_cover'] as number[])?.sort((a: number, b: number) => a - b)).toEqual([30, 60, 200]);
-    });
+        'soil_groups',
+        [6776, 6777],
+      ],
+    ])(
+      'Filtering with small area should return only overlapping raster values',
+      async (filteringCoords: number[][][], raster_filter: string, values: number[]) => {
+        // Dataset spatial_extent
+        const bbox = [-81, -34, -80, -33];
+        // Filtering rectangle: it overlaps a small portion of the test tile containing 3 values
+        const filteringRectangle = {
+          coordinates: filteringCoords,
+          type: 'Polygon',
+        };
+        await addSyntheticData({
+          ...syntheticDataOptions,
+          depthLayers: 1,
+          featureCoordinates: [
+            // Array with one polygon
+            filteringRectangle.coordinates,
+          ],
+          featureGeometryType: 'Polygon',
+          spatial_extent: bbox,
+        });
+        const sds = new SoilDataStorage();
+        const entityManager = await getEntityManager();
+        const results = await sds.filter(entityManager, filteringRectangle as Polygon, {});
+        expect(results.length).toBe(1);
+        expect((results[0].raster_filters?.[raster_filter] as number[])?.sort((a: number, b: number) => a - b)).toEqual(values);
+      },
+    );
 
     it('Filtering with big area should return all the raster values', async () => {
       // Dataset spatial_extent
@@ -417,6 +450,10 @@ describe('SoilDataStorage class', () => {
       expect(results.length).toBe(1);
       expect((results[0].raster_filters?.['land_cover'] as number[])?.sort((a: number, b: number) => a - b)).toEqual([
         0, 20, 30, 40, 50, 60, 70, 80, 90, 100, 111, 112, 113, 114, 115, 116, 121, 122, 123, 124, 125, 126, 200,
+      ]);
+      expect((results[0].raster_filters?.['soil_groups'] as number[])?.sort((a: number, b: number) => a - b)).toEqual([
+        6567, 6576, 6578, 6582, 6584, 6772, 6776, 6777, 6782, 7076, 7082, 7171, 7176, 7189, 7283, 7583, 7680, 7686, 7688, 7884, 8072, 8076,
+        8084, 8090, 8271, 8284, 8367, 8378, 8384, 8467, 8577, 8682,
       ]);
     });
   });
