@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.51.0 (2026-03-17)
+
+## What's Changed
+* feat: sp-4976 add entitlement matrix by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/286
+* feat: sp-4977 - create page structure for admin portal by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/288
+* feat: sp-5000 made selectable calendar months green by @cristbello in https://github.com/varda-ag/soilhive-core/pull/291
+* feat: adding claims to password auth token by @svaccari in https://github.com/varda-ag/soilhive-core/pull/292
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.50.0...v0.51.0
+
 ## 0.50.0 (2026-03-16)
 
 ## What's Changed
