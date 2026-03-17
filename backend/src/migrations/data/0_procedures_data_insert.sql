@@ -236,4 +236,13 @@ INSERT INTO procedures (
     (NULL, 'lab procedure', NULL, NULL, NULL, NULL, 'Cotton-wool filter', NULL),
     (NULL, 'lab procedure', NULL, NULL, NULL, NULL, 'Seinhorst elutriator', NULL),
     (NULL, 'lab procedure', NULL, NULL, NULL, NULL, 'AZC', NULL)
+    (NULL, 'lab procedure', NULL, NULL, NULL, NULL, 'gravimetric', NULL),
+    (NULL, 'spectral', NULL, NULL, NULL, NULL, 'NIR', NULL),
+    (NULL, 'calculated', 'Hot water [H2O]', NULL, NULL, NULL, 'Preprocessing details provided in the README file', NULL),
+    (NULL, 'calculated', NULL, NULL, NULL, NULL, 'Preprocessing details provided in the README file', NULL),
+    (NULL, 'calculated', 'DTPA', NULL, NULL, NULL, 'Preprocessing details provided in the README file', NULL),
+    (NULL, 'calculated', 'Ammonium chloride [NH4Cl]', NULL, NULL, NULL, 'Preprocessing details provided in the README file', NULL),
+    (NULL, 'calculated', 'Resin', NULL, NULL, NULL, 'Preprocessing details provided in the README file', NULL),
+    (NULL, 'lab procedure', 'Calcium chloride [CaCl2]', '0.1 M', NULL, NULL, NULL, NULL),
+    (NULL, 'lab procedure', 'Shoemaker-McLean-Pratt (SMP) buffer solution', NULL, NULL, NULL, NULL, NULL)
  on conflict(sample_pretreatment, technique, laboratory_method, extractant_concentration, extraction_ratio, extraction_base, measurement_procedure, limit_of_detection) do nothing;
