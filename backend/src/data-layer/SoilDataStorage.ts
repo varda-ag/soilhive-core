@@ -23,7 +23,7 @@ export default class SoilDataStorage {
     const repo = entityManager.getRepository(DatasetEntity);
     const results = await repo
       .createQueryBuilder('datasets')
-      .addCommonTableExpression('SELECT ST_GeomFromGeoJSON(:input) as geom', 'input')
+      .addCommonTableExpression(selectGeometry(), 'input')
       .select([
         'datasets.id as dataset_id',
         `CASE 
@@ -34,7 +34,7 @@ export default class SoilDataStorage {
       ])
       .where('datasets.spatial_extent IS NOT NULL')
       .from('input', 'input')
-      .setParameter('input', JSON.stringify(geometry))
+      .setParameter('inputGeom', JSON.stringify(geometry))
       .getRawMany();
     return new Map(results.map(row => [row.dataset_id, row.overlap_type as OverlapType]));
   };
@@ -196,7 +196,7 @@ const geometryUnion = (geometries: (Polygon | MultiPolygon)[]): Polygon | MultiP
 const setCandidateFeatures = (query: any, geometries: (Polygon | MultiPolygon)[]) => {
   // Merge all input geometries and define candidate features by intersecting aoi
   const geom = JSON.stringify(geometryUnion(geometries));
-  query.addCommonTableExpression('SELECT ST_GeomFromGeoJSON(:inputGeom) AS geom', 'aoi', { materialized: true });
+  query.addCommonTableExpression(selectGeometry(), 'aoi', { materialized: true });
   query.setParameter('inputGeom', geom);
   query.addCommonTableExpression(
     `SELECT f.id, f.geom FROM ${process.env.POSTGRES_SCHEMA}.features f, aoi WHERE ST_Intersects(f.geom, aoi.geom)`,
@@ -560,4 +560,8 @@ const applySortingToQuery = (query: any, sort?: string) => {
 
   // Use stable secondary sort by obs.id for consistent pagination
   query.orderBy(qualifiedColumn, sortDirection).addOrderBy('obs.id', sortDirection);
+};
+
+const selectGeometry = (): string => {
+  return "SELECT ST_CollectionExtract(ST_MakeValid(ST_GeomFromGeoJSON(:inputGeom), 'method=structure'), 3) AS geom";
 };
