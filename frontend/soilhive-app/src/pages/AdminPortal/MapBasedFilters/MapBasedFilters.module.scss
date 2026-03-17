@@ -4,12 +4,12 @@
   gap: 24px;
   padding: 24px;
   max-width: 1000px;
-  color: var(--color-text-primary); /* */
+  color: var(--color-text-primary);
 }
 
 .Card {
-  background: var(--color-neutral-white); /* */
-  border: 1px solid var(--color-neutral-dark-100); /* */
+  background: var(--color-neutral-white);
+  border: 1px solid var(--color-neutral-dark-100);
   border-radius: 8px;
   padding: 24px;
   display: flex;
@@ -19,8 +19,7 @@
     flex-shrink: 0;
     width: 43.38px;
     height: 43.38px;
-    // Using the dark brand color for icons to match the theme
-    color: var(--color-brand-dark-green-1000); /* */
+    color: var(--color-brand-dark-green-1000);
   }
 
   .Content {
@@ -28,14 +27,14 @@
 
     h3 {
       margin: 0 0 12px 0;
-      font-size: var(--font-size-xl); /* */
-      font-weight: var(--font-weight-bold); /* */
+      font-size: var(--font-size-xl);
+      font-weight: var(--font-weight-bold);
     }
 
     p {
       margin: 0;
-      font-size: var(--font-size-sm); /* */
-      line-height: var(--line-height-lg); /* */
+      font-size: var( --font-size-md);
+      line-height: var(--line-height-lg);
     }
   }
 }
@@ -48,34 +47,34 @@
 
     h4 {
       margin: 0 0 8px 0;
-      font-size: var(--font-size-lg); /* */
-      font-weight: var(--font-weight-semibold); /* */
+      font-size: var(--font-size-lg);
+      font-weight: var(--font-weight-semibold);
     }
 
     .ReadMore {
-      color: var(--color-cta-danger-solid); /* Matching the pinkish link */
+      color: var(--color-cta-danger-solid);
       text-decoration: underline;
       cursor: pointer;
       margin-left: 4px;
-      font-size: var(--font-size-sm); /* */
+      font-size: var(--font-size-sm);
     }
   }
 }
 
 .ActivationSection {
   .DocLink {
-    color: var(--color-cta-danger-solid); /* */
+    color: var(--color-cta-danger-solid);
     text-decoration: underline;
     word-break: break-all;
     display: block;
     margin: 8px 0 24px 0;
-    font-size: var(--font-size-sm); /* */
+    font-size: var(--font-size-sm);
   }
 
   .StatusTitle {
-    font-weight: var(--font-weight-bold); /* */
+    font-weight: var(--font-weight-bold);
     margin-bottom: 12px;
-    font-size: var(--font-size-md); /* */
+    font-size: var(--font-size-md);
   }
 
   .StatusRow {
@@ -86,7 +85,7 @@
 
     .Label {
       flex: 0 0 180px;
-      font-size: var(--font-size-sm); /* */
+      font-size: var(--font-size-sm);
     }
   }
 }
@@ -96,26 +95,26 @@
   align-items: center;
   padding: 4px 12px;
   border-radius: 4px;
-  font-size: var(--font-size-xs); /* */
-  font-weight: var(--font-weight-medium); /* */
-  border: 1px solid var(--color-neutral-dark-200); /* */
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  border: 1px solid var(--color-neutral-dark-200);
   min-width: 85px;
   justify-content: center;
 
   &.Active {
-    border-color: var(--color-brand-light-green-1000); /* */
-    color: var(--color-text-primary); /* */
+    border-color: var(--color-brand-light-green-1000);
+    color: var(--color-text-primary);
     
     &::before {
       content: '✓';
       margin-right: 6px;
-      font-weight: var(--font-weight-bold); /* */
+      font-weight: var(--font-weight-bold);
     }
   }
 
   &.Inactive {
-    border-color: var(--color-neutral-dark-200); /* */
-    color: var(--color-neutral-dark-400); /* */
+    border-color: var(--color-neutral-dark-200);
+    color: var(--color-neutral-dark-400);
   }
 }
 
@@ -131,7 +130,6 @@
   line-height: var(--line-height-lg);
   color: var(--color-text-primary);
   
-  // Clamped state (Default)
   display: -webkit-box;
   -webkit-line-clamp: 2;
   line-clamp: 2;
