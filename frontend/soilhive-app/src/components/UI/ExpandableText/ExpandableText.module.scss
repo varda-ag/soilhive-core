@@ -1,0 +1,43 @@
+.ExpandableText {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.Description {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-lg);
+  color: var(--color-text-primary);
+  
+  // Clamping Logic
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+
+  &.Expanded {
+    display: block; // Removes clamping
+    -webkit-line-clamp: unset;
+    line-clamp: unset;
+    overflow: visible;
+  }
+}
+
+.ReadMoreButton {
+  background: none;
+  border: none;
+  padding: 0;
+  margin-top: 4px;
+  color: var(--color-cta-danger-solid); // Using your pinkish theme color
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  font-family: inherit;
+  
+  &:hover {
+    color: var(--color-cta-danger-hover);
+  }
+}

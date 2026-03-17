@@ -1,5 +1,9 @@
 {
     "loading": "Loading...",
+    "actions": {
+        "read_more": "Read more",
+        "read_less": "Read less"
+    },
     "page_titles": {
         "donation": "SoilHive - Donation",
         "legal": "SoilHive - Legal",
