@@ -46,6 +46,8 @@ Set the following backend environment variables to enable OIDC authentication (s
 
 Besides the backend configuration, a user created inside the Identity Provider must be given the super-admin scope before they can access the application as admin.
 
+- [Keycloak setup](docs/keycloak-setup.md): Example setup for Keycloak and OIDC authentication
+
 ### Authentication Priority
 - If both password and OIDC variables are set, **OIDC takes precedence**
 - If no variables are set or only partially configured, **no authentication will be enabled**

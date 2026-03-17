@@ -4,10 +4,9 @@
 
 Welcome to SoilHive Core! Please see the documentation sections below:
 
-- [Quickstart](docs/quickstart.md): How to run SoilHive Core and entry points
-- [Development](docs/development.md): Setting up environment variables and starting the application
-- [Authentication](docs/authentication.md): Authentication modes and environment configuration
-- [Keycloak setup](docs/keycloak-setup.md): Example setup for Keycloak and OIDC authentication
+- [Quickstart](docs/quickstart.md): How to run SoilHive Core in a Docker environment
+- [Development](docs/development.md): Setting up a local environment and starting the application
+- [Authentication](docs/authentication.md): Modes and configuration
 - [Frontend](docs/frontend.md): Running and developing the frontend
 - [Backend](docs/backend.md): Running and developing the backend
 - [Map based filters](docs/map-based-filters.md): How to install and activate the filters
