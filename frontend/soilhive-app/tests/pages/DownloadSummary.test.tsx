@@ -27,15 +27,6 @@ jest.mock('hooks/useDownloadSummary', () => {
   };
 });
 
-jest.mock('hooks/useAvailability', () => {
-  return {
-    __esModule: true,
-    default: jest.fn().mockReturnValue({
-      setPreview: jest.fn(),
-    }),
-  };
-});
-
 jest.mock('hooks/useDownloads', () => {
   return {
     __esModule: true,

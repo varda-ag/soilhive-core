@@ -1,6 +1,6 @@
 // Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
 
-exports[`DownloadPreview calls setPreview(false) when clicking on the back button 1`] = `
+exports[`DownloadPreview calls navigate when clicking on the back button 1`] = `
 <div>
   <div
     class="Availability"

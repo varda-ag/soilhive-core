@@ -26,7 +26,6 @@ function DownloadPreview() {
   const { t } = useTranslation('download');
 
   const {
-    setPreview,
     geometryFilter,
     datasetsSummary,
     selectionType,
@@ -140,7 +139,7 @@ function DownloadPreview() {
             className={styles.BackButton}
             type="secondary"
             onClick={() => {
-              setPreview(false);
+              navigate(-1);
             }}
           >
             <ArrowLeftIcon />
