@@ -222,11 +222,7 @@ const hasRasterFilters = (dataFilter: DataFilter): boolean => {
   return Boolean(raster_filters && Object.keys(raster_filters).length > 0);
 };
 
-const applyFiltersToQuery = async (
-  query: any,
-  dataFilter: DataFilter,
-  enabledRasterFilterTables: string[],
-) => {
+const applyFiltersToQuery = async (query: any, dataFilter: DataFilter, enabledRasterFilterTables: string[]) => {
   if (dataFilter.geometries.length > 0) {
     // Testing intersection with entire dataset
     query.innerJoin('dataset_layers.dataset', 'ds', 'ds.spatial_extent && (SELECT geom FROM aoi)'); // Checking bbox only with "&&" without CTE cross-join
@@ -379,14 +375,13 @@ const applyRasterFilterToQuery = (
   );
 };
 
-const addRasterCoverage = async (query: SelectQueryBuilder<any>, dataFilter: DataFilter, enabledRasterFilterTables?: string[]) => {
+const addRasterCoverage = async (query: SelectQueryBuilder<any>, dataFilter: DataFilter, enabledRasterFilterTables: string[]) => {
   if (dataFilter.geometries.length === 0) {
     // No input geometry, raster coverage cannot be applied
     return;
   }
 
-  const rasterFilterTables = enabledRasterFilterTables || (await getEnabledRasterFilterTables());
-  if (rasterFilterTables.length === 0) {
+  if (enabledRasterFilterTables.length === 0) {
     // No raster data is available
     return;
   }
@@ -395,7 +390,7 @@ const addRasterCoverage = async (query: SelectQueryBuilder<any>, dataFilter: Dat
   const aoiAreaM2 = turf.area(dataFilter.geometries[0]!);
   const calculateRealCoverage = aoiAreaM2 < 3_000_000_000_000;
 
-  for (const baseTable of rasterFilterTables) {
+  for (const baseTable of enabledRasterFilterTables) {
     const outputColumn = `#${baseTable}`; // Prefixing column name with "#" to detect it in the results
     const values = raster_filters?.[baseTable];
     const hasFilteringValues = values && values.length > 0;
