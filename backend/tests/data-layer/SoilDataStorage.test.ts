@@ -1,5 +1,5 @@
 import { describe, it, expect } from '@jest/globals';
-import { Polygon } from 'geojson';
+import { MultiPolygon, Polygon } from 'geojson';
 import { getEntityManager } from '../../src/utils/data-source';
 import { getPolygonFromBbox } from '../../src/utils/geometry';
 import { addDataset, addSyntheticData, syntheticDataOptions } from '../../src/utils/mock';
@@ -9,6 +9,7 @@ import { decodeCursor } from '../../src/utils/cursor';
 import { GISDataType } from '../../src/types/data';
 import { addRastersData, addRasterMappings } from '../helper';
 import * as RasterUtilsModule from '../../src/utils/raster';
+import { invalidGeometryPayload } from './invalidGeometryPayload.ts';
 
 const bbox = [0, 0, 1, 1];
 const bboxPolygon: Polygon = getPolygonFromBbox(bbox);
@@ -455,6 +456,20 @@ describe('SoilDataStorage class', () => {
         6567, 6576, 6578, 6582, 6584, 6772, 6776, 6777, 6782, 7076, 7082, 7171, 7176, 7189, 7283, 7583, 7680, 7686, 7688, 7884, 8072, 8076,
         8084, 8090, 8271, 8284, 8367, 8378, 8384, 8467, 8577, 8682,
       ]);
+    });
+
+    it('Filtering should work even with an invalid geometry', async () => {
+      await addSyntheticData({
+        ...syntheticDataOptions,
+        spatial_extent: [6.8, 38, 17, 47],
+        featureGeometryType: 'Polygon',
+        featureCount: 500,
+        squareSide: 0.3,
+      });
+      const sds = new SoilDataStorage();
+      const entityManager = await getEntityManager();
+      const results = await sds.filter(entityManager, invalidGeometryPayload as MultiPolygon, {});
+      expect(results.length).toBe(1);
     });
   });
 });
