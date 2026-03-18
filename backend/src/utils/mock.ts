@@ -34,8 +34,7 @@ const randomsInRange = (min: number, max: number, count: number): number[] => {
   return arr;
 };
 
-const randomSquareCoordinates = (spatial_extent: number[]) => {
-  const side = 0.00001;
+const randomSquareCoordinates = (spatial_extent: number[], side: number = 0.00001) => {
   const minX = randomInRange(spatial_extent[0]!, spatial_extent[2]!);
   const minY = randomInRange(spatial_extent[1]!, spatial_extent[3]!);
   const maxX = minX + side;
@@ -57,6 +56,7 @@ export const syntheticDataOptions = {
   showProgress: false,
   useProgressiveObservationValues: false,
   datasetLicense: undefined,
+  squareSide: 0.00001,
 };
 
 export const syntheticIngestionDataOptions = {
@@ -324,6 +324,7 @@ export const addSyntheticData = async (syntheticDataOptions): Promise<SyntheticD
     addNullValues,
     useProgressiveObservationValues,
     datasetLicense,
+    squareSide,
   } = syntheticDataOptions;
   assert(featureCount > 0, 'featureCount must be greater than 0');
   assert(observationsPerLayer > 0, 'observationsPerLayer must be greater than 0');
@@ -358,7 +359,7 @@ export const addSyntheticData = async (syntheticDataOptions): Promise<SyntheticD
       if (featureGeometryType === 'Point') {
         coordinates.push([randomInRange(spatial_extent[0], spatial_extent[2]), randomInRange(spatial_extent[1], spatial_extent[3])]);
       } else {
-        coordinates.push(randomSquareCoordinates(spatial_extent) as any);
+        coordinates.push(randomSquareCoordinates(spatial_extent, squareSide) as any);
       }
     }
   }

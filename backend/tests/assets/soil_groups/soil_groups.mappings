@@ -1,0 +1,37 @@
+INSERT INTO "raster_filters" (id,name,description) VALUES ('soil_groups','Soil groups','This filter refers to the categories defined by the WRB, an international soil classification system developed by the IUSS. These groups classify soils based on their physical and chemical properties, providing a standardized framework for naming soils and creating legends for soil maps. FAO & IIASA. 2023. Harmonized World Soil Database version 2.0. Rome and Laxenburg.') ON CONFLICT(id) DO NOTHING;
+
+UPDATE raster_filters SET mappings = '
+{"Acrisols": 6567, 
+"Alisols": 6576, 
+"Andosols": 6578, 
+"Arenosols": 6582, 
+"Anthrosols": 6584, 
+"Chernozems": 6772, 
+"Calcisols": 6776, 
+"Cambisols": 6777, 
+"Cryosols": 6782, 
+"Fluvisols": 7076, 
+"Ferralsols": 7082, 
+"Glaciers": 7171, 
+"Gleysols": 7176, 
+"Gypsisols": 7189, 
+"Histosols": 7283, 
+"Kastanozems": 7583, 
+"Leptosols": 7680, 
+"Luvisols": 7686, 
+"Lixisols": 7688, 
+"Nitisols": 7884, 
+"Phaeozem": 8072, 
+"Planosols": 8076, 
+"Plinthosols": 8084, 
+"Podzols": 8090, 
+"Regosols": 8271, 
+"Retisols": 8284, 
+"Solonchaks": 8367, 
+"Solonetz": 8378, 
+"Stagnosols": 8384, 
+"Technosols": 8467, 
+"Umbrisols": 8577, 
+"Vertisols": 8682}
+'::jsonb
+WHERE id = 'soil_groups';
