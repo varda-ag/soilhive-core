@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.51.2 (2026-03-18)
+
+## What's Changed
+* fix: using ST_MakeValid by @svaccari in https://github.com/varda-ag/soilhive-core/pull/297
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.51.1...v0.51.2
+
 ## 0.51.1 (2026-03-17)
 
 ## What's Changed
