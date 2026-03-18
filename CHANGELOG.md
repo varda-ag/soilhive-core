@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.52.0 (2026-03-18)
+
+## What's Changed
+* feat(fe): sp-4921 add map based filters configuration page by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/296
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.51.2...v0.52.0
+
 ## 0.51.2 (2026-03-18)
 
 ## What's Changed
