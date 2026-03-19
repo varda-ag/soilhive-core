@@ -21,8 +21,6 @@
     "nav_menu": {
         "availability": "Availability",
         "legal": "Legal",
-        "admin": "Admin console",
-        "adminold": "Admin",
         "hamburger_aria": "Menu"
     },
     "user_menu": {
