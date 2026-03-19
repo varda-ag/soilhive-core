@@ -69,4 +69,14 @@
     font-size: var(--font-size-lg);
     font-weight: var(--font-weight-bold);
   }
+
+  .LogoutWrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-left: 1px solid var(--color-neutral-dark-100);
+    color: var(--color-cta-default-solid);
+    cursor: pointer;
+    padding-left: 1rem;
+  }
 }

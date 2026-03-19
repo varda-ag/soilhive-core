@@ -6,10 +6,11 @@ import { ThemeProvider, NotificationProvider, DownloadsProvider } from './contex
 import { ADMIN_ROOT } from './configuration/admin';
 import AvailabilityModule from './modules/AvailabilityModule';
 import { AdminPortalModule } from './modules/AdminPortalModule';
-import { MainLayout, AdminPortalLayout } from './layouts';
+import { MainLayout } from './layouts';
 import PageTitle from './components/PageTitle';
 import Admin from './pages/Admin';
 import Legal from './pages/Legal';
+import { AdminPortalGuard } from './guards/AdminPortalGuard';
 import { singlePages } from './utilities/moduleFederation';
 import './utilities/i18n';
 
@@ -47,7 +48,7 @@ function App() {
                       }
                     />
                     <Route
-                      path="/admin"
+                      path="/admin-old"
                       element={
                         <>
                           <PageTitle title={t('page_titles.admin')} />
@@ -68,7 +69,7 @@ function App() {
                       />
                     ))}
                   </Route>
-                  <Route path={`${ADMIN_ROOT}/*`} element={<AdminPortalLayout />}>
+                  <Route path={`${ADMIN_ROOT}/*`} element={<AdminPortalGuard />}>
                     <Route path="*" element={<AdminPortalModule />} />
                   </Route>
                 </Routes>

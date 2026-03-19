@@ -2,7 +2,7 @@ import classNames from 'classnames';
 import { useTranslation } from 'react-i18next';
 
 import ServerIcon from 'assets/icons/server-check-icon.svg?react';
-import SettingsIcon from 'assets/icons/settings-icon.svg?react';
+import SettingsIcon from 'assets/icons/big-settings-icon.svg?react';
 import WrenchIcon from 'assets/icons/wrench-icon.svg?react';
 
 import styles from './MapBasedFilters.module.scss';

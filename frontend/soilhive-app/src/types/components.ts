@@ -39,3 +39,10 @@ export interface Selection {
   label: string;
   disabled?: boolean;
 }
+
+export type NavMenuEntry = {
+  name: string;
+  route: string;
+  type: 'internal' | 'external';
+  Icon?: React.FC<React.SVGProps<SVGSVGElement>>;
+};

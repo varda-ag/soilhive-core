@@ -1,6 +1,6 @@
 // Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
 
-exports[`AdminSidebar renders sidebar and matches snapshot 1`] = `
+exports[`AdminSidebar renders sidebar for user with all permissions and matches snapshot 1`] = `
 <div>
   <aside
     class="AdminSidebar"
@@ -38,7 +38,7 @@ exports[`AdminSidebar renders sidebar and matches snapshot 1`] = `
               class="Link Active"
               data-discover="true"
               data-testid="sh-admin-sidebarlink"
-              href="/adminportal/terms-and-conditions"
+              href="/admin/terms-and-conditions"
             >
               <svg
                 class="LinkIcon"
@@ -56,7 +56,7 @@ exports[`AdminSidebar renders sidebar and matches snapshot 1`] = `
               class="Link"
               data-discover="true"
               data-testid="sh-admin-sidebarlink"
-              href="/adminportal/map"
+              href="/admin/map"
             >
               <svg
                 class="LinkIcon"
@@ -74,7 +74,7 @@ exports[`AdminSidebar renders sidebar and matches snapshot 1`] = `
               class="Link"
               data-discover="true"
               data-testid="sh-admin-sidebarlink"
-              href="/adminportal/look-and-feel"
+              href="/admin/look-and-feel"
             >
               <svg
                 class="LinkIcon"
@@ -106,7 +106,7 @@ exports[`AdminSidebar renders sidebar and matches snapshot 1`] = `
               class="Link"
               data-discover="true"
               data-testid="sh-admin-sidebarlink"
-              href="/adminportal/datasets"
+              href="/admin/datasets"
             >
               <svg
                 class="LinkIcon"
@@ -124,7 +124,7 @@ exports[`AdminSidebar renders sidebar and matches snapshot 1`] = `
               class="Link"
               data-discover="true"
               data-testid="sh-admin-sidebarlink"
-              href="/adminportal/filters"
+              href="/admin/filters"
             >
               <svg
                 class="LinkIcon"
@@ -136,6 +136,218 @@ exports[`AdminSidebar renders sidebar and matches snapshot 1`] = `
                 class="LinkTitle"
               >
                 Map-based filters
+              </span>
+            </a>
+          </nav>
+        </div>
+      </div>
+      <div
+        class="ContentBottom"
+      >
+        <div
+          class="Logout"
+          data-testid="sh-admin-sidebar-logout"
+        >
+          <svg
+            data-testid="svg-icon-mock"
+          >
+            mock-svg
+          </svg>
+          <span
+            class="LogoutText"
+          >
+            Logout
+          </span>
+        </div>
+      </div>
+    </div>
+  </aside>
+</div>
+`;
+
+exports[`AdminSidebar renders sidebar for user with only ADMIN_PORTAL_DATA_MENU permission and matches snapshot 1`] = `
+<div>
+  <aside
+    class="AdminSidebar"
+    data-testid="sh-admin-sidebar"
+  >
+    <div
+      class="Content"
+    >
+      <div
+        class="ContentTop"
+      >
+        <div
+          class="Collapser"
+        >
+          <svg
+            data-testid="svg-icon-mock"
+          >
+            mock-svg
+          </svg>
+        </div>
+        <div
+          class="LinksSection"
+        >
+          <h3
+            class="LinksSectionTitle"
+          >
+            Data
+          </h3>
+          <nav
+            class="Links"
+            data-testid="sh-admin-sidebarlinks-data"
+          >
+            <a
+              aria-current="page"
+              class="Link Active"
+              data-discover="true"
+              data-testid="sh-admin-sidebarlink"
+              href="/admin/datasets"
+            >
+              <svg
+                class="LinkIcon"
+                data-testid="svg-icon-mock"
+              >
+                mock-svg
+              </svg>
+              <span
+                class="LinkTitle"
+              >
+                Datasets publication
+              </span>
+            </a>
+            <a
+              class="Link"
+              data-discover="true"
+              data-testid="sh-admin-sidebarlink"
+              href="/admin/filters"
+            >
+              <svg
+                class="LinkIcon"
+                data-testid="svg-icon-mock"
+              >
+                mock-svg
+              </svg>
+              <span
+                class="LinkTitle"
+              >
+                Map-based filters
+              </span>
+            </a>
+          </nav>
+        </div>
+      </div>
+      <div
+        class="ContentBottom"
+      >
+        <div
+          class="Logout"
+          data-testid="sh-admin-sidebar-logout"
+        >
+          <svg
+            data-testid="svg-icon-mock"
+          >
+            mock-svg
+          </svg>
+          <span
+            class="LogoutText"
+          >
+            Logout
+          </span>
+        </div>
+      </div>
+    </div>
+  </aside>
+</div>
+`;
+
+exports[`AdminSidebar renders sidebar for user with only ADMIN_PORTAL_UI_MENU permission and matches snapshot 1`] = `
+<div>
+  <aside
+    class="AdminSidebar"
+    data-testid="sh-admin-sidebar"
+  >
+    <div
+      class="Content"
+    >
+      <div
+        class="ContentTop"
+      >
+        <div
+          class="Collapser"
+        >
+          <svg
+            data-testid="svg-icon-mock"
+          >
+            mock-svg
+          </svg>
+        </div>
+        <div
+          class="LinksSection"
+        >
+          <h3
+            class="LinksSectionTitle"
+          >
+            User interface
+          </h3>
+          <nav
+            class="Links"
+            data-testid="sh-admin-sidebarlinks-user_interface"
+          >
+            <a
+              aria-current="page"
+              class="Link Active"
+              data-discover="true"
+              data-testid="sh-admin-sidebarlink"
+              href="/admin/terms-and-conditions"
+            >
+              <svg
+                class="LinkIcon"
+                data-testid="svg-icon-mock"
+              >
+                mock-svg
+              </svg>
+              <span
+                class="LinkTitle"
+              >
+                Terms & Conditions
+              </span>
+            </a>
+            <a
+              class="Link"
+              data-discover="true"
+              data-testid="sh-admin-sidebarlink"
+              href="/admin/map"
+            >
+              <svg
+                class="LinkIcon"
+                data-testid="svg-icon-mock"
+              >
+                mock-svg
+              </svg>
+              <span
+                class="LinkTitle"
+              >
+                Map settings
+              </span>
+            </a>
+            <a
+              class="Link"
+              data-discover="true"
+              data-testid="sh-admin-sidebarlink"
+              href="/admin/look-and-feel"
+            >
+              <svg
+                class="LinkIcon"
+                data-testid="svg-icon-mock"
+              >
+                mock-svg
+              </svg>
+              <span
+                class="LinkTitle"
+              >
+                Look & Feel
               </span>
             </a>
           </nav>
