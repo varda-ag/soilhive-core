@@ -1,6 +1,6 @@
 # Quickstart
 
-## Running SoilHive Core
+Install Docker and start SoilHive stack with:
 
 ```
 docker compose up -d

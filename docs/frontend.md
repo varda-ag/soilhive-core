@@ -1,7 +1,17 @@
-# Frontend
+# Frontend development setup
 
-To install all the dependencies in all the projects at once use pnpm like this: `pnpm install -r`.
+1. Install `node` version 22
+2. Install all the dependencies at once with `pnpm install -r`
+3. Run all the projects with: `pnpm run dev`
 
-If you want to run all the projects at once you can just use pnpm like this: `pnpm run dev`.
+## Setting up the environment variables
 
-The Node version used is v22.21.0.
+Create file `./frontend/soilhive-app/public/env-config.js`.
+Content of the file:
+
+```
+window._env_ = {
+  BACKEND_BASE_URL: 'http://localhost:4001',
+  MAPBOX_ACCESS_TOKEN: '<your mapbox access token or empty string>',
+};
+```

@@ -4,11 +4,10 @@
 
 Welcome to SoilHive Core! Please see the documentation sections below:
 
-- [Quickstart](docs/quickstart.md): How to run SoilHive Core in a Docker environment
-- [Development](docs/development.md): Setting up a local environment and starting the application
+- [Quickstart](docs/quickstart.md): How to run SoilHive Core in a Docker stack
 - [Authentication](docs/authentication.md): Modes and configuration
 - [Frontend](docs/frontend.md): Running and developing the frontend
 - [Backend](docs/backend.md): Running and developing the backend
 - [Map based filters](docs/map-based-filters.md): How to install and activate the filters
 
-For more details, visit each linked section above.
+For more details please visit each linked section above.

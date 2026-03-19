@@ -1,4 +1,4 @@
-# Authentication Mode
+# Authentication
 
 Three authentication options are provided:
 
@@ -14,7 +14,7 @@ Basic support for `super-admin` and `data-admin` roles with hardcoded passwords.
 No user support is provided.
 
 ## `oidc`
-External IDP will be used to validate tokens.
+An external identity provider (IDP) will be used to generate tokens and define users and roles.
 Frontend will receive the login configuration from this backend.
 
 ## Token scopes
@@ -25,7 +25,7 @@ Platform supports two built-in scopes:
 
 Endpoints may require a specific scope to return a successful response.
 
-## How to setup Authentication
+## Setup
 
 ### Password-Based Authentication
 Set the following backend environment variables to enable password authentication:
@@ -44,9 +44,9 @@ Set the following backend environment variables to enable OIDC authentication (s
 - `OIDC_SILENT_REDIRECT_URI`: URL to redirect after token refresh (typically the app main page)
 - `OIDC_SCOPE`: Set to `openid`
 
-Besides the backend configuration, a user created inside the Identity Provider must be given the super-admin scope before they can access the application as admin.
+Besides the backend configuration, a user created inside the Identity Provider must be given the `super-admin` scope before they can access the application as admin.
 
-- [Keycloak setup](docs/keycloak-setup.md): Example setup for Keycloak and OIDC authentication
+- [Keycloak setup](docs/keycloak-setup.md): Example setup for Keycloak IDP and OIDC authentication
 
 ### Authentication Priority
 - If both password and OIDC variables are set, **OIDC takes precedence**
