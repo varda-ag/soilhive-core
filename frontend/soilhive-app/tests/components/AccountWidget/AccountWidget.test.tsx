@@ -3,6 +3,7 @@ import { AccountWidget } from 'components/AccountWidget/AccountWidget';
 import { useAuthContext } from '../../../src/auth/AuthContextProvider';
 import { useEntitlements } from 'hooks/useEntitlementsHook';
 import { useClickAway } from 'react-use';
+import { ADMIN_ROOT } from '../../../src/configuration/admin';
 
 jest.mock('react-use', () => ({
   ...jest.requireActual('react-use'),
@@ -169,7 +170,7 @@ describe('AccountWidget', () => {
     fireEvent.click(screen.getByTestId('sh-ui-accountwidgetbutton'));
 
     const adminLink = screen.getByRole('link', { name: /Admin Console/i });
-    expect(adminLink).toHaveAttribute('href', '/adminportal');
+    expect(adminLink).toHaveAttribute('href', ADMIN_ROOT);
     expect(adminLink).toHaveAttribute('target', '_blank');
     expect(adminLink).toHaveAttribute('rel', 'noopener noreferrer');
   });

@@ -108,7 +108,7 @@ describe('Header component', () => {
     expect(screen.queryByTestId('sh-header-hamburger')).not.toBeInTheDocument();
     expect(screen.queryByTestId('mobile-menu-mock')).not.toBeInTheDocument();
 
-    expect(screen.getAllByTestId('sh-header-nav-link')).toHaveLength(4);
+    expect(screen.getAllByTestId('sh-header-nav-link')).toHaveLength(3);
 
     expect(container).toMatchSnapshot();
   });
@@ -189,7 +189,7 @@ describe('Header component', () => {
 
     fireEvent.click(screen.getByTestId('sh-header-hamburger'));
 
-    expect(screen.getAllByTestId('mobile-menu-entry')).toHaveLength(4);
+    expect(screen.getAllByTestId('mobile-menu-entry')).toHaveLength(3);
     expect(container).toMatchSnapshot();
   });
 
@@ -204,7 +204,7 @@ describe('Header component', () => {
 
     fireEvent.click(screen.getByTestId('sh-header-hamburger'));
 
-    expect(screen.getAllByTestId('mobile-menu-entry')).toHaveLength(3);
+    expect(screen.getAllByTestId('mobile-menu-entry')).toHaveLength(2);
     expect(container).toMatchSnapshot();
   });
 });

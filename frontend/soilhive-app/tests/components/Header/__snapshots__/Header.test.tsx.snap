@@ -61,13 +61,6 @@ exports[`Header component does not include admin entry when user has no admin po
       :
       /legal
     </div>
-    <div
-      data-testid="mobile-menu-entry"
-    >
-      nav_menu.adminold
-      :
-      /admin
-    </div>
   </div>
 </div>
 `;
@@ -131,7 +124,7 @@ exports[`Header component passes admin entry to mobile menu when user has admin 
     >
       nav_menu.admin
       :
-      /adminportal
+      /admin
     </div>
     <div
       data-testid="mobile-menu-entry"
@@ -139,13 +132,6 @@ exports[`Header component passes admin entry to mobile menu when user has admin 
       nav_menu.legal
       :
       /legal
-    </div>
-    <div
-      data-testid="mobile-menu-entry"
-    >
-      nav_menu.adminold
-      :
-      /admin
     </div>
   </div>
 </div>
@@ -195,18 +181,6 @@ exports[`Header component renders component correctly on desktop 1`] = `
             class="LinkText"
           >
             Legal
-          </span>
-        </a>
-        <a
-          class=""
-          data-discover="true"
-          data-testid="sh-header-nav-link"
-          href="/admin"
-        >
-          <span
-            class="LinkText"
-          >
-            Admin
           </span>
         </a>
         <a

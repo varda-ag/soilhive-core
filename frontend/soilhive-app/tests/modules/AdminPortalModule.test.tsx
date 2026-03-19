@@ -28,7 +28,7 @@ function renderWithRouter(initialPath = ADMIN_ROOT) {
   return render(
     <MemoryRouter initialEntries={[initialPath]}>
       <Routes>
-        <Route path="/adminportal/*" element={<AdminPortalModule />} />
+        <Route path={`${ADMIN_ROOT}/*`} element={<AdminPortalModule />} />
       </Routes>
     </MemoryRouter>,
   );

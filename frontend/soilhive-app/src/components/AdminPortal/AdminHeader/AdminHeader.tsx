@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocation } from 'react-router';
-import BellIcon from 'assets/icons/bell-icon.svg?react';
+// import BellIcon from 'assets/icons/bell-icon.svg?react';
 import useTheme from 'hooks/useTheme';
 import { PAGE_TITLE_KEYS } from '../../../configuration/admin';
 import { useAuthContext } from '../../../auth/AuthContextProvider';
@@ -28,9 +28,9 @@ export function AdminHeader() {
         </div>
       </div>
       <div className={styles.Right}>
-        <div className={styles.Notifications}>
+        {/* <div className={styles.Notifications}>
           <BellIcon />
-        </div>
+        </div> */}
         <div className={styles.User}>
           {user?.profile?.email && <span className={styles.UserName}>{user.profile.email}</span>}
           <UserAvatar />

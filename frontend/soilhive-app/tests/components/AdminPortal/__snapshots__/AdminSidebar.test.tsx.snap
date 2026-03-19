@@ -38,7 +38,7 @@ exports[`AdminSidebar renders sidebar for user with all permissions and matches 
               class="Link Active"
               data-discover="true"
               data-testid="sh-admin-sidebarlink"
-              href="/adminportal/terms-and-conditions"
+              href="/admin/terms-and-conditions"
             >
               <svg
                 class="LinkIcon"
@@ -56,7 +56,7 @@ exports[`AdminSidebar renders sidebar for user with all permissions and matches 
               class="Link"
               data-discover="true"
               data-testid="sh-admin-sidebarlink"
-              href="/adminportal/map"
+              href="/admin/map"
             >
               <svg
                 class="LinkIcon"
@@ -74,7 +74,7 @@ exports[`AdminSidebar renders sidebar for user with all permissions and matches 
               class="Link"
               data-discover="true"
               data-testid="sh-admin-sidebarlink"
-              href="/adminportal/look-and-feel"
+              href="/admin/look-and-feel"
             >
               <svg
                 class="LinkIcon"
@@ -106,7 +106,7 @@ exports[`AdminSidebar renders sidebar for user with all permissions and matches 
               class="Link"
               data-discover="true"
               data-testid="sh-admin-sidebarlink"
-              href="/adminportal/datasets"
+              href="/admin/datasets"
             >
               <svg
                 class="LinkIcon"
@@ -124,7 +124,7 @@ exports[`AdminSidebar renders sidebar for user with all permissions and matches 
               class="Link"
               data-discover="true"
               data-testid="sh-admin-sidebarlink"
-              href="/adminportal/filters"
+              href="/admin/filters"
             >
               <svg
                 class="LinkIcon"
@@ -203,7 +203,7 @@ exports[`AdminSidebar renders sidebar for user with only ADMIN_PORTAL_DATA_MENU 
               class="Link Active"
               data-discover="true"
               data-testid="sh-admin-sidebarlink"
-              href="/adminportal/datasets"
+              href="/admin/datasets"
             >
               <svg
                 class="LinkIcon"
@@ -221,7 +221,7 @@ exports[`AdminSidebar renders sidebar for user with only ADMIN_PORTAL_DATA_MENU 
               class="Link"
               data-discover="true"
               data-testid="sh-admin-sidebarlink"
-              href="/adminportal/filters"
+              href="/admin/filters"
             >
               <svg
                 class="LinkIcon"
@@ -300,7 +300,7 @@ exports[`AdminSidebar renders sidebar for user with only ADMIN_PORTAL_UI_MENU pe
               class="Link Active"
               data-discover="true"
               data-testid="sh-admin-sidebarlink"
-              href="/adminportal/terms-and-conditions"
+              href="/admin/terms-and-conditions"
             >
               <svg
                 class="LinkIcon"
@@ -318,7 +318,7 @@ exports[`AdminSidebar renders sidebar for user with only ADMIN_PORTAL_UI_MENU pe
               class="Link"
               data-discover="true"
               data-testid="sh-admin-sidebarlink"
-              href="/adminportal/map"
+              href="/admin/map"
             >
               <svg
                 class="LinkIcon"
@@ -336,7 +336,7 @@ exports[`AdminSidebar renders sidebar for user with only ADMIN_PORTAL_UI_MENU pe
               class="Link"
               data-discover="true"
               data-testid="sh-admin-sidebarlink"
-              href="/adminportal/look-and-feel"
+              href="/admin/look-and-feel"
             >
               <svg
                 class="LinkIcon"

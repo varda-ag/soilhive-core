@@ -3,6 +3,7 @@ import { MemoryRouter } from 'react-router';
 import { AdminSidebar } from 'components/AdminPortal/AdminSidebar/AdminSidebar';
 import { useAuthContext } from '../../../src/auth/AuthContextProvider';
 import { ADMIN_PORTAL_DATA_MENU, ADMIN_PORTAL_UI_MENU, useEntitlements } from 'hooks/useEntitlementsHook';
+import { ADMIN_ROOT } from '../../../src/configuration/admin';
 
 const navigateMock = jest.fn();
 jest.mock('../../../src/auth/AuthContextProvider', () => ({
@@ -24,7 +25,7 @@ jest.mock('hooks/useEntitlementsHook', () => ({
   useEntitlements: jest.fn(),
 }));
 
-function renderSidebar(initialPath = '/adminportal/terms-and-conditions') {
+function renderSidebar(initialPath = `${ADMIN_ROOT}/terms-and-conditions`) {
   return render(
     <MemoryRouter initialEntries={[initialPath]}>
       <AdminSidebar />
@@ -69,7 +70,7 @@ describe('AdminSidebar', () => {
         return false;
       },
     });
-    const { container } = renderSidebar('/adminportal/datasets');
+    const { container } = renderSidebar(`${ADMIN_ROOT}/datasets`);
 
     expect(screen.getByTestId('sh-admin-sidebar')).toBeInTheDocument();
     expect(screen.getAllByTestId('sh-admin-sidebarlink')).toHaveLength(2);

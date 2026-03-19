@@ -48,10 +48,7 @@ export default function Header() {
         Icon: SettingsIcon,
       });
     }
-    items.push(
-      { name: 'nav_menu.legal', route: '/legal', type: 'internal', Icon: ScalesIcon },
-      { name: 'nav_menu.adminold', route: '/admin', type: 'internal' },
-    );
+    items.push({ name: 'nav_menu.legal', route: '/legal', type: 'internal', Icon: ScalesIcon });
 
     return items;
   }, [can]);

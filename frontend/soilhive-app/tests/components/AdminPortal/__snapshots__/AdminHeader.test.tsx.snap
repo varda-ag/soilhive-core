@@ -31,15 +31,6 @@ exports[`AdminHeader renders header and matches snapshot 1`] = `
       class="Right"
     >
       <div
-        class="Notifications"
-      >
-        <svg
-          data-testid="svg-icon-mock"
-        >
-          mock-svg
-        </svg>
-      </div>
-      <div
         class="User"
       >
         <span

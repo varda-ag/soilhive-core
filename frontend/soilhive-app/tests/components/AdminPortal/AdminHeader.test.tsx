@@ -3,6 +3,7 @@ import { AdminHeader } from 'components/AdminPortal/AdminHeader/AdminHeader';
 import { useLocation } from 'react-router';
 import useTheme from 'hooks/useTheme';
 import { useAuthContext } from '../../../src/auth/AuthContextProvider';
+import { ADMIN_ROOT } from '../../../src/configuration/admin';
 
 jest.mock('react-router', () => ({
   useLocation: jest.fn(),
@@ -28,7 +29,7 @@ jest.mock('components/AccountWidget/UserAvatar/UserAvatar', () => ({
 describe('AdminHeader', () => {
   beforeEach(() => {
     (useLocation as jest.Mock).mockReturnValue({
-      pathname: '/adminportal/terms-and-conditions',
+      pathname: `${ADMIN_ROOT}/terms-and-conditions`,
     });
 
     (useTheme as jest.Mock).mockReturnValue({

@@ -48,7 +48,7 @@ function App() {
                       }
                     />
                     <Route
-                      path="/admin"
+                      path="/admin-old"
                       element={
                         <>
                           <PageTitle title={t('page_titles.admin')} />
