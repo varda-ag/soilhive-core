@@ -1,13 +1,12 @@
-# SoilHive backend
-
-### DEV environment setup
+# Backend development setup
 
 1. Install and start Docker daemon
 2. Install [GDAL](https://gdal.org/en/stable/download.html)
 3. Copy `.env-example` to `.env` and set proper values (defaults are provided)
-4. Install dependencies with `npm i --build-from-source --shared_gdal`
-5. Test everything with `npm run test`
-6. Run development environment with `npm run dev`
+4. Install `node` version 22
+5. Install dependencies with `npm i --build-from-source --shared_gdal`
+6. Test with `npm run test`
+7. Run with `npm run dev`
 
 ### Useful commands
 
