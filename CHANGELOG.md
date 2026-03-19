@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.53.0 (2026-03-19)
+
+## What's Changed
+* docs: fixing link by @svaccari in https://github.com/varda-ag/soilhive-core/pull/302
+* feat: sp-5017 create account widget by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/304
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.52.1...v0.53.0
+
 ## 0.52.1 (2026-03-19)
 
 ## What's Changed
