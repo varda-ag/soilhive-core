@@ -4,10 +4,13 @@ import { useLocation } from 'react-router';
 import BellIcon from 'assets/icons/bell-icon.svg?react';
 import useTheme from 'hooks/useTheme';
 import { PAGE_TITLE_KEYS } from '../../../configuration/admin';
+import { useAuthContext } from '../../../auth/AuthContextProvider';
 
 import styles from './AdminHeader.module.scss';
+import { UserAvatar } from 'components/AccountWidget/UserAvatar/UserAvatar';
 
 export function AdminHeader() {
+  const { user } = useAuthContext();
   const { pathname } = useLocation();
   const { t } = useTranslation('admin');
   const { logo } = useTheme();
@@ -29,8 +32,8 @@ export function AdminHeader() {
           <BellIcon />
         </div>
         <div className={styles.User}>
-          <span className={styles.UserName}>marty.mcfly@comg.org</span>
-          <div className={styles.UserAvatar}>mm</div>
+          {user?.profile?.email && <span className={styles.UserName}>{user.profile.email}</span>}
+          <UserAvatar />
         </div>
       </div>
     </header>

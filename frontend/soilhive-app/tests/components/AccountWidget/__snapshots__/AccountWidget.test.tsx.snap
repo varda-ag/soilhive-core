@@ -1,0 +1,63 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`AccountWidget opens menu when widget button is clicked 1`] = `
+<div>
+  <div
+    class="AccountWidget"
+    data-testid="sh-ui-accountwidget"
+  >
+    <div
+      class="WidgetButton"
+      data-testid="sh-ui-accountwidgetbutton"
+    >
+      <div
+        data-testid="user-avatar-mock"
+      >
+        UserAvatar
+      </div>
+    </div>
+    <div
+      class="OptionsMenu"
+    >
+      <div
+        class="AccountInformation"
+      >
+        <div
+          class="ProfilePicture"
+          data-testid="user-avatar-mock"
+        >
+          UserAvatar
+        </div>
+        <div
+          class="UserInfo"
+        >
+          <p
+            class="Name"
+          >
+            Super Admin
+          </p>
+          <p
+            class="Email"
+          >
+            superadmin@local
+          </p>
+        </div>
+      </div>
+      <div
+        class="Options"
+      >
+        <div
+          class="Option"
+        >
+          <svg
+            data-testid="svg-icon-mock"
+          >
+            mock-svg
+          </svg>
+          Log out
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+`;

@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react';
 import { AdminHeader } from 'components/AdminPortal/AdminHeader/AdminHeader';
 import { useLocation } from 'react-router';
 import useTheme from 'hooks/useTheme';
+import { useAuthContext } from '../../../src/auth/AuthContextProvider';
 
 jest.mock('react-router', () => ({
   useLocation: jest.fn(),
@@ -10,6 +11,18 @@ jest.mock('react-router', () => ({
 jest.mock('hooks/useTheme', () => ({
   __esModule: true,
   default: jest.fn(),
+}));
+
+jest.mock('../../../src/auth/AuthContextProvider', () => ({
+  useAuthContext: jest.fn(),
+}));
+
+jest.mock('components/AccountWidget/UserAvatar/UserAvatar', () => ({
+  UserAvatar: ({ className }: { className?: string }) => (
+    <div data-testid="user-avatar-mock" className={className}>
+      User Avatar
+    </div>
+  ),
 }));
 
 describe('AdminHeader', () => {
@@ -21,6 +34,14 @@ describe('AdminHeader', () => {
     (useTheme as jest.Mock).mockReturnValue({
       logo: 'https://example.com/logo.png',
     });
+
+    (useAuthContext as jest.Mock).mockReturnValue({
+      user: {
+        profile: {
+          email: 'test@example.com',
+        },
+      },
+    });
   });
 
   afterEach(() => {
@@ -30,6 +51,8 @@ describe('AdminHeader', () => {
   it('renders header and matches snapshot', () => {
     const { container } = render(<AdminHeader />);
 
+    expect(screen.getByTestId('user-avatar-mock')).toBeInTheDocument();
+    expect(screen.getByText('test@example.com')).toBeInTheDocument();
     expect(container).toMatchSnapshot();
   });
 

@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { AdminSidebar } from 'components/AdminPortal/AdminSidebar/AdminSidebar';
 import { useAuthContext } from '../../../src/auth/AuthContextProvider';
+import { ADMIN_PORTAL_DATA_MENU, ADMIN_PORTAL_UI_MENU, useEntitlements } from 'hooks/useEntitlementsHook';
 
 const navigateMock = jest.fn();
 jest.mock('../../../src/auth/AuthContextProvider', () => ({
@@ -16,6 +17,13 @@ jest.mock('react-router', () => {
   };
 });
 
+jest.mock('hooks/useEntitlementsHook', () => ({
+  __esModule: true,
+  ADMIN_PORTAL_DATA_MENU: 0,
+  ADMIN_PORTAL_UI_MENU: 1,
+  useEntitlements: jest.fn(),
+}));
+
 function renderSidebar(initialPath = '/adminportal/terms-and-conditions') {
   return render(
     <MemoryRouter initialEntries={[initialPath]}>
@@ -28,20 +36,58 @@ describe('AdminSidebar', () => {
   const logoutMock = jest.fn();
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    (useEntitlements as jest.Mock).mockReturnValue({
+      can: (permission: number) => {
+        if (permission === ADMIN_PORTAL_UI_MENU) return true;
+        if (permission === ADMIN_PORTAL_DATA_MENU) return true;
+        return false;
+      },
+    });
 
     (useAuthContext as jest.Mock).mockReturnValue({
       logout: logoutMock,
-      isAuthenticated: true,
-      isLoading: false,
-      user: null,
     });
   });
 
-  it('renders sidebar and matches snapshot', () => {
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('renders sidebar for user with all permissions and matches snapshot', () => {
     const { container } = renderSidebar();
 
     expect(screen.getByTestId('sh-admin-sidebar')).toBeInTheDocument();
+    expect(screen.getAllByTestId('sh-admin-sidebarlink')).toHaveLength(5);
+    expect(container).toMatchSnapshot();
+  });
+
+  it('renders sidebar for user with only ADMIN_PORTAL_DATA_MENU permission and matches snapshot', async () => {
+    (useEntitlements as jest.Mock).mockReturnValue({
+      can: (permission: number) => {
+        if (permission === ADMIN_PORTAL_UI_MENU) return false;
+        if (permission === ADMIN_PORTAL_DATA_MENU) return true;
+        return false;
+      },
+    });
+    const { container } = renderSidebar('/adminportal/datasets');
+
+    expect(screen.getByTestId('sh-admin-sidebar')).toBeInTheDocument();
+    expect(screen.getAllByTestId('sh-admin-sidebarlink')).toHaveLength(2);
+    expect(container).toMatchSnapshot();
+  });
+
+  it('renders sidebar for user with only ADMIN_PORTAL_UI_MENU permission and matches snapshot', async () => {
+    (useEntitlements as jest.Mock).mockReturnValue({
+      can: (permission: number) => {
+        if (permission === ADMIN_PORTAL_UI_MENU) return true;
+        if (permission === ADMIN_PORTAL_DATA_MENU) return false;
+        return false;
+      },
+    });
+    const { container } = renderSidebar();
+
+    expect(screen.getByTestId('sh-admin-sidebar')).toBeInTheDocument();
+    expect(screen.getAllByTestId('sh-admin-sidebarlink')).toHaveLength(3);
     expect(container).toMatchSnapshot();
   });
 

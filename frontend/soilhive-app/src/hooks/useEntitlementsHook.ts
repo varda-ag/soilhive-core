@@ -15,13 +15,19 @@ export const MAP_SETTINGS = 1;
 export const LOOK_AND_FEEL = 2;
 export const DATASET_PUBLICATIONS = 3;
 export const MAP_BASED_FILTERS = 4;
+export const ADMIN_PORTAL_ACCESS = 5;
+export const ADMIN_PORTAL_UI_MENU = 6;
+export const ADMIN_PORTAL_DATA_MENU = 7;
 
 type Action =
   | typeof TERMS_AND_CONDITIONS
   | typeof MAP_SETTINGS
   | typeof LOOK_AND_FEEL
   | typeof DATASET_PUBLICATIONS
-  | typeof MAP_BASED_FILTERS;
+  | typeof MAP_BASED_FILTERS
+  | typeof ADMIN_PORTAL_ACCESS
+  | typeof ADMIN_PORTAL_UI_MENU
+  | typeof ADMIN_PORTAL_DATA_MENU;
 
 const ENTITLEMENT_MATRIX: Record<Action, AllRoles[]> = {
   [TERMS_AND_CONDITIONS]: ['super-admin'],
@@ -29,6 +35,9 @@ const ENTITLEMENT_MATRIX: Record<Action, AllRoles[]> = {
   [LOOK_AND_FEEL]: ['super-admin'],
   [DATASET_PUBLICATIONS]: ['data-admin'],
   [MAP_BASED_FILTERS]: ['data-admin'],
+  [ADMIN_PORTAL_ACCESS]: ['data-admin', 'super-admin'],
+  [ADMIN_PORTAL_UI_MENU]: ['super-admin'],
+  [ADMIN_PORTAL_DATA_MENU]: ['data-admin', 'super-admin'],
   // NOTE: to grant SUPER_ADMIN access to DATA_ADMIN actions, add 'super-admin' to those rows
   // NOTE: to grant universal SUPER_ADMIN access regardless of matrix, uncomment in can() below
 };

@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import classnames from 'classnames';
@@ -13,27 +13,27 @@ import { ADMIN_PATHS } from '../../../configuration/admin';
 import { useAuthContext } from '../../../auth/AuthContextProvider';
 
 import styles from './AdminSidebar.module.scss';
+import { ADMIN_PORTAL_DATA_MENU, ADMIN_PORTAL_UI_MENU, useEntitlements } from 'hooks/useEntitlementsHook';
 
-const navConfig = [
-  {
-    title: 'user_interface',
-    items: [
-      { url: ADMIN_PATHS.TERMS_AND_CONDITIONS, title: 'terms_and_conditions', Icon: AwardIcon },
-      { url: ADMIN_PATHS.MAP, title: 'map_settings', Icon: MapPinIcon },
-      { url: ADMIN_PATHS.LOOK_AND_FEEL, title: 'look_and_feel', Icon: ImageIcon },
-    ],
-  },
-  {
-    title: 'data',
-    items: [
-      { url: ADMIN_PATHS.DATASETS, title: 'datasets', Icon: ServerIcon },
-      { url: ADMIN_PATHS.FILTERS, title: 'filters', Icon: FilterIcon },
-    ],
-  },
-];
+const UI_SECTION = {
+  title: 'user_interface',
+  items: [
+    { url: ADMIN_PATHS.TERMS_AND_CONDITIONS, title: 'terms_and_conditions', Icon: AwardIcon },
+    { url: ADMIN_PATHS.MAP, title: 'map_settings', Icon: MapPinIcon },
+    { url: ADMIN_PATHS.LOOK_AND_FEEL, title: 'look_and_feel', Icon: ImageIcon },
+  ],
+};
+const DATA_SECTION = {
+  title: 'data',
+  items: [
+    { url: ADMIN_PATHS.DATASETS, title: 'datasets', Icon: ServerIcon },
+    { url: ADMIN_PATHS.FILTERS, title: 'filters', Icon: FilterIcon },
+  ],
+};
 
 export function AdminSidebar() {
   const { t } = useTranslation('admin');
+  const { can } = useEntitlements();
   const { logout } = useAuthContext();
   const navigate = useNavigate();
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -42,6 +42,13 @@ export function AdminSidebar() {
     logout();
     navigate('/');
   }, [logout, navigate]);
+
+  const navConfig = useMemo(() => {
+    const sections = [];
+    if (can(ADMIN_PORTAL_UI_MENU)) sections.push(UI_SECTION);
+    if (can(ADMIN_PORTAL_DATA_MENU)) sections.push(DATA_SECTION);
+    return sections;
+  }, [can]);
 
   return (
     <aside

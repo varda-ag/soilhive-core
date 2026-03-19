@@ -45,12 +45,12 @@ exports[`AdminHeader renders header and matches snapshot 1`] = `
         <span
           class="UserName"
         >
-          marty.mcfly@comg.org
+          test@example.com
         </span>
         <div
-          class="UserAvatar"
+          data-testid="user-avatar-mock"
         >
-          mm
+          User Avatar
         </div>
       </div>
     </div>

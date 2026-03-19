@@ -17,6 +17,18 @@
         "cancel": "Cancel",
         "logging_in": "Logging in ..."
     },
+    "logo": "Logo",
+    "nav_menu": {
+        "availability": "Availability",
+        "legal": "Legal",
+        "admin": "Admin console",
+        "adminold": "Admin",
+        "hamburger_aria": "Menu"
+    },
+    "user_menu": {
+        "my_account": "Profile",
+        "admin_panel": "Admin console"
+    },
     "legal_page": {
         "title": "Legal"
     },
