@@ -44,6 +44,20 @@ exports[`AdminHeader renders header and matches snapshot 1`] = `
           User Avatar
         </div>
       </div>
+      <div
+        class="LogoutWrapper"
+      >
+        <div
+          class="Logout"
+          data-testid="sh-header-logout"
+        >
+          <svg
+            data-testid="svg-icon-mock"
+          >
+            mock-svg
+          </svg>
+        </div>
+      </div>
     </div>
   </header>
 </div>

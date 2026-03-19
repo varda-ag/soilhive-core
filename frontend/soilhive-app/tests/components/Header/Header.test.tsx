@@ -4,7 +4,6 @@ import useTheme from 'hooks/useTheme';
 import useDevice from 'hooks/useDevice';
 import Header from 'components/Header/Header';
 import { useAuthContext } from '../../../src/auth/AuthContextProvider';
-import { useEntitlements } from 'hooks/useEntitlementsHook';
 
 jest.mock('../../../src/utilities/moduleFederation', () => ({
   singlePages: [
@@ -27,11 +26,6 @@ jest.mock('hooks/useDevice', () => ({
 
 jest.mock('../../../src/auth/AuthContextProvider', () => ({
   useAuthContext: jest.fn(),
-}));
-
-jest.mock('hooks/useEntitlementsHook', () => ({
-  ADMIN_PORTAL_ACCESS: 0,
-  useEntitlements: jest.fn(),
 }));
 
 jest.mock('components/DownloadsStatus/DownloadsStatus', () => ({
@@ -76,10 +70,6 @@ describe('Header component', () => {
 
     (useAuthContext as jest.Mock).mockReturnValue({
       isAuthenticated: false,
-    });
-
-    (useEntitlements as jest.Mock).mockReturnValue({
-      can: () => false,
     });
   });
 
@@ -175,25 +165,7 @@ describe('Header component', () => {
     expect(screen.queryByTestId('mobile-menu-mock')).not.toBeInTheDocument();
   });
 
-  it('passes admin entry to mobile menu when user has admin portal entitlement', () => {
-    (useDevice as jest.Mock).mockReturnValue({ isDesktopLayout: false });
-    (useEntitlements as jest.Mock).mockReturnValue({
-      can: () => true,
-    });
-
-    const { container } = render(
-      <MemoryRouter initialEntries={['/']}>
-        <Header />
-      </MemoryRouter>,
-    );
-
-    fireEvent.click(screen.getByTestId('sh-header-hamburger'));
-
-    expect(screen.getAllByTestId('mobile-menu-entry')).toHaveLength(3);
-    expect(container).toMatchSnapshot();
-  });
-
-  it('does not include admin entry when user has no admin portal entitlement', () => {
+  it('renders menu entries in the mobile menu', () => {
     (useDevice as jest.Mock).mockReturnValue({ isDesktopLayout: false });
 
     const { container } = render(

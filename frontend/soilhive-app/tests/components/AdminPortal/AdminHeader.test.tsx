@@ -1,12 +1,13 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { AdminHeader } from 'components/AdminPortal/AdminHeader/AdminHeader';
-import { useLocation } from 'react-router';
+import { useLocation, useNavigate } from 'react-router';
 import useTheme from 'hooks/useTheme';
 import { useAuthContext } from '../../../src/auth/AuthContextProvider';
 import { ADMIN_ROOT } from '../../../src/configuration/admin';
 
 jest.mock('react-router', () => ({
   useLocation: jest.fn(),
+  useNavigate: jest.fn(),
 }));
 
 jest.mock('hooks/useTheme', () => ({
@@ -27,7 +28,11 @@ jest.mock('components/AccountWidget/UserAvatar/UserAvatar', () => ({
 }));
 
 describe('AdminHeader', () => {
+  const mockNavigate = jest.fn();
+  const mockLogout = jest.fn();
+
   beforeEach(() => {
+    (useNavigate as jest.Mock).mockReturnValue(mockNavigate);
     (useLocation as jest.Mock).mockReturnValue({
       pathname: `${ADMIN_ROOT}/terms-and-conditions`,
     });
@@ -42,6 +47,7 @@ describe('AdminHeader', () => {
           email: 'test@example.com',
         },
       },
+      logout: mockLogout,
     });
   });
 
@@ -73,5 +79,14 @@ describe('AdminHeader', () => {
     render(<AdminHeader />);
 
     expect(screen.queryByAltText('Logo')).not.toBeInTheDocument();
+  });
+
+  it('calls logout and navigates to homepage on logout click', () => {
+    render(<AdminHeader />);
+
+    fireEvent.click(screen.getByTestId('sh-header-logout'));
+
+    expect(mockLogout).toHaveBeenCalledTimes(1);
+    expect(mockNavigate).toHaveBeenCalledWith('/');
   });
 });

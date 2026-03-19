@@ -1,142 +1,5 @@
 // Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
 
-exports[`Header component does not include admin entry when user has no admin portal entitlement 1`] = `
-<div>
-  <header
-    class="Header"
-  >
-    <div
-      class="Logo"
-      data-testid="sh-header-logo"
-    >
-      <img
-        alt="Logo"
-        src="logo.png"
-      />
-    </div>
-    <div
-      class="Menu"
-    >
-      <div
-        class="Additional"
-      >
-        <div
-          data-testid="downloads-status-mock"
-        >
-          Downloads Status component
-        </div>
-      </div>
-    </div>
-    <div
-      data-testid="login-button-mock"
-    >
-      Login Button
-    </div>
-    <button
-      aria-label="Menu"
-      class="Hamburger"
-      data-testid="sh-header-hamburger"
-    >
-      <svg
-        data-testid="svg-icon-mock"
-      >
-        mock-svg
-      </svg>
-    </button>
-  </header>
-  <div
-    data-testid="mobile-menu-mock"
-  >
-    <div
-      data-testid="mobile-menu-entry"
-    >
-      nav_menu.availability
-      :
-      /
-    </div>
-    <div
-      data-testid="mobile-menu-entry"
-    >
-      nav_menu.legal
-      :
-      /legal
-    </div>
-  </div>
-</div>
-`;
-
-exports[`Header component passes admin entry to mobile menu when user has admin portal entitlement 1`] = `
-<div>
-  <header
-    class="Header"
-  >
-    <div
-      class="Logo"
-      data-testid="sh-header-logo"
-    >
-      <img
-        alt="Logo"
-        src="logo.png"
-      />
-    </div>
-    <div
-      class="Menu"
-    >
-      <div
-        class="Additional"
-      >
-        <div
-          data-testid="downloads-status-mock"
-        >
-          Downloads Status component
-        </div>
-      </div>
-    </div>
-    <div
-      data-testid="login-button-mock"
-    >
-      Login Button
-    </div>
-    <button
-      aria-label="Menu"
-      class="Hamburger"
-      data-testid="sh-header-hamburger"
-    >
-      <svg
-        data-testid="svg-icon-mock"
-      >
-        mock-svg
-      </svg>
-    </button>
-  </header>
-  <div
-    data-testid="mobile-menu-mock"
-  >
-    <div
-      data-testid="mobile-menu-entry"
-    >
-      nav_menu.availability
-      :
-      /
-    </div>
-    <div
-      data-testid="mobile-menu-entry"
-    >
-      nav_menu.admin
-      :
-      /admin
-    </div>
-    <div
-      data-testid="mobile-menu-entry"
-    >
-      nav_menu.legal
-      :
-      /legal
-    </div>
-  </div>
-</div>
-`;
-
 exports[`Header component renders component correctly on desktop 1`] = `
 <div>
   <header
@@ -259,5 +122,70 @@ exports[`Header component renders component correctly on mobile and tablets for 
       </svg>
     </button>
   </header>
+</div>
+`;
+
+exports[`Header component renders menu entries in the mobile menu 1`] = `
+<div>
+  <header
+    class="Header"
+  >
+    <div
+      class="Logo"
+      data-testid="sh-header-logo"
+    >
+      <img
+        alt="Logo"
+        src="logo.png"
+      />
+    </div>
+    <div
+      class="Menu"
+    >
+      <div
+        class="Additional"
+      >
+        <div
+          data-testid="downloads-status-mock"
+        >
+          Downloads Status component
+        </div>
+      </div>
+    </div>
+    <div
+      data-testid="login-button-mock"
+    >
+      Login Button
+    </div>
+    <button
+      aria-label="Menu"
+      class="Hamburger"
+      data-testid="sh-header-hamburger"
+    >
+      <svg
+        data-testid="svg-icon-mock"
+      >
+        mock-svg
+      </svg>
+    </button>
+  </header>
+  <div
+    data-testid="mobile-menu-mock"
+  >
+    <div
+      data-testid="mobile-menu-entry"
+    >
+      nav_menu.availability
+      :
+      /
+    </div>
+    <div
+      data-testid="mobile-menu-entry"
+    >
+      nav_menu.legal
+      :
+      /legal
+    </div>
+  </div>
 </div>
 `;
