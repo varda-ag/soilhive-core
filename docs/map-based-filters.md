@@ -98,7 +98,7 @@ Each filter provides **global coverage** and is distributed as a **separate pack
     | No Data | 255 |
 
     </details>
-- Land Cover 2009 (3.6 GB)
+- Land Cover 2019 (3.6 GB)
   - https://static.soilhive.ag/land_cover.dump
   - https://static.soilhive.ag/land_cover.mappings
   - <details>
