@@ -57,8 +57,13 @@ export function MapBasedFilters() {
           <div className={styles.ActivationSection}>
             <h3>{t('filters.activation.title')}</h3>
             <p>{t('filters.activation.description')}</p>
-            <a href="https://docs.example.com" target="_blank" rel="noreferrer" className={styles.DocLink}>
-              https://docs.example.com/map-filters-setup
+            <a
+              href="https://github.com/varda-ag/soilhive-core/blob/main/docs/map-based-filters.md"
+              target="_blank"
+              rel="noreferrer"
+              className={styles.DocLink}
+            >
+              https://github.com/varda-ag/soilhive-core/blob/main/docs/map-based-filters.md
             </a>
 
             <div className={styles.StatusTitle}>{t('filters.activation.status_title')}</div>
