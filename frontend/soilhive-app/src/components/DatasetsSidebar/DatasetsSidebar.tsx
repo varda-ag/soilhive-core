@@ -19,7 +19,7 @@ interface Props {
 export function DatasetsSidebar({ isOpened, onClose }: Props) {
   const { t } = useTranslation('availability');
   const { isDesktopLayout } = useDevice();
-  const { availableDatasets, filterId, selectionType, locationName } = useAvailability();
+  const { availableDatasets, filterId, selectionType, locationName, datasetFrontendFilters } = useAvailability();
   const navigate = useNavigate();
 
   const getSearchParams = useCallback(
@@ -49,7 +49,11 @@ export function DatasetsSidebar({ isOpened, onClose }: Props) {
             type="secondary"
             isDisabled={availableDatasets.length === 0}
             onClick={() => {
-              navigate({ pathname: '/preview', search: `?${getSearchParams().toString()}` });
+              const searchParams = getSearchParams();
+              if (datasetFrontendFilters.type.length) {
+                searchParams.append('dataset-types', datasetFrontendFilters.type.join(','));
+              }
+              navigate({ pathname: '/preview', search: `?${searchParams.toString()}` });
             }}
           >
             {t('datasets_sidebar.preview')}
