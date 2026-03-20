@@ -31,5 +31,6 @@ export function mapFilteredDatasetToAvailabilityDataset(dataset: FilteredDataset
       dateStart: getYear(dataset.min_sampling_date),
       dateEnd: getYear(dataset.max_sampling_date),
     },
+    h3_point_aggregation: dataset.h3_point_aggregation,
   };
 }

@@ -14,6 +14,7 @@ export type AvailabilityDataset = {
   tags: string[];
   dataType?: string;
   properties: DatasetProperties;
+  h3_point_aggregation: Record<string, number>;
 };
 
 export type DatasetSummary = {

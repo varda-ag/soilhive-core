@@ -4,7 +4,13 @@ import { cellToBoundary, cellToLatLng, type CoordPair, type H3Index } from 'h3-j
 import { lerp } from 'math.gl';
 import type { FeatureCollection, MultiPolygon, Polygon } from 'geojson';
 
-export function h3IndexesToGeoJSONPolygon(h3Index: H3Index) {
+export interface H3Value {
+  h3Index: H3Index;
+  value: number;
+}
+
+export function h3IndexesToGeoJSONPolygon(input: H3Value) {
+  const { h3Index, value } = input;
   const [lat, lng] = cellToLatLng(h3Index);
   const vertices = cellToBoundary(h3Index, true);
   const actualCount = vertices.length;
@@ -23,7 +29,7 @@ export function h3IndexesToGeoJSONPolygon(h3Index: H3Index) {
 
   return {
     type: 'Feature',
-    properties: { h3Index },
+    properties: { h3Index, value },
     geometry: {
       type: 'Polygon',
       coordinates: [vertices],
@@ -42,7 +48,7 @@ function normalizeLongitudes(vertices: CoordPair[], refLng: number) {
   }
 }
 
-export function h3IndexesToGeoJSONPolygons(h3Indexes: Array<H3Index>): FeatureCollection {
+export function h3IndexesToGeoJSONPolygons(h3Indexes: H3Value[]): FeatureCollection {
   return featureCollection(h3Indexes.map(h3IndexesToGeoJSONPolygon) as any);
 }
 

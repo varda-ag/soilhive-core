@@ -52,6 +52,7 @@ export interface FilteredDataset extends FilterCriteria {
   id: string;
   name: string;
   dataset_layer_count: number;
+  h3_point_aggregation: Record<string, number>;
 }
 
 export interface ResultItem {

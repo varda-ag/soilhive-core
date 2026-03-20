@@ -97,11 +97,35 @@ const dataLayerSelection: LayerProps = {
 
 const dataLayerBorders: LayerProps = {
   id: 'data-borders',
-  type: 'line',
+  type: 'fill',
   paint: {
-    'line-color': 'black',
-    'line-width': 0.1,
-    'line-opacity': 0.5,
+    //    'line-color': 'black',
+    //  'line-width': 0.1,
+    //  'line-opacity': 0.5,
+    'fill-opacity': [
+      'interpolate',
+      ['linear'],
+      ['get', 'value'], // the numeric property
+      0,
+      0.0,
+      0.01,
+      0.1,
+      0.5,
+      0.25,
+      1.0,
+      0.75,
+    ],
+    'fill-color': [
+      'interpolate',
+      ['linear'],
+      ['get', 'value'], // the numeric property
+      0,
+      '#ffffcc', // low  → light yellow
+      0.5,
+      '#fd8d3c', // mid → orange
+      1.0,
+      '#800026', // high → dark red
+    ],
   },
 };
 
@@ -133,6 +157,7 @@ function SoilhiveMap({
     setSelection,
     setShowDrawControl,
     setShowSelectionToolbar,
+    datasets,
   } = useAvailability();
 
   const mapRef = useRef<any>(null);
@@ -192,6 +217,15 @@ function SoilhiveMap({
     [applySelection],
   );
 
+  const aggregateH3Points = (objects: Record<string, number>[]): Record<string, number> => {
+    return objects.reduce((acc, obj) => {
+      for (const [key, value] of Object.entries(obj)) {
+        acc[key] = (acc[key] ?? 0) + value;
+      }
+      return acc;
+    }, {});
+  };
+
   const updateH3Cells = useCallback(
     ({ bounds, zoomLevel }: { bounds: number[]; zoomLevel: number }) => {
       if (!showH3Cells) {
@@ -200,14 +234,24 @@ function SoilhiveMap({
       }
 
       try {
-        const h3Indexes = bBoxToH3Cells(bounds, h3ResolutionForZoomLevel(zoomLevel));
-        const h3CellsFeatureCollection = h3IndexesToGeoJSONPolygons(h3Indexes);
+        //const h3Indexes = bBoxToH3Cells(bounds, h3ResolutionForZoomLevel(zoomLevel));
+        const data = datasets.map(d => d.h3_point_aggregation).filter(h3 => !!h3);
+        const h3Indexes = aggregateH3Points(data);
+        const h3Values = Object.entries(h3Indexes).map(([h3Index, value]) => ({ h3Index, value }));
+        const max = h3Values.reduce((acc, obj) => {
+          return Math.max(acc, obj.value);
+        }, 0);
+        const scaled = h3Values.map(h => {
+          return { h3Index: h.h3Index, value: h.value / max };
+        });
+        //console.log(max, scaled);
+        const h3CellsFeatureCollection = h3IndexesToGeoJSONPolygons(scaled);
         setH3Cells(h3CellsFeatureCollection);
       } catch (error) {
         console.error('Error while updating the H3 Cells:', error);
       }
     },
-    [setH3Cells, showH3Cells],
+    [datasets, setH3Cells, showH3Cells],
   );
 
   const onMapMoveEnd = useCallback(
