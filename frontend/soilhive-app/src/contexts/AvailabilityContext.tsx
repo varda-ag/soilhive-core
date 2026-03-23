@@ -50,7 +50,6 @@ type AvailabilityContextType = {
   selectedTimeFilter: TimeFilterState;
   datasetsSummary: DatasetSummary;
   datasetFilters: FilterCriteria;
-  preview: boolean;
   appliedFiltersCount: number;
   filterId: string | undefined;
   selectedFilters: BackendStoredDataFilter | undefined;

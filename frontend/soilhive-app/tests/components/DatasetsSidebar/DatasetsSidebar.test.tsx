@@ -37,6 +37,7 @@ jest.mock('../../../src/contexts/AvailabilityContext', () => {
       availableDatasets: [{ id: 'test-dataset' }],
       selectionType: 'mock-selection-type',
       filterId: 'mock-filter-id',
+      datasetFrontendFilters: { type: [] },
     }),
   };
 });

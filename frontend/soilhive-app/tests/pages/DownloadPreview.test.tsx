@@ -3,11 +3,6 @@ import { act, render } from '@testing-library/react';
 import DownloadPreview from '../../src/pages/DownloadPreview';
 import { useNavigate } from 'react-router';
 
-jest.mock('react-router', () => ({
-  __esModule: true,
-  useNavigate: jest.fn(),
-}));
-
 jest.mock('hooks/useFilteredDatasets', () => {
   return { useFilteredDatasets: jest.fn().mockReturnValue({ filterId: 'test-filter-id', isLoading: false }) };
 });
@@ -21,6 +16,7 @@ jest.mock('hooks/useSoilData', () => {
 jest.mock('react-router', () => ({
   __esModule: true,
   useNavigate: jest.fn(),
+  useSearchParams: jest.fn().mockReturnValue([new Map([])]),
 }));
 
 jest.mock('components/DownloadDataSummary/DownloadDataSummary', () => {
@@ -36,17 +32,24 @@ jest.mock('components/DownloadPreview/DownloadPreviewDataSection/DownloadPreview
 jest.mock('../../src/contexts/AvailabilityContext', () => {
   return {
     __esModule: true,
-    AvailabilityContext: React.createContext({
-      availableDatasets: [{ id: 'test-dataset', soil_properties: ['test-soil-property'] }],
-      geometryFilter: [],
-      selectedDatasets: [],
-      filteredDatasets: [],
-      selectedSoilProperties: [],
-      filteredSoilProperties: [{ id: 'test-soil-property' }],
+    AvailabilityContext: React.createContext({}),
+  };
+});
+
+jest.mock('hooks/useDownloadPreview', () => {
+  return {
+    useDownloadPreview: jest.fn().mockReturnValue({
       datasetsSummary: {
         globalMinDepth: null,
         globalMaxDepth: null,
       },
+      availableFixedDatasets: [{ id: 'test-dataset', soil_properties: ['test-soil-property'] }],
+      availabilitySelectedSoilProperties: [],
+      availabilityFilteredSoilProperties: [{ id: 'test-soil-property' }],
+      selectedDatasets: [],
+      setSelectedDatasets: jest.fn(),
+      geometryFilter: [],
+      isLoading: false,
     }),
   };
 });
