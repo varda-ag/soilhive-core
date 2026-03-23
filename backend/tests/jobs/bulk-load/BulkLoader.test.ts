@@ -1,24 +1,24 @@
-import { signToken } from '../../src/utils/utils';
-import { ErrorResponse } from '../../src/utils/error';
+import { signToken } from '../../../src/utils/utils';
+import { ErrorResponse } from '../../../src/utils/error';
 import { Job } from 'pg-boss';
 import request from 'supertest';
 import { validate } from 'uuid';
-import { app } from '../../src/app';
-import DatasetEntity from '../../src/entities/Dataset';
-import FeatureEntity from '../../src/entities/Feature';
-import { BulkLoadJob } from '../../src/interfaces/Job';
-import * as BulkLoaderModule from '../../src/jobs/bulk-load/BulkLoader';
-import { updateDatasetMetadata } from '../../src/jobs/bulk-load/UpdateDatasetMetadata';
-import { IngestionStatus } from '../../src/types/data';
-import { getDataSource, getEntityManager } from '../../src/utils/data-source';
+import { app } from '../../../src/app';
+import DatasetEntity from '../../../src/entities/Dataset';
+import FeatureEntity from '../../../src/entities/Feature';
+import { BulkLoadJob } from '../../../src/interfaces/Job';
+import * as BulkLoaderModule from '../../../src/jobs/bulk-load/BulkLoader';
+import { updateDatasetMetadata } from '../../../src/jobs/bulk-load/UpdateDatasetMetadata';
+import { IngestionStatus } from '../../../src/types/data';
+import { getDataSource, getEntityManager } from '../../../src/utils/data-source';
 import {
   addSyntheticData,
   addSyntheticIngestionData,
   getLoadedDataCount,
   syntheticDataOptions,
   syntheticIngestionDataOptions,
-} from '../../src/utils/mock';
-import { getRawTableName } from '../../src/utils/utils';
+} from '../../../src/utils/mock';
+import { getRawTableName } from '../../../src/utils/utils';
 
 const getJob = (dataset_id: string): Job<BulkLoadJob> => {
   return {

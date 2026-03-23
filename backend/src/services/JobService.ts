@@ -14,7 +14,7 @@ export default class JobService {
     const { sub } = requestData.token ?? {};
 
     // Checking preconditions
-    if (data.type === JobQueues.BULK_LOAD || data.type === JobQueues.FILE_TO_DB) {
+    if (data.type === JobQueues.BULK_LOAD || data.type === JobQueues.FILE_TO_DB || data.type === JobQueues.BULK_DELETE) {
       if (!sub) {
         throw new ErrorResponse(`Authentication required for ${data.type} jobs`, StatusCodes.UNAUTHORIZED);
       }

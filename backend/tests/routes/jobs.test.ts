@@ -39,7 +39,7 @@ describe('Testing /jobs routes', () => {
     await stopPgBoss();
   });
 
-  it.each([JobQueues.BULK_LOAD, JobQueues.FILE_TO_DB])(
+  it.each([JobQueues.BULK_LOAD, JobQueues.FILE_TO_DB, JobQueues.BULK_DELETE])(
     'POST /jobs without a token trying to create a token protected job fails with HTTP 401',
     async (queue: string) => {
       const bulkRes = await request(app).post('/jobs').send({ type: queue, dataset_id: 'test-dataset' });
@@ -169,7 +169,7 @@ describe('Testing /jobs routes', () => {
         .send({ type: queue, file_id: fileEntity.id });
       expect(jobResponse.statusCode).toBe(201);
 
-      // Wait for bulk load job to complete
+      // Wait for file to DB job to complete
       const jobId = jobResponse.body.id;
       const spy = getPgBoss().getSpy(queue);
       await spy.waitForJobWithId(jobId, 'completed');
