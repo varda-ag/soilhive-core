@@ -15,47 +15,59 @@ export async function processBulkDeletion(job: Job<BulkDeleteJob>): Promise<void
 
   await entityManager.transaction(async manager => {
     await manager.query(`SET LOCAL statement_timeout = '5min'`);
-    const deleted = await manager
+    const chunkSize = 1000;
+    const subQuery = manager
       .getRepository(DatasetLayerEntity)
-      .createQueryBuilder()
-      .delete()
-      .from(DatasetLayerEntity)
-      .where('dataset_id = :datasetId', { datasetId })
-      .returning(['layer_id', 'feature_id'])
-      .execute()
-      .then(res => res.raw);
+      .createQueryBuilder('dl')
+      .select('dl.id')
+      .where('dl.dataset_id = :datasetId', { datasetId })
+      .limit(chunkSize)
+      .getQuery();
 
-    const featureIds = [...new Set(deleted.map(r => r.feature_id))];
-    const layerIds = [...new Set(deleted.map(r => r.layer_id))];
+    while (true) {
+      const deleted = await manager
+        .getRepository(DatasetLayerEntity)
+        .createQueryBuilder()
+        .delete()
+        .where(`id IN (${subQuery})`)
+        .setParameter('datasetId', datasetId)
+        .returning(['layer_id', 'feature_id'])
+        .execute()
+        .then(res => res.raw);
 
-    if (featureIds.length > 0) {
-      await manager.query(
-        `
-        DELETE FROM features f
-        WHERE f.id = ANY($1)
-        AND NOT EXISTS (
-          SELECT 1 FROM dataset_layers dl
-          WHERE dl.feature_id = f.id
-        )
-        `,
-        [featureIds],
-      );
+      if (deleted.length === 0) break;
+
+      const featureIds = [...new Set(deleted.map(r => r.feature_id))];
+      const layerIds = [...new Set(deleted.map(r => r.layer_id))];
+
+      if (featureIds.length > 0) {
+        await manager.query(
+          `
+          DELETE FROM features f
+          WHERE f.id = ANY($1)
+          AND NOT EXISTS (
+            SELECT 1 FROM dataset_layers dl
+            WHERE dl.feature_id = f.id
+          )
+          `,
+          [featureIds],
+        );
+      }
+
+      if (layerIds.length > 0) {
+        await manager.query(
+          `
+          DELETE FROM layers l
+          WHERE l.id = ANY($1)
+          AND NOT EXISTS (
+            SELECT 1 FROM dataset_layers dl
+            WHERE dl.layer_id = l.id
+          )
+          `,
+          [layerIds],
+        );
+      }
     }
-
-    if (layerIds.length > 0) {
-      await manager.query(
-        `
-        DELETE FROM layers l
-        WHERE l.id = ANY($1)
-        AND NOT EXISTS (
-          SELECT 1 FROM dataset_layers dl
-          WHERE dl.layer_id = l.id
-        )
-        `,
-        [layerIds],
-      );
-    }
-
     await datasetService.deleteDataset(requestData, data.dataset_id);
   });
 }
