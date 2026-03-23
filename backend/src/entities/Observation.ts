@@ -15,7 +15,9 @@ export default class ObservationEntity extends BaseEntity implements Observation
   @Column({ type: 'text' })
   dataset_layer_id: string;
 
-  @ManyToOne(() => DatasetLayerEntity, dataset_layer => dataset_layer.id)
+  @ManyToOne(() => DatasetLayerEntity, dataset_layer => dataset_layer.id, {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'dataset_layer_id' })
   dataset_layer: DatasetLayerEntity;
 

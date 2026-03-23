@@ -27,4 +27,5 @@ export enum JobQueues {
   BULK_LOAD = 'bulk-load',
   EXPORT = 'export',
   FILE_TO_DB = 'file-to-db',
+  BULK_DELETE = 'bulk-delete',
 }

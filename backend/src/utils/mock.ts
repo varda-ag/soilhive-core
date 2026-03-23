@@ -479,16 +479,41 @@ export interface DataCount {
   n_observations: number;
 }
 
-export const getLoadedDataCount = async (): Promise<DataCount> => {
+export const getLoadedDataCount = async (datasetId?: string): Promise<DataCount> => {
   const entityManager = await getEntityManager();
   const featureRepo = entityManager.getRepository(FeatureEntity);
   const layerRepo = entityManager.getRepository(LayerEntity);
   const datasetLayerRepo = entityManager.getRepository(DatasetLayerEntity);
   const observationRepo = entityManager.getRepository(ObservationEntity);
-  const n_features = await featureRepo.count();
-  const n_layers = await layerRepo.count();
-  const n_dataset_layers = await datasetLayerRepo.count();
-  const n_observations = await observationRepo.count();
+  let n_dataset_layers = 0;
+  let n_features = 0;
+  let n_layers = 0;
+  let n_observations = 0;
+  if (datasetId !== undefined) {
+    n_dataset_layers = await datasetLayerRepo.count({ where: { dataset_id: datasetId } });
+    n_features = await featureRepo
+      .createQueryBuilder('f')
+      .innerJoin('dataset_layers', 'dl', 'dl.feature_id = f.id')
+      .where('dl.dataset_id = :datasetId', { datasetId })
+      .distinct(true)
+      .getCount();
+    n_layers = await layerRepo
+      .createQueryBuilder('l')
+      .innerJoin('dataset_layers', 'dl', 'dl.layer_id = l.id')
+      .where('dl.dataset_id = :datasetId', { datasetId })
+      .distinct(true)
+      .getCount();
+    n_observations = await observationRepo
+      .createQueryBuilder('o')
+      .innerJoin('o.dataset_layer', 'dl')
+      .where('dl.dataset_id = :datasetId', { datasetId })
+      .getCount();
+  } else {
+    n_dataset_layers = await datasetLayerRepo.count();
+    n_features = await featureRepo.count();
+    n_layers = await layerRepo.count();
+    n_observations = await observationRepo.count();
+  }
   const result: DataCount = {
     n_features,
     n_layers,

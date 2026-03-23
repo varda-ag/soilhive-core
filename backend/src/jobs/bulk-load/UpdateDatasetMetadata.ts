@@ -6,6 +6,8 @@ import { IngestionStatus } from '../../types/data';
 import { toGisDatatype } from '../../utils/geometry';
 
 export const updateDatasetMetadata = async (entityManager: EntityManager, datasetId: string, status: IngestionStatus): Promise<void> => {
+  // Ovewrride global statement timeout, long running query
+  await entityManager.query("SET LOCAL statement_timeout = '3min';");
   // Get dataset layers
   const tmp = await entityManager
     .getRepository(DatasetLayerEntity)
