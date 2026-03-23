@@ -68,6 +68,8 @@ export async function processBulkDeletion(job: Job<BulkDeleteJob>): Promise<void
         );
       }
     }
-    await datasetService.deleteDataset(requestData, data.dataset_id);
+
+    const scopedRequestData = { ...requestData, entityManager: manager };
+    await datasetService.deleteDataset(scopedRequestData, data.dataset_id);
   });
 }
