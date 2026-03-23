@@ -332,12 +332,14 @@ paths:
                 - $ref: '#/components/schemas/BulkLoadJob'
                 - $ref: '#/components/schemas/ExportJob'
                 - $ref: '#/components/schemas/FileToDbJob'
+                - $ref: '#/components/schemas/BulkDeleteJob'
               discriminator:
                 propertyName: type
                 mapping:
                   bulk-load: '#/components/schemas/BulkLoadJob'
                   export: '#/components/schemas/ExportJob'
                   file-to-db: '#/components/schemas/FileToDbJob'
+                  bulk-delete: '#/components/schemas/BulkDeleteJob'
       responses:
         '201':
           description: Async job started successfull
@@ -557,6 +559,66 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           description: Unauthorized - Token subject is missing
+
+  /datasets/{datasetId}/files:
+    get:
+      x-eov-operation-handler: controllers/datasets
+      x-eov-operation-id: getDatasetFiles
+      summary: Get all dataset files
+      tags:
+        - datasets
+      security:
+        - bearerAuth: [data-admin]
+      parameters:
+        - name: datasetId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Dataset ID
+      responses:
+        '200':
+          description: List of dataset files
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FileDescriptor'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /datasets/{datasetId}/mappings:
+    get:
+      x-eov-operation-handler: controllers/datasets
+      x-eov-operation-id: getDatasetMappings
+      summary: Get all dataset mappings
+      tags:
+        - datasets
+      security:
+        - bearerAuth: [data-admin]
+      parameters:
+        - name: datasetId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Dataset ID
+      responses:
+        '200':
+          description: List of dataset mappings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DataMapping'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
 
   /soil-properties:
     get:
@@ -1027,6 +1089,7 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+
   /mappings/{mappingId}:
     parameters:
       - name: mappingId
@@ -1694,6 +1757,7 @@ components:
           description: Unique identifier for the data mapping
         data_mapping:
           $ref: '#/components/schemas/DataMappingObject'
+
     DataMappingObject:
       type: object
       additionalProperties:
@@ -1808,6 +1872,16 @@ components:
           format: uuid
           description: File ID to be processed and inserted into the database
 
+    BulkDeleteJob:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [bulk-delete]
+          description: Job type
+        dataset_id:
+          type: string
+
     Job:
       type: object
       properties:
@@ -1838,6 +1912,7 @@ components:
             - $ref: '#/components/schemas/BulkLoadJob'
             - $ref: '#/components/schemas/ExportJob'
             - $ref: '#/components/schemas/FileToDbJob'
+            - $ref: '#/components/schemas/BulkDeleteJob'
 
     License:
       type: object

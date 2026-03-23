@@ -33,7 +33,35 @@
         "title": "Datasets publication"
     },
     "filters": {
-        "title":"Map-based filters"
+        "common": {
+            "active": "Active",
+            "not_active": "Not active"
+        },
+        "title":"Map settings",
+        "intro": {
+            "title": "Why they need a separated configuration.",
+            "description": "Map-based filters require many GB of data to be added to the system. Each filter provides global coverage and it is provided in a separate package, to avoid unnecessary large downloads when installing the platform."
+        },
+        "list": {
+            "title": "The Filters"
+        },
+        "agroecological_zones": {
+            "name": "Agroecological zones",
+            "description": "Agroecological Zones classify land according to its suitability for agricultural production by considering climatic conditions, land resources, and crop growth requirements."
+        },
+        "land_cover": {
+            "name": "Land cover",
+            "description": "Land Cover categorizes the physical and biological cover present on the Earth’s surface, such as vegetation, cropland, water bodies, or built-up areas."
+        },
+        "soil_groups": {
+            "name": "Soil groups",
+            "description": "Soil groups classify soils into categories based on their physical, chemical, and morphological characteristics. These classifications provide a standardized way to describe and compare soils across different regions."
+        },
+        "activation": {
+            "title": "Activate the filters",
+            "description": "Access our documentation and follow the instructions to activate the map-based filters:",
+            "status_title": "Filter states"
+        }
     },
     "logoAlt": "Logo"
 }

@@ -19,6 +19,7 @@ export function useAuthContext(): AuthContext {
 }
 
 export function AuthContextProvider({ children }: { children: React.ReactNode }) {
+  const [isConfigParsed, setIsConfigParsed] = useState(false);
   const [authConfig, setAuthConfig] = useState<AuthConfig>();
 
   const { request } = useRequest();
@@ -26,8 +27,13 @@ export function AuthContextProvider({ children }: { children: React.ReactNode })
   useEffect(() => {
     request({ url: `${BACKEND_BASE_URL}/auth/config` })
       .then(setAuthConfig)
-      .catch(console.error);
+      .catch(console.error)
+      .finally(() => setIsConfigParsed(true));
   }, [request]);
+
+  if (!isConfigParsed) {
+    return null;
+  }
 
   if (authConfig && authConfig.authMode === AuthModes.OIDC && authConfig.oidcConfig) {
     return (

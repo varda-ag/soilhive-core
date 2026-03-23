@@ -123,32 +123,22 @@ export default class DatasetFileMappingService {
     return mapping;
   };
 
-  getMappings = async (requestData: RequestData, datasetId: string, fileId?: string): Promise<DatasetFileMappingEntity[]> => {
-    const { entityManager } = requestData;
+  getMappings = async (
+    requestData: RequestData,
+    datasetSlug: string,
+    fileId?: string,
+    relations: string[] = [],
+  ): Promise<DatasetFileMappingEntity[]> => {
+    // Getting the actual dataset ID
+    const dataset = await getEntity(requestData, DatasetEntity, EntityType.DATASET, datasetSlug);
 
-    // the id coming in as parameter is the slug that allow us to load the dataset iwth it's actual uuid
-    const dataset = await getEntity(requestData, DatasetEntity, EntityType.DATASET, datasetId);
-
-    const repo = entityManager.getRepository(DatasetFileMappingEntity);
-
-    const whereConditions: any = {
-      dataset_id: dataset.id,
-    };
-
+    // Find all the mappings for the dataset, optionally filtered by fileId
+    const whereConditions: any = { dataset_id: dataset.id };
     if (fileId !== undefined) {
       whereConditions.file_id = fileId;
     }
-
-    // Find all mappings for the dataset, optionally filtered by fileId
-    const datasetFileMappings = await repo.find({
-      where: whereConditions,
-    });
-
-    if (datasetFileMappings.length === 0) {
-      const fileIdMsg = fileId ? ` and fileId '${fileId}'` : '';
-      throw new ErrorResponse(`No DatasetFileMappings found for dataset '${datasetId}'${fileIdMsg}`, StatusCodes.NOT_FOUND);
-    }
-
-    return datasetFileMappings;
+    const { entityManager } = requestData;
+    const repo = entityManager.getRepository(DatasetFileMappingEntity);
+    return await repo.find({ where: whereConditions, relations });
   };
 }

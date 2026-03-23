@@ -1,0 +1,17 @@
+.UserAvatar {
+  width: 2.5rem;
+  height: 2.5rem;
+}
+.UserAvatarPlaceholder {
+  background-color: var(--color-cta-default-solid);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  width: 100%;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-neutral-white);
+  text-transform: uppercase;
+}

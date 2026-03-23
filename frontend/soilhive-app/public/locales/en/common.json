@@ -1,5 +1,9 @@
 {
     "loading": "Loading...",
+    "actions": {
+        "read_more": "Read more",
+        "read_less": "Read less"
+    },
     "page_titles": {
         "donation": "SoilHive - Donation",
         "legal": "SoilHive - Legal",
@@ -12,6 +16,16 @@
         "password_placeholder": "Password",
         "cancel": "Cancel",
         "logging_in": "Logging in ..."
+    },
+    "logo": "Logo",
+    "nav_menu": {
+        "availability": "Availability",
+        "legal": "Legal",
+        "hamburger_aria": "Menu"
+    },
+    "user_menu": {
+        "my_account": "Profile",
+        "admin_panel": "Admin console"
     },
     "legal_page": {
         "title": "Legal"

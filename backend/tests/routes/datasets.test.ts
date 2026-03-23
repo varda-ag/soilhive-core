@@ -1,7 +1,7 @@
 import { describe, it, expect } from '@jest/globals';
 import request from 'supertest';
 import { app } from '../../src/app';
-import { addSyntheticData, syntheticDataOptions } from '../../src/utils/mock';
+import { addSyntheticData, addSyntheticIngestionData, syntheticDataOptions, syntheticIngestionDataOptions } from '../../src/utils/mock';
 import { getDataAdminToken } from '../helper';
 import StatusCodes from 'http-status-codes';
 
@@ -168,6 +168,74 @@ describe('Testing /datasets routes', () => {
 
       const getRes = await request(app).get(`/datasets/${oldId}`);
       expect(getRes.statusCode).toBe(StatusCodes.NOT_FOUND);
+    });
+  });
+
+  describe('GET /datasets/:datasetId/files', () => {
+    it('GET /datasets/:datasetId/files responds with 401 if no token has been provided', async () => {
+      const data = await addSyntheticData({ ...syntheticDataOptions });
+      const res = await request(app).get(`/datasets/${data.dataset.slug}/files`);
+      expect(res.statusCode).toBe(StatusCodes.UNAUTHORIZED);
+    });
+
+    it('GET /datasets/:datasetId/files responds with 404 if dataset has not been found', async () => {
+      const token = await getDataAdminToken();
+      const res = await request(app).get(`/datasets/wrong/files`).set('Authorization', `Bearer ${token}`);
+      expect(res.statusCode).toBe(StatusCodes.NOT_FOUND);
+    });
+
+    it('Responds with the list of all available dataset files', async () => {
+      const token = await getDataAdminToken();
+      const { dataset, file } = await addSyntheticIngestionData({ ...syntheticIngestionDataOptions });
+      const res = await request(app).get(`/datasets/${dataset.slug}/files`).set('Authorization', `Bearer ${token}`);
+      expect(res.statusCode).toBe(StatusCodes.OK);
+      expect(Array.isArray(res.body)).toBe(true);
+      expect(res.body.length).toBe(1);
+      expect(res.body[0].id).toBe(file.slug);
+    });
+
+    it('GET /datasets/:datasetId/files responds even when using an old slug', async () => {
+      const token = await getDataAdminToken();
+      const data = await addSyntheticData({ ...syntheticDataOptions });
+      await request(app).patch(`/datasets/${data.dataset.slug}`).set('Authorization', `Bearer ${token}`).send({ name: 'New name' });
+      const res = await request(app).get(`/datasets/${data.dataset.slug}/files`).set('Authorization', `Bearer ${token}`);
+      expect(res.statusCode).toBe(StatusCodes.OK);
+      expect(Array.isArray(res.body)).toBe(true);
+      expect(res.body.length).toBe(0);
+    });
+  });
+
+  describe('GET /datasets/:datasetId/mappings', () => {
+    it('GET /datasets/:datasetId/mappings responds with 401 if no token has been provided', async () => {
+      const data = await addSyntheticData({ ...syntheticDataOptions });
+      const res = await request(app).get(`/datasets/${data.dataset.slug}/mappings`);
+      expect(res.statusCode).toBe(StatusCodes.UNAUTHORIZED);
+    });
+
+    it('GET /datasets/:datasetId/mappings responds with 404 if dataset has not been found', async () => {
+      const token = await getDataAdminToken();
+      const res = await request(app).get(`/datasets/wrong/mappings`).set('Authorization', `Bearer ${token}`);
+      expect(res.statusCode).toBe(StatusCodes.NOT_FOUND);
+    });
+
+    it('Responds with the list of all available dataset mappings', async () => {
+      const token = await getDataAdminToken();
+      const { dataset, dataMapping } = await addSyntheticIngestionData({ ...syntheticIngestionDataOptions });
+      const res = await request(app).get(`/datasets/${dataset.slug}/mappings`).set('Authorization', `Bearer ${token}`);
+      expect(res.statusCode).toBe(StatusCodes.OK);
+      expect(Array.isArray(res.body)).toBe(true);
+      expect(res.body.length).toBe(1);
+      expect(res.body[0].id).toBe(dataMapping.id);
+    });
+
+    it('GET /datasets/:datasetId/mappings responds even when using an old slug', async () => {
+      const token = await getDataAdminToken();
+      const data = await addSyntheticData({ ...syntheticDataOptions });
+      await request(app).patch(`/datasets/${data.dataset.slug}`).set('Authorization', `Bearer ${token}`).send({ name: 'New name' });
+      const res = await request(app).get(`/datasets/${data.dataset.slug}/mappings`).set('Authorization', `Bearer ${token}`);
+      expect(res.statusCode).toBe(StatusCodes.OK);
+      expect(Array.isArray(res.body)).toBe(true);
+      expect(res.body.length).toBe(0);
     });
   });
 });

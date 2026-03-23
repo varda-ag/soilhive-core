@@ -1,4 +1,4 @@
-export const ADMIN_ROOT = '/adminportal';
+export const ADMIN_ROOT = '/admin';
 
 export const ADMIN_ROUTES = {
   TERMS_AND_CONDITIONS: 'terms-and-conditions',

@@ -25,6 +25,7 @@ exports[`Header component renders component correctly on desktop 1`] = `
           aria-current="page"
           class="Active"
           data-discover="true"
+          data-testid="sh-header-nav-link"
           href="/"
         >
           <span
@@ -36,6 +37,7 @@ exports[`Header component renders component correctly on desktop 1`] = `
         <a
           class=""
           data-discover="true"
+          data-testid="sh-header-nav-link"
           href="/legal"
         >
           <span
@@ -47,17 +49,7 @@ exports[`Header component renders component correctly on desktop 1`] = `
         <a
           class=""
           data-discover="true"
-          href="/admin"
-        >
-          <span
-            class="LinkText"
-          >
-            Admin
-          </span>
-        </a>
-        <a
-          class=""
-          data-discover="true"
+          data-testid="sh-header-nav-link"
           href="/test-module-route"
         >
           <span
@@ -76,9 +68,9 @@ exports[`Header component renders component correctly on desktop 1`] = `
           Downloads Status component
         </div>
         <div
-          data-testid="auth-button-mock"
+          data-testid="account-widget-mock"
         >
-          Auth Button component
+          Account Widget
         </div>
       </div>
     </div>
@@ -86,7 +78,7 @@ exports[`Header component renders component correctly on desktop 1`] = `
 </div>
 `;
 
-exports[`Header component renders component correctly on mobile and tablets 1`] = `
+exports[`Header component renders component correctly on mobile and tablets for unauthorized users 1`] = `
 <div>
   <header
     class="Header"
@@ -111,12 +103,12 @@ exports[`Header component renders component correctly on mobile and tablets 1`] 
         >
           Downloads Status component
         </div>
-        <div
-          data-testid="auth-button-mock"
-        >
-          Auth Button component
-        </div>
       </div>
+    </div>
+    <div
+      data-testid="login-button-mock"
+    >
+      Login Button
     </div>
     <button
       aria-label="Menu"
@@ -130,5 +122,70 @@ exports[`Header component renders component correctly on mobile and tablets 1`] 
       </svg>
     </button>
   </header>
+</div>
+`;
+
+exports[`Header component renders menu entries in the mobile menu 1`] = `
+<div>
+  <header
+    class="Header"
+  >
+    <div
+      class="Logo"
+      data-testid="sh-header-logo"
+    >
+      <img
+        alt="Logo"
+        src="logo.png"
+      />
+    </div>
+    <div
+      class="Menu"
+    >
+      <div
+        class="Additional"
+      >
+        <div
+          data-testid="downloads-status-mock"
+        >
+          Downloads Status component
+        </div>
+      </div>
+    </div>
+    <div
+      data-testid="login-button-mock"
+    >
+      Login Button
+    </div>
+    <button
+      aria-label="Menu"
+      class="Hamburger"
+      data-testid="sh-header-hamburger"
+    >
+      <svg
+        data-testid="svg-icon-mock"
+      >
+        mock-svg
+      </svg>
+    </button>
+  </header>
+  <div
+    data-testid="mobile-menu-mock"
+  >
+    <div
+      data-testid="mobile-menu-entry"
+    >
+      nav_menu.availability
+      :
+      /
+    </div>
+    <div
+      data-testid="mobile-menu-entry"
+    >
+      nav_menu.legal
+      :
+      /legal
+    </div>
+  </div>
 </div>
 `;

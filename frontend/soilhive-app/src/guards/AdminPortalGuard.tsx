@@ -1,16 +1,19 @@
-import { Navigate, Outlet } from 'react-router';
+import { Navigate } from 'react-router';
 import { useAuthContext } from '../auth/AuthContextProvider';
+import { AdminPortalLayout } from '../layouts';
+import { ADMIN_PORTAL_ACCESS, useEntitlements } from 'hooks/useEntitlementsHook';
 
 export function AdminPortalGuard() {
-  const { isAuthenticated, isLoading } = useAuthContext();
+  const { isLoading } = useAuthContext();
+  const { can } = useEntitlements();
 
   if (isLoading) {
     return null;
   }
 
-  if (!isAuthenticated) {
+  if (!can(ADMIN_PORTAL_ACCESS)) {
     return <Navigate to="/" replace />;
   }
 
-  return <Outlet />;
+  return <AdminPortalLayout />;
 }

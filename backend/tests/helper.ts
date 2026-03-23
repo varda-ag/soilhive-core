@@ -38,7 +38,7 @@ export const teardown = async () => {
 
 export const clearDatabase = async () => {
   const excludeTables: string[] = [];
-  const includeTables: string[] = ['land_cover'];
+  const includeTables: string[] = ['land_cover', 'soil_groups'];
   const dataSource = await getDataSource();
   const tableNames = dataSource?.entityMetadatas
     .filter(entity => !excludeTables.includes(entity.tableName))
@@ -112,22 +112,26 @@ const getToken = async (password: string): Promise<string> => {
   return res.body.access_token;
 };
 
-export const addLandCoverData = async (): Promise<string> => {
+export const addRastersData = async (): Promise<void> => {
   // Loading data (it takes a while)
   const landCoverDump = path.join(__dirname, './assets/land_cover/land_cover.dump');
+  const soilGroupsDump = path.join(__dirname, './assets/soil_groups/soil_groups.dump');
   await dbRestore(landCoverDump).catch(() => {});
-  return 'land_cover';
+  await dbRestore(soilGroupsDump).catch(() => {});
 };
 
-export const addLandCoverMappings = async (): Promise<string> => {
+export const addRasterMappings = async (): Promise<void> => {
   const landCoverMappingsFile = path.join(__dirname, './assets/land_cover/land_cover.mappings');
-  const sql = readFileSync(landCoverMappingsFile, 'utf8');
+  const soilGroupsMappingsFile = path.join(__dirname, './assets/soil_groups/soil_groups.mappings');
   const dataSource = await getDataSource();
   await dataSource.query(`SET search_path TO ${process.env.POSTGRES_SCHEMA}, public`);
-  await dataSource.query(sql);
+  const landCoverSql = readFileSync(landCoverMappingsFile, 'utf8');
+  await dataSource.query(landCoverSql);
+  const soilGroupsSql = readFileSync(soilGroupsMappingsFile, 'utf8');
+  await dataSource.query(soilGroupsSql);
   // Also create empty table to have the filter enabled
   await dataSource.query('CREATE TABLE IF NOT EXISTS land_cover();');
-  return 'land_cover';
+  await dataSource.query('CREATE TABLE IF NOT EXISTS soil_groups();');
 };
 
 export const addRasterFilters = async (): Promise<void> => {

@@ -34,8 +34,7 @@ const randomsInRange = (min: number, max: number, count: number): number[] => {
   return arr;
 };
 
-const randomSquareCoordinates = (spatial_extent: number[]) => {
-  const side = 0.00001;
+const randomSquareCoordinates = (spatial_extent: number[], side: number = 0.00001) => {
   const minX = randomInRange(spatial_extent[0]!, spatial_extent[2]!);
   const minY = randomInRange(spatial_extent[1]!, spatial_extent[3]!);
   const maxX = minX + side;
@@ -57,6 +56,7 @@ export const syntheticDataOptions = {
   showProgress: false,
   useProgressiveObservationValues: false,
   datasetLicense: undefined,
+  squareSide: 0.00001,
 };
 
 export const syntheticIngestionDataOptions = {
@@ -324,6 +324,7 @@ export const addSyntheticData = async (syntheticDataOptions): Promise<SyntheticD
     addNullValues,
     useProgressiveObservationValues,
     datasetLicense,
+    squareSide,
   } = syntheticDataOptions;
   assert(featureCount > 0, 'featureCount must be greater than 0');
   assert(observationsPerLayer > 0, 'observationsPerLayer must be greater than 0');
@@ -358,7 +359,7 @@ export const addSyntheticData = async (syntheticDataOptions): Promise<SyntheticD
       if (featureGeometryType === 'Point') {
         coordinates.push([randomInRange(spatial_extent[0], spatial_extent[2]), randomInRange(spatial_extent[1], spatial_extent[3])]);
       } else {
-        coordinates.push(randomSquareCoordinates(spatial_extent) as any);
+        coordinates.push(randomSquareCoordinates(spatial_extent, squareSide) as any);
       }
     }
   }
@@ -478,16 +479,41 @@ export interface DataCount {
   n_observations: number;
 }
 
-export const getLoadedDataCount = async (): Promise<DataCount> => {
+export const getLoadedDataCount = async (datasetId?: string): Promise<DataCount> => {
   const entityManager = await getEntityManager();
   const featureRepo = entityManager.getRepository(FeatureEntity);
   const layerRepo = entityManager.getRepository(LayerEntity);
   const datasetLayerRepo = entityManager.getRepository(DatasetLayerEntity);
   const observationRepo = entityManager.getRepository(ObservationEntity);
-  const n_features = await featureRepo.count();
-  const n_layers = await layerRepo.count();
-  const n_dataset_layers = await datasetLayerRepo.count();
-  const n_observations = await observationRepo.count();
+  let n_dataset_layers = 0;
+  let n_features = 0;
+  let n_layers = 0;
+  let n_observations = 0;
+  if (datasetId !== undefined) {
+    n_dataset_layers = await datasetLayerRepo.count({ where: { dataset_id: datasetId } });
+    n_features = await featureRepo
+      .createQueryBuilder('f')
+      .innerJoin('dataset_layers', 'dl', 'dl.feature_id = f.id')
+      .where('dl.dataset_id = :datasetId', { datasetId })
+      .distinct(true)
+      .getCount();
+    n_layers = await layerRepo
+      .createQueryBuilder('l')
+      .innerJoin('dataset_layers', 'dl', 'dl.layer_id = l.id')
+      .where('dl.dataset_id = :datasetId', { datasetId })
+      .distinct(true)
+      .getCount();
+    n_observations = await observationRepo
+      .createQueryBuilder('o')
+      .innerJoin('o.dataset_layer', 'dl')
+      .where('dl.dataset_id = :datasetId', { datasetId })
+      .getCount();
+  } else {
+    n_dataset_layers = await datasetLayerRepo.count();
+    n_features = await featureRepo.count();
+    n_layers = await layerRepo.count();
+    n_observations = await observationRepo.count();
+  }
   const result: DataCount = {
     n_features,
     n_layers,

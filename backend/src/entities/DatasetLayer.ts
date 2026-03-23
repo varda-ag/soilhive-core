@@ -1,4 +1,4 @@
-import { Entity, Column, Unique, PrimaryColumn, ManyToOne, JoinColumn, BaseEntity } from 'typeorm';
+import { Entity, Column, Unique, PrimaryColumn, ManyToOne, JoinColumn, BaseEntity, Index } from 'typeorm';
 import DatasetEntity from './Dataset';
 import FeatureEntity from './Feature';
 import LayerEntity from './Layer';
@@ -12,6 +12,7 @@ export default class DatasetLayerEntity extends BaseEntity {
   })
   id: string;
 
+  @Index()
   @Column({ type: 'uuid' })
   dataset_id: string;
 
@@ -26,6 +27,7 @@ export default class DatasetLayerEntity extends BaseEntity {
   @JoinColumn({ name: 'layer_id' })
   layer: LayerEntity;
 
+  @Index()
   @Column({ type: 'uuid' })
   feature_id: string;
 

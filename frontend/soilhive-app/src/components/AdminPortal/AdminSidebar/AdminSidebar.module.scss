@@ -112,20 +112,33 @@
   }
 
   &.Collapsed {
-    min-width: 5.75rem;
-    max-width: 5.75rem;
+    min-width: 3.75rem;
+    max-width: 3.75rem;
 
     > .Content {
       > .ContentTop {
-        padding: 1.5rem 1.375rem;
+        padding: 1.5rem 0.625rem;
 
-        > .LinksSection > .LinksSectionTitle {
-          opacity: 0;
+        > .LinksSection {
+          > .LinksSectionTitle {
+            opacity: 0;
+          }
+          > .Links {
+            gap: 0.875rem;
+
+            > .Link {
+              padding: 0.5rem;
+            }
+          }
         }
       }
 
-      > .ContentBottom > .Logout {
-        padding: 0.625rem;
+      > .ContentBottom {
+        padding-left: 0.625rem;
+        padding-right: 0.625rem;
+        > .Logout {
+          padding: 0.625rem 0.325rem;
+        }
       }
     }
   }

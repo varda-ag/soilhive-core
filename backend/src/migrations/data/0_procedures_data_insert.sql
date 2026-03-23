@@ -13,19 +13,18 @@ INSERT INTO procedures (
     ('Sample pretreated per ISO 11464:2006 (air-dried, ground, sieved <2 mm).', 'lab procedure', 'Calcium chloride [CaCl2]', NULL, '01:05', 'volume / volume', 'Glass electrode', '2-10'),
     ('Sample pretreated per ISO 11464:2006 (air-dried, ground, sieved <2 mm).', 'lab procedure', 'water [H2O]', NULL, '01:05', 'volume / volume', 'Glass electrode', '2-10'),
     ('Sample pretreated per ISO 11464:2006 (air-dried, ground, sieved <2 mm).', 'lab procedure', 'Sodium hydrogen carbonate [NaHCO3]', '0.5 M', '01:20', 'mass / volume', 'UV-Vis spectrophotometer (molybdenum blue method)', '10'),
+    ('Sample pretreated per ISO 11464:2006 (air-dried, ground, sieved <2 mm).', 'lab procedure', 'Sodium hydrogen carbonate [NaHCO3]', '0.5 M', '01:20', 'mass / volume', 'UV-Vis spectrophotometer (molybdenum blue method)', '10000'),
     ('Sample pretreated per ISO 11464:2006 (air-dried, ground, sieved <2 mm).', 'lab procedure', NULL, NULL, NULL, NULL, 'gravimetric', NULL),
     (NULL, 'lab procedure', NULL, NULL, NULL, NULL, 'Gravimetric', NULL),
     ('Sample pretreated per ISO 11464:2006 (air-dried, ground, sieved <2 mm).', 'lab procedure', 'Sodium hydrogen carbonate [NaHCO3]', '0.5 M', '01:20', 'mass / volume', 'UV-Vis spectrophotometer (molybdenum blue method)', '0.2'),
     ('Sample pretreated per ISO 11464:2006 (air-dried, ground, sieved <2 mm).', 'lab procedure', 'Hydrochloric acid [HCl]', '4 M', NULL, NULL, 'Scheibler apparatus (volumetric CO2 measurement)', '1'),
     ('Sample pretreated per ISO 11464:2006 (air-dried, ground, sieved <2 mm).', 'lab procedure', 'acid digestion Hydrochloric acid [HCl] Nitric acid [HNO3]', NULL, NULL, NULL, NULL, NULL),
-    ('Sample pretreated per ISO 11464:2006 (air-dried, ground, sieved <2 mm).', 'lab procedure', 'Calcium chloride [CaCl2]', NULL, '01:05', 'volume / volume', 'Glass electrode', '2-Oct'),
-    ('Sample pretreated per ISO 11464:2006 (air-dried, ground, sieved <2 mm).', 'lab procedure', 'water [H2O]', NULL, '01:05', 'volume / volume', 'Glass electrode', '2-Oct'),
     ('Sample pretreated per ISO 11464:2006 (air-dried, ground, sieved <2 mm).', 'lab procedure', NULL, NULL, NULL, NULL, 'Laser diffraction', NULL)
  on conflict(sample_pretreatment, technique, laboratory_method, extractant_concentration, extraction_ratio, extraction_base, measurement_procedure, limit_of_detection) do nothing;
 INSERT INTO procedures (
     sample_pretreatment, technique, laboratory_method, extractant_concentration, extraction_ratio, extraction_base, measurement_procedure, limit_of_detection
 ) VALUES
-    ('Sample pretreated per ISO 11464:2006 (air-dried, ground, sieved <2 mm).', 'lab procedure', 'water [H2O]', NULL, '01:05', NULL, 'Metal electrode', '0.1'),
+    ('Sample pretreated per ISO 11464:2006 (air-dried, ground, sieved <2 mm).', 'lab procedure', 'water [H2O]', NULL, '01:05', NULL, 'Metal electrode', '10'),
     ('Sample pretreated per ISO 11464:2006 (air-dried, ground, sieved <2 mm).', 'lab procedure', 'Modified Kjeldahl method', NULL, NULL, NULL, 'Kjeldahl digestion unit + distillation apparatus', '0.2'),
     ('Sample pretreated per ISO 11464:2006 (air-dried, ground, sieved <2 mm).', 'lab procedure', 'Acid ammonium oxalate solution', NULL, NULL, 'mass / volume', 'Atomic Absorption Spectrometry (AAS)', '20'),
     ('Sample pretreated per ISO 11464:2006 (air-dried, ground, sieved <2 mm).', 'lab procedure', NULL, NULL, NULL, 'mass / mass', 'gravimetric', NULL),
@@ -227,6 +226,16 @@ INSERT INTO procedures (
     ('field moist condition, then saturated', 'lab procedure', NULL, NULL, NULL, NULL, 'kPa=1500, cm water head=15324.0, bar=15.00, pF=4.2', NULL),
     (NULL, 'lab procedure', NULL, NULL, NULL, NULL, 'kPa=100, cm water head=1021.6, bar=1.00, pF=3.0', NULL),
     (NULL, 'lab procedure', NULL, NULL, NULL, NULL, 'kPa=500, pF 3.7', NULL),
+    (NULL, 'lab procedure', NULL, NULL, NULL, NULL, 'Oostenbrik elutriator', NULL),
+    (NULL, 'lab procedure', NULL, NULL, NULL, NULL, 'Cobb', NULL),
+    (NULL, 'lab procedure', NULL, NULL, NULL, NULL, 'Whitehead tray', NULL),
+    (NULL, 'lab procedure', NULL, NULL, NULL, NULL, 'Elutriator', NULL),
+    (NULL, 'lab procedure', NULL, NULL, NULL, NULL, 'Modified Baermann', NULL),
+    (NULL, 'lab procedure', NULL, NULL, NULL, NULL, 'Baermann', NULL),
+    (NULL, 'lab procedure', NULL, NULL, NULL, NULL, 'Sugar flotation centrifugation', NULL),
+    (NULL, 'lab procedure', NULL, NULL, NULL, NULL, 'Cotton-wool filter', NULL),
+    (NULL, 'lab procedure', NULL, NULL, NULL, NULL, 'Seinhorst elutriator', NULL),
+    (NULL, 'lab procedure', NULL, NULL, NULL, NULL, 'AZC', NULL)
     (NULL, 'lab procedure', NULL, NULL, NULL, NULL, 'gravimetric', NULL),
     (NULL, 'spectral', NULL, NULL, NULL, NULL, 'NIR', NULL),
     (NULL, 'calculated', 'Hot water [H2O]', NULL, NULL, NULL, 'Preprocessing details provided in the README file', NULL),

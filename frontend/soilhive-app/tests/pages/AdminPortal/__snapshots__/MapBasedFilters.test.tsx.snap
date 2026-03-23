@@ -2,8 +2,174 @@
 
 exports[`MapBasedFilters page matches snapshot 1`] = `
 <div>
-  <h2>
-    Map-based filters
-  </h2>
+  <div
+    class="MapBasedFilters"
+  >
+    <section
+      class="Card"
+    >
+      <svg
+        class="Icon"
+        data-testid="svg-icon-mock"
+      >
+        mock-svg
+      </svg>
+      <div
+        class="Content"
+      >
+        <h3>
+          Why they need a separated configuration.
+        </h3>
+        <p>
+          Map-based filters require many GB of data to be added to the system. Each filter provides global coverage and it is provided in a separate package, to avoid unnecessary large downloads when installing the platform.
+        </p>
+      </div>
+    </section>
+    <section
+      class="Card"
+    >
+      <svg
+        class="Icon"
+        data-testid="svg-icon-mock"
+      >
+        mock-svg
+      </svg>
+      <div
+        class="Content"
+      >
+        <h3>
+          The Filters
+        </h3>
+        <div
+          class="FilterList"
+        >
+          <div
+            class="FilterItem"
+          >
+            <h4>
+              Agroecological zones
+            </h4>
+            <div
+              data-testid="mock-expandable-text"
+            >
+              Agroecological Zones classify land according to its suitability for agricultural production by considering climatic conditions, land resources, and crop growth requirements.
+            </div>
+          </div>
+          <div
+            class="FilterItem"
+          >
+            <h4>
+              Land cover
+            </h4>
+            <div
+              data-testid="mock-expandable-text"
+            >
+              Land Cover categorizes the physical and biological cover present on the Earth’s surface, such as vegetation, cropland, water bodies, or built-up areas.
+            </div>
+          </div>
+          <div
+            class="FilterItem"
+          >
+            <h4>
+              Soil groups
+            </h4>
+            <div
+              data-testid="mock-expandable-text"
+            >
+              Soil groups classify soils into categories based on their physical, chemical, and morphological characteristics. These classifications provide a standardized way to describe and compare soils across different regions.
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+    <section
+      class="Card"
+    >
+      <svg
+        class="Icon"
+        data-testid="svg-icon-mock"
+      >
+        mock-svg
+      </svg>
+      <div
+        class="Content"
+      >
+        <div
+          class="ActivationSection"
+        >
+          <h3>
+            Activate the filters
+          </h3>
+          <p>
+            Access our documentation and follow the instructions to activate the map-based filters:
+          </p>
+          <a
+            class="DocLink"
+            href="https://github.com/varda-ag/soilhive-core/blob/main/docs/map-based-filters.md"
+            rel="noreferrer"
+            target="_blank"
+          >
+            https://github.com/varda-ag/soilhive-core/blob/main/docs/map-based-filters.md
+          </a>
+          <div
+            class="StatusTitle"
+          >
+            Filter states
+          </div>
+          <div
+            class="StatusRow"
+            data-testid="status-row-lc"
+          >
+            <span
+              class="Label"
+              data-testid="status-label"
+            >
+              Land Cover
+            </span>
+            <div
+              class="StatusBox Active"
+              data-testid="status-box"
+            >
+              Active
+            </div>
+          </div>
+          <div
+            class="StatusRow"
+            data-testid="status-row-sg"
+          >
+            <span
+              class="Label"
+              data-testid="status-label"
+            >
+              Soil Groups
+            </span>
+            <div
+              class="StatusBox Inactive"
+              data-testid="status-box"
+            >
+              Not active
+            </div>
+          </div>
+          <div
+            class="StatusRow"
+            data-testid="status-row-az"
+          >
+            <span
+              class="Label"
+              data-testid="status-label"
+            >
+              Agroecological Zones
+            </span>
+            <div
+              class="StatusBox Active"
+              data-testid="status-box"
+            >
+              Active
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
 </div>
 `;
