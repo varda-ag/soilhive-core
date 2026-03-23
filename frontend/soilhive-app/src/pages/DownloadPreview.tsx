@@ -74,10 +74,14 @@ function DownloadPreview() {
     // property is not available in the newly selected dataset, then we select the first available soil property of the
     // newly selected dataset, otherwise we maintain the selection.
     if (!availableSoilProperties.some(soilProperty => soilProperty.id === selectedSoilPropertyId)) {
-      setFilters(prevFilters => ({
-        ...prevFilters,
-        soil_properties: availableSoilProperties?.[0]?.id ? [availableSoilProperties[0].id] : [],
-      }));
+      const firstAvailableId = availableSoilProperties?.[0]?.id;
+      const nextSoilProperties = firstAvailableId ? [firstAvailableId] : [];
+      if (JSON.stringify(filters.soil_properties) !== JSON.stringify(nextSoilProperties)) {
+        setFilters(prevFilters => ({
+          ...prevFilters,
+          soil_properties: nextSoilProperties,
+        }));
+      }
     }
   }, [availableSoilProperties, filters.soil_properties]);
 
