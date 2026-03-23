@@ -44,7 +44,9 @@ describe('BulkDeleter class', () => {
 
   it('Bulk deleting synthetic data from the corresponding dataset', async () => {
     const datasetToKeep = (await addSyntheticData({ ...syntheticDataOptions, id: 102, soilPropertyNames: ['pH'] })).dataset;
-    const datasetToDelete = (await addSyntheticData({ ...syntheticDataOptions, id: 103, soilPropertyNames: ['Bulk density'], featureCount: 3 })).dataset;
+    const datasetToDelete = (
+      await addSyntheticData({ ...syntheticDataOptions, id: 103, soilPropertyNames: ['Bulk density'], featureCount: 3 })
+    ).dataset;
 
     const dataToKeep = await getLoadedDataCount(datasetToKeep.id);
 
@@ -60,6 +62,6 @@ describe('BulkDeleter class', () => {
     const repo = dataSource.getRepository(DatasetEntity);
     const datasets = await repo.find({ withDeleted: true });
     expect(datasets.length).toBe(2);
-    expect(datasets.filter((d) => d.id === datasetToDelete.id)[0].status).toBe(IngestionStatus.ARCHIVED);
+    expect(datasets.filter(d => d.id === datasetToDelete.id)[0].status).toBe(IngestionStatus.ARCHIVED);
   });
 });

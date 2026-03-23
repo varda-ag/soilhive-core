@@ -24,7 +24,7 @@ export async function processBulkDeletion(job: Job<BulkDeleteJob>): Promise<void
       .returning(['layer_id', 'feature_id'])
       .execute()
       .then(res => res.raw);
-    
+
     const featureIds = [...new Set(deleted.map(r => r.feature_id))];
     const layerIds = [...new Set(deleted.map(r => r.layer_id))];
 
