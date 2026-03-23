@@ -22,7 +22,7 @@ import '../../styles/SoilhiveMap.scss';
 import Flower from 'assets/images/flower.svg?react';
 import { bBoxToH3Cells, h3IndexesToGeoJSONPolygons, isPointInFeatureCollection } from '../../utilities/geo';
 import { area, bbox as bboxFn, centerOfMass, convertArea, round } from '@turf/turf';
-import { h3ResolutionForZoomLevel } from '../../utilities/map';
+import { getMapStyles, h3ResolutionForZoomLevel } from '../../utilities/map';
 import DrawControl from '../DrawControl';
 import SoilhiveMapToolbar from './SoilhiveMapToolbar';
 import SoilhiveMapSelectionToolbar from './SoilhiveMapSelectionToolbar';
@@ -113,7 +113,7 @@ function SoilhiveMap({
   showGeolocation = true,
   showScale = true,
   showH3Cells = false,
-  mapStyles = [{ name: 'CartoCDN Voyager', mapStyle: 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json' }],
+  mapStyles = getMapStyles(),
   scrollZoom = true,
   dragPan = true,
   onSelectionChange,
