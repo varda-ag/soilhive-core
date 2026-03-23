@@ -74,24 +74,4 @@ export function useDownloadPreview({
     setSelectedDatasets,
     geometryFilter,
   };
-
-  //   return useMemo(() => ({
-  //     isLoading: areAvailabilityFiltersLoading || isAvailabilityCoverageDataLoading || areSoilPropertiesLoading,
-  //     availableFixedDatasets,
-  //     availabilitySelectedFilters: availabilityFilters,
-  //     availabilitySelectedSoilProperties,
-  //     availabilityFilteredSoilProperties,
-  //     datasetsSummary,
-  //     selectedDatasets,
-  //     setSelectedDatasets,
-  //   }), [areAvailabilityFiltersLoading,
-  // isAvailabilityCoverageDataLoading,
-  // areSoilPropertiesLoading,
-  // availableFixedDatasets,
-  // availabilityFilters,
-  // availabilitySelectedSoilProperties,
-  // availabilityFilteredSoilProperties,
-  // datasetsSummary,
-  // selectedDatasets,
-  // setSelectedDatasets]);
 }
