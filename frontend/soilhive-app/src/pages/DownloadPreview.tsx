@@ -190,10 +190,14 @@ function DownloadPreview() {
             selectionType={selectionType}
             initialViewBoundingBox={boundingBox}
             selectedFeature={selectedFeature}
-            // geometryFeature={geometryFilter ? {
-            //   type: 'FeatureCollection',
-            //   features: geometryFilter.map(geometry => ({ geometry })),
-            // } : undefined}
+            geometryFeature={
+              geometryFilter
+                ? {
+                    type: 'FeatureCollection',
+                    features: geometryFilter.map(geometry => ({ geometry })),
+                  }
+                : undefined
+            }
             locationName={locationName}
             dataPoints={datasetsSummary.dataPoints}
             rasterLayers={datasetsSummary.layers}
