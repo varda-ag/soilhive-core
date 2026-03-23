@@ -332,12 +332,14 @@ paths:
                 - $ref: '#/components/schemas/BulkLoadJob'
                 - $ref: '#/components/schemas/ExportJob'
                 - $ref: '#/components/schemas/FileToDbJob'
+                - $ref: '#/components/schemas/BulkDeleteJob'
               discriminator:
                 propertyName: type
                 mapping:
                   bulk-load: '#/components/schemas/BulkLoadJob'
                   export: '#/components/schemas/ExportJob'
                   file-to-db: '#/components/schemas/FileToDbJob'
+                  bulk-delete: '#/components/schemas/BulkDeleteJob'
       responses:
         '201':
           description: Async job started successfull
@@ -1870,6 +1872,16 @@ components:
           format: uuid
           description: File ID to be processed and inserted into the database
 
+    BulkDeleteJob:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [bulk-delete]
+          description: Job type
+        dataset_id:
+          type: string
+
     Job:
       type: object
       properties:
@@ -1900,6 +1912,7 @@ components:
             - $ref: '#/components/schemas/BulkLoadJob'
             - $ref: '#/components/schemas/ExportJob'
             - $ref: '#/components/schemas/FileToDbJob'
+            - $ref: '#/components/schemas/BulkDeleteJob'
 
     License:
       type: object

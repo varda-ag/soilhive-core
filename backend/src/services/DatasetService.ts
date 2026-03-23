@@ -4,7 +4,7 @@ import { ErrorResponse } from '../utils/error';
 import DatasetEntity from '../entities/Dataset';
 import { CreateDatasetInput, UpdateDatasetInput } from '../types/DatasetInput';
 import { getEntity } from '../utils/slugs';
-import { EntityType } from '../types/data';
+import { EntityType, IngestionStatus } from '../types/data';
 
 export default class DatasetService {
   getDatasets = async (requestData: RequestData): Promise<DatasetEntity[]> => {
@@ -66,6 +66,14 @@ export default class DatasetService {
 
   deleteDataset = async (requestData: RequestData, slug: string): Promise<void> => {
     const dataset = await getEntity(requestData, DatasetEntity, EntityType.DATASET, slug);
+    const { sub } = requestData.token ?? {};
+
+    if (!sub) {
+      throw new ErrorResponse('Token subject is missing', StatusCodes.UNAUTHORIZED);
+    }
+    dataset.status = IngestionStatus.ARCHIVED;
+    dataset.updated_by = String(sub);
+    await dataset.save();
     await requestData.entityManager.getRepository(DatasetEntity).softRemove(dataset);
   };
 }
