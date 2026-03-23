@@ -1,4 +1,3 @@
-import React from 'react';
 import { act, render } from '@testing-library/react';
 import DownloadPreview from '../../src/pages/DownloadPreview';
 import { useNavigate } from 'react-router';
@@ -27,13 +26,6 @@ jest.mock('components/DownloadDataSummary/DownloadDataSummary', () => {
 jest.mock('components/DownloadPreview/DownloadPreviewDataSection/DownloadPreviewDataSection', () => {
   const DownloadPreviewDataSection = () => <div>Mock DownloadPreviewDataSection</div>;
   return DownloadPreviewDataSection;
-});
-
-jest.mock('../../src/contexts/AvailabilityContext', () => {
-  return {
-    __esModule: true,
-    AvailabilityContext: React.createContext({}),
-  };
 });
 
 jest.mock('hooks/useDownloadPreview', () => {

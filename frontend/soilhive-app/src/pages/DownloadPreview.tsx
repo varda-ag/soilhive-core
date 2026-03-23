@@ -13,7 +13,6 @@ import { useFilteredDatasets } from 'hooks/useFilteredDatasets';
 import type { PreviewFilters } from 'types/downloadPreview';
 import { computeDatasetSummary } from '../domain';
 import type { Nullable } from 'primereact/ts-helpers';
-import useAvailability from 'hooks/useAvailability';
 import type { Feature, GeoJsonProperties, MultiPolygon, Point, Polygon } from 'geojson';
 import { useNavigate, useSearchParams } from 'react-router';
 import { backendToLocalFrontendDate } from '../utilities/date';
@@ -46,8 +45,6 @@ function DownloadPreview() {
     geometryFilter,
     isLoading: isDownloadPreviewLoading,
   } = useDownloadPreview({ filterId, datasetsIds, datasetTypesParams });
-
-  const { boundingBox } = useAvailability();
 
   const [summaryExpanded, setSummaryExpanded] = useState(false);
   const [selectedFeature, setSelectedFeature] = useState<Feature<Point | Polygon | MultiPolygon, GeoJsonProperties>>();
@@ -188,7 +185,6 @@ function DownloadPreview() {
         <div className={classNames(styles.Sidebar, { [styles.HideInMobile]: selectedTab !== 'summary' })}>
           <DownloadDataSummary
             selectionType={selectionType}
-            initialViewBoundingBox={boundingBox}
             selectedFeature={selectedFeature}
             geometryFeature={
               geometryFilter
