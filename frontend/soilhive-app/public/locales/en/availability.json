@@ -25,7 +25,11 @@
         "no_data_in_selected_area": "No data in selected area",
         "no_data_in_selected_area_due_to_filters": "No data in selected area due to applied filters",
         "select_all": "Select all",
-        "no_data_matching_search": "No data in selected area matching your search query"
+        "no_data_matching_search": "No data in selected area matching your search query",
+        "mobile_download_dialog": {
+            "header": "Information note",
+            "message":"Data downloads aren't available on mobile. Please use a tablet or desktop to export data."
+        }
     },
     "datasets_sidebar_summary": {
         "datasets": "Datasets",

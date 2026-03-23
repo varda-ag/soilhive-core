@@ -1,7 +1,7 @@
 import { DatasetsSidebarHeader } from './DatasetsSidebarHeader/DatasetsSidebarHeader';
 import { DatasetsSidebarSummary } from './DatasetsSidebarSummary/DatasetsSidebarSummary';
 import { DatasetsList } from './DatasetsList/DatasetsList';
-import { Button, PageSidebar } from 'components/UI';
+import { Button, PageSidebar, InfoDialog } from 'components/UI';
 import DownloadIcon from 'assets/icons/small-download-icon.svg?react';
 import useDevice from 'hooks/useDevice';
 import useAvailability from 'hooks/useAvailability';
@@ -9,7 +9,7 @@ import { useTranslation } from 'react-i18next';
 
 import styles from './DatasetsSidebar.module.scss';
 import { useNavigate } from 'react-router';
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 
 interface Props {
   isOpened: boolean;
@@ -18,9 +18,24 @@ interface Props {
 
 export function DatasetsSidebar({ isOpened, onClose }: Props) {
   const { t } = useTranslation('availability');
-  const { isDesktopLayout } = useDevice();
+
+  const { isDesktopLayout, isMobileLayout } = useDevice();
   const { availableDatasets, filterId, selectionType, locationName, datasetFrontendFilters } = useAvailability();
+
   const navigate = useNavigate();
+  const [showNoDownloadInfoDialog, setShowNoDownloadInfoDialog] = useState(false);
+
+  const handleDownloadClick = () => {
+    if (isMobileLayout) {
+      setShowNoDownloadInfoDialog(true);
+      return;
+    }
+    navigateToDownload();
+  };
+
+  const navigateToDownload = () => {
+    navigate({ pathname: '/download', search: `?${getSearchParams({ source: 'availability' }).toString()}` });
+  };
 
   const getSearchParams = useCallback(
     ({ source }: { source?: 'availability' } = {}) => {
@@ -58,18 +73,24 @@ export function DatasetsSidebar({ isOpened, onClose }: Props) {
           >
             {t('datasets_sidebar.preview')}
           </Button>
-          <Button
-            className={styles.DownloadButton}
-            isDisabled={availableDatasets.length === 0}
-            onClick={() => {
-              navigate({ pathname: '/download', search: `?${getSearchParams({ source: 'availability' }).toString()}` });
-            }}
-          >
-            <DownloadIcon />
-            {t('datasets_sidebar.download')}
-          </Button>
-        </div>
-      </div>
-    </PageSidebar>
+          <Button className={styles.DownloadButton} isDisabled={availableDatasets.length === 0} onClick={handleDownloadClick}>
+      <DownloadIcon />
+      {t('datasets_sidebar.download')}
+    </Button>
+  </div>
+      </div >
+    <InfoDialog
+      storageKey="no-download-on-mobile"
+      isVisible={showNoDownloadInfoDialog}
+      header={t('datasets_sidebar.mobile_download_dialog.header')}
+      message={t('datasets_sidebar.mobile_download_dialog.message')}
+      onContinue={() => {
+        setShowNoDownloadInfoDialog(false);
+      }}
+      onCancel={() => {
+        setShowNoDownloadInfoDialog(false);
+      }}
+    />
+    </PageSidebar >
   );
 }

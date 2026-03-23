@@ -16,3 +16,5 @@ export * from './Toggle/Toggle';
 export * from './MultiselectButtons/MultiselectButtons';
 export * from './MultirangeSlider/MultirangeSlider';
 export * from './Notification/Notification';
+export * from './Dialog/Dialog';
+export * from './InfoDialog/InfoDialog';

@@ -49,5 +49,10 @@
         "logo_label": "Logo:",
         "delete_logo": "Delete logo",
         "save": "Save"
+    },
+    "dialog": {
+        "dont_show_again": "Don't show this note again.",
+        "continue": "Continue",
+        "cancel": "Cancel"
     }
 }
