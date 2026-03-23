@@ -560,6 +560,66 @@ paths:
         '401':
           description: Unauthorized - Token subject is missing
 
+  /datasets/{datasetId}/files:
+    get:
+      x-eov-operation-handler: controllers/datasets
+      x-eov-operation-id: getDatasetFiles
+      summary: Get all dataset files
+      tags:
+        - datasets
+      security:
+        - bearerAuth: [data-admin]
+      parameters:
+        - name: datasetId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Dataset ID
+      responses:
+        '200':
+          description: List of dataset files
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FileDescriptor'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /datasets/{datasetId}/mappings:
+    get:
+      x-eov-operation-handler: controllers/datasets
+      x-eov-operation-id: getDatasetMappings
+      summary: Get all dataset mappings
+      tags:
+        - datasets
+      security:
+        - bearerAuth: [data-admin]
+      parameters:
+        - name: datasetId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Dataset ID
+      responses:
+        '200':
+          description: List of dataset mappings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DataMapping'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
   /soil-properties:
     get:
       x-eov-operation-handler: controllers/soil-properties
@@ -1029,6 +1089,7 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+
   /mappings/{mappingId}:
     parameters:
       - name: mappingId
@@ -1696,6 +1757,7 @@ components:
           description: Unique identifier for the data mapping
         data_mapping:
           $ref: '#/components/schemas/DataMappingObject'
+
     DataMappingObject:
       type: object
       additionalProperties:
