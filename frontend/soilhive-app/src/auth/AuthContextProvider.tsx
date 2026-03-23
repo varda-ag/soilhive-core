@@ -25,11 +25,13 @@ export function AuthContextProvider({ children }: { children: React.ReactNode })
   const { request } = useRequest();
 
   useEffect(() => {
+    if (authConfig) return;
+
     request({ url: `${BACKEND_BASE_URL}/auth/config` })
       .then(setAuthConfig)
       .catch(console.error)
       .finally(() => setIsConfigParsed(true));
-  }, [request]);
+  }, [request, authConfig]);
 
   if (!isConfigParsed) {
     return null;

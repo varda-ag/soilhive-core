@@ -58,5 +58,11 @@
     "mobile_download_dialog": {
         "header": "Information note",
         "message": "Data downloads aren't available on mobile. Please use a tablet or desktop to export data."
+    },
+    "errors": {
+        "network_error": {
+            "title": "Network error",
+            "message": "No connection to the server." 
+        }
     }
 }
