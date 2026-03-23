@@ -23,6 +23,16 @@ export enum EntityType {
   FILE = 'files',
 }
 
+export enum ProcedureVocabularyType {
+  SAMPLE_PRETREATMENT = 'sample_pretreatment',
+  LABORATORY_METHOD = 'laboratory_method',
+  EXTRACTANT_CONCENTRATION = 'extractant_concentration',
+  EXTRACTION_RATIO = 'extraction_ratio',
+  EXTRACTION_BASE = 'extraction_base',
+  MEASUREMENT_PROCEDURE = 'measurement_procedure',
+  LIMIT_OF_DETECTION = 'limit_of_detection',
+}
+
 export enum ProcedureTechnique {
   LAB_PROCEDURE = 'lab procedure',
   SPECTRAL = 'spectral',
