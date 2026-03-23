@@ -74,7 +74,7 @@ describe('useDownloadPreview', () => {
               data_type: 'mock-type-1',
               name: 'Mock dataset 2',
               soil_properties: ['prop-1'],
-            }
+            },
           ],
           isLoading: false,
         } as any;
@@ -94,7 +94,11 @@ describe('useDownloadPreview', () => {
     const {
       result: { current: resultData },
     } = renderHook(() =>
-      useDownloadPreview({ filterId: 'test-filter-id', datasetsIds: ['mock-dataset-id-1', 'mock-dataset-id-2'], datasetTypesParams: ['mock-type-1'] }),
+      useDownloadPreview({
+        filterId: 'test-filter-id',
+        datasetsIds: ['mock-dataset-id-1', 'mock-dataset-id-2'],
+        datasetTypesParams: ['mock-type-1'],
+      }),
     );
     expect(useApiQueryMock).toHaveBeenCalledTimes(4);
     expect(computeDatasetSummaryMock).toHaveBeenCalledTimes(2);
@@ -113,7 +117,7 @@ describe('useDownloadPreview', () => {
           data_type: 'mock-type-1',
           name: 'Mock dataset 2',
           soil_properties: ['prop-1'],
-        }
+        },
       ],
       availabilitySelectedFilters: {
         filter: {
