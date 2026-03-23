@@ -1,34 +1,111 @@
-.mobileMenu {
+@import 'styles/variables/breakpoints';
+
+.MobileMenu {
   display: flex;
   position: fixed;
-  align-items: center;
   flex-direction: column;
+  justify-content: space-between;
   top: 50px;
   left: 0;
   right: 0;
   bottom: 0;
   background: #ffffff;
   z-index: 900;
-  display: flex;
 
   gap: 1.5rem;
-  padding: 1.5rem;
+  padding: 2rem 1.5rem 1.5rem;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   overflow-y: auto;
-}
 
-.mobileLink {
-  font-weight: 700;
-  font-size: 1.1rem;
-  color: #000;
-  text-decoration: none;
-  padding-bottom: 0.5rem;
-  border-bottom: 2px solid transparent;
+  .AccountInformation {
+    border-bottom: 1px solid var(--color-neutral-dark-200);
+    padding-bottom: 1.5rem;
+  }
+  .Top {
+    @media (min-width: $bp-tablet) {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+  }
+  .AccountInformation,
+  .Nav {
+    width: 100%;
+    display: flex;
 
-  &:visited,
-  &:hover,
-  &:active,
-  &:focus {
-    color: #000;
+    @media (min-width: $bp-tablet) {
+      justify-content: center;
+    }
+  }
+
+  .Nav {
+    padding: 1rem 0;
+  }
+
+  .AccountContent {
+    display: flex;
+    column-gap: 0.625rem;
+
+    @media (min-width: $bp-tablet) {
+      justify-content: center;
+    }
+
+    > .ProfilePicture {
+      width: 3.125rem;
+      height: 3.125rem;
+    }
+
+    > .UserInfo {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      overflow: hidden;
+      gap: 0.187rem;
+
+      > .Name {
+        font-size: var(--font-size-sm);
+        line-height: normal;
+        font-weight: 500;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      > .Email {
+        font-size: var(--font-size-xs);
+        line-height: normal;
+        font-weight: 500;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+    }
+  }
+
+  .NavContent {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1.5rem;
+
+    .MobileLink {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      font-size: var(--font-size-md);
+      color: var(--color-neutral-black);
+      text-decoration: none;
+      padding: 0.5rem 0;
+
+      &:visited,
+      &:hover,
+      &:active,
+      &:focus {
+        color: var(--color-neutral-black);
+      }
+    }
+  }
+
+  .Footer {
+    border-top: 1px solid var(--color-neutral-dark-200);
+    padding-top: 1.5rem;
   }
 }

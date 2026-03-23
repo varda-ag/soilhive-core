@@ -50,8 +50,12 @@ const setupQueues = async () => {
 
 const setupWorkers = async () => {
   const options = {
-    localConcurrency: 1,
-    groupConcurrency: 5,
+    // Number of workers to spawn for this queue (per-node).
+    // Each worker polls and processes jobs independently.
+    localConcurrency: 3,
+    // Limit concurrent jobs per group globally across all nodes (database tracking).
+    // Coordinates across distributed deployments via database queries.
+    groupConcurrency: 8, // TODO: move to an environment variable and add documentation
   };
   const boss = getPgBoss();
   await boss.work<BulkLoadJob>(JobQueues.BULK_LOAD, options, async (jobs: Job<BulkLoadJob>[]) => {

@@ -105,11 +105,11 @@ exports[`MapBasedFilters page matches snapshot 1`] = `
           </p>
           <a
             class="DocLink"
-            href="https://docs.example.com"
+            href="https://github.com/varda-ag/soilhive-core/blob/main/docs/map-based-filters.md"
             rel="noreferrer"
             target="_blank"
           >
-            https://docs.example.com/map-filters-setup
+            https://github.com/varda-ag/soilhive-core/blob/main/docs/map-based-filters.md
           </a>
           <div
             class="StatusTitle"

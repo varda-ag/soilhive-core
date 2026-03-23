@@ -31,6 +31,9 @@ function extractUser(rawToken: RawToken): User {
       iat: decodedToken.iat,
       sub: decodedToken.sub,
       name: decodedToken.sub,
+      given_name: (decodedToken as any).given_name,
+      family_name: (decodedToken as any).family_name,
+      email: (decodedToken as any).email,
     },
   };
 
@@ -42,7 +45,7 @@ export function usePasswordAuth() {
 
   // try and load token from the session storage
   const [state, setState] = useState<PasswordAuthState>(() => {
-    const token = sessionStorage.getItem(TOKEN_STORAGE_KEY);
+    const token = localStorage.getItem(TOKEN_STORAGE_KEY);
 
     let parsedToken = null;
 
@@ -55,7 +58,7 @@ export function usePasswordAuth() {
       isAuthenticated: !!token,
       isLoading: false,
       error: undefined,
-      token: parsedToken ? extractUser(parsedToken) : null,
+      user: parsedToken ? extractUser(parsedToken) : null,
     };
   });
 
@@ -80,7 +83,7 @@ export function usePasswordAuth() {
         body: urlEncodedBody,
       });
 
-      sessionStorage.setItem(TOKEN_STORAGE_KEY, JSON.stringify(token));
+      localStorage.setItem(TOKEN_STORAGE_KEY, JSON.stringify(token));
       saveToken(token.access_token);
 
       setState({
@@ -101,7 +104,7 @@ export function usePasswordAuth() {
   };
 
   const logout = () => {
-    sessionStorage.removeItem(TOKEN_STORAGE_KEY);
+    localStorage.removeItem(TOKEN_STORAGE_KEY);
     clearToken();
 
     setState({

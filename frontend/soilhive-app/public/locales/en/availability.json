@@ -1,5 +1,4 @@
 {
-    "logo": "Logo",
     "filtering_sidebar": {
         "search_placeholder": "Search soil properties",
         "header": "Filters",
@@ -68,11 +67,5 @@
         "datasets": "Datasets",
         "filters": "Filters",
         "map": "Map"
-    },
-    "menu": {
-        "availability": "Availability",
-        "legal": "Legal",
-        "admin": "Admin",
-        "hamburger_aria": "Menu"
     }
 }

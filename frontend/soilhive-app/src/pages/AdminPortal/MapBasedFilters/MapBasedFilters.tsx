@@ -2,7 +2,7 @@ import classNames from 'classnames';
 import { useTranslation } from 'react-i18next';
 
 import ServerIcon from 'assets/icons/server-check-icon.svg?react';
-import SettingsIcon from 'assets/icons/settings-icon.svg?react';
+import SettingsIcon from 'assets/icons/big-settings-icon.svg?react';
 import WrenchIcon from 'assets/icons/wrench-icon.svg?react';
 
 import styles from './MapBasedFilters.module.scss';
@@ -57,8 +57,13 @@ export function MapBasedFilters() {
           <div className={styles.ActivationSection}>
             <h3>{t('filters.activation.title')}</h3>
             <p>{t('filters.activation.description')}</p>
-            <a href="https://docs.example.com" target="_blank" rel="noreferrer" className={styles.DocLink}>
-              https://docs.example.com/map-filters-setup
+            <a
+              href="https://github.com/varda-ag/soilhive-core/blob/main/docs/map-based-filters.md"
+              target="_blank"
+              rel="noreferrer"
+              className={styles.DocLink}
+            >
+              https://github.com/varda-ag/soilhive-core/blob/main/docs/map-based-filters.md
             </a>
 
             <div className={styles.StatusTitle}>{t('filters.activation.status_title')}</div>

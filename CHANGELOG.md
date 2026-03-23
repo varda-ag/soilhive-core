@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.53.0 (2026-03-19)
+
+## What's Changed
+* docs: fixing link by @svaccari in https://github.com/varda-ag/soilhive-core/pull/302
+* feat: sp-5017 create account widget by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/304
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.52.1...v0.53.0
+
+## 0.52.1 (2026-03-19)
+
+## What's Changed
+* fix(fe): sp-4921 add official raster filters setup documentation page by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/300
+* docs: page refactoring by @svaccari in https://github.com/varda-ag/soilhive-core/pull/293
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.52.0...v0.52.1
+
 ## 0.52.0 (2026-03-18)
 
 ## What's Changed
