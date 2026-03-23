@@ -94,15 +94,16 @@ describe('DatasetFileMappingService', () => {
     expect(result[0].file_id).toBe(file1.id);
   });
 
-  it('should throw 404 when no mappings found for dataset', async () => {
+  it('should return empty array when no mappings found for dataset', async () => {
     const service = new DatasetFileMappingService();
     const entityManager = await getEntityManager();
     const requestData: RequestData = { entityManager, token: mockToken };
 
     // Create empty dataset
     const dataset = await addDataset('empty-dataset', [0, 0, 1, 1]);
-
-    await expect(service.getMappings(requestData, dataset.slug)).rejects.toThrow('No DatasetFileMappings found');
+    const result = await service.getMappings(requestData, dataset.slug);
+    expect(result).toBeDefined();
+    expect(result.length).toBe(0);
   });
 
   it('should insert a dataset_mapping_file with no file and no mappingId', async () => {
