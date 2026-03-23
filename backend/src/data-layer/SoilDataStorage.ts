@@ -56,6 +56,7 @@ export default class SoilDataStorage {
       .addSelect('dataset_layers.soil_property_id', 'soil_property')
       .groupBy('dataset_layers.dataset_id, dataset_layers.soil_property_id, layer.license');
 
+    const aoiAreaM2 = turf.area(geometry);
     const dataFilter = { geometries: [geometry], parameters: filters };
     const enabledRasterFilterTables = await getEnabledRasterFilterTables();
     await applyFiltersToQuery(baseAggQuery, dataFilter, enabledRasterFilterTables);
@@ -64,6 +65,18 @@ export default class SoilDataStorage {
     applyFiltersToExternalQuery(query, dataFilter, enabledRasterFilterTables);
 
     query
+      .addCommonTableExpression(
+        `
+        SELECT
+        dl.dataset_id                                              AS dataset_id,
+        h3_latlng_to_cell(ST_Transform(f.geom, 4326), ${getH3Resolution(aoiAreaM2)})  AS h3_index,
+        COUNT(*)                                                   AS point_count
+        FROM candidate_features f
+        JOIN "soilhive"."dataset_layers" dl ON dl.feature_id = f.id
+        WHERE geometrytype(f.geom) = 'POINT'
+        GROUP BY dl.dataset_id, h3_index`,
+        'h3_point_counts',
+      )
       .addCommonTableExpression(baseAggQuery, 'base_agg')
       .from('base_agg', 'base_agg')
       .innerJoin('datasets', 'ds', 'ds.id = base_agg.dataset_id')
@@ -81,6 +94,16 @@ export default class SoilDataStorage {
       .addSelect('MAX(base_agg.max_depth)', 'max_depth')
       .addSelect("STRING_AGG(DISTINCT base_agg.horizons, ',')", 'horizons')
       .addSelect("STRING_AGG(DISTINCT soil_property.slug, ',')", 'soil_properties')
+      .addSelect(
+        `
+        (
+        SELECT jsonb_object_agg(hpc.h3_index::text, hpc.point_count)
+        FROM h3_point_counts hpc
+        WHERE hpc.dataset_id = base_agg.dataset_id
+        )
+        `,
+        'h3_point_aggregation',
+      )
       .groupBy('base_agg.dataset_id, ds.slug, ds.name, ds.gis_datatype');
 
     await addRasterCoverage(query, dataFilter, enabledRasterFilterTables);
@@ -100,6 +123,7 @@ export default class SoilDataStorage {
       soil_properties: row.soil_properties ? row.soil_properties.split(',') : [],
       raster_filters: decodeRasterColumns(row),
       dataset_layer_count: parseInt(row.dataset_layer_count),
+      h3_point_aggregation: row.h3_point_aggregation,
     }));
   };
 
@@ -564,4 +588,16 @@ const applySortingToQuery = (query: any, sort?: string) => {
 
 const selectGeometry = (): string => {
   return "SELECT ST_CollectionExtract(ST_MakeValid(ST_GeomFromGeoJSON(:inputGeom), 'method=structure'), 3) AS geom";
+};
+
+const getH3Resolution = (areaM2: number) => {
+  // const targetCellArea = areaKm2 / targetCells;
+  // const res = Math.log(100_000_000_000.0 / targetCellArea);
+  // const output = Math.max(3, Math.min(15, Math.round(res)));
+  const areaKm2 = areaM2 / 1_000_000;
+  const EARTH_AREA_KM2 = 510_072_000;
+  const zoom = 0.5 * Math.log2(EARTH_AREA_KM2 / areaKm2);
+  const output = Math.max(3, Math.min(11, Math.round(zoom)));
+  console.log(output);
+  return output;
 };
