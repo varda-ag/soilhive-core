@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.54.0 (2026-03-24)
+
+## What's Changed
+* feat(data): :sparkles: adding convenience endpoints to retrieve datas… by @svaccari in https://github.com/varda-ag/soilhive-core/pull/307
+* feat: delete dataset job by @d-rom in https://github.com/varda-ag/soilhive-core/pull/308
+* feat: :sparkles: adding default satellite map style by @svaccari in https://github.com/varda-ag/soilhive-core/pull/310
+* feat: sp-4986 put preview page under a route by @cristbello in https://github.com/varda-ag/soilhive-core/pull/294
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.53.0...v0.54.0
+
 ## 0.53.0 (2026-03-19)
 
 ## What's Changed
