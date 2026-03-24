@@ -21,10 +21,10 @@ const queryClient = new QueryClient();
 function App() {
   const { t } = useTranslation('common');
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthContextProvider>
-        <ThemeProvider>
-          <NotificationProvider>
+    <NotificationProvider>
+      <QueryClientProvider client={queryClient}>
+        <AuthContextProvider>
+          <ThemeProvider>
             <DownloadsProvider>
               <BrowserRouter>
                 <Routes>
@@ -75,10 +75,10 @@ function App() {
                 </Routes>
               </BrowserRouter>
             </DownloadsProvider>
-          </NotificationProvider>
-        </ThemeProvider>
-      </AuthContextProvider>
-    </QueryClientProvider>
+          </ThemeProvider>
+        </AuthContextProvider>
+      </QueryClientProvider>
+    </NotificationProvider>
   );
 }
 

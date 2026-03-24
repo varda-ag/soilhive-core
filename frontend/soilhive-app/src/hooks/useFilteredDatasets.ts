@@ -18,6 +18,7 @@ export function useFilteredDatasets(filters: DataFilter, enabled: boolean = true
     method: 'GET',
     queryKey: ['data-filter-coverage', filterData?.id],
     enabled: !!filterData?.id && enabled,
+    retry: false,
   });
 
   return {
