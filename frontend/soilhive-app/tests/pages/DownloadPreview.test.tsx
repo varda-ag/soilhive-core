@@ -2,6 +2,8 @@ import { act, render } from '@testing-library/react';
 import DownloadPreview from '../../src/pages/DownloadPreview';
 import { useNavigate } from 'react-router';
 
+jest.mock('hooks/useDevice');
+
 jest.mock('hooks/useFilteredDatasets', () => {
   return { useFilteredDatasets: jest.fn().mockReturnValue({ filterId: 'test-filter-id', isLoading: false }) };
 });

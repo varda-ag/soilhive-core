@@ -17,13 +17,19 @@ import type { Feature, GeoJsonProperties, MultiPolygon, Point, Polygon } from 'g
 import { useNavigate, useSearchParams } from 'react-router';
 import { backendToLocalFrontendDate } from '../utilities/date';
 import { useTranslation } from 'react-i18next';
+
 import { useDownloadPreview } from 'hooks/useDownloadPreview';
+
+import { InfoDialog } from 'components/UI';
+import useDevice from 'hooks/useDevice';
 
 const MAXIMUM_SOIL_DATA_PER_REQUEST = 100;
 
 function DownloadPreview() {
   const navigate = useNavigate();
-  const { t } = useTranslation('download');
+  const { t } = useTranslation(['download', 'common']);
+  const { isMobileLayout } = useDevice();
+  const [showDownloadInfo, setShowDownloadInfo] = useState(false);
 
   const [searchParams] = useSearchParams();
   const selectionType = searchParams.get('selectionType') ?? undefined;
@@ -136,6 +142,16 @@ function DownloadPreview() {
 
   const [selectedTab, setSelectedTab] = useState<'summary' | 'availability'>('summary');
 
+  const navigateToDownload = () => {
+    const params = new URLSearchParams();
+    params.append('source', 'preview');
+    params.append('selectionType', `${selectionType}`);
+    if (locationName) params.append('locationName', `${locationName}`);
+    params.append('filterId', `${filterId}`);
+    params.append('datasets', availableFixedDatasets.map(dataset => dataset.id).join(','));
+    navigate({ pathname: '/download', search: `?${params.toString()}` });
+  };
+
   return (
     <div className={styles.Availability}>
       <div className={styles.Header}>
@@ -164,20 +180,15 @@ function DownloadPreview() {
             type="primary"
             className={styles.DownloadButton}
             onClick={() => {
-              const params = new URLSearchParams();
-              params.append('source', 'preview');
-              params.append('selectionType', `${selectionType}`);
-              if (locationName) params.append('locationName', `${locationName}`);
-              params.append('filterId', `${filterId}`);
-              params.append('datasets', availableFixedDatasets.map(dataset => dataset.id).join(','));
-              navigate({ pathname: '/download', search: `?${params.toString()}` });
+              if (isMobileLayout) {
+                setShowDownloadInfo(true);
+                return;
+              }
+              navigateToDownload();
             }}
           >
             <DownloadIcon />
             {t('download_preview.download_button')}
-          </Button>
-          <Button type="tertiary" isIconOnly={true} className={styles.ShareButtonForTablet}>
-            <ShareIcon />
           </Button>
         </div>
       </div>
@@ -255,6 +266,14 @@ function DownloadPreview() {
           {t('download_preview.tab_table')}
         </Button>
       </div>
+      <InfoDialog
+        isVisible={showDownloadInfo}
+        storageKey="no-download-on-mobile"
+        header={t('common:mobile_download_dialog.header')}
+        message={t('common:mobile_download_dialog.message')}
+        onContinue={() => setShowDownloadInfo(false)}
+        onCancel={() => setShowDownloadInfo(false)}
+      />
     </div>
   );
 }
