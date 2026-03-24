@@ -5,4 +5,6 @@ export interface APIRequestConfig {
   body?: any;
   signal?: AbortSignal;
   isBlobResponse?: boolean;
+  showErrorNotification?: boolean;
+  notFoundAsNull?: boolean;
 }

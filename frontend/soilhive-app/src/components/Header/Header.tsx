@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { NavLink } from 'react-router';
 import { useTranslation } from 'react-i18next';
 
@@ -25,16 +25,22 @@ export default function Header() {
   const { logo } = useTheme();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { isAuthenticated } = useAuthContext();
+  const { isLoadingTermsAndConditions, termsAndConditionsHtml: termsAndConditions } = useTheme();
 
-  const menuEntries: NavMenuEntry[] = [
-    {
-      name: 'nav_menu.availability',
-      route: '/',
-      type: 'internal',
-      Icon: PlanetIcon,
-    },
-    { name: 'nav_menu.legal', route: '/legal', type: 'internal', Icon: ScalesIcon },
-  ];
+  const menuEntries: NavMenuEntry[] = useMemo(() => {
+    const output = [
+      {
+        name: 'nav_menu.availability',
+        route: '/',
+        type: 'internal',
+        Icon: PlanetIcon,
+      } as NavMenuEntry,
+    ];
+    if (!isLoadingTermsAndConditions && !!termsAndConditions) {
+      output.push({ name: 'nav_menu.legal', route: '/legal', type: 'internal', Icon: ScalesIcon });
+    }
+    return output;
+  }, [isLoadingTermsAndConditions, termsAndConditions]);
 
   const getNavLinkClass = ({ isActive }: { isActive: boolean }) => {
     return isActive ? `${styles.Active}` : '';

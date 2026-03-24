@@ -65,6 +65,8 @@ describe('Header component', () => {
   beforeEach(() => {
     (useTheme as jest.Mock).mockReturnValue({
       logo: 'logo.png',
+      isLoadingTermsAndConditions: false,
+      termsAndConditionsHtml: '<div>Mock</div>',
     });
     (useDevice as jest.Mock).mockReturnValue({ isDesktopLayout: true });
 

@@ -1,11 +1,10 @@
-import { useQueryClient } from '@tanstack/react-query';
 import { useApiQuery } from './useApiQuery';
 import { useApiMutation } from './useApiMutation';
+import { queryClient } from '../App';
 
 const getConfigEndpoint = (id: string) => `/config/${id}`;
 
-export const useConfig = <T>(id: string, defaultConfig?: T) => {
-  const queryClient = useQueryClient();
+const useConfig = <T>(id: string, defaultConfig?: T) => {
   const endpoint = getConfigEndpoint(id);
   const saveMutation = useApiMutation<{ id: string }, unknown>({
     endpoint,
@@ -17,9 +16,11 @@ export const useConfig = <T>(id: string, defaultConfig?: T) => {
     method: 'GET',
     queryKey: [endpoint],
     enabled: !!id,
+    showErrorNotification: false,
+    notFoundAsNull: true,
   });
 
-  const config = data ?? defaultConfig;
+  const config: T | undefined = data ?? defaultConfig;
 
   const saveConfig = async (newConfig: unknown): Promise<void> => {
     queryClient.invalidateQueries({ queryKey: [endpoint] });
@@ -28,3 +29,5 @@ export const useConfig = <T>(id: string, defaultConfig?: T) => {
 
   return { config, isLoading, isError, saveConfig };
 };
+
+export default useConfig;

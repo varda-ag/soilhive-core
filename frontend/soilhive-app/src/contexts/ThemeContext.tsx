@@ -1,7 +1,8 @@
 import React, { createContext, useState, useEffect, type ReactNode, useCallback } from 'react';
 import { useRequest } from '../api-client';
+import useConfig from '../hooks/useConfig';
 import { BACKEND_BASE_URL, REST_END_POINTS } from '../configuration/api';
-import { useConfig } from '../hooks/useConfig';
+import type { TermsAndConditionsConfig } from '../types/config';
 
 type Theme = Record<string, string>;
 
@@ -12,6 +13,9 @@ type ThemeContextType = {
   handleLogoChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
   saveThemeConfig: (newConfig: unknown) => Promise<void>;
   deleteLogo: () => void;
+  isLoadingTermsAndConditions: boolean;
+  termsAndConditionsHtml?: string;
+  saveTermsAndConditions: (newConfig: string) => Promise<void>;
 };
 
 export const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -32,6 +36,11 @@ const defaultTheme: Theme = {
 };
 
 export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
+  const {
+    isLoading: isLoadingTermsAndConditions,
+    config: termsAndConditionsConfig,
+    saveConfig: saveTermsAndConditions,
+  } = useConfig<TermsAndConditionsConfig>('terms_and_conditions', { html: '' });
   const [theme, setTheme] = useState<Theme | null>(null);
   const [logo, setLogo] = useState<string | null>(null);
 
@@ -131,7 +140,19 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   }, [logo, fetchLogo]);
 
   return (
-    <ThemeContext.Provider value={{ theme, logo, handleColorChange, saveThemeConfig, handleLogoChange, deleteLogo }}>
+    <ThemeContext.Provider
+      value={{
+        theme,
+        logo,
+        handleColorChange,
+        saveThemeConfig,
+        handleLogoChange,
+        deleteLogo,
+        isLoadingTermsAndConditions,
+        termsAndConditionsHtml: termsAndConditionsConfig!['html'], // Default makes this defined
+        saveTermsAndConditions,
+      }}
+    >
       {children}
     </ThemeContext.Provider>
   );

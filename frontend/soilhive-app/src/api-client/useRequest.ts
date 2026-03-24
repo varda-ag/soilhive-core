@@ -11,7 +11,7 @@ export function useRequest<T = any>() {
   const { showNotification } = useNotifications();
 
   const request = useCallback(
-    async (config: APIRequestConfig): Promise<T> => {
+    async (config: APIRequestConfig): Promise<T | null> => {
       try {
         setLoading(true);
         setError(null);
@@ -20,11 +20,18 @@ export function useRequest<T = any>() {
       } catch (err: any) {
         setError(err);
 
-        showNotification({
-          id: 'network_error',
-          title: t('errors.network_error.title'),
-          message: err instanceof TypeError ? t('errors.network_error.message') : err.message,
-        });
+        if (config.showErrorNotification !== false) {
+          // Default: show notification
+          showNotification({
+            id: 'network_error',
+            title: t('errors.network_error.title'),
+            message: err instanceof TypeError ? t('errors.network_error.message') : err.message,
+          });
+        }
+
+        if (config.notFoundAsNull && err.status === 404) {
+          return null;
+        }
 
         throw err;
       } finally {
