@@ -2,19 +2,17 @@ import React, { createContext, useState, useEffect, type ReactNode, useCallback 
 import { useRequest } from '../api-client';
 import useConfig from '../hooks/useConfig';
 import { BACKEND_BASE_URL, REST_END_POINTS } from '../configuration/api';
-import type { TermsAndConditionsConfig } from '../types/config';
-
-type Theme = Record<string, string>;
+import type { TermsAndConditionsConfig, ThemeConfig } from '../types/config';
 
 type ThemeContextType = {
-  theme: Theme | null;
+  theme: ThemeConfig | null;
   logo: string | null;
   handleColorChange: (name: string, value: string) => void;
   handleLogoChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
-  saveThemeConfig: (newConfig: unknown) => Promise<void>;
+  saveThemeConfig: (newConfig: ThemeConfig) => Promise<void>;
   deleteLogo: () => void;
   isLoadingTermsAndConditions: boolean;
-  termsAndConditionsHtml?: string;
+  termsAndConditionsHtml: string;
   saveTermsAndConditions: (newConfig: string) => Promise<void>;
 };
 
@@ -24,7 +22,7 @@ type ThemeProviderProps = {
   children: ReactNode;
 };
 
-const defaultTheme: Theme = {
+const defaultTheme: ThemeConfig = {
   primary: '#3498db',
   'primary-hover': '#3498db',
   'primary-active': '#3498db',
@@ -41,7 +39,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     config: termsAndConditionsConfig,
     saveConfig: saveTermsAndConditions,
   } = useConfig<TermsAndConditionsConfig>('terms_and_conditions', { html: '' });
-  const [theme, setTheme] = useState<Theme | null>(null);
+  const [theme, setTheme] = useState<ThemeConfig | null>(null);
   const [logo, setLogo] = useState<string | null>(null);
 
   const { request, loading } = useRequest();
@@ -116,11 +114,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     }
   }, [fetchLogo, request]);
 
-  const {
-    isLoading,
-    config: frontendThemeConfig,
-    saveConfig: saveThemeConfig,
-  } = useConfig<Record<string, string>>('frontend_theme', defaultTheme);
+  const { isLoading, config: frontendThemeConfig, saveConfig: saveThemeConfig } = useConfig<ThemeConfig>('frontend_theme', defaultTheme);
 
   useEffect(() => {
     if (loading || isLoading || !frontendThemeConfig) return;

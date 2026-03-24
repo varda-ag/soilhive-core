@@ -36,7 +36,7 @@ function AppRoutes() {
               </>
             }
           />
-          {!isLoadingTermsAndConditions && !!termsAndConditionsHtml && (
+          {!!termsAndConditionsHtml && (
             <Route
               path="/legal"
               element={

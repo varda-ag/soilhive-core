@@ -30,7 +30,7 @@ export default function Header() {
   const menuEntries: NavMenuEntry[] = useMemo(() => {
     const output = [
       {
-        name: 'nav_menu.availability',
+        name: 'nav_menu.home',
         route: '/',
         type: 'internal',
         Icon: PlanetIcon,

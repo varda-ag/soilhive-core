@@ -19,7 +19,7 @@
     },
     "logo": "Logo",
     "nav_menu": {
-        "availability": "Home",
+        "home": "Home",
         "legal": "Legal",
         "hamburger_aria": "Menu"
     },
