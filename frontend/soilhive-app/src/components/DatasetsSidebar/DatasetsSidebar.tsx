@@ -30,10 +30,6 @@ export function DatasetsSidebar({ isOpened, onClose }: Props) {
       setShowNoDownloadInfoDialog(true);
       return;
     }
-    navigateToDownload();
-  };
-
-  const navigateToDownload = () => {
     navigate({ pathname: '/download', search: `?${getSearchParams({ source: 'availability' }).toString()}` });
   };
 
@@ -82,8 +78,8 @@ export function DatasetsSidebar({ isOpened, onClose }: Props) {
       <InfoDialog
         storageKey="no-download-on-mobile"
         isVisible={showNoDownloadInfoDialog}
-        header={t('datasets_sidebar.mobile_download_dialog.header')}
-        message={t('datasets_sidebar.mobile_download_dialog.message')}
+        header={t('ommon:mobile_download_dialog.header')}
+        message={t('common:mobile_download_dialog.message')}
         onContinue={() => {
           setShowNoDownloadInfoDialog(false);
         }}
