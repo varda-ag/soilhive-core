@@ -4,7 +4,7 @@ import { BACKEND_BASE_URL } from '../configuration/api';
 
 type UseApiMutationOptions<TVariables = void> = {
   endpoint: string | ((variables: TVariables) => string);
-  method: 'POST' | 'DELETE';
+  method: 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   body?: TVariables;
   parameters?: Array<[string, string]>;
 };

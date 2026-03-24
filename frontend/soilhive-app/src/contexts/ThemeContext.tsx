@@ -1,6 +1,7 @@
 import React, { createContext, useState, useEffect, type ReactNode, useCallback } from 'react';
 import { useRequest } from '../api-client';
 import { BACKEND_BASE_URL, REST_END_POINTS } from '../configuration/api';
+import { useConfig } from '../hooks/useConfig';
 
 type Theme = Record<string, string>;
 
@@ -9,7 +10,7 @@ type ThemeContextType = {
   logo: string | null;
   handleColorChange: (name: string, value: string) => void;
   handleLogoChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
-  saveThemeConfig: () => void;
+  saveThemeConfig: (newConfig: unknown) => Promise<void>;
   deleteLogo: () => void;
 };
 
@@ -29,8 +30,6 @@ const defaultTheme: Theme = {
   'secondary-active': '#3498db',
   'secondary-disabled': '#3498db',
 };
-
-const THEME_ID = 'frontend_theme';
 
 export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   const [theme, setTheme] = useState<Theme | null>(null);
@@ -81,30 +80,6 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     [saveLogo],
   );
 
-  const saveThemeConfig = useCallback(async () => {
-    try {
-      await request({
-        url: `${BACKEND_BASE_URL}/${REST_END_POINTS.CONFIG.replace(':id', THEME_ID)}`,
-        method: 'PUT',
-        body: theme,
-      });
-    } catch (e) {
-      console.error('save config error', e);
-    }
-  }, [theme, request]);
-
-  const fetchTheme = useCallback(async () => {
-    try {
-      const response = await request({
-        url: `${BACKEND_BASE_URL}/${REST_END_POINTS.CONFIG.replace(':id', THEME_ID)}`,
-      });
-
-      return response;
-    } catch (e) {
-      console.error('get theme error', e);
-    }
-  }, [request]);
-
   const fetchLogo = useCallback(async () => {
     try {
       const response = await request({
@@ -132,23 +107,22 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     }
   }, [fetchLogo, request]);
 
+  const {
+    isLoading,
+    config: frontendThemeConfig,
+    saveConfig: saveThemeConfig,
+  } = useConfig<Record<string, string>>('frontend_theme', defaultTheme);
+
   useEffect(() => {
-    if (loading) return;
+    if (loading || isLoading || !frontendThemeConfig) return;
 
-    async function loadTheme() {
-      const fetchedTheme = await fetchTheme();
-      setTheme(fetchedTheme || defaultTheme);
-    }
+    setTheme(frontendThemeConfig);
 
-    if (!theme) {
-      loadTheme();
-    } else {
-      const root = document.documentElement;
-      Object.entries(theme).forEach(([key, value]) => {
-        root.style.setProperty(`--color-${key}`, value);
-      });
-    }
-  }, [fetchTheme, theme, loading]);
+    const root = document.documentElement;
+    Object.entries(frontendThemeConfig).forEach(([key, value]) => {
+      root.style.setProperty(`--color-${key}`, value);
+    });
+  }, [theme, loading, isLoading, frontendThemeConfig]);
 
   useEffect(() => {
     if (!logo) {
