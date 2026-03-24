@@ -1,40 +1,38 @@
-export function h3ResolutionForZoomLevel(zoomLevel: number): number {
-  switch (Math.trunc(zoomLevel)) {
-    case 0:
-    case 1:
-      return 1;
-    case 2:
-      return 2;
-    case 3:
-      return 3;
-    case 4:
-    case 5:
-      return 4;
-    case 6:
-      return 5;
-    case 7:
-    case 8:
-      return 6;
-    case 9:
-    case 10:
-      return 7;
-    case 11:
-      return 8;
-    case 12:
-    case 13:
-      return 9;
-    case 14:
-    case 15:
-      return 10;
-    case 16:
-      return 11;
-    case 17:
-    case 18:
-      return 12;
-    case 19:
-    case 20:
-      return 13;
-    default:
-      return 14;
-  }
-}
+import type { StyleSpecification } from 'react-map-gl/maplibre';
+
+export const h3ResolutionForZoomLevel = (zoomLevel: number): number => {
+  const map = [1, 1, 2, 3, 4, 4, 5, 6, 6, 7, 7, 8, 9, 9, 10, 10, 11, 12, 12, 13, 13];
+  return map[Math.trunc(zoomLevel)] ?? 14;
+};
+
+const EOX_SATELLITE_MAP_STYLE: StyleSpecification = {
+  version: 8,
+  sources: {
+    'eox-sentinel': {
+      type: 'raster',
+      tiles: ['https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2024_3857/default/GoogleMapsCompatible/{z}/{y}/{x}.jpg'],
+      tileSize: 256,
+      attribution: 'Sentinel-2 cloudless 2024 © EOX',
+    },
+    'eox-overlay': {
+      type: 'raster',
+      tiles: ['https://tiles.maps.eox.at/wmts/1.0.0/overlay_3857/default/GoogleMapsCompatible/{z}/{y}/{x}.png'],
+      tileSize: 256,
+      attribution: 'Overlay © OpenStreetMap',
+    },
+  },
+  layers: [
+    { id: 'sentinel-bg', type: 'raster', source: 'eox-sentinel' },
+    { id: 'labels-overlay', type: 'raster', source: 'eox-overlay' },
+  ],
+};
+
+export const getMapStyles = () => {
+  const open = [
+    { name: 'CartoCDN Voyager', mapStyle: 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json' },
+    { name: 'Sentinel-2 cloudless 2024 © EOX', mapStyle: EOX_SATELLITE_MAP_STYLE },
+    { name: 'Maplibre Demotile Globe', mapStyle: 'https://demotiles.maplibre.org/globe.json' },
+    { name: 'OpenMap Tiles OSM Bright', mapStyle: 'https://openmaptiles.geo.data.gouv.fr/styles/osm-bright/style.json' },
+  ];
+  return open;
+};
