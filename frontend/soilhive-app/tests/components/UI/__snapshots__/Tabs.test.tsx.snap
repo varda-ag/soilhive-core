@@ -1,0 +1,21 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`Tabs renders Tabs and matches snapshot 1`] = `
+<div>
+  <div
+    class="Tabs"
+    data-testid="sh-ui-tabs"
+  >
+    <button
+      class="Tab TabActive"
+    >
+      Logo
+    </button>
+    <button
+      class="Tab"
+    >
+      Colors
+    </button>
+  </div>
+</div>
+`;

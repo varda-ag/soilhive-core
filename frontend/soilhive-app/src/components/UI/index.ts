@@ -18,3 +18,4 @@ export * from './MultirangeSlider/MultirangeSlider';
 export * from './Notification/Notification';
 export * from './Dialog/Dialog';
 export * from './InfoDialog/InfoDialog';
+export * from './Tabs/Tabs';
