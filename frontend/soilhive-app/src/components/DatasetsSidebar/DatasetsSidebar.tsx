@@ -17,8 +17,12 @@ interface Props {
 }
 
 export function DatasetsSidebar({ isOpened, onClose }: Props) {
+<<<<<<< HEAD
   const { t } = useTranslation('availability');
 
+=======
+  const { t } = useTranslation(['availability', 'common']);
+>>>>>>> 991c412 (fix: ap-4933 add noDownload dialog to download button in previwe page)
   const { isDesktopLayout, isMobileLayout } = useDevice();
   const { availableDatasets, filterId, selectionType, locationName, datasetFrontendFilters } = useAvailability();
 
@@ -74,6 +78,7 @@ export function DatasetsSidebar({ isOpened, onClose }: Props) {
             {t('datasets_sidebar.preview')}
           </Button>
           <Button className={styles.DownloadButton} isDisabled={availableDatasets.length === 0} onClick={handleDownloadClick}>
+<<<<<<< HEAD
       <DownloadIcon />
       {t('datasets_sidebar.download')}
     </Button>
@@ -92,5 +97,25 @@ export function DatasetsSidebar({ isOpened, onClose }: Props) {
       }}
     />
     </PageSidebar >
+=======
+            <DownloadIcon />
+            {t('datasets_sidebar.download')}
+          </Button>
+        </div>
+      </div>
+      <InfoDialog
+        storageKey="no-download-on-mobile"
+        isVisible={showNoDownloadInfoDialog}
+        header={t('common:mobile_download_dialog.header')}
+        message={t('common:mobile_download_dialog.message')}
+        onContinue={() => {
+          setShowNoDownloadInfoDialog(false);
+        }}
+        onCancel={() => {
+          setShowNoDownloadInfoDialog(false);
+        }}
+      />
+    </PageSidebar>
+>>>>>>> 991c412 (fix: ap-4933 add noDownload dialog to download button in previwe page)
   );
 }

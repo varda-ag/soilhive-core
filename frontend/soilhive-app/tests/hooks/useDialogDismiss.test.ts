@@ -19,9 +19,10 @@ describe('useDialogDismiss', () => {
   });
 
   it('sets localStorage and updates isDismissed when dismissPermanently is called', () => {
-    const { result } = renderHook(() => useDialogDismiss(STORAGE_KEY));
+    const { result, rerender } = renderHook(() => useDialogDismiss(STORAGE_KEY));
 
     act(() => result.current.dismissPermanently());
+    rerender();
 
     expect(localStorage.getItem(FULL_KEY)).toBe('true');
     expect(result.current.isDismissed).toBe(true);

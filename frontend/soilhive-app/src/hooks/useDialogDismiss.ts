@@ -1,16 +1,15 @@
-import { useState } from 'react';
+import { useCallback } from 'react';
 
 const STORAGE_KEY_PROFIX = 'info-dialog-dismiss:';
 
 export function useDialogDismiss(storageKey: string) {
   const fullKey = `${STORAGE_KEY_PROFIX}${storageKey}`;
 
-  const [isDismissed, setIsDismissed] = useState(() => localStorage.getItem(fullKey) === 'true');
+  const isDismissed = localStorage.getItem(fullKey) === 'true';
 
-  const dismissPermanently = () => {
+  const dismissPermanently = useCallback(() => {
     localStorage.setItem(fullKey, 'true');
-    setIsDismissed(true);
-  };
+  }, [fullKey]);
 
   return {
     isDismissed,

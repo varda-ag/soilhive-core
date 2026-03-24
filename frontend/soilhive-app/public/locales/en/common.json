@@ -54,5 +54,9 @@
         "dont_show_again": "Don't show this note again.",
         "continue": "Continue",
         "cancel": "Cancel"
+    },
+    "mobile_download_dialog": {
+        "header": "Information note",
+        "message": "Data downloads aren't available on mobile. Please use a tablet or desktop to export data."
     }
 }
