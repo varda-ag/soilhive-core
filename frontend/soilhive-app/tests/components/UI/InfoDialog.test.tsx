@@ -1,9 +1,12 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { InfoDialog } from 'components/UI/InfoDialog/InfoDialog';
+import { useDialogDismiss } from 'hooks/useDialogDismiss';
 
 jest.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }));
+
+jest.mock('hooks/useDialogDismiss');
 
 jest.mock('components/UI/Dialog/Dialog', () => ({
   Dialog: ({ visible, children, onContinue, onCancel }: any) => {
@@ -24,8 +27,9 @@ jest.mock('components/UI/Dialog/Dialog', () => ({
   },
 }));
 
+const mockDismissPermanently = jest.fn();
+
 const STORAGE_KEY = 'test-key';
-const STORAGE_FULL_KEY = `info-dialog-dismissed:${STORAGE_KEY}`;
 
 const defaultProps = {
   isVisible: true,
@@ -38,8 +42,11 @@ const defaultProps = {
 
 describe('InfoDialog', () => {
   beforeEach(() => {
-    localStorage.clear();
     jest.clearAllMocks();
+    (useDialogDismiss as jest.Mock).mockReturnValue({
+      isDismissed: false,
+      dismissPermanently: mockDismissPermanently,
+    });
   });
 
   it('shows the dialog when isVisible is true and not dismissed', () => {
@@ -50,20 +57,23 @@ describe('InfoDialog', () => {
   });
 
   it('does not show the dialog when already dismissed in localStorage', () => {
-    localStorage.setItem(STORAGE_FULL_KEY, 'true');
+    (useDialogDismiss as jest.Mock).mockReturnValue({
+      isDismissed: true,
+      dismissPermanently: mockDismissPermanently,
+    });
     render(<InfoDialog {...defaultProps} />);
 
     expect(screen.queryByTestId('mock-dialog')).not.toBeInTheDocument();
   });
 
-  it('persists dismissal to localStorage and calls onContinue when dont-show-again is checked', () => {
+  it('calls dismissPermanently and onContinue when dont-show-again is checked and Continue is clicked', () => {
     const onContinue = jest.fn();
     render(<InfoDialog {...defaultProps} onContinue={onContinue} />);
 
     fireEvent.click(screen.getByTestId('sh-ui-checkbox'));
     fireEvent.click(screen.getByTestId('continue-btn'));
 
-    expect(localStorage.getItem(STORAGE_FULL_KEY)).toBe('true');
+    expect(mockDismissPermanently).toHaveBeenCalledTimes(1);
     expect(onContinue).toHaveBeenCalledTimes(1);
   });
 });

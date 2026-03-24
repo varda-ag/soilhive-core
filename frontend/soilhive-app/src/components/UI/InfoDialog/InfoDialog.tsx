@@ -5,6 +5,7 @@ import styles from './InfoDialog.module.scss';
 import { Checkbox } from '../Checkbox/Checkbox';
 
 import { useTranslation } from 'react-i18next';
+import { useDialogDismiss } from 'hooks/useDialogDismiss';
 
 interface Props {
   isVisible: boolean;
@@ -15,20 +16,18 @@ interface Props {
   onCancel: () => void;
 }
 
-const STORAGE_KEY_PREFIX = 'info-dialog-dismissed:';
-
 export function InfoDialog({ isVisible, storageKey, header, message, onContinue, onCancel }: Props) {
   const { t } = useTranslation('common');
 
   const [dontShowAgain, setDontShowAgain] = useState(false);
 
-  const isDismissed = () => localStorage.getItem(`${STORAGE_KEY_PREFIX}${storageKey}`) === 'true';
+  const { isDismissed, dismissPermanently } = useDialogDismiss(storageKey);
 
-  const visible = isVisible && !isDismissed();
+  const visible = isVisible && !isDismissed;
 
   const handleContinue = () => {
     if (dontShowAgain) {
-      localStorage.setItem(`${STORAGE_KEY_PREFIX}${storageKey}`, 'true');
+      dismissPermanently();
     }
     onContinue?.();
   };
