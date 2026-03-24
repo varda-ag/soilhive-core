@@ -13,11 +13,11 @@ import { useFilteredDatasets } from 'hooks/useFilteredDatasets';
 import type { PreviewFilters } from 'types/downloadPreview';
 import { computeDatasetSummary } from '../domain';
 import type { Nullable } from 'primereact/ts-helpers';
-import useAvailability from 'hooks/useAvailability';
 import type { Feature, GeoJsonProperties, MultiPolygon, Point, Polygon } from 'geojson';
-import { useNavigate } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 import { backendToLocalFrontendDate } from '../utilities/date';
 import { useTranslation } from 'react-i18next';
+import { useDownloadPreview } from 'hooks/useDownloadPreview';
 
 const MAXIMUM_SOIL_DATA_PER_REQUEST = 100;
 
@@ -25,27 +25,30 @@ function DownloadPreview() {
   const navigate = useNavigate();
   const { t } = useTranslation('download');
 
+  const [searchParams] = useSearchParams();
+  const selectionType = searchParams.get('selectionType') ?? undefined;
+  const locationName = searchParams.get('locationName') ?? undefined;
+  const filterId = searchParams.get('filterId') ?? null;
+  const datasetsParam = searchParams.get('datasets') ?? undefined;
+  const datasetsIds = useMemo(() => (datasetsParam ? datasetsParam.split(',') : []), [datasetsParam]);
+  const datasetTypesParam = searchParams.get('dataset-types') ?? undefined;
+  const datasetTypesParams = useMemo(() => (datasetTypesParam ? datasetTypesParam.split(',') : []), [datasetTypesParam]);
+
   const {
-    setPreview,
-    geometryFilter,
     datasetsSummary,
-    selectionType,
-    locationName,
-    boundingBox,
-    selectedSoilProperties: availabilitySelectedSoilProperties,
-    filteredSoilProperties: availabilityFilteredSoilProperties,
-    selectedFilters: availabilitySelectedFilters,
-    selectedDatasets: availabilitySelectedDatasets,
-    filteredDatasets: availabilityFilteredDatasets,
-    availableDatasets: availableFixedDatasets,
-    filterId: availabilityFilterId,
-  } = useAvailability();
+    availableFixedDatasets,
+    availabilitySelectedFilters,
+    availabilitySelectedSoilProperties,
+    availabilityFilteredSoilProperties,
+    selectedDatasets,
+    setSelectedDatasets,
+    geometryFilter,
+    isLoading: isDownloadPreviewLoading,
+  } = useDownloadPreview({ filterId, datasetsIds, datasetTypesParams });
 
   const [summaryExpanded, setSummaryExpanded] = useState(false);
   const [selectedFeature, setSelectedFeature] = useState<Feature<Point | Polygon | MultiPolygon, GeoJsonProperties>>();
   const [sort, setSort] = useState<string>();
-
-  const [selectedDatasets, setSelectedDatasets] = useState<string[]>([availableFixedDatasets[0].id]);
 
   const availableSoilProperties = useMemo(() => {
     const soilPropertiesIds = [
@@ -59,7 +62,7 @@ function DownloadPreview() {
   }, [availableFixedDatasets, availabilityFilteredSoilProperties, selectedDatasets]);
 
   const [filters, setFilters] = useState<PreviewFilters>({
-    soil_properties: [availableSoilProperties[0].id],
+    soil_properties: availableSoilProperties?.[0]?.id ? [availableSoilProperties[0].id] : [],
   });
 
   useEffect(() => {
@@ -68,10 +71,14 @@ function DownloadPreview() {
     // property is not available in the newly selected dataset, then we select the first available soil property of the
     // newly selected dataset, otherwise we maintain the selection.
     if (!availableSoilProperties.some(soilProperty => soilProperty.id === selectedSoilPropertyId)) {
-      setFilters(prevFilters => ({
-        ...prevFilters,
-        soil_properties: [availableSoilProperties[0].id],
-      }));
+      const firstAvailableId = availableSoilProperties?.[0]?.id;
+      const nextSoilProperties = firstAvailableId ? [firstAvailableId] : [];
+      if (JSON.stringify(filters.soil_properties) !== JSON.stringify(nextSoilProperties)) {
+        setFilters(prevFilters => ({
+          ...prevFilters,
+          soil_properties: nextSoilProperties,
+        }));
+      }
     }
   }, [availableSoilProperties, filters.soil_properties]);
 
@@ -83,12 +90,13 @@ function DownloadPreview() {
     },
   };
 
-  const { filterId, data: filteredDatasets, isLoading: areFiltersLoading } = useFilteredDatasets(parameters);
+  const {
+    filterId: downloadPreviewFilterId,
+    data: filteredDatasets,
+    isLoading: areFiltersLoading,
+  } = useFilteredDatasets(parameters, geometryFilter.length > 0);
 
-  const availableFilteredDatasets =
-    availabilitySelectedDatasets.length > 0
-      ? (filteredDatasets ?? availabilityFilteredDatasets).filter(dataset => availabilitySelectedDatasets.includes(dataset.id))
-      : (filteredDatasets ?? availabilityFilteredDatasets);
+  const availableFilteredDatasets = filteredDatasets ?? availableFixedDatasets;
 
   const { min_sampling_date, max_sampling_date, min_depth, max_depth } = availabilitySelectedFilters?.filter.parameters ?? {};
 
@@ -112,10 +120,16 @@ function DownloadPreview() {
       ? [datasetsSummary.globalMinDepth, datasetsSummary.globalMaxDepth]
       : [undefined, undefined];
 
-  const { allData, isLoading, hasMore, loadMore, reset } = useSoilData({
+  const {
+    allData,
+    isLoading: isDataLoading,
+    hasMore,
+    loadMore,
+    reset,
+  } = useSoilData({
     selectedDatasets,
     availableDatasets: availableFilteredDatasets.map(dataset => dataset.id),
-    filterId,
+    filterId: downloadPreviewFilterId,
     limit: MAXIMUM_SOIL_DATA_PER_REQUEST + 1,
     sort,
   });
@@ -140,7 +154,7 @@ function DownloadPreview() {
             className={styles.BackButton}
             type="secondary"
             onClick={() => {
-              setPreview(false);
+              navigate(-1);
             }}
           >
             <ArrowLeftIcon />
@@ -154,7 +168,7 @@ function DownloadPreview() {
               params.append('source', 'preview');
               params.append('selectionType', `${selectionType}`);
               if (locationName) params.append('locationName', `${locationName}`);
-              params.append('filterId', `${availabilityFilterId}`);
+              params.append('filterId', `${filterId}`);
               params.append('datasets', availableFixedDatasets.map(dataset => dataset.id).join(','));
               navigate({ pathname: '/download', search: `?${params.toString()}` });
             }}
@@ -171,12 +185,15 @@ function DownloadPreview() {
         <div className={classNames(styles.Sidebar, { [styles.HideInMobile]: selectedTab !== 'summary' })}>
           <DownloadDataSummary
             selectionType={selectionType}
-            initialViewBoundingBox={boundingBox}
             selectedFeature={selectedFeature}
-            geometryFeature={{
-              type: 'FeatureCollection',
-              features: geometryFilter.map(geometry => ({ geometry })),
-            }}
+            geometryFeature={
+              geometryFilter
+                ? {
+                    type: 'FeatureCollection',
+                    features: geometryFilter.map(geometry => ({ geometry })),
+                  }
+                : undefined
+            }
             locationName={locationName}
             dataPoints={datasetsSummary.dataPoints}
             rasterLayers={datasetsSummary.layers}
@@ -207,7 +224,7 @@ function DownloadPreview() {
               setFilters(newFilters);
             }}
             data={allData}
-            isDataLoading={areFiltersLoading || isLoading}
+            isDataLoading={areFiltersLoading || isDataLoading || isDownloadPreviewLoading}
             onTableSort={sort => {
               reset();
               setSort(sort);

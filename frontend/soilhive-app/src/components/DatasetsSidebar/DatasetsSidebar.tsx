@@ -9,6 +9,7 @@ import { useTranslation } from 'react-i18next';
 
 import styles from './DatasetsSidebar.module.scss';
 import { useNavigate } from 'react-router';
+import { useCallback } from 'react';
 
 interface Props {
   isOpened: boolean;
@@ -18,8 +19,23 @@ interface Props {
 export function DatasetsSidebar({ isOpened, onClose }: Props) {
   const { t } = useTranslation('availability');
   const { isDesktopLayout } = useDevice();
-  const { setPreview, availableDatasets, filterId, selectionType, locationName } = useAvailability();
+  const { availableDatasets, filterId, selectionType, locationName, datasetFrontendFilters } = useAvailability();
   const navigate = useNavigate();
+
+  const getSearchParams = useCallback(
+    ({ source }: { source?: 'availability' } = {}) => {
+      const params = new URLSearchParams();
+      if (source) {
+        params.append('source', source);
+      }
+      params.append('selectionType', `${selectionType}`);
+      if (locationName) params.append('locationName', `${locationName}`);
+      params.append('filterId', `${filterId}`);
+      params.append('datasets', availableDatasets.map(dataset => dataset.id).join(','));
+      return params;
+    },
+    [selectionType, locationName, filterId, availableDatasets],
+  );
 
   return (
     <PageSidebar className={styles.DatasetsSidebar} isOpened={isOpened} position="right">
@@ -33,7 +49,11 @@ export function DatasetsSidebar({ isOpened, onClose }: Props) {
             type="secondary"
             isDisabled={availableDatasets.length === 0}
             onClick={() => {
-              setPreview(true);
+              const searchParams = getSearchParams();
+              if (datasetFrontendFilters.type.length) {
+                searchParams.append('dataset-types', datasetFrontendFilters.type.join(','));
+              }
+              navigate({ pathname: '/preview', search: `?${searchParams.toString()}` });
             }}
           >
             {t('datasets_sidebar.preview')}
@@ -42,13 +62,7 @@ export function DatasetsSidebar({ isOpened, onClose }: Props) {
             className={styles.DownloadButton}
             isDisabled={availableDatasets.length === 0}
             onClick={() => {
-              const params = new URLSearchParams();
-              params.append('source', 'availability');
-              params.append('selectionType', `${selectionType}`);
-              if (locationName) params.append('locationName', `${locationName}`);
-              params.append('filterId', `${filterId}`);
-              params.append('datasets', availableDatasets.map(dataset => dataset.id).join(','));
-              navigate({ pathname: '/download', search: `?${params.toString()}` });
+              navigate({ pathname: '/download', search: `?${getSearchParams({ source: 'availability' }).toString()}` });
             }}
           >
             <DownloadIcon />
