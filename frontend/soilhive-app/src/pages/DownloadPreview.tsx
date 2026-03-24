@@ -279,7 +279,7 @@ function DownloadPreview() {
       </div>
       <InfoDialog
         isVisible={showDownloadInfo}
-        storageKey="mobile-download-info"
+        storageKey="no-download-on-mobile"
         header={t('common:mobile_download_dialog.header')}
         message={t('common:mobile_download_dialog.message')}
         onContinue={() => setShowDownloadInfo(false)}
