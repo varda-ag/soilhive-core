@@ -17,12 +17,11 @@ import type { Feature, GeoJsonProperties, MultiPolygon, Point, Polygon } from 'g
 import { useNavigate, useSearchParams } from 'react-router';
 import { backendToLocalFrontendDate } from '../utilities/date';
 import { useTranslation } from 'react-i18next';
-<<<<<<< HEAD
+
 import { useDownloadPreview } from 'hooks/useDownloadPreview';
-=======
+
 import { InfoDialog } from 'components/UI';
 import useDevice from 'hooks/useDevice';
->>>>>>> 991c412 (fix: ap-4933 add noDownload dialog to download button in previwe page)
 
 const MAXIMUM_SOIL_DATA_PER_REQUEST = 100;
 
@@ -148,7 +147,7 @@ function DownloadPreview() {
     params.append('source', 'preview');
     params.append('selectionType', `${selectionType}`);
     if (locationName) params.append('locationName', `${locationName}`);
-    params.append('filterId', `${availabilityFilterId}`);
+    params.append('filterId', `${filterId}`);
     params.append('datasets', availableFixedDatasets.map(dataset => dataset.id).join(','));
     navigate({ pathname: '/download', search: `?${params.toString()}` });
   };
@@ -181,21 +180,11 @@ function DownloadPreview() {
             type="primary"
             className={styles.DownloadButton}
             onClick={() => {
-<<<<<<< HEAD
-              const params = new URLSearchParams();
-              params.append('source', 'preview');
-              params.append('selectionType', `${selectionType}`);
-              if (locationName) params.append('locationName', `${locationName}`);
-              params.append('filterId', `${filterId}`);
-              params.append('datasets', availableFixedDatasets.map(dataset => dataset.id).join(','));
-              navigate({ pathname: '/download', search: `?${params.toString()}` });
-=======
               if (isMobileLayout) {
                 setShowDownloadInfo(true);
                 return;
               }
               navigateToDownload();
->>>>>>> 991c412 (fix: ap-4933 add noDownload dialog to download button in previwe page)
             }}
           >
             <DownloadIcon />
