@@ -2,6 +2,7 @@ import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { DatasetsSidebar } from 'components/DatasetsSidebar/DatasetsSidebar';
 import useDevice from 'hooks/useDevice';
+import { useNavigate } from 'react-router';
 
 jest.mock('hooks/useDevice', () => ({
   __esModule: true,
@@ -30,22 +31,16 @@ jest.mock('components/DatasetsSidebar/DatasetsList/DatasetsList', () => ({
 }));
 
 jest.mock('../../../src/contexts/AvailabilityContext', () => {
-  // let's define the mockSetPreview mock function here and export here down below
-  // so that we can later grab it
-  const mockSetPreview = jest.fn();
-
   return {
     __esModule: true,
     AvailabilityContext: React.createContext({
-      setPreview: mockSetPreview,
       availableDatasets: [{ id: 'test-dataset' }],
+      selectionType: 'mock-selection-type',
+      filterId: 'mock-filter-id',
+      datasetFrontendFilters: { type: [] },
     }),
-    mockSetPreview,
   };
 });
-
-// grab the mock mockSetPreview function that was passed to availability context
-const { mockSetPreview } = jest.requireMock('../../../src/contexts/AvailabilityContext');
 
 describe('DatasetsSidebar', () => {
   beforeEach(() => {
@@ -102,18 +97,24 @@ describe('DatasetsSidebar', () => {
     expect(screen.getByTestId('sh-ui-page-sidebar')).toHaveClass('Opened');
   });
 
-  it('calls setPreview when clicking on preview button', () => {
+  it('calls navigate when clicking on preview button', () => {
     (useDevice as jest.Mock).mockReturnValue({ isDesktopLayout: true });
+
+    const navigateMockFn = jest.fn();
+    (useNavigate as jest.Mock).mockReturnValue(navigateMockFn);
 
     render(<DatasetsSidebar isOpened={true} onClose={() => {}} />);
 
-    expect(mockSetPreview).not.toHaveBeenCalled();
+    expect(navigateMockFn).not.toHaveBeenCalled();
 
     const button = screen.getByText('Preview');
     expect(button).toBeEnabled();
     button.click();
 
-    expect(mockSetPreview).toHaveBeenCalledTimes(1);
-    expect(mockSetPreview).toHaveBeenCalledWith(true);
+    expect(navigateMockFn).toHaveBeenCalledTimes(1);
+    expect(navigateMockFn).toHaveBeenCalledWith({
+      pathname: '/preview',
+      search: '?selectionType=mock-selection-type&filterId=mock-filter-id&datasets=test-dataset',
+    });
   });
 });

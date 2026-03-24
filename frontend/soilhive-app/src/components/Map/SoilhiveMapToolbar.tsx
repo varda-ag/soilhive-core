@@ -4,7 +4,7 @@ import classnames from 'classnames';
 import PolygonIcon from 'assets/icons/polygon-icon.svg?react';
 import ArrowDownIcon from 'assets/icons/arrow-down-icon.svg?react';
 import PencilIcon from 'assets/icons/pencil-icon.svg?react';
-import UploadIcon from 'assets/icons/upload-icon.svg?react';
+import UploadIcon from 'assets/icons/small-upload-icon.svg?react';
 import { check } from '@placemarkio/check-geojson';
 import type { Polygon, MultiPolygon } from 'geojson';
 import useNotifications from 'hooks/useNotifications';

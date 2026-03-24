@@ -73,8 +73,9 @@ function MapSelection({ feature }: { feature: Feature<Point | Polygon | MultiPol
 }
 
 function calculateBoundingBox(geometryFeature?: FeatureCollection) {
-  if (!geometryFeature) return undefined;
-  const simplifiedGeometry: Polygon | MultiPolygon = simplifyGeometry(geometryFeature.features[0].geometry as Polygon | MultiPolygon);
+  const firstGeometry = geometryFeature?.features?.[0]?.geometry;
+  if (!firstGeometry) return undefined;
+  const simplifiedGeometry: Polygon | MultiPolygon = simplifyGeometry(firstGeometry as Polygon | MultiPolygon);
   const largestPolygon = simplifiedGeometry.type === 'MultiPolygon' ? largestPolygonFn(simplifiedGeometry) : simplifiedGeometry;
   if (largestPolygon === null) throw new Error('A valid MultiPolygon should contain at least a Polygon');
   const bbox = bboxFn(largestPolygon!) as [number, number, number, number];

@@ -1,0 +1,20 @@
+.Tabs {
+  display: flex;
+
+  > .Tab {
+    padding: 1.125rem 0.875rem;
+    font-size: var(--font-size-sm);
+    line-height: var(--line-height-lg);
+    color: var(--color-neutral-dark-500);
+    border: none;
+    background-color: transparent;
+    border-bottom: 0.125rem solid transparent;
+    cursor: pointer;
+
+    &.TabActive {
+      font-weight: var(--font-weight-bold);
+      color: var(--color-cta-default-solid);
+      border-color: var(--color-cta-default-solid);
+    }
+  }
+}

@@ -1,0 +1,90 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`AdminPageTabs renders children inside actions container and matches snapshot 1`] = `
+<div>
+  <div
+    class="AdminPageTabs"
+    data-testid="sh-adminpage-tabs"
+  >
+    <div
+      data-testid="tabs-mock"
+    >
+      <button
+        data-testid="tabs-onchange-trigger"
+      >
+        trigger change
+      </button>
+      <div
+        data-testid="tabs-active-tab"
+      >
+        logo
+      </div>
+      <div
+        data-testid="tabs-data"
+      >
+        <div>
+          logo
+          :
+          Logo
+        </div>
+        <div>
+          colors
+          :
+          Colors
+        </div>
+      </div>
+    </div>
+    <div
+      class="Actions"
+    >
+      <button>
+        Cancel
+      </button>
+      <button>
+        Publish
+      </button>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`AdminPageTabs renders wrapper and matches snapshot 1`] = `
+<div>
+  <div
+    class="AdminPageTabs"
+    data-testid="sh-adminpage-tabs"
+  >
+    <div
+      data-testid="tabs-mock"
+    >
+      <button
+        data-testid="tabs-onchange-trigger"
+      >
+        trigger change
+      </button>
+      <div
+        data-testid="tabs-active-tab"
+      >
+        logo
+      </div>
+      <div
+        data-testid="tabs-data"
+      >
+        <div>
+          logo
+          :
+          Logo
+        </div>
+        <div>
+          colors
+          :
+          Colors
+        </div>
+      </div>
+    </div>
+    <div
+      class="Actions"
+    />
+  </div>
+</div>
+`;

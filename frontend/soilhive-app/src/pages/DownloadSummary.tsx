@@ -15,7 +15,6 @@ import { Dropdown, type DropdownChangeEvent } from 'primereact/dropdown';
 import { PrimeReactProvider } from 'primereact/api';
 import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
-import useAvailability from 'hooks/useAvailability';
 import useDownloads from 'hooks/useDownloads';
 import { useOnceDefined } from 'hooks/useOnceDefined';
 
@@ -34,7 +33,6 @@ const availableFormats = [
 function DownloadSummary() {
   const navigate = useNavigate();
   const { t } = useTranslation('download');
-  const { setPreview } = useAvailability();
   const { startDownload } = useDownloads();
 
   const [searchParams] = useSearchParams();
@@ -60,7 +58,6 @@ function DownloadSummary() {
 
   const onDownloadButtonClick = () => {
     if (filterId) {
-      setPreview(false); // TODO: remove when we implement the /preview route
       startDownload({ filter_id: filterId, dataset_ids: selectedDatasets.map(dataset => dataset.id), format: selectedFormat });
       navigate('/');
     }

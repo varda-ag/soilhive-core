@@ -1,6 +1,6 @@
 // Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
 
-exports[`DownloadPreview calls setPreview(false) when clicking on the back button 1`] = `
+exports[`DownloadPreview calls navigate when clicking on the back button 1`] = `
 <div>
   <div
     class="Availability"
@@ -65,17 +65,6 @@ exports[`DownloadPreview calls setPreview(false) when clicking on the back butto
             mock-svg
           </svg>
           Download data
-        </button>
-        <button
-          class="Button Tertiary Small IconOnly ShareButtonForTablet"
-          data-testid="sh-ui-button"
-          type="button"
-        >
-          <svg
-            data-testid="svg-icon-mock"
-          >
-            mock-svg
-          </svg>
         </button>
       </div>
     </div>
@@ -184,17 +173,6 @@ exports[`DownloadPreview renders download preview page 1`] = `
             mock-svg
           </svg>
           Download data
-        </button>
-        <button
-          class="Button Tertiary Small IconOnly ShareButtonForTablet"
-          data-testid="sh-ui-button"
-          type="button"
-        >
-          <svg
-            data-testid="svg-icon-mock"
-          >
-            mock-svg
-          </svg>
         </button>
       </div>
     </div>

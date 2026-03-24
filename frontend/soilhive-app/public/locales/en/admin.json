@@ -27,7 +27,13 @@
         "title": "Map settings"
     },
     "look_and_feel": {
-        "title": "Look & Feel"
+        "title": "Look & Feel",
+        "cancel": "Cancel",
+        "publish": "Publish",
+        "tabs": {
+            "logo": "Logo",
+            "colors": "Customize colors"
+        }
     },
     "datasets": {
         "title": "Datasets publication"

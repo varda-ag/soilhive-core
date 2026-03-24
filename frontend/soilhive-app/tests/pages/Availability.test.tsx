@@ -1,6 +1,6 @@
 import React from 'react';
 import { act, fireEvent, render, screen } from '@testing-library/react';
-import Homepage from '../../src/pages/Homepage';
+import Availability from '../../src/pages/Availability';
 import { __setIsDesktopLayout } from 'hooks/useDevice';
 import type { SoilhiveMapSelectionChangeEvent } from 'components/Map/SoilhiveMapSelectionChangeEvent';
 
@@ -66,20 +66,20 @@ jest.mock('../../src/contexts/AvailabilityContext', () => {
 // grab the mock setGeometryFilter function that was passed to availability context
 const { mockSetGeometryFilter } = jest.requireMock('../../src/contexts/AvailabilityContext');
 
-describe('Homepage', () => {
+describe('Availability', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  it('renders homepage on desktop', () => {
+  it('renders availability page on desktop', () => {
     __setIsDesktopLayout(true);
-    const { container } = render(<Homepage />);
+    const { container } = render(<Availability />);
     expect(container).toMatchSnapshot();
   });
 
   it('closes DatasetsSidebar by clicking on the close button in the sidebar', () => {
     __setIsDesktopLayout(true);
-    const { container } = render(<Homepage />);
+    const { container } = render(<Availability />);
 
     expect(screen.getByTestId('mock-datasets-sidebar')).toHaveAttribute('data-opened', 'true');
 
@@ -89,9 +89,9 @@ describe('Homepage', () => {
     expect(container.querySelector('.DatasetsButton') as Element).toBeInTheDocument();
   });
 
-  it('reopens DatasetsSidebar by clicking on the DatasetsButton homepage', () => {
+  it('reopens DatasetsSidebar by clicking on the DatasetsButton availability page', () => {
     __setIsDesktopLayout(true);
-    const { container } = render(<Homepage />);
+    const { container } = render(<Availability />);
 
     expect(screen.getByTestId('mock-datasets-sidebar')).toHaveAttribute('data-opened', 'true');
 
@@ -103,9 +103,9 @@ describe('Homepage', () => {
     expect(screen.getByTestId('mock-datasets-sidebar')).toHaveAttribute('data-opened', 'true');
   });
 
-  it('opens FilteringSidebar by clicking on the FiltersButton homepage', () => {
+  it('opens FilteringSidebar by clicking on the FiltersButton availability page', () => {
     __setIsDesktopLayout(true);
-    const { container } = render(<Homepage />);
+    const { container } = render(<Availability />);
 
     expect(screen.getByTestId('mock-filtering-sidebar')).toHaveAttribute('data-opened', 'false');
 
@@ -118,7 +118,7 @@ describe('Homepage', () => {
 
   it('closes FilteringSidebar by clicking on the close button in the sidebar', () => {
     __setIsDesktopLayout(true);
-    const { container } = render(<Homepage />);
+    const { container } = render(<Availability />);
 
     fireEvent.click(container.querySelector('.FiltersButton') as Element);
 
@@ -130,15 +130,15 @@ describe('Homepage', () => {
     expect(container.querySelector('.FiltersButton') as Element).toBeInTheDocument();
   });
 
-  it('renders homepage on mobile', () => {
+  it('renders availability page on mobile', () => {
     __setIsDesktopLayout(false);
-    const { container } = render(<Homepage />);
+    const { container } = render(<Availability />);
     expect(container).toMatchSnapshot();
   });
 
   it('changes tabs by clicking on mobile navigation', () => {
     __setIsDesktopLayout(false);
-    render(<Homepage />);
+    render(<Availability />);
 
     expect(screen.getByTestId('mock-datasets-sidebar')).toHaveAttribute('data-opened', 'false');
 
@@ -155,7 +155,7 @@ describe('Homepage', () => {
   it('calls setGeometryFilter with geometries when both bbox and geometries are provided', () => {
     // Arrange
     __setIsDesktopLayout(true);
-    render(<Homepage />);
+    render(<Availability />);
 
     const geometries = [
       {
@@ -190,7 +190,7 @@ describe('Homepage', () => {
 
   it('calls setGeometryFilter with bbox (as Polygon) when no geometries provided', () => {
     // Arrange
-    render(<Homepage />);
+    render(<Availability />);
 
     const mockEvent: SoilhiveMapSelectionChangeEvent = {
       bounds: [6.0, 35.0, 18.0, 47.0],
