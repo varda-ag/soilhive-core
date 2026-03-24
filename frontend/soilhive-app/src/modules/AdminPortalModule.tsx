@@ -36,7 +36,7 @@ export function AdminPortalModule() {
             }
           />
           <Route
-            path={ADMIN_ROUTES.LOOK_AND_FEEL}
+            path={`${ADMIN_ROUTES.LOOK_AND_FEEL}/*`}
             element={
               <>
                 <PageTitle title={t('page_titles.look_and_feel')} />

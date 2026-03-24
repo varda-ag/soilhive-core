@@ -46,3 +46,8 @@ export type NavMenuEntry = {
   type: 'internal' | 'external';
   Icon?: React.FC<React.SVGProps<SVGSVGElement>>;
 };
+
+export type TabData = {
+  value: string;
+  label: string;
+};
