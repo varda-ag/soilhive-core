@@ -2,13 +2,15 @@ import React from 'react';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import useDownloads from 'hooks/useDownloads';
 import { DownloadsProvider } from '../../src/contexts/DownloadsContext';
-import { useCreateJobMutation, useCancelJobMutation, useJobsQueries } from 'hooks/useJobsApi';
+import { useCreateJobMutation, useCancelJobMutation, useJobsQueries, useInitialJobsQuery } from 'hooks/useJobsApi';
 import useNotifications from 'hooks/useNotifications';
+import { useAuthContext } from '../../src/auth/AuthContextProvider';
 
 jest.mock('hooks/useJobsApi', () => ({
   useCreateJobMutation: jest.fn(),
   useCancelJobMutation: jest.fn(),
   useJobsQueries: jest.fn(),
+  useInitialJobsQuery: jest.fn(),
 }));
 
 jest.mock('hooks/useNotifications', () => ({
@@ -21,6 +23,17 @@ jest.mock('../../src/configuration/api', () => ({
   REST_END_POINTS: {
     DOWNLOADS: 'downloads',
   },
+}));
+
+jest.mock('../../src/auth/AuthContextProvider', () => ({
+  useAuthContext: jest.fn(),
+}));
+
+jest.mock('hooks/useJobsApi', () => ({
+  useCreateJobMutation: jest.fn(),
+  useCancelJobMutation: jest.fn(),
+  useJobsQueries: jest.fn(),
+  useInitialJobsQuery: jest.fn(),
 }));
 
 describe('useDownloads', () => {
@@ -43,10 +56,21 @@ describe('useDownloads', () => {
     });
 
     (useJobsQueries as jest.Mock).mockReturnValue([]);
+
+    (useAuthContext as jest.Mock).mockReturnValue({
+      /* <-- ADD */ isAuthenticated: false,
+      isLoading: false,
+    });
+
+    (useInitialJobsQuery as jest.Mock).mockReturnValue({
+      /* <-- ADD */ data: undefined,
+      isSuccess: false,
+    });
   });
 
   afterEach(() => {
     jest.clearAllMocks();
+    localStorage.clear();
   });
 
   it('throws if used outside DownloadsProvider', () => {
