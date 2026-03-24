@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.55.0 (2026-03-24)
+
+## What's Changed
+* feat(fe): no download from mobile dialog by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/311
+* feat: sp-4992 - look and feel page structure by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/312
+* feat: sp-4935 - use error popup for network errors by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/306
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.54.0...v0.55.0
+
 ## 0.54.0 (2026-03-24)
 
 ## What's Changed
