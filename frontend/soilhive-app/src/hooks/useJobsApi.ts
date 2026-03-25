@@ -61,6 +61,5 @@ export function useInitialJobsQuery(enabled: boolean) {
     queryKey: ['jobs', 'initial'],
     enabled,
     refetchInterval: false,
-    staleTime: Infinity,
   });
 }

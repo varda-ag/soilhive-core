@@ -6,7 +6,7 @@ import { BACKEND_BASE_URL, REST_END_POINTS } from '../configuration/api';
 import { useAuthContext } from '../auth/AuthContextProvider';
 import { addStoredJobId, getStoredJobIds, removeStoredJobId } from '../utilities/downloadJobStorage';
 
-const TERMINAL_STATUSES = ['completed', 'failed'];
+const TERMINAL_STATUSES = ['completed', 'failed', 'cancelled'];
 
 type DownloadsItem = {
   id: string;
@@ -39,7 +39,7 @@ export const DownloadsProvider: React.FC<DownloadsProviderProps> = ({ children }
   // Fetch existing jobs once on mount for authenticated users
   const { data: initialJobs, isSuccess: initialJobsLoaded } = useInitialJobsQuery(!isAuthLoading && isAuthenticated);
 
-  // Seed jobsIds on startup, either from the backend, if authenticted, or from the local storage
+  // Seed jobsIds on startup, either from the backend, if authenticated, or from the local storage
   useEffect(() => {
     if (isAuthLoading) return;
 
