@@ -1,12 +1,15 @@
-import { Entity, Column, Unique } from 'typeorm';
+import { Entity, Column, Unique, Index, PrimaryColumn } from 'typeorm';
 import { ProcedureVocabulary } from '../interfaces/ProcedureVocabulary';
 import BaseTable from './BaseTable';
 import { ProcedureVocabularyType } from '../types/data';
 
-@Entity('procedure_vocabulary')
-@Unique(['category', 'name'])
+@Entity('procedures_vocabulary')
+@Index(['category', 'id'])
+@Unique(['id', 'category'])
 export default class ProcedureVocabularyEntity extends BaseTable implements ProcedureVocabulary {
-  @Column({ primary: true, type: 'uuid' })
+  @PrimaryColumn('uuid', {
+    default: () => 'uuidv7()',
+  })
   id: string;
 
   @Column({ primary: true, type: 'text' })

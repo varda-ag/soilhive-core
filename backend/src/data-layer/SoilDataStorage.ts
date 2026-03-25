@@ -148,6 +148,7 @@ export default class SoilDataStorage {
       .innerJoin('observations', 'obs', 'obs.dataset_layer_id = dataset_layers.id')
       .leftJoin('obs.procedure', 'procedure')
       .where('ds.slug IN (:...datasetSlugs)', { datasetSlugs });
+    joinProcedures(query);
 
     const enabledRasterFilterTables = await getEnabledRasterFilterTables();
     await applyFiltersToQuery(query, dataFilter, enabledRasterFilterTables);
@@ -173,14 +174,14 @@ const applySelectToQuery = (query: any) => {
     .addSelect('layer.min_depth', 'min_depth')
     .addSelect('layer.max_depth', 'max_depth')
     .addSelect('layer.horizon', 'horizon')
-    .addSelect('procedure.sample_pretreatment', 'sample_pretreatment')
+    .addSelect('pv1.name', 'sample_pretreatment')
     .addSelect('procedure.technique', 'technique')
-    .addSelect('procedure.laboratory_method', 'laboratory_method')
-    .addSelect('procedure.extractant_concentration', 'extractant_concentration')
-    .addSelect('procedure.extraction_ratio', 'extraction_ratio')
-    .addSelect('procedure.extraction_base', 'extraction_base')
-    .addSelect('procedure.measurement_procedure', 'measurement_procedure')
-    .addSelect('procedure.limit_of_detection', 'limit_of_detection');
+    .addSelect('pv2.name', 'laboratory_method')
+    .addSelect('pv3.name', 'extractant_concentration')
+    .addSelect('pv4.name', 'extraction_ratio')
+    .addSelect('pv5.name', 'extraction_base')
+    .addSelect('pv6.name', 'measurement_procedure')
+    .addSelect('pv7.name', 'limit_of_detection');
 };
 
 const geometryUnion = (geometries: (Polygon | MultiPolygon)[]): Polygon | MultiPolygon => {
@@ -497,14 +498,14 @@ const getSortFieldMapping = (): Record<string, string> => ({
   min_depth: 'layer.min_depth',
   max_depth: 'layer.max_depth',
   horizon: 'layer.horizon',
-  sample_pretreatment: 'procedure.sample_pretreatment',
+  sample_pretreatment: 'pv1.name',
   technique: 'procedure.technique',
-  laboratory_method: 'procedure.laboratory_method',
-  extractant_concentration: 'procedure.extractant_concentration',
-  extraction_ratio: 'procedure.extraction_ratio',
-  extraction_base: 'procedure.extraction_base',
-  measurement_procedure: 'procedure.measurement_procedure',
-  limit_of_detection: 'procedure.limit_of_detection',
+  laboratory_method: 'pv2.name',
+  extractant_concentration: 'pv3.name',
+  extraction_ratio: 'pv4.name',
+  extraction_base: 'pv5.name',
+  measurement_procedure: 'pv6.name',
+  limit_of_detection: 'pv7.name',
 });
 
 const getMappedSortField = (sort: string): string => {
@@ -564,4 +565,19 @@ const applySortingToQuery = (query: any, sort?: string) => {
 
 const selectGeometry = (): string => {
   return "SELECT ST_CollectionExtract(ST_MakeValid(ST_GeomFromGeoJSON(:inputGeom), 'method=structure'), 3) AS geom";
+};
+
+const joinProcedures = (query: any) => {
+  query
+    .leftJoin('procedures_vocabulary', 'pv1', "pv1.id = procedure.sample_pretreatment_id AND pv1.category = 'sample_pretreatment'")
+    .leftJoin('procedures_vocabulary', 'pv2', "pv2.id = procedure.laboratory_method_id AND pv2.category = 'laboratory_method'")
+    .leftJoin(
+      'procedures_vocabulary',
+      'pv3',
+      "pv3.id = procedure.extractant_concentration_id AND pv3.category = 'extractant_concentration'",
+    )
+    .leftJoin('procedures_vocabulary', 'pv4', "pv4.id = procedure.extraction_ratio_id AND pv4.category = 'extraction_ratio'")
+    .leftJoin('procedures_vocabulary', 'pv5', "pv5.id = procedure.extraction_base_id AND pv5.category = 'extraction_base'")
+    .leftJoin('procedures_vocabulary', 'pv6', "pv6.id = procedure.measurement_procedure_id AND pv6.category = 'measurement_procedure'")
+    .leftJoin('procedures_vocabulary', 'pv7', "pv7.id = procedure.limit_of_detection_id AND pv7.category = 'limit_of_detection'");
 };
