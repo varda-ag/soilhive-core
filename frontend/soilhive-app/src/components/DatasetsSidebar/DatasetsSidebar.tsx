@@ -78,7 +78,7 @@ export function DatasetsSidebar({ isOpened, onClose }: Props) {
       <InfoDialog
         storageKey="no-download-on-mobile"
         isVisible={showNoDownloadInfoDialog}
-        header={t('ommon:mobile_download_dialog.header')}
+        header={t('common:mobile_download_dialog.header')}
         message={t('common:mobile_download_dialog.message')}
         onContinue={() => {
           setShowNoDownloadInfoDialog(false);
