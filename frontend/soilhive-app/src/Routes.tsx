@@ -1,6 +1,6 @@
 import { QueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router';
+import { BrowserRouter, Route, Routes } from 'react-router';
 import PageTitle from './components/PageTitle';
 import { ADMIN_ROOT } from './configuration/admin';
 import { AdminPortalGuard } from './guards/AdminPortalGuard';
@@ -27,7 +27,7 @@ function AppRoutes() {
     <BrowserRouter>
       <Routes>
         <Route element={<MainLayout />}>
-          <Route path="/" element={<AvailabilityModule />} />
+          <Route path="/*" element={<AvailabilityModule />} />
           <Route
             path="/donation"
             element={
@@ -72,7 +72,6 @@ function AppRoutes() {
         <Route path={`${ADMIN_ROOT}/*`} element={<AdminPortalGuard />}>
           <Route path="*" element={<AdminPortalModule />} />
         </Route>
-        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );

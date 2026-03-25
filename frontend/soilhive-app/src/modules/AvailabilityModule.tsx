@@ -1,4 +1,4 @@
-import { Outlet, Route, Routes } from 'react-router';
+import { Navigate, Outlet, Route, Routes } from 'react-router';
 import PageTitle from 'components/PageTitle';
 import { AvailabilityProvider } from '../contexts/AvailabilityContext';
 import DownloadSummary from '../pages/DownloadSummary';
@@ -45,6 +45,7 @@ function AvailabilityModule() {
             </>
           }
         />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
   );
