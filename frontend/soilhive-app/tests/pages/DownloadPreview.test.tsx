@@ -1,6 +1,8 @@
-import React from 'react';
 import { act, render } from '@testing-library/react';
 import DownloadPreview from '../../src/pages/DownloadPreview';
+import { useNavigate } from 'react-router';
+
+jest.mock('hooks/useDevice');
 
 jest.mock('hooks/useFilteredDatasets', () => {
   return { useFilteredDatasets: jest.fn().mockReturnValue({ filterId: 'test-filter-id', isLoading: false }) };
@@ -15,6 +17,7 @@ jest.mock('hooks/useSoilData', () => {
 jest.mock('react-router', () => ({
   __esModule: true,
   useNavigate: jest.fn(),
+  useSearchParams: jest.fn().mockReturnValue([new Map([])]),
 }));
 
 jest.mock('components/DownloadDataSummary/DownloadDataSummary', () => {
@@ -27,32 +30,23 @@ jest.mock('components/DownloadPreview/DownloadPreviewDataSection/DownloadPreview
   return DownloadPreviewDataSection;
 });
 
-jest.mock('../../src/contexts/AvailabilityContext', () => {
-  // let's define the mockSetPreview mock function here and export here down below
-  // so that we can later grab it
-  const mockSetPreview = jest.fn();
-
+jest.mock('hooks/useDownloadPreview', () => {
   return {
-    __esModule: true,
-    AvailabilityContext: React.createContext({
-      setPreview: mockSetPreview,
-      availableDatasets: [{ id: 'test-dataset', soil_properties: ['test-soil-property'] }],
-      geometryFilter: [],
-      selectedDatasets: [],
-      filteredDatasets: [],
-      selectedSoilProperties: [],
-      filteredSoilProperties: [{ id: 'test-soil-property' }],
+    useDownloadPreview: jest.fn().mockReturnValue({
       datasetsSummary: {
         globalMinDepth: null,
         globalMaxDepth: null,
       },
+      availableFixedDatasets: [{ id: 'test-dataset', soil_properties: ['test-soil-property'] }],
+      availabilitySelectedSoilProperties: [],
+      availabilityFilteredSoilProperties: [{ id: 'test-soil-property' }],
+      selectedDatasets: [],
+      setSelectedDatasets: jest.fn(),
+      geometryFilter: [],
+      isLoading: false,
     }),
-    mockSetPreview,
   };
 });
-
-// grab the mock setGeometryFilter function that was passed to availability context
-const { mockSetPreview } = jest.requireMock('../../src/contexts/AvailabilityContext');
 
 describe('DownloadPreview', () => {
   beforeEach(() => {
@@ -64,11 +58,13 @@ describe('DownloadPreview', () => {
     expect(container).toMatchSnapshot();
   });
 
-  it('calls setPreview(false) when clicking on the back button', async () => {
+  it('calls navigate when clicking on the back button', async () => {
+    const navigateMockFn = jest.fn();
+    (useNavigate as jest.Mock).mockReturnValue(navigateMockFn);
     const { container, getByTestId } = render(<DownloadPreview />);
     expect(container).toMatchSnapshot();
     const backButton = getByTestId('download-preview-back-button');
     await act(async () => backButton.click());
-    expect(mockSetPreview).toHaveBeenCalledWith(false);
+    expect(navigateMockFn).toHaveBeenCalledWith(-1);
   });
 });

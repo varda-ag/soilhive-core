@@ -2,7 +2,7 @@ import type { BackendStoredDataFilter, DataFilter, FilteredDataset } from 'types
 import { useApiQuery } from './useApiQuery';
 import { useDebounce } from './useDebounce';
 
-export function useFilteredDatasets(filters: DataFilter) {
+export function useFilteredDatasets(filters: DataFilter, enabled: boolean = true) {
   const debouncedFilters = useDebounce(filters, 300);
 
   const { data: filterData, isLoading: isFilterLoading } = useApiQuery<BackendStoredDataFilter, DataFilter>({
@@ -10,14 +10,15 @@ export function useFilteredDatasets(filters: DataFilter) {
     method: 'POST',
     body: debouncedFilters,
     queryKey: ['data-filter', debouncedFilters],
-    enabled: !!debouncedFilters.geometries.length,
+    enabled: !!debouncedFilters.geometries.length && enabled,
   });
 
   const { data: coverageData, isLoading: isCoverageLoading } = useApiQuery<FilteredDataset[]>({
     endpoint: `/data-filters/${filterData?.id}/coverage`,
     method: 'GET',
     queryKey: ['data-filter-coverage', filterData?.id],
-    enabled: !!filterData?.id,
+    enabled: !!filterData?.id && enabled,
+    retry: false,
   });
 
   return {

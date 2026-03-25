@@ -30,7 +30,7 @@ export function useSoilData(parameters: SoilDataParameters) {
     parameters: queryParameters,
     // The query gets executed only if there are available datasets
     // otherwise the API would return an error.
-    enabled: datasets.length > 0,
+    enabled: datasets.length > 0 && filterId !== undefined,
   });
 
   useEffect(() => {

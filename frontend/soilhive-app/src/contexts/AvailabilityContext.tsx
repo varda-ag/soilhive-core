@@ -50,7 +50,6 @@ type AvailabilityContextType = {
   selectedTimeFilter: TimeFilterState;
   datasetsSummary: DatasetSummary;
   datasetFilters: FilterCriteria;
-  preview: boolean;
   appliedFiltersCount: number;
   filterId: string | undefined;
   selectedFilters: BackendStoredDataFilter | undefined;
@@ -68,7 +67,6 @@ type AvailabilityContextType = {
   setShowSelectionToolbar: React.Dispatch<React.SetStateAction<boolean>>;
   setGeometryFilter: React.Dispatch<React.SetStateAction<(Polygon | MultiPolygon)[]>>;
   setDatasetFilters: React.Dispatch<React.SetStateAction<FilterCriteria>>;
-  setPreview: React.Dispatch<React.SetStateAction<boolean>>;
   selectedSoilProperties: string[];
   setSelectedSoilProperties: React.Dispatch<React.SetStateAction<string[]>>;
   setSelectedTimeFilter: React.Dispatch<React.SetStateAction<TimeFilterState>>;
@@ -100,7 +98,6 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
     ownership: [],
   });
   const [isAllSelected, setIsAllSelected] = useState<boolean>(false);
-  const [preview, setPreview] = useState<boolean>(false);
 
   const [selectedPoint, setSelectedPoint] = useState<LngLat | null>(null);
   const [selectedH3Cell, setSelectedH3Cell] = useState<MapGeoJSONFeature | null>(null);
@@ -270,7 +267,6 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
         datasetsSummary,
         datasetFilters,
         selectedTimeFilter,
-        preview,
         appliedFiltersCount,
         filterId,
         selectedFilters,
@@ -280,7 +276,6 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
         setFrontendFilters,
         selectAllDatasets,
         setDatasetFilters,
-        setPreview,
         geometryFilter,
         setSelectedPoint,
         setSelectedH3Cell,
