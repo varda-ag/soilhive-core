@@ -6,7 +6,7 @@ export class CreateSchema1765549507801 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`SET search_path TO ${process.env.POSTGRES_SCHEMA}, public`);
     await queryRunner.query(
-      `CREATE TYPE "slug_history_entity_type_enum" AS ENUM('datasets', 'licenses', 'soil_property_categories', 'soil_properties', 'unit_conversions', 'procedures', 'files', 'procedures_vocabulary')`,
+      `CREATE TYPE "slug_history_entity_type_enum" AS ENUM('datasets', 'licenses', 'soil_property_categories', 'soil_properties', 'unit_conversions', 'procedures', 'files', 'vocabulary')`,
     );
     await queryRunner.query(`CREATE TYPE "procedures_technique_enum" AS ENUM('lab procedure', 'spectral', 'calculated')`);
     await queryRunner.query(

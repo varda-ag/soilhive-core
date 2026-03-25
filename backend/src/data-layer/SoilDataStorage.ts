@@ -569,15 +569,11 @@ const selectGeometry = (): string => {
 
 const joinProcedures = (query: any) => {
   query
-    .leftJoin('procedures_vocabulary', 'pv1', "pv1.id = procedure.sample_pretreatment_id AND pv1.category = 'sample_pretreatment'")
-    .leftJoin('procedures_vocabulary', 'pv2', "pv2.id = procedure.laboratory_method_id AND pv2.category = 'laboratory_method'")
-    .leftJoin(
-      'procedures_vocabulary',
-      'pv3',
-      "pv3.id = procedure.extractant_concentration_id AND pv3.category = 'extractant_concentration'",
-    )
-    .leftJoin('procedures_vocabulary', 'pv4', "pv4.id = procedure.extraction_ratio_id AND pv4.category = 'extraction_ratio'")
-    .leftJoin('procedures_vocabulary', 'pv5', "pv5.id = procedure.extraction_base_id AND pv5.category = 'extraction_base'")
-    .leftJoin('procedures_vocabulary', 'pv6', "pv6.id = procedure.measurement_procedure_id AND pv6.category = 'measurement_procedure'")
-    .leftJoin('procedures_vocabulary', 'pv7', "pv7.id = procedure.limit_of_detection_id AND pv7.category = 'limit_of_detection'");
+    .leftJoin('vocabulary', 'pv1', "pv1.id = procedure.sample_pretreatment_id AND pv1.category = 'sample_pretreatment'")
+    .leftJoin('vocabulary', 'pv2', "pv2.id = procedure.laboratory_method_id AND pv2.category = 'laboratory_method'")
+    .leftJoin('vocabulary', 'pv3', "pv3.id = procedure.extractant_concentration_id AND pv3.category = 'extractant_concentration'")
+    .leftJoin('vocabulary', 'pv4', "pv4.id = procedure.extraction_ratio_id AND pv4.category = 'extraction_ratio'")
+    .leftJoin('vocabulary', 'pv5', "pv5.id = procedure.extraction_base_id AND pv5.category = 'extraction_base'")
+    .leftJoin('vocabulary', 'pv6', "pv6.id = procedure.measurement_procedure_id AND pv6.category = 'measurement_procedure'")
+    .leftJoin('vocabulary', 'pv7', "pv7.id = procedure.limit_of_detection_id AND pv7.category = 'limit_of_detection'");
 };

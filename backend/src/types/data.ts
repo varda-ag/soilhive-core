@@ -21,10 +21,10 @@ export enum EntityType {
   UNIT_CONVERSION = 'unit_conversions',
   PROCEDURE = 'procedures',
   FILE = 'files',
-  PROCEDURES_VOCABULARY = 'proecdures_vocabulary',
+  vocabulary = 'proecdures_vocabulary',
 }
 
-export enum ProcedureVocabularyType {
+export enum VocabularyType {
   SAMPLE_PRETREATMENT = 'sample_pretreatment',
   LABORATORY_METHOD = 'laboratory_method',
   EXTRACTANT_CONCENTRATION = 'extractant_concentration',

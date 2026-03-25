@@ -14,14 +14,14 @@ import UnitConversionEntity from '../entities/UnitConversion';
 import { getPolygonFromBbox } from './geometry';
 import { getDataSource, getEntityManager } from './data-source';
 import SlugHistoryEntity from '../entities/SlugHistory';
-import { EntityType, GISDataType, IngestionStatus, ProcedureVocabularyType } from '../types/data';
+import { EntityType, GISDataType, IngestionStatus, VocabularyType } from '../types/data';
 import { PropertyInfo, PropertyMapping } from '../interfaces/PropertyMapping';
 import assert from 'assert';
 import path from 'path';
 import fs from 'fs';
 import { sanitizeField } from './utils';
 import DatasetFileMappingEntity from '../entities/DatasetFileMapping';
-import ProcedureVocabularyEntity from '../entities/ProcedureVocabulary';
+import VocabularyEntity from '../entities/Vocabulary';
 
 const randomInRange = (min: number, max: number): number => {
   return Math.random() * (max - min) + min;
@@ -280,10 +280,10 @@ export const addDatasetLayers = async (dataset_id: string, layer_id: string, fea
 
 export const addProcedure = async (procedure: string = 'test_procedure') => {
   const dataSource = await getDataSource();
-  const procedureVocabularyRepo = dataSource.getRepository(ProcedureVocabularyEntity);
+  const procedureVocabularyRepo = dataSource.getRepository(VocabularyEntity);
   const newSamplePretreatment = procedureVocabularyRepo.create({
     name: procedure,
-    category: ProcedureVocabularyType.SAMPLE_PRETREATMENT,
+    category: VocabularyType.SAMPLE_PRETREATMENT,
   });
   const savedSamplePretreatment = await procedureVocabularyRepo.save(newSamplePretreatment);
   const procedureRepo = dataSource.getRepository(ProcedureEntity);
