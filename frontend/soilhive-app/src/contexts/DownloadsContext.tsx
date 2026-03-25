@@ -102,6 +102,12 @@ export const DownloadsProvider: React.FC<DownloadsProviderProps> = ({ children }
         removeStoredJobId(job.id);
       }
 
+      // job removed in another tab
+      if (nextStatus === 'cancelled') {
+        setJobsIds(prev => prev.filter(jobId => jobId !== job.id));
+        removeStoredJobId(job.id); // if removed from another tab this should be already cleared, but just to be on the safe side
+      }
+
       prevStatusRef.current[job.id] = nextStatus;
     });
   }, [jobsData, showNotification]);

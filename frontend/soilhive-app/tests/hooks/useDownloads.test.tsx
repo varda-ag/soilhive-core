@@ -377,4 +377,30 @@ describe('useDownloads', () => {
       expect(removeStoredJobId).toHaveBeenCalledWith(jobId);
     });
   });
+
+  it('removes job from state if it was cancelled in another tab/externally', async () => {
+    const jobId = 'external-cancel-job';
+
+    // Start with the job already in the stored IDs
+    (getStoredJobIds as jest.Mock).mockReturnValue([jobId]);
+
+    // Mock the query to return 'cancelled' status
+    (useJobsQueries as jest.Mock).mockImplementation((ids: string[]) =>
+      ids.map(id => ({
+        data: {
+          id,
+          status: 'cancelled',
+          data: {},
+        },
+      })),
+    );
+
+    const { result } = renderHook(() => useDownloads(), { wrapper });
+
+    // The job should be filtered out of the internal state
+    // and result in an empty downloads list
+    await waitFor(() => {
+      expect(result.current.downloads).toHaveLength(0);
+    });
+  });
 });

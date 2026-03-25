@@ -1,4 +1,4 @@
-export type AsyncJobStatus = 'created' | 'active' | 'completed' | 'failed';
+export type AsyncJobStatus = 'created' | 'active' | 'completed' | 'failed' | 'cancelled';
 
 export type AsyncJob = {
   id: string;
