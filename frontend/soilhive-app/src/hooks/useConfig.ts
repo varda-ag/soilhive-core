@@ -23,8 +23,8 @@ const useConfig = <T>(id: string, defaultConfig?: T) => {
   const config: T | undefined = data ?? defaultConfig;
 
   const saveConfig = async (newConfig: unknown): Promise<void> => {
-    queryClient.invalidateQueries({ queryKey: [endpoint] });
     await saveMutation.mutateAsync(newConfig);
+    await queryClient.invalidateQueries({ queryKey: [endpoint] });
   };
 
   return { config, isLoading, isError, saveConfig };

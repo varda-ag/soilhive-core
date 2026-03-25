@@ -4,13 +4,14 @@ import { ThemeProvider, NotificationProvider, DownloadsProvider } from './contex
 import './utilities/i18n';
 import './App.module.scss';
 import AppRoutes from './Routes';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 
 export const queryClient = new QueryClient();
 
 function App() {
   return (
-    <NotificationProvider>
-      <QueryClientProvider client={queryClient}>
+    <QueryClientProvider client={queryClient}>
+      <NotificationProvider>
         <AuthContextProvider>
           <ThemeProvider>
             <DownloadsProvider>
@@ -18,8 +19,9 @@ function App() {
             </DownloadsProvider>
           </ThemeProvider>
         </AuthContextProvider>
-      </QueryClientProvider>
-    </NotificationProvider>
+      </NotificationProvider>
+      <ReactQueryDevtools initialIsOpen={false} />
+    </QueryClientProvider>
   );
 }
 

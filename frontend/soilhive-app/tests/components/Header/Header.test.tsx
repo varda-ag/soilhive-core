@@ -181,4 +181,21 @@ describe('Header component', () => {
     expect(screen.getAllByTestId('mobile-menu-entry')).toHaveLength(2);
     expect(container).toMatchSnapshot();
   });
+
+  it.each([false, true])('Conditionally renders the Legal nav link according to loading state', (isLoadingTermsAndConditions: boolean) => {
+    (useTheme as jest.Mock).mockReturnValue({ isLoadingTermsAndConditions, termsAndConditionsHtml: 'mock' });
+
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <Header />
+      </MemoryRouter>,
+    );
+
+    const element = screen.queryByText('Legal');
+    if (isLoadingTermsAndConditions) {
+      expect(element).not.toBeInTheDocument();
+    } else {
+      expect(element).toBeInTheDocument();
+    }
+  });
 });
