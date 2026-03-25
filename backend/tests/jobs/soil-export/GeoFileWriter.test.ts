@@ -22,7 +22,7 @@ function makeSample(overrides: Partial<SoilDataSample> = {}): SoilDataSample {
     sampling_date: '2023-01-15',
     min_depth: 0,
     max_depth: 30,
-    horizon: 'A',
+    // horizon: 'A',
     sample_pretreatment: 'air-dried',
     technique: 'ICP-OES',
     laboratory_method: null,

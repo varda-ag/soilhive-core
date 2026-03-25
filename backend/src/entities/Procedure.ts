@@ -17,8 +17,8 @@ export default class ProcedureEntity extends BaseTable implements Procedure {
   @Column({ type: 'text' })
   slug: string;
 
-  @Column({ type: 'text', nullable: true })
-  sample_pretreatment?: string;
+  @Column({ type: 'uuid', nullable: true })
+  sample_pretreatment_id?: string;
 
   @Column({
     type: 'enum',
@@ -27,21 +27,21 @@ export default class ProcedureEntity extends BaseTable implements Procedure {
   })
   technique?: ProcedureTechnique;
 
-  @Column({ type: 'text', nullable: true })
-  laboratory_method?: string;
+  @Column({ type: 'uuid', nullable: true })
+  laboratory_method_id?: string;
 
-  @Column({ type: 'text', nullable: true })
-  extractant_concentration?: string;
+  @Column({ type: 'uuid', nullable: true })
+  extractant_concentration_id?: string;
 
-  @Column({ type: 'text', nullable: true })
-  extraction_ratio?: string;
+  @Column({ type: 'uuid', nullable: true })
+  extraction_ratio_id?: string;
 
-  @Column({ type: 'text', nullable: true })
-  extraction_base?: string;
+  @Column({ type: 'uuid', nullable: true })
+  extraction_base_id?: string;
 
-  @Column({ type: 'text', nullable: true })
-  measurement_procedure?: string;
+  @Column({ type: 'uuid', nullable: true })
+  measurement_procedure_id?: string;
 
-  @Column({ type: 'text', nullable: true })
-  limit_of_detection?: string;
+  @Column({ type: 'uuid', nullable: true })
+  limit_of_detection_id?: string;
 }
