@@ -199,4 +199,82 @@ describe('Testing /jobs routes', () => {
     const res = await request(app).post('/jobs').send({ type: 'export', filter_id: mockId, format: 'csv' }); // Missing dataset_ids
     expect(res.statusCode).toBe(400);
   });
+
+  it('POST /jobs extract with "anonymous: true" and no auth token allows get without token', async () => {
+    const mockId = '960ee487-a6bd-4da8-8ef0-da6ef23d0e80';
+
+    // 1. Create anonymous job
+    const exportRes = await request(app)
+      .post('/jobs')
+      .send({
+        type: 'export',
+        filter_id: mockId,
+        format: 'csv',
+        dataset_ids: ['fake_dataset'],
+        anonymous: true,
+      });
+    expect(exportRes.statusCode).toBe(201);
+    expect(exportRes.body.data.created_by).toBeNull(); // Verify the job is indeed anonymous
+    const exportId = exportRes.body.id;
+
+    // Verify access without token
+    const getRes = await request(app).get(`/jobs/${exportId}`);
+    expect(getRes.statusCode).toBe(200);
+  });
+
+  it('POST /jobs extract with "anonymous: true" and auth token allows get without token', async () => {
+    const mockId = '960ee487-a6bd-4da8-8ef0-da6ef23d0e80';
+
+    // Create anonymous job
+    const exportRes = await request(app)
+      .post('/jobs')
+      .send({
+        type: 'export',
+        filter_id: mockId,
+        format: 'csv',
+        dataset_ids: ['fake_dataset'],
+        anonymous: true,
+      });
+    expect(exportRes.statusCode).toBe(201);
+    const exportId = exportRes.body.id;
+
+    // Verify access with token
+    const token = await getDataAdminToken();
+
+    const getRes = await request(app).get(`/jobs/${exportId}`).set('Authorization', `Bearer ${token}`);
+
+    expect(getRes.statusCode).toBe(200);
+  });
+
+  it('POST /jobs with "anonymous: true" on a job other than extract causes bad request', async () => {
+    const token = await getDataAdminToken();
+    const restrictedRes = await request(app).post('/jobs').set('Authorization', `Bearer ${token}`).send({
+      type: JobQueues.BULK_DELETE,
+      dataset_id: 'test-dataset',
+      anonymous: true,
+    });
+
+    expect(restrictedRes.statusCode).toBe(400);
+  });
+
+  /*
+  // 2. Failure: Anonymous Bulk Delete (Restricted)
+  // We provide a token so it passes the first check, but fails the anonymous: true check
+  const token = await getDataAdminToken();
+  const restrictedRes = await request(app)
+    .post('/jobs')
+    .set('Authorization', `Bearer ${token}`)
+    .send({
+      type: JobQueues.BULK_DELETE,
+      dataset_id: 'test-dataset',
+      anonymous: true
+    });
+
+  expect(restrictedRes.statusCode).toBe(400);
+  expect(restrictedRes.body.detail).toContain(`Parameter anonymous: true not allowed for ${JobQueues.BULK_DELETE} jobs`);
+});
+
+it('POST /jobs retrieve extraction job with or without token', async () => {
+
+})*/
 });

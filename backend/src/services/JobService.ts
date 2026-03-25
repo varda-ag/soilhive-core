@@ -18,10 +18,13 @@ export default class JobService {
       if (!sub) {
         throw new ErrorResponse(`Authentication required for ${data.type} jobs`, StatusCodes.UNAUTHORIZED);
       }
+      if (data.anonymous) {
+        throw new ErrorResponse(`Parameter anonymous: true not allowed for ${data.type} jobs`, StatusCodes.BAD_REQUEST);
+      }
     }
 
     // Set owner and enqueue the job
-    data.created_by = sub ?? null;
+    data.created_by = data.anonymous ? null : (sub ?? null);
     const id = await this.boss.send(data.type, data);
     if (!id) {
       throw new ErrorResponse('Failed to create job', StatusCodes.INTERNAL_SERVER_ERROR);
