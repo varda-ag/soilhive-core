@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.55.1 (2026-03-25)
+
+## What's Changed
+* fix(fe): fix wrong translation in mobile download dialog by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/314
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.55.0...v0.55.1
+
 ## 0.55.0 (2026-03-24)
 
 ## What's Changed
