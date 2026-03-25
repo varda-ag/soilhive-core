@@ -53,13 +53,3 @@ export function useCancelJobMutation() {
     method: 'DELETE',
   });
 }
-
-export function useInitialJobsQuery(enabled: boolean) {
-  return useApiQuery<AsyncJob[]>({
-    endpoint: `/${REST_END_POINTS.JOBS}`,
-    method: 'GET',
-    queryKey: ['jobs', 'initial'],
-    enabled,
-    refetchInterval: false,
-  });
-}

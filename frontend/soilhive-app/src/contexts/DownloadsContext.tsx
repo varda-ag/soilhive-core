@@ -1,12 +1,9 @@
-import { useCancelJobMutation, useCreateJobMutation, useInitialJobsQuery, useJobsQueries } from 'hooks/useJobsApi';
+import { useCancelJobMutation, useCreateJobMutation, useJobsQueries } from 'hooks/useJobsApi';
 import React, { createContext, useState, type ReactNode, useCallback, useMemo, useEffect, useRef } from 'react';
 import type { AsyncJob } from 'types/jobs';
 import useNotifications from 'hooks/useNotifications';
 import { BACKEND_BASE_URL, REST_END_POINTS } from '../configuration/api';
-import { useAuthContext } from '../auth/AuthContextProvider';
 import { addStoredJobId, getStoredJobIds, removeStoredJobId } from '../utilities/downloadJobStorage';
-
-const TERMINAL_STATUSES = ['completed', 'failed', 'cancelled'];
 
 type DownloadsItem = {
   id: string;
@@ -32,25 +29,12 @@ export const DownloadsProvider: React.FC<DownloadsProviderProps> = ({ children }
   const createJob = useCreateJobMutation();
   const cancelJob = useCancelJobMutation();
 
-  const { isAuthenticated, isLoading: isAuthLoading } = useAuthContext();
-
   const { showNotification } = useNotifications();
 
-  // Fetch existing jobs once on mount for authenticated users
-  const { data: initialJobs, isSuccess: initialJobsLoaded } = useInitialJobsQuery(!isAuthLoading && isAuthenticated);
-
-  // Seed jobsIds on startup, either from the backend, if authenticated, or from the local storage
+  // Load pending jobs
   useEffect(() => {
-    if (isAuthLoading) return;
-
-    if (isAuthenticated) {
-      if (!initialJobsLoaded) return;
-      const activeIds = (initialJobs ?? []).filter(job => !TERMINAL_STATUSES.includes(job.status)).map(job => job.id);
-      setJobsIds(activeIds);
-    } else {
-      setJobsIds(getStoredJobIds());
-    }
-  }, [isAuthLoading, isAuthenticated, initialJobsLoaded, initialJobs]);
+    setJobsIds(getStoredJobIds());
+  }, []);
 
   const jobsQueries = useJobsQueries(jobsIds);
 
@@ -68,16 +52,16 @@ export const DownloadsProvider: React.FC<DownloadsProviderProps> = ({ children }
 
   const startDownload = useCallback(
     async (payload: { filter_id: string; dataset_ids: string[]; format: string }) => {
-      const res = await createJob.mutateAsync({ ...payload, type: 'export' });
+      const res = await createJob.mutateAsync({ ...payload, type: 'export', anonymous: true });
 
       setJobsIds(prev => [...prev, res.id]);
       prevStatusRef.current[res.id] = 'created';
 
-      if (!isAuthenticated) addStoredJobId(res.id);
+      addStoredJobId(res.id);
 
       return res.id;
     },
-    [createJob, isAuthenticated],
+    [createJob],
   );
 
   const cancelDownload = useCallback(
