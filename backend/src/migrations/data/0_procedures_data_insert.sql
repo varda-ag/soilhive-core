@@ -226,7 +226,7 @@ INSERT INTO procedures (
     ('field moist condition, then saturated', 'lab procedure', NULL, NULL, NULL, NULL, 'kPa=1500, cm water head=15324.0, bar=15.00, pF=4.2', NULL),
     (NULL, 'lab procedure', NULL, NULL, NULL, NULL, 'kPa=100, cm water head=1021.6, bar=1.00, pF=3.0', NULL),
     (NULL, 'lab procedure', NULL, NULL, NULL, NULL, 'kPa=500, pF 3.7', NULL),
-    (NULL, 'lab procedure', 'Oostenbrik elutriator', NULL, NULL, NULL, NULL, NULL),
+    (NULL, 'lab procedure', 'Oostenbrink elutriator', NULL, NULL, NULL, NULL, NULL),
     (NULL, 'lab procedure', 'Cobb', NULL, NULL, NULL, NULL, NULL),
     (NULL, 'lab procedure','Whitehead tray', NULL, NULL, NULL, NULL, NULL),
     (NULL, 'lab procedure', 'Elutriator', NULL, NULL, NULL, NULL, NULL),
