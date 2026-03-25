@@ -14,13 +14,14 @@ import UnitConversionEntity from '../entities/UnitConversion';
 import { getPolygonFromBbox } from './geometry';
 import { getDataSource, getEntityManager } from './data-source';
 import SlugHistoryEntity from '../entities/SlugHistory';
-import { EntityType, GISDataType, IngestionStatus } from '../types/data';
+import { EntityType, GISDataType, IngestionStatus, VocabularyType } from '../types/data';
 import { PropertyInfo, PropertyMapping } from '../interfaces/PropertyMapping';
 import assert from 'assert';
 import path from 'path';
 import fs from 'fs';
 import { sanitizeField } from './utils';
 import DatasetFileMappingEntity from '../entities/DatasetFileMapping';
+import VocabularyEntity from '../entities/Vocabulary';
 
 const randomInRange = (min: number, max: number): number => {
   return Math.random() * (max - min) + min;
@@ -279,12 +280,18 @@ export const addDatasetLayers = async (dataset_id: string, layer_id: string, fea
 
 export const addProcedure = async (procedure: string = 'test_procedure') => {
   const dataSource = await getDataSource();
-  const repo = dataSource.getRepository(ProcedureEntity);
-  const newProcedure = repo.create({
-    sample_pretreatment: procedure,
+  const procedureVocabularyRepo = dataSource.getRepository(VocabularyEntity);
+  const newSamplePretreatment = procedureVocabularyRepo.create({
+    name: procedure,
+    category: VocabularyType.SAMPLE_PRETREATMENT,
   });
-  await repo.save(newProcedure);
-  return await repo.findOneByOrFail({ id: newProcedure.id });
+  const savedSamplePretreatment = await procedureVocabularyRepo.save(newSamplePretreatment);
+  const procedureRepo = dataSource.getRepository(ProcedureEntity);
+  const newProcedure = procedureRepo.create({
+    sample_pretreatment_id: savedSamplePretreatment.id,
+  });
+  const savedProcedure = await procedureRepo.save(newProcedure);
+  return await procedureRepo.findOneByOrFail({ id: savedProcedure.id });
 };
 
 export const addObservations = async (values: number[], procedure_id: string, dataset_layer_id: string) => {
