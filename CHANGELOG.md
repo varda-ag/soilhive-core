@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.56.0 (2026-03-26)
+
+## What's Changed
+* feat: sp-5037 refactor procedures by @d-rom in https://github.com/varda-ag/soilhive-core/pull/316
+* feat: t&c config page by @svaccari in https://github.com/varda-ag/soilhive-core/pull/315
+* feat(fe): resume download jobs on page reload by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/319
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.55.1...v0.56.0
+
 ## 0.55.1 (2026-03-25)
 
 ## What's Changed
