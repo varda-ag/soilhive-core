@@ -256,25 +256,4 @@ describe('Testing /jobs routes', () => {
 
     expect(restrictedRes.statusCode).toBe(400);
   });
-
-  /*
-  // 2. Failure: Anonymous Bulk Delete (Restricted)
-  // We provide a token so it passes the first check, but fails the anonymous: true check
-  const token = await getDataAdminToken();
-  const restrictedRes = await request(app)
-    .post('/jobs')
-    .set('Authorization', `Bearer ${token}`)
-    .send({
-      type: JobQueues.BULK_DELETE,
-      dataset_id: 'test-dataset',
-      anonymous: true
-    });
-
-  expect(restrictedRes.statusCode).toBe(400);
-  expect(restrictedRes.body.detail).toContain(`Parameter anonymous: true not allowed for ${JobQueues.BULK_DELETE} jobs`);
-});
-
-it('POST /jobs retrieve extraction job with or without token', async () => {
-
-})*/
 });
