@@ -3,20 +3,15 @@ import styles from './TermsAndConditions.module.scss';
 import { useTranslation } from 'react-i18next';
 import { Editor } from 'primereact/editor';
 import { Button } from '../../../components/UI';
-import useConfig from '../../../hooks/useConfig';
-import type { TermsAndConditionsConfig } from '../../../types/config';
 import Skeleton from 'react-loading-skeleton';
+import useTheme from '../../../hooks/useTheme';
 
 export function TermsAndConditions() {
   const { t } = useTranslation('admin');
-  const {
-    isLoading: isLoadingTermsAndConditions,
-    config: termsAndConditionsConfig,
-    saveConfig: saveTermsAndConditions,
-  } = useConfig<TermsAndConditionsConfig>('terms_and_conditions', { html: '' });
-  const [html, setHtml] = useState(termsAndConditionsConfig!.html);
+  const { isLoadingTermsAndConditions, termsAndConditionsHtml, saveTermsAndConditions } = useTheme();
+  const [html, setHtml] = useState(termsAndConditionsHtml);
   const onSave = useCallback(() => {
-    saveTermsAndConditions({ html });
+    saveTermsAndConditions(html);
   }, [saveTermsAndConditions, html]);
 
   if (isLoadingTermsAndConditions) {

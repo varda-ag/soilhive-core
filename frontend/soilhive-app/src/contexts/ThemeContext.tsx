@@ -37,8 +37,13 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   const {
     isLoading: isLoadingTermsAndConditions,
     config: termsAndConditionsConfig,
-    saveConfig: saveTermsAndConditions,
+    saveConfig,
   } = useConfig<TermsAndConditionsConfig>('terms_and_conditions', { html: '' });
+
+  const saveTermsAndConditions = async (html: string) => {
+    await saveConfig({ html });
+  };
+
   const [theme, setTheme] = useState<ThemeConfig | null>(null);
   const [logo, setLogo] = useState<string | null>(null);
 

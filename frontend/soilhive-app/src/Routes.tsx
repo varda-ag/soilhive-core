@@ -42,7 +42,7 @@ function AppRoutes() {
               element={
                 <>
                   <PageTitle title={t('page_titles.legal')} />
-                  <Legal html={termsAndConditionsHtml} />
+                  <Legal />
                 </>
               }
             />
