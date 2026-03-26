@@ -14,6 +14,8 @@ type UseApiQueryOptions<TResponse, TBody = void> = {
   enabled: boolean;
   refetchInterval?: number | false | ((query: Query<TResponse, Error, TResponse, QueryKey>) => number | false | undefined);
   retry?: boolean | number;
+  showErrorNotification?: boolean;
+  notFoundAsNull?: boolean;
 };
 
 export function useApiQuery<TResponse, TBody = void>({
@@ -25,6 +27,8 @@ export function useApiQuery<TResponse, TBody = void>({
   enabled,
   refetchInterval,
   retry,
+  showErrorNotification,
+  notFoundAsNull,
 }: UseApiQueryOptions<TResponse, TBody>) {
   const { request } = useRequest();
 
@@ -35,6 +39,8 @@ export function useApiQuery<TResponse, TBody = void>({
       url,
       method,
       body,
+      showErrorNotification,
+      notFoundAsNull,
     });
   };
 

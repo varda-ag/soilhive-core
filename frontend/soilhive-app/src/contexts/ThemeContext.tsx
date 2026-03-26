@@ -1,16 +1,19 @@
 import React, { createContext, useState, useEffect, type ReactNode, useCallback } from 'react';
 import { useRequest } from '../api-client';
+import useConfig from '../hooks/useConfig';
 import { BACKEND_BASE_URL, REST_END_POINTS } from '../configuration/api';
-
-type Theme = Record<string, string>;
+import type { TermsAndConditionsConfig, ThemeConfig } from '../types/config';
 
 type ThemeContextType = {
-  theme: Theme | null;
+  theme: ThemeConfig | null;
   logo: string | null;
   handleColorChange: (name: string, value: string) => void;
   handleLogoChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
-  saveThemeConfig: () => void;
+  saveThemeConfig: (newConfig: ThemeConfig) => Promise<void>;
   deleteLogo: () => void;
+  isLoadingTermsAndConditions: boolean;
+  termsAndConditionsHtml: string;
+  saveTermsAndConditions: (newConfig: string) => Promise<void>;
 };
 
 export const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -19,7 +22,7 @@ type ThemeProviderProps = {
   children: ReactNode;
 };
 
-const defaultTheme: Theme = {
+const defaultTheme: ThemeConfig = {
   primary: '#3498db',
   'primary-hover': '#3498db',
   'primary-active': '#3498db',
@@ -30,10 +33,18 @@ const defaultTheme: Theme = {
   'secondary-disabled': '#3498db',
 };
 
-const THEME_ID = 'frontend_theme';
-
 export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
-  const [theme, setTheme] = useState<Theme | null>(null);
+  const {
+    isLoading: isLoadingTermsAndConditions,
+    config: termsAndConditionsConfig,
+    saveConfig,
+  } = useConfig<TermsAndConditionsConfig>('terms_and_conditions', { html: '' });
+
+  const saveTermsAndConditions = async (html: string) => {
+    await saveConfig({ html });
+  };
+
+  const [theme, setTheme] = useState<ThemeConfig | null>(null);
   const [logo, setLogo] = useState<string | null>(null);
 
   const { request, loading } = useRequest();
@@ -81,30 +92,6 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     [saveLogo],
   );
 
-  const saveThemeConfig = useCallback(async () => {
-    try {
-      await request({
-        url: `${BACKEND_BASE_URL}/${REST_END_POINTS.CONFIG.replace(':id', THEME_ID)}`,
-        method: 'PUT',
-        body: theme,
-      });
-    } catch (e) {
-      console.error('save config error', e);
-    }
-  }, [theme, request]);
-
-  const fetchTheme = useCallback(async () => {
-    try {
-      const response = await request({
-        url: `${BACKEND_BASE_URL}/${REST_END_POINTS.CONFIG.replace(':id', THEME_ID)}`,
-      });
-
-      return response;
-    } catch (e) {
-      console.error('get theme error', e);
-    }
-  }, [request]);
-
   const fetchLogo = useCallback(async () => {
     try {
       const response = await request({
@@ -132,23 +119,18 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     }
   }, [fetchLogo, request]);
 
+  const { isLoading, config: frontendThemeConfig, saveConfig: saveThemeConfig } = useConfig<ThemeConfig>('frontend_theme', defaultTheme);
+
   useEffect(() => {
-    if (loading) return;
+    if (loading || isLoading || !frontendThemeConfig) return;
 
-    async function loadTheme() {
-      const fetchedTheme = await fetchTheme();
-      setTheme(fetchedTheme || defaultTheme);
-    }
+    setTheme(frontendThemeConfig);
 
-    if (!theme) {
-      loadTheme();
-    } else {
-      const root = document.documentElement;
-      Object.entries(theme).forEach(([key, value]) => {
-        root.style.setProperty(`--color-${key}`, value);
-      });
-    }
-  }, [fetchTheme, theme, loading]);
+    const root = document.documentElement;
+    Object.entries(frontendThemeConfig).forEach(([key, value]) => {
+      root.style.setProperty(`--color-${key}`, value);
+    });
+  }, [theme, loading, isLoading, frontendThemeConfig]);
 
   useEffect(() => {
     if (!logo) {
@@ -157,7 +139,19 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   }, [logo, fetchLogo]);
 
   return (
-    <ThemeContext.Provider value={{ theme, logo, handleColorChange, saveThemeConfig, handleLogoChange, deleteLogo }}>
+    <ThemeContext.Provider
+      value={{
+        theme,
+        logo,
+        handleColorChange,
+        saveThemeConfig,
+        handleLogoChange,
+        deleteLogo,
+        isLoadingTermsAndConditions,
+        termsAndConditionsHtml: termsAndConditionsConfig!['html'], // Default makes this defined
+        saveTermsAndConditions,
+      }}
+    >
       {children}
     </ThemeContext.Provider>
   );

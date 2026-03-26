@@ -31,7 +31,7 @@ exports[`Header component renders component correctly on desktop 1`] = `
           <span
             class="LinkText"
           >
-            Availability
+            Home
           </span>
         </a>
         <a
@@ -175,7 +175,7 @@ exports[`Header component renders menu entries in the mobile menu 1`] = `
     <div
       data-testid="mobile-menu-entry"
     >
-      nav_menu.availability
+      nav_menu.home
       :
       /
     </div>
