@@ -11,6 +11,7 @@ export interface Job {
 
 export interface CommonJobData {
   type: string;
+  anonymous?: boolean;
   created_by: string | null;
   progress_percentage: number;
   progress_description?: string;

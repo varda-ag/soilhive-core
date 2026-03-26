@@ -1846,6 +1846,9 @@ components:
           type: string
           enum: [export]
           description: Job type
+        anonymous:
+          type: boolean
+          description: "Set to true to allow access without authentication"
         filter_id:
           type: string
           format: uuid
