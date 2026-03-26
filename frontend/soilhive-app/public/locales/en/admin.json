@@ -21,7 +21,9 @@
         }
     },
     "terms_and_conditions": {
-        "title": "Terms & Conditions"
+        "title": "Terms & Conditions",
+        "subtitle": "Paste a text here",
+        "save": "Save"
     },
     "map_settings": {
         "title": "Map settings"
