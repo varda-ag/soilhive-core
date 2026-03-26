@@ -23,13 +23,6 @@ const UI_SECTION = {
     { url: ADMIN_PATHS.LOOK_AND_FEEL, title: 'look_and_feel', Icon: ImageIcon },
   ],
 };
-const DATA_SECTION = {
-  title: 'data',
-  items: [
-    { url: ADMIN_PATHS.DATASETS, title: 'datasets', Icon: ServerIcon },
-    { url: ADMIN_PATHS.FILTERS, title: 'filters', Icon: FilterIcon },
-  ],
-};
 
 export function AdminSidebar() {
   const { t } = useTranslation('admin');
@@ -43,12 +36,24 @@ export function AdminSidebar() {
     navigate('/');
   }, [logout, navigate]);
 
+  const datasets = 1; // TODO: make a call to the backend to actually check how many datasets are present
+
+  const dataSection = useMemo(() => {
+    return {
+      title: 'data',
+      items: [
+        { url: datasets > 0 ? ADMIN_PATHS.DATASETS : `${ADMIN_PATHS.DATASETS}/new-dataset`, title: 'datasets', Icon: ServerIcon },
+        { url: ADMIN_PATHS.FILTERS, title: 'filters', Icon: FilterIcon },
+      ],
+    };
+  }, [datasets]);
+
   const navConfig = useMemo(() => {
     const sections = [];
     if (can(ADMIN_PORTAL_UI_MENU)) sections.push(UI_SECTION);
-    if (can(ADMIN_PORTAL_DATA_MENU)) sections.push(DATA_SECTION);
+    if (can(ADMIN_PORTAL_DATA_MENU)) sections.push(dataSection);
     return sections;
-  }, [can]);
+  }, [can, dataSection]);
 
   return (
     <aside

@@ -1,0 +1,57 @@
+.Steps {
+    display: flex;
+    gap: 49px;
+    justify-content: center;
+    // background-color: red;
+
+    .Step {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      align-items: center;
+      color: #868686;
+      text-align: center;
+
+      .Index {
+        width: 32px;
+        height: 32px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        border-radius: 90px;
+        border: 1px solid #DDDDDD;
+        color: #666666;
+        font-weight: 700;
+        font-size: 16px;
+        svg {
+          width: 24px;
+          height: 24px;
+        }
+      }
+
+      .Title {
+        font-weight: 700;
+        font-size: 16px;
+      }
+
+      .Description {
+        font-weight: 400;
+        font-size: 12px;
+      }
+
+      &.Visited {
+        .Index {
+          color: white;
+          background-color: #6F3B21;
+        }
+
+        .Title {
+          color: #6F3B21;
+        }
+
+        .Description {
+          color: black;
+        }
+      }
+    }
+}

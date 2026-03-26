@@ -1,0 +1,71 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`Steps renders matches snapshot 1`] = `
+<div>
+  <div
+    class="Steps"
+  >
+    <div
+      class="Step Visited"
+    >
+      <div
+        class="Index"
+      >
+        <svg
+          data-testid="svg-icon-mock"
+        >
+          mock-svg
+        </svg>
+      </div>
+      <div
+        class="Title"
+      >
+        Step 1
+      </div>
+      <div
+        class="Description"
+      >
+        Step 1 description
+      </div>
+    </div>
+    <div
+      class="Step Visited"
+    >
+      <div
+        class="Index"
+      >
+        2
+      </div>
+      <div
+        class="Title"
+      >
+        Step 2
+      </div>
+      <div
+        class="Description"
+      >
+        Step 2 description
+      </div>
+    </div>
+    <div
+      class="Step"
+    >
+      <div
+        class="Index"
+      >
+        3
+      </div>
+      <div
+        class="Title"
+      >
+        Step 3
+      </div>
+      <div
+        class="Description"
+      >
+        Step 3 description
+      </div>
+    </div>
+  </div>
+</div>
+`;

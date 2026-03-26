@@ -1,0 +1,16 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`DatasetsQualityCheckStep renders matches snapshot 1`] = `
+<div>
+  <div
+    class="DatasetsQualityCheckStep"
+  >
+    <h2>
+      Quality check
+    </h2>
+    <p>
+      Dataset id: 
+    </p>
+  </div>
+</div>
+`;

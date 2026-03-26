@@ -36,7 +36,32 @@
         }
     },
     "datasets": {
-        "title": "Datasets publication"
+        "title": "Datasets publication",
+        "general_info": {
+            "step_title": "General info",
+            "step_description": "Describe dataset",
+            "title": "Data preview"
+        },
+        "soil_data": {
+            "step_title": "Soil data",
+            "step_description": "Upload your files",
+            "title": "Add file/s"
+        },
+        "mappings": {
+            "step_title": "Mappings",
+            "step_description": "Match your data",
+            "title": "Map fields"
+        },
+        "preview": {
+            "step_title": "Preview",
+            "step_description": "Review data",
+            "title": "Preview"
+        },
+        "quality_check": {
+            "step_title": "Quality check",
+            "step_description": "Find data issues",
+            "title": "Quality check"
+        }
     },
     "filters": {
         "common": {
