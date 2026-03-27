@@ -3,7 +3,7 @@ import * as CookieConsent from 'vanilla-cookieconsent';
 import 'vanilla-cookieconsent/dist/cookieconsent.css';
 
 import { CONSENT_CATEGORIES, CONSENT_PARAMS, GA4_SERVICE_NAME } from '../configuration/analytics';
-import { COOKIE_DOMAIN } from '../utilities/environmentVariables';
+import { COOKIE_DOMAIN, GTM_CONTAINER_ID } from '../utilities/environmentVariables';
 import enTranslations from '../../public/locales/en/consent.json';
 import itTranslations from '../../public/locales/it/consent.json';
 import deTranslations from '../../public/locales/de/consent.json';
@@ -41,6 +41,24 @@ export const CookieConsentProvider = ({ children }: { children: ReactNode }) => 
   useEffect(() => {
     const isAnalyticsAccepted = (): boolean => CookieConsent.acceptedService(GA4_SERVICE_NAME, CONSENT_CATEGORIES.ANALYTICS);
 
+    const categories = {
+      [CONSENT_CATEGORIES.NECESSARY]: {
+        enabled: true,
+        readOnly: true,
+      },
+      ...(GTM_CONTAINER_ID && {
+        [CONSENT_CATEGORIES.ANALYTICS]: {
+          services: {
+            [GA4_SERVICE_NAME]: {
+              label: 'Google Analytics 4',
+              onAccept: () => updateGA4Consent(true),
+              onReject: () => updateGA4Consent(false),
+            },
+          },
+        },
+      }),
+    };
+
     const handleConsentUpdate = (): void => {
       const accepted = isAnalyticsAccepted();
       setAnalyticsAccepted(accepted);
@@ -67,21 +85,7 @@ export const CookieConsentProvider = ({ children }: { children: ReactNode }) => 
         },
       },
 
-      categories: {
-        [CONSENT_CATEGORIES.NECESSARY]: {
-          enabled: true,
-          readOnly: true,
-        },
-        [CONSENT_CATEGORIES.ANALYTICS]: {
-          services: {
-            [GA4_SERVICE_NAME]: {
-              label: 'Google Analytics 4',
-              onAccept: () => updateGA4Consent(true),
-              onReject: () => updateGA4Consent(false),
-            },
-          },
-        },
-      },
+      categories,
 
       language: {
         default: 'en',
