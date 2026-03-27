@@ -7,6 +7,8 @@ import { StatusCodes } from 'http-status-codes';
 import { StorageConfig } from '../interfaces/StorageConfig';
 import assert from 'assert';
 
+const FRONTEND_LOGO = 'frontend-logo';
+
 export default class ConfigService {
   putConfig = async (repo: Repository<JsonStorage>, id: string, data: any): Promise<any> => {
     await repo.upsert([{ id, data, deleted_at: null }], ['id']);
@@ -32,6 +34,22 @@ export default class ConfigService {
       output[r.id] = r.data;
     }
     return output;
+  };
+
+  getLogoFileKey = async (repo: Repository<JsonStorage>): Promise<string | undefined> => {
+    const row = await repo.findOneBy({ id: FRONTEND_LOGO });
+    if (!row) {
+      return undefined;
+    }
+    return row.data['fileKey'];
+  };
+
+  setLogoFileKey = async (repo: Repository<JsonStorage>, fileKey: string): Promise<void> => {
+    await repo.upsert([{ id: FRONTEND_LOGO, data: { fileKey }, deleted_at: null }], ['id']);
+  };
+
+  deleteLogoFileKey = async (repo: Repository<JsonStorage>): Promise<void> => {
+    await repo.softDelete({ id: FRONTEND_LOGO });
   };
 
   static getAuthConfig = (): AuthConfig => {

@@ -143,7 +143,7 @@ paths:
   /frontend/logo:
     post:
       x-eov-operation-handler: controllers/files
-      x-eov-operation-id: fileUpload
+      x-eov-operation-id: logoUpload
       summary: Upload platform logo
       tags:
         - frontend
@@ -173,8 +173,6 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
-        '409':
-          $ref: '#/components/responses/Conflict'
       security:
         - bearerAuth: [super-admin]
     get:
@@ -186,6 +184,9 @@ paths:
       responses:
         '200':
           description: Logo downloaded successfully
+        '404':
+          $ref: '#/components/responses/NotFound'
+          description: Custom logo not found
     delete:
       x-eov-operation-handler: controllers/files
       x-eov-operation-id: logoDelete

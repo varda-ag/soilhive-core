@@ -6,7 +6,6 @@ import { FileMetadata } from '../../src/interfaces/File';
 import { getTableColumns } from '../helper';
 import { getRawTableName, sanitizeField } from '../../src/utils/utils';
 import { DetectableFields } from '../../src/types/DataMapping';
-import { LOGO_FILE_ID } from '../../src/constants/constants';
 import { getEntityManager } from '../../src/utils/data-source';
 import { RequestData } from '../../src/interfaces/RequestData';
 import { Token } from '../../src/interfaces/Token';
@@ -53,15 +52,6 @@ describe('FileService', () => {
 
       expect(path.startsWith(`${year}/${month}/`)).toBeTruthy();
       expect(path.endsWith('_test_file_path.gpkg')).toBeTruthy();
-    });
-    it('uses LOGO_FILE_ID for frontend logo upload', async () => {
-      const req: any = {
-        path: '/frontend/logo',
-      };
-      const file: any = {};
-      const path = await (storage as any).destinationResolver('handle', req, file);
-
-      expect(path).toBe(LOGO_FILE_ID);
     });
   });
 
