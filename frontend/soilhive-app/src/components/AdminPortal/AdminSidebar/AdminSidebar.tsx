@@ -14,13 +14,14 @@ import { useAuthContext } from '../../../auth/AuthContextProvider';
 
 import styles from './AdminSidebar.module.scss';
 import { ADMIN_PORTAL_DATA_MENU, ADMIN_PORTAL_UI_MENU, useEntitlements } from 'hooks/useEntitlementsHook';
+import { useDatasets } from 'hooks/useDatasets';
 
 const UI_SECTION = {
   title: 'user_interface',
   items: [
-    { url: ADMIN_PATHS.TERMS_AND_CONDITIONS, title: 'terms_and_conditions', Icon: AwardIcon },
-    { url: ADMIN_PATHS.MAP, title: 'map_settings', Icon: MapPinIcon },
-    { url: ADMIN_PATHS.LOOK_AND_FEEL, title: 'look_and_feel', Icon: ImageIcon },
+    { url: ADMIN_PATHS.TERMS_AND_CONDITIONS, title: 'terms_and_conditions', Icon: AwardIcon, disabled: false },
+    { url: ADMIN_PATHS.MAP, title: 'map_settings', Icon: MapPinIcon, disabled: false },
+    { url: ADMIN_PATHS.LOOK_AND_FEEL, title: 'look_and_feel', Icon: ImageIcon, disabled: false },
   ],
 };
 
@@ -36,17 +37,22 @@ export function AdminSidebar() {
     navigate('/');
   }, [logout, navigate]);
 
-  const datasets = 1; // TODO: make a call to the backend to actually check how many datasets are present
+  const { datasets, isLoading } = useDatasets();
 
   const dataSection = useMemo(() => {
     return {
       title: 'data',
       items: [
-        { url: datasets > 0 ? ADMIN_PATHS.DATASETS : `${ADMIN_PATHS.DATASETS}/new-dataset`, title: 'datasets', Icon: ServerIcon },
-        { url: ADMIN_PATHS.FILTERS, title: 'filters', Icon: FilterIcon },
+        {
+          url: isLoading || (datasets && datasets.length > 0) ? ADMIN_PATHS.DATASETS : `${ADMIN_PATHS.DATASETS}/new-dataset`,
+          title: 'datasets',
+          Icon: ServerIcon,
+          disabled: isLoading,
+        },
+        { url: ADMIN_PATHS.FILTERS, title: 'filters', Icon: FilterIcon, disabled: false },
       ],
     };
-  }, [datasets]);
+  }, [datasets, isLoading]);
 
   const navConfig = useMemo(() => {
     const sections = [];
@@ -71,21 +77,25 @@ export function AdminSidebar() {
             <div key={title} className={styles.LinksSection}>
               <h3 className={styles.LinksSectionTitle}>{t(`sidebar.sections.${title}`)}</h3>
               <nav data-testid={`sh-admin-sidebarlinks-${title}`} className={styles.Links}>
-                {items.map(({ url, Icon, title }) => (
-                  <NavLink
-                    data-testid="sh-admin-sidebarlink"
-                    key={url}
-                    to={url}
-                    className={({ isActive }) =>
-                      classnames(styles.Link, {
-                        [styles.Active]: isActive,
-                      })
-                    }
-                  >
-                    <Icon className={styles.LinkIcon} />
-                    {!isCollapsed && <span className={styles.LinkTitle}>{t(`sidebar.menu.${title}`)}</span>}
-                  </NavLink>
-                ))}
+                {items.map(({ url, Icon, title, disabled }) => {
+                  return (
+                    <NavLink
+                      data-testid="sh-admin-sidebarlink"
+                      key={url}
+                      to={url}
+                      aria-disabled={disabled}
+                      className={({ isActive }) =>
+                        classnames(styles.Link, {
+                          [styles.Active]: isActive,
+                          [styles.NavLinkDisabled]: disabled,
+                        })
+                      }
+                    >
+                      <Icon className={styles.LinkIcon} />
+                      {!isCollapsed && <span className={styles.LinkTitle}>{t(`sidebar.menu.${title}`)}</span>}
+                    </NavLink>
+                  );
+                })}
               </nav>
             </div>
           ))}
