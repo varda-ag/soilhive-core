@@ -1,0 +1,16 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`DatasetsSoilDataStep renders matches snapshot 1`] = `
+<div>
+  <div
+    class="DatasetsSoilDataStep"
+  >
+    <h2>
+      Add file/s
+    </h2>
+    <p>
+      Dataset id: 
+    </p>
+  </div>
+</div>
+`;
