@@ -121,8 +121,10 @@ describe('Testing /files routes (local storage)', () => {
     beforeEach(() => {
       setLocalStorageRootFolder(vectorFilesPassPath);
     });
+
     it('should retrieve an existing file successfully (200)', async () => {
-      const mockStream = Readable.from(['Test stream']);
+      const json = '{"this": "must be valid JSON due to content-type detection"}';
+      const mockStream = Readable.from([json]);
 
       jest.spyOn(FileStorage.prototype, 'read').mockResolvedValue(mockStream);
       // First create a file
@@ -131,7 +133,7 @@ describe('Testing /files routes (local storage)', () => {
       // Now retrieve it
       const res = await request(app).get(`/files/${file.id}/download`).set(dataAdminAuthHeader);
       expect(res.statusCode).toBe(StatusCodes.OK);
-      expect(res.text).toBe('Test stream');
+      expect(res.text).toBe(json);
     });
 
     it('should raise error on stream error', async () => {
