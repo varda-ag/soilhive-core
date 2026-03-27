@@ -33,28 +33,32 @@ jobs:
           fi
 
   build-push-docker-backend:
-    uses: varda-ag/.github/.github/workflows/docker-build.yaml@dfbf503b1c958885bb1e71732936cc4a1d25739b # v0.2.1
+    uses: varda-ag/.github/.github/workflows/docker-build.yaml@v1.1.2
     needs:
       - image-version
     with:
       context: backend
-      imageName: soilhive-core-backend
-      imageVersion: ${{ needs.image-version.outputs.imageVersion }}
+      image-name: soilhive-core-backend
+      image-version: ${{ needs.image-version.outputs.imageVersion }}
       push: true
+      aws-role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+      aws-region: ${{ vars.AWS_REGION }}
     permissions:
       contents: read
       packages: write
       id-token: write # This is required for requesting the JWT token from OIDC
 
   build-push-docker-frontend:
-    uses: varda-ag/.github/.github/workflows/docker-build.yaml@dfbf503b1c958885bb1e71732936cc4a1d25739b # v0.2.1
+    uses: varda-ag/.github/.github/workflows/docker-build.yaml@v1.1.2
     needs:
       - image-version
     with:
       context: frontend
-      imageName: soilhive-core-frontend
-      imageVersion: ${{ needs.image-version.outputs.imageVersion }}
+      image-name: soilhive-core-frontend
+      image-version: ${{ needs.image-version.outputs.imageVersion }}
       push: true
+      aws-role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+      aws-region: ${{ vars.AWS_REGION }}
     permissions:
       contents: read
       packages: write
