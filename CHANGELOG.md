@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.57.0 (2026-03-27)
+
+## What's Changed
+* feat: :sparkles: adding cookie consent and analytics by @svaccari in https://github.com/varda-ag/soilhive-core/pull/321
+* feat: sp-5021 datasets admin layout and routes by @cristbello in https://github.com/varda-ag/soilhive-core/pull/320
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.56.1...v0.57.0
+
 ## 0.56.1 (2026-03-27)
 
 ## What's Changed
