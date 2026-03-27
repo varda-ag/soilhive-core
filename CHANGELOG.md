@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.56.1 (2026-03-27)
+
+## What's Changed
+* fix: :bug: returning logo with correct content type, removing default… by @svaccari in https://github.com/varda-ag/soilhive-core/pull/323
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.56.0...v0.56.1
+
 ## 0.56.0 (2026-03-26)
 
 ## What's Changed
