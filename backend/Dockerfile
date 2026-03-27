@@ -1,6 +1,6 @@
 ARG NODE_VERSION=22-alpine3.22
 
-FROM node:${NODE_VERSION} AS base
+FROM public.ecr.aws/docker/library/node:${NODE_VERSION} AS base
 
 # Set working directory
 WORKDIR /app
@@ -70,7 +70,7 @@ RUN chown -R nodejs:nodejs /app
 # ========================================
 # Final Stage
 # ========================================
-FROM node:${NODE_VERSION}
+FROM public.ecr.aws/docker/library/node:${NODE_VERSION}
 
 # Set working directory
 WORKDIR /app
