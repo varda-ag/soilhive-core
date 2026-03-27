@@ -5,6 +5,7 @@ import './utilities/i18n';
 import './App.module.scss';
 import AppRoutes from './Routes';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+import { CookieConsentProvider } from './components/CookieConsentProvider';
 
 export const queryClient = new QueryClient();
 
@@ -12,13 +13,15 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <NotificationProvider>
-        <AuthContextProvider>
-          <ThemeProvider>
-            <DownloadsProvider>
-              <AppRoutes />
-            </DownloadsProvider>
-          </ThemeProvider>
-        </AuthContextProvider>
+        <CookieConsentProvider>
+          <AuthContextProvider>
+            <ThemeProvider>
+              <DownloadsProvider>
+                <AppRoutes />
+              </DownloadsProvider>
+            </ThemeProvider>
+          </AuthContextProvider>
+        </CookieConsentProvider>
       </NotificationProvider>
       <ReactQueryDevtools initialIsOpen={false} />
     </QueryClientProvider>

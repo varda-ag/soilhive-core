@@ -1,0 +1,28 @@
+{
+  "consentModal": {
+    "title": "We use cookies",
+    "description": "We use cookies to analyze traffic and improve your experience. You can choose which cookies to accept.",
+    "acceptAllBtn": "Accept all",
+    "acceptNecessaryBtn": "Necessary only",
+    "showPreferencesBtn": "Manage preferences"
+  },
+  "preferencesModal": {
+    "title": "Cookie preferences",
+    "acceptAllBtn": "Accept all",
+    "acceptNecessaryBtn": "Necessary only",
+    "savePreferencesBtn": "Save preferences",
+    "closeIconLabel": "Close",
+    "sections": [
+      {
+        "title": "Necessary cookies",
+        "description": "These cookies are essential for the website to function properly and cannot be disabled.",
+        "linkedCategory": "necessary"
+      },
+      {
+        "title": "Analytics cookies",
+        "description": "These allow us to understand how users interact with the site. All data is anonymous.",
+        "linkedCategory": "analytics"
+      }
+    ]
+  }
+}
