@@ -19,7 +19,6 @@ import { StorageModes } from '../types/enums';
 import { EntityType, IngestionStatus } from '../types/data';
 import { DetectableFields } from '../types/DataMapping';
 import ConfigService from './ConfigService';
-import { LOGO_FILE_ID } from '../constants/constants';
 import FileEntity from '../entities/File';
 import assert from 'assert';
 import { getDBPassword } from '../utils/db-credentials';
@@ -55,10 +54,6 @@ export default class FileService {
     const fileStorage = new FileStorage(adapter);
     const storage = new FlystorageMulterStorageEngine(fileStorage, async (action, req, file) => {
       if (action === 'handle') {
-        if (req.path === '/frontend/logo') {
-          // Special case for logo upload
-          return LOGO_FILE_ID;
-        }
         const destination = buildDatedFileKey(file.originalname);
         const uploadedFileInfo = {
           originalname: file.originalname,
