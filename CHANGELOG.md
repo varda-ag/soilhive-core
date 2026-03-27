@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.57.1 (2026-03-27)
+
+## What's Changed
+* fix: use base images from ecr public gallery by @Butterneck in https://github.com/varda-ag/soilhive-core/pull/326
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.57.0...v0.57.1
+
 ## 0.57.0 (2026-03-27)
 
 ## What's Changed
