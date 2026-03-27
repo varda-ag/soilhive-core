@@ -9,7 +9,6 @@ import { DatasetsPublicationStepsLayout } from '../layouts/DatasetsPublicationSt
 import { DatasetsSoilDataStep } from '../pages/AdminPortal/DatasetsSoilDataStep/DatasetsSoilDataStep';
 import { DatasetsMappingsStep } from '../pages/AdminPortal/DatasetsMappingsStep/DatasetsMappingsStep';
 import { DatasetsPreviewStep } from '../pages/AdminPortal/DatasetsPreviewStep/DatasetsPreviewStep';
-import { DatasetsQualityCheckStep } from '../pages/AdminPortal/DatasetsQualityCheckStep/DatasetsQualityCheckStep';
 
 function DatasetsRoutes() {
   const { t } = useTranslation('admin');
@@ -27,7 +26,7 @@ function DatasetsRoutes() {
       />
       <Route element={<DatasetsPublicationStepsLayout />}>
         <Route
-          path={'new-dataset'}
+          path={'new'}
           element={
             <>
               <PageTitle title={`${t('page_titles.datasets')} - ${t('datasets.general_info.title')}`} />
@@ -36,7 +35,7 @@ function DatasetsRoutes() {
           }
         />
       </Route>
-      <Route path="/:id" element={<DatasetsPublicationStepsLayout />}>
+      <Route path="/edit/:id" element={<DatasetsPublicationStepsLayout />}>
         <Route index element={<Navigate to="general-info" replace />} />
         <Route
           path={'general-info'}
@@ -74,7 +73,8 @@ function DatasetsRoutes() {
             </>
           }
         />
-        <Route
+        {/* TODO: quality check step will be implemented in a future version */}
+        {/* <Route
           path={'quality-check'}
           element={
             <>
@@ -82,7 +82,7 @@ function DatasetsRoutes() {
               <DatasetsQualityCheckStep />
             </>
           }
-        />
+        /> */}
       </Route>
     </Routes>
   );

@@ -60,11 +60,7 @@ exports[`DatasetsPublicationStepsLayout renders DatasetsPublicationStepsLayout a
         <div
           class="Index"
         >
-          <svg
-            data-testid="svg-icon-mock"
-          >
-            mock-svg
-          </svg>
+          3
         </div>
         <div
           class="Title"
@@ -78,7 +74,7 @@ exports[`DatasetsPublicationStepsLayout renders DatasetsPublicationStepsLayout a
         </div>
       </div>
       <div
-        class="Step Visited"
+        class="Step"
       >
         <div
           class="Index"
@@ -94,25 +90,6 @@ exports[`DatasetsPublicationStepsLayout renders DatasetsPublicationStepsLayout a
           class="Description"
         >
           Review data
-        </div>
-      </div>
-      <div
-        class="Step"
-      >
-        <div
-          class="Index"
-        >
-          5
-        </div>
-        <div
-          class="Title"
-        >
-          Quality check
-        </div>
-        <div
-          class="Description"
-        >
-          Find data issues
         </div>
       </div>
     </div>

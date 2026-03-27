@@ -44,7 +44,7 @@ export function AdminSidebar() {
       title: 'data',
       items: [
         {
-          url: isLoading || (datasets && datasets.length > 0) ? ADMIN_PATHS.DATASETS : `${ADMIN_PATHS.DATASETS}/new-dataset`,
+          url: isLoading || (datasets && datasets.length > 0) ? ADMIN_PATHS.DATASETS : `${ADMIN_PATHS.DATASETS}/new`,
           title: 'datasets',
           Icon: ServerIcon,
           disabled: isLoading,

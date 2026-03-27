@@ -10,7 +10,8 @@ const indexMap = {
   'soil-data': 1,
   mappings: 2,
   preview: 3,
-  'quality-check': 4,
+  // TODO: quality check step will be implemented in a future version
+  // 'quality-check': 4,
 } as const;
 
 export function DatasetsPublicationStepsLayout() {
@@ -29,7 +30,8 @@ export function DatasetsPublicationStepsLayout() {
           { title: t('datasets.soil_data.step_title'), description: t('datasets.soil_data.step_description') },
           { title: t('datasets.mappings.step_title'), description: t('datasets.mappings.step_description') },
           { title: t('datasets.preview.step_title'), description: t('datasets.preview.step_description') },
-          { title: t('datasets.quality_check.step_title'), description: t('datasets.quality_check.step_description') },
+          // TODO: quality check step will be implemented in a future version
+          // { title: t('datasets.quality_check.step_title'), description: t('datasets.quality_check.step_description') },
         ]}
         currentIndex={currentIndex}
       />
