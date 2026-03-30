@@ -119,6 +119,8 @@ export default class SoilDataStorage {
 
   getSoilDataCount = async (entityManager: EntityManager, dataFilter: DataFilter, datasetSlugs: string[]): Promise<number> => {
     await entityManager.query("SET LOCAL work_mem = '256MB';");
+    // Set timeout for this specific transaction
+    await entityManager.query("SET LOCAL statement_timeout = '60s';");
     const enabledRasterFilterTables = await getEnabledRasterFilterTables();
     const { sql, params } = buildRawSoilQuery(dataFilter, datasetSlugs, { mode: 'count', enabledRasterFilterTables });
     const result = await entityManager.query(sql, params);
@@ -622,12 +624,18 @@ const buildRawSoilQuery = (
       ),`
     : '';
 
+  const aoi_subdivided_cte = hasGeometry
+    ? `aoi_subdivided AS MATERIALIZED (
+        SELECT ST_Subdivide(aoi.geom, 64) AS geom
+        FROM aoi
+      ),`
+    : '';
+
   const candidate_features_cte = hasGeometry
     ? `candidate_features AS MATERIALIZED (
-        SELECT f.id, f.geom
+        SELECT distinct f.id, f.geom
         FROM ${schema}.features f
-        CROSS JOIN aoi
-        WHERE ST_Intersects(f.geom, aoi.geom)
+        JOIN aoi_subdivided ON ST_Intersects(f.geom, aoi_subdivided.geom)
       ),`
     : '';
 
@@ -734,6 +742,7 @@ const buildRawSoilQuery = (
   const sql = `
     WITH
     ${aoi_cte}
+    ${aoi_subdivided_cte}
     ${candidate_features_cte}
     ${rasterCtes.clippedRasterCtes}
     ${rasterCtes.matchingFeaturesCte ? rasterCtes.matchingFeaturesCte + ',' : ''}
