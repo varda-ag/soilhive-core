@@ -62,7 +62,13 @@
         "general_info": {
             "step_title": "General info",
             "step_description": "Describe dataset",
-            "title": "Data preview"
+            "title": "Data preview",
+            "validation": {
+                "name_required": "Name is required",
+                "full_name_required": "Full name is required",
+                "description_required": "Description is required",
+                "author_required": "Author is required"
+            }
         },
         "soil_data": {
             "step_title": "Soil data",
