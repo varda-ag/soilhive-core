@@ -42,4 +42,28 @@ describe('Dialog', () => {
     fireEvent.click(screen.getByLabelText('Close'));
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
+
+  it('calls onCancel when cancel button is clicked', () => {
+    const onCancel = jest.fn();
+    render(
+      <Dialog {...defaultProps} onCancel={onCancel} cancelText="Cancel">
+        <p>content</p>
+      </Dialog>,
+    );
+
+    fireEvent.click(screen.getAllByTestId('sh-ui-button')[0]);
+    expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+
+  it('calls onContinue when continue button is clicked', () => {
+    const onContinue = jest.fn();
+    render(
+      <Dialog {...defaultProps} onContinue={onContinue} cancelText="Cancel">
+        <p>content</p>
+      </Dialog>,
+    );
+
+    fireEvent.click(screen.getAllByTestId('sh-ui-button')[1]);
+    expect(onContinue).toHaveBeenCalledTimes(1);
+  });
 });

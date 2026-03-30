@@ -1,69 +1,26 @@
 // Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
 
-exports[`LookAndFeelLayout renders AdminPageTabs and matches snapshot 1`] = `
+exports[`LookAndFeelLayout renders component and matches snapshot 1`] = `
 <div>
   <div
-    class="Layout"
+    data-testid="look-and-feel-provider"
   >
     <div
-      data-testid="admin-page-tabs"
+      class="Layout"
     >
-      <button
-        data-testid="tabs-onchange-trigger"
-      >
-        trigger tab change
-      </button>
       <div
-        data-testid="tabs-active-tab"
+        data-testid="look-and-feel-tabs"
       >
-        /adminportal/look-and-feel/logo
+        LookAndFeelTabs component
       </div>
-      <div
-        data-testid="tabs-values"
-      >
-        <div>
-          /adminportal/look-and-feel/logo
-          :
-          Logo
-        </div>
-        <div>
-          /adminportal/look-and-feel/colors
-          :
-          Customize colors
-        </div>
-      </div>
-      <div
-        data-testid="tabs-children"
+      <main
+        class="Content"
       >
         <div
-          class="Actions"
-        >
-          <button
-            data-testid="sh-lookandfeel-cancel"
-          >
-            Cancel
-          </button>
-          <button
-            data-testid="sh-lookandfeel-publish"
-          >
-            <svg
-              data-testid="svg-icon-mock"
-            >
-              mock-svg
-            </svg>
-             
-            Publish
-          </button>
-        </div>
-      </div>
+          data-testid="outlet"
+        />
+      </main>
     </div>
-    <main
-      class="Content"
-    >
-      <div
-        data-testid="outlet"
-      />
-    </main>
   </div>
 </div>
 `;

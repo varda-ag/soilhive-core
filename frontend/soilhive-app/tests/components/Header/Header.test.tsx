@@ -61,10 +61,13 @@ jest.mock('components/AccountWidget/LoginButton/LoginButton', () => ({
   LoginButton: () => <div data-testid="login-button-mock">Login Button</div>,
 }));
 
+jest.mock('components/Logo/Logo', () => ({
+  Logo: () => <div data-testid="sh-header-logo">Logo component</div>,
+}));
+
 describe('Header component', () => {
   beforeEach(() => {
     (useTheme as jest.Mock).mockReturnValue({
-      logo: 'logo.png',
       isLoadingTermsAndConditions: false,
       termsAndConditionsHtml: '<div>Mock</div>',
     });
@@ -87,9 +90,6 @@ describe('Header component', () => {
     );
 
     expect(screen.getByTestId('sh-header-logo')).toBeInTheDocument();
-
-    const image = screen.getByAltText('Logo');
-    expect((image as HTMLImageElement).src).toContain('logo.png');
 
     expect(screen.getByTestId('sh-header-nav')).toBeInTheDocument();
     expect(screen.getByTestId('downloads-status-mock')).toBeInTheDocument();

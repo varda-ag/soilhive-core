@@ -1,0 +1,142 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`UploadLogo renders LogoPreview when preview logo exists 1`] = `
+<div>
+  <div
+    class="UploadLogo"
+  >
+    <div
+      class="FileUploadBoxWrapper Hidden"
+    >
+      <p
+        class="Label"
+      >
+        Your picture will appear in the header
+      </p>
+      <div
+        data-testid="file-upload-box"
+      >
+        <button
+          data-testid="file-upload-valid"
+        >
+          valid file
+        </button>
+        <button
+          data-testid="file-upload-invalid"
+        >
+          invalid file
+        </button>
+      </div>
+    </div>
+    <div
+      data-testid="logo-preview"
+    >
+      <div
+        data-testid="logo-preview-src"
+      >
+        preview-logo.png
+      </div>
+      <div
+        data-testid="logo-preview-actual"
+      >
+        false
+      </div>
+      <div
+        data-testid="logo-preview-error"
+      >
+        null
+      </div>
+      <button
+        data-testid="logo-preview-change"
+      >
+        change
+      </button>
+      <button
+        data-testid="logo-preview-delete"
+      >
+        delete
+      </button>
+    </div>
+    <div
+      data-testid="crop-logo-modal"
+    >
+      <div
+        data-testid="crop-modal-opened"
+      >
+        false
+      </div>
+      <div
+        data-testid="crop-modal-image"
+      >
+        null
+      </div>
+      <button
+        data-testid="crop-confirm"
+      >
+        crop confirm
+      </button>
+      <button
+        data-testid="crop-cancel"
+      >
+        crop cancel
+      </button>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`UploadLogo renders upload state without preview logo 1`] = `
+<div>
+  <div
+    class="UploadLogo"
+  >
+    <div
+      class="FileUploadBoxWrapper"
+    >
+      <p
+        class="Label"
+      >
+        Your picture will appear in the header
+      </p>
+      <div
+        data-testid="file-upload-box"
+      >
+        <button
+          data-testid="file-upload-valid"
+        >
+          valid file
+        </button>
+        <button
+          data-testid="file-upload-invalid"
+        >
+          invalid file
+        </button>
+      </div>
+    </div>
+    <div
+      data-testid="crop-logo-modal"
+    >
+      <div
+        data-testid="crop-modal-opened"
+      >
+        false
+      </div>
+      <div
+        data-testid="crop-modal-image"
+      >
+        null
+      </div>
+      <button
+        data-testid="crop-confirm"
+      >
+        crop confirm
+      </button>
+      <button
+        data-testid="crop-cancel"
+      >
+        crop cancel
+      </button>
+    </div>
+  </div>
+</div>
+`;

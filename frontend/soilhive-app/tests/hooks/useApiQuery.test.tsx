@@ -109,6 +109,7 @@ describe('useApiQuery', () => {
       url: 'http://test.url/test?status=created',
       method: 'POST',
       body: { foo: 'bar' },
+      isBlobResponse: false,
     });
   });
 

@@ -1,0 +1,44 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`CropModal renders dialog and matches snapshot 1`] = `
+<div>
+  <div
+    data-testid="dialog"
+  >
+    <div
+      data-testid="dialog-header"
+    >
+      Crop logo
+    </div>
+    <button
+      data-testid="dialog-continue"
+    >
+      continue
+    </button>
+    <button
+      data-testid="dialog-cancel"
+    >
+      cancel
+    </button>
+    <div
+      style="position: relative; width: 504px; height: 294px;"
+    >
+      <div
+        data-testid="cropper"
+      />
+    </div>
+    <div
+      class="ZoomBlock"
+    >
+      <p>
+        Zoom
+      </p>
+      <button
+        data-testid="range-slider"
+      >
+        range-slider
+      </button>
+    </div>
+  </div>
+</div>
+`;
