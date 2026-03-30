@@ -7,7 +7,7 @@ import { useTranslation } from 'react-i18next';
 import styles from './ThemeConfig.module.scss';
 
 export function ThemeConfig() {
-  const { theme, logo, handleColorChange, handleLogoChange, saveThemeConfig, deleteLogo } = useTheme();
+  const { themeConfig, logo, handleLogoChange, deleteLogo } = useTheme();
   const { t } = useTranslation('common');
 
   return (
@@ -16,7 +16,7 @@ export function ThemeConfig() {
 
       <div className={styles.Section}>
         {config.map(({ label, name }) => {
-          return <ThemeColorField key={name} label={label} initialValue={theme?.[name]} name={name} onChange={handleColorChange} />;
+          return <ThemeColorField key={name} label={label} initialValue={themeConfig?.colors?.[name]} name={name} onChange={() => {}} />;
         })}
         <div className={styles.FlexRow}>
           <label htmlFor="logo">{t('theme_config.logo_label')} </label>
@@ -29,7 +29,7 @@ export function ThemeConfig() {
       </div>
 
       <div>
-        <Button onClick={saveThemeConfig}>{t('theme_config.save')}</Button>
+        <Button onClick={() => {}}>{t('theme_config.save')}</Button>
       </div>
     </div>
   );

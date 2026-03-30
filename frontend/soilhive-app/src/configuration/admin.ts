@@ -2,7 +2,7 @@ export const ADMIN_ROOT = '/admin';
 
 export const ADMIN_ROUTES = {
   TERMS_AND_CONDITIONS: 'terms-and-conditions',
-  MAP: 'map',
+  MAP: 'map-settings',
   LOOK_AND_FEEL: 'look-and-feel',
   DATASETS: 'datasets',
   FILTERS: 'filters',

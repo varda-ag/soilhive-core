@@ -1,2 +1,40 @@
-.MapSettings {
+.Layout {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 3rem;
+}
+
+.Content {
+  background: var(--color-neutral-white);
+  border-radius: 8px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  box-shadow: var(--shadow-interface);
+}
+
+.Content button {
+  align-self: flex-end;
+}
+
+.Map {
+  position: relative;
+  width: 80%;
+  aspect-ratio: 16 / 9;
+  border-radius: 8px;
+  overflow: hidden;
+
+  > button {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    padding: 0 !important;
+
+    > svg {
+      width: 28px;
+      height: 28px;
+    }
+  }
 }

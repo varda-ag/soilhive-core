@@ -17,6 +17,7 @@ import { useFilteredDatasets } from 'hooks/useFilteredDatasets';
 import { useSoilProperties } from '../hooks/useSoilProperties';
 import { usePropertiesCategories } from 'hooks/usePropertiesCategories';
 import { useRaster } from 'hooks/useRaster';
+import useTheme from '../hooks/useTheme';
 
 type MapSelection = { type: string; features: GeoJSON.GeoJSON[] };
 
@@ -88,9 +89,10 @@ type AvailabilityProviderProps = {
 const emptySelection: MapSelection = { type: 'FeatureCollection', features: [] };
 
 export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ children }) => {
+  const { themeConfig } = useTheme();
   const [selectionType, setSelectionType] = useState<'h3-cell' | 'drawn-polygon' | 'country'>('drawn-polygon');
   const [locationName, setLocationName] = useState<string>();
-  const [boundingBox, setBoundingBox] = useState<[number, number, number, number]>([6.6272658, 35.2889616, 18.7844746, 47.0921462]);
+  const [boundingBox, setBoundingBox] = useState<[number, number, number, number]>(themeConfig.initialBbox);
   const [selectedDatasets, setSelectedDatasets] = useState<string[]>([]);
   const [searchValue, setSearchValue] = useState<string>('');
   const [datasetFrontendFilters, setDatasetFrontendFilters] = useState<DatasetFrontendFilters>({

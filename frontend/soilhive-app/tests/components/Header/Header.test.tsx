@@ -65,8 +65,8 @@ describe('Header component', () => {
   beforeEach(() => {
     (useTheme as jest.Mock).mockReturnValue({
       logo: 'logo.png',
-      isLoadingTermsAndConditions: false,
-      termsAndConditionsHtml: '<div>Mock</div>',
+      isLoadingThemeConfig: false,
+      themeConfig: { termsAndConditionsHtml: '<div>Mock</div>' },
     });
     (useDevice as jest.Mock).mockReturnValue({ isDesktopLayout: true });
 
@@ -182,8 +182,8 @@ describe('Header component', () => {
     expect(container).toMatchSnapshot();
   });
 
-  it.each([false, true])('Conditionally renders the Legal nav link according to loading state', (isLoadingTermsAndConditions: boolean) => {
-    (useTheme as jest.Mock).mockReturnValue({ isLoadingTermsAndConditions, termsAndConditionsHtml: 'mock' });
+  it.each([false, true])('Conditionally renders the Legal nav link according to loading state', (isLoadingThemeConfig: boolean) => {
+    (useTheme as jest.Mock).mockReturnValue({ isLoadingThemeConfig, themeConfig: { termsAndConditionsHtml: 'mock' } });
 
     render(
       <MemoryRouter initialEntries={['/']}>
@@ -192,7 +192,7 @@ describe('Header component', () => {
     );
 
     const element = screen.queryByText('Legal');
-    if (isLoadingTermsAndConditions) {
+    if (isLoadingThemeConfig) {
       expect(element).not.toBeInTheDocument();
     } else {
       expect(element).toBeInTheDocument();

@@ -2,18 +2,17 @@ import React, { createContext, useState, useEffect, type ReactNode, useCallback 
 import { useRequest } from '../api-client';
 import useConfig from '../hooks/useConfig';
 import { BACKEND_BASE_URL, REST_END_POINTS } from '../configuration/api';
-import type { TermsAndConditionsConfig, ThemeConfig } from '../types/config';
+import type { ThemeColors, ThemeConfig } from '../types/config';
 
 type ThemeContextType = {
-  theme: ThemeConfig | null;
+  themeConfig: ThemeConfig;
   logo: string | null;
-  handleColorChange: (name: string, value: string) => void;
   handleLogoChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
-  saveThemeConfig: (newConfig: ThemeConfig) => Promise<void>;
   deleteLogo: () => void;
-  isLoadingTermsAndConditions: boolean;
-  termsAndConditionsHtml: string;
-  saveTermsAndConditions: (newConfig: string) => Promise<void>;
+  isLoadingThemeConfig: boolean;
+  saveColors: (colors: ThemeColors) => Promise<void>;
+  saveInitialBbox: (initialBbox: number[]) => Promise<void>;
+  saveTermsAndConditions: (termsAndConditionsHtml: string) => Promise<void>;
 };
 
 export const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -22,7 +21,7 @@ type ThemeProviderProps = {
   children: ReactNode;
 };
 
-const defaultTheme: ThemeConfig = {
+const defaultColors: ThemeColors = {
   primary: '#3498db',
   'primary-hover': '#3498db',
   'primary-active': '#3498db',
@@ -33,31 +32,39 @@ const defaultTheme: ThemeConfig = {
   'secondary-disabled': '#3498db',
 };
 
-export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
-  const {
-    isLoading: isLoadingTermsAndConditions,
-    config: termsAndConditionsConfig,
-    saveConfig,
-  } = useConfig<TermsAndConditionsConfig>('terms_and_conditions', { html: '' });
+const defaultThemeConfig: ThemeConfig = {
+  colors: defaultColors,
+  termsAndConditionsHtml: '',
+  initialBbox: [6.6272658, 35.2889616, 18.7844746, 47.0921462],
+};
 
-  const saveTermsAndConditions = async (html: string) => {
-    await saveConfig({ html });
+export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
+  const { isLoading: isLoadingThemeConfig, config: themeConfig, saveConfig } = useConfig<ThemeConfig>('theme', defaultThemeConfig);
+
+  const saveColors = async (colors: ThemeColors) => {
+    await saveConfig({
+      ...themeConfig,
+      colors,
+    });
   };
 
-  const [theme, setTheme] = useState<ThemeConfig | null>(null);
+  const saveInitialBbox = async (initialBbox: number[]) => {
+    await saveConfig({
+      ...themeConfig,
+      initialBbox,
+    });
+  };
+
+  const saveTermsAndConditions = async (termsAndConditionsHtml: string) => {
+    await saveConfig({
+      ...themeConfig,
+      termsAndConditionsHtml,
+    });
+  };
+
   const [logo, setLogo] = useState<string | null>(null);
 
   const { request, loading } = useRequest();
-
-  const handleColorChange = useCallback(
-    (name: string, value: string) => {
-      setTheme({
-        ...theme,
-        [name]: value,
-      });
-    },
-    [theme],
-  );
 
   const saveLogo = useCallback(
     async (selectedFile: File) => {
@@ -119,18 +126,14 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     }
   }, [fetchLogo, request]);
 
-  const { isLoading, config: frontendThemeConfig, saveConfig: saveThemeConfig } = useConfig<ThemeConfig>('frontend_theme', defaultTheme);
-
   useEffect(() => {
-    if (loading || isLoading || !frontendThemeConfig) return;
-
-    setTheme(frontendThemeConfig);
+    if (loading || isLoadingThemeConfig || !themeConfig) return;
 
     const root = document.documentElement;
-    Object.entries(frontendThemeConfig).forEach(([key, value]) => {
+    Object.entries(themeConfig.colors).forEach(([key, value]) => {
       root.style.setProperty(`--color-${key}`, value);
     });
-  }, [theme, loading, isLoading, frontendThemeConfig]);
+  }, [themeConfig, loading, isLoadingThemeConfig]);
 
   useEffect(() => {
     if (!logo) {
@@ -141,15 +144,14 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   return (
     <ThemeContext.Provider
       value={{
-        theme,
+        themeConfig: themeConfig!,
         logo,
-        handleColorChange,
-        saveThemeConfig,
+        saveColors,
+        saveInitialBbox,
+        saveTermsAndConditions,
         handleLogoChange,
         deleteLogo,
-        isLoadingTermsAndConditions,
-        termsAndConditionsHtml: termsAndConditionsConfig!['html'], // Default makes this defined
-        saveTermsAndConditions,
+        isLoadingThemeConfig,
       }}
     >
       {children}

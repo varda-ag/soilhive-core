@@ -8,13 +8,13 @@ import useTheme from '../../../hooks/useTheme';
 
 export function TermsAndConditions() {
   const { t } = useTranslation('admin');
-  const { isLoadingTermsAndConditions, termsAndConditionsHtml, saveTermsAndConditions } = useTheme();
-  const [html, setHtml] = useState(termsAndConditionsHtml);
+  const { isLoadingThemeConfig, themeConfig, saveTermsAndConditions } = useTheme();
+  const [html, setHtml] = useState(themeConfig.termsAndConditionsHtml);
   const onSave = useCallback(() => {
     saveTermsAndConditions(html);
   }, [saveTermsAndConditions, html]);
 
-  if (isLoadingTermsAndConditions) {
+  if (isLoadingThemeConfig) {
     return <Skeleton></Skeleton>;
   }
   return (

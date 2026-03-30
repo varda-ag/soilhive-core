@@ -19,8 +19,8 @@ export const queryClient = new QueryClient();
 
 function AppRoutes() {
   const { t } = useTranslation('common');
-  const { isLoadingTermsAndConditions, termsAndConditionsHtml } = useTheme();
-  if (isLoadingTermsAndConditions) {
+  const { isLoadingThemeConfig, themeConfig } = useTheme();
+  if (isLoadingThemeConfig) {
     return <div></div>;
   }
   return (
@@ -36,7 +36,7 @@ function AppRoutes() {
               </>
             }
           />
-          {!!termsAndConditionsHtml && (
+          {!!themeConfig.termsAndConditionsHtml && (
             <Route
               path="/legal"
               element={

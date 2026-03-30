@@ -10,13 +10,13 @@ function htmlDisplay(html: string) {
 }
 
 export default function Legal() {
-  const { isLoadingTermsAndConditions, termsAndConditionsHtml } = useTheme();
-  if (isLoadingTermsAndConditions) {
+  const { isLoadingThemeConfig, themeConfig } = useTheme();
+  if (isLoadingThemeConfig) {
     return <Skeleton></Skeleton>;
   }
   return (
     <div className={styles.Layout}>
-      <main className={styles.Content}>{htmlDisplay(termsAndConditionsHtml)}</main>
+      <main className={styles.Content}>{htmlDisplay(themeConfig.termsAndConditionsHtml)}</main>
     </div>
   );
 }
