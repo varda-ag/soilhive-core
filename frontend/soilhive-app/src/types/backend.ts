@@ -192,3 +192,10 @@ export interface License {
   created_at: Date;
   updated_at: Date | null;
 }
+
+export interface GeneralInfoFormData {
+  name: string;
+  full_name: string;
+  description: string;
+  author: string;
+}
