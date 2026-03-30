@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.57.2 (2026-03-30)
+
+## What's Changed
+* fix(be): sp-5015 getSoilData query rewrite without typeorm by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/322
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.57.1...v0.57.2
+
 ## 0.57.1 (2026-03-27)
 
 ## What's Changed
