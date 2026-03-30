@@ -67,7 +67,7 @@ export default class JobService {
   deleteJobById = async (requestData: RequestData, jobId: string) => {
     const { sub } = requestData.token ?? {};
     const job = await this.getJobById(requestData, jobId);
-    if (sub && job.data.created_by !== sub) {
+    if (sub && job.data.created_by && job.data.created_by !== sub) {
       throw new ErrorResponse('Unauthorized to delete this job', StatusCodes.UNAUTHORIZED);
     }
     await this.boss.cancel(job.queue, jobId);
