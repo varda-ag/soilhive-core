@@ -13,6 +13,8 @@ export async function processBulkDeletion(job: Job<BulkDeleteJob>): Promise<void
   const requestData = { entityManager, token };
   const datasetId = (await datasetService.getDataset(requestData, data.dataset_id)).id;
 
+  await datasetService.deleteDataset(requestData, data.dataset_id); // First set dataset as deleted
+  // Then, remove linked entities in a separate transaction
   await entityManager.transaction(async manager => {
     await manager.query(`SET LOCAL statement_timeout = '5min'`);
     const chunkSize = 1000;
@@ -23,6 +25,8 @@ export async function processBulkDeletion(job: Job<BulkDeleteJob>): Promise<void
       .where('dl.dataset_id = :datasetId', { datasetId })
       .limit(chunkSize)
       .getQuery();
+
+    const schema = process.env.POSTGRES_SCHEMA;
 
     while (true) {
       const deleted = await manager
@@ -43,10 +47,10 @@ export async function processBulkDeletion(job: Job<BulkDeleteJob>): Promise<void
       if (featureIds.length > 0) {
         await manager.query(
           `
-          DELETE FROM features f
+          DELETE FROM  "${schema}".features f
           WHERE f.id = ANY($1)
           AND NOT EXISTS (
-            SELECT 1 FROM dataset_layers dl
+            SELECT 1 FROM "${schema}".dataset_layers dl
             WHERE dl.feature_id = f.id
           )
           `,
@@ -57,10 +61,10 @@ export async function processBulkDeletion(job: Job<BulkDeleteJob>): Promise<void
       if (layerIds.length > 0) {
         await manager.query(
           `
-          DELETE FROM layers l
+          DELETE FROM "${schema}".layers l
           WHERE l.id = ANY($1)
           AND NOT EXISTS (
-            SELECT 1 FROM dataset_layers dl
+            SELECT 1 FROM "${schema}".dataset_layers dl
             WHERE dl.layer_id = l.id
           )
           `,
@@ -68,8 +72,5 @@ export async function processBulkDeletion(job: Job<BulkDeleteJob>): Promise<void
         );
       }
     }
-
-    const scopedRequestData = { ...requestData, entityManager: manager };
-    await datasetService.deleteDataset(scopedRequestData, data.dataset_id);
   });
 }
