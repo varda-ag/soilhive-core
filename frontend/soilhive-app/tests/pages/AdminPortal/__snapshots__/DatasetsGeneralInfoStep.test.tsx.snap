@@ -89,7 +89,8 @@ exports[`DatasetsGeneralInfoStep renders matches snapshot 1`] = `
           </div>
         </label>
         <label
-          class="TextAreaLabel"
+          class="Label Small"
+          data-testid="sh-ui-label"
         >
           <div
             class="LabelText"
@@ -103,24 +104,25 @@ exports[`DatasetsGeneralInfoStep renders matches snapshot 1`] = `
               *
             </span>
           </div>
-          <textarea
-            class="TextArea"
-            data-testid="sh-general-info-description"
-            maxlength="200"
-            name="description"
-            rows="5"
-          />
           <div
-            class="TextAreaFooter"
+            class="TextArea"
+            data-testid="sh-ui-textarea"
           >
-            <span
-              class="CharCount"
-            >
-              200
-               
-              symbols left
-            </span>
+            <textarea
+              class="TextAreaField"
+              data-testid="sh-ui-textareafield"
+              maxlength="200"
+              name="description"
+              placeholder=""
+              rows="5"
+            />
           </div>
+          <span
+            class="Counter"
+            data-testid="sh-ui-textarea-counter"
+          >
+            200 symbols left
+          </span>
         </label>
         <label
           class="Label Small"

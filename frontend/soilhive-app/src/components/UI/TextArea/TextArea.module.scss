@@ -1,0 +1,49 @@
+.TextArea {
+  display: flex;
+  width: 100%;
+  border: 1px solid var(--color-neutral-dark-100);
+  border-radius: 4px;
+  background-color: var(--color-neutral-white);
+  transition: border-color 0.15s ease;
+  box-sizing: border-box;
+
+  &.Focused {
+    border-color: var(--color-brand-green-1000);
+  }
+
+  &.Invalid {
+    border-color: var(--color-accent-danger-1000);
+  }
+
+  &.Disabled,
+  &.ReadOnly {
+    background-color: var(--color-neutral-light);
+    cursor: not-allowed;
+  }
+}
+
+.TextAreaField {
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  outline: none;
+  resize: vertical;
+  font-size: var(--font-size-sm);
+  font-family: inherit;
+  line-height: var(--line-height-md);
+  color: var(--color-text-primary);
+  background: transparent;
+  box-sizing: border-box;
+
+  &:disabled {
+    cursor: not-allowed;
+  }
+}
+
+.Counter {
+  display: block;
+  text-align: right;
+  font-size: var(--font-size-xs);
+  color: var(--color-neutral-dark-400);
+  margin-top: 4px;
+}

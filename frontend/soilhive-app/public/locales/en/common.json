@@ -70,5 +70,7 @@
             "title": "Drag and drop a file here or <span>browse</span>",
             "uploading": "Uploading"
         }
-    }
+    },
+    "symbols_left": "symbols left",
+    "symbols": "symbols"
 }

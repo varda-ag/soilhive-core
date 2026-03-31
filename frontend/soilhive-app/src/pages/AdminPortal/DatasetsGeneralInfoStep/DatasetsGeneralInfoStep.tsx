@@ -1,8 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router';
-import classnames from 'classnames';
-import { Button, FormMessage } from 'components/UI';
-import { TextInput } from 'components/UI';
+import { Button, FormMessage, TextInput, TextArea } from 'components/UI';
 import { useGeneralInfoForm } from 'hooks/useGeneralInfoForm';
 import InfoSquareIcon from 'assets/icons/info-square-icon.svg?react';
 import styles from './DatasetsGeneralInfoStep.module.scss';
@@ -63,27 +61,18 @@ export function DatasetsGeneralInfoStep() {
               onChange={value => handleChange('full_name', value)}
             />
 
-            <label className={classnames(styles.TextAreaLabel, { [styles.Invalid]: !!errors.description })}>
-              <div className={styles.LabelText}>
-                <span>{t('datasets.general_info.fields.description')}</span>
-                <span className={styles.RequiredMark}>*</span>
-              </div>
-              <textarea
-                data-testid="sh-general-info-description"
-                className={classnames(styles.TextArea, { [styles.Invalid]: !!errors.description })}
-                name="description"
-                value={formData.description}
-                maxLength={descriptionMaxLength}
-                rows={5}
-                onChange={e => handleChange('description', e.target.value)}
-              />
-              <div className={styles.TextAreaFooter}>
-                {errors.description && <FormMessage type="error" message={errors.description} />}
-                <span className={styles.CharCount}>
-                  {descriptionMaxLength - formData.description.length} {t('datasets.general_info.fields.symbols_left')}
-                </span>
-              </div>
-            </label>
+            <TextArea
+              label={t('datasets.general_info.fields.description')}
+              name="description"
+              value={formData.description}
+              isRequired
+              isError={!!errors.description}
+              errorMessage={errors.description}
+              maxLength={descriptionMaxLength}
+              showCounter
+              rows={5}
+              onChange={value => handleChange('description', value)}
+            />
 
             <TextInput
               label={t('datasets.general_info.fields.author')}
