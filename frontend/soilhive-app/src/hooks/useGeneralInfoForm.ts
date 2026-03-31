@@ -5,7 +5,6 @@ import type { Dataset, GeneralInfoFormData } from 'types/backend';
 import { useDataset } from './useDatasets';
 import { useCreateDatasetMutation } from './useCreateDatasetMutation';
 import { useUpdateDatasetMutation } from './useUpdateDatasetMutation';
-import { useTranslation } from '../../tests/__mocks__/react-i18next';
 
 const DESCRIPTION_MAX_LENGTH = 200;
 
@@ -16,9 +15,10 @@ const EMPTY_FORM: GeneralInfoFormData = {
   author: '',
 };
 
+type ValidationMessages = Record<keyof GeneralInfoFormData, string>;
 type ValidationErrors = Partial<Record<keyof GeneralInfoFormData, string>>;
 
-export function useGeneralInfoForm(id: string | undefined) {
+export function useGeneralInfoForm(id: string | undefined, validationMessages: ValidationMessages) {
   const navigate = useNavigate();
   const [formData, setFormData] = useState<GeneralInfoFormData>(EMPTY_FORM);
   const [errors, setErrors] = useState<ValidationErrors>({});
@@ -28,14 +28,12 @@ export function useGeneralInfoForm(id: string | undefined) {
   const { mutateAsync: createDataset, isPending: isCreating } = useCreateDatasetMutation();
   const { mutateAsync: updateDataset, isPending: isUpdating } = useUpdateDatasetMutation(id ?? '');
 
-  const { t } = useTranslation('admin');
-
   function validate(data: GeneralInfoFormData): ValidationErrors {
     const errors: ValidationErrors = {};
-    if (!data.name.trim()) errors.name = t('datasets.general_info.validation.name_required');
-    if (!data.full_name.trim()) errors.full_name = t('datasets.general_info.validation.full_name_required');
-    if (!data.description.trim()) errors.description = t('datasets.general_info.validation.description_required');
-    if (!data.author.trim()) errors.author = t('datasets.general_info.validation.author_required');
+    if (!data.name.trim()) errors.name = validationMessages.name; /* <-- CHANGE */
+    if (!data.full_name.trim()) errors.full_name = validationMessages.full_name; /* <-- CHANGE */
+    if (!data.description.trim()) errors.description = validationMessages.description; /* <-- CHANGE */
+    if (!data.author.trim()) errors.author = validationMessages.author; /* <-- CHANGE */
     return errors;
   }
 

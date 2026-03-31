@@ -24,6 +24,10 @@ jest.mock('../../src/pages/AdminPortal', () => ({
   MapSettings: () => <div>MapSettings page</div>,
 }));
 
+jest.mock('../../src/pages/AdminPortal/DatasetsGeneralInfoStep/DatasetsGeneralInfoStep', () => ({
+  DatasetsGeneralInfoStep: () => <div>DatasetsGeneralInfoStep page</div>,
+}));
+
 function renderWithRouter(initialPath = ADMIN_ROOT) {
   return render(
     <MemoryRouter initialEntries={[initialPath]}>

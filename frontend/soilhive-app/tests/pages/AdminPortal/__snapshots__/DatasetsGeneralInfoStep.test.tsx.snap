@@ -5,12 +5,186 @@ exports[`DatasetsGeneralInfoStep renders matches snapshot 1`] = `
   <div
     class="DatasetsGeneralInfoStep"
   >
-    <h2>
+    <h2
+      class="PageTitle"
+    >
       Data preview
     </h2>
-    <p>
-      Dataset id: 
-    </p>
+    <div
+      class="Card"
+    >
+      <div
+        class="CardHeader"
+      >
+        <div
+          data-testid="info-square-icon"
+        />
+        <h3
+          class="CardTitle"
+        >
+          General
+        </h3>
+      </div>
+      <div
+        class="Form"
+      >
+        <label
+          class="Label Small"
+          data-testid="sh-ui-label"
+        >
+          <div
+            class="LabelText"
+          >
+            <span>
+              Name
+            </span>
+            <span
+              class="RequiredMark"
+            >
+              *
+            </span>
+          </div>
+          <div
+            class="TextInput Small"
+            data-testid="sh-ui-textinput"
+          >
+            <input
+              class="InputField"
+              data-testid="sh-ui-textinputfield"
+              name="name"
+              placeholder=""
+              type="text"
+              value=""
+            />
+          </div>
+        </label>
+        <label
+          class="Label Small"
+          data-testid="sh-ui-label"
+        >
+          <div
+            class="LabelText"
+          >
+            <span>
+              Full name
+            </span>
+            <span
+              class="RequiredMark"
+            >
+              *
+            </span>
+          </div>
+          <div
+            class="TextInput Small"
+            data-testid="sh-ui-textinput"
+          >
+            <input
+              class="InputField"
+              data-testid="sh-ui-textinputfield"
+              name="full_name"
+              placeholder=""
+              type="text"
+              value=""
+            />
+          </div>
+        </label>
+        <label
+          class="TextAreaLabel"
+        >
+          <div
+            class="LabelText"
+          >
+            <span>
+              Description
+            </span>
+            <span
+              class="RequiredMark"
+            >
+              *
+            </span>
+          </div>
+          <textarea
+            class="TextArea"
+            data-testid="sh-general-info-description"
+            maxlength="200"
+            name="description"
+            rows="5"
+          />
+          <div
+            class="TextAreaFooter"
+          >
+            <span
+              class="CharCount"
+            >
+              200
+               
+              symbols left
+            </span>
+          </div>
+        </label>
+        <label
+          class="Label Small"
+          data-testid="sh-ui-label"
+        >
+          <div
+            class="LabelText"
+          >
+            <span>
+              Author
+            </span>
+            <span
+              class="RequiredMark"
+            >
+              *
+            </span>
+          </div>
+          <div
+            class="TextInput Small"
+            data-testid="sh-ui-textinput"
+          >
+            <input
+              class="InputField"
+              data-testid="sh-ui-textinputfield"
+              name="author"
+              placeholder=""
+              type="text"
+              value=""
+            />
+          </div>
+          <div
+            class="FormMessage InfoMessage"
+            data-testid="sh-form-message"
+          >
+            <div
+              data-testid="info-square-icon"
+            />
+            <span
+              class="FormMessageText"
+            >
+              If you are not affiliated with any organization, you may enter “Independent Professional”.
+            </span>
+          </div>
+        </label>
+      </div>
+    </div>
+  </div>
+  <div
+    class="Actions"
+  >
+    <button
+      class="Button Secondary Small"
+      data-testid="sh-general-info-save-later"
+      type="button"
+    >
+      Save and continue later
+    </button>
+    <button
+      class="Button Primary Small"
+      data-testid="sh-general-info-continue"
+      type="button"
+    >
+      Continue
+    </button>
   </div>
 </div>
 `;
