@@ -18,6 +18,7 @@ import { useSoilProperties } from '../hooks/useSoilProperties';
 import { usePropertiesCategories } from 'hooks/usePropertiesCategories';
 import { useRaster } from 'hooks/useRaster';
 import useTheme from '../hooks/useTheme';
+import { bboxPolygon } from '@turf/turf';
 
 type MapSelection = { type: string; features: GeoJSON.GeoJSON[] };
 
@@ -108,7 +109,7 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
   const [showDrawControl, setShowDrawControl] = useState(false);
   const [showSelectionToolbar, setShowSelectionToolbar] = useState(false);
 
-  const [geometryFilter, setGeometryFilter] = useState<(Polygon | MultiPolygon)[]>([]);
+  const [geometryFilter, setGeometryFilter] = useState<(Polygon | MultiPolygon)[]>([bboxPolygon(boundingBox).geometry]);
   const [datasetFilters, setDatasetFilters] = useState<FilterCriteria>({});
   const { data: categories, isLoading: isLoadingCategories } = usePropertiesCategories();
   const { data: allSoilProperties, isLoading: isLoadingSoilProperties } = useSoilProperties();
