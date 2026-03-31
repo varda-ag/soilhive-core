@@ -174,7 +174,6 @@ describe('Availability', () => {
     const mockEvent: SoilhiveMapSelectionChangeEvent = {
       bounds: [6.0, 35.0, 18.0, 47.0],
       geometries,
-      zoomLevel: 10,
       selectionType: 'drawn-polygon',
     };
 
@@ -195,7 +194,6 @@ describe('Availability', () => {
     const mockEvent: SoilhiveMapSelectionChangeEvent = {
       bounds: [6.0, 35.0, 18.0, 47.0],
       // No geometries provided
-      zoomLevel: 10,
       selectionType: 'drawn-polygon',
     };
 

@@ -22,20 +22,23 @@ jest.mock('../../src/configuration/api', () => ({
 }));
 
 describe('ThemeProvider / useTheme', () => {
-  const saveTermsConfigMock = jest.fn();
   const saveThemeConfigMock = jest.fn();
 
   const originalCreateObjectURL = URL.createObjectURL;
 
-  const frontendTheme = {
-    primary: '#111111',
-    'primary-hover': '#222222',
-    'primary-active': '#333333',
-    'primary-disabled': '#444444',
-    secondary: '#555555',
-    'secondary-hover': '#666666',
-    'secondary-active': '#777777',
-    'secondary-disabled': '#888888',
+  const mockThemeConfig = {
+    initialBbox: [6.6272658, 35.2889616, 18.7844746, 47.0921462],
+    termsAndConditionsHtml: '<p>Terms text</p>',
+    colors: {
+      primary: '#111111',
+      'primary-hover': '#222222',
+      'primary-active': '#333333',
+      'primary-disabled': '#444444',
+      secondary: '#555555',
+      'secondary-hover': '#666666',
+      'secondary-active': '#777777',
+      'secondary-disabled': '#888888',
+    },
   };
 
   const wrapper = ({ children }: PropsWithChildren) => <ThemeProvider>{children}</ThemeProvider>;
@@ -44,18 +47,10 @@ describe('ThemeProvider / useTheme', () => {
     document.documentElement.style.cssText = '';
 
     (useConfig as jest.Mock).mockImplementation((key: string) => {
-      if (key === 'terms_and_conditions') {
+      if (key === 'theme') {
         return {
           isLoading: false,
-          config: { html: '<p>Terms text</p>' },
-          saveConfig: saveTermsConfigMock,
-        };
-      }
-
-      if (key === 'frontend_theme') {
-        return {
-          isLoading: false,
-          config: frontendTheme,
+          config: mockThemeConfig,
           saveConfig: saveThemeConfigMock,
         };
       }
@@ -95,15 +90,13 @@ describe('ThemeProvider / useTheme', () => {
     const { result } = renderHook(() => useTheme(), { wrapper });
 
     await waitFor(() => {
-      expect(result.current.theme).toEqual(frontendTheme);
+      expect(result.current.themeConfig).toEqual(mockThemeConfig);
     });
 
     expect(result.current.logo).toBe(null);
     expect(result.current.isLogoLoading).toBe(false);
-    expect(result.current.isLoadingTermsAndConditions).toBe(false);
-    expect(result.current.termsAndConditionsHtml).toBe('<p>Terms text</p>');
-    expect(result.current.saveThemeConfig).toBe(saveThemeConfigMock);
-    expect(typeof result.current.handleColorChange).toBe('function');
+    expect(result.current.isLoadingThemeConfig).toBe(false);
+    expect(result.current.themeConfig.termsAndConditionsHtml).toBe('<p>Terms text</p>');
     expect(typeof result.current.saveTermsAndConditions).toBe('function');
     expect(typeof result.current.setLogo).toBe('function');
   });
@@ -170,15 +163,16 @@ describe('ThemeProvider / useTheme', () => {
       await result.current.saveTermsAndConditions('<h1>Updated</h1>');
     });
 
-    expect(saveTermsConfigMock).toHaveBeenCalledWith({
-      html: '<h1>Updated</h1>',
+    expect(saveThemeConfigMock).toHaveBeenCalledWith({
+      ...mockThemeConfig,
+      termsAndConditionsHtml: '<h1>Updated</h1>',
     });
   });
 
   it('exposes saveThemeConfig from useConfig', async () => {
     const { result } = renderHook(() => useTheme(), { wrapper });
 
-    const newTheme = {
+    const newColors = {
       primary: '#aaaaaa',
       'primary-hover': '#bbbbbb',
       'primary-active': '#cccccc',
@@ -190,17 +184,20 @@ describe('ThemeProvider / useTheme', () => {
     };
 
     await act(async () => {
-      await result.current.saveThemeConfig(newTheme);
+      await result.current.saveColors(newColors);
     });
 
-    expect(saveThemeConfigMock).toHaveBeenCalledWith(newTheme);
+    expect(saveThemeConfigMock).toHaveBeenCalledWith({
+      ...mockThemeConfig,
+      colors: newColors,
+    });
   });
 
   it('setLogo updates logo manually', async () => {
     const { result } = renderHook(() => useTheme(), { wrapper });
 
     await waitFor(() => {
-      expect(result.current.theme).toEqual(frontendTheme);
+      expect(result.current.themeConfig.colors).toEqual(mockThemeConfig.colors);
     });
 
     act(() => {

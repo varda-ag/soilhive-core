@@ -58,7 +58,7 @@ exports[`AdminSidebar renders sidebar for user with all permissions and matches 
               class="Link"
               data-discover="true"
               data-testid="sh-admin-sidebarlink"
-              href="/admin/map"
+              href="/admin/map-settings"
             >
               <svg
                 class="LinkIcon"
@@ -327,7 +327,7 @@ exports[`AdminSidebar renders sidebar for user with only ADMIN_PORTAL_UI_MENU pe
               class="Link"
               data-discover="true"
               data-testid="sh-admin-sidebarlink"
-              href="/admin/map"
+              href="/admin/map-settings"
             >
               <svg
                 class="LinkIcon"
