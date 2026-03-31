@@ -47,8 +47,8 @@ export default class SoilDataStorage {
       .select('dataset_layers.dataset_id', 'dataset_id')
       .addSelect('layer.license', 'license')
       .addSelect('COUNT(dataset_layers.dataset_id)', 'dataset_layer_count')
-      .addSelect('MIN(layer.sampling_date::text)', 'min_sampling_date')
-      .addSelect('MAX(layer.sampling_date::text)', 'max_sampling_date')
+      .addSelect('MIN(layer.sampling_date)', 'min_sampling_date')
+      .addSelect('MAX(layer.sampling_date)', 'max_sampling_date')
       .addSelect('MIN(layer.min_depth)', 'min_depth')
       .addSelect('MAX(layer.max_depth)', 'max_depth')
       .addSelect("STRING_AGG(DISTINCT layer.horizon, ',')", 'horizons')
@@ -252,7 +252,7 @@ const applyFiltersToQuery = async (query: any, dataFilter: DataFilter, enabledRa
     // We just need dataset to overlap with input interval
     query.andWhere('ds.reference_period_stop >= :min_sampling_date', { min_sampling_date: filters.min_sampling_date });
     // Filtering actual layers
-    query.andWhere("TO_CHAR(layer.sampling_date, 'YYYY-MM-DD') >= :min_sampling_date", {
+    query.andWhere('layer.sampling_date >= :min_sampling_date', {
       min_sampling_date: filters.min_sampling_date,
     });
   }
@@ -262,7 +262,7 @@ const applyFiltersToQuery = async (query: any, dataFilter: DataFilter, enabledRa
     // We just need dataset to overlap with input interval
     query.andWhere('ds.reference_period_start <= :max_sampling_date', { max_sampling_date: filters.max_sampling_date });
     // Filtering actual layers
-    query.andWhere("TO_CHAR(layer.sampling_date, 'YYYY-MM-DD') <= :max_sampling_date", {
+    query.andWhere('layer.sampling_date <= :max_sampling_date', {
       max_sampling_date: filters.max_sampling_date,
     });
   }
@@ -595,13 +595,13 @@ const buildRawSoilQuery = (
     whereClauses.push('layer.sampling_date IS NULL');
   } else if (filters.min_sampling_date) {
     whereClauses.push(`ds.reference_period_stop >= ${p(filters.min_sampling_date)}`);
-    whereClauses.push(`TO_CHAR(layer.sampling_date, 'YYYY-MM-DD') >= ${p(filters.min_sampling_date)}`);
+    whereClauses.push(`layer.sampling_date >= ${p(filters.min_sampling_date)}`);
   }
   if (filters.max_sampling_date === null) {
     whereClauses.push('layer.sampling_date IS NULL');
   } else if (filters.max_sampling_date) {
     whereClauses.push(`ds.reference_period_start <= ${p(filters.max_sampling_date)}`);
-    whereClauses.push(`TO_CHAR(layer.sampling_date, 'YYYY-MM-DD') <= ${p(filters.max_sampling_date)}`);
+    whereClauses.push(`layer.sampling_date <= ${p(filters.max_sampling_date)}`);
   }
   if (filters.min_depth === null) {
     whereClauses.push('layer.min_depth IS NULL');
@@ -749,7 +749,7 @@ const buildRawSoilQuery = (
       obs.value,
       ST_AsGeoJSON(dl.feature_geom)::json AS geometry,
       COALESCE(license.name, license_fallback.name) AS license_name,
-      layer.sampling_date::text AS sampling_date,
+      layer.sampling_date,
       layer.min_depth,
       layer.max_depth,
       layer.horizon,
