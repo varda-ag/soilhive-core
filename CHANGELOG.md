@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.59.0 (2026-03-31)
+
+## What's Changed
+* feat: :sparkles: added map settings, refactored ThemeConfig by @svaccari in https://github.com/varda-ag/soilhive-core/pull/331
+* fix: reverted dataset DB deletion order, added schema by @d-rom in https://github.com/varda-ag/soilhive-core/pull/333
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.58.0...v0.59.0
+
 ## 0.58.0 (2026-03-31)
 
 ## What's Changed
