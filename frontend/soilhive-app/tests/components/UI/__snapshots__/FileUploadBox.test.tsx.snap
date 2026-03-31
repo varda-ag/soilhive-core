@@ -1,0 +1,41 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`FileUploadBox renders empty state and matches snapshot 1`] = `
+<div>
+  <div>
+    <label
+      class="FileUploadBox"
+      data-testid="sh-ui-fileuploadbox"
+      for="fileUploadInput"
+    >
+      <div
+        class="DropArea"
+        data-testid="sh-ui-fileuploadbox-droparea"
+      >
+        <svg
+          data-testid="svg-icon-mock"
+        >
+          mock-svg
+        </svg>
+        <p
+          class="Title"
+        >
+          components.file_upload_box.title
+        </p>
+        <p
+          class="Caption"
+        >
+          Upload your file
+        </p>
+        <input
+          data-testid="upload-input"
+          id="fileUploadInput"
+          multiple=""
+          style="display: none;"
+          type="file"
+        />
+      </div>
+    </label>
+  </div>
+</div>
+`;

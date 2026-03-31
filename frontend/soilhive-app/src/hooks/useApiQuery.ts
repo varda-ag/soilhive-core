@@ -16,6 +16,7 @@ type UseApiQueryOptions<TResponse, TBody = void> = {
   retry?: boolean | number;
   showErrorNotification?: boolean;
   notFoundAsNull?: boolean;
+  isBlobResponse?: boolean;
 };
 
 export function useApiQuery<TResponse, TBody = void>({
@@ -29,6 +30,7 @@ export function useApiQuery<TResponse, TBody = void>({
   retry,
   showErrorNotification,
   notFoundAsNull,
+  isBlobResponse = false,
 }: UseApiQueryOptions<TResponse, TBody>) {
   const { request } = useRequest();
 
@@ -41,6 +43,7 @@ export function useApiQuery<TResponse, TBody = void>({
       body,
       showErrorNotification,
       notFoundAsNull,
+      isBlobResponse,
     });
   };
 

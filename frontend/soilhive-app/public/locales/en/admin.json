@@ -35,9 +35,29 @@
         "title": "Look & Feel",
         "cancel": "Cancel",
         "publish": "Publish",
+        "publish_notification": {
+            "title": "Success",
+            "message": "New theme settings have been published"
+        },
         "tabs": {
             "logo": "Logo",
             "colors": "Customize colors"
+        },
+        "logo": {
+            "title": "Upload the logo for your platform",
+            "label": "Your picture will appear in the header",
+            "supported_formats": "Supported formats: jpg, png or svg.",
+            "logo_preview": "Logo preview",
+            "actual_logo": "Actual logo",
+            "change_button": "Change picture",
+            "delete_button": "Delete picture",
+            "unsupported_format_error": "Unsupported file format. Please upload a PNG, JPG or SVG file.",
+            "crop": {
+                "title": "Upload a logo",
+                "upload_button": "Upload",
+                "cancel_button": "Cancel",
+                "zoom_label": "Zoom"
+            }
         }
     },
     "datasets": {

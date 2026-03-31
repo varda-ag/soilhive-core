@@ -1,14 +1,14 @@
-import React, { createContext, useState, useEffect, type ReactNode, useCallback } from 'react';
-import { useRequest } from '../api-client';
+import React, { createContext, useState, useEffect, type ReactNode } from 'react';
 import useConfig from '../hooks/useConfig';
-import { BACKEND_BASE_URL, REST_END_POINTS } from '../configuration/api';
+import { REST_END_POINTS } from '../configuration/api';
 import type { ThemeColors, ThemeConfig } from '../types/config';
+import { useApiQuery } from '../hooks/useApiQuery';
 
 type ThemeContextType = {
   themeConfig: ThemeConfig;
   logo: string | null;
-  handleLogoChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
-  deleteLogo: () => void;
+  isLogoLoading: boolean;
+  setLogo: React.Dispatch<React.SetStateAction<string | null>>;
   isLoadingThemeConfig: boolean;
   saveColors: (colors: ThemeColors) => Promise<void>;
   saveInitialBbox: (initialBbox: number[]) => Promise<void>;
@@ -64,82 +64,33 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
 
   const [logo, setLogo] = useState<string | null>(null);
 
-  const { request, loading } = useRequest();
-
-  const saveLogo = useCallback(
-    async (selectedFile: File) => {
-      if (!selectedFile) return;
-
-      const formData = new FormData();
-      formData.append('file', selectedFile);
-
-      try {
-        await request({
-          url: `${BACKEND_BASE_URL}/${REST_END_POINTS.LOGO}`,
-          method: 'POST',
-          body: formData,
-        });
-      } catch (e) {
-        console.error('logo save error', e);
-      }
-    },
-    [request],
-  );
-
-  const handleLogoChange = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) => {
-      const selectedFile = event.target.files?.[0];
-
-      if (selectedFile) {
-        const url = URL.createObjectURL(selectedFile);
-        setLogo(url);
-        saveLogo(selectedFile);
-      }
-    },
-    [saveLogo],
-  );
-
-  const fetchLogo = useCallback(async () => {
-    try {
-      const response = await request({
-        url: `${BACKEND_BASE_URL}/${REST_END_POINTS.LOGO}`,
-        isBlobResponse: true,
-      });
-
-      const url = URL.createObjectURL(response);
-      setLogo(url || null);
-    } catch (e) {
-      console.error('get logo error', e);
-    }
-  }, [request]);
-
-  const deleteLogo = useCallback(async () => {
-    try {
-      await request({
-        url: `${BACKEND_BASE_URL}/${REST_END_POINTS.LOGO}`,
-        method: 'DELETE',
-      });
-
-      fetchLogo();
-    } catch (e) {
-      console.error('delete logo error', e);
-    }
-  }, [fetchLogo, request]);
+  const { data: logoResponse, isLoading: isLogoLoading } = useApiQuery<Blob | MediaSource>({
+    endpoint: `/${REST_END_POINTS.LOGO}`,
+    method: 'GET',
+    queryKey: [`${REST_END_POINTS.LOGO}`],
+    enabled: true,
+    showErrorNotification: false,
+    notFoundAsNull: true,
+    retry: false,
+    isBlobResponse: true,
+  });
 
   useEffect(() => {
-    if (loading || isLoadingThemeConfig || !themeConfig) return;
+    if (isLoadingThemeConfig || !themeConfig) return;
 
     const root = document.documentElement;
     Object.entries(themeConfig.colors).forEach(([key, value]) => {
       root.style.setProperty(`--color-${key}`, value);
     });
-  }, [themeConfig, loading, isLoadingThemeConfig]);
+  }, [isLoadingThemeConfig, themeConfig]);
 
   useEffect(() => {
-    if (!logo) {
-      fetchLogo();
-    }
-  }, [logo, fetchLogo]);
+    if (isLogoLoading || !logoResponse) return;
+
+    const url = URL.createObjectURL(logoResponse);
+
+    setLogo(url || null);
+  }, [logoResponse, isLogoLoading]);
 
   return (
     <ThemeContext.Provider
@@ -149,8 +100,8 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
         saveColors,
         saveInitialBbox,
         saveTermsAndConditions,
-        handleLogoChange,
-        deleteLogo,
+        setLogo,
+        isLogoLoading,
         isLoadingThemeConfig,
       }}
     >

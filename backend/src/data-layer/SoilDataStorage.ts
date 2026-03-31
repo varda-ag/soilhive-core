@@ -110,21 +110,41 @@ export default class SoilDataStorage {
     cursor?: string,
     sort?: string,
   ): Promise<SoilDataSample[]> => {
-    await entityManager.query("SET LOCAL work_mem = '256MB';");
-    const enabledRasterFilterTables = await getEnabledRasterFilterTables();
-    const { sql, params } = buildRawSoilQuery(dataFilter, datasetSlugs, { limit, cursor, sort, mode: 'data', enabledRasterFilterTables });
-    const results = await entityManager.query(sql, params);
-    return results.map((row: any) => dataRowTranslation(row, sort));
+    // Wrap everything in a transaction to preserve 'SET LOCAL' scope
+    return await entityManager.transaction(async transactionalEntityManager => {
+      await transactionalEntityManager.query("SET LOCAL work_mem = '256MB';");
+      await transactionalEntityManager.query("SET LOCAL statement_timeout = '60s';");
+
+      const enabledRasterFilterTables = await getEnabledRasterFilterTables();
+      const { sql, params } = buildRawSoilQuery(dataFilter, datasetSlugs, {
+        limit,
+        cursor,
+        sort,
+        mode: 'data',
+        enabledRasterFilterTables,
+      });
+
+      const results = await transactionalEntityManager.query(sql, params);
+
+      return results.map((row: any) => dataRowTranslation(row, sort));
+    });
   };
 
   getSoilDataCount = async (entityManager: EntityManager, dataFilter: DataFilter, datasetSlugs: string[]): Promise<number> => {
-    await entityManager.query("SET LOCAL work_mem = '256MB';");
-    // Set timeout for this specific transaction
-    await entityManager.query("SET LOCAL statement_timeout = '60s';");
-    const enabledRasterFilterTables = await getEnabledRasterFilterTables();
-    const { sql, params } = buildRawSoilQuery(dataFilter, datasetSlugs, { mode: 'count', enabledRasterFilterTables });
-    const result = await entityManager.query(sql, params);
-    return parseInt(result[0].count, 10);
+    return await entityManager.transaction(async transactionalEntityManager => {
+      await transactionalEntityManager.query("SET LOCAL work_mem = '256MB';");
+      await transactionalEntityManager.query("SET LOCAL statement_timeout = '60s';");
+
+      const enabledRasterFilterTables = await getEnabledRasterFilterTables();
+      const { sql, params } = buildRawSoilQuery(dataFilter, datasetSlugs, {
+        mode: 'count',
+        enabledRasterFilterTables,
+      });
+
+      const result = await transactionalEntityManager.query(sql, params);
+
+      return parseInt(result[0].count, 10);
+    });
   };
 
   buildSoilBaseQuery = async (
@@ -615,6 +635,7 @@ const buildRawSoilQuery = (
   }
 
   const whereClause = whereClauses.length > 0 ? `AND ${whereClauses.join('\n  AND ')}` : '';
+  const AREA_THRESHOLD = 7_000_000 * 1_000 * 1_000; // 7,000,000 km2
 
   // ── spatial join clause ──────────────────────────────────────────────────────
   const geomParam = hasGeometry ? p(geomJson) : null;
@@ -624,18 +645,23 @@ const buildRawSoilQuery = (
       ),`
     : '';
 
-  const aoi_subdivided_cte = hasGeometry
-    ? `aoi_subdivided AS MATERIALIZED (
+  const aoiArea = hasGeometry ? turf.area(dataFilter.geometries[0]!) : 0;
+
+  const aoi_subdivided_cte =
+    hasGeometry && aoiArea > AREA_THRESHOLD
+      ? `aoi_subdivided AS MATERIALIZED (
         SELECT ST_Subdivide(aoi.geom, 64) AS geom
         FROM aoi
       ),`
-    : '';
+      : '';
+
+  const spatialSource = hasGeometry && aoiArea > AREA_THRESHOLD ? 'aoi_subdivided' : 'aoi';
 
   const candidate_features_cte = hasGeometry
     ? `candidate_features AS MATERIALIZED (
         SELECT distinct f.id, f.geom
         FROM ${schema}.features f
-        JOIN aoi_subdivided ON ST_Intersects(f.geom, aoi_subdivided.geom)
+        JOIN ${spatialSource} ON ST_Intersects(f.geom, ${spatialSource}.geom)
       ),`
     : '';
 

@@ -1,0 +1,16 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`Logo renders default logo and matches snapshot 1`] = `
+<div>
+  <div
+    class="Logo"
+    data-testid="sh-logo"
+  >
+    <img
+      alt="Logo"
+      class="Img"
+      src="default-logo.svg"
+    />
+  </div>
+</div>
+`;
