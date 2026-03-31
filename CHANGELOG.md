@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.58.0 (2026-03-31)
+
+## What's Changed
+* fix: sp-5015 getSoilData query timeout and divided aoi by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/330
+* feat: sp-4993 - look and feel logo tab by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/329
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.57.2...v0.58.0
+
 ## 0.57.2 (2026-03-30)
 
 ## What's Changed
