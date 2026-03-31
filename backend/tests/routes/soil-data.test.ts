@@ -390,7 +390,7 @@ describe('Testing /soil-data routes', () => {
   it.each([
     [null, null],
     ['2020-01-01', '2020-01-01'],
-    ['2020-01-01T00:00:05Z', '2020-01-01'],
+    ['2020-01', '2020-01'],
   ])('Should load data', async (sampling_date, expected_sampling_date) => {
     const { dataset, datasetFileMapping } = await addSyntheticIngestionData({
       ...syntheticIngestionDataOptions,

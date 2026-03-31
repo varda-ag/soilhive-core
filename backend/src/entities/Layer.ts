@@ -18,7 +18,7 @@ export default class LayerEntity extends BaseEntity implements Layer {
   license_obj: LicenseEntity;
 
   @Index()
-  @Column({ type: 'date', nullable: true })
+  @Column({ type: 'text', nullable: true })
   sampling_date?: string;
 
   @Column({ type: 'int', nullable: true })
