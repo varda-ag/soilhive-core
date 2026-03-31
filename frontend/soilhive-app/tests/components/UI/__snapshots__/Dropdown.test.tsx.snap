@@ -4,9 +4,6 @@ exports[`Dropdown component matches snapshot 1`] = `
 <div>
   <div
     data-testid="mock-wrapper"
-    errormessage="Error"
-    helpermessage="Helpful"
-    label="Label"
   >
     <div
       class="Dropdown Medium Invalid"

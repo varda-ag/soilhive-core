@@ -2,8 +2,8 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { TextInput } from 'components/UI/TextInput/TextInput';
 
 jest.mock('components/UI', () => ({
-  FormFieldWrapper: ({ children, ...rest }: any) => (
-    <div data-testid="mock-wrapper" {...rest}>
+  FormFieldWrapper: ({ children, className }: any) => (
+    <div data-testid="mock-wrapper" className={className}>
       {children}
     </div>
   ),

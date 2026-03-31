@@ -3,8 +3,8 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { Dropdown } from 'components/UI/Dropdown/Dropdown';
 
 jest.mock('components/UI', () => ({
-  FormFieldWrapper: ({ children, ...rest }: any) => (
-    <div data-testid="mock-wrapper" {...rest}>
+  FormFieldWrapper: ({ children, className }: any) => (
+    <div data-testid="mock-wrapper" className={className}>
       {children}
     </div>
   ),
