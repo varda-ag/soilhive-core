@@ -40,6 +40,7 @@
     "quill": "^2.0.3",
     "react": "19.2.0",
     "react-dom": "19.2.0",
+    "react-easy-crop": "^5.5.7",
     "react-i18next": "^16.5.4",
     "react-loading-skeleton": "^3.5.0",
     "react-map-gl": "^8.1.0",

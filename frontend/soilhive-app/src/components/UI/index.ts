@@ -20,3 +20,7 @@ export * from './Dialog/Dialog';
 export * from './InfoDialog/InfoDialog';
 export * from './Tabs/Tabs';
 export * from './Steps/Steps';
+export * from './ProgressBar/ProgressBar';
+export * from './FileUploadBox/FileUploadBox';
+export * from './RangeSlider/RangeSlider';
+export * from './Cropper/Cropper';

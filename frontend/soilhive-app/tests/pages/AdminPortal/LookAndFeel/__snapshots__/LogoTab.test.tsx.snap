@@ -2,9 +2,17 @@
 
 exports[`LogoTab page matches snapshot 1`] = `
 <div>
-  <h2>
-    Look & Feel
-     LOGO
-  </h2>
+  <div
+    class="LogoTab"
+  >
+    <h2
+      class="Title"
+    >
+      Upload the logo for your platform
+    </h2>
+    <div>
+      UploadLogo component
+    </div>
+  </div>
 </div>
 `;

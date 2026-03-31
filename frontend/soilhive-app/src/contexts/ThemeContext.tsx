@@ -1,19 +1,19 @@
 import React, { createContext, useState, useEffect, type ReactNode, useCallback } from 'react';
-import { useRequest } from '../api-client';
-import useConfig from '../hooks/useConfig';
-import { BACKEND_BASE_URL, REST_END_POINTS } from '../configuration/api';
+import useConfig from 'hooks/useConfig';
+import { useApiQuery } from 'hooks/useApiQuery';
+import { REST_END_POINTS } from '../configuration/api';
 import type { TermsAndConditionsConfig, ThemeConfig } from '../types/config';
 
 type ThemeContextType = {
   theme: ThemeConfig | null;
   logo: string | null;
   handleColorChange: (name: string, value: string) => void;
-  handleLogoChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
   saveThemeConfig: (newConfig: ThemeConfig) => Promise<void>;
-  deleteLogo: () => void;
   isLoadingTermsAndConditions: boolean;
+  isLogoLoading: boolean;
   termsAndConditionsHtml: string;
   saveTermsAndConditions: (newConfig: string) => Promise<void>;
+  setLogo: React.Dispatch<React.SetStateAction<string | null>>;
 };
 
 export const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -47,7 +47,16 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   const [theme, setTheme] = useState<ThemeConfig | null>(null);
   const [logo, setLogo] = useState<string | null>(null);
 
-  const { request, loading } = useRequest();
+  const { data: logoResponse, isLoading: isLogoLoading } = useApiQuery<Blob | MediaSource>({
+    endpoint: `/${REST_END_POINTS.LOGO}`,
+    method: 'GET',
+    queryKey: [`${REST_END_POINTS.LOGO}`],
+    enabled: true,
+    showErrorNotification: false,
+    notFoundAsNull: true,
+    retry: false,
+    isBlobResponse: true,
+  });
 
   const handleColorChange = useCallback(
     (name: string, value: string) => {
@@ -59,70 +68,10 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     [theme],
   );
 
-  const saveLogo = useCallback(
-    async (selectedFile: File) => {
-      if (!selectedFile) return;
-
-      const formData = new FormData();
-      formData.append('file', selectedFile);
-
-      try {
-        await request({
-          url: `${BACKEND_BASE_URL}/${REST_END_POINTS.LOGO}`,
-          method: 'POST',
-          body: formData,
-        });
-      } catch (e) {
-        console.error('logo save error', e);
-      }
-    },
-    [request],
-  );
-
-  const handleLogoChange = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) => {
-      const selectedFile = event.target.files?.[0];
-
-      if (selectedFile) {
-        const url = URL.createObjectURL(selectedFile);
-        setLogo(url);
-        saveLogo(selectedFile);
-      }
-    },
-    [saveLogo],
-  );
-
-  const fetchLogo = useCallback(async () => {
-    try {
-      const response = await request({
-        url: `${BACKEND_BASE_URL}/${REST_END_POINTS.LOGO}`,
-        isBlobResponse: true,
-      });
-
-      const url = URL.createObjectURL(response);
-      setLogo(url || null);
-    } catch (e) {
-      console.error('get logo error', e);
-    }
-  }, [request]);
-
-  const deleteLogo = useCallback(async () => {
-    try {
-      await request({
-        url: `${BACKEND_BASE_URL}/${REST_END_POINTS.LOGO}`,
-        method: 'DELETE',
-      });
-
-      fetchLogo();
-    } catch (e) {
-      console.error('delete logo error', e);
-    }
-  }, [fetchLogo, request]);
-
   const { isLoading, config: frontendThemeConfig, saveConfig: saveThemeConfig } = useConfig<ThemeConfig>('frontend_theme', defaultTheme);
 
   useEffect(() => {
-    if (loading || isLoading || !frontendThemeConfig) return;
+    if (isLoading || !frontendThemeConfig) return;
 
     setTheme(frontendThemeConfig);
 
@@ -130,13 +79,15 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     Object.entries(frontendThemeConfig).forEach(([key, value]) => {
       root.style.setProperty(`--color-${key}`, value);
     });
-  }, [theme, loading, isLoading, frontendThemeConfig]);
+  }, [theme, isLoading, frontendThemeConfig]);
 
   useEffect(() => {
-    if (!logo) {
-      fetchLogo();
-    }
-  }, [logo, fetchLogo]);
+    if (isLogoLoading || !logoResponse) return;
+
+    const url = URL.createObjectURL(logoResponse);
+
+    setLogo(url || null);
+  }, [logoResponse, isLogoLoading]);
 
   return (
     <ThemeContext.Provider
@@ -145,8 +96,8 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
         logo,
         handleColorChange,
         saveThemeConfig,
-        handleLogoChange,
-        deleteLogo,
+        setLogo,
+        isLogoLoading,
         isLoadingTermsAndConditions,
         termsAndConditionsHtml: termsAndConditionsConfig!['html'], // Default makes this defined
         saveTermsAndConditions,

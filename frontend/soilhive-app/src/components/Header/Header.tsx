@@ -6,23 +6,24 @@ import HamburgerIcon from 'assets/icons/medium-hamburger-menu-icon.svg?react';
 import CloseIcon from 'assets/icons/medium-cross-menu-icon.svg?react';
 import PlanetIcon from 'assets/icons/planet-icon.svg?react';
 import ScalesIcon from 'assets/icons/scales-icon.svg?react';
-import MobileMenu from 'components/MobileMenu/MobileMenu';
 
 import { singlePages } from '../../utilities/moduleFederation';
+import MobileMenu from 'components/MobileMenu/MobileMenu';
 import { DownloadsStatus } from 'components/DownloadsStatus/DownloadsStatus';
 import { AccountWidget } from 'components/AccountWidget/AccountWidget';
 import { UserAvatar } from 'components/AccountWidget/UserAvatar/UserAvatar';
 import { LoginButton } from 'components/AccountWidget/LoginButton/LoginButton';
+import { Logo } from 'components/Logo/Logo';
 import { useAuthContext } from '../../auth/AuthContextProvider';
 import useTheme from 'hooks/useTheme';
 import useDevice from 'hooks/useDevice';
 import type { NavMenuEntry } from 'types/components';
 
 import styles from './Header.module.scss';
+
 export default function Header() {
   const { t } = useTranslation('common');
   const { isDesktopLayout } = useDevice();
-  const { logo } = useTheme();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { isAuthenticated } = useAuthContext();
   const { isLoadingTermsAndConditions, termsAndConditionsHtml: termsAndConditions } = useTheme();
@@ -53,9 +54,7 @@ export default function Header() {
   return (
     <>
       <header className={styles.Header}>
-        <div data-testid="sh-header-logo" className={styles.Logo}>
-          {logo && <img src={logo} alt={t('logo')} />}
-        </div>
+        <Logo />
         <div className={styles.Menu}>
           {isDesktopLayout && (
             <nav data-testid="sh-header-nav" className={styles.Nav}>

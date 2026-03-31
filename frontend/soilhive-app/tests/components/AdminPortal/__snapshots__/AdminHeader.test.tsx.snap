@@ -9,13 +9,9 @@ exports[`AdminHeader renders header and matches snapshot 1`] = `
       class="Left"
     >
       <div
-        class="Logo"
         data-testid="sh-header-logo"
       >
-        <img
-          alt="Logo"
-          src="https://example.com/logo.png"
-        />
+        Logo component
       </div>
       <div
         class="TitleWrapper"

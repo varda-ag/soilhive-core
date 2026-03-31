@@ -51,3 +51,10 @@ export type TabData = {
   value: string;
   label: string;
 };
+
+export type CropArea = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};

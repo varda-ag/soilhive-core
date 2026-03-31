@@ -64,5 +64,11 @@
             "title": "Network error",
             "message": "No connection to the server." 
         }
+    },
+    "components": {
+        "file_upload_box": {
+            "title": "Drag and drop a file here or <span>browse</span>",
+            "uploading": "Uploading"
+        }
     }
 }
