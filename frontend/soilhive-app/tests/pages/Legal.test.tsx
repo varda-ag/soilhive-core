@@ -9,7 +9,7 @@ jest.mock('hooks/useTheme', () => ({
 
 describe('Legal page', () => {
   it('Matches snapshot', () => {
-    (useTheme as jest.Mock).mockReturnValue({ isLoadingTermsAndConditions: false, termsAndConditionsHtml: '' });
+    (useTheme as jest.Mock).mockReturnValue({ isLoading: false, themeConfig: { termsAndConditionsHtml: '' } });
     const { container } = render(<Legal />);
     expect(container).toMatchSnapshot();
   });
@@ -17,8 +17,8 @@ describe('Legal page', () => {
   it('Properly converts HTML tags, stripping forbidden tags', () => {
     const forbiddenTags = ['html', 'body', 'title', 'script', 'xml', 'xss', 'form', 'input', 'button', 'select', 'textarea'];
     (useTheme as jest.Mock).mockReturnValue({
-      isLoadingTermsAndConditions: false,
-      termsAndConditionsHtml: '<h1>OK</h1>' + forbiddenTags.map(t => `<${t}></${t}>`).join(''),
+      isLoading: false,
+      themeConfig: { termsAndConditionsHtml: '<h1>OK</h1>' + forbiddenTags.map(t => `<${t}></${t}>`).join('') },
     });
     const { container } = render(<Legal />);
     for (const tag of forbiddenTags) {

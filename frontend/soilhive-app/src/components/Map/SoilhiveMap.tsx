@@ -173,7 +173,6 @@ function SoilhiveMap({
       onSelectionChange?.({
         bounds: moveBounds ? bbox : mapRef.current.getBounds().toArray().flat(),
         geometries: [simplifiedGeometry as Polygon | MultiPolygon],
-        zoomLevel: mapRef.current.getZoom(),
         selectionType: selectionTypeRef.current,
         locationName: locationNameRef.current,
       });
@@ -217,11 +216,13 @@ function SoilhiveMap({
       const map = mapEvent.target;
       const bounds = map.getBounds().toArray().flat();
       const zoomLevel = map.getZoom();
+      const isUserInteraction = mapEvent.originalEvent ? true : false;
 
-      if (selection.features.length === 0) {
-        // Current bbox (implicit) selection
+      if (isUserInteraction && selection.features.length === 0) {
+        // If the user moves the map and there is no selection,
+        // update the (implicit) selection to the current bounds
         selectionTypeRef.current = 'drawn-polygon';
-        onSelectionChange?.({ bounds, zoomLevel, selectionType: selectionTypeRef.current });
+        onSelectionChange?.({ bounds, selectionType: selectionTypeRef.current });
       }
 
       updateH3Cells({ bounds, zoomLevel });
@@ -246,7 +247,6 @@ function SoilhiveMap({
     onSelectionToolbarVisibilityChange?.(false);
     onSelectionChange?.({
       bounds: mapRef.current.getMap().getBounds().toArray().flat(),
-      zoomLevel: mapRef.current.getZoom(),
       selectionType: selectionTypeRef.current,
     });
   }, [

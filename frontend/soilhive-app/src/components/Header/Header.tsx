@@ -26,7 +26,7 @@ export default function Header() {
   const { isDesktopLayout } = useDevice();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { isAuthenticated } = useAuthContext();
-  const { isLoadingTermsAndConditions, termsAndConditionsHtml: termsAndConditions } = useTheme();
+  const { isLoadingThemeConfig, themeConfig } = useTheme();
 
   const menuEntries: NavMenuEntry[] = useMemo(() => {
     const output = [
@@ -37,11 +37,11 @@ export default function Header() {
         Icon: PlanetIcon,
       } as NavMenuEntry,
     ];
-    if (!isLoadingTermsAndConditions && !!termsAndConditions) {
+    if (!isLoadingThemeConfig && !!themeConfig.termsAndConditionsHtml) {
       output.push({ name: 'nav_menu.legal', route: '/legal', type: 'internal', Icon: ScalesIcon });
     }
     return output;
-  }, [isLoadingTermsAndConditions, termsAndConditions]);
+  }, [isLoadingThemeConfig, themeConfig.termsAndConditionsHtml]);
 
   const getNavLinkClass = ({ isActive }: { isActive: boolean }) => {
     return isActive ? `${styles.Active}` : '';

@@ -17,6 +17,7 @@ import { h3ResolutionForZoomLevel } from '../../utilities/map';
 import { simplifyGeometry } from '../../utilities/simplifyGeometry';
 import type { Feature, FeatureCollection, GeoJsonProperties, MultiPolygon, Point, Polygon } from 'geojson';
 import type { MapLibreEvent } from 'maplibre-gl';
+import GeocoderControl from './GeocoderControl';
 
 type MapStyle = string | StyleSpecification | ImmutableLike<StyleSpecification>;
 
@@ -29,6 +30,8 @@ interface SoilhiveSimpleMapProps {
   mapStyle?: MapStyle;
   scrollZoom?: boolean;
   dragPan?: boolean;
+  showGeocoder?: boolean;
+  onBboxChange?: (bbox: number[]) => void;
 }
 
 const geometryLayerSelection: LayerProps = {
@@ -91,19 +94,26 @@ function SoilhiveSimpleMap({
   mapStyle = 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json',
   scrollZoom = true,
   dragPan = true,
+  showGeocoder = false,
+  onBboxChange = undefined,
 }: SoilhiveSimpleMapProps) {
   const mapRef = useRef<any>(null);
   const [h3Cells, setH3Cells] = useState<any | null>(null);
 
   function updateH3Cells(mapEvent: MapLibreEvent) {
+    const map = mapEvent.target;
+    const bounds = map.getBounds().toArray().flat();
+    if (onBboxChange) {
+      onBboxChange(bounds);
+    }
+
     if (!showH3Cells) {
       setH3Cells(null);
       return;
     }
+
     try {
-      const map = mapEvent.target;
       const zoomLevel = map.getZoom();
-      const bounds = map.getBounds().toArray().flat();
       const h3Indexes = bBoxToH3Cells(bounds, h3ResolutionForZoomLevel(zoomLevel));
       const h3CellsFeatureCollection = h3IndexesToGeoJSONPolygons(h3Indexes);
       setH3Cells(h3CellsFeatureCollection);
@@ -154,6 +164,8 @@ function SoilhiveSimpleMap({
         onMoveEnd={updateH3Cells}
         attributionControl={{ compact: false }}
       >
+        {showGeocoder && <GeocoderControl position="top-left" geocoder="nominatim" />}
+
         {showH3Cells && h3Cells && (
           <Source id="h3-cells" type="geojson" data={h3Cells} promoteId="h3Index">
             <Layer {...h3CellsLayerBorders} />

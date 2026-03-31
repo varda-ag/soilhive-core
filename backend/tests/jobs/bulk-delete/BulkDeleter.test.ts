@@ -27,7 +27,14 @@ describe('BulkDeleter class', () => {
 
     expect(dataset.status).toBe(IngestionStatus.INGESTED);
 
-    await BulkDeleterModule.processBulkDeletion(getJob(dataset.slug));
+    const promise = BulkDeleterModule.processBulkDeletion(getJob(dataset.slug));
+    await new Promise(r => setTimeout(r, 50));
+    const dataSource = await getDataSource();
+    const repo = dataSource.getRepository(DatasetEntity);
+    const datasets = await repo.find();
+    expect(datasets.length).toBe(0);
+
+    await promise;
 
     const createdData = await getLoadedDataCount();
     expect(createdData.n_features).toBe(0);
@@ -35,11 +42,9 @@ describe('BulkDeleter class', () => {
     expect(createdData.n_dataset_layers).toBe(0);
     expect(createdData.n_observations).toBe(0);
 
-    const dataSource = await getDataSource();
-    const repo = dataSource.getRepository(DatasetEntity);
-    const datasets = await repo.find({ withDeleted: true });
-    expect(datasets.length).toBe(1);
-    expect(datasets[0].status).toBe(IngestionStatus.ARCHIVED);
+    const datasetsWithDeleted = await repo.find({ withDeleted: true });
+    expect(datasetsWithDeleted.length).toBe(1);
+    expect(datasetsWithDeleted[0].status).toBe(IngestionStatus.ARCHIVED);
   });
 
   it('Bulk deleting synthetic data from the corresponding dataset', async () => {

@@ -26,7 +26,10 @@
         "save": "Save"
     },
     "map_settings": {
-        "title": "Map settings"
+        "title": "Map settings",
+        "subtitle": "Default map extent",
+        "description": "Select the area you want to show in the map when the user arrives to the platform",
+        "save": "Set view as default"
     },
     "look_and_feel": {
         "title": "Look & Feel",
