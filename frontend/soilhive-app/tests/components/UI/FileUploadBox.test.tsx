@@ -4,6 +4,7 @@ import { FileUploadBox } from 'components/UI/FileUploadBox/FileUploadBox';
 
 jest.mock('react-i18next', () => ({
   ...jest.requireActual('react-i18next'),
+  useTranslation: () => ({ t: (key: string) => key }),
   Trans: ({ i18nKey }: { i18nKey: string }) => <>{i18nKey}</>,
 }));
 

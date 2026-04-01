@@ -2,6 +2,10 @@ import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { CropModal } from 'components/CropModal/CropModal';
 import { getCroppedFile } from '../../../src/utilities/cropper';
 
+jest.mock('react-i18next', () => ({
+  useTranslation: () => ({ t: (key: string) => key }),
+}));
+
 const dialogMock = jest.fn();
 const cropperMock = jest.fn();
 const rangeSliderMock = jest.fn();
@@ -77,7 +81,7 @@ describe('CropModal', () => {
 
     expect(screen.getByTestId('cropper')).toBeInTheDocument();
     expect(screen.getByTestId('range-slider')).toBeInTheDocument();
-    expect(screen.getByText('Zoom')).toBeInTheDocument();
+    expect(screen.getByText('look_and_feel.logo.crop.zoom_label')).toBeInTheDocument();
   });
 
   it('does not render cropper content when imageSrc is null', () => {
@@ -205,13 +209,15 @@ describe('CropModal', () => {
     );
   });
 
-  it('resets cropper state on cancel', () => {
+  it('resets cropper state on cancel', async () => {
     render(<CropModal {...defaultProps} />);
 
     const cropperProps = cropperMock.mock.calls[cropperMock.mock.calls.length - 1][0];
 
-    cropperProps.onCropChange({ x: 7, y: 8 });
-    cropperProps.onZoomChange(2);
+    await act(async () => {
+      cropperProps.onCropChange({ x: 7, y: 8 });
+      cropperProps.onZoomChange(2);
+    });
 
     fireEvent.click(screen.getByTestId('dialog-cancel'));
 
