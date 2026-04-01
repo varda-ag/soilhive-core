@@ -14,3 +14,12 @@ export function useDatasets() {
     isLoading,
   };
 }
+
+export function useDataset(id: string | undefined) {
+  return useApiQuery<Dataset>({
+    endpoint: `/datasets/${id}`,
+    method: 'GET',
+    queryKey: ['dataset', id],
+    enabled: !!id,
+  });
+}

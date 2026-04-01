@@ -122,7 +122,7 @@ function NoAuthProvider({ children }: { children: React.ReactNode }) {
     isAuthenticated: true,
     isLoading: false,
     error: undefined,
-    user: { profile: { name: 'Anonymous User' } },
+    user: undefined,
     login: () => {},
     logout: () => {},
     authMode: AuthModes.NONE,

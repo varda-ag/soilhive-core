@@ -69,6 +69,23 @@ function DownloadPreviewTable({
   const [sortField, setSortField] = useState<string>();
 
   const dateCell = ({ sampling_date, geometry }: SoilDataSample) => {
+    const renderDateLabel = () => {
+      if (!sampling_date) return '-';
+
+      // Check if it's year-only (e.g., "2018")
+      if (/^\d{4}$/.test(sampling_date)) {
+        return sampling_date;
+      }
+
+      // If it has hyphens (e.g., "2018-05-20"), use the utility
+      if (sampling_date.includes('-')) {
+        const dateObj = backendToLocalFrontendDate(sampling_date);
+        return !isNaN(dateObj.getTime()) ? dateObj.toLocaleDateString() : sampling_date; // Fallback to raw string if utility fails
+      }
+
+      return sampling_date;
+    };
+
     return (
       <Button
         type="tertiary"
@@ -77,7 +94,7 @@ function DownloadPreviewTable({
         }}
       >
         {geometry && <MapPinIcon />}
-        {sampling_date ? backendToLocalFrontendDate(sampling_date).toLocaleDateString() : '-'}
+        {renderDateLabel()}
       </Button>
     );
   };

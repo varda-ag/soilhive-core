@@ -65,7 +65,26 @@
         "general_info": {
             "step_title": "General info",
             "step_description": "Describe dataset",
-            "title": "Data preview"
+            "page_title": "Data preview",
+            "title": "General",
+            "fields": {
+                "name": "Name",
+                "full_name": "Full name",
+                "description": "Description",
+                "author": "Author",
+                "symbols_left": "symbols left",
+                "author_helper": "If you are not affiliated with any organization, you may enter “Independent Professional”."
+            },
+            "actions": {
+                "save_and_continue_later": "Save and continue later",
+                "continue": "Continue"
+            },
+            "validation": {
+                "name_required": "Name is required",
+                "full_name_required": "Full name is required",
+                "description_required": "Description is required",
+                "author_required": "Author is required"
+            }
         },
         "soil_data": {
             "step_title": "Soil data",

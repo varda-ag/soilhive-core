@@ -24,3 +24,4 @@ export * from './ProgressBar/ProgressBar';
 export * from './FileUploadBox/FileUploadBox';
 export * from './RangeSlider/RangeSlider';
 export * from './Cropper/Cropper';
+export * from './TextArea/TextArea';
