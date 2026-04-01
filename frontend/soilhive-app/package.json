@@ -8,9 +8,7 @@
     "build": "rsbuild build",
     "dev": "rsbuild dev --open",
     "preview": "rsbuild preview",
-    "test": "jest --bail --passWithNoTests && npm run test:timezone-tokyo && npm run test:timezone-anchorage",
-    "test:timezone-tokyo": "cross-env TZ=\"Asia/Tokyo\" jest --bail --passWithNoTests -t 'multiple-timezones'",
-    "test:timezone-anchorage": "cross-env TZ=\"America/Anchorage\" jest --bail --passWithNoTests -t 'multiple-timezones'",
+    "test": "jest --bail --passWithNoTests",
     "test:watch": "jest --clearCache && jest --watch",
     "test:coverage": "jest --clearCache && jest --coverage",
     "test:snapshot": "jest -u"

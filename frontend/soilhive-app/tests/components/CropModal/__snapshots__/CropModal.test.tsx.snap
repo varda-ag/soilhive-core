@@ -31,7 +31,7 @@ exports[`CropModal renders dialog and matches snapshot 1`] = `
       class="ZoomBlock"
     >
       <p>
-        Zoom
+        look_and_feel.logo.crop.zoom_label
       </p>
       <button
         data-testid="range-slider"

@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.60.1 (2026-04-01)
+
+## What's Changed
+* fix: :bug: checking stored token expiration by @svaccari in https://github.com/varda-ag/soilhive-core/pull/338
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.60.0...v0.60.1
+
+## 0.60.0 (2026-04-01)
+
+## What's Changed
+* refactor: layers sampling_date to type text by @d-rom in https://github.com/varda-ag/soilhive-core/pull/336
+* feat: datasets general info step by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/334
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.59.0...v0.60.0
+
 ## 0.59.0 (2026-03-31)
 
 ## What's Changed
