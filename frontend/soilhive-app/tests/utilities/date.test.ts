@@ -1,6 +1,16 @@
 import { backendToLocalFrontendDate, firstDayOfTheMonth, lastDayOfTheMonth } from '../../src/utilities/date';
+import { testTimezones } from '../setupTests';
 
-describe('date utilities (multiple-timezones)', () => {
+describe.each(testTimezones)('date utilities (multiple-timezones)', testTimezone => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2020-01-01T01:00:01Z').getTime() + testTimezone.offsetMs);
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
   describe('lastDayOfTheMonth', () => {
     it.each([
       ['2025-01-01', '2025-01-31'],
