@@ -1,6 +1,16 @@
 import { computeDatasetSummary } from '../../src/domain/computeDatasetSummary';
+import { testTimezones } from '../setupTests';
 
-describe('computeDatasetSummary domain logic (multiple-timezones)', () => {
+describe.each(testTimezones)('computeDatasetSummary domain logic (multiple-timezones)', testTimezone => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2020-01-01T01:00:01Z').getTime() + testTimezone.offsetMs);
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
   test.each([
     {
       name: 'only dataset_layer_count property',
