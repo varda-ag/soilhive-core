@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.60.2 (2026-04-01)
+
+## What's Changed
+* fix(fe): fix year only date rendering in preview page by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/340
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.60.1...v0.60.2
+
 ## 0.60.1 (2026-04-01)
 
 ## What's Changed
