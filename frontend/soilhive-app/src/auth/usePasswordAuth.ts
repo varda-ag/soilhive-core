@@ -49,7 +49,7 @@ export function usePasswordAuth() {
   // try and load token from the session storage
   const [state, setState] = useState<PasswordAuthState>(() => {
     let token: string | null | undefined = getToken();
-    let user = token ? extractUser(JSON.parse(token)) : undefined;
+    let user = token ? extractUser(token) : undefined;
     if (user && isTokenExpired(user)) {
       // Remove expired token from local storage
       clearToken();
