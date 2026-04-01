@@ -4,10 +4,12 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { ThemeProvider } from '../../src/contexts/ThemeContext';
 import useTheme from 'hooks/useTheme';
 import useConfig from 'hooks/useConfig';
+import useNotifications from 'hooks/useNotifications';
 import { useApiQuery } from 'hooks/useApiQuery';
 
 jest.mock('hooks/useConfig');
 jest.mock('hooks/useApiQuery');
+jest.mock('hooks/useNotifications');
 
 jest.mock('../../src/App', () => ({
   queryClient: {
@@ -23,6 +25,7 @@ jest.mock('../../src/configuration/api', () => ({
 
 describe('ThemeProvider / useTheme', () => {
   const saveThemeConfigMock = jest.fn();
+  const showNotification = jest.fn();
 
   const originalCreateObjectURL = URL.createObjectURL;
 
@@ -65,6 +68,10 @@ describe('ThemeProvider / useTheme', () => {
     (useApiQuery as jest.Mock).mockReturnValue({
       data: null,
       isLoading: false,
+    });
+
+    (useNotifications as jest.Mock).mockReturnValue({
+      showNotification,
     });
 
     URL.createObjectURL = jest.fn(() => 'blob:logo-url');
@@ -167,6 +174,8 @@ describe('ThemeProvider / useTheme', () => {
       ...mockThemeConfig,
       termsAndConditionsHtml: '<h1>Updated</h1>',
     });
+
+    expect(showNotification).toHaveBeenCalled();
   });
 
   it('exposes saveThemeConfig from useConfig', async () => {
