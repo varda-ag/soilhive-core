@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.61.0 (2026-04-02)
+
+## What's Changed
+* docs: data load documentation and rounding loaded values by @d-rom in https://github.com/varda-ag/soilhive-core/pull/342
+* fix(fe): move common datasets transaltions by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/344
+* feat: new geocoder button and result icons, showing geocoder on selec… by @svaccari in https://github.com/varda-ag/soilhive-core/pull/345
+* chore: default bbox notification by @svaccari in https://github.com/varda-ag/soilhive-core/pull/346
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.60.2...v0.61.0
+
 ## 0.60.2 (2026-04-01)
 
 ## What's Changed
