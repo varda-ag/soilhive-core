@@ -25,7 +25,7 @@
         "subtitle": "Paste a text here",
         "save": "Save",
         "notification": {
-            "title": "Success",
+            "title": "Successful update",
             "message": "New terms and conditions applied"
         }
     },
@@ -35,8 +35,8 @@
         "description": "Select the area you want to show in the map when the user arrives to the platform",
         "save": "Set view as default",
         "notification": {
-            "title": "Success",
-            "message": "New default view applied"
+            "title": "Successful update",
+            "message": "The default view has been replaced"
         }
     },
     "look_and_feel": {
