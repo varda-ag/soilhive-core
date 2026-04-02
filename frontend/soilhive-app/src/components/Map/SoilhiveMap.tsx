@@ -167,7 +167,7 @@ function SoilhiveMap({
       const bbox = bboxFn(largestPolygon!);
       if (moveBounds) mapRef.current.fitBounds(bbox, { padding: 40 });
       setSelectedPoint(new LngLat(lng, lat));
-      setShowSelectionToolbar(true);
+      setShowSelectionToolbar(false);
       onSelectionToolbarVisibilityChange?.(true);
       setSelection({ type: 'FeatureCollection', features: [{ type: 'Feature', geometry: simplifiedGeometry, properties: {} }] });
       onSelectionChange?.({
@@ -228,6 +228,13 @@ function SoilhiveMap({
       updateH3Cells({ bounds, zoomLevel });
     },
     [onSelectionChange, selection.features.length, updateH3Cells],
+  );
+
+  const onLoad = useCallback(
+    (mapEvent: any) => {
+      onMapMoveEnd(mapEvent);
+    },
+    [onMapMoveEnd],
   );
 
   const resetSelection = useCallback(() => {
@@ -315,8 +322,8 @@ function SoilhiveMap({
         dragRotate={false}
         mapStyle={currentMapStyle}
         {...(initialViewBoundingBox ? { initialViewState: { bounds: initialViewBoundingBox } } : {})}
+        onLoad={onLoad}
         onDragEnd={onMapMoveEnd}
-        onLoad={onMapMoveEnd}
         onZoomEnd={onMapMoveEnd}
         onMoveEnd={onMapMoveEnd}
         onClick={onMapClick}
