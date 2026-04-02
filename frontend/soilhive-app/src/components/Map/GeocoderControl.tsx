@@ -202,7 +202,6 @@ export default function GeocoderControl(props: GeocoderControlProps) {
           const [lat, lon] = result.original_geometry.coordinates;
           setMarker(<Marker longitude={lat} latitude={lon} />);
         } else {
-          ctrl.clear();
           props.onFeatureSelect?.({
             feature: result.original_feature,
             center: result.geometry,
