@@ -1,0 +1,87 @@
+.SoilDataFileRow {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  grid-template-rows: auto auto;
+  align-items: center;
+  column-gap: 1rem;
+  row-gap: 0;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--surface-border, #dee2e6);
+  border-radius: 6px;
+  background-color: var(--surface-0, #ffffff);
+
+  &.HasError {
+    border-color: var(--red-500, #ef4444);
+  }
+}
+
+.FileInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+.FileName {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-color, #212529);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.FileSize {
+  font-size: 0.75rem;
+  color: var(--text-color-secondary, #6c757d);
+}
+
+.CrsSection {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-shrink: 0;
+}
+
+.CrsLabel {
+  font-size: 0.875rem;
+  color: var(--text-color-secondary, #6c757d);
+  white-space: nowrap;
+}
+
+.CrsDropdown {
+  width: 180px;
+}
+
+.CrsInput {
+  width: 100%;
+  font-size: 0.875rem;
+}
+
+.RemoveButton {
+  flex-shrink: 0;
+  color: var(--text-color-secondary, #6c757d) !important;
+
+  &:hover {
+    color: var(--text-color, #212529) !important;
+  }
+}
+
+// Error row spans all columns, sits below the main row grid
+.ErrorRow {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background-color: var(--red-50, #fff5f5);
+  border-radius: 4px;
+  font-size: 0.8125rem;
+  color: var(--red-700, #b91c1c);
+
+  i {
+    font-size: 0.875rem;
+    flex-shrink: 0;
+  }
+}

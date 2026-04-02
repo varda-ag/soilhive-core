@@ -18,7 +18,7 @@ interface Props {
   files?: File[];
   uploadProgress?: FilesUploadProgress;
   bond?: DropAreaBond;
-  fileInputRef?: React.RefObject<HTMLInputElement>;
+  fileInputRef?: React.RefObject<HTMLInputElement | null>;
   disabled?: boolean;
   caption?: string;
   errorMessage?: string | null;

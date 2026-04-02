@@ -72,7 +72,8 @@
         "title": "Datasets publication",
         "actions": {
             "save_and_continue_later": "Save and continue later",
-            "continue": "Continue"
+            "continue": "Continue",
+            "previous": "Previous"
         },
         "general_info": {
             "step_title": "General info",
@@ -97,7 +98,11 @@
         "soil_data": {
             "step_title": "Soil data",
             "step_description": "Upload your files",
-            "title": "Add file/s"
+            "title": "Add file/s",
+            "template_docs_banner": "Check the template documentation <a>here</a> on Github.",
+            "upload_caption": "Supported formats: CSV, Geopackage, GeoJSON, Shapefile, XLSX and ZIP.",
+            "files_uploaded_count": "Files uploaded: {{count}}",
+            "clear_all": "Clear all"
         },
         "mappings": {
             "step_title": "Mappings",
