@@ -91,10 +91,10 @@ export function DatasetsGeneralInfoStep() {
       </div>
       <div className={styles.Actions}>
         <Button type="secondary" isDisabled={isSaving} onClick={handleSaveAndContinueLater} dataTestId="sh-general-info-save-later">
-          {t('datasets.general_info.actions.save_and_continue_later')}
+          {t('datasets.actions.save_and_continue_later')}
         </Button>
         <Button type="primary" isDisabled={isSaving} onClick={handleContinue} dataTestId="sh-general-info-continue">
-          {t('datasets.general_info.actions.continue')}
+          {t('datasets.actions.continue')}
         </Button>
       </div>
     </>
