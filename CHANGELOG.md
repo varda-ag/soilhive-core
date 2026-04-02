@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.61.1 (2026-04-02)
+
+## What's Changed
+* fix: :bug: keeping search term by @svaccari in https://github.com/varda-ag/soilhive-core/pull/347
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.61.0...v0.61.1
+
 ## 0.61.0 (2026-04-02)
 
 ## What's Changed
