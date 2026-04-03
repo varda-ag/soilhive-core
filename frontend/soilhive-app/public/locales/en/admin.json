@@ -102,7 +102,10 @@
             "template_docs_banner": "Check the template documentation <a>here</a> on Github.",
             "upload_caption": "Supported formats: CSV, Geopackage, GeoJSON, Shapefile, XLSX and ZIP.",
             "files_uploaded_count": "Files uploaded: {{count}}",
-            "clear_all": "Clear all"
+            "clear_all": "Clear all",
+            "upload_error": "Error uploading file",
+            "crs_label": "Add a Coordinate Reference System (CRS)",
+            "crs_placeholder": "e.g. EPSG:4326"
         },
         "mappings": {
             "step_title": "Mappings",

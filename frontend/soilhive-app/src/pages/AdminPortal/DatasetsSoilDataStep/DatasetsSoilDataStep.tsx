@@ -53,26 +53,28 @@ export function DatasetsSoilDataStep() {
         handleFiles={handleFiles}
       />
 
-      {soilDataFiles.length > 0 && (
-        <div className={styles.FileList}>
-          <div className={styles.FileListHeader}>
-            <span className={styles.FileCount}>{t('datasets.soil_data.files_uploaded_count', { count: soilDataFiles.length })}</span>
-            <button type="button" className={styles.ClearAll} onClick={clearAll}>
-              {t('datasets.soil_data.clear_all')}
-            </button>
+      <div className={styles.FileListContainer}>
+        {soilDataFiles.length > 0 && (
+          <div className={styles.FileList}>
+            <div className={styles.FileListHeader}>
+              <span className={styles.FileCount}>{t('datasets.soil_data.files_uploaded_count', { count: soilDataFiles.length })}</span>
+              <button type="button" className={styles.ClearAll} onClick={clearAll}>
+                {t('datasets.soil_data.clear_all')}
+              </button>
+            </div>
+            <div className={styles.FileRows}>
+              {soilDataFiles.map(soilDataFile => (
+                <SoilDataFileRow
+                  key={soilDataFile.id ?? soilDataFile.tmpId}
+                  soilDataFile={soilDataFile}
+                  onCrsChange={handleCrsChange}
+                  onRemove={() => removeFile(soilDataFile.tmpId)}
+                />
+              ))}
+            </div>
           </div>
-          <div className={styles.FileRows}>
-            {soilDataFiles.map(soilDataFile => (
-              <SoilDataFileRow
-                key={soilDataFile.id ?? soilDataFile.tmpId}
-                soilDataFile={soilDataFile}
-                onCrsChange={handleCrsChange}
-                onRemove={() => removeFile(soilDataFile.tmpId)}
-              />
-            ))}
-          </div>
-        </div>
-      )}
+        )}
+      </div>
 
       <div className={styles.Footer}>
         <Button type="secondary" size="small" onClick={handlePrevious}>

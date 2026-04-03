@@ -57,6 +57,9 @@ exports[`DatasetsSoilDataStep renders matches snapshot 1`] = `
       </label>
     </div>
     <div
+      class="FileListContainer"
+    />
+    <div
       class="Footer"
     >
       <button
