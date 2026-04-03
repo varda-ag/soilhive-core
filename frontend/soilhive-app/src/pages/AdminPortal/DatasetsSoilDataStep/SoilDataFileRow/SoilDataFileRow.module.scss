@@ -64,16 +64,3 @@
 .RemoveButtonIcon {
   color: var(--color-neutral-dark-400);
 }
-
-.ErrorRow {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 16px;
-  background-color: var(--color-accent-danger-050);
-  border-radius: 4px;
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-regular);;
-  color: var(--color-accent-danger-1000);
-  margin-bottom: 16px;
-}

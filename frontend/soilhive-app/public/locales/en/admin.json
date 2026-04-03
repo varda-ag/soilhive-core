@@ -105,7 +105,8 @@
             "clear_all": "Clear all",
             "upload_error": "Error uploading file",
             "crs_label": "Add a Coordinate Reference System (CRS)",
-            "crs_placeholder": "e.g. EPSG:4326"
+            "crs_placeholder": "e.g. EPSG:4326",
+            "invalid_file_type": "Invalid file type"
         },
         "mappings": {
             "step_title": "Mappings",

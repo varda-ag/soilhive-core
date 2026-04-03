@@ -14,6 +14,7 @@ export function DatasetsSoilDataStep() {
     fileInputRef,
     soilDataFiles,
     uploadingFiles,
+    uploadErrors,
     isContinueEnabled,
     handleFiles,
     handleCrsChange,
@@ -51,6 +52,7 @@ export function DatasetsSoilDataStep() {
         fileInputRef={fileInputRef}
         caption={t('datasets.soil_data.upload_caption')}
         handleFiles={handleFiles}
+        errorMessage={uploadErrors}
       />
 
       <div className={styles.FileListContainer}>

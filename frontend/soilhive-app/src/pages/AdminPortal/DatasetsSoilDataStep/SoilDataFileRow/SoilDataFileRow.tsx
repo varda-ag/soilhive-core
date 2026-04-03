@@ -6,7 +6,6 @@ import classnames from 'classnames';
 import styles from './SoilDataFileRow.module.scss';
 import { type SoilDataFile } from '../../../../types/soilDataFile';
 import CrossIcon from 'assets/icons/cross-icon.svg?react';
-import WarningIcon from 'assets/icons/warning-icon.svg?react';
 
 // Hardcoded CRS options — to be replaced with an API call in a future iteration
 const CRS_OPTIONS = ['EPSG:2154', 'EPSG:27700'];
@@ -25,7 +24,7 @@ function formatFileSize(bytes: number): string {
 
 export function SoilDataFileRow({ soilDataFile, onCrsChange, onRemove }: Props) {
   const { t } = useTranslation('admin');
-  const { tmpId, file, crs, error } = soilDataFile;
+  const { tmpId, file, crs } = soilDataFile;
 
   const suggestions = CRS_OPTIONS.filter(option => !crs || option.toLowerCase().includes(crs.toLowerCase()));
 
@@ -59,13 +58,6 @@ export function SoilDataFileRow({ soilDataFile, onCrsChange, onRemove }: Props) 
           <CrossIcon className={styles.RemoveButtonIcon} />
         </Button>
       </div>
-
-      {!!error && (
-        <div className={styles.ErrorRow}>
-          <WarningIcon />
-          <span>{error}</span>
-        </div>
-      )}
     </div>
   );
 }

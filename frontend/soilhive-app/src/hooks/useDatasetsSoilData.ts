@@ -9,6 +9,8 @@ const ROUTES = {
   NEXT: '../mappings',
 };
 
+const ALLOWED_EXTENSIONS = ['.csv', 'gpkg', '.geojson', '.shp', '.xlsx', '.zip'];
+
 export function useDatasetsSoilData() {
   const { t } = useTranslation('admin');
   const navigate = useNavigate();
@@ -19,6 +21,7 @@ export function useDatasetsSoilData() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [soilDataFiles, setSoilDataFiles] = useState<SoilDataFile[]>([]);
   const [uploadingFiles, setUploadingFiles] = useState<File[]>([]);
+  const [uploadErrors, setUploadErrors] = useState<string[]>([]);
 
   const isContinueEnabled = soilDataFiles.length > 0 && soilDataFiles.every(f => !!f.crs && !f.error);
 
@@ -63,38 +66,39 @@ export function useDatasetsSoilData() {
     async (files: FileList | File[] | null) => {
       if (!files || files.length === 0) return;
 
+      setUploadErrors([]);
+
       const fileArray = Array.from(files);
+
+      const validFiles: File[] = [];
+      const extensionErrors: string[] = [];
+
+      fileArray.forEach(file => {
+        const extension = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
+        if (ALLOWED_EXTENSIONS.includes(extension)) {
+          validFiles.push(file);
+        } else {
+          extensionErrors.push(`${file.name}: ${t('datasets.soil_data.invalid_file_type')}`);
+        }
+      });
+
+      if (extensionErrors.length > 0) {
+        setUploadErrors(extensionErrors);
+      }
+
+      if (validFiles.length === 0) return;
 
       setUploadingFiles(fileArray);
 
-      const newFiles: SoilDataFile[] = fileArray.map(file => {
-        const currentId = `file-${fileCounterRef.current}`;
-
-        fileCounterRef.current += 1;
-
-        return {
-          tmpId: currentId,
-          file,
-          progress: 0,
-          crs: null,
-          inferredCrs: null,
-          error: null,
-        };
-      });
-
-      setSoilDataFiles(prev => [...prev, ...newFiles]);
-
       // Wait for all uploads in this batch to finish
       await Promise.allSettled(
-        newFiles.map(async fileObj => {
+        fileArray.map(async file => {
+          const tmpId = `file-${fileCounterRef.current++}`;
           try {
-            const { id, crs } = await uploadFile(fileObj);
-            updateFileState(fileObj.tmpId, { id, inferredCrs: crs, crs: crs ?? null });
+            const { id, crs } = await uploadFile({ file, tmpId } as any);
+            setSoilDataFiles(prev => [...prev, { id, tmpId, file, crs: crs ?? null, inferredCrs: crs, progress: 100 }]);
           } catch {
-            updateFileState(fileObj.tmpId, {
-              error: t('datasets.soil_data.upload_error'),
-              progress: 0,
-            });
+            setUploadErrors(prev => [...prev, `${file.name}: ${t('datasets.soil_data.upload_error')}`]);
           }
         }),
       );
@@ -103,7 +107,7 @@ export function useDatasetsSoilData() {
       setUploadingFiles([]);
       if (fileInputRef.current) fileInputRef.current.value = '';
     },
-    [uploadFile, updateFileState, t],
+    [uploadFile, t],
   );
 
   const removeFile = useCallback(
@@ -133,6 +137,7 @@ export function useDatasetsSoilData() {
     fileInputRef,
     soilDataFiles,
     uploadingFiles,
+    uploadErrors,
     isContinueEnabled,
     handleFiles,
     handleCrsChange: (tmpId: string, crs: string) => updateFileState(tmpId, { crs }),

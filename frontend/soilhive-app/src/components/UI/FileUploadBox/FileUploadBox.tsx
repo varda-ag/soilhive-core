@@ -21,7 +21,7 @@ interface Props {
   fileInputRef?: React.RefObject<HTMLInputElement | null>;
   disabled?: boolean;
   caption?: string;
-  errorMessage?: string | null;
+  errorMessage?: string | string[] | null;
   isSingleFileUpload?: boolean;
   handleFiles: (files: FileList | File[] | null) => void;
 }
@@ -89,7 +89,9 @@ export function FileUploadBox({
           />
         </div>
       </label>
-      {!!errorMessage && <FormMessage message={errorMessage} type="error" />}
+      {Array.isArray(errorMessage)
+        ? errorMessage.map((msg, i) => <FormMessage key={i} message={msg} type="error" />)
+        : !!errorMessage && <FormMessage message={errorMessage} type="error" />}
     </div>
   );
 }
