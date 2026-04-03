@@ -15,33 +15,34 @@ export function useDatasetsSoilData() {
   const { t } = useTranslation('admin');
   const navigate = useNavigate();
 
-  // Used to generate temporary IDs for files before they're saved and get a real ID from the server
-  const fileCounterRef = useRef(0);
-
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [soilDataFiles, setSoilDataFiles] = useState<SoilDataFile[]>([]);
-  const [uploadingFiles, setUploadingFiles] = useState<File[]>([]);
+  const [soilDataFiles, setSoilDataFiles] = useState<SoilDataFile[]>([]); // Successfully uploaded files with their server IDs and CRS info
+  const [uploadingFiles, setUploadingFiles] = useState<File[]>([]); // Used to keep track of files currently being uploaded and show progress bars in FileUploadBox
+  const [uploadProgress, setUploadProgress] = useState<Record<string, number[]>>({});
   const [uploadErrors, setUploadErrors] = useState<string[]>([]);
 
   const isContinueEnabled = soilDataFiles.length > 0 && soilDataFiles.every(f => !!f.crs && !f.error);
 
-  const updateFileState = useCallback((tmpId: string, updates: Partial<SoilDataFile>) => {
-    setSoilDataFiles(prev => prev.map(f => (f.tmpId === tmpId ? { ...f, ...updates } : f)));
+  const updateSoilDataFile = useCallback((id: string, updates: Partial<SoilDataFile>) => {
+    setSoilDataFiles(prev => prev.map(f => (f.id === id ? { ...f, ...updates } : f)));
   }, []);
 
   const uploadFile = useCallback(
-    (soilDataFile: SoilDataFile): Promise<{ id: string; crs?: string }> => {
+    (file: File): Promise<{ id: string; crs?: string }> => {
       return new Promise((resolve, reject) => {
         const formData = new FormData();
-        formData.append('file', soilDataFile.file);
+        formData.append('file', file);
 
         const xhr = new XMLHttpRequest();
 
         xhr.upload.addEventListener('progress', event => {
           if (event.lengthComputable) {
             const percent = Math.round((event.loaded / event.total) * 100);
-            // Update progress directly in the main state
-            updateFileState(soilDataFile.tmpId, { progress: percent });
+            // Update the progress map using the filename as the key
+            setUploadProgress(prev => ({
+              ...prev,
+              [file.name]: [percent],
+            }));
           }
         });
 
@@ -59,7 +60,7 @@ export function useDatasetsSoilData() {
         xhr.send(formData);
       });
     },
-    [t, updateFileState],
+    [t],
   );
 
   const handleFiles = useCallback(
@@ -94,10 +95,18 @@ export function useDatasetsSoilData() {
       // Wait for all uploads in this batch to finish
       await Promise.allSettled(
         fileArray.map(async file => {
-          const tmpId = `file-${fileCounterRef.current++}`;
           try {
-            const { id, crs } = await uploadFile({ file, tmpId } as any);
-            setSoilDataFiles(prev => [...prev, { id, tmpId, file, crs: crs ?? null, inferredCrs: crs, progress: 100 }]);
+            const { id, crs } = await uploadFile({ file } as any);
+            setSoilDataFiles(prev => [
+              ...prev,
+              {
+                id,
+                file,
+                crs: crs ?? null,
+                inferredCrs: crs,
+                progress: 100,
+              },
+            ]);
           } catch {
             setUploadErrors(prev => [...prev, `${file.name}: ${t('datasets.soil_data.upload_error')}`]);
           }
@@ -112,9 +121,9 @@ export function useDatasetsSoilData() {
   );
 
   const removeFile = useCallback(
-    async (tmpId: string) => {
-      const fileToRemove = soilDataFiles.find(f => f.tmpId === tmpId);
-      setSoilDataFiles(prev => prev.filter(f => f.tmpId !== tmpId));
+    async (id: string) => {
+      const fileToRemove = soilDataFiles.find(f => f.id === id);
+      setSoilDataFiles(prev => prev.filter(f => f.id !== id));
 
       if (fileToRemove?.id) {
         try {
@@ -139,9 +148,10 @@ export function useDatasetsSoilData() {
     soilDataFiles,
     uploadingFiles,
     uploadErrors,
+    uploadProgress,
     isContinueEnabled,
     handleFiles,
-    handleCrsChange: (tmpId: string, crs: string) => updateFileState(tmpId, { crs }),
+    handleCrsChange: (id: string, crs: string) => updateSoilDataFile(id, { crs }),
     removeFile,
     clearAll,
     handlePrevious: () => navigate(ROUTES.PREV, { relative: 'path' }),

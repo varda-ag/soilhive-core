@@ -1,4 +1,3 @@
-import { useMemo } from 'react';
 import { useTranslation, Trans } from 'react-i18next';
 import { Button, FileUploadBox } from 'components/UI';
 import { SoilDataFileRow } from './SoilDataFileRow/SoilDataFileRow';
@@ -15,6 +14,7 @@ export function DatasetsSoilDataStep() {
     soilDataFiles,
     uploadingFiles,
     uploadErrors,
+    uploadProgress,
     isContinueEnabled,
     handleFiles,
     handleCrsChange,
@@ -24,12 +24,6 @@ export function DatasetsSoilDataStep() {
     handleSaveAndContinueLater,
     handleContinue,
   } = useDatasetsSoilData();
-
-  /**
-   * Reshapes soilDataFiles into the [key: filename]: [progress] format
-   * required by FileUploadBox and ProgressBar.
-   */
-  const progressMapping = useMemo(() => Object.fromEntries(soilDataFiles.map(f => [f.file.name, [f.progress ?? 0]])), [soilDataFiles]);
 
   return (
     <div className={styles.DatasetsSoilDataStep}>
@@ -48,7 +42,7 @@ export function DatasetsSoilDataStep() {
 
       <FileUploadBox
         files={uploadingFiles}
-        uploadProgress={progressMapping}
+        uploadProgress={uploadProgress}
         fileInputRef={fileInputRef}
         caption={t('datasets.soil_data.upload_caption')}
         handleFiles={handleFiles}
@@ -68,10 +62,10 @@ export function DatasetsSoilDataStep() {
             <div className={styles.FileRows}>
               {soilDataFiles.map(soilDataFile => (
                 <SoilDataFileRow
-                  key={soilDataFile.id ?? soilDataFile.tmpId}
+                  key={soilDataFile.id ?? soilDataFile.id}
                   soilDataFile={soilDataFile}
                   onCrsChange={handleCrsChange}
-                  onRemove={() => removeFile(soilDataFile.tmpId)}
+                  onRemove={() => removeFile(soilDataFile.id)}
                 />
               ))}
             </div>

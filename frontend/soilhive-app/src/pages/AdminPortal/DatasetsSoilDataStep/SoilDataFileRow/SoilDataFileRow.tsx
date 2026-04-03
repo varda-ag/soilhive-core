@@ -24,7 +24,7 @@ function formatFileSize(bytes: number): string {
 
 export function SoilDataFileRow({ soilDataFile, onCrsChange, onRemove }: Props) {
   const { t } = useTranslation('admin');
-  const { tmpId, file, crs } = soilDataFile;
+  const { id, file, crs } = soilDataFile;
 
   const suggestions = CRS_OPTIONS.filter(option => !crs || option.toLowerCase().includes(crs.toLowerCase()));
 
@@ -37,15 +37,15 @@ export function SoilDataFileRow({ soilDataFile, onCrsChange, onRemove }: Props) 
         </div>
 
         <div className={styles.CrsSection}>
-          <label className={styles.CrsLabel} htmlFor={`crs-${tmpId}`}>
+          <label className={styles.CrsLabel} htmlFor={`crs-${id}`}>
             {t('datasets.soil_data.crs_label')}
           </label>
           <AutoComplete
-            inputId={`crs-${tmpId}`}
+            inputId={`crs-${id}`}
             value={crs ?? ''}
             suggestions={suggestions}
             completeMethod={() => {}}
-            onChange={e => onCrsChange(tmpId, e.value)}
+            onChange={e => onCrsChange(id, e.value)}
             placeholder={t('datasets.soil_data.crs_placeholder')}
             className={styles.CrsDropdown}
             inputClassName={styles.CrsInput}
@@ -54,7 +54,7 @@ export function SoilDataFileRow({ soilDataFile, onCrsChange, onRemove }: Props) 
           />
         </div>
 
-        <Button type="tertiary" size="tiny" onClick={() => onRemove(tmpId)} isIconOnly>
+        <Button type="tertiary" size="tiny" onClick={() => onRemove(id)} isIconOnly>
           <CrossIcon className={styles.RemoveButtonIcon} />
         </Button>
       </div>
