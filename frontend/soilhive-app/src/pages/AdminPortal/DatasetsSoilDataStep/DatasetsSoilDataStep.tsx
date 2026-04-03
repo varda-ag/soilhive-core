@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { useTranslation, Trans } from 'react-i18next';
 import { Button, FileUploadBox } from 'components/UI';
 import { SoilDataFileRow } from './SoilDataFileRow/SoilDataFileRow';
-import { useDatasetsSoilData } from '../../../hooks/useDatasetsSoilData';
+import { useDatasetsSoilData, ALLOWED_EXTENSIONS } from '../../../hooks/useDatasetsSoilData';
 import styles from './DatasetsSoilDataStep.module.scss';
 import InfoIcon from 'assets/icons/info-icon.svg?react';
 
@@ -52,6 +52,7 @@ export function DatasetsSoilDataStep() {
         fileInputRef={fileInputRef}
         caption={t('datasets.soil_data.upload_caption')}
         handleFiles={handleFiles}
+        accept={ALLOWED_EXTENSIONS.join(', ')}
         errorMessage={uploadErrors}
       />
 

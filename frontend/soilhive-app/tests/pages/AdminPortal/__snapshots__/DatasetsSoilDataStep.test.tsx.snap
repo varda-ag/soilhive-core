@@ -47,6 +47,7 @@ exports[`DatasetsSoilDataStep renders matches snapshot 1`] = `
             Supported formats: CSV, Geopackage, GeoJSON, Shapefile, XLSX and ZIP.
           </p>
           <input
+            accept=""
             data-testid="upload-input"
             id="fileUploadInput"
             multiple=""

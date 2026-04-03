@@ -4,6 +4,7 @@ import { useDatasetsSoilData } from 'hooks/useDatasetsSoilData';
 
 jest.mock('hooks/useDatasetsSoilData', () => ({
   useDatasetsSoilData: jest.fn(),
+  ALLOWED_EXTENSIONS: [],
 }));
 
 describe('DatasetsSoilDataStep', () => {

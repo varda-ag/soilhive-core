@@ -9,7 +9,7 @@ const ROUTES = {
   NEXT: '../mappings',
 };
 
-const ALLOWED_EXTENSIONS = ['.csv', 'gpkg', '.geojson', '.shp', '.xlsx', '.zip'];
+export const ALLOWED_EXTENSIONS = ['.csv', 'gpkg', '.geojson', '.shp', '.xlsx', '.zip'];
 
 export function useDatasetsSoilData() {
   const { t } = useTranslation('admin');
@@ -88,6 +88,7 @@ export function useDatasetsSoilData() {
 
       if (validFiles.length === 0) return;
 
+      // Add valid files to uploading state to show progress bars
       setUploadingFiles(fileArray);
 
       // Wait for all uploads in this batch to finish

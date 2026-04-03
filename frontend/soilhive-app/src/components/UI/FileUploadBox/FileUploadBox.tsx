@@ -24,6 +24,7 @@ interface Props {
   errorMessage?: string | string[] | null;
   isSingleFileUpload?: boolean;
   handleFiles: (files: FileList | File[] | null) => void;
+  accept?: string;
 }
 
 export function FileUploadBox({
@@ -35,6 +36,7 @@ export function FileUploadBox({
   errorMessage,
   isSingleFileUpload,
   handleFiles,
+  accept,
 }: Props) {
   const { t } = useTranslation('common');
 
@@ -86,6 +88,7 @@ export function FileUploadBox({
             disabled={disabled}
             onChange={(e: ChangeEvent<HTMLInputElement>) => handleFiles(e.target.files)}
             multiple={!isSingleFileUpload}
+            accept={accept}
           />
         </div>
       </label>
