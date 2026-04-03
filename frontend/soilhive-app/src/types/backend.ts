@@ -204,3 +204,33 @@ export interface GeneralInfoFormData {
   description: string;
   author: string;
 }
+
+export interface PropertyMapping {
+  property_id: string;
+  conversion_id?: string;
+  min_val?: number;
+  max_val?: number;
+  procedure_id?: string;
+}
+
+export interface DataMappingObject {
+  [columnName: string]: string | PropertyMapping;
+}
+
+export type DataMappingRequest = DataMappingObject;
+
+export interface DataMappingResponse {
+  id: string;
+  data_mapping: DataMappingObject;
+}
+
+export interface DatasetFileMappingRequest {
+  fileID?: string;
+  mappingId?: string;
+}
+
+export interface DatasetFileMappingResponse {
+  id: string;
+  fileID: string;
+  mappingId: string;
+}

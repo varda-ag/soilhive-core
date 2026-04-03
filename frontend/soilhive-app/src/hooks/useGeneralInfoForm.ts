@@ -5,6 +5,8 @@ import type { Dataset, GeneralInfoFormData } from 'types/backend';
 import { useDataset } from './useDatasets';
 import { useCreateDatasetMutation } from './useCreateDatasetMutation';
 import { useUpdateDatasetMutation } from './useUpdateDatasetMutation';
+import { useCreateMappingsMutation } from './useCreateMappingsMutation';
+import { useCreateDatasetFileMapping } from './useCreateDatasetFileMapping';
 
 const DESCRIPTION_MAX_LENGTH = 200;
 
@@ -27,13 +29,15 @@ export function useGeneralInfoForm(id: string | undefined, validationMessages: V
   const { data: dataset, isLoading } = useDataset(id);
   const { mutateAsync: createDataset, isPending: isCreating } = useCreateDatasetMutation();
   const { mutateAsync: updateDataset, isPending: isUpdating } = useUpdateDatasetMutation(id ?? '');
+  const { mutateAsync: createMappings, isPending: isCreatingMappings } = useCreateMappingsMutation();
+  const { mutateAsync: createDatasetFileMapping, isPending: isCreatingDatasetFileMapping } = useCreateDatasetFileMapping();
 
   function validate(data: GeneralInfoFormData): ValidationErrors {
     const errors: ValidationErrors = {};
-    if (!data.name.trim()) errors.name = validationMessages.name; /* <-- CHANGE */
-    if (!data.full_name.trim()) errors.full_name = validationMessages.full_name; /* <-- CHANGE */
-    if (!data.description.trim()) errors.description = validationMessages.description; /* <-- CHANGE */
-    if (!data.author.trim()) errors.author = validationMessages.author; /* <-- CHANGE */
+    if (!data.name.trim()) errors.name = validationMessages.name;
+    if (!data.full_name.trim()) errors.full_name = validationMessages.full_name;
+    if (!data.description.trim()) errors.description = validationMessages.description;
+    if (!data.author.trim()) errors.author = validationMessages.author;
     return errors;
   }
 
@@ -66,7 +70,11 @@ export function useGeneralInfoForm(id: string | undefined, validationMessages: V
       if (id) {
         return await updateDataset(formData);
       } else {
-        return await createDataset(formData);
+        const savedDataset = await createDataset(formData);
+        const savedMappings = await createMappings({});
+        await createDatasetFileMapping({ datasetId: savedDataset.id, fileID: undefined, mappingId: savedMappings.id });
+
+        return savedDataset;
       }
     } catch {
       setSubmitError('Something went wrong. Please try again.');
@@ -92,7 +100,7 @@ export function useGeneralInfoForm(id: string | undefined, validationMessages: V
     errors,
     submitError,
     isLoading,
-    isSaving: isCreating || isUpdating,
+    isSaving: isCreating || isUpdating || isCreatingMappings || isCreatingDatasetFileMapping,
     descriptionMaxLength: DESCRIPTION_MAX_LENGTH,
     handleChange,
     handleSaveAndContinueLater,
