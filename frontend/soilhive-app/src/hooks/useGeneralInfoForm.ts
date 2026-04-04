@@ -5,8 +5,6 @@ import type { Dataset, GeneralInfoFormData } from 'types/backend';
 import { useDataset } from './useDatasets';
 import { useCreateDatasetMutation } from './useCreateDatasetMutation';
 import { useUpdateDatasetMutation } from './useUpdateDatasetMutation';
-import { useCreateMappingsMutation } from './useCreateMappingsMutation';
-import { useCreateDatasetFileMapping } from './useCreateDatasetFileMapping';
 
 const DESCRIPTION_MAX_LENGTH = 200;
 
@@ -29,8 +27,6 @@ export function useGeneralInfoForm(id: string | undefined, validationMessages: V
   const { data: dataset, isLoading } = useDataset(id);
   const { mutateAsync: createDataset, isPending: isCreating } = useCreateDatasetMutation();
   const { mutateAsync: updateDataset, isPending: isUpdating } = useUpdateDatasetMutation(id ?? '');
-  const { mutateAsync: createMappings, isPending: isCreatingMappings } = useCreateMappingsMutation();
-  const { mutateAsync: createDatasetFileMapping, isPending: isCreatingDatasetFileMapping } = useCreateDatasetFileMapping();
 
   function validate(data: GeneralInfoFormData): ValidationErrors {
     const errors: ValidationErrors = {};
@@ -70,11 +66,7 @@ export function useGeneralInfoForm(id: string | undefined, validationMessages: V
       if (id) {
         return await updateDataset(formData);
       } else {
-        const savedDataset = await createDataset(formData);
-        const savedMappings = await createMappings({});
-        await createDatasetFileMapping({ datasetId: savedDataset.id, fileID: undefined, mappingId: savedMappings.id });
-
-        return savedDataset;
+        return await createDataset(formData);
       }
     } catch {
       setSubmitError('Something went wrong. Please try again.');
@@ -100,7 +92,7 @@ export function useGeneralInfoForm(id: string | undefined, validationMessages: V
     errors,
     submitError,
     isLoading,
-    isSaving: isCreating || isUpdating || isCreatingMappings || isCreatingDatasetFileMapping,
+    isSaving: isCreating || isUpdating,
     descriptionMaxLength: DESCRIPTION_MAX_LENGTH,
     handleChange,
     handleSaveAndContinueLater,

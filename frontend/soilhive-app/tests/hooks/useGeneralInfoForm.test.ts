@@ -2,8 +2,6 @@ import { renderHook, act } from '@testing-library/react';
 import { useGeneralInfoForm } from 'hooks/useGeneralInfoForm';
 import { useCreateDatasetMutation } from 'hooks/useCreateDatasetMutation';
 import { useUpdateDatasetMutation } from 'hooks/useUpdateDatasetMutation';
-import { useCreateMappingsMutation } from 'hooks/useCreateMappingsMutation';
-import { useCreateDatasetFileMapping } from 'hooks/useCreateDatasetFileMapping';
 import { useDataset } from 'hooks/useDatasets';
 
 const mockNavigate = jest.fn();
@@ -15,8 +13,6 @@ jest.mock('react-router', () => ({
 jest.mock('hooks/useDatasets', () => ({ useDataset: jest.fn() }));
 jest.mock('hooks/useCreateDatasetMutation', () => ({ useCreateDatasetMutation: jest.fn() }));
 jest.mock('hooks/useUpdateDatasetMutation', () => ({ useUpdateDatasetMutation: jest.fn() }));
-jest.mock('hooks/useCreateMappingsMutation', () => ({ useCreateMappingsMutation: jest.fn() }));
-jest.mock('hooks/useCreateDatasetFileMapping', () => ({ useCreateDatasetFileMapping: jest.fn() }));
 
 const validationMessages = {
   name: 'Name is required',
@@ -32,14 +28,6 @@ describe('useGeneralInfoForm', () => {
     (useDataset as jest.Mock).mockReturnValue({ data: undefined, isLoading: false });
     (useCreateDatasetMutation as jest.Mock).mockReturnValue({ mutateAsync: jest.fn().mockResolvedValue(mockDataset), isPending: false });
     (useUpdateDatasetMutation as jest.Mock).mockReturnValue({ mutateAsync: jest.fn().mockResolvedValue(mockDataset), isPending: false });
-    (useCreateMappingsMutation as jest.Mock).mockReturnValue({
-      mutateAsync: jest.fn().mockResolvedValue({ id: 'mapping1', data_mapping: {} }),
-      isPending: false,
-    });
-    (useCreateDatasetFileMapping as jest.Mock).mockReturnValue({
-      mutateAsync: jest.fn().mockResolvedValue({ id: 'fileMapping1', fileID: 'file1', mappingId: 'mapping1' }),
-      isPending: false,
-    });
   });
 
   afterEach(() => jest.clearAllMocks());
