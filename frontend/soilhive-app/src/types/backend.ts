@@ -234,3 +234,36 @@ export interface DatasetFileMappingResponse {
   fileID: string;
   mappingId: string;
 }
+
+export interface FileDescriptor {
+  // required
+  id: string;
+  name: string;
+  created_at: string;
+  created_by: string;
+
+  // optional
+  file_path?: string;
+  status?: string;
+  metadata?: {
+    detected_fields?: {
+      crs?: string | null;
+      geometry?: string | null;
+      latitude?: string | null;
+      longitude?: string | null;
+      sampling_date?: string | null;
+      license?: string | null;
+      depth?: string | null;
+      min_depth?: string | null;
+      max_depth?: string | null;
+      horizon?: string | null;
+    };
+    field_names?: string[];
+    geometry_detected?: boolean;
+    driver?: string | null;
+    [key: string]: unknown; // additionalProperties: true
+  };
+  is_archived?: boolean;
+  updated_at?: string;
+  updated_by?: string;
+}

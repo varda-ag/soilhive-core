@@ -16,7 +16,8 @@ interface Props {
   onRemove: (fileId: string) => void;
 }
 
-function formatFileSize(bytes: number): string {
+function formatFileSize(bytes: number | undefined): string {
+  if (bytes === undefined) return '-';
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} Kb`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} Mb`;
@@ -24,7 +25,7 @@ function formatFileSize(bytes: number): string {
 
 export function SoilDataFileRow({ soilDataFile, onCrsChange, onRemove }: Props) {
   const { t } = useTranslation('admin');
-  const { id, file, crs } = soilDataFile;
+  const { id, name, file, crs } = soilDataFile;
 
   const suggestions = CRS_OPTIONS.filter(option => !crs || option.toLowerCase().includes(crs.toLowerCase()));
 
@@ -32,8 +33,8 @@ export function SoilDataFileRow({ soilDataFile, onCrsChange, onRemove }: Props) 
     <div className={styles.Container}>
       <div className={classnames(styles.SoilDataFileRow)}>
         <div className={styles.FileInfo}>
-          <div className={styles.FileName}>{file.name}</div>
-          <div className={styles.FileSize}>{formatFileSize(file.size)}</div>
+          <div className={styles.FileName}>{name}</div>
+          <div className={styles.FileSize}>{formatFileSize(file?.size)}</div>
         </div>
 
         <div className={styles.CrsSection}>
