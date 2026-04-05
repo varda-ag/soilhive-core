@@ -1823,7 +1823,6 @@ components:
       properties:
         fileID:
           type: string
-          format: uuid
         mappingId:
           type: string
           format: uuid

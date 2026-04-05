@@ -44,11 +44,13 @@ export function FileUploadBox({
     onFiles: files => handleFiles(files),
   });
 
+  const hasError = Array.isArray(errorMessage) ? errorMessage.length > 0 : !!errorMessage;
+
   return (
     <div>
       <label
         data-testid="sh-ui-fileuploadbox"
-        className={classnames(styles.FileUploadBox, disabled && styles.Disabled, !!errorMessage && styles.Error)}
+        className={classnames(styles.FileUploadBox, disabled && styles.Disabled, hasError && styles.Error)}
         htmlFor="fileUploadInput"
         {...bond}
       >

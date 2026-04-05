@@ -68,8 +68,8 @@ describe('DatasetFileMappingService', () => {
     const file1 = await addFile('path 1');
     const file2 = await addFile('path 2');
 
-    await service.createMapping(requestData, dataset.slug, { fileID: file1.id });
-    await service.createMapping(requestData, dataset.slug, { fileID: file2.id });
+    await service.createMapping(requestData, dataset.slug, { fileID: file1.slug });
+    await service.createMapping(requestData, dataset.slug, { fileID: file2.slug });
 
     const result = await service.getMappings(requestData, dataset.slug);
 
@@ -85,8 +85,8 @@ describe('DatasetFileMappingService', () => {
     const file1 = await addFile('path 1');
     const file2 = await addFile('path 2');
 
-    await service.createMapping(requestData, dataset.slug, { fileID: file1.id });
-    await service.createMapping(requestData, dataset.slug, { fileID: file2.id });
+    await service.createMapping(requestData, dataset.slug, { fileID: file1.slug });
+    await service.createMapping(requestData, dataset.slug, { fileID: file2.slug });
 
     const result = await service.getMappings(requestData, dataset.slug, file1.id);
     expect(result).toBeDefined();
@@ -135,17 +135,10 @@ describe('DatasetFileMappingService', () => {
     };
     const dataset = await datasetService.createDataset(requestData, input);
 
-    const fileRepo = entityManager.getRepository(FileEntity);
-    const savedFile = await fileRepo.save(
-      fileRepo.create({
-        name: 'test-file',
-        file_path: 'path',
-        created_by: 'test-user',
-      }),
-    );
+    const savedFile = await addFile('test-file');
 
     const payload: DatasetFileMappingRequest = {
-      fileID: savedFile.id,
+      fileID: savedFile.slug,
     };
 
     // Act
@@ -172,18 +165,11 @@ describe('DatasetFileMappingService', () => {
     };
     const dataset = await datasetService.createDataset(requestData, input);
 
-    const fileRepo = entityManager.getRepository(FileEntity);
-    const savedFile = await fileRepo.save(
-      fileRepo.create({
-        name: 'test-file',
-        file_path: 'path',
-        created_by: 'test-user',
-      }),
-    );
+    const file = await addFile('test-file');
 
     // Create initial mapping with file ID
     const initialPayload: DatasetFileMappingRequest = {
-      fileID: savedFile.id,
+      fileID: file.slug,
     };
     const datasetFileMapping = await service.createMapping(requestData, dataset.slug, initialPayload);
 
@@ -199,11 +185,11 @@ describe('DatasetFileMappingService', () => {
     const result = await service.updateMapping(requestData, dataset.slug, datasetFileMapping.id, updatePayload);
 
     // Assert
-    const saved = await entityManager.getRepository(DatasetFileMappingEntity).findOneBy({ id: result.id });
+    const savedDatasetFileMapping = await entityManager.getRepository(DatasetFileMappingEntity).findOneBy({ id: result.id });
 
-    expect(saved?.dataset_id).toBe(dataset.id);
-    expect(saved?.data_mapping_id).toBe(dataMapping.id);
-    expect(saved?.file_id).toBe(savedFile.id);
+    expect(savedDatasetFileMapping?.dataset_id).toBe(dataset.id);
+    expect(savedDatasetFileMapping?.data_mapping_id).toBe(dataMapping.id);
+    expect(savedDatasetFileMapping?.file_id).toBe(file.id);
   });
 
   it('should create a dataset_mapping_file with mapping id and then update the file id', async () => {
@@ -223,29 +209,22 @@ describe('DatasetFileMappingService', () => {
     const datasetMapping = await service.createMapping(requestData, dataset.slug, initialPayload);
 
     // Create file
-    const fileRepo = entityManager.getRepository(FileEntity);
-    const savedFile = await fileRepo.save(
-      fileRepo.create({
-        name: 'test-file',
-        file_path: 'path',
-        created_by: 'test-user',
-      }),
-    );
+    const savedFile = await addFile('test-file');
 
     // Update with file ID
     const updatePayload: DatasetFileMappingRequest = {
-      fileID: savedFile.id,
+      fileID: savedFile.slug,
     };
 
     // Act
     const result = await service.updateMapping(requestData, dataset.slug, datasetMapping.id, updatePayload);
 
     // Assert
-    const saved = await entityManager.getRepository(DatasetFileMappingEntity).findOneBy({ id: result.id });
+    const savedDatasetFileMapping = await entityManager.getRepository(DatasetFileMappingEntity).findOneBy({ id: result.id });
 
-    expect(saved?.dataset_id).toBe(dataset.id);
-    expect(saved?.data_mapping_id).toBe(dataMapping.id);
-    expect(saved?.file_id).toBe(savedFile.id);
+    expect(savedDatasetFileMapping?.dataset_id).toBe(dataset.id);
+    expect(savedDatasetFileMapping?.data_mapping_id).toBe(dataMapping.id);
+    expect(savedDatasetFileMapping?.file_id).toBe(savedFile.id);
   });
 
   it('should throw a conflict error when creating a duplicate dataset_mapping_file', async () => {
@@ -263,12 +242,13 @@ describe('DatasetFileMappingService', () => {
         created_by: 'test-user',
       }),
     );
+    const reloaded = await fileRepo.findOneBy({ id: savedFile.id });
 
     // Create data mapping
     const dataMapping = await dataMappingService.postDataMapping(requestData, {});
 
     const payload: DatasetFileMappingRequest = {
-      fileID: savedFile.id,
+      fileID: reloaded!.slug,
       mappingId: dataMapping.id,
     };
 

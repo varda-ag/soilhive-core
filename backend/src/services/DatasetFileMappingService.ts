@@ -6,6 +6,7 @@ import { getEntity } from '../utils/slugs';
 import { EntityType } from '../types/data';
 import { ErrorResponse } from '../utils/error';
 import { StatusCodes } from 'http-status-codes';
+import FileEntity from '../entities/File';
 
 export default class DatasetFileMappingService {
   static toResponse = (
@@ -46,7 +47,8 @@ export default class DatasetFileMappingService {
     };
 
     if (payload.fileID !== undefined) {
-      values.file_id = payload.fileID;
+      const file = await getEntity(requestData, FileEntity, EntityType.FILE, payload.fileID);
+      values.file_id = file.id;
     }
 
     if (payload.mappingId !== undefined) {
@@ -87,7 +89,8 @@ export default class DatasetFileMappingService {
     };
 
     if (payload.fileID !== undefined) {
-      updateValues.file_id = payload.fileID;
+      const file = await getEntity(requestData, FileEntity, EntityType.FILE, payload.fileID);
+      updateValues.file_id = file.id;
     }
 
     if (payload.mappingId !== undefined) {

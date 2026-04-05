@@ -7,12 +7,8 @@ import { getToken } from '../auth/tokenStore';
 import { useRequest } from '../api-client';
 import { useApiQuery } from './useApiQuery';
 import type { FileDescriptor } from 'types/backend';
-
-const ROUTES = {
-  PREV: '../general-info',
-  SAVE: '../../datasets',
-  NEXT: '../mappings',
-};
+import { useCreateDatasetFileMapping } from './useCreateDatasetFileMapping';
+import { ADMIN_PATHS } from '../configuration/admin';
 
 export const ALLOWED_EXTENSIONS = ['.csv', 'gpkg', '.geojson', '.shp', '.xlsx', '.zip'];
 
@@ -21,6 +17,7 @@ export function useDatasetsSoilData() {
   const navigate = useNavigate();
   const { request } = useRequest();
   const { id: datasetId } = useParams();
+  const { mutateAsync: createFileMapping } = useCreateDatasetFileMapping();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [soilDataFiles, setSoilDataFiles] = useState<SoilDataFile[]>([]); // Successfully uploaded files with their server IDs and CRS info
@@ -35,6 +32,8 @@ export function useDatasetsSoilData() {
   }, []);
 
   // load existing files for this dataset on mount (if editing an existing dataset)
+  const existingFileIds = useRef<Set<string>>(new Set());
+
   const { data: existingFiles, isLoading: isLoadingFiles } = useApiQuery<FileDescriptor[]>({
     endpoint: `/datasets/${datasetId}/files`,
     method: 'GET',
@@ -44,6 +43,7 @@ export function useDatasetsSoilData() {
 
   useEffect(() => {
     if (!existingFiles) return;
+    existingFileIds.current = new Set(existingFiles.map(f => f.id));
     setSoilDataFiles(
       existingFiles
         .filter(f => f !== null)
@@ -134,7 +134,7 @@ export function useDatasetsSoilData() {
             setSoilDataFiles(prev => [
               ...prev,
               {
-                id,
+                id: id,
                 file,
                 name: file.name,
                 crs: crs ?? null,
@@ -179,6 +179,21 @@ export function useDatasetsSoilData() {
     setSoilDataFiles(prev => prev.filter(f => !deletedIds.includes(f.id)));
   }, [soilDataFiles, request]);
 
+  const handleSave = useCallback(async () => {
+    if (!datasetId) return;
+
+    const newFiles = soilDataFiles.filter(f => !existingFileIds.current.has(f.id));
+
+    await Promise.allSettled(
+      newFiles.map(f =>
+        createFileMapping({
+          datasetId,
+          fileID: f.id,
+        }),
+      ),
+    );
+  }, [soilDataFiles, datasetId, createFileMapping]);
+
   return {
     fileInputRef,
     soilDataFiles,
@@ -191,8 +206,16 @@ export function useDatasetsSoilData() {
     handleCrsChange: (id: string, crs: string) => updateSoilDataFile(id, { crs }),
     removeFile,
     clearAll,
-    handlePrevious: () => navigate(ROUTES.PREV, { relative: 'path' }),
-    handleSaveAndContinueLater: () => navigate(ROUTES.SAVE, { relative: 'path' }),
-    handleContinue: () => navigate(ROUTES.NEXT, { relative: 'path' }),
+    handlePrevious: () => {
+      navigate(`${ADMIN_PATHS.DATASETS}/edit/${datasetId}/general-info`);
+    },
+    handleSaveAndContinueLater: () => {
+      handleSave();
+      navigate(ADMIN_PATHS.DATASETS);
+    },
+    handleContinue: () => {
+      handleSave();
+      navigate(`${ADMIN_PATHS.DATASETS}/edit/${datasetId}/mappings`);
+    },
   };
 }

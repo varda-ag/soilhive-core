@@ -83,7 +83,7 @@ describe('Testing /datasets{datasetId}/dataset-file-mapping routes', () => {
 
       const datasetFileMappingPayload = {
         mappingId: mapping.body.id,
-        fileID: file.id,
+        fileID: file.slug,
       };
 
       // Create the first mapping successfully
@@ -143,7 +143,7 @@ describe('Testing /datasets{datasetId}/dataset-file-mapping routes', () => {
         .patch(`/datasets/${dataset.body.id}/dataset-file-mapping/${datasetFileMapping.body.id}`)
         .set('Authorization', `Bearer ${token}`)
         .send({
-          fileID: file.id,
+          fileID: file.slug,
         });
 
       expect(datasetFileMappingUpdate.statusCode).toBe(StatusCodes.OK);
@@ -256,7 +256,7 @@ describe('Testing /datasets{datasetId}/dataset-file-mapping routes', () => {
       await request(app)
         .post(`/datasets/${dataset.body.id}/dataset-file-mapping`)
         .set('Authorization', `Bearer ${token}`)
-        .send({ fileID: file.id });
+        .send({ fileID: file.slug });
 
       const getResponse = await request(app)
         .get(`/datasets/${dataset.body.id}/dataset-file-mapping?fileId=${file.id}`)
