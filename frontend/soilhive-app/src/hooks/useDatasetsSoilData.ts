@@ -155,29 +155,37 @@ export function useDatasetsSoilData() {
     [uploadFile, t],
   );
 
-  const removeFile = useCallback(
+  const deleteFileAndMapping = useCallback(
     async (id: string) => {
+      await request({
+        url: `${BACKEND_BASE_URL}/datasets/${datasetId}/dataset-file-mapping?fileId=${id}`,
+        method: 'DELETE',
+        showErrorNotification: true,
+      });
       await request({
         url: `${BACKEND_BASE_URL}/files/${id}`,
         method: 'DELETE',
         showErrorNotification: true,
       });
+    },
+    [request, datasetId],
+  );
+
+  const removeFile = useCallback(
+    async (id: string) => {
+      await deleteFileAndMapping(id);
       setSoilDataFiles(prev => prev.filter(f => f.id !== id));
     },
-    [request],
+    [deleteFileAndMapping],
   );
 
   const clearAll = useCallback(async () => {
     const toDeleteIds = soilDataFiles.map(f => f.id).filter(Boolean) as string[];
     setUploadingFiles([]);
-
-    const results = await Promise.allSettled(
-      toDeleteIds.map(id => request({ url: `${BACKEND_BASE_URL}/files/${id}`, method: 'DELETE', showErrorNotification: true })),
-    );
-
-    const deletedIds = toDeleteIds.filter((_, i) => results[i]!.status === 'fulfilled'); // remove only successfully deleted files from state
+    const results = await Promise.allSettled(toDeleteIds.map(id => deleteFileAndMapping(id)));
+    const deletedIds = toDeleteIds.filter((_, i) => results[i]!.status === 'fulfilled');
     setSoilDataFiles(prev => prev.filter(f => !deletedIds.includes(f.id)));
-  }, [soilDataFiles, request]);
+  }, [soilDataFiles, deleteFileAndMapping]);
 
   const handleSave = useCallback(async () => {
     if (!datasetId) return;
