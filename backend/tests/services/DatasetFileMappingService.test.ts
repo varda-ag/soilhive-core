@@ -259,4 +259,21 @@ describe('DatasetFileMappingService', () => {
     // Attempt to create a duplicate mapping with the same dataset_id, file_id, and mappingId
     await expect(service.createMapping(requestData, dataset.slug, payload)).rejects.toThrow(/already exists/);
   });
+
+  it('should delete dataset file mapping by file id', async () => {
+    // Arrange
+    const dataset = await addDataset('test-dataset-delete-mapping', [0, 0, 1, 1]);
+
+    const file = await addFile('test-file-delete-mapping');
+
+    await service.createMapping(requestData, dataset.slug, { fileID: file.slug });
+
+    // Act
+    await service.deleteDataMappingByFileId(requestData, dataset.slug, file.slug);
+
+    // Assert
+    const mappings = await service.getMappings(requestData, dataset.slug, file.id);
+    expect(mappings).toBeDefined();
+    expect(mappings.length).toBe(0);
+  });
 });

@@ -488,6 +488,34 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           description: Unauthorized - Token subject is missing
+    delete:
+      x-eov-operation-handler: controllers/dataset-file-mappings
+      x-eov-operation-id: deleteDatasetFileMappingByFileId
+      summary: Delete a dataset file mapping by file ID
+      tags:
+        - datasets
+      security:
+        - bearerAuth: [data-admin]
+      parameters:
+        - name: datasetId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Dataset ID
+        - name: fileId
+          in: query
+          required: true
+          schema:
+            type: string
+          description: File ID whose mapping should be deleted
+      responses:
+        '204':
+          description: Dataset file mapping deleted successfully
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
 
   /datasets/{datasetId}/dataset-file-mapping/{datasetFileMappingId}:
     get:

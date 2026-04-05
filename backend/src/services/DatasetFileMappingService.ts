@@ -144,4 +144,13 @@ export default class DatasetFileMappingService {
     const repo = entityManager.getRepository(DatasetFileMappingEntity);
     return await repo.find({ where: whereConditions, relations });
   };
+
+  deleteDataMappingByFileId = async (requestData: RequestData, datasetSlug: string, fileId: string): Promise<void> => {
+    const dataset = await getEntity(requestData, DatasetEntity, EntityType.DATASET, datasetSlug);
+    const file = await getEntity(requestData, FileEntity, EntityType.FILE, fileId);
+
+    const repo = requestData.entityManager.getRepository(DatasetFileMappingEntity);
+
+    await repo.delete({ dataset_id: dataset.id, file_id: file.id });
+  };
 }
