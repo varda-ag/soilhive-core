@@ -1050,7 +1050,6 @@ paths:
         required: true
         schema:
           type: string
-          format: uuid
         description: File unique internal identifier
     get:
       x-eov-operation-handler: controllers/files
@@ -1067,6 +1066,19 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/FileDescriptor'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      x-eov-operation-handler: controllers/files
+      x-eov-operation-id: deleteFile
+      summary: Delete a file
+      tags:
+        - files
+      security:
+        - bearerAuth: [data-admin]
+      responses:
+        '204':
+          description: File deleted successfully
         '404':
           $ref: '#/components/responses/NotFound'
   /files/{fileId}/download:

@@ -117,6 +117,16 @@ describe('Testing /files routes (local storage)', () => {
     });
   });
 
+  describe('DELETE /files/:fileId', () => {
+    it('should delete an existing file successfully (204)', async () => {
+      const file = await addFile('to_delete.txt');
+
+      const res = await request(app).delete(`/files/${file.slug}`).set(dataAdminAuthHeader);
+      expect(res.statusCode).toBe(StatusCodes.NO_CONTENT);
+      expect(fs.existsSync(`${vectorFilesPassPath}/${file.file_path}`)).toBeFalsy();
+    });
+  });
+
   describe('GET /files/:fileId/download', () => {
     beforeEach(() => {
       setLocalStorageRootFolder(vectorFilesPassPath);
