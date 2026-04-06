@@ -23,6 +23,7 @@ export function DatasetsSoilDataStep() {
     handlePrevious,
     handleSaveAndContinueLater,
     handleContinue,
+    crsOptions,
   } = useDatasetsSoilData();
 
   return (
@@ -66,6 +67,7 @@ export function DatasetsSoilDataStep() {
                   soilDataFile={soilDataFile}
                   onCrsChange={handleCrsChange}
                   onRemove={() => removeFile(soilDataFile.id)}
+                  crsOptions={crsOptions}
                 />
               ))}
             </div>

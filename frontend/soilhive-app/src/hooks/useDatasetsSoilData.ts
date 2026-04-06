@@ -41,6 +41,17 @@ export function useDatasetsSoilData() {
     enabled: !!datasetId,
   });
 
+  // TODO: un-comment when BE is ready
+  /*const { data: crsOptions = [] } = useApiQuery<number[]>({
+    endpoint: '/masterdata/crs',
+    method: 'GET',
+    queryKey: ['masterdata', 'crs'],
+    enabled: false,
+  });*/
+
+  // delete when BE is ready
+  const crsOptions = [2154, 27700, 4326, 3857, 32632];
+
   useEffect(() => {
     if (!existingFiles) return;
     existingFileIds.current = new Set(existingFiles.map(f => f.id));
@@ -200,6 +211,23 @@ export function useDatasetsSoilData() {
         }),
       ),
     );
+
+    // TODO: un-comment when BE is ready
+    // PATCH crs for new files where user changed it from the inferred value:
+    /*const filesWithUpdatedCrs = newFiles.filter(
+      f => f.crs && f.crs !== f.inferredCrs
+    );
+
+    await Promise.allSettled(
+      filesWithUpdatedCrs.map(f =>
+        request({
+          url: `${BACKEND_BASE_URL}/files/${f.id}`,
+          method: 'PATCH',
+          body: { crs: Number(f.crs!.replace('EPSG:', '')) },
+          showErrorNotification: true,
+        })
+      ),
+    );*/
   }, [soilDataFiles, datasetId, createFileMapping]);
 
   return {
@@ -211,6 +239,7 @@ export function useDatasetsSoilData() {
     isContinueEnabled,
     isLoadingFiles,
     handleFiles,
+    crsOptions,
     handleCrsChange: (id: string, crs: string) => updateSoilDataFile(id, { crs }),
     removeFile,
     clearAll,

@@ -1,19 +1,18 @@
 /* SoilDataFileRow.tsx */
 import { useTranslation } from 'react-i18next';
-import { AutoComplete } from 'primereact/autocomplete';
+import { AutoComplete, type AutoCompleteCompleteEvent } from 'primereact/autocomplete';
 import { Button } from 'components/UI'; // Use your internal component
 import classnames from 'classnames';
 import styles from './SoilDataFileRow.module.scss';
 import { type SoilDataFile } from '../../../../types/soilDataFile';
 import CrossIcon from 'assets/icons/cross-icon.svg?react';
-
-// Hardcoded CRS options — to be replaced with an API call in a future iteration
-const CRS_OPTIONS = ['EPSG:2154', 'EPSG:27700'];
+import { useState } from 'react';
 
 interface Props {
   soilDataFile: SoilDataFile;
   onCrsChange: (fileId: string, crs: string) => void;
   onRemove: (fileId: string) => void;
+  crsOptions: number[];
 }
 
 function formatFileSize(bytes: number | undefined): string {
@@ -23,11 +22,29 @@ function formatFileSize(bytes: number | undefined): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} Mb`;
 }
 
-export function SoilDataFileRow({ soilDataFile, onCrsChange, onRemove }: Props) {
+export function SoilDataFileRow({ soilDataFile, onCrsChange, onRemove, crsOptions }: Props) {
   const { t } = useTranslation('admin');
-  const { id, name, file, crs } = soilDataFile;
+  const { id, name, file, crs, inferredCrs } = soilDataFile;
+  const [filteredCrs, setFilteredCrs] = useState<string[]>([]);
 
-  const suggestions = CRS_OPTIONS.filter(option => !crs || option.toLowerCase().includes(crs.toLowerCase()));
+  const isReadOnly = !!inferredCrs;
+
+  const filterCrsOptions = (e: AutoCompleteCompleteEvent) => {
+    const query = e.query;
+    if (query && /\d/.test(query)) {
+      // single digit --> start filtering
+      setFilteredCrs(crsOptions.map(n => `EPSG:${n}`).filter(option => option.toLowerCase().includes(query.toLowerCase())));
+    } else {
+      setFilteredCrs([]);
+    }
+  };
+
+  const handleBlur = () => {
+    const validValues = crsOptions.map(n => `EPSG:${n}`);
+    if (crs && !validValues.includes(crs)) {
+      onCrsChange(id, inferredCrs ?? '');
+    }
+  };
 
   return (
     <div className={styles.Container}>
@@ -44,14 +61,16 @@ export function SoilDataFileRow({ soilDataFile, onCrsChange, onRemove }: Props) 
           <AutoComplete
             inputId={`crs-${id}`}
             value={crs ?? ''}
-            suggestions={suggestions}
-            completeMethod={() => {}}
+            suggestions={filteredCrs}
+            completeMethod={filterCrsOptions}
             onChange={e => onCrsChange(id, e.value)}
             placeholder={t('datasets.soil_data.crs_placeholder')}
             className={styles.CrsDropdown}
             inputClassName={styles.CrsInput}
             panelClassName={styles.CrsPanel}
             dropdown
+            disabled={isReadOnly}
+            onBlur={handleBlur}
           />
         </div>
 
