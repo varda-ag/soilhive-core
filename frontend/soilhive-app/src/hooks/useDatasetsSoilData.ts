@@ -43,6 +43,7 @@ export function useDatasetsSoilData() {
 
   const { deleteFileAndMapping } = useFileManagement();
 
+  // Load all files that are already in the backend
   const { data: existingFiles, isLoading: isLoadingFiles } = useApiQuery<FileDescriptor[]>({
     endpoint: `/datasets/${datasetId}/files`,
     method: 'GET',
@@ -52,15 +53,16 @@ export function useDatasetsSoilData() {
 
   useEffect(() => {
     if (!existingFiles) return;
-    existingFileIds.current = new Set(existingFiles.map(f => f.id));
+    existingFileIds.current = new Set(existingFiles.map(f => f.id)); // keep track of files that already exist in the backend to avoid re-uploading or re-mapping them
     setSoilDataFiles(
+      // align UI files with backend state
       existingFiles
         .filter(f => f !== null)
         .map(f => ({
           id: f.id,
           file: null,
           name: f.name,
-          crs: f.metadata?.detected_fields?.crs ?? null,
+          crs: null, // manually added by user
           inferredCrs: f.metadata?.detected_fields?.crs,
           progress: 100,
         })),
@@ -78,7 +80,7 @@ export function useDatasetsSoilData() {
   const clearAll = useCallback(async () => {
     const toDeleteIds = soilDataFiles.map(f => f.id).filter(Boolean) as string[];
     const results = await Promise.allSettled(toDeleteIds.map(id => deleteFileAndMapping(id)));
-    const deletedIds = toDeleteIds.filter((_, i) => results[i]!.status === 'fulfilled');
+    const deletedIds = toDeleteIds.filter((_, i) => results[i]!.status === 'fulfilled'); // only remove from UI if successfully deleted from backend to avoid mismatch
     setSoilDataFiles(prev => prev.filter(f => !deletedIds.includes(f.id)));
   }, [soilDataFiles, deleteFileAndMapping]);
 
@@ -89,6 +91,7 @@ export function useDatasetsSoilData() {
     await Promise.allSettled(newFiles.map(f => createFileMapping({ datasetId, fileID: f.id })));
 
     // TODO: un-comment when BE is ready
+    // Update crs if needed
     /*const filesWithUpdatedCrs = newFiles.filter(f => f.crs && f.crs !== f.inferredCrs);
     await Promise.allSettled(
       filesWithUpdatedCrs.map(f =>
