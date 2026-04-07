@@ -68,7 +68,7 @@ export function SoilDataFileRow({ soilDataFile, onCrsChange, onRemove, crsOption
             className={styles.CrsDropdown}
             inputClassName={styles.CrsInput}
             panelClassName={styles.CrsPanel}
-            dropdown
+            dropdown={false}
             disabled={isReadOnly}
             onBlur={handleBlur}
           />

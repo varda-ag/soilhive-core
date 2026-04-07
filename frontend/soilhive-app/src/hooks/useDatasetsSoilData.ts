@@ -24,10 +24,10 @@ export function useDatasetsSoilData() {
   // delete when BE is ready
   // TODO: un-comment when BE is ready
   /*const { data: crsOptions = [] } = useApiQuery<number[]>({
-    endpoint: '/masterdata/crs',
+    endpoint: '/crs',
     method: 'GET',
-    queryKey: ['masterdata', 'crs'],
-    enabled: false,
+    queryKey: ['crs'],
+    enabled: true,
   });*/
   const crsOptions = [2154, 27700, 4326, 3857, 32632];
 
