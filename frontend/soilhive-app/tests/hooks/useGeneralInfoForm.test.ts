@@ -10,9 +10,9 @@ jest.mock('react-router', () => ({
 }));
 
 jest.mock('hooks/useDatasets', () => ({ useDataset: jest.fn() }));
-jest.mock('hooks/useDatasetMutation', () => ({ 
-  useCreateDatasetMutation: jest.fn(), 
-  useUpdateDatasetMutation: jest.fn() 
+jest.mock('hooks/useDatasetMutation', () => ({
+  useCreateDatasetMutation: jest.fn(),
+  useUpdateDatasetMutation: jest.fn(),
 }));
 
 const validationMessages = {
