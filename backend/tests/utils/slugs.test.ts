@@ -3,7 +3,7 @@ import { v7 as uuidv7 } from 'uuid';
 import DatasetEntity from '../../src/entities/Dataset';
 import { getEntityManager } from '../../src/utils/data-source';
 import { addCategory, addDataset, addFile } from '../../src/utils/mock';
-import { getEntity, getEntities, idToSlug } from '../../src/utils/slugs';
+import { getEntity, getEntities, idToSlug, getEntitySlugs } from '../../src/utils/slugs';
 import { RequestData } from '../../src/interfaces/RequestData';
 import { EntityType } from '../../src/types/data';
 import { EntityManager } from 'typeorm';
@@ -159,5 +159,29 @@ describe('getNewPath', () => {
     expect(idToSlug([])).toEqual([]);
     expect(idToSlug([input])).toEqual([expected]);
     expect(idToSlug([input, input])).toEqual([expected, expected]);
+  });
+});
+
+describe('getEntitySlugs', () => {
+  it('should return all slugs related to the same entity', async () => {
+    const category = await addCategory('slug-soil-prop-category-old');
+    const expectedSlugs = [category.slug];
+    for (let i = 0; i < 3; i++) {
+      const newSlug = `slug-soil-prop-category-new-${i}`;
+      expectedSlugs.push(newSlug);
+      await entityManager
+        .createQueryBuilder()
+        .update(SoilPropertyCategoryEntity)
+        .set({ category_name: newSlug })
+        .where('id = :id', { id: category.id })
+        .execute();
+    }
+    const result = await getEntitySlugs(requestData, 'slug-soil-prop-category-old');
+    expect(result.sort()).toEqual(expectedSlugs.sort());
+  });
+
+  it('should return empty array if slug does not exist', async () => {
+    const result = await getEntitySlugs(requestData, 'non-existent-slug');
+    expect(result).toEqual([]);
   });
 });

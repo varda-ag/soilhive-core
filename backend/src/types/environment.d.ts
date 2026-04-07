@@ -18,6 +18,7 @@ declare namespace NodeJS {
     readonly SUPER_ADMIN_PASSWORD_HASH?: string;
     readonly DATA_ADMIN_PASSWORD_HASH?: string;
     readonly SELF_SIGNING_SECRET?: string;
+    readonly ENTITLEMENTS_ENDPOINT?: string;
     // OIDC settings
     readonly OIDC_JWKS_URL?: string;
     readonly OIDC_AUTHORITY?: string;
