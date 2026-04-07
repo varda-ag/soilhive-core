@@ -1169,7 +1169,7 @@ paths:
       responses:
         '204':
           description: Mapping deleted successfully
-  /downloads/{fileId}:
+  /downloads/{filePath}:
     get:
       x-eov-operation-handler: controllers/files
       x-eov-operation-id: download
@@ -1183,12 +1183,12 @@ paths:
           description: Temporary access token to download access-protected files
           schema:
             type: string
-        - name: fileId
+        - name: filePath
           in: path
           required: true
           schema:
             type: string
-          description: Unique file identifier. Folder separators should be encoded as %2F
+          description: File path. Folder separators should be encoded as %2F
       responses:
         '200':
           description: File downloaded successfully
