@@ -56,21 +56,6 @@ export default function SoilhiveMapToolbar({ visible, onDrawClick, onUpload }: S
   };
 
   useEffect(() => {
-    setupFileInput(true);
-    return () => {
-      setupFileInput(false);
-    };
-  }, [setupFileInput]);
-
-  function setupFileInput(up: boolean) {
-    if (!up) {
-      window.removeEventListener('click', onWindowClick);
-      if (fileInputRef.current) {
-        fileInputRef.current.onchange = null;
-        fileInputRef.current = null;
-      }
-      return;
-    }
     window.addEventListener('click', onWindowClick);
     const fileInput = document.createElement('input');
     fileInput.type = 'file';
@@ -79,7 +64,7 @@ export default function SoilhiveMapToolbar({ visible, onDrawClick, onUpload }: S
       const file = (event as any).target?.files?.item(0);
 
       const fail = (id: string, message: string) => {
-        showNotification({ id, title: t('map.upload_failed'), message });
+        showNotification({ id, title: 'Upload failed', message });
         fileInput.value = '';
       };
 
@@ -107,7 +92,14 @@ export default function SoilhiveMapToolbar({ visible, onDrawClick, onUpload }: S
       onUpload(polygon);
     };
     fileInputRef.current = fileInput;
-  }
+    return () => {
+      window.removeEventListener('click', onWindowClick);
+      if (fileInputRef.current) {
+        fileInputRef.current.onchange = null;
+        fileInputRef.current = null;
+      }
+    };
+  }, []);
 
   return (
     <div className={classnames('soilhive-map-toolbar', { hidden: !visible })}>
