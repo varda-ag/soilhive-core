@@ -54,13 +54,10 @@ export default class FilterService {
     for (const g of filter.geometries) {
       filteringPromises.push(sds.filter(requestData.entityManager, g, filter.parameters));
     }
+    // Wait for all filtering to complete
+    const datasets = (await Promise.all(filteringPromises)).flat();
     // Add raster coverage
-    const rasterPromise = sds.getRasterCoverage(requestData.entityManager, filter.geometries, filter.parameters.raster_filters);
-    const [datasetsArray, rasterCoverage] = await Promise.all([Promise.all(filteringPromises), rasterPromise]);
-
-    return {
-      datasets: datasetsArray.flat(),
-      raster_filters: rasterCoverage,
-    };
+    const rasterCoverage = await sds.getRasterCoverage(requestData.entityManager, filter.geometries, filter.parameters.raster_filters);
+    return { datasets, raster_filters: rasterCoverage };
   };
 }
