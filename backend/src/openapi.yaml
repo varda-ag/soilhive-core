@@ -1088,7 +1088,6 @@ paths:
         required: true
         schema:
           type: string
-          format: uuid
         description: File unique internal identifier
     get:
       x-eov-operation-handler: controllers/files
@@ -1928,7 +1927,6 @@ components:
           description: Job type
         file_id:
           type: string
-          format: uuid
           description: File ID to be processed and inserted into the database
 
     BulkDeleteJob:

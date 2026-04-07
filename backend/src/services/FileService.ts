@@ -112,19 +112,8 @@ export default class FileService {
     return await repo.find();
   };
 
-  getFile = async (requestData: RequestData, fileId: string): Promise<FileEntity> => {
-    const { entityManager } = requestData;
-
-    const repo = entityManager.getRepository(FileEntity);
-
-    // Find file by ID (primary key)
-    const file = await repo.findOneBy({ id: fileId });
-
-    if (!file) {
-      throw new ErrorResponse(`File with ID '${fileId}' not found`, StatusCodes.NOT_FOUND);
-    }
-
-    return file;
+  getFile = async (requestData: RequestData, slug: string): Promise<FileEntity> => {
+    return await getEntity(requestData, FileEntity, EntityType.FILE, slug);
   };
 
   createFile = async (requestData: RequestData, data: Partial<File>): Promise<FileEntity> => {

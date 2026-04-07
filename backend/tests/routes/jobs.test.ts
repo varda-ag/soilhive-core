@@ -166,7 +166,7 @@ describe('Testing /jobs routes', () => {
       const jobResponse = await request(app)
         .post('/jobs')
         .set('Authorization', `Bearer ${token}`)
-        .send({ type: queue, file_id: fileEntity.id });
+        .send({ type: queue, file_id: fileEntity.slug });
       expect(jobResponse.statusCode).toBe(201);
 
       // Wait for file to DB job to complete

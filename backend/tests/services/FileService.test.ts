@@ -102,7 +102,7 @@ describe('FileService', () => {
     });
 
     it('should load to DB sample_point GeoJSON file', async () => {
-      const fileId = fileEntity.id;
+      const fileId = fileEntity.slug;
 
       await fileService.fileToDB(requestData, fileId);
       const tableName = getRawTableName(fileId);
@@ -156,7 +156,7 @@ describe('FileService', () => {
     });
 
     it('should fail to load to DB only area GeoJSON file', async () => {
-      const fileId = fileEntity.id;
+      const fileId = fileEntity.slug;
       await expect(fileService.fileToDB(requestData, fileId)).rejects.toThrow('No data besides geometry detected');
     });
   });
@@ -182,7 +182,7 @@ describe('FileService', () => {
     });
 
     it('should fail to load to DB only area GeoJSON file', async () => {
-      const fileId = fileEntity.id;
+      const fileId = fileEntity.slug;
       await expect(fileService.fileToDB(requestData, fileId)).rejects.toThrow('No data besides geometry detected');
     });
   });
@@ -218,7 +218,7 @@ describe('FileService', () => {
       expect(metadata.detected_fields[DetectableFields.CRS]).toBeNull();
     });
     it('should create table in DB with column names as sanitized field_names', async () => {
-      const fileId = fileEntity.id;
+      const fileId = fileEntity.slug;
       await fileService.fileToDB(requestData, fileId);
       const tableName = getRawTableName(fileId);
       const tableColumns = await getTableColumns(tableName);
@@ -264,7 +264,7 @@ describe('FileService', () => {
     });
 
     it('should load to DB same layer as detected in metadata', async () => {
-      const fileId = fileEntity.id;
+      const fileId = fileEntity.slug;
       await fileService.fileToDB(requestData, fileId);
       const tableName = getRawTableName(fileId);
       const tableColumns = await getTableColumns(tableName);
@@ -312,7 +312,7 @@ describe('FileService', () => {
       });
 
       it('should throw error when trying to load to DB', async () => {
-        const fileId = fileEntity.id;
+        const fileId = fileEntity.slug;
         await expect(fileService.fileToDB(requestData, fileId)).rejects.toThrow('Geometry not found in input file');
       });
     });

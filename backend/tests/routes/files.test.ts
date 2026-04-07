@@ -99,7 +99,7 @@ describe('Testing /files routes (local storage)', () => {
       const file = await addFile(name);
 
       // Now retrieve it
-      const res = await request(app).get(`/files/${file.id}`).set(dataAdminAuthHeader);
+      const res = await request(app).get(`/files/${file.slug}`).set(dataAdminAuthHeader);
       expect(res.statusCode).toBe(StatusCodes.OK);
       expect(res.body.name).toEqual(name);
     });
@@ -141,7 +141,7 @@ describe('Testing /files routes (local storage)', () => {
       const file = await addFile(fileName);
 
       // Now retrieve it
-      const res = await request(app).get(`/files/${file.id}/download`).set(dataAdminAuthHeader);
+      const res = await request(app).get(`/files/${file.slug}/download`).set(dataAdminAuthHeader);
       expect(res.statusCode).toBe(StatusCodes.OK);
       expect(res.text).toBe(json);
     });
@@ -158,7 +158,7 @@ describe('Testing /files routes (local storage)', () => {
       const file = await addFile(fileName);
 
       // Now retrieve it
-      const res = await request(app).get(`/files/${file.id}/download`).set(dataAdminAuthHeader);
+      const res = await request(app).get(`/files/${file.slug}/download`).set(dataAdminAuthHeader);
       expect(res.statusCode).toBe(StatusCodes.INTERNAL_SERVER_ERROR);
       expect(res.body.detail).toBe('Stream failed');
     });
