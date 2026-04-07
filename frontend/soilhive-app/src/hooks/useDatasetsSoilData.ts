@@ -1,7 +1,7 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { useApiQuery } from './useApiQuery';
-import { useCreateDatasetFileMapping } from './useCreateDatasetFileMapping';
+import { useCreateDatasetFileMapping } from 'hooks/useDatasetMutation';
 import { useFileUpload } from './useFileUpload';
 import { useFileManagement } from './useFileManagement';
 import { ADMIN_PATHS } from '../configuration/admin';

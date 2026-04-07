@@ -3,8 +3,7 @@ import { useNavigate } from 'react-router';
 import { ADMIN_PATHS } from '../configuration/admin';
 import type { Dataset, GeneralInfoFormData } from 'types/backend';
 import { useDataset } from './useDatasets';
-import { useCreateDatasetMutation } from './useCreateDatasetMutation';
-import { useUpdateDatasetMutation } from './useUpdateDatasetMutation';
+import { useCreateDatasetMutation, useUpdateDatasetMutation } from 'hooks/useDatasetMutation';
 
 const DESCRIPTION_MAX_LENGTH = 200;
 
