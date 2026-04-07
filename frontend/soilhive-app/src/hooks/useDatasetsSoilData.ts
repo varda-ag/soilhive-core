@@ -53,7 +53,7 @@ export function useDatasetsSoilData() {
 
   useEffect(() => {
     if (!existingFiles) return;
-    existingFileIds.current = new Set(existingFiles.map(f => f.id)); // keep track of files that already exist in the backend to avoid re-uploading or re-mapping them
+    existingFileIds.current = new Set(existingFiles.filter(f => f !== null).map(f => f.id)); // keep track of files that already exist in the backend to avoid re-uploading or re-mapping them
     setSoilDataFiles(
       // align UI files with backend state
       existingFiles
