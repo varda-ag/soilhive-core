@@ -2,7 +2,9 @@ import React, { createContext, useState, useEffect, type ReactNode } from 'react
 import useConfig from '../hooks/useConfig';
 import { REST_END_POINTS } from '../configuration/api';
 import type { ThemeColors, ThemeConfig } from '../types/config';
+import useNotifications from 'hooks/useNotifications';
 import { useApiQuery } from '../hooks/useApiQuery';
+import { useTranslation } from 'react-i18next';
 
 type ThemeContextType = {
   themeConfig: ThemeConfig;
@@ -39,6 +41,8 @@ const defaultThemeConfig: ThemeConfig = {
 };
 
 export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
+  const { t } = useTranslation('admin');
+  const { showNotification } = useNotifications();
   const { isLoading: isLoadingThemeConfig, config: themeConfig, saveConfig } = useConfig<ThemeConfig>('theme', defaultThemeConfig);
 
   const saveColors = async (colors: ThemeColors) => {
@@ -53,12 +57,26 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
       ...themeConfig,
       initialBbox,
     });
+
+    showNotification({
+      id: 'saveInitialBboxSuccess',
+      title: t('map_settings.notification.title'),
+      message: t('map_settings.notification.message'),
+      type: 'success',
+    });
   };
 
   const saveTermsAndConditions = async (termsAndConditionsHtml: string) => {
     await saveConfig({
       ...themeConfig,
       termsAndConditionsHtml,
+    });
+
+    showNotification({
+      id: 'saveTermsAndConditionsSuccess',
+      title: t('terms_and_conditions.notification.title'),
+      message: t('terms_and_conditions.notification.message'),
+      type: 'success',
     });
   };
 

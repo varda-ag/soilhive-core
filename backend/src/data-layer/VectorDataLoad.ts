@@ -184,13 +184,13 @@ const getDataPreviewQuery = (query: any, dataMappingConfig: DataCleaningConfig, 
     const expr = conversionFormula ? conversionFormula.replace(/x/g, `(raw.${field})::numeric`) : `(raw.${field})::numeric`;
 
     if (props.min_val !== undefined && props.max_val !== undefined) {
-      propertyCleanup = `CASE WHEN ${expr} BETWEEN :min_val${field} AND :max_val${field} THEN ${expr} ELSE NULL END`;
+      propertyCleanup = `CASE WHEN ${expr} BETWEEN :min_val${field} AND :max_val${field} THEN ROUND(${expr},3) ELSE NULL END`;
     } else if (props.min_val !== undefined) {
-      propertyCleanup = `CASE WHEN ${expr} >= :min_val${field} THEN ${expr} ELSE NULL END`;
+      propertyCleanup = `CASE WHEN ${expr} >= :min_val${field} THEN ROUND(${expr},3) ELSE NULL END`;
     } else if (props.max_val !== undefined) {
-      propertyCleanup = `CASE WHEN ${expr} <= :max_val${field} THEN ${expr} ELSE NULL END`;
+      propertyCleanup = `CASE WHEN ${expr} <= :max_val${field} THEN ROUND(${expr},3) ELSE NULL END`;
     } else {
-      propertyCleanup = expr;
+      propertyCleanup = `ROUND(${expr},3)`;
     }
     params[`min_val${field}`] = props.min_val;
     params[`max_val${field}`] = props.max_val;
