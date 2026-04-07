@@ -41,8 +41,6 @@ function DownloadPreviewTable({
       { name: t('download_preview.columns.standard_unit'), value: 'standard_unit' },
       // TODO: to be restored | { name: t('download_preview.columns.horizon'), value: 'horizon' },
       { name: t('download_preview.columns.technique'), value: 'technique' },
-      { name: t('download_preview.columns.soil_property'), value: 'soil_property' },
-      { name: t('download_preview.columns.soil_property_acronym'), value: 'property_acronym' },
       { name: t('download_preview.columns.sample_pretreatment'), value: 'sample_pretreatment' },
       { name: t('download_preview.columns.laboratory_method'), value: 'laboratory_method' },
       { name: t('download_preview.columns.extractant_concentration'), value: 'extractant_concentration' },
@@ -50,7 +48,6 @@ function DownloadPreviewTable({
       { name: t('download_preview.columns.extraction_base'), value: 'extraction_base' },
       { name: t('download_preview.columns.measurement_procedure'), value: 'measurement_procedure' },
       { name: t('download_preview.columns.limit_of_detection'), value: 'limit_of_detection' },
-      { name: t('download_preview.columns.dataset'), value: 'dataset_name' },
       { name: t('download_preview.columns.license'), value: 'license_name' },
     ],
     [t],
@@ -58,11 +55,11 @@ function DownloadPreviewTable({
 
   const [visibleColumns, setVisibleColumns] = useState<string[]>([
     'sampling_date',
-    'min_depth',
-    'max_depth',
     'value',
+    'standard_unit',
     // TODO: to be restored | 'horizon',
     'technique',
+    'laboratory_method',
     'license_name',
   ]);
   const [sortOrder, setSortOrder] = useState<SortOrder>();
