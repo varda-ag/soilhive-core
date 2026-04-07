@@ -1,7 +1,7 @@
 import { valid } from 'geojson-validation';
 import { StatusCodes } from 'http-status-codes';
 import SoilDataStorage from '../data-layer/SoilDataStorage';
-import { DataFilter, FilteredDataset } from '../interfaces/DatasetFilter';
+import { DataFilter, FilteredDataset, FilteredData } from '../interfaces/DatasetFilter';
 import { RequestData } from '../interfaces/RequestData';
 import { ErrorResponse } from '../utils/error';
 import DataFilterEntity from '../entities/DataFilter';
@@ -45,7 +45,7 @@ export default class FilterService {
     return storedFilter;
   };
 
-  getCoverage = async (requestData: RequestData, filterId: string): Promise<FilteredDataset[]> => {
+  getCoverage = async (requestData: RequestData, filterId: string): Promise<FilteredData> => {
     const storedFilter = await this.getFilterById(requestData, filterId);
     const filter = storedFilter!.filter;
     const sds = new SoilDataStorage();
@@ -55,6 +55,9 @@ export default class FilterService {
       filteringPromises.push(sds.filter(requestData.entityManager, g, filter.parameters));
     }
     // Wait for all filtering to complete
-    return (await Promise.all(filteringPromises)).flat();
+    const datasets = (await Promise.all(filteringPromises)).flat();
+    // Add raster coverage
+    const rasterCoverage = await sds.getRasterCoverage(requestData.entityManager, filter.geometries, filter.parameters.raster_filters);
+    return { datasets, raster_filters: rasterCoverage };
   };
 }
