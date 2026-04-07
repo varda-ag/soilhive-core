@@ -82,7 +82,6 @@ export default class SoilDataStorage {
       .addSelect("STRING_AGG(DISTINCT soil_property.slug, ',')", 'soil_properties')
       .groupBy('base_agg.dataset_id, ds.slug, ds.name, ds.gis_datatype');
 
-    await addRasterCoverage(query, dataFilter, enabledRasterFilterTables);
     const results = await query.getRawMany();
 
     return results.map(row => ({
@@ -95,9 +94,8 @@ export default class SoilDataStorage {
       min_depth: row.min_depth !== null ? parseFloat(row.min_depth) : null,
       max_depth: row.max_depth !== null ? parseFloat(row.max_depth) : null,
       // TODO: to be restored  and deduplicated here due to lack of support for LATERAL JOINs in typeorm:
-      //horizons: row.horizons ? [new Set(...row.horizons.split(','))] : [],
+      // horizons: row.horizons ? [new Set(...row.horizons.split(','))] : [],
       soil_properties: row.soil_properties ? row.soil_properties.split(',') : [],
-      raster_filters: decodeRasterColumns(row),
       dataset_layer_count: parseInt(row.dataset_layer_count),
     }));
   };
@@ -189,6 +187,71 @@ export default class SoilDataStorage {
     applyFiltersToExternalQuery(query, dataFilter, enabledRasterFilterTables);
 
     return query;
+  };
+
+  getRasterCoverage = async (
+    entityManager: EntityManager,
+    geometries: (Polygon | MultiPolygon)[],
+    raster_filters?: Record<string, number[]>,
+  ): Promise<Record<string, number[]>> => {
+    if (geometries.length === 0) {
+      // No input geometry, raster coverage cannot be applied
+      return {};
+    }
+    const enabledRasterFilterTables = await getEnabledRasterFilterTables();
+
+    if (enabledRasterFilterTables.length === 0) {
+      // No raster data is available
+      return {};
+    }
+
+    const geomJson = JSON.stringify(geometryUnion(geometries));
+    const aoiAreaM2 = turf.area(geometries[0]!);
+    const calculateRealCoverage = aoiAreaM2 < 3_000_000_000_000;
+    // Implemented as a raw query to overcome TypeORM FROM clause requirement (adding a dummy table adds query planning overhead).
+    // Current query is composed of an "aoi" CTE and subqueries wrapped in arrays in SELECT clauses
+    const selectClauses: string[] = [];
+
+    for (const baseTable of enabledRasterFilterTables) {
+      const outputColumn = `#${baseTable}`; // Prefixing column name with "#" to detect it in the results
+      const values = raster_filters?.[baseTable];
+      const hasFilteringValues = values && values.length > 0;
+      const table = selectOverviewTable(baseTable, aoiAreaM2);
+      if (hasFilteringValues) {
+        // Adding same input values
+        selectClauses.push(`ARRAY[${values.join(',')}] as "${outputColumn}"`);
+      } else {
+        // Get all values from mappings
+        let selectValues = `ARRAY(SELECT value::numeric FROM jsonb_each_text((SELECT mappings FROM raster_filters WHERE id = '${baseTable}')))`;
+        if (calculateRealCoverage) {
+          // Add a select column with all raster values intersecting the input geometry
+          // Use ST_ValueCount to get distinct values as an array
+          selectValues = `ARRAY(
+            SELECT DISTINCT value
+            FROM ${table} rr
+            JOIN aoi ON ST_Intersects(rr.rast, aoi.geom)
+            CROSS JOIN LATERAL ST_ValueCount(
+              ST_Clip(rr.rast, aoi.geom, true),
+              1
+            ) AS vc(value, cnt)
+        )`;
+        }
+        selectClauses.push(`${selectValues} as "${outputColumn}"`);
+      }
+    }
+    const aoi_cte = `aoi AS MATERIALIZED (
+          SELECT ST_CollectionExtract(ST_MakeValid(ST_GeomFromGeoJSON($1), 'method=structure'), 3) AS geom
+    )`;
+    const sql = `
+      WITH
+      ${aoi_cte}
+      SELECT ${selectClauses.join(', ')}
+    `;
+    await entityManager.query("SET LOCAL work_mem = '256MB';");
+    const results = await entityManager.query(sql, [geomJson]);
+    assert(results.length === 1, 'Expecting one raster coverage aggregated result row');
+
+    return decodeRasterColumns(results[0]);
   };
 }
 
@@ -382,57 +445,6 @@ const applyRasterFilterToQuery = (
     'matching_features',
     { materialized: true },
   );
-};
-
-const addRasterCoverage = async (query: SelectQueryBuilder<any>, dataFilter: DataFilter, enabledRasterFilterTables: string[]) => {
-  if (dataFilter.geometries.length === 0) {
-    // No input geometry, raster coverage cannot be applied
-    return;
-  }
-
-  if (enabledRasterFilterTables.length === 0) {
-    // No raster data is available
-    return;
-  }
-
-  const raster_filters: Record<string, number[]> | undefined = dataFilter.parameters.raster_filters;
-  const aoiAreaM2 = turf.area(dataFilter.geometries[0]!);
-  const calculateRealCoverage = aoiAreaM2 < 3_000_000_000_000;
-
-  for (const baseTable of enabledRasterFilterTables) {
-    const outputColumn = `#${baseTable}`; // Prefixing column name with "#" to detect it in the results
-    const values = raster_filters?.[baseTable];
-    const hasFilteringValues = values && values.length > 0;
-    const table = selectOverviewTable(baseTable, aoiAreaM2);
-    const clippedRaster = `clipped_${table}`;
-    if (hasFilteringValues) {
-      // Adding same input values
-      query.addSelect(`ARRAY[${values.join(',')}]`, outputColumn);
-    } else {
-      // Get all values from mappings
-      let selectValues = `ARRAY(SELECT value::numeric FROM jsonb_each_text((SELECT mappings FROM raster_filters WHERE id = '${baseTable}')))`;
-      if (calculateRealCoverage) {
-        // Add a select column with all raster values intersecting the input geometry
-        // Use ST_ValueCount to get distinct values as an array
-        query.addCommonTableExpression(
-          `
-        SELECT ST_Union(ST_Clip(rr.rast, aoi.geom, touched => TRUE)) as rast FROM ${process.env.POSTGRES_SCHEMA}.${table} rr
-        CROSS JOIN aoi
-        WHERE ST_Intersects(rr.rast, aoi.geom)`,
-          clippedRaster,
-          { materialized: true },
-        );
-        selectValues = `ARRAY(
-          SELECT value
-          FROM ${clippedRaster}, ST_ValueCount(
-            ${clippedRaster}.rast,
-              1
-          ) AS vc(value, cnt)
-      )`;
-      }
-      query.addSelect(selectValues, outputColumn);
-    }
-  }
 };
 
 const decodeRasterColumns = (row: any): any => {

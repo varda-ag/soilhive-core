@@ -838,7 +838,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/FilteredDatasetsList'
+                $ref: '#/components/schemas/FilteredData'
         '404':
           $ref: '#/components/responses/NotFound'
 
@@ -1458,6 +1458,18 @@ components:
       type: array
       items:
         $ref: '#/components/schemas/FilteredDataset'
+    
+    FilteredData:
+      type: object
+      properties:
+        datasets:
+          $ref: '#/components/schemas/FilteredDatasetsList'
+        raster_filters:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: number
 
     SoilDataSample:
       type: object

@@ -1,4 +1,4 @@
-import type { BackendStoredDataFilter, DataFilter, FilteredDataset, License } from 'types/backend';
+import type { BackendStoredDataFilter, DataFilter, FilteredData, License } from 'types/backend';
 import { useApiQuery } from './useApiQuery';
 import { computeDatasetSummary } from '../domain';
 import { useSoilProperties } from './useSoilProperties';
@@ -38,7 +38,7 @@ export function useDownloadSummary({ filterId, datasetsIds }: { filterId: string
     ? { type: 'FeatureCollection', features: geometryFilter.map(geometry => ({ geometry })) }
     : undefined;
 
-  const { data: coverageData, isLoading: isCoverageLoading } = useApiQuery<FilteredDataset[]>({
+  const { data: coverageData, isLoading: isCoverageLoading } = useApiQuery<FilteredData>({
     endpoint: `/data-filters/${filterId}/coverage`,
     method: 'GET',
     queryKey: ['data-filter-coverage', filterId],
@@ -56,8 +56,8 @@ export function useDownloadSummary({ filterId, datasetsIds }: { filterId: string
     return new Map(allLicenses?.map(license => [license.id, license]) ?? []);
   }, [allLicenses]);
 
-  const datasets: DownloadSummaryDataset[] | undefined = coverageData
-    ?.filter(dataset => datasetsIds.includes(dataset.id))
+  const datasets: DownloadSummaryDataset[] | undefined = coverageData?.datasets
+    .filter(dataset => datasetsIds.includes(dataset.id))
     ?.map(dataset => {
       return {
         id: dataset.id,
@@ -72,7 +72,7 @@ export function useDownloadSummary({ filterId, datasetsIds }: { filterId: string
   return {
     datasets,
     geometryFeature,
-    datasetsSummary: computeDatasetSummary(coverageData),
+    datasetsSummary: computeDatasetSummary(coverageData?.datasets),
     soilProperties,
     depthRange,
     isLoading: areSoilPropertiesLoading || isFilterLoading || isCoverageLoading || areLicensesLoading,

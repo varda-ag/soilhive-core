@@ -136,6 +136,7 @@ function SoilhiveMap({
   } = useAvailability();
 
   const mapRef = useRef<any>(null);
+  const [isPointResultSelection, setIsPointResultSelection] = useState(false);
   const [currentMapStyle, setCurrentMapStyle] = useState(mapStyles[0].mapStyle);
   const selectionTypeRef = useRef<'drawn-polygon' | 'h3-cell' | 'country'>('drawn-polygon');
   const locationNameRef = useRef<string>(undefined);
@@ -218,16 +219,17 @@ function SoilhiveMap({
       const zoomLevel = map.getZoom();
       const isUserInteraction = mapEvent.originalEvent ? true : false;
 
-      if (isUserInteraction && selection.features.length === 0) {
+      if (isPointResultSelection || (isUserInteraction && selection.features.length === 0)) {
         // If the user moves the map and there is no selection,
         // update the (implicit) selection to the current bounds
         selectionTypeRef.current = 'drawn-polygon';
         onSelectionChange?.({ bounds, selectionType: selectionTypeRef.current });
+        setIsPointResultSelection(false);
       }
 
       updateH3Cells({ bounds, zoomLevel });
     },
-    [onSelectionChange, selection.features.length, updateH3Cells],
+    [isPointResultSelection, onSelectionChange, selection.features.length, updateH3Cells],
   );
 
   const onLoad = useCallback(
@@ -295,6 +297,8 @@ function SoilhiveMap({
       } else {
         // Just move bounds
         mapRef.current.fitBounds(bboxFn(feature), { padding: 40 });
+        // This is necessary to trigger new bbox coverage query
+        setIsPointResultSelection(true);
       }
     },
     [applySelection],

@@ -62,20 +62,23 @@ describe('useDownloadPreview', () => {
     useApiQueryMock.mockImplementation(({ endpoint }: any) => {
       if (endpoint.endsWith('/coverage')) {
         return {
-          data: [
-            {
-              id: 'mock-dataset-id-1',
-              data_type: 'mock-type-1',
-              name: 'Mock dataset 1',
-              soil_properties: ['prop-1'],
-            },
-            {
-              id: 'mock-dataset-id-2',
-              data_type: 'mock-type-1',
-              name: 'Mock dataset 2',
-              soil_properties: ['prop-1'],
-            },
-          ],
+          data: {
+            datasets: [
+              {
+                id: 'mock-dataset-id-1',
+                data_type: 'mock-type-1',
+                name: 'Mock dataset 1',
+                soil_properties: ['prop-1'],
+              },
+              {
+                id: 'mock-dataset-id-2',
+                data_type: 'mock-type-1',
+                name: 'Mock dataset 2',
+                soil_properties: ['prop-1'],
+              },
+            ],
+            raster_filters: {},
+          },
           isLoading: false,
         } as any;
       }

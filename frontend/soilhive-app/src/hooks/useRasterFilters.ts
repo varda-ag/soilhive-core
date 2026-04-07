@@ -22,9 +22,7 @@ export function useRasterFilters(categoryId?: string) {
   const availableOptions = useMemo((): { label: string; value: number }[] => {
     if (!categoryId || !currentRasterCategory || !currentRasterCategory.mappings) return [];
     const merged = new Set<number>();
-    geometryFilterResults?.forEach(dataset => {
-      dataset.raster_filters?.[categoryId]?.forEach(v => merged.add(v));
-    });
+    geometryFilterResults?.raster_filters?.[categoryId]?.forEach(v => merged.add(v));
 
     return Object.entries(currentRasterCategory.mappings)
       .filter(([_, value]) => merged.has(value))
