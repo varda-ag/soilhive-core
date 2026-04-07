@@ -36,9 +36,7 @@
             "depth_max": "Depth (max)",
             "value": "Value",
             "standard_unit": "Standard unit",
-            "technique": "Technique",
-            "soil_property": "Soil property",
-            "soil_property_acronym": "Soil property acronym",
+            "technique": "Technique",            
             "sample_pretreatment": "Sample pretreatment",
             "laboratory_method": "Laboratory method",
             "extractant_concentration": "Extractant concentration",
@@ -46,7 +44,6 @@
             "extraction_base": "Extraction base",
             "measurement_procedure": "Measurement procedure",
             "limit_of_detection": "Limit of detection",
-            "dataset": "Dataset",
             "license": "License"
         }
     },
