@@ -30,8 +30,19 @@ export function useFileUpload(onFileUploaded: (file: SoilDataFile) => void) {
           if (xhr.readyState === XMLHttpRequest.DONE) {
             if (xhr.status >= 200 && xhr.status < 300) {
               resolve(JSON.parse(xhr.responseText));
+            } else if (xhr.status === 0) {
+              // Network failure
+              reject(new Error(t('datasets.soil_data.network_error')));
             } else {
-              reject(new Error(t('datasets.soil_data.upload_error')));
+              // Real server error
+              let message;
+              try {
+                const body = JSON.parse(xhr.responseText);
+                if (body?.message) message = body.message;
+              } catch {
+                message = t('datasets.soil_data.upload_error');
+              }
+              reject(new Error(`${message}`));
             }
           }
         };
@@ -72,8 +83,9 @@ export function useFileUpload(onFileUploaded: (file: SoilDataFile) => void) {
           try {
             const { id, crs } = await uploadFile(file);
             onFileUploaded({ id, file, name: file.name, crs: crs ?? null, inferredCrs: crs, progress: 100 });
-          } catch {
-            setUploadErrors(prev => [...prev, `${file.name}: ${t('datasets.soil_data.upload_error')}`]);
+          } catch (err) {
+            const reason = err instanceof Error ? err.message : t('datasets.soil_data.upload_error');
+            setUploadErrors(prev => [...prev, `${file.name}: ${reason}`]);
           }
         }),
       );
