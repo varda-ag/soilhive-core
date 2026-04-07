@@ -1,4 +1,4 @@
-import type { BackendStoredDataFilter, DataFilter, FilteredDataset } from 'types/backend';
+import type { BackendStoredDataFilter, DataFilter, FilteredData } from 'types/backend';
 import { useApiQuery } from './useApiQuery';
 import { computeDatasetSummary } from '../domain';
 import { useSoilProperties } from './useSoilProperties';
@@ -27,18 +27,18 @@ export function useDownloadPreview({
 
   const availabilitySelectedSoilProperties = availabilityFilters?.filter.parameters.soil_properties ?? [];
 
-  const { data: availabilityCoverageData, isLoading: isAvailabilityCoverageDataLoading } = useApiQuery<FilteredDataset[]>({
+  const { data: availabilityCoverageData, isLoading: isAvailabilityCoverageDataLoading } = useApiQuery<FilteredData>({
     endpoint: `/data-filters/${filterId}/coverage`,
     method: 'GET',
     queryKey: ['data-filter-coverage', filterId],
     enabled: filterId !== null,
   });
 
-  const datasetsSummary = computeDatasetSummary(availabilityCoverageData);
+  const datasetsSummary = computeDatasetSummary(availabilityCoverageData?.datasets);
 
   const availableFixedDatasets = useMemo(
     () =>
-      (availabilityCoverageData ?? [])
+      (availabilityCoverageData ? availabilityCoverageData.datasets : [])
         .filter(dataset => datasetsIds.includes(dataset.id))
         .sort((a, b) => a.name.localeCompare(b.name, 'en', { sensitivity: 'base' })),
     [availabilityCoverageData, datasetsIds],

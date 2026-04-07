@@ -11,6 +11,7 @@ import type {
   FilteredDataset,
   BackendStoredDataFilter,
   RasterFilterCategory,
+  FilteredData,
 } from 'types/backend';
 import { computeDatasetSummary } from '../domain';
 import { useFilteredDatasets } from 'hooks/useFilteredDatasets';
@@ -38,7 +39,7 @@ type AvailabilityContextType = {
   allDatasets: AvailabilityDataset[];
   filteredDatasets: FilteredDataset[];
   availableDatasets: FilteredDataset[];
-  geometryFilterResults: FilteredDataset[] | undefined;
+  geometryFilterResults: FilteredData | undefined;
   datasets: AvailabilityDataset[];
   selectedDatasets: string[];
   isAllSelected: boolean;
@@ -148,7 +149,7 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
 
   const selectAllDatasets = useCallback(
     (select: boolean) => {
-      setSelectedDatasets(select && fullFilterResults ? fullFilterResults?.map(result => result.id) : []);
+      setSelectedDatasets(select && fullFilterResults ? fullFilterResults?.datasets.map(result => result.id) : []);
       setIsAllSelected(select);
     },
     [fullFilterResults],
@@ -156,7 +157,7 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
 
   const allDatasets = useMemo(() => {
     if (!fullFilterResults) return [];
-    return fullFilterResults.map(mapFilteredDatasetToAvailabilityDataset);
+    return fullFilterResults.datasets.map(mapFilteredDatasetToAvailabilityDataset);
   }, [fullFilterResults]);
 
   const datasets = useMemo(() => {
@@ -173,21 +174,21 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
   }, [isLoadingFullFilter, isLoadingPartialFilter, isLoadingSoilProperties, isLoadingCategories]);
 
   const isNoFilteredData = useMemo(() => {
-    return fullFilterResults?.length === 0;
+    return fullFilterResults?.datasets.length === 0;
   }, [fullFilterResults]);
 
   const isNoData = useMemo(() => {
-    return geometryFilterResults?.length === 0;
+    return geometryFilterResults?.datasets.length === 0;
   }, [geometryFilterResults]);
 
   const datasetsSummary = useMemo<DatasetSummary>(() => {
-    return computeDatasetSummary(fullFilterResults);
+    return computeDatasetSummary(fullFilterResults?.datasets);
   }, [fullFilterResults]);
 
   const filteredSoilProperties = useMemo<SoilProperty[]>(() => {
     const properties = new Set<string>();
-    geometryFilterResults
-      ?.filter(dataset => !datasetFrontendFilters.type.length || datasetFrontendFilters.type.includes(dataset.data_type as string))
+    geometryFilterResults?.datasets
+      .filter(dataset => !datasetFrontendFilters.type.length || datasetFrontendFilters.type.includes(dataset.data_type as string))
       .forEach(dataset => dataset.soil_properties?.forEach(prop => properties.add(prop)));
     return allSoilProperties?.filter(prop => properties.has(prop.id)) ?? [];
   }, [allSoilProperties, geometryFilterResults, datasetFrontendFilters]);
@@ -226,7 +227,7 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
   }, [datasetFrontendFilters, selectedTimeFilter, selectedSoilProperties, datasetFilters.raster_filters]);
 
   const availableDatasets = useMemo(() => {
-    const datasets = fullFilterResults ?? [];
+    const datasets = fullFilterResults ? fullFilterResults.datasets : [];
     if (selectedDatasets.length > 0) {
       const datasetIds = new Set(datasets.map(dataset => dataset.id));
       // Excludes the selected datasets that are not available anymore in the current
@@ -255,7 +256,7 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
         isLoadingSoilProperties,
         categories: categories || [],
         allDatasets,
-        filteredDatasets: fullFilterResults ?? [],
+        filteredDatasets: fullFilterResults ? fullFilterResults.datasets : [],
         geometryFilterResults,
         datasets,
         selectedDatasets,

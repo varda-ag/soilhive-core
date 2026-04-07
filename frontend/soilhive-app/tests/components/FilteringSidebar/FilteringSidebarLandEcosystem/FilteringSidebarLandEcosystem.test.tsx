@@ -45,7 +45,7 @@ describe('FilteringSidebarLandEcosystem', () => {
     useAvailabilityMock.mockReturnValue({
       allRasterCategories: ALL_CATEGORIES,
       isLoadingRasterCategories: false,
-      geometryFilterResults: [{ raster_filters: { climate_zones: [1], land_cover: [2] } }],
+      geometryFilterResults: { raster_filters: { climate_zones: [1], land_cover: [2] }, datasets: [] },
     } as any);
 
     render(<FilteringSidebarLandEcosystem />);

@@ -54,6 +54,11 @@ export interface FilteredDataset extends FilterCriteria {
   dataset_layer_count: number;
 }
 
+export interface FilteredData {
+  datasets: FilteredDataset[];
+  raster_filters: Record<string, number[]>;
+}
+
 export interface ResultItem {
   datasets: FilteredDataset[];
 }
