@@ -102,7 +102,7 @@ function DownloadPreview() {
     isLoading: areFiltersLoading,
   } = useFilteredDatasets(parameters, geometryFilter.length > 0);
 
-  const availableFilteredDatasets = filteredDatasets ?? availableFixedDatasets;
+  const availableFilteredDatasets = filteredDatasets ? filteredDatasets.datasets : availableFixedDatasets;
 
   const { min_sampling_date, max_sampling_date, min_depth, max_depth } = availabilitySelectedFilters?.filter.parameters ?? {};
 

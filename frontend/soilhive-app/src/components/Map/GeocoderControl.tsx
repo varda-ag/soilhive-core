@@ -197,16 +197,18 @@ export default function GeocoderControl(props: GeocoderControlProps) {
         const { result } = evt;
         if (!result) {
           setMarker(null);
+          return;
         }
         if (result.original_geometry.type === 'Point') {
           const [lat, lon] = result.original_geometry.coordinates;
           setMarker(<Marker longitude={lat} latitude={lon} />);
         } else {
-          props.onFeatureSelect?.({
-            feature: result.original_feature,
-            center: result.geometry,
-          });
+          setMarker(null);
         }
+        props.onFeatureSelect?.({
+          feature: result.original_feature,
+          center: result.geometry,
+        });
       });
       return ctrl;
     },

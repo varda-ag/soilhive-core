@@ -216,6 +216,22 @@ paths:
         '204':
           description: Logo deleted successfully
 
+  /epsg:
+    get:
+      x-eov-operation-handler: controllers/datasets
+      x-eov-operation-id: getEpsgCodes
+      summary: Get supported EPSG codes
+      tags:
+        - datasets
+      responses:
+        '200':
+          description: EPSG code array
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: number
   /datasets:
     get:
       x-eov-operation-handler: controllers/datasets
@@ -505,6 +521,34 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           description: Unauthorized - Token subject is missing
+    delete:
+      x-eov-operation-handler: controllers/dataset-file-mappings
+      x-eov-operation-id: deleteDatasetFileMappingByFileId
+      summary: Delete a dataset file mapping by file ID
+      tags:
+        - datasets
+      security:
+        - bearerAuth: [data-admin]
+      parameters:
+        - name: datasetId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Dataset ID
+        - name: fileId
+          in: query
+          required: true
+          schema:
+            type: string
+          description: File ID whose mapping should be deleted
+      responses:
+        '204':
+          description: Dataset file mapping deleted successfully
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
 
   /datasets/{datasetId}/dataset-file-mapping/{datasetFileMappingId}:
     get:
@@ -914,7 +958,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/FilteredDatasetsList'
+                $ref: '#/components/schemas/FilteredData'
         '404':
           $ref: '#/components/responses/NotFound'
 
@@ -1098,12 +1142,11 @@ paths:
         required: true
         schema:
           type: string
-          format: uuid
         description: File unique internal identifier
     get:
       x-eov-operation-handler: controllers/files
       x-eov-operation-id: getFile
-      summary: Get information for a given soil file
+      summary: Get information for a given file
       tags:
         - files
       security:
@@ -1117,6 +1160,42 @@ paths:
                 $ref: '#/components/schemas/FileDescriptor'
         '404':
           $ref: '#/components/responses/NotFound'
+    patch:
+      x-eov-operation-handler: controllers/files
+      x-eov-operation-id: updateFile
+      summary: Update information for a given file
+      tags:
+        - files
+      security:
+        - bearerAuth: [data-admin]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FileUpdatePayload'
+      responses:
+        '200':
+          description: File updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileDescriptor'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      x-eov-operation-handler: controllers/files
+      x-eov-operation-id: deleteFile
+      summary: Delete a file
+      tags:
+        - files
+      security:
+        - bearerAuth: [data-admin]
+      responses:
+        '204':
+          description: File deleted successfully
+        '404':
+          $ref: '#/components/responses/NotFound'
   /files/{fileId}/download:
     parameters:
       - name: fileId
@@ -1124,7 +1203,6 @@ paths:
         required: true
         schema:
           type: string
-          format: uuid
         description: File unique internal identifier
     get:
       x-eov-operation-handler: controllers/files
@@ -1206,7 +1284,7 @@ paths:
       responses:
         '204':
           description: Mapping deleted successfully
-  /downloads/{fileId}:
+  /downloads/{filePath}:
     get:
       x-eov-operation-handler: controllers/files
       x-eov-operation-id: download
@@ -1220,12 +1298,12 @@ paths:
           description: Temporary access token to download access-protected files
           schema:
             type: string
-        - name: fileId
+        - name: filePath
           in: path
           required: true
           schema:
             type: string
-          description: Unique file identifier. Folder separators should be encoded as %2F
+          description: File path. Folder separators should be encoded as %2F
       responses:
         '200':
           description: File downloaded successfully
@@ -1415,7 +1493,7 @@ components:
           readOnly: true
         metadata:
           type: object
-          description: Spatial file fields, CRS and geometry information.
+          description: Spatial file fields, CRS and geometry information
           additionalProperties: true
         is_archived:
           type: boolean
@@ -1439,6 +1517,13 @@ components:
         - name
         - created_at
         - created_by
+
+    FileUpdatePayload:
+      type: object
+      properties:
+        epsg:
+          type: number
+          description: EPSG code of the spatial file
 
     FilterCriteria:
       type: object
@@ -1534,6 +1619,18 @@ components:
       type: array
       items:
         $ref: '#/components/schemas/FilteredDataset'
+    
+    FilteredData:
+      type: object
+      properties:
+        datasets:
+          $ref: '#/components/schemas/FilteredDatasetsList'
+        raster_filters:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: number
 
     SoilDataSample:
       type: object
@@ -1887,7 +1984,6 @@ components:
       properties:
         fileID:
           type: string
-          format: uuid
         mappingId:
           type: string
           format: uuid
@@ -1953,7 +2049,6 @@ components:
           description: Job type
         file_id:
           type: string
-          format: uuid
           description: File ID to be processed and inserted into the database
 
     BulkDeleteJob:

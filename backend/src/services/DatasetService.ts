@@ -5,6 +5,7 @@ import DatasetEntity from '../entities/Dataset';
 import { CreateDatasetInput, UpdateDatasetInput } from '../types/DatasetInput';
 import { getEntity } from '../utils/slugs';
 import { EntityType, IngestionStatus } from '../types/data';
+import { epsgList } from '../assets/epsg';
 
 export default class DatasetService {
   getDatasets = async (requestData: RequestData): Promise<DatasetEntity[]> => {
@@ -75,5 +76,9 @@ export default class DatasetService {
     dataset.updated_by = String(sub);
     await dataset.save();
     await requestData.entityManager.getRepository(DatasetEntity).softRemove(dataset);
+  };
+
+  getEpsgCodes = (): number[] => {
+    return epsgList;
   };
 }

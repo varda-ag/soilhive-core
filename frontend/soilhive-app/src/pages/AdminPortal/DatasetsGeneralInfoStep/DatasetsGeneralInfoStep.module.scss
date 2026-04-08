@@ -6,8 +6,8 @@
 }
 
 .PageTitle {
-  font-size: 1rem;
-  font-weight: 600;
+  font-size: var(--font-size-lg);
+  font-weight: var( --font-weight-bold);
   color: var(--color-text-primary);
   margin: 0 0 16px;
 }
@@ -35,8 +35,8 @@
 }
 
 .CardTitle {
-  font-size: 1rem;
-  font-weight: 700;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-bold);
   color: var(--color-brand-dark-green-1000);
   margin: 0;
 }

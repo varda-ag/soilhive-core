@@ -9,6 +9,7 @@ import * as path from 'path';
 import mime from 'mime-types';
 import ConfigService from '../services/ConfigService';
 import { JsonStorage } from '../entities/JsonStorage';
+import { FileMetadata, PatchFileInput } from '../interfaces/File';
 
 const fileService = new FileService();
 const configService = new ConfigService();
@@ -71,6 +72,17 @@ export const createFile = async (req: Request, res: Response, next: NextFunction
   }
 };
 
+export const updateFile = async (req: Request, res: Response) => {
+  const { fileId } = req.params;
+  const input: PatchFileInput = req.body;
+  const file = await fileService.getFile(req.customData, fileId!);
+  if (input.epsg) {
+    file.metadata = { ...file.metadata, epsg: input.epsg } as FileMetadata;
+  }
+  const result = await fileService.updateFile(req.customData, fileId!, file);
+  res.json(idToSlug(result));
+};
+
 export const getFile = async (req: Request, res: Response) => {
   const { fileId } = req.params;
 
@@ -79,8 +91,15 @@ export const getFile = async (req: Request, res: Response) => {
   res.json(idToSlug(result));
 };
 
+export const deleteFile = async (req: Request, res: Response) => {
+  const { fileId } = req.params;
+  await fileService.deleteFile(req.customData, fileId!);
+  fileService.deleteFileFromStorage(fileId!);
+  res.sendStatus(StatusCodes.NO_CONTENT);
+};
+
 export const download = async (req: Request, res: Response, next: NextFunction) => {
-  const filename = req.params['fileId']!;
+  const filename = req.params['filePath']!;
   const token = req.query['token'] as string;
 
   // this checks token validity only. Token presence is checked by middleware thorugh openapi spec

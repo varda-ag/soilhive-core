@@ -61,7 +61,7 @@ describe('useRasterFilters', () => {
     it('filters options to only those present in geometryFilterResults when raster_filters exist', () => {
       useAvailabilityMock.mockReturnValue(
         buildAvailabilityMock({
-          geometryFilterResults: [{ id: 'ds-1', raster_filters: { soil_groups: [1, 3] } }],
+          geometryFilterResults: { datasets: [{ id: 'ds-1' }], raster_filters: { soil_groups: [1, 3] } },
         }) as any,
       );
 
@@ -76,10 +76,7 @@ describe('useRasterFilters', () => {
     it('merges raster_filter values across multiple datasets', () => {
       useAvailabilityMock.mockReturnValue(
         buildAvailabilityMock({
-          geometryFilterResults: [
-            { id: 'ds-1', raster_filters: { soil_groups: [1] } },
-            { id: 'ds-2', raster_filters: { soil_groups: [3, 4] } },
-          ],
+          geometryFilterResults: { datasets: [{ id: 'ds-1' }, { id: 'ds-2' }], raster_filters: { soil_groups: [1, 3, 4] } },
         }) as any,
       );
 
@@ -120,7 +117,7 @@ describe('useRasterFilters', () => {
       useAvailabilityMock.mockReturnValue(
         buildAvailabilityMock({
           datasetFilters: { raster_filters: { soil_groups: [1, 2] } },
-          geometryFilterResults: [{ id: 'ds-1', raster_filters: { soil_groups: [1, 2] } }],
+          geometryFilterResults: { datasets: [{ id: 'ds-1' }], raster_filters: { soil_groups: [1, 2] } },
         }) as any,
       );
 
@@ -136,9 +133,7 @@ describe('useRasterFilters', () => {
       useAvailabilityMock.mockReturnValue(
         buildAvailabilityMock({
           datasetFilters: { raster_filters: { soil_groups: [1, 2] } },
-          geometryFilterResults: [
-            { id: 'ds-1', raster_filters: { soil_groups: [1] } }, // value 2 (Ferralsols) is not available
-          ],
+          geometryFilterResults: { datasets: [{ id: 'ds-1' }], raster_filters: { soil_groups: [1] } }, // value 2 (Ferralsols) is not available
           isLoadingRasterCategories: false,
         }) as any,
       );
@@ -155,7 +150,7 @@ describe('useRasterFilters', () => {
       useAvailabilityMock.mockReturnValue(
         buildAvailabilityMock({
           datasetFilters: { raster_filters: { soil_groups: [1, 2] } },
-          geometryFilterResults: [{ id: 'ds-1', raster_filters: { soil_groups: [1] } }],
+          geometryFilterResults: { datasets: [{ id: 'ds-1' }], raster_filters: { soil_groups: [1] } },
           isLoadingRasterCategories: true, // still loading
         }) as any,
       );

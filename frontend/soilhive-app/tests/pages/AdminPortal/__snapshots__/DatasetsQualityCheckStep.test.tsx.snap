@@ -1,16 +1,94 @@
 // Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
 
-exports[`DatasetsQualityCheckStep renders matches snapshot 1`] = `
+exports[`DatasetsSoilDataStep renders correctly and matches snapshot 1`] = `
 <div>
   <div
-    class="DatasetsQualityCheckStep"
+    class="DatasetsSoilDataStep"
   >
-    <h2>
-      Quality check
+    <h2
+      class="Title"
+    >
+      Add file/s
     </h2>
-    <p>
-      Dataset id: 
-    </p>
+    <div
+      class="InfoBanner"
+    >
+      <svg
+        class="InfoIcon"
+        data-testid="svg-icon-mock"
+      >
+        mock-svg
+      </svg>
+      datasets.soil_data.template_docs_banner
+    </div>
+    <div>
+      <label
+        class="FileUploadBox"
+        data-testid="sh-ui-fileuploadbox"
+        for="fileUploadInput"
+      >
+        <div
+          class="DropArea"
+          data-testid="sh-ui-fileuploadbox-droparea"
+        >
+          <svg
+            data-testid="svg-icon-mock"
+          >
+            mock-svg
+          </svg>
+          <p
+            class="Title"
+          >
+            components.file_upload_box.title
+          </p>
+          <p
+            class="Caption"
+          >
+            Supported formats: CSV, Geopackage, GeoJSON, Shapefile, XLSX and ZIP.
+          </p>
+          <input
+            accept=".csv, .xlsx"
+            data-testid="upload-input"
+            id="fileUploadInput"
+            multiple=""
+            style="display: none;"
+            type="file"
+          />
+        </div>
+      </label>
+    </div>
+    <div
+      class="FileListContainer"
+    />
+    <div
+      class="Footer"
+    >
+      <button
+        class="Button Secondary Small"
+        data-testid="sh-ui-button"
+        type="button"
+      >
+        Previous
+      </button>
+      <div
+        class="FooterRight"
+      >
+        <button
+          class="Button Secondary Small"
+          data-testid="sh-ui-button"
+          type="button"
+        >
+          Save and continue later
+        </button>
+        <button
+          class="Button Primary Small"
+          data-testid="sh-ui-button"
+          type="button"
+        >
+          Continue
+        </button>
+      </div>
+    </div>
   </div>
 </div>
 `;

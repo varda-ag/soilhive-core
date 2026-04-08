@@ -1,7 +1,6 @@
 import { renderHook, act } from '@testing-library/react';
 import { useGeneralInfoForm } from 'hooks/useGeneralInfoForm';
-import { useCreateDatasetMutation } from 'hooks/useCreateDatasetMutation';
-import { useUpdateDatasetMutation } from 'hooks/useUpdateDatasetMutation';
+import { useCreateDatasetMutation, useUpdateDatasetMutation } from 'hooks/useDatasetMutation';
 import { useDataset } from 'hooks/useDatasets';
 
 const mockNavigate = jest.fn();
@@ -11,8 +10,10 @@ jest.mock('react-router', () => ({
 }));
 
 jest.mock('hooks/useDatasets', () => ({ useDataset: jest.fn() }));
-jest.mock('hooks/useCreateDatasetMutation', () => ({ useCreateDatasetMutation: jest.fn() }));
-jest.mock('hooks/useUpdateDatasetMutation', () => ({ useUpdateDatasetMutation: jest.fn() }));
+jest.mock('hooks/useDatasetMutation', () => ({
+  useCreateDatasetMutation: jest.fn(),
+  useUpdateDatasetMutation: jest.fn(),
+}));
 
 const validationMessages = {
   name: 'Name is required',
