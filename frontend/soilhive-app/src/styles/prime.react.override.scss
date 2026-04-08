@@ -1,0 +1,28 @@
+.p-autocomplete {
+    border: 1px solid #DDDDDD;
+}
+
+.p-autocomplete-dd {
+
+    &:hover,
+    &:has(.p-inputtext:focus) {
+        border-color: var(--color-cta-primary-solid);
+    }
+}
+
+.p-inputtext {
+    border-radius: 4px;
+    padding: 6px 12px;
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-regular);
+    border: none;
+    box-shadow: none;
+
+
+}
+
+.p-button {
+    color: #868686;
+    background: #ffffff;
+    border: none;
+}

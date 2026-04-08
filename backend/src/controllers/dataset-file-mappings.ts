@@ -42,3 +42,12 @@ export const getDatasetFileMappings = async (req: Request, res: Response) => {
 
   res.json(response);
 };
+
+export const deleteDatasetFileMappingByFileId = async (req: Request, res: Response) => {
+  const { datasetId } = req.params;
+  const { fileId } = req.query;
+
+  await datasetFileMappingService.deleteDataMappingByFileId(req.customData, datasetId!, fileId as string);
+
+  res.status(StatusCodes.NO_CONTENT).send();
+};

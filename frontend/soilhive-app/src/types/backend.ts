@@ -204,3 +204,66 @@ export interface GeneralInfoFormData {
   description: string;
   author: string;
 }
+
+export interface PropertyMapping {
+  property_id: string;
+  conversion_id?: string;
+  min_val?: number;
+  max_val?: number;
+  procedure_id?: string;
+}
+
+export interface DataMappingObject {
+  [columnName: string]: string | PropertyMapping;
+}
+
+export type DataMappingRequest = DataMappingObject;
+
+export interface DataMappingResponse {
+  id: string;
+  data_mapping: DataMappingObject;
+}
+
+export interface DatasetFileMappingRequest {
+  fileID?: string;
+  mappingId?: string;
+}
+
+export interface DatasetFileMappingResponse {
+  id: string;
+  fileID: string;
+  mappingId: string;
+}
+
+export interface FileDescriptor {
+  // required
+  id: string;
+  name: string;
+  created_at: string;
+  created_by: string;
+
+  // optional
+  file_path?: string;
+  status?: string;
+  metadata?: {
+    detected_fields?: {
+      crs?: string | null;
+      geometry?: string | null;
+      latitude?: string | null;
+      longitude?: string | null;
+      sampling_date?: string | null;
+      license?: string | null;
+      depth?: string | null;
+      min_depth?: string | null;
+      max_depth?: string | null;
+      horizon?: string | null;
+    };
+    field_names?: string[];
+    geometry_detected?: boolean;
+    driver?: string | null;
+    [key: string]: unknown; // additionalProperties: true
+  };
+  is_archived?: boolean;
+  updated_at?: string;
+  updated_by?: string;
+}

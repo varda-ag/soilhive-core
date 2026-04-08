@@ -3,8 +3,7 @@ import { useNavigate } from 'react-router';
 import { ADMIN_PATHS } from '../configuration/admin';
 import type { Dataset, GeneralInfoFormData } from 'types/backend';
 import { useDataset } from './useDatasets';
-import { useCreateDatasetMutation } from './useCreateDatasetMutation';
-import { useUpdateDatasetMutation } from './useUpdateDatasetMutation';
+import { useCreateDatasetMutation, useUpdateDatasetMutation } from 'hooks/useDatasetMutation';
 
 const DESCRIPTION_MAX_LENGTH = 200;
 
@@ -30,10 +29,10 @@ export function useGeneralInfoForm(id: string | undefined, validationMessages: V
 
   function validate(data: GeneralInfoFormData): ValidationErrors {
     const errors: ValidationErrors = {};
-    if (!data.name.trim()) errors.name = validationMessages.name; /* <-- CHANGE */
-    if (!data.full_name.trim()) errors.full_name = validationMessages.full_name; /* <-- CHANGE */
-    if (!data.description.trim()) errors.description = validationMessages.description; /* <-- CHANGE */
-    if (!data.author.trim()) errors.author = validationMessages.author; /* <-- CHANGE */
+    if (!data.name.trim()) errors.name = validationMessages.name;
+    if (!data.full_name.trim()) errors.full_name = validationMessages.full_name;
+    if (!data.description.trim()) errors.description = validationMessages.description;
+    if (!data.author.trim()) errors.author = validationMessages.author;
     return errors;
   }
 

@@ -1,0 +1,66 @@
+/* SoilDataFileRow.module.scss */
+
+.Container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px; // Space between file card and error message
+  width: 100%;
+}
+
+.SoilDataFileRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background-color: var(--color-neutral-white);
+  border: 1px solid var(--color-shadow-interface);
+  border-radius: 4px; // Blockier look matching desired.png
+
+  // Layered shadow for depth: 
+  // 1. Subtle top edge 
+  // 2. Soft diffused bottom glow
+  box-shadow: 
+    0 1px 2px rgba(0, 0, 0, 0.05), 
+    0 4px 12px var(--color-shadow-interface);
+}
+
+.FileInfo {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.FileName {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+}
+
+.FileSize {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-regular);
+  color: var(--color-text-secondary);
+}
+
+.CrsSection {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-right: 16px;
+}
+
+.CrsLabel {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-regular);
+  color: var(--color-text-primary);
+  white-space: nowrap;
+}
+
+.CrsDropdown {
+  width: 240px;
+}
+
+.RemoveButtonIcon {
+  color: var(--color-neutral-dark-400);
+}
