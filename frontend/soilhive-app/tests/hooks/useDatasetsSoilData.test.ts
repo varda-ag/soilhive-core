@@ -33,6 +33,10 @@ jest.mock('hooks/useFileUpload', () => ({
   })),
 }));
 
+jest.mock('@tanstack/react-query', () => ({
+  useQueryClient: jest.fn(() => ({ invalidateQueries: jest.fn() })),
+}));
+
 jest.mock('../../src/api-client', () => ({
   useRequest: jest.fn(() => ({ request: jest.fn() })),
 }));
@@ -93,6 +97,20 @@ describe('useDatasetsSoilData', () => {
 
       // both files land with crs: null (no user selection yet)
       expect(result.current.isContinueEnabled).toBe(false);
+    });
+
+    it('is true when all files have an inferredCrs (but no user-set crs)', async () => {
+      buildDefaultMocks({
+        existingFiles: [
+          { id: '1', name: 'a.csv', metadata: { epsg: 4326 } },
+          { id: '2', name: 'b.csv', metadata: { epsg: 27700 } },
+        ],
+      });
+      const { result } = renderHook(() => useDatasetsSoilData());
+
+      await waitFor(() => {
+        expect(result.current.isContinueEnabled).toBe(true);
+      });
     });
 
     it('is true when all files have a crs and no errors', async () => {
