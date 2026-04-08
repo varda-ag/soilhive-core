@@ -45,16 +45,21 @@ export async function zipFiles(sourceDir: string, outputPath: string): Promise<v
 
 /**
  * Generate download path for the export file
- * Format: exports/<YYYY>/<MM>/<ISO-8601>_<filterId>.zip
- * @param filterId - Filter ID from job payload
+ * Format: exports/<YYYY>/<MM>/SoilHive_<YYYYMMDD>_<HHMMSS>.zip
  */
-export function generateDownloadPath(filterId: string): string {
+export function generateDownloadPath(): string {
   const now = new Date();
   const year = now.getUTCFullYear();
   const month = String(now.getUTCMonth() + 1).padStart(2, '0');
-  const isoTimestamp = now.toISOString().replace(/[:.]/g, '-');
+  const date = String(year) + '-' + month + '-' + String(now.getUTCDate()).padStart(2, '0');
+  const time =
+    String(now.getUTCHours()).padStart(2, '0') +
+    '-' +
+    String(now.getUTCMinutes()).padStart(2, '0') +
+    '-' +
+    String(now.getUTCSeconds()).padStart(2, '0');
 
-  const filename = `${isoTimestamp}_${filterId}.zip`;
+  const filename = `SoilHive_${date}_${time}.zip`;
   return path.join(EXPORT_CONFIG.EXPORTS_BASE_PATH, String(year), month, filename);
 }
 

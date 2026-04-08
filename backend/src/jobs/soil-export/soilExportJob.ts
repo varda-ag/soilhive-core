@@ -64,8 +64,8 @@ export async function processExportJob(job: Job<ExportJob>): Promise<void> {
       await writer.openFile(tempDir);
 
       // 4. Write grouped records
-      for (const [propertyAcronym, records] of Object.entries(grouped)) {
-        await writer.setProperty(propertyAcronym);
+      for (const [propertyKey, records] of Object.entries(grouped)) {
+        await writer.setProperty(propertyKey);
         for (const record of records) {
           await writer.writeRecord(record);
         }
@@ -99,7 +99,7 @@ export async function processExportJob(job: Job<ExportJob>): Promise<void> {
     if (wasCancelled) return;
 
     // Zip temp directory contents
-    const downloadPath = generateDownloadPath(filter_id);
+    const downloadPath = generateDownloadPath();
     const localZipPath = path.join(os.tmpdir(), path.basename(downloadPath));
     await zipFiles(tempDir, localZipPath);
 
