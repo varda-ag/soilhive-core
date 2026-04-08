@@ -33,6 +33,14 @@ jest.mock('hooks/useFileUpload', () => ({
   })),
 }));
 
+jest.mock('../../src/api-client', () => ({
+  useRequest: jest.fn(() => ({ request: jest.fn() })),
+}));
+
+jest.mock('../../src/configuration/api', () => ({
+  BACKEND_BASE_URL: 'http://mocked-backend',
+}));
+
 // --- Helpers ----------------------------------------------------------------
 
 const useFileManagementMock = useFileManagement as jest.MockedFunction<typeof useFileManagement>;
@@ -44,10 +52,14 @@ function buildDefaultMocks(overrides: { deleteFileAndMapping?: jest.Mock; existi
 
   useFileManagementMock.mockReturnValue({ deleteFileAndMapping });
   useCreateDatasetFileMappingMock.mockReturnValue({ mutateAsync: jest.fn() } as any);
-  useApiQueryMock.mockReturnValue({
-    data: overrides.existingFiles ?? [],
-    isLoading: false,
-  } as any);
+
+  // useApiQuery is called twice in the hook: once for /epsg and once for /datasets/.../files.
+  const epsgResult = { data: [], isLoading: false };
+  const filesResult = { data: overrides.existingFiles ?? [], isLoading: false };
+  useApiQueryMock.mockImplementation(({ endpoint }: { endpoint: string }) => {
+    if (endpoint === '/epsg') return epsgResult as any;
+    return filesResult as any;
+  });
 }
 
 function buildSoilDataFile(id: string, name: string, crs: string | null = 'EPSG:4326', error?: string) {
@@ -106,7 +118,7 @@ describe('useDatasetsSoilData', () => {
     it('maps FileDescriptor[] into SoilDataFile[] with the correct shape', async () => {
       buildDefaultMocks({
         existingFiles: [
-          { id: 'f1', name: 'soil.csv', metadata: { detected_fields: { crs: 'EPSG:4326' } } },
+          { id: 'f1', name: 'soil.csv', metadata: { epsg: 4326 } },
           { id: 'f2', name: 'geo.geojson', metadata: {} },
         ],
       });

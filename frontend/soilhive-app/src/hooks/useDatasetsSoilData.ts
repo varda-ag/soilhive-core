@@ -5,8 +5,8 @@ import { useCreateDatasetFileMapping } from 'hooks/useDatasetMutation';
 import { useFileUpload } from './useFileUpload';
 import { useFileManagement } from './useFileManagement';
 import { ADMIN_PATHS } from '../configuration/admin';
-//import { BACKEND_BASE_URL } from '../configuration/api';
-//import { useRequest } from '../api-client';
+import { BACKEND_BASE_URL } from '../configuration/api';
+import { useRequest } from '../api-client';
 import type { SoilDataFile } from '../types/soilDataFile';
 import type { FileDescriptor } from 'types/backend';
 
@@ -14,22 +14,19 @@ export const ALLOWED_EXTENSIONS = ['.csv', 'gpkg', '.geojson', '.shp', '.xlsx', 
 
 export function useDatasetsSoilData() {
   const navigate = useNavigate();
-  //const { request } = useRequest();
+  const { request } = useRequest();
   const { id: datasetId } = useParams();
   const { mutateAsync: createFileMapping } = useCreateDatasetFileMapping();
 
   const [soilDataFiles, setSoilDataFiles] = useState<SoilDataFile[]>([]);
   const existingFileIds = useRef<Set<string>>(new Set());
 
-  // delete when BE is ready
-  // TODO: un-comment when BE is ready
-  /*const { data: crsOptions = [] } = useApiQuery<number[]>({
-    endpoint: '/crs',
+  const { data: crsOptions = [] } = useApiQuery<number[]>({
+    endpoint: '/epsg',
     method: 'GET',
-    queryKey: ['crs'],
+    queryKey: ['epsg'],
     enabled: true,
-  });*/
-  const crsOptions = [2154, 27700, 4326, 3857, 32632];
+  });
 
   const isContinueEnabled = soilDataFiles.length > 0 && soilDataFiles.every(f => !!f.crs && !f.error);
 
@@ -63,7 +60,7 @@ export function useDatasetsSoilData() {
           file: null,
           name: f.name,
           crs: null, // manually added by user
-          inferredCrs: f.metadata?.detected_fields?.crs,
+          inferredCrs: f.metadata?.epsg ? `EPSG:${f.metadata.epsg}` : undefined,
           progress: 100,
         })),
     );
@@ -90,15 +87,19 @@ export function useDatasetsSoilData() {
 
     await Promise.allSettled(newFiles.map(f => createFileMapping({ datasetId, fileID: f.id })));
 
-    // TODO: un-comment when BE is ready
     // Update crs if needed
-    /*const filesWithUpdatedCrs = newFiles.filter(f => f.crs && f.crs !== f.inferredCrs);
+    const filesWithUpdatedCrs = newFiles.filter(f => f.crs && f.crs !== f.inferredCrs);
     await Promise.allSettled(
       filesWithUpdatedCrs.map(f =>
-        request({ url: `${BACKEND_BASE_URL}/files/${f.id}`, method: 'PATCH', body: { crs: Number(f.crs!.replace('EPSG:', '')) }, showErrorNotification: true })
+        request({
+          url: `${BACKEND_BASE_URL}/files/${f.id}`,
+          method: 'PATCH',
+          body: { epsg: Number(f.crs!.replace('EPSG:', '')) },
+          showErrorNotification: true,
+        }),
       ),
-    );*/
-  }, [soilDataFiles, datasetId, createFileMapping]);
+    );
+  }, [datasetId, soilDataFiles, createFileMapping, request]);
 
   return {
     fileInputRef,

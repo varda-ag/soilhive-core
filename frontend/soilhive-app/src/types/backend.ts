@@ -247,7 +247,6 @@ export interface FileDescriptor {
   status?: string;
   metadata?: {
     detected_fields?: {
-      crs?: string | null;
       geometry?: string | null;
       latitude?: string | null;
       longitude?: string | null;
@@ -261,6 +260,7 @@ export interface FileDescriptor {
     field_names?: string[];
     geometry_detected?: boolean;
     driver?: string | null;
+    epsg?: number | null;
     [key: string]: unknown; // additionalProperties: true
   };
   is_archived?: boolean;

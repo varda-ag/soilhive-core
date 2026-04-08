@@ -29,7 +29,9 @@ export function useFileUpload(onFileUploaded: (file: SoilDataFile) => void) {
         xhr.onreadystatechange = () => {
           if (xhr.readyState === XMLHttpRequest.DONE) {
             if (xhr.status >= 200 && xhr.status < 300) {
-              resolve(JSON.parse(xhr.responseText));
+              // Parse response to build string CRS from EPSG code
+              const response = JSON.parse(xhr.responseText);
+              resolve({ id: response.id, crs: response.metadata?.epsg ? `EPSG:${response.metadata.epsg}` : undefined });
             } else if (xhr.status === 0) {
               // Network failure
               reject(new Error(t('datasets.soil_data.network_error')));
