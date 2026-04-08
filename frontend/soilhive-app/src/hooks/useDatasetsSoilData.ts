@@ -52,7 +52,7 @@ export function useDatasetsSoilData() {
 
   useEffect(() => {
     if (!existingFiles) return;
-    existingFileIds.current = new Set(existingFiles.filter(f => f !== null && f.metadata?.epsg).map(f => f.id)); // keep track of files that already exist in the backend and that have a crs
+    existingFileIds.current = new Set(existingFiles.filter(f => f !== null).map(f => f.id)); // keep track of files that already exist in the backend
     setSoilDataFiles(
       // align UI files with backend state
       existingFiles
@@ -89,8 +89,8 @@ export function useDatasetsSoilData() {
 
     await Promise.allSettled(newFiles.map(f => createFileMapping({ datasetId, fileID: f.id })));
 
-    // Update crs if needed
-    const filesWithUpdatedCrs = newFiles.filter(f => f.crs && f.crs !== f.inferredCrs);
+    // Update crs for any file where the user set a crs that differs from the inferred one
+    const filesWithUpdatedCrs = soilDataFiles.filter(f => f.crs && f.crs !== f.inferredCrs);
     await Promise.allSettled(
       filesWithUpdatedCrs.map(f =>
         request({
