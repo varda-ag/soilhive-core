@@ -63,7 +63,7 @@ export function DatasetsSoilDataStep() {
             <div className={styles.FileRows}>
               {soilDataFiles.map(soilDataFile => (
                 <SoilDataFileRow
-                  key={soilDataFile.id ?? soilDataFile.id}
+                  key={soilDataFile.id}
                   soilDataFile={soilDataFile}
                   onCrsChange={handleCrsChange}
                   onRemove={() => removeFile(soilDataFile.id)}
