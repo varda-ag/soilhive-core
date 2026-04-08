@@ -14,7 +14,6 @@ export const enum DetectableFields {
   MIN_DEPTH = 'min_depth',
   MAX_DEPTH = 'max_depth',
   HORIZON = 'horizon',
-  CRS = 'crs',
   LATITUDE = 'latitude',
   LONGITUDE = 'longitude',
 }

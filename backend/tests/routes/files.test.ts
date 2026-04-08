@@ -57,11 +57,13 @@ describe('Testing /files routes (local storage)', () => {
 
       expect(res.body.name).toBe(fileName);
       expect(res.body.metadata).toBeDefined();
+      expect(res.body.metadata.epsg).toEqual(4326);
       expect(res.body.file_path).toBeDefined();
       expect(res.body.status).toBe(IngestionStatus.PENDING);
 
       expect(fs.existsSync(`${vectorFilesPassPath}/${res.body.file_path}`)).toBeTruthy();
     });
+
     it('Removes file entity and file from storage when upload fails', async () => {
       // Request should fail in extractMetadata function
       const res = await request(app).post('/files').set(dataAdminAuthHeader).attach('file', Buffer.from('bad data'), 'fail.gpkg');
@@ -173,6 +175,27 @@ describe('Testing /files routes (local storage)', () => {
       const res = await request(app).get(`/files/${fakeId}/download`);
 
       expect(res.statusCode).toBe(StatusCodes.UNAUTHORIZED);
+    });
+  });
+
+  describe('PATCH /files/{fileId}', () => {
+    beforeEach(() => {
+      setLocalStorageRootFolder(vectorFilesPassPath);
+    });
+    it('uploads file and updates the epsg', async () => {
+      const res = await request(app)
+        .post('/files')
+        .set(dataAdminAuthHeader)
+        .attach('file', Buffer.from(fs.readFileSync(`${vectorFilesPassPath}/${fileName}`)), fileName);
+      expect(res.statusCode).toBe(StatusCodes.CREATED);
+      expect(res.body.metadata).toBeDefined();
+      expect(res.body.metadata.epsg).toEqual(4326);
+
+      const epsg = 3857;
+      const patchRes = await request(app).patch(`/files/${res.body.id}`).set(dataAdminAuthHeader).send({ epsg });
+      expect(patchRes.statusCode).toBe(StatusCodes.OK);
+      expect(patchRes.body.metadata).toBeDefined();
+      expect(patchRes.body.metadata.epsg).toEqual(epsg);
     });
   });
 });

@@ -97,7 +97,7 @@ describe('FileService', () => {
       expect(fileEntity.metadata!.field_names).toContain('metadata');
       expect(fileEntity.metadata!.field_names).toContain('rawParameters');
       expect(fileEntity.metadata!.detected_fields).toBeDefined();
-      expect(fileEntity.metadata!.detected_fields.crs).toBe('EPSG:4326');
+      expect(fileEntity.metadata!.epsg).toBe(4326);
       expect(fileEntity.metadata!.geometry_detected).toBeTruthy();
     });
 
@@ -152,7 +152,7 @@ describe('FileService', () => {
     });
 
     it('should detect CRS when available', async () => {
-      expect(metadata.detected_fields.crs).toBe('EPSG:4326');
+      expect(metadata.epsg).toBe(4326);
     });
 
     it('should fail to load to DB only area GeoJSON file', async () => {
@@ -214,8 +214,7 @@ describe('FileService', () => {
       expect(metadata.detected_fields[DetectableFields.LICENSE]).toBeDefined();
       expect(metadata.detected_fields).toHaveProperty(DetectableFields.SAMPLING_DATE);
       expect(metadata.detected_fields[DetectableFields.SAMPLING_DATE]).toBeDefined();
-      expect(metadata.detected_fields).toHaveProperty(DetectableFields.CRS);
-      expect(metadata.detected_fields[DetectableFields.CRS]).toBeNull();
+      expect(metadata).not.toHaveProperty('epsg');
     });
     it('should create table in DB with column names as sanitized field_names', async () => {
       const fileId = fileEntity.slug;
@@ -324,9 +323,7 @@ describe('FileService', () => {
 
       it('should handle files without CRS gracefully', async () => {
         const metadata = await fileService.extractMetadata('valid1.csv');
-
-        // Field should exist even if empty
-        expect(metadata.detected_fields.crs).toBeNull();
+        expect(metadata.epsg).toBeUndefined();
       });
 
       it('should extract metadata from ZIP files with Shapefiles', async () => {
@@ -426,7 +423,7 @@ describe('FileService', () => {
         expect(metadata.detected_fields).toHaveProperty('geometry');
         expect(metadata.detected_fields).toHaveProperty('license');
         expect(metadata.detected_fields).toHaveProperty('sampling_date');
-        expect(metadata.detected_fields).toHaveProperty('crs');
+        expect(metadata).toHaveProperty('epsg');
       });
 
       it('should populate field_names with vector fields', async () => {

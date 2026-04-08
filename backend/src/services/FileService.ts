@@ -148,7 +148,7 @@ export default class FileService {
     const repo = requestData.entityManager.getRepository(FileEntity);
     const { sub } = requestData.token ?? {};
 
-    const file = (await getEntity(requestData, FileEntity, EntityType.DATASET, slug)) as FileEntity;
+    const file = await getEntity(requestData, FileEntity, EntityType.FILE, slug);
 
     repo.merge(file, {
       ...data,
@@ -391,15 +391,13 @@ export default class FileService {
       horizonFieldName = FileService.detectField(fieldNames, ['horizon', 'layername'], true);
 
       // Get CRS/SRID
-      let crsString: string | null = null;
+      let epsg: number | undefined = undefined;
       try {
         const spatialRef = layer.srs;
         if (spatialRef) {
-          const epsgCode = spatialRef.getAttrValue('AUTHORITY', 1);
-          if (epsgCode) {
-            crsString = `EPSG:${epsgCode}`;
-          } else {
-            crsString = spatialRef.toWKT();
+          const epsgString = spatialRef.getAttrValue('AUTHORITY', 1);
+          if (!isNaN(Number(epsgString))) {
+            epsg = parseInt(epsgString, 10);
           }
         }
       } catch {
@@ -417,12 +415,12 @@ export default class FileService {
           [DetectableFields.MIN_DEPTH]: minDepthFieldName,
           [DetectableFields.MAX_DEPTH]: maxDepthFieldName,
           [DetectableFields.HORIZON]: horizonFieldName,
-          [DetectableFields.CRS]: crsString,
           [DetectableFields.LATITUDE]: latitudeFieldName,
           [DetectableFields.LONGITUDE]: longitudeFieldName,
         },
         geometry_detected: geometryDetected,
         driver,
+        ...(epsg && { epsg }),
       };
 
       return metadata;
@@ -498,10 +496,8 @@ export default class FileService {
         }
       }
 
-      gdalOpts.push(
-        '-s_srs',
-        `${fileMetadata.detected_fields[DetectableFields.CRS] ? fileMetadata.detected_fields[DetectableFields.CRS] : 'EPSG:4326'}`,
-      );
+      const srs = `EPSG:${fileMetadata.epsg ?? 4326}`;
+      gdalOpts.push('-s_srs', srs);
       // Open dataset with GDAL (if driver available, pass driver-specific open options)
       let dataset: gdal.Dataset;
       if (fileMetadata.driver) {

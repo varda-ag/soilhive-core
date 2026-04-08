@@ -142,7 +142,6 @@ describe('Testing /jobs routes', () => {
         driver: 'GeoJSON',
         field_names: ['metadata', 'rawParameters'],
         detected_fields: {
-          crs: 'EPSG:4326',
           depth: null,
           horizon: null,
           license: null,
@@ -154,6 +153,7 @@ describe('Testing /jobs routes', () => {
           sampling_date: null,
         },
         geometry_detected: true,
+        epsg: 4326,
       };
       const file = {
         name: `sample_point_${index}.geojson`,
