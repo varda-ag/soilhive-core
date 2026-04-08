@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.62.0 (2026-04-08)
+
+## What's Changed
+* feat: sp-5078 minor changes to preview table by @cristbello in https://github.com/varda-ag/soilhive-core/pull/351
+* refactor: coverage response update to avoid replicating raster coverage by @d-rom in https://github.com/varda-ag/soilhive-core/pull/349
+* feat: data portal add files page by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/353
+* feat(data): :sparkles: returning supported EPSG codes, patching a fil… by @svaccari in https://github.com/varda-ag/soilhive-core/pull/354
+* fix(fe): fix crs update by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/355
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.61.1...v0.62.0
+
 ## 0.61.1 (2026-04-02)
 
 ## What's Changed
