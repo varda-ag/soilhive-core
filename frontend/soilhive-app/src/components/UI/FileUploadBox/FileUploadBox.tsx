@@ -18,12 +18,13 @@ interface Props {
   files?: File[];
   uploadProgress?: FilesUploadProgress;
   bond?: DropAreaBond;
-  fileInputRef?: React.RefObject<HTMLInputElement>;
+  fileInputRef?: React.RefObject<HTMLInputElement | null>;
   disabled?: boolean;
   caption?: string;
-  errorMessage?: string | null;
+  errorMessage?: string | string[] | null;
   isSingleFileUpload?: boolean;
   handleFiles: (files: FileList | File[] | null) => void;
+  accept?: string;
 }
 
 export function FileUploadBox({
@@ -35,6 +36,7 @@ export function FileUploadBox({
   errorMessage,
   isSingleFileUpload,
   handleFiles,
+  accept,
 }: Props) {
   const { t } = useTranslation('common');
 
@@ -42,11 +44,13 @@ export function FileUploadBox({
     onFiles: files => handleFiles(files),
   });
 
+  const hasError = Array.isArray(errorMessage) ? errorMessage.length > 0 : !!errorMessage;
+
   return (
     <div>
       <label
         data-testid="sh-ui-fileuploadbox"
-        className={classnames(styles.FileUploadBox, disabled && styles.Disabled, !!errorMessage && styles.Error)}
+        className={classnames(styles.FileUploadBox, disabled && styles.Disabled, hasError && styles.Error)}
         htmlFor="fileUploadInput"
         {...bond}
       >
@@ -86,10 +90,13 @@ export function FileUploadBox({
             disabled={disabled}
             onChange={(e: ChangeEvent<HTMLInputElement>) => handleFiles(e.target.files)}
             multiple={!isSingleFileUpload}
+            accept={accept}
           />
         </div>
       </label>
-      {!!errorMessage && <FormMessage message={errorMessage} type="error" />}
+      {Array.isArray(errorMessage)
+        ? errorMessage.map((msg, i) => <FormMessage key={i} message={msg} type="error" />)
+        : !!errorMessage && <FormMessage message={errorMessage} type="error" />}
     </div>
   );
 }

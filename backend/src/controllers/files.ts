@@ -91,8 +91,15 @@ export const getFile = async (req: Request, res: Response) => {
   res.json(idToSlug(result));
 };
 
+export const deleteFile = async (req: Request, res: Response) => {
+  const { fileId } = req.params;
+  await fileService.deleteFile(req.customData, fileId!);
+  fileService.deleteFileFromStorage(fileId!);
+  res.sendStatus(StatusCodes.NO_CONTENT);
+};
+
 export const download = async (req: Request, res: Response, next: NextFunction) => {
-  const filename = req.params['fileId']!;
+  const filename = req.params['filePath']!;
   const token = req.query['token'] as string;
 
   // this checks token validity only. Token presence is checked by middleware thorugh openapi spec

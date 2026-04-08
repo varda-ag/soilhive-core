@@ -119,6 +119,16 @@ describe('Testing /files routes (local storage)', () => {
     });
   });
 
+  describe('DELETE /files/:fileId', () => {
+    it('should delete an existing file successfully (204)', async () => {
+      const file = await addFile('to_delete.txt');
+
+      const res = await request(app).delete(`/files/${file.slug}`).set(dataAdminAuthHeader);
+      expect(res.statusCode).toBe(StatusCodes.NO_CONTENT);
+      expect(fs.existsSync(`${vectorFilesPassPath}/${file.file_path}`)).toBeFalsy();
+    });
+  });
+
   describe('GET /files/:fileId/download', () => {
     beforeEach(() => {
       setLocalStorageRootFolder(vectorFilesPassPath);
@@ -192,39 +202,39 @@ describe('Testing /files routes (local storage)', () => {
 
 describe('Testing /download route', () => {
   it('should return 400 (bad request) if no token is provided', async () => {
-    const fileId = 'test-file';
+    const filePath = 'test-file';
 
     const storage = FileService.getStorageEngine();
 
-    await storage.write(fileId, 'some content');
+    await storage.write(filePath, 'some content');
 
-    const response = await request(app).get(`/downloads/${fileId}`);
+    const response = await request(app).get(`/downloads/${filePath}`);
 
     expect(response.status).toBe(StatusCodes.BAD_REQUEST);
   });
 
   it('should return 401 (unauthorized) if invalid token is provided ', async () => {
-    const fileId = 'test-file';
+    const filePath = 'test-file';
 
     const invalidToken = 'invalidtoken';
 
     const storage = FileService.getStorageEngine();
 
-    await storage.write(fileId, 'some content');
+    await storage.write(filePath, 'some content');
 
-    const response = await request(app).get(`/downloads/${fileId}?token=${invalidToken}`);
+    const response = await request(app).get(`/downloads/${filePath}?token=${invalidToken}`);
 
     expect(response.status).toBe(StatusCodes.UNAUTHORIZED);
   });
 
   it('should return 200 (ok) if valid token is provided ', async () => {
-    const fileId = 'test-file';
+    const filePath = 'test-file';
 
     const storage = FileService.getStorageEngine();
 
-    await storage.write(fileId, 'some content');
+    await storage.write(filePath, 'some content');
 
-    const validFilePath = createSignedPath(fileId);
+    const validFilePath = createSignedPath(filePath);
 
     const response = await request(app).get(`/downloads/${validFilePath}`);
 
@@ -232,13 +242,13 @@ describe('Testing /download route', () => {
   });
 
   it('should return 410 (gone) if expired token is provided ', async () => {
-    const fileId = 'test-file';
+    const filePath = 'test-file';
 
     const storage = FileService.getStorageEngine();
 
-    await storage.write(fileId, 'some content');
+    await storage.write(filePath, 'some content');
 
-    const expiredFilePath = createSignedPath(fileId, 1); // just one second of validity
+    const expiredFilePath = createSignedPath(filePath, 1); // just one second of validity
 
     // wait for 2 seconds to ensure the token is expired
     await sleep(2000);
@@ -249,12 +259,12 @@ describe('Testing /download route', () => {
   });
 
   it('should return correct content-type for a csv file', async () => {
-    const fileId = 'test-file.csv';
+    const filePath = 'test-file.csv';
 
     const storage = FileService.getStorageEngine();
-    await storage.write(fileId, 'col1,col2\nval1,val2');
+    await storage.write(filePath, 'col1,col2\nval1,val2');
 
-    const validFilePath = createSignedPath(fileId);
+    const validFilePath = createSignedPath(filePath);
 
     const response = await request(app).get(`/downloads/${validFilePath}`);
 
