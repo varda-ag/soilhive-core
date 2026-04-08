@@ -1,5 +1,6 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router';
+import { useQueryClient } from '@tanstack/react-query';
 import { useApiQuery } from './useApiQuery';
 import { useCreateDatasetFileMapping } from 'hooks/useDatasetMutation';
 import { useFileUpload } from './useFileUpload';
@@ -16,6 +17,7 @@ export function useDatasetsSoilData() {
   const navigate = useNavigate();
   const { request } = useRequest();
   const { id: datasetId } = useParams();
+  const queryClient = useQueryClient();
   const { mutateAsync: createFileMapping } = useCreateDatasetFileMapping();
 
   const [soilDataFiles, setSoilDataFiles] = useState<SoilDataFile[]>([]);
@@ -28,7 +30,7 @@ export function useDatasetsSoilData() {
     enabled: true,
   });
 
-  const isContinueEnabled = soilDataFiles.length > 0 && soilDataFiles.every(f => !!f.crs && !f.error);
+  const isContinueEnabled = soilDataFiles.length > 0 && soilDataFiles.every(f => (!!f.crs || !!f.inferredCrs) && !f.error);
 
   const updateSoilDataFile = useCallback((id: string, updates: Partial<SoilDataFile>) => {
     setSoilDataFiles(prev => prev.map(f => (f.id === id ? { ...f, ...updates } : f)));
@@ -50,7 +52,7 @@ export function useDatasetsSoilData() {
 
   useEffect(() => {
     if (!existingFiles) return;
-    existingFileIds.current = new Set(existingFiles.filter(f => f !== null).map(f => f.id)); // keep track of files that already exist in the backend to avoid re-uploading or re-mapping them
+    existingFileIds.current = new Set(existingFiles.filter(f => f !== null && f.metadata?.epsg).map(f => f.id)); // keep track of files that already exist in the backend and that have a crs
     setSoilDataFiles(
       // align UI files with backend state
       existingFiles
@@ -99,7 +101,9 @@ export function useDatasetsSoilData() {
         }),
       ),
     );
-  }, [datasetId, soilDataFiles, createFileMapping, request]);
+
+    await queryClient.invalidateQueries({ queryKey: ['datasets', datasetId, 'files'] }); // if we save successfully, refetch files to make sure UI is in sync with backend
+  }, [datasetId, soilDataFiles, createFileMapping, request, queryClient]);
 
   return {
     fileInputRef,
