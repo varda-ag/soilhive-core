@@ -238,4 +238,12 @@ describe('Testing /datasets routes', () => {
       expect(res.body.length).toBe(0);
     });
   });
+
+  describe('GET /epsg', () => {
+    it('GET /epsg responds with a list of supported EPSG codes', async () => {
+      const res = await request(app).get('/epsg');
+      expect(Array.isArray(res.body)).toBe(true);
+      expect(res.body.length).toBeGreaterThan(0);
+    });
+  });
 });

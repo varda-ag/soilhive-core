@@ -97,12 +97,12 @@ describe('FileService', () => {
       expect(fileEntity.metadata!.field_names).toContain('metadata');
       expect(fileEntity.metadata!.field_names).toContain('rawParameters');
       expect(fileEntity.metadata!.detected_fields).toBeDefined();
-      expect(fileEntity.metadata!.detected_fields.crs).toBe('EPSG:4326');
+      expect(fileEntity.metadata!.epsg).toBe(4326);
       expect(fileEntity.metadata!.geometry_detected).toBeTruthy();
     });
 
     it('should load to DB sample_point GeoJSON file', async () => {
-      const fileId = fileEntity.id;
+      const fileId = fileEntity.slug;
 
       await fileService.fileToDB(requestData, fileId);
       const tableName = getRawTableName(fileId);
@@ -152,11 +152,11 @@ describe('FileService', () => {
     });
 
     it('should detect CRS when available', async () => {
-      expect(metadata.detected_fields.crs).toBe('EPSG:4326');
+      expect(metadata.epsg).toBe(4326);
     });
 
     it('should fail to load to DB only area GeoJSON file', async () => {
-      const fileId = fileEntity.id;
+      const fileId = fileEntity.slug;
       await expect(fileService.fileToDB(requestData, fileId)).rejects.toThrow('No data besides geometry detected');
     });
   });
@@ -182,7 +182,7 @@ describe('FileService', () => {
     });
 
     it('should fail to load to DB only area GeoJSON file', async () => {
-      const fileId = fileEntity.id;
+      const fileId = fileEntity.slug;
       await expect(fileService.fileToDB(requestData, fileId)).rejects.toThrow('No data besides geometry detected');
     });
   });
@@ -214,11 +214,10 @@ describe('FileService', () => {
       expect(metadata.detected_fields[DetectableFields.LICENSE]).toBeDefined();
       expect(metadata.detected_fields).toHaveProperty(DetectableFields.SAMPLING_DATE);
       expect(metadata.detected_fields[DetectableFields.SAMPLING_DATE]).toBeDefined();
-      expect(metadata.detected_fields).toHaveProperty(DetectableFields.CRS);
-      expect(metadata.detected_fields[DetectableFields.CRS]).toBeNull();
+      expect(metadata).not.toHaveProperty('epsg');
     });
     it('should create table in DB with column names as sanitized field_names', async () => {
-      const fileId = fileEntity.id;
+      const fileId = fileEntity.slug;
       await fileService.fileToDB(requestData, fileId);
       const tableName = getRawTableName(fileId);
       const tableColumns = await getTableColumns(tableName);
@@ -264,7 +263,7 @@ describe('FileService', () => {
     });
 
     it('should load to DB same layer as detected in metadata', async () => {
-      const fileId = fileEntity.id;
+      const fileId = fileEntity.slug;
       await fileService.fileToDB(requestData, fileId);
       const tableName = getRawTableName(fileId);
       const tableColumns = await getTableColumns(tableName);
@@ -312,7 +311,7 @@ describe('FileService', () => {
       });
 
       it('should throw error when trying to load to DB', async () => {
-        const fileId = fileEntity.id;
+        const fileId = fileEntity.slug;
         await expect(fileService.fileToDB(requestData, fileId)).rejects.toThrow('Geometry not found in input file');
       });
     });
@@ -324,9 +323,7 @@ describe('FileService', () => {
 
       it('should handle files without CRS gracefully', async () => {
         const metadata = await fileService.extractMetadata('valid1.csv');
-
-        // Field should exist even if empty
-        expect(metadata.detected_fields.crs).toBeNull();
+        expect(metadata.epsg).toBeUndefined();
       });
 
       it('should extract metadata from ZIP files with Shapefiles', async () => {
@@ -426,7 +423,7 @@ describe('FileService', () => {
         expect(metadata.detected_fields).toHaveProperty('geometry');
         expect(metadata.detected_fields).toHaveProperty('license');
         expect(metadata.detected_fields).toHaveProperty('sampling_date');
-        expect(metadata.detected_fields).toHaveProperty('crs');
+        expect(metadata).toHaveProperty('epsg');
       });
 
       it('should populate field_names with vector fields', async () => {

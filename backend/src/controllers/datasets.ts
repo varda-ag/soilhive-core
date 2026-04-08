@@ -71,3 +71,8 @@ export const getDatasetMappings = async (req: Request, res: Response) => {
   const dataMappings = datasetFileMappings.map(m => m.data_mapping);
   return res.json(idToSlug(dataMappings));
 };
+
+export const getEpsgCodes = async (req: Request, res: Response) => {
+  const epsgCodes = datasetService.getEpsgCodes();
+  res.json(epsgCodes);
+};

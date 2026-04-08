@@ -9,6 +9,7 @@ import * as path from 'path';
 import mime from 'mime-types';
 import ConfigService from '../services/ConfigService';
 import { JsonStorage } from '../entities/JsonStorage';
+import { FileMetadata, PatchFileInput } from '../interfaces/File';
 
 const fileService = new FileService();
 const configService = new ConfigService();
@@ -69,6 +70,17 @@ export const createFile = async (req: Request, res: Response, next: NextFunction
     }
     next(err);
   }
+};
+
+export const updateFile = async (req: Request, res: Response) => {
+  const { fileId } = req.params;
+  const input: PatchFileInput = req.body;
+  const file = await fileService.getFile(req.customData, fileId!);
+  if (input.epsg) {
+    file.metadata = { ...file.metadata, epsg: input.epsg } as FileMetadata;
+  }
+  const result = await fileService.updateFile(req.customData, fileId!, file);
+  res.json(idToSlug(result));
 };
 
 export const getFile = async (req: Request, res: Response) => {

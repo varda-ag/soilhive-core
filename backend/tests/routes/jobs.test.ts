@@ -142,7 +142,6 @@ describe('Testing /jobs routes', () => {
         driver: 'GeoJSON',
         field_names: ['metadata', 'rawParameters'],
         detected_fields: {
-          crs: 'EPSG:4326',
           depth: null,
           horizon: null,
           license: null,
@@ -154,6 +153,7 @@ describe('Testing /jobs routes', () => {
           sampling_date: null,
         },
         geometry_detected: true,
+        epsg: 4326,
       };
       const file = {
         name: `sample_point_${index}.geojson`,
@@ -166,7 +166,7 @@ describe('Testing /jobs routes', () => {
       const jobResponse = await request(app)
         .post('/jobs')
         .set('Authorization', `Bearer ${token}`)
-        .send({ type: queue, file_id: fileEntity.id });
+        .send({ type: queue, file_id: fileEntity.slug });
       expect(jobResponse.statusCode).toBe(201);
 
       // Wait for file to DB job to complete
