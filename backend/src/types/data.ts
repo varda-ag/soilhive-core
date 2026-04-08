@@ -7,8 +7,8 @@ export const enum GISDataType {
 export const enum IngestionStatus {
   PENDING = 'PENDING',
   ONGOING = 'ONGOING',
-  INGESTED = 'INGESTED',
-  RELEASED = 'RELEASED',
+  LOADED = 'LOADED',
+  PUBLISHED = 'PUBLISHED',
   ARCHIVED = 'ARCHIVED',
 }
 
