@@ -119,6 +119,57 @@ export class Entitlements1775121569960 implements MigrationInterface {
            RETURN NEW;
            end;
        $function$`);
+    await queryRunner.query(`CREATE OR REPLACE FUNCTION slug_unit_conversions_generate_store_old()
+          RETURNS trigger
+          LANGUAGE plpgsql
+          AS $function$
+          declare
+          lv_values_names text[];
+          lv_base_slug text;
+          lv_new_slug TEXT;
+          lv_counter INTEGER := 1;
+          lv_exists boolean;
+          begin
+          -- Generate the base slug
+          SELECT ARRAY[sp.property_name, COALESCE(NEW.original_unit_of_measurement, OLD.original_unit_of_measurement)]
+          INTO lv_values_names
+           FROM (SELECT NEW.*) AS t 
+           LEFT JOIN soil_properties sp ON COALESCE(NEW.property_id, OLD.property_id)=sp.id;
+          
+           EXECUTE format('SELECT %I.slugify(concat_ws(''-'', %L))', TG_TABLE_SCHEMA, array_to_string(lv_values_names, ', ')) into lv_base_slug;
+          lv_new_slug := lv_base_slug;
+      
+          -- IMPORTANT: schema-qualify, do not rely on search_path (pool connections can differ)
+          EXECUTE format(
+            'SELECT EXISTS (SELECT 1 FROM %I.slug_history WHERE slug = %L)',
+            TG_TABLE_SCHEMA,
+            lv_new_slug
+          ) into lv_exists;
+          -- Check if the slug already exists
+          WHILE lv_exists LOOP
+          -- If it exists, append a number and increment
+              lv_new_slug := lv_base_slug || '-' || lv_counter;
+              lv_counter := lv_counter + 1;
+              EXECUTE format(
+                'SELECT EXISTS (SELECT 1 FROM %I.slug_history WHERE slug = %L)',
+                TG_TABLE_SCHEMA,
+                lv_new_slug
+              ) into lv_exists;
+          END LOOP;
+      
+          NEW.slug := lv_new_slug;
+          -- Also schema-qualify slug_history + enum type
+          EXECUTE format(
+            'INSERT INTO %I.slug_history(entity_id, entity_type, slug) VALUES ($1, $2::%I.slug_history_entity_type_enum, $3)',
+            TG_TABLE_SCHEMA,
+            TG_TABLE_SCHEMA
+          ) USING NEW.id, TG_TABLE_NAME, NEW.slug;
+          RETURN NEW;
+          end;
+      $function$`);
+    await queryRunner.query(`CREATE OR REPLACE TRIGGER unit_conversion_slug
+                                          BEFORE INSERT OR update ON unit_conversions
+                                          FOR EACH ROW EXECUTE PROCEDURE slug_unit_conversions_generate_store_old()`);
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
