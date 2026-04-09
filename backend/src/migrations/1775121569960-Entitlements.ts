@@ -13,28 +13,16 @@ export class Entitlements1775121569960 implements MigrationInterface {
     await queryRunner.query(`CREATE INDEX IF NOT EXISTS "idx_entitlements_data_gin" ON "entitlements" USING GIN (data);`);
     await queryRunner.query(`UPDATE "datasets" SET "status" = 'LOADED' WHERE "status" = 'INGESTED'`);
     await queryRunner.query(`UPDATE "datasets" SET "status" = 'PUBLISHED' WHERE "status" = 'RELEASED'`);
-    await queryRunner.query(
-      `ALTER TABLE "unit_conversions" DROP CONSTRAINT "FK_unit_conversions_id_id_slug_slug_slug_history_entity_id_slug_slug_entity_id"`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "soil_property_categories" DROP CONSTRAINT "FK_soil_property_categories_id_id_slug_slug_slug_history_entity_id_slug_entity_id_slug"`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "soil_properties" DROP CONSTRAINT "FK_soil_properties_id_id_slug_slug_slug_history_slug_entity_id_entity_id_slug"`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "datasets" DROP CONSTRAINT "FK_datasets_id_id_slug_slug_slug_history_slug_entity_id_slug_entity_id"`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "licenses" DROP CONSTRAINT "FK_licenses_id_id_slug_slug_slug_history_entity_id_slug_entity_id_slug"`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "procedures" DROP CONSTRAINT "FK_procedures_id_id_slug_slug_slug_history_entity_id_slug_slug_entity_id"`,
-    );
-    await queryRunner.query(`ALTER TABLE "files" DROP CONSTRAINT "FK_files_id_id_slug_slug_slug_history_entity_id_slug_slug_entity_id"`);
+
     // TODO: fix duplicated slugs
     // await queryRunner.query(`ALTER TABLE "slug_history" DROP CONSTRAINT "PK_slug_history_entity_id_slug"`);
     // await queryRunner.query(`ALTER TABLE "slug_history" ADD CONSTRAINT "PK_slug_history_slug" PRIMARY KEY ("slug")`);
+    await queryRunner.query(`ALTER TABLE "datasets" DROP CONSTRAINT IF EXISTS "UQ_datasets_slug"`);
+    await queryRunner.query(`ALTER TABLE "files" DROP CONSTRAINT IF EXISTS "UQ_files_slug"`);
+    await queryRunner.query(`ALTER TABLE "licenses" DROP CONSTRAINT IF EXISTS "UQ_licenses_slug"`);
+    await queryRunner.query(`ALTER TABLE "soil_properties" DROP CONSTRAINT IF EXISTS "UQ_soil_properties_slug"`);
+    await queryRunner.query(`ALTER TABLE "soil_property_categories" DROP CONSTRAINT IF EXISTS "UQ_soil_property_categories_slug"`);
+    await queryRunner.query(`ALTER TABLE "unit_conversions" DROP CONSTRAINT IF EXISTS "UQ_unit_conversions_slug"`);
     await queryRunner.query(`CREATE OR REPLACE FUNCTION slug_generate_store_old()
                                         RETURNS trigger
                                         LANGUAGE plpgsql
@@ -137,27 +125,12 @@ export class Entitlements1775121569960 implements MigrationInterface {
     await queryRunner.query(`SET search_path TO ${process.env.POSTGRES_SCHEMA}, public`);
     // await queryRunner.query(`ALTER TABLE "slug_history" DROP CONSTRAINT "PK_slug_history_slug"`);
     // await queryRunner.query(`ALTER TABLE "slug_history" ADD CONSTRAINT "PK_slug_history_entity_id_slug" PRIMARY KEY ("entity_id", "slug")`);
-    await queryRunner.query(
-      `ALTER TABLE "unit_conversions" ADD CONSTRAINT "FK_unit_conversions_id_id_slug_slug_slug_history_entity_id_slug_slug_entity_id" FOREIGN KEY ("id", "slug") REFERENCES "slug_history"("entity_id","slug") ON DELETE NO ACTION ON UPDATE NO ACTION DEFERRABLE INITIALLY DEFERRED`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "soil_property_categories" ADD CONSTRAINT "FK_soil_property_categories_id_id_slug_slug_slug_history_entity_id_slug_entity_id_slug" FOREIGN KEY ("id", "slug") REFERENCES "slug_history"("entity_id","slug") ON DELETE NO ACTION ON UPDATE NO ACTION DEFERRABLE INITIALLY DEFERRED`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "soil_properties" ADD CONSTRAINT "FK_soil_properties_id_id_slug_slug_slug_history_slug_entity_id_entity_id_slug" FOREIGN KEY ("id", "slug") REFERENCES "slug_history"("entity_id","slug") ON DELETE NO ACTION ON UPDATE NO ACTION DEFERRABLE INITIALLY DEFERRED`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "datasets" ADD CONSTRAINT "FK_datasets_id_id_slug_slug_slug_history_slug_entity_id_slug_entity_id" FOREIGN KEY ("id", "slug") REFERENCES "slug_history"("entity_id","slug") ON DELETE NO ACTION ON UPDATE NO ACTION DEFERRABLE INITIALLY DEFERRED`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "licenses" ADD CONSTRAINT "FK_licenses_id_id_slug_slug_slug_history_entity_id_slug_entity_id_slug" FOREIGN KEY ("id", "slug") REFERENCES "slug_history"("entity_id","slug") ON DELETE NO ACTION ON UPDATE NO ACTION DEFERRABLE INITIALLY DEFERRED`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "procedures" ADD CONSTRAINT "FK_procedures_id_id_slug_slug_slug_history_entity_id_slug_slug_entity_id" FOREIGN KEY ("id", "slug") REFERENCES "slug_history"("entity_id","slug") ON DELETE NO ACTION ON UPDATE NO ACTION DEFERRABLE INITIALLY DEFERRED`,
-    );
-    await queryRunner.query(
-      `ALTER TABLE "files" ADD CONSTRAINT "FK_files_id_id_slug_slug_slug_history_entity_id_slug_slug_entity_id" FOREIGN KEY ("id", "slug") REFERENCES "slug_history"("entity_id","slug") ON DELETE NO ACTION ON UPDATE NO ACTION DEFERRABLE INITIALLY DEFERRED`,
-    );
+    await queryRunner.query(`ALTER TABLE "datasets" ADD CONSTRAINT "UQ_datasets_slug" UNIQUE ("slug")`);
+    await queryRunner.query(`ALTER TABLE "files" ADD CONSTRAINT "UQ_files_slug" UNIQUE ("slug")`);
+    await queryRunner.query(`ALTER TABLE "licenses" ADD CONSTRAINT "UQ_licenses_slug" UNIQUE ("slug")`);
+    await queryRunner.query(`ALTER TABLE "soil_properties" ADD CONSTRAINT "UQ_soil_properties_slug" UNIQUE ("slug")`);
+    await queryRunner.query(`ALTER TABLE "soil_property_categories" ADD CONSTRAINT "UQ_soil_property_categories_slug" UNIQUE ("slug")`);
+    await queryRunner.query(`ALTER TABLE "unit_conversions" ADD CONSTRAINT "UQ_unit_conversions_slug" UNIQUE ("slug")`);
     await queryRunner.query(`UPDATE "datasets" SET "status" = 'INGESTED' WHERE "status" = 'LOADED'`);
     await queryRunner.query(`UPDATE "datasets" SET "status" = 'RELEASED' WHERE "status" = 'PUBLISHED'`);
     await queryRunner.query(`DROP INDEX IF EXISTS "idx_entitlements_data_gin"`);
