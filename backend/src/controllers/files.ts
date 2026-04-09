@@ -109,8 +109,10 @@ export const download = async (req: Request, res: Response, next: NextFunction) 
   await downloadHelper(filename, res, next, overrideFilename);
 };
 
+const sanitizeFilename = (name: string): string => name.replace(/[^a-zA-Z0-9._-]/g, '_');
+
 const downloadHelper = async (fileKey: string, res: Response, next: NextFunction, overrideFilename?: string) => {
-  const basename = overrideFilename ?? path.basename(fileKey);
+  const basename = sanitizeFilename(overrideFilename ?? path.basename(fileKey));
   res.setHeader('Content-Disposition', `attachment; filename="${basename}"`);
 
   const contentType = mime.lookup(basename) || 'application/octet-stream';
