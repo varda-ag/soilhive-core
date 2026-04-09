@@ -31,7 +31,7 @@ function AvailabilityModule() {
           path="/explore"
           element={
             <>
-              <PageTitle title="SoilHive - Download Data Explorer" />
+              <PageTitle title="SoilHive - Data Explorer" />
               <DownloadPreview />
             </>
           }
