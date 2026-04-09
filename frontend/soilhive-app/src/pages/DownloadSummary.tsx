@@ -36,7 +36,7 @@ function DownloadSummary() {
   const { startDownload } = useDownloads();
 
   const [searchParams] = useSearchParams();
-  const comingFromPreview = searchParams.get('source') === 'preview';
+  const comingFromDataExplorer = searchParams.get('source') === 'explore';
   const selectionType = searchParams.get('selectionType') ?? undefined;
   const locationName = searchParams.get('locationName') ?? undefined;
   const filterId = searchParams.get('filterId') ?? null;
@@ -117,7 +117,7 @@ function DownloadSummary() {
             }}
           >
             <ArrowLeftIcon />
-            {comingFromPreview ? t('download_summary.back_to_preview') : t('download_summary.back_to_map')}
+            {comingFromDataExplorer ? t('download_summary.back_to_data_explorer') : t('download_summary.back_to_map')}
           </Button>
         </div>
       </div>

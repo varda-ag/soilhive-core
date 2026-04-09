@@ -144,7 +144,7 @@ function DownloadPreview() {
 
   const navigateToDownload = () => {
     const params = new URLSearchParams();
-    params.append('source', 'preview');
+    params.append('source', 'explore');
     params.append('selectionType', `${selectionType}`);
     if (locationName) params.append('locationName', `${locationName}`);
     params.append('filterId', `${filterId}`);

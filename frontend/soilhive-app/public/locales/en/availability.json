@@ -19,7 +19,7 @@
     },
     "datasets_sidebar": {
         "header": "Available Datasets",
-        "preview": "Preview",
+        "explore": "Explore",
         "download": "Download",
         "search_by_name": "Search by name",
         "no_data_in_selected_area": "No data in selected area",
