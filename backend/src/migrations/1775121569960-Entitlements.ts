@@ -13,10 +13,6 @@ export class Entitlements1775121569960 implements MigrationInterface {
     await queryRunner.query(`CREATE INDEX IF NOT EXISTS "idx_entitlements_data_gin" ON "entitlements" USING GIN (data);`);
     await queryRunner.query(`UPDATE "datasets" SET "status" = 'LOADED' WHERE "status" = 'INGESTED'`);
     await queryRunner.query(`UPDATE "datasets" SET "status" = 'PUBLISHED' WHERE "status" = 'RELEASED'`);
-
-    // TODO: fix duplicated slugs
-    // await queryRunner.query(`ALTER TABLE "slug_history" DROP CONSTRAINT "PK_slug_history_entity_id_slug"`);
-    // await queryRunner.query(`ALTER TABLE "slug_history" ADD CONSTRAINT "PK_slug_history_slug" PRIMARY KEY ("slug")`);
     await queryRunner.query(`ALTER TABLE "datasets" DROP CONSTRAINT IF EXISTS "UQ_datasets_slug"`);
     await queryRunner.query(`ALTER TABLE "files" DROP CONSTRAINT IF EXISTS "UQ_files_slug"`);
     await queryRunner.query(`ALTER TABLE "licenses" DROP CONSTRAINT IF EXISTS "UQ_licenses_slug"`);
@@ -174,8 +170,6 @@ export class Entitlements1775121569960 implements MigrationInterface {
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`SET search_path TO ${process.env.POSTGRES_SCHEMA}, public`);
-    // await queryRunner.query(`ALTER TABLE "slug_history" DROP CONSTRAINT "PK_slug_history_slug"`);
-    // await queryRunner.query(`ALTER TABLE "slug_history" ADD CONSTRAINT "PK_slug_history_entity_id_slug" PRIMARY KEY ("entity_id", "slug")`);
     await queryRunner.query(`ALTER TABLE "datasets" ADD CONSTRAINT "UQ_datasets_slug" UNIQUE ("slug")`);
     await queryRunner.query(`ALTER TABLE "files" ADD CONSTRAINT "UQ_files_slug" UNIQUE ("slug")`);
     await queryRunner.query(`ALTER TABLE "licenses" ADD CONSTRAINT "UQ_licenses_slug" UNIQUE ("slug")`);
