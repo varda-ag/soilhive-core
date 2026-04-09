@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.62.2 (2026-04-09)
+
+## What's Changed
+* fix: fixing geocoding result icons by @svaccari in https://github.com/varda-ag/soilhive-core/pull/358
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.62.1...v0.62.2
+
 ## 0.62.1 (2026-04-09)
 
 ## What's Changed
