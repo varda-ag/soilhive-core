@@ -10,7 +10,9 @@ export default class EntitlementService {
     // 1. Get all slugs related to the same entity (this handles slug history)
     const slugs = await getEntitySlugs(requestData, slug);
     if (slugs.length === 0) {
-      slugs.push(slug); // This handles entitlements for entities that aren't available yet
+      // This handles entitlements for "non-entities" (e.g.: "spatial_filter")
+      // that do not have a slug in the system
+      slugs.push(slug);
     }
     // 2. Get all entitlements that match any of the slugs
     const repo = requestData.entityManager.getRepository(EntitlementsEntity);

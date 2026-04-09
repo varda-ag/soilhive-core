@@ -44,7 +44,8 @@ describe('EntitlementService', () => {
       ('everyone', '{"dataset-1": ["download"]}'),
       ('user1@example.com', '{"dataset-1": ["obfuscate_as_points", "preview", "download"]}'),
       ('user2@example.com', '{"dataset-2": ["obfuscate_as_points"]}'),
-      ('user3@example.com', '{"dataset-3": ["obfuscate_as_points"], "dataset-1": ["obfuscate_as_points"]}')
+      ('user3@example.com', '{"dataset-3": ["obfuscate_as_points"], "dataset-1": ["obfuscate_as_points"]}'),
+      ('user4@example.com', '{"spatial_filter": "world"}')
     `);
   });
 
@@ -70,6 +71,7 @@ describe('EntitlementService', () => {
       },
     ],
     ['dataset-2', { 'user2@example.com': ['obfuscate_as_points'] }],
+    ['spatial_filter', { 'user4@example.com': 'world' }],
   ])('should retrieve entity entitlements', async (slug, expectedEntitlements) => {
     const entitlements = await service.getEntityEntitlements(requestData, slug);
     expect(entitlements).toEqual(expectedEntitlements);
