@@ -83,7 +83,8 @@ export const DownloadsProvider: React.FC<DownloadsProviderProps> = ({ children }
 
       if (nextStatus === 'completed') {
         const filePath = (job.data.download_path as string).replace(/\//g, '%2F');
-        const url = `${BACKEND_BASE_URL}/${REST_END_POINTS.DOWNLOADS}/${filePath}`;
+        const filenameParam = job.data.download_filename ? `&filename=${encodeURIComponent(job.data.download_filename)}` : '';
+        const url = `${BACKEND_BASE_URL}/${REST_END_POINTS.DOWNLOADS}/${filePath}${filenameParam}`;
 
         const link = document.createElement('a');
         link.href = url;

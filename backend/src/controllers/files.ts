@@ -101,15 +101,18 @@ export const deleteFile = async (req: Request, res: Response) => {
 export const download = async (req: Request, res: Response, next: NextFunction) => {
   const filename = req.params['filePath']!;
   const token = req.query['token'] as string;
+  const overrideFilename = req.query['filename'] as string | undefined;
 
   // this checks token validity only. Token presence is checked by middleware thorugh openapi spec
   verifySignedPath(filename, token);
 
-  await downloadHelper(filename, res, next);
+  await downloadHelper(filename, res, next, overrideFilename);
 };
 
-const downloadHelper = async (fileKey: string, res: Response, next: NextFunction) => {
-  const basename = path.basename(fileKey);
+const sanitizeFilename = (name: string): string => name.replace(/[^a-zA-Z0-9._-]/g, '_');
+
+const downloadHelper = async (fileKey: string, res: Response, next: NextFunction, overrideFilename?: string) => {
+  const basename = sanitizeFilename(overrideFilename ?? path.basename(fileKey));
   res.setHeader('Content-Disposition', `attachment; filename="${basename}"`);
 
   const contentType = mime.lookup(basename) || 'application/octet-stream';

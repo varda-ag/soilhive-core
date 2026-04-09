@@ -15,6 +15,7 @@ function makeSample(overrides: Partial<SoilDataSample> = {}): SoilDataSample {
     dataset_name: 'Test Dataset',
     soil_property: 'Aluminum',
     property_acronym: 'Al',
+    property_name: 'Aluminum',
     standard_unit: 'mg/kg',
     value: 42.5,
     geometry: { type: 'Point', coordinates: [-124.1303482, 40.4684982] },

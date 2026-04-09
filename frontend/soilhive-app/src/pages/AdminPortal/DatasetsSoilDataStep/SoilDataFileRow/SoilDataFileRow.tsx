@@ -60,7 +60,7 @@ export function SoilDataFileRow({ soilDataFile, onCrsChange, onRemove, crsOption
           </label>
           <AutoComplete
             inputId={`crs-${id}`}
-            value={crs ?? ''}
+            value={crs ? crs : (inferredCrs ?? '')}
             suggestions={filteredCrs}
             completeMethod={filterCrsOptions}
             onChange={e => onCrsChange(id, e.value)}
