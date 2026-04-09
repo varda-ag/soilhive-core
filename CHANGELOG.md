@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.63.0 (2026-04-09)
+
+## What's Changed
+* feat(data): :sparkles: adding entitlements endpoints by @svaccari in https://github.com/varda-ag/soilhive-core/pull/350
+* feat: sp-4994 - look and feel colors tab by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/360
+* fix(fe): fix hidden browser popup by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/363
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.62.2...v0.63.0
+
 ## 0.62.2 (2026-04-09)
 
 ## What's Changed

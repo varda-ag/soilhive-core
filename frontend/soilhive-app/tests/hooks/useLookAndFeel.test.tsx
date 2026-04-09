@@ -30,6 +30,7 @@ describe('LookAndFeelProvider / useLookAndFeel', () => {
   const deleteMutateAsync = jest.fn();
   const showNotification = jest.fn();
   const setLogo = jest.fn();
+  const saveColors = jest.fn();
 
   const originalCreateObjectURL = URL.createObjectURL;
   const originalRevokeObjectURL = URL.revokeObjectURL;
@@ -40,7 +41,9 @@ describe('LookAndFeelProvider / useLookAndFeel', () => {
     (useTheme as jest.Mock).mockReturnValue({
       isLogoLoading: false,
       logo: 'server-logo-url',
+      themeConfig: { colors: {} },
       setLogo,
+      saveColors,
     });
 
     (useNotifications as jest.Mock).mockReturnValue({
@@ -83,6 +86,76 @@ describe('LookAndFeelProvider / useLookAndFeel', () => {
     expect(result.current.logo).toBe('server-logo-url');
     expect(result.current.previewLogo).toBe('server-logo-url');
     expect(result.current.isActualLogo).toBe(true);
+    expect(result.current.colors).toEqual({});
+  });
+
+  it('initializes colors from themeConfig', async () => {
+    (useTheme as jest.Mock).mockReturnValue({
+      isLogoLoading: false,
+      logo: 'server-logo-url',
+      themeConfig: { colors: { primary: '#123456', secondary: '#abcdef' } },
+      setLogo,
+      saveColors,
+    });
+
+    const { result } = renderHook(() => useLookAndFeel(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.colors).toEqual({ primary: '#123456', secondary: '#abcdef' });
+    });
+  });
+
+  it('handleColorChange updates colors state', () => {
+    const { result } = renderHook(() => useLookAndFeel(), { wrapper });
+
+    act(() => {
+      result.current.handleColorChange('primary', '#ff0000');
+    });
+
+    expect(result.current.colors).toEqual({ primary: '#ff0000' });
+  });
+
+  it('handleColorChange merges multiple color changes', () => {
+    const { result } = renderHook(() => useLookAndFeel(), { wrapper });
+
+    act(() => {
+      result.current.handleColorChange('primary', '#ff0000');
+      result.current.handleColorChange('secondary', '#00ff00');
+    });
+
+    expect(result.current.colors).toEqual({ primary: '#ff0000', secondary: '#00ff00' });
+  });
+
+  it('handleColorChange skips setColorsChanged when already changed', () => {
+    const { result } = renderHook(() => useLookAndFeel(), { wrapper });
+
+    // First call — colorsChanged transitions false → true
+    act(() => {
+      result.current.handleColorChange('primary', '#ff0000');
+    });
+
+    // Second call after re-render — colorsChanged is already true, branch is skipped
+    act(() => {
+      result.current.handleColorChange('primary', '#00ff00');
+    });
+
+    expect(result.current.colors).toEqual({ primary: '#00ff00' });
+  });
+
+  it('does not set colors when themeConfig.colors is falsy', async () => {
+    (useTheme as jest.Mock).mockReturnValue({
+      isLogoLoading: false,
+      logo: 'server-logo-url',
+      themeConfig: {},
+      setLogo,
+      saveColors,
+    });
+
+    const { result } = renderHook(() => useLookAndFeel(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.colors).toEqual({});
+    });
   });
 
   it('handleLogoChange sets preview logo and marks it as changed', () => {
@@ -237,6 +310,36 @@ describe('LookAndFeelProvider / useLookAndFeel', () => {
     });
   });
 
+  it('saveChanges calls saveColors when colors have been changed', async () => {
+    const { result } = renderHook(() => useLookAndFeel(), { wrapper });
+
+    act(() => {
+      result.current.handleColorChange('primary', '#ff0000');
+    });
+
+    await act(async () => {
+      await result.current.saveChanges();
+    });
+
+    expect(saveColors).toHaveBeenCalledWith({ primary: '#ff0000' });
+    expect(showNotification).toHaveBeenCalledWith({
+      id: 'lookAndFeelSuccess',
+      title: 'Success',
+      message: 'New theme settings have been published',
+      type: 'success',
+    });
+  });
+
+  it('saveChanges does not call saveColors when colors have not changed', async () => {
+    const { result } = renderHook(() => useLookAndFeel(), { wrapper });
+
+    await act(async () => {
+      result.current.saveChanges();
+    });
+
+    expect(saveColors).not.toHaveBeenCalled();
+  });
+
   it('updates previewLogo when external logo changes', async () => {
     const { result, rerender } = renderHook(() => useLookAndFeel(), { wrapper });
 
@@ -245,6 +348,7 @@ describe('LookAndFeelProvider / useLookAndFeel', () => {
     (useTheme as jest.Mock).mockReturnValue({
       isLogoLoading: false,
       logo: 'updated-logo-url',
+      themeConfig: { colors: {} },
       setLogo,
     });
 

@@ -1,0 +1,35 @@
+.ColorsSettingsSection {
+  padding-bottom: 1.25rem;
+  border-bottom: 1px dashed var(--color-neutral-dark-200);
+
+  &:last-of-type {
+    border-bottom: none;
+  }
+
+  > .Title {
+    font-size: var(--font-size-sm);
+    margin: 0 0 0.5rem;
+  }
+  > .Actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+
+    > .ActionButton {
+      background-color: var(--color-neutral-white);
+      font-weight: var(--font-weight-normal);
+      border: 2px solid var(--color-brand-dark-green-400);
+      color: var(--color-brand-dark-green-1000);
+
+      &:hover {
+        border: 1px solid var(--color-brand-dark-green-1000);
+        padding: 0.4375rem 1.0625rem;
+      }
+    }
+  }
+  > .Row {
+    display: flex;
+    gap: 2.5rem;
+    align-items: flex-end;
+  }
+}

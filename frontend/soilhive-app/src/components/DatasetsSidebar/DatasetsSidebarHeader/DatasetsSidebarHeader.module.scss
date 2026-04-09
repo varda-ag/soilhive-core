@@ -1,32 +1,62 @@
 .DatasetsSidebarHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 0.438rem 0.75rem 0.937rem;
+  background-color: var(--color-bg-primary);
+  cursor: pointer;
+
+  > .Title {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    padding: .75rem .438rem .75rem .937rem;
-    background-color: var(--color-brand-light-green-600);
-    cursor: pointer;
+    gap: 0.5rem;
+    font-size: var(--font-size-md);
+    font-weight: var(--font-weight-bold);
+    text-transform: uppercase;
+
+    > .DatasetsIconWrapper {
+      display: flex;
+      padding: 0.25rem;
+      border-radius: 0.25rem;
+      background-color: var(--color-cta-default-solid);
+      color: var(--color-cta-default-text);
+    }
+  }
+
+  > .SidebarIconWrapper {
+    display: flex;
+    padding: 0.375rem 0.25rem;
+    border-radius: 0.25rem;
+    background-color: var(--color-bg-secondary);
+  }
+
+  &.Preview {
+    padding: 0.736rem 0.397rem 0.623rem 0.75rem;
 
     > .Title {
-        display: flex;
-        align-items: center;
-        gap: .5rem;
-        font-size: var(--font-size-md);
-        font-weight: var(--font-weight-bold);
-        text-transform: uppercase;
+      gap: 0.45375rem;
+      font-size: 0.907rem;
 
-        > .DatasetsIconWrapper {
-            display: flex;
-            padding: .25rem;
-            border-radius: .25rem;
-            background-color: var(--color-cta-default-solid);
-            color: var(--color-neutral-white);
+      > .DatasetsIconWrapper {
+        display: flex;
+        padding: 0.227rem;
+        border-radius: 0.227rem;
+
+        svg {
+          width: 0.9075rem;
+          height: auto;
         }
+      }
     }
 
     > .SidebarIconWrapper {
-        display: flex;
-        padding: .375rem .25rem;
-        border-radius: .25rem;
-        background-color: var(--color-brand-light-green-100);
+      padding: 0.34rem 0.227rem;
+      border-radius: 0.227rem;
+
+      svg {
+        width: 1.36rem;
+        height: auto;
+      }
     }
+  }
 }

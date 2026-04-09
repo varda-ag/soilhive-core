@@ -10,8 +10,10 @@ interface Props {
   onChange: (value: string, name: string) => void;
 }
 
+const DEFAULT_COLOR = '#FFFFFF';
+
 export function ColorPicker({ initialValue = '', name, className, onChange }: Props) {
-  const [currentValue, setCurrentValue] = useState<string>('');
+  const [currentValue, setCurrentValue] = useState<string>(initialValue || DEFAULT_COLOR);
 
   const handleChange = useCallback(
     (event: ChangeEvent<HTMLInputElement>) => {
@@ -22,8 +24,10 @@ export function ColorPicker({ initialValue = '', name, className, onChange }: Pr
   );
 
   useEffect(() => {
-    if (currentValue !== initialValue) {
-      setCurrentValue(initialValue);
+    const nextValue = initialValue || DEFAULT_COLOR;
+
+    if (currentValue !== nextValue) {
+      setCurrentValue(nextValue);
     }
   }, [initialValue, currentValue]);
 
@@ -32,7 +36,7 @@ export function ColorPicker({ initialValue = '', name, className, onChange }: Pr
       data-testid="sh-colorpicker"
       className={classnames(styles.ColorPicker, className)}
       style={{
-        backgroundColor: currentValue || 'transparent',
+        backgroundColor: currentValue,
       }}
     >
       <input

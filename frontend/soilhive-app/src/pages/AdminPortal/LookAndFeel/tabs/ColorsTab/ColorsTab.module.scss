@@ -1,2 +1,26 @@
 .ColorsTab {
+  display: flex;
+  gap: 1.5rem;
+  width: 100%;
+
+  > .Section {
+    background: var(--color-neutral-white);
+    padding: 1.5rem 1.5rem 2rem;
+    border-radius: 0.5rem;
+    box-shadow: var(--shadow-interface-large);
+
+    > .Title {
+      font-size: var(--font-size-lg);
+      margin: 0 0 1.25rem;
+    }
+  }
+
+  > .Main {
+    flex: 1;
+  }
+
+  > .Aside {
+    min-width: 339px;
+    max-width: 339px;
+  }
 }
