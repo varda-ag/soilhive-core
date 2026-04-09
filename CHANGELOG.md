@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.62.1 (2026-04-09)
+
+## What's Changed
+* fix: download file name by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/356
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.62.0...v0.62.1
+
 ## 0.62.0 (2026-04-08)
 
 ## What's Changed
