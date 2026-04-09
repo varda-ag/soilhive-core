@@ -154,6 +154,10 @@
         letter-spacing: 0px;
         vertical-align: middle;
       }
+      .maplibregl-ctrl-geocoder--result-icon {
+        height: 16px;
+        min-height: unset;
+      }
       .maplibregl-ctrl-geocoder--icon-close {
         margin: 0px;
       }

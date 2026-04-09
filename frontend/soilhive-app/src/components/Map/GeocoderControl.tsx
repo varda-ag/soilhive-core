@@ -2,8 +2,9 @@
 import { useState, useMemo, useEffect, type JSX, useCallback } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import SearchIcon from 'assets/icons/small-search-icon.svg?react';
-import PolygonIcon from 'assets/icons/polygon-icon.svg?react';
-import MapPinIcon from 'assets/icons/map-pin-icon.svg?react';
+import SmallPolygonIcon from 'assets/icons/small-polygon-icon.svg?react';
+import SmallLineIcon from 'assets/icons/small-line-icon.svg?react';
+import SmallMapPinIcon from 'assets/icons/small-map-pin-icon.svg?react';
 import { useControl, Marker, type ControlPosition, type MarkerProps } from 'react-map-gl/maplibre';
 import MaplibreGeocoder, {
   type MaplibreGeocoderApi,
@@ -156,8 +157,9 @@ export default function GeocoderControl(props: GeocoderControlProps) {
     }
   }, [props.geocoder]);
 
-  const polygonIconHtml = renderToStaticMarkup(<PolygonIcon />);
-  const pointIconHtml = renderToStaticMarkup(<MapPinIcon />);
+  const polygonIconHtml = renderToStaticMarkup(<SmallPolygonIcon />);
+  const lineIconHtml = renderToStaticMarkup(<SmallLineIcon />);
+  const pointIconHtml = renderToStaticMarkup(<SmallMapPinIcon />);
 
   const geocoder = useControl<MaplibreGeocoder>(
     () => {
@@ -175,7 +177,8 @@ export default function GeocoderControl(props: GeocoderControlProps) {
 
           // Pick icon SVG based on geometry type
           const isPolygon = ['Polygon', 'MultiPolygon'].includes(geomType);
-          const iconSvg = isPolygon ? polygonIconHtml : pointIconHtml;
+          const isLine = ['LineString', 'MultiLineString'].includes(geomType);
+          const iconSvg = isPolygon ? polygonIconHtml : isLine ? lineIconHtml : pointIconHtml;
           return `
             <div class="maplibregl-ctrl-geocoder--result">
               <div class="maplibregl-ctrl-geocoder--result-icon">
