@@ -63,14 +63,21 @@ export function generateDownloadFilename(): string {
 
 /**
  * Generate the storage path for the export file.
- * Uses filterId to guarantee uniqueness.
- * Format: exports/<YYYY>/<MM>/<filterId>.zip
+ * Combines timestamp + filterId: human-readable for debugging, unique even for repeated exports of the same filter.
+ * Format: exports/<YYYY>/<MM>/<YYYY-MM-DD>_<HH-MM-SS>_<filterId>.zip
  */
 export function generateDownloadPath(filterId: string): string {
   const now = new Date();
   const year = now.getUTCFullYear();
   const month = String(now.getUTCMonth() + 1).padStart(2, '0');
-  return path.join(EXPORT_CONFIG.EXPORTS_BASE_PATH, String(year), month, `${filterId}.zip`);
+  const date = String(year) + '-' + month + '-' + String(now.getUTCDate()).padStart(2, '0');
+  const time =
+    String(now.getUTCHours()).padStart(2, '0') +
+    '-' +
+    String(now.getUTCMinutes()).padStart(2, '0') +
+    '-' +
+    String(now.getUTCSeconds()).padStart(2, '0');
+  return path.join(EXPORT_CONFIG.EXPORTS_BASE_PATH, String(year), month, `${date}_${time}_${filterId}.zip`);
 }
 
 /**
