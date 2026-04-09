@@ -69,7 +69,16 @@
         },
         "colors": {
             "title": "Customize your colors",
-            "preview_title": "Live Preview",
+            "preview": {
+                "title": "Live Preview",
+                "buttons_states": "Buttons states",
+                "primary_button": "Primary button",
+                "secondary_button": "Secondary button",
+                "tertiary_button": "Tertiary button",
+                "filter_pills": "Filter pills",
+                "pill_label": "Organic Carbon Content",
+                "backgrounds": "Backgrounds"
+            },
             "sections": {
                 "primary": {
                     "title": "Primary buttons"

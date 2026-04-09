@@ -16,7 +16,7 @@ export function ColorsTab() {
         <ColorsSettings />
       </main>
       <aside className={classnames(styles.Section, styles.Aside)}>
-        <h2 className={styles.Title}>{t('look_and_feel.colors.preview_title')}</h2>
+        <h2 className={styles.Title}>{t('look_and_feel.colors.preview.title')}</h2>
         <ColorsPreview />
       </aside>
     </div>
