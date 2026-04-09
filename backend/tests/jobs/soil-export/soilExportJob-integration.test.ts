@@ -181,6 +181,7 @@ describe('Soil Export Job Integration Test', () => {
       dataset_name: 'fake-dataset',
       soil_property: 'aluminum',
       property_acronym: 'AL',
+      property_name: 'aluminum',
       standard_unit: null,
       value: 1.0,
       geometry: { type: 'Point', coordinates: [0, 0] },

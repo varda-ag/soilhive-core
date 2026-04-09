@@ -30,6 +30,7 @@ export interface ExportJob extends CommonJobData {
   current_cursor: string | null;
   total_records_processed: number;
   download_path: string | null;
+  download_filename?: string;
 }
 
 export interface FileToDbJob extends CommonJobData {
