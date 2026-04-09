@@ -21,7 +21,7 @@ export enum EntityType {
   UNIT_CONVERSION = 'unit_conversions',
   PROCEDURE = 'procedures',
   FILE = 'files',
-  vocabulary = 'proecdures_vocabulary',
+  VOCABULARY = 'vocabulary',
 }
 
 export enum VocabularyType {
