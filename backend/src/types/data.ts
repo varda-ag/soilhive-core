@@ -7,8 +7,8 @@ export const enum GISDataType {
 export const enum IngestionStatus {
   PENDING = 'PENDING',
   ONGOING = 'ONGOING',
-  INGESTED = 'INGESTED',
-  RELEASED = 'RELEASED',
+  LOADED = 'LOADED',
+  PUBLISHED = 'PUBLISHED',
   ARCHIVED = 'ARCHIVED',
 }
 
@@ -21,7 +21,7 @@ export enum EntityType {
   UNIT_CONVERSION = 'unit_conversions',
   PROCEDURE = 'procedures',
   FILE = 'files',
-  vocabulary = 'proecdures_vocabulary',
+  VOCABULARY = 'vocabulary',
 }
 
 export enum VocabularyType {

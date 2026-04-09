@@ -61,7 +61,7 @@ describe('DatasetService', () => {
         citation: 'Test Citation',
         geographical_extent: 'Global',
         gis_datatype: GISDataType.POINT,
-        status: IngestionStatus.INGESTED,
+        status: IngestionStatus.LOADED,
       };
 
       const result = await service.createDataset(requestData, input);
@@ -79,7 +79,7 @@ describe('DatasetService', () => {
       expect(result.citation).toBe('Test Citation');
       expect(result.geographical_extent).toBe('Global');
       expect(result.gis_datatype).toBe(GISDataType.POINT);
-      expect(result.status).toBe(IngestionStatus.INGESTED);
+      expect(result.status).toBe(IngestionStatus.LOADED);
       expect(result.slug).toBeDefined();
     });
 

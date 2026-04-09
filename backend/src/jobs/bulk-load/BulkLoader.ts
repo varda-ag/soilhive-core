@@ -42,7 +42,7 @@ export async function processBulkLoad(job: Job<BulkLoadJob>): Promise<void> {
       const datasetFileMapping = datasetFileMappings.find(m => m.file_id === file.id);
       assert(datasetFileMapping, `No dataset file mapping found for file ${file.id}`);
       await processFile(file, requestData, datasetFileMapping, data.dataset_id);
-      file.status = IngestionStatus.INGESTED;
+      file.status = IngestionStatus.LOADED;
       await file.save();
       // Delete raw table
       const rawTableName = getRawTableName(file.id);
@@ -55,7 +55,7 @@ export async function processBulkLoad(job: Job<BulkLoadJob>): Promise<void> {
     }
 
     // Calculate new dataset metadata and update status
-    await updateDatasetMetadata(entityManager, dataset.id, IngestionStatus.INGESTED);
+    await updateDatasetMetadata(entityManager, dataset.id, IngestionStatus.LOADED);
   } catch (error: any) {
     dataset.status = IngestionStatus.PENDING;
     await dataset.save();

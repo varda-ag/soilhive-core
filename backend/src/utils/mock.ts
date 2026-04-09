@@ -114,7 +114,7 @@ export const addDataset = async (
     created_by: 'tests',
     gis_datatype,
     licenses,
-    status: IngestionStatus.INGESTED,
+    status: IngestionStatus.LOADED,
     spatial_extent: getPolygonFromBbox(spatial_extent),
   });
   return await repo.save(dataset);

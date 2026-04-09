@@ -7,6 +7,23 @@ servers:
   - url: /
 
 paths:
+  /entitlements:
+    get:
+      x-eov-operation-handler: controllers/entitlements
+      x-eov-operation-id: getUserEntitlements
+      summary: Get user entitlements
+      security:
+        - bearerAuth: []
+      tags:
+        - auth
+      responses:
+        '200':
+          description: List of user entitlements
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Entitlements'
+
   /auth/config:
     get:
       x-eov-operation-handler: controllers/auth
@@ -328,7 +345,7 @@ paths:
         '204':
           description: Dataset successfully deleted (no content returned)
         '401':
-          description: Unauthorized - Token subject is missing
+          $ref: '#/components/responses/Unauthorized'
 
   /jobs:
     post:
@@ -662,6 +679,65 @@ paths:
                   $ref: '#/components/schemas/DataMapping'
         '404':
           $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /datasets/{datasetId}/entitlements:
+    get:
+      x-eov-operation-handler: controllers/entitlements
+      x-eov-operation-id: getDatasetEntitlements
+      summary: Get all dataset entitlements
+      tags:
+        - datasets
+      security:
+        - bearerAuth: [data-admin]
+      parameters:
+        - name: datasetId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Dataset ID
+      responses:
+        '200':
+          description: List of dataset entitlements
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Entitlements'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    put:
+      x-eov-operation-handler: controllers/entitlements
+      x-eov-operation-id: setDatasetEntitlement
+      summary: Edits a dataset entitlement
+      tags:
+        - datasets
+      security:
+        - bearerAuth: [data-admin]
+      parameters:
+        - name: datasetId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Entitlements'
+      responses:
+        '200':
+          description: Update successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Entitlements'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
 
@@ -1955,7 +2031,7 @@ components:
           description: Job type
         anonymous:
           type: boolean
-          description: "Set to true to allow access without authentication"
+          description: Set to true to allow access without authentication
         filter_id:
           type: string
           format: uuid
@@ -2063,3 +2139,6 @@ components:
         mappings:
           type: object
           nullable: true
+
+    Entitlements:
+      type: object

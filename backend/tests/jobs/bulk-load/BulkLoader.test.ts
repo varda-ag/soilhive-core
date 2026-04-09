@@ -70,7 +70,7 @@ describe('BulkLoader class', () => {
     const repo = dataSource.getRepository(DatasetEntity);
     const datasets = await repo.find();
     expect(datasets.length).toBe(1);
-    expect(datasets[0].status).toBe(IngestionStatus.INGESTED);
+    expect(datasets[0].status).toBe(IngestionStatus.LOADED);
 
     const queryRunner = dataSource.createQueryRunner();
     const rawTableName = getRawTableName(file.id);
@@ -125,11 +125,11 @@ describe('BulkLoader class', () => {
     });
 
     const entityManager = await getEntityManager();
-    await updateDatasetMetadata(entityManager, dataset.id, IngestionStatus.RELEASED);
+    await updateDatasetMetadata(entityManager, dataset.id, IngestionStatus.PUBLISHED);
 
     const datasetEntity = await entityManager.getRepository(DatasetEntity).findOneBy({ id: dataset.id });
     expect(datasetEntity).toBeDefined();
-    expect(datasetEntity!.status).toBe(IngestionStatus.RELEASED);
+    expect(datasetEntity!.status).toBe(IngestionStatus.PUBLISHED);
     expect(datasetEntity!.soil_depth!).toEqual({ min: 0, max: 100 });
     expect(datasetEntity!.licenses).toEqual(['test_license_1']);
     expect(datasetEntity!.reference_period_start).toEqual('2021-01-01');
