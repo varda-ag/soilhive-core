@@ -8,7 +8,6 @@ import DatasetLayerEntity from '../entities/DatasetLayer';
 import { SoilDataSample } from '../interfaces/SoilDataSample';
 import assert from 'assert';
 import { createCursor, decodeCursor, encodeCursor } from '../utils/cursor';
-import { Cursor } from '../interfaces/Cursor';
 import { ErrorResponse } from '../utils/error';
 import { StatusCodes } from 'http-status-codes';
 import RasterFilterService from '../services/RasterFilterService';
@@ -48,8 +47,8 @@ export default class SoilDataStorage {
       .select('dataset_layers.dataset_id', 'dataset_id')
       .addSelect('layer.license', 'license')
       .addSelect('COUNT(dataset_layers.dataset_id)', 'dataset_layer_count')
-      .addSelect('MIN(layer.sampling_date::text)', 'min_sampling_date')
-      .addSelect('MAX(layer.sampling_date::text)', 'max_sampling_date')
+      .addSelect('MIN(layer.sampling_date)', 'min_sampling_date')
+      .addSelect('MAX(layer.sampling_date)', 'max_sampling_date')
       .addSelect('MIN(layer.min_depth)', 'min_depth')
       .addSelect('MAX(layer.max_depth)', 'max_depth')
       .addSelect("STRING_AGG(DISTINCT layer.horizon, ',')", 'horizons')
@@ -106,7 +105,6 @@ export default class SoilDataStorage {
       )
       .groupBy('base_agg.dataset_id, ds.slug, ds.name, ds.gis_datatype');
 
-    await addRasterCoverage(query, dataFilter, enabledRasterFilterTables);
     const results = await query.getRawMany();
 
     return results.map(row => ({
@@ -119,9 +117,8 @@ export default class SoilDataStorage {
       min_depth: row.min_depth !== null ? parseFloat(row.min_depth) : null,
       max_depth: row.max_depth !== null ? parseFloat(row.max_depth) : null,
       // TODO: to be restored  and deduplicated here due to lack of support for LATERAL JOINs in typeorm:
-      //horizons: row.horizons ? [new Set(...row.horizons.split(','))] : [],
+      // horizons: row.horizons ? [new Set(...row.horizons.split(','))] : [],
       soil_properties: row.soil_properties ? row.soil_properties.split(',') : [],
-      raster_filters: decodeRasterColumns(row),
       dataset_layer_count: parseInt(row.dataset_layer_count),
       h3_point_aggregation: row.h3_point_aggregation,
     }));
@@ -135,26 +132,41 @@ export default class SoilDataStorage {
     cursor?: string,
     sort?: string,
   ): Promise<SoilDataSample[]> => {
-    const query = await this.buildSoilBaseQuery(entityManager, dataFilter, datasetSlugs);
+    // Wrap everything in a transaction to preserve 'SET LOCAL' scope
+    return await entityManager.transaction(async transactionalEntityManager => {
+      await transactionalEntityManager.query("SET LOCAL work_mem = '256MB';");
+      await transactionalEntityManager.query("SET LOCAL statement_timeout = '60s';");
 
-    applySelectToQuery(query);
-    applyCursorToQuery(query, cursor, sort);
-    applySortingToQuery(query, sort);
+      const enabledRasterFilterTables = await getEnabledRasterFilterTables();
+      const { sql, params } = buildRawSoilQuery(dataFilter, datasetSlugs, {
+        limit,
+        cursor,
+        sort,
+        mode: 'data',
+        enabledRasterFilterTables,
+      });
 
-    query.limit(limit);
+      const results = await transactionalEntityManager.query(sql, params);
 
-    const results = await query.getRawMany();
-
-    return results.map(row => dataRowTranslation(row, sort));
+      return results.map((row: any) => dataRowTranslation(row, sort));
+    });
   };
 
   getSoilDataCount = async (entityManager: EntityManager, dataFilter: DataFilter, datasetSlugs: string[]): Promise<number> => {
-    const query = await this.buildSoilBaseQuery(entityManager, dataFilter, datasetSlugs);
+    return await entityManager.transaction(async transactionalEntityManager => {
+      await transactionalEntityManager.query("SET LOCAL work_mem = '256MB';");
+      await transactionalEntityManager.query("SET LOCAL statement_timeout = '60s';");
 
-    // otherwise typeorm count by distinct("dataset_layers"."id"
-    const result = await query.select('COUNT(*)', 'count').getRawOne();
+      const enabledRasterFilterTables = await getEnabledRasterFilterTables();
+      const { sql, params } = buildRawSoilQuery(dataFilter, datasetSlugs, {
+        mode: 'count',
+        enabledRasterFilterTables,
+      });
 
-    return parseInt(result.count, 10);
+      const result = await transactionalEntityManager.query(sql, params);
+
+      return parseInt(result[0].count, 10);
+    });
   };
 
   buildSoilBaseQuery = async (
@@ -163,7 +175,12 @@ export default class SoilDataStorage {
     datasetSlugs: string[],
   ): Promise<SelectQueryBuilder<DatasetLayerEntity>> => {
     assert(datasetSlugs.length > 0, 'At least one dataset slug must be provided');
+
+    await entityManager.query("SET LOCAL work_mem = '256MB';");
+
     const repo = entityManager.getRepository(DatasetLayerEntity);
+    const schema = process.env.POSTGRES_SCHEMA;
+
     const query = repo
       .createQueryBuilder('dataset_layers')
       .leftJoin('dataset_layers.layer', 'layer')
@@ -173,39 +190,94 @@ export default class SoilDataStorage {
       .leftJoin('obs.procedure', 'procedure')
       .where('ds.slug IN (:...datasetSlugs)', { datasetSlugs });
 
+    joinProcedures(query);
+
+    // Resolve dataset slug → ID early, so the planner can use it to
+    // filter dataset_layers via index before touching observations
+    query.addCommonTableExpression(
+      `SELECT ds_inner.id
+     FROM ${schema}.datasets ds_inner
+     WHERE ds_inner.slug IN (:...datasetSlugs)
+       AND ds_inner.deleted_at IS NULL`,
+      'target_dataset',
+      { materialized: true },
+    );
+
+    // Force dataset_layers to be filtered by dataset_id index from the start
+    query.andWhere(`dataset_layers.dataset_id IN (SELECT id FROM target_dataset)`);
+
     const enabledRasterFilterTables = await getEnabledRasterFilterTables();
     await applyFiltersToQuery(query, dataFilter, enabledRasterFilterTables);
     applyFiltersToExternalQuery(query, dataFilter, enabledRasterFilterTables);
 
     return query;
   };
-}
 
-const applySelectToQuery = (query: any) => {
-  query
-    .leftJoin('licenses', 'license_fallback', 'license_fallback.slug = ds.licenses[1]')
-    .select('obs.id', 'id')
-    .addSelect('ds.slug', 'dataset_slug')
-    .addSelect('ds.name', 'dataset_name')
-    .addSelect('soil_property.slug', 'soil_property')
-    .addSelect('soil_property.property_acronym', 'property_acronym')
-    .addSelect('soil_property.standard_unit', 'standard_unit')
-    .addSelect('obs.value', 'value')
-    .addSelect('ST_AsGeoJSON(matching_features.geom)::json', 'geometry')
-    .addSelect('COALESCE(license.name, license_fallback.name)', 'license_name')
-    .addSelect('layer.sampling_date::text', 'sampling_date')
-    .addSelect('layer.min_depth', 'min_depth')
-    .addSelect('layer.max_depth', 'max_depth')
-    .addSelect('layer.horizon', 'horizon')
-    .addSelect('procedure.sample_pretreatment', 'sample_pretreatment')
-    .addSelect('procedure.technique', 'technique')
-    .addSelect('procedure.laboratory_method', 'laboratory_method')
-    .addSelect('procedure.extractant_concentration', 'extractant_concentration')
-    .addSelect('procedure.extraction_ratio', 'extraction_ratio')
-    .addSelect('procedure.extraction_base', 'extraction_base')
-    .addSelect('procedure.measurement_procedure', 'measurement_procedure')
-    .addSelect('procedure.limit_of_detection', 'limit_of_detection');
-};
+  getRasterCoverage = async (
+    entityManager: EntityManager,
+    geometries: (Polygon | MultiPolygon)[],
+    raster_filters?: Record<string, number[]>,
+  ): Promise<Record<string, number[]>> => {
+    if (geometries.length === 0) {
+      // No input geometry, raster coverage cannot be applied
+      return {};
+    }
+    const enabledRasterFilterTables = await getEnabledRasterFilterTables();
+
+    if (enabledRasterFilterTables.length === 0) {
+      // No raster data is available
+      return {};
+    }
+
+    const geomJson = JSON.stringify(geometryUnion(geometries));
+    const aoiAreaM2 = turf.area(geometries[0]!);
+    const calculateRealCoverage = aoiAreaM2 < 3_000_000_000_000;
+    // Implemented as a raw query to overcome TypeORM FROM clause requirement (adding a dummy table adds query planning overhead).
+    // Current query is composed of an "aoi" CTE and subqueries wrapped in arrays in SELECT clauses
+    const selectClauses: string[] = [];
+
+    for (const baseTable of enabledRasterFilterTables) {
+      const outputColumn = `#${baseTable}`; // Prefixing column name with "#" to detect it in the results
+      const values = raster_filters?.[baseTable];
+      const hasFilteringValues = values && values.length > 0;
+      const table = selectOverviewTable(baseTable, aoiAreaM2);
+      if (hasFilteringValues) {
+        // Adding same input values
+        selectClauses.push(`ARRAY[${values.join(',')}] as "${outputColumn}"`);
+      } else {
+        // Get all values from mappings
+        let selectValues = `ARRAY(SELECT value::numeric FROM jsonb_each_text((SELECT mappings FROM raster_filters WHERE id = '${baseTable}')))`;
+        if (calculateRealCoverage) {
+          // Add a select column with all raster values intersecting the input geometry
+          // Use ST_ValueCount to get distinct values as an array
+          selectValues = `ARRAY(
+            SELECT DISTINCT value
+            FROM ${table} rr
+            JOIN aoi ON ST_Intersects(rr.rast, aoi.geom)
+            CROSS JOIN LATERAL ST_ValueCount(
+              ST_Clip(rr.rast, aoi.geom, true),
+              1
+            ) AS vc(value, cnt)
+        )`;
+        }
+        selectClauses.push(`${selectValues} as "${outputColumn}"`);
+      }
+    }
+    const aoi_cte = `aoi AS MATERIALIZED (
+          SELECT ST_CollectionExtract(ST_MakeValid(ST_GeomFromGeoJSON($1), 'method=structure'), 3) AS geom
+    )`;
+    const sql = `
+      WITH
+      ${aoi_cte}
+      SELECT ${selectClauses.join(', ')}
+    `;
+    await entityManager.query("SET LOCAL work_mem = '256MB';");
+    const results = await entityManager.query(sql, [geomJson]);
+    assert(results.length === 1, 'Expecting one raster coverage aggregated result row');
+
+    return decodeRasterColumns(results[0]);
+  };
+}
 
 const geometryUnion = (geometries: (Polygon | MultiPolygon)[]): Polygon | MultiPolygon => {
   assert(geometries.length > 0, 'Do not call geometryUnion without input geometries');
@@ -267,7 +339,7 @@ const applyFiltersToQuery = async (query: any, dataFilter: DataFilter, enabledRa
     // We just need dataset to overlap with input interval
     query.andWhere('ds.reference_period_stop >= :min_sampling_date', { min_sampling_date: filters.min_sampling_date });
     // Filtering actual layers
-    query.andWhere("TO_CHAR(layer.sampling_date, 'YYYY-MM-DD') >= :min_sampling_date", {
+    query.andWhere('layer.sampling_date >= :min_sampling_date', {
       min_sampling_date: filters.min_sampling_date,
     });
   }
@@ -277,7 +349,7 @@ const applyFiltersToQuery = async (query: any, dataFilter: DataFilter, enabledRa
     // We just need dataset to overlap with input interval
     query.andWhere('ds.reference_period_start <= :max_sampling_date', { max_sampling_date: filters.max_sampling_date });
     // Filtering actual layers
-    query.andWhere("TO_CHAR(layer.sampling_date, 'YYYY-MM-DD') <= :max_sampling_date", {
+    query.andWhere('layer.sampling_date <= :max_sampling_date', {
       max_sampling_date: filters.max_sampling_date,
     });
   }
@@ -399,57 +471,6 @@ const applyRasterFilterToQuery = (
   );
 };
 
-const addRasterCoverage = async (query: SelectQueryBuilder<any>, dataFilter: DataFilter, enabledRasterFilterTables: string[]) => {
-  if (dataFilter.geometries.length === 0) {
-    // No input geometry, raster coverage cannot be applied
-    return;
-  }
-
-  if (enabledRasterFilterTables.length === 0) {
-    // No raster data is available
-    return;
-  }
-
-  const raster_filters: Record<string, number[]> | undefined = dataFilter.parameters.raster_filters;
-  const aoiAreaM2 = turf.area(dataFilter.geometries[0]!);
-  const calculateRealCoverage = aoiAreaM2 < 3_000_000_000_000;
-
-  for (const baseTable of enabledRasterFilterTables) {
-    const outputColumn = `#${baseTable}`; // Prefixing column name with "#" to detect it in the results
-    const values = raster_filters?.[baseTable];
-    const hasFilteringValues = values && values.length > 0;
-    const table = selectOverviewTable(baseTable, aoiAreaM2);
-    const clippedRaster = `clipped_${table}`;
-    if (hasFilteringValues) {
-      // Adding same input values
-      query.addSelect(`ARRAY[${values.join(',')}]`, outputColumn);
-    } else {
-      // Get all values from mappings
-      let selectValues = `ARRAY(SELECT value::numeric FROM jsonb_each_text((SELECT mappings FROM raster_filters WHERE id = '${baseTable}')))`;
-      if (calculateRealCoverage) {
-        // Add a select column with all raster values intersecting the input geometry
-        // Use ST_ValueCount to get distinct values as an array
-        query.addCommonTableExpression(
-          `
-        SELECT ST_Union(ST_Clip(rr.rast, aoi.geom, touched => TRUE)) as rast FROM ${process.env.POSTGRES_SCHEMA}.${table} rr
-        CROSS JOIN aoi
-        WHERE ST_Intersects(rr.rast, aoi.geom)`,
-          clippedRaster,
-          { materialized: true },
-        );
-        selectValues = `ARRAY(
-          SELECT value
-          FROM ${clippedRaster}, ST_ValueCount(
-            ${clippedRaster}.rast,
-              1
-          ) AS vc(value, cnt)
-      )`;
-      }
-      query.addSelect(selectValues, outputColumn);
-    }
-  }
-};
-
 const decodeRasterColumns = (row: any): any => {
   const output = new Map<string, number[]>();
   for (const key of Object.keys(row)) {
@@ -469,6 +490,7 @@ const dataRowTranslation = (row: any, sort?: string): SoilDataSample => {
     dataset_name: row.dataset_name,
     soil_property: row.soil_property,
     property_acronym: row.property_acronym,
+    property_name: row.property_name,
     standard_unit: row.standard_unit,
     value: parseFloat(row.value),
     geometry: row.geometry,
@@ -493,101 +515,355 @@ const dataRowTranslation = (row: any, sort?: string): SoilDataSample => {
   return { ...output, cursor };
 };
 
-const validateAndGetCursor = (cursor: string, sort?: string): Cursor => {
-  // Decode from base64 string
-  const decodedCursor = decodeCursor(cursor);
-  if (!sort) {
-    return decodedCursor;
+/**
+ * Pure SQL string equivalent of applyRasterFilterToQuery.
+ * Returns the clipped raster CTEs and the optional matching_features CTE as raw SQL strings,
+ * without touching any TypeORM query builder.
+ */
+const buildRasterFilterCteSql = (
+  dataFilter: DataFilter,
+  enabledRasterFilterTables: string[],
+): { clippedRasterCtes: string; matchingFeaturesCte: string | null } => {
+  if (dataFilter.geometries.length === 0 || !hasRasterFilters(dataFilter) || enabledRasterFilterTables.length === 0) {
+    return { clippedRasterCtes: '', matchingFeaturesCte: null };
   }
-  // Sorting field, if present, should be consistent with cursor sorting
-  if (decodedCursor.column !== sort) {
-    throw new ErrorResponse(`Sort field is not matching cursor: ${sort} != ${decodedCursor.column}`, StatusCodes.BAD_REQUEST);
-  }
-  return decodedCursor;
-};
 
-// Map selected field aliases to their table-qualified column names
-const getSortFieldMapping = (): Record<string, string> => ({
-  id: 'obs.id',
-  value: 'obs.value',
-  dataset_id: 'ds.slug',
-  dataset_name: 'ds.name',
-  soil_property: 'soil_property.slug',
-  property_acronym: 'soil_property.property_acronym',
-  standard_unit: 'soil_property.standard_unit',
-  geometry: 'matching_features.geom',
-  license_name: 'license.name',
-  sampling_date: 'layer.sampling_date',
-  min_depth: 'layer.min_depth',
-  max_depth: 'layer.max_depth',
-  horizon: 'layer.horizon',
-  sample_pretreatment: 'procedure.sample_pretreatment',
-  technique: 'procedure.technique',
-  laboratory_method: 'procedure.laboratory_method',
-  extractant_concentration: 'procedure.extractant_concentration',
-  extraction_ratio: 'procedure.extraction_ratio',
-  extraction_base: 'procedure.extraction_base',
-  measurement_procedure: 'procedure.measurement_procedure',
-  limit_of_detection: 'procedure.limit_of_detection',
-});
+  const schema = process.env.POSTGRES_SCHEMA;
+  const raster_filters: Record<string, number[]> | undefined = dataFilter.parameters.raster_filters;
+  const aoiAreaM2 = turf.area(dataFilter.geometries[0]!);
+  const clippedRasterCteParts: string[] = [];
+  let joinTables = '';
+  const whereClauses: string[] = [];
 
-const getMappedSortField = (sort: string): string => {
-  const sortFieldMapping = getSortFieldMapping();
-  const qualifiedColumn = sortFieldMapping[sort];
-  if (!qualifiedColumn) {
-    throw new ErrorResponse(`Unknown sort field: ${sort}`, StatusCodes.BAD_REQUEST);
-  }
-  return qualifiedColumn;
-};
-
-const applyCursorToQuery = (query: any, encodedCursor?: string, sort?: string) => {
-  if (!encodedCursor) {
-    return;
-  }
-  const cursor = validateAndGetCursor(encodedCursor!, sort);
-  if (cursor.column && cursor.value) {
-    // WHERE clause should take into account two fields (sorting column first, then ID)
-    const cursorId = cursor.id;
-    const cursorValue = cursor.value;
-    const isDesc = cursor.column.startsWith('-');
-    const operator = isDesc ? '<' : '>';
-    let sortCol = cursor.column;
-    if (sortCol.startsWith('-')) {
-      sortCol = sortCol.substring(1);
+  for (const baseTable of enabledRasterFilterTables) {
+    const values = raster_filters?.[baseTable];
+    const hasFilteringValues = values && values.length > 0;
+    const table = selectOverviewTable(baseTable, aoiAreaM2);
+    const clippedRaster = `clipped_${table}`;
+    if (hasFilteringValues) {
+      clippedRasterCteParts.push(
+        `${clippedRaster} AS MATERIALIZED (
+        SELECT ST_Union(ST_Clip(rr.rast, aoi.geom, touched => TRUE)) as rast
+        FROM ${schema}.${table} rr
+        CROSS JOIN aoi
+        WHERE ST_Intersects(rr.rast, aoi.geom)
+      )`,
+      );
+      joinTables += ` CROSS JOIN ${clippedRaster} ${clippedRaster}`;
+      whereClauses.push(`(
+        ST_GeometryType(cf.geom) = 'ST_Point'
+        AND ST_Value(${clippedRaster}.rast, cf.geom, TRUE) = ANY(ARRAY[${values.join(',')}]::double precision[])
+      )
+      OR (
+        ST_GeometryType(cf.geom) = ANY('{ST_Polygon,ST_MultiPolygon}')
+        AND (
+          SELECT SUM(cnt)
+          FROM ST_ValueCount(
+            ST_Clip(${clippedRaster}.rast, 1, cf.geom, touched => true),
+            1,
+            ARRAY[${values.join(',')}]::double precision[]
+          ) AS vc(value, cnt)
+        ) > 0
+      )`);
     }
-    // Get the correct table-qualified column name
-    const qualifiedColumn = getMappedSortField(sortCol);
-    query.andWhere(`(${qualifiedColumn}, obs.id) ${operator} (:cursorValue, :cursorId)`, { cursorValue, cursorId });
-    return;
   }
 
-  // Basic cursor: filter by observation.id
-  query.andWhere('obs.id > :cursorId', { cursorId: cursor.id });
+  if (whereClauses.length === 0) {
+    return { clippedRasterCtes: '', matchingFeaturesCte: null };
+  }
+
+  const clippedRasterCtes = clippedRasterCteParts.map(cte => cte + ',').join('');
+  const matchingFeaturesCte = `matching_features AS MATERIALIZED (
+    SELECT cf.id, cf.geom
+    FROM candidate_features cf
+      ${joinTables}
+    WHERE ${whereClauses.join(' OR ')}
+  )`;
+
+  return { clippedRasterCtes, matchingFeaturesCte };
 };
 
-const applySortingToQuery = (query: any, sort?: string) => {
-  if (!sort) {
-    // Default: sort by obs.id ascending
-    query.orderBy('obs.id', 'ASC');
-    return;
+/**
+ * Builds a raw parameterised SQL query for soil data retrieval or counting.
+ *
+ * Drives the join order as:
+ *   datasets (slug filter, 1 row)
+ *   → dataset_layers  (index on dataset_id)
+ *   → candidate_features (spatial index on features)
+ *   → observations  (index on dataset_layer_id)
+ *
+ * This avoids the full seq-scans that TypeORM's query-builder plan produces
+ * when it anchors from `dataset_layers` and hash-joins everything bottom-up.
+ */
+const buildRawSoilQuery = (
+  dataFilter: DataFilter,
+  datasetSlugs: string[],
+  options: {
+    mode: 'count' | 'data';
+    limit?: number | undefined;
+    cursor?: string | undefined;
+    sort?: string | undefined;
+    enabledRasterFilterTables?: string[] | undefined;
+  },
+): { sql: string; params: any[] } => {
+  const schema = process.env.POSTGRES_SCHEMA;
+  const params: any[] = [];
+  const p = (val: any) => {
+    params.push(val);
+    return `$${params.length}`;
+  };
+
+  // ── geometry / AOI ──────────────────────────────────────────────────────────
+  const hasGeometry = dataFilter.geometries.length > 0;
+  const geomJson = hasGeometry ? JSON.stringify(geometryUnion(dataFilter.geometries)) : null;
+
+  // ── slug placeholders ────────────────────────────────────────────────────────
+  const slugPlaceholders = datasetSlugs.map(s => p(s)).join(', ');
+
+  // ── filter conditions ────────────────────────────────────────────────────────
+  const filters = dataFilter.parameters;
+  const whereClauses: string[] = [];
+
+  if (filters.data_types && filters.data_types.length > 0) {
+    const dtPlaceholders = filters.data_types.map((v: string) => p(v)).join(', ');
+    whereClauses.push(`ds.gis_datatype IN (${dtPlaceholders})`);
+  }
+  if (filters.min_sampling_date === null) {
+    whereClauses.push('layer.sampling_date IS NULL');
+  } else if (filters.min_sampling_date) {
+    whereClauses.push(`ds.reference_period_stop >= ${p(filters.min_sampling_date)}`);
+    whereClauses.push(`layer.sampling_date >= ${p(filters.min_sampling_date)}`);
+  }
+  if (filters.max_sampling_date === null) {
+    whereClauses.push('layer.sampling_date IS NULL');
+  } else if (filters.max_sampling_date) {
+    whereClauses.push(`ds.reference_period_start <= ${p(filters.max_sampling_date)}`);
+    whereClauses.push(`layer.sampling_date <= ${p(filters.max_sampling_date)}`);
+  }
+  if (filters.min_depth === null) {
+    whereClauses.push('layer.min_depth IS NULL');
+  } else if (filters.min_depth !== undefined) {
+    whereClauses.push(`(ds.soil_depth->>'max')::int >= ${p(filters.min_depth)}`);
+    whereClauses.push(`layer.max_depth >= ${p(filters.min_depth)}`);
+  }
+  if (filters.max_depth === null) {
+    whereClauses.push('layer.max_depth IS NULL');
+  } else if (filters.max_depth !== undefined) {
+    whereClauses.push(`(ds.soil_depth->>'min')::int <= ${p(filters.max_depth)}`);
+    whereClauses.push(`layer.min_depth <= ${p(filters.max_depth)}`);
+  }
+  if (filters.horizons && filters.horizons.length > 0) {
+    const nonNull = filters.horizons.filter((h: any) => h !== null);
+    const hPlaceholders = nonNull.map((h: string | null) => p(h)).join(', ');
+    const nullClause = filters.horizons.includes(null) ? ' OR layer.horizon IS NULL' : '';
+    if (nonNull.length > 0) {
+      whereClauses.push(`(layer.horizon IN (${hPlaceholders})${nullClause})`);
+    } else {
+      whereClauses.push('layer.horizon IS NULL');
+    }
+  }
+  if (filters.soil_properties && filters.soil_properties.length > 0) {
+    const spPlaceholders = filters.soil_properties.map((v: string) => p(v)).join(', ');
+    whereClauses.push(`soil_property.slug IN (${spPlaceholders})`);
+  }
+  if (filters.licenses && filters.licenses.length > 0) {
+    const lPlaceholders = filters.licenses.map((v: string) => p(v)).join(', ');
+    whereClauses.push(`license.slug IN (${lPlaceholders})`);
   }
 
-  let sortField = sort;
-  let sortDirection: 'ASC' | 'DESC' = 'ASC';
-  if (sortField.startsWith('-')) {
-    sortField = sortField.substring(1);
-    sortDirection = 'DESC';
+  const whereClause = whereClauses.length > 0 ? `AND ${whereClauses.join('\n  AND ')}` : '';
+  const AREA_THRESHOLD = 7_000_000 * 1_000 * 1_000; // 7,000,000 km2
+
+  // ── spatial join clause ──────────────────────────────────────────────────────
+  const geomParam = hasGeometry ? p(geomJson) : null;
+  const aoi_cte = hasGeometry
+    ? `aoi AS MATERIALIZED (
+        SELECT ST_CollectionExtract(ST_MakeValid(ST_GeomFromGeoJSON(${geomParam}), 'method=structure'), 3) AS geom
+      ),`
+    : '';
+
+  const aoiArea = hasGeometry ? turf.area(dataFilter.geometries[0]!) : 0;
+
+  const aoi_subdivided_cte =
+    hasGeometry && aoiArea > AREA_THRESHOLD
+      ? `aoi_subdivided AS MATERIALIZED (
+        SELECT ST_Subdivide(aoi.geom, 64) AS geom
+        FROM aoi
+      ),`
+      : '';
+
+  const spatialSource = hasGeometry && aoiArea > AREA_THRESHOLD ? 'aoi_subdivided' : 'aoi';
+
+  const candidate_features_cte = hasGeometry
+    ? `candidate_features AS MATERIALIZED (
+        SELECT distinct f.id, f.geom
+        FROM ${schema}.features f
+        JOIN ${spatialSource} ON ST_Intersects(f.geom, ${spatialSource}.geom)
+      ),`
+    : '';
+
+  // ── raster filter CTEs ───────────────────────────────────────────────────────
+  // Reuses the same logic as applyRasterFilterToQuery but produces raw SQL strings
+  // instead of mutating a TypeORM query builder.
+  const enabledRasterFilterTables = options.enabledRasterFilterTables ?? [];
+  const rasterCtes = buildRasterFilterCteSql(dataFilter, enabledRasterFilterTables);
+
+  // If raster filters produced a matching_features CTE, use it in the join;
+  // otherwise fall back to candidate_features directly.
+  const featureSourceCte = rasterCtes.matchingFeaturesCte ? 'matching_features' : 'candidate_features';
+  const featureJoin = hasGeometry
+    ? `INNER JOIN ${featureSourceCte} matching_features ON matching_features.id = dl.feature_id`
+    : `INNER JOIN ${schema}.features matching_features ON matching_features.id = dl.feature_id`;
+
+  const datasetSpatialFilter = hasGeometry ? `AND ds.spatial_extent && (SELECT geom FROM aoi)` : '';
+
+  // ── cursor / sort (data mode only) ──────────────────────────────────────────
+  let cursorClause = '';
+  let orderClause = 'ORDER BY obs.id ASC';
+
+  if (options.mode === 'data') {
+    const sort = options.sort;
+    const sortFieldMapping: Record<string, string> = {
+      id: 'obs.id',
+      value: 'obs.value',
+      dataset_id: 'ds.slug',
+      dataset_name: 'ds.name',
+      soil_property: 'soil_property.slug',
+      property_acronym: 'soil_property.property_acronym',
+      standard_unit: 'soil_property.standard_unit',
+      geometry: 'dl.feature_geom',
+      license_name: 'license.name',
+      sampling_date: 'layer.sampling_date',
+      min_depth: 'layer.min_depth',
+      max_depth: 'layer.max_depth',
+      horizon: 'layer.horizon',
+      sample_pretreatment: 'pv1.name',
+      technique: 'procedure.technique',
+      laboratory_method: 'pv2.name',
+      extractant_concentration: 'pv3.name',
+      extraction_ratio: 'pv4.name',
+      extraction_base: 'pv5.name',
+      measurement_procedure: 'pv6.name',
+      limit_of_detection: 'pv7.name',
+    };
+
+    if (sort) {
+      const isDesc = sort.startsWith('-');
+      const sortKey = isDesc ? sort.substring(1) : sort;
+      const qualifiedColumn = sortFieldMapping[sortKey];
+      if (!qualifiedColumn) throw new ErrorResponse(`Unknown sort field: ${sortKey}`, StatusCodes.BAD_REQUEST);
+      const dir = isDesc ? 'DESC' : 'ASC';
+      orderClause = `ORDER BY ${qualifiedColumn} ${dir}, obs.id ${dir}`;
+    }
+
+    if (options.cursor) {
+      const cursor = decodeCursor(options.cursor);
+      if (sort && cursor.column !== sort) {
+        throw new ErrorResponse(`Sort field is not matching cursor: ${sort} != ${cursor.column}`, StatusCodes.BAD_REQUEST);
+      }
+      if (cursor.column && cursor.value) {
+        const isDesc = cursor.column.startsWith('-');
+        const sortKey = isDesc ? cursor.column.substring(1) : cursor.column;
+        const qualifiedColumn = sortFieldMapping[sortKey];
+        const operator = isDesc ? '<' : '>';
+        cursorClause = `AND (${qualifiedColumn}, obs.id) ${operator} (${p(cursor.value)}, ${p(cursor.id)})`;
+      } else {
+        cursorClause = `AND obs.id > ${p(cursor.id)}`;
+      }
+    }
   }
 
-  // Get the correct table-qualified column name
-  const qualifiedColumn = getMappedSortField(sortField);
+  // ── SELECT columns ───────────────────────────────────────────────────────────
+  const selectColumns =
+    options.mode === 'count'
+      ? 'COUNT(*) AS count'
+      : `obs.id,
+      ds.slug AS dataset_slug,
+      ds.name AS dataset_name,
+      soil_property.slug AS soil_property,
+      soil_property.property_acronym,
+      soil_property.property_name,
+      soil_property.standard_unit,
+      obs.value,
+      ST_AsGeoJSON(dl.feature_geom)::json AS geometry,
+      COALESCE(license.name, license_fallback.name) AS license_name,
+      layer.sampling_date,
+      layer.min_depth,
+      layer.max_depth,
+      layer.horizon,
+      pv1.name AS sample_pretreatment,
+      procedure.technique,
+      pv2.name AS laboratory_method,
+      pv3.name AS extractant_concentration,
+      pv4.name AS extraction_ratio,
+      pv5.name AS extraction_base,
+      pv6.name AS measurement_procedure,
+      pv7.name AS limit_of_detection`;
 
-  // Use stable secondary sort by obs.id for consistent pagination
-  query.orderBy(qualifiedColumn, sortDirection).addOrderBy('obs.id', sortDirection);
+  const limitClause = options.mode === 'data' && options.limit ? `LIMIT ${parseInt(String(options.limit), 10)}` : '';
+  if (options.mode === 'count') orderClause = '';
+
+  const sql = `
+    WITH
+    ${aoi_cte}
+    ${aoi_subdivided_cte}
+    ${candidate_features_cte}
+    ${rasterCtes.clippedRasterCtes}
+    ${rasterCtes.matchingFeaturesCte ? rasterCtes.matchingFeaturesCte + ',' : ''}
+    -- Resolve slug(s) to dataset id(s) first — drives the join order
+    target_dataset AS MATERIALIZED (
+      SELECT ds.id
+      FROM ${schema}.datasets ds
+      WHERE ds.slug IN (${slugPlaceholders})
+        AND ds.deleted_at IS NULL
+        ${datasetSpatialFilter}
+    ),
+    -- Narrow dataset_layers using index on dataset_id before touching observations
+    target_layers AS MATERIALIZED (
+      SELECT dl.*, matching_features.geom AS feature_geom
+      FROM ${schema}.dataset_layers dl
+      INNER JOIN target_dataset td ON td.id = dl.dataset_id
+      ${featureJoin}
+    )
+    SELECT ${selectColumns}
+    FROM target_layers dl
+    INNER JOIN ${schema}.datasets ds ON ds.id = dl.dataset_id
+    INNER JOIN ${schema}.observations obs ON obs.dataset_layer_id = dl.id
+    LEFT JOIN ${schema}.layers layer ON layer.id = dl.layer_id
+    LEFT JOIN ${schema}.soil_properties soil_property ON soil_property.id = dl.soil_property_id AND soil_property.deleted_at IS NULL
+    LEFT JOIN ${schema}.licenses license ON license.id = layer.license AND license.deleted_at IS NULL
+    LEFT JOIN ${schema}.licenses license_fallback ON license_fallback.slug = ds.licenses[1]
+    LEFT JOIN ${schema}.procedures procedure ON procedure.id = obs.procedure_id AND procedure.deleted_at IS NULL
+    LEFT JOIN ${schema}.vocabulary pv1 ON pv1.id = procedure.sample_pretreatment_id AND pv1.category = 'sample_pretreatment' AND pv1.deleted_at IS NULL
+    LEFT JOIN ${schema}.vocabulary pv2 ON pv2.id = procedure.laboratory_method_id AND pv2.category = 'laboratory_method' AND pv2.deleted_at IS NULL
+    LEFT JOIN ${schema}.vocabulary pv3 ON pv3.id = procedure.extractant_concentration_id AND pv3.category = 'extractant_concentration' AND pv3.deleted_at IS NULL
+    LEFT JOIN ${schema}.vocabulary pv4 ON pv4.id = procedure.extraction_ratio_id AND pv4.category = 'extraction_ratio' AND pv4.deleted_at IS NULL
+    LEFT JOIN ${schema}.vocabulary pv5 ON pv5.id = procedure.extraction_base_id AND pv5.category = 'extraction_base' AND pv5.deleted_at IS NULL
+    LEFT JOIN ${schema}.vocabulary pv6 ON pv6.id = procedure.measurement_procedure_id AND pv6.category = 'measurement_procedure' AND pv6.deleted_at IS NULL
+    LEFT JOIN ${schema}.vocabulary pv7 ON pv7.id = procedure.limit_of_detection_id AND pv7.category = 'limit_of_detection' AND pv7.deleted_at IS NULL
+    WHERE ds.slug IN (${slugPlaceholders})
+      ${whereClause}
+      ${cursorClause}
+    ${orderClause}
+    ${limitClause}
+  `;
+
+  return { sql, params };
 };
 
 const selectGeometry = (): string => {
   return "SELECT ST_CollectionExtract(ST_MakeValid(ST_GeomFromGeoJSON(:inputGeom), 'method=structure'), 3) AS geom";
+};
+
+const joinProcedures = (query: any) => {
+  query
+    .leftJoin('vocabulary', 'pv1', "pv1.id = procedure.sample_pretreatment_id AND pv1.category = 'sample_pretreatment'")
+    .leftJoin('vocabulary', 'pv2', "pv2.id = procedure.laboratory_method_id AND pv2.category = 'laboratory_method'")
+    .leftJoin('vocabulary', 'pv3', "pv3.id = procedure.extractant_concentration_id AND pv3.category = 'extractant_concentration'")
+    .leftJoin('vocabulary', 'pv4', "pv4.id = procedure.extraction_ratio_id AND pv4.category = 'extraction_ratio'")
+    .leftJoin('vocabulary', 'pv5', "pv5.id = procedure.extraction_base_id AND pv5.category = 'extraction_base'")
+    .leftJoin('vocabulary', 'pv6', "pv6.id = procedure.measurement_procedure_id AND pv6.category = 'measurement_procedure'")
+    .leftJoin('vocabulary', 'pv7', "pv7.id = procedure.limit_of_detection_id AND pv7.category = 'limit_of_detection'");
 };
 
 const getH3Resolution = (areaM2: number) => {
@@ -600,4 +876,4 @@ const getH3Resolution = (areaM2: number) => {
   const output = Math.max(3, Math.min(11, Math.round(zoom)));
   console.log(output);
   return output;
-};
+

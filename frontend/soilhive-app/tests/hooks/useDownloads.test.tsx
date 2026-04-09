@@ -4,6 +4,13 @@ import useDownloads from 'hooks/useDownloads';
 import { DownloadsProvider } from '../../src/contexts/DownloadsContext';
 import { useCreateJobMutation, useCancelJobMutation, useJobsQueries } from 'hooks/useJobsApi';
 import useNotifications from 'hooks/useNotifications';
+import { getStoredJobIds, addStoredJobId, removeStoredJobId } from '../../src/utilities/downloadJobStorage';
+
+jest.mock('../../src/utilities/downloadJobStorage', () => ({
+  getStoredJobIds: jest.fn(),
+  addStoredJobId: jest.fn(() => []),
+  removeStoredJobId: jest.fn(),
+}));
 
 jest.mock('hooks/useJobsApi', () => ({
   useCreateJobMutation: jest.fn(),
@@ -43,6 +50,8 @@ describe('useDownloads', () => {
     });
 
     (useJobsQueries as jest.Mock).mockReturnValue([]);
+
+    (getStoredJobIds as jest.Mock).mockReturnValue([]);
   });
 
   afterEach(() => {
@@ -94,6 +103,7 @@ describe('useDownloads', () => {
       dataset_ids: ['dataset-1'],
       format: 'csv',
       type: 'export',
+      anonymous: true,
     });
 
     await waitFor(() => {
@@ -283,5 +293,114 @@ describe('useDownloads', () => {
     rerender();
 
     expect(showNotification).toHaveBeenCalledTimes(1);
+  });
+
+  it('persists downloads when the hook is re-rendered or reopened', async () => {
+    // Mock storage to already contain an ID
+    (getStoredJobIds as jest.Mock).mockReturnValue(['job-existing']);
+
+    // Mock the query to return data for that existing ID
+    (useJobsQueries as jest.Mock).mockImplementation((jobIds: string[]) => {
+      return jobIds.map(id => ({
+        data: {
+          id,
+          status: 'running',
+          data: { progress_percentage: 50 },
+        },
+      }));
+    });
+
+    const { result } = renderHook(() => useDownloads(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.downloads).toEqual([
+        {
+          id: 'job-existing',
+          status: 'running',
+          progress: 50,
+        },
+      ]);
+    });
+  });
+
+  it('saves the job ID to storage when a download starts', async () => {
+    const jobId = 'job-123';
+    createMutateAsync.mockResolvedValue({ id: jobId });
+
+    const { result } = renderHook(() => useDownloads(), { wrapper });
+
+    await act(async () => {
+      result.current.startDownload({
+        filter_id: 'filter-1',
+        dataset_ids: ['dataset-1'],
+        format: 'csv',
+      });
+    });
+
+    // Verify that the utility function was called with the new ID
+    expect(addStoredJobId).toHaveBeenCalledWith(jobId);
+  });
+
+  it('deletes the job ID from the storage when a download is cancelled', async () => {
+    const jobId = 'job-123';
+    createMutateAsync.mockResolvedValue({ id: jobId });
+
+    const { result } = renderHook(() => useDownloads(), { wrapper });
+
+    await act(async () => {
+      result.current.cancelDownload(jobId);
+    });
+
+    // Verify that the utility function was called with the new ID
+    expect(removeStoredJobId).toHaveBeenCalledWith(jobId);
+  });
+
+  it.each(['completed', 'failed'])(`automatically removes the job ID from storage when status is %s`, async (status: string) => {
+    const jobId = 'job-id';
+    createMutateAsync.mockResolvedValue({ id: jobId });
+
+    // Mock the query to return selected status
+    (useJobsQueries as jest.Mock).mockImplementation(() => [
+      {
+        data: {
+          id: jobId,
+          status: status,
+          data: { download_path: 'file.zip' },
+        },
+      },
+    ]);
+
+    renderHook(() => useDownloads(), { wrapper });
+
+    // We wait for the useEffect inside the component to trigger the removal
+    await waitFor(() => {
+      expect(removeStoredJobId).toHaveBeenCalledWith(jobId);
+    });
+  });
+
+  it('removes job from state if it was cancelled in another tab/externally', async () => {
+    const jobId = 'external-cancel-job';
+
+    // Start with the job already in the stored IDs
+    (getStoredJobIds as jest.Mock).mockReturnValue([jobId]);
+
+    // Mock the query to return 'cancelled' status
+    (useJobsQueries as jest.Mock).mockImplementation((ids: string[]) =>
+      ids.map(id => ({
+        data: {
+          id,
+          status: 'cancelled',
+          data: {},
+        },
+      })),
+    );
+
+    const { result } = renderHook(() => useDownloads(), { wrapper });
+
+    // The job should be filtered out of the internal state
+    // and result in an empty downloads list
+    await waitFor(() => {
+      expect(result.current.downloads).toHaveLength(0);
+    });
   });
 });

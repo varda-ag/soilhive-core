@@ -5,7 +5,7 @@ import SlugHistoryEntity from './SlugHistory';
 import { IngestionStatus } from '../types/data';
 
 @Entity('files')
-@Unique(['name'])
+@Unique(['file_path'])
 @Unique(['slug'])
 @ForeignKey(() => SlugHistoryEntity, ['id', 'slug'], ['entity_id', 'slug'], {
   deferrable: 'INITIALLY DEFERRED',

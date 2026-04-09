@@ -35,6 +35,7 @@ exports[`AdminSidebar renders sidebar for user with all permissions and matches 
           >
             <a
               aria-current="page"
+              aria-disabled="false"
               class="Link Active"
               data-discover="true"
               data-testid="sh-admin-sidebarlink"
@@ -53,10 +54,11 @@ exports[`AdminSidebar renders sidebar for user with all permissions and matches 
               </span>
             </a>
             <a
+              aria-disabled="false"
               class="Link"
               data-discover="true"
               data-testid="sh-admin-sidebarlink"
-              href="/admin/map"
+              href="/admin/map-settings"
             >
               <svg
                 class="LinkIcon"
@@ -71,6 +73,7 @@ exports[`AdminSidebar renders sidebar for user with all permissions and matches 
               </span>
             </a>
             <a
+              aria-disabled="false"
               class="Link"
               data-discover="true"
               data-testid="sh-admin-sidebarlink"
@@ -103,6 +106,7 @@ exports[`AdminSidebar renders sidebar for user with all permissions and matches 
             data-testid="sh-admin-sidebarlinks-data"
           >
             <a
+              aria-disabled="false"
               class="Link"
               data-discover="true"
               data-testid="sh-admin-sidebarlink"
@@ -121,6 +125,7 @@ exports[`AdminSidebar renders sidebar for user with all permissions and matches 
               </span>
             </a>
             <a
+              aria-disabled="false"
               class="Link"
               data-discover="true"
               data-testid="sh-admin-sidebarlink"
@@ -200,6 +205,7 @@ exports[`AdminSidebar renders sidebar for user with only ADMIN_PORTAL_DATA_MENU 
           >
             <a
               aria-current="page"
+              aria-disabled="false"
               class="Link Active"
               data-discover="true"
               data-testid="sh-admin-sidebarlink"
@@ -218,6 +224,7 @@ exports[`AdminSidebar renders sidebar for user with only ADMIN_PORTAL_DATA_MENU 
               </span>
             </a>
             <a
+              aria-disabled="false"
               class="Link"
               data-discover="true"
               data-testid="sh-admin-sidebarlink"
@@ -297,6 +304,7 @@ exports[`AdminSidebar renders sidebar for user with only ADMIN_PORTAL_UI_MENU pe
           >
             <a
               aria-current="page"
+              aria-disabled="false"
               class="Link Active"
               data-discover="true"
               data-testid="sh-admin-sidebarlink"
@@ -315,10 +323,11 @@ exports[`AdminSidebar renders sidebar for user with only ADMIN_PORTAL_UI_MENU pe
               </span>
             </a>
             <a
+              aria-disabled="false"
               class="Link"
               data-discover="true"
               data-testid="sh-admin-sidebarlink"
-              href="/admin/map"
+              href="/admin/map-settings"
             >
               <svg
                 class="LinkIcon"
@@ -333,6 +342,7 @@ exports[`AdminSidebar renders sidebar for user with only ADMIN_PORTAL_UI_MENU pe
               </span>
             </a>
             <a
+              aria-disabled="false"
               class="Link"
               data-discover="true"
               data-testid="sh-admin-sidebarlink"

@@ -24,6 +24,31 @@ jest.mock('../../src/pages/AdminPortal', () => ({
   MapSettings: () => <div>MapSettings page</div>,
 }));
 
+jest.mock('../../src/pages/AdminPortal/DatasetsGeneralInfoStep/DatasetsGeneralInfoStep', () => ({
+  DatasetsGeneralInfoStep: () => <div>DatasetsGeneralInfoStep page</div>,
+}));
+
+jest.mock('../../src/hooks/useDatasetsSoilData', () => ({
+  __esModule: true,
+  useDatasetsSoilData: jest.fn().mockReturnValue({
+    fileInputRef: { current: null },
+    soilDataFiles: [],
+    uploadingFiles: [],
+    uploadErrors: [],
+    uploadProgress: {},
+    isContinueEnabled: false,
+    isLoadingFiles: false,
+    handleFiles: jest.fn(),
+    handleCrsChange: jest.fn(),
+    removeFile: jest.fn(),
+    clearAll: jest.fn(),
+    handlePrevious: jest.fn(),
+    handleSaveAndContinueLater: jest.fn(),
+    handleContinue: jest.fn(),
+  }),
+  ALLOWED_EXTENSIONS: ['.csv', '.gpkg', '.geojson', '.shp', '.xlsx', '.zip'],
+}));
+
 function renderWithRouter(initialPath = ADMIN_ROOT) {
   return render(
     <MemoryRouter initialEntries={[initialPath]}>

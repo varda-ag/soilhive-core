@@ -21,23 +21,116 @@
         }
     },
     "terms_and_conditions": {
-        "title": "Terms & Conditions"
+        "title": "Terms & Conditions",
+        "subtitle": "Paste a text here",
+        "save": "Save",
+        "notification": {
+            "title": "Successful update",
+            "message": "New terms and conditions applied"
+        }
     },
     "map_settings": {
-        "title": "Map settings"
+        "title": "Map settings",
+        "subtitle": "Default map extent",
+        "description": "Select the area you want to show in the map when the user arrives to the platform",
+        "save": "Set view as default",
+        "notification": {
+            "title": "Successful update",
+            "message": "The default view has been replaced"
+        }
     },
     "look_and_feel": {
-        "title": "Look & Feel"
+        "title": "Look & Feel",
+        "cancel": "Cancel",
+        "publish": "Publish",
+        "publish_notification": {
+            "title": "Success",
+            "message": "New theme settings have been published"
+        },
+        "tabs": {
+            "logo": "Logo",
+            "colors": "Customize colors"
+        },
+        "logo": {
+            "title": "Upload the logo for your platform",
+            "label": "Your picture will appear in the header",
+            "supported_formats": "Supported formats: jpg, png or svg.",
+            "logo_preview": "Logo preview",
+            "actual_logo": "Actual logo",
+            "change_button": "Change picture",
+            "delete_button": "Delete picture",
+            "unsupported_format_error": "Unsupported file format. Please upload a PNG, JPG or SVG file.",
+            "crop": {
+                "title": "Upload a logo",
+                "upload_button": "Upload",
+                "cancel_button": "Cancel",
+                "zoom_label": "Zoom"
+            }
+        }
     },
     "datasets": {
-        "title": "Datasets publication"
+        "title": "Datasets publication",
+        "actions": {
+            "save_and_continue_later": "Save and continue later",
+            "continue": "Continue",
+            "previous": "Previous"
+        },
+        "general_info": {
+            "step_title": "General info",
+            "step_description": "Describe dataset",
+            "page_title": "Data preview",
+            "title": "General",
+            "fields": {
+                "name": "Name",
+                "full_name": "Full name",
+                "description": "Description",
+                "author": "Author",
+                "symbols_left": "symbols left",
+                "author_helper": "If you are not affiliated with any organization, you may enter “Independent Professional”."
+            },
+            "validation": {
+                "name_required": "Name is required",
+                "full_name_required": "Full name is required",
+                "description_required": "Description is required",
+                "author_required": "Author is required"
+            }
+        },
+        "soil_data": {
+            "step_title": "Soil data",
+            "step_description": "Upload your files",
+            "title": "Add file/s",
+            "template_docs_banner": "Check the template documentation <a>here</a> on Github.",
+            "upload_caption": "Supported formats: CSV, Geopackage, GeoJSON, Shapefile, XLSX and ZIP.",
+            "files_uploaded_count": "Files uploaded: {{count}}",
+            "clear_all": "Clear all",
+            "upload_error": "Error uploading file",
+            "network_error": "Network error. Please check your connection and try again.",
+            "crs_label": "Add a Coordinate Reference System (CRS)",
+            "crs_placeholder": "start typing a number",
+            "invalid_file_type": "Invalid file type"
+        },
+        "mappings": {
+            "step_title": "Mappings",
+            "step_description": "Match your data",
+            "title": "Map fields"
+        },
+        "preview": {
+            "step_title": "Preview",
+            "step_description": "Review data",
+            "title": "Preview"
+        },
+        "quality_check": {
+            "step_title": "Quality check",
+            "step_description": "Find data issues",
+            "title": "Quality check"
+        }
     },
     "filters": {
         "common": {
             "active": "Active",
             "not_active": "Not active"
         },
-        "title":"Map settings",
+        "title": "Map settings",
         "intro": {
             "title": "Why they need a separated configuration.",
             "description": "Map-based filters require many GB of data to be added to the system. Each filter provides global coverage and it is provided in a separate package, to avoid unnecessary large downloads when installing the platform."

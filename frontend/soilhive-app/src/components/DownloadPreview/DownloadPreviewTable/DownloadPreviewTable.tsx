@@ -41,8 +41,6 @@ function DownloadPreviewTable({
       { name: t('download_preview.columns.standard_unit'), value: 'standard_unit' },
       // TODO: to be restored | { name: t('download_preview.columns.horizon'), value: 'horizon' },
       { name: t('download_preview.columns.technique'), value: 'technique' },
-      { name: t('download_preview.columns.soil_property'), value: 'soil_property' },
-      { name: t('download_preview.columns.soil_property_acronym'), value: 'property_acronym' },
       { name: t('download_preview.columns.sample_pretreatment'), value: 'sample_pretreatment' },
       { name: t('download_preview.columns.laboratory_method'), value: 'laboratory_method' },
       { name: t('download_preview.columns.extractant_concentration'), value: 'extractant_concentration' },
@@ -50,7 +48,6 @@ function DownloadPreviewTable({
       { name: t('download_preview.columns.extraction_base'), value: 'extraction_base' },
       { name: t('download_preview.columns.measurement_procedure'), value: 'measurement_procedure' },
       { name: t('download_preview.columns.limit_of_detection'), value: 'limit_of_detection' },
-      { name: t('download_preview.columns.dataset'), value: 'dataset_name' },
       { name: t('download_preview.columns.license'), value: 'license_name' },
     ],
     [t],
@@ -58,17 +55,34 @@ function DownloadPreviewTable({
 
   const [visibleColumns, setVisibleColumns] = useState<string[]>([
     'sampling_date',
-    'min_depth',
-    'max_depth',
     'value',
+    'standard_unit',
     // TODO: to be restored | 'horizon',
     'technique',
+    'laboratory_method',
     'license_name',
   ]);
   const [sortOrder, setSortOrder] = useState<SortOrder>();
   const [sortField, setSortField] = useState<string>();
 
   const dateCell = ({ sampling_date, geometry }: SoilDataSample) => {
+    const renderDateLabel = () => {
+      if (!sampling_date) return '-';
+
+      // Check if it's year-only (e.g., "2018")
+      if (/^\d{4}$/.test(sampling_date)) {
+        return sampling_date;
+      }
+
+      // If it has hyphens (e.g., "2018-05-20"), use the utility
+      if (sampling_date.includes('-')) {
+        const dateObj = backendToLocalFrontendDate(sampling_date);
+        return !isNaN(dateObj.getTime()) ? dateObj.toLocaleDateString() : sampling_date; // Fallback to raw string if utility fails
+      }
+
+      return sampling_date;
+    };
+
     return (
       <Button
         type="tertiary"
@@ -77,7 +91,7 @@ function DownloadPreviewTable({
         }}
       >
         {geometry && <MapPinIcon />}
-        {sampling_date ? backendToLocalFrontendDate(sampling_date).toLocaleDateString() : '-'}
+        {renderDateLabel()}
       </Button>
     );
   };

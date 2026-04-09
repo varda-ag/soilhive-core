@@ -1,0 +1,10 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`ColorsTab page matches snapshot 1`] = `
+<div>
+  <h2>
+    Look & Feel
+     COLORS
+  </h2>
+</div>
+`;

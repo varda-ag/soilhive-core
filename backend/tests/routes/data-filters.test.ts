@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll } from '@jest/globals';
 import { IncomingHttpHeaders } from 'http';
 import request from 'supertest';
 import { app } from '../../src/app';
-import { FilteredDataset } from '../../src/interfaces/DatasetFilter';
+import { FilteredDataset, FilteredData } from '../../src/interfaces/DatasetFilter';
 import { getDataSource } from '../../src/utils/data-source';
 import { addSyntheticData, syntheticDataOptions } from '../../src/utils/mock';
 import { getDataAdminToken, getSuperAdminToken } from '../helper';
@@ -169,15 +169,16 @@ describe('Testing /data-filters routes', () => {
     const id = resPost.body.id;
     // Get coverage
     const resCoverage = await request(app).get(`/data-filters/${id}/coverage`);
-    const results: FilteredDataset[] = resCoverage.body;
-    expect(results.length).toBe(1);
-    expect(results[0].name).toBe(dataset.name);
-    expect(results[0].id).toBe(dataset.slug);
-    expect(results[0].dataset_layer_count).toBe(layers);
-    expect(results[0].soil_properties).toContain('prop1');
-    expect(results[0].soil_properties).toContain('prop2');
-    expect(results[0].licenses).toContain('test_license_1');
-    const resultDatasetIds = results.map(r => r.id);
+    const result: FilteredData = resCoverage.body;
+    const resultDatasets: FilteredDataset[] = result.datasets;
+    expect(resultDatasets.length).toBe(1);
+    expect(resultDatasets[0].name).toBe(dataset.name);
+    expect(resultDatasets[0].id).toBe(dataset.slug);
+    expect(resultDatasets[0].dataset_layer_count).toBe(layers);
+    expect(resultDatasets[0].soil_properties).toContain('prop1');
+    expect(resultDatasets[0].soil_properties).toContain('prop2');
+    expect(resultDatasets[0].licenses).toContain('test_license_1');
+    const resultDatasetIds = resultDatasets.map(r => r.id);
     expect(resultDatasetIds).toContain(dataset.slug);
   });
 
@@ -200,9 +201,9 @@ describe('Testing /data-filters routes', () => {
     const id = resPost.body.id;
     // Get coverage
     const resCoverage = await request(app).get(`/data-filters/${id}/coverage`);
-    const results: FilteredDataset[] = resCoverage.body;
+    const results: FilteredData = resCoverage.body;
 
     // No data is expected to be returned
-    expect(results.length).toBe(0);
+    expect(results.datasets.length).toBe(0);
   });
 });

@@ -1,0 +1,17 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`Legal page Matches snapshot 1`] = `
+<div>
+  <div
+    class="Layout"
+  >
+    <main
+      class="Content"
+    >
+      <div
+        class="content"
+      />
+    </main>
+  </div>
+</div>
+`;

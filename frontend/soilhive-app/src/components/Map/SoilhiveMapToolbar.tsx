@@ -1,10 +1,10 @@
 /* eslint-disable */
 import { useEffect, useRef, useState } from 'react';
 import classnames from 'classnames';
-import PolygonIcon from 'assets/icons/polygon-icon.svg?react';
+import SmallPolygonIcon from 'assets/icons/small-polygon-icon.svg?react';
 import ArrowDownIcon from 'assets/icons/arrow-down-icon.svg?react';
 import PencilIcon from 'assets/icons/pencil-icon.svg?react';
-import UploadIcon from 'assets/icons/upload-icon.svg?react';
+import UploadIcon from 'assets/icons/small-upload-icon.svg?react';
 import { check } from '@placemarkio/check-geojson';
 import type { Polygon, MultiPolygon } from 'geojson';
 import useNotifications from 'hooks/useNotifications';
@@ -64,7 +64,7 @@ export default function SoilhiveMapToolbar({ visible, onDrawClick, onUpload }: S
       const file = (event as any).target?.files?.item(0);
 
       const fail = (id: string, message: string) => {
-        showNotification({ id, title: t('map.upload_failed'), message });
+        showNotification({ id, title: 'Upload failed', message });
         fileInput.value = '';
       };
 
@@ -110,7 +110,7 @@ export default function SoilhiveMapToolbar({ visible, onDrawClick, onUpload }: S
         }}
       >
         <span className="text-container">
-          <PolygonIcon className="polygon" />
+          <SmallPolygonIcon className="polygon" />
           <span className="text-only">{t('map.polygon_button')}</span>
         </span>
         <span className="arrow-container">

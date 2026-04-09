@@ -1,0 +1,109 @@
+.DatasetsSoilDataStep {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  padding: 24px;
+}
+
+.Title {
+  font-size: var(--font-size-lg);
+  font-weight: var( --font-weight-bold);
+  color: var(--color-text-primary);
+  margin: 0 0 16px;
+}
+
+// ─── Info banner ─────────────────────────────────────────────────────────────
+
+.InfoBanner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 4px;
+  background-color: var(--color-bg-admin);
+  font-size: var( --font-size-sm);
+  color: var(--color-text-primary);
+  margin-bottom: 16px;
+
+  i {
+    color: var(--color-text-primary);
+    flex-shrink: 0;
+    font-size: var(--font-size-sm);
+  }
+}
+
+.DocLink {
+  color: var(--color-brand-dark-green-1000);
+  font-weight: var(--font-weight-medium);
+  text-decoration: underline;
+
+  &:hover {
+    opacity: 0.8;
+  }
+}
+
+// ─── File list ────────────────────────────────────────────────────────────────
+
+.FileListContainer {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 1rem;
+  margin-bottom: 16px;
+}
+
+.FileList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  margin-top: 1rem;
+}
+
+.FileListHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.FileCount {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.ClearAll {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-cta-danger-solid);
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.FileRows {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+// ─── Footer (Actions Bar) ─────────────────────────────────────────────────────
+
+.Footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  margin: auto -24px -24px -24px; // Negative margin to flush with container edges
+  background-color: var(--color-neutral-white);
+  box-shadow: 0 -0.15rem 0.625rem var(--color-shadow-interface);
+}
+
+.FooterRight {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}

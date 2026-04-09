@@ -8,7 +8,7 @@ import { getEntityManager } from '../../utils/data-source';
 import { getTotalRecordsCount, createReadmeFile, fetchBatch, groupByProperty } from './exportHelpers';
 import { getPgBoss, PG_BOSS_SCHEMA } from '../../services/PgBoss';
 import { GeoFileWriter } from './GeoFileWriter';
-import { cleanupTempFiles, generateDownloadPath, moveToDownloadFolder, zipFiles } from './storageHelpers';
+import { cleanupTempFiles, generateDownloadFilename, generateDownloadPath, moveToDownloadFolder, zipFiles } from './storageHelpers';
 
 export async function processExportJob(job: Job<ExportJob>): Promise<void> {
   const { id: jobId, data } = job;
@@ -64,8 +64,8 @@ export async function processExportJob(job: Job<ExportJob>): Promise<void> {
       await writer.openFile(tempDir);
 
       // 4. Write grouped records
-      for (const [propertyAcronym, records] of Object.entries(grouped)) {
-        await writer.setProperty(propertyAcronym);
+      for (const [propertyKey, records] of Object.entries(grouped)) {
+        await writer.setProperty(propertyKey);
         for (const record of records) {
           await writer.writeRecord(record);
         }
@@ -114,6 +114,7 @@ export async function processExportJob(job: Job<ExportJob>): Promise<void> {
       current_cursor: cursor ?? null,
       total_records_processed: totalRecordsProcessed,
       download_path: final_storage_path,
+      download_filename: generateDownloadFilename(),
     });
   } finally {
     // Always cleanup temp files, even on error

@@ -1,5 +1,10 @@
 /* global fetch */
-import { useState, useMemo, useEffect, type JSX } from 'react';
+import { useState, useMemo, useEffect, type JSX, useCallback } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import SearchIcon from 'assets/icons/small-search-icon.svg?react';
+import SmallPolygonIcon from 'assets/icons/small-polygon-icon.svg?react';
+import SmallLineIcon from 'assets/icons/small-line-icon.svg?react';
+import SmallMapPinIcon from 'assets/icons/small-map-pin-icon.svg?react';
 import { useControl, Marker, type ControlPosition, type MarkerProps } from 'react-map-gl/maplibre';
 import MaplibreGeocoder, {
   type MaplibreGeocoderApi,
@@ -10,6 +15,7 @@ import MaplibreGeocoder, {
 } from '@maplibre/maplibre-gl-geocoder';
 import { MAPBOX_ACCESS_TOKEN } from '../../utilities/environmentVariables';
 import { bbox as bboxFn, centerOfMass } from '@turf/turf';
+import { createPortal } from 'react-dom';
 
 type GeocoderControlProps = Omit<MaplibreGeocoderOptions, 'maplibregl' | 'marker'> & {
   geocoder?: 'nominatim' | 'mapbox';
@@ -21,6 +27,43 @@ type GeocoderControlProps = Omit<MaplibreGeocoderOptions, 'maplibregl' | 'marker
   onError?: (e: object) => void;
   onFeatureSelect?: (feature: any) => void;
 };
+
+function PrependPortal({ children, targetSelector, className }: { children: React.ReactNode; targetSelector: string; className?: string }) {
+  const [container] = useState(() => {
+    const el = document.createElement('div');
+    el.className = className || '';
+    return el;
+  });
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    const tryPrepend = () => {
+      const target = document.querySelector(targetSelector);
+      if (!target) return false;
+      target.prepend(container);
+      setReady(true);
+      return true;
+    };
+
+    // Try immediately in case it already exists
+    if (tryPrepend()) return () => container.remove();
+
+    // Otherwise observe the DOM until it appears
+    const observer = new MutationObserver(() => {
+      if (tryPrepend()) observer.disconnect();
+    });
+
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    return () => {
+      observer.disconnect();
+      container.remove();
+    };
+  }, [container, targetSelector]);
+
+  if (!ready) return null;
+  return createPortal(children, container);
+}
 
 const nominatimGeocoderAPI: MaplibreGeocoderApi = {
   forwardGeocode: async (config: MaplibreGeocoderApiConfig): Promise<MaplibreGeocoderFeatureResults> => {
@@ -114,16 +157,39 @@ export default function GeocoderControl(props: GeocoderControlProps) {
     }
   }, [props.geocoder]);
 
+  const polygonIconHtml = renderToStaticMarkup(<SmallPolygonIcon />);
+  const lineIconHtml = renderToStaticMarkup(<SmallLineIcon />);
+  const pointIconHtml = renderToStaticMarkup(<SmallMapPinIcon />);
+
   const geocoder = useControl<MaplibreGeocoder>(
     () => {
+      const isNominatim = props.geocoder === 'nominatim';
       const ctrl = new MaplibreGeocoder(geocoderAPI, {
         marker: false,
-        showResultsWhileTyping: true,
+        showResultsWhileTyping: !isNominatim,
         minLength: 3,
         proximityMinZoom: 9, // only prioritize the viewport when zoomed in to z9
-        debounceSearch: props.geocoder !== 'nominatim' ? 200 : 2000, // Nominatim's policy requires to limit searches to maximum 1 request per second https://operations.osmfoundation.org/policies/nominatim/
+        debounceSearch: isNominatim ? 1000 : 200, // Nominatim's policy requires to limit searches to maximum 1 request per second https://operations.osmfoundation.org/policies/nominatim/
         clearAndBlurOnEsc: true,
         placeholder: 'Search by any location',
+        render: feature => {
+          const geomType = (feature as any).original_geometry?.type || '';
+
+          // Pick icon SVG based on geometry type
+          const isPolygon = ['Polygon', 'MultiPolygon'].includes(geomType);
+          const isLine = ['LineString', 'MultiLineString'].includes(geomType);
+          const iconSvg = isPolygon ? polygonIconHtml : isLine ? lineIconHtml : pointIconHtml;
+          return `
+            <div class="maplibregl-ctrl-geocoder--result">
+              <div class="maplibregl-ctrl-geocoder--result-icon">
+                ${iconSvg}
+              </div>
+              <div class="maplibregl-ctrl-geocoder--result-title">
+                ${feature.place_name}
+              </div>
+            </div>
+          `;
+        },
       });
       ctrl.on('loading', _ => {});
       ctrl.on('results', _ => {});
@@ -134,17 +200,18 @@ export default function GeocoderControl(props: GeocoderControlProps) {
         const { result } = evt;
         if (!result) {
           setMarker(null);
+          return;
         }
         if (result.original_geometry.type === 'Point') {
           const [lat, lon] = result.original_geometry.coordinates;
           setMarker(<Marker longitude={lat} latitude={lon} />);
         } else {
-          ctrl.clear();
-          props.onFeatureSelect?.({
-            feature: result.original_feature,
-            center: result.geometry,
-          });
+          setMarker(null);
         }
+        props.onFeatureSelect?.({
+          feature: result.original_feature,
+          center: result.geometry,
+        });
       });
       return ctrl;
     },
@@ -153,37 +220,48 @@ export default function GeocoderControl(props: GeocoderControlProps) {
     },
   );
 
-  useEffect(() => {
+  const onInput = useCallback(() => {
+    geocoder._renderMessage('');
+  }, [geocoder]);
+
+  const setSearchButtonState = (searching: boolean) => {
+    const searchIcon = document.querySelector('.search-button');
+    if (searchIcon) {
+      searchIcon.className = searching ? 'search-button searching' : 'search-button';
+    }
+  };
+
+  const onKeyUp = useCallback(
+    (e: KeyboardEvent) => {
+      const input = (geocoder as any).container?.querySelector('input') as HTMLInputElement | null;
+      if (!input) return;
+      const q = input.value.trim();
+      const canSearch = q.length >= 3;
+      setSearchButtonState(canSearch);
+      if (e.key !== 'Enter' || !canSearch) return;
+
+      (geocoder as any)._geocode(q);
+    },
+    [geocoder],
+  );
+
+  function addGeocoderEvents(geocoder: any) {
     if ((geocoder as any).container) {
       document.querySelector('.soilhive-map-toolbar')?.prepend((geocoder as any).container);
     }
 
-    const input = (geocoder as any).container.querySelector('input') as HTMLInputElement | null;
+    const input = (geocoder as any).container?.querySelector('input') as HTMLInputElement | null;
     if (!input) return;
 
-    const onInput = () => {
-      geocoder._renderMessage('');
-    };
-
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== 'Enter') return;
-
-      e.preventDefault();
-      e.stopPropagation();
-
-      const q = input.value.trim();
-      if (q.length < 3) return;
-
-      (geocoder as any)._geocode(q);
-    };
-
-    input.addEventListener('keydown', onKeyDown);
+    input.addEventListener('keyup', onKeyUp);
     input.addEventListener('input', onInput);
     return () => {
-      input.removeEventListener('keydown', onKeyDown);
+      input.removeEventListener('keyup', onKeyUp);
       input.removeEventListener('input', onInput);
     };
-  }, [geocoder]);
+  }
+
+  addGeocoderEvents(geocoder);
 
   if ((geocoder as any)._map) {
     if (geocoder.getProximity() !== props.proximity && props.proximity !== undefined) {
@@ -235,5 +313,24 @@ export default function GeocoderControl(props: GeocoderControlProps) {
     //   geocoder.setWorldview(props.worldview);
     // }
   }
-  return marker;
+
+  function onGeocoderSearch() {
+    const input = (geocoder as any).container?.querySelector('input') as HTMLInputElement | null;
+    if (!input) return;
+    const q = input.value.trim();
+    const canSearch = q.length >= 3;
+    if (!canSearch) return;
+    (geocoder as any)._geocode(q);
+  }
+
+  return (
+    <>
+      {marker}
+      <PrependPortal targetSelector=".maplibregl-ctrl-geocoder--pin-right" className="search-button-wrapper">
+        <button onClick={onGeocoderSearch} className="search-button">
+          <SearchIcon />
+        </button>
+      </PrependPortal>
+    </>
+  );
 }

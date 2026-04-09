@@ -14,14 +14,17 @@ export default class JobService {
     const { sub } = requestData.token ?? {};
 
     // Checking preconditions
-    if (data.type === JobQueues.BULK_LOAD || data.type === JobQueues.FILE_TO_DB) {
+    if (data.type === JobQueues.BULK_LOAD || data.type === JobQueues.FILE_TO_DB || data.type === JobQueues.BULK_DELETE) {
       if (!sub) {
         throw new ErrorResponse(`Authentication required for ${data.type} jobs`, StatusCodes.UNAUTHORIZED);
+      }
+      if (data.anonymous) {
+        throw new ErrorResponse(`Parameter anonymous: true not allowed for ${data.type} jobs`, StatusCodes.BAD_REQUEST);
       }
     }
 
     // Set owner and enqueue the job
-    data.created_by = sub ?? null;
+    data.created_by = data.anonymous ? null : (sub ?? null);
     const id = await this.boss.send(data.type, data);
     if (!id) {
       throw new ErrorResponse('Failed to create job', StatusCodes.INTERNAL_SERVER_ERROR);
@@ -64,7 +67,7 @@ export default class JobService {
   deleteJobById = async (requestData: RequestData, jobId: string) => {
     const { sub } = requestData.token ?? {};
     const job = await this.getJobById(requestData, jobId);
-    if (sub && job.data.created_by !== sub) {
+    if (sub && job.data.created_by && job.data.created_by !== sub) {
       throw new ErrorResponse('Unauthorized to delete this job', StatusCodes.UNAUTHORIZED);
     }
     await this.boss.cancel(job.queue, jobId);

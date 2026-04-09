@@ -1,0 +1,58 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`LookAndFeelTabs renders LookAndFeelTabs and matches snapshot 1`] = `
+<div>
+  <div
+    data-testid="admin-page-tabs"
+  >
+    <button
+      data-testid="tabs-onchange-trigger"
+    >
+      trigger tab change
+    </button>
+    <div
+      data-testid="tabs-active-tab"
+    >
+      /adminportal/look-and-feel/logo
+    </div>
+    <div
+      data-testid="tabs-values"
+    >
+      <div>
+        /adminportal/look-and-feel/logo
+        :
+        Logo
+      </div>
+      <div>
+        /adminportal/look-and-feel/colors
+        :
+        Customize colors
+      </div>
+    </div>
+    <div
+      data-testid="tabs-children"
+    >
+      <div
+        class="Actions"
+      >
+        <button
+          data-testid="sh-lookandfeel-cancel"
+        >
+          Cancel
+        </button>
+        <button
+          data-testid="sh-lookandfeel-publish"
+        >
+          <svg
+            data-testid="svg-icon-mock"
+          >
+            mock-svg
+          </svg>
+           
+          Publish
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+`;

@@ -4,8 +4,6 @@ exports[`TextInput component matches snapshot 1`] = `
 <div>
   <div
     data-testid="mock-wrapper"
-    errormessage="Wrong!"
-    label="Email"
   >
     <div
       class="TextInput Small Invalid Filled"

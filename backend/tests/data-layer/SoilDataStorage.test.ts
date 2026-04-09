@@ -304,6 +304,20 @@ describe('SoilDataStorage class', () => {
     }
   });
 
+  it('Filtering should work even with an invalid geometry', async () => {
+    await addSyntheticData({
+      ...syntheticDataOptions,
+      spatial_extent: [6.8, 38, 17, 47],
+      featureGeometryType: 'Polygon',
+      featureCount: 500,
+      squareSide: 0.3,
+    });
+    const sds = new SoilDataStorage();
+    const entityManager = await getEntityManager();
+    const results = await sds.filter(entityManager, invalidGeometryPayload as MultiPolygon, {});
+    expect(results.length).toBe(1);
+  });
+
   describe('Raster filtering', () => {
     let mockSelectOverview: any;
     beforeEach(async () => {
@@ -350,13 +364,12 @@ describe('SoilDataStorage class', () => {
         await addSyntheticData({ ...syntheticDataOptions, depthLayers: 1, featureCount: 100, spatial_extent: bbox });
         const sds = new SoilDataStorage();
         const entityManager = await getEntityManager();
-        const results = await sds.filter(entityManager, getPolygonFromBbox(bbox), {});
-        expect(results.length).toBe(expectedResultCount);
+        const results = await sds.getRasterCoverage(entityManager, [getPolygonFromBbox(bbox)], {});
         if (expectedResultCount > 0) {
-          expect((results[0].raster_filters?.['land_cover'] as number[])?.sort((a: number, b: number) => a - b)).toEqual(
+          expect((results['land_cover'] as number[])?.sort((a: number, b: number) => a - b)).toEqual(
             expectedLandCoverOptions.sort((a: number, b: number) => a - b),
           );
-          expect((results[0].raster_filters?.['soil_groups'] as number[])?.sort((a: number, b: number) => a - b)).toEqual(
+          expect((results['soil_groups'] as number[])?.sort((a: number, b: number) => a - b)).toEqual(
             expectedSoilGroupsOptions.sort((a: number, b: number) => a - b),
           );
         }
@@ -413,9 +426,8 @@ describe('SoilDataStorage class', () => {
         });
         const sds = new SoilDataStorage();
         const entityManager = await getEntityManager();
-        const results = await sds.filter(entityManager, filteringRectangle as Polygon, {});
-        expect(results.length).toBe(1);
-        expect((results[0].raster_filters?.[raster_filter] as number[])?.sort((a: number, b: number) => a - b)).toEqual(values);
+        const results = await sds.getRasterCoverage(entityManager, [filteringRectangle as Polygon], {});
+        expect((results[raster_filter] as number[])?.sort((a: number, b: number) => a - b)).toEqual(values);
       },
     );
 
@@ -447,29 +459,15 @@ describe('SoilDataStorage class', () => {
       });
       const sds = new SoilDataStorage();
       const entityManager = await getEntityManager();
-      const results = await sds.filter(entityManager, filteringRectangle as Polygon, {});
-      expect(results.length).toBe(1);
-      expect((results[0].raster_filters?.['land_cover'] as number[])?.sort((a: number, b: number) => a - b)).toEqual([
+      const results = await sds.getRasterCoverage(entityManager, [filteringRectangle as Polygon], {});
+      expect(Object.keys(results).length).toBe(2);
+      expect((results['land_cover'] as number[])?.sort((a: number, b: number) => a - b)).toEqual([
         0, 20, 30, 40, 50, 60, 70, 80, 90, 100, 111, 112, 113, 114, 115, 116, 121, 122, 123, 124, 125, 126, 200,
       ]);
-      expect((results[0].raster_filters?.['soil_groups'] as number[])?.sort((a: number, b: number) => a - b)).toEqual([
+      expect((results['soil_groups'] as number[])?.sort((a: number, b: number) => a - b)).toEqual([
         6567, 6576, 6578, 6582, 6584, 6772, 6776, 6777, 6782, 7076, 7082, 7171, 7176, 7189, 7283, 7583, 7680, 7686, 7688, 7884, 8072, 8076,
         8084, 8090, 8271, 8284, 8367, 8378, 8384, 8467, 8577, 8682,
       ]);
-    });
-
-    it('Filtering should work even with an invalid geometry', async () => {
-      await addSyntheticData({
-        ...syntheticDataOptions,
-        spatial_extent: [6.8, 38, 17, 47],
-        featureGeometryType: 'Polygon',
-        featureCount: 500,
-        squareSide: 0.3,
-      });
-      const sds = new SoilDataStorage();
-      const entityManager = await getEntityManager();
-      const results = await sds.filter(entityManager, invalidGeometryPayload as MultiPolygon, {});
-      expect(results.length).toBe(1);
     });
   });
 });

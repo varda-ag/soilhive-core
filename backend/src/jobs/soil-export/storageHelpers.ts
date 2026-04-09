@@ -44,18 +44,40 @@ export async function zipFiles(sourceDir: string, outputPath: string): Promise<v
 }
 
 /**
- * Generate download path for the export file
- * Format: exports/<YYYY>/<MM>/<ISO-8601>_<filterId>.zip
- * @param filterId - Filter ID from job payload
+ * Generate the user-visible download filename.
+ * Format: SoilHive_<YYYY-MM-DD>_<HH-MM-SS>.zip
+ */
+export function generateDownloadFilename(): string {
+  const now = new Date();
+  const year = now.getUTCFullYear();
+  const month = String(now.getUTCMonth() + 1).padStart(2, '0');
+  const date = String(year) + '-' + month + '-' + String(now.getUTCDate()).padStart(2, '0');
+  const time =
+    String(now.getUTCHours()).padStart(2, '0') +
+    '-' +
+    String(now.getUTCMinutes()).padStart(2, '0') +
+    '-' +
+    String(now.getUTCSeconds()).padStart(2, '0');
+  return `SoilHive_${date}_${time}.zip`;
+}
+
+/**
+ * Generate the storage path for the export file.
+ * Combines timestamp + filterId: human-readable for debugging, unique even for repeated exports of the same filter.
+ * Format: exports/<YYYY>/<MM>/<YYYY-MM-DD>_<HH-MM-SS>_<filterId>.zip
  */
 export function generateDownloadPath(filterId: string): string {
   const now = new Date();
   const year = now.getUTCFullYear();
   const month = String(now.getUTCMonth() + 1).padStart(2, '0');
-  const isoTimestamp = now.toISOString().replace(/[:.]/g, '-');
-
-  const filename = `${isoTimestamp}_${filterId}.zip`;
-  return path.join(EXPORT_CONFIG.EXPORTS_BASE_PATH, String(year), month, filename);
+  const date = String(year) + '-' + month + '-' + String(now.getUTCDate()).padStart(2, '0');
+  const time =
+    String(now.getUTCHours()).padStart(2, '0') +
+    '-' +
+    String(now.getUTCMinutes()).padStart(2, '0') +
+    '-' +
+    String(now.getUTCSeconds()).padStart(2, '0');
+  return path.join(EXPORT_CONFIG.EXPORTS_BASE_PATH, String(year), month, `${date}_${time}_${filterId}.zip`);
 }
 
 /**

@@ -1,0 +1,26 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`LookAndFeelLayout renders component and matches snapshot 1`] = `
+<div>
+  <div
+    data-testid="look-and-feel-provider"
+  >
+    <div
+      class="Layout"
+    >
+      <div
+        data-testid="look-and-feel-tabs"
+      >
+        LookAndFeelTabs component
+      </div>
+      <main
+        class="Content"
+      >
+        <div
+          data-testid="outlet"
+        />
+      </main>
+    </div>
+  </div>
+</div>
+`;

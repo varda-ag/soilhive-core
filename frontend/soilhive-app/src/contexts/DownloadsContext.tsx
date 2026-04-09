@@ -3,6 +3,7 @@ import React, { createContext, useState, type ReactNode, useCallback, useMemo, u
 import type { AsyncJob } from 'types/jobs';
 import useNotifications from 'hooks/useNotifications';
 import { BACKEND_BASE_URL, REST_END_POINTS } from '../configuration/api';
+import { addStoredJobId, getStoredJobIds, removeStoredJobId } from '../utilities/downloadJobStorage';
 
 type DownloadsItem = {
   id: string;
@@ -30,6 +31,11 @@ export const DownloadsProvider: React.FC<DownloadsProviderProps> = ({ children }
 
   const { showNotification } = useNotifications();
 
+  // Load pending jobs
+  useEffect(() => {
+    setJobsIds(getStoredJobIds());
+  }, []);
+
   const jobsQueries = useJobsQueries(jobsIds);
 
   const jobsData = useMemo(() => jobsQueries.map(query => query.data).filter((job: AsyncJob | undefined) => !!job), [jobsQueries]);
@@ -46,10 +52,12 @@ export const DownloadsProvider: React.FC<DownloadsProviderProps> = ({ children }
 
   const startDownload = useCallback(
     async (payload: { filter_id: string; dataset_ids: string[]; format: string }) => {
-      const res = await createJob.mutateAsync({ ...payload, type: 'export' });
+      const res = await createJob.mutateAsync({ ...payload, type: 'export', anonymous: true });
 
       setJobsIds(prev => [...prev, res.id]);
       prevStatusRef.current[res.id] = 'created';
+
+      addStoredJobId(res.id);
 
       return res.id;
     },
@@ -61,6 +69,7 @@ export const DownloadsProvider: React.FC<DownloadsProviderProps> = ({ children }
       await cancelJob.mutateAsync({ jobId: id });
       setJobsIds(prev => prev.filter(jobId => jobId !== id));
       delete prevStatusRef.current[id];
+      removeStoredJobId(id);
     },
     [cancelJob],
   );
@@ -74,7 +83,8 @@ export const DownloadsProvider: React.FC<DownloadsProviderProps> = ({ children }
 
       if (nextStatus === 'completed') {
         const filePath = (job.data.download_path as string).replace(/\//g, '%2F');
-        const url = `${BACKEND_BASE_URL}/${REST_END_POINTS.DOWNLOADS}/${filePath}`;
+        const filenameParam = job.data.download_filename ? `&filename=${encodeURIComponent(job.data.download_filename)}` : '';
+        const url = `${BACKEND_BASE_URL}/${REST_END_POINTS.DOWNLOADS}/${filePath}${filenameParam}`;
 
         const link = document.createElement('a');
         link.href = url;
@@ -84,31 +94,24 @@ export const DownloadsProvider: React.FC<DownloadsProviderProps> = ({ children }
         link.click();
         link.remove();
         setJobsIds(prev => prev.filter(jobId => jobId !== job.id));
+        removeStoredJobId(job.id);
       }
 
       if (nextStatus === 'failed') {
         showNotification({ id: `downloads-${job.id}`, title: 'Extracting data error', message: 'Please try again later' });
         setJobsIds(prev => prev.filter(jobId => jobId !== job.id));
+        removeStoredJobId(job.id);
+      }
+
+      // job removed in another tab
+      if (nextStatus === 'cancelled') {
+        setJobsIds(prev => prev.filter(jobId => jobId !== job.id));
+        removeStoredJobId(job.id); // if removed from another tab this should be already cleared, but just to be on the safe side
       }
 
       prevStatusRef.current[job.id] = nextStatus;
     });
   }, [jobsData, showNotification]);
-
-  useEffect(() => {
-    if (!downloads.length) return;
-
-    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
-      event.preventDefault();
-      event.returnValue = '';
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-    };
-  }, [downloads.length]);
 
   const value = useMemo(() => ({ downloads, startDownload, cancelDownload }), [downloads, startDownload, cancelDownload]);
 

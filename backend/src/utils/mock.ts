@@ -14,13 +14,14 @@ import UnitConversionEntity from '../entities/UnitConversion';
 import { getPolygonFromBbox } from './geometry';
 import { getDataSource, getEntityManager } from './data-source';
 import SlugHistoryEntity from '../entities/SlugHistory';
-import { EntityType, GISDataType, IngestionStatus } from '../types/data';
+import { EntityType, GISDataType, IngestionStatus, VocabularyType } from '../types/data';
 import { PropertyInfo, PropertyMapping } from '../interfaces/PropertyMapping';
 import assert from 'assert';
 import path from 'path';
 import fs from 'fs';
 import { sanitizeField } from './utils';
 import DatasetFileMappingEntity from '../entities/DatasetFileMapping';
+import VocabularyEntity from '../entities/Vocabulary';
 
 const randomInRange = (min: number, max: number): number => {
   return Math.random() * (max - min) + min;
@@ -113,7 +114,7 @@ export const addDataset = async (
     created_by: 'tests',
     gis_datatype,
     licenses,
-    status: IngestionStatus.INGESTED,
+    status: IngestionStatus.LOADED,
     spatial_extent: getPolygonFromBbox(spatial_extent),
   });
   return await repo.save(dataset);
@@ -279,12 +280,18 @@ export const addDatasetLayers = async (dataset_id: string, layer_id: string, fea
 
 export const addProcedure = async (procedure: string = 'test_procedure') => {
   const dataSource = await getDataSource();
-  const repo = dataSource.getRepository(ProcedureEntity);
-  const newProcedure = repo.create({
-    sample_pretreatment: procedure,
+  const procedureVocabularyRepo = dataSource.getRepository(VocabularyEntity);
+  const newSamplePretreatment = procedureVocabularyRepo.create({
+    name: procedure,
+    category: VocabularyType.SAMPLE_PRETREATMENT,
   });
-  await repo.save(newProcedure);
-  return await repo.findOneByOrFail({ id: newProcedure.id });
+  const savedSamplePretreatment = await procedureVocabularyRepo.save(newSamplePretreatment);
+  const procedureRepo = dataSource.getRepository(ProcedureEntity);
+  const newProcedure = procedureRepo.create({
+    sample_pretreatment_id: savedSamplePretreatment.id,
+  });
+  const savedProcedure = await procedureRepo.save(newProcedure);
+  return await procedureRepo.findOneByOrFail({ id: savedProcedure.id });
 };
 
 export const addObservations = async (values: number[], procedure_id: string, dataset_layer_id: string) => {
@@ -479,16 +486,41 @@ export interface DataCount {
   n_observations: number;
 }
 
-export const getLoadedDataCount = async (): Promise<DataCount> => {
+export const getLoadedDataCount = async (datasetId?: string): Promise<DataCount> => {
   const entityManager = await getEntityManager();
   const featureRepo = entityManager.getRepository(FeatureEntity);
   const layerRepo = entityManager.getRepository(LayerEntity);
   const datasetLayerRepo = entityManager.getRepository(DatasetLayerEntity);
   const observationRepo = entityManager.getRepository(ObservationEntity);
-  const n_features = await featureRepo.count();
-  const n_layers = await layerRepo.count();
-  const n_dataset_layers = await datasetLayerRepo.count();
-  const n_observations = await observationRepo.count();
+  let n_dataset_layers = 0;
+  let n_features = 0;
+  let n_layers = 0;
+  let n_observations = 0;
+  if (datasetId !== undefined) {
+    n_dataset_layers = await datasetLayerRepo.count({ where: { dataset_id: datasetId } });
+    n_features = await featureRepo
+      .createQueryBuilder('f')
+      .innerJoin('dataset_layers', 'dl', 'dl.feature_id = f.id')
+      .where('dl.dataset_id = :datasetId', { datasetId })
+      .distinct(true)
+      .getCount();
+    n_layers = await layerRepo
+      .createQueryBuilder('l')
+      .innerJoin('dataset_layers', 'dl', 'dl.layer_id = l.id')
+      .where('dl.dataset_id = :datasetId', { datasetId })
+      .distinct(true)
+      .getCount();
+    n_observations = await observationRepo
+      .createQueryBuilder('o')
+      .innerJoin('o.dataset_layer', 'dl')
+      .where('dl.dataset_id = :datasetId', { datasetId })
+      .getCount();
+  } else {
+    n_dataset_layers = await datasetLayerRepo.count();
+    n_features = await featureRepo.count();
+    n_layers = await layerRepo.count();
+    n_observations = await observationRepo.count();
+  }
   const result: DataCount = {
     n_features,
     n_layers,

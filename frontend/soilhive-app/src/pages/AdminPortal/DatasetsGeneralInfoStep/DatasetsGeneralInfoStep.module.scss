@@ -1,0 +1,60 @@
+.DatasetsGeneralInfoStep {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  padding: 24px;
+}
+
+.PageTitle {
+  font-size: var(--font-size-lg);
+  font-weight: var( --font-weight-bold);
+  color: var(--color-text-primary);
+  margin: 0 0 16px;
+}
+
+.Card {
+  background-color: var(--color-bg-admin);
+  border-radius: 8px;
+  padding: 24px;
+  flex: 1;
+  margin-bottom: 24px;
+}
+
+.CardHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.CardHeaderIcon {
+  width: 20px;
+  height: 20px;
+  color: var(--color-brand-dark-green-1000);
+  flex-shrink: 0;
+}
+
+.CardTitle {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-brand-dark-green-1000);
+  margin: 0;
+}
+
+// Form fields
+.Form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+// Actions bar — full width, inverted top shadow, flush to bottom
+.Actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 24px;
+  margin-top: 8px;
+  background-color: var(--color-neutral-white);
+  box-shadow: 0 -0.15rem 0.625rem var(--color-shadow-interface);
+}

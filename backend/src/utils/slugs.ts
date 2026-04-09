@@ -141,3 +141,18 @@ export const idToSlug = (input: any): any => {
   }
   return input;
 };
+
+/**
+ *
+ * Get all slugs related to the same entity
+ */
+export const getEntitySlugs = async (requestData: RequestData, slug: string): Promise<string[]> => {
+  const entityManager = requestData.entityManager;
+  const slugHistoryRepo = entityManager.getRepository(SlugHistoryEntity);
+  const results = await slugHistoryRepo
+    .createQueryBuilder('sh')
+    .innerJoin(SlugHistoryEntity, 'match', 'match.entity_id = sh.entity_id')
+    .where('match.slug = :slug', { slug })
+    .getMany();
+  return results.map(sh => sh.slug);
+};

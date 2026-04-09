@@ -11,6 +11,7 @@ export interface Job {
 
 export interface CommonJobData {
   type: string;
+  anonymous?: boolean;
   created_by: string | null;
   progress_percentage: number;
   progress_description?: string;
@@ -29,8 +30,13 @@ export interface ExportJob extends CommonJobData {
   current_cursor: string | null;
   total_records_processed: number;
   download_path: string | null;
+  download_filename?: string;
 }
 
 export interface FileToDbJob extends CommonJobData {
   file_id: string;
+}
+
+export interface BulkDeleteJob extends CommonJobData {
+  dataset_id: string;
 }

@@ -140,8 +140,9 @@
       height: 32px;
       font-size: 15px;
       input {
+        width: 298px;
         height: 36px;
-        padding: 6px 35px;
+        padding: 6px 60px 6px 10px;
         border: none;
         border-radius: 20px;
         background-color: #eaefe0;
@@ -153,7 +154,20 @@
         letter-spacing: 0px;
         vertical-align: middle;
       }
+      .maplibregl-ctrl-geocoder--result-icon {
+        height: 16px;
+        min-height: unset;
+      }
+      .maplibregl-ctrl-geocoder--icon-close {
+        margin: 0px;
+      }
+      .maplibregl-ctrl-geocoder--icon.maplibregl-ctrl-geocoder--icon-loading {
+        position: static;
+      }
       .maplibregl-ctrl-geocoder--button {
+        // This is the "Clear search" button
+        position: static;
+        margin: 0px;
         background-color: transparent;
         &:hover {
           background-color: transparent;
@@ -163,9 +177,15 @@
         top: 8px;
       }
       .maplibregl-ctrl-geocoder--icon-search {
-        width: 20px;
-        height: 20px;
-        left: 7px;
+        display: none;
+      }
+      .maplibregl-ctrl-geocoder--pin-right {
+        position: absolute;
+        top: 9px;
+        right: 8px;
+        display: flex;
+        gap: 4px;
+        align-items: center;
       }
     }
     & > button {
@@ -209,6 +229,32 @@
         align-items: center;
         justify-content: center;
       }
+    }
+    .search-button-wrapper {
+      display: block;
+      position: static;
+    }
+    .search-button {
+      cursor: pointer;
+      filter: grayscale(100%);
+      color: var(--color-primary);
+      display: flex;
+      align-items: center;
+      background: none;
+      border: none;
+      padding: 0px;
+      height: 20px;
+      z-index: 1;
+      &:hover {
+        background-color: transparent !important;
+      }
+      svg {
+        width: 18px;
+        height: 18px;
+      }
+    }
+    .search-button.searching {
+      filter: none;
     }
     @media (max-width: $bp-tablet) {
       & > button {

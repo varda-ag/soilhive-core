@@ -1,11 +1,12 @@
 import { PgBoss, Job } from 'pg-boss';
 import { getDBPassword, getSSL } from '../utils/db-credentials';
-import { BulkLoadJob, ExportJob, FileToDbJob } from '../interfaces/Job';
+import { BulkLoadJob, ExportJob, FileToDbJob, BulkDeleteJob } from '../interfaces/Job';
 import { JobQueues } from '../types/enums';
 import { isJest, setupEnv } from '../utils/utils';
 import { processExportJob } from '../jobs/soil-export/soilExportJob';
 import { processFileToDb } from '../jobs/file-to-db/FileToDbJob';
 import { processBulkLoad } from '../jobs/bulk-load/BulkLoader';
+import { processBulkDeletion } from '../jobs/bulk-delete/BulkDeleter';
 
 setupEnv();
 
@@ -70,6 +71,11 @@ const setupWorkers = async () => {
   await boss.work<FileToDbJob>(JobQueues.FILE_TO_DB, options, async (jobs: Job<FileToDbJob>[]) => {
     for (const job of jobs) {
       await processFileToDb(job);
+    }
+  });
+  await boss.work<BulkDeleteJob>(JobQueues.BULK_DELETE, options, async (jobs: Job<BulkDeleteJob>[]) => {
+    for (const job of jobs) {
+      await processBulkDeletion(job);
     }
   });
 };

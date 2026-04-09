@@ -6,6 +6,8 @@ import { IngestionStatus } from '../../types/data';
 import { toGisDatatype } from '../../utils/geometry';
 
 export const updateDatasetMetadata = async (entityManager: EntityManager, datasetId: string, status: IngestionStatus): Promise<void> => {
+  // Override global statement timeout, long running query
+  await entityManager.query("SET LOCAL statement_timeout = '3min';");
   // Get dataset layers
   const tmp = await entityManager
     .getRepository(DatasetLayerEntity)
@@ -21,8 +23,8 @@ export const updateDatasetMetadata = async (entityManager: EntityManager, datase
       'COUNT(1) AS n_observations',
       'MIN(l.min_depth) AS min_depth',
       'MAX(l.max_depth) AS max_depth',
-      'MIN(l.sampling_date::text) AS min_sampling_date',
-      'MAX(l.sampling_date::text) AS max_sampling_date',
+      'MIN(l.sampling_date) AS min_sampling_date',
+      'MAX(l.sampling_date) AS max_sampling_date',
       'ST_AsGeoJSON(ST_Extent(f.geom)) as extent',
       'array_agg(distinct ST_GeometryType(f.geom)) AS gis_datatypes',
       "array_agg(distinct jsonb_build_object('soil_property_id', prop.slug, 'procedure_id', proc.slug)) AS measured_properties",

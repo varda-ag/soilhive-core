@@ -4,11 +4,10 @@ import { AuthProvider as ReactOidcProvider, useAuth as useReactOidcAuth } from '
 import { type AuthContext } from './AuthContext';
 import { usePasswordAuth } from './usePasswordAuth';
 import { LoginModal } from './LoginModal';
-import { useRequest } from '../api-client';
 import { AuthModes, type AuthModesType } from './types';
 import { clearToken, saveToken } from './tokenStore';
-import { BACKEND_BASE_URL } from '../configuration/api';
 import { WebStorageStateStore } from 'oidc-client-ts';
+import { useApiQuery } from 'hooks/useApiQuery';
 
 const authContext = createContext<AuthContext | undefined>(undefined);
 
@@ -19,21 +18,14 @@ export function useAuthContext(): AuthContext {
 }
 
 export function AuthContextProvider({ children }: { children: React.ReactNode }) {
-  const [isConfigParsed, setIsConfigParsed] = useState(false);
-  const [authConfig, setAuthConfig] = useState<AuthConfig>();
+  const { data: authConfig, isLoading: isAuthConfigLoading } = useApiQuery<AuthConfig>({
+    endpoint: '/auth/config',
+    method: 'GET',
+    queryKey: ['/auth/config'],
+    enabled: true,
+  });
 
-  const { request } = useRequest();
-
-  useEffect(() => {
-    request({ url: `${BACKEND_BASE_URL}/auth/config` })
-      .then(setAuthConfig)
-      .catch(console.error)
-      .finally(() => setIsConfigParsed(true));
-  }, [request]);
-
-  if (!isConfigParsed) {
-    return null;
-  }
+  if (isAuthConfigLoading) return;
 
   if (authConfig && authConfig.authMode === AuthModes.OIDC && authConfig.oidcConfig) {
     return (
@@ -130,7 +122,7 @@ function NoAuthProvider({ children }: { children: React.ReactNode }) {
     isAuthenticated: true,
     isLoading: false,
     error: undefined,
-    user: { profile: { name: 'Anonymous User' } },
+    user: undefined,
     login: () => {},
     logout: () => {},
     authMode: AuthModes.NONE,

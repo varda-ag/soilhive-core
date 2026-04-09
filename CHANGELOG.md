@@ -1,5 +1,167 @@
 # Changelog
 
+## 0.62.2 (2026-04-09)
+
+## What's Changed
+* fix: fixing geocoding result icons by @svaccari in https://github.com/varda-ag/soilhive-core/pull/358
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.62.1...v0.62.2
+
+## 0.62.1 (2026-04-09)
+
+## What's Changed
+* fix: download file name by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/356
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.62.0...v0.62.1
+
+## 0.62.0 (2026-04-08)
+
+## What's Changed
+* feat: sp-5078 minor changes to preview table by @cristbello in https://github.com/varda-ag/soilhive-core/pull/351
+* refactor: coverage response update to avoid replicating raster coverage by @d-rom in https://github.com/varda-ag/soilhive-core/pull/349
+* feat: data portal add files page by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/353
+* feat(data): :sparkles: returning supported EPSG codes, patching a fil… by @svaccari in https://github.com/varda-ag/soilhive-core/pull/354
+* fix(fe): fix crs update by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/355
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.61.1...v0.62.0
+
+## 0.61.1 (2026-04-02)
+
+## What's Changed
+* fix: :bug: keeping search term by @svaccari in https://github.com/varda-ag/soilhive-core/pull/347
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.61.0...v0.61.1
+
+## 0.61.0 (2026-04-02)
+
+## What's Changed
+* docs: data load documentation and rounding loaded values by @d-rom in https://github.com/varda-ag/soilhive-core/pull/342
+* fix(fe): move common datasets transaltions by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/344
+* feat: new geocoder button and result icons, showing geocoder on selec… by @svaccari in https://github.com/varda-ag/soilhive-core/pull/345
+* chore: default bbox notification by @svaccari in https://github.com/varda-ag/soilhive-core/pull/346
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.60.2...v0.61.0
+
+## 0.60.2 (2026-04-01)
+
+## What's Changed
+* fix(fe): fix year only date rendering in preview page by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/340
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.60.1...v0.60.2
+
+## 0.60.1 (2026-04-01)
+
+## What's Changed
+* fix: :bug: checking stored token expiration by @svaccari in https://github.com/varda-ag/soilhive-core/pull/338
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.60.0...v0.60.1
+
+## 0.60.0 (2026-04-01)
+
+## What's Changed
+* refactor: layers sampling_date to type text by @d-rom in https://github.com/varda-ag/soilhive-core/pull/336
+* feat: datasets general info step by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/334
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.59.0...v0.60.0
+
+## 0.59.0 (2026-03-31)
+
+## What's Changed
+* feat: :sparkles: added map settings, refactored ThemeConfig by @svaccari in https://github.com/varda-ag/soilhive-core/pull/331
+* fix: reverted dataset DB deletion order, added schema by @d-rom in https://github.com/varda-ag/soilhive-core/pull/333
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.58.0...v0.59.0
+
+## 0.58.0 (2026-03-31)
+
+## What's Changed
+* fix: sp-5015 getSoilData query timeout and divided aoi by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/330
+* feat: sp-4993 - look and feel logo tab by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/329
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.57.2...v0.58.0
+
+## 0.57.2 (2026-03-30)
+
+## What's Changed
+* fix(be): sp-5015 getSoilData query rewrite without typeorm by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/322
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.57.1...v0.57.2
+
+## 0.57.1 (2026-03-27)
+
+## What's Changed
+* fix: use base images from ecr public gallery by @Butterneck in https://github.com/varda-ag/soilhive-core/pull/326
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.57.0...v0.57.1
+
+## 0.57.0 (2026-03-27)
+
+## What's Changed
+* feat: :sparkles: adding cookie consent and analytics by @svaccari in https://github.com/varda-ag/soilhive-core/pull/321
+* feat: sp-5021 datasets admin layout and routes by @cristbello in https://github.com/varda-ag/soilhive-core/pull/320
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.56.1...v0.57.0
+
+## 0.56.1 (2026-03-27)
+
+## What's Changed
+* fix: :bug: returning logo with correct content type, removing default… by @svaccari in https://github.com/varda-ag/soilhive-core/pull/323
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.56.0...v0.56.1
+
+## 0.56.0 (2026-03-26)
+
+## What's Changed
+* feat: sp-5037 refactor procedures by @d-rom in https://github.com/varda-ag/soilhive-core/pull/316
+* feat: t&c config page by @svaccari in https://github.com/varda-ag/soilhive-core/pull/315
+* feat(fe): resume download jobs on page reload by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/319
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.55.1...v0.56.0
+
+## 0.55.1 (2026-03-25)
+
+## What's Changed
+* fix(fe): fix wrong translation in mobile download dialog by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/314
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.55.0...v0.55.1
+
+## 0.55.0 (2026-03-24)
+
+## What's Changed
+* feat(fe): no download from mobile dialog by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/311
+* feat: sp-4992 - look and feel page structure by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/312
+* feat: sp-4935 - use error popup for network errors by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/306
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.54.0...v0.55.0
+
+## 0.54.0 (2026-03-24)
+
+## What's Changed
+* feat(data): :sparkles: adding convenience endpoints to retrieve datas… by @svaccari in https://github.com/varda-ag/soilhive-core/pull/307
+* feat: delete dataset job by @d-rom in https://github.com/varda-ag/soilhive-core/pull/308
+* feat: :sparkles: adding default satellite map style by @svaccari in https://github.com/varda-ag/soilhive-core/pull/310
+* feat: sp-4986 put preview page under a route by @cristbello in https://github.com/varda-ag/soilhive-core/pull/294
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.53.0...v0.54.0
+
 ## 0.53.0 (2026-03-19)
 
 ## What's Changed

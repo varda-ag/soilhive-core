@@ -25,6 +25,11 @@ jest.mock('hooks/useEntitlementsHook', () => ({
   useEntitlements: jest.fn(),
 }));
 
+jest.mock('hooks/useDatasets', () => ({
+  __esModule: true,
+  useDatasets: jest.fn().mockReturnValue({ datasets: [{ id: 1 }, { id: 2 }], isLoading: false }),
+}));
+
 function renderSidebar(initialPath = `${ADMIN_ROOT}/terms-and-conditions`) {
   return render(
     <MemoryRouter initialEntries={[initialPath]}>

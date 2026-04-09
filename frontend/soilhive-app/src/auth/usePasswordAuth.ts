@@ -2,10 +2,8 @@ import { useState } from 'react';
 import type { User } from './Token';
 import { useRequest } from '../api-client';
 import { jwtDecode, type JwtPayload } from 'jwt-decode';
-import { clearToken, saveToken } from './tokenStore';
+import { clearToken, getToken, saveToken } from './tokenStore';
 import { BACKEND_BASE_URL } from '../configuration/api';
-
-const TOKEN_STORAGE_KEY = 'soilhive_token';
 
 interface PasswordAuthState {
   isAuthenticated: boolean;
@@ -20,13 +18,13 @@ interface RawToken {
   token_type: string;
 }
 
-function extractUser(rawToken: RawToken): User {
-  const decodedToken: JwtPayload = jwtDecode(rawToken.access_token);
+function extractUser(access_token: string): User {
+  const decodedToken: JwtPayload = jwtDecode(access_token);
 
-  const token: User = {
+  const user: User = {
     scope: (decodedToken as any).scope,
     expires_at: decodedToken.exp,
-    access_token: rawToken.access_token,
+    access_token,
     profile: {
       iat: decodedToken.iat,
       sub: decodedToken.sub,
@@ -37,7 +35,12 @@ function extractUser(rawToken: RawToken): User {
     },
   };
 
-  return token;
+  return user;
+}
+
+function isTokenExpired(user: User): boolean {
+  const EXPIRY_BUFFER_SECONDS = 30;
+  return user.expires_at ? user.expires_at * 1000 < Date.now() + EXPIRY_BUFFER_SECONDS * 1000 : true;
 }
 
 export function usePasswordAuth() {
@@ -45,20 +48,20 @@ export function usePasswordAuth() {
 
   // try and load token from the session storage
   const [state, setState] = useState<PasswordAuthState>(() => {
-    const token = localStorage.getItem(TOKEN_STORAGE_KEY);
-
-    let parsedToken = null;
-
-    if (token) {
-      parsedToken = JSON.parse(token);
-      saveToken(parsedToken.access_token);
+    let token: string | null | undefined = getToken();
+    let user = token ? extractUser(token) : undefined;
+    if (user && isTokenExpired(user)) {
+      // Remove expired token from local storage
+      clearToken();
+      token = undefined;
+      user = undefined;
     }
 
     return {
       isAuthenticated: !!token,
       isLoading: false,
       error: undefined,
-      user: parsedToken ? extractUser(parsedToken) : null,
+      user,
     };
   });
 
@@ -74,23 +77,20 @@ export function usePasswordAuth() {
     const urlEncodedBody = new URLSearchParams(body).toString();
 
     try {
-      const token = await request({
+      const tokenResponse: RawToken = await request({
         url: `${BACKEND_BASE_URL}/oauth/token`,
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: urlEncodedBody,
       });
 
-      localStorage.setItem(TOKEN_STORAGE_KEY, JSON.stringify(token));
-      saveToken(token.access_token);
+      saveToken(tokenResponse.access_token);
 
       setState({
         isAuthenticated: true,
         isLoading: false,
         error: undefined,
-        user: extractUser(token),
+        user: extractUser(tokenResponse.access_token),
       });
     } catch (error) {
       setState({
@@ -104,7 +104,6 @@ export function usePasswordAuth() {
   };
 
   const logout = () => {
-    localStorage.removeItem(TOKEN_STORAGE_KEY);
     clearToken();
 
     setState({

@@ -4,7 +4,7 @@ ARG NGINX_VERSION=alpine3.23
 # =========================================
 # Stage 1: Build the React.js Application
 # =========================================
-FROM node:${NODE_VERSION} AS builder
+FROM public.ecr.aws/docker/library/node:${NODE_VERSION} AS builder
 
 RUN corepack enable
 
@@ -27,7 +27,7 @@ RUN pnpm run build
 # Stage 2: Prepare Nginx to Serve Static Files
 # =========================================
 
-FROM nginxinc/nginx-unprivileged:${NGINX_VERSION} AS runner
+FROM public.ecr.aws/nginx/nginx-unprivileged:${NGINX_VERSION} AS runner
 
 USER root
 RUN rm -rf /usr/share/nginx/html/*

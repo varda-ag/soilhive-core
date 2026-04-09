@@ -61,10 +61,16 @@ jest.mock('components/AccountWidget/LoginButton/LoginButton', () => ({
   LoginButton: () => <div data-testid="login-button-mock">Login Button</div>,
 }));
 
+jest.mock('components/Logo/Logo', () => ({
+  Logo: () => <div data-testid="sh-header-logo">Logo component</div>,
+}));
+
 describe('Header component', () => {
   beforeEach(() => {
     (useTheme as jest.Mock).mockReturnValue({
       logo: 'logo.png',
+      isLoadingThemeConfig: false,
+      themeConfig: { termsAndConditionsHtml: '<div>Mock</div>' },
     });
     (useDevice as jest.Mock).mockReturnValue({ isDesktopLayout: true });
 
@@ -85,9 +91,6 @@ describe('Header component', () => {
     );
 
     expect(screen.getByTestId('sh-header-logo')).toBeInTheDocument();
-
-    const image = screen.getByAltText('Logo');
-    expect((image as HTMLImageElement).src).toContain('logo.png');
 
     expect(screen.getByTestId('sh-header-nav')).toBeInTheDocument();
     expect(screen.getByTestId('downloads-status-mock')).toBeInTheDocument();
@@ -178,5 +181,22 @@ describe('Header component', () => {
 
     expect(screen.getAllByTestId('mobile-menu-entry')).toHaveLength(2);
     expect(container).toMatchSnapshot();
+  });
+
+  it.each([false, true])('Conditionally renders the Legal nav link according to loading state', (isLoadingThemeConfig: boolean) => {
+    (useTheme as jest.Mock).mockReturnValue({ isLoadingThemeConfig, themeConfig: { termsAndConditionsHtml: 'mock' } });
+
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <Header />
+      </MemoryRouter>,
+    );
+
+    const element = screen.queryByText('Legal');
+    if (isLoadingThemeConfig) {
+      expect(element).not.toBeInTheDocument();
+    } else {
+      expect(element).toBeInTheDocument();
+    }
   });
 });

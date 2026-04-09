@@ -2,8 +2,25 @@
 
 exports[`TermsAndConditions page matches snapshot 1`] = `
 <div>
-  <h2>
-    Terms & Conditions
-  </h2>
+  <div
+    class="Layout"
+  >
+    <main
+      class="Content"
+    >
+      <h3>
+        terms_and_conditions.subtitle
+      </h3>
+      <textarea
+        data-testid="editor"
+        style="height: 340px;"
+      >
+        mock
+      </textarea>
+      <button>
+        terms_and_conditions.save
+      </button>
+    </main>
+  </div>
 </div>
 `;

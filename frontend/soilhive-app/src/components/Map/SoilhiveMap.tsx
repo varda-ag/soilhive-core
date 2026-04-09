@@ -22,7 +22,7 @@ import '../../styles/SoilhiveMap.scss';
 import Flower from 'assets/images/flower.svg?react';
 import { bBoxToH3Cells, h3IndexesToGeoJSONPolygons, isPointInFeatureCollection } from '../../utilities/geo';
 import { area, bbox as bboxFn, centerOfMass, convertArea, round } from '@turf/turf';
-import { h3ResolutionForZoomLevel } from '../../utilities/map';
+import { getMapStyles, h3ResolutionForZoomLevel } from '../../utilities/map';
 import DrawControl from '../DrawControl';
 import SoilhiveMapToolbar from './SoilhiveMapToolbar';
 import SoilhiveMapSelectionToolbar from './SoilhiveMapSelectionToolbar';
@@ -137,7 +137,7 @@ function SoilhiveMap({
   showGeolocation = true,
   showScale = true,
   showH3Cells = false,
-  mapStyles = [{ name: 'CartoCDN Voyager', mapStyle: 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json' }],
+  mapStyles = getMapStyles(),
   scrollZoom = true,
   dragPan = true,
   onSelectionChange,
@@ -161,6 +161,7 @@ function SoilhiveMap({
   } = useAvailability();
 
   const mapRef = useRef<any>(null);
+  const [isPointResultSelection, setIsPointResultSelection] = useState(false);
   const [currentMapStyle, setCurrentMapStyle] = useState(mapStyles[0].mapStyle);
   const selectionTypeRef = useRef<'drawn-polygon' | 'h3-cell' | 'country'>('drawn-polygon');
   const locationNameRef = useRef<string>(undefined);
@@ -192,13 +193,12 @@ function SoilhiveMap({
       const bbox = bboxFn(largestPolygon!);
       if (moveBounds) mapRef.current.fitBounds(bbox, { padding: 40 });
       setSelectedPoint(new LngLat(lng, lat));
-      setShowSelectionToolbar(true);
+      setShowSelectionToolbar(false);
       onSelectionToolbarVisibilityChange?.(true);
       setSelection({ type: 'FeatureCollection', features: [{ type: 'Feature', geometry: simplifiedGeometry, properties: {} }] });
       onSelectionChange?.({
         bounds: moveBounds ? bbox : mapRef.current.getBounds().toArray().flat(),
         geometries: [simplifiedGeometry as Polygon | MultiPolygon],
-        zoomLevel: mapRef.current.getZoom(),
         selectionType: selectionTypeRef.current,
         locationName: locationNameRef.current,
       });
@@ -261,16 +261,26 @@ function SoilhiveMap({
       const map = mapEvent.target;
       const bounds = map.getBounds().toArray().flat();
       const zoomLevel = map.getZoom();
+      const isUserInteraction = mapEvent.originalEvent ? true : false;
 
-      if (selection.features.length === 0) {
-        // Current bbox (implicit) selection
+      if (isPointResultSelection || (isUserInteraction && selection.features.length === 0)) {
+        // If the user moves the map and there is no selection,
+        // update the (implicit) selection to the current bounds
         selectionTypeRef.current = 'drawn-polygon';
-        onSelectionChange?.({ bounds, zoomLevel, selectionType: selectionTypeRef.current });
+        onSelectionChange?.({ bounds, selectionType: selectionTypeRef.current });
+        setIsPointResultSelection(false);
       }
 
       updateH3Cells({ bounds, zoomLevel });
     },
-    [onSelectionChange, selection.features.length, updateH3Cells],
+    [isPointResultSelection, onSelectionChange, selection.features.length, updateH3Cells],
+  );
+
+  const onLoad = useCallback(
+    (mapEvent: any) => {
+      onMapMoveEnd(mapEvent);
+    },
+    [onMapMoveEnd],
   );
 
   const resetSelection = useCallback(() => {
@@ -290,7 +300,6 @@ function SoilhiveMap({
     onSelectionToolbarVisibilityChange?.(false);
     onSelectionChange?.({
       bounds: mapRef.current.getMap().getBounds().toArray().flat(),
-      zoomLevel: mapRef.current.getZoom(),
       selectionType: selectionTypeRef.current,
     });
   }, [
@@ -332,6 +341,8 @@ function SoilhiveMap({
       } else {
         // Just move bounds
         mapRef.current.fitBounds(bboxFn(feature), { padding: 40 });
+        // This is necessary to trigger new bbox coverage query
+        setIsPointResultSelection(true);
       }
     },
     [applySelection],
@@ -359,8 +370,8 @@ function SoilhiveMap({
         dragRotate={false}
         mapStyle={currentMapStyle}
         {...(initialViewBoundingBox ? { initialViewState: { bounds: initialViewBoundingBox } } : {})}
+        onLoad={onLoad}
         onDragEnd={onMapMoveEnd}
-        onLoad={onMapMoveEnd}
         onZoomEnd={onMapMoveEnd}
         onMoveEnd={onMapMoveEnd}
         onClick={onMapClick}

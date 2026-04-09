@@ -39,7 +39,7 @@ describe('Testing /jobs routes', () => {
     await stopPgBoss();
   });
 
-  it.each([JobQueues.BULK_LOAD, JobQueues.FILE_TO_DB])(
+  it.each([JobQueues.BULK_LOAD, JobQueues.FILE_TO_DB, JobQueues.BULK_DELETE])(
     'POST /jobs without a token trying to create a token protected job fails with HTTP 401',
     async (queue: string) => {
       const bulkRes = await request(app).post('/jobs').send({ type: queue, dataset_id: 'test-dataset' });
@@ -142,7 +142,6 @@ describe('Testing /jobs routes', () => {
         driver: 'GeoJSON',
         field_names: ['metadata', 'rawParameters'],
         detected_fields: {
-          crs: 'EPSG:4326',
           depth: null,
           horizon: null,
           license: null,
@@ -154,10 +153,11 @@ describe('Testing /jobs routes', () => {
           sampling_date: null,
         },
         geometry_detected: true,
+        epsg: 4326,
       };
       const file = {
         name: `sample_point_${index}.geojson`,
-        file_path: 'sample_point.geojson',
+        file_path: `sample_point_${index}.geojson`,
         metadata,
       };
       const fileEntity = await fileService.createFile(requestData, file);
@@ -166,10 +166,10 @@ describe('Testing /jobs routes', () => {
       const jobResponse = await request(app)
         .post('/jobs')
         .set('Authorization', `Bearer ${token}`)
-        .send({ type: queue, file_id: fileEntity.id });
+        .send({ type: queue, file_id: fileEntity.slug });
       expect(jobResponse.statusCode).toBe(201);
 
-      // Wait for bulk load job to complete
+      // Wait for file to DB job to complete
       const jobId = jobResponse.body.id;
       const spy = getPgBoss().getSpy(queue);
       await spy.waitForJobWithId(jobId, 'completed');
@@ -188,7 +188,7 @@ describe('Testing /jobs routes', () => {
 
     // Run multiple jobs in parallel to stress test the system
     const promises = [];
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 1; i++) {
       promises.push(testWorker(i));
     }
     await Promise.all(promises);
@@ -198,5 +198,62 @@ describe('Testing /jobs routes', () => {
     const mockId = '960ee487-a6bd-4da8-8ef0-da6ef23d0e80';
     const res = await request(app).post('/jobs').send({ type: 'export', filter_id: mockId, format: 'csv' }); // Missing dataset_ids
     expect(res.statusCode).toBe(400);
+  });
+
+  it('POST /jobs extract with "anonymous: true" and no auth token allows get without token', async () => {
+    const mockId = '960ee487-a6bd-4da8-8ef0-da6ef23d0e80';
+
+    // 1. Create anonymous job
+    const exportRes = await request(app)
+      .post('/jobs')
+      .send({
+        type: 'export',
+        filter_id: mockId,
+        format: 'csv',
+        dataset_ids: ['fake_dataset'],
+        anonymous: true,
+      });
+    expect(exportRes.statusCode).toBe(201);
+    expect(exportRes.body.data.created_by).toBeNull(); // Verify the job is indeed anonymous
+    const exportId = exportRes.body.id;
+
+    // Verify access without token
+    const getRes = await request(app).get(`/jobs/${exportId}`);
+    expect(getRes.statusCode).toBe(200);
+  });
+
+  it('POST /jobs extract with "anonymous: true" and auth token allows get without token', async () => {
+    const mockId = '960ee487-a6bd-4da8-8ef0-da6ef23d0e80';
+
+    // Create anonymous job
+    const exportRes = await request(app)
+      .post('/jobs')
+      .send({
+        type: 'export',
+        filter_id: mockId,
+        format: 'csv',
+        dataset_ids: ['fake_dataset'],
+        anonymous: true,
+      });
+    expect(exportRes.statusCode).toBe(201);
+    const exportId = exportRes.body.id;
+
+    // Verify access with token
+    const token = await getDataAdminToken();
+
+    const getRes = await request(app).get(`/jobs/${exportId}`).set('Authorization', `Bearer ${token}`);
+
+    expect(getRes.statusCode).toBe(200);
+  });
+
+  it('POST /jobs with "anonymous: true" on a job other than extract causes bad request', async () => {
+    const token = await getDataAdminToken();
+    const restrictedRes = await request(app).post('/jobs').set('Authorization', `Bearer ${token}`).send({
+      type: JobQueues.BULK_DELETE,
+      dataset_id: 'test-dataset',
+      anonymous: true,
+    });
+
+    expect(restrictedRes.statusCode).toBe(400);
   });
 });

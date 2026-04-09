@@ -1,0 +1,18 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`LogoTab page matches snapshot 1`] = `
+<div>
+  <div
+    class="LogoTab"
+  >
+    <h2
+      class="Title"
+    >
+      Upload the logo for your platform
+    </h2>
+    <div>
+      UploadLogo component
+    </div>
+  </div>
+</div>
+`;

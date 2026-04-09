@@ -72,6 +72,10 @@
             font-size: var(--font-size-sm);
             border-radius: 0.5rem;
 
+            &.NavLinkDisabled {
+              pointer-events: none;
+            }
+
             &:not(.Active) {
               &:active > * {
                 color: inherit;

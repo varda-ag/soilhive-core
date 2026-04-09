@@ -1,4 +1,4 @@
-export type AsyncJobStatus = 'created' | 'active' | 'completed' | 'failed';
+export type AsyncJobStatus = 'created' | 'active' | 'completed' | 'failed' | 'cancelled';
 
 export type AsyncJob = {
   id: string;
@@ -6,6 +6,7 @@ export type AsyncJob = {
   progress: number;
   data: {
     download_path?: string;
+    download_filename?: string;
     progress_percentage: number;
     format: string;
   };

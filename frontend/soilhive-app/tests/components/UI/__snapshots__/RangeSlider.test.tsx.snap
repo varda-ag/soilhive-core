@@ -1,0 +1,79 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`RangeSlider renders buttons when showButtons is true 1`] = `
+<div>
+  <div
+    class="Range"
+    data-testid="sh-ui-range"
+  >
+    <button
+      class="RangeButton Decrease"
+    >
+      -
+    </button>
+    <div
+      class="RangeSliderWrapper"
+    >
+      <input
+        class="RangeThumb"
+        max="10"
+        min="0"
+        step="1"
+        type="range"
+        value="5"
+      />
+      <div
+        class="RangeSlider"
+      >
+        <div
+          class="RangeSliderTrack"
+        />
+        <div
+          class="RangeSliderRange"
+          data-testid="sh-ui-range-filled"
+          style="width: 50%;"
+        />
+      </div>
+    </div>
+    <button
+      class="RangeButton Increase"
+    >
+      +
+    </button>
+  </div>
+</div>
+`;
+
+exports[`RangeSlider renders with initial value and matches snapshot 1`] = `
+<div>
+  <div
+    class="Range"
+    data-testid="sh-ui-range"
+  >
+    <div
+      class="RangeSliderWrapper"
+    >
+      <input
+        class="RangeThumb"
+        max="10"
+        min="0"
+        step="1"
+        type="range"
+        value="5"
+      />
+      <div
+        class="RangeSlider"
+      >
+        <div
+          class="RangeSliderTrack"
+        />
+        <div
+          class="RangeSliderRange"
+          data-testid="sh-ui-range-filled"
+          style="width: 50%;"
+        />
+      </div>
+    </div>
+  </div>
+</div>
+`;

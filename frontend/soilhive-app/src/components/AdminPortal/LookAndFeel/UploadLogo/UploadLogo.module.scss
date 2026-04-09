@@ -1,0 +1,14 @@
+.UploadLogo {
+  display: flex;
+  flex-direction: column;
+
+  .FileUploadBoxWrapper {
+    .Label {
+      margin-bottom: 1rem;
+    }
+
+    &.Hidden {
+      display: none;
+    }
+  }
+}

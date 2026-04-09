@@ -1,8 +1,9 @@
-import { Outlet, Route, Routes } from 'react-router';
-import Homepage from '../pages/Homepage';
+import { Navigate, Outlet, Route, Routes } from 'react-router';
 import PageTitle from 'components/PageTitle';
 import { AvailabilityProvider } from '../contexts/AvailabilityContext';
 import DownloadSummary from '../pages/DownloadSummary';
+import DownloadPreview from '../pages/DownloadPreview';
+import Availability from '../pages/Availability';
 
 const AvailabilityContextLayout = () => {
   return (
@@ -21,12 +22,12 @@ function AvailabilityModule() {
           element={
             <>
               <PageTitle title="SoilHive - Home" />
-              <Homepage />
+              <Availability />
             </>
           }
         />
         {/* TODO: adapt the download preview page to use the router and query parameters */}
-        {/* <Route
+        <Route
           path="/preview"
           element={
             <>
@@ -34,7 +35,7 @@ function AvailabilityModule() {
               <DownloadPreview />
             </>
           }
-        /> */}
+        />
         <Route
           path="/download"
           element={
@@ -44,6 +45,7 @@ function AvailabilityModule() {
             </>
           }
         />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
   );

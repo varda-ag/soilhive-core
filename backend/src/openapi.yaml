@@ -7,6 +7,23 @@ servers:
   - url: /
 
 paths:
+  /entitlements:
+    get:
+      x-eov-operation-handler: controllers/entitlements
+      x-eov-operation-id: getUserEntitlements
+      summary: Get user entitlements
+      security:
+        - bearerAuth: []
+      tags:
+        - auth
+      responses:
+        '200':
+          description: List of user entitlements
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Entitlements'
+
   /auth/config:
     get:
       x-eov-operation-handler: controllers/auth
@@ -143,7 +160,7 @@ paths:
   /frontend/logo:
     post:
       x-eov-operation-handler: controllers/files
-      x-eov-operation-id: fileUpload
+      x-eov-operation-id: logoUpload
       summary: Upload platform logo
       tags:
         - frontend
@@ -173,8 +190,6 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
-        '409':
-          $ref: '#/components/responses/Conflict'
       security:
         - bearerAuth: [super-admin]
     get:
@@ -186,6 +201,9 @@ paths:
       responses:
         '200':
           description: Logo downloaded successfully
+        '404':
+          $ref: '#/components/responses/NotFound'
+          description: Custom logo not found
     delete:
       x-eov-operation-handler: controllers/files
       x-eov-operation-id: logoDelete
@@ -198,6 +216,22 @@ paths:
         '204':
           description: Logo deleted successfully
 
+  /epsg:
+    get:
+      x-eov-operation-handler: controllers/datasets
+      x-eov-operation-id: getEpsgCodes
+      summary: Get supported EPSG codes
+      tags:
+        - datasets
+      responses:
+        '200':
+          description: EPSG code array
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: number
   /datasets:
     get:
       x-eov-operation-handler: controllers/datasets
@@ -311,7 +345,7 @@ paths:
         '204':
           description: Dataset successfully deleted (no content returned)
         '401':
-          description: Unauthorized - Token subject is missing
+          $ref: '#/components/responses/Unauthorized'
 
   /jobs:
     post:
@@ -332,12 +366,14 @@ paths:
                 - $ref: '#/components/schemas/BulkLoadJob'
                 - $ref: '#/components/schemas/ExportJob'
                 - $ref: '#/components/schemas/FileToDbJob'
+                - $ref: '#/components/schemas/BulkDeleteJob'
               discriminator:
                 propertyName: type
                 mapping:
                   bulk-load: '#/components/schemas/BulkLoadJob'
                   export: '#/components/schemas/ExportJob'
                   file-to-db: '#/components/schemas/FileToDbJob'
+                  bulk-delete: '#/components/schemas/BulkDeleteJob'
       responses:
         '201':
           description: Async job started successfull
@@ -485,6 +521,34 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           description: Unauthorized - Token subject is missing
+    delete:
+      x-eov-operation-handler: controllers/dataset-file-mappings
+      x-eov-operation-id: deleteDatasetFileMappingByFileId
+      summary: Delete a dataset file mapping by file ID
+      tags:
+        - datasets
+      security:
+        - bearerAuth: [data-admin]
+      parameters:
+        - name: datasetId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Dataset ID
+        - name: fileId
+          in: query
+          required: true
+          schema:
+            type: string
+          description: File ID whose mapping should be deleted
+      responses:
+        '204':
+          description: Dataset file mapping deleted successfully
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
 
   /datasets/{datasetId}/dataset-file-mapping/{datasetFileMappingId}:
     get:
@@ -557,6 +621,125 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           description: Unauthorized - Token subject is missing
+
+  /datasets/{datasetId}/files:
+    get:
+      x-eov-operation-handler: controllers/datasets
+      x-eov-operation-id: getDatasetFiles
+      summary: Get all dataset files
+      tags:
+        - datasets
+      security:
+        - bearerAuth: [data-admin]
+      parameters:
+        - name: datasetId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Dataset ID
+      responses:
+        '200':
+          description: List of dataset files
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FileDescriptor'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /datasets/{datasetId}/mappings:
+    get:
+      x-eov-operation-handler: controllers/datasets
+      x-eov-operation-id: getDatasetMappings
+      summary: Get all dataset mappings
+      tags:
+        - datasets
+      security:
+        - bearerAuth: [data-admin]
+      parameters:
+        - name: datasetId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Dataset ID
+      responses:
+        '200':
+          description: List of dataset mappings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DataMapping'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /datasets/{datasetId}/entitlements:
+    get:
+      x-eov-operation-handler: controllers/entitlements
+      x-eov-operation-id: getDatasetEntitlements
+      summary: Get all dataset entitlements
+      tags:
+        - datasets
+      security:
+        - bearerAuth: [data-admin]
+      parameters:
+        - name: datasetId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Dataset ID
+      responses:
+        '200':
+          description: List of dataset entitlements
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Entitlements'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    put:
+      x-eov-operation-handler: controllers/entitlements
+      x-eov-operation-id: setDatasetEntitlement
+      summary: Edits a dataset entitlement
+      tags:
+        - datasets
+      security:
+        - bearerAuth: [data-admin]
+      parameters:
+        - name: datasetId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Entitlements'
+      responses:
+        '200':
+          description: Update successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Entitlements'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
 
   /soil-properties:
     get:
@@ -775,7 +958,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/FilteredDatasetsList'
+                $ref: '#/components/schemas/FilteredData'
         '404':
           $ref: '#/components/responses/NotFound'
 
@@ -959,12 +1142,11 @@ paths:
         required: true
         schema:
           type: string
-          format: uuid
         description: File unique internal identifier
     get:
       x-eov-operation-handler: controllers/files
       x-eov-operation-id: getFile
-      summary: Get information for a given soil file
+      summary: Get information for a given file
       tags:
         - files
       security:
@@ -978,6 +1160,42 @@ paths:
                 $ref: '#/components/schemas/FileDescriptor'
         '404':
           $ref: '#/components/responses/NotFound'
+    patch:
+      x-eov-operation-handler: controllers/files
+      x-eov-operation-id: updateFile
+      summary: Update information for a given file
+      tags:
+        - files
+      security:
+        - bearerAuth: [data-admin]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FileUpdatePayload'
+      responses:
+        '200':
+          description: File updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileDescriptor'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      x-eov-operation-handler: controllers/files
+      x-eov-operation-id: deleteFile
+      summary: Delete a file
+      tags:
+        - files
+      security:
+        - bearerAuth: [data-admin]
+      responses:
+        '204':
+          description: File deleted successfully
+        '404':
+          $ref: '#/components/responses/NotFound'
   /files/{fileId}/download:
     parameters:
       - name: fileId
@@ -985,7 +1203,6 @@ paths:
         required: true
         schema:
           type: string
-          format: uuid
         description: File unique internal identifier
     get:
       x-eov-operation-handler: controllers/files
@@ -1027,6 +1244,7 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+
   /mappings/{mappingId}:
     parameters:
       - name: mappingId
@@ -1066,7 +1284,7 @@ paths:
       responses:
         '204':
           description: Mapping deleted successfully
-  /downloads/{fileId}:
+  /downloads/{filePath}:
     get:
       x-eov-operation-handler: controllers/files
       x-eov-operation-id: download
@@ -1080,12 +1298,18 @@ paths:
           description: Temporary access token to download access-protected files
           schema:
             type: string
-        - name: fileId
+        - in: query
+          name: filename
+          required: false
+          description: Override the Content-Disposition filename sent to the browser
+          schema:
+            type: string
+        - name: filePath
           in: path
           required: true
           schema:
             type: string
-          description: Unique file identifier. Folder separators should be encoded as %2F
+          description: File path. Folder separators should be encoded as %2F
       responses:
         '200':
           description: File downloaded successfully
@@ -1275,7 +1499,7 @@ components:
           readOnly: true
         metadata:
           type: object
-          description: Spatial file fields, CRS and geometry information.
+          description: Spatial file fields, CRS and geometry information
           additionalProperties: true
         is_archived:
           type: boolean
@@ -1299,6 +1523,13 @@ components:
         - name
         - created_at
         - created_by
+
+    FileUpdatePayload:
+      type: object
+      properties:
+        epsg:
+          type: number
+          description: EPSG code of the spatial file
 
     FilterCriteria:
       type: object
@@ -1394,6 +1625,18 @@ components:
       type: array
       items:
         $ref: '#/components/schemas/FilteredDataset'
+    
+    FilteredData:
+      type: object
+      properties:
+        datasets:
+          $ref: '#/components/schemas/FilteredDatasetsList'
+        raster_filters:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: number
 
     SoilDataSample:
       type: object
@@ -1426,9 +1669,13 @@ components:
           type: string
           description: Name of the data license
         sampling_date:
-          type: string
-          format: date
-          nullable: true
+          anyOf:
+            - type: string
+              format: date
+              nullable: true
+            - type: string
+              pattern: '^\d{4}(-\d{2}){0,2}$'
+              nullable: true
           description: Sampling date, if available
         min_depth:
           type: number
@@ -1663,7 +1910,7 @@ components:
               format: date
               nullable: true
             - type: string
-              format: date-time
+              pattern: '^\d{4}(-\d{2}){0,2}$'
               nullable: true
         license:
           type: string
@@ -1694,6 +1941,7 @@ components:
           description: Unique identifier for the data mapping
         data_mapping:
           $ref: '#/components/schemas/DataMappingObject'
+
     DataMappingObject:
       type: object
       additionalProperties:
@@ -1742,7 +1990,6 @@ components:
       properties:
         fileID:
           type: string
-          format: uuid
         mappingId:
           type: string
           format: uuid
@@ -1782,6 +2029,9 @@ components:
           type: string
           enum: [export]
           description: Job type
+        anonymous:
+          type: boolean
+          description: Set to true to allow access without authentication
         filter_id:
           type: string
           format: uuid
@@ -1805,8 +2055,17 @@ components:
           description: Job type
         file_id:
           type: string
-          format: uuid
           description: File ID to be processed and inserted into the database
+
+    BulkDeleteJob:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [bulk-delete]
+          description: Job type
+        dataset_id:
+          type: string
 
     Job:
       type: object
@@ -1838,6 +2097,7 @@ components:
             - $ref: '#/components/schemas/BulkLoadJob'
             - $ref: '#/components/schemas/ExportJob'
             - $ref: '#/components/schemas/FileToDbJob'
+            - $ref: '#/components/schemas/BulkDeleteJob'
 
     License:
       type: object
@@ -1879,3 +2139,6 @@ components:
         mappings:
           type: object
           nullable: true
+
+    Entitlements:
+      type: object

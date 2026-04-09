@@ -1,9 +1,0 @@
-// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
-
-exports[`TermsAndConditions page matches snapshot 1`] = `
-<div>
-  <h2>
-    Look & Feel
-  </h2>
-</div>
-`;

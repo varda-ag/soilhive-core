@@ -55,6 +55,11 @@ export interface FilteredDataset extends FilterCriteria {
   h3_point_aggregation: Record<string, number>;
 }
 
+export interface FilteredData {
+  datasets: FilteredDataset[];
+  raster_filters: Record<string, number[]>;
+}
+
 export interface ResultItem {
   datasets: FilteredDataset[];
 }
@@ -192,4 +197,74 @@ export interface License {
   url?: string;
   created_at: Date;
   updated_at: Date | null;
+}
+
+export interface GeneralInfoFormData {
+  name: string;
+  full_name: string;
+  description: string;
+  author: string;
+}
+
+export interface PropertyMapping {
+  property_id: string;
+  conversion_id?: string;
+  min_val?: number;
+  max_val?: number;
+  procedure_id?: string;
+}
+
+export interface DataMappingObject {
+  [columnName: string]: string | PropertyMapping;
+}
+
+export type DataMappingRequest = DataMappingObject;
+
+export interface DataMappingResponse {
+  id: string;
+  data_mapping: DataMappingObject;
+}
+
+export interface DatasetFileMappingRequest {
+  fileID?: string;
+  mappingId?: string;
+}
+
+export interface DatasetFileMappingResponse {
+  id: string;
+  fileID: string;
+  mappingId: string;
+}
+
+export interface FileDescriptor {
+  // required
+  id: string;
+  name: string;
+  created_at: string;
+  created_by: string;
+
+  // optional
+  file_path?: string;
+  status?: string;
+  metadata?: {
+    detected_fields?: {
+      geometry?: string | null;
+      latitude?: string | null;
+      longitude?: string | null;
+      sampling_date?: string | null;
+      license?: string | null;
+      depth?: string | null;
+      min_depth?: string | null;
+      max_depth?: string | null;
+      horizon?: string | null;
+    };
+    field_names?: string[];
+    geometry_detected?: boolean;
+    driver?: string | null;
+    epsg?: number | null;
+    [key: string]: unknown; // additionalProperties: true
+  };
+  is_archived?: boolean;
+  updated_at?: string;
+  updated_by?: string;
 }
