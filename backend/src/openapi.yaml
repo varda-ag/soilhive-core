@@ -1298,6 +1298,12 @@ paths:
           description: Temporary access token to download access-protected files
           schema:
             type: string
+        - in: query
+          name: filename
+          required: false
+          description: Override the Content-Disposition filename sent to the browser
+          schema:
+            type: string
         - name: filePath
           in: path
           required: true
