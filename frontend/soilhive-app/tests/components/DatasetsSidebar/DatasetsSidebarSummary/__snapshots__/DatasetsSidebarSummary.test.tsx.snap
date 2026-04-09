@@ -9,6 +9,7 @@ exports[`DatasetsSidebarSummary renders all summary items with correct values 1`
       class="List"
     >
       <div
+        data-preview="undefined"
         data-testid="summary-item-Datasets"
       >
         <span
@@ -23,6 +24,7 @@ exports[`DatasetsSidebarSummary renders all summary items with correct values 1`
         </span>
       </div>
       <div
+        data-preview="undefined"
         data-testid="summary-item-Data Points"
       >
         <span
@@ -37,6 +39,7 @@ exports[`DatasetsSidebarSummary renders all summary items with correct values 1`
         </span>
       </div>
       <div
+        data-preview="undefined"
         data-testid="summary-item-Raster layers"
       >
         <span
@@ -51,6 +54,7 @@ exports[`DatasetsSidebarSummary renders all summary items with correct values 1`
         </span>
       </div>
       <div
+        data-preview="undefined"
         data-testid="summary-item-Depth range"
       >
         <span

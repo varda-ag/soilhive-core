@@ -1,0 +1,44 @@
+.ColorsPreview {
+  display: flex;
+  flex-direction: column;
+  gap: 1.125rem;
+
+  .Section {
+    --color-cta-default-solid: var(--color-primary-default, #3e7f77);
+    --color-cta-default-hover: var(--color-primary-hover, #004f29);
+    --color-cta-default-pressed: hsl(from var(--color-cta-default-solid) calc(h - 25) calc(s + 15) calc(l + 5));
+    --color-cta-default-disabled: color-mix(in srgb, var(--color-cta-default-solid), white 50%);
+    --color-cta-default-text: var(--color-primary-text, white);
+
+    --color-cta-secondary-solid: var(--color-secondary-default, #3e7f77);
+    --color-cta-secondary-hover: var(--color-secondary-hover, #004f29);
+    --color-cta-secondary-pressed: hsl(from var(--color-cta-secondary-solid) calc(h - 25) calc(s + 15) calc(l + 5));
+    --color-cta-secondary-disabled: color-mix(in srgb, var(--color-cta-secondary-solid), white 50%);
+
+    --color-cta-tertiary-solid: var(--color-tertiary-default, #3e7f77);
+    --color-cta-tertiary-hover: var(--color-tertiary-hover, #004f29);
+    --color-cta-tertiary-pressed: hsl(from var(--color-cta-tertiary-solid) calc(h - 25) calc(s + 15) calc(l + 5));
+    --color-cta-tertiary-disabled: color-mix(in srgb, var(--color-cta-tertiary-solid), white 50%);
+
+    --color-pills: var(--color-pill-background, var(--color-brand-yellow-900));
+    --color-pills-text: var(--color-pill-text, var(--color-neutral-black));
+    --color-bg-primary: var(--color-background-primary, var(--color-brand-light-green-600));
+    --color-bg-secondary: var(--color-background-secondary, var(--color-brand-light-green-100));
+
+    width: 100%;
+    padding: 1rem;
+    border: 1px solid var(--color-neutral-dark-100);
+    border-radius: 0.5rem;
+  }
+  .Title {
+    font-size: var(--font-size-xs);
+    margin: 0 0 0.75rem;
+    text-transform: uppercase;
+  }
+  .Buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    align-items: stretch;
+  }
+}

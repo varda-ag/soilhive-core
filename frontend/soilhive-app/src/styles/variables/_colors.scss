@@ -9,7 +9,7 @@
   --color-neutral-dark-600: #666666;
   --color-neutral-black: #000000;
 
-  --color-brand-dark-green-100: #dfe1e1;
+  --color-brand-dark-green-400: #dfe1e1;
   --color-brand-dark-green-600: #7d8989;
   --color-brand-dark-green-1000: #2e4343;
 
@@ -53,10 +53,21 @@
   // --color-accent-tech-600: #61fafa;
   // --color-accent-tech-1000: #00ffff;
 
-  --color-cta-default-solid: var(--color-primary, #3e7f77);
+  --color-cta-default-solid: var(--color-primary-default, #3e7f77);
   --color-cta-default-hover: var(--color-primary-hover, #004f29);
-  --color-cta-default-pressed: var(--color-primary-active, #3f9521);
-  --color-cta-default-disabled: var(--color-primary-disabled, #86ada8);
+  --color-cta-default-pressed: hsl(from var(--color-cta-default-solid) calc(h - 25) calc(s + 15) calc(l + 5));
+  --color-cta-default-disabled: color-mix(in srgb, var(--color-cta-default-solid), white 50%);
+  --color-cta-default-text: var(--color-primary-text, white);
+
+  --color-cta-secondary-solid: var(--color-secondary-default, #3e7f77);
+  --color-cta-secondary-hover: var(--color-secondary-hover, #004f29);
+  --color-cta-secondary-pressed: hsl(from var(--color-cta-secondary-solid) calc(h - 25) calc(s + 15) calc(l + 5));
+  --color-cta-secondary-disabled: color-mix(in srgb, var(--color-cta-secondary-solid), white 50%);
+
+  --color-cta-tertiary-solid: var(--color-tertiary-default, #3e7f77);
+  --color-cta-tertiary-hover: var(--color-tertiary-hover, #004f29);
+  --color-cta-tertiary-pressed: hsl(from var(--color-cta-tertiary-solid) calc(h - 25) calc(s + 15) calc(l + 5));
+  --color-cta-tertiary-disabled: color-mix(in srgb, var(--color-cta-tertiary-solid), white 50%);
 
   --color-cta-danger-solid: #bc001f;
   --color-cta-danger-hover: #820005;
@@ -65,9 +76,10 @@
 
   --color-text-primary: #262626;
 
-  --color-pills: var(--color-brand-yellow-900);
-  --color-bg-primary: var(--color-brand-light-green-600);
-  --color-bg-secondary: var(--color-brand-light-green-100);
+  --color-pills: var(--color-pill-background, var(--color-brand-yellow-900));
+  --color-pills-text: var(--color-pill-text, var(--color-neutral-black));
+  --color-bg-primary: var(--color-background-primary, var(--color-brand-light-green-600));
+  --color-bg-secondary: var(--color-background-secondary, var(--color-brand-light-green-100));
   --color-bg-admin: #f5f7fa;
   // --color-text-gold: #a58c56;
   // --color-interactive-tertiary: #6fc8bd;
