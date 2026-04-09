@@ -44,10 +44,10 @@ export async function zipFiles(sourceDir: string, outputPath: string): Promise<v
 }
 
 /**
- * Generate download path for the export file
- * Format: exports/<YYYY>/<MM>/SoilHive_<YYYYMMDD>_<HHMMSS>.zip
+ * Generate the user-visible download filename.
+ * Format: SoilHive_<YYYY-MM-DD>_<HH-MM-SS>.zip
  */
-export function generateDownloadPath(): string {
+export function generateDownloadFilename(): string {
   const now = new Date();
   const year = now.getUTCFullYear();
   const month = String(now.getUTCMonth() + 1).padStart(2, '0');
@@ -58,9 +58,19 @@ export function generateDownloadPath(): string {
     String(now.getUTCMinutes()).padStart(2, '0') +
     '-' +
     String(now.getUTCSeconds()).padStart(2, '0');
+  return `SoilHive_${date}_${time}.zip`;
+}
 
-  const filename = `SoilHive_${date}_${time}.zip`;
-  return path.join(EXPORT_CONFIG.EXPORTS_BASE_PATH, String(year), month, filename);
+/**
+ * Generate the storage path for the export file.
+ * Uses filterId to guarantee uniqueness.
+ * Format: exports/<YYYY>/<MM>/<filterId>.zip
+ */
+export function generateDownloadPath(filterId: string): string {
+  const now = new Date();
+  const year = now.getUTCFullYear();
+  const month = String(now.getUTCMonth() + 1).padStart(2, '0');
+  return path.join(EXPORT_CONFIG.EXPORTS_BASE_PATH, String(year), month, `${filterId}.zip`);
 }
 
 /**
