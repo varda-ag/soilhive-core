@@ -6,15 +6,18 @@ import { queryClient } from '../App';
 import { useApiMutation } from 'hooks/useApiMutation';
 import useTheme from 'hooks/useTheme';
 import useNotifications from 'hooks/useNotifications';
+import type { ThemeColors } from 'types/config';
 
 type LookAndFeelContextType = {
   isLoading: boolean;
   logo: string | null;
   previewLogo: string | null;
   isActualLogo: boolean;
+  colors: ThemeColors;
   handleLogoChange: (file: File) => void;
   saveLogo: () => void;
   deleteLogo: () => void;
+  handleColorChange: (name: string, value: string) => void;
   resetChanges: () => void;
   saveChanges: () => void;
 };
@@ -27,12 +30,15 @@ type LookAndFeelProps = {
 
 export const LookAndFeelProvider: React.FC<LookAndFeelProps> = ({ children }) => {
   const { t } = useTranslation('admin');
-  const { isLogoLoading, logo, setLogo } = useTheme();
+  const { isLogoLoading, logo, themeConfig, setLogo, saveColors } = useTheme();
   const { showNotification } = useNotifications();
 
   const [previewLogo, setPreviewLogo] = useState<string | null>(logo);
   const previewUrlRef = useRef<string | null>(null);
   const previewFileRef = useRef<File | null>(null);
+
+  const [colors, setColors] = useState<ThemeColors>({});
+  const [colorsChanged, setColorsChanged] = useState<boolean>(false);
 
   const saveLogoMutation = useApiMutation<{ formData: FormData }, unknown>({
     endpoint: `/${REST_END_POINTS.LOGO}`,
@@ -96,17 +102,41 @@ export const LookAndFeelProvider: React.FC<LookAndFeelProps> = ({ children }) =>
       await saveLogo();
     }
 
+    if (colorsChanged) {
+      await saveColors(colors);
+      setColorsChanged(false);
+    }
+
     showNotification({
       id: 'lookAndFeelSuccess',
       title: t('look_and_feel.publish_notification.title'),
       message: t('look_and_feel.publish_notification.message'),
       type: 'success',
     });
-  }, [deleteLogoMutation, saveLogo, setLogo, previewLogo, logo, t, showNotification]);
+  }, [previewLogo, logo, colorsChanged, showNotification, t, deleteLogoMutation, setLogo, saveLogo, saveColors, colors]);
+
+  const handleColorChange = useCallback(
+    (name: string, value: string) => {
+      if (!colorsChanged) {
+        setColorsChanged(true);
+      }
+
+      setColors(prevValue => {
+        return { ...prevValue, [name]: value };
+      });
+    },
+    [colorsChanged],
+  );
 
   useEffect(() => {
     setPreviewLogo(logo);
   }, [logo]);
+
+  useEffect(() => {
+    if (themeConfig.colors) {
+      setColors({ ...themeConfig.colors });
+    }
+  }, [themeConfig.colors]);
 
   return (
     <LookAndFeelContext.Provider
@@ -115,9 +145,11 @@ export const LookAndFeelProvider: React.FC<LookAndFeelProps> = ({ children }) =>
         logo,
         previewLogo,
         isActualLogo,
+        colors,
         saveLogo,
         handleLogoChange,
         deleteLogo,
+        handleColorChange,
         resetChanges,
         saveChanges,
       }}

@@ -1,0 +1,35 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`ColorsSettings matches snapshot 1`] = `
+<div>
+  <div
+    class="ColorsSettings"
+  >
+    <div
+      data-apply-primary="false"
+      data-apply-secondary="false"
+      data-testid="section-primary"
+    />
+    <div
+      data-apply-primary="true"
+      data-apply-secondary="false"
+      data-testid="section-secondary"
+    />
+    <div
+      data-apply-primary="true"
+      data-apply-secondary="true"
+      data-testid="section-tertiary"
+    />
+    <div
+      data-apply-primary="true"
+      data-apply-secondary="true"
+      data-testid="section-pill"
+    />
+    <div
+      data-apply-primary="false"
+      data-apply-secondary="false"
+      data-testid="section-background"
+    />
+  </div>
+</div>
+`;

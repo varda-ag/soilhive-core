@@ -1,10 +1,11 @@
 import React, { createContext, useState, useEffect, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import useConfig from '../hooks/useConfig';
 import { REST_END_POINTS } from '../configuration/api';
 import type { ThemeColors, ThemeConfig } from '../types/config';
 import useNotifications from 'hooks/useNotifications';
 import { useApiQuery } from '../hooks/useApiQuery';
-import { useTranslation } from 'react-i18next';
+import { defaultColors } from '../configuration/colors';
 
 type ThemeContextType = {
   themeConfig: ThemeConfig;
@@ -23,18 +24,7 @@ type ThemeProviderProps = {
   children: ReactNode;
 };
 
-const defaultColors: ThemeColors = {
-  primary: '#3498db',
-  'primary-hover': '#3498db',
-  'primary-active': '#3498db',
-  'primary-disabled': '#3498db',
-  secondary: '#3498db',
-  'secondary-hover': '#3498db',
-  'secondary-active': '#3498db',
-  'secondary-disabled': '#3498db',
-};
-
-const defaultThemeConfig: ThemeConfig = {
+export const defaultThemeConfig: ThemeConfig = {
   colors: defaultColors,
   termsAndConditionsHtml: '',
   initialBbox: [6.6272658, 35.2889616, 18.7844746, 47.0921462],

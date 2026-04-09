@@ -66,6 +66,81 @@
                 "cancel_button": "Cancel",
                 "zoom_label": "Zoom"
             }
+        },
+        "colors": {
+            "title": "Customize your colors",
+            "preview_title": "Live Preview",
+            "sections": {
+                "primary": {
+                    "title": "Primary buttons"
+                },
+                "secondary": {
+                    "title": "Secondary buttons",
+                    "apply_primary": "Apply primary button colors"
+                },
+                "tertiary": {
+                    "title": "Tertiary buttons & Links",
+                    "apply_primary": "Apply primary button colors",
+                    "apply_secondary": "Apply secondary button colors"
+                },
+                "pill": {
+                    "title": "Filter pills",
+                    "apply_primary": "Apply primary button colors",
+                    "apply_secondary": "Apply secondary button colors"
+                },
+                "background": {
+                    "title": "Backgrounds",
+                    "apply_primary": "Apply primary colors",
+                    "apply_secondary": "Apply secondary colors"
+                }
+            },
+            "fields": {
+                "primary-default": {
+                    "label": "Background",
+                    "tooltip_label": "Default state",
+                    "tooltip_text": "This is how the button looks normally, when no one is interacting with it."
+                },
+                "primary-hover": {
+                    "label": "Background",
+                    "tooltip_label": "Hover state",
+                    "tooltip_text": "How it changes when you mouse over it."
+                },
+                "primary-text": {
+                    "label": "Text"
+                },
+                "secondary-default": {
+                    "label": "Border",
+                    "tooltip_label": "Default state",
+                    "tooltip_text": "This is how the button looks normally, when no one is interacting with it."
+                },
+                "secondary-hover": {
+                    "label": "Border",
+                    "tooltip_label": "Hover state",
+                    "tooltip_text": "How it changes when you mouse over it."
+                },
+                "tertiary-default": {
+                    "label": "Text",
+                    "tooltip_label": "Default state",
+                    "tooltip_text": "This is how the button looks normally, when no one is interacting with it."
+                },
+                "tertiary-hover": {
+                    "label": "Text",
+                    "tooltip_label": "Hover state",
+                    "tooltip_text": "How it changes when you mouse over it."
+                },
+                "pill-background": {
+                    "label": "Background"
+                },
+                "pill-text": {
+                    "label": "Text"
+                },
+                "background-primary": {
+                    "label": "Primary bg"
+                },
+                "background-secondary": {
+                    "label": "Secondary bg"
+                }
+            }
         }
     },
     "datasets": {

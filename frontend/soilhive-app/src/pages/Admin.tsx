@@ -1,7 +1,6 @@
 import { useId, useState } from 'react';
 import { modules } from '../utilities/moduleFederation';
 import { useAuthContext } from '../auth/AuthContextProvider';
-import { ThemeConfig } from '../components/ThemeConfig/ThemeConfig';
 import { Dropdown } from 'components/UI';
 import { useTranslation } from 'react-i18next';
 
@@ -87,8 +86,6 @@ function Admin() {
           <option value='mapbox'>Mapbox Geocoding API (v6)</option>
         </select> */}
       </div>
-
-      <ThemeConfig></ThemeConfig>
     </div>
   );
 }

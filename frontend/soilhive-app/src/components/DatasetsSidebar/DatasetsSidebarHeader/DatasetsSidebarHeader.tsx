@@ -1,17 +1,24 @@
+import { useTranslation } from 'react-i18next';
+import classnames from 'classnames';
 import DatasetsIcon from 'assets/icons/small-paste-icon.svg?react';
 import SidebarIcon from 'assets/icons/sidebar-icon.svg?react';
-import { useTranslation } from 'react-i18next';
 
 import styles from './DatasetsSidebarHeader.module.scss';
 
 interface Props {
-  onClose: () => void;
+  preview?: boolean;
+  onClose?: () => void;
 }
 
-export function DatasetsSidebarHeader({ onClose }: Props) {
+export function DatasetsSidebarHeader({ preview, onClose }: Props) {
   const { t } = useTranslation('availability');
   return (
-    <div data-testid="sh-datasets-sidebar-header" className={styles.DatasetsSidebarHeader} role="button" onClick={onClose}>
+    <div
+      data-testid="sh-datasets-sidebar-header"
+      className={classnames(styles.DatasetsSidebarHeader, { [styles.Preview]: preview })}
+      role="button"
+      onClick={onClose}
+    >
       <div className={styles.Title}>
         <div className={styles.DatasetsIconWrapper}>
           <DatasetsIcon />

@@ -31,4 +31,32 @@
   > .Name {
     font-size: var(--font-size-xs);
   }
+
+  &.Preview {
+    width: 111px;
+    min-width: 111px;
+    height: 59px;
+    gap: 0.156rem;
+    border-radius: 0.5rem;
+
+    @media (min-width: $bp-tablet) and (max-width: $bp-tablet-max) {
+      width: 111px;
+      min-width: 111px;
+      height: 59px;
+    }
+
+    @media (min-width: $bp-desktop) {
+      width: 111px;
+      min-width: 111px;
+      height: 59px;
+      gap: 0.156rem;
+    }
+
+    > .Value {
+      font-size: 0.9075rem;
+    }
+    > .Name {
+      font-size: 0.68rem;
+    }
+  }
 }

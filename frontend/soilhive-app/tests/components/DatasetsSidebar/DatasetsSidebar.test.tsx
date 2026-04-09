@@ -38,6 +38,7 @@ jest.mock('../../../src/contexts/AvailabilityContext', () => {
       selectionType: 'mock-selection-type',
       filterId: 'mock-filter-id',
       datasetFrontendFilters: { type: [] },
+      datasetsSummary: { count: 5, dataPoints: 1000, layers: 3, depth: '0-30', date: '2020 - 2024' },
     }),
   };
 });

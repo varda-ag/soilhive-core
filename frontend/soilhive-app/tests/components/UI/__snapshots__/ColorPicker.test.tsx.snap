@@ -5,14 +5,14 @@ exports[`ColorPicker component renders with default props 1`] = `
   <label
     class="ColorPicker"
     data-testid="sh-colorpicker"
-    style="background-color: transparent;"
+    style="background-color: rgb(255, 255, 255);"
   >
     <input
       class="InputField"
       data-testid="sh-colorpicker-input"
       name="primary"
       type="color"
-      value=""
+      value="#FFFFFF"
     />
   </label>
 </div>
