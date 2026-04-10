@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.66.0 (2026-04-10)
+
+## What's Changed
+* feat: sp-5091 metadata buttons styles update by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/372
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.65.0...v0.66.0
+
+## 0.65.0 (2026-04-10)
+
+## What's Changed
+* feat: sp-5091 - review css styles and link them to the look and feel … by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/370
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.64.1...v0.65.0
+
 ## 0.64.1 (2026-04-10)
 
 ## What's Changed

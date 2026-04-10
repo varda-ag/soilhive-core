@@ -70,7 +70,7 @@
         }
 
         .TableContainer {
-          box-shadow: 0px 2px 12px 2px #5555553D;
+          box-shadow: 0px 2px 12px 2px #5555553d;
           border-radius: 8px;
           overflow: hidden;
           width: 100%;
@@ -85,7 +85,7 @@
             th {
               background-color: var(--color-neutral-dark-100);
               font-weight: var(--font-weight-bold);
-              
+
               &:last-of-type :global(.p-column-header-content) {
                 justify-content: flex-end;
               }
@@ -95,7 +95,8 @@
               }
             }
 
-            th, td {
+            th,
+            td {
               padding: 12px 16px;
               font-family: 'Inter', Arial, Helvetica, sans-serif;
               font-size: var(--font-size-xs);
@@ -120,7 +121,6 @@
               border-bottom-width: 1px;
               border-style: dashed;
 
-
               &:nth-of-type(2) {
                 font-weight: var(--font-weight-bold);
               }
@@ -129,7 +129,8 @@
                 color: var(--color-brand-green-1000);
               }
 
-              &:nth-of-type(3), &:last-of-type {
+              &:nth-of-type(3),
+              &:last-of-type {
                 font-weight: var(--font-weight-regular);
                 font-size: var(--font-size-sm);
               }
@@ -140,13 +141,9 @@
                 background: none;
               }
             }
-
-            :global(.p-checkbox.p-highlight .p-checkbox-box) {
-              background-color: var(--color-brand-green-1000);
-            }            
           }
         }
-        
+
         .FormatPicker {
           background-color: var(--color-neutral-light);
           border: 1px solid var(--color-neutral-dark-300);
@@ -175,10 +172,10 @@
           }
 
           &UpdatedMessage {
-            background-color: var(--color-brand-green-100);
+            background-color: var(--color-bg-primary);
             border-radius: 4px;
             padding: 8px 12px;
-            color: var(--color-accent-success-1000);
+            color: var(--color-cta-default-solid);
             display: flex;
             justify-content: center;
             align-items: center;
@@ -192,7 +189,7 @@
         padding: 12px 24px;
         background-color: var(--color-neutral-white);
         box-shadow: 0px 4px 16px 0px #00000014;
-        position: fixed;        
+        position: fixed;
         bottom: 0;
         left: 255px;
         transition: left 0.5s ease-out;
@@ -201,12 +198,13 @@
         flex-direction: row;
         justify-content: end;
         align-items: center;
-        gap: 12px;    
-        
+        gap: 12px;
+        z-index: 3;
+
         &.Expanded {
           left: 448px;
         }
-        
+
         .TermsOfUse {
           font-size: var(--font-size-md);
           label {
