@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.64.0 (2026-04-10)
+
+## What's Changed
+* feat: sp-5078 changed preview to explore by @cristbello in https://github.com/varda-ag/soilhive-core/pull/364
+* fix: moving migration by @svaccari in https://github.com/varda-ag/soilhive-core/pull/367
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.63.0...v0.64.0
+
 ## 0.63.0 (2026-04-09)
 
 ## What's Changed
