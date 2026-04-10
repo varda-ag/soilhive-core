@@ -1,7 +1,7 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class Entitlements1775121569960 implements MigrationInterface {
-  name = 'Entitlements1775121569960';
+export class Entitlements1775551157965 implements MigrationInterface {
+  name = 'Entitlements1775551157965';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`SET search_path TO ${process.env.POSTGRES_SCHEMA}, public`);
