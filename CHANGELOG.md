@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.64.1 (2026-04-10)
+
+## What's Changed
+* refactor: merge typeorm migrations into one by @d-rom in https://github.com/varda-ag/soilhive-core/pull/365
+* fix: rm renamed migration by @d-rom in https://github.com/varda-ag/soilhive-core/pull/369
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.64.0...v0.64.1
+
 ## 0.64.0 (2026-04-10)
 
 ## What's Changed
