@@ -312,7 +312,7 @@ exports[`DownloadSummary renders download summary page coming from availability 
 </div>
 `;
 
-exports[`DownloadSummary renders download summary page coming from preview 1`] = `
+exports[`DownloadSummary renders download summary page coming from data explorer 1`] = `
 <div>
   <div
     class="DownloadSummary"
@@ -347,7 +347,7 @@ exports[`DownloadSummary renders download summary page coming from preview 1`] =
           >
             mock-svg
           </svg>
-          Back to the download preview
+          Back to the data explorer
         </button>
       </div>
     </div>

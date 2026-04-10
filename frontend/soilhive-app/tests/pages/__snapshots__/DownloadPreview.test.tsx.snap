@@ -14,7 +14,7 @@ exports[`DownloadPreview calls navigate when clicking on the back button 1`] = `
         <span
           class="Title"
         >
-          PREVIEW
+          DATA EXPLORER
         </span>
       </div>
       <div
@@ -122,7 +122,7 @@ exports[`DownloadPreview renders download preview page 1`] = `
         <span
           class="Title"
         >
-          PREVIEW
+          DATA EXPLORER
         </span>
       </div>
       <div
