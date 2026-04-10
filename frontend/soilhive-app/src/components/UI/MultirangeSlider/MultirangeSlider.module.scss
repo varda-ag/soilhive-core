@@ -44,7 +44,7 @@
     z-index: 1;
   }
   .MultirangeSliderRange {
-    background-color: var(--color-cta-default-hover);
+    background-color: var(--color-cta-default-solid);
     z-index: 2;
   }
   .MultirangeSliderBox {
@@ -63,9 +63,18 @@
     text-align: center;
     font-size: var(--font-size-md);
     line-height: var(--line-height-lg);
+    outline: none;
+
+    &:focus {
+      border-color: var(--color-cta-default-solid);
+    }
+    &:hover {
+      border-color: var(--color-cta-default-hover);
+    }
 
     &:disabled {
       color: var(--color-neutral-dark-400);
+      border-color: var(--color-neutral-dark-100);
       cursor: not-allowed;
     }
   }
@@ -103,7 +112,7 @@
   position: relative;
 
   background: #ffffff;
-  border: 2px solid var(--color-cta-default-hover);
+  border: 2px solid var(--color-cta-default-solid);
   border-radius: 50%;
 }
 
@@ -117,6 +126,6 @@
   position: relative;
 
   background: #ffffff;
-  border: 2px solid var(--color-cta-default-hover);
+  border: 2px solid var(--color-cta-default-solid);
   border-radius: 50%;
 }
