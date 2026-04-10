@@ -1,3 +1,4 @@
+import { register, unregister, type TimeZone } from 'timezone-mock';
 import type { AvailabilityDataset } from 'types/availability';
 import type { FilteredDataset } from 'types/backend';
 import { mapFilteredDatasetToAvailabilityDataset, yearRangeToDatasetFilters } from '../../src/adapters';
@@ -5,12 +6,11 @@ import { testTimezones } from '../setupTests';
 
 describe.each(testTimezones)('datasetAdapter (multiple-timezones)', testTimezone => {
   beforeEach(() => {
-    jest.useFakeTimers();
-    jest.setSystemTime(new Date('2020-01-01T01:00:01Z').getTime() + testTimezone.offsetMs);
+    register(testTimezone.tz as TimeZone);
   });
 
   afterEach(() => {
-    jest.useRealTimers();
+    unregister();
   });
 
   describe('mapFilteredDatasetToAvailabilityDataset adapter', () => {

@@ -5,7 +5,7 @@ import { backendToLocalFrontendDate } from '../utilities/date';
 export const getYear = (dateString?: string | null): number | undefined => {
   if (!dateString) return undefined;
   const date = backendToLocalFrontendDate(dateString);
-  return date.getFullYear();
+  return date.getUTCFullYear();
 };
 
 export const yearRangeToDatasetFilters = ({ min, max }: TimeFilterState) => {

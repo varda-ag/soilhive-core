@@ -5,8 +5,13 @@
  * timezone offsets.
  */
 export function backendToLocalFrontendDate(date: string): Date {
-  const [year, month, day] = date.split('-').map(Number);
-  return new Date(year, month - 1, day);
+  const [datePart, timePart] = date.split('T');
+  const [year, month, day] = datePart.split('-').map(Number);
+  if (timePart) {
+    const [hours, minutes, seconds] = timePart.split(':').map(Number);
+    return new Date(Date.UTC(year, month ? month - 1 : 0, day ?? 1, hours ?? 0, minutes ?? 0, seconds ?? 0));
+  }
+  return new Date(Date.UTC(year, month ? month - 1 : 0, day ?? 1));
 }
 
 /**
