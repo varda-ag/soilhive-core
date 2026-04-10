@@ -53,6 +53,15 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
+
+      > .MetadataButton {
+        color: var(--color-cta-default-solid);
+        background-color: var(--color-bg-primary);
+
+        &:hover {
+          color: var(--color-cta-default-hover);
+        }
+      }
     }
   }
 
