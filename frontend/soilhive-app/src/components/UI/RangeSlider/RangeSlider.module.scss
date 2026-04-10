@@ -47,6 +47,7 @@
     font-size: var(--font-size-2xl);
     line-height: var(--line-height-xs);
     font-weight: var(--font-weight-medium);
+    color: var(--color-neutral-dark-400);
     cursor: pointer;
 
     &.Decrease {
@@ -56,8 +57,11 @@
       padding-top: 0.125rem;
     }
 
+    &:hover {
+      color: var(--color-cta-default-solid);
+    }
     &:disabled {
-      color: var(--color-neutral-dark-400);
+      color: var(--color-neutral-dark-200);
       cursor: default;
     }
   }
@@ -83,7 +87,7 @@
   }
   .RangeSliderRange {
     left: 0;
-    background-color: var(--color-cta-default-hover);
+    background-color: var(--color-cta-default-solid);
     z-index: 2;
   }
   .RangeSliderBox {
@@ -137,7 +141,7 @@
   position: relative;
 
   background: #ffffff;
-  border: 2px solid var(--color-cta-default-hover);
+  border: 2px solid var(--color-cta-default-solid);
   border-radius: 50%;
 }
 
@@ -151,6 +155,6 @@
   position: relative;
 
   background: #ffffff;
-  border: 2px solid var(--color-cta-default-hover);
+  border: 2px solid var(--color-cta-default-solid);
   border-radius: 50%;
 }

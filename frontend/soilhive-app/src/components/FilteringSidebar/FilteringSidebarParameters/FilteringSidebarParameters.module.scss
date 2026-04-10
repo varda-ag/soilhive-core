@@ -33,13 +33,16 @@
   background-position: 0.75rem center;
   background-size: 1rem 1rem;
   font-size: var(--font-size-sm);
+  outline: none;
 
   &::placeholder {
     color: var(--color-neutral-dark-200);
   }
 
   &:focus {
-    outline: 2px solid var(--color-primary);
-    outline-offset: 1px;
+    border-color: var(--color-cta-default-solid);
+  }
+  &:hover {
+    border-color: var(--color-cta-default-hover);
   }
 }
