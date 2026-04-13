@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.67.0 (2026-04-13)
+
+## What's Changed
+* feat: improved no data message, reviewing entitlements by @svaccari in https://github.com/varda-ag/soilhive-core/pull/376
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.66.1...v0.67.0
+
 ## 0.66.1 (2026-04-13)
 
 ## What's Changed
