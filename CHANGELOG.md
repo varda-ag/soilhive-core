@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.66.1 (2026-04-13)
+
+## What's Changed
+* fix: :bug: fixing NaN date bug, transactionMiddleware, timezones by @svaccari in https://github.com/varda-ag/soilhive-core/pull/374
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.66.0...v0.66.1
+
 ## 0.66.0 (2026-04-10)
 
 ## What's Changed
