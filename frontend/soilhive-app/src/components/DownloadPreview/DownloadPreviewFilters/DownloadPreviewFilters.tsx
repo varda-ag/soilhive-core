@@ -60,7 +60,7 @@ function DownloadPreviewFilters({
       minDate,
       maxDate,
       minMaxDateAreSameMonth:
-        minDate && maxDate && minDate.getUTCMonth() === maxDate.getUTCMonth() && minDate.getUTCFullYear() === maxDate.getUTCFullYear(),
+        minDate && maxDate && minDate.getMonth() === maxDate.getMonth() && minDate.getFullYear() === maxDate.getFullYear(),
     };
   }, [calendarMinMaxRange]);
 
