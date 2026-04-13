@@ -1,0 +1,18 @@
+.NoDataMessage {
+  text-align: center;
+  align-items: center;
+  padding: 3rem;
+  line-height: 1.5rem;
+  .Title {
+    line-height: 2rem;
+    font-weight: 700;
+    font-size: 1rem;
+  }
+  > .Actions {
+    > .ClearAll {
+      color: var(--color-cta-danger-solid);
+      text-decoration: underline;
+      cursor: pointer;
+    }
+  }
+}

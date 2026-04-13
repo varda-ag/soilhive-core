@@ -14,7 +14,7 @@
         "time": "Time"
     },
     "raster_filter": {
-        "no_filters_available": "For the current geometry no raster filter is available",
+        "no_filters_available": "No filter is available",
         "search_placeholder": "Search"
     },
     "datasets_sidebar": {
@@ -22,8 +22,9 @@
         "explore": "Explore",
         "download": "Download",
         "search_by_name": "Search by name",
-        "no_data_in_selected_area": "No data in selected area",
-        "no_data_in_selected_area_due_to_filters": "No data in selected area due to applied filters",
+        "no_data_available": "No data",
+        "no_data_in_selected_area": "Select a different area to explore available datasets",
+        "no_data_in_selected_area_due_to_filters": "filters to explore data in selected area",
         "select_all": "Select all",
         "no_data_matching_search": "No data in selected area matching your search query"
     },

@@ -90,7 +90,7 @@ describe('DatasetsList', () => {
 
     render(<DatasetsList />);
 
-    expect(screen.getByText('No data in selected area')).toBeInTheDocument();
+    expect(screen.getByText('Select a different area to explore available datasets')).toBeInTheDocument();
     expect(screen.queryByTestId('sh-datasets-list')).not.toBeInTheDocument();
   });
 
@@ -106,7 +106,8 @@ describe('DatasetsList', () => {
 
     render(<DatasetsList />);
 
-    expect(screen.getByText('No data in selected area due to applied filters')).toBeInTheDocument();
+    expect(screen.getByText('Clear all')).toBeInTheDocument();
+    expect(screen.getByText('filters to explore data in selected area')).toBeInTheDocument();
     expect(screen.queryByTestId('sh-datasets-list')).not.toBeInTheDocument();
   });
 

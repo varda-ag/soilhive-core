@@ -44,9 +44,7 @@ export function RasterFilter({ categoryId }: RasterFilterProps) {
         {isLoadingPartialFilter ? (
           <Skeleton height={120} />
         ) : hasNoOptions ? (
-          <p className={styles.EmptyMessage}>
-            {t('raster_filter.no_filters_available', 'For the current geometry no raster filter is available')}
-          </p>
+          <p className={styles.EmptyMessage}>{t('raster_filter.no_filters_available', 'No filter is available')}</p>
         ) : (
           <>
             <input
