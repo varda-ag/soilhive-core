@@ -19,6 +19,7 @@ import {
   syntheticIngestionDataOptions,
 } from '../../../src/utils/mock';
 import { getRawTableName } from '../../../src/utils/utils';
+import { StatusCodes } from 'http-status-codes';
 
 const getJob = (dataset_id: string): Job<BulkLoadJob> => {
   return {
@@ -55,6 +56,7 @@ describe('BulkLoader class', () => {
           .post(`/datasets/${datasetSlug}/dataset-file-mapping/${datasetFileMappingId}/soil-data`)
           .set('Authorization', `Bearer ${token}`)
           .send(payload);
+        expect(response.statusCode).toBe(StatusCodes.CREATED);
         return response;
       });
 
