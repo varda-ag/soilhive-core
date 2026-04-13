@@ -132,10 +132,10 @@ function DownloadPreviewFilters({
     }
 
     const minDate = selectedDateRange[0] as unknown as Date;
-    const min = `${minDate.getUTCFullYear()}-${String(minDate.getUTCMonth() + 1).padStart(2, '0')}-01`;
+    const min = `${minDate.getFullYear()}-${String(minDate.getMonth() + 1).padStart(2, '0')}-01`;
 
     const maxDate = lastDayOfTheMonth(selectedDateRange[1] as unknown as Date);
-    const max = `${maxDate.getUTCFullYear()}-${String(maxDate.getUTCMonth() + 1).padStart(2, '0')}-${String(maxDate.getUTCDate()).padStart(2, '0')}`;
+    const max = `${maxDate.getFullYear()}-${String(maxDate.getMonth() + 1).padStart(2, '0')}-${String(maxDate.getDate()).padStart(2, '0')}`;
 
     if (filters.min_sampling_date === min && filters.max_sampling_date === max) return;
     onFiltersChange?.({
