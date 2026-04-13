@@ -7,15 +7,15 @@ import { DatasetsFilters } from './DatasetsFilters/DatasetsFilters';
 import { DatasetsListItem } from './DatasetsListItem/DatasetsListItem';
 
 import styles from './DatasetsList.module.scss';
+import { NoDataMessage } from './NoDataMessage/NoDataMessage';
 
 export function DatasetsList() {
   const { t } = useTranslation('availability');
   const { datasets, selectAllDatasets, isAllSelected, isLoading, isNoData, isNoFilteredData, searchValue } = useAvailability();
+  const showNoDataMessage = !isLoading && (isNoData || isNoFilteredData);
 
-  return isNoData ? (
-    <i>{t('datasets_sidebar.no_data_in_selected_area')}</i>
-  ) : isNoFilteredData ? (
-    <i>{t('datasets_sidebar.no_data_in_selected_area_due_to_filters')}</i>
+  return showNoDataMessage ? (
+    <NoDataMessage isNoData={isNoData} isNoFilteredData={isNoFilteredData} />
   ) : (
     <div data-testid="sh-datasets-list" className={styles.DatasetsList}>
       <DatasetsFilters />

@@ -1,0 +1,72 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`NoDataMessage renders with isNoData=true 1`] = `
+<div>
+  <div
+    class="NoDataMessage"
+  >
+    <svg
+      data-testid="svg-icon-mock"
+    >
+      mock-svg
+    </svg>
+    <div
+      class="Title"
+    >
+      datasets_sidebar.no_data_available
+    </div>
+    datasets_sidebar.no_data_in_selected_area
+  </div>
+</div>
+`;
+
+exports[`NoDataMessage renders with isNoFilteredData=true 1`] = `
+<div>
+  <div
+    class="NoDataMessage"
+  >
+    <svg
+      data-testid="svg-icon-mock"
+    >
+      mock-svg
+    </svg>
+    <div
+      class="Title"
+    >
+      datasets_sidebar.no_data_available
+    </div>
+    <div
+      class="Actions"
+    >
+      <span
+        class="ClearAll"
+        data-testid="sh-dataset-sidebar-clear-all"
+        role="button"
+      >
+        filtering_sidebar.clear_all
+      </span>
+       
+      datasets_sidebar.no_data_in_selected_area_due_to_filters
+    </div>
+  </div>
+</div>
+`;
+
+exports[`NoDataMessage renders with neither isNoData nor isNoFilteredData 1`] = `
+<div>
+  <div
+    class="NoDataMessage"
+  >
+    <svg
+      data-testid="svg-icon-mock"
+    >
+      mock-svg
+    </svg>
+    <div
+      class="Title"
+    >
+      datasets_sidebar.no_data_available
+    </div>
+  </div>
+</div>
+`;

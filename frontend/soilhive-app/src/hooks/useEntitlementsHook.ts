@@ -30,16 +30,14 @@ type Action =
   | typeof ADMIN_PORTAL_DATA_MENU;
 
 const ENTITLEMENT_MATRIX: Record<Action, AllRoles[]> = {
-  [TERMS_AND_CONDITIONS]: ['super-admin'],
-  [MAP_SETTINGS]: ['super-admin'],
-  [LOOK_AND_FEEL]: ['super-admin'],
+  [TERMS_AND_CONDITIONS]: [],
+  [MAP_SETTINGS]: [],
+  [LOOK_AND_FEEL]: [],
+  [ADMIN_PORTAL_UI_MENU]: [],
   [DATASET_PUBLICATIONS]: ['data-admin'],
   [MAP_BASED_FILTERS]: ['data-admin'],
-  [ADMIN_PORTAL_ACCESS]: ['data-admin', 'super-admin'],
-  [ADMIN_PORTAL_UI_MENU]: ['super-admin'],
-  [ADMIN_PORTAL_DATA_MENU]: ['data-admin', 'super-admin'],
-  // NOTE: to grant SUPER_ADMIN access to DATA_ADMIN actions, add 'super-admin' to those rows
-  // NOTE: to grant universal SUPER_ADMIN access regardless of matrix, uncomment in can() below
+  [ADMIN_PORTAL_ACCESS]: ['data-admin'],
+  [ADMIN_PORTAL_DATA_MENU]: ['data-admin'],
 };
 
 export function useEntitlements() {
@@ -58,8 +56,8 @@ export function useEntitlements() {
 
     if (allowedRoles.includes(ANYONE)) return true;
 
-    // NOTE: uncomment to grant SUPER_ADMIN universal access regardless of matrix
-    // if (userRoles.includes('super-admin')) return true;
+    // Grants SUPER_ADMIN universal access regardless of matrix
+    if (userRoles.includes('super-admin')) return true;
 
     return allowedRoles.some(role => userRoles.includes(role));
   };
