@@ -13,8 +13,8 @@
         "data_type": "Data type",
         "time": "Time"
     },
-    "raster_filter": {
-        "no_filters_available": "No filter is available",
+    "filter": {
+        "no_filter_available": "No filter is available",
         "search_placeholder": "Search"
     },
     "datasets_sidebar": {

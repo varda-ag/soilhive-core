@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Accordion, SelectionPills } from 'components/UI';
+import { Accordion, FormMessage, SelectionPills } from 'components/UI';
 import { Checkbox } from 'components/UI/Checkbox/Checkbox';
 import { useTranslation } from 'react-i18next';
 import styles from './RasterFilter.module.scss';
@@ -44,12 +44,14 @@ export function RasterFilter({ categoryId }: RasterFilterProps) {
         {isLoadingPartialFilter ? (
           <Skeleton height={120} />
         ) : hasNoOptions ? (
-          <p className={styles.EmptyMessage}>{t('raster_filter.no_filters_available', 'No filter is available')}</p>
+          <div data-testid="sh-unavailable-filter-message" className={styles.WarningMessage}>
+            <FormMessage message={t('filter.no_filter_available', 'No filter is available')} type="warning" withBackground={true} />
+          </div>
         ) : (
           <>
             <input
               type="text"
-              placeholder={`${t('raster_filter.search_placeholder')} ${category.name.toLowerCase()}`}
+              placeholder={`${t('filter.search_placeholder')} ${category.name.toLowerCase()}`}
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
               className={styles.SearchInput}
