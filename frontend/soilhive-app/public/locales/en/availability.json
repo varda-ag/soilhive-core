@@ -46,9 +46,9 @@
     },
     "map_selection_toolbar": {
         "reset": "Reset",
-        "cancel": "Cancel",
-        "draw_another_area": "Draw another area",
-        "show_results": "Show results"
+        "cancel": "Cancel draw",
+        "clear_selection": "Clear selection",
+        "search_this_area": "Search in this area"
     },
     "map_popup": {
         "title": "SOIL DATA",
