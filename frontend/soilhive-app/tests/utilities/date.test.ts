@@ -66,23 +66,23 @@ describe.each(testTimezones)('date utilities (multiple-timezones)', testTimezone
 
     it.each([['2025'], ['2024']])('given YYYY (%s), returns Jan 1st of that year', inputStringDate => {
       const result = backendToLocalFrontendDate(inputStringDate);
-      expect(result.getUTCFullYear()).toBe(Number(inputStringDate));
-      expect(result.getUTCMonth() + 1).toBe(1);
-      expect(result.getUTCDate()).toBe(1);
-      expect(result.getUTCHours()).toBe(0);
-      expect(result.getUTCMinutes()).toBe(0);
-      expect(result.getUTCSeconds()).toBe(0);
+      expect(result.getFullYear()).toBe(Number(inputStringDate));
+      expect(result.getMonth() + 1).toBe(1);
+      expect(result.getDate()).toBe(1);
+      expect(result.getHours()).toBe(0);
+      expect(result.getMinutes()).toBe(0);
+      expect(result.getSeconds()).toBe(0);
     });
 
     it.each([['2025-01'], ['2025-12'], ['2024-02']])('given YYYY-MM (%s), returns the 1st of that month', inputStringDate => {
       const result = backendToLocalFrontendDate(inputStringDate);
       const [year, month] = inputStringDate.split('-').map(Number);
-      expect(result.getUTCFullYear()).toBe(year);
-      expect(result.getUTCMonth() + 1).toBe(month);
-      expect(result.getUTCDate()).toBe(1);
-      expect(result.getUTCHours()).toBe(0);
-      expect(result.getUTCMinutes()).toBe(0);
-      expect(result.getUTCSeconds()).toBe(0);
+      expect(result.getFullYear()).toBe(year);
+      expect(result.getMonth() + 1).toBe(month);
+      expect(result.getDate()).toBe(1);
+      expect(result.getHours()).toBe(0);
+      expect(result.getMinutes()).toBe(0);
+      expect(result.getSeconds()).toBe(0);
     });
 
     it.each([['2025-01-01'], ['2025-01-31'], ['2025-12-01'], ['2025-12-31'], ['2025-02-01'], ['2024-02-01']])(
@@ -90,12 +90,12 @@ describe.each(testTimezones)('date utilities (multiple-timezones)', testTimezone
       inputStringDate => {
         const result = backendToLocalFrontendDate(inputStringDate);
         const [year, month, day] = inputStringDate.split('-').map(Number);
-        expect(result.getUTCFullYear()).toBe(year);
-        expect(result.getUTCMonth() + 1).toBe(month);
-        expect(result.getUTCDate()).toBe(day);
-        expect(result.getUTCHours()).toBe(0);
-        expect(result.getUTCMinutes()).toBe(0);
-        expect(result.getUTCSeconds()).toBe(0);
+        expect(result.getFullYear()).toBe(year);
+        expect(result.getMonth() + 1).toBe(month);
+        expect(result.getDate()).toBe(day);
+        expect(result.getHours()).toBe(0);
+        expect(result.getMinutes()).toBe(0);
+        expect(result.getSeconds()).toBe(0);
       },
     );
 
@@ -107,12 +107,12 @@ describe.each(testTimezones)('date utilities (multiple-timezones)', testTimezone
       (inputStringDate, year, month, day, hours, minutes, seconds) => {
         const result = backendToLocalFrontendDate(inputStringDate);
         expect(isNaN(result.getTime())).toBe(false);
-        expect(result.getUTCFullYear()).toBe(year);
-        expect(result.getUTCMonth() + 1).toBe(month);
-        expect(result.getUTCDate()).toBe(day);
-        expect(result.getUTCHours()).toBe(hours);
-        expect(result.getUTCMinutes()).toBe(minutes);
-        expect(result.getUTCSeconds()).toBe(seconds);
+        expect(result.getFullYear()).toBe(year);
+        expect(result.getMonth() + 1).toBe(month);
+        expect(result.getDate()).toBe(day);
+        expect(result.getHours()).toBe(hours);
+        expect(result.getMinutes()).toBe(minutes);
+        expect(result.getSeconds()).toBe(seconds);
       },
     );
   });

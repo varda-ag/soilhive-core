@@ -52,8 +52,8 @@ describe.each(testTimezones)('computeDatasetSummary domain logic (multiple-timez
         layers: 0,
         depth: '0-60',
         date: '2023-2025',
-        globalDateEnd: new Date(Date.UTC(2025, 1, 25)), // Corresponding to 2025/02/25
-        globalDateStart: new Date(Date.UTC(2023, 0, 1)), // Corresponding to 2023/01/01
+        globalDateStart: '2023-01-01',
+        globalDateEnd: '2025-02-25',
         globalMaxDepth: 60,
         globalMinDepth: 0,
       },

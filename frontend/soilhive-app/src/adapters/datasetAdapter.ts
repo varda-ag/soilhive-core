@@ -1,11 +1,12 @@
 import type { AvailabilityDataset, TimeFilterState } from 'types/availability';
 import type { FilteredDataset } from 'types/backend';
-import { backendToLocalFrontendDate } from '../utilities/date';
 
 export const getYear = (dateString?: string | null): number | undefined => {
   if (!dateString) return undefined;
-  const date = backendToLocalFrontendDate(dateString);
-  return date.getUTCFullYear();
+  const [datePart] = dateString.split('T');
+  const [year] = datePart.split('-').map(Number);
+  if (isNaN(year)) return undefined;
+  return year;
 };
 
 export const yearRangeToDatasetFilters = ({ min, max }: TimeFilterState) => {
