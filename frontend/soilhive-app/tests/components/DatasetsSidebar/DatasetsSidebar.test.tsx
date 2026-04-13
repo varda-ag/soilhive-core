@@ -98,7 +98,7 @@ describe('DatasetsSidebar', () => {
     expect(screen.getByTestId('sh-ui-page-sidebar')).toHaveClass('Opened');
   });
 
-  it('calls navigate when clicking on preview button', () => {
+  it('calls navigate when clicking on explore button', () => {
     (useDevice as jest.Mock).mockReturnValue({ isDesktopLayout: true });
 
     const navigateMockFn = jest.fn();
@@ -108,13 +108,13 @@ describe('DatasetsSidebar', () => {
 
     expect(navigateMockFn).not.toHaveBeenCalled();
 
-    const button = screen.getByText('Preview');
+    const button = screen.getByText('Explore');
     expect(button).toBeEnabled();
     button.click();
 
     expect(navigateMockFn).toHaveBeenCalledTimes(1);
     expect(navigateMockFn).toHaveBeenCalledWith({
-      pathname: '/preview',
+      pathname: '/explore',
       search: '?selectionType=mock-selection-type&filterId=mock-filter-id&datasets=test-dataset',
     });
   });

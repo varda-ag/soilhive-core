@@ -28,10 +28,10 @@ function AvailabilityModule() {
         />
         {/* TODO: adapt the download preview page to use the router and query parameters */}
         <Route
-          path="/preview"
+          path="/explore"
           element={
             <>
-              <PageTitle title="SoilHive - Download Preview" />
+              <PageTitle title="SoilHive - Data Explorer" />
               <DownloadPreview />
             </>
           }

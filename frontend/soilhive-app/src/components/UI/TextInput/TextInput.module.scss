@@ -1,122 +1,122 @@
 .TextInput {
-    display: inline-flex;
-    align-items: center;
-    column-gap: 0.5rem;
-    background: var(--color-neutral-white);
-    border: var(--color-neutral-dark-100) solid 0.125rem;
-    border-radius: 0.25rem;
+  display: inline-flex;
+  align-items: center;
+  column-gap: 0.5rem;
+  background: var(--color-neutral-white);
+  border: var(--color-neutral-dark-100) solid 0.125rem;
+  border-radius: 0.25rem;
 
-    > .ClearTextIcon {
-        color: var(--color-neutral-dark-200);
-        flex-shrink: 0;
+  > .ClearTextIcon {
+    color: var(--color-neutral-dark-200);
+    flex-shrink: 0;
+  }
+
+  > .InputField {
+    flex-grow: 1;
+    min-width: 0;
+    border: none;
+    outline: none;
+    caret-color: var(--color-cta-default-solid);
+
+    &::placeholder {
+      color: var(--color-neutral-dark-400);
     }
+  }
 
-    > .InputField {
-        flex-grow: 1;
-        min-width: 0;
-        border: none;
-        outline: none;
-        caret-color: var(--color-cta-default-solid);
-
-        &::placeholder {
-            color: var(--color-neutral-dark-400);
-        }
-    }
-
-    > .ClearTextIcon {
-        visibility: hidden;
-
-        &:hover {
-            cursor: pointer;
-        }
-    }
+  > .ClearTextIcon {
+    visibility: hidden;
 
     &:hover {
+      cursor: pointer;
+    }
+  }
+
+  &:hover {
+    cursor: text;
+
+    &.Disabled {
+      cursor: not-allowed;
+
+      > * {
+        cursor: not-allowed;
+      }
+    }
+
+    &.ReadOnly {
+      cursor: text;
+
+      > * {
         cursor: text;
+      }
+    }
+  }
 
-        &.Disabled {
-            cursor: not-allowed;
-
-            > * {
-                cursor: not-allowed;
-            }
-        }
-
-        &.ReadOnly {
-            cursor: text;
-
-            > * {
-                cursor: text;
-            }
-        }
+  &:not(.Disabled),
+  &:not(.ReadOnly) {
+    &:hover {
+      border-color: var(--color-cta-default-hover);
     }
 
-    &:not(.Disabled),
-    &:not(.ReadOnly) {
-        &:hover,
-        &.Filled {
-            > .ClearTextIcon {
-                visibility: visible;
-            }
-        }
+    &:hover,
+    &.Filled {
+      > .ClearTextIcon {
+        visibility: visible;
+      }
     }
+  }
 
-    &.Disabled > .InputField {
-        color: var(--color-neutral-dark-400);
+  &.Disabled > .InputField {
+    color: var(--color-neutral-dark-400);
 
-        &::placeholder {
-            color: var(--color-neutral-dark-200);
-        }
+    &::placeholder {
+      color: var(--color-neutral-dark-200);
     }
+  }
 
-    &.ReadOnly > .InputField {
-        color: var(--color-neutral-black);
-        background: var(--color-neutral-white);
+  &.ReadOnly > .InputField {
+    color: var(--color-neutral-black);
+    background: var(--color-neutral-white);
+  }
+
+  &.Focused {
+    border-color: var(--color-cta-default-solid);
+  }
+
+  &.Invalid {
+    border: var(--color-accent-danger-1000) solid 0.125rem;
+  }
+
+  &.Medium,
+  &.Small {
+    &:hover {
+      box-shadow: var(--shadow-hover-default);
     }
+  }
 
-    &.Focused {
-        border-color: var(--color-cta-default-pressed);
+  &.Medium {
+    padding: 0.65rem 1rem;
+
+    > .InputField {
+      line-height: var(--line-height-lg);
+      font-size: var(--font-size-lg);
     }
+  }
 
-    &.Invalid {
-        border: var(--color-accent-danger-1000) solid 0.125rem;
+  &.Small {
+    padding: 0.375rem 0.75rem;
+
+    > .InputField {
+      line-height: var(--line-height-lg);
+      font-size: var(--font-size-md);
     }
+  }
 
-    &.Medium,
-    &.Small {
-        &:hover {
-            box-shadow: var(--shadow-hover-default);
-        }
+  &.Tiny {
+    padding: 0.22rem 0.5rem;
+
+    > .InputField {
+      line-height: var(--line-height-lg);
+      font-size: var(--font-size-sm);
     }
-
-    &.Tiny:hover {
-        border-color: var(--color-cta-default-hover);
-    }
-
-    &.Medium {
-        padding: 0.65rem 1rem;
-
-        > .InputField {
-            line-height: var(--line-height-lg);
-            font-size: var(--font-size-lg);
-        }
-    }
-
-    &.Small {
-        padding: 0.375rem 0.75rem;
-
-        > .InputField {
-            line-height: var(--line-height-lg);
-            font-size: var(--font-size-md);
-        }
-    }
-
-    &.Tiny {
-        padding: 0.22rem 0.5rem;
-
-        > .InputField {
-            line-height: var(--line-height-lg);
-            font-size: var(--font-size-sm);
-        }
-    }
+  }
 }

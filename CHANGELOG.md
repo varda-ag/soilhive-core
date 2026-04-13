@@ -1,5 +1,47 @@
 # Changelog
 
+## 0.66.1 (2026-04-13)
+
+## What's Changed
+* fix: :bug: fixing NaN date bug, transactionMiddleware, timezones by @svaccari in https://github.com/varda-ag/soilhive-core/pull/374
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.66.0...v0.66.1
+
+## 0.66.0 (2026-04-10)
+
+## What's Changed
+* feat: sp-5091 metadata buttons styles update by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/372
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.65.0...v0.66.0
+
+## 0.65.0 (2026-04-10)
+
+## What's Changed
+* feat: sp-5091 - review css styles and link them to the look and feel … by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/370
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.64.1...v0.65.0
+
+## 0.64.1 (2026-04-10)
+
+## What's Changed
+* refactor: merge typeorm migrations into one by @d-rom in https://github.com/varda-ag/soilhive-core/pull/365
+* fix: rm renamed migration by @d-rom in https://github.com/varda-ag/soilhive-core/pull/369
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.64.0...v0.64.1
+
+## 0.64.0 (2026-04-10)
+
+## What's Changed
+* feat: sp-5078 changed preview to explore by @cristbello in https://github.com/varda-ag/soilhive-core/pull/364
+* fix: moving migration by @svaccari in https://github.com/varda-ag/soilhive-core/pull/367
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.63.0...v0.64.0
+
 ## 0.63.0 (2026-04-09)
 
 ## What's Changed

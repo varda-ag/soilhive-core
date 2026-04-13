@@ -23,8 +23,8 @@ export type DatasetSummary = {
   layers: number;
   depth: string;
   date: string;
-  globalDateStart: Date | null;
-  globalDateEnd: Date | null;
+  globalDateStart: string | null;
+  globalDateEnd: string | null;
   globalMinDepth: number | null;
   globalMaxDepth: number | null;
 };

@@ -40,6 +40,10 @@
     }
   }
 
+  .maplibregl-terradraw-add-control.active {
+    background-color: var(--color-pills);
+  }
+
   // To fix double "X" clear icon in geocoder input of type "search"
   .maplibregl-ctrl-geocoder--input {
     &::-ms-clear {
@@ -65,6 +69,10 @@
     }
     &-close-button {
       font-size: 30px;
+
+      &:hover {
+        background: none;
+      }
     }
   }
 
@@ -72,14 +80,14 @@
     .maplibregl-popup-tip {
       align-self: unset;
       margin-top: 26px;
-      border-right-color: #d2e5ab;
+      border-right-color: var(--color-bg-primary);
     }
   }
 
   &-popup-header {
     border-top-left-radius: 8px;
     border-top-right-radius: 8px;
-    background-color: #d2e5ab;
+    background-color: var(--color-bg-primary);
     display: flex;
     gap: 10px;
     align-items: center;
@@ -145,10 +153,9 @@
         padding: 6px 60px 6px 10px;
         border: none;
         border-radius: 20px;
-        background-color: #eaefe0;
+        background-color: var(--color-bg-secondary);
         font-family: Inter;
         font-weight: 400;
-        font-style: Regular;
         font-size: 14px;
         line-height: 20px;
         letter-spacing: 0px;
@@ -193,13 +200,12 @@
       cursor: pointer;
       font-family: Inter;
       font-weight: 700;
-      font-style: Bold;
       font-size: 14px;
       line-height: 20px;
       letter-spacing: 0px;
       text-align: center;
       vertical-align: middle;
-      color: #3e7f77;
+      color: var(--color-cta-default-solid);
       background-color: white;
       border: none;
       border: 1px solid #dddddd;
@@ -237,7 +243,7 @@
     .search-button {
       cursor: pointer;
       filter: grayscale(100%);
-      color: var(--color-primary);
+      color: var(--color-cta-default-solid);
       display: flex;
       align-items: center;
       background: none;

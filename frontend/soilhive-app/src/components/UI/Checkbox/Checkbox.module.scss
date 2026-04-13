@@ -1,126 +1,131 @@
 .CheckBox {
-    display: flex;
-    align-items: flex-start;
+  display: flex;
+  align-items: flex-start;
 
-    &:hover {
-        cursor: pointer;
+  &:hover {
+    cursor: pointer;
 
-        >* {
-            cursor: pointer;
-        }
-
-        >.Input {
-            box-shadow: var(--shadow-hover-default);
-        }
+    > * {
+      cursor: pointer;
     }
 
-    &.Medium>.Input {
-        width: 1.5rem;
-        height: 1.5rem;
+    > .Input {
+      box-shadow: var(--shadow-hover-default);
     }
+  }
 
-    &.Small>.Input {
-        width: 1.25rem;
-        height: 1.25rem;
+  &.Medium > .Input {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+
+  &.Small > .Input {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+
+  &.Checked > .Input {
+    background-image: url('../../../assets/icons/check-icon.svg');
+    background-repeat: no-repeat;
+    background-position: 50%;
+    background-size: 80%;
+  }
+
+  &.Indeterminate > .Input {
+    background-image: url('../../../assets/icons/small-minus-icon.svg');
+    background-repeat: no-repeat;
+    background-position: 50%;
+    background-size: 80%;
+  }
+
+  &.Disabled {
+    pointer-events: none;
+
+    > .Label {
+      color: var(--color-neutral-dark-400);
     }
+  }
 
-    &.Checked>.Input {
-        background-image: url('../../../assets/icons/check-icon.svg');
-        background-repeat: no-repeat;
-        background-position: 50%;
-        background-size: 80%;
-    }
-
-    &.Indeterminate > .Input {
-        background-image: url('../../../assets/icons/small-minus-icon.svg');
-        background-repeat: no-repeat;
-        background-position: 50%;
-        background-size: 80%;
-    }
-
+  &:not(.Error) {
     &.Disabled {
-        pointer-events: none;
+      > .Input {
+        border-color: var(--color-cta-default-disabled);
+      }
 
-        >.Label {
-            color: var(--color-neutral-dark-400);
-        }
+      &.Checked > .Input {
+        background-color: var(--color-cta-default-disabled);
+      }
     }
 
-    &:not(.Error) {
-        &.Disabled {
-            >.Input {
-                border-color: var(--color-cta-default-disabled);
-            }
+    &:not(.Disabled) {
+      > .Input {
+        border-color: var(--color-neutral-dark-400);
 
-            &.Checked>.Input {
-                background-color: var(--color-cta-default-disabled);
-            }
+        &:hover {
+          border-color: var(--color-cta-default-solid);
+        }
+      }
+
+      &.Checked {
+        > .Input {
+          border-color: var(--color-cta-default-solid);
+          background-color: var(--color-cta-default-solid);
         }
 
-        &:not(.Disabled) {
-            >.Input {
-                border-color: var(--color-cta-default-solid);
-            }
-
-            &.Checked {
-                >.Input {
-                    background-color: var(--color-cta-default-solid);
-                }
-
-                &:active>.Input {
-                    background-color: var(--color-cta-default-pressed);
-                }
-            }
-
-            &:active>.Input {
-                border-color: var(--color-cta-default-pressed);
-            }
+        &:active > .Input {
+          background-color: var(--color-cta-default-pressed);
         }
+      }
+
+      &:active > .Input {
+        border-color: var(--color-cta-default-pressed);
+      }
+    }
+  }
+
+  &.Error {
+    &.Disabled {
+      > .Input {
+        border-color: var(--color-cta-danger-disabled);
+      }
+
+      &.Checked > .Input {
+        background-color: var(--color-cta-danger-disabled);
+      }
     }
 
-    &.Error {
-        &.Disabled {
-            >.Input {
-                border-color: var(--color-cta-danger-disabled);
-            }
+    &:not(.Disabled) {
+      > .Input {
+        border-color: var(--color-cta-danger-solid);
+      }
 
-            &.Checked>.Input {
-                background-color: var(--color-cta-danger-disabled);
-            }
+      &.Checked {
+        > .Input {
+          background-color: var(--color-cta-danger-solid);
         }
 
-        &:not(.Disabled) {
-            >.Input {
-                border-color: var(--color-cta-danger-solid);
-            }
-
-            &.Checked {
-                >.Input {
-                    background-color: var(--color-cta-danger-solid);
-                }
-
-                &:active>.Input {
-                    background-color: var(--color-cta-danger-pressed);
-                }
-            }
-
-            &:active>.Input {
-                border-color: var(--color-cta-danger-pressed);
-            }
+        &:active > .Input {
+          background-color: var(--color-cta-danger-pressed);
         }
-    }
+      }
 
-    >.Input {
-        appearance: none;
-        border-width: 0.125rem;
-        border-style: solid;
-        border-radius: 0.25rem;
-        margin: 0.05rem 0.625rem 0 0;
-        flex-grow: 0;
-        flex-shrink: 0;
+      &:active > .Input {
+        border-color: var(--color-cta-danger-pressed);
+      }
     }
+  }
 
-    &.Marginless>.Input {
-        margin-right: 0;
-    }
+  > .Input {
+    appearance: none;
+    border-width: 0.125rem;
+    border-style: solid;
+    border-radius: 0.25rem;
+    margin: 0.05rem 0.625rem 0 0;
+    flex-grow: 0;
+    flex-shrink: 0;
+  }
+
+  &.Marginless > .Input {
+    margin-right: 0;
+  }
 }

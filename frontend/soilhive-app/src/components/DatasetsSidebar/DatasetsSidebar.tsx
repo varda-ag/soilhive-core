@@ -64,10 +64,10 @@ export function DatasetsSidebar({ isOpened, onClose }: Props) {
               if (datasetFrontendFilters.type.length) {
                 searchParams.append('dataset-types', datasetFrontendFilters.type.join(','));
               }
-              navigate({ pathname: '/preview', search: `?${searchParams.toString()}` });
+              navigate({ pathname: '/explore', search: `?${searchParams.toString()}` });
             }}
           >
-            {t('datasets_sidebar.preview')}
+            {t('datasets_sidebar.explore')}
           </Button>
           <Button className={styles.DownloadButton} isDisabled={availableDatasets.length === 0} onClick={handleDownloadClick}>
             <DownloadIcon />

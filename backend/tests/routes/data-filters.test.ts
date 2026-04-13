@@ -143,12 +143,13 @@ describe('Testing /data-filters routes', () => {
       geometries: [filteringPolygon],
     };
     const resWrite = await request(app).post('/data-filters').set(superAdminAuthHeader).send(payload);
+    expect(resWrite.statusCode).toBe(StatusCodes.CREATED);
     const id = resWrite.body.id;
     const resReadWithToken = await request(app).get(`/data-filters/${id}`).set(superAdminAuthHeader);
-    expect(resReadWithToken.statusCode).toBe(200);
+    expect(resReadWithToken.statusCode).toBe(StatusCodes.OK);
     expect(resReadWithToken.body.id).toBe(id);
     const resReadWithoutToken = await request(app).get(`/data-filters/${id}`);
-    expect(resReadWithoutToken.statusCode).toBe(200);
+    expect(resReadWithoutToken.statusCode).toBe(StatusCodes.OK);
     expect(resReadWithoutToken.body.id).toBe(id);
   });
 

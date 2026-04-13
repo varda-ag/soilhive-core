@@ -78,10 +78,10 @@ describe('DownloadSummary', () => {
     expect(queryByText('Back to the map')).toBeInTheDocument();
   });
 
-  it('renders download summary page coming from preview', () => {
-    mockSearchParamsGet.mockReturnValue('preview');
+  it('renders download summary page coming from data explorer', () => {
+    mockSearchParamsGet.mockReturnValue('explore');
     const { container, queryByText } = render(<DownloadSummary />);
     expect(container).toMatchSnapshot();
-    expect(queryByText('Back to the download preview')).toBeInTheDocument();
+    expect(queryByText('Back to the data explorer')).toBeInTheDocument();
   });
 });

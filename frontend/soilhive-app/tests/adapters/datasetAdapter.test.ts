@@ -1,16 +1,30 @@
+import { register, unregister, type TimeZone } from 'timezone-mock';
 import type { AvailabilityDataset } from 'types/availability';
 import type { FilteredDataset } from 'types/backend';
-import { mapFilteredDatasetToAvailabilityDataset, yearRangeToDatasetFilters } from '../../src/adapters';
+import { getYear, mapFilteredDatasetToAvailabilityDataset, yearRangeToDatasetFilters } from '../../src/adapters';
 import { testTimezones } from '../setupTests';
+
+describe('getYear', () => {
+  it.each([
+    [undefined, undefined],
+    [null, undefined],
+    ['wrong', undefined],
+    ['2023', 2023],
+    ['2023-06', 2023],
+    ['2023-06-15', 2023],
+    ['2023-06-15T14:30:00', 2023],
+  ])('getYear(%s) === %s', (input, expected) => {
+    expect(getYear(input)).toBe(expected);
+  });
+});
 
 describe.each(testTimezones)('datasetAdapter (multiple-timezones)', testTimezone => {
   beforeEach(() => {
-    jest.useFakeTimers();
-    jest.setSystemTime(new Date('2020-01-01T01:00:01Z').getTime() + testTimezone.offsetMs);
+    register(testTimezone.tz as TimeZone);
   });
 
   afterEach(() => {
-    jest.useRealTimers();
+    unregister();
   });
 
   describe('mapFilteredDatasetToAvailabilityDataset adapter', () => {

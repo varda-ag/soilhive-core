@@ -12,36 +12,6 @@
   color: black;
 }
 
-@mixin dropdown-style {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-
-  > :global(.p-dropdown-label) {
-    padding: 10px;        
-  }
-
-  > :global(.p-dropdown-trigger) > svg {
-    color: var(--color-neutral-dark-400);
-  }
-
-  :global(.p-dropdown-clear-icon) {
-    color: var(--color-neutral-dark-400);
-  }
-}
-
-@mixin calendar-style {
-  > button {
-    background-color: white;
-    border: 1px solid #DDDDDD;
-    border-left: none;
-
-    > svg {
-      color: var(--color-neutral-dark-400);
-    }
-  }
-}
-
 .DownloadPreviewFilters {
   display: flex;
   flex-direction: column;
@@ -81,14 +51,6 @@
         width: 48%;
       }
     }
-
-    > .Dropdown {
-      @include dropdown-style;
-    }
-
-    > .Calendar {
-      @include calendar-style;
-    }
   }
 }
 
@@ -100,14 +62,14 @@
 .DropdownPanel {
   color: black;
   max-width: 80vw;
-  
+
   li {
-    padding: 6px 16px;    
+    padding: 6px 16px;
 
     &:first-of-type {
       padding-top: 12px;
     }
-    
+
     &:last-of-type {
       padding-bottom: 12px;
     }
@@ -119,10 +81,10 @@
     }
   }
 
-  :global(.p-yearpicker-year)[data-p-disabled="false"],
-  :global(.p-monthpicker-month)[data-p-disabled="false"] {
+  :global(.p-yearpicker-year)[data-p-disabled='false'],
+  :global(.p-monthpicker-month)[data-p-disabled='false'] {
     font-weight: var(--font-weight-bold);
-    color: var(--color-brand-green-1000);
+    color: var(--color-cta-default-solid);
   }
 }
 
@@ -170,14 +132,6 @@
       > .Dropdown,
       > .Calendar {
         @include filters-style;
-      }
-
-      > .Dropdown {
-        @include dropdown-style;
-      }
-
-      > .Calendar {
-        @include calendar-style;
       }
     }
 

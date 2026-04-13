@@ -18,8 +18,8 @@
       border-top: 0.25rem solid transparent;
 
       &.Active {
-        color: var(--color-primary);
-        border-color: var(--color-primary);
+        color: var(--color-cta-default-solid);
+        border-color: var(--color-cta-default-solid);
       }
     }
   }
@@ -41,7 +41,7 @@
           bottom: 0;
           left: 50%;
           transform: translateX(-50%);
-          background-color: var(--color-secondary);
+          background-color: var(--color-cta-default-solid);
         }
       }
     }
