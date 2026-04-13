@@ -1,17 +1,17 @@
+import { register, unregister, type TimeZone } from 'timezone-mock';
 import { computeDatasetSummary } from '../../src/domain/computeDatasetSummary';
 import { testTimezones } from '../setupTests';
 
 describe.each(testTimezones)('computeDatasetSummary domain logic (multiple-timezones)', testTimezone => {
   beforeEach(() => {
-    jest.useFakeTimers();
-    jest.setSystemTime(new Date('2020-01-01T01:00:01Z').getTime() + testTimezone.offsetMs);
+    register(testTimezone.tz as TimeZone);
   });
 
   afterEach(() => {
-    jest.useRealTimers();
+    unregister();
   });
 
-  test.each([
+  it.each([
     {
       name: 'only dataset_layer_count property',
       input: [
@@ -52,8 +52,8 @@ describe.each(testTimezones)('computeDatasetSummary domain logic (multiple-timez
         layers: 0,
         depth: '0-60',
         date: '2023-2025',
-        globalDateEnd: new Date(2025, 1, 25), // Corresponding to 2025/02/25
-        globalDateStart: new Date(2023, 0, 1), // Corresponding to 2023/01/01
+        globalDateStart: '2023-01-01',
+        globalDateEnd: '2025-02-25',
         globalMaxDepth: 60,
         globalMinDepth: 0,
       },

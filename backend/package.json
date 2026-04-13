@@ -88,6 +88,10 @@
     "globalSetup": "<rootDir>/tests/jest.setup.ts",
     "globalTeardown": "<rootDir>/tests/jest.teardown.ts",
     "forceExit": true,
-    "maxWorkers": 1
+    "maxWorkers": 1,
+    "coveragePathIgnorePatterns": [
+      "<rootDir>/src/migrations/",
+      "<rootDir>/src/entities/"
+    ]
   }
 }

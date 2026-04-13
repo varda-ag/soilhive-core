@@ -114,7 +114,9 @@ function DownloadPreview() {
 
   const { globalDateStart, globalDateEnd /*globalMinDepth, globalMaxDepth*/ } = computeDatasetSummary(availableFilteredDatasets);
   const calendarMinMaxRange: [Date | undefined, Date | undefined] =
-    globalDateStart && globalDateEnd ? [globalDateStart, globalDateEnd] : [undefined, undefined];
+    globalDateStart && globalDateEnd
+      ? [backendToLocalFrontendDate(globalDateStart), backendToLocalFrontendDate(globalDateEnd)]
+      : [undefined, undefined];
 
   // Implementation of min/max depth range where it changes with the datasets available
   // const depthMinMaxRange: [number | undefined, number | undefined] =

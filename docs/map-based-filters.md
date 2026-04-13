@@ -131,7 +131,7 @@ Each filter provides **global coverage** and is distributed as a **separate pack
     | Closed forest not matching any of the other definitions | 116 |
 
     </details>
-- Land Cover 2024 (2.1 GB)
+- Land Cover 2024 (2.6 GB)
   - https://static.soilhive.ag/land_cover_2024.dump
   - https://static.soilhive.ag/land_cover_2024.mappings
   - <details>
