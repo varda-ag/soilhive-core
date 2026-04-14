@@ -22,9 +22,10 @@
         "explore": "Explore",
         "download": "Download",
         "search_by_name": "Search by name",
-        "no_data_available": "No data",
+        "no_data_available": "No data is available",
         "no_data_in_selected_area": "Select a different area to explore available datasets",
-        "no_data_in_selected_area_due_to_filters": "filters to explore data in selected area",
+        "no_data_in_selected_area_due_to_filters": "This is due to applied filters",
+        "clear_all_filters": "Clear all filters",
         "select_all": "Select all",
         "no_data_matching_search": "No data in selected area matching your search query"
     },
@@ -46,9 +47,9 @@
     },
     "map_selection_toolbar": {
         "reset": "Reset",
-        "cancel": "Cancel",
-        "draw_another_area": "Draw another area",
-        "show_results": "Show results"
+        "cancel": "Cancel draw",
+        "clear_selection": "Clear selection",
+        "search_this_area": "Search in this area"
     },
     "map_popup": {
         "title": "SOIL DATA",

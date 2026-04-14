@@ -35,6 +35,7 @@ exports[`NoDataMessage renders with isNoFilteredData=true 1`] = `
     >
       datasets_sidebar.no_data_available
     </div>
+    datasets_sidebar.no_data_in_selected_area_due_to_filters
     <div
       class="Actions"
     >
@@ -43,10 +44,8 @@ exports[`NoDataMessage renders with isNoFilteredData=true 1`] = `
         data-testid="sh-dataset-sidebar-clear-all"
         role="button"
       >
-        filtering_sidebar.clear_all
+        datasets_sidebar.clear_all_filters
       </span>
-       
-      datasets_sidebar.no_data_in_selected_area_due_to_filters
     </div>
   </div>
 </div>

@@ -1503,9 +1503,6 @@ components:
           type: object
           description: Spatial file fields, CRS and geometry information
           additionalProperties: true
-        is_archived:
-          type: boolean
-          readOnly: true
         created_at:
           type: string
           format: date-time
@@ -1823,9 +1820,6 @@ components:
         status:
           type: string
           readOnly: true
-        is_archived:
-          type: boolean
-          readOnly: true
         created_at:
           type: string
           format: date-time
@@ -1843,6 +1837,10 @@ components:
         service_location:
           type: string
           nullable: true
+        visibility:
+          type: string
+          enum: [public, private]
+          default: private
 
     SoilProperty:
       type: object

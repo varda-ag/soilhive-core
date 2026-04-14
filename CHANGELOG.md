@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.68.0 (2026-04-14)
+
+## What's Changed
+* fix: fileToDB table name by @d-rom in https://github.com/varda-ag/soilhive-core/pull/382
+* feat: sp-5041 improved availability navigation by @cristbello in https://github.com/varda-ag/soilhive-core/pull/381
+* fix: dataset visibility fix, super admin token fix, UI message fix by @svaccari in https://github.com/varda-ag/soilhive-core/pull/386
+* feat: sp-5041 availability navigation improvement by @cristbello in https://github.com/varda-ag/soilhive-core/pull/385
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.67.1...v0.68.0
+
 ## 0.67.1 (2026-04-14)
 
 ## What's Changed

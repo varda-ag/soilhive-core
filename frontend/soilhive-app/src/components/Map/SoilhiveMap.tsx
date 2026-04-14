@@ -1,4 +1,4 @@
-import { useId, useRef, useState, useCallback, type Dispatch } from 'react';
+import { useId, useRef, useState, useCallback, type Dispatch, useMemo } from 'react';
 import {
   GeolocateControl,
   Map,
@@ -12,7 +12,7 @@ import {
   Source,
   Layer,
 } from 'react-map-gl/maplibre';
-import { LngLat, type MapLayerMouseEvent, type Offset } from 'maplibre-gl';
+import { LngLat, LngLatBounds, type MapLayerMouseEvent, type Offset } from 'maplibre-gl';
 import type { Polygon, MultiPolygon, Point } from 'geojson';
 import GeocoderControl from './GeocoderControl';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -21,11 +21,11 @@ import '@watergis/maplibre-gl-terradraw/dist/maplibre-gl-terradraw.css';
 import '../../styles/SoilhiveMap.scss';
 import Flower from 'assets/images/flower.svg?react';
 import { bBoxToH3Cells, h3IndexesToGeoJSONPolygons, isPointInFeatureCollection } from '../../utilities/geo';
-import { area, bbox as bboxFn, centerOfMass, convertArea, round } from '@turf/turf';
+import { bbox as bboxFn, centerOfMass } from '@turf/turf';
 import { getMapStyles, h3ResolutionForZoomLevel } from '../../utilities/map';
-import DrawControl from '../DrawControl';
+import DrawControl, { type DrawControlRef } from '../DrawControl';
 import SoilhiveMapToolbar from './SoilhiveMapToolbar';
-import SoilhiveMapSelectionToolbar from './SoilhiveMapSelectionToolbar';
+import SoilhiveMapSelectionToolbar, { type SoilhiveMapSelectionToolbarMode } from './SoilhiveMapSelectionToolbar';
 import { largestPolygon as largestPolygonFn } from '../../utilities/geo';
 import type { SoilhiveMapSelectionChangeEvent } from './SoilhiveMapSelectionChangeEvent';
 import { simplifyGeometry } from '../../utilities/simplifyGeometry';
@@ -137,7 +137,9 @@ function SoilhiveMap({
 
   const mapRef = useRef<any>(null);
   const [isPointResultSelection, setIsPointResultSelection] = useState(false);
+  const [mapBounds, setMapBounds] = useState<LngLatBounds | null>(null);
   const [currentMapStyle, setCurrentMapStyle] = useState(mapStyles[0].mapStyle);
+  const drawControlRef = useRef<DrawControlRef>(null);
   const selectionTypeRef = useRef<'drawn-polygon' | 'h3-cell' | 'country'>('drawn-polygon');
   const locationNameRef = useRef<string>(undefined);
 
@@ -147,7 +149,12 @@ function SoilhiveMap({
   const { isMobileLayout } = useDevice();
   const { t } = useTranslation('availability');
 
+  const onPopupClose = useCallback(() => {
+    setSelectedPoint(null);
+  }, [setSelectedPoint]);
+
   const onDrawClick = useCallback(() => {
+    setSelectedPoint(null);
     setShowDrawControl(true);
     setShowSelectionToolbar(true);
     onSelectionToolbarVisibilityChange?.(true);
@@ -156,7 +163,7 @@ function SoilhiveMap({
       const btn = document.querySelector('button.maplibregl-terradraw-add-polygon-button') as HTMLButtonElement | null;
       btn?.click();
     }, 0);
-  }, [onSelectionToolbarVisibilityChange, setShowDrawControl, setShowSelectionToolbar]);
+  }, [onSelectionToolbarVisibilityChange, setShowDrawControl, setShowSelectionToolbar, setSelectedPoint]);
 
   const applySelection = useCallback(
     (geometry: Polygon | MultiPolygon, point?: Point, moveBounds?: boolean) => {
@@ -168,7 +175,7 @@ function SoilhiveMap({
       const bbox = bboxFn(largestPolygon!);
       if (moveBounds) mapRef.current.fitBounds(bbox, { padding: 40 });
       setSelectedPoint(new LngLat(lng, lat));
-      setShowSelectionToolbar(false);
+      setShowSelectionToolbar(true);
       onSelectionToolbarVisibilityChange?.(true);
       setSelection({ type: 'FeatureCollection', features: [{ type: 'Feature', geometry: simplifiedGeometry, properties: {} }] });
       onSelectionChange?.({
@@ -215,7 +222,9 @@ function SoilhiveMap({
       if (isApplyingSelection.current) return; // Skip during selection
 
       const map = mapEvent.target;
-      const bounds = map.getBounds().toArray().flat();
+      const mapLngLatBounds = map.getBounds();
+      setMapBounds(mapLngLatBounds);
+      const bounds = mapLngLatBounds.toArray().flat();
       const zoomLevel = map.getZoom();
       const isUserInteraction = mapEvent.originalEvent ? true : false;
 
@@ -238,6 +247,10 @@ function SoilhiveMap({
     },
     [onMapMoveEnd],
   );
+
+  const resetDrawing = useCallback(() => {
+    drawControlRef.current?.reset();
+  }, []);
 
   const resetSelection = useCallback(() => {
     if (!mapRef.current) {
@@ -314,6 +327,32 @@ function SoilhiveMap({
     [applySelection, setShowDrawControl],
   );
 
+  const toolbarMode: SoilhiveMapSelectionToolbarMode = useMemo(() => {
+    if (showDrawControl) return 'drawing';
+    if (selection.features.length > 0 && mapBounds) {
+      const selectionBbox = bboxFn(selection as GeoJSON.FeatureCollection);
+
+      // Return 'search' if less than 20% of the selection is visible in the map viewbox
+      const selWidth = selectionBbox[2] - selectionBbox[0];
+      const selHeight = selectionBbox[3] - selectionBbox[1];
+      const selArea = selWidth * selHeight;
+      if (selArea > 0) {
+        const visibleWidth = Math.max(0, Math.min(selectionBbox[2], mapBounds.getEast()) - Math.max(selectionBbox[0], mapBounds.getWest()));
+        const visibleHeight = Math.max(
+          0,
+          Math.min(selectionBbox[3], mapBounds.getNorth()) - Math.max(selectionBbox[1], mapBounds.getSouth()),
+        );
+        if ((visibleWidth * visibleHeight) / selArea < 0.2) return 'search';
+      }
+
+      const mapWidth = mapBounds.getEast() - mapBounds.getWest();
+      const mapHeight = mapBounds.getNorth() - mapBounds.getSouth();
+      const ratio = (selWidth * selHeight) / (mapWidth * mapHeight);
+      if (ratio >= 1 || ratio < 0.01) return 'search';
+    }
+    return 'clear';
+  }, [showDrawControl, selection, mapBounds]);
+
   return (
     <div className={`soilhive-map${showSelectionToolbar ? ' soilhive-map-show-selection-toolbar' : ''}`}>
       <Map
@@ -334,17 +373,9 @@ function SoilhiveMap({
         interactiveLayerIds={['data-fills']}
         attributionControl={{ compact: false }}
       >
-        <SoilhiveMapToolbar visible={!showSelectionToolbar} onDrawClick={onDrawClick} onUpload={onUpload} />
+        <SoilhiveMapToolbar visible={!showDrawControl} onDrawClick={onDrawClick} onUpload={onUpload} />
 
-        {showSelectionToolbar && (
-          <SoilhiveMapSelectionToolbar
-            area={round(convertArea(area(selection as GeoJSON.GeoJSON), 'meters', 'kilometers'), 3)}
-            onCancel={resetSelection}
-            onReset={resetSelection}
-            onDrawAnother={() => {}}
-            onShowResults={() => {}}
-          />
-        )}
+        {showSelectionToolbar && <SoilhiveMapSelectionToolbar mode={toolbarMode} onCancel={resetSelection} onReset={resetDrawing} />}
 
         {selectedPoint && (
           <Popup
@@ -352,6 +383,7 @@ function SoilhiveMap({
             longitude={selectedPoint.lng}
             latitude={selectedPoint.lat}
             closeOnClick={false}
+            onClose={onPopupClose}
             offset={
               {
                 left: [0, 0],
@@ -360,7 +392,6 @@ function SoilhiveMap({
                 bottom: [0, 0],
               } as Offset
             }
-            onClose={resetSelection}
           >
             <div className="soilhive-map-popup-header">
               <div className="soilhive-map-popup-header-left" style={{ minWidth: '24px' }}>
@@ -410,7 +441,7 @@ function SoilhiveMap({
             visualizePitch={false}
           />
         )}
-        {showDrawControl && <DrawControl position="bottom-right" onFinish={onFinishDrawing} />}
+        {showDrawControl && <DrawControl ref={drawControlRef} position="bottom-right" onFinish={onFinishDrawing} />}
 
         {showScale && <ScaleControl />}
       </Map>

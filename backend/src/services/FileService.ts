@@ -463,7 +463,7 @@ export default class FileService {
       'GEOMETRY_NAME=geometry',
     ];
     const openOpts: string[] = ['AUTODETECT_TYPE=YES', 'EMPTY_STRING_AS_NULL=YES', 'KEEP_GEOM_COLUMNS=NO'];
-    const tableName = getRawTableName(fileId);
+    const tableName = getRawTableName(fileEntity.id);
     gdalOpts.push('-nln', tableName);
     const originalGeomFields = [
       fileMetadata.detected_fields[DetectableFields.GEOMETRY],
