@@ -8,6 +8,7 @@ import { initPgBoss } from './services/PgBoss';
 import { setupCLI } from './utils/cli';
 import { initializeSchema } from './utils/data-source';
 import { getServerPort, isJest, setupEnv } from './utils/utils';
+import { authMiddleware } from './middlewares/auth';
 
 setupEnv();
 
@@ -27,6 +28,7 @@ export const initApp = async (app: Application) => {
   app.use(transactionMiddleware);
   app.use('/docs', swaggerUi.serve, swaggerUi.setup(await getSwaggerDocument()));
   app.use(await getOpenApiMiddleware());
+  app.use(authMiddleware);
   app.use(errorMiddleware);
 
   if (isJest()) {

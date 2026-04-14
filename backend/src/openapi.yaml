@@ -351,6 +351,7 @@ paths:
     post:
       x-eov-operation-handler: controllers/jobs
       x-eov-operation-id: postJob
+      x-entitlements-required: true
       summary: Starts async job
       tags:
         - jobs
@@ -966,6 +967,7 @@ paths:
     get:
       x-eov-operation-handler: controllers/soil-data
       x-eov-operation-id: getSoilData
+      x-entitlements-required: true
       summary: Retrieves soil data
       tags:
         - soil-data

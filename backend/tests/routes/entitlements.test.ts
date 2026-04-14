@@ -1,12 +1,11 @@
 import { describe, it, expect, beforeAll, beforeEach, jest } from '@jest/globals';
-import { Request, Response } from 'express';
 import { addSyntheticData, syntheticDataOptions } from '../../src/utils/mock';
 import request from 'supertest';
 import { app } from '../../src/app';
 import { StatusCodes } from 'http-status-codes';
 import { getDataAdminToken } from '../helper';
 import { getEntityManager } from '../../src/utils/data-source';
-import * as entitlementsController from '../../src/controllers/entitlements';
+import EntitlementService from '../../src/services/EntitlementService';
 
 describe('Testing entitlements routes', () => {
   const slug = 'test_dataset_1';
@@ -56,17 +55,15 @@ describe('Testing entitlements routes', () => {
 
       // Mock callEntitlementsEndpoint function
       const entitlementsResponse = {
-        'dataset-1': ['download'],
-        'dataset-2': ['preview'],
+        'dataset-1': ['download' as const],
+        'dataset-2': ['preview' as const],
       };
 
       const callEntitlementsEndpointSpy = jest
-        .spyOn(entitlementsController, 'callEntitlementsEndpoint')
-        .mockImplementation(async (req: Request, res: Response) => {
-          res.json(entitlementsResponse);
-        });
+        .spyOn(EntitlementService.prototype, 'callEntitlementsEndpoint')
+        .mockResolvedValue(entitlementsResponse);
 
-      const res = await request(app).get(`/entitlements`).set('Authorization', `Bearer ${token}`);
+      const res = await request(app).get('/entitlements').set('Authorization', `Bearer ${token}`);
       expect(res.statusCode).toBe(StatusCodes.OK);
       expect(res.body).toEqual(entitlementsResponse);
 
@@ -79,16 +76,14 @@ describe('Testing entitlements routes', () => {
   it('responds with an error', async () => {
     process.env.ENTITLEMENTS_ENDPOINT = 'http://mock-entitlements';
 
-    const message = 'Failed to fetch entitlements from endpoint: message';
+    const detail = 'Failed to fetch entitlements from endpoint: message';
     const callEntitlementsEndpointSpy = jest
-      .spyOn(entitlementsController, 'callEntitlementsEndpoint')
-      .mockImplementation(async (_req: Request, res: Response) => {
-        res.status(StatusCodes.INTERNAL_SERVER_ERROR).type('application/problem+json').json({ message });
-      });
+      .spyOn(EntitlementService.prototype, 'callEntitlementsEndpoint')
+      .mockRejectedValue(new Error(detail));
 
     const res = await request(app).get(`/entitlements`).set('Authorization', `Bearer ${token}`);
     expect(res.statusCode).toBe(StatusCodes.INTERNAL_SERVER_ERROR);
-    expect(res.body).toEqual({ message });
+    expect(res.body).toHaveProperty('detail', detail);
 
     // Clean up
     delete process.env.ENTITLEMENTS_ENDPOINT;

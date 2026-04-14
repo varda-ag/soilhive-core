@@ -133,7 +133,7 @@ describe('Testing /jobs routes', () => {
     process.env.LOCAL_STORAGE_ROOT_FOLDER = vectorFilesPassPath;
     const token = await getDataAdminToken();
     const entityManager = await getEntityManager();
-    const requestData: RequestData = { entityManager, token: mockToken };
+    const requestData: RequestData = { entityManager, token: mockToken, entitlements: {} };
     const fileService = new FileService();
 
     const testWorker = async (index: number): Promise<void> => {
