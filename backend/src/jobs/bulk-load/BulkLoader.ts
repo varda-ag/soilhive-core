@@ -21,13 +21,18 @@ import { getLoopbackUrl, getRawTableName, signToken } from '../../utils/utils';
 import { updateDatasetMetadata } from './UpdateDatasetMetadata';
 import { FileStorage } from '@flystorage/file-storage';
 import FileService from '../../services/FileService';
+import EntitlementService from '../../services/EntitlementService';
+import { EVERYONE } from '../../types/Entitlements';
 
 export async function processBulkLoad(job: Job<BulkLoadJob>): Promise<void> {
   const { data } = job;
+  const { created_by } = job as unknown as BulkLoadJob;
   const datasetService = new DatasetService();
   const entityManager = await getEntityManager();
+  const entitlementService = new EntitlementService();
+  const entitlements = await entitlementService.getUserEntitlements({ entityManager } as any, created_by ?? EVERYONE);
   const token = { sub: data.created_by } as Token; // Only sub is required
-  const requestData = { entityManager, token };
+  const requestData = { entityManager, token, entitlements };
   const dataset = await datasetService.getDataset(requestData, data.dataset_id);
   try {
     dataset.status = IngestionStatus.ONGOING;

@@ -10,7 +10,7 @@ export async function processBulkDeletion(job: Job<BulkDeleteJob>): Promise<void
   const datasetService = new DatasetService();
   const entityManager = await getEntityManager();
   const token = { sub: data.created_by } as Token; // Only sub is required
-  const requestData = { entityManager, token };
+  const requestData = { entityManager, token, entitlements: {} };
   const datasetId = (await datasetService.getDataset(requestData, data.dataset_id)).id;
 
   await datasetService.deleteDataset(requestData, data.dataset_id); // First set dataset as deleted

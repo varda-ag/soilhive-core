@@ -1,4 +1,4 @@
-import { describe, it, expect } from '@jest/globals';
+import { describe, it, expect, beforeEach, jest, afterAll } from '@jest/globals';
 import { MultiPolygon, Polygon } from 'geojson';
 import { getEntityManager } from '../../src/utils/data-source';
 import { getPolygonFromBbox } from '../../src/utils/geometry';
@@ -13,6 +13,7 @@ import { invalidGeometryPayload } from './invalidGeometryPayload.ts';
 
 const bbox = [0, 0, 1, 1];
 const bboxPolygon: Polygon = getPolygonFromBbox(bbox);
+const entitlements = {};
 
 describe('SoilDataStorage class', () => {
   it.each([
@@ -214,7 +215,7 @@ describe('SoilDataStorage class', () => {
     const filter = { geometries: [], parameters: {} };
     const limit = 10;
     // Get 10 results sorting by value DESC (20 -> 11)
-    const results = await sds.getSoilData(entityManager, filter, [dataset.slug], limit, undefined, '-value');
+    const results = await sds.getSoilData({ entityManager, entitlements }, filter, [dataset.slug], limit, undefined, '-value');
     expect(results.length).toBe(limit);
     for (let i = 0; i < limit; i++) {
       // Check that values are in the expected order (20, 19, ..., 11)
@@ -226,7 +227,7 @@ describe('SoilDataStorage class', () => {
       expect(cursor.value).toBe(totalObservations - i);
     }
     // Take 10th cursor and get the following 10 results, preserving the sort order
-    const moreResults = await sds.getSoilData(entityManager, filter, [dataset.slug], limit, results[9].cursor, '-value');
+    const moreResults = await sds.getSoilData({ entityManager, entitlements }, filter, [dataset.slug], limit, results[9].cursor, '-value');
     expect(moreResults.length).toBe(limit);
     // Check result values (10 -> 1)
     for (let i = 0; i < limit; i++) {
@@ -253,7 +254,7 @@ describe('SoilDataStorage class', () => {
     const limit = 5;
 
     // Test sorting by min_depth (from layer table) ASC
-    const resultsByDepth = await sds.getSoilData(entityManager, filter, [dataset.slug], limit, undefined, 'min_depth');
+    const resultsByDepth = await sds.getSoilData({ entityManager, entitlements }, filter, [dataset.slug], limit, undefined, 'min_depth');
     expect(resultsByDepth.length).toBe(limit);
     // Verify depths are in ascending order
     for (let i = 0; i < resultsByDepth.length - 1; i++) {
@@ -263,14 +264,28 @@ describe('SoilDataStorage class', () => {
     }
 
     // Get next page using cursor
-    const moreDepthResults = await sds.getSoilData(entityManager, filter, [dataset.slug], limit, resultsByDepth[4].cursor, 'min_depth');
+    const moreDepthResults = await sds.getSoilData(
+      { entityManager, entitlements },
+      filter,
+      [dataset.slug],
+      limit,
+      resultsByDepth[4].cursor,
+      'min_depth',
+    );
     if (moreDepthResults.length > 0) {
       // Verify next page starts after previous max depth (or same if there are ties)
       expect(moreDepthResults[0].min_depth).toBeGreaterThanOrEqual(resultsByDepth[4].min_depth!);
     }
 
     // Test sorting by dataset_name (from dataset table) ASC
-    const resultsByDataset = await sds.getSoilData(entityManager, filter, [dataset.slug], limit, undefined, 'dataset_name');
+    const resultsByDataset = await sds.getSoilData(
+      { entityManager, entitlements },
+      filter,
+      [dataset.slug],
+      limit,
+      undefined,
+      'dataset_name',
+    );
     expect(resultsByDataset.length).toBe(limit);
     // All results should have the same dataset name
     for (let i = 0; i < resultsByDataset.length; i++) {
@@ -280,7 +295,14 @@ describe('SoilDataStorage class', () => {
     }
 
     // Test sorting by soil_property (from soil_property table) DESC
-    const resultsByProperty = await sds.getSoilData(entityManager, filter, [dataset.slug], limit, undefined, '-soil_property');
+    const resultsByProperty = await sds.getSoilData(
+      { entityManager, entitlements },
+      filter,
+      [dataset.slug],
+      limit,
+      undefined,
+      '-soil_property',
+    );
     expect(resultsByProperty.length).toBe(limit);
     for (let i = 0; i < resultsByProperty.length; i++) {
       const cursor = decodeCursor(resultsByProperty[i].cursor);
@@ -288,7 +310,7 @@ describe('SoilDataStorage class', () => {
     }
     // Verify cursor pagination works with this sort field
     const morePropertyResults = await sds.getSoilData(
-      entityManager,
+      { entityManager, entitlements },
       filter,
       [dataset.slug],
       limit,

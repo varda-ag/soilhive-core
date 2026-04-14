@@ -1,7 +1,7 @@
 import { RequestData } from '../interfaces/RequestData';
 import { EntitlementsEntity } from '../entities/Entitlements';
 import { getEntitySlugs } from '../utils/slugs';
-import { EVERYONE, type Entitlements } from '../types/Entitlements';
+import { Capability, EVERYONE, type Entitlements } from '../types/Entitlements';
 import { assert } from 'console';
 import { In } from 'typeorm';
 import { StatusCodes } from 'http-status-codes';
@@ -102,4 +102,9 @@ export default class EntitlementService {
       throw new ErrorResponse(`Failed to fetch entitlements from endpoint: ${error}`, StatusCodes.INTERNAL_SERVER_ERROR);
     }
   }
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  enforceEntitlements = (requestData: RequestData, datasetSlugs: string[], capability: Capability): void => {
+    // TODO: implement
+  };
 }
