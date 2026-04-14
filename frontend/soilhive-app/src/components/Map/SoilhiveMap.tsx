@@ -330,17 +330,22 @@ function SoilhiveMap({
     if (showDrawControl) return 'drawing';
     if (selection.features.length > 0 && mapBounds) {
       const selectionBbox = bboxFn(selection as GeoJSON.FeatureCollection);
-      const selectionContained =
-        mapBounds.getWest() <= selectionBbox[0] &&
-        mapBounds.getSouth() <= selectionBbox[1] &&
-        mapBounds.getEast() >= selectionBbox[2] &&
-        mapBounds.getNorth() >= selectionBbox[3];
-      if (!selectionContained) return 'search';
+
+      // Return 'search' if less than 20% of the selection is visible in the map viewbox
+      const selWidth = selectionBbox[2] - selectionBbox[0];
+      const selHeight = selectionBbox[3] - selectionBbox[1];
+      const selArea = selWidth * selHeight;
+      if (selArea > 0) {
+        const visibleWidth = Math.max(0, Math.min(selectionBbox[2], mapBounds.getEast()) - Math.max(selectionBbox[0], mapBounds.getWest()));
+        const visibleHeight = Math.max(
+          0,
+          Math.min(selectionBbox[3], mapBounds.getNorth()) - Math.max(selectionBbox[1], mapBounds.getSouth()),
+        );
+        if ((visibleWidth * visibleHeight) / selArea < 0.2) return 'search';
+      }
 
       const mapWidth = mapBounds.getEast() - mapBounds.getWest();
       const mapHeight = mapBounds.getNorth() - mapBounds.getSouth();
-      const selWidth = selectionBbox[2] - selectionBbox[0];
-      const selHeight = selectionBbox[3] - selectionBbox[1];
       const ratio = (selWidth * selHeight) / (mapWidth * mapHeight);
       if (ratio >= 1 || ratio < 0.01) return 'search';
     }
