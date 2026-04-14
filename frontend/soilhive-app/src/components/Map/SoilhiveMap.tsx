@@ -348,7 +348,7 @@ function SoilhiveMap({
       const mapWidth = mapBounds.getEast() - mapBounds.getWest();
       const mapHeight = mapBounds.getNorth() - mapBounds.getSouth();
       const ratio = (selWidth * selHeight) / (mapWidth * mapHeight);
-      if (ratio >= 1 || ratio < 0.01) return 'search';
+      if (ratio >= 1) return 'search';
     }
     return 'clear';
   }, [showDrawControl, selection, mapBounds]);
