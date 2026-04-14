@@ -1,23 +1,21 @@
 /* eslint-disable */
+import { forwardRef, useImperativeHandle } from 'react';
 import { MaplibreTerradrawControl } from '@watergis/maplibre-gl-terradraw';
 import { useControl } from 'react-map-gl/maplibre';
 
 import type { ControlPosition } from 'react-map-gl/maplibre';
 
-// type DrawControlProps = ConstructorParameters<typeof TerradrawControlOptions>[0] & {
-//   position?: ControlPosition;
-//   // onCreate?: (evt: {features: object[]}) => void;
-//   // onUpdate?: (evt: {features: object[]; action: string}) => void;
-//   // onDelete?: (evt: {features: object[]}) => void;
-// };
+export type DrawControlRef = {
+  reset: () => void;
+};
 
-export default function DrawControl({
-  position = 'bottom-right',
-  onFinish,
-}: {
-  position?: ControlPosition;
-  onFinish: (feature: any) => void;
-}) {
+const DrawControl = forwardRef<
+  DrawControlRef,
+  {
+    position?: ControlPosition;
+    onFinish: (feature: any) => void;
+  }
+>(function DrawControl({ position = 'bottom-right', onFinish }, ref) {
   const drawControl = useControl<MaplibreTerradrawControl>(
     () =>
       new MaplibreTerradrawControl({
@@ -57,6 +55,15 @@ export default function DrawControl({
     },
   );
 
+  useImperativeHandle(ref, () => ({
+    reset() {
+      const drawInstance = drawControl.getTerraDrawInstance();
+      const currentMode = drawInstance.getMode();
+      drawInstance.clear();
+      drawInstance.setMode(currentMode);
+    },
+  }));
+
   function onDrawFinish() {
     const drawInstance = drawControl.getTerraDrawInstance();
     const snapshot = drawInstance.getSnapshot();
@@ -65,10 +72,6 @@ export default function DrawControl({
   }
 
   return null;
-}
+});
 
-DrawControl.defaultProps = {
-  onCreate: () => {},
-  onUpdate: () => {},
-  onDelete: () => {},
-};
+export default DrawControl;
