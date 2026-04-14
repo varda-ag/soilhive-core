@@ -3,14 +3,13 @@ import EntitlementService from '../services/EntitlementService';
 
 const entitlementService = new EntitlementService();
 
-export const authMiddleware = async (req: Request & { openapi?: any }): Promise<boolean> => {
+export const authMiddleware = async (req: Request & { openapi?: any }) => {
   const schema = req.openapi?.schema;
   const entitlementsRequired = schema?.['x-entitlements-required'] ?? false;
   if (!entitlementsRequired || !req.customData.token?.email) {
     req.customData.entitlements = {};
-    return true;
+  } else {
+    const data = await entitlementService.getUserEntitlements(req.customData, req.customData.token?.email);
+    req.customData.entitlements = data;
   }
-  const data = await entitlementService.getUserEntitlements(req.customData, req.customData.token?.email);
-  req.customData.entitlements = data;
-  return true;
 };

@@ -4,6 +4,7 @@ import SwaggerCli from '@apidevtools/swagger-cli';
 import { middleware as OpenApiValidator } from 'express-openapi-validator';
 import { tokenValidator } from './tokenValidator';
 import FileService from '../services/FileService';
+import { authMiddleware } from './auth';
 
 let cachedSwaggerDocument = undefined;
 
@@ -27,7 +28,11 @@ export const getOpenApiMiddleware = async () => {
     operationHandlers: path.join(__dirname, '..'),
     validateSecurity: {
       handlers: {
-        bearerAuth: tokenValidator,
+        bearerAuth: async (req, scopes) => {
+          const result = await tokenValidator(req, scopes);
+          if (result) await authMiddleware(req); // Get entitlements
+          return result;
+        },
       },
     },
     fileUploader: {

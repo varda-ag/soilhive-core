@@ -65,7 +65,7 @@ export default class EntitlementService {
       .execute();
   };
 
-  getUserEntitlements = async (requestData: RequestData, id?: string): Promise<Entitlements> => {
+  async getUserEntitlements(requestData: RequestData, id?: string): Promise<Entitlements> {
     const externalEntitlements = await this.callEntitlementsEndpoint(requestData);
     // Local DB entitlements may override external entitlements
     const repo = requestData.entityManager.getRepository(EntitlementsEntity);
@@ -80,7 +80,7 @@ export default class EntitlementService {
       }
       return acc;
     }, externalEntitlements);
-  };
+  }
 
   async callEntitlementsEndpoint(requestData: RequestData): Promise<Entitlements> {
     if (!process.env.ENTITLEMENTS_ENDPOINT || !requestData.token?.raw) {
