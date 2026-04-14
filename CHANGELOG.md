@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.69.1 (2026-04-14)
+
+## What's Changed
+* fix: fixed popup appearing while drawing by @cristbello in https://github.com/varda-ag/soilhive-core/pull/391
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.69.0...v0.69.1
+
 ## 0.69.0 (2026-04-14)
 
 ## What's Changed
