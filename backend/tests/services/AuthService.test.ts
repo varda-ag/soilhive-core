@@ -24,7 +24,7 @@ describe('Testing AuthService', () => {
       'superadmin',
       {
         sub: 'super-admin',
-        scope: 'super-admin',
+        scope: 'super-admin data-admin',
         email_verified: true,
         given_name: 'super',
         family_name: 'admin',
