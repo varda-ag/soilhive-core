@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.69.0 (2026-04-14)
+
+## What's Changed
+* fix: line height by @svaccari in https://github.com/varda-ag/soilhive-core/pull/387
+* feat: sp-5041 removed <1% rule from toolbarMode by @cristbello in https://github.com/varda-ag/soilhive-core/pull/389
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.68.0...v0.69.0
+
 ## 0.68.0 (2026-04-14)
 
 ## What's Changed
