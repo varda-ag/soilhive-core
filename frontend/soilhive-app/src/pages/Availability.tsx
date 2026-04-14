@@ -36,6 +36,10 @@ function Availability() {
     setBoundingBox(bounds);
     setSelectionType(selectionType);
     setLocationName(locationName);
+
+    if (isDesktopLayout && geometries) {
+      setIsFiltersOpened(true);
+    }
   };
 
   return (
