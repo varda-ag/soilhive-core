@@ -105,7 +105,7 @@ describe('FileService', () => {
       const fileId = fileEntity.slug;
 
       await fileService.fileToDB(requestData, fileId);
-      const tableName = getRawTableName(fileId);
+      const tableName = getRawTableName(fileEntity.id);
       const tableColumns = await getTableColumns(tableName);
       expect(fileEntity.metadata).toBeDefined();
       const originalGeomFields = [
@@ -219,7 +219,7 @@ describe('FileService', () => {
     it('should create table in DB with column names as sanitized field_names', async () => {
       const fileId = fileEntity.slug;
       await fileService.fileToDB(requestData, fileId);
-      const tableName = getRawTableName(fileId);
+      const tableName = getRawTableName(fileEntity.id);
       const tableColumns = await getTableColumns(tableName);
       const originalGeomFields = [
         metadata.detected_fields[DetectableFields.GEOMETRY],
@@ -265,7 +265,7 @@ describe('FileService', () => {
     it('should load to DB same layer as detected in metadata', async () => {
       const fileId = fileEntity.slug;
       await fileService.fileToDB(requestData, fileId);
-      const tableName = getRawTableName(fileId);
+      const tableName = getRawTableName(fileEntity.id);
       const tableColumns = await getTableColumns(tableName);
       const originalGeomFields = [
         metadata.detected_fields[DetectableFields.GEOMETRY],
