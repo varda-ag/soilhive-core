@@ -106,8 +106,8 @@ describe('DatasetsList', () => {
 
     render(<DatasetsList />);
 
-    expect(screen.getByText('Clear all')).toBeInTheDocument();
-    expect(screen.getByText('filters to explore data in selected area')).toBeInTheDocument();
+    expect(screen.getByText('Clear all filters')).toBeInTheDocument();
+    expect(screen.getByText('This is due to applied filters')).toBeInTheDocument();
     expect(screen.queryByTestId('sh-datasets-list')).not.toBeInTheDocument();
   });
 

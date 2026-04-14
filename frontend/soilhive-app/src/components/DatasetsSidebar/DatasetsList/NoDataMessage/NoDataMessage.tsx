@@ -16,12 +16,11 @@ export function NoDataMessage({ isNoData, isNoFilteredData }: Props) {
     t('datasets_sidebar.no_data_in_selected_area')
   ) : isNoFilteredData ? (
     <>
+      {t('datasets_sidebar.no_data_in_selected_area_due_to_filters')}
       <div className={styles.Actions}>
         <span className={styles.ClearAll} data-testid="sh-dataset-sidebar-clear-all" role="button" onClick={clearAllFilters}>
-          {t('filtering_sidebar.clear_all')}
+          {t('datasets_sidebar.clear_all_filters')}
         </span>
-        &nbsp;
-        {t('datasets_sidebar.no_data_in_selected_area_due_to_filters')}
       </div>
     </>
   ) : null;

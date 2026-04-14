@@ -38,7 +38,7 @@ describe('NoDataMessage', () => {
 
     expect(screen.getByText('datasets_sidebar.no_data_available')).toBeInTheDocument();
     expect(screen.getByTestId('sh-dataset-sidebar-clear-all')).toBeInTheDocument();
-    expect(screen.getByText('filtering_sidebar.clear_all')).toBeInTheDocument();
+    expect(screen.getByText('datasets_sidebar.clear_all_filters')).toBeInTheDocument();
     expect(screen.getByText('datasets_sidebar.no_data_in_selected_area_due_to_filters')).toBeInTheDocument();
     expect(container).toMatchSnapshot();
   });

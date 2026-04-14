@@ -95,4 +95,7 @@ export default class DatasetEntity extends BaseTable implements Dataset {
 
   @Column({ type: 'text', nullable: true })
   service_location?: string | null;
+
+  @Column({ type: 'text', enum: ['public', 'private'], default: 'private' })
+  visibility: string;
 }
