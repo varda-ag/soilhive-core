@@ -2,14 +2,15 @@
   text-align: center;
   align-items: center;
   padding: 3rem;
-  line-height: 2rem;
+  line-height: 1.3rem;
   .Title {
-    line-height: 2rem;
+    line-height: 3rem;
     font-weight: 700;
     font-size: 1rem;
   }
   > .Actions {
     > .ClearAll {
+      line-height: 3rem;
       color: var(--color-cta-danger-solid);
       text-decoration: underline;
       cursor: pointer;
