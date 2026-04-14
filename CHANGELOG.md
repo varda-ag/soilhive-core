@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.67.1 (2026-04-14)
+
+## What's Changed
+* fix: OIDC auth detection by @svaccari in https://github.com/varda-ag/soilhive-core/pull/378
+* fix: token validator middleware, adding tests by @svaccari in https://github.com/varda-ag/soilhive-core/pull/380
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.67.0...v0.67.1
+
 ## 0.67.0 (2026-04-13)
 
 ## What's Changed
