@@ -154,6 +154,7 @@ function SoilhiveMap({
   }, [setSelectedPoint]);
 
   const onDrawClick = useCallback(() => {
+    setSelectedPoint(null);
     setShowDrawControl(true);
     setShowSelectionToolbar(true);
     onSelectionToolbarVisibilityChange?.(true);
@@ -162,7 +163,7 @@ function SoilhiveMap({
       const btn = document.querySelector('button.maplibregl-terradraw-add-polygon-button') as HTMLButtonElement | null;
       btn?.click();
     }, 0);
-  }, [onSelectionToolbarVisibilityChange, setShowDrawControl, setShowSelectionToolbar]);
+  }, [onSelectionToolbarVisibilityChange, setShowDrawControl, setShowSelectionToolbar, setSelectedPoint]);
 
   const applySelection = useCallback(
     (geometry: Polygon | MultiPolygon, point?: Point, moveBounds?: boolean) => {
