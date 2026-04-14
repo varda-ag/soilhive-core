@@ -58,19 +58,26 @@ export const tokenValidator = async (req: Request, scopes: string[]): Promise<bo
     return false;
   }
 
+  try {
+    // Check if token comes from an internal request
+    const decodedInternal = jwt.verify(tokenString, process.env.SELF_SIGNING_SECRET!, {
+      algorithms: ['HS256'],
+    }) as JwtPayload;
+    if (typeof decodedInternal === 'string' && decodedInternal === 'internal-request') {
+      return true;
+    }
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  } catch (_: any) {
+    // Not an internal token, proceed with normal validation
+  }
+
   // First token decode to get the kid from header
   const decodedHeader = jwt.decode(tokenString, { complete: true });
   if (!decodedHeader || typeof decodedHeader === 'string') {
     throw new ErrorResponse('Invalid token (header decode failure)', StatusCodes.UNAUTHORIZED);
   }
+
   const kid = decodedHeader.header.kid;
-  // Check internal request
-  const decodedInternal = jwt.verify(tokenString, process.env.SELF_SIGNING_SECRET!, {
-    algorithms: ['HS256'],
-  }) as JwtPayload;
-  if (typeof decodedInternal === 'string' && decodedInternal === 'internal-request') {
-    return true;
-  }
   if (!kid) {
     throw new ErrorResponse('Invalid token (no kid)', StatusCodes.UNAUTHORIZED);
   }

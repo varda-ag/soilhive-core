@@ -72,7 +72,7 @@
   },
   "jest": {
     "transform": {
-      "^.+\\.(ts|js)x?$": "ts-jest"
+      "^.+\\.(ts|js)x?$": ["ts-jest", { "tsconfig": { "module": "CommonJS" } }]
     },
     "transformIgnorePatterns": [
       "<rootDir>/node_modules/(?!(pg-boss|serialize-error|non-error|p-limit|yocto-queue)/)"
