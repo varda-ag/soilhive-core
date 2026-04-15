@@ -1,6 +1,9 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router';
+import { useApiQuery } from './useApiQuery';
+import { useSoilProperties } from './useSoilProperties';
 import { ADMIN_PATHS } from '../configuration/admin';
+import type { FileDescriptor } from 'types/backend';
 import type { MenuOption } from 'types/components';
 
 // Types scoped to the fake-data UI layer (backend shape wired later)
@@ -25,22 +28,20 @@ export interface ColumnMapping {
 export type DetailOptionMap = Record<keyof RowDetails, MenuOption[]>;
 
 // ---------------------------------------------------------------------------
-// Fake data
+// Concept options — detectable structural fields (hardcoded: fixed pipeline enum)
+// followed by soil properties fetched from the API.
 // ---------------------------------------------------------------------------
 
-const FAKE_DETECTED_COLUMNS = ['Carbon_organic', 'Sand', 'PH', 'Latitude', 'Legal_license', 'Unknown_field'];
-
-const CONCEPT_OPTIONS: MenuOption[] = [
-  { code: 'carbon_organic_gkg', name: 'Carbon organic (g/kg)' },
-  { code: 'sand_fraction', name: 'Sand Fraction (%w)' },
-  { code: 'ph', name: 'pH' },
-  { code: 'lat', name: 'Lat' },
-  { code: 'lon', name: 'Lon' },
+const DETECTABLE_FIELD_OPTIONS: MenuOption[] = [
+  { code: 'geometry', name: 'Geometry' },
+  { code: 'latitude', name: 'Latitude' },
+  { code: 'longitude', name: 'Longitude' },
+  { code: 'sampling_date', name: 'Sampling date' },
+  { code: 'depth', name: 'Depth' },
+  { code: 'min_depth', name: 'Min depth' },
+  { code: 'max_depth', name: 'Max depth' },
+  { code: 'horizon', name: 'Horizon' },
   { code: 'license', name: 'License' },
-  { code: 'organic_matter', name: 'Organic matter' },
-  { code: 'nitrogen', name: 'Nitrogen' },
-  { code: 'phosphorus', name: 'Phosphorus' },
-  { code: 'potassium', name: 'Potassium' },
 ];
 
 const UNIT_OPTIONS: MenuOption[] = [
@@ -112,14 +113,32 @@ const EMPTY_DETAILS: RowDetails = {
 export function useMappingsStep(datasetId?: string) {
   const navigate = useNavigate();
 
-  const [columnMappings, setColumnMappings] = useState<ColumnMapping[]>(() =>
-    FAKE_DETECTED_COLUMNS.map(columnName => ({
-      columnName,
-      conceptId: null,
-      unitId: null,
-      details: { ...EMPTY_DETAILS },
-    })),
-  );
+  const { data: files, isLoading: isLoadingFiles } = useApiQuery<FileDescriptor[]>({
+    endpoint: `/datasets/${datasetId}/files`,
+    method: 'GET',
+    queryKey: ['datasets', datasetId, 'files'],
+    enabled: !!datasetId,
+  });
+
+  const { data: soilProperties, isLoading: isLoadingSoilProperties } = useSoilProperties();
+
+  const isLoading = isLoadingFiles || isLoadingSoilProperties;
+
+  const [columnMappings, setColumnMappings] = useState<ColumnMapping[]>([]);
+
+  useEffect(() => {
+    if (!files) return;
+    const columnNames = [...new Set(files.flatMap(f => f.metadata?.field_names ?? []))];
+    setColumnMappings(columnNames.map(columnName => ({ columnName, conceptId: null, unitId: null, details: { ...EMPTY_DETAILS } })));
+  }, [files]);
+
+  // Detectable structural fields first, then soil properties sorted alphabetically.
+  const conceptOptions = useMemo(() => {
+    const soilPropertyOptions = (soilProperties ?? [])
+      .map(p => ({ code: p.id, name: p.property_name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+    return [...DETECTABLE_FIELD_OPTIONS, ...soilPropertyOptions];
+  }, [soilProperties]);
 
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
@@ -179,8 +198,9 @@ export function useMappingsStep(datasetId?: string) {
   }, [navigate, datasetId]);
 
   return {
+    isLoading,
     columnMappings,
-    conceptOptions: CONCEPT_OPTIONS,
+    conceptOptions,
     unitOptions: UNIT_OPTIONS,
     detailOptions: DETAIL_OPTIONS,
     mappedCount,

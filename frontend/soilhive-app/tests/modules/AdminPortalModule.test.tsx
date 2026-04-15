@@ -28,6 +28,10 @@ jest.mock('../../src/pages/AdminPortal/DatasetsGeneralInfoStep/DatasetsGeneralIn
   DatasetsGeneralInfoStep: () => <div>DatasetsGeneralInfoStep page</div>,
 }));
 
+jest.mock('../../src/pages/AdminPortal/DatasetsMappingsStep/DatasetsMappingsStep', () => ({
+  DatasetsMappingsStep: () => <div>DatasetsMappingsStep page</div>,
+}));
+
 jest.mock('../../src/hooks/useDatasetsSoilData', () => ({
   __esModule: true,
   useDatasetsSoilData: jest.fn().mockReturnValue({
