@@ -6,6 +6,7 @@ import { StatusCodes } from 'http-status-codes';
 import { getDataAdminToken } from '../helper';
 import { getEntityManager } from '../../src/utils/data-source';
 import EntitlementService from '../../src/services/EntitlementService';
+import { Capability } from '../../src/types/Entitlements';
 
 describe('Testing entitlements routes', () => {
   const slug = 'test_dataset_1';
@@ -50,22 +51,29 @@ describe('Testing entitlements routes', () => {
   });
 
   describe('Getting entitlements from external provider successfully', () => {
-    it('responds with the list of entitlements', async () => {
+    it('merges local and remote entitlements', async () => {
       process.env.ENTITLEMENTS_ENDPOINT = 'http://mock-entitlements';
 
+      const expectedEntitlements = {
+        'dataset-1': [Capability.DOWNLOAD],
+        'dataset-2': [Capability.PREVIEW],
+        test_dataset_1: [Capability.OBFUSCATE_AS_POINTS, Capability.PREVIEW, Capability.DOWNLOAD],
+      };
+
       // Mock callEntitlementsEndpoint function
-      const entitlementsResponse = {
-        'dataset-1': ['download' as const],
-        'dataset-2': ['preview' as const],
+      const remoteEntitlements = {
+        'dataset-1': [Capability.DOWNLOAD],
+        'dataset-2': [Capability.PREVIEW],
+        test_dataset_1: [Capability.OBFUSCATE_AS_POINTS, Capability.PREVIEW],
       };
 
       const callEntitlementsEndpointSpy = jest
         .spyOn(EntitlementService.prototype, 'callEntitlementsEndpoint')
-        .mockResolvedValue(entitlementsResponse);
+        .mockResolvedValue(remoteEntitlements);
 
       const res = await request(app).get('/entitlements').set('Authorization', `Bearer ${token}`);
       expect(res.statusCode).toBe(StatusCodes.OK);
-      expect(res.body).toEqual(entitlementsResponse);
+      expect(res.body).toEqual(expectedEntitlements);
 
       // Clean up
       delete process.env.ENTITLEMENTS_ENDPOINT;

@@ -66,8 +66,8 @@ export default class EntitlementService {
   };
 
   async getUserEntitlements(requestData: RequestData, id?: string): Promise<Entitlements> {
+    // Local DB entitlements are added on top of external entitlements
     const externalEntitlements = await this.callEntitlementsEndpoint(requestData);
-    // Local DB entitlements may override external entitlements
     const repo = requestData.entityManager.getRepository(EntitlementsEntity);
     const entitlements = await repo.find({ where: { id: In([id, EVERYONE]) } });
     return entitlements.reduce((acc, { data }) => {
@@ -79,7 +79,7 @@ export default class EntitlementService {
         acc[key] = Array.from(new Set([...acc[key], ...capabilities]));
       }
       return acc;
-    }, externalEntitlements);
+    }, externalEntitlements); // Using external entitlements as the accumulator base
   }
 
   async callEntitlementsEndpoint(requestData: RequestData): Promise<Entitlements> {
