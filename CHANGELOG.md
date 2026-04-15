@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.70.0 (2026-04-15)
+
+## What's Changed
+* feat(UI): sp-5030 data mapping step by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/390
+* feat(UI): sp-5127 load and display detected fields to map by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/394
+* feat: sp-5060 - datasets table page by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/395
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.69.1...v0.70.0
+
 ## 0.69.1 (2026-04-14)
 
 ## What's Changed
