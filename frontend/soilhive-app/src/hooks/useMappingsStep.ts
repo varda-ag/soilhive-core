@@ -1,6 +1,8 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router';
+import { useApiQuery } from './useApiQuery';
 import { ADMIN_PATHS } from '../configuration/admin';
+import type { FileDescriptor } from 'types/backend';
 import type { MenuOption } from 'types/components';
 
 // Types scoped to the fake-data UI layer (backend shape wired later)
@@ -25,10 +27,8 @@ export interface ColumnMapping {
 export type DetailOptionMap = Record<keyof RowDetails, MenuOption[]>;
 
 // ---------------------------------------------------------------------------
-// Fake data
+// Fake data (concept / unit / detail options — backend wiring deferred)
 // ---------------------------------------------------------------------------
-
-const FAKE_DETECTED_COLUMNS = ['Carbon_organic', 'Sand', 'PH', 'Latitude', 'Legal_license', 'Unknown_field'];
 
 const CONCEPT_OPTIONS: MenuOption[] = [
   { code: 'carbon_organic_gkg', name: 'Carbon organic (g/kg)' },
@@ -112,14 +112,20 @@ const EMPTY_DETAILS: RowDetails = {
 export function useMappingsStep(datasetId?: string) {
   const navigate = useNavigate();
 
-  const [columnMappings, setColumnMappings] = useState<ColumnMapping[]>(() =>
-    FAKE_DETECTED_COLUMNS.map(columnName => ({
-      columnName,
-      conceptId: null,
-      unitId: null,
-      details: { ...EMPTY_DETAILS },
-    })),
-  );
+  const { data: files, isLoading } = useApiQuery<FileDescriptor[]>({
+    endpoint: `/datasets/${datasetId}/files`,
+    method: 'GET',
+    queryKey: ['datasets', datasetId, 'files'],
+    enabled: !!datasetId,
+  });
+
+  const [columnMappings, setColumnMappings] = useState<ColumnMapping[]>([]);
+
+  useEffect(() => {
+    if (!files) return;
+    const columnNames = [...new Set(files.flatMap(f => f.metadata?.field_names ?? []))];
+    setColumnMappings(columnNames.map(columnName => ({ columnName, conceptId: null, unitId: null, details: { ...EMPTY_DETAILS } })));
+  }, [files]);
 
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
@@ -179,6 +185,7 @@ export function useMappingsStep(datasetId?: string) {
   }, [navigate, datasetId]);
 
   return {
+    isLoading,
     columnMappings,
     conceptOptions: CONCEPT_OPTIONS,
     unitOptions: UNIT_OPTIONS,

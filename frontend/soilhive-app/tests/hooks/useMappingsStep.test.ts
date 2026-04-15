@@ -1,10 +1,21 @@
 import { renderHook, act } from '@testing-library/react';
 import { useNavigate } from 'react-router';
 import { useMappingsStep } from 'hooks/useMappingsStep';
+import { useApiQuery } from 'hooks/useApiQuery';
 
 jest.mock('react-router', () => ({
   useNavigate: jest.fn(),
 }));
+
+jest.mock('hooks/useApiQuery', () => ({
+  useApiQuery: jest.fn(),
+}));
+
+// Default: no files loaded yet
+const mockUseApiQuery = useApiQuery as jest.Mock;
+beforeEach(() => {
+  mockUseApiQuery.mockReturnValue({ data: undefined, isLoading: false });
+});
 
 describe('useMappingsStep', () => {
   const mockNavigate = jest.fn();
