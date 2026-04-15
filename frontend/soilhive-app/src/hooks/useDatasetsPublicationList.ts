@@ -26,7 +26,7 @@ type DatasetsPublicationListType = {
 
 export function useDatasetsPublicationList(): DatasetsPublicationListType {
   const navigate = useNavigate();
-  const { datasets, isLoading } = useDatasets();
+  const { datasets, isLoading, isError } = useDatasets();
   const [searchValue, setSearchValue] = useState<string>('');
   const [isDeleteModalOpened, setIsDeleteModalOpened] = useState<boolean>(false);
   const [selectedDataset, setSelectedDataset] = useState<DatasetsPublicationListItem | null>(null);
@@ -63,19 +63,30 @@ export function useDatasetsPublicationList(): DatasetsPublicationListType {
     console.log('onPublish', id);
   }, []);
 
-  const filteredDatasets = useMemo(() => {
-    return datasets?.filter(dataset => dataset.name.toLowerCase().includes(searchValue.toLowerCase())) || [];
-  }, [datasets, searchValue]);
+  const datasetListItems = useMemo((): DatasetsPublicationListItem[] => {
+    return (
+      datasets?.map(dataset => ({
+        id: dataset.id,
+        name: dataset.name,
+        status: dataset.status,
+        visibility: dataset.visibility,
+      })) || []
+    );
+  }, [datasets]);
+
+  const filteredDatasets = useMemo((): DatasetsPublicationListItem[] => {
+    return datasetListItems?.filter(dataset => dataset.name.toLowerCase().includes(searchValue.toLowerCase()));
+  }, [datasetListItems, searchValue]);
 
   const navigateToNewDataset = useCallback(() => {
     navigate(`${ADMIN_PATHS.DATASETS}/new`);
   }, [navigate]);
 
   useEffect(() => {
-    if (!isLoading && !datasets?.length) {
+    if (!isLoading && !datasets?.length && !isError) {
       navigateToNewDataset();
     }
-  }, [isLoading, datasets, navigateToNewDataset]);
+  }, [isLoading, isError, datasets, navigateToNewDataset]);
 
   return {
     datasets,

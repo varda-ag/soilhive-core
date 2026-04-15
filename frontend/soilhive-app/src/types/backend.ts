@@ -139,6 +139,7 @@ export interface Dataset {
   created_by: string;
   updated_by?: string;
   service_location?: string;
+  visibility?: string;
 }
 
 export interface SoilDataParameters {

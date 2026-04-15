@@ -29,13 +29,13 @@ interface Props {
 export function DatasetsPublicationTable({ datasets, onEdit, onDelete, onPublish }: Props) {
   const { t } = useTranslation('admin');
 
-  const statusSortFunction = (event: ColumnSortEvent) => {
+  const statusSortFunction = useCallback((event: ColumnSortEvent) => {
     return [...event.data].sort((a: DatasetsPublicationListItem, b: DatasetsPublicationListItem) => {
       const valA = statusSortingMap[a.status] ?? 0;
       const valB = statusSortingMap[b.status] ?? 0;
       return (event.order || 0) * (valA - valB);
     });
-  };
+  }, []);
 
   const actionsBodyTemplate = useCallback(
     (dataset: DatasetsPublicationListItem) => (
@@ -62,7 +62,7 @@ export function DatasetsPublicationTable({ datasets, onEdit, onDelete, onPublish
         bodyTemplate: actionsBodyTemplate,
       },
     ],
-    [t, actionsBodyTemplate],
+    [t, actionsBodyTemplate, statusSortFunction],
   );
 
   const rowClassName = (row: DatasetsPublicationListItem) => {

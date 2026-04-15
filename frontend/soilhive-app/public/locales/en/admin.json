@@ -167,8 +167,7 @@
                 "PENDING": "Draft",
                 "ONGOING": "Loading",
                 "LOADED": "Loaded",
-                "PUBLISHED": "Published",
-                "ARCHIVED": "Archived"
+                "PUBLISHED": "Published"
             },
             "empty_message": "No datasets matching your search query",
             "visibility": {
