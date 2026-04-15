@@ -34,6 +34,7 @@ describe('DatasetFileMappingService', () => {
     requestData = {
       entityManager,
       token: mockToken,
+      entitlements: {},
     };
   });
 
@@ -97,7 +98,7 @@ describe('DatasetFileMappingService', () => {
   it('should return empty array when no mappings found for dataset', async () => {
     const service = new DatasetFileMappingService();
     const entityManager = await getEntityManager();
-    const requestData: RequestData = { entityManager, token: mockToken };
+    const requestData: RequestData = { entityManager, token: mockToken, entitlements: {} };
 
     // Create empty dataset
     const dataset = await addDataset('empty-dataset', [0, 0, 1, 1]);

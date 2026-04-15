@@ -29,3 +29,10 @@ export enum JobQueues {
   FILE_TO_DB = 'file-to-db',
   BULK_DELETE = 'bulk-delete',
 }
+
+export enum Capability {
+  PREVIEW = 'preview',
+  DOWNLOAD = 'download',
+  OBFUSCATE_AS_POINTS = 'obfuscate_as_points',
+  OBFUSCATE_AS_POLYGONS = 'obfuscate_as_polygons',
+}

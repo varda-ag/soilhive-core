@@ -1,12 +1,12 @@
-import { describe, it, expect, beforeAll, beforeEach, jest } from '@jest/globals';
-import { addSyntheticData, syntheticDataOptions } from '../../src/utils/mock';
+import { beforeAll, beforeEach, describe, expect, it, jest } from '@jest/globals';
+import { StatusCodes } from 'http-status-codes';
 import request from 'supertest';
 import { app } from '../../src/app';
-import { StatusCodes } from 'http-status-codes';
-import { getDataAdminToken } from '../helper';
-import { getEntityManager } from '../../src/utils/data-source';
 import EntitlementService from '../../src/services/EntitlementService';
-import { Capability } from '../../src/types/Entitlements';
+import { Capability } from '../../src/types/enums';
+import { getEntityManager } from '../../src/utils/data-source';
+import { addSyntheticData, syntheticDataOptions } from '../../src/utils/mock';
+import { getDataAdminToken } from '../helper';
 
 describe('Testing entitlements routes', () => {
   const slug = 'test_dataset_1';
@@ -48,6 +48,20 @@ describe('Testing entitlements routes', () => {
         expect(res.body).toEqual(payload);
       },
     );
+
+    it('updates capabilities for a dataset and reflects them in GET /datasets/:datasetId', async () => {
+      const initialRes = await request(app).get(`/datasets/${slug}`).set('Authorization', `Bearer ${token}`);
+      expect(initialRes.statusCode).toBe(StatusCodes.OK);
+      expect(initialRes.body.capabilities).toEqual([Capability.DOWNLOAD, Capability.PREVIEW]); // "everyone" + "${email}" entitlements
+
+      const newEntitlements = { [email]: [Capability.OBFUSCATE_AS_POINTS] };
+      const putRes = await request(app).put(`/datasets/${slug}/entitlements`).set('Authorization', `Bearer ${token}`).send(newEntitlements);
+      expect(putRes.statusCode).toBe(StatusCodes.OK);
+
+      const updatedRes = await request(app).get(`/datasets/${slug}`).set('Authorization', `Bearer ${token}`);
+      expect(updatedRes.statusCode).toBe(StatusCodes.OK);
+      expect(updatedRes.body.capabilities).toEqual([Capability.OBFUSCATE_AS_POINTS]); // Updated entitlements should be reflected in dataset capabilities
+    });
   });
 
   describe('Getting entitlements from external provider successfully', () => {

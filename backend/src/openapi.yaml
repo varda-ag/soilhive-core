@@ -236,6 +236,7 @@ paths:
     get:
       x-eov-operation-handler: controllers/datasets
       x-eov-operation-id: getDatasets
+      x-entitlements-required: true
       summary: Get metadata for all datasets
       tags:
         - datasets
@@ -287,6 +288,7 @@ paths:
     get:
       x-eov-operation-handler: controllers/datasets
       x-eov-operation-id: getDataset
+      x-entitlements-required: true
       summary: Get metadata for a specific dataset
       tags:
         - datasets
@@ -1841,6 +1843,12 @@ components:
           type: string
           enum: [public, private]
           default: private
+        capabilities:
+          type: array
+          items:
+            type: string
+            enum: [preview, download, obfuscate_as_points, obfuscate_as_polygons]
+          readOnly: true
 
     SoilProperty:
       type: object

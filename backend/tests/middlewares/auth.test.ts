@@ -7,14 +7,17 @@ import { getDataAdminToken, getSuperAdminToken } from '../helper';
 import JobService from '../../src/services/JobService';
 import EntitlementService from '../../src/services/EntitlementService';
 import { EntityManager } from 'typeorm';
+import { Capability } from '../../src/types/enums';
+import { addSyntheticData, syntheticDataOptions } from '../../src/utils/mock';
 
 describe('authMiddleware', () => {
   let dataAdminToken: string;
   let superAdminToken: string;
   let entityManager: EntityManager;
   let getUserEntitlementsSpy: jest.SpiedFunction<typeof EntitlementService.prototype.getUserEntitlements>;
-  const dataAdminEntitlements = { 'dataset-1': ['download', 'obfuscate_as_points', 'preview'] };
-  const superAdminEntitlements = { 'dataset-1': ['download'], 'dataset-2': ['download'] };
+  const everyoneEntitlements = { 'dataset-1': [Capability.DOWNLOAD] };
+  const dataAdminEntitlements = { 'dataset-1': [Capability.DOWNLOAD, 'obfuscate_as_points', 'preview'] };
+  const superAdminEntitlements = { 'dataset-1': [Capability.DOWNLOAD], 'dataset-2': [Capability.DOWNLOAD] };
 
   beforeAll(async () => {
     dataAdminToken = await getDataAdminToken();
@@ -46,20 +49,30 @@ describe('authMiddleware', () => {
     getUserEntitlementsSpy.mockRestore();
   });
 
-  describe('GET /datasets', () => {
-    it('results in entitlementsRequired = false, sets empty entitlements without calling the service', async () => {
-      const res = await request(app).get('/datasets');
+  describe('GET /soil-properties', () => {
+    it('results in entitlementsRequired = true, calling the service', async () => {
+      const res = await request(app).get('/soil-properties');
       expect(res.statusCode).toBe(StatusCodes.OK);
       expect(res.body).toEqual([]);
       expect(getUserEntitlementsSpy).not.toHaveBeenCalled();
     });
   });
 
+  describe('GET /datasets', () => {
+    it('results in entitlementsRequired = true, calling the service', async () => {
+      const res = await request(app).get('/datasets');
+      expect(res.statusCode).toBe(StatusCodes.OK);
+      expect(res.body).toEqual([]);
+      expect(getUserEntitlementsSpy).toHaveBeenCalled();
+    });
+  });
+
   describe('GET /soil-data', () => {
-    it('results in entitlementsRequired = false if called without a token', async () => {
+    it('results in entitlementsRequired = true even if called without a token', async () => {
       const res = await request(app).get('/soil-data').query({ datasets: 'test-dataset', limit: 10 });
       expect(res.statusCode).toBe(StatusCodes.OK);
-      expect(getUserEntitlementsSpy).not.toHaveBeenCalled();
+      expect(getUserEntitlementsSpy).toHaveBeenCalled();
+      await expect(getUserEntitlementsSpy.mock.results[0]!.value).resolves.toEqual(everyoneEntitlements);
     });
 
     it.each([
@@ -86,6 +99,23 @@ describe('authMiddleware', () => {
         .set('Authorization', `Bearer ${dataAdminToken}`)
         .send({ type: 'bulk-load', dataset_id: 'test-dataset' });
       expect(res.statusCode).toBe(StatusCodes.CREATED);
+      expect(getUserEntitlementsSpy).toHaveBeenCalled();
+    });
+  });
+
+  describe('GET /datasets', () => {
+    it('results in entitlementsRequired = true, fetches and stores user entitlements', async () => {
+      const res = await request(app).get('/datasets').set('Authorization', `Bearer ${dataAdminToken}`);
+      expect(res.statusCode).toBe(StatusCodes.OK);
+      expect(getUserEntitlementsSpy).toHaveBeenCalled();
+    });
+  });
+
+  describe('GET /datasets/:datasetId', () => {
+    it('results in entitlementsRequired = true, fetches and stores user entitlements', async () => {
+      const { dataset } = await addSyntheticData({ ...syntheticDataOptions });
+      const res = await request(app).get(`/datasets/${dataset.slug}`).set('Authorization', `Bearer ${dataAdminToken}`);
+      expect(res.statusCode).toBe(StatusCodes.OK);
       expect(getUserEntitlementsSpy).toHaveBeenCalled();
     });
   });

@@ -19,7 +19,7 @@ export const getSwaggerDocument = async () => {
 
 export const getOpenApiMiddleware = async () => {
   const apiSpec = await getSwaggerDocument();
-  return OpenApiValidator({
+  const middlewares = OpenApiValidator({
     apiSpec,
     validateRequests: true,
     validateResponses: false,
@@ -28,11 +28,7 @@ export const getOpenApiMiddleware = async () => {
     operationHandlers: path.join(__dirname, '..'),
     validateSecurity: {
       handlers: {
-        bearerAuth: async (req, scopes) => {
-          const result = await tokenValidator(req, scopes);
-          if (result) await authMiddleware(req); // Get entitlements
-          return result;
-        },
+        bearerAuth: tokenValidator,
       },
     },
     fileUploader: {
@@ -41,4 +37,18 @@ export const getOpenApiMiddleware = async () => {
       storage: FileService.getUploadStorageEngine(),
     },
   });
+
+  // Insert "authMiddleware" before "operationHandlersMiddleware".
+  // "authMiddleware" will set req.customData.entitlements based on the "x-entitlements-required" property in the OpenAPI schema of the route.
+  // At this point req.openapi.schema and req.customData.token are both set.
+  middlewares.splice(middlewares.length - 1, 0, async (req, res, next) => {
+    try {
+      await authMiddleware(req);
+      next();
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  return middlewares;
 };

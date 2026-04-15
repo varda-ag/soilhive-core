@@ -22,7 +22,7 @@ import { updateDatasetMetadata } from './UpdateDatasetMetadata';
 import { FileStorage } from '@flystorage/file-storage';
 import FileService from '../../services/FileService';
 import EntitlementService from '../../services/EntitlementService';
-import { EVERYONE } from '../../types/Entitlements';
+import { EVERYONE } from '../../constants/constants';
 
 export async function processBulkLoad(job: Job<BulkLoadJob>): Promise<void> {
   const { data } = job;

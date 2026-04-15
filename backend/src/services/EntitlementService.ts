@@ -1,11 +1,13 @@
-import { RequestData } from '../interfaces/RequestData';
-import { EntitlementsEntity } from '../entities/Entitlements';
-import { getEntitySlugs } from '../utils/slugs';
-import { Capability, EVERYONE, type Entitlements } from '../types/Entitlements';
 import { assert } from 'console';
-import { In } from 'typeorm';
 import { StatusCodes } from 'http-status-codes';
+import { In } from 'typeorm';
+import { EVERYONE } from '../constants/constants';
+import { EntitlementsEntity } from '../entities/Entitlements';
+import { RequestData } from '../interfaces/RequestData';
+import { type Entitlements } from '../types/Entitlements';
+import { Capability } from '../types/enums';
 import { ErrorResponse } from '../utils/error';
+import { getEntitySlugs } from '../utils/slugs';
 
 export default class EntitlementService {
   getEntityEntitlements = async (requestData: RequestData, slug: string): Promise<Entitlements> => {
@@ -69,7 +71,7 @@ export default class EntitlementService {
     // Local DB entitlements are added on top of external entitlements
     const externalEntitlements = await this.callEntitlementsEndpoint(requestData);
     const repo = requestData.entityManager.getRepository(EntitlementsEntity);
-    const entitlements = await repo.find({ where: { id: In([id, EVERYONE]) } });
+    const entitlements = (await repo.find({ where: { id: In([EVERYONE, id]) } })).sort((a, _) => (a.id === EVERYONE ? -1 : 1));
     return entitlements.reduce((acc, { data }) => {
       for (const key in data) {
         if (!acc[key]) {

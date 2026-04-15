@@ -14,11 +14,8 @@ import RasterFilterService from '../services/RasterFilterService';
 import { getDataSource } from '../utils/data-source';
 import { selectOverviewTable } from '../utils/raster';
 import { RequestData } from '../interfaces/RequestData';
-import EntitlementService from '../services/EntitlementService';
-import { Capability } from '../types/Entitlements';
 
 const rasterFilterService = new RasterFilterService();
-const entitlementService = new EntitlementService();
 
 export default class SoilDataStorage {
   /**
@@ -114,7 +111,6 @@ export default class SoilDataStorage {
     cursor?: string,
     sort?: string,
   ): Promise<SoilDataSample[]> => {
-    entitlementService.enforceEntitlements(requestData, datasetSlugs, Capability.DOWNLOAD);
     // Wrap everything in a transaction to preserve 'SET LOCAL' scope
     return await requestData.entityManager.transaction(async transactionalEntityManager => {
       await transactionalEntityManager.query("SET LOCAL work_mem = '256MB';");

@@ -10,7 +10,7 @@ import { getPgBoss, PG_BOSS_SCHEMA } from '../../services/PgBoss';
 import { GeoFileWriter } from './GeoFileWriter';
 import { cleanupTempFiles, generateDownloadFilename, generateDownloadPath, moveToDownloadFolder, zipFiles } from './storageHelpers';
 import EntitlementService from '../../services/EntitlementService';
-import { EVERYONE } from '../../types/Entitlements';
+import { EVERYONE } from '../../constants/constants';
 import { RequestData } from '../../interfaces/RequestData';
 
 export async function processExportJob(job: Job<ExportJob>): Promise<void> {

@@ -19,7 +19,7 @@ describe('DataMappingService', () => {
     it('should create a new data mapping record when the hash is unique', async () => {
       const service = new DataMappingService();
       const entityManager = await getEntityManager();
-      const requestData: RequestData = { entityManager, token: mockToken };
+      const requestData: RequestData = { entityManager, token: mockToken, entitlements: {} };
 
       const dataMapping = {
         magnesium: {
@@ -37,7 +37,7 @@ describe('DataMappingService', () => {
     it('should return the existing record (idempotency) when the same data mapping is posted', async () => {
       const service = new DataMappingService();
       const entityManager = await getEntityManager();
-      const requestData: RequestData = { entityManager, token: mockToken };
+      const requestData: RequestData = { entityManager, token: mockToken, entitlements: {} };
 
       const dataMapping = {
         calcium: {
@@ -58,7 +58,7 @@ describe('DataMappingService', () => {
   it('should soft delete an existing mapping', async () => {
     const service = new DataMappingService();
     const entityManager = await getEntityManager();
-    const requestData = { entityManager, token: mockToken };
+    const requestData = { entityManager, token: mockToken, entitlements: {} };
 
     const created = await service.postDataMapping(requestData, { test: 'data' });
 

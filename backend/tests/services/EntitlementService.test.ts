@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from '@jest/globals';
+import { describe, it, expect, beforeAll, beforeEach } from '@jest/globals';
 import { EntityManager } from 'typeorm';
 import { RequestData } from '../../src/interfaces/RequestData';
 import { getEntityManager } from '../../src/utils/data-source';
@@ -28,6 +28,7 @@ describe('EntitlementService', () => {
     requestData = {
       entityManager,
       token: mockToken,
+      entitlements: {},
     };
   });
 
