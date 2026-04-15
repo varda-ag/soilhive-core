@@ -1,0 +1,198 @@
+import { useState, useMemo, useCallback } from 'react';
+import { useNavigate } from 'react-router';
+import { ADMIN_PATHS } from '../configuration/admin';
+import type { MenuOption } from 'types/components';
+
+// Types scoped to the fake-data UI layer (backend shape wired later)
+export interface RowDetails {
+  samplePretreatment: string | null;
+  technique: string | null;
+  extractantFormulation: string | null;
+  extractantConcentration: string | null;
+  attractionRatio: string | null;
+  extractionBase: string | null;
+  instrument: string | null;
+  limitOfDetection: string | null;
+}
+
+export interface ColumnMapping {
+  columnName: string;
+  conceptId: string | null;
+  unitId: string | null;
+  details: RowDetails;
+}
+
+export type DetailOptionMap = Record<keyof RowDetails, MenuOption[]>;
+
+// ---------------------------------------------------------------------------
+// Fake data
+// ---------------------------------------------------------------------------
+
+const FAKE_DETECTED_COLUMNS = ['Carbon_organic', 'Sand', 'PH', 'Latitude', 'Legal_license', 'Unknown_field'];
+
+const CONCEPT_OPTIONS: MenuOption[] = [
+  { code: 'carbon_organic_gkg', name: 'Carbon organic (g/kg)' },
+  { code: 'sand_fraction', name: 'Sand Fraction (%w)' },
+  { code: 'ph', name: 'pH' },
+  { code: 'lat', name: 'Lat' },
+  { code: 'lon', name: 'Lon' },
+  { code: 'license', name: 'License' },
+  { code: 'organic_matter', name: 'Organic matter' },
+  { code: 'nitrogen', name: 'Nitrogen' },
+  { code: 'phosphorus', name: 'Phosphorus' },
+  { code: 'potassium', name: 'Potassium' },
+];
+
+const UNIT_OPTIONS: MenuOption[] = [
+  { code: 'percent', name: '%' },
+  { code: 'gkg', name: 'g/kg' },
+  { code: 'mgkg', name: 'mg/kg' },
+  { code: 'no_unit', name: 'No unit' },
+  { code: 'cmolkg', name: 'cmol/kg' },
+];
+
+const DETAIL_OPTIONS: DetailOptionMap = {
+  samplePretreatment: [
+    { code: 'air_dried', name: 'Air dried' },
+    { code: 'oven_dried', name: 'Oven dried' },
+    { code: 'field_moist', name: 'Field moist' },
+  ],
+  technique: [
+    { code: 'lab_procedure', name: 'Lab procedure' },
+    { code: 'field_measurement', name: 'Field measurement' },
+    { code: 'remote_sensing', name: 'Remote sensing' },
+  ],
+  extractantFormulation: [
+    { code: 'water', name: 'Water' },
+    { code: 'kcl', name: 'KCl' },
+    { code: 'cacl2', name: 'CaCl2' },
+  ],
+  extractantConcentration: [
+    { code: '0_01m', name: '0.01 M' },
+    { code: '0_1m', name: '0.1 M' },
+    { code: '1m', name: '1 M' },
+  ],
+  attractionRatio: [
+    { code: '1_2', name: '1:2' },
+    { code: '1_5', name: '1:5' },
+    { code: '1_10', name: '1:10' },
+  ],
+  extractionBase: [
+    { code: 'dry_weight', name: 'Dry weight' },
+    { code: 'wet_weight', name: 'Wet weight' },
+    { code: 'volume', name: 'Volume' },
+  ],
+  instrument: [
+    { code: 'spectrophotometer', name: 'Spectrophotometer' },
+    { code: 'icp_oes', name: 'ICP-OES' },
+    { code: 'gc', name: 'Gas chromatograph' },
+  ],
+  limitOfDetection: [
+    { code: '0_01', name: '0.01' },
+    { code: '0_1', name: '0.1' },
+    { code: '1', name: '1.0' },
+  ],
+};
+
+const EMPTY_DETAILS: RowDetails = {
+  samplePretreatment: null,
+  technique: null,
+  extractantFormulation: null,
+  extractantConcentration: null,
+  attractionRatio: null,
+  extractionBase: null,
+  instrument: null,
+  limitOfDetection: null,
+};
+
+// ---------------------------------------------------------------------------
+// Hook
+// ---------------------------------------------------------------------------
+
+export function useMappingsStep(datasetId?: string) {
+  const navigate = useNavigate();
+
+  const [columnMappings, setColumnMappings] = useState<ColumnMapping[]>(() =>
+    FAKE_DETECTED_COLUMNS.map(columnName => ({
+      columnName,
+      conceptId: null,
+      unitId: null,
+      details: { ...EMPTY_DETAILS },
+    })),
+  );
+
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+
+  const mappedCount = useMemo(() => columnMappings.filter(m => m.conceptId !== null).length, [columnMappings]);
+
+  const unmappedCount = useMemo(() => columnMappings.filter(m => m.conceptId === null).length, [columnMappings]);
+
+  const toggleRow = useCallback((columnName: string) => {
+    setExpandedRows(prev => {
+      const next = new Set(prev);
+      if (next.has(columnName)) {
+        next.delete(columnName);
+      } else {
+        next.add(columnName);
+      }
+      return next;
+    });
+  }, []);
+
+  const isUnitEnabled = useCallback(
+    (columnName: string) => columnMappings.find(m => m.columnName === columnName)?.conceptId !== null,
+    [columnMappings],
+  );
+
+  const handleConceptChange = useCallback((columnName: string, value: string) => {
+    setColumnMappings(prev =>
+      prev.map(m => {
+        if (m.columnName !== columnName) return m;
+        const conceptId = value || null;
+        // Clear the unit whenever the concept is removed
+        const unitId = conceptId === null ? null : m.unitId;
+        return { ...m, conceptId, unitId };
+      }),
+    );
+  }, []);
+
+  const handleUnitChange = useCallback((columnName: string, value: string) => {
+    setColumnMappings(prev => prev.map(m => (m.columnName === columnName ? { ...m, unitId: value || null } : m)));
+  }, []);
+
+  const handleDetailChange = useCallback((columnName: string, field: keyof RowDetails, value: string) => {
+    setColumnMappings(prev =>
+      prev.map(m => (m.columnName === columnName ? { ...m, details: { ...m.details, [field]: value || null } } : m)),
+    );
+  }, []);
+
+  const handlePrevious = useCallback(() => {
+    navigate(`${ADMIN_PATHS.DATASETS}/edit/${datasetId}/soil-data`);
+  }, [navigate, datasetId]);
+
+  const handleSaveAndContinueLater = useCallback(() => {
+    navigate(ADMIN_PATHS.DATASETS);
+  }, [navigate]);
+
+  const handleContinue = useCallback(() => {
+    navigate(`${ADMIN_PATHS.DATASETS}/edit/${datasetId}/preview`);
+  }, [navigate, datasetId]);
+
+  return {
+    columnMappings,
+    conceptOptions: CONCEPT_OPTIONS,
+    unitOptions: UNIT_OPTIONS,
+    detailOptions: DETAIL_OPTIONS,
+    mappedCount,
+    unmappedCount,
+    expandedRows,
+    isUnitEnabled,
+    toggleRow,
+    handleConceptChange,
+    handleUnitChange,
+    handleDetailChange,
+    handlePrevious,
+    handleSaveAndContinueLater,
+    handleContinue,
+  };
+}

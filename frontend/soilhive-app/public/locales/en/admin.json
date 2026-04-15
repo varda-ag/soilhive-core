@@ -196,7 +196,34 @@
         "mappings": {
             "step_title": "Mappings",
             "step_description": "Match your data",
-            "title": "Map fields"
+            "title": "Map fields",
+            "subtitle": "Map your fields to standard concepts and units",
+            "banner": {
+                "mapped": "Mapped",
+                "unmapped": "Unmapped",
+                "warning": "Unmapped columns won't be loaded in the platform"
+            },
+            "table": {
+                "detected_columns": "Detected columns",
+                "map_to": "Map to",
+                "original_unit": "Original Unit"
+            },
+            "row": {
+                "select_concept": "Select a concept",
+                "unit_placeholder": "Unit",
+                "no_unit": "No unit"
+            },
+            "details": {
+                "non_mandatory_note": "These fields are non mandatory",
+                "sample_pretreatment": "Sample pretreatment",
+                "technique": "Technique",
+                "extractant_formulation": "Extractant formulation",
+                "extractant_concentration": "Extractant concentration",
+                "attraction_ratio": "Actraction ratio",
+                "extraction_base": "Extraction base",
+                "instrument": "Instrument",
+                "limit_of_detection": "Limit of detection"
+            }
         },
         "preview": {
             "step_title": "Preview",
