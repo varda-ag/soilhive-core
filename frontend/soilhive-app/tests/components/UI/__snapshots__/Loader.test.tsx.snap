@@ -1,0 +1,13 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`Loader component renders the overlay and spinner elements and matches snapshot 1`] = `
+<div>
+  <div
+    class="LoaderOverlay"
+  >
+    <div
+      class="Loader"
+    />
+  </div>
+</div>
+`;

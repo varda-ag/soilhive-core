@@ -8,9 +8,10 @@ type TagType = 'default' | 'primary';
 interface Props {
   text: string;
   type?: TagType;
+  className?: string;
 }
 
-export function Tag({ text, type = 'default' }: Props) {
+export function Tag({ text, type = 'default', className }: Props) {
   const typeClass = useMemo(
     () =>
       ({
@@ -21,7 +22,7 @@ export function Tag({ text, type = 'default' }: Props) {
   );
 
   return (
-    <span data-testid="sh-ui-tag" className={classnames(styles.Tag, typeClass)}>
+    <span data-testid="sh-ui-tag" className={classnames(styles.Tag, typeClass, className)}>
       {text}
     </span>
   );

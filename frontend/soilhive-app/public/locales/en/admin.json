@@ -154,6 +154,34 @@
     },
     "datasets": {
         "title": "Datasets publication",
+        "list": {
+            "search_placeholder": "Search by name",
+            "add_button_text": "Add dataset",
+            "columns": {
+                "name": "Name",
+                "status": "Status",
+                "visibility": "Visibility",
+                "actions": "Actions"
+            },
+            "status": {
+                "PENDING": "Draft",
+                "ONGOING": "Loading",
+                "LOADED": "Loaded",
+                "PUBLISHED": "Published"
+            },
+            "empty_message": "No datasets matching your search query",
+            "visibility": {
+                "private": "Private",
+                "public": "Public"
+            },
+            "publish_button_text": "Publish",
+            "delete_modal": {
+                "title": "Delete this dataset?",
+                "message": "Are you sure you want to permanently delete <strong>{{datasetName}}</strong>? This action cannot be undone and the dataset will be removed from the list.",
+                "cancel": "Cancel",
+                "confirm": "Delete dataset"
+            }
+        },
         "actions": {
             "save_and_continue_later": "Save and continue later",
             "continue": "Continue",

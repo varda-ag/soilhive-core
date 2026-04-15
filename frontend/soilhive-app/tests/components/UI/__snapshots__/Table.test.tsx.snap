@@ -1,0 +1,63 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`Table component matches snapshot 1`] = `
+<div>
+  <div
+    class="sh-primereact-table"
+    data-testid="mock-datatable"
+  >
+    <div
+      data-testid="mock-columns"
+    >
+      <div
+        data-testid="mock-column-name"
+      >
+        <span
+          data-testid="header-name"
+        >
+          Name
+        </span>
+      </div>
+      <div
+        data-testid="mock-column-status"
+      >
+        <span
+          data-testid="header-status"
+        >
+          Status
+        </span>
+      </div>
+    </div>
+    <div
+      data-testid="mock-sort-unsorted"
+    >
+      <svg
+        class="SortNone"
+        data-testid="svg-icon-mock"
+      >
+        mock-svg
+      </svg>
+    </div>
+    <div
+      data-testid="mock-sort-asc"
+    >
+      <svg
+        class="SortDown"
+        data-testid="svg-icon-mock"
+      >
+        mock-svg
+      </svg>
+    </div>
+    <div
+      data-testid="mock-sort-desc"
+    >
+      <svg
+        class="SortUp"
+        data-testid="svg-icon-mock"
+      >
+        mock-svg
+      </svg>
+    </div>
+  </div>
+</div>
+`;
