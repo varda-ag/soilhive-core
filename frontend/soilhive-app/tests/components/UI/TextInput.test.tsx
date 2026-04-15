@@ -115,6 +115,20 @@ describe('TextInput component', () => {
     expect(screen.getByTestId('mock-wrapper')).toHaveClass('outer');
   });
 
+  it('applies Search class and renders search icon when isSearch=true', () => {
+    render(<TextInput isSearch />);
+
+    expect(screen.getByTestId('sh-ui-textinput')).toHaveClass('Search');
+    expect(screen.getByTestId('svg-icon-mock')).toBeInTheDocument();
+  });
+
+  it('does not render search icon when isSearch is false', () => {
+    render(<TextInput />);
+
+    expect(screen.queryByTestId('svg-icon-mock')).not.toBeInTheDocument();
+    expect(screen.getByTestId('sh-ui-textinput')).not.toHaveClass('Search');
+  });
+
   it('matches snapshot', () => {
     const { container } = render(<TextInput label="Email" value="hello" placeholder="Type..." isClearable isError errorMessage="Wrong!" />);
 

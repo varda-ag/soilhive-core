@@ -285,6 +285,7 @@ function SoilhiveMap({
 
   const onMapClick = useCallback(
     (event: MapLayerMouseEvent) => {
+      if (showDrawControl) return;
       const { lng, lat } = event.lngLat;
       const features: MapGeoJSONFeature[] = event.features ?? [];
       if (selection && isPointInFeatureCollection([lng, lat], selection)) {
@@ -296,7 +297,7 @@ function SoilhiveMap({
         setSelectedH3Cell(features[0]);
       }
     },
-    [selection, setSelectedPoint, applySelection, setSelectedH3Cell],
+    [showDrawControl, selection, setSelectedPoint, applySelection, setSelectedH3Cell],
   );
 
   const onSearchResultSelect = useCallback(
@@ -348,7 +349,7 @@ function SoilhiveMap({
       const mapWidth = mapBounds.getEast() - mapBounds.getWest();
       const mapHeight = mapBounds.getNorth() - mapBounds.getSouth();
       const ratio = (selWidth * selHeight) / (mapWidth * mapHeight);
-      if (ratio >= 1 || ratio < 0.01) return 'search';
+      if (ratio >= 1) return 'search';
     }
     return 'clear';
   }, [showDrawControl, selection, mapBounds]);
@@ -377,7 +378,7 @@ function SoilhiveMap({
 
         {showSelectionToolbar && <SoilhiveMapSelectionToolbar mode={toolbarMode} onCancel={resetSelection} onReset={resetDrawing} />}
 
-        {selectedPoint && (
+        {selectedPoint && !showDrawControl && (
           <Popup
             anchor="left"
             longitude={selectedPoint.lng}

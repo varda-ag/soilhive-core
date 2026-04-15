@@ -3,7 +3,7 @@ import { DataTable, type SortOrder } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { MultiSelect } from 'primereact/multiselect';
 import styles from './DownloadPreviewTable.module.scss';
-import { Button } from 'components/UI';
+import { Button, Loader } from 'components/UI';
 import NewspaperIcon from 'assets/icons/newspaper-icon.svg?react';
 import MapPinIcon from 'assets/icons/small-map-icon.svg?react';
 import { useMemo, useState, type Dispatch, type SetStateAction } from 'react';
@@ -169,11 +169,7 @@ function DownloadPreviewTable({
                 })}
             </DataTable>
           </PrimeReactProvider>
-          {isDataLoading && (
-            <div className={styles.LoaderOverlay}>
-              <div className={styles.Loader}></div>
-            </div>
-          )}
+          {isDataLoading && <Loader />}
         </div>
       </div>
       <div className={styles.Footer}>{t('download_preview.preview_footer')}</div>

@@ -6,7 +6,8 @@
   border: var(--color-neutral-dark-100) solid 0.125rem;
   border-radius: 0.25rem;
 
-  > .ClearTextIcon {
+  > .ClearTextIcon,
+  > .SearchIcon {
     color: var(--color-neutral-dark-200);
     flex-shrink: 0;
   }

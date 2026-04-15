@@ -11,6 +11,12 @@ describe('Tag component', () => {
     expect(container).toMatchSnapshot();
   });
 
+  it('applies custom className', () => {
+    render(<Tag text="Custom" className="my-class" />);
+
+    expect(screen.getByTestId('sh-ui-tag')).toHaveClass('my-class');
+  });
+
   it('renders primary type', () => {
     const { container } = render(<Tag text="Primary Tag" type="primary" />);
     expect(screen.getByTestId('sh-ui-tag')).toHaveTextContent('Primary Tag');

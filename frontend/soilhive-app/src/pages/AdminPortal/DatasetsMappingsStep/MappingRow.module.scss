@@ -1,0 +1,91 @@
+.MappingRow {
+  border-bottom: 1px solid var(--color-neutral-dark-100);
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.RowMain {
+  display: grid;
+  grid-template-columns: 32px 24px 1fr 2fr 1fr;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 8px;
+}
+
+// Chevron toggle button
+.Chevron {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  color: var(--color-neutral-dark-400);
+  transition: background-color 0.15s;
+
+  &:hover {
+    background-color: var(--color-neutral-dark-300);
+  }
+}
+
+.ChevronIcon {
+  width: 16px;
+  height: 16px;
+  // Arrow points down by default; rotate to point right when collapsed
+  transform: rotate(-90deg);
+  transition: transform 0.2s ease;
+}
+
+.ChevronExpanded .ChevronIcon {
+  transform: rotate(0deg);
+}
+
+// Status icons
+.StatusIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+}
+
+.CheckIcon {
+  width: 20px;
+  height: 20px;
+  color: var(--color-brand-light-green-1000);
+}
+
+.WarningIcon {
+  width: 18px;
+  height: 18px;
+  color: var(--color-accent-warning-1000);
+}
+
+// Column name — read-only styled box, height matches Dropdown size="small" (40px)
+.ColumnName {
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  height: 40px;
+  background-color: var(--color-neutral-dark-300);
+  border: 1px solid var(--color-neutral-dark-100);
+  border-radius: 6px;
+  padding: 0 12px;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-regular);
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ConceptCell,
+.UnitCell {
+  min-width: 0;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-regular);
+}
