@@ -109,9 +109,8 @@ export const enum GISDataType {
 export const enum IngestionStatus {
   PENDING = 'PENDING',
   ONGOING = 'ONGOING',
-  INGESTED = 'INGESTED',
-  RELEASED = 'RELEASED',
-  ARCHIVED = 'ARCHIVED',
+  LOADED = 'LOADED',
+  PUBLISHED = 'PUBLISHED',
 }
 export interface Dataset {
   id: string;

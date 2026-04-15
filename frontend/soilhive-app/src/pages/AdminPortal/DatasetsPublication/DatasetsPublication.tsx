@@ -1,6 +1,61 @@
 import { useTranslation } from 'react-i18next';
 
+import PlusIcon from 'assets/icons/small-plus-icon.svg?react';
+import { Button, Loader, TextInput } from 'components/UI';
+import { useDatasetsPublicationList } from 'hooks/useDatasetsPublicationList';
+import { DatasetsPublicationTable } from 'components/AdminPortal/DatasetsPublicationTable/DatasetsPublicationTable';
+import { DatasetDeleteModal } from 'components/AdminPortal/DatasetDeleteModal/DatasetDeleteModal';
+
+import styles from './DatasetsPublication.module.scss';
+
 export function DatasetsPublication() {
   const { t } = useTranslation('admin');
-  return <h2>{t('datasets.title')}</h2>;
+
+  const {
+    isLoading,
+    filteredDatasets,
+    searchValue,
+    selectedDataset,
+    isDeleteModalOpened,
+    onEdit,
+    onDelete,
+    onPublish,
+    onDeletionConfirm,
+    onDeleteModalClose,
+    setSearchValue,
+    navigateToNewDataset,
+  } = useDatasetsPublicationList();
+
+  return (
+    <div className={styles.DatasetsPublication}>
+      <div className={styles.Wrapper}>
+        {isLoading && <Loader />}
+        {!isLoading && (
+          <>
+            <div className={styles.Actions}>
+              <TextInput
+                className={styles.Search}
+                size="small"
+                value={searchValue}
+                placeholder={t('datasets.list.search_placeholder')}
+                isSearch={true}
+                isClearable
+                onChange={setSearchValue}
+              />
+              <Button onClick={navigateToNewDataset}>
+                <PlusIcon /> {t('datasets.list.add_button_text')}
+              </Button>
+            </div>
+            <DatasetsPublicationTable datasets={filteredDatasets} onEdit={onEdit} onDelete={onDelete} onPublish={onPublish} />
+            <DatasetDeleteModal
+              visible={isDeleteModalOpened}
+              datasetName={selectedDataset?.name}
+              onContinue={onDeletionConfirm}
+              onCancel={onDeleteModalClose}
+            />
+          </>
+        )}
+      </div>
+    </div>
+  );
 }
