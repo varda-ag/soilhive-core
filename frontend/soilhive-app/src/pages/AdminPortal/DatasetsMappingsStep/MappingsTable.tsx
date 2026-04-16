@@ -41,21 +41,24 @@ export function MappingsTable({
       </div>
 
       <div className={styles.Rows}>
-        {columnMappings.map(mapping => (
-          <MappingRow
-            key={mapping.columnName}
-            mapping={mapping}
-            conceptOptions={conceptOptions}
-            unitOptions={mapping.conceptId ? (unitOptionsByConcept[mapping.conceptId] ?? []) : []}
-            detailOptions={detailOptions}
-            isExpanded={expandedRows.has(mapping.columnName)}
-            isUnitEnabled={isUnitEnabled(mapping.columnName)}
-            onToggle={onToggleRow}
-            onConceptChange={onConceptChange}
-            onUnitChange={onUnitChange}
-            onDetailChange={onDetailChange}
-          />
-        ))}
+        {columnMappings.map(mapping => {
+          const unitOptions = mapping.conceptId ? (unitOptionsByConcept[mapping.conceptId] ?? []) : [];
+          return (
+            <MappingRow
+              key={mapping.columnName}
+              mapping={mapping}
+              conceptOptions={conceptOptions}
+              unitOptions={unitOptions}
+              detailOptions={detailOptions}
+              isExpanded={expandedRows.has(mapping.columnName)}
+              isUnitEnabled={isUnitEnabled(mapping.columnName) && unitOptions.length > 0}
+              onToggle={onToggleRow}
+              onConceptChange={onConceptChange}
+              onUnitChange={onUnitChange}
+              onDetailChange={onDetailChange}
+            />
+          );
+        })}
       </div>
     </div>
   );
