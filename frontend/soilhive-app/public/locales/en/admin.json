@@ -295,5 +295,22 @@
             "status_title": "Filter states"
         }
     },
-    "logoAlt": "Logo"
+    "logoAlt": "Logo",
+    "metadata": {
+        "title": "Metadata",
+        "label": "Metadata",
+        "placeholder": "Enter metadata value…",
+        "save": "Save",
+        "saving": "Saving…",
+        "notification": {
+            "success": {
+                "title": "Saved",
+                "message": "Metadata has been updated successfully."
+            },
+            "error": {
+                "title": "Error",
+                "message": "Failed to save metadata. Please try again."
+            }
+        }
+    }
 }
