@@ -9,7 +9,7 @@ const filterService = new FilterService();
 export const getSoilData = async (req: Request, res: Response) => {
   const filter = await getDataFilter(req);
   const data = await soilDataStorage.getSoilData(
-    req.customData.entityManager,
+    req.customData,
     filter,
     req.query['datasets'] as string[],
     parseInt(req.query['limit'] as string),

@@ -1,5 +1,6 @@
 import { EntityManager } from 'typeorm';
 import { Token } from '../interfaces/Token';
+import { Entitlements } from '../types/Entitlements';
 
 export interface RequestData {
   entityManager: EntityManager;
@@ -8,4 +9,5 @@ export interface RequestData {
     originalname?: string;
     fileKey?: string;
   };
+  entitlements: Entitlements;
 }

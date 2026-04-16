@@ -4,6 +4,7 @@ import { Dataset, MeasuredProperty } from '../interfaces/Dataset';
 import BaseTable from './BaseTable';
 import SlugHistoryEntity from './SlugHistory';
 import { GISDataType, IngestionStatus } from '../types/data';
+import { Capability } from '../types/enums';
 
 @Entity('datasets')
 @Unique(['name'])
@@ -98,4 +99,7 @@ export default class DatasetEntity extends BaseTable implements Dataset {
 
   @Column({ type: 'text', enum: ['public', 'private'], default: 'private' })
   visibility: string;
+
+  // Not a column, populated at runtime based on entitlements
+  capabilities?: Capability[];
 }

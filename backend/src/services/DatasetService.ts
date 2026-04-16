@@ -6,15 +6,21 @@ import { CreateDatasetInput, UpdateDatasetInput } from '../types/DatasetInput';
 import { getEntity } from '../utils/slugs';
 import { EntityType, IngestionStatus } from '../types/data';
 import { epsgList } from '../assets/epsg';
+import { Capability } from '../types/enums';
+import { Entitlements } from '../types/Entitlements';
 
 export default class DatasetService {
   getDatasets = async (requestData: RequestData): Promise<DatasetEntity[]> => {
     const repo = requestData.entityManager.getRepository(DatasetEntity);
-    return await repo.find();
+    const entities = await repo.find();
+    entities.map(e => this.decorateWithCapabilities(e, requestData.entitlements));
+    return entities;
   };
 
   getDataset = async (requestData: RequestData, slug: string): Promise<DatasetEntity> => {
-    return await getEntity(requestData, DatasetEntity, EntityType.DATASET, slug);
+    const entity = await getEntity(requestData, DatasetEntity, EntityType.DATASET, slug);
+    this.decorateWithCapabilities(entity, requestData.entitlements);
+    return entity;
   };
 
   createDataset = async (requestData: RequestData, data: CreateDatasetInput): Promise<DatasetEntity> => {
@@ -34,6 +40,7 @@ export default class DatasetService {
     try {
       const saved = await repo.save(dataset);
       const reloaded = await repo.findOneBy({ id: saved.id });
+      this.decorateWithCapabilities(reloaded!, requestData.entitlements);
       return reloaded!;
     } catch (error: any) {
       if (error.code === '23505') {
@@ -62,6 +69,7 @@ export default class DatasetService {
 
     const saved = await repo.save(dataset);
     const reloaded = await repo.findOneBy({ id: saved.id });
+    this.decorateWithCapabilities(reloaded!, requestData.entitlements);
     return reloaded!;
   };
 
@@ -80,5 +88,11 @@ export default class DatasetService {
 
   getEpsgCodes = (): number[] => {
     return epsgList;
+  };
+
+  decorateWithCapabilities = (dataset: DatasetEntity, entitlements: Entitlements) => {
+    // For private datasets, capabilities are determined by entitlements.
+    // For public datasets, all capabilities are granted.
+    dataset.capabilities = dataset.visibility === 'private' ? entitlements[dataset.slug] || [] : [Capability.PREVIEW, Capability.DOWNLOAD];
   };
 }

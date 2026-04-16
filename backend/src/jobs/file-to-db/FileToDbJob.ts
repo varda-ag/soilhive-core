@@ -8,5 +8,5 @@ export async function processFileToDb(job: Job<FileToDbJob>): Promise<void> {
   // Using local entityManager to avoid external transaction
   const entityManager = await getEntityManager();
   const fileService = new FileService();
-  await fileService.fileToDB({ entityManager }, data.file_id);
+  await fileService.fileToDB({ entityManager, entitlements: {} }, data.file_id);
 }

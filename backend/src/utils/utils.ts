@@ -61,6 +61,7 @@ export const signToken = (payload: string | object | Buffer, expiresIn?: number,
   assert(process.env.SELF_SIGNING_SECRET, 'Self-signing secret is not defined');
   let signOpts: any = {
     algorithm: 'HS256',
+    header: { kid: 'kid' },
   };
   if (expiresIn) {
     signOpts = { ...signOpts, expiresIn };
