@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from '@jest/globals';
+import { describe, it, expect, beforeAll, beforeEach } from '@jest/globals';
 import { EntityManager } from 'typeorm';
 import { RequestData } from '../../src/interfaces/RequestData';
 import { getEntityManager } from '../../src/utils/data-source';
@@ -13,8 +13,9 @@ const mockToken: Token = {
   email: 'test@example.com',
   scope: 'user',
   raw: 'mock-token',
-  isSuperAdmin: () => false,
-  isDataAdmin: () => false,
+  isSuperAdmin: false,
+  isDataAdmin: false,
+  isInternalRequest: false,
 };
 
 let entityManager: EntityManager;
@@ -28,6 +29,7 @@ describe('EntitlementService', () => {
     requestData = {
       entityManager,
       token: mockToken,
+      entitlements: {},
     };
   });
 

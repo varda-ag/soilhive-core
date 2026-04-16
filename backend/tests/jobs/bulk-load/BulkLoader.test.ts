@@ -1,3 +1,4 @@
+import { describe, it, expect, jest } from '@jest/globals';
 import { signToken } from '../../../src/utils/utils';
 import { ErrorResponse } from '../../../src/utils/error';
 import { Job } from 'pg-boss';
@@ -20,6 +21,7 @@ import {
 } from '../../../src/utils/mock';
 import { getRawTableName } from '../../../src/utils/utils';
 import { StatusCodes } from 'http-status-codes';
+import { INTERNAL_REQUEST_TOKEN_PAYLOAD } from '../../../src/constants/constants';
 
 const getJob = (dataset_id: string): Job<BulkLoadJob> => {
   return {
@@ -47,7 +49,7 @@ describe('BulkLoader class', () => {
     const { dataset, file } = await addSyntheticIngestionData({ ...options });
 
     expect(dataset.status).toBe(IngestionStatus.PENDING);
-    const token = signToken('internal-request');
+    const token = signToken(INTERNAL_REQUEST_TOKEN_PAYLOAD);
 
     const mockMakeRequest = jest
       .spyOn(BulkLoaderModule, 'makeRequest')

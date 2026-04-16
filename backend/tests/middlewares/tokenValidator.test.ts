@@ -1,4 +1,6 @@
+import { describe, it, expect, beforeEach, jest, afterEach } from '@jest/globals';
 import jwt from 'jsonwebtoken';
+import { INTERNAL_REQUEST_TOKEN_PAYLOAD } from '../../src/constants/constants';
 
 // Helper: build a minimal mock Express Request
 function makeRequest(authHeader?: string): any {
@@ -77,7 +79,7 @@ describe('tokenValidator — PASSWORD mode', () => {
   it('throws 401 on a token string that cannot be decoded (header decode failure)', async () => {
     // No dots in the string → jwt.decode returns null
     await expect(tokenValidator(makeRequest('Bearer notajwtatall'), [])).rejects.toMatchObject({
-      message: 'Invalid token (header decode failure)',
+      message: 'Invalid token: header decode failure',
       status: 401,
     });
   });
@@ -88,14 +90,14 @@ describe('tokenValidator — PASSWORD mode', () => {
       algorithm: 'HS256',
     });
     await expect(tokenValidator(makeRequest(`Bearer ${tokenNoKid}`), [])).rejects.toMatchObject({
-      message: 'Invalid token (no kid)',
+      message: 'Invalid token: no kid',
       status: 401,
     });
   });
 
   it('returns true for an internal-request token (string payload signed with SELF_SIGNING_SECRET)', async () => {
     // BulkLoader creates tokens this way; payload must be the literal string 'internal-request'
-    const internalToken = signTestToken('internal-request');
+    const internalToken = signTestToken(INTERNAL_REQUEST_TOKEN_PAYLOAD);
     expect(await tokenValidator(makeRequest(`Bearer ${internalToken}`), [])).toBe(true);
   });
 
@@ -124,7 +126,7 @@ describe('tokenValidator — PASSWORD mode', () => {
   it('throws 401 when the decoded token has no sub claim', async () => {
     const token = signTestToken({ scope: 'super-admin' }, { expiresIn: 3600 });
     await expect(tokenValidator(makeRequest(`Bearer ${token}`), [])).rejects.toMatchObject({
-      message: 'Invalid token (no sub)',
+      message: 'Invalid token: no sub',
       status: 401,
     });
   });
@@ -140,41 +142,35 @@ describe('tokenValidator — PASSWORD mode', () => {
     await expect(tokenValidator(makeRequest(`Bearer ${tampered}`), [])).rejects.toThrow(/^Invalid token: /);
   });
 
-  it('attaches isSuperAdmin() === true and isDataAdmin() === false when scope is super-admin', async () => {
+  it('isSuperAdmin === true and isDataAdmin === false when scope is super-admin', async () => {
     const token = signTestToken({ sub: 'u1', scope: 'super-admin' }, { expiresIn: 3600 });
     const req = makeRequest(`Bearer ${token}`);
     await tokenValidator(req, []);
-    expect(req.customData.token.isSuperAdmin()).toBe(true);
-    expect(req.customData.token.isDataAdmin()).toBe(false);
+    expect(req.customData.token.isSuperAdmin).toBe(true);
+    expect(req.customData.token.isDataAdmin).toBe(false);
   });
 
-  it('attaches isDataAdmin() === true and isSuperAdmin() === false when scope is data-admin', async () => {
+  it('isDataAdmin === true and isSuperAdmin === false when scope is data-admin', async () => {
     const token = signTestToken({ sub: 'u1', scope: 'data-admin' }, { expiresIn: 3600 });
     const req = makeRequest(`Bearer ${token}`);
     await tokenValidator(req, []);
-    expect(req.customData.token.isDataAdmin()).toBe(true);
-    expect(req.customData.token.isSuperAdmin()).toBe(false);
+    expect(req.customData.token.isDataAdmin).toBe(true);
+    expect(req.customData.token.isSuperAdmin).toBe(false);
   });
 
-  it('throws "Invalid token (decode failure)" when jwt.verify resolves with a falsy value', async () => {
+  it('throws "Invalid token: decode failure" when jwt.verify resolves with a falsy value', async () => {
     // After resetModules(), the tokenValidator and this import() share the same fresh
     // jsonwebtoken instance. Spying on its .default.verify patches the function used internally.
     // First call: the synchronous internal-request check — throw to fall through.
     // Second call: the callback-based verifyAsync — deliver null to trigger the !decoded branch.
     const { default: jwtDefault } = await import('jsonwebtoken');
-    let callCount = 0;
-    jest.spyOn(jwtDefault as any, 'verify').mockImplementation((...args: any[]) => {
-      callCount++;
-      if (callCount === 1) {
-        throw new Error('not an internal token');
-      }
-      const cb = args[args.length - 1];
-      if (typeof cb === 'function') cb(null, null);
+    jest.spyOn(jwtDefault as any, 'verify').mockImplementation((_token, _secret, callback: any) => {
+      callback(new Error('not an internal token'));
     });
 
     const token = signTestToken({ sub: 'u1', scope: 'super-admin' }, { expiresIn: 3600 });
     await expect(tokenValidator(makeRequest(`Bearer ${token}`), [])).rejects.toMatchObject({
-      message: 'Invalid token (decode failure)',
+      message: 'Invalid token: not an internal token',
       status: 401,
     });
   });

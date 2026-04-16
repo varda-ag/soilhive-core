@@ -9,6 +9,12 @@ jest.mock('react-router', () => ({
   useNavigate: () => mockNavigate,
 }));
 
+jest.mock('../../src/App', () => ({
+  queryClient: {
+    invalidateQueries: jest.fn(),
+  },
+}));
+
 jest.mock('hooks/useDatasets', () => ({ useDataset: jest.fn() }));
 jest.mock('hooks/useDatasetMutation', () => ({
   useCreateDatasetMutation: jest.fn(),

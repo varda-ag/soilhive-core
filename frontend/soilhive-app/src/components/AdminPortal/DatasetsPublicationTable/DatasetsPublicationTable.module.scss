@@ -1,0 +1,26 @@
+.DatasetsPublicationTable {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100% - 60px);
+
+  .TableColumn {
+    &:nth-child(1) {
+      font-weight: var(--font-weight-bold);
+    }
+    &:nth-child(2) {
+      width: 182px;
+      min-width: 182px;
+    }
+    &:nth-child(3) {
+      width: 100px;
+      min-width: 100px;
+    }
+    &:nth-child(4) {
+      width: 224px;
+      min-width: 224px;
+    }
+  }
+  .TableRowHighlighted {
+    background-color: var(--color-neutral-light);
+  }
+}
