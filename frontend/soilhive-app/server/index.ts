@@ -1,8 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import express from 'express';
+import express, { type Request } from 'express';
 import compression from 'compression';
-import { render } from '../src/entry-server';
+import { render, SSR_ROUTE_PATHS } from '../src/entry-server';
 
 // Rsbuild compiles this to dist/server/index.cjs so __dirname is always
 // dist/server/ at runtime.  Client assets are always at dist/client/.
@@ -30,6 +30,30 @@ app.use(
 );
 
 // ---------------------------------------------------------------------------
+// SSR auth resolution — reads Bearer token from Authorization header only
+// ---------------------------------------------------------------------------
+
+function resolveAuthToken(req: Request): string | null {
+  const bearer = req.headers.authorization?.match(/^Bearer (.+)$/)?.[1];
+  if (!bearer) return null;
+
+  // Decode JWT payload to check expiry (no signature verification needed —
+  // the backend will reject a tampered token when we forward it as Bearer).
+  try {
+    const payloadB64 = bearer.split('.')[1];
+    if (!payloadB64) return null;
+    const { exp } = JSON.parse(Buffer.from(payloadB64, 'base64url').toString('utf8'));
+    const BUFFER_MS = 30_000;
+    if (exp && exp * 1000 <= Date.now() + BUFFER_MS) return null; // expired
+  } catch {
+    console.warn('Failed to decode auth token payload; proceeding without auth');
+    return null;
+  }
+
+  return bearer;
+}
+
+// ---------------------------------------------------------------------------
 // Health check — used by load balancers and Docker HEALTHCHECK
 // ---------------------------------------------------------------------------
 
@@ -47,14 +71,20 @@ const indexHtml = fs.readFileSync(path.join(CLIENT_DIST, 'index.html'), 'utf-8')
 // (Express 5 removed support for the bare `*` wildcard in app.get).
 app.use((req, res) => {
   const url = req.originalUrl;
+  const pathname = new URL(url, 'http://localhost').pathname;
+
+  // Only spend cycles on auth resolution for routes that actually SSR.
+  let authToken: string | null = null;
+  if (SSR_ROUTE_PATHS.includes(pathname)) {
+    authToken = resolveAuthToken(req);
+  }
 
   try {
-    const ssrContent = render(url);
+    const ssrContent = render(url, { authToken });
 
     if (ssrContent !== null) {
       // SSR route: inject server-rendered HTML and mark the root element so
       // the client-side hydration path is chosen instead of a full SPA boot.
-      const pathname = new URL(url, 'http://localhost').pathname;
       const html = indexHtml
         .replace('<div id="root"><!--ssr-outlet--></div>', `<div id="root" data-ssr-page="${pathname}">${ssrContent}</div>`)
         // Replace the external env-config.js reference with an inline script

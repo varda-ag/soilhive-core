@@ -8,9 +8,9 @@ import { initReactI18next } from 'react-i18next';
 import adminTranslations from '../public/locales/en/admin.json';
 import commonTranslations from '../public/locales/en/common.json';
 import { NotificationProvider, ThemeProvider } from './contexts';
-import { AuthContextProvider } from './auth/AuthContextProvider';
 import { CookieConsentProvider } from './components/CookieConsentProvider';
 import MetadataPage from './pages/Metadata';
+import { ssrAuthStore } from './auth/ssrAuthStore';
 
 // Initialize i18next synchronously for SSR — no HTTP backend, no browser
 // language detector.  Translation files are imported directly so server
@@ -39,37 +39,52 @@ const SSR_ROUTES: Record<string, React.ComponentType> = {
 };
 
 /**
+ * The list of URL pathnames that have SSR-capable components.
+ * Exported so server/index.ts can decide whether to resolve auth
+ * before calling render() — without duplicating the route list.
+ */
+export const SSR_ROUTE_PATHS: string[] = Object.keys(SSR_ROUTES);
+
+/**
  * Render a URL to an HTML string.
  *
  * Called by the Express server for each incoming request whose path
  * matches one of the SSR_ROUTES above.
  *
+ * `context.authToken` — when provided by the server (read from the auth header),
+ * it is placed into ssrAuthStore so that any httpClient calls made
+ * during renderToString can attach a Bearer token to backend requests.
+ *
  * Returns null when no matching SSR component is registered so the
  * server can fall back to serving the SPA shell instead.
  */
-export function render(url: string): string | null {
+export function render(url: string, context?: { authToken?: string | null }): string | null {
   const pathname = new URL(url, 'http://localhost').pathname;
   const PageComponent = SSR_ROUTES[pathname];
 
   if (!PageComponent) return null;
 
+  ssrAuthStore.set(context?.authToken ?? null);
+
   const queryClient = new QueryClient();
 
-  const html = renderToString(
-    <QueryClientProvider client={queryClient}>
-      <NotificationProvider>
-        <CookieConsentProvider>
-          <AuthContextProvider>
+  try {
+    const html = renderToString(
+      <QueryClientProvider client={queryClient}>
+        <NotificationProvider>
+          <CookieConsentProvider>
             <ThemeProvider>
               <StaticRouter location={pathname}>
                 <PageComponent />
               </StaticRouter>
             </ThemeProvider>
-          </AuthContextProvider>
-        </CookieConsentProvider>
-      </NotificationProvider>
-    </QueryClientProvider>,
-  );
+          </CookieConsentProvider>
+        </NotificationProvider>
+      </QueryClientProvider>,
+    );
 
-  return html;
+    return html;
+  } finally {
+    ssrAuthStore.set(null);
+  }
 }

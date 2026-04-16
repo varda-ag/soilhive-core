@@ -72,6 +72,9 @@ export default defineConfig({
         // deleted at the start of each incremental rebuild.
         cleanDistPath: false,
         minify: false,
+        // Externalize all node_modules — they are available at runtime and
+        // bundling them causes errors with dynamic requires (e.g. express/lib/view.js).
+        externals: [/^[^./!]/],
       },
     },
   },
