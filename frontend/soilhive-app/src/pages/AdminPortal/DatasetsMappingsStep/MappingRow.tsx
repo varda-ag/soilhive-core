@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import classnames from 'classnames';
-import { Dropdown } from 'components/UI';
+import { AutocompleteDropdown, Dropdown } from 'components/UI';
 import ArrowDownIcon from 'assets/icons/dropdown-arrow-down-icon.svg?react';
 import CheckIconCircle from 'assets/icons/check-icon-circle.svg?react';
 import WarningIcon from 'assets/icons/warning-icon.svg?react';
@@ -56,12 +56,12 @@ export function MappingRow({
         <div className={styles.ColumnName}>{mapping.columnName}</div>
 
         <div className={styles.ConceptCell}>
-          <Dropdown
+          <AutocompleteDropdown
             size="small"
             options={conceptOptions}
             value={mapping.conceptId ?? undefined}
             placeholder={t('datasets.mappings.row.select_concept')}
-            onChange={value => onConceptChange(mapping.columnName, value as string)}
+            onChange={code => onConceptChange(mapping.columnName, code)}
           />
         </div>
 

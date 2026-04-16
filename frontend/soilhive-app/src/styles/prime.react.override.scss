@@ -2,6 +2,39 @@
   border: 1px solid #dddddd;
 }
 
+.p-autocomplete-panel {
+  background: var(--color-neutral-white);
+  border: 0.063rem solid var(--color-neutral-dark-100);
+  border-radius: 0.25rem;
+  box-shadow: var(--shadow-interface);
+
+  .p-autocomplete-items {
+    padding: 0.25rem 1rem;
+
+    .p-autocomplete-item {
+      padding: 0.5rem 0;
+      font-size: var(--font-size-md);
+      color: var(--color-neutral-black);
+      border-bottom: 0.063rem solid var(--color-neutral-dark-100);
+
+      &:last-child {
+        border-bottom: none;
+      }
+
+      &:hover {
+        background: transparent;
+        color: var(--color-cta-default-hover);
+        cursor: pointer;
+      }
+
+      &.p-highlight {
+        background: transparent;
+        color: var(--color-cta-default-solid);
+      }
+    }
+  }
+}
+
 .p-autocomplete-dd {
   &:hover,
   &:has(.p-inputtext:focus) {
