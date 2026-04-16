@@ -76,6 +76,7 @@ export interface SoilProperty {
   property_level?: number;
   parent_property_id?: string;
   category_id: string;
+  original_units_of_measurement: string[];
 }
 
 export interface SoilPropertyCategory {

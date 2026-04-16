@@ -44,14 +44,6 @@ const DETECTABLE_FIELD_OPTIONS: MenuOption[] = [
   { code: 'license', name: 'License' },
 ];
 
-const UNIT_OPTIONS: MenuOption[] = [
-  { code: 'percent', name: '%' },
-  { code: 'gkg', name: 'g/kg' },
-  { code: 'mgkg', name: 'mg/kg' },
-  { code: 'no_unit', name: 'No unit' },
-  { code: 'cmolkg', name: 'cmol/kg' },
-];
-
 const DETAIL_OPTIONS: DetailOptionMap = {
   samplePretreatment: [
     { code: 'air_dried', name: 'Air dried' },
@@ -133,11 +125,15 @@ export function useMappingsStep(datasetId?: string) {
   }, [files]);
 
   // Detectable structural fields first, then soil properties sorted alphabetically.
-  const conceptOptions = useMemo(() => {
-    const soilPropertyOptions = (soilProperties ?? [])
-      .map(p => ({ code: p.id, name: p.property_name }))
-      .sort((a, b) => a.name.localeCompare(b.name));
-    return [...DETECTABLE_FIELD_OPTIONS, ...soilPropertyOptions];
+  // Unit options are keyed by concept id — only soil properties carry allowed units.
+  const { conceptOptions, unitOptionsByConcept } = useMemo(() => {
+    const properties = soilProperties ?? [];
+    const soilPropertyOptions = properties.map(p => ({ code: p.id, name: p.property_name })).sort((a, b) => a.name.localeCompare(b.name));
+    const unitOptionsByConcept: Record<string, MenuOption[]> = {};
+    for (const p of properties) {
+      unitOptionsByConcept[p.id] = p.original_units_of_measurement.map(u => ({ code: u, name: u }));
+    }
+    return { conceptOptions: [...DETECTABLE_FIELD_OPTIONS, ...soilPropertyOptions], unitOptionsByConcept };
   }, [soilProperties]);
 
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
@@ -201,7 +197,7 @@ export function useMappingsStep(datasetId?: string) {
     isLoading,
     columnMappings,
     conceptOptions,
-    unitOptions: UNIT_OPTIONS,
+    unitOptionsByConcept,
     detailOptions: DETAIL_OPTIONS,
     mappedCount,
     unmappedCount,
