@@ -13,7 +13,7 @@ export function DatasetsMappingsStep() {
   const {
     columnMappings,
     conceptOptions,
-    unitOptions,
+    unitOptionsByConcept,
     detailOptions,
     mappedCount,
     unmappedCount,
@@ -39,7 +39,7 @@ export function DatasetsMappingsStep() {
         <MappingsTable
           columnMappings={columnMappings}
           conceptOptions={conceptOptions}
-          unitOptions={unitOptions}
+          unitOptionsByConcept={unitOptionsByConcept}
           detailOptions={detailOptions}
           expandedRows={expandedRows}
           isUnitEnabled={isUnitEnabled}
