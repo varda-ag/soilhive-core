@@ -66,4 +66,24 @@ describe('Dialog', () => {
     fireEvent.click(screen.getAllByTestId('sh-ui-button')[1]);
     expect(onContinue).toHaveBeenCalledTimes(1);
   });
+
+  it('does not render content when visible is false', () => {
+    render(
+      <Dialog {...defaultProps} visible={false}>
+        <p>hidden content</p>
+      </Dialog>,
+    );
+
+    expect(screen.queryByText('Test header')).not.toBeInTheDocument();
+    expect(screen.queryByText('hidden content')).not.toBeInTheDocument();
+  });
+
+  it('applies custom className to the dialog', () => {
+    render(
+      <Dialog {...defaultProps} className="my-custom-class" removeTransition>
+        <p>content</p>
+      </Dialog>,
+    );
+    expect(document.querySelector('.my-custom-class')).toBeInTheDocument();
+  });
 });

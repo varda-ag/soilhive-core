@@ -1,5 +1,60 @@
 # Changelog
 
+## 0.70.0 (2026-04-15)
+
+## What's Changed
+* feat(UI): sp-5030 data mapping step by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/390
+* feat(UI): sp-5127 load and display detected fields to map by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/394
+* feat: sp-5060 - datasets table page by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/395
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.69.1...v0.70.0
+
+## 0.69.1 (2026-04-14)
+
+## What's Changed
+* fix: fixed popup appearing while drawing by @cristbello in https://github.com/varda-ag/soilhive-core/pull/391
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.69.0...v0.69.1
+
+## 0.69.0 (2026-04-14)
+
+## What's Changed
+* fix: line height by @svaccari in https://github.com/varda-ag/soilhive-core/pull/387
+* feat: sp-5041 removed <1% rule from toolbarMode by @cristbello in https://github.com/varda-ag/soilhive-core/pull/389
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.68.0...v0.69.0
+
+## 0.68.0 (2026-04-14)
+
+## What's Changed
+* fix: fileToDB table name by @d-rom in https://github.com/varda-ag/soilhive-core/pull/382
+* feat: sp-5041 improved availability navigation by @cristbello in https://github.com/varda-ag/soilhive-core/pull/381
+* fix: dataset visibility fix, super admin token fix, UI message fix by @svaccari in https://github.com/varda-ag/soilhive-core/pull/386
+* feat: sp-5041 availability navigation improvement by @cristbello in https://github.com/varda-ag/soilhive-core/pull/385
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.67.1...v0.68.0
+
+## 0.67.1 (2026-04-14)
+
+## What's Changed
+* fix: OIDC auth detection by @svaccari in https://github.com/varda-ag/soilhive-core/pull/378
+* fix: token validator middleware, adding tests by @svaccari in https://github.com/varda-ag/soilhive-core/pull/380
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.67.0...v0.67.1
+
+## 0.67.0 (2026-04-13)
+
+## What's Changed
+* feat: improved no data message, reviewing entitlements by @svaccari in https://github.com/varda-ag/soilhive-core/pull/376
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.66.1...v0.67.0
+
 ## 0.66.1 (2026-04-13)
 
 ## What's Changed

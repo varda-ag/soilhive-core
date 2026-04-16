@@ -1,0 +1,71 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`SoilhiveMapSelectionToolbar clear mode renders clear selection button 1`] = `
+<div>
+  <div
+    class="soilhive-map-selection-toolbar"
+  >
+    <button
+      class="Button Tertiary Tiny clear-button"
+      data-testid="sh-ui-button"
+      type="button"
+    >
+      <svg
+        data-testid="svg-icon-mock"
+      >
+        mock-svg
+      </svg>
+      map_selection_toolbar.clear_selection
+    </button>
+  </div>
+</div>
+`;
+
+exports[`SoilhiveMapSelectionToolbar drawing mode renders reset and cancel buttons 1`] = `
+<div>
+  <div
+    class="soilhive-map-selection-toolbar drawing"
+  >
+    <button
+      class="Button Tertiary Tiny reset-button"
+      data-testid="sh-ui-button"
+      type="button"
+    >
+      <svg
+        data-testid="svg-icon-mock"
+      >
+        mock-svg
+      </svg>
+      map_selection_toolbar.reset
+    </button>
+    <button
+      class="Button Secondary Tiny"
+      data-testid="sh-ui-button"
+      type="button"
+    >
+      map_selection_toolbar.cancel
+    </button>
+  </div>
+</div>
+`;
+
+exports[`SoilhiveMapSelectionToolbar search mode renders search this area button 1`] = `
+<div>
+  <div
+    class="soilhive-map-selection-toolbar"
+  >
+    <button
+      class="Button Tertiary Tiny search-area-button"
+      data-testid="sh-ui-button"
+      type="button"
+    >
+      <svg
+        data-testid="svg-icon-mock"
+      >
+        mock-svg
+      </svg>
+      map_selection_toolbar.search_this_area
+    </button>
+  </div>
+</div>
+`;

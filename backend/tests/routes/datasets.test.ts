@@ -24,6 +24,7 @@ describe('Testing /datasets routes', () => {
       const res = await request(app).get(`/datasets/${s1.dataset.slug}`);
       expect(res.statusCode).toBe(StatusCodes.OK);
       expect(res.body).toHaveProperty('id', s1.dataset.slug);
+      expect(res.body).toHaveProperty('visibility', s1.dataset.visibility);
     });
 
     it('GET /datasets responds with 404 if dataset does not exist', async () => {

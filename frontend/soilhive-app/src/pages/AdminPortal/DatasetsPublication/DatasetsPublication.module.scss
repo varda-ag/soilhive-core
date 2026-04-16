@@ -1,2 +1,26 @@
 .DatasetsPublication {
+  position: relative;
+  padding: 2.5rem 3.125rem;
+  height: 100%;
+
+  > .Wrapper {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    gap: 1.25rem;
+    padding: 1.5rem;
+    background-color: var(--color-neutral-white);
+    border-radius: 0.5rem;
+
+    > .Actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+
+      .Search {
+        min-width: 19.5rem;
+      }
+    }
+  }
 }

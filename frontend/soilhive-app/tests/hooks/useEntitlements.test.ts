@@ -72,11 +72,11 @@ describe('useEntitlements', () => {
       expect(result.current.can(LOOK_AND_FEEL)).toBe(true);
     });
 
-    it('cannot access data admin actions', () => {
+    it('can access every data admin actions', () => {
       const { result } = renderHook(() => useEntitlements());
 
-      expect(result.current.can(DATASET_PUBLICATIONS)).toBe(false);
-      expect(result.current.can(MAP_BASED_FILTERS)).toBe(false);
+      expect(result.current.can(DATASET_PUBLICATIONS)).toBe(true);
+      expect(result.current.can(MAP_BASED_FILTERS)).toBe(true);
     });
   });
 

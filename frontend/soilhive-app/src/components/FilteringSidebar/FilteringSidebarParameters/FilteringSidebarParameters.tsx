@@ -1,4 +1,4 @@
-import { Accordion, NestedCheckbox, SelectionPills, Toggle } from 'components/UI';
+import { Accordion, FormMessage, NestedCheckbox, SelectionPills, Toggle } from 'components/UI';
 import { collectParentsIds, filterNestedItems } from 'components/UI/NestedCheckbox/nestedCheckboxHelpers';
 import { useCallback, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import Skeleton from 'react-loading-skeleton';
@@ -159,6 +159,11 @@ export function FilteringSidebarParameters() {
         type="secondary"
         pillsSlot={pillSelections.length > 0 ? <SelectionPills selections={pillSelections} onRemove={handlePillRemove} /> : null}
       >
+        {isNoData && (
+          <div data-testid="sh-unavailable-filter-message" className={styles.WarningMessage}>
+            <FormMessage message={t('filter.no_filter_available', 'No filter is available')} type="warning" withBackground={true} />
+          </div>
+        )}
         {!isNoData && !isNoFilteredData && (
           <div className={styles.SoilProperties}>
             <input

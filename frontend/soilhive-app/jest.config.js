@@ -27,6 +27,7 @@ export default {
     '^assets/(.*)$': '<rootDir>/src/assets/$1',
     '^components/(.*)$': '<rootDir>/src/components/$1',
     '^hooks/(.*)$': '<rootDir>/src/hooks/$1',
+    '^pages/(.*)$': '<rootDir>/src/pages/$1',
     '^types/(.*)$': '<rootDir>/src/types/$1',
     '^quill$': '<rootDir>/node_modules/quill/dist/quill.js',
     '^quill/(.*)$': '<rootDir>/node_modules/quill/dist/quill.js',

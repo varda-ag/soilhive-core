@@ -110,9 +110,8 @@ export const enum GISDataType {
 export const enum IngestionStatus {
   PENDING = 'PENDING',
   ONGOING = 'ONGOING',
-  INGESTED = 'INGESTED',
-  RELEASED = 'RELEASED',
-  ARCHIVED = 'ARCHIVED',
+  LOADED = 'LOADED',
+  PUBLISHED = 'PUBLISHED',
 }
 export interface Dataset {
   id: string;
@@ -141,6 +140,7 @@ export interface Dataset {
   created_by: string;
   updated_by?: string;
   service_location?: string;
+  visibility?: string;
 }
 
 export interface SoilDataParameters {

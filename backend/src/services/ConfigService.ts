@@ -59,6 +59,7 @@ export default class ConfigService {
       process.env.SELF_SIGNING_SECRET
     );
     const oidcConfigured = !!(
+      process.env.OIDC_JWKS_URL && // This value will not be part of the output to avoid leaking sensitive information, but it's required to validate tokens
       process.env.OIDC_AUTHORITY &&
       process.env.OIDC_CLIENT_ID &&
       process.env.OIDC_REDIRECT_URI &&

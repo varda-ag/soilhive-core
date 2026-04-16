@@ -6,6 +6,7 @@ import { ErrorResponse } from '../utils/error';
 import { signToken } from '../utils/utils';
 import { StatusCodes } from 'http-status-codes';
 import { TokenResponse } from '../interfaces/Token';
+import assert from 'assert';
 
 const TOKEN_EXPIRATION_SECONDS = 24 * 60 * 60; // 24 hours
 
@@ -22,16 +23,17 @@ export default class AuthService {
       throw new ErrorResponse('Platform is not configured for password authentication', StatusCodes.BAD_REQUEST);
     }
 
-    let scope: TokenScopes;
+    const scopes: TokenScopes[] = [];
     if (process.env.SUPER_ADMIN_PASSWORD_HASH && bcrypt.compareSync(password, process.env.SUPER_ADMIN_PASSWORD_HASH)) {
-      scope = TokenScopes.SUPER_ADMIN;
+      scopes.push(TokenScopes.SUPER_ADMIN);
+      scopes.push(TokenScopes.DATA_ADMIN);
     } else if (process.env.DATA_ADMIN_PASSWORD_HASH && bcrypt.compareSync(password, process.env.DATA_ADMIN_PASSWORD_HASH)) {
-      scope = TokenScopes.DATA_ADMIN;
+      scopes.push(TokenScopes.DATA_ADMIN);
     } else {
       throw new ErrorResponse('Invalid password', StatusCodes.UNAUTHORIZED);
     }
 
-    return signToken(this.getTokenPayload(scope), TOKEN_EXPIRATION_SECONDS, { alg: 'HS256', kid: 'kid' });
+    return signToken(this.getTokenPayload(scopes), TOKEN_EXPIRATION_SECONDS, { alg: 'HS256', kid: 'kid' });
   };
 
   getTokenResponse = (token: string): TokenResponse => {
@@ -47,14 +49,16 @@ export default class AuthService {
     authConfig = undefined;
   };
 
-  private getTokenPayload = (scope: TokenScopes) => {
+  private getTokenPayload = (scopes: TokenScopes[]) => {
+    assert(scopes.length > 0, 'At least one scope must be provided');
+    const scope = scopes[0]!;
     const parts = scope.split('-');
     const given_name = parts[0];
     const family_name = parts[1] || parts[0];
     const name = `${given_name} ${family_name}`;
     const email = `${scope}@localhost`;
     return {
-      scope,
+      scope: scopes.join(' '),
       sub: scope,
       email_verified: true,
       given_name,

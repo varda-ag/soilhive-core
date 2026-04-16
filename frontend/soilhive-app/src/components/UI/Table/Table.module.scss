@@ -1,0 +1,12 @@
+.SortDown {
+  color: var(--color-cta-default-solid);
+}
+
+.SortUp {
+  color: var(--color-cta-default-solid);
+  transform: rotate(180deg);
+}
+
+.SortNone {
+  color: var(--color-neutral-black);
+}
