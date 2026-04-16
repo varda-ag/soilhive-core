@@ -61,6 +61,7 @@ function defaultProps(overrides?: Partial<ColumnMapping>) {
     detailOptions: DETAIL_OPTIONS,
     isExpanded: false,
     isUnitEnabled: false,
+    isDetailsEnabled: true,
     onToggle: jest.fn(),
     onConceptChange: jest.fn(),
     onUnitChange: jest.fn(),

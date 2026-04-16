@@ -16,6 +16,7 @@ interface Props {
   detailOptions: DetailOptionMap;
   isExpanded: boolean;
   isUnitEnabled: boolean;
+  isDetailsEnabled: boolean;
   onToggle: (columnName: string) => void;
   onConceptChange: (columnName: string, value: string) => void;
   onUnitChange: (columnName: string, value: string) => void;
@@ -29,6 +30,7 @@ export function MappingRow({
   detailOptions,
   isExpanded,
   isUnitEnabled,
+  isDetailsEnabled,
   onToggle,
   onConceptChange,
   onUnitChange,
@@ -41,10 +43,14 @@ export function MappingRow({
     <div className={styles.MappingRow} data-testid="sh-mapping-row">
       <div className={styles.RowMain}>
         <button
-          className={classnames(styles.Chevron, { [styles.ChevronExpanded]: isExpanded })}
+          className={classnames(styles.Chevron, {
+            [styles.ChevronExpanded]: isExpanded,
+            [styles.ChevronHidden]: !isDetailsEnabled,
+          })}
           onClick={() => onToggle(mapping.columnName)}
           aria-expanded={isExpanded}
           aria-label={isExpanded ? 'Collapse row' : 'Expand row'}
+          tabIndex={isDetailsEnabled ? 0 : -1}
         >
           <ArrowDownIcon className={styles.ChevronIcon} />
         </button>
@@ -77,7 +83,7 @@ export function MappingRow({
         </div>
       </div>
 
-      {isExpanded && (
+      {isExpanded && isDetailsEnabled && (
         <MappingRowDetails
           columnName={mapping.columnName}
           details={mapping.details}
