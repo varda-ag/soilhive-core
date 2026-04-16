@@ -1,6 +1,7 @@
 export const enum TokenScopes {
   SUPER_ADMIN = 'super-admin',
   DATA_ADMIN = 'data-admin',
+  INTERNAL_REQUEST = 'internal-request',
 }
 
 export const enum AuthModes {

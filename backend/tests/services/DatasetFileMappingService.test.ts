@@ -17,8 +17,9 @@ const mockToken: Token = {
   email: 'test@example.com',
   scope: 'user',
   raw: 'mock-token',
-  isSuperAdmin: () => false,
-  isDataAdmin: () => false,
+  isSuperAdmin: false,
+  isDataAdmin: false,
+  isInternalRequest: false,
 };
 
 const service = new DatasetFileMappingService();

@@ -22,7 +22,7 @@ import { updateDatasetMetadata } from './UpdateDatasetMetadata';
 import { FileStorage } from '@flystorage/file-storage';
 import FileService from '../../services/FileService';
 import EntitlementService from '../../services/EntitlementService';
-import { EVERYONE } from '../../constants/constants';
+import { EVERYONE, INTERNAL_REQUEST_TOKEN_PAYLOAD } from '../../constants/constants';
 
 export async function processBulkLoad(job: Job<BulkLoadJob>): Promise<void> {
   const { data } = job;
@@ -118,7 +118,7 @@ const processFile = async (
 export const makeRequest = (datasetSlug: string, datasetFileMappingId: string, payload: any) =>
   new Promise((resolve, reject) => {
     const postData = JSON.stringify(payload);
-    const token = signToken('internal-request');
+    const token = signToken(INTERNAL_REQUEST_TOKEN_PAYLOAD);
 
     const url = new URL(`${getLoopbackUrl()}/datasets/${datasetSlug}/dataset-file-mapping/${datasetFileMappingId}/soil-data`);
     const options = {

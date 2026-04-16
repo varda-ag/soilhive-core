@@ -21,12 +21,14 @@ beforeAll(async () => {
     scope: 'mock-scope',
     raw: 'raw-auth-token',
     email: 'mock-email',
-    isDataAdmin: () => true,
-    isSuperAdmin: () => false,
+    isDataAdmin: true,
+    isSuperAdmin: false,
+    isInternalRequest: false,
   };
   requestData = {
     entityManager,
     token: mockToken,
+    entitlements: {},
   };
 });
 
