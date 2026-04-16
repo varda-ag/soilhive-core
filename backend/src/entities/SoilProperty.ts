@@ -1,8 +1,9 @@
-import { Entity, Column, PrimaryColumn, Unique, ManyToOne, JoinColumn, Check, ForeignKey } from 'typeorm';
+import { Entity, Column, PrimaryColumn, Unique, ManyToOne, OneToMany, JoinColumn, Check, ForeignKey } from 'typeorm';
 import { SoilProperty } from '../interfaces/SoilProperty';
 import BaseTable from './BaseTable';
 import SlugHistoryEntity from './SlugHistory';
 import SoilPropertyCategoryEntity from './SoilPropertyCategory';
+import UnitConversionEntity from './UnitConversion';
 import { MAX_PROPERTY_LEVEL } from '../constants/constants';
 
 @Entity('soil_properties')
@@ -13,7 +14,8 @@ import { MAX_PROPERTY_LEVEL } from '../constants/constants';
 @ForeignKey(() => SlugHistoryEntity, ['id', 'slug'], ['entity_id', 'slug'], {
   deferrable: 'INITIALLY DEFERRED',
 })
-export default class SoilPropertyEntity extends BaseTable implements SoilProperty {
+export default class SoilPropertyEntity extends BaseTable implements Omit<SoilProperty, 'original_units_of_measurement'> {
+  // the interface want original_units_of_measurement as string[]
   @PrimaryColumn('uuid', {
     default: () => 'uuidv7()',
   })
@@ -56,4 +58,7 @@ export default class SoilPropertyEntity extends BaseTable implements SoilPropert
   })
   @JoinColumn({ name: 'category_id' })
   soil_property_category: SoilPropertyCategoryEntity;
+
+  @OneToMany(() => UnitConversionEntity, uc => uc.soil_property)
+  original_units_of_measurement: UnitConversionEntity[];
 }
