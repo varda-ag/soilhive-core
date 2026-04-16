@@ -51,10 +51,9 @@ export const SSR_ROUTE_PATHS: string[] = Object.keys(SSR_ROUTES);
  * Called by the Express server for each incoming request whose path
  * matches one of the SSR_ROUTES above.
  *
- * `context.authToken` — when provided by the server (read from the
- * HttpOnly auth cookie), it is placed into ssrAuthStore so that any
- * httpClient calls made during renderToString can attach a Bearer token
- * to backend requests.
+ * `context.authToken` — when provided by the server (read from the auth header),
+ * it is placed into ssrAuthStore so that any httpClient calls made
+ * during renderToString can attach a Bearer token to backend requests.
  *
  * Returns null when no matching SSR component is registered so the
  * server can fall back to serving the SPA shell instead.

@@ -46,6 +46,7 @@ function resolveAuthToken(req: Request): string | null {
     const BUFFER_MS = 30_000;
     if (exp && exp * 1000 <= Date.now() + BUFFER_MS) return null; // expired
   } catch {
+    console.warn('Failed to decode auth token payload; proceeding without auth');
     return null;
   }
 
