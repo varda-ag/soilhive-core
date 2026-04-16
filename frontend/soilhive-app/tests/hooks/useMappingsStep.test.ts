@@ -81,8 +81,8 @@ describe('useMappingsStep', () => {
     it('appends soil properties sorted alphabetically after the detectable fields', () => {
       mockUseSoilProperties.mockReturnValue({
         data: [
-          { id: 'p1', property_name: 'Zinc', property_acronym: 'Zn', category_id: 'c1' },
-          { id: 'p2', property_name: 'Aluminium', property_acronym: 'Al', category_id: 'c1' },
+          { id: 'p1', property_name: 'Zinc', property_acronym: 'Zn', category_id: 'c1', original_units_of_measurement: [] },
+          { id: 'p2', property_name: 'Aluminium', property_acronym: 'Al', category_id: 'c1', original_units_of_measurement: [] },
         ],
         isLoading: false,
       });
