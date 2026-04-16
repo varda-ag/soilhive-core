@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.71.0 (2026-04-16)
+
+## What's Changed
+* feat: new auth middleware, merging remote entitlements, applying entitlements by @svaccari in https://github.com/varda-ag/soilhive-core/pull/384
+* feat: data mapping unit of measures by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/396
+* feat: :sparkles: enabling SSR by @svaccari in https://github.com/varda-ag/soilhive-core/pull/398
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.70.0...v0.71.0
+
 ## 0.70.0 (2026-04-15)
 
 ## What's Changed
