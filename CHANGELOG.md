@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.72.0 (2026-04-16)
+
+## What's Changed
+* feat: adding auth to SSR by @svaccari in https://github.com/varda-ag/soilhive-core/pull/399
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.71.0...v0.72.0
+
 ## 0.71.0 (2026-04-16)
 
 ## What's Changed
