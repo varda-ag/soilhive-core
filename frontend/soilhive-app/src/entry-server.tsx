@@ -8,7 +8,6 @@ import { initReactI18next } from 'react-i18next';
 import adminTranslations from '../public/locales/en/admin.json';
 import commonTranslations from '../public/locales/en/common.json';
 import { NotificationProvider, ThemeProvider } from './contexts';
-import { AuthContextProvider } from './auth/AuthContextProvider';
 import { CookieConsentProvider } from './components/CookieConsentProvider';
 import MetadataPage from './pages/Metadata';
 
@@ -59,13 +58,11 @@ export function render(url: string): string | null {
     <QueryClientProvider client={queryClient}>
       <NotificationProvider>
         <CookieConsentProvider>
-          <AuthContextProvider>
-            <ThemeProvider>
-              <StaticRouter location={pathname}>
-                <PageComponent />
-              </StaticRouter>
-            </ThemeProvider>
-          </AuthContextProvider>
+          <ThemeProvider>
+            <StaticRouter location={pathname}>
+              <PageComponent />
+            </StaticRouter>
+          </ThemeProvider>
         </CookieConsentProvider>
       </NotificationProvider>
     </QueryClientProvider>,
