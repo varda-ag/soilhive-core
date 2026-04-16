@@ -1,7 +1,14 @@
 import { useTranslation } from 'react-i18next';
 import { Navigate, Route, Routes } from 'react-router';
 import PageTitle from 'components/PageTitle';
-import { TermsAndConditions, DatasetsPublication, LookAndFeel, MapBasedFilters, MapSettings } from '../pages/AdminPortal';
+import {
+  TermsAndConditions,
+  DatasetsPublication,
+  LookAndFeel,
+  MapBasedFilters,
+  MapSettings,
+  NotificationBanner,
+} from '../pages/AdminPortal';
 import { ADMIN_ROOT, ADMIN_ROUTES } from '../configuration/admin';
 import { ADMIN_PORTAL_DATA_MENU, ADMIN_PORTAL_UI_MENU, useEntitlements } from 'hooks/useEntitlementsHook';
 import { DatasetsGeneralInfoStep } from '../pages/AdminPortal/DatasetsGeneralInfoStep/DatasetsGeneralInfoStep';
@@ -106,6 +113,15 @@ export function AdminPortalModule() {
               <>
                 <PageTitle title={t('page_titles.terms_and_conditions')} />
                 <TermsAndConditions />
+              </>
+            }
+          />
+          <Route
+            path={ADMIN_ROUTES.NOTIFICATION_BANNER}
+            element={
+              <>
+                <PageTitle title={t('page_titles.notification_banner')} />
+                <NotificationBanner />
               </>
             }
           />

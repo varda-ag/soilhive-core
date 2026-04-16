@@ -72,7 +72,7 @@ describe('Header component', () => {
       isLoadingThemeConfig: false,
       themeConfig: { termsAndConditionsHtml: '<div>Mock</div>' },
     });
-    (useDevice as jest.Mock).mockReturnValue({ isDesktopLayout: true });
+    (useDevice as jest.Mock).mockReturnValue({ isDesktopLayout: true, isMobileLayout: false });
 
     (useAuthContext as jest.Mock).mockReturnValue({
       isAuthenticated: false,

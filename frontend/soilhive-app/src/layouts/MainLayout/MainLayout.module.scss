@@ -3,6 +3,18 @@
     align-items: center;
 }
 
-.content {
+.HeaderWrapper {
+  position: relative;
+
+  .Banner {
+    position: absolute;
+    top: 54px;
+    left: 0;
+    right: 0;
+    z-index: 4;
+  }
+}
+
+.Content {
   flex-grow: 1;
 }

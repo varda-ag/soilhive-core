@@ -3,12 +3,16 @@
 exports[`MainLayout renders MainLayout and matches the snapshot 1`] = `
 <div>
   <div
-    data-testid="header"
+    class="HeaderWrapper"
   >
-    Header
+    <div
+      data-testid="header"
+    >
+      Header
+    </div>
   </div>
   <div
-    class="content"
+    class="Content"
   >
     <div
       data-testid="outlet"

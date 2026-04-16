@@ -16,6 +16,7 @@ type ThemeContextType = {
   saveColors: (colors: ThemeColors) => Promise<void>;
   saveInitialBbox: (initialBbox: number[]) => Promise<void>;
   saveTermsAndConditions: (termsAndConditionsHtml: string) => Promise<void>;
+  saveNotificationBanner: (notificationBannerHtml: string) => Promise<void>;
 };
 
 export const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -27,6 +28,7 @@ type ThemeProviderProps = {
 export const defaultThemeConfig: ThemeConfig = {
   colors: defaultColors,
   termsAndConditionsHtml: '',
+  notificationBannerHtml: '',
   initialBbox: [6.6272658, 35.2889616, 18.7844746, 47.0921462],
 };
 
@@ -70,6 +72,20 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     });
   };
 
+  const saveNotificationBanner = async (notificationBannerHtml: string) => {
+    await saveConfig({
+      ...themeConfig,
+      notificationBannerHtml,
+    });
+
+    showNotification({
+      id: 'saveNotificationBannerSuccess',
+      title: t('notification_banner.notification.title'),
+      message: t('notification_banner.notification.message'),
+      type: 'success',
+    });
+  };
+
   const [logo, setLogo] = useState<string | null>(null);
 
   const { data: logoResponse, isLoading: isLogoLoading } = useApiQuery<Blob | MediaSource>({
@@ -108,6 +124,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
         saveColors,
         saveInitialBbox,
         saveTermsAndConditions,
+        saveNotificationBanner,
         setLogo,
         isLogoLoading,
         isLoadingThemeConfig,

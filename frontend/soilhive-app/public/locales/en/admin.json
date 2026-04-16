@@ -1,6 +1,7 @@
 {
     "page_titles": {
         "terms_and_conditions": "SoilHive - Terms & Conditions",
+        "notification_banner": "SoilHive - Notification Banner",
         "map_settings": "SoilHive - Map settings",
         "look_and_feel": "SoilHive - Look & Feel",
         "datasets": "SoilHive - Datasets publication",
@@ -14,6 +15,7 @@
         },
         "menu": {
             "terms_and_conditions": "Terms & Conditions",
+            "notification_banner": "Notification Banner",
             "map_settings": "Map settings",
             "look_and_feel": "Look & Feel",
             "datasets": "Datasets publication",
@@ -27,6 +29,16 @@
         "notification": {
             "title": "Successful update",
             "message": "New terms and conditions applied"
+        }
+    },
+    "notification_banner": {
+        "title": "Notification Banner",
+        "subtitle": "Paste a text here",
+        "description": "The banner is going to be visible in the platform at the top portion of the screen, under the navigation bar.",
+        "save": "Save",
+        "notification": {
+            "title": "Successful update",
+            "message": "New notification banner text applied"
         }
     },
     "map_settings": {

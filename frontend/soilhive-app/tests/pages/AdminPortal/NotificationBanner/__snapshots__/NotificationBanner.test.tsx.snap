@@ -1,0 +1,29 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`NotificationBanner page matches snapshot 1`] = `
+<div>
+  <div
+    class="Layout"
+  >
+    <main
+      class="Content"
+    >
+      <h3>
+        notification_banner.subtitle
+      </h3>
+      <p>
+        notification_banner.description
+      </p>
+      <textarea
+        data-testid="editor"
+        style="height: 340px;"
+      >
+        mock
+      </textarea>
+      <button>
+        notification_banner.save
+      </button>
+    </main>
+  </div>
+</div>
+`;
