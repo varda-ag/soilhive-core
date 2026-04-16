@@ -1876,6 +1876,11 @@ components:
         category_id:
           type: string
           description: Category identifier
+        original_units_of_measurement:
+          type: array
+          items:
+            type: string
+          description: Allowed original units of measurement for this property (empty when none are defined)
 
     SoilPropertyCategory:
       type: object
