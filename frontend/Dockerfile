@@ -48,11 +48,11 @@ RUN chown -R appuser:appgroup /app
 USER appuser
 
 # Expose the Node server port
-EXPOSE 3000
+EXPOSE 80
 
 # At startup:
 #   1. Regenerate dist/client/env-config.js from the current runtime env vars.
 #      This file is served as a static asset to SPA routes that don't go through
 #      the SSR handler (SSR routes inline env vars directly in the HTML).
-#   2. Start the Express server.
-CMD ["/bin/sh", "-c", "/usr/local/bin/env.sh /app/dist/client && node /app/dist/server/index.cjs"]
+#   2. Start the Express server on port 80.
+CMD ["/bin/sh", "-c", "/usr/local/bin/env.sh /app/dist/client && PORT=80 node /app/dist/server/index.cjs"]
