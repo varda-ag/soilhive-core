@@ -16,7 +16,7 @@ export function MainLayout() {
     <>
       <div className={styles.HeaderWrapper}>
         <Header></Header>
-        {!isLoadingThemeConfig && themeConfig.notificationBannerHtml.trim().length > 0 && showNotificationBanner && (
+        {!isLoadingThemeConfig && themeConfig.notificationBannerHtml?.trim().length > 0 && showNotificationBanner && (
           <div className={styles.Banner}>
             <NotificationBanner htmlMessage={themeConfig.notificationBannerHtml} onClose={onNotificationBannerClose} />
           </div>
