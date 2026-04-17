@@ -22,7 +22,7 @@ const createDataSource = async (schema: string): Promise<DataSource> => {
     entities: [path.join(__dirname, '../entities/**/*{.ts,.js}')],
     migrations: [path.join(__dirname, '../migrations/**/*{.ts,.js}')],
     synchronize: false,
-    logging: false, //['query'],
+    logging: ['query', 'error'],
     invalidWhereValuesBehavior: {
       null: 'sql-null',
       undefined: 'throw',

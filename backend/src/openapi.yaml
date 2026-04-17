@@ -819,6 +819,173 @@ paths:
               schema:
                 $ref: '#/components/schemas/SoilPropertyCategory'
 
+  /procedures:
+    get:
+      x-eov-operation-handler: controllers/procedures
+      x-eov-operation-id: getProcedures
+      summary: Get all procedures
+      tags:
+        - procedures
+      responses:
+        '200':
+          description: Array of procedures
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Procedure'
+    post:
+      x-eov-operation-handler: controllers/procedures
+      x-eov-operation-id: createProcedure
+      summary: Create a procedure
+      tags:
+        - procedures
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Procedure'
+      responses:
+        '201':
+          description: Procedure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Procedure'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /procedures/techniques:
+    get:
+      x-eov-operation-handler: controllers/procedures
+      x-eov-operation-id: getProcedureTechniques
+      summary: Get available procedure technique values
+      tags:
+        - procedures
+      responses:
+        '200':
+          description: Array of technique values
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+                  enum:
+                    - lab procedure
+                    - spectral
+                    - calculated
+
+  /procedures/{procedureId}:
+    parameters:
+      - name: procedureId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Procedure ID
+    get:
+      x-eov-operation-handler: controllers/procedures
+      x-eov-operation-id: getProcedure
+      summary: Get a procedure by ID
+      tags:
+        - procedures
+      responses:
+        '200':
+          description: Procedure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Procedure'
+
+  /vocabulary:
+    get:
+      x-eov-operation-handler: controllers/vocabularies
+      x-eov-operation-id: getVocabulary
+      summary: Get all vocabulary items
+      tags:
+        - vocabulary
+      responses:
+        '200':
+          description: Array of vocabulary items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/VocabularyItem'
+    post:
+      x-eov-operation-handler: controllers/vocabularies
+      x-eov-operation-id: createVocabulary
+      summary: Create a vocabulary item
+      tags:
+        - vocabulary
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - category
+              properties:
+                name:
+                  type: string
+                category:
+                  type: string
+                  enum:
+                    - sample_pretreatment
+                    - laboratory_method
+                    - extractant_concentration
+                    - extraction_ratio
+                    - extraction_base
+                    - measurement_procedure
+                    - limit_of_detection
+      responses:
+        '201':
+          description: Vocabulary item created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VocabularyItem'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /vocabulary/{vocabularyId}:
+    parameters:
+      - name: vocabularyId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Vocabulary item ID
+    get:
+      x-eov-operation-handler: controllers/vocabularies
+      x-eov-operation-id: getVocabularyItem
+      summary: Get a vocabulary item by ID
+      tags:
+        - vocabulary
+      responses:
+        '200':
+          description: Vocabulary item
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VocabularyItem'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /licenses:
     get:
       x-eov-operation-handler: controllers/licenses
@@ -1896,6 +2063,58 @@ components:
         - id
         - category_name
         - category_acronym
+    
+    VocabularyItem:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Identifier for the vocabulary item
+        category:
+          type: string
+          description: Category of the vocabulary item
+        name:
+          type: string
+          description: Vocabulary item name
+
+    Procedure:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Identifier for the procedure
+        sample_pretreatment:
+          type: string
+          nullable: true
+          description: Pretreatment applied before analysis
+        technique:
+          type: string
+          nullable: true
+          description: Analytical or experimental technique used
+        laboratory_method:
+          type: string
+          nullable: true
+          description: The named laboratory method or protocol used to generate the result, including standard protocols or digestion/combustion approaches where applicable
+        extractant_concentration:
+          type: string
+          nullable: true
+          description: Extractant concentration details
+        extraction_ratio:
+          type: string
+          nullable: true
+          description: Ratio of sample to extractant used
+        extraction_base:
+          type: string
+          nullable: true
+          description: Base or solvent used in extraction
+        measurement_procedure:
+          type: string
+          nullable: true
+          description: Measurement procedure or instrument used for analysis
+        limit_of_detection:
+          type: string
+          nullable: true
+          description: Limit of detection for the measurement
 
     SoilRecord:
       type: object
