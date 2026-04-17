@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.73.0 (2026-04-17)
+
+## What's Changed
+* fix(fe): add autocomplete dropdown and hide details if not needed by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/400
+* feat: procedures and vocabularies endpoints by @d-rom in https://github.com/varda-ag/soilhive-core/pull/404
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.72.1...v0.73.0
+
+## 0.72.1 (2026-04-17)
+
+## What's Changed
+* fix(fe): fix file upload template docs and improve error message by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/403
+* fix: ssr and local dev envs by @svaccari in https://github.com/varda-ag/soilhive-core/pull/406
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.72.0...v0.72.1
+
 ## 0.72.0 (2026-04-16)
 
 ## What's Changed

@@ -38,10 +38,6 @@ WORKDIR /app
 # Copy compiled bundles from the build stage
 COPY --from=builder /app/dist ./dist
 
-# Copy the env injection script
-COPY --from=builder /app/env.sh /usr/local/bin/env.sh
-RUN chmod +x /usr/local/bin/env.sh
-
 # Non-root user for security
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 RUN chown -R appuser:appgroup /app
@@ -50,9 +46,6 @@ USER appuser
 # Expose the Node server port
 EXPOSE 80
 
-# At startup:
-#   1. Regenerate dist/client/env-config.js from the current runtime env vars.
-#      This file is served as a static asset to SPA routes that don't go through
-#      the SSR handler (SSR routes inline env vars directly in the HTML).
-#   2. Start the Express server on port 80.
-CMD ["/bin/sh", "-c", "/usr/local/bin/env.sh /app/dist/client && PORT=80 node /app/dist/server/index.cjs"]
+# The server generates dist/client/env-config.js at startup from runtime env vars.
+ENV PORT=80
+CMD ["node", "/app/dist/server/index.cjs"]
