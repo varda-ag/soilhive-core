@@ -236,6 +236,7 @@ paths:
     get:
       x-eov-operation-handler: controllers/datasets
       x-eov-operation-id: getDatasets
+      x-entitlements-required: true
       summary: Get metadata for all datasets
       tags:
         - datasets
@@ -287,6 +288,7 @@ paths:
     get:
       x-eov-operation-handler: controllers/datasets
       x-eov-operation-id: getDataset
+      x-entitlements-required: true
       summary: Get metadata for a specific dataset
       tags:
         - datasets
@@ -351,6 +353,7 @@ paths:
     post:
       x-eov-operation-handler: controllers/jobs
       x-eov-operation-id: postJob
+      x-entitlements-required: true
       summary: Starts async job
       tags:
         - jobs
@@ -1133,6 +1136,7 @@ paths:
     get:
       x-eov-operation-handler: controllers/soil-data
       x-eov-operation-id: getSoilData
+      x-entitlements-required: true
       summary: Retrieves soil data
       tags:
         - soil-data
@@ -2006,6 +2010,12 @@ components:
           type: string
           enum: [public, private]
           default: private
+        capabilities:
+          type: array
+          items:
+            type: string
+            enum: [preview, download, obfuscate_as_points, obfuscate_as_polygons]
+          readOnly: true
 
     SoilProperty:
       type: object
@@ -2043,6 +2053,11 @@ components:
         category_id:
           type: string
           description: Category identifier
+        original_units_of_measurement:
+          type: array
+          items:
+            type: string
+          description: Allowed original units of measurement for this property (empty when none are defined)
 
     SoilPropertyCategory:
       type: object

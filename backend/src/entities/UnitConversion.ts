@@ -22,7 +22,7 @@ export default class UnitConversionEntity extends BaseTable implements UnitConve
   @Column({ type: 'uuid' })
   property_id: string;
 
-  @ManyToOne(() => SoilPropertyEntity, soil_property => soil_property.id, {
+  @ManyToOne(() => SoilPropertyEntity, soil_property => soil_property.original_units_of_measurement, {
     deferrable: 'INITIALLY DEFERRED',
     onDelete: 'CASCADE',
   })

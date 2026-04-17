@@ -11,10 +11,9 @@ import ServerIcon from 'assets/icons/server-icon.svg?react';
 import FilterIcon from 'assets/icons/filter2-icon.svg?react';
 import { ADMIN_PATHS } from '../../../configuration/admin';
 import { useAuthContext } from '../../../auth/AuthContextProvider';
+import { ADMIN_PORTAL_DATA_MENU, ADMIN_PORTAL_UI_MENU, useEntitlements } from 'hooks/useEntitlementsHook';
 
 import styles from './AdminSidebar.module.scss';
-import { ADMIN_PORTAL_DATA_MENU, ADMIN_PORTAL_UI_MENU, useEntitlements } from 'hooks/useEntitlementsHook';
-import { useDatasets } from 'hooks/useDatasets';
 
 const UI_SECTION = {
   title: 'user_interface',
@@ -37,22 +36,20 @@ export function AdminSidebar() {
     navigate('/');
   }, [logout, navigate]);
 
-  const { datasets, isLoading } = useDatasets();
-
   const dataSection = useMemo(() => {
     return {
       title: 'data',
       items: [
         {
-          url: isLoading || (datasets && datasets.length > 0) ? ADMIN_PATHS.DATASETS : `${ADMIN_PATHS.DATASETS}/new`,
+          url: ADMIN_PATHS.DATASETS,
           title: 'datasets',
           Icon: ServerIcon,
-          disabled: isLoading,
+          disabled: false,
         },
         { url: ADMIN_PATHS.FILTERS, title: 'filters', Icon: FilterIcon, disabled: false },
       ],
     };
-  }, [datasets, isLoading]);
+  }, []);
 
   const navConfig = useMemo(() => {
     const sections = [];

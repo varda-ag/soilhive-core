@@ -1,51 +1,31 @@
-// src/jobs/soil-export/services.ts
-
-import { EntityManager } from 'typeorm';
-import FilterService from '../../services/FilterService';
 import SoilDataStorage from '../../data-layer/SoilDataStorage';
-import { SoilDataSample } from '../../interfaces/SoilDataSample';
 import { RequestData } from '../../interfaces/RequestData';
-import { SoilExportJobPayload, GroupedRecords, EXPORT_CONFIG, soilSampleToExportRecord } from './types';
+import { SoilDataSample } from '../../interfaces/SoilDataSample';
+import FilterService from '../../services/FilterService';
+import { EXPORT_CONFIG, GroupedRecords, SoilExportJobPayload, soilSampleToExportRecord } from './types';
 
 import * as fs from 'fs';
 import * as path from 'path';
 
-export async function getTotalRecordsCount(entityManager: EntityManager, payload: SoilExportJobPayload): Promise<number> {
-  const requestData: RequestData = {
-    entityManager,
-    token: {} as any,
-  };
+const filterService = new FilterService();
+const soilDataStorage = new SoilDataStorage();
 
-  const filterService = new FilterService();
-
+export async function getTotalRecordsCount(requestData: RequestData, payload: SoilExportJobPayload): Promise<number> {
   const storedFilter = await filterService.getFilterById(requestData, payload.filterId);
-
-  const soilDataStorage = new SoilDataStorage();
-
-  return await soilDataStorage.getSoilDataCount(entityManager, storedFilter.filter, payload.dataset_ids);
+  return await soilDataStorage.getSoilDataCount(requestData, storedFilter.filter, payload.dataset_ids);
 }
 
 /**
  * Fetch a batch of soil data samples
- * @param entityManager - TypeORM entity manager
+ * @param requestData - RequestData containing user and entity manager information
  * @param payload - Job payload
  * @param cursor - Pagination cursor (undefined for first batch)
  * @returns Array of soil data samples
  */
-export async function fetchBatch(entityManager: EntityManager, payload: SoilExportJobPayload, cursor?: string): Promise<SoilDataSample[]> {
-  const requestData: RequestData = {
-    entityManager,
-    token: {} as any,
-  };
-
-  const filterService = new FilterService();
-
+export async function fetchBatch(requestData: RequestData, payload: SoilExportJobPayload, cursor?: string): Promise<SoilDataSample[]> {
   const storedFilter = await filterService.getFilterById(requestData, payload.filterId);
-
-  const soilDataStorage = new SoilDataStorage();
-
   return await soilDataStorage.getSoilData(
-    entityManager,
+    requestData,
     storedFilter.filter,
     payload.dataset_ids,
     EXPORT_CONFIG.BATCH_SIZE,

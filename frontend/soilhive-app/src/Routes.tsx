@@ -10,6 +10,7 @@ import { AdminPortalModule } from './modules/AdminPortalModule';
 import AvailabilityModule from './modules/AvailabilityModule';
 import Admin from './pages/Admin';
 import Legal from './pages/Legal';
+import Metadata from './pages/Metadata';
 import './utilities/i18n';
 import { singlePages } from './utilities/moduleFederation';
 
@@ -53,6 +54,15 @@ function AppRoutes() {
               <>
                 <PageTitle title={t('page_titles.admin')} />
                 <Admin />
+              </>
+            }
+          />
+          <Route
+            path="/metadata"
+            element={
+              <>
+                <PageTitle title="SoilHive - Metadata" />
+                <Metadata />
               </>
             }
           />

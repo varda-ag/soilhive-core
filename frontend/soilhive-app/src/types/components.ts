@@ -1,3 +1,6 @@
+import type { ColumnSortEvent } from 'primereact/column';
+import type { ReactNode } from 'react';
+
 export type ComponentSizeType = 'medium' | 'small' | 'tiny';
 
 export type NotificationType = 'error' | 'warning' | 'success';
@@ -57,4 +60,12 @@ export type CropArea = {
   y: number;
   width: number;
   height: number;
+};
+
+export type TableColumn<T> = {
+  name: string;
+  value: string;
+  sortable?: boolean;
+  bodyTemplate?: (row: T) => ReactNode;
+  sortFunction?: (event: ColumnSortEvent) => T[];
 };

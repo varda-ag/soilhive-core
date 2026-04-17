@@ -1,2 +1,32 @@
 .DatasetsMappingsStep {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  padding: 24px;
+}
+
+.PageTitle {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  margin: 0 0 4px;
+}
+
+.Subtitle {
+  font-size: var(--font-size-sm);
+  color: var(--color-neutral-dark-500);
+  margin: 0 0 20px;
+}
+
+.Actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 24px;
+  background-color: var(--color-neutral-white);
+  box-shadow: 0 -0.15rem 0.625rem var(--color-shadow-interface);
+}
+
+.ActionsSpacer {
+  flex: 1;
 }

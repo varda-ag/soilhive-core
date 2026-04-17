@@ -1,10 +1,19 @@
 import React, { Suspense } from 'react';
-import { createRoot } from 'react-dom/client';
+import { createRoot, hydrateRoot } from 'react-dom/client';
+import { BrowserRouter } from 'react-router';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import App from './App';
 
 import './styles/index.scss';
 import { CONSENT_PARAMS } from './configuration/analytics';
 import { GTM_CONTAINER_ID } from './utilities/environmentVariables';
+import { NotificationProvider } from './contexts';
+
+// SSR page components — loaded lazily so they are not bundled into every page.
+// The key must exactly match the `data-ssr-page` attribute injected by the server.
+const SSR_COMPONENTS: Record<string, () => Promise<{ default: React.ComponentType }>> = {
+  '/metadata': () => import('./pages/Metadata'),
+};
 
 if (GTM_CONTAINER_ID) {
   // Initialize dataLayer + gtag
@@ -32,15 +41,37 @@ if (GTM_CONTAINER_ID) {
   document.head.appendChild(gtmScript);
 }
 
-// Mount React app
 const rootEl = document.getElementById('root');
 if (rootEl) {
-  const root = createRoot(rootEl);
-  root.render(
-    <Suspense fallback="">
-      <React.StrictMode>
-        <App />
-      </React.StrictMode>
-    </Suspense>,
-  );
+  const ssrPage = rootEl.getAttribute('data-ssr-page');
+
+  if (ssrPage && SSR_COMPONENTS[ssrPage]) {
+    // Hydration mode: the server rendered this page — reuse the exact same
+    // provider tree so React can reconcile against the existing DOM nodes.
+    SSR_COMPONENTS[ssrPage]().then(({ default: PageComponent }) => {
+      const queryClient = new QueryClient();
+      hydrateRoot(
+        rootEl,
+        <QueryClientProvider client={queryClient}>
+          <NotificationProvider>
+            <BrowserRouter>
+              <Suspense fallback="">
+                <PageComponent />
+              </Suspense>
+            </BrowserRouter>
+          </NotificationProvider>
+        </QueryClientProvider>,
+      );
+    });
+  } else {
+    // Standard SPA mode: full application shell
+    const root = createRoot(rootEl);
+    root.render(
+      <Suspense fallback="">
+        <React.StrictMode>
+          <App />
+        </React.StrictMode>
+      </Suspense>,
+    );
+  }
 }

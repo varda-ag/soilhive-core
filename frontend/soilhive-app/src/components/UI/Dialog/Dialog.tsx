@@ -13,6 +13,7 @@ interface Props {
   removeTransition?: boolean;
   continueText?: string;
   cancelText?: string;
+  className?: string;
   contentClassName?: string;
   onContinue: () => void;
   onCancel: () => void;
@@ -25,6 +26,7 @@ export function Dialog({
   cancelText,
   continueText,
   removeTransition,
+  className,
   contentClassName,
   onContinue,
   onCancel,
@@ -46,7 +48,7 @@ export function Dialog({
     <ConfirmDialog
       group="headless"
       visible={visible}
-      className={styles.Dialog}
+      className={classnames(styles.Dialog, className)}
       {...conditionalProps}
       content={({ contentRef, headerRef, footerRef }) => (
         <>

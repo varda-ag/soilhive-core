@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState, type ChangeEvent } from 'rea
 
 import classnames from 'classnames';
 
+import BigSearchIcon from 'assets/icons/search-icon.svg?react';
+import SmallSearchIcon from 'assets/icons/small-search-icon.svg?react';
 import SmallCrossIcon from 'assets/icons/small-cross-icon.svg?react';
 import { FormFieldWrapper } from 'components/UI';
 import type { ComponentSizeType } from 'types/components';
@@ -25,6 +27,7 @@ interface Props {
   isReadOnly?: boolean;
   isClearable?: boolean;
   isError?: boolean;
+  isSearch?: boolean;
   errorMessage?: string;
   helperMessage?: string;
   onClear?: (name?: string) => void;
@@ -48,6 +51,7 @@ export function TextInput({
   isReadOnly = false,
   isClearable = false,
   isError = false,
+  isSearch = false,
   errorMessage,
   helperMessage,
   onClear,
@@ -63,6 +67,14 @@ export function TextInput({
       medium: styles.Medium,
       small: styles.Small,
       tiny: styles.Tiny,
+    }[size];
+  }, [size]);
+
+  const SearchIcon = useMemo(() => {
+    return {
+      medium: BigSearchIcon,
+      small: BigSearchIcon,
+      tiny: SmallSearchIcon,
     }[size];
   }, [size]);
 
@@ -123,9 +135,11 @@ export function TextInput({
           { [styles.Filled]: !!currentValue },
           { [styles.Disabled]: isDisabled },
           { [styles.ReadOnly]: isReadOnly },
+          { [styles.Search]: isSearch },
           inputClassName,
         )}
       >
+        {isSearch && <SearchIcon className={styles.SearchIcon} />}
         <input
           data-testid="sh-ui-textinputfield"
           type={type}

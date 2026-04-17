@@ -25,6 +25,7 @@ describe('Testing /datasets routes', () => {
       expect(res.statusCode).toBe(StatusCodes.OK);
       expect(res.body).toHaveProperty('id', s1.dataset.slug);
       expect(res.body).toHaveProperty('visibility', s1.dataset.visibility);
+      expect(res.body).toHaveProperty('capabilities', []);
     });
 
     it('GET /datasets responds with 404 if dataset does not exist', async () => {

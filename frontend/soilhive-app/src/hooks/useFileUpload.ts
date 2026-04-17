@@ -86,7 +86,7 @@ export function useFileUpload(onFileUploaded: (file: SoilDataFile) => void) {
             const { id, crs } = await uploadFile(file);
             onFileUploaded({ id, file, name: file.name, crs: crs ?? null, inferredCrs: crs, progress: 100 });
           } catch (err) {
-            const reason = err instanceof Error ? err.message : t('datasets.soil_data.upload_error');
+            const reason = (err instanceof Error && err.message && err.message !== 'undefined') || t('datasets.soil_data.upload_error');
             setUploadErrors(prev => [...prev, `${file.name}: ${reason}`]);
           }
         }),

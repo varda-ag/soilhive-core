@@ -6,7 +6,14 @@
   "type": "module",
   "scripts": {
     "build": "rsbuild build",
-    "dev": "rsbuild dev --open",
+    "build:client": "rsbuild build --environment web",
+    "build:ssr": "rsbuild build --environment web --environment ssr",
+    "dev": "rsbuild dev --environment web --open",
+    "dev:ssr": "pnpm build:ssr && run-p dev:ssr-watch dev:ssr-run",
+    "dev:client": "rsbuild dev --environment web",
+    "dev:ssr-watch": "rsbuild build --watch --environment ssr",
+    "dev:ssr-run": "node --watch dist/server/index.cjs",
+    "start": "node dist/server/index.cjs",
     "preview": "rsbuild preview",
     "test": "jest --bail --passWithNoTests",
     "test:watch": "jest --clearCache && jest --watch",
@@ -14,6 +21,8 @@
     "test:snapshot": "jest -u"
   },
   "dependencies": {
+    "compression": "^1.8.0",
+    "express": "^5.1.0",
     "@maplibre/maplibre-gl-geocoder": "^1.9.1",
     "@module-federation/enhanced": "0.21.2",
     "@placemarkio/check-geojson": "^0.1.14",
@@ -49,6 +58,10 @@
     "vanilla-cookieconsent": "^3.1.0"
   },
   "devDependencies": {
+    "@types/compression": "^1.7.5",
+    "@types/express": "^5.0.3",
+    "npm-run-all2": "^7.0.2",
+    "tsx": "^4.19.4",
     "@jest/globals": "^30.2.0",
     "@module-federation/rsbuild-plugin": "0.21.2",
     "@rsbuild/core": "1.5.14",

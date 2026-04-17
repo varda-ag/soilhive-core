@@ -10,7 +10,7 @@ import { createSignedPath } from '../utils/presigned-url';
 export default class JobService {
   private boss = getPgBoss();
 
-  createJob = async (requestData: RequestData, data: AnyJob): Promise<Job> => {
+  async createJob(requestData: RequestData, data: AnyJob): Promise<Job> {
     const { sub } = requestData.token ?? {};
 
     // Checking preconditions
@@ -30,7 +30,7 @@ export default class JobService {
       throw new ErrorResponse('Failed to create job', StatusCodes.INTERNAL_SERVER_ERROR);
     }
     return this.getJobById(requestData, id);
-  };
+  }
 
   getJobs = async (requestData: RequestData): Promise<Job[]> => {
     const { sub } = requestData.token ?? {};

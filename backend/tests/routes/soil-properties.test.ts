@@ -2,7 +2,7 @@ import { validate } from 'uuid';
 import { describe, it, expect } from '@jest/globals';
 import request from 'supertest';
 import { app } from '../../src/app';
-import { addCategory, addSoilProperty, addSyntheticData, syntheticDataOptions } from '../../src/utils/mock';
+import { addCategory, addSoilProperty, addUnitConversion, addSyntheticData, syntheticDataOptions } from '../../src/utils/mock';
 import { getDataSource } from '../../src/utils/data-source';
 import SoilPropertyEntity from '../../src/entities/SoilProperty';
 
@@ -62,5 +62,40 @@ describe('Testing /soil-properties routes', () => {
     expect(res.statusCode).toBe(200);
     expect(res.body).toHaveProperty('id', 'nested');
     expect(res.body).toHaveProperty('parent_property_id', 'ph');
+  });
+
+  it('GET /soil-properties returns an empty original_units_of_measurement for properties with no unit conversions', async () => {
+    const res = await request(app).get('/soil-properties');
+    expect(res.statusCode).toBe(200);
+    for (const property of res.body) {
+      expect(property).toHaveProperty('original_units_of_measurement');
+      expect(Array.isArray(property.original_units_of_measurement)).toBe(true);
+      expect(property.original_units_of_measurement).toHaveLength(0);
+    }
+  });
+
+  it('GET /soil-properties returns original_units_of_measurement for properties that have unit conversions', async () => {
+    const dataSource = await getDataSource();
+    const repo = dataSource.getRepository(SoilPropertyEntity);
+    const ph = await repo.findOneOrFail({ where: { slug: 'ph' } });
+    await addUnitConversion(ph.id, 'mg/kg');
+    await addUnitConversion(ph.id, 'g/kg');
+
+    const res = await request(app).get('/soil-properties');
+    expect(res.statusCode).toBe(200);
+    const phProperty = res.body.find((p: any) => p.id === 'ph');
+    expect(phProperty.original_units_of_measurement).toEqual(expect.arrayContaining(['mg/kg', 'g/kg']));
+    expect(phProperty.original_units_of_measurement).toHaveLength(2);
+  });
+
+  it('GET /soil-properties/:soilPropertyId returns original_units_of_measurement', async () => {
+    const dataSource = await getDataSource();
+    const repo = dataSource.getRepository(SoilPropertyEntity);
+    const ph = await repo.findOneOrFail({ where: { slug: 'ph' } });
+    await addUnitConversion(ph.id, 'cmol/kg');
+
+    const res = await request(app).get('/soil-properties/ph');
+    expect(res.statusCode).toBe(200);
+    expect(res.body.original_units_of_measurement).toEqual(['cmol/kg']);
   });
 });

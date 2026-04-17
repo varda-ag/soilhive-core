@@ -2,7 +2,11 @@ import type { Dataset } from 'types/backend';
 import { useApiQuery } from './useApiQuery';
 
 export function useDatasets() {
-  const { data: datasets, isLoading } = useApiQuery<Dataset[]>({
+  const {
+    data: datasets,
+    isLoading,
+    isError,
+  } = useApiQuery<Dataset[]>({
     endpoint: '/datasets',
     method: 'GET',
     queryKey: ['datasets'],
@@ -12,6 +16,7 @@ export function useDatasets() {
   return {
     datasets,
     isLoading,
+    isError,
   };
 }
 
