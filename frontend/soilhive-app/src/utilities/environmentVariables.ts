@@ -9,7 +9,11 @@ declare global {
   }
 }
 
-export const MAPBOX_ACCESS_TOKEN: string | undefined = window._env_.MAPBOX_ACCESS_TOKEN;
-export const BACKEND_BASE_URL: string | undefined = window._env_.BACKEND_BASE_URL;
-export const GTM_CONTAINER_ID: string | undefined = window._env_.GTM_CONTAINER_ID;
-export const COOKIE_DOMAIN: string | undefined = window._env_.COOKIE_DOMAIN;
+// Support both browser (window._env_) and Node.js (process.env) environments for SSR
+const _env: Record<string, string | undefined> =
+  typeof window !== 'undefined' ? (window._env_ ?? {}) : (process.env as Record<string, string | undefined>);
+
+export const MAPBOX_ACCESS_TOKEN: string | undefined = _env.MAPBOX_ACCESS_TOKEN;
+export const BACKEND_BASE_URL: string | undefined = _env.BACKEND_BASE_URL;
+export const GTM_CONTAINER_ID: string | undefined = _env.GTM_CONTAINER_ID;
+export const COOKIE_DOMAIN: string | undefined = _env.COOKIE_DOMAIN;

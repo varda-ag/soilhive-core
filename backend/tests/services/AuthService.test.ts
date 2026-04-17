@@ -1,3 +1,4 @@
+import { describe, it, expect, beforeEach } from '@jest/globals';
 import jwt from 'jsonwebtoken';
 import AuthService from '../../src/services/AuthService';
 

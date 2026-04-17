@@ -1,0 +1,31 @@
+.MappingsTable {
+  border: 1px solid var(--color-neutral-dark-100);
+  border-radius: 8px;
+  overflow: hidden;
+  background-color: var(--color-neutral-white);
+}
+
+.Header {
+  display: grid;
+  // mirrors MappingRow.RowMain grid: chevron(32) + icon(24) + columns
+  // chevron + icon collapse into a single spacer
+  grid-template-columns: 68px 1fr 2fr 1fr;
+  gap: 12px;
+  padding: 10px 8px;
+  background-color: var(--color-bg-admin);
+  border-bottom: 1px solid var(--color-neutral-dark-100);
+}
+
+.HeaderSpacer {
+  // occupies the chevron + status icon space
+}
+
+.HeaderCell {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+}
+
+.Rows {
+  // rows render their own borders
+}

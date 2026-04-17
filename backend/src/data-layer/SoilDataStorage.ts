@@ -13,6 +13,9 @@ import { StatusCodes } from 'http-status-codes';
 import RasterFilterService from '../services/RasterFilterService';
 import { getDataSource } from '../utils/data-source';
 import { selectOverviewTable } from '../utils/raster';
+import { RequestData } from '../interfaces/RequestData';
+
+const rasterFilterService = new RasterFilterService();
 
 export default class SoilDataStorage {
   /**
@@ -101,7 +104,7 @@ export default class SoilDataStorage {
   };
 
   getSoilData = async (
-    entityManager: EntityManager,
+    requestData: RequestData,
     dataFilter: DataFilter,
     datasetSlugs: string[],
     limit: number,
@@ -109,7 +112,7 @@ export default class SoilDataStorage {
     sort?: string,
   ): Promise<SoilDataSample[]> => {
     // Wrap everything in a transaction to preserve 'SET LOCAL' scope
-    return await entityManager.transaction(async transactionalEntityManager => {
+    return await requestData.entityManager.transaction(async transactionalEntityManager => {
       await transactionalEntityManager.query("SET LOCAL work_mem = '256MB';");
       await transactionalEntityManager.query("SET LOCAL statement_timeout = '60s';");
 
@@ -128,8 +131,8 @@ export default class SoilDataStorage {
     });
   };
 
-  getSoilDataCount = async (entityManager: EntityManager, dataFilter: DataFilter, datasetSlugs: string[]): Promise<number> => {
-    return await entityManager.transaction(async transactionalEntityManager => {
+  getSoilDataCount = async (requestData: RequestData, dataFilter: DataFilter, datasetSlugs: string[]): Promise<number> => {
+    return await requestData.entityManager.transaction(async transactionalEntityManager => {
       await transactionalEntityManager.query("SET LOCAL work_mem = '256MB';");
       await transactionalEntityManager.query("SET LOCAL statement_timeout = '60s';");
 
@@ -371,11 +374,10 @@ const applyFiltersToExternalQuery = (query: any, dataFilter: DataFilter, rasterF
 };
 
 const getEnabledRasterFilterTables = async () => {
-  const rasterFilterService = new RasterFilterService();
   const dataSource = await getDataSource();
   const queryRunner = dataSource.createQueryRunner();
   await queryRunner.connect();
-  const enabledFilters = await rasterFilterService.getEnabledRasterFilters({ entityManager: queryRunner.manager });
+  const enabledFilters = await rasterFilterService.getEnabledRasterFilters({ entityManager: queryRunner.manager, entitlements: {} });
   const rasterFilterTables = enabledFilters.map(f => f.id);
   await queryRunner.release();
   return rasterFilterTables;

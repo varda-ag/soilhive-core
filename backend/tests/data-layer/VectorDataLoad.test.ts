@@ -1,3 +1,4 @@
+import { describe, it, expect } from '@jest/globals';
 import { getEntityManager } from '../../src/utils/data-source';
 import { DATA_PREVIEW_SIZE } from '../../src/constants/constants';
 import { addSyntheticIngestionData, syntheticIngestionDataOptions } from '../../src/utils/mock';
@@ -19,12 +20,14 @@ describe('VectorDataLoad class', () => {
       scope: 'mock-scope',
       raw: 'raw-auth-token',
       email: 'mock-email',
-      isDataAdmin: () => true,
-      isSuperAdmin: () => false,
+      isDataAdmin: true,
+      isSuperAdmin: false,
+      isInternalRequest: false,
     };
     const requestData: RequestData = {
       entityManager,
       token: mockToken,
+      entitlements: {},
     };
     const service = new DataMappingService();
     const dataMappingConfig = await service.parseDataMapping(requestData, dataMapping.id);
@@ -48,12 +51,14 @@ describe('VectorDataLoad class', () => {
       scope: 'mock-scope',
       raw: 'raw-auth-token',
       email: 'mock-email',
-      isDataAdmin: () => true,
-      isSuperAdmin: () => false,
+      isDataAdmin: true,
+      isSuperAdmin: false,
+      isInternalRequest: false,
     };
     const requestData: RequestData = {
       entityManager,
       token: mockToken,
+      entitlements: {},
     };
     const service = new DataMappingService();
     const dataMappingConfig = await service.parseDataMapping(requestData, dataMapping.id);

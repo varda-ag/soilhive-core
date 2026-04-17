@@ -21,3 +21,10 @@ export function useCreateDatasetFileMapping() {
     method: 'POST',
   });
 }
+
+export function useDeleteDatasetMutation() {
+  return useApiMutation<void, { datasetId: string }>({
+    endpoint: ({ datasetId }) => `/datasets/${datasetId}`,
+    method: 'DELETE',
+  });
+}

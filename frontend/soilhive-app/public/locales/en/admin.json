@@ -154,6 +154,34 @@
     },
     "datasets": {
         "title": "Datasets publication",
+        "list": {
+            "search_placeholder": "Search by name",
+            "add_button_text": "Add dataset",
+            "columns": {
+                "name": "Name",
+                "status": "Status",
+                "visibility": "Visibility",
+                "actions": "Actions"
+            },
+            "status": {
+                "PENDING": "Draft",
+                "ONGOING": "Loading",
+                "LOADED": "Loaded",
+                "PUBLISHED": "Published"
+            },
+            "empty_message": "No datasets matching your search query",
+            "visibility": {
+                "private": "Private",
+                "public": "Public"
+            },
+            "publish_button_text": "Publish",
+            "delete_modal": {
+                "title": "Delete this dataset?",
+                "message": "Are you sure you want to permanently delete <strong>{{datasetName}}</strong>? This action cannot be undone and the dataset will be removed from the list.",
+                "cancel": "Cancel",
+                "confirm": "Delete dataset"
+            }
+        },
         "actions": {
             "save_and_continue_later": "Save and continue later",
             "continue": "Continue",
@@ -187,7 +215,7 @@
             "upload_caption": "Supported formats: CSV, Geopackage, GeoJSON, Shapefile, XLSX and ZIP.",
             "files_uploaded_count": "Files uploaded: {{count}}",
             "clear_all": "Clear all",
-            "upload_error": "Error uploading file",
+            "upload_error": "Error uploading file. Check the template documentation in Github.",
             "network_error": "Network error. Please check your connection and try again.",
             "crs_label": "Add a Coordinate Reference System (CRS)",
             "crs_placeholder": "start typing a number",
@@ -196,7 +224,34 @@
         "mappings": {
             "step_title": "Mappings",
             "step_description": "Match your data",
-            "title": "Map fields"
+            "title": "Map fields",
+            "subtitle": "Map your fields to standard concepts and units",
+            "banner": {
+                "mapped": "Mapped",
+                "unmapped": "Unmapped",
+                "warning": "Unmapped columns won't be loaded in the platform"
+            },
+            "table": {
+                "detected_columns": "Detected columns",
+                "map_to": "Map to",
+                "original_unit": "Original Unit"
+            },
+            "row": {
+                "select_concept": "Select a concept",
+                "unit_placeholder": "Unit",
+                "no_unit": "No unit"
+            },
+            "details": {
+                "non_mandatory_note": "These fields are non mandatory",
+                "sample_pretreatment": "Sample pretreatment",
+                "technique": "Technique",
+                "extractant_formulation": "Extractant formulation",
+                "extractant_concentration": "Extractant concentration",
+                "attraction_ratio": "Actraction ratio",
+                "extraction_base": "Extraction base",
+                "instrument": "Instrument",
+                "limit_of_detection": "Limit of detection"
+            }
         },
         "preview": {
             "step_title": "Preview",
@@ -240,5 +295,22 @@
             "status_title": "Filter states"
         }
     },
-    "logoAlt": "Logo"
+    "logoAlt": "Logo",
+    "metadata": {
+        "title": "Metadata",
+        "label": "Metadata",
+        "placeholder": "Enter metadata value…",
+        "save": "Save",
+        "saving": "Saving…",
+        "notification": {
+            "success": {
+                "title": "Saved",
+                "message": "Metadata has been updated successfully."
+            },
+            "error": {
+                "title": "Error",
+                "message": "Failed to save metadata. Please try again."
+            }
+        }
+    }
 }

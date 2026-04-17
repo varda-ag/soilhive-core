@@ -9,20 +9,20 @@
   }
 }
 
-
 .DownloadPreviewTable {
   display: flex;
   flex-direction: column;
   height: 100%;
   overflow: hidden;
 
-  .SectionTitle, .Footer {
+  .SectionTitle,
+  .Footer {
     font-family: 'Inter', Arial, Helvetica, sans-serif;
     letter-spacing: 0px;
     vertical-align: middle;
   }
 
-  .SectionTitle {    
+  .SectionTitle {
     font-weight: var(--font-weight-bold);
     font-size: var(--font-size-xs);
     line-height: var(--line-height-lg);
@@ -106,46 +106,6 @@
         text-align: center !important;
       }
 
-      .LoaderOverlay {
-        position: absolute;
-        left: 0;
-        right: 0;
-        top: 0;
-        bottom: 0;
-        background-color: rgba(0, 0, 0, 0.5);
-        border-radius: 8px;
-        z-index: 3;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-
-        .Loader {
-          border-radius: 100%;
-          border: 4px solid black;
-          border-bottom-color: transparent;
-          background: transparent;
-          width: 40px;
-          height: 40px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          animation: 0.7s ease 0s infinite normal none running loadingAnimationKeyFrame;
-        }
-
-        @keyframes loadingAnimationKeyFrame {
-          100% {
-            transform: rotate(360deg);
-          }
-        }
-
-        .ProgressSpinner {
-          stroke: #3B82F6 !important;
-          svg {
-            stroke: #3B82F6 !important;
-          }          
-        }
-      }
-
       // p-datatable
       & > div:first-of-type {
         // .p-datatable-wrapper
@@ -161,11 +121,11 @@
         }
       }
 
-      table {        
+      table {
         box-shadow: 0px 4px 16px 0px #00000014;
 
         & > thead {
-          & > tr {        
+          & > tr {
             & > th {
               background-color: var(--color-neutral-dark-100);
               padding: 13px 0 11px 0;
@@ -176,7 +136,7 @@
               letter-spacing: 0px;
               color: black;
               cursor: grab;
-              
+
               &:active {
                 cursor: grabbing;
               }
@@ -191,7 +151,7 @@
               }
 
               &:last-of-type {
-                padding-right: 16px; 
+                padding-right: 16px;
                 text-align: right;
                 border-top-right-radius: 8px;
                 > div {
@@ -259,7 +219,7 @@
                     visibility: visible;
                   }
                 }
-              }              
+              }
             }
           }
         }

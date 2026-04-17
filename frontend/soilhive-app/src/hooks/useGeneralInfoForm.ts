@@ -4,6 +4,7 @@ import { ADMIN_PATHS } from '../configuration/admin';
 import type { Dataset, GeneralInfoFormData } from 'types/backend';
 import { useDataset } from './useDatasets';
 import { useCreateDatasetMutation, useUpdateDatasetMutation } from 'hooks/useDatasetMutation';
+import { queryClient } from '../App';
 
 const DESCRIPTION_MAX_LENGTH = 200;
 
@@ -62,11 +63,14 @@ export function useGeneralInfoForm(id: string | undefined, validationMessages: V
     setSubmitError(null);
 
     try {
+      let response;
       if (id) {
-        return await updateDataset(formData);
+        response = await updateDataset(formData);
       } else {
-        return await createDataset(formData);
+        response = await createDataset(formData);
       }
+      await queryClient.invalidateQueries({ queryKey: ['datasets'] });
+      return response;
     } catch {
       setSubmitError('Something went wrong. Please try again.');
       return null;

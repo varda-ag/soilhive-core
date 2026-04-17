@@ -9,9 +9,13 @@
     "useDefineForClassFields": true,
     "types": ["node", "jest", "@testing-library/jest-dom"],
     "paths": {
+      "assets/*": ["./src/assets/*"],
       "components/*": ["./src/components/*"],
       "hooks/*": ["./src/hooks/*"],
-      "types/*": ["./src/types/*"]
+      "pages/*": ["./src/pages/*"],
+      "types/*": ["./src/types/*"],
+      "styles/*": ["./src/styles/*"],
+      "adapters/*": ["./src/adapters/*"]
     },
 
     /* modules */

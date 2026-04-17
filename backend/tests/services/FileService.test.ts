@@ -21,8 +21,9 @@ const mockToken: Token = {
   email: 'test@example.com',
   scope: 'user',
   raw: 'mock-token',
-  isSuperAdmin: () => false,
-  isDataAdmin: () => false,
+  isSuperAdmin: false,
+  isDataAdmin: false,
+  isInternalRequest: false,
 };
 
 describe('FileService', () => {
@@ -59,7 +60,7 @@ describe('FileService', () => {
     it('should create a new file record when the name is unique', async () => {
       setLocalStorageRootFolder(vectorFilesPassPath);
 
-      const requestData: RequestData = { entityManager, token: mockToken };
+      const requestData: RequestData = { entityManager, token: mockToken, entitlements: {} };
       const file = {
         name: 'sample_point.geojson',
         file_path: 'sample_point.geojson',
@@ -85,7 +86,7 @@ describe('FileService', () => {
         name: fileKey,
         file_path: fileKey,
       };
-      requestData = { entityManager, token: mockToken };
+      requestData = { entityManager, token: mockToken, entitlements: {} };
       fileEntity = await fileService.createFile(requestData, file);
     });
 
@@ -139,7 +140,7 @@ describe('FileService', () => {
 
     beforeEach(async () => {
       setLocalStorageRootFolder(vectorFilesPassPath);
-      requestData = { entityManager, token: mockToken };
+      requestData = { entityManager, token: mockToken, entitlements: {} };
       fileEntity = await fileService.createFile(requestData, { name: fileKey, file_path: fileKey });
       metadata = fileEntity.metadata!;
     });
@@ -170,7 +171,7 @@ describe('FileService', () => {
     beforeEach(async () => {
       setLocalStorageRootFolder(vectorFilesPassPath);
       metadata = await fileService.extractMetadata(fileKey);
-      requestData = { entityManager, token: mockToken };
+      requestData = { entityManager, token: mockToken, entitlements: {} };
       fileEntity = await fileService.createFile(requestData, { name: fileKey, file_path: fileKey });
     });
 
@@ -196,7 +197,7 @@ describe('FileService', () => {
     beforeEach(async () => {
       setLocalStorageRootFolder(vectorFilesPassPath);
       metadata = await fileService.extractMetadata(fileKey);
-      requestData = { entityManager, token: mockToken };
+      requestData = { entityManager, token: mockToken, entitlements: {} };
       fileEntity = await fileService.createFile(requestData, { name: fileKey, file_path: fileKey });
     });
 
@@ -251,7 +252,7 @@ describe('FileService', () => {
     beforeEach(async () => {
       setLocalStorageRootFolder(vectorFilesPassPath);
       metadata = await fileService.extractMetadata(fileKey);
-      requestData = { entityManager, token: mockToken };
+      requestData = { entityManager, token: mockToken, entitlements: {} };
       fileEntity = await fileService.createFile(requestData, { name: fileKey, file_path: fileKey });
     });
 
@@ -298,7 +299,7 @@ describe('FileService', () => {
 
       beforeEach(async () => {
         setLocalStorageRootFolder(vectorFilesPassPath);
-        requestData = { entityManager, token: mockToken };
+        requestData = { entityManager, token: mockToken, entitlements: {} };
         fileEntity = await fileService.createFile(requestData, { name: fileKey, file_path: fileKey });
         metadata = fileEntity.metadata!;
       });

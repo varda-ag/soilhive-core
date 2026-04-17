@@ -11,8 +11,9 @@ const mockToken: Token = {
   email: 'test@example.com',
   scope: 'user',
   raw: 'mock-token',
-  isSuperAdmin: () => false,
-  isDataAdmin: () => false,
+  isSuperAdmin: false,
+  isDataAdmin: false,
+  isInternalRequest: false,
 };
 
 describe('DatasetService', () => {
@@ -23,6 +24,7 @@ describe('DatasetService', () => {
       const requestData: RequestData = {
         entityManager,
         token: mockToken,
+        entitlements: {},
       };
       const input: CreateDatasetInput = {
         name: 'Test Dataset',
@@ -46,6 +48,7 @@ describe('DatasetService', () => {
       const requestData: RequestData = {
         entityManager,
         token: mockToken,
+        entitlements: {},
       };
       const input: CreateDatasetInput = {
         name: 'Complete Dataset',
@@ -89,6 +92,7 @@ describe('DatasetService', () => {
       const requestData: RequestData = {
         entityManager,
         token: mockToken,
+        entitlements: {},
       };
       const input: CreateDatasetInput = {
         name: 'Duplicate Dataset',
@@ -109,6 +113,7 @@ describe('DatasetService', () => {
       const requestData: RequestData = {
         entityManager,
         token: tokenWithoutSub,
+        entitlements: {},
       };
       const input: CreateDatasetInput = {
         name: 'Test Dataset',
@@ -125,6 +130,7 @@ describe('DatasetService', () => {
       const requestData: RequestData = {
         entityManager,
         token: mockToken,
+        entitlements: {},
       };
 
       const createInput: CreateDatasetInput = {
@@ -163,6 +169,7 @@ describe('DatasetService', () => {
       const requestData: RequestData = {
         entityManager,
         token: mockToken,
+        entitlements: {},
       };
 
       // Create dataset with full_name
@@ -193,6 +200,7 @@ describe('DatasetService', () => {
       const requestData: RequestData = {
         entityManager,
         token: mockToken,
+        entitlements: {},
       };
 
       const createInput: CreateDatasetInput = {
@@ -230,6 +238,7 @@ describe('DatasetService', () => {
       const requestData: RequestData = {
         entityManager,
         token: mockToken,
+        entitlements: {},
       };
 
       const updateInput: UpdateDatasetInput = {
@@ -249,6 +258,7 @@ describe('DatasetService', () => {
       const requestData: RequestData = {
         entityManager,
         token: mockToken,
+        entitlements: {},
       };
 
       // 1. Create a dataset to delete
@@ -276,6 +286,7 @@ describe('DatasetService', () => {
       const requestData: RequestData = {
         entityManager,
         token: mockToken,
+        entitlements: {},
       };
 
       await expect(service.deleteDataset(requestData, 'non-existent-slug')).rejects.toThrow("Resource 'non-existent-slug' not found");
@@ -286,6 +297,7 @@ describe('DatasetService', () => {
       const requestData: RequestData = {
         entityManager,
         token: mockToken,
+        entitlements: {},
       };
 
       const created = await service.createDataset(requestData, { name: 'Delete Me Original' });
