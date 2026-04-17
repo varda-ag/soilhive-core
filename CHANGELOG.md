@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.74.0 (2026-04-17)
+
+## What's Changed
+* feat: sp-5114 added beta banner component and page by @cristbello in https://github.com/varda-ag/soilhive-core/pull/401
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.73.1...v0.74.0
+
 ## 0.73.1 (2026-04-17)
 
 ## What's Changed
