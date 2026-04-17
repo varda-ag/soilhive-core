@@ -12,15 +12,16 @@ const fallbackPlugin = (): ModuleFederationRuntimePlugin => {
   return {
     name: 'fallback-plugin',
     async errorLoadRemote(args) {
-      const { lifecycle, error, id } = args;
-      console.error(`Failed to load remote ${id} at lifecycle stage: ${lifecycle}`, error);
-      if (lifecycle === 'onLoad') {
+      // Silently handle all remote loading failures so that unavailable
+      // remotes (e.g. localhost:3333 not running in local dev) produce no
+      // console output. The onLoad fallback prevents the app from crashing.
+      if (args.lifecycle === 'onLoad') {
         return {
-          // Returning a fallback React component for error boundary rendering
           fallback: '<div />',
         };
       }
-      return;
+      // For other lifecycle stages (e.g. afterResolve), return undefined so
+      // the MF runtime proceeds to onLoad where the fallback above is served.
     },
   };
 };
@@ -64,17 +65,18 @@ mf.registerShared({
   },
 });
 
+// Suppress console.error and console.warn for the duration of remote loading.
+// The MF runtime logs failures via console.warn (through AsyncWaterfallHook's
+// processError → warn() → logger.warn → console.warn) before rethrowing them.
+// The fallbackPlugin above ensures a silent <div /> is used instead.
+const _origConsoleError = console.error;
+const _origConsoleWarn = console.warn;
+console.error = () => {};
+console.warn = () => {};
 // Top level await, the module pauses until it resolves the promise and then it does the export
-const remoteModules: any[] = await Promise.all(
-  remotes.map(remote => {
-    try {
-      return mf.loadRemote(remote.name);
-    } catch (error) {
-      console.error(`Error loading remote ${remote.name}:`, error);
-      return null;
-    }
-  }),
-);
+const remoteModules: any[] = await Promise.all(remotes.map(remote => mf.loadRemote(remote.name).catch(() => null)));
+console.error = _origConsoleError;
+console.warn = _origConsoleWarn;
 
 const singlePages = remoteModules.filter(module => module && module.type === 'single-page');
 
