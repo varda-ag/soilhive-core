@@ -32,7 +32,7 @@ export type DetailOptionMap = Record<keyof RowDetails, MenuOption[]>;
 // followed by soil properties fetched from the API.
 // ---------------------------------------------------------------------------
 
-const DETECTABLE_FIELD_OPTIONS: MenuOption[] = [
+const STRUCTURAL_FIELD_OPTIONS: MenuOption[] = [
   { code: 'geometry', name: 'Geometry' },
   { code: 'latitude', name: 'Latitude' },
   { code: 'longitude', name: 'Longitude' },
@@ -43,6 +43,10 @@ const DETECTABLE_FIELD_OPTIONS: MenuOption[] = [
   { code: 'horizon', name: 'Horizon' },
   { code: 'license', name: 'License' },
 ];
+
+// Exported so consumers can check whether a concept code is a structural field
+// without re-deriving it from STRUCTURAL_FIELD_OPTIONS.
+export const STRUCTURAL_FIELD_CODES = new Set(STRUCTURAL_FIELD_OPTIONS.map(o => o.code));
 
 const DETAIL_OPTIONS: DetailOptionMap = {
   samplePretreatment: [
@@ -131,9 +135,9 @@ export function useMappingsStep(datasetId?: string) {
     const soilPropertyOptions = properties.map(p => ({ code: p.id, name: p.property_name })).sort((a, b) => a.name.localeCompare(b.name));
     const unitOptionsByConcept: Record<string, MenuOption[]> = {};
     for (const p of properties) {
-      unitOptionsByConcept[p.id] = p.original_units_of_measurement.map(u => ({ code: u, name: u }));
+      unitOptionsByConcept[p.id] = p.original_units_of_measurement?.map(u => ({ code: u, name: u }));
     }
-    return { conceptOptions: [...DETECTABLE_FIELD_OPTIONS, ...soilPropertyOptions], unitOptionsByConcept };
+    return { conceptOptions: [...STRUCTURAL_FIELD_OPTIONS, ...soilPropertyOptions], unitOptionsByConcept };
   }, [soilProperties]);
 
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
@@ -160,15 +164,28 @@ export function useMappingsStep(datasetId?: string) {
   );
 
   const handleConceptChange = useCallback((columnName: string, value: string) => {
+    const conceptId = value || null;
+    const isStructural = conceptId !== null && STRUCTURAL_FIELD_CODES.has(conceptId);
+
     setColumnMappings(prev =>
       prev.map(m => {
         if (m.columnName !== columnName) return m;
-        const conceptId = value || null;
         // Clear the unit whenever the concept is removed
         const unitId = conceptId === null ? null : m.unitId;
-        return { ...m, conceptId, unitId };
+        // Clear detail fields when switching to a structural field — they don't apply
+        const details = isStructural ? { ...EMPTY_DETAILS } : m.details;
+        return { ...m, conceptId, unitId, details };
       }),
     );
+
+    // Collapse the row when switching to a structural field
+    if (isStructural) {
+      setExpandedRows(prev => {
+        const next = new Set(prev);
+        next.delete(columnName);
+        return next;
+      });
+    }
   }, []);
 
   const handleUnitChange = useCallback((columnName: string, value: string) => {

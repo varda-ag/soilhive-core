@@ -10,6 +10,26 @@ const CLIENT_DIST = path.resolve(__dirname, '../client');
 
 const PORT = Number(process.env.PORT ?? 3000);
 
+// Generate env-config.js at startup so non-SSR (SPA) routes can load
+// window._env_ via <script src="/env-config.js">.
+//
+// Only write the file when at least one env var is explicitly provided
+// (i.e. in Docker / CI where vars are injected at runtime).  In local dev,
+// public/env-config.js is copied to dist/client/ by Rsbuild during the build
+// and must not be overwritten with empty values.
+const _envVars = {
+  BACKEND_BASE_URL: process.env.BACKEND_BASE_URL ?? '',
+  MAPBOX_ACCESS_TOKEN: process.env.MAPBOX_ACCESS_TOKEN ?? '',
+  GTM_CONTAINER_ID: process.env.GTM_CONTAINER_ID ?? '',
+  COOKIE_DOMAIN: process.env.COOKIE_DOMAIN ?? '',
+};
+const _envConfigPath = path.join(CLIENT_DIST, 'env-config.js');
+const _hasEnvVars = Object.values(_envVars).some(v => v !== '');
+if (_hasEnvVars || !fs.existsSync(_envConfigPath)) {
+  fs.mkdirSync(CLIENT_DIST, { recursive: true });
+  fs.writeFileSync(_envConfigPath, `window._env_ = ${JSON.stringify(_envVars)};`, 'utf-8');
+}
+
 // ---------------------------------------------------------------------------
 // Bootstrap Express
 // ---------------------------------------------------------------------------
