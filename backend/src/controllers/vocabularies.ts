@@ -29,4 +29,3 @@ export const createVocabulary = async (req: Request, res: Response) => {
   const data = await vocabularyService.createVocabulary(req.customData, input);
   res.status(StatusCodes.CREATED).json(idToSlug(data));
 };
-

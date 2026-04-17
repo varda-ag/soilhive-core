@@ -94,20 +94,23 @@ export default class ProcedureService {
         ...(measurement_procedure_id !== undefined && { measurement_procedure_id }),
         ...(limit_of_detection_id !== undefined && { limit_of_detection_id }),
       })
-      .orUpdate(['updated_at'], [
-        'sample_pretreatment_id',
-        'technique',
-        'laboratory_method_id',
-        'extractant_concentration_id',
-        'extraction_ratio_id',
-        'extraction_base_id',
-        'measurement_procedure_id',
-        'limit_of_detection_id',
-      ])
+      .orUpdate(
+        ['updated_at'],
+        [
+          'sample_pretreatment_id',
+          'technique',
+          'laboratory_method_id',
+          'extractant_concentration_id',
+          'extraction_ratio_id',
+          'extraction_base_id',
+          'measurement_procedure_id',
+          'limit_of_detection_id',
+        ],
+      )
       .returning('slug')
       .execute();
 
-    const newProcedure = await getEntity(requestData, ProcedureEntity, EntityType.PROCEDURE, result.raw[0].slug);
+    const newProcedure = await getEntity(requestData, ProcedureEntity, EntityType.PROCEDURE, result.raw[0].slug, PROCEDURE_RELATIONS);
     return toProcedureObject(newProcedure);
   };
 }

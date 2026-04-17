@@ -9,7 +9,16 @@ import VocabularyEntity from './Vocabulary';
 @ForeignKey(() => SlugHistoryEntity, ['id', 'slug'], ['entity_id', 'slug'], {
   deferrable: 'INITIALLY DEFERRED',
 })
-@Unique(['sample_pretreatment_id', 'technique', 'laboratory_method_id', 'extractant_concentration_id', 'extraction_ratio_id', 'extraction_base_id', 'measurement_procedure_id', 'limit_of_detection_id']) // NULLS NOT DISTINCT defined in migration
+@Unique([
+  'sample_pretreatment_id',
+  'technique',
+  'laboratory_method_id',
+  'extractant_concentration_id',
+  'extraction_ratio_id',
+  'extraction_base_id',
+  'measurement_procedure_id',
+  'limit_of_detection_id',
+]) // NULLS NOT DISTINCT defined in migration
 export default class ProcedureEntity extends BaseTable implements Procedure {
   @PrimaryColumn('uuid', {
     default: () => 'uuidv7()',
@@ -47,7 +56,7 @@ export default class ProcedureEntity extends BaseTable implements Procedure {
 
   @Column({ type: 'uuid', nullable: true })
   laboratory_method_id?: string;
-  
+
   @Column({
     type: 'enum',
     enum: VocabularyType,
@@ -63,7 +72,6 @@ export default class ProcedureEntity extends BaseTable implements Procedure {
     { name: 'laboratory_method_category', referencedColumnName: 'category' },
   ])
   laboratory_method: VocabularyEntity;
-
 
   @Column({ type: 'uuid', nullable: true })
   extractant_concentration_id?: string;

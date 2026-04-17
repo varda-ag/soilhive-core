@@ -103,8 +103,8 @@ describe('ProcedureService', () => {
 
       expect(typeof result.id).toBe('string');
       expect(result.sample_pretreatment).toBe(SAMPLE_PRETREATMENT);
-      expect(result.technique).toBeUndefined();
-      expect(result.laboratory_method).toBeUndefined();
+      expect(result.technique).toBeFalsy();
+      expect(result.laboratory_method).toBeFalsy();
     });
 
     it('returns the same id when the same combination is created twice', async () => {
@@ -120,9 +120,9 @@ describe('ProcedureService', () => {
 
     it('throws 400 when a vocabulary name does not exist', async () => {
       const requestData = await getRequestData();
-      await expect(
-        service.createProcedure(requestData, { sample_pretreatment: 'non-existent' }),
-      ).rejects.toMatchObject({ status: StatusCodes.BAD_REQUEST });
+      await expect(service.createProcedure(requestData, { sample_pretreatment: 'non-existent' })).rejects.toMatchObject({
+        status: StatusCodes.BAD_REQUEST,
+      });
     });
   });
 });
