@@ -38,16 +38,11 @@ describe('ProcedureService', () => {
       await addVocabulary(SAMPLE_PRETREATMENT, VocabularyType.SAMPLE_PRETREATMENT);
       await addVocabulary(LABORATORY_METHOD, VocabularyType.LABORATORY_METHOD);
       const requestData = await getRequestData();
-      try {
-        await service.createProcedure(requestData, {
-          sample_pretreatment: SAMPLE_PRETREATMENT,
-          technique: ProcedureTechnique.LAB_PROCEDURE,
-          laboratory_method: LABORATORY_METHOD,
-        });
-      } catch (e) {
-        console.error(e);
-        throw e;
-      }
+      await service.createProcedure(requestData, {
+        sample_pretreatment: SAMPLE_PRETREATMENT,
+        technique: ProcedureTechnique.LAB_PROCEDURE,
+        laboratory_method: LABORATORY_METHOD,
+      });
 
       const result = await service.getProcedures(requestData);
       expect(result.length).toBe(1);

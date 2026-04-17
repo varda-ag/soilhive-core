@@ -55,7 +55,6 @@ export default class ProcedureService {
 
     const lookupVocab = async (name: string | undefined, category: VocabularyType): Promise<string | undefined> => {
       if (!name) return undefined;
-      console.log('search_path:', await vocabRepo.query('SHOW search_path'));
       const vocab = await vocabRepo.findOne({ where: { name, category } });
       if (!vocab) throw new ErrorResponse(`Vocabulary '${name}' not found in category '${category}'`, StatusCodes.BAD_REQUEST);
       return vocab.id;

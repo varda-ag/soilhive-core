@@ -78,7 +78,6 @@ describe('Testing /procedures routes', () => {
     it('returns 201 with the created procedure', async () => {
       const res = await request(app).post('/procedures').set(authHeader).send(procedureBody);
       expect(res.statusCode).toBe(StatusCodes.CREATED);
-      console.log(res.body);
       expect(res.body.sample_pretreatment).toBe(SAMPLE_PRETREATMENT);
       expect(res.body.technique).toBe(ProcedureTechnique.LAB_PROCEDURE);
       expect(res.body.laboratory_method).toBe(LABORATORY_METHOD);
