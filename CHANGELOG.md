@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.74.1 (2026-04-17)
+
+## What's Changed
+* fix: small gap in notice banner in mobile and tablet by @cristbello in https://github.com/varda-ag/soilhive-core/pull/411
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.74.0...v0.74.1
+
 ## 0.74.0 (2026-04-17)
 
 ## What's Changed
