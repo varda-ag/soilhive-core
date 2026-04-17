@@ -278,6 +278,15 @@ export const addDatasetLayers = async (dataset_id: string, layer_id: string, fea
   return result.raw;
 };
 
+export const addVocabulary = async (name: string, category: VocabularyType): Promise<VocabularyEntity> => {
+  const dataSource = await getDataSource();
+  const repo = dataSource.getRepository(VocabularyEntity);
+  const vocab = repo.create({ name, category });
+  const saved = await repo.save(vocab);
+  const reloaded = await repo.findOneBy({ id: saved.id });
+  return reloaded!;
+};
+
 export const addProcedure = async (procedure: string = 'test_procedure') => {
   const dataSource = await getDataSource();
   const procedureVocabularyRepo = dataSource.getRepository(VocabularyEntity);
