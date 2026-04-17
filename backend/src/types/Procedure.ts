@@ -1,7 +1,9 @@
+import { ProcedureTechnique } from './data';
+
 export type ProcedureObject = {
   id: string;
   sample_pretreatment?: string;
-  technique?: string;
+  technique?: ProcedureTechnique;
   laboratory_method?: string;
   extractant_concentration?: string;
   extraction_ratio?: string;

@@ -845,7 +845,7 @@ paths:
       tags:
         - procedures
       security:
-        - bearerAuth: []
+        - bearerAuth: [data-admin]
       requestBody:
         required: true
         content:
@@ -930,7 +930,7 @@ paths:
       tags:
         - vocabulary
       security:
-        - bearerAuth: []
+        - bearerAuth: [data-admin]
       requestBody:
         required: true
         content:
@@ -2098,6 +2098,7 @@ components:
         id:
           type: string
           description: Identifier for the procedure
+          readOnly: true
         sample_pretreatment:
           type: string
           nullable: true
@@ -2106,6 +2107,10 @@ components:
           type: string
           nullable: true
           description: Analytical or experimental technique used
+          enum:
+            - calculated
+            - lab procedure
+            - spectral
         laboratory_method:
           type: string
           nullable: true
