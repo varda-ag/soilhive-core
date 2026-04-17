@@ -227,7 +227,7 @@
             "upload_caption": "Supported formats: CSV, Geopackage, GeoJSON, Shapefile, XLSX and ZIP.",
             "files_uploaded_count": "Files uploaded: {{count}}",
             "clear_all": "Clear all",
-            "upload_error": "Error uploading file",
+            "upload_error": "Error uploading file. Check the template documentation in Github.",
             "network_error": "Network error. Please check your connection and try again.",
             "crs_label": "Add a Coordinate Reference System (CRS)",
             "crs_placeholder": "start typing a number",
