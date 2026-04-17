@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.73.1 (2026-04-17)
+
+## What's Changed
+* fix: removing expired token by @svaccari in https://github.com/varda-ag/soilhive-core/pull/408
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.73.0...v0.73.1
+
 ## 0.73.0 (2026-04-17)
 
 ## What's Changed
