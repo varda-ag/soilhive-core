@@ -21,7 +21,9 @@
     "nav_menu": {
         "home": "Home",
         "legal": "Legal",
-        "hamburger_aria": "Menu"
+        "hamburger_aria": "Menu",
+        "beta": "Beta",
+        "beta_version": "Beta version"
     },
     "user_menu": {
         "my_account": "Profile",

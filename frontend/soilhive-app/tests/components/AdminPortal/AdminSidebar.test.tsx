@@ -58,7 +58,7 @@ describe('AdminSidebar', () => {
     const { container } = renderSidebar();
 
     expect(screen.getByTestId('sh-admin-sidebar')).toBeInTheDocument();
-    expect(screen.getAllByTestId('sh-admin-sidebarlink')).toHaveLength(5);
+    expect(screen.getAllByTestId('sh-admin-sidebarlink')).toHaveLength(6);
     expect(container).toMatchSnapshot();
   });
 
@@ -88,14 +88,14 @@ describe('AdminSidebar', () => {
     const { container } = renderSidebar();
 
     expect(screen.getByTestId('sh-admin-sidebar')).toBeInTheDocument();
-    expect(screen.getAllByTestId('sh-admin-sidebarlink')).toHaveLength(3);
+    expect(screen.getAllByTestId('sh-admin-sidebarlink')).toHaveLength(4);
     expect(container).toMatchSnapshot();
   });
 
   it('renders translated link titles and logout title when expanded', () => {
     renderSidebar();
 
-    expect(screen.getAllByTestId('sh-admin-sidebarlink')).toHaveLength(5);
+    expect(screen.getAllByTestId('sh-admin-sidebarlink')).toHaveLength(6);
     expect(screen.getByText('Terms & Conditions')).toBeInTheDocument();
     expect(screen.getByText('Map settings')).toBeInTheDocument();
     expect(screen.getByText('Look & Feel')).toBeInTheDocument();
@@ -111,7 +111,7 @@ describe('AdminSidebar', () => {
 
     fireEvent.click(container.querySelector('.Collapser') as Element);
 
-    expect(screen.getAllByTestId('sh-admin-sidebarlink')).toHaveLength(5);
+    expect(screen.getAllByTestId('sh-admin-sidebarlink')).toHaveLength(6);
     expect(screen.queryByText('Terms & Conditions')).not.toBeInTheDocument();
     expect(screen.queryByText('Map settings')).not.toBeInTheDocument();
     expect(screen.queryByText('Look & Feel')).not.toBeInTheDocument();

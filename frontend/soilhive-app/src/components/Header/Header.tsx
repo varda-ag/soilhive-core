@@ -23,7 +23,7 @@ import styles from './Header.module.scss';
 
 export default function Header() {
   const { t } = useTranslation('common');
-  const { isDesktopLayout } = useDevice();
+  const { isDesktopLayout, isMobileLayout } = useDevice();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { isAuthenticated } = useAuthContext();
   const { isLoadingThemeConfig, themeConfig } = useTheme();
@@ -55,6 +55,7 @@ export default function Header() {
     <>
       <header className={styles.Header}>
         <Logo />
+        <div className={styles.BetaPill}>{t(isMobileLayout ? 'nav_menu.beta' : 'nav_menu.beta_version')}</div>
         <div className={styles.Menu}>
           {isDesktopLayout && (
             <nav data-testid="sh-header-nav" className={styles.Nav}>

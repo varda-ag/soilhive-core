@@ -11,6 +11,11 @@ exports[`Header component renders component correctly on desktop 1`] = `
       Logo component
     </div>
     <div
+      class="BetaPill"
+    >
+      Beta version
+    </div>
+    <div
       class="Menu"
     >
       <nav
@@ -85,6 +90,11 @@ exports[`Header component renders component correctly on mobile and tablets for 
       Logo component
     </div>
     <div
+      class="BetaPill"
+    >
+      Beta version
+    </div>
+    <div
       class="Menu"
     >
       <div
@@ -126,6 +136,11 @@ exports[`Header component renders menu entries in the mobile menu 1`] = `
       data-testid="sh-header-logo"
     >
       Logo component
+    </div>
+    <div
+      class="BetaPill"
+    >
+      Beta version
     </div>
     <div
       class="Menu"

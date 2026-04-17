@@ -1,0 +1,33 @@
+@import 'styles/variables/breakpoints';
+
+.NotificationBanner {
+  position: relative;
+  background-color: var(--color-accent-warning-1000);
+  
+  .MegaphoneIcon {
+    position: absolute;
+    left: 38px;
+    top: 9px;
+    @media (max-width: $bp-mobile-max) {
+      left: 17px;
+    }
+  }
+
+  .CloseButton {
+    color: black !important;
+    position: absolute;
+    right: 16px;
+    top: 2px;
+    @media (max-width: $bp-mobile-max) {
+      right: 4px;
+    }
+  }
+  
+  .Message {
+    padding: 10px 68px 9px 68px;
+    line-height: var(--line-height-lg);
+    @media (max-width: $bp-mobile-max) {
+      padding: 40px 16px 11px 16px;
+    }
+  }
+}

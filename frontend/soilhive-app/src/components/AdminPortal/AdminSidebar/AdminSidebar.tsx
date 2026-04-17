@@ -19,6 +19,7 @@ const UI_SECTION = {
   title: 'user_interface',
   items: [
     { url: ADMIN_PATHS.TERMS_AND_CONDITIONS, title: 'terms_and_conditions', Icon: AwardIcon, disabled: false },
+    { url: ADMIN_PATHS.NOTIFICATION_BANNER, title: 'notification_banner', Icon: AwardIcon, disabled: false },
     { url: ADMIN_PATHS.MAP, title: 'map_settings', Icon: MapPinIcon, disabled: false },
     { url: ADMIN_PATHS.LOOK_AND_FEEL, title: 'look_and_feel', Icon: ImageIcon, disabled: false },
   ],
