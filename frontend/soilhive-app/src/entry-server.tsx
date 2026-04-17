@@ -7,8 +7,7 @@ import { initReactI18next } from 'react-i18next';
 
 import adminTranslations from '../public/locales/en/admin.json';
 import commonTranslations from '../public/locales/en/common.json';
-import { NotificationProvider, ThemeProvider } from './contexts';
-import { CookieConsentProvider } from './components/CookieConsentProvider';
+import { NotificationProvider } from './contexts';
 import MetadataPage from './pages/Metadata';
 import { ssrAuthStore } from './auth/ssrAuthStore';
 
@@ -72,13 +71,9 @@ export function render(url: string, context?: { authToken?: string | null }): st
     const html = renderToString(
       <QueryClientProvider client={queryClient}>
         <NotificationProvider>
-          <CookieConsentProvider>
-            <ThemeProvider>
-              <StaticRouter location={pathname}>
-                <PageComponent />
-              </StaticRouter>
-            </ThemeProvider>
-          </CookieConsentProvider>
+          <StaticRouter location={pathname}>
+            <PageComponent />
+          </StaticRouter>
         </NotificationProvider>
       </QueryClientProvider>,
     );
