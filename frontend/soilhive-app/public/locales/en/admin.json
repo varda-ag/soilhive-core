@@ -36,6 +36,7 @@
         "subtitle": "Paste a text here",
         "description": "The banner is going to be visible in the platform at the top portion of the screen, under the navigation bar.",
         "save": "Save",
+        "symbols_left": "symbols left",
         "notification": {
             "title": "Successful update",
             "message": "New notification banner text applied"

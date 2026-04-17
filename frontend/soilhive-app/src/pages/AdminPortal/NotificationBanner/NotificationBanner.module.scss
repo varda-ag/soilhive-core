@@ -18,3 +18,15 @@
 .Content button {
   align-self: flex-end;
 }
+
+.Counter {
+  display: block;
+  text-align: right;
+  font-size: var(--font-size-xs);
+  color: var(--color-neutral-dark-400);
+  margin-top: 4px;
+}
+
+.CounterError {
+  color: var(--color-accent-danger-1000);
+}

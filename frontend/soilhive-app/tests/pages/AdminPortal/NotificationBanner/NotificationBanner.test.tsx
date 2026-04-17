@@ -1,7 +1,12 @@
 jest.mock('primereact/editor', () => ({
   __esModule: true,
   Editor: ({ value, onTextChange, ...props }: any) => (
-    <textarea data-testid="editor" value={value} onChange={e => onTextChange && onTextChange({ htmlValue: e.target.value })} {...props} />
+    <textarea
+      data-testid="editor"
+      value={value}
+      onChange={e => onTextChange && onTextChange({ htmlValue: e.target.value, textValue: e.target.value })}
+      {...props}
+    />
   ),
 }));
 
@@ -76,5 +81,43 @@ describe('NotificationBanner page', () => {
     const saveButton = getByText('notification_banner.save');
     fireEvent.click(saveButton);
     expect(saveNotificationBanner).toHaveBeenCalledWith('changed');
+  });
+
+  it('shows correct initial counter value', () => {
+    (useTheme as jest.Mock).mockReturnValue({
+      isLoadingThemeConfig: false,
+      themeConfig: { notificationBannerHtml: 'hello' },
+    });
+    const { getByText } = render(<NotificationBanner />);
+    expect(getByText('495 notification_banner.symbols_left')).toBeTruthy();
+  });
+
+  it('counter updates when editor content changes', () => {
+    (useTheme as jest.Mock).mockReturnValue({
+      isLoadingThemeConfig: false,
+      themeConfig: { notificationBannerHtml: '' },
+    });
+    const { getByTestId, getByText } = render(<NotificationBanner />);
+    fireEvent.change(getByTestId('editor'), { target: { value: 'hi' } });
+    expect(getByText('498 notification_banner.symbols_left')).toBeTruthy();
+  });
+
+  it('counter does not show error class when under limit', () => {
+    (useTheme as jest.Mock).mockReturnValue({
+      isLoadingThemeConfig: false,
+      themeConfig: { notificationBannerHtml: 'short' },
+    });
+    const { container } = render(<NotificationBanner />);
+    expect(container.querySelector('[class*="CounterError"]')).toBeNull();
+  });
+
+  it('counter shows error class when over 500 characters', () => {
+    (useTheme as jest.Mock).mockReturnValue({
+      isLoadingThemeConfig: false,
+      themeConfig: { notificationBannerHtml: '' },
+    });
+    const { getByTestId, container } = render(<NotificationBanner />);
+    fireEvent.change(getByTestId('editor'), { target: { value: 'a'.repeat(501) } });
+    expect(container.querySelector('[class*="CounterError"]')).toBeTruthy();
   });
 });

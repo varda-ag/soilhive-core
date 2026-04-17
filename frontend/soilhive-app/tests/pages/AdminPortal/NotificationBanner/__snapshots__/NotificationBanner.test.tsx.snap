@@ -20,6 +20,13 @@ exports[`NotificationBanner page matches snapshot 1`] = `
       >
         mock
       </textarea>
+      <span
+        class="Counter"
+      >
+        496
+         
+        notification_banner.symbols_left
+      </span>
       <button>
         notification_banner.save
       </button>
