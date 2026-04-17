@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { AutoComplete, type AutoCompleteCompleteEvent } from 'primereact/autocomplete';
 import classnames from 'classnames';
+import { FormFieldWrapper } from 'components/UI';
 import type { ComponentSizeType, MenuOption } from 'types/components';
 import styles from './AutocompleteDropdown.module.scss';
 
@@ -11,13 +12,33 @@ interface Props {
   isDisabled?: boolean;
   size?: ComponentSizeType;
   className?: string;
+  label?: string;
+  labelTooltip?: string;
+  isRequired?: boolean;
+  isError?: boolean;
+  errorMessage?: string;
+  helperMessage?: string;
   onChange: (code: string) => void;
 }
 
 // Typeahead dropdown for MenuOption[] lists where the stored value is a code
 // (e.g. a UUID) but the display value is a human-readable name. Callers always
 // deal in codes — the name ↔ code translation is handled internally.
-export function AutocompleteDropdown({ options, value, placeholder, isDisabled, size = 'medium', className, onChange }: Props) {
+export function AutocompleteDropdown({
+  options,
+  value,
+  placeholder,
+  isDisabled,
+  size = 'medium',
+  className,
+  label,
+  labelTooltip,
+  isRequired,
+  isError,
+  errorMessage,
+  helperMessage,
+  onChange,
+}: Props) {
   const nameFromCode = useCallback((code: string | undefined) => options.find(o => o.code === code)?.name ?? '', [options]);
 
   const [displayName, setDisplayName] = useState(() => nameFromCode(value));
@@ -48,24 +69,35 @@ export function AutocompleteDropdown({ options, value, placeholder, isDisabled, 
   };
 
   return (
-    <AutoComplete
-      value={displayName}
-      suggestions={filteredOptions}
-      field="name"
-      completeMethod={handleFilter}
-      onChange={e => setDisplayName(typeof e.value === 'string' ? e.value : (e.value as MenuOption).name)}
-      onSelect={e => {
-        const option = e.value as MenuOption;
-        setDisplayName(option.name);
-        onChange(option.code);
-      }}
-      onBlur={handleBlur}
-      placeholder={placeholder}
-      disabled={isDisabled}
-      dropdown={true}
-      className={classnames(styles.Root, { [styles.Small]: size === 'small', [styles.Tiny]: size === 'tiny' }, className)}
-      inputClassName={styles.Input}
-      panelClassName={styles.Panel}
-    />
+    <FormFieldWrapper
+      className={className}
+      label={label}
+      labelTooltip={labelTooltip}
+      size={size}
+      isRequired={isRequired}
+      isError={isError}
+      errorMessage={errorMessage}
+      helperMessage={helperMessage}
+    >
+      <AutoComplete
+        value={displayName}
+        suggestions={filteredOptions}
+        field="name"
+        completeMethod={handleFilter}
+        onChange={e => setDisplayName(typeof e.value === 'string' ? e.value : (e.value as MenuOption).name)}
+        onSelect={e => {
+          const option = e.value as MenuOption;
+          setDisplayName(option.name);
+          onChange(option.code);
+        }}
+        onBlur={handleBlur}
+        placeholder={placeholder}
+        disabled={isDisabled}
+        dropdown={true}
+        className={classnames(styles.Root, { [styles.Small]: size === 'small', [styles.Tiny]: size === 'tiny' })}
+        inputClassName={styles.Input}
+        panelClassName={styles.Panel}
+      />
+    </FormFieldWrapper>
   );
 }
