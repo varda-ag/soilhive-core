@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { MappingRow } from './MappingRow';
+import { STRUCTURAL_FIELD_CODES } from 'hooks/useMappingsStep';
 import type { ColumnMapping, DetailOptionMap, RowDetails } from 'hooks/useMappingsStep';
 import type { MenuOption } from 'types/components';
 import styles from './MappingsTable.module.scss';
@@ -43,6 +44,8 @@ export function MappingsTable({
       <div className={styles.Rows}>
         {columnMappings.map(mapping => {
           const unitOptions = mapping.conceptId ? (unitOptionsByConcept[mapping.conceptId] ?? []) : [];
+          // Details panel only applies to soil properties, not structural fields
+          const isDetailsEnabled = mapping.conceptId === null || !STRUCTURAL_FIELD_CODES.has(mapping.conceptId);
           return (
             <MappingRow
               key={mapping.columnName}
@@ -52,6 +55,7 @@ export function MappingsTable({
               detailOptions={detailOptions}
               isExpanded={expandedRows.has(mapping.columnName)}
               isUnitEnabled={isUnitEnabled(mapping.columnName) && unitOptions.length > 0}
+              isDetailsEnabled={isDetailsEnabled}
               onToggle={onToggleRow}
               onConceptChange={onConceptChange}
               onUnitChange={onUnitChange}

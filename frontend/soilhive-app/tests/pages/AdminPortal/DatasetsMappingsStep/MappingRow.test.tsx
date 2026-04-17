@@ -7,6 +7,16 @@ import type { ColumnMapping, DetailOptionMap } from 'hooks/useMappingsStep';
 // each CSS module key as its literal string (e.g. styles.CheckIcon → "CheckIcon").
 // We query by className to distinguish which icon is rendered.
 
+// AutocompleteDropdown wraps PrimeReact's AutoComplete — stub it so these tests
+// stay focused on MappingRow logic and don't pull in PrimeReact internals.
+jest.mock('components/UI/AutocompleteDropdown/AutocompleteDropdown', () => {
+  const Mock = ({ isDisabled }: { isDisabled?: boolean }) => (
+    <div data-testid="sh-autocomplete-dropdown" aria-disabled={isDisabled ?? false} />
+  );
+  Mock.displayName = 'AutocompleteDropdown';
+  return { AutocompleteDropdown: Mock };
+});
+
 // ---------------------------------------------------------------------------
 // Fixtures
 // ---------------------------------------------------------------------------
@@ -51,6 +61,7 @@ function defaultProps(overrides?: Partial<ColumnMapping>) {
     detailOptions: DETAIL_OPTIONS,
     isExpanded: false,
     isUnitEnabled: false,
+    isDetailsEnabled: true,
     onToggle: jest.fn(),
     onConceptChange: jest.fn(),
     onUnitChange: jest.fn(),
@@ -107,21 +118,12 @@ describe('MappingRow', () => {
   describe('unit dropdown disabled state', () => {
     it('disables the unit dropdown when isUnitEnabled is false', () => {
       render(<MappingRow {...defaultProps()} isUnitEnabled={false} />);
-      // Two dropdowns: concept (index 0) and unit (index 1)
-      const dropdowns = screen.getAllByTestId('sh-ui-dropdown');
-      expect(dropdowns[1]).toHaveClass('Disabled');
+      expect(screen.getByTestId('sh-ui-dropdown')).toHaveClass('Disabled');
     });
 
     it('enables the unit dropdown when isUnitEnabled is true', () => {
       render(<MappingRow {...defaultProps()} isUnitEnabled={true} />);
-      const dropdowns = screen.getAllByTestId('sh-ui-dropdown');
-      expect(dropdowns[1]).not.toHaveClass('Disabled');
-    });
-
-    it('does not disable the concept dropdown regardless of isUnitEnabled', () => {
-      render(<MappingRow {...defaultProps()} isUnitEnabled={false} />);
-      const dropdowns = screen.getAllByTestId('sh-ui-dropdown');
-      expect(dropdowns[0]).not.toHaveClass('Disabled');
+      expect(screen.getByTestId('sh-ui-dropdown')).not.toHaveClass('Disabled');
     });
   });
 });
