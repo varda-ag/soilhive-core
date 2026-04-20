@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.76.0 (2026-04-20)
+
+## What's Changed
+* fix(fe): sp-503 fix crs placeholder and autocomplete placeholder length by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/419
+* feat: sp-5114 various changes by @cristbello in https://github.com/varda-ag/soilhive-core/pull/420
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.75.1...v0.76.0
+
+## 0.75.1 (2026-04-20)
+
+## What's Changed
+* fix(fe): sp-5030 fix logic to display additional files by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/416
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.75.0...v0.75.1
+
 ## 0.75.0 (2026-04-20)
 
 ## What's Changed

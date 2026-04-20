@@ -19,7 +19,7 @@ exports[`AdminHeader renders header and matches snapshot 1`] = `
         <h1
           class="Title"
         >
-          Terms & Conditions
+          Terms of use
         </h1>
       </div>
     </div>
