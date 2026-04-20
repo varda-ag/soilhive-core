@@ -13,10 +13,12 @@
   flex-direction: column;
   gap: 20px;
   box-shadow: var(--shadow-interface);
-}
-
-.Content button {
-  align-self: flex-end;
+  h3 {
+    margin-bottom: 0;
+  }
+  button {
+    align-self: flex-end;
+  }
 }
 
 .Counter {

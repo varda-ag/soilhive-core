@@ -1,6 +1,6 @@
 {
     "page_titles": {
-        "terms_and_conditions": "SoilHive - Terms & Conditions",
+        "terms_and_conditions": "SoilHive - Terms of use",
         "notification_banner": "SoilHive - Notification Banner",
         "map_settings": "SoilHive - Map settings",
         "look_and_feel": "SoilHive - Look & Feel",
@@ -14,7 +14,7 @@
             "data": "Data"
         },
         "menu": {
-            "terms_and_conditions": "Terms & Conditions",
+            "terms_and_conditions": "Terms of use",
             "notification_banner": "Notification Banner",
             "map_settings": "Map settings",
             "look_and_feel": "Look & Feel",
@@ -23,7 +23,7 @@
         }
     },
     "terms_and_conditions": {
-        "title": "Terms & Conditions",
+        "title": "Terms of use",
         "subtitle": "Paste a text here",
         "save": "Save",
         "notification": {

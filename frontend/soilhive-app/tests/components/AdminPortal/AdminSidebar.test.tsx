@@ -96,7 +96,7 @@ describe('AdminSidebar', () => {
     renderSidebar();
 
     expect(screen.getAllByTestId('sh-admin-sidebarlink')).toHaveLength(6);
-    expect(screen.getByText('Terms & Conditions')).toBeInTheDocument();
+    expect(screen.getByText('Terms of use')).toBeInTheDocument();
     expect(screen.getByText('Map settings')).toBeInTheDocument();
     expect(screen.getByText('Look & Feel')).toBeInTheDocument();
     expect(screen.getByText('Datasets publication')).toBeInTheDocument();
@@ -112,7 +112,7 @@ describe('AdminSidebar', () => {
     fireEvent.click(container.querySelector('.Collapser') as Element);
 
     expect(screen.getAllByTestId('sh-admin-sidebarlink')).toHaveLength(6);
-    expect(screen.queryByText('Terms & Conditions')).not.toBeInTheDocument();
+    expect(screen.queryByText('Terms of use')).not.toBeInTheDocument();
     expect(screen.queryByText('Map settings')).not.toBeInTheDocument();
     expect(screen.queryByText('Look & Feel')).not.toBeInTheDocument();
     expect(screen.queryByText('Datasets publication')).not.toBeInTheDocument();
@@ -132,7 +132,7 @@ describe('AdminSidebar', () => {
     fireEvent.click(collapser);
     fireEvent.click(collapser);
 
-    expect(screen.getByText('Terms & Conditions')).toBeInTheDocument();
+    expect(screen.getByText('Terms of use')).toBeInTheDocument();
     expect(screen.getByText('Logout')).toBeInTheDocument();
   });
 

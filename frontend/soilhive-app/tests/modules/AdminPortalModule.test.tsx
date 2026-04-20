@@ -81,7 +81,7 @@ describe('AdminPortalModule', () => {
     renderWithRouter(ADMIN_ROOT);
 
     expect(screen.getByText('TermsAndConditions page')).toBeInTheDocument();
-    expect(screen.getByTestId('page-title')).toHaveTextContent('SoilHive - Terms & Conditions');
+    expect(screen.getByTestId('page-title')).toHaveTextContent('SoilHive - Terms of use');
   });
 
   it('redirects index route to terms and conditions if user have access to the Data section only', async () => {
@@ -102,7 +102,7 @@ describe('AdminPortalModule', () => {
     renderWithRouter(`${ADMIN_ROOT}/${ADMIN_ROUTES.TERMS_AND_CONDITIONS}`);
 
     expect(screen.getByText('TermsAndConditions page')).toBeInTheDocument();
-    expect(screen.getByTestId('page-title')).toHaveTextContent('SoilHive - Terms & Conditions');
+    expect(screen.getByTestId('page-title')).toHaveTextContent('SoilHive - Terms of use');
   });
 
   it('renders map settings page', () => {
