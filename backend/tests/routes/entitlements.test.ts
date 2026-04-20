@@ -7,6 +7,18 @@ import { Capability } from '../../src/types/enums';
 import { getEntityManager } from '../../src/utils/data-source';
 import { addSyntheticData, syntheticDataOptions } from '../../src/utils/mock';
 import { getDataAdminToken } from '../helper';
+import DatasetService from '../../src/services/DatasetService';
+import { Token } from '../../src/interfaces/Token';
+
+const mockToken: Token = {
+  sub: 'test-user-id',
+  email: 'test@example.com',
+  scope: 'user',
+  raw: 'mock-token',
+  isSuperAdmin: false,
+  isDataAdmin: false,
+  isInternalRequest: false,
+};
 
 describe('Testing entitlements routes', () => {
   const slug = 'test_dataset_1';
@@ -18,8 +30,17 @@ describe('Testing entitlements routes', () => {
   });
 
   beforeEach(async () => {
-    await addSyntheticData({ ...syntheticDataOptions, id: 1 });
+    const { dataset } = await addSyntheticData({ ...syntheticDataOptions, id: 1 });
     const entityManager = await getEntityManager();
+    const datasetService = new DatasetService();
+    // Update dataset to "private" visibility to test entitlements
+    const requestData = {
+      entityManager,
+      token: mockToken,
+      entitlements: {},
+    };
+    await datasetService.updateDataset(requestData, dataset.slug, { visibility: 'private' });
+    // Setup test entitlements
     await entityManager.query(`
         INSERT INTO entitlements (id, data) VALUES
         ('everyone', '{"${slug}": ["download"]}'),

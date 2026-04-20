@@ -1,6 +1,6 @@
 import * as turf from '@turf/turf';
 import { Polygon, MultiPolygon, Feature } from 'geojson';
-import { OverlapType } from '../types/enums';
+import { Capability, OverlapType } from '../types/enums';
 import { EntityManager, SelectQueryBuilder } from 'typeorm';
 import { FilteredDatasetSummary, FilteredDataset, FilterCriteria, DataFilter } from '../interfaces/DatasetFilter';
 import DatasetEntity from '../entities/Dataset';
@@ -14,8 +14,10 @@ import RasterFilterService from '../services/RasterFilterService';
 import { getDataSource } from '../utils/data-source';
 import { selectOverviewTable } from '../utils/raster';
 import { RequestData } from '../interfaces/RequestData';
+import EntitlementService from '../services/EntitlementService';
 
 const rasterFilterService = new RasterFilterService();
+const entitlementService = new EntitlementService();
 
 export default class SoilDataStorage {
   /**
@@ -147,6 +149,9 @@ export default class SoilDataStorage {
     cursor?: string,
     sort?: string,
   ): Promise<SoilDataSample[]> => {
+    // Checking entitlements
+    await entitlementService.enforceEntitlements(requestData, datasetSlugs, Capability.PREVIEW);
+
     // Wrap everything in a transaction to preserve 'SET LOCAL' scope
     return await requestData.entityManager.transaction(async transactionalEntityManager => {
       await transactionalEntityManager.query("SET LOCAL work_mem = '256MB';");

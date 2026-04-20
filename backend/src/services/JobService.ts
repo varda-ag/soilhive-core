@@ -1,11 +1,14 @@
 import { StatusCodes } from 'http-status-codes';
 import { RequestData } from '../interfaces/RequestData';
 import { ErrorResponse } from '../utils/error';
-import { AnyJob, Job } from '../interfaces/Job';
-import { JobQueues } from '../types/enums';
+import { AnyJob, ExportJob, Job } from '../interfaces/Job';
+import { Capability, JobQueues } from '../types/enums';
 import { getPgBoss } from './PgBoss';
 import { JobWithMetadata } from 'pg-boss';
 import { createSignedPath } from '../utils/presigned-url';
+import EntitlementService from './EntitlementService';
+
+const entitlementService = new EntitlementService();
 
 export default class JobService {
   private boss = getPgBoss();
@@ -21,6 +24,11 @@ export default class JobService {
       if (data.anonymous) {
         throw new ErrorResponse(`Parameter anonymous: true not allowed for ${data.type} jobs`, StatusCodes.BAD_REQUEST);
       }
+    }
+
+    // Checking entitlements
+    if (data.type === JobQueues.EXPORT) {
+      await entitlementService.enforceEntitlements(requestData, (data as ExportJob).dataset_ids, Capability.DOWNLOAD);
     }
 
     // Set owner and enqueue the job

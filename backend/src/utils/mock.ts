@@ -116,6 +116,7 @@ export const addDataset = async (
     licenses,
     status: IngestionStatus.LOADED,
     spatial_extent: getPolygonFromBbox(spatial_extent),
+    visibility: 'public',
   });
   return await repo.save(dataset);
 };

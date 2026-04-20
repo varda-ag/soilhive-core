@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.75.0 (2026-04-20)
+
+## What's Changed
+* feat(data): :lock: enforcing entitlements by @svaccari in https://github.com/varda-ag/soilhive-core/pull/413
+* fix: visibility definition by @svaccari in https://github.com/varda-ag/soilhive-core/pull/415
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.74.1...v0.75.0
+
+## 0.74.1 (2026-04-17)
+
+## What's Changed
+* fix: small gap in notice banner in mobile and tablet by @cristbello in https://github.com/varda-ag/soilhive-core/pull/411
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.74.0...v0.74.1
+
 ## 0.74.0 (2026-04-17)
 
 ## What's Changed
