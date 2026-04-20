@@ -1,5 +1,9 @@
 .p-autocomplete {
   border: 1px solid #dddddd;
+
+  .p-autocomplete-input {
+    width: 100%;
+  }
 }
 
 .p-autocomplete-panel {
