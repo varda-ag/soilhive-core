@@ -2,7 +2,7 @@ import * as turf from '@turf/turf';
 import { Polygon, MultiPolygon, Feature } from 'geojson';
 import { Capability, OverlapType } from '../types/enums';
 import { EntityManager, SelectQueryBuilder } from 'typeorm';
-import { FilteredDataset, FilterCriteria, DataFilter } from '../interfaces/DatasetFilter';
+import { FilteredDatasetSummary, FilteredDataset, FilterCriteria, DataFilter } from '../interfaces/DatasetFilter';
 import DatasetEntity from '../entities/Dataset';
 import DatasetLayerEntity from '../entities/DatasetLayer';
 import { SoilDataSample } from '../interfaces/SoilDataSample';
@@ -43,7 +43,11 @@ export default class SoilDataStorage {
     return new Map(results.map(row => [row.dataset_id, row.overlap_type as OverlapType]));
   };
 
-  filter = async (entityManager: EntityManager, geometry: Polygon | MultiPolygon, filters: FilterCriteria): Promise<FilteredDataset[]> => {
+  filter = async (
+    entityManager: EntityManager,
+    geometry: Polygon | MultiPolygon,
+    filters: FilterCriteria,
+  ): Promise<FilteredDatasetSummary[]> => {
     await entityManager.query("SET LOCAL work_mem = '256MB';");
     const repo = entityManager.getRepository(DatasetLayerEntity);
     const baseAggQuery = repo
@@ -103,6 +107,38 @@ export default class SoilDataStorage {
       soil_properties: row.soil_properties ? row.soil_properties.split(',') : [],
       dataset_layer_count: parseInt(row.dataset_layer_count),
     }));
+  };
+
+  filterDatasets = async (entityManager: EntityManager, geometry: Polygon | MultiPolygon): Promise<FilteredDataset[]> => {
+    await entityManager.query("SET LOCAL work_mem = '256MB';");
+    const schema = process.env.POSTGRES_SCHEMA;
+    const geomJson = JSON.stringify(geometry);
+    const results = await entityManager.query(
+      `
+      WITH aoi AS MATERIALIZED (
+        SELECT ST_CollectionExtract(
+          ST_MakeValid(ST_GeomFromGeoJSON($1), 'method=structure'), 3
+        ) AS geom
+      )
+      SELECT ds.slug AS id,
+      ds.name,
+      ds.gis_datatype as data_type
+      FROM ${schema}.datasets ds
+      CROSS JOIN LATERAL (
+        SELECT 1
+        FROM ${schema}.dataset_layers dl
+        INNER JOIN ${schema}.features f ON f.id = dl.feature_id
+        WHERE dl.dataset_id = ds.id
+          AND ST_Intersects(f.geom, (SELECT geom FROM aoi))
+        LIMIT 1
+      ) first_match
+      WHERE ds.deleted_at IS NULL
+        AND ds.spatial_extent && (SELECT geom FROM aoi)
+      `,
+      [geomJson],
+    );
+
+    return results;
   };
 
   getSoilData = async (
