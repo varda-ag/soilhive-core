@@ -36,4 +36,5 @@ export interface Dataset {
   updated_by?: string | null;
   service_location?: string | null;
   capabilities?: Capability[];
+  visibility: 'public' | 'private';
 }
