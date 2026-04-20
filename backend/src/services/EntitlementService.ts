@@ -111,6 +111,10 @@ export default class EntitlementService {
       // Internal requests are trusted and bypass entitlements checks
       return;
     }
+    if (requestData.token?.isDataAdmin || requestData.token?.isSuperAdmin) {
+      // Admins bypass entitlements checks
+      return;
+    }
     const repo = requestData.entityManager.getRepository(DatasetEntity);
     const results = await repo.find({
       select: { slug: true, visibility: true },
