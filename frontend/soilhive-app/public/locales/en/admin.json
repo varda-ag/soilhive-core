@@ -258,11 +258,11 @@
                 "non_mandatory_note": "These fields are non mandatory",
                 "sample_pretreatment": "Sample pretreatment",
                 "technique": "Technique",
-                "extractant_formulation": "Extractant formulation",
+                "laboratory_method": "Laboratory method",
                 "extractant_concentration": "Extractant concentration",
-                "attraction_ratio": "Actraction ratio",
+                "extraction_ratio": "Extraction ratio",
                 "extraction_base": "Extraction base",
-                "instrument": "Instrument",
+                "measurement_procedure": "Measurement procedure",
                 "limit_of_detection": "Limit of detection"
             }
         },

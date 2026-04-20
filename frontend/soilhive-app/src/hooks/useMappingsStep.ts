@@ -3,18 +3,17 @@ import { useNavigate } from 'react-router';
 import { useApiQuery } from './useApiQuery';
 import { useSoilProperties } from './useSoilProperties';
 import { ADMIN_PATHS } from '../configuration/admin';
-import type { FileDescriptor } from 'types/backend';
+import type { FileDescriptor, VocabularyItem } from 'types/backend';
 import type { MenuOption } from 'types/components';
 
-// Types scoped to the fake-data UI layer (backend shape wired later)
 export interface RowDetails {
   samplePretreatment: string | null;
   technique: string | null;
-  extractantFormulation: string | null;
+  laboratoryMethod: string | null;
   extractantConcentration: string | null;
-  attractionRatio: string | null;
+  extractionRatio: string | null;
   extractionBase: string | null;
-  instrument: string | null;
+  measurementProcedure: string | null;
   limitOfDetection: string | null;
 }
 
@@ -48,57 +47,24 @@ const STRUCTURAL_FIELD_OPTIONS: MenuOption[] = [
 // without re-deriving it from STRUCTURAL_FIELD_OPTIONS.
 export const STRUCTURAL_FIELD_CODES = new Set(STRUCTURAL_FIELD_OPTIONS.map(o => o.code));
 
-const DETAIL_OPTIONS: DetailOptionMap = {
-  samplePretreatment: [
-    { code: 'air_dried', name: 'Air dried' },
-    { code: 'oven_dried', name: 'Oven dried' },
-    { code: 'field_moist', name: 'Field moist' },
-  ],
-  technique: [
-    { code: 'lab_procedure', name: 'Lab procedure' },
-    { code: 'field_measurement', name: 'Field measurement' },
-    { code: 'remote_sensing', name: 'Remote sensing' },
-  ],
-  extractantFormulation: [
-    { code: 'water', name: 'Water' },
-    { code: 'kcl', name: 'KCl' },
-    { code: 'cacl2', name: 'CaCl2' },
-  ],
-  extractantConcentration: [
-    { code: '0_01m', name: '0.01 M' },
-    { code: '0_1m', name: '0.1 M' },
-    { code: '1m', name: '1 M' },
-  ],
-  attractionRatio: [
-    { code: '1_2', name: '1:2' },
-    { code: '1_5', name: '1:5' },
-    { code: '1_10', name: '1:10' },
-  ],
-  extractionBase: [
-    { code: 'dry_weight', name: 'Dry weight' },
-    { code: 'wet_weight', name: 'Wet weight' },
-    { code: 'volume', name: 'Volume' },
-  ],
-  instrument: [
-    { code: 'spectrophotometer', name: 'Spectrophotometer' },
-    { code: 'icp_oes', name: 'ICP-OES' },
-    { code: 'gc', name: 'Gas chromatograph' },
-  ],
-  limitOfDetection: [
-    { code: '0_01', name: '0.01' },
-    { code: '0_1', name: '0.1' },
-    { code: '1', name: '1.0' },
-  ],
+const VOCAB_CATEGORY_TO_KEY: Record<string, keyof RowDetails> = {
+  sample_pretreatment: 'samplePretreatment',
+  laboratory_method: 'laboratoryMethod',
+  extractant_concentration: 'extractantConcentration',
+  extraction_ratio: 'extractionRatio',
+  extraction_base: 'extractionBase',
+  measurement_procedure: 'measurementProcedure',
+  limit_of_detection: 'limitOfDetection',
 };
 
 const EMPTY_DETAILS: RowDetails = {
   samplePretreatment: null,
   technique: null,
-  extractantFormulation: null,
+  laboratoryMethod: null,
   extractantConcentration: null,
-  attractionRatio: null,
+  extractionRatio: null,
   extractionBase: null,
-  instrument: null,
+  measurementProcedure: null,
   limitOfDetection: null,
 };
 
@@ -118,7 +84,21 @@ export function useMappingsStep(datasetId?: string) {
 
   const { data: soilProperties, isLoading: isLoadingSoilProperties } = useSoilProperties();
 
-  const isLoading = isLoadingFiles || isLoadingSoilProperties;
+  const { data: vocabularyItems, isLoading: isLoadingVocabulary } = useApiQuery<VocabularyItem[]>({
+    endpoint: '/vocabulary',
+    method: 'GET',
+    queryKey: ['vocabulary'],
+    enabled: true,
+  });
+
+  const { data: techniques, isLoading: isLoadingTechniques } = useApiQuery<string[]>({
+    endpoint: '/procedures/techniques',
+    method: 'GET',
+    queryKey: ['procedures', 'techniques'],
+    enabled: true,
+  });
+
+  const isLoading = isLoadingFiles || isLoadingSoilProperties || isLoadingVocabulary || isLoadingTechniques;
 
   const [columnMappings, setColumnMappings] = useState<ColumnMapping[]>([]);
 
@@ -127,6 +107,31 @@ export function useMappingsStep(datasetId?: string) {
     const columnNames = [...new Set(files.flatMap(f => f.metadata?.field_names ?? []))];
     setColumnMappings(columnNames.map(columnName => ({ columnName, conceptId: null, unitId: null, details: { ...EMPTY_DETAILS } })));
   }, [files]);
+
+  const detailOptions = useMemo((): DetailOptionMap => {
+    const base: DetailOptionMap = {
+      samplePretreatment: [],
+      technique: [],
+      laboratoryMethod: [],
+      extractantConcentration: [],
+      extractionRatio: [],
+      extractionBase: [],
+      measurementProcedure: [],
+      limitOfDetection: [],
+    };
+
+    for (const item of vocabularyItems ?? []) {
+      const key = VOCAB_CATEGORY_TO_KEY[item.category];
+      if (key) base[key] = [...base[key], { code: item.id, name: item.name }];
+    }
+
+    base.technique = (techniques ?? []).map(t => ({
+      code: t,
+      name: t.charAt(0).toUpperCase() + t.slice(1),
+    }));
+
+    return base;
+  }, [vocabularyItems, techniques]);
 
   // Detectable structural fields first, then soil properties sorted alphabetically.
   // Unit options are keyed by concept id — only soil properties carry allowed units.
@@ -215,7 +220,7 @@ export function useMappingsStep(datasetId?: string) {
     columnMappings,
     conceptOptions,
     unitOptionsByConcept,
-    detailOptions: DETAIL_OPTIONS,
+    detailOptions,
     mappedCount,
     unmappedCount,
     expandedRows,

@@ -236,6 +236,15 @@ export interface DatasetFileMappingResponse {
   mappingId: string;
 }
 
+export interface VocabularyItem {
+  id: string;
+  category: string;
+  name: string;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
+}
+
 export interface FileDescriptor {
   // required
   id: string;
