@@ -58,7 +58,8 @@ export default class FilterService {
     const datasets = (await Promise.all(filteringPromises)).flat();
     // Add raster coverage
     const rasterCoverage = await sds.getRasterCoverage(requestData.entityManager, filter.geometries, filter.parameters.raster_filters);
-    return { datasets, raster_filters: rasterCoverage };
+    // Deduplicate datasets across geometries
+    return { datasets: Array.from(new Map(datasets.map(r => [r.id, r])).values()), raster_filters: rasterCoverage };
   };
 
   getDatasets = async (requestData: RequestData, filterId: string): Promise<FilteredDataset[]> => {
@@ -70,6 +71,8 @@ export default class FilterService {
     for (const g of filter.geometries) {
       filteringPromises.push(sds.filterDatasets(requestData.entityManager, g));
     }
-    return (await Promise.all(filteringPromises)).flat();
+    const results = (await Promise.all(filteringPromises)).flat();
+    return Array.from(new Map(results.map(r => [r.id, r])).values());
+
   };
 }

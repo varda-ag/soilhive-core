@@ -1792,7 +1792,11 @@ components:
           description: Dataset name
         data_type:
           type: string
-          description: Dataset features' geometry type
+          enum:
+            - point
+            - polygonal
+            - raster
+          description: Type of data contained in the dataset (e.g., point samples, raster data)
 
     FilteredDatasetSummary:
       allOf:
