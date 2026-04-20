@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.76.1 (2026-04-20)
+
+## What's Changed
+* refactor: datasets list query by @d-rom in https://github.com/varda-ag/soilhive-core/pull/417
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.76.0...v0.76.1
+
 ## 0.76.0 (2026-04-20)
 
 ## What's Changed
