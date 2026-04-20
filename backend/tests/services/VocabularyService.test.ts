@@ -12,13 +12,15 @@ const mockToken: Token = {
   email: 'test@example.com',
   scope: 'user',
   raw: 'mock-token',
-  isSuperAdmin: () => false,
-  isDataAdmin: () => false,
+  isSuperAdmin: false,
+  isDataAdmin: false,
+  isInternalRequest: false,
 };
 
 const getRequestData = async (token: Token | undefined): Promise<RequestData> => ({
   entityManager: await getEntityManager(),
   token,
+  entitlements: {},
 });
 
 describe('VocabularyService', () => {

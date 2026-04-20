@@ -4,6 +4,7 @@ import { app } from '../../src/app';
 import { addSyntheticData, addSyntheticIngestionData, syntheticDataOptions, syntheticIngestionDataOptions } from '../../src/utils/mock';
 import { getDataAdminToken } from '../helper';
 import StatusCodes from 'http-status-codes';
+import { Capability } from '../../src/types/enums';
 
 describe('Testing /datasets routes', () => {
   describe('GET /datasets', () => {
@@ -25,7 +26,7 @@ describe('Testing /datasets routes', () => {
       expect(res.statusCode).toBe(StatusCodes.OK);
       expect(res.body).toHaveProperty('id', s1.dataset.slug);
       expect(res.body).toHaveProperty('visibility', s1.dataset.visibility);
-      expect(res.body).toHaveProperty('capabilities', []);
+      expect(res.body).toHaveProperty('capabilities', [Capability.PREVIEW, Capability.DOWNLOAD]);
     });
 
     it('GET /datasets responds with 404 if dataset does not exist', async () => {

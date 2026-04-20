@@ -8,6 +8,7 @@ import { type Entitlements } from '../types/Entitlements';
 import { Capability } from '../types/enums';
 import { ErrorResponse } from '../utils/error';
 import { getEntitySlugs } from '../utils/slugs';
+import DatasetEntity from '../entities/Dataset';
 
 export default class EntitlementService {
   getEntityEntitlements = async (requestData: RequestData, slug: string): Promise<Entitlements> => {
@@ -105,8 +106,25 @@ export default class EntitlementService {
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  enforceEntitlements = (requestData: RequestData, datasetSlugs: string[], capability: Capability): void => {
-    // TODO: implement
-  };
+  async enforceEntitlements(requestData: RequestData, datasetSlugs: string[], capability: Capability): Promise<void> {
+    if (requestData.token?.isInternalRequest) {
+      // Internal requests are trusted and bypass entitlements checks
+      return;
+    }
+    const repo = requestData.entityManager.getRepository(DatasetEntity);
+    const results = await repo.find({
+      select: { slug: true, visibility: true },
+      where: { slug: In(datasetSlugs) },
+    });
+    const privateSlugs = results.filter(r => r.visibility === 'private').map(r => r.slug);
+    if (privateSlugs.length === 0) {
+      // All datasets are public, no need to enforce entitlements
+      return;
+    }
+    for (const slug of privateSlugs) {
+      if (!requestData.entitlements[slug] || !requestData.entitlements[slug]!.includes(capability)) {
+        throw new ErrorResponse(`User does not have ${capability} entitlement for dataset ${slug}`, StatusCodes.FORBIDDEN);
+      }
+    }
+  }
 }
