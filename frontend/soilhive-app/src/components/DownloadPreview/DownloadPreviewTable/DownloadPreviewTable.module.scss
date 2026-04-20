@@ -227,15 +227,4 @@
     }
   }
 
-  .Footer {
-    padding: 8px 12px;
-    background-color: var(--color-neutral-light);
-    font-weight: var(--font-weight-regular);
-    font-size: var(--font-size-sm);
-    line-height: 20px;
-
-    @media (max-width: $bp-tablet-max) {
-      display: none;
-    }
-  }
 }
