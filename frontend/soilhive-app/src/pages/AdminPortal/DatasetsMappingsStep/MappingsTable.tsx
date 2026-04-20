@@ -45,7 +45,7 @@ export function MappingsTable({
         {columnMappings.map(mapping => {
           const unitOptions = mapping.conceptId ? (unitOptionsByConcept[mapping.conceptId] ?? []) : [];
           // Details panel only applies to soil properties, not structural fields
-          const isDetailsEnabled = mapping.conceptId === null || !STRUCTURAL_FIELD_CODES.has(mapping.conceptId);
+          const isDetailsEnabled = mapping.conceptId !== null && !STRUCTURAL_FIELD_CODES.has(mapping.conceptId);
           return (
             <MappingRow
               key={mapping.columnName}

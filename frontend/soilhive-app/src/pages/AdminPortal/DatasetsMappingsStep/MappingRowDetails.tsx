@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { Dropdown } from 'components/UI';
+import { AutocompleteDropdown } from 'components/UI';
 import InfoIcon from 'assets/icons/small-info-icon.svg?react';
 import type { RowDetails, DetailOptionMap } from 'hooks/useMappingsStep';
 import styles from './MappingRowDetails.module.scss';
@@ -33,8 +33,9 @@ export function MappingRowDetails({ columnName, details, detailOptions, onDetail
       </div>
       <div className={styles.Grid}>
         {fields.map(({ key, label }) => (
-          <Dropdown
+          <AutocompleteDropdown
             key={key}
+            size="small"
             label={label}
             options={detailOptions[key]}
             value={details[key] ?? undefined}
