@@ -1124,11 +1124,41 @@ paths:
         - {}
       responses:
         '200':
-          description: List of datasets matching the filter
+          description: Object with raster filter values and list of dataset summaries matching the filter
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/FilteredData'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /data-filters/{filterId}/datasets:
+    parameters:
+      - name: filterId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Unique filter identifier
+    get:
+      x-eov-operation-handler: controllers/data-filters
+      x-eov-operation-id: getDataFilterDatasets
+      summary: Retrieves available datasets matching the area of interest
+      tags:
+        - data-filters
+      security:
+        - bearerAuth: []
+        - {}
+      responses:
+        '200':
+          description: List of datasets matching the filter
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FilteredDataset'
         '404':
           $ref: '#/components/responses/NotFound'
 
@@ -1752,6 +1782,19 @@ components:
         - parameters
 
     FilteredDataset:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Dataset identifier
+        name:
+          type: string
+          description: Dataset name
+        data_type:
+          type: string
+          description: Dataset features' geometry type
+
+    FilteredDatasetSummary:
       allOf:
         - $ref: '#/components/schemas/FilterCriteria'
         - type: object
@@ -1792,7 +1835,7 @@ components:
     FilteredDatasetsList:
       type: array
       items:
-        $ref: '#/components/schemas/FilteredDataset'
+        $ref: '#/components/schemas/FilteredDatasetSummary'
     
     FilteredData:
       type: object
