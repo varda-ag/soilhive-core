@@ -23,3 +23,8 @@ export const getDataFilterCoverage = async (req: Request, res: Response) => {
   const data = await filterService.getCoverage(req.customData, req.params['filterId']!);
   res.json(data);
 };
+
+export const getDataFilterDatasets = async (req: Request, res: Response) => {
+  const data = await filterService.getDatasets(req.customData, req.params['filterId']!);
+  res.json(data);
+};
