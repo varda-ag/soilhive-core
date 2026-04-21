@@ -172,7 +172,6 @@ function DownloadPreviewTable({
           {isDataLoading && <Loader />}
         </div>
       </div>
-      <div className={styles.Footer}>{t('download_preview.preview_footer')}</div>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef } from 'react';
 import { useClickAway } from 'react-use';
 import DownloadIcon from 'assets/icons/download-icon.svg?react';
 import { DownloadsMenu } from './DownloadsMenu/DownloadsMenu';
@@ -8,11 +8,10 @@ import { useTranslation } from 'react-i18next';
 import styles from './DownloadsStatus.module.scss';
 
 export function DownloadsStatus() {
-  const [isOpened, setIsOpened] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const { t } = useTranslation('download');
 
-  const { downloads } = useDownloads();
+  const { downloads, isOpened, setIsOpened } = useDownloads();
 
   useClickAway(rootRef, () => {
     setIsOpened(false);
@@ -26,7 +25,7 @@ export function DownloadsStatus() {
         data-testid="sh-downloads-status-button"
         className={styles.DownloadsStatusButton}
         aria-label={t('downloads_status.downloads')}
-        onClick={() => setIsOpened(prev => !prev)}
+        onClick={() => setIsOpened(!isOpened)}
       >
         <span className={styles.Pulse} data-open={isOpened ? 'true' : 'false'} aria-hidden />
         <DownloadIcon className={styles.DownloadIcon} />
