@@ -51,7 +51,7 @@ export default function Metadata() {
           <pre>{JSON.stringify(dataset, null, 2)}</pre>
         </details>
       )}
-      <div className="map" style={{width: '300px', height: '300px'}}>
+      <div className="map" style={{ width: '300px', height: '300px' }}>
         {isMounted && <SoilhiveSimpleMap />}
       </div>
       <div className={styles.Form}>

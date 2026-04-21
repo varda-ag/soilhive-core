@@ -42,8 +42,7 @@ export async function httpClient<T = any>(config: APIRequestConfig): Promise<T> 
 
   // Unexpected content type — likely BACKEND_BASE_URL is unset and the SPA
   // catch-all responded with index.html instead of the real API.
-  throw Object.assign(
-    new Error(`API returned unexpected content type: "${contentType ?? 'none'}". Check BACKEND_BASE_URL.`),
-    { status: response.status },
-  );
+  throw Object.assign(new Error(`API returned unexpected content type: "${contentType ?? 'none'}". Check BACKEND_BASE_URL.`), {
+    status: response.status,
+  });
 }

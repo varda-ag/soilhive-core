@@ -85,9 +85,7 @@ export async function render(
   const queryClient = new QueryClient();
 
   // Prefetch route-specific queries so renderToString sees real data.
-  const datasetMatch = matchedPattern === '/metadata/:id'
-    ? pathname.match(/^\/metadata\/([^/]+)$/)
-    : null;
+  const datasetMatch = matchedPattern === '/metadata/:id' ? pathname.match(/^\/metadata\/([^/]+)$/) : null;
   if (datasetMatch) {
     const datasetId = datasetMatch[1];
     const backendUrl = process.env.BACKEND_BASE_URL ?? '';
