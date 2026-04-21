@@ -16,11 +16,11 @@ export function MappingRowDetails({ columnName, details, detailOptions, onDetail
 
   const fields: { key: keyof RowDetails; label: string }[] = [
     { key: 'samplePretreatment', label: t('datasets.mappings.details.sample_pretreatment') },
-    { key: 'attractionRatio', label: t('datasets.mappings.details.attraction_ratio') },
+    { key: 'extractionRatio', label: t('datasets.mappings.details.extraction_ratio') },
     { key: 'technique', label: t('datasets.mappings.details.technique') },
     { key: 'extractionBase', label: t('datasets.mappings.details.extraction_base') },
-    { key: 'extractantFormulation', label: t('datasets.mappings.details.extractant_formulation') },
-    { key: 'instrument', label: t('datasets.mappings.details.instrument') },
+    { key: 'laboratoryMethod', label: t('datasets.mappings.details.laboratory_method') },
+    { key: 'measurementProcedure', label: t('datasets.mappings.details.measurement_procedure') },
     { key: 'extractantConcentration', label: t('datasets.mappings.details.extractant_concentration') },
     { key: 'limitOfDetection', label: t('datasets.mappings.details.limit_of_detection') },
   ];
