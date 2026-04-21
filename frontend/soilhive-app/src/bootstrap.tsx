@@ -1,7 +1,7 @@
 import React, { Suspense } from 'react';
 import { createRoot, hydrateRoot } from 'react-dom/client';
-import { BrowserRouter } from 'react-router';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { BrowserRouter, Routes, Route } from 'react-router';
+import { QueryClient, QueryClientProvider, HydrationBoundary } from '@tanstack/react-query';
 import App from './App';
 
 import './styles/index.scss';
@@ -12,7 +12,7 @@ import { NotificationProvider } from './contexts';
 // SSR page components — loaded lazily so they are not bundled into every page.
 // The key must exactly match the `data-ssr-page` attribute injected by the server.
 const SSR_COMPONENTS: Record<string, () => Promise<{ default: React.ComponentType }>> = {
-  '/metadata': () => import('./pages/Metadata'),
+  '/metadata/:id': () => import('./pages/Metadata'),
 };
 
 if (GTM_CONTAINER_ID) {
@@ -50,16 +50,19 @@ if (rootEl) {
     // provider tree so React can reconcile against the existing DOM nodes.
     SSR_COMPONENTS[ssrPage]().then(({ default: PageComponent }) => {
       const queryClient = new QueryClient();
+      const queryState = (window as any).__REACT_QUERY_STATE__;
       hydrateRoot(
         rootEl,
         <QueryClientProvider client={queryClient}>
-          <NotificationProvider>
-            <BrowserRouter>
-              <Suspense fallback="">
-                <PageComponent />
-              </Suspense>
-            </BrowserRouter>
-          </NotificationProvider>
+          <HydrationBoundary state={queryState}>
+            <NotificationProvider>
+              <BrowserRouter>
+                <Routes>
+                  <Route path={ssrPage} element={<PageComponent />} />
+                </Routes>
+              </BrowserRouter>
+            </NotificationProvider>
+          </HydrationBoundary>
         </QueryClientProvider>,
       );
     });

@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import express, { type Request } from 'express';
 import compression from 'compression';
-import { render, SSR_ROUTE_PATHS } from '../src/entry-server';
+import { render, matchSSRRoute } from '../src/entry-server';
 
 // Rsbuild compiles this to dist/server/index.cjs so __dirname is always
 // dist/server/ at runtime.  Client assets are always at dist/client/.
@@ -95,40 +95,42 @@ app.use((req, res) => {
 
   // Only spend cycles on auth resolution for routes that actually SSR.
   let authToken: string | null = null;
-  if (SSR_ROUTE_PATHS.includes(pathname)) {
+  const matchedPattern = matchSSRRoute(pathname);
+  if (matchedPattern) {
     authToken = resolveAuthToken(req);
   }
 
-  try {
-    const ssrContent = render(url, { authToken });
+  render(url, { authToken })
+    .then(result => {
+      if (result !== null) {
+        const { html: ssrContent, dehydratedState } = result;
+        // SSR route: inject server-rendered HTML and mark the root element so
+        // the client-side hydration path is chosen instead of a full SPA boot.
+        const html = indexHtml
+          .replace('<div id="root"><!--ssr-outlet--></div>', `<div id="root" data-ssr-page="${matchedPattern}">${ssrContent}</div>`)
+          // Replace the external env-config.js reference with an inline script
+          // so the runtime env vars are available before any JS bundle executes.
+          .replace(
+            '<script src="/env-config.js"></script>',
+            `<script>window._env_=${JSON.stringify({
+              BACKEND_BASE_URL: process.env.BACKEND_BASE_URL ?? '',
+              MAPBOX_ACCESS_TOKEN: process.env.MAPBOX_ACCESS_TOKEN ?? '',
+              GTM_CONTAINER_ID: process.env.GTM_CONTAINER_ID ?? '',
+              COOKIE_DOMAIN: process.env.COOKIE_DOMAIN ?? '',
+            })};window.__REACT_QUERY_STATE__=${JSON.stringify(dehydratedState)};</script>`,
+          );
 
-    if (ssrContent !== null) {
-      // SSR route: inject server-rendered HTML and mark the root element so
-      // the client-side hydration path is chosen instead of a full SPA boot.
-      const html = indexHtml
-        .replace('<div id="root"><!--ssr-outlet--></div>', `<div id="root" data-ssr-page="${pathname}">${ssrContent}</div>`)
-        // Replace the external env-config.js reference with an inline script
-        // so the runtime env vars are available before any JS bundle executes.
-        .replace(
-          '<script src="/env-config.js"></script>',
-          `<script>window._env_=${JSON.stringify({
-            BACKEND_BASE_URL: process.env.BACKEND_BASE_URL ?? '',
-            MAPBOX_ACCESS_TOKEN: process.env.MAPBOX_ACCESS_TOKEN ?? '',
-            GTM_CONTAINER_ID: process.env.GTM_CONTAINER_ID ?? '',
-            COOKIE_DOMAIN: process.env.COOKIE_DOMAIN ?? '',
-          })};</script>`,
-        );
-
-      res.status(200).set({ 'Content-Type': 'text/html' }).send(html);
-    } else {
-      // Non-SSR route: serve the SPA shell and let client-side routing handle it.
+        res.status(200).set({ 'Content-Type': 'text/html' }).send(html);
+      } else {
+        // Non-SSR route: serve the SPA shell and let client-side routing handle it.
+        res.status(200).set({ 'Content-Type': 'text/html' }).send(indexHtml);
+      }
+    })
+    .catch(err => {
+      console.error('SSR render error:', err);
+      // On render failure fall back to the SPA shell so the user sees the app.
       res.status(200).set({ 'Content-Type': 'text/html' }).send(indexHtml);
-    }
-  } catch (err) {
-    console.error('SSR render error:', err);
-    // On render failure fall back to the SPA shell so the user sees the app.
-    res.status(200).set({ 'Content-Type': 'text/html' }).send(indexHtml);
-  }
+    });
 });
 
 app.listen(PORT, () => {
