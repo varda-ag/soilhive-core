@@ -24,22 +24,22 @@ jest.mock('components/UI/AutocompleteDropdown/AutocompleteDropdown', () => {
 const EMPTY_DETAILS = {
   samplePretreatment: null,
   technique: null,
-  extractantFormulation: null,
+  laboratoryMethod: null,
   extractantConcentration: null,
-  attractionRatio: null,
+  extractionRatio: null,
   extractionBase: null,
-  instrument: null,
+  measurementProcedure: null,
   limitOfDetection: null,
 };
 
 const DETAIL_OPTIONS: DetailOptionMap = {
   samplePretreatment: [],
   technique: [],
-  extractantFormulation: [],
+  laboratoryMethod: [],
   extractantConcentration: [],
-  attractionRatio: [],
+  extractionRatio: [],
   extractionBase: [],
-  instrument: [],
+  measurementProcedure: [],
   limitOfDetection: [],
 };
 

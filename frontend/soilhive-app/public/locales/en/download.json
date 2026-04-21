@@ -29,7 +29,6 @@
         "select_columns": "Select columns to show",
         "metadata": "Metadata",
         "no_data_available": "No data available",
-        "preview_footer": "This is just a preview of the soil data we have filtered by area and the filters you selected, to see all the data available, download it.",
         "columns": {
             "date": "Date",
             "depth_min": "Depth (min)",

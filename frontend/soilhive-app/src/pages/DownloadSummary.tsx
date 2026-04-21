@@ -33,7 +33,7 @@ const availableFormats = [
 function DownloadSummary() {
   const navigate = useNavigate();
   const { t } = useTranslation('download');
-  const { startDownload } = useDownloads();
+  const { startDownload, setIsOpened } = useDownloads();
 
   const [searchParams] = useSearchParams();
   const comingFromDataExplorer = searchParams.get('source') === 'explore';
@@ -59,6 +59,7 @@ function DownloadSummary() {
   const onDownloadButtonClick = () => {
     if (filterId) {
       startDownload({ filter_id: filterId, dataset_ids: selectedDatasets.map(dataset => dataset.id), format: selectedFormat });
+      setIsOpened(true);
       navigate('/');
     }
   };
@@ -140,7 +141,6 @@ function DownloadSummary() {
           <div className={styles.MainContent}>
             <div className={styles.MainContentHeader}>
               <CloudDownload />
-              <div>{t('download_summary.datasets_included_in_download')}</div>
             </div>
             <div className={styles.FormatPicker}>
               <div className={styles.FormatPickerHeader}>
