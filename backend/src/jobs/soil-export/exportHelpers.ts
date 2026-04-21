@@ -1,17 +1,24 @@
+import * as path from 'path';
+import { Readable } from 'stream';
 import SoilDataStorage from '../../data-layer/SoilDataStorage';
+import { JsonStorage } from '../../entities/JsonStorage';
 import { RequestData } from '../../interfaces/RequestData';
 import { SoilDataSample } from '../../interfaces/SoilDataSample';
+import ConfigService from '../../services/ConfigService';
+import FileService from '../../services/FileService';
 import FilterService from '../../services/FilterService';
-import { EXPORT_CONFIG, GroupedRecords, SoilExportJobPayload, soilSampleToExportRecord } from './types';
-
-import * as fs from 'fs';
-import * as path from 'path';
+import { generateExportPdf } from './pdfGenerator';
+import { EXPORT_CONFIG, GroupedRecords, soilSampleToExportRecord } from './types';
+import { getEntities } from '../../utils/slugs';
+import DatasetEntity from '../../entities/Dataset';
+import { EntityType } from '../../types/data';
+import { ExportJobParameters } from '../../interfaces/Job';
 
 const filterService = new FilterService();
 const soilDataStorage = new SoilDataStorage();
 
-export async function getTotalRecordsCount(requestData: RequestData, payload: SoilExportJobPayload): Promise<number> {
-  const storedFilter = await filterService.getFilterById(requestData, payload.filterId);
+export async function getTotalRecordsCount(requestData: RequestData, payload: ExportJobParameters): Promise<number> {
+  const storedFilter = await filterService.getFilterById(requestData, payload.filter_id);
   return await soilDataStorage.getSoilDataCount(requestData, storedFilter.filter, payload.dataset_ids);
 }
 
@@ -22,8 +29,8 @@ export async function getTotalRecordsCount(requestData: RequestData, payload: So
  * @param cursor - Pagination cursor (undefined for first batch)
  * @returns Array of soil data samples
  */
-export async function fetchBatch(requestData: RequestData, payload: SoilExportJobPayload, cursor?: string): Promise<SoilDataSample[]> {
-  const storedFilter = await filterService.getFilterById(requestData, payload.filterId);
+export async function fetchBatch(requestData: RequestData, payload: ExportJobParameters, cursor?: string): Promise<SoilDataSample[]> {
+  const storedFilter = await filterService.getFilterById(requestData, payload.filter_id);
   return await soilDataStorage.getSoilData(
     requestData,
     storedFilter.filter,
@@ -56,27 +63,41 @@ export function groupByProperty(samples: SoilDataSample[]): GroupedRecords {
   return grouped;
 }
 
-/**
- * Create README file with export information
- * @param tempDir - Temporary directory path
- * @param payload - Job payload
- */
-export async function createReadmeFile(tempDir: string, payload: SoilExportJobPayload): Promise<void> {
-  // TODO: Implement README generation with export details
-  // For now, create placeholder
-  const readmePath = path.join(tempDir, 'README.txt');
-  const content = `
-Soil Data Export
-================
+async function streamToBuffer(stream: Readable): Promise<Buffer> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  }
+  return Buffer.concat(chunks);
+}
 
-Filter ID: ${payload.filterId}
-Datasets: ${payload.dataset_ids.join(', ')}
-Format: ${payload.file_format}
-Export Date: ${new Date().toISOString()}
+export async function createReadmeFile(requestData: RequestData, tempDir: string, payload: ExportJobParameters): Promise<void> {
+  const readmePath = path.join(tempDir, 'Readme.pdf');
 
-This export contains soil data organized by soil property.
-Each file/sheet/layer represents a different soil property (identified by property acronym).
-  `.trim();
+  const configService = new ConfigService();
+  const logoFileKey = await configService.getLogoFileKey(requestData.entityManager.getRepository(JsonStorage));
 
-  await fs.promises.writeFile(readmePath, content, 'utf-8');
+  let logoBuffer: Buffer | null = null;
+  if (logoFileKey) {
+    const storage = FileService.getStorageEngine();
+    const logoStream = await storage.read(logoFileKey);
+    logoBuffer = await streamToBuffer(logoStream as Readable);
+  }
+
+  const datasets = await getEntities(requestData, DatasetEntity, EntityType.DATASET, payload.dataset_ids);
+  const datasetPdfInfo = datasets.map(ds => ({
+    slug: ds.slug,
+    name: ds.name,
+    url: payload.public_metadata_url ? `${payload.public_metadata_url}/${ds.slug}` : undefined,
+  }));
+
+  await generateExportPdf({
+    outputPath: readmePath,
+    datasets: datasetPdfInfo,
+    logoBuffer,
+    fileFormat: payload.format,
+    exportDate: new Date(),
+    homepageUrl: payload.public_homepage_url,
+    termsUrl: payload.public_terms_url,
+  });
 }

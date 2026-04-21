@@ -22,10 +22,16 @@ export interface BulkLoadJob extends CommonJobData {
   delete_source_files?: boolean;
 }
 
-export interface ExportJob extends CommonJobData {
+export interface ExportJobParameters {
   filter_id: string;
   format: string;
   dataset_ids: string[];
+  public_homepage_url?: string;
+  public_metadata_url?: string;
+  public_terms_url?: string;
+}
+
+export interface ExportJob extends ExportJobParameters, CommonJobData {
   total_records_estimate: number;
   current_cursor: string | null;
   total_records_processed: number;
