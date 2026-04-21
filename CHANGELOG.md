@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.78.0 (2026-04-21)
+
+## What's Changed
+* feat: data portal mappings  details and save by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/428
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.77.0...v0.78.0
+
 ## 0.77.0 (2026-04-21)
 
 ## What's Changed
