@@ -109,7 +109,11 @@ export default class SoilDataStorage {
     }));
   };
 
-  filterDatasets = async (entityManager: EntityManager, geometry: Polygon | MultiPolygon, filters: FilterCriteria): Promise<FilteredDataset[]> => {
+  filterDatasets = async (
+    entityManager: EntityManager,
+    geometry: Polygon | MultiPolygon,
+    filters: FilterCriteria,
+  ): Promise<FilteredDataset[]> => {
     await entityManager.query("SET LOCAL work_mem = '256MB';");
     const schema = process.env.POSTGRES_SCHEMA;
     const params: any[] = [];
@@ -122,7 +126,10 @@ export default class SoilDataStorage {
     const { outerWhere, lateralJoins, lateralWhere } = buildDatasetFilterClauses(filters, p, schema!);
 
     const enabledRasterFilterTables = await getEnabledRasterFilterTables();
-    const { rasterCtes, rasterLateralWhere } = buildRasterLateralSql({ geometries: [geometry], parameters: filters }, enabledRasterFilterTables);
+    const { rasterCtes, rasterLateralWhere } = buildRasterLateralSql(
+      { geometries: [geometry], parameters: filters },
+      enabledRasterFilterTables,
+    );
     lateralWhere.push(...rasterLateralWhere);
 
     const sql = `
@@ -593,7 +600,9 @@ const buildDatasetFilterClauses = (
   if (filters.horizons && filters.horizons.length > 0) {
     const nonNull = filters.horizons.filter(h => h !== null);
     const nullClause = filters.horizons.includes(null) ? ' OR layer.horizon IS NULL' : '';
-    lateralWhere.push(nonNull.length > 0 ? `(layer.horizon IN (${nonNull.map(h => p(h)).join(', ')})${nullClause})` : 'layer.horizon IS NULL');
+    lateralWhere.push(
+      nonNull.length > 0 ? `(layer.horizon IN (${nonNull.map(h => p(h)).join(', ')})${nullClause})` : 'layer.horizon IS NULL',
+    );
     needsLayerJoin = true;
   }
 
