@@ -18,7 +18,6 @@ export function DatasetsMappingsStep() {
     mappedCount,
     unmappedCount,
     expandedRows,
-    isUnitEnabled,
     toggleRow,
     handleConceptChange,
     handleUnitChange,
@@ -42,7 +41,6 @@ export function DatasetsMappingsStep() {
           unitOptionsByConcept={unitOptionsByConcept}
           detailOptions={detailOptions}
           expandedRows={expandedRows}
-          isUnitEnabled={isUnitEnabled}
           onToggleRow={toggleRow}
           onConceptChange={handleConceptChange}
           onUnitChange={handleUnitChange}
