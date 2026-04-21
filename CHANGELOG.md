@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.77.0 (2026-04-21)
+
+## What's Changed
+* feat: sp-5124 changes to preview and download page by @cristbello in https://github.com/varda-ag/soilhive-core/pull/422
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.76.2...v0.77.0
+
 ## 0.76.2 (2026-04-21)
 
 ## What's Changed
