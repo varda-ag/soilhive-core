@@ -72,7 +72,7 @@ export default class FilterService {
     // Create filtering promisees
     const filteringPromises: Promise<FilteredDataset[]>[] = [];
     for (const g of filter.geometries) {
-      filteringPromises.push(sds.filterDatasets(requestData.entityManager, g));
+      filteringPromises.push(sds.filterDatasets(requestData.entityManager, g, filter.parameters));
     }
     const results = (await Promise.all(filteringPromises)).flat();
     return Array.from(new Map(results.map(r => [r.id, r])).values());
