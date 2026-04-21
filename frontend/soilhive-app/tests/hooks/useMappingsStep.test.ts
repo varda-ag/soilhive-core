@@ -18,6 +18,34 @@ jest.mock('hooks/useSoilProperties', () => ({
   useSoilProperties: jest.fn(),
 }));
 
+jest.mock('hooks/useCreateProcedureMutation', () => ({
+  useCreateProcedureMutation: jest.fn(() => ({ mutateAsync: jest.fn() })),
+}));
+
+jest.mock('hooks/useCreateMappingsMutation', () => ({
+  useCreateMappingsMutation: jest.fn(() => ({
+    mutateAsync: jest.fn().mockResolvedValue({ id: 'mapping-1', data_mapping: {} }),
+  })),
+}));
+
+jest.mock('hooks/useDatasetMutation', () => ({
+  useUpdateDatasetFileMappingMutation: jest.fn(() => ({ mutateAsync: jest.fn() })),
+}));
+
+jest.mock('@tanstack/react-query', () => ({
+  useQueryClient: jest.fn(() => ({ invalidateQueries: jest.fn().mockResolvedValue(undefined) })),
+  useQueries: jest.fn(() => []),
+}));
+
+jest.mock('../../src/api-client', () => ({
+  useRequest: jest.fn(() => ({ request: jest.fn() })),
+}));
+
+jest.mock('../../src/configuration/api', () => ({
+  BACKEND_BASE_URL: 'http://mocked-backend',
+  QUERY_STALE_TIME: 60000,
+}));
+
 const mockUseApiQuery = useApiQuery as jest.Mock;
 const mockUseSoilProperties = useSoilProperties as jest.Mock;
 
@@ -50,18 +78,18 @@ describe('useMappingsStep', () => {
       expect(mockNavigate).toHaveBeenCalledWith('/admin/datasets/edit/42/soil-data');
     });
 
-    it('handleContinue navigates to the preview step', () => {
+    it('handleContinue navigates to the preview step', async () => {
       const { result } = renderHook(() => useMappingsStep('42'));
-      act(() => {
-        result.current.handleContinue();
+      await act(async () => {
+        await result.current.handleContinue();
       });
       expect(mockNavigate).toHaveBeenCalledWith('/admin/datasets/edit/42/preview');
     });
 
-    it('handleSaveAndContinueLater navigates to the datasets list', () => {
+    it('handleSaveAndContinueLater navigates to the datasets list', async () => {
       const { result } = renderHook(() => useMappingsStep('42'));
-      act(() => {
-        result.current.handleSaveAndContinueLater();
+      await act(async () => {
+        await result.current.handleSaveAndContinueLater();
       });
       expect(mockNavigate).toHaveBeenCalledWith('/admin/datasets');
     });

@@ -1,9 +1,23 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router';
+import { useQueryClient, useQueries } from '@tanstack/react-query';
+import { useRequest } from '../api-client';
+import { BACKEND_BASE_URL, QUERY_STALE_TIME } from '../configuration/api';
 import { useApiQuery } from './useApiQuery';
+import { useCreateProcedureMutation } from './useCreateProcedureMutation';
+import { useCreateMappingsMutation } from './useCreateMappingsMutation';
+import { useUpdateDatasetFileMappingMutation } from './useDatasetMutation';
 import { useSoilProperties } from './useSoilProperties';
 import { ADMIN_PATHS } from '../configuration/admin';
-import type { FileDescriptor, VocabularyItem } from 'types/backend';
+import type {
+  FileDescriptor,
+  VocabularyItem,
+  PropertyMapping,
+  DataMappingRequest,
+  DataMappingResponse,
+  DatasetFileMappingResponse,
+  ProcedureResponse,
+} from 'types/backend';
 import type { MenuOption } from 'types/components';
 
 export interface RowDetails {
@@ -74,6 +88,12 @@ const EMPTY_DETAILS: RowDetails = {
 
 export function useMappingsStep(datasetId?: string) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { request } = useRequest();
+
+  const { mutateAsync: createProcedure } = useCreateProcedureMutation();
+  const { mutateAsync: createMapping } = useCreateMappingsMutation();
+  const { mutateAsync: updateDatasetFileMapping } = useUpdateDatasetFileMappingMutation();
 
   const { data: files, isLoading: isLoadingFiles } = useApiQuery<FileDescriptor[]>({
     endpoint: `/datasets/${datasetId}/files`,
@@ -81,6 +101,48 @@ export function useMappingsStep(datasetId?: string) {
     queryKey: ['datasets', datasetId, 'files'],
     enabled: !!datasetId,
   });
+
+  const { data: datasetFileMappings } = useApiQuery<DatasetFileMappingResponse[]>({
+    endpoint: `/datasets/${datasetId}/dataset-file-mapping`,
+    method: 'GET',
+    queryKey: ['datasets', datasetId, 'dataset-file-mapping'],
+    enabled: !!datasetId,
+  });
+
+  const { data: existingMappings, isLoading: isLoadingExistingMappings } = useApiQuery<DataMappingResponse[]>({
+    endpoint: `/datasets/${datasetId}/mappings`,
+    method: 'GET',
+    queryKey: ['datasets', datasetId, 'mappings'],
+    enabled: !!datasetId,
+  });
+
+  const procedureEntries = useMemo(() => {
+    const dataMapping = existingMappings?.[0]?.data_mapping ?? {};
+    return Object.entries(dataMapping)
+      .filter((entry): entry is [string, PropertyMapping] => typeof entry[1] !== 'string' && !!entry[1].procedure_id)
+      .map(([columnName, v]) => ({ columnName, procedureId: v.procedure_id! }));
+  }, [existingMappings]);
+
+  const procedureResults = useQueries({
+    queries: procedureEntries.map(({ procedureId }) => ({
+      queryKey: ['procedures', procedureId],
+      queryFn: () => request({ url: `${BACKEND_BASE_URL}/procedures/${procedureId}`, method: 'GET' }) as Promise<ProcedureResponse>,
+      staleTime: QUERY_STALE_TIME,
+    })),
+  });
+
+  const isLoadingProcedures = procedureEntries.length > 0 && procedureResults.some(r => r.isLoading);
+
+  const procedureByColumn = useMemo(() => {
+    const map: Record<string, ProcedureResponse> = {};
+    procedureEntries.forEach(({ columnName }, i) => {
+      const data = procedureResults[i]?.data;
+      if (data) map[columnName] = data;
+    });
+    return map;
+    // procedureResults is a new array every render — use isLoadingProcedures as a stable proxy
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [procedureEntries, isLoadingProcedures]);
 
   const { data: soilProperties, isLoading: isLoadingSoilProperties } = useSoilProperties();
 
@@ -98,15 +160,45 @@ export function useMappingsStep(datasetId?: string) {
     enabled: true,
   });
 
-  const isLoading = isLoadingFiles || isLoadingSoilProperties || isLoadingVocabulary || isLoadingTechniques;
+  const isLoading =
+    isLoadingFiles ||
+    isLoadingSoilProperties ||
+    isLoadingVocabulary ||
+    isLoadingTechniques ||
+    isLoadingExistingMappings ||
+    isLoadingProcedures;
 
   const [columnMappings, setColumnMappings] = useState<ColumnMapping[]>([]);
 
   useEffect(() => {
     if (!files) return;
     const columnNames = [...new Set(files.flatMap(f => f.metadata?.field_names ?? []))];
-    setColumnMappings(columnNames.map(columnName => ({ columnName, conceptId: null, unitId: null, details: { ...EMPTY_DETAILS } })));
-  }, [files]);
+    const existingDataMapping = existingMappings?.[0]?.data_mapping ?? {};
+
+    setColumnMappings(
+      columnNames.map(columnName => {
+        const existing = existingDataMapping[columnName];
+        if (!existing) return { columnName, conceptId: null, unitId: null, details: { ...EMPTY_DETAILS } };
+        if (typeof existing === 'string') return { columnName, conceptId: existing, unitId: null, details: { ...EMPTY_DETAILS } };
+
+        const proc = procedureByColumn[columnName];
+        const details: RowDetails = proc
+          ? {
+              samplePretreatment: proc.sample_pretreatment ?? null,
+              technique: proc.technique ?? null,
+              laboratoryMethod: proc.laboratory_method ?? null,
+              extractantConcentration: proc.extractant_concentration ?? null,
+              extractionRatio: proc.extraction_ratio ?? null,
+              extractionBase: proc.extraction_base ?? null,
+              measurementProcedure: proc.measurement_procedure ?? null,
+              limitOfDetection: proc.limit_of_detection ?? null,
+            }
+          : { ...EMPTY_DETAILS };
+
+        return { columnName, conceptId: existing.property_id, unitId: existing.conversion_id ?? null, details };
+      }),
+    );
+  }, [files, existingMappings, procedureByColumn]);
 
   const detailOptions = useMemo((): DetailOptionMap => {
     const base: DetailOptionMap = {
@@ -122,7 +214,7 @@ export function useMappingsStep(datasetId?: string) {
 
     for (const item of vocabularyItems ?? []) {
       const key = VOCAB_CATEGORY_TO_KEY[item.category];
-      if (key) base[key] = [...base[key], { code: item.id, name: item.name }];
+      if (key) base[key] = [...base[key], { code: item.name, name: item.name }];
     }
 
     base.technique = (techniques ?? []).map(t => ({
@@ -203,17 +295,67 @@ export function useMappingsStep(datasetId?: string) {
     );
   }, []);
 
+  const save = useCallback(async () => {
+    const procedureIds: Record<string, string> = {};
+
+    for (const mapping of columnMappings) {
+      if (!mapping.conceptId) continue;
+      const hasDetails = Object.values(mapping.details).some(v => v !== null);
+      if (!hasDetails) continue;
+
+      const { details } = mapping;
+      const procedure = await createProcedure({
+        sample_pretreatment: details.samplePretreatment ?? undefined,
+        technique: details.technique ?? undefined,
+        laboratory_method: details.laboratoryMethod ?? undefined,
+        extractant_concentration: details.extractantConcentration ?? undefined,
+        extraction_ratio: details.extractionRatio ?? undefined,
+        extraction_base: details.extractionBase ?? undefined,
+        measurement_procedure: details.measurementProcedure ?? undefined,
+        limit_of_detection: details.limitOfDetection ?? undefined,
+      });
+      procedureIds[mapping.columnName] = procedure.id;
+    }
+
+    const dataMappingRequest: DataMappingRequest = {};
+    for (const mapping of columnMappings) {
+      if (!mapping.conceptId) continue;
+      if (STRUCTURAL_FIELD_CODES.has(mapping.conceptId)) {
+        dataMappingRequest[mapping.columnName] = mapping.conceptId;
+      } else {
+        const propertyMapping: PropertyMapping = { property_id: mapping.conceptId };
+        if (mapping.unitId) propertyMapping.conversion_id = mapping.unitId;
+        if (procedureIds[mapping.columnName]) propertyMapping.procedure_id = procedureIds[mapping.columnName];
+        dataMappingRequest[mapping.columnName] = propertyMapping;
+      }
+    }
+
+    const mappingResponse = await createMapping(dataMappingRequest);
+
+    if (datasetId && datasetFileMappings?.length) {
+      await Promise.all(
+        datasetFileMappings.map(dfm =>
+          updateDatasetFileMapping({ datasetId, datasetFileMappingId: dfm.id, mappingId: mappingResponse.id }),
+        ),
+      );
+    }
+
+    await queryClient.invalidateQueries({ queryKey: ['datasets', datasetId, 'mappings'] });
+  }, [columnMappings, createProcedure, createMapping, updateDatasetFileMapping, datasetId, datasetFileMappings, queryClient]);
+
   const handlePrevious = useCallback(() => {
     navigate(`${ADMIN_PATHS.DATASETS}/edit/${datasetId}/soil-data`);
   }, [navigate, datasetId]);
 
-  const handleSaveAndContinueLater = useCallback(() => {
+  const handleSaveAndContinueLater = useCallback(async () => {
+    await save();
     navigate(ADMIN_PATHS.DATASETS);
-  }, [navigate]);
+  }, [save, navigate]);
 
-  const handleContinue = useCallback(() => {
+  const handleContinue = useCallback(async () => {
+    await save();
     navigate(`${ADMIN_PATHS.DATASETS}/edit/${datasetId}/preview`);
-  }, [navigate, datasetId]);
+  }, [save, navigate, datasetId]);
 
   return {
     isLoading,

@@ -55,10 +55,10 @@ export function DatasetsMappingsStep() {
           {t('datasets.actions.previous')}
         </Button>
         <div className={styles.ActionsSpacer} />
-        <Button type="secondary" onClick={handleSaveAndContinueLater} dataTestId="sh-mappings-save-later">
+        <Button type="secondary" onClick={handleSaveAndContinueLater} dataTestId="sh-mappings-save-later" isDisabled={mappedCount === 0}>
           {t('datasets.actions.save_and_continue_later')}
         </Button>
-        <Button type="primary" onClick={handleContinue} dataTestId="sh-mappings-continue">
+        <Button type="primary" onClick={handleContinue} dataTestId="sh-mappings-continue" isDisabled={mappedCount === 0}>
           {t('datasets.actions.continue')}
         </Button>
       </div>
