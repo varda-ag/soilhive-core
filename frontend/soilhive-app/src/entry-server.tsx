@@ -7,7 +7,7 @@ import { initReactI18next } from 'react-i18next';
 
 import adminTranslations from '../public/locales/en/admin.json';
 import commonTranslations from '../public/locales/en/common.json';
-import { NotificationProvider } from './contexts';
+import { NotificationProvider, ThemeProvider } from './contexts';
 import MetadataPage from './pages/Metadata';
 import { ssrAuthStore } from './auth/ssrAuthStore';
 
@@ -84,11 +84,12 @@ export async function render(
 
   const queryClient = new QueryClient();
 
+  const backendUrl = process.env.BACKEND_BASE_URL ?? '';
+
   // Prefetch route-specific queries so renderToString sees real data.
   const datasetMatch = matchedPattern === '/metadata/:id' ? pathname.match(/^\/metadata\/([^/]+)$/) : null;
   if (datasetMatch) {
     const datasetId = datasetMatch[1];
-    const backendUrl = process.env.BACKEND_BASE_URL ?? '';
     await queryClient.prefetchQuery({
       queryKey: ['dataset', datasetId],
       queryFn: async () => {
@@ -101,17 +102,33 @@ export async function render(
     });
   }
 
+  // Prefetch theme config so ThemeProvider has data during renderToString.
+  // Logo is intentionally excluded — URL.createObjectURL() is browser-only.
+  await queryClient.prefetchQuery({
+    queryKey: ['/config/theme'],
+    queryFn: async () => {
+      const headers: HeadersInit = { 'Content-Type': 'application/json' };
+      if (context?.authToken) headers['Authorization'] = `Bearer ${context.authToken}`;
+      const res = await fetch(`${backendUrl}/config/theme`, { headers });
+      if (res.status === 404) return null;
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.json();
+    },
+  });
+
   const dehydratedState = dehydrate(queryClient);
 
   try {
     const html = renderToString(
       <QueryClientProvider client={queryClient}>
         <NotificationProvider>
-          <StaticRouter location={pathname}>
-            <Routes>
-              <Route path={matchedPattern!} element={<PageComponent />} />
-            </Routes>
-          </StaticRouter>
+          <ThemeProvider>
+            <StaticRouter location={pathname}>
+              <Routes>
+                <Route path={matchedPattern!} element={<PageComponent />} />
+              </Routes>
+            </StaticRouter>
+          </ThemeProvider>
         </NotificationProvider>
       </QueryClientProvider>,
     );

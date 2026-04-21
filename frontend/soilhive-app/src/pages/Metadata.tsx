@@ -7,6 +7,7 @@ import { useMetadataMutation } from 'hooks/useMetadataMutation';
 import { useDataset } from 'hooks/useDatasets';
 import styles from './Metadata.module.scss';
 import SoilhiveSimpleMap from 'components/Map/SoilhiveSimpleMap';
+import { Logo } from 'components/Logo/Logo';
 import { BACKEND_BASE_URL } from '../utilities/environmentVariables';
 
 export default function Metadata() {
@@ -40,6 +41,7 @@ export default function Metadata() {
 
   return (
     <div className={styles.Page}>
+      <Logo />
       <h1 className={styles.Title}>{t('metadata.title')}</h1>
       <p>Dataset ID: {id}</p>
       <p>BACKEND_BASE_URL: {BACKEND_BASE_URL}</p>
