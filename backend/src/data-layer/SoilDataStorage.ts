@@ -16,6 +16,8 @@ import { selectOverviewTable } from '../utils/raster';
 import { RequestData } from '../interfaces/RequestData';
 import EntitlementService from '../services/EntitlementService';
 
+const AREA_THRESHOLD_M2 = 7_000_000 * 1_000 * 1_000; // 7,000,000 km²
+
 const rasterFilterService = new RasterFilterService();
 const entitlementService = new EntitlementService();
 
@@ -109,7 +111,11 @@ export default class SoilDataStorage {
     }));
   };
 
-  filterDatasets = async (entityManager: EntityManager, geometry: Polygon | MultiPolygon, filters: FilterCriteria): Promise<FilteredDataset[]> => {
+  filterDatasets = async (
+    entityManager: EntityManager,
+    geometry: Polygon | MultiPolygon,
+    filters: FilterCriteria,
+  ): Promise<FilteredDataset[]> => {
     await entityManager.query("SET LOCAL work_mem = '256MB';");
     const schema = process.env.POSTGRES_SCHEMA;
     const params: any[] = [];
@@ -122,8 +128,15 @@ export default class SoilDataStorage {
     const { outerWhere, lateralJoins, lateralWhere } = buildDatasetFilterClauses(filters, p, schema!);
 
     const enabledRasterFilterTables = await getEnabledRasterFilterTables();
-    const { rasterCtes, rasterLateralWhere } = buildRasterLateralSql({ geometries: [geometry], parameters: filters }, enabledRasterFilterTables);
-    lateralWhere.push(...rasterLateralWhere);
+    const { ctes: rasterCtes, usesMatchingFeatures } = buildRasterSql(
+      { geometries: [geometry], parameters: filters },
+      enabledRasterFilterTables,
+    );
+
+    // When raster filters are active, matching_features already enforces spatial intersection
+    // via candidate_features — drop the redundant ST_Intersects check from the LATERAL
+    const featureSource = usesMatchingFeatures ? 'matching_features' : `${schema}.features`;
+    const effectiveLateralWhere = usesMatchingFeatures ? lateralWhere.slice(1) : lateralWhere;
 
     const sql = `
       WITH
@@ -135,10 +148,10 @@ export default class SoilDataStorage {
       CROSS JOIN LATERAL (
         SELECT 1
         FROM ${schema}.dataset_layers dl
-        INNER JOIN ${schema}.features f ON f.id = dl.feature_id
+        INNER JOIN ${featureSource} f ON f.id = dl.feature_id
         ${lateralJoins.join('\n        ')}
         WHERE dl.dataset_id = ds.id
-          AND ${lateralWhere.join('\n          AND ')}
+            ${effectiveLateralWhere.length > 0 ? ` AND ${effectiveLateralWhere.join('\n          AND ')}` : ''}
         LIMIT 1
       ) first_match
       WHERE ${outerWhere.join('\n        AND ')}
@@ -593,7 +606,9 @@ const buildDatasetFilterClauses = (
   if (filters.horizons && filters.horizons.length > 0) {
     const nonNull = filters.horizons.filter(h => h !== null);
     const nullClause = filters.horizons.includes(null) ? ' OR layer.horizon IS NULL' : '';
-    lateralWhere.push(nonNull.length > 0 ? `(layer.horizon IN (${nonNull.map(h => p(h)).join(', ')})${nullClause})` : 'layer.horizon IS NULL');
+    lateralWhere.push(
+      nonNull.length > 0 ? `(layer.horizon IN (${nonNull.map(h => p(h)).join(', ')})${nullClause})` : 'layer.horizon IS NULL',
+    );
     needsLayerJoin = true;
   }
 
@@ -616,19 +631,26 @@ const buildDatasetFilterClauses = (
   return { outerWhere, lateralJoins, lateralWhere };
 };
 
-const buildRasterLateralSql = (
-  dataFilter: DataFilter,
-  enabledRasterFilterTables: string[],
-): { rasterCtes: string; rasterLateralWhere: string[] } => {
+/**
+ * Builds raster filter CTEs for raw SQL queries: aoi_subdivided (for large geometries),
+ * candidate_features, clipped raster CTEs, and matching_features.
+ *
+ * Used by both filterDatasets (LATERAL pattern) and buildRawSoilQuery (CTE join pattern).
+ * Returns { ctes, usesMatchingFeatures } where ctes is a comma-joined string ready to
+ * insert after the aoi CTE. When usesMatchingFeatures is false, ctes is empty and the
+ * caller handles its own spatial CTEs.
+ */
+const buildRasterSql = (dataFilter: DataFilter, enabledRasterFilterTables: string[]): { ctes: string; usesMatchingFeatures: boolean } => {
   if (dataFilter.geometries.length === 0 || !hasRasterFilters(dataFilter) || enabledRasterFilterTables.length === 0) {
-    return { rasterCtes: '', rasterLateralWhere: [] };
+    return { ctes: '', usesMatchingFeatures: false };
   }
 
   const schema = process.env.POSTGRES_SCHEMA;
   const raster_filters = dataFilter.parameters.raster_filters!;
   const aoiAreaM2 = turf.area(dataFilter.geometries[0]!);
-  const ctes: string[] = [];
-  const rasterLateralWhere: string[] = [];
+  const clippedRasterCtes: string[] = [];
+  const joinTables: string[] = [];
+  const whereClauses: string[] = [];
 
   for (const baseTable of enabledRasterFilterTables) {
     const values = raster_filters[baseTable];
@@ -637,94 +659,56 @@ const buildRasterLateralSql = (
     const table = selectOverviewTable(baseTable, aoiAreaM2);
     const clippedRaster = `clipped_${table}`;
 
-    ctes.push(`${clippedRaster} AS MATERIALIZED (
-        SELECT ST_Union(ST_Clip(rr.rast, aoi.geom, touched => TRUE)) AS rast
-        FROM ${schema}.${table} rr
-        CROSS JOIN aoi
-        WHERE ST_Intersects(rr.rast, aoi.geom)
-      )`);
+    clippedRasterCtes.push(`${clippedRaster} AS MATERIALIZED (
+      SELECT ST_Union(ST_Clip(rr.rast, aoi.geom, touched => TRUE)) AS rast
+      FROM ${schema}.${table} rr
+      CROSS JOIN aoi
+      WHERE ST_Intersects(rr.rast, aoi.geom)
+    )`);
 
-    // Reference the top-level CTE via scalar subquery — valid inside a LATERAL
-    rasterLateralWhere.push(`(
-          (ST_GeometryType(f.geom) = 'ST_Point'
-            AND ST_Value((SELECT rast FROM ${clippedRaster}), f.geom, TRUE) = ANY(ARRAY[${values.join(',')}]::double precision[]))
-          OR (ST_GeometryType(f.geom) = ANY('{ST_Polygon,ST_MultiPolygon}')
-            AND (SELECT SUM(cnt) FROM ST_ValueCount(
-              ST_Clip((SELECT rast FROM ${clippedRaster}), 1, f.geom, touched => true), 1,
-              ARRAY[${values.join(',')}]::double precision[]
-            ) AS vc(value, cnt)) > 0)
-        )`);
-  }
-
-  return { rasterCtes: ctes.join(',\n      '), rasterLateralWhere };
-};
-
-/**
- * Pure SQL string equivalent of applyRasterFilterToQuery.
- * Returns the clipped raster CTEs and the optional matching_features CTE as raw SQL strings,
- * without touching any TypeORM query builder.
- */
-const buildRasterFilterCteSql = (
-  dataFilter: DataFilter,
-  enabledRasterFilterTables: string[],
-): { clippedRasterCtes: string; matchingFeaturesCte: string | null } => {
-  if (dataFilter.geometries.length === 0 || !hasRasterFilters(dataFilter) || enabledRasterFilterTables.length === 0) {
-    return { clippedRasterCtes: '', matchingFeaturesCte: null };
-  }
-
-  const schema = process.env.POSTGRES_SCHEMA;
-  const raster_filters: Record<string, number[]> | undefined = dataFilter.parameters.raster_filters;
-  const aoiAreaM2 = turf.area(dataFilter.geometries[0]!);
-  const clippedRasterCteParts: string[] = [];
-  let joinTables = '';
-  const whereClauses: string[] = [];
-
-  for (const baseTable of enabledRasterFilterTables) {
-    const values = raster_filters?.[baseTable];
-    const hasFilteringValues = values && values.length > 0;
-    const table = selectOverviewTable(baseTable, aoiAreaM2);
-    const clippedRaster = `clipped_${table}`;
-    if (hasFilteringValues) {
-      clippedRasterCteParts.push(
-        `${clippedRaster} AS MATERIALIZED (
-        SELECT ST_Union(ST_Clip(rr.rast, aoi.geom, touched => TRUE)) as rast
-        FROM ${schema}.${table} rr
-        CROSS JOIN aoi
-        WHERE ST_Intersects(rr.rast, aoi.geom)
-      )`,
-      );
-      joinTables += ` CROSS JOIN ${clippedRaster} ${clippedRaster}`;
-      whereClauses.push(`(
-        ST_GeometryType(cf.geom) = 'ST_Point'
-        AND ST_Value(${clippedRaster}.rast, cf.geom, TRUE) = ANY(ARRAY[${values.join(',')}]::double precision[])
-      )
-      OR (
-        ST_GeometryType(cf.geom) = ANY('{ST_Polygon,ST_MultiPolygon}')
-        AND (
-          SELECT SUM(cnt)
-          FROM ST_ValueCount(
-            ST_Clip(${clippedRaster}.rast, 1, cf.geom, touched => true),
-            1,
-            ARRAY[${values.join(',')}]::double precision[]
-          ) AS vc(value, cnt)
-        ) > 0
-      )`);
-    }
+    joinTables.push(`CROSS JOIN ${clippedRaster}`);
+    whereClauses.push(`(
+      (ST_GeometryType(cf.geom) = 'ST_Point'
+        AND ST_Value(${clippedRaster}.rast, cf.geom, TRUE) = ANY(ARRAY[${values.join(',')}]::double precision[]))
+      OR (ST_GeometryType(cf.geom) = ANY('{ST_Polygon,ST_MultiPolygon}')
+        AND (SELECT SUM(cnt) FROM ST_ValueCount(
+          ST_Clip(${clippedRaster}.rast, 1, cf.geom, touched => true), 1,
+          ARRAY[${values.join(',')}]::double precision[]
+        ) AS vc(value, cnt)) > 0)
+    )`);
   }
 
   if (whereClauses.length === 0) {
-    return { clippedRasterCtes: '', matchingFeaturesCte: null };
+    return { ctes: '', usesMatchingFeatures: false };
   }
 
-  const clippedRasterCtes = clippedRasterCteParts.map(cte => cte + ',').join('');
-  const matchingFeaturesCte = `matching_features AS MATERIALIZED (
+  const useSubdivide = aoiAreaM2 > AREA_THRESHOLD_M2;
+  const spatialSource = useSubdivide ? 'aoi_subdivided' : 'aoi';
+
+  const allCtes: string[] = [];
+
+  if (useSubdivide) {
+    allCtes.push(`aoi_subdivided AS MATERIALIZED (
+      SELECT ST_Subdivide(aoi.geom, 64) AS geom FROM aoi
+    )`);
+  }
+
+  allCtes.push(`candidate_features AS MATERIALIZED (
+    SELECT DISTINCT f.id, f.geom
+    FROM ${schema}.features f
+    JOIN ${spatialSource} ON ST_Intersects(f.geom, ${spatialSource}.geom)
+  )`);
+
+  allCtes.push(...clippedRasterCtes);
+
+  allCtes.push(`matching_features AS MATERIALIZED (
     SELECT cf.id, cf.geom
     FROM candidate_features cf
-      ${joinTables}
-    WHERE ${whereClauses.join(' OR ')}
-  )`;
+    ${joinTables.join('\n    ')}
+    WHERE ${whereClauses.join('\n      OR ')}
+  )`);
 
-  return { clippedRasterCtes, matchingFeaturesCte };
+  return { ctes: allCtes.join(',\n    '), usesMatchingFeatures: true };
 };
 
 /**
@@ -816,9 +800,8 @@ const buildRawSoilQuery = (
   }
 
   const whereClause = whereClauses.length > 0 ? `AND ${whereClauses.join('\n  AND ')}` : '';
-  const AREA_THRESHOLD = 7_000_000 * 1_000 * 1_000; // 7,000,000 km2
 
-  // ── spatial join clause ──────────────────────────────────────────────────────
+  // ── spatial + raster CTEs ────────────────────────────────────────────────────
   const geomParam = hasGeometry ? p(geomJson) : null;
   const aoi_cte = hasGeometry
     ? `aoi AS MATERIALIZED (
@@ -828,33 +811,31 @@ const buildRawSoilQuery = (
 
   const aoiArea = hasGeometry ? turf.area(dataFilter.geometries[0]!) : 0;
 
+  const enabledRasterFilterTables = options.enabledRasterFilterTables ?? [];
+  const { ctes: rasterCtes, usesMatchingFeatures } = buildRasterSql(dataFilter, enabledRasterFilterTables);
+
+  // When buildRasterSql produced matching_features it also generated aoi_subdivided +
+  // candidate_features internally — skip generating them here to avoid duplicate CTEs.
+  const spatialSource = hasGeometry && aoiArea > AREA_THRESHOLD_M2 ? 'aoi_subdivided' : 'aoi';
+
   const aoi_subdivided_cte =
-    hasGeometry && aoiArea > AREA_THRESHOLD
+    !usesMatchingFeatures && hasGeometry && aoiArea > AREA_THRESHOLD_M2
       ? `aoi_subdivided AS MATERIALIZED (
         SELECT ST_Subdivide(aoi.geom, 64) AS geom
         FROM aoi
       ),`
       : '';
 
-  const spatialSource = hasGeometry && aoiArea > AREA_THRESHOLD ? 'aoi_subdivided' : 'aoi';
-
-  const candidate_features_cte = hasGeometry
-    ? `candidate_features AS MATERIALIZED (
+  const candidate_features_cte =
+    !usesMatchingFeatures && hasGeometry
+      ? `candidate_features AS MATERIALIZED (
         SELECT distinct f.id, f.geom
         FROM ${schema}.features f
         JOIN ${spatialSource} ON ST_Intersects(f.geom, ${spatialSource}.geom)
       ),`
-    : '';
+      : '';
 
-  // ── raster filter CTEs ───────────────────────────────────────────────────────
-  // Reuses the same logic as applyRasterFilterToQuery but produces raw SQL strings
-  // instead of mutating a TypeORM query builder.
-  const enabledRasterFilterTables = options.enabledRasterFilterTables ?? [];
-  const rasterCtes = buildRasterFilterCteSql(dataFilter, enabledRasterFilterTables);
-
-  // If raster filters produced a matching_features CTE, use it in the join;
-  // otherwise fall back to candidate_features directly.
-  const featureSourceCte = rasterCtes.matchingFeaturesCte ? 'matching_features' : 'candidate_features';
+  const featureSourceCte = usesMatchingFeatures ? 'matching_features' : 'candidate_features';
   const featureJoin = hasGeometry
     ? `INNER JOIN ${featureSourceCte} matching_features ON matching_features.id = dl.feature_id`
     : `INNER JOIN ${schema}.features matching_features ON matching_features.id = dl.feature_id`;
@@ -950,10 +931,7 @@ const buildRawSoilQuery = (
   const sql = `
     WITH
     ${aoi_cte}
-    ${aoi_subdivided_cte}
-    ${candidate_features_cte}
-    ${rasterCtes.clippedRasterCtes}
-    ${rasterCtes.matchingFeaturesCte ? rasterCtes.matchingFeaturesCte + ',' : ''}
+    ${usesMatchingFeatures ? `${rasterCtes},` : `${aoi_subdivided_cte}${candidate_features_cte}`}
     -- Resolve slug(s) to dataset id(s) first — drives the join order
     target_dataset AS MATERIALIZED (
       SELECT ds.id
