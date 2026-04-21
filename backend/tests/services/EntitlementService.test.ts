@@ -151,8 +151,12 @@ describe('EntitlementService', () => {
       });
     });
 
-    it('should not throw for internal requests', async () => {
-      const rd = { ...requestData, token: { ...mockToken, isInternalRequest: true }, entitlements: { 'dataset-2': [Capability.DOWNLOAD] } };
+    it.each([
+      { isInternalRequest: true, isDataAdmin: false, isSuperAdmin: false },
+      { isInternalRequest: false, isDataAdmin: true, isSuperAdmin: false },
+      { isInternalRequest: false, isDataAdmin: false, isSuperAdmin: true },
+    ])('should not throw for internal requests or admins', async additionalData => {
+      const rd = { ...requestData, token: { ...mockToken, ...additionalData }, entitlements: {} };
       await expect(service.enforceEntitlements(rd, ['dataset-2', 'dataset-3'], Capability.DOWNLOAD)).resolves.toBeUndefined();
     });
   });
