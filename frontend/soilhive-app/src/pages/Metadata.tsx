@@ -54,7 +54,15 @@ export default function Metadata() {
         </details>
       )}
       <div className="map" style={{ width: '300px', height: '300px' }}>
-        {isMounted && <SoilhiveSimpleMap />}
+        {isMounted && (
+          <SoilhiveSimpleMap
+            geometryFeature={
+              dataset?.spatial_extent
+                ? { type: 'FeatureCollection', features: [{ type: 'Feature', properties: {}, geometry: dataset.spatial_extent }] }
+                : undefined
+            }
+          />
+        )}
       </div>
       <div className={styles.Form}>
         <TextArea label={t('metadata.label')} placeholder={t('metadata.placeholder')} value={value} rows={6} onChange={setValue} />
