@@ -66,8 +66,8 @@ function buildDefaultMocks(overrides: { deleteFileAndMapping?: jest.Mock; existi
   });
 }
 
-function buildSoilDataFile(id: string, name: string, crs: string | null = 'EPSG:4326', error?: string) {
-  return { id, file: null, name, crs, inferredCrs: undefined, progress: 100, error };
+function buildSoilDataFile(id: string, name: string, crs: string | null = 'EPSG:4326', error?: string, fieldNames?: string[]) {
+  return { id, file: null, name, crs, inferredCrs: undefined, fieldNames, progress: 100, error };
 }
 
 // ---------------------------------------------------------------------------
@@ -113,6 +113,34 @@ describe('useDatasetsSoilData', () => {
       });
     });
 
+    it('is false when files have inconsistent field names', async () => {
+      buildDefaultMocks({
+        existingFiles: [
+          { id: '1', name: 'a.csv', metadata: { epsg: 4326, field_names: ['col1', 'col2'] } },
+          { id: '2', name: 'b.csv', metadata: { epsg: 4326, field_names: ['col1', 'col3'] } },
+        ],
+      });
+      const { result } = renderHook(() => useDatasetsSoilData());
+
+      await waitFor(() => {
+        expect(result.current.isContinueEnabled).toBe(false);
+      });
+    });
+
+    it('is true when all files have matching field names', async () => {
+      buildDefaultMocks({
+        existingFiles: [
+          { id: '1', name: 'a.csv', metadata: { epsg: 4326, field_names: ['col1', 'col2'] } },
+          { id: '2', name: 'b.csv', metadata: { epsg: 4326, field_names: ['col2', 'col1'] } },
+        ],
+      });
+      const { result } = renderHook(() => useDatasetsSoilData());
+
+      await waitFor(() => {
+        expect(result.current.isContinueEnabled).toBe(true);
+      });
+    });
+
     it('is true when all files have a crs and no errors', async () => {
       buildDefaultMocks();
       const { result } = renderHook(() => useDatasetsSoilData());
@@ -136,7 +164,7 @@ describe('useDatasetsSoilData', () => {
     it('maps FileDescriptor[] into SoilDataFile[] with the correct shape', async () => {
       buildDefaultMocks({
         existingFiles: [
-          { id: 'f1', name: 'soil.csv', metadata: { epsg: 4326 } },
+          { id: 'f1', name: 'soil.csv', metadata: { epsg: 4326, field_names: ['lat', 'lon'] } },
           { id: 'f2', name: 'geo.geojson', metadata: {} },
         ],
       });
@@ -145,8 +173,8 @@ describe('useDatasetsSoilData', () => {
 
       await waitFor(() => {
         expect(result.current.soilDataFiles).toEqual([
-          { id: 'f1', file: null, name: 'soil.csv', crs: null, inferredCrs: 'EPSG:4326', progress: 100 },
-          { id: 'f2', file: null, name: 'geo.geojson', crs: null, inferredCrs: undefined, progress: 100 },
+          { id: 'f1', file: null, name: 'soil.csv', crs: null, inferredCrs: 'EPSG:4326', fieldNames: ['lat', 'lon'], progress: 100 },
+          { id: 'f2', file: null, name: 'geo.geojson', crs: null, inferredCrs: undefined, fieldNames: undefined, progress: 100 },
         ]);
       });
     });

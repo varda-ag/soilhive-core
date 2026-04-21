@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useApiQuery } from './useApiQuery';
 import { useCreateDatasetFileMapping } from 'hooks/useDatasetMutation';
 import { useFileUpload } from './useFileUpload';
+import { allArraysMatch } from '../utilities/validation';
 import { useFileManagement } from './useFileManagement';
 import { ADMIN_PATHS } from '../configuration/admin';
 import { BACKEND_BASE_URL } from '../configuration/api';
@@ -30,7 +31,10 @@ export function useDatasetsSoilData() {
     enabled: true,
   });
 
-  const isContinueEnabled = soilDataFiles.length > 0 && soilDataFiles.every(f => (!!f.crs || !!f.inferredCrs) && !f.error);
+  const isContinueEnabled =
+    soilDataFiles.length > 0 &&
+    soilDataFiles.every(f => (!!f.crs || !!f.inferredCrs) && !f.error) &&
+    allArraysMatch(soilDataFiles.map(f => f.fieldNames)); // all files must have the same field names to proceed
 
   const updateSoilDataFile = useCallback((id: string, updates: Partial<SoilDataFile>) => {
     setSoilDataFiles(prev => prev.map(f => (f.id === id ? { ...f, ...updates } : f)));
@@ -63,6 +67,7 @@ export function useDatasetsSoilData() {
           name: f.name,
           crs: null, // manually added by user
           inferredCrs: f.metadata?.epsg ? `EPSG:${f.metadata.epsg}` : undefined,
+          fieldNames: f.metadata?.field_names,
           progress: 100,
         })),
     );
