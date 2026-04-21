@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.76.2 (2026-04-21)
+
+## What's Changed
+* fix: skip entitlements for admins by @svaccari in https://github.com/varda-ag/soilhive-core/pull/424
+* fix: add filter criteria to datasets list query by @d-rom in https://github.com/varda-ag/soilhive-core/pull/426
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.76.1...v0.76.2
+
 ## 0.76.1 (2026-04-20)
 
 ## What's Changed
