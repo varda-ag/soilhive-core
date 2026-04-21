@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { MappingRow } from './MappingRow';
-import { STRUCTURAL_FIELD_CODES } from 'hooks/useMappingsStep';
+import { METADATA_FIELD_CODES } from 'hooks/useMappingsStep';
 import type { ColumnMapping, DetailOptionMap, RowDetails } from 'hooks/useMappingsStep';
 import type { MenuOption } from 'types/components';
 import styles from './MappingsTable.module.scss';
@@ -11,7 +11,6 @@ interface Props {
   unitOptionsByConcept: Record<string, MenuOption[]>;
   detailOptions: DetailOptionMap;
   expandedRows: Set<string>;
-  isUnitEnabled: (columnName: string) => boolean;
   onToggleRow: (columnName: string) => void;
   onConceptChange: (columnName: string, value: string) => void;
   onUnitChange: (columnName: string, value: string) => void;
@@ -24,7 +23,6 @@ export function MappingsTable({
   unitOptionsByConcept,
   detailOptions,
   expandedRows,
-  isUnitEnabled,
   onToggleRow,
   onConceptChange,
   onUnitChange,
@@ -45,7 +43,7 @@ export function MappingsTable({
         {columnMappings.map(mapping => {
           const unitOptions = mapping.conceptId ? (unitOptionsByConcept[mapping.conceptId] ?? []) : [];
           // Details panel only applies to soil properties, not structural fields
-          const isDetailsEnabled = mapping.conceptId !== null && !STRUCTURAL_FIELD_CODES.has(mapping.conceptId);
+          const isDetailsEnabled = mapping.conceptId !== null && !METADATA_FIELD_CODES.has(mapping.conceptId);
           return (
             <MappingRow
               key={mapping.columnName}
@@ -54,7 +52,7 @@ export function MappingsTable({
               unitOptions={unitOptions}
               detailOptions={detailOptions}
               isExpanded={expandedRows.has(mapping.columnName)}
-              isUnitEnabled={isUnitEnabled(mapping.columnName) && unitOptions.length > 0}
+              isUnitEnabled={mapping.conceptId !== null && unitOptions.length > 0}
               isDetailsEnabled={isDetailsEnabled}
               onToggle={onToggleRow}
               onConceptChange={onConceptChange}
