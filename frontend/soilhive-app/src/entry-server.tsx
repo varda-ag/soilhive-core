@@ -34,7 +34,7 @@ if (!i18n.isInitialized) {
  * routes fall through to the standard SPA index.html.
  */
 const SSR_ROUTES: Record<string, React.ComponentType> = {
-  '/metadata/:id': MetadataPage,
+  '/datasets/:id': MetadataPage,
 };
 
 /**
@@ -50,7 +50,7 @@ function pathMatchesPattern(pattern: string, pathname: string): boolean {
 }
 
 /**
- * Returns the matched route pattern (e.g. '/metadata/:id') for a given
+ * Returns the matched route pattern (e.g. '/datasets/:id') for a given
  * pathname, or null if no SSR route matches.
  */
 export function matchSSRRoute(pathname: string): string | null {
@@ -87,7 +87,7 @@ export async function render(
   const backendUrl = process.env.BACKEND_BASE_URL ?? '';
 
   // Prefetch route-specific queries so renderToString sees real data.
-  const datasetMatch = matchedPattern === '/metadata/:id' ? pathname.match(/^\/metadata\/([^/]+)$/) : null;
+  const datasetMatch = matchedPattern === '/datasets/:id' ? pathname.match(/^\/datasets\/([^/]+)$/) : null;
   if (datasetMatch) {
     const datasetId = datasetMatch[1];
     await queryClient.prefetchQuery({

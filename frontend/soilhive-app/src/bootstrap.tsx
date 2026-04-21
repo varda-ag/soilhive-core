@@ -12,7 +12,7 @@ import { NotificationProvider, ThemeProvider } from './contexts';
 // SSR page components — loaded lazily so they are not bundled into every page.
 // The key must exactly match the `data-ssr-page` attribute injected by the server.
 const SSR_COMPONENTS: Record<string, () => Promise<{ default: React.ComponentType }>> = {
-  '/metadata/:id': () => import('./pages/Metadata'),
+  '/datasets/:id': () => import('./pages/Metadata'),
 };
 
 if (GTM_CONTAINER_ID) {
