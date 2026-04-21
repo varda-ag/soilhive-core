@@ -109,36 +109,42 @@ export default class SoilDataStorage {
     }));
   };
 
-  filterDatasets = async (entityManager: EntityManager, geometry: Polygon | MultiPolygon): Promise<FilteredDataset[]> => {
+  filterDatasets = async (entityManager: EntityManager, geometry: Polygon | MultiPolygon, filters: FilterCriteria): Promise<FilteredDataset[]> => {
     await entityManager.query("SET LOCAL work_mem = '256MB';");
     const schema = process.env.POSTGRES_SCHEMA;
-    const geomJson = JSON.stringify(geometry);
-    const results = await entityManager.query(
-      `
-      WITH aoi AS MATERIALIZED (
-        SELECT ST_CollectionExtract(
-          ST_MakeValid(ST_GeomFromGeoJSON($1), 'method=structure'), 3
-        ) AS geom
-      )
-      SELECT ds.slug AS id,
-      ds.name,
-      ds.gis_datatype as data_type
+    const params: any[] = [];
+    const p = (val: any) => {
+      params.push(val);
+      return `$${params.length}`;
+    };
+
+    const geomParam = p(JSON.stringify(geometry));
+    const { outerWhere, lateralJoins, lateralWhere } = buildDatasetFilterClauses(filters, p, schema!);
+
+    const enabledRasterFilterTables = await getEnabledRasterFilterTables();
+    const { rasterCtes, rasterLateralWhere } = buildRasterLateralSql({ geometries: [geometry], parameters: filters }, enabledRasterFilterTables);
+    lateralWhere.push(...rasterLateralWhere);
+
+    const sql = `
+      WITH
+      aoi AS MATERIALIZED (
+        SELECT ST_CollectionExtract(ST_MakeValid(ST_GeomFromGeoJSON(${geomParam}), 'method=structure'), 3) AS geom
+      )${rasterCtes ? `,\n      ${rasterCtes}` : ''}
+      SELECT ds.slug AS id, ds.name, ds.gis_datatype AS data_type
       FROM ${schema}.datasets ds
       CROSS JOIN LATERAL (
         SELECT 1
         FROM ${schema}.dataset_layers dl
         INNER JOIN ${schema}.features f ON f.id = dl.feature_id
+        ${lateralJoins.join('\n        ')}
         WHERE dl.dataset_id = ds.id
-          AND ST_Intersects(f.geom, (SELECT geom FROM aoi))
+          AND ${lateralWhere.join('\n          AND ')}
         LIMIT 1
       ) first_match
-      WHERE ds.deleted_at IS NULL
-        AND ds.spatial_extent && (SELECT geom FROM aoi)
-      `,
-      [geomJson],
-    );
+      WHERE ${outerWhere.join('\n        AND ')}
+    `;
 
-    return results;
+    return entityManager.query(sql, params);
   };
 
   getSoilData = async (
@@ -532,6 +538,125 @@ const dataRowTranslation = (row: any, sort?: string): SoilDataSample => {
   const cursor = encodeCursor(createCursor(row.id, sort, sort ? output[sort.replace('-', '')] : undefined));
 
   return { ...output, cursor };
+};
+
+const buildDatasetFilterClauses = (
+  filters: FilterCriteria,
+  p: (val: any) => string,
+  schema: string,
+): { outerWhere: string[]; lateralJoins: string[]; lateralWhere: string[] } => {
+  const outerWhere: string[] = ['ds.deleted_at IS NULL', `ds.spatial_extent && (SELECT geom FROM aoi)`];
+  const lateralJoins: string[] = [];
+  const lateralWhere: string[] = [`ST_Intersects(f.geom, (SELECT geom FROM aoi))`];
+  let needsLayerJoin = false;
+
+  if (filters.data_types && filters.data_types.length > 0) {
+    outerWhere.push(`ds.gis_datatype IN (${filters.data_types.map(v => p(v)).join(', ')})`);
+  }
+
+  if (filters.min_sampling_date === null) {
+    lateralWhere.push('layer.sampling_date IS NULL');
+    needsLayerJoin = true;
+  } else if (filters.min_sampling_date) {
+    outerWhere.push(`ds.reference_period_stop >= ${p(filters.min_sampling_date)}`);
+    lateralWhere.push(`layer.sampling_date >= ${p(filters.min_sampling_date)}`);
+    needsLayerJoin = true;
+  }
+
+  if (filters.max_sampling_date === null) {
+    lateralWhere.push('layer.sampling_date IS NULL');
+    needsLayerJoin = true;
+  } else if (filters.max_sampling_date) {
+    outerWhere.push(`ds.reference_period_start <= ${p(filters.max_sampling_date)}`);
+    lateralWhere.push(`layer.sampling_date <= ${p(filters.max_sampling_date)}`);
+    needsLayerJoin = true;
+  }
+
+  if (filters.min_depth === null) {
+    lateralWhere.push('layer.min_depth IS NULL');
+    needsLayerJoin = true;
+  } else if (filters.min_depth !== undefined) {
+    outerWhere.push(`(ds.soil_depth->>'max')::int >= ${p(filters.min_depth)}`);
+    lateralWhere.push(`layer.max_depth >= ${p(filters.min_depth)}`);
+    needsLayerJoin = true;
+  }
+
+  if (filters.max_depth === null) {
+    lateralWhere.push('layer.max_depth IS NULL');
+    needsLayerJoin = true;
+  } else if (filters.max_depth !== undefined) {
+    outerWhere.push(`(ds.soil_depth->>'min')::int <= ${p(filters.max_depth)}`);
+    lateralWhere.push(`layer.min_depth <= ${p(filters.max_depth)}`);
+    needsLayerJoin = true;
+  }
+
+  if (filters.horizons && filters.horizons.length > 0) {
+    const nonNull = filters.horizons.filter(h => h !== null);
+    const nullClause = filters.horizons.includes(null) ? ' OR layer.horizon IS NULL' : '';
+    lateralWhere.push(nonNull.length > 0 ? `(layer.horizon IN (${nonNull.map(h => p(h)).join(', ')})${nullClause})` : 'layer.horizon IS NULL');
+    needsLayerJoin = true;
+  }
+
+  if (filters.soil_properties && filters.soil_properties.length > 0) {
+    lateralJoins.push(`INNER JOIN ${schema}.soil_properties sp ON sp.id = dl.soil_property_id AND sp.deleted_at IS NULL`);
+    lateralWhere.push(`sp.slug IN (${filters.soil_properties.map(v => p(v)).join(', ')})`);
+  }
+
+  if (filters.licenses && filters.licenses.length > 0) {
+    needsLayerJoin = true;
+    lateralJoins.push(`LEFT JOIN ${schema}.licenses lic ON lic.id = layer.license AND lic.deleted_at IS NULL`);
+    lateralWhere.push(`lic.slug IN (${filters.licenses.map(v => p(v)).join(', ')})`);
+  }
+
+  // Layer join must come first since license joins through it
+  if (needsLayerJoin) {
+    lateralJoins.unshift(`INNER JOIN ${schema}.layers layer ON layer.id = dl.layer_id`);
+  }
+
+  return { outerWhere, lateralJoins, lateralWhere };
+};
+
+const buildRasterLateralSql = (
+  dataFilter: DataFilter,
+  enabledRasterFilterTables: string[],
+): { rasterCtes: string; rasterLateralWhere: string[] } => {
+  if (dataFilter.geometries.length === 0 || !hasRasterFilters(dataFilter) || enabledRasterFilterTables.length === 0) {
+    return { rasterCtes: '', rasterLateralWhere: [] };
+  }
+
+  const schema = process.env.POSTGRES_SCHEMA;
+  const raster_filters = dataFilter.parameters.raster_filters!;
+  const aoiAreaM2 = turf.area(dataFilter.geometries[0]!);
+  const ctes: string[] = [];
+  const rasterLateralWhere: string[] = [];
+
+  for (const baseTable of enabledRasterFilterTables) {
+    const values = raster_filters[baseTable];
+    if (!values || values.length === 0) continue;
+
+    const table = selectOverviewTable(baseTable, aoiAreaM2);
+    const clippedRaster = `clipped_${table}`;
+
+    ctes.push(`${clippedRaster} AS MATERIALIZED (
+        SELECT ST_Union(ST_Clip(rr.rast, aoi.geom, touched => TRUE)) AS rast
+        FROM ${schema}.${table} rr
+        CROSS JOIN aoi
+        WHERE ST_Intersects(rr.rast, aoi.geom)
+      )`);
+
+    // Reference the top-level CTE via scalar subquery — valid inside a LATERAL
+    rasterLateralWhere.push(`(
+          (ST_GeometryType(f.geom) = 'ST_Point'
+            AND ST_Value((SELECT rast FROM ${clippedRaster}), f.geom, TRUE) = ANY(ARRAY[${values.join(',')}]::double precision[]))
+          OR (ST_GeometryType(f.geom) = ANY('{ST_Polygon,ST_MultiPolygon}')
+            AND (SELECT SUM(cnt) FROM ST_ValueCount(
+              ST_Clip((SELECT rast FROM ${clippedRaster}), 1, f.geom, touched => true), 1,
+              ARRAY[${values.join(',')}]::double precision[]
+            ) AS vc(value, cnt)) > 0)
+        )`);
+  }
+
+  return { rasterCtes: ctes.join(',\n      '), rasterLateralWhere };
 };
 
 /**

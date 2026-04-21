@@ -208,6 +208,53 @@ describe('Testing /data-filters routes', () => {
     expect(results.datasets.length).toBe(0);
   });
 
+  it('Coverage should return aggregated dataset summaries across multiple geometries', async () => {
+    const leftPolygon = {
+      type: 'Polygon',
+      coordinates: [
+        [
+          [0, 0],
+          [0.5, 0],
+          [0.5, 1],
+          [0, 1],
+          [0, 0],
+        ],
+      ],
+    };
+    const rightPolygon = {
+      type: 'Polygon',
+      coordinates: [
+        [
+          [0.5, 0],
+          [1, 0],
+          [1, 1],
+          [0.5, 1],
+          [0.5, 0],
+        ],
+      ],
+    };
+
+    // One feature in each half, 3 depth layers each
+    const { dataset } = await addSyntheticData({
+      ...syntheticDataOptions,
+      id: 20,
+      featureCoordinates: [
+        [0.25, 0.5],
+        [0.75, 0.5],
+      ],
+      depthLayers: 3,
+    });
+
+    const payload = { parameters: {}, geometries: [leftPolygon, rightPolygon] };
+    const resPost = await request(app).post('/data-filters').send(payload);
+    const resCoverage = await request(app).get(`/data-filters/${resPost.body.id}/coverage`);
+    const result: FilteredData = resCoverage.body;
+
+    const matches = result.datasets.filter(ds => ds.id === dataset.slug);
+    expect(matches.length).toBe(1);
+    expect(matches[0].dataset_layer_count).toBe(6); // 3 layers per geometry, summed
+  });
+
   it('Datasets endpoint returns an array', async () => {
     const payload = { parameters: {}, geometries: [filteringPolygon] };
     const resPost = await request(app).post('/data-filters').send(payload);
@@ -216,7 +263,7 @@ describe('Testing /data-filters routes', () => {
     expect(Array.isArray(resDatasets.body)).toBe(true);
   });
 
-  it('Datasets should return same datasets as coverage when filtering by geometry', async () => {
+  it('Datasets should return same datasets as coverage', async () => {
     for (let i = 0; i < 5; i++) {
       await addSyntheticData({ ...syntheticDataOptions, id: i, soilPropertyNames: [`${i}`] });
     }
