@@ -105,7 +105,7 @@ async function createMappingProcedures(
   return procedureIds;
 }
 
-// Builds the mapping payload. For structural fields, this is just the concept id. For soil properties, it's an object that may include the concept id, unit conversion id, and procedure id.
+// Builds the mapping payload. For metadata fields, this is just the concept id. For soil properties, it's an object that may include the concept id, unit conversion id, and procedure id.
 function buildDataMappingRequest(mappings: ColumnMapping[], procedureIds: Record<string, string>): DataMappingRequest {
   const request: DataMappingRequest = {};
   for (const m of mappings) {
@@ -219,11 +219,23 @@ export function useMappingsStep(datasetId?: string) {
     if (!files) return;
     const columnNames = [...new Set(files.flatMap(f => f.metadata?.field_names ?? []))];
     const existingDataMapping = existingMappings?.[0]?.data_mapping ?? {};
+    const hasExistingMapping = Object.keys(existingDataMapping).length > 0;
+
+    // Invert detected_fields ({ conceptCode → columnName }) into { columnName → conceptCode }
+    // so we can look up the suggested concept for any unmapped column.
+    const detectedFields = files[0]?.metadata?.detected_fields ?? {};
+    const detectedConceptByColumn: Record<string, string> = {};
+    for (const [conceptCode, columnName] of Object.entries(detectedFields)) {
+      if (columnName) detectedConceptByColumn[columnName] = conceptCode;
+    }
 
     setColumnMappings(
       columnNames.map(columnName => {
         const existing = existingDataMapping[columnName];
-        if (!existing) return { columnName, conceptId: null, unitId: null, details: { ...EMPTY_DETAILS } };
+        if (!existing) {
+          const conceptId = !hasExistingMapping ? (detectedConceptByColumn[columnName] ?? null) : null;
+          return { columnName, conceptId, unitId: null, details: { ...EMPTY_DETAILS } };
+        }
         if (typeof existing === 'string') return { columnName, conceptId: existing, unitId: null, details: { ...EMPTY_DETAILS } };
 
         const proc = procedureByColumn[columnName];
