@@ -553,7 +553,7 @@ const dataRowTranslation = (row: any, sort?: string): SoilDataSample => {
   return { ...output, cursor };
 };
 
-const buildDatasetFilterClauses = (
+export const buildDatasetFilterClauses = (
   filters: FilterCriteria,
   p: (val: any) => string,
   schema: string,
