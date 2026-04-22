@@ -48,19 +48,25 @@ export interface StoredDataFilter extends DataFilter {
   name: string;
 }
 
-export interface FilteredDataset extends FilterCriteria {
+export interface FilteredDatasetSummary extends FilterCriteria {
   id: string;
   name: string;
   dataset_layer_count: number;
 }
 
 export interface FilteredData {
-  datasets: FilteredDataset[];
+  datasets: FilteredDatasetSummary[];
   raster_filters: Record<string, number[]>;
 }
 
+export interface FilteredDataset {
+  id: string;
+  name: string;
+  data_type: GISDataType;
+}
+
 export interface ResultItem {
-  datasets: FilteredDataset[];
+  datasets: FilteredDatasetSummary[];
 }
 
 export interface PostDatasetFilterResponse extends StoredDataFilter {
@@ -234,6 +240,30 @@ export interface DatasetFileMappingResponse {
   id: string;
   fileID: string;
   mappingId: string;
+}
+
+export interface ProcedurePayload {
+  sample_pretreatment?: string;
+  technique?: string;
+  laboratory_method?: string;
+  extractant_concentration?: string;
+  extraction_ratio?: string;
+  extraction_base?: string;
+  measurement_procedure?: string;
+  limit_of_detection?: string;
+}
+
+export interface ProcedureResponse extends ProcedurePayload {
+  id: string;
+}
+
+export interface VocabularyItem {
+  id: string;
+  category: string;
+  name: string;
+  created_at: string;
+  updated_at: string;
+  deleted_at: string | null;
 }
 
 export interface FileDescriptor {

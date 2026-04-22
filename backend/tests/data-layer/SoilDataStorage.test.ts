@@ -3,7 +3,7 @@ import { MultiPolygon, Polygon } from 'geojson';
 import { getEntityManager } from '../../src/utils/data-source';
 import { getPolygonFromBbox } from '../../src/utils/geometry';
 import { addDataset, addSyntheticData, syntheticDataOptions } from '../../src/utils/mock';
-import SoilDataStorage from '../../src/data-layer/SoilDataStorage';
+import SoilDataStorage, { buildDatasetFilterClauses } from '../../src/data-layer/SoilDataStorage';
 import DatasetEntity from '../../src/entities/Dataset';
 import { decodeCursor } from '../../src/utils/cursor';
 import { GISDataType } from '../../src/types/data';
@@ -211,6 +211,28 @@ describe('SoilDataStorage class', () => {
     if (expectedResultCount > 0) {
       expect(results[0].dataset_layer_count).toBe(expectedCount);
     }
+  });
+
+  it.each([
+    {},
+    { max_depth: null },
+    { min_depth: 0, max_depth: 50 },
+    { min_sampling_date: '2020' },
+    { max_sampling_date: '2025' },
+    { min_sampling_date: null, max_sampling_date: null },
+    { horizons: [null] },
+    { horizons: ['A0', 'A1'] },
+  ])('Datasets list query filter builder should have intersection filter as the first clause', filter => {
+    const firstClause = `ST_Intersects(f.geom, (SELECT geom FROM aoi))`;
+    const schema = 'test';
+    const params: any[] = [];
+    const p = (val: any) => {
+      params.push(val);
+      return `$${params.length}`;
+    };
+    const { lateralWhere } = buildDatasetFilterClauses(filter, p, schema!);
+
+    expect(lateralWhere[0]).toBe(firstClause);
   });
 
   it('Filtering using cursor and sorting at the same time should return consistent results', async () => {

@@ -1,7 +1,12 @@
 import { register, unregister, type TimeZone } from 'timezone-mock';
 import type { AvailabilityDataset } from 'types/availability';
-import type { FilteredDataset } from 'types/backend';
-import { getYear, mapFilteredDatasetToAvailabilityDataset, yearRangeToDatasetFilters } from '../../src/adapters';
+import type { FilteredDataset, FilteredDatasetSummary } from 'types/backend';
+import {
+  getYear,
+  mapFilteredDatasetToAvailabilityDataset,
+  mapFilteredDatasetSummaryToAvailabilityDataset,
+  yearRangeToDatasetFilters,
+} from '../../src/adapters';
 import { testTimezones } from '../setupTests';
 
 describe('getYear', () => {
@@ -27,10 +32,10 @@ describe.each(testTimezones)('datasetAdapter (multiple-timezones)', testTimezone
     unregister();
   });
 
-  describe('mapFilteredDatasetToAvailabilityDataset adapter', () => {
+  describe('mapFilteredDatasetSummaryToAvailabilityDataset adapter', () => {
     it('should adapt empty object', () => {
       // Arrange
-      const filteredDataset: FilteredDataset = {
+      const filteredDataset: FilteredDatasetSummary = {
         id: 'dataset-1',
         name: 'dataset-name-1',
         dataset_layer_count: 0,
@@ -52,14 +57,14 @@ describe.each(testTimezones)('datasetAdapter (multiple-timezones)', testTimezone
       };
 
       // Act
-      const actualAvailabilityDataset = mapFilteredDatasetToAvailabilityDataset(filteredDataset);
+      const actualAvailabilityDataset = mapFilteredDatasetSummaryToAvailabilityDataset(filteredDataset);
 
       expect(actualAvailabilityDataset).toEqual(expectedAvailabilityDataset);
     });
 
     it('should adapt valid object', () => {
       // Arrange
-      const filteredDataset: FilteredDataset = {
+      const filteredDataset: FilteredDatasetSummary = {
         id: 'dataset-2',
         name: 'dataset-name-2',
         dataset_layer_count: 10,
@@ -87,10 +92,49 @@ describe.each(testTimezones)('datasetAdapter (multiple-timezones)', testTimezone
       };
 
       // Act
-      const actualAvailabilityDataset = mapFilteredDatasetToAvailabilityDataset(filteredDataset);
+      const actualAvailabilityDataset = mapFilteredDatasetSummaryToAvailabilityDataset(filteredDataset);
 
       // Assert
       expect(actualAvailabilityDataset).toEqual(expectedAvailabilityDataset);
+    });
+  });
+
+  describe('mapFilteredDatasetToAvailabilityDataset adapter', () => {
+    it('should adapt dataset without data_type', () => {
+      const filteredDataset = {
+        id: 'dataset-1',
+        name: 'dataset-name-1',
+      } as FilteredDataset;
+
+      const expectedAvailabilityDataset: AvailabilityDataset = {
+        id: 'dataset-1',
+        name: 'dataset-name-1',
+        views: '0',
+        tags: [],
+        dataType: undefined,
+        properties: {},
+      };
+
+      expect(mapFilteredDatasetToAvailabilityDataset(filteredDataset)).toEqual(expectedAvailabilityDataset);
+    });
+
+    it('should adapt dataset with data_type', () => {
+      const filteredDataset = {
+        id: 'dataset-2',
+        name: 'dataset-name-2',
+        data_type: 'point',
+      } as FilteredDataset;
+
+      const expectedAvailabilityDataset: AvailabilityDataset = {
+        id: 'dataset-2',
+        name: 'dataset-name-2',
+        views: '0',
+        tags: [],
+        dataType: 'point',
+        properties: {},
+      };
+
+      expect(mapFilteredDatasetToAvailabilityDataset(filteredDataset)).toEqual(expectedAvailabilityDataset);
     });
   });
 

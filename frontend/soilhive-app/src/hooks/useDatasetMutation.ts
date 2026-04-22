@@ -1,6 +1,13 @@
 import type { Dataset, GeneralInfoFormData, DatasetFileMappingRequest, DatasetFileMappingResponse } from 'types/backend';
 import { useApiMutation } from './useApiMutation';
 
+export function useUpdateDatasetFileMappingMutation() {
+  return useApiMutation<DatasetFileMappingResponse, { datasetId: string; datasetFileMappingId: string; mappingId: string }>({
+    endpoint: ({ datasetId, datasetFileMappingId }) => `/datasets/${datasetId}/dataset-file-mapping/${datasetFileMappingId}`,
+    method: 'PATCH',
+  });
+}
+
 export function useCreateDatasetMutation() {
   return useApiMutation<Dataset, GeneralInfoFormData>({
     endpoint: '/datasets',

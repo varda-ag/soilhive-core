@@ -1,5 +1,6 @@
-import type { BackendStoredDataFilter, DataFilter, FilteredData } from 'types/backend';
+import type { BackendStoredDataFilter, DataFilter } from 'types/backend';
 import { useApiQuery } from './useApiQuery';
+import { useFilteredCoverageQuery } from './useFilteredCoverageQuery';
 import { computeDatasetSummary } from '../domain';
 import { useSoilProperties } from './useSoilProperties';
 import { useMemo, useState } from 'react';
@@ -27,12 +28,7 @@ export function useDownloadPreview({
 
   const availabilitySelectedSoilProperties = availabilityFilters?.filter.parameters.soil_properties ?? [];
 
-  const { data: availabilityCoverageData, isLoading: isAvailabilityCoverageDataLoading } = useApiQuery<FilteredData>({
-    endpoint: `/data-filters/${filterId}/coverage`,
-    method: 'GET',
-    queryKey: ['data-filter-coverage', filterId],
-    enabled: filterId !== null,
-  });
+  const { data: availabilityCoverageData, isLoading: isAvailabilityCoverageDataLoading } = useFilteredCoverageQuery(filterId ?? undefined);
 
   const datasetsSummary = computeDatasetSummary(availabilityCoverageData?.datasets);
 

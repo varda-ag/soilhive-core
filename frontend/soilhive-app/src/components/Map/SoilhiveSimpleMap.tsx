@@ -13,7 +13,7 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import '../../styles/SoilhiveMap.scss';
 import { bBoxToH3Cells, h3IndexesToGeoJSONPolygons, largestPolygon as largestPolygonFn } from '../../utilities/geo';
 import { bbox as bboxFn } from '@turf/turf';
-import { h3ResolutionForZoomLevel } from '../../utilities/map';
+import { EOX_SATELLITE_MAP_STYLE, h3ResolutionForZoomLevel } from '../../utilities/map';
 import { simplifyGeometry } from '../../utilities/simplifyGeometry';
 import type { Feature, FeatureCollection, GeoJsonProperties, MultiPolygon, Point, Polygon } from 'geojson';
 import type { MapLibreEvent } from 'maplibre-gl';
@@ -91,7 +91,7 @@ function SoilhiveSimpleMap({
   geometryFeature = undefined,
   showNavigation = true,
   showH3Cells = false,
-  mapStyle = 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json',
+  mapStyle = EOX_SATELLITE_MAP_STYLE,
   scrollZoom = true,
   dragPan = true,
   showGeocoder = false,

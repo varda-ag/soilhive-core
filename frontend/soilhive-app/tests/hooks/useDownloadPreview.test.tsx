@@ -1,11 +1,16 @@
 import { renderHook } from '@testing-library/react';
 import { useApiQuery } from 'hooks/useApiQuery';
+import { useFilteredCoverageQuery } from 'hooks/useFilteredCoverageQuery';
 import { useDownloadPreview } from 'hooks/useDownloadPreview';
 import { computeDatasetSummary } from '../../src/domain';
 import { useSoilProperties } from 'hooks/useSoilProperties';
 
 jest.mock('hooks/useApiQuery', () => ({
   useApiQuery: jest.fn(),
+}));
+
+jest.mock('hooks/useFilteredCoverageQuery', () => ({
+  useFilteredCoverageQuery: jest.fn(),
 }));
 
 jest.mock('../../src/domain', () => ({
@@ -17,6 +22,7 @@ jest.mock('hooks/useSoilProperties', () => ({
 }));
 
 const useApiQueryMock = useApiQuery as jest.MockedFunction<typeof useApiQuery>;
+const useFilteredCoverageQueryMock = useFilteredCoverageQuery as jest.MockedFunction<typeof useFilteredCoverageQuery>;
 const computeDatasetSummaryMock = computeDatasetSummary as jest.MockedFunction<typeof computeDatasetSummary>;
 const useSoilPropertiesMock = useSoilProperties as jest.MockedFunction<typeof useSoilProperties>;
 
@@ -27,16 +33,14 @@ describe('useDownloadPreview', () => {
 
   it('requests are loading', () => {
     useSoilPropertiesMock.mockReturnValue({ data: undefined, isLoading: true } as any);
-    useApiQueryMock
-      // Mocks request to endpoint: `/data-filters/${filterId}`
-      .mockReturnValueOnce({ data: undefined, isLoading: true } as any)
-      // Mocks request to endpoint: `/data-filters/${filterId}/coverage`
-      .mockReturnValueOnce({ data: undefined, isLoading: true } as any);
+    // Mocks request to endpoint: `/data-filters/${filterId}`
+    useApiQueryMock.mockReturnValue({ data: undefined, isLoading: true } as any);
+    useFilteredCoverageQueryMock.mockReturnValue({ data: undefined, isLoading: true } as any);
     computeDatasetSummaryMock.mockReturnValue({} as any);
     const {
       result: { current: resultData },
     } = renderHook(() => useDownloadPreview({ filterId: 'test-filter-id', datasetsIds: [], datasetTypesParams: [] as string[] }));
-    expect(useApiQueryMock).toHaveBeenCalledTimes(2);
+    expect(useApiQueryMock).toHaveBeenCalledTimes(1);
     expect(computeDatasetSummaryMock).toHaveBeenCalledTimes(1);
     expect(useSoilPropertiesMock).toHaveBeenCalledTimes(1);
     expect(resultData).toMatchObject({
@@ -59,40 +63,26 @@ describe('useDownloadPreview', () => {
       ],
       isLoading: false,
     } as any);
-    useApiQueryMock.mockImplementation(({ endpoint }: any) => {
-      if (endpoint.endsWith('/coverage')) {
-        return {
-          data: {
-            datasets: [
-              {
-                id: 'mock-dataset-id-1',
-                data_type: 'mock-type-1',
-                name: 'Mock dataset 1',
-                soil_properties: ['prop-1'],
-              },
-              {
-                id: 'mock-dataset-id-2',
-                data_type: 'mock-type-1',
-                name: 'Mock dataset 2',
-                soil_properties: ['prop-1'],
-              },
-            ],
-            raster_filters: {},
-          },
-          isLoading: false,
-        } as any;
-      }
-
-      return {
-        data: {
-          filter: {
-            parameters: { soil_properties: ['prop-1'], min_depth: 0, max_depth: 50 },
-            geometries: ['mock-geometry'],
-          },
+    // Mocks request to endpoint: `/data-filters/${filterId}`
+    useApiQueryMock.mockReturnValue({
+      data: {
+        filter: {
+          parameters: { soil_properties: ['prop-1'], min_depth: 0, max_depth: 50 },
+          geometries: ['mock-geometry'],
         },
-        isLoading: false,
-      } as any;
-    });
+      },
+      isLoading: false,
+    } as any);
+    useFilteredCoverageQueryMock.mockReturnValue({
+      data: {
+        datasets: [
+          { id: 'mock-dataset-id-1', data_type: 'mock-type-1', name: 'Mock dataset 1', soil_properties: ['prop-1'] },
+          { id: 'mock-dataset-id-2', data_type: 'mock-type-1', name: 'Mock dataset 2', soil_properties: ['prop-1'] },
+        ],
+        raster_filters: {},
+      },
+      isLoading: false,
+    } as any);
     computeDatasetSummaryMock.mockReturnValue({} as any);
     const {
       result: { current: resultData },
@@ -103,7 +93,7 @@ describe('useDownloadPreview', () => {
         datasetTypesParams: ['mock-type-1'],
       }),
     );
-    expect(useApiQueryMock).toHaveBeenCalledTimes(4);
+    expect(useApiQueryMock).toHaveBeenCalledTimes(2);
     expect(computeDatasetSummaryMock).toHaveBeenCalledTimes(2);
     expect(useSoilPropertiesMock).toHaveBeenCalledTimes(2);
     expect(resultData).toMatchObject({
