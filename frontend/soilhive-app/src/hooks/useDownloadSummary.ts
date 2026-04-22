@@ -41,7 +41,7 @@ export function useDownloadSummary({ filterId, datasetsIds }: { filterId: string
     : undefined;
 
   const { data: coverageData, isLoading: isCoverageLoading } = useFilteredCoverageQuery(filterId ?? undefined);
-  const { data: datasetsData } = useFilteredDatasetsQuery(filterId ?? undefined);
+  const { data: datasetsData, isLoading: isDatasetsLoading } = useFilteredDatasetsQuery(filterId ?? undefined);
 
   const { data: allLicenses, isLoading: areLicensesLoading } = useApiQuery<License[]>({
     endpoint: '/licenses',
@@ -88,6 +88,6 @@ export function useDownloadSummary({ filterId, datasetsIds }: { filterId: string
     datasetsSummary: computeDatasetSummary(coverageData?.datasets),
     soilProperties,
     depthRange,
-    isLoading: areSoilPropertiesLoading || isFilterLoading || isCoverageLoading || areLicensesLoading,
+    isLoading: areSoilPropertiesLoading || isFilterLoading || isCoverageLoading || areLicensesLoading || isDatasetsLoading,
   };
 }

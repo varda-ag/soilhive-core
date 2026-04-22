@@ -20,7 +20,7 @@ export const yearRangeToDatasetFilters = ({ min, max }: TimeFilterState) => {
 export function mapFilteredDatasetToAvailabilityDataset(dataset: FilteredDataset): AvailabilityDataset {
   return {
     id: dataset.id,
-    name: dataset.name, // TODO: name will come
+    name: dataset.name,
     views: '0', // TODO: views not supported at the moment
     tags: [], // TODO: tags not supported at the moment
     dataType: dataset.data_type,
@@ -31,7 +31,7 @@ export function mapFilteredDatasetToAvailabilityDataset(dataset: FilteredDataset
 export function mapFilteredDatasetSummaryToAvailabilityDataset(dataset: FilteredDatasetSummary): AvailabilityDataset {
   return {
     id: dataset.id,
-    name: dataset.name, // TODO: name will come
+    name: dataset.name,
     views: '0', // TODO: views not supported at the moment
     tags: [], // TODO: tags not supported at the moment
     dataType: dataset.data_type,
