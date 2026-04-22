@@ -167,7 +167,6 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
     if (!fullFilterResults) {
       return fullFilterDatasets?.map(mapFilteredDatasetToAvailabilityDataset) || [];
     }
-    if (!fullFilterResults && !fullFilterDatasets) return [];
     return fullFilterResults.datasets.map(mapFilteredDatasetSummaryToAvailabilityDataset);
   }, [fullFilterResults, fullFilterDatasets]);
 
