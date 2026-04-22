@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.79.1 (2026-04-22)
+
+## What's Changed
+* perf: filterDatasets - replicate and merge raster filtering logic fro… by @d-rom in https://github.com/varda-ag/soilhive-core/pull/432
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.79.0...v0.79.1
+
 ## 0.79.0 (2026-04-22)
 
 ## What's Changed
