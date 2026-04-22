@@ -384,7 +384,7 @@ function drawStandardsSection(doc: PDFKit.PDFDocument): void {
   doc.moveDown(0.8);
 }
 
-function drawTermsSection(doc: PDFKit.PDFDocument, termsUrl?: string): void {
+function drawTermsSection(doc: PDFKit.PDFDocument, termsUrl?: string, homepageUrl?: string): void {
   sectionHeading(doc, 'Terms and conditions');
 
   if (termsUrl) {
@@ -414,7 +414,7 @@ function drawTermsSection(doc: PDFKit.PDFDocument, termsUrl?: string): void {
       width: CONTENT_WIDTH,
     })
     .fillColor(COLOR.teal)
-    .text('https://soilhive.org', { link: 'https://soilhive.org', lineBreak: false });
+    .text(homepageUrl ?? '', { link: homepageUrl, lineBreak: false });
 }
 
 // ─── Main entry point ────────────────────────────────────────────────────────
@@ -486,7 +486,7 @@ export async function generateExportPdf(params: GeneratePdfParams): Promise<void
   drawHeader(doc, params.logoBuffer);
   doc.moveDown(5);
   drawStandardsSection(doc);
-  drawTermsSection(doc, params.termsUrl);
+  drawTermsSection(doc, params.termsUrl, params.homepageUrl);
   drawFooter(doc, p4, params.homepageUrl);
 
   // ── Back to page 1: fill TOC (drawToc calls switchToPage(0) internally) ───

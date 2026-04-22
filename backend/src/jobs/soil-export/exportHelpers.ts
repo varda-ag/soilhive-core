@@ -81,7 +81,7 @@ async function getFilterString(requestData: RequestData, filterEntity: FilterCri
     parts.push(`Sampling date: [${filterEntity.min_sampling_date}, ${filterEntity.max_sampling_date}]`);
   } else if (filterEntity.min_sampling_date) {
     parts.push(`Sampling date: from ${filterEntity.min_sampling_date}`);
-  } else {
+  } else if (filterEntity.max_sampling_date) {
     parts.push(`Sampling date: to ${filterEntity.max_sampling_date}`);
   }
 
@@ -89,7 +89,7 @@ async function getFilterString(requestData: RequestData, filterEntity: FilterCri
     parts.push(`Depth: [${filterEntity.min_depth}, ${filterEntity.max_depth}] cm`);
   } else if (filterEntity.min_depth != null) {
     parts.push(`Depth: from ${filterEntity.min_depth} cm`);
-  } else {
+  } else if (filterEntity.max_depth != null) {
     parts.push(`Depth: to ${filterEntity.max_depth} cm`);
   }
 

@@ -122,6 +122,9 @@ export async function processExportJob(job: Job<ExportJob>): Promise<void> {
       download_path: final_storage_path,
       download_filename: generateDownloadFilename(),
     });
+  } catch (error) {
+    console.error(`Error processing export job ${jobId}:`, error);
+    throw error;
   } finally {
     // Always cleanup temp files, even on error
     await cleanupTempFiles(tempDir);
