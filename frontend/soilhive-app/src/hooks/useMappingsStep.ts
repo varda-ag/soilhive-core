@@ -219,7 +219,6 @@ export function useMappingsStep(datasetId?: string) {
     if (!files) return;
     const columnNames = [...new Set(files.flatMap(f => f.metadata?.field_names ?? []))];
     const existingDataMapping = existingMappings?.[0]?.data_mapping ?? {};
-    const hasExistingMapping = Object.keys(existingDataMapping).length > 0;
 
     // Invert detected_fields ({ conceptCode → columnName }) into { columnName → conceptCode }
     // so we can look up the suggested concept for any unmapped column.
@@ -233,8 +232,7 @@ export function useMappingsStep(datasetId?: string) {
       columnNames.map(columnName => {
         const existing = existingDataMapping[columnName];
         if (!existing) {
-          const conceptId = !hasExistingMapping ? (detectedConceptByColumn[columnName] ?? null) : null;
-          return { columnName, conceptId, unitId: null, details: { ...EMPTY_DETAILS } };
+          return { columnName, conceptId: detectedConceptByColumn[columnName] ?? null, unitId: null, details: { ...EMPTY_DETAILS } };
         }
         if (typeof existing === 'string') return { columnName, conceptId: existing, unitId: null, details: { ...EMPTY_DETAILS } };
 

@@ -159,14 +159,14 @@ describe('useMappingsStep', () => {
       expect(byName['notes'].conceptId).toBeNull();
     });
 
-    it('ignores detected_fields when an existing mapping is present', () => {
+    it('uses detected_fields for columns not in the existing mapping, but existing entries always win', () => {
       setupWithColumnsAndExistingMapping(['lat', 'lon'], { lat: 'geometry' }, { latitude: 'lat', longitude: 'lon' });
       const { result } = renderHook(() => useMappingsStep('1'));
       const byName = Object.fromEntries(result.current.columnMappings.map(m => [m.columnName, m]));
       // 'lat' is in the existing mapping — its value wins over detected_fields
       expect(byName['lat'].conceptId).toBe('geometry');
-      // 'lon' has no existing mapping entry — detected_fields must NOT apply
-      expect(byName['lon'].conceptId).toBeNull();
+      // 'lon' has no existing mapping entry — detected_fields SHOULD apply
+      expect(byName['lon'].conceptId).toBe('longitude');
     });
   });
 
