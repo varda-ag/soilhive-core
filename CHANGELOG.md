@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.79.2 (2026-04-22)
+
+## What's Changed
+* fix(fe): fix detected_coulmns application logic by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/438
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.79.1...v0.79.2
+
 ## 0.79.1 (2026-04-22)
 
 ## What's Changed
