@@ -1,5 +1,5 @@
 import type { AvailabilityDataset, TimeFilterState } from 'types/availability';
-import type { FilteredDataset } from 'types/backend';
+import type { FilteredDataset, FilteredDatasetSummary } from 'types/backend';
 
 export const getYear = (dateString?: string | null): number | undefined => {
   if (!dateString) return undefined;
@@ -18,6 +18,17 @@ export const yearRangeToDatasetFilters = ({ min, max }: TimeFilterState) => {
 };
 
 export function mapFilteredDatasetToAvailabilityDataset(dataset: FilteredDataset): AvailabilityDataset {
+  return {
+    id: dataset.id,
+    name: dataset.name, // TODO: name will come
+    views: '0', // TODO: views not supported at the moment
+    tags: [], // TODO: tags not supported at the moment
+    dataType: dataset.data_type,
+    properties: {},
+  };
+}
+
+export function mapFilteredDatasetSummaryToAvailabilityDataset(dataset: FilteredDatasetSummary): AvailabilityDataset {
   return {
     id: dataset.id,
     name: dataset.name, // TODO: name will come

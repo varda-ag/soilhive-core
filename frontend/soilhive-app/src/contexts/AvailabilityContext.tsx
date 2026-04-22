@@ -3,23 +3,25 @@ import type { LngLat, MapGeoJSONFeature } from 'maplibre-gl';
 import type { FeatureCollection, MultiPolygon, Polygon } from 'geojson';
 
 import type { AvailabilityDataset, DatasetFrontendFilters, DatasetSummary, TimeFilterState } from 'types/availability';
-import { mapFilteredDatasetToAvailabilityDataset } from '../adapters';
+import { mapFilteredDatasetSummaryToAvailabilityDataset, mapFilteredDatasetToAvailabilityDataset } from '../adapters';
 import type {
   SoilProperty,
   FilterCriteria,
   SoilPropertyCategory,
-  FilteredDataset,
+  FilteredDatasetSummary,
   BackendStoredDataFilter,
   RasterFilterCategory,
   FilteredData,
 } from 'types/backend';
 import { computeDatasetSummary } from '../domain';
-import { useFilteredDatasets } from 'hooks/useFilteredDatasets';
+import { useDataFilterQuery } from 'hooks/useDataFilterQuery';
 import { useSoilProperties } from '../hooks/useSoilProperties';
 import { usePropertiesCategories } from 'hooks/usePropertiesCategories';
 import { useRaster } from 'hooks/useRaster';
 import useTheme from '../hooks/useTheme';
 import { bboxPolygon } from '@turf/turf';
+import { useFilteredCoverageQuery } from 'hooks/useFilteredCoverageQuery';
+import { useFilteredDatasetsQuery } from 'hooks/useFilteredDatasetsQuery';
 
 type MapSelection = { type: string; features: GeoJSON.GeoJSON[] };
 
@@ -37,8 +39,8 @@ type AvailabilityContextType = {
   categories: SoilPropertyCategory[];
   isLoadingSoilProperties: boolean;
   allDatasets: AvailabilityDataset[];
-  filteredDatasets: FilteredDataset[];
-  availableDatasets: FilteredDataset[];
+  filteredDatasets: FilteredDatasetSummary[];
+  availableDatasets: FilteredDatasetSummary[];
   geometryFilterResults: FilteredData | undefined;
   datasets: AvailabilityDataset[];
   selectedDatasets: string[];
@@ -46,6 +48,8 @@ type AvailabilityContextType = {
   isNoData: boolean;
   isNoFilteredData: boolean;
   isLoading: boolean;
+  isDatasetsLoading: boolean;
+  isCoverageLoading: boolean;
   isLoadingPartialFilter: boolean;
   isLoadingRasterCategories: boolean;
   searchValue: string;
@@ -119,8 +123,12 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
   const partialFilterPayload = useMemo(() => ({ geometries: geometryFilter, parameters: {} }), [geometryFilter]);
   const fullFilterPayload = useMemo(() => ({ geometries: geometryFilter, parameters: datasetFilters }), [geometryFilter, datasetFilters]);
 
-  const { data: geometryFilterResults, isLoading: isLoadingPartialFilter } = useFilteredDatasets(partialFilterPayload);
-  const { filterId, selectedFilters, data: fullFilterResults, isLoading: isLoadingFullFilter } = useFilteredDatasets(fullFilterPayload);
+  const { filterId: partialFilterId, selectedFilters, isLoading: isLoadingPartialFilter } = useDataFilterQuery(partialFilterPayload);
+  const { filterId: fullFilterId, isLoading: isLoadingFullFilter } = useDataFilterQuery(fullFilterPayload);
+
+  const { data: fullFilterResults, isLoading: isFullCoverageLoading } = useFilteredCoverageQuery(fullFilterId);
+  const { data: geometryFilterResults, isLoading: isPartialCoverageLoading } = useFilteredCoverageQuery(partialFilterId);
+  const { data: fullFilterDatasets, isLoading: isFullDatasetsLoading } = useFilteredDatasetsQuery(fullFilterId);
 
   const [selectedSoilProperties, setSelectedSoilProperties] = useState<string[]>([]);
   const [selectedTimeFilter, setSelectedTimeFilter] = useState<TimeFilterState>({});
@@ -156,34 +164,47 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
   );
 
   const allDatasets = useMemo(() => {
-    if (!fullFilterResults) return [];
-    return fullFilterResults.datasets.map(mapFilteredDatasetToAvailabilityDataset);
-  }, [fullFilterResults]);
+    if (!fullFilterResults) {
+      return fullFilterDatasets?.map(mapFilteredDatasetToAvailabilityDataset) || [];
+    }
+    if (!fullFilterResults && !fullFilterDatasets) return [];
+    return fullFilterResults.datasets.map(mapFilteredDatasetSummaryToAvailabilityDataset);
+  }, [fullFilterResults, fullFilterDatasets]);
 
   const datasets = useMemo(() => {
-    return allDatasets.filter(dataset => {
-      return (
-        (!dataset.dataType || !datasetFrontendFilters.type.length || datasetFrontendFilters.type.includes(dataset.dataType)) &&
-        (!searchValue || dataset.name.toLowerCase().includes(searchValue.toLowerCase()))
-      );
-    });
+    return allDatasets
+      .filter(dataset => {
+        return (
+          (!dataset.dataType || !datasetFrontendFilters.type.length || datasetFrontendFilters.type.includes(dataset.dataType)) &&
+          (!searchValue || dataset.name.toLowerCase().includes(searchValue.toLowerCase()))
+        );
+      })
+      .sort((a, b) => a.name.localeCompare(b.name));
   }, [searchValue, allDatasets, datasetFrontendFilters]);
 
+  const isDatasetsLoading = useMemo(() => {
+    return isFullDatasetsLoading || isLoadingFullFilter;
+  }, [isLoadingFullFilter, isFullDatasetsLoading]);
+
+  const isCoverageLoading = useMemo(() => {
+    return isLoadingFullFilter || isLoadingPartialFilter || isFullCoverageLoading || isPartialCoverageLoading;
+  }, [isFullCoverageLoading, isLoadingFullFilter, isLoadingPartialFilter, isPartialCoverageLoading]);
+
   const isLoading = useMemo(() => {
-    return isLoadingPartialFilter || isLoadingFullFilter || isLoadingSoilProperties || isLoadingCategories;
-  }, [isLoadingFullFilter, isLoadingPartialFilter, isLoadingSoilProperties, isLoadingCategories]);
+    return isCoverageLoading || isLoadingSoilProperties || isLoadingCategories;
+  }, [isCoverageLoading, isLoadingSoilProperties, isLoadingCategories]);
 
   const isNoFilteredData = useMemo(() => {
-    return fullFilterResults?.datasets.length === 0;
-  }, [fullFilterResults]);
+    return fullFilterDatasets?.length === 0;
+  }, [fullFilterDatasets]);
 
   const isNoData = useMemo(() => {
     return geometryFilterResults?.datasets.length === 0;
   }, [geometryFilterResults]);
 
   const datasetsSummary = useMemo<DatasetSummary>(() => {
-    return computeDatasetSummary(fullFilterResults?.datasets);
-  }, [fullFilterResults]);
+    return computeDatasetSummary(fullFilterResults?.datasets, fullFilterDatasets);
+  }, [fullFilterResults, fullFilterDatasets]);
 
   const filteredSoilProperties = useMemo<SoilProperty[]>(() => {
     const properties = new Set<string>();
@@ -264,6 +285,8 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
         isNoData,
         isNoFilteredData,
         isLoading,
+        isDatasetsLoading,
+        isCoverageLoading,
         isLoadingPartialFilter,
         isLoadingRasterCategories,
         searchValue,
@@ -272,7 +295,7 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
         datasetFilters,
         selectedTimeFilter,
         appliedFiltersCount,
-        filterId,
+        filterId: partialFilterId,
         selectedFilters,
         isFiltersSelected,
         selectDataset,
