@@ -55,7 +55,18 @@ export const DownloadsProvider: React.FC<DownloadsProviderProps> = ({ children }
 
   const startDownload = useCallback(
     async (payload: { filter_id: string; dataset_ids: string[]; format: string }) => {
-      const res = await createJob.mutateAsync({ ...payload, type: 'export', anonymous: true });
+      const public_metadata_urls: Record<string, string> = {};
+      payload.dataset_ids.forEach(id => {
+        public_metadata_urls[id] = `${window.location.origin}/datasets/${id}`;
+      });
+      const res = await createJob.mutateAsync({
+        ...payload,
+        type: 'export',
+        anonymous: true,
+        public_homepage_url: window.location.origin,
+        public_terms_url: `${window.location.origin}/terms-and-conditions`,
+        public_metadata_urls,
+      });
 
       setJobsIds(prev => [...prev, res.id]);
       prevStatusRef.current[res.id] = 'created';

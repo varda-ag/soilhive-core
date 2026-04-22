@@ -47,20 +47,22 @@
     "multer": "^2.0.2",
     "node-object-hash": "^3.1.1",
     "p-limit": "^7.3.0",
+    "pdfkit": "^0.18.0",
     "pg": "^8.16.3",
     "pg-boss": "^12.11.1",
+    "pg-dump-restore": "^1.0.15",
     "reflect-metadata": "^0.2.2",
     "swagger-ui-express": "^5.0.1",
     "typeorm": "^0.3.27",
     "uuid": "11.1.0",
-    "wellknown": "^0.5.0",
-    "pg-dump-restore": "^1.0.15"
+    "wellknown": "^0.5.0"
   },
   "devDependencies": {
     "@tsconfig/node-lts": "^22.0.2",
     "@types/express": "^5.0.3",
     "@types/jest": "^30.0.0",
     "@types/node": "^24.10.13",
+    "@types/pdfkit": "^0.17.6",
     "@types/supertest": "^6.0.3",
     "copyfiles": "^2.4.1",
     "jest": "^30.2.0",
@@ -72,7 +74,14 @@
   },
   "jest": {
     "transform": {
-      "^.+\\.(ts|js)x?$": ["ts-jest", { "tsconfig": { "module": "CommonJS" } }]
+      "^.+\\.(ts|js)x?$": [
+        "ts-jest",
+        {
+          "tsconfig": {
+            "module": "CommonJS"
+          }
+        }
+      ]
     },
     "transformIgnorePatterns": [
       "<rootDir>/node_modules/(?!(pg-boss|serialize-error|non-error|p-limit|yocto-queue)/)"
