@@ -85,15 +85,15 @@ async function getFilterString(requestData: RequestData, filterEntity: FilterCri
     parts.push(`Sampling date: to ${filterEntity.max_sampling_date}`);
   }
 
-  if (filterEntity.min_depth != null && filterEntity.max_depth != null) {
+  if (filterEntity.min_depth && filterEntity.max_depth) {
     parts.push(`Depth: [${filterEntity.min_depth}, ${filterEntity.max_depth}] cm`);
-  } else if (filterEntity.min_depth != null) {
+  } else if (filterEntity.min_depth) {
     parts.push(`Depth: from ${filterEntity.min_depth} cm`);
-  } else if (filterEntity.max_depth != null) {
+  } else if (filterEntity.max_depth) {
     parts.push(`Depth: to ${filterEntity.max_depth} cm`);
   }
 
-  const horizons = filterEntity.horizons?.filter((h): h is string => h != null);
+  const horizons = filterEntity.horizons?.filter((h): h is string => h !== null && h !== undefined);
   if (horizons?.length) {
     parts.push(`Horizons: ${horizons.join(', ')}`);
   }
