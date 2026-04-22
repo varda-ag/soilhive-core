@@ -1,20 +1,22 @@
-import { useRef, useState, useCallback, useEffect } from 'react';
+import { useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { useApiQuery } from './useApiQuery';
 import { useCreateDatasetFileMapping } from 'hooks/useDatasetMutation';
 import { useFileUpload } from './useFileUpload';
-import { allArraysMatch } from '../utilities/validation';
+import { arraysMatch } from '../utilities/validation';
 import { useFileManagement } from './useFileManagement';
 import { ADMIN_PATHS } from '../configuration/admin';
 import { BACKEND_BASE_URL } from '../configuration/api';
 import { useRequest } from '../api-client';
 import type { SoilDataFile } from '../types/soilDataFile';
 import type { FileDescriptor } from 'types/backend';
+import { useTranslation } from 'react-i18next';
 
 export const ALLOWED_EXTENSIONS = ['.csv', 'gpkg', '.geojson', '.shp', '.xlsx', '.zip'];
 
 export function useDatasetsSoilData() {
+  const { t } = useTranslation('admin');
   const navigate = useNavigate();
   const { request } = useRequest();
   const { id: datasetId } = useParams();
@@ -31,10 +33,16 @@ export function useDatasetsSoilData() {
     enabled: true,
   });
 
-  const isContinueEnabled =
-    soilDataFiles.length > 0 &&
-    soilDataFiles.every(f => (!!f.crs || !!f.inferredCrs) && !f.error) &&
-    allArraysMatch(soilDataFiles.map(f => f.fieldNames)); // all files must have the same field names to proceed
+  // annote errors if any
+  const annotatedFiles = useMemo<SoilDataFile[]>(() => {
+    const master = soilDataFiles[0]?.fieldNames;
+    return soilDataFiles.map((f, i) => {
+      if (i === 0 || !master || !f.fieldNames) return { ...f, error: null };
+      return { ...f, error: arraysMatch(master, f.fieldNames) ? null : t('mappings.file_inconsistency') };
+    });
+  }, [soilDataFiles, t]);
+
+  const isContinueEnabled = annotatedFiles.length > 0 && annotatedFiles.every(f => (!!f.crs || !!f.inferredCrs) && !f.error);
 
   const updateSoilDataFile = useCallback((id: string, updates: Partial<SoilDataFile>) => {
     setSoilDataFiles(prev => prev.map(f => (f.id === id ? { ...f, ...updates } : f)));
@@ -112,7 +120,7 @@ export function useDatasetsSoilData() {
 
   return {
     fileInputRef,
-    soilDataFiles,
+    soilDataFiles: annotatedFiles,
     uploadingFiles,
     uploadErrors,
     uploadProgress,

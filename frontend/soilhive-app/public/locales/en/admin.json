@@ -235,6 +235,7 @@
             "invalid_file_type": "Invalid file type"
         },
         "mappings": {
+            "file_inconsistency": "This file has an incompatible structure with the first uploaded file. Remove it, correct it and re-upload.",
             "step_title": "Mappings",
             "step_description": "Match your data",
             "title": "Map fields",

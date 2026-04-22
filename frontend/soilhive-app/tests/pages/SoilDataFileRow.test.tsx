@@ -8,6 +8,7 @@ jest.mock('components/UI', () => ({
       {children}
     </button>
   ),
+  FormMessage: ({ message }: any) => <div data-testid="sh-form-message">{message}</div>,
 }));
 
 const mockFile = {
@@ -73,5 +74,22 @@ describe('SoilDataFileRow', () => {
     fireEvent.click(removeBtn);
 
     expect(onRemove).toHaveBeenCalledWith('file-123');
+  });
+
+  it('renders FormMessage when soilDataFile.error is set', () => {
+    const fileWithError = { ...mockFile, error: 'This file has an incompatible structure with the first uploaded file.' };
+
+    render(<SoilDataFileRow soilDataFile={fileWithError} onCrsChange={onCrsChange} onRemove={onRemove} crsOptions={mockCrsOptions} />);
+
+    expect(screen.getByTestId('sh-form-message')).toBeInTheDocument();
+    expect(screen.getByText(/incompatible structure/)).toBeInTheDocument();
+  });
+
+  it('does not render FormMessage when soilDataFile.error is null', () => {
+    const fileWithoutError = { ...mockFile, error: null };
+
+    render(<SoilDataFileRow soilDataFile={fileWithoutError} onCrsChange={onCrsChange} onRemove={onRemove} crsOptions={mockCrsOptions} />);
+
+    expect(screen.queryByTestId('sh-form-message')).not.toBeInTheDocument();
   });
 });

@@ -1,7 +1,7 @@
 /* SoilDataFileRow.tsx */
 import { useTranslation } from 'react-i18next';
 import { AutoComplete, type AutoCompleteCompleteEvent } from 'primereact/autocomplete';
-import { Button } from 'components/UI'; // Use your internal component
+import { Button, FormMessage } from 'components/UI';
 import classnames from 'classnames';
 import styles from './SoilDataFileRow.module.scss';
 import { type SoilDataFile } from '../../../../types/soilDataFile';
@@ -24,7 +24,7 @@ function formatFileSize(bytes: number | undefined): string {
 
 export function SoilDataFileRow({ soilDataFile, onCrsChange, onRemove, crsOptions }: Props) {
   const { t } = useTranslation('admin');
-  const { id, name, file, crs, inferredCrs } = soilDataFile;
+  const { id, name, file, crs, inferredCrs, error } = soilDataFile;
   const [filteredCrs, setFilteredCrs] = useState<string[]>([]);
 
   const isReadOnly = !!inferredCrs;
@@ -78,6 +78,7 @@ export function SoilDataFileRow({ soilDataFile, onCrsChange, onRemove, crsOption
           <CrossIcon className={styles.RemoveButtonIcon} />
         </Button>
       </div>
+      {error && <FormMessage message={error} type="error" withBackground />}
     </div>
   );
 }
