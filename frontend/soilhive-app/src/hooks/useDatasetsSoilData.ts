@@ -35,10 +35,10 @@ export function useDatasetsSoilData() {
 
   // annotate errors if any
   const annotatedFiles = useMemo<SoilDataFile[]>(() => {
-    const master = soilDataFiles[0]?.fieldNames;
+    const masterFieldNames = soilDataFiles[0]?.fieldNames;
     return soilDataFiles.map((f, i) => {
-      if (i === 0 || !master || !f.fieldNames) return { ...f, error: null };
-      return { ...f, error: arraysMatch(master, f.fieldNames) ? null : t('mappings.file_inconsistency') };
+      if (i === 0 || !masterFieldNames || !f.fieldNames) return { ...f, error: null };
+      return { ...f, error: arraysMatch(masterFieldNames, f.fieldNames) ? null : t('mappings.file_inconsistency') };
     });
   }, [soilDataFiles, t]);
 
