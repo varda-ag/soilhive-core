@@ -62,4 +62,46 @@ describe.each(testTimezones)('computeDatasetSummary domain logic (multiple-timez
     const actual = computeDatasetSummary(input);
     expect(actual).toEqual(expected);
   });
+
+  it('uses fullFilterDatasets length for count when fetchedFilteredResults is undefined', () => {
+    const fullFilterDatasets = [
+      { id: 'ds-1', name: 'Dataset 1', data_type: 'vector' },
+      { id: 'ds-2', name: 'Dataset 2', data_type: 'raster' },
+      { id: 'ds-3', name: 'Dataset 3', data_type: 'vector' },
+    ];
+    const actual = computeDatasetSummary(undefined, fullFilterDatasets as any);
+    expect(actual).toEqual({
+      count: 3,
+      dataPoints: 0,
+      layers: 0,
+      depth: '?-?',
+      date: '?-?',
+      globalDateEnd: null,
+      globalDateStart: null,
+      globalMaxDepth: null,
+      globalMinDepth: null,
+    });
+  });
+
+  it('uses fullFilterDatasets length for count when fetchedFilteredResults is empty', () => {
+    const fullFilterDatasets = [
+      { id: 'ds-1', name: 'Dataset 1', data_type: 'vector' },
+      { id: 'ds-2', name: 'Dataset 2', data_type: 'raster' },
+    ];
+    const actual = computeDatasetSummary([], fullFilterDatasets as any);
+    expect(actual.count).toBe(2);
+    expect(actual.dataPoints).toBe(0);
+  });
+
+  it('fetchedFilteredResults count takes precedence over fullFilterDatasets count', () => {
+    const fetchedFilteredResults = [{ id: 'ds-1', name: 'Dataset 1', dataset_layer_count: 10 }];
+    const fullFilterDatasets = [
+      { id: 'ds-1', name: 'Dataset 1', data_type: 'vector' },
+      { id: 'ds-2', name: 'Dataset 2', data_type: 'raster' },
+      { id: 'ds-3', name: 'Dataset 3', data_type: 'vector' },
+    ];
+    const actual = computeDatasetSummary(fetchedFilteredResults, fullFilterDatasets as any);
+    expect(actual.count).toBe(1);
+    expect(actual.dataPoints).toBe(10);
+  });
 });

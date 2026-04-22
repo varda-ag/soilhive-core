@@ -1,5 +1,7 @@
-import type { BackendStoredDataFilter, DataFilter, FilteredData, License } from 'types/backend';
+import type { BackendStoredDataFilter, DataFilter, License } from 'types/backend';
 import { useApiQuery } from './useApiQuery';
+import { useFilteredCoverageQuery } from './useFilteredCoverageQuery';
+import { useFilteredDatasetsQuery } from './useFilteredDatasetsQuery';
 import { computeDatasetSummary } from '../domain';
 import { useSoilProperties } from './useSoilProperties';
 import { useMemo } from 'react';
@@ -38,12 +40,8 @@ export function useDownloadSummary({ filterId, datasetsIds }: { filterId: string
     ? { type: 'FeatureCollection', features: geometryFilter.map(geometry => ({ geometry })) }
     : undefined;
 
-  const { data: coverageData, isLoading: isCoverageLoading } = useApiQuery<FilteredData>({
-    endpoint: `/data-filters/${filterId}/coverage`,
-    method: 'GET',
-    queryKey: ['data-filter-coverage', filterId],
-    enabled: true,
-  });
+  const { data: coverageData, isLoading: isCoverageLoading } = useFilteredCoverageQuery(filterId ?? undefined);
+  const { data: datasetsData, isLoading: isDatasetsLoading } = useFilteredDatasetsQuery(filterId ?? undefined);
 
   const { data: allLicenses, isLoading: areLicensesLoading } = useApiQuery<License[]>({
     endpoint: '/licenses',
@@ -56,18 +54,33 @@ export function useDownloadSummary({ filterId, datasetsIds }: { filterId: string
     return new Map(allLicenses?.map(license => [license.id, license]) ?? []);
   }, [allLicenses]);
 
-  const datasets: DownloadSummaryDataset[] | undefined = coverageData?.datasets
-    .filter(dataset => datasetsIds.includes(dataset.id))
-    ?.map(dataset => {
-      return {
-        id: dataset.id,
-        name: dataset.name,
-        licenses: (dataset.licenses ?? []).map(licenseId => allLicensesMap.get(licenseId)).filter(license => license !== undefined),
-        dataType: dataset.data_type,
-        layerCount: dataset.dataset_layer_count,
-      };
-    })
-    ?.sort((datasetA, datasetB) => datasetA.name.localeCompare(datasetB.name));
+  const datasets: DownloadSummaryDataset[] | undefined = useMemo(() => {
+    if (coverageData) {
+      return coverageData.datasets
+        .filter(dataset => datasetsIds.includes(dataset.id))
+        .map(dataset => ({
+          id: dataset.id,
+          name: dataset.name,
+          licenses: (dataset.licenses ?? []).map(licenseId => allLicensesMap.get(licenseId)).filter(license => license !== undefined),
+          dataType: dataset.data_type,
+          layerCount: dataset.dataset_layer_count,
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+    }
+    if (datasetsData) {
+      return datasetsData
+        .filter(dataset => datasetsIds.includes(dataset.id))
+        .map(dataset => ({
+          id: dataset.id,
+          name: dataset.name,
+          licenses: [],
+          dataType: dataset.data_type,
+          layerCount: 0,
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+    }
+    return undefined;
+  }, [coverageData, datasetsData, datasetsIds, allLicensesMap]);
 
   return {
     datasets,
@@ -75,6 +88,6 @@ export function useDownloadSummary({ filterId, datasetsIds }: { filterId: string
     datasetsSummary: computeDatasetSummary(coverageData?.datasets),
     soilProperties,
     depthRange,
-    isLoading: areSoilPropertiesLoading || isFilterLoading || isCoverageLoading || areLicensesLoading,
+    isLoading: areSoilPropertiesLoading || isFilterLoading || isCoverageLoading || areLicensesLoading || isDatasetsLoading,
   };
 }

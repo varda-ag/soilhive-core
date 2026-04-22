@@ -12,12 +12,13 @@ import type { AvailabilityDataset } from 'types/availability';
 import styles from './DatasetsListItem.module.scss';
 import useAvailability from 'hooks/useAvailability';
 import { useTranslation } from 'react-i18next';
+import { MetaItem } from './MetaItem/MetaItem';
 
 type Props = {
   dataset: AvailabilityDataset;
 };
 export function DatasetsListItem({ dataset }: Props) {
-  const { selectedDatasets, selectDataset } = useAvailability();
+  const { selectedDatasets, selectDataset, isCoverageLoading } = useAvailability();
   const [isOpened, setIsOpened] = useState<boolean>(false);
   const { t } = useTranslation('availability');
 
@@ -48,18 +49,18 @@ export function DatasetsListItem({ dataset }: Props) {
       </div>
       <div className={styles.MetaWrapper}>
         <div className={styles.Meta}>
-          <p className={styles.MetaItem}>
-            <MapIcon className={styles.PointsIcon} /> {dataset.properties.points} points
-          </p>
-          <p className={styles.MetaItem}>
-            <LayersIcon className={styles.LayersIcon} /> {dataset.properties.layers} raster layers
-          </p>
-          <p className={styles.MetaItem}>
-            <RullerIcon className={styles.DepthIcon} /> {dataset.properties.minDepth}-{dataset.properties.maxDepth} cm
-          </p>
-          <p className={styles.MetaItem}>
-            <CalendarIcon className={styles.DateIcon} /> {dataset.properties.dateStart} - {dataset.properties.dateEnd}
-          </p>
+          <MetaItem icon={<MapIcon className={styles.PointsIcon} />} isLoading={isCoverageLoading}>
+            {dataset.properties.points} points
+          </MetaItem>
+          <MetaItem icon={<LayersIcon className={styles.LayersIcon} />} isLoading={isCoverageLoading}>
+            {dataset.properties.layers} raster layers
+          </MetaItem>
+          <MetaItem icon={<RullerIcon className={styles.DepthIcon} />} isLoading={isCoverageLoading}>
+            {dataset.properties.minDepth}-{dataset.properties.maxDepth} cm
+          </MetaItem>
+          <MetaItem icon={<CalendarIcon className={styles.DateIcon} />} isLoading={isCoverageLoading}>
+            {dataset.properties.dateStart} - {dataset.properties.dateEnd}
+          </MetaItem>
         </div>
       </div>
     </div>

@@ -1,0 +1,14 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`MetaItem renders icon and children 1`] = `
+<div>
+  <p
+    class="MetaItem"
+  >
+    <svg
+      data-testid="mock-icon"
+    />
+    some content
+  </p>
+</div>
+`;
