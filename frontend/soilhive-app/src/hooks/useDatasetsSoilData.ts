@@ -33,7 +33,7 @@ export function useDatasetsSoilData() {
     enabled: true,
   });
 
-  // annote errors if any
+  // annotate errors if any
   const annotatedFiles = useMemo<SoilDataFile[]>(() => {
     const master = soilDataFiles[0]?.fieldNames;
     return soilDataFiles.map((f, i) => {
