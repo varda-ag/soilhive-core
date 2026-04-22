@@ -34,4 +34,8 @@ describe('arraysMatch', () => {
   it('returns true for two empty arrays', () => {
     expect(arraysMatch([], [])).toBe(true);
   });
+
+  it('does not false-positive when field names contain commas', () => {
+    expect(arraysMatch(['a,b', 'c'], ['a', 'b,c'])).toBe(false);
+  });
 });

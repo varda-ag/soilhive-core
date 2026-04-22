@@ -3,5 +3,7 @@ export function isEmptyString(value: string): boolean {
 }
 
 export function arraysMatch(a: string[], b: string[]): boolean {
-  return [...a].sort().join(',') === [...b].sort().join(',');
+  if (a.length !== b.length) return false;
+  const sa = [...a].sort(), sb = [...b].sort();
+  return sa.every((v, i) => v === sb[i]);
 }
