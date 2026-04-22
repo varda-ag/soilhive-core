@@ -102,6 +102,11 @@ describe('useDownloads', () => {
       filter_id: 'filter-1',
       dataset_ids: ['dataset-1'],
       format: 'csv',
+      public_homepage_url: 'http://localhost',
+      public_metadata_urls: {
+        'dataset-1': 'http://localhost/datasets/dataset-1',
+      },
+      public_terms_url: 'http://localhost/terms-and-conditions',
       type: 'export',
       anonymous: true,
     });

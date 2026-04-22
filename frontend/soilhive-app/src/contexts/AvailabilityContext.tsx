@@ -12,6 +12,7 @@ import type {
   BackendStoredDataFilter,
   RasterFilterCategory,
   FilteredData,
+  FilteredDataset,
 } from 'types/backend';
 import { computeDatasetSummary } from '../domain';
 import { useDataFilterQuery } from 'hooks/useDataFilterQuery';
@@ -40,7 +41,7 @@ type AvailabilityContextType = {
   isLoadingSoilProperties: boolean;
   allDatasets: AvailabilityDataset[];
   filteredDatasets: FilteredDatasetSummary[];
-  availableDatasets: FilteredDatasetSummary[];
+  availableDatasets: (FilteredDatasetSummary | FilteredDataset)[];
   geometryFilterResults: FilteredData | undefined;
   datasets: AvailabilityDataset[];
   selectedDatasets: string[];
@@ -247,7 +248,7 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
   }, [datasetFrontendFilters, selectedTimeFilter, selectedSoilProperties, datasetFilters.raster_filters]);
 
   const availableDatasets = useMemo(() => {
-    const datasets = fullFilterResults ? fullFilterResults.datasets : [];
+    const datasets = fullFilterResults ? fullFilterResults.datasets : fullFilterDatasets || [];
     if (selectedDatasets.length > 0) {
       const datasetIds = new Set(datasets.map(dataset => dataset.id));
       // Excludes the selected datasets that are not available anymore in the current
@@ -258,7 +259,7 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
       }
     }
     return datasets.sort((a, b) => a.name.localeCompare(b.name, 'en', { sensitivity: 'base' }));
-  }, [fullFilterResults, selectedDatasets]);
+  }, [fullFilterResults, fullFilterDatasets, selectedDatasets]);
 
   return (
     <AvailabilityContext.Provider
