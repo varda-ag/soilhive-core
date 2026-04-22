@@ -27,8 +27,8 @@ export interface ExportJobParameters {
   format: string;
   dataset_ids: string[];
   public_homepage_url?: string;
-  public_metadata_url?: string;
   public_terms_url?: string;
+  public_metadata_urls?: Record<string, string>; // Optional mapping of dataset_id to metadata URL for Readme.PDF
 }
 
 export interface ExportJob extends ExportJobParameters, CommonJobData {

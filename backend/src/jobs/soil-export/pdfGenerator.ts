@@ -2,10 +2,12 @@ import PDFDocument from 'pdfkit';
 import * as fs from 'fs';
 
 const COLOR = {
-  teal: '#2D7A6B',
-  dark: '#1A1A1A',
+  teal: '#3E7F77',
+  black: '#000000',
   gray: '#888888',
-  rule: '#CCCCCC',
+  rule: '#F6F7F8',
+  grid: '#DDDDDD',
+  header: '#EEEFF0',
 };
 
 const FONT = {
@@ -13,9 +15,12 @@ const FONT = {
   regular: 'Helvetica',
 };
 
+const FONT_SIZE = 12;
 const PAGE_WIDTH = 595.28; // A4 pt
 const MARGIN = 60;
 const CONTENT_WIDTH = PAGE_WIDTH - MARGIN * 2;
+const VERTICAL_SPACE = 0.75;
+const YEAR = new Date().getFullYear();
 
 const FIELD_DESCRIPTIONS: Record<string, string> = {
   geom: 'Geometry of the sampling location in the WGS84 coordinate system',
@@ -45,6 +50,7 @@ export interface DatasetPdfInfo {
 export interface GeneratePdfParams {
   outputPath: string;
   datasets: DatasetPdfInfo[];
+  filter: string | null;
   logoBuffer: Buffer | null;
   fileFormat: string;
   exportDate: Date;
@@ -63,10 +69,10 @@ interface TocEntry {
 
 export function drawHeader(doc: PDFKit.PDFDocument, logoBuffer: Buffer | null): void {
   const y = MARGIN - 30;
-  doc.font(FONT.regular).fontSize(9).fillColor(COLOR.dark).text('Data download summary', MARGIN, y, { lineBreak: false });
+  doc.font(FONT.regular).fontSize(9).fillColor(COLOR.black).text('Data download summary', MARGIN, y, { lineBreak: false });
 
   if (logoBuffer) {
-    doc.image(logoBuffer, PAGE_WIDTH - MARGIN - 60, y - 8, { height: 28 });
+    doc.image(logoBuffer, PAGE_WIDTH - MARGIN - 60, y - 10, { height: 28 });
   }
 
   doc
@@ -80,7 +86,7 @@ export function drawHeader(doc: PDFKit.PDFDocument, logoBuffer: Buffer | null): 
 export function drawFooter(doc: PDFKit.PDFDocument, pageNumber: number, homepageUrl?: string): void {
   const PAGE_HEIGHT = 841.89; // A4 pt
   const y = PAGE_HEIGHT - MARGIN + 10;
-  const copyrightText = `© ${new Date().getFullYear()} SoilHive is a Varda Foundation service. `;
+  const copyrightText = `© ${YEAR} SoilHive is a Varda Foundation service. `;
 
   // y is past page maxY — using `width` here would trigger LineWrapper's overflow check
   // and auto-add pages.  Use lineBreak:false without width to bypass LineWrapper entirely.
@@ -108,25 +114,27 @@ function sectionHeading(doc: PDFKit.PDFDocument, title: string, y?: number): num
     .moveTo(MARGIN, ruleY)
     .lineTo(PAGE_WIDTH - MARGIN, ruleY)
     .strokeColor(COLOR.rule)
-    .lineWidth(0.5)
+    .lineWidth(5.0)
     .stroke();
   doc.moveDown(0.6);
   return doc.y;
 }
 
 function subHeading(doc: PDFKit.PDFDocument, title: string): void {
-  doc.moveDown(0.5).font(FONT.regular).fontSize(12).fillColor(COLOR.teal).text(title, MARGIN);
+  doc.moveDown(VERTICAL_SPACE).font(FONT.regular).fontSize(FONT_SIZE).fillColor(COLOR.teal).text(title, MARGIN);
   doc.moveDown(0.3);
 }
 
-function bodyText(doc: PDFKit.PDFDocument, text: string): void {
-  doc.font(FONT.regular).fontSize(10).fillColor(COLOR.dark).text(text, MARGIN, doc.y, { width: CONTENT_WIDTH });
-  doc.moveDown(0.5);
+function bodyText(doc: PDFKit.PDFDocument, text: string, continued?: boolean): void {
+  doc.font(FONT.regular).fontSize(FONT_SIZE).fillColor(COLOR.black).text(text, MARGIN, doc.y, { width: CONTENT_WIDTH, continued });
+  if (!continued) {
+    doc.moveDown(VERTICAL_SPACE);
+  }
 }
 
 function bullet(doc: PDFKit.PDFDocument, label: string, value?: string): void {
   const bx = MARGIN + 10;
-  doc.font(FONT.regular).fontSize(10).fillColor(COLOR.dark);
+  doc.font(FONT.regular).fontSize(FONT_SIZE).fillColor(COLOR.black);
   if (value !== undefined) {
     doc.text('• ', bx, doc.y, { continued: true, lineBreak: false });
     doc.font(FONT.bold).text(`${label}: `, { continued: true, lineBreak: false });
@@ -140,8 +148,16 @@ function drawCoverTitle(doc: PDFKit.PDFDocument, logoBuffer: Buffer | null): voi
   if (logoBuffer) {
     doc.image(logoBuffer, PAGE_WIDTH - MARGIN - 90, MARGIN, { height: 45 });
   }
-  doc.font(FONT.bold).fontSize(36).fillColor(COLOR.dark).text('Data download', MARGIN, MARGIN);
-  doc.font(FONT.regular).fontSize(24).fillColor(COLOR.dark).text('summary', MARGIN);
+  doc
+    .font(FONT.bold)
+    .fontSize(32)
+    .fillColor(COLOR.black)
+    .text('Data download', MARGIN, MARGIN - 10, { align: 'right', width: CONTENT_WIDTH / 2 });
+  doc
+    .font(FONT.regular)
+    .fontSize(24)
+    .fillColor(COLOR.black)
+    .text('summary', MARGIN, undefined, { align: 'right', width: CONTENT_WIDTH / 2 });
   doc.moveDown(3);
 }
 
@@ -155,43 +171,62 @@ function drawToc(doc: PDFKit.PDFDocument, entries: TocEntry[], startY: number): 
     const label = `${bulletStr}${entry.indexLabel ? entry.indexLabel + '. ' : ''}${entry.title}`;
     const pageStr = String(entry.page);
 
-    // Measure text widths
-    doc
-      .font(FONT.regular)
-      .fontSize(10)
-      .fillColor(entry.indent ? COLOR.dark : COLOR.dark);
+    doc.font(FONT.regular).fontSize(FONT_SIZE);
     const labelWidth = doc.widthOfString(label);
     const pageWidth = doc.widthOfString(pageStr);
+    const rowY = doc.y;
+    const lineHeight = doc.currentLineHeight(true);
+    const dotY = rowY + lineHeight / 2;
     const dotsAreaStart = x + labelWidth + 4;
     const dotsAreaEnd = PAGE_WIDTH - MARGIN - pageWidth - 4;
 
     // Bullet + label
     if (!entry.indent) {
-      doc.fillColor(COLOR.teal).text('● ', x, doc.y, { continued: true, lineBreak: false });
-      doc.fillColor(COLOR.dark).text(`${entry.indexLabel ? entry.indexLabel + '. ' : ''}${entry.title}`, {
+      doc.fillColor(COLOR.teal).text('• ', x, rowY, { continued: true, lineBreak: false });
+      doc.fillColor(COLOR.black).text(`${entry.indexLabel ? entry.indexLabel + '. ' : ''}${entry.title}`, {
         continued: false,
         lineBreak: false,
       });
     } else {
-      doc.fillColor(COLOR.dark).text(label, x, doc.y, { continued: false, lineBreak: false });
+      doc.fillColor(COLOR.black).text(label, x, rowY, { continued: false, lineBreak: false });
     }
-
-    const lineY = doc.y - 4; // vertical mid of text line
 
     // Dotted leader
     if (dotsAreaEnd > dotsAreaStart + 10) {
-      const dotSpacing = 5;
       doc.fillColor(COLOR.gray);
-      for (let dx = dotsAreaStart; dx < dotsAreaEnd; dx += dotSpacing) {
-        doc.circle(dx, lineY, 0.7).fill();
+      for (let dx = dotsAreaStart; dx < dotsAreaEnd; dx += 5) {
+        doc.circle(dx, dotY, 0.7).fill();
       }
     }
 
     // Page number
-    doc.fillColor(COLOR.dark).text(pageStr, PAGE_WIDTH - MARGIN - pageWidth, lineY - 5, { lineBreak: false });
+    doc.fillColor(COLOR.black).text(pageStr, PAGE_WIDTH - MARGIN - pageWidth, rowY, { lineBreak: false });
 
+    // Advance past the row since lineBreak:false leaves doc.y unchanged
+    doc.y = rowY + lineHeight;
     doc.moveDown(0.65);
   }
+}
+
+function getFormatString(format: string): string {
+  switch (format.toLowerCase()) {
+    case 'csv':
+      return 'CSV';
+    case 'xlsx':
+      return 'XLSX';
+    case 'shp':
+      return 'Shapefile';
+    case 'geojson':
+      return 'GeoJSON';
+    case 'gpkg':
+      return 'GPKG';
+    default:
+      return format.toUpperCase();
+  }
+}
+
+function getFilterString(params: GeneratePdfParams): string {
+  return params.filter ?? 'No filters applied';
 }
 
 function drawDataRequestSection(doc: PDFKit.PDFDocument, params: GeneratePdfParams): void {
@@ -200,12 +235,12 @@ function drawDataRequestSection(doc: PDFKit.PDFDocument, params: GeneratePdfPara
   bodyText(doc, 'This section summarizes the parameters used to generate this data download.');
   bodyText(doc, 'The request includes:');
 
-  bullet(doc, 'Area of interest', 'user-selected geographic area');
-  bullet(doc, 'Applied filters', 'selected properties, filters, time range, etc.');
-  bullet(doc, 'File format', params.fileFormat.toUpperCase());
+  //bullet(doc, 'Area of interest', ''); // TODO: add AOI description when available
+  bullet(doc, 'Applied filters', getFilterString(params));
+  bullet(doc, 'File format', getFormatString(params.fileFormat));
   bullet(doc, 'Date of extraction', params.exportDate.toISOString().split('T')[0]);
 
-  doc.moveDown(0.5);
+  doc.moveDown(VERTICAL_SPACE);
   bodyText(doc, 'The downloaded files contain soil observations matching the criteria specified above.');
   bodyText(doc, 'For each dataset included in this data package, links to the metadata page are provided below.');
 
@@ -213,14 +248,14 @@ function drawDataRequestSection(doc: PDFKit.PDFDocument, params: GeneratePdfPara
     const bx = MARGIN + 10;
     doc
       .font(FONT.regular)
-      .fontSize(10)
+      .fontSize(FONT_SIZE)
       .fillColor(COLOR.teal)
       .text(`• ${name}`, bx, doc.y, {
         link: url,
         width: CONTENT_WIDTH - 20,
       });
   }
-  doc.moveDown(0.5);
+  doc.moveDown(VERTICAL_SPACE);
 }
 
 function drawDataStructureSection(doc: PDFKit.PDFDocument, fileFormat: string): void {
@@ -230,23 +265,27 @@ function drawDataStructureSection(doc: PDFKit.PDFDocument, fileFormat: string): 
     doc,
     'The downloaded data package is organized as one file per soil property. Each file contains observations from multiple datasets that have been harmonized and structured using a common schema.',
   );
-  bodyText(doc, 'Depending on the selected format, the data are structured as follows:');
+  bodyText(doc, 'Data is structured as follows:');
+  doc.moveDown(VERTICAL_SPACE);
 
   const fmt = fileFormat.toLowerCase();
-  bullet(doc, 'CSV / SHP / GeoJSON: one file per soil property');
-  bullet(doc, 'XLSX: one file with one sheet per soil property');
-  bullet(doc, 'GPKG: one file with one layer per soil property');
+  switch (fmt) {
+    case 'csv':
+    case 'shp':
+    case 'geojson':
+      bullet(doc, `One ${getFormatString(fileFormat)} file per soil property`);
+      break;
+    case 'xlsx':
+      bullet(doc, `One ${getFormatString(fileFormat)} file with one sheet per soil property`);
+      break;
+    case 'gpkg':
+      bullet(doc, `One ${getFormatString(fileFormat)} file with one layer per soil property`);
+      break;
+    default:
+      break;
+  }
 
-  doc.moveDown(0.5);
-  const active =
-    fmt === 'csv' || fmt === 'shp' || fmt === 'geojson'
-      ? 'CSV / SHP / GeoJSON'
-      : fmt === 'xlsx'
-        ? 'XLSX'
-        : fmt === 'gpkg'
-          ? 'GPKG'
-          : fileFormat.toUpperCase();
-  bodyText(doc, `This export uses the ${active} format.`);
+  doc.moveDown(VERTICAL_SPACE);
   bodyText(
     doc,
     'Each record represents a single soil observation, including contextual information on sampling depth, analytical procedures, and dataset provenance.',
@@ -263,7 +302,7 @@ function drawFieldDictionarySection(doc: PDFKit.PDFDocument): void {
   let ty = doc.y;
   doc.rect(TABLE_X, ty, COL1, ROW_H).fillAndStroke('#F5F5F5', COLOR.rule);
   doc.rect(TABLE_X + COL1, ty, COL2, ROW_H).fillAndStroke('#F5F5F5', COLOR.rule);
-  doc.font(FONT.bold).fontSize(9).fillColor(COLOR.dark);
+  doc.font(FONT.bold).fontSize(9).fillColor(COLOR.black);
   doc.text('Field', TABLE_X + 6, ty + 6, { width: COL1 - 10, lineBreak: false });
   doc.text('Description', TABLE_X + COL1 + 6, ty + 6, { width: COL2 - 10, lineBreak: false });
   ty += ROW_H;
@@ -279,16 +318,16 @@ function drawFieldDictionarySection(doc: PDFKit.PDFDocument): void {
     );
     const rowH = Math.max(ROW_H, descHeight);
 
-    doc.rect(TABLE_X, ty, COL1, rowH).stroke(COLOR.rule);
-    doc.rect(TABLE_X + COL1, ty, COL2, rowH).stroke(COLOR.rule);
-    doc.font(FONT.regular).fontSize(9).fillColor(COLOR.dark);
+    doc.rect(TABLE_X, ty, COL1, rowH).stroke(COLOR.grid);
+    doc.rect(TABLE_X + COL1, ty, COL2, rowH).stroke(COLOR.grid);
+    doc.font(FONT.regular).fontSize(9).fillColor(COLOR.black);
     doc.text(field, TABLE_X + 6, ty + 6, { width: COL1 - 10, lineBreak: false });
     doc.text(desc, TABLE_X + COL1 + 6, ty + 6, { width: COL2 - 12 });
     ty += rowH;
   }
 
   doc.y = ty + 10;
-  doc.moveDown(0.5);
+  doc.moveDown(VERTICAL_SPACE);
 
   bodyText(
     doc,
@@ -309,37 +348,39 @@ function drawStandardsSection(doc: PDFKit.PDFDocument): void {
     doc,
     'The SoilHive metadata model aligns with established international standards, including ISO 19115, the INSPIRE Directive, Dublin Core.',
   );
-  doc.moveDown(0.5);
+  doc.moveDown(VERTICAL_SPACE);
 
   subHeading(doc, 'Data model');
   bodyText(
     doc,
-    'The SoilHive data model defines the structure and relationships used to organize soil data and associated metadata across datasets: ',
+    'The SoilHive data model defines the structure and relationships used to organize soil data and associated metadata across datasets.',
   );
-  doc
-    .font(FONT.regular)
-    .fontSize(10)
-    .fillColor(COLOR.teal)
-    .text('Data model', MARGIN, doc.y - 6, {
-      link: 'https://soilhive.org/docs/data-model',
-      width: CONTENT_WIDTH,
-    });
-  doc.moveDown(0.5);
+  // TODO: add link to data model docs when available
+  // doc
+  //   .font(FONT.regular)
+  //   .fontSize(FONT_SIZE)
+  //   .fillColor(COLOR.teal)
+  //   .text('Data model', MARGIN, doc.y - 6, {
+  //     link: 'https://soilhive.org/docs/data-model',
+  //     width: CONTENT_WIDTH,
+  //   });
+  doc.moveDown(VERTICAL_SPACE);
 
   subHeading(doc, 'SoilHive vocabulary');
   bodyText(
     doc,
     'All soil properties are standardized using a controlled vocabulary aligned, where possible, with the GLOSIS ontology developed by FAO. Each property corresponds to a unique concept with a clear definition and a standardized unit of measurement.',
   );
-  bodyText(doc, 'This approach supports semantic consistency across datasets and interoperability with external systems. ');
-  doc
-    .font(FONT.regular)
-    .fontSize(10)
-    .fillColor(COLOR.teal)
-    .text('SoilHive soil data vocabulary', MARGIN, doc.y - 6, {
-      link: 'https://soilhive.org/docs/vocabulary',
-      width: CONTENT_WIDTH,
-    });
+  bodyText(doc, 'This approach supports semantic consistency across datasets and interoperability with external systems.');
+  // TODO: add link to vocabulary docs when available
+  // doc
+  //   .font(FONT.regular)
+  //   .fontSize(FONT_SIZE)
+  //   .fillColor(COLOR.teal)
+  //   .text('SoilHive soil data vocabulary', MARGIN, doc.y - 6, {
+  //     link: 'https://soilhive.org/docs/vocabulary',
+  //     width: CONTENT_WIDTH,
+  //   });
   doc.moveDown(0.8);
 }
 
@@ -347,16 +388,13 @@ function drawTermsSection(doc: PDFKit.PDFDocument, termsUrl?: string): void {
   sectionHeading(doc, 'Terms and conditions');
 
   if (termsUrl) {
-    bodyText(doc, 'Use of SoilHive data is subject to the platform\u2019s terms and conditions, which can be consulted here: ');
+    bodyText(doc, 'Use of SoilHive data is subject to the platform\u2019s terms and conditions, which can be consulted here: ', true);
     doc
       .font(FONT.regular)
-      .fontSize(10)
+      .fontSize(FONT_SIZE)
       .fillColor(COLOR.teal)
-      .text('Terms and Conditions', MARGIN, doc.y - 6, {
-        link: termsUrl,
-        width: CONTENT_WIDTH,
-      });
-    doc.moveDown(0.5);
+      .text('Terms and Conditions', { continued: false, link: termsUrl, width: CONTENT_WIDTH });
+    doc.moveDown(VERTICAL_SPACE);
   } else {
     bodyText(
       doc,
@@ -369,8 +407,8 @@ function drawTermsSection(doc: PDFKit.PDFDocument, termsUrl?: string): void {
 
   doc
     .font(FONT.regular)
-    .fontSize(10)
-    .fillColor(COLOR.dark)
+    .fontSize(FONT_SIZE)
+    .fillColor(COLOR.black)
     .text('Varda Foundation. (Year). SoilHive soil data platform [Data platform]. ', MARGIN, doc.y, {
       continued: true,
       width: CONTENT_WIDTH,
@@ -392,6 +430,7 @@ export async function generateExportPdf(params: GeneratePdfParams): Promise<void
   let tocStartY = 0;
 
   // ── PAGE 1: Cover ──────────────────────────────────────────────────────────
+  doc.rect(0, 0, PAGE_WIDTH, 84).fill(COLOR.header);
   drawCoverTitle(doc, params.logoBuffer);
 
   sectionHeading(doc, 'Intro');
@@ -404,7 +443,7 @@ export async function generateExportPdf(params: GeneratePdfParams): Promise<void
     'Each dataset included in this package is accompanied by harmonized metadata describing its origin, spatial and temporal coverage, and licensing conditions. This ensures traceability, interoperability, and appropriate reuse.',
   );
 
-  doc.moveDown(0.5);
+  doc.moveDown(VERTICAL_SPACE);
   sectionHeading(doc, 'Summary');
   tocStartY = doc.y + 4;
   // Reserve space for TOC (filled in after all pages are rendered)
@@ -415,23 +454,29 @@ export async function generateExportPdf(params: GeneratePdfParams): Promise<void
 
   // ── PAGE 2: Data request + Data structure ──────────────────────────────────
   doc.addPage();
+  doc.rect(0, 0, PAGE_WIDTH, 60).fill(COLOR.header);
   const p2 = doc.bufferedPageRange().count; // 1-based page number
   tocEntries.push({ title: 'Data request summary and data', indent: false, page: p2 });
   tocEntries.push({ title: 'Data structure', indent: false, page: p2 });
   drawHeader(doc, params.logoBuffer);
+  doc.moveDown(5);
   drawDataRequestSection(doc, params);
+  doc.moveDown(3);
   drawDataStructureSection(doc, params.fileFormat);
   drawFooter(doc, p2, params.homepageUrl);
 
   // ── PAGE 3: Field dictionary ───────────────────────────────────────────────
   doc.addPage();
+  doc.rect(0, 0, PAGE_WIDTH, 60).fill(COLOR.header);
   const p3 = doc.bufferedPageRange().count;
   drawHeader(doc, params.logoBuffer);
+  doc.moveDown(5);
   drawFieldDictionarySection(doc);
   drawFooter(doc, p3, params.homepageUrl);
 
   // ── PAGE 4: Standards + Terms ──────────────────────────────────────────────
   doc.addPage();
+  doc.rect(0, 0, PAGE_WIDTH, 60).fill(COLOR.header);
   const p4 = doc.bufferedPageRange().count;
   tocEntries.push({ title: 'Data and metadata standards', indent: false, page: p4 });
   tocEntries.push({ title: 'Metadata framework', indent: true, indexLabel: '1', page: p4 });
@@ -439,6 +484,7 @@ export async function generateExportPdf(params: GeneratePdfParams): Promise<void
   tocEntries.push({ title: 'SoilHive vocabulary', indent: true, indexLabel: '3', page: p4 });
   tocEntries.push({ title: 'Terms and conditions', indent: false, page: p4 });
   drawHeader(doc, params.logoBuffer);
+  doc.moveDown(5);
   drawStandardsSection(doc);
   drawTermsSection(doc, params.termsUrl);
   drawFooter(doc, p4, params.homepageUrl);

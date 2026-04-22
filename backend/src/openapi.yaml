@@ -2333,10 +2333,12 @@ components:
           type: string
           format: uri
           description: Optional URL pointing to platform homepage that will appear in Readme.PDF
-        public_metadata_url:
-          type: string
-          format: uri
-          description: Optional URL pointing to metadata page root that will appear in Readme.PDF
+        public_metadata_urls:
+          type: object
+          additionalProperties:
+            type: string
+            format: uri
+          description: Optional mapping of dataset_id to metadata URL for Readme.PDF
 
     FileToDbJob:
       type: object
