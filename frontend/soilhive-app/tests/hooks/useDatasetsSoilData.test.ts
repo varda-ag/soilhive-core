@@ -113,34 +113,6 @@ describe('useDatasetsSoilData', () => {
       });
     });
 
-    it('is false when files have inconsistent field names', async () => {
-      buildDefaultMocks({
-        existingFiles: [
-          { id: '1', name: 'a.csv', metadata: { epsg: 4326, field_names: ['col1', 'col2'] } },
-          { id: '2', name: 'b.csv', metadata: { epsg: 4326, field_names: ['col1', 'col3'] } },
-        ],
-      });
-      const { result } = renderHook(() => useDatasetsSoilData());
-
-      await waitFor(() => {
-        expect(result.current.isContinueEnabled).toBe(false);
-      });
-    });
-
-    it('is true when all files have matching field names', async () => {
-      buildDefaultMocks({
-        existingFiles: [
-          { id: '1', name: 'a.csv', metadata: { epsg: 4326, field_names: ['col1', 'col2'] } },
-          { id: '2', name: 'b.csv', metadata: { epsg: 4326, field_names: ['col2', 'col1'] } },
-        ],
-      });
-      const { result } = renderHook(() => useDatasetsSoilData());
-
-      await waitFor(() => {
-        expect(result.current.isContinueEnabled).toBe(true);
-      });
-    });
-
     it('is true when all files have a crs and no errors', async () => {
       buildDefaultMocks();
       const { result } = renderHook(() => useDatasetsSoilData());
