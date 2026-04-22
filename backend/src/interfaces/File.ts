@@ -1,5 +1,5 @@
 import type { IngestionStatus } from '../types/data';
-import { DetectableFields } from '../types/DataMapping';
+import { DataMappingObject, DetectableFields } from '../types/DataMapping';
 
 export interface File {
   id: string;
@@ -17,6 +17,7 @@ export interface File {
 export interface FileMetadata {
   field_names: string[];
   detected_fields: Record<DetectableFields, string | null>;
+  detected_mapping: DataMappingObject;
   geometry_detected: boolean;
   driver?: string;
   epsg?: number;

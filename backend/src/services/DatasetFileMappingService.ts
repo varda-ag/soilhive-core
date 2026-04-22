@@ -128,15 +128,15 @@ export default class DatasetFileMappingService {
 
   getMappings = async (
     requestData: RequestData,
-    datasetSlug: string,
+    datasetSlug?: string,
     fileId?: string,
     relations: string[] = [],
   ): Promise<DatasetFileMappingEntity[]> => {
     // Getting the actual dataset ID
-    const dataset = await getEntity(requestData, DatasetEntity, EntityType.DATASET, datasetSlug);
+    const dataset = datasetSlug ? await getEntity(requestData, DatasetEntity, EntityType.DATASET, datasetSlug) : undefined;
 
     // Find all the mappings for the dataset, optionally filtered by fileId
-    const whereConditions: any = { dataset_id: dataset.id };
+    const whereConditions: any = dataset ? { dataset_id: dataset.id } : {};
     if (fileId !== undefined) {
       whereConditions.file_id = fileId;
     }

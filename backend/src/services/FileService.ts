@@ -17,11 +17,14 @@ import { getEntity } from '../utils/slugs';
 import { sanitizeField, buildDatedFileKey, getRawTableName } from '../utils/utils';
 import { StorageModes } from '../types/enums';
 import { EntityType, IngestionStatus } from '../types/data';
-import { DetectableFields } from '../types/DataMapping';
+import { DataMappingObject, DetectableFields } from '../types/DataMapping';
 import ConfigService from './ConfigService';
 import FileEntity from '../entities/File';
 import assert from 'assert';
 import { getDBPassword } from '../utils/db-credentials';
+import DataMappingService from './DataMappingService';
+
+const dataMappingService = new DataMappingService();
 
 const allowedGeometryTypes = [
   gdal.wkbNone, // This allows generic tabular file support
@@ -121,7 +124,7 @@ export default class FileService {
     const { sub } = requestData.token ?? {};
 
     assert(data.file_path, 'file_path is required to create a file');
-    const metadata = await this.extractMetadata(data.file_path);
+    const metadata = await this.extractMetadata(requestData, data.file_path);
 
     const file = repo.create({
       ...data,
@@ -325,7 +328,35 @@ export default class FileService {
     return { layer, geometryDetected };
   };
 
-  extractMetadata = async (fileKey: string): Promise<FileMetadata> => {
+  getDetectedMapping(fieldNames: string[], mappings: DataMappingObject[]): DataMappingObject {
+    const output: DataMappingObject = {};
+
+    for (const fieldName of fieldNames) {
+      for (const mapping of mappings) {
+        const current = mapping[fieldName];
+        if (!current) {
+          continue;
+        }
+        if (!output[fieldName]) {
+          // First match
+          output[fieldName] = current;
+        } else if (typeof current === 'object' && typeof output[fieldName] === 'string' && Object.keys(current).length > 0) {
+          // Replace string match with object match
+          output[fieldName] = current;
+        } else if (
+          typeof current === 'object' &&
+          typeof output[fieldName] === 'object' &&
+          Object.keys(current).length > Object.keys(output[fieldName]).length
+        ) {
+          // Replace match if a one with more information is found
+          output[fieldName] = current;
+        }
+      }
+    }
+    return output;
+  }
+
+  async extractMetadata(requestData: RequestData, fileKey: string): Promise<FileMetadata> {
     let mainFilePath: string;
     let tempZipExtractPath: string | null = null;
     try {
@@ -405,8 +436,13 @@ export default class FileService {
       }
       dataset.close();
 
+      // Get all previous mappings
+      const mappings: DataMappingObject[] = (await dataMappingService.getDataMappings(requestData)).map(dm => dm.data_mapping);
+      const detected_mapping: DataMappingObject = await this.getDetectedMapping(fieldNames, mappings);
+
       const metadata: FileMetadata = {
         field_names: fieldNames,
+        detected_mapping,
         detected_fields: {
           [DetectableFields.GEOMETRY]: geometryFieldName,
           [DetectableFields.LICENSE]: licenseFieldName,
@@ -435,7 +471,7 @@ export default class FileService {
         FileService.removeTempFolder(tempZipExtractPath);
       }
     }
-  };
+  }
 
   fileToDB = async (requestData: RequestData, fileId: string) => {
     const fileEntity = await this.getFile(requestData, fileId);
