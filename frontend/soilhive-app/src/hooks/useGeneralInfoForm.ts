@@ -5,6 +5,7 @@ import type { Dataset, GeneralInfoFormData } from 'types/backend';
 import { useDataset } from './useDatasets';
 import { useCreateDatasetMutation, useUpdateDatasetMutation } from 'hooks/useDatasetMutation';
 import { queryClient } from '../App';
+import { isEmptyString } from '../utilities/validation';
 
 const DESCRIPTION_MAX_LENGTH = 200;
 
@@ -30,10 +31,10 @@ export function useGeneralInfoForm(id: string | undefined, validationMessages: V
 
   function validate(data: GeneralInfoFormData): ValidationErrors {
     const errors: ValidationErrors = {};
-    if (!data.name.trim()) errors.name = validationMessages.name;
-    if (!data.full_name.trim()) errors.full_name = validationMessages.full_name;
-    if (!data.description.trim()) errors.description = validationMessages.description;
-    if (!data.author.trim()) errors.author = validationMessages.author;
+    if (isEmptyString(data.name)) errors.name = validationMessages.name;
+    if (isEmptyString(data.full_name)) errors.full_name = validationMessages.full_name;
+    if (isEmptyString(data.description)) errors.description = validationMessages.description;
+    if (isEmptyString(data.author)) errors.author = validationMessages.author;
     return errors;
   }
 
