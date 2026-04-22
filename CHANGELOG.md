@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.79.0 (2026-04-22)
+
+## What's Changed
+* feat(fe): (sp-5092) add validation helper utilities by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/431
+* feat(fe): (sp-5127) pre-populate mapping dropdowns from detected_fields by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/435
+* feat: sp-5130 - split the coverage request by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/436
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.78.0...v0.79.0
+
 ## 0.78.0 (2026-04-21)
 
 ## What's Changed

@@ -68,7 +68,7 @@ describe('DatasetsList', () => {
       datasets: [],
       selectAllDatasets: mockSelectAllDatasets,
       isAllSelected: false,
-      isLoading: true,
+      isDatasetsLoading: true,
       isNoData: false,
       isNoFilteredData: false,
     });
@@ -83,7 +83,7 @@ describe('DatasetsList', () => {
       datasets: [],
       selectAllDatasets: mockSelectAllDatasets,
       isAllSelected: false,
-      isLoading: false,
+      isDatasetsLoading: false,
       isNoData: true,
       isNoFilteredData: false,
     });
@@ -99,7 +99,7 @@ describe('DatasetsList', () => {
       datasets: [],
       selectAllDatasets: mockSelectAllDatasets,
       isAllSelected: false,
-      isLoading: false,
+      isDatasetsLoading: false,
       isNoData: false,
       isNoFilteredData: true,
     });
@@ -116,7 +116,7 @@ describe('DatasetsList', () => {
       datasets: [],
       selectAllDatasets: mockSelectAllDatasets,
       isAllSelected: false,
-      isLoading: false,
+      isDatasetsLoading: false,
       isNoData: false,
       isNoFilteredData: false,
       searchValue: 'test-search',

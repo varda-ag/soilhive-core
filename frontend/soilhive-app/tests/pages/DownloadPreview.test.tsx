@@ -4,8 +4,12 @@ import { useNavigate } from 'react-router';
 
 jest.mock('hooks/useDevice');
 
-jest.mock('hooks/useFilteredDatasets', () => {
-  return { useFilteredDatasets: jest.fn().mockReturnValue({ filterId: 'test-filter-id', isLoading: false }) };
+jest.mock('hooks/useDataFilterQuery', () => {
+  return { useDataFilterQuery: jest.fn().mockReturnValue({ filterId: 'test-filter-id', isLoading: false }) };
+});
+
+jest.mock('hooks/useFilteredCoverageQuery', () => {
+  return { useFilteredCoverageQuery: jest.fn().mockReturnValue({ data: undefined, isLoading: false }) };
 });
 
 jest.mock('hooks/useSoilData', () => {

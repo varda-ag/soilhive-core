@@ -48,13 +48,28 @@ beforeEach(() => {
   mockUseSoilProperties.mockReturnValue({ data: undefined, isLoading: false });
 });
 
-function setupWithColumns(columns: string[]) {
+function setupWithColumns(columns: string[], detectedFields?: Record<string, string>) {
   // Stable reference — new array per call would re-trigger the columnMappings useEffect on every render.
-  const filesData = [{ metadata: { field_names: columns } }];
+  const filesData = [{ metadata: { field_names: columns, ...(detectedFields ? { detected_fields: detectedFields } : {}) } }];
   mockUseApiQuery.mockImplementation(({ endpoint }: { endpoint: string }) => {
     if (endpoint.includes('/files')) {
       return { data: filesData, isLoading: false };
     }
+    return { data: undefined, isLoading: false };
+  });
+}
+
+function setupWithColumnsAndExistingMapping(
+  columns: string[],
+  dataMapping: Record<string, unknown>,
+  detectedFields?: Record<string, string>,
+) {
+  // Stable references — new arrays on every render would re-trigger the columnMappings useEffect.
+  const filesData = [{ metadata: { field_names: columns, ...(detectedFields ? { detected_fields: detectedFields } : {}) } }];
+  const mappingsData = [{ data_mapping: dataMapping }];
+  mockUseApiQuery.mockImplementation(({ endpoint }: { endpoint: string }) => {
+    if (endpoint.includes('/files')) return { data: filesData, isLoading: false };
+    if (endpoint.includes('/mappings')) return { data: mappingsData, isLoading: false };
     return { data: undefined, isLoading: false };
   });
 }
@@ -124,6 +139,34 @@ describe('useMappingsStep', () => {
       const detectableCount = 9; // DETECTABLE_FIELD_OPTIONS length
       expect(options[detectableCount]).toEqual({ code: 'p2', name: 'Aluminium' });
       expect(options[detectableCount + 1]).toEqual({ code: 'p1', name: 'Zinc' });
+    });
+  });
+
+  describe('detected_fields pre-population', () => {
+    it('pre-populates conceptId from detected_fields when there is no existing mapping', () => {
+      setupWithColumns(['lat', 'lon', 'date'], { latitude: 'lat', longitude: 'lon', sampling_date: 'date' });
+      const { result } = renderHook(() => useMappingsStep('1'));
+      const byName = Object.fromEntries(result.current.columnMappings.map(m => [m.columnName, m]));
+      expect(byName['lat'].conceptId).toBe('latitude');
+      expect(byName['lon'].conceptId).toBe('longitude');
+      expect(byName['date'].conceptId).toBe('sampling_date');
+    });
+
+    it('leaves conceptId null for columns not present in detected_fields', () => {
+      setupWithColumns(['lat', 'notes'], { latitude: 'lat' });
+      const { result } = renderHook(() => useMappingsStep('1'));
+      const byName = Object.fromEntries(result.current.columnMappings.map(m => [m.columnName, m]));
+      expect(byName['notes'].conceptId).toBeNull();
+    });
+
+    it('ignores detected_fields when an existing mapping is present', () => {
+      setupWithColumnsAndExistingMapping(['lat', 'lon'], { lat: 'geometry' }, { latitude: 'lat', longitude: 'lon' });
+      const { result } = renderHook(() => useMappingsStep('1'));
+      const byName = Object.fromEntries(result.current.columnMappings.map(m => [m.columnName, m]));
+      // 'lat' is in the existing mapping — its value wins over detected_fields
+      expect(byName['lat'].conceptId).toBe('geometry');
+      // 'lon' has no existing mapping entry — detected_fields must NOT apply
+      expect(byName['lon'].conceptId).toBeNull();
     });
   });
 

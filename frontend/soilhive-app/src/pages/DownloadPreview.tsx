@@ -9,7 +9,7 @@ import BookmarkIcon from 'assets/icons/bookmark-icon.svg?react';
 import classNames from 'classnames';
 import DownloadPreviewDataSection from 'components/DownloadPreview/DownloadPreviewDataSection/DownloadPreviewDataSection';
 import { useSoilData } from 'hooks/useSoilData';
-import { useFilteredDatasets } from 'hooks/useFilteredDatasets';
+import { useDataFilterQuery } from 'hooks/useDataFilterQuery';
 import type { PreviewFilters } from 'types/downloadPreview';
 import { computeDatasetSummary } from '../domain';
 import type { Nullable } from 'primereact/ts-helpers';
@@ -19,6 +19,7 @@ import { backendToLocalFrontendDate } from '../utilities/date';
 import { useTranslation } from 'react-i18next';
 
 import { useDownloadPreview } from 'hooks/useDownloadPreview';
+import { useFilteredCoverageQuery } from 'hooks/useFilteredCoverageQuery';
 
 import { InfoDialog } from 'components/UI';
 import useDevice from 'hooks/useDevice';
@@ -96,11 +97,11 @@ function DownloadPreview() {
     },
   };
 
-  const {
-    filterId: downloadPreviewFilterId,
-    data: filteredDatasets,
-    isLoading: areFiltersLoading,
-  } = useFilteredDatasets(parameters, geometryFilter.length > 0);
+  const { filterId: downloadPreviewFilterId, isLoading: isLoadingFilter } = useDataFilterQuery(parameters, geometryFilter.length > 0);
+
+  const { data: filteredDatasets, isLoading: isCoverageLoading } = useFilteredCoverageQuery(downloadPreviewFilterId);
+
+  const areFiltersLoading = isLoadingFilter || isCoverageLoading;
 
   const availableFilteredDatasets = filteredDatasets ? filteredDatasets.datasets : availableFixedDatasets;
 
