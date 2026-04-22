@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.80.0 (2026-04-22)
+
+## What's Changed
+* feat: sp-5130 - enable buttons with datasets result by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/440
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.79.2...v0.80.0
+
 ## 0.79.2 (2026-04-22)
 
 ## What's Changed
