@@ -68,8 +68,8 @@ interface TocEntry {
 // ─── Public helpers (exported for unit testing) ─────────────────────────────
 
 export function drawHeader(doc: PDFKit.PDFDocument, logoBuffer: Buffer | null): void {
-  const y = MARGIN - 30;
-  doc.font(FONT.regular).fontSize(9).fillColor(COLOR.black).text('Data download summary', MARGIN, y, { lineBreak: false });
+  const y = MARGIN - 20;
+  doc.font(FONT.regular).fontSize(14).fillColor(COLOR.gray).text('Data download summary', y, y, { lineBreak: false });
 
   if (logoBuffer) {
     doc.image(logoBuffer, PAGE_WIDTH - MARGIN - 60, y - 10, { height: 28 });
@@ -388,7 +388,7 @@ function drawTermsSection(doc: PDFKit.PDFDocument, termsUrl?: string, homepageUr
   sectionHeading(doc, 'Terms and conditions');
 
   if (termsUrl) {
-    bodyText(doc, 'Use of SoilHive data is subject to the platform\u2019s terms and conditions, which can be consulted here: ', true);
+    bodyText(doc, 'Use of data is subject to the platform\u2019s terms and conditions, which can be consulted here: ', true);
     doc
       .font(FONT.regular)
       .fontSize(FONT_SIZE)
@@ -396,14 +396,11 @@ function drawTermsSection(doc: PDFKit.PDFDocument, termsUrl?: string, homepageUr
       .text('Terms and Conditions', { continued: false, link: termsUrl, width: CONTENT_WIDTH });
     doc.moveDown(VERTICAL_SPACE);
   } else {
-    bodyText(
-      doc,
-      'Use of SoilHive data is subject to the platform\u2019s terms and conditions, which can be consulted on the platform website.',
-    );
+    bodyText(doc, 'Use of data is subject to the platform\u2019s terms and conditions, which can be consulted on the platform website.');
   }
 
   bodyText(doc, 'Users must review the license associated with each dataset prior to reuse or redistribution.');
-  bodyText(doc, 'When using SoilHive data in publications or derived products, please cite the platform as follows:');
+  bodyText(doc, 'When using data in publications or derived products, please cite the platform as follows:');
 
   doc
     .font(FONT.regular)
@@ -436,7 +433,7 @@ export async function generateExportPdf(params: GeneratePdfParams): Promise<void
   sectionHeading(doc, 'Intro');
   bodyText(
     doc,
-    'This data package contains soil property data distributed through the SoilHive platform. SoilHive aggregates datasets from multiple sources and applies a harmonization workflow to ensure consistency in terminology, data structure, and measurement units across datasets, enabling reliable comparison and integration.',
+    'This data package contains soil property data distributed through the platform. Platform aggregates datasets from multiple sources and applies a harmonization workflow to ensure consistency in terminology, data structure, and measurement units across datasets, enabling reliable comparison and integration.',
   );
   bodyText(
     doc,
