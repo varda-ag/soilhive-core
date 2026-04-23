@@ -106,7 +106,7 @@ describe('useDownloads', () => {
       public_metadata_urls: {
         'dataset-1': 'http://localhost/datasets/dataset-1',
       },
-      public_terms_url: 'http://localhost/terms-and-conditions',
+      public_terms_url: 'http://localhost/terms-of-use',
       type: 'export',
       anonymous: true,
     });
