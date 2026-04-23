@@ -6,10 +6,6 @@ import { useSoilProperties } from 'hooks/useSoilProperties';
 import { useCreateProcedureMutation } from 'hooks/useCreateProcedureMutation';
 import { useCreateMappingsMutation } from 'hooks/useCreateMappingsMutation';
 
-jest.mock('react-i18next', () => ({
-  useTranslation: () => ({ t: (key: string) => key }),
-}));
-
 jest.mock('react-router', () => ({
   useNavigate: jest.fn(),
 }));
@@ -230,7 +226,7 @@ describe('useMappingsStep', () => {
   });
 
   describe('isContinueEnabled', () => {
-    it('is false when no files are loaded', () => {
+    it('is false while files are still loading (geometryDetected undefined)', () => {
       const { result } = renderHook(() => useMappingsStep('1'));
       expect(result.current.isContinueEnabled).toBe(false);
     });

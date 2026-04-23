@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { useNavigate, useParams } from 'react-router';
 import { DatasetsMappingsStep } from '../../../src/pages/AdminPortal/DatasetsMappingsStep/DatasetsMappingsStep';
-import { useMappingsStep } from 'hooks/useMappingsStep';
+import { useMappingsStep, type RowDetails, type DetailOptionMap } from 'hooks/useMappingsStep';
 
 jest.mock('react-router', () => ({
   useNavigate: jest.fn(),
@@ -16,25 +16,25 @@ jest.mock('hooks/useMappingsStep', () => ({
 // Fixtures
 // ---------------------------------------------------------------------------
 
-const EMPTY_DETAILS = {
+const EMPTY_DETAILS: RowDetails = {
   samplePretreatment: null,
   technique: null,
-  extractantFormulation: null,
+  laboratoryMethod: null,
   extractantConcentration: null,
-  attractionRatio: null,
+  extractionRatio: null,
   extractionBase: null,
-  instrument: null,
+  measurementProcedure: null,
   limitOfDetection: null,
 };
 
-const DETAIL_OPTIONS = {
+const DETAIL_OPTIONS: DetailOptionMap = {
   samplePretreatment: [],
   technique: [],
-  extractantFormulation: [],
+  laboratoryMethod: [],
   extractantConcentration: [],
-  attractionRatio: [],
+  extractionRatio: [],
   extractionBase: [],
-  instrument: [],
+  measurementProcedure: [],
   limitOfDetection: [],
 };
 
@@ -111,22 +111,23 @@ describe('DatasetsMappingsStep', () => {
 
     it('shows no geometry message when hook returns null', () => {
       render(<DatasetsMappingsStep />);
-      expect(screen.queryByText(/Geometry was automatically detected/)).not.toBeInTheDocument();
-      expect(screen.queryByText(/No geometry was detected/)).not.toBeInTheDocument();
+      expect(screen.queryByTestId('sh-form-message')).not.toBeInTheDocument();
     });
   });
 
-  describe('continue button', () => {
+  describe('action buttons', () => {
     it('is disabled when isContinueEnabled is false', () => {
       (useMappingsStep as jest.Mock).mockReturnValue(stubHookReturn([], null, false));
       render(<DatasetsMappingsStep />);
       expect(screen.getByTestId('sh-mappings-continue')).toBeDisabled();
+      expect(screen.getByTestId('sh-mappings-save-later')).toBeDisabled();
     });
 
     it('is enabled when isContinueEnabled is true', () => {
       (useMappingsStep as jest.Mock).mockReturnValue(stubHookReturn([], null, true));
       render(<DatasetsMappingsStep />);
       expect(screen.getByTestId('sh-mappings-continue')).not.toBeDisabled();
+      expect(screen.getByTestId('sh-mappings-save-later')).not.toBeDisabled();
     });
   });
 

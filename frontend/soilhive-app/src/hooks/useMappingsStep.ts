@@ -318,7 +318,7 @@ export function useMappingsStep(datasetId?: string) {
     return { message: t('datasets.mappings.geometry_not_detected'), type: 'warning' };
   }, [geometryDetected, columnMappings, t]);
 
-  const isContinueEnabled = mappedCount > 0 && geometryMessage?.type !== 'warning';
+  const isContinueEnabled = mappedCount > 0 && geometryDetected !== undefined && geometryMessage?.type !== 'warning';
 
   const toggleRow = useCallback((columnName: string) => {
     setExpandedRows(prev => {
