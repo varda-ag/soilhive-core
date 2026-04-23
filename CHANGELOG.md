@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.81.0 (2026-04-23)
+
+## What's Changed
+* feat: ✨ readme file generation by @svaccari in https://github.com/varda-ag/soilhive-core/pull/427
+* fix: :bug: geocoder control focus by @svaccari in https://github.com/varda-ag/soilhive-core/pull/445
+* feat(fe): sp-5133 show inline error on files with inconsistent structure by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/444
+* fix: minor PDF changes by @svaccari in https://github.com/varda-ag/soilhive-core/pull/446
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.80.0...v0.81.0
+
 ## 0.80.0 (2026-04-22)
 
 ## What's Changed
