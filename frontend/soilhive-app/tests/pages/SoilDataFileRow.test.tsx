@@ -2,8 +2,8 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { SoilDataFileRow } from '../../src/pages/AdminPortal/DatasetsSoilDataStep/SoilDataFileRow/SoilDataFileRow';
 
 jest.mock('components/UI', () => ({
-  Button: ({ children, onClick }: any) => (
-    <button onClick={onClick} data-testid="remove-button">
+  Button: ({ children, onClick, dataTestId }: any) => (
+    <button onClick={onClick} data-testid={dataTestId ?? 'sh-ui-button'}>
       {children}
     </button>
   ),
@@ -85,7 +85,7 @@ describe('SoilDataFileRow', () => {
   it('calls onRemove when the cross button is clicked', () => {
     render(<SoilDataFileRow soilDataFile={mockFile} onCrsChange={onCrsChange} onRemove={onRemove} crsOptions={mockCrsOptions} />);
 
-    const removeBtn = screen.getByTestId('remove-button');
+    const removeBtn = screen.getByTestId('sh-ui-button');
     fireEvent.click(removeBtn);
 
     expect(onRemove).toHaveBeenCalledWith('file-123');

@@ -128,6 +128,20 @@ describe('useDatasetsSoilData', () => {
         expect(result.current.isContinueEnabled).toBe(true);
       });
     });
+
+    it('is false when files have mismatched fieldNames even if all have a crs', async () => {
+      buildDefaultMocks({
+        existingFiles: [
+          { id: '1', name: 'a.csv', metadata: { epsg: 4326, field_names: ['col1', 'col2'] } },
+          { id: '2', name: 'b.csv', metadata: { epsg: 4326, field_names: ['col1', 'col3'] } },
+        ],
+      });
+      const { result } = renderHook(() => useDatasetsSoilData());
+
+      await waitFor(() => {
+        expect(result.current.isContinueEnabled).toBe(false);
+      });
+    });
   });
 
   // --- consistency error annotation ----------------------------------------

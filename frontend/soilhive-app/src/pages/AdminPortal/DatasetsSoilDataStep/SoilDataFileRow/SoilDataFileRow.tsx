@@ -83,9 +83,16 @@ export function SoilDataFileRow({ soilDataFile, onCrsChange, onRemove, crsOption
       {error && (
         <div className={styles.ErrorRow}>
           <FormMessage message={error} type="error" />
-          <button className={styles.DiffButton} data-testid="sh-diff-button" onClick={() => setDiffOpen(true)}>
+          <Button
+            type="custom"
+            size="tiny"
+            isIconOnly
+            className={styles.DiffButton}
+            dataTestId="sh-diff-button"
+            onClick={() => setDiffOpen(true)}
+          >
             <QuestionIcon />
-          </button>
+          </Button>
         </div>
       )}
       <Dialog
