@@ -1,5 +1,6 @@
 import PDFDocument from 'pdfkit';
 import * as fs from 'fs';
+import path from 'path';
 
 const COLOR = {
   teal: '#3E7F77',
@@ -11,13 +12,15 @@ const COLOR = {
 };
 
 const FONT = {
-  bold: 'Helvetica-Bold',
-  regular: 'Helvetica',
+  bold: 'Inter-Bold',
+  regular: 'Inter-Regular',
 };
 
 const FONT_SIZE = 12;
 const PAGE_WIDTH = 595.28; // A4 pt
 const MARGIN = 60;
+const COVER_HEIGHT = 84;
+const LOGO_HEIGHT = 44;
 const CONTENT_WIDTH = PAGE_WIDTH - MARGIN * 2;
 const VERTICAL_SPACE = 0.75;
 const YEAR = new Date().getFullYear();
@@ -146,13 +149,13 @@ function bullet(doc: PDFKit.PDFDocument, label: string, value?: string): void {
 
 function drawCoverTitle(doc: PDFKit.PDFDocument, logoBuffer: Buffer | null): void {
   if (logoBuffer) {
-    doc.image(logoBuffer, PAGE_WIDTH - MARGIN - 90, MARGIN, { height: 45 });
+    doc.image(logoBuffer, PAGE_WIDTH - MARGIN - 90, COVER_HEIGHT - LOGO_HEIGHT / 2, { height: LOGO_HEIGHT });
   }
   doc
     .font(FONT.bold)
     .fontSize(32)
     .fillColor(COLOR.black)
-    .text('Data download', MARGIN, MARGIN - 10, { align: 'right', width: CONTENT_WIDTH / 2 });
+    .text('Data download', MARGIN, MARGIN - 16, { align: 'right', width: CONTENT_WIDTH / 2 });
   doc
     .font(FONT.regular)
     .fontSize(24)
@@ -420,6 +423,8 @@ function drawTermsSection(doc: PDFKit.PDFDocument, termsUrl?: string, _homepageU
 
 export async function generateExportPdf(params: GeneratePdfParams): Promise<void> {
   const doc = new PDFDocument({ size: 'A4', margins: { top: MARGIN, bottom: MARGIN, left: MARGIN, right: MARGIN }, bufferPages: true });
+  doc.registerFont(FONT.regular, path.join(__dirname, '../../assets/fonts/Inter-VariableFont_opsz.ttf'));
+  doc.registerFont(FONT.bold, path.join(__dirname, '../../assets/fonts/Inter-Bold.ttf'));
 
   const stream = fs.createWriteStream(params.outputPath);
   doc.pipe(stream);
@@ -429,7 +434,7 @@ export async function generateExportPdf(params: GeneratePdfParams): Promise<void
   let tocStartY = 0;
 
   // ── PAGE 1: Cover ──────────────────────────────────────────────────────────
-  doc.rect(0, 0, PAGE_WIDTH, 84).fill(COLOR.header);
+  doc.rect(0, 0, PAGE_WIDTH, COVER_HEIGHT).fill(COLOR.header);
   drawCoverTitle(doc, params.logoBuffer);
 
   sectionHeading(doc, 'Intro');
