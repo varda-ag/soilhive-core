@@ -15,6 +15,7 @@
     },
     "download_preview": {
         "page_title": "DATA EXPLORER",
+        "page_subtitle": "Dive into your selected data, filter and explore it by dataset, soil property, depth, and date.",
         "back": "Back",
         "download_button": "Download data",
         "tab_summary": "Summary",
