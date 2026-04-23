@@ -1,14 +1,30 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { SoilDataFileRow } from '../../src/pages/AdminPortal/DatasetsSoilDataStep/SoilDataFileRow/SoilDataFileRow';
 
-// Mock the Button component if it has complex internal logic
 jest.mock('components/UI', () => ({
-  Button: ({ children, onClick }: any) => (
-    <button onClick={onClick} data-testid="remove-button">
+  Button: ({ children, onClick, dataTestId }: any) => (
+    <button onClick={onClick} data-testid={dataTestId ?? 'sh-ui-button'}>
       {children}
     </button>
   ),
+  FormMessage: ({ message }: any) => <div data-testid="sh-form-message">{message}</div>,
+  Dialog: ({ visible, header, children, onContinue }: any) =>
+    visible ? (
+      <div data-testid="sh-dialog">
+        <div data-testid="sh-dialog-header">{header}</div>
+        <div>{children}</div>
+        <button onClick={onContinue} data-testid="sh-dialog-close">
+          Close
+        </button>
+      </div>
+    ) : null,
 }));
+
+jest.mock('assets/icons/question-round-icon.svg?react', () => {
+  const Mock = () => <div data-testid="sh-question-icon" />;
+  Mock.displayName = 'Mock';
+  return Mock;
+});
 
 const mockFile = {
   id: 'file-123',
@@ -69,9 +85,69 @@ describe('SoilDataFileRow', () => {
   it('calls onRemove when the cross button is clicked', () => {
     render(<SoilDataFileRow soilDataFile={mockFile} onCrsChange={onCrsChange} onRemove={onRemove} crsOptions={mockCrsOptions} />);
 
-    const removeBtn = screen.getByTestId('remove-button');
+    const removeBtn = screen.getByTestId('sh-ui-button');
     fireEvent.click(removeBtn);
 
     expect(onRemove).toHaveBeenCalledWith('file-123');
+  });
+
+  it('renders FormMessage when soilDataFile.error is set', () => {
+    const fileWithError = { ...mockFile, error: 'This file has an incompatible structure with the first uploaded file.' };
+
+    render(<SoilDataFileRow soilDataFile={fileWithError} onCrsChange={onCrsChange} onRemove={onRemove} crsOptions={mockCrsOptions} />);
+
+    expect(screen.getByTestId('sh-form-message')).toBeInTheDocument();
+    expect(screen.getByText(/incompatible structure/)).toBeInTheDocument();
+  });
+
+  it('does not render FormMessage when soilDataFile.error is null', () => {
+    const fileWithoutError = { ...mockFile, error: null };
+
+    render(<SoilDataFileRow soilDataFile={fileWithoutError} onCrsChange={onCrsChange} onRemove={onRemove} crsOptions={mockCrsOptions} />);
+
+    expect(screen.queryByTestId('sh-form-message')).not.toBeInTheDocument();
+  });
+
+  it('renders the diff button when error is set', () => {
+    const fileWithError = { ...mockFile, error: 'Inconsistent', missingFields: ['lat'], extraFields: [] };
+
+    render(<SoilDataFileRow soilDataFile={fileWithError} onCrsChange={onCrsChange} onRemove={onRemove} crsOptions={mockCrsOptions} />);
+
+    expect(screen.getByTestId('sh-diff-button')).toBeInTheDocument();
+  });
+
+  it('does not render the diff button when error is null', () => {
+    render(<SoilDataFileRow soilDataFile={mockFile} onCrsChange={onCrsChange} onRemove={onRemove} crsOptions={mockCrsOptions} />);
+
+    expect(screen.queryByTestId('sh-diff-button')).not.toBeInTheDocument();
+  });
+
+  it('opens the diff dialog when the diff button is clicked', () => {
+    const fileWithError = { ...mockFile, error: 'Inconsistent', missingFields: ['latitude'], extraFields: ['lat'] };
+
+    render(<SoilDataFileRow soilDataFile={fileWithError} onCrsChange={onCrsChange} onRemove={onRemove} crsOptions={mockCrsOptions} />);
+    fireEvent.click(screen.getByTestId('sh-diff-button'));
+
+    expect(screen.getByTestId('sh-dialog')).toBeInTheDocument();
+  });
+
+  it('shows missing fields in the dialog', () => {
+    const fileWithError = { ...mockFile, error: 'Inconsistent', missingFields: ['latitude', 'longitude'], extraFields: [] };
+
+    render(<SoilDataFileRow soilDataFile={fileWithError} onCrsChange={onCrsChange} onRemove={onRemove} crsOptions={mockCrsOptions} />);
+    fireEvent.click(screen.getByTestId('sh-diff-button'));
+
+    expect(screen.getByText('latitude')).toBeInTheDocument();
+    expect(screen.getByText('longitude')).toBeInTheDocument();
+  });
+
+  it('shows extra fields in the dialog', () => {
+    const fileWithError = { ...mockFile, error: 'Inconsistent', missingFields: [], extraFields: ['lat', 'lon'] };
+
+    render(<SoilDataFileRow soilDataFile={fileWithError} onCrsChange={onCrsChange} onRemove={onRemove} crsOptions={mockCrsOptions} />);
+    fireEvent.click(screen.getByTestId('sh-diff-button'));
+
+    expect(screen.getByText('lat')).toBeInTheDocument();
+    expect(screen.getByText('lon')).toBeInTheDocument();
   });
 });

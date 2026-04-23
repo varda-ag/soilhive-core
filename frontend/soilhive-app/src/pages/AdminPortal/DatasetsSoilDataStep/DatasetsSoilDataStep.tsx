@@ -81,7 +81,7 @@ export function DatasetsSoilDataStep() {
         </Button>
 
         <div className={styles.FooterRight}>
-          <Button type="secondary" size="small" onClick={handleSaveAndContinueLater}>
+          <Button type="secondary" size="small" onClick={handleSaveAndContinueLater} isDisabled={!isContinueEnabled}>
             {t('datasets.actions.save_and_continue_later')}
           </Button>
 
