@@ -270,6 +270,83 @@ describe('useMappingsStep', () => {
       });
       expect(result.current.isContinueEnabled).toBe(true);
     });
+
+    it('is false when depth conflicts with a range depth field (even if geometry is satisfied)', () => {
+      setupWithColumns(['d', 'min_d', 'geom'], undefined, true);
+      const { result } = renderHook(() => useMappingsStep('1'));
+      act(() => {
+        result.current.handleConceptChange('geom', 'geometry');
+        result.current.handleConceptChange('d', 'depth');
+        result.current.handleConceptChange('min_d', 'min_depth');
+      });
+      expect(result.current.isContinueEnabled).toBe(false);
+    });
+  });
+
+  describe('depthConflictMessage', () => {
+    it('is null when only depth is mapped', () => {
+      setupWithColumns(['d', 'other'], undefined, true);
+      const { result } = renderHook(() => useMappingsStep('1'));
+      act(() => {
+        result.current.handleConceptChange('d', 'depth');
+      });
+      expect(result.current.depthConflictMessage).toBeNull();
+    });
+
+    it('is null when only min_depth and max_depth are mapped', () => {
+      setupWithColumns(['min_d', 'max_d'], undefined, true);
+      const { result } = renderHook(() => useMappingsStep('1'));
+      act(() => {
+        result.current.handleConceptChange('min_d', 'min_depth');
+        result.current.handleConceptChange('max_d', 'max_depth');
+      });
+      expect(result.current.depthConflictMessage).toBeNull();
+    });
+
+    it('is type warning when depth and min_depth are both mapped', () => {
+      setupWithColumns(['d', 'min_d'], undefined, true);
+      const { result } = renderHook(() => useMappingsStep('1'));
+      act(() => {
+        result.current.handleConceptChange('d', 'depth');
+        result.current.handleConceptChange('min_d', 'min_depth');
+      });
+      expect(result.current.depthConflictMessage?.type).toBe('warning');
+    });
+
+    it('is type warning when depth and max_depth are both mapped', () => {
+      setupWithColumns(['d', 'max_d'], undefined, true);
+      const { result } = renderHook(() => useMappingsStep('1'));
+      act(() => {
+        result.current.handleConceptChange('d', 'depth');
+        result.current.handleConceptChange('max_d', 'max_depth');
+      });
+      expect(result.current.depthConflictMessage?.type).toBe('warning');
+    });
+
+    it('is type warning when depth, min_depth, and max_depth are all mapped', () => {
+      setupWithColumns(['d', 'min_d', 'max_d'], undefined, true);
+      const { result } = renderHook(() => useMappingsStep('1'));
+      act(() => {
+        result.current.handleConceptChange('d', 'depth');
+        result.current.handleConceptChange('min_d', 'min_depth');
+        result.current.handleConceptChange('max_d', 'max_depth');
+      });
+      expect(result.current.depthConflictMessage?.type).toBe('warning');
+    });
+
+    it('clears when the conflicting depth mapping is removed', () => {
+      setupWithColumns(['d', 'min_d'], undefined, true);
+      const { result } = renderHook(() => useMappingsStep('1'));
+      act(() => {
+        result.current.handleConceptChange('d', 'depth');
+        result.current.handleConceptChange('min_d', 'min_depth');
+      });
+      expect(result.current.depthConflictMessage?.type).toBe('warning');
+      act(() => {
+        result.current.handleConceptChange('d', '');
+      });
+      expect(result.current.depthConflictMessage).toBeNull();
+    });
   });
 
   describe('save', () => {

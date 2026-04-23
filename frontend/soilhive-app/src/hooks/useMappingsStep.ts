@@ -318,7 +318,15 @@ export function useMappingsStep(datasetId?: string) {
     return { message: t('datasets.mappings.geometry_not_detected'), type: 'warning' };
   }, [geometryDetected, columnMappings, t]);
 
-  const isContinueEnabled = mappedCount > 0 && geometryDetected !== undefined && geometryMessage?.type !== 'warning';
+  const depthConflictMessage = useMemo((): { message: string; type: 'warning' } | null => {
+    const hasDepth = columnMappings.some(m => m.conceptId === 'depth');
+    const hasRangeDepth = columnMappings.some(m => m.conceptId === 'min_depth' || m.conceptId === 'max_depth');
+    if (hasDepth && hasRangeDepth) return { message: t('datasets.mappings.depth_conflict'), type: 'warning' };
+    return null;
+  }, [columnMappings, t]);
+
+  const isContinueEnabled =
+    mappedCount > 0 && geometryDetected !== undefined && geometryMessage?.type !== 'warning' && depthConflictMessage === null;
 
   const toggleRow = useCallback((columnName: string) => {
     setExpandedRows(prev => {
@@ -399,6 +407,7 @@ export function useMappingsStep(datasetId?: string) {
   return {
     isLoading,
     geometryMessage,
+    depthConflictMessage,
     isContinueEnabled,
     columnMappings,
     conceptOptions,

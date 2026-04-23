@@ -12,6 +12,7 @@ export function DatasetsMappingsStep() {
 
   const {
     geometryMessage,
+    depthConflictMessage,
     isContinueEnabled,
     columnMappings,
     conceptOptions,
@@ -37,7 +38,12 @@ export function DatasetsMappingsStep() {
 
         <MappingsBanner mappedCount={mappedCount} unmappedCount={unmappedCount} />
 
-        {geometryMessage && <FormMessage type={geometryMessage.type} message={geometryMessage.message} withBackground />}
+        {(geometryMessage || depthConflictMessage) && (
+          <div className={styles.Messages}>
+            {geometryMessage && <FormMessage type={geometryMessage.type} message={geometryMessage.message} withBackground />}
+            {depthConflictMessage && <FormMessage type={depthConflictMessage.type} message={depthConflictMessage.message} withBackground />}
+          </div>
+        )}
 
         <MappingsTable
           columnMappings={columnMappings}

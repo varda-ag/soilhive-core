@@ -42,10 +42,12 @@ function stubHookReturn(
   columnNames: string[] = [],
   geometryMessage: { message: string; type: 'info' | 'warning' } | null = null,
   isContinueEnabled = false,
+  depthConflictMessage: { message: string; type: 'warning' } | null = null,
 ) {
   return {
     isLoading: false,
     geometryMessage,
+    depthConflictMessage,
     isContinueEnabled,
     columnMappings: columnNames.map(columnName => ({
       columnName,
@@ -110,6 +112,24 @@ describe('DatasetsMappingsStep', () => {
     });
 
     it('shows no geometry message when hook returns null', () => {
+      render(<DatasetsMappingsStep />);
+      expect(screen.queryByTestId('sh-form-message')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('depth conflict message', () => {
+    it('shows the warning when hook provides a depth conflict message', () => {
+      (useMappingsStep as jest.Mock).mockReturnValue(
+        stubHookReturn([], null, false, {
+          message: "The 'depth' field cannot be used together with 'min depth' or 'max depth'.",
+          type: 'warning',
+        }),
+      );
+      render(<DatasetsMappingsStep />);
+      expect(screen.getByTestId('sh-form-message')).toBeInTheDocument();
+    });
+
+    it('shows no depth conflict message when hook returns null', () => {
       render(<DatasetsMappingsStep />);
       expect(screen.queryByTestId('sh-form-message')).not.toBeInTheDocument();
     });
