@@ -37,8 +37,16 @@ export function useDatasetsSoilData() {
   const annotatedFiles = useMemo<SoilDataFile[]>(() => {
     const masterFieldNames = soilDataFiles[0]?.fieldNames;
     return soilDataFiles.map((f, i) => {
-      if (i === 0 || !masterFieldNames || !f.fieldNames) return { ...f, error: null };
-      return { ...f, error: arraysMatch(masterFieldNames, f.fieldNames) ? null : t('mappings.file_inconsistency') };
+      if (i === 0 || !masterFieldNames || !f.fieldNames) return { ...f, error: null, missingFields: undefined, extraFields: undefined };
+      if (arraysMatch(masterFieldNames, f.fieldNames)) return { ...f, error: null, missingFields: undefined, extraFields: undefined };
+      const fileSet = new Set(f.fieldNames);
+      const masterSet = new Set(masterFieldNames);
+      return {
+        ...f,
+        error: t('datasets.mappings.file_inconsistency'),
+        missingFields: masterFieldNames.filter(field => !fileSet.has(field)),
+        extraFields: f.fieldNames.filter(field => !masterSet.has(field)),
+      };
     });
   }, [soilDataFiles, t]);
 

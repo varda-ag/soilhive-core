@@ -1,11 +1,12 @@
 /* SoilDataFileRow.tsx */
 import { useTranslation } from 'react-i18next';
 import { AutoComplete, type AutoCompleteCompleteEvent } from 'primereact/autocomplete';
-import { Button, FormMessage } from 'components/UI';
+import { Button, FormMessage, Dialog } from 'components/UI';
 import classnames from 'classnames';
 import styles from './SoilDataFileRow.module.scss';
 import { type SoilDataFile } from '../../../../types/soilDataFile';
 import CrossIcon from 'assets/icons/cross-icon.svg?react';
+import QuestionIcon from 'assets/icons/question-round-icon.svg?react';
 import { useState } from 'react';
 
 interface Props {
@@ -24,8 +25,9 @@ function formatFileSize(bytes: number | undefined): string {
 
 export function SoilDataFileRow({ soilDataFile, onCrsChange, onRemove, crsOptions }: Props) {
   const { t } = useTranslation('admin');
-  const { id, name, file, crs, inferredCrs, error } = soilDataFile;
+  const { id, name, file, crs, inferredCrs, error, missingFields, extraFields } = soilDataFile;
   const [filteredCrs, setFilteredCrs] = useState<string[]>([]);
+  const [diffOpen, setDiffOpen] = useState(false);
 
   const isReadOnly = !!inferredCrs;
 
@@ -78,7 +80,44 @@ export function SoilDataFileRow({ soilDataFile, onCrsChange, onRemove, crsOption
           <CrossIcon className={styles.RemoveButtonIcon} />
         </Button>
       </div>
-      {error && <FormMessage message={error} type="error" withBackground />}
+      {error && (
+        <div className={styles.ErrorRow}>
+          <FormMessage message={error} type="error" />
+          <button className={styles.DiffButton} data-testid="sh-diff-button" onClick={() => setDiffOpen(true)}>
+            <QuestionIcon />
+          </button>
+        </div>
+      )}
+      <Dialog
+        visible={diffOpen}
+        header={t('datasets.soil_data.diff_dialog.header')}
+        continueText={t('common:close')}
+        onContinue={() => setDiffOpen(false)}
+        onCancel={() => setDiffOpen(false)}
+      >
+        <div className={styles.DiffContent}>
+          {!!missingFields?.length && (
+            <div className={styles.DiffSection}>
+              <p className={styles.DiffSectionTitle}>{t('datasets.soil_data.diff_dialog.missing_fields')}</p>
+              <ul className={styles.DiffList}>
+                {missingFields.map(field => (
+                  <li key={field}>{field}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {!!extraFields?.length && (
+            <div className={styles.DiffSection}>
+              <p className={styles.DiffSectionTitle}>{t('datasets.soil_data.diff_dialog.extra_fields')}</p>
+              <ul className={styles.DiffList}>
+                {extraFields.map(field => (
+                  <li key={field}>{field}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      </Dialog>
     </div>
   );
 }

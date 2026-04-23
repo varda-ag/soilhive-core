@@ -7,4 +7,6 @@ export interface SoilDataFile {
   inferredCrs?: string | null; /** inferred from the backend response after upload */
   error?: string | null;
   fieldNames?: string[];
+  missingFields?: string[];
+  extraFields?: string[];
 }
