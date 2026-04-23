@@ -67,6 +67,14 @@ function setupWithColumns(columns: string[], detectedFields?: Record<string, str
   });
 }
 
+function setupWithEmptyFiles() {
+  const filesData: never[] = [];
+  mockUseApiQuery.mockImplementation(({ endpoint }: { endpoint: string }) => {
+    if (endpoint.includes('/files')) return { data: filesData, isLoading: false };
+    return { data: undefined, isLoading: false };
+  });
+}
+
 function setupWithColumnsAndExistingMapping(
   columns: string[],
   dataMapping: Record<string, unknown>,
@@ -184,6 +192,12 @@ describe('useMappingsStep', () => {
       expect(result.current.geometryMessage).toBeNull();
     });
 
+    it('is null when files array is empty', () => {
+      setupWithEmptyFiles();
+      const { result } = renderHook(() => useMappingsStep('1'));
+      expect(result.current.geometryMessage).toBeNull();
+    });
+
     it('is type info when geometry_detected is true', () => {
       setupWithColumns(['col1'], undefined, true);
       const { result } = renderHook(() => useMappingsStep('1'));
@@ -227,6 +241,12 @@ describe('useMappingsStep', () => {
 
   describe('isContinueEnabled', () => {
     it('is false while files are still loading (geometryDetected undefined)', () => {
+      const { result } = renderHook(() => useMappingsStep('1'));
+      expect(result.current.isContinueEnabled).toBe(false);
+    });
+
+    it('is false when files array is empty', () => {
+      setupWithEmptyFiles();
       const { result } = renderHook(() => useMappingsStep('1'));
       expect(result.current.isContinueEnabled).toBe(false);
     });

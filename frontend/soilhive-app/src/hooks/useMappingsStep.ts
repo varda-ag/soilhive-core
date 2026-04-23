@@ -325,8 +325,10 @@ export function useMappingsStep(datasetId?: string) {
     return null;
   }, [columnMappings, t]);
 
-  const isContinueEnabled =
-    mappedCount > 0 && geometryDetected !== undefined && geometryMessage?.type !== 'warning' && depthConflictMessage === null;
+  const isContinueEnabled = useMemo(
+    () => mappedCount > 0 && geometryDetected !== undefined && geometryMessage?.type !== 'warning' && depthConflictMessage === null,
+    [mappedCount, geometryDetected, geometryMessage, depthConflictMessage],
+  );
 
   const toggleRow = useCallback((columnName: string) => {
     setExpandedRows(prev => {

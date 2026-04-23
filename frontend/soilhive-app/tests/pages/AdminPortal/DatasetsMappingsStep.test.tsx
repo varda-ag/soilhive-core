@@ -129,9 +129,23 @@ describe('DatasetsMappingsStep', () => {
       expect(screen.getByTestId('sh-form-message')).toBeInTheDocument();
     });
 
-    it('shows no depth conflict message when hook returns null', () => {
+    it('shows no depth conflict message when hook returns null (other messages can still render)', () => {
+      (useMappingsStep as jest.Mock).mockReturnValue(
+        stubHookReturn([], { message: 'Geometry was automatically detected.', type: 'info' }, false, null),
+      );
       render(<DatasetsMappingsStep />);
-      expect(screen.queryByTestId('sh-form-message')).not.toBeInTheDocument();
+      expect(screen.getAllByTestId('sh-form-message')).toHaveLength(1);
+    });
+
+    it('renders both messages when geometry and depth conflict messages are both non-null', () => {
+      (useMappingsStep as jest.Mock).mockReturnValue(
+        stubHookReturn([], { message: 'No geometry was detected.', type: 'warning' }, false, {
+          message: "The 'depth' field cannot be used together with 'min depth' or 'max depth'.",
+          type: 'warning',
+        }),
+      );
+      render(<DatasetsMappingsStep />);
+      expect(screen.getAllByTestId('sh-form-message')).toHaveLength(2);
     });
   });
 
