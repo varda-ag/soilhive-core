@@ -16,6 +16,11 @@ exports[`DownloadPreview calls navigate when clicking on the back button 1`] = `
         >
           DATA EXPLORER
         </span>
+        <span
+          class="SubTitle"
+        >
+          Dive into your selected data, filter and explore it by dataset, soil property, depth, and date.
+        </span>
       </div>
       <div
         class="Buttons"
@@ -123,6 +128,11 @@ exports[`DownloadPreview renders download preview page 1`] = `
           class="Title"
         >
           DATA EXPLORER
+        </span>
+        <span
+          class="SubTitle"
+        >
+          Dive into your selected data, filter and explore it by dataset, soil property, depth, and date.
         </span>
       </div>
       <div

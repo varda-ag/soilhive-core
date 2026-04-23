@@ -232,9 +232,15 @@
             "network_error": "Network error. Please check your connection and try again.",
             "crs_label": "Add a Coordinate Reference System (CRS)",
             "crs_placeholder": "EPSG code, e.g. 4326",
-            "invalid_file_type": "Invalid file type"
+            "invalid_file_type": "Invalid file type",
+            "diff_dialog": {
+                "header": "Field structure mismatch",
+                "missing_fields": "Fields missing from this file",
+                "extra_fields": "Extra fields not in the first file"
+            }
         },
         "mappings": {
+            "file_inconsistency": "This file has different fields with respect to the first uploaded file. Fix by matching all the fields and upload again.",
             "step_title": "Mappings",
             "step_description": "Match your data",
             "title": "Map fields",

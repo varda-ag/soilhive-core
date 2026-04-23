@@ -65,6 +65,10 @@
         "network_error": {
             "title": "Network error",
             "message": "No connection to the server." 
+        },
+        "timeout_error": {
+            "title": "Timeout",
+            "message": "Operation timed out." 
         }
     },
     "components": {

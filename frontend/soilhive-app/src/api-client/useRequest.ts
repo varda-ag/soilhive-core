@@ -23,11 +23,13 @@ export function useRequest<T = any>() {
         if (config.showErrorNotification !== false) {
           // Default: show notification
           const message = err instanceof TypeError ? t('errors.network_error.message') : err.message;
+          const isTimeout = message.toLowerCase().includes('timeout');
+          const type = isTimeout ? 'warning' : 'error';
           showNotification({
             id: 'network_error',
-            type: message.toLowerCase().includes('timeout') ? 'warning' : 'error',
-            title: t('errors.network_error.title'),
-            message,
+            type,
+            title: isTimeout ? t('errors.timeout_error.title') : t('errors.network_error.title'),
+            message: isTimeout ? t('errors.timeout_error.message') : message,
           });
         }
 

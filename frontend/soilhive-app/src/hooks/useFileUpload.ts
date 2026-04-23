@@ -13,7 +13,7 @@ export function useFileUpload(onFileUploaded: (file: SoilDataFile) => void) {
   const [uploadErrors, setUploadErrors] = useState<string[]>([]);
 
   const uploadFile = useCallback(
-    (file: File): Promise<{ id: string; crs?: string }> => {
+    (file: File): Promise<{ id: string; crs?: string; fieldNames?: string[] }> => {
       return new Promise((resolve, reject) => {
         const formData = new FormData();
         formData.append('file', file);
@@ -31,7 +31,11 @@ export function useFileUpload(onFileUploaded: (file: SoilDataFile) => void) {
             if (xhr.status >= 200 && xhr.status < 300) {
               // Parse response to build string CRS from EPSG code
               const response = JSON.parse(xhr.responseText);
-              resolve({ id: response.id, crs: response.metadata?.epsg ? `EPSG:${response.metadata.epsg}` : undefined });
+              resolve({
+                id: response.id,
+                crs: response.metadata?.epsg ? `EPSG:${response.metadata.epsg}` : undefined,
+                fieldNames: response.metadata?.field_names as string[] | undefined,
+              });
             } else if (xhr.status === 0) {
               // Network failure
               reject(new Error(t('datasets.soil_data.network_error')));
@@ -83,11 +87,11 @@ export function useFileUpload(onFileUploaded: (file: SoilDataFile) => void) {
       await Promise.allSettled(
         validFiles.map(async file => {
           try {
-            const { id, crs } = await uploadFile(file);
-            onFileUploaded({ id, file, name: file.name, crs: crs ?? null, inferredCrs: crs, progress: 100 });
+            const { id, crs, fieldNames } = await uploadFile(file);
+            onFileUploaded({ id, file, name: file.name, crs: crs ?? null, inferredCrs: crs, fieldNames, progress: 100 });
           } catch (err) {
-            const reason = (err instanceof Error && err.message && err.message !== 'undefined') || t('datasets.soil_data.upload_error');
-            setUploadErrors(prev => [...prev, `${file.name}: ${reason}`]);
+            const message = err instanceof Error && err.message ? err.message : t('datasets.soil_data.upload_error');
+            setUploadErrors(prev => [...prev, `${file.name}: ${message}`]);
           }
         }),
       );
