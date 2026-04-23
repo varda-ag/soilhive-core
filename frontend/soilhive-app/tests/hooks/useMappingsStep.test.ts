@@ -6,6 +6,10 @@ import { useSoilProperties } from 'hooks/useSoilProperties';
 import { useCreateProcedureMutation } from 'hooks/useCreateProcedureMutation';
 import { useCreateMappingsMutation } from 'hooks/useCreateMappingsMutation';
 
+jest.mock('react-i18next', () => ({
+  useTranslation: () => ({ t: (key: string) => key }),
+}));
+
 jest.mock('react-router', () => ({
   useNavigate: jest.fn(),
 }));
@@ -48,9 +52,17 @@ beforeEach(() => {
   mockUseSoilProperties.mockReturnValue({ data: undefined, isLoading: false });
 });
 
-function setupWithColumns(columns: string[], detectedFields?: Record<string, string>) {
+function setupWithColumns(columns: string[], detectedFields?: Record<string, string>, geometryDetected?: boolean) {
   // Stable reference — new array per call would re-trigger the columnMappings useEffect on every render.
-  const filesData = [{ metadata: { field_names: columns, ...(detectedFields ? { detected_fields: detectedFields } : {}) } }];
+  const filesData = [
+    {
+      metadata: {
+        field_names: columns,
+        ...(detectedFields ? { detected_fields: detectedFields } : {}),
+        ...(geometryDetected !== undefined ? { geometry_detected: geometryDetected } : {}),
+      },
+    },
+  ];
   mockUseApiQuery.mockImplementation(({ endpoint }: { endpoint: string }) => {
     if (endpoint.includes('/files')) {
       return { data: filesData, isLoading: false };
@@ -167,6 +179,100 @@ describe('useMappingsStep', () => {
       expect(byName['lat'].conceptId).toBe('geometry');
       // 'lon' has no existing mapping entry — detected_fields SHOULD apply
       expect(byName['lon'].conceptId).toBe('longitude');
+    });
+  });
+
+  describe('geometryMessage', () => {
+    it('is null when files are not loaded', () => {
+      const { result } = renderHook(() => useMappingsStep('1'));
+      expect(result.current.geometryMessage).toBeNull();
+    });
+
+    it('is type info when geometry_detected is true', () => {
+      setupWithColumns(['col1'], undefined, true);
+      const { result } = renderHook(() => useMappingsStep('1'));
+      expect(result.current.geometryMessage?.type).toBe('info');
+    });
+
+    it('is type warning when geometry_detected is false and no geometry/lat+lon are mapped', () => {
+      setupWithColumns(['col1'], undefined, false);
+      const { result } = renderHook(() => useMappingsStep('1'));
+      expect(result.current.geometryMessage?.type).toBe('warning');
+    });
+
+    it('is null when geometry_detected is false but geometry is mapped', () => {
+      setupWithColumns(['geom'], undefined, false);
+      const { result } = renderHook(() => useMappingsStep('1'));
+      act(() => {
+        result.current.handleConceptChange('geom', 'geometry');
+      });
+      expect(result.current.geometryMessage).toBeNull();
+    });
+
+    it('is null when geometry_detected is false but both lat and lon are mapped', () => {
+      setupWithColumns(['lat', 'lon'], undefined, false);
+      const { result } = renderHook(() => useMappingsStep('1'));
+      act(() => {
+        result.current.handleConceptChange('lat', 'latitude');
+        result.current.handleConceptChange('lon', 'longitude');
+      });
+      expect(result.current.geometryMessage).toBeNull();
+    });
+
+    it('remains warning when geometry_detected is false and only one of lat/lon is mapped', () => {
+      setupWithColumns(['lat', 'lon'], undefined, false);
+      const { result } = renderHook(() => useMappingsStep('1'));
+      act(() => {
+        result.current.handleConceptChange('lat', 'latitude');
+      });
+      expect(result.current.geometryMessage?.type).toBe('warning');
+    });
+  });
+
+  describe('isContinueEnabled', () => {
+    it('is false when no files are loaded', () => {
+      const { result } = renderHook(() => useMappingsStep('1'));
+      expect(result.current.isContinueEnabled).toBe(false);
+    });
+
+    it('is false when geometry_detected is false and nothing is mapped', () => {
+      setupWithColumns(['col1'], undefined, false);
+      const { result } = renderHook(() => useMappingsStep('1'));
+      expect(result.current.isContinueEnabled).toBe(false);
+    });
+
+    it('is false when geometry is detected but no columns are mapped', () => {
+      setupWithColumns(['col1'], undefined, true);
+      const { result } = renderHook(() => useMappingsStep('1'));
+      expect(result.current.isContinueEnabled).toBe(false);
+    });
+
+    it('is true when geometry is detected and at least one column is mapped', () => {
+      setupWithColumns(['col1'], undefined, true);
+      const { result } = renderHook(() => useMappingsStep('1'));
+      act(() => {
+        result.current.handleConceptChange('col1', 'geometry');
+      });
+      expect(result.current.isContinueEnabled).toBe(true);
+    });
+
+    it('is true when geometry_detected is false but geometry is manually mapped', () => {
+      setupWithColumns(['geom', 'ph'], undefined, false);
+      const { result } = renderHook(() => useMappingsStep('1'));
+      act(() => {
+        result.current.handleConceptChange('geom', 'geometry');
+      });
+      expect(result.current.isContinueEnabled).toBe(true);
+    });
+
+    it('is true when geometry_detected is false but both lat and lon are mapped', () => {
+      setupWithColumns(['lat', 'lon'], undefined, false);
+      const { result } = renderHook(() => useMappingsStep('1'));
+      act(() => {
+        result.current.handleConceptChange('lat', 'latitude');
+        result.current.handleConceptChange('lon', 'longitude');
+      });
+      expect(result.current.isContinueEnabled).toBe(true);
     });
   });
 

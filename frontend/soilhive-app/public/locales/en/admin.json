@@ -260,6 +260,8 @@
                 "unit_placeholder": "Unit",
                 "no_unit": "No unit"
             },
+            "geometry_detected": "Geometry was automatically detected. You don't need to map the geometry or lat/lon fields.",
+            "geometry_not_detected": "No geometry was detected. You must map the geometry field or both latitude and longitude fields to continue.",
             "details": {
                 "non_mandatory_note": "These fields are non mandatory",
                 "sample_pretreatment": "Sample pretreatment",

@@ -38,9 +38,15 @@ const DETAIL_OPTIONS = {
   limitOfDetection: [],
 };
 
-function stubHookReturn(columnNames: string[] = []) {
+function stubHookReturn(
+  columnNames: string[] = [],
+  geometryMessage: { message: string; type: 'info' | 'warning' } | null = null,
+  isContinueEnabled = false,
+) {
   return {
     isLoading: false,
+    geometryMessage,
+    isContinueEnabled,
     columnMappings: columnNames.map(columnName => ({
       columnName,
       conceptId: null,
@@ -88,6 +94,40 @@ describe('DatasetsMappingsStep', () => {
   it('renders the mappings table', () => {
     render(<DatasetsMappingsStep />);
     expect(screen.getByTestId('sh-mappings-table')).toBeInTheDocument();
+  });
+
+  describe('geometry detection message', () => {
+    it('shows the info message when hook provides an info geometry message', () => {
+      (useMappingsStep as jest.Mock).mockReturnValue(stubHookReturn([], { message: 'Geometry was automatically detected.', type: 'info' }));
+      render(<DatasetsMappingsStep />);
+      expect(screen.getByText('Geometry was automatically detected.')).toBeInTheDocument();
+    });
+
+    it('shows the warning message when hook provides a warning geometry message', () => {
+      (useMappingsStep as jest.Mock).mockReturnValue(stubHookReturn([], { message: 'No geometry was detected.', type: 'warning' }));
+      render(<DatasetsMappingsStep />);
+      expect(screen.getByText('No geometry was detected.')).toBeInTheDocument();
+    });
+
+    it('shows no geometry message when hook returns null', () => {
+      render(<DatasetsMappingsStep />);
+      expect(screen.queryByText(/Geometry was automatically detected/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/No geometry was detected/)).not.toBeInTheDocument();
+    });
+  });
+
+  describe('continue button', () => {
+    it('is disabled when isContinueEnabled is false', () => {
+      (useMappingsStep as jest.Mock).mockReturnValue(stubHookReturn([], null, false));
+      render(<DatasetsMappingsStep />);
+      expect(screen.getByTestId('sh-mappings-continue')).toBeDisabled();
+    });
+
+    it('is enabled when isContinueEnabled is true', () => {
+      (useMappingsStep as jest.Mock).mockReturnValue(stubHookReturn([], null, true));
+      render(<DatasetsMappingsStep />);
+      expect(screen.getByTestId('sh-mappings-continue')).not.toBeDisabled();
+    });
   });
 
   describe('mapping rows', () => {
