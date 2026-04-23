@@ -107,7 +107,7 @@ export function drawFooter(doc: PDFKit.PDFDocument, pageNumber: number, homepage
 // ─── Private section renderers ───────────────────────────────────────────────
 
 function sectionHeading(doc: PDFKit.PDFDocument, title: string, y?: number): number {
-  const startY = y ?? doc.y;
+  const startY = (y ?? doc.y) + 6;
   doc.font(FONT.regular).fontSize(18).fillColor(COLOR.teal).text(title, MARGIN, startY);
   const ruleY = doc.y + 2;
   doc
@@ -116,7 +116,7 @@ function sectionHeading(doc: PDFKit.PDFDocument, title: string, y?: number): num
     .strokeColor(COLOR.rule)
     .lineWidth(5.0)
     .stroke();
-  doc.moveDown(0.6);
+  doc.moveDown(1.2);
   return doc.y;
 }
 
@@ -384,7 +384,7 @@ function drawStandardsSection(doc: PDFKit.PDFDocument): void {
   doc.moveDown(0.8);
 }
 
-function drawTermsSection(doc: PDFKit.PDFDocument, termsUrl?: string, homepageUrl?: string): void {
+function drawTermsSection(doc: PDFKit.PDFDocument, termsUrl?: string, _homepageUrl?: string): void {
   sectionHeading(doc, 'Terms and conditions');
 
   if (termsUrl) {
@@ -400,18 +400,20 @@ function drawTermsSection(doc: PDFKit.PDFDocument, termsUrl?: string, homepageUr
   }
 
   bodyText(doc, 'Users must review the license associated with each dataset prior to reuse or redistribution.');
-  bodyText(doc, 'When using data in publications or derived products, please cite the platform as follows:');
 
-  doc
-    .font(FONT.regular)
-    .fontSize(FONT_SIZE)
-    .fillColor(COLOR.black)
-    .text('Varda Foundation. (Year). SoilHive soil data platform [Data platform]. ', MARGIN, doc.y, {
-      continued: true,
-      width: CONTENT_WIDTH,
-    })
-    .fillColor(COLOR.teal)
-    .text(homepageUrl ?? '', { link: homepageUrl, lineBreak: false });
+  // TODO: add citation info when available
+  // bodyText(doc, 'When using data in publications or derived products, please cite the platform as follows:');
+
+  // doc
+  //   .font(FONT.regular)
+  //   .fontSize(FONT_SIZE)
+  //   .fillColor(COLOR.black)
+  //   .text('Varda Foundation. (Year). SoilHive soil data platform [Data platform]. ', MARGIN, doc.y, {
+  //     continued: true,
+  //     width: CONTENT_WIDTH,
+  //   })
+  //   .fillColor(COLOR.teal)
+  //   .text(homepageUrl ?? '', { link: homepageUrl, lineBreak: false });
 }
 
 // ─── Main entry point ────────────────────────────────────────────────────────
