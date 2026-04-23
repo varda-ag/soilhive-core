@@ -160,6 +160,7 @@ function DownloadPreview() {
       <div className={styles.Header}>
         <div className={styles.Titles}>
           <span className={styles.Title}>{t('download_preview.page_title')}</span>
+          <span className={styles.SubTitle}>{t('download_preview.page_subtitle')}</span>
         </div>
         <div className={styles.Buttons}>
           <Button type="tertiary" isIconOnly={true} className={styles.ShareButton}>
