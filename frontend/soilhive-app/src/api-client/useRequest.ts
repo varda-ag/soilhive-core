@@ -22,10 +22,12 @@ export function useRequest<T = any>() {
 
         if (config.showErrorNotification !== false) {
           // Default: show notification
+          const message = err instanceof TypeError ? t('errors.network_error.message') : err.message;
           showNotification({
             id: 'network_error',
+            type: message.toLowerCase().includes('timeout') ? 'warning' : 'error',
             title: t('errors.network_error.title'),
-            message: err instanceof TypeError ? t('errors.network_error.message') : err.message,
+            message,
           });
         }
 

@@ -245,7 +245,7 @@ export default function GeocoderControl(props: GeocoderControlProps) {
     [geocoder],
   );
 
-  function addGeocoderEvents(geocoder: any) {
+  useEffect(() => {
     if ((geocoder as any).container) {
       document.querySelector('.soilhive-map-toolbar')?.prepend((geocoder as any).container);
     }
@@ -259,9 +259,7 @@ export default function GeocoderControl(props: GeocoderControlProps) {
       input.removeEventListener('keyup', onKeyUp);
       input.removeEventListener('input', onInput);
     };
-  }
-
-  addGeocoderEvents(geocoder);
+  }, [geocoder, onKeyUp, onInput]);
 
   if ((geocoder as any)._map) {
     if (geocoder.getProximity() !== props.proximity && props.proximity !== undefined) {

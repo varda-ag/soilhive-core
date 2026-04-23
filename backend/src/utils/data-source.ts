@@ -30,7 +30,7 @@ const createDataSource = async (schema: string): Promise<DataSource> => {
     namingStrategy: new DatabaseNamingStrategy(),
     poolSize: 50,
     extra: {
-      statement_timeout: 15000,
+      statement_timeout: 20000,
     },
     cache: !isJest(),
   });
