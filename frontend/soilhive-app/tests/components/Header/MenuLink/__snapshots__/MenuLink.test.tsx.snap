@@ -1,0 +1,37 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`MenuLink component matches snapshot for external link 1`] = `
+<div>
+  <a
+    class="NavItem"
+    href="https://example.com"
+    rel="noopener noreferrer"
+    target="_blank"
+  >
+    <svg
+      data-testid="menu-link-icon"
+    />
+    <span>
+      External
+    </span>
+  </a>
+</div>
+`;
+
+exports[`MenuLink component matches snapshot for internal link 1`] = `
+<div>
+  <a
+    class="NavItem"
+    data-discover="true"
+    data-testid="sh-header-nav-link"
+    href="/about"
+  >
+    <svg
+      data-testid="menu-link-icon"
+    />
+    <span>
+      About
+    </span>
+  </a>
+</div>
+`;

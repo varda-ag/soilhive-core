@@ -34,10 +34,10 @@ jest.mock('components/DownloadsStatus/DownloadsStatus', () => ({
 
 jest.mock('components/MobileMenu/MobileMenu', () => ({
   __esModule: true,
-  default: ({ menuEntries }: { menuEntries: Array<{ name: string; route: string }> }) => (
+  default: ({ menuEntries }: { menuEntries: Array<{ name: string; route?: string }> }) => (
     <div data-testid="mobile-menu-mock">
       {menuEntries.map(item => (
-        <div key={item.route} data-testid="mobile-menu-entry">
+        <div key={item.name} data-testid="mobile-menu-entry">
           {item.name}:{item.route}
         </div>
       ))}
@@ -107,7 +107,7 @@ describe('Header component', () => {
   });
 
   it('renders component correctly on mobile and tablets for unauthorized users', () => {
-    (useDevice as jest.Mock).mockReturnValue({ isDesktopLayout: false });
+    (useDevice as jest.Mock).mockReturnValue({ isDesktopLayout: false, isMobileLayout: true });
     const { container } = render(
       <MemoryRouter initialEntries={['/']}>
         <Header />
@@ -128,7 +128,7 @@ describe('Header component', () => {
   });
 
   it('renders correctly on mobile for authenticated user', () => {
-    (useDevice as jest.Mock).mockReturnValue({ isDesktopLayout: false });
+    (useDevice as jest.Mock).mockReturnValue({ isDesktopLayout: false, isMobileLayout: true });
     (useAuthContext as jest.Mock).mockReturnValue({
       isAuthenticated: true,
     });
@@ -145,7 +145,7 @@ describe('Header component', () => {
   });
 
   it('triggers mobile menu visibility on hamburger button click', () => {
-    (useDevice as jest.Mock).mockReturnValue({ isDesktopLayout: false });
+    (useDevice as jest.Mock).mockReturnValue({ isDesktopLayout: false, isMobileLayout: true });
     render(
       <MemoryRouter initialEntries={['/']}>
         <Header />
@@ -169,7 +169,7 @@ describe('Header component', () => {
   });
 
   it('renders menu entries in the mobile menu', () => {
-    (useDevice as jest.Mock).mockReturnValue({ isDesktopLayout: false });
+    (useDevice as jest.Mock).mockReturnValue({ isDesktopLayout: false, isMobileLayout: true });
 
     const { container } = render(
       <MemoryRouter initialEntries={['/']}>
@@ -181,6 +181,21 @@ describe('Header component', () => {
 
     expect(screen.getAllByTestId('mobile-menu-entry')).toHaveLength(2);
     expect(container).toMatchSnapshot();
+  });
+
+  it.each([
+    [false, 'Beta version'],
+    [true, 'Beta'],
+  ])('renders BetaPill with correct text based on isMobileLayout=%s', (isMobileLayout: boolean, expectedText: string) => {
+    (useDevice as jest.Mock).mockReturnValue({ isDesktopLayout: !isMobileLayout, isMobileLayout });
+
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <Header />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText(expectedText)).toBeInTheDocument();
   });
 
   it.each([false, true])('Conditionally renders the Legal nav link according to loading state', (isLoadingThemeConfig: boolean) => {
