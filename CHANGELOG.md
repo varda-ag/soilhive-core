@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.82.0 (2026-04-24)
+
+## What's Changed
+* fix: timeout message by @svaccari in https://github.com/varda-ag/soilhive-core/pull/448
+* feat: sp-5150 mobile fixes for data explorer page by @cristbello in https://github.com/varda-ag/soilhive-core/pull/447
+* fix: custom fonts by @svaccari in https://github.com/varda-ag/soilhive-core/pull/450
+* feat: sp-5108 implement t and c page on the platform by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/451
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.81.0...v0.82.0
+
 ## 0.81.0 (2026-04-23)
 
 ## What's Changed
