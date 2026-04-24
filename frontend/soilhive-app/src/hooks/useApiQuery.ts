@@ -17,6 +17,7 @@ type UseApiQueryOptions<TResponse, TBody = void> = {
   showErrorNotification?: boolean;
   notFoundAsNull?: boolean;
   isBlobResponse?: boolean;
+  abortOnNewQuery?: boolean;
 };
 
 export function useApiQuery<TResponse, TBody = void>({
@@ -31,16 +32,19 @@ export function useApiQuery<TResponse, TBody = void>({
   showErrorNotification,
   notFoundAsNull,
   isBlobResponse = false,
+  abortOnNewQuery = false,
 }: UseApiQueryOptions<TResponse, TBody>) {
   const { request } = useRequest();
 
   const url = buildApiUrl(endpoint, parameters);
 
-  const fetchData = async (): Promise<TResponse> => {
+  const fetchData = async ({ signal }: { signal: AbortSignal }): Promise<TResponse> => {
     return await request({
       url,
       method,
       body,
+      signal: abortOnNewQuery ? signal : undefined,
+      ignoreAbortError: abortOnNewQuery,
       showErrorNotification,
       notFoundAsNull,
       isBlobResponse,
