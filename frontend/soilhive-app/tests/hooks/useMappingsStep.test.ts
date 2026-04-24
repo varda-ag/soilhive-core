@@ -48,13 +48,29 @@ beforeEach(() => {
   mockUseSoilProperties.mockReturnValue({ data: undefined, isLoading: false });
 });
 
-function setupWithColumns(columns: string[], detectedFields?: Record<string, string>) {
+function setupWithColumns(columns: string[], detectedFields?: Record<string, string>, geometryDetected?: boolean) {
   // Stable reference — new array per call would re-trigger the columnMappings useEffect on every render.
-  const filesData = [{ metadata: { field_names: columns, ...(detectedFields ? { detected_fields: detectedFields } : {}) } }];
+  const filesData = [
+    {
+      metadata: {
+        field_names: columns,
+        ...(detectedFields ? { detected_fields: detectedFields } : {}),
+        ...(geometryDetected !== undefined ? { geometry_detected: geometryDetected } : {}),
+      },
+    },
+  ];
   mockUseApiQuery.mockImplementation(({ endpoint }: { endpoint: string }) => {
     if (endpoint.includes('/files')) {
       return { data: filesData, isLoading: false };
     }
+    return { data: undefined, isLoading: false };
+  });
+}
+
+function setupWithEmptyFiles() {
+  const filesData: never[] = [];
+  mockUseApiQuery.mockImplementation(({ endpoint }: { endpoint: string }) => {
+    if (endpoint.includes('/files')) return { data: filesData, isLoading: false };
     return { data: undefined, isLoading: false };
   });
 }
@@ -167,6 +183,189 @@ describe('useMappingsStep', () => {
       expect(byName['lat'].conceptId).toBe('geometry');
       // 'lon' has no existing mapping entry — detected_fields SHOULD apply
       expect(byName['lon'].conceptId).toBe('longitude');
+    });
+  });
+
+  describe('geometryMessage', () => {
+    it('is null when files are not loaded', () => {
+      const { result } = renderHook(() => useMappingsStep('1'));
+      expect(result.current.geometryMessage).toBeNull();
+    });
+
+    it('is null when files array is empty', () => {
+      setupWithEmptyFiles();
+      const { result } = renderHook(() => useMappingsStep('1'));
+      expect(result.current.geometryMessage).toBeNull();
+    });
+
+    it('is type info when geometry_detected is true', () => {
+      setupWithColumns(['col1'], undefined, true);
+      const { result } = renderHook(() => useMappingsStep('1'));
+      expect(result.current.geometryMessage?.type).toBe('info');
+    });
+
+    it('is type warning when geometry_detected is false and no geometry/lat+lon are mapped', () => {
+      setupWithColumns(['col1'], undefined, false);
+      const { result } = renderHook(() => useMappingsStep('1'));
+      expect(result.current.geometryMessage?.type).toBe('warning');
+    });
+
+    it('is null when geometry_detected is false but geometry is mapped', () => {
+      setupWithColumns(['geom'], undefined, false);
+      const { result } = renderHook(() => useMappingsStep('1'));
+      act(() => {
+        result.current.handleConceptChange('geom', 'geometry');
+      });
+      expect(result.current.geometryMessage).toBeNull();
+    });
+
+    it('is null when geometry_detected is false but both lat and lon are mapped', () => {
+      setupWithColumns(['lat', 'lon'], undefined, false);
+      const { result } = renderHook(() => useMappingsStep('1'));
+      act(() => {
+        result.current.handleConceptChange('lat', 'latitude');
+        result.current.handleConceptChange('lon', 'longitude');
+      });
+      expect(result.current.geometryMessage).toBeNull();
+    });
+
+    it('remains warning when geometry_detected is false and only one of lat/lon is mapped', () => {
+      setupWithColumns(['lat', 'lon'], undefined, false);
+      const { result } = renderHook(() => useMappingsStep('1'));
+      act(() => {
+        result.current.handleConceptChange('lat', 'latitude');
+      });
+      expect(result.current.geometryMessage?.type).toBe('warning');
+    });
+  });
+
+  describe('isContinueEnabled', () => {
+    it('is false while files are still loading (geometryDetected undefined)', () => {
+      const { result } = renderHook(() => useMappingsStep('1'));
+      expect(result.current.isContinueEnabled).toBe(false);
+    });
+
+    it('is false when files array is empty', () => {
+      setupWithEmptyFiles();
+      const { result } = renderHook(() => useMappingsStep('1'));
+      expect(result.current.isContinueEnabled).toBe(false);
+    });
+
+    it('is false when geometry_detected is false and nothing is mapped', () => {
+      setupWithColumns(['col1'], undefined, false);
+      const { result } = renderHook(() => useMappingsStep('1'));
+      expect(result.current.isContinueEnabled).toBe(false);
+    });
+
+    it('is false when geometry is detected but no columns are mapped', () => {
+      setupWithColumns(['col1'], undefined, true);
+      const { result } = renderHook(() => useMappingsStep('1'));
+      expect(result.current.isContinueEnabled).toBe(false);
+    });
+
+    it('is true when geometry is detected and at least one column is mapped', () => {
+      setupWithColumns(['col1'], undefined, true);
+      const { result } = renderHook(() => useMappingsStep('1'));
+      act(() => {
+        result.current.handleConceptChange('col1', 'geometry');
+      });
+      expect(result.current.isContinueEnabled).toBe(true);
+    });
+
+    it('is true when geometry_detected is false but geometry is manually mapped', () => {
+      setupWithColumns(['geom', 'ph'], undefined, false);
+      const { result } = renderHook(() => useMappingsStep('1'));
+      act(() => {
+        result.current.handleConceptChange('geom', 'geometry');
+      });
+      expect(result.current.isContinueEnabled).toBe(true);
+    });
+
+    it('is true when geometry_detected is false but both lat and lon are mapped', () => {
+      setupWithColumns(['lat', 'lon'], undefined, false);
+      const { result } = renderHook(() => useMappingsStep('1'));
+      act(() => {
+        result.current.handleConceptChange('lat', 'latitude');
+        result.current.handleConceptChange('lon', 'longitude');
+      });
+      expect(result.current.isContinueEnabled).toBe(true);
+    });
+
+    it('is false when depth conflicts with a range depth field (even if geometry is satisfied)', () => {
+      setupWithColumns(['d', 'min_d', 'geom'], undefined, true);
+      const { result } = renderHook(() => useMappingsStep('1'));
+      act(() => {
+        result.current.handleConceptChange('geom', 'geometry');
+        result.current.handleConceptChange('d', 'depth');
+        result.current.handleConceptChange('min_d', 'min_depth');
+      });
+      expect(result.current.isContinueEnabled).toBe(false);
+    });
+  });
+
+  describe('depthConflictMessage', () => {
+    it('is null when only depth is mapped', () => {
+      setupWithColumns(['d', 'other'], undefined, true);
+      const { result } = renderHook(() => useMappingsStep('1'));
+      act(() => {
+        result.current.handleConceptChange('d', 'depth');
+      });
+      expect(result.current.depthConflictMessage).toBeNull();
+    });
+
+    it('is null when only min_depth and max_depth are mapped', () => {
+      setupWithColumns(['min_d', 'max_d'], undefined, true);
+      const { result } = renderHook(() => useMappingsStep('1'));
+      act(() => {
+        result.current.handleConceptChange('min_d', 'min_depth');
+        result.current.handleConceptChange('max_d', 'max_depth');
+      });
+      expect(result.current.depthConflictMessage).toBeNull();
+    });
+
+    it('is type warning when depth and min_depth are both mapped', () => {
+      setupWithColumns(['d', 'min_d'], undefined, true);
+      const { result } = renderHook(() => useMappingsStep('1'));
+      act(() => {
+        result.current.handleConceptChange('d', 'depth');
+        result.current.handleConceptChange('min_d', 'min_depth');
+      });
+      expect(result.current.depthConflictMessage?.type).toBe('warning');
+    });
+
+    it('is type warning when depth and max_depth are both mapped', () => {
+      setupWithColumns(['d', 'max_d'], undefined, true);
+      const { result } = renderHook(() => useMappingsStep('1'));
+      act(() => {
+        result.current.handleConceptChange('d', 'depth');
+        result.current.handleConceptChange('max_d', 'max_depth');
+      });
+      expect(result.current.depthConflictMessage?.type).toBe('warning');
+    });
+
+    it('is type warning when depth, min_depth, and max_depth are all mapped', () => {
+      setupWithColumns(['d', 'min_d', 'max_d'], undefined, true);
+      const { result } = renderHook(() => useMappingsStep('1'));
+      act(() => {
+        result.current.handleConceptChange('d', 'depth');
+        result.current.handleConceptChange('min_d', 'min_depth');
+        result.current.handleConceptChange('max_d', 'max_depth');
+      });
+      expect(result.current.depthConflictMessage?.type).toBe('warning');
+    });
+
+    it('clears when the conflicting depth mapping is removed', () => {
+      setupWithColumns(['d', 'min_d'], undefined, true);
+      const { result } = renderHook(() => useMappingsStep('1'));
+      act(() => {
+        result.current.handleConceptChange('d', 'depth');
+        result.current.handleConceptChange('min_d', 'min_depth');
+      });
+      expect(result.current.depthConflictMessage?.type).toBe('warning');
+      act(() => {
+        result.current.handleConceptChange('d', '');
+      });
+      expect(result.current.depthConflictMessage).toBeNull();
     });
   });
 

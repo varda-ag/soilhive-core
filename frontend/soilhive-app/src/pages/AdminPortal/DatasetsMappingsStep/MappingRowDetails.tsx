@@ -41,6 +41,7 @@ export function MappingRowDetails({ columnName, details, detailOptions, onDetail
             value={details[key] ?? undefined}
             placeholder={t('datasets.mappings.row.unit_placeholder')}
             onChange={value => onDetailChange(columnName, key, value as string)}
+            onClear={() => onDetailChange(columnName, key, '')}
           />
         ))}
       </div>

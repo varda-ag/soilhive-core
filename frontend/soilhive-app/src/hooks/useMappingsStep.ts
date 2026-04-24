@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { useApiQuery } from './useApiQuery';
@@ -127,6 +128,7 @@ function buildDataMappingRequest(mappings: ColumnMapping[], procedureIds: Record
 // ---------------------------------------------------------------------------
 
 export function useMappingsStep(datasetId?: string) {
+  const { t } = useTranslation('admin');
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -210,6 +212,11 @@ export function useMappingsStep(datasetId?: string) {
     isLoadingTechniques ||
     isLoadingExistingMappings ||
     isLoadingProcedures;
+
+  const geometryDetected = useMemo(() => {
+    if (!files || files.length === 0) return undefined;
+    return files[0].metadata?.geometry_detected === true;
+  }, [files]);
 
   const [columnMappings, setColumnMappings] = useState<ColumnMapping[]>([]);
 
@@ -302,6 +309,27 @@ export function useMappingsStep(datasetId?: string) {
     return { mappedCount: mapped, unmappedCount: columnMappings.length - mapped };
   }, [columnMappings]);
 
+  const geometryMessage = useMemo((): { message: string; type: 'info' | 'warning' } | null => {
+    if (geometryDetected === undefined) return null;
+    if (geometryDetected === true) return { message: t('datasets.mappings.geometry_detected'), type: 'info' };
+    const hasGeometry = columnMappings.some(m => m.conceptId === 'geometry');
+    const hasLatLon = columnMappings.some(m => m.conceptId === 'latitude') && columnMappings.some(m => m.conceptId === 'longitude');
+    if (hasGeometry || hasLatLon) return null;
+    return { message: t('datasets.mappings.geometry_not_detected'), type: 'warning' };
+  }, [geometryDetected, columnMappings, t]);
+
+  const depthConflictMessage = useMemo((): { message: string; type: 'warning' } | null => {
+    const hasDepth = columnMappings.some(m => m.conceptId === 'depth');
+    const hasRangeDepth = columnMappings.some(m => m.conceptId === 'min_depth' || m.conceptId === 'max_depth');
+    if (hasDepth && hasRangeDepth) return { message: t('datasets.mappings.depth_conflict'), type: 'warning' };
+    return null;
+  }, [columnMappings, t]);
+
+  const isContinueEnabled = useMemo(
+    () => mappedCount > 0 && geometryDetected !== undefined && geometryMessage?.type !== 'warning' && depthConflictMessage === null,
+    [mappedCount, geometryDetected, geometryMessage, depthConflictMessage],
+  );
+
   const toggleRow = useCallback((columnName: string) => {
     setExpandedRows(prev => {
       const next = new Set(prev);
@@ -380,6 +408,9 @@ export function useMappingsStep(datasetId?: string) {
 
   return {
     isLoading,
+    geometryMessage,
+    depthConflictMessage,
+    isContinueEnabled,
     columnMappings,
     conceptOptions,
     unitOptionsByConcept,
