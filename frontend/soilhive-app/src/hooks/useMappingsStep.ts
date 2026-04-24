@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { useApiQuery } from './useApiQuery';
@@ -148,6 +149,7 @@ function buildDataMappingRequest(mappings: ColumnMapping[], procedureIds: Record
 // ---------------------------------------------------------------------------
 
 export function useMappingsStep(datasetId?: string) {
+  const { t } = useTranslation('admin');
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -249,6 +251,11 @@ export function useMappingsStep(datasetId?: string) {
     isLoadingExistingMappings ||
     isLoadingProcedures;
 
+  const geometryDetected = useMemo(() => {
+    if (!files || files.length === 0) return undefined;
+    return files[0].metadata?.geometry_detected === true;
+  }, [files]);
+
   const [columnMappings, setColumnMappings] = useState<ColumnMapping[]>([]);
 
   // Initialise the column mapping table from the uploaded file columns, hydrating each row
@@ -318,17 +325,31 @@ export function useMappingsStep(datasetId?: string) {
     return base;
   }, [vocabularyItems, techniques]);
 
-  // Metadata fields first, then soil properties sorted alphabetically.
-  // Unit options are keyed by concept id — only soil properties carry allowed units.
-  const { conceptOptions, unitOptionsByConcept } = useMemo(() => {
+  // Unit options and sorted soil properties — depends only on API data, not user selections.
+  const { soilPropertyOptions, unitOptionsByConcept } = useMemo(() => {
     const properties = soilProperties ?? [];
     const soilPropertyOptions = properties.map(p => ({ code: p.id, name: p.property_name })).sort((a, b) => a.name.localeCompare(b.name));
     const unitOptionsByConcept: Record<string, MenuOption[]> = {};
     for (const p of properties) {
       unitOptionsByConcept[p.id] = p.original_units_of_measurement?.map(u => ({ code: u, name: u })) ?? [];
     }
-    return { conceptOptions: [...METADATA_FIELD_OPTIONS, ...soilPropertyOptions], unitOptionsByConcept };
+    return { soilPropertyOptions, unitOptionsByConcept };
   }, [soilProperties]);
+
+  // Per-row concept options: metadata fields first (excluding those already selected by other rows),
+  // then all soil properties. A row always sees its own current metadata selection so the user
+  // can change or clear it.
+  const conceptOptionsByColumn = useMemo((): Record<string, MenuOption[]> => {
+    const usedMetadataCodes = new Set(
+      columnMappings.filter(m => m.conceptId && METADATA_FIELD_CODES.has(m.conceptId)).map(m => m.conceptId!),
+    );
+    return Object.fromEntries(
+      columnMappings.map(m => {
+        const availableMetadata = METADATA_FIELD_OPTIONS.filter(o => !usedMetadataCodes.has(o.code) || m.conceptId === o.code);
+        return [m.columnName, [...availableMetadata, ...soilPropertyOptions]];
+      }),
+    );
+  }, [columnMappings, soilPropertyOptions]);
 
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
@@ -339,6 +360,27 @@ export function useMappingsStep(datasetId?: string) {
     }
     return { mappedCount: mapped, unmappedCount: columnMappings.length - mapped };
   }, [columnMappings]);
+
+  const geometryMessage = useMemo((): { message: string; type: 'info' | 'warning' } | null => {
+    if (geometryDetected === undefined) return null;
+    if (geometryDetected === true) return { message: t('datasets.mappings.geometry_detected'), type: 'info' };
+    const hasGeometry = columnMappings.some(m => m.conceptId === 'geometry');
+    const hasLatLon = columnMappings.some(m => m.conceptId === 'latitude') && columnMappings.some(m => m.conceptId === 'longitude');
+    if (hasGeometry || hasLatLon) return null;
+    return { message: t('datasets.mappings.geometry_not_detected'), type: 'warning' };
+  }, [geometryDetected, columnMappings, t]);
+
+  const depthConflictMessage = useMemo((): { message: string; type: 'warning' } | null => {
+    const hasDepth = columnMappings.some(m => m.conceptId === 'depth');
+    const hasRangeDepth = columnMappings.some(m => m.conceptId === 'min_depth' || m.conceptId === 'max_depth');
+    if (hasDepth && hasRangeDepth) return { message: t('datasets.mappings.depth_conflict'), type: 'warning' };
+    return null;
+  }, [columnMappings, t]);
+
+  const isContinueEnabled = useMemo(
+    () => mappedCount > 0 && geometryDetected !== undefined && geometryMessage?.type !== 'warning' && depthConflictMessage === null,
+    [mappedCount, geometryDetected, geometryMessage, depthConflictMessage],
+  );
 
   const toggleRow = useCallback((columnName: string) => {
     setExpandedRows(prev => {
@@ -427,8 +469,11 @@ export function useMappingsStep(datasetId?: string) {
 
   return {
     isLoading,
+    geometryMessage,
+    depthConflictMessage,
+    isContinueEnabled,
     columnMappings,
-    conceptOptions,
+    conceptOptionsByColumn,
     unitOptionsByConcept,
     detailOptions,
     mappedCount,

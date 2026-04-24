@@ -68,6 +68,7 @@ export function MappingRow({
             value={mapping.conceptId ?? undefined}
             placeholder={t('datasets.mappings.row.select_concept')}
             onChange={code => onConceptChange(mapping.columnName, code)}
+            onClear={() => onConceptChange(mapping.columnName, '')}
           />
         </div>
 

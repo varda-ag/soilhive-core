@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { AutoComplete, type AutoCompleteCompleteEvent } from 'primereact/autocomplete';
 import classnames from 'classnames';
 import { FormFieldWrapper } from 'components/UI';
+import SmallCrossIcon from 'assets/icons/small-cross-icon.svg?react';
 import type { ComponentSizeType, MenuOption } from 'types/components';
 import styles from './AutocompleteDropdown.module.scss';
 
@@ -19,6 +20,7 @@ interface Props {
   errorMessage?: string;
   helperMessage?: string;
   onChange: (code: string) => void;
+  onClear?: () => void;
 }
 
 // Typeahead dropdown for MenuOption[] lists where the stored value is a code
@@ -38,6 +40,7 @@ export function AutocompleteDropdown({
   errorMessage,
   helperMessage,
   onChange,
+  onClear,
 }: Props) {
   const nameFromCode = useCallback((code: string | undefined) => options.find(o => o.code === code)?.name ?? '', [options]);
 
@@ -68,6 +71,10 @@ export function AutocompleteDropdown({
     }
   };
 
+  const handleClear = () => {
+    onClear?.();
+  };
+
   return (
     <FormFieldWrapper
       className={className}
@@ -79,25 +86,38 @@ export function AutocompleteDropdown({
       errorMessage={errorMessage}
       helperMessage={helperMessage}
     >
-      <AutoComplete
-        value={displayName}
-        suggestions={filteredOptions}
-        field="name"
-        completeMethod={handleFilter}
-        onChange={e => setDisplayName(typeof e.value === 'string' ? e.value : (e.value as MenuOption).name)}
-        onSelect={e => {
-          const option = e.value as MenuOption;
-          setDisplayName(option.name);
-          onChange(option.code);
-        }}
-        onBlur={handleBlur}
-        placeholder={placeholder}
-        disabled={isDisabled}
-        dropdown={true}
-        className={classnames(styles.Root, { [styles.Small]: size === 'small', [styles.Tiny]: size === 'tiny' })}
-        inputClassName={styles.Input}
-        panelClassName={styles.Panel}
-      />
+      <div className={styles.Wrapper}>
+        <AutoComplete
+          value={displayName}
+          suggestions={filteredOptions}
+          field="name"
+          completeMethod={handleFilter}
+          onChange={e => setDisplayName(typeof e.value === 'string' ? e.value : (e.value as MenuOption).name)}
+          onSelect={e => {
+            const option = e.value as MenuOption;
+            setDisplayName(option.name);
+            onChange(option.code);
+          }}
+          onBlur={handleBlur}
+          placeholder={placeholder}
+          disabled={isDisabled}
+          dropdown={true}
+          className={classnames(styles.Root, { [styles.Small]: size === 'small', [styles.Tiny]: size === 'tiny' })}
+          inputClassName={styles.Input}
+          panelClassName={styles.Panel}
+        />
+        {onClear && !!displayName && (
+          <button
+            className={styles.ClearButton}
+            type="button"
+            aria-label="Clear selection"
+            onMouseDown={e => e.preventDefault()}
+            onClick={handleClear}
+          >
+            <SmallCrossIcon />
+          </button>
+        )}
+      </div>
     </FormFieldWrapper>
   );
 }

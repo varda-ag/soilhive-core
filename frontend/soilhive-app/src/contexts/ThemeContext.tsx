@@ -28,6 +28,7 @@ type ThemeProviderProps = {
 export const defaultThemeConfig: ThemeConfig = {
   colors: defaultColors,
   termsAndConditionsHtml: '',
+  termsAndConditionsLatestUpdate: '',
   notificationBannerHtml: '',
   initialBbox: [6.6272658, 35.2889616, 18.7844746, 47.0921462],
 };
@@ -59,9 +60,16 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   };
 
   const saveTermsAndConditions = async (termsAndConditionsHtml: string) => {
+    const latestUpdate = new Date().toLocaleDateString('en-GB', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    });
+
     await saveConfig({
       ...themeConfig,
       termsAndConditionsHtml,
+      termsAndConditionsLatestUpdate: latestUpdate,
     });
 
     showNotification({

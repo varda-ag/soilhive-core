@@ -2,6 +2,12 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { AutocompleteDropdown } from 'components/UI/AutocompleteDropdown/AutocompleteDropdown';
 import type { MenuOption } from 'types/components';
 
+jest.mock('assets/icons/small-cross-icon.svg?react', () => {
+  const Mock = () => <div data-testid="sh-autocomplete-clear-icon" />;
+  Mock.displayName = 'Mock';
+  return Mock;
+});
+
 // Minimal AutoComplete stub: renders an <input> + a list of suggestion <div>s.
 // Calling onChange simulates the user typing; completeMethod is called at the
 // same time so that filteredOptions (= suggestions prop) updates in the same
@@ -69,6 +75,36 @@ describe('AutocompleteDropdown — code/name handling', () => {
       fireEvent.click(screen.getByText('Carbon organic'));
 
       expect(onChange).toHaveBeenCalledWith('p1');
+    });
+  });
+
+  describe('clear button (onClear)', () => {
+    it('does not render the clear button when onClear is not provided', () => {
+      render(<AutocompleteDropdown options={OPTIONS} value="p1" onChange={jest.fn()} />);
+      expect(screen.queryByRole('button', { name: 'Clear selection' })).not.toBeInTheDocument();
+    });
+
+    it('does not render the clear button when onClear is provided but no value is selected', () => {
+      render(<AutocompleteDropdown options={OPTIONS} value={undefined} onChange={jest.fn()} onClear={jest.fn()} />);
+      expect(screen.queryByRole('button', { name: 'Clear selection' })).not.toBeInTheDocument();
+    });
+
+    it('renders the clear button when onClear is provided and a value is selected', () => {
+      render(<AutocompleteDropdown options={OPTIONS} value="p1" onChange={jest.fn()} onClear={jest.fn()} />);
+      expect(screen.getByRole('button', { name: 'Clear selection' })).toBeInTheDocument();
+    });
+
+    it('calls onClear when the clear button is clicked', () => {
+      const onClear = jest.fn();
+      render(<AutocompleteDropdown options={OPTIONS} value="p1" onChange={jest.fn()} onClear={onClear} />);
+      fireEvent.click(screen.getByRole('button', { name: 'Clear selection' }));
+      expect(onClear).toHaveBeenCalled();
+    });
+
+    it('hides the clear button after the parent clears the value', () => {
+      const { rerender } = render(<AutocompleteDropdown options={OPTIONS} value="p1" onChange={jest.fn()} onClear={jest.fn()} />);
+      rerender(<AutocompleteDropdown options={OPTIONS} value={undefined} onChange={jest.fn()} onClear={jest.fn()} />);
+      expect(screen.queryByRole('button', { name: 'Clear selection' })).not.toBeInTheDocument();
     });
   });
 

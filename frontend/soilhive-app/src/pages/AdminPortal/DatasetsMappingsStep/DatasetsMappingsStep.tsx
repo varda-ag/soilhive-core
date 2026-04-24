@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router';
-import { Button } from 'components/UI';
+import { Button, FormMessage } from 'components/UI';
 import { useMappingsStep } from 'hooks/useMappingsStep';
 import { MappingsBanner } from './MappingsBanner';
 import { MappingsTable } from './MappingsTable';
@@ -11,8 +11,11 @@ export function DatasetsMappingsStep() {
   const { id } = useParams();
 
   const {
+    geometryMessage,
+    depthConflictMessage,
+    isContinueEnabled,
     columnMappings,
-    conceptOptions,
+    conceptOptionsByColumn,
     unitOptionsByConcept,
     detailOptions,
     mappedCount,
@@ -35,9 +38,16 @@ export function DatasetsMappingsStep() {
 
         <MappingsBanner mappedCount={mappedCount} unmappedCount={unmappedCount} />
 
+        {(geometryMessage || depthConflictMessage) && (
+          <div className={styles.Messages}>
+            {geometryMessage && <FormMessage type={geometryMessage.type} message={geometryMessage.message} withBackground />}
+            {depthConflictMessage && <FormMessage type={depthConflictMessage.type} message={depthConflictMessage.message} withBackground />}
+          </div>
+        )}
+
         <MappingsTable
           columnMappings={columnMappings}
-          conceptOptions={conceptOptions}
+          conceptOptionsByColumn={conceptOptionsByColumn}
           unitOptionsByConcept={unitOptionsByConcept}
           detailOptions={detailOptions}
           expandedRows={expandedRows}
@@ -53,10 +63,10 @@ export function DatasetsMappingsStep() {
           {t('datasets.actions.previous')}
         </Button>
         <div className={styles.ActionsSpacer} />
-        <Button type="secondary" onClick={handleSaveAndContinueLater} dataTestId="sh-mappings-save-later" isDisabled={mappedCount === 0}>
+        <Button type="secondary" onClick={handleSaveAndContinueLater} dataTestId="sh-mappings-save-later" isDisabled={!isContinueEnabled}>
           {t('datasets.actions.save_and_continue_later')}
         </Button>
-        <Button type="primary" onClick={handleContinue} dataTestId="sh-mappings-continue" isDisabled={mappedCount === 0}>
+        <Button type="primary" onClick={handleContinue} dataTestId="sh-mappings-continue" isDisabled={!isContinueEnabled}>
           {t('datasets.actions.continue')}
         </Button>
       </div>
