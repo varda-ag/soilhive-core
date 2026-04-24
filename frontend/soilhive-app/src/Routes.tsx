@@ -11,6 +11,7 @@ import AvailabilityModule from './modules/AvailabilityModule';
 import Admin from './pages/Admin';
 import TermsOfUse from './pages/TermsOfUse';
 import Metadata from './pages/Metadata';
+import PrivacyPolicy from 'pages/PrivacyPolicy';
 import './utilities/i18n';
 import { singlePages } from './utilities/moduleFederation';
 
@@ -44,6 +45,17 @@ function AppRoutes() {
                 <>
                   <PageTitle title={t('page_titles.terms_of_use')} />
                   <TermsOfUse />
+                </>
+              }
+            />
+          )}
+          {!!themeConfig.privacyPolicyHtml && (
+            <Route
+              path="/privacy-policy"
+              element={
+                <>
+                  <PageTitle title={t('page_titles.privacy_policy')} />
+                  <PrivacyPolicy />
                 </>
               }
             />
