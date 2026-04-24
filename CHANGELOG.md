@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.84.0 (2026-04-24)
+
+## What's Changed
+* feat(data): :sparkles: added mapping detection by @svaccari in https://github.com/varda-ag/soilhive-core/pull/443
+* feat: sp-5106 - privacy policy settings by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/457
+* feat: sp-5107 - preview policy page by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/458
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.83.0...v0.84.0
+
 ## 0.83.0 (2026-04-24)
 
 ## What's Changed
