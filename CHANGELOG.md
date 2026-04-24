@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.86.0 (2026-04-24)
+
+## What's Changed
+* feat: sp-5107 - menu dropdown hover state by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/463
+* feat: sp-5130 - abort signal for useApiQuery by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/465
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.85.1...v0.86.0
+
 ## 0.85.1 (2026-04-24)
 
 ## What's Changed
