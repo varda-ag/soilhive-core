@@ -55,7 +55,7 @@ export default function Header() {
         name: 'nav_menu.legal',
         type: 'internal',
         Icon: ScalesIcon,
-        children: children,
+        children,
       });
     }
     return output;

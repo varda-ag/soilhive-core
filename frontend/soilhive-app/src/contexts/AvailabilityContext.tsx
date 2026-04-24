@@ -195,8 +195,8 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
   }, [isCoverageLoading, isLoadingSoilProperties, isLoadingCategories]);
 
   const isNoFilteredData = useMemo(() => {
-    return fullFilterDatasets?.length === 0;
-  }, [fullFilterDatasets]);
+    return !!Object.keys(datasetFilters).length && fullFilterDatasets?.length === 0;
+  }, [fullFilterDatasets, datasetFilters]);
 
   const isNoData = useMemo(() => {
     return geometryFilterResults?.datasets.length === 0;
