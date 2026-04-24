@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.83.0 (2026-04-24)
+
+## What's Changed
+* feat(fe):  sp-5133 data mappings validation by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/452
+* feat(fe): (sp-5133) make metadata field options exclusive across conc… by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/454
+* fix(fe): (sp-5133) add basic green colors by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/455
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.82.0...v0.83.0
+
 ## 0.82.0 (2026-04-24)
 
 ## What's Changed
