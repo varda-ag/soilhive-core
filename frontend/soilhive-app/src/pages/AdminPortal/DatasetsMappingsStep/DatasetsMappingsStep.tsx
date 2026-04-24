@@ -15,7 +15,7 @@ export function DatasetsMappingsStep() {
     depthConflictMessage,
     isContinueEnabled,
     columnMappings,
-    conceptOptions,
+    conceptOptionsByColumn,
     unitOptionsByConcept,
     detailOptions,
     mappedCount,
@@ -47,7 +47,7 @@ export function DatasetsMappingsStep() {
 
         <MappingsTable
           columnMappings={columnMappings}
-          conceptOptions={conceptOptions}
+          conceptOptionsByColumn={conceptOptionsByColumn}
           unitOptionsByConcept={unitOptionsByConcept}
           detailOptions={detailOptions}
           expandedRows={expandedRows}

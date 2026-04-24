@@ -131,10 +131,11 @@ describe('useMappingsStep', () => {
     });
   });
 
-  describe('conceptOptions', () => {
-    it('always includes the hardcoded detectable field options', () => {
+  describe('conceptOptionsByColumn', () => {
+    it('always includes the hardcoded metadata field options for each column', () => {
+      setupWithColumns(['col1']);
       const { result } = renderHook(() => useMappingsStep('1'));
-      const codes = result.current.conceptOptions.map(o => o.code);
+      const codes = result.current.conceptOptionsByColumn['col1'].map(o => o.code);
       expect(codes).toContain('geometry');
       expect(codes).toContain('latitude');
       expect(codes).toContain('longitude');
@@ -142,7 +143,7 @@ describe('useMappingsStep', () => {
       expect(codes).toContain('license');
     });
 
-    it('appends soil properties sorted alphabetically after the detectable fields', () => {
+    it('appends soil properties sorted alphabetically after the metadata fields', () => {
       mockUseSoilProperties.mockReturnValue({
         data: [
           { id: 'p1', property_name: 'Zinc', property_acronym: 'Zn', category_id: 'c1', original_units_of_measurement: [] },
@@ -150,11 +151,42 @@ describe('useMappingsStep', () => {
         ],
         isLoading: false,
       });
+      setupWithColumns(['col1']);
       const { result } = renderHook(() => useMappingsStep('1'));
-      const options = result.current.conceptOptions;
-      const detectableCount = 9; // DETECTABLE_FIELD_OPTIONS length
-      expect(options[detectableCount]).toEqual({ code: 'p2', name: 'Aluminium' });
-      expect(options[detectableCount + 1]).toEqual({ code: 'p1', name: 'Zinc' });
+      const options = result.current.conceptOptionsByColumn['col1'];
+      const metadataCount = 9; // METADATA_FIELD_OPTIONS length
+      expect(options[metadataCount]).toEqual({ code: 'p2', name: 'Aluminium' });
+      expect(options[metadataCount + 1]).toEqual({ code: 'p1', name: 'Zinc' });
+    });
+
+    it('hides a metadata option from other rows once it is selected by one row', () => {
+      setupWithColumns(['col1', 'col2']);
+      const { result } = renderHook(() => useMappingsStep('1'));
+      act(() => {
+        result.current.handleConceptChange('col1', 'geometry');
+      });
+      expect(result.current.conceptOptionsByColumn['col2'].map(o => o.code)).not.toContain('geometry');
+    });
+
+    it('keeps the metadata option visible in the row that owns it', () => {
+      setupWithColumns(['col1', 'col2']);
+      const { result } = renderHook(() => useMappingsStep('1'));
+      act(() => {
+        result.current.handleConceptChange('col1', 'geometry');
+      });
+      expect(result.current.conceptOptionsByColumn['col1'].map(o => o.code)).toContain('geometry');
+    });
+
+    it('restores a metadata option to all rows when its owning row is cleared', () => {
+      setupWithColumns(['col1', 'col2']);
+      const { result } = renderHook(() => useMappingsStep('1'));
+      act(() => {
+        result.current.handleConceptChange('col1', 'geometry');
+      });
+      act(() => {
+        result.current.handleConceptChange('col1', '');
+      });
+      expect(result.current.conceptOptionsByColumn['col2'].map(o => o.code)).toContain('geometry');
     });
   });
 
