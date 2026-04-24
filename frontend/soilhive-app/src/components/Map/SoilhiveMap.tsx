@@ -331,7 +331,9 @@ function SoilhiveMap({
   const toolbarMode: SoilhiveMapSelectionToolbarMode = useMemo(() => {
     if (showDrawControl) return 'drawing';
     if (selection.features.length > 0 && mapBounds) {
-      const selectionBbox = bboxFn(selection as GeoJSON.FeatureCollection);
+      const geometry = (selection.features[0] as GeoJSON.Feature).geometry as Polygon | MultiPolygon;
+      const largestPolygon = geometry.type === 'MultiPolygon' ? largestPolygonFn(geometry) : geometry;
+      const selectionBbox = bboxFn(largestPolygon);
 
       // Return 'search' if less than 20% of the selection is visible in the map viewbox
       const selWidth = selectionBbox[2] - selectionBbox[0];
