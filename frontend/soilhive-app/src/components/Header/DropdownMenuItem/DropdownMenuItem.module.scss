@@ -54,21 +54,19 @@
   position: absolute;
   top: calc(100% - 1px);
   right: 0;
-  width: 14.375rem;
+  min-width: 14.375rem;
   z-index: 10;
-  padding: 0.5rem 0.625rem;
   background-color: var(--color-neutral-white);
   box-shadow: var(--shadow-interface);
   border-radius: 0.5rem;
   display: none;
   flex-direction: column;
-  gap: 0.75rem;
 
   > .MenuLink {
     display: flex;
     align-items: center;
-    padding: 0.625rem 0.875rem;
-    gap: 0.5rem;
+    padding: 0.875rem 1.5rem;
+    gap: 0.625rem;
     color: var(--color-neutral-black);
     font-weight: var(--font-weight-regular);
     text-decoration: none;
@@ -77,6 +75,19 @@
     &:visited,
     &:focus {
       color: var(--color-neutral-black);
+    }
+
+    &:hover {
+      background-color: var(--color-neutral-dark-300);
+    }
+
+    &:first-child {
+      border-top-left-radius: 0.5rem;
+      border-top-right-radius: 0.5rem;
+    }
+    &:last-child {
+      border-bottom-left-radius: 0.5rem;
+      border-bottom-right-radius: 0.5rem;
     }
   }
 }
