@@ -91,15 +91,36 @@ function toProcedurePayload(details: RowDetails): ProcedurePayload {
   };
 }
 
+function procedurePayloadMatches(details: RowDetails, proc: ProcedureResponse): boolean {
+  const n = (v: string | null | undefined) => v ?? null;
+  return (
+    n(details.samplePretreatment) === n(proc.sample_pretreatment) &&
+    n(details.technique) === n(proc.technique) &&
+    n(details.laboratoryMethod) === n(proc.laboratory_method) &&
+    n(details.extractantConcentration) === n(proc.extractant_concentration) &&
+    n(details.extractionRatio) === n(proc.extraction_ratio) &&
+    n(details.extractionBase) === n(proc.extraction_base) &&
+    n(details.measurementProcedure) === n(proc.measurement_procedure) &&
+    n(details.limitOfDetection) === n(proc.limit_of_detection)
+  );
+}
+
 // Creates a procedure record for each mapped column that has at least one detail field filled in.
+// Reuses the existing procedure when its payload matches; creates a new one only when details changed.
 async function createMappingProcedures(
   mappings: ColumnMapping[],
+  existingProcedures: Record<string, ProcedureResponse>,
   createProcedure: (payload: ProcedurePayload) => Promise<ProcedureResponse>,
 ): Promise<Record<string, string>> {
   const procedureIds: Record<string, string> = {};
   for (const mapping of mappings) {
     if (!mapping.conceptId) continue;
     if (!Object.values(mapping.details).some(v => v !== null)) continue;
+    const existing = existingProcedures[mapping.columnName];
+    if (existing && procedurePayloadMatches(mapping.details, existing)) {
+      procedureIds[mapping.columnName] = existing.id;
+      continue;
+    }
     const procedure = await createProcedure(toProcedurePayload(mapping.details));
     procedureIds[mapping.columnName] = procedure.id;
   }
@@ -157,14 +178,31 @@ export function useMappingsStep(datasetId?: string) {
     enabled: !!datasetId,
   });
 
+  const mergedMappings = useMemo(() => {
+    if (isLoadingFiles || isLoadingExistingMappings) {
+      return [];
+    }
+    if (!files) return existingMappings ?? [];
+    // Merge detected mappings from all files with any existing mappings from the server.
+    // Deep-clone to avoid mutating the React Query cache.
+    const firstMapping = existingMappings && existingMappings.length > 0 ? structuredClone(existingMappings[0].data_mapping) : {};
+    for (const file of files) {
+      const detectedMapping = file.metadata?.detected_mapping ?? {};
+      for (const [columnName, obj] of Object.entries(detectedMapping)) {
+        if (!(columnName in firstMapping)) firstMapping[columnName] = obj;
+      }
+    }
+    return [{ ...existingMappings?.[0], data_mapping: firstMapping }];
+  }, [existingMappings, files, isLoadingExistingMappings, isLoadingFiles]);
+
   // Extract procedures from existing (loaded from the server) mappings, so we can fetch them and pre-populate the details fields.
   const proceduresInMapping = useMemo(() => {
-    const dataMapping = existingMappings?.[0]?.data_mapping ?? {};
+    const dataMapping = mergedMappings?.[0]?.data_mapping ?? {};
     return Object.entries(dataMapping)
       .filter((entry): entry is [string, PropertyMapping] => typeof entry[1] !== 'string') // exlude metadata fields (they are string)
       .filter(([, v]) => !!v.procedure_id) // exlude mappings that don't have an associated procedure
       .map(([columnName, v]) => ({ columnName, procedureId: v.procedure_id! }));
-  }, [existingMappings]);
+  }, [mergedMappings]);
 
   // load procedures details from the server to populate detail fields
   const procedureDetails = useApiQueries<ProcedureResponse>(
@@ -225,7 +263,7 @@ export function useMappingsStep(datasetId?: string) {
   useEffect(() => {
     if (!files) return;
     const columnNames = [...new Set(files.flatMap(f => f.metadata?.field_names ?? []))];
-    const existingDataMapping = existingMappings?.[0]?.data_mapping ?? {};
+    const existingDataMapping = mergedMappings?.[0]?.data_mapping ?? {};
 
     // Invert detected_fields ({ conceptCode → columnName }) into { columnName → conceptCode }
     // so we can look up the suggested concept for any unmapped column.
@@ -260,7 +298,7 @@ export function useMappingsStep(datasetId?: string) {
         return { columnName, conceptId: existing.property_id, unitId: existing.conversion_id ?? null, details };
       }),
     );
-  }, [files, existingMappings, procedureByColumn]);
+  }, [files, procedureByColumn, mergedMappings]);
 
   const detailOptions = useMemo((): DetailOptionMap => {
     const base: DetailOptionMap = {
@@ -293,7 +331,7 @@ export function useMappingsStep(datasetId?: string) {
     const soilPropertyOptions = properties.map(p => ({ code: p.id, name: p.property_name })).sort((a, b) => a.name.localeCompare(b.name));
     const unitOptionsByConcept: Record<string, MenuOption[]> = {};
     for (const p of properties) {
-      unitOptionsByConcept[p.id] = p.original_units_of_measurement?.map(u => ({ code: u, name: u }));
+      unitOptionsByConcept[p.id] = p.original_units_of_measurement?.map(u => ({ code: u, name: u })) ?? [];
     }
     return { soilPropertyOptions, unitOptionsByConcept };
   }, [soilProperties]);
@@ -392,7 +430,7 @@ export function useMappingsStep(datasetId?: string) {
   }, []);
 
   const save = useCallback(async () => {
-    const procedureIds = await createMappingProcedures(columnMappings, createProcedure);
+    const procedureIds = await createMappingProcedures(columnMappings, procedureByColumn, createProcedure);
     const mappingResponse = await createMapping(buildDataMappingRequest(columnMappings, procedureIds));
 
     if (datasetId && datasetFileMappings?.length) {
@@ -404,7 +442,16 @@ export function useMappingsStep(datasetId?: string) {
     }
 
     await queryClient.invalidateQueries({ queryKey: ['datasets', datasetId, 'mappings'] });
-  }, [columnMappings, createProcedure, createMapping, updateDatasetFileMapping, datasetId, datasetFileMappings, queryClient]);
+  }, [
+    columnMappings,
+    procedureByColumn,
+    createProcedure,
+    createMapping,
+    updateDatasetFileMapping,
+    datasetId,
+    datasetFileMappings,
+    queryClient,
+  ]);
 
   const handlePrevious = useCallback(() => {
     navigate(`${ADMIN_PATHS.DATASETS}/edit/${datasetId}/soil-data`);

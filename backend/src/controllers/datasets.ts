@@ -68,7 +68,7 @@ export const getDatasetFiles = async (req: Request, res: Response) => {
 export const getDatasetMappings = async (req: Request, res: Response) => {
   const id = req.params['datasetId']!;
   const datasetFileMappings = await datasetFileMappingService.getMappings(req.customData, id, undefined, ['data_mapping']);
-  const dataMappings = datasetFileMappings.map(m => m.data_mapping);
+  const dataMappings = datasetFileMappings.map(m => m.data_mapping).filter(m => m !== null && m !== undefined);
   return res.json(idToSlug(dataMappings));
 };
 
