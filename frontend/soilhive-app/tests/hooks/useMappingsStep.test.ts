@@ -74,6 +74,17 @@ function setupWithColumnsAndExistingMapping(
   });
 }
 
+function setupWithDetectedMapping(columns: string[], dataMapping: Record<string, unknown>, detectedMapping: Record<string, unknown>) {
+  // Stable references — new arrays on every render would re-trigger the columnMappings useEffect.
+  const filesData = [{ metadata: { field_names: columns, detected_mapping: detectedMapping } }];
+  const mappingsData = [{ data_mapping: dataMapping }];
+  mockUseApiQuery.mockImplementation(({ endpoint }: { endpoint: string }) => {
+    if (endpoint.includes('/files')) return { data: filesData, isLoading: false };
+    if (endpoint.includes('/mappings')) return { data: mappingsData, isLoading: false };
+    return { data: undefined, isLoading: false };
+  });
+}
+
 describe('useMappingsStep', () => {
   const mockNavigate = jest.fn();
 
@@ -139,6 +150,29 @@ describe('useMappingsStep', () => {
       const detectableCount = 9; // DETECTABLE_FIELD_OPTIONS length
       expect(options[detectableCount]).toEqual({ code: 'p2', name: 'Aluminium' });
       expect(options[detectableCount + 1]).toEqual({ code: 'p1', name: 'Zinc' });
+    });
+  });
+
+  describe('mergedMappings', () => {
+    it('adds new properties from detected_mapping that are absent from existingMappings', () => {
+      setupWithDetectedMapping(['col1', 'col2'], { col1: 'geometry' }, { col2: { property_id: 'soil-ph' } });
+      const { result } = renderHook(() => useMappingsStep('1'));
+      const byName = Object.fromEntries(result.current.columnMappings.map(m => [m.columnName, m]));
+      expect(byName['col2'].conceptId).toBe('soil-ph');
+    });
+
+    it('does not overwrite existing mapping entries with detected_mapping values', () => {
+      setupWithDetectedMapping(['col1'], { col1: 'geometry' }, { col1: { property_id: 'soil-ph' } });
+      const { result } = renderHook(() => useMappingsStep('1'));
+      const byName = Object.fromEntries(result.current.columnMappings.map(m => [m.columnName, m]));
+      expect(byName['col1'].conceptId).toBe('geometry');
+    });
+
+    it('adds string metadata entries from detected_mapping', () => {
+      setupWithDetectedMapping(['col1', 'col2'], { col1: 'geometry' }, { col2: 'latitude' });
+      const { result } = renderHook(() => useMappingsStep('1'));
+      const byName = Object.fromEntries(result.current.columnMappings.map(m => [m.columnName, m]));
+      expect(byName['col2'].conceptId).toBe('latitude');
     });
   });
 

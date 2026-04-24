@@ -288,6 +288,7 @@ export interface FileDescriptor {
       max_depth?: string | null;
       horizon?: string | null;
     };
+    detected_mapping: DataMappingObject;
     field_names?: string[];
     geometry_detected?: boolean;
     driver?: string | null;

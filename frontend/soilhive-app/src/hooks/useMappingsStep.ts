@@ -17,6 +17,7 @@ import type {
   DatasetFileMappingResponse,
   ProcedurePayload,
   ProcedureResponse,
+  DataMappingObject,
 } from 'types/backend';
 import type { MenuOption } from 'types/components';
 
@@ -155,14 +156,34 @@ export function useMappingsStep(datasetId?: string) {
     enabled: !!datasetId,
   });
 
+  const mergedMappings = useMemo(() => {
+    if (isLoadingFiles || !existingMappings || existingMappings.length === 0) {
+      return existingMappings ?? [];
+    }
+    if (!existingMappings[0]) {
+      existingMappings[0] = { id: '', data_mapping: {} };
+    }
+    const fileMappings = files?.map(f => f.metadata?.detected_mapping).filter(m => m !== undefined) as DataMappingObject[] | undefined;
+    if (!fileMappings) return existingMappings ?? [];
+    // Merge detected mappings from all files with any existing mappings from the server.
+    const firstMapping = existingMappings[0].data_mapping;
+    for (const file of files ?? []) {
+      const detectedMapping = file.metadata?.detected_mapping ?? {};
+      for (const [columnName, obj] of Object.entries(detectedMapping)) {
+        if (!firstMapping[columnName]) firstMapping[columnName] = obj;
+      }
+    }
+    return existingMappings;
+  }, [existingMappings, files, isLoadingFiles]);
+
   // Extract procedures from existing (loaded from the server) mappings, so we can fetch them and pre-populate the details fields.
   const proceduresInMapping = useMemo(() => {
-    const dataMapping = existingMappings?.[0]?.data_mapping ?? {};
+    const dataMapping = mergedMappings?.[0]?.data_mapping ?? {};
     return Object.entries(dataMapping)
       .filter((entry): entry is [string, PropertyMapping] => typeof entry[1] !== 'string') // exlude metadata fields (they are string)
       .filter(([, v]) => !!v.procedure_id) // exlude mappings that don't have an associated procedure
       .map(([columnName, v]) => ({ columnName, procedureId: v.procedure_id! }));
-  }, [existingMappings]);
+  }, [mergedMappings]);
 
   // load procedures details from the server to populate detail fields
   const procedureDetails = useApiQueries<ProcedureResponse>(
@@ -218,7 +239,7 @@ export function useMappingsStep(datasetId?: string) {
   useEffect(() => {
     if (!files) return;
     const columnNames = [...new Set(files.flatMap(f => f.metadata?.field_names ?? []))];
-    const existingDataMapping = existingMappings?.[0]?.data_mapping ?? {};
+    const existingDataMapping = mergedMappings?.[0]?.data_mapping ?? {};
 
     // Invert detected_fields ({ conceptCode → columnName }) into { columnName → conceptCode }
     // so we can look up the suggested concept for any unmapped column.
@@ -253,7 +274,7 @@ export function useMappingsStep(datasetId?: string) {
         return { columnName, conceptId: existing.property_id, unitId: existing.conversion_id ?? null, details };
       }),
     );
-  }, [files, existingMappings, procedureByColumn]);
+  }, [files, procedureByColumn, mergedMappings]);
 
   const detailOptions = useMemo((): DetailOptionMap => {
     const base: DetailOptionMap = {
