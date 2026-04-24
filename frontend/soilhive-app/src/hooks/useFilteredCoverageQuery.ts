@@ -8,6 +8,7 @@ export function useFilteredCoverageQuery(filterDataId: string | undefined) {
     queryKey: ['data-filter-coverage', filterDataId],
     enabled: !!filterDataId,
     retry: false,
+    abortOnNewQuery: true,
   });
 
   return {

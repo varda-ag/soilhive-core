@@ -18,6 +18,10 @@ export function useRequest<T = any>() {
         const data = await httpClient<T>(config);
         return data;
       } catch (err: any) {
+        if (config.ignoreAbortError && err.name === 'AbortError') {
+          return null;
+        }
+
         setError(err);
 
         if (config.showErrorNotification !== false) {

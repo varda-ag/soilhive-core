@@ -8,6 +8,7 @@ export function useFilteredDatasetsQuery(filterDataId: string | undefined) {
     queryKey: ['coverage-datasets', filterDataId],
     enabled: !!filterDataId,
     retry: false,
+    abortOnNewQuery: true,
   });
 
   return {
