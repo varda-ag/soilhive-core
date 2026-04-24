@@ -55,7 +55,7 @@ function stubHookReturn(
       unitId: null,
       details: { ...EMPTY_DETAILS },
     })),
-    conceptOptions: [],
+    conceptOptionsByColumn: {},
     unitOptions: [],
     detailOptions: DETAIL_OPTIONS,
     mappedCount: 0,

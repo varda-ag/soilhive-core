@@ -287,17 +287,31 @@ export function useMappingsStep(datasetId?: string) {
     return base;
   }, [vocabularyItems, techniques]);
 
-  // Metadata fields first, then soil properties sorted alphabetically.
-  // Unit options are keyed by concept id — only soil properties carry allowed units.
-  const { conceptOptions, unitOptionsByConcept } = useMemo(() => {
+  // Unit options and sorted soil properties — depends only on API data, not user selections.
+  const { soilPropertyOptions, unitOptionsByConcept } = useMemo(() => {
     const properties = soilProperties ?? [];
     const soilPropertyOptions = properties.map(p => ({ code: p.id, name: p.property_name })).sort((a, b) => a.name.localeCompare(b.name));
     const unitOptionsByConcept: Record<string, MenuOption[]> = {};
     for (const p of properties) {
       unitOptionsByConcept[p.id] = p.original_units_of_measurement?.map(u => ({ code: u, name: u }));
     }
-    return { conceptOptions: [...METADATA_FIELD_OPTIONS, ...soilPropertyOptions], unitOptionsByConcept };
+    return { soilPropertyOptions, unitOptionsByConcept };
   }, [soilProperties]);
+
+  // Per-row concept options: metadata fields first (excluding those already selected by other rows),
+  // then all soil properties. A row always sees its own current metadata selection so the user
+  // can change or clear it.
+  const conceptOptionsByColumn = useMemo((): Record<string, MenuOption[]> => {
+    const usedMetadataCodes = new Set(
+      columnMappings.filter(m => m.conceptId && METADATA_FIELD_CODES.has(m.conceptId)).map(m => m.conceptId!),
+    );
+    return Object.fromEntries(
+      columnMappings.map(m => {
+        const availableMetadata = METADATA_FIELD_OPTIONS.filter(o => !usedMetadataCodes.has(o.code) || m.conceptId === o.code);
+        return [m.columnName, [...availableMetadata, ...soilPropertyOptions]];
+      }),
+    );
+  }, [columnMappings, soilPropertyOptions]);
 
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
@@ -412,7 +426,7 @@ export function useMappingsStep(datasetId?: string) {
     depthConflictMessage,
     isContinueEnabled,
     columnMappings,
-    conceptOptions,
+    conceptOptionsByColumn,
     unitOptionsByConcept,
     detailOptions,
     mappedCount,
