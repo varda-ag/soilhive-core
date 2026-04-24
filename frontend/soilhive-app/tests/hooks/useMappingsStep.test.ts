@@ -147,7 +147,7 @@ describe('useMappingsStep', () => {
       });
       const { result } = renderHook(() => useMappingsStep('1'));
       const options = result.current.conceptOptions;
-      const detectableCount = 9; // DETECTABLE_FIELD_OPTIONS length
+      const detectableCount = 9; // METADATA_FIELD_OPTIONS length
       expect(options[detectableCount]).toEqual({ code: 'p2', name: 'Aluminium' });
       expect(options[detectableCount + 1]).toEqual({ code: 'p1', name: 'Zinc' });
     });

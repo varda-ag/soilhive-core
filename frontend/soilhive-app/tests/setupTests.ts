@@ -4,6 +4,10 @@ import { TextEncoder, TextDecoder } from 'util';
 global.TextEncoder = TextEncoder as any;
 global.TextDecoder = TextDecoder as any;
 
+if (typeof global.structuredClone === 'undefined') {
+  global.structuredClone = <T>(obj: T): T => JSON.parse(JSON.stringify(obj));
+}
+
 export const testTimezones = [
   { tz: 'UTC' },
   { tz: 'Europe/London' },
