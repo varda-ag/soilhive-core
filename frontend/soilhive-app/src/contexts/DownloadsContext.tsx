@@ -64,7 +64,7 @@ export const DownloadsProvider: React.FC<DownloadsProviderProps> = ({ children }
         type: 'export',
         anonymous: true,
         public_homepage_url: window.location.origin,
-        public_terms_url: `${window.location.origin}/terms-and-conditions`,
+        public_terms_url: `${window.location.origin}/terms-of-use`,
         public_metadata_urls,
       });
 

@@ -1,0 +1,35 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`TermsOfUse page matches snapshot 1`] = `
+<div>
+  <div
+    data-testid="legal-page-template"
+  >
+    <span
+      data-testid="prop-title"
+    >
+      Terms of Use
+    </span>
+    <span
+      data-testid="prop-html-content"
+    >
+      &lt;p&gt;Terms content&lt;/p&gt;
+    </span>
+    <span
+      data-testid="prop-latest-update"
+    >
+      15 January 2024
+    </span>
+    <span
+      data-testid="prop-banner-image"
+    >
+      mock-banner.png
+    </span>
+    <span
+      data-testid="prop-is-loading"
+    >
+      false
+    </span>
+  </div>
+</div>
+`;

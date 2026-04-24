@@ -13,6 +13,7 @@ exports[`TermsAndConditions page matches snapshot 1`] = `
       </h3>
       <textarea
         data-testid="editor"
+        headertemplate="[object Object]"
         style="height: 340px;"
       >
         mock

@@ -35,18 +35,41 @@ exports[`Header component renders component correctly on desktop 1`] = `
             Home
           </span>
         </a>
-        <a
-          class=""
-          data-discover="true"
-          data-testid="sh-header-nav-link"
-          href="/legal"
+        <div
+          class="DropdownMenuItem"
         >
           <span
             class="LinkText"
+            role="button"
           >
             Legal
+             
+            <svg
+              data-testid="svg-icon-mock"
+            >
+              mock-svg
+            </svg>
           </span>
-        </a>
+          <div
+            class="Menu"
+          >
+            <a
+              class="MenuLink"
+              data-discover="true"
+              data-testid="sh-header-nav-link"
+              href="/terms-of-use"
+            >
+              <svg
+                data-testid="svg-icon-mock"
+              >
+                mock-svg
+              </svg>
+              <span>
+                Terms of use
+              </span>
+            </a>
+          </div>
+        </div>
         <a
           class=""
           data-discover="true"
@@ -92,7 +115,7 @@ exports[`Header component renders component correctly on mobile and tablets for 
     <div
       class="BetaPill"
     >
-      Beta version
+      Beta
     </div>
     <div
       class="Menu"
@@ -140,7 +163,7 @@ exports[`Header component renders menu entries in the mobile menu 1`] = `
     <div
       class="BetaPill"
     >
-      Beta version
+      Beta
     </div>
     <div
       class="Menu"
@@ -187,7 +210,6 @@ exports[`Header component renders menu entries in the mobile menu 1`] = `
     >
       nav_menu.legal
       :
-      /legal
     </div>
   </div>
 </div>

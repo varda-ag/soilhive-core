@@ -1,0 +1,107 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`LegalPageTemplate component matches snapshot 1`] = `
+<div>
+  <div
+    class="Layout"
+  >
+    <div
+      class="Banner"
+    >
+      <div
+        class="Left"
+      >
+        <h1
+          class="Title"
+        >
+          Terms of Use
+        </h1>
+        <p
+          class="LatestUpdate"
+        >
+          Latest update: {{date}}
+        </p>
+      </div>
+      <img
+        class="BannerImage"
+        src="/images/banner.jpg"
+      />
+    </div>
+    <main
+      class="Main"
+    >
+      <article
+        class="Content"
+      >
+        <div
+          data-testid="html-content"
+        >
+          &lt;p&gt;Terms content&lt;/p&gt;
+        </div>
+      </article>
+      <aside
+        class="Sidebar"
+      />
+    </main>
+    <footer
+      class="Footer"
+    >
+      <div
+        class="Links"
+      >
+        <a
+          class="Link"
+          href="https://www.varda.ag/"
+          rel="noreferrer"
+          target="_blank"
+        >
+          Varda Foundation website
+        </a>
+        <a
+          class="Link"
+          href="https://www.varda.ag/#contact"
+          rel="noreferrer"
+          target="_blank"
+        >
+          Contact us
+        </a>
+      </div>
+      <div
+        class="Bottom"
+      >
+        <p
+          class="Copy"
+        >
+          SoilHive is a Varda Foundation platform
+        </p>
+        <div
+          class="Social"
+        >
+          <a
+            href="https://www.linkedin.com/company/varda-field-data-exchange/"
+            rel="noreferrer"
+            target="_blank"
+          >
+            <svg
+              data-testid="svg-icon-mock"
+            >
+              mock-svg
+            </svg>
+          </a>
+          <a
+            href="https://www.youtube.com/channel/UCFx4LohqvmBJHyIYChBiong"
+            rel="noreferrer"
+            target="_blank"
+          >
+            <svg
+              data-testid="svg-icon-mock"
+            >
+              mock-svg
+            </svg>
+          </a>
+        </div>
+      </div>
+    </footer>
+  </div>
+</div>
+`;
