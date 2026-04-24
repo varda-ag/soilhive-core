@@ -1,6 +1,7 @@
 {
     "page_titles": {
         "terms_and_conditions": "SoilHive - Terms of use",
+        "privacy_policy": "SoilHive - Privacy policy",
         "notification_banner": "SoilHive - Notification Banner",
         "map_settings": "SoilHive - Map settings",
         "look_and_feel": "SoilHive - Look & Feel",
@@ -15,6 +16,7 @@
         },
         "menu": {
             "terms_and_conditions": "Terms of use",
+            "privacy_policy": "Privacy policy",
             "notification_banner": "Notification Banner",
             "map_settings": "Map settings",
             "look_and_feel": "Look & Feel",
@@ -29,6 +31,15 @@
         "notification": {
             "title": "Successful update",
             "message": "New terms and conditions applied"
+        }
+    },
+     "privacy_policy": {
+        "title": "Privacy policy",
+        "subtitle": "Paste a text here",
+        "save": "Save",
+        "notification": {
+            "title": "Successful update",
+            "message": "New privacy policy applied"
         }
     },
     "notification_banner": {

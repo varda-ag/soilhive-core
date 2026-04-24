@@ -33,6 +33,8 @@ describe('ThemeProvider / useTheme', () => {
     initialBbox: [6.6272658, 35.2889616, 18.7844746, 47.0921462],
     termsAndConditionsHtml: '<p>Terms text</p>',
     termsAndConditionsLatestUpdate: '',
+    privacyPolicyHtml: '',
+    privacyPolicyLatestUpdate: '',
     notificationBannerHtml: '',
     colors: {
       primary: '#111111',
@@ -109,6 +111,7 @@ describe('ThemeProvider / useTheme', () => {
     expect(typeof result.current.saveColors).toBe('function');
     expect(typeof result.current.saveInitialBbox).toBe('function');
     expect(typeof result.current.saveTermsAndConditions).toBe('function');
+    expect(typeof result.current.savePrivacyPolicy).toBe('function');
     expect(typeof result.current.saveNotificationBanner).toBe('function');
     expect(typeof result.current.setLogo).toBe('function');
   });
@@ -224,6 +227,24 @@ describe('ThemeProvider / useTheme', () => {
     });
 
     expect(showNotification).toHaveBeenCalled();
+  });
+
+  it('savePrivacyPolicy calls saveConfig with html payload and sets latestUpdate', async () => {
+    const { result } = renderHook(() => useTheme(), { wrapper });
+
+    await act(async () => {
+      await result.current.savePrivacyPolicy('<p>Privacy content</p>');
+    });
+
+    expect(saveThemeConfigMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ...mockThemeConfig,
+        privacyPolicyHtml: '<p>Privacy content</p>',
+        privacyPolicyLatestUpdate: expect.any(String),
+      }),
+    );
+
+    expect(showNotification).toHaveBeenCalledWith(expect.objectContaining({ id: 'savePrivacyPolicySuccess', type: 'success' }));
   });
 
   it('saveNotificationBanner calls saveConfig with html payload and shows notification', async () => {
