@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.85.0 (2026-04-24)
+
+## What's Changed
+* feat: sp-5107 - menu dropdown styles fix by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/459
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.84.0...v0.85.0
+
 ## 0.84.0 (2026-04-24)
 
 ## What's Changed
