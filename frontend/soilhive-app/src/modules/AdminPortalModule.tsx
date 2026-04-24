@@ -8,6 +8,7 @@ import {
   MapBasedFilters,
   MapSettings,
   NotificationBanner,
+  PrivacyPolicy,
 } from '../pages/AdminPortal';
 import { ADMIN_ROOT, ADMIN_ROUTES } from '../configuration/admin';
 import { ADMIN_PORTAL_DATA_MENU, ADMIN_PORTAL_UI_MENU, useEntitlements } from 'hooks/useEntitlementsHook';
@@ -113,6 +114,15 @@ export function AdminPortalModule() {
               <>
                 <PageTitle title={t('page_titles.terms_and_conditions')} />
                 <TermsAndConditions />
+              </>
+            }
+          />
+          <Route
+            path={ADMIN_ROUTES.PRIVACY_POLICY}
+            element={
+              <>
+                <PageTitle title={t('page_titles.privacy_policy')} />
+                <PrivacyPolicy />
               </>
             }
           />

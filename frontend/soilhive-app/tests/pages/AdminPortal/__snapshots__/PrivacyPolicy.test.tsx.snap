@@ -1,0 +1,27 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`PrivacyPolicy page matches snapshot 1`] = `
+<div>
+  <div
+    class="Layout"
+  >
+    <main
+      class="Content"
+    >
+      <h3>
+        privacy_policy.subtitle
+      </h3>
+      <textarea
+        data-testid="editor"
+        headertemplate="[object Object]"
+        style="height: 340px;"
+      >
+        mock
+      </textarea>
+      <button>
+        privacy_policy.save
+      </button>
+    </main>
+  </div>
+</div>
+`;

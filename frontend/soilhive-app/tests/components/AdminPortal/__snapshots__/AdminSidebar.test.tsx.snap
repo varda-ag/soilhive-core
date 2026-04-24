@@ -77,6 +77,25 @@ exports[`AdminSidebar renders sidebar for user with all permissions and matches 
               class="Link"
               data-discover="true"
               data-testid="sh-admin-sidebarlink"
+              href="/admin/privacy-policy"
+            >
+              <svg
+                class="LinkIcon"
+                data-testid="svg-icon-mock"
+              >
+                mock-svg
+              </svg>
+              <span
+                class="LinkTitle"
+              >
+                Privacy policy
+              </span>
+            </a>
+            <a
+              aria-disabled="false"
+              class="Link"
+              data-discover="true"
+              data-testid="sh-admin-sidebarlink"
               href="/admin/map-settings"
             >
               <svg
@@ -358,6 +377,25 @@ exports[`AdminSidebar renders sidebar for user with only ADMIN_PORTAL_UI_MENU pe
                 class="LinkTitle"
               >
                 Notification Banner
+              </span>
+            </a>
+            <a
+              aria-disabled="false"
+              class="Link"
+              data-discover="true"
+              data-testid="sh-admin-sidebarlink"
+              href="/admin/privacy-policy"
+            >
+              <svg
+                class="LinkIcon"
+                data-testid="svg-icon-mock"
+              >
+                mock-svg
+              </svg>
+              <span
+                class="LinkTitle"
+              >
+                Privacy policy
               </span>
             </a>
             <a
