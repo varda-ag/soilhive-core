@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.85.1 (2026-04-24)
+
+## What's Changed
+* fix: clear selection text by @svaccari in https://github.com/varda-ag/soilhive-core/pull/461
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.85.0...v0.85.1
+
 ## 0.85.0 (2026-04-24)
 
 ## What's Changed
