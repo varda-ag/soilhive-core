@@ -414,8 +414,8 @@ export default class FileService {
         longitudeFieldName = FileService.detectField(fieldNames, ['x'], false); // No partial match
       }
       licenseFieldName = FileService.detectField(fieldNames, ['license', 'licence', 'lic', 'copyright', 'attribution'], true);
-      minDepthFieldName = FileService.detectField(fieldNames, ['mindepth', 'upperdepth', 'upperhorizon'], true);
-      maxDepthFieldName = FileService.detectField(fieldNames, ['maxdepth', 'lowerdepth', 'lowerhorizon'], true);
+      minDepthFieldName = FileService.detectField(fieldNames, ['mindepth', 'upperdepth', 'upperhorizon', 'depthtop'], true);
+      maxDepthFieldName = FileService.detectField(fieldNames, ['maxdepth', 'lowerdepth', 'lowerhorizon', 'depthbottom'], true);
       if (!minDepthFieldName && !maxDepthFieldName) {
         depthFieldName = FileService.detectField(fieldNames, ['depth'], true);
       }
