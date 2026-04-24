@@ -8,6 +8,7 @@
         "donation": "SoilHive - Donation",
         "legal": "SoilHive - Legal",
         "terms_of_use": "SoilHive - Terms of Use",
+        "privacy_policy": "SoilHive - Privacy Policy",
         "admin": "SoilHive - Admin"
     },
     "auth": {
@@ -23,6 +24,7 @@
         "home": "Home",
         "legal": "Legal",
         "terms": "Terms of use",
+        "privacy_policy": "Privacy policy",
         "hamburger_aria": "Menu",
         "beta": "Beta",
         "beta_version": "Beta version"
@@ -80,6 +82,9 @@
     "symbols": "symbols",
     "terms_of_use": {
         "title": "Terms of Use"
+    },
+    "privacy_policy": {
+        "title": "Privacy Policy"
     },
     "legal_page": {
         "latest_update": "Latest update: {{date}}",

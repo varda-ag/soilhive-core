@@ -6,6 +6,7 @@ import CloseIcon from 'assets/icons/medium-cross-menu-icon.svg?react';
 import PlanetIcon from 'assets/icons/planet-icon.svg?react';
 import ScalesIcon from 'assets/icons/scales-icon.svg?react';
 import AwardIcon from 'assets/icons/award-icon.svg?react';
+import LockIcon from 'assets/icons/lock-icon.svg?react';
 
 import { singlePages } from '../../utilities/moduleFederation';
 import MobileMenu from 'components/MobileMenu/MobileMenu';
@@ -39,16 +40,26 @@ export default function Header() {
         Icon: PlanetIcon,
       } as NavMenuEntry,
     ];
-    if (!isLoadingThemeConfig && !!themeConfig.termsAndConditionsHtml) {
+    if (!isLoadingThemeConfig && (themeConfig.termsAndConditionsHtml || themeConfig.privacyPolicyHtml)) {
+      const children: NavMenuEntry[] = [];
+
+      if (themeConfig.termsAndConditionsHtml) {
+        children.push({ name: 'nav_menu.terms', route: '/terms-of-use', type: 'internal', Icon: AwardIcon });
+      }
+
+      if (themeConfig.privacyPolicyHtml) {
+        children.push({ name: 'nav_menu.privacy_policy', route: '/privacy-policy', type: 'internal', Icon: LockIcon });
+      }
+
       output.push({
         name: 'nav_menu.legal',
         type: 'internal',
         Icon: ScalesIcon,
-        children: [{ name: 'nav_menu.terms', route: '/terms-of-use', type: 'internal', Icon: AwardIcon }],
+        children,
       });
     }
     return output;
-  }, [isLoadingThemeConfig, themeConfig.termsAndConditionsHtml]);
+  }, [isLoadingThemeConfig, themeConfig.termsAndConditionsHtml, themeConfig.privacyPolicyHtml]);
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);

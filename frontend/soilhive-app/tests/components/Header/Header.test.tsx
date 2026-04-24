@@ -70,7 +70,7 @@ describe('Header component', () => {
     (useTheme as jest.Mock).mockReturnValue({
       logo: 'logo.png',
       isLoadingThemeConfig: false,
-      themeConfig: { termsAndConditionsHtml: '<div>Mock</div>' },
+      themeConfig: { termsAndConditionsHtml: '<div>Mock</div>', privacyPolicyHtml: '' },
     });
     (useDevice as jest.Mock).mockReturnValue({ isDesktopLayout: true, isMobileLayout: false });
 
@@ -199,7 +199,10 @@ describe('Header component', () => {
   });
 
   it.each([false, true])('Conditionally renders the Legal nav link according to loading state', (isLoadingThemeConfig: boolean) => {
-    (useTheme as jest.Mock).mockReturnValue({ isLoadingThemeConfig, themeConfig: { termsAndConditionsHtml: 'mock' } });
+    (useTheme as jest.Mock).mockReturnValue({
+      isLoadingThemeConfig,
+      themeConfig: { termsAndConditionsHtml: 'mock', privacyPolicyHtml: '' },
+    });
 
     render(
       <MemoryRouter initialEntries={['/']}>
@@ -213,5 +216,73 @@ describe('Header component', () => {
     } else {
       expect(element).toBeInTheDocument();
     }
+  });
+
+  it('renders Legal dropdown when only privacyPolicyHtml is set', () => {
+    (useTheme as jest.Mock).mockReturnValue({
+      isLoadingThemeConfig: false,
+      themeConfig: { termsAndConditionsHtml: '', privacyPolicyHtml: '<p>Privacy</p>' },
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <Header />
+      </MemoryRouter>,
+    );
+
+    expect(screen.queryByText('Legal')).toBeInTheDocument();
+  });
+
+  it('does not render Legal dropdown when both termsAndConditionsHtml and privacyPolicyHtml are empty', () => {
+    (useTheme as jest.Mock).mockReturnValue({
+      isLoadingThemeConfig: false,
+      themeConfig: { termsAndConditionsHtml: '', privacyPolicyHtml: '' },
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <Header />
+      </MemoryRouter>,
+    );
+
+    expect(screen.queryByText('Legal')).not.toBeInTheDocument();
+  });
+
+  it('renders Legal dropdown with both children when both html values are set', () => {
+    (useDevice as jest.Mock).mockReturnValue({ isDesktopLayout: false, isMobileLayout: true });
+    (useTheme as jest.Mock).mockReturnValue({
+      isLoadingThemeConfig: false,
+      themeConfig: { termsAndConditionsHtml: '<p>Terms</p>', privacyPolicyHtml: '<p>Privacy</p>' },
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <Header />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByTestId('sh-header-hamburger'));
+
+    const entries = screen.getAllByTestId('mobile-menu-entry');
+    expect(entries).toHaveLength(2);
+    expect(entries[1]).toHaveTextContent('nav_menu.legal');
+  });
+
+  it('renders only home entry in mobile menu when no legal html is set', () => {
+    (useDevice as jest.Mock).mockReturnValue({ isDesktopLayout: false, isMobileLayout: true });
+    (useTheme as jest.Mock).mockReturnValue({
+      isLoadingThemeConfig: false,
+      themeConfig: { termsAndConditionsHtml: '', privacyPolicyHtml: '' },
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <Header />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByTestId('sh-header-hamburger'));
+
+    expect(screen.getAllByTestId('mobile-menu-entry')).toHaveLength(1);
   });
 });
