@@ -199,7 +199,10 @@ describe('Header component', () => {
   });
 
   it.each([false, true])('Conditionally renders the Legal nav link according to loading state', (isLoadingThemeConfig: boolean) => {
-    (useTheme as jest.Mock).mockReturnValue({ isLoadingThemeConfig, themeConfig: { termsAndConditionsHtml: 'mock', privacyPolicyHtml: '' } });
+    (useTheme as jest.Mock).mockReturnValue({
+      isLoadingThemeConfig,
+      themeConfig: { termsAndConditionsHtml: 'mock', privacyPolicyHtml: '' },
+    });
 
     render(
       <MemoryRouter initialEntries={['/']}>
