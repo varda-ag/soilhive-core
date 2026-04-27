@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.87.0 (2026-04-27)
+
+## What's Changed
+* feat(data): exposing raw data as preview by @svaccari in https://github.com/varda-ag/soilhive-core/pull/466
+* fix: sp-5150 performance improvements for the /explore page by @cristbello in https://github.com/varda-ag/soilhive-core/pull/467
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.86.0...v0.87.0
+
 ## 0.86.0 (2026-04-24)
 
 ## What's Changed
