@@ -42,10 +42,6 @@ jest.mock('components/AdminPortal/DatasetsPublicationTable/DatasetsTableVisibili
   DatasetsTableVisibilityTemplate: ({ visibility }: any) => <span data-testid="visibility-template">{visibility}</span>,
 }));
 
-jest.mock('components/AdminPortal/DatasetsPublicationTable/DatasetsTableUpdatedAtTemplate/DatasetsTableUpdatedAtTemplate', () => ({
-  DatasetsTableUpdatedAtTemplate: ({ updated_at }: any) => <span data-testid="updated-at-template">{updated_at}</span>,
-}));
-
 const datasets = [
   { id: '1', name: 'Alpha', status: 'PENDING', visibility: 'public' },
   { id: '2', name: 'Beta', status: 'LOADED', visibility: 'private' },

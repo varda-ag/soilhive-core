@@ -5,11 +5,11 @@ import type { ColumnSortEvent } from 'primereact/column';
 import { DatasetsTableStatusTemplate } from './DatasetsTableStatusTemplate/DatasetsTableStatusTemplate';
 import { DatasetsTableVisibilityTemplate } from './DatasetsTableVisibilityTemplate/DatasetsTableVisibilityTemplate';
 import { DatasetsTableActionTemplate } from './DatasetsTableActionTemplate/DatasetsTableActionTemplate';
-import { DatasetsTableUpdatedAtTemplate } from './DatasetsTableUpdatedAtTemplate/DatasetsTableUpdatedAtTemplate';
 import { Table } from 'components/UI/Table/Table';
 import { IngestionStatus } from 'types/backend';
 import type { TableColumn } from 'types/components';
 import type { DatasetsPublicationListItem } from 'types/datasetsPublication';
+import { dateStringToDDMMYYYY } from '../../../utilities/date';
 
 import styles from './DatasetsPublicationTable.module.scss';
 
@@ -61,7 +61,7 @@ export function DatasetsPublicationTable({ datasets, isSearch, onEdit, onDelete,
         name: t('datasets.list.columns.updated_at'),
         value: 'updated_at',
         sortable: true,
-        bodyTemplate: DatasetsTableUpdatedAtTemplate,
+        bodyTemplate: ({ updated_at }: { updated_at: Date | null }) => dateStringToDDMMYYYY(updated_at),
       },
       {
         name: t('datasets.list.columns.actions'),
