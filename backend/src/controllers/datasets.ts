@@ -76,3 +76,14 @@ export const getEpsgCodes = async (req: Request, res: Response) => {
   const epsgCodes = datasetService.getEpsgCodes();
   res.json(epsgCodes);
 };
+
+export const getSoilData = async (req: Request, res: Response) => {
+  const data = await datasetService.getSoilData(
+    req.customData,
+    req.params['datasetFileMappingId']!,
+    parseInt(req.query['limit'] as string),
+    req.query['cursor'] as string,
+    req.query['sort'] as string,
+  );
+  res.json(data);
+};
