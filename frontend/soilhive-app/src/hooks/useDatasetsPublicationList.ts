@@ -59,9 +59,12 @@ export function useDatasetsPublicationList(): DatasetsPublicationListType {
     await queryClient.invalidateQueries({ queryKey: ['datasets'] });
   }, [deleteDataset, onDeleteModalClose, selectedDataset]);
 
-  const onPublish = useCallback((id: string) => {
-    console.log('onPublish', id);
-  }, []);
+  const onPublish = useCallback(
+    (id: string) => {
+      navigate(`${ADMIN_PATHS.DATASETS}/edit/${id}/settings`);
+    },
+    [navigate],
+  );
 
   const datasetListItems = useMemo((): DatasetsPublicationListItem[] => {
     return (

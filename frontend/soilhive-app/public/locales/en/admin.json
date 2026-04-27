@@ -298,6 +298,36 @@
             "step_title": "Quality check",
             "step_description": "Find data issues",
             "title": "Quality check"
+        },
+        "settings": {
+            "title": "Dataset settings",
+            "metadata_preview": {
+                "title": "Metadata preview",
+                "description": "The metadata will be shown to all users, even if the dataset is private. This will contribute to the discoverability of soil data.",
+                "link": "Check your metadata"
+            },
+            "visibility": {
+                "title": "Data visibility",
+                "public": {
+                    "title": "Public dataset",
+                    "description": "All users can view and download the full dataset, subject to the license terms you specify"
+                },
+                "private": {
+                    "title": "Private dataset",
+                    "description": "Only data administrators can view and download the full dataset, subject to the license terms you specify"
+                }
+            },
+            "access": {
+                "title": "Who can access this dataset",
+                "email_label": "Enter email/s",
+                "email_placeholder": "member@company.com",
+                "add_button": "Add",
+                "table_column_email": "Email"
+            },
+            "actions": {
+                "cancel": "Cancel",
+                "publish": "Publish"
+            }
         }
     },
     "filters": {

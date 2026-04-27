@@ -17,6 +17,7 @@ import { DatasetsPublicationStepsLayout } from '../layouts/DatasetsPublicationSt
 import { DatasetsSoilDataStep } from '../pages/AdminPortal/DatasetsSoilDataStep/DatasetsSoilDataStep';
 import { DatasetsMappingsStep } from '../pages/AdminPortal/DatasetsMappingsStep/DatasetsMappingsStep';
 import { DatasetsPreviewStep } from '../pages/AdminPortal/DatasetsPreviewStep/DatasetsPreviewStep';
+import { DatasetsSettingsPage } from '../pages/AdminPortal/DatasetsSettingsPage/DatasetsSettingsPage';
 
 function DatasetsRoutes() {
   const { t } = useTranslation('admin');
@@ -92,6 +93,15 @@ function DatasetsRoutes() {
           }
         /> */}
       </Route>
+      <Route
+        path={'/edit/:id/settings'}
+        element={
+          <>
+            <PageTitle title={`${t('page_titles.datasets')} - ${t('datasets.settings.title')}`} />
+            <DatasetsSettingsPage />
+          </>
+        }
+      />
     </Routes>
   );
 }
