@@ -6,7 +6,7 @@ import DownloadPreview from '../pages/DownloadPreview';
 import Availability from '../pages/Availability';
 
 const AvailabilityContextLayout = () => {
-   return (
+  return (
     <AvailabilityProvider>
       <Outlet />
     </AvailabilityProvider>
