@@ -1,45 +1,52 @@
-import { Navigate, Route, Routes } from 'react-router';
+import { Navigate, Outlet, Route, Routes } from 'react-router';
 import PageTitle from 'components/PageTitle';
 import { AvailabilityProvider } from '../contexts/AvailabilityContext';
 import DownloadSummary from '../pages/DownloadSummary';
 import DownloadPreview from '../pages/DownloadPreview';
 import Availability from '../pages/Availability';
 
-function AvailabilityModule() {
+const AvailabilityContextLayout = () => {
+   return (
+    <AvailabilityProvider>
+      <Outlet />
+    </AvailabilityProvider>
+  );
+};
+
+export default function AvailabilityModule() {
   return (
     <Routes>
-      <Route
-        index
-        element={
-          <>
-            <PageTitle title="SoilHive - Home" />
-            <AvailabilityProvider>
+      <Route element={<AvailabilityContextLayout />}>
+        <Route
+          index
+          element={
+            <>
+              <PageTitle title="SoilHive - Home" />
               <Availability />
-            </AvailabilityProvider>
-          </>
-        }
-      />
-      <Route
-        path="/explore"
-        element={
-          <>
-            <PageTitle title="SoilHive - Data Explorer" />
-            <DownloadPreview />
-          </>
-        }
-      />
-      <Route
-        path="/download"
-        element={
-          <>
-            <PageTitle title="SoilHive - Download Summary" />
-            <DownloadSummary />
-          </>
-        }
-      />
-      <Route path="*" element={<Navigate to="/" replace />} />
+            </>
+          }
+        />
+        {/* TODO: adapt the download preview page to use the router and query parameters */}
+        <Route
+          path="/explore"
+          element={
+            <>
+              <PageTitle title="SoilHive - Data Explorer" />
+              <DownloadPreview />
+            </>
+          }
+        />
+        <Route
+          path="/download"
+          element={
+            <>
+              <PageTitle title="SoilHive - Download Summary" />
+              <DownloadSummary />
+            </>
+          }
+        />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Route>
     </Routes>
   );
 }
-
-export default AvailabilityModule;
