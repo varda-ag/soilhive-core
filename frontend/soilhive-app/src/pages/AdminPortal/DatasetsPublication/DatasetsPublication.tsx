@@ -46,7 +46,13 @@ export function DatasetsPublication() {
                 <PlusIcon /> {t('datasets.list.add_button_text')}
               </Button>
             </div>
-            <DatasetsPublicationTable datasets={filteredDatasets} onEdit={onEdit} onDelete={onDelete} onPublish={onPublish} />
+            <DatasetsPublicationTable
+              datasets={filteredDatasets}
+              isSearch={!!searchValue}
+              onEdit={onEdit}
+              onDelete={onDelete}
+              onPublish={onPublish}
+            />
             <DatasetDeleteModal
               visible={isDeleteModalOpened}
               datasetName={selectedDataset?.name}

@@ -185,6 +185,7 @@
                 "name": "Name",
                 "status": "Status",
                 "visibility": "Visibility",
+                "updated_at": "Updated At",
                 "actions": "Actions"
             },
             "status": {
@@ -193,7 +194,8 @@
                 "LOADED": "Loaded",
                 "PUBLISHED": "Published"
             },
-            "empty_message": "No datasets matching your search query",
+            "empty_search_message": "No datasets matching your search query",
+            "empty_message": "No datasets yet. Click \"Add dataset\" to create one",
             "visibility": {
                 "private": "Private",
                 "public": "Public"
@@ -209,7 +211,8 @@
         "actions": {
             "save_and_continue_later": "Save and continue later",
             "continue": "Continue",
-            "previous": "Previous"
+            "previous": "Previous",
+            "cancel": "Cancel"
         },
         "general_info": {
             "step_title": "General info",

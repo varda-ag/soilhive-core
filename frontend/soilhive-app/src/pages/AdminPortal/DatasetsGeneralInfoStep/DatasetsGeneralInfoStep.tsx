@@ -3,6 +3,8 @@ import { useParams } from 'react-router';
 import { Button, FormMessage, TextInput, TextArea } from 'components/UI';
 import { useGeneralInfoForm } from 'hooks/useGeneralInfoForm';
 import InfoSquareIcon from 'assets/icons/info-square-icon.svg?react';
+import { ADMIN_PATHS } from '../../../configuration/admin';
+
 import styles from './DatasetsGeneralInfoStep.module.scss';
 
 export function DatasetsGeneralInfoStep() {
@@ -90,12 +92,19 @@ export function DatasetsGeneralInfoStep() {
         </div>
       </div>
       <div className={styles.Actions}>
-        <Button type="secondary" isDisabled={isSaving} onClick={handleSaveAndContinueLater} dataTestId="sh-general-info-save-later">
-          {t('datasets.actions.save_and_continue_later')}
-        </Button>
-        <Button type="primary" isDisabled={isSaving} onClick={handleContinue} dataTestId="sh-general-info-continue">
-          {t('datasets.actions.continue')}
-        </Button>
+        <div className={styles.Left}>
+          <Button type="secondary" isDisabled={isSaving} to={ADMIN_PATHS.DATASETS} dataTestId="sh-general-info-cancel">
+            {t('datasets.actions.cancel')}
+          </Button>
+        </div>
+        <div className={styles.Right}>
+          <Button type="secondary" isDisabled={isSaving} onClick={handleSaveAndContinueLater} dataTestId="sh-general-info-save-later">
+            {t('datasets.actions.save_and_continue_later')}
+          </Button>
+          <Button type="primary" isDisabled={isSaving} onClick={handleContinue} dataTestId="sh-general-info-continue">
+            {t('datasets.actions.continue')}
+          </Button>
+        </div>
       </div>
     </>
   );

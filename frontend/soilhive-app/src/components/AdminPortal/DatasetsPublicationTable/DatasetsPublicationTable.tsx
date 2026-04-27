@@ -5,6 +5,7 @@ import type { ColumnSortEvent } from 'primereact/column';
 import { DatasetsTableStatusTemplate } from './DatasetsTableStatusTemplate/DatasetsTableStatusTemplate';
 import { DatasetsTableVisibilityTemplate } from './DatasetsTableVisibilityTemplate/DatasetsTableVisibilityTemplate';
 import { DatasetsTableActionTemplate } from './DatasetsTableActionTemplate/DatasetsTableActionTemplate';
+import { DatasetsTableUpdatedAtTemplate } from './DatasetsTableUpdatedAtTemplate/DatasetsTableUpdatedAtTemplate';
 import { Table } from 'components/UI/Table/Table';
 import { IngestionStatus } from 'types/backend';
 import type { TableColumn } from 'types/components';
@@ -21,12 +22,13 @@ const statusSortingMap = {
 
 interface Props {
   datasets: DatasetsPublicationListItem[];
+  isSearch: boolean;
   onEdit: (id: string) => void;
   onDelete: (dataset: DatasetsPublicationListItem) => void;
   onPublish: (id: string) => void;
 }
 
-export function DatasetsPublicationTable({ datasets, onEdit, onDelete, onPublish }: Props) {
+export function DatasetsPublicationTable({ datasets, isSearch, onEdit, onDelete, onPublish }: Props) {
   const { t } = useTranslation('admin');
 
   const statusSortFunction = useCallback((event: ColumnSortEvent) => {
@@ -56,6 +58,12 @@ export function DatasetsPublicationTable({ datasets, onEdit, onDelete, onPublish
       },
       { name: t('datasets.list.columns.visibility'), value: 'visibility', sortable: true, bodyTemplate: DatasetsTableVisibilityTemplate },
       {
+        name: t('datasets.list.columns.updated_at'),
+        value: 'updated_at',
+        sortable: true,
+        bodyTemplate: DatasetsTableUpdatedAtTemplate,
+      },
+      {
         name: t('datasets.list.columns.actions'),
         value: 'actions',
         sortable: false,
@@ -76,7 +84,9 @@ export function DatasetsPublicationTable({ datasets, onEdit, onDelete, onPublish
         columns={columns}
         rowClassName={rowClassName}
         columnClassName={styles.TableColumn}
-        emptyMessage={t('datasets.list.empty_message')}
+        emptyMessage={t(isSearch ? 'datasets.list.empty_search_message' : 'datasets.list.empty_message')}
+        defaultSortField="name"
+        defaultSortOrder={1}
       />
     </div>
   );
