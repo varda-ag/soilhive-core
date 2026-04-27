@@ -19,7 +19,6 @@ import { backendToLocalFrontendDate } from '../utilities/date';
 import { useTranslation } from 'react-i18next';
 
 import { useDownloadPreview } from 'hooks/useDownloadPreview';
-import { useFilteredCoverageQuery } from 'hooks/useFilteredCoverageQuery';
 
 import { InfoDialog } from 'components/UI';
 import useDevice from 'hooks/useDevice';
@@ -99,12 +98,6 @@ function DownloadPreview() {
 
   const { filterId: downloadPreviewFilterId, isLoading: isLoadingFilter } = useDataFilterQuery(parameters, geometryFilter.length > 0);
 
-  const { data: filteredDatasets, isLoading: isCoverageLoading } = useFilteredCoverageQuery(downloadPreviewFilterId);
-
-  const areFiltersLoading = isLoadingFilter || isCoverageLoading;
-
-  const availableFilteredDatasets = filteredDatasets ? filteredDatasets.datasets : availableFixedDatasets;
-
   const { min_sampling_date, max_sampling_date, min_depth, max_depth } = availabilitySelectedFilters?.filter.parameters ?? {};
 
   const fixedCalendarRange =
@@ -113,7 +106,7 @@ function DownloadPreview() {
       : null;
   const fixedDepthRange: Nullable<[number, number]> = min_depth && max_depth ? [min_depth, max_depth] : null;
 
-  const { globalDateStart, globalDateEnd /*globalMinDepth, globalMaxDepth*/ } = computeDatasetSummary(availableFilteredDatasets);
+  const { globalDateStart, globalDateEnd /*globalMinDepth, globalMaxDepth*/ } = computeDatasetSummary(availableFixedDatasets);
   const calendarMinMaxRange: [Date | undefined, Date | undefined] =
     globalDateStart && globalDateEnd
       ? [backendToLocalFrontendDate(globalDateStart), backendToLocalFrontendDate(globalDateEnd)]
@@ -137,7 +130,7 @@ function DownloadPreview() {
     reset,
   } = useSoilData({
     selectedDatasets,
-    availableDatasets: availableFilteredDatasets.map(dataset => dataset.id),
+    availableDatasets: availableFixedDatasets.map(dataset => dataset.id),
     filterId: downloadPreviewFilterId,
     limit: MAXIMUM_SOIL_DATA_PER_REQUEST + 1,
     sort,
@@ -239,7 +232,7 @@ function DownloadPreview() {
               setFilters(newFilters);
             }}
             data={allData}
-            isDataLoading={areFiltersLoading || isDataLoading || isDownloadPreviewLoading}
+            isDataLoading={isLoadingFilter || isDataLoading || isDownloadPreviewLoading}
             onTableSort={sort => {
               reset();
               setSort(sort);
