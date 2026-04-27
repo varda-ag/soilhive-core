@@ -103,11 +103,11 @@ describe('useDataFilterQuery', () => {
     expect(useApiQueryMock).toHaveBeenCalledWith(expect.objectContaining({ enabled: false }));
   });
 
-  it('passes filters through useDebounce with 300ms delay', () => {
+  it('passes filters and enabled through useDebounce with 300ms delay', () => {
     useApiQueryMock.mockReturnValue({ data: undefined, isLoading: false } as any);
 
     renderHook(() => useDataFilterQuery(MOCK_FILTERS));
 
-    expect(useDebounceMock).toHaveBeenCalledWith(MOCK_FILTERS, 300);
+    expect(useDebounceMock).toHaveBeenCalledWith({ filters: MOCK_FILTERS, enabled: true }, 300);
   });
 });
