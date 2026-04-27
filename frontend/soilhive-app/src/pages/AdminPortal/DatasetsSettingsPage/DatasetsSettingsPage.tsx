@@ -13,6 +13,7 @@ import UserAddIcon from 'assets/icons/user-add-icon.svg?react';
 import TrashIcon from 'assets/icons/trash-icon.svg?react';
 import { Button, Table, TextInput } from 'components/UI';
 import { ADMIN_PATHS } from '../../../configuration/admin';
+import { isValidEmail } from '../../../utilities/validation';
 import type { TableColumn } from 'types/components';
 
 import styles from './DatasetsSettingsPage.module.scss';
@@ -28,13 +29,31 @@ export function DatasetsSettingsPage() {
 
   const [visibility, setVisibility] = useState<Visibility>('public');
   const [emailInput, setEmailInput] = useState('');
+  const [emailError, setEmailError] = useState('');
   const [accessEmails, setAccessEmails] = useState<AccessEmail[]>([]);
+
+  const handleEmailChange = (value: string) => {
+    setEmailInput(value);
+    setEmailError('');
+  };
+
+  const handleEmailBlur = () => {
+    if (emailInput.trim() && !isValidEmail(emailInput)) {
+      setEmailError(t('datasets.settings.access.email_invalid'));
+    }
+  };
 
   const handleAddEmail = () => {
     const trimmed = emailInput.trim();
-    if (!trimmed || accessEmails.some(e => e.email === trimmed)) return;
+    if (!trimmed) return;
+    if (!isValidEmail(trimmed)) {
+      setEmailError(t('datasets.settings.access.email_invalid'));
+      return;
+    }
+    if (accessEmails.some(e => e.email === trimmed)) return;
     setAccessEmails(prev => [...prev, { email: trimmed }]);
     setEmailInput('');
+    setEmailError('');
   };
 
   const handleRemoveEmail = (email: string) => {
@@ -128,20 +147,20 @@ export function DatasetsSettingsPage() {
                 <UserAddIcon className={styles.AccessSectionIcon} />
                 <h4 className={styles.AccessSectionTitle}>{t('datasets.settings.access.title')}</h4>
               </div>
-              <div>
-                <p className={styles.EmailLabel}>{t('datasets.settings.access.email_label')}</p>
-                <div className={styles.EmailInputRow}>
-                  <TextInput
-                    className={styles.EmailInput}
-                    type="email"
-                    placeholder={t('datasets.settings.access.email_placeholder')}
-                    value={emailInput}
-                    onChange={setEmailInput}
-                  />
-                  <Button type="primary" size="small" onClick={handleAddEmail}>
-                    {t('datasets.settings.access.add_button')}
-                  </Button>
-                </div>
+              <div className={styles.EmailInputRow}>
+                <TextInput
+                  className={styles.EmailInput}
+                  label={t('datasets.settings.access.email_label')}
+                  placeholder={t('datasets.settings.access.email_placeholder')}
+                  value={emailInput}
+                  isError={!!emailError}
+                  errorMessage={emailError}
+                  onChange={handleEmailChange}
+                  onBlur={handleEmailBlur}
+                />
+                <Button type="primary" size="small" onClick={handleAddEmail} isDisabled={!isValidEmail(emailInput)}>
+                  {t('datasets.settings.access.add_button')}
+                </Button>
               </div>
               <Table<AccessEmail> value={accessEmails} columns={accessColumns} scrollHeight="auto" />
             </div>

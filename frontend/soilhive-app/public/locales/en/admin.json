@@ -322,7 +322,8 @@
                 "email_label": "Enter email/s",
                 "email_placeholder": "member@company.com",
                 "add_button": "Add",
-                "table_column_email": "Email"
+                "table_column_email": "Email",
+                "email_invalid": "Please enter a valid email address"
             },
             "actions": {
                 "cancel": "Cancel",

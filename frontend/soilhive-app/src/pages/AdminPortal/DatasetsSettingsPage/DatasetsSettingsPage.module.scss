@@ -11,6 +11,7 @@
   padding: 1.5rem;
   flex: 1;
   overflow: auto;
+  scrollbar-gutter: stable;
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
@@ -182,13 +183,6 @@
   font-weight: var(--font-weight-bold);
   color: var( --color-neutral-black);
   margin: 0;
-}
-
-.EmailLabel {
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-bold);
-  color: var(--color-neutral-black);
-  margin: 0 0 6px;
 }
 
 .EmailInputRow {
