@@ -17,6 +17,8 @@ interface Props<T extends object> {
   emptyMessage?: string;
   scrollHeight?: string;
   className?: string;
+  defaultSortField?: string;
+  defaultSortOrder?: SortOrder;
 }
 
 export function Table<T extends object>({
@@ -27,6 +29,8 @@ export function Table<T extends object>({
   emptyMessage,
   scrollHeight = 'flex',
   className,
+  defaultSortField,
+  defaultSortOrder,
 }: Props<T>) {
   const customSortIcon = (options: IconOptions<DataTable<T[]>, { sortOrder?: SortOrder; sorted?: boolean }>) => {
     const sortOrder = options.sortOrder || 0;
@@ -53,6 +57,8 @@ export function Table<T extends object>({
       scrollHeight={scrollHeight}
       sortIcon={customSortIcon}
       emptyMessage={emptyMessage}
+      sortField={defaultSortField}
+      sortOrder={defaultSortOrder}
     >
       {columns.map(({ name, value: field, sortable, bodyTemplate, sortFunction }) => (
         <Column

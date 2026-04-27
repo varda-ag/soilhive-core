@@ -5,8 +5,8 @@ import type { TableColumn } from 'types/components';
 type Row = { id: string; name: string; status: string };
 
 jest.mock('primereact/datatable', () => ({
-  DataTable: ({ value, children, className, emptyMessage, sortIcon }: any) => (
-    <div data-testid="mock-datatable" className={className}>
+  DataTable: ({ value, children, className, emptyMessage, sortIcon, sortField, sortOrder }: any) => (
+    <div data-testid="mock-datatable" className={className} data-sort-field={sortField} data-sort-order={sortOrder}>
       <div data-testid="mock-columns">{children}</div>
       {value.length === 0 && emptyMessage && <div data-testid="mock-empty">{emptyMessage}</div>}
       <div data-testid="mock-sort-unsorted">{sortIcon?.({ sorted: false, sortOrder: 0, iconProps: { className: '' } })}</div>
@@ -86,6 +86,16 @@ describe('Table component', () => {
 
     const icon = screen.getByTestId('mock-sort-desc').querySelector('svg');
     expect(icon).toHaveClass('SortUp');
+  });
+
+  it('passes defaultSortField to DataTable', () => {
+    render(<Table value={rows} columns={columns} defaultSortField="name" />);
+    expect(screen.getByTestId('mock-datatable')).toHaveAttribute('data-sort-field', 'name');
+  });
+
+  it('passes defaultSortOrder to DataTable', () => {
+    render(<Table value={rows} columns={columns} defaultSortOrder={1} />);
+    expect(screen.getByTestId('mock-datatable')).toHaveAttribute('data-sort-order', '1');
   });
 
   it('matches snapshot', () => {

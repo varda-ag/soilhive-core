@@ -8,16 +8,20 @@
       font-weight: var(--font-weight-bold);
     }
     &:nth-child(2) {
-      width: 182px;
-      min-width: 182px;
+      width: 142px;
+      min-width: 142px;
     }
     &:nth-child(3) {
-      width: 100px;
-      min-width: 100px;
+      width: 142px;
+      min-width: 142px;
     }
     &:nth-child(4) {
-      width: 224px;
-      min-width: 224px;
+      width: 130px;
+      min-width: 130px;
+    }
+    &:nth-child(5) {
+      width: 214px;
+      min-width: 214px;
     }
   }
   .TableRowHighlighted {
