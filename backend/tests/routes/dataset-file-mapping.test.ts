@@ -3,10 +3,10 @@ import { getDataAdminToken } from '../helper';
 import request from 'supertest';
 import { app } from '../../src/app';
 import { StatusCodes } from 'http-status-codes';
-import { addFile } from '../../src/utils/mock';
+import { addFile, addSyntheticIngestionData, syntheticIngestionDataOptions } from '../../src/utils/mock';
 
-describe('Testing /datasets{datasetId}/dataset-file-mapping routes', () => {
-  describe('POST /datasets{datasetId}/dataset-file-mapping', () => {
+describe('Testing /datasets/{datasetId}/dataset-file-mapping routes', () => {
+  describe('POST /datasets/{datasetId}/dataset-file-mapping', () => {
     it('should create an empty dataset file mapping successfully (201)', async () => {
       const token = await getDataAdminToken();
 
@@ -104,7 +104,7 @@ describe('Testing /datasets{datasetId}/dataset-file-mapping routes', () => {
     });
   });
 
-  describe('PATCH /datasets{datasetId}/dataset-file-mapping', () => {
+  describe('PATCH /datasets/{datasetId}/dataset-file-mapping', () => {
     it('should update a dataset file mapping (200)', async () => {
       const token = await getDataAdminToken();
 
@@ -266,6 +266,52 @@ describe('Testing /datasets{datasetId}/dataset-file-mapping routes', () => {
       expect(Array.isArray(getResponse.body)).toBe(true);
       expect(getResponse.body.length).toBeGreaterThanOrEqual(1);
       expect(getResponse.body[0].fileID).toBe(file.id);
+    });
+  });
+
+  describe('GET /datasets/{datasetId}/dataset-file-mapping/{datasetFileMappingId}/soil-data', () => {
+    const mockId = '960ee487-a6bd-4da8-8ef0-da6ef23d0e80';
+
+    it('should return 404 for non-existent datasetFileMappingId', async () => {
+      const token = await getDataAdminToken();
+      const res = await request(app)
+        .get(`/datasets/wrong/dataset-file-mapping/${mockId}/soil-data`)
+        .query({ limit: 10 })
+        .set('Authorization', `Bearer ${token}`);
+      expect(res.statusCode).toBe(StatusCodes.NOT_FOUND);
+    });
+
+    it('should return 400 when limit exceeds maximum (300)', async () => {
+      const token = await getDataAdminToken();
+      const res = await request(app)
+        .get(`/datasets/id/dataset-file-mapping/${mockId}/soil-data`)
+        .query({ limit: 300 })
+        .set('Authorization', `Bearer ${token}`);
+      expect(res.statusCode).toBe(StatusCodes.BAD_REQUEST);
+    });
+
+    it.each([
+      ['record_id', 'ASC'],
+      ['-record_id', 'DESC'],
+      ['max_depth', 'ASC'],
+      ['-max_depth', 'DESC'],
+    ])('should sort results by sort=%s', async (sort, direction) => {
+      const token = await getDataAdminToken();
+      const { dataset, datasetFileMapping } = await addSyntheticIngestionData({
+        ...syntheticIngestionDataOptions,
+        createTable: true,
+      });
+
+      const res = await request(app)
+        .get(`/datasets/${dataset.slug}/dataset-file-mapping/${datasetFileMapping.id}/soil-data`)
+        .query({ limit: 100, sort })
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(res.statusCode).toBe(StatusCodes.OK);
+      const sortKey = sort.replace('-', '');
+      const values = res.body.map((r: any) => Number(r[sortKey]));
+      const expected = [...values].sort((a, b) => (direction === 'ASC' ? a - b : b - a));
+      expect(values).toEqual(expected);
     });
   });
 });
