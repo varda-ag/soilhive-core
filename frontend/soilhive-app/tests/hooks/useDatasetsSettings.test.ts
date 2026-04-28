@@ -17,6 +17,7 @@ describe('useDatasetsSettings', () => {
     expect(result.current.emailInput).toBe('');
     expect(result.current.accessEmails).toEqual([]);
     expect(result.current.emailToDelete).toBeNull();
+    expect(result.current.isPublishWarningVisible).toBe(false);
   });
 
   describe('handleEmailChange', () => {
@@ -119,6 +120,32 @@ describe('useDatasetsSettings', () => {
       act(() => result.current.handleCancelRemoveEmail());
       expect(result.current.emailToDelete).toBeNull();
       expect(result.current.accessEmails).toHaveLength(1);
+    });
+  });
+
+  describe('handlePublish', () => {
+    it('opens the publish warning dialog', () => {
+      const { result } = renderHook(() => useDatasetsSettings());
+      act(() => result.current.handlePublish());
+      expect(result.current.isPublishWarningVisible).toBe(true);
+    });
+  });
+
+  describe('handlePublishProceed', () => {
+    it('closes the publish warning dialog', () => {
+      const { result } = renderHook(() => useDatasetsSettings());
+      act(() => result.current.handlePublish());
+      act(() => result.current.handlePublishProceed());
+      expect(result.current.isPublishWarningVisible).toBe(false);
+    });
+  });
+
+  describe('handlePublishCancel', () => {
+    it('closes the publish warning dialog', () => {
+      const { result } = renderHook(() => useDatasetsSettings());
+      act(() => result.current.handlePublish());
+      act(() => result.current.handlePublishCancel());
+      expect(result.current.isPublishWarningVisible).toBe(false);
     });
   });
 

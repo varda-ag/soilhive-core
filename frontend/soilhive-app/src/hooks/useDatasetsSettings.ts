@@ -18,6 +18,7 @@ export function useDatasetsSettings() {
   const [emailError, setEmailError] = useState('');
   const [accessEmails, setAccessEmails] = useState<AccessEmail[]>([]);
   const [emailToDelete, setEmailToDelete] = useState<string | null>(null);
+  const [isPublishWarningVisible, setIsPublishWarningVisible] = useState(false);
 
   function handleEmailChange(value: string) {
     setEmailInput(value);
@@ -58,6 +59,18 @@ export function useDatasetsSettings() {
     setEmailToDelete(null);
   }
 
+  function handlePublish() {
+    setIsPublishWarningVisible(true);
+  }
+
+  function handlePublishProceed() {
+    setIsPublishWarningVisible(false);
+  }
+
+  function handlePublishCancel() {
+    setIsPublishWarningVisible(false);
+  }
+
   function handleCancel() {
     navigate(ADMIN_PATHS.DATASETS);
   }
@@ -69,12 +82,16 @@ export function useDatasetsSettings() {
     emailError,
     accessEmails,
     emailToDelete,
+    isPublishWarningVisible,
     handleEmailChange,
     handleEmailBlur,
     handleAddEmail,
     handleRequestRemoveEmail,
     handleConfirmRemoveEmail,
     handleCancelRemoveEmail,
+    handlePublish,
+    handlePublishProceed,
+    handlePublishCancel,
     handleCancel,
   };
 }

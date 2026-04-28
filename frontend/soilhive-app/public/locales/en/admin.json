@@ -331,6 +331,15 @@
                     "confirm": "Remove"
                 }
             },
+            "publish_warning": {
+                "title": "No T&C's and Privacy policy configured",
+                "heading": "You are about to upload data to this instance",
+                "description": "However, no platform-level rules are currently defined to govern user access, usage, or data handling. While a dataset licence may be in place, it does not cover these aspects.",
+                "warning_bold": "We strongly recommend configuring Terms & Conditions and Privacy Policy",
+                "warning_suffix": "before proceeding, as their absence may create legal and compliance risks",
+                "proceed": "Proceed anyway",
+                "cancel": "Cancel publishing"
+            },
             "actions": {
                 "cancel": "Cancel",
                 "publish": "Publish"

@@ -10,6 +10,7 @@ import LockCircleIconDeselected from 'assets/icons/lock-circle-icon-deselected.s
 import LockIcon from 'assets/icons/lock-icon.svg?react';
 import UserAddIcon from 'assets/icons/user-add-icon.svg?react';
 import TrashIcon from 'assets/icons/trash-icon.svg?react';
+import ShieldGlobeIcon from 'assets/icons/shield-globe-icon.svg?react';
 import { Button, Dialog, Table, TextInput } from 'components/UI';
 import { isValidEmail } from '../../../utilities/validation';
 import { useDatasetsSettings } from '../../../hooks/useDatasetsSettings';
@@ -29,12 +30,16 @@ export function DatasetsSettingsPage() {
     emailError,
     accessEmails,
     emailToDelete,
+    isPublishWarningVisible,
     handleEmailChange,
     handleEmailBlur,
     handleAddEmail,
     handleRequestRemoveEmail,
     handleConfirmRemoveEmail,
     handleCancelRemoveEmail,
+    handlePublish,
+    handlePublishProceed,
+    handlePublishCancel,
     handleCancel,
   } = useDatasetsSettings();
 
@@ -161,7 +166,9 @@ export function DatasetsSettingsPage() {
         <Button type="secondary" onClick={handleCancel}>
           {t('datasets.settings.actions.cancel')}
         </Button>
-        <Button type="primary">{t('datasets.settings.actions.publish')}</Button>
+        <Button type="primary" onClick={handlePublish}>
+          {t('datasets.settings.actions.publish')}
+        </Button>
       </div>
 
       <Dialog
@@ -176,6 +183,28 @@ export function DatasetsSettingsPage() {
         <div className={styles.RemoveDialogContent}>
           <TrashIcon className={styles.RemoveDialogIcon} />
           <p className={styles.RemoveDialogMessage}>{t('datasets.settings.access.remove_dialog.message')}</p>
+        </div>
+      </Dialog>
+
+      <Dialog
+        visible={isPublishWarningVisible}
+        header={t('datasets.settings.publish_warning.title')}
+        cancelText={t('datasets.settings.publish_warning.proceed')}
+        continueText={t('datasets.settings.publish_warning.cancel')}
+        className={styles.PublishWarningDialog}
+        onContinue={handlePublishCancel}
+        onCancel={handlePublishProceed}
+      >
+        <div className={styles.PublishWarningContent}>
+          <ShieldGlobeIcon className={styles.PublishWarningIcon} />
+          <h4 className={styles.PublishWarningHeading}>{t('datasets.settings.publish_warning.heading')}</h4>
+          <p className={styles.PublishWarningDescription}>{t('datasets.settings.publish_warning.description')}</p>
+          <div className={styles.PublishWarningBox}>
+            <p className={styles.PublishWarningBoxText}>
+              ⚠ <strong>{t('datasets.settings.publish_warning.warning_bold')}</strong>{' '}
+              {t('datasets.settings.publish_warning.warning_suffix')} ⚠
+            </p>
+          </div>
         </div>
       </Dialog>
     </div>

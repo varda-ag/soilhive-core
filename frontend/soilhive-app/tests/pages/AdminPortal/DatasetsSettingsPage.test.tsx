@@ -50,6 +50,9 @@ const handleAddEmail = jest.fn();
 const handleRequestRemoveEmail = jest.fn();
 const handleConfirmRemoveEmail = jest.fn();
 const handleCancelRemoveEmail = jest.fn();
+const handlePublish = jest.fn();
+const handlePublishProceed = jest.fn();
+const handlePublishCancel = jest.fn();
 const handleCancel = jest.fn();
 
 const baseHookValue = {
@@ -59,12 +62,16 @@ const baseHookValue = {
   emailError: '',
   accessEmails: [],
   emailToDelete: null,
+  isPublishWarningVisible: false,
   handleEmailChange,
   handleEmailBlur,
   handleAddEmail,
   handleRequestRemoveEmail,
   handleConfirmRemoveEmail,
   handleCancelRemoveEmail,
+  handlePublish,
+  handlePublishProceed,
+  handlePublishCancel,
   handleCancel,
 };
 
@@ -148,5 +155,36 @@ describe('DatasetsSettingsPage', () => {
     render(<DatasetsSettingsPage />);
     fireEvent.click(screen.getByTestId('sh-ui-button-secondary'));
     expect(handleCancel).toHaveBeenCalledTimes(1);
+  });
+
+  it('publish button calls handlePublish', () => {
+    render(<DatasetsSettingsPage />);
+    fireEvent.click(screen.getByTestId('sh-ui-button-primary'));
+    expect(handlePublish).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not show the publish warning dialog by default', () => {
+    render(<DatasetsSettingsPage />);
+    expect(screen.queryByTestId('sh-ui-dialog')).not.toBeInTheDocument();
+  });
+
+  it('shows the publish warning dialog when isPublishWarningVisible is true', () => {
+    (useDatasetsSettings as jest.Mock).mockReturnValue({ ...baseHookValue, isPublishWarningVisible: true });
+    render(<DatasetsSettingsPage />);
+    expect(screen.getByTestId('sh-ui-dialog')).toBeInTheDocument();
+  });
+
+  it('confirm button in the publish warning dialog calls handlePublishCancel', () => {
+    (useDatasetsSettings as jest.Mock).mockReturnValue({ ...baseHookValue, isPublishWarningVisible: true });
+    render(<DatasetsSettingsPage />);
+    fireEvent.click(screen.getByTestId('sh-ui-dialog-confirm'));
+    expect(handlePublishCancel).toHaveBeenCalledTimes(1);
+  });
+
+  it('cancel button in the publish warning dialog calls handlePublishProceed', () => {
+    (useDatasetsSettings as jest.Mock).mockReturnValue({ ...baseHookValue, isPublishWarningVisible: true });
+    render(<DatasetsSettingsPage />);
+    fireEvent.click(screen.getByTestId('sh-ui-dialog-cancel'));
+    expect(handlePublishProceed).toHaveBeenCalledTimes(1);
   });
 });

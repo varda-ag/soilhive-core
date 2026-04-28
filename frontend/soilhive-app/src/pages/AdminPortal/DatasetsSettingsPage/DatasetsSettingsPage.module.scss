@@ -232,6 +232,55 @@
   margin: 0;
 }
 
+.PublishWarningDialog {
+  width: 480px !important;
+  min-height: unset !important;
+}
+
+.PublishWarningContent {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.PublishWarningIcon {
+  width: 72px;
+  height: 72px;
+}
+
+.PublishWarningHeading {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-neutral-black);
+  text-align: center;
+  margin: 0;
+}
+
+.PublishWarningDescription {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-regular);
+  color: var(--color-neutral-black);
+  text-align: center;
+  margin: 0;
+}
+
+.PublishWarningBox {
+  background-color: var(--color-neutral-light);
+  border-radius: 8px;
+  padding: 12px 16px;
+  width: 100%;
+}
+
+.PublishWarningBoxText {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-regular);
+  color: var(--color-neutral-black);
+  text-align: center;
+  margin: 0;
+}
+
 .Actions {
   display: flex;
   justify-content: flex-end;
