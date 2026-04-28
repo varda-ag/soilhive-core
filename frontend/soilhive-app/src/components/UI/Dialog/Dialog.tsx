@@ -11,25 +11,27 @@ interface Props {
   visible: boolean;
   header: string;
   removeTransition?: boolean;
-  continueText?: string;
-  cancelText?: string;
+  primaryText?: string;
+  secondaryText?: string;
   className?: string;
   contentClassName?: string;
-  onContinue: () => void;
-  onCancel: () => void;
+  onPrimary: () => void;
+  onSecondary: () => void;
+  onClose?: () => void;
   children: ReactNode;
 }
 
 export function Dialog({
   visible,
   header,
-  cancelText,
-  continueText,
+  secondaryText,
+  primaryText,
   removeTransition,
   className,
   contentClassName,
-  onContinue,
-  onCancel,
+  onPrimary,
+  onSecondary,
+  onClose,
   children,
 }: Props) {
   const { t } = useTranslation('common');
@@ -54,7 +56,7 @@ export function Dialog({
         <>
           <div className={styles.Header} ref={headerRef as RefObject<HTMLDivElement>}>
             {header}
-            <button className={styles.CloseButton} onClick={onCancel} aria-label="Close">
+            <button className={styles.CloseButton} onClick={onClose ?? onSecondary} aria-label="Close">
               <CloseIcon />
             </button>
           </div>
@@ -62,13 +64,13 @@ export function Dialog({
             {children}
           </div>
           <div className={styles.Footer} ref={footerRef as RefObject<HTMLDivElement>}>
-            {!!cancelText && (
-              <Button className={styles.Button} type="secondary" onClick={onCancel}>
-                {cancelText}
+            {!!secondaryText && (
+              <Button className={styles.Button} type="secondary" onClick={onSecondary}>
+                {secondaryText}
               </Button>
             )}
-            <Button className={styles.Button} onClick={onContinue}>
-              {continueText || t('dialog.continue')}
+            <Button className={styles.Button} onClick={onPrimary}>
+              {primaryText || t('dialog.continue')}
             </Button>
           </div>
         </>

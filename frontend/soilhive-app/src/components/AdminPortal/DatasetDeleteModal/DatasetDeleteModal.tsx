@@ -19,12 +19,12 @@ export function DatasetDeleteModal({ visible, datasetName, onContinue, onCancel 
     <Dialog
       visible={visible}
       header={t('datasets.list.delete_modal.title')}
-      cancelText={t('datasets.list.delete_modal.cancel')}
-      continueText={t('datasets.list.delete_modal.confirm')}
+      secondaryText={t('datasets.list.delete_modal.cancel')}
+      primaryText={t('datasets.list.delete_modal.confirm')}
       className={styles.DatasetDeleteModal}
       contentClassName={styles.DatasetDeleteModalContent}
-      onContinue={onContinue}
-      onCancel={onCancel}
+      onPrimary={onContinue}
+      onSecondary={onCancel}
     >
       <>
         <DeleteDatasetImage />

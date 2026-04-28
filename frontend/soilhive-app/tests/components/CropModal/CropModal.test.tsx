@@ -13,17 +13,17 @@ const rangeSliderMock = jest.fn();
 jest.mock('components/UI', () => ({
   Dialog: (props: any) => {
     dialogMock(props);
-    const { visible, header, children, onContinue, onCancel } = props;
+    const { visible, header, children, onPrimary, onSecondary } = props;
 
     if (!visible) return null;
 
     return (
       <div data-testid="dialog">
         <div data-testid="dialog-header">{header}</div>
-        <button data-testid="dialog-continue" onClick={onContinue}>
+        <button data-testid="dialog-continue" onClick={onPrimary}>
           continue
         </button>
-        <button data-testid="dialog-cancel" onClick={onCancel}>
+        <button data-testid="dialog-cancel" onClick={onSecondary}>
           cancel
         </button>
         {children}
@@ -58,8 +58,8 @@ describe('CropModal', () => {
     outputHeight: 47,
     fileName: 'logo.png',
     headerText: 'Crop logo',
-    cancelText: 'Cancel',
-    continueText: 'Continue',
+    secondaryText: 'Cancel',
+    primaryText: 'Continue',
     onCrop: mockOnCrop,
     onCancel: mockOnCancel,
   };

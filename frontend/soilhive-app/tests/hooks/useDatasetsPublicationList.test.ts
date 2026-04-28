@@ -163,16 +163,14 @@ describe('useDatasetsPublicationList', () => {
     expect(result.current.selectedDataset).toBeNull();
   });
 
-  it('onPublish calls console.log with the dataset id', () => {
-    const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+  it('onPublish navigates to the dataset settings page', () => {
     const { result } = renderHook(() => useDatasetsPublicationList());
 
     act(() => {
       result.current.onPublish('1');
     });
 
-    expect(consoleSpy).toHaveBeenCalledWith('onPublish', '1');
-    consoleSpy.mockRestore();
+    expect(navigate).toHaveBeenCalledWith(`${ADMIN_PATHS.DATASETS}/edit/1/settings`);
   });
 
   it('navigateToNewDataset navigates to the new dataset page', () => {

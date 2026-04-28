@@ -7,16 +7,16 @@ jest.mock('react-i18next', () => ({
 }));
 
 jest.mock('components/UI', () => ({
-  Dialog: ({ visible, header, cancelText, continueText, onContinue, onCancel, children }: any) =>
+  Dialog: ({ visible, header, secondaryText, primaryText, onPrimary, onSecondary, children }: any) =>
     visible ? (
       <div data-testid="mock-dialog">
         <span data-testid="dialog-header">{header}</span>
         <div data-testid="dialog-content">{children}</div>
-        <button data-testid="btn-cancel" onClick={onCancel}>
-          {cancelText}
+        <button data-testid="btn-cancel" onClick={onSecondary}>
+          {secondaryText}
         </button>
-        <button data-testid="btn-continue" onClick={onContinue}>
-          {continueText}
+        <button data-testid="btn-continue" onClick={onPrimary}>
+          {primaryText}
         </button>
       </div>
     ) : null,
