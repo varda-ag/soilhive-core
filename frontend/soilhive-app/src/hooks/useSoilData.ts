@@ -3,11 +3,14 @@ import { useApiQuery } from './useApiQuery';
 import { useDebounce } from './useDebounce';
 import { useEffect, useMemo, useState } from 'react';
 
-export function useSoilData(parameters: SoilDataParameters) {
+export function useSoilData(parameters: SoilDataParameters, enabled: boolean = true) {
   const [allDataMap, setAllDataMap] = useState(new Map<string, SoilDataSample[]>());
   const [cursor, setCursor] = useState<string>();
 
-  const debouncedParameters = useDebounce(parameters, 300);
+  // `enabled` is debounced together with `parameters` so that a transient `enabled=false`
+  // (e.g. while the upstream `filterId` is being recomputed for a new selection) cannot
+  // race with `parameters` and let a query slip through with a stale `filterId`.
+  const { parameters: debouncedParameters, enabled: debouncedEnabled } = useDebounce({ parameters, enabled }, 300);
   const { selectedDatasets, availableDatasets, filterId, limit, sort } = debouncedParameters;
 
   const datasets = selectedDatasets ?? availableDatasets;
@@ -30,7 +33,7 @@ export function useSoilData(parameters: SoilDataParameters) {
     parameters: queryParameters,
     // The query gets executed only if there are available datasets
     // otherwise the API would return an error.
-    enabled: datasets.length > 0 && filterId !== undefined,
+    enabled: datasets.length > 0 && filterId !== undefined && debouncedEnabled,
   });
 
   useEffect(() => {

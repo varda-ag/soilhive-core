@@ -110,4 +110,35 @@ describe('useDataFilterQuery', () => {
 
     expect(useDebounceMock).toHaveBeenCalledWith({ filters: MOCK_FILTERS, enabled: true }, 300);
   });
+
+  it('reports isStale=true when no data has been loaded yet', () => {
+    useApiQueryMock.mockReturnValue({ data: undefined, isLoading: true } as any);
+
+    const { result } = renderHook(() => useDataFilterQuery(MOCK_FILTERS));
+
+    expect(result.current.isStale).toBe(true);
+  });
+
+  it('reports isStale=false when stored filter matches current input', () => {
+    useApiQueryMock.mockReturnValue({ data: MOCK_STORED_FILTER, isLoading: false } as any);
+
+    const { result } = renderHook(() => useDataFilterQuery(MOCK_FILTERS));
+
+    expect(result.current.isStale).toBe(false);
+  });
+
+  it('reports isStale=true when current input differs from the filter that produced data', () => {
+    useApiQueryMock.mockReturnValue({ data: MOCK_STORED_FILTER, isLoading: false } as any);
+    // Bypass debounce so the input the hook compares against is the new one immediately.
+    useDebounceMock.mockImplementation((value: unknown) => value);
+
+    const changedFilters: DataFilter = {
+      geometries: [MOCK_GEOMETRY],
+      parameters: { min_depth: 10, max_depth: 50 },
+    };
+
+    const { result } = renderHook(() => useDataFilterQuery(changedFilters));
+
+    expect(result.current.isStale).toBe(true);
+  });
 });

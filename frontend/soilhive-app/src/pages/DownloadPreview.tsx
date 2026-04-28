@@ -88,18 +88,22 @@ function DownloadPreview() {
     }
   }, [availableSoilProperties, filters.soil_properties]);
 
-  const parameters = {
-    geometries: geometryFilter,
-    parameters: {
-      ...(availabilitySelectedFilters?.filter.parameters ?? {}),
-      ...filters,
-    },
-  };
-
-  const { filterId: downloadPreviewFilterId, isLoading: isLoadingFilter } = useDataFilterQuery(
-    parameters,
-    parameters.parameters.soil_properties?.length > 0,
+  const parameters = useMemo(
+    () => ({
+      geometries: geometryFilter,
+      parameters: {
+        ...(availabilitySelectedFilters?.filter.parameters ?? {}),
+        ...filters,
+      },
+    }),
+    [geometryFilter, availabilitySelectedFilters, filters],
   );
+
+  const {
+    filterId: downloadPreviewFilterId,
+    isLoading: isLoadingFilter,
+    isStale: isFilterStale,
+  } = useDataFilterQuery(parameters, parameters.parameters.soil_properties?.length > 0);
 
   const { min_sampling_date, max_sampling_date, min_depth, max_depth } = availabilitySelectedFilters?.filter.parameters ?? {};
 
@@ -125,19 +129,28 @@ function DownloadPreview() {
       ? [datasetsSummary.globalMinDepth, datasetsSummary.globalMaxDepth]
       : [undefined, undefined];
 
+  // Changing `selectedDatasets` can also change `availableSoilProperties`, which triggers
+  // the effect above to update `filters.soil_properties`. That kicks off a new
+  // /data-filters request and, until it returns, `downloadPreviewFilterId` still points at
+  // the previous filter. Without the `!isFilterStale` gate, useSoilData would fire once
+  // here with the stale `filterId` and again once the fresh `filterId` arrives — two
+  // /soil-data requests for a single user action.
   const {
     allData,
     isLoading: isDataLoading,
     hasMore,
     loadMore,
     reset,
-  } = useSoilData({
-    selectedDatasets,
-    availableDatasets: availableFixedDatasets.map(dataset => dataset.id),
-    filterId: downloadPreviewFilterId,
-    limit: MAXIMUM_SOIL_DATA_PER_REQUEST + 1,
-    sort,
-  });
+  } = useSoilData(
+    {
+      selectedDatasets,
+      availableDatasets: availableFixedDatasets.map(dataset => dataset.id),
+      filterId: downloadPreviewFilterId,
+      limit: MAXIMUM_SOIL_DATA_PER_REQUEST + 1,
+      sort,
+    },
+    !isFilterStale,
+  );
 
   const [selectedTab, setSelectedTab] = useState<'summary' | 'availability'>('summary');
 
