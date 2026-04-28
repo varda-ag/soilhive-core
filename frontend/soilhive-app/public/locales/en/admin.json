@@ -323,7 +323,13 @@
                 "email_placeholder": "member@company.com",
                 "add_button": "Add",
                 "table_column_email": "Email",
-                "email_invalid": "Please enter a valid email address"
+                "email_invalid": "Please enter a valid email address",
+                "remove_dialog": {
+                    "title": "Delete a data administrator",
+                    "message": "Do you really want to delete this admin?",
+                    "cancel": "Cancel",
+                    "confirm": "Remove"
+                }
             },
             "actions": {
                 "cancel": "Cancel",

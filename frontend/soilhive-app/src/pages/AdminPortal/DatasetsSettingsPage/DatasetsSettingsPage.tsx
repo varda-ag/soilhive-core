@@ -10,7 +10,7 @@ import LockCircleIconDeselected from 'assets/icons/lock-circle-icon-deselected.s
 import LockIcon from 'assets/icons/lock-icon.svg?react';
 import UserAddIcon from 'assets/icons/user-add-icon.svg?react';
 import TrashIcon from 'assets/icons/trash-icon.svg?react';
-import { Button, Table, TextInput } from 'components/UI';
+import { Button, Dialog, Table, TextInput } from 'components/UI';
 import { isValidEmail } from '../../../utilities/validation';
 import { useDatasetsSettings } from '../../../hooks/useDatasetsSettings';
 import type { AccessEmail } from '../../../hooks/useDatasetsSettings';
@@ -28,10 +28,13 @@ export function DatasetsSettingsPage() {
     emailInput,
     emailError,
     accessEmails,
+    emailToDelete,
     handleEmailChange,
     handleEmailBlur,
     handleAddEmail,
-    handleRemoveEmail,
+    handleRequestRemoveEmail,
+    handleConfirmRemoveEmail,
+    handleCancelRemoveEmail,
     handleCancel,
   } = useDatasetsSettings(t('datasets.settings.access.email_invalid'));
 
@@ -47,7 +50,7 @@ export function DatasetsSettingsPage() {
       value: 'email',
       bodyTemplate: row => (
         <div className={styles.TrashCell}>
-          <Button type="tertiary" isIconOnly onClick={() => handleRemoveEmail(row.email)}>
+          <Button type="tertiary" isIconOnly isDanger onClick={() => handleRequestRemoveEmail(row.email)}>
             <TrashIcon />
           </Button>
         </div>
@@ -160,6 +163,21 @@ export function DatasetsSettingsPage() {
         </Button>
         <Button type="primary">{t('datasets.settings.actions.publish')}</Button>
       </div>
+
+      <Dialog
+        visible={emailToDelete !== null}
+        header={t('datasets.settings.access.remove_dialog.title')}
+        cancelText={t('datasets.settings.access.remove_dialog.cancel')}
+        continueText={t('datasets.settings.access.remove_dialog.confirm')}
+        className={styles.RemoveDialog}
+        onContinue={handleConfirmRemoveEmail}
+        onCancel={handleCancelRemoveEmail}
+      >
+        <div className={styles.RemoveDialogContent}>
+          <TrashIcon className={styles.RemoveDialogIcon} />
+          <p className={styles.RemoveDialogMessage}>{t('datasets.settings.access.remove_dialog.message')}</p>
+        </div>
+      </Dialog>
     </div>
   );
 }

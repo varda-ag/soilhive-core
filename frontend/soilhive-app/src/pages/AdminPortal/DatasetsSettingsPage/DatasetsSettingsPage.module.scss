@@ -207,6 +207,31 @@
 }
 
 
+.RemoveDialog {
+  min-height: unset !important;
+}
+
+.RemoveDialogContent {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+}
+
+.RemoveDialogIcon {
+  width: 48px;
+  height: 48px;
+}
+
+.RemoveDialogMessage {
+  font-size: var(--font-size-md);
+  color: var(--color-neutral-black);
+  text-align: center;
+  margin: 0;
+}
+
 .Actions {
   display: flex;
   justify-content: flex-end;

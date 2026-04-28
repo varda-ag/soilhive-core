@@ -14,6 +14,7 @@ export function useDatasetsSettings(invalidEmailMessage: string) {
   const [emailInput, setEmailInput] = useState('');
   const [emailError, setEmailError] = useState('');
   const [accessEmails, setAccessEmails] = useState<AccessEmail[]>([]);
+  const [emailToDelete, setEmailToDelete] = useState<string | null>(null);
 
   function handleEmailChange(value: string) {
     setEmailInput(value);
@@ -39,8 +40,19 @@ export function useDatasetsSettings(invalidEmailMessage: string) {
     setEmailError('');
   }
 
-  function handleRemoveEmail(email: string) {
-    setAccessEmails(prev => prev.filter(e => e.email !== email));
+  function handleRequestRemoveEmail(email: string) {
+    setEmailToDelete(email);
+  }
+
+  function handleConfirmRemoveEmail() {
+    if (emailToDelete) {
+      setAccessEmails(prev => prev.filter(e => e.email !== emailToDelete));
+    }
+    setEmailToDelete(null);
+  }
+
+  function handleCancelRemoveEmail() {
+    setEmailToDelete(null);
   }
 
   function handleCancel() {
@@ -53,10 +65,13 @@ export function useDatasetsSettings(invalidEmailMessage: string) {
     emailInput,
     emailError,
     accessEmails,
+    emailToDelete,
     handleEmailChange,
     handleEmailBlur,
     handleAddEmail,
-    handleRemoveEmail,
+    handleRequestRemoveEmail,
+    handleConfirmRemoveEmail,
+    handleCancelRemoveEmail,
     handleCancel,
   };
 }
