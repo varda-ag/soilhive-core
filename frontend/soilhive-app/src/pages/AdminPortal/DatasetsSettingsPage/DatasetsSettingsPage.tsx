@@ -36,7 +36,7 @@ export function DatasetsSettingsPage() {
     handleConfirmRemoveEmail,
     handleCancelRemoveEmail,
     handleCancel,
-  } = useDatasetsSettings(t('datasets.settings.access.email_invalid'));
+  } = useDatasetsSettings();
 
   const accessColumns: TableColumn<AccessEmail>[] = [
     {

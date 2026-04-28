@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
+import { useTranslation } from 'react-i18next';
 import { ADMIN_PATHS } from '../configuration/admin';
 import { isValidEmail } from '../utilities/validation';
 
@@ -7,8 +8,10 @@ export type Visibility = 'public' | 'private';
 
 export type AccessEmail = { email: string };
 
-export function useDatasetsSettings(invalidEmailMessage: string) {
+export function useDatasetsSettings() {
   const navigate = useNavigate();
+  const { t } = useTranslation('admin');
+  const invalidEmailMessage = t('datasets.settings.access.email_invalid');
 
   const [visibility, setVisibility] = useState<Visibility>('public');
   const [emailInput, setEmailInput] = useState('');
