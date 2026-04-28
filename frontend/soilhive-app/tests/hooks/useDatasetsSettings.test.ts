@@ -78,6 +78,15 @@ describe('useDatasetsSettings', () => {
       act(() => result.current.handleAddEmail());
       expect(result.current.accessEmails).toHaveLength(1);
     });
+
+    it('sets error when a duplicate email is added', () => {
+      const { result } = renderHook(() => useDatasetsSettings());
+      act(() => result.current.handleEmailChange('user@example.com'));
+      act(() => result.current.handleAddEmail());
+      act(() => result.current.handleEmailChange('user@example.com'));
+      act(() => result.current.handleAddEmail());
+      expect(result.current.emailError).toBeTruthy();
+    });
   });
 
   describe('handleRequestRemoveEmail', () => {

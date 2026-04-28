@@ -324,6 +324,7 @@
                 "add_button": "Add",
                 "table_column_email": "Email",
                 "email_invalid": "Please enter a valid email address",
+                "email_duplicate": "This email has already been added",
                 "remove_dialog": {
                     "title": "Delete a data administrator",
                     "message": "Do you really want to delete this admin?",

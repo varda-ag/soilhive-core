@@ -38,7 +38,10 @@ export function useDatasetsSettings() {
       setEmailError(invalidEmailMessage);
       return;
     }
-    if (accessEmails.some(e => e.email === trimmed)) return;
+    if (accessEmails.some(e => e.email === trimmed)) {
+      setEmailError(t('datasets.settings.access.email_duplicate'));
+      return;
+    }
     setAccessEmails(prev => [...prev, { email: trimmed }]);
     setEmailInput('');
     setEmailError('');
