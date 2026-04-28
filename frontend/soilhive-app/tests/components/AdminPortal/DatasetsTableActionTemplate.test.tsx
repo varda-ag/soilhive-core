@@ -1,6 +1,16 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { DatasetsTableActionTemplate } from 'components/AdminPortal/DatasetsPublicationTable/DatasetsTableActionTemplate/DatasetsTableActionTemplate';
 import { IngestionStatus } from 'types/backend';
+import { useAuthContext } from '../../../src/auth/AuthContextProvider';
+
+jest.mock('../../../src/auth/AuthContextProvider', () => ({
+  useAuthContext: jest.fn(),
+}));
+
+jest.mock('../../../src/hooks/useEntitlementsHook', () => ({
+  ...jest.requireActual('../../../src/hooks/useEntitlementsHook'),
+  useEntitlements: () => ({ can: () => true }),
+}));
 
 jest.mock('components/UI', () => ({
   Button: ({ children, onClick }: any) => (
@@ -17,6 +27,12 @@ const baseProps = {
 };
 
 describe('DatasetsTableActionTemplate', () => {
+  beforeEach(() => {
+    (useAuthContext as jest.Mock).mockReturnValue({
+      isLoading: false,
+    });
+  });
+
   afterEach(() => {
     jest.clearAllMocks();
   });

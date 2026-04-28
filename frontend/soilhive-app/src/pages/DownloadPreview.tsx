@@ -99,6 +99,7 @@ function DownloadPreview() {
   const { filterId: downloadPreviewFilterId, isLoading: isLoadingFilter } = useDataFilterQuery(
     parameters,
     parameters.parameters.soil_properties?.length > 0,
+    0, // No debounce
   );
 
   const { min_sampling_date, max_sampling_date, min_depth, max_depth } = availabilitySelectedFilters?.filter.parameters ?? {};

@@ -9,7 +9,7 @@ jest.mock('hooks/useApiQuery', () => ({
 }));
 
 jest.mock('hooks/useDebounce', () => ({
-  useDebounce: jest.fn((value: unknown) => value),
+  useDebounce: jest.fn((value: unknown, delay: number) => ({ value, isPending: false })),
 }));
 
 const useApiQueryMock = useApiQuery as jest.MockedFunction<typeof useApiQuery>;
@@ -40,7 +40,7 @@ const MOCK_STORED_FILTER = {
 describe('useDataFilterQuery', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    useDebounceMock.mockImplementation((value: unknown) => value);
+    useDebounceMock.mockImplementation((value: unknown) => ({ value, isPending: false }));
   });
 
   it('returns loading state when request is in progress', () => {

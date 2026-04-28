@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 
-export function useDebounce<T>(value: T, delay: number): T {
+export function useDebounce<T>(value: T, delay: number): { value: T; isPending: boolean } {
   const [debouncedValue, setDebouncedValue] = useState(value);
   const timeoutRef = useRef<NodeJS.Timeout>(undefined);
 
@@ -20,5 +20,5 @@ export function useDebounce<T>(value: T, delay: number): T {
     };
   }, [value, delay, debouncedValue]);
 
-  return debouncedValue;
+  return { value: debouncedValue, isPending: JSON.stringify(value) !== JSON.stringify(debouncedValue) };
 }

@@ -18,6 +18,7 @@ export const MAP_BASED_FILTERS = 4;
 export const ADMIN_PORTAL_ACCESS = 5;
 export const ADMIN_PORTAL_UI_MENU = 6;
 export const ADMIN_PORTAL_DATA_MENU = 7;
+export const DELETE_DATASET = 8;
 
 type Action =
   | typeof TERMS_AND_CONDITIONS
@@ -27,7 +28,8 @@ type Action =
   | typeof MAP_BASED_FILTERS
   | typeof ADMIN_PORTAL_ACCESS
   | typeof ADMIN_PORTAL_UI_MENU
-  | typeof ADMIN_PORTAL_DATA_MENU;
+  | typeof ADMIN_PORTAL_DATA_MENU
+  | typeof DELETE_DATASET;
 
 const ENTITLEMENT_MATRIX: Record<Action, AllRoles[]> = {
   [TERMS_AND_CONDITIONS]: [],
@@ -38,7 +40,10 @@ const ENTITLEMENT_MATRIX: Record<Action, AllRoles[]> = {
   [MAP_BASED_FILTERS]: ['data-admin'],
   [ADMIN_PORTAL_ACCESS]: ['data-admin'],
   [ADMIN_PORTAL_DATA_MENU]: ['data-admin'],
+  [DELETE_DATASET]: [],
 };
+
+const DISABLED_ACTIONS: Action[] = [DELETE_DATASET];
 
 export function useEntitlements() {
   const { user } = useAuthContext();
@@ -50,6 +55,10 @@ export function useEntitlements() {
   const can = (action: Action): boolean => {
     if (!(action in ENTITLEMENT_MATRIX)) {
       throw new Error(`Action ${action} is not defined in the entitlement matrix.`);
+    }
+
+    if (DISABLED_ACTIONS.includes(action)) {
+      return false;
     }
 
     const allowedRoles = ENTITLEMENT_MATRIX[action];
