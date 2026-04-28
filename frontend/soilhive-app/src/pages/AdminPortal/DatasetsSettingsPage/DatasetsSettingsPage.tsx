@@ -65,12 +65,16 @@ export function DatasetsSettingsPage() {
       name: t('datasets.settings.access.table_column_email'),
       value: 'email',
       sortable: true,
+      bodyTemplate: row => <span className={styles.EmailCell}>{row.email}</span>,
+    },
+    {
+      name: '',
+      value: 'email',
       bodyTemplate: row => (
-        <div className={styles.EmailTableRow}>
-          <span>{row.email}</span>
-          <button className={styles.TrashButton} onClick={() => handleRemoveEmail(row.email)}>
-            <TrashIcon className={styles.TrashIcon} />
-          </button>
+        <div className={styles.TrashCell}>
+          <Button type="tertiary" isIconOnly onClick={() => handleRemoveEmail(row.email)}>
+            <TrashIcon />
+          </Button>
         </div>
       ),
     },
@@ -147,7 +151,14 @@ export function DatasetsSettingsPage() {
                 <UserAddIcon className={styles.AccessSectionIcon} />
                 <h4 className={styles.AccessSectionTitle}>{t('datasets.settings.access.title')}</h4>
               </div>
-              <div className={styles.EmailInputRow}>
+              <form
+                id="add-email-form"
+                className={styles.EmailInputRow}
+                onSubmit={e => {
+                  e.preventDefault();
+                  handleAddEmail();
+                }}
+              >
                 <TextInput
                   className={styles.EmailInput}
                   label={t('datasets.settings.access.email_label')}
@@ -158,10 +169,10 @@ export function DatasetsSettingsPage() {
                   onChange={handleEmailChange}
                   onBlur={handleEmailBlur}
                 />
-                <Button type="primary" size="small" onClick={handleAddEmail} isDisabled={!isValidEmail(emailInput)}>
+                <Button type="primary" size="small" form="add-email-form" isDisabled={!isValidEmail(emailInput)}>
                   {t('datasets.settings.access.add_button')}
                 </Button>
-              </div>
+              </form>
               <Table<AccessEmail> value={accessEmails} columns={accessColumns} scrollHeight="auto" />
             </div>
           )}
