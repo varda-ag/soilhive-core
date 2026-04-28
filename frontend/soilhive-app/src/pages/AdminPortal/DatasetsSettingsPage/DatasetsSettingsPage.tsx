@@ -174,11 +174,11 @@ export function DatasetsSettingsPage() {
       <Dialog
         visible={emailToDelete !== null}
         header={t('datasets.settings.access.remove_dialog.title')}
-        cancelText={t('datasets.settings.access.remove_dialog.cancel')}
-        continueText={t('datasets.settings.access.remove_dialog.confirm')}
+        secondaryText={t('datasets.settings.access.remove_dialog.cancel')}
+        primaryText={t('datasets.settings.access.remove_dialog.confirm')}
         className={styles.RemoveDialog}
-        onContinue={handleConfirmRemoveEmail}
-        onCancel={handleCancelRemoveEmail}
+        onPrimary={handleConfirmRemoveEmail}
+        onSecondary={handleCancelRemoveEmail}
       >
         <div className={styles.RemoveDialogContent}>
           <TrashIcon className={styles.RemoveDialogIcon} />
@@ -189,11 +189,12 @@ export function DatasetsSettingsPage() {
       <Dialog
         visible={isPublishWarningVisible}
         header={t('datasets.settings.publish_warning.title')}
-        cancelText={t('datasets.settings.publish_warning.proceed')}
-        continueText={t('datasets.settings.publish_warning.cancel')}
+        secondaryText={t('datasets.settings.publish_warning.proceed')}
+        primaryText={t('datasets.settings.publish_warning.cancel')}
         className={styles.PublishWarningDialog}
-        onContinue={handlePublishCancel}
-        onCancel={handlePublishProceed}
+        onPrimary={handlePublishCancel}
+        onSecondary={handlePublishProceed}
+        onClose={handlePublishCancel}
       >
         <div className={styles.PublishWarningContent}>
           <ShieldGlobeIcon className={styles.PublishWarningIcon} />

@@ -8,12 +8,12 @@ jest.mock('components/UI', () => ({
     </button>
   ),
   FormMessage: ({ message }: any) => <div data-testid="sh-form-message">{message}</div>,
-  Dialog: ({ visible, header, children, onContinue }: any) =>
+  Dialog: ({ visible, header, children, onPrimary }: any) =>
     visible ? (
       <div data-testid="sh-dialog">
         <div data-testid="sh-dialog-header">{header}</div>
         <div>{children}</div>
-        <button onClick={onContinue} data-testid="sh-dialog-close">
+        <button onClick={onPrimary} data-testid="sh-dialog-close">
           Close
         </button>
       </div>

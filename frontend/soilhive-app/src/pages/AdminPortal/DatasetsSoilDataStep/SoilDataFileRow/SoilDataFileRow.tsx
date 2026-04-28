@@ -98,9 +98,9 @@ export function SoilDataFileRow({ soilDataFile, onCrsChange, onRemove, crsOption
       <Dialog
         visible={diffOpen}
         header={t('datasets.soil_data.diff_dialog.header')}
-        continueText={t('common:close')}
-        onContinue={() => setDiffOpen(false)}
-        onCancel={() => setDiffOpen(false)}
+        primaryText={t('common:close')}
+        onPrimary={() => setDiffOpen(false)}
+        onSecondary={() => setDiffOpen(false)}
       >
         <div className={styles.DiffContent}>
           {!!missingFields?.length && (

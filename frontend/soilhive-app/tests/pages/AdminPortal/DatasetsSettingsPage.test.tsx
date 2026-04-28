@@ -33,12 +33,12 @@ jest.mock('components/UI', () => ({
       ))}
     </div>
   ),
-  Dialog: ({ visible, onContinue, onCancel, children }: any) =>
+  Dialog: ({ visible, onPrimary, onSecondary, children }: any) =>
     visible ? (
       <div data-testid="sh-ui-dialog">
         {children}
-        <button data-testid="sh-ui-dialog-cancel" onClick={onCancel} />
-        <button data-testid="sh-ui-dialog-confirm" onClick={onContinue} />
+        <button data-testid="sh-ui-dialog-cancel" onClick={onSecondary} />
+        <button data-testid="sh-ui-dialog-confirm" onClick={onPrimary} />
       </div>
     ) : null,
 }));

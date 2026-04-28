@@ -35,7 +35,7 @@ export function InfoDialog({ isVisible, storageKey, header, message, onContinue,
   const handleCancel = () => onCancel?.();
 
   return (
-    <Dialog visible={visible} header={header} onContinue={handleContinue} onCancel={handleCancel}>
+    <Dialog visible={visible} header={header} onPrimary={handleContinue} onSecondary={handleCancel}>
       <p>{message}</p>
       <Checkbox
         className={styles.DontShowAgain}
