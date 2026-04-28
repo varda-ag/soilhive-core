@@ -35,10 +35,19 @@ jest.mock('../../../src/contexts/AvailabilityContext', () => {
     __esModule: true,
     AvailabilityContext: React.createContext({
       availableDatasets: [{ id: 'test-dataset' }],
-      selectionType: 'mock-selection-type',
       filterId: 'mock-filter-id',
       datasetFrontendFilters: { type: [] },
       datasetsSummary: { count: 5, dataPoints: 1000, layers: 3, depth: '0-30', date: '2020 - 2024' },
+    }),
+  };
+});
+
+jest.mock('../../../src/contexts/AvailabilityMapContext', () => {
+  return {
+    __esModule: true,
+    AvailabilityMapContext: React.createContext({
+      selectionType: 'mock-selection-type',
+      locationName: undefined,
     }),
   };
 });

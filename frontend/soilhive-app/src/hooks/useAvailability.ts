@@ -3,13 +3,13 @@ import { useContext } from 'react';
 import { AvailabilityContext } from '../contexts/AvailabilityContext';
 
 const useAvailability = () => {
-  const theme = useContext(AvailabilityContext);
+  const context = useContext(AvailabilityContext);
 
-  if (theme === undefined) {
+  if (context === undefined) {
     throw new Error('useAvailability must be used within a AvailabilityContext');
   }
 
-  return theme;
+  return context;
 };
 
 export default useAvailability;

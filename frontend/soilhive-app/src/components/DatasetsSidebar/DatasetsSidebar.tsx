@@ -5,6 +5,7 @@ import { Button, PageSidebar, InfoDialog } from 'components/UI';
 import DownloadIcon from 'assets/icons/small-download-icon.svg?react';
 import useDevice from 'hooks/useDevice';
 import useAvailability from 'hooks/useAvailability';
+import useAvailabilityMap from 'hooks/useAvailabilityMap';
 import { useTranslation } from 'react-i18next';
 
 import styles from './DatasetsSidebar.module.scss';
@@ -20,16 +21,8 @@ export function DatasetsSidebar({ isOpened, onClose }: Props) {
   const { t } = useTranslation(['availability', 'common']);
 
   const { isDesktopLayout, isMobileLayout } = useDevice();
-  const {
-    availableDatasets,
-    filterId,
-    selectionType,
-    locationName,
-    datasetFrontendFilters,
-    datasetsSummary,
-    isCoverageLoading,
-    isDatasetsLoading,
-  } = useAvailability();
+  const { availableDatasets, filterId, datasetFrontendFilters, datasetsSummary, isCoverageLoading, isDatasetsLoading } = useAvailability();
+  const { selectionType, locationName } = useAvailabilityMap();
 
   const navigate = useNavigate();
   const [showNoDownloadInfoDialog, setShowNoDownloadInfoDialog] = useState(false);

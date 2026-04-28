@@ -30,7 +30,7 @@ import { largestPolygon as largestPolygonFn } from '../../utilities/geo';
 import type { SoilhiveMapSelectionChangeEvent } from './SoilhiveMapSelectionChangeEvent';
 import { simplifyGeometry } from '../../utilities/simplifyGeometry';
 import useDevice from 'hooks/useDevice';
-import useAvailability from 'hooks/useAvailability';
+import useAvailabilityMap from 'hooks/useAvailabilityMap';
 import { useTranslation } from 'react-i18next';
 
 type MapStyle = string | StyleSpecification | ImmutableLike<StyleSpecification>;
@@ -133,7 +133,7 @@ function SoilhiveMap({
     setSelection,
     setShowDrawControl,
     setShowSelectionToolbar,
-  } = useAvailability();
+  } = useAvailabilityMap();
 
   const mapRef = useRef<any>(null);
   const [isPointResultSelection, setIsPointResultSelection] = useState(false);
