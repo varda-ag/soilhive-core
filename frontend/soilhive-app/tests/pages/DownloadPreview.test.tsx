@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router';
 jest.mock('hooks/useDevice');
 
 jest.mock('hooks/useDataFilterQuery', () => {
-  return { useDataFilterQuery: jest.fn().mockReturnValue({ filterId: 'test-filter-id', isLoading: false, isStale: false }) };
+  return { useDataFilterQuery: jest.fn().mockReturnValue({ filterId: 'test-filter-id', isLoading: false }) };
 });
 
 jest.mock('hooks/useFilteredCoverageQuery', () => {
