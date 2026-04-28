@@ -1,6 +1,4 @@
 import React, { createContext, useState, type ReactNode, useCallback, useMemo } from 'react';
-import type { LngLat, MapGeoJSONFeature } from 'maplibre-gl';
-import type { FeatureCollection, MultiPolygon, Polygon } from 'geojson';
 
 import type { AvailabilityDataset, DatasetFrontendFilters, DatasetSummary, TimeFilterState } from 'types/availability';
 import { mapFilteredDatasetSummaryToAvailabilityDataset, mapFilteredDatasetToAvailabilityDataset } from '../adapters';
@@ -19,21 +17,11 @@ import { useDataFilterQuery } from 'hooks/useDataFilterQuery';
 import { useSoilProperties } from '../hooks/useSoilProperties';
 import { usePropertiesCategories } from 'hooks/usePropertiesCategories';
 import { useRaster } from 'hooks/useRaster';
-import useTheme from '../hooks/useTheme';
-import { bboxPolygon } from '@turf/turf';
+import useAvailabilityMap from '../hooks/useAvailabilityMap';
 import { useFilteredCoverageQuery } from 'hooks/useFilteredCoverageQuery';
 import { useFilteredDatasetsQuery } from 'hooks/useFilteredDatasetsQuery';
 
-type MapSelection = { type: string; features: GeoJSON.GeoJSON[] };
-
 type AvailabilityContextType = {
-  selectedPoint: LngLat | null;
-  selectedH3Cell: MapGeoJSONFeature | null;
-  h3Cells: FeatureCollection | null;
-  emptySelection: MapSelection;
-  selection: MapSelection;
-  showDrawControl: boolean;
-  showSelectionToolbar: boolean;
   allSoilProperties: SoilProperty[];
   filteredSoilProperties: SoilProperty[];
   allRasterCategories: RasterFilterCategory[];
@@ -66,25 +54,11 @@ type AvailabilityContextType = {
   setSearchValue: (value: string) => void;
   setFrontendFilters: (value: string[], name: string) => void;
   selectAllDatasets: (select: boolean) => void;
-  geometryFilter: (Polygon | MultiPolygon)[];
-  setSelectedPoint: React.Dispatch<React.SetStateAction<LngLat | null>>;
-  setSelectedH3Cell: React.Dispatch<React.SetStateAction<MapGeoJSONFeature | null>>;
-  setH3Cells: React.Dispatch<React.SetStateAction<FeatureCollection | null>>;
-  setSelection: React.Dispatch<React.SetStateAction<MapSelection>>;
-  setShowDrawControl: React.Dispatch<React.SetStateAction<boolean>>;
-  setShowSelectionToolbar: React.Dispatch<React.SetStateAction<boolean>>;
-  setGeometryFilter: React.Dispatch<React.SetStateAction<(Polygon | MultiPolygon)[]>>;
   setDatasetFilters: React.Dispatch<React.SetStateAction<FilterCriteria>>;
   selectedSoilProperties: string[];
   setSelectedSoilProperties: React.Dispatch<React.SetStateAction<string[]>>;
   setSelectedTimeFilter: React.Dispatch<React.SetStateAction<TimeFilterState>>;
   clearAllFilters: () => void;
-  selectionType: 'h3-cell' | 'drawn-polygon' | 'country';
-  setSelectionType: React.Dispatch<React.SetStateAction<'h3-cell' | 'drawn-polygon' | 'country'>>;
-  locationName?: string;
-  setLocationName: React.Dispatch<React.SetStateAction<string | undefined>>;
-  boundingBox: [number, number, number, number];
-  setBoundingBox: React.Dispatch<React.SetStateAction<[number, number, number, number]>>;
 };
 
 export const AvailabilityContext = createContext<AvailabilityContextType | undefined>(undefined);
@@ -93,13 +67,8 @@ type AvailabilityProviderProps = {
   children: ReactNode;
 };
 
-const emptySelection: MapSelection = { type: 'FeatureCollection', features: [] };
-
 export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ children }) => {
-  const { themeConfig } = useTheme();
-  const [selectionType, setSelectionType] = useState<'h3-cell' | 'drawn-polygon' | 'country'>('drawn-polygon');
-  const [locationName, setLocationName] = useState<string>();
-  const [boundingBox, setBoundingBox] = useState<[number, number, number, number]>(themeConfig.initialBbox);
+  const { geometryFilter } = useAvailabilityMap();
   const [selectedDatasets, setSelectedDatasets] = useState<string[]>([]);
   const [searchValue, setSearchValue] = useState<string>('');
   const [datasetFrontendFilters, setDatasetFrontendFilters] = useState<DatasetFrontendFilters>({
@@ -108,14 +77,6 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
   });
   const [isAllSelected, setIsAllSelected] = useState<boolean>(false);
 
-  const [selectedPoint, setSelectedPoint] = useState<LngLat | null>(null);
-  const [selectedH3Cell, setSelectedH3Cell] = useState<MapGeoJSONFeature | null>(null);
-  const [h3Cells, setH3Cells] = useState<FeatureCollection | null>(null);
-  const [selection, setSelection] = useState<MapSelection>(emptySelection);
-  const [showDrawControl, setShowDrawControl] = useState(false);
-  const [showSelectionToolbar, setShowSelectionToolbar] = useState(false);
-
-  const [geometryFilter, setGeometryFilter] = useState<(Polygon | MultiPolygon)[]>([bboxPolygon(boundingBox).geometry]);
   const [datasetFilters, setDatasetFilters] = useState<FilterCriteria>({});
   const { data: categories, isLoading: isLoadingCategories } = usePropertiesCategories();
   const { data: allSoilProperties, isLoading: isLoadingSoilProperties } = useSoilProperties();
@@ -264,13 +225,6 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
   return (
     <AvailabilityContext.Provider
       value={{
-        selectedPoint,
-        selectedH3Cell,
-        h3Cells,
-        emptySelection,
-        selection,
-        showDrawControl,
-        showSelectionToolbar,
         allSoilProperties: allSoilProperties || [],
         filteredSoilProperties,
         allRasterCategories: allRasterCategories || [],
@@ -303,24 +257,10 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
         setFrontendFilters,
         selectAllDatasets,
         setDatasetFilters,
-        geometryFilter,
-        setSelectedPoint,
-        setSelectedH3Cell,
-        setH3Cells,
-        setSelection,
-        setShowDrawControl,
-        setShowSelectionToolbar,
-        setGeometryFilter,
         selectedSoilProperties,
         setSelectedTimeFilter,
         setSelectedSoilProperties,
         clearAllFilters,
-        selectionType,
-        setSelectionType,
-        locationName,
-        setLocationName,
-        boundingBox,
-        setBoundingBox,
         availableDatasets,
       }}
     >

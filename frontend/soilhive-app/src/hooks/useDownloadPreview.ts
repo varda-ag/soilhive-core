@@ -4,7 +4,6 @@ import { useFilteredCoverageQuery } from './useFilteredCoverageQuery';
 import { computeDatasetSummary } from '../domain';
 import { useSoilProperties } from './useSoilProperties';
 import { useMemo, useState } from 'react';
-import { useOnceDefined } from './useOnceDefined';
 
 export function useDownloadPreview({
   filterId,
@@ -15,7 +14,7 @@ export function useDownloadPreview({
   datasetsIds: string[];
   datasetTypesParams: string[];
 }) {
-  const [selectedDatasets, setSelectedDatasets] = useState<string[]>([]);
+  const [userSelectedDatasets, setUserSelectedDatasets] = useState<string[] | null>(null);
 
   const { data: allSoilProperties, isLoading: areSoilPropertiesLoading } = useSoilProperties();
 
@@ -41,9 +40,13 @@ export function useDownloadPreview({
   );
 
   const firstAvailableFixedDataset = availableFixedDatasets?.[0]?.id;
-  useOnceDefined(firstAvailableFixedDataset, datasetId => {
-    setSelectedDatasets([datasetId]);
-  });
+
+  // Derived synchronously so selectedDatasets is non-empty the moment datasets load,
+  // eliminating the async-effect gap that caused the loading state to briefly go false.
+  const selectedDatasets = useMemo(
+    () => userSelectedDatasets ?? (firstAvailableFixedDataset ? [firstAvailableFixedDataset] : []),
+    [userSelectedDatasets, firstAvailableFixedDataset],
+  );
 
   const availableFixedDatasetsSoilProperties = useMemo(() => {
     const datasets = datasetTypesParams.length
@@ -67,7 +70,7 @@ export function useDownloadPreview({
     availabilityFilteredSoilProperties,
     datasetsSummary,
     selectedDatasets,
-    setSelectedDatasets,
+    setSelectedDatasets: setUserSelectedDatasets,
     geometryFilter,
   };
 }

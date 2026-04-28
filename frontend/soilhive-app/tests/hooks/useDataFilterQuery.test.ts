@@ -9,7 +9,7 @@ jest.mock('hooks/useApiQuery', () => ({
 }));
 
 jest.mock('hooks/useDebounce', () => ({
-  useDebounce: jest.fn((value: unknown, delay: number) => ({ value, isPending: false })),
+  useDebounce: jest.fn((value: unknown, _delay: number) => ({ value, isPending: false })),
 }));
 
 const useApiQueryMock = useApiQuery as jest.MockedFunction<typeof useApiQuery>;
