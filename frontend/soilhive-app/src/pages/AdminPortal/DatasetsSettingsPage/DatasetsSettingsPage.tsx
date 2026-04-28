@@ -1,6 +1,5 @@
-import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate, useParams } from 'react-router';
+import { useParams } from 'react-router';
 import classnames from 'classnames';
 
 import CodeIcon from 'assets/icons/code-icon.svg?react';
@@ -12,53 +11,29 @@ import LockIcon from 'assets/icons/lock-icon.svg?react';
 import UserAddIcon from 'assets/icons/user-add-icon.svg?react';
 import TrashIcon from 'assets/icons/trash-icon.svg?react';
 import { Button, Table, TextInput } from 'components/UI';
-import { ADMIN_PATHS } from '../../../configuration/admin';
 import { isValidEmail } from '../../../utilities/validation';
+import { useDatasetsSettings } from '../../../hooks/useDatasetsSettings';
+import type { AccessEmail } from '../../../hooks/useDatasetsSettings';
 import type { TableColumn } from 'types/components';
 
 import styles from './DatasetsSettingsPage.module.scss';
 
-type Visibility = 'public' | 'private';
-
-type AccessEmail = { email: string };
-
 export function DatasetsSettingsPage() {
   const { t } = useTranslation('admin');
-  const navigate = useNavigate();
   const { id } = useParams();
 
-  const [visibility, setVisibility] = useState<Visibility>('public');
-  const [emailInput, setEmailInput] = useState('');
-  const [emailError, setEmailError] = useState('');
-  const [accessEmails, setAccessEmails] = useState<AccessEmail[]>([]);
-
-  const handleEmailChange = (value: string) => {
-    setEmailInput(value);
-    setEmailError('');
-  };
-
-  const handleEmailBlur = () => {
-    if (emailInput.trim() && !isValidEmail(emailInput)) {
-      setEmailError(t('datasets.settings.access.email_invalid'));
-    }
-  };
-
-  const handleAddEmail = () => {
-    const trimmed = emailInput.trim();
-    if (!trimmed) return;
-    if (!isValidEmail(trimmed)) {
-      setEmailError(t('datasets.settings.access.email_invalid'));
-      return;
-    }
-    if (accessEmails.some(e => e.email === trimmed)) return;
-    setAccessEmails(prev => [...prev, { email: trimmed }]);
-    setEmailInput('');
-    setEmailError('');
-  };
-
-  const handleRemoveEmail = (email: string) => {
-    setAccessEmails(prev => prev.filter(e => e.email !== email));
-  };
+  const {
+    visibility,
+    setVisibility,
+    emailInput,
+    emailError,
+    accessEmails,
+    handleEmailChange,
+    handleEmailBlur,
+    handleAddEmail,
+    handleRemoveEmail,
+    handleCancel,
+  } = useDatasetsSettings(t('datasets.settings.access.email_invalid'));
 
   const accessColumns: TableColumn<AccessEmail>[] = [
     {
@@ -180,7 +155,7 @@ export function DatasetsSettingsPage() {
       </div>
 
       <div className={styles.Actions}>
-        <Button type="secondary" onClick={() => navigate(ADMIN_PATHS.DATASETS)}>
+        <Button type="secondary" onClick={handleCancel}>
           {t('datasets.settings.actions.cancel')}
         </Button>
         <Button type="primary">{t('datasets.settings.actions.publish')}</Button>
