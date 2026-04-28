@@ -14,7 +14,7 @@ import {
   DEFAULT_AVAILABILITY_MOBILE_TAB,
 } from 'components/AvailabilityMobileNavigation/AvailabilityMobileNavigation';
 import useDevice from 'hooks/useDevice';
-import useAvailability from 'hooks/useAvailability';
+import useAvailabilityMap from 'hooks/useAvailabilityMap';
 import type { SoilhiveMapSelectionChangeEvent } from 'components/Map/SoilhiveMapSelectionChangeEvent';
 
 import styles from './Availability.module.scss';
@@ -27,7 +27,7 @@ function Availability() {
   const [activeMobileTab, setActiveMobileTab] = useState<string>(DEFAULT_AVAILABILITY_MOBILE_TAB);
   const { isDesktopLayout } = useDevice();
 
-  const { boundingBox, setGeometryFilter, setSelectionType, setLocationName, setBoundingBox } = useAvailability();
+  const { boundingBox, setGeometryFilter, setSelectionType, setLocationName, setBoundingBox } = useAvailabilityMap();
   const { t } = useTranslation('availability');
 
   const handleMapSelectionChange = ({ bounds, geometries, selectionType, locationName }: SoilhiveMapSelectionChangeEvent) => {

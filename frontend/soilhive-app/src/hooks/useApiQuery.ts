@@ -3,6 +3,13 @@ import { useRequest } from '../api-client';
 import { buildApiUrl } from '../utilities/buildApiUrl';
 import { QUERY_STALE_TIME } from '../configuration/api';
 
+const inflightRequests = new Map<string, Promise<unknown>>();
+
+function buildRequestKey(url: string, method: string, body: unknown): string {
+  const bodyPart = body === undefined || body === null ? '' : JSON.stringify(body);
+  return `${method}:${url}:${bodyPart}`;
+}
+
 type UseApiQueryOptions<TResponse, TBody = void> = {
   endpoint: string;
   method: 'GET' | 'POST';
@@ -39,7 +46,14 @@ export function useApiQuery<TResponse, TBody = void>({
   const url = buildApiUrl(endpoint, parameters);
 
   const fetchData = async ({ signal }: { signal: AbortSignal }): Promise<TResponse> => {
-    return await request({
+    const requestKey = buildRequestKey(url, method, body);
+    const existing = inflightRequests.get(requestKey);
+
+    if (existing) {
+      return existing as Promise<TResponse>;
+    }
+
+    const promise = request({
       url,
       method,
       body,
@@ -48,7 +62,12 @@ export function useApiQuery<TResponse, TBody = void>({
       showErrorNotification,
       notFoundAsNull,
       isBlobResponse,
+    }).finally(() => {
+      inflightRequests.delete(requestKey);
     });
+
+    inflightRequests.set(requestKey, promise);
+    return promise as Promise<TResponse>;
   };
 
   return useQuery({

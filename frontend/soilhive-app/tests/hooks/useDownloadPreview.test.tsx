@@ -93,9 +93,9 @@ describe('useDownloadPreview', () => {
         datasetTypesParams: ['mock-type-1'],
       }),
     );
-    expect(useApiQueryMock).toHaveBeenCalledTimes(2);
-    expect(computeDatasetSummaryMock).toHaveBeenCalledTimes(2);
-    expect(useSoilPropertiesMock).toHaveBeenCalledTimes(2);
+    expect(useApiQueryMock).toHaveBeenCalledTimes(1);
+    expect(computeDatasetSummaryMock).toHaveBeenCalledTimes(1);
+    expect(useSoilPropertiesMock).toHaveBeenCalledTimes(1);
     expect(resultData).toMatchObject({
       isLoading: false,
       availableFixedDatasets: [

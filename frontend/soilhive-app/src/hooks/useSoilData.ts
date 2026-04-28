@@ -1,14 +1,11 @@
 import type { SoilDataParameters, SoilDataSample } from 'types/backend';
 import { useApiQuery } from './useApiQuery';
-import { useDebounce } from './useDebounce';
 import { useEffect, useMemo, useState } from 'react';
 
 export function useSoilData(parameters: SoilDataParameters) {
   const [allDataMap, setAllDataMap] = useState(new Map<string, SoilDataSample[]>());
   const [cursor, setCursor] = useState<string>();
-
-  const debouncedParameters = useDebounce(parameters, 300);
-  const { selectedDatasets, availableDatasets, filterId, limit, sort } = debouncedParameters;
+  const { selectedDatasets, availableDatasets, filterId, limit, sort } = parameters;
 
   const datasets = selectedDatasets ?? availableDatasets;
 
@@ -44,7 +41,7 @@ export function useSoilData(parameters: SoilDataParameters) {
         });
       }
     }
-  }, [data, debouncedParameters]);
+  }, [data, parameters]);
 
   const allData = [...allDataMap.values()].flatMap(data => data);
 
