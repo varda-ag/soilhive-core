@@ -55,6 +55,8 @@ function DownloadPreviewTable({
 
   const [visibleColumns, setVisibleColumns] = useState<string[]>([
     'sampling_date',
+    'min_depth',
+    'max_depth',
     'value',
     'standard_unit',
     // TODO: to be restored | 'horizon',
