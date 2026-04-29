@@ -46,9 +46,13 @@ export default class FilterService {
     return storedFilter;
   };
 
-  getCoverage = async (requestData: RequestData, filterId: string): Promise<FilteredData> => {
+  getCoverage = async (requestData: RequestData, filterId: string, geometryOnly: boolean): Promise<FilteredData> => {
     const storedFilter = await this.getFilterById(requestData, filterId);
     const filter = storedFilter!.filter;
+    if (geometryOnly) {
+      // Only keep geometries for coverage calculation, ignore other parameters
+      filter.parameters = {};
+    }
     const sds = new SoilDataStorage();
     // Create filtering promisees
     const filteringPromises: Promise<FilteredDatasetSummary[]>[] = [];

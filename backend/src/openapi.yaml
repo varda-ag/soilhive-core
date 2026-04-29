@@ -1113,6 +1113,12 @@ paths:
           type: string
           format: uuid
         description: Unique filter identifier
+      - name: geometryOnly
+        in: query
+        required: false
+        description: Only considers geometry for coverage calculation, ignoring other filter parameters
+        schema:
+          type: boolean
     get:
       x-eov-operation-handler: controllers/data-filters
       x-eov-operation-id: getDataFilterCoverage
