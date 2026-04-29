@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.89.1 (2026-04-29)
+
+## What's Changed
+* fix: fixes infinite setState loop by @svaccari in https://github.com/varda-ag/soilhive-core/pull/477
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.89.0...v0.89.1
+
 ## 0.89.0 (2026-04-29)
 
 ## What's Changed
