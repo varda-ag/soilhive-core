@@ -2,12 +2,28 @@ import { Request, Response, NextFunction } from 'express';
 import { getDataSource } from '../utils/data-source';
 
 export const transactionMiddleware = async (req: Request, res: Response, next: NextFunction) => {
+  const schema = process.env.POSTGRES_SCHEMA;
   const dataSource = await getDataSource();
   const queryRunner = dataSource.createQueryRunner();
   await queryRunner.connect();
+
+  if (req.method === 'GET') {
+    if (schema) {
+      const escapedSchema = `"${schema.replaceAll('"', '""')}"`;
+      await queryRunner.query(`SET search_path TO ${escapedSchema}, public`);
+    }
+
+    req.customData = req.customData || { entityManager: queryRunner.manager };
+
+    res.on('close', async () => {
+      await queryRunner.release();
+    });
+
+    return next();
+  }
+
   await queryRunner.startTransaction();
 
-  const schema = process.env.POSTGRES_SCHEMA;
   if (schema) {
     const escapedSchema = `"${schema.replaceAll('"', '""')}"`;
     await queryRunner.query(`SET LOCAL search_path TO ${escapedSchema}, public`);
