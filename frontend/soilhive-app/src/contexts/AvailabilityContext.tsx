@@ -82,14 +82,15 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
   const { data: allSoilProperties, isLoading: isLoadingSoilProperties } = useSoilProperties();
   const { allCategories: allRasterCategories, isLoading: isLoadingRasterCategories } = useRaster();
 
-  const partialFilterPayload = useMemo(() => ({ geometries: geometryFilter, parameters: {} }), [geometryFilter]);
   const fullFilterPayload = useMemo(() => ({ geometries: geometryFilter, parameters: datasetFilters }), [geometryFilter, datasetFilters]);
 
-  const { filterId: partialFilterId, selectedFilters, isLoading: isLoadingPartialFilter } = useDataFilterQuery(partialFilterPayload);
-  const { filterId: fullFilterId, isLoading: isLoadingFullFilter } = useDataFilterQuery(fullFilterPayload);
+  const { filterId: fullFilterId, selectedFilters, isLoading: isLoadingFullFilter } = useDataFilterQuery(fullFilterPayload);
 
   const { data: fullFilterResults, isLoading: isFullCoverageLoading } = useFilteredCoverageQuery(fullFilterId);
-  const { data: geometryFilterResults, isLoading: isPartialCoverageLoading } = useFilteredCoverageQuery(partialFilterId);
+  const { data: geometryFilterResults, isLoading: isPartialCoverageLoading } = useFilteredCoverageQuery(
+    fullFilterId,
+    Object.keys(fullFilterPayload.parameters).length > 0, // Ask for geometry only coverage if there are frontend filters applied
+  );
   const { data: fullFilterDatasets, isLoading: isFullDatasetsLoading } = useFilteredDatasetsQuery(fullFilterId);
 
   const [selectedSoilProperties, setSelectedSoilProperties] = useState<string[]>([]);
@@ -148,8 +149,8 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
   }, [isLoadingFullFilter, isFullDatasetsLoading]);
 
   const isCoverageLoading = useMemo(() => {
-    return isLoadingFullFilter || isLoadingPartialFilter || isFullCoverageLoading || isPartialCoverageLoading;
-  }, [isFullCoverageLoading, isLoadingFullFilter, isLoadingPartialFilter, isPartialCoverageLoading]);
+    return isLoadingFullFilter || isFullCoverageLoading || isPartialCoverageLoading;
+  }, [isFullCoverageLoading, isLoadingFullFilter, isPartialCoverageLoading]);
 
   const isLoading = useMemo(() => {
     return isCoverageLoading || isLoadingSoilProperties || isLoadingCategories;
@@ -241,7 +242,7 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
         isLoading,
         isDatasetsLoading,
         isCoverageLoading,
-        isLoadingPartialFilter,
+        isLoadingPartialFilter: isLoadingFullFilter,
         isLoadingRasterCategories,
         searchValue,
         datasetFrontendFilters,
@@ -249,7 +250,7 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
         datasetFilters,
         selectedTimeFilter,
         appliedFiltersCount,
-        filterId: partialFilterId,
+        filterId: fullFilterId,
         selectedFilters,
         isFiltersSelected,
         selectDataset,
