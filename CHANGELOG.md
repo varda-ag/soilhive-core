@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.88.0 (2026-04-29)
+
+## What's Changed
+* feat: sp-5060 updatedAt, defaultSorting, empty state by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/469
+* feat(fe): sp-5064 dataset settings page by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/472
+* fix: sp-5159 duplicate data-filters and soil-data calls by @cristbello in https://github.com/varda-ag/soilhive-core/pull/471
+* feat: sp-5194 - selected filters unavailible state while loading bug by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/474
+* perf: query performance by @svaccari in https://github.com/varda-ag/soilhive-core/pull/473
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.87.0...v0.88.0
+
 ## 0.87.0 (2026-04-27)
 
 ## What's Changed
