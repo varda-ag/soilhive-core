@@ -24,6 +24,9 @@ export function DatasetsSettingsPage() {
   const { id } = useParams();
 
   const {
+    isLoading,
+    isSaving,
+    isOidcAuth,
     visibility,
     setVisibility,
     emailInput,
@@ -41,7 +44,7 @@ export function DatasetsSettingsPage() {
     handlePublishProceed,
     handlePublishCancel,
     handleCancel,
-  } = useDatasetsSettings();
+  } = useDatasetsSettings(id);
 
   const accessColumns: TableColumn<AccessEmail>[] = [
     {
@@ -62,6 +65,8 @@ export function DatasetsSettingsPage() {
       ),
     },
   ];
+
+  if (isLoading) return null;
 
   return (
     <div className={styles.DatasetsSettingsPage}>
@@ -128,7 +133,7 @@ export function DatasetsSettingsPage() {
             </div>
           </div>
 
-          {visibility === 'private' && (
+          {visibility === 'private' && isOidcAuth && (
             <div className={styles.AccessSection}>
               <div className={styles.AccessSectionHeader}>
                 <UserAddIcon className={styles.AccessSectionIcon} />
@@ -166,7 +171,7 @@ export function DatasetsSettingsPage() {
         <Button type="secondary" onClick={handleCancel}>
           {t('datasets.settings.actions.cancel')}
         </Button>
-        <Button type="primary" onClick={handlePublish}>
+        <Button type="primary" isDisabled={isSaving} onClick={handlePublish}>
           {t('datasets.settings.actions.publish')}
         </Button>
       </div>

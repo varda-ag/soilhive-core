@@ -11,8 +11,8 @@ jest.mock('react-router', () => ({
 }));
 
 jest.mock('components/UI', () => ({
-  Button: ({ children, onClick, type, isIconOnly }: any) => (
-    <button data-testid={isIconOnly ? 'sh-ui-icon-button' : `sh-ui-button-${type ?? 'primary'}`} onClick={onClick}>
+  Button: ({ children, onClick, type, isIconOnly, isDisabled }: any) => (
+    <button data-testid={isIconOnly ? 'sh-ui-icon-button' : `sh-ui-button-${type ?? 'primary'}`} onClick={onClick} disabled={isDisabled}>
       {children}
     </button>
   ),
@@ -56,6 +56,9 @@ const handlePublishCancel = jest.fn();
 const handleCancel = jest.fn();
 
 const baseHookValue = {
+  isLoading: false,
+  isSaving: false,
+  isOidcAuth: true,
   visibility: 'public' as const,
   setVisibility,
   emailInput: '',
@@ -82,15 +85,27 @@ describe('DatasetsSettingsPage', () => {
 
   afterEach(() => jest.clearAllMocks());
 
-  it('does not show the private access section when visibility is public', () => {
+  it('renders nothing while loading', () => {
+    (useDatasetsSettings as jest.Mock).mockReturnValue({ ...baseHookValue, isLoading: true });
+    const { container } = render(<DatasetsSettingsPage />);
+    expect(container.firstChild).toBeNull();
+  });
+
+  it('does not show the access section when visibility is public', () => {
     render(<DatasetsSettingsPage />);
     expect(screen.queryByTestId('sh-ui-text-input')).not.toBeInTheDocument();
   });
 
-  it('shows the private access section when visibility is private', () => {
-    (useDatasetsSettings as jest.Mock).mockReturnValue({ ...baseHookValue, visibility: 'private' });
+  it('shows the access section when visibility is private and auth is oidc', () => {
+    (useDatasetsSettings as jest.Mock).mockReturnValue({ ...baseHookValue, visibility: 'private', isOidcAuth: true });
     render(<DatasetsSettingsPage />);
     expect(screen.getByTestId('sh-ui-text-input')).toBeInTheDocument();
+  });
+
+  it('does not show the access section when visibility is private but auth is not oidc', () => {
+    (useDatasetsSettings as jest.Mock).mockReturnValue({ ...baseHookValue, visibility: 'private', isOidcAuth: false });
+    render(<DatasetsSettingsPage />);
+    expect(screen.queryByTestId('sh-ui-text-input')).not.toBeInTheDocument();
   });
 
   it('clicking the private radio card calls setVisibility with private', () => {
@@ -101,7 +116,7 @@ describe('DatasetsSettingsPage', () => {
   });
 
   it('clicking the public radio card calls setVisibility with public', () => {
-    (useDatasetsSettings as jest.Mock).mockReturnValue({ ...baseHookValue, visibility: 'private' });
+    (useDatasetsSettings as jest.Mock).mockReturnValue({ ...baseHookValue, visibility: 'private', isOidcAuth: true });
     render(<DatasetsSettingsPage />);
     const [publicCard] = screen.getAllByRole('radio');
     fireEvent.click(publicCard);
@@ -124,6 +139,12 @@ describe('DatasetsSettingsPage', () => {
     render(<DatasetsSettingsPage />);
     fireEvent.click(screen.getByTestId('sh-ui-icon-button'));
     expect(handleRequestRemoveEmail).toHaveBeenCalledWith('user@example.com');
+  });
+
+  it('publish button is disabled while saving', () => {
+    (useDatasetsSettings as jest.Mock).mockReturnValue({ ...baseHookValue, isSaving: true });
+    render(<DatasetsSettingsPage />);
+    expect(screen.getByTestId('sh-ui-button-primary')).toBeDisabled();
   });
 
   it('does not show the remove dialog when emailToDelete is null', () => {
