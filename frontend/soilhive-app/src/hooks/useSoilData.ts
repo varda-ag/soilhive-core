@@ -41,7 +41,7 @@ export function useSoilData(parameters: SoilDataParameters) {
         });
       }
     }
-  }, [data, parameters]);
+  }, [data]);
 
   const allData = [...allDataMap.values()].flatMap(data => data);
 
