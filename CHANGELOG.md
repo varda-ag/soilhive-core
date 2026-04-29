@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.89.0 (2026-04-29)
+
+## What's Changed
+* feat: re-added min and max depth to preview table default columns by @cristbello in https://github.com/varda-ag/soilhive-core/pull/475
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.88.0...v0.89.0
+
 ## 0.88.0 (2026-04-29)
 
 ## What's Changed
