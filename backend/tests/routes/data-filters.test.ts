@@ -255,6 +255,45 @@ describe('Testing /data-filters routes', () => {
     expect(matches[0].dataset_layer_count).toBe(6); // 3 layers per geometry, summed
   });
 
+  it('geometryOnly=true returns more results than geometryOnly=false when a soil property filter is active', async () => {
+    // Dataset A has 'ph', dataset B has 'organic_matter' — both within filteringPolygon
+    await addSyntheticData({ ...syntheticDataOptions, id: 30, soilPropertyNames: ['ph'] });
+    await addSyntheticData({ ...syntheticDataOptions, id: 31, soilPropertyNames: ['organic_matter'] });
+
+    // Filter restricts to only 'ph' soil property
+    const payload = {
+      parameters: { soil_properties: ['ph'] },
+      geometries: [filteringPolygon],
+    };
+    const resPost = await request(app).post('/data-filters').send(payload);
+    const id = resPost.body.id;
+
+    const resWithFilter = await request(app).get(`/data-filters/${id}/coverage`);
+    const resGeometryOnly = await request(app).get(`/data-filters/${id}/coverage?geometryOnly=true`);
+
+    expect(resWithFilter.statusCode).toBe(StatusCodes.OK);
+    expect(resGeometryOnly.statusCode).toBe(StatusCodes.OK);
+
+    const withFilter: FilteredData = resWithFilter.body;
+    const geometryOnly: FilteredData = resGeometryOnly.body;
+
+    // geometryOnly ignores the soil_properties parameter so it returns all datasets in the geometry
+    expect(geometryOnly.datasets.length).toBeGreaterThan(withFilter.datasets.length);
+
+    // The soil-property-filtered result should only include the 'ph' dataset
+    const filteredIds = withFilter.datasets.map(ds => ds.id);
+    expect(filteredIds.every(id => withFilter.datasets.find(ds => ds.id === id)?.soil_properties?.includes('ph'))).toBe(true);
+
+    // The geometryOnly result should include both datasets
+    const geometryOnlyIds = geometryOnly.datasets.map(ds => ds.id);
+    const phDataset = geometryOnly.datasets.find(ds => ds.soil_properties?.includes('ph'));
+    const omDataset = geometryOnly.datasets.find(ds => ds.soil_properties?.includes('organic_matter'));
+    expect(phDataset).toBeDefined();
+    expect(omDataset).toBeDefined();
+    expect(geometryOnlyIds).toContain(phDataset!.id);
+    expect(geometryOnlyIds).toContain(omDataset!.id);
+  });
+
   it('Datasets endpoint returns an array', async () => {
     const payload = { parameters: {}, geometries: [filteringPolygon] };
     const resPost = await request(app).post('/data-filters').send(payload);

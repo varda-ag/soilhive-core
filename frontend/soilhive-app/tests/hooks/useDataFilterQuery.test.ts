@@ -108,6 +108,6 @@ describe('useDataFilterQuery', () => {
 
     renderHook(() => useDataFilterQuery(MOCK_FILTERS));
 
-    expect(useDebounceMock).toHaveBeenCalledWith({ filters: MOCK_FILTERS, enabled: true }, 300);
+    expect(useDebounceMock).toHaveBeenCalledWith({ filters: MOCK_FILTERS, enabled: true }, 500);
   });
 });

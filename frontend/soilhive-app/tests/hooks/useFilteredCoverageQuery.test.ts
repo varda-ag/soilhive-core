@@ -48,7 +48,7 @@ describe('useFilteredCoverageQuery', () => {
       expect.objectContaining({
         endpoint: '/data-filters/test-filter-id/coverage',
         method: 'GET',
-        queryKey: ['data-filter-coverage', 'test-filter-id'],
+        queryKey: ['data-filter-coverage', 'test-filter-id', false],
         retry: false,
       }),
     );

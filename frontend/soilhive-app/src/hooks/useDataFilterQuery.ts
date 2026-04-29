@@ -2,7 +2,7 @@ import type { BackendStoredDataFilter, DataFilter } from 'types/backend';
 import { useApiQuery } from './useApiQuery';
 import { useDebounce } from './useDebounce';
 
-export function useDataFilterQuery(filters: DataFilter, enabled: boolean = true, debounceTime: number = 300) {
+export function useDataFilterQuery(filters: DataFilter, enabled: boolean = true, debounceTime: number = 500) {
   const { value: debounced, isPending } = useDebounce({ filters, enabled }, debounceTime);
   const { filters: debouncedFilters, enabled: debouncedEnabled } = debounced;
 
