@@ -5,7 +5,7 @@ export const h3ResolutionForZoomLevel = (zoomLevel: number): number => {
   return map[Math.trunc(zoomLevel)] ?? 14;
 };
 
-const EOX_SATELLITE_MAP_STYLE: StyleSpecification = {
+export const EOX_SATELLITE_MAP_STYLE: StyleSpecification = {
   version: 8,
   sources: {
     'eox-sentinel': {

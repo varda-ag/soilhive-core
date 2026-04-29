@@ -9,7 +9,9 @@ import { MainLayout } from './layouts';
 import { AdminPortalModule } from './modules/AdminPortalModule';
 import AvailabilityModule from './modules/AvailabilityModule';
 import Admin from './pages/Admin';
-import Legal from './pages/Legal';
+import TermsOfUse from './pages/TermsOfUse';
+import Metadata from './pages/Metadata';
+import PrivacyPolicy from 'pages/PrivacyPolicy';
 import './utilities/i18n';
 import { singlePages } from './utilities/moduleFederation';
 
@@ -38,11 +40,22 @@ function AppRoutes() {
           />
           {!!themeConfig.termsAndConditionsHtml && (
             <Route
-              path="/legal"
+              path="/terms-of-use"
               element={
                 <>
-                  <PageTitle title={t('page_titles.legal')} />
-                  <Legal />
+                  <PageTitle title={t('page_titles.terms_of_use')} />
+                  <TermsOfUse />
+                </>
+              }
+            />
+          )}
+          {!!themeConfig.privacyPolicyHtml && (
+            <Route
+              path="/privacy-policy"
+              element={
+                <>
+                  <PageTitle title={t('page_titles.privacy_policy')} />
+                  <PrivacyPolicy />
                 </>
               }
             />
@@ -53,6 +66,15 @@ function AppRoutes() {
               <>
                 <PageTitle title={t('page_titles.admin')} />
                 <Admin />
+              </>
+            }
+          />
+          <Route
+            path="/metadata"
+            element={
+              <>
+                <PageTitle title="SoilHive - Metadata" />
+                <Metadata />
               </>
             }
           />

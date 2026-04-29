@@ -1,19 +1,21 @@
 import type { DatasetSummary } from 'types/availability';
-import type { FilteredDataset } from 'types/backend';
+import type { FilteredDataset, FilteredDatasetSummary } from 'types/backend';
 import { getYear } from '../adapters';
 
-export function computeDatasetSummary(fetchedFilteredResults: FilteredDataset[] | undefined): DatasetSummary {
+export function computeDatasetSummary(
+  fetchedFilteredResults: FilteredDatasetSummary[] | undefined,
+  fullFilterDatasets?: FilteredDataset[],
+): DatasetSummary {
   let globalDataPoints = 0;
   const globalLayers = 0;
   let globalMinDepth: number | null = null;
   let globalMaxDepth: number | null = null;
   let globalDateStart: string | null = null;
   let globalDateEnd: string | null = null;
-  let count = 0;
+  const count = fetchedFilteredResults?.length || fullFilterDatasets?.length || 0;
 
   if (fetchedFilteredResults) {
     for (const dataset of fetchedFilteredResults) {
-      count++;
       globalDataPoints += dataset.dataset_layer_count;
 
       if (dataset.min_depth !== undefined) {

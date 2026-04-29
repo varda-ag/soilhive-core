@@ -1,6 +1,7 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { DatasetsGeneralInfoStep } from '../../../src/pages/AdminPortal/DatasetsGeneralInfoStep/DatasetsGeneralInfoStep';
 import { useGeneralInfoForm } from 'hooks/useGeneralInfoForm';
+import { ADMIN_PATHS } from '../../../src/configuration/admin';
 
 jest.mock('hooks/useGeneralInfoForm', () => ({
   useGeneralInfoForm: jest.fn(),
@@ -8,6 +9,11 @@ jest.mock('hooks/useGeneralInfoForm', () => ({
 
 jest.mock('react-router', () => ({
   useParams: () => ({ id: undefined }),
+  Link: ({ children, to, ...props }: { children: React.ReactNode; to: string; [key: string]: unknown }) => (
+    <a href={to} {...props}>
+      {children}
+    </a>
+  ),
 }));
 
 jest.mock('assets/icons/info-square-icon.svg?react', () => {
@@ -47,6 +53,13 @@ describe('DatasetsGeneralInfoStep', () => {
     render(<DatasetsGeneralInfoStep />);
     fireEvent.click(screen.getByTestId('sh-general-info-save-later'));
     expect(baseForm.handleSaveAndContinueLater).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders Cancel button linking to datasets list', () => {
+    render(<DatasetsGeneralInfoStep />);
+    const cancelButton = screen.getByTestId('sh-general-info-cancel');
+    expect(cancelButton).toBeInTheDocument();
+    expect(cancelButton).toHaveAttribute('href', ADMIN_PATHS.DATASETS);
   });
 
   it('disables buttons while saving', () => {

@@ -2,10 +2,12 @@ import { render, screen } from '@testing-library/react';
 import { DatasetsPublicationTable } from 'components/AdminPortal/DatasetsPublicationTable/DatasetsPublicationTable';
 
 let capturedColumns: any[] = [];
+let capturedTableProps: any = {};
 
 jest.mock('components/UI/Table/Table', () => ({
-  Table: ({ value, columns, emptyMessage, rowClassName }: any) => {
+  Table: ({ value, columns, emptyMessage, rowClassName, defaultSortField, defaultSortOrder }: any) => {
     capturedColumns = columns;
+    capturedTableProps = { defaultSortField, defaultSortOrder };
 
     return (
       <div data-testid="mock-table">
@@ -47,6 +49,7 @@ const datasets = [
 
 const defaultProps = {
   datasets: datasets as any,
+  isSearch: false,
   onEdit: jest.fn(),
   onDelete: jest.fn(),
   onPublish: jest.fn(),
@@ -63,17 +66,24 @@ describe('DatasetsPublicationTable', () => {
     expect(screen.getByTestId('mock-table')).toBeInTheDocument();
   });
 
-  it('renders all 4 columns', () => {
+  it('renders all 5 columns', () => {
     render(<DatasetsPublicationTable {...defaultProps} />);
 
     expect(screen.getByTestId('col-name')).toBeInTheDocument();
     expect(screen.getByTestId('col-status')).toBeInTheDocument();
     expect(screen.getByTestId('col-visibility')).toBeInTheDocument();
+    expect(screen.getByTestId('col-updated_at')).toBeInTheDocument();
     expect(screen.getByTestId('col-actions')).toBeInTheDocument();
   });
 
-  it('renders empty message when datasets is empty', () => {
-    render(<DatasetsPublicationTable {...defaultProps} datasets={[]} />);
+  it('renders empty message when datasets is empty and isSearch is false', () => {
+    render(<DatasetsPublicationTable {...defaultProps} datasets={[]} isSearch={false} />);
+
+    expect(screen.getByTestId('empty-message')).toHaveTextContent('No datasets yet. Click "Add dataset" to create one');
+  });
+
+  it('renders search empty message when datasets is empty and isSearch is true', () => {
+    render(<DatasetsPublicationTable {...defaultProps} datasets={[]} isSearch={true} />);
 
     expect(screen.getByTestId('empty-message')).toHaveTextContent('No datasets matching your search query');
   });
@@ -95,6 +105,13 @@ describe('DatasetsPublicationTable', () => {
 
     expect(screen.getByTestId('action-1')).toBeInTheDocument();
     expect(screen.getByTestId('action-2')).toBeInTheDocument();
+  });
+
+  it('passes defaultSortField "name" and defaultSortOrder 1 to Table', () => {
+    render(<DatasetsPublicationTable {...defaultProps} />);
+
+    expect(capturedTableProps.defaultSortField).toBe('name');
+    expect(capturedTableProps.defaultSortOrder).toBe(1);
   });
 
   it('statusSortFunction sorts ascending by status order', () => {

@@ -1,6 +1,8 @@
 {
     "page_titles": {
-        "terms_and_conditions": "SoilHive - Terms & Conditions",
+        "terms_and_conditions": "SoilHive - Terms of use",
+        "privacy_policy": "SoilHive - Privacy policy",
+        "notification_banner": "SoilHive - Notification Banner",
         "map_settings": "SoilHive - Map settings",
         "look_and_feel": "SoilHive - Look & Feel",
         "datasets": "SoilHive - Datasets publication",
@@ -13,7 +15,9 @@
             "data": "Data"
         },
         "menu": {
-            "terms_and_conditions": "Terms & Conditions",
+            "terms_and_conditions": "Terms of use",
+            "privacy_policy": "Privacy policy",
+            "notification_banner": "Notification Banner",
             "map_settings": "Map settings",
             "look_and_feel": "Look & Feel",
             "datasets": "Datasets publication",
@@ -21,12 +25,32 @@
         }
     },
     "terms_and_conditions": {
-        "title": "Terms & Conditions",
+        "title": "Terms of use",
         "subtitle": "Paste a text here",
         "save": "Save",
         "notification": {
             "title": "Successful update",
             "message": "New terms and conditions applied"
+        }
+    },
+     "privacy_policy": {
+        "title": "Privacy policy",
+        "subtitle": "Paste a text here",
+        "save": "Save",
+        "notification": {
+            "title": "Successful update",
+            "message": "New privacy policy applied"
+        }
+    },
+    "notification_banner": {
+        "title": "Notification Banner",
+        "subtitle": "Paste a text here",
+        "description": "The banner is going to be visible in the platform at the top portion of the screen, under the navigation bar.",
+        "save": "Save",
+        "symbols_left": "symbols left",
+        "notification": {
+            "title": "Successful update",
+            "message": "New notification banner text applied"
         }
     },
     "map_settings": {
@@ -161,6 +185,7 @@
                 "name": "Name",
                 "status": "Status",
                 "visibility": "Visibility",
+                "updated_at": "Updated At",
                 "actions": "Actions"
             },
             "status": {
@@ -169,7 +194,8 @@
                 "LOADED": "Loaded",
                 "PUBLISHED": "Published"
             },
-            "empty_message": "No datasets matching your search query",
+            "empty_search_message": "No datasets matching your search query",
+            "empty_message": "No datasets yet. Click \"Add dataset\" to create one",
             "visibility": {
                 "private": "Private",
                 "public": "Public"
@@ -185,7 +211,8 @@
         "actions": {
             "save_and_continue_later": "Save and continue later",
             "continue": "Continue",
-            "previous": "Previous"
+            "previous": "Previous",
+            "cancel": "Cancel"
         },
         "general_info": {
             "step_title": "General info",
@@ -215,13 +242,19 @@
             "upload_caption": "Supported formats: CSV, Geopackage, GeoJSON, Shapefile, XLSX and ZIP.",
             "files_uploaded_count": "Files uploaded: {{count}}",
             "clear_all": "Clear all",
-            "upload_error": "Error uploading file",
+            "upload_error": "Error uploading file. Check the template documentation in Github.",
             "network_error": "Network error. Please check your connection and try again.",
             "crs_label": "Add a Coordinate Reference System (CRS)",
-            "crs_placeholder": "start typing a number",
-            "invalid_file_type": "Invalid file type"
+            "crs_placeholder": "EPSG code, e.g. 4326",
+            "invalid_file_type": "Invalid file type",
+            "diff_dialog": {
+                "header": "Field structure mismatch",
+                "missing_fields": "Fields missing from this file",
+                "extra_fields": "Extra fields not in the first file"
+            }
         },
         "mappings": {
+            "file_inconsistency": "This file has different fields with respect to the first uploaded file. Fix by matching all the fields and upload again.",
             "step_title": "Mappings",
             "step_description": "Match your data",
             "title": "Map fields",
@@ -241,15 +274,18 @@
                 "unit_placeholder": "Unit",
                 "no_unit": "No unit"
             },
+            "geometry_detected": "Geometry was automatically detected. You don't need to map the geometry or lat/lon fields.",
+            "geometry_not_detected": "No geometry was detected. You must map the geometry field or both latitude and longitude fields to continue.",
+            "depth_conflict": "The 'depth' field cannot be used together with 'min depth' or 'max depth'. Please remove one of these mappings to continue.",
             "details": {
                 "non_mandatory_note": "These fields are non mandatory",
                 "sample_pretreatment": "Sample pretreatment",
                 "technique": "Technique",
-                "extractant_formulation": "Extractant formulation",
+                "laboratory_method": "Laboratory method",
                 "extractant_concentration": "Extractant concentration",
-                "attraction_ratio": "Actraction ratio",
+                "extraction_ratio": "Extraction ratio",
                 "extraction_base": "Extraction base",
-                "instrument": "Instrument",
+                "measurement_procedure": "Measurement procedure",
                 "limit_of_detection": "Limit of detection"
             }
         },
@@ -262,6 +298,53 @@
             "step_title": "Quality check",
             "step_description": "Find data issues",
             "title": "Quality check"
+        },
+        "settings": {
+            "title": "Dataset settings",
+            "metadata_preview": {
+                "title": "Metadata preview",
+                "description": "The metadata will be shown to all users, even if the dataset is private. This will contribute to the discoverability of soil data.",
+                "link": "Check your metadata"
+            },
+            "visibility": {
+                "title": "Data visibility",
+                "public": {
+                    "title": "Public dataset",
+                    "description": "All users can view and download the full dataset, subject to the license terms you specify"
+                },
+                "private": {
+                    "title": "Private dataset",
+                    "description": "Only data administrators can view and download the full dataset, subject to the license terms you specify"
+                }
+            },
+            "access": {
+                "title": "Who can access this dataset",
+                "email_label": "Enter email/s",
+                "email_placeholder": "member@company.com",
+                "add_button": "Add",
+                "table_column_email": "Email",
+                "email_invalid": "Please enter a valid email address",
+                "email_duplicate": "This email has already been added",
+                "remove_dialog": {
+                    "title": "Delete a data administrator",
+                    "message": "Do you really want to delete this admin?",
+                    "cancel": "Cancel",
+                    "confirm": "Remove"
+                }
+            },
+            "publish_warning": {
+                "title": "No T&C's and Privacy policy configured",
+                "heading": "You are about to upload data to this instance",
+                "description": "However, no platform-level rules are currently defined to govern user access, usage, or data handling. While a dataset licence may be in place, it does not cover these aspects.",
+                "warning_bold": "We strongly recommend configuring Terms & Conditions and Privacy Policy",
+                "warning_suffix": "before proceeding, as their absence may create legal and compliance risks",
+                "proceed": "Proceed anyway",
+                "cancel": "Cancel publishing"
+            },
+            "actions": {
+                "cancel": "Cancel",
+                "publish": "Publish"
+            }
         }
     },
     "filters": {
@@ -295,5 +378,22 @@
             "status_title": "Filter states"
         }
     },
-    "logoAlt": "Logo"
+    "logoAlt": "Logo",
+    "metadata": {
+        "title": "Metadata",
+        "label": "Metadata",
+        "placeholder": "Enter metadata value…",
+        "save": "Save",
+        "saving": "Saving…",
+        "notification": {
+            "success": {
+                "title": "Saved",
+                "message": "Metadata has been updated successfully."
+            },
+            "error": {
+                "title": "Error",
+                "message": "Failed to save metadata. Please try again."
+            }
+        }
+    }
 }

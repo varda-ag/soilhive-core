@@ -53,7 +53,7 @@ export const syntheticDataOptions = {
   soilPropertyNames: ['ph'],
   addNullValues: false,
   featureCoordinates: undefined, // Same as GeoJSON coordinates
-  featureGeometryType: 'Point',
+  featureGeometryType: GISDataType.POINT,
   showProgress: false,
   useProgressiveObservationValues: false,
   datasetLicense: undefined,
@@ -116,6 +116,7 @@ export const addDataset = async (
     licenses,
     status: IngestionStatus.LOADED,
     spatial_extent: getPolygonFromBbox(spatial_extent),
+    visibility: 'public',
   });
   return await repo.save(dataset);
 };
@@ -163,15 +164,16 @@ export const addFeature = async (lng: number, lat: number) => {
   return await repo.save(feature);
 };
 
-export const addFeatures = async (type: string, coordinatesArray) => {
+export const addFeatures = async (type: GISDataType, coordinatesArray) => {
   const dataSource = await getDataSource();
+  const geom_type: string = type === GISDataType.POINT ? 'Point' : 'Polygon';
   const result = await dataSource
     .createQueryBuilder()
     .insert()
     .into(FeatureEntity)
     .values(
       coordinatesArray.map(coordinates => {
-        return { geom: { type: type as any, coordinates } };
+        return { geom: { type: geom_type as any, coordinates } };
       }),
     )
     .returning('*')
@@ -278,6 +280,15 @@ export const addDatasetLayers = async (dataset_id: string, layer_id: string, fea
   return result.raw;
 };
 
+export const addVocabulary = async (name: string, category: VocabularyType): Promise<VocabularyEntity> => {
+  const dataSource = await getDataSource();
+  const repo = dataSource.getRepository(VocabularyEntity);
+  const vocab = repo.create({ name, category });
+  const saved = await repo.save(vocab);
+  const reloaded = await repo.findOneBy({ id: saved.id });
+  return reloaded!;
+};
+
 export const addProcedure = async (procedure: string = 'test_procedure') => {
   const dataSource = await getDataSource();
   const procedureVocabularyRepo = dataSource.getRepository(VocabularyEntity);
@@ -340,12 +351,7 @@ export const addSyntheticData = async (syntheticDataOptions): Promise<SyntheticD
   assert(soilPropertyNames.length > 0, 'soilPropertyNames must be a non-empty array of strings');
   const year = 2020 + (id % 10); // Vary year between 2020-2029
   const license = await addLicense(datasetLicense ?? `test_license_${id}`);
-  const dataset = await addDataset(
-    `test_dataset_${id}`,
-    spatial_extent,
-    featureGeometryType === 'Point' ? GISDataType.POINT : GISDataType.POLYGONAL,
-    [license.slug],
-  );
+  const dataset = await addDataset(`test_dataset_${id}`, spatial_extent, featureGeometryType, [license.slug]);
   dataset.soil_depth = { min: 0, max: depthLayers * 10 };
   dataset.reference_period_start = `${year}-01-01`;
   dataset.reference_period_stop = `${year}-12-31`;
@@ -363,7 +369,7 @@ export const addSyntheticData = async (syntheticDataOptions): Promise<SyntheticD
   } else {
     // Random coordinates within spatial_extent
     for (let i = 0; i < featureCount; i++) {
-      if (featureGeometryType === 'Point') {
+      if (featureGeometryType === GISDataType.POINT) {
         coordinates.push([randomInRange(spatial_extent[0], spatial_extent[2]), randomInRange(spatial_extent[1], spatial_extent[3])]);
       } else {
         coordinates.push(randomSquareCoordinates(spatial_extent, squareSide) as any);

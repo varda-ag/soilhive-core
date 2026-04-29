@@ -7,6 +7,8 @@
     "page_titles": {
         "donation": "SoilHive - Donation",
         "legal": "SoilHive - Legal",
+        "terms_of_use": "SoilHive - Terms of Use",
+        "privacy_policy": "SoilHive - Privacy Policy",
         "admin": "SoilHive - Admin"
     },
     "auth": {
@@ -21,14 +23,15 @@
     "nav_menu": {
         "home": "Home",
         "legal": "Legal",
-        "hamburger_aria": "Menu"
+        "terms": "Terms of use",
+        "privacy_policy": "Privacy policy",
+        "hamburger_aria": "Menu",
+        "beta": "Beta",
+        "beta_version": "Beta version"
     },
     "user_menu": {
         "my_account": "Profile",
         "admin_panel": "Admin console"
-    },
-    "legal_page": {
-        "title": "Legal"
     },
     "admin_page": {
         "title": "Administration",
@@ -63,6 +66,10 @@
         "network_error": {
             "title": "Network error",
             "message": "No connection to the server." 
+        },
+        "timeout_error": {
+            "title": "Timeout",
+            "message": "Operation timed out." 
         }
     },
     "components": {
@@ -72,5 +79,17 @@
         }
     },
     "symbols_left": "symbols left",
-    "symbols": "symbols"
+    "symbols": "symbols",
+    "terms_of_use": {
+        "title": "Terms of Use"
+    },
+    "privacy_policy": {
+        "title": "Privacy Policy"
+    },
+    "legal_page": {
+        "latest_update": "Latest update: {{date}}",
+        "footer_website_text": "Varda Foundation website",
+        "footer_contact_text": "Contact us",
+        "footer_copy": "SoilHive is a Varda Foundation platform"
+    }
 }

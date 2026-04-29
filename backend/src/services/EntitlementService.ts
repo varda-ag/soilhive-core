@@ -1,9 +1,14 @@
-import { RequestData } from '../interfaces/RequestData';
-import { EntitlementsEntity } from '../entities/Entitlements';
-import { getEntitySlugs } from '../utils/slugs';
-import { EVERYONE, type Entitlements } from '../types/Entitlements';
 import { assert } from 'console';
+import { StatusCodes } from 'http-status-codes';
 import { In } from 'typeorm';
+import { EVERYONE } from '../constants/constants';
+import { EntitlementsEntity } from '../entities/Entitlements';
+import { RequestData } from '../interfaces/RequestData';
+import { type Entitlements } from '../types/Entitlements';
+import { Capability } from '../types/enums';
+import { ErrorResponse } from '../utils/error';
+import { getEntitySlugs } from '../utils/slugs';
+import DatasetEntity from '../entities/Dataset';
 
 export default class EntitlementService {
   getEntityEntitlements = async (requestData: RequestData, slug: string): Promise<Entitlements> => {
@@ -63,9 +68,11 @@ export default class EntitlementService {
       .execute();
   };
 
-  getUserEntitlements = async (requestData: RequestData, id?: string): Promise<Entitlements> => {
+  async getUserEntitlements(requestData: RequestData, id?: string): Promise<Entitlements> {
+    // Local DB entitlements are added on top of external entitlements
+    const externalEntitlements = await this.callEntitlementsEndpoint(requestData);
     const repo = requestData.entityManager.getRepository(EntitlementsEntity);
-    const entitlements = await repo.find({ where: { id: In([id, EVERYONE]) } });
+    const entitlements = (await repo.find({ where: { id: In([EVERYONE, id]) } })).sort((a, _) => (a.id === EVERYONE ? -1 : 1));
     return entitlements.reduce((acc, { data }) => {
       for (const key in data) {
         if (!acc[key]) {
@@ -75,6 +82,53 @@ export default class EntitlementService {
         acc[key] = Array.from(new Set([...acc[key], ...capabilities]));
       }
       return acc;
-    }, {} as Entitlements);
-  };
+    }, externalEntitlements); // Using external entitlements as the accumulator base
+  }
+
+  async callEntitlementsEndpoint(requestData: RequestData): Promise<Entitlements> {
+    if (!process.env.ENTITLEMENTS_ENDPOINT || !requestData.token?.raw) {
+      return {};
+    }
+    try {
+      const response = await fetch(process.env.ENTITLEMENTS_ENDPOINT!, {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${requestData.token?.raw}`,
+        },
+      });
+      if (!response.ok) {
+        const message = await response.text();
+        throw new ErrorResponse(`Failed to fetch entitlements from endpoint: ${message}`, response.status);
+      }
+      return await response.json();
+    } catch (error) {
+      throw new ErrorResponse(`Failed to fetch entitlements from endpoint: ${error}`, StatusCodes.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  async enforceEntitlements(requestData: RequestData, datasetSlugs: string[], capability: Capability): Promise<void> {
+    if (requestData.token?.isInternalRequest) {
+      // Internal requests are trusted and bypass entitlements checks
+      return;
+    }
+    if (requestData.token?.isDataAdmin || requestData.token?.isSuperAdmin) {
+      // Admins bypass entitlements checks
+      return;
+    }
+    const repo = requestData.entityManager.getRepository(DatasetEntity);
+    const results = await repo.find({
+      select: { slug: true, visibility: true },
+      where: { slug: In(datasetSlugs) },
+    });
+    const privateSlugs = results.filter(r => r.visibility === 'private').map(r => r.slug);
+    if (privateSlugs.length === 0) {
+      // All datasets are public, no need to enforce entitlements
+      return;
+    }
+    for (const slug of privateSlugs) {
+      if (!requestData.entitlements[slug] || !requestData.entitlements[slug]!.includes(capability)) {
+        throw new ErrorResponse(`User does not have ${capability} entitlement for dataset ${slug}`, StatusCodes.FORBIDDEN);
+      }
+    }
+  }
 }

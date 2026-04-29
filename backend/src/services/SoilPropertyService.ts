@@ -7,17 +7,19 @@ import { EntityType } from '../types/data';
 export default class SoilPropertyService {
   getSoilProperties = async (requestData: RequestData): Promise<SoilPropertyEntity[]> => {
     const repo = requestData.entityManager.getRepository(SoilPropertyEntity);
-    const data = await repo.find({ relations: ['soil_property_category'] });
-    return data;
+    return await repo.find({ relations: ['soil_property_category', 'original_units_of_measurement'] });
   };
 
   getSoilProperty = async (requestData: RequestData, slug: string): Promise<SoilPropertyEntity> => {
-    return await getEntity(requestData, SoilPropertyEntity, EntityType.SOIL_PROPERTY, slug, ['soil_property_category']);
+    return await getEntity(requestData, SoilPropertyEntity, EntityType.SOIL_PROPERTY, slug, [
+      'soil_property_category',
+      'original_units_of_measurement',
+    ]);
   };
 
-  getSoilPropertiesBySlug = async (requestData: RequestData, slugs: string[]): Promise<SoilPropertyEntity[]> => {
+  async getSoilPropertiesBySlug(requestData: RequestData, slugs: string[]): Promise<SoilPropertyEntity[]> {
     return await getEntities(requestData, SoilPropertyEntity, EntityType.SOIL_PROPERTY, slugs, ['soil_property_category']);
-  };
+  }
 
   /**
    *
@@ -59,8 +61,11 @@ export default class SoilPropertyService {
     if (Array.isArray(input)) {
       return input.map(e => this.categoryToSlug(e)) as SoilProperty[];
     }
-    const { soil_property_category, ...rest } = input;
+    const { soil_property_category, original_units_of_measurement: unitConversions, ...rest } = input;
     rest.category_id = soil_property_category.slug;
-    return rest;
+    const original_units_of_measurement = (unitConversions ?? [])
+      .map(uc => uc.original_unit_of_measurement)
+      .filter((u): u is string => u != null);
+    return { ...rest, original_units_of_measurement };
   };
 }

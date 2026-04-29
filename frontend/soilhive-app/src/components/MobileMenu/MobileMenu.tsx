@@ -1,5 +1,4 @@
-import { useMemo, type Dispatch, type SetStateAction } from 'react';
-import { NavLink } from 'react-router';
+import { useCallback, useMemo, type Dispatch, type SetStateAction } from 'react';
 import { useTranslation } from 'react-i18next';
 import { UserAvatar } from 'components/AccountWidget/UserAvatar/UserAvatar';
 import { Button } from 'components/UI';
@@ -7,6 +6,8 @@ import { useAuthContext } from '../../auth/AuthContextProvider';
 import type { NavMenuEntry } from 'types/components';
 
 import styles from './MobileMenu.module.scss';
+import MobileDropdownMenuItem from './MobileDropdownMenuItem/MobileDropdownMenuItem';
+import MenuLink from 'components/Header/MenuLink/MenuLink';
 
 type MobileMenuProps = {
   menuEntries: NavMenuEntry[];
@@ -20,6 +21,10 @@ export default function MobileMenu({ menuEntries, setIsMenuOpen }: MobileMenuPro
   const displayName = useMemo(() => {
     return user?.profile?.name || user?.profile?.email;
   }, [user]);
+
+  const closeMenu = useCallback(() => {
+    setIsMenuOpen(false);
+  }, [setIsMenuOpen]);
 
   return (
     <div className={styles.MobileMenu}>
@@ -37,17 +42,21 @@ export default function MobileMenu({ menuEntries, setIsMenuOpen }: MobileMenuPro
         )}
         <nav className={styles.Nav}>
           <div className={styles.NavContent}>
-            {menuEntries.map(({ name, route, type, Icon }) =>
-              type === 'internal' ? (
-                <NavLink key={route} to={route} className={styles.MobileLink} onClick={() => setIsMenuOpen(false)}>
-                  {Icon && <Icon className={styles.Icon} />}
-                  <span className={styles.LinkText}>{t(name)}</span>
-                </NavLink>
+            {menuEntries.map(item =>
+              item.children ? (
+                <MobileDropdownMenuItem key={item.name} menuEntry={item} onLinkClick={closeMenu} />
               ) : (
-                <a className={styles.MobileLink} key={route} href={route} target="_blank" rel="noopener noreferrer">
-                  {Icon && <Icon className={styles.Icon} />}
-                  <span className={styles.LinkText}>{t(name)}</span>
-                </a>
+                <MenuLink
+                  key={item.name}
+                  to={`${item.route}`}
+                  text={t(item.name)}
+                  type={item.type}
+                  className={styles.MobileLink}
+                  iconClassName={styles.Icon}
+                  textClassName={styles.LinkText}
+                  Icon={item.Icon}
+                  onClick={closeMenu}
+                />
               ),
             )}
           </div>

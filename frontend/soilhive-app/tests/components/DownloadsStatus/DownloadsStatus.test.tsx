@@ -1,4 +1,5 @@
 import { render, screen, fireEvent, act } from '@testing-library/react';
+import { useState } from 'react';
 import { useClickAway } from 'react-use';
 import { DownloadsStatus } from 'components/DownloadsStatus/DownloadsStatus';
 import useDownloads from 'hooks/useDownloads';
@@ -21,6 +22,15 @@ jest.mock('react-use', () => ({
   useClickAway: jest.fn(),
 }));
 
+function renderWithState(downloads = [{ id: '1', progress: 10 }]) {
+  function Wrapper() {
+    const [isOpened, setIsOpened] = useState(false);
+    (useDownloads as jest.Mock).mockReturnValue({ downloads, isOpened, setIsOpened });
+    return <DownloadsStatus />;
+  }
+  return render(<Wrapper />);
+}
+
 describe('DownloadsStatus', () => {
   let clickAwayHandler: (() => void) | null = null;
 
@@ -30,10 +40,6 @@ describe('DownloadsStatus', () => {
     (useClickAway as jest.Mock).mockImplementation((_ref, cb) => {
       clickAwayHandler = cb;
     });
-
-    (useDownloads as jest.Mock).mockReturnValue({
-      downloads: [{ id: '1', progress: 10 }],
-    });
   });
 
   afterEach(() => {
@@ -41,14 +47,12 @@ describe('DownloadsStatus', () => {
   });
 
   it('returns null when there are no downloads', () => {
-    (useDownloads as jest.Mock).mockReturnValue({ downloads: [] });
-
-    const { container } = render(<DownloadsStatus />);
+    const { container } = renderWithState([]);
     expect(container).toBeEmptyDOMElement();
   });
 
   it('renders component with closed menu', () => {
-    const { container } = render(<DownloadsStatus />);
+    const { container } = renderWithState();
 
     expect(screen.getByTestId('sh-downloads-status')).toBeInTheDocument();
     expect(screen.getByTestId('sh-downloads-status-button')).toBeInTheDocument();
@@ -57,7 +61,7 @@ describe('DownloadsStatus', () => {
   });
 
   it('toggles menu open/close on button click', () => {
-    const { container } = render(<DownloadsStatus />);
+    const { container } = renderWithState();
 
     const btn = screen.getByTestId('sh-downloads-status-button');
 
@@ -72,7 +76,7 @@ describe('DownloadsStatus', () => {
   });
 
   it('closes menu on click-away', () => {
-    render(<DownloadsStatus />);
+    renderWithState();
 
     const btn = screen.getByTestId('sh-downloads-status-button');
 

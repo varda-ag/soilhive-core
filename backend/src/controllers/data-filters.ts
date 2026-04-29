@@ -20,6 +20,11 @@ export const getDataFilterById = async (req: Request, res: Response) => {
 };
 
 export const getDataFilterCoverage = async (req: Request, res: Response) => {
-  const data = await filterService.getCoverage(req.customData, req.params['filterId']!);
+  const data = await filterService.getCoverage(req.customData, req.params['filterId']!, !!req.query['geometryOnly']);
+  res.json(data);
+};
+
+export const getDataFilterDatasets = async (req: Request, res: Response) => {
+  const data = await filterService.getDatasets(req.customData, req.params['filterId']!);
   res.json(data);
 };

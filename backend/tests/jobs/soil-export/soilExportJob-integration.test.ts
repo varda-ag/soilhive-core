@@ -201,8 +201,8 @@ describe('Soil Export Job Integration Test', () => {
     };
 
     const fetchBatchSpy = jest.spyOn(exportHelpers, 'fetchBatch').mockResolvedValue(Array(EXPORT_CONFIG.BATCH_SIZE).fill(fakeRecord));
-
     const getTotalRecordsCountSpy = jest.spyOn(exportHelpers, 'getTotalRecordsCount').mockResolvedValue(1000);
+    const createReadmeFileSpy = jest.spyOn(exportHelpers, 'createReadmeFile').mockResolvedValue(undefined);
 
     // 2. Queue export job (no real data needed)
     const exportJobResponse = await request(app)
@@ -243,5 +243,6 @@ describe('Soil Export Job Integration Test', () => {
 
     fetchBatchSpy.mockRestore();
     getTotalRecordsCountSpy.mockRestore();
+    createReadmeFileSpy.mockRestore();
   }, 7000);
 });

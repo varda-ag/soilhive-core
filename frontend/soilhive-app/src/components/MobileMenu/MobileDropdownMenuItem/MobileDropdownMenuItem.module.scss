@@ -1,0 +1,62 @@
+.MobileDropdownMenuItem {
+  color: var(--color-neutral-black);
+  text-decoration: none;
+  font-weight: var(--font-weight-regular);
+  font-size: var(--font-size-md);
+  line-height: 1.5rem;
+  height: 100%;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  width: 100%;
+
+  .Toggler {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.5rem 0 0.5rem 1.25rem;
+    margin-left: -1.5rem;
+    border-left: 0.25rem solid transparent;
+  }
+
+  .TogglerText {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  &.Opened {
+    .Toggler {
+      border-color: var(--color-cta-default-solid);
+    }
+
+    .DropdownIcon {
+      transform: rotate(180deg);
+      color: var(--color-cta-default-solid);
+    }
+    .Menu {
+      display: flex;
+    }
+  }
+}
+
+.Menu {
+  padding: 0.5rem 0 0.5rem 2.25rem;
+  display: none;
+  flex-direction: column;
+  gap: 0.25rem;
+
+  > .MenuLink {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem 0;
+    color: var(--color-neutral-black);
+    font-weight: var(--font-weight-regular);
+    text-decoration: none;
+
+    &:hover,
+    &:visited,
+    &:focus {
+      color: var(--color-neutral-black);
+    }
+  }
+}

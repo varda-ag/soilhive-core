@@ -15,8 +15,8 @@ describe('Dialog', () => {
   const defaultProps = {
     visible: true,
     header: 'Test header',
-    onContinue: jest.fn(),
-    onCancel: jest.fn(),
+    onPrimary: jest.fn(),
+    onSecondary: jest.fn(),
   };
 
   it('renders header, children and continue button when visible', () => {
@@ -31,40 +31,54 @@ describe('Dialog', () => {
     expect(screen.getByText('dialog.continue')).toBeInTheDocument();
   });
 
-  it('calls onCancel when close button is clicked', () => {
-    const onCancel = jest.fn();
+  it('calls onSecondary when close button is clicked', () => {
+    const onSecondary = jest.fn();
     render(
-      <Dialog {...defaultProps} onCancel={onCancel}>
+      <Dialog {...defaultProps} onSecondary={onSecondary}>
         <p>content</p>
       </Dialog>,
     );
 
     fireEvent.click(screen.getByLabelText('Close'));
-    expect(onCancel).toHaveBeenCalledTimes(1);
+    expect(onSecondary).toHaveBeenCalledTimes(1);
   });
 
-  it('calls onCancel when cancel button is clicked', () => {
-    const onCancel = jest.fn();
+  it('calls onClose when close button is clicked and onClose is provided', () => {
+    const onClose = jest.fn();
+    const onSecondary = jest.fn();
     render(
-      <Dialog {...defaultProps} onCancel={onCancel} cancelText="Cancel">
+      <Dialog {...defaultProps} onSecondary={onSecondary} onClose={onClose}>
+        <p>content</p>
+      </Dialog>,
+    );
+
+    fireEvent.click(screen.getByLabelText('Close'));
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(onSecondary).not.toHaveBeenCalled();
+  });
+
+  it('calls onSecondary when secondary button is clicked', () => {
+    const onSecondary = jest.fn();
+    render(
+      <Dialog {...defaultProps} onSecondary={onSecondary} secondaryText="Cancel">
         <p>content</p>
       </Dialog>,
     );
 
     fireEvent.click(screen.getAllByTestId('sh-ui-button')[0]);
-    expect(onCancel).toHaveBeenCalledTimes(1);
+    expect(onSecondary).toHaveBeenCalledTimes(1);
   });
 
-  it('calls onContinue when continue button is clicked', () => {
-    const onContinue = jest.fn();
+  it('calls onPrimary when primary button is clicked', () => {
+    const onPrimary = jest.fn();
     render(
-      <Dialog {...defaultProps} onContinue={onContinue} cancelText="Cancel">
+      <Dialog {...defaultProps} onPrimary={onPrimary} secondaryText="Cancel">
         <p>content</p>
       </Dialog>,
     );
 
     fireEvent.click(screen.getAllByTestId('sh-ui-button')[1]);
-    expect(onContinue).toHaveBeenCalledTimes(1);
+    expect(onPrimary).toHaveBeenCalledTimes(1);
   });
 
   it('does not render content when visible is false', () => {

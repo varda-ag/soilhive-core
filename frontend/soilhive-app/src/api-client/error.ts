@@ -1,3 +1,5 @@
+import { clearToken } from '../auth/tokenStore';
+
 export async function handleError(response: Response) {
   let details: any = null;
 
@@ -15,7 +17,8 @@ export async function handleError(response: Response) {
   };
 
   if (response.status === 401) {
-    console.warn('Unauthorized — maybe refresh token');
+    console.warn('Unauthorized: removing local token');
+    clearToken();
   }
 
   if (response.status === 403) {

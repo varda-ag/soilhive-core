@@ -36,13 +36,13 @@ export default class ConfigService {
     return output;
   };
 
-  getLogoFileKey = async (repo: Repository<JsonStorage>): Promise<string | undefined> => {
+  async getLogoFileKey(repo: Repository<JsonStorage>): Promise<string | undefined> {
     const row = await repo.findOneBy({ id: FRONTEND_LOGO });
     if (!row) {
       return undefined;
     }
     return row.data['fileKey'];
-  };
+  }
 
   setLogoFileKey = async (repo: Repository<JsonStorage>, fileKey: string): Promise<void> => {
     await repo.upsert([{ id: FRONTEND_LOGO, data: { fileKey }, deleted_at: null }], ['id']);

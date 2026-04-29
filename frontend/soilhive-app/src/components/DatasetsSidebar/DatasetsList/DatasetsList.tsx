@@ -11,8 +11,8 @@ import { NoDataMessage } from './NoDataMessage/NoDataMessage';
 
 export function DatasetsList() {
   const { t } = useTranslation('availability');
-  const { datasets, selectAllDatasets, isAllSelected, isLoading, isNoData, isNoFilteredData, searchValue } = useAvailability();
-  const showNoDataMessage = !isLoading && (isNoData || isNoFilteredData);
+  const { datasets, selectAllDatasets, isAllSelected, isDatasetsLoading, isNoData, isNoFilteredData, searchValue } = useAvailability();
+  const showNoDataMessage = !isDatasetsLoading && (isNoData || isNoFilteredData);
 
   return showNoDataMessage ? (
     <NoDataMessage isNoData={isNoData} isNoFilteredData={isNoFilteredData} />
@@ -30,7 +30,7 @@ export function DatasetsList() {
         </div>
       )}
       <div className={styles.Wrapper}>
-        {isLoading ? (
+        {isDatasetsLoading ? (
           <span data-testid="skeleton-container">
             <Skeleton count={1} height={120} />
             <Skeleton count={1} height={120} />

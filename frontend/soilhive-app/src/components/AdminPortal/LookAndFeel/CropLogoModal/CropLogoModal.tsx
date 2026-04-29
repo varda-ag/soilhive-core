@@ -22,8 +22,8 @@ export function CropLogoModal({ isModalOpened, imageSrc, onCrop, onCancel }: Pro
       outputHeight={LOGO_HEIGHT}
       fileName="logo.png"
       headerText={t('look_and_feel.logo.crop.title')}
-      cancelText={t('look_and_feel.logo.crop.cancel_button')}
-      continueText={t('look_and_feel.logo.crop.upload_button')}
+      secondaryText={t('look_and_feel.logo.crop.cancel_button')}
+      primaryText={t('look_and_feel.logo.crop.upload_button')}
       onCrop={onCrop}
       onCancel={onCancel}
     />

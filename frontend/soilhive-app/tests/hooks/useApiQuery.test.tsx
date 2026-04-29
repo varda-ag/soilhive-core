@@ -109,6 +109,8 @@ describe('useApiQuery', () => {
       url: 'http://test.url/test?status=created',
       method: 'POST',
       body: { foo: 'bar' },
+      signal: undefined,
+      ignoreAbortError: false,
       isBlobResponse: false,
     });
   });
@@ -153,6 +155,66 @@ describe('useApiQuery', () => {
 
     expect(result.current.fetchStatus).toBe('idle');
     expect(requestMock).not.toHaveBeenCalled();
+  });
+
+  it('passes signal and ignoreAbortError when abortOnNewQuery is true', async () => {
+    requestMock.mockResolvedValueOnce({ ok: true });
+    (buildApiUrl as jest.Mock).mockReturnValueOnce('http://test.url/test');
+
+    const wrapper = createWrapper();
+
+    renderHook(
+      () =>
+        useApiQuery({
+          endpoint: '/test',
+          method: 'GET',
+          queryKey: ['test'],
+          enabled: true,
+          abortOnNewQuery: true,
+        }),
+      { wrapper },
+    );
+
+    await waitFor(() => {
+      expect(requestMock).toHaveBeenCalledTimes(1);
+    });
+
+    expect(requestMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        signal: expect.any(AbortSignal),
+        ignoreAbortError: true,
+      }),
+    );
+  });
+
+  it('passes no signal and ignoreAbortError false when abortOnNewQuery is false', async () => {
+    requestMock.mockResolvedValueOnce({ ok: true });
+    (buildApiUrl as jest.Mock).mockReturnValueOnce('http://test.url/test');
+
+    const wrapper = createWrapper();
+
+    renderHook(
+      () =>
+        useApiQuery({
+          endpoint: '/test',
+          method: 'GET',
+          queryKey: ['test'],
+          enabled: true,
+          abortOnNewQuery: false,
+        }),
+      { wrapper },
+    );
+
+    await waitFor(() => {
+      expect(requestMock).toHaveBeenCalledTimes(1);
+    });
+
+    expect(requestMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        signal: undefined,
+        ignoreAbortError: false,
+      }),
+    );
   });
 
   it('uses staleTime of 600000 and does not refetch on rerender with same key', async () => {

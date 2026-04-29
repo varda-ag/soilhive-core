@@ -68,11 +68,22 @@ export const getDatasetFiles = async (req: Request, res: Response) => {
 export const getDatasetMappings = async (req: Request, res: Response) => {
   const id = req.params['datasetId']!;
   const datasetFileMappings = await datasetFileMappingService.getMappings(req.customData, id, undefined, ['data_mapping']);
-  const dataMappings = datasetFileMappings.map(m => m.data_mapping);
+  const dataMappings = datasetFileMappings.map(m => m.data_mapping).filter(m => m !== null && m !== undefined);
   return res.json(idToSlug(dataMappings));
 };
 
 export const getEpsgCodes = async (req: Request, res: Response) => {
   const epsgCodes = datasetService.getEpsgCodes();
   res.json(epsgCodes);
+};
+
+export const getSoilData = async (req: Request, res: Response) => {
+  const data = await datasetService.getSoilData(
+    req.customData,
+    req.params['datasetFileMappingId']!,
+    parseInt(req.query['limit'] as string),
+    req.query['cursor'] as string,
+    req.query['sort'] as string,
+  );
+  res.json(data);
 };

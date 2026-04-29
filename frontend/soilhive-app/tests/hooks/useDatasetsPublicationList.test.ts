@@ -1,4 +1,4 @@
-import { act, renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook } from '@testing-library/react';
 import { useNavigate } from 'react-router';
 
 import { useDatasetsPublicationList } from 'hooks/useDatasetsPublicationList';
@@ -163,16 +163,14 @@ describe('useDatasetsPublicationList', () => {
     expect(result.current.selectedDataset).toBeNull();
   });
 
-  it('onPublish calls console.log with the dataset id', () => {
-    const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+  it('onPublish navigates to the dataset settings page', () => {
     const { result } = renderHook(() => useDatasetsPublicationList());
 
     act(() => {
       result.current.onPublish('1');
     });
 
-    expect(consoleSpy).toHaveBeenCalledWith('onPublish', '1');
-    consoleSpy.mockRestore();
+    expect(navigate).toHaveBeenCalledWith(`${ADMIN_PATHS.DATASETS}/edit/1/settings`);
   });
 
   it('navigateToNewDataset navigates to the new dataset page', () => {
@@ -183,29 +181,5 @@ describe('useDatasetsPublicationList', () => {
     });
 
     expect(navigate).toHaveBeenCalledWith(`${ADMIN_PATHS.DATASETS}/new`);
-  });
-
-  it('auto-navigates to new dataset page when datasets is empty after loading', async () => {
-    (useDatasets as jest.Mock).mockReturnValue({ datasets: [], isLoading: false });
-
-    renderHook(() => useDatasetsPublicationList());
-
-    await waitFor(() => {
-      expect(navigate).toHaveBeenCalledWith(`${ADMIN_PATHS.DATASETS}/new`);
-    });
-  });
-
-  it('does not auto-navigate when datasets is still loading', () => {
-    (useDatasets as jest.Mock).mockReturnValue({ datasets: undefined, isLoading: true });
-
-    renderHook(() => useDatasetsPublicationList());
-
-    expect(navigate).not.toHaveBeenCalled();
-  });
-
-  it('does not auto-navigate when datasets has items', () => {
-    renderHook(() => useDatasetsPublicationList());
-
-    expect(navigate).not.toHaveBeenCalled();
   });
 });

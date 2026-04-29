@@ -14,6 +14,7 @@
   }
 
   > .OptionsMenu {
+    z-index: 5;
     position: absolute;
     top: calc(100% + 0.25rem);
     right: 0;

@@ -32,6 +32,10 @@ describe('ThemeProvider / useTheme', () => {
   const mockThemeConfig = {
     initialBbox: [6.6272658, 35.2889616, 18.7844746, 47.0921462],
     termsAndConditionsHtml: '<p>Terms text</p>',
+    termsAndConditionsLatestUpdate: '',
+    privacyPolicyHtml: '',
+    privacyPolicyLatestUpdate: '',
+    notificationBannerHtml: '',
     colors: {
       primary: '#111111',
       'primary-hover': '#222222',
@@ -104,7 +108,11 @@ describe('ThemeProvider / useTheme', () => {
     expect(result.current.isLogoLoading).toBe(false);
     expect(result.current.isLoadingThemeConfig).toBe(false);
     expect(result.current.themeConfig.termsAndConditionsHtml).toBe('<p>Terms text</p>');
+    expect(typeof result.current.saveColors).toBe('function');
+    expect(typeof result.current.saveInitialBbox).toBe('function');
     expect(typeof result.current.saveTermsAndConditions).toBe('function');
+    expect(typeof result.current.savePrivacyPolicy).toBe('function');
+    expect(typeof result.current.saveNotificationBanner).toBe('function');
     expect(typeof result.current.setLogo).toBe('function');
   });
 
@@ -170,10 +178,13 @@ describe('ThemeProvider / useTheme', () => {
       await result.current.saveTermsAndConditions('<h1>Updated</h1>');
     });
 
-    expect(saveThemeConfigMock).toHaveBeenCalledWith({
-      ...mockThemeConfig,
-      termsAndConditionsHtml: '<h1>Updated</h1>',
-    });
+    expect(saveThemeConfigMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ...mockThemeConfig,
+        termsAndConditionsHtml: '<h1>Updated</h1>',
+        termsAndConditionsLatestUpdate: expect.any(String),
+      }),
+    );
 
     expect(showNotification).toHaveBeenCalled();
   });
@@ -200,6 +211,55 @@ describe('ThemeProvider / useTheme', () => {
       ...mockThemeConfig,
       colors: newColors,
     });
+  });
+
+  it('saveInitialBbox calls saveConfig with bbox payload and shows notification', async () => {
+    const { result } = renderHook(() => useTheme(), { wrapper });
+    const newBbox = [1.0, 2.0, 3.0, 4.0];
+
+    await act(async () => {
+      await result.current.saveInitialBbox(newBbox);
+    });
+
+    expect(saveThemeConfigMock).toHaveBeenCalledWith({
+      ...mockThemeConfig,
+      initialBbox: newBbox,
+    });
+
+    expect(showNotification).toHaveBeenCalled();
+  });
+
+  it('savePrivacyPolicy calls saveConfig with html payload and sets latestUpdate', async () => {
+    const { result } = renderHook(() => useTheme(), { wrapper });
+
+    await act(async () => {
+      await result.current.savePrivacyPolicy('<p>Privacy content</p>');
+    });
+
+    expect(saveThemeConfigMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ...mockThemeConfig,
+        privacyPolicyHtml: '<p>Privacy content</p>',
+        privacyPolicyLatestUpdate: expect.any(String),
+      }),
+    );
+
+    expect(showNotification).toHaveBeenCalledWith(expect.objectContaining({ id: 'savePrivacyPolicySuccess', type: 'success' }));
+  });
+
+  it('saveNotificationBanner calls saveConfig with html payload and shows notification', async () => {
+    const { result } = renderHook(() => useTheme(), { wrapper });
+
+    await act(async () => {
+      await result.current.saveNotificationBanner('<p>Banner content</p>');
+    });
+
+    expect(saveThemeConfigMock).toHaveBeenCalledWith({
+      ...mockThemeConfig,
+      notificationBannerHtml: '<p>Banner content</p>',
+    });
+
+    expect(showNotification).toHaveBeenCalledWith(expect.objectContaining({ id: 'saveNotificationBannerSuccess', type: 'success' }));
   });
 
   it('setLogo updates logo manually', async () => {

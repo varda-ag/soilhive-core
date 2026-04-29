@@ -1,11 +1,10 @@
-import { Entity, Column, Unique, Index, PrimaryColumn } from 'typeorm';
+import { Entity, Column, Index, PrimaryColumn } from 'typeorm';
 import { Vocabulary } from '../interfaces/Vocabulary';
 import BaseTable from './BaseTable';
 import { VocabularyType } from '../types/data';
 
 @Entity('vocabulary')
-@Index(['category', 'id'])
-@Unique(['id', 'category'])
+@Index(['category', 'name'], { unique: true, where: '"deleted_at" IS NULL' })
 export default class VocabularyEntity extends BaseTable implements Vocabulary {
   @PrimaryColumn('uuid', {
     default: () => 'uuidv7()',

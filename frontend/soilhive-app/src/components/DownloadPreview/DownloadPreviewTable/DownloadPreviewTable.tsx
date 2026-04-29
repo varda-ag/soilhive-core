@@ -55,6 +55,8 @@ function DownloadPreviewTable({
 
   const [visibleColumns, setVisibleColumns] = useState<string[]>([
     'sampling_date',
+    'min_depth',
+    'max_depth',
     'value',
     'standard_unit',
     // TODO: to be restored | 'horizon',
@@ -172,7 +174,6 @@ function DownloadPreviewTable({
           {isDataLoading && <Loader />}
         </div>
       </div>
-      <div className={styles.Footer}>{t('download_preview.preview_footer')}</div>
     </div>
   );
 }

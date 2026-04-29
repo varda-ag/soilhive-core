@@ -1,0 +1,58 @@
+.Wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.ClearButton {
+  position: absolute;
+  right: 2.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: var(--color-neutral-dark-200);
+  visibility: hidden;
+
+  &:hover {
+    color: var(--color-neutral-dark-400);
+  }
+}
+
+.Wrapper:hover .ClearButton {
+  visibility: visible;
+}
+
+.Root {
+  width: 100%;
+}
+
+// Default (medium) — mirrors Dropdown's .Medium size
+.Input {
+  width: 100%;
+  font-size: var(--font-size-lg);
+  line-height: 1.688rem;
+  padding: 0.6565rem 1rem;
+}
+
+// Mirrors Dropdown's .Small size
+.Root.Small .Input {
+  font-size: var(--font-size-md);
+  line-height: 1.5rem;
+  padding: 0.375rem 0.75rem;
+}
+
+// Mirrors Dropdown's .Tiny size
+.Root.Tiny .Input {
+  font-size: var(--font-size-sm);
+  line-height: 1.313rem;
+  padding: 0.2195rem 0.5rem;
+}
+
+// Panel renders in a PrimeReact portal outside #root.
+// Shared panel styles live in prime.react.override.scss.
+.Panel {
+}

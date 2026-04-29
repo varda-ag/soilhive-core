@@ -4,6 +4,8 @@ import SoilDataStorage from '../../src/data-layer/SoilDataStorage';
 import { getEntityManager } from '../../src/utils/data-source';
 import { getPolygonFromBbox } from '../../src/utils/geometry';
 
+const entitlements = {};
+
 describe('SoilDataStorage count', () => {
   it('getSoilDataCount should return the total number of observations in a dataset', async () => {
     // 1. Setup: Create a dataset with specific dimensions
@@ -25,7 +27,7 @@ describe('SoilDataStorage count', () => {
     const filter = { geometries: [], parameters: {} };
 
     // 2. Execute: Get the count
-    const count = await sds.getSoilDataCount(entityManager, filter, [dataset.slug]);
+    const count = await sds.getSoilDataCount({ entityManager, entitlements }, filter, [dataset.slug]);
 
     // 3. Verify: The count should match the total observations created
     expect(count).toBe(totalExpected);
@@ -44,7 +46,7 @@ describe('SoilDataStorage count', () => {
     const filter = { geometries: [], parameters: {} };
 
     // 2. Execute: Search for a slug that doesn't exist
-    const count = await sds.getSoilDataCount(entityManager, filter, [dataset.id]);
+    const count = await sds.getSoilDataCount({ entityManager, entitlements }, filter, [dataset.id]);
 
     // 3. Verify
     expect(count).toBe(0);
@@ -72,7 +74,7 @@ describe('SoilDataStorage count', () => {
       parameters: { soil_properties: ['clay'] },
     };
 
-    const count = await sds.getSoilDataCount(entityManager, filter, [dataset.slug]);
+    const count = await sds.getSoilDataCount({ entityManager, entitlements }, filter, [dataset.slug]);
 
     // 3. Verify: Should only count the 'clay' observation, not the 'sand' one
     // (1 layer * 1 feature * 1 filtered property = 1)
@@ -99,7 +101,7 @@ describe('SoilDataStorage count', () => {
       parameters: { min_depth: 0, max_depth: 25 },
     };
 
-    const count = await sds.getSoilDataCount(entityManager, filter, [dataset.slug]);
+    const count = await sds.getSoilDataCount({ entityManager, entitlements }, filter, [dataset.slug]);
 
     // Intersection logic:
     // 0-10 ( [0..10] [0..25] ) -> intersect
@@ -141,7 +143,7 @@ describe('SoilDataStorage count', () => {
       parameters: {},
     };
 
-    const count = await sds.getSoilDataCount(entityManager, filter, [dataset.slug]);
+    const count = await sds.getSoilDataCount({ entityManager, entitlements }, filter, [dataset.slug]);
 
     // 3. Verify: Only (0.1, 0.1) and (0.2, 0.2) should be inside the box
     // 2 features * 1 layer * 1 observation = 2
@@ -174,15 +176,15 @@ describe('SoilDataStorage count', () => {
     });
 
     // 3. Execute & Verify Dataset A
-    const countA = await sds.getSoilDataCount(entityManager, filter, [datasetA.slug]);
+    const countA = await sds.getSoilDataCount({ entityManager, entitlements }, filter, [datasetA.slug]);
     expect(countA).toBe(2);
 
     // 4. Execute & Verify Dataset B
-    const countB = await sds.getSoilDataCount(entityManager, filter, [datasetB.slug]);
+    const countB = await sds.getSoilDataCount({ entityManager, entitlements }, filter, [datasetB.slug]);
     expect(countB).toBe(5);
 
     // 5. Execute & Verify Combined (A + B)
-    const combinedCount = await sds.getSoilDataCount(entityManager, filter, [datasetA.slug, datasetB.slug]);
+    const combinedCount = await sds.getSoilDataCount({ entityManager, entitlements }, filter, [datasetA.slug, datasetB.slug]);
     expect(combinedCount).toBe(7);
   });
 });

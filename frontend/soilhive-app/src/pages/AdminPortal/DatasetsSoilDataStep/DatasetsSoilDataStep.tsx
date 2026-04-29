@@ -5,7 +5,7 @@ import { useDatasetsSoilData, ALLOWED_EXTENSIONS } from '../../../hooks/useDatas
 import styles from './DatasetsSoilDataStep.module.scss';
 import InfoIcon from 'assets/icons/info-icon.svg?react';
 
-const TEMPLATE_DOCS_URL = '#';
+const TEMPLATE_DOCS_URL = 'https://github.com/varda-ag/soilhive-core/blob/main/docs/data-load.md#file-upload';
 
 export function DatasetsSoilDataStep() {
   const { t } = useTranslation('admin');
@@ -81,7 +81,7 @@ export function DatasetsSoilDataStep() {
         </Button>
 
         <div className={styles.FooterRight}>
-          <Button type="secondary" size="small" onClick={handleSaveAndContinueLater}>
+          <Button type="secondary" size="small" onClick={handleSaveAndContinueLater} isDisabled={!isContinueEnabled}>
             {t('datasets.actions.save_and_continue_later')}
           </Button>
 

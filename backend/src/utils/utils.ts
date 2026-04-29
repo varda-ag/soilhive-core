@@ -61,6 +61,7 @@ export const signToken = (payload: string | object | Buffer, expiresIn?: number,
   assert(process.env.SELF_SIGNING_SECRET, 'Self-signing secret is not defined');
   let signOpts: any = {
     algorithm: 'HS256',
+    header: { kid: 'kid' },
   };
   if (expiresIn) {
     signOpts = { ...signOpts, expiresIn };
@@ -76,4 +77,17 @@ export const replaceExtension = (filePath: string, newExt: string): string => {
   const parsed = path.parse(filePath);
   // path.format ignores `ext` if `base` is present, so remove base
   return path.format({ ...parsed, base: undefined, ext: newExt.startsWith('.') ? newExt : `.${newExt}` });
+};
+
+// For dates/depths: treat null as "no data in this geometry" — skip it when a value exists,
+// return null only when both sides have no data (matches SQL MIN/MAX aggregate behaviour).
+export const mergeMin = (a: string | null, b: string | null): string | null => {
+  if (a === null) return b;
+  if (b === null) return a;
+  return a < b ? a : b;
+};
+export const mergeMax = (a: string | null, b: string | null): string | null => {
+  if (a === null) return b;
+  if (b === null) return a;
+  return a > b ? a : b;
 };

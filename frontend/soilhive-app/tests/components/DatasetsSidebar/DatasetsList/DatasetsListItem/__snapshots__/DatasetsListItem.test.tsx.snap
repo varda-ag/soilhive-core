@@ -69,7 +69,6 @@ exports[`DatasetsListItem renders main dataset info 1`] = `
           >
             mock-svg
           </svg>
-           
           34546
            points
         </p>
@@ -82,7 +81,6 @@ exports[`DatasetsListItem renders main dataset info 1`] = `
           >
             mock-svg
           </svg>
-           
           12
            raster layers
         </p>
@@ -95,7 +93,6 @@ exports[`DatasetsListItem renders main dataset info 1`] = `
           >
             mock-svg
           </svg>
-           
           0
           -
           60
@@ -110,7 +107,6 @@ exports[`DatasetsListItem renders main dataset info 1`] = `
           >
             mock-svg
           </svg>
-           
           2012
            - 
           2024

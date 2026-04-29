@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react';
-import { NavLink } from 'react-router';
 import { useTranslation } from 'react-i18next';
 
 import HamburgerIcon from 'assets/icons/medium-hamburger-menu-icon.svg?react';
 import CloseIcon from 'assets/icons/medium-cross-menu-icon.svg?react';
 import PlanetIcon from 'assets/icons/planet-icon.svg?react';
 import ScalesIcon from 'assets/icons/scales-icon.svg?react';
+import AwardIcon from 'assets/icons/award-icon.svg?react';
+import LockIcon from 'assets/icons/lock-icon.svg?react';
 
 import { singlePages } from '../../utilities/moduleFederation';
 import MobileMenu from 'components/MobileMenu/MobileMenu';
@@ -18,12 +19,14 @@ import { useAuthContext } from '../../auth/AuthContextProvider';
 import useTheme from 'hooks/useTheme';
 import useDevice from 'hooks/useDevice';
 import type { NavMenuEntry } from 'types/components';
+import DropdownMenuItem from './DropdownMenuItem/DropdownMenuItem';
+import MenuLink from './MenuLink/MenuLink';
 
 import styles from './Header.module.scss';
 
 export default function Header() {
   const { t } = useTranslation('common');
-  const { isDesktopLayout } = useDevice();
+  const { isDesktopLayout, isMobileLayout } = useDevice();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { isAuthenticated } = useAuthContext();
   const { isLoadingThemeConfig, themeConfig } = useTheme();
@@ -37,15 +40,26 @@ export default function Header() {
         Icon: PlanetIcon,
       } as NavMenuEntry,
     ];
-    if (!isLoadingThemeConfig && !!themeConfig.termsAndConditionsHtml) {
-      output.push({ name: 'nav_menu.legal', route: '/legal', type: 'internal', Icon: ScalesIcon });
+    if (!isLoadingThemeConfig && (themeConfig.termsAndConditionsHtml || themeConfig.privacyPolicyHtml)) {
+      const children: NavMenuEntry[] = [];
+
+      if (themeConfig.termsAndConditionsHtml) {
+        children.push({ name: 'nav_menu.terms', route: '/terms-of-use', type: 'internal', Icon: AwardIcon });
+      }
+
+      if (themeConfig.privacyPolicyHtml) {
+        children.push({ name: 'nav_menu.privacy_policy', route: '/privacy-policy', type: 'internal', Icon: LockIcon });
+      }
+
+      output.push({
+        name: 'nav_menu.legal',
+        type: 'internal',
+        Icon: ScalesIcon,
+        children,
+      });
     }
     return output;
-  }, [isLoadingThemeConfig, themeConfig.termsAndConditionsHtml]);
-
-  const getNavLinkClass = ({ isActive }: { isActive: boolean }) => {
-    return isActive ? `${styles.Active}` : '';
-  };
+  }, [isLoadingThemeConfig, themeConfig.termsAndConditionsHtml, themeConfig.privacyPolicyHtml]);
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
@@ -55,19 +69,27 @@ export default function Header() {
     <>
       <header className={styles.Header}>
         <Logo />
+        <div className={styles.BetaPill}>{t(isMobileLayout ? 'nav_menu.beta' : 'nav_menu.beta_version')}</div>
         <div className={styles.Menu}>
           {isDesktopLayout && (
             <nav data-testid="sh-header-nav" className={styles.Nav}>
-              {menuEntries.map(({ name, route }) => (
-                <NavLink data-testid="sh-header-nav-link" key={route} to={`${route}`} className={getNavLinkClass}>
-                  <span className={styles.LinkText}>{t(name)}</span>
-                </NavLink>
-              ))}
+              {menuEntries.map(item =>
+                item.children ? (
+                  <DropdownMenuItem key={item.name} menuEntry={item} />
+                ) : (
+                  <MenuLink
+                    key={item.name}
+                    to={`${item.route}`}
+                    text={t(item.name)}
+                    type={item.type}
+                    activeClassName={styles.Active}
+                    textClassName={styles.LinkText}
+                  />
+                ),
+              )}
 
               {singlePages.map(({ route, name }) => (
-                <NavLink data-testid="sh-header-nav-link" key={route} to={`/${route}`} className={getNavLinkClass}>
-                  <span className={styles.LinkText}>{name}</span>
-                </NavLink>
+                <MenuLink key={route} to={`${route}`} text={t(name)} activeClassName={styles.Active} textClassName={styles.LinkText} />
               ))}
             </nav>
           )}

@@ -1,6 +1,7 @@
 export const enum TokenScopes {
   SUPER_ADMIN = 'super-admin',
   DATA_ADMIN = 'data-admin',
+  INTERNAL_REQUEST = 'internal-request',
 }
 
 export const enum AuthModes {
@@ -28,4 +29,11 @@ export enum JobQueues {
   EXPORT = 'export',
   FILE_TO_DB = 'file-to-db',
   BULK_DELETE = 'bulk-delete',
+}
+
+export enum Capability {
+  PREVIEW = 'preview',
+  DOWNLOAD = 'download',
+  OBFUSCATE_AS_POINTS = 'obfuscate_as_points',
+  OBFUSCATE_AS_POLYGONS = 'obfuscate_as_polygons',
 }

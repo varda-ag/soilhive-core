@@ -21,17 +21,20 @@ const mockToken: Token = {
   email: 'test@example.com',
   scope: 'user',
   raw: 'mock-token',
-  isSuperAdmin: () => false,
-  isDataAdmin: () => false,
+  isSuperAdmin: false,
+  isDataAdmin: false,
+  isInternalRequest: false,
 };
 
 describe('FileService', () => {
   let fileService: FileService;
   let entityManager: EntityManager;
+  let requestData: RequestData;
 
   beforeAll(async () => {
     fileService = new FileService();
     entityManager = await getEntityManager();
+    requestData = { entityManager, token: mockToken, entitlements: {} };
   });
 
   const setLocalStorageRootFolder = (rootFolder: string) => {
@@ -59,7 +62,6 @@ describe('FileService', () => {
     it('should create a new file record when the name is unique', async () => {
       setLocalStorageRootFolder(vectorFilesPassPath);
 
-      const requestData: RequestData = { entityManager, token: mockToken };
       const file = {
         name: 'sample_point.geojson',
         file_path: 'sample_point.geojson',
@@ -85,7 +87,7 @@ describe('FileService', () => {
         name: fileKey,
         file_path: fileKey,
       };
-      requestData = { entityManager, token: mockToken };
+      requestData = { entityManager, token: mockToken, entitlements: {} };
       fileEntity = await fileService.createFile(requestData, file);
     });
 
@@ -139,7 +141,7 @@ describe('FileService', () => {
 
     beforeEach(async () => {
       setLocalStorageRootFolder(vectorFilesPassPath);
-      requestData = { entityManager, token: mockToken };
+      requestData = { entityManager, token: mockToken, entitlements: {} };
       fileEntity = await fileService.createFile(requestData, { name: fileKey, file_path: fileKey });
       metadata = fileEntity.metadata!;
     });
@@ -169,8 +171,8 @@ describe('FileService', () => {
 
     beforeEach(async () => {
       setLocalStorageRootFolder(vectorFilesPassPath);
-      metadata = await fileService.extractMetadata(fileKey);
-      requestData = { entityManager, token: mockToken };
+      requestData = { entityManager, token: mockToken, entitlements: {} };
+      metadata = await fileService.extractMetadata(requestData, fileKey);
       fileEntity = await fileService.createFile(requestData, { name: fileKey, file_path: fileKey });
     });
 
@@ -195,8 +197,8 @@ describe('FileService', () => {
 
     beforeEach(async () => {
       setLocalStorageRootFolder(vectorFilesPassPath);
-      metadata = await fileService.extractMetadata(fileKey);
-      requestData = { entityManager, token: mockToken };
+      requestData = { entityManager, token: mockToken, entitlements: {} };
+      metadata = await fileService.extractMetadata(requestData, fileKey);
       fileEntity = await fileService.createFile(requestData, { name: fileKey, file_path: fileKey });
     });
 
@@ -250,8 +252,8 @@ describe('FileService', () => {
 
     beforeEach(async () => {
       setLocalStorageRootFolder(vectorFilesPassPath);
-      metadata = await fileService.extractMetadata(fileKey);
-      requestData = { entityManager, token: mockToken };
+      requestData = { entityManager, token: mockToken, entitlements: {} };
+      metadata = await fileService.extractMetadata(requestData, fileKey);
       fileEntity = await fileService.createFile(requestData, { name: fileKey, file_path: fileKey });
     });
 
@@ -298,7 +300,7 @@ describe('FileService', () => {
 
       beforeEach(async () => {
         setLocalStorageRootFolder(vectorFilesPassPath);
-        requestData = { entityManager, token: mockToken };
+        requestData = { entityManager, token: mockToken, entitlements: {} };
         fileEntity = await fileService.createFile(requestData, { name: fileKey, file_path: fileKey });
         metadata = fileEntity.metadata!;
       });
@@ -322,12 +324,12 @@ describe('FileService', () => {
       });
 
       it('should handle files without CRS gracefully', async () => {
-        const metadata = await fileService.extractMetadata('valid1.csv');
+        const metadata = await fileService.extractMetadata(requestData, 'valid1.csv');
         expect(metadata.epsg).toBeUndefined();
       });
 
       it('should extract metadata from ZIP files with Shapefiles', async () => {
-        const metadata = await fileService.extractMetadata('gis_osm_natural_07_1.zip');
+        const metadata = await fileService.extractMetadata(requestData, 'gis_osm_natural_07_1.zip');
 
         expect(metadata).toBeDefined();
         expect(metadata.field_names).toBeDefined();
@@ -340,12 +342,12 @@ describe('FileService', () => {
     describe('extractMetadata - invalid files', () => {
       it('should fail for invalid files', async () => {
         setLocalStorageRootFolder(vectorFilesFailPath);
-        await expect(fileService.extractMetadata('invalid.geojson')).rejects.toThrow('Failed to extract metadata');
+        await expect(fileService.extractMetadata(requestData, 'invalid.geojson')).rejects.toThrow('Failed to extract metadata');
       });
 
       it('should return 404 for non-existent files', async () => {
         setLocalStorageRootFolder(vectorFilesFailPath);
-        await expect(fileService.extractMetadata('nonexistent_file.geojson')).rejects.toThrow('not found');
+        await expect(fileService.extractMetadata(requestData, 'nonexistent_file.geojson')).rejects.toThrow('not found');
       });
     });
 
@@ -360,7 +362,7 @@ describe('FileService', () => {
 
         for (const file of files) {
           try {
-            const metadata = await fileService.extractMetadata(file);
+            const metadata = await fileService.extractMetadata(requestData, file);
             results.push({ file, success: true, metadata });
           } catch (error) {
             results.push({ file, success: false, error });
@@ -386,7 +388,7 @@ describe('FileService', () => {
 
         for (const file of files) {
           try {
-            const metadata = await fileService.extractMetadata(file);
+            const metadata = await fileService.extractMetadata(requestData, file);
             results.push({ file, success: true, metadata });
           } catch (error) {
             results.push({ file, success: false, error });
@@ -405,7 +407,7 @@ describe('FileService', () => {
       it('should successfully extract ZIP files from fail folder if they contain valid geometry', async () => {
         // gis_osm_runways_07_1.zip contains LineString geometry which is NOT supported
         setLocalStorageRootFolder(vectorFilesFailPath);
-        await expect(fileService.extractMetadata('gis_osm_runways_07_1.zip')).rejects.toThrow(
+        await expect(fileService.extractMetadata(requestData, 'gis_osm_runways_07_1.zip')).rejects.toThrow(
           'Only Point or Polygon geometry types are supported.',
         );
       });
@@ -414,7 +416,7 @@ describe('FileService', () => {
     describe('extractMetadata - metadata structure', () => {
       it('should return FileMetadata with correct structure', async () => {
         setLocalStorageRootFolder(vectorFilesPassPath);
-        const metadata = await fileService.extractMetadata('sample_point.geojson');
+        const metadata = await fileService.extractMetadata(requestData, 'sample_point.geojson');
 
         expect(metadata).toHaveProperty('field_names');
         expect(metadata).toHaveProperty('detected_fields');
@@ -428,7 +430,7 @@ describe('FileService', () => {
 
       it('should populate field_names with vector fields', async () => {
         setLocalStorageRootFolder(vectorFilesPassPath);
-        const metadata = await fileService.extractMetadata('sample_point.geojson');
+        const metadata = await fileService.extractMetadata(requestData, 'sample_point.geojson');
 
         expect(Array.isArray(metadata.field_names)).toBe(true);
         // GeoJSON typically has at least some properties
@@ -439,6 +441,85 @@ describe('FileService', () => {
           expect(typeof fieldName).toBe('string');
         }
       });
+    });
+  });
+
+  describe('getDetectedMapping', () => {
+    it('returns {} when fieldNames is empty', () => {
+      expect(fileService.getDetectedMapping([], [{ col_a: 'x' }])).toEqual({});
+    });
+
+    it('returns {} when mappings is empty', () => {
+      expect(fileService.getDetectedMapping(['col_a'], [])).toEqual({});
+    });
+
+    it('returns {} when no fieldName matches any mapping', () => {
+      expect(fileService.getDetectedMapping(['col_a'], [{ col_b: 'x' }])).toEqual({});
+    });
+
+    it('skips falsy string values', () => {
+      expect(fileService.getDetectedMapping(['col_a'], [{ col_a: '' }])).toEqual({});
+    });
+
+    it('records a string value on the first match', () => {
+      expect(fileService.getDetectedMapping(['col_a'], [{ col_a: 'x' }])).toEqual({ col_a: 'x' });
+    });
+
+    it('records a PropertyMapping object on the first match', () => {
+      const pm = { property_id: 'p1' };
+      expect(fileService.getDetectedMapping(['col_a'], [{ col_a: pm }])).toEqual({ col_a: pm });
+    });
+
+    it('keeps the first string when a subsequent mapping also has a string for the same field', () => {
+      expect(fileService.getDetectedMapping(['col_a'], [{ col_a: 'first' }, { col_a: 'second' }])).toEqual({ col_a: 'first' });
+    });
+
+    it('replaces a string with a non-empty PropertyMapping object', () => {
+      const pm = { property_id: 'p1' };
+      expect(fileService.getDetectedMapping(['col_a'], [{ col_a: 'string_val' }, { col_a: pm }])).toEqual({ col_a: pm });
+    });
+
+    it('does not replace a string with an empty object', () => {
+      expect(fileService.getDetectedMapping(['col_a'], [{ col_a: 'string_val' }, { col_a: {} as any }])).toEqual({
+        col_a: 'string_val',
+      });
+    });
+
+    it('replaces a PropertyMapping object with a richer one (more keys)', () => {
+      const lean = { property_id: 'p1' };
+      const rich = { property_id: 'p1', conversion_id: 'c1', min_val: 0 };
+      expect(fileService.getDetectedMapping(['col_a'], [{ col_a: lean }, { col_a: rich }])).toEqual({ col_a: rich });
+    });
+
+    it('keeps the existing PropertyMapping object when the subsequent one has fewer keys', () => {
+      const rich = { property_id: 'p1', conversion_id: 'c1' };
+      const lean = { property_id: 'p2' };
+      expect(fileService.getDetectedMapping(['col_a'], [{ col_a: rich }, { col_a: lean }])).toEqual({ col_a: rich });
+    });
+
+    it('does not replace a PropertyMapping object with a string', () => {
+      const pm = { property_id: 'p1' };
+      expect(fileService.getDetectedMapping(['col_a'], [{ col_a: pm }, { col_a: 'string_val' }])).toEqual({ col_a: pm });
+    });
+
+    it('builds an output entry for each matched field independently', () => {
+      const mappingA = { col_a: 'va' };
+      const mappingB = { col_b: 'vb' };
+      expect(fileService.getDetectedMapping(['col_a', 'col_b'], [mappingA, mappingB])).toEqual({ col_a: 'va', col_b: 'vb' });
+    });
+
+    it('selects the best value per field independently across mappings', () => {
+      const pm = { property_id: 'p1', conversion_id: 'c1' };
+      const mapping1 = { col_a: 'string_val', col_b: { property_id: 'p2' } };
+      const mapping2 = { col_a: pm };
+      expect(fileService.getDetectedMapping(['col_a', 'col_b'], [mapping1, mapping2])).toEqual({
+        col_a: pm,
+        col_b: { property_id: 'p2' },
+      });
+    });
+
+    it('ignores fieldNames that appear in fieldNames but have no match in any mapping', () => {
+      expect(fileService.getDetectedMapping(['col_a', 'col_missing'], [{ col_a: 'x' }])).toEqual({ col_a: 'x' });
     });
   });
 });

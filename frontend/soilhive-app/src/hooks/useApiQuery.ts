@@ -3,6 +3,13 @@ import { useRequest } from '../api-client';
 import { buildApiUrl } from '../utilities/buildApiUrl';
 import { QUERY_STALE_TIME } from '../configuration/api';
 
+const inflightRequests = new Map<string, Promise<unknown>>();
+
+function buildRequestKey(url: string, method: string, body: unknown): string {
+  const bodyPart = body === undefined || body === null ? '' : JSON.stringify(body);
+  return `${method}:${url}:${bodyPart}`;
+}
+
 type UseApiQueryOptions<TResponse, TBody = void> = {
   endpoint: string;
   method: 'GET' | 'POST';
@@ -17,6 +24,7 @@ type UseApiQueryOptions<TResponse, TBody = void> = {
   showErrorNotification?: boolean;
   notFoundAsNull?: boolean;
   isBlobResponse?: boolean;
+  abortOnNewQuery?: boolean;
 };
 
 export function useApiQuery<TResponse, TBody = void>({
@@ -31,20 +39,35 @@ export function useApiQuery<TResponse, TBody = void>({
   showErrorNotification,
   notFoundAsNull,
   isBlobResponse = false,
+  abortOnNewQuery = false,
 }: UseApiQueryOptions<TResponse, TBody>) {
   const { request } = useRequest();
 
   const url = buildApiUrl(endpoint, parameters);
 
-  const fetchData = async (): Promise<TResponse> => {
-    return await request({
+  const fetchData = async ({ signal }: { signal: AbortSignal }): Promise<TResponse> => {
+    const requestKey = buildRequestKey(url, method, body);
+    const existing = inflightRequests.get(requestKey);
+
+    if (existing) {
+      return existing as Promise<TResponse>;
+    }
+
+    const promise = request({
       url,
       method,
       body,
+      signal: abortOnNewQuery ? signal : undefined,
+      ignoreAbortError: abortOnNewQuery,
       showErrorNotification,
       notFoundAsNull,
       isBlobResponse,
+    }).finally(() => {
+      inflightRequests.delete(requestKey);
     });
+
+    inflightRequests.set(requestKey, promise);
+    return promise as Promise<TResponse>;
   };
 
   return useQuery({

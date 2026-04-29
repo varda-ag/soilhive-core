@@ -15,6 +15,8 @@ type DownloadsContextType = {
   downloads: DownloadsItem[];
   startDownload: (payload: { filter_id: string; dataset_ids: string[]; format: string }) => void;
   cancelDownload: (id: string) => void;
+  isOpened: boolean;
+  setIsOpened: (value: boolean) => void;
 };
 
 export const DownloadsContext = createContext<DownloadsContextType | undefined>(undefined);
@@ -25,6 +27,7 @@ type DownloadsProviderProps = {
 
 export const DownloadsProvider: React.FC<DownloadsProviderProps> = ({ children }) => {
   const [jobsIds, setJobsIds] = useState<string[]>([]);
+  const [isOpened, setIsOpened] = useState(false);
   const prevStatusRef = useRef<Record<string, string | undefined>>({});
   const createJob = useCreateJobMutation();
   const cancelJob = useCancelJobMutation();
@@ -52,7 +55,18 @@ export const DownloadsProvider: React.FC<DownloadsProviderProps> = ({ children }
 
   const startDownload = useCallback(
     async (payload: { filter_id: string; dataset_ids: string[]; format: string }) => {
-      const res = await createJob.mutateAsync({ ...payload, type: 'export', anonymous: true });
+      const public_metadata_urls: Record<string, string> = {};
+      payload.dataset_ids.forEach(id => {
+        public_metadata_urls[id] = `${window.location.origin}/datasets/${id}`;
+      });
+      const res = await createJob.mutateAsync({
+        ...payload,
+        type: 'export',
+        anonymous: true,
+        public_homepage_url: window.location.origin,
+        public_terms_url: `${window.location.origin}/terms-of-use`,
+        public_metadata_urls,
+      });
 
       setJobsIds(prev => [...prev, res.id]);
       prevStatusRef.current[res.id] = 'created';
@@ -112,7 +126,10 @@ export const DownloadsProvider: React.FC<DownloadsProviderProps> = ({ children }
     });
   }, [jobsData, showNotification]);
 
-  const value = useMemo(() => ({ downloads, startDownload, cancelDownload }), [downloads, startDownload, cancelDownload]);
+  const value = useMemo(
+    () => ({ downloads, startDownload, cancelDownload, isOpened, setIsOpened }),
+    [downloads, startDownload, cancelDownload, isOpened],
+  );
 
   return <DownloadsContext.Provider value={value}>{children}</DownloadsContext.Provider>;
 };

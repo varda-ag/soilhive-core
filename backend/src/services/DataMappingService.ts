@@ -154,6 +154,11 @@ export default class DataMappingService {
     return result;
   };
 
+  getDataMappings = async (requestData: RequestData): Promise<DataMappingEntity[]> => {
+    const repo = requestData.entityManager.getRepository(DataMappingEntity);
+    return await repo.find();
+  };
+
   getDataMapping = async (requestData: RequestData, id: string): Promise<DataMappingEntity> => {
     const repo = requestData.entityManager.getRepository(DataMappingEntity);
     const dataMapping = await repo.findOneBy({ id });

@@ -236,6 +236,7 @@ paths:
     get:
       x-eov-operation-handler: controllers/datasets
       x-eov-operation-id: getDatasets
+      x-entitlements-required: true
       summary: Get metadata for all datasets
       tags:
         - datasets
@@ -287,6 +288,7 @@ paths:
     get:
       x-eov-operation-handler: controllers/datasets
       x-eov-operation-id: getDataset
+      x-entitlements-required: true
       summary: Get metadata for a specific dataset
       tags:
         - datasets
@@ -351,6 +353,7 @@ paths:
     post:
       x-eov-operation-handler: controllers/jobs
       x-eov-operation-id: postJob
+      x-entitlements-required: true
       summary: Starts async job
       tags:
         - jobs
@@ -819,6 +822,173 @@ paths:
               schema:
                 $ref: '#/components/schemas/SoilPropertyCategory'
 
+  /procedures:
+    get:
+      x-eov-operation-handler: controllers/procedures
+      x-eov-operation-id: getProcedures
+      summary: Get all procedures
+      tags:
+        - procedures
+      responses:
+        '200':
+          description: Array of procedures
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Procedure'
+    post:
+      x-eov-operation-handler: controllers/procedures
+      x-eov-operation-id: createProcedure
+      summary: Create a procedure
+      tags:
+        - procedures
+      security:
+        - bearerAuth: [data-admin]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Procedure'
+      responses:
+        '201':
+          description: Procedure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Procedure'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /procedures/techniques:
+    get:
+      x-eov-operation-handler: controllers/procedures
+      x-eov-operation-id: getProcedureTechniques
+      summary: Get available procedure technique values
+      tags:
+        - procedures
+      responses:
+        '200':
+          description: Array of technique values
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+                  enum:
+                    - lab procedure
+                    - spectral
+                    - calculated
+
+  /procedures/{procedureId}:
+    parameters:
+      - name: procedureId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Procedure ID
+    get:
+      x-eov-operation-handler: controllers/procedures
+      x-eov-operation-id: getProcedure
+      summary: Get a procedure by ID
+      tags:
+        - procedures
+      responses:
+        '200':
+          description: Procedure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Procedure'
+
+  /vocabulary:
+    get:
+      x-eov-operation-handler: controllers/vocabularies
+      x-eov-operation-id: getVocabulary
+      summary: Get all vocabulary items
+      tags:
+        - vocabulary
+      responses:
+        '200':
+          description: Array of vocabulary items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/VocabularyItem'
+    post:
+      x-eov-operation-handler: controllers/vocabularies
+      x-eov-operation-id: createVocabulary
+      summary: Create a vocabulary item
+      tags:
+        - vocabulary
+      security:
+        - bearerAuth: [data-admin]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - category
+              properties:
+                name:
+                  type: string
+                category:
+                  type: string
+                  enum:
+                    - sample_pretreatment
+                    - laboratory_method
+                    - extractant_concentration
+                    - extraction_ratio
+                    - extraction_base
+                    - measurement_procedure
+                    - limit_of_detection
+      responses:
+        '201':
+          description: Vocabulary item created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VocabularyItem'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /vocabulary/{vocabularyId}:
+    parameters:
+      - name: vocabularyId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Vocabulary item ID
+    get:
+      x-eov-operation-handler: controllers/vocabularies
+      x-eov-operation-id: getVocabularyItem
+      summary: Get a vocabulary item by ID
+      tags:
+        - vocabulary
+      responses:
+        '200':
+          description: Vocabulary item
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VocabularyItem'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /licenses:
     get:
       x-eov-operation-handler: controllers/licenses
@@ -943,6 +1113,12 @@ paths:
           type: string
           format: uuid
         description: Unique filter identifier
+      - name: geometryOnly
+        in: query
+        required: false
+        description: Only considers geometry for coverage calculation, ignoring other filter parameters
+        schema:
+          type: boolean
     get:
       x-eov-operation-handler: controllers/data-filters
       x-eov-operation-id: getDataFilterCoverage
@@ -954,7 +1130,7 @@ paths:
         - {}
       responses:
         '200':
-          description: List of datasets matching the filter
+          description: Object with raster filter values and list of dataset summaries matching the filter
           content:
             application/json:
               schema:
@@ -962,10 +1138,41 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  /data-filters/{filterId}/datasets:
+    parameters:
+      - name: filterId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Unique filter identifier
+    get:
+      x-eov-operation-handler: controllers/data-filters
+      x-eov-operation-id: getDataFilterDatasets
+      summary: Retrieves available datasets matching the area of interest
+      tags:
+        - data-filters
+      security:
+        - bearerAuth: []
+        - {}
+      responses:
+        '200':
+          description: List of datasets matching the filter
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FilteredDataset'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /soil-data:
     get:
       x-eov-operation-handler: controllers/soil-data
       x-eov-operation-id: getSoilData
+      x-entitlements-required: true
       summary: Retrieves soil data
       tags:
         - soil-data
@@ -997,6 +1204,8 @@ paths:
           schema:
             type: number
             default: 100
+            minimum: 1
+            maximum: 200
         - in: query
           name: cursor
           required: false
@@ -1069,13 +1278,13 @@ paths:
         required: true
         schema:
           type: string
-        description: ID of the dataset to assign to the created soil data
+        description: ID of the dataset containing soil data
       - name: datasetFileMappingId
         in: path
         required: true
         schema:
           type: string
-        description: Unique identifier of the mapping to be applied to the raw record
+        description: Unique identifier of the mapping related to the raw record
     post:
       x-eov-operation-handler: controllers/datasets
       x-eov-operation-id: postSoilData
@@ -1095,6 +1304,43 @@ paths:
       responses:
         '201':
           description: Soil data loaded successfully
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    get:
+      x-eov-operation-handler: controllers/datasets
+      x-eov-operation-id: getSoilData
+      summary: Retrieve soil data records before loading them into the system
+      tags:
+        - datasets
+      security:
+        - bearerAuth: [data-admin]
+      parameters:
+        - in: query
+          name: limit
+          required: true
+          description: Number of items in the response
+          schema:
+            type: number
+            default: 100
+            minimum: 1
+            maximum: 200
+        - in: query
+          name: cursor
+          required: false
+          description: Pagination cursor
+          schema:
+            type: string
+        - in: query
+          name: sort
+          required: false
+          description: Sort column. Prepend with '-' for descending order
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Soil data retrieved successfully
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -1581,6 +1827,23 @@ components:
         - parameters
 
     FilteredDataset:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Dataset identifier
+        name:
+          type: string
+          description: Dataset name
+        data_type:
+          type: string
+          enum:
+            - point
+            - polygonal
+            - raster
+          description: Type of data contained in the dataset (e.g., point samples, raster data)
+
+    FilteredDatasetSummary:
       allOf:
         - $ref: '#/components/schemas/FilterCriteria'
         - type: object
@@ -1621,7 +1884,7 @@ components:
     FilteredDatasetsList:
       type: array
       items:
-        $ref: '#/components/schemas/FilteredDataset'
+        $ref: '#/components/schemas/FilteredDatasetSummary'
     
     FilteredData:
       type: object
@@ -1839,6 +2102,12 @@ components:
           type: string
           enum: [public, private]
           default: private
+        capabilities:
+          type: array
+          items:
+            type: string
+            enum: [preview, download, obfuscate_as_points, obfuscate_as_polygons]
+          readOnly: true
 
     SoilProperty:
       type: object
@@ -1876,6 +2145,11 @@ components:
         category_id:
           type: string
           description: Category identifier
+        original_units_of_measurement:
+          type: array
+          items:
+            type: string
+          description: Allowed original units of measurement for this property (empty when none are defined)
 
     SoilPropertyCategory:
       type: object
@@ -1896,6 +2170,63 @@ components:
         - id
         - category_name
         - category_acronym
+    
+    VocabularyItem:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Identifier for the vocabulary item
+        category:
+          type: string
+          description: Category of the vocabulary item
+        name:
+          type: string
+          description: Vocabulary item name
+
+    Procedure:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Identifier for the procedure
+          readOnly: true
+        sample_pretreatment:
+          type: string
+          nullable: true
+          description: Pretreatment applied before analysis
+        technique:
+          type: string
+          nullable: true
+          description: Analytical or experimental technique used
+          enum:
+            - calculated
+            - lab procedure
+            - spectral
+        laboratory_method:
+          type: string
+          nullable: true
+          description: The named laboratory method or protocol used to generate the result, including standard protocols or digestion/combustion approaches where applicable
+        extractant_concentration:
+          type: string
+          nullable: true
+          description: Extractant concentration details
+        extraction_ratio:
+          type: string
+          nullable: true
+          description: Ratio of sample to extractant used
+        extraction_base:
+          type: string
+          nullable: true
+          description: Base or solvent used in extraction
+        measurement_procedure:
+          type: string
+          nullable: true
+          description: Measurement procedure or instrument used for analysis
+        limit_of_detection:
+          type: string
+          nullable: true
+          description: Limit of detection for the measurement
 
     SoilRecord:
       type: object
@@ -2043,6 +2374,16 @@ components:
           type: string
           enum: [csv, xlsx, gpkg, shp, geojson]
           description: Export file format
+        public_homepage_url:
+          type: string
+          format: uri
+          description: Optional URL pointing to platform homepage that will appear in Readme.PDF
+        public_metadata_urls:
+          type: object
+          additionalProperties:
+            type: string
+            format: uri
+          description: Optional mapping of dataset_id to metadata URL for Readme.PDF
 
     FileToDbJob:
       type: object

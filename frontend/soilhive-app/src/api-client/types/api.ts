@@ -7,4 +7,5 @@ export interface APIRequestConfig {
   isBlobResponse?: boolean;
   showErrorNotification?: boolean;
   notFoundAsNull?: boolean;
+  ignoreAbortError?: boolean;
 }

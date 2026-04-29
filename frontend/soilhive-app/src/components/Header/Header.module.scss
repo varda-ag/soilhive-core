@@ -22,6 +22,13 @@
     height: 2rem;
     margin-right: 1rem;
   }
+
+  .BetaPill {
+    background-color: #00FFFF;
+    border-radius: 8px;
+    padding: 4px 8px;
+    margin-left: 16px;
+  }
 }
 
 .Logo img {
@@ -42,10 +49,12 @@
   gap: 5rem;
   padding-right: 3.375rem;
 
-  a {
+  > a,
+  > .DropdownItem {
     color: #000;
     text-decoration: none;
     font-weight: 700;
+    font-size: var(--font-size-md);
     line-height: 1.5rem;
     display: flex;
     align-items: flex-end;
@@ -53,6 +62,7 @@
     white-space: nowrap;
     text-overflow: ellipsis;
     overflow: hidden;
+    cursor: pointer;
 
     &:visited,
     &:hover,
@@ -65,11 +75,51 @@
       padding: 0 0.75rem 0.4rem 0.75rem;
       border-bottom: 0.5rem solid transparent;
     }
+
+    &.Active {
+      .LinkText {
+        border-bottom-color: var(--color-pills);
+      }
+    }
   }
 
-  .Active {
-    .LinkText {
+  .DropdownItem {
+    position: relative;
+    overflow: visible;
+
+    &:has(.Active) .LinkText {
       border-bottom-color: var(--color-pills);
+    }
+
+    .LinkText {
+      display: flex;
+      align-items: center;
+      gap: 0.625rem;
+      padding: 0 0.5rem 0.4rem;
+    }
+  }
+
+  .DropdownMenu {
+    position: absolute;
+    top: calc(100% - 0.25rem);
+    left: -32px;
+    width: 14.375rem;
+    z-index: 10;
+    padding: 0.5rem 0.625rem;
+    background-color: var(--color-neutral-white);
+    box-shadow: var(--shadow-interface);
+    border-radius: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+
+    > a {
+      display: flex;
+      align-items: center;
+      gap: 0.625rem;
+      color: var(--color-neutral-black);
+      font-weight: var(--font-weight-regular);
+      text-decoration: none;
     }
   }
 }

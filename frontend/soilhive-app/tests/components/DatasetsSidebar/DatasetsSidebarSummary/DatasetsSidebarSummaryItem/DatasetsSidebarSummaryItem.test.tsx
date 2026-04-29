@@ -14,4 +14,12 @@ describe('DatasetsSidebarSummaryItem', () => {
 
     expect(screen.getByTestId('sh-datasets-sidebar-summary-item')).toHaveClass('Preview');
   });
+
+  it('shows skeleton and hides value when isLoading is true', () => {
+    const { container } = render(<DatasetsSidebarSummaryItem name="test" value="25" color="#00AB00" isLoading />);
+
+    expect(container.querySelector('.react-loading-skeleton')).toBeTruthy();
+    expect(screen.queryByText('25')).not.toBeInTheDocument();
+    expect(screen.getByText('test')).toBeInTheDocument();
+  });
 });

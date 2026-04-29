@@ -9,20 +9,27 @@ import { getTotalRecordsCount, createReadmeFile, fetchBatch, groupByProperty } f
 import { getPgBoss, PG_BOSS_SCHEMA } from '../../services/PgBoss';
 import { GeoFileWriter } from './GeoFileWriter';
 import { cleanupTempFiles, generateDownloadFilename, generateDownloadPath, moveToDownloadFolder, zipFiles } from './storageHelpers';
+import EntitlementService from '../../services/EntitlementService';
+import { EVERYONE } from '../../constants/constants';
+import { RequestData } from '../../interfaces/RequestData';
 
 export async function processExportJob(job: Job<ExportJob>): Promise<void> {
   const { id: jobId, data } = job;
-  const { filter_id, dataset_ids, format } = data;
+  const { created_by } = job as unknown as ExportJob;
+  const { filter_id, format } = data;
 
   const file_format = parseFileFormat(format);
   const entityManager = await getEntityManager();
+  const entitlementService = new EntitlementService();
+  const entitlements = await entitlementService.getUserEntitlements({ entityManager } as any, created_by ?? EVERYONE);
 
   // Create temp working directory - fresh start on every run (handles pod eviction)
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), EXPORT_CONFIG.TEMP_DIR_PREFIX));
 
   try {
     // Get total records for progress tracking
-    const total_records_estimate = await getTotalRecordsCount(entityManager, { filterId: filter_id, dataset_ids, file_format });
+    const requestData = { entityManager, entitlements } as RequestData;
+    const total_records_estimate = await getTotalRecordsCount(requestData, data);
 
     await updateJobState(jobId, {
       ...data,
@@ -32,8 +39,7 @@ export async function processExportJob(job: Job<ExportJob>): Promise<void> {
       total_records_processed: 0,
     });
 
-    // Create README placeholder
-    await createReadmeFile(tempDir, { filterId: filter_id, dataset_ids, file_format });
+    await createReadmeFile(requestData, tempDir, data);
 
     // Initialize writer
     const writer = new GeoFileWriter(file_format);
@@ -51,7 +57,7 @@ export async function processExportJob(job: Job<ExportJob>): Promise<void> {
       }
 
       // 1. Fetch batch
-      const batch = await fetchBatch(entityManager, { filterId: filter_id, dataset_ids, file_format }, cursor);
+      const batch = await fetchBatch(requestData, data, cursor);
 
       if (!batch || batch.length === 0) {
         break;
@@ -116,6 +122,9 @@ export async function processExportJob(job: Job<ExportJob>): Promise<void> {
       download_path: final_storage_path,
       download_filename: generateDownloadFilename(),
     });
+  } catch (error) {
+    console.error(`Error processing export job ${jobId}:`, error);
+    throw error;
   } finally {
     // Always cleanup temp files, even on error
     await cleanupTempFiles(tempDir);

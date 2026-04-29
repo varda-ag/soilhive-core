@@ -1,6 +1,6 @@
 export type DatasetProperties = {
-  points: number;
-  layers: number;
+  points?: number;
+  layers?: number;
   minDepth?: number;
   maxDepth?: number;
   dateStart?: number;

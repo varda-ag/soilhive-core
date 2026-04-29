@@ -1,0 +1,32 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`NotificationBanner component matches snapshot 1`] = `
+<div>
+  <div
+    class="NotificationBanner"
+  >
+    <svg
+      class="MegaphoneIcon"
+      data-testid="svg-icon-mock"
+    >
+      mock-svg
+    </svg>
+    <button>
+      <svg
+        data-testid="svg-icon-mock"
+      >
+        mock-svg
+      </svg>
+    </button>
+    <div
+      class="Message"
+    >
+      <div
+        data-testid="html-display"
+      >
+        &lt;p&gt;Hello&lt;/p&gt;
+      </div>
+    </div>
+  </div>
+</div>
+`;

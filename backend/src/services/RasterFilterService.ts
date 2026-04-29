@@ -5,10 +5,10 @@ import { ErrorResponse } from '../utils/error';
 import { StatusCodes } from 'http-status-codes';
 
 export default class RasterFilterService {
-  getRasterFilters = async (requestData: RequestData): Promise<RasterFilterEntity[]> => {
+  async getRasterFilters(requestData: RequestData): Promise<RasterFilterEntity[]> {
     const repo = requestData.entityManager.getRepository(RasterFilterEntity);
     return await repo.find();
-  };
+  }
 
   getRasterFilter = async (requestData: RequestData, id: string): Promise<RasterFilterEntity> => {
     const repo = requestData.entityManager.getRepository(RasterFilterEntity);

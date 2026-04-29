@@ -15,6 +15,7 @@
     },
     "download_preview": {
         "page_title": "DATA EXPLORER",
+        "page_subtitle": "Dive into your selected data, filter and explore it by dataset, soil property, depth, and date.",
         "back": "Back",
         "download_button": "Download data",
         "tab_summary": "Summary",
@@ -29,7 +30,6 @@
         "select_columns": "Select columns to show",
         "metadata": "Metadata",
         "no_data_available": "No data available",
-        "preview_footer": "This is just a preview of the soil data we have filtered by area and the filters you selected, to see all the data available, download it.",
         "columns": {
             "date": "Date",
             "depth_min": "Depth (min)",

@@ -63,9 +63,6 @@ exports[`DownloadSummary renders download summary page 1`] = `
             >
               mock-svg
             </svg>
-            <div>
-              These are the datasets included in the download
-            </div>
           </div>
           <div
             class="FormatPicker"
@@ -219,9 +216,6 @@ exports[`DownloadSummary renders download summary page coming from availability 
             >
               mock-svg
             </svg>
-            <div>
-              These are the datasets included in the download
-            </div>
           </div>
           <div
             class="FormatPicker"
@@ -375,9 +369,6 @@ exports[`DownloadSummary renders download summary page coming from data explorer
             >
               mock-svg
             </svg>
-            <div>
-              These are the datasets included in the download
-            </div>
           </div>
           <div
             class="FormatPicker"

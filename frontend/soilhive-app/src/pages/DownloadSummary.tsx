@@ -17,6 +17,7 @@ import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import useDownloads from 'hooks/useDownloads';
 import { useOnceDefined } from 'hooks/useOnceDefined';
+import Skeleton from 'react-loading-skeleton';
 
 // console.debug(numberFormatter.format(1234567));
 // Output: "1.234.567"
@@ -33,7 +34,7 @@ const availableFormats = [
 function DownloadSummary() {
   const navigate = useNavigate();
   const { t } = useTranslation('download');
-  const { startDownload } = useDownloads();
+  const { startDownload, setIsOpened } = useDownloads();
 
   const [searchParams] = useSearchParams();
   const comingFromDataExplorer = searchParams.get('source') === 'explore';
@@ -59,6 +60,7 @@ function DownloadSummary() {
   const onDownloadButtonClick = () => {
     if (filterId) {
       startDownload({ filter_id: filterId, dataset_ids: selectedDatasets.map(dataset => dataset.id), format: selectedFormat });
+      setIsOpened(true);
       navigate('/');
     }
   };
@@ -90,6 +92,7 @@ function DownloadSummary() {
     return <>{formattedCount}</>;
   };
 
+  const loaderCell = () => <Skeleton count={1} height={12} width="100%" />;
   const { datasets, geometryFeature, datasetsSummary, soilProperties, depthRange, isLoading } = useDownloadSummary({
     filterId,
     datasetsIds,
@@ -140,7 +143,6 @@ function DownloadSummary() {
           <div className={styles.MainContent}>
             <div className={styles.MainContentHeader}>
               <CloudDownload />
-              <div>{t('download_summary.datasets_included_in_download')}</div>
             </div>
             <div className={styles.FormatPicker}>
               <div className={styles.FormatPickerHeader}>
@@ -181,8 +183,16 @@ function DownloadSummary() {
                 >
                   <Column selectionMode="multiple"></Column>
                   <Column field="name" header={t('download_summary.dataset_column_header')}></Column>
-                  <Column field="licenses" header={t('download_summary.licenses_column_header')} body={licensesCell}></Column>
-                  <Column field="layerCount" header={t('download_summary.amount_of_data_column_header')} body={dataCountCell}></Column>
+                  <Column
+                    field="licenses"
+                    header={t('download_summary.licenses_column_header')}
+                    body={isLoading ? loaderCell : licensesCell}
+                  ></Column>
+                  <Column
+                    field="layerCount"
+                    header={t('download_summary.amount_of_data_column_header')}
+                    body={isLoading ? loaderCell : dataCountCell}
+                  ></Column>
                 </DataTable>
               </PrimeReactProvider>
             </div>

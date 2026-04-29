@@ -9,15 +9,15 @@ jest.mock('react-i18next', () => ({
 jest.mock('hooks/useDialogDismiss');
 
 jest.mock('components/UI/Dialog/Dialog', () => ({
-  Dialog: ({ visible, children, onContinue, onCancel }: any) => {
+  Dialog: ({ visible, children, onPrimary, onSecondary }: any) => {
     const MockDialog = () =>
       visible ? (
         <div data-testid="mock-dialog">
           {children}
-          <button data-testid="continue-btn" onClick={onContinue}>
+          <button data-testid="continue-btn" onClick={onPrimary}>
             Continue
           </button>
-          <button data-testid="cancel-btn" onClick={onCancel}>
+          <button data-testid="cancel-btn" onClick={onSecondary}>
             Cancel
           </button>
         </div>
@@ -37,7 +37,7 @@ const defaultProps = {
   header: 'Test header',
   message: 'Test message',
   onContinue: jest.fn(),
-  onCancel: jest.fn(),
+  onCancel: jest.fn(), // InfoDialog's own prop names remain unchanged
 };
 
 describe('InfoDialog', () => {

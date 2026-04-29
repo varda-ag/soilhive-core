@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll } from '@jest/globals';
 import { IncomingHttpHeaders } from 'http';
 import request from 'supertest';
 import { app } from '../../src/app';
-import { FilteredDataset, FilteredData } from '../../src/interfaces/DatasetFilter';
+import { FilteredDatasetSummary, FilteredData, FilteredDataset } from '../../src/interfaces/DatasetFilter';
 import { getDataSource } from '../../src/utils/data-source';
 import { addSyntheticData, syntheticDataOptions } from '../../src/utils/mock';
 import { getDataAdminToken, getSuperAdminToken } from '../helper';
@@ -171,7 +171,7 @@ describe('Testing /data-filters routes', () => {
     // Get coverage
     const resCoverage = await request(app).get(`/data-filters/${id}/coverage`);
     const result: FilteredData = resCoverage.body;
-    const resultDatasets: FilteredDataset[] = result.datasets;
+    const resultDatasets: FilteredDatasetSummary[] = result.datasets;
     expect(resultDatasets.length).toBe(1);
     expect(resultDatasets[0].name).toBe(dataset.name);
     expect(resultDatasets[0].id).toBe(dataset.slug);
@@ -206,5 +206,133 @@ describe('Testing /data-filters routes', () => {
 
     // No data is expected to be returned
     expect(results.datasets.length).toBe(0);
+  });
+
+  it('Coverage should return aggregated dataset summaries across multiple geometries', async () => {
+    const leftPolygon = {
+      type: 'Polygon',
+      coordinates: [
+        [
+          [0, 0],
+          [0.5, 0],
+          [0.5, 1],
+          [0, 1],
+          [0, 0],
+        ],
+      ],
+    };
+    const rightPolygon = {
+      type: 'Polygon',
+      coordinates: [
+        [
+          [0.5, 0],
+          [1, 0],
+          [1, 1],
+          [0.5, 1],
+          [0.5, 0],
+        ],
+      ],
+    };
+
+    // One feature in each half, 3 depth layers each
+    const { dataset } = await addSyntheticData({
+      ...syntheticDataOptions,
+      id: 20,
+      featureCoordinates: [
+        [0.25, 0.5],
+        [0.75, 0.5],
+      ],
+      depthLayers: 3,
+    });
+
+    const payload = { parameters: {}, geometries: [leftPolygon, rightPolygon] };
+    const resPost = await request(app).post('/data-filters').send(payload);
+    const resCoverage = await request(app).get(`/data-filters/${resPost.body.id}/coverage`);
+    const result: FilteredData = resCoverage.body;
+
+    const matches = result.datasets.filter(ds => ds.id === dataset.slug);
+    expect(matches.length).toBe(1);
+    expect(matches[0].dataset_layer_count).toBe(6); // 3 layers per geometry, summed
+  });
+
+  it('geometryOnly=true returns more results than geometryOnly=false when a soil property filter is active', async () => {
+    // Dataset A has 'ph', dataset B has 'organic_matter' — both within filteringPolygon
+    await addSyntheticData({ ...syntheticDataOptions, id: 30, soilPropertyNames: ['ph'] });
+    await addSyntheticData({ ...syntheticDataOptions, id: 31, soilPropertyNames: ['organic_matter'] });
+
+    // Filter restricts to only 'ph' soil property
+    const payload = {
+      parameters: { soil_properties: ['ph'] },
+      geometries: [filteringPolygon],
+    };
+    const resPost = await request(app).post('/data-filters').send(payload);
+    const id = resPost.body.id;
+
+    const resWithFilter = await request(app).get(`/data-filters/${id}/coverage`);
+    const resGeometryOnly = await request(app).get(`/data-filters/${id}/coverage?geometryOnly=true`);
+
+    expect(resWithFilter.statusCode).toBe(StatusCodes.OK);
+    expect(resGeometryOnly.statusCode).toBe(StatusCodes.OK);
+
+    const withFilter: FilteredData = resWithFilter.body;
+    const geometryOnly: FilteredData = resGeometryOnly.body;
+
+    // geometryOnly ignores the soil_properties parameter so it returns all datasets in the geometry
+    expect(geometryOnly.datasets.length).toBeGreaterThan(withFilter.datasets.length);
+
+    // The soil-property-filtered result should only include the 'ph' dataset
+    const filteredIds = withFilter.datasets.map(ds => ds.id);
+    expect(filteredIds.every(id => withFilter.datasets.find(ds => ds.id === id)?.soil_properties?.includes('ph'))).toBe(true);
+
+    // The geometryOnly result should include both datasets
+    const geometryOnlyIds = geometryOnly.datasets.map(ds => ds.id);
+    const phDataset = geometryOnly.datasets.find(ds => ds.soil_properties?.includes('ph'));
+    const omDataset = geometryOnly.datasets.find(ds => ds.soil_properties?.includes('organic_matter'));
+    expect(phDataset).toBeDefined();
+    expect(omDataset).toBeDefined();
+    expect(geometryOnlyIds).toContain(phDataset!.id);
+    expect(geometryOnlyIds).toContain(omDataset!.id);
+  });
+
+  it('Datasets endpoint returns an array', async () => {
+    const payload = { parameters: {}, geometries: [filteringPolygon] };
+    const resPost = await request(app).post('/data-filters').send(payload);
+    const resDatasets = await request(app).get(`/data-filters/${resPost.body.id}/datasets`);
+    expect(resDatasets.statusCode).toBe(200);
+    expect(Array.isArray(resDatasets.body)).toBe(true);
+  });
+
+  it('Datasets should return same datasets as coverage', async () => {
+    for (let i = 0; i < 5; i++) {
+      await addSyntheticData({ ...syntheticDataOptions, id: i, soilPropertyNames: [`${i}`] });
+    }
+    const payload = {
+      parameters: {},
+      geometries: [filteringPolygon],
+    };
+    // Create filter
+    const resPost = await request(app).post('/data-filters').send(payload);
+    const id = resPost.body.id;
+    // Get datasets
+    const resDatasets = await request(app).get(`/data-filters/${id}/datasets`);
+    const resultDatasets: FilteredDataset[] = resDatasets.body;
+    // Get coverage
+    const resCoverage = await request(app).get(`/data-filters/${id}/coverage`);
+    const resultCoverage: FilteredData = resCoverage.body;
+    const coverageDatasets: FilteredDatasetSummary[] = resultCoverage.datasets;
+    expect(resultDatasets.length).toBe(coverageDatasets.length);
+    expect(resultDatasets.map(ds => ds.id).sort()).toEqual(coverageDatasets.map(ds => ds.id).sort());
+    expect(resultDatasets.map(ds => ds.name).sort()).toEqual(coverageDatasets.map(ds => ds.name).sort());
+    expect(resultDatasets.map(ds => ds.data_type).sort()).toEqual(coverageDatasets.map(ds => ds.data_type).sort());
+  });
+
+  it('Datasets should not include datasets outside the geometry', async () => {
+    const { dataset } = await addSyntheticData({ ...syntheticDataOptions, id: 99, spatial_extent: [10, 10, 11, 11] });
+    const payload = { parameters: {}, geometries: [filteringPolygon] };
+    const resPost = await request(app).post('/data-filters').send(payload);
+    const resDatasets = await request(app).get(`/data-filters/${resPost.body.id}/datasets`);
+    expect(resDatasets.statusCode).toBe(StatusCodes.OK);
+    const ids = (resDatasets.body as FilteredDataset[]).map(ds => ds.id);
+    expect(ids).not.toContain(dataset.slug);
   });
 });

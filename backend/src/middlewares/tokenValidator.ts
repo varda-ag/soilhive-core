@@ -58,57 +58,51 @@ export const tokenValidator = async (req: Request, scopes: string[]): Promise<bo
     return false;
   }
 
-  try {
-    // Check if token comes from an internal request
-    const decodedInternal = jwt.verify(tokenString, process.env.SELF_SIGNING_SECRET!, {
-      algorithms: ['HS256'],
-    }) as JwtPayload;
-    if (typeof decodedInternal === 'string' && decodedInternal === 'internal-request') {
-      return true;
-    }
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  } catch (_: any) {
-    // Not an internal token, proceed with normal validation
-  }
-
   // First token decode to get the kid from header
   const decodedHeader = jwt.decode(tokenString, { complete: true });
   if (!decodedHeader || typeof decodedHeader === 'string') {
-    throw new ErrorResponse('Invalid token (header decode failure)', StatusCodes.UNAUTHORIZED);
+    throw new ErrorResponse('Invalid token: header decode failure', StatusCodes.UNAUTHORIZED);
   }
 
   const kid = decodedHeader.header.kid;
   if (!kid) {
-    throw new ErrorResponse('Invalid token (no kid)', StatusCodes.UNAUTHORIZED);
+    throw new ErrorResponse('Invalid token: no kid', StatusCodes.UNAUTHORIZED);
   }
 
-  try {
-    const publicKey = authConfig.authMode === AuthModes.OIDC ? await getSigningKeyAsync(kid) : process.env.SELF_SIGNING_SECRET!;
-    const decoded = await verifyAsync(tokenString, publicKey);
-    if (!decoded) {
-      throw new ErrorResponse('Invalid token (decode failure)', StatusCodes.UNAUTHORIZED);
+  const secretOrPublicKey = [process.env.SELF_SIGNING_SECRET!]; // Password auth or internal requests
+  if (authConfig.authMode === AuthModes.OIDC) {
+    try {
+      secretOrPublicKey.push(await getSigningKeyAsync(kid));
+    } catch (err) {
+      throw new ErrorResponse(`Invalid token: ${(err as Error).message}`, StatusCodes.UNAUTHORIZED);
     }
-    if (!decoded.sub) {
-      throw new ErrorResponse('Invalid token (no sub)', StatusCodes.UNAUTHORIZED);
-    }
-    const decodedToken = decoded as Token;
-    assertTokenScope(decodedToken, scopes);
-    req.customData.token = decodedToken;
-    req.customData.token.raw = tokenString; // Putting original token string here
-    req.customData.token.isSuperAdmin = function () {
-      return this.scope?.includes(TokenScopes.SUPER_ADMIN);
-    };
-    req.customData.token.isDataAdmin = function () {
-      return this.scope?.includes(TokenScopes.DATA_ADMIN);
-    };
-    return true;
-  } catch (err: any) {
-    if (err instanceof ErrorResponse) {
-      throw err;
-    }
-    const errorMessage = err['name'] === 'TokenExpiredError' ? 'Token has expired' : `Invalid token: ${err.message}`;
-    throw new ErrorResponse(errorMessage, StatusCodes.UNAUTHORIZED);
   }
+  const errors: any[] = [];
+  for (const key of secretOrPublicKey) {
+    try {
+      const decoded = await verifyAsync(tokenString, key);
+      if (!decoded.sub) {
+        errors.push(new ErrorResponse('Invalid token: no sub', StatusCodes.UNAUTHORIZED));
+        continue;
+      }
+      const decodedToken = decoded as Token;
+      assertTokenScope(decodedToken, scopes);
+      req.customData.token = decodedToken;
+      req.customData.token.raw = tokenString; // Putting original token string here
+      req.customData.token.isSuperAdmin = decodedToken.scope?.includes(TokenScopes.SUPER_ADMIN);
+      req.customData.token.isDataAdmin = decodedToken.scope?.includes(TokenScopes.DATA_ADMIN);
+      req.customData.token.isInternalRequest = decodedToken.scope?.includes(TokenScopes.INTERNAL_REQUEST); // Always false
+      return true;
+    } catch (err: any) {
+      errors.push(err);
+    }
+  }
+  const err = errors[errors.length - 1];
+  if (err instanceof ErrorResponse) {
+    throw err;
+  }
+  const errorMessage = err['name'] === 'TokenExpiredError' ? 'Token has expired' : `Invalid token: ${err.message}`;
+  throw new ErrorResponse(errorMessage, StatusCodes.UNAUTHORIZED);
 };
 
 const assertTokenScope = (token: Token, scopes: string[]) => {

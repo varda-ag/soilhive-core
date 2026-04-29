@@ -110,16 +110,27 @@ export class CreateSchema1775600000000 implements MigrationInterface {
                                     lv_exists boolean;
                                     begin
                                     -- Generate the base slug
-                                    SELECT ARRAY[pv1.name, t.technique::text, pv2.name, pv3.name, pv4.name, pv5.name, pv6.name, pv7.name]
-                                    INTO lv_values_names
-                                    FROM (SELECT NEW.*) AS t
-                                    LEFT JOIN vocabulary pv1 ON COALESCE(NEW.sample_pretreatment_id, OLD.sample_pretreatment_id)=pv1.id and pv1.category='sample_pretreatment'
-                                    LEFT JOIN vocabulary pv2 ON COALESCE(NEW.laboratory_method_id, OLD.laboratory_method_id)=pv2.id and pv2.category='laboratory_method'
-                                    LEFT JOIN vocabulary pv3 ON COALESCE(NEW.extractant_concentration_id, OLD.extractant_concentration_id)=pv3.id and pv3.category='extractant_concentration'
-                                    LEFT JOIN vocabulary pv4 ON COALESCE(NEW.extraction_ratio_id, OLD.extraction_ratio_id)=pv4.id and pv4.category='extraction_ratio'
-                                    LEFT JOIN vocabulary pv5 ON COALESCE(NEW.extraction_base_id, OLD.extraction_base_id)=pv5.id and pv5.category='extraction_base'
-                                    LEFT JOIN vocabulary pv6 ON COALESCE(NEW.measurement_procedure_id, OLD.measurement_procedure_id)=pv6.id and pv6.category='measurement_procedure'
-                                    LEFT JOIN vocabulary pv7 ON COALESCE(NEW.limit_of_detection_id, OLD.limit_of_detection_id)=pv7.id and pv7.category='limit_of_detection';
+                                    EXECUTE format(
+                                      'SELECT ARRAY[pv1.name, $1, pv2.name, pv3.name, pv4.name, pv5.name, pv6.name, pv7.name]
+                                       FROM (SELECT 1) AS dummy
+                                       LEFT JOIN %1$I.vocabulary pv1 ON pv1.id = $2  AND pv1.category = ''sample_pretreatment''
+                                       LEFT JOIN %1$I.vocabulary pv2 ON pv2.id = $3  AND pv2.category = ''laboratory_method''
+                                       LEFT JOIN %1$I.vocabulary pv3 ON pv3.id = $4  AND pv3.category = ''extractant_concentration''
+                                       LEFT JOIN %1$I.vocabulary pv4 ON pv4.id = $5  AND pv4.category = ''extraction_ratio''
+                                       LEFT JOIN %1$I.vocabulary pv5 ON pv5.id = $6  AND pv5.category = ''extraction_base''
+                                       LEFT JOIN %1$I.vocabulary pv6 ON pv6.id = $7  AND pv6.category = ''measurement_procedure''
+                                       LEFT JOIN %1$I.vocabulary pv7 ON pv7.id = $8  AND pv7.category = ''limit_of_detection''',
+                                      TG_TABLE_SCHEMA
+                                    ) INTO lv_values_names
+                                    USING
+                                      NEW.technique::text,
+                                      COALESCE(NEW.sample_pretreatment_id,      OLD.sample_pretreatment_id),
+                                      COALESCE(NEW.laboratory_method_id,        OLD.laboratory_method_id),
+                                      COALESCE(NEW.extractant_concentration_id, OLD.extractant_concentration_id),
+                                      COALESCE(NEW.extraction_ratio_id,         OLD.extraction_ratio_id),
+                                      COALESCE(NEW.extraction_base_id,          OLD.extraction_base_id),
+                                      COALESCE(NEW.measurement_procedure_id,    OLD.measurement_procedure_id),
+                                      COALESCE(NEW.limit_of_detection_id,       OLD.limit_of_detection_id);
 
                                     EXECUTE format('SELECT %I.slugify(concat_ws(''-'', %L))', TG_TABLE_SCHEMA, array_to_string(lv_values_names, ', ')) into lv_base_slug;
                                     lv_new_slug := lv_base_slug;
@@ -287,7 +298,9 @@ export class CreateSchema1775600000000 implements MigrationInterface {
     await queryRunner.query(`CREATE INDEX idx_geometry_geography ON "features" USING gist (((geom)::geography))`);
     await queryRunner.query(`CREATE INDEX idx_geometry_type ON "features" USING btree (st_geometrytype(geom))`);
     await queryRunner.query(`CREATE INDEX idx_layers_depthrange on "layers" using gist(int4range(min_depth, max_depth))`);
-    await queryRunner.query(`CREATE INDEX "IDX_vocabulary_category_id" ON "vocabulary" ("category", "id")`);
+    await queryRunner.query(
+      `CREATE UNIQUE INDEX "IDX_vocabulary_id_category_WHERE_deleted_at_IS_NULL" ON "vocabulary" ("id", "category") WHERE "deleted_at" IS NULL`,
+    );
     await queryRunner.query(`CREATE INDEX "idx_dataset_layers_dataset" ON "dataset_layers" USING btree ("dataset_id")`);
     await queryRunner.query(`CREATE INDEX "idx_dataset_layers_feature" ON "dataset_layers" USING btree ("feature_id")`);
     await queryRunner.query(`CREATE INDEX "idx_entitlements_data_gin" ON "entitlements" USING GIN (data)`);
@@ -395,7 +408,7 @@ export class CreateSchema1775600000000 implements MigrationInterface {
                                         BEFORE INSERT OR update of property_name ON soil_properties
                                         FOR EACH ROW EXECUTE PROCEDURE slug_generate_store_old('{$1.property_name}')`);
     await queryRunner.query(
-      `CREATE OR REPLACE TRIGGER "procedure_slug" BEFORE INSERT OR UPDATE ON "procedures" FOR EACH ROW EXECUTE FUNCTION slug_procedures_generate_store_old()`,
+      `CREATE OR REPLACE TRIGGER "procedure_slug" BEFORE INSERT OR UPDATE OF technique, sample_pretreatment_id, laboratory_method_id, extractant_concentration_id, extraction_ratio_id, extraction_base_id, measurement_procedure_id, limit_of_detection_id ON "procedures" FOR EACH ROW EXECUTE FUNCTION slug_procedures_generate_store_old()`,
     );
     await queryRunner.query(`CREATE OR REPLACE TRIGGER property_category_slug
                                         BEFORE INSERT OR update of category_name ON soil_property_categories
