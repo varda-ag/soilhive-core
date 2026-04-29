@@ -1,77 +1,226 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router';
-import { useTranslation } from 'react-i18next';
-import { Button, TextArea } from 'components/UI';
-import useNotifications from 'hooks/useNotifications';
-import { useMetadataMutation } from 'hooks/useMetadataMutation';
-import { useDataset } from 'hooks/useDatasets';
+// import { useTranslation } from 'react-i18next';
+import { useMetadata } from 'hooks/useMetadata';
 import styles from './Metadata.module.scss';
+import Worm from 'assets/images/worm.svg?react';
 import SoilhiveSimpleMap from 'components/Map/SoilhiveSimpleMap';
 import { Logo } from 'components/Logo/Logo';
-import { BACKEND_BASE_URL } from '../utilities/environmentVariables';
+import { Button } from 'components/UI';
+import { htmlDisplay } from '../utilities/html-display';
 
 export default function Metadata() {
   const { id } = useParams();
-  const { t } = useTranslation('admin');
-  const [value, setValue] = useState('');
+  // const { t } = useTranslation('admin');
   const [isMounted, setIsMounted] = useState(false);
   useEffect(() => setIsMounted(true), []);
-  const { data: dataset, isLoading, isError } = useDataset(id);
-  const { mutateAsync, isPending } = useMetadataMutation();
-  const { showNotification } = useNotifications();
+  const { dataset, isLoading, isError } = useMetadata(id);
 
-  const handleSave = async () => {
-    try {
-      await mutateAsync({ value });
-      showNotification({
-        id: 'metadata-save-success',
-        title: t('metadata.notification.success.title'),
-        message: t('metadata.notification.success.message'),
-        type: 'success',
-      });
-    } catch {
-      showNotification({
-        id: 'metadata-save-error',
-        title: t('metadata.notification.error.title'),
-        message: t('metadata.notification.error.message'),
-        type: 'error',
-      });
-    }
-  };
+  if (isLoading) return <p>Loading...</p>;
+  if (isError) return <p>Failed to load dataset.</p>;
 
   return (
     <div className={styles.Page}>
-      <Logo />
-      <h1 className={styles.Title}>{t('metadata.title')}</h1>
-      <p>Dataset ID: {id}</p>
-      <p>BACKEND_BASE_URL: {BACKEND_BASE_URL}</p>
-      {isLoading && <p>Loading...</p>}
-      {isError && <p>Failed to load dataset.</p>}
-      {dataset && (
-        <details>
-          <summary>Dataset</summary>
-          <pre>{JSON.stringify(dataset, null, 2)}</pre>
-        </details>
-      )}
-      <div className="map" style={{ width: '300px', height: '300px' }}>
-        {isMounted && (
-          <SoilhiveSimpleMap
-            geometryFeature={
-              dataset?.spatial_extent
-                ? { type: 'FeatureCollection', features: [{ type: 'Feature', properties: {}, geometry: dataset.spatial_extent }] }
-                : undefined
-            }
-          />
-        )}
+      <div className={styles.Logo}>
+        <Logo />
       </div>
-      <div className={styles.Form}>
-        <TextArea label={t('metadata.label')} placeholder={t('metadata.placeholder')} value={value} rows={6} onChange={setValue} />
-        <div className={styles.Actions}>
-          <Button onClick={handleSave} isDisabled={isPending}>
-            {isPending ? t('metadata.saving') : t('metadata.save')}
-          </Button>
+      <div className={styles.BannerContainer}>
+        <div className={styles.Banner}>
+          <div className={styles.Left}>
+            <Worm className={styles.Worm} />
+            <h1 className={styles.Title}>{dataset!.name} metadata</h1>
+            <p className={styles.Introduction}>Take a look a the metadata general information overview</p>
+            <div className={styles.Buttons}>
+              <Button type="primary">Share metadata</Button>
+              <Button type="secondary">Go to SoilHive platform</Button>
+            </div>
+          </div>
+          <div className={styles.Right}>
+            <p className={styles.Caption}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path
+                  fillRule="evenodd"
+                  clipRule="evenodd"
+                  d="M13.7231 1.52082C14.5124 1.12618 15.4354 1.09905 16.2465 1.44667L21.1818 3.56177C22.2848 4.03451 23 5.11912 23 6.31921V18.9673C23 21.1211 20.7978 22.5732 18.8182 21.7248L15.4587 20.285C15.1883 20.1691 14.8806 20.1781 14.6175 20.3097L10.2769 22.48C9.48759 22.8746 8.56458 22.9018 7.75348 22.5542L2.81824 20.4391C1.71519 19.9663 1 18.8817 1 17.6816V5.03349C1 2.87975 3.20215 1.42765 5.18176 2.27606L8.54132 3.71587C8.81169 3.83174 9.11936 3.8227 9.38246 3.69115L13.7231 1.52082ZM16 3.51695V18.3536C16.0831 18.3809 16.1654 18.4119 16.2465 18.4467L19.6061 19.8865C20.2659 20.1693 21 19.6852 21 18.9673V6.31921C21 5.91918 20.7616 5.55764 20.3939 5.40006L16 3.51695ZM14 18.3994V3.61845L10.2769 5.48001C10.1862 5.52533 10.0938 5.56581 10 5.60143V20.3824L13.7231 18.5208C13.8138 18.4755 13.9062 18.435 14 18.3994ZM7.75348 5.55416C7.83462 5.58893 7.91687 5.61995 8 5.64723V20.4839L3.60608 18.6008C3.2384 18.4432 3 18.0816 3 17.6816V5.03349C3 4.31558 3.73405 3.83155 4.39392 4.11435L7.75348 5.55416Z"
+                  fill="#0F0F0F"
+                />
+              </svg>
+              Map overview
+            </p>
+            <div className={styles.MapContainer}>
+              <div className={styles.Map}>
+                {isMounted && (
+                  <SoilhiveSimpleMap
+                    geometryFeature={
+                      dataset?.spatial_extent
+                        ? { type: 'FeatureCollection', features: [{ type: 'Feature', properties: {}, geometry: dataset.spatial_extent }] }
+                        : undefined
+                    }
+                    showNavigation={false}
+                  />
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
+
+      <div className={styles.Content}>
+        <div className={styles.DatasetProperties}>
+          <div className={styles.Row}>
+            <p className={styles.Label}>
+              <strong>Name:</strong>
+            </p>
+            <div className={styles.Text}>{htmlDisplay(dataset?.name)}</div>
+          </div>
+          <div className={styles.Row}>
+            <p className={styles.Label}>
+              <strong>Full name:</strong>
+            </p>
+            <div className={styles.Text}>{htmlDisplay(dataset?.full_name)}</div>
+          </div>
+          <div className={styles.Row}>
+            <p className={styles.Label}>
+              <strong>Version:</strong>
+            </p>
+            <div className={styles.Text}>{htmlDisplay(dataset?.version)}</div>
+          </div>
+          <div className={styles.Row}>
+            <p className={styles.Label}>
+              <strong>Description:</strong>
+            </p>
+            <div className={styles.Text}>{htmlDisplay(dataset?.description)}</div>
+          </div>
+          <div className={styles.Row}>
+            <p className={styles.Label}>
+              <strong>Author:</strong>
+            </p>
+            <div className={styles.Text}>{htmlDisplay(dataset?.author)}</div>
+          </div>
+          <div className={styles.Row}>
+            <p className={styles.Label}>
+              <strong>Data producer:</strong>
+            </p>
+            <div className={styles.Text}>{htmlDisplay(dataset?.data_producer)}</div>
+          </div>
+          <div className={styles.Row}>
+            <p className={styles.Label}>
+              <strong>Variables measured:</strong>
+            </p>
+            <div className={styles.Text}>{htmlDisplay(dataset?.soilProperties?.join(', '))}</div>
+          </div>
+          <div className={styles.Row}>
+            <p className={styles.Label}>
+              <strong>Min Soil Depth (cm):</strong>
+            </p>
+            <div className={styles.Text}>{htmlDisplay((dataset?.soil_depth as { min?: number } | null | undefined)?.min?.toString())}</div>
+          </div>
+          <div className={styles.Row}>
+            <p className={styles.Label}>
+              <strong>Max Soil Depth (cm):</strong>
+            </p>
+            <div className={styles.Text}>{htmlDisplay((dataset?.soil_depth as { max?: number } | null | undefined)?.max?.toString())}</div>
+          </div>
+          <div className={styles.Row}>
+            <p className={styles.Label}>
+              <strong>GIS Data Type:</strong>
+            </p>
+            <div className={styles.Text}>{htmlDisplay(dataset?.gis_datatype)}</div>
+          </div>
+          <div className={styles.Row}>
+            <p className={styles.Label}>
+              <strong>Spatial resolution:</strong>
+            </p>
+            <div className={styles.Text}>{htmlDisplay(dataset?.spatial_resolution)}</div>
+          </div>
+          <div className={styles.Row}>
+            <p className={styles.Label}>
+              <strong>Reference coverage start:</strong>
+            </p>
+            <div className={styles.Text}>{htmlDisplay(dataset?.reference_period_start)}</div>
+          </div>
+          <div className={styles.Row}>
+            <p className={styles.Label}>
+              <strong>Reference coverage end:</strong>
+            </p>
+            <div className={styles.Text}>{htmlDisplay(dataset?.reference_period_stop)}</div>
+          </div>
+          <div className={styles.Row}>
+            <p className={styles.Label}>
+              <strong>Publication date:</strong>
+            </p>
+            <div className={styles.Text}>{htmlDisplay(dataset?.publication_date)}</div>
+          </div>
+          <div className={styles.Row}>
+            <p className={styles.Label}>
+              <strong>License:</strong>
+            </p>
+            <div className={styles.Text}>
+              {htmlDisplay(dataset?.licenses?.map(l => `<a target="_blank" href=${l.url}>${l.full_name}</a>`).join('<br />'))}
+            </div>
+          </div>
+          <div className={styles.Row}>
+            <p className={styles.Label}>
+              <strong>Citation:</strong>
+            </p>
+            <div className={styles.Text}>{htmlDisplay(dataset?.citation)}</div>
+          </div>
+        </div>
+      </div>
+
+      <footer className={styles.Footer}>
+        <div className={styles.Container}>
+          <div className={styles.FooterTop}>
+            <a href="https://www.varda.ag/" target="_blank" className={styles.FooterLink} rel="noreferrer">
+              Varda Foundation website
+            </a>
+            <a href="https://www.varda.ag/#contact" target="_blank" className={styles.FooterLink} rel="noreferrer">
+              Contact us
+            </a>
+          </div>
+          <div className={styles.FooterBottom}>
+            <p className={styles.FooterCopy}>SoilHive is a Varda Foundation platform</p>
+            <div className={styles.FooterSocials}>
+              <a
+                href="https://www.linkedin.com/company/varda-field-data-exchange/"
+                target="_blank"
+                className="footer-social-link"
+                rel="noreferrer"
+              >
+                <svg width="39" height="39" viewBox="0 0 39 39" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path
+                    d="M11.9824 32.1656C11.9824 32.2101 11.9463 32.2462 11.9018 32.2462H6.37314C6.32862 32.2462 6.29253 32.2101 6.29253 32.1656V14.0336C6.29253 13.989 6.32862 13.953 6.37314 13.953H11.9018C11.9463 13.953 11.9824 13.989 11.9824 14.0336V32.1656ZM9.16806 11.4445C8.27073 11.4445 7.49576 11.1182 6.84316 10.4656C6.19056 9.81301 5.86426 9.03804 5.86426 8.14071C5.86426 7.24339 6.19056 6.46842 6.84316 5.81582C7.49576 5.16322 8.27073 4.83691 9.16806 4.83691C10.0654 4.83691 10.8404 5.16322 11.493 5.81582C12.1456 6.46842 12.4719 7.24339 12.4719 8.14071C12.4719 8.71174 12.3087 9.26238 11.9824 9.79261C11.6969 10.2821 11.289 10.6899 10.7588 11.0162C10.2693 11.3018 9.73909 11.4445 9.16806 11.4445ZM33.2736 32.1656C33.2736 32.2101 33.2375 32.2462 33.1929 32.2462H27.6643C27.6198 32.2462 27.5837 32.2101 27.5837 32.1656V23.3137C27.5837 22.6203 27.5633 22.0697 27.5225 21.6618C27.4817 21.2132 27.3797 20.7237 27.2166 20.1935C27.0534 19.6224 26.7475 19.1942 26.2989 18.9087C25.891 18.6231 25.3404 18.4804 24.647 18.4804C23.301 18.4804 22.3833 18.9087 21.8938 19.7652C21.4451 20.6217 21.2208 21.7638 21.2208 23.1914V32.1656C21.2208 32.2101 21.1847 32.2462 21.1402 32.2462H15.6115C15.567 32.2462 15.5309 32.2101 15.5309 32.1656V14.0336C15.5309 13.989 15.567 13.953 15.6115 13.953H20.9567C21.0012 13.953 21.0373 13.989 21.0373 14.0336V16.4236C21.0373 16.4445 21.0542 16.4614 21.0751 16.4614V16.4614C21.0894 16.4614 21.1025 16.4533 21.109 16.4405C21.5178 15.6338 22.1873 14.9474 23.1174 14.3812C24.0556 13.7694 25.1772 13.4635 26.4824 13.4635C27.8692 13.4635 29.0113 13.6878 29.9086 14.1365C30.8467 14.5444 31.5401 15.1766 31.9888 16.0331C32.4782 16.8489 32.8045 17.7462 32.9677 18.7251C33.1716 19.704 33.2736 20.8665 33.2736 22.2125V32.1656Z"
+                    stroke="white"
+                    strokeWidth="1.93477"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </a>
+              <a
+                href="https://www.youtube.com/channel/UCFx4LohqvmBJHyIYChBiong"
+                target="_blank"
+                className="footer-social-link"
+                rel="noreferrer"
+              >
+                <svg width="39" height="39" viewBox="0 0 39 39" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path
+                    fillRule="evenodd"
+                    clipRule="evenodd"
+                    d="M15.9516 11.6396C15.4615 11.3596 14.8595 11.3616 14.3713 11.6449C13.8831 11.9282 13.5827 12.4499 13.5827 13.0143V25.681C13.5827 26.2454 13.8831 26.7671 14.3713 27.0504C14.8595 27.3337 15.4615 27.3357 15.9516 27.0557L27.0349 20.7224C27.5282 20.4405 27.8327 19.9158 27.8327 19.3477C27.8327 18.7795 27.5282 18.2548 27.0349 17.9729L15.9516 11.6396ZM23.058 19.3477L16.7493 22.9526V15.7427L23.058 19.3477Z"
+                    fill="white"
+                  />
+                  <path
+                    fillRule="evenodd"
+                    clipRule="evenodd"
+                    d="M0.916016 19.3477C0.916016 13.4106 0.916016 10.442 2.42796 8.36102C2.91626 7.68894 3.5073 7.0979 4.17938 6.6096C6.2604 5.09766 9.22894 5.09766 15.166 5.09766H24.666C30.6031 5.09766 33.5716 5.09766 35.6526 6.6096C36.3247 7.0979 36.9158 7.68894 37.4041 8.36102C38.916 10.442 38.916 13.4106 38.916 19.3477C38.916 25.2847 38.916 28.2533 37.4041 30.3343C36.9158 31.0064 36.3247 31.5974 35.6526 32.0857C33.5716 33.5977 30.6031 33.5977 24.666 33.5977H15.166C9.22894 33.5977 6.2604 33.5977 4.17938 32.0857C3.5073 31.5974 2.91626 31.0064 2.42796 30.3343C0.916016 28.2533 0.916016 25.2847 0.916016 19.3477ZM15.166 8.26432H24.666C27.7051 8.26432 29.73 8.26867 31.2643 8.43489C32.7392 8.5947 33.3806 8.87308 33.7913 9.17149C34.1946 9.46447 34.5492 9.81909 34.8422 10.2223C35.1406 10.6331 35.419 11.2744 35.5788 12.7494C35.745 14.2836 35.7494 16.3086 35.7494 19.3477C35.7494 22.3867 35.745 24.4117 35.5788 25.9459C35.419 27.4209 35.1406 28.0622 34.8422 28.473C34.5492 28.8762 34.1946 29.2308 33.7913 29.5238C33.3806 29.8222 32.7392 30.1006 31.2643 30.2604C29.73 30.4266 27.7051 30.431 24.666 30.431H15.166C12.1269 30.431 10.102 30.4266 8.56777 30.2604C7.0928 30.1006 6.45143 29.8222 6.0407 29.5238C5.63745 29.2308 5.28283 28.8762 4.98985 28.473C4.69144 28.0622 4.41305 27.4209 4.25325 25.9459C4.08703 24.4117 4.08268 22.3867 4.08268 19.3477C4.08268 16.3086 4.08703 14.2836 4.25325 12.7494C4.41305 11.2744 4.69144 10.6331 4.98985 10.2223C5.28283 9.81909 5.63745 9.46447 6.0407 9.17149C6.45143 8.87308 7.0928 8.5947 8.56777 8.43489C10.102 8.26867 12.1269 8.26432 15.166 8.26432Z"
+                    fill="white"
+                  />
+                </svg>
+              </a>
+            </div>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

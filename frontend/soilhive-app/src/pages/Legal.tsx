@@ -10,7 +10,9 @@ export default function Legal() {
   }
   return (
     <div className={styles.Layout}>
-      <main className={styles.Content}>{htmlDisplay(themeConfig.termsAndConditionsHtml)}</main>
+      <main className={styles.Content}>
+        <div className="content">{htmlDisplay(themeConfig.termsAndConditionsHtml)}</div>
+      </main>
     </div>
   );
 }
