@@ -7,6 +7,20 @@ export const transactionMiddleware = async (req: Request, res: Response, next: N
   const queryRunner = dataSource.createQueryRunner();
   await queryRunner.connect();
 
+  // Get the PID for this request connection only
+  const [{ pid: backendPid }] = await queryRunner.query('SELECT pg_backend_pid() as pid');
+
+  const cancelBackend = async () => {
+    try {
+      const cancelRunner = dataSource.createQueryRunner();
+      await cancelRunner.connect();
+      await cancelRunner.query('SELECT pg_cancel_backend($1)', [backendPid]);
+      await cancelRunner.release();
+    } catch {
+      // best-effort; ignore if the backend already finished
+    }
+  };
+
   if (req.method === 'GET') {
     if (schema) {
       const escapedSchema = `"${schema.replaceAll('"', '""')}"`;
@@ -16,6 +30,7 @@ export const transactionMiddleware = async (req: Request, res: Response, next: N
     req.customData = req.customData || { entityManager: queryRunner.manager };
 
     res.on('close', async () => {
+      if (!res.writableEnded) await cancelBackend();
       await queryRunner.release();
     });
 
@@ -103,7 +118,10 @@ export const transactionMiddleware = async (req: Request, res: Response, next: N
   //     (e.g. client disconnect, or a route that never responds) always roll
   //     back so we never leave an open transaction. ---
   res.on('close', async () => {
-    if (!cleaned) await cleanup(false);
+    if (!cleaned) {
+      if (!res.writableEnded) await cancelBackend();
+      await cleanup(false);
+    }
   });
 
   next();
