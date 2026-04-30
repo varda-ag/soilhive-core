@@ -32,7 +32,9 @@ export default function Metadata() {
             <p className={styles.Introduction}>Take a look a the metadata general information overview</p>
             <div className={styles.Buttons}>
               <Button type="primary">Share metadata</Button>
-              <Button type="secondary" href="/">Go to SoilHive platform</Button>
+              <Button type="secondary" href="/">
+                Go to SoilHive platform
+              </Button>
             </div>
           </div>
           <div className={styles.Right}>
