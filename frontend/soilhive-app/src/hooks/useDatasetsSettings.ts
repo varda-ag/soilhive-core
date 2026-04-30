@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
+import { useQueryClient } from '@tanstack/react-query';
 import { ADMIN_PATHS } from '../configuration/admin';
 import { isValidEmail } from '../utilities/validation';
 import { useAuthContext } from '../auth/AuthContextProvider';
@@ -19,6 +20,7 @@ export function useDatasetsSettings(datasetId: string | undefined) {
   const { t } = useTranslation('admin');
   const invalidEmailMessage = t('datasets.settings.access.email_invalid');
 
+  const queryClient = useQueryClient();
   const { authMode } = useAuthContext();
   const isOidcAuth = authMode === AuthModes.OIDC;
 
@@ -98,9 +100,10 @@ export function useDatasetsSettings(datasetId: string | undefined) {
   async function handlePublishProceed() {
     setIsPublishWarningVisible(false);
     await updateDataset.mutateAsync({ visibility });
-    if (visibility === 'private' && accessEmails.length > 0) {
+    if (visibility === 'private') {
       const payload = Object.fromEntries(accessEmails.map(({ email }) => [email, ['preview', 'download'] as EntitlementCapability[]]));
       await updateEntitlements.mutateAsync(payload);
+      await queryClient.invalidateQueries({ queryKey: ['dataset-entitlements', datasetId] });
     }
     navigate(ADMIN_PATHS.DATASETS);
   }
