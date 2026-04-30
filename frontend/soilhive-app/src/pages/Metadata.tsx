@@ -8,6 +8,17 @@ import SoilhiveSimpleMap from 'components/Map/SoilhiveSimpleMap';
 import { Logo } from 'components/Logo/Logo';
 import { Button } from 'components/UI';
 import { htmlDisplay } from '../utilities/isomorphicHTMLDisplay';
+import { getMetadataHeadValues } from '../utilities/buildMetadataHead';
+
+function upsertMeta(selector: string, attrName: 'name' | 'property', attrValue: string, content: string) {
+  let el = document.head.querySelector<HTMLMetaElement>(selector);
+  if (!el) {
+    el = document.createElement('meta');
+    el.setAttribute(attrName, attrValue);
+    document.head.appendChild(el);
+  }
+  if (el.getAttribute('content') !== content) el.setAttribute('content', content);
+}
 
 export default function Metadata() {
   const { id } = useParams();
@@ -15,6 +26,24 @@ export default function Metadata() {
   const [isMounted, setIsMounted] = useState(false);
   useEffect(() => setIsMounted(true), []);
   const { dataset, isLoading, isError } = useMetadata(id);
+
+  const datasetName = dataset?.name;
+  useEffect(() => {
+    if (!datasetName) return;
+    const v = getMetadataHeadValues(datasetName);
+    document.title = v.title;
+    upsertMeta('meta[name="description"]', 'name', 'description', v.description);
+    upsertMeta('meta[property="og:title"]', 'property', 'og:title', v.title);
+    upsertMeta('meta[property="og:site_name"]', 'property', 'og:site_name', v.siteName);
+    upsertMeta('meta[property="og:url"]', 'property', 'og:url', v.url);
+    upsertMeta('meta[property="og:description"]', 'property', 'og:description', v.description);
+    upsertMeta('meta[property="og:type"]', 'property', 'og:type', 'website');
+    upsertMeta('meta[property="og:image"]', 'property', 'og:image', v.image);
+    upsertMeta('meta[name="twitter:card"]', 'name', 'twitter:card', 'summary');
+    upsertMeta('meta[name="twitter:title"]', 'name', 'twitter:title', v.title);
+    upsertMeta('meta[name="twitter:description"]', 'name', 'twitter:description', v.description);
+    upsertMeta('meta[name="twitter:image"]', 'name', 'twitter:image', v.image);
+  }, [datasetName]);
 
   if (isLoading) return <p>Loading...</p>;
   if (isError) return <p>Failed to load dataset.</p>;

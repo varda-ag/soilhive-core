@@ -10,6 +10,8 @@ import commonTranslations from '../public/locales/en/common.json';
 import { NotificationProvider, ThemeProvider } from './contexts';
 import MetadataPage from './pages/Metadata';
 import { ssrAuthStore } from './auth/ssrAuthStore';
+import { buildMetadataHeadHtml } from './utilities/buildMetadataHead';
+import type { Dataset } from 'types/backend';
 
 // Initialize i18next synchronously for SSR — no HTTP backend, no browser
 // language detector.  Translation files are imported directly so server
@@ -73,7 +75,7 @@ export function matchSSRRoute(pathname: string): string | null {
 export async function render(
   url: string,
   context?: { authToken?: string | null },
-): Promise<{ html: string; dehydratedState: unknown } | null> {
+): Promise<{ html: string; dehydratedState: unknown; head: string } | null> {
   const pathname = new URL(url, 'http://localhost').pathname;
   const matchedPattern = matchSSRRoute(pathname);
   const PageComponent = matchedPattern ? SSR_ROUTES[matchedPattern] : null;
@@ -140,6 +142,15 @@ export async function render(
 
   const dehydratedState = dehydrate(queryClient);
 
+  let head = '';
+  if (datasetMatch) {
+    const datasetId = datasetMatch[1];
+    const cachedDataset = queryClient.getQueryData<Dataset>(['dataset', datasetId]);
+    if (cachedDataset?.name) {
+      head = buildMetadataHeadHtml(cachedDataset.name);
+    }
+  }
+
   try {
     const html = renderToString(
       <QueryClientProvider client={queryClient}>
@@ -155,7 +166,7 @@ export async function render(
       </QueryClientProvider>,
     );
 
-    return { html, dehydratedState };
+    return { html, dehydratedState, head };
   } finally {
     ssrAuthStore.set(null);
   }
