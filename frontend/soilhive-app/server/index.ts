@@ -106,9 +106,7 @@ app.use((req, res) => {
         const { html: ssrContent, dehydratedState, head } = result;
         // SSR route: inject server-rendered HTML and mark the root element so
         // the client-side hydration path is chosen instead of a full SPA boot.
-        const headReplaced = head
-          ? indexHtml.replace('<!--ssr-head-->\n    <title>SoilHive</title>', head)
-          : indexHtml;
+        const headReplaced = head ? indexHtml.replace('<!--ssr-head-->\n    <title>SoilHive</title>', head) : indexHtml;
         const html = headReplaced
           .replace('<div id="root"><!--ssr-outlet--></div>', `<div id="root" data-ssr-page="${matchedPattern}">${ssrContent}</div>`)
           // Replace the external env-config.js reference with an inline script

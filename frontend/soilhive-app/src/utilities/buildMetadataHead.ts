@@ -6,11 +6,7 @@ const SITE_URL = 'https://soilhive.ag/app/';
 const IMAGE_URL = 'https://soilhive.ag/app/images/soilhive-availability.png';
 
 function escapeHtmlAttribute(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/"/g, '&quot;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+  return value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 export function buildMetadataTitle(datasetName: string): string {
