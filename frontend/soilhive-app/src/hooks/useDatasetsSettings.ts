@@ -107,11 +107,14 @@ export function useDatasetsSettings(datasetId: string | undefined) {
   async function handlePublishProceed() {
     setIsPublishWarningVisible(false);
     await updateDataset.mutateAsync({ visibility });
+    await queryClient.invalidateQueries({ queryKey: ['dataset', datasetId] });
+    await queryClient.invalidateQueries({ queryKey: ['datasets'] });
     if (visibility === 'private') {
       const payload = Object.fromEntries(accessEmails.map(({ email }) => [email, ['preview', 'download'] as EntitlementCapability[]]));
       await updateEntitlements.mutateAsync(payload);
       await queryClient.invalidateQueries({ queryKey: ['dataset-entitlements', datasetId] });
     }
+
     navigate(ADMIN_PATHS.DATASETS);
   }
 
