@@ -6,6 +6,7 @@ import { useDatasetEntitlements, useDatasetEntitlementsMutation } from 'hooks/us
 import { useUpdateDatasetVisibilityMutation } from 'hooks/useDatasetMutation';
 import { ADMIN_PATHS } from '../../src/configuration/admin';
 import { queryClientWrapper } from '../queryClientWrapper';
+import useTheme from 'hooks/useTheme';
 
 const mockNavigate = jest.fn();
 const mockMutateAsync = jest.fn().mockResolvedValue({});
@@ -31,12 +32,24 @@ jest.mock('hooks/useDatasetMutation', () => ({
   useUpdateDatasetVisibilityMutation: jest.fn(),
 }));
 
-function setupMocks({ authMode = 'oidc', datasetVisibility = 'public', entitlements = {} } = {}) {
+jest.mock('hooks/useTheme', () => ({
+  __esModule: true,
+  default: jest.fn(),
+}));
+
+function setupMocks({
+  authMode = 'oidc',
+  datasetVisibility = 'public',
+  entitlements = {},
+  privacyPolicyHtml = '',
+  termsAndConditionsHtml = '',
+} = {}) {
   (useAuthContext as jest.Mock).mockReturnValue({ authMode });
   (useDataset as jest.Mock).mockReturnValue({ data: { visibility: datasetVisibility }, isLoading: false });
   (useDatasetEntitlements as jest.Mock).mockReturnValue({ data: entitlements, isLoading: false });
   (useUpdateDatasetVisibilityMutation as jest.Mock).mockReturnValue({ mutateAsync: mockMutateAsync, isPending: false });
   (useDatasetEntitlementsMutation as jest.Mock).mockReturnValue({ mutateAsync: mockMutateAsync, isPending: false });
+  (useTheme as jest.Mock).mockReturnValue({ themeConfig: { privacyPolicyHtml, termsAndConditionsHtml } });
 }
 
 describe('useDatasetsSettings', () => {
@@ -187,10 +200,61 @@ describe('useDatasetsSettings', () => {
   });
 
   describe('handlePublish', () => {
-    it('opens the publish warning dialog', () => {
+    it('opens the publish warning dialog when no legal documents are configured', async () => {
+      setupMocks();
       const { result } = renderHook(() => useDatasetsSettings('dataset-123'), { wrapper: queryClientWrapper });
-      act(() => result.current.handlePublish());
+      await act(async () => result.current.handlePublish());
       expect(result.current.isPublishWarningVisible).toBe(true);
+    });
+
+    it('opens the publish warning dialog when legal document fields are empty strings', async () => {
+      setupMocks({ privacyPolicyHtml: '', termsAndConditionsHtml: '' });
+      const { result } = renderHook(() => useDatasetsSettings('dataset-123'), { wrapper: queryClientWrapper });
+      await act(async () => result.current.handlePublish());
+      expect(result.current.isPublishWarningVisible).toBe(true);
+    });
+
+    it('opens the publish warning dialog when legal document fields are null', async () => {
+      setupMocks({ privacyPolicyHtml: null as unknown as string, termsAndConditionsHtml: null as unknown as string });
+      const { result } = renderHook(() => useDatasetsSettings('dataset-123'), { wrapper: queryClientWrapper });
+      await act(async () => result.current.handlePublish());
+      expect(result.current.isPublishWarningVisible).toBe(true);
+    });
+
+    it('opens the publish warning dialog when legal document fields are whitespace only', async () => {
+      setupMocks({ privacyPolicyHtml: '   ', termsAndConditionsHtml: '   ' });
+      const { result } = renderHook(() => useDatasetsSettings('dataset-123'), { wrapper: queryClientWrapper });
+      await act(async () => result.current.handlePublish());
+      expect(result.current.isPublishWarningVisible).toBe(true);
+    });
+
+    it('opens the publish warning dialog when legal document fields contain only html tags', async () => {
+      setupMocks({ privacyPolicyHtml: '<p></p>', termsAndConditionsHtml: '<p></p>' });
+      const { result } = renderHook(() => useDatasetsSettings('dataset-123'), { wrapper: queryClientWrapper });
+      await act(async () => result.current.handlePublish());
+      expect(result.current.isPublishWarningVisible).toBe(true);
+    });
+
+    it('opens the publish warning dialog when only privacy policy is configured', async () => {
+      setupMocks({ privacyPolicyHtml: '<p>Policy</p>' });
+      const { result } = renderHook(() => useDatasetsSettings('dataset-123'), { wrapper: queryClientWrapper });
+      await act(async () => result.current.handlePublish());
+      expect(result.current.isPublishWarningVisible).toBe(true);
+    });
+
+    it('opens the publish warning dialog when only terms of conditions is configured', async () => {
+      setupMocks({ termsAndConditionsHtml: '<p>Terms</p>' });
+      const { result } = renderHook(() => useDatasetsSettings('dataset-123'), { wrapper: queryClientWrapper });
+      await act(async () => result.current.handlePublish());
+      expect(result.current.isPublishWarningVisible).toBe(true);
+    });
+
+    it('proceeds directly without dialog when both legal documents are configured', async () => {
+      setupMocks({ privacyPolicyHtml: '<p>Policy</p>', termsAndConditionsHtml: '<p>Terms</p>' });
+      const { result } = renderHook(() => useDatasetsSettings('dataset-123'), { wrapper: queryClientWrapper });
+      await act(async () => result.current.handlePublish());
+      expect(result.current.isPublishWarningVisible).toBe(false);
+      await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith(ADMIN_PATHS.DATASETS));
     });
   });
 
@@ -235,17 +299,19 @@ describe('useDatasetsSettings', () => {
     });
 
     it('closes the publish warning dialog', async () => {
+      setupMocks();
       const { result } = renderHook(() => useDatasetsSettings('dataset-123'), { wrapper: queryClientWrapper });
-      act(() => result.current.handlePublish());
+      await act(async () => result.current.handlePublish());
       await act(() => result.current.handlePublishProceed());
       expect(result.current.isPublishWarningVisible).toBe(false);
     });
   });
 
   describe('handlePublishCancel', () => {
-    it('closes the publish warning dialog', () => {
+    it('closes the publish warning dialog', async () => {
+      setupMocks();
       const { result } = renderHook(() => useDatasetsSettings('dataset-123'), { wrapper: queryClientWrapper });
-      act(() => result.current.handlePublish());
+      await act(async () => result.current.handlePublish());
       act(() => result.current.handlePublishCancel());
       expect(result.current.isPublishWarningVisible).toBe(false);
     });

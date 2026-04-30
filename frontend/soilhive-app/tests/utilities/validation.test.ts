@@ -1,4 +1,4 @@
-import { isEmptyString, arraysMatch } from '../../src/utilities/validation';
+import { isEmptyString, arraysMatch, hasTextContent } from '../../src/utilities/validation';
 
 describe('isEmptyString', () => {
   it.each([
@@ -11,6 +11,23 @@ describe('isEmptyString', () => {
     ['0', false],
   ])('isEmptyString(%j) → %s', (input, expected) => {
     expect(isEmptyString(input)).toBe(expected);
+  });
+});
+
+describe('hasTextContent', () => {
+  it.each([
+    [null, false],
+    [undefined, false],
+    ['', false],
+    ['   ', false],
+    ['<p></p>', false],
+    ['<p><br/></p>', false],
+    ['<div><span></span></div>', false],
+    ['<p>Hello</p>', true],
+    ['<div><span>a</span></div>', true],
+    ['<p>  text  </p>', true],
+  ])('hasTextContent(%j) → %s', (input, expected) => {
+    expect(hasTextContent(input as string | null | undefined)).toBe(expected);
   });
 });
 

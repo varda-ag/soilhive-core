@@ -3,13 +3,14 @@ import { useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
 import { ADMIN_PATHS } from '../configuration/admin';
-import { isValidEmail } from '../utilities/validation';
+import { isValidEmail, hasTextContent } from '../utilities/validation';
 import { useAuthContext } from '../auth/AuthContextProvider';
 import { AuthModes } from '../auth/types';
 import { useDataset } from './useDatasets';
 import { useUpdateDatasetVisibilityMutation } from './useDatasetMutation';
 import type { EntitlementCapability } from 'types/backend';
 import { useDatasetEntitlements, useDatasetEntitlementsMutation } from './useDatasetEntitlements';
+import useTheme from './useTheme';
 
 export type Visibility = 'public' | 'private';
 
@@ -21,6 +22,7 @@ export function useDatasetsSettings(datasetId: string | undefined) {
   const invalidEmailMessage = t('datasets.settings.access.email_invalid');
 
   const queryClient = useQueryClient();
+  const { themeConfig } = useTheme();
   const { authMode } = useAuthContext();
   const isOidcAuth = authMode === AuthModes.OIDC;
 
@@ -93,8 +95,13 @@ export function useDatasetsSettings(datasetId: string | undefined) {
     setEmailToDelete(null);
   }
 
-  function handlePublish() {
-    setIsPublishWarningVisible(true);
+  async function handlePublish() {
+    const hasLegalDocs = hasTextContent(themeConfig.privacyPolicyHtml) && hasTextContent(themeConfig.termsAndConditionsHtml);
+    if (hasLegalDocs) {
+      await handlePublishProceed();
+    } else {
+      setIsPublishWarningVisible(true);
+    }
   }
 
   async function handlePublishProceed() {
