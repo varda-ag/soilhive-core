@@ -102,7 +102,8 @@ COPY src/assets ./src/assets
 USER nodejs
 
 # Expose port
-EXPOSE 4001
+EXPOSE 3000
 
 # Start production server
+ENV PORT=3000
 CMD ["node", "dist/app.js"]
