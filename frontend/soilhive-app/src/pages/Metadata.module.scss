@@ -27,7 +27,6 @@
 
   .BannerContainer {
     background-color: var(--color-neutral-white);
-
     position: relative;
     padding: 5.8rem 0 5.9rem;
     padding: 1.6rem 0 5.9rem;
@@ -62,7 +61,7 @@
         }
 
         @media screen and (min-width: 900px) {
-          padding-top: 7.6rem;
+          padding-top: 76px;
           padding-left: 61px;
           padding-right: 0;
         }
@@ -89,26 +88,26 @@
         .Title {
           max-width: 621px;
           font-weight: 700;
-          font-size: 3.6rem;
+          font-size: var(--font-size-4xl);
           line-height: 125%;
-          margin-bottom: 1rem;
+          margin: 0 0 10px 0;
 
           @media screen and (min-width: 768px) {
-            font-size: 5.8rem;
+            font-size: var(--font-size-5xl);
+            margin-bottom: 10px;
           }
         }
 
         .Introduction {
           max-width: 554px;
           font-weight: 300;
-          font-size: 1.6rem;
-          font-weight: 300;
+          font-size: var(--font-size-md);
           line-height: 150%;
-          margin-bottom: 1rem;
+          margin-bottom: 10px;
           
           @media screen and (min-width: 768px) {
-            font-size: 1.8rem;
-            margin-bottom: 2.4rem;
+            font-size: var(--font-size-lg);
+            margin-bottom: 24px;
           }
         }
 

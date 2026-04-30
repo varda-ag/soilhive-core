@@ -29,10 +29,14 @@ export default function Metadata() {
           <div className={styles.Left}>
             <Worm className={styles.Worm} />
             <h1 className={styles.Title}>{dataset!.name} metadata</h1>
-            <p className={styles.Introduction}>Take a look a the metadata general information overview</p>
+            <p className={styles.Introduction}>
+              Explore the dataset&apos;s metadata and forward it to appropriate stakeholders for further use
+            </p>
             <div className={styles.Buttons}>
-              <Button type="primary">Share metadata</Button>
-              <Button type="secondary" href="/">
+              <Button type="primary" size="medium">
+                Share metadata
+              </Button>
+              <Button type="secondary" size="medium" href="/">
                 Go to SoilHive platform
               </Button>
             </div>
