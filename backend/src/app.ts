@@ -6,7 +6,7 @@ import { getOpenApiMiddleware, getSwaggerDocument } from './middlewares/openapi'
 import { transactionMiddleware } from './middlewares/transaction';
 import { initPgBoss } from './services/PgBoss';
 import { setupCLI } from './utils/cli';
-import { initializeSchema } from './utils/data-source';
+import { initializeSchema, isDBAvailable } from './utils/data-source';
 import { getServerPort, isJest, setupEnv } from './utils/utils';
 
 setupEnv();
@@ -28,6 +28,16 @@ export const initApp = async (app: Application) => {
   app.use('/docs', swaggerUi.serve, swaggerUi.setup(await getSwaggerDocument()));
   app.use(await getOpenApiMiddleware());
   app.use(errorMiddleware);
+
+  app.get('/health', async (_req, res) => {
+    const status = await isDBAvailable();
+    res.json({ status });
+  });
+
+  app.get('/ready', async (_req, res) => {
+    const status = await isDBAvailable();
+    res.json({ status });
+  });
 
   if (isJest()) {
     // Running in test mode, not starting server

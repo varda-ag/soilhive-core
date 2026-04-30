@@ -44,8 +44,7 @@ RUN chown -R appuser:appgroup /app
 USER appuser
 
 # Expose the Node server port
-EXPOSE 80
+EXPOSE 3000
 
 # The server generates dist/client/env-config.js at startup from runtime env vars.
-ENV PORT=80
 CMD ["node", "/app/dist/server/index.cjs"]
