@@ -26,8 +26,6 @@ export const initApp = async (app: Application) => {
   app.use(express.json({ limit: process.env.JSON_PAYLOAD_LIMIT || undefined }));
   app.use(transactionMiddleware);
   app.use('/docs', swaggerUi.serve, swaggerUi.setup(await getSwaggerDocument()));
-  app.use(await getOpenApiMiddleware());
-  app.use(errorMiddleware);
 
   app.get('/health', async (_req, res) => {
     const status = await isDBAvailable();
@@ -38,6 +36,9 @@ export const initApp = async (app: Application) => {
     const status = await isDBAvailable();
     res.json({ status });
   });
+
+  app.use(await getOpenApiMiddleware());
+  app.use(errorMiddleware);
 
   if (isJest()) {
     // Running in test mode, not starting server
