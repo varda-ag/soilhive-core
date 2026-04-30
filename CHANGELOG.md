@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.89.3 (2026-04-30)
+
+## What's Changed
+* fix: probe endpoints by @svaccari in https://github.com/varda-ag/soilhive-core/pull/481
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.89.2...v0.89.3
+
+## 0.89.2 (2026-04-30)
+
+## What's Changed
+* fix: making project pipeline compliant by @svaccari in https://github.com/varda-ag/soilhive-core/pull/479
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.89.1...v0.89.2
+
 ## 0.89.1 (2026-04-29)
 
 ## What's Changed
