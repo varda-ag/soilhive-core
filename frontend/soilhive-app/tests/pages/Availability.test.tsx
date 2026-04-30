@@ -46,14 +46,23 @@ jest.mock('components/FilteringSidebar/FiltersCounter/FiltersCounter', () => ({
 }));
 
 jest.mock('../../src/contexts/AvailabilityContext', () => {
+  return {
+    __esModule: true,
+    AvailabilityContext: React.createContext({
+      availableDatasets: [{ id: 'test-dataset' }],
+    }),
+  };
+});
+
+jest.mock('../../src/contexts/AvailabilityMapContext', () => {
   // let's define the setGeometryFilter mock function here and export here down below
   // so that we can later grab it
   const mockSetGeometryFilter = jest.fn();
 
   return {
     __esModule: true,
-    AvailabilityContext: React.createContext({
-      availableDatasets: [{ id: 'test-dataset' }],
+    AvailabilityMapContext: React.createContext({
+      boundingBox: [0, 0, 0, 0],
       setGeometryFilter: mockSetGeometryFilter,
       setBoundingBox: jest.fn(),
       setLocationName: jest.fn(),
@@ -63,8 +72,8 @@ jest.mock('../../src/contexts/AvailabilityContext', () => {
   };
 });
 
-// grab the mock setGeometryFilter function that was passed to availability context
-const { mockSetGeometryFilter } = jest.requireMock('../../src/contexts/AvailabilityContext');
+// grab the mock setGeometryFilter function that was passed to availability map context
+const { mockSetGeometryFilter } = jest.requireMock('../../src/contexts/AvailabilityMapContext');
 
 describe('Availability', () => {
   beforeEach(() => {

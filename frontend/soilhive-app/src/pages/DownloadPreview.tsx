@@ -9,7 +9,7 @@ import BookmarkIcon from 'assets/icons/bookmark-icon.svg?react';
 import classNames from 'classnames';
 import DownloadPreviewDataSection from 'components/DownloadPreview/DownloadPreviewDataSection/DownloadPreviewDataSection';
 import { useSoilData } from 'hooks/useSoilData';
-import { useFilteredDatasets } from 'hooks/useFilteredDatasets';
+import { useDataFilterQuery } from 'hooks/useDataFilterQuery';
 import type { PreviewFilters } from 'types/downloadPreview';
 import { computeDatasetSummary } from '../domain';
 import type { Nullable } from 'primereact/ts-helpers';
@@ -71,6 +71,15 @@ function DownloadPreview() {
     soil_properties: availableSoilProperties?.[0]?.id ? [availableSoilProperties[0].id] : [],
   });
 
+  // Synchronously resolve the effective soil property so `enabled` is true on the same render
+  // that `availableSoilProperties` first becomes non-empty, closing the async-effect gap.
+  const effectiveSoilProperties = useMemo(() => {
+    const currentId = filters.soil_properties[0];
+    if (currentId && availableSoilProperties.some(p => p.id === currentId)) return filters.soil_properties;
+    const firstId = availableSoilProperties[0]?.id;
+    return firstId ? [firstId] : [];
+  }, [filters.soil_properties, availableSoilProperties]);
+
   useEffect(() => {
     const selectedSoilPropertyId = filters.soil_properties[0];
     // The user has selected another dataset, so the list of available soil properties has changed. If the selected soil
@@ -93,16 +102,15 @@ function DownloadPreview() {
     parameters: {
       ...(availabilitySelectedFilters?.filter.parameters ?? {}),
       ...filters,
+      soil_properties: effectiveSoilProperties,
     },
   };
 
-  const {
-    filterId: downloadPreviewFilterId,
-    data: filteredDatasets,
-    isLoading: areFiltersLoading,
-  } = useFilteredDatasets(parameters, geometryFilter.length > 0);
-
-  const availableFilteredDatasets = filteredDatasets ? filteredDatasets.datasets : availableFixedDatasets;
+  const { filterId: downloadPreviewFilterId, isLoading: isLoadingFilter } = useDataFilterQuery(
+    parameters,
+    effectiveSoilProperties.length > 0,
+    0, // No debounce
+  );
 
   const { min_sampling_date, max_sampling_date, min_depth, max_depth } = availabilitySelectedFilters?.filter.parameters ?? {};
 
@@ -112,7 +120,7 @@ function DownloadPreview() {
       : null;
   const fixedDepthRange: Nullable<[number, number]> = min_depth && max_depth ? [min_depth, max_depth] : null;
 
-  const { globalDateStart, globalDateEnd /*globalMinDepth, globalMaxDepth*/ } = computeDatasetSummary(availableFilteredDatasets);
+  const { globalDateStart, globalDateEnd /*globalMinDepth, globalMaxDepth*/ } = computeDatasetSummary(availableFixedDatasets);
   const calendarMinMaxRange: [Date | undefined, Date | undefined] =
     globalDateStart && globalDateEnd
       ? [backendToLocalFrontendDate(globalDateStart), backendToLocalFrontendDate(globalDateEnd)]
@@ -128,6 +136,12 @@ function DownloadPreview() {
       ? [datasetsSummary.globalMinDepth, datasetsSummary.globalMaxDepth]
       : [undefined, undefined];
 
+  // Changing `selectedDatasets` can also change `availableSoilProperties`, which triggers
+  // the effect above to update `filters.soil_properties`. That kicks off a new
+  // /data-filters request and, until it returns, `downloadPreviewFilterId` still points at
+  // the previous filter. Without the `!isFilterStale` gate, useSoilData would fire once
+  // here with the stale `filterId` and again once the fresh `filterId` arrives — two
+  // /soil-data requests for a single user action.
   const {
     allData,
     isLoading: isDataLoading,
@@ -136,7 +150,7 @@ function DownloadPreview() {
     reset,
   } = useSoilData({
     selectedDatasets,
-    availableDatasets: availableFilteredDatasets.map(dataset => dataset.id),
+    availableDatasets: availableFixedDatasets.map(dataset => dataset.id),
     filterId: downloadPreviewFilterId,
     limit: MAXIMUM_SOIL_DATA_PER_REQUEST + 1,
     sort,
@@ -159,6 +173,7 @@ function DownloadPreview() {
       <div className={styles.Header}>
         <div className={styles.Titles}>
           <span className={styles.Title}>{t('download_preview.page_title')}</span>
+          <span className={styles.SubTitle}>{t('download_preview.page_subtitle')}</span>
         </div>
         <div className={styles.Buttons}>
           <Button type="tertiary" isIconOnly={true} className={styles.ShareButton}>
@@ -237,7 +252,7 @@ function DownloadPreview() {
               setFilters(newFilters);
             }}
             data={allData}
-            isDataLoading={areFiltersLoading || isDataLoading || isDownloadPreviewLoading}
+            isDataLoading={isLoadingFilter || isDataLoading || isDownloadPreviewLoading}
             onTableSort={sort => {
               reset();
               setSort(sort);

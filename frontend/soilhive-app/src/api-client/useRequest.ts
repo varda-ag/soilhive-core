@@ -18,14 +18,22 @@ export function useRequest<T = any>() {
         const data = await httpClient<T>(config);
         return data;
       } catch (err: any) {
+        if (config.ignoreAbortError && err.name === 'AbortError') {
+          return null;
+        }
+
         setError(err);
 
         if (config.showErrorNotification !== false) {
           // Default: show notification
+          const message = err instanceof TypeError ? t('errors.network_error.message') : err.message;
+          const isTimeout = message.toLowerCase().includes('timeout');
+          const type = isTimeout ? 'warning' : 'error';
           showNotification({
             id: 'network_error',
-            title: t('errors.network_error.title'),
-            message: err instanceof TypeError ? t('errors.network_error.message') : err.message,
+            type,
+            title: isTimeout ? t('errors.timeout_error.title') : t('errors.network_error.title'),
+            message: isTimeout ? t('errors.timeout_error.message') : message,
           });
         }
 

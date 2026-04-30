@@ -1,5 +1,5 @@
 import { register, unregister, type TimeZone } from 'timezone-mock';
-import { backendToLocalFrontendDate, firstDayOfTheMonth, lastDayOfTheMonth } from '../../src/utilities/date';
+import { backendToLocalFrontendDate, dateStringToDDMMYYYY, firstDayOfTheMonth, lastDayOfTheMonth } from '../../src/utilities/date';
 import { testTimezones } from '../setupTests';
 
 describe.each(testTimezones)('date utilities (multiple-timezones)', testTimezone => {
@@ -115,5 +115,24 @@ describe.each(testTimezones)('date utilities (multiple-timezones)', testTimezone
         expect(result.getSeconds()).toBe(seconds);
       },
     );
+  });
+});
+
+describe('dateStringToDDMMYYYY', () => {
+  it('returns "—" for null', () => {
+    expect(dateStringToDDMMYYYY(null)).toBe('—');
+  });
+
+  it.each([
+    [new Date(2025, 5, 15), '15-06-2025'],
+    [new Date(2025, 0, 1), '01-01-2025'],
+    [new Date(2025, 11, 31), '31-12-2025'],
+    [new Date(2024, 1, 29), '29-02-2024'],
+  ])('given a Date object, returns DD-MM-YYYY', (input, expected) => {
+    expect(dateStringToDDMMYYYY(input)).toBe(expected);
+  });
+
+  it('pads single-digit day and month with leading zero', () => {
+    expect(dateStringToDDMMYYYY(new Date(2025, 2, 5))).toBe('05-03-2025');
   });
 });

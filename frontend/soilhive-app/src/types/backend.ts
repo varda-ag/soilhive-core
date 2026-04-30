@@ -48,19 +48,25 @@ export interface StoredDataFilter extends DataFilter {
   name: string;
 }
 
-export interface FilteredDataset extends FilterCriteria {
+export interface FilteredDatasetSummary extends FilterCriteria {
   id: string;
   name: string;
   dataset_layer_count: number;
 }
 
 export interface FilteredData {
-  datasets: FilteredDataset[];
+  datasets: FilteredDatasetSummary[];
   raster_filters: Record<string, number[]>;
 }
 
+export interface FilteredDataset {
+  id: string;
+  name: string;
+  data_type: GISDataType;
+}
+
 export interface ResultItem {
-  datasets: FilteredDataset[];
+  datasets: FilteredDatasetSummary[];
 }
 
 export interface PostDatasetFilterResponse extends StoredDataFilter {
@@ -276,6 +282,7 @@ export interface FileDescriptor {
       max_depth?: string | null;
       horizon?: string | null;
     };
+    detected_mapping: DataMappingObject;
     field_names?: string[];
     geometry_detected?: boolean;
     driver?: string | null;

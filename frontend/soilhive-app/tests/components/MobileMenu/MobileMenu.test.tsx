@@ -28,6 +28,13 @@ jest.mock('components/UI', () => ({
   Button: ({ children, onClick }: { children: React.ReactNode; onClick?: () => void }) => <button onClick={onClick}>{children}</button>,
 }));
 
+jest.mock('components/MobileMenu/MobileDropdownMenuItem/MobileDropdownMenuItem', () => ({
+  __esModule: true,
+  default: ({ menuEntry, onLinkClick }: { menuEntry: NavMenuEntry; onLinkClick?: () => void }) => (
+    <div data-testid="mobile-dropdown-item" data-name={menuEntry.name} onClick={onLinkClick} />
+  ),
+}));
+
 function TestIcon({ className }: { className?: string }) {
   return (
     <svg data-testid="menu-icon" className={className}>
@@ -36,20 +43,16 @@ function TestIcon({ className }: { className?: string }) {
   );
 }
 
-const menuEntries: NavMenuEntry[] = [
-  {
-    name: 'menu.home',
-    route: '/home',
-    type: 'internal',
-    Icon: TestIcon,
-  },
-  {
-    name: 'menu.admin',
-    route: '/admin',
-    type: 'external',
-    Icon: TestIcon,
-  },
+const flatEntries: NavMenuEntry[] = [
+  { name: 'menu.home', route: '/home', type: 'internal', Icon: TestIcon },
+  { name: 'menu.admin', route: '/admin', type: 'external', Icon: TestIcon },
 ];
+
+const dropdownEntry: NavMenuEntry = {
+  name: 'nav_menu.legal',
+  type: 'internal',
+  children: [{ name: 'nav_menu.terms', route: '/terms-of-use', type: 'internal' }],
+};
 
 describe('Mobile menu', () => {
   const logoutMock = jest.fn();
@@ -71,7 +74,7 @@ describe('Mobile menu', () => {
   });
 
   it('renders authenticated user info', () => {
-    const { container } = render(<MobileMenu menuEntries={menuEntries} setIsMenuOpen={jest.fn()} />);
+    const { container } = render(<MobileMenu menuEntries={flatEntries} setIsMenuOpen={jest.fn()} />);
 
     expect(screen.getByTestId('user-avatar')).toBeInTheDocument();
     expect(screen.getByText('Super Admin')).toBeInTheDocument();
@@ -83,16 +86,12 @@ describe('Mobile menu', () => {
   it('falls back to email when user name is missing', () => {
     (useAuthContext as jest.Mock).mockReturnValue({
       isAuthenticated: true,
-      user: {
-        profile: {
-          email: 'super.admin@local',
-        },
-      },
+      user: { profile: { email: 'super.admin@local' } },
       logout: logoutMock,
       isLoading: false,
     });
 
-    render(<MobileMenu menuEntries={menuEntries} setIsMenuOpen={jest.fn()} />);
+    render(<MobileMenu menuEntries={flatEntries} setIsMenuOpen={jest.fn()} />);
 
     expect(screen.getAllByText('super.admin@local')).toHaveLength(2);
   });
@@ -105,14 +104,29 @@ describe('Mobile menu', () => {
       isLoading: false,
     });
 
-    render(<MobileMenu menuEntries={menuEntries} setIsMenuOpen={jest.fn()} />);
+    render(<MobileMenu menuEntries={flatEntries} setIsMenuOpen={jest.fn()} />);
 
     expect(screen.queryByTestId('user-avatar')).not.toBeInTheDocument();
     expect(screen.queryByText('Log out')).not.toBeInTheDocument();
   });
 
+  it('does not render display name paragraph when both name and email are missing', () => {
+    (useAuthContext as jest.Mock).mockReturnValue({
+      isAuthenticated: true,
+      user: { profile: {} },
+      logout: logoutMock,
+      isLoading: false,
+    });
+
+    render(<MobileMenu menuEntries={flatEntries} setIsMenuOpen={jest.fn()} />);
+
+    expect(screen.queryByText('Super Admin')).not.toBeInTheDocument();
+    expect(screen.queryByText('superadmin@local')).not.toBeInTheDocument();
+    expect(screen.getByText('Log out')).toBeInTheDocument();
+  });
+
   it('renders internal and external menu entries', () => {
-    render(<MobileMenu menuEntries={menuEntries} setIsMenuOpen={jest.fn()} />);
+    render(<MobileMenu menuEntries={flatEntries} setIsMenuOpen={jest.fn()} />);
 
     expect(screen.getByText('menu.home')).toBeInTheDocument();
     expect(screen.getByText('menu.admin')).toBeInTheDocument();
@@ -127,28 +141,44 @@ describe('Mobile menu', () => {
     expect(links[1]).toHaveAttribute('rel', 'noopener noreferrer');
   });
 
+  it('renders MobileDropdownMenuItem for entries with children', () => {
+    render(<MobileMenu menuEntries={[dropdownEntry]} setIsMenuOpen={jest.fn()} />);
+    expect(screen.getByTestId('mobile-dropdown-item')).toBeInTheDocument();
+    expect(screen.getByTestId('mobile-dropdown-item')).toHaveAttribute('data-name', 'nav_menu.legal');
+  });
+
+  it('renders mixed flat and dropdown entries', () => {
+    render(<MobileMenu menuEntries={[flatEntries[0], dropdownEntry]} setIsMenuOpen={jest.fn()} />);
+    expect(screen.getByTestId('mock-router-navlink')).toBeInTheDocument();
+    expect(screen.getByTestId('mobile-dropdown-item')).toBeInTheDocument();
+  });
+
   it('calls setIsMenuOpen(false) when internal link is clicked', () => {
     const setIsMenuOpen = jest.fn();
-    render(<MobileMenu menuEntries={menuEntries} setIsMenuOpen={setIsMenuOpen} />);
+    render(<MobileMenu menuEntries={flatEntries} setIsMenuOpen={setIsMenuOpen} />);
 
-    const internalLink = screen.getAllByRole('link')[0];
-
-    fireEvent.click(internalLink);
+    fireEvent.click(screen.getAllByRole('link')[0]);
     expect(setIsMenuOpen).toHaveBeenCalledWith(false);
   });
 
-  it('does not call setIsMenuOpen for external link click', () => {
+  it('calls setIsMenuOpen(false) when external link is clicked', () => {
     const setIsMenuOpen = jest.fn();
-    render(<MobileMenu menuEntries={menuEntries} setIsMenuOpen={setIsMenuOpen} />);
+    render(<MobileMenu menuEntries={flatEntries} setIsMenuOpen={setIsMenuOpen} />);
 
-    const externalLink = screen.getAllByRole('link')[1];
-    fireEvent.click(externalLink);
+    fireEvent.click(screen.getAllByRole('link')[1]);
+    expect(setIsMenuOpen).toHaveBeenCalledWith(false);
+  });
 
-    expect(setIsMenuOpen).not.toHaveBeenCalled();
+  it('passes closeMenu as onLinkClick to MobileDropdownMenuItem', () => {
+    const setIsMenuOpen = jest.fn();
+    render(<MobileMenu menuEntries={[dropdownEntry]} setIsMenuOpen={setIsMenuOpen} />);
+
+    fireEvent.click(screen.getByTestId('mobile-dropdown-item'));
+    expect(setIsMenuOpen).toHaveBeenCalledWith(false);
   });
 
   it('calls logout when logout button is clicked', () => {
-    render(<MobileMenu menuEntries={menuEntries} setIsMenuOpen={jest.fn()} />);
+    render(<MobileMenu menuEntries={flatEntries} setIsMenuOpen={jest.fn()} />);
 
     fireEvent.click(screen.getByText('Log out'));
 
@@ -156,25 +186,8 @@ describe('Mobile menu', () => {
   });
 
   it('renders icons for menu entries when provided', () => {
-    render(<MobileMenu menuEntries={menuEntries} setIsMenuOpen={jest.fn()} />);
+    render(<MobileMenu menuEntries={flatEntries} setIsMenuOpen={jest.fn()} />);
 
     expect(screen.getAllByTestId('menu-icon')).toHaveLength(2);
-  });
-
-  it('does not render display name paragraph when both name and email are missing', () => {
-    (useAuthContext as jest.Mock).mockReturnValue({
-      isAuthenticated: true,
-      user: {
-        profile: {},
-      },
-      logout: logoutMock,
-      isLoading: false,
-    });
-
-    render(<MobileMenu menuEntries={menuEntries} setIsMenuOpen={jest.fn()} />);
-
-    expect(screen.queryByText('Super Admin')).not.toBeInTheDocument();
-    expect(screen.queryByText('superadmin@local')).not.toBeInTheDocument();
-    expect(screen.getByText('Log out')).toBeInTheDocument();
   });
 });

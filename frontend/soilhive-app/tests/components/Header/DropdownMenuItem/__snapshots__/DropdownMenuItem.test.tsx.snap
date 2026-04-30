@@ -1,0 +1,63 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`DropdownMenuItem component matches snapshot when closed 1`] = `
+<div>
+  <div
+    class="DropdownMenuItem"
+  >
+    <span
+      class="LinkText"
+      role="button"
+    >
+      Legal
+       
+      <svg
+        data-testid="svg-icon-mock"
+      >
+        mock-svg
+      </svg>
+    </span>
+    <div
+      class="Menu"
+    >
+      <a
+        data-testid="dropdown-menu-link"
+        href="/terms-of-use"
+      >
+        Terms of use
+      </a>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`DropdownMenuItem component matches snapshot when open 1`] = `
+<div>
+  <div
+    class="DropdownMenuItem Opened"
+  >
+    <span
+      class="LinkText"
+      role="button"
+    >
+      Legal
+       
+      <svg
+        data-testid="svg-icon-mock"
+      >
+        mock-svg
+      </svg>
+    </span>
+    <div
+      class="Menu"
+    >
+      <a
+        data-testid="dropdown-menu-link"
+        href="/terms-of-use"
+      >
+        Terms of use
+      </a>
+    </div>
+  </div>
+</div>
+`;

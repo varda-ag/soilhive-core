@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { useApiQuery } from './useApiQuery';
@@ -90,22 +91,43 @@ function toProcedurePayload(details: RowDetails): ProcedurePayload {
   };
 }
 
+function procedurePayloadMatches(details: RowDetails, proc: ProcedureResponse): boolean {
+  const n = (v: string | null | undefined) => v ?? null;
+  return (
+    n(details.samplePretreatment) === n(proc.sample_pretreatment) &&
+    n(details.technique) === n(proc.technique) &&
+    n(details.laboratoryMethod) === n(proc.laboratory_method) &&
+    n(details.extractantConcentration) === n(proc.extractant_concentration) &&
+    n(details.extractionRatio) === n(proc.extraction_ratio) &&
+    n(details.extractionBase) === n(proc.extraction_base) &&
+    n(details.measurementProcedure) === n(proc.measurement_procedure) &&
+    n(details.limitOfDetection) === n(proc.limit_of_detection)
+  );
+}
+
 // Creates a procedure record for each mapped column that has at least one detail field filled in.
+// Reuses the existing procedure when its payload matches; creates a new one only when details changed.
 async function createMappingProcedures(
   mappings: ColumnMapping[],
+  existingProcedures: Record<string, ProcedureResponse>,
   createProcedure: (payload: ProcedurePayload) => Promise<ProcedureResponse>,
 ): Promise<Record<string, string>> {
   const procedureIds: Record<string, string> = {};
   for (const mapping of mappings) {
     if (!mapping.conceptId) continue;
     if (!Object.values(mapping.details).some(v => v !== null)) continue;
+    const existing = existingProcedures[mapping.columnName];
+    if (existing && procedurePayloadMatches(mapping.details, existing)) {
+      procedureIds[mapping.columnName] = existing.id;
+      continue;
+    }
     const procedure = await createProcedure(toProcedurePayload(mapping.details));
     procedureIds[mapping.columnName] = procedure.id;
   }
   return procedureIds;
 }
 
-// Builds the mapping payload. For structural fields, this is just the concept id. For soil properties, it's an object that may include the concept id, unit conversion id, and procedure id.
+// Builds the mapping payload. For metadata fields, this is just the concept id. For soil properties, it's an object that may include the concept id, unit conversion id, and procedure id.
 function buildDataMappingRequest(mappings: ColumnMapping[], procedureIds: Record<string, string>): DataMappingRequest {
   const request: DataMappingRequest = {};
   for (const m of mappings) {
@@ -127,6 +149,7 @@ function buildDataMappingRequest(mappings: ColumnMapping[], procedureIds: Record
 // ---------------------------------------------------------------------------
 
 export function useMappingsStep(datasetId?: string) {
+  const { t } = useTranslation('admin');
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -155,14 +178,31 @@ export function useMappingsStep(datasetId?: string) {
     enabled: !!datasetId,
   });
 
+  const mergedMappings = useMemo(() => {
+    if (isLoadingFiles || isLoadingExistingMappings) {
+      return [];
+    }
+    if (!files) return existingMappings ?? [];
+    // Merge detected mappings from all files with any existing mappings from the server.
+    // Deep-clone to avoid mutating the React Query cache.
+    const firstMapping = existingMappings && existingMappings.length > 0 ? structuredClone(existingMappings[0].data_mapping) : {};
+    for (const file of files) {
+      const detectedMapping = file.metadata?.detected_mapping ?? {};
+      for (const [columnName, obj] of Object.entries(detectedMapping)) {
+        if (!(columnName in firstMapping)) firstMapping[columnName] = obj;
+      }
+    }
+    return [{ ...existingMappings?.[0], data_mapping: firstMapping }];
+  }, [existingMappings, files, isLoadingExistingMappings, isLoadingFiles]);
+
   // Extract procedures from existing (loaded from the server) mappings, so we can fetch them and pre-populate the details fields.
   const proceduresInMapping = useMemo(() => {
-    const dataMapping = existingMappings?.[0]?.data_mapping ?? {};
+    const dataMapping = mergedMappings?.[0]?.data_mapping ?? {};
     return Object.entries(dataMapping)
       .filter((entry): entry is [string, PropertyMapping] => typeof entry[1] !== 'string') // exlude metadata fields (they are string)
       .filter(([, v]) => !!v.procedure_id) // exlude mappings that don't have an associated procedure
       .map(([columnName, v]) => ({ columnName, procedureId: v.procedure_id! }));
-  }, [existingMappings]);
+  }, [mergedMappings]);
 
   // load procedures details from the server to populate detail fields
   const procedureDetails = useApiQueries<ProcedureResponse>(
@@ -211,6 +251,11 @@ export function useMappingsStep(datasetId?: string) {
     isLoadingExistingMappings ||
     isLoadingProcedures;
 
+  const geometryDetected = useMemo(() => {
+    if (!files || files.length === 0) return undefined;
+    return files[0].metadata?.geometry_detected === true;
+  }, [files]);
+
   const [columnMappings, setColumnMappings] = useState<ColumnMapping[]>([]);
 
   // Initialise the column mapping table from the uploaded file columns, hydrating each row
@@ -218,12 +263,22 @@ export function useMappingsStep(datasetId?: string) {
   useEffect(() => {
     if (!files) return;
     const columnNames = [...new Set(files.flatMap(f => f.metadata?.field_names ?? []))];
-    const existingDataMapping = existingMappings?.[0]?.data_mapping ?? {};
+    const existingDataMapping = mergedMappings?.[0]?.data_mapping ?? {};
+
+    // Invert detected_fields ({ conceptCode → columnName }) into { columnName → conceptCode }
+    // so we can look up the suggested concept for any unmapped column.
+    const detectedFields = files[0]?.metadata?.detected_fields ?? {};
+    const detectedConceptByColumn: Record<string, string> = {};
+    for (const [conceptCode, columnName] of Object.entries(detectedFields)) {
+      if (columnName) detectedConceptByColumn[columnName] = conceptCode;
+    }
 
     setColumnMappings(
       columnNames.map(columnName => {
         const existing = existingDataMapping[columnName];
-        if (!existing) return { columnName, conceptId: null, unitId: null, details: { ...EMPTY_DETAILS } };
+        if (!existing) {
+          return { columnName, conceptId: detectedConceptByColumn[columnName] ?? null, unitId: null, details: { ...EMPTY_DETAILS } };
+        }
         if (typeof existing === 'string') return { columnName, conceptId: existing, unitId: null, details: { ...EMPTY_DETAILS } };
 
         const proc = procedureByColumn[columnName];
@@ -243,7 +298,7 @@ export function useMappingsStep(datasetId?: string) {
         return { columnName, conceptId: existing.property_id, unitId: existing.conversion_id ?? null, details };
       }),
     );
-  }, [files, existingMappings, procedureByColumn]);
+  }, [files, procedureByColumn, mergedMappings]);
 
   const detailOptions = useMemo((): DetailOptionMap => {
     const base: DetailOptionMap = {
@@ -270,17 +325,31 @@ export function useMappingsStep(datasetId?: string) {
     return base;
   }, [vocabularyItems, techniques]);
 
-  // Metadata fields first, then soil properties sorted alphabetically.
-  // Unit options are keyed by concept id — only soil properties carry allowed units.
-  const { conceptOptions, unitOptionsByConcept } = useMemo(() => {
+  // Unit options and sorted soil properties — depends only on API data, not user selections.
+  const { soilPropertyOptions, unitOptionsByConcept } = useMemo(() => {
     const properties = soilProperties ?? [];
     const soilPropertyOptions = properties.map(p => ({ code: p.id, name: p.property_name })).sort((a, b) => a.name.localeCompare(b.name));
     const unitOptionsByConcept: Record<string, MenuOption[]> = {};
     for (const p of properties) {
-      unitOptionsByConcept[p.id] = p.original_units_of_measurement?.map(u => ({ code: u, name: u }));
+      unitOptionsByConcept[p.id] = p.original_units_of_measurement?.map(u => ({ code: u, name: u })) ?? [];
     }
-    return { conceptOptions: [...METADATA_FIELD_OPTIONS, ...soilPropertyOptions], unitOptionsByConcept };
+    return { soilPropertyOptions, unitOptionsByConcept };
   }, [soilProperties]);
+
+  // Per-row concept options: metadata fields first (excluding those already selected by other rows),
+  // then all soil properties. A row always sees its own current metadata selection so the user
+  // can change or clear it.
+  const conceptOptionsByColumn = useMemo((): Record<string, MenuOption[]> => {
+    const usedMetadataCodes = new Set(
+      columnMappings.filter(m => m.conceptId && METADATA_FIELD_CODES.has(m.conceptId)).map(m => m.conceptId!),
+    );
+    return Object.fromEntries(
+      columnMappings.map(m => {
+        const availableMetadata = METADATA_FIELD_OPTIONS.filter(o => !usedMetadataCodes.has(o.code) || m.conceptId === o.code);
+        return [m.columnName, [...availableMetadata, ...soilPropertyOptions]];
+      }),
+    );
+  }, [columnMappings, soilPropertyOptions]);
 
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
@@ -291,6 +360,27 @@ export function useMappingsStep(datasetId?: string) {
     }
     return { mappedCount: mapped, unmappedCount: columnMappings.length - mapped };
   }, [columnMappings]);
+
+  const geometryMessage = useMemo((): { message: string; type: 'info' | 'warning' } | null => {
+    if (geometryDetected === undefined) return null;
+    if (geometryDetected === true) return { message: t('datasets.mappings.geometry_detected'), type: 'info' };
+    const hasGeometry = columnMappings.some(m => m.conceptId === 'geometry');
+    const hasLatLon = columnMappings.some(m => m.conceptId === 'latitude') && columnMappings.some(m => m.conceptId === 'longitude');
+    if (hasGeometry || hasLatLon) return null;
+    return { message: t('datasets.mappings.geometry_not_detected'), type: 'warning' };
+  }, [geometryDetected, columnMappings, t]);
+
+  const depthConflictMessage = useMemo((): { message: string; type: 'warning' } | null => {
+    const hasDepth = columnMappings.some(m => m.conceptId === 'depth');
+    const hasRangeDepth = columnMappings.some(m => m.conceptId === 'min_depth' || m.conceptId === 'max_depth');
+    if (hasDepth && hasRangeDepth) return { message: t('datasets.mappings.depth_conflict'), type: 'warning' };
+    return null;
+  }, [columnMappings, t]);
+
+  const isContinueEnabled = useMemo(
+    () => mappedCount > 0 && geometryDetected !== undefined && geometryMessage?.type !== 'warning' && depthConflictMessage === null,
+    [mappedCount, geometryDetected, geometryMessage, depthConflictMessage],
+  );
 
   const toggleRow = useCallback((columnName: string) => {
     setExpandedRows(prev => {
@@ -340,7 +430,7 @@ export function useMappingsStep(datasetId?: string) {
   }, []);
 
   const save = useCallback(async () => {
-    const procedureIds = await createMappingProcedures(columnMappings, createProcedure);
+    const procedureIds = await createMappingProcedures(columnMappings, procedureByColumn, createProcedure);
     const mappingResponse = await createMapping(buildDataMappingRequest(columnMappings, procedureIds));
 
     if (datasetId && datasetFileMappings?.length) {
@@ -352,7 +442,16 @@ export function useMappingsStep(datasetId?: string) {
     }
 
     await queryClient.invalidateQueries({ queryKey: ['datasets', datasetId, 'mappings'] });
-  }, [columnMappings, createProcedure, createMapping, updateDatasetFileMapping, datasetId, datasetFileMappings, queryClient]);
+  }, [
+    columnMappings,
+    procedureByColumn,
+    createProcedure,
+    createMapping,
+    updateDatasetFileMapping,
+    datasetId,
+    datasetFileMappings,
+    queryClient,
+  ]);
 
   const handlePrevious = useCallback(() => {
     navigate(`${ADMIN_PATHS.DATASETS}/edit/${datasetId}/soil-data`);
@@ -370,8 +469,11 @@ export function useMappingsStep(datasetId?: string) {
 
   return {
     isLoading,
+    geometryMessage,
+    depthConflictMessage,
+    isContinueEnabled,
     columnMappings,
-    conceptOptions,
+    conceptOptionsByColumn,
     unitOptionsByConcept,
     detailOptions,
     mappedCount,

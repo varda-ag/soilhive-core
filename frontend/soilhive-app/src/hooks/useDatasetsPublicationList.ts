@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 
 import { useDatasets } from './useDatasets';
@@ -26,7 +26,7 @@ type DatasetsPublicationListType = {
 
 export function useDatasetsPublicationList(): DatasetsPublicationListType {
   const navigate = useNavigate();
-  const { datasets, isLoading, isError } = useDatasets();
+  const { datasets, isLoading } = useDatasets();
   const [searchValue, setSearchValue] = useState<string>('');
   const [isDeleteModalOpened, setIsDeleteModalOpened] = useState<boolean>(false);
   const [selectedDataset, setSelectedDataset] = useState<DatasetsPublicationListItem | null>(null);
@@ -59,9 +59,12 @@ export function useDatasetsPublicationList(): DatasetsPublicationListType {
     await queryClient.invalidateQueries({ queryKey: ['datasets'] });
   }, [deleteDataset, onDeleteModalClose, selectedDataset]);
 
-  const onPublish = useCallback((id: string) => {
-    console.log('onPublish', id);
-  }, []);
+  const onPublish = useCallback(
+    (id: string) => {
+      navigate(`${ADMIN_PATHS.DATASETS}/edit/${id}/settings`);
+    },
+    [navigate],
+  );
 
   const datasetListItems = useMemo((): DatasetsPublicationListItem[] => {
     return (
@@ -69,6 +72,7 @@ export function useDatasetsPublicationList(): DatasetsPublicationListType {
         id: dataset.id,
         name: dataset.name,
         status: dataset.status,
+        updated_at: dataset.updated_at,
         visibility: dataset.visibility,
       })) || []
     );
@@ -81,12 +85,6 @@ export function useDatasetsPublicationList(): DatasetsPublicationListType {
   const navigateToNewDataset = useCallback(() => {
     navigate(`${ADMIN_PATHS.DATASETS}/new`);
   }, [navigate]);
-
-  useEffect(() => {
-    if (!isLoading && !datasets?.length && !isError) {
-      navigateToNewDataset();
-    }
-  }, [isLoading, isError, datasets, navigateToNewDataset]);
 
   return {
     datasets,

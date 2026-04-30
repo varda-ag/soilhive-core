@@ -42,7 +42,7 @@
     display: flex;
     flex-direction: column;
     flex-grow: 1;
-    padding: 9px 20px 27px 20px;
+    padding: 9px 20px 10px 20px;
     height: 100%;
 
     @media (max-width: $bp-mobile-max) {
@@ -60,7 +60,6 @@
 
       @media (max-width: $bp-mobile-max) {
         padding: 0;
-        flex-direction: column;
         gap: 4px;
 
         .MultiSelect {
@@ -115,9 +114,15 @@
           box-shadow: 0px 4px 16px 0px #00000014;
         }
 
-        // .p-paginator-bottom
-        & > div:nth-of-type(2) {
+        & > :global(.p-paginator-bottom) {
           margin-top: 13px;
+          padding: 0;
+          font-size: var(--font-size-xs);
+          flex-wrap: nowrap;
+
+          & > :global(.p-paginator-pages) {
+            display: flex;
+          }
         }
       }
 

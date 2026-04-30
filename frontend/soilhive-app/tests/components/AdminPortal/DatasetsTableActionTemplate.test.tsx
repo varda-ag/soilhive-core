@@ -1,6 +1,16 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { DatasetsTableActionTemplate } from 'components/AdminPortal/DatasetsPublicationTable/DatasetsTableActionTemplate/DatasetsTableActionTemplate';
 import { IngestionStatus } from 'types/backend';
+import { useAuthContext } from '../../../src/auth/AuthContextProvider';
+
+jest.mock('../../../src/auth/AuthContextProvider', () => ({
+  useAuthContext: jest.fn(),
+}));
+
+jest.mock('../../../src/hooks/useEntitlementsHook', () => ({
+  ...jest.requireActual('../../../src/hooks/useEntitlementsHook'),
+  useEntitlements: () => ({ can: () => true }),
+}));
 
 jest.mock('components/UI', () => ({
   Button: ({ children, onClick }: any) => (
@@ -17,12 +27,18 @@ const baseProps = {
 };
 
 describe('DatasetsTableActionTemplate', () => {
+  beforeEach(() => {
+    (useAuthContext as jest.Mock).mockReturnValue({
+      isLoading: false,
+    });
+  });
+
   afterEach(() => {
     jest.clearAllMocks();
   });
 
   describe('PENDING status', () => {
-    const dataset = { id: '1', name: 'Dataset', status: IngestionStatus.PENDING };
+    const dataset = { id: '1', name: 'Dataset', updated_at: null, status: IngestionStatus.PENDING };
 
     it('renders edit and delete icons, no publish button', () => {
       render(<DatasetsTableActionTemplate {...baseProps} dataset={dataset} />);
@@ -48,7 +64,7 @@ describe('DatasetsTableActionTemplate', () => {
   });
 
   describe('LOADED status', () => {
-    const dataset = { id: '2', name: 'Dataset', status: IngestionStatus.LOADED };
+    const dataset = { id: '2', name: 'Dataset', updated_at: null, status: IngestionStatus.LOADED };
 
     it('renders publish button and delete icon, no edit icon', () => {
       render(<DatasetsTableActionTemplate {...baseProps} dataset={dataset} />);
@@ -74,7 +90,7 @@ describe('DatasetsTableActionTemplate', () => {
   });
 
   describe('PUBLISHED status', () => {
-    const dataset = { id: '3', name: 'Dataset', status: IngestionStatus.PUBLISHED };
+    const dataset = { id: '3', name: 'Dataset', updated_at: null, status: IngestionStatus.PUBLISHED };
 
     it('renders edit and delete icons, no publish button', () => {
       render(<DatasetsTableActionTemplate {...baseProps} dataset={dataset} />);
@@ -93,7 +109,7 @@ describe('DatasetsTableActionTemplate', () => {
   });
 
   describe('ONGOING status', () => {
-    const dataset = { id: '4', name: 'Dataset', status: IngestionStatus.ONGOING };
+    const dataset = { id: '4', name: 'Dataset', updated_at: null, status: IngestionStatus.ONGOING };
 
     it('renders no action buttons', () => {
       render(<DatasetsTableActionTemplate {...baseProps} dataset={dataset} />);

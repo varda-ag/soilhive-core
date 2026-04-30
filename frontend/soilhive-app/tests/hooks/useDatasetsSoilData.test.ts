@@ -66,8 +66,8 @@ function buildDefaultMocks(overrides: { deleteFileAndMapping?: jest.Mock; existi
   });
 }
 
-function buildSoilDataFile(id: string, name: string, crs: string | null = 'EPSG:4326', error?: string) {
-  return { id, file: null, name, crs, inferredCrs: undefined, progress: 100, error };
+function buildSoilDataFile(id: string, name: string, crs: string | null = 'EPSG:4326', error?: string, fieldNames?: string[]) {
+  return { id, file: null, name, crs, inferredCrs: undefined, fieldNames, progress: 100, error };
 }
 
 // ---------------------------------------------------------------------------
@@ -128,6 +128,137 @@ describe('useDatasetsSoilData', () => {
         expect(result.current.isContinueEnabled).toBe(true);
       });
     });
+
+    it('is false when files have mismatched fieldNames even if all have a crs', async () => {
+      buildDefaultMocks({
+        existingFiles: [
+          { id: '1', name: 'a.csv', metadata: { epsg: 4326, field_names: ['col1', 'col2'] } },
+          { id: '2', name: 'b.csv', metadata: { epsg: 4326, field_names: ['col1', 'col3'] } },
+        ],
+      });
+      const { result } = renderHook(() => useDatasetsSoilData());
+
+      await waitFor(() => {
+        expect(result.current.isContinueEnabled).toBe(false);
+      });
+    });
+  });
+
+  // --- consistency error annotation ----------------------------------------
+
+  describe('structure inconsistency errors', () => {
+    it('sets error on files whose fieldNames differ from the first file', async () => {
+      buildDefaultMocks({
+        existingFiles: [
+          { id: '1', name: 'a.csv', metadata: { epsg: 4326, field_names: ['col1', 'col2'] } },
+          { id: '2', name: 'b.csv', metadata: { epsg: 4326, field_names: ['col1', 'col3'] } },
+        ],
+      });
+      const { result } = renderHook(() => useDatasetsSoilData());
+
+      await waitFor(() => {
+        expect(result.current.soilDataFiles[0].error).toBeNull();
+        expect(result.current.soilDataFiles[1].error).toBeTruthy();
+      });
+    });
+
+    it('sets no error when all files have matching fieldNames', async () => {
+      buildDefaultMocks({
+        existingFiles: [
+          { id: '1', name: 'a.csv', metadata: { epsg: 4326, field_names: ['col1', 'col2'] } },
+          { id: '2', name: 'b.csv', metadata: { epsg: 4326, field_names: ['col2', 'col1'] } },
+        ],
+      });
+      const { result } = renderHook(() => useDatasetsSoilData());
+
+      await waitFor(() => {
+        expect(result.current.soilDataFiles.every(f => !f.error)).toBe(true);
+      });
+    });
+
+    it('sets no error on a single file (no master comparison possible)', async () => {
+      buildDefaultMocks({
+        existingFiles: [{ id: '1', name: 'a.csv', metadata: { epsg: 4326, field_names: ['col1', 'col2'] } }],
+      });
+      const { result } = renderHook(() => useDatasetsSoilData());
+
+      await waitFor(() => {
+        expect(result.current.soilDataFiles[0].error).toBeNull();
+      });
+    });
+
+    it('does not set error when a file has no fieldNames yet', async () => {
+      buildDefaultMocks({
+        existingFiles: [
+          { id: '1', name: 'a.csv', metadata: { epsg: 4326, field_names: ['col1', 'col2'] } },
+          { id: '2', name: 'b.csv', metadata: { epsg: 4326 } }, // no field_names
+        ],
+      });
+      const { result } = renderHook(() => useDatasetsSoilData());
+
+      await waitFor(() => {
+        expect(result.current.soilDataFiles[1].error).toBeNull();
+      });
+    });
+
+    it('populates missingFields and extraFields on inconsistent files', async () => {
+      buildDefaultMocks({
+        existingFiles: [
+          { id: '1', name: 'a.csv', metadata: { epsg: 4326, field_names: ['col1', 'col2', 'col3'] } },
+          { id: '2', name: 'b.csv', metadata: { epsg: 4326, field_names: ['col1', 'col4'] } },
+        ],
+      });
+      const { result } = renderHook(() => useDatasetsSoilData());
+
+      await waitFor(() => {
+        const file = result.current.soilDataFiles[1];
+        expect(file.missingFields).toEqual(expect.arrayContaining(['col2', 'col3']));
+        expect(file.extraFields).toEqual(['col4']);
+      });
+    });
+
+    it('clears missingFields and extraFields on consistent files', async () => {
+      buildDefaultMocks({
+        existingFiles: [
+          { id: '1', name: 'a.csv', metadata: { epsg: 4326, field_names: ['col1', 'col2'] } },
+          { id: '2', name: 'b.csv', metadata: { epsg: 4326, field_names: ['col2', 'col1'] } },
+        ],
+      });
+      const { result } = renderHook(() => useDatasetsSoilData());
+
+      await waitFor(() => {
+        expect(result.current.soilDataFiles[1].missingFields).toBeUndefined();
+        expect(result.current.soilDataFiles[1].extraFields).toBeUndefined();
+      });
+    });
+
+    it('re-evaluates errors when the master file is removed', async () => {
+      buildDefaultMocks({
+        existingFiles: [
+          { id: '1', name: 'a.csv', metadata: { epsg: 4326, field_names: ['col1', 'col2'] } },
+          { id: '2', name: 'b.csv', metadata: { epsg: 4326, field_names: ['col1', 'col3'] } },
+          { id: '3', name: 'c.csv', metadata: { epsg: 4326, field_names: ['col1', 'col3'] } },
+        ],
+      });
+      const { result } = renderHook(() => useDatasetsSoilData());
+
+      // Initially file '2' and '3' are inconsistent with master '1'
+      await waitFor(() => {
+        expect(result.current.soilDataFiles[1].error).toBeTruthy();
+        expect(result.current.soilDataFiles[2].error).toBeTruthy();
+      });
+
+      // Remove the master; '2' becomes the new master, '3' matches it → no errors
+      await act(async () => {
+        await result.current.removeFile('1');
+      });
+
+      await waitFor(() => {
+        expect(result.current.soilDataFiles).toHaveLength(2);
+        expect(result.current.soilDataFiles[0].error).toBeNull(); // new master
+        expect(result.current.soilDataFiles[1].error).toBeNull(); // matches new master
+      });
+    });
   });
 
   // --- useEffect (existing files) ------------------------------------------
@@ -136,7 +267,7 @@ describe('useDatasetsSoilData', () => {
     it('maps FileDescriptor[] into SoilDataFile[] with the correct shape', async () => {
       buildDefaultMocks({
         existingFiles: [
-          { id: 'f1', name: 'soil.csv', metadata: { epsg: 4326 } },
+          { id: 'f1', name: 'soil.csv', metadata: { epsg: 4326, field_names: ['lat', 'lon'] } },
           { id: 'f2', name: 'geo.geojson', metadata: {} },
         ],
       });
@@ -145,8 +276,26 @@ describe('useDatasetsSoilData', () => {
 
       await waitFor(() => {
         expect(result.current.soilDataFiles).toEqual([
-          { id: 'f1', file: null, name: 'soil.csv', crs: null, inferredCrs: 'EPSG:4326', progress: 100 },
-          { id: 'f2', file: null, name: 'geo.geojson', crs: null, inferredCrs: undefined, progress: 100 },
+          {
+            id: 'f1',
+            file: null,
+            name: 'soil.csv',
+            crs: null,
+            inferredCrs: 'EPSG:4326',
+            fieldNames: ['lat', 'lon'],
+            progress: 100,
+            error: null,
+          },
+          {
+            id: 'f2',
+            file: null,
+            name: 'geo.geojson',
+            crs: null,
+            inferredCrs: undefined,
+            fieldNames: undefined,
+            progress: 100,
+            error: null,
+          },
         ]);
       });
     });

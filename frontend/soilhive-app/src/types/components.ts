@@ -45,9 +45,10 @@ export interface Selection {
 
 export type NavMenuEntry = {
   name: string;
-  route: string;
+  route?: string;
   type: 'internal' | 'external';
   Icon?: React.FC<React.SVGProps<SVGSVGElement>>;
+  children?: NavMenuEntry[];
 };
 
 export type TabData = {

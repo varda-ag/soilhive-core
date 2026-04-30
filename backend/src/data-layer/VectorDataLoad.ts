@@ -16,10 +16,11 @@ export default class VectorDataLoad {
     fileId: string,
     limit: number = DATA_PREVIEW_SIZE,
     cursor?: string,
+    sort?: string,
   ): Promise<SoilRecord[]> => {
     const table = `${process.env.POSTGRES_SCHEMA}.${getRawTableName(fileId)}`;
     let query = entityManager.createQueryBuilder().from(table, 'raw');
-    query = getDataPreviewQuery(query, dataMappingConfig, cursor);
+    query = getDataPreviewQuery(query, dataMappingConfig, cursor, sort);
     // Workaround using raw query to be able to use dynamic table name without entity
     const results = await entityManager.query(...query.take(limit).getQueryAndParameters());
     // Convert geometry string to JSON
@@ -157,9 +158,17 @@ export default class VectorDataLoad {
   };
 }
 
-const getDataPreviewQuery = (query: any, dataMappingConfig: DataCleaningConfig, cursor?: string): any => {
+const getDataPreviewQuery = (query: any, dataMappingConfig: DataCleaningConfig, cursor?: string, sort?: string): any => {
   query.select('raw.record_id', 'record_id');
-  query.orderBy('raw.record_id', 'ASC');
+  if (sort) {
+    const isDesc = sort.startsWith('-');
+    const sortKey = isDesc ? sort.substring(1) : sort;
+    const dir = isDesc ? 'DESC' : 'ASC';
+    const sortMapping = dataMappingConfig.metadata_cols[sortKey] || sortKey;
+    query.orderBy(`raw.${sortMapping}`, dir);
+  } else {
+    query.orderBy('raw.record_id', 'ASC');
+  }
   if (cursor) {
     query.andWhere('raw.record_id > :cursor', { cursor });
   }

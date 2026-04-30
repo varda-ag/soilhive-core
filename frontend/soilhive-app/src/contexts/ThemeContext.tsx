@@ -16,6 +16,7 @@ type ThemeContextType = {
   saveColors: (colors: ThemeColors) => Promise<void>;
   saveInitialBbox: (initialBbox: number[]) => Promise<void>;
   saveTermsAndConditions: (termsAndConditionsHtml: string) => Promise<void>;
+  savePrivacyPolicy: (privacyPolicyHtml: string) => Promise<void>;
   saveNotificationBanner: (notificationBannerHtml: string) => Promise<void>;
 };
 
@@ -28,6 +29,9 @@ type ThemeProviderProps = {
 export const defaultThemeConfig: ThemeConfig = {
   colors: defaultColors,
   termsAndConditionsHtml: '',
+  termsAndConditionsLatestUpdate: '',
+  privacyPolicyHtml: '',
+  privacyPolicyLatestUpdate: '',
   notificationBannerHtml: '',
   initialBbox: [6.6272658, 35.2889616, 18.7844746, 47.0921462],
 };
@@ -59,15 +63,43 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   };
 
   const saveTermsAndConditions = async (termsAndConditionsHtml: string) => {
+    const latestUpdate = new Date().toLocaleDateString('en-GB', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    });
+
     await saveConfig({
       ...themeConfig,
       termsAndConditionsHtml,
+      termsAndConditionsLatestUpdate: latestUpdate,
     });
 
     showNotification({
       id: 'saveTermsAndConditionsSuccess',
       title: t('terms_and_conditions.notification.title'),
       message: t('terms_and_conditions.notification.message'),
+      type: 'success',
+    });
+  };
+
+  const savePrivacyPolicy = async (privacyPolicyHtml: string) => {
+    const latestUpdate = new Date().toLocaleDateString('en-GB', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    });
+
+    await saveConfig({
+      ...themeConfig,
+      privacyPolicyHtml,
+      privacyPolicyLatestUpdate: latestUpdate,
+    });
+
+    showNotification({
+      id: 'savePrivacyPolicySuccess',
+      title: t('privacy_policy.notification.title'),
+      message: t('privacy_policy.notification.message'),
       type: 'success',
     });
   };
@@ -124,6 +156,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
         saveColors,
         saveInitialBbox,
         saveTermsAndConditions,
+        savePrivacyPolicy,
         saveNotificationBanner,
         setLogo,
         isLogoLoading,

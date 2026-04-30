@@ -13,8 +13,8 @@ interface Props {
   outputHeight: number;
   fileName?: string;
   headerText: string;
-  cancelText?: string;
-  continueText?: string;
+  secondaryText?: string;
+  primaryText?: string;
   onCrop: (file: File) => void;
   onCancel: () => void;
 }
@@ -26,8 +26,8 @@ export function CropModal({
   outputHeight,
   fileName,
   headerText,
-  cancelText,
-  continueText,
+  secondaryText,
+  primaryText,
   onCrop,
   onCancel,
 }: Props) {
@@ -71,11 +71,11 @@ export function CropModal({
       visible={isModalOpened}
       header={headerText}
       removeTransition
-      cancelText={cancelText}
-      continueText={continueText}
+      secondaryText={secondaryText}
+      primaryText={primaryText}
       contentClassName={styles.CroppDialog}
-      onContinue={handleConfirmCrop}
-      onCancel={handleCancel}
+      onPrimary={handleConfirmCrop}
+      onSecondary={handleCancel}
     >
       {imageSrc && (
         <>

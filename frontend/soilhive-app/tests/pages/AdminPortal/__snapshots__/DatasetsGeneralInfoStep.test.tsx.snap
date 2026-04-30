@@ -173,20 +173,35 @@ exports[`DatasetsGeneralInfoStep renders matches snapshot 1`] = `
   <div
     class="Actions"
   >
-    <button
-      class="Button Secondary Small"
-      data-testid="sh-general-info-save-later"
-      type="button"
+    <div
+      class="Left"
     >
-      Save and continue later
-    </button>
-    <button
-      class="Button Primary Small"
-      data-testid="sh-general-info-continue"
-      type="button"
+      <a
+        class="Button Secondary Small"
+        data-testid="sh-general-info-cancel"
+        href="/admin/datasets"
+      >
+        Cancel
+      </a>
+    </div>
+    <div
+      class="Right"
     >
-      Continue
-    </button>
+      <button
+        class="Button Secondary Small"
+        data-testid="sh-general-info-save-later"
+        type="button"
+      >
+        Save and continue later
+      </button>
+      <button
+        class="Button Primary Small"
+        data-testid="sh-general-info-continue"
+        type="button"
+      >
+        Continue
+      </button>
+    </div>
   </div>
 </div>
 `;

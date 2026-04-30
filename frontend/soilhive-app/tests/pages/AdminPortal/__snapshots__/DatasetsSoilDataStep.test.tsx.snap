@@ -76,6 +76,7 @@ exports[`DatasetsSoilDataStep renders matches snapshot 1`] = `
         <button
           class="Button Secondary Small"
           data-testid="sh-ui-button"
+          disabled=""
           type="button"
         >
           Save and continue later

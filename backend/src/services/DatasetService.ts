@@ -8,6 +8,13 @@ import { EntityType, IngestionStatus } from '../types/data';
 import { epsgList } from '../assets/epsg';
 import { Capability } from '../types/enums';
 import { Entitlements } from '../types/Entitlements';
+import VectorDataLoad from '../data-layer/VectorDataLoad';
+import DataMappingService from './DataMappingService';
+import DatasetFileMappingService from './DatasetFileMappingService';
+
+const vdl = new VectorDataLoad();
+const dmService = new DataMappingService();
+const dfmService = new DatasetFileMappingService();
 
 export default class DatasetService {
   getDatasets = async (requestData: RequestData): Promise<DatasetEntity[]> => {
@@ -95,4 +102,18 @@ export default class DatasetService {
     // For public datasets, all capabilities are granted.
     dataset.capabilities = dataset.visibility === 'private' ? entitlements[dataset.slug] || [] : [Capability.PREVIEW, Capability.DOWNLOAD];
   };
+
+  async getSoilData(requestData: RequestData, datasetFileMappingId: string, limit: number, cursor?: string, sort?: string) {
+    const datasetFileMapping = await dfmService.getDatasetFileMapping(requestData, datasetFileMappingId);
+    const dataMappingConfig = await dmService.parseDataMapping(requestData, datasetFileMapping.data_mapping_id!);
+    const results = await vdl.getDataPreview(
+      requestData.entityManager,
+      dataMappingConfig,
+      datasetFileMapping.file_id!,
+      limit,
+      cursor,
+      sort,
+    );
+    return results;
+  }
 }

@@ -13,15 +13,6 @@ export enum FileFormat {
 }
 
 /**
- * Job payload received from pg-boss
- */
-export interface SoilExportJobPayload {
-  filterId: string;
-  dataset_ids: string[];
-  file_format: FileFormat;
-}
-
-/**
  * Processed record with formatted fields for export
  */
 export interface ExportRecord {

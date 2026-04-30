@@ -30,3 +30,14 @@ export function firstDayOfTheMonth(date: Date): Date {
   // First day of the month at the start of the day (00:00:00.000)
   return new Date(date.getFullYear(), date.getMonth(), 1);
 }
+
+export function dateStringToDDMMYYYY(dateString: Date | null) {
+  if (!dateString) return '—';
+
+  const date = new Date(dateString);
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
+
+  return `${day}-${month}-${year}`;
+}

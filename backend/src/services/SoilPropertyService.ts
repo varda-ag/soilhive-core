@@ -17,9 +17,9 @@ export default class SoilPropertyService {
     ]);
   };
 
-  getSoilPropertiesBySlug = async (requestData: RequestData, slugs: string[]): Promise<SoilPropertyEntity[]> => {
+  async getSoilPropertiesBySlug(requestData: RequestData, slugs: string[]): Promise<SoilPropertyEntity[]> {
     return await getEntities(requestData, SoilPropertyEntity, EntityType.SOIL_PROPERTY, slugs, ['soil_property_category']);
-  };
+  }
 
   /**
    *

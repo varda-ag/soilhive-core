@@ -3,6 +3,9 @@ export type ThemeColors = Record<string, string>;
 export type ThemeConfig = {
   colors: ThemeColors;
   termsAndConditionsHtml: string;
+  termsAndConditionsLatestUpdate: string;
+  privacyPolicyHtml: string;
+  privacyPolicyLatestUpdate: string;
   notificationBannerHtml: string;
   initialBbox: [number, number, number, number];
 };

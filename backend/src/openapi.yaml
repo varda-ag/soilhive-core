@@ -1113,6 +1113,12 @@ paths:
           type: string
           format: uuid
         description: Unique filter identifier
+      - name: geometryOnly
+        in: query
+        required: false
+        description: Only considers geometry for coverage calculation, ignoring other filter parameters
+        schema:
+          type: boolean
     get:
       x-eov-operation-handler: controllers/data-filters
       x-eov-operation-id: getDataFilterCoverage
@@ -1198,6 +1204,8 @@ paths:
           schema:
             type: number
             default: 100
+            minimum: 1
+            maximum: 200
         - in: query
           name: cursor
           required: false
@@ -1270,13 +1278,13 @@ paths:
         required: true
         schema:
           type: string
-        description: ID of the dataset to assign to the created soil data
+        description: ID of the dataset containing soil data
       - name: datasetFileMappingId
         in: path
         required: true
         schema:
           type: string
-        description: Unique identifier of the mapping to be applied to the raw record
+        description: Unique identifier of the mapping related to the raw record
     post:
       x-eov-operation-handler: controllers/datasets
       x-eov-operation-id: postSoilData
@@ -1296,6 +1304,43 @@ paths:
       responses:
         '201':
           description: Soil data loaded successfully
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    get:
+      x-eov-operation-handler: controllers/datasets
+      x-eov-operation-id: getSoilData
+      summary: Retrieve soil data records before loading them into the system
+      tags:
+        - datasets
+      security:
+        - bearerAuth: [data-admin]
+      parameters:
+        - in: query
+          name: limit
+          required: true
+          description: Number of items in the response
+          schema:
+            type: number
+            default: 100
+            minimum: 1
+            maximum: 200
+        - in: query
+          name: cursor
+          required: false
+          description: Pagination cursor
+          schema:
+            type: string
+        - in: query
+          name: sort
+          required: false
+          description: Sort column. Prepend with '-' for descending order
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Soil data retrieved successfully
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -2329,6 +2374,16 @@ components:
           type: string
           enum: [csv, xlsx, gpkg, shp, geojson]
           description: Export file format
+        public_homepage_url:
+          type: string
+          format: uri
+          description: Optional URL pointing to platform homepage that will appear in Readme.PDF
+        public_metadata_urls:
+          type: object
+          additionalProperties:
+            type: string
+            format: uri
+          description: Optional mapping of dataset_id to metadata URL for Readme.PDF
 
     FileToDbJob:
       type: object

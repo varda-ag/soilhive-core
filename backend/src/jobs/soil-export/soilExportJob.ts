@@ -16,7 +16,7 @@ import { RequestData } from '../../interfaces/RequestData';
 export async function processExportJob(job: Job<ExportJob>): Promise<void> {
   const { id: jobId, data } = job;
   const { created_by } = job as unknown as ExportJob;
-  const { filter_id, dataset_ids, format } = data;
+  const { filter_id, format } = data;
 
   const file_format = parseFileFormat(format);
   const entityManager = await getEntityManager();
@@ -29,7 +29,7 @@ export async function processExportJob(job: Job<ExportJob>): Promise<void> {
   try {
     // Get total records for progress tracking
     const requestData = { entityManager, entitlements } as RequestData;
-    const total_records_estimate = await getTotalRecordsCount(requestData, { filterId: filter_id, dataset_ids, file_format });
+    const total_records_estimate = await getTotalRecordsCount(requestData, data);
 
     await updateJobState(jobId, {
       ...data,
@@ -39,8 +39,7 @@ export async function processExportJob(job: Job<ExportJob>): Promise<void> {
       total_records_processed: 0,
     });
 
-    // Create README placeholder
-    await createReadmeFile(tempDir, { filterId: filter_id, dataset_ids, file_format });
+    await createReadmeFile(requestData, tempDir, data);
 
     // Initialize writer
     const writer = new GeoFileWriter(file_format);
@@ -58,7 +57,7 @@ export async function processExportJob(job: Job<ExportJob>): Promise<void> {
       }
 
       // 1. Fetch batch
-      const batch = await fetchBatch(requestData, { filterId: filter_id, dataset_ids, file_format }, cursor);
+      const batch = await fetchBatch(requestData, data, cursor);
 
       if (!batch || batch.length === 0) {
         break;
@@ -123,6 +122,9 @@ export async function processExportJob(job: Job<ExportJob>): Promise<void> {
       download_path: final_storage_path,
       download_filename: generateDownloadFilename(),
     });
+  } catch (error) {
+    console.error(`Error processing export job ${jobId}:`, error);
+    throw error;
   } finally {
     // Always cleanup temp files, even on error
     await cleanupTempFiles(tempDir);

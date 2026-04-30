@@ -7,7 +7,7 @@ import { toGisDatatype } from '../../utils/geometry';
 
 export const updateDatasetMetadata = async (entityManager: EntityManager, datasetId: string, status: IngestionStatus): Promise<void> => {
   // Override global statement timeout, long running query
-  await entityManager.query("SET LOCAL statement_timeout = '3min';");
+  await entityManager.query("SET LOCAL statement_timeout = '10min';");
   // Get dataset layers
   const tmp = await entityManager
     .getRepository(DatasetLayerEntity)

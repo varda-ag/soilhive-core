@@ -1,0 +1,73 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`MobileDropdownMenuItem component matches snapshot when closed 1`] = `
+<div>
+  <div
+    class="MobileDropdownMenuItem"
+  >
+    <div
+      class="Toggler"
+      role="button"
+    >
+      <span
+        class="TogglerText"
+      >
+         
+        Legal
+      </span>
+      <svg
+        class="DropdownIcon"
+        data-testid="svg-icon-mock"
+      >
+        mock-svg
+      </svg>
+    </div>
+    <div
+      class="Menu"
+    >
+      <a
+        data-testid="mobile-menu-link"
+        href="/terms-of-use"
+      >
+        Terms of use
+      </a>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`MobileDropdownMenuItem component matches snapshot when open 1`] = `
+<div>
+  <div
+    class="MobileDropdownMenuItem Opened"
+  >
+    <div
+      class="Toggler"
+      role="button"
+    >
+      <span
+        class="TogglerText"
+      >
+         
+        Legal
+      </span>
+      <svg
+        class="DropdownIcon"
+        data-testid="svg-icon-mock"
+      >
+        mock-svg
+      </svg>
+    </div>
+    <div
+      class="Menu"
+    >
+      <a
+        data-testid="mobile-menu-link"
+        href="/terms-of-use"
+      >
+        Terms of use
+      </a>
+    </div>
+  </div>
+</div>
+`;

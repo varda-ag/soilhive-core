@@ -1,0 +1,93 @@
+.DropdownMenuItem {
+  color: #000;
+  text-decoration: none;
+  font-weight: var(--font-weight-bold);
+  font-size: var(--font-size-md);
+  line-height: 1.5rem;
+  display: flex;
+  align-items: flex-end;
+  height: 100%;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  cursor: pointer;
+
+  .LinkText {
+    padding: 0 0.75rem 0.4rem 0.75rem;
+    border-bottom: 0.5rem solid transparent;
+  }
+
+  &.Active {
+    .LinkText {
+      border-bottom-color: var(--color-pills);
+    }
+  }
+}
+
+.DropdownMenuItem {
+  position: relative;
+  overflow: visible;
+
+  &:has(.Active) .LinkText {
+    border-bottom-color: var(--color-pills);
+  }
+
+  .LinkText {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    padding: 0 0.5rem 0.4rem;
+  }
+
+  &.Opened {
+    .Menu {
+      display: flex;
+    }
+  }
+
+  &.Mobile {
+    font-weight: var(--font-weight-regular);
+  }
+}
+
+.Menu {
+  position: absolute;
+  top: calc(100% - 1px);
+  right: 0;
+  min-width: 14.375rem;
+  z-index: 10;
+  background-color: var(--color-neutral-white);
+  box-shadow: var(--shadow-interface);
+  border-radius: 0.5rem;
+  display: none;
+  flex-direction: column;
+
+  > .MenuLink {
+    display: flex;
+    align-items: center;
+    padding: 0.875rem 1.5rem;
+    gap: 0.625rem;
+    color: var(--color-neutral-black);
+    font-weight: var(--font-weight-regular);
+    text-decoration: none;
+
+    &:hover,
+    &:visited,
+    &:focus {
+      color: var(--color-neutral-black);
+    }
+
+    &:hover {
+      background-color: var(--color-neutral-dark-300);
+    }
+
+    &:first-child {
+      border-top-left-radius: 0.5rem;
+      border-top-right-radius: 0.5rem;
+    }
+    &:last-child {
+      border-bottom-left-radius: 0.5rem;
+      border-bottom-right-radius: 0.5rem;
+    }
+  }
+}

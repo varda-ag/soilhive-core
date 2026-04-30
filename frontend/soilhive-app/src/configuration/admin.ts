@@ -2,6 +2,7 @@ export const ADMIN_ROOT = '/admin';
 
 export const ADMIN_ROUTES = {
   TERMS_AND_CONDITIONS: 'terms-and-conditions',
+  PRIVACY_POLICY: 'privacy-policy',
   NOTIFICATION_BANNER: 'notification-banner',
   MAP: 'map-settings',
   LOOK_AND_FEEL: 'look-and-feel',
@@ -16,6 +17,7 @@ export const LOOK_AND_FEEL_ROUTES = {
 
 export const ADMIN_PATHS = {
   TERMS_AND_CONDITIONS: `${ADMIN_ROOT}/${ADMIN_ROUTES.TERMS_AND_CONDITIONS}`,
+  PRIVACY_POLICY: `${ADMIN_ROOT}/${ADMIN_ROUTES.PRIVACY_POLICY}`,
   NOTIFICATION_BANNER: `${ADMIN_ROOT}/${ADMIN_ROUTES.NOTIFICATION_BANNER}`,
   MAP: `${ADMIN_ROOT}/${ADMIN_ROUTES.MAP}`,
   LOOK_AND_FEEL: `${ADMIN_ROOT}/${ADMIN_ROUTES.LOOK_AND_FEEL}`,
@@ -27,6 +29,7 @@ export const ADMIN_PATHS = {
 
 export const PAGE_TITLE_KEYS = {
   [ADMIN_PATHS.TERMS_AND_CONDITIONS]: 'terms_and_conditions.title',
+  [ADMIN_PATHS.PRIVACY_POLICY]: 'privacy_policy.title',
   [ADMIN_PATHS.NOTIFICATION_BANNER]: 'notification_banner.title',
   [ADMIN_PATHS.MAP]: 'map_settings.title',
   [ADMIN_PATHS.LOOK_AND_FEEL]: 'look_and_feel.title',

@@ -7,7 +7,7 @@ import styles from './MappingsTable.module.scss';
 
 interface Props {
   columnMappings: ColumnMapping[];
-  conceptOptions: MenuOption[];
+  conceptOptionsByColumn: Record<string, MenuOption[]>;
   unitOptionsByConcept: Record<string, MenuOption[]>;
   detailOptions: DetailOptionMap;
   expandedRows: Set<string>;
@@ -19,7 +19,7 @@ interface Props {
 
 export function MappingsTable({
   columnMappings,
-  conceptOptions,
+  conceptOptionsByColumn,
   unitOptionsByConcept,
   detailOptions,
   expandedRows,
@@ -48,7 +48,7 @@ export function MappingsTable({
             <MappingRow
               key={mapping.columnName}
               mapping={mapping}
-              conceptOptions={conceptOptions}
+              conceptOptions={conceptOptionsByColumn[mapping.columnName] ?? []}
               unitOptions={unitOptions}
               detailOptions={detailOptions}
               isExpanded={expandedRows.has(mapping.columnName)}
