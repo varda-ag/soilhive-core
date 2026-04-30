@@ -86,20 +86,42 @@ export async function render(
 
   const backendUrl = process.env.BACKEND_BASE_URL ?? '';
 
+  const buildHeaders = (): HeadersInit => {
+    const headers: HeadersInit = { 'Content-Type': 'application/json' };
+    if (context?.authToken) headers['Authorization'] = `Bearer ${context.authToken}`;
+    return headers;
+  };
+
   // Prefetch route-specific queries so renderToString sees real data.
   const datasetMatch = matchedPattern === '/datasets/:id' ? pathname.match(/^\/datasets\/([^/]+)$/) : null;
   if (datasetMatch) {
     const datasetId = datasetMatch[1];
-    await queryClient.prefetchQuery({
-      queryKey: ['dataset', datasetId],
-      queryFn: async () => {
-        const headers: HeadersInit = { 'Content-Type': 'application/json' };
-        if (context?.authToken) headers['Authorization'] = `Bearer ${context.authToken}`;
-        const res = await fetch(`${backendUrl}/datasets/${datasetId}`, { headers });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json();
-      },
-    });
+    await Promise.all([
+      queryClient.prefetchQuery({
+        queryKey: ['dataset', datasetId],
+        queryFn: async () => {
+          const res = await fetch(`${backendUrl}/datasets/${datasetId}`, { headers: buildHeaders() });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          return res.json();
+        },
+      }),
+      queryClient.prefetchQuery({
+        queryKey: ['licenses'],
+        queryFn: async () => {
+          const res = await fetch(`${backendUrl}/licenses`, { headers: buildHeaders() });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          return res.json();
+        },
+      }),
+      queryClient.prefetchQuery({
+        queryKey: ['soilProperties'],
+        queryFn: async () => {
+          const res = await fetch(`${backendUrl}/soil-properties`, { headers: buildHeaders() });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          return res.json();
+        },
+      }),
+    ]);
   }
 
   // Prefetch theme config so ThemeProvider has data during renderToString.

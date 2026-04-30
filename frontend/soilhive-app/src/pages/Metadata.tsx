@@ -7,7 +7,7 @@ import Worm from 'assets/images/worm.svg?react';
 import SoilhiveSimpleMap from 'components/Map/SoilhiveSimpleMap';
 import { Logo } from 'components/Logo/Logo';
 import { Button } from 'components/UI';
-import { htmlDisplay } from '../utilities/html-display';
+import { htmlDisplay } from '../utilities/isomorphicHTMLDisplay';
 
 export default function Metadata() {
   const { id } = useParams();
