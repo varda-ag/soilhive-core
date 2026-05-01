@@ -18,10 +18,13 @@ const SSR_COMPONENTS: Record<string, () => Promise<{ default: React.ComponentTyp
 if (GTM_CONTAINER_ID) {
   // Initialize dataLayer + gtag
   window.dataLayer = window.dataLayer || [];
-  function gtag(...args: unknown[]) {
-    window.dataLayer.push(args);
-  }
-  window.gtag = gtag;
+  // Must use `arguments` (not rest params) so GTM recognises this as a gtag command.
+  // GTM checks Object.prototype.toString.call(item) === "[object Arguments]"; a plain
+  // Array pushed via rest params is silently ignored by consent mode processing.
+  window.gtag = function () {
+    // eslint-disable-next-line prefer-rest-params
+    window.dataLayer.push(arguments);
+  } as typeof window.gtag;
 
   // Default-denied BEFORE any script loads
   window.gtag('consent', 'default', {

@@ -65,6 +65,16 @@ export const CookieConsentProvider = ({ children }: { children: ReactNode }) => 
       updateGA4Consent(accepted);
     };
 
+    // Called on first consent and on preference changes. After the consent
+    // update, push a page_view so GTM can send the hit that was blocked when
+    // the page initially loaded with denied consent.
+    const handleActiveConsentChange = (): void => {
+      handleConsentUpdate();
+      if (isAnalyticsAccepted() && typeof window.gtag === 'function') {
+        window.gtag('event', 'page_view');
+      }
+    };
+
     CookieConsent.run({
       cookie: {
         name: 'cc_cookie',
@@ -98,13 +108,10 @@ export const CookieConsentProvider = ({ children }: { children: ReactNode }) => 
         },
       },
 
-      onFirstConsent: handleConsentUpdate,
-      onChange: handleConsentUpdate,
-      onConsent: handleConsentUpdate, // fires on revisit if prefs already stored
+      onFirstConsent: handleActiveConsentChange,
+      onChange: handleActiveConsentChange,
+      onConsent: handleConsentUpdate, // revisit: consent already set when GTM fires
     });
-
-    // Re-apply stored consent on page reload
-    handleConsentUpdate();
   }, []);
 
   return (
