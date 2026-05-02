@@ -110,7 +110,7 @@ export const CookieConsentProvider = ({ children }: { children: ReactNode }) => 
 
       onFirstConsent: handleActiveConsentChange,
       onChange: handleActiveConsentChange,
-      onConsent: handleConsentUpdate, // revisit: consent already set when GTM fires
+      onConsent: handleActiveConsentChange,
     });
   }, []);
 
