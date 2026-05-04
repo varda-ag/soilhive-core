@@ -52,7 +52,6 @@
     "pg-boss": "^12.11.1",
     "pg-dump-restore": "^1.0.15",
     "reflect-metadata": "^0.2.2",
-    "segfault-handler": "^1.3.0",
     "swagger-ui-express": "^5.0.1",
     "typeorm": "^0.3.27",
     "uuid": "11.1.0",
