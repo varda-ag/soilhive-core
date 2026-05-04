@@ -1,5 +1,6 @@
 import cors from 'cors';
 import express, { Application } from 'express';
+import { causeSegfault, registerHandler } from 'segfault-handler';
 import swaggerUi from 'swagger-ui-express';
 import { errorMiddleware } from './middlewares/error';
 import { getOpenApiMiddleware, getSwaggerDocument } from './middlewares/openapi';
@@ -15,6 +16,8 @@ export const app: Application = express();
 
 export const initApp = async (app: Application) => {
   await setupCLI();
+
+  registerHandler('crash.log');
 
   app.use(
     cors({
@@ -35,6 +38,10 @@ export const initApp = async (app: Application) => {
   app.get('/ready', async (_req, res) => {
     const status = await isDBAvailable();
     res.json({ status });
+  });
+
+  app.get('/crash', (_req, _res) => {
+    causeSegfault();
   });
 
   app.use(await getOpenApiMiddleware());
