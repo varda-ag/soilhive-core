@@ -1,24 +1,57 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
+import { useQueryClient } from '@tanstack/react-query';
 import { ADMIN_PATHS } from '../configuration/admin';
-import { isValidEmail } from '../utilities/validation';
+import { isValidEmail, hasTextContent } from '../utilities/validation';
+import { useAuthContext } from '../auth/AuthContextProvider';
+import { AuthModes } from '../auth/types';
+import { useDataset } from './useDatasets';
+import { useUpdateDatasetVisibilityMutation } from './useDatasetMutation';
+import type { EntitlementCapability } from 'types/backend';
+import { useDatasetEntitlements, useDatasetEntitlementsMutation } from './useDatasetEntitlements';
+import useTheme from './useTheme';
 
 export type Visibility = 'public' | 'private';
 
 export type AccessEmail = { email: string };
 
-export function useDatasetsSettings() {
+export function useDatasetsSettings(datasetId: string | undefined) {
   const navigate = useNavigate();
   const { t } = useTranslation('admin');
   const invalidEmailMessage = t('datasets.settings.access.email_invalid');
 
-  const [visibility, setVisibility] = useState<Visibility>('public');
+  const queryClient = useQueryClient();
+  const { themeConfig } = useTheme();
+  const { authMode } = useAuthContext();
+  const isOidcAuth = authMode === AuthModes.OIDC;
+
+  const { data: dataset, isLoading: isDatasetLoading } = useDataset(datasetId);
+  const { data: entitlements, isLoading: isEntitlementsLoading } = useDatasetEntitlements(datasetId);
+  const updateDataset = useUpdateDatasetVisibilityMutation(datasetId ?? '');
+  const updateEntitlements = useDatasetEntitlementsMutation(datasetId ?? '');
+
+  const [visibility, setVisibility] = useState<Visibility>('private');
   const [emailInput, setEmailInput] = useState('');
   const [emailError, setEmailError] = useState('');
   const [accessEmails, setAccessEmails] = useState<AccessEmail[]>([]);
   const [emailToDelete, setEmailToDelete] = useState<string | null>(null);
   const [isPublishWarningVisible, setIsPublishWarningVisible] = useState(false);
+
+  useEffect(() => {
+    if (dataset?.visibility) {
+      setVisibility(dataset.visibility as Visibility);
+    }
+  }, [dataset?.visibility]);
+
+  useEffect(() => {
+    if (entitlements) {
+      setAccessEmails(Object.keys(entitlements).map(email => ({ email })));
+    }
+  }, [entitlements]);
+
+  const isLoading = isDatasetLoading || isEntitlementsLoading;
+  const isSaving = updateDataset.isPending || updateEntitlements.isPending;
 
   function handleEmailChange(value: string) {
     setEmailInput(value);
@@ -62,12 +95,27 @@ export function useDatasetsSettings() {
     setEmailToDelete(null);
   }
 
-  function handlePublish() {
-    setIsPublishWarningVisible(true);
+  async function handlePublish() {
+    const hasLegalDocs = hasTextContent(themeConfig.privacyPolicyHtml) && hasTextContent(themeConfig.termsAndConditionsHtml);
+    if (hasLegalDocs) {
+      await handlePublishProceed();
+    } else {
+      setIsPublishWarningVisible(true);
+    }
   }
 
-  function handlePublishProceed() {
+  async function handlePublishProceed() {
     setIsPublishWarningVisible(false);
+    await updateDataset.mutateAsync({ visibility });
+    await queryClient.invalidateQueries({ queryKey: ['dataset', datasetId] });
+    await queryClient.invalidateQueries({ queryKey: ['datasets'] });
+    if (visibility === 'private') {
+      const payload = Object.fromEntries(accessEmails.map(({ email }) => [email, ['preview', 'download'] as EntitlementCapability[]]));
+      await updateEntitlements.mutateAsync(payload);
+      await queryClient.invalidateQueries({ queryKey: ['dataset-entitlements', datasetId] });
+    }
+
+    navigate(ADMIN_PATHS.DATASETS);
   }
 
   function handlePublishCancel() {
@@ -79,6 +127,9 @@ export function useDatasetsSettings() {
   }
 
   return {
+    isLoading,
+    isSaving,
+    isOidcAuth,
     visibility,
     setVisibility,
     emailInput,
