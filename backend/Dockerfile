@@ -16,6 +16,7 @@ RUN apk update && apk add --no-cache \
     py3-pip \
     make \
     g++ \
+    libexecinfo-dev \
     gdal-dev \
     gdal-driver-pg \
     && ln -sf /usr/bin/python3 /usr/bin/python
