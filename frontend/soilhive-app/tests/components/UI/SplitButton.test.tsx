@@ -10,11 +10,7 @@ const buildOptions = (overrides?: Partial<SplitButtonOption>[]): SplitButtonOpti
 
 describe('SplitButton Component', () => {
   it('renders main button content and chevron toggle, popover hidden by default', () => {
-    render(
-      <SplitButton options={buildOptions()}>
-        Run
-      </SplitButton>,
-    );
+    render(<SplitButton options={buildOptions()}>Run</SplitButton>);
 
     expect(screen.getByTestId('sh-ui-splitbutton-main')).toHaveTextContent('Run');
     const toggle = screen.getByTestId('sh-ui-splitbutton-toggle');
@@ -44,11 +40,7 @@ describe('SplitButton Component', () => {
   });
 
   it('main click without onMainClick toggles the popover', () => {
-    render(
-      <SplitButton options={buildOptions()}>
-        Run
-      </SplitButton>,
-    );
+    render(<SplitButton options={buildOptions()}>Run</SplitButton>);
 
     const main = screen.getByTestId('sh-ui-splitbutton-main');
     fireEvent.click(main);
@@ -74,11 +66,7 @@ describe('SplitButton Component', () => {
   });
 
   it('chevron toggle opens and closes the popover and flips aria-expanded', () => {
-    render(
-      <SplitButton options={buildOptions()}>
-        Run
-      </SplitButton>,
-    );
+    render(<SplitButton options={buildOptions()}>Run</SplitButton>);
 
     const toggle = screen.getByTestId('sh-ui-splitbutton-toggle');
 
@@ -126,11 +114,7 @@ describe('SplitButton Component', () => {
   });
 
   it('outside mousedown closes the popover', () => {
-    render(
-      <SplitButton options={buildOptions()}>
-        Run
-      </SplitButton>,
-    );
+    render(<SplitButton options={buildOptions()}>Run</SplitButton>);
 
     fireEvent.click(screen.getByTestId('sh-ui-splitbutton-toggle'));
     expect(screen.getByTestId('sh-ui-splitbutton-popover')).toBeInTheDocument();
@@ -141,11 +125,7 @@ describe('SplitButton Component', () => {
   });
 
   it('Escape keydown closes the popover', () => {
-    render(
-      <SplitButton options={buildOptions()}>
-        Run
-      </SplitButton>,
-    );
+    render(<SplitButton options={buildOptions()}>Run</SplitButton>);
 
     fireEvent.click(screen.getByTestId('sh-ui-splitbutton-toggle'));
     expect(screen.getByTestId('sh-ui-splitbutton-popover')).toBeInTheDocument();

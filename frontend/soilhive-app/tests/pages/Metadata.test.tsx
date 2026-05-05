@@ -47,7 +47,18 @@ const buildDataset = () => ({
   publication_date: '2021-06-01',
   licenses: [{ url: 'https://license.example', full_name: 'Test License' }],
   citation: 'Test citation',
-  spatial_extent: { type: 'Polygon', coordinates: [[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]] },
+  spatial_extent: {
+    type: 'Polygon',
+    coordinates: [
+      [
+        [0, 0],
+        [1, 0],
+        [1, 1],
+        [0, 1],
+        [0, 0],
+      ],
+    ],
+  },
 });
 
 describe('Metadata page', () => {
