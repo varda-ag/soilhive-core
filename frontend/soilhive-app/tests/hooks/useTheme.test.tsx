@@ -31,6 +31,7 @@ describe('ThemeProvider / useTheme', () => {
 
   const mockThemeConfig = {
     initialBbox: [6.6272658, 35.2889616, 18.7844746, 47.0921462],
+    defaultColors: undefined,
     termsAndConditionsHtml: '<p>Terms text</p>',
     termsAndConditionsLatestUpdate: '',
     privacyPolicyHtml: '',
@@ -109,6 +110,7 @@ describe('ThemeProvider / useTheme', () => {
     expect(result.current.isLoadingThemeConfig).toBe(false);
     expect(result.current.themeConfig.termsAndConditionsHtml).toBe('<p>Terms text</p>');
     expect(typeof result.current.saveColors).toBe('function');
+    expect(typeof result.current.saveDefaultColors).toBe('function');
     expect(typeof result.current.saveInitialBbox).toBe('function');
     expect(typeof result.current.saveTermsAndConditions).toBe('function');
     expect(typeof result.current.savePrivacyPolicy).toBe('function');
@@ -210,6 +212,21 @@ describe('ThemeProvider / useTheme', () => {
     expect(saveThemeConfigMock).toHaveBeenCalledWith({
       ...mockThemeConfig,
       colors: newColors,
+    });
+  });
+
+  it('saveDefaultColors calls saveConfig with defaultColors payload', async () => {
+    const { result } = renderHook(() => useTheme(), { wrapper });
+
+    const newDefaultColors = { primary: '#aaaaaa', secondary: '#bbbbbb' };
+
+    await act(async () => {
+      await result.current.saveDefaultColors(newDefaultColors);
+    });
+
+    expect(saveThemeConfigMock).toHaveBeenCalledWith({
+      ...mockThemeConfig,
+      defaultColors: newDefaultColors,
     });
   });
 
