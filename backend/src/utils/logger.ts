@@ -6,9 +6,25 @@ import { resourceFromAttributes } from '@opentelemetry/resources';
 import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from '@opentelemetry/semantic-conventions';
 import { ExportResult, ExportResultCode, hrTimeToMilliseconds } from '@opentelemetry/core';
 
+const parseSeverity = (level: string): SeverityNumber => {
+  switch (level.toLowerCase()) {
+    case 'debug':
+      return SeverityNumber.DEBUG;
+    case 'warn':
+      return SeverityNumber.WARN;
+    case 'error':
+      return SeverityNumber.ERROR;
+    default:
+      return SeverityNumber.INFO;
+  }
+};
+
+const MIN_SEVERITY = parseSeverity(process.env.LOG_LEVEL ?? 'info');
+
 class JsonConsoleLogExporter implements LogRecordExporter {
   export(records: ReadableLogRecord[], resultCallback: (result: ExportResult) => void): void {
     for (const record of records) {
+      if ((record.severityNumber ?? SeverityNumber.UNSPECIFIED) < MIN_SEVERITY) continue;
       const line = JSON.stringify({
         timestamp: new Date(hrTimeToMilliseconds(record.hrTime)).toISOString(),
         level: record.severityText ?? 'INFO',
