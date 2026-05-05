@@ -111,6 +111,14 @@ S3_STORAGE_BUCKET=...
 S3_STORAGE_ROOT_FOLDER=...
 ```
 
+### Asynchronous jobs
+
+[pg-boss](https://github.com/timgit/pg-boss) is used to manage long running jobs. Following environment variables are used to manage concurrency:
+- `JOB_LOCAL_CONCURRENCY`: Number of workers to spawn for each queue (per-node). Each worker polls and processes jobs independently
+- `JOB_GROUP_CONCURRENCY`: Limit concurrent jobs per group globally across all nodes (database tracking). Coordinates across distributed deployments via database queries.
+
+More information is available in `pg-boss` website.
+
 # Logo
 
 Default is Varda SoilHive logo.
