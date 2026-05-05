@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, jest, afterAll } from '@jest/globals';
+import * as turf from '@turf/turf';
 import { MultiPolygon, Polygon } from 'geojson';
 import { getEntityManager } from '../../src/utils/data-source';
 import { getPolygonFromBbox } from '../../src/utils/geometry';
@@ -531,6 +532,85 @@ describe('SoilDataStorage class', () => {
         6567, 6576, 6578, 6582, 6584, 6772, 6776, 6777, 6782, 7076, 7082, 7171, 7176, 7189, 7283, 7583, 7680, 7686, 7688, 7884, 8072, 8076,
         8084, 8090, 8271, 8284, 8367, 8378, 8384, 8467, 8577, 8682,
       ]);
+    });
+
+    it.each([
+      [
+        {},
+        [
+          [-80.721933926, -33.788328755],
+          [-80.721933926, -33.783977188],
+          [-80.717474913, -33.783977188],
+          [-80.717474913, -33.788328755],
+          [-80.721933926, -33.788328755],
+        ],
+      ],
+      [
+        { raster_filters: { land_cover: [30] } },
+        [
+          [-80.719246032, -33.785714286],
+          [-80.719246032, -33.786706349],
+          [-80.720238095, -33.786706349],
+          [-80.720238095, -33.785714286],
+          [-80.719246032, -33.785714286],
+        ],
+      ],
+      [
+        { raster_filters: { land_cover: [60] } },
+        [
+          [-80.721933926, -33.783977188],
+          [-80.718253968, -33.783977188],
+          [-80.718253968, -33.785714286],
+          [-80.720238095, -33.785714286],
+          [-80.720238095, -33.787698413],
+          [-80.721933926, -33.787698413],
+          [-80.721933926, -33.783977188],
+        ],
+      ],
+      [
+        { raster_filters: { land_cover: [200] } },
+        [
+          [-80.721933926, -33.787698413],
+          [-80.720238095, -33.787698413],
+          [-80.720238095, -33.786706349],
+          [-80.719246032, -33.786706349],
+          [-80.719246032, -33.785714286],
+          [-80.718253968, -33.785714286],
+          [-80.718253968, -33.783977188],
+          [-80.717474913, -33.783977188],
+          [-80.717474913, -33.788328755],
+          [-80.721933926, -33.788328755],
+          [-80.721933926, -33.787698413],
+        ],
+      ],
+      [
+        { raster_filters: { land_cover: [30, 60, 200] } },
+        [
+          [-80.721933926, -33.783977188],
+          [-80.717474913, -33.783977188],
+          [-80.717474913, -33.788328755],
+          [-80.721933926, -33.788328755],
+          [-80.721933926, -33.783977188],
+        ],
+      ],
+    ])('Expected vector mask should be returned from a rectangle covering two raster values', async (parameters, expectedPolygon) => {
+      // Filtering rectangle
+      const filteringRectangle = {
+        coordinates: [
+          [
+            [-80.721933926, -33.788328755],
+            [-80.721933926, -33.783977188],
+            [-80.717474913, -33.783977188],
+            [-80.717474913, -33.788328755],
+            [-80.721933926, -33.788328755],
+          ],
+        ],
+        type: 'Polygon',
+      };
+      const sds = new SoilDataStorage();
+      const entityManager = await getEntityManager();
+      const results = await sds.getVectorMask(entityManager, { geometries: [filteringRectangle as Polygon], parameters });
+      expect(turf.area(results)).toEqual(turf.area({ type: 'Polygon', coordinates: [expectedPolygon] }));
     });
   });
 });
