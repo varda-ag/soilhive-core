@@ -42,7 +42,7 @@ export const setupEnv = () => {
     return;
   }
   // Load local .env only outside tests
-  config({ path: '.env' });
+  config({ path: '.env', quiet: true });
 };
 
 export const getServerPort = (): number => {
