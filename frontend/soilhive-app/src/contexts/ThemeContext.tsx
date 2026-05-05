@@ -14,6 +14,7 @@ type ThemeContextType = {
   setLogo: React.Dispatch<React.SetStateAction<string | null>>;
   isLoadingThemeConfig: boolean;
   saveColors: (colors: ThemeColors) => Promise<void>;
+  saveDefaultColors: (defaultColors: ThemeColors) => Promise<void>;
   saveInitialBbox: (initialBbox: number[]) => Promise<void>;
   saveTermsAndConditions: (termsAndConditionsHtml: string) => Promise<void>;
   savePrivacyPolicy: (privacyPolicyHtml: string) => Promise<void>;
@@ -28,6 +29,7 @@ type ThemeProviderProps = {
 
 export const defaultThemeConfig: ThemeConfig = {
   colors: defaultColors,
+  defaultColors: undefined,
   termsAndConditionsHtml: '',
   termsAndConditionsLatestUpdate: '',
   privacyPolicyHtml: '',
@@ -45,6 +47,13 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     await saveConfig({
       ...themeConfig,
       colors,
+    });
+  };
+
+  const saveDefaultColors = async (defaultColors: ThemeColors) => {
+    await saveConfig({
+      ...themeConfig,
+      defaultColors,
     });
   };
 
@@ -154,6 +163,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
         themeConfig: themeConfig!,
         logo,
         saveColors,
+        saveDefaultColors,
         saveInitialBbox,
         saveTermsAndConditions,
         savePrivacyPolicy,

@@ -13,6 +13,38 @@ exports[`ColorsTab page matches snapshot 1`] = `
       >
         Customize your colors
       </h2>
+      <p
+        class="Message"
+      >
+        Customize your brand colors for buttons, filter pills and backgrounds. You can set them as default, experiment freely, and return to them anytime.
+      </p>
+      <div
+        class="DefaultColorButtons"
+      >
+        <button
+          data-testid="save-default-button"
+        >
+          <svg
+            data-testid="svg-icon-mock"
+          >
+            mock-svg
+          </svg>
+           
+          Set these colors as default
+        </button>
+        <button
+          data-testid="restore-default-button"
+          disabled=""
+        >
+          <svg
+            data-testid="svg-icon-mock"
+          >
+            mock-svg
+          </svg>
+           
+          Reset to default
+        </button>
+      </div>
       <div>
         ColorsSettings component
       </div>
