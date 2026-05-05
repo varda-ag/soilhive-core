@@ -84,7 +84,9 @@ export function CropModal({
               image={imageSrc}
               crop={crop}
               zoom={zoom}
+              minZoom={0}
               aspect={aspect}
+              restrictPosition={false}
               onCropChange={setCrop}
               onZoomChange={setZoom}
               onCropComplete={onCropComplete}
@@ -92,7 +94,7 @@ export function CropModal({
           </div>
           <div className={styles.ZoomBlock}>
             <p>{t('look_and_feel.logo.crop.zoom_label')}</p>
-            <RangeSlider min={1} max={3} step={0.1} initialValue={zoom} showButtons onChange={setZoom} />
+            <RangeSlider min={0} max={3} step={0.1} initialValue={zoom} showButtons onChange={setZoom} />
           </div>
         </>
       )}
