@@ -11,6 +11,15 @@ import { getEntitySlugs } from '../utils/slugs';
 import DatasetEntity from '../entities/Dataset';
 
 export default class EntitlementService {
+  private entitiesToEntitlements = (entities: EntitlementsEntity[], slugs: string[]): Entitlements => {
+    return entities.reduce((acc, { id, data }) => {
+      const key = slugs.find(k => k in data);
+      assert(key, 'Key should be found in data');
+      acc[id] = data[key!]!;
+      return acc;
+    }, {} as Entitlements);
+  };
+
   getEntityEntitlements = async (requestData: RequestData, slug: string): Promise<Entitlements> => {
     // 1. Get all slugs related to the same entity (this handles slug history)
     const slugs = await getEntitySlugs(requestData, slug);
@@ -21,23 +30,17 @@ export default class EntitlementService {
     }
     // 2. Get all entitlements that match any of the slugs
     const repo = requestData.entityManager.getRepository(EntitlementsEntity);
-    const entitlements = await repo.createQueryBuilder('ent').where('ent.data ?| array[:...slugs]', { slugs }).getMany();
-    return entitlements.reduce((acc, { id, data }) => {
-      const key = slugs.find(k => k in data);
-      assert(key, 'Key should be found in data');
-      acc[id] = data[key!]!;
-      return acc;
-    }, {} as Entitlements);
+    const entities = await repo.createQueryBuilder('ent').where('ent.data ?| array[:...slugs]', { slugs }).getMany();
+    return this.entitiesToEntitlements(entities, slugs);
   };
 
-  setEntityEntitlements = async (requestData: RequestData, slug: string, entitlements: Entitlements): Promise<void> => {
+  setEntityEntitlements = async (requestData: RequestData, slug: string, entitlements: Entitlements): Promise<Entitlements> => {
     // 1. Remove all entitlements
     await this.deleteEntityEntitlements(requestData, slug);
     // 2. Group user IDs
     const ids = Object.keys(entitlements);
     if (ids.length === 0) {
-      // Nothing to do
-      return;
+      return {};
     }
     // 3. Find existing user entities
     const repo = requestData.entityManager.getRepository(EntitlementsEntity);
@@ -54,6 +57,7 @@ export default class EntitlementService {
     }
     // 6. Persist the changes
     await repo.save(entities);
+    return this.entitiesToEntitlements(entities, [slug]);
   };
 
   deleteEntityEntitlements = async (requestData: RequestData, slug: string): Promise<void> => {

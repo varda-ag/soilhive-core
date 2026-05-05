@@ -7,6 +7,7 @@ import { getPgBoss } from './PgBoss';
 import { JobWithMetadata } from 'pg-boss';
 import { createSignedPath } from '../utils/presigned-url';
 import EntitlementService from './EntitlementService';
+import { log } from '../utils/logger';
 
 const entitlementService = new EntitlementService();
 
@@ -37,6 +38,7 @@ export default class JobService {
     if (!id) {
       throw new ErrorResponse('Failed to create job', StatusCodes.INTERNAL_SERVER_ERROR);
     }
+    log.info('Job created', { queue: data.type, job_id: id, created_by: data.created_by ?? null });
     return this.getJobById(requestData, id);
   }
 
@@ -52,6 +54,7 @@ export default class JobService {
     // Filter jobs to only include those created by the user
     const userJobs = jobs.map(j => this.translateJob(j)).filter(j => !sub || j.data.created_by === sub);
 
+    log.info('Jobs listed', { count: userJobs.length, user: sub });
     return userJobs.map(job => this.prepareJobForResponse(job));
   };
 
@@ -78,6 +81,7 @@ export default class JobService {
     if (sub && job.data.created_by && job.data.created_by !== sub) {
       throw new ErrorResponse('Unauthorized to delete this job', StatusCodes.UNAUTHORIZED);
     }
+    log.info('Job cancelled', { job_id: jobId, user: sub ?? null });
     await this.boss.cancel(job.queue, jobId);
   };
 

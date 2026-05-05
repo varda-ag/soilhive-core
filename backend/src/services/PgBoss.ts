@@ -7,6 +7,7 @@ import { processExportJob } from '../jobs/soil-export/soilExportJob';
 import { processFileToDb } from '../jobs/file-to-db/FileToDbJob';
 import { processBulkLoad } from '../jobs/bulk-load/BulkLoader';
 import { processBulkDeletion } from '../jobs/bulk-delete/BulkDeleter';
+import { log } from '../utils/logger';
 
 setupEnv();
 
@@ -29,13 +30,14 @@ export const getPgBoss = () => {
     schema: `${PG_BOSS_SCHEMA}`,
     ...(isJest() ? { __test__enableSpies: true } : {}),
   });
-  globalBoss.on('error', err => console.error('pg-boss error:', err));
+  globalBoss.on('error', err => log.error('pg-boss internal error', { error: err.message, stack: err.stack }));
   return globalBoss;
 };
 
 const startPgBoss = async () => {
   const boss = getPgBoss();
   await boss.start();
+  log.info('PgBoss started');
 };
 
 const setupQueues = async () => {
@@ -46,6 +48,25 @@ const setupQueues = async () => {
   const boss = getPgBoss();
   const promises = Object.values(JobQueues).map(async queue => await boss.createQueue(queue, options));
   await Promise.all(promises);
+  log.info('PgBoss queues created', { queues: Object.values(JobQueues) });
+};
+
+const runJob = async <T>(queue: JobQueues, job: Job<T>, processor: (job: Job<T>) => Promise<void>): Promise<void> => {
+  const start = Date.now();
+  log.info('Job started', { queue, job_id: job.id });
+  try {
+    await processor(job);
+    log.info('Job completed', { queue, job_id: job.id, duration_ms: Date.now() - start });
+  } catch (error) {
+    log.error('Job failed', {
+      queue,
+      job_id: job.id,
+      duration_ms: Date.now() - start,
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
+    throw error;
+  }
 };
 
 const setupWorkers = async () => {
@@ -60,24 +81,25 @@ const setupWorkers = async () => {
   const boss = getPgBoss();
   await boss.work<BulkLoadJob>(JobQueues.BULK_LOAD, options, async (jobs: Job<BulkLoadJob>[]) => {
     for (const job of jobs) {
-      await processBulkLoad(job);
+      await runJob(JobQueues.BULK_LOAD, job, processBulkLoad);
     }
   });
   await boss.work<ExportJob>(JobQueues.EXPORT, options, async (jobs: Job<ExportJob>[]) => {
     for (const job of jobs) {
-      await processExportJob(job);
+      await runJob(JobQueues.EXPORT, job, processExportJob);
     }
   });
   await boss.work<FileToDbJob>(JobQueues.FILE_TO_DB, options, async (jobs: Job<FileToDbJob>[]) => {
     for (const job of jobs) {
-      await processFileToDb(job);
+      await runJob(JobQueues.FILE_TO_DB, job, processFileToDb);
     }
   });
   await boss.work<BulkDeleteJob>(JobQueues.BULK_DELETE, options, async (jobs: Job<BulkDeleteJob>[]) => {
     for (const job of jobs) {
-      await processBulkDeletion(job);
+      await runJob(JobQueues.BULK_DELETE, job, processBulkDeletion);
     }
   });
+  log.info('PgBoss workers registered', { queues: Object.values(JobQueues) });
 };
 
 export const initPgBoss = async () => {

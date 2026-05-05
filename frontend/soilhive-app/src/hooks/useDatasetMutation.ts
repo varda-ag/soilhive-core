@@ -22,6 +22,13 @@ export function useUpdateDatasetMutation(id: string) {
   });
 }
 
+export function useUpdateDatasetVisibilityMutation(id: string) {
+  return useApiMutation<Dataset, { visibility: string }>({
+    endpoint: `/datasets/${id}`,
+    method: 'PATCH',
+  });
+}
+
 export function useCreateDatasetFileMapping() {
   return useApiMutation<DatasetFileMappingResponse, DatasetFileMappingRequest & { datasetId: string }>({
     endpoint: ({ datasetId }) => `/datasets/${datasetId}/dataset-file-mapping`,
