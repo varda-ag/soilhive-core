@@ -38,8 +38,8 @@ class JsonConsoleLogExporter implements LogRecordExporter {
 }
 
 const resource = resourceFromAttributes({
-  [ATTR_SERVICE_NAME]: process.env['SERVICE_NAME'] ?? 'soilhive-backend',
-  [ATTR_SERVICE_VERSION]: process.env['SERVICE_VERSION'] ?? '0.0.0',
+  [ATTR_SERVICE_NAME]: process.env['OTEL_SERVICE_NAME'] ?? process.env['SERVICE_NAME'] ?? 'soilhive-core-backend',
+  [ATTR_SERVICE_VERSION]: process.env['APP_VERSION'] ?? process.env['SERVICE_VERSION'] ?? '0.0.0',
 });
 
 const provider = new LoggerProvider({
@@ -48,7 +48,7 @@ const provider = new LoggerProvider({
 });
 logs.setGlobalLoggerProvider(provider);
 
-const logger = logs.getLogger('soilhive-backend');
+const logger = logs.getLogger('soilhive-core-backend');
 
 const emit = (severityNumber: SeverityNumber, severityText: string, message: string, attributes?: LogAttributes) =>
   logger.emit({ severityNumber, severityText, body: message, attributes: attributes ?? {} });
