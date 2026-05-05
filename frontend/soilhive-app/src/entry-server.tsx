@@ -7,6 +7,7 @@ import { initReactI18next } from 'react-i18next';
 
 import adminTranslations from '../public/locales/en/admin.json';
 import commonTranslations from '../public/locales/en/common.json';
+import metadataTranslations from '../public/locales/en/metadata.json';
 import { NotificationProvider, ThemeProvider } from './contexts';
 import MetadataPage from './pages/Metadata';
 import { ssrAuthStore } from './auth/ssrAuthStore';
@@ -22,6 +23,7 @@ if (!i18n.isInitialized) {
       en: {
         admin: adminTranslations,
         common: commonTranslations,
+        metadata: metadataTranslations,
       },
     },
     lng: 'en',

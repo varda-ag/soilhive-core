@@ -1,14 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router';
-// import { useTranslation } from 'react-i18next';
+import { useTranslation } from 'react-i18next';
 import { useMetadata } from 'hooks/useMetadata';
 import styles from './Metadata.module.scss';
 import Worm from 'assets/images/worm.svg?react';
 import SoilhiveSimpleMap from 'components/Map/SoilhiveSimpleMap';
 import { Logo } from 'components/Logo/Logo';
-import { Button } from 'components/UI';
+import { Button, SplitButton } from 'components/UI';
 import { htmlDisplay } from '../utilities/isomorphicHTMLDisplay';
 import { getMetadataHeadValues } from '../utilities/buildMetadataHead';
+import EyeIcon from 'assets/icons/small-eye-icon.svg?react';
+import ReduceIcon from 'assets/icons/reduce-icon.svg?react';
 
 function upsertMeta(selector: string, attrName: 'name' | 'property', attrValue: string, content: string) {
   let el = document.head.querySelector<HTMLMetaElement>(selector);
@@ -22,10 +24,25 @@ function upsertMeta(selector: string, attrName: 'name' | 'property', attrValue: 
 
 export default function Metadata() {
   const { id } = useParams();
-  // const { t } = useTranslation('admin');
+  const { t } = useTranslation('metadata');
   const [isMounted, setIsMounted] = useState(false);
+  const [isMapPopupOpen, setIsMapPopupOpen] = useState(false);
   useEffect(() => setIsMounted(true), []);
   const { dataset, isLoading, isError } = useMetadata(id);
+
+  useEffect(() => {
+    if (!isMapPopupOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsMapPopupOpen(false);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isMapPopupOpen]);
 
   const datasetName = dataset?.name;
   useEffect(() => {
@@ -45,28 +62,51 @@ export default function Metadata() {
     upsertMeta('meta[name="twitter:image"]', 'name', 'twitter:image', v.image);
   }, [datasetName]);
 
-  if (isLoading) return <p>Loading...</p>;
-  if (isError) return <p>Failed to load dataset.</p>;
+  const handleCopyLink = () => {
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(window.location.href);
+    }
+  };
+
+  const handleMapOverlayClick = () => {
+    setIsMapPopupOpen(true);
+  };
+
+  const handleShareByEmail = () => {
+    const subject = datasetName ? t('share.email_subject', { name: datasetName }) : t('share.email_subject_default');
+    const body = window.location.href;
+    window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  };
+
+  if (isLoading) return <p>{t('loading')}</p>;
+  if (isError) return <p>{t('error_load_failed')}</p>;
 
   return (
     <div className={styles.Page}>
       <div className={styles.Logo}>
-        <Logo />
+        <Logo autoHeight />
       </div>
       <div className={styles.BannerContainer}>
         <div className={styles.Banner}>
           <div className={styles.Left}>
             <Worm className={styles.Worm} />
-            <h1 className={styles.Title}>{dataset!.name} metadata</h1>
-            <p className={styles.Introduction}>
-              Explore the dataset&apos;s metadata and forward it to appropriate stakeholders for further use
-            </p>
+            <h1 className={styles.Title}>{t('title', { name: dataset!.name })}</h1>
+            <p className={styles.Introduction}>{t('introduction')}</p>
             <div className={styles.Buttons}>
-              <Button type="primary" size="medium">
-                Share metadata
-              </Button>
+              <SplitButton
+                className={styles.SplitButton}
+                size="medium"
+                options={[
+                  { code: 'copy-link', name: t('share.copy_link'), onSelect: handleCopyLink },
+                  { code: 'share-email', name: t('share.share_by_email'), onSelect: handleShareByEmail },
+                  // TODO: implement the PDF export functionality
+                  // { code: 'export-pdf', name: 'Export PDF', onSelect: handleExportPdf },
+                ]}
+              >
+                {t('share.button')}
+              </SplitButton>
               <Button type="secondary" size="medium" href="/">
-                Go to SoilHive platform
+                {t('go_to_platform')}
               </Button>
             </div>
           </div>
@@ -80,19 +120,26 @@ export default function Metadata() {
                   fill="#0F0F0F"
                 />
               </svg>
-              Map overview
+              {t('map.overview')}
             </p>
             <div className={styles.MapContainer}>
               <div className={styles.Map}>
                 {isMounted && (
-                  <SoilhiveSimpleMap
-                    geometryFeature={
-                      dataset?.spatial_extent
-                        ? { type: 'FeatureCollection', features: [{ type: 'Feature', properties: {}, geometry: dataset.spatial_extent }] }
-                        : undefined
-                    }
-                    showNavigation={false}
-                  />
+                  <>
+                    <SoilhiveSimpleMap
+                      geometryFeature={
+                        dataset?.spatial_extent
+                          ? { type: 'FeatureCollection', features: [{ type: 'Feature', properties: {}, geometry: dataset.spatial_extent }] }
+                          : undefined
+                      }
+                      showNavigation={false}
+                    />
+                    <button type="button" className={styles.MapOverlay} onClick={handleMapOverlayClick} aria-label={t('map.view_aria')}>
+                      <span className={styles.EyeBadge}>
+                        <EyeIcon />
+                      </span>
+                    </button>
+                  </>
                 )}
               </div>
             </div>
@@ -104,91 +151,91 @@ export default function Metadata() {
         <div className={styles.DatasetProperties}>
           <div className={styles.Row}>
             <p className={styles.Label}>
-              <strong>Name:</strong>
+              <strong>{t('fields.name')}</strong>
             </p>
             <div className={styles.Text}>{htmlDisplay(dataset?.name)}</div>
           </div>
           <div className={styles.Row}>
             <p className={styles.Label}>
-              <strong>Full name:</strong>
+              <strong>{t('fields.full_name')}</strong>
             </p>
             <div className={styles.Text}>{htmlDisplay(dataset?.full_name)}</div>
           </div>
           <div className={styles.Row}>
             <p className={styles.Label}>
-              <strong>Version:</strong>
+              <strong>{t('fields.version')}</strong>
             </p>
             <div className={styles.Text}>{htmlDisplay(dataset?.version)}</div>
           </div>
           <div className={styles.Row}>
             <p className={styles.Label}>
-              <strong>Description:</strong>
+              <strong>{t('fields.description')}</strong>
             </p>
             <div className={styles.Text}>{htmlDisplay(dataset?.description)}</div>
           </div>
           <div className={styles.Row}>
             <p className={styles.Label}>
-              <strong>Author:</strong>
+              <strong>{t('fields.author')}</strong>
             </p>
             <div className={styles.Text}>{htmlDisplay(dataset?.author)}</div>
           </div>
           <div className={styles.Row}>
             <p className={styles.Label}>
-              <strong>Data producer:</strong>
+              <strong>{t('fields.data_producer')}</strong>
             </p>
             <div className={styles.Text}>{htmlDisplay(dataset?.data_producer)}</div>
           </div>
           <div className={styles.Row}>
             <p className={styles.Label}>
-              <strong>Variables measured:</strong>
+              <strong>{t('fields.variables_measured')}</strong>
             </p>
             <div className={styles.Text}>{htmlDisplay(dataset?.soilProperties?.join(', '))}</div>
           </div>
           <div className={styles.Row}>
             <p className={styles.Label}>
-              <strong>Min Soil Depth (cm):</strong>
+              <strong>{t('fields.min_soil_depth_cm')}</strong>
             </p>
             <div className={styles.Text}>{htmlDisplay((dataset?.soil_depth as { min?: number } | null | undefined)?.min?.toString())}</div>
           </div>
           <div className={styles.Row}>
             <p className={styles.Label}>
-              <strong>Max Soil Depth (cm):</strong>
+              <strong>{t('fields.max_soil_depth_cm')}</strong>
             </p>
             <div className={styles.Text}>{htmlDisplay((dataset?.soil_depth as { max?: number } | null | undefined)?.max?.toString())}</div>
           </div>
           <div className={styles.Row}>
             <p className={styles.Label}>
-              <strong>GIS Data Type:</strong>
+              <strong>{t('fields.gis_datatype')}</strong>
             </p>
             <div className={styles.Text}>{htmlDisplay(dataset?.gis_datatype)}</div>
           </div>
           <div className={styles.Row}>
             <p className={styles.Label}>
-              <strong>Spatial resolution:</strong>
+              <strong>{t('fields.spatial_resolution')}</strong>
             </p>
             <div className={styles.Text}>{htmlDisplay(dataset?.spatial_resolution)}</div>
           </div>
           <div className={styles.Row}>
             <p className={styles.Label}>
-              <strong>Reference coverage start:</strong>
+              <strong>{t('fields.reference_coverage_start')}</strong>
             </p>
             <div className={styles.Text}>{htmlDisplay(dataset?.reference_period_start)}</div>
           </div>
           <div className={styles.Row}>
             <p className={styles.Label}>
-              <strong>Reference coverage end:</strong>
+              <strong>{t('fields.reference_coverage_end')}</strong>
             </p>
             <div className={styles.Text}>{htmlDisplay(dataset?.reference_period_stop)}</div>
           </div>
           <div className={styles.Row}>
             <p className={styles.Label}>
-              <strong>Publication date:</strong>
+              <strong>{t('fields.publication_date')}</strong>
             </p>
             <div className={styles.Text}>{htmlDisplay(dataset?.publication_date)}</div>
           </div>
           <div className={styles.Row}>
             <p className={styles.Label}>
-              <strong>License:</strong>
+              <strong>{t('fields.license')}</strong>
             </p>
             <div className={styles.Text}>
               {htmlDisplay(dataset?.licenses?.map(l => `<a target="_blank" href=${l.url}>${l.full_name}</a>`).join('<br />'))}
@@ -196,7 +243,7 @@ export default function Metadata() {
           </div>
           <div className={styles.Row}>
             <p className={styles.Label}>
-              <strong>Citation:</strong>
+              <strong>{t('fields.citation')}</strong>
             </p>
             <div className={styles.Text}>{htmlDisplay(dataset?.citation)}</div>
           </div>
@@ -207,14 +254,14 @@ export default function Metadata() {
         <div className={styles.Container}>
           <div className={styles.FooterTop}>
             <a href="https://www.varda.ag/" target="_blank" className={styles.FooterLink} rel="noreferrer">
-              Varda Foundation website
+              {t('footer.varda_website')}
             </a>
             <a href="https://www.varda.ag/#contact" target="_blank" className={styles.FooterLink} rel="noreferrer">
-              Contact us
+              {t('footer.contact')}
             </a>
           </div>
           <div className={styles.FooterBottom}>
-            <p className={styles.FooterCopy}>SoilHive is a Varda Foundation platform</p>
+            <p className={styles.FooterCopy}>{t('footer.copy')}</p>
             <div className={styles.FooterSocials}>
               <a
                 href="https://www.linkedin.com/company/varda-field-data-exchange/"
@@ -256,6 +303,35 @@ export default function Metadata() {
           </div>
         </div>
       </footer>
+
+      {isMapPopupOpen && (
+        <div
+          className={styles.MapPopupBackdrop}
+          onClick={() => setIsMapPopupOpen(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-label={t('map.preview_aria')}
+        >
+          <div className={styles.MapPopup} onClick={e => e.stopPropagation()}>
+            <button
+              type="button"
+              className={styles.MapPopupClose}
+              onClick={() => setIsMapPopupOpen(false)}
+              aria-label={t('map.close_aria')}
+            >
+              <ReduceIcon />
+            </button>
+            <SoilhiveSimpleMap
+              geometryFeature={
+                dataset?.spatial_extent
+                  ? { type: 'FeatureCollection', features: [{ type: 'Feature', properties: {}, geometry: dataset.spatial_extent }] }
+                  : undefined
+              }
+              showNavigation={true}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

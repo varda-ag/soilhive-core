@@ -11,7 +11,7 @@
     width: 100%;
     margin: 0 auto;
     max-width: 1168px;
-    padding: 0 1.3rem;
+    padding: 0 13px;
   }
 
   .Logo {
@@ -28,8 +28,7 @@
   .BannerContainer {
     background-color: var(--color-neutral-white);
     position: relative;
-    padding: 5.8rem 0 5.9rem;
-    padding: 1.6rem 0 5.9rem;
+    padding: 16px 0 59px;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -37,7 +36,7 @@
 
     @media screen and (min-width: 768px) {
       text-align: left;
-      padding: 5.8rem 0 5.9rem;
+      padding: 58px 0 59px;
     }
 
     .Banner {
@@ -45,7 +44,7 @@
 
       display: flex;
       flex-direction: column;
-      gap: 3.6rem;
+      gap: 36px;
 
       @media screen and (min-width: 768px) {
         justify-content: space-between;
@@ -115,11 +114,22 @@
           display: flex;
           flex-direction: column;
           align-items: center;
-          gap: 0.8rem;
+          gap: 12px;
 
           @media screen and (min-width: 768px) {
             flex-direction: row;
-            gap: 2.4rem;
+            gap: 24px;
+          }
+
+          button,
+          a {
+            white-space: nowrap;
+          }
+
+          .SplitButton {
+            button:first-of-type {
+              padding: .75rem 1.9rem;
+            }
           }
         }
       }
@@ -146,10 +156,63 @@
           min-width: 256px;
           position: relative;
           border-radius: 8px;
+          overflow: hidden;
 
           .Map {
             width: 100%;
             aspect-ratio: 1 / 1;
+            position: relative;
+
+            .MapOverlay {
+              position: absolute;
+              inset: 0;
+              border: none;
+              padding: 0;
+              cursor: pointer;
+              background-color: transparent;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              opacity: 0;
+              transition: opacity 0.2s ease-in-out;
+              border-radius: 8px;
+
+              &::before {
+                content: '';
+                position: absolute;
+                inset: 0;
+                background-color: rgba(31, 80, 100, 0.55);
+                border: 2px solid rgba(31, 80, 100, 0.8);
+                border-radius: 8px;
+              }
+
+              &:hover,
+              &:focus-visible {
+                opacity: 1;
+              }
+
+              &:focus-visible {
+                outline: 2px solid var(--color-brand-green-1000);
+                outline-offset: 2px;
+              }
+
+              .EyeBadge {
+                position: relative;
+                width: 48px;
+                height: 48px;
+                border-radius: 50%;
+                background-color: var(--color-neutral-white);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+
+                svg {
+                  width: 22px;
+                  height: 22px;
+                }
+              }
+            }
           }
         }
       }
@@ -265,6 +328,54 @@
       text-overflow: ellipsis;
       max-width: 220px;
       display: inline-block;
+    }
+  }
+
+  .MapPopupBackdrop {
+    position: fixed;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.6rem;
+  }
+
+  .MapPopup {
+    position: relative;
+    width: min(90vw, 1024px);
+    max-height: 90vh;
+    aspect-ratio: 1 / 1;
+    background-color: var(--color-neutral-white);
+    border-radius: 8px;
+    overflow: hidden;
+
+    > :not(.MapPopupClose) {
+      width: 100%;
+      height: 100%;
+    }
+  }
+
+  .MapPopupClose {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 6px;
+    background-color: var(--color-neutral-white);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1;
+
+    svg {
+      width: 16px;
+      height: 16px;
     }
   }
 }

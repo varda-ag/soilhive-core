@@ -58,4 +58,16 @@ describe('Logo', () => {
 
     expect(screen.getByTestId('sh-logo')).toHaveClass('custom-class');
   });
+
+  it('does not apply ImgAuto class by default', () => {
+    render(<Logo />);
+
+    expect(screen.getByRole('img')).not.toHaveClass('ImgAuto');
+  });
+
+  it('applies ImgAuto class when autoHeight is true', () => {
+    render(<Logo autoHeight />);
+
+    expect(screen.getByRole('img')).toHaveClass('ImgAuto');
+  });
 });
