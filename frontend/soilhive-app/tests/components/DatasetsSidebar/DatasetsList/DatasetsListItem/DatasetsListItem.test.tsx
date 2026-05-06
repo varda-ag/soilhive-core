@@ -14,7 +14,11 @@ jest.mock('components/UI', () => ({
       {label}
     </div>
   ),
-  Button: ({ children }: any) => <button data-testid="mock-button">{children}</button>,
+  Button: ({ children, href }: any) => (
+    <a data-testid="mock-button" href={href} target={href ? '_blank' : undefined} rel={href ? 'noreferrer' : undefined}>
+      {children}
+    </a>
+  ),
   Tag: ({ text, type }: any) => (
     <span data-testid={`tag-${text}`} data-type={type}>
       {text}
@@ -91,6 +95,15 @@ describe('DatasetsListItem', () => {
 
     fireEvent.click(arrow);
     expect(item.className).not.toContain('Opened');
+  });
+
+  it('metadata button links to dataset page in a new tab', () => {
+    render(<DatasetsListItem dataset={mockDataset} />);
+
+    const btn = screen.getByTestId('mock-button');
+    expect(btn).toHaveAttribute('href', '/datasets/dataset-1');
+    expect(btn).toHaveAttribute('target', '_blank');
+    expect(btn).toHaveAttribute('rel', 'noreferrer');
   });
 
   it('renders metadata details', () => {

@@ -47,11 +47,14 @@ exports[`DatasetsListItem renders main dataset info 1`] = `
       <div
         class="Bottom"
       >
-        <button
+        <a
           data-testid="mock-button"
+          href="/datasets/dataset-1"
+          rel="noreferrer"
+          target="_blank"
         >
           Metadata
-        </button>
+        </a>
       </div>
     </div>
     <div
