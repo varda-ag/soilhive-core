@@ -296,7 +296,7 @@ exports[`Metadata page renders dataset content and matches snapshot 1`] = `
           <div
             class="Text"
           >
-            raster
+            Raster
           </div>
         </div>
         <div

@@ -42,7 +42,7 @@ export function DatasetsListItem({ dataset }: Props) {
           </div>
         </div>
         <div className={styles.Bottom}>
-          <Button size="tiny" type="custom" className={styles.MetadataButton}>
+          <Button size="tiny" type="custom" className={styles.MetadataButton} href={`/datasets/${dataset.id}`}>
             {t('datasets_list.metadata')}
           </Button>
         </div>
