@@ -226,8 +226,8 @@
       background-color: var(--color-neutral-white);
       border-radius: 8px;
       padding: 24px 32px;
-      margin-top: 24px;
-      margin-bottom: 54px;
+      margin-top: 42px;
+      margin-bottom: 24px;
 
       .Row {
         display: flex;
@@ -273,7 +273,7 @@
     color: var(--color-neutral-white);
 
     .FooterTop {
-      padding: 3.1rem 0 3.7rem;
+      padding: 31px 0 37px;
       display: flex;
       align-items: flex-end;
       flex-direction: column;
@@ -281,11 +281,11 @@
       gap: 0.7rem;
 
       @media screen and (min-width: 768px) {
-        padding: 10rem 0 2.5rem;
+        padding: 100px 0 25px;
         display: flex;
         flex-direction: row;
         justify-content: flex-end;
-        gap: 5.7rem;
+        gap: 57px;
       }
     }
 
@@ -301,14 +301,14 @@
       justify-content: space-between;
       flex-direction: column;
       align-items: center;
-      padding: 1.7rem 0 2rem;
+      padding: 17px 0 20px;
       border-top: 1px solid var(--color-brand-dark-green-600);
-      gap: 1.4rem;
+      gap: 14px;
 
       @media screen and (min-width: 768px) {
         align-items: flex-start;
         flex-direction: row;
-        padding: 1.7rem 0 5.3rem;
+        padding: 17px 0 53px;
       }
     }
 
@@ -319,7 +319,7 @@
 
     .FooterSocials {
       display: flex;
-      gap: 2.1rem;
+      gap: 21px;
     }
 
     .ellipses {
