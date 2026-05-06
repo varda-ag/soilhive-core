@@ -34,6 +34,13 @@ jest.mock('../../src/pages/AdminPortal/DatasetsMappingsStep/DatasetsMappingsStep
   DatasetsMappingsStep: () => <div>DatasetsMappingsStep page</div>,
 }));
 
+jest.mock('hooks/useTheme', () => ({
+  __esModule: true,
+  default: jest.fn().mockReturnValue({
+    themeConfig: { privacyPolicyHtml: '', termsAndConditionsHtml: '' },
+  }),
+}));
+
 jest.mock('../../src/hooks/useDatasetsSoilData', () => ({
   __esModule: true,
   useDatasetsSoilData: jest.fn().mockReturnValue({

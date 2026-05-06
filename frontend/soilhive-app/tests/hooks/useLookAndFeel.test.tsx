@@ -31,6 +31,7 @@ describe('LookAndFeelProvider / useLookAndFeel', () => {
   const showNotification = jest.fn();
   const setLogo = jest.fn();
   const saveColors = jest.fn();
+  const saveDefaultColors = jest.fn();
 
   const originalCreateObjectURL = URL.createObjectURL;
   const originalRevokeObjectURL = URL.revokeObjectURL;
@@ -41,9 +42,10 @@ describe('LookAndFeelProvider / useLookAndFeel', () => {
     (useTheme as jest.Mock).mockReturnValue({
       isLogoLoading: false,
       logo: 'server-logo-url',
-      themeConfig: { colors: {} },
+      themeConfig: { colors: {}, defaultColors: undefined },
       setLogo,
       saveColors,
+      saveDefaultColors,
     });
 
     (useNotifications as jest.Mock).mockReturnValue({
@@ -87,15 +89,19 @@ describe('LookAndFeelProvider / useLookAndFeel', () => {
     expect(result.current.previewLogo).toBe('server-logo-url');
     expect(result.current.isActualLogo).toBe(true);
     expect(result.current.colors).toEqual({});
+    expect(result.current.defaultColors).toBeUndefined();
+    expect(typeof result.current.handleDefaultColorsSave).toBe('function');
+    expect(typeof result.current.restoreDefaultColors).toBe('function');
   });
 
   it('initializes colors from themeConfig', async () => {
     (useTheme as jest.Mock).mockReturnValue({
       isLogoLoading: false,
       logo: 'server-logo-url',
-      themeConfig: { colors: { primary: '#123456', secondary: '#abcdef' } },
+      themeConfig: { colors: { primary: '#123456', secondary: '#abcdef' }, defaultColors: undefined },
       setLogo,
       saveColors,
+      saveDefaultColors,
     });
 
     const { result } = renderHook(() => useLookAndFeel(), { wrapper });
@@ -149,6 +155,7 @@ describe('LookAndFeelProvider / useLookAndFeel', () => {
       themeConfig: {},
       setLogo,
       saveColors,
+      saveDefaultColors,
     });
 
     const { result } = renderHook(() => useLookAndFeel(), { wrapper });
@@ -340,6 +347,78 @@ describe('LookAndFeelProvider / useLookAndFeel', () => {
     expect(saveColors).not.toHaveBeenCalled();
   });
 
+  it('exposes defaultColors from themeConfig', async () => {
+    const mockDefaultColors = { primary: '#aaaaaa', secondary: '#bbbbbb' };
+    (useTheme as jest.Mock).mockReturnValue({
+      isLogoLoading: false,
+      logo: 'server-logo-url',
+      themeConfig: { colors: {}, defaultColors: mockDefaultColors },
+      setLogo,
+      saveColors,
+      saveDefaultColors,
+    });
+
+    const { result } = renderHook(() => useLookAndFeel(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.defaultColors).toEqual(mockDefaultColors);
+    });
+  });
+
+  it('handleDefaultColorsSave calls saveDefaultColors with current colors and shows notification', async () => {
+    const { result } = renderHook(() => useLookAndFeel(), { wrapper });
+
+    act(() => {
+      result.current.handleColorChange('primary', '#ff0000');
+    });
+
+    await act(async () => {
+      result.current.handleDefaultColorsSave();
+    });
+
+    expect(saveDefaultColors).toHaveBeenCalledWith({ primary: '#ff0000' });
+    expect(showNotification).toHaveBeenCalledWith(expect.objectContaining({ id: 'defaultColorsSuccess', type: 'success' }));
+  });
+
+  it('restoreDefaultColors restores colors from defaultColors and marks as changed', async () => {
+    const mockDefaultColors = { primary: '#aaaaaa', secondary: '#bbbbbb' };
+    (useTheme as jest.Mock).mockReturnValue({
+      isLogoLoading: false,
+      logo: 'server-logo-url',
+      themeConfig: { colors: { primary: '#111111' }, defaultColors: mockDefaultColors },
+      setLogo,
+      saveColors,
+      saveDefaultColors,
+    });
+
+    const { result } = renderHook(() => useLookAndFeel(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.colors).toEqual({ primary: '#111111' });
+    });
+
+    act(() => {
+      result.current.restoreDefaultColors();
+    });
+
+    expect(result.current.colors).toEqual(mockDefaultColors);
+  });
+
+  it('restoreDefaultColors does nothing when defaultColors is undefined', async () => {
+    const { result } = renderHook(() => useLookAndFeel(), { wrapper });
+
+    act(() => {
+      result.current.handleColorChange('primary', '#ff0000');
+    });
+
+    act(() => {
+      result.current.restoreDefaultColors();
+    });
+
+    // colors should remain unchanged since defaultColors is undefined
+    expect(result.current.colors).toEqual({ primary: '#ff0000' });
+  });
+
   it('updates previewLogo when external logo changes', async () => {
     const { result, rerender } = renderHook(() => useLookAndFeel(), { wrapper });
 
@@ -348,8 +427,10 @@ describe('LookAndFeelProvider / useLookAndFeel', () => {
     (useTheme as jest.Mock).mockReturnValue({
       isLogoLoading: false,
       logo: 'updated-logo-url',
-      themeConfig: { colors: {} },
+      themeConfig: { colors: {}, defaultColors: undefined },
       setLogo,
+      saveColors,
+      saveDefaultColors,
     });
 
     rerender();

@@ -11,7 +11,28 @@
 
     > .Title {
       font-size: var(--font-size-lg);
-      margin: 0 0 1.25rem;
+      margin: 0 0 0.125rem;
+    }
+
+    > .Message {
+      margin-bottom: 1.125rem;
+    }
+
+    > .DefaultColorButtons {
+      margin-bottom: 1.25rem;
+      display: flex;
+      gap: 1.125rem;
+
+      > .Button {
+        background-color: var(--color-brand-light-green-600);
+        border-color: var(--color-brand-light-green-600);
+        color: var(--color-brand-green-1000);
+
+        &:disabled {
+          background-color: var(--color-brand-light-green-100);
+          color: var(--color-brand-green-600);
+        }
+      }
     }
   }
 

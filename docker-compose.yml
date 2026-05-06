@@ -53,7 +53,7 @@ services:
       POSTGRES_PASSWORD: dbpass
       POSTGRES_SCHEMA: soilhive
     ports:
-      - "4001:4001"
+      - "4001:3000"
     depends_on:
       - postgis
       - localstack
@@ -63,9 +63,10 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     environment:
-      BACKEND_BASE_URL: http://localhost:4001
+      PORT: 80
+      BACKEND_BASE_URL: http://localhost:4001/api/v1
     ports:
-      - "3000:80"
+      - "80:80"
     stdin_open: true
     tty: true
 

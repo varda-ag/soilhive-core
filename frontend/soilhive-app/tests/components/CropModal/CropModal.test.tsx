@@ -106,7 +106,7 @@ describe('CropModal', () => {
 
     expect(rangeSliderMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        min: 1,
+        min: 0,
         max: 3,
         step: 0.1,
         initialValue: 1,

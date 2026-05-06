@@ -6,6 +6,9 @@ declare namespace NodeJS {
     readonly JEST_WORKER_ID?: string;
     readonly NODE_ENV?: 'development' | 'production' | 'test';
     readonly LOOPBACK_URL?: string;
+    readonly LOG_LEVEL?: string;
+    readonly JOB_LOCAL_CONCURRENCY?: string;
+    readonly JOB_GROUP_CONCURRENCY?: string;
     // Postgres connection env vars
     readonly POSTGRES_HOST?: string;
     readonly POSTGRES_PORT?: string;

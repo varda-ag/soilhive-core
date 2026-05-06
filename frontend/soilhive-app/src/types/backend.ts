@@ -260,6 +260,9 @@ export interface VocabularyItem {
   deleted_at: string | null;
 }
 
+export type EntitlementCapability = 'preview' | 'download' | 'obfuscate_as_points' | 'obfuscate_as_polygons';
+export type DatasetEntitlements = Record<string, EntitlementCapability[]>;
+
 export interface FileDescriptor {
   // required
   id: string;

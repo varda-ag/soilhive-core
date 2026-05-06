@@ -101,8 +101,9 @@ describe('EntitlementService', () => {
       } as Entitlements,
     ],
     ['dataset-2', { 'another@example.com': [Capability.OBFUSCATE_AS_POINTS] } as Entitlements],
-  ])('should set entitlements to entity', async (slug: string, payload: Entitlements) => {
-    await service.setEntityEntitlements(requestData, slug, payload);
+  ])('should set entitlements to entity and return the updated entitlements', async (slug: string, payload: Entitlements) => {
+    const result = await service.setEntityEntitlements(requestData, slug, payload);
+    expect(result).toEqual(payload);
     const entitlements = await service.getEntityEntitlements(requestData, slug);
     expect(entitlements).toEqual(payload);
   });

@@ -42,11 +42,19 @@ export const setupEnv = () => {
     return;
   }
   // Load local .env only outside tests
-  config({ path: '.env' });
+  config({ path: '.env', quiet: true });
 };
 
 export const getServerPort = (): number => {
   return Number(process.env.PORT) || 4001;
+};
+
+export const getJobLocalConcurrency = (): number => {
+  return Number(process.env.JOB_LOCAL_CONCURRENCY) || 3;
+};
+
+export const getJobGroupConcurrency = (): number => {
+  return Number(process.env.JOB_GROUP_CONCURRENCY) || 8;
 };
 
 export const getLoopbackUrl = (): string => {

@@ -1,12 +1,15 @@
+import './utils/logger';
 import cors from 'cors';
 import express, { Application } from 'express';
 import swaggerUi from 'swagger-ui-express';
 import { errorMiddleware } from './middlewares/error';
+import { loggingMiddleware } from './middlewares/logging';
 import { getOpenApiMiddleware, getSwaggerDocument } from './middlewares/openapi';
 import { transactionMiddleware } from './middlewares/transaction';
 import { initPgBoss } from './services/PgBoss';
 import { setupCLI } from './utils/cli';
-import { initializeSchema } from './utils/data-source';
+import { initializeSchema, isDBAvailable } from './utils/data-source';
+import { log } from './utils/logger';
 import { getServerPort, isJest, setupEnv } from './utils/utils';
 
 setupEnv();
@@ -16,6 +19,7 @@ export const app: Application = express();
 export const initApp = async (app: Application) => {
   await setupCLI();
 
+  app.use(loggingMiddleware);
   app.use(
     cors({
       origin: '*',
@@ -26,6 +30,17 @@ export const initApp = async (app: Application) => {
   app.use(express.json({ limit: process.env.JSON_PAYLOAD_LIMIT || undefined }));
   app.use(transactionMiddleware);
   app.use('/docs', swaggerUi.serve, swaggerUi.setup(await getSwaggerDocument()));
+
+  app.get('/health', async (_req, res) => {
+    const status = await isDBAvailable();
+    res.json({ status });
+  });
+
+  app.get('/ready', async (_req, res) => {
+    const status = await isDBAvailable();
+    res.json({ status });
+  });
+
   app.use(await getOpenApiMiddleware());
   app.use(errorMiddleware);
 
@@ -39,7 +54,7 @@ export const initApp = async (app: Application) => {
 
   const port = getServerPort();
   app.listen(port, () => {
-    console.log(`Server is running at http://localhost:${port}`);
+    log.info('Server started', { port });
   });
 };
 
