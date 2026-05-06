@@ -207,7 +207,11 @@ export default function Metadata() {
             <p className={styles.Label}>
               <strong>{t('fields.gis_datatype')}</strong>
             </p>
-            <div className={styles.Text}>{htmlDisplay(dataset?.gis_datatype)}</div>
+            <div className={styles.Text}>
+              {htmlDisplay(
+                dataset?.gis_datatype ? dataset.gis_datatype[0].toUpperCase() + dataset.gis_datatype.slice(1) : dataset?.gis_datatype,
+              )}
+            </div>
           </div>
           <div className={styles.Row}>
             <p className={styles.Label}>
