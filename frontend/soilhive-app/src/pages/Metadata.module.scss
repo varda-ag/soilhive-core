@@ -1,41 +1,403 @@
 @import '../styles/variables/colors';
 @import '../styles/variables/typography';
+@import 'styles/variables/breakpoints';
 
 .Page {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 24px;
-  padding: 40px;
-  max-width: 720px;
-}
+  background-color: var(--color-neutral-light);
 
-.Title {
-  font-size: var(--font-size-xl);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-neutral-900);
-  margin: 0;
-}
+  .Container {
+    width: 100%;
+    margin: 0 auto;
+    max-width: 1168px;
+    padding: 0 13px;
+  }
 
-.Form {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  width: 100%;
-}
+  .Logo {
+    display: flex;
+    padding: 14px 39px 14px 29px;
+    background-color: var(--color-neutral-white);
 
-.Actions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
+    @media (max-width: $bp-mobile-max) {
+      justify-content: center;
+      padding: 29px 0 29px 0;
+    }
+  }
 
-.StatusMessage {
-  font-size: var(--font-size-sm);
-  color: var(--color-success-default);
-}
+  .BannerContainer {
+    background-color: var(--color-neutral-white);
+    position: relative;
+    padding: 16px 0 59px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
 
-.ErrorMessage {
-  font-size: var(--font-size-sm);
-  color: var(--color-cta-danger-default);
+    @media screen and (min-width: 768px) {
+      text-align: left;
+      padding: 58px 0 59px;
+    }
+
+    .Banner {
+      @extend .Container;
+
+      display: flex;
+      flex-direction: column;
+      gap: 36px;
+
+      @media screen and (min-width: 768px) {
+        justify-content: space-between;
+        flex-direction: row;
+        gap: 0;
+      }
+
+      .Left {
+        position: relative;
+
+        @media screen and (min-width: 768px) {
+          padding-right: 1.3rem;
+        }
+
+        @media screen and (min-width: 900px) {
+          padding-top: 76px;
+          padding-left: 61px;
+          padding-right: 0;
+        }
+
+        @media screen and (min-width: 1266px) {
+          padding-left: 0;
+        }
+
+        .Worm {
+          position: absolute;
+          top: -27px;
+          left: 0;
+          display: none;
+
+          @media screen and (min-width: 900px) {
+            display: block;
+          }
+
+          @media screen and (min-width: 1266px) {
+            left: -61px;
+          }
+        }
+
+        .Title {
+          max-width: 621px;
+          font-weight: 700;
+          font-size: var(--font-size-4xl);
+          line-height: 125%;
+          margin: 0 0 10px 0;
+
+          @media screen and (min-width: 768px) {
+            font-size: var(--font-size-5xl);
+            margin-bottom: 10px;
+          }
+        }
+
+        .Introduction {
+          max-width: 554px;
+          font-weight: 300;
+          font-size: var(--font-size-md);
+          line-height: 150%;
+          margin-bottom: 10px;
+          
+          @media screen and (min-width: 768px) {
+            font-size: var(--font-size-lg);
+            margin-bottom: 24px;
+          }
+        }
+
+        .Buttons {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 12px;
+
+          @media screen and (min-width: 768px) {
+            flex-direction: row;
+            gap: 24px;
+          }
+
+          button,
+          a {
+            white-space: nowrap;
+          }
+
+          .SplitButton {
+            button:first-of-type {
+              padding: .75rem 1.9rem;
+            }
+          }
+        }
+      }
+
+      .Right {
+        max-width: 100%;
+        display: flex;
+        flex-direction: column;
+        gap: 0.7rem;
+
+        @media screen and (min-width: 768px) {
+          max-width: 310px;
+        }
+
+        .Caption {
+          display: flex;
+          align-items: center;
+          gap: 0.6rem;
+          font-weight: 700;
+        }
+
+        .MapContainer {
+          width: 100%;
+          min-width: 256px;
+          position: relative;
+          border-radius: 8px;
+          overflow: hidden;
+
+          .Map {
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            position: relative;
+
+            .MapOverlay {
+              position: absolute;
+              inset: 0;
+              border: none;
+              padding: 0;
+              cursor: pointer;
+              background-color: transparent;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              opacity: 0;
+              transition: opacity 0.2s ease-in-out;
+              border-radius: 8px;
+
+              &::before {
+                content: '';
+                position: absolute;
+                inset: 0;
+                background-color: rgba(31, 80, 100, 0.55);
+                border: 2px solid rgba(31, 80, 100, 0.8);
+                border-radius: 8px;
+              }
+
+              &:hover,
+              &:focus-visible {
+                opacity: 1;
+              }
+
+              &:focus-visible {
+                outline: 2px solid var(--color-brand-green-1000);
+                outline-offset: 2px;
+              }
+
+              .EyeBadge {
+                position: relative;
+                width: 48px;
+                height: 48px;
+                border-radius: 50%;
+                background-color: var(--color-neutral-white);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+
+                svg {
+                  width: 22px;
+                  height: 22px;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  .Content {
+    @extend .Container;
+
+    .DatasetProperties {
+      background-color: var(--color-neutral-white);
+      border-radius: 8px;
+      padding: 24px 32px;
+      margin-top: 42px;
+      margin-bottom: 24px;
+
+      .Row {
+        display: flex;
+        flex-direction: column;
+        gap: 0.8rem;
+
+        @media screen and (min-width: 768px) {
+          flex-direction: row;
+        }
+
+        &:nth-child(even),
+        &:last-child {
+          background-color: var(--color-neutral-light);
+        }
+
+        .Label {
+          padding: 1.2rem 2.4rem 0;
+
+          @media screen and (min-width: 768px) {
+            padding: 1.2rem 2.4rem;
+            width: 220px;
+            min-width: 220px;
+          }
+        }
+
+        .Text {
+          padding: 0 2.4rem 1.2rem;
+
+          @media screen and (min-width: 768px) {
+            padding: 1.2rem 1.8rem;
+          }
+
+          a {
+            color: var(--color-brand-green-1000);
+          }
+        }
+      }
+    }
+  }
+
+  .Footer {
+    background: var(--color-brand-dark-green-1000);
+    color: var(--color-neutral-white);
+
+    .FooterTop {
+      padding: 31px 0 37px;
+      display: flex;
+      align-items: flex-end;
+      flex-direction: column;
+      justify-content: flex-end;
+      gap: 0.7rem;
+
+      @media screen and (min-width: 768px) {
+        padding: 100px 0 25px;
+        display: flex;
+        flex-direction: row;
+        justify-content: flex-end;
+        gap: 57px;
+      }
+    }
+
+    .FooterLink,
+    .FooterLink:hover,
+    .FooterLink:focus,
+    .FooterLink:visited {
+      color: var(--color-neutral-white);
+    }
+
+    .FooterBottom {
+      display: flex;
+      justify-content: space-between;
+      flex-direction: column;
+      align-items: center;
+      padding: 17px 0 20px;
+      border-top: 1px solid var(--color-brand-dark-green-600);
+      gap: 14px;
+
+      @media screen and (min-width: 768px) {
+        align-items: flex-start;
+        flex-direction: row;
+        padding: 17px 0 53px;
+      }
+    }
+
+    .FooterCopy {
+      font-weight: 300;
+      text-align: center;
+    }
+
+    .FooterSocials {
+      display: flex;
+      gap: 21px;
+    }
+
+    .ellipses {
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      max-width: 220px;
+      display: inline-block;
+    }
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes popupRise {
+    from {
+      opacity: 0;
+      transform: scale(0.96);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  .MapPopupBackdrop {
+    position: fixed;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.6rem;
+    animation: fadeIn 200ms ease-out;
+  }
+
+  .MapPopup {
+    position: relative;
+    width: min(90vw, 1024px);
+    max-height: 90vh;
+    aspect-ratio: 1 / 1;
+    background-color: var(--color-neutral-white);
+    border-radius: 8px;
+    overflow: hidden;
+    animation: popupRise 200ms ease-out;
+
+    > :not(.MapPopupClose) {
+      width: 100%;
+      height: 100%;
+    }
+  }
+
+  .MapPopupClose {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 6px;
+    background-color: var(--color-neutral-white);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1;
+
+    svg {
+      width: 16px;
+      height: 16px;
+    }
+  }
 }

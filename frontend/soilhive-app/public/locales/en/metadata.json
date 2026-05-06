@@ -1,0 +1,43 @@
+{
+    "loading": "Loading...",
+    "error_load_failed": "Failed to load dataset.",
+    "title": "{{name}} metadata",
+    "introduction": "Explore the dataset's metadata and forward it to appropriate stakeholders for further use",
+    "go_to_platform": "Go to SoilHive platform",
+    "share": {
+        "button": "Share metadata",
+        "copy_link": "Copy link",
+        "share_by_email": "Share by email",
+        "email_subject": "{{name}} metadata",
+        "email_subject_default": "Dataset metadata"
+    },
+    "map": {
+        "overview": "Map overview",
+        "view_aria": "View map",
+        "preview_aria": "Map preview",
+        "close_aria": "Close map"
+    },
+    "fields": {
+        "name": "Name:",
+        "full_name": "Full name:",
+        "version": "Version:",
+        "description": "Description:",
+        "author": "Author:",
+        "data_producer": "Data producer:",
+        "variables_measured": "Variables measured:",
+        "min_soil_depth_cm": "Min Soil Depth (cm):",
+        "max_soil_depth_cm": "Max Soil Depth (cm):",
+        "gis_datatype": "GIS Data Type:",
+        "spatial_resolution": "Spatial resolution:",
+        "reference_coverage_start": "Reference coverage start:",
+        "reference_coverage_end": "Reference coverage end:",
+        "publication_date": "Publication date:",
+        "license": "License:",
+        "citation": "Citation:"
+    },
+    "footer": {
+        "varda_website": "Varda Foundation website",
+        "contact": "Contact us",
+        "copy": "SoilHive is a Varda Foundation platform"
+    }
+}
