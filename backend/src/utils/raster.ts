@@ -36,3 +36,14 @@ export const selectOverviewTable = (table: string, aoiAreaM2: number): string =>
   // AOI is small — use the base full-resolution table
   return table;
 };
+
+export const getOverviewPixelSizeM = (aoiAreaM2: number): number => {
+  const BASE_PIXEL_SIZE_M = 100;
+  const TARGET_PIXELS = 512;
+  const OVERVIEWS = [2, 4, 8, 16, 32] as const;
+  for (const factor of [...OVERVIEWS].sort((a, b) => b - a)) {
+    const pixelSizeM = BASE_PIXEL_SIZE_M * factor;
+    if (aoiAreaM2 / pixelSizeM ** 2 >= TARGET_PIXELS) return pixelSizeM;
+  }
+  return BASE_PIXEL_SIZE_M;
+};

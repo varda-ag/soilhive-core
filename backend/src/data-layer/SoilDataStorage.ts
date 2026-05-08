@@ -1,5 +1,5 @@
 import * as turf from '@turf/turf';
-import { Polygon, MultiPolygon, Feature } from 'geojson';
+import { Polygon, MultiPolygon } from 'geojson';
 import { Capability, OverlapType } from '../types/enums';
 import { EntityManager, SelectQueryBuilder } from 'typeorm';
 import { FilteredDatasetSummary, FilteredDataset, FilterCriteria, DataFilter } from '../interfaces/DatasetFilter';
@@ -15,6 +15,7 @@ import { getDataSource } from '../utils/data-source';
 import { selectOverviewTable } from '../utils/raster';
 import { RequestData } from '../interfaces/RequestData';
 import EntitlementService from '../services/EntitlementService';
+import { geometryUnion } from '../utils/geometry';
 
 const AREA_THRESHOLD_M2 = 7_000_000 * 1_000 * 1_000; // 7,000,000 km²
 
@@ -316,92 +317,7 @@ export default class SoilDataStorage {
 
     return decodeRasterColumns(results[0]);
   };
-
-  getVectorMask = async (entityManager: EntityManager, dataFilter: DataFilter): Promise<MultiPolygon> => {
-    if (dataFilter.geometries.length === 0) {
-      return { type: 'MultiPolygon', coordinates: [] };
-    }
-
-    const schema = process.env.POSTGRES_SCHEMA;
-    const params: any[] = [];
-    const p = (val: any) => {
-      params.push(val);
-      return `$${params.length}`;
-    };
-
-    const geomUnion = geometryUnion(dataFilter.geometries);
-    const aoiAreaM2 = turf.area(dataFilter.geometries[0]!);
-    const geomParam = p(JSON.stringify(geomUnion));
-
-    const raster_filters = dataFilter.parameters.raster_filters;
-    const enabledRasterFilterTables = await getEnabledRasterFilterTables();
-
-    const ctes: string[] = [];
-    const maskCteNames: string[] = [];
-
-    ctes.push(`aoi AS MATERIALIZED (
-      SELECT ST_CollectionExtract(ST_MakeValid(ST_GeomFromGeoJSON(${geomParam}), 'method=structure'), 3) AS geom
-    )`);
-
-    if (raster_filters) {
-      for (const baseTable of enabledRasterFilterTables) {
-        const values = raster_filters[baseTable];
-        if (!values || values.length === 0) continue;
-
-        const table = selectOverviewTable(baseTable, aoiAreaM2);
-        const clippedRaster = `clipped_${table}`;
-        const maskCte = `mask_${baseTable}`;
-
-        ctes.push(`${clippedRaster} AS MATERIALIZED (
-          SELECT ST_Union(ST_Clip(rr.rast, aoi.geom, touched => TRUE)) AS rast
-          FROM ${schema}.${table} rr
-          CROSS JOIN aoi
-          WHERE ST_Intersects(rr.rast, aoi.geom)
-        )`);
-
-        ctes.push(`${maskCte} AS MATERIALIZED (
-          SELECT ST_Union(dp.geom) AS geom
-          FROM ${clippedRaster}
-          CROSS JOIN LATERAL ST_DumpAsPolygons(${clippedRaster}.rast) dp
-          WHERE dp.val = ANY(ARRAY[${values.join(',')}]::double precision[])
-        )`);
-
-        maskCteNames.push(maskCte);
-      }
-    }
-
-    const resultExpr = maskCteNames.reduce((acc, maskCte) => `ST_Intersection(${acc}, ${maskCte}.geom)`, 'aoi.geom');
-
-    const fromTables = ['aoi', ...maskCteNames].join(', ');
-    const whereClause = maskCteNames.length > 0 ? `WHERE ${maskCteNames.map(m => `${m}.geom IS NOT NULL`).join(' AND ')}` : '';
-
-    const sql = `
-      WITH ${ctes.join(',\n      ')}
-      SELECT ST_AsGeoJSON(
-        ST_Multi(ST_CollectionExtract(ST_MakeValid(${resultExpr}, 'method=structure'), 3))
-      )::json AS geom
-      FROM ${fromTables}
-      ${whereClause}
-    `;
-
-    await entityManager.query("SET LOCAL work_mem = '256MB';");
-    const results = await entityManager.query(sql, params);
-    if (results.length === 0 || results[0].geom === null) {
-      return { type: 'MultiPolygon', coordinates: [] };
-    }
-    return results[0].geom as MultiPolygon;
-  };
 }
-
-const geometryUnion = (geometries: (Polygon | MultiPolygon)[]): Polygon | MultiPolygon => {
-  assert(geometries.length > 0, 'Do not call geometryUnion without input geometries');
-  if (geometries.length === 1) {
-    return geometries[0]!;
-  }
-  const features = geometries.map(geom => turf.feature(geom) as Feature<Polygon | MultiPolygon>);
-  const featureCollection = turf.featureCollection(features);
-  return turf.union(featureCollection)!.geometry;
-};
 
 const setCandidateFeatures = (query: any, geometries: (Polygon | MultiPolygon)[]) => {
   // Merge all input geometries and define candidate features by intersecting aoi
@@ -508,7 +424,7 @@ const applyFiltersToExternalQuery = (query: any, dataFilter: DataFilter, rasterF
   return query;
 };
 
-const getEnabledRasterFilterTables = async () => {
+export const getEnabledRasterFilterTables = async () => {
   const dataSource = await getDataSource();
   const queryRunner = dataSource.createQueryRunner();
   await queryRunner.connect();
@@ -577,7 +493,7 @@ const applyRasterFilterToQuery = (
     SELECT cf.id, cf.geom
     FROM candidate_features cf
       ${joinTables}
-    WHERE ${whereClauses.join(' OR ')}
+    WHERE ${whereClauses.join(' AND ')}
     `,
     'matching_features',
     { materialized: true },
@@ -780,7 +696,7 @@ const buildRasterSql = (dataFilter: DataFilter, enabledRasterFilterTables: strin
     SELECT cf.id, cf.geom
     FROM candidate_features cf
     ${joinTables.join('\n    ')}
-    WHERE ${whereClauses.join('\n      OR ')}
+    WHERE ${whereClauses.join('\n      AND ')}
   )`);
 
   return { ctes: allCtes.join(',\n    '), usesMatchingFeatures: true };

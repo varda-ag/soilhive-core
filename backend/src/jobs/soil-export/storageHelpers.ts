@@ -44,10 +44,9 @@ export async function zipFiles(sourceDir: string, outputPath: string): Promise<v
 }
 
 /**
- * Generate the user-visible download filename.
- * Format: SoilHive_<YYYY-MM-DD>_<HH-MM-SS>.zip
+ * Date time: <YYYY-MM-DD>_<HH-MM-SS>
  */
-export function generateDownloadFilename(): string {
+export function getDateTimeString(): string {
   const now = new Date();
   const year = now.getUTCFullYear();
   const month = String(now.getUTCMonth() + 1).padStart(2, '0');
@@ -58,7 +57,16 @@ export function generateDownloadFilename(): string {
     String(now.getUTCMinutes()).padStart(2, '0') +
     '-' +
     String(now.getUTCSeconds()).padStart(2, '0');
-  return `SoilHive_${date}_${time}.zip`;
+  return `${date}_${time}`;
+}
+
+/**
+ * Generate the user-visible download filename.
+ * Format: SoilHive_<YYYY-MM-DD>_<HH-MM-SS>.zip
+ */
+export function generateDownloadFilename(): string {
+  const dateTimeString = getDateTimeString();
+  return `SoilHive_${dateTimeString}.zip`;
 }
 
 /**
@@ -70,14 +78,8 @@ export function generateDownloadPath(filterId: string): string {
   const now = new Date();
   const year = now.getUTCFullYear();
   const month = String(now.getUTCMonth() + 1).padStart(2, '0');
-  const date = String(year) + '-' + month + '-' + String(now.getUTCDate()).padStart(2, '0');
-  const time =
-    String(now.getUTCHours()).padStart(2, '0') +
-    '-' +
-    String(now.getUTCMinutes()).padStart(2, '0') +
-    '-' +
-    String(now.getUTCSeconds()).padStart(2, '0');
-  return path.join(EXPORT_CONFIG.EXPORTS_BASE_PATH, String(year), month, `${date}_${time}_${filterId}.zip`);
+  const dateTimeString = getDateTimeString();
+  return path.join(EXPORT_CONFIG.EXPORTS_BASE_PATH, String(year), month, `${dateTimeString}_${filterId}.zip`);
 }
 
 /**
