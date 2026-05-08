@@ -1,5 +1,5 @@
 import * as turf from '@turf/turf';
-import { Polygon, MultiPolygon, Feature } from 'geojson';
+import { Polygon, MultiPolygon } from 'geojson';
 import { Capability, OverlapType } from '../types/enums';
 import { EntityManager, SelectQueryBuilder } from 'typeorm';
 import { FilteredDatasetSummary, FilteredDataset, FilterCriteria, DataFilter } from '../interfaces/DatasetFilter';
@@ -15,6 +15,7 @@ import { getDataSource } from '../utils/data-source';
 import { selectOverviewTable } from '../utils/raster';
 import { RequestData } from '../interfaces/RequestData';
 import EntitlementService from '../services/EntitlementService';
+import { geometryUnion } from '../utils/geometry';
 
 const AREA_THRESHOLD_M2 = 7_000_000 * 1_000 * 1_000; // 7,000,000 km²
 
@@ -318,16 +319,6 @@ export default class SoilDataStorage {
   };
 }
 
-const geometryUnion = (geometries: (Polygon | MultiPolygon)[]): Polygon | MultiPolygon => {
-  assert(geometries.length > 0, 'Do not call geometryUnion without input geometries');
-  if (geometries.length === 1) {
-    return geometries[0]!;
-  }
-  const features = geometries.map(geom => turf.feature(geom) as Feature<Polygon | MultiPolygon>);
-  const featureCollection = turf.featureCollection(features);
-  return turf.union(featureCollection)!.geometry;
-};
-
 const setCandidateFeatures = (query: any, geometries: (Polygon | MultiPolygon)[]) => {
   // Merge all input geometries and define candidate features by intersecting aoi
   const geom = JSON.stringify(geometryUnion(geometries));
@@ -433,7 +424,7 @@ const applyFiltersToExternalQuery = (query: any, dataFilter: DataFilter, rasterF
   return query;
 };
 
-const getEnabledRasterFilterTables = async () => {
+export const getEnabledRasterFilterTables = async () => {
   const dataSource = await getDataSource();
   const queryRunner = dataSource.createQueryRunner();
   await queryRunner.connect();
@@ -502,7 +493,7 @@ const applyRasterFilterToQuery = (
     SELECT cf.id, cf.geom
     FROM candidate_features cf
       ${joinTables}
-    WHERE ${whereClauses.join(' OR ')}
+    WHERE ${whereClauses.join(' AND ')}
     `,
     'matching_features',
     { materialized: true },
@@ -705,7 +696,7 @@ const buildRasterSql = (dataFilter: DataFilter, enabledRasterFilterTables: strin
     SELECT cf.id, cf.geom
     FROM candidate_features cf
     ${joinTables.join('\n    ')}
-    WHERE ${whereClauses.join('\n      OR ')}
+    WHERE ${whereClauses.join('\n      AND ')}
   )`);
 
   return { ctes: allCtes.join(',\n    '), usesMatchingFeatures: true };
