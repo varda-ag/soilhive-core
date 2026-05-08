@@ -107,6 +107,7 @@ function DownloadPreviewDataSection({
           }}
           onTableLastPage={onTableLastPage}
           onFeatureSelected={onFeatureSelected}
+          selectedDatasets={selectedDatasets}
         />
       </div>
     </div>

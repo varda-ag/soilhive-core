@@ -70,7 +70,7 @@ function AppRoutes() {
             }
           />
           <Route
-            path="/metadata"
+            path="/datasets/:id"
             element={
               <>
                 <PageTitle title="SoilHive - Metadata" />

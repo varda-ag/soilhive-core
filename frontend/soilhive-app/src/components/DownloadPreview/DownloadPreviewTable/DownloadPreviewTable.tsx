@@ -21,6 +21,7 @@ function DownloadPreviewTable({
   first = 0,
   setFirst,
   onFeatureSelected,
+  selectedDatasets,
 }: {
   data?: SoilDataSample[];
   isDataLoading?: boolean;
@@ -29,7 +30,10 @@ function DownloadPreviewTable({
   first?: number;
   setFirst?: Dispatch<SetStateAction<number>>;
   onFeatureSelected?: (feature: Feature<Point | Polygon | MultiPolygon, GeoJsonProperties> | undefined) => void;
+  selectedDatasets?: string[];
 }) {
+  const metadataDatasetId = selectedDatasets?.[0];
+  const isMetadataDisabled = isDataLoading || !metadataDatasetId;
   const { t } = useTranslation('download');
 
   const columns = useMemo(
@@ -114,7 +118,11 @@ function DownloadPreviewTable({
             optionValue="value"
             placeholder={t('download_preview.select_columns')}
           />
-          <Button type="tertiary" className={styles.MetadataButton}>
+          <Button
+            type="tertiary"
+            className={styles.MetadataButton}
+            {...(isMetadataDisabled ? { isDisabled: true } : { href: `/datasets/${metadataDatasetId}` })}
+          >
             <NewspaperIcon />
             {t('download_preview.metadata')}
           </Button>
