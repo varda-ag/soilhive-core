@@ -2,6 +2,7 @@ export type ThemeColors = Record<string, string>;
 
 export type ThemeConfig = {
   colors: ThemeColors;
+  defaultColors: ThemeColors | undefined;
   termsAndConditionsHtml: string;
   termsAndConditionsLatestUpdate: string;
   privacyPolicyHtml: string;

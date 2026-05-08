@@ -71,6 +71,10 @@
             "title": "Success",
             "message": "New theme settings have been published"
         },
+        "default_colors_notification": {
+            "title": "Brand colors saved",
+            "message": "You can change them, experiment and come back to them anytime"
+        },
         "tabs": {
             "logo": "Logo",
             "colors": "Customize colors"
@@ -93,6 +97,9 @@
         },
         "colors": {
             "title": "Customize your colors",
+            "message": "Customize your brand colors for buttons, filter pills and backgrounds. You can set them as default, experiment freely, and return to them anytime.",
+            "save_default_button": "Set these colors as default",
+            "restore_default_button": "Reset to default",
             "preview": {
                 "title": "Live Preview",
                 "buttons_states": "Buttons states",

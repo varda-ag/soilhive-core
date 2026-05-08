@@ -8,15 +8,18 @@ import styles from './Logo.module.scss';
 
 interface Props {
   className?: string;
+  autoHeight?: boolean;
 }
 
-export function Logo({ className }: Props) {
+export function Logo({ className, autoHeight }: Props) {
   const { t } = useTranslation('common');
   const { logo, isLogoLoading } = useTheme();
 
   return (
     <div data-testid="sh-logo" className={classnames(styles.Logo, className)}>
-      {!isLogoLoading && <img className={styles.Img} src={logo || defaultLogo} alt={t('logo')} />}
+      {!isLogoLoading && (
+        <img className={classnames(styles.Img, { [styles.ImgAuto]: autoHeight })} src={logo || defaultLogo} alt={t('logo')} />
+      )}
     </div>
   );
 }

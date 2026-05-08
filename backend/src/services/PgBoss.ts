@@ -2,7 +2,7 @@ import { PgBoss, Job } from 'pg-boss';
 import { getDBPassword, getSSL } from '../utils/db-credentials';
 import { BulkLoadJob, ExportJob, FileToDbJob, BulkDeleteJob } from '../interfaces/Job';
 import { JobQueues } from '../types/enums';
-import { isJest, setupEnv } from '../utils/utils';
+import { getJobGroupConcurrency, getJobLocalConcurrency, isJest, setupEnv } from '../utils/utils';
 import { processExportJob } from '../jobs/soil-export/soilExportJob';
 import { processFileToDb } from '../jobs/file-to-db/FileToDbJob';
 import { processBulkLoad } from '../jobs/bulk-load/BulkLoader';
@@ -71,12 +71,12 @@ const runJob = async <T>(queue: JobQueues, job: Job<T>, processor: (job: Job<T>)
 
 const setupWorkers = async () => {
   const options = {
-    // Number of workers to spawn for this queue (per-node).
+    // Number of workers to spawn for each queue (per-node).
     // Each worker polls and processes jobs independently.
-    localConcurrency: 3,
+    localConcurrency: getJobLocalConcurrency(),
     // Limit concurrent jobs per group globally across all nodes (database tracking).
     // Coordinates across distributed deployments via database queries.
-    groupConcurrency: 8, // TODO: move to an environment variable and add documentation
+    groupConcurrency: getJobGroupConcurrency(),
   };
   const boss = getPgBoss();
   await boss.work<BulkLoadJob>(JobQueues.BULK_LOAD, options, async (jobs: Job<BulkLoadJob>[]) => {

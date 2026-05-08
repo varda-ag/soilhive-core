@@ -14,10 +14,13 @@ type LookAndFeelContextType = {
   previewLogo: string | null;
   isActualLogo: boolean;
   colors: ThemeColors;
+  defaultColors: ThemeColors | undefined;
   handleLogoChange: (file: File) => void;
   saveLogo: () => void;
   deleteLogo: () => void;
   handleColorChange: (name: string, value: string) => void;
+  handleDefaultColorsSave: () => void;
+  restoreDefaultColors: () => void;
   resetChanges: () => void;
   saveChanges: () => void;
 };
@@ -30,7 +33,7 @@ type LookAndFeelProps = {
 
 export const LookAndFeelProvider: React.FC<LookAndFeelProps> = ({ children }) => {
   const { t } = useTranslation('admin');
-  const { isLogoLoading, logo, themeConfig, setLogo, saveColors } = useTheme();
+  const { isLogoLoading, logo, themeConfig, setLogo, saveColors, saveDefaultColors } = useTheme();
   const { showNotification } = useNotifications();
 
   const [previewLogo, setPreviewLogo] = useState<string | null>(logo);
@@ -128,6 +131,26 @@ export const LookAndFeelProvider: React.FC<LookAndFeelProps> = ({ children }) =>
     [colorsChanged],
   );
 
+  const defaultColors = useMemo(() => themeConfig.defaultColors, [themeConfig]);
+
+  const handleDefaultColorsSave = useCallback(async () => {
+    await saveDefaultColors(colors);
+
+    showNotification({
+      id: 'defaultColorsSuccess',
+      title: t('look_and_feel.default_colors_notification.title'),
+      message: t('look_and_feel.default_colors_notification.message'),
+      type: 'success',
+    });
+  }, [colors, saveDefaultColors, showNotification, t]);
+
+  const restoreDefaultColors = useCallback(() => {
+    if (defaultColors) {
+      setColors({ ...defaultColors });
+      setColorsChanged(true);
+    }
+  }, [defaultColors]);
+
   useEffect(() => {
     setPreviewLogo(logo);
   }, [logo]);
@@ -146,10 +169,13 @@ export const LookAndFeelProvider: React.FC<LookAndFeelProps> = ({ children }) =>
         previewLogo,
         isActualLogo,
         colors,
+        defaultColors,
         saveLogo,
         handleLogoChange,
         deleteLogo,
         handleColorChange,
+        handleDefaultColorsSave,
+        restoreDefaultColors,
         resetChanges,
         saveChanges,
       }}

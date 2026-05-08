@@ -1,0 +1,156 @@
+.SplitButton {
+  position: relative;
+  display: inline-flex;
+  align-items: stretch;
+  font-family: 'Inter', Arial, Helvetica, sans-serif;
+  font-weight: 700;
+  line-height: 150%;
+
+  > .MainPart,
+  > .ChevronPart {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    color: var(--color-cta-default-text);
+    background: var(--color-cta-default-solid);
+    cursor: pointer;
+    font: inherit;
+
+    &:disabled {
+      cursor: not-allowed;
+      background: var(--color-cta-default-disabled);
+    }
+  }
+
+  &:hover:not(:has(> .MainPart:disabled, > .ChevronPart:disabled)) {
+    box-shadow: var(--shadow-hover-default);
+    border-radius: 0.25rem;
+
+    > .MainPart,
+    > .ChevronPart {
+      background: var(--color-cta-default-hover);
+    }
+  }
+
+  &:active:not(:has(> .MainPart:disabled, > .ChevronPart:disabled)) {
+    > .MainPart,
+    > .ChevronPart {
+      background: var(--color-cta-default-pressed);
+    }
+  }
+
+  > .MainPart {
+    border-radius: 0.25rem 0 0 0.25rem;
+  }
+
+  > .ChevronPart {
+    border-radius: 0 0.25rem 0.25rem 0;
+  }
+
+  > .Divider {
+    width: 1px;
+    background: var(--color-cta-default-text);
+    opacity: 0.5;
+    flex-shrink: 0;
+  }
+
+  .ChevronIcon {
+    transition: transform 0.15s ease;
+  }
+
+  .ChevronOpen {
+    transform: rotate(180deg);
+  }
+
+  &.Medium {
+    font-size: var(--font-size-lg);
+
+    > .MainPart {
+      padding: 0.75rem 1.5rem;
+    }
+
+    > .ChevronPart {
+      padding: 0.75rem 0.75rem;
+    }
+
+    .ChevronIcon {
+      width: 1.5rem;
+      height: 1.5rem;
+    }
+  }
+
+  &.Small {
+    font-size: var(--font-size-md);
+
+    > .MainPart {
+      column-gap: 0.475rem;
+      padding: 0.5rem 1rem;
+    }
+
+    > .ChevronPart {
+      padding: 0.5rem 0.625rem;
+    }
+
+    .ChevronIcon {
+      width: 1rem;
+      height: 1rem;
+    }
+  }
+
+  &.Tiny {
+    font-size: var(--font-size-sm);
+
+    > .MainPart {
+      column-gap: 0.25rem;
+      padding: 0.375rem 1rem;
+    }
+
+    > .ChevronPart {
+      padding: 0.375rem 0.5rem;
+    }
+
+    .ChevronIcon {
+      width: 1rem;
+      height: 1rem;
+    }
+  }
+
+  > .Popover {
+    position: absolute;
+    top: calc(100% + 0.25rem);
+    right: 0;
+    background: var(--color-neutral-white);
+    box-shadow: var(--shadow-interface);
+    border-radius: 0.25rem;
+    z-index: 10;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+
+    > .PopoverItem {
+      display: block;
+      width: 100%;
+      text-align: left;
+      border: none;
+      background: transparent;
+      color: var(--color-neutral-black);
+      font-family: inherit;
+      font-weight: 400;
+      font-size: var(--font-size-md);
+      line-height: var(--line-height-lg);
+      padding: 0.75rem 1rem;
+      cursor: pointer;
+
+      &:hover:not(:disabled) {
+        background: var(--color-neutral-light);
+      }
+
+      &.Disabled,
+      &:disabled {
+        color: var(--color-neutral-dark-400);
+        cursor: not-allowed;
+      }
+    }
+  }
+}
