@@ -220,12 +220,12 @@ INSERT INTO _proc_data VALUES
   (NULL, 'lab procedure', 'Calcium chloride [CaCl2]', '0.1 M', NULL, NULL, NULL, NULL),
   (NULL, 'lab procedure', 'Shoemaker-McLean-Pratt (SMP) buffer solution', NULL, NULL, NULL, NULL, NULL),
   (NULL, 'lab procedure', 'sodium hexametaphosphate [Na6[(PO3)6]]', NULL, NULL, NULL, NULL, NULL),
-  (NULL, 'lab procedure', NULL, NULL, NULL, 'mass / mass', 'Elemental analyzer or combustion apparatus with CO? detection (IR, GC, titrimetry,conductometry, or gravimetry conductometry, or gravimetry)', NULL),
+  (NULL, 'lab procedure', NULL, NULL, NULL, 'mass / mass', 'Elemental analyzer or combustion apparatus with CO2 detection (IR, GC, titrimetry,conductometry, or gravimetry conductometry, or gravimetry)', NULL),
   ('Air-dried soil, sieved to 2 mm', 'lab procedure', 'water [H2O]', NULL, '01:02', NULL, NULL, NULL),
   ('Air-dried soil, sieved (<2 mm)', 'lab procedure', 'Mehlich 3', NULL, NULL, NULL, 'ICP-OES', NULL),
   (NULL, 'calculated', NULL, NULL, NULL, NULL, NULL, NULL),
   (NULL, 'lab procedure', NULL, NULL, NULL, NULL, 'Conductivity meter with two electrodes and high impedance voltmeter', NULL),
-  (NULL, NULL, NULL, NULL, NULL, 'mass / mass', 'Elemental analyzer or combustion apparatus with CO? detection (IR, GC, titrimetry,conductometry, or gravimetry conductometry, or gravimetry)', NULL),
+  (NULL, NULL, NULL, NULL, NULL, 'mass / mass', 'Elemental analyzer or combustion apparatus with CO2 detection (IR, GC, titrimetry,conductometry, or gravimetry conductometry, or gravimetry)', NULL),
   ('Air-dried soil, sieved (<2 mm)', 'lab procedure', 'Calgon (sodium hexametaphosphate)', NULL, NULL, NULL, 'Particle size determined after dispersion; fractions (sand, silt, clay) recorded after 4 minutes of ultrasonication', NULL);
 
 -- Insert distinct vocabulary entries per category (triggers handle slug + slug_history)
