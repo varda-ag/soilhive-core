@@ -85,7 +85,9 @@ export const getRasterMask = async (
     const hasActiveFiltersNR = raster_filters != null && enabledRasterFilterTables.some(t => (raster_filters[t]?.length ?? 0) > 0);
     const geomUnionNR = geometryUnion(dataFilter.geometries);
     const aoiAreaM2NR = turf.area(dataFilter.geometries[0]!);
-    const overviewPixelSizeMNR = hasActiveFiltersNR ? getOverviewPixelSizeM(aoiAreaM2NR) : BASE_OVERVIEW_PIXEL_SIZE_M;
+    const overviewPixelSizeMNR = hasActiveFiltersNR
+      ? getOverviewPixelSizeM(aoiAreaM2NR, RASTER_MASK_RESOLUTION)
+      : BASE_OVERVIEW_PIXEL_SIZE_M;
     const effectiveResolutionNR = calcEffectiveResolution(geomUnionNR, overviewPixelSizeMNR);
 
     ctes.push(`raster_params AS (
@@ -110,8 +112,8 @@ export const getRasterMask = async (
     ctes.push(`rasterized AS MATERIALIZED (
       SELECT
         COALESCE(
-          ST_AsRaster(vm.geom, ref.rast, '8BUI', 1::float8, NULL::float8),
-          ST_AddBand(ref.rast, '8BUI'::text, 0::float8, NULL::float8)
+          ST_AsRaster(vm.geom, ref.rast, '1BB', 1::float8, NULL::float8),
+          ST_AddBand(ref.rast, '1BB'::text, 0::float8, NULL::float8)
         ) AS rast,
         ref.width, ref.height, ref.pixel_size,
         ref.min_x, ref.min_y, ref.max_x, ref.max_y
@@ -170,7 +172,7 @@ const buildRasterizeCtes = (dataFilter: DataFilter, enabledRasterFilterTables: s
   const ctes: string[] = [];
 
   const hasActiveFilters = raster_filters != null && enabledRasterFilterTables.some(t => (raster_filters[t]?.length ?? 0) > 0);
-  const overviewPixelSizeM = hasActiveFilters ? getOverviewPixelSizeM(aoiAreaM2) : BASE_OVERVIEW_PIXEL_SIZE_M;
+  const overviewPixelSizeM = hasActiveFilters ? getOverviewPixelSizeM(aoiAreaM2, RASTER_MASK_RESOLUTION) : BASE_OVERVIEW_PIXEL_SIZE_M;
   const effectiveResolution = calcEffectiveResolution(geomUnion, overviewPixelSizeM);
 
   ctes.push(`aoi AS MATERIALIZED (
@@ -208,8 +210,8 @@ const buildRasterizeCtes = (dataFilter: DataFilter, enabledRasterFilterTables: s
   ctes.push(`rasterized_aoi AS MATERIALIZED (
       SELECT
         COALESCE(
-          ST_AsRaster(aoi.geom, ref.rast, '8BUI', 1::float8, NULL::float8),
-          ST_AddBand(ref.rast, '8BUI'::text, 0::float8, NULL::float8)
+          ST_AsRaster(aoi.geom, ref.rast, '1BB', 1::float8, NULL::float8),
+          ST_AddBand(ref.rast, '1BB'::text, 0::float8, NULL::float8)
         ) AS rast
       FROM aoi
       CROSS JOIN ref_raster ref
@@ -239,7 +241,7 @@ const buildRasterizeCtes = (dataFilter: DataFilter, enabledRasterFilterTables: s
         .join(',');
       ctes.push(`${filterMaskCte} AS MATERIALIZED (
           SELECT ST_Resample(
-            ST_Reclass(cr.rast, 1, '${reclassExpr}', '8BUI', NULL::float8),
+            ST_Reclass(cr.rast, 1, '${reclassExpr}', '1BB', NULL::float8),
             ref.rast,
             'NearestNeighbour'
           ) AS rast
@@ -261,7 +263,7 @@ const buildRasterizeCtes = (dataFilter: DataFilter, enabledRasterFilterTables: s
   } else {
     let rastExpr = 'rasterized_aoi.rast';
     for (const fmCte of filterMaskCteNames) {
-      rastExpr = `ST_MapAlgebra(${rastExpr}, ${fmCte}.rast, '[rast1] * [rast2]', '8BUI', 'INTERSECTION')`;
+      rastExpr = `ST_MapAlgebra(${rastExpr}, ${fmCte}.rast, '[rast1] * [rast2]', '1BB', 'INTERSECTION')`;
     }
     const fromClause = ['rasterized_aoi', ...filterMaskCteNames].join(', ');
     ctes.push(`rasterized AS MATERIALIZED (

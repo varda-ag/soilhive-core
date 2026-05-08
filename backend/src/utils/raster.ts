@@ -11,7 +11,7 @@
 export const selectOverviewTable = (table: string, aoiAreaM2: number): string => {
   const BASE_PIXEL_SIZE_M = 100; // meters per pixel at overview factor 1
   const TARGET_PIXELS = 512; // minimum pixels to represent the AOI (one full tile worth)
-  const OVERVIEWS = [2, 4, 8, 16, 32] as const;
+  const OVERVIEWS = [32, 16, 8, 4, 2] as const;
 
   // For each candidate (from coarsest to finest), check if the AOI
   // covers at least TARGET_PIXELS pixels at that overview resolution.
@@ -22,9 +22,7 @@ export const selectOverviewTable = (table: string, aoiAreaM2: number): string =>
   // We want pixelCount >= TARGET_PIXELS (enough detail for the AOI).
   // Pick the coarsest overview that still satisfies this.
 
-  const sorted = [...OVERVIEWS].sort((a, b) => b - a); // coarsest first: [16, 8, 4, 2]
-
-  for (const factor of sorted) {
+  for (const factor of OVERVIEWS) {
     const pixelSizeM = BASE_PIXEL_SIZE_M * factor;
     const pixelAreaM2 = pixelSizeM ** 2;
     const pixelCount = aoiAreaM2 / pixelAreaM2;
@@ -37,13 +35,12 @@ export const selectOverviewTable = (table: string, aoiAreaM2: number): string =>
   return table;
 };
 
-export const getOverviewPixelSizeM = (aoiAreaM2: number): number => {
+export const getOverviewPixelSizeM = (aoiAreaM2: number, targetPixels: number): number => {
   const BASE_PIXEL_SIZE_M = 100;
-  const TARGET_PIXELS = 512;
-  const OVERVIEWS = [2, 4, 8, 16, 32] as const;
-  for (const factor of [...OVERVIEWS].sort((a, b) => b - a)) {
+  const OVERVIEWS = [32, 16, 8, 4, 2] as const;
+  for (const factor of OVERVIEWS) {
     const pixelSizeM = BASE_PIXEL_SIZE_M * factor;
-    if (aoiAreaM2 / pixelSizeM ** 2 >= TARGET_PIXELS) return pixelSizeM;
+    if (aoiAreaM2 / pixelSizeM ** 2 >= targetPixels) return pixelSizeM;
   }
   return BASE_PIXEL_SIZE_M;
 };
