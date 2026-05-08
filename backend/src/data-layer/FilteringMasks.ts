@@ -235,10 +235,9 @@ const buildRasterizeCtes = (dataFilter: DataFilter, enabledRasterFilterTables: s
           WHERE ST_Intersects(rr.rast, aoi.geom)
         )`);
 
-      const reclassExpr = [...values]
-        .sort((a, b) => a - b)
-        .map(v => `[${v}-${v}]:1`)
-        .join(',');
+      // Mapping all values in the filter to 1, and everything else to 0
+      const reclassExpr = values.map(v => `${v}:1`).join(',');
+
       ctes.push(`${filterMaskCte} AS MATERIALIZED (
           SELECT ST_Resample(
             ST_Reclass(cr.rast, 1, '${reclassExpr}', '1BB', NULL::float8),
