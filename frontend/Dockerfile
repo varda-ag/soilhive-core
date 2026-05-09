@@ -1,4 +1,4 @@
-ARG NODE_VERSION=22-alpine3.22
+ARG NODE_VERSION=24-alpine3.22@sha256:b689d4005875ae167178471a7a622ec2909459a3bbb32277260be1971af7a99f
 
 # =========================================
 # Stage 1: Build the application
