@@ -9,5 +9,6 @@ Welcome to SoilHive Core! Please see the documentation sections below:
 - [Frontend](docs/frontend.md): Running and developing the frontend
 - [Backend](docs/backend.md): Running and developing the backend
 - [Map based filters](docs/map-based-filters.md): How to install and activate the filters
+- [Dependencies](docs/dependencies.md): List of 3rd party libraries used by the project
 
 For more details please visit each linked section above.
