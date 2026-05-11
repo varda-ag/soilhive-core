@@ -5,6 +5,7 @@
 Welcome to SoilHive Core! Please see the documentation sections below:
 
 - [Quickstart](docs/quickstart.md): How to run SoilHive Core in a Docker stack
+- [Bare metal install](docs/bare-metal-install.md): How to setup and run platform without containerization
 - [Authentication](docs/authentication.md): Modes and configuration
 - [Frontend](docs/frontend.md): Running and developing the frontend
 - [Backend](docs/backend.md): Running and developing the backend
