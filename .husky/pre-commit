@@ -4,4 +4,4 @@ npm run lint:fix
 
 cd backend && npm i --silent --build-from-source --shared_gdal && npm test && cd ..
 
-cd frontend/soilhive-app && pnpm test && cd ../..
+cd frontend && pnpm test && cd ..

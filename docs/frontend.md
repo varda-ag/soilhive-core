@@ -6,7 +6,7 @@
 
 ## Setting up the environment variables
 
-Create file `./frontend/soilhive-app/public/env-config.js`.
+Create file `./frontend/public/env-config.js`.
 Content of the file:
 
 ```
