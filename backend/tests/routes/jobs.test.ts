@@ -155,6 +155,7 @@ describe('Testing /jobs routes', () => {
         },
         geometry_detected: true,
         epsg: 4326,
+        detected_mapping: {},
       };
       const file = {
         name: `sample_point_${index}.geojson`,

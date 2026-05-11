@@ -15,16 +15,16 @@ export const getDataFilters = async (req: Request, res: Response) => {
 };
 
 export const getDataFilterById = async (req: Request, res: Response) => {
-  const data = await filterService.getFilterById(req.customData, req.params['filterId']!);
+  const data = await filterService.getFilterById(req.customData, req.params['filterId']! as string);
   res.json(data);
 };
 
 export const getDataFilterCoverage = async (req: Request, res: Response) => {
-  const data = await filterService.getCoverage(req.customData, req.params['filterId']!, !!req.query['geometryOnly']);
+  const data = await filterService.getCoverage(req.customData, req.params['filterId']! as string, !!req.query['geometryOnly']);
   res.json(data);
 };
 
 export const getDataFilterDatasets = async (req: Request, res: Response) => {
-  const data = await filterService.getDatasets(req.customData, req.params['filterId']!);
+  const data = await filterService.getDatasets(req.customData, req.params['filterId']! as string);
   res.json(data);
 };

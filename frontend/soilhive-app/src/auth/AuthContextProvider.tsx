@@ -39,7 +39,7 @@ export function AuthContextProvider({ children }: { children: React.ReactNode })
         silent_redirect_uri={authConfig.oidcConfig.silentRedirectUri}
         loadUserInfo
         revokeTokensOnSignout
-        userStore={new WebStorageStateStore({ store: window.localStorage })}
+        userStore={new WebStorageStateStore({ store: window.sessionStorage })}
         onSigninCallback={() => {
           const url = new URL(window.location.href);
           window.history.replaceState({}, document.title, url.pathname);
