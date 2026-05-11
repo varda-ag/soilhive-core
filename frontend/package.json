@@ -4,6 +4,9 @@
   "license": "MIT",
   "version": "1.0.0",
   "type": "module",
+  "engines": {
+    "node": ">=24.0.0"
+  },
   "scripts": {
     "build": "rsbuild build",
     "build:client": "rsbuild build --environment web",

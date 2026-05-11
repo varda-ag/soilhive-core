@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "",
   "main": "app.js",
+  "engines": {
+    "node": ">=24.0.0"
+  },
   "scripts": {
     "build": "tsc && npm run copy-openapi && npm run copy-assets && npm run copy-data",
     "copy-openapi": "copyfiles -u 1 'src/openapi.yaml' 'dist/'",

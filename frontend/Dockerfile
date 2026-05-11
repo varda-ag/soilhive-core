@@ -1,4 +1,4 @@
-ARG NODE_VERSION=22-alpine3.22
+ARG NODE_VERSION=24-alpine3.22
 
 # =========================================
 # Stage 1: Build the application

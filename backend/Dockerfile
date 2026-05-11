@@ -1,4 +1,4 @@
-ARG NODE_VERSION=22-alpine3.22
+ARG NODE_VERSION=24-alpine3.22
 
 FROM public.ecr.aws/docker/library/node:${NODE_VERSION} AS base
 
