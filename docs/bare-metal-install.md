@@ -8,7 +8,7 @@ This guide covers running all platform services directly on the host without Doc
 
 | Dependency | Minimum version | Notes |
 |---|---|---|
-| Node.js | **22.x** | LTS; backend and frontend |
+| Node.js | **24.x** | LTS; backend and frontend |
 | pnpm | **10.x** | Monorepo package manager |
 | PostgreSQL | **16.x** | 17+ recommended |
 | PostGIS | **3.4** | Must match the installed PostgreSQL major version |
@@ -75,7 +75,7 @@ gdal-config --version   # should print 3.x.x
 ## 3. Backend
 
 ### Prerequisites
-- Node.js 22
+- Node.js 24
 - GDAL installed (step 2 above)
 
 ### Install
@@ -114,7 +114,7 @@ Swagger docs are available at `/api/docs`.
 ## 4. Frontend
 
 ### Prerequisites
-- Node.js 22
+- Node.js 24
 - pnpm (`npm install -g pnpm`)
 
 ### Install

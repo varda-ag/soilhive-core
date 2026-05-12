@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- Node.js 22
+- Node.js 24
 - pnpm (for the frontend/shared packages)
 - npm (for the backend — see [backend docs](docs/backend.md))
 - Docker (optional, for the full stack via `docker-compose`)

@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- **Node.js 22** — use [nvm](https://github.com/nvm-sh/nvm) or [fnm](https://github.com/Schniz/fnm) to manage versions
+- **Node.js 24** — use [nvm](https://github.com/nvm-sh/nvm) or [fnm](https://github.com/Schniz/fnm) to manage versions
 - **pnpm** — the workspace uses pnpm workspaces; do not use npm or yarn
 
 ## Install dependencies
