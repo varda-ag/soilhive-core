@@ -7,19 +7,19 @@ const configService = new ConfigService();
 
 export const putConfig = async (req: Request, res: Response) => {
   const { repo, id } = getRepoAndId(req);
-  const data = await configService.putConfig(repo, id, req.body);
+  const data = await configService.putConfig(repo, id as string, req.body);
   res.json(data);
 };
 
 export const getConfig = async (req: Request, res: Response) => {
   const { repo, id } = getRepoAndId(req);
-  const data = await configService.getConfig(repo, id);
+  const data = await configService.getConfig(repo, id as string);
   res.json(data);
 };
 
 export const deleteConfig = async (req: Request, res: Response) => {
   const { repo, id } = getRepoAndId(req);
-  await configService.deleteConfig(repo, id);
+  await configService.deleteConfig(repo, id as string);
   res.sendStatus(StatusCodes.NO_CONTENT);
 };
 

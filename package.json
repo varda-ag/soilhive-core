@@ -4,6 +4,9 @@
   "license": "MIT",
   "version": "0.89.3",
   "description": "",
+  "engines": {
+    "node": ">=24.0.0"
+  },
   "scripts": {
     "dev": "pnpm --filter=!common --parallel dev",
     "build": "pnpm --filter=!common --parallel build",

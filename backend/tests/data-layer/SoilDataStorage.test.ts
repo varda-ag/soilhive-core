@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, jest, afterAll } from '@jest/globals';
+import * as turf from '@turf/turf';
 import { MultiPolygon, Polygon } from 'geojson';
 import { getEntityManager } from '../../src/utils/data-source';
 import { getPolygonFromBbox } from '../../src/utils/geometry';
@@ -10,10 +11,19 @@ import { GISDataType } from '../../src/types/data';
 import { addRastersData, addRasterMappings } from '../helper';
 import * as RasterUtilsModule from '../../src/utils/raster';
 import { invalidGeometryPayload } from './invalidGeometryPayload.ts';
+import { getRasterMask, getVectorMask } from '../../src/data-layer/FilteringMasks';
+import { FilterCriteria } from '../../src/interfaces/DatasetFilter';
 
 const bbox = [0, 0, 1, 1];
 const bboxPolygon: Polygon = getPolygonFromBbox(bbox);
 const entitlements = {};
+const filteringMaskCoordinates = [
+  [-80.721933926, -33.788328755],
+  [-80.721933926, -33.783977188],
+  [-80.717474913, -33.783977188],
+  [-80.717474913, -33.788328755],
+  [-80.721933926, -33.788328755],
+];
 
 describe('SoilDataStorage class', () => {
   it.each([
@@ -33,7 +43,7 @@ describe('SoilDataStorage class', () => {
     expect(overlapType).toEqual(expectedType);
   });
 
-  it.each(['Point', 'Polygon'])('Filtering should return some results', async (featureGeometryType: string) => {
+  it.each([GISDataType.POINT, GISDataType.POLYGONAL])('Filtering should return some results', async (featureGeometryType: string) => {
     const layers = 5;
     const { dataset } = await addSyntheticData({
       ...syntheticDataOptions,
@@ -366,7 +376,7 @@ describe('SoilDataStorage class', () => {
     await addSyntheticData({
       ...syntheticDataOptions,
       spatial_extent: [6.8, 38, 17, 47],
-      featureGeometryType: 'Polygon',
+      featureGeometryType: GISDataType.POLYGONAL,
       featureCount: 500,
       squareSide: 0.3,
     });
@@ -484,7 +494,7 @@ describe('SoilDataStorage class', () => {
             // Array with one polygon
             filteringRectangle.coordinates,
           ],
-          featureGeometryType: 'Polygon',
+          featureGeometryType: GISDataType.POLYGONAL,
           spatial_extent: bbox,
         });
         const sds = new SoilDataStorage();
@@ -517,7 +527,7 @@ describe('SoilDataStorage class', () => {
           // Array with one polygon
           filteringRectangle.coordinates,
         ],
-        featureGeometryType: 'Polygon',
+        featureGeometryType: GISDataType.POLYGONAL,
         spatial_extent: bbox,
       });
       const sds = new SoilDataStorage();
@@ -531,6 +541,117 @@ describe('SoilDataStorage class', () => {
         6567, 6576, 6578, 6582, 6584, 6772, 6776, 6777, 6782, 7076, 7082, 7171, 7176, 7189, 7283, 7583, 7680, 7686, 7688, 7884, 8072, 8076,
         8084, 8090, 8271, 8284, 8367, 8378, 8384, 8467, 8577, 8682,
       ]);
+    });
+
+    it.each([
+      [{}, filteringMaskCoordinates], // No parameters, mask is filling all the rectangle
+      [
+        { raster_filters: { land_cover: [30] } },
+        [
+          [-80.719246032, -33.785714286],
+          [-80.719246032, -33.786706349],
+          [-80.720238095, -33.786706349],
+          [-80.720238095, -33.785714286],
+          [-80.719246032, -33.785714286],
+        ],
+      ],
+      [
+        { raster_filters: { land_cover: [60] } },
+        [
+          [-80.721933926, -33.783977188],
+          [-80.718253968, -33.783977188],
+          [-80.718253968, -33.785714286],
+          [-80.720238095, -33.785714286],
+          [-80.720238095, -33.787698413],
+          [-80.721933926, -33.787698413],
+          [-80.721933926, -33.783977188],
+        ],
+      ],
+      [
+        { raster_filters: { land_cover: [200] } },
+        [
+          [-80.721933926, -33.787698413],
+          [-80.720238095, -33.787698413],
+          [-80.720238095, -33.786706349],
+          [-80.719246032, -33.786706349],
+          [-80.719246032, -33.785714286],
+          [-80.718253968, -33.785714286],
+          [-80.718253968, -33.783977188],
+          [-80.717474913, -33.783977188],
+          [-80.717474913, -33.788328755],
+          [-80.721933926, -33.788328755],
+          [-80.721933926, -33.787698413],
+        ],
+      ],
+      [{ raster_filters: { land_cover: [30, 60, 200] } }, filteringMaskCoordinates], // All values, mask is filling all the rectangle
+    ])('Expected vector mask should be returned from a rectangle covering three raster values', async (parameters, expectedPolygon) => {
+      // Filtering rectangle
+      const filteringRectangle = {
+        coordinates: [filteringMaskCoordinates],
+        type: 'Polygon',
+      };
+      const entityManager = await getEntityManager();
+      const results = await getVectorMask(entityManager, { geometries: [filteringRectangle as Polygon], parameters });
+      expect(turf.area(results)).toEqual(turf.area({ type: 'Polygon', coordinates: [expectedPolygon] }));
+    });
+
+    it.each<[FilterCriteria, number, boolean]>(
+      [false, true].flatMap(rasterize => [
+        [{}, 25, rasterize], // No parameters, mask is filling all the rectangle
+        [{ raster_filters: { land_cover: [30] } }, 1, rasterize],
+        [{ raster_filters: { land_cover: [60] } }, 12, rasterize],
+        [{ raster_filters: { land_cover: [200] } }, 12, rasterize],
+        [{ raster_filters: { land_cover: [30, 60, 200] } }, 25, rasterize], // All values, mask is filling all the rectangle
+      ]),
+    )(
+      'Expected raster mask should be returned from a rectangle covering three raster values',
+      async (parameters, expectedPixels, rasterize) => {
+        // Filtering rectangle
+        const filteringRectangle = {
+          coordinates: [filteringMaskCoordinates],
+          type: 'Polygon',
+        };
+        const entityManager = await getEntityManager();
+        const table = await getRasterMask(entityManager, { geometries: [filteringRectangle as Polygon], parameters }, 'table', rasterize);
+        expect(table).toBeDefined();
+
+        const [row] = await entityManager.query(`
+        SELECT
+          (SELECT COALESCE(SUM(count), 0) FROM ST_ValueCount(t.rast, 1) WHERE value = 1) AS true_count,
+          t.width,
+          t.height
+        FROM "${table}" t
+      `);
+
+        const trueCount = Number(row.true_count);
+        expect(trueCount).toBe(expectedPixels);
+
+        const w = Number(row.width);
+        const h = Number(row.height);
+        expect(w).toBe(5);
+        expect(h).toBe(5);
+      },
+    );
+
+    it.each([[[0, 0, 100, 10]], [[0, 0, 10, 80]]])('Raster mask should have a maximum size of 1024 pixels', async bbox => {
+      // Filtering rectangle
+      const filteringRectangle = getPolygonFromBbox(bbox);
+      const entityManager = await getEntityManager();
+      const table = await getRasterMask(entityManager, { geometries: [filteringRectangle as Polygon], parameters: {} }, 'table');
+      expect(table).toBeDefined();
+
+      const [row] = await entityManager.query(`
+        SELECT
+          (SELECT COALESCE(SUM(count), 0) FROM ST_ValueCount(t.rast, 1) WHERE value = 1) AS true_count,
+          t.width,
+          t.height
+        FROM "${table}" t
+      `);
+
+      const w = Number(row.width);
+      const h = Number(row.height);
+      const maxSize = Math.max(w, h);
+      expect(maxSize).toEqual(1024);
     });
   });
 });

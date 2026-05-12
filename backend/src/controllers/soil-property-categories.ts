@@ -10,6 +10,6 @@ export const getSoilPropertyCategories = async (req: Request, res: Response) => 
 };
 
 export const getSoilPropertyCategory = async (req: Request, res: Response) => {
-  const data = await soilPropertyCategoryService.getSoilPropertyCategory(req.customData, req.params['soilPropertyCategoryId']!);
+  const data = await soilPropertyCategoryService.getSoilPropertyCategory(req.customData, req.params['soilPropertyCategoryId']! as string);
   res.json(idToSlug(data));
 };

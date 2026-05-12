@@ -12,7 +12,7 @@ export const getProcedures = async (req: Request, res: Response) => {
 };
 
 export const getProcedure = async (req: Request, res: Response) => {
-  const data = await procedureService.getProcedure(req.customData, req.params['procedureId']!);
+  const data = await procedureService.getProcedure(req.customData, req.params['procedureId']! as string);
   res.json(data);
 };
 

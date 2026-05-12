@@ -19,7 +19,7 @@ export const fileUpload = async (req: Request, res: Response) => {
 };
 
 export const fileDownload = async (req: Request, res: Response, next: NextFunction) => {
-  const file = await fileService.getFile(req.customData, req.params['fileId']!);
+  const file = await fileService.getFile(req.customData, req.params['fileId']! as string);
   const fileKey = file.file_path as string;
   const exists = await fileService.exists(fileKey);
   if (!exists) {
@@ -75,31 +75,31 @@ export const createFile = async (req: Request, res: Response, next: NextFunction
 export const updateFile = async (req: Request, res: Response) => {
   const { fileId } = req.params;
   const input: PatchFileInput = req.body;
-  const file = await fileService.getFile(req.customData, fileId!);
+  const file = await fileService.getFile(req.customData, fileId! as string);
   if (input.epsg) {
     file.metadata = { ...file.metadata, epsg: input.epsg } as FileMetadata;
   }
-  const result = await fileService.updateFile(req.customData, fileId!, file);
+  const result = await fileService.updateFile(req.customData, fileId! as string, file);
   res.json(idToSlug(result));
 };
 
 export const getFile = async (req: Request, res: Response) => {
   const { fileId } = req.params;
 
-  const result = await fileService.getFile(req.customData, fileId!);
+  const result = await fileService.getFile(req.customData, fileId! as string);
 
   res.json(idToSlug(result));
 };
 
 export const deleteFile = async (req: Request, res: Response) => {
   const { fileId } = req.params;
-  await fileService.deleteFile(req.customData, fileId!);
-  fileService.deleteFileFromStorage(fileId!);
+  await fileService.deleteFile(req.customData, fileId! as string);
+  fileService.deleteFileFromStorage(fileId! as string);
   res.sendStatus(StatusCodes.NO_CONTENT);
 };
 
 export const download = async (req: Request, res: Response, next: NextFunction) => {
-  const filename = req.params['filePath']!;
+  const filename = req.params['filePath']! as string;
   const token = req.query['token'] as string;
   const overrideFilename = req.query['filename'] as string | undefined;
 

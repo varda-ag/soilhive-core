@@ -1,4 +1,4 @@
-import { describe, it, expect } from '@jest/globals';
+import { describe, it, expect, jest } from '@jest/globals';
 import request from 'supertest';
 import { app } from '../../src/app';
 import {
@@ -12,6 +12,7 @@ import { getPolygonFromBbox } from '../../src/utils/geometry';
 import { addRastersData, addRasterMappings, getDataAdminToken } from '../helper';
 import { StatusCodes } from 'http-status-codes';
 import * as RasterUtilsModule from '../../src/utils/raster';
+import { GISDataType } from '../../src/types/data';
 
 describe('Testing /soil-data routes', () => {
   it('Getting soil data without required parameter should fail', async () => {
@@ -50,24 +51,41 @@ describe('Testing /soil-data routes', () => {
     expect(res.body.detail).toContain('not found');
   });
 
+  // Fixed coordinates at land_cover=200 AND soil_groups=6777 within the test bbox
+  const RASTER_POINT_COORDS = [[-80.8, -33.75]];
+  const RASTER_POLYGON_COORDS = [
+    [
+      [
+        [-80.81, -33.76],
+        [-80.79, -33.76],
+        [-80.79, -33.74],
+        [-80.81, -33.74],
+        [-80.81, -33.76],
+      ],
+    ],
+  ];
+
   it.each([
-    ['Point', {}, false],
-    ['Polygon', {}, false],
-    ['Point', { raster_filters: { land_cover: [200], soil_groups: [6777] } }, false],
-    ['Polygon', { raster_filters: { land_cover: [200], soil_groups: [6777] } }, false],
-    ['Point', { raster_filters: { land_cover: [200], soil_groups: [6777] } }, true],
-    ['Polygon', { raster_filters: { land_cover: [200], soil_groups: [6777] } }, true],
+    [GISDataType.POINT, {}, false, undefined],
+    [GISDataType.POLYGONAL, {}, false, undefined],
+    [GISDataType.POINT, { raster_filters: { land_cover: [200], soil_groups: [6777] } }, false, undefined],
+    [GISDataType.POLYGONAL, { raster_filters: { land_cover: [200], soil_groups: [6777] } }, false, undefined],
+    [GISDataType.POINT, { raster_filters: { land_cover: [200], soil_groups: [6777] } }, true, RASTER_POINT_COORDS],
+    [GISDataType.POLYGONAL, { raster_filters: { land_cover: [200], soil_groups: [6777] } }, true, RASTER_POLYGON_COORDS],
   ])(
     'Should retrieve data when searching inside spatial extent',
-    async (featureGeometryType, parameters, addRasterData) => {
-      const bbox = [-81.05147132378683, -33.91662843751825, -80.80257075549038, -33.535322870059325]; // This overlaps test land cover and soil group
+    async (featureGeometryType, parameters, addRasterData, featureCoordinates) => {
+      // Cases with raster data use the full raster tile bbox to guarantee feature coords are inside
+      const bbox = [-80.82, -33.8, -80.76, -33.73];
+      const featureCount = featureCoordinates?.length ?? 5;
       const { dataset } = await addSyntheticData({
         ...syntheticDataOptions,
         spatial_extent: bbox,
         id: 1001,
         soilPropertyNames: ['ph_test'],
-        featureCount: 5,
+        featureCount,
         featureGeometryType,
+        featureCoordinates,
       });
 
       if (addRasterData) {

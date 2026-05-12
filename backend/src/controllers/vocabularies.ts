@@ -12,7 +12,7 @@ export const getVocabulary = async (req: Request, res: Response) => {
 };
 
 export const getVocabularyItem = async (req: Request, res: Response) => {
-  const oldId = req.params['vocabularyId']!;
+  const oldId = req.params['vocabularyId']! as string;
   const data = await vocabularyService.getVocabularyItem(req.customData, oldId);
 
   if (data.slug !== oldId) {
