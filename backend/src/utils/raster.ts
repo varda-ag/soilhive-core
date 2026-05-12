@@ -38,6 +38,33 @@ export const selectOverviewTable = (table: string, aoiAreaM2: number): string =>
   return table;
 };
 
+export const selectFileOverviewLevel = (band, queryEnvelope) => {
+  const queryWidth  = queryEnvelope.maxX - queryEnvelope.minX;
+  const queryHeight = queryEnvelope.maxY - queryEnvelope.minY;
+  const queryMinDim = Math.min(queryWidth, queryHeight);
+
+  // Native pixel size in degrees (or map units)
+  const nativePixelSize = Math.abs(band.ds.geoTransform[1]);
+
+  const ovCount = band.overviews.count();
+
+  for (let i = ovCount - 1; i >= 0; i--) {
+    const ov = band.overviews.get(i);
+    // Pixel size at this overview level
+    const ovPixelSize = nativePixelSize * (band.size.x / ov.size.x);
+
+    // Use this overview only if its pixel covers less than
+    // half the query's smallest dimension — ensures multiple
+    // pixels fall within the query area
+    if (ovPixelSize < queryMinDim / 2) {
+      return ov;
+    }
+  }
+  // Query is smaller than even the finest overview pixel —
+  // fall back to native resolution
+  return band;
+};
+
 export const getOverviewPixelSizeM = (aoiAreaM2: number, targetPixels: number): number => {
   const BASE_PIXEL_SIZE_M = 100;
   const OVERVIEWS = [32, 16, 8, 4, 2] as const;

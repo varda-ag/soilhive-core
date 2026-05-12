@@ -66,6 +66,8 @@ export default class RasterLayerEntity extends BaseTable implements RasterLayer 
     generatedType: 'STORED',
     asExpression: 'ST_Envelope(footprint)',
     nullable: true,
+    insert: false,
+    update: false,
   })
   @Index({ spatial: true })
   bbox: Polygon | null;

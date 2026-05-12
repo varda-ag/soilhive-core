@@ -1,4 +1,6 @@
 import path from 'path';
+import { tmpdir } from 'os';
+import { promisify } from 'util';
 import { dbRestore } from '../src/utils/db-restore';
 import request from 'supertest';
 import { app } from '../src/app';
@@ -8,6 +10,9 @@ import { sleep } from '../src/utils/utils';
 import { setupTestEnv } from './environment';
 import assert from 'assert';
 import { readFileSync } from 'fs';
+import RasterLayerEntity from '../src/entities/RasterLayer';
+
+const execAsync = promisify(exec);
 
 export const startDockerCompose = async () => {
   setupTestEnv();
@@ -112,7 +117,7 @@ const getToken = async (password: string): Promise<string> => {
   return res.body.access_token;
 };
 
-export const addRastersData = async (): Promise<void> => {
+export const addRasterFilterData = async (): Promise<void> => {
   // Loading data (it takes a while)
   const landCoverDump = path.join(__dirname, './assets/land_cover/land_cover.dump');
   const soilGroupsDump = path.join(__dirname, './assets/soil_groups/soil_groups.dump');
@@ -120,7 +125,7 @@ export const addRastersData = async (): Promise<void> => {
   await dbRestore(soilGroupsDump).catch(() => {});
 };
 
-export const addRasterMappings = async (): Promise<void> => {
+export const addRasterFilterMappings = async (): Promise<void> => {
   const landCoverMappingsFile = path.join(__dirname, './assets/land_cover/land_cover.mappings');
   const soilGroupsMappingsFile = path.join(__dirname, './assets/soil_groups/soil_groups.mappings');
   const dataSource = await getDataSource();
@@ -142,4 +147,50 @@ export const addRasterFilters = async (): Promise<void> => {
       INSERT INTO "raster_filters" (id,name,description) VALUES ('agroecological_zones', 'Agroecological zones', 'The Food and Agriculture Organization of the United Nations (FAO) and the International Institute for Applied Systems Analysis (IIASA) have cooperated over several decades to develop and implement the Agro-Ecological Zones (AEZ) modeling framework and databases. AEZ relies on well-established land evaluation principles to assess natural resources for finding suitable agricultural land utilization options. Compilation of an AEZ agro-climatic inventory using several climatic variables (e.g. temperature, precipitation, sunshine fraction, relative humidity) gives a <strong>general characterization of climatic resources, signifies their suitability for agricultural use and provides data and indicators related to climatic requirements of crop growth, development and yield formation. Source: © FAO, 2021. Global Agro-Ecological Zones v4');
       INSERT INTO "raster_filters" (id,name,description) VALUES ('soil_groups', 'Soil Groups', 'This filter refers to the categories defined by the WRB, an international soil classification system developed by the IUSS. These groups classify soils based on their physical and chemical properties, providing a standardized framework for naming soils and creating legends for soil maps. FAO & IIASA. 2023. Harmonized World Soil Database version 2.0. Rome and Laxenburg.');
     `);
+};
+
+export const addRasterData = async (dsn: string, tifPath?: string, options?: {
+  out?: string;
+  outDir?: string;
+  resolution?: number;
+  extent?: string;
+  schema?: string;
+  dataset?: string;
+  soilProperty?: string;
+  layerFields?: {
+    min_depth?: number | null;
+    max_depth?: number | null;
+    reference_period_start?: string | null;
+    reference_period_stop?: string | null;
+  };
+}): Promise<RasterLayerEntity> => {
+  const input = tifPath ?? path.join(__dirname, './assets/raster/sol_ph.h2o_usda.4c1a2a_m_250m_b0..0cm_1950..2017_v0.2.tif');
+  const out = options?.out ?? path.join(tmpdir(), `test_raster_${Date.now()}_cog.tif`);
+  const scriptPath = path.join(__dirname, '../src/scripts/ingest_raster.sh');
+
+  const args = [
+    `-r ${(options?.resolution ?? 250)}`,
+    `-e ${(options?.extent ?? 'global')}`,
+    `-d "${dsn}"`,
+    `-s "${(options?.schema ?? process.env.POSTGRES_SCHEMA)}"`,
+    `-o "${out}"`,
+    options?.outDir ? `-O "${options?.outDir}"` : '',
+    options?.dataset ? `-D "${options?.dataset}"` : '',
+    options?.soilProperty ? `-P "${options?.soilProperty}"` : '',
+    `"${path.resolve(input)}"`,
+  ].filter(Boolean).join(' ');
+
+  await execAsync(`bash "${scriptPath}" ${args}`);
+
+  const dataSource = await getDataSource();
+  const repo = dataSource.getRepository(RasterLayerEntity);
+
+  const entity = await repo.findOneOrFail({ where: { file: { file_path: out } }, relations: { file: true } });
+
+  if (options?.layerFields && Object.keys(options.layerFields).length > 0) {
+    Object.assign(entity, options.layerFields);
+    await repo.save(entity);
+  }
+
+  return entity;
 };

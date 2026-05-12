@@ -22,6 +22,7 @@ import fs from 'fs';
 import { sanitizeField } from './utils';
 import DatasetFileMappingEntity from '../entities/DatasetFileMapping';
 import VocabularyEntity from '../entities/Vocabulary';
+import RasterLayerEntity from 'src/entities/RasterLayer';
 
 const randomInRange = (min: number, max: number): number => {
   return Math.random() * (max - min) + min;
@@ -325,7 +326,8 @@ export const addObservations = async (values: number[], procedure_id: string, da
 
 export interface SyntheticDataset {
   dataset: DatasetEntity;
-  features: FeatureEntity[];
+  features?: FeatureEntity[];
+  raster_layers?: RasterLayerEntity[];
   soilProperties: SoilPropertyEntity[];
 }
 

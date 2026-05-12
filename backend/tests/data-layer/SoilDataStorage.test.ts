@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, jest, afterAll } from '@jest/globals';
+import { describe, it, expect, beforeEach, afterEach, jest, afterAll } from '@jest/globals';
 import * as turf from '@turf/turf';
 import { MultiPolygon, Polygon } from 'geojson';
 import { getEntityManager } from '../../src/utils/data-source';
@@ -8,8 +8,10 @@ import SoilDataStorage, { buildDatasetFilterClauses } from '../../src/data-layer
 import DatasetEntity from '../../src/entities/Dataset';
 import { decodeCursor } from '../../src/utils/cursor';
 import { GISDataType } from '../../src/types/data';
-import { addRastersData, addRasterMappings } from '../helper';
+import { addRasterData, addRasterFilterData, addRasterFilterMappings } from '../helper';
+import { clearRasterPool } from '../../src/services/FileService';
 import * as RasterUtilsModule from '../../src/utils/raster';
+import * as FilteringMasksModule from '../../src/data-layer/FilteringMasks';
 import { invalidGeometryPayload } from './invalidGeometryPayload.ts';
 import { getRasterMask, getVectorMask } from '../../src/data-layer/FilteringMasks';
 import { FilterCriteria } from '../../src/interfaces/DatasetFilter';
@@ -389,8 +391,8 @@ describe('SoilDataStorage class', () => {
   describe('Raster filtering', () => {
     let mockSelectOverview: any;
     beforeEach(async () => {
-      await addRastersData();
-      await addRasterMappings();
+      await addRasterFilterData();
+      await addRasterFilterMappings();
       // Do not reference any overview (they don't exist in test dump)
       mockSelectOverview = jest.spyOn(RasterUtilsModule, 'selectOverviewTable').mockImplementation((table: string) => {
         return table;
@@ -652,6 +654,158 @@ describe('SoilDataStorage class', () => {
       const h = Number(row.height);
       const maxSize = Math.max(w, h);
       expect(maxSize).toEqual(1024);
+    });
+  });
+
+  describe('Raster data filtering', () => {
+    let mockSelectOverview: any;
+    const dsn = `postgresql://${process.env.POSTGRES_USER}:${process.env.POSTGRES_PASSWORD}@${process.env.POSTGRES_HOST}:${process.env.POSTGRES_PORT}/${process.env.POSTGRES_DB}`;
+    beforeEach(() => { clearRasterPool();
+      // Do not reference any overview (they don't exist in test dump)
+      mockSelectOverview = jest.spyOn(RasterUtilsModule, 'selectOverviewTable').mockImplementation((table: string) => {
+        return table;
+      });
+     });
+
+    afterAll(() => {
+      mockSelectOverview.mockRestore();
+    });
+
+    const rasterCoordinates = [
+        [-80.810, -33.732],
+        [-80.810, -33.728],
+        [-80.806, -33.728],
+        [-80.806, -33.732],
+        [-80.810, -33.732],
+      ];
+
+    it('Filtering raster data should return a dataset when geometry intersects with its footprint', async () => {
+      await addRasterData(dsn, undefined, {
+        out: `test_raster_${Date.now()}_cog.tif`,
+        outDir: process.env.LOCAL_STORAGE_ROOT_FOLDER,
+      });
+      const sds = new SoilDataStorage();
+      const entityManager = await getEntityManager();
+      // Filtering rectangle
+      const filteringRectangle: Polygon = {
+        coordinates: [rasterCoordinates],
+        type: 'Polygon',
+      };
+      const results = await sds.filterRaster(entityManager, filteringRectangle, {});
+      expect(results).toHaveLength(1);
+      expect(results[0].raster_layer_count).toBe(1);
+    });
+
+    it('Filtering raster data should return empty array when geometry does not intersect any raster layer', async () => {
+      await addRasterData(dsn, undefined, {
+        out: `test_raster_${Date.now()}_cog.tif`,
+        outDir: process.env.LOCAL_STORAGE_ROOT_FOLDER,
+      });
+      const sds = new SoilDataStorage();
+      const entityManager = await getEntityManager();
+      const results = await sds.filterRaster(entityManager, getPolygonFromBbox([170, 80, 171, 81]), {});
+      expect(results).toHaveLength(0);
+    });
+
+    it.each([
+      [{ min_depth: 0, max_depth: 30 }, { min_depth: 100 }, 0],
+      [{ min_depth: 5, max_depth: 15 }, { min_depth: 5, max_depth: 15 }, 1],
+      [{ reference_period_start: '2010-01-01', reference_period_stop: '2015-12-31' }, { min_sampling_date: '2020-01-01' }, 0],
+      [{ reference_period_start: '2010-01-01', reference_period_stop: '2020-12-31' }, { min_sampling_date: '2015-01-01', max_sampling_date: '2018-01-01' }, 1],
+    ])('Filtering with criteria: layer=%j filter=%j should return %i result(s)', async (layerFields, filter, expectedCount) => {
+      await addRasterData(dsn, undefined, {
+        out: `test_raster_${Date.now()}_cog.tif`,
+        outDir: process.env.LOCAL_STORAGE_ROOT_FOLDER,
+        layerFields,
+      });
+      const sds = new SoilDataStorage();
+      const entityManager = await getEntityManager();
+      const results = await sds.filterRaster(entityManager, getPolygonFromBbox([-180, -90, 180, 90]), filter);
+      expect(results).toHaveLength(expectedCount);
+    });
+
+    it('Filtering raster data should aggregate multiple layers from the same dataset into one summary', async () => {
+      await addRasterData(dsn, undefined, {
+        out: `test_raster_${Date.now()}_cog.tif`,
+        outDir: process.env.LOCAL_STORAGE_ROOT_FOLDER,
+      });
+      await addRasterData(dsn, undefined, {
+        out: `test_raster_${Date.now()}_cog.tif`,
+        outDir: process.env.LOCAL_STORAGE_ROOT_FOLDER,
+        layerFields: { reference_period_start: '2010-01-01', reference_period_stop: '2020-12-31' },
+      });
+      const sds = new SoilDataStorage();
+      const entityManager = await getEntityManager();
+      const filteringRectangle: Polygon = {
+        coordinates: [rasterCoordinates],
+        type: 'Polygon',
+      };
+      const results = await sds.filterRaster(entityManager, filteringRectangle, {});
+      expect(results).toHaveLength(1);
+      expect(results[0].raster_layer_count).toBe(2);
+    });
+
+    it.each([
+      [250, 'global', true],
+      [500, 'national', true],
+      [1000, 'global', false],
+      [250, 'regional', false],
+      [500, 'regional', false],
+    ])('Filtering raster data should do pixel check: resolution=%im extent=%s → selectFileOverviewLevel called=%s', async (resolution, extent, expectCalled) => {
+      const spy = jest.spyOn(RasterUtilsModule, 'selectFileOverviewLevel');
+      await addRasterData(dsn, undefined, { 
+        out: `test_raster_${Date.now()}_cog.tif`,
+        outDir: process.env.LOCAL_STORAGE_ROOT_FOLDER,
+        resolution, 
+        extent 
+      });
+      const sds = new SoilDataStorage();
+      const entityManager = await getEntityManager();
+      const filteringRectangle: Polygon = {
+        coordinates: [rasterCoordinates],
+        type: 'Polygon',
+      };
+      await sds.filterRaster(entityManager, filteringRectangle, {});
+      if (expectCalled) {
+        expect(spy).toHaveBeenCalled();
+      } else {
+        expect(spy).not.toHaveBeenCalled();
+      }
+      spy.mockRestore();
+    });
+
+    describe('With raster_filters', () => {
+      beforeEach(async () => {
+        await addRasterData(dsn, undefined, {
+        out: `test_raster_${Date.now()}_cog.tif`,
+        outDir: process.env.LOCAL_STORAGE_ROOT_FOLDER,
+      });
+        await addRasterFilterData();
+        await addRasterFilterMappings();
+      }, 10000);
+
+      it('calls getVectorMask when raster_filters are present', async () => {
+        const spy = jest.spyOn(FilteringMasksModule, 'getVectorMask');
+        const sds = new SoilDataStorage();
+        const entityManager = await getEntityManager();
+        await sds.filterRaster(entityManager, getPolygonFromBbox([-81, -34, -80, -33]), { raster_filters: { land_cover: [30] } });
+        expect(spy).toHaveBeenCalled();
+        spy.mockRestore();
+      });
+
+      it.each([
+        [[30], 1],
+        // [[40], 0],
+      ])('land_cover=%j → %i dataset(s) returned', async (landCoverValues, expectedCount) => {
+        const sds = new SoilDataStorage();
+        const entityManager = await getEntityManager();
+        const results = await sds.filterRaster(
+          entityManager,
+          getPolygonFromBbox([-81, -34, -80, -33]),
+          { raster_filters: { land_cover: landCoverValues } },
+        );
+        expect(results).toHaveLength(expectedCount);
+      });
     });
   });
 });

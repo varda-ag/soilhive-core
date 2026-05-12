@@ -10,13 +10,15 @@
 #   -e, --extent      Extent type: global | continental | national | regional
 #
 # Optional:
-#   -o, --out         Output COG path (default: <input>_cog.tif)
+#   -o, --out         Output COG filename (default: <basename(input)>_cog.tif)
+#   -O, --out-dir     Root folder prepended to --out (or the default filename)
 #   -n, --nodata      NoData value (auto-detected from file if omitted)
 #   -d, --dsn         PostgreSQL connection string (default: $DATABASE_URL)
 #   -s, --schema      PostgreSQL schema (default: public)
 #   -D, --dataset     Dataset name (default: "test-ds")
 #   -P, --soil-property     Soil property name (default: "Organic Carbon Stock")
-#       --resampling  GDAL overview resampling: AVERAGE (default) | NEAREST
+#   -C, --soil-property-category     Soil property category name (default: "Chemical")
+#       --resampling  GDAL overview resampling: AVERAGE (default) | NEAREST (for categorical data: soil texture, drought vulnerability, etc.)
 #   -h, --help        Show this help
 #
 # Dependencies: gdal_translate, gdalinfo, gdal_footprint, gdalsrsinfo, jq, psql
@@ -28,6 +30,7 @@ set -euo pipefail
 RESOLUTION=""
 EXTENT=""
 OUT=""
+OUTDIR=""
 NODATA=""
 DSN="${DATABASE_URL:-}"
 SCHEMA="${POSTGRES_SCHEMA:-public}"
@@ -35,6 +38,7 @@ RESAMPLING="AVERAGE"
 INPUT=""
 DATASET="test-ds"
 SOILPROP="Organic Carbon Stock"
+SOILPROPCAT="Chemical"
 
 # ─── Argument parsing ─────────────────────────────────────────────────────────
 
@@ -45,11 +49,13 @@ while [[ $# -gt 0 ]]; do
     -r|--resolution)  RESOLUTION="$2"; shift 2 ;;
     -e|--extent)      EXTENT="$2";     shift 2 ;;
     -o|--out)         OUT="$2";        shift 2 ;;
+    -O|--out-dir)     OUTDIR="$2";    shift 2 ;;
     -n|--nodata)      NODATA="$2";     shift 2 ;;
     -d|--dsn)         DSN="$2";        shift 2 ;;
     -s|--schema)      SCHEMA="$2";     shift 2 ;;
     -D|--dataset)     DATASET="$2";     shift 2 ;;
     -P|--soil-property)     SOILPROP="$2";     shift 2 ;;
+    -C|--soil-property-category)     SOILPROPCAT="$2";     shift 2 ;;
     --resampling)     RESAMPLING="$2"; shift 2 ;;
     -h|--help)        usage ;;
     -*)               echo "Unknown option: $1" >&2; exit 1 ;;
@@ -62,6 +68,7 @@ done
 [[ -z "$EXTENT" ]]     && { echo "Error: --extent required" >&2; exit 1; }
 [[ -z "$DSN" ]]        && { echo "Error: --dsn or DATABASE_URL required" >&2; exit 1; }
 [[ ! -f "$INPUT" ]]    && { echo "Error: file not found: $INPUT" >&2; exit 1; }
+[[ -n "$SOILPROP" && -z "$SOILPROPCAT" ]] && { echo "Error: --soil-property-category required when --soil-property is provided" >&2; exit 1; }
 
 for cmd in gdal_translate gdalinfo gdal_footprint gdalsrsinfo jq psql; do
   command -v "$cmd" >/dev/null 2>&1 || { echo "Error: $cmd not found in PATH" >&2; exit 1; }
@@ -72,7 +79,9 @@ case "$EXTENT" in
   *) echo "Error: --extent must be one of: global continental national regional" >&2; exit 1 ;;
 esac
 
-[[ -z "$OUT" ]] && OUT="${INPUT%.tif}_cog.tif"
+[[ -z "$OUT" ]] && OUT="$(basename "${INPUT%.tif}")_cog.tif"
+OUT_NAME="$OUT"
+[[ -n "$OUTDIR" ]] && OUT="${OUTDIR%/}/$OUT"
 
 TMPDIR_WORK=$(mktemp -d)
 trap 'rm -rf "$TMPDIR_WORK"' EXIT
@@ -103,6 +112,10 @@ fi
 
 # Overview count from band 1 (used to select gdal_footprint sampling strategy)
 OVR_COUNT=$(jq '(.bands[0].overviews // []) | length' "$INFO_JSON")
+
+# Bounding box in WGS84 — requires file to have a valid, transformable CRS
+BBOX_GEOM=$(jq -c '.wgs84Extent // empty' "$INFO_JSON") \
+  || { echo "Error: could not extract WGS84 extent — file may have no CRS" >&2; exit 1; }
 
 # SRS WKT (single-line, single-quotes escaped for SQL)
 SRS_WKT=$(gdalsrsinfo -o wkt "$OUT" 2>/dev/null | tr -d '\n' || true)
@@ -178,40 +191,85 @@ simplified AS (
   ) AS geom
   FROM raw_fp, tolerance
 ),
--- Geohash precision-5 cells enumerated from the raw footprint bbox.
--- lat_step = 180 / 2^12 = lon_step = 360 / 2^13 (both ~0.043945 deg).
+-- Multi-precision geohash cells enumerated from the footprint bbox.
+-- Precision levels are chosen per extent type so queries at any scale
+-- (global → fine-grained) can find a match via array overlap.
 -- Uses integer cell indices to avoid floating-point drift in generate_series.
+--
+--  Precision | lon_grid | lat_grid | cell size (approx)
+--  --------- | -------- | -------- | ------------------
+--      1     |     8    |     4    | 45° x 45°
+--      2     |    32    |    32    | 11° x 6°
+--      3     |   256    |   128    | 1.4° x 1.4°
+--      4     |  1024    |  1024    | 0.35° x 0.18°
+--      5     |  8192    |  4096    | 0.04° x 0.04°
 geohash AS (
-  SELECT
-    CASE WHEN $RESOLUTION <= 10 AND '$EXTENT' = 'global' THEN (
-      SELECT array_agg(DISTINCT ST_GeoHash(
-        ST_SetSRID(ST_Point(
-          LEAST(-180.0 + (i_lon + 0.5) * (360.0 / 8192), 179.9999),
-          LEAST( -90.0 + (i_lat + 0.5) * (180.0 / 4096),  89.9999)
-        ), 4326), 5
-      ))
-      FROM (
-        SELECT
-          floor((ST_XMin(ST_Envelope(geom)) + 180.0) / (360.0 / 8192))::int AS lon0,
-          ceil( (ST_XMax(ST_Envelope(geom)) + 180.0) / (360.0 / 8192))::int AS lon1,
-          floor((ST_YMin(ST_Envelope(geom)) +  90.0) / (180.0 / 4096))::int AS lat0,
-          ceil( (ST_YMax(ST_Envelope(geom)) +  90.0) / (180.0 / 4096))::int AS lat1
-        FROM raw_fp
-      ) b,
-      generate_series(b.lon0, b.lon1 - 1) AS i_lon,
-      generate_series(b.lat0, b.lat1 - 1) AS i_lat
-    )
-    ELSE NULL END AS cells
+  WITH fp_bbox AS (
+    SELECT
+      ST_XMin(ST_Envelope(geom)) AS minx,
+      ST_XMax(ST_Envelope(geom)) AS maxx,
+      ST_YMin(ST_Envelope(geom)) AS miny,
+      ST_YMax(ST_Envelope(geom)) AS maxy
+    FROM simplified
+  ),
+  precision_grid(prec, lon_grid, lat_grid) AS (
+    VALUES
+      (1::int,     8::int,     4::int),
+      (2,         32,         32),
+      (3,        256,        128),
+      (4,       1024,       1024),
+      (5,       8192,       4096)
+  ),
+  active_prec AS (
+    SELECT prec, lon_grid, lat_grid
+    FROM precision_grid
+    WHERE prec = ANY(CASE '$EXTENT'
+      WHEN 'global'      THEN ARRAY[1, 2]
+      WHEN 'continental' THEN ARRAY[1, 2, 3]
+      WHEN 'national'    THEN ARRAY[2, 3, 4]
+      WHEN 'regional'    THEN ARRAY[3, 4, 5]
+      ELSE                    ARRAY[1, 2, 3]
+    END)
+  ),
+  all_cells AS (
+    SELECT DISTINCT ST_GeoHash(
+      ST_SetSRID(ST_Point(
+        LEAST(-180.0 + (i_lon + 0.5) * (360.0 / p.lon_grid), 179.9999),
+        LEAST( -90.0 + (i_lat + 0.5) * (180.0 / p.lat_grid),  89.9999)
+      ), 4326), p.prec
+    ) AS h
+    FROM active_prec p,
+    fp_bbox,
+    generate_series(
+      floor((fp_bbox.minx + 180.0) / (360.0 / p.lon_grid))::int,
+      ceil( (fp_bbox.maxx + 180.0) / (360.0 / p.lon_grid))::int - 1
+    ) AS i_lon,
+    generate_series(
+      floor((fp_bbox.miny +  90.0) / (180.0 / p.lat_grid))::int,
+      ceil( (fp_bbox.maxy +  90.0) / (180.0 / p.lat_grid))::int - 1
+    ) AS i_lat
+  )
+  SELECT array_agg(h) AS cells FROM all_cells
 ), file_ins as (
 INSERT INTO files ("name", file_path, created_by)
-VALUES ('$OUT', '$OUT', 'data-admin')
+VALUES ('$OUT_NAME', '$OUT_NAME', 'data-admin')
+ON CONFLICT ("file_path") DO UPDATE SET updated_at=now()
 RETURNING *
 ), ds_ins AS (
-INSERT INTO datasets("name", "created_by") 
-VALUES ('$DATASET', 'data-admin')
-ON CONFLICT ("name") WHERE (deleted_at IS NULL) DO UPDATE SET updated_at=now()
-RETURNING *), sp AS (
-SELECT id from soil_properties where property_name='$SOILPROP')
+INSERT INTO datasets("name", "created_by", "spatial_extent")
+VALUES ('$DATASET', 'data-admin', ST_SetSRID(ST_GeomFromGeoJSON(\$bbox\$${BBOX_GEOM}\$bbox\$), 4326))
+ON CONFLICT ("name") WHERE (deleted_at IS NULL) DO UPDATE SET
+  updated_at = now(),
+  spatial_extent = COALESCE(datasets.spatial_extent, EXCLUDED.spatial_extent)
+RETURNING *), spc_ins AS (
+INSERT INTO soil_property_categories("category_name", "category_acronym") 
+VALUES ('$SOILPROPCAT', '$SOILPROPCAT')
+ON CONFLICT ("category_name") DO UPDATE SET updated_at=now()
+RETURNING *), sp_ins AS (
+INSERT INTO soil_properties("property_name", "property_acronym", "category_id")
+SELECT '$SOILPROP', '$SOILPROP', spc_ins.id FROM spc_ins
+ON CONFLICT ("property_name") DO UPDATE SET updated_at=now()
+RETURNING *)
 INSERT INTO raster_layers (
   file_id,
   dataset_id,
@@ -225,13 +283,13 @@ INSERT INTO raster_layers (
 SELECT
   file_ins.id,
   ds_ins.id,
-  sp.id,
+  sp_ins.id,
   $RESOLUTION,
   '$EXTENT',
   simplified.geom,
   geohash.cells,
   $NODATA_SQL
-FROM simplified, geohash, file_ins, ds_ins, sp;
+FROM simplified, geohash, file_ins, ds_ins, sp_ins;
 
 SELECT rl.id, f.file_path, rl.resolution_m, rl.extent_type, rl.nodata_value
 FROM   raster_layers rl

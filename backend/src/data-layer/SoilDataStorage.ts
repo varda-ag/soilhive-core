@@ -4,7 +4,7 @@ import { StatusCodes } from 'http-status-codes';
 import { Brackets, EntityManager, SelectQueryBuilder } from 'typeorm';
 import { createCursor, decodeCursor, encodeCursor } from '../utils/cursor';
 import { ErrorResponse } from '../utils/error';
-import { envelopeToPixelWindow, selectOverviewTable } from '../utils/raster';
+import { envelopeToPixelWindow, selectOverviewTable, selectFileOverviewLevel } from '../utils/raster';
 import { Capability, OverlapType } from '../types/enums';
 import { FilteredDatasetSummary, FilteredDataset, FilterCriteria, DataFilter } from '../interfaces/DatasetFilter';
 import DatasetEntity from '../entities/Dataset';
@@ -23,7 +23,21 @@ import { Extent } from '../types/data';
 import { getVectorMask } from './FilteringMasks';
 
 const AREA_THRESHOLD_M2 = 7_000_000 * 1_000 * 1_000; // 7,000,000 km²
-const GEOHASH_PRECISION = 5;
+const MAX_HASHES_PER_PRECISION = 500;
+
+// Generates geohash cells at increasing precision levels until a level exceeds
+// MAX_HASHES_PER_PRECISION. This ensures the query hashes match whatever
+// precision levels are stored in geohash_cells (coarse for large rasters,
+// fine for small ones) without producing an unmanageable array.
+const geohashesForGeometry = (geometry: Polygon | MultiPolygon): string[] => {
+  const hashes = new Set<string>();
+  for (let precision = 1; ; precision++) {
+    const level = polygonToGeohashes(geometry, precision);
+    if (level.length > MAX_HASHES_PER_PRECISION) break;
+    level.forEach(h => hashes.add(h));
+  }
+  return [...hashes];
+};
 
 const rasterFilterService = new RasterFilterService();
 const entitlementService = new EntitlementService();
@@ -179,7 +193,7 @@ export default class SoilDataStorage {
       filteredGeom = await getVectorMask(entityManager, dataFilter);
     }
     const geomJson = JSON.stringify(filteredGeom);
-    const inputHashes = polygonToGeohashes(filteredGeom, GEOHASH_PRECISION);
+    const inputHashes = geohashesForGeometry(filteredGeom);
     const envelope = envelopeFromGeoJSON(filteredGeom);
 
     await entityManager.query("SET LOCAL work_mem = '256MB';");
@@ -1125,13 +1139,13 @@ const pixelCheck = async (filePath: string, env: Envelope): Promise<boolean> => 
     const rasterSize = ds.rasterSize;
     const band = await ds.bands.getAsync(1);
     const nodata = band.noDataValue;
-    const ovCount = band.overviews.count();
-    const ov = ovCount > 0 ? band.overviews.get(ovCount - 1) : band;
+    // Select overview level appropriate for query size
+    const ov = selectFileOverviewLevel(band, env);
 
     const win = envelopeToPixelWindow(gt, env, ov.size, rasterSize);
-    if (!win) return false;
+    if (!win || win.w === 0 || win.h === 0) return false;
 
-    const pixels = await ov.pixels.readAsync(win.x, win.y, win.w, win.h, new Float32Array(win.w * win.h));
+    const pixels = await ov.pixels.readAsync(win.x, win.y, win.w, win.h);
     return Array.from(pixels).some(v => v !== nodata && !Number.isNaN(v));
   } finally {
     // S3 datasets are opened fresh each time; local datasets live in the pool
