@@ -401,7 +401,11 @@ describe('LookAndFeelProvider / useLookAndFeel', () => {
       result.current.restoreDefaultColors();
     });
 
+    await waitFor(() => {
+      expect(saveColors).toHaveBeenCalledWith(mockDefaultColors);
+    });
     expect(result.current.colors).toEqual(mockDefaultColors);
+    expect(showNotification).toHaveBeenCalledWith(expect.objectContaining({ id: 'restoreColorsSuccess', type: 'success' }));
   });
 
   it('restoreDefaultColors does nothing when defaultColors is undefined', async () => {
