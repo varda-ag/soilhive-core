@@ -1,23 +1,29 @@
 import * as turf from '@turf/turf';
 import { Polygon, MultiPolygon } from 'geojson';
+import { StatusCodes } from 'http-status-codes';
+import { Brackets, EntityManager, SelectQueryBuilder } from 'typeorm';
+import { createCursor, decodeCursor, encodeCursor } from '../utils/cursor';
+import { ErrorResponse } from '../utils/error';
+import { envelopeToPixelWindow, selectOverviewTable } from '../utils/raster';
 import { Capability, OverlapType } from '../types/enums';
-import { EntityManager, SelectQueryBuilder } from 'typeorm';
 import { FilteredDatasetSummary, FilteredDataset, FilterCriteria, DataFilter } from '../interfaces/DatasetFilter';
 import DatasetEntity from '../entities/Dataset';
 import DatasetLayerEntity from '../entities/DatasetLayer';
 import { SoilDataSample } from '../interfaces/SoilDataSample';
 import assert from 'assert';
-import { createCursor, decodeCursor, encodeCursor } from '../utils/cursor';
-import { ErrorResponse } from '../utils/error';
-import { StatusCodes } from 'http-status-codes';
 import RasterFilterService from '../services/RasterFilterService';
+import FileService from '../services/FileService';
 import { getDataSource } from '../utils/data-source';
-import { selectOverviewTable } from '../utils/raster';
 import { RequestData } from '../interfaces/RequestData';
 import EntitlementService from '../services/EntitlementService';
-import { geometryUnion } from '../utils/geometry';
+import { envelopeFromGeoJSON, geometryUnion, polygonToGeohashes } from '../utils/geometry';
+import { Envelope, QueryResult, FootprintGeohashIntersectEntry } from '../interfaces/RasterLayer';
+import RasterLayerEntity from '../entities/RasterLayer';
+import { Extent } from '../types/data';
+import { getVectorMask } from './FilteringMasks';
 
 const AREA_THRESHOLD_M2 = 7_000_000 * 1_000 * 1_000; // 7,000,000 km²
+const GEOHASH_PRECISION = 5;
 
 const rasterFilterService = new RasterFilterService();
 const entitlementService = new EntitlementService();
@@ -46,7 +52,7 @@ export default class SoilDataStorage {
     return new Map(results.map(row => [row.dataset_id, row.overlap_type as OverlapType]));
   };
 
-  filter = async (
+  filterVector = async (
     entityManager: EntityManager,
     geometry: Polygon | MultiPolygon,
     filters: FilterCriteria,
@@ -112,7 +118,7 @@ export default class SoilDataStorage {
     }));
   };
 
-  filterDatasets = async (
+  filterVectorDatasets = async (
     entityManager: EntityManager,
     geometry: Polygon | MultiPolygon,
     filters: FilterCriteria,
@@ -159,6 +165,109 @@ export default class SoilDataStorage {
     `;
 
     return entityManager.query(sql, params);
+  };
+
+  // Assess whether a simplified version (as filterVectorDatasets) is needed
+  filterRaster = async (
+    entityManager: EntityManager,
+    geometry: Polygon | MultiPolygon,
+    filters: FilterCriteria,
+  ): Promise<FilteredDatasetSummary[]> => {
+    const dataFilter = { geometries: [geometry], parameters: filters };
+    let filteredGeom = geometry;
+    if (hasRasterFilters(dataFilter)) {
+      filteredGeom = await getVectorMask(entityManager, dataFilter);
+    }
+    const geomJson = JSON.stringify(filteredGeom);
+    const inputHashes = polygonToGeohashes(filteredGeom, GEOHASH_PRECISION);
+    const envelope = envelopeFromGeoJSON(filteredGeom);
+
+    await entityManager.query("SET LOCAL work_mem = '256MB';");
+    // Step 1 — candidate raster layer IDs matching FilterCriteria + coarse spatial pre-filter
+    const candidateQuery = entityManager
+      .getRepository(RasterLayerEntity)
+      .createQueryBuilder('rl')
+      .addCommonTableExpression(selectGeometry(), 'aoi')
+      .setParameter('inputGeom', geomJson)
+      .innerJoin('rl.dataset', 'ds', 'ds.deleted_at IS NULL AND ds.spatial_extent && (SELECT ST_Envelope(geom) FROM aoi)')
+      .innerJoin('rl.soil_property', 'sp')
+      .select('rl.id', 'id');
+
+    if (filters.data_types?.length) {
+      candidateQuery.andWhere('ds.gis_datatype IN (:...data_types)', { data_types: filters.data_types });
+    }
+    if (filters.min_depth === null) {
+      candidateQuery.andWhere('rl.min_depth IS NULL');
+    } else if (filters.min_depth !== undefined) {
+      candidateQuery.andWhere('rl.max_depth >= :min_depth', { min_depth: filters.min_depth });
+    }
+    if (filters.max_depth === null) {
+      candidateQuery.andWhere('rl.max_depth IS NULL');
+    } else if (filters.max_depth !== undefined) {
+      candidateQuery.andWhere('rl.min_depth <= :max_depth', { max_depth: filters.max_depth });
+    }
+    if (filters.min_sampling_date === null) {
+      candidateQuery.andWhere('rl.reference_period_start IS NULL');
+    } else if (filters.min_sampling_date) {
+      candidateQuery.andWhere('rl.reference_period_stop >= :min_sampling_date', { min_sampling_date: filters.min_sampling_date });
+    }
+    if (filters.max_sampling_date === null) {
+      candidateQuery.andWhere('rl.reference_period_stop IS NULL');
+    } else if (filters.max_sampling_date) {
+      candidateQuery.andWhere('rl.reference_period_start <= :max_sampling_date', { max_sampling_date: filters.max_sampling_date });
+    }
+    if (filters.soil_properties?.length) {
+      candidateQuery.andWhere('sp.slug IN (:...soil_properties)', { soil_properties: filters.soil_properties });
+    }
+    if (filters.licenses?.length) {
+      candidateQuery.andWhere('ds.licenses && ARRAY[:...licenses]', { licenses: filters.licenses });
+    }
+
+    const candidateIds = (await candidateQuery.getRawMany<{ id: string }>()).map(r => r.id);
+
+    // Step 2 — precise spatial (footprint / geohash) + pixel check
+    const candidates = await spatialFilter(entityManager, geomJson, candidateIds, inputHashes);
+    const needCheck = candidates.filter(r => needsPixelCheck(r));
+    const confident = candidates.filter(r => !needsPixelCheck(r));
+    const checked = await filterByPixel(needCheck, envelope);
+
+    const hasDataPaths = new Set([...confident.map(r => r.file_path), ...checked.filter(r => r.has_data).map(r => r.file_path)]);
+    if (hasDataPaths.size === 0) return [];
+
+    // Step 3 — aggregate surviving layers into dataset summaries
+    // Assess whether this performs better calculated in memory (one less query, up to ~1.5k records in memory)
+    const rows = await entityManager
+      .getRepository(RasterLayerEntity)
+      .createQueryBuilder('rl')
+      .innerJoin('rl.dataset', 'ds')
+      .innerJoin('rl.file', 'f')
+      .innerJoin('rl.soil_property', 'sp')
+      .select('ds.slug', 'id')
+      .addSelect('ds.name', 'name')
+      .addSelect('ds.gis_datatype', 'data_type')
+      .addSelect('ds.licenses', 'licenses')
+      .addSelect('COUNT(rl.id)', 'raster_layer_count')
+      .addSelect("COALESCE(MIN(rl.min_depth), (ds.soil_depth->>'min')::int)", 'min_depth')
+      .addSelect("COALESCE(MAX(rl.max_depth), (ds.soil_depth->>'max')::int)", 'max_depth')
+      .addSelect('COALESCE(MIN(rl.reference_period_start), ds.reference_period_start)', 'min_sampling_date')
+      .addSelect('COALESCE(MAX(rl.reference_period_stop), ds.reference_period_stop)', 'max_sampling_date')
+      .addSelect("STRING_AGG(DISTINCT sp.slug, ',')", 'soil_properties')
+      .where('f.file_path IN (:...hasDataPaths)', { hasDataPaths: [...hasDataPaths] })
+      .groupBy('ds.slug, ds.name, ds.gis_datatype, ds.licenses, ds.soil_depth, ds.reference_period_start, ds.reference_period_stop')
+      .getRawMany();
+
+    return rows.map(row => ({
+      id: row.id,
+      name: row.name,
+      data_type: row.data_type,
+      licenses: Array.isArray(row.licenses) ? row.licenses : [],
+      min_sampling_date: row.min_sampling_date ?? null,
+      max_sampling_date: row.max_sampling_date ?? null,
+      min_depth: row.min_depth !== null ? Number(row.min_depth) : null,
+      max_depth: row.max_depth !== null ? Number(row.max_depth) : null,
+      soil_properties: row.soil_properties ? row.soil_properties.split(',') : [],
+      raster_layer_count: Number.parseInt(row.raster_layer_count, 10),
+    }));
   };
 
   getSoilData = async (
@@ -626,7 +735,7 @@ export const buildDatasetFilterClauses = (
  * Builds raster filter CTEs for raw SQL queries: aoi_subdivided (for large geometries),
  * candidate_features, clipped raster CTEs, and matching_features.
  *
- * Used by both filterDatasets (LATERAL pattern) and buildRawSoilQuery (CTE join pattern).
+ * Used by both filterVectorDatasets (LATERAL pattern) and buildRawSoilQuery (CTE join pattern).
  * Returns { ctes, usesMatchingFeatures } where ctes is a comma-joined string ready to
  * insert after the aoi CTE. When usesMatchingFeatures is false, ctes is empty and the
  * caller handles its own spatial CTEs.
@@ -977,4 +1086,70 @@ const joinProcedures = (query: any) => {
     .leftJoin('vocabulary', 'pv5', "pv5.id = procedure.extraction_base_id AND pv5.category = 'extraction_base'")
     .leftJoin('vocabulary', 'pv6', "pv6.id = procedure.measurement_procedure_id AND pv6.category = 'measurement_procedure'")
     .leftJoin('vocabulary', 'pv7', "pv7.id = procedure.limit_of_detection_id AND pv7.category = 'limit_of_detection'");
+};
+
+const spatialFilter = async (
+  entityManager: EntityManager,
+  geojsonStr: string,
+  candidateLayers: string[],
+  inputHashes: string[],
+): Promise<FootprintGeohashIntersectEntry[]> => {
+  if (candidateLayers.length === 0) return [];
+  return entityManager
+    .getRepository(RasterLayerEntity)
+    .createQueryBuilder('rl')
+    .addCommonTableExpression(selectGeometry(), 'aoi')
+    .setParameter('inputGeom', geojsonStr)
+    .innerJoin('rl.file', 'f')
+    .select('rl.id', 'id')
+    .addSelect('f.file_path', 'file_path')
+    .addSelect('rl.resolution_m', 'resolution_m')
+    .addSelect('rl.extent_type', 'extent_type')
+    .where('rl.id IN (:...candidateLayers)', { candidateLayers })
+    .andWhere(
+      new Brackets(qb =>
+        qb
+          .where('rl.geohash_cells IS NULL AND ST_Intersects(rl.footprint, (SELECT geom FROM aoi))')
+          .orWhere('rl.geohash_cells IS NOT NULL AND rl.geohash_cells && ARRAY[:...inputHashes]', { inputHashes }),
+      ),
+    )
+    .getRawMany();
+};
+
+const pixelCheck = async (filePath: string, env: Envelope): Promise<boolean> => {
+  const { ds, pooled } = await FileService.openRasterDataset(filePath);
+  try {
+    const gt = ds.geoTransform;
+    if (!gt) return false;
+
+    const rasterSize = ds.rasterSize;
+    const band = await ds.bands.getAsync(1);
+    const nodata = band.noDataValue;
+    const ovCount = band.overviews.count();
+    const ov = ovCount > 0 ? band.overviews.get(ovCount - 1) : band;
+
+    const win = envelopeToPixelWindow(gt, env, ov.size, rasterSize);
+    if (!win) return false;
+
+    const pixels = await ov.pixels.readAsync(win.x, win.y, win.w, win.h, new Float32Array(win.w * win.h));
+    return Array.from(pixels).some(v => v !== nodata && !Number.isNaN(v));
+  } finally {
+    // S3 datasets are opened fresh each time; local datasets live in the pool
+    if (!pooled) ds.close();
+  }
+};
+
+const needsPixelCheck = (row: FootprintGeohashIntersectEntry): boolean => {
+  if (row.resolution_m >= 1000) return false;
+  if (row.resolution_m >= 250 && row.resolution_m <= 500 && row.extent_type === Extent.REGIONAL) return false;
+  return true;
+};
+
+const filterByPixel = async (candidates: FootprintGeohashIntersectEntry[], env: Envelope): Promise<QueryResult[]> => {
+  return Promise.all(
+    candidates.map(async r => ({
+      file_path: r.file_path,
+      has_data: await pixelCheck(r.file_path, env),
+    })),
+  );
 };

@@ -1,3 +1,6 @@
+import { xyz } from 'gdal-async';
+import { Envelope, PixelWindow } from '../interfaces/RasterLayer';
+
 /**
  * Returns the PostGIS table name to query given an AOI area in m².
  *
@@ -43,4 +46,28 @@ export const getOverviewPixelSizeM = (aoiAreaM2: number, targetPixels: number): 
     if (aoiAreaM2 / pixelSizeM ** 2 >= targetPixels) return pixelSizeM;
   }
   return BASE_PIXEL_SIZE_M;
+};
+
+export const envelopeToPixelWindow = (geoTransform: number[], env: Envelope, ovSize: xyz, rasterSize: xyz): PixelWindow | null => {
+  const originX = geoTransform[0] ?? 0;
+  const pixelW = geoTransform[1] ?? 1;
+  const originY = geoTransform[3] ?? 0;
+  const pixelH = geoTransform[5] ?? -1; // negative for north-up rasters
+
+  // Scale pixel size from base resolution to this overview's resolution
+  const ovPixelW = pixelW * (rasterSize.x / ovSize.x);
+  const ovPixelH = pixelH * (rasterSize.y / ovSize.y);
+
+  const colLeft = Math.floor((env.minX - originX) / ovPixelW);
+  const rowTop = Math.floor((env.maxY - originY) / ovPixelH); // maxY→small row (north-up)
+  const colRight = Math.ceil((env.maxX - originX) / ovPixelW);
+  const rowBot = Math.ceil((env.minY - originY) / ovPixelH); // minY→large row
+
+  const x = Math.max(0, colLeft);
+  const y = Math.max(0, rowTop);
+  const xEnd = Math.min(ovSize.x, colRight);
+  const yEnd = Math.min(ovSize.y, rowBot);
+
+  if (xEnd <= x || yEnd <= y) return null;
+  return { x, y, w: xEnd - x, h: yEnd - y };
 };

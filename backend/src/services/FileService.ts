@@ -9,6 +9,7 @@ import { AwsS3StorageAdapter } from '@flystorage/aws-s3';
 import { LocalStorageAdapter } from '@flystorage/local-fs';
 import { FlystorageMulterStorageEngine } from '@flystorage/multer-storage';
 import * as gdal from 'gdal-async';
+import { LRUCache } from 'lru-cache';
 import { LocalStorageConfig, S3StorageConfig, StorageConfig } from '../interfaces/StorageConfig';
 import { RequestData } from '../interfaces/RequestData';
 import { File, FileMetadata, ExtractedFilePath } from '../interfaces/File';
@@ -39,6 +40,9 @@ const allowedGeometryTypes = [
 ];
 
 const unknownGeomDrivers = ['CSV', 'XLSX'];
+
+let gdalConfigured = false;
+let dsPool: LRUCache<string, gdal.Dataset> | null = null;
 
 export default class FileService {
   exists = async (fileKey: string): Promise<boolean> => {
@@ -569,6 +573,46 @@ export default class FileService {
       if (tempZipExtractPath) {
         FileService.removeTempFolder(tempZipExtractPath);
       }
+    }
+  };
+
+  static readonly configureGdal = (mode: StorageModes): void => {
+    if (gdalConfigured) return;
+    gdalConfigured = true;
+
+    gdal.config.set('GDAL_DISABLE_READDIR_ON_OPEN', 'EMPTY_DIR');
+    gdal.config.set('VSI_CACHE', 'TRUE');
+
+    if (mode === StorageModes.S3) {
+      gdal.config.set('VSI_CACHE_SIZE', '200000000');
+      gdal.config.set('CPL_VSIL_CURL_ALLOWED_EXTENSIONS', '.tif');
+    } else {
+      gdal.config.set('VSI_CACHE_SIZE', '500000000');
+      dsPool = new LRUCache({ max: 200, dispose: ds => ds.close() });
+    }
+  };
+
+  static readonly openRasterDataset = async (fileKey: string): Promise<{ ds: gdal.Dataset; pooled: boolean }> => {
+    const config: StorageConfig = ConfigService.getStorageConfig();
+    const { mainFilePath } = await this.getMainFilePath(fileKey);
+    switch (config.storageMode) {
+      case StorageModes.LOCAL: {
+        if (dsPool !== null) {
+          const cached = dsPool.get(mainFilePath);
+          if (cached) return { ds: cached, pooled: true };
+          const ds = await gdal.openAsync(mainFilePath);
+          dsPool.set(mainFilePath, ds);
+          return { ds, pooled: true };
+        }
+        const ds = await gdal.openAsync(mainFilePath);
+        return { ds, pooled: false };
+      }
+      case StorageModes.S3: {
+        const ds = await gdal.openAsync(mainFilePath);
+        return { ds, pooled: false };
+      }
+      default:
+        throw new Error(`Unsupported storage mode: ${config.storageMode}`);
     }
   };
 }

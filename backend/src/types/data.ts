@@ -39,3 +39,10 @@ export enum ProcedureTechnique {
   SPECTRAL = 'spectral',
   CALCULATED = 'calculated',
 }
+
+export enum Extent {
+  GLOBAL = 'global',
+  CONTINENTAL = 'continental',
+  NATIONAL = 'national',
+  REGIONAL = 'regional',
+}

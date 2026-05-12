@@ -57,7 +57,10 @@ export default class FilterService {
     // Create filtering promisees
     const filteringPromises: Promise<FilteredDatasetSummary[]>[] = [];
     for (const g of filter.geometries) {
-      filteringPromises.push(sds.filter(requestData.entityManager, g, filter.parameters));
+      filteringPromises.push(
+        sds.filterVector(requestData.entityManager, g, filter.parameters),
+        sds.filterRaster(requestData.entityManager, g, filter.parameters),
+      );
     }
     // Wait for all filtering to complete
     const batches = await Promise.all(filteringPromises);
@@ -76,7 +79,12 @@ export default class FilterService {
     // Create filtering promisees
     const filteringPromises: Promise<FilteredDataset[]>[] = [];
     for (const g of filter.geometries) {
-      filteringPromises.push(sds.filterDatasets(requestData.entityManager, g, filter.parameters));
+      filteringPromises.push(
+        sds.filterVectorDatasets(requestData.entityManager, g, filter.parameters),
+        sds
+          .filterRaster(requestData.entityManager, g, filter.parameters)
+          .then(results => results.map(({ id, name, data_type }) => ({ id, name, data_type }))),
+      );
     }
     const results = (await Promise.all(filteringPromises)).flat();
     return Array.from(new Map(results.map(r => [r.id, r])).values());
@@ -96,7 +104,8 @@ export const mergeDatasetSummaries = (batches: FilteredDatasetSummary[][]): Filt
         });
         continue;
       }
-      existing.dataset_layer_count += ds.dataset_layer_count;
+      existing.dataset_layer_count = (existing.dataset_layer_count ?? 0) + (ds.dataset_layer_count ?? 0);
+      existing.raster_layer_count = (existing.raster_layer_count ?? 0) + (ds.raster_layer_count ?? 0);
       existing.licenses = [...new Set([...(existing.licenses ?? []), ...(ds.licenses ?? [])])];
       existing.soil_properties = [...new Set([...(existing.soil_properties ?? []), ...(ds.soil_properties ?? [])])];
       existing.min_sampling_date = mergeMin(existing.min_sampling_date ?? null, ds.min_sampling_date ?? null);

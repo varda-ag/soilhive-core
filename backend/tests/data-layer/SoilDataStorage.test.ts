@@ -53,7 +53,7 @@ describe('SoilDataStorage class', () => {
     });
     const sds = new SoilDataStorage();
     const entityManager = await getEntityManager();
-    const results = await sds.filter(entityManager, getPolygonFromBbox([0, 0, 10, 10]), {});
+    const results = await sds.filterVector(entityManager, getPolygonFromBbox([0, 0, 10, 10]), {});
     expect(results.length).toBe(1);
     expect(results[0].dataset_layer_count).toBe(layers);
     expect(results[0].soil_properties).toContain('prop1');
@@ -78,7 +78,7 @@ describe('SoilDataStorage class', () => {
     }
     const sds = new SoilDataStorage();
     const entityManager = await getEntityManager();
-    const results = await sds.filter(entityManager, bboxPolygon, { data_types: [filterType as GISDataType] });
+    const results = await sds.filterVector(entityManager, bboxPolygon, { data_types: [filterType as GISDataType] });
     expect(results.length).toBe(expectedDatasetCount);
     for (let i = 0; i < expectedDatasetCount; i++) {
       expect(datasets.map(d => d.slug)).toContain(results[i].id);
@@ -104,12 +104,12 @@ describe('SoilDataStorage class', () => {
     await addSyntheticData({ ...syntheticDataOptions, depthLayers: 10 }); // 10 layers with depths 0-100
     const sds = new SoilDataStorage();
     const entityManager = await getEntityManager();
-    const filterResults = await sds.filter(entityManager, bboxPolygon, { min_depth, max_depth });
+    const filterResults = await sds.filterVector(entityManager, bboxPolygon, { min_depth, max_depth });
     expect(filterResults.length).toBe(expectedResultCount);
     if (expectedResultCount > 0) {
       expect(filterResults[0].dataset_layer_count).toBe(expectedCount);
     }
-    const datasetResults = await sds.filterDatasets(entityManager, bboxPolygon, { min_depth, max_depth });
+    const datasetResults = await sds.filterVectorDatasets(entityManager, bboxPolygon, { min_depth, max_depth });
     expect(datasetResults.length).toBe(expectedResultCount);
     expect(datasetResults.map(ds => ds.id).sort()).toEqual(filterResults.map(ds => ds.id).sort());
   });
@@ -134,9 +134,9 @@ describe('SoilDataStorage class', () => {
     }
     const sds = new SoilDataStorage();
     const entityManager = await getEntityManager();
-    const filterResults = await sds.filter(entityManager, bboxPolygon, { min_sampling_date, max_sampling_date });
+    const filterResults = await sds.filterVector(entityManager, bboxPolygon, { min_sampling_date, max_sampling_date });
     expect(filterResults.length).toBe(expectedResultCount);
-    const datasetResults = await sds.filterDatasets(entityManager, bboxPolygon, { min_sampling_date, max_sampling_date });
+    const datasetResults = await sds.filterVectorDatasets(entityManager, bboxPolygon, { min_sampling_date, max_sampling_date });
     expect(datasetResults.length).toBe(expectedResultCount);
     expect(datasetResults.map(ds => ds.id).sort()).toEqual(filterResults.map(ds => ds.id).sort());
   });
@@ -162,13 +162,13 @@ describe('SoilDataStorage class', () => {
     }); // 5 layers with horizons A0 -> A4, two observations per layer
     const sds = new SoilDataStorage();
     const entityManager = await getEntityManager();
-    const filterResults = await sds.filter(entityManager, bboxPolygon, { horizons } as any);
+    const filterResults = await sds.filterVector(entityManager, bboxPolygon, { horizons } as any);
     expect(filterResults.length).toBe(expectedResultCount);
     if (expectedResultCount > 0) {
-      const total: number = filterResults.reduce((acc, curr) => acc + curr.dataset_layer_count, 0);
+      const total: number = filterResults.reduce((acc, curr) => acc + curr.dataset_layer_count!, 0);
       expect(total).toBe(expectedCount);
     }
-    const datasetResults = await sds.filterDatasets(entityManager, bboxPolygon, { horizons } as any);
+    const datasetResults = await sds.filterVectorDatasets(entityManager, bboxPolygon, { horizons } as any);
     expect(datasetResults.length).toBe(expectedResultCount);
     expect(datasetResults.map(ds => ds.id).sort()).toEqual(filterResults.map(ds => ds.id).sort());
   });
@@ -188,7 +188,7 @@ describe('SoilDataStorage class', () => {
     await addSyntheticData({ ...syntheticDataOptions, id: 2, soilPropertyNames: ['c', 'd'], depthLayers: 10 });
     const sds = new SoilDataStorage();
     const entityManager = await getEntityManager();
-    const filterResults = await sds.filter(entityManager, bboxPolygon, {
+    const filterResults = await sds.filterVector(entityManager, bboxPolygon, {
       soil_properties: filter as any,
     });
     expect(filterResults.length).toBe(expectedResultCount);
@@ -196,7 +196,7 @@ describe('SoilDataStorage class', () => {
       const total: number = filterResults.reduce((acc, curr) => acc + curr.dataset_layer_count, 0);
       expect(total).toBe(expectedCount);
     }
-    const datasetResults = await sds.filterDatasets(entityManager, bboxPolygon, {
+    const datasetResults = await sds.filterVectorDatasets(entityManager, bboxPolygon, {
       soil_properties: filter as any,
     });
     expect(datasetResults.length).toBe(expectedResultCount);
@@ -216,7 +216,7 @@ describe('SoilDataStorage class', () => {
     await addSyntheticData({ ...syntheticDataOptions, depthLayers: 1, addNullValues: true }); // Adding another layer with NULL values
     const sds = new SoilDataStorage();
     const entityManager = await getEntityManager();
-    const results = await sds.filter(entityManager, bboxPolygon, { ...filter });
+    const results = await sds.filterVector(entityManager, bboxPolygon, { ...filter });
     expect(results.length).toBe(expectedResultCount);
     if (expectedResultCount > 0) {
       expect(results[0].dataset_layer_count).toBe(expectedCount);
@@ -382,7 +382,7 @@ describe('SoilDataStorage class', () => {
     });
     const sds = new SoilDataStorage();
     const entityManager = await getEntityManager();
-    const results = await sds.filter(entityManager, invalidGeometryPayload as MultiPolygon, {});
+    const results = await sds.filterVector(entityManager, invalidGeometryPayload as MultiPolygon, {});
     expect(results.length).toBe(1);
   });
 
@@ -415,12 +415,12 @@ describe('SoilDataStorage class', () => {
         const entityManager = await getEntityManager();
         const raster_filters: Record<string, number[]> = {};
         raster_filters[tableName] = values;
-        const filterResults = await sds.filter(entityManager, getPolygonFromBbox(bboxQuery), { raster_filters });
+        const filterResults = await sds.filterVector(entityManager, getPolygonFromBbox(bboxQuery), { raster_filters });
         expect(filterResults.length).toBe(expectedResultCount);
         if (expectedResultCount > 0) {
           expect(filterResults[0].dataset_layer_count).toBe(expectedFeatureCount);
         }
-        const datasetResults = await sds.filterDatasets(entityManager, getPolygonFromBbox(bboxQuery), { raster_filters });
+        const datasetResults = await sds.filterVectorDatasets(entityManager, getPolygonFromBbox(bboxQuery), { raster_filters });
         expect(datasetResults.length).toBe(filterResults.length);
         if (expectedResultCount > 0) {
           expect(datasetResults[0].id).toBe(filterResults[0].id);
