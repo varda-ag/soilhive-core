@@ -757,7 +757,7 @@ describe('SoilDataStorage class', () => {
         out: `test_raster_${Date.now()}_cog.tif`,
         outDir: process.env.LOCAL_STORAGE_ROOT_FOLDER,
         resolution, 
-        extent 
+        extent
       });
       const sds = new SoilDataStorage();
       const entityManager = await getEntityManager();
