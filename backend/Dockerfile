@@ -1,4 +1,4 @@
-ARG NODE_VERSION=22-alpine3.22
+ARG NODE_VERSION=22-alpine3.22@sha256:b77017c37f430e4466ff497058948a2f16e8b59779600d53711eeb7b999b0f4e
 
 FROM public.ecr.aws/docker/library/node:${NODE_VERSION} AS base
 

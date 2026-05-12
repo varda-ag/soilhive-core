@@ -1,7 +1,7 @@
 name: soilhive-core
 services:
   keycloak:
-    image: quay.io/keycloak/keycloak:latest
+    image: quay.io/keycloak/keycloak:latest@sha256:dea26401d06341095cc4ea9d66896200b55de5ca1daa1d2fcbe58493afa6e0ad
     environment:
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: admin_password
@@ -18,7 +18,7 @@ services:
     command: start-dev
 
   postgis:
-    image: postgis/postgis:18-3.6
+    image: postgis/postgis:18-3.6@sha256:4de7017b328c47b337ea86eb17277c45c5b05b8378924112972e79d60803b935
     platform: linux/amd64
     environment:
       POSTGRES_DB: database
@@ -30,7 +30,7 @@ services:
       - "5432:5432"
 
   localstack:
-    image: localstack/localstack:latest
+    image: localstack/localstack:latest@sha256:84c352d577e0e4f461f232416e3e5f5c51eb65ba9b299a7530e5e2f42b58dbad
     environment:
       SERVICES: s3
       DEBUG: "1"
