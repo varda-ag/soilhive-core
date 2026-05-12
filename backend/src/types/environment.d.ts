@@ -9,6 +9,7 @@ declare namespace NodeJS {
     readonly LOG_LEVEL?: string;
     readonly JOB_LOCAL_CONCURRENCY?: string;
     readonly JOB_GROUP_CONCURRENCY?: string;
+    readonly CORS_ORIGINS?: string;
     // Postgres connection env vars
     readonly POSTGRES_HOST?: string;
     readonly POSTGRES_PORT?: string;

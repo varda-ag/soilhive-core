@@ -3,6 +3,9 @@
   "private": true,
   "license": "MIT",
   "version": "1.0.0",
+  "engines": {
+    "node": ">=24.0.0"
+  },
   "scripts": {
     "dev": "rsbuild dev --open",
     "build": "rsbuild build",

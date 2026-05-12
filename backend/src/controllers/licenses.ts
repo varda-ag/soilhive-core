@@ -10,6 +10,6 @@ export const getLicenses = async (req: Request, res: Response) => {
 };
 
 export const getLicense = async (req: Request, res: Response) => {
-  const data = await licenseService.getLicense(req.customData, req.params['licenseId']!);
+  const data = await licenseService.getLicense(req.customData, req.params['licenseId']! as string);
   res.json(idToSlug(data));
 };

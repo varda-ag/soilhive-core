@@ -20,8 +20,8 @@ jobs:
     name: Node.js CI
     uses: varda-ag/.github/.github/workflows/nodejs.yaml@dfbf503b1c958885bb1e71732936cc4a1d25739b # v0.2.1
     with:
-      node-version: '22'
-      project-path: './frontend/soilhive-app'
+      node-version: '24'
+      project-path: './frontend'
       disable-lint: true
       disable-unit-tests: true
       disable-unit-tests-coverage: true
@@ -34,7 +34,7 @@ jobs:
     name: Node.js CI
     uses: varda-ag/.github/.github/workflows/nodejs.yaml@dfbf503b1c958885bb1e71732936cc4a1d25739b # v0.2.1
     with:
-      node-version: '22'
+      node-version: '24'
       project-path: './backend'
       disable-lint: true
       disable-unit-tests: true

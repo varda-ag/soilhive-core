@@ -18,7 +18,7 @@ export const getDatasets = async (req: Request, res: Response) => {
 };
 
 export const getDataset = async (req: Request, res: Response) => {
-  const oldId = req.params['datasetId']!;
+  const oldId = req.params['datasetId']! as string;
   const data = await datasetService.getDataset(req.customData, oldId);
 
   if (data.slug !== oldId) {
@@ -38,12 +38,12 @@ export const createDataset = async (req: Request, res: Response) => {
 
 export const updateDataset = async (req: Request, res: Response) => {
   const input: UpdateDatasetInput = req.body;
-  const data = await datasetService.updateDataset(req.customData, req.params['datasetId']!, input);
+  const data = await datasetService.updateDataset(req.customData, req.params['datasetId']! as string, input);
   res.json(idToSlug(data));
 };
 
 export const deleteDataset = async (req: Request, res: Response) => {
-  await datasetService.deleteDataset(req.customData, req.params['datasetId']!);
+  await datasetService.deleteDataset(req.customData, req.params['datasetId']! as string);
   res.status(StatusCodes.NO_CONTENT).send();
 };
 
@@ -59,14 +59,14 @@ export const postSoilData = async (req: Request, res: Response) => {
 };
 
 export const getDatasetFiles = async (req: Request, res: Response) => {
-  const id = req.params['datasetId']!;
+  const id = req.params['datasetId']! as string;
   const datasetFileMappings = await datasetFileMappingService.getMappings(req.customData, id, undefined, ['file']);
   const files = datasetFileMappings.map(m => m.file);
   return res.json(idToSlug(files));
 };
 
 export const getDatasetMappings = async (req: Request, res: Response) => {
-  const id = req.params['datasetId']!;
+  const id = req.params['datasetId']! as string;
   const datasetFileMappings = await datasetFileMappingService.getMappings(req.customData, id, undefined, ['data_mapping']);
   const dataMappings = datasetFileMappings.map(m => m.data_mapping).filter(m => m !== null && m !== undefined);
   return res.json(idToSlug(dataMappings));
@@ -80,7 +80,7 @@ export const getEpsgCodes = async (req: Request, res: Response) => {
 export const getSoilData = async (req: Request, res: Response) => {
   const data = await datasetService.getSoilData(
     req.customData,
-    req.params['datasetFileMappingId']!,
+    req.params['datasetFileMappingId']! as string,
     parseInt(req.query['limit'] as string),
     req.query['cursor'] as string,
     req.query['sort'] as string,

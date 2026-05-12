@@ -1,23 +1,23 @@
-ARG NODE_VERSION=22-alpine3.22
+ARG NODE_VERSION=24-alpine3.22
 
 # =========================================
 # Stage 1: Build the application
 # =========================================
 FROM public.ecr.aws/docker/library/node:${NODE_VERSION} AS builder
 
-RUN corepack enable
+RUN corepack enable && corepack prepare pnpm@10.28.2 --activate
 
 # Set the working directory inside the container
 WORKDIR /app
 
 # Copy package-related files first to leverage Docker's layer caching
-COPY soilhive-app/package.json soilhive-app/pnpm-lock.yaml* ./
+COPY package.json pnpm-lock.yaml* ./
 
 # Install all dependencies (including devDependencies needed for the build)
-RUN --mount=type=cache,target=/root/.local/share/pnpm/store pnpm install --frozen-lockfile --recursive
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store pnpm install
 
 # Copy the rest of the application source code
-COPY soilhive-app ./
+COPY . .
 
 # Build both the client (browser) and server (Node.js/SSR) bundles.
 # Outputs:

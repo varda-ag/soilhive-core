@@ -10,7 +10,7 @@ export const getRasterFilters = async (req: Request, res: Response) => {
 };
 
 export const getRasterFilter = async (req: Request, res: Response) => {
-  const data = await rasterFilterService.getRasterFilter(req.customData, req.params['rasterFilterId']!);
+  const data = await rasterFilterService.getRasterFilter(req.customData, req.params['rasterFilterId']! as string);
   const decorated = await RasterFilterService.decorateWithEnable(req.customData, data);
   res.json(decorated);
 };

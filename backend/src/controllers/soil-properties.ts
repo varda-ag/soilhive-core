@@ -10,7 +10,7 @@ export const getSoilProperties = async (req: Request, res: Response) => {
 };
 
 export const getSoilProperty = async (req: Request, res: Response) => {
-  const data = await soilPropertyService.getSoilProperty(req.customData, req.params['soilPropertyId']!);
+  const data = await soilPropertyService.getSoilProperty(req.customData, req.params['soilPropertyId']! as string);
   const dataWithSlugs = await soilPropertyService.idsToSlugs(req.customData, data);
   res.json(dataWithSlugs);
 };

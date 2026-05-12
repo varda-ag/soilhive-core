@@ -1,6 +1,6 @@
 [
   {
-    "name": "comparavailability",
+    "name": "frontend-plugin-example",
     "entry": "http://localhost:3002/mf-manifest.json"
   }
 ]

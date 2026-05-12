@@ -19,7 +19,7 @@ export const createDataMapping = async (req: Request, res: Response) => {
 };
 
 export const getDataMapping = async (req: Request, res: Response) => {
-  const id = req.params['mappingId']!;
+  const id = req.params['mappingId']! as string;
 
   const dataMappingEntity = await dataMappingService.getDataMapping(req.customData, id);
   const dataMapping = {
@@ -31,7 +31,7 @@ export const getDataMapping = async (req: Request, res: Response) => {
 };
 
 export const deleteDataMapping = async (req: Request, res: Response) => {
-  const id = req.params['mappingId']!;
+  const id = req.params['mappingId']! as string;
 
   await dataMappingService.deleteDataMapping(req.customData, id);
 
