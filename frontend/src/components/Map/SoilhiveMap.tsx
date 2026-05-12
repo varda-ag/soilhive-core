@@ -1,4 +1,4 @@
-import { useId, useRef, useState, useCallback, type Dispatch, useMemo } from 'react';
+import { useId, useRef, useState, useCallback, useEffect, type Dispatch, useMemo } from 'react';
 import {
   GeolocateControl,
   Map,
@@ -20,7 +20,7 @@ import '@maplibre/maplibre-gl-geocoder/dist/maplibre-gl-geocoder.css';
 import '@watergis/maplibre-gl-terradraw/dist/maplibre-gl-terradraw.css';
 import '../../styles/SoilhiveMap.scss';
 import Flower from 'assets/images/flower.svg?react';
-import { bBoxToH3Cells, h3IndexesToGeoJSONPolygons, isPointInFeatureCollection } from '../../utilities/geo';
+import { dataAvailabilityIndexToGeoJSONPolygons, isPointInFeatureCollection } from '../../utilities/geo';
 import { bbox as bboxFn, centerOfMass } from '@turf/turf';
 import { getMapStyles, h3ResolutionForZoomLevel } from '../../utilities/map';
 import DrawControl, { type DrawControlRef } from '../DrawControl';
@@ -31,6 +31,7 @@ import type { SoilhiveMapSelectionChangeEvent } from './SoilhiveMapSelectionChan
 import { simplifyGeometry } from '../../utilities/simplifyGeometry';
 import useDevice from 'hooks/useDevice';
 import useAvailabilityMap from 'hooks/useAvailabilityMap';
+import { useDai } from 'hooks/useDai';
 import { useTranslation } from 'react-i18next';
 
 type MapStyle = string | StyleSpecification | ImmutableLike<StyleSpecification>;
@@ -97,11 +98,32 @@ const dataLayerSelection: LayerProps = {
 
 const dataLayerBorders: LayerProps = {
   id: 'data-borders',
-  type: 'line',
+  type: 'fill',
   paint: {
-    'line-color': 'black',
-    'line-width': 0.1,
-    'line-opacity': 0.5,
+    'fill-opacity': [
+      'interpolate',
+      ['linear'],
+      ['get', 'dai'], // the numeric property
+      0,
+      0.0,
+      0.01,
+      0.1,
+      0.5,
+      0.25,
+      1.0,
+      0.75,
+    ],
+    'fill-color': [
+      'interpolate',
+      ['linear'],
+      ['get', 'dai'], // the numeric property
+      0,
+      '#ffffcc', // low  → light yellow
+      0.5,
+      '#fd8d3c', // mid → orange
+      1.0,
+      '#800026', // high → dark red
+    ],
   },
 };
 
@@ -145,6 +167,20 @@ function SoilhiveMap({
 
   // This prevents onMapMoveEnd from being called concurrently with applySelection
   const isApplyingSelection = useRef(false);
+  const [daiParams, setDaiParams] = useState<{ bbox: [number, number, number, number]; resolution: number } | null>(null);
+
+  const { dai } = useDai(daiParams?.bbox ?? [0, 0, 0, 0], daiParams?.resolution ?? 0, daiParams !== null && showH3Cells);
+
+  useEffect(() => {
+    if (!daiParams || !showH3Cells || !dai) return;
+    try {
+      const h3CellsFeatureCollection = dataAvailabilityIndexToGeoJSONPolygons(dai);
+      console.log(h3CellsFeatureCollection);
+      setH3Cells(h3CellsFeatureCollection);
+    } catch (error) {
+      console.error('Error while updating the H3 Cells:', error);
+    }
+  }, [dai, daiParams, showH3Cells, setH3Cells]);
 
   const { isMobileLayout } = useDevice();
   const { t } = useTranslation('availability');
@@ -203,18 +239,12 @@ function SoilhiveMap({
     ({ bounds, zoomLevel }: { bounds: number[]; zoomLevel: number }) => {
       if (!showH3Cells) {
         setH3Cells(null);
+        setDaiParams(null);
         return;
       }
-
-      try {
-        const h3Indexes = bBoxToH3Cells(bounds, h3ResolutionForZoomLevel(zoomLevel));
-        const h3CellsFeatureCollection = h3IndexesToGeoJSONPolygons(h3Indexes);
-        setH3Cells(h3CellsFeatureCollection);
-      } catch (error) {
-        console.error('Error while updating the H3 Cells:', error);
-      }
+      setDaiParams({ bbox: bounds as [number, number, number, number], resolution: h3ResolutionForZoomLevel(zoomLevel) });
     },
-    [setH3Cells, showH3Cells],
+    [showH3Cells, setH3Cells],
   );
 
   const onMapMoveEnd = useCallback(

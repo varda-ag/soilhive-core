@@ -3,6 +3,7 @@ import { featureToH3Set } from 'geojson2h3';
 import { cellToBoundary, cellToLatLng, type CoordPair, type H3Index } from 'h3-js';
 import { lerp } from 'math.gl';
 import type { FeatureCollection, MultiPolygon, Polygon } from 'geojson';
+import type { DataAvailabilityIndex } from '../types/backend';
 
 export function h3IndexesToGeoJSONPolygon(h3Index: H3Index) {
   const [lat, lng] = cellToLatLng(h3Index);
@@ -44,6 +45,14 @@ function normalizeLongitudes(vertices: CoordPair[], refLng: number) {
 
 export function h3IndexesToGeoJSONPolygons(h3Indexes: Array<H3Index>): FeatureCollection {
   return featureCollection(h3Indexes.map(h3IndexesToGeoJSONPolygon) as any);
+}
+
+export function dataAvailabilityIndexToGeoJSONPolygons(dai: DataAvailabilityIndex): FeatureCollection {
+  const features = Object.entries(dai.cells).map(([h3Index, daiValue]) => {
+    const feature = h3IndexesToGeoJSONPolygon(h3Index);
+    return { ...feature, properties: { ...feature.properties, dai: daiValue } };
+  });
+  return featureCollection(features as any);
 }
 
 /**

@@ -216,6 +216,38 @@ paths:
         '204':
           description: Logo deleted successfully
 
+  /frontend/dai:
+    parameters:
+      - name: bbox
+        in: query
+        required: true
+        description: Bounds in "minLon,minLat,maxLon,maxLat" format
+        schema:
+          type: string
+      - name: resolution
+        in: query
+        required: true
+        description: Resolution (integer between 0 and 22)
+        schema:
+          type: number
+          minimum: 0
+          maximum: 22
+    get:
+      x-eov-operation-handler: controllers/dai
+      x-eov-operation-id: getDai
+      summary: Get Data Availability Index
+      tags:
+        - frontend
+      responses:
+        '200':
+          description: DAI data given input bbox and resolution
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataAvailabilityIndex'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
   /epsg:
     get:
       x-eov-operation-handler: controllers/datasets
@@ -2481,3 +2513,17 @@ components:
 
     Entitlements:
       type: object
+
+    DataAvailabilityIndex:
+      type: object
+      properties:
+        resolution:
+          type: number
+        min:
+          type: number
+        max:
+          type: number
+        cells:
+          type: object
+          additionalProperties:
+            type: number
