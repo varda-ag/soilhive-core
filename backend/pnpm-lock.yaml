@@ -18,8 +18,8 @@ importers:
         specifier: ^3.943.0
         version: 3.943.0
       '@flystorage/aws-s3':
-        specifier: ^1.2.0
-        version: 1.2.0
+        specifier: ^0.0.1
+        version: 0.0.1
       '@flystorage/file-storage':
         specifier: ^1.2.0
         version: 1.2.0
@@ -126,8 +126,8 @@ importers:
         specifier: ^0.3.27
         version: 0.3.27(pg@8.16.3)(reflect-metadata@0.2.2)(ts-node@10.9.2(@types/node@24.10.13)(typescript@5.9.3))
       uuid:
-        specifier: 11.1.0
-        version: 11.1.0
+        specifier: ^11.1.1
+        version: 11.1.1
       wellknown:
         specifier: ^0.5.0
         version: 0.5.0
@@ -633,11 +633,14 @@ packages:
   '@emnapi/wasi-threads@1.1.0':
     resolution: {integrity: sha512-WI0DdZ8xFSbgMjR1sFsKABJ/C5OnRrjT06JXbZKexJGrDuPTzZdDYfFlsgcCXCyf+suG5QU2e/y1Wo2V/OapLQ==}
 
-  '@flystorage/aws-s3@1.2.0':
-    resolution: {integrity: sha512-80cXfflnAfO3mSV3B3W+LyN5mIfNMOr7QFTQ6o28y81RpMDtxIUW0EJbFZ53uPcJ7Vml3RBIViiDrfVsZTAbtQ==}
+  '@flystorage/aws-s3@0.0.1':
+    resolution: {integrity: sha512-glu8jROxD92TQBkm7tWNKmqtNukTUcXk0QLLfIQOnyRztTu3jDQwt+PvTPvA3urKBLuxN4U2Z88oUH1nnA5XJg==}
 
   '@flystorage/dynamic-import@1.0.0':
     resolution: {integrity: sha512-CIbIUrBdaPFyKnkVBaqzksvzNtsMSXITR/G/6zlil3MBnPFq2LX+X4Mv5p2XOmv/3OulFs/ff2SNb+5dc2Twtg==}
+
+  '@flystorage/file-storage@0.0.1':
+    resolution: {integrity: sha512-MUF9OGJkDaqBo9PSpebfAxvKFVuU4/tDHe+TGSe9CUSnGn3gW/FCxDnp6wy5z4/CDAJrQdxmba9V7iXJrvsGuA==}
 
   '@flystorage/file-storage@1.2.0':
     resolution: {integrity: sha512-dNUeyXOs0dweHqDvFrUMSYPWXt5LMoG94IVjiEsUSOJNHQjMXAmzdvTiOVYUAFfXaxD2/g34ELKWIwkh8eeiEw==}
@@ -648,6 +651,9 @@ packages:
 
   '@flystorage/multer-storage@1.2.0':
     resolution: {integrity: sha512-jRjooS4pEaAqqLrksGqiGiNWD7M6qpmWUzS1VItcv2yZ+Npz+TtP7saRVYNfUp3y+IUQA6EXRvTCN55C7lmhTg==}
+
+  '@flystorage/stream-mime-type@0.0.1':
+    resolution: {integrity: sha512-+jZbbAHUaGFW0gJ5GflJn84Dy+xMjWAZ8OiBBZVR98a4KTvsyC8Sr7b4vI+K8H1ll3zLLNJ3Ftjw284mFr/2KA==}
 
   '@flystorage/stream-mime-type@1.1.0':
     resolution: {integrity: sha512-PAb2fH3Gl99aHCMzkr91soUuySdCNBINIiyWrccobup0ouXBhVGUaMBvVw817ub/yDZK6Tn4OBs2zqYmYXtOlw==}
@@ -2331,6 +2337,10 @@ packages:
   fflate@0.8.2:
     resolution: {integrity: sha512-cPJU47OaAoCbg0pBvzsgpTPhmhqI5eJjh/JIu8tPj5q+T7iLvW/JAYUqmE7KOB4R1ZyEhzBaIQpQpardBF5z8A==}
 
+  file-type@18.7.0:
+    resolution: {integrity: sha512-ihHtXRzXEziMrQ56VSgU7wkxh55iNchFkosu7Y9/S+tXHdKyrGjVK0ujbqNnsxzea+78MaLhN6PGmfYSAv1ACw==}
+    engines: {node: '>=14.16'}
+
   file-type@20.5.0:
     resolution: {integrity: sha512-BfHZtG/l9iMm4Ecianu7P8HRD2tBHLtjXinm4X62XBOYzi7CYA7jyqfJzOvXHqzVrVPYqBo2/GvbARMaaJkKVg==}
     engines: {node: '>=18'}
@@ -3181,6 +3191,10 @@ packages:
   pdfkit@0.18.0:
     resolution: {integrity: sha512-NvUwSDZ0eYEzqAiWwVQkRkjYUkZ48kcsHuCO31ykqPPIVkwoSDjDGiwIgHHNtsiwls3z3P/zy4q00hl2chg2Ug==}
 
+  peek-readable@5.4.2:
+    resolution: {integrity: sha512-peBp3qZyuS6cNIJ2akRNG1uo1WJ1d0wTxg/fxMdZ0BqCVhx242bSFHM9eNqflfJVS9SsgkzgT/1UgnsurBOTMg==}
+    engines: {node: '>=14.16'}
+
   pend@1.2.0:
     resolution: {integrity: sha512-F3asv42UuXchdzt+xXqfW1OGlVBe+mxa2mqI0pg5yAHZPvFmY3Y6drSf/GQ1A86WgWEN9Kzh/WrgKa6iGcHXLg==}
 
@@ -3378,6 +3392,10 @@ packages:
   readable-stream@4.7.0:
     resolution: {integrity: sha512-oIGGmcpTLwPga8Bn6/Z75SVaH1z5dUut2ibSyAMVhmUggWpmDn2dapB0n7f8nwaSiRtepAsfJyfXIO5DCVAODg==}
     engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
+
+  readable-web-to-node-stream@3.0.4:
+    resolution: {integrity: sha512-9nX56alTf5bwXQ3ZDipHJhusu9NTQJ/CVPtb/XHAJCXihZeitfJvIRS4GqQ/mfIoOE3IelHMrpayVrosdHBuLw==}
+    engines: {node: '>=8'}
 
   readdir-glob@1.1.3:
     resolution: {integrity: sha512-v05I2k7xN8zXvPD9N+z/uhXPaj0sUFCe2rcWZIpBsqxfP7xXFQ0tipAd/wjj1YxWyWtUS5IDJpOG82JKt2EAVA==}
@@ -3619,6 +3637,10 @@ packages:
     resolution: {integrity: sha512-KIy5nylvC5le1OdaaoCJ07L+8iQzJHGH6pWDuzS+d07Cu7n1MZ2x26P8ZKIWfbK02+XIL8Mp4RkWeqdUCrDMfg==}
     engines: {node: '>=18'}
 
+  strtok3@7.1.1:
+    resolution: {integrity: sha512-mKX8HA/cdBqMKUr0MMZAFssCkIGoZeSCMXgnt79yKxNFguMLVFgRe6wB+fsL0NmoHDbeyZXczy7vEPSoo3rkzg==}
+    engines: {node: '>=16'}
+
   superagent@10.2.3:
     resolution: {integrity: sha512-y/hkYGeXAj7wUMjxRbB21g/l6aAEituGXM9Rwl4o20+SX3e8YOSV6BxFXl+dL3Uk0mjSL3kCbNkwURm8/gEDig==}
     engines: {node: '>=14.18.0'}
@@ -3701,6 +3723,10 @@ packages:
   toidentifier@1.0.1:
     resolution: {integrity: sha512-o5sSPKEkg/DIQNmH43V0/uerLrpzVedkUh8tGNvaeXpfpuwjKenlSox/2O/BTlZUtEe+JG7s5YhEz608PlAHRA==}
     engines: {node: '>=0.6'}
+
+  token-types@5.0.1:
+    resolution: {integrity: sha512-Y2fmSnZjQdDb9W4w4r1tswlMHylzWIeOKpx0aZH9BgGtACHhrk3OkT52AzwcuqTRBZtvvnTjDBh8eynMulu8Vg==}
+    engines: {node: '>=14.16'}
 
   token-types@6.1.1:
     resolution: {integrity: sha512-kh9LVIWH5CnL63Ipf0jhlBIy0UsrMj/NJDfpsy1SqOXlLKEVyXXYrnFxFT1yOOYVGBSApeVnjPw/sBz5BfEjAQ==}
@@ -3903,8 +3929,8 @@ packages:
   util-deprecate@1.0.2:
     resolution: {integrity: sha512-EPD5q1uXyFxJpCrLnCc1nHnq3gOa6DZBocAIiI2TaSCA7VCJ1UJDMagCzIkXNsUYfD1daK//LTEQ8xiIbrHtcw==}
 
-  uuid@11.1.0:
-    resolution: {integrity: sha512-0/A9rDy9P7cJ+8w1c9WD9V//9Wj15Ce2MPz8Ri6032usz+NfePxx5AcN3bN+r6ZL6jEo066/yNYB3tn4pQEx+A==}
+  uuid@11.1.1:
+    resolution: {integrity: sha512-vIYxrBCC/N/K+Js3qSN88go7kIfNPssr/hHCesKCQNAjmgvYS2oqr69kIufEG+O4+PfezOH4EbIeHCfFov8ZgQ==}
     hasBin: true
 
   v8-compile-cache-lib@3.0.1:
@@ -5124,20 +5150,21 @@ snapshots:
       tslib: 2.8.1
     optional: true
 
-  '@flystorage/aws-s3@1.2.0':
+  '@flystorage/aws-s3@0.0.1':
     dependencies:
       '@aws-sdk/client-s3': 3.940.0
       '@aws-sdk/lib-storage': 3.940.0(@aws-sdk/client-s3@3.940.0)
       '@aws-sdk/s3-request-presigner': 3.940.0
-      '@flystorage/file-storage': 1.2.0
-      '@flystorage/stream-mime-type': 1.1.0
-      file-type: 21.1.1
-      mime-types: 3.0.2
+      '@flystorage/file-storage': 0.0.1
+      '@flystorage/stream-mime-type': 0.0.1
+      file-type: 18.7.0
+      mime-types: 2.1.35
     transitivePeerDependencies:
       - aws-crt
-      - supports-color
 
   '@flystorage/dynamic-import@1.0.0': {}
+
+  '@flystorage/file-storage@0.0.1': {}
 
   '@flystorage/file-storage@1.2.0': {}
 
@@ -5157,6 +5184,8 @@ snapshots:
       multer: 2.0.2
     transitivePeerDependencies:
       - supports-color
+
+  '@flystorage/stream-mime-type@0.0.1': {}
 
   '@flystorage/stream-mime-type@1.1.0':
     dependencies:
@@ -7869,6 +7898,12 @@ snapshots:
 
   fflate@0.8.2: {}
 
+  file-type@18.7.0:
+    dependencies:
+      readable-web-to-node-stream: 3.0.4
+      strtok3: 7.1.1
+      token-types: 5.0.1
+
   file-type@20.5.0:
     dependencies:
       '@tokenizer/inflate': 0.2.7
@@ -8915,6 +8950,8 @@ snapshots:
       linebreak: 1.1.0
       png-js: 1.1.0
 
+  peek-readable@5.4.2: {}
+
   pend@1.2.0: {}
 
   pg-boss@12.11.1:
@@ -9123,6 +9160,10 @@ snapshots:
       events: 3.3.0
       process: 0.11.10
       string_decoder: 1.3.0
+
+  readable-web-to-node-stream@3.0.4:
+    dependencies:
+      readable-stream: 4.7.0
 
   readdir-glob@1.1.3:
     dependencies:
@@ -9374,6 +9415,11 @@ snapshots:
     dependencies:
       '@tokenizer/token': 0.3.0
 
+  strtok3@7.1.1:
+    dependencies:
+      '@tokenizer/token': 0.3.0
+      peek-readable: 5.4.2
+
   superagent@10.2.3:
     dependencies:
       component-emitter: 1.3.1
@@ -9483,6 +9529,11 @@ snapshots:
 
   toidentifier@1.0.1: {}
 
+  token-types@5.0.1:
+    dependencies:
+      '@tokenizer/token': 0.3.0
+      ieee754: 1.2.1
+
   token-types@6.1.1:
     dependencies:
       '@borewit/text-codec': 0.1.1
@@ -9583,7 +9634,7 @@ snapshots:
       sha.js: 2.4.12
       sql-highlight: 6.1.0
       tslib: 2.8.1
-      uuid: 11.1.0
+      uuid: 11.1.1
       yargs: 17.7.2
     optionalDependencies:
       pg: 8.16.3
@@ -9657,7 +9708,7 @@ snapshots:
 
   util-deprecate@1.0.2: {}
 
-  uuid@11.1.0: {}
+  uuid@11.1.1: {}
 
   v8-compile-cache-lib@3.0.1: {}
 

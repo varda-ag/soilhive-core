@@ -15,11 +15,11 @@ export const getJobs = async (req: Request, res: Response) => {
 };
 
 export const getJobById = async (req: Request, res: Response) => {
-  const data = await jobService.getJobById(req.customData, req.params['jobId']!);
+  const data = await jobService.getJobById(req.customData, req.params['jobId']! as string);
   res.json(data);
 };
 
 export const deleteJobById = async (req: Request, res: Response) => {
-  await jobService.deleteJobById(req.customData, req.params['jobId']!);
+  await jobService.deleteJobById(req.customData, req.params['jobId']! as string);
   res.sendStatus(StatusCodes.NO_CONTENT);
 };

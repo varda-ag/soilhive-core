@@ -21,10 +21,16 @@ export const app: Application = express();
 export const initApp = async (app: Application) => {
   await setupCLI();
 
+  const origin = (process.env.CORS_ORIGINS || 'http://localhost,http://localhost:3000').split(',').map(o => o.trim());
+
   app.use(loggingMiddleware);
   app.use(
     cors({
-      origin: '*',
+      origin,
+      credentials: true, // Allow cookies/auth headers
+      methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization'],
+      maxAge: 86400, // 24 hours
     }),
   );
 

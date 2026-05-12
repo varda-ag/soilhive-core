@@ -153,4 +153,4 @@ vite.config.ts.timestamp-*
 @mf-types
 
 # TODO: REMOVE once we have dynamic env loading (Check also .dockerignore)
-!frontend/soilhive-app/.env
+!frontend/.env

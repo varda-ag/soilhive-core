@@ -14,8 +14,8 @@ Each filter provides **global coverage** and is distributed as a **separate pack
 ### Available Filters
 
 - Agroecological zones (42 MB)
-  - https://static.soilhive.ag/agroecological_zones.dump
-  - https://static.soilhive.ag/agroecological_zones.mappings
+  - https://static.soilhive.ag/map-based-filters/agroecological_zones.dump
+  - https://static.soilhive.ag/map-based-filters/agroecological_zones.mappings
   - <details>
     <summary>Mappings</summary>
 
@@ -55,8 +55,8 @@ Each filter provides **global coverage** and is distributed as a **separate pack
 
     </details>
 - Agroecological zones v5 (42 MB)
-  - https://static.soilhive.ag/agroecological_zones_v5.dump
-  - https://static.soilhive.ag/agroecological_zones_v5.mappings
+  - https://static.soilhive.ag/map-based-filters/agroecological_zones_v5.dump
+  - https://static.soilhive.ag/map-based-filters/agroecological_zones_v5.mappings
   - <details>
     <summary>Mappings</summary>
 
@@ -99,8 +99,8 @@ Each filter provides **global coverage** and is distributed as a **separate pack
 
     </details>
 - Land Cover 2019 (3.6 GB)
-  - https://static.soilhive.ag/land_cover.dump
-  - https://static.soilhive.ag/land_cover.mappings
+  - https://static.soilhive.ag/map-based-filters/land_cover.dump
+  - https://static.soilhive.ag/map-based-filters/land_cover.mappings
   - <details>
     <summary>Mappings</summary>
 
@@ -132,8 +132,8 @@ Each filter provides **global coverage** and is distributed as a **separate pack
 
     </details>
 - Land Cover 2024 (2.6 GB)
-  - https://static.soilhive.ag/land_cover_2024.dump
-  - https://static.soilhive.ag/land_cover_2024.mappings
+  - https://static.soilhive.ag/map-based-filters/land_cover_2024.dump
+  - https://static.soilhive.ag/map-based-filters/land_cover_2024.mappings
   - <details>
     <summary>Mappings</summary>
 
@@ -150,8 +150,8 @@ Each filter provides **global coverage** and is distributed as a **separate pack
 
     </details>
 - Soil Groups (30 MB)
-  - https://static.soilhive.ag/soil_groups.dump
-  - https://static.soilhive.ag/soil_groups.mappings
+  - https://static.soilhive.ag/map-based-filters/soil_groups.dump
+  - https://static.soilhive.ag/map-based-filters/soil_groups.mappings
   - <details>
     <summary>Mappings</summary>
 
