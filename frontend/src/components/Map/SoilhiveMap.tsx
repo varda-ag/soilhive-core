@@ -33,6 +33,7 @@ import useDevice from 'hooks/useDevice';
 import useAvailabilityMap from 'hooks/useAvailabilityMap';
 import { useDai } from 'hooks/useDai';
 import { useTranslation } from 'react-i18next';
+import useAvailability from '../../hooks/useAvailability';
 
 type MapStyle = string | StyleSpecification | ImmutableLike<StyleSpecification>;
 type MapStyles = Array<{ name: string; mapStyle: MapStyle }>;
@@ -92,7 +93,7 @@ const dataLayerSelection: LayerProps = {
   type: 'fill',
   paint: {
     'fill-color': '#F5B200',
-    'fill-opacity': 0.5,
+    'fill-opacity': 0.2,
   },
 };
 
@@ -157,6 +158,8 @@ function SoilhiveMap({
     setShowSelectionToolbar,
   } = useAvailabilityMap();
 
+  const { filterId } = useAvailability();
+
   const mapRef = useRef<any>(null);
   const [isPointResultSelection, setIsPointResultSelection] = useState(false);
   const [mapBounds, setMapBounds] = useState<LngLatBounds | null>(null);
@@ -169,7 +172,7 @@ function SoilhiveMap({
   const isApplyingSelection = useRef(false);
   const [daiParams, setDaiParams] = useState<{ bbox: [number, number, number, number]; resolution: number } | null>(null);
 
-  const { dai } = useDai(daiParams?.bbox ?? [0, 0, 0, 0], daiParams?.resolution ?? 0, daiParams !== null && showH3Cells);
+  const { dai } = useDai(filterId, daiParams?.bbox, daiParams?.resolution, !!filterId && daiParams !== null && showH3Cells);
 
   useEffect(() => {
     if (!daiParams || !showH3Cells || !dai) return;

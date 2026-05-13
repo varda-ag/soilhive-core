@@ -1,16 +1,25 @@
 import type { DataAvailabilityIndex } from '../types/backend';
 import { useApiQuery } from './useApiQuery';
 
-export function useDai(bbox: [number, number, number, number], resolution: number, enabled = true) {
+export function useDai(
+  filterId: string | undefined,
+  bbox: [number, number, number, number] | undefined,
+  resolution: number | undefined,
+  enabled = true,
+) {
+  const query = new URLSearchParams({
+    bbox: bbox ? bbox.join(',') : '',
+    resolution: resolution !== undefined ? String(resolution) : '',
+  }).toString();
   const {
     data: dai,
     isLoading,
     isError,
   } = useApiQuery<DataAvailabilityIndex>({
-    endpoint: '/frontend/dai?' + new URLSearchParams({ bbox: bbox.join(','), resolution: String(resolution) }).toString(),
+    endpoint: `/data-filters/${filterId}/dai?${query}`,
     method: 'GET',
-    queryKey: ['dai', bbox, resolution],
-    enabled: enabled && !!bbox && bbox.length === 4 && resolution >= 0,
+    queryKey: ['dai', filterId, bbox, resolution],
+    enabled: enabled && !!bbox && bbox.length === 4 && !!resolution && !!filterId,
     abortOnNewQuery: true,
   });
 

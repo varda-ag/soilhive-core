@@ -50,7 +50,7 @@ export function h3IndexesToGeoJSONPolygons(h3Indexes: Array<H3Index>): FeatureCo
 export function dataAvailabilityIndexToGeoJSONPolygons(dai: DataAvailabilityIndex): FeatureCollection {
   const features = Object.entries(dai.cells).map(([h3Index, daiValue]) => {
     const feature = h3IndexesToGeoJSONPolygon(h3Index);
-    return { ...feature, properties: { ...feature.properties, dai: daiValue } };
+    return { ...feature, properties: { ...feature.properties, dai: daiValue / dai.max } };
   });
   return featureCollection(features as any);
 }

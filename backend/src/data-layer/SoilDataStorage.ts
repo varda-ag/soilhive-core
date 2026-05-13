@@ -253,6 +253,118 @@ export default class SoilDataStorage {
     return query;
   };
 
+  getDaiPointData = async (
+    entityManager: EntityManager,
+    aoi: Polygon | MultiPolygon,
+    filters: FilterCriteria,
+  ): Promise<Array<{ lon: number; lat: number; num_soil_properties: number; has_depth_below_30: boolean; has_sampling_date: boolean }>> => {
+    const schema = process.env.POSTGRES_SCHEMA;
+    const params: any[] = [];
+    const p = (val: any) => {
+      params.push(val);
+      return `$${params.length}`;
+    };
+
+    const geomParam = p(JSON.stringify(aoi));
+    const whereClauses: string[] = [];
+    const joins: string[] = [];
+
+    if (filters.data_types && filters.data_types.length > 0) {
+      whereClauses.push(`ds.gis_datatype IN (${filters.data_types.map(v => p(v)).join(', ')})`);
+    }
+    if (filters.min_sampling_date === null) {
+      whereClauses.push('layer.sampling_date IS NULL');
+    } else if (filters.min_sampling_date) {
+      whereClauses.push(`ds.reference_period_stop >= ${p(filters.min_sampling_date)}`);
+      whereClauses.push(`layer.sampling_date >= ${p(filters.min_sampling_date)}`);
+    }
+    if (filters.max_sampling_date === null) {
+      whereClauses.push('layer.sampling_date IS NULL');
+    } else if (filters.max_sampling_date) {
+      whereClauses.push(`ds.reference_period_start <= ${p(filters.max_sampling_date)}`);
+      whereClauses.push(`layer.sampling_date <= ${p(filters.max_sampling_date)}`);
+    }
+    if (filters.min_depth === null) {
+      whereClauses.push('layer.min_depth IS NULL');
+    } else if (filters.min_depth !== undefined) {
+      whereClauses.push(`(ds.soil_depth->>'max')::int >= ${p(filters.min_depth)}`);
+      whereClauses.push(`layer.max_depth >= ${p(filters.min_depth)}`);
+    }
+    if (filters.max_depth === null) {
+      whereClauses.push('layer.max_depth IS NULL');
+    } else if (filters.max_depth !== undefined) {
+      whereClauses.push(`(ds.soil_depth->>'min')::int <= ${p(filters.max_depth)}`);
+      whereClauses.push(`layer.min_depth <= ${p(filters.max_depth)}`);
+    }
+    if (filters.horizons && filters.horizons.length > 0) {
+      const nonNull = filters.horizons.filter(h => h !== null);
+      const nullClause = filters.horizons.includes(null) ? ' OR layer.horizon IS NULL' : '';
+      if (nonNull.length > 0) {
+        whereClauses.push(`(layer.horizon IN (${nonNull.map(h => p(h)).join(', ')})${nullClause})`);
+      } else {
+        whereClauses.push('layer.horizon IS NULL');
+      }
+    }
+    if (filters.soil_properties && filters.soil_properties.length > 0) {
+      joins.push(`INNER JOIN ${schema}.soil_properties sp ON sp.id = dl.soil_property_id AND sp.deleted_at IS NULL`);
+      whereClauses.push(`sp.slug IN (${filters.soil_properties.map(v => p(v)).join(', ')})`);
+    }
+    if (filters.licenses && filters.licenses.length > 0) {
+      joins.push(`LEFT JOIN ${schema}.licenses lic ON lic.id = layer.license AND lic.deleted_at IS NULL`);
+      whereClauses.push(`lic.slug IN (${filters.licenses.map(v => p(v)).join(', ')})`);
+    }
+
+    const whereClause = whereClauses.length > 0 ? `AND ${whereClauses.join('\n      AND ')}` : '';
+
+    // Raster spatial CTEs — mirrors buildRawSoilQuery pattern
+    const dataFilter: DataFilter = { geometries: [aoi], parameters: filters };
+    const enabledRasterFilterTables = await getEnabledRasterFilterTables();
+    const { ctes: rasterCtes, usesMatchingFeatures } = buildRasterSql(dataFilter, enabledRasterFilterTables);
+
+    const aoiArea = turf.area(aoi);
+    const useSubdivide = !usesMatchingFeatures && aoiArea > AREA_THRESHOLD_M2;
+    const spatialSource = useSubdivide ? 'aoi_subdivided' : 'aoi';
+    const featureSource = usesMatchingFeatures ? 'matching_features' : 'candidate_features';
+
+    // When usesMatchingFeatures, buildRasterSql already produced candidate_features + matching_features.
+    // When not, we build our own candidate_features (with optional aoi_subdivided for large AOIs).
+    const spatialCtePart = usesMatchingFeatures
+      ? rasterCtes
+      : `${useSubdivide ? `aoi_subdivided AS MATERIALIZED (\n        SELECT ST_Subdivide(aoi.geom, 64) AS geom FROM aoi\n      ),\n      ` : ''}candidate_features AS MATERIALIZED (
+        SELECT DISTINCT f.id, f.geom
+        FROM ${schema}.features f
+        JOIN ${spatialSource} ON ST_Intersects(f.geom, ${spatialSource}.geom)
+      )`;
+
+    const sql = `
+      WITH
+      aoi AS MATERIALIZED (
+        SELECT ST_CollectionExtract(ST_MakeValid(ST_GeomFromGeoJSON(${geomParam}), 'method=structure'), 3) AS geom
+      ),
+      ${spatialCtePart}
+      SELECT
+        ST_X(f.geom) AS lon,
+        ST_Y(f.geom) AS lat,
+        COUNT(DISTINCT dl.soil_property_id)::int AS num_soil_properties,
+        BOOL_OR(layer.max_depth > 30) AS has_depth_below_30,
+        BOOL_OR(layer.sampling_date IS NOT NULL) AS has_sampling_date
+      FROM ${featureSource} f
+      INNER JOIN ${schema}.dataset_layers dl ON dl.feature_id = f.id
+      INNER JOIN ${schema}.datasets ds ON ds.id = dl.dataset_id
+        AND ds.deleted_at IS NULL
+        AND ds.spatial_extent && (SELECT geom FROM aoi)
+      INNER JOIN ${schema}.layers layer ON layer.id = dl.layer_id
+      ${joins.join('\n      ')}
+      WHERE TRUE
+        ${whereClause}
+      GROUP BY f.id, ST_X(f.geom), ST_Y(f.geom)
+    `;
+
+    await entityManager.query("SET LOCAL work_mem = '256MB';");
+    await entityManager.query("SET LOCAL statement_timeout = '60s';");
+    return entityManager.query(sql, params);
+  };
+
   getRasterCoverage = async (
     entityManager: EntityManager,
     geometries: (Polygon | MultiPolygon)[],
