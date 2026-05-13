@@ -343,8 +343,8 @@ export default class SoilDataStorage {
       ),
       ${spatialCtePart}
       SELECT
-        ST_X(f.geom) AS lon,
-        ST_Y(f.geom) AS lat,
+        ST_X(ST_Centroid(f.geom)) AS lon,
+        ST_Y(ST_Centroid(f.geom)) AS lat,
         COUNT(DISTINCT dl.soil_property_id)::int AS num_soil_properties,
         BOOL_OR(layer.max_depth > 30) AS has_depth_below_30,
         BOOL_OR(layer.sampling_date IS NOT NULL) AS has_sampling_date
@@ -357,7 +357,7 @@ export default class SoilDataStorage {
       ${joins.join('\n      ')}
       WHERE TRUE
         ${whereClause}
-      GROUP BY f.id, ST_X(f.geom), ST_Y(f.geom)
+      GROUP BY f.id, ST_Centroid(f.geom)
     `;
 
     await entityManager.query("SET LOCAL work_mem = '256MB';");

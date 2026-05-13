@@ -99,6 +99,16 @@ const dataLayerSelection: LayerProps = {
 
 const dataLayerBorders: LayerProps = {
   id: 'data-borders',
+  type: 'line',
+  paint: {
+    'line-color': 'black',
+    'line-width': 0.1,
+    'line-opacity': 0.5,
+  },
+};
+
+const dataLayerDAI: LayerProps = {
+  id: 'data-dai',
   type: 'fill',
   paint: {
     'fill-opacity': [
@@ -455,6 +465,7 @@ function SoilhiveMap({
             <Source id="data" type="geojson" data={h3Cells} promoteId="h3Index">
               <Layer {...dataLayerFills} />
               <Layer {...dataLayerBorders} />
+              <Layer {...dataLayerDAI} />
             </Source>
             <Source id="selection" type="geojson" data={selection as GeoJSON.GeoJSON}>
               <Layer {...dataLayerSelection} />
