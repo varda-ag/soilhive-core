@@ -33,7 +33,7 @@ jobs:
           fi
 
   build-push-docker-backend:
-    uses: varda-ag/.github/.github/workflows/docker-build.yaml@v1.1.2
+    uses: varda-ag/.github/.github/workflows/docker-build.yaml@78da6b570ed1e5a9e43e324246099da66367ed7f # v1.1.2
     needs:
       - image-version
     with:
@@ -49,7 +49,7 @@ jobs:
       id-token: write # This is required for requesting the JWT token from OIDC
 
   build-push-docker-frontend:
-    uses: varda-ag/.github/.github/workflows/docker-build.yaml@v1.1.2
+    uses: varda-ag/.github/.github/workflows/docker-build.yaml@78da6b570ed1e5a9e43e324246099da66367ed7f # v1.1.2
     needs:
       - image-version
     with:
