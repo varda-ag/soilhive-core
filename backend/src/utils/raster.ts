@@ -39,7 +39,7 @@ export const selectOverviewTable = (table: string, aoiAreaM2: number): string =>
 };
 
 export const selectFileOverviewLevel = (band, queryEnvelope) => {
-  const queryWidth  = queryEnvelope.maxX - queryEnvelope.minX;
+  const queryWidth = queryEnvelope.maxX - queryEnvelope.minX;
   const queryHeight = queryEnvelope.maxY - queryEnvelope.minY;
   const queryMinDim = Math.min(queryWidth, queryHeight);
 

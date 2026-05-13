@@ -149,36 +149,42 @@ export const addRasterFilters = async (): Promise<void> => {
     `);
 };
 
-export const addRasterData = async (dsn: string, tifPath?: string, options?: {
-  out?: string;
-  outDir?: string;
-  resolution?: number;
-  extent?: string;
-  schema?: string;
-  dataset?: string;
-  soilProperty?: string;
-  layerFields?: {
-    min_depth?: number | null;
-    max_depth?: number | null;
-    reference_period_start?: string | null;
-    reference_period_stop?: string | null;
-  };
-}): Promise<RasterLayerEntity> => {
+export const addRasterData = async (
+  dsn: string,
+  tifPath?: string,
+  options?: {
+    out?: string;
+    outDir?: string;
+    resolution?: number;
+    extent?: string;
+    schema?: string;
+    dataset?: string;
+    soilProperty?: string;
+    layerFields?: {
+      min_depth?: number | null;
+      max_depth?: number | null;
+      reference_period_start?: string | null;
+      reference_period_stop?: string | null;
+    };
+  },
+): Promise<RasterLayerEntity> => {
   const input = tifPath ?? path.join(__dirname, './assets/raster/sol_ph.h2o_usda.4c1a2a_m_250m_b0..0cm_1950..2017_v0.2.tif');
   const out = options?.out ?? path.join(tmpdir(), `test_raster_${Date.now()}_cog.tif`);
   const scriptPath = path.join(__dirname, '../src/scripts/ingest_raster.sh');
 
   const args = [
-    `-r ${(options?.resolution ?? 250)}`,
-    `-e ${(options?.extent ?? 'global')}`,
+    `-r ${options?.resolution ?? 250}`,
+    `-e ${options?.extent ?? 'global'}`,
     `-d "${dsn}"`,
-    `-s "${(options?.schema ?? process.env.POSTGRES_SCHEMA)}"`,
+    `-s "${options?.schema ?? process.env.POSTGRES_SCHEMA}"`,
     `-o "${out}"`,
     options?.outDir ? `-O "${options?.outDir}"` : '',
     options?.dataset ? `-D "${options?.dataset}"` : '',
     options?.soilProperty ? `-P "${options?.soilProperty}"` : '',
     `"${path.resolve(input)}"`,
-  ].filter(Boolean).join(' ');
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   await execAsync(`bash "${scriptPath}" ${args}`);
 

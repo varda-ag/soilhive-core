@@ -44,7 +44,9 @@ const unknownGeomDrivers = ['CSV', 'XLSX'];
 let gdalConfigured = false;
 let dsPool: LRUCache<string, gdal.Dataset> | null = null;
 
-export const clearRasterPool = (): void => { dsPool?.clear(); };
+export const clearRasterPool = (): void => {
+  dsPool?.clear();
+};
 
 export default class FileService {
   exists = async (fileKey: string): Promise<boolean> => {

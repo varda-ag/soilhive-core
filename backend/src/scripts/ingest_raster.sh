@@ -112,6 +112,7 @@ fi
 
 # Overview count from band 1 (used to select gdal_footprint sampling strategy)
 OVR_COUNT=$(jq '(.bands[0].overviews // []) | length' "$INFO_JSON")
+RASTER_PIXELS=$(jq '.size[0] * .size[1]' "$INFO_JSON")
 
 # Bounding box in WGS84 — requires file to have a valid, transformable CRS
 BBOX_GEOM=$(jq -c '.wgs84Extent // empty' "$INFO_JSON") \
@@ -121,7 +122,7 @@ BBOX_GEOM=$(jq -c '.wgs84Extent // empty' "$INFO_JSON") \
 SRS_WKT=$(gdalsrsinfo -o wkt "$OUT" 2>/dev/null | tr -d '\n' || true)
 SRS_WKT_ESC="${SRS_WKT//\'/\'\'}"
 
-echo "  nodata=${NODATA:-<none>}  overviews=$OVR_COUNT"
+echo "  nodata=${NODATA:-<none>}  overviews=$OVR_COUNT  pixels=$RASTER_PIXELS"
 
 # ─── Step 3: Footprint extraction ─────────────────────────────────────────────
 
@@ -129,13 +130,15 @@ echo "-> [3/4] Extracting footprint"
 
 FP_RAW="$TMPDIR_WORK/footprint_raw.geojson"
 FP_FLAGS="-b 1 -max_points 5000"
-if [[ "$OVR_COUNT" -gt 0 ]]; then
+# Use an overview when the raster is large (>1M pixels) and one is available —
+# avoids scanning the full-resolution data for footprint extraction.
+if [[ "$RASTER_PIXELS" -gt 1000000 && "$OVR_COUNT" -gt 0 ]]; then
   OVR_LEVEL=$(( OVR_COUNT - 1 < 4 ? OVR_COUNT - 1 : 4 ))
   FP_FLAGS="$FP_FLAGS -ovr $OVR_LEVEL"
-  echo "  using overview level $OVR_LEVEL"
-elif [[ -n "$NODATA" ]]; then
-  FP_FLAGS="$FP_FLAGS -srcnodata $NODATA"
-  echo "  no overviews — using srcnodata $NODATA"
+  echo "  raster=${RASTER_PIXELS}px — using overview level $OVR_LEVEL"
+else
+  [[ -n "$NODATA" ]] && FP_FLAGS="$FP_FLAGS -srcnodata $NODATA"
+  echo "  raster=${RASTER_PIXELS}px — using full resolution${NODATA:+ (srcnodata=$NODATA)}"
 fi
 
 # shellcheck disable=SC2086

@@ -1155,7 +1155,8 @@ const pixelCheck = async (filePath: string, env: Envelope): Promise<boolean> => 
 
 const needsPixelCheck = (row: FootprintGeohashIntersectEntry): boolean => {
   if (row.resolution_m >= 1000) return false;
-  if (row.resolution_m >= 250 && row.resolution_m <= 500 && row.extent_type === Extent.REGIONAL) return false;
+  // Only run for large simplification tolerance
+  if (row.resolution_m <= 250 && row.extent_type === Extent.REGIONAL) return false;
   return true;
 };
 
