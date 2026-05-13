@@ -20,7 +20,12 @@ import '@maplibre/maplibre-gl-geocoder/dist/maplibre-gl-geocoder.css';
 import '@watergis/maplibre-gl-terradraw/dist/maplibre-gl-terradraw.css';
 import '../../styles/SoilhiveMap.scss';
 import Flower from 'assets/images/flower.svg?react';
-import { dataAvailabilityIndexToGeoJSONPolygons, isPointInFeatureCollection } from '../../utilities/geo';
+import {
+  bBoxToH3Cells,
+  dataAvailabilityIndexToGeoJSONPolygons,
+  h3IndexesToGeoJSONPolygons,
+  isPointInFeatureCollection,
+} from '../../utilities/geo';
 import { bbox as bboxFn, centerOfMass } from '@turf/turf';
 import { getMapStyles, h3ResolutionForZoomLevel } from '../../utilities/map';
 import DrawControl, { type DrawControlRef } from '../DrawControl';
@@ -182,18 +187,20 @@ function SoilhiveMap({
   const isApplyingSelection = useRef(false);
   const [daiParams, setDaiParams] = useState<{ bbox: [number, number, number, number]; resolution: number } | null>(null);
 
-  const { dai } = useDai(filterId, daiParams?.bbox, daiParams?.resolution, !!filterId && daiParams !== null && showH3Cells);
+  const ENABLE_DAI = ((window._env_ as any)?.['ENABLE_DAI'] as string) === 'true';
+
+  const { dai } = useDai(filterId, daiParams?.bbox, daiParams?.resolution, ENABLE_DAI && !!filterId && daiParams !== null && showH3Cells);
 
   useEffect(() => {
-    if (!daiParams || !showH3Cells || !dai) return;
+    if (!daiParams || !showH3Cells || (ENABLE_DAI && !dai)) return;
     try {
-      const h3CellsFeatureCollection = dataAvailabilityIndexToGeoJSONPolygons(dai);
-      console.log(h3CellsFeatureCollection);
+      const h3Indexes = bBoxToH3Cells(daiParams?.bbox, h3ResolutionForZoomLevel(daiParams?.resolution));
+      const h3CellsFeatureCollection = ENABLE_DAI ? dataAvailabilityIndexToGeoJSONPolygons(dai!) : h3IndexesToGeoJSONPolygons(h3Indexes);
       setH3Cells(h3CellsFeatureCollection);
     } catch (error) {
       console.error('Error while updating the H3 Cells:', error);
     }
-  }, [dai, daiParams, showH3Cells, setH3Cells]);
+  }, [dai, daiParams, showH3Cells, setH3Cells, ENABLE_DAI]);
 
   const { isMobileLayout } = useDevice();
   const { t } = useTranslation('availability');
@@ -465,7 +472,7 @@ function SoilhiveMap({
             <Source id="data" type="geojson" data={h3Cells} promoteId="h3Index">
               <Layer {...dataLayerFills} />
               <Layer {...dataLayerBorders} />
-              <Layer {...dataLayerDAI} />
+              {ENABLE_DAI && <Layer {...dataLayerDAI} />}
             </Source>
             <Source id="selection" type="geojson" data={selection as GeoJSON.GeoJSON}>
               <Layer {...dataLayerSelection} />
