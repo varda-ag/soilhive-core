@@ -782,7 +782,7 @@ describe('SoilDataStorage class', () => {
       },
     );
 
-    describe('With raster_filters', () => {
+    describe('Filtering raster data with raster_filters', () => {
       beforeEach(async () => {
         await addRasterData(dsn, undefined, {
           out: `test_raster_${Date.now()}_cog.tif`,
@@ -792,7 +792,7 @@ describe('SoilDataStorage class', () => {
         await addRasterFilterMappings();
       }, 10000);
 
-      it('calls getVectorMask when raster_filters are present', async () => {
+      it('Should call getVectorMask when raster_filters are present', async () => {
         const spy = jest.spyOn(FilteringMasksModule, 'getVectorMask');
         const sds = new SoilDataStorage();
         const entityManager = await getEntityManager();
@@ -801,10 +801,10 @@ describe('SoilDataStorage class', () => {
         spy.mockRestore();
       });
 
-      it.only.each([
+      it.each([
         [[30], 1],
-        //[[40], 0], // TODO: improve query performance for non-overlapping raster filter classes (FilteringMasks)
-      ])('land_cover=%j → %i dataset(s) returned', async (landCoverValues, expectedCount) => {
+        [[40], 0],
+      ])('For raster_filter.land_cover value %j → %i raster dataset(s) should be returned', async (landCoverValues, expectedCount) => {
         const sds = new SoilDataStorage();
         const entityManager = await getEntityManager();
         const results = await sds.filterRaster(entityManager, getPolygonFromBbox([-81, -34, -80, -33]), {

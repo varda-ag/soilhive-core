@@ -259,11 +259,13 @@ VALUES ('$OUT_NAME', '$OUT_NAME', 'data-admin')
 ON CONFLICT ("file_path") DO UPDATE SET updated_at=now()
 RETURNING *
 ), ds_ins AS (
-INSERT INTO datasets("name", "created_by", "spatial_extent")
-VALUES ('$DATASET', 'data-admin', ST_SetSRID(ST_GeomFromGeoJSON(\$bbox\$${BBOX_GEOM}\$bbox\$), 4326))
+INSERT INTO datasets("name", "created_by", "spatial_extent", "gis_datatype", "n_raster_layers")
+VALUES ('$DATASET', 'data-admin', ST_SetSRID(ST_GeomFromGeoJSON(\$bbox\$${BBOX_GEOM}\$bbox\$), 4326), 'raster', 1)
 ON CONFLICT ("name") WHERE (deleted_at IS NULL) DO UPDATE SET
   updated_at = now(),
-  spatial_extent = COALESCE(datasets.spatial_extent, EXCLUDED.spatial_extent)
+  spatial_extent = COALESCE(datasets.spatial_extent, EXCLUDED.spatial_extent),
+  gis_datatype = COALESCE(datasets.gis_datatype, EXCLUDED.gis_datatype),
+  n_raster_layers = EXCLUDED.n_raster_layers+1
 RETURNING *), spc_ins AS (
 INSERT INTO soil_property_categories("category_name", "category_acronym") 
 VALUES ('$SOILPROPCAT', '$SOILPROPCAT')

@@ -19,7 +19,7 @@ import EntitlementService from '../services/EntitlementService';
 import { envelopeFromGeoJSON, geometryUnion, polygonToGeohashes } from '../utils/geometry';
 import { Envelope, QueryResult, FootprintGeohashIntersectEntry } from '../interfaces/RasterLayer';
 import RasterLayerEntity from '../entities/RasterLayer';
-import { Extent } from '../types/data';
+import { Extent, GISDataType } from '../types/data';
 import { getVectorMask } from './FilteringMasks';
 
 const AREA_THRESHOLD_M2 = 7_000_000 * 1_000 * 1_000; // 7,000,000 km²
@@ -71,6 +71,13 @@ export default class SoilDataStorage {
     geometry: Polygon | MultiPolygon,
     filters: FilterCriteria,
   ): Promise<FilteredDatasetSummary[]> => {
+    const vectorTypeRequested: boolean =
+      (filters.data_types?.length && [GISDataType.POINT, GISDataType.POLYGONAL].some(dt => filters.data_types?.includes(dt))) ||
+      !filters.data_types;
+    if (!vectorTypeRequested) {
+      return [];
+    }
+
     await entityManager.query("SET LOCAL work_mem = '256MB';");
     const repo = entityManager.getRepository(DatasetLayerEntity);
     const baseAggQuery = repo
@@ -89,6 +96,7 @@ export default class SoilDataStorage {
 
     const dataFilter = { geometries: [geometry], parameters: filters };
     const enabledRasterFilterTables = await getEnabledRasterFilterTables();
+
     await applyFiltersToQuery(baseAggQuery, dataFilter, enabledRasterFilterTables);
 
     const query = entityManager.createQueryBuilder();
@@ -137,6 +145,12 @@ export default class SoilDataStorage {
     geometry: Polygon | MultiPolygon,
     filters: FilterCriteria,
   ): Promise<FilteredDataset[]> => {
+    const vectorTypeRequested: boolean =
+      (filters.data_types?.length && [GISDataType.POINT, GISDataType.POLYGONAL].some(dt => filters.data_types?.includes(dt))) ||
+      !filters.data_types;
+    if (!vectorTypeRequested) {
+      return [];
+    }
     await entityManager.query("SET LOCAL work_mem = '256MB';");
     const schema = process.env.POSTGRES_SCHEMA;
     const params: any[] = [];
@@ -189,9 +203,19 @@ export default class SoilDataStorage {
   ): Promise<FilteredDatasetSummary[]> => {
     const dataFilter = { geometries: [geometry], parameters: filters };
     let filteredGeom = geometry;
-    if (hasRasterFilters(dataFilter)) {
-      filteredGeom = await getVectorMask(entityManager, dataFilter);
+
+    const rasterTypeRequested: boolean =
+      (filters.data_types?.length && filters.data_types.includes(GISDataType.RASTER)) || !filters.data_types;
+    if (!rasterTypeRequested) {
+      return [];
     }
+
+    if (hasRasterFilters(dataFilter)) {
+      const mask = await getVectorMask(entityManager, dataFilter);
+      if (mask.coordinates.length === 0) return [];
+      filteredGeom = mask;
+    }
+
     const geomJson = JSON.stringify(filteredGeom);
     const inputHashes = geohashesForGeometry(filteredGeom);
     const envelope = envelopeFromGeoJSON(filteredGeom);
@@ -207,9 +231,7 @@ export default class SoilDataStorage {
       .innerJoin('rl.soil_property', 'sp')
       .select('rl.id', 'id');
 
-    if (filters.data_types?.length) {
-      candidateQuery.andWhere('ds.gis_datatype IN (:...data_types)', { data_types: filters.data_types });
-    }
+    candidateQuery.andWhere('ds.gis_datatype=:gis_datatype', { gis_datatype: GISDataType.RASTER });
     if (filters.min_depth === null) {
       candidateQuery.andWhere('rl.min_depth IS NULL');
     } else if (filters.min_depth !== undefined) {
@@ -238,7 +260,6 @@ export default class SoilDataStorage {
     }
 
     const candidateIds = (await candidateQuery.getRawMany<{ id: string }>()).map(r => r.id);
-
     // Step 2 — precise spatial (footprint / geohash) + pixel check
     const candidates = await spatialFilter(entityManager, geomJson, candidateIds, inputHashes);
     const needCheck = candidates.filter(r => needsPixelCheck(r));
