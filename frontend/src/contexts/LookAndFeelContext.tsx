@@ -144,12 +144,20 @@ export const LookAndFeelProvider: React.FC<LookAndFeelProps> = ({ children }) =>
     });
   }, [colors, saveDefaultColors, showNotification, t]);
 
-  const restoreDefaultColors = useCallback(() => {
+  const restoreDefaultColors = useCallback(async () => {
     if (defaultColors) {
       setColors({ ...defaultColors });
-      setColorsChanged(true);
+      await saveColors(defaultColors);
+      setColorsChanged(false);
+
+      showNotification({
+        id: 'restoreColorsSuccess',
+        title: t('look_and_feel.restore_colors_notification.title'),
+        message: t('look_and_feel.restore_colors_notification.message'),
+        type: 'success',
+      });
     }
-  }, [defaultColors]);
+  }, [defaultColors, saveColors, showNotification, t]);
 
   useEffect(() => {
     setPreviewLogo(logo);
