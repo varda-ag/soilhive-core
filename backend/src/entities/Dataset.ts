@@ -100,6 +100,9 @@ export default class DatasetEntity extends BaseTable implements Dataset {
   @Column({ type: 'text', enum: ['public', 'private'], default: 'private' })
   visibility: 'public' | 'private';
 
+  @Column({ type: 'text', nullable: true, array: true })
+  inferred_properties?: string[] | null;
+
   // Not a column, populated at runtime based on entitlements
   capabilities?: Capability[];
 }
