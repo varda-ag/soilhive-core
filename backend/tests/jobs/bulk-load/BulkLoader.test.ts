@@ -35,6 +35,7 @@ const getJob = (dataset_id: string): Job<BulkLoadJob> => {
       progress_percentage: 0,
       dataset_id,
     },
+    heartbeatSeconds: 10,
   };
 };
 
