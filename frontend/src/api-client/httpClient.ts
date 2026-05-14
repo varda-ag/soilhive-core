@@ -29,6 +29,10 @@ export async function httpClient<T = any>(config: APIRequestConfig): Promise<T> 
     throw await handleError(response);
   }
 
+  if (response.status === 204 || response.headers.get('Content-Length') === '0') {
+    return undefined as T;
+  }
+
   // try parsing JSON safely
   const contentType = response.headers.get('Content-Type');
   if (contentType && contentType.includes('application/json')) {
