@@ -134,28 +134,42 @@ export default class SoilDataStorage {
       enabledRasterFilterTables,
     );
 
-    // When raster filters are active, matching_features already enforces spatial intersection
-    // via candidate_features — drop the redundant ST_Intersects check from the LATERAL
-    const featureSource = usesMatchingFeatures ? 'matching_features' : `${schema}.features`;
-    const effectiveLateralWhere = usesMatchingFeatures ? lateralWhere.slice(1) : lateralWhere;
+    // Pre-compute spatially-intersecting features once as a materialized CTE to avoid
+    // re-running the ST_Intersects scan for each candidate dataset in the outer query.
+    // When raster filters are active, matching_features already contains the spatial set
+    // (derived from candidate_features). In both cases lateralWhere[0] (the ST_Intersects
+    // clause) is dropped — the chosen featureTable already enforces spatial intersection.
+    const featureTable = usesMatchingFeatures ? 'matching_features' : 'aoi_features';
+    const effectiveExistsWhere = lateralWhere.slice(1);
+
+    const aoiFeaturesCte = usesMatchingFeatures
+      ? ''
+      : `,
+      aoi_features AS MATERIALIZED (
+        SELECT f.id
+        FROM ${schema}.features f
+        CROSS JOIN aoi
+        WHERE f.geom && aoi.geom
+          AND ST_Intersects(f.geom, aoi.geom)
+      )`;
+
+    const existsWhere = [`dl.dataset_id = ds.id`, ...effectiveExistsWhere];
 
     const sql = `
       WITH
       aoi AS MATERIALIZED (
         SELECT ST_CollectionExtract(ST_MakeValid(ST_GeomFromGeoJSON(${geomParam}), 'method=structure'), 3) AS geom
-      )${rasterCtes ? `,\n      ${rasterCtes}` : ''}
+      )${rasterCtes ? `,\n      ${rasterCtes}` : ''}${aoiFeaturesCte}
       SELECT ds.slug AS id, ds.name, ds.gis_datatype AS data_type
       FROM ${schema}.datasets ds
-      CROSS JOIN LATERAL (
-        SELECT 1
-        FROM ${schema}.dataset_layers dl
-        INNER JOIN ${featureSource} f ON f.id = dl.feature_id
-        ${lateralJoins.join('\n        ')}
-        WHERE dl.dataset_id = ds.id
-            ${effectiveLateralWhere.length > 0 ? ` AND ${effectiveLateralWhere.join('\n          AND ')}` : ''}
-        LIMIT 1
-      ) first_match
       WHERE ${outerWhere.join('\n        AND ')}
+        AND EXISTS (
+          SELECT 1
+          FROM ${schema}.dataset_layers dl
+          INNER JOIN ${featureTable} af ON af.id = dl.feature_id
+          ${lateralJoins.join('\n          ')}
+          WHERE ${existsWhere.join('\n            AND ')}
+        )
     `;
 
     return entityManager.query(sql, params);
