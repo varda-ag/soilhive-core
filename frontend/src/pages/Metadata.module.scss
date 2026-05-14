@@ -34,7 +34,7 @@
     align-items: center;
     text-align: center;
 
-    @media screen and (min-width: 768px) {
+    @media screen and (min-width: $bp-tablet) {
       text-align: left;
       padding: 58px 0 39px;
     }
@@ -46,7 +46,7 @@
       flex-direction: column;
       gap: 36px;
 
-      @media screen and (min-width: 768px) {
+      @media screen and (min-width: $bp-tablet) {
         justify-content: space-between;
         flex-direction: row;
         gap: 0;
@@ -55,7 +55,7 @@
       .Left {
         position: relative;
 
-        @media screen and (min-width: 768px) {
+        @media screen and (min-width: $bp-tablet) {
           padding-right: 1.3rem;
         }
 
@@ -91,7 +91,7 @@
           line-height: 125%;
           margin: 0 0 10px 0;
 
-          @media screen and (min-width: 768px) {
+          @media screen and (min-width: $bp-tablet) {
             font-size: var(--font-size-5xl);
             margin-bottom: 10px;
           }
@@ -104,7 +104,7 @@
           line-height: 150%;
           margin-bottom: 10px;
           
-          @media screen and (min-width: 768px) {
+          @media screen and (min-width: $bp-tablet) {
             font-size: var(--font-size-lg);
             margin-bottom: 24px;
           }
@@ -116,7 +116,7 @@
           align-items: center;
           gap: 12px;
 
-          @media screen and (min-width: 768px) {
+          @media screen and (min-width: $bp-tablet) {
             flex-direction: row;
             gap: 24px;
           }
@@ -140,7 +140,7 @@
         flex-direction: column;
         gap: 0.7rem;
 
-        @media screen and (min-width: 768px) {
+        @media screen and (min-width: $bp-tablet) {
           max-width: 310px;
         }
 
@@ -223,7 +223,7 @@
     @extend .Container;
     padding: 0;
 
-    @media screen and (min-width: 768px) {
+    @media screen and (min-width: $bp-tablet) {
       padding: 0 13px;
     }
 
@@ -232,7 +232,7 @@
       margin-top: 25px;
       padding: 16px 0 40px 0;
 
-      @media screen and (min-width: 768px) {
+      @media screen and (min-width: $bp-tablet) {
         border-radius: 8px;
         padding: 24px 32px 51px 32px;
         margin-bottom: 24px;
@@ -243,7 +243,7 @@
         flex-direction: column;
         gap: 8px;
 
-        @media screen and (min-width: 768px) {
+        @media screen and (min-width: $bp-tablet) {
           flex-direction: row;
         }
 
@@ -255,7 +255,7 @@
         .Label {
           padding: 12px 24px 0;
 
-          @media screen and (min-width: 768px) {
+          @media screen and (min-width: $bp-tablet) {
             padding: 12px 24px;
             width: 220px;
             min-width: 220px;
@@ -265,7 +265,7 @@
         .Text {
           padding: 0 24px 12px;
 
-          @media screen and (min-width: 768px) {
+          @media screen and (min-width: $bp-tablet) {
             padding: 12px 18px;
           }
 
@@ -289,7 +289,7 @@
       justify-content: flex-end;
       gap: 7px;
 
-      @media screen and (min-width: 768px) {
+      @media screen and (min-width: $bp-tablet) {
         padding: 100px 0 25px;
         display: flex;
         flex-direction: row;
@@ -314,7 +314,7 @@
       border-top: 1px solid var(--color-brand-dark-green-600);
       gap: 14px;
 
-      @media screen and (min-width: 768px) {
+      @media screen and (min-width: $bp-tablet) {
         align-items: flex-start;
         flex-direction: row;
         padding: 17px 0 53px;
