@@ -22,6 +22,7 @@ import fs from 'fs';
 import { sanitizeField } from './utils';
 import DatasetFileMappingEntity from '../entities/DatasetFileMapping';
 import VocabularyEntity from '../entities/Vocabulary';
+import { log } from './logger';
 
 const randomInRange = (min: number, max: number): number => {
   return Math.random() * (max - min) + min;
@@ -378,7 +379,7 @@ export const addSyntheticData = async (syntheticDataOptions): Promise<SyntheticD
   }
   const features: FeatureEntity[] = await addFeatures(featureGeometryType, coordinates);
   if (syntheticDataOptions.showProgress) {
-    console.log(`Generated ${featureCount} random features.`);
+    log.info(`Generated ${featureCount} random features.`);
   }
   let counter = 1;
   for (let depthLayer = 0; depthLayer < depthLayers; depthLayer++) {
@@ -407,11 +408,11 @@ export const addSyntheticData = async (syntheticDataOptions): Promise<SyntheticD
       await addObservations([randomInRange(0, 100)], procedure.id, datasetLayer.id);
     }
     if (syntheticDataOptions.showProgress) {
-      console.log(`Added depth layer ${depthLayer + 1}/${depthLayers}`);
+      log.info(`Added depth layer ${depthLayer + 1}/${depthLayers}`);
     }
   }
   if (syntheticDataOptions.showProgress) {
-    console.log(`Synthetic data creation complete. Dataset ID: ${dataset.id}`);
+    log.info(`Synthetic data creation complete. Dataset ID: ${dataset.id}`);
   }
   return { dataset, features, soilProperties };
 };
@@ -480,7 +481,7 @@ export const addSyntheticIngestionData = async (syntheticIngestionDataOptions): 
   }
 
   if (syntheticIngestionDataOptions.showProgress) {
-    console.log(`Synthetic ingestion data creation complete. Dataset ID: ${dataset.id}`);
+    log.info(`Synthetic ingestion data creation complete. Dataset ID: ${dataset.id}`);
   }
   return { dataset, file, dataMapping, datasetFileMapping };
 };

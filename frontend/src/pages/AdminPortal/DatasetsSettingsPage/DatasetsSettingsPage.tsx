@@ -58,7 +58,7 @@ export function DatasetsSettingsPage() {
       value: 'email',
       bodyTemplate: row => (
         <div className={styles.TrashCell}>
-          <Button type="tertiary" isIconOnly onClick={() => handleRequestRemoveEmail(row.email)}>
+          <Button type="custom" className={styles.TrashButton} isIconOnly onClick={() => handleRequestRemoveEmail(row.email)}>
             <TrashIcon />
           </Button>
         </div>

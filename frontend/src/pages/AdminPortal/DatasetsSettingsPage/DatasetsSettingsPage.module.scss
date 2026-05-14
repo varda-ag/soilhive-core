@@ -206,6 +206,11 @@
   justify-content: flex-end;
 }
 
+.TrashButton {
+  color: var(--color-neutral-black);
+  background-color: var(--color-neutral-white);
+}
+
 
 .RemoveDialog {
   min-height: unset !important;
