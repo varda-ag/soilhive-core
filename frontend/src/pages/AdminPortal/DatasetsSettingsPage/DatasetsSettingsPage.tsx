@@ -133,7 +133,7 @@ export function DatasetsSettingsPage() {
             </div>
           </div>
 
-          {visibility === 'private'  && (
+          {visibility === 'private' && isOidcAuth && (
             <div className={styles.AccessSection}>
               <div className={styles.AccessSectionHeader}>
                 <UserAddIcon className={styles.AccessSectionIcon} />
