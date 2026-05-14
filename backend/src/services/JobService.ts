@@ -33,7 +33,7 @@ export default class JobService {
     }
 
     // Set owner and enqueue the job
-    data.created_by = data.anonymous ? null : (sub ?? null);
+    data.created_by = sub ?? null;
     const id = await this.boss.send(data.type, data);
     if (!id) {
       throw new ErrorResponse('Failed to create job', StatusCodes.INTERNAL_SERVER_ERROR);
@@ -93,6 +93,7 @@ export default class JobService {
       created_at: job.createdOn,
       completed_at: job.completedOn,
       data: job.data as AnyJob,
+      message: job.output?.['message'],
     };
   };
 

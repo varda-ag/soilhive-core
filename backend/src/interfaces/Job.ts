@@ -7,6 +7,7 @@ export interface Job {
   created_at: Date;
   completed_at: Date | null;
   data: AnyJob;
+  message: string | null;
 }
 
 export interface CommonJobData {
