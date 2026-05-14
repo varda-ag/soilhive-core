@@ -1,0 +1,47 @@
+.AreaInfoPopup {
+  margin-top: 2rem;
+
+  :global(.maplibregl-popup-content) {
+    border-radius: 0.5rem;
+    padding: 0px;
+    box-shadow: 0px 0.25rem 0.25rem 0px #00000040;
+    min-width: 250px;
+  }
+
+  :global(.maplibregl-popup-tip) {
+    align-self: unset;
+    margin-top: 26px;
+    border-right-color: var(--color-bg-primary);
+  }
+
+  .AreaInfoPopupHeader {
+    position: relative;
+    border-top-left-radius: 0.5rem;
+    border-top-right-radius: 0.5rem;
+    background-color: var(--color-bg-primary);
+    display: flex;
+    gap: 0.625rem;
+    align-items: center;
+    padding: 0.5rem 0.875rem;
+
+    .AreaInfoPopupHeaderIcon {
+      min-width: 1.5rem;
+    }
+
+    .AreaInfoPopupHeaderTitle {
+      font-weight: var(--font-weight-bold);
+      font-size: var(--font-size-sm);
+      text-transform: uppercase;
+    }
+  }
+
+  .AreaInfoCloseButton {
+    position: absolute;
+    right: 0.75rem;
+    top: 0.75rem;
+    display: flex;
+    background: none;
+    border: none;
+    cursor: pointer;
+  }
+}

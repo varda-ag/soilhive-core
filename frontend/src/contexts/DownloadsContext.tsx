@@ -4,6 +4,7 @@ import type { AsyncJob } from 'types/jobs';
 import useNotifications from 'hooks/useNotifications';
 import { BACKEND_BASE_URL, REST_END_POINTS } from '../configuration/api';
 import { addStoredJobId, getStoredJobIds, removeStoredJobId } from '../utilities/downloadJobStorage';
+import { downloadFile } from '../utilities/download';
 
 type DownloadsItem = {
   id: string;
@@ -100,12 +101,8 @@ export const DownloadsProvider: React.FC<DownloadsProviderProps> = ({ children }
         const filenameParam = job.data.download_filename ? `&filename=${encodeURIComponent(job.data.download_filename)}` : '';
         const url = `${BACKEND_BASE_URL}/${REST_END_POINTS.DOWNLOADS}/${filePath}${filenameParam}`;
 
-        const link = document.createElement('a');
-        link.href = url;
+        downloadFile(url);
 
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
         setJobsIds(prev => prev.filter(jobId => jobId !== job.id));
         removeStoredJobId(job.id);
       }
