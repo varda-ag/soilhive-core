@@ -71,35 +71,19 @@ function DownloadPreviewTable({
   const [sortOrder, setSortOrder] = useState<SortOrder>();
   const [sortField, setSortField] = useState<string>();
 
-  const dateCell = ({ sampling_date, geometry }: SoilDataSample) => {
-    const renderDateLabel = () => {
-      if (!sampling_date) return '-';
+  const dateCell = ({ sampling_date }: SoilDataSample) => {
+    if (!sampling_date) return '-';
+    if (/^\d{4}$/.test(sampling_date)) return sampling_date;
+    if (sampling_date.includes('-')) {
+      const dateObj = backendToLocalFrontendDate(sampling_date);
+      return !isNaN(dateObj.getTime()) ? dateObj.toLocaleDateString() : sampling_date;
+    }
+    return sampling_date;
+  };
 
-      // Check if it's year-only (e.g., "2018")
-      if (/^\d{4}$/.test(sampling_date)) {
-        return sampling_date;
-      }
-
-      // If it has hyphens (e.g., "2018-05-20"), use the utility
-      if (sampling_date.includes('-')) {
-        const dateObj = backendToLocalFrontendDate(sampling_date);
-        return !isNaN(dateObj.getTime()) ? dateObj.toLocaleDateString() : sampling_date; // Fallback to raw string if utility fails
-      }
-
-      return sampling_date;
-    };
-
-    return (
-      <Button
-        type="tertiary"
-        onClick={() => {
-          onFeatureSelected?.(geometry ? feature(geometry as Point | Polygon | MultiPolygon) : undefined);
-        }}
-      >
-        {geometry && <MapPinIcon />}
-        {renderDateLabel()}
-      </Button>
-    );
+  const mapPinCell = ({ geometry }: SoilDataSample) => {
+    if (!geometry) return null;
+    return <MapPinIcon />;
   };
 
   return (
@@ -160,7 +144,23 @@ function DownloadPreviewTable({
               }}
               first={first}
               emptyMessage={t('download_preview.no_data_available')}
+              onRowClick={({ data }) => {
+                const sample = data as SoilDataSample;
+                if (sample.geometry) {
+                  onFeatureSelected?.(feature(sample.geometry as Point | Polygon | MultiPolygon));
+                }
+              }}
+              rowClassName={(data: SoilDataSample) => (data.geometry ? styles.ClickableRow : '')}
             >
+              <Column
+                key="map_pin"
+                bodyClassName={styles.MapPinCell}
+                headerClassName={styles.MapPinHeader}
+                body={mapPinCell}
+                reorderable={false}
+                resizeable={false}
+                style={{ width: '48px', minWidth: '48px' }}
+              />
               {columns
                 .filter(({ value }) => visibleColumns.includes(value))
                 .map(({ name, value }) => {
@@ -171,7 +171,6 @@ function DownloadPreviewTable({
                       ? {
                           bodyClassName: styles.DateCell,
                           body: dateCell,
-                          headerClassName: styles.DateHeader,
                         }
                       : {}),
                   };
