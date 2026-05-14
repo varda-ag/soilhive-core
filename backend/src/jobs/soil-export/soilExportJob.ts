@@ -12,6 +12,7 @@ import { cleanupTempFiles, generateDownloadFilename, generateDownloadPath, moveT
 import EntitlementService from '../../services/EntitlementService';
 import { EVERYONE } from '../../constants/constants';
 import { RequestData } from '../../interfaces/RequestData';
+import { log } from '../../utils/logger';
 
 export async function processExportJob(job: Job<ExportJob>): Promise<void> {
   const { id: jobId, data } = job;
@@ -123,7 +124,7 @@ export async function processExportJob(job: Job<ExportJob>): Promise<void> {
       download_filename: generateDownloadFilename(),
     });
   } catch (error) {
-    console.error(`Error processing export job ${jobId}:`, error);
+    log.error(`Error processing export job ${jobId}:`, { error: error as any });
     throw error;
   } finally {
     // Always cleanup temp files, even on error

@@ -5,6 +5,7 @@ import { replaceExtension, sleep } from './utils';
 import { addSyntheticData, syntheticDataOptions } from '../utils/mock';
 import { randomInt } from 'crypto';
 import { dbRestore } from './db-restore';
+import { log } from './logger';
 
 export const setupCLI = async () => {
   program
@@ -17,7 +18,7 @@ export const setupCLI = async () => {
 
   const options = program.opts();
   if (options['createData']) {
-    console.log('Creating synthetic data:', options);
+    log.info('Creating synthetic data:', options);
     if (!options['bbox']) {
       throw new InvalidArgumentError('bbox must be provided when creating synthetic data.');
     }
@@ -26,11 +27,11 @@ export const setupCLI = async () => {
     process.exit();
   }
   if (options['loadRasterFilter']) {
-    console.log('Loading raster filter:', options);
+    log.info('Loading raster filter:', options);
     try {
       await loadRasterFilter(options['loadRasterFilter']);
     } catch (e) {
-      console.error(e);
+      log.error(`Load raster filter error: ${e}`);
     } finally {
       process.exit();
     }

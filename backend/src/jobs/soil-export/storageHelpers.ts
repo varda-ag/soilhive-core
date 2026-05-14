@@ -5,6 +5,7 @@ import archiver from 'archiver';
 import { FileStorage } from '@flystorage/file-storage';
 import FileService from '../../services/FileService';
 import { EXPORT_CONFIG } from './types';
+import { log } from '../../utils/logger';
 
 /**
  * Create a temporary directory for export files
@@ -112,7 +113,7 @@ export async function cleanupTempFiles(tempDir: string): Promise<void> {
   try {
     await fs.promises.rm(tempDir, { recursive: true, force: true });
   } catch (error) {
-    console.error(`Failed to cleanup temp directory ${tempDir}:`, error);
+    log.error(`Failed to cleanup temp directory ${tempDir}:`, { error: error as any });
     // Don't throw - cleanup failure shouldn't fail the job
   }
 }
@@ -129,7 +130,7 @@ export async function cleanupTempZip(zipPath: string): Promise<void> {
   try {
     await fs.promises.unlink(zipPath);
   } catch (error) {
-    console.error(`Failed to cleanup temp zip ${zipPath}:`, error);
+    log.error(`Failed to cleanup temp zip ${zipPath}:`, { error: error as any });
     // Don't throw - cleanup failure shouldn't fail the job
   }
 }
