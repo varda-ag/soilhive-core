@@ -75,6 +75,10 @@
             "title": "Brand colors saved",
             "message": "You can change them, experiment and come back to them anytime"
         },
+        "restore_colors_notification": {
+            "title": "Brand colors restored.",
+            "message": "The brand colours have been reset to the default version"
+        },
         "tabs": {
             "logo": "Logo",
             "colors": "Customize colors"
