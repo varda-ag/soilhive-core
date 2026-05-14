@@ -1,9 +1,7 @@
 pnpm i -r --quiet
 
-pnpm run lint:fix
+npm run lint:fix
 
-cd backend && pnpm i --silent --build-from-source --shared_gdal && pnpm test
-
-cd ..
+cd backend && npm i --silent --build-from-source --shared_gdal && npm test && cd ..
 
 cd frontend && pnpm test && cd ..
