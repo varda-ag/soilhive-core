@@ -58,7 +58,7 @@ export function DatasetsSettingsPage() {
       value: 'email',
       bodyTemplate: row => (
         <div className={styles.TrashCell}>
-          <Button type="tertiary" isIconOnly onClick={() => handleRequestRemoveEmail(row.email)}>
+          <Button type="custom" className={styles.TrashButton} isIconOnly onClick={() => handleRequestRemoveEmail(row.email)}>
             <TrashIcon />
           </Button>
         </div>
@@ -133,7 +133,7 @@ export function DatasetsSettingsPage() {
             </div>
           </div>
 
-          {visibility === 'private' && isOidcAuth && (
+          {visibility === 'private'  && (
             <div className={styles.AccessSection}>
               <div className={styles.AccessSectionHeader}>
                 <UserAddIcon className={styles.AccessSectionIcon} />
