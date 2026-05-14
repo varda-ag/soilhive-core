@@ -16,6 +16,8 @@ export interface CommonJobData {
   created_by: string | null;
   progress_percentage: number;
   progress_description?: string;
+  isDataAdmin: boolean | undefined;
+  isSuperAdmin: boolean | undefined;
 }
 
 export interface BulkLoadJob extends CommonJobData {

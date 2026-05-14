@@ -34,6 +34,9 @@ export default class JobService {
 
     // Set owner and enqueue the job
     data.created_by = sub ?? null;
+    data.isDataAdmin = requestData.token?.isDataAdmin;
+    data.isSuperAdmin = requestData.token?.isSuperAdmin;
+
     const id = await this.boss.send(data.type, data);
     if (!id) {
       throw new ErrorResponse('Failed to create job', StatusCodes.INTERNAL_SERVER_ERROR);
