@@ -51,65 +51,142 @@ export default class SoilDataStorage {
     geometry: Polygon | MultiPolygon,
     filters: FilterCriteria,
   ): Promise<FilteredDatasetSummary[]> => {
-    await entityManager.query("SET LOCAL work_mem = '256MB';");
-    const repo = entityManager.getRepository(DatasetLayerEntity);
-    const baseAggQuery = repo
-      .createQueryBuilder('dataset_layers')
-      .leftJoin('dataset_layers.layer', 'layer')
-      .select('dataset_layers.dataset_id', 'dataset_id')
-      .addSelect('layer.license', 'license')
-      .addSelect('COUNT(dataset_layers.dataset_id)', 'dataset_layer_count')
-      .addSelect('MIN(layer.sampling_date)', 'min_sampling_date')
-      .addSelect('MAX(layer.sampling_date)', 'max_sampling_date')
-      .addSelect('MIN(layer.min_depth)', 'min_depth')
-      .addSelect('MAX(layer.max_depth)', 'max_depth')
-      .addSelect("STRING_AGG(DISTINCT layer.horizon, ',')", 'horizons')
-      .addSelect('dataset_layers.soil_property_id', 'soil_property')
-      .groupBy('dataset_layers.dataset_id, dataset_layers.soil_property_id, layer.license');
+    return entityManager.connection.transaction(async entityManager => {
+      await entityManager.query("SET LOCAL work_mem = '512MB';");
 
-    const dataFilter = { geometries: [geometry], parameters: filters };
-    const enabledRasterFilterTables = await getEnabledRasterFilterTables();
-    await applyFiltersToQuery(baseAggQuery, dataFilter, enabledRasterFilterTables);
+      const dataFilter = { geometries: [geometry], parameters: filters };
+      const enabledRasterFilterTables = await getEnabledRasterFilterTables();
+      const { ctes: rasterCtes, usesMatchingFeatures } = buildRasterSql(dataFilter, enabledRasterFilterTables);
 
-    const query = entityManager.createQueryBuilder();
-    applyFiltersToExternalQuery(query, dataFilter, enabledRasterFilterTables);
+      // Feature IDs resolved entirely in-DB: MATERIALIZED CTE evaluated first, then
+      // = ANY(ARRAY(...)) preserves bitmap index scan on dataset_layers(feature_id).
+      const geomJson = JSON.stringify(geometryUnion([geometry]));
+      const params: any[] = [geomJson];
+      const p = (val: any) => {
+        params.push(val);
+        return `$${params.length}`;
+      };
 
-    query
-      .addCommonTableExpression(baseAggQuery, 'base_agg')
-      .from('base_agg', 'base_agg')
-      .innerJoin('datasets', 'ds', 'ds.id = base_agg.dataset_id')
-      .leftJoin('soil_properties', 'soil_property', 'soil_property.id = base_agg.soil_property')
-      .leftJoin('licenses', 'license', 'license.id = base_agg.license')
-      .select('base_agg.dataset_id', 'dataset_id')
-      .addSelect('ds.gis_datatype', 'gis_datatype')
-      .addSelect('ds.name', 'dataset_name')
-      .addSelect('ds.slug', 'dataset_slug')
-      .addSelect("STRING_AGG(DISTINCT license.slug, ',')", 'licenses')
-      .addSelect('SUM(base_agg.dataset_layer_count)', 'dataset_layer_count')
-      .addSelect('MIN(base_agg.min_sampling_date)', 'min_sampling_date')
-      .addSelect('MAX(base_agg.max_sampling_date)', 'max_sampling_date')
-      .addSelect('MIN(base_agg.min_depth)', 'min_depth')
-      .addSelect('MAX(base_agg.max_depth)', 'max_depth')
-      .addSelect("STRING_AGG(DISTINCT base_agg.horizons, ',')", 'horizons')
-      .addSelect("STRING_AGG(DISTINCT soil_property.slug, ',')", 'soil_properties')
-      .groupBy('base_agg.dataset_id, ds.slug, ds.name, ds.gis_datatype');
+      const schema = process.env.POSTGRES_SCHEMA;
+      const featureSource = usesMatchingFeatures ? 'matching_features' : 'aoi_features';
+      const aoiFeaturesCte = usesMatchingFeatures
+        ? `, ${rasterCtes}`
+        : `,
+          aoi_features AS MATERIALIZED (
+            SELECT f.id
+            FROM ${schema}.features f
+            CROSS JOIN aoi
+            WHERE f.geom && aoi.geom
+              AND ST_Intersects(f.geom, aoi.geom)
+          )`;
 
-    const results = await query.getRawMany();
+      const innerWhere: string[] = [`dl.feature_id = ANY(ARRAY(SELECT id FROM ${featureSource})::uuid[])`, 'ds.deleted_at IS NULL'];
 
-    return results.map(row => ({
-      id: row.dataset_slug,
-      name: row.dataset_name,
-      data_type: row.gis_datatype,
-      licenses: row.licenses ? row.licenses.split(',') : [],
-      min_sampling_date: row.min_sampling_date,
-      max_sampling_date: row.max_sampling_date,
-      min_depth: row.min_depth !== null ? parseFloat(row.min_depth) : null,
-      max_depth: row.max_depth !== null ? parseFloat(row.max_depth) : null,
-      // TODO: to be restored  and deduplicated here due to lack of support for LATERAL JOINs in typeorm:
-      // horizons: row.horizons ? [new Set(...row.horizons.split(','))] : [],
-      soil_properties: row.soil_properties ? row.soil_properties.split(',') : [],
-      dataset_layer_count: parseInt(row.dataset_layer_count),
-    }));
+      if (filters.data_types && filters.data_types.length > 0) {
+        innerWhere.push(`ds.gis_datatype IN (${filters.data_types.map(v => p(v)).join(', ')})`);
+      }
+      if (filters.min_sampling_date === null) {
+        innerWhere.push('layer.sampling_date IS NULL');
+      } else if (filters.min_sampling_date) {
+        innerWhere.push(`ds.reference_period_stop >= ${p(filters.min_sampling_date)}`);
+        innerWhere.push(`layer.sampling_date >= ${p(filters.min_sampling_date)}`);
+      }
+      if (filters.max_sampling_date === null) {
+        innerWhere.push('layer.sampling_date IS NULL');
+      } else if (filters.max_sampling_date) {
+        innerWhere.push(`ds.reference_period_start <= ${p(filters.max_sampling_date)}`);
+        innerWhere.push(`layer.sampling_date <= ${p(filters.max_sampling_date)}`);
+      }
+      if (filters.min_depth === null) {
+        innerWhere.push('layer.min_depth IS NULL');
+      } else if (filters.min_depth !== undefined) {
+        innerWhere.push(`(ds.soil_depth->>'max')::int >= ${p(filters.min_depth)}`);
+        innerWhere.push(`layer.max_depth >= ${p(filters.min_depth)}`);
+      }
+      if (filters.max_depth === null) {
+        innerWhere.push('layer.max_depth IS NULL');
+      } else if (filters.max_depth !== undefined) {
+        innerWhere.push(`(ds.soil_depth->>'min')::int <= ${p(filters.max_depth)}`);
+        innerWhere.push(`layer.min_depth <= ${p(filters.max_depth)}`);
+      }
+      if (filters.horizons && filters.horizons.length > 0) {
+        const nonNull = filters.horizons.filter(h => h !== null);
+        const nullClause = filters.horizons.includes(null) ? ' OR layer.horizon IS NULL' : '';
+        innerWhere.push(
+          nonNull.length > 0 ? `(layer.horizon IN (${nonNull.map(h => p(h)).join(', ')})${nullClause})` : 'layer.horizon IS NULL',
+        );
+      }
+
+      const outerWhere: string[] = [];
+      if (filters.soil_properties && filters.soil_properties.length > 0) {
+        outerWhere.push(`soil_property.slug IN (${filters.soil_properties.map(v => p(v)).join(', ')})`);
+      }
+      if (filters.licenses && filters.licenses.length > 0) {
+        outerWhere.push(`license.slug IN (${filters.licenses.map(v => p(v)).join(', ')})`);
+      }
+      const outerWhereClause = outerWhere.length > 0 ? `WHERE ${outerWhere.join(' AND ')}` : '';
+
+      const sql = `
+        WITH
+        aoi AS MATERIALIZED (
+          SELECT ST_CollectionExtract(ST_MakeValid(ST_GeomFromGeoJSON($1), 'method=structure'), 3) AS geom
+        )
+        ${aoiFeaturesCte}
+        , base_agg AS (
+          SELECT
+            dl.dataset_id,
+            layer.license,
+            COUNT(dl.dataset_id) AS dataset_layer_count,
+            MIN(layer.sampling_date) AS min_sampling_date,
+            MAX(layer.sampling_date) AS max_sampling_date,
+            MIN(layer.min_depth) AS min_depth,
+            MAX(layer.max_depth) AS max_depth,
+            STRING_AGG(DISTINCT layer.horizon, ',') AS horizons,
+            dl.soil_property_id AS soil_property
+          FROM ${schema}.dataset_layers dl
+          INNER JOIN ${schema}.datasets ds ON ds.id = dl.dataset_id
+          INNER JOIN ${schema}.layers layer ON layer.id = dl.layer_id
+          WHERE ${innerWhere.join('\n            AND ')}
+          GROUP BY dl.dataset_id, dl.soil_property_id, layer.license
+        )
+        SELECT
+          base_agg.dataset_id,
+          ds.gis_datatype,
+          ds.name AS dataset_name,
+          ds.slug AS dataset_slug,
+          STRING_AGG(DISTINCT license.slug, ',') AS licenses,
+          SUM(base_agg.dataset_layer_count) AS dataset_layer_count,
+          MIN(base_agg.min_sampling_date) AS min_sampling_date,
+          MAX(base_agg.max_sampling_date) AS max_sampling_date,
+          MIN(base_agg.min_depth) AS min_depth,
+          MAX(base_agg.max_depth) AS max_depth,
+          STRING_AGG(DISTINCT base_agg.horizons, ',') AS horizons,
+          STRING_AGG(DISTINCT soil_property.slug, ',') AS soil_properties
+        FROM base_agg
+        INNER JOIN ${schema}.datasets ds ON ds.id = base_agg.dataset_id
+        LEFT JOIN ${schema}.soil_properties soil_property ON soil_property.id = base_agg.soil_property AND soil_property.deleted_at IS NULL
+        LEFT JOIN ${schema}.licenses license ON license.id = base_agg.license AND license.deleted_at IS NULL
+        ${outerWhereClause}
+        GROUP BY base_agg.dataset_id, ds.slug, ds.name, ds.gis_datatype
+      `;
+
+      const results = await entityManager.query(sql, params);
+
+      return results.map(row => ({
+        id: row.dataset_slug,
+        name: row.dataset_name,
+        data_type: row.gis_datatype,
+        licenses: row.licenses ? row.licenses.split(',') : [],
+        min_sampling_date: row.min_sampling_date,
+        max_sampling_date: row.max_sampling_date,
+        min_depth: row.min_depth !== null ? parseFloat(row.min_depth) : null,
+        max_depth: row.max_depth !== null ? parseFloat(row.max_depth) : null,
+        // TODO: to be restored  and deduplicated here due to lack of support for LATERAL JOINs in typeorm:
+        // horizons: row.horizons ? [new Set(...row.horizons.split(','))] : [],
+        soil_properties: row.soil_properties ? row.soil_properties.split(',') : [],
+        dataset_layer_count: parseInt(row.dataset_layer_count),
+      }));
+    });
   };
 
   filterDatasets = async (
@@ -134,28 +211,42 @@ export default class SoilDataStorage {
       enabledRasterFilterTables,
     );
 
-    // When raster filters are active, matching_features already enforces spatial intersection
-    // via candidate_features — drop the redundant ST_Intersects check from the LATERAL
-    const featureSource = usesMatchingFeatures ? 'matching_features' : `${schema}.features`;
-    const effectiveLateralWhere = usesMatchingFeatures ? lateralWhere.slice(1) : lateralWhere;
+    // Pre-compute spatially-intersecting features once as a materialized CTE to avoid
+    // re-running the ST_Intersects scan for each candidate dataset in the outer query.
+    // When raster filters are active, matching_features already contains the spatial set
+    // (derived from candidate_features). In both cases lateralWhere[0] (the ST_Intersects
+    // clause) is dropped — the chosen featureTable already enforces spatial intersection.
+    const featureTable = usesMatchingFeatures ? 'matching_features' : 'aoi_features';
+    const effectiveExistsWhere = lateralWhere.slice(1);
+
+    const aoiFeaturesCte = usesMatchingFeatures
+      ? ''
+      : `,
+      aoi_features AS MATERIALIZED (
+        SELECT f.id
+        FROM ${schema}.features f
+        CROSS JOIN aoi
+        WHERE f.geom && aoi.geom
+          AND ST_Intersects(f.geom, aoi.geom)
+      )`;
+
+    const existsWhere = [`dl.dataset_id = ds.id`, ...effectiveExistsWhere];
 
     const sql = `
       WITH
       aoi AS MATERIALIZED (
         SELECT ST_CollectionExtract(ST_MakeValid(ST_GeomFromGeoJSON(${geomParam}), 'method=structure'), 3) AS geom
-      )${rasterCtes ? `,\n      ${rasterCtes}` : ''}
+      )${rasterCtes ? `,\n      ${rasterCtes}` : ''}${aoiFeaturesCte}
       SELECT ds.slug AS id, ds.name, ds.gis_datatype AS data_type
       FROM ${schema}.datasets ds
-      CROSS JOIN LATERAL (
-        SELECT 1
-        FROM ${schema}.dataset_layers dl
-        INNER JOIN ${featureSource} f ON f.id = dl.feature_id
-        ${lateralJoins.join('\n        ')}
-        WHERE dl.dataset_id = ds.id
-            ${effectiveLateralWhere.length > 0 ? ` AND ${effectiveLateralWhere.join('\n          AND ')}` : ''}
-        LIMIT 1
-      ) first_match
       WHERE ${outerWhere.join('\n        AND ')}
+        AND EXISTS (
+          SELECT 1
+          FROM ${schema}.dataset_layers dl
+          INNER JOIN ${featureTable} af ON af.id = dl.feature_id
+          ${lateralJoins.join('\n          ')}
+          WHERE ${existsWhere.join('\n            AND ')}
+        )
     `;
 
     return entityManager.query(sql, params);

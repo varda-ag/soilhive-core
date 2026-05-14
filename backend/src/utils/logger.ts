@@ -5,6 +5,7 @@ import type { ReadableLogRecord, LogRecordExporter } from '@opentelemetry/sdk-lo
 import { resourceFromAttributes } from '@opentelemetry/resources';
 import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from '@opentelemetry/semantic-conventions';
 import { ExportResult, ExportResultCode, hrTimeToMilliseconds } from '@opentelemetry/core';
+import { isJest } from './utils';
 
 const parseSeverity = (level: string): SeverityNumber => {
   switch (level.toLowerCase()) {
@@ -23,6 +24,7 @@ const MIN_SEVERITY = parseSeverity(process.env.LOG_LEVEL ?? 'info');
 
 class JsonConsoleLogExporter implements LogRecordExporter {
   export(records: ReadableLogRecord[], resultCallback: (result: ExportResult) => void): void {
+    if (isJest()) return; // Don't log during tests to avoid cluttering output
     for (const record of records) {
       if ((record.severityNumber ?? SeverityNumber.UNSPECIFIED) < MIN_SEVERITY) continue;
       const line = JSON.stringify({
