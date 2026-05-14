@@ -1,0 +1,63 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`AreaInfoBar renders the bar 1`] = `
+<div>
+  <div
+    class="AreaInfoBar"
+  >
+    <div
+      class="AreaInfoBarHeader"
+    >
+      <div
+        class="Left"
+      >
+        <svg
+          data-testid="svg-icon-mock"
+        >
+          mock-svg
+        </svg>
+        <div
+          class="Title"
+        >
+          Area information
+        </div>
+      </div>
+      <div
+        class="Right"
+      >
+        <button
+          class="Button"
+          data-testid="sh-areainfobar-expand"
+        >
+          <svg
+            class="ArrowIcon"
+            data-testid="svg-icon-mock"
+          >
+            mock-svg
+          </svg>
+        </button>
+        <button
+          class="Button"
+          data-testid="sh-areainfobar-close"
+        >
+          <svg
+            data-testid="svg-icon-mock"
+          >
+            mock-svg
+          </svg>
+        </button>
+      </div>
+    </div>
+    <div
+      class="AreaInfoBarContent"
+    >
+      <div>
+        <div
+          data-features-count="0"
+          data-testid="area-info-content"
+        />
+      </div>
+    </div>
+  </div>
+</div>
+`;

@@ -1,0 +1,55 @@
+.AreaInfoBar {
+  background-color: var(--color-neutral-white);
+  border-bottom: 1px solid var(--color-neutral-dark-100);
+}
+
+.AreaInfoBarHeader {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.625rem 0.5rem 0.75rem 1rem;
+  border-bottom: 1px dashed var(--color-neutral-dark-100);
+
+  .Left {
+    display: flex;
+    gap: 0.625rem;
+    align-items: center;
+  }
+  .Right {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+  }
+
+  .Title {
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-bold);
+  }
+  .Button {
+    display: flex;
+    background: none;
+    border: none;
+    cursor: pointer;
+  }
+  .ArrowIcon {
+    transform: rotate(180deg);
+
+    &.Opened {
+      transform: rotate(0);
+    }
+  }
+}
+
+.AreaInfoBarContent {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.35s ease;
+
+  > div {
+    overflow: hidden;
+    padding: 0 0.25rem;
+  }
+
+  &.Opened {
+    grid-template-rows: 1fr;
+  }
+}
