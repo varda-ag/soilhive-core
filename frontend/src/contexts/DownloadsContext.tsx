@@ -108,7 +108,7 @@ export const DownloadsProvider: React.FC<DownloadsProviderProps> = ({ children }
       }
 
       if (nextStatus === 'failed') {
-        showNotification({ id: `downloads-${job.id}`, title: 'Extracting data error', message: 'Please try again later' });
+        showNotification({ id: `downloads-${job.id}`, title: 'Data export error', message: job.message ?? 'Please try again later' });
         setJobsIds(prev => prev.filter(jobId => jobId !== job.id));
         removeStoredJobId(job.id);
       }
