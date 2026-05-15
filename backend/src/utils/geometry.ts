@@ -20,6 +20,24 @@ export const getPolygonFromBbox = (bbox: number[]): Polygon => {
   };
 };
 
+export const parseBboxString = (input: string): [number, number, number, number] => {
+  const parts = input.split(',');
+  if (parts.length !== 4) throw new Error('Bounding box must have exactly 4 comma-separated values');
+
+  const [minLon, minLat, maxLon, maxLat] = parts.map((p, i) => {
+    const n = Number(p.trim());
+    if (!Number.isFinite(n)) throw new Error(`Bounding box value at index ${i} is not a valid number: "${p.trim()}"`);
+    return n;
+  }) as [number, number, number, number];
+
+  if (minLon < -180 || minLon > 180) throw new Error(`minLon out of range [-180, 180]: ${minLon}`);
+  if (maxLon < -180 || maxLon > 180) throw new Error(`maxLon out of range [-180, 180]: ${maxLon}`);
+  if (minLat < -90 || minLat > 90) throw new Error(`minLat out of range [-90, 90]: ${minLat}`);
+  if (maxLat < -90 || maxLat > 90) throw new Error(`maxLat out of range [-90, 90]: ${maxLat}`);
+
+  return [minLon, minLat, maxLon, maxLat];
+};
+
 export const toGisDatatype = (input: string): GISDataType => {
   switch (input) {
     case 'ST_Point':

@@ -111,6 +111,13 @@ export const enum IngestionStatus {
   PUBLISHED = 'PUBLISHED',
 }
 
+export enum Capability {
+  PREVIEW = 'preview',
+  DOWNLOAD = 'download',
+  OBFUSCATE_AS_POINTS = 'obfuscate_as_points',
+  OBFUSCATE_AS_POLYGONS = 'obfuscate_as_polygons',
+}
+
 export interface Dataset {
   id: string;
   slug: string;
@@ -295,4 +302,11 @@ export interface FileDescriptor {
   is_archived?: boolean;
   updated_at?: string;
   updated_by?: string;
+}
+
+export interface DataAvailabilityIndex {
+  resolution: number;
+  min: number;
+  max: number;
+  cells: Record<string, number>;
 }
