@@ -237,7 +237,7 @@ export default class SoilDataStorage {
       aoi AS MATERIALIZED (
         SELECT ST_CollectionExtract(ST_MakeValid(ST_GeomFromGeoJSON(${geomParam}), 'method=structure'), 3) AS geom
       )${rasterCtes ? `,\n      ${rasterCtes}` : ''}${aoiFeaturesCte}
-      SELECT ds.slug AS id, ds.name, ds.gis_datatype AS data_type
+      SELECT ds.slug AS id, ds.name, ds.gis_datatype AS data_type, ds.visibility
       FROM ${schema}.datasets ds
       WHERE ${outerWhere.join('\n        AND ')}
         AND EXISTS (

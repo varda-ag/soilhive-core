@@ -1842,6 +1842,10 @@ components:
             - polygonal
             - raster
           description: Type of data contained in the dataset (e.g., point samples, raster data)
+        visibility:
+          type: string
+          enum: [public, private]
+          default: private
 
     FilteredDatasetSummary:
       allOf:

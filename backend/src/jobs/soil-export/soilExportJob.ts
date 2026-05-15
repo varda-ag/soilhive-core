@@ -29,7 +29,11 @@ export async function processExportJob(job: Job<ExportJob>): Promise<void> {
 
   try {
     // Get total records for progress tracking
-    const requestData = { entityManager, entitlements } as RequestData;
+    const requestData = {
+      entityManager,
+      entitlements,
+      token: { isDataAdmin: data.isDataAdmin, isSuperAdmin: data.isSuperAdmin },
+    } as RequestData;
     const total_records_estimate = await getTotalRecordsCount(requestData, data);
 
     await updateJobState(jobId, {
