@@ -16,7 +16,6 @@ export function useDataFilterQuery(filters: DataFilter, enabled: boolean = true,
     body: debouncedFilters,
     queryKey: ['data-filter', debouncedFilters],
     enabled: !!debouncedFilters.geometries.length && debouncedEnabled,
-    abortOnNewQuery: true,
   });
 
   return {

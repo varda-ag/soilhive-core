@@ -174,6 +174,7 @@ const getDataPreviewQuery = (query: any, dataMappingConfig: DataCleaningConfig, 
   }
 
   for (const [mapping, field] of Object.entries(dataMappingConfig.metadata_cols)) {
+    if (mapping === 'geometry') continue;
     if (mapping === 'sampling_date') {
       query.addSelect(`${field}::text`, mapping);
       continue;

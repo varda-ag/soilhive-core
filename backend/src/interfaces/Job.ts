@@ -7,6 +7,7 @@ export interface Job {
   created_at: Date;
   completed_at: Date | null;
   data: AnyJob;
+  message: string | null;
 }
 
 export interface CommonJobData {
@@ -15,6 +16,8 @@ export interface CommonJobData {
   created_by: string | null;
   progress_percentage: number;
   progress_description?: string;
+  isDataAdmin: boolean | undefined;
+  isSuperAdmin: boolean | undefined;
 }
 
 export interface BulkLoadJob extends CommonJobData {
