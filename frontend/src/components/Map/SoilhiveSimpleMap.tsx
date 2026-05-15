@@ -64,9 +64,37 @@ const selectionLayer: LayerProps = {
 };
 
 function MapSelection({ feature }: { feature: Feature<Point | Polygon | MultiPolygon, GeoJsonProperties> }) {
+  const [animating, setAnimating] = useState(false);
+
+  const coordKey = feature.geometry.type === 'Point' ? feature.geometry.coordinates.join(',') : null;
+
+  useEffect(() => {
+    if (!coordKey) return;
+    setAnimating(true);
+    const timer = setTimeout(() => setAnimating(false), 700);
+    return () => clearTimeout(timer);
+  }, [coordKey]);
+
   if (feature.geometry.type === 'Point') {
     const [lon, lat] = feature.geometry.coordinates;
-    return <Marker longitude={lon} latitude={lat} />;
+    return (
+      <Marker longitude={lon} latitude={lat}>
+        <div className="marker-container">
+          <div className={`marker-pin${animating ? ' marker-bounce' : ''}`}>
+            <svg display="block" height="41px" width="27px" viewBox="0 0 27 41">
+              <path
+                fill="#3FB1CE"
+                d="M27,13.5C27,19.07 24.2,24.55 18.6,28.8C16.78,30.1 14.85,31.46 13.5,33.7C12.15,31.46 10.22,30.1 8.4,28.8C2.8,24.55 0,19.07 0,13.5C0,6.04 6.04,0 13.5,0C20.96,0 27,6.04 27,13.5Z"
+              />
+              <circle fill="white" cx="13.5" cy="13.5" r="5.5" />
+            </svg>
+          </div>
+          <svg className="marker-shadow" display="block" height="46px" width="27px" viewBox="0 0 27 46">
+            <circle cx="13.5" cy="40" r="2.5" fill="#3FB1CE" />
+          </svg>
+        </div>
+      </Marker>
+    );
   }
   return (
     <Source id="selection" type="geojson" data={feature}>
