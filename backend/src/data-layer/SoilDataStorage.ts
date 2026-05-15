@@ -348,7 +348,16 @@ export default class SoilDataStorage {
     entityManager: EntityManager,
     aoi: Polygon | MultiPolygon,
     filters: FilterCriteria,
-  ): Promise<Array<{ lon: number; lat: number; num_soil_properties: number; has_depth_below_30: boolean; has_sampling_date: boolean }>> => {
+  ): Promise<
+    Array<{
+      lon: number;
+      lat: number;
+      num_soil_properties: number;
+      num_props_below_30: number;
+      num_dated_layers: number;
+      num_distinct_years: number;
+    }>
+  > => {
     const schema = process.env.POSTGRES_SCHEMA;
     const params: any[] = [];
     const p = (val: any) => {
@@ -436,22 +445,31 @@ export default class SoilDataStorage {
       SELECT
         ST_X(ST_Centroid(f.geom)) AS lon,
         ST_Y(ST_Centroid(f.geom)) AS lat,
-        COUNT(DISTINCT dl.soil_property_id)::int AS num_soil_properties,
-        BOOL_OR(layer.max_depth > 30) AS has_depth_below_30,
-        BOOL_OR(layer.sampling_date IS NOT NULL) AS has_sampling_date
+        agg.num_soil_properties,
+        agg.num_props_below_30,
+        agg.num_dated_layers,
+        agg.num_distinct_years
       FROM ${featureSource} f
-      INNER JOIN ${schema}.dataset_layers dl ON dl.feature_id = f.id
-      INNER JOIN ${schema}.datasets ds ON ds.id = dl.dataset_id
-        AND ds.deleted_at IS NULL
-        AND ds.spatial_extent && (SELECT geom FROM aoi)
-      INNER JOIN ${schema}.layers layer ON layer.id = dl.layer_id
-      ${joins.join('\n      ')}
-      WHERE TRUE
-        ${whereClause}
-      GROUP BY f.id, ST_Centroid(f.geom)
+      CROSS JOIN LATERAL (
+        SELECT
+          COUNT(DISTINCT dl.soil_property_id)::int AS num_soil_properties,
+          COUNT(DISTINCT CASE WHEN layer.max_depth > 30 THEN dl.soil_property_id END)::int AS num_props_below_30,
+          COUNT(DISTINCT layer.id) FILTER (WHERE layer.sampling_date IS NOT NULL)::int AS num_dated_layers,
+          COUNT(DISTINCT LEFT(layer.sampling_date, 4)::int)::int AS num_distinct_years
+        FROM ${schema}.dataset_layers dl
+        INNER JOIN ${schema}.datasets ds ON ds.id = dl.dataset_id
+          AND ds.deleted_at IS NULL
+          AND ds.gis_datatype != 'raster'
+          AND ds.spatial_extent && (SELECT geom FROM aoi)
+        INNER JOIN ${schema}.layers layer ON layer.id = dl.layer_id
+        ${joins.join('\n        ')}
+        WHERE dl.feature_id = f.id
+          ${whereClause}
+      ) agg
+      WHERE agg.num_soil_properties > 0
     `;
 
-    await entityManager.query("SET LOCAL work_mem = '256MB';");
+    await entityManager.query("SET LOCAL work_mem = '512MB';");
     await entityManager.query("SET LOCAL statement_timeout = '60s';");
     return entityManager.query(sql, params);
   };

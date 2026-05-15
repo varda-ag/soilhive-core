@@ -113,7 +113,7 @@ export default class FilterService {
     const cells: Record<string, number> = {};
     for (const row of rows) {
       const cellId = latLngToCell(row.lat, row.lon, resolution);
-      const score = row.num_soil_properties + (row.has_depth_below_30 ? 1 : 0) + (row.has_sampling_date ? 1 : 0);
+      const score = row.num_soil_properties + row.num_props_below_30 + row.num_dated_layers + row.num_distinct_years;
       cells[cellId] = (cells[cellId] ?? 0) + score;
     }
 
