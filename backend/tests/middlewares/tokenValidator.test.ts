@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, jest, afterEach } from '@jest/globals';
 import jwt from 'jsonwebtoken';
 import { INTERNAL_REQUEST_TOKEN_PAYLOAD } from '../../src/constants/constants';
+import { TokenScopes } from '../../src/types/enums';
 
 // Helper: build a minimal mock Express Request
 function makeRequest(authHeader?: string): any {
@@ -244,6 +245,68 @@ describe('tokenValidator — OIDC mode, JWKS key retrieval failure', () => {
   it('throws when JWKS returns an error for the kid lookup', async () => {
     const token = signTestToken({ sub: 'u1', scope: 'super-admin' }, { expiresIn: 3600 });
     await expect(tokenValidator(makeRequest(`Bearer ${token}`), [])).rejects.toThrow('Invalid token: JWKS fetch failed');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// OIDC mode — getPublicKey throws
+// ---------------------------------------------------------------------------
+
+describe('tokenValidator — OIDC mode, getPublicKey throws', () => {
+  let tokenValidator: (req: any, scopes: string[]) => Promise<boolean>;
+
+  beforeEach(async () => {
+    jest.resetModules();
+    process.env.OIDC_JWKS_URL = 'https://example.com/.well-known/jwks.json';
+    jest.doMock('../../src/services/ConfigService', () => ({
+      __esModule: true,
+      default: { getAuthConfig: jest.fn().mockReturnValue({ authMode: 'oidc' }) },
+    }));
+    jest.doMock('jwks-rsa', () =>
+      jest.fn(() => ({
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
+        getSigningKey: (_kid: string, cb: Function) =>
+          cb(null, {
+            getPublicKey: () => {
+              throw new Error('key format unsupported');
+            },
+          }),
+      })),
+    );
+    ({ tokenValidator } = await import('../../src/middlewares/tokenValidator'));
+  });
+
+  it('throws when getPublicKey throws during signing key extraction', async () => {
+    const token = signTestToken({ sub: 'u1', scope: 'super-admin' }, { expiresIn: 3600 });
+    await expect(tokenValidator(makeRequest(`Bearer ${token}`), [])).rejects.toThrow('Invalid token: key format unsupported');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// OIDC mode — internal-request kid skips JWKS lookup
+// ---------------------------------------------------------------------------
+
+describe('tokenValidator — OIDC mode, internal-request kid skips JWKS lookup', () => {
+  let tokenValidator: (req: any, scopes: string[]) => Promise<boolean>;
+  let getSigningKeySpy: ReturnType<typeof jest.fn>;
+
+  beforeEach(async () => {
+    jest.resetModules();
+    process.env.OIDC_JWKS_URL = 'https://example.com/.well-known/jwks.json';
+    jest.doMock('../../src/services/ConfigService', () => ({
+      __esModule: true,
+      default: { getAuthConfig: jest.fn().mockReturnValue({ authMode: 'oidc' }) },
+    }));
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
+    getSigningKeySpy = jest.fn((_kid: string, cb: Function) => cb(new Error('unexpected JWKS call'), null));
+    jest.doMock('jwks-rsa', () => jest.fn(() => ({ getSigningKey: getSigningKeySpy })));
+    ({ tokenValidator } = await import('../../src/middlewares/tokenValidator'));
+  });
+
+  it('does not call getSigningKey when token kid equals TokenScopes.INTERNAL_REQUEST', async () => {
+    const token = signTestToken({ sub: 'u1', scope: 'super-admin' }, { kid: TokenScopes.INTERNAL_REQUEST, expiresIn: 3600 });
+    await expect(tokenValidator(makeRequest(`Bearer ${token}`), [])).resolves.toBe(true);
+    expect(getSigningKeySpy).not.toHaveBeenCalled();
   });
 });
 
