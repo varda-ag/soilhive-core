@@ -114,7 +114,9 @@ export default class DataMappingService {
 
     // Process metadata (string types) and property columns (object types)
     for (const [field, mapping] of Object.entries(data_mapping)) {
-      if (mapping === DetectableFields.GEOMETRY) continue;
+      if ([DetectableFields.GEOMETRY, DetectableFields.LATITUDE, DetectableFields.LONGITUDE].includes(mapping as DetectableFields)) {
+        continue;
+      }
       const sanitizedField = sanitizeField(field);
       if (sanitizedField === 'drop_records') continue;
       if (typeof mapping === 'string' || mapping instanceof String) {
