@@ -70,7 +70,7 @@ export const tokenValidator = async (req: Request, scopes: string[]): Promise<bo
   }
 
   const secretOrPublicKey = [process.env.SELF_SIGNING_SECRET!]; // Password auth or internal requests
-  if (authConfig.authMode === AuthModes.OIDC) {
+  if (authConfig.authMode === AuthModes.OIDC && kid !== TokenScopes.INTERNAL_REQUEST) {
     try {
       secretOrPublicKey.push(await getSigningKeyAsync(kid));
     } catch (err) {
