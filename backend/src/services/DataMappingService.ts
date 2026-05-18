@@ -2,7 +2,7 @@ import { StatusCodes } from 'http-status-codes';
 import { DataCleaningConfig } from '../interfaces/DataMapping';
 import { PropertyMapping, PropertyCleaningConfig } from '../interfaces/PropertyMapping';
 import { RequestData } from '../interfaces/RequestData';
-import type { DataMappingObject } from '../types/DataMapping';
+import { DetectableFields, type DataMappingObject } from '../types/DataMapping';
 import { ErrorResponse } from '../utils/error';
 import DataMappingEntity from '../entities/DataMapping';
 import UnitConversionEntity from '../entities/UnitConversion';
@@ -114,6 +114,7 @@ export default class DataMappingService {
 
     // Process metadata (string types) and property columns (object types)
     for (const [field, mapping] of Object.entries(data_mapping)) {
+      if (mapping === DetectableFields.GEOMETRY) continue;
       const sanitizedField = sanitizeField(field);
       if (sanitizedField === 'drop_records') continue;
       if (typeof mapping === 'string' || mapping instanceof String) {
