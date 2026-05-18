@@ -9,7 +9,7 @@ import { isJest } from './utils';
 // is used to apply lazy loading to DB connection
 let dataSource: DataSource | null = null;
 
-const createDataSource = async (schema: string): Promise<DataSource> => {
+const createDataSource = async (schema: string, includeEntities = true): Promise<DataSource> => {
   const dataSource = new DataSource({
     type: 'postgres',
     host: process.env.POSTGRES_HOST!,
@@ -19,7 +19,7 @@ const createDataSource = async (schema: string): Promise<DataSource> => {
     ...(process.env.POSTGRES_PASSWORD ? {} : { ssl: getSSL() }),
     database: process.env.POSTGRES_DB!,
     schema,
-    entities: [path.join(__dirname, '../entities/**/*{.ts,.js}')],
+    entities: includeEntities ? [path.join(__dirname, '../entities/**/*{.ts,.js}')] : [],
     migrations: [path.join(__dirname, '../migrations/**/*{.ts,.js}')],
     synchronize: false,
     logging: false, //['query'],
@@ -42,7 +42,7 @@ const createDataSource = async (schema: string): Promise<DataSource> => {
 
 export const initializeSchema = async () => {
   // Connect to "public" schema to create desired schema
-  const dataSourcePublic = await createDataSource('public');
+  const dataSourcePublic = await createDataSource('public', false);
   const escapedSchema = `"${process.env.POSTGRES_SCHEMA}"`;
   await dataSourcePublic.query(`CREATE SCHEMA IF NOT EXISTS ${escapedSchema}`);
   await dataSourcePublic.query(`CREATE EXTENSION IF NOT EXISTS postgis SCHEMA ${escapedSchema}`);
@@ -52,7 +52,7 @@ export const initializeSchema = async () => {
 };
 
 export const isDBAvailable = async (): Promise<boolean> => {
-  const dataSourcePublic = await createDataSource('public');
+  const dataSourcePublic = await createDataSource('public', false);
   return dataSourcePublic.isInitialized;
 };
 
