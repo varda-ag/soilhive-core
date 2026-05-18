@@ -264,7 +264,7 @@ paths:
             schema:
               $ref: '#/components/schemas/CreateDatasetInput'
       responses:
-        '200':
+        '201':
           description: Dataset created successfully
           content:
             application/json:
@@ -1005,6 +1005,33 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/License'
+    post:
+      x-eov-operation-handler: controllers/licenses
+      x-eov-operation-id: createLicense
+      summary: Create a new license
+      tags:
+        - licenses
+      security:
+        - bearerAuth: [data-admin]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateLicenseInput'
+      responses:
+        '201':
+          description: License created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/License'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/Conflict'
 
   /licenses/{licenseId}:
     parameters:
@@ -2045,6 +2072,12 @@ components:
         procedure_id:
           type: string
 
+    CreateLicenseInput:
+      allOf:
+        - $ref: '#/components/schemas/License'
+      required:
+        - name
+
     CreateDatasetInput:
       allOf:
         - $ref: '#/components/schemas/Dataset'
@@ -2510,10 +2543,6 @@ components:
           type: string
           format: date-time
           nullable: true
-      required:
-        - id
-        - name
-        - created_at
 
     RasterFilter:
       type: object
