@@ -46,6 +46,12 @@ export async function processBulkLoad(job: Job<BulkLoadJob>): Promise<void> {
     for (const file of files) {
       const datasetFileMapping = datasetFileMappings.find(m => m.file_id === file.id);
       assert(datasetFileMapping, `No dataset file mapping found for file ${file.id}`);
+      if (!datasetFileMapping.data_mapping_id) {
+        throw new ErrorResponse(
+          `No data mapping ID found for dataset file mapping ${datasetFileMapping.id}`,
+          StatusCodes.INTERNAL_SERVER_ERROR,
+        );
+      }
       await processFile(file, requestData, datasetFileMapping, data.dataset_id);
       file.status = IngestionStatus.LOADED;
       await file.save();

@@ -9,13 +9,3 @@ export interface PropertyMapping {
 export interface PropertyCleaningConfig extends PropertyMapping {
   conversion_formula?: string;
 }
-
-export interface PropertyInfo {
-  property_name: string;
-  procedure_name?: string;
-  min_val?: number;
-  max_val?: number;
-  original_unit?: string;
-  standard_unit?: string;
-  conversion_formula?: string;
-}
