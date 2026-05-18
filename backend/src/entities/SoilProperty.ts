@@ -60,5 +60,5 @@ export default class SoilPropertyEntity extends BaseTable implements Omit<SoilPr
   soil_property_category: SoilPropertyCategoryEntity;
 
   @OneToMany(() => UnitConversionEntity, uc => uc.soil_property)
-  original_units_of_measurement: UnitConversionEntity[];
+  unit_conversions: UnitConversionEntity[];
 }
