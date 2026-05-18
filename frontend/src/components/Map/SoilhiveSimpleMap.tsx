@@ -18,6 +18,7 @@ import { simplifyGeometry } from '../../utilities/simplifyGeometry';
 import type { Feature, FeatureCollection, GeoJsonProperties, MultiPolygon, Point, Polygon } from 'geojson';
 import type { MapLibreEvent } from 'maplibre-gl';
 import GeocoderControl from './GeocoderControl';
+import MarkerPinIcon from 'assets/icons/marker-pin-icon.svg?react';
 
 type MapStyle = string | StyleSpecification | ImmutableLike<StyleSpecification>;
 
@@ -64,9 +65,31 @@ const selectionLayer: LayerProps = {
 };
 
 function MapSelection({ feature }: { feature: Feature<Point | Polygon | MultiPolygon, GeoJsonProperties> }) {
+  const [animating, setAnimating] = useState(false);
+
+  const coordKey = feature.geometry.type === 'Point' ? feature.geometry.coordinates.join(',') : null;
+
+  useEffect(() => {
+    if (!coordKey) return;
+    setAnimating(true);
+    const timer = setTimeout(() => setAnimating(false), 700);
+    return () => clearTimeout(timer);
+  }, [coordKey]);
+
   if (feature.geometry.type === 'Point') {
     const [lon, lat] = feature.geometry.coordinates;
-    return <Marker longitude={lon} latitude={lat} />;
+    return (
+      <Marker longitude={lon} latitude={lat}>
+        <div className="marker-container">
+          <div className={`marker-pin${animating ? ' marker-bounce' : ''}`}>
+            <MarkerPinIcon />
+          </div>
+          <svg className="marker-shadow" display="block" height="46px" width="27px" viewBox="0 0 27 46">
+            <circle cx="13.5" cy="40" r="2.5" fill="#3FB1CE" />
+          </svg>
+        </div>
+      </Marker>
+    );
   }
   return (
     <Source id="selection" type="geojson" data={feature}>
