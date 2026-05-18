@@ -69,8 +69,7 @@ describe('Testing /soil-properties routes', () => {
     expect(res.statusCode).toBe(200);
     for (const property of res.body) {
       expect(property).toHaveProperty('original_units_of_measurement');
-      expect(Array.isArray(property.original_units_of_measurement)).toBe(true);
-      expect(property.original_units_of_measurement).toHaveLength(0);
+      expect(property.original_units_of_measurement).toEqual({});
     }
   });
 
@@ -84,8 +83,7 @@ describe('Testing /soil-properties routes', () => {
     const res = await request(app).get('/soil-properties');
     expect(res.statusCode).toBe(200);
     const phProperty = res.body.find((p: any) => p.id === 'ph');
-    expect(phProperty.original_units_of_measurement).toEqual(expect.arrayContaining(['mg/kg', 'g/kg']));
-    expect(phProperty.original_units_of_measurement).toHaveLength(2);
+    expect(phProperty.original_units_of_measurement).toMatchObject({ 'ph-mg-kg': 'mg/kg', 'ph-g-kg': 'g/kg' });
   });
 
   it('GET /soil-properties/:soilPropertyId returns original_units_of_measurement', async () => {
@@ -96,6 +94,6 @@ describe('Testing /soil-properties routes', () => {
 
     const res = await request(app).get('/soil-properties/ph');
     expect(res.statusCode).toBe(200);
-    expect(res.body.original_units_of_measurement).toEqual(['cmol/kg']);
+    expect(res.body.original_units_of_measurement).toEqual({ 'ph-cmol-kg': 'cmol/kg' });
   });
 });

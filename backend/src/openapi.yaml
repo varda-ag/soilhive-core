@@ -2197,10 +2197,11 @@ components:
           type: string
           description: Category identifier
         original_units_of_measurement:
-          type: array
-          items:
+          type: object
+          additionalProperties:
             type: string
-          description: Allowed original units of measurement for this property (empty when none are defined)
+            format: uri
+          description: Allowed original units of measurement for this property (id/name map; empty when none are defined)
 
     SoilPropertyCategory:
       type: object
