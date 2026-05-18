@@ -15,7 +15,7 @@ import { getPolygonFromBbox } from './geometry';
 import { getDataSource, getEntityManager } from './data-source';
 import SlugHistoryEntity from '../entities/SlugHistory';
 import { EntityType, GISDataType, IngestionStatus, VocabularyType } from '../types/data';
-import { PropertyInfo, PropertyMapping } from '../interfaces/PropertyMapping';
+import { PropertyMapping } from '../interfaces/PropertyMapping';
 import assert from 'assert';
 import path from 'path';
 import fs from 'fs';
@@ -23,6 +23,16 @@ import { sanitizeField } from './utils';
 import DatasetFileMappingEntity from '../entities/DatasetFileMapping';
 import VocabularyEntity from '../entities/Vocabulary';
 import { log } from './logger';
+
+export interface PropertyInfo {
+  property_name: string;
+  procedure_name?: string;
+  min_val?: number;
+  max_val?: number;
+  original_unit?: string;
+  standard_unit?: string;
+  conversion_formula?: string;
+}
 
 const randomInRange = (min: number, max: number): number => {
   return Math.random() * (max - min) + min;

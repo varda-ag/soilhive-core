@@ -39,7 +39,7 @@ const soilPropPh: SoilProperty = {
   property_name: 'pH',
   property_acronym: 'PH',
   category_id: 'cat-1',
-  original_units_of_measurement: [],
+  original_units_of_measurement: {},
 };
 
 const soilPropOc: SoilProperty = {
@@ -47,7 +47,7 @@ const soilPropOc: SoilProperty = {
   property_name: 'Organic Carbon',
   property_acronym: 'OC',
   category_id: 'cat-1',
-  original_units_of_measurement: [],
+  original_units_of_measurement: {},
 };
 
 describe('useMetadata', () => {
