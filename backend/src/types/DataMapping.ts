@@ -6,7 +6,7 @@ export type DataMappingObject = {
   drop_records?: number[]; // fixed entries
 };
 
-export const enum DetectableFields {
+export enum DetectableFields {
   GEOMETRY = 'geometry',
   LICENSE = 'license',
   SAMPLING_DATE = 'sampling_date',
