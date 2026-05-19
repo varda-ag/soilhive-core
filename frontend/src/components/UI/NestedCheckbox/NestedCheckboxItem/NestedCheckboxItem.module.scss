@@ -1,3 +1,5 @@
+@import 'styles/variables/breakpoints';
+
 .NestedCheckboxItem {
   margin-left: 0em;
 
@@ -21,5 +23,23 @@
   .ToggleIcon {
     color: var(--color-neutral-dark-400);
     cursor: pointer;
+  }
+}
+
+@media (max-width: $bp-mobile-max) {
+  .NestedCheckboxItem {
+    &:not(:last-child) {
+      margin-bottom: 1rem;
+    }
+
+    .NestedCheckboxInput {
+      width: 1.75rem;
+      height: 1.75rem;
+    }
+  }
+
+  .NestedCheckboxChildren {
+    margin-top: 1rem;
+    margin-left: 2rem;
   }
 }
