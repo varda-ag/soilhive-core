@@ -1,10 +1,19 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { NestedCheckboxItem } from 'components/UI/NestedCheckbox/NestedCheckboxItem/NestedCheckboxItem';
 import type { NestedCheckboxItemType } from 'types/components';
+import { __setIsMobileLayout } from 'hooks/useDevice';
+
+jest.mock('hooks/useDevice');
 
 jest.mock('components/UI/Checkbox/Checkbox', () => ({
-  Checkbox: ({ label, value, indeterminate, onChange }: any) => (
-    <div data-testid="mock-checkbox" data-value={value} data-indeterminate={indeterminate} onClick={() => onChange(!value)}>
+  Checkbox: ({ label, value, indeterminate, size, onChange }: any) => (
+    <div
+      data-testid="mock-checkbox"
+      data-value={value}
+      data-indeterminate={indeterminate}
+      data-size={size}
+      onClick={() => onChange(!value)}
+    >
       {label}
     </div>
   ),
@@ -30,6 +39,10 @@ describe('NestedCheckboxItem', () => {
     onToggle: mockOnToggle,
     onToggleVisibility: mockOnToggleVisibility,
   };
+
+  beforeEach(() => {
+    __setIsMobileLayout(false);
+  });
 
   it('renders the checkbox with label', () => {
     const { container } = render(<NestedCheckboxItem {...defaultProps} />);
@@ -84,6 +97,20 @@ describe('NestedCheckboxItem', () => {
 
     expect(screen.getByTestId('mock-checkbox')).toHaveAttribute('data-indeterminate', 'false');
     expect(screen.getByTestId('mock-checkbox')).toHaveAttribute('data-value', 'false');
+  });
+
+  it('uses size="small" on desktop layout', () => {
+    render(<NestedCheckboxItem {...defaultProps} />);
+
+    expect(screen.getByTestId('mock-checkbox')).toHaveAttribute('data-size', 'small');
+  });
+
+  it('uses size="medium" on mobile layout', () => {
+    __setIsMobileLayout(true);
+
+    render(<NestedCheckboxItem {...defaultProps} />);
+
+    expect(screen.getByTestId('mock-checkbox')).toHaveAttribute('data-size', 'medium');
   });
 
   it('expands automatically when expandedIds contains item.id', () => {

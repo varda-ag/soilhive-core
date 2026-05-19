@@ -6,6 +6,8 @@ import { Checkbox } from 'components/UI/Checkbox/Checkbox';
 import PlusIcon from 'assets/icons/small-square-plus-icon.svg?react';
 import MinusIcon from 'assets/icons/small-square-minus-icon.svg?react';
 
+import useDevice from 'hooks/useDevice';
+
 import styles from './NestedCheckboxItem.module.scss';
 
 interface Props {
@@ -18,6 +20,7 @@ interface Props {
 }
 
 export function NestedCheckboxItem({ item, selected, className, expandedIds, onToggleVisibility, onToggle }: Props) {
+  const { isMobileLayout } = useDevice();
   const isChecked = useMemo(() => {
     if (!item.children || item.children.length === 0) {
       return selected.includes(item.id);
@@ -87,7 +90,7 @@ export function NestedCheckboxItem({ item, selected, className, expandedIds, onT
         inputClassName={styles.NestedCheckboxInput}
         labelClassName={styles.NestedCheckboxLabel}
         label={itemLabel}
-        size="small"
+        size={isMobileLayout ? 'medium' : 'small'}
         value={isChecked}
         indeterminate={isPartiallyChecked}
         onChange={checked => onToggle(item, checked)}

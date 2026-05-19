@@ -1,3 +1,5 @@
+@import 'styles/variables/breakpoints';
+
 .RasterFilter {
   display: flex;
   flex-direction: column;
@@ -42,4 +44,10 @@
   flex-direction: column;
   gap: 0.75rem;
   padding: 0.375rem 0.5rem 0.5rem;
+}
+
+@media (max-width: $bp-mobile-max) {
+  .CheckboxList {
+    gap: 1.25rem;
+  }
 }

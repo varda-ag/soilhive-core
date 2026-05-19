@@ -7,6 +7,7 @@ exports[`NestedCheckboxItem renders the checkbox with label 1`] = `
   >
     <div
       data-indeterminate="false"
+      data-size="small"
       data-testid="mock-checkbox"
       data-value="false"
     >
