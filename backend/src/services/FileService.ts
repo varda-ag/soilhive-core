@@ -474,25 +474,6 @@ export default class FileService {
     }
   }
 
-  private async extractGeomFieldsFromMapping(requestData: RequestData, fileId: string): Promise<{ geomField: string | null; latField: string | null; lonField: string | null }> {
-    const mappingRepo = requestData.entityManager.getRepository(DatasetFileMappingEntity);
-    const datasetFileMapping = await mappingRepo.findOne({
-      where: { file_id: fileId },
-      relations: ['data_mapping'],
-    });
-    const mapping: DataMappingObject | undefined = datasetFileMapping?.data_mapping?.data_mapping;
-    if (!mapping) return { geomField: null, latField: null, lonField: null };
-    let geomField: string | null = null;
-    let latField: string | null = null;
-    let lonField: string | null = null;
-    for (const [key, value] of Object.entries(mapping)) {
-      if (value === DetectableFields.GEOMETRY) geomField = key;
-      else if (value === DetectableFields.LATITUDE) latField = key;
-      else if (value === DetectableFields.LONGITUDE) lonField = key;
-    }
-    return { geomField, latField, lonField };
-  }
-
   fileToDB = async (requestData: RequestData, fileId: string) => {
     const fileEntity = await this.getFile(requestData, fileId);
     assert(fileEntity.file_path, `File path not found for file ${fileId}`);
@@ -500,7 +481,7 @@ export default class FileService {
     const fileKey = fileEntity.file_path!;
     const fileMetadata = fileEntity.metadata!;
 
-    const mappingGeomFields = await this.extractGeomFieldsFromMapping(requestData, fileId);
+    const mappingGeomFields = await this.extractGeomFieldsFromMapping(requestData, fileEntity.id);
 
     let mainFilePath: string;
     let tempZipExtractPath: string | null = null;
@@ -606,4 +587,23 @@ export default class FileService {
       }
     }
   };
+
+    private async extractGeomFieldsFromMapping(requestData: RequestData, fileId: string): Promise<{ geomField: string | null; latField: string | null; lonField: string | null }> {
+    const mappingRepo = requestData.entityManager.getRepository(DatasetFileMappingEntity);
+    const datasetFileMapping = await mappingRepo.findOne({
+      where: { file_id: fileId },
+      relations: ['data_mapping'],
+    });
+    const mapping: DataMappingObject | undefined = datasetFileMapping?.data_mapping?.data_mapping;
+    if (!mapping) return { geomField: null, latField: null, lonField: null };
+    let geomField: string | null = null;
+    let latField: string | null = null;
+    let lonField: string | null = null;
+    for (const [key, value] of Object.entries(mapping)) {
+      if (value === DetectableFields.GEOMETRY) geomField = key;
+      else if (value === DetectableFields.LATITUDE) latField = key;
+      else if (value === DetectableFields.LONGITUDE) lonField = key;
+    }
+    return { geomField, latField, lonField };
+  }
 }
