@@ -1,7 +1,7 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class RasterLayer1775600000001 implements MigrationInterface {
-  name = 'RasterLayer1775600000001';
+export class RasterLayer1779000000000 implements MigrationInterface {
+  name = 'RasterLayer1779000000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`SET search_path TO ${process.env.POSTGRES_SCHEMA}, public`);
