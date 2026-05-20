@@ -28,7 +28,7 @@ export default class DatasetFileMappingService {
       } else {
         const fileRepo = requestData.entityManager.getRepository(FileEntity);
         const fileEntity = await fileRepo.findOne({ where: { id: resultData['file_id'] } });
-        retVal.fileID = fileEntity!.slug; // resolving slug here since idToSlug won't work here
+        retVal.fileID = fileEntity!.slug; // idToSlug not used here, since only handles the entity's own ID, not nested foreign keys
       }
     }
 
@@ -124,7 +124,7 @@ export default class DatasetFileMappingService {
 
     const repo = entityManager.getRepository(DatasetFileMappingEntity);
 
-    // load file relattion for the slug
+    // load file relation for the slug
     const mapping = await repo.findOne({ where: { id: datasetFileMappingId }, relations: ['file'] });
 
     if (!mapping) {
