@@ -315,7 +315,9 @@ describe('FileService', () => {
 
       it('should throw error when trying to load to DB', async () => {
         const fileId = fileEntity.slug;
-        await expect(fileService.fileToDB(requestData, fileId)).rejects.toThrow('Geometry not found: no geometry column in user mapping or auto-detected fields');
+        await expect(fileService.fileToDB(requestData, fileId)).rejects.toThrow(
+          'Geometry not found: no geometry column in user mapping or auto-detected fields',
+        );
       });
     });
 
@@ -447,8 +449,15 @@ describe('FileService', () => {
 
   describe('fileToDB - geometry column from DatasetFileMapping', () => {
     const nullDetectedFields = {
-      depth: null, horizon: null, license: null, geometry: null,
-      latitude: null, longitude: null, max_depth: null, min_depth: null, sampling_date: null,
+      depth: null,
+      horizon: null,
+      license: null,
+      geometry: null,
+      latitude: null,
+      longitude: null,
+      max_depth: null,
+      min_depth: null,
+      sampling_date: null,
     };
 
     beforeEach(() => {

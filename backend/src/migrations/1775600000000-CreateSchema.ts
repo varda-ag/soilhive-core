@@ -21,6 +21,7 @@ export class CreateSchema1775600000000 implements MigrationInterface {
       `CREATE TYPE "vocabulary_category_enum" AS ENUM('sample_pretreatment', 'laboratory_method', 'extractant_concentration', 'extraction_ratio', 'extraction_base', 'measurement_procedure', 'limit_of_detection')`,
     );
     await queryRunner.query(`CREATE TYPE "visibility_enum" AS ENUM('public', 'private')`);
+    await queryRunner.query(`CREATE TYPE "unit_conversions_type_enum" AS ENUM('IDENTITY', 'SIMPLE', 'CONDITIONAL')`);
 
     // Functions
     /* eslint-disable */
@@ -283,7 +284,7 @@ export class CreateSchema1775600000000 implements MigrationInterface {
       `CREATE TABLE "entitlements" ("created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP, "deleted_at" TIMESTAMP, "id" text NOT NULL, "data" jsonb NOT NULL, CONSTRAINT "PK_entitlements_id" PRIMARY KEY ("id"))`,
     );
     await queryRunner.query(
-      `CREATE TABLE "unit_conversions" ("created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP, "id" uuid NOT NULL DEFAULT uuidv7(), "slug" text NOT NULL, "original_unit_of_measurement" text, "conversion_formula" text, "property_id" uuid NOT NULL, CONSTRAINT "UQ_unit_conversions_property_id_original_unit_of_measurement" UNIQUE ("property_id", "original_unit_of_measurement"), CONSTRAINT "PK_unit_conversions_id" PRIMARY KEY ("id"))`,
+      `CREATE TABLE "unit_conversions" ("created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP, "id" uuid NOT NULL DEFAULT uuidv7(), "slug" text NOT NULL, "original_unit_of_measurement" text, "conversion_formula" text, "property_id" uuid NOT NULL, "metadata" jsonb, "type" unit_conversions_type_enum NOT NULL DEFAULT 'IDENTITY'::unit_conversions_type_enum, CONSTRAINT "UQ_unit_conversions_property_id_original_unit_of_measurement" UNIQUE ("property_id", "original_unit_of_measurement"), CONSTRAINT "PK_unit_conversions_id" PRIMARY KEY ("id"))`,
     );
 
     // Indexes

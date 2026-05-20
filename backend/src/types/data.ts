@@ -39,3 +39,9 @@ export enum ProcedureTechnique {
   SPECTRAL = 'spectral',
   CALCULATED = 'calculated',
 }
+
+export enum UnitConversionType {
+  IDENTITY = 'IDENTITY',
+  SIMPLE = 'SIMPLE',
+  CONDITIONAL = 'CONDITIONAL',
+}
