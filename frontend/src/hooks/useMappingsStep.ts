@@ -331,7 +331,7 @@ export function useMappingsStep(datasetId?: string) {
     const soilPropertyOptions = properties.map(p => ({ code: p.id, name: p.property_name })).sort((a, b) => a.name.localeCompare(b.name));
     const unitOptionsByConcept: Record<string, MenuOption[]> = {};
     for (const p of properties) {
-      unitOptionsByConcept[p.id] = p.original_units_of_measurement?.map(u => ({ code: u, name: u })) ?? [];
+      unitOptionsByConcept[p.id] = Object.entries(p.original_units_of_measurement ?? {}).map(([code, name]) => ({ code, name }));
     }
     return { soilPropertyOptions, unitOptionsByConcept };
   }, [soilProperties]);

@@ -6,7 +6,8 @@ import { FileMetadata } from '../../src/interfaces/File';
 import { getTableColumns } from '../helper';
 import { getRawTableName, sanitizeField } from '../../src/utils/utils';
 import { DetectableFields } from '../../src/types/DataMapping';
-import { getEntityManager } from '../../src/utils/data-source';
+import { getDataSource, getEntityManager } from '../../src/utils/data-source';
+import { addDataset, addDataMapping, addDatasetFileMapping } from '../../src/utils/mock';
 import { RequestData } from '../../src/interfaces/RequestData';
 import { Token } from '../../src/interfaces/Token';
 import { EntityManager } from 'typeorm';
@@ -314,7 +315,9 @@ describe('FileService', () => {
 
       it('should throw error when trying to load to DB', async () => {
         const fileId = fileEntity.slug;
-        await expect(fileService.fileToDB(requestData, fileId)).rejects.toThrow('Geometry not found in input file');
+        await expect(fileService.fileToDB(requestData, fileId)).rejects.toThrow(
+          'Geometry not found: no geometry column in user mapping or auto-detected fields',
+        );
       });
     });
 
@@ -441,6 +444,132 @@ describe('FileService', () => {
           expect(typeof fieldName).toBe('string');
         }
       });
+    });
+  });
+
+  describe('fileToDB - geometry column from DatasetFileMapping', () => {
+    const nullDetectedFields = {
+      depth: null,
+      horizon: null,
+      license: null,
+      geometry: null,
+      latitude: null,
+      longitude: null,
+      max_depth: null,
+      min_depth: null,
+      sampling_date: null,
+    };
+
+    beforeEach(() => {
+      setLocalStorageRootFolder(vectorFilesPassPath);
+    });
+
+    it('uses mapped WKT column when no geometry is auto-detected', async () => {
+      const fileEntity = await fileService.createFile(requestData, {
+        name: 'test_geom_wkt.csv',
+        file_path: 'test_geom_wkt.csv',
+        metadata: {
+          driver: 'CSV',
+          field_names: ['wkt_col', 'ph'],
+          detected_fields: { ...nullDetectedFields },
+          geometry_detected: false,
+          epsg: 4326,
+          detected_mapping: {},
+        },
+      });
+      const dataset = await addDataset('test_geom_wkt_mapping', [0, 0, 30, 60]);
+      const dataMapping = await addDataMapping({ wkt_col: 'geometry' });
+      const dfm = await addDatasetFileMapping(dataset.id, dataMapping.id);
+      dfm.file_id = fileEntity.id;
+      await dfm.save();
+
+      await fileService.fileToDB(requestData, fileEntity.slug);
+
+      const tableColumns = await getTableColumns(getRawTableName(fileEntity.id));
+      expect(tableColumns.map(c => c.column_name)).toContain('geometry');
+    });
+
+    it('uses mapped lat/lon columns when no geometry is auto-detected', async () => {
+      const fileEntity = await fileService.createFile(requestData, {
+        name: 'test_geom_latlon.csv',
+        file_path: 'test_geom_latlon.csv',
+        metadata: {
+          driver: 'CSV',
+          field_names: ['y_coord', 'x_coord', 'ph'],
+          detected_fields: { ...nullDetectedFields },
+          geometry_detected: false,
+          epsg: 4326,
+          detected_mapping: {},
+        },
+      });
+      const dataset = await addDataset('test_geom_latlon_mapping', [0, 0, 30, 60]);
+      const dataMapping = await addDataMapping({ y_coord: 'latitude', x_coord: 'longitude' });
+      const dfm = await addDatasetFileMapping(dataset.id, dataMapping.id);
+      dfm.file_id = fileEntity.id;
+      await dfm.save();
+
+      await fileService.fileToDB(requestData, fileEntity.slug);
+
+      const tableColumns = await getTableColumns(getRawTableName(fileEntity.id));
+      expect(tableColumns.map(c => c.column_name)).toContain('geometry');
+    });
+
+    it('mapping WKT column overrides auto-detected lat/lon fields', async () => {
+      const fileEntity = await fileService.createFile(requestData, {
+        name: 'test_geom_override.csv',
+        file_path: 'test_geom_override.csv',
+        metadata: {
+          driver: 'CSV',
+          field_names: ['lat', 'lon', 'wkt_col', 'ph'],
+          detected_fields: { ...nullDetectedFields, latitude: 'lat', longitude: 'lon' },
+          geometry_detected: false,
+          epsg: 4326,
+          detected_mapping: {},
+        },
+      });
+      const dataset = await addDataset('test_geom_override_mapping', [0, 0, 30, 60]);
+      const dataMapping = await addDataMapping({ wkt_col: 'geometry' });
+      const dfm = await addDatasetFileMapping(dataset.id, dataMapping.id);
+      dfm.file_id = fileEntity.id;
+      await dfm.save();
+
+      await fileService.fileToDB(requestData, fileEntity.slug);
+
+      const dataSource = await getDataSource();
+      const rows = await dataSource.query(
+        `SELECT ST_X(geometry) as x FROM "${process.env.POSTGRES_SCHEMA}"."${getRawTableName(fileEntity.id)}" WHERE geometry IS NOT NULL LIMIT 1`,
+      );
+      expect(parseFloat(rows[0].x)).toBeCloseTo(20.0, 1);
+    });
+
+    it('ignores mapping geometry fields and uses native geometry when geometry_detected is true', async () => {
+      const fileEntity = await fileService.createFile(requestData, {
+        name: 'sample_point.geojson',
+        file_path: 'sample_point.geojson',
+      });
+      const dataset = await addDataset('test_geom_native_mapping', [0, 0, 30, 60]);
+      const dataMapping = await addDataMapping({ wkt_col: 'geometry' });
+      const dfm = await addDatasetFileMapping(dataset.id, dataMapping.id);
+      dfm.file_id = fileEntity.id;
+      await dfm.save();
+
+      await fileService.fileToDB(requestData, fileEntity.slug);
+
+      const tableColumns = await getTableColumns(getRawTableName(fileEntity.id));
+      expect(tableColumns.map(c => c.column_name)).toContain('geometry');
+    });
+
+    it('falls back to auto-detected lat/lon when no mapping exists for the file', async () => {
+      // Uses standard lat/lon column names so extractMetadata auto-detects them (no mapping needed)
+      const fileEntity = await fileService.createFile(requestData, {
+        name: 'test_geom_latlon_std.csv',
+        file_path: 'test_geom_latlon_std.csv',
+      });
+
+      await fileService.fileToDB(requestData, fileEntity.slug);
+
+      const tableColumns = await getTableColumns(getRawTableName(fileEntity.id));
+      expect(tableColumns.map(c => c.column_name)).toContain('geometry');
     });
   });
 

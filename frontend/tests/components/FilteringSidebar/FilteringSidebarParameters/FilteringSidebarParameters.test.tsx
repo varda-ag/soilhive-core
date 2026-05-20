@@ -30,6 +30,8 @@ const mockCategorizedSoilProperties = [
   },
 ];
 
+jest.mock('hooks/useDevice');
+
 jest.mock('hooks/useSoilPropertiesFilters', () => ({
   __esModule: true,
   default: jest.fn(),

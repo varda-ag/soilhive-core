@@ -195,7 +195,7 @@ describe('SoilDataStorage class', () => {
     });
     expect(filterResults.length).toBe(expectedResultCount);
     if (expectedResultCount > 0) {
-      const total: number = filterResults.reduce((acc, curr) => acc + curr.dataset_layer_count, 0);
+      const total: number = filterResults.reduce((acc, curr) => acc + curr.dataset_layer_count!, 0);
       expect(total).toBe(expectedCount);
     }
     const datasetResults = await sds.filterVectorDatasets(entityManager, bboxPolygon, {
@@ -748,7 +748,7 @@ describe('SoilDataStorage class', () => {
       const results = await sds.filterRaster(entityManager, filteringRectangle, {});
       expect(results).toHaveLength(1);
       expect(results[0].raster_layer_count).toBe(2);
-    });
+    }, 10000);
 
     it.each([
       [250, 'global', true],

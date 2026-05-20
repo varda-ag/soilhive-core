@@ -15,7 +15,7 @@ import { getPolygonFromBbox } from './geometry';
 import { getDataSource, getEntityManager } from './data-source';
 import SlugHistoryEntity from '../entities/SlugHistory';
 import { EntityType, GISDataType, IngestionStatus, VocabularyType } from '../types/data';
-import { PropertyInfo, PropertyMapping } from '../interfaces/PropertyMapping';
+import { PropertyMapping } from '../interfaces/PropertyMapping';
 import assert from 'assert';
 import path from 'path';
 import fs from 'fs';
@@ -23,6 +23,17 @@ import { sanitizeField } from './utils';
 import DatasetFileMappingEntity from '../entities/DatasetFileMapping';
 import VocabularyEntity from '../entities/Vocabulary';
 import RasterLayerEntity from 'src/entities/RasterLayer';
+import { log } from './logger';
+
+export interface PropertyInfo {
+  property_name: string;
+  procedure_name?: string;
+  min_val?: number;
+  max_val?: number;
+  original_unit?: string;
+  standard_unit?: string;
+  conversion_formula?: string;
+}
 
 const randomInRange = (min: number, max: number): number => {
   return Math.random() * (max - min) + min;
@@ -380,7 +391,7 @@ export const addSyntheticData = async (syntheticDataOptions): Promise<SyntheticD
   }
   const features: FeatureEntity[] = await addFeatures(featureGeometryType, coordinates);
   if (syntheticDataOptions.showProgress) {
-    console.log(`Generated ${featureCount} random features.`);
+    log.info(`Generated ${featureCount} random features.`);
   }
   let counter = 1;
   for (let depthLayer = 0; depthLayer < depthLayers; depthLayer++) {
@@ -409,11 +420,11 @@ export const addSyntheticData = async (syntheticDataOptions): Promise<SyntheticD
       await addObservations([randomInRange(0, 100)], procedure.id, datasetLayer.id);
     }
     if (syntheticDataOptions.showProgress) {
-      console.log(`Added depth layer ${depthLayer + 1}/${depthLayers}`);
+      log.info(`Added depth layer ${depthLayer + 1}/${depthLayers}`);
     }
   }
   if (syntheticDataOptions.showProgress) {
-    console.log(`Synthetic data creation complete. Dataset ID: ${dataset.id}`);
+    log.info(`Synthetic data creation complete. Dataset ID: ${dataset.id}`);
   }
   return { dataset, features, soilProperties };
 };
@@ -482,7 +493,7 @@ export const addSyntheticIngestionData = async (syntheticIngestionDataOptions): 
   }
 
   if (syntheticIngestionDataOptions.showProgress) {
-    console.log(`Synthetic ingestion data creation complete. Dataset ID: ${dataset.id}`);
+    log.info(`Synthetic ingestion data creation complete. Dataset ID: ${dataset.id}`);
   }
   return { dataset, file, dataMapping, datasetFileMapping };
 };

@@ -1,0 +1,44 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`AreaInfoPopup renders the popup 1`] = `
+<div>
+  <div
+    data-latitude="56.78"
+    data-longitude="12.34"
+    data-testid="popup"
+  >
+    <button
+      data-testid="popup-close"
+    />
+    <div
+      class="AreaInfoPopupHeader"
+    >
+      <svg
+        class="AreaInfoPopupHeaderIcon"
+        data-testid="svg-icon-mock"
+      >
+        mock-svg
+      </svg>
+      <div
+        class="AreaInfoPopupHeaderTitle"
+      >
+        Area information
+      </div>
+      <button
+        class="AreaInfoCloseButton"
+        data-testid="sh-areainfopopup-close"
+      >
+        <svg
+          data-testid="svg-icon-mock"
+        >
+          mock-svg
+        </svg>
+      </button>
+    </div>
+    <div
+      data-features-count="0"
+      data-testid="area-info-content"
+    />
+  </div>
+</div>
+`;

@@ -24,6 +24,7 @@ import FileEntity from '../entities/File';
 import assert from 'assert';
 import { getDBPassword } from '../utils/db-credentials';
 import DataMappingService from './DataMappingService';
+import DatasetFileMappingEntity from '../entities/DatasetFileMapping';
 
 const dataMappingService = new DataMappingService();
 
@@ -487,6 +488,9 @@ export default class FileService {
     assert(fileEntity.metadata, `Metadata not found for file ${fileId}`);
     const fileKey = fileEntity.file_path!;
     const fileMetadata = fileEntity.metadata!;
+
+    const mappingGeomFields = await this.extractGeomFieldsFromMapping(requestData, fileEntity.id);
+
     let mainFilePath: string;
     let tempZipExtractPath: string | null = null;
     const gdalOpts: string[] = [
@@ -513,9 +517,12 @@ export default class FileService {
       fileMetadata.detected_fields[DetectableFields.GEOMETRY],
       fileMetadata.detected_fields[DetectableFields.LONGITUDE],
       fileMetadata.detected_fields[DetectableFields.LATITUDE],
+      mappingGeomFields.geomField,
+      mappingGeomFields.lonField,
+      mappingGeomFields.latField,
     ];
     let selectClause = fileMetadata.field_names
-      .filter(item => !originalGeomFields.includes(item))
+      .filter(item => !originalGeomFields.includes(item)) // exclude geometry columns. They will be managed later
       .map(field => `"${field}" AS ${sanitizeField(field)}`)
       .join(', ');
 
@@ -526,7 +533,13 @@ export default class FileService {
       ({ mainFilePath, tempZipExtractPath } = await FileService.getMainFilePath(fileKey));
 
       if (!fileMetadata.geometry_detected) {
-        if (fileMetadata.detected_fields[DetectableFields.GEOMETRY]) {
+        if (mappingGeomFields.geomField) {
+          openOpts.push(`GEOM_POSSIBLE_NAMES=${mappingGeomFields.geomField}`);
+          selectClause = `${selectClause}, "${mappingGeomFields.geomField}" AS geometry`;
+        } else if (mappingGeomFields.latField && mappingGeomFields.lonField) {
+          openOpts.push(`X_POSSIBLE_NAMES=${mappingGeomFields.lonField}`, `Y_POSSIBLE_NAMES=${mappingGeomFields.latField}`);
+          selectClause = `${selectClause}, "_ogr_geometry_" AS geometry`;
+        } else if (fileMetadata.detected_fields[DetectableFields.GEOMETRY]) {
           openOpts.push(`GEOM_POSSIBLE_NAMES=${fileMetadata.detected_fields[DetectableFields.GEOMETRY]}`);
           selectClause = `${selectClause}, "${fileMetadata.detected_fields[DetectableFields.GEOMETRY]}" AS geometry`;
         } else if (fileMetadata.detected_fields[DetectableFields.LATITUDE] && fileMetadata.detected_fields[DetectableFields.LONGITUDE]) {
@@ -536,7 +549,10 @@ export default class FileService {
           );
           selectClause = `${selectClause}, "_ogr_geometry_" AS geometry`;
         } else {
-          throw new ErrorResponse('Geometry not found in input file', StatusCodes.BAD_REQUEST);
+          throw new ErrorResponse(
+            'Geometry not found: no geometry column in user mapping or auto-detected fields',
+            StatusCodes.BAD_REQUEST,
+          );
         }
       }
 
@@ -619,4 +635,25 @@ export default class FileService {
         throw new Error(`Unsupported storage mode: ${config.storageMode}`);
     }
   };
+  private async extractGeomFieldsFromMapping(
+    requestData: RequestData,
+    fileId: string,
+  ): Promise<{ geomField: string | null; latField: string | null; lonField: string | null }> {
+    const mappingRepo = requestData.entityManager.getRepository(DatasetFileMappingEntity);
+    const datasetFileMapping = await mappingRepo.findOne({
+      where: { file_id: fileId },
+      relations: ['data_mapping'],
+    });
+    const mapping: DataMappingObject | undefined = datasetFileMapping?.data_mapping?.data_mapping;
+    if (!mapping) return { geomField: null, latField: null, lonField: null };
+    let geomField: string | null = null;
+    let latField: string | null = null;
+    let lonField: string | null = null;
+    for (const [key, value] of Object.entries(mapping)) {
+      if (value === DetectableFields.GEOMETRY) geomField = key;
+      else if (value === DetectableFields.LATITUDE) latField = key;
+      else if (value === DetectableFields.LONGITUDE) lonField = key;
+    }
+    return { geomField, latField, lonField };
+  }
 }

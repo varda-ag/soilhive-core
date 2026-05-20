@@ -46,6 +46,7 @@
     "extract-zip": "^2.0.1",
     "gdal-async": "^3.12.1",
     "geojson-validation": "^1.0.2",
+    "h3-js": "^4.4.0",
     "http-status-codes": "^2.3.0",
     "js-yaml": "^4.1.0",
     "jsonwebtoken": "^9.0.2",

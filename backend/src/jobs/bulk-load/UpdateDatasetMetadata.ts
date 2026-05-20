@@ -40,6 +40,18 @@ export const updateDatasetMetadata = async (entityManager: EntityManager, datase
   assert(geomTypes.length <= 1, `Expected at most one geometry type, got ${geomTypes.join(', ')}`);
   const gis_datatype = geomTypes.length > 0 ? toGisDatatype(geomTypes[0]) : null;
 
+  const hasContent = (arr: unknown[] | null): boolean => Array.isArray(arr) && arr.some(v => v !== null);
+
+  const inferred_properties: string[] = [];
+  if (hasContent(data.measured_properties)) inferred_properties.push('measured_properties');
+  if (hasContent(data.licenses)) inferred_properties.push('licenses');
+  if (Number(data.n_observations) > 0) inferred_properties.push('n_observations');
+  if (data.min_depth !== null && data.max_depth !== null) inferred_properties.push('soil_depth');
+  if (data.extent) inferred_properties.push('spatial_extent');
+  if (data.min_sampling_date !== null) inferred_properties.push('reference_period_start');
+  if (data.max_sampling_date !== null) inferred_properties.push('reference_period_stop');
+  if (gis_datatype !== null) inferred_properties.push('gis_datatype');
+
   // Update dataset
   await entityManager
     .getRepository(DatasetEntity)
@@ -55,6 +67,7 @@ export const updateDatasetMetadata = async (entityManager: EntityManager, datase
       reference_period_start: data.min_sampling_date,
       reference_period_stop: data.max_sampling_date,
       gis_datatype,
+      inferred_properties,
       updated_at: new Date(),
     })
     .where('id = :datasetId', { datasetId })

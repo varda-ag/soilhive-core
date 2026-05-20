@@ -12,9 +12,11 @@
   > .List {
     display: flex;
     gap: 0.875rem;
+    overflow-x: auto;
 
     @media (min-width: $bp-desktop) {
       flex-wrap: wrap;
+      overflow-x: unset;
     }
   }
   > .Date {

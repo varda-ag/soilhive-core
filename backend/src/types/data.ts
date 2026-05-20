@@ -1,10 +1,10 @@
-export const enum GISDataType {
+export enum GISDataType {
   POINT = 'point',
   POLYGONAL = 'polygonal',
   RASTER = 'raster',
 }
 
-export const enum IngestionStatus {
+export enum IngestionStatus {
   PENDING = 'PENDING',
   ONGOING = 'ONGOING',
   LOADED = 'LOADED',

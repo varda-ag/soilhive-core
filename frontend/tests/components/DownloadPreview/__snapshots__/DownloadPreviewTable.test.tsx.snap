@@ -64,6 +64,9 @@ exports[`DownloadPreview renders download preview page 1`] = `
             <div>
               Mock Column
             </div>
+            <div>
+              Mock Column
+            </div>
           </div>
         </div>
       </div>
@@ -112,6 +115,9 @@ exports[`DownloadPreview renders the loading download preview page 1`] = `
           Mock PrimeReactProvider 
           <div>
             Mock DataTable 
+            <div>
+              Mock Column
+            </div>
             <div>
               Mock Column
             </div>

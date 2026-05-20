@@ -217,7 +217,7 @@ describe('useDownloads', () => {
     await waitFor(() => {
       expect(showNotification).toHaveBeenCalledWith({
         id: 'downloads-job-1',
-        title: 'Extracting data error',
+        title: 'Data export error',
         message: 'Please try again later',
       });
     });

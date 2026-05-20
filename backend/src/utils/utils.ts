@@ -2,6 +2,7 @@ import path from 'path';
 import { config } from 'dotenv';
 import jwt from 'jsonwebtoken';
 import assert from 'assert';
+import { TokenScopes } from '../types/enums';
 
 export const isJest = () => process.env.JEST_WORKER_ID !== undefined || process.env.NODE_ENV === 'test';
 
@@ -69,7 +70,7 @@ export const signToken = (payload: string | object | Buffer, expiresIn?: number,
   assert(process.env.SELF_SIGNING_SECRET, 'Self-signing secret is not defined');
   let signOpts: any = {
     algorithm: 'HS256',
-    header: { kid: 'kid' },
+    header: { kid: TokenScopes.INTERNAL_REQUEST },
   };
   if (expiresIn) {
     signOpts = { ...signOpts, expiresIn };

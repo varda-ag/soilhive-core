@@ -4,6 +4,7 @@ import { Checkbox } from 'components/UI/Checkbox/Checkbox';
 import { useTranslation } from 'react-i18next';
 import styles from './RasterFilter.module.scss';
 import { useRasterFilters } from 'hooks/useRasterFilters';
+import useDevice from 'hooks/useDevice';
 import Skeleton from 'react-loading-skeleton';
 import 'react-loading-skeleton/dist/skeleton.css';
 
@@ -22,6 +23,7 @@ export function RasterFilter({ categoryId }: RasterFilterProps) {
     handleOnChange,
     handlePillRemove,
   } = useRasterFilters(categoryId);
+  const { isMobileLayout } = useDevice();
   const [searchTerm, setSearchTerm] = useState('');
   const { t } = useTranslation('availability');
 
@@ -61,7 +63,7 @@ export function RasterFilter({ categoryId }: RasterFilterProps) {
                 <Checkbox
                   key={option.value}
                   label={option.label}
-                  size="small"
+                  size={isMobileLayout ? 'medium' : 'small'}
                   value={selectedValues.includes(option.value)}
                   onChange={(checked: boolean) => handleCheckboxChange(option.value, checked)}
                 />

@@ -2,10 +2,13 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { RasterFilter } from 'components/FilteringSidebar/RasterFilter/RasterFilter';
 import { useRasterFilters } from 'hooks/useRasterFilters';
+import { __setIsMobileLayout } from 'hooks/useDevice';
 
 jest.mock('hooks/useRasterFilters', () => ({
   useRasterFilters: jest.fn(),
 }));
+
+jest.mock('hooks/useDevice');
 
 jest.mock('hooks/useAvailability', () => ({
   __esModule: true,
@@ -33,8 +36,8 @@ jest.mock('components/UI', () => ({
 }));
 
 jest.mock('components/UI/Checkbox/Checkbox', () => ({
-  Checkbox: ({ label, value, onChange }: any) => (
-    <input type="checkbox" aria-label={label} checked={value} onChange={e => onChange(e.target.checked)} />
+  Checkbox: ({ label, value, size, onChange }: any) => (
+    <input type="checkbox" aria-label={label} data-size={size} checked={value} onChange={e => onChange(e.target.checked)} />
   ),
 }));
 
@@ -66,6 +69,7 @@ function buildHookMock(overrides = {}) {
 describe('RasterFilter', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    __setIsMobileLayout(false);
   });
 
   it('renders nothing if category is undefined', () => {
@@ -125,6 +129,27 @@ describe('RasterFilter', () => {
     expect(screen.getByRole('checkbox', { name: 'Acrisols' })).toBeInTheDocument();
     expect(screen.queryByRole('checkbox', { name: 'Ferralsols' })).not.toBeInTheDocument();
     expect(screen.queryByRole('checkbox', { name: 'Gleysols' })).not.toBeInTheDocument();
+  });
+
+  it('passes size="small" to checkboxes on desktop layout', () => {
+    useRasterFiltersMock.mockReturnValue(buildHookMock() as any);
+
+    render(<RasterFilter categoryId="soil_groups" />);
+
+    screen.getAllByRole('checkbox').forEach(checkbox => {
+      expect(checkbox).toHaveAttribute('data-size', 'small');
+    });
+  });
+
+  it('passes size="medium" to checkboxes on mobile layout', () => {
+    __setIsMobileLayout(true);
+    useRasterFiltersMock.mockReturnValue(buildHookMock() as any);
+
+    render(<RasterFilter categoryId="soil_groups" />);
+
+    screen.getAllByRole('checkbox').forEach(checkbox => {
+      expect(checkbox).toHaveAttribute('data-size', 'medium');
+    });
   });
 
   it('renders SelectionPills and calls handlePillRemove when a pill is clicked', () => {

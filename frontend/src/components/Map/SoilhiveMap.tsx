@@ -1,4 +1,5 @@
-import { useId, useRef, useState, useCallback, type Dispatch, useMemo } from 'react';
+import { useId, useRef, useState, useCallback, useEffect, type Dispatch, useMemo } from 'react';
+import classnames from 'classnames';
 import {
   GeolocateControl,
   Map,
@@ -8,19 +9,22 @@ import {
   type StyleSpecification,
   type ImmutableLike,
   type LayerProps,
-  Popup,
   Source,
   Layer,
 } from 'react-map-gl/maplibre';
-import { LngLat, LngLatBounds, type MapLayerMouseEvent, type Offset } from 'maplibre-gl';
+import { LngLat, LngLatBounds, type MapLayerMouseEvent } from 'maplibre-gl';
 import type { Polygon, MultiPolygon, Point } from 'geojson';
 import GeocoderControl from './GeocoderControl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import '@maplibre/maplibre-gl-geocoder/dist/maplibre-gl-geocoder.css';
 import '@watergis/maplibre-gl-terradraw/dist/maplibre-gl-terradraw.css';
 import '../../styles/SoilhiveMap.scss';
-import Flower from 'assets/images/flower.svg?react';
-import { bBoxToH3Cells, h3IndexesToGeoJSONPolygons, isPointInFeatureCollection } from '../../utilities/geo';
+import {
+  bBoxToH3Cells,
+  dataAvailabilityIndexToGeoJSONPolygons,
+  h3IndexesToGeoJSONPolygons,
+  isPointInFeatureCollection,
+} from '../../utilities/geo';
 import { bbox as bboxFn, centerOfMass } from '@turf/turf';
 import { getMapStyles, h3ResolutionForZoomLevel } from '../../utilities/map';
 import DrawControl, { type DrawControlRef } from '../DrawControl';
@@ -31,7 +35,9 @@ import type { SoilhiveMapSelectionChangeEvent } from './SoilhiveMapSelectionChan
 import { simplifyGeometry } from '../../utilities/simplifyGeometry';
 import useDevice from 'hooks/useDevice';
 import useAvailabilityMap from 'hooks/useAvailabilityMap';
-import { useTranslation } from 'react-i18next';
+import { useDai } from 'hooks/useDai';
+import useAvailability from '../../hooks/useAvailability';
+import { AreaInfoPopup, AreaInfoBar } from './AreaInfo';
 
 type MapStyle = string | StyleSpecification | ImmutableLike<StyleSpecification>;
 type MapStyles = Array<{ name: string; mapStyle: MapStyle }>;
@@ -91,7 +97,7 @@ const dataLayerSelection: LayerProps = {
   type: 'fill',
   paint: {
     'fill-color': '#F5B200',
-    'fill-opacity': 0.5,
+    'fill-opacity': 0.2,
   },
 };
 
@@ -102,6 +108,37 @@ const dataLayerBorders: LayerProps = {
     'line-color': 'black',
     'line-width': 0.1,
     'line-opacity': 0.5,
+  },
+};
+
+const dataLayerDAI: LayerProps = {
+  id: 'data-dai',
+  type: 'fill',
+  paint: {
+    'fill-opacity': [
+      'interpolate',
+      ['linear'],
+      ['get', 'dai'], // the numeric property
+      0,
+      0.0,
+      0.01,
+      0.1,
+      0.5,
+      0.25,
+      1.0,
+      0.75,
+    ],
+    'fill-color': [
+      'interpolate',
+      ['linear'],
+      ['get', 'dai'], // the numeric property
+      0,
+      '#ffffcc', // low  → light yellow
+      0.5,
+      '#fd8d3c', // mid → orange
+      1.0,
+      '#800026', // high → dark red
+    ],
   },
 };
 
@@ -135,8 +172,11 @@ function SoilhiveMap({
     setShowSelectionToolbar,
   } = useAvailabilityMap();
 
+  const { filterId } = useAvailability();
+
   const mapRef = useRef<any>(null);
   const [isPointResultSelection, setIsPointResultSelection] = useState(false);
+  const [selectedLocationName, setSelectedLocationName] = useState<string | undefined>(undefined);
   const [mapBounds, setMapBounds] = useState<LngLatBounds | null>(null);
   const [currentMapStyle, setCurrentMapStyle] = useState(mapStyles[0].mapStyle);
   const drawControlRef = useRef<DrawControlRef>(null);
@@ -145,11 +185,26 @@ function SoilhiveMap({
 
   // This prevents onMapMoveEnd from being called concurrently with applySelection
   const isApplyingSelection = useRef(false);
+  const [daiParams, setDaiParams] = useState<{ bbox: [number, number, number, number]; resolution: number } | null>(null);
 
-  const { isMobileLayout } = useDevice();
-  const { t } = useTranslation('availability');
+  const ENABLE_DAI = ((window._env_ as any)?.['ENABLE_DAI'] as string) === 'true';
 
-  const onPopupClose = useCallback(() => {
+  const { dai } = useDai(filterId, daiParams?.bbox, daiParams?.resolution, ENABLE_DAI && !!filterId && daiParams !== null && showH3Cells);
+
+  useEffect(() => {
+    if (!daiParams || !showH3Cells || (ENABLE_DAI && !dai)) return;
+    try {
+      const h3Indexes = bBoxToH3Cells(daiParams?.bbox, h3ResolutionForZoomLevel(daiParams?.resolution));
+      const h3CellsFeatureCollection = ENABLE_DAI ? dataAvailabilityIndexToGeoJSONPolygons(dai!) : h3IndexesToGeoJSONPolygons(h3Indexes);
+      setH3Cells(h3CellsFeatureCollection);
+    } catch (error) {
+      console.error('Error while updating the H3 Cells:', error);
+    }
+  }, [dai, daiParams, showH3Cells, setH3Cells, ENABLE_DAI]);
+
+  const { isMobileLayout, isDesktopLayout } = useDevice();
+
+  const onAreaInfoClose = useCallback(() => {
     setSelectedPoint(null);
   }, [setSelectedPoint]);
 
@@ -194,6 +249,7 @@ function SoilhiveMap({
     (geometry: Polygon | MultiPolygon) => {
       // Uploading a polygon from file
       selectionTypeRef.current = 'drawn-polygon';
+      setSelectedLocationName(undefined);
       applySelection(geometry, undefined, true);
     },
     [applySelection],
@@ -203,18 +259,12 @@ function SoilhiveMap({
     ({ bounds, zoomLevel }: { bounds: number[]; zoomLevel: number }) => {
       if (!showH3Cells) {
         setH3Cells(null);
+        setDaiParams(null);
         return;
       }
-
-      try {
-        const h3Indexes = bBoxToH3Cells(bounds, h3ResolutionForZoomLevel(zoomLevel));
-        const h3CellsFeatureCollection = h3IndexesToGeoJSONPolygons(h3Indexes);
-        setH3Cells(h3CellsFeatureCollection);
-      } catch (error) {
-        console.error('Error while updating the H3 Cells:', error);
-      }
+      setDaiParams({ bbox: bounds as [number, number, number, number], resolution: h3ResolutionForZoomLevel(zoomLevel) });
     },
-    [setH3Cells, showH3Cells],
+    [showH3Cells, setH3Cells],
   );
 
   const onMapMoveEnd = useCallback(
@@ -264,6 +314,7 @@ function SoilhiveMap({
     setSelectedPoint(null);
     setSelection(emptySelection);
     selectionTypeRef.current = 'drawn-polygon';
+    setSelectedLocationName(undefined);
     setShowDrawControl(false);
     setShowSelectionToolbar(false);
     onSelectionToolbarVisibilityChange?.(false);
@@ -293,6 +344,7 @@ function SoilhiveMap({
       } else if (features.length > 0) {
         // H3 cell selection
         selectionTypeRef.current = 'h3-cell';
+        setSelectedLocationName(undefined);
         applySelection(features[0].geometry as Polygon, { type: 'Point', coordinates: [event.lngLat.lng, event.lngLat.lat] }, false);
         setSelectedH3Cell(features[0]);
       }
@@ -304,6 +356,7 @@ function SoilhiveMap({
     ({ feature }: { feature: MapGeoJSONFeature; center: Point }) => {
       selectionTypeRef.current = 'country';
       locationNameRef.current = feature?.properties?.display_name;
+      setSelectedLocationName(feature?.properties?.display_name);
 
       if (feature.geometry.type === 'Polygon' || feature.geometry.type === 'MultiPolygon') {
         // Selecting a search result from the geocoder
@@ -322,6 +375,7 @@ function SoilhiveMap({
     (feature: MapGeoJSONFeature) => {
       // Drawing a polygon on the map
       selectionTypeRef.current = 'drawn-polygon';
+      setSelectedLocationName(undefined);
       applySelection(feature.geometry as Polygon);
       setShowDrawControl(false);
     },
@@ -356,8 +410,16 @@ function SoilhiveMap({
     return 'clear';
   }, [showDrawControl, selection, mapBounds]);
 
+  const isAreaInfoVisible = useMemo(() => {
+    return selectedPoint && !showDrawControl;
+  }, [selectedPoint, showDrawControl]);
+
   return (
-    <div className={`soilhive-map${showSelectionToolbar ? ' soilhive-map-show-selection-toolbar' : ''}`}>
+    <div
+      className={classnames('soilhive-map', {
+        'soilhive-map-show-selection-toolbar': showSelectionToolbar,
+      })}
+    >
       <Map
         ref={mapRef}
         scrollZoom={scrollZoom}
@@ -380,41 +442,13 @@ function SoilhiveMap({
 
         {showSelectionToolbar && <SoilhiveMapSelectionToolbar mode={toolbarMode} onCancel={resetSelection} onReset={resetDrawing} />}
 
-        {selectedPoint && !showDrawControl && (
-          <Popup
-            anchor="left"
-            longitude={selectedPoint.lng}
-            latitude={selectedPoint.lat}
-            closeOnClick={false}
-            onClose={onPopupClose}
-            offset={
-              {
-                left: [0, 0],
-                top: [0, 0],
-                'top-left': [0, 0],
-                bottom: [0, 0],
-              } as Offset
-            }
-          >
-            <div className="soilhive-map-popup-header">
-              <div className="soilhive-map-popup-header-left" style={{ minWidth: '24px' }}>
-                <Flower />
-              </div>
-              <div className="soilhive-map-popup-header-right">
-                <div className="soilhive-map-popup-header-right-title">{t('map_popup.title')}</div>
-                <div className="soilhive-map-popup-header-right-subtitle">
-                  {t('map_popup.h3_cell_id', { id: selectedH3Cell ? selectedH3Cell.id : '-' })}
-                </div>
-              </div>
-            </div>
-            <div className="soilhive-map-popup-content">
-              <strong>{t('map_popup.coordinates')}</strong>
-              <br />
-              {t('map_popup.longitude', { lng: selectedPoint.lng.toFixed(6) })}
-              <br />
-              {t('map_popup.latitude', { lat: selectedPoint.lat.toFixed(6) })}
-            </div>
-          </Popup>
+        {isDesktopLayout && isAreaInfoVisible && (
+          <AreaInfoPopup
+            selectedPoint={selectedPoint as LngLat}
+            onClose={onAreaInfoClose}
+            locationName={selectedLocationName}
+            selection={selection}
+          />
         )}
 
         {showH3Cells && h3Cells && !showDrawControl && (
@@ -422,6 +456,7 @@ function SoilhiveMap({
             <Source id="data" type="geojson" data={h3Cells} promoteId="h3Index">
               <Layer {...dataLayerFills} />
               <Layer {...dataLayerBorders} />
+              {ENABLE_DAI && <Layer {...dataLayerDAI} />}
             </Source>
             <Source id="selection" type="geojson" data={selection as GeoJSON.GeoJSON}>
               <Layer {...dataLayerSelection} />
@@ -447,8 +482,11 @@ function SoilhiveMap({
         {showDrawControl && <DrawControl ref={drawControlRef} position="bottom-right" onFinish={onFinishDrawing} />}
 
         {showScale && <ScaleControl />}
+        {mapStyles.length > 1 && <MapStyleSwitcher mapStyles={mapStyles} onMapStyleChange={setCurrentMapStyle} />}
       </Map>
-      {mapStyles.length > 1 && <MapStyleSwitcher mapStyles={mapStyles} onMapStyleChange={setCurrentMapStyle} />}
+      {!isDesktopLayout && isAreaInfoVisible && (
+        <AreaInfoBar onClose={onAreaInfoClose} locationName={selectedLocationName} selection={selection} />
+      )}
     </div>
   );
 }

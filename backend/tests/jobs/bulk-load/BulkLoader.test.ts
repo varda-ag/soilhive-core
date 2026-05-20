@@ -35,6 +35,7 @@ const getJob = (dataset_id: string): Job<BulkLoadJob> => {
       progress_percentage: 0,
       dataset_id,
     },
+    heartbeatSeconds: 10,
   };
 };
 
@@ -138,6 +139,18 @@ describe('BulkLoader class', () => {
     expect(datasetEntity!.licenses).toEqual(['test_license_1']);
     expect(datasetEntity!.reference_period_start).toEqual('2021-01-01');
     expect(datasetEntity!.reference_period_stop).toEqual('2021-01-01');
+    expect(datasetEntity!.inferred_properties?.sort()).toEqual(
+      [
+        'gis_datatype',
+        'licenses',
+        'measured_properties',
+        'n_observations',
+        'reference_period_start',
+        'reference_period_stop',
+        'soil_depth',
+        'spatial_extent',
+      ].sort(),
+    );
     const isValidUUID1 = validate(datasetEntity!.measured_properties![0].soil_property_id);
     const isValidUUID2 = validate(datasetEntity!.measured_properties![0].procedure_id);
     expect(isValidUUID1).toBeFalsy();

@@ -8,6 +8,7 @@ import LayerEntity from '../entities/Layer';
 import DatasetLayerEntity from '../entities/DatasetLayer';
 import ObservationEntity from '../entities/Observation';
 import { getRawTableName, sanitizeField } from '../utils/utils';
+import { DetectableFields } from '../types/DataMapping';
 
 export default class VectorDataLoad {
   getDataPreview = async (
@@ -174,7 +175,7 @@ const getDataPreviewQuery = (query: any, dataMappingConfig: DataCleaningConfig, 
   }
 
   for (const [mapping, field] of Object.entries(dataMappingConfig.metadata_cols)) {
-    if (mapping === 'sampling_date') {
+    if (mapping === DetectableFields.SAMPLING_DATE) {
       query.addSelect(`${field}::text`, mapping);
       continue;
     }

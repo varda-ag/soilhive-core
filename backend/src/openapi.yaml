@@ -264,7 +264,7 @@ paths:
             schema:
               $ref: '#/components/schemas/CreateDatasetInput'
       responses:
-        '200':
+        '201':
           description: Dataset created successfully
           content:
             application/json:
@@ -1005,6 +1005,33 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/License'
+    post:
+      x-eov-operation-handler: controllers/licenses
+      x-eov-operation-id: createLicense
+      summary: Create a new license
+      tags:
+        - licenses
+      security:
+        - bearerAuth: [data-admin]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateLicenseInput'
+      responses:
+        '201':
+          description: License created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/License'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/Conflict'
 
   /licenses/{licenseId}:
     parameters:
@@ -1165,6 +1192,47 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/FilteredDataset'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /data-filters/{filterId}/dai:
+    parameters:
+      - name: filterId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Unique filter identifier
+      - name: bbox
+        in: query
+        required: true
+        description: Bounds in "minLon,minLat,maxLon,maxLat" format
+        schema:
+          type: string
+      - name: resolution
+        in: query
+        required: true
+        description: Resolution (integer between 0 and 22)
+        schema:
+          type: number
+          minimum: 0
+          maximum: 22
+    get:
+      x-eov-operation-handler: controllers/data-filters
+      x-eov-operation-id: getDai
+      summary: Get Data Availability Index
+      tags:
+        - data-filters
+      responses:
+        '200':
+          description: DAI data given input bbox and resolution
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataAvailabilityIndex'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '404':
           $ref: '#/components/responses/NotFound'
 
@@ -1842,6 +1910,10 @@ components:
             - polygonal
             - raster
           description: Type of data contained in the dataset (e.g., point samples, raster data)
+        visibility:
+          type: string
+          enum: [public, private]
+          default: private
 
     FilteredDatasetSummary:
       allOf:
@@ -2000,6 +2072,12 @@ components:
         procedure_id:
           type: string
 
+    CreateLicenseInput:
+      allOf:
+        - $ref: '#/components/schemas/License'
+      required:
+        - name
+
     CreateDatasetInput:
       allOf:
         - $ref: '#/components/schemas/Dataset'
@@ -2108,6 +2186,12 @@ components:
             type: string
             enum: [preview, download, obfuscate_as_points, obfuscate_as_polygons]
           readOnly: true
+        inferred_properties:
+          type: array
+          items:
+            type: string
+          nullable: true
+          readOnly: true
 
     SoilProperty:
       type: object
@@ -2146,10 +2230,10 @@ components:
           type: string
           description: Category identifier
         original_units_of_measurement:
-          type: array
-          items:
+          type: object
+          additionalProperties:
             type: string
-          description: Allowed original units of measurement for this property (empty when none are defined)
+          description: Allowed original units of measurement for this property (id/name map; empty when none are defined)
 
     SoilPropertyCategory:
       type: object
@@ -2459,10 +2543,6 @@ components:
           type: string
           format: date-time
           nullable: true
-      required:
-        - id
-        - name
-        - created_at
 
     RasterFilter:
       type: object
@@ -2481,3 +2561,17 @@ components:
 
     Entitlements:
       type: object
+
+    DataAvailabilityIndex:
+      type: object
+      properties:
+        resolution:
+          type: number
+        min:
+          type: number
+        max:
+          type: number
+        cells:
+          type: object
+          additionalProperties:
+            type: number

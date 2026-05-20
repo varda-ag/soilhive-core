@@ -1,23 +1,23 @@
-export const enum TokenScopes {
+export enum TokenScopes {
   SUPER_ADMIN = 'super-admin',
   DATA_ADMIN = 'data-admin',
   INTERNAL_REQUEST = 'internal-request',
 }
 
-export const enum AuthModes {
+export enum AuthModes {
   NONE = 'none',
   PASSWORD = 'password',
   OIDC = 'oidc',
 }
 
-export const enum StorageModes {
+export enum StorageModes {
   LOCAL = 'local',
   S3 = 's3',
   AZURE = 'azure',
   GCP = 'gcp',
 }
 
-export const enum OverlapType {
+export enum OverlapType {
   NONE = 'none',
   PARTIAL = 'partial',
   FULL = 'full',

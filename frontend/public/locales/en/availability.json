@@ -52,11 +52,11 @@
         "search_this_area": "Search in this area"
     },
     "map_popup": {
-        "title": "SOIL DATA",
-        "h3_cell_id": "H3 Cell ID: {{id}}",
-        "coordinates": "Coordinates",
-        "longitude": "Longitude {{lng}}",
-        "latitude": "Latitude {{lat}}"
+        "title": "Area information",
+        "location_label": "Location",
+        "area_label": "Area covered",
+        "area_unit": "km<sup>2</sup>",
+        "download_geojson": "Download GeoJSON"
     },
     "datasets_list": {
         "metadata": "Metadata",

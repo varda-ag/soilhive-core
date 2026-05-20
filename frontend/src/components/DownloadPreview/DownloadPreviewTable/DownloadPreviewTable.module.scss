@@ -165,8 +165,10 @@
               }
             }
 
-            & > .DateHeader {
-              padding-left: 41px !important;
+            & > .MapPinHeader {
+              padding: 0 !important;
+              pointer-events: none;
+              cursor: default !important;
             }
           }
         }
@@ -177,6 +179,11 @@
 
             &:hover {
               background-color: var(--color-neutral-light);
+
+              & > .MapPinCell svg {
+                color: black;
+                fill: black;
+              }
             }
 
             & > td {
@@ -211,20 +218,21 @@
               font-size: var(--font-size-xs);
               line-height: var(--line-height-lg);
               letter-spacing: 0px;
-              padding-left: 6px !important;
-              button {
-                color: black;
-                svg {
-                  visibility: hidden;
-                  margin-right: -5px;
-                }
-                &:hover {
-                  color: black;
-                  svg {
-                    visibility: visible;
-                  }
-                }
+              padding-left: 16px !important;
+            }
+
+            & > .MapPinCell {
+              padding: 0 !important;
+              text-align: center;
+
+              svg {
+                color: var(--color-neutral-dark-100);
+                fill: var(--color-neutral-dark-100);
               }
+            }
+
+            &.ClickableRow {
+              cursor: pointer;
             }
           }
         }

@@ -10,4 +10,5 @@ export type AsyncJob = {
     progress_percentage: number;
     format: string;
   };
+  message?: string;
 };

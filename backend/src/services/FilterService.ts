@@ -1,11 +1,16 @@
 import { valid } from 'geojson-validation';
 import { StatusCodes } from 'http-status-codes';
+import * as turf from '@turf/turf';
+import { latLngToCell } from 'h3-js';
+import { Polygon, MultiPolygon } from 'geojson';
 import SoilDataStorage from '../data-layer/SoilDataStorage';
 import { DataFilter, FilteredDatasetSummary, FilteredDataset, FilteredData } from '../interfaces/DatasetFilter';
 import { RequestData } from '../interfaces/RequestData';
 import { ErrorResponse } from '../utils/error';
 import { mergeMin, mergeMax } from '../utils/utils';
 import DataFilterEntity from '../entities/DataFilter';
+import { DataAvailabilityIndex } from '../interfaces/Dai';
+import { getPolygonFromBbox, geometryUnion } from '../utils/geometry';
 
 export default class FilterService {
   createFilter = async (requestData: RequestData, filter: DataFilter): Promise<DataFilterEntity> => {
@@ -88,6 +93,46 @@ export default class FilterService {
     }
     const results = (await Promise.all(filteringPromises)).flat();
     return Array.from(new Map(results.map(r => [r.id, r])).values());
+  };
+
+  getDai = async (
+    requestData: RequestData,
+    bbox: [number, number, number, number],
+    resolution: number,
+    filterId: string,
+  ): Promise<DataAvailabilityIndex> => {
+    const storedFilter = await this.getFilterById(requestData, filterId);
+    const { geometries, parameters } = storedFilter.filter;
+
+    const bboxPolygon = getPolygonFromBbox(bbox);
+    let effectiveAoi: Polygon | MultiPolygon;
+    if (geometries.length === 0) {
+      effectiveAoi = bboxPolygon;
+    } else {
+      const filterGeom = geometryUnion(geometries);
+      const intersection = turf.intersect(turf.featureCollection([turf.feature(filterGeom), turf.feature(bboxPolygon)]));
+      if (!intersection) return { resolution, min: 0, max: 0, cells: {} };
+      effectiveAoi = intersection.geometry;
+    }
+
+    const sds = new SoilDataStorage();
+    const rows = await sds.getDaiPointData(requestData.entityManager, effectiveAoi, parameters);
+
+    const cells: Record<string, number> = {};
+    for (const row of rows) {
+      const cellId = latLngToCell(row.lat, row.lon, resolution);
+      const score = row.num_soil_properties + row.num_props_below_30 + row.num_dated_layers + row.num_distinct_years;
+      cells[cellId] = (cells[cellId] ?? 0) + score;
+    }
+
+    const values = Object.values(cells);
+    if (values.length === 0) return { resolution, min: 0, max: 0, cells: {} };
+    return {
+      resolution,
+      min: Math.min(...values),
+      max: Math.max(...values),
+      cells,
+    };
   };
 }
 
