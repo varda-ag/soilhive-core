@@ -9,11 +9,12 @@ import { StatusCodes } from 'http-status-codes';
 import FileEntity from '../entities/File';
 
 export default class DatasetFileMappingService {
-  static toResponse = (
+  static toResponse = async (
+    requestData: RequestData,
     resultData: DatasetFileMappingEntity | DatasetFileMappingEntity[],
-  ): DatasetFileMappingResponse | DatasetFileMappingResponse[] => {
+  ): Promise<DatasetFileMappingResponse | DatasetFileMappingResponse[]> => {
     if (Array.isArray(resultData)) {
-      return resultData.map(d => this.toResponse(d)) as DatasetFileMappingResponse[];
+      return Promise.all(resultData.map(d => this.toResponse(requestData, d))) as Promise<DatasetFileMappingResponse[]>;
     }
 
     const retVal: DatasetFileMappingResponse = {
@@ -21,7 +22,14 @@ export default class DatasetFileMappingService {
     };
 
     if (resultData?.['file_id']) {
-      retVal.fileID = resultData?.['file_id'];
+      if (resultData.file?.slug) {
+        // after creation, or get (with file relation)
+        retVal.fileID = resultData.file.slug;
+      } else {
+        const fileRepo = requestData.entityManager.getRepository(FileEntity);
+        const fileEntity = await fileRepo.findOne({ where: { id: resultData['file_id'] } });
+        retVal.fileID = fileEntity!.slug; // resolving slug here since idToSlug won't work here
+      }
     }
 
     if (resultData?.['data_mapping_id']) {
@@ -116,8 +124,8 @@ export default class DatasetFileMappingService {
 
     const repo = entityManager.getRepository(DatasetFileMappingEntity);
 
-    // Find mapping by ID (primary key)
-    const mapping = await repo.findOneBy({ id: datasetFileMappingId });
+    // load file relattion for the slug
+    const mapping = await repo.findOne({ where: { id: datasetFileMappingId }, relations: ['file'] });
 
     if (!mapping) {
       throw new ErrorResponse(`DatasetFileMapping with ID '${datasetFileMappingId}' not found`, StatusCodes.NOT_FOUND);
@@ -129,18 +137,21 @@ export default class DatasetFileMappingService {
   getMappings = async (
     requestData: RequestData,
     datasetSlug?: string,
-    fileId?: string,
+    fileSlug?: string,
     relations: string[] = [],
   ): Promise<DatasetFileMappingEntity[]> => {
+    const { entityManager } = requestData;
+
     // Getting the actual dataset ID
     const dataset = datasetSlug ? await getEntity(requestData, DatasetEntity, EntityType.DATASET, datasetSlug) : undefined;
 
     // Find all the mappings for the dataset, optionally filtered by fileId
     const whereConditions: any = dataset ? { dataset_id: dataset.id } : {};
-    if (fileId !== undefined) {
-      whereConditions.file_id = fileId;
+    if (fileSlug !== undefined) {
+      const fileEntity = await getEntity(requestData, FileEntity, EntityType.FILE, fileSlug);
+      whereConditions.file_id = fileEntity.id;
     }
-    const { entityManager } = requestData;
+
     const repo = entityManager.getRepository(DatasetFileMappingEntity);
     return await repo.find({ where: whereConditions, relations });
   };
