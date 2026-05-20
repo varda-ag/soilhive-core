@@ -5,6 +5,7 @@ import { app } from '../../src/app';
 import { addCategory, addSoilProperty, addUnitConversion, addSyntheticData, syntheticDataOptions } from '../../src/utils/mock';
 import { getDataSource } from '../../src/utils/data-source';
 import SoilPropertyEntity from '../../src/entities/SoilProperty';
+import { UnitConversionType } from '../../src/types/data';
 
 describe('Testing /soil-properties routes', () => {
   beforeEach(async () => {
@@ -77,8 +78,8 @@ describe('Testing /soil-properties routes', () => {
     const dataSource = await getDataSource();
     const repo = dataSource.getRepository(SoilPropertyEntity);
     const ph = await repo.findOneOrFail({ where: { slug: 'ph' } });
-    await addUnitConversion(ph.id, 'mg/kg');
-    await addUnitConversion(ph.id, 'g/kg');
+    await addUnitConversion(ph.id, 'mg/kg', undefined, UnitConversionType.IDENTITY);
+    await addUnitConversion(ph.id, 'g/kg', undefined, UnitConversionType.IDENTITY);
 
     const res = await request(app).get('/soil-properties');
     expect(res.statusCode).toBe(200);
@@ -86,11 +87,12 @@ describe('Testing /soil-properties routes', () => {
     expect(phProperty.original_units_of_measurement).toMatchObject({ 'ph-mg-kg': 'mg/kg', 'ph-g-kg': 'g/kg' });
   });
 
-  it('GET /soil-properties/:soilPropertyId returns original_units_of_measurement', async () => {
+  it('GET /soil-properties/:soilPropertyId returns original_units_of_measurement (but not CONDITIONAL type ones)', async () => {
     const dataSource = await getDataSource();
     const repo = dataSource.getRepository(SoilPropertyEntity);
     const ph = await repo.findOneOrFail({ where: { slug: 'ph' } });
-    await addUnitConversion(ph.id, 'cmol/kg');
+    await addUnitConversion(ph.id, 'cmol/kg', undefined, UnitConversionType.IDENTITY);
+    await addUnitConversion(ph.id, 'mg/dm3', 'x / BD', UnitConversionType.CONDITIONAL);
 
     const res = await request(app).get('/soil-properties/ph');
     expect(res.statusCode).toBe(200);

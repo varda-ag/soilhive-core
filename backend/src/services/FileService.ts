@@ -529,10 +529,7 @@ export default class FileService {
           openOpts.push(`GEOM_POSSIBLE_NAMES=${mappingGeomFields.geomField}`);
           selectClause = `${selectClause}, "${mappingGeomFields.geomField}" AS geometry`;
         } else if (mappingGeomFields.latField && mappingGeomFields.lonField) {
-          openOpts.push(
-            `X_POSSIBLE_NAMES=${mappingGeomFields.lonField}`,
-            `Y_POSSIBLE_NAMES=${mappingGeomFields.latField}`,
-          );
+          openOpts.push(`X_POSSIBLE_NAMES=${mappingGeomFields.lonField}`, `Y_POSSIBLE_NAMES=${mappingGeomFields.latField}`);
           selectClause = `${selectClause}, "_ogr_geometry_" AS geometry`;
         } else if (fileMetadata.detected_fields[DetectableFields.GEOMETRY]) {
           openOpts.push(`GEOM_POSSIBLE_NAMES=${fileMetadata.detected_fields[DetectableFields.GEOMETRY]}`);
@@ -544,7 +541,10 @@ export default class FileService {
           );
           selectClause = `${selectClause}, "_ogr_geometry_" AS geometry`;
         } else {
-          throw new ErrorResponse('Geometry not found: no geometry column in user mapping or auto-detected fields', StatusCodes.BAD_REQUEST);
+          throw new ErrorResponse(
+            'Geometry not found: no geometry column in user mapping or auto-detected fields',
+            StatusCodes.BAD_REQUEST,
+          );
         }
       }
 
@@ -588,7 +588,10 @@ export default class FileService {
     }
   };
 
-    private async extractGeomFieldsFromMapping(requestData: RequestData, fileId: string): Promise<{ geomField: string | null; latField: string | null; lonField: string | null }> {
+  private async extractGeomFieldsFromMapping(
+    requestData: RequestData,
+    fileId: string,
+  ): Promise<{ geomField: string | null; latField: string | null; lonField: string | null }> {
     const mappingRepo = requestData.entityManager.getRepository(DatasetFileMappingEntity);
     const datasetFileMapping = await mappingRepo.findOne({
       where: { file_id: fileId },

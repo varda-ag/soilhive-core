@@ -3,6 +3,7 @@ import { UnitConversion } from '../interfaces/UnitConversion';
 import BaseTable from './BaseTable';
 import SlugHistoryEntity from './SlugHistory';
 import SoilPropertyEntity from './SoilProperty';
+import { UnitConversionType } from '../types/data';
 
 @Entity('unit_conversions')
 @Unique(['slug'])
@@ -34,4 +35,14 @@ export default class UnitConversionEntity extends BaseTable implements UnitConve
 
   @Column({ type: 'text', nullable: true })
   conversion_formula?: string;
+
+  @Column({
+    type: 'enum',
+    enum: UnitConversionType,
+    default: UnitConversionType.IDENTITY,
+  })
+  type: UnitConversionType;
+
+  @Column({ type: 'jsonb', nullable: true })
+  metadata?: object | null;
 }

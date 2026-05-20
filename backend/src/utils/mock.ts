@@ -14,7 +14,7 @@ import UnitConversionEntity from '../entities/UnitConversion';
 import { getPolygonFromBbox } from './geometry';
 import { getDataSource, getEntityManager } from './data-source';
 import SlugHistoryEntity from '../entities/SlugHistory';
-import { EntityType, GISDataType, IngestionStatus, VocabularyType } from '../types/data';
+import { EntityType, GISDataType, IngestionStatus, UnitConversionType, VocabularyType } from '../types/data';
 import { PropertyMapping } from '../interfaces/PropertyMapping';
 import assert from 'assert';
 import path from 'path';
@@ -204,6 +204,7 @@ export const addUnitConversion = async (
   property_id: string,
   original_unit: string = 'test_unit',
   conversion_formula: string = 'x / 10',
+  type: UnitConversionType = UnitConversionType.SIMPLE,
 ): Promise<UnitConversionEntity> => {
   const dataSource = await getDataSource();
   const repo = dataSource.getRepository(UnitConversionEntity);
@@ -211,6 +212,7 @@ export const addUnitConversion = async (
     original_unit_of_measurement: original_unit,
     property_id,
     conversion_formula,
+    type,
   });
   await repo.save(unitConversion);
   return await repo.findOneByOrFail({ id: unitConversion.id });
