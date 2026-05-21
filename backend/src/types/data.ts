@@ -46,3 +46,9 @@ export enum Extent {
   NATIONAL = 'national',
   REGIONAL = 'regional',
 }
+
+export enum UnitConversionType {
+  IDENTITY = 'IDENTITY',
+  SIMPLE = 'SIMPLE',
+  CONDITIONAL = 'CONDITIONAL',
+}
