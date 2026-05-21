@@ -34,6 +34,8 @@ const getJob = (dataset_id: string): Job<BulkLoadJob> => {
       created_by: 'test-user',
       progress_percentage: 0,
       dataset_id,
+      isDataAdmin: true,
+      isSuperAdmin: false,
     },
     heartbeatSeconds: 10,
   };
