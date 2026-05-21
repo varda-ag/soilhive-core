@@ -23,6 +23,15 @@ jest.mock('hooks/useDatasetMutation', () => ({
   useCreateDatasetFileMapping: jest.fn(),
 }));
 
+jest.mock('hooks/useIngestionStatus', () => ({
+  useIngestionStatus: jest.fn(() => ({
+    isLoading: false,
+    getFurthestStep: jest.fn(() => 'general-info'),
+    updateFurthestStep: jest.fn(),
+    clearDatasetStatus: jest.fn(),
+  })),
+}));
+
 jest.mock('hooks/useFileUpload', () => ({
   useFileUpload: jest.fn(() => ({
     fileInputRef: { current: null },

@@ -11,6 +11,15 @@ jest.mock('react-router', () => ({
   useNavigate: jest.fn(),
 }));
 
+jest.mock('hooks/useIngestionStatus', () => ({
+  useIngestionStatus: jest.fn(() => ({
+    isLoading: false,
+    getFurthestStep: jest.fn(() => 'general-info'),
+    updateFurthestStep: jest.fn(),
+    clearDatasetStatus: jest.fn(),
+  })),
+}));
+
 jest.mock('hooks/useDatasets', () => ({
   useDatasets: jest.fn(),
 }));
