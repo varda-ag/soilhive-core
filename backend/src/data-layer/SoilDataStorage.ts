@@ -154,7 +154,7 @@ export default class SoilDataStorage {
           ds.gis_datatype,
           ds.name AS dataset_name,
           ds.slug AS dataset_slug,
-          STRING_AGG(DISTINCT license.slug, ',') AS licenses,
+          COALESCE(STRING_AGG(DISTINCT license.slug, ','), array_to_string(ds.licenses, ',')) AS licenses,
           SUM(base_agg.dataset_layer_count) AS dataset_layer_count,
           MIN(base_agg.min_sampling_date) AS min_sampling_date,
           MAX(base_agg.max_sampling_date) AS max_sampling_date,
@@ -167,7 +167,7 @@ export default class SoilDataStorage {
         LEFT JOIN ${schema}.soil_properties soil_property ON soil_property.id = base_agg.soil_property AND soil_property.deleted_at IS NULL
         LEFT JOIN ${schema}.licenses license ON license.id = base_agg.license AND license.deleted_at IS NULL
         ${outerWhereClause}
-        GROUP BY base_agg.dataset_id, ds.slug, ds.name, ds.gis_datatype
+        GROUP BY base_agg.dataset_id, ds.slug, ds.name, ds.gis_datatype, ds.licenses
       `;
 
       const results = await entityManager.query(sql, params);

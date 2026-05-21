@@ -68,8 +68,8 @@ describe('BulkLoader class', () => {
     const createdData = await getLoadedDataCount();
     expect(createdData.n_features).toBe(2);
     expect(createdData.n_layers).toBe(17);
-    expect(createdData.n_dataset_layers).toBe(20);
-    expect(createdData.n_observations).toBe(22);
+    expect(createdData.n_dataset_layers).toBe(22);
+    expect(createdData.n_observations).toBe(24);
 
     const dataSource = await getDataSource();
     const repo = dataSource.getRepository(DatasetEntity);
