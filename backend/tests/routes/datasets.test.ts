@@ -250,4 +250,162 @@ describe('Testing /datasets routes', () => {
       expect(res.body.length).toBeGreaterThan(0);
     });
   });
+
+  describe('GET /datasets/:datasetId/dataset-file-mapping/:datasetFileMappingId/soil-data', () => {
+    it('returns records each with a cursor property', async () => {
+      const token = await getDataAdminToken();
+      const { dataset, datasetFileMapping } = await addSyntheticIngestionData({
+        ...syntheticIngestionDataOptions,
+        id: 1,
+        createTable: true,
+        tableRows: 'ALL',
+      });
+
+      const res = await request(app)
+        .get(`/datasets/${dataset.slug}/dataset-file-mapping/${datasetFileMapping.id}/soil-data`)
+        .query({ limit: 5 })
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(res.statusCode).toBe(StatusCodes.OK);
+      expect(Array.isArray(res.body)).toBe(true);
+      expect(res.body.length).toBe(5);
+      for (const record of res.body) {
+        expect(typeof record.cursor).toBe('string');
+        expect(record.cursor.length).toBeGreaterThan(0);
+      }
+    });
+
+    it('paginates through all records using cursor without duplicates', async () => {
+      const token = await getDataAdminToken();
+      const { dataset, datasetFileMapping } = await addSyntheticIngestionData({
+        ...syntheticIngestionDataOptions,
+        id: 1,
+        createTable: true,
+        tableRows: 'ALL',
+      });
+
+      const allRecordIds: number[] = [];
+      let cursor: string | undefined;
+      let iterations = 0;
+      const maxIterations = 10;
+
+      do {
+        const res = await request(app)
+          .get(`/datasets/${dataset.slug}/dataset-file-mapping/${datasetFileMapping.id}/soil-data`)
+          .query({ limit: 5, ...(cursor ? { cursor } : {}) })
+          .set('Authorization', `Bearer ${token}`);
+        expect(res.statusCode).toBe(StatusCodes.OK);
+        if (res.body.length === 0) break;
+        for (const record of res.body) {
+          allRecordIds.push(record.record_id);
+        }
+        cursor = res.body[res.body.length - 1].cursor;
+        iterations++;
+      } while (iterations < maxIterations);
+
+      // 19 rows in fixture minus 2 drop_records = 17 usable records
+      expect(allRecordIds.length).toBe(17);
+      expect(new Set(allRecordIds).size).toBe(allRecordIds.length);
+    });
+
+    it('paginates in sorted order across pages (sort=min_depth)', async () => {
+      const token = await getDataAdminToken();
+      const { dataset, datasetFileMapping } = await addSyntheticIngestionData({
+        ...syntheticIngestionDataOptions,
+        id: 1,
+        createTable: true,
+        tableRows: 'ALL',
+      });
+
+      const allMinDepths: number[] = [];
+      const allRecordIds: number[] = [];
+      let cursor: string | undefined;
+      let iterations = 0;
+      const maxIterations = 10;
+
+      do {
+        const res = await request(app)
+          .get(`/datasets/${dataset.slug}/dataset-file-mapping/${datasetFileMapping.id}/soil-data`)
+          .query({ limit: 5, sort: 'min_depth', ...(cursor ? { cursor } : {}) })
+          .set('Authorization', `Bearer ${token}`);
+        expect(res.statusCode).toBe(StatusCodes.OK);
+        if (res.body.length === 0) break;
+        for (const record of res.body) {
+          allMinDepths.push(record.min_depth);
+          allRecordIds.push(record.record_id);
+        }
+        cursor = res.body[res.body.length - 1].cursor;
+        iterations++;
+      } while (iterations < maxIterations);
+
+      expect(allRecordIds.length).toBe(17);
+      expect(new Set(allRecordIds).size).toBe(allRecordIds.length);
+      for (let i = 1; i < allMinDepths.length; i++) {
+        expect(allMinDepths[i]).toBeGreaterThanOrEqual(allMinDepths[i - 1]);
+      }
+    });
+
+    it('paginates in sorted order across pages for computed property columns (sort=bdfiod)', async () => {
+      const token = await getDataAdminToken();
+      // Uses the real bdfiod config including min_val=0.1. Most records produce
+      // a NULL SELECT output (converted value < 0.1) but the cursor still carries
+      // the raw sort expression value via the hidden _cursor_bdfiod column,
+      // so keyset pagination respects the sort order end to end.
+      const { dataset, datasetFileMapping } = await addSyntheticIngestionData({
+        ...syntheticIngestionDataOptions,
+        id: 1,
+        createTable: true,
+        tableRows: 'ALL',
+      });
+
+      const allBdfiod: (number | null)[] = [];
+      const allRecordIds: number[] = [];
+      let cursor: string | undefined;
+      let iterations = 0;
+      const maxIterations = 10;
+
+      do {
+        const res = await request(app)
+          .get(`/datasets/${dataset.slug}/dataset-file-mapping/${datasetFileMapping.id}/soil-data`)
+          .query({ limit: 5, sort: 'bdfiod', ...(cursor ? { cursor } : {}) })
+          .set('Authorization', `Bearer ${token}`);
+        expect(res.statusCode).toBe(StatusCodes.OK);
+        if (res.body.length === 0) break;
+        for (const record of res.body) {
+          allBdfiod.push(record.bdfiod !== null ? parseFloat(record.bdfiod) : null);
+          allRecordIds.push(record.record_id);
+        }
+        cursor = res.body[res.body.length - 1].cursor;
+        iterations++;
+      } while (iterations < maxIterations);
+
+      expect(allRecordIds.length).toBe(17);
+      expect(new Set(allRecordIds).size).toBe(allRecordIds.length);
+      // Non-NULL bdfiod values (those within min_val range) must appear in ascending order.
+      // NULL values sort last (PostgreSQL NULLS LAST for ASC) and are excluded from the check.
+      const nonNullBdfiod = allBdfiod.filter((v): v is number => v !== null);
+      for (let i = 1; i < nonNullBdfiod.length; i++) {
+        expect(nonNullBdfiod[i]).toBeGreaterThanOrEqual(nonNullBdfiod[i - 1]);
+      }
+    });
+  });
+
+  describe('GET /datasets/:datasetId/dataset-file-mapping/:datasetFileMappingId/soil-data/count', () => {
+    it('returns the total record count excluding drop_records', async () => {
+      const token = await getDataAdminToken();
+      const { dataset, datasetFileMapping } = await addSyntheticIngestionData({
+        ...syntheticIngestionDataOptions,
+        id: 1,
+        createTable: true,
+        tableRows: 'ALL',
+      });
+      const res = await request(app)
+        .get(`/datasets/${dataset.slug}/dataset-file-mapping/${datasetFileMapping.id}/soil-data/count`)
+        .set('Authorization', `Bearer ${token}`);
+      expect(res.statusCode).toBe(StatusCodes.OK);
+      expect(res.body).toHaveProperty('count');
+      // 19 fixture rows minus 2 drop_records = 17
+      expect(res.body.count).toBe(17);
+    });
+  });
 });
