@@ -116,4 +116,10 @@ export default class DatasetService {
     );
     return results;
   }
+
+  async getSoilDataCount(requestData: RequestData, datasetFileMappingId: string): Promise<number> {
+    const datasetFileMapping = await dfmService.getDatasetFileMapping(requestData, datasetFileMappingId);
+    const dataMappingConfig = await dmService.parseDataMapping(requestData, datasetFileMapping.data_mapping_id!);
+    return vdl.getDataCount(requestData.entityManager, dataMappingConfig, datasetFileMapping.file_id!);
+  }
 }

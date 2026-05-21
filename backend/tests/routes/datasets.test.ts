@@ -389,4 +389,23 @@ describe('Testing /datasets routes', () => {
       }
     });
   });
+
+  describe('GET /datasets/:datasetId/dataset-file-mapping/:datasetFileMappingId/soil-data/count', () => {
+    it('returns the total record count excluding drop_records', async () => {
+      const token = await getDataAdminToken();
+      const { dataset, datasetFileMapping } = await addSyntheticIngestionData({
+        ...syntheticIngestionDataOptions,
+        id: 1,
+        createTable: true,
+        tableRows: 'ALL',
+      });
+      const res = await request(app)
+        .get(`/datasets/${dataset.slug}/dataset-file-mapping/${datasetFileMapping.id}/soil-data/count`)
+        .set('Authorization', `Bearer ${token}`);
+      expect(res.statusCode).toBe(StatusCodes.OK);
+      expect(res.body).toHaveProperty('count');
+      // 19 fixture rows minus 2 drop_records = 17
+      expect(res.body.count).toBe(17);
+    });
+  });
 });

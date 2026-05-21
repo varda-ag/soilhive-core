@@ -36,6 +36,16 @@ export default class VectorDataLoad {
     });
   };
 
+  getDataCount = async (entityManager: EntityManager, dataMappingConfig: DataCleaningConfig, fileId: string): Promise<number> => {
+    const table = `${process.env.POSTGRES_SCHEMA}.${getRawTableName(fileId)}`;
+    let query = entityManager.createQueryBuilder().from(table, 'raw').select('COUNT(*)', 'count');
+    if (dataMappingConfig.drop_records) {
+      query = query.andWhere('raw.record_id NOT IN (:...drop_records)', { drop_records: dataMappingConfig.drop_records });
+    }
+    const result = await entityManager.query(...query.getQueryAndParameters());
+    return parseInt(result[0].count, 10);
+  };
+
   rawRecordToDataModel = async (
     entityManager: EntityManager,
     dataMappingConfig: DataCleaningConfig,
