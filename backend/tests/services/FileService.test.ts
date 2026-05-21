@@ -473,7 +473,6 @@ describe('FileService', () => {
           field_names: ['wkt_col', 'ph'],
           detected_fields: { ...nullDetectedFields },
           geometry_detected: false,
-          epsg: 4326,
           detected_mapping: {},
         },
       });
@@ -485,8 +484,18 @@ describe('FileService', () => {
 
       await fileService.fileToDB(requestData, fileEntity.slug);
 
-      const tableColumns = await getTableColumns(getRawTableName(fileEntity.id));
+      const tableName = getRawTableName(fileEntity.id);
+      const tableColumns = await getTableColumns(tableName);
       expect(tableColumns.map(c => c.column_name)).toContain('geometry');
+
+      const dataSource = await getDataSource();
+      const rows = await dataSource.query(
+        `SELECT ST_X(geometry) as x, ST_Y(geometry) as y FROM "${process.env.POSTGRES_SCHEMA}"."${tableName}" ORDER BY ST_X(geometry)`,
+      );
+      expect(parseFloat(rows[0].x)).toBeCloseTo(10.0, 4);
+      expect(parseFloat(rows[0].y)).toBeCloseTo(45.0, 4);
+      expect(parseFloat(rows[1].x)).toBeCloseTo(11.0, 4);
+      expect(parseFloat(rows[1].y)).toBeCloseTo(46.0, 4);
     });
 
     it('uses mapped lat/lon columns when no geometry is auto-detected', async () => {
@@ -498,7 +507,6 @@ describe('FileService', () => {
           field_names: ['y_coord', 'x_coord', 'ph'],
           detected_fields: { ...nullDetectedFields },
           geometry_detected: false,
-          epsg: 4326,
           detected_mapping: {},
         },
       });
@@ -523,7 +531,6 @@ describe('FileService', () => {
           field_names: ['lat', 'lon', 'wkt_col', 'ph'],
           detected_fields: { ...nullDetectedFields, latitude: 'lat', longitude: 'lon' },
           geometry_detected: false,
-          epsg: 4326,
           detected_mapping: {},
         },
       });
