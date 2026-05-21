@@ -9,6 +9,7 @@ import DatasetLayerEntity from '../entities/DatasetLayer';
 import ObservationEntity from '../entities/Observation';
 import { getRawTableName, sanitizeField } from '../utils/utils';
 import { DetectableFields } from '../types/DataMapping';
+import { createCursor, decodeCursor, encodeCursor } from '../utils/cursor';
 
 export default class VectorDataLoad {
   getDataPreview = async (
@@ -24,9 +25,11 @@ export default class VectorDataLoad {
     query = getDataPreviewQuery(query, dataMappingConfig, cursor, sort);
     // Workaround using raw query to be able to use dynamic table name without entity
     const results = await entityManager.query(...query.take(limit).getQueryAndParameters());
-    // Convert geometry string to JSON
-    return results.map(r => {
-      return { ...r, geometry: JSON.parse(r.geometry) };
+    const sortKey = sort ? (sort.startsWith('-') ? sort.substring(1) : sort) : undefined;
+    return results.map((r: any) => {
+      const record = { ...r, geometry: JSON.parse(r.geometry) };
+      const cursor = encodeCursor(createCursor(String(r.record_id), sort, sortKey ? r[sortKey] : undefined));
+      return { ...record, cursor };
     });
   };
 
@@ -171,7 +174,19 @@ const getDataPreviewQuery = (query: any, dataMappingConfig: DataCleaningConfig, 
     query.orderBy('raw.record_id', 'ASC');
   }
   if (cursor) {
-    query.andWhere('raw.record_id > :cursor', { cursor });
+    const decoded = decodeCursor(cursor);
+    if (sort && decoded.column) {
+      const isDesc = sort.startsWith('-');
+      const sortKey = isDesc ? sort.substring(1) : sort;
+      const sortMapping = dataMappingConfig.metadata_cols[sortKey] || sortKey;
+      const operator = isDesc ? '<' : '>';
+      query.andWhere(
+        `(raw.${sortMapping}, raw.record_id) ${operator} (:cursorValue, :cursorId)`,
+        { cursorValue: decoded.value, cursorId: decoded.id },
+      );
+    } else {
+      query.andWhere('raw.record_id > :cursorId', { cursorId: decoded.id });
+    }
   }
 
   for (const [mapping, field] of Object.entries(dataMappingConfig.metadata_cols)) {

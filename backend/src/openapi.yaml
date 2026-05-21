@@ -1409,6 +1409,23 @@ paths:
       responses:
         '200':
           description: Soil data retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  allOf:
+                    - $ref: '#/components/schemas/SoilRecord'
+                    - type: object
+                      required:
+                        - cursor
+                      properties:
+                        cursor:
+                          type: string
+                          description: >
+                            Base64-encoded keyset cursor for this record.
+                            Pass the cursor from the last record as the `cursor`
+                            query param to retrieve the next page.
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
