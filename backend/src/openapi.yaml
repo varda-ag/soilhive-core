@@ -1338,6 +1338,46 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
+  /datasets/{datasetId}/dataset-file-mapping/{datasetFileMappingId}/soil-data/count:
+    parameters:
+      - name: datasetId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: ID of the dataset containing soil data
+      - name: datasetFileMappingId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Unique identifier of the mapping related to the raw record
+    get:
+      x-eov-operation-handler: controllers/datasets
+      x-eov-operation-id: getSoilDataCount
+      summary: Returns the total number of soil data records for a dataset file mapping
+      tags:
+        - datasets
+      security:
+        - bearerAuth: [data-admin]
+      responses:
+        '200':
+          description: Record count retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - count
+                properties:
+                  count:
+                    type: integer
+                    description: Total number of records after drop_records exclusions
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
   /datasets/{datasetId}/dataset-file-mapping/{datasetFileMappingId}/soil-data:
     parameters:
       - name: datasetId
@@ -1408,6 +1448,23 @@ paths:
       responses:
         '200':
           description: Soil data retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  allOf:
+                    - $ref: '#/components/schemas/SoilRecord'
+                    - type: object
+                      required:
+                        - cursor
+                      properties:
+                        cursor:
+                          type: string
+                          description: >
+                            Base64-encoded keyset cursor for this record.
+                            Pass the cursor from the last record as the `cursor`
+                            query param to retrieve the next page.
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
