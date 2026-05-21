@@ -478,7 +478,6 @@ paths:
           required: false
           schema:
             type: string
-            format: uuid
           description: Optional file ID to filter mappings
       responses:
         '200':

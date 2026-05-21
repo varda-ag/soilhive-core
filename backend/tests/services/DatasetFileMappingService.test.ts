@@ -90,7 +90,7 @@ describe('DatasetFileMappingService', () => {
     await service.createMapping(requestData, dataset.slug, { fileID: file1.slug });
     await service.createMapping(requestData, dataset.slug, { fileID: file2.slug });
 
-    const result = await service.getMappings(requestData, dataset.slug, file1.id);
+    const result = await service.getMappings(requestData, dataset.slug, file1.slug);
     expect(result).toBeDefined();
     expect(result.length).toBeGreaterThanOrEqual(1);
     expect(result[0].file_id).toBe(file1.id);
@@ -274,7 +274,7 @@ describe('DatasetFileMappingService', () => {
     await service.deleteDataMappingByFileId(requestData, dataset.slug, file.slug);
 
     // Assert
-    const mappings = await service.getMappings(requestData, dataset.slug, file.id);
+    const mappings = await service.getMappings(requestData, dataset.slug, file.slug);
     expect(mappings).toBeDefined();
     expect(mappings.length).toBe(0);
   });

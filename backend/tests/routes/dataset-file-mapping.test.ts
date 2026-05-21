@@ -148,7 +148,7 @@ describe('Testing /datasets/{datasetId}/dataset-file-mapping routes', () => {
 
       expect(datasetFileMappingUpdate.statusCode).toBe(StatusCodes.OK);
       expect(datasetFileMappingUpdate.body.mappingId).toBe(mapping.body.id);
-      expect(datasetFileMappingUpdate.body.fileID).toBe(file.id);
+      expect(datasetFileMappingUpdate.body.fileID).toBe(file.slug);
     });
   });
 
@@ -259,13 +259,13 @@ describe('Testing /datasets/{datasetId}/dataset-file-mapping routes', () => {
         .send({ fileID: file.slug });
 
       const getResponse = await request(app)
-        .get(`/datasets/${dataset.body.id}/dataset-file-mapping?fileId=${file.id}`)
+        .get(`/datasets/${dataset.body.id}/dataset-file-mapping?fileId=${file.slug}`)
         .set('Authorization', `Bearer ${token}`);
 
       expect(getResponse.statusCode).toBe(StatusCodes.OK);
       expect(Array.isArray(getResponse.body)).toBe(true);
       expect(getResponse.body.length).toBeGreaterThanOrEqual(1);
-      expect(getResponse.body[0].fileID).toBe(file.id);
+      expect(getResponse.body[0].fileID).toBe(file.slug);
     });
   });
 
