@@ -330,11 +330,16 @@ export function useMappingsStep(datasetId?: string) {
   const wasImportingRef = useRef(false);
   if (isImporting) wasImportingRef.current = true;
 
+  // Guard against firing more than once: updateFurthestStep has an unstable reference
+  // that can re-trigger this effect before furthestStep catches up to 'preview'.
+  const redirectFiredRef = useRef(false);
+
   // Redirect to preview when import completes (after polling or on page reload mid-import).
   // Skip when furthestStep is already 'preview' — user deliberately came back from preview.
   useEffect(() => {
     if (!datasetId || isLoading || isIngestionLoading) return;
-    if (allFilesUploaded && furthestStep !== 'preview' && wasImportingRef.current) {
+    if (allFilesUploaded && furthestStep !== 'preview' && wasImportingRef.current && !redirectFiredRef.current) {
+      redirectFiredRef.current = true;
       updateFurthestStep(datasetId, 'preview');
       navigate(`${ADMIN_PATHS.DATASETS}/edit/${datasetId}/preview`);
     }
