@@ -1,8 +1,9 @@
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { useApiQuery } from './useApiQuery';
+import { useIngestionStatus } from './useIngestionStatus';
 import { useApiQueries } from './useApiQueries';
 import { useCreateProcedureMutation } from './useCreateProcedureMutation';
 import { useCreateMappingsMutation } from './useCreateMappingsMutation';
@@ -152,6 +153,15 @@ export function useMappingsStep(datasetId?: string) {
   const { t } = useTranslation('admin');
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { isLoading: isIngestionLoading, updateFurthestStep } = useIngestionStatus();
+
+  const hasTracked = useRef(false);
+  useEffect(() => {
+    if (!hasTracked.current && datasetId && !isIngestionLoading) {
+      hasTracked.current = true;
+      updateFurthestStep(datasetId, 'mappings');
+    }
+  }, [datasetId, isIngestionLoading, updateFurthestStep]);
 
   const { mutateAsync: createProcedure } = useCreateProcedureMutation();
   const { mutateAsync: createMapping } = useCreateMappingsMutation();

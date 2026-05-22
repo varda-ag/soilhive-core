@@ -41,6 +41,14 @@ jest.mock('hooks/useTheme', () => ({
   }),
 }));
 
+jest.mock('../../src/pages/AdminPortal/DatasetsEditRedirect', () => ({
+  DatasetsEditRedirect: () => null,
+}));
+
+jest.mock('../../src/pages/AdminPortal/DatasetsPreviewStep/DatasetsPreviewStep', () => ({
+  DatasetsPreviewStep: () => <div>DatasetsPreviewStep page</div>,
+}));
+
 jest.mock('../../src/hooks/useDatasetsSoilData', () => ({
   __esModule: true,
   useDatasetsSoilData: jest.fn().mockReturnValue({
