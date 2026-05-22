@@ -484,7 +484,7 @@ describe('FileService', () => {
       // Native geometry from sample_point.geojson has longitude ~39.6544.
       // If the mapping were applied instead, wkt_col doesn't exist in the file so geometry would be null.
       expect(rows.length).toBeGreaterThan(0);
-      expect(parseFloat(rows[0].x)).toBeCloseTo(39.6544, 1);
+      expect(parseFloat(rows[0].x)).toBeCloseTo(39.6544, 4);
     });
 
     it('uses mapping geometry when no geometry is auto-detected', async () => {
@@ -504,7 +504,7 @@ describe('FileService', () => {
       const rows = await dataSource.query(
         `SELECT ST_X(geometry) as x FROM "${process.env.POSTGRES_SCHEMA}"."${getRawTableName(fileEntity.id)}" WHERE geometry IS NOT NULL LIMIT 1`,
       );
-      expect(parseFloat(rows[0].x)).toBeCloseTo(10.0, 1);
+      expect(parseFloat(rows[0].x)).toBeCloseTo(10.0, 4);
     });
 
     it('uses mapped lat/lon columns when no geometry is auto-detected', async () => {
@@ -548,7 +548,7 @@ describe('FileService', () => {
       const rows = await dataSource.query(
         `SELECT ST_X(geometry) as x FROM "${process.env.POSTGRES_SCHEMA}"."${getRawTableName(fileEntity.id)}" WHERE geometry IS NOT NULL LIMIT 1`,
       );
-      expect(parseFloat(rows[0].x)).toBeCloseTo(20.0, 1);
+      expect(parseFloat(rows[0].x)).toBeCloseTo(20.0, 4);
     });
 
     it('falls back to auto-detected lat/lon when no mapping exists for the file', async () => {
