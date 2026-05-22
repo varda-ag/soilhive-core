@@ -208,19 +208,19 @@ export function useMappingsStep(datasetId?: string) {
   const { mutateAsync: updateDatasetFileMapping } = useUpdateDatasetFileMappingMutation();
   const { mutateAsync: createJob } = useCreateJobMutation();
 
-  const { data: datasetFileMappings, isLoading: isLoadingDatasetFileMappings } = useApiQuery<DatasetFileMappingResponse[]>({
-    endpoint: `/datasets/${datasetId}/dataset-file-mapping`,
-    method: 'GET',
-    queryKey: ['datasets', datasetId, 'dataset-file-mapping'],
-    enabled: !!datasetId,
-  });
-
   const { data: files, isLoading: isLoadingFiles } = useApiQuery<FileDescriptor[]>({
     endpoint: `/datasets/${datasetId}/files`,
     method: 'GET',
     queryKey: ['datasets', datasetId, 'files'],
     enabled: !!datasetId,
     refetchInterval: 3000,
+  });
+
+  const { data: datasetFileMappings, isLoading: isLoadingDatasetFileMappings } = useApiQuery<DatasetFileMappingResponse[]>({
+    endpoint: `/datasets/${datasetId}/dataset-file-mapping`,
+    method: 'GET',
+    queryKey: ['datasets', datasetId, 'dataset-file-mapping'],
+    enabled: !!datasetId,
   });
 
   const [jobsFired, setJobsFired] = useState(false); // optimistic UI: show pane immediately after Continue
