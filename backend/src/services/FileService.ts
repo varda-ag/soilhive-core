@@ -583,6 +583,7 @@ export default class FileService {
           ' ',
         );
       gdalOpts.unshift(layer.name);
+      await requestData.entityManager.query(`DROP TABLE IF EXISTS "${tableName}"`);
       await gdal.vectorTranslateAsync(pgDataset, dataset, gdalOpts);
       dataset.close();
 

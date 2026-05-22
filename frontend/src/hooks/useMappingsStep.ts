@@ -194,9 +194,7 @@ export function useMappingsStep(datasetId?: string) {
   const { t } = useTranslation('admin');
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { isLoading: isIngestionLoading, getFurthestStep, updateFurthestStep } = useIngestionStatus();
-  const [importTriggered, setImportTriggered] = useState(false);
-
+  const { isLoading: isIngestionLoading, updateFurthestStep } = useIngestionStatus();
   const hasTracked = useRef(false);
   useEffect(() => {
     if (!hasTracked.current && datasetId && !isIngestionLoading) {
@@ -222,14 +220,16 @@ export function useMappingsStep(datasetId?: string) {
     method: 'GET',
     queryKey: ['datasets', datasetId, 'files'],
     enabled: !!datasetId,
-    refetchInterval: query => {
-      const currentFiles = query.state.data as FileDescriptor[] | undefined;
-      if (!currentFiles?.length) return false;
-      const allUploaded = currentFiles.every(f => f.status === IngestionStatus.UPLOADED);
-      if (allUploaded) return false;
-      return currentFiles.some(f => f.status === IngestionStatus.ONGOING) || importTriggered ? 3000 : false;
-    },
+    refetchInterval: 3000,
   });
+
+  const { isImporting, allFilesUploaded } = useMemo(() => {
+    if (!files?.length) return { isImporting: false, allFilesUploaded: false };
+    return {
+      isImporting: files.some(f => f.status === IngestionStatus.ONGOING),
+      allFilesUploaded: files.every(f => f.status === IngestionStatus.UPLOADED),
+    };
+  }, [files]);
 
   const { data: existingMappings, isLoading: isLoadingExistingMappings } = useApiQuery<DataMappingResponse[]>({
     endpoint: `/datasets/${datasetId}/mappings`,
@@ -312,38 +312,23 @@ export function useMappingsStep(datasetId?: string) {
     isLoadingProcedures ||
     isLoadingDatasetFileMappings;
 
-  const { isImporting, allFilesUploaded } = useMemo(() => {
-    if (!files?.length) return { isImporting: false, allFilesUploaded: false };
-    const anyOngoing = files.some(f => f.status === IngestionStatus.ONGOING);
-    const allUploaded = files.every(f => f.status === IngestionStatus.UPLOADED);
-    return {
-      isImporting: anyOngoing || (importTriggered && !allUploaded),
-      allFilesUploaded: allUploaded,
-    };
-  }, [files, importTriggered]);
-
-  const furthestStep = datasetId ? getFurthestStep(datasetId) : undefined;
-
-  // Track whether import was active in this session so the redirect below only fires
-  // when we actually witnessed ONGOING → UPLOADED, not just because a dataset's files
-  // happen to be UPLOADED from a previous or unrelated import.
+  // Only true if we observed ONGOING in this session — prevents redirect when the user
+  // arrives at the mappings page with pre-existing UPLOADED files.
   const wasImportingRef = useRef(false);
   if (isImporting) wasImportingRef.current = true;
 
   // Guard against firing more than once: updateFurthestStep has an unstable reference
-  // that can re-trigger this effect before furthestStep catches up to 'preview'.
+  // that can re-trigger this effect before the navigation completes.
   const redirectFiredRef = useRef(false);
 
-  // Redirect to preview when import completes (after polling or on page reload mid-import).
-  // Skip when furthestStep is already 'preview' — user deliberately came back from preview.
   useEffect(() => {
     if (!datasetId || isLoading || isIngestionLoading) return;
-    if (allFilesUploaded && furthestStep !== 'preview' && wasImportingRef.current && !redirectFiredRef.current) {
+    if (allFilesUploaded && wasImportingRef.current && !redirectFiredRef.current) {
       redirectFiredRef.current = true;
       updateFurthestStep(datasetId, 'preview');
       navigate(`${ADMIN_PATHS.DATASETS}/edit/${datasetId}/preview`);
     }
-  }, [allFilesUploaded, furthestStep, isLoading, isIngestionLoading, datasetId, updateFurthestStep, navigate]);
+  }, [allFilesUploaded, isLoading, isIngestionLoading, datasetId, updateFurthestStep, navigate]);
 
   const geometryDetected = useMemo(() => {
     if (!files || files.length === 0) return undefined;
@@ -567,7 +552,6 @@ export function useMappingsStep(datasetId?: string) {
     await save();
 
     await Promise.all(datasetFileMappings!.map(dfm => createJob({ type: 'file-to-db', file_id: dfm.fileID })));
-    setImportTriggered(true);
     await queryClient.invalidateQueries({ queryKey: ['datasets', datasetId, 'files'] });
   }, [
     columnMappings,
