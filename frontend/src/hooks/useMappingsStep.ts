@@ -9,7 +9,9 @@ import { useCreateProcedureMutation } from './useCreateProcedureMutation';
 import { useCreateMappingsMutation } from './useCreateMappingsMutation';
 import { useUpdateDatasetFileMappingMutation } from './useDatasetMutation';
 import { useSoilProperties } from './useSoilProperties';
+import { useCreateJobMutation } from './useJobsApi';
 import { ADMIN_PATHS } from '../configuration/admin';
+import { IngestionStatus } from 'types/backend';
 import type {
   FileDescriptor,
   VocabularyItem,
@@ -146,6 +148,45 @@ function buildDataMappingRequest(mappings: ColumnMapping[], procedureIds: Record
 }
 
 // ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function isMappingChanged(
+  columnMappings: ColumnMapping[],
+  existingDataMapping: DataMappingRequest | undefined,
+  procedureByColumn: Record<string, ProcedureResponse>,
+): boolean {
+  if (!existingDataMapping) return true;
+
+  for (const m of columnMappings) {
+    const existing = existingDataMapping[m.columnName];
+
+    if (m.conceptId === null) {
+      if (existing !== undefined) return true;
+      continue;
+    }
+
+    if (existing === undefined) return true;
+
+    if (METADATA_FIELD_CODES.has(m.conceptId)) {
+      if (existing !== m.conceptId) return true;
+    } else {
+      if (typeof existing === 'string') return true;
+      if (existing.property_id !== m.conceptId) return true;
+      if ((existing.conversion_id ?? null) !== m.unitId) return true;
+      const proc = procedureByColumn[m.columnName];
+      if (proc) {
+        if (!procedurePayloadMatches(m.details, proc)) return true;
+      } else {
+        if (Object.values(m.details).some(v => v !== null)) return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+// ---------------------------------------------------------------------------
 // Hook
 // ---------------------------------------------------------------------------
 
@@ -153,7 +194,8 @@ export function useMappingsStep(datasetId?: string) {
   const { t } = useTranslation('admin');
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { isLoading: isIngestionLoading, updateFurthestStep } = useIngestionStatus();
+  const { isLoading: isIngestionLoading, getFurthestStep, updateFurthestStep } = useIngestionStatus();
+  const [importTriggered, setImportTriggered] = useState(false);
 
   const hasTracked = useRef(false);
   useEffect(() => {
@@ -166,19 +208,27 @@ export function useMappingsStep(datasetId?: string) {
   const { mutateAsync: createProcedure } = useCreateProcedureMutation();
   const { mutateAsync: createMapping } = useCreateMappingsMutation();
   const { mutateAsync: updateDatasetFileMapping } = useUpdateDatasetFileMappingMutation();
-
-  const { data: files, isLoading: isLoadingFiles } = useApiQuery<FileDescriptor[]>({
-    endpoint: `/datasets/${datasetId}/files`,
-    method: 'GET',
-    queryKey: ['datasets', datasetId, 'files'],
-    enabled: !!datasetId,
-  });
+  const { mutateAsync: createJob } = useCreateJobMutation();
 
   const { data: datasetFileMappings, isLoading: isLoadingDatasetFileMappings } = useApiQuery<DatasetFileMappingResponse[]>({
     endpoint: `/datasets/${datasetId}/dataset-file-mapping`,
     method: 'GET',
     queryKey: ['datasets', datasetId, 'dataset-file-mapping'],
     enabled: !!datasetId,
+  });
+
+  const { data: files, isLoading: isLoadingFiles } = useApiQuery<FileDescriptor[]>({
+    endpoint: `/datasets/${datasetId}/files`,
+    method: 'GET',
+    queryKey: ['datasets', datasetId, 'files'],
+    enabled: !!datasetId,
+    refetchInterval: query => {
+      const currentFiles = query.state.data as FileDescriptor[] | undefined;
+      if (!currentFiles?.length) return false;
+      const allUploaded = currentFiles.every(f => f.status === IngestionStatus.UPLOADED);
+      if (allUploaded) return false;
+      return currentFiles.some(f => f.status === IngestionStatus.ONGOING) || importTriggered ? 3000 : false;
+    },
   });
 
   const { data: existingMappings, isLoading: isLoadingExistingMappings } = useApiQuery<DataMappingResponse[]>({
@@ -261,6 +311,34 @@ export function useMappingsStep(datasetId?: string) {
     isLoadingExistingMappings ||
     isLoadingProcedures ||
     isLoadingDatasetFileMappings;
+
+  const { isImporting, allFilesUploaded } = useMemo(() => {
+    if (!files?.length) return { isImporting: false, allFilesUploaded: false };
+    const anyOngoing = files.some(f => f.status === IngestionStatus.ONGOING);
+    const allUploaded = files.every(f => f.status === IngestionStatus.UPLOADED);
+    return {
+      isImporting: anyOngoing || (importTriggered && !allUploaded),
+      allFilesUploaded: allUploaded,
+    };
+  }, [files, importTriggered]);
+
+  const furthestStep = datasetId ? getFurthestStep(datasetId) : undefined;
+
+  // Track whether import was active in this session so the redirect below only fires
+  // when we actually witnessed ONGOING → UPLOADED, not just because a dataset's files
+  // happen to be UPLOADED from a previous or unrelated import.
+  const wasImportingRef = useRef(false);
+  if (isImporting) wasImportingRef.current = true;
+
+  // Redirect to preview when import completes (after polling or on page reload mid-import).
+  // Skip when furthestStep is already 'preview' — user deliberately came back from preview.
+  useEffect(() => {
+    if (!datasetId || isLoading || isIngestionLoading) return;
+    if (allFilesUploaded && furthestStep !== 'preview' && wasImportingRef.current) {
+      updateFurthestStep(datasetId, 'preview');
+      navigate(`${ADMIN_PATHS.DATASETS}/edit/${datasetId}/preview`);
+    }
+  }, [allFilesUploaded, furthestStep, isLoading, isIngestionLoading, datasetId, updateFurthestStep, navigate]);
 
   const geometryDetected = useMemo(() => {
     if (!files || files.length === 0) return undefined;
@@ -474,12 +552,34 @@ export function useMappingsStep(datasetId?: string) {
   }, [save, navigate]);
 
   const handleContinue = useCallback(async () => {
+    const changed = isMappingChanged(columnMappings, existingMappings?.[0]?.data_mapping, procedureByColumn);
+
+    if (!changed && allFilesUploaded) {
+      navigate(`${ADMIN_PATHS.DATASETS}/edit/${datasetId}/preview`);
+      return;
+    }
+
     await save();
-    navigate(`${ADMIN_PATHS.DATASETS}/edit/${datasetId}/preview`);
-  }, [save, navigate, datasetId]);
+
+    await Promise.all(datasetFileMappings!.map(dfm => createJob({ type: 'file-to-db', file_id: dfm.fileID })));
+    setImportTriggered(true);
+    await queryClient.invalidateQueries({ queryKey: ['datasets', datasetId, 'files'] });
+  }, [
+    columnMappings,
+    existingMappings,
+    procedureByColumn,
+    allFilesUploaded,
+    save,
+    navigate,
+    datasetId,
+    datasetFileMappings,
+    createJob,
+    queryClient,
+  ]);
 
   return {
     isLoading,
+    isImporting,
     geometryMessage,
     depthConflictMessage,
     isContinueEnabled,

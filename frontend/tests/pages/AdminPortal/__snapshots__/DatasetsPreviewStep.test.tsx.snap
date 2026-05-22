@@ -11,6 +11,13 @@ exports[`DatasetsPreviewStep renders matches snapshot 1`] = `
     <p>
       Dataset id: 
     </p>
+    <button
+      class="Button Secondary Small"
+      data-testid="sh-preview-previous"
+      type="button"
+    >
+      Previous
+    </button>
   </div>
 </div>
 `;

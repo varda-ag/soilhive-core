@@ -45,6 +45,10 @@ jest.mock('hooks/useDatasetMutation', () => ({
   useUpdateDatasetFileMappingMutation: jest.fn(() => ({ mutateAsync: jest.fn() })),
 }));
 
+jest.mock('hooks/useJobsApi', () => ({
+  useCreateJobMutation: jest.fn(() => ({ mutateAsync: jest.fn().mockResolvedValue({}) })),
+}));
+
 jest.mock('@tanstack/react-query', () => ({
   useQueryClient: jest.fn(() => ({ invalidateQueries: jest.fn().mockResolvedValue(undefined) })),
 }));
@@ -56,6 +60,8 @@ beforeEach(() => {
   mockUseApiQuery.mockReturnValue({ data: undefined, isLoading: false });
   mockUseSoilProperties.mockReturnValue({ data: undefined, isLoading: false });
 });
+
+const defaultDatasetFileMappings = [{ id: 'dfm-1', fileID: 'file-1' }];
 
 function setupWithColumns(columns: string[], detectedFields?: Record<string, string>, geometryDetected?: boolean) {
   // Stable reference — new array per call would re-trigger the columnMappings useEffect on every render.
@@ -69,9 +75,8 @@ function setupWithColumns(columns: string[], detectedFields?: Record<string, str
     },
   ];
   mockUseApiQuery.mockImplementation(({ endpoint }: { endpoint: string }) => {
-    if (endpoint.includes('/files')) {
-      return { data: filesData, isLoading: false };
-    }
+    if (endpoint.includes('/files')) return { data: filesData, isLoading: false };
+    if (endpoint.includes('dataset-file-mapping')) return { data: defaultDatasetFileMappings, isLoading: false };
     return { data: undefined, isLoading: false };
   });
 }
@@ -80,6 +85,7 @@ function setupWithEmptyFiles() {
   const filesData: never[] = [];
   mockUseApiQuery.mockImplementation(({ endpoint }: { endpoint: string }) => {
     if (endpoint.includes('/files')) return { data: filesData, isLoading: false };
+    if (endpoint.includes('dataset-file-mapping')) return { data: defaultDatasetFileMappings, isLoading: false };
     return { data: undefined, isLoading: false };
   });
 }
@@ -95,6 +101,7 @@ function setupWithColumnsAndExistingMapping(
   mockUseApiQuery.mockImplementation(({ endpoint }: { endpoint: string }) => {
     if (endpoint.includes('/files')) return { data: filesData, isLoading: false };
     if (endpoint.includes('/mappings')) return { data: mappingsData, isLoading: false };
+    if (endpoint.includes('dataset-file-mapping')) return { data: defaultDatasetFileMappings, isLoading: false };
     return { data: undefined, isLoading: false };
   });
 }
@@ -106,6 +113,7 @@ function setupWithDetectedMapping(columns: string[], dataMapping: Record<string,
   mockUseApiQuery.mockImplementation(({ endpoint }: { endpoint: string }) => {
     if (endpoint.includes('/files')) return { data: filesData, isLoading: false };
     if (endpoint.includes('/mappings')) return { data: mappingsData, isLoading: false };
+    if (endpoint.includes('dataset-file-mapping')) return { data: defaultDatasetFileMappings, isLoading: false };
     return { data: undefined, isLoading: false };
   });
 }
@@ -134,7 +142,15 @@ describe('useMappingsStep', () => {
       expect(mockNavigate).toHaveBeenCalledWith('/admin/datasets/edit/42/soil-data');
     });
 
-    it('handleContinue navigates to the preview step', async () => {
+    it('handleContinue navigates to the preview step when files are already uploaded and mapping is unchanged', async () => {
+      // Fast path: all files UPLOADED + no mapping change → navigate immediately.
+      const filesData = [{ metadata: { field_names: [] }, status: 'UPLOADED' }];
+      const mappingsData = [{ data_mapping: {} }];
+      mockUseApiQuery.mockImplementation(({ endpoint }: { endpoint: string }) => {
+        if (endpoint.includes('/files')) return { data: filesData, isLoading: false };
+        if (endpoint.includes('/mappings')) return { data: mappingsData, isLoading: false };
+        return { data: undefined, isLoading: false };
+      });
       const { result } = renderHook(() => useMappingsStep('42'));
       await act(async () => {
         await result.current.handleContinue();

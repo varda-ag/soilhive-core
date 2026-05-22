@@ -478,6 +478,10 @@ export default class FileService {
     const fileEntity = await this.getFile(requestData, fileId);
     assert(fileEntity.file_path, `File path not found for file ${fileId}`);
     assert(fileEntity.metadata, `Metadata not found for file ${fileId}`);
+
+    const repo = requestData.entityManager.getRepository(FileEntity);
+    await repo.update(fileEntity.id, { status: IngestionStatus.ONGOING });
+
     const fileKey = fileEntity.file_path!;
     const fileMetadata = fileEntity.metadata!;
 
@@ -581,6 +585,8 @@ export default class FileService {
       gdalOpts.unshift(layer.name);
       await gdal.vectorTranslateAsync(pgDataset, dataset, gdalOpts);
       dataset.close();
+
+      await repo.update(fileEntity.id, { status: IngestionStatus.UPLOADED });
     } catch (error) {
       if (error instanceof ErrorResponse) {
         throw error;

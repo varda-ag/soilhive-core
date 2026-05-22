@@ -7,6 +7,7 @@ export enum GISDataType {
 export enum IngestionStatus {
   PENDING = 'PENDING',
   ONGOING = 'ONGOING',
+  UPLOADED = 'UPLOADED',
   LOADED = 'LOADED',
   PUBLISHED = 'PUBLISHED',
   ARCHIVED = 'ARCHIVED',
