@@ -19,7 +19,7 @@ import { PropertyMapping } from '../interfaces/PropertyMapping';
 import assert from 'assert';
 import path from 'path';
 import fs from 'fs';
-import { sanitizeField } from './utils';
+import { getRawTableName } from './utils';
 import DatasetFileMappingEntity from '../entities/DatasetFileMapping';
 import VocabularyEntity from '../entities/Vocabulary';
 import { log } from './logger';
@@ -484,7 +484,7 @@ export const addSyntheticIngestionData = async (syntheticIngestionDataOptions): 
     // Load raw data sample
     const sqlFile = path.join(__dirname, '..', '..', 'tests', 'assets', 'raw_data', 'raw_data_insert.sql');
     const sqlTemplate = fs.readFileSync(sqlFile, 'utf8');
-    let sql = sqlTemplate.replace(/{{table}}/g, `"file_${sanitizeField(file.id)}_raw"`);
+    let sql = sqlTemplate.replace(/{{table}}/g, getRawTableName(file.id));
     if (syntheticIngestionDataOptions.tableRows) {
       sql = sql.replace(/{{limit}}/g, syntheticIngestionDataOptions.tableRows);
     }
