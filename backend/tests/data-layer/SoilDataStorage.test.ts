@@ -1,20 +1,22 @@
 import { describe, it, expect, beforeEach, jest, afterAll } from '@jest/globals';
+import * as fs from 'fs';
 import * as turf from '@turf/turf';
 import { MultiPolygon, Polygon } from 'geojson';
 import { getEntityManager } from '../../src/utils/data-source';
 import { getPolygonFromBbox } from '../../src/utils/geometry';
-import { addDataset, addSyntheticData, syntheticDataOptions } from '../../src/utils/mock';
+import { addDataset, addRasterData, addSyntheticData, addRasterDataset, syntheticDataOptions } from '../../src/utils/mock';
 import SoilDataStorage, { buildDatasetFilterClauses } from '../../src/data-layer/SoilDataStorage';
 import DatasetEntity from '../../src/entities/Dataset';
 import { decodeCursor } from '../../src/utils/cursor';
 import { GISDataType } from '../../src/types/data';
-import { addRasterData, addRasterFilterData, addRasterFilterMappings } from '../helper';
+import { addRasterFilterData, addRasterFilterMappings } from '../helper';
 import { clearRasterPool } from '../../src/services/FileService';
 import * as RasterUtilsModule from '../../src/utils/raster';
 import * as FilteringMasksModule from '../../src/data-layer/FilteringMasks';
 import { invalidGeometryPayload } from './invalidGeometryPayload.ts';
 import { getRasterMask, getVectorMask } from '../../src/data-layer/FilteringMasks';
 import { FilterCriteria } from '../../src/interfaces/DatasetFilter';
+import path from 'path';
 
 const bbox = [0, 0, 1, 1];
 const bboxPolygon: Polygon = getPolygonFromBbox(bbox);
@@ -672,6 +674,15 @@ describe('SoilDataStorage class', () => {
       mockSelectOverview.mockRestore();
     });
 
+    afterAll(() => {
+      const dir = process.env.LOCAL_STORAGE_ROOT_FOLDER!;
+      for (const file of fs.readdirSync(dir)) {
+        if (file.endsWith('_cog.tif')) {
+          fs.unlinkSync(path.join(dir, file));
+        }
+      }
+    });
+
     const rasterCoordinates = [
       [-80.81, -33.732],
       [-80.81, -33.728],
@@ -759,11 +770,11 @@ describe('SoilDataStorage class', () => {
     ])(
       'Filtering raster data should do pixel check: resolution=%im extent=%s → selectFileOverviewLevel called=%s',
       async (resolution, extent, expectCalled) => {
+        const input = path.join(__dirname, `../assets/raster/sol_ph.h2o_usda.4c1a2a_m_250m_b0..0cm_1950..2017_v0.2_${resolution}.tif`);
         const spy = jest.spyOn(RasterUtilsModule, 'selectFileOverviewLevel');
-        await addRasterData(dsn, undefined, {
+        await addRasterData(dsn, input, {
           out: `test_raster_${Date.now()}_cog.tif`,
           outDir: process.env.LOCAL_STORAGE_ROOT_FOLDER,
-          resolution,
           extent,
         });
         const sds = new SoilDataStorage();
@@ -812,6 +823,14 @@ describe('SoilDataStorage class', () => {
         });
         expect(results).toHaveLength(expectedCount);
       });
+    });
+
+    describe('Filtering raster data with raster_filters', () => {
+      beforeEach(async () => {
+        await addRasterDataset(dsn);
+      }, 100000);
+
+      it('TODO', async () => {});
     });
   });
 });

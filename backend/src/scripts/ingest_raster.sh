@@ -6,7 +6,6 @@
 #   ./scripts/ingest_raster.sh [OPTIONS] <input.tif>
 #
 # Required:
-#   -r, --resolution  Resolution in metres (e.g. 10, 100, 250, 1000)
 #   -e, --extent      Extent type: global | continental | national | regional
 #
 # Optional:
@@ -27,7 +26,7 @@ set -euo pipefail
 
 # ─── Defaults ────────────────────────────────────────────────────────────────
 
-RESOLUTION=""
+RESOLUTION=""  # inferred from file in Step 2
 EXTENT=""
 OUT=""
 OUTDIR=""
@@ -46,7 +45,6 @@ usage() { grep '^#' "$0" | sed 's/^# \{0,1\}//'; exit 0; }
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    -r|--resolution)  RESOLUTION="$2"; shift 2 ;;
     -e|--extent)      EXTENT="$2";     shift 2 ;;
     -o|--out)         OUT="$2";        shift 2 ;;
     -O|--out-dir)     OUTDIR="$2";    shift 2 ;;
@@ -64,7 +62,6 @@ while [[ $# -gt 0 ]]; do
 done
 
 [[ -z "$INPUT" ]]      && { echo "Error: input file required" >&2; exit 1; }
-[[ -z "$RESOLUTION" ]] && { echo "Error: --resolution required" >&2; exit 1; }
 [[ -z "$EXTENT" ]]     && { echo "Error: --extent required" >&2; exit 1; }
 [[ -z "$DSN" ]]        && { echo "Error: --dsn or DATABASE_URL required" >&2; exit 1; }
 [[ ! -f "$INPUT" ]]    && { echo "Error: file not found: $INPUT" >&2; exit 1; }
@@ -88,15 +85,22 @@ trap 'rm -rf "$TMPDIR_WORK"' EXIT
 
 # ─── Step 1: COG conversion ───────────────────────────────────────────────────
 
-echo "-> [1/4] Converting to COG: $OUT"
+IS_COG=$(gdalinfo -json "$INPUT" | jq -r '.metadata[""].LAYOUT // empty' 2>/dev/null || true)
 
-gdal_translate "$INPUT" "$OUT" \
-  -of COG \
-  -co COMPRESS=DEFLATE \
-  -co BLOCKSIZE=512 \
-  -co OVERVIEWS=AUTO \
-  -co BIGTIFF=IF_NEEDED \
-  -co "OVERVIEW_RESAMPLING=$RESAMPLING"
+if [[ "$IS_COG" == "COG" ]]; then
+  echo "-> [1/4] Skipping COG conversion: input is already COG"
+  OUT="$INPUT"
+  OUT_NAME="$(basename "$INPUT")"
+else
+  echo "-> [1/4] Converting to COG: $OUT"
+  gdal_translate "$INPUT" "$OUT" \
+    -of COG \
+    -co COMPRESS=DEFLATE \
+    -co BLOCKSIZE=512 \
+    -co OVERVIEWS=AUTO \
+    -co BIGTIFF=IF_NEEDED \
+    -co "OVERVIEW_RESAMPLING=$RESAMPLING"
+fi
 
 # ─── Step 2: Extract metadata ─────────────────────────────────────────────────
 
@@ -122,7 +126,18 @@ BBOX_GEOM=$(jq -c '.wgs84Extent // empty' "$INFO_JSON") \
 SRS_WKT=$(gdalsrsinfo -o wkt "$OUT" 2>/dev/null | tr -d '\n' || true)
 SRS_WKT_ESC="${SRS_WKT//\'/\'\'}"
 
-echo "  nodata=${NODATA:-<none>}  overviews=$OVR_COUNT  pixels=$RASTER_PIXELS"
+# Pixel size in CRS units (geoTransform[5] is y-pixel, negative by convention)
+PIXEL_SIZE_CRS=$(jq '(.geoTransform[5]) | if . < 0 then -. else . end' "$INFO_JSON")
+
+# Geographic CRS (degrees) → scale by 111320 m/°; projected (meters) → use directly
+PROJ4=$(gdalsrsinfo -o proj4 "$OUT" 2>/dev/null || true)
+if echo "$PROJ4" | grep -q '+proj=lon'; then
+  RESOLUTION=$(awk "BEGIN {printf \"%.4f\", $PIXEL_SIZE_CRS * 111320}")
+else
+  RESOLUTION=$(awk "BEGIN {printf \"%.4f\", $PIXEL_SIZE_CRS}")
+fi
+
+echo "  nodata=${NODATA:-<none>}  overviews=$OVR_COUNT  pixels=$RASTER_PIXELS  resolution=${RESOLUTION}m"
 
 # ─── Step 3: Footprint extraction ─────────────────────────────────────────────
 
@@ -171,13 +186,7 @@ SET search_path TO "$SCHEMA", public;
 WITH
 tolerance AS (
   SELECT
-    CASE $RESOLUTION
-      WHEN 10   THEN 0.002
-      WHEN 100  THEN 0.008
-      WHEN 250  THEN 0.02
-      WHEN 1000 THEN 0.05
-      ELSE           0.01
-    END *
+    POWER($RESOLUTION::float, 0.7) * 0.0004 *
     CASE '$EXTENT'
       WHEN 'global'      THEN 4.0
       WHEN 'continental' THEN 2.0
