@@ -223,13 +223,16 @@ export function useMappingsStep(datasetId?: string) {
     refetchInterval: 3000,
   });
 
-  const { isImporting, allFilesUploaded } = useMemo(() => {
-    if (!files?.length) return { isImporting: false, allFilesUploaded: false };
+  const [jobsFired, setJobsFired] = useState(false);
+
+  const { isImporting, serverIsImporting, allFilesUploaded } = useMemo(() => {
+    const serverIsImporting = files?.some(f => f.status === IngestionStatus.ONGOING) ?? false;
     return {
-      isImporting: files.some(f => f.status === IngestionStatus.ONGOING),
-      allFilesUploaded: files.every(f => f.status === IngestionStatus.UPLOADED),
+      isImporting: jobsFired || serverIsImporting,
+      serverIsImporting,
+      allFilesUploaded: files?.every(f => f.status === IngestionStatus.UPLOADED) ?? false,
     };
-  }, [files]);
+  }, [files, jobsFired]);
 
   const { data: existingMappings, isLoading: isLoadingExistingMappings } = useApiQuery<DataMappingResponse[]>({
     endpoint: `/datasets/${datasetId}/mappings`,
@@ -312,10 +315,10 @@ export function useMappingsStep(datasetId?: string) {
     isLoadingProcedures ||
     isLoadingDatasetFileMappings;
 
-  // Only true if we observed ONGOING in this session — prevents redirect when the user
-  // arrives at the mappings page with pre-existing UPLOADED files.
-  const wasImportingRef = useRef(false);
-  if (isImporting) wasImportingRef.current = true;
+  // Only set from actual server ONGOING — jobsFired alone must not trigger the redirect
+  // (files may still be UPLOADED from a previous import when jobs are first enqueued).
+  const ongoingObservedRef = useRef(false);
+  if (serverIsImporting) ongoingObservedRef.current = true;
 
   // Guard against firing more than once: updateFurthestStep has an unstable reference
   // that can re-trigger this effect before the navigation completes.
@@ -323,7 +326,7 @@ export function useMappingsStep(datasetId?: string) {
 
   useEffect(() => {
     if (!datasetId || isLoading || isIngestionLoading) return;
-    if (allFilesUploaded && wasImportingRef.current && !redirectFiredRef.current) {
+    if (allFilesUploaded && ongoingObservedRef.current && !redirectFiredRef.current) {
       redirectFiredRef.current = true;
       updateFurthestStep(datasetId, 'preview');
       navigate(`${ADMIN_PATHS.DATASETS}/edit/${datasetId}/preview`);
@@ -551,6 +554,7 @@ export function useMappingsStep(datasetId?: string) {
 
     await save();
 
+    setJobsFired(true);
     await Promise.all(datasetFileMappings!.map(dfm => createJob({ type: 'file-to-db', file_id: dfm.fileID })));
     await queryClient.invalidateQueries({ queryKey: ['datasets', datasetId, 'files'] });
   }, [
