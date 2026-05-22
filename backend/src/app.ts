@@ -10,7 +10,7 @@ import { initPgBoss } from './services/PgBoss';
 import ConfigService from './services/ConfigService';
 import FileService from './services/FileService';
 import { setupCLI } from './utils/cli';
-import { initializeSchema, isDBAvailable } from './utils/data-source';
+import { getEntityManager, initializeSchema } from './utils/data-source';
 import { log } from './utils/logger';
 import { getServerPort, isJest, setupEnv } from './utils/utils';
 
@@ -36,18 +36,28 @@ export const initApp = async (app: Application) => {
 
   app.use(express.urlencoded({ extended: true }));
   app.use(express.json({ limit: process.env.JSON_PAYLOAD_LIMIT || undefined }));
-  app.use(transactionMiddleware);
-  app.use('/docs', swaggerUi.serve, swaggerUi.setup(await getSwaggerDocument()));
 
-  app.get('/health', async (_req, res) => {
-    const status = await isDBAvailable();
-    res.json({ status });
+  app.get('/health', (_req, res) => {
+    res.json({ status: true });
   });
 
   app.get('/ready', async (_req, res) => {
-    const status = await isDBAvailable();
-    res.json({ status });
+    try {
+      const entityManager = await getEntityManager();
+      const results = await entityManager.query('SELECT 1');
+      if (results.length === 1) {
+        res.json({ status: true });
+      } else {
+        res.status(503).json({ status: false });
+      }
+    } catch {
+      res.status(503).json({ status: false });
+    }
   });
+
+  // Important: transaction middleware is active from this point and should be before errorMiddleware
+  app.use(transactionMiddleware);
+  app.use('/docs', swaggerUi.serve, swaggerUi.setup(await getSwaggerDocument()));
 
   app.use(await getOpenApiMiddleware());
   app.use(errorMiddleware);

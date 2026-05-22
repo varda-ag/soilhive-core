@@ -93,7 +93,7 @@
       ]
     },
     "transformIgnorePatterns": [
-      "<rootDir>/node_modules/(?!(pg-boss|serialize-error|non-error|p-limit|yocto-queue)/)"
+      "<rootDir>/node_modules/(?!(pg-boss|serialize-error|non-error|p-limit|yocto-queue|@aws-sdk)/)"
     ],
     "preset": "ts-jest",
     "testEnvironment": "node",

@@ -164,7 +164,7 @@ export function useMappingsStep(datasetId?: string) {
     enabled: !!datasetId,
   });
 
-  const { data: datasetFileMappings } = useApiQuery<DatasetFileMappingResponse[]>({
+  const { data: datasetFileMappings, isLoading: isLoadingDatasetFileMappings } = useApiQuery<DatasetFileMappingResponse[]>({
     endpoint: `/datasets/${datasetId}/dataset-file-mapping`,
     method: 'GET',
     queryKey: ['datasets', datasetId, 'dataset-file-mapping'],
@@ -249,7 +249,8 @@ export function useMappingsStep(datasetId?: string) {
     isLoadingVocabulary ||
     isLoadingTechniques ||
     isLoadingExistingMappings ||
-    isLoadingProcedures;
+    isLoadingProcedures ||
+    isLoadingDatasetFileMappings;
 
   const geometryDetected = useMemo(() => {
     if (!files || files.length === 0) return undefined;

@@ -87,3 +87,8 @@ export const getSoilData = async (req: Request, res: Response) => {
   );
   res.json(data);
 };
+
+export const getSoilDataCount = async (req: Request, res: Response) => {
+  const count = await datasetService.getSoilDataCount(req.customData, req.params['datasetFileMappingId']! as string);
+  res.json({ count });
+};

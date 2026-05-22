@@ -497,8 +497,6 @@ export default class FileService {
       '-f',
       'PostgreSQL',
       '-explodecollections',
-      '-t_srs',
-      'EPSG:4326',
       '-lco',
       'FID=record_id',
       '-lco',
@@ -556,8 +554,16 @@ export default class FileService {
         }
       }
 
-      const srs = `EPSG:${fileMetadata.epsg ?? 4326}`;
-      gdalOpts.push('-s_srs', srs);
+      if (fileMetadata.epsg && fileMetadata.epsg !== 4326) {
+        // Reproject from the declared non-WGS84 source CRS to WGS84.
+        gdalOpts.push('-s_srs', `EPSG:${fileMetadata.epsg}`);
+        gdalOpts.push('-t_srs', 'EPSG:4326');
+      } else {
+        // Source is WGS84 or CRS unknown (assumed WGS84): assign SRID without reprojecting.
+        // -a_srs avoids GDAL 3.10.x's PostgreSQL driver spurious coordinate shift that occurs
+        // when -s_srs EPSG:4326 is combined with -t_srs EPSG:4326 on a null-SRS CSV layer.
+        gdalOpts.push('-a_srs', 'EPSG:4326');
+      }
       // Open dataset with GDAL (if driver available, pass driver-specific open options)
       let dataset: gdal.Dataset;
       if (fileMetadata.driver) {

@@ -1,5 +1,5 @@
 import { EntityManager } from 'typeorm';
-import { DATA_PREVIEW_SIZE } from '../constants/constants';
+import { DATA_PREVIEW_SIZE, OUTSIDE_LOD_VALUE } from '../constants/constants';
 import { DataCleaningConfig } from '../interfaces/DataMapping';
 import { SoilRecord } from '../interfaces/Record';
 import FeatureEntity from '../entities/Feature';
@@ -9,6 +9,7 @@ import DatasetLayerEntity from '../entities/DatasetLayer';
 import ObservationEntity from '../entities/Observation';
 import { getRawTableName, sanitizeField } from '../utils/utils';
 import { DetectableFields } from '../types/DataMapping';
+import { createCursor, decodeCursor, encodeCursor } from '../utils/cursor';
 
 export default class VectorDataLoad {
   getDataPreview = async (
@@ -24,10 +25,25 @@ export default class VectorDataLoad {
     query = getDataPreviewQuery(query, dataMappingConfig, cursor, sort);
     // Workaround using raw query to be able to use dynamic table name without entity
     const results = await entityManager.query(...query.take(limit).getQueryAndParameters());
-    // Convert geometry string to JSON
-    return results.map(r => {
-      return { ...r, geometry: JSON.parse(r.geometry) };
+    const sortKey = sort ? (sort.startsWith('-') ? sort.substring(1) : sort) : undefined;
+    const cursorCol = sortKey ? `_cursor_${sortKey}` : undefined;
+    return results.map((r: any) => {
+      const cursorValue = cursorCol ? r[cursorCol] : undefined;
+      const cursor = encodeCursor(createCursor(String(r.record_id), sort, cursorValue));
+      const record = { ...r, geometry: JSON.parse(r.geometry) };
+      if (cursorCol) delete record[cursorCol];
+      return { ...record, cursor };
     });
+  };
+
+  getDataCount = async (entityManager: EntityManager, dataMappingConfig: DataCleaningConfig, fileId: string): Promise<number> => {
+    const table = `${process.env.POSTGRES_SCHEMA}.${getRawTableName(fileId)}`;
+    let query = entityManager.createQueryBuilder().from(table, 'raw').select('COUNT(*)', 'count');
+    if (dataMappingConfig.drop_records) {
+      query = query.andWhere('raw.record_id NOT IN (:...drop_records)', { drop_records: dataMappingConfig.drop_records });
+    }
+    const result = await entityManager.query(...query.getQueryAndParameters());
+    return parseInt(result[0].count, 10);
   };
 
   rawRecordToDataModel = async (
@@ -159,19 +175,46 @@ export default class VectorDataLoad {
   };
 }
 
+const buildSortExpr = (sortKey: string, dataMappingConfig: DataCleaningConfig): string => {
+  const metadataCol = dataMappingConfig.metadata_cols[sortKey];
+  if (metadataCol) return `raw.${metadataCol}`;
+  const propConfig = dataMappingConfig.property_cols[sortKey];
+  if (propConfig) {
+    const formula = propConfig.conversion_formula?.replace(/"/g, '').trim() ?? null;
+    const expr = formula ? formula.replace(/x/g, `(raw.${sortKey})::numeric`) : `(raw.${sortKey})::numeric`;
+    return `CASE WHEN ROUND(${sortKey}::numeric, 3)=${OUTSIDE_LOD_VALUE} THEN ROUND(${sortKey}::numeric, 3) ELSE ROUND(${expr},3) END`;
+  }
+  return `raw.${sortKey}`;
+};
+
 const getDataPreviewQuery = (query: any, dataMappingConfig: DataCleaningConfig, cursor?: string, sort?: string): any => {
   query.select('raw.record_id', 'record_id');
   if (sort) {
     const isDesc = sort.startsWith('-');
     const sortKey = isDesc ? sort.substring(1) : sort;
     const dir = isDesc ? 'DESC' : 'ASC';
-    const sortMapping = dataMappingConfig.metadata_cols[sortKey] || sortKey;
-    query.orderBy(`raw.${sortMapping}`, dir);
+    const sortExpr = buildSortExpr(sortKey, dataMappingConfig);
+    query.orderBy(sortExpr, dir);
+    // Hidden column carrying the sort expression value for cursor encoding.
+    // Uses the raw expression without the CASE/min-max wrapper so the cursor
+    // value is always non-NULL even when the visible SELECT output is NULL.
+    query.addSelect(sortExpr, `_cursor_${sortKey}`);
   } else {
     query.orderBy('raw.record_id', 'ASC');
   }
   if (cursor) {
-    query.andWhere('raw.record_id > :cursor', { cursor });
+    const decoded = decodeCursor(cursor);
+    if (sort && decoded.column) {
+      const isDesc = sort.startsWith('-');
+      const sortKey = isDesc ? sort.substring(1) : sort;
+      const operator = isDesc ? '<' : '>';
+      query.andWhere(`(${buildSortExpr(sortKey, dataMappingConfig)}, raw.record_id) ${operator} (:cursorValue, :cursorId)`, {
+        cursorValue: decoded.value,
+        cursorId: decoded.id,
+      });
+    } else {
+      query.andWhere('raw.record_id > :cursorId', { cursorId: decoded.id });
+    }
   }
 
   for (const [mapping, field] of Object.entries(dataMappingConfig.metadata_cols)) {
@@ -191,16 +234,18 @@ const getDataPreviewQuery = (query: any, dataMappingConfig: DataCleaningConfig, 
     let propertyCleanup: string = '';
 
     const conversionFormula = props?.conversion_formula ? props.conversion_formula.replace(/"/g, '').trim() : null;
-    const expr = conversionFormula ? conversionFormula.replace(/x/g, `(raw.${field})::numeric`) : `(raw.${field})::numeric`;
+    const expr = conversionFormula
+      ? conversionFormula.replace(/x/g, `NULLIF((raw.${field})::numeric, 0)`)
+      : `NULLIF((raw.${field})::numeric, 0)`;
 
     if (props.min_val !== undefined && props.max_val !== undefined) {
-      propertyCleanup = `CASE WHEN ${expr} BETWEEN :min_val${field} AND :max_val${field} THEN ROUND(${expr},3) ELSE NULL END`;
+      propertyCleanup = `CASE WHEN (raw.${field})::numeric=${OUTSIDE_LOD_VALUE} THEN (raw.${field})::numeric WHEN ${expr} BETWEEN :min_val${field} AND :max_val${field} THEN ROUND(${expr},3) ELSE NULL END`;
     } else if (props.min_val !== undefined) {
-      propertyCleanup = `CASE WHEN ${expr} >= :min_val${field} THEN ROUND(${expr},3) ELSE NULL END`;
+      propertyCleanup = `CASE WHEN (raw.${field})::numeric=${OUTSIDE_LOD_VALUE} THEN (raw.${field})::numeric WHEN ${expr} >= :min_val${field} THEN ROUND(${expr},3) ELSE NULL END`;
     } else if (props.max_val !== undefined) {
-      propertyCleanup = `CASE WHEN ${expr} <= :max_val${field} THEN ROUND(${expr},3) ELSE NULL END`;
+      propertyCleanup = `CASE WHEN (raw.${field})::numeric=${OUTSIDE_LOD_VALUE} THEN (raw.${field})::numeric WHEN ${expr} <= :max_val${field} THEN ROUND(${expr},3) ELSE NULL END`;
     } else {
-      propertyCleanup = `ROUND(${expr},3)`;
+      propertyCleanup = `CASE WHEN (raw.${field})::numeric=${OUTSIDE_LOD_VALUE} THEN (raw.${field})::numeric ELSE ROUND(${expr},3) END`;
     }
     params[`min_val${field}`] = props.min_val;
     params[`max_val${field}`] = props.max_val;
@@ -210,7 +255,7 @@ const getDataPreviewQuery = (query: any, dataMappingConfig: DataCleaningConfig, 
   query.addSelect('ST_AsGeoJSON(raw.geometry)', 'geometry');
 
   if (dataMappingConfig.drop_records) {
-    query = query.where('raw.record_id NOT IN (:...drop_records)', { drop_records: dataMappingConfig.drop_records });
+    query = query.andWhere('raw.record_id NOT IN (:...drop_records)', { drop_records: dataMappingConfig.drop_records });
   }
   return query;
 };
