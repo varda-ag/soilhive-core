@@ -224,15 +224,9 @@ export function useMappingsStep(datasetId?: string) {
   });
 
   const [jobsFired, setJobsFired] = useState(false);
-
-  const { isImporting, serverIsImporting, allFilesUploaded } = useMemo(() => {
-    const serverIsImporting = files?.some(f => f.status === IngestionStatus.ONGOING) ?? false;
-    return {
-      isImporting: jobsFired || serverIsImporting,
-      serverIsImporting,
-      allFilesUploaded: files?.every(f => f.status === IngestionStatus.UPLOADED) ?? false,
-    };
-  }, [files, jobsFired]);
+  const serverIsImporting = files?.some(f => f.status === IngestionStatus.ONGOING) ?? false;
+  const isImporting = jobsFired || serverIsImporting;
+  const allFilesUploaded = files?.every(f => f.status === IngestionStatus.UPLOADED) ?? false;
 
   const { data: existingMappings, isLoading: isLoadingExistingMappings } = useApiQuery<DataMappingResponse[]>({
     endpoint: `/datasets/${datasetId}/mappings`,
