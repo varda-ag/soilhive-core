@@ -223,10 +223,13 @@ export function useMappingsStep(datasetId?: string) {
     refetchInterval: 3000,
   });
 
-  const [jobsFired, setJobsFired] = useState(false);
-  const serverIsImporting = files?.some(f => f.status === IngestionStatus.ONGOING) ?? false;
+  const [jobsFired, setJobsFired] = useState(false); // optimistic UI: show pane immediately after Continue
+  const serverIsImporting = files?.some(f => f.status === IngestionStatus.ONGOING) ?? false; // server confirmed import is running
   const isImporting = jobsFired || serverIsImporting;
   const allFilesUploaded = files?.every(f => f.status === IngestionStatus.UPLOADED) ?? false;
+  const importSeenRef = useRef(false); // we saw the import running in this session — gates the redirect
+  if (serverIsImporting) importSeenRef.current = true;
+  const redirectDoneRef = useRef(false); // we already redirected — prevents double-fire from unstable updateFurthestStep reference
 
   const { data: existingMappings, isLoading: isLoadingExistingMappings } = useApiQuery<DataMappingResponse[]>({
     endpoint: `/datasets/${datasetId}/mappings`,
@@ -309,19 +312,10 @@ export function useMappingsStep(datasetId?: string) {
     isLoadingProcedures ||
     isLoadingDatasetFileMappings;
 
-  // Only set from actual server ONGOING — jobsFired alone must not trigger the redirect
-  // (files may still be UPLOADED from a previous import when jobs are first enqueued).
-  const ongoingObservedRef = useRef(false);
-  if (serverIsImporting) ongoingObservedRef.current = true;
-
-  // Guard against firing more than once: updateFurthestStep has an unstable reference
-  // that can re-trigger this effect before the navigation completes.
-  const redirectFiredRef = useRef(false);
-
   useEffect(() => {
     if (!datasetId || isLoading || isIngestionLoading) return;
-    if (allFilesUploaded && ongoingObservedRef.current && !redirectFiredRef.current) {
-      redirectFiredRef.current = true;
+    if (allFilesUploaded && importSeenRef.current && !redirectDoneRef.current) {
+      redirectDoneRef.current = true;
       updateFurthestStep(datasetId, 'preview');
       navigate(`${ADMIN_PATHS.DATASETS}/edit/${datasetId}/preview`);
     }
