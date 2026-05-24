@@ -1,5 +1,4 @@
 import { v7 as uuidv7 } from 'uuid';
-import { tmpdir } from 'os';
 import DatasetEntity from '../entities/Dataset';
 import FileEntity from '../entities/File';
 import DataMappingEntity from '../entities/DataMapping';
@@ -579,7 +578,7 @@ export const addRasterData = async (
   },
 ): Promise<RasterLayerEntity> => {
   const input = tifPath ?? path.join(__dirname, '../../tests/assets/raster/sol_ph.h2o_usda.4c1a2a_m_250m_b0..0cm_1950..2017_v0.2_250.tif');
-  const out = options?.out ?? path.join(tmpdir(), `test_raster_${Date.now()}_cog.tif`);
+  const out = options?.out ?? `test_raster_${Date.now()}_cog.tif`;
   const scriptPath = path.join(__dirname, '../scripts/ingest_raster.sh');
 
   const args = [
@@ -587,7 +586,7 @@ export const addRasterData = async (
     `-d "${dsn}"`,
     `-s "${options?.schema ?? process.env.POSTGRES_SCHEMA}"`,
     `-o "${out}"`,
-    options?.outDir ? `-O "${options?.outDir}"` : '',
+    `-O "${options?.outDir ?? process.env.LOCAL_STORAGE_ROOT_FOLDER}"`,
     options?.dataset ? `-D "${options?.dataset}"` : '',
     options?.soilProperty ? `-P "${options?.soilProperty}"` : '',
     `"${path.resolve(input)}"`,
@@ -610,11 +609,11 @@ export const addRasterData = async (
   return entity;
 };
 
-export const addRasterDataset = async (dsn: string, tifPath?: string): Promise<SyntheticRasterDataset> => {
+export const addRasterDataset = async (id: string, dsn: string, tifPath?: string): Promise<SyntheticRasterDataset> => {
   const input = tifPath ?? path.join(__dirname, '../../tests/assets/raster/sol_ph.h2o_usda.4c1a2a_m_250m_b0..0cm_1950..2017_v0.2_250.tif');
   const spatial_extent = [-180, -90, 180, 90];
-  const license = await addLicense(`test_raster_license`);
-  const dataset = await addDataset(`test_raster_dataset`, spatial_extent, GISDataType.RASTER, [license.slug]);
+  const license = await addLicense(`test_raster_license_${id}`);
+  const dataset = await addDataset(`test_raster_dataset_${id}`, spatial_extent, GISDataType.RASTER, [license.slug]);
   await addRasterData(dsn, input, {
     dataset: dataset.slug,
     soilProperty: 'test_soil_property',

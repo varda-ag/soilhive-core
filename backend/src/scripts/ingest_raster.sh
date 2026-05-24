@@ -29,6 +29,7 @@ set -euo pipefail
 RESOLUTION=""  # inferred from file in Step 2
 EXTENT=""
 OUT=""
+OUT_EXPLICIT="false"
 OUTDIR=""
 NODATA=""
 DSN="${DATABASE_URL:-}"
@@ -46,7 +47,7 @@ usage() { grep '^#' "$0" | sed 's/^# \{0,1\}//'; exit 0; }
 while [[ $# -gt 0 ]]; do
   case "$1" in
     -e|--extent)      EXTENT="$2";     shift 2 ;;
-    -o|--out)         OUT="$2";        shift 2 ;;
+    -o|--out)         OUT="$2"; OUT_EXPLICIT="true"; shift 2 ;;
     -O|--out-dir)     OUTDIR="$2";    shift 2 ;;
     -n|--nodata)      NODATA="$2";     shift 2 ;;
     -d|--dsn)         DSN="$2";        shift 2 ;;
@@ -85,12 +86,19 @@ trap 'rm -rf "$TMPDIR_WORK"' EXIT
 
 # ─── Step 1: COG conversion ───────────────────────────────────────────────────
 
-IS_COG=$(gdalinfo -json "$INPUT" | jq -r '.metadata[""].LAYOUT // empty' 2>/dev/null || true)
+IS_COG=$(gdalinfo -json "$INPUT" 2>/dev/null | jq -r '
+  if .metadata[""].LAYOUT == "COG" then "COG"
+  elif ((.bands[0].block // [0])[0] >= 256) and ((.bands[0].overviews // []) | length > 0) then "COG"
+  else "" end
+' 2>/dev/null || true)
 
-if [[ "$IS_COG" == "COG" ]]; then
+if [[ "$IS_COG" == "COG" && "$OUT_EXPLICIT" != "true" ]]; then
   echo "-> [1/4] Skipping COG conversion: input is already COG"
   OUT="$INPUT"
   OUT_NAME="$(basename "$INPUT")"
+elif [[ "$IS_COG" == "COG" ]]; then
+  echo "-> [1/4] Input is already COG, copying to: $OUT"
+  cp "$INPUT" "$OUT"
 else
   echo "-> [1/4] Converting to COG: $OUT"
   gdal_translate "$INPUT" "$OUT" \
@@ -98,7 +106,7 @@ else
     -co COMPRESS=DEFLATE \
     -co BLOCKSIZE=512 \
     -co OVERVIEWS=AUTO \
-    -co BIGTIFF=IF_NEEDED \
+    -co BIGTIFF=YES \
     -co "OVERVIEW_RESAMPLING=$RESAMPLING"
 fi
 
@@ -309,7 +317,7 @@ SELECT rl.id, f.file_path, rl.resolution_m, rl.extent_type, rl.nodata_value
 FROM   raster_layers rl
 LEFT JOIN files f
 ON rl.file_id=f.id
-WHERE  file_path = '$OUT';
+WHERE  file_path = '$OUT_NAME';
 SQL
 
 echo "Done: $OUT"

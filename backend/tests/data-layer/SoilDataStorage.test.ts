@@ -694,7 +694,6 @@ describe('SoilDataStorage class', () => {
     it('Filtering raster data should return a dataset when geometry intersects with its footprint', async () => {
       await addRasterData(dsn, undefined, {
         out: `test_raster_${Date.now()}_cog.tif`,
-        outDir: process.env.LOCAL_STORAGE_ROOT_FOLDER,
       });
       const sds = new SoilDataStorage();
       const entityManager = await getEntityManager();
@@ -711,7 +710,6 @@ describe('SoilDataStorage class', () => {
     it('Filtering raster data should return empty array when geometry does not intersect any raster layer', async () => {
       await addRasterData(dsn, undefined, {
         out: `test_raster_${Date.now()}_cog.tif`,
-        outDir: process.env.LOCAL_STORAGE_ROOT_FOLDER,
       });
       const sds = new SoilDataStorage();
       const entityManager = await getEntityManager();
@@ -731,7 +729,6 @@ describe('SoilDataStorage class', () => {
     ])('Filtering with criteria: layer=%j filter=%j should return %i result(s)', async (layerFields, filter, expectedCount) => {
       await addRasterData(dsn, undefined, {
         out: `test_raster_${Date.now()}_cog.tif`,
-        outDir: process.env.LOCAL_STORAGE_ROOT_FOLDER,
         layerFields,
       });
       const sds = new SoilDataStorage();
@@ -743,11 +740,9 @@ describe('SoilDataStorage class', () => {
     it('Filtering raster data should aggregate multiple layers from the same dataset into one summary', async () => {
       await addRasterData(dsn, undefined, {
         out: `test_raster_${Date.now()}_cog.tif`,
-        outDir: process.env.LOCAL_STORAGE_ROOT_FOLDER,
       });
       await addRasterData(dsn, undefined, {
         out: `test_raster_${Date.now()}_cog.tif`,
-        outDir: process.env.LOCAL_STORAGE_ROOT_FOLDER,
         layerFields: { reference_period_start: '2010-01-01', reference_period_stop: '2020-12-31' },
       });
       const sds = new SoilDataStorage();
@@ -774,7 +769,6 @@ describe('SoilDataStorage class', () => {
         const spy = jest.spyOn(RasterUtilsModule, 'selectFileOverviewLevel');
         await addRasterData(dsn, input, {
           out: `test_raster_${Date.now()}_cog.tif`,
-          outDir: process.env.LOCAL_STORAGE_ROOT_FOLDER,
           extent,
         });
         const sds = new SoilDataStorage();
@@ -797,7 +791,6 @@ describe('SoilDataStorage class', () => {
       beforeEach(async () => {
         await addRasterData(dsn, undefined, {
           out: `test_raster_${Date.now()}_cog.tif`,
-          outDir: process.env.LOCAL_STORAGE_ROOT_FOLDER,
         });
         await addRasterFilterData();
         await addRasterFilterMappings();
@@ -824,13 +817,28 @@ describe('SoilDataStorage class', () => {
         expect(results).toHaveLength(expectedCount);
       });
     });
+  });
 
-    describe('Filtering raster data with raster_filters', () => {
-      beforeEach(async () => {
-        await addRasterDataset(dsn);
-      }, 100000);
-
-      it('TODO', async () => {});
-    });
+  describe('Filtering raster data with raster_filters', () => {
+    const dir = process.env.LOCAL_STORAGE_ROOT_FOLDER!;
+    const dsn = `postgresql://${process.env.POSTGRES_USER}:${process.env.POSTGRES_PASSWORD}@${process.env.POSTGRES_HOST}:${process.env.POSTGRES_PORT}/${process.env.POSTGRES_DB}`;
+    it.skip(
+      'Local DB loading',
+      async () => {
+        for (const input of [
+          `${dir}/clsoilmaps_ksat_100-200cm.tif`,
+          `${dir}/cog_isda_sol_db_od_m_30m_0__20cm_2001__2017_v0_13_wgs84.tif`,
+          `${dir}/holisoils_nitrogen_topsoil_0-30cm_mean_forest.tif`,
+          `${dir}/olm_sol_coarsefrag.vfraction_usda.3b1_m_250m_b0..0cm_1950..2017_v0.2.tif`,
+          `${dir}/olm_sol_texture_class_usda_tt_m_250m_b0_0cm_1950_2017_v0_2.tif`,
+          `${dir}/soilgrids250_bdod_5-15cm_mean.tif`,
+          `${dir}/gSSURGO_AK_rootznemc.tiff`,
+        ]) {
+          const id = input.split('/').pop()!.split('.')[0];
+          await addRasterDataset(id, dsn, input);
+        }
+      },
+      2000 * 60 * 60,
+    );
   });
 });
