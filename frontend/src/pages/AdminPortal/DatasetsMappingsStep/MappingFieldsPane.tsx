@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import CloudSync from 'assets/images/cloud-sync.svg?react';
+import CloudSync from 'assets/icons/cloud-sync.svg?react';
 import styles from './MappingFieldsPane.module.scss';
 
 export function MappingFieldsPane() {

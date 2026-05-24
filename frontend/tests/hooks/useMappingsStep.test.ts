@@ -5,6 +5,7 @@ import { useApiQuery } from 'hooks/useApiQuery';
 import { useSoilProperties } from 'hooks/useSoilProperties';
 import { useCreateProcedureMutation } from 'hooks/useCreateProcedureMutation';
 import { useCreateMappingsMutation } from 'hooks/useCreateMappingsMutation';
+import { useCreateJobMutation } from 'hooks/useJobsApi';
 
 jest.mock('react-router', () => ({
   useNavigate: jest.fn(),
@@ -118,6 +119,18 @@ function setupWithDetectedMapping(columns: string[], dataMapping: Record<string,
   });
 }
 
+function setupWithFileStatuses(statuses: string[]) {
+  const filesData = statuses.map(status => ({
+    status,
+    metadata: { field_names: ['col1'], geometry_detected: true },
+  }));
+  mockUseApiQuery.mockImplementation(({ endpoint }: { endpoint: string }) => {
+    if (endpoint.includes('/files')) return { data: filesData, isLoading: false };
+    if (endpoint.includes('dataset-file-mapping')) return { data: defaultDatasetFileMappings, isLoading: false };
+    return { data: undefined, isLoading: false };
+  });
+}
+
 describe('useMappingsStep', () => {
   const mockNavigate = jest.fn();
 
@@ -164,6 +177,105 @@ describe('useMappingsStep', () => {
         await result.current.handleSaveAndContinueLater();
       });
       expect(mockNavigate).toHaveBeenCalledWith('/admin/datasets');
+    });
+
+    it('handleContinue creates a file-to-db job for each dataset-file-mapping when mapping has changed', async () => {
+      // No existing mapping → isMappingChanged returns true → normal path (save + fire jobs).
+      setupWithColumns(['col1']);
+      const mockCreateJob = jest.fn().mockResolvedValue({});
+      (useCreateJobMutation as jest.Mock).mockReturnValue({ mutateAsync: mockCreateJob });
+      const { result } = renderHook(() => useMappingsStep('42'));
+      await act(async () => {
+        await result.current.handleContinue();
+      });
+      expect(mockCreateJob).toHaveBeenCalledWith({ type: 'file-to-db', file_id: 'file-1' });
+    });
+
+    it('handleContinue creates jobs when files are not yet UPLOADED even if mapping is unchanged', async () => {
+      // Files still PENDING → allFilesUploaded=false → fast-path blocked → jobs must fire.
+      const filesData = [{ status: 'PENDING', metadata: { field_names: [] } }];
+      const mappingsData = [{ data_mapping: {} }];
+      mockUseApiQuery.mockImplementation(({ endpoint }: { endpoint: string }) => {
+        if (endpoint.includes('/files')) return { data: filesData, isLoading: false };
+        if (endpoint.includes('/mappings')) return { data: mappingsData, isLoading: false };
+        if (endpoint.includes('dataset-file-mapping')) return { data: defaultDatasetFileMappings, isLoading: false };
+        return { data: undefined, isLoading: false };
+      });
+      const mockCreateJob = jest.fn().mockResolvedValue({});
+      (useCreateJobMutation as jest.Mock).mockReturnValue({ mutateAsync: mockCreateJob });
+      const { result } = renderHook(() => useMappingsStep('42'));
+      await act(async () => {
+        await result.current.handleContinue();
+      });
+      expect(mockCreateJob).toHaveBeenCalledWith({ type: 'file-to-db', file_id: 'file-1' });
+    });
+  });
+
+  describe('isImporting', () => {
+    it('is false when no file is ONGOING and handleContinue has not been called', () => {
+      setupWithFileStatuses(['PENDING']);
+      const { result } = renderHook(() => useMappingsStep('42'));
+      expect(result.current.isImporting).toBe(false);
+    });
+
+    it('is true when at least one file has ONGOING status', () => {
+      setupWithFileStatuses(['ONGOING']);
+      const { result } = renderHook(() => useMappingsStep('42'));
+      expect(result.current.isImporting).toBe(true);
+    });
+
+    it('is true immediately after handleContinue fires before server confirms', async () => {
+      setupWithFileStatuses(['PENDING']);
+      const { result } = renderHook(() => useMappingsStep('42'));
+      await act(async () => {
+        await result.current.handleContinue();
+      });
+      expect(result.current.isImporting).toBe(true);
+    });
+  });
+
+  describe('auto-redirect', () => {
+    it('redirects to preview once all files are UPLOADED after having seen ONGOING', async () => {
+      setupWithFileStatuses(['ONGOING']);
+      const { rerender } = renderHook(() => useMappingsStep('42'));
+
+      // Stable reference — inline array would create a new ref each render and loop setColumnMappings.
+      const uploadedFiles = [{ status: 'UPLOADED', metadata: { field_names: ['col1'] } }];
+      mockUseApiQuery.mockImplementation(({ endpoint }: { endpoint: string }) => {
+        if (endpoint.includes('/files')) return { data: uploadedFiles, isLoading: false };
+        if (endpoint.includes('dataset-file-mapping')) return { data: defaultDatasetFileMappings, isLoading: false };
+        return { data: undefined, isLoading: false };
+      });
+      await act(async () => {
+        rerender();
+      });
+
+      expect(mockNavigate).toHaveBeenCalledWith('/admin/datasets/edit/42/preview');
+    });
+
+    it('does not redirect when files are UPLOADED but import was never seen in this session', async () => {
+      setupWithFileStatuses(['UPLOADED']);
+      renderHook(() => useMappingsStep('42'));
+      await act(async () => {});
+      expect(mockNavigate).not.toHaveBeenCalled();
+    });
+
+    it('does not redirect while isLoading is true even after having seen ONGOING', async () => {
+      setupWithFileStatuses(['ONGOING']);
+      const { rerender } = renderHook(() => useMappingsStep('42'));
+
+      // Stable reference — inline array would create a new ref each render and loop setColumnMappings.
+      const uploadedFiles = [{ status: 'UPLOADED', metadata: { field_names: ['col1'] } }];
+      mockUseApiQuery.mockImplementation(({ endpoint }: { endpoint: string }) => {
+        if (endpoint.includes('/files')) return { data: uploadedFiles, isLoading: false };
+        if (endpoint.includes('dataset-file-mapping')) return { data: defaultDatasetFileMappings, isLoading: true };
+        return { data: undefined, isLoading: false };
+      });
+      await act(async () => {
+        rerender();
+      });
+
+      expect(mockNavigate).not.toHaveBeenCalled();
     });
   });
 
