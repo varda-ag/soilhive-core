@@ -208,12 +208,17 @@ export function useMappingsStep(datasetId?: string) {
   const { mutateAsync: updateDatasetFileMapping } = useUpdateDatasetFileMappingMutation();
   const { mutateAsync: createJob } = useCreateJobMutation();
 
+  // idle    — no import in progress
+  // pending — jobs fired, waiting for all files to reach STAGED
+  // reImporting — jobs fired but files were already STAGED; polling at 500ms until ONGOING is observed, then transitions to pending
+  const [importState, setImportState] = useState<'idle' | 'pending' | 'reImporting'>('idle');
+
   const { data: files, isLoading: isLoadingFiles } = useApiQuery<FileDescriptor[]>({
     endpoint: `/datasets/${datasetId}/files`,
     method: 'GET',
     queryKey: ['datasets', datasetId, 'files'],
     enabled: !!datasetId,
-    refetchInterval: 3000,
+    refetchInterval: importState === 'reImporting' ? 500 : 3000,
   });
 
   const { data: datasetFileMappings, isLoading: isLoadingDatasetFileMappings } = useApiQuery<DatasetFileMappingResponse[]>({
@@ -223,13 +228,9 @@ export function useMappingsStep(datasetId?: string) {
     enabled: !!datasetId,
   });
 
-  const [jobsFired, setJobsFired] = useState(false); // optimistic UI: show pane immediately after Continue
-  const serverIsImporting = files?.some(f => f.status === IngestionStatus.ONGOING) ?? false; // server confirmed import is running
-  const isImporting = jobsFired || serverIsImporting;
+  const serverIsImporting = files?.some(f => f.status === IngestionStatus.ONGOING) ?? false;
+  const isImporting = importState !== 'idle' || serverIsImporting;
   const allFilesStaged = files?.every(f => f.status === IngestionStatus.STAGED) ?? false;
-  const importSeenRef = useRef(false); // we saw the import running in this session — gates the redirect
-  if (serverIsImporting) importSeenRef.current = true;
-  const redirectDoneRef = useRef(false); // we already redirected — prevents double-fire from unstable updateFurthestStep reference
 
   const { data: existingMappings, isLoading: isLoadingExistingMappings } = useApiQuery<DataMappingResponse[]>({
     endpoint: `/datasets/${datasetId}/mappings`,
@@ -313,13 +314,17 @@ export function useMappingsStep(datasetId?: string) {
     isLoadingDatasetFileMappings;
 
   useEffect(() => {
-    if (!datasetId || isLoading || isIngestionLoading) return;
-    if (allFilesStaged && importSeenRef.current && !redirectDoneRef.current) {
-      redirectDoneRef.current = true;
+    if (importState === 'idle' || isLoading || isIngestionLoading || !datasetId) return;
+    if (importState === 'reImporting' && serverIsImporting) {
+      setImportState('pending');
+      return;
+    }
+    if (importState === 'pending' && allFilesStaged) {
+      setImportState('idle');
       updateFurthestStep(datasetId, 'preview');
       navigate(`${ADMIN_PATHS.DATASETS}/edit/${datasetId}/preview`);
     }
-  }, [allFilesStaged, isLoading, isIngestionLoading, datasetId, updateFurthestStep, navigate]);
+  }, [importState, serverIsImporting, allFilesStaged, isLoading, isIngestionLoading, datasetId, updateFurthestStep, navigate]);
 
   const geometryDetected = useMemo(() => {
     if (!files || files.length === 0) return undefined;
@@ -541,8 +546,7 @@ export function useMappingsStep(datasetId?: string) {
     }
 
     await save();
-
-    setJobsFired(true);
+    setImportState(allFilesStaged ? 'reImporting' : 'pending');
     await Promise.all(datasetFileMappings!.map(dfm => createJob({ type: 'file-to-db', file_id: dfm.fileID })));
     await queryClient.invalidateQueries({ queryKey: ['datasets', datasetId, 'files'] });
   }, [
