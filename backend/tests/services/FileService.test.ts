@@ -12,6 +12,7 @@ import { RequestData } from '../../src/interfaces/RequestData';
 import { Token } from '../../src/interfaces/Token';
 import { EntityManager } from 'typeorm';
 import FileEntity from '../../src/entities/File';
+import { IngestionStatus } from '../../src/types/data';
 
 // Use absolute path from package root
 const vectorFilesPassPath = path.join(__dirname, '../assets/vector_files/pass');
@@ -131,6 +132,9 @@ describe('FileService', () => {
         expect(tableColumns.map(item => item.column_name)).toContain('geometry');
       }
       expect(tableColumns.map(item => item.column_name)).toContain('record_id');
+
+      const reloaded = await entityManager.findOne(FileEntity, { where: { id: fileEntity.id } });
+      expect(reloaded?.status).toBe(IngestionStatus.STAGED);
     });
   });
 
