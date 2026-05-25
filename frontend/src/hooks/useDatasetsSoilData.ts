@@ -14,7 +14,7 @@ import type { SoilDataFile } from '../types/soilDataFile';
 import type { FileDescriptor } from 'types/backend';
 import { useTranslation } from 'react-i18next';
 
-export const ALLOWED_EXTENSIONS = ['.csv', 'gpkg', '.geojson', '.shp', '.xlsx', '.zip'];
+export const ALLOWED_EXTENSIONS = ['.csv', '.gpkg', '.geojson', '.shp', '.xlsx', '.zip'];
 
 export function useDatasetsSoilData() {
   const { t } = useTranslation('admin');
