@@ -235,12 +235,17 @@ describe('useMappingsStep', () => {
   });
 
   describe('auto-redirect', () => {
-    it('redirects to preview once all files are STAGED after having seen ONGOING', async () => {
-      setupWithFileStatuses(['ONGOING']);
-      const { rerender } = renderHook(() => useMappingsStep('42'));
+    it('redirects to preview once files are STAGED after handleContinue (pending path)', async () => {
+      // Files start PENDING → handleContinue sets importState to 'pending' → wait for STAGED → navigate.
+      setupWithFileStatuses(['PENDING']);
+      const { result, rerender } = renderHook(() => useMappingsStep('42'));
+
+      await act(async () => {
+        await result.current.handleContinue();
+      });
 
       // Stable reference — inline array would create a new ref each render and loop setColumnMappings.
-      const stagedFiles = [{ status: 'STAGED', metadata: { field_names: ['col1'] } }];
+      const stagedFiles = [{ status: 'STAGED', metadata: { field_names: ['col1'], geometry_detected: true } }];
       mockUseApiQuery.mockImplementation(({ endpoint }: { endpoint: string }) => {
         if (endpoint.includes('/files')) return { data: stagedFiles, isLoading: false };
         if (endpoint.includes('dataset-file-mapping')) return { data: defaultDatasetFileMappings, isLoading: false };
@@ -253,19 +258,23 @@ describe('useMappingsStep', () => {
       expect(mockNavigate).toHaveBeenCalledWith('/admin/datasets/edit/42/preview');
     });
 
-    it('does not redirect when files are STAGED but import was never seen in this session', async () => {
+    it('does not redirect when files are STAGED but handleContinue was not called', async () => {
       setupWithFileStatuses(['STAGED']);
       renderHook(() => useMappingsStep('42'));
       await act(async () => {});
       expect(mockNavigate).not.toHaveBeenCalled();
     });
 
-    it('does not redirect while isLoading is true even after having seen ONGOING', async () => {
-      setupWithFileStatuses(['ONGOING']);
-      const { rerender } = renderHook(() => useMappingsStep('42'));
+    it('does not redirect while isLoading is true even after handleContinue', async () => {
+      setupWithFileStatuses(['PENDING']);
+      const { result, rerender } = renderHook(() => useMappingsStep('42'));
+
+      await act(async () => {
+        await result.current.handleContinue();
+      });
 
       // Stable reference — inline array would create a new ref each render and loop setColumnMappings.
-      const stagedFiles = [{ status: 'STAGED', metadata: { field_names: ['col1'] } }];
+      const stagedFiles = [{ status: 'STAGED', metadata: { field_names: ['col1'], geometry_detected: true } }];
       mockUseApiQuery.mockImplementation(({ endpoint }: { endpoint: string }) => {
         if (endpoint.includes('/files')) return { data: stagedFiles, isLoading: false };
         if (endpoint.includes('dataset-file-mapping')) return { data: defaultDatasetFileMappings, isLoading: true };
@@ -276,6 +285,42 @@ describe('useMappingsStep', () => {
       });
 
       expect(mockNavigate).not.toHaveBeenCalled();
+    });
+
+    it('redirects via reImporting path when files were already STAGED at the time of handleContinue', async () => {
+      // Files start STAGED + mapping changed → handleContinue sets importState to 'reImporting'.
+      // Then files briefly become ONGOING (new job running) → state transitions reImporting → pending.
+      // Then files return to STAGED → navigate fires.
+      setupWithFileStatuses(['STAGED']);
+      const { result, rerender } = renderHook(() => useMappingsStep('42'));
+
+      await act(async () => {
+        await result.current.handleContinue();
+      });
+
+      // Stable references for each phase.
+      const ongoingFiles = [{ status: 'ONGOING', metadata: { field_names: ['col1'], geometry_detected: true } }];
+      const stagedFiles = [{ status: 'STAGED', metadata: { field_names: ['col1'], geometry_detected: true } }];
+
+      mockUseApiQuery.mockImplementation(({ endpoint }: { endpoint: string }) => {
+        if (endpoint.includes('/files')) return { data: ongoingFiles, isLoading: false };
+        if (endpoint.includes('dataset-file-mapping')) return { data: defaultDatasetFileMappings, isLoading: false };
+        return { data: undefined, isLoading: false };
+      });
+      await act(async () => {
+        rerender();
+      });
+
+      mockUseApiQuery.mockImplementation(({ endpoint }: { endpoint: string }) => {
+        if (endpoint.includes('/files')) return { data: stagedFiles, isLoading: false };
+        if (endpoint.includes('dataset-file-mapping')) return { data: defaultDatasetFileMappings, isLoading: false };
+        return { data: undefined, isLoading: false };
+      });
+      await act(async () => {
+        rerender();
+      });
+
+      expect(mockNavigate).toHaveBeenCalledWith('/admin/datasets/edit/42/preview');
     });
   });
 
