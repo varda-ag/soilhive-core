@@ -587,7 +587,7 @@ export default class FileService {
       await gdal.vectorTranslateAsync(pgDataset, dataset, gdalOpts);
       dataset.close();
 
-      await repo.update(fileEntity.id, { status: IngestionStatus.UPLOADED });
+      await repo.update(fileEntity.id, { status: IngestionStatus.STAGED });
     } catch (error) {
       if (error instanceof ErrorResponse) {
         throw error;

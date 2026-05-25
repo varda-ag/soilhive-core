@@ -16,7 +16,7 @@ import styles from './DatasetsPublicationTable.module.scss';
 const statusSortingMap = {
   [IngestionStatus.PENDING]: 0,
   [IngestionStatus.ONGOING]: 1,
-  [IngestionStatus.UPLOADED]: 2,
+  [IngestionStatus.STAGED]: 2,
   [IngestionStatus.LOADED]: 3,
   [IngestionStatus.PUBLISHED]: 4,
 };

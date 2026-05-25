@@ -156,8 +156,8 @@ describe('useMappingsStep', () => {
     });
 
     it('handleContinue navigates to the preview step when files are already uploaded and mapping is unchanged', async () => {
-      // Fast path: all files UPLOADED + no mapping change → navigate immediately.
-      const filesData = [{ metadata: { field_names: [] }, status: 'UPLOADED' }];
+      // Fast path: all files STAGED + no mapping change → navigate immediately.
+      const filesData = [{ metadata: { field_names: [] }, status: 'STAGED' }];
       const mappingsData = [{ data_mapping: {} }];
       mockUseApiQuery.mockImplementation(({ endpoint }: { endpoint: string }) => {
         if (endpoint.includes('/files')) return { data: filesData, isLoading: false };
@@ -191,7 +191,7 @@ describe('useMappingsStep', () => {
       expect(mockCreateJob).toHaveBeenCalledWith({ type: 'file-to-db', file_id: 'file-1' });
     });
 
-    it('handleContinue creates jobs when files are not yet UPLOADED even if mapping is unchanged', async () => {
+    it('handleContinue creates jobs when files are not yet STAGED even if mapping is unchanged', async () => {
       // Files still PENDING → allFilesUploaded=false → fast-path blocked → jobs must fire.
       const filesData = [{ status: 'PENDING', metadata: { field_names: [] } }];
       const mappingsData = [{ data_mapping: {} }];
@@ -235,14 +235,14 @@ describe('useMappingsStep', () => {
   });
 
   describe('auto-redirect', () => {
-    it('redirects to preview once all files are UPLOADED after having seen ONGOING', async () => {
+    it('redirects to preview once all files are STAGED after having seen ONGOING', async () => {
       setupWithFileStatuses(['ONGOING']);
       const { rerender } = renderHook(() => useMappingsStep('42'));
 
       // Stable reference — inline array would create a new ref each render and loop setColumnMappings.
-      const uploadedFiles = [{ status: 'UPLOADED', metadata: { field_names: ['col1'] } }];
+      const stagedFiles = [{ status: 'STAGED', metadata: { field_names: ['col1'] } }];
       mockUseApiQuery.mockImplementation(({ endpoint }: { endpoint: string }) => {
-        if (endpoint.includes('/files')) return { data: uploadedFiles, isLoading: false };
+        if (endpoint.includes('/files')) return { data: stagedFiles, isLoading: false };
         if (endpoint.includes('dataset-file-mapping')) return { data: defaultDatasetFileMappings, isLoading: false };
         return { data: undefined, isLoading: false };
       });
@@ -253,8 +253,8 @@ describe('useMappingsStep', () => {
       expect(mockNavigate).toHaveBeenCalledWith('/admin/datasets/edit/42/preview');
     });
 
-    it('does not redirect when files are UPLOADED but import was never seen in this session', async () => {
-      setupWithFileStatuses(['UPLOADED']);
+    it('does not redirect when files are STAGED but import was never seen in this session', async () => {
+      setupWithFileStatuses(['STAGED']);
       renderHook(() => useMappingsStep('42'));
       await act(async () => {});
       expect(mockNavigate).not.toHaveBeenCalled();
@@ -265,9 +265,9 @@ describe('useMappingsStep', () => {
       const { rerender } = renderHook(() => useMappingsStep('42'));
 
       // Stable reference — inline array would create a new ref each render and loop setColumnMappings.
-      const uploadedFiles = [{ status: 'UPLOADED', metadata: { field_names: ['col1'] } }];
+      const stagedFiles = [{ status: 'STAGED', metadata: { field_names: ['col1'] } }];
       mockUseApiQuery.mockImplementation(({ endpoint }: { endpoint: string }) => {
-        if (endpoint.includes('/files')) return { data: uploadedFiles, isLoading: false };
+        if (endpoint.includes('/files')) return { data: stagedFiles, isLoading: false };
         if (endpoint.includes('dataset-file-mapping')) return { data: defaultDatasetFileMappings, isLoading: true };
         return { data: undefined, isLoading: false };
       });

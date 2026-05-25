@@ -226,7 +226,7 @@ export function useMappingsStep(datasetId?: string) {
   const [jobsFired, setJobsFired] = useState(false); // optimistic UI: show pane immediately after Continue
   const serverIsImporting = files?.some(f => f.status === IngestionStatus.ONGOING) ?? false; // server confirmed import is running
   const isImporting = jobsFired || serverIsImporting;
-  const allFilesUploaded = files?.every(f => f.status === IngestionStatus.UPLOADED) ?? false;
+  const allFilesStaged = files?.every(f => f.status === IngestionStatus.STAGED) ?? false;
   const importSeenRef = useRef(false); // we saw the import running in this session — gates the redirect
   if (serverIsImporting) importSeenRef.current = true;
   const redirectDoneRef = useRef(false); // we already redirected — prevents double-fire from unstable updateFurthestStep reference
@@ -314,12 +314,12 @@ export function useMappingsStep(datasetId?: string) {
 
   useEffect(() => {
     if (!datasetId || isLoading || isIngestionLoading) return;
-    if (allFilesUploaded && importSeenRef.current && !redirectDoneRef.current) {
+    if (allFilesStaged && importSeenRef.current && !redirectDoneRef.current) {
       redirectDoneRef.current = true;
       updateFurthestStep(datasetId, 'preview');
       navigate(`${ADMIN_PATHS.DATASETS}/edit/${datasetId}/preview`);
     }
-  }, [allFilesUploaded, isLoading, isIngestionLoading, datasetId, updateFurthestStep, navigate]);
+  }, [allFilesStaged, isLoading, isIngestionLoading, datasetId, updateFurthestStep, navigate]);
 
   const geometryDetected = useMemo(() => {
     if (!files || files.length === 0) return undefined;
@@ -535,7 +535,7 @@ export function useMappingsStep(datasetId?: string) {
   const handleContinue = useCallback(async () => {
     const changed = isMappingChanged(columnMappings, existingMappings?.[0]?.data_mapping, procedureByColumn);
 
-    if (!changed && allFilesUploaded) {
+    if (!changed && allFilesStaged) {
       navigate(`${ADMIN_PATHS.DATASETS}/edit/${datasetId}/preview`);
       return;
     }
@@ -549,7 +549,7 @@ export function useMappingsStep(datasetId?: string) {
     columnMappings,
     existingMappings,
     procedureByColumn,
-    allFilesUploaded,
+    allFilesStaged,
     save,
     navigate,
     datasetId,

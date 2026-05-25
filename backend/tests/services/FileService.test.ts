@@ -134,7 +134,7 @@ describe('FileService', () => {
       expect(tableColumns.map(item => item.column_name)).toContain('record_id');
 
       const reloaded = await entityManager.findOne(FileEntity, { where: { id: fileEntity.id } });
-      expect(reloaded?.status).toBe(IngestionStatus.UPLOADED);
+      expect(reloaded?.status).toBe(IngestionStatus.STAGED);
     });
   });
 
