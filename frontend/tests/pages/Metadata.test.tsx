@@ -11,6 +11,12 @@ jest.mock('hooks/useMetadata', () => ({
   useMetadata: jest.fn(),
 }));
 
+jest.mock('hooks/useEntitlementsHook', () => ({
+  __esModule: true,
+  ADMIN_PORTAL_ACCESS: 0,
+  useEntitlements: jest.fn().mockReturnValue({ can: () => false }),
+}));
+
 jest.mock('components/Map/SoilhiveSimpleMap', () => {
   const MockSoilhiveSimpleMap = () => <div data-testid="mock-map" />;
   return MockSoilhiveSimpleMap;
@@ -45,7 +51,7 @@ const buildDataset = () => ({
   reference_period_start: '2020-01-01',
   reference_period_stop: '2020-12-31',
   publication_date: '2021-06-01',
-  licenses: [{ url: 'https://license.example', full_name: 'Test License' }],
+  licenses: [{ id: 'lic-1', url: 'https://license.example', full_name: 'Test License' }],
   citation: 'Test citation',
   spatial_extent: {
     type: 'Polygon',
@@ -82,14 +88,26 @@ describe('Metadata page', () => {
   });
 
   it('renders dataset content and matches snapshot', () => {
-    (useMetadata as jest.Mock).mockReturnValue({ dataset: buildDataset(), isLoading: false, isError: false });
+    (useMetadata as jest.Mock).mockReturnValue({
+      dataset: buildDataset(),
+      allLicenses: [{ id: 'lic-1', url: 'https://license.example', full_name: 'Test License' }],
+      inferredProperties: new Set(),
+      isLoading: false,
+      isError: false,
+    });
     const { container } = render(<Metadata />);
     expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument();
     expect(container).toMatchSnapshot();
   });
 
   it('upserts document title and meta tags from dataset name', () => {
-    (useMetadata as jest.Mock).mockReturnValue({ dataset: buildDataset(), isLoading: false, isError: false });
+    (useMetadata as jest.Mock).mockReturnValue({
+      dataset: buildDataset(),
+      allLicenses: [{ id: 'lic-1', url: 'https://license.example', full_name: 'Test License' }],
+      inferredProperties: new Set(),
+      isLoading: false,
+      isError: false,
+    });
     render(<Metadata />);
 
     expect(document.title).toBe('Test Title');
@@ -101,7 +119,13 @@ describe('Metadata page', () => {
   });
 
   it('copies the current URL to the clipboard when "Copy link" is selected', () => {
-    (useMetadata as jest.Mock).mockReturnValue({ dataset: buildDataset(), isLoading: false, isError: false });
+    (useMetadata as jest.Mock).mockReturnValue({
+      dataset: buildDataset(),
+      allLicenses: [{ id: 'lic-1', url: 'https://license.example', full_name: 'Test License' }],
+      inferredProperties: new Set(),
+      isLoading: false,
+      isError: false,
+    });
     const writeText = jest.fn();
     Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
 
@@ -114,7 +138,13 @@ describe('Metadata page', () => {
   });
 
   it('triggers a mailto navigation when "Share by email" is selected', () => {
-    (useMetadata as jest.Mock).mockReturnValue({ dataset: buildDataset(), isLoading: false, isError: false });
+    (useMetadata as jest.Mock).mockReturnValue({
+      dataset: buildDataset(),
+      allLicenses: [{ id: 'lic-1', url: 'https://license.example', full_name: 'Test License' }],
+      inferredProperties: new Set(),
+      isLoading: false,
+      isError: false,
+    });
     // jsdom forbids redefining window.location, and its navigation setter only logs a
     // "not implemented" warning to the virtual console. Capture that log to prove the
     // handler attempted to navigate, and assert the popover closes (proving onSelect ran).
@@ -139,7 +169,13 @@ describe('Metadata page', () => {
   });
 
   it('opens map popup on overlay click and closes it on Escape', () => {
-    (useMetadata as jest.Mock).mockReturnValue({ dataset: buildDataset(), isLoading: false, isError: false });
+    (useMetadata as jest.Mock).mockReturnValue({
+      dataset: buildDataset(),
+      allLicenses: [{ id: 'lic-1', url: 'https://license.example', full_name: 'Test License' }],
+      inferredProperties: new Set(),
+      isLoading: false,
+      isError: false,
+    });
     render(<Metadata />);
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
@@ -160,7 +196,13 @@ describe('Metadata page', () => {
   });
 
   it('closes the map popup when the backdrop is clicked', () => {
-    (useMetadata as jest.Mock).mockReturnValue({ dataset: buildDataset(), isLoading: false, isError: false });
+    (useMetadata as jest.Mock).mockReturnValue({
+      dataset: buildDataset(),
+      allLicenses: [{ id: 'lic-1', url: 'https://license.example', full_name: 'Test License' }],
+      inferredProperties: new Set(),
+      isLoading: false,
+      isError: false,
+    });
     render(<Metadata />);
 
     act(() => {

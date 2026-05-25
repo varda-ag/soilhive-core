@@ -11,6 +11,7 @@ import metadataTranslations from '../public/locales/en/metadata.json';
 import { NotificationProvider, ThemeProvider } from './contexts';
 import MetadataPage from './pages/Metadata';
 import { ssrAuthStore } from './auth/ssrAuthStore';
+import { SsrAuthContextProvider } from './auth/AuthContextProvider';
 import { buildMetadataHeadHtml } from './utilities/buildMetadataHead';
 import type { Dataset } from 'types/backend';
 
@@ -157,13 +158,15 @@ export async function render(
     const html = renderToString(
       <QueryClientProvider client={queryClient}>
         <NotificationProvider>
-          <ThemeProvider>
-            <StaticRouter location={pathname}>
-              <Routes>
-                <Route path={matchedPattern!} element={<PageComponent />} />
-              </Routes>
-            </StaticRouter>
-          </ThemeProvider>
+          <SsrAuthContextProvider>
+            <ThemeProvider>
+              <StaticRouter location={pathname}>
+                <Routes>
+                  <Route path={matchedPattern!} element={<PageComponent />} />
+                </Routes>
+              </StaticRouter>
+            </ThemeProvider>
+          </SsrAuthContextProvider>
         </NotificationProvider>
       </QueryClientProvider>,
     );

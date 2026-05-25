@@ -16,7 +16,7 @@ export function useCreateDatasetMutation() {
 }
 
 export function useUpdateDatasetMutation(id: string) {
-  return useApiMutation<Dataset, Partial<GeneralInfoFormData>>({
+  return useApiMutation<Dataset, Partial<Dataset>>({
     endpoint: `/datasets/${id}`,
     method: 'PATCH',
   });

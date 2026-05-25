@@ -9,6 +9,13 @@ import { GISDataType, IngestionStatus } from 'types/backend';
 jest.mock('hooks/useDatasets', () => ({ useDataset: jest.fn() }));
 jest.mock('hooks/useApiQuery', () => ({ useApiQuery: jest.fn() }));
 jest.mock('hooks/useSoilProperties', () => ({ useSoilProperties: jest.fn() }));
+jest.mock('hooks/useDatasetMutation', () => ({
+  useUpdateDatasetMutation: jest.fn().mockReturnValue({ mutate: jest.fn(), mutateAsync: jest.fn() }),
+}));
+jest.mock('@tanstack/react-query', () => ({
+  ...jest.requireActual('@tanstack/react-query'),
+  useQueryClient: jest.fn().mockReturnValue({ invalidateQueries: jest.fn(), setQueryData: jest.fn() }),
+}));
 
 const mockUseDataset = useDataset as jest.Mock;
 const mockUseApiQuery = useApiQuery as jest.Mock;

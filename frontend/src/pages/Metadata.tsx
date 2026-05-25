@@ -1,16 +1,207 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
-import { useMetadata } from 'hooks/useMetadata';
+import { Editor, type EditorTextChangeEvent } from 'primereact/editor';
+import { useMetadata, type SaveCallbacks } from 'hooks/useMetadata';
+import { useEntitlements, ADMIN_PORTAL_ACCESS } from 'hooks/useEntitlementsHook';
+import { EDITOR_HEADER } from '../configuration/editor';
 import styles from './Metadata.module.scss';
 import Worm from 'assets/images/worm.svg?react';
 import SoilhiveSimpleMap from 'components/Map/SoilhiveSimpleMap';
 import { Logo } from 'components/Logo/Logo';
-import { Button, SplitButton } from 'components/UI';
+import { Button, SplitButton, Dropdown } from 'components/UI';
 import { htmlDisplay } from '../utilities/isomorphicHTMLDisplay';
 import { getMetadataHeadValues } from '../utilities/buildMetadataHead';
 import EyeIcon from 'assets/icons/small-eye-icon.svg?react';
 import ReduceIcon from 'assets/icons/reduce-icon.svg?react';
+import InfoIcon from 'assets/icons/info-icon.svg?react';
+import EditIcon from 'assets/icons/pencil-icon.svg?react';
+import type { License } from 'types/backend';
+
+function Row({
+  label,
+  value,
+  isEditable,
+  property,
+  onStartEditing,
+  onSave,
+  onCancel,
+}: {
+  label: string;
+  value: string | undefined | null;
+  isEditable: boolean;
+  property: string;
+  onStartEditing: (property: string) => void;
+  onSave: (property: string, value: string, callbacks: SaveCallbacks) => void;
+  onCancel: (property: string) => void;
+}) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [editValue, setEditValue] = useState(value ?? '');
+
+  const handleSave = () => {
+    setIsSaving(true);
+    onSave(property, editValue, {
+      onSuccess: () => {
+        setIsEditing(false);
+        setIsSaving(false);
+      },
+      onError: () => setIsSaving(false),
+    });
+  };
+
+  return (
+    <div className={`${styles.Row}${isEditable && !isEditing ? ` ${styles.RowAdmin}` : ''}`}>
+      <p className={styles.Label}>
+        <strong>{label}</strong>
+      </p>
+      {isEditing ? (
+        <div className={`${styles.EditArea}${isSaving ? ` ${styles.EditAreaSaving}` : ''}`}>
+          <div className={styles.EditorWrapper}>
+            <Editor
+              value={editValue}
+              onTextChange={(e: EditorTextChangeEvent) => setEditValue(e.htmlValue ?? '')}
+              headerTemplate={EDITOR_HEADER}
+              readOnly={isSaving}
+            />
+          </div>
+          <div className={styles.EditActions}>
+            <Button size="small" onClick={handleSave} isDisabled={isSaving}>
+              {isSaving ? 'Saving…' : 'Save'}
+            </Button>
+            <Button
+              type="secondary"
+              size="small"
+              onClick={() => {
+                setEditValue(value ?? '');
+                setIsEditing(false);
+                onCancel(property);
+              }}
+              isDisabled={isSaving}
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className={styles.Text}>{htmlDisplay(value)}</div>
+          {isEditable && (
+            <button
+              type="button"
+              className={styles.EditButton}
+              onClick={() => {
+                setEditValue(value ?? '');
+                setIsEditing(true);
+                onStartEditing(property);
+              }}
+              aria-label="Edit"
+            >
+              <EditIcon />
+            </button>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+function LicenseRow({
+  label,
+  currentLicenseIds,
+  allLicenses,
+  isEditable,
+  property,
+  onStartEditing,
+  onSave,
+  onCancel,
+}: {
+  label: string;
+  currentLicenseIds: string[];
+  allLicenses: License[];
+  isEditable: boolean;
+  property: string;
+  onStartEditing: (property: string) => void;
+  onSave: (property: string, value: string, callbacks: SaveCallbacks) => void;
+  onCancel: (property: string) => void;
+}) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [editValue, setEditValue] = useState(currentLicenseIds[0] ?? '');
+
+  const licenseOptions = allLicenses.map(l => ({ code: l.id, name: l.full_name ?? l.name }));
+  const currentLicenses = allLicenses.filter(l => currentLicenseIds.includes(l.id));
+  const displayValue =
+    currentLicenses.length > 0 ? currentLicenses.map(l => `<a target="_blank" href=${l.url}>${l.full_name}</a>`).join(', ') : undefined;
+
+  const handleSave = () => {
+    setIsSaving(true);
+    onSave(property, editValue, {
+      onSuccess: () => {
+        setIsEditing(false);
+        setIsSaving(false);
+      },
+      onError: () => setIsSaving(false),
+    });
+  };
+
+  return (
+    <div className={`${styles.Row}${isEditable && !isEditing ? ` ${styles.RowAdmin}` : ''}`}>
+      <p className={styles.Label}>
+        <strong>{label}</strong>
+      </p>
+      {isEditing ? (
+        <div className={`${styles.EditArea}${isSaving ? ` ${styles.EditAreaSaving}` : ''}`}>
+          <div className={styles.EditorWrapper}>
+            <Dropdown
+              options={licenseOptions}
+              value={editValue}
+              onChange={selected => setEditValue(selected as string)}
+              isDisabled={isSaving}
+              placeholder="Select a license"
+              size="small"
+            />
+          </div>
+          <div className={styles.EditActions}>
+            <Button size="small" onClick={handleSave} isDisabled={isSaving}>
+              {isSaving ? 'Saving…' : 'Save'}
+            </Button>
+            <Button
+              type="secondary"
+              size="small"
+              onClick={() => {
+                setEditValue(currentLicenseIds[0] ?? '');
+                setIsEditing(false);
+                onCancel(property);
+              }}
+              isDisabled={isSaving}
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className={styles.Text}>{htmlDisplay(displayValue)}</div>
+          {isEditable && (
+            <button
+              type="button"
+              className={styles.EditButton}
+              onClick={() => {
+                setEditValue(currentLicenseIds[0] ?? '');
+                setIsEditing(true);
+                onStartEditing(property);
+              }}
+              aria-label="Edit"
+            >
+              <EditIcon />
+            </button>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
 
 function upsertMeta(selector: string, attrName: 'name' | 'property', attrValue: string, content: string) {
   let el = document.head.querySelector<HTMLMetaElement>(selector);
@@ -28,7 +219,31 @@ export default function Metadata() {
   const [isMounted, setIsMounted] = useState(false);
   const [isMapPopupOpen, setIsMapPopupOpen] = useState(false);
   useEffect(() => setIsMounted(true), []);
-  const { dataset, isLoading, isError } = useMetadata(id);
+  const { dataset, allLicenses, inferredProperties, isLoading, isError, updateProperty } = useMetadata(id);
+  const { can } = useEntitlements();
+  const isAdmin = isMounted && can(ADMIN_PORTAL_ACCESS);
+  const [isEditing, setIsEditing] = useState(false);
+
+  const onStartEditing: (property: string) => void = useCallback(() => {
+    setIsEditing(true);
+  }, []);
+
+  const onSave = useCallback(
+    (property: string, newValue: string, callbacks: SaveCallbacks) => {
+      updateProperty(property, newValue, {
+        onSuccess: () => {
+          setIsEditing(false);
+          callbacks.onSuccess();
+        },
+        onError: callbacks.onError,
+      });
+    },
+    [updateProperty],
+  );
+
+  const onCancel: (property: string) => void = useCallback(() => {
+    setIsEditing(false);
+  }, []);
 
   useEffect(() => {
     if (!isMapPopupOpen) return;
@@ -149,108 +364,157 @@ export default function Metadata() {
 
       <div className={styles.Content}>
         <div className={styles.DatasetProperties}>
-          <div className={styles.Row}>
-            <p className={styles.Label}>
-              <strong>{t('fields.name')}</strong>
-            </p>
-            <div className={styles.Text}>{htmlDisplay(dataset?.name)}</div>
-          </div>
-          <div className={styles.Row}>
-            <p className={styles.Label}>
-              <strong>{t('fields.full_name')}</strong>
-            </p>
-            <div className={styles.Text}>{htmlDisplay(dataset?.full_name)}</div>
-          </div>
-          <div className={styles.Row}>
-            <p className={styles.Label}>
-              <strong>{t('fields.version')}</strong>
-            </p>
-            <div className={styles.Text}>{htmlDisplay(dataset?.version)}</div>
-          </div>
-          <div className={styles.Row}>
-            <p className={styles.Label}>
-              <strong>{t('fields.description')}</strong>
-            </p>
-            <div className={styles.Text}>{htmlDisplay(dataset?.description)}</div>
-          </div>
-          <div className={styles.Row}>
-            <p className={styles.Label}>
-              <strong>{t('fields.author')}</strong>
-            </p>
-            <div className={styles.Text}>{htmlDisplay(dataset?.author)}</div>
-          </div>
-          <div className={styles.Row}>
-            <p className={styles.Label}>
-              <strong>{t('fields.data_producer')}</strong>
-            </p>
-            <div className={styles.Text}>{htmlDisplay(dataset?.data_producer)}</div>
-          </div>
-          <div className={styles.Row}>
-            <p className={styles.Label}>
-              <strong>{t('fields.variables_measured')}</strong>
-            </p>
-            <div className={styles.Text}>{htmlDisplay(dataset?.soilProperties?.join(', '))}</div>
-          </div>
-          <div className={styles.Row}>
-            <p className={styles.Label}>
-              <strong>{t('fields.min_soil_depth_cm')}</strong>
-            </p>
-            <div className={styles.Text}>{htmlDisplay((dataset?.soil_depth as { min?: number } | null | undefined)?.min?.toString())}</div>
-          </div>
-          <div className={styles.Row}>
-            <p className={styles.Label}>
-              <strong>{t('fields.max_soil_depth_cm')}</strong>
-            </p>
-            <div className={styles.Text}>{htmlDisplay((dataset?.soil_depth as { max?: number } | null | undefined)?.max?.toString())}</div>
-          </div>
-          <div className={styles.Row}>
-            <p className={styles.Label}>
-              <strong>{t('fields.gis_datatype')}</strong>
-            </p>
-            <div className={styles.Text}>
-              {htmlDisplay(
-                dataset?.gis_datatype ? dataset.gis_datatype[0].toUpperCase() + dataset.gis_datatype.slice(1) : dataset?.gis_datatype,
-              )}
+          {isAdmin && (
+            <div className={styles.AdminNotice}>
+              <InfoIcon />
+              <span>You can edit fields directly from this list</span>
             </div>
-          </div>
-          <div className={styles.Row}>
-            <p className={styles.Label}>
-              <strong>{t('fields.spatial_resolution')}</strong>
-            </p>
-            <div className={styles.Text}>{htmlDisplay(dataset?.spatial_resolution)}</div>
-          </div>
-          <div className={styles.Row}>
-            <p className={styles.Label}>
-              <strong>{t('fields.reference_coverage_start')}</strong>
-            </p>
-            <div className={styles.Text}>{htmlDisplay(dataset?.reference_period_start)}</div>
-          </div>
-          <div className={styles.Row}>
-            <p className={styles.Label}>
-              <strong>{t('fields.reference_coverage_end')}</strong>
-            </p>
-            <div className={styles.Text}>{htmlDisplay(dataset?.reference_period_stop)}</div>
-          </div>
-          <div className={styles.Row}>
-            <p className={styles.Label}>
-              <strong>{t('fields.publication_date')}</strong>
-            </p>
-            <div className={styles.Text}>{htmlDisplay(dataset?.publication_date)}</div>
-          </div>
-          <div className={styles.Row}>
-            <p className={styles.Label}>
-              <strong>{t('fields.license')}</strong>
-            </p>
-            <div className={styles.Text}>
-              {htmlDisplay(dataset?.licenses?.map(l => `<a target="_blank" href=${l.url}>${l.full_name}</a>`).join('<br />'))}
-            </div>
-          </div>
-          <div className={styles.Row}>
-            <p className={styles.Label}>
-              <strong>{t('fields.citation')}</strong>
-            </p>
-            <div className={styles.Text}>{htmlDisplay(dataset?.citation)}</div>
-          </div>
+          )}
+          <Row
+            label={t('fields.name')}
+            value={dataset?.name}
+            isEditable={isAdmin && !isEditing}
+            property="name"
+            onStartEditing={onStartEditing}
+            onSave={onSave}
+            onCancel={onCancel}
+          />
+          <Row
+            label={t('fields.full_name')}
+            value={dataset?.full_name}
+            isEditable={isAdmin && !isEditing}
+            property="full_name"
+            onStartEditing={onStartEditing}
+            onSave={onSave}
+            onCancel={onCancel}
+          />
+          <Row
+            label={t('fields.version')}
+            value={dataset?.version}
+            isEditable={isAdmin && !isEditing}
+            property="version"
+            onStartEditing={onStartEditing}
+            onSave={onSave}
+            onCancel={onCancel}
+          />
+          <Row
+            label={t('fields.description')}
+            value={dataset?.description}
+            isEditable={isAdmin && !isEditing}
+            property="description"
+            onStartEditing={onStartEditing}
+            onSave={onSave}
+            onCancel={onCancel}
+          />
+          <Row
+            label={t('fields.author')}
+            value={dataset?.author}
+            isEditable={isAdmin && !isEditing}
+            property="author"
+            onStartEditing={onStartEditing}
+            onSave={onSave}
+            onCancel={onCancel}
+          />
+          <Row
+            label={t('fields.data_producer')}
+            value={dataset?.data_producer}
+            isEditable={isAdmin && !isEditing}
+            property="data_producer"
+            onStartEditing={onStartEditing}
+            onSave={onSave}
+            onCancel={onCancel}
+          />
+          <Row
+            label={t('fields.variables_measured')}
+            value={dataset?.soilProperties?.join(', ')}
+            isEditable={isAdmin && !inferredProperties.has('measured_properties') && !isEditing}
+            property="soilProperties"
+            onStartEditing={onStartEditing}
+            onSave={onSave}
+            onCancel={onCancel}
+          />
+          <Row
+            label={t('fields.min_soil_depth_cm')}
+            value={(dataset?.soil_depth as { min?: number } | null | undefined)?.min?.toString()}
+            isEditable={isAdmin && !inferredProperties.has('soil_depth') && !isEditing}
+            property="soil_depth_min"
+            onStartEditing={onStartEditing}
+            onSave={onSave}
+            onCancel={onCancel}
+          />
+          <Row
+            label={t('fields.max_soil_depth_cm')}
+            value={(dataset?.soil_depth as { max?: number } | null | undefined)?.max?.toString()}
+            isEditable={isAdmin && !inferredProperties.has('soil_depth') && !isEditing}
+            property="soil_depth_max"
+            onStartEditing={onStartEditing}
+            onSave={onSave}
+            onCancel={onCancel}
+          />
+          <Row
+            label={t('fields.gis_datatype')}
+            value={dataset?.gis_datatype ? dataset.gis_datatype[0].toUpperCase() + dataset.gis_datatype.slice(1) : dataset?.gis_datatype}
+            isEditable={isAdmin && !inferredProperties.has('gis_datatype') && !isEditing}
+            property="gis_datatype"
+            onStartEditing={onStartEditing}
+            onSave={onSave}
+            onCancel={onCancel}
+          />
+          <Row
+            label={t('fields.spatial_resolution')}
+            value={dataset?.spatial_resolution}
+            isEditable={isAdmin && !isEditing}
+            property="spatial_resolution"
+            onStartEditing={onStartEditing}
+            onSave={onSave}
+            onCancel={onCancel}
+          />
+          <Row
+            label={t('fields.reference_coverage_start')}
+            value={dataset?.reference_period_start}
+            isEditable={isAdmin && !inferredProperties.has('reference_period_start') && !isEditing}
+            property="reference_period_start"
+            onStartEditing={onStartEditing}
+            onSave={onSave}
+            onCancel={onCancel}
+          />
+          <Row
+            label={t('fields.reference_coverage_end')}
+            value={dataset?.reference_period_stop}
+            isEditable={isAdmin && !inferredProperties.has('reference_period_stop') && !isEditing}
+            property="reference_period_stop"
+            onStartEditing={onStartEditing}
+            onSave={onSave}
+            onCancel={onCancel}
+          />
+          <Row
+            label={t('fields.publication_date')}
+            value={dataset?.publication_date}
+            isEditable={isAdmin && !isEditing}
+            property="publication_date"
+            onStartEditing={onStartEditing}
+            onSave={onSave}
+            onCancel={onCancel}
+          />
+          <LicenseRow
+            label={t('fields.license')}
+            currentLicenseIds={dataset?.licenses?.map(l => l.id) ?? []}
+            allLicenses={allLicenses ?? []}
+            isEditable={isAdmin && !inferredProperties.has('licenses') && !isEditing}
+            property="licenses"
+            onStartEditing={onStartEditing}
+            onSave={onSave}
+            onCancel={onCancel}
+          />
+          <Row
+            label={t('fields.citation')}
+            value={dataset?.citation}
+            isEditable={isAdmin && !isEditing}
+            property="citation"
+            onStartEditing={onStartEditing}
+            onSave={onSave}
+            onCancel={onCancel}
+          />
         </div>
       </div>
 

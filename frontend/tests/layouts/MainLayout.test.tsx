@@ -14,6 +14,7 @@ jest.mock('components/Header/Header', () => ({
 
 jest.mock('react-router', () => ({
   Outlet: () => <div data-testid="outlet" />,
+  useMatch: jest.fn().mockReturnValue(null),
 }));
 
 jest.mock('components/NotificationBanner/NotificationBanner', () => ({

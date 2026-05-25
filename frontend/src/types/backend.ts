@@ -118,6 +118,16 @@ export enum Capability {
   OBFUSCATE_AS_POLYGONS = 'obfuscate_as_polygons',
 }
 
+export type InferredProperty =
+  | 'measured_properties'
+  | 'licenses'
+  | 'n_observations'
+  | 'soil_depth'
+  | 'spatial_extent'
+  | 'reference_period_start'
+  | 'reference_period_stop'
+  | 'gis_datatype';
+
 export interface Dataset {
   id: string;
   slug: string;
@@ -148,6 +158,7 @@ export interface Dataset {
   service_location?: string | null;
   capabilities?: Capability[];
   visibility: 'public' | 'private';
+  inferred_properties?: InferredProperty[] | null;
 }
 
 export interface SoilDataParameters {
