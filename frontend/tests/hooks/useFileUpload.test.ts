@@ -1,6 +1,11 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { useFileUpload } from 'hooks/useFileUpload';
 
+jest.mock('hooks/useDatasetsSoilData', () => ({
+  ALLOWED_EXTENSIONS: ['.csv', '.gpkg', '.geojson', '.shp', '.xlsx', '.zip'],
+  useDatasetsSoilData: jest.fn(),
+}));
+
 jest.mock('../../src/configuration/api', () => ({
   BACKEND_BASE_URL: 'http://mocked-backend',
 }));

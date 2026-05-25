@@ -452,6 +452,8 @@ export const addSyntheticIngestionData = async (syntheticIngestionDataOptions): 
   const category = await addCategory(`test_category_${id}`);
   await addLicense(`test_license_raw_data_${id}`);
   const file = await addFile(`test_file_${id}`);
+  file.status = IngestionStatus.STAGED;
+  await file.save();
   const createdDataMapping: object = {};
 
   for (const [field, mapping] of Object.entries(columnMapping)) {

@@ -1,0 +1,29 @@
+.MappingFieldsPane {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  gap: 8px;
+  padding: 48px 24px;
+}
+
+.Icon {
+  width: 92px;
+  height: 92px;
+  margin-bottom: 16px;
+}
+
+.Title {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.Description {
+  font-size: var(--font-size-sm);
+  color: var(--color-neutral-dark-500);
+  margin: 0;
+  text-align: center;
+}

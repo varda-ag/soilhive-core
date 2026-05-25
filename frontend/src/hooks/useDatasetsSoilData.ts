@@ -6,6 +6,7 @@ import { useCreateDatasetFileMapping } from 'hooks/useDatasetMutation';
 import { useFileUpload } from './useFileUpload';
 import { arraysMatch } from '../utilities/validation';
 import { useFileManagement } from './useFileManagement';
+import { useIngestionStatus } from './useIngestionStatus';
 import { ADMIN_PATHS } from '../configuration/admin';
 import { BACKEND_BASE_URL } from '../configuration/api';
 import { useRequest } from '../api-client';
@@ -13,7 +14,7 @@ import type { SoilDataFile } from '../types/soilDataFile';
 import type { FileDescriptor } from 'types/backend';
 import { useTranslation } from 'react-i18next';
 
-export const ALLOWED_EXTENSIONS = ['.csv', 'gpkg', '.geojson', '.shp', '.xlsx', '.zip'];
+export const ALLOWED_EXTENSIONS = ['.csv', '.gpkg', '.geojson', '.shp', '.xlsx', '.zip'];
 
 export function useDatasetsSoilData() {
   const { t } = useTranslation('admin');
@@ -22,6 +23,15 @@ export function useDatasetsSoilData() {
   const { id: datasetId } = useParams();
   const queryClient = useQueryClient();
   const { mutateAsync: createFileMapping } = useCreateDatasetFileMapping();
+  const { isLoading: isIngestionLoading, updateFurthestStep } = useIngestionStatus();
+
+  const hasTracked = useRef(false);
+  useEffect(() => {
+    if (!hasTracked.current && datasetId && !isIngestionLoading) {
+      hasTracked.current = true;
+      updateFurthestStep(datasetId, 'soil-data');
+    }
+  }, [datasetId, isIngestionLoading, updateFurthestStep]);
 
   const [soilDataFiles, setSoilDataFiles] = useState<SoilDataFile[]>([]);
   const existingFileIds = useRef<Set<string>>(new Set());
