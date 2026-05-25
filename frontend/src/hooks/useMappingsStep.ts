@@ -208,17 +208,23 @@ export function useMappingsStep(datasetId?: string) {
   const { mutateAsync: updateDatasetFileMapping } = useUpdateDatasetFileMappingMutation();
   const { mutateAsync: createJob } = useCreateJobMutation();
 
-  // idle    — no import in progress
-  // pending — jobs fired, waiting for all files to reach STAGED
-  // reImporting — jobs fired but files were already STAGED; polling at 500ms until ONGOING is observed, then transitions to pending
-  const [importState, setImportState] = useState<'idle' | 'pending' | 'reImporting'>('idle');
+  // true from the moment Continue is clicked until navigate fires (or save fails)
+  const [isImportingState, setIsImportingState] = useState(false);
+  // Set to Date.now() just before invalidateQueries is called in handleContinue.
+  // The redirect effect only acts on files data fetched AFTER this timestamp, so it
+  // never fires on stale pre-job data regardless of what status the files had before.
+  const jobFiredAtRef = useRef(Infinity);
 
-  const { data: files, isLoading: isLoadingFiles } = useApiQuery<FileDescriptor[]>({
+  const {
+    data: files,
+    isLoading: isLoadingFiles,
+    dataUpdatedAt: filesUpdatedAt,
+  } = useApiQuery<FileDescriptor[]>({
     endpoint: `/datasets/${datasetId}/files`,
     method: 'GET',
     queryKey: ['datasets', datasetId, 'files'],
     enabled: !!datasetId,
-    refetchInterval: importState === 'reImporting' ? 500 : 3000,
+    refetchInterval: 3000,
   });
 
   const { data: datasetFileMappings, isLoading: isLoadingDatasetFileMappings } = useApiQuery<DatasetFileMappingResponse[]>({
@@ -229,7 +235,7 @@ export function useMappingsStep(datasetId?: string) {
   });
 
   const serverIsImporting = files?.some(f => f.status === IngestionStatus.ONGOING) ?? false;
-  const isImporting = importState !== 'idle' || serverIsImporting;
+  const isImporting = isImportingState || serverIsImporting;
   const allFilesStaged = files?.every(f => f.status === IngestionStatus.STAGED) ?? false;
 
   const { data: existingMappings, isLoading: isLoadingExistingMappings } = useApiQuery<DataMappingResponse[]>({
@@ -314,17 +320,17 @@ export function useMappingsStep(datasetId?: string) {
     isLoadingDatasetFileMappings;
 
   useEffect(() => {
-    if (importState === 'idle' || isLoading || isIngestionLoading || !datasetId) return;
-    if (importState === 'reImporting' && serverIsImporting) {
-      setImportState('pending');
-      return;
-    }
-    if (importState === 'pending' && allFilesStaged) {
-      setImportState('idle');
+    if (!isImportingState || isLoading || isIngestionLoading || !datasetId) return;
+    // Ignore files data that was cached before we fired the jobs — it may show STAGED from a
+    // previous import cycle. React Query sets dataUpdatedAt on every successful fetch, so the
+    // first refetch/poll after invalidateQueries will have a timestamp >= jobFiredAtRef.current.
+    if (filesUpdatedAt < jobFiredAtRef.current) return;
+    if (allFilesStaged) {
+      setIsImportingState(false);
       updateFurthestStep(datasetId, 'preview');
       navigate(`${ADMIN_PATHS.DATASETS}/edit/${datasetId}/preview`);
     }
-  }, [importState, serverIsImporting, allFilesStaged, isLoading, isIngestionLoading, datasetId, updateFurthestStep, navigate]);
+  }, [isImportingState, filesUpdatedAt, allFilesStaged, isLoading, isIngestionLoading, datasetId, updateFurthestStep, navigate]);
 
   const geometryDetected = useMemo(() => {
     if (!files || files.length === 0) return undefined;
@@ -545,9 +551,12 @@ export function useMappingsStep(datasetId?: string) {
       return;
     }
 
+    setIsImportingState(true);
     await save();
-    setImportState(allFilesStaged ? 'reImporting' : 'pending');
     await Promise.all(datasetFileMappings!.map(dfm => createJob({ type: 'file-to-db', file_id: dfm.fileID })));
+    // Stamp the moment jobs were confirmed fired. Any files fetch with dataUpdatedAt >= this
+    // timestamp reflects the post-job state, so the redirect effect can act on it safely.
+    jobFiredAtRef.current = Date.now();
     await queryClient.invalidateQueries({ queryKey: ['datasets', datasetId, 'files'] });
   }, [
     columnMappings,
