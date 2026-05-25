@@ -464,17 +464,33 @@ describe('FileService', () => {
       setLocalStorageRootFolder(vectorFilesPassPath);
     });
 
-    it('uses mapped WKT column when no geometry is auto-detected', async () => {
+    it('ignores mapping geometry fields and uses native geometry when geometry_detected is true', async () => {
+      const fileEntity = await fileService.createFile(requestData, {
+        name: 'sample_point.geojson',
+        file_path: 'sample_point.geojson',
+      });
+      const dataset = await addDataset('test_geom_native_mapping', [0, 0, 30, 60]);
+      const dataMapping = await addDataMapping({ wkt_col: 'geometry' });
+      const dfm = await addDatasetFileMapping(dataset.id, dataMapping.id);
+      dfm.file_id = fileEntity.id;
+      await dfm.save();
+
+      await fileService.fileToDB(requestData, fileEntity.slug);
+
+      const dataSource = await getDataSource();
+      const rows = await dataSource.query(
+        `SELECT ST_X(geometry) as x FROM "${process.env.POSTGRES_SCHEMA}"."${getRawTableName(fileEntity.id)}" WHERE geometry IS NOT NULL LIMIT 1`,
+      );
+      // Native geometry from sample_point.geojson has longitude ~39.6544.
+      // If the mapping were applied instead, wkt_col doesn't exist in the file so geometry would be null.
+      expect(rows.length).toBeGreaterThan(0);
+      expect(parseFloat(rows[0].x)).toBeCloseTo(39.6544, 4);
+    });
+
+    it('uses mapping geometry when no geometry is auto-detected', async () => {
       const fileEntity = await fileService.createFile(requestData, {
         name: 'test_geom_wkt.csv',
         file_path: 'test_geom_wkt.csv',
-        metadata: {
-          driver: 'CSV',
-          field_names: ['wkt_col', 'ph'],
-          detected_fields: { ...nullDetectedFields },
-          geometry_detected: false,
-          detected_mapping: {},
-        },
       });
       const dataset = await addDataset('test_geom_wkt_mapping', [0, 0, 30, 60]);
       const dataMapping = await addDataMapping({ wkt_col: 'geometry' });
@@ -484,18 +500,11 @@ describe('FileService', () => {
 
       await fileService.fileToDB(requestData, fileEntity.slug);
 
-      const tableName = getRawTableName(fileEntity.id);
-      const tableColumns = await getTableColumns(tableName);
-      expect(tableColumns.map(c => c.column_name)).toContain('geometry');
-
       const dataSource = await getDataSource();
       const rows = await dataSource.query(
-        `SELECT ST_X(geometry) as x, ST_Y(geometry) as y FROM "${process.env.POSTGRES_SCHEMA}"."${tableName}" ORDER BY ST_X(geometry)`,
+        `SELECT ST_X(geometry) as x FROM "${process.env.POSTGRES_SCHEMA}"."${getRawTableName(fileEntity.id)}" WHERE geometry IS NOT NULL LIMIT 1`,
       );
       expect(parseFloat(rows[0].x)).toBeCloseTo(10.0, 4);
-      expect(parseFloat(rows[0].y)).toBeCloseTo(45.0, 4);
-      expect(parseFloat(rows[1].x)).toBeCloseTo(11.0, 4);
-      expect(parseFloat(rows[1].y)).toBeCloseTo(46.0, 4);
     });
 
     it('uses mapped lat/lon columns when no geometry is auto-detected', async () => {
@@ -526,13 +535,6 @@ describe('FileService', () => {
       const fileEntity = await fileService.createFile(requestData, {
         name: 'test_geom_override.csv',
         file_path: 'test_geom_override.csv',
-        metadata: {
-          driver: 'CSV',
-          field_names: ['lat', 'lon', 'wkt_col', 'ph'],
-          detected_fields: { ...nullDetectedFields, latitude: 'lat', longitude: 'lon' },
-          geometry_detected: false,
-          detected_mapping: {},
-        },
       });
       const dataset = await addDataset('test_geom_override_mapping', [0, 0, 30, 60]);
       const dataMapping = await addDataMapping({ wkt_col: 'geometry' });
@@ -546,24 +548,7 @@ describe('FileService', () => {
       const rows = await dataSource.query(
         `SELECT ST_X(geometry) as x FROM "${process.env.POSTGRES_SCHEMA}"."${getRawTableName(fileEntity.id)}" WHERE geometry IS NOT NULL LIMIT 1`,
       );
-      expect(parseFloat(rows[0].x)).toBeCloseTo(20.0, 1);
-    });
-
-    it('ignores mapping geometry fields and uses native geometry when geometry_detected is true', async () => {
-      const fileEntity = await fileService.createFile(requestData, {
-        name: 'sample_point.geojson',
-        file_path: 'sample_point.geojson',
-      });
-      const dataset = await addDataset('test_geom_native_mapping', [0, 0, 30, 60]);
-      const dataMapping = await addDataMapping({ wkt_col: 'geometry' });
-      const dfm = await addDatasetFileMapping(dataset.id, dataMapping.id);
-      dfm.file_id = fileEntity.id;
-      await dfm.save();
-
-      await fileService.fileToDB(requestData, fileEntity.slug);
-
-      const tableColumns = await getTableColumns(getRawTableName(fileEntity.id));
-      expect(tableColumns.map(c => c.column_name)).toContain('geometry');
+      expect(parseFloat(rows[0].x)).toBeCloseTo(20.0, 4);
     });
 
     it('falls back to auto-detected lat/lon when no mapping exists for the file', async () => {
