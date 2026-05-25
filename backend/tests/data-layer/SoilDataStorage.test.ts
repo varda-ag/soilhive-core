@@ -4,7 +4,7 @@ import * as turf from '@turf/turf';
 import { MultiPolygon, Polygon } from 'geojson';
 import { getEntityManager } from '../../src/utils/data-source';
 import { getPolygonFromBbox } from '../../src/utils/geometry';
-import { addDataset, addRasterData, addSyntheticData, addRasterDataset, syntheticDataOptions } from '../../src/utils/mock';
+import { addDataset, addRasterData, addSyntheticData, syntheticDataOptions } from '../../src/utils/mock';
 import SoilDataStorage, { buildDatasetFilterClauses } from '../../src/data-layer/SoilDataStorage';
 import DatasetEntity from '../../src/entities/Dataset';
 import { decodeCursor } from '../../src/utils/cursor';
@@ -817,28 +817,5 @@ describe('SoilDataStorage class', () => {
         expect(results).toHaveLength(expectedCount);
       });
     });
-  });
-
-  describe('Filtering raster data with raster_filters', () => {
-    const dir = process.env.LOCAL_STORAGE_ROOT_FOLDER!;
-    const dsn = `postgresql://${process.env.POSTGRES_USER}:${process.env.POSTGRES_PASSWORD}@${process.env.POSTGRES_HOST}:${process.env.POSTGRES_PORT}/${process.env.POSTGRES_DB}`;
-    it.skip(
-      'Local DB loading',
-      async () => {
-        for (const input of [
-          `${dir}/clsoilmaps_ksat_100-200cm.tif`,
-          `${dir}/cog_isda_sol_db_od_m_30m_0__20cm_2001__2017_v0_13_wgs84.tif`,
-          `${dir}/holisoils_nitrogen_topsoil_0-30cm_mean_forest.tif`,
-          `${dir}/olm_sol_coarsefrag.vfraction_usda.3b1_m_250m_b0..0cm_1950..2017_v0.2.tif`,
-          `${dir}/olm_sol_texture_class_usda_tt_m_250m_b0_0cm_1950_2017_v0_2.tif`,
-          `${dir}/soilgrids250_bdod_5-15cm_mean.tif`,
-          `${dir}/gSSURGO_AK_rootznemc.tiff`,
-        ]) {
-          const id = input.split('/').pop()!.split('.')[0];
-          await addRasterDataset(id, dsn, input);
-        }
-      },
-      2000 * 60 * 60,
-    );
   });
 });

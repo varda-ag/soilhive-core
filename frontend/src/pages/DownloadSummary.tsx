@@ -18,6 +18,7 @@ import { Column } from 'primereact/column';
 import useDownloads from 'hooks/useDownloads';
 import { useOnceDefined } from 'hooks/useOnceDefined';
 import Skeleton from 'react-loading-skeleton';
+import { GISDataType } from '../types/backend';
 
 // console.debug(numberFormatter.format(1234567));
 // Output: "1.234.567"
@@ -81,15 +82,15 @@ function DownloadSummary() {
   };
 
   const dataCountCell = ({ dataType, layerCount }: DownloadSummaryDataset) => {
-    const formattedCount = numberFormatter.format(layerCount);
-    if (dataType === 'point') {
+    if (dataType !== GISDataType.RASTER) {
+      const formattedCount = numberFormatter.format(layerCount);
       return (
         <>
           {formattedCount} {t('download_summary.data_points')}
         </>
       );
     }
-    return <>{formattedCount}</>;
+    return <>-</>;
   };
 
   const loaderCell = () => <Skeleton count={1} height={12} width="100%" />;

@@ -618,7 +618,6 @@ export default class FileService {
 
     if (mode === StorageModes.S3) {
       gdal.config.set('VSI_CACHE_SIZE', '200000000');
-      gdal.config.set('CPL_VSIL_CURL_ALLOWED_EXTENSIONS', '.tif');
     } else {
       gdal.config.set('VSI_CACHE_SIZE', '500000000');
       dsPool = new LRUCache({ max: 200, dispose: ds => ds.close() });

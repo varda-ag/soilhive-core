@@ -11,6 +11,7 @@ import { useTranslation } from 'react-i18next';
 import styles from './DatasetsSidebar.module.scss';
 import { useNavigate } from 'react-router';
 import { useCallback, useState } from 'react';
+import { GISDataType } from '../../types/backend';
 
 interface Props {
   isOpened: boolean;
@@ -64,7 +65,7 @@ export function DatasetsSidebar({ isOpened, onClose }: Props) {
           <Button
             className={styles.PreviewButton}
             type="secondary"
-            isDisabled={availableDatasets.length === 0}
+            isDisabled={availableDatasets.filter(d => d.data_type !== GISDataType.RASTER).length === 0}
             onClick={() => {
               const searchParams = getSearchParams();
               if (datasetFrontendFilters.type.length) {

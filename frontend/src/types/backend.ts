@@ -51,7 +51,9 @@ export interface StoredDataFilter extends DataFilter {
 export interface FilteredDatasetSummary extends FilterCriteria {
   id: string;
   name: string;
+  data_type: GISDataType;
   dataset_layer_count: number;
+  raster_layer_count: number;
 }
 
 export interface FilteredData {
