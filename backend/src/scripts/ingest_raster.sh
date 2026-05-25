@@ -182,7 +182,6 @@ echo "  footprint features=$FEATURE_COUNT"
 # Simplification tolerance:  base[resolution_m] x factor[extent_type]
 # Geohash precision-5 cells: lat_step = 180/4096, lon_step = 360/8192 (~0.04395 deg)
 #   Grid index over raw-footprint bbox, hashed via ST_GeoHash.
-#   Only computed for resolution <= 10 m AND extent = 'global'.
 
 echo "-> [4/4] Inserting into $SCHEMA.raster_layers"
 

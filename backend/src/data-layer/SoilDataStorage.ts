@@ -1,7 +1,7 @@
 import * as turf from '@turf/turf';
 import { Polygon, MultiPolygon } from 'geojson';
 import { StatusCodes } from 'http-status-codes';
-import { Brackets, EntityManager, SelectQueryBuilder } from 'typeorm';
+import { EntityManager, SelectQueryBuilder } from 'typeorm';
 import { createCursor, decodeCursor, encodeCursor } from '../utils/cursor';
 import { ErrorResponse } from '../utils/error';
 import { envelopeToPixelWindow, selectOverviewTable, selectFileOverviewLevel } from '../utils/raster';
@@ -1360,13 +1360,8 @@ const spatialFilter = async (
     .addSelect('rl.resolution_m', 'resolution_m')
     .addSelect('rl.extent_type', 'extent_type')
     .where('rl.id IN (:...candidateLayers)', { candidateLayers })
-    .andWhere(
-      new Brackets(qb =>
-        qb
-          .where('rl.geohash_cells IS NULL AND ST_Intersects(rl.footprint, (SELECT geom FROM aoi))')
-          .orWhere('rl.geohash_cells IS NOT NULL AND rl.geohash_cells && ARRAY[:...inputHashes]', { inputHashes }),
-      ),
-    )
+    .andWhere('rl.geohash_cells && ARRAY[:...inputHashes]', { inputHashes })
+    .andWhere('ST_Intersects(rl.footprint, (SELECT geom FROM aoi))')
     .getRawMany();
 };
 

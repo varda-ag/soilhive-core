@@ -684,11 +684,11 @@ describe('SoilDataStorage class', () => {
     });
 
     const rasterCoordinates = [
-      [-80.81, -33.732],
-      [-80.81, -33.728],
-      [-80.806, -33.728],
-      [-80.806, -33.732],
-      [-80.81, -33.732],
+      [-82, -35],
+      [-82, -33],
+      [-80, -33],
+      [-80, -35],
+      [-82, -35],
     ];
 
     it('Filtering raster data should return a dataset when geometry intersects with its footprint', async () => {
@@ -791,6 +791,7 @@ describe('SoilDataStorage class', () => {
       beforeEach(async () => {
         await addRasterData(dsn, undefined, {
           out: `test_raster_${Date.now()}_cog.tif`,
+          extent: 'regional',
         });
         await addRasterFilterData();
         await addRasterFilterMappings();
@@ -800,7 +801,7 @@ describe('SoilDataStorage class', () => {
         const spy = jest.spyOn(FilteringMasksModule, 'getVectorMask');
         const sds = new SoilDataStorage();
         const entityManager = await getEntityManager();
-        await sds.filterRaster(entityManager, getPolygonFromBbox([-81, -34, -80, -33]), { raster_filters: { land_cover: [30] } });
+        await sds.filterRaster(entityManager, getPolygonFromBbox([-82, -35, -80, -33]), { raster_filters: { land_cover: [30] } });
         expect(spy).toHaveBeenCalled();
         spy.mockRestore();
       });
@@ -811,7 +812,7 @@ describe('SoilDataStorage class', () => {
       ])('For raster_filter.land_cover value %j → %i raster dataset(s) should be returned', async (landCoverValues, expectedCount) => {
         const sds = new SoilDataStorage();
         const entityManager = await getEntityManager();
-        const results = await sds.filterRaster(entityManager, getPolygonFromBbox([-81, -34, -80, -33]), {
+        const results = await sds.filterRaster(entityManager, getPolygonFromBbox([-82, -35, -80, -33]), {
           raster_filters: { land_cover: landCoverValues },
         });
         expect(results).toHaveLength(expectedCount);
