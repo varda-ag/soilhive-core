@@ -11,11 +11,13 @@
     "paths": {
       "assets/*": ["./src/assets/*"],
       "components/*": ["./src/components/*"],
+      "configuration/*": ["./src/configuration/*"],
       "hooks/*": ["./src/hooks/*"],
       "pages/*": ["./src/pages/*"],
       "types/*": ["./src/types/*"],
       "styles/*": ["./src/styles/*"],
-      "adapters/*": ["./src/adapters/*"]
+      "adapters/*": ["./src/adapters/*"],
+      "utilities/*": ["./src/utilities/*"]
     },
 
     /* modules */

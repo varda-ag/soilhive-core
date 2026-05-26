@@ -1,304 +1,20 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
-import { Editor, type EditorTextChangeEvent } from 'primereact/editor';
-import { useQueryClient } from '@tanstack/react-query';
 import { useMetadata, type SaveCallbacks } from 'hooks/useMetadata';
 import { useEntitlements, ADMIN_PORTAL_ACCESS } from 'hooks/useEntitlementsHook';
-import { useCreateLicenseMutation } from 'hooks/useDatasetMutation';
-import useNotifications from 'hooks/useNotifications';
-import { EDITOR_HEADER } from '../configuration/editor';
 import styles from './Metadata.module.scss';
 import Worm from 'assets/images/worm.svg?react';
 import SoilhiveSimpleMap from 'components/Map/SoilhiveSimpleMap';
 import { Logo } from 'components/Logo/Logo';
-import { Button, SplitButton, Dropdown, TextInput } from 'components/UI';
-import { htmlDisplay } from '../utilities/isomorphicHTMLDisplay';
-import { getMetadataHeadValues } from '../utilities/buildMetadataHead';
+import { Button, SplitButton } from 'components/UI';
+import { getMetadataHeadValues } from 'utilities/buildMetadataHead';
+import { upsertMeta } from 'utilities/upsertMeta';
 import EyeIcon from 'assets/icons/small-eye-icon.svg?react';
 import ReduceIcon from 'assets/icons/reduce-icon.svg?react';
 import InfoIcon from 'assets/icons/info-icon.svg?react';
-import EditIcon from 'assets/icons/pencil-icon.svg?react';
-import type { License } from 'types/backend';
-
-const NEW_LICENSE_CODE = '__new_license__';
-
-function Row({
-  label,
-  value,
-  isEditable,
-  property,
-  onStartEditing,
-  onSave,
-  onCancel,
-}: {
-  label: string;
-  value: string | undefined | null;
-  isEditable: boolean;
-  property: string;
-  onStartEditing: (property: string) => void;
-  onSave: (property: string, value: string, callbacks: SaveCallbacks) => void;
-  onCancel: (property: string) => void;
-}) {
-  const [isEditing, setIsEditing] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [editValue, setEditValue] = useState(value ?? '');
-
-  const handleSave = () => {
-    setIsSaving(true);
-    onSave(property, editValue, {
-      onSuccess: () => {
-        setIsEditing(false);
-        setIsSaving(false);
-      },
-      onError: () => setIsSaving(false),
-    });
-  };
-
-  return (
-    <div className={`${styles.Row}${isEditable && !isEditing ? ` ${styles.RowAdmin}` : ''}`}>
-      <p className={styles.Label}>
-        <strong>{label}</strong>
-      </p>
-      {isEditing ? (
-        <div className={`${styles.EditArea}${isSaving ? ` ${styles.EditAreaSaving}` : ''}`}>
-          <div className={styles.EditorWrapper}>
-            <Editor
-              value={editValue}
-              onTextChange={(e: EditorTextChangeEvent) => setEditValue(e.htmlValue ?? '')}
-              headerTemplate={EDITOR_HEADER}
-              readOnly={isSaving}
-            />
-          </div>
-          <div className={styles.EditActions}>
-            <Button size="small" onClick={handleSave} isDisabled={isSaving}>
-              {isSaving ? 'Saving…' : 'Save'}
-            </Button>
-            <Button
-              type="secondary"
-              size="small"
-              onClick={() => {
-                setEditValue(value ?? '');
-                setIsEditing(false);
-                onCancel(property);
-              }}
-              isDisabled={isSaving}
-            >
-              Cancel
-            </Button>
-          </div>
-        </div>
-      ) : (
-        <>
-          <div className={styles.Text}>{htmlDisplay(value)}</div>
-          {isEditable && (
-            <button
-              type="button"
-              className={styles.EditButton}
-              onClick={() => {
-                setEditValue(value ?? '');
-                setIsEditing(true);
-                onStartEditing(property);
-              }}
-              aria-label="Edit"
-            >
-              <EditIcon />
-            </button>
-          )}
-        </>
-      )}
-    </div>
-  );
-}
-
-function LicenseRow({
-  label,
-  currentLicenseIds,
-  allLicenses,
-  isEditable,
-  property,
-  onStartEditing,
-  onSave,
-  onCancel,
-}: {
-  label: string;
-  currentLicenseIds: string[];
-  allLicenses: License[];
-  isEditable: boolean;
-  property: string;
-  onStartEditing: (property: string) => void;
-  onSave: (property: string, value: string, callbacks: SaveCallbacks) => void;
-  onCancel: (property: string) => void;
-}) {
-  const [isEditing, setIsEditing] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [editValue, setEditValue] = useState(currentLicenseIds[0] ?? '');
-  const [newLicenseName, setNewLicenseName] = useState('');
-  const [newLicenseFullName, setNewLicenseFullName] = useState('');
-  const [newLicenseUrl, setNewLicenseUrl] = useState('');
-
-  const createLicense = useCreateLicenseMutation();
-  const { showNotification } = useNotifications();
-  const queryClient = useQueryClient();
-
-  const licenseOptions = [
-    ...allLicenses.map(l => ({ code: l.id, name: l.full_name ?? l.name })),
-    { code: NEW_LICENSE_CODE, name: 'Custom license' },
-  ];
-  const currentLicenses = allLicenses.filter(l => currentLicenseIds.includes(l.id));
-  const displayValue =
-    currentLicenses.length > 0 ? currentLicenses.map(l => {
-      const label = l.full_name ?? l.name;
-      return l.url ? `<a target="_blank" href=${l.url}>${label}</a>` : label;
-    }).join(', ') : undefined;
-
-  const handleSave = () => {
-    if (editValue === NEW_LICENSE_CODE) {
-      if (!newLicenseName.trim()) return;
-      setIsSaving(true);
-      createLicense.mutate(
-        {
-          name: newLicenseName.trim(),
-          full_name: newLicenseFullName.trim() || undefined,
-          url: newLicenseUrl.trim() || undefined,
-        },
-        {
-          onSuccess: newLicense => {
-            queryClient.invalidateQueries({ queryKey: ['licenses'] });
-            onSave(property, newLicense.id, {
-              onSuccess: () => {
-                setIsEditing(false);
-                setIsSaving(false);
-              },
-              onError: () => setIsSaving(false),
-            });
-          },
-          onError: (error) => {
-            setIsSaving(false);
-            showNotification({
-              id: 'license-create-error',
-              title: 'Failed to create license',
-              message: error.message,
-              type: 'error',
-            });
-          },
-        },
-      );
-    } else {
-      setIsSaving(true);
-      onSave(property, editValue, {
-        onSuccess: () => {
-          setIsEditing(false);
-          setIsSaving(false);
-        },
-        onError: () => setIsSaving(false),
-      });
-    }
-  };
-
-  return (
-    <div className={`${styles.Row}${isEditable && !isEditing ? ` ${styles.RowAdmin}` : ''}`}>
-      <p className={styles.Label}>
-        <strong>{label}</strong>
-      </p>
-      {isEditing ? (
-        <div className={`${styles.EditArea}${isSaving ? ` ${styles.EditAreaSaving}` : ''}`}>
-          <div className={styles.EditorWrapper}>
-            <Dropdown
-              options={licenseOptions}
-              value={editValue}
-              onChange={selected => setEditValue(selected as string)}
-              isDisabled={isSaving}
-              placeholder="Select a license"
-              size="small"
-            />
-            {editValue === NEW_LICENSE_CODE && (
-              <div className={styles.NewLicenseFields}>
-                <TextInput
-                  label="Name"
-                  placeholder="e.g. CC-BY-4.0"
-                  value={newLicenseName}
-                  onChange={v => setNewLicenseName(v)}
-                  isDisabled={isSaving}
-                  isRequired
-                  size="small"
-                />
-                <TextInput
-                  label="Full name"
-                  placeholder="e.g. Creative Commons Attribution 4.0"
-                  value={newLicenseFullName}
-                  onChange={v => setNewLicenseFullName(v)}
-                  isDisabled={isSaving}
-                  size="small"
-                />
-                <TextInput
-                  label="URL"
-                  placeholder="e.g. https://creativecommons.org/licenses/by/4.0/"
-                  value={newLicenseUrl}
-                  onChange={v => setNewLicenseUrl(v)}
-                  isDisabled={isSaving}
-                  size="small"
-                />
-              </div>
-            )}
-          </div>
-          <div className={styles.EditActions}>
-            <Button
-              size="small"
-              onClick={handleSave}
-              isDisabled={isSaving || (editValue === NEW_LICENSE_CODE && !newLicenseName.trim())}
-            >
-              {isSaving ? 'Saving…' : 'Save'}
-            </Button>
-            <Button
-              type="secondary"
-              size="small"
-              onClick={() => {
-                setEditValue(currentLicenseIds[0] ?? '');
-                setNewLicenseName('');
-                setNewLicenseFullName('');
-                setNewLicenseUrl('');
-                setIsEditing(false);
-                onCancel(property);
-              }}
-              isDisabled={isSaving}
-            >
-              Cancel
-            </Button>
-          </div>
-        </div>
-      ) : (
-        <>
-          <div className={styles.Text}>{htmlDisplay(displayValue)}</div>
-          {isEditable && (
-            <button
-              type="button"
-              className={styles.EditButton}
-              onClick={() => {
-                setEditValue(currentLicenseIds[0] ?? '');
-                setIsEditing(true);
-                onStartEditing(property);
-              }}
-              aria-label="Edit"
-            >
-              <EditIcon />
-            </button>
-          )}
-        </>
-      )}
-    </div>
-  );
-}
-
-function upsertMeta(selector: string, attrName: 'name' | 'property', attrValue: string, content: string) {
-  let el = document.head.querySelector<HTMLMetaElement>(selector);
-  if (!el) {
-    el = document.createElement('meta');
-    el.setAttribute(attrName, attrValue);
-    document.head.appendChild(el);
-  }
-  if (el.getAttribute('content') !== content) el.setAttribute('content', content);
-}
+import { EditorRow } from 'components/Metadata/EditorRow/EditorRow';
+import { LicenseRow } from 'components/Metadata/LicenseRow/LicenseRow';
 
 export default function Metadata() {
   const { id } = useParams();
@@ -457,7 +173,7 @@ export default function Metadata() {
               <span>You can edit fields directly from this list</span>
             </div>
           )}
-          <Row
+          <EditorRow
             label={t('fields.name')}
             value={dataset?.name}
             isEditable={isAdmin && !isEditing}
@@ -466,7 +182,7 @@ export default function Metadata() {
             onSave={onSave}
             onCancel={onCancel}
           />
-          <Row
+          <EditorRow
             label={t('fields.full_name')}
             value={dataset?.full_name}
             isEditable={isAdmin && !isEditing}
@@ -475,7 +191,7 @@ export default function Metadata() {
             onSave={onSave}
             onCancel={onCancel}
           />
-          <Row
+          <EditorRow
             label={t('fields.version')}
             value={dataset?.version}
             isEditable={isAdmin && !isEditing}
@@ -484,7 +200,7 @@ export default function Metadata() {
             onSave={onSave}
             onCancel={onCancel}
           />
-          <Row
+          <EditorRow
             label={t('fields.description')}
             value={dataset?.description}
             isEditable={isAdmin && !isEditing}
@@ -493,7 +209,7 @@ export default function Metadata() {
             onSave={onSave}
             onCancel={onCancel}
           />
-          <Row
+          <EditorRow
             label={t('fields.author')}
             value={dataset?.author}
             isEditable={isAdmin && !isEditing}
@@ -502,7 +218,7 @@ export default function Metadata() {
             onSave={onSave}
             onCancel={onCancel}
           />
-          <Row
+          <EditorRow
             label={t('fields.data_producer')}
             value={dataset?.data_producer}
             isEditable={isAdmin && !isEditing}
@@ -511,7 +227,7 @@ export default function Metadata() {
             onSave={onSave}
             onCancel={onCancel}
           />
-          <Row
+          <EditorRow
             label={t('fields.variables_measured')}
             value={dataset?.soilProperties?.join(', ')}
             isEditable={isAdmin && !inferredProperties.has('measured_properties') && !isEditing}
@@ -520,7 +236,7 @@ export default function Metadata() {
             onSave={onSave}
             onCancel={onCancel}
           />
-          <Row
+          <EditorRow
             label={t('fields.min_soil_depth_cm')}
             value={(dataset?.soil_depth as { min?: number } | null | undefined)?.min?.toString()}
             isEditable={isAdmin && !inferredProperties.has('soil_depth') && !isEditing}
@@ -529,7 +245,7 @@ export default function Metadata() {
             onSave={onSave}
             onCancel={onCancel}
           />
-          <Row
+          <EditorRow
             label={t('fields.max_soil_depth_cm')}
             value={(dataset?.soil_depth as { max?: number } | null | undefined)?.max?.toString()}
             isEditable={isAdmin && !inferredProperties.has('soil_depth') && !isEditing}
@@ -538,7 +254,7 @@ export default function Metadata() {
             onSave={onSave}
             onCancel={onCancel}
           />
-          <Row
+          <EditorRow
             label={t('fields.gis_datatype')}
             value={dataset?.gis_datatype ? dataset.gis_datatype[0].toUpperCase() + dataset.gis_datatype.slice(1) : dataset?.gis_datatype}
             isEditable={isAdmin && !inferredProperties.has('gis_datatype') && !isEditing}
@@ -547,7 +263,7 @@ export default function Metadata() {
             onSave={onSave}
             onCancel={onCancel}
           />
-          <Row
+          <EditorRow
             label={t('fields.spatial_resolution')}
             value={dataset?.spatial_resolution}
             isEditable={isAdmin && !isEditing}
@@ -556,7 +272,7 @@ export default function Metadata() {
             onSave={onSave}
             onCancel={onCancel}
           />
-          <Row
+          <EditorRow
             label={t('fields.reference_coverage_start')}
             value={dataset?.reference_period_start}
             isEditable={isAdmin && !inferredProperties.has('reference_period_start') && !isEditing}
@@ -565,7 +281,7 @@ export default function Metadata() {
             onSave={onSave}
             onCancel={onCancel}
           />
-          <Row
+          <EditorRow
             label={t('fields.reference_coverage_end')}
             value={dataset?.reference_period_stop}
             isEditable={isAdmin && !inferredProperties.has('reference_period_stop') && !isEditing}
@@ -574,7 +290,7 @@ export default function Metadata() {
             onSave={onSave}
             onCancel={onCancel}
           />
-          <Row
+          <EditorRow
             label={t('fields.publication_date')}
             value={dataset?.publication_date}
             isEditable={isAdmin && !isEditing}
@@ -593,7 +309,7 @@ export default function Metadata() {
             onSave={onSave}
             onCancel={onCancel}
           />
-          <Row
+          <EditorRow
             label={t('fields.citation')}
             value={dataset?.citation}
             isEditable={isAdmin && !isEditing}

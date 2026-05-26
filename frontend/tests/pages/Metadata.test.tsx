@@ -40,7 +40,7 @@ jest.mock('@tanstack/react-query', () => ({
   useQueryClient: jest.fn().mockReturnValue({ invalidateQueries: jest.fn() }),
 }));
 
-jest.mock('../../src/utilities/buildMetadataHead', () => ({
+jest.mock('utilities/buildMetadataHead', () => ({
   getMetadataHeadValues: jest.fn().mockReturnValue({
     title: 'Test Title',
     description: 'Test Description',
