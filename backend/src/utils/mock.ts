@@ -19,7 +19,7 @@ import { PropertyMapping } from '../interfaces/PropertyMapping';
 import assert from 'assert';
 import path from 'path';
 import fs from 'fs';
-import { sanitizeField } from './utils';
+import { getRawTableName } from './utils';
 import DatasetFileMappingEntity from '../entities/DatasetFileMapping';
 import VocabularyEntity from '../entities/Vocabulary';
 import { log } from './logger';
@@ -446,6 +446,8 @@ export const addSyntheticIngestionData = async (syntheticIngestionDataOptions): 
   const category = await addCategory(`test_category_${id}`);
   await addLicense(`test_license_raw_data_${id}`);
   const file = await addFile(`test_file_${id}`);
+  file.status = IngestionStatus.STAGED;
+  await file.save();
   const createdDataMapping: object = {};
 
   for (const [field, mapping] of Object.entries(columnMapping)) {
@@ -484,7 +486,7 @@ export const addSyntheticIngestionData = async (syntheticIngestionDataOptions): 
     // Load raw data sample
     const sqlFile = path.join(__dirname, '..', '..', 'tests', 'assets', 'raw_data', 'raw_data_insert.sql');
     const sqlTemplate = fs.readFileSync(sqlFile, 'utf8');
-    let sql = sqlTemplate.replace(/{{table}}/g, `"file_${sanitizeField(file.id)}_raw"`);
+    let sql = sqlTemplate.replace(/{{table}}/g, getRawTableName(file.id));
     if (syntheticIngestionDataOptions.tableRows) {
       sql = sql.replace(/{{limit}}/g, syntheticIngestionDataOptions.tableRows);
     }

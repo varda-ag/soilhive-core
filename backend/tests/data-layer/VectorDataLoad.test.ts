@@ -1,6 +1,6 @@
 import { describe, it, expect } from '@jest/globals';
 import { getEntityManager } from '../../src/utils/data-source';
-import { DATA_PREVIEW_SIZE } from '../../src/constants/constants';
+import { DATA_PREVIEW_SIZE, OUTSIDE_LOD_VALUE } from '../../src/constants/constants';
 import { addSyntheticIngestionData, syntheticIngestionDataOptions } from '../../src/utils/mock';
 import VectorDataLoad from '../../src/data-layer/VectorDataLoad';
 import DataMappingService from '../../src/services/DataMappingService';
@@ -42,6 +42,9 @@ describe('VectorDataLoad class', () => {
     const resultRecordIds = results.map(r => parseFloat(r.record_id as string));
     const maxRecordId = Math.max(...resultRecordIds);
     expect(maxRecordId).toBe(10102);
+    // bdfi33 in raw data insert has 6 non-null values, 1 of them is 0 (should be NULL) and 2 of them are less than LOD (should stay as is, no conversion formula "x*10" applied)
+    expect(resultBdfi33.length).toBe(5);
+    expect(resultBdfi33.filter(n => n === OUTSIDE_LOD_VALUE).length).toBe(2);
   });
   it('rawRecordToDataModel should create new features, layers, dataset_layers and observations', async () => {
     const { dataset, file, dataMapping } = await addSyntheticIngestionData({ ...syntheticIngestionDataOptions });

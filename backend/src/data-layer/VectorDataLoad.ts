@@ -1,5 +1,5 @@
 import { EntityManager } from 'typeorm';
-import { DATA_PREVIEW_SIZE } from '../constants/constants';
+import { DATA_PREVIEW_SIZE, OUTSIDE_LOD_VALUE } from '../constants/constants';
 import { DataCleaningConfig } from '../interfaces/DataMapping';
 import { SoilRecord } from '../interfaces/Record';
 import FeatureEntity from '../entities/Feature';
@@ -182,7 +182,7 @@ const buildSortExpr = (sortKey: string, dataMappingConfig: DataCleaningConfig): 
   if (propConfig) {
     const formula = propConfig.conversion_formula?.replace(/"/g, '').trim() ?? null;
     const expr = formula ? formula.replace(/x/g, `(raw.${sortKey})::numeric`) : `(raw.${sortKey})::numeric`;
-    return `ROUND(${expr}, 3)`;
+    return `CASE WHEN ROUND(${sortKey}::numeric, 3)=${OUTSIDE_LOD_VALUE} THEN ROUND(${sortKey}::numeric, 3) ELSE ROUND(${expr},3) END`;
   }
   return `${sortKey}`; // unmapped required columns
 };
@@ -234,16 +234,18 @@ const getDataPreviewQuery = (query: any, dataMappingConfig: DataCleaningConfig, 
     let propertyCleanup: string = '';
 
     const conversionFormula = props?.conversion_formula ? props.conversion_formula.replace(/"/g, '').trim() : null;
-    const expr = conversionFormula ? conversionFormula.replace(/x/g, `(raw.${field})::numeric`) : `(raw.${field})::numeric`;
+    const expr = conversionFormula
+      ? conversionFormula.replace(/x/g, `NULLIF((raw.${field})::numeric, 0)`)
+      : `NULLIF((raw.${field})::numeric, 0)`;
 
     if (props.min_val !== undefined && props.max_val !== undefined) {
-      propertyCleanup = `CASE WHEN ${expr} BETWEEN :min_val${field} AND :max_val${field} THEN ROUND(${expr},3) ELSE NULL END`;
+      propertyCleanup = `CASE WHEN (raw.${field})::numeric=${OUTSIDE_LOD_VALUE} THEN (raw.${field})::numeric WHEN ${expr} BETWEEN :min_val${field} AND :max_val${field} THEN ROUND(${expr},3) ELSE NULL END`;
     } else if (props.min_val !== undefined) {
-      propertyCleanup = `CASE WHEN ${expr} >= :min_val${field} THEN ROUND(${expr},3) ELSE NULL END`;
+      propertyCleanup = `CASE WHEN (raw.${field})::numeric=${OUTSIDE_LOD_VALUE} THEN (raw.${field})::numeric WHEN ${expr} >= :min_val${field} THEN ROUND(${expr},3) ELSE NULL END`;
     } else if (props.max_val !== undefined) {
-      propertyCleanup = `CASE WHEN ${expr} <= :max_val${field} THEN ROUND(${expr},3) ELSE NULL END`;
+      propertyCleanup = `CASE WHEN (raw.${field})::numeric=${OUTSIDE_LOD_VALUE} THEN (raw.${field})::numeric WHEN ${expr} <= :max_val${field} THEN ROUND(${expr},3) ELSE NULL END`;
     } else {
-      propertyCleanup = `ROUND(${expr},3)`;
+      propertyCleanup = `CASE WHEN (raw.${field})::numeric=${OUTSIDE_LOD_VALUE} THEN (raw.${field})::numeric ELSE ROUND(${expr},3) END`;
     }
     params[`min_val${field}`] = props.min_val;
     params[`max_val${field}`] = props.max_val;

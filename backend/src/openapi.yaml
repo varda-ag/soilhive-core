@@ -101,7 +101,7 @@ paths:
       tags:
         - config
       security:
-        - bearerAuth: [super-admin]
+        - bearerAuth: [super-admin, data-admin]
       requestBody:
         required: true
         content:
