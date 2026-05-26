@@ -15,6 +15,7 @@ import ReduceIcon from 'assets/icons/reduce-icon.svg?react';
 import InfoIcon from 'assets/icons/info-icon.svg?react';
 import { EditorRow } from 'components/Metadata/EditorRow/EditorRow';
 import { LicenseRow } from 'components/Metadata/LicenseRow/LicenseRow';
+import { NumberRow } from 'components/Metadata/NumberRow/NumberRow';
 
 export default function Metadata() {
   const { id } = useParams();
@@ -236,18 +237,18 @@ export default function Metadata() {
             onSave={onSave}
             onCancel={onCancel}
           />
-          <EditorRow
+          <NumberRow
             label={t('fields.min_soil_depth_cm')}
-            value={(dataset?.soil_depth as { min?: number } | null | undefined)?.min?.toString()}
+            value={(dataset?.soil_depth as { min?: number } | null | undefined)?.min}
             isEditable={isAdmin && !inferredProperties.has('soil_depth') && !isEditing}
             property="soil_depth_min"
             onStartEditing={onStartEditing}
             onSave={onSave}
             onCancel={onCancel}
           />
-          <EditorRow
+          <NumberRow
             label={t('fields.max_soil_depth_cm')}
-            value={(dataset?.soil_depth as { max?: number } | null | undefined)?.max?.toString()}
+            value={(dataset?.soil_depth as { max?: number } | null | undefined)?.max}
             isEditable={isAdmin && !inferredProperties.has('soil_depth') && !isEditing}
             property="soil_depth_max"
             onStartEditing={onStartEditing}
