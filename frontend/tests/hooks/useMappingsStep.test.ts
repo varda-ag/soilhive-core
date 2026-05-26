@@ -5,7 +5,7 @@ import { useApiQuery } from 'hooks/useApiQuery';
 import { useSoilProperties } from 'hooks/useSoilProperties';
 import { useCreateProcedureMutation } from 'hooks/useCreateProcedureMutation';
 import { useCreateMappingsMutation } from 'hooks/useCreateMappingsMutation';
-import { useCreateJobMutation } from 'hooks/useJobsApi';
+import { useCreateJobMutation, useJobsQueries } from 'hooks/useJobsApi';
 
 jest.mock('react-router', () => ({
   useNavigate: jest.fn(),
@@ -47,7 +47,8 @@ jest.mock('hooks/useDatasetMutation', () => ({
 }));
 
 jest.mock('hooks/useJobsApi', () => ({
-  useCreateJobMutation: jest.fn(() => ({ mutateAsync: jest.fn().mockResolvedValue({}) })),
+  useCreateJobMutation: jest.fn(() => ({ mutateAsync: jest.fn().mockResolvedValue({ id: 'job-1' }) })),
+  useJobsQueries: jest.fn(() => []),
 }));
 
 const mockQueryClient = {
@@ -187,7 +188,7 @@ describe('useMappingsStep', () => {
     it('handleContinue creates a file-to-db job for each dataset-file-mapping when mapping has changed', async () => {
       // No existing mapping → isMappingChanged returns true → normal path (save + fire jobs).
       setupWithColumns(['col1']);
-      const mockCreateJob = jest.fn().mockResolvedValue({});
+      const mockCreateJob = jest.fn().mockResolvedValue({ id: 'job-1' });
       (useCreateJobMutation as jest.Mock).mockReturnValue({ mutateAsync: mockCreateJob });
       const { result } = renderHook(() => useMappingsStep('42'));
       await act(async () => {
@@ -206,7 +207,7 @@ describe('useMappingsStep', () => {
         if (endpoint.includes('dataset-file-mapping')) return { data: defaultDatasetFileMappings, isLoading: false };
         return { data: undefined, isLoading: false };
       });
-      const mockCreateJob = jest.fn().mockResolvedValue({});
+      const mockCreateJob = jest.fn().mockResolvedValue({ id: 'job-1' });
       (useCreateJobMutation as jest.Mock).mockReturnValue({ mutateAsync: mockCreateJob });
       const { result } = renderHook(() => useMappingsStep('42'));
       await act(async () => {
@@ -240,103 +241,62 @@ describe('useMappingsStep', () => {
   });
 
   describe('auto-redirect', () => {
-    // dataUpdatedAt: Infinity simulates a fetch that happened after any possible jobFiredAtRef timestamp.
-    const freshStagedFiles = [{ status: 'STAGED', metadata: { field_names: ['col1'], geometry_detected: true } }];
-
-    function mockFreshFiles() {
-      mockUseApiQuery.mockImplementation(({ endpoint }: { endpoint: string }) => {
-        if (endpoint.includes('/files')) return { data: freshStagedFiles, isLoading: false, dataUpdatedAt: Infinity };
-        if (endpoint.includes('dataset-file-mapping')) return { data: defaultDatasetFileMappings, isLoading: false };
-        return { data: undefined, isLoading: false, dataUpdatedAt: 0 };
-      });
-    }
-
-    it('redirects to preview once files are STAGED after handleContinue', async () => {
+    it('redirects to preview once all jobs are completed after handleContinue', async () => {
       setupWithFileStatuses(['PENDING']);
-      const { result, rerender } = renderHook(() => useMappingsStep('42'));
+      (useJobsQueries as jest.Mock).mockImplementation((ids: string[]) => ids.map(id => ({ data: { id, status: 'completed' } })));
+      const { result } = renderHook(() => useMappingsStep('42'));
 
       await act(async () => {
         await result.current.handleContinue();
       });
 
-      mockFreshFiles();
-      await act(async () => {
-        rerender();
-      });
-
       expect(mockNavigate).toHaveBeenCalledWith('/admin/datasets/edit/42/preview');
     });
 
-    it('does not redirect when files are STAGED but handleContinue was not called', async () => {
-      // isImportingState is false → effect returns early regardless of file status.
+    it('does not redirect when handleContinue was not called (no active jobs)', async () => {
       setupWithFileStatuses(['STAGED']);
+      (useJobsQueries as jest.Mock).mockImplementation((ids: string[]) => ids.map(id => ({ data: { id, status: 'completed' } })));
       renderHook(() => useMappingsStep('42'));
       await act(async () => {});
       expect(mockNavigate).not.toHaveBeenCalled();
     });
 
-    it('does not redirect while isLoading is true even after handleContinue', async () => {
+    it('does not redirect while jobs are still running', async () => {
       setupWithFileStatuses(['PENDING']);
-      const { result, rerender } = renderHook(() => useMappingsStep('42'));
+      (useJobsQueries as jest.Mock).mockImplementation((ids: string[]) => ids.map(id => ({ data: { id, status: 'running' } })));
+      const { result } = renderHook(() => useMappingsStep('42'));
 
       await act(async () => {
         await result.current.handleContinue();
-      });
-
-      mockUseApiQuery.mockImplementation(({ endpoint }: { endpoint: string }) => {
-        if (endpoint.includes('/files')) return { data: freshStagedFiles, isLoading: false, dataUpdatedAt: Infinity };
-        // dataset-file-mapping still loading — isLoading becomes true, effect early-returns.
-        if (endpoint.includes('dataset-file-mapping')) return { data: defaultDatasetFileMappings, isLoading: true };
-        return { data: undefined, isLoading: false, dataUpdatedAt: 0 };
-      });
-      await act(async () => {
-        rerender();
       });
 
       expect(mockNavigate).not.toHaveBeenCalled();
     });
 
-    it('does not redirect on stale STAGED data — waits for a fresh fetch after job fire', async () => {
-      // Files are STAGED before handleContinue (e.g. a previous import cycle completed).
-      // The redirect must NOT fire on that cached data; it must wait for a new fetch that
-      // reflects the post-job state. dataUpdatedAt: 0 ensures the initial data is treated as stale.
-      setupWithFileStatuses(['STAGED'], 0);
-      const { result, rerender } = renderHook(() => useMappingsStep('42'));
+    it('does not redirect when job query has not yet resolved', async () => {
+      setupWithFileStatuses(['PENDING']);
+      // data is undefined — filtered out of jobsData, so jobsData.length < activeJobIds.length
+      (useJobsQueries as jest.Mock).mockImplementation(() => [{ data: undefined }]);
+      const { result } = renderHook(() => useMappingsStep('42'));
 
       await act(async () => {
         await result.current.handleContinue();
       });
 
-      // Immediately after handleContinue, files are still "STAGED" but the data is stale
-      // (dataUpdatedAt 0 < jobFiredAtRef.current = real timestamp). No redirect yet.
       expect(mockNavigate).not.toHaveBeenCalled();
-
-      // Fresh fetch arrives (dataUpdatedAt: Infinity > any real timestamp) — redirect fires.
-      mockFreshFiles();
-      await act(async () => {
-        rerender();
-      });
-
-      expect(mockNavigate).toHaveBeenCalledWith('/admin/datasets/edit/42/preview');
     });
 
-    it('redirects even when PENDING and ONGOING are never observed (all missed between polls)', async () => {
-      // Jobs complete so fast that polls only ever see STAGED. The timestamp guard ensures we
-      // wait for at least one fresh fetch rather than acting on pre-job STAGED data.
-      setupWithFileStatuses(['STAGED'], 0);
-      const { result, rerender } = renderHook(() => useMappingsStep('42'));
+    it('resets importing state when a job fails without navigating', async () => {
+      setupWithFileStatuses(['PENDING']);
+      (useJobsQueries as jest.Mock).mockImplementation((ids: string[]) => ids.map(id => ({ data: { id, status: 'failed' } })));
+      const { result } = renderHook(() => useMappingsStep('42'));
 
       await act(async () => {
         await result.current.handleContinue();
       });
 
-      // Fresh fetch arrives showing STAGED directly (PENDING and ONGOING were never polled).
-      mockFreshFiles();
-      await act(async () => {
-        rerender();
-      });
-
-      expect(mockNavigate).toHaveBeenCalledWith('/admin/datasets/edit/42/preview');
+      expect(mockNavigate).not.toHaveBeenCalled();
+      expect(result.current.isImporting).toBe(false);
     });
   });
 
