@@ -9,7 +9,7 @@ import { useCreateProcedureMutation } from './useCreateProcedureMutation';
 import { useCreateMappingsMutation } from './useCreateMappingsMutation';
 import { useUpdateDatasetFileMappingMutation } from './useDatasetMutation';
 import { useSoilProperties } from './useSoilProperties';
-import { useCreateJobMutation } from './useJobsApi';
+import { useCreateJobMutation, useJobsQueries } from './useJobsApi';
 import { ADMIN_PATHS } from '../configuration/admin';
 import { IngestionStatus } from 'types/backend';
 import type {
@@ -208,18 +208,19 @@ export function useMappingsStep(datasetId?: string) {
   const { mutateAsync: updateDatasetFileMapping } = useUpdateDatasetFileMappingMutation();
   const { mutateAsync: createJob } = useCreateJobMutation();
 
-  // idle    — no import in progress
-  // pending — jobs fired, waiting for all files to reach STAGED
-  // reImporting — jobs fired but files were already STAGED; polling at 500ms until ONGOING is observed, then transitions to pending
-  const [importState, setImportState] = useState<'idle' | 'pending' | 'reImporting'>('idle');
+  // true from the moment Continue is clicked until navigate fires (or save fails)
+  const [isImportingState, setIsImportingState] = useState(false);
+  const [activeJobIds, setActiveJobIds] = useState<string[]>([]);
 
   const { data: files, isLoading: isLoadingFiles } = useApiQuery<FileDescriptor[]>({
     endpoint: `/datasets/${datasetId}/files`,
     method: 'GET',
     queryKey: ['datasets', datasetId, 'files'],
     enabled: !!datasetId,
-    refetchInterval: importState === 'reImporting' ? 500 : 3000,
   });
+
+  const jobQueries = useJobsQueries(activeJobIds);
+  const jobsData = useMemo(() => jobQueries.map(q => q.data).filter(Boolean), [jobQueries]);
 
   const { data: datasetFileMappings, isLoading: isLoadingDatasetFileMappings } = useApiQuery<DatasetFileMappingResponse[]>({
     endpoint: `/datasets/${datasetId}/dataset-file-mapping`,
@@ -229,7 +230,7 @@ export function useMappingsStep(datasetId?: string) {
   });
 
   const serverIsImporting = files?.some(f => f.status === IngestionStatus.ONGOING) ?? false;
-  const isImporting = importState !== 'idle' || serverIsImporting;
+  const isImporting = isImportingState || serverIsImporting;
   const allFilesStaged = files?.every(f => f.status === IngestionStatus.STAGED) ?? false;
 
   const { data: existingMappings, isLoading: isLoadingExistingMappings } = useApiQuery<DataMappingResponse[]>({
@@ -314,17 +315,22 @@ export function useMappingsStep(datasetId?: string) {
     isLoadingDatasetFileMappings;
 
   useEffect(() => {
-    if (importState === 'idle' || isLoading || isIngestionLoading || !datasetId) return;
-    if (importState === 'reImporting' && serverIsImporting) {
-      setImportState('pending');
+    if (!isImportingState || activeJobIds.length === 0 || isIngestionLoading || !datasetId) return;
+    if (jobsData.length < activeJobIds.length) return;
+    const allCompleted = jobsData.every(job => job!.status === 'completed');
+    const anyFailed = jobsData.some(job => job!.status === 'failed');
+    if (anyFailed) {
+      setIsImportingState(false);
+      setActiveJobIds([]);
       return;
     }
-    if (importState === 'pending' && allFilesStaged) {
-      setImportState('idle');
+    if (allCompleted) {
+      setIsImportingState(false);
+      setActiveJobIds([]);
       updateFurthestStep(datasetId, 'preview');
       navigate(`${ADMIN_PATHS.DATASETS}/edit/${datasetId}/preview`);
     }
-  }, [importState, serverIsImporting, allFilesStaged, isLoading, isIngestionLoading, datasetId, updateFurthestStep, navigate]);
+  }, [isImportingState, activeJobIds, jobsData, isIngestionLoading, datasetId, updateFurthestStep, navigate]);
 
   const geometryDetected = useMemo(() => {
     if (!files || files.length === 0) return undefined;
@@ -545,22 +551,11 @@ export function useMappingsStep(datasetId?: string) {
       return;
     }
 
+    setIsImportingState(true);
     await save();
-    setImportState(allFilesStaged ? 'reImporting' : 'pending');
-    await Promise.all(datasetFileMappings!.map(dfm => createJob({ type: 'file-to-db', file_id: dfm.fileID })));
-    await queryClient.invalidateQueries({ queryKey: ['datasets', datasetId, 'files'] });
-  }, [
-    columnMappings,
-    existingMappings,
-    procedureByColumn,
-    allFilesStaged,
-    save,
-    navigate,
-    datasetId,
-    datasetFileMappings,
-    createJob,
-    queryClient,
-  ]);
+    const jobs = await Promise.all(datasetFileMappings!.map(dfm => createJob({ type: 'file-to-db', file_id: dfm.fileID })));
+    setActiveJobIds(jobs.map(j => j.id));
+  }, [columnMappings, existingMappings, procedureByColumn, allFilesStaged, save, navigate, datasetId, datasetFileMappings, createJob]);
 
   return {
     isLoading,
