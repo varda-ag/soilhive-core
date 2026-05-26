@@ -2,14 +2,17 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { Editor, type EditorTextChangeEvent } from 'primereact/editor';
+import { useQueryClient } from '@tanstack/react-query';
 import { useMetadata, type SaveCallbacks } from 'hooks/useMetadata';
 import { useEntitlements, ADMIN_PORTAL_ACCESS } from 'hooks/useEntitlementsHook';
+import { useCreateLicenseMutation } from 'hooks/useDatasetMutation';
+import useNotifications from 'hooks/useNotifications';
 import { EDITOR_HEADER } from '../configuration/editor';
 import styles from './Metadata.module.scss';
 import Worm from 'assets/images/worm.svg?react';
 import SoilhiveSimpleMap from 'components/Map/SoilhiveSimpleMap';
 import { Logo } from 'components/Logo/Logo';
-import { Button, SplitButton, Dropdown } from 'components/UI';
+import { Button, SplitButton, Dropdown, TextInput } from 'components/UI';
 import { htmlDisplay } from '../utilities/isomorphicHTMLDisplay';
 import { getMetadataHeadValues } from '../utilities/buildMetadataHead';
 import EyeIcon from 'assets/icons/small-eye-icon.svg?react';
@@ -17,6 +20,8 @@ import ReduceIcon from 'assets/icons/reduce-icon.svg?react';
 import InfoIcon from 'assets/icons/info-icon.svg?react';
 import EditIcon from 'assets/icons/pencil-icon.svg?react';
 import type { License } from 'types/backend';
+
+const NEW_LICENSE_CODE = '__new_license__';
 
 function Row({
   label,
@@ -128,21 +133,67 @@ function LicenseRow({
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [editValue, setEditValue] = useState(currentLicenseIds[0] ?? '');
+  const [newLicenseName, setNewLicenseName] = useState('');
+  const [newLicenseFullName, setNewLicenseFullName] = useState('');
+  const [newLicenseUrl, setNewLicenseUrl] = useState('');
 
-  const licenseOptions = allLicenses.map(l => ({ code: l.id, name: l.full_name ?? l.name }));
+  const createLicense = useCreateLicenseMutation();
+  const { showNotification } = useNotifications();
+  const queryClient = useQueryClient();
+
+  const licenseOptions = [
+    ...allLicenses.map(l => ({ code: l.id, name: l.full_name ?? l.name })),
+    { code: NEW_LICENSE_CODE, name: 'Custom license' },
+  ];
   const currentLicenses = allLicenses.filter(l => currentLicenseIds.includes(l.id));
   const displayValue =
-    currentLicenses.length > 0 ? currentLicenses.map(l => `<a target="_blank" href=${l.url}>${l.full_name}</a>`).join(', ') : undefined;
+    currentLicenses.length > 0 ? currentLicenses.map(l => {
+      const label = l.full_name ?? l.name;
+      return l.url ? `<a target="_blank" href=${l.url}>${label}</a>` : label;
+    }).join(', ') : undefined;
 
   const handleSave = () => {
-    setIsSaving(true);
-    onSave(property, editValue, {
-      onSuccess: () => {
-        setIsEditing(false);
-        setIsSaving(false);
-      },
-      onError: () => setIsSaving(false),
-    });
+    if (editValue === NEW_LICENSE_CODE) {
+      if (!newLicenseName.trim()) return;
+      setIsSaving(true);
+      createLicense.mutate(
+        {
+          name: newLicenseName.trim(),
+          full_name: newLicenseFullName.trim() || undefined,
+          url: newLicenseUrl.trim() || undefined,
+        },
+        {
+          onSuccess: newLicense => {
+            queryClient.invalidateQueries({ queryKey: ['licenses'] });
+            onSave(property, newLicense.id, {
+              onSuccess: () => {
+                setIsEditing(false);
+                setIsSaving(false);
+              },
+              onError: () => setIsSaving(false),
+            });
+          },
+          onError: (error) => {
+            setIsSaving(false);
+            showNotification({
+              id: 'license-create-error',
+              title: 'Failed to create license',
+              message: error.message,
+              type: 'error',
+            });
+          },
+        },
+      );
+    } else {
+      setIsSaving(true);
+      onSave(property, editValue, {
+        onSuccess: () => {
+          setIsEditing(false);
+          setIsSaving(false);
+        },
+        onError: () => setIsSaving(false),
+      });
+    }
   };
 
   return (
@@ -161,9 +212,42 @@ function LicenseRow({
               placeholder="Select a license"
               size="small"
             />
+            {editValue === NEW_LICENSE_CODE && (
+              <div className={styles.NewLicenseFields}>
+                <TextInput
+                  label="Name"
+                  placeholder="e.g. CC-BY-4.0"
+                  value={newLicenseName}
+                  onChange={v => setNewLicenseName(v)}
+                  isDisabled={isSaving}
+                  isRequired
+                  size="small"
+                />
+                <TextInput
+                  label="Full name"
+                  placeholder="e.g. Creative Commons Attribution 4.0"
+                  value={newLicenseFullName}
+                  onChange={v => setNewLicenseFullName(v)}
+                  isDisabled={isSaving}
+                  size="small"
+                />
+                <TextInput
+                  label="URL"
+                  placeholder="e.g. https://creativecommons.org/licenses/by/4.0/"
+                  value={newLicenseUrl}
+                  onChange={v => setNewLicenseUrl(v)}
+                  isDisabled={isSaving}
+                  size="small"
+                />
+              </div>
+            )}
           </div>
           <div className={styles.EditActions}>
-            <Button size="small" onClick={handleSave} isDisabled={isSaving}>
+            <Button
+              size="small"
+              onClick={handleSave}
+              isDisabled={isSaving || (editValue === NEW_LICENSE_CODE && !newLicenseName.trim())}
+            >
               {isSaving ? 'Saving…' : 'Save'}
             </Button>
             <Button
@@ -171,6 +255,9 @@ function LicenseRow({
               size="small"
               onClick={() => {
                 setEditValue(currentLicenseIds[0] ?? '');
+                setNewLicenseName('');
+                setNewLicenseFullName('');
+                setNewLicenseUrl('');
                 setIsEditing(false);
                 onCancel(property);
               }}

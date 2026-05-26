@@ -26,6 +26,20 @@ jest.mock('components/Logo/Logo', () => ({
   Logo: () => <div data-testid="mock-logo" />,
 }));
 
+jest.mock('hooks/useDatasetMutation', () => ({
+  useCreateLicenseMutation: jest.fn().mockReturnValue({ mutate: jest.fn(), isPending: false }),
+}));
+
+jest.mock('hooks/useNotifications', () => ({
+  __esModule: true,
+  default: jest.fn().mockReturnValue({ showNotification: jest.fn(), removeNotification: jest.fn(), notifications: [] }),
+}));
+
+jest.mock('@tanstack/react-query', () => ({
+  ...jest.requireActual('@tanstack/react-query'),
+  useQueryClient: jest.fn().mockReturnValue({ invalidateQueries: jest.fn() }),
+}));
+
 jest.mock('../../src/utilities/buildMetadataHead', () => ({
   getMetadataHeadValues: jest.fn().mockReturnValue({
     title: 'Test Title',

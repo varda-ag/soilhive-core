@@ -1,4 +1,4 @@
-import type { Dataset, GeneralInfoFormData, DatasetFileMappingRequest, DatasetFileMappingResponse } from 'types/backend';
+import type { Dataset, GeneralInfoFormData, DatasetFileMappingRequest, DatasetFileMappingResponse, License } from 'types/backend';
 import { useApiMutation } from './useApiMutation';
 
 export function useUpdateDatasetFileMappingMutation() {
@@ -40,5 +40,12 @@ export function useDeleteDatasetMutation() {
   return useApiMutation<void, { datasetId: string }>({
     endpoint: ({ datasetId }) => `/datasets/${datasetId}`,
     method: 'DELETE',
+  });
+}
+
+export function useCreateLicenseMutation() {
+  return useApiMutation<License, { name: string; full_name?: string; url?: string }>({
+    endpoint: '/licenses',
+    method: 'POST',
   });
 }
