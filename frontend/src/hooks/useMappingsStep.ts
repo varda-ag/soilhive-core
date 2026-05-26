@@ -217,7 +217,6 @@ export function useMappingsStep(datasetId?: string) {
     method: 'GET',
     queryKey: ['datasets', datasetId, 'files'],
     enabled: !!datasetId,
-    refetchInterval: 3000,
   });
 
   const jobQueries = useJobsQueries(activeJobIds);
