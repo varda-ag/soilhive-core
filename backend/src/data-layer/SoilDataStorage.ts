@@ -118,12 +118,21 @@ export default class SoilDataStorage {
       }
 
       const outerWhere: string[] = [];
+      let soilPropertiesWhere: string = '';
       if (filters.soil_properties && filters.soil_properties.length > 0) {
-        outerWhere.push(`soil_property.slug IN (${filters.soil_properties.map(v => p(v)).join(', ')})`);
+        soilPropertiesWhere = ` AND slug IN (${filters.soil_properties.map(v => p(v)).join(', ')})`;
+        innerWhere.push(`soil_property.slug IN (${filters.soil_properties.map(v => p(v)).join(', ')})`);
       }
       if (filters.licenses && filters.licenses.length > 0) {
         outerWhere.push(`license.slug IN (${filters.licenses.map(v => p(v)).join(', ')})`);
       }
+
+      const activeSoilPropertiesCte = `,
+          active_soil_properties AS MATERIALIZED (
+            SELECT id, slug
+            FROM ${schema}.soil_properties
+            WHERE deleted_at IS NULL ${soilPropertiesWhere}
+          )`;
       const outerWhereClause = outerWhere.length > 0 ? `WHERE ${outerWhere.join(' AND ')}` : '';
 
       const sql = `
@@ -132,22 +141,24 @@ export default class SoilDataStorage {
           SELECT ST_CollectionExtract(ST_MakeValid(ST_GeomFromGeoJSON($1), 'method=structure'), 3) AS geom
         )
         ${aoiFeaturesCte}
+        ${activeSoilPropertiesCte}
         , base_agg AS (
           SELECT
             dl.dataset_id,
             layer.license,
-            COUNT(dl.dataset_id) AS dataset_layer_count,
+            COUNT(DISTINCT dl.datasets_feature_layer_hash) AS dataset_layer_count,
             MIN(layer.sampling_date) AS min_sampling_date,
             MAX(layer.sampling_date) AS max_sampling_date,
             MIN(layer.min_depth) AS min_depth,
             MAX(layer.max_depth) AS max_depth,
             STRING_AGG(DISTINCT layer.horizon, ',') AS horizons,
-            dl.soil_property_id AS soil_property
+            STRING_AGG(DISTINCT soil_property.slug, ',') AS soil_properties
           FROM ${schema}.dataset_layers dl
+          INNER JOIN active_soil_properties soil_property on dl.soil_property_id=soil_property.id
           INNER JOIN ${schema}.datasets ds ON ds.id = dl.dataset_id
           INNER JOIN ${schema}.layers layer ON layer.id = dl.layer_id
           WHERE ${innerWhere.join('\n            AND ')}
-          GROUP BY dl.dataset_id, dl.soil_property_id, layer.license
+          GROUP BY dl.dataset_id, layer.license
         )
         SELECT
           base_agg.dataset_id,
@@ -161,10 +172,9 @@ export default class SoilDataStorage {
           MIN(base_agg.min_depth) AS min_depth,
           MAX(base_agg.max_depth) AS max_depth,
           STRING_AGG(DISTINCT base_agg.horizons, ',') AS horizons,
-          STRING_AGG(DISTINCT soil_property.slug, ',') AS soil_properties
+          STRING_AGG(DISTINCT soil_properties, ',') AS soil_properties
         FROM base_agg
         INNER JOIN ${schema}.datasets ds ON ds.id = base_agg.dataset_id
-        LEFT JOIN ${schema}.soil_properties soil_property ON soil_property.id = base_agg.soil_property AND soil_property.deleted_at IS NULL
         LEFT JOIN ${schema}.licenses license ON license.id = base_agg.license AND license.deleted_at IS NULL
         ${outerWhereClause}
         GROUP BY base_agg.dataset_id, ds.slug, ds.name, ds.gis_datatype
@@ -183,7 +193,7 @@ export default class SoilDataStorage {
         max_depth: row.max_depth !== null ? parseFloat(row.max_depth) : null,
         // TODO: to be restored  and deduplicated here due to lack of support for LATERAL JOINs in typeorm:
         // horizons: row.horizons ? [new Set(...row.horizons.split(','))] : [],
-        soil_properties: row.soil_properties ? row.soil_properties.split(',') : [],
+        soil_properties: row.soil_properties ? [...new Set(row.soil_properties.split(','))] : [],
         dataset_layer_count: parseInt(row.dataset_layer_count),
       }));
     });

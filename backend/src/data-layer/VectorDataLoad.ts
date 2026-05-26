@@ -184,7 +184,7 @@ const buildSortExpr = (sortKey: string, dataMappingConfig: DataCleaningConfig): 
     const expr = formula ? formula.replace(/x/g, `(raw.${sortKey})::numeric`) : `(raw.${sortKey})::numeric`;
     return `ROUND(${expr}, 3)`;
   }
-  return `raw.${sortKey}`;
+  return `${sortKey}`; // unmapped required columns
 };
 
 const getDataPreviewQuery = (query: any, dataMappingConfig: DataCleaningConfig, cursor?: string, sort?: string): any => {
