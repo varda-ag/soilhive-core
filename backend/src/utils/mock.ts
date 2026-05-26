@@ -567,7 +567,6 @@ export const addRasterData = async (
   options?: {
     out?: string;
     outDir?: string;
-    extent?: string;
     schema?: string;
     dataset?: string;
     soilProperty?: string;
@@ -584,7 +583,6 @@ export const addRasterData = async (
   const scriptPath = path.join(__dirname, '../scripts/ingest_raster.sh');
 
   const args = [
-    `-e ${options?.extent ?? 'global'}`,
     `-d "${dsn}"`,
     `-s "${options?.schema ?? process.env.POSTGRES_SCHEMA}"`,
     `-o "${out}"`,

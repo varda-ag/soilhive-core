@@ -3,7 +3,6 @@ import { RasterLayer } from '../interfaces/RasterLayer';
 import BaseTable from './BaseTable';
 import DatasetEntity from './Dataset';
 import { Polygon, MultiPolygon } from 'geojson';
-import { Extent } from '../types/data';
 import SoilPropertyEntity from './SoilProperty';
 import FileEntity from './File';
 
@@ -53,13 +52,6 @@ export default class RasterLayerEntity extends BaseTable implements RasterLayer 
   soil_property: SoilPropertyEntity;
 
   @Column({
-    type: 'enum',
-    enum: Extent,
-    enumName: 'raster_layers_extent_enum',
-  })
-  extent_type: Extent;
-
-  @Column({
     type: 'geometry',
     srid: 4326,
     spatialFeatureType: 'Polygon',
@@ -86,6 +78,9 @@ export default class RasterLayerEntity extends BaseTable implements RasterLayer 
 
   @Column({ type: 'text', array: true, nullable: true })
   geohash_cells: string[] | null;
+
+  @Column({ type: 'boolean', array: true, nullable: true })
+  geohash_full_coverage: boolean[] | null;
 
   @Column({ type: 'int', nullable: true })
   nodata_value: number | null;

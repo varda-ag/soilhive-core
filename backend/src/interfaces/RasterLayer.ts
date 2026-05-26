@@ -1,5 +1,4 @@
 import type { Polygon, MultiPolygon } from 'geojson';
-import { Extent } from '../types/data';
 
 // TODO: add slug
 export interface RasterLayer {
@@ -12,11 +11,11 @@ export interface RasterLayer {
   reference_period_stop: string | null;
   dataset_id: string;
   soil_property_id: string;
-  extent_type: Extent;
   bbox: Polygon | null;
   footprint: MultiPolygon | null;
   description: object | null;
   geohash_cells: string[] | null;
+  geohash_full_coverage: boolean[] | null;
   nodata_value: number | null;
 }
 
@@ -32,7 +31,7 @@ export interface FootprintGeohashIntersectEntry {
   id: number;
   file_path: string;
   resolution_m: number;
-  extent_type: Extent;
+  has_full_coverage: boolean | null;
 }
 
 export interface QueryResult {
@@ -57,7 +56,6 @@ export interface Envelope {
 export interface IngestInput {
   filePath: string;
   resolutionM: number;
-  extentType: Extent;
   nodataValue?: number;
 }
 
@@ -65,5 +63,4 @@ export interface IngestResult {
   id: number;
   file_path: string;
   resolution_m: number;
-  extent_type: Extent;
 }

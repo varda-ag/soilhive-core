@@ -41,12 +41,6 @@ export enum ProcedureTechnique {
   CALCULATED = 'calculated',
 }
 
-export enum Extent {
-  GLOBAL = 'global',
-  CONTINENTAL = 'continental',
-  NATIONAL = 'national',
-  REGIONAL = 'regional',
-}
 
 export enum UnitConversionType {
   IDENTITY = 'IDENTITY',

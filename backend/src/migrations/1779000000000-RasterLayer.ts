@@ -15,13 +15,7 @@ export class RasterLayer1779000000000 implements MigrationInterface {
       [process.env.POSTGRES_DB, process.env.POSTGRES_SCHEMA, 'raster_layers', 'GENERATED_COLUMN', 'bbox', '(ST_Envelope(footprint))'],
     );
     await queryRunner.query(
-      `DO $$ BEGIN
-         CREATE TYPE "raster_layers_extent_enum" AS ENUM('global', 'continental', 'national', 'regional');
-       EXCEPTION WHEN duplicate_object THEN null;
-       END $$`,
-    );
-    await queryRunner.query(
-      `CREATE TABLE IF NOT EXISTS "raster_layers" ("created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP, "id" uuid NOT NULL DEFAULT uuidv7(), "file_id" uuid NOT NULL, "resolution_m" int NOT NULL, "min_depth" int, "max_depth" int, "reference_period_start" text, "reference_period_stop" text, "dataset_id" uuid NOT NULL, "soil_property_id" uuid NOT NULL, "extent_type" "raster_layers_extent_enum" NOT NULL, "bbox" geometry(Polygon,4326) GENERATED ALWAYS AS (ST_Envelope(footprint)) STORED, "footprint" geometry(MultiPolygon,4326), "description" jsonb, "geohash_cells" text[], "nodata_value" int, CONSTRAINT "PK_raster_layers_id" PRIMARY KEY ("id"))`,
+      `CREATE TABLE IF NOT EXISTS "raster_layers" ("created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP, "id" uuid NOT NULL DEFAULT uuidv7(), "file_id" uuid NOT NULL, "resolution_m" int NOT NULL, "min_depth" int, "max_depth" int, "reference_period_start" text, "reference_period_stop" text, "dataset_id" uuid NOT NULL, "soil_property_id" uuid NOT NULL, "bbox" geometry(Polygon,4326) GENERATED ALWAYS AS (ST_Envelope(footprint)) STORED, "footprint" geometry(MultiPolygon,4326), "description" jsonb, "geohash_cells" text[], "geohash_full_coverage" boolean[], "nodata_value" int, CONSTRAINT "PK_raster_layers_id" PRIMARY KEY ("id"))`,
     );
     await queryRunner.query(`CREATE INDEX IF NOT EXISTS "IDX_raster_layers_geohash_cells" ON "raster_layers" USING GIN  ("geohash_cells")`);
     await queryRunner.query(`CREATE INDEX IF NOT EXISTS "IDX_raster_layers_footprint" ON "raster_layers" USING GiST ("footprint")`);
@@ -71,7 +65,6 @@ export class RasterLayer1779000000000 implements MigrationInterface {
     await queryRunner.query(`SET search_path TO ${process.env.POSTGRES_SCHEMA}, public`);
     await queryRunner.query(`DROP TABLE IF EXISTS "raster_layers"`);
     await queryRunner.query(`DROP TABLE IF EXISTS "raster_layer_assets"`);
-    await queryRunner.query(`DROP TYPE IF EXISTS "raster_layers_extent_enum"`);
     await queryRunner.query(
       `DELETE FROM "typeorm_metadata" WHERE "type" = $1 AND "name" = $2 AND "database" = $3 AND "schema" = $4 AND "table" = $5`,
       ['GENERATED_COLUMN', 'bbox', process.env.POSTGRES_DB, process.env.POSTGRES_SCHEMA, 'raster_layers'],

@@ -75,7 +75,7 @@ export const polygonToGeohashes = (geometry: Polygon | MultiPolygon, precision: 
   return geohashBboxes(minY, minX, maxY, maxX, precision);
 };
 
-export const footprintToGeohashes = (footprint: MultiPolygon, precision: number): string[] => {
+export const footprintToGeohashes = (footprint: Polygon | MultiPolygon, precision: number): string[] => {
   const [minX, minY, maxX, maxY] = turf.bbox(turf.feature(footprint));
   const cells = geohashBboxes(minY, minX, maxY, maxX, precision);
 

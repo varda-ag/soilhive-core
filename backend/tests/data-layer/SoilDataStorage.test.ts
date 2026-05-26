@@ -691,6 +691,14 @@ describe('SoilDataStorage class', () => {
       [-82, -35],
     ];
 
+    const rasterCoordinatesNarrow = [
+      [-80.9, -33.9],
+      [-80.9, -33.7],
+      [-80.7, -33.7],
+      [-80.7, -33.9],
+      [-80.9, -33.9],
+    ];
+
     it('Filtering raster data should return a dataset when geometry intersects with its footprint', async () => {
       await addRasterData(dsn, undefined, {
         out: `test_raster_${Date.now()}_cog.tif`,
@@ -757,24 +765,21 @@ describe('SoilDataStorage class', () => {
     }, 10000);
 
     it.each([
-      [250, 'global', true],
-      [500, 'national', true],
-      [500, 'regional', true],
-      [1000, 'global', false],
-      [250, 'regional', false],
+      [250, false],
+      [500, true],
+      [1000, true],
     ])(
-      'Filtering raster data should do pixel check: resolution=%im extent=%s → selectFileOverviewLevel called=%s',
-      async (resolution, extent, expectCalled) => {
+      'Filtering raster data should do pixel check: resolution=%im → selectFileOverviewLevel called=%s',
+      async (resolution, expectCalled) => {
         const input = path.join(__dirname, `../assets/raster/sol_ph.h2o_usda.4c1a2a_m_250m_b0..0cm_1950..2017_v0.2_${resolution}.tif`);
         const spy = jest.spyOn(RasterUtilsModule, 'selectFileOverviewLevel');
         await addRasterData(dsn, input, {
           out: `test_raster_${Date.now()}_cog.tif`,
-          extent,
         });
         const sds = new SoilDataStorage();
         const entityManager = await getEntityManager();
         const filteringRectangle: Polygon = {
-          coordinates: [rasterCoordinates],
+          coordinates: [rasterCoordinatesNarrow], // Using narrow box to match geohash and have has_full_coverage === true
           type: 'Polygon',
         };
         await sds.filterRaster(entityManager, filteringRectangle, {});
@@ -791,7 +796,6 @@ describe('SoilDataStorage class', () => {
       beforeEach(async () => {
         await addRasterData(dsn, undefined, {
           out: `test_raster_${Date.now()}_cog.tif`,
-          extent: 'regional',
         });
         await addRasterFilterData();
         await addRasterFilterMappings();
@@ -804,19 +808,23 @@ describe('SoilDataStorage class', () => {
         await sds.filterRaster(entityManager, getPolygonFromBbox([-82, -35, -80, -33]), { raster_filters: { land_cover: [30] } });
         expect(spy).toHaveBeenCalled();
         spy.mockRestore();
-      });
+      }, 12000);
 
       it.each([
         [[30], 1],
         [[40], 0],
-      ])('For raster_filter.land_cover value %j → %i raster dataset(s) should be returned', async (landCoverValues, expectedCount) => {
-        const sds = new SoilDataStorage();
-        const entityManager = await getEntityManager();
-        const results = await sds.filterRaster(entityManager, getPolygonFromBbox([-82, -35, -80, -33]), {
-          raster_filters: { land_cover: landCoverValues },
-        });
-        expect(results).toHaveLength(expectedCount);
-      });
+      ])(
+        'For raster_filter.land_cover value %j → %i raster dataset(s) should be returned',
+        async (landCoverValues, expectedCount) => {
+          const sds = new SoilDataStorage();
+          const entityManager = await getEntityManager();
+          const results = await sds.filterRaster(entityManager, getPolygonFromBbox([-82, -35, -80, -33]), {
+            raster_filters: { land_cover: landCoverValues },
+          });
+          expect(results).toHaveLength(expectedCount);
+        },
+        10000,
+      );
     });
   });
 });

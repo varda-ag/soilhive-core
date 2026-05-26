@@ -5,9 +5,6 @@
 # Usage:
 #   ./scripts/ingest_raster.sh [OPTIONS] <input.tif>
 #
-# Required:
-#   -e, --extent      Extent type: global | continental | national | regional
-#
 # Optional:
 #   -o, --out         Output COG filename (default: <basename(input)>_cog.tif)
 #   -O, --out-dir     Root folder prepended to --out (or the default filename)
@@ -27,7 +24,6 @@ set -euo pipefail
 # ─── Defaults ────────────────────────────────────────────────────────────────
 
 RESOLUTION=""  # inferred from file in Step 2
-EXTENT=""
 OUT=""
 OUT_EXPLICIT="false"
 OUTDIR=""
@@ -46,7 +42,6 @@ usage() { grep '^#' "$0" | sed 's/^# \{0,1\}//'; exit 0; }
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    -e|--extent)      EXTENT="$2";     shift 2 ;;
     -o|--out)         OUT="$2"; OUT_EXPLICIT="true"; shift 2 ;;
     -O|--out-dir)     OUTDIR="$2";    shift 2 ;;
     -n|--nodata)      NODATA="$2";     shift 2 ;;
@@ -63,7 +58,6 @@ while [[ $# -gt 0 ]]; do
 done
 
 [[ -z "$INPUT" ]]      && { echo "Error: input file required" >&2; exit 1; }
-[[ -z "$EXTENT" ]]     && { echo "Error: --extent required" >&2; exit 1; }
 [[ -z "$DSN" ]]        && { echo "Error: --dsn or DATABASE_URL required" >&2; exit 1; }
 [[ ! -f "$INPUT" ]]    && { echo "Error: file not found: $INPUT" >&2; exit 1; }
 [[ -n "$SOILPROP" && -z "$SOILPROPCAT" ]] && { echo "Error: --soil-property-category required when --soil-property is provided" >&2; exit 1; }
@@ -71,11 +65,6 @@ done
 for cmd in gdal_translate gdalinfo gdal_footprint gdalsrsinfo jq psql; do
   command -v "$cmd" >/dev/null 2>&1 || { echo "Error: $cmd not found in PATH" >&2; exit 1; }
 done
-
-case "$EXTENT" in
-  global|continental|national|regional) ;;
-  *) echo "Error: --extent must be one of: global continental national regional" >&2; exit 1 ;;
-esac
 
 [[ -z "$OUT" ]] && OUT="$(basename "${INPUT%.tif}")_cog.tif"
 OUT_NAME="$OUT"
@@ -191,18 +180,20 @@ psql "$DSN" <<SQL
 SET search_path TO "$SCHEMA", public;
 
 WITH
-tolerance AS (
-  SELECT
-    POWER($RESOLUTION::float, 0.7) * 0.0004 *
-    CASE '$EXTENT'
-      WHEN 'global'      THEN 4.0
-      WHEN 'continental' THEN 2.0
-      WHEN 'national'    THEN 1.0
-      WHEN 'regional'    THEN 0.5
-    END AS value
-),
 raw_fp AS (
   SELECT ST_GeomFromGeoJSON(\$fp\$${FOOTPRINT_GEOM}\$fp\$) AS geom
+),
+raw_env AS (
+  SELECT
+    SQRT(
+      POWER(ST_XMax(ST_Envelope(geom)) - ST_XMin(ST_Envelope(geom)), 2) +
+      POWER(ST_YMax(ST_Envelope(geom)) - ST_YMin(ST_Envelope(geom)), 2)
+    ) AS diagonal
+  FROM raw_fp
+),
+tolerance AS (
+  SELECT POWER($RESOLUTION::float, 0.7) * 0.0004 * SQRT(raw_env.diagonal / 25.0) AS value
+  FROM raw_env
 ),
 simplified AS (
   SELECT ST_Multi(
@@ -211,8 +202,8 @@ simplified AS (
   FROM raw_fp, tolerance
 ),
 -- Multi-precision geohash cells enumerated from the footprint bbox.
--- Precision levels are chosen per extent type so queries at any scale
--- (global → fine-grained) can find a match via array overlap.
+-- Precision levels are chosen by envelope diagonal so queries at any scale
+-- can find a match via array overlap.
 -- Uses integer cell indices to avoid floating-point drift in generate_series.
 --
 --  Precision | lon_grid | lat_grid | cell size (approx)
@@ -242,23 +233,35 @@ geohash AS (
   active_prec AS (
     SELECT prec, lon_grid, lat_grid
     FROM precision_grid
-    WHERE prec = ANY(CASE '$EXTENT'
-      WHEN 'global'      THEN ARRAY[1, 2]
-      WHEN 'continental' THEN ARRAY[1, 2, 3]
-      WHEN 'national'    THEN ARRAY[2, 3, 4]
-      WHEN 'regional'    THEN ARRAY[3, 4, 5]
-      ELSE                    ARRAY[1, 2, 3]
+    CROSS JOIN raw_env
+    WHERE prec = ANY(CASE
+      WHEN raw_env.diagonal > 200 THEN ARRAY[1, 2]
+      WHEN raw_env.diagonal > 50  THEN ARRAY[1, 2, 3]
+      WHEN raw_env.diagonal > 12  THEN ARRAY[1, 2, 3, 4]
+      ELSE                             ARRAY[1, 2, 3, 4, 5]
     END)
   ),
   all_cells AS (
-    SELECT DISTINCT ST_GeoHash(
-      ST_SetSRID(ST_Point(
-        LEAST(-180.0 + (i_lon + 0.5) * (360.0 / p.lon_grid), 179.9999),
-        LEAST( -90.0 + (i_lat + 0.5) * (180.0 / p.lat_grid),  89.9999)
-      ), 4326), p.prec
-    ) AS h
+    SELECT DISTINCT
+      ST_GeoHash(
+        ST_SetSRID(ST_Point(
+          LEAST(-180.0 + (i_lon + 0.5) * (360.0 / p.lon_grid), 179.9999),
+          LEAST( -90.0 + (i_lat + 0.5) * (180.0 / p.lat_grid),  89.9999)
+        ), 4326), p.prec
+      ) AS h,
+      ST_Contains(
+        raw_fp.geom,
+        ST_MakeEnvelope(
+          -180.0 + i_lon       * (360.0 / p.lon_grid),
+          -90.0  + i_lat       * (180.0 / p.lat_grid),
+          -180.0 + (i_lon + 1) * (360.0 / p.lon_grid),
+          -90.0  + (i_lat + 1) * (180.0 / p.lat_grid),
+          4326
+        )
+      ) AS full_coverage
     FROM active_prec p,
     fp_bbox,
+    raw_fp,
     generate_series(
       floor((fp_bbox.minx + 180.0) / (360.0 / p.lon_grid))::int,
       ceil( (fp_bbox.maxx + 180.0) / (360.0 / p.lon_grid))::int - 1
@@ -268,7 +271,9 @@ geohash AS (
       ceil( (fp_bbox.maxy +  90.0) / (180.0 / p.lat_grid))::int - 1
     ) AS i_lat
   )
-  SELECT array_agg(h) AS cells FROM all_cells
+  SELECT array_agg(h ORDER BY h) AS cells,
+         array_agg(full_coverage ORDER BY h) AS coverages
+  FROM all_cells
 ), file_ins as (
 INSERT INTO files ("name", file_path, created_by)
 VALUES ('$OUT_NAME', '$OUT_NAME', 'data-admin')
@@ -296,9 +301,9 @@ INSERT INTO raster_layers (
   dataset_id,
   soil_property_id,
   resolution_m,
-  extent_type,
   footprint,
   geohash_cells,
+  geohash_full_coverage,
   nodata_value
 )
 SELECT
@@ -306,13 +311,13 @@ SELECT
   ds_ins.id,
   sp_ins.id,
   $RESOLUTION,
-  '$EXTENT',
   simplified.geom,
   geohash.cells,
+  geohash.coverages,
   $NODATA_SQL
 FROM simplified, geohash, file_ins, ds_ins, sp_ins;
 
-SELECT rl.id, f.file_path, rl.resolution_m, rl.extent_type, rl.nodata_value
+SELECT rl.id, f.file_path, rl.resolution_m, rl.nodata_value
 FROM   raster_layers rl
 LEFT JOIN files f
 ON rl.file_id=f.id

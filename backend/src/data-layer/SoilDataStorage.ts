@@ -16,24 +16,25 @@ import FileService from '../services/FileService';
 import { getDataSource } from '../utils/data-source';
 import { RequestData } from '../interfaces/RequestData';
 import EntitlementService from '../services/EntitlementService';
-import { envelopeFromGeoJSON, geometryUnion, polygonToGeohashes } from '../utils/geometry';
+import { envelopeFromGeoJSON, footprintToGeohashes, geometryUnion, polygonToGeohashes } from '../utils/geometry';
 import { Envelope, QueryResult, FootprintGeohashIntersectEntry } from '../interfaces/RasterLayer';
 import RasterLayerEntity from '../entities/RasterLayer';
-import { Extent, GISDataType } from '../types/data';
+import { GISDataType } from '../types/data';
 import { getVectorMask } from './FilteringMasks';
 
 const AREA_THRESHOLD_M2 = 7_000_000 * 1_000 * 1_000; // 7,000,000 km²
 const MAX_HASHES_PER_PRECISION = 500;
 
 // Generates geohash cells at increasing precision levels until a level exceeds
-// MAX_HASHES_PER_PRECISION. This ensures the query hashes match whatever
-// precision levels are stored in geohash_cells (coarse for large rasters,
-// fine for small ones) without producing an unmanageable array.
+// MAX_HASHES_PER_PRECISION. Ingestion always stores precision 1 in geohash_cells,
+// so this function always produces at least the 32 global precision-1 cells,
+// guaranteeing at least one precision level in common with any raster's stored cells.
 const geohashesForGeometry = (geometry: Polygon | MultiPolygon): string[] => {
   const hashes = new Set<string>();
   for (let precision = 1; ; precision++) {
     const level = polygonToGeohashes(geometry, precision);
-    if (level.length > MAX_HASHES_PER_PRECISION) break;
+    const level2 = footprintToGeohashes(geometry, precision);
+    if (level.length > MAX_HASHES_PER_PRECISION || level2.length > MAX_HASHES_PER_PRECISION) break;
     level.forEach(h => hashes.add(h));
   }
   return [...hashes];
@@ -1354,11 +1355,15 @@ const spatialFilter = async (
     .createQueryBuilder('rl')
     .addCommonTableExpression(selectGeometry(), 'aoi')
     .setParameter('inputGeom', geojsonStr)
+    .setParameter('inputHashesArr', inputHashes)
     .innerJoin('rl.file', 'f')
     .select('rl.id', 'id')
     .addSelect('f.file_path', 'file_path')
     .addSelect('rl.resolution_m', 'resolution_m')
-    .addSelect('rl.extent_type', 'extent_type')
+    .addSelect(
+      `(SELECT bool_or(t.fc) FROM unnest(rl.geohash_cells, rl.geohash_full_coverage) AS t(h, fc) WHERE t.h = ANY(:inputHashesArr::text[]))`,
+      'has_full_coverage',
+    )
     .where('rl.id IN (:...candidateLayers)', { candidateLayers })
     .andWhere('rl.geohash_cells && ARRAY[:...inputHashes]', { inputHashes })
     .andWhere('ST_Intersects(rl.footprint, (SELECT geom FROM aoi))')
@@ -1389,10 +1394,7 @@ const pixelCheck = async (filePath: string, env: Envelope): Promise<boolean> => 
 };
 
 const needsPixelCheck = (row: FootprintGeohashIntersectEntry): boolean => {
-  if (row.resolution_m >= 1000) return false;
-  // Only run for large simplification tolerance
-  if (row.resolution_m <= 250 && row.extent_type === Extent.REGIONAL) return false;
-  return true;
+  return !row.has_full_coverage;
 };
 
 const filterByPixel = async (candidates: FootprintGeohashIntersectEntry[], env: Envelope): Promise<QueryResult[]> => {
