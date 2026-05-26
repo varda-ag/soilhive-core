@@ -175,6 +175,22 @@
         box-shadow: none;
         padding: 1.625rem 0.75rem 1.25rem;
 
+        &.p-reorderable-column {
+          cursor: grab;
+          border: 1px solid transparent;
+
+          .p-column-header-content {
+            align-items: flex-start;
+          }
+          .p-column-title {
+            max-width: calc(100% - 24px);
+          }
+
+          &:hover {
+            border-color: var(--color-cta-default-solid);
+          }
+        }
+
         &:first-child {
           border-top-left-radius: 0.5rem;
           padding-left: 1.5rem;

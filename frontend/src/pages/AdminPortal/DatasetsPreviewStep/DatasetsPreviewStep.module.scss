@@ -1,2 +1,66 @@
 .DatasetsPreviewStep {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  padding: 1.5rem 1.5rem 2.5rem;
+  gap: 1.125rem;
+  position: relative;
+}
+
+.Title {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  margin: 0;
+}
+
+.Message {
+  font-size: var(--font-size-md);
+}
+
+.TableFilters {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+
+  .Left,
+  .Right {
+    display: flex;
+    gap: 1.125rem;
+  }
+
+  .FilesFilter,
+  .ColumnsFilter {
+    max-width: 300px;
+  }
+}
+
+.TableColumn {
+  max-width: 174px;
+  vertical-align: top;
+}
+.ColumnName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.DeleteCell {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.Actions {
+  position: sticky;
+  bottom: 0;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 24px;
+  background-color: var(--color-neutral-white);
+  box-shadow: 0 -0.15rem 0.625rem var(--color-shadow-interface);
+}
+
+.ActionsSpacer {
+  flex: 1;
 }

@@ -228,6 +228,8 @@ export interface DataMappingObject {
 
 export type DataMappingRequest = DataMappingObject;
 
+export type DataMappingRequestWithDrop = Record<string, string | PropertyMapping | number[]>;
+
 export interface DataMappingResponse {
   id: string;
   data_mapping: DataMappingObject;
@@ -310,4 +312,16 @@ export interface DataAvailabilityIndex {
   min: number;
   max: number;
   cells: Record<string, number>;
+}
+
+export interface SoilRecord {
+  record_id: number;
+  cursor: string;
+  sampling_date: string | null;
+  license: string | null;
+  horizon: string | null;
+  max_depth: number | null;
+  min_depth: number | null;
+  [key: string]: string | number | null;
+  geometry: any;
 }

@@ -161,7 +161,7 @@ export function DatasetsSettingsPage() {
                   {t('datasets.settings.access.add_button')}
                 </Button>
               </form>
-              <Table<AccessEmail> value={accessEmails} columns={accessColumns} scrollHeight="auto" />
+              <Table<AccessEmail> value={accessEmails} columns={accessColumns} scrollHeight="auto" dataKey="email" />
             </div>
           )}
         </div>
