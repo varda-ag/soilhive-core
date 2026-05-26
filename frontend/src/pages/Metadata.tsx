@@ -16,6 +16,13 @@ import InfoIcon from 'assets/icons/info-icon.svg?react';
 import { EditorRow } from 'components/Metadata/EditorRow/EditorRow';
 import { LicenseRow } from 'components/Metadata/LicenseRow/LicenseRow';
 import { NumberRow } from 'components/Metadata/NumberRow/NumberRow';
+import { SelectRow } from 'components/Metadata/SelectRow/SelectRow';
+
+const GIS_DATATYPE_OPTIONS = [
+  { code: 'point', name: 'Point' },
+  { code: 'polygonal', name: 'Polygonal' },
+  { code: 'raster', name: 'Raster' },
+];
 
 export default function Metadata() {
   const { id } = useParams();
@@ -255,9 +262,10 @@ export default function Metadata() {
             onSave={onSave}
             onCancel={onCancel}
           />
-          <EditorRow
+          <SelectRow
             label={t('fields.gis_datatype')}
-            value={dataset?.gis_datatype ? dataset.gis_datatype[0].toUpperCase() + dataset.gis_datatype.slice(1) : dataset?.gis_datatype}
+            value={dataset?.gis_datatype}
+            options={GIS_DATATYPE_OPTIONS}
             isEditable={isAdmin && !inferredProperties.has('gis_datatype') && !isEditing}
             property="gis_datatype"
             onStartEditing={onStartEditing}
