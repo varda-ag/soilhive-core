@@ -246,7 +246,7 @@ export class CreateSchema1775600000000 implements MigrationInterface {
       `CREATE TABLE "layers" ("id" uuid NOT NULL DEFAULT uuidv7(), "license" uuid, "sampling_date" TEXT, "min_depth" integer, "max_depth" integer, "horizon" text, CONSTRAINT "PK_layers_id" PRIMARY KEY ("id"))`,
     );
     await queryRunner.query(
-      `CREATE TABLE "dataset_layers" ("id" uuid NOT NULL DEFAULT uuidv7(), "dataset_id" uuid NOT NULL, "layer_id" uuid NOT NULL, "feature_id" uuid NOT NULL, "soil_property_id" uuid NOT NULL, CONSTRAINT "UQ_dataset_layers_dataset_id_feature_id_layer_id_soil_property_id" UNIQUE ("dataset_id", "feature_id", "layer_id", "soil_property_id"), CONSTRAINT "PK_dataset_layers_id" PRIMARY KEY ("id"))`,
+      `CREATE TABLE "dataset_layers" ("id" uuid NOT NULL DEFAULT uuidv7(), "dataset_id" uuid NOT NULL, "layer_id" uuid NOT NULL, "feature_id" uuid NOT NULL, "soil_property_id" uuid NOT NULL, "datasets_feature_layer_hash" TEXT GENERATED ALWAYS AS (encode(sha256(("dataset_id"::text || "feature_id"::text || "layer_id"::text)::TEXT::BYTEA), 'hex')) STORED NOT NULL, CONSTRAINT "UQ_dataset_layers_dataset_id_feature_id_layer_id_soil_property_id" UNIQUE ("dataset_id", "feature_id", "layer_id", "soil_property_id"), CONSTRAINT "PK_dataset_layers_id" PRIMARY KEY ("id"))`,
     );
     await queryRunner.query(
       `CREATE TABLE "observations" ("id" uuid NOT NULL DEFAULT uuidv7(), "dataset_layer_id" uuid NOT NULL, "value" numeric NOT NULL, "procedure_id" uuid, CONSTRAINT "PK_observations_id" PRIMARY KEY ("id"))`,
