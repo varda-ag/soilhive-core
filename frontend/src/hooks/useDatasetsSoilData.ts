@@ -134,6 +134,7 @@ export function useDatasetsSoilData() {
     );
 
     await queryClient.invalidateQueries({ queryKey: ['datasets', datasetId, 'files'] }); // if we save successfully, refetch files to make sure UI is in sync with backend
+    await queryClient.invalidateQueries({ queryKey: ['datasets', datasetId, 'dataset-file-mapping'] });
   }, [datasetId, soilDataFiles, createFileMapping, request, queryClient]);
 
   return {
