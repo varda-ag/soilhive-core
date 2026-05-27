@@ -301,7 +301,7 @@ export default function Metadata() {
             label={t('fields.reference_coverage_start')}
             value={dataset?.reference_period_start}
             isEditable={isAdmin && !inferredProperties.has('reference_period_start') && !isEditing}
-            placeholder="Start date of the data coverage (YYYY, YYYY-MM or YYYY-MM-DD)"
+            placeholder="Start date of the data coverage (YYYY-MM-DD)"
             property="reference_period_start"
             variant="text"
             onStartEditing={onStartEditing}
@@ -312,7 +312,7 @@ export default function Metadata() {
             label={t('fields.reference_coverage_end')}
             value={dataset?.reference_period_stop}
             isEditable={isAdmin && !inferredProperties.has('reference_period_stop') && !isEditing}
-            placeholder="Stop date of the data coverage (YYYY, YYYY-MM or YYYY-MM-DD)"
+            placeholder="Stop date of the data coverage (YYYY-MM-DD)"
             property="reference_period_stop"
             variant="text"
             onStartEditing={onStartEditing}
@@ -323,7 +323,7 @@ export default function Metadata() {
             label={t('fields.publication_date')}
             value={dataset?.publication_date}
             isEditable={isAdmin && !isEditing}
-            placeholder="Type YYYY, YYYY-MM or YYYY-MM-DD"
+            placeholder="Type YYYY-MM-DD"
             property="publication_date"
             variant="text"
             onStartEditing={onStartEditing}
