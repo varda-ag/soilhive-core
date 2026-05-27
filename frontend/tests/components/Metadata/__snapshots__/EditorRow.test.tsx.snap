@@ -1,0 +1,33 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`EditorRow matches snapshot in display mode with edit button 1`] = `
+<div>
+  <div
+    class="Row RowAdmin"
+  >
+    <p
+      class="Label"
+    >
+      <strong>
+        Name
+      </strong>
+    </p>
+    <div
+      class="Text"
+    >
+      Test Value
+    </div>
+    <button
+      aria-label="Edit"
+      class="EditButton"
+      type="button"
+    >
+      <svg
+        data-testid="svg-icon-mock"
+      >
+        mock-svg
+      </svg>
+    </button>
+  </div>
+</div>
+`;
