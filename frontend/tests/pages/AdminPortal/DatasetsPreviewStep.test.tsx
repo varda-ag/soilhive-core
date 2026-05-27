@@ -77,7 +77,7 @@ const baseHook = {
   sortOrder: null as 1 | -1 | null,
   computedPropertyNames: {} as Record<string, string>,
   unitsMapping: {} as Record<string, string | undefined>,
-  markedForDeletion: new Set<number>(),
+  currentFileDeletions: new Set<number>(),
   toggleDeletion: jest.fn(),
   showLoadingPanel: false,
   handlePrevious: jest.fn(),

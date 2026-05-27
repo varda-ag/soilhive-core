@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router';
 import { useApiQuery } from './useApiQuery';
 import { useApiMutation } from './useApiMutation';
@@ -28,7 +28,8 @@ export function useDatasetPreview(datasetId?: string) {
   const [sort, setSort] = useState<string | undefined>(undefined);
   const [sortField, setSortField] = useState<string | undefined>(undefined);
   const [sortOrder, setSortOrder] = useState<1 | -1 | null>(null);
-  const [markedForDeletion, setMarkedForDeletion] = useState<Set<number>>(new Set());
+  const [markedForDeletion, setMarkedForDeletion] = useState<Map<string, Set<number>>>(new Map());
+  const fileMappingIdRef = useRef<string | undefined>(undefined);
 
   const [availableColumns, setAvailableColumns] = useState<string[]>([]);
   const [showLoadingPanel, setShowLoadingPanel] = useState(false);
@@ -129,17 +130,28 @@ export function useDatasetPreview(datasetId?: string) {
     setCursor(soilData[soilData.length - 1].cursor);
   }, [soilData, hasMore]);
 
-  const toggleDeletion = useCallback((recordId: number) => {
-    setMarkedForDeletion(prev => {
-      const next = new Set(prev);
-      if (next.has(recordId)) {
-        next.delete(recordId);
-      } else {
-        next.add(recordId);
-      }
-      return next;
-    });
-  }, []);
+  const toggleDeletion = useCallback(
+    (recordId: number) => {
+      if (!selectedFile) return;
+      setMarkedForDeletion(prev => {
+        const next = new Map(prev);
+        const fileSet = new Set(next.get(selectedFile) ?? []);
+        if (fileSet.has(recordId)) {
+          fileSet.delete(recordId);
+        } else {
+          fileSet.add(recordId);
+        }
+        next.set(selectedFile, fileSet);
+        return next;
+      });
+    },
+    [selectedFile],
+  );
+
+  const currentFileDeletions = useMemo(
+    () => (selectedFile ? (markedForDeletion.get(selectedFile) ?? new Set<number>()) : new Set<number>()),
+    [markedForDeletion, selectedFile],
+  );
 
   const onSortChange = useCallback((field: string, order: 1 | -1 | 0 | null | undefined) => {
     if (!order) {
@@ -188,18 +200,23 @@ export function useDatasetPreview(datasetId?: string) {
     DatasetFileMappingResponse,
     DatasetFileMappingRequest
   >({
-    endpoint: () => `/datasets/${datasetId}/dataset-file-mapping/${selectedMapping?.id}`,
+    endpoint: () => `/datasets/${datasetId}/dataset-file-mapping/${fileMappingIdRef.current}`,
     method: 'PATCH',
   });
 
   const save = useCallback(async () => {
-    if (!selectedMapping || !datasetId) return;
-    const currentDataMapping = mappings?.find(m => m.id === selectedMapping.mappingId)?.data_mapping;
-    if (!currentDataMapping) return;
+    if (!datasetId || !datasetFileMappings?.length) return;
 
-    const newMapping = await createMapping({ ...currentDataMapping, drop_records: [...markedForDeletion] });
-    await updateFileMapping({ fileID: selectedMapping.fileID, mappingId: newMapping.id });
-  }, [selectedMapping, datasetId, mappings, markedForDeletion, createMapping, updateFileMapping]);
+    for (const fileMapping of datasetFileMappings) {
+      const dataMapping = mappings?.find(m => m.id === fileMapping.mappingId)?.data_mapping;
+      if (!dataMapping) continue;
+
+      const deletionSet = markedForDeletion.get(fileMapping.fileID) ?? new Set<number>();
+      fileMappingIdRef.current = fileMapping.id;
+      const newMapping = await createMapping({ ...dataMapping, drop_records: [...deletionSet] });
+      await updateFileMapping({ fileID: fileMapping.fileID, mappingId: newMapping.id });
+    }
+  }, [datasetId, datasetFileMappings, mappings, markedForDeletion, createMapping, updateFileMapping]);
 
   const handlePrevious = useCallback(() => {
     navigate(`${ADMIN_PATHS.DATASETS}/edit/${datasetId}/mappings`);
@@ -234,7 +251,7 @@ export function useDatasetPreview(datasetId?: string) {
     isLoadingMore: isLoadingSoilData && allSoilData.length > 0,
     sortField,
     sortOrder,
-    markedForDeletion,
+    currentFileDeletions,
     isSaving: isCreatingMapping || isUpdatingFileMapping,
     onFileChange,
     loadMore,

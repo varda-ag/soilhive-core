@@ -101,7 +101,7 @@ describe('useDatasetPreview', () => {
     const { result } = renderHook(() => useDatasetPreview(DATASET_ID));
     expect(result.current.allSoilData).toEqual([]);
     expect(result.current.availableColumns).toEqual([]);
-    expect(result.current.markedForDeletion.size).toBe(0);
+    expect(result.current.currentFileDeletions.size).toBe(0);
   });
 
   it('sets selectedFile to the first mapping fileID', async () => {
@@ -191,17 +191,17 @@ describe('useDatasetPreview', () => {
     expect(soilCall).toBeDefined();
   });
 
-  it('toggleDeletion adds a recordId to markedForDeletion', () => {
+  it('toggleDeletion adds a recordId to currentFileDeletions', () => {
     const { result } = renderHook(() => useDatasetPreview(DATASET_ID));
     act(() => result.current.toggleDeletion(42));
-    expect(result.current.markedForDeletion.has(42)).toBe(true);
+    expect(result.current.currentFileDeletions.has(42)).toBe(true);
   });
 
   it('toggleDeletion removes a recordId that is already in the set', () => {
     const { result } = renderHook(() => useDatasetPreview(DATASET_ID));
     act(() => result.current.toggleDeletion(42));
     act(() => result.current.toggleDeletion(42));
-    expect(result.current.markedForDeletion.has(42)).toBe(false);
+    expect(result.current.currentFileDeletions.has(42)).toBe(false);
   });
 
   it('toggleDeletion handles multiple distinct recordIds independently', () => {
@@ -211,7 +211,28 @@ describe('useDatasetPreview', () => {
       result.current.toggleDeletion(2);
       result.current.toggleDeletion(3);
     });
-    expect(result.current.markedForDeletion.size).toBe(3);
+    expect(result.current.currentFileDeletions.size).toBe(3);
+  });
+
+  it('toggleDeletion does nothing when no file is selected', () => {
+    setupMocks({ fileMappingsData: [] });
+    const { result } = renderHook(() => useDatasetPreview(DATASET_ID));
+    act(() => result.current.toggleDeletion(42));
+    expect(result.current.currentFileDeletions.size).toBe(0);
+  });
+
+  it('toggleDeletion tracks deletions per file independently', async () => {
+    const { result } = renderHook(() => useDatasetPreview(DATASET_ID));
+    await waitFor(() => expect(result.current.selectedFile).toBe('file-a'));
+
+    act(() => result.current.toggleDeletion(1));
+
+    act(() => result.current.onFileChange('file-b'));
+    act(() => result.current.toggleDeletion(2));
+
+    // file-b sees only record 2
+    expect(result.current.currentFileDeletions.has(2)).toBe(true);
+    expect(result.current.currentFileDeletions.has(1)).toBe(false);
   });
 
   it('onSortChange sets sortField and sortOrder for ascending', () => {
