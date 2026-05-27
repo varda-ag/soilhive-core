@@ -4,7 +4,7 @@ import { type SaveCallbacks } from 'hooks/useMetadata';
 import useNotifications from 'hooks/useNotifications';
 import { EDITOR_HEADER } from 'configuration/editor';
 import styles from './EditorRow.module.scss';
-import { Button } from 'components/UI';
+import { Button, TextInput } from 'components/UI';
 import { htmlDisplay } from 'utilities/isomorphicHTMLDisplay';
 import EditIcon from 'assets/icons/pencil-icon.svg?react';
 
@@ -13,6 +13,8 @@ export function EditorRow({
   value,
   isEditable,
   property,
+  variant = 'editor',
+  placeholder,
   onStartEditing,
   onSave,
   onCancel,
@@ -21,6 +23,8 @@ export function EditorRow({
   value: string | undefined | null;
   isEditable: boolean;
   property: string;
+  variant?: 'editor' | 'text';
+  placeholder?: string;
   onStartEditing: (property: string) => void;
   onSave: (property: string, value: string, callbacks: SaveCallbacks) => void;
   onCancel: (property: string) => void;
@@ -57,14 +61,21 @@ export function EditorRow({
       </p>
       {isEditing ? (
         <div className={`${styles.EditArea}${isSaving ? ` ${styles.EditAreaSaving}` : ''}`}>
-          <div className={styles.EditorWrapper}>
-            <Editor
-              value={editValue}
-              onTextChange={(e: EditorTextChangeEvent) => setEditValue(e.htmlValue ?? '')}
-              headerTemplate={EDITOR_HEADER}
-              readOnly={isSaving}
-            />
-          </div>
+          {variant === 'text' ? (
+            <div className={styles.TextInputWrapper}>
+              <TextInput size="small" value={editValue} onChange={v => setEditValue(v)} isDisabled={isSaving} placeholder={placeholder} />
+            </div>
+          ) : (
+            <div className={styles.EditorWrapper}>
+              <Editor
+                value={editValue}
+                onTextChange={(e: EditorTextChangeEvent) => setEditValue(e.htmlValue ?? '')}
+                headerTemplate={EDITOR_HEADER}
+                readOnly={isSaving}
+                placeholder={placeholder}
+              />
+            </div>
+          )}
           <div className={styles.EditActions}>
             <Button size="small" onClick={handleSave} isDisabled={isSaving}>
               {isSaving ? 'Saving…' : 'Save'}
@@ -85,7 +96,7 @@ export function EditorRow({
         </div>
       ) : (
         <>
-          <div className={styles.Text}>{htmlDisplay(value)}</div>
+          <div className={styles.Text}>{variant === 'text' ? value : htmlDisplay(value)}</div>
           {isEditable && (
             <button
               type="button"
