@@ -2413,6 +2413,12 @@ components:
 
     DataMappingObject:
       type: object
+      properties:
+        drop_records:
+          type: array
+          items:
+            type: integer
+          description: Row indices to exclude from the import
       additionalProperties:
         oneOf:
           - type: string
