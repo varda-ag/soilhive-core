@@ -9,6 +9,7 @@ import type { TableHandle } from 'components/UI/Table/Table';
 import { useIngestionStatus } from 'hooks/useIngestionStatus';
 import { useDatasetPreview } from 'hooks/useDatasetPreviewStep';
 import { DeleteCheckboxCell } from './DeleteCheckboxCell';
+import { DataLoadingStartedPanel } from './DataLoadingStartedPanel';
 
 import styles from './DatasetsPreviewStep.module.scss';
 
@@ -47,9 +48,11 @@ export function DatasetsPreviewStep() {
     unitsMapping,
     markedForDeletion,
     toggleDeletion,
+    showLoadingPanel,
     handlePrevious,
     handleSaveAndContinueLater,
     handleContinue,
+    navigateToDatasets,
   } = useDatasetPreview(id);
 
   const columnsTranslations = useMemo(
@@ -152,6 +155,10 @@ export function DatasetsPreviewStep() {
     },
     [onFileChange],
   );
+
+  if (showLoadingPanel) {
+    return <DataLoadingStartedPanel onContinue={navigateToDatasets} />;
+  }
 
   return (
     <>

@@ -307,7 +307,7 @@ describe('useDatasetPreview', () => {
     expect(createMutateAsync).not.toHaveBeenCalled();
   });
 
-  it('handleContinue calls POST /mappings and PATCH then navigates forward', async () => {
+  it('handleContinue calls POST /mappings and PATCH then shows the loading panel', async () => {
     const { result } = renderHook(() => useDatasetPreview(DATASET_ID));
     await waitFor(() => expect(result.current.selectedFile).toBe('file-a'));
 
@@ -315,6 +315,7 @@ describe('useDatasetPreview', () => {
 
     expect(createMutateAsync).toHaveBeenCalledTimes(1);
     expect(updateMutateAsync).toHaveBeenCalledWith({ fileID: 'file-a', mappingId: 99 });
-    expect(mockNavigate).toHaveBeenCalledTimes(1);
+    expect(result.current.showLoadingPanel).toBe(true);
+    expect(mockNavigate).not.toHaveBeenCalled();
   });
 });

@@ -30,6 +30,7 @@ export function useDatasetPreview(datasetId?: string) {
   const [markedForDeletion, setMarkedForDeletion] = useState<Set<number>>(new Set());
 
   const [availableColumns, setAvailableColumns] = useState<string[]>([]);
+  const [showLoadingPanel, setShowLoadingPanel] = useState(false);
 
   const { data: soilProperties, isLoading: isLoadingSoilProperties } = useSoilProperties();
 
@@ -208,8 +209,12 @@ export function useDatasetPreview(datasetId?: string) {
 
   const handleContinue = useCallback(async () => {
     await save();
-    navigate(`${ADMIN_PATHS.DATASETS}/edit/${datasetId}/preview`); // Should be changed to redirect to the next screen
-  }, [save, navigate, datasetId]);
+    setShowLoadingPanel(true);
+  }, [save]);
+
+  const navigateToDatasets = useCallback(() => {
+    navigate(ADMIN_PATHS.DATASETS);
+  }, [navigate]);
 
   return {
     datasetFileMappings,
@@ -231,8 +236,10 @@ export function useDatasetPreview(datasetId?: string) {
     loadMore,
     onSortChange,
     toggleDeletion,
+    showLoadingPanel,
     handlePrevious,
     handleSaveAndContinueLater,
     handleContinue,
+    navigateToDatasets,
   };
 }
