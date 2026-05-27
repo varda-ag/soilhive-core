@@ -79,9 +79,11 @@ const baseHook = {
   unitsMapping: {} as Record<string, string | undefined>,
   markedForDeletion: new Set<number>(),
   toggleDeletion: jest.fn(),
+  showLoadingPanel: false,
   handlePrevious: jest.fn(),
   handleSaveAndContinueLater: jest.fn(),
   handleContinue: jest.fn(),
+  navigateToDatasets: jest.fn(),
 };
 
 function mockHook(overrides: Partial<typeof baseHook> = {}) {
@@ -285,6 +287,31 @@ describe('DatasetsPreviewStep', () => {
         fireEvent.click(screen.getByTestId('col-option-ph'));
       });
       expect(screen.queryByTestId('table-col-ph')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('data loading panel', () => {
+    it('does not show the panel by default', () => {
+      render(<DatasetsPreviewStep />);
+      expect(screen.queryByText('Data loading started')).not.toBeInTheDocument();
+      expect(screen.getByTestId('mock-table')).toBeInTheDocument();
+    });
+
+    it('shows the panel and hides the table and action buttons when showLoadingPanel is true', () => {
+      mockHook({ showLoadingPanel: true });
+      render(<DatasetsPreviewStep />);
+      expect(screen.getByText('Data loading started')).toBeInTheDocument();
+      expect(screen.queryByTestId('mock-table')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('sh-preview-previous')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('sh-preview-continue')).not.toBeInTheDocument();
+    });
+
+    it('calls navigateToDatasets when the panel Continue button is clicked', () => {
+      const navigateToDatasets = jest.fn();
+      mockHook({ showLoadingPanel: true, navigateToDatasets });
+      render(<DatasetsPreviewStep />);
+      fireEvent.click(screen.getByText('Continue'));
+      expect(navigateToDatasets).toHaveBeenCalledTimes(1);
     });
   });
 

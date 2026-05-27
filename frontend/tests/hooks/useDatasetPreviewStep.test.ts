@@ -2,6 +2,7 @@ import { renderHook, act, waitFor } from '@testing-library/react';
 import { useDatasetPreview, SOIL_DATA_LIMIT } from 'hooks/useDatasetPreviewStep';
 import { useApiQuery } from 'hooks/useApiQuery';
 import { useApiMutation } from 'hooks/useApiMutation';
+import { useCreateJobMutation } from 'hooks/useJobsApi';
 import { useSoilProperties } from 'hooks/useSoilProperties';
 
 const mockNavigate = jest.fn();
@@ -12,6 +13,7 @@ jest.mock('react-router', () => ({
 
 jest.mock('hooks/useApiQuery', () => ({ useApiQuery: jest.fn() }));
 jest.mock('hooks/useApiMutation', () => ({ useApiMutation: jest.fn() }));
+jest.mock('hooks/useJobsApi', () => ({ useCreateJobMutation: jest.fn() }));
 jest.mock('hooks/useSoilProperties', () => ({ useSoilProperties: jest.fn() }));
 
 const DATASET_ID = 'ds-1';
@@ -46,6 +48,7 @@ const makeSoilRow = (id: number, extra: Record<string, unknown> = {}) => ({
 
 const createMutateAsync = jest.fn();
 const updateMutateAsync = jest.fn();
+const createJobMutateAsync = jest.fn();
 
 function setupMocks(
   overrides: {
@@ -80,6 +83,8 @@ function setupMocks(
     if (method === 'PATCH') return { mutateAsync: updateMutateAsync, isPending: false };
     return { mutateAsync: jest.fn(), isPending: false };
   });
+
+  (useCreateJobMutation as jest.Mock).mockReturnValue({ mutateAsync: createJobMutateAsync });
 }
 
 describe('useDatasetPreview', () => {
@@ -87,6 +92,7 @@ describe('useDatasetPreview', () => {
     jest.clearAllMocks();
     createMutateAsync.mockResolvedValue({ id: 99 });
     updateMutateAsync.mockResolvedValue({});
+    createJobMutateAsync.mockResolvedValue({ id: 'job-1' });
     setupMocks();
   });
 
@@ -307,7 +313,7 @@ describe('useDatasetPreview', () => {
     expect(createMutateAsync).not.toHaveBeenCalled();
   });
 
-  it('handleContinue calls POST /mappings and PATCH then navigates forward', async () => {
+  it('handleContinue saves the mapping, triggers a bulk-load job, then shows the loading panel', async () => {
     const { result } = renderHook(() => useDatasetPreview(DATASET_ID));
     await waitFor(() => expect(result.current.selectedFile).toBe('file-a'));
 
@@ -315,6 +321,24 @@ describe('useDatasetPreview', () => {
 
     expect(createMutateAsync).toHaveBeenCalledTimes(1);
     expect(updateMutateAsync).toHaveBeenCalledWith({ fileID: 'file-a', mappingId: 99 });
-    expect(mockNavigate).toHaveBeenCalledTimes(1);
+    expect(createJobMutateAsync).toHaveBeenCalledWith({
+      type: 'bulk-load',
+      dataset_id: DATASET_ID,
+      delete_source_files: true,
+    });
+    expect(result.current.showLoadingPanel).toBe(true);
+    expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
+  it('handleContinue does not show the loading panel when job creation fails', async () => {
+    createJobMutateAsync.mockRejectedValue(new Error('network error'));
+    const { result } = renderHook(() => useDatasetPreview(DATASET_ID));
+    await waitFor(() => expect(result.current.selectedFile).toBe('file-a'));
+
+    await act(async () => {
+      await result.current.handleContinue().catch(() => {});
+    });
+
+    expect(result.current.showLoadingPanel).toBe(false);
   });
 });
