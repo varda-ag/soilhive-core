@@ -54,9 +54,9 @@ export const selectFileOverviewLevel = (band, queryEnvelope) => {
     const ovPixelSize = nativePixelSize * (band.size.x / ov.size.x);
 
     // Use this overview only if its pixel covers less than
-    // half the query's smallest dimension — ensures multiple
+    // 1/8 the query's smallest dimension — ensures multiple
     // pixels fall within the query area
-    if (ovPixelSize < queryMinDim / 2) {
+    if (ovPixelSize < queryMinDim / 8) {
       return ov;
     }
   }

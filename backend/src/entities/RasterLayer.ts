@@ -1,10 +1,11 @@
-import { Entity, Column, PrimaryColumn, Index, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, Column, Index, PrimaryColumn, ManyToOne, OneToMany, JoinColumn } from 'typeorm';
+import type { Polygon } from 'geojson';
 import { RasterLayer } from '../interfaces/RasterLayer';
 import BaseTable from './BaseTable';
 import DatasetEntity from './Dataset';
-import { Polygon, MultiPolygon } from 'geojson';
 import SoilPropertyEntity from './SoilProperty';
 import FileEntity from './File';
+import RasterFootprintEntity from './RasterFootprint';
 
 @Entity('raster_layers')
 export default class RasterLayerEntity extends BaseTable implements RasterLayer {
@@ -51,37 +52,16 @@ export default class RasterLayerEntity extends BaseTable implements RasterLayer 
   @JoinColumn({ name: 'soil_property_id' })
   soil_property: SoilPropertyEntity;
 
-  @Column({
-    type: 'geometry',
-    srid: 4326,
-    spatialFeatureType: 'Polygon',
-    generatedType: 'STORED',
-    asExpression: 'ST_Envelope(footprint)',
-    nullable: true,
-    insert: false,
-    update: false,
-  })
-  @Index({ spatial: true })
-  bbox: Polygon | null;
-
-  @Column({
-    type: 'geometry',
-    srid: 4326,
-    spatialFeatureType: 'MultiPolygon',
-    nullable: true,
-  })
-  @Index({ spatial: true })
-  footprint: MultiPolygon | null;
-
   @Column({ type: 'jsonb', nullable: true })
   description: object | null;
 
-  @Column({ type: 'text', array: true, nullable: true })
-  geohash_cells: string[] | null;
-
-  @Column({ type: 'boolean', array: true, nullable: true })
-  geohash_full_coverage: boolean[] | null;
-
   @Column({ type: 'int', nullable: true })
   nodata_value: number | null;
+
+  @Index({ spatial: true })
+  @Column({ type: 'geometry', spatialFeatureType: 'Polygon', srid: 4326 })
+  bbox: Polygon;
+
+  @OneToMany(() => RasterFootprintEntity, fp => fp.rasterLayer)
+  footprints: RasterFootprintEntity[];
 }

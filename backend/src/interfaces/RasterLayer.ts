@@ -1,4 +1,4 @@
-import type { Polygon, MultiPolygon } from 'geojson';
+import type { Polygon } from 'geojson';
 
 // TODO: add slug
 export interface RasterLayer {
@@ -11,12 +11,9 @@ export interface RasterLayer {
   reference_period_stop: string | null;
   dataset_id: string;
   soil_property_id: string;
-  bbox: Polygon | null;
-  footprint: MultiPolygon | null;
   description: object | null;
-  geohash_cells: string[] | null;
-  geohash_full_coverage: boolean[] | null;
   nodata_value: number | null;
+  bbox: Polygon;
 }
 
 // TODO: add slug
@@ -27,11 +24,10 @@ export interface RasterLayerAsset {
   description: object | null;
 }
 
-export interface FootprintGeohashIntersectEntry {
+export interface RasterLayerMatch {
   id: number;
   file_path: string;
   resolution_m: number;
-  has_full_coverage: boolean | null;
 }
 
 export interface QueryResult {

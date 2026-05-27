@@ -23,11 +23,8 @@ import { getRawTableName } from './utils';
 import DatasetFileMappingEntity from '../entities/DatasetFileMapping';
 import VocabularyEntity from '../entities/Vocabulary';
 import RasterLayerEntity from '../entities/RasterLayer';
-import { exec } from 'child_process';
-import { promisify } from 'util';
 import { log } from './logger';
-
-const execAsync = promisify(exec);
+import { ingestRaster } from '../services/RasterIngestService';
 
 export interface PropertyInfo {
   property_name: string;
@@ -562,14 +559,13 @@ export interface SyntheticRasterDataset {
 }
 
 export const addRasterData = async (
-  dsn: string,
   tifPath?: string,
   options?: {
     out?: string;
     outDir?: string;
-    schema?: string;
     dataset?: string;
     soilProperty?: string;
+    soilPropertyCategory?: string;
     layerFields?: {
       min_depth?: number | null;
       max_depth?: number | null;
@@ -580,21 +576,16 @@ export const addRasterData = async (
 ): Promise<RasterLayerEntity> => {
   const input = tifPath ?? path.join(__dirname, '../../tests/assets/raster/sol_ph.h2o_usda.4c1a2a_m_250m_b0..0cm_1950..2017_v0.2_250.tif');
   const out = options?.out ?? `test_raster_${Date.now()}_cog.tif`;
-  const scriptPath = path.join(__dirname, '../scripts/ingest_raster.sh');
 
-  const args = [
-    `-d "${dsn}"`,
-    `-s "${options?.schema ?? process.env.POSTGRES_SCHEMA}"`,
-    `-o "${out}"`,
-    `-O "${options?.outDir ?? process.env.LOCAL_STORAGE_ROOT_FOLDER}"`,
-    options?.dataset ? `-D "${options?.dataset}"` : '',
-    options?.soilProperty ? `-P "${options?.soilProperty}"` : '',
-    `"${path.resolve(input)}"`,
-  ]
-    .filter(Boolean)
-    .join(' ');
-
-  await execAsync(`bash "${scriptPath}" ${args}`);
+  const outDir = options?.outDir ?? process.env.LOCAL_STORAGE_ROOT_FOLDER;
+  await ingestRaster({
+    input: path.resolve(input),
+    out,
+    ...(outDir !== undefined ? { outDir } : {}),
+    dataset: options?.dataset ?? 'test-ds',
+    soilProperty: options?.soilProperty ?? 'Organic Carbon Stock',
+    soilPropertyCategory: options?.soilPropertyCategory ?? 'Chemical',
+  });
 
   const dataSource = await getDataSource();
   const repo = dataSource.getRepository(RasterLayerEntity);
@@ -609,12 +600,12 @@ export const addRasterData = async (
   return entity;
 };
 
-export const addRasterDataset = async (id: string, dsn: string, tifPath?: string): Promise<SyntheticRasterDataset> => {
+export const addRasterDataset = async (id: string, tifPath?: string): Promise<SyntheticRasterDataset> => {
   const input = tifPath ?? path.join(__dirname, '../../tests/assets/raster/sol_ph.h2o_usda.4c1a2a_m_250m_b0..0cm_1950..2017_v0.2_250.tif');
   const spatial_extent = [-180, -90, 180, 90];
   const license = await addLicense(`test_raster_license_${id}`);
   const dataset = await addDataset(`test_raster_dataset_${id}`, spatial_extent, GISDataType.RASTER, [license.slug]);
-  await addRasterData(dsn, input, {
+  await addRasterData(input, {
     dataset: dataset.slug,
     soilProperty: 'test_soil_property',
   });

@@ -6,19 +6,8 @@ export class RasterLayer1779000000000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`SET search_path TO ${process.env.POSTGRES_SCHEMA}, public`);
     await queryRunner.query(
-      `INSERT INTO "typeorm_metadata"("database", "schema", "table", "type", "name", "value")
-       SELECT $1::text, $2::text, $3::text, $4::text, $5::text, $6::text
-       WHERE NOT EXISTS (
-         SELECT 1 FROM "typeorm_metadata"
-         WHERE "type" = $4 AND "name" = $5 AND "database" = $1 AND "schema" = $2 AND "table" = $3
-       )`,
-      [process.env.POSTGRES_DB, process.env.POSTGRES_SCHEMA, 'raster_layers', 'GENERATED_COLUMN', 'bbox', '(ST_Envelope(footprint))'],
+      `CREATE TABLE IF NOT EXISTS "raster_layers" ("created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP, "id" uuid NOT NULL DEFAULT uuidv7(), "file_id" uuid NOT NULL, "resolution_m" int NOT NULL, "min_depth" int, "max_depth" int, "reference_period_start" text, "reference_period_stop" text, "dataset_id" uuid NOT NULL, "soil_property_id" uuid NOT NULL, "description" jsonb, "nodata_value" int, "bbox" geometry(Polygon,4326) NOT NULL, CONSTRAINT "PK_raster_layers_id" PRIMARY KEY ("id"))`,
     );
-    await queryRunner.query(
-      `CREATE TABLE IF NOT EXISTS "raster_layers" ("created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP, "id" uuid NOT NULL DEFAULT uuidv7(), "file_id" uuid NOT NULL, "resolution_m" int NOT NULL, "min_depth" int, "max_depth" int, "reference_period_start" text, "reference_period_stop" text, "dataset_id" uuid NOT NULL, "soil_property_id" uuid NOT NULL, "bbox" geometry(Polygon,4326) GENERATED ALWAYS AS (ST_Envelope(footprint)) STORED, "footprint" geometry(MultiPolygon,4326), "description" jsonb, "geohash_cells" text[], "geohash_full_coverage" boolean[], "nodata_value" int, CONSTRAINT "PK_raster_layers_id" PRIMARY KEY ("id"))`,
-    );
-    await queryRunner.query(`CREATE INDEX IF NOT EXISTS "IDX_raster_layers_geohash_cells" ON "raster_layers" USING GIN  ("geohash_cells")`);
-    await queryRunner.query(`CREATE INDEX IF NOT EXISTS "IDX_raster_layers_footprint" ON "raster_layers" USING GiST ("footprint")`);
     await queryRunner.query(`CREATE INDEX IF NOT EXISTS "IDX_raster_layers_bbox" ON "raster_layers" USING GiST ("bbox")`);
     await queryRunner.query(
       `DO $$ BEGIN
@@ -59,15 +48,25 @@ export class RasterLayer1779000000000 implements MigrationInterface {
          END IF;
        END $$`,
     );
+
+    await queryRunner.query(
+      `CREATE TABLE IF NOT EXISTS "raster_footprints" ("id" uuid NOT NULL DEFAULT uuidv7(), "raster_layer_id" uuid NOT NULL, "tile_col" int NOT NULL, "tile_row" int NOT NULL, "geom" geometry(MultiPolygon,4326) NOT NULL, CONSTRAINT "PK_raster_footprints_id" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(`CREATE INDEX IF NOT EXISTS "IDX_raster_footprints_geom" ON "raster_footprints" USING GiST ("geom")`);
+    await queryRunner.query(`CREATE INDEX IF NOT EXISTS "IDX_raster_footprints_layer" ON "raster_footprints" ("raster_layer_id")`);
+    await queryRunner.query(
+      `DO $$ BEGIN
+         IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'FK_raster_footprints_raster_layer_id_raster_layers_id') THEN
+           ALTER TABLE "raster_footprints" ADD CONSTRAINT "FK_raster_footprints_raster_layer_id_raster_layers_id" FOREIGN KEY ("raster_layer_id") REFERENCES "raster_layers"("id") ON DELETE CASCADE ON UPDATE NO ACTION DEFERRABLE INITIALLY DEFERRED;
+         END IF;
+       END $$`,
+    );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`SET search_path TO ${process.env.POSTGRES_SCHEMA}, public`);
+    await queryRunner.query(`DROP TABLE IF EXISTS "raster_footprints"`);
     await queryRunner.query(`DROP TABLE IF EXISTS "raster_layers"`);
     await queryRunner.query(`DROP TABLE IF EXISTS "raster_layer_assets"`);
-    await queryRunner.query(
-      `DELETE FROM "typeorm_metadata" WHERE "type" = $1 AND "name" = $2 AND "database" = $3 AND "schema" = $4 AND "table" = $5`,
-      ['GENERATED_COLUMN', 'bbox', process.env.POSTGRES_DB, process.env.POSTGRES_SCHEMA, 'raster_layers'],
-    );
   }
 }

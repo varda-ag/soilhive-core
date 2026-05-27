@@ -41,7 +41,6 @@ export enum ProcedureTechnique {
   CALCULATED = 'calculated',
 }
 
-
 export enum UnitConversionType {
   IDENTITY = 'IDENTITY',
   SIMPLE = 'SIMPLE',

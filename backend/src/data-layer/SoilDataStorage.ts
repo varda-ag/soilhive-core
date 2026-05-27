@@ -4,7 +4,7 @@ import { StatusCodes } from 'http-status-codes';
 import { EntityManager, SelectQueryBuilder } from 'typeorm';
 import { createCursor, decodeCursor, encodeCursor } from '../utils/cursor';
 import { ErrorResponse } from '../utils/error';
-import { envelopeToPixelWindow, selectOverviewTable, selectFileOverviewLevel } from '../utils/raster';
+import { selectOverviewTable } from '../utils/raster';
 import { Capability, OverlapType } from '../types/enums';
 import { FilteredDatasetSummary, FilteredDataset, FilterCriteria, DataFilter } from '../interfaces/DatasetFilter';
 import DatasetEntity from '../entities/Dataset';
@@ -12,34 +12,16 @@ import DatasetLayerEntity from '../entities/DatasetLayer';
 import { SoilDataSample } from '../interfaces/SoilDataSample';
 import assert from 'assert';
 import RasterFilterService from '../services/RasterFilterService';
-import FileService from '../services/FileService';
 import { getDataSource } from '../utils/data-source';
 import { RequestData } from '../interfaces/RequestData';
 import EntitlementService from '../services/EntitlementService';
-import { envelopeFromGeoJSON, footprintToGeohashes, geometryUnion, polygonToGeohashes } from '../utils/geometry';
-import { Envelope, QueryResult, FootprintGeohashIntersectEntry } from '../interfaces/RasterLayer';
+import { geometryUnion } from '../utils/geometry';
+import { RasterLayerMatch } from '../interfaces/RasterLayer';
 import RasterLayerEntity from '../entities/RasterLayer';
 import { GISDataType } from '../types/data';
 import { getVectorMask } from './FilteringMasks';
 
 const AREA_THRESHOLD_M2 = 7_000_000 * 1_000 * 1_000; // 7,000,000 km²
-const MAX_HASHES_PER_PRECISION = 500;
-
-// Generates geohash cells at increasing precision levels until a level exceeds
-// MAX_HASHES_PER_PRECISION. Ingestion always stores precision 1 in geohash_cells,
-// so this function always produces at least the 32 global precision-1 cells,
-// guaranteeing at least one precision level in common with any raster's stored cells.
-const geohashesForGeometry = (geometry: Polygon | MultiPolygon): string[] => {
-  const hashes = new Set<string>();
-  for (let precision = 1; ; precision++) {
-    const level = polygonToGeohashes(geometry, precision);
-    const level2 = footprintToGeohashes(geometry, precision);
-    if (level.length > MAX_HASHES_PER_PRECISION || level2.length > MAX_HASHES_PER_PRECISION) break;
-    level.forEach(h => hashes.add(h));
-  }
-  return [...hashes];
-};
-
 const rasterFilterService = new RasterFilterService();
 const entitlementService = new EntitlementService();
 
@@ -307,8 +289,6 @@ export default class SoilDataStorage {
     }
 
     const geomJson = JSON.stringify(filteredGeom);
-    const inputHashes = geohashesForGeometry(filteredGeom);
-    const envelope = envelopeFromGeoJSON(filteredGeom);
 
     await entityManager.query("SET LOCAL work_mem = '256MB';");
     // Step 1 — candidate raster layer IDs matching FilterCriteria + coarse spatial pre-filter
@@ -321,6 +301,7 @@ export default class SoilDataStorage {
       .innerJoin('rl.soil_property', 'sp')
       .select('rl.id', 'id');
 
+    candidateQuery.andWhere('rl.bbox && (SELECT geom FROM aoi)');
     candidateQuery.andWhere('ds.gis_datatype=:gis_datatype', { gis_datatype: GISDataType.RASTER });
     if (filters.min_depth === null) {
       candidateQuery.andWhere('rl.min_depth IS NULL');
@@ -350,13 +331,10 @@ export default class SoilDataStorage {
     }
 
     const candidateIds = (await candidateQuery.getRawMany<{ id: string }>()).map(r => r.id);
-    // Step 2 — precise spatial (footprint / geohash) + pixel check
-    const candidates = await spatialFilter(entityManager, geomJson, candidateIds, inputHashes);
-    const needCheck = candidates.filter(r => needsPixelCheck(r));
-    const confident = candidates.filter(r => !needsPixelCheck(r));
-    const checked = await filterByPixel(needCheck, envelope);
+    // Step 2 — precise spatial filter via footprint tile intersection
+    const candidates = await spatialFilter(entityManager, geomJson, candidateIds);
 
-    const hasDataPaths = new Set([...confident.map(r => r.file_path), ...checked.filter(r => r.has_data).map(r => r.file_path)]);
+    const hasDataPaths = new Set(candidates.map(r => r.file_path));
     if (hasDataPaths.size === 0) return [];
 
     // Step 3 — aggregate surviving layers into dataset summaries
@@ -1343,65 +1321,20 @@ const joinProcedures = (query: any) => {
     .leftJoin('vocabulary', 'pv7', "pv7.id = procedure.limit_of_detection_id AND pv7.category = 'limit_of_detection'");
 };
 
-const spatialFilter = async (
-  entityManager: EntityManager,
-  geojsonStr: string,
-  candidateLayers: string[],
-  inputHashes: string[],
-): Promise<FootprintGeohashIntersectEntry[]> => {
+const spatialFilter = async (entityManager: EntityManager, geojsonStr: string, candidateLayers: string[]): Promise<RasterLayerMatch[]> => {
   if (candidateLayers.length === 0) return [];
   return entityManager
     .getRepository(RasterLayerEntity)
     .createQueryBuilder('rl')
     .addCommonTableExpression(selectGeometry(), 'aoi')
     .setParameter('inputGeom', geojsonStr)
-    .setParameter('inputHashesArr', inputHashes)
     .innerJoin('rl.file', 'f')
+    .innerJoin('rl.footprints', 'rf')
     .select('rl.id', 'id')
     .addSelect('f.file_path', 'file_path')
     .addSelect('rl.resolution_m', 'resolution_m')
-    .addSelect(
-      `(SELECT bool_or(t.fc) FROM unnest(rl.geohash_cells, rl.geohash_full_coverage) AS t(h, fc) WHERE t.h = ANY(:inputHashesArr::text[]))`,
-      'has_full_coverage',
-    )
     .where('rl.id IN (:...candidateLayers)', { candidateLayers })
-    .andWhere('rl.geohash_cells && ARRAY[:...inputHashes]', { inputHashes })
-    .andWhere('ST_Intersects(rl.footprint, (SELECT geom FROM aoi))')
+    .andWhere('ST_Intersects(rf.geom, (SELECT geom FROM aoi))')
+    .distinct(true)
     .getRawMany();
-};
-
-const pixelCheck = async (filePath: string, env: Envelope): Promise<boolean> => {
-  const { ds, pooled } = await FileService.openRasterDataset(filePath);
-  try {
-    const gt = ds.geoTransform;
-    if (!gt) return false;
-
-    const rasterSize = ds.rasterSize;
-    const band = await ds.bands.getAsync(1);
-    const nodata = band.noDataValue;
-    // Select overview level appropriate for query size
-    const ov = selectFileOverviewLevel(band, env);
-
-    const win = envelopeToPixelWindow(gt, env, ov.size, rasterSize);
-    if (!win || win.w === 0 || win.h === 0) return false;
-
-    const pixels = await ov.pixels.readAsync(win.x, win.y, win.w, win.h);
-    return Array.from(pixels).some(v => v !== nodata && !Number.isNaN(v));
-  } finally {
-    // S3 datasets are opened fresh each time; local datasets live in the pool
-    if (!pooled) ds.close();
-  }
-};
-
-const needsPixelCheck = (row: FootprintGeohashIntersectEntry): boolean => {
-  return !row.has_full_coverage;
-};
-
-const filterByPixel = async (candidates: FootprintGeohashIntersectEntry[], env: Envelope): Promise<QueryResult[]> => {
-  return Promise.all(
-    candidates.map(async r => ({
-      file_path: r.file_path,
-      has_data: await pixelCheck(r.file_path, env),
-    })),
-  );
 };
