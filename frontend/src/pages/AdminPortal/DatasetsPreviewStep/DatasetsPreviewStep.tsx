@@ -46,7 +46,7 @@ export function DatasetsPreviewStep() {
     sortOrder,
     computedPropertyNames,
     unitsMapping,
-    markedForDeletion,
+    currentFileDeletions,
     toggleDeletion,
     showLoadingPanel,
     handlePrevious,
@@ -128,14 +128,14 @@ export function DatasetsPreviewStep() {
           <div className={styles.DeleteCell}>
             <DeleteCheckboxCell
               recordId={row.record_id}
-              isInitiallyChecked={markedForDeletion.has(row.record_id)}
+              isInitiallyChecked={currentFileDeletions.has(row.record_id)}
               toggleDeletion={toggleDeletion}
             />
           </div>
         ),
       },
     ],
-    [tableColumns, visibleColumns, t, markedForDeletion, toggleDeletion],
+    [tableColumns, visibleColumns, t, currentFileDeletions, toggleDeletion],
   );
 
   useEffect(() => {
