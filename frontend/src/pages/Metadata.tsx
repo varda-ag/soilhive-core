@@ -234,7 +234,8 @@ export default function Metadata() {
             onSave={onSave}
             onCancel={onCancel}
           />
-          <EditorRow
+          {/* TODO: will be used in the future */}
+          {/* <EditorRow
             label={t('fields.data_producer')}
             value={dataset?.data_producer}
             isEditable={isAdmin && !isEditing}
@@ -244,7 +245,7 @@ export default function Metadata() {
             onStartEditing={onStartEditing}
             onSave={onSave}
             onCancel={onCancel}
-          />
+          /> */}
           {/* `variables_measured` will always be present in inferredProperties in newly ingested datasets. So it will always be uneditable. */}
           <EditorRow
             label={t('fields.variables_measured')}
