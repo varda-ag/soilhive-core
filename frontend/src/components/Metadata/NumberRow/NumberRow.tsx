@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { type SaveCallbacks } from 'hooks/useMetadata';
 import useNotifications from 'hooks/useNotifications';
 import styles from './NumberRow.module.scss';
@@ -26,6 +27,7 @@ export function NumberRow({
   onSave: (property: string, value: string, callbacks: SaveCallbacks) => void;
   onCancel: (property: string) => void;
 }) {
+  const { t } = useTranslation('metadata');
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [editValue, setEditValue] = useState(value?.toString() ?? '');
@@ -43,7 +45,7 @@ export function NumberRow({
         setIsSaving(false);
         showNotification({
           id: `${property}-save-error`,
-          title: 'Failed to save',
+          title: t('editor.failed_to_save'),
           message: error.message,
           type: 'error',
         });
@@ -70,7 +72,7 @@ export function NumberRow({
           </div>
           <div className={styles.EditActions}>
             <Button size="small" onClick={handleSave} isDisabled={isSaving}>
-              {isSaving ? 'Saving…' : 'Save'}
+              {isSaving ? t('editor.saving') : t('editor.save')}
             </Button>
             <Button
               type="secondary"
@@ -82,7 +84,7 @@ export function NumberRow({
               }}
               isDisabled={isSaving}
             >
-              Cancel
+              {t('editor.cancel')}
             </Button>
           </div>
         </div>
@@ -98,7 +100,7 @@ export function NumberRow({
                 setIsEditing(true);
                 onStartEditing(property);
               }}
-              aria-label="Edit"
+              aria-label={t('editor.edit_aria')}
             >
               <EditIcon />
             </button>

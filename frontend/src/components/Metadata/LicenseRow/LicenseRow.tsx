@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
 import { type SaveCallbacks } from 'hooks/useMetadata';
 import { useCreateLicenseMutation } from 'hooks/useDatasetMutation';
@@ -30,6 +31,7 @@ export function LicenseRow({
   onSave: (property: string, value: string, callbacks: SaveCallbacks) => void;
   onCancel: (property: string) => void;
 }) {
+  const { t } = useTranslation('metadata');
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [editValue, setEditValue] = useState(currentLicenseIds[0] ?? '');
@@ -43,7 +45,7 @@ export function LicenseRow({
 
   const licenseOptions = [
     ...allLicenses.map(l => ({ code: l.id, name: l.full_name ?? l.name })),
-    { code: NEW_LICENSE_CODE, name: 'Custom license' },
+    { code: NEW_LICENSE_CODE, name: t('license_row.custom_license') },
   ];
   const currentLicenses = allLicenses.filter(l => currentLicenseIds.includes(l.id));
   const displayValue =
@@ -78,7 +80,7 @@ export function LicenseRow({
                 setIsSaving(false);
                 showNotification({
                   id: 'license-save-error',
-                  title: 'Failed to save license',
+                  title: t('license_row.failed_to_save'),
                   message: error.message,
                   type: 'error',
                 });
@@ -89,7 +91,7 @@ export function LicenseRow({
             setIsSaving(false);
             showNotification({
               id: 'license-create-error',
-              title: 'Failed to create license',
+              title: t('license_row.failed_to_create'),
               message: error.message,
               type: 'error',
             });
@@ -107,7 +109,7 @@ export function LicenseRow({
           setIsSaving(false);
           showNotification({
             id: 'license-save-error',
-            title: 'Failed to save license',
+            title: t('license_row.failed_to_save'),
             message: error.message,
             type: 'error',
           });
@@ -129,14 +131,14 @@ export function LicenseRow({
               value={editValue}
               onChange={selected => setEditValue(selected as string)}
               isDisabled={isSaving}
-              placeholder="Select a license"
+              placeholder={t('license_row.select_placeholder')}
               size="small"
             />
             {editValue === NEW_LICENSE_CODE && (
               <div className={styles.NewLicenseFields}>
                 <TextInput
-                  label="Name"
-                  placeholder="e.g. CC-BY-4.0"
+                  label={t('license_row.name_label')}
+                  placeholder={t('license_row.name_placeholder')}
                   value={newLicenseName}
                   onChange={v => setNewLicenseName(v)}
                   isDisabled={isSaving}
@@ -144,16 +146,16 @@ export function LicenseRow({
                   size="small"
                 />
                 <TextInput
-                  label="Full name"
-                  placeholder="e.g. Creative Commons Attribution 4.0"
+                  label={t('license_row.full_name_label')}
+                  placeholder={t('license_row.full_name_placeholder')}
                   value={newLicenseFullName}
                   onChange={v => setNewLicenseFullName(v)}
                   isDisabled={isSaving}
                   size="small"
                 />
                 <TextInput
-                  label="URL"
-                  placeholder="e.g. https://creativecommons.org/licenses/by/4.0/"
+                  label={t('license_row.url_label')}
+                  placeholder={t('license_row.url_placeholder')}
                   value={newLicenseUrl}
                   onChange={v => setNewLicenseUrl(v)}
                   isDisabled={isSaving}
@@ -164,7 +166,7 @@ export function LicenseRow({
           </div>
           <div className={styles.EditActions}>
             <Button size="small" onClick={handleSave} isDisabled={isSaving || (editValue === NEW_LICENSE_CODE && !newLicenseName.trim())}>
-              {isSaving ? 'Saving…' : 'Save'}
+              {isSaving ? t('editor.saving') : t('editor.save')}
             </Button>
             <Button
               type="secondary"
@@ -179,7 +181,7 @@ export function LicenseRow({
               }}
               isDisabled={isSaving}
             >
-              Cancel
+              {t('editor.cancel')}
             </Button>
           </div>
         </div>
@@ -195,7 +197,7 @@ export function LicenseRow({
                 setIsEditing(true);
                 onStartEditing(property);
               }}
-              aria-label="Edit"
+              aria-label={t('editor.edit_aria')}
             >
               <EditIcon />
             </button>

@@ -1,5 +1,37 @@
 {
     "loading": "Loading...",
+    "admin_notice": "You can edit fields directly from this list",
+    "placeholders": {
+        "name": "Abbreviated name or acronym for the dataset (displayed in the platform)",
+        "full_name": "Full descriptive name of the dataset",
+        "version": "e.g. 2.0",
+        "description": "Please provide a brief summary of dataset purpose, content, and methodology",
+        "author": "Name of the organization or the author of this dataset",
+        "spatial_resolution": "e.g. <1m, 5-30m, >30m",
+        "reference_coverage_start": "Start date of the data coverage (YYYY-MM-DD)",
+        "reference_coverage_end": "Stop date of the data coverage (YYYY-MM-DD)",
+        "publication_date": "Type YYYY-MM-DD",
+        "citation": "Preferred citation (authors, year, title, journal, DOI/URL)"
+    },
+    "editor": {
+        "save": "Save",
+        "saving": "Saving…",
+        "cancel": "Cancel",
+        "edit_aria": "Edit",
+        "failed_to_save": "Failed to save"
+    },
+    "license_row": {
+        "custom_license": "Custom license",
+        "failed_to_save": "Failed to save license",
+        "failed_to_create": "Failed to create license",
+        "select_placeholder": "Select a license",
+        "name_label": "Name",
+        "name_placeholder": "e.g. CC-BY-4.0",
+        "full_name_label": "Full name",
+        "full_name_placeholder": "e.g. Creative Commons Attribution 4.0",
+        "url_label": "URL",
+        "url_placeholder": "e.g. https://creativecommons.org/licenses/by/4.0/"
+    },
     "error_load_failed": "Failed to load dataset.",
     "title": "{{name}} metadata",
     "introduction": "Explore the dataset's metadata and forward it to appropriate stakeholders for further use",

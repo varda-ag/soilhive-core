@@ -177,14 +177,14 @@ export default function Metadata() {
           {isAdmin && (
             <div className={styles.AdminNotice}>
               <InfoIcon />
-              <span>You can edit fields directly from this list</span>
+              <span>{t('admin_notice')}</span>
             </div>
           )}
           <EditorRow
             label={t('fields.name')}
             value={dataset?.name}
             isEditable={isAdmin && !isEditing}
-            placeholder="Abbreviated name or acronym for the dataset (displayed in the platform)"
+            placeholder={t('placeholders.name')}
             property="name"
             variant="text"
             onStartEditing={onStartEditing}
@@ -195,7 +195,7 @@ export default function Metadata() {
             label={t('fields.full_name')}
             value={dataset?.full_name}
             isEditable={isAdmin && !isEditing}
-            placeholder="Full descriptive name of the dataset"
+            placeholder={t('placeholders.full_name')}
             property="full_name"
             variant="text"
             onStartEditing={onStartEditing}
@@ -206,7 +206,7 @@ export default function Metadata() {
             label={t('fields.version')}
             value={dataset?.version}
             isEditable={isAdmin && !isEditing}
-            placeholder="e.g. 2.0"
+            placeholder={t('placeholders.version')}
             property="version"
             variant="text"
             onStartEditing={onStartEditing}
@@ -217,7 +217,7 @@ export default function Metadata() {
             label={t('fields.description')}
             value={dataset?.description}
             isEditable={isAdmin && !isEditing}
-            placeholder="Please provide a brief summary of dataset purpose, content, and methodology"
+            placeholder={t('placeholders.description')}
             property="description"
             onStartEditing={onStartEditing}
             onSave={onSave}
@@ -227,7 +227,7 @@ export default function Metadata() {
             label={t('fields.author')}
             value={dataset?.author}
             isEditable={isAdmin && !isEditing}
-            placeholder="Name of the organization or the author of this dataset"
+            placeholder={t('placeholders.author')}
             property="author"
             variant="text"
             onStartEditing={onStartEditing}
@@ -250,7 +250,7 @@ export default function Metadata() {
           <EditorRow
             label={t('fields.variables_measured')}
             value={dataset?.soilProperties?.join(', ')}
-            isEditable={isAdmin && !inferredProperties.has('measured_properties') && !isEditing}
+            isEditable={false}
             property="soilProperties"
             variant="text"
             onStartEditing={onStartEditing}
@@ -289,7 +289,7 @@ export default function Metadata() {
             label={t('fields.spatial_resolution')}
             value={dataset?.spatial_resolution}
             isEditable={isAdmin && !isEditing}
-            placeholder="e.g. <1m, 5-30m, >30m"
+            placeholder={t('placeholders.spatial_resolution')}
             property="spatial_resolution"
             variant="text"
             onStartEditing={onStartEditing}
@@ -300,7 +300,7 @@ export default function Metadata() {
             label={t('fields.reference_coverage_start')}
             value={dataset?.reference_period_start}
             isEditable={isAdmin && !inferredProperties.has('reference_period_start') && !isEditing}
-            placeholder="Start date of the data coverage (YYYY-MM-DD)"
+            placeholder={t('placeholders.reference_coverage_start')}
             property="reference_period_start"
             variant="text"
             onStartEditing={onStartEditing}
@@ -311,7 +311,7 @@ export default function Metadata() {
             label={t('fields.reference_coverage_end')}
             value={dataset?.reference_period_stop}
             isEditable={isAdmin && !inferredProperties.has('reference_period_stop') && !isEditing}
-            placeholder="Stop date of the data coverage (YYYY-MM-DD)"
+            placeholder={t('placeholders.reference_coverage_end')}
             property="reference_period_stop"
             variant="text"
             onStartEditing={onStartEditing}
@@ -322,7 +322,7 @@ export default function Metadata() {
             label={t('fields.publication_date')}
             value={dataset?.publication_date}
             isEditable={isAdmin && !isEditing}
-            placeholder="Type YYYY-MM-DD"
+            placeholder={t('placeholders.publication_date')}
             property="publication_date"
             variant="text"
             onStartEditing={onStartEditing}
@@ -343,7 +343,7 @@ export default function Metadata() {
             label={t('fields.citation')}
             value={dataset?.citation}
             isEditable={isAdmin && !isEditing}
-            placeholder="Preferred citation (authors, year, title, journal, DOI/URL)"
+            placeholder={t('placeholders.citation')}
             property="citation"
             onStartEditing={onStartEditing}
             onSave={onSave}
