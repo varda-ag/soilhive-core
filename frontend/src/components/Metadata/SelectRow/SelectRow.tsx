@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { type SaveCallbacks } from 'hooks/useMetadata';
+import useNotifications from 'hooks/useNotifications';
 import styles from './SelectRow.module.scss';
 import { Button, Dropdown } from 'components/UI';
 import EditIcon from 'assets/icons/pencil-icon.svg?react';
@@ -27,6 +28,8 @@ export function SelectRow({
   const [isSaving, setIsSaving] = useState(false);
   const [editValue, setEditValue] = useState(value ?? '');
 
+  const { showNotification } = useNotifications();
+
   const handleSave = () => {
     setIsSaving(true);
     onSave(property, editValue, {
@@ -34,7 +37,15 @@ export function SelectRow({
         setIsEditing(false);
         setIsSaving(false);
       },
-      onError: () => setIsSaving(false),
+      onError: error => {
+        setIsSaving(false);
+        showNotification({
+          id: `${property}-save-error`,
+          title: 'Failed to save',
+          message: error.message,
+          type: 'error',
+        });
+      },
     });
   };
 

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { type SaveCallbacks } from 'hooks/useMetadata';
+import useNotifications from 'hooks/useNotifications';
 import styles from './NumberRow.module.scss';
 import { Button, TextInput } from 'components/UI';
 import EditIcon from 'assets/icons/pencil-icon.svg?react';
@@ -29,6 +30,8 @@ export function NumberRow({
   const [isSaving, setIsSaving] = useState(false);
   const [editValue, setEditValue] = useState(value?.toString() ?? '');
 
+  const { showNotification } = useNotifications();
+
   const handleSave = () => {
     setIsSaving(true);
     onSave(property, editValue, {
@@ -36,7 +39,15 @@ export function NumberRow({
         setIsEditing(false);
         setIsSaving(false);
       },
-      onError: () => setIsSaving(false),
+      onError: error => {
+        setIsSaving(false);
+        showNotification({
+          id: `${property}-save-error`,
+          title: 'Failed to save',
+          message: error.message,
+          type: 'error',
+        });
+      },
     });
   };
 

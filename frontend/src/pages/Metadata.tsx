@@ -235,6 +235,7 @@ export default function Metadata() {
             onSave={onSave}
             onCancel={onCancel}
           />
+          {/* `variables_measured` will always be present in inferredProperties in newly ingested datasets. So it will always be uneditable. */}
           <EditorRow
             label={t('fields.variables_measured')}
             value={dataset?.soilProperties?.join(', ')}
@@ -262,6 +263,7 @@ export default function Metadata() {
             onSave={onSave}
             onCancel={onCancel}
           />
+          {/* `gis_datatype` will always be present in inferredProperties in newly ingested datasets. So it will always be uneditable. */}
           <SelectRow
             label={t('fields.gis_datatype')}
             value={dataset?.gis_datatype}

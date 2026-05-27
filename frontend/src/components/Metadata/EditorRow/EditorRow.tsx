@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Editor, type EditorTextChangeEvent } from 'primereact/editor';
 import { type SaveCallbacks } from 'hooks/useMetadata';
+import useNotifications from 'hooks/useNotifications';
 import { EDITOR_HEADER } from 'configuration/editor';
 import styles from './EditorRow.module.scss';
 import { Button } from 'components/UI';
@@ -28,6 +29,8 @@ export function EditorRow({
   const [isSaving, setIsSaving] = useState(false);
   const [editValue, setEditValue] = useState(value ?? '');
 
+  const { showNotification } = useNotifications();
+
   const handleSave = () => {
     setIsSaving(true);
     onSave(property, editValue, {
@@ -35,7 +38,15 @@ export function EditorRow({
         setIsEditing(false);
         setIsSaving(false);
       },
-      onError: () => setIsSaving(false),
+      onError: error => {
+        setIsSaving(false);
+        showNotification({
+          id: `${property}-save-error`,
+          title: 'Failed to save',
+          message: error.message,
+          type: 'error',
+        });
+      },
     });
   };
 

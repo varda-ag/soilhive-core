@@ -26,7 +26,7 @@ export function useRequest<T = any>() {
 
         if (config.showErrorNotification !== false) {
           // Default: show notification
-          const message = err instanceof TypeError ? t('errors.network_error.message') : err.message;
+          const message = err instanceof TypeError ? t('errors.network_error.message') : String(err.message ?? '');
           const isTimeout = message.toLowerCase().includes('timeout');
           const type = isTimeout ? 'warning' : 'error';
           showNotification({

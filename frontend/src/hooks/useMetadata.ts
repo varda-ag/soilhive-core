@@ -6,7 +6,7 @@ import { useSoilProperties } from './useSoilProperties';
 import { useQueryClient } from '@tanstack/react-query';
 import { useUpdateDatasetMutation } from './useDatasetMutation';
 
-export type SaveCallbacks = { onSuccess: () => void; onError: () => void };
+export type SaveCallbacks = { onSuccess: () => void; onError: (error: Error) => void };
 
 function getOriginalValue(dataset: ReturnType<typeof useMetadata>['dataset'], property: string): string {
   if (!dataset) return '';
@@ -128,7 +128,7 @@ export function useMetadata(datasetId: string | undefined) {
           queryClient.invalidateQueries({ queryKey: ['dataset', datasetId] });
           callbacks.onSuccess();
         },
-        onError: () => callbacks.onError(),
+        onError: error => callbacks.onError(error),
       });
     },
     [dataset, datasetId, updateDataset, queryClient],

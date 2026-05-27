@@ -19,6 +19,7 @@ export function useUpdateDatasetMutation(id: string) {
   return useApiMutation<Dataset, Partial<Dataset>>({
     endpoint: `/datasets/${id}`,
     method: 'PATCH',
+    showErrorNotification: false,
   });
 }
 
@@ -47,5 +48,6 @@ export function useCreateLicenseMutation() {
   return useApiMutation<License, { name: string; full_name?: string; url?: string }>({
     endpoint: '/licenses',
     method: 'POST',
+    showErrorNotification: false,
   });
 }

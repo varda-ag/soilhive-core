@@ -74,7 +74,15 @@ export function LicenseRow({
                 setIsEditing(false);
                 setIsSaving(false);
               },
-              onError: () => setIsSaving(false),
+              onError: error => {
+                setIsSaving(false);
+                showNotification({
+                  id: 'license-save-error',
+                  title: 'Failed to save license',
+                  message: error.message,
+                  type: 'error',
+                });
+              },
             });
           },
           onError: error => {
@@ -95,7 +103,15 @@ export function LicenseRow({
           setIsEditing(false);
           setIsSaving(false);
         },
-        onError: () => setIsSaving(false),
+        onError: error => {
+          setIsSaving(false);
+          showNotification({
+            id: 'license-save-error',
+            title: 'Failed to save license',
+            message: error.message,
+            type: 'error',
+          });
+        },
       });
     }
   };
