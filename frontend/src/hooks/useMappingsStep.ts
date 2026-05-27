@@ -522,7 +522,10 @@ export function useMappingsStep(datasetId?: string) {
       );
     }
 
-    await queryClient.invalidateQueries({ queryKey: ['datasets', datasetId, 'mappings'] });
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['datasets', datasetId, 'mappings'] }),
+      queryClient.invalidateQueries({ queryKey: ['datasets', datasetId, 'dataset-file-mapping'] }),
+    ]);
   }, [
     columnMappings,
     procedureByColumn,
