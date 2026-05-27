@@ -21,6 +21,7 @@ export class CreateSchema1775600000000 implements MigrationInterface {
       `CREATE TYPE "vocabulary_category_enum" AS ENUM('sample_pretreatment', 'laboratory_method', 'extractant_concentration', 'extraction_ratio', 'extraction_base', 'measurement_procedure', 'limit_of_detection')`,
     );
     await queryRunner.query(`CREATE TYPE "visibility_enum" AS ENUM('public', 'private')`);
+    await queryRunner.query(`CREATE TYPE "unit_conversions_type_enum" AS ENUM('IDENTITY', 'SIMPLE', 'CONDITIONAL')`);
 
     // Functions
     /* eslint-disable */
@@ -245,7 +246,7 @@ export class CreateSchema1775600000000 implements MigrationInterface {
       `CREATE TABLE "layers" ("id" uuid NOT NULL DEFAULT uuidv7(), "license" uuid, "sampling_date" TEXT, "min_depth" integer, "max_depth" integer, "horizon" text, CONSTRAINT "PK_layers_id" PRIMARY KEY ("id"))`,
     );
     await queryRunner.query(
-      `CREATE TABLE "dataset_layers" ("id" uuid NOT NULL DEFAULT uuidv7(), "dataset_id" uuid NOT NULL, "layer_id" uuid NOT NULL, "feature_id" uuid NOT NULL, "soil_property_id" uuid NOT NULL, CONSTRAINT "UQ_dataset_layers_dataset_id_feature_id_layer_id_soil_property_id" UNIQUE ("dataset_id", "feature_id", "layer_id", "soil_property_id"), CONSTRAINT "PK_dataset_layers_id" PRIMARY KEY ("id"))`,
+      `CREATE TABLE "dataset_layers" ("id" uuid NOT NULL DEFAULT uuidv7(), "dataset_id" uuid NOT NULL, "layer_id" uuid NOT NULL, "feature_id" uuid NOT NULL, "soil_property_id" uuid NOT NULL, "datasets_feature_layer_hash" TEXT GENERATED ALWAYS AS (encode(sha256(("dataset_id"::text || "feature_id"::text || "layer_id"::text)::TEXT::BYTEA), 'hex')) STORED NOT NULL, CONSTRAINT "UQ_dataset_layers_dataset_id_feature_id_layer_id_soil_property_id" UNIQUE ("dataset_id", "feature_id", "layer_id", "soil_property_id"), CONSTRAINT "PK_dataset_layers_id" PRIMARY KEY ("id"))`,
     );
     await queryRunner.query(
       `CREATE TABLE "observations" ("id" uuid NOT NULL DEFAULT uuidv7(), "dataset_layer_id" uuid NOT NULL, "value" numeric NOT NULL, "procedure_id" uuid, CONSTRAINT "PK_observations_id" PRIMARY KEY ("id"))`,
@@ -283,7 +284,7 @@ export class CreateSchema1775600000000 implements MigrationInterface {
       `CREATE TABLE "entitlements" ("created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP, "deleted_at" TIMESTAMP, "id" text NOT NULL, "data" jsonb NOT NULL, CONSTRAINT "PK_entitlements_id" PRIMARY KEY ("id"))`,
     );
     await queryRunner.query(
-      `CREATE TABLE "unit_conversions" ("created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP, "id" uuid NOT NULL DEFAULT uuidv7(), "slug" text NOT NULL, "original_unit_of_measurement" text, "conversion_formula" text, "property_id" uuid NOT NULL, CONSTRAINT "UQ_unit_conversions_property_id_original_unit_of_measurement" UNIQUE ("property_id", "original_unit_of_measurement"), CONSTRAINT "PK_unit_conversions_id" PRIMARY KEY ("id"))`,
+      `CREATE TABLE "unit_conversions" ("created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP, "id" uuid NOT NULL DEFAULT uuidv7(), "slug" text NOT NULL, "original_unit_of_measurement" text, "conversion_formula" text, "property_id" uuid NOT NULL, "metadata" jsonb, "type" unit_conversions_type_enum NOT NULL DEFAULT 'IDENTITY'::unit_conversions_type_enum, CONSTRAINT "UQ_unit_conversions_property_id_original_unit_of_measurement" UNIQUE ("property_id", "original_unit_of_measurement"), CONSTRAINT "PK_unit_conversions_id" PRIMARY KEY ("id"))`,
     );
 
     // Indexes

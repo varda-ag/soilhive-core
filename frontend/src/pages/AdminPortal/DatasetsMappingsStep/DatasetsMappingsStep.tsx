@@ -4,6 +4,7 @@ import { Button, FormMessage } from 'components/UI';
 import { useMappingsStep } from 'hooks/useMappingsStep';
 import { MappingsBanner } from './MappingsBanner';
 import { MappingsTable } from './MappingsTable';
+import { MappingFieldsPane } from './MappingFieldsPane';
 import styles from './DatasetsMappingsStep.module.scss';
 
 export function DatasetsMappingsStep() {
@@ -11,6 +12,7 @@ export function DatasetsMappingsStep() {
   const { id } = useParams();
 
   const {
+    isImporting,
     geometryMessage,
     depthConflictMessage,
     isContinueEnabled,
@@ -29,6 +31,10 @@ export function DatasetsMappingsStep() {
     handleSaveAndContinueLater,
     handleContinue,
   } = useMappingsStep(id);
+
+  if (isImporting) {
+    return <MappingFieldsPane />;
+  }
 
   return (
     <>

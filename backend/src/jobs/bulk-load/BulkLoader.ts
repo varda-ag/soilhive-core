@@ -42,7 +42,7 @@ export async function processBulkLoad(job: Job<BulkLoadJob>): Promise<void> {
     const datasetFileMappings = await mappingService.getMappings(requestData, dataset.slug);
 
     // Process all pending files associated with this mapping
-    const files = await getPendingFilesWithMapping(entityManager, datasetFileMappings);
+    const files = await getStagedFilesWithMapping(entityManager, datasetFileMappings);
     for (const file of files) {
       const datasetFileMapping = datasetFileMappings.find(m => m.file_id === file.id);
       assert(datasetFileMapping, `No dataset file mapping found for file ${file.id}`);
@@ -74,9 +74,9 @@ export async function processBulkLoad(job: Job<BulkLoadJob>): Promise<void> {
   }
 }
 
-const getPendingFilesWithMapping = async (entityManager: EntityManager, mappings: DatasetFileMappingEntity[]): Promise<FileEntity[]> => {
+const getStagedFilesWithMapping = async (entityManager: EntityManager, mappings: DatasetFileMappingEntity[]): Promise<FileEntity[]> => {
   const repo = entityManager.getRepository(FileEntity);
-  const files = await repo.find({ where: { status: IngestionStatus.PENDING, id: In(mappings.map(m => m.file_id)) } });
+  const files = await repo.find({ where: { status: IngestionStatus.STAGED, id: In(mappings.map(m => m.file_id)) } });
   return files;
 };
 

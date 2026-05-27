@@ -288,6 +288,11 @@
             "geometry_detected": "Geometry was automatically detected. You don't need to map the geometry or lat/lon fields.",
             "geometry_not_detected": "No geometry was detected. You must map the geometry field or both latitude and longitude fields to continue.",
             "depth_conflict": "The 'depth' field cannot be used together with 'min depth' or 'max depth'. Please remove one of these mappings to continue.",
+            "importing": {
+                "title": "Mapping fields",
+                "description_1": "This operation may take a few minutes to complete.",
+                "description_2": "Please keep the page open while we finish processing your request."
+            },
             "details": {
                 "non_mandatory_note": "These fields are non mandatory",
                 "sample_pretreatment": "Sample pretreatment",
@@ -303,7 +308,24 @@
         "preview": {
             "step_title": "Preview",
             "step_description": "Review data",
-            "title": "Preview"
+            "title": "Preview",
+            "message": "This is the data you are going to load, make sure everything is correct, you can unselect the rows that are not consistent, they won't be loaded in the dataset.",
+            "show_original_name": "Show original name",
+            "loading": "Loading...",
+            "data_loading": {
+                "title": "Data loading started",
+                "description": "The system is loading your data, you can check the dataset status in the dataset table."
+            },
+            "columns": {
+                "lat": "Lat",
+                "long": "Long",
+                "min_depth": "Lower depth",
+                "max_depth": "Upper depth",
+                "sampling_date": "Sampling date",
+                "horizon": "Horizon",
+                "license": "License",
+                "delete": "Delete"
+            }
         },
         "quality_check": {
             "step_title": "Quality check",

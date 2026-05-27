@@ -7,6 +7,7 @@ export enum GISDataType {
 export enum IngestionStatus {
   PENDING = 'PENDING',
   ONGOING = 'ONGOING',
+  STAGED = 'STAGED',
   LOADED = 'LOADED',
   PUBLISHED = 'PUBLISHED',
   ARCHIVED = 'ARCHIVED',
@@ -38,4 +39,10 @@ export enum ProcedureTechnique {
   LAB_PROCEDURE = 'lab procedure',
   SPECTRAL = 'spectral',
   CALCULATED = 'calculated',
+}
+
+export enum UnitConversionType {
+  IDENTITY = 'IDENTITY',
+  SIMPLE = 'SIMPLE',
+  CONDITIONAL = 'CONDITIONAL',
 }

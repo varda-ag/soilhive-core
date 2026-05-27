@@ -1,7 +1,13 @@
 import { Request, Response, NextFunction } from 'express';
 import { getDataSource } from '../utils/data-source';
 
+const skip = ['/health', '/ready', '/docs', '/openapi.json'];
+
 export const transactionMiddleware = async (req: Request, res: Response, next: NextFunction) => {
+  if (skip.some(p => req.path.startsWith(p))) {
+    return next();
+  }
+
   const schema = process.env.POSTGRES_SCHEMA;
   const dataSource = await getDataSource();
   const queryRunner = dataSource.createQueryRunner();

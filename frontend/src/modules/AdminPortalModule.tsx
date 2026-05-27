@@ -18,6 +18,7 @@ import { DatasetsSoilDataStep } from '../pages/AdminPortal/DatasetsSoilDataStep/
 import { DatasetsMappingsStep } from '../pages/AdminPortal/DatasetsMappingsStep/DatasetsMappingsStep';
 import { DatasetsPreviewStep } from '../pages/AdminPortal/DatasetsPreviewStep/DatasetsPreviewStep';
 import { DatasetsSettingsPage } from '../pages/AdminPortal/DatasetsSettingsPage/DatasetsSettingsPage';
+import { DatasetsEditRedirect } from '../pages/AdminPortal/DatasetsEditRedirect';
 
 function DatasetsRoutes() {
   const { t } = useTranslation('admin');
@@ -45,7 +46,7 @@ function DatasetsRoutes() {
         />
       </Route>
       <Route path="/edit/:id" element={<DatasetsPublicationStepsLayout />}>
-        <Route index element={<Navigate to="general-info" replace />} />
+        <Route index element={<DatasetsEditRedirect />} />
         <Route
           path={'general-info'}
           element={

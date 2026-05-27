@@ -41,4 +41,11 @@ export default class DatasetLayerEntity extends BaseEntity {
   @ManyToOne(() => SoilPropertyEntity, soil_property => soil_property.id)
   @JoinColumn({ name: 'soil_property_id' })
   soil_property: SoilPropertyEntity;
+
+  @Column({
+    type: 'text',
+    generatedType: 'STORED',
+    asExpression: `encode(sha256(concat(dataset_id, feature_id, layer_id)::TEXT::BYTEA), 'hex')`,
+  })
+  datasets_feature_layer_hash: string;
 }

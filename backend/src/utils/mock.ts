@@ -14,12 +14,12 @@ import UnitConversionEntity from '../entities/UnitConversion';
 import { getPolygonFromBbox } from './geometry';
 import { getDataSource, getEntityManager } from './data-source';
 import SlugHistoryEntity from '../entities/SlugHistory';
-import { EntityType, GISDataType, IngestionStatus, VocabularyType } from '../types/data';
+import { EntityType, GISDataType, IngestionStatus, UnitConversionType, VocabularyType } from '../types/data';
 import { PropertyMapping } from '../interfaces/PropertyMapping';
 import assert from 'assert';
 import path from 'path';
 import fs from 'fs';
-import { sanitizeField } from './utils';
+import { getRawTableName } from './utils';
 import DatasetFileMappingEntity from '../entities/DatasetFileMapping';
 import VocabularyEntity from '../entities/Vocabulary';
 import { log } from './logger';
@@ -204,6 +204,7 @@ export const addUnitConversion = async (
   property_id: string,
   original_unit: string = 'test_unit',
   conversion_formula: string = 'x / 10',
+  type: UnitConversionType = UnitConversionType.SIMPLE,
 ): Promise<UnitConversionEntity> => {
   const dataSource = await getDataSource();
   const repo = dataSource.getRepository(UnitConversionEntity);
@@ -211,6 +212,7 @@ export const addUnitConversion = async (
     original_unit_of_measurement: original_unit,
     property_id,
     conversion_formula,
+    type,
   });
   await repo.save(unitConversion);
   return await repo.findOneByOrFail({ id: unitConversion.id });
@@ -444,6 +446,8 @@ export const addSyntheticIngestionData = async (syntheticIngestionDataOptions): 
   const category = await addCategory(`test_category_${id}`);
   await addLicense(`test_license_raw_data_${id}`);
   const file = await addFile(`test_file_${id}`);
+  file.status = IngestionStatus.STAGED;
+  await file.save();
   const createdDataMapping: object = {};
 
   for (const [field, mapping] of Object.entries(columnMapping)) {
@@ -482,7 +486,7 @@ export const addSyntheticIngestionData = async (syntheticIngestionDataOptions): 
     // Load raw data sample
     const sqlFile = path.join(__dirname, '..', '..', 'tests', 'assets', 'raw_data', 'raw_data_insert.sql');
     const sqlTemplate = fs.readFileSync(sqlFile, 'utf8');
-    let sql = sqlTemplate.replace(/{{table}}/g, `"file_${sanitizeField(file.id)}_raw"`);
+    let sql = sqlTemplate.replace(/{{table}}/g, getRawTableName(file.id));
     if (syntheticIngestionDataOptions.tableRows) {
       sql = sql.replace(/{{limit}}/g, syntheticIngestionDataOptions.tableRows);
     }

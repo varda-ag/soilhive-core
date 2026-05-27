@@ -478,6 +478,10 @@ export default class FileService {
     const fileEntity = await this.getFile(requestData, fileId);
     assert(fileEntity.file_path, `File path not found for file ${fileId}`);
     assert(fileEntity.metadata, `Metadata not found for file ${fileId}`);
+
+    const repo = requestData.entityManager.getRepository(FileEntity);
+    await repo.update(fileEntity.id, { status: IngestionStatus.ONGOING });
+
     const fileKey = fileEntity.file_path!;
     const fileMetadata = fileEntity.metadata!;
 
@@ -489,8 +493,6 @@ export default class FileService {
       '-f',
       'PostgreSQL',
       '-explodecollections',
-      '-t_srs',
-      'EPSG:4326',
       '-lco',
       'FID=record_id',
       '-lco',
@@ -548,8 +550,16 @@ export default class FileService {
         }
       }
 
-      const srs = `EPSG:${fileMetadata.epsg ?? 4326}`;
-      gdalOpts.push('-s_srs', srs);
+      if (fileMetadata.epsg && fileMetadata.epsg !== 4326) {
+        // Reproject from the declared non-WGS84 source CRS to WGS84.
+        gdalOpts.push('-s_srs', `EPSG:${fileMetadata.epsg}`);
+        gdalOpts.push('-t_srs', 'EPSG:4326');
+      } else {
+        // Source is WGS84 or CRS unknown (assumed WGS84): assign SRID without reprojecting.
+        // -a_srs avoids GDAL 3.10.x's PostgreSQL driver spurious coordinate shift that occurs
+        // when -s_srs EPSG:4326 is combined with -t_srs EPSG:4326 on a null-SRS CSV layer.
+        gdalOpts.push('-a_srs', 'EPSG:4326');
+      }
       // Open dataset with GDAL (if driver available, pass driver-specific open options)
       let dataset: gdal.Dataset;
       if (fileMetadata.driver) {
@@ -573,8 +583,11 @@ export default class FileService {
           ' ',
         );
       gdalOpts.unshift(layer.name);
+      await requestData.entityManager.query(`DROP TABLE IF EXISTS "${tableName}"`);
       await gdal.vectorTranslateAsync(pgDataset, dataset, gdalOpts);
       dataset.close();
+
+      await repo.update(fileEntity.id, { status: IngestionStatus.STAGED });
     } catch (error) {
       if (error instanceof ErrorResponse) {
         throw error;

@@ -9,6 +9,8 @@ import {
 } from '@opentelemetry/semantic-conventions';
 import { log } from '../utils/logger';
 
+const skip = ['/health', '/ready'];
+
 export const loggingMiddleware = (req: Request, res: Response, next: NextFunction): void => {
   const start = Date.now();
   res.on('finish', () => {
@@ -27,7 +29,9 @@ export const loggingMiddleware = (req: Request, res: Response, next: NextFunctio
     if (statusCode >= 400) {
       log.error(message, attrs);
     } else {
-      log.info(message, attrs);
+      if (!skip.includes(req.path)) {
+        log.info(message, attrs);
+      }
     }
   });
   next();

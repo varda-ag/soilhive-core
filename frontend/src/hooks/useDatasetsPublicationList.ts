@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router';
 
 import { useDatasets } from './useDatasets';
 import { useDeleteDatasetMutation } from './useDatasetMutation';
+import { useIngestionStatus } from './useIngestionStatus';
 import { queryClient } from '../App';
 import { ADMIN_PATHS } from '../configuration/admin';
 import type { DatasetsPublicationListItem } from 'types/datasetsPublication';
@@ -32,6 +33,7 @@ export function useDatasetsPublicationList(): DatasetsPublicationListType {
   const [selectedDataset, setSelectedDataset] = useState<DatasetsPublicationListItem | null>(null);
 
   const { mutateAsync: deleteDataset, isPending: isDeleting } = useDeleteDatasetMutation();
+  const { clearDatasetStatus } = useIngestionStatus();
 
   const onEdit = useCallback(
     (id: string) => {
@@ -54,10 +56,10 @@ export function useDatasetsPublicationList(): DatasetsPublicationListType {
     if (!selectedDataset) {
       return;
     }
-    await deleteDataset({ datasetId: selectedDataset.id });
+    await Promise.all([deleteDataset({ datasetId: selectedDataset.id }), clearDatasetStatus(selectedDataset.id)]);
     onDeleteModalClose();
     await queryClient.invalidateQueries({ queryKey: ['datasets'] });
-  }, [deleteDataset, onDeleteModalClose, selectedDataset]);
+  }, [deleteDataset, onDeleteModalClose, selectedDataset, clearDatasetStatus]);
 
   const onPublish = useCallback(
     (id: string) => {
