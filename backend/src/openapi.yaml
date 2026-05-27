@@ -2491,6 +2491,9 @@ components:
           description: Job type
         dataset_id:
           type: string
+        delete_source_files:
+          type: boolean
+          description: When true, deletes source files from storage after loading
 
     ExportJob:
       type: object

@@ -2,6 +2,7 @@ import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { useApiQuery } from './useApiQuery';
 import { useApiMutation } from './useApiMutation';
+import { useCreateJobMutation } from './useJobsApi';
 import type {
   DataMappingRequestWithDrop,
   DataMappingResponse,
@@ -176,6 +177,8 @@ export function useDatasetPreview(datasetId?: string) {
 
   const isLoading = isLoadingSoilProperties || isLoadingMappings || isLoadingFileMapping || isLoadingSoilData || isLoadingFiles;
 
+  const { mutateAsync: createJob } = useCreateJobMutation();
+
   const { mutateAsync: createMapping, isPending: isCreatingMapping } = useApiMutation<DataMappingResponse, DataMappingRequestWithDrop>({
     endpoint: '/mappings',
     method: 'POST',
@@ -209,8 +212,9 @@ export function useDatasetPreview(datasetId?: string) {
 
   const handleContinue = useCallback(async () => {
     await save();
+    await createJob({ type: 'bulk-load', dataset_id: datasetId!, delete_source_files: true });
     setShowLoadingPanel(true);
-  }, [save]);
+  }, [save, createJob, datasetId]);
 
   const navigateToDatasets = useCallback(() => {
     navigate(ADMIN_PATHS.DATASETS);

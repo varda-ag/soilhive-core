@@ -96,6 +96,9 @@ export default class VectorDataLoad {
       metadataCols.push(mappedData);
     }
 
+    // TODO: remove after horizon has been restored
+    if (metadataCols.indexOf('horizon') === -1) metadataCols.push('horizon');
+
     const layer = await entityManager
       .createQueryBuilder()
       .insert()
