@@ -16,7 +16,6 @@ import InfoIcon from 'assets/icons/info-icon.svg?react';
 import { EditorRow } from 'components/Metadata/EditorRow/EditorRow';
 import { LicenseRow } from 'components/Metadata/LicenseRow/LicenseRow';
 import { NumberRow } from 'components/Metadata/NumberRow/NumberRow';
-import { SelectRow } from 'components/Metadata/SelectRow/SelectRow';
 
 const GIS_DATATYPE_OPTIONS = [
   { code: 'point', name: 'Point' },
@@ -275,13 +274,12 @@ export default function Metadata() {
             onSave={onSave}
             onCancel={onCancel}
           />
-          {/* `gis_datatype` will always be present in inferredProperties in newly ingested datasets. So it will always be uneditable. */}
-          <SelectRow
+          <EditorRow
             label={t('fields.gis_datatype')}
-            value={dataset?.gis_datatype}
-            options={GIS_DATATYPE_OPTIONS}
-            isEditable={isAdmin && !inferredProperties.has('gis_datatype') && !isEditing}
+            value={GIS_DATATYPE_OPTIONS.find(o => o.code === dataset?.gis_datatype)?.name ?? dataset?.gis_datatype}
+            isEditable={false}
             property="gis_datatype"
+            variant="text"
             onStartEditing={onStartEditing}
             onSave={onSave}
             onCancel={onCancel}
