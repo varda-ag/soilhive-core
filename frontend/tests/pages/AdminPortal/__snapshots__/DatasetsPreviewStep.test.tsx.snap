@@ -1,22 +1,134 @@
 // Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
 
-exports[`DatasetsPreviewStep renders matches snapshot 1`] = `
+exports[`DatasetsPreviewStep matches snapshot 1`] = `
 <div>
   <div
     class="DatasetsPreviewStep"
   >
-    <h2>
+    <h2
+      class="Title"
+    >
       Preview
     </h2>
-    <p>
-      Dataset id: 
+    <p
+      class="Message"
+    >
+      This is the data you are going to load, make sure everything is correct, you can unselect the rows that are not consistent, they won't be loaded in the dataset.
     </p>
+    <div
+      class="TableFilters"
+    >
+      <div
+        class="Left"
+      >
+        <label
+          class="ToggleButton Medium"
+        >
+          <input
+            class="ToggleCheckbox"
+            type="checkbox"
+          />
+          <span
+            class="ToggleSlider"
+          />
+        </label>
+        Show original name
+      </div>
+      <div
+        class="Right"
+      >
+        <select
+          data-testid="file-dropdown"
+        />
+        <div
+          data-disabled="false"
+          data-testid="column-multiselect"
+        >
+          <button
+            data-testid="col-option-min_depth"
+          >
+            Lower depth
+          </button>
+          <button
+            data-testid="col-option-max_depth"
+          >
+            Upper depth
+          </button>
+          <button
+            data-testid="col-option-ph"
+          >
+            ph
+          </button>
+        </div>
+      </div>
+    </div>
+    <div
+      data-testid="mock-table"
+    >
+      <div
+        data-testid="table-columns"
+      >
+        <div
+          data-testid="table-col-min_depth"
+        >
+          <p
+            class="ColumnName"
+          >
+            Lower depth
+          </p>
+        </div>
+        <div
+          data-testid="table-col-max_depth"
+        >
+          <p
+            class="ColumnName"
+          >
+            Upper depth
+          </p>
+        </div>
+        <div
+          data-testid="table-col-ph"
+        >
+          <p
+            class="ColumnName"
+          >
+            ph
+          </p>
+        </div>
+        <div
+          data-testid="table-col-delete"
+        >
+          Delete
+        </div>
+      </div>
+    </div>
+  </div>
+  <div
+    class="Actions"
+  >
     <button
       class="Button Secondary Small"
       data-testid="sh-preview-previous"
       type="button"
     >
       Previous
+    </button>
+    <div
+      class="ActionsSpacer"
+    />
+    <button
+      class="Button Secondary Small"
+      data-testid="sh-preview-save-later"
+      type="button"
+    >
+      Save and continue later
+    </button>
+    <button
+      class="Button Primary Small"
+      data-testid="sh-preview-continue"
+      type="button"
+    >
+      Continue
     </button>
   </div>
 </div>
