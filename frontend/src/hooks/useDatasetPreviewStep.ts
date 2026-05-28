@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router';
+import { useQueryClient } from '@tanstack/react-query';
 import { useApiQuery } from './useApiQuery';
 import { useApiMutation } from './useApiMutation';
 import { useCreateJobMutation } from './useJobsApi';
@@ -19,6 +20,16 @@ export const SOIL_DATA_LIMIT = 12;
 
 export function useDatasetPreview(datasetId?: string) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    return () => {
+      queryClient.invalidateQueries({ queryKey: ['datasets', datasetId, 'mappings'] });
+      queryClient.invalidateQueries({ queryKey: ['datasets', datasetId, 'dataset-file-mapping'] });
+      queryClient.invalidateQueries({ queryKey: ['datasets', datasetId, 'files'] });
+    };
+  }, [queryClient, datasetId]);
+
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [selectedMapping, setSelectedMapping] = useState<DatasetFileMappingResponse | null>(null);
 
