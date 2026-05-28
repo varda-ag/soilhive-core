@@ -561,8 +561,6 @@ export interface SyntheticRasterDataset {
 export const addRasterData = async (
   tifPath?: string,
   options?: {
-    out?: string;
-    outDir?: string;
     dataset?: string;
     soilProperty?: string;
     soilPropertyCategory?: string;
@@ -575,13 +573,8 @@ export const addRasterData = async (
   },
 ): Promise<RasterLayerEntity> => {
   const input = tifPath ?? path.join(__dirname, '../../tests/assets/raster/sol_ph.h2o_usda.4c1a2a_m_250m_b0..0cm_1950..2017_v0.2_250.tif');
-  const out = options?.out ?? `test_raster_${Date.now()}_cog.tif`;
-
-  const outDir = options?.outDir ?? process.env.LOCAL_STORAGE_ROOT_FOLDER;
   const outName = await ingestRaster({
     input: path.resolve(input),
-    out,
-    ...(outDir !== undefined ? { outDir } : {}),
     dataset: options?.dataset ?? 'test-ds',
     soilProperty: options?.soilProperty ?? 'Organic Carbon Stock',
     soilPropertyCategory: options?.soilPropertyCategory ?? 'Chemical',

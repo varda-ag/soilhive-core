@@ -1346,6 +1346,5 @@ const spatialFilter = async (entityManager: EntityManager, geojsonStr: string, c
     .addSelect('rl.resolution_m', 'resolution_m')
     .where('rl.id IN (:...candidateLayers)', { candidateLayers })
     .andWhere('ST_Intersects(rf.geom, (SELECT geom FROM aoi))')
-    .distinct(true)
     .getRawMany();
 };

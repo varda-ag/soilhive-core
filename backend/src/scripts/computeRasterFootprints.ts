@@ -1,5 +1,6 @@
 import * as gdal from 'gdal-async';
 import type { MultiPolygon, Polygon } from 'geojson';
+import FileService from '../services/FileService';
 
 const MAX_TILES = 256 * 256;
 const MIN_TILES = 256;
@@ -60,7 +61,8 @@ function selectOverview(
 }
 
 export async function analyzeRasterMeta(cogPath: string, nodataOverride?: number): Promise<RasterFootprintMeta> {
-  const ds = await gdal.openAsync(cogPath);
+  const { mainFilePath } = await FileService.getMainFilePath(cogPath);
+  const ds = await gdal.openAsync(mainFilePath);
   try {
     const gt = ds.geoTransform;
     if (!gt) throw new Error('Raster has no geoTransform');
@@ -104,7 +106,8 @@ export async function streamRasterFootprints(
   nodataOverride: number | undefined,
   onBatch: FootprintBatchCallback,
 ): Promise<void> {
-  const ds = await gdal.openAsync(cogPath);
+  const { mainFilePath } = await FileService.getMainFilePath(cogPath);
+  const ds = await gdal.openAsync(mainFilePath);
   try {
     const gt = ds.geoTransform;
     if (!gt) throw new Error('Raster has no geoTransform');

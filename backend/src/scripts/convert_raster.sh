@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# ingest_raster.sh — Convert a GeoTIFF to Cloud Optimized GeoTIFF (COG) and
+# convert_raster.sh — Convert a GeoTIFF to Cloud Optimized GeoTIFF (COG) and
 # print the output path to stdout.  All other steps (metadata extraction,
 # footprint computation, DB insert) are handled by the TypeScript ingest service.
 #
 # Usage:
-#   ./scripts/ingest_raster.sh [OPTIONS] <input.tif>
+#   ./scripts/convert_raster.sh [OPTIONS] <input.tif>
 #
 # Options:
 #   -o, --out         Output COG filename (default: <basename(input)>_cog.tif)

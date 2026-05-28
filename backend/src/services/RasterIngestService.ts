@@ -1,43 +1,32 @@
-import { spawn } from 'child_process';
 import path from 'path';
+import gdal from 'gdal-async';
 import { analyzeRasterMeta, streamRasterFootprints } from '../scripts/computeRasterFootprints';
 import { getEntityManager } from '../utils/data-source';
 import { log } from '../utils/logger';
 import { MultiPolygon } from 'geojson';
+import FileService from './FileService';
 
 export interface IngestRasterOptions {
   input: string;
-  out?: string;
-  outDir?: string;
   nodata?: number;
   dataset: string;
   soilProperty: string;
   soilPropertyCategory: string;
-  resampling?: string;
 }
 
-const SCRIPT = path.resolve(__dirname, '../../src/scripts/ingest_raster.sh');
-
-function runCogConversion(opts: IngestRasterOptions): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const args: string[] = [opts.input];
-    if (opts.out) args.push('--out', opts.out);
-    if (opts.outDir) args.push('--out-dir', opts.outDir);
-    if (opts.resampling) args.push('--resampling', opts.resampling);
-
-    const proc = spawn('bash', [SCRIPT, ...args], { stdio: ['ignore', 'pipe', 'inherit'] });
-    let stdout = '';
-    proc.stdout.on('data', (chunk: Buffer) => {
-      stdout += chunk.toString();
-    });
-    proc.on('error', reject);
-    proc.on('close', code => {
-      if (code !== 0) return reject(new Error(`ingest_raster.sh exited with code ${code}`));
-      const cogPath = stdout.trim().split('\n').at(-1)?.trim() ?? '';
-      if (!cogPath) return reject(new Error('ingest_raster.sh produced no output'));
-      resolve(cogPath);
-    });
-  });
+async function assertIsCog(filePath: string): Promise<void> {
+  const { mainFilePath } = await FileService.getMainFilePath(filePath);
+  const ds = await gdal.openAsync(mainFilePath);
+  try {
+    const meta = ds.getMetadata('') as Record<string, string>;
+    const band = ds.bands.get(1);
+    const isCog = meta['LAYOUT'] === 'COG' || (band.blockSize.x >= 256 && band.overviews.count() > 0);
+    if (!isCog) {
+      throw new Error(`Input is not a Cloud Optimized GeoTIFF: ${filePath}. Convert it first with convert_raster.sh.`);
+    }
+  } finally {
+    ds.close();
+  }
 }
 
 async function insertFootprintBatch(
@@ -47,22 +36,14 @@ async function insertFootprintBatch(
 ): Promise<void> {
   const geomJsons = batch.map(fp => JSON.stringify(fp));
   await em.query(`SET search_path TO ${process.env.POSTGRES_SCHEMA}, public`);
-  // Two separate statements: PostgreSQL CTE snapshot isolation means rows inserted
-  // in fp_ins would not be visible to the outer SELECT within the same statement.
   await em.query(
-    `INSERT INTO raster_footprints (geom)
+    `WITH fp_ins AS (INSERT INTO raster_footprints (geom)
      SELECT ST_SetSRID(ST_GeomFromGeoJSON(v), 4326)
      FROM unnest($1::text[]) AS v
-     ON CONFLICT (geom_hash) DO NOTHING`,
-    [geomJsons],
-  );
-  await em.query(
-    `INSERT INTO raster_layer_footprints (raster_layer_id, raster_footprint_id)
-     SELECT $2, rf.id
-     FROM unnest($1::text[]) AS v
-     JOIN raster_footprints rf
-       ON rf.geom_hash = encode(sha256(ST_SetSRID(ST_GeomFromGeoJSON(v), 4326)::TEXT::BYTEA), 'hex')
-     ON CONFLICT DO NOTHING`,
+     ON CONFLICT (geom_hash) DO UPDATE SET id = raster_footprints.id
+     RETURNING id)
+     INSERT INTO raster_layer_footprints (raster_layer_id, raster_footprint_id)
+     SELECT $2, id FROM fp_ins;`,
     [geomJsons, rasterLayerId],
   );
 }
@@ -70,7 +51,8 @@ async function insertFootprintBatch(
 export async function ingestRaster(opts: IngestRasterOptions): Promise<string> {
   log.info('Starting raster ingest', { input: opts.input });
 
-  const cogPath = await runCogConversion(opts);
+  await assertIsCog(opts.input);
+  const cogPath = opts.input;
   log.info('COG ready', { cogPath });
 
   // Phase 1: read file header only — needed before inserting raster_layer to get resolution/bbox.
