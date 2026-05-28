@@ -54,7 +54,6 @@ export function AdminSidebar() {
           disabled: false,
           showMarker: !hasTextContent(themeConfig.termsAndConditionsHtml),
         },
-        { url: ADMIN_PATHS.NOTIFICATION_BANNER, title: 'notification_banner', Icon: MegaphoneHollowIcon, disabled: false },
         {
           url: ADMIN_PATHS.PRIVACY_POLICY,
           title: 'privacy_policy',
@@ -62,6 +61,7 @@ export function AdminSidebar() {
           disabled: false,
           showMarker: !hasTextContent(themeConfig.privacyPolicyHtml),
         },
+        { url: ADMIN_PATHS.NOTIFICATION_BANNER, title: 'notification_banner', Icon: MegaphoneHollowIcon, disabled: false },
         { url: ADMIN_PATHS.MAP, title: 'map_settings', Icon: MapPinIcon, disabled: false },
         { url: ADMIN_PATHS.LOOK_AND_FEEL, title: 'look_and_feel', Icon: ImageIcon, disabled: false },
       ],
