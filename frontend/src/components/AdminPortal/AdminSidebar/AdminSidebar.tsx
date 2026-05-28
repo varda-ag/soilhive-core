@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState, type FunctionComponent, type SVGProps } from 'react';
 import { NavLink, useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import classnames from 'classnames';
@@ -16,21 +16,24 @@ import { useAuthContext } from '../../../auth/AuthContextProvider';
 import { ADMIN_PORTAL_DATA_MENU, ADMIN_PORTAL_UI_MENU, useEntitlements } from 'hooks/useEntitlementsHook';
 
 import styles from './AdminSidebar.module.scss';
+import { hasTextContent } from '../../../utilities/validation';
+import useTheme from 'hooks/useTheme';
 
-const UI_SECTION = {
-  title: 'user_interface',
-  items: [
-    { url: ADMIN_PATHS.TERMS_AND_CONDITIONS, title: 'terms_and_conditions', Icon: AwardIcon, disabled: false },
-    { url: ADMIN_PATHS.NOTIFICATION_BANNER, title: 'notification_banner', Icon: MegaphoneHollowIcon, disabled: false },
-    { url: ADMIN_PATHS.PRIVACY_POLICY, title: 'privacy_policy', Icon: LockIcon, disabled: false },
-    { url: ADMIN_PATHS.MAP, title: 'map_settings', Icon: MapPinIcon, disabled: false },
-    { url: ADMIN_PATHS.LOOK_AND_FEEL, title: 'look_and_feel', Icon: ImageIcon, disabled: false },
-  ],
+type AdminMenuNavConfig = {
+  title: string;
+  items: {
+    url: string;
+    title: string;
+    Icon: FunctionComponent<SVGProps<SVGSVGElement>>;
+    disabled: boolean;
+    showMarker?: boolean;
+  }[];
 };
 
 export function AdminSidebar() {
   const { t } = useTranslation('admin');
   const { can } = useEntitlements();
+  const { themeConfig } = useTheme();
   const { logout } = useAuthContext();
   const navigate = useNavigate();
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -40,7 +43,33 @@ export function AdminSidebar() {
     navigate('/');
   }, [logout, navigate]);
 
-  const dataSection = useMemo(() => {
+  const UI_SECTION: AdminMenuNavConfig = useMemo(
+    () => ({
+      title: 'user_interface',
+      items: [
+        {
+          url: ADMIN_PATHS.TERMS_AND_CONDITIONS,
+          title: 'terms_and_conditions',
+          Icon: AwardIcon,
+          disabled: false,
+          showMarker: !hasTextContent(themeConfig.termsAndConditionsHtml),
+        },
+        { url: ADMIN_PATHS.NOTIFICATION_BANNER, title: 'notification_banner', Icon: MegaphoneHollowIcon, disabled: false },
+        {
+          url: ADMIN_PATHS.PRIVACY_POLICY,
+          title: 'privacy_policy',
+          Icon: LockIcon,
+          disabled: false,
+          showMarker: !hasTextContent(themeConfig.privacyPolicyHtml),
+        },
+        { url: ADMIN_PATHS.MAP, title: 'map_settings', Icon: MapPinIcon, disabled: false },
+        { url: ADMIN_PATHS.LOOK_AND_FEEL, title: 'look_and_feel', Icon: ImageIcon, disabled: false },
+      ],
+    }),
+    [themeConfig.privacyPolicyHtml, themeConfig.termsAndConditionsHtml],
+  );
+
+  const dataSection = useMemo((): AdminMenuNavConfig => {
     return {
       title: 'data',
       items: [
@@ -55,12 +84,12 @@ export function AdminSidebar() {
     };
   }, []);
 
-  const navConfig = useMemo(() => {
-    const sections = [];
+  const navConfig = useMemo((): AdminMenuNavConfig[] => {
+    const sections: AdminMenuNavConfig[] = [];
     if (can(ADMIN_PORTAL_UI_MENU)) sections.push(UI_SECTION);
     if (can(ADMIN_PORTAL_DATA_MENU)) sections.push(dataSection);
     return sections;
-  }, [can, dataSection]);
+  }, [UI_SECTION, can, dataSection]);
 
   return (
     <aside
@@ -78,7 +107,7 @@ export function AdminSidebar() {
             <div key={title} className={styles.LinksSection}>
               <h3 className={styles.LinksSectionTitle}>{t(`sidebar.sections.${title}`)}</h3>
               <nav data-testid={`sh-admin-sidebarlinks-${title}`} className={styles.Links}>
-                {items.map(({ url, Icon, title, disabled }) => {
+                {items.map(({ url, Icon, title, disabled, showMarker }) => {
                   return (
                     <NavLink
                       data-testid="sh-admin-sidebarlink"
@@ -89,10 +118,13 @@ export function AdminSidebar() {
                         classnames(styles.Link, {
                           [styles.Active]: isActive,
                           [styles.NavLinkDisabled]: disabled,
+                          [styles.Marked]: showMarker,
                         })
                       }
                     >
-                      <Icon className={styles.LinkIcon} />
+                      <span className={styles.LinkWrapper}>
+                        <Icon className={styles.LinkIcon} />
+                      </span>
                       {!isCollapsed && <span className={styles.LinkTitle}>{t(`sidebar.menu.${title}`)}</span>}
                     </NavLink>
                   );

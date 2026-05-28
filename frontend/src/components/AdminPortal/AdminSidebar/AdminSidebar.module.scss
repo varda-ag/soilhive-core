@@ -76,6 +76,24 @@
               pointer-events: none;
             }
 
+            &.Marked {
+              .LinkWrapper {
+                position: relative;
+
+                &:after {
+                  content: '';
+                  display: block;
+                  width: 0.5rem;
+                  height: 0.5rem;
+                  border-radius: 50%;
+                  background-color: var(--color-pills);
+                  position: absolute;
+                  top: 0;
+                  right: -4px;
+                }
+              }
+            }
+
             &:not(.Active) {
               &:active > * {
                 color: inherit;
@@ -92,6 +110,11 @@
               background: var(--color-bg-secondary);
               color: var(--color-cta-default-solid);
               font-weight: 700;
+            }
+
+            .LinkWrapper {
+              display: flex;
+              align-items: center;
             }
           }
         }
