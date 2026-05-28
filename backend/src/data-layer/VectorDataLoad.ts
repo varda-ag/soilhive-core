@@ -198,6 +198,7 @@ const getDataPreviewQuery = (query: any, dataMappingConfig: DataCleaningConfig, 
     const dir = isDesc ? 'DESC' : 'ASC';
     const sortExpr = buildSortExpr(sortKey, dataMappingConfig);
     query.orderBy(sortExpr, dir);
+    query.addOrderBy('raw.record_id', dir);
     // Hidden column carrying the sort expression value for cursor encoding.
     // Uses the raw expression without the CASE/min-max wrapper so the cursor
     // value is always non-NULL even when the visible SELECT output is NULL.
