@@ -1,0 +1,189 @@
+import { render, screen, fireEvent } from '@testing-library/react';
+import { EditorRow } from 'components/Metadata/EditorRow/EditorRow';
+import useNotifications from 'hooks/useNotifications';
+
+jest.mock('primereact/editor', () => ({
+  Editor: ({ value, onTextChange, placeholder }: any) => (
+    <textarea
+      data-testid="mock-editor"
+      value={value ?? ''}
+      placeholder={placeholder}
+      onChange={(e: any) => onTextChange({ htmlValue: e.target.value })}
+    />
+  ),
+}));
+
+jest.mock('hooks/useNotifications', () => ({
+  __esModule: true,
+  default: jest.fn(),
+}));
+
+jest.mock('configuration/editor', () => ({
+  EDITOR_HEADER: null,
+}));
+
+const mockShowNotification = jest.fn();
+
+const defaultProps = {
+  label: 'Name',
+  value: 'Test Value',
+  isEditable: false,
+  property: 'name',
+  onStartEditing: jest.fn(),
+  onSave: jest.fn(),
+  onCancel: jest.fn(),
+};
+
+describe('EditorRow', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (useNotifications as jest.Mock).mockReturnValue({ showNotification: mockShowNotification });
+  });
+
+  describe('display mode – text variant', () => {
+    it('renders label and value', () => {
+      render(<EditorRow {...defaultProps} variant="text" />);
+      expect(screen.getByText('Name')).toBeInTheDocument();
+      expect(screen.getByText('Test Value')).toBeInTheDocument();
+    });
+
+    it('does not show edit button when isEditable=false', () => {
+      render(<EditorRow {...defaultProps} variant="text" isEditable={false} />);
+      expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument();
+    });
+
+    it('shows edit button when isEditable=true', () => {
+      render(<EditorRow {...defaultProps} variant="text" isEditable={true} />);
+      expect(screen.getByRole('button', { name: 'Edit' })).toBeInTheDocument();
+    });
+
+    it('renders nothing for value when value is null', () => {
+      render(<EditorRow {...defaultProps} variant="text" value={null} />);
+      expect(screen.queryByText('Test Value')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('display mode – editor variant', () => {
+    it('renders label and HTML value via htmlDisplay', () => {
+      render(<EditorRow {...defaultProps} variant="editor" value="<p>Hello World</p>" />);
+      expect(screen.getByText('Name')).toBeInTheDocument();
+      expect(screen.getByText('Hello World')).toBeInTheDocument();
+    });
+
+    it('does not show edit button when isEditable=false', () => {
+      render(<EditorRow {...defaultProps} variant="editor" isEditable={false} />);
+      expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument();
+    });
+  });
+
+  describe('entering edit mode', () => {
+    it('clicking Edit calls onStartEditing and shows text input (text variant)', () => {
+      const onStartEditing = jest.fn();
+      render(<EditorRow {...defaultProps} variant="text" isEditable={true} onStartEditing={onStartEditing} />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+
+      expect(onStartEditing).toHaveBeenCalledWith('name');
+      expect(screen.getByTestId('sh-ui-textinputfield')).toBeInTheDocument();
+    });
+
+    it('text input starts with current value', () => {
+      render(<EditorRow {...defaultProps} variant="text" isEditable={true} value="Initial" />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+
+      expect(screen.getByTestId('sh-ui-textinputfield')).toHaveValue('Initial');
+    });
+
+    it('clicking Edit calls onStartEditing and shows editor (editor variant)', () => {
+      const onStartEditing = jest.fn();
+      render(<EditorRow {...defaultProps} variant="editor" isEditable={true} onStartEditing={onStartEditing} />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+
+      expect(onStartEditing).toHaveBeenCalledWith('name');
+      expect(screen.getByTestId('mock-editor')).toBeInTheDocument();
+    });
+  });
+
+  describe('save flow', () => {
+    it('clicking Save calls onSave with property, new value, and callbacks', () => {
+      const onSave = jest.fn();
+      render(<EditorRow {...defaultProps} variant="text" isEditable={true} onSave={onSave} />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+      fireEvent.change(screen.getByTestId('sh-ui-textinputfield'), { target: { value: 'New Value' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+      expect(onSave).toHaveBeenCalledWith(
+        'name',
+        'New Value',
+        expect.objectContaining({ onSuccess: expect.any(Function), onError: expect.any(Function) }),
+      );
+    });
+
+    it('onSuccess exits editing mode', () => {
+      const onSave = jest.fn((_property: string, _value: string, { onSuccess }: any) => onSuccess());
+      render(<EditorRow {...defaultProps} variant="text" isEditable={true} onSave={onSave} />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+      expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Edit' })).toBeInTheDocument();
+    });
+
+    it('onError shows notification and stays in editing mode', () => {
+      const error = new Error('Server error');
+      const onSave = jest.fn((_property: string, _value: string, { onError }: any) => onError(error));
+      render(<EditorRow {...defaultProps} variant="text" isEditable={true} onSave={onSave} />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+      expect(mockShowNotification).toHaveBeenCalledWith(expect.objectContaining({ type: 'error', message: 'Server error' }));
+      expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument();
+    });
+
+    it('shows "Saving…" and disables buttons while save is in flight', () => {
+      const onSave = jest.fn(); // never calls callbacks — simulates pending request
+      render(<EditorRow {...defaultProps} variant="text" isEditable={true} onSave={onSave} />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+      expect(screen.getByText('Saving…')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled();
+    });
+  });
+
+  describe('cancel flow', () => {
+    it('clicking Cancel calls onCancel and exits editing mode', () => {
+      const onCancel = jest.fn();
+      render(<EditorRow {...defaultProps} variant="text" isEditable={true} onCancel={onCancel} />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+      expect(onCancel).toHaveBeenCalledWith('name');
+      expect(screen.queryByRole('button', { name: 'Cancel' })).not.toBeInTheDocument();
+    });
+
+    it('Cancel resets editValue to original prop value', () => {
+      render(<EditorRow {...defaultProps} variant="text" isEditable={true} value="Original" />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+      fireEvent.change(screen.getByTestId('sh-ui-textinputfield'), { target: { value: 'Changed' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+      // Re-enter editing to confirm value was reset
+      fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+      expect(screen.getByTestId('sh-ui-textinputfield')).toHaveValue('Original');
+    });
+  });
+
+  it('matches snapshot in display mode with edit button', () => {
+    const { container } = render(<EditorRow {...defaultProps} variant="text" isEditable={true} />);
+    expect(container).toMatchSnapshot();
+  });
+});

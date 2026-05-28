@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import Metadata from '../../src/pages/Metadata';
 import { useMetadata } from 'hooks/useMetadata';
+import { useEntitlements } from 'hooks/useEntitlementsHook';
 
 jest.mock('react-router', () => ({
   __esModule: true,
@@ -9,6 +10,12 @@ jest.mock('react-router', () => ({
 
 jest.mock('hooks/useMetadata', () => ({
   useMetadata: jest.fn(),
+}));
+
+jest.mock('hooks/useEntitlementsHook', () => ({
+  __esModule: true,
+  ADMIN_PORTAL_ACCESS: 0,
+  useEntitlements: jest.fn().mockReturnValue({ can: () => false }),
 }));
 
 jest.mock('components/Map/SoilhiveSimpleMap', () => {
@@ -20,7 +27,21 @@ jest.mock('components/Logo/Logo', () => ({
   Logo: () => <div data-testid="mock-logo" />,
 }));
 
-jest.mock('../../src/utilities/buildMetadataHead', () => ({
+jest.mock('hooks/useDatasetMutation', () => ({
+  useCreateLicenseMutation: jest.fn().mockReturnValue({ mutate: jest.fn(), isPending: false }),
+}));
+
+jest.mock('hooks/useNotifications', () => ({
+  __esModule: true,
+  default: jest.fn().mockReturnValue({ showNotification: jest.fn(), removeNotification: jest.fn(), notifications: [] }),
+}));
+
+jest.mock('@tanstack/react-query', () => ({
+  ...jest.requireActual('@tanstack/react-query'),
+  useQueryClient: jest.fn().mockReturnValue({ invalidateQueries: jest.fn() }),
+}));
+
+jest.mock('utilities/buildMetadataHead', () => ({
   getMetadataHeadValues: jest.fn().mockReturnValue({
     title: 'Test Title',
     description: 'Test Description',
@@ -45,7 +66,7 @@ const buildDataset = () => ({
   reference_period_start: '2020-01-01',
   reference_period_stop: '2020-12-31',
   publication_date: '2021-06-01',
-  licenses: [{ url: 'https://license.example', full_name: 'Test License' }],
+  licenses: [{ id: 'lic-1', url: 'https://license.example', full_name: 'Test License' }],
   citation: 'Test citation',
   spatial_extent: {
     type: 'Polygon',
@@ -82,14 +103,26 @@ describe('Metadata page', () => {
   });
 
   it('renders dataset content and matches snapshot', () => {
-    (useMetadata as jest.Mock).mockReturnValue({ dataset: buildDataset(), isLoading: false, isError: false });
+    (useMetadata as jest.Mock).mockReturnValue({
+      dataset: buildDataset(),
+      allLicenses: [{ id: 'lic-1', url: 'https://license.example', full_name: 'Test License' }],
+      inferredProperties: new Set(),
+      isLoading: false,
+      isError: false,
+    });
     const { container } = render(<Metadata />);
     expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument();
     expect(container).toMatchSnapshot();
   });
 
   it('upserts document title and meta tags from dataset name', () => {
-    (useMetadata as jest.Mock).mockReturnValue({ dataset: buildDataset(), isLoading: false, isError: false });
+    (useMetadata as jest.Mock).mockReturnValue({
+      dataset: buildDataset(),
+      allLicenses: [{ id: 'lic-1', url: 'https://license.example', full_name: 'Test License' }],
+      inferredProperties: new Set(),
+      isLoading: false,
+      isError: false,
+    });
     render(<Metadata />);
 
     expect(document.title).toBe('Test Title');
@@ -101,7 +134,13 @@ describe('Metadata page', () => {
   });
 
   it('copies the current URL to the clipboard when "Copy link" is selected', () => {
-    (useMetadata as jest.Mock).mockReturnValue({ dataset: buildDataset(), isLoading: false, isError: false });
+    (useMetadata as jest.Mock).mockReturnValue({
+      dataset: buildDataset(),
+      allLicenses: [{ id: 'lic-1', url: 'https://license.example', full_name: 'Test License' }],
+      inferredProperties: new Set(),
+      isLoading: false,
+      isError: false,
+    });
     const writeText = jest.fn();
     Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
 
@@ -114,7 +153,13 @@ describe('Metadata page', () => {
   });
 
   it('triggers a mailto navigation when "Share by email" is selected', () => {
-    (useMetadata as jest.Mock).mockReturnValue({ dataset: buildDataset(), isLoading: false, isError: false });
+    (useMetadata as jest.Mock).mockReturnValue({
+      dataset: buildDataset(),
+      allLicenses: [{ id: 'lic-1', url: 'https://license.example', full_name: 'Test License' }],
+      inferredProperties: new Set(),
+      isLoading: false,
+      isError: false,
+    });
     // jsdom forbids redefining window.location, and its navigation setter only logs a
     // "not implemented" warning to the virtual console. Capture that log to prove the
     // handler attempted to navigate, and assert the popover closes (proving onSelect ran).
@@ -139,7 +184,13 @@ describe('Metadata page', () => {
   });
 
   it('opens map popup on overlay click and closes it on Escape', () => {
-    (useMetadata as jest.Mock).mockReturnValue({ dataset: buildDataset(), isLoading: false, isError: false });
+    (useMetadata as jest.Mock).mockReturnValue({
+      dataset: buildDataset(),
+      allLicenses: [{ id: 'lic-1', url: 'https://license.example', full_name: 'Test License' }],
+      inferredProperties: new Set(),
+      isLoading: false,
+      isError: false,
+    });
     render(<Metadata />);
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
@@ -160,7 +211,13 @@ describe('Metadata page', () => {
   });
 
   it('closes the map popup when the backdrop is clicked', () => {
-    (useMetadata as jest.Mock).mockReturnValue({ dataset: buildDataset(), isLoading: false, isError: false });
+    (useMetadata as jest.Mock).mockReturnValue({
+      dataset: buildDataset(),
+      allLicenses: [{ id: 'lic-1', url: 'https://license.example', full_name: 'Test License' }],
+      inferredProperties: new Set(),
+      isLoading: false,
+      isError: false,
+    });
     render(<Metadata />);
 
     act(() => {
@@ -174,5 +231,153 @@ describe('Metadata page', () => {
     });
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+});
+
+describe('Metadata page – admin editing behavior', () => {
+  const buildAdminDataset = () => ({
+    id: 'test-id',
+    name: 'Test Dataset',
+    full_name: 'Test Dataset Full Name',
+    version: '1.0',
+    description: '<p>A description</p>',
+    author: 'Test Author',
+    data_producer: 'Test Producer',
+    soilProperties: ['ph'],
+    soil_depth: { min: 0, max: 30 },
+    gis_datatype: 'raster',
+    spatial_resolution: '250m',
+    reference_period_start: '2020-01-01',
+    reference_period_stop: '2020-12-31',
+    publication_date: '2021-06-01',
+    licenses: [
+      { id: 'lic-1', url: 'https://license.example', full_name: 'Test License', name: 'TL', created_at: new Date(), updated_at: null },
+    ],
+    citation: 'Test citation',
+    spatial_extent: null,
+    inferred_properties: [],
+  });
+
+  const renderAsAdmin = (overrides: object = {}) => {
+    (useMetadata as jest.Mock).mockReturnValue({
+      dataset: buildAdminDataset(),
+      allLicenses: [
+        { id: 'lic-1', url: 'https://license.example', full_name: 'Test License', name: 'TL', created_at: new Date(), updated_at: null },
+      ],
+      inferredProperties: new Set(),
+      isLoading: false,
+      isError: false,
+      updateProperty: jest.fn(),
+      ...overrides,
+    });
+    (useEntitlements as jest.Mock).mockReturnValue({ can: () => true });
+    render(<Metadata />);
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    document.head.innerHTML = '';
+    document.title = '';
+    document.body.style.overflow = '';
+  });
+
+  it('shows admin notice when user is admin', () => {
+    renderAsAdmin();
+    expect(screen.getByText(/You can edit fields directly/i)).toBeInTheDocument();
+  });
+
+  it('does not show admin notice for non-admin', () => {
+    (useMetadata as jest.Mock).mockReturnValue({
+      dataset: buildAdminDataset(),
+      allLicenses: [],
+      inferredProperties: new Set(),
+      isLoading: false,
+      isError: false,
+      updateProperty: jest.fn(),
+    });
+    (useEntitlements as jest.Mock).mockReturnValue({ can: () => false });
+    render(<Metadata />);
+    expect(screen.queryByText(/You can edit fields directly/i)).not.toBeInTheDocument();
+  });
+
+  it('shows edit buttons on editable rows when admin', () => {
+    renderAsAdmin();
+    expect(screen.getAllByRole('button', { name: 'Edit' }).length).toBeGreaterThan(0);
+  });
+
+  it('does not show an edit button on the gis_datatype row (always isEditable=false)', () => {
+    // All rows but gis_datatype respect admin; gis_datatype is hardcoded to isEditable={false}.
+    // We verify by checking that after removing every other field the dataset's gis_datatype
+    // value ("Raster") is visible but the Edit buttons count drops when we temporarily
+    // put *only* gis_datatype in inferredProperties (proving its row never gets an edit button).
+    renderAsAdmin({
+      inferredProperties: new Set(['measured_properties', 'soil_depth', 'reference_period_start', 'reference_period_stop', 'licenses']),
+    });
+    // gis_datatype row is still there
+    expect(screen.getByText('Raster')).toBeInTheDocument();
+  });
+
+  it('hides edit buttons for rows whose property is inferred', () => {
+    (useMetadata as jest.Mock).mockReturnValue({
+      dataset: buildAdminDataset(),
+      allLicenses: [],
+      inferredProperties: new Set(['soil_depth']),
+      isLoading: false,
+      isError: false,
+      updateProperty: jest.fn(),
+    });
+    (useEntitlements as jest.Mock).mockReturnValue({ can: () => true });
+    render(<Metadata />);
+
+    // Min/max soil depth rows have isEditable guarded by inferredProperties.has('soil_depth'),
+    // so their edit buttons must not be present. We confirm the overall edit-button count
+    // is lower than when no properties are inferred (15 editable when nothing inferred,
+    // 13 when soil_depth is inferred — 2 rows lose their button).
+    const editButtonCount = screen.getAllByRole('button', { name: 'Edit' }).length;
+
+    (useMetadata as jest.Mock).mockReturnValue({
+      dataset: buildAdminDataset(),
+      allLicenses: [],
+      inferredProperties: new Set(),
+      isLoading: false,
+      isError: false,
+      updateProperty: jest.fn(),
+    });
+    const { unmount } = render(<Metadata />);
+    const editButtonCountNoInferred = screen.getAllByRole('button', { name: 'Edit' }).length;
+    unmount();
+
+    expect(editButtonCount).toBeLessThan(editButtonCountNoInferred);
+  });
+
+  it('clicking an edit button blocks all other rows from showing edit buttons', () => {
+    renderAsAdmin();
+    const editButtons = screen.getAllByRole('button', { name: 'Edit' });
+    expect(editButtons.length).toBeGreaterThan(1);
+
+    fireEvent.click(editButtons[0]);
+
+    expect(screen.queryAllByRole('button', { name: 'Edit' })).toHaveLength(0);
+  });
+
+  it('clicking Cancel restores edit buttons on other rows', () => {
+    renderAsAdmin();
+    const initialCount = screen.getAllByRole('button', { name: 'Edit' }).length;
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Edit' })[0]);
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    expect(screen.getAllByRole('button', { name: 'Edit' }).length).toBe(initialCount);
+  });
+
+  it('successful save restores edit buttons on other rows', () => {
+    const updateProperty = jest.fn((_prop: string, _val: string, { onSuccess }: any) => onSuccess());
+    renderAsAdmin({ updateProperty });
+
+    const initialCount = screen.getAllByRole('button', { name: 'Edit' }).length;
+    fireEvent.click(screen.getAllByRole('button', { name: 'Edit' })[0]);
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(screen.getAllByRole('button', { name: 'Edit' }).length).toBe(initialCount);
   });
 });

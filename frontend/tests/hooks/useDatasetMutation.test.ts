@@ -34,6 +34,7 @@ describe('useDatasetMutation', () => {
       expect(useApiMutation).toHaveBeenCalledWith({
         endpoint: '/datasets/abc-123',
         method: 'PATCH',
+        showErrorNotification: false,
       });
     });
   });

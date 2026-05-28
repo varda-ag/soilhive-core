@@ -5,7 +5,7 @@ import { type AuthContext } from './AuthContext';
 import { usePasswordAuth } from './usePasswordAuth';
 import { LoginModal } from './LoginModal';
 import { AuthModes, type AuthModesType } from './types';
-import { clearToken, saveToken } from './tokenStore';
+import { clearToken, saveToken, getToken } from './tokenStore';
 import { WebStorageStateStore } from 'oidc-client-ts';
 import { useApiQuery } from 'hooks/useApiQuery';
 
@@ -128,5 +128,19 @@ function NoAuthProvider({ children }: { children: React.ReactNode }) {
     authMode: AuthModes.NONE,
   };
 
+  return <authContext.Provider value={value}>{children}</authContext.Provider>;
+}
+
+export function SsrAuthContextProvider({ children }: { children: React.ReactNode }) {
+  const token = getToken();
+  const value: AuthContext = {
+    isAuthenticated: !!token,
+    isLoading: false,
+    error: undefined,
+    user: token ? { access_token: token } : null,
+    login: () => {},
+    logout: () => {},
+    authMode: AuthModes.NONE,
+  };
   return <authContext.Provider value={value}>{children}</authContext.Provider>;
 }

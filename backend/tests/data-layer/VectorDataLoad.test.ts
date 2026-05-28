@@ -46,6 +46,38 @@ describe('VectorDataLoad class', () => {
     expect(resultBdfi33.length).toBe(5);
     expect(resultBdfi33.filter(n => n === OUTSIDE_LOD_VALUE).length).toBe(2);
   });
+  it('sorted cursor pagination should visit every record exactly once', async () => {
+    const { file, dataMapping } = await addSyntheticIngestionData({ ...syntheticIngestionDataOptions });
+    const vdl = new VectorDataLoad();
+    const entityManager = await getEntityManager();
+    const mockToken = {
+      scope: 'mock-scope',
+      raw: 'raw-auth-token',
+      email: 'mock-email',
+      isDataAdmin: true,
+      isSuperAdmin: false,
+      isInternalRequest: false,
+    };
+    const requestData: RequestData = { entityManager, token: mockToken, entitlements: {} };
+    const service = new DataMappingService();
+    const dataMappingConfig = await service.parseDataMapping(requestData, dataMapping.id);
+
+    const allIds: number[] = [];
+    let cursor: string | undefined;
+    let iterations = 0;
+
+    do {
+      const page = await vdl.getDataPreview(entityManager, dataMappingConfig, file.id, 3, cursor, 'min_depth');
+      if (!page.length) break;
+      allIds.push(...page.map(r => Number(r.record_id)));
+      cursor = page[page.length - 1].cursor as string;
+      iterations++;
+    } while (iterations < 20);
+
+    // 20 fixture rows minus 2 drop_records = 18
+    expect(allIds).toHaveLength(18);
+    expect(new Set(allIds).size).toBe(18);
+  });
   it('rawRecordToDataModel should create new features, layers, dataset_layers and observations', async () => {
     const { dataset, file, dataMapping } = await addSyntheticIngestionData({ ...syntheticIngestionDataOptions });
     const vdl = new VectorDataLoad();

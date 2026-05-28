@@ -238,42 +238,25 @@
         margin-bottom: 24px;
       }
 
-      .Row {
+      .AdminNotice {
         display: flex;
-        flex-direction: column;
-        gap: 8px;
+        align-items: center;
+        padding: 8px 12px;
+        background-color: var(--color-neutral-light);
+        border-radius: 4px;
+        max-width: 400px;
 
-        @media screen and (min-width: $bp-tablet) {
-          flex-direction: row;
+        svg {
+          flex-shrink: 0;
+          width: 16px;
+          height: 16px;
         }
 
-        &:nth-child(even),
-        &:last-child {
-          background-color: var(--color-neutral-light);
-        }
-
-        .Label {
-          padding: 12px 24px 0;
-
-          @media screen and (min-width: $bp-tablet) {
-            padding: 12px 24px;
-            width: 220px;
-            min-width: 220px;
-          }
-        }
-
-        .Text {
-          padding: 0 24px 12px;
-
-          @media screen and (min-width: $bp-tablet) {
-            padding: 12px 18px;
-          }
-
-          a {
-            color: var(--color-brand-green-1000);
-          }
+        span {
+          margin-left: 4px;
         }
       }
+
     }
   }
 

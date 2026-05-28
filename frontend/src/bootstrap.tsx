@@ -8,6 +8,7 @@ import './styles/index.scss';
 import { CONSENT_PARAMS } from './configuration/analytics';
 import { GTM_CONTAINER_ID } from './utilities/environmentVariables';
 import { NotificationProvider, ThemeProvider } from './contexts';
+import { SsrAuthContextProvider } from './auth/AuthContextProvider';
 
 // SSR page components — loaded lazily so they are not bundled into every page.
 // The key must exactly match the `data-ssr-page` attribute injected by the server.
@@ -56,13 +57,15 @@ if (rootEl) {
         <QueryClientProvider client={queryClient}>
           <HydrationBoundary state={queryState}>
             <NotificationProvider>
-              <ThemeProvider>
-                <BrowserRouter>
-                  <Routes>
-                    <Route path={ssrPage} element={<PageComponent />} />
-                  </Routes>
-                </BrowserRouter>
-              </ThemeProvider>
+              <SsrAuthContextProvider>
+                <ThemeProvider>
+                  <BrowserRouter>
+                    <Routes>
+                      <Route path={ssrPage} element={<PageComponent />} />
+                    </Routes>
+                  </BrowserRouter>
+                </ThemeProvider>
+              </SsrAuthContextProvider>
             </NotificationProvider>
           </HydrationBoundary>
         </QueryClientProvider>,

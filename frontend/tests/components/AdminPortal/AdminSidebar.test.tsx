@@ -3,6 +3,7 @@ import { MemoryRouter } from 'react-router';
 import { AdminSidebar } from 'components/AdminPortal/AdminSidebar/AdminSidebar';
 import { useAuthContext } from '../../../src/auth/AuthContextProvider';
 import { ADMIN_PORTAL_DATA_MENU, ADMIN_PORTAL_UI_MENU, useEntitlements } from 'hooks/useEntitlementsHook';
+import useTheme from 'hooks/useTheme';
 import { ADMIN_ROOT } from '../../../src/configuration/admin';
 
 const navigateMock = jest.fn();
@@ -24,6 +25,8 @@ jest.mock('hooks/useEntitlementsHook', () => ({
   ADMIN_PORTAL_UI_MENU: 1,
   useEntitlements: jest.fn(),
 }));
+
+jest.mock('hooks/useTheme', () => ({ __esModule: true, default: jest.fn() }));
 
 function renderSidebar(initialPath = `${ADMIN_ROOT}/terms-and-conditions`) {
   return render(
@@ -47,6 +50,10 @@ describe('AdminSidebar', () => {
 
     (useAuthContext as jest.Mock).mockReturnValue({
       logout: logoutMock,
+    });
+
+    (useTheme as jest.Mock).mockReturnValue({
+      themeConfig: { termsAndConditionsHtml: '<p>Terms</p>', privacyPolicyHtml: '<p>Privacy</p>' },
     });
   });
 
@@ -147,5 +154,35 @@ describe('AdminSidebar', () => {
 
     expect(logoutMock).toHaveBeenCalledTimes(1);
     expect(navigateMock).toHaveBeenCalledWith('/');
+  });
+
+  it('Terms link has Marked class when termsAndConditionsHtml is empty', () => {
+    (useTheme as jest.Mock).mockReturnValue({
+      themeConfig: { termsAndConditionsHtml: '', privacyPolicyHtml: '<p>Privacy</p>' },
+    });
+    renderSidebar();
+    const termsLink = screen.getByText('Terms of use').closest('[data-testid="sh-admin-sidebarlink"]');
+    expect(termsLink).toHaveClass('Marked');
+  });
+
+  it('Terms link does not have Marked class when termsAndConditionsHtml has content', () => {
+    renderSidebar();
+    const termsLink = screen.getByText('Terms of use').closest('[data-testid="sh-admin-sidebarlink"]');
+    expect(termsLink).not.toHaveClass('Marked');
+  });
+
+  it('Privacy policy link has Marked class when privacyPolicyHtml is empty', () => {
+    (useTheme as jest.Mock).mockReturnValue({
+      themeConfig: { termsAndConditionsHtml: '<p>Terms</p>', privacyPolicyHtml: '' },
+    });
+    renderSidebar();
+    const privacyLink = screen.getByText('Privacy policy').closest('[data-testid="sh-admin-sidebarlink"]');
+    expect(privacyLink).toHaveClass('Marked');
+  });
+
+  it('Privacy policy link does not have Marked class when privacyPolicyHtml has content', () => {
+    renderSidebar();
+    const privacyLink = screen.getByText('Privacy policy').closest('[data-testid="sh-admin-sidebarlink"]');
+    expect(privacyLink).not.toHaveClass('Marked');
   });
 });

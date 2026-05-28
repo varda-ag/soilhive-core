@@ -41,12 +41,16 @@ exports[`AdminSidebar renders sidebar for user with all permissions and matches 
               data-testid="sh-admin-sidebarlink"
               href="/admin/terms-and-conditions"
             >
-              <svg
-                class="LinkIcon"
-                data-testid="svg-icon-mock"
+              <span
+                class="LinkWrapper"
               >
-                mock-svg
-              </svg>
+                <svg
+                  class="LinkIcon"
+                  data-testid="svg-icon-mock"
+                >
+                  mock-svg
+                </svg>
+              </span>
               <span
                 class="LinkTitle"
               >
@@ -58,33 +62,18 @@ exports[`AdminSidebar renders sidebar for user with all permissions and matches 
               class="Link"
               data-discover="true"
               data-testid="sh-admin-sidebarlink"
-              href="/admin/notification-banner"
-            >
-              <svg
-                class="LinkIcon"
-                data-testid="svg-icon-mock"
-              >
-                mock-svg
-              </svg>
-              <span
-                class="LinkTitle"
-              >
-                Notification Banner
-              </span>
-            </a>
-            <a
-              aria-disabled="false"
-              class="Link"
-              data-discover="true"
-              data-testid="sh-admin-sidebarlink"
               href="/admin/privacy-policy"
             >
-              <svg
-                class="LinkIcon"
-                data-testid="svg-icon-mock"
+              <span
+                class="LinkWrapper"
               >
-                mock-svg
-              </svg>
+                <svg
+                  class="LinkIcon"
+                  data-testid="svg-icon-mock"
+                >
+                  mock-svg
+                </svg>
+              </span>
               <span
                 class="LinkTitle"
               >
@@ -96,14 +85,41 @@ exports[`AdminSidebar renders sidebar for user with all permissions and matches 
               class="Link"
               data-discover="true"
               data-testid="sh-admin-sidebarlink"
+              href="/admin/notification-banner"
+            >
+              <span
+                class="LinkWrapper"
+              >
+                <svg
+                  class="LinkIcon"
+                  data-testid="svg-icon-mock"
+                >
+                  mock-svg
+                </svg>
+              </span>
+              <span
+                class="LinkTitle"
+              >
+                Notification Banner
+              </span>
+            </a>
+            <a
+              aria-disabled="false"
+              class="Link"
+              data-discover="true"
+              data-testid="sh-admin-sidebarlink"
               href="/admin/map-settings"
             >
-              <svg
-                class="LinkIcon"
-                data-testid="svg-icon-mock"
+              <span
+                class="LinkWrapper"
               >
-                mock-svg
-              </svg>
+                <svg
+                  class="LinkIcon"
+                  data-testid="svg-icon-mock"
+                >
+                  mock-svg
+                </svg>
+              </span>
               <span
                 class="LinkTitle"
               >
@@ -117,12 +133,16 @@ exports[`AdminSidebar renders sidebar for user with all permissions and matches 
               data-testid="sh-admin-sidebarlink"
               href="/admin/look-and-feel"
             >
-              <svg
-                class="LinkIcon"
-                data-testid="svg-icon-mock"
+              <span
+                class="LinkWrapper"
               >
-                mock-svg
-              </svg>
+                <svg
+                  class="LinkIcon"
+                  data-testid="svg-icon-mock"
+                >
+                  mock-svg
+                </svg>
+              </span>
               <span
                 class="LinkTitle"
               >
@@ -150,12 +170,16 @@ exports[`AdminSidebar renders sidebar for user with all permissions and matches 
               data-testid="sh-admin-sidebarlink"
               href="/admin/datasets"
             >
-              <svg
-                class="LinkIcon"
-                data-testid="svg-icon-mock"
+              <span
+                class="LinkWrapper"
               >
-                mock-svg
-              </svg>
+                <svg
+                  class="LinkIcon"
+                  data-testid="svg-icon-mock"
+                >
+                  mock-svg
+                </svg>
+              </span>
               <span
                 class="LinkTitle"
               >
@@ -169,12 +193,16 @@ exports[`AdminSidebar renders sidebar for user with all permissions and matches 
               data-testid="sh-admin-sidebarlink"
               href="/admin/filters"
             >
-              <svg
-                class="LinkIcon"
-                data-testid="svg-icon-mock"
+              <span
+                class="LinkWrapper"
               >
-                mock-svg
-              </svg>
+                <svg
+                  class="LinkIcon"
+                  data-testid="svg-icon-mock"
+                >
+                  mock-svg
+                </svg>
+              </span>
               <span
                 class="LinkTitle"
               >
@@ -249,12 +277,16 @@ exports[`AdminSidebar renders sidebar for user with only ADMIN_PORTAL_DATA_MENU 
               data-testid="sh-admin-sidebarlink"
               href="/admin/datasets"
             >
-              <svg
-                class="LinkIcon"
-                data-testid="svg-icon-mock"
+              <span
+                class="LinkWrapper"
               >
-                mock-svg
-              </svg>
+                <svg
+                  class="LinkIcon"
+                  data-testid="svg-icon-mock"
+                >
+                  mock-svg
+                </svg>
+              </span>
               <span
                 class="LinkTitle"
               >
@@ -268,12 +300,16 @@ exports[`AdminSidebar renders sidebar for user with only ADMIN_PORTAL_DATA_MENU 
               data-testid="sh-admin-sidebarlink"
               href="/admin/filters"
             >
-              <svg
-                class="LinkIcon"
-                data-testid="svg-icon-mock"
+              <span
+                class="LinkWrapper"
               >
-                mock-svg
-              </svg>
+                <svg
+                  class="LinkIcon"
+                  data-testid="svg-icon-mock"
+                >
+                  mock-svg
+                </svg>
+              </span>
               <span
                 class="LinkTitle"
               >
@@ -348,12 +384,16 @@ exports[`AdminSidebar renders sidebar for user with only ADMIN_PORTAL_UI_MENU pe
               data-testid="sh-admin-sidebarlink"
               href="/admin/terms-and-conditions"
             >
-              <svg
-                class="LinkIcon"
-                data-testid="svg-icon-mock"
+              <span
+                class="LinkWrapper"
               >
-                mock-svg
-              </svg>
+                <svg
+                  class="LinkIcon"
+                  data-testid="svg-icon-mock"
+                >
+                  mock-svg
+                </svg>
+              </span>
               <span
                 class="LinkTitle"
               >
@@ -365,33 +405,18 @@ exports[`AdminSidebar renders sidebar for user with only ADMIN_PORTAL_UI_MENU pe
               class="Link"
               data-discover="true"
               data-testid="sh-admin-sidebarlink"
-              href="/admin/notification-banner"
-            >
-              <svg
-                class="LinkIcon"
-                data-testid="svg-icon-mock"
-              >
-                mock-svg
-              </svg>
-              <span
-                class="LinkTitle"
-              >
-                Notification Banner
-              </span>
-            </a>
-            <a
-              aria-disabled="false"
-              class="Link"
-              data-discover="true"
-              data-testid="sh-admin-sidebarlink"
               href="/admin/privacy-policy"
             >
-              <svg
-                class="LinkIcon"
-                data-testid="svg-icon-mock"
+              <span
+                class="LinkWrapper"
               >
-                mock-svg
-              </svg>
+                <svg
+                  class="LinkIcon"
+                  data-testid="svg-icon-mock"
+                >
+                  mock-svg
+                </svg>
+              </span>
               <span
                 class="LinkTitle"
               >
@@ -403,14 +428,41 @@ exports[`AdminSidebar renders sidebar for user with only ADMIN_PORTAL_UI_MENU pe
               class="Link"
               data-discover="true"
               data-testid="sh-admin-sidebarlink"
+              href="/admin/notification-banner"
+            >
+              <span
+                class="LinkWrapper"
+              >
+                <svg
+                  class="LinkIcon"
+                  data-testid="svg-icon-mock"
+                >
+                  mock-svg
+                </svg>
+              </span>
+              <span
+                class="LinkTitle"
+              >
+                Notification Banner
+              </span>
+            </a>
+            <a
+              aria-disabled="false"
+              class="Link"
+              data-discover="true"
+              data-testid="sh-admin-sidebarlink"
               href="/admin/map-settings"
             >
-              <svg
-                class="LinkIcon"
-                data-testid="svg-icon-mock"
+              <span
+                class="LinkWrapper"
               >
-                mock-svg
-              </svg>
+                <svg
+                  class="LinkIcon"
+                  data-testid="svg-icon-mock"
+                >
+                  mock-svg
+                </svg>
+              </span>
               <span
                 class="LinkTitle"
               >
@@ -424,12 +476,16 @@ exports[`AdminSidebar renders sidebar for user with only ADMIN_PORTAL_UI_MENU pe
               data-testid="sh-admin-sidebarlink"
               href="/admin/look-and-feel"
             >
-              <svg
-                class="LinkIcon"
-                data-testid="svg-icon-mock"
+              <span
+                class="LinkWrapper"
               >
-                mock-svg
-              </svg>
+                <svg
+                  class="LinkIcon"
+                  data-testid="svg-icon-mock"
+                >
+                  mock-svg
+                </svg>
+              </span>
               <span
                 class="LinkTitle"
               >
