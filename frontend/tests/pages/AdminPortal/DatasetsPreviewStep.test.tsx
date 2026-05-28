@@ -171,13 +171,28 @@ describe('DatasetsPreviewStep', () => {
   });
 
   describe('visible columns initialisation', () => {
-    it('auto-selects initialVisibleColumns + first extra column when availableColumns arrives', () => {
+    it('auto-selects initialVisibleColumns + all extra property columns when availableColumns arrives', () => {
       mockHook({ availableColumns: ['min_depth', 'max_depth', 'ph'] });
       render(<DatasetsPreviewStep />);
-      // ph is the first non-initial column and should appear in the table
+      // ph is an extra property column and should appear in the table
       expect(screen.getByTestId('table-col-ph')).toBeInTheDocument();
       expect(screen.getByTestId('table-col-min_depth')).toBeInTheDocument();
       expect(screen.getByTestId('table-col-max_depth')).toBeInTheDocument();
+    });
+
+    it('auto-selects all extra property columns, not just the first', () => {
+      mockHook({ availableColumns: ['min_depth', 'max_depth', 'ph', 'carbon', 'nitrogen'] });
+      render(<DatasetsPreviewStep />);
+      expect(screen.getByTestId('table-col-ph')).toBeInTheDocument();
+      expect(screen.getByTestId('table-col-carbon')).toBeInTheDocument();
+      expect(screen.getByTestId('table-col-nitrogen')).toBeInTheDocument();
+    });
+
+    it('does not auto-select license even when present in availableColumns', () => {
+      mockHook({ availableColumns: ['min_depth', 'max_depth', 'ph', 'license'] });
+      render(<DatasetsPreviewStep />);
+      expect(screen.getByTestId('table-col-ph')).toBeInTheDocument();
+      expect(screen.queryByTestId('table-col-license')).not.toBeInTheDocument();
     });
 
     it('uses only initialVisibleColumns when availableColumns has no extra columns', () => {
@@ -279,7 +294,7 @@ describe('DatasetsPreviewStep', () => {
     it('clicking a column option toggles it in the visible columns', () => {
       mockHook({ availableColumns: ['min_depth', 'max_depth', 'ph'] });
       render(<DatasetsPreviewStep />);
-      // ph is already visible (auto-selected as first extra column)
+      // ph is already visible (auto-selected as an extra property column)
       expect(screen.getByTestId('table-col-ph')).toBeInTheDocument();
 
       // deselect ph

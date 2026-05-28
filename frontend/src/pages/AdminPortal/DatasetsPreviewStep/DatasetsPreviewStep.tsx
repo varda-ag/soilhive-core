@@ -13,7 +13,7 @@ import { DataLoadingStartedPanel } from './DataLoadingStartedPanel';
 
 import styles from './DatasetsPreviewStep.module.scss';
 
-const initialVisibleColumns = ['min_depth', 'max_depth', 'sampling_date', 'horizon', 'license'];
+const initialVisibleColumns = ['min_depth', 'max_depth', 'sampling_date', 'horizon'];
 
 export function DatasetsPreviewStep() {
   const { t } = useTranslation('admin');
@@ -141,8 +141,8 @@ export function DatasetsPreviewStep() {
 
   useEffect(() => {
     if (availableColumns.length && !visibleColumns.length) {
-      const firstProperty = availableColumns.filter(column => !initialVisibleColumns.includes(column))[0];
-      setVisibleColumns(firstProperty ? [...initialVisibleColumns, firstProperty] : initialVisibleColumns);
+      const propertyColumns = availableColumns.filter(column => column !== 'license' && !initialVisibleColumns.includes(column));
+      setVisibleColumns(propertyColumns.length ? [...initialVisibleColumns, ...propertyColumns] : initialVisibleColumns);
     }
   }, [availableColumns, visibleColumns]);
 
