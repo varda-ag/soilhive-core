@@ -7,9 +7,14 @@ type UseApiMutationOptions<TVariables = void> = {
   method: 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   body?: TVariables;
   parameters?: Array<[string, string]>;
+  showErrorNotification?: boolean;
 };
 
-export function useApiMutation<TResponse, TVariables = void>({ endpoint, method }: UseApiMutationOptions<TVariables>) {
+export function useApiMutation<TResponse, TVariables = void>({
+  endpoint,
+  method,
+  showErrorNotification,
+}: UseApiMutationOptions<TVariables>) {
   const { request } = useRequest();
 
   return useMutation({
@@ -19,6 +24,7 @@ export function useApiMutation<TResponse, TVariables = void>({ endpoint, method 
         url: `${BACKEND_BASE_URL}${resolvedEndpoint}`,
         method,
         body: variables,
+        showErrorNotification,
       }) as Promise<TResponse>;
     },
   });

@@ -226,22 +226,6 @@ exports[`Metadata page renders dataset content and matches snapshot 1`] = `
             class="Label"
           >
             <strong>
-              Data producer:
-            </strong>
-          </p>
-          <div
-            class="Text"
-          >
-            Test Producer
-          </div>
-        </div>
-        <div
-          class="Row"
-        >
-          <p
-            class="Label"
-          >
-            <strong>
               Variables measured:
             </strong>
           </p>

@@ -1,0 +1,94 @@
+@import 'styles/variables/colors';
+@import 'styles/variables/typography';
+@import 'styles/variables/breakpoints';
+
+.Row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  position: relative;
+  border: 1px dashed transparent;
+
+  &.RowAdmin {
+    padding-right: 28px;
+  }
+
+  &:has(.EditButton:hover) {
+    border-color: var(--color-neutral-dark-100);
+  }
+
+  @media screen and (min-width: $bp-tablet) {
+    flex-direction: row;
+  }
+
+  &:nth-child(odd),
+  &:last-child {
+    background-color: var(--color-neutral-light);
+  }
+
+  .EditButton {
+    position: absolute;
+    top: 8px;
+    right: 12px;
+    background: none;
+    border: none;
+    padding: 4px;
+    cursor: pointer;
+    color: #c0c0c0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 0;
+
+    svg {
+      width: 18px;
+      height: 18px;
+
+      path {
+        stroke: currentColor;
+      }
+    }
+
+    &:hover {
+      color: #0f0f0f;
+    }
+  }
+
+  .Label {
+    padding: 12px 24px 0;
+
+    @media screen and (min-width: $bp-tablet) {
+      padding: 12px 24px;
+      width: 220px;
+      min-width: 220px;
+    }
+  }
+
+  .Text {
+    padding: 0 24px 12px;
+
+    @media screen and (min-width: $bp-tablet) {
+      padding: 12px 18px;
+    }
+  }
+
+  .EditArea {
+    flex: 1;
+    display: flex;
+    align-items: flex-start;
+    gap: 15px;
+    padding: 8px 16px 8px 0;
+  }
+
+  .EditorWrapper {
+    flex: 1;
+  }
+
+  .EditActions {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+}

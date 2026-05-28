@@ -1,26 +1,27 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
-import { useMetadata } from 'hooks/useMetadata';
+import { useMetadata, type SaveCallbacks } from 'hooks/useMetadata';
+import { useEntitlements, ADMIN_PORTAL_ACCESS } from 'hooks/useEntitlementsHook';
 import styles from './Metadata.module.scss';
 import Worm from 'assets/images/worm.svg?react';
 import SoilhiveSimpleMap from 'components/Map/SoilhiveSimpleMap';
 import { Logo } from 'components/Logo/Logo';
 import { Button, SplitButton } from 'components/UI';
-import { htmlDisplay } from '../utilities/isomorphicHTMLDisplay';
-import { getMetadataHeadValues } from '../utilities/buildMetadataHead';
+import { getMetadataHeadValues } from 'utilities/buildMetadataHead';
+import { upsertMeta } from 'utilities/upsertMeta';
 import EyeIcon from 'assets/icons/small-eye-icon.svg?react';
 import ReduceIcon from 'assets/icons/reduce-icon.svg?react';
+import InfoIcon from 'assets/icons/info-icon.svg?react';
+import { EditorRow } from 'components/Metadata/EditorRow/EditorRow';
+import { LicenseRow } from 'components/Metadata/LicenseRow/LicenseRow';
+import { NumberRow } from 'components/Metadata/NumberRow/NumberRow';
 
-function upsertMeta(selector: string, attrName: 'name' | 'property', attrValue: string, content: string) {
-  let el = document.head.querySelector<HTMLMetaElement>(selector);
-  if (!el) {
-    el = document.createElement('meta');
-    el.setAttribute(attrName, attrValue);
-    document.head.appendChild(el);
-  }
-  if (el.getAttribute('content') !== content) el.setAttribute('content', content);
-}
+const GIS_DATATYPE_OPTIONS = [
+  { code: 'point', name: 'Point' },
+  { code: 'polygonal', name: 'Polygonal' },
+  { code: 'raster', name: 'Raster' },
+];
 
 export default function Metadata() {
   const { id } = useParams();
@@ -28,7 +29,31 @@ export default function Metadata() {
   const [isMounted, setIsMounted] = useState(false);
   const [isMapPopupOpen, setIsMapPopupOpen] = useState(false);
   useEffect(() => setIsMounted(true), []);
-  const { dataset, isLoading, isError } = useMetadata(id);
+  const { dataset, allLicenses, inferredProperties, isLoading, isError, updateProperty } = useMetadata(id);
+  const { can } = useEntitlements();
+  const isAdmin = isMounted && can(ADMIN_PORTAL_ACCESS);
+  const [isEditing, setIsEditing] = useState(false);
+
+  const onStartEditing: (property: string) => void = useCallback(() => {
+    setIsEditing(true);
+  }, []);
+
+  const onSave = useCallback(
+    (property: string, newValue: string, callbacks: SaveCallbacks) => {
+      updateProperty(property, newValue, {
+        onSuccess: () => {
+          setIsEditing(false);
+          callbacks.onSuccess();
+        },
+        onError: callbacks.onError,
+      });
+    },
+    [updateProperty],
+  );
+
+  const onCancel: (property: string) => void = useCallback(() => {
+    setIsEditing(false);
+  }, []);
 
   useEffect(() => {
     if (!isMapPopupOpen) return;
@@ -149,108 +174,181 @@ export default function Metadata() {
 
       <div className={styles.Content}>
         <div className={styles.DatasetProperties}>
-          <div className={styles.Row}>
-            <p className={styles.Label}>
-              <strong>{t('fields.name')}</strong>
-            </p>
-            <div className={styles.Text}>{htmlDisplay(dataset?.name)}</div>
-          </div>
-          <div className={styles.Row}>
-            <p className={styles.Label}>
-              <strong>{t('fields.full_name')}</strong>
-            </p>
-            <div className={styles.Text}>{htmlDisplay(dataset?.full_name)}</div>
-          </div>
-          <div className={styles.Row}>
-            <p className={styles.Label}>
-              <strong>{t('fields.version')}</strong>
-            </p>
-            <div className={styles.Text}>{htmlDisplay(dataset?.version)}</div>
-          </div>
-          <div className={styles.Row}>
-            <p className={styles.Label}>
-              <strong>{t('fields.description')}</strong>
-            </p>
-            <div className={styles.Text}>{htmlDisplay(dataset?.description)}</div>
-          </div>
-          <div className={styles.Row}>
-            <p className={styles.Label}>
-              <strong>{t('fields.author')}</strong>
-            </p>
-            <div className={styles.Text}>{htmlDisplay(dataset?.author)}</div>
-          </div>
-          <div className={styles.Row}>
-            <p className={styles.Label}>
-              <strong>{t('fields.data_producer')}</strong>
-            </p>
-            <div className={styles.Text}>{htmlDisplay(dataset?.data_producer)}</div>
-          </div>
-          <div className={styles.Row}>
-            <p className={styles.Label}>
-              <strong>{t('fields.variables_measured')}</strong>
-            </p>
-            <div className={styles.Text}>{htmlDisplay(dataset?.soilProperties?.join(', '))}</div>
-          </div>
-          <div className={styles.Row}>
-            <p className={styles.Label}>
-              <strong>{t('fields.min_soil_depth_cm')}</strong>
-            </p>
-            <div className={styles.Text}>{htmlDisplay((dataset?.soil_depth as { min?: number } | null | undefined)?.min?.toString())}</div>
-          </div>
-          <div className={styles.Row}>
-            <p className={styles.Label}>
-              <strong>{t('fields.max_soil_depth_cm')}</strong>
-            </p>
-            <div className={styles.Text}>{htmlDisplay((dataset?.soil_depth as { max?: number } | null | undefined)?.max?.toString())}</div>
-          </div>
-          <div className={styles.Row}>
-            <p className={styles.Label}>
-              <strong>{t('fields.gis_datatype')}</strong>
-            </p>
-            <div className={styles.Text}>
-              {htmlDisplay(
-                dataset?.gis_datatype ? dataset.gis_datatype[0].toUpperCase() + dataset.gis_datatype.slice(1) : dataset?.gis_datatype,
-              )}
+          {isAdmin && (
+            <div className={styles.AdminNotice}>
+              <InfoIcon />
+              <span>{t('admin_notice')}</span>
             </div>
-          </div>
-          <div className={styles.Row}>
-            <p className={styles.Label}>
-              <strong>{t('fields.spatial_resolution')}</strong>
-            </p>
-            <div className={styles.Text}>{htmlDisplay(dataset?.spatial_resolution)}</div>
-          </div>
-          <div className={styles.Row}>
-            <p className={styles.Label}>
-              <strong>{t('fields.reference_coverage_start')}</strong>
-            </p>
-            <div className={styles.Text}>{htmlDisplay(dataset?.reference_period_start)}</div>
-          </div>
-          <div className={styles.Row}>
-            <p className={styles.Label}>
-              <strong>{t('fields.reference_coverage_end')}</strong>
-            </p>
-            <div className={styles.Text}>{htmlDisplay(dataset?.reference_period_stop)}</div>
-          </div>
-          <div className={styles.Row}>
-            <p className={styles.Label}>
-              <strong>{t('fields.publication_date')}</strong>
-            </p>
-            <div className={styles.Text}>{htmlDisplay(dataset?.publication_date)}</div>
-          </div>
-          <div className={styles.Row}>
-            <p className={styles.Label}>
-              <strong>{t('fields.license')}</strong>
-            </p>
-            <div className={styles.Text}>
-              {htmlDisplay(dataset?.licenses?.map(l => `<a target="_blank" href=${l.url}>${l.full_name}</a>`).join('<br />'))}
-            </div>
-          </div>
-          <div className={styles.Row}>
-            <p className={styles.Label}>
-              <strong>{t('fields.citation')}</strong>
-            </p>
-            <div className={styles.Text}>{htmlDisplay(dataset?.citation)}</div>
-          </div>
+          )}
+          <EditorRow
+            label={t('fields.name')}
+            value={dataset?.name}
+            isEditable={isAdmin && !isEditing}
+            placeholder={t('placeholders.name')}
+            property="name"
+            variant="text"
+            onStartEditing={onStartEditing}
+            onSave={onSave}
+            onCancel={onCancel}
+          />
+          <EditorRow
+            label={t('fields.full_name')}
+            value={dataset?.full_name}
+            isEditable={isAdmin && !isEditing}
+            placeholder={t('placeholders.full_name')}
+            property="full_name"
+            variant="text"
+            onStartEditing={onStartEditing}
+            onSave={onSave}
+            onCancel={onCancel}
+          />
+          <EditorRow
+            label={t('fields.version')}
+            value={dataset?.version}
+            isEditable={isAdmin && !isEditing}
+            placeholder={t('placeholders.version')}
+            property="version"
+            variant="text"
+            onStartEditing={onStartEditing}
+            onSave={onSave}
+            onCancel={onCancel}
+          />
+          <EditorRow
+            label={t('fields.description')}
+            value={dataset?.description}
+            isEditable={isAdmin && !isEditing}
+            placeholder={t('placeholders.description')}
+            property="description"
+            onStartEditing={onStartEditing}
+            onSave={onSave}
+            onCancel={onCancel}
+          />
+          <EditorRow
+            label={t('fields.author')}
+            value={dataset?.author}
+            isEditable={isAdmin && !isEditing}
+            placeholder={t('placeholders.author')}
+            property="author"
+            variant="text"
+            onStartEditing={onStartEditing}
+            onSave={onSave}
+            onCancel={onCancel}
+          />
+          {/* TODO: will be used in the future */}
+          {/* <EditorRow
+            label={t('fields.data_producer')}
+            value={dataset?.data_producer}
+            isEditable={isAdmin && !isEditing}
+            placeholder="Organization responsible for data collection and production"
+            property="data_producer"
+            variant="text"
+            onStartEditing={onStartEditing}
+            onSave={onSave}
+            onCancel={onCancel}
+          /> */}
+          {/* `variables_measured` will always be present in inferredProperties in newly ingested datasets. So it will always be uneditable. */}
+          <EditorRow
+            label={t('fields.variables_measured')}
+            value={dataset?.soilProperties?.join(', ')}
+            isEditable={false}
+            property="soilProperties"
+            variant="text"
+            onStartEditing={onStartEditing}
+            onSave={onSave}
+            onCancel={onCancel}
+          />
+          <NumberRow
+            label={t('fields.min_soil_depth_cm')}
+            value={(dataset?.soil_depth as { min?: number } | null | undefined)?.min}
+            isEditable={isAdmin && !inferredProperties.has('soil_depth') && !isEditing}
+            property="soil_depth_min"
+            onStartEditing={onStartEditing}
+            onSave={onSave}
+            onCancel={onCancel}
+          />
+          <NumberRow
+            label={t('fields.max_soil_depth_cm')}
+            value={(dataset?.soil_depth as { max?: number } | null | undefined)?.max}
+            isEditable={isAdmin && !inferredProperties.has('soil_depth') && !isEditing}
+            property="soil_depth_max"
+            onStartEditing={onStartEditing}
+            onSave={onSave}
+            onCancel={onCancel}
+          />
+          <EditorRow
+            label={t('fields.gis_datatype')}
+            value={GIS_DATATYPE_OPTIONS.find(o => o.code === dataset?.gis_datatype)?.name ?? dataset?.gis_datatype}
+            isEditable={false}
+            property="gis_datatype"
+            variant="text"
+            onStartEditing={onStartEditing}
+            onSave={onSave}
+            onCancel={onCancel}
+          />
+          <EditorRow
+            label={t('fields.spatial_resolution')}
+            value={dataset?.spatial_resolution}
+            isEditable={isAdmin && !isEditing}
+            placeholder={t('placeholders.spatial_resolution')}
+            property="spatial_resolution"
+            variant="text"
+            onStartEditing={onStartEditing}
+            onSave={onSave}
+            onCancel={onCancel}
+          />
+          <EditorRow
+            label={t('fields.reference_period_start')}
+            value={dataset?.reference_period_start}
+            isEditable={isAdmin && !inferredProperties.has('reference_period_start') && !isEditing}
+            placeholder={t('placeholders.reference_period_start')}
+            property="reference_period_start"
+            variant="text"
+            onStartEditing={onStartEditing}
+            onSave={onSave}
+            onCancel={onCancel}
+          />
+          <EditorRow
+            label={t('fields.reference_period_stop')}
+            value={dataset?.reference_period_stop}
+            isEditable={isAdmin && !inferredProperties.has('reference_period_stop') && !isEditing}
+            placeholder={t('placeholders.reference_period_stop')}
+            property="reference_period_stop"
+            variant="text"
+            onStartEditing={onStartEditing}
+            onSave={onSave}
+            onCancel={onCancel}
+          />
+          <EditorRow
+            label={t('fields.publication_date')}
+            value={dataset?.publication_date}
+            isEditable={isAdmin && !isEditing}
+            placeholder={t('placeholders.publication_date')}
+            property="publication_date"
+            variant="text"
+            onStartEditing={onStartEditing}
+            onSave={onSave}
+            onCancel={onCancel}
+          />
+          <LicenseRow
+            label={t('fields.license')}
+            currentLicenseIds={dataset?.licenses?.map(l => l.id) ?? []}
+            allLicenses={allLicenses ?? []}
+            isEditable={isAdmin && !inferredProperties.has('licenses') && !isEditing}
+            property="licenses"
+            onStartEditing={onStartEditing}
+            onSave={onSave}
+            onCancel={onCancel}
+          />
+          <EditorRow
+            label={t('fields.citation')}
+            value={dataset?.citation}
+            isEditable={isAdmin && !isEditing}
+            placeholder={t('placeholders.citation')}
+            property="citation"
+            onStartEditing={onStartEditing}
+            onSave={onSave}
+            onCancel={onCancel}
+          />
         </div>
       </div>
 

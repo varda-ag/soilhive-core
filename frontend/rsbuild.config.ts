@@ -6,10 +6,12 @@ import { pluginSvgr } from '@rsbuild/plugin-svgr';
 const sharedAlias = {
   assets: './src/assets',
   components: './src/components',
+  configuration: './src/configuration',
   hooks: './src/hooks',
   types: './src/types',
   styles: './src/styles',
   adapters: './src/adapters',
+  utilities: './src/utilities',
 };
 
 export default defineConfig({

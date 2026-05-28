@@ -9,10 +9,13 @@ export async function handleError(response: Response) {
     // Intentionally left empty
   }
 
+  const rawMessage = details?.detail ?? details?.message;
+  const message = typeof rawMessage === 'string' ? rawMessage : rawMessage != null ? String(rawMessage) : 'Unknown error';
+
   const error = {
     status: response.status,
     statusText: response.statusText,
-    message: details?.detail || details?.message || 'Unknown error',
+    message,
     raw: details,
   };
 
