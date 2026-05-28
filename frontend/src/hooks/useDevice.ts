@@ -15,7 +15,8 @@ const useDevice = (): useDeviceType => {
   const isMobileLayout = useMemo(() => width <= MOBILE_BREAKPOINT, [width]);
   const isTabletLayout = useMemo(() => !isMobileLayout && width <= TABLET_BREAKPOINT, [isMobileLayout, width]);
   const isDesktopLayout = useMemo(() => !isMobileLayout && !isTabletLayout, [isMobileLayout, isTabletLayout]);
-  const isTouchScreen = window.matchMedia('(pointer: coarse)').matches;
+  // typeof guard required for SSR where window is not available
+  const isTouchScreen = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches;
 
   return { isDesktopLayout, isMobileLayout, isTabletLayout, isTouchScreen };
 };
