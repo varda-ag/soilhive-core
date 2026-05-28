@@ -17,6 +17,7 @@ export function DatasetsMappingsStep() {
     depthConflictMessage,
     isContinueEnabled,
     columnMappings,
+    geometryLockedColumn,
     conceptOptionsByColumn,
     unitOptionsByConcept,
     detailOptions,
@@ -53,6 +54,7 @@ export function DatasetsMappingsStep() {
 
         <MappingsTable
           columnMappings={columnMappings}
+          geometryLockedColumn={geometryLockedColumn}
           conceptOptionsByColumn={conceptOptionsByColumn}
           unitOptionsByConcept={unitOptionsByConcept}
           detailOptions={detailOptions}

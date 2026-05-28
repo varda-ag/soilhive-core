@@ -7,6 +7,7 @@ import styles from './MappingsTable.module.scss';
 
 interface Props {
   columnMappings: ColumnMapping[];
+  geometryLockedColumn?: string | null;
   conceptOptionsByColumn: Record<string, MenuOption[]>;
   unitOptionsByConcept: Record<string, MenuOption[]>;
   detailOptions: DetailOptionMap;
@@ -19,6 +20,7 @@ interface Props {
 
 export function MappingsTable({
   columnMappings,
+  geometryLockedColumn,
   conceptOptionsByColumn,
   unitOptionsByConcept,
   detailOptions,
@@ -48,6 +50,7 @@ export function MappingsTable({
             <MappingRow
               key={mapping.columnName}
               mapping={mapping}
+              isReadOnly={mapping.columnName === geometryLockedColumn}
               conceptOptions={conceptOptionsByColumn[mapping.columnName] ?? []}
               unitOptions={unitOptions}
               detailOptions={detailOptions}

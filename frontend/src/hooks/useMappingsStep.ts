@@ -381,6 +381,11 @@ export function useMappingsStep(datasetId?: string) {
     );
   }, [files, procedureByColumn, mergedMappings]);
 
+  const geometryLockedColumn = useMemo(() => {
+    if (!geometryDetected) return null;
+    return columnMappings.find(m => m.conceptId === 'geometry')?.columnName ?? null;
+  }, [geometryDetected, columnMappings]);
+
   const detailOptions = useMemo((): DetailOptionMap => {
     const base: DetailOptionMap = {
       samplePretreatment: [],
@@ -419,18 +424,34 @@ export function useMappingsStep(datasetId?: string) {
 
   // Per-row concept options: metadata fields first (excluding those already selected by other rows),
   // then all soil properties. A row always sees its own current metadata selection so the user
-  // can change or clear it.
+  // can change or clear it. Geometry and Lat/Lon are mutually exclusive groups: picking one hides
+  // the other group across all rows.
   const conceptOptionsByColumn = useMemo((): Record<string, MenuOption[]> => {
     const usedMetadataCodes = new Set(
       columnMappings.filter(m => m.conceptId && METADATA_FIELD_CODES.has(m.conceptId)).map(m => m.conceptId!),
     );
+
+    const geometryCodesToHide = new Set<string>();
+    if (geometryDetected === true || usedMetadataCodes.has('geometry')) {
+      geometryCodesToHide.add('latitude');
+      geometryCodesToHide.add('longitude');
+      if (geometryDetected === true) geometryCodesToHide.add('geometry');
+    } else if (usedMetadataCodes.has('latitude') || usedMetadataCodes.has('longitude')) {
+      geometryCodesToHide.add('geometry');
+    }
+
     return Object.fromEntries(
       columnMappings.map(m => {
-        const availableMetadata = METADATA_FIELD_OPTIONS.filter(o => !usedMetadataCodes.has(o.code) || m.conceptId === o.code);
+        const availableMetadata = METADATA_FIELD_OPTIONS.filter(o => {
+          if (m.conceptId === o.code) return true; // keep own selection
+          if (usedMetadataCodes.has(o.code)) return false; // already used elsewhere
+          if (geometryCodesToHide.has(o.code)) return false; // excluded by geo-rule
+          return true;
+        });
         return [m.columnName, [...availableMetadata, ...soilPropertyOptions]];
       }),
     );
-  }, [columnMappings, soilPropertyOptions]);
+  }, [columnMappings, soilPropertyOptions, geometryDetected]);
 
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
@@ -475,30 +496,34 @@ export function useMappingsStep(datasetId?: string) {
     });
   }, []);
 
-  const handleConceptChange = useCallback((columnName: string, value: string) => {
-    const conceptId = value || null;
-    const isStructural = conceptId !== null && METADATA_FIELD_CODES.has(conceptId);
+  const handleConceptChange = useCallback(
+    (columnName: string, value: string) => {
+      if (columnName === geometryLockedColumn) return;
+      const conceptId = value || null;
+      const isStructural = conceptId !== null && METADATA_FIELD_CODES.has(conceptId);
 
-    setColumnMappings(prev =>
-      prev.map(m => {
-        if (m.columnName !== columnName) return m;
-        // Clear the unit whenever the concept is removed
-        const unitId = conceptId === null ? null : m.unitId;
-        // Clear detail fields when switching to a structural field — they don't apply
-        const details = isStructural ? { ...EMPTY_DETAILS } : m.details;
-        return { ...m, conceptId, unitId, details };
-      }),
-    );
+      setColumnMappings(prev =>
+        prev.map(m => {
+          if (m.columnName !== columnName) return m;
+          // Clear the unit whenever the concept is removed
+          const unitId = conceptId === null ? null : m.unitId;
+          // Clear detail fields when switching to a structural field — they don't apply
+          const details = isStructural ? { ...EMPTY_DETAILS } : m.details;
+          return { ...m, conceptId, unitId, details };
+        }),
+      );
 
-    // Collapse the row when switching to a structural field
-    if (isStructural) {
-      setExpandedRows(prev => {
-        const next = new Set(prev);
-        next.delete(columnName);
-        return next;
-      });
-    }
-  }, []);
+      // Collapse the row when switching to a structural field
+      if (isStructural) {
+        setExpandedRows(prev => {
+          const next = new Set(prev);
+          next.delete(columnName);
+          return next;
+        });
+      }
+    },
+    [geometryLockedColumn],
+  );
 
   const handleUnitChange = useCallback((columnName: string, value: string) => {
     setColumnMappings(prev => prev.map(m => (m.columnName === columnName ? { ...m, unitId: value || null } : m)));
@@ -567,6 +592,7 @@ export function useMappingsStep(datasetId?: string) {
     depthConflictMessage,
     isContinueEnabled,
     columnMappings,
+    geometryLockedColumn,
     conceptOptionsByColumn,
     unitOptionsByConcept,
     detailOptions,

@@ -11,6 +11,7 @@ import styles from './MappingRow.module.scss';
 
 interface Props {
   mapping: ColumnMapping;
+  isReadOnly?: boolean;
   conceptOptions: MenuOption[];
   unitOptions: MenuOption[];
   detailOptions: DetailOptionMap;
@@ -25,6 +26,7 @@ interface Props {
 
 export function MappingRow({
   mapping,
+  isReadOnly,
   conceptOptions,
   unitOptions,
   detailOptions,
@@ -67,6 +69,7 @@ export function MappingRow({
             options={conceptOptions}
             value={mapping.conceptId ?? undefined}
             placeholder={t('datasets.mappings.row.select_concept')}
+            isDisabled={isReadOnly}
             onChange={code => onConceptChange(mapping.columnName, code)}
             onClear={() => onConceptChange(mapping.columnName, '')}
           />
