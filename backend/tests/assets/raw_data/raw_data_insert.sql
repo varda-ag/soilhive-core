@@ -35,6 +35,11 @@ FROM (VALUES
 	 (10101,-148.011993408203,64.9757995605469,1109679,3145637,'MDU_4',NULL,9,11,'2001-08-01'::date,'test_license_raw_data',NULL,0.39,'SRID=4326;POINT (-148.011993408203 64.9757995605469)'::public.geometry),
 	 (10102,-148.011993408203,64.9757995605469,1109679,3145638,'MDU_4',NULL,11,16,'2001-08-01'::date,'test_license_raw_data',NULL,0.92,'SRID=4326;POINT (-148.011993408203 64.9757995605469)'::public.geometry),
 	 (10136,-148.011993408203,64.9757995605469,1112775,3158438,'MDU_2',NULL,3,16,'2001-08-01'::date,'test_license_raw_data',NULL,0.08,'SRID=4326;POINT (-148.011993408203 64.9757995605469)'::public.geometry),
-	 (10137,-148.011993408203,64.9757995605469,1112775,3158439,'MDU_2',NULL,16,19,'2001-08-01'::date,'test_license_raw_data',NULL,0.38,'SRID=4326;POINT (-148.011993408203 64.9757995605469)'::public.geometry))
+	 (10137,-148.011993408203,64.9757995605469,1112775,3158439,'MDU_2',NULL,16,19,'2001-08-01'::date,'test_license_raw_data',NULL,0.38,'SRID=4326;POINT (-148.011993408203 64.9757995605469)'::public.geometry),
+	 -- record_id 10050 is intentionally inserted last despite having a lower id than the other
+	 -- upper_depth=0 rows (10085, 10089, 10096, 10099). Being last in the heap means PostgreSQL's
+	 -- sort places it after those rows for equal upper_depth values, so without a secondary ORDER BY
+	 -- on record_id the cursor skips it entirely. This is the regression fixture for SP-5261.
+	 (10050,-148.011993408203,64.9757995605469,9999999,9999000,'TEST_SORT',NULL,0,5,'2001-08-01'::date,'test_license_raw_data',NULL,0.50,'SRID=4326;POINT (-148.011993408203 64.9757995605469)'::public.geometry))
 	as v(record_id,longitude,latitude,profile_id,layer_id,profile_code,layer_name,upper_depth,lower_depth,"date",licence,bdfi33,bdfiod,geometry)
 LIMIT {{limit}};

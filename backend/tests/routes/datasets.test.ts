@@ -303,8 +303,8 @@ describe('Testing /datasets routes', () => {
         iterations++;
       } while (iterations < maxIterations);
 
-      // 19 rows in fixture minus 2 drop_records = 17 usable records
-      expect(allRecordIds.length).toBe(17);
+      // 20 rows in fixture minus 2 drop_records = 18 usable records
+      expect(allRecordIds.length).toBe(18);
       expect(new Set(allRecordIds).size).toBe(allRecordIds.length);
     });
 
@@ -338,7 +338,7 @@ describe('Testing /datasets routes', () => {
         iterations++;
       } while (iterations < maxIterations);
 
-      expect(allRecordIds.length).toBe(17);
+      expect(allRecordIds.length).toBe(18);
       expect(new Set(allRecordIds).size).toBe(allRecordIds.length);
       for (let i = 1; i < allMinDepths.length; i++) {
         expect(allMinDepths[i]).toBeGreaterThanOrEqual(allMinDepths[i - 1]);
@@ -379,7 +379,7 @@ describe('Testing /datasets routes', () => {
         iterations++;
       } while (iterations < maxIterations);
 
-      expect(allRecordIds.length).toBe(17);
+      expect(allRecordIds.length).toBe(18);
       expect(new Set(allRecordIds).size).toBe(allRecordIds.length);
       // Non-NULL bdfiod values (those within min_val range) must appear in ascending order.
       // NULL values sort last (PostgreSQL NULLS LAST for ASC) and are excluded from the check.
@@ -404,8 +404,8 @@ describe('Testing /datasets routes', () => {
         .set('Authorization', `Bearer ${token}`);
       expect(res.statusCode).toBe(StatusCodes.OK);
       expect(res.body).toHaveProperty('count');
-      // 19 fixture rows minus 2 drop_records = 17
-      expect(res.body.count).toBe(17);
+      // 20 fixture rows minus 2 drop_records = 18
+      expect(res.body.count).toBe(18);
     });
   });
 });
