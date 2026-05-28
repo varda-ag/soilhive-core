@@ -297,10 +297,10 @@ export default function Metadata() {
             onCancel={onCancel}
           />
           <EditorRow
-            label={t('fields.reference_coverage_start')}
+            label={t('fields.reference_period_start')}
             value={dataset?.reference_period_start}
             isEditable={isAdmin && !inferredProperties.has('reference_period_start') && !isEditing}
-            placeholder={t('placeholders.reference_coverage_start')}
+            placeholder={t('placeholders.reference_period_start')}
             property="reference_period_start"
             variant="text"
             onStartEditing={onStartEditing}
@@ -308,10 +308,10 @@ export default function Metadata() {
             onCancel={onCancel}
           />
           <EditorRow
-            label={t('fields.reference_coverage_end')}
+            label={t('fields.reference_period_stop')}
             value={dataset?.reference_period_stop}
             isEditable={isAdmin && !inferredProperties.has('reference_period_stop') && !isEditing}
-            placeholder={t('placeholders.reference_coverage_end')}
+            placeholder={t('placeholders.reference_period_stop')}
             property="reference_period_stop"
             variant="text"
             onStartEditing={onStartEditing}

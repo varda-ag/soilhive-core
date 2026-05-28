@@ -8,8 +8,8 @@
         "description": "Please provide a brief summary of dataset purpose, content, and methodology",
         "author": "Name of the organization or the author of this dataset",
         "spatial_resolution": "e.g. <1m, 5-30m, >30m",
-        "reference_coverage_start": "Start date of the data coverage (YYYY-MM-DD)",
-        "reference_coverage_end": "Stop date of the data coverage (YYYY-MM-DD)",
+        "reference_period_start": "Start date of the data coverage (YYYY-MM-DD)",
+        "reference_period_stop": "Stop date of the data coverage (YYYY-MM-DD)",
         "publication_date": "Type YYYY-MM-DD",
         "citation": "Preferred citation (authors, year, title, journal, DOI/URL)"
     },
@@ -61,8 +61,8 @@
         "max_soil_depth_cm": "Max Soil Depth (cm):",
         "gis_datatype": "GIS Data Type:",
         "spatial_resolution": "Spatial resolution:",
-        "reference_coverage_start": "Reference coverage start:",
-        "reference_coverage_end": "Reference coverage end:",
+        "reference_period_start": "Reference coverage start:",
+        "reference_period_stop": "Reference coverage end:",
         "publication_date": "Publication date:",
         "license": "License:",
         "citation": "Citation:"
