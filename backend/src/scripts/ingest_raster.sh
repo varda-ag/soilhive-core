@@ -56,8 +56,8 @@ if [[ "$IS_COG" == "COG" && "$OUT_EXPLICIT" != "true" ]]; then
   echo "-> Skipping COG conversion: input is already COG" >&2
   OUT="$INPUT"
 elif [[ "$IS_COG" == "COG" ]]; then
-  echo "-> Input is already COG, copying to: $OUT" >&2
-  cp "$INPUT" "$OUT" >&2
+  echo "-> Input is already COG, using input as output: $INPUT" >&2
+  OUT="$INPUT"
 else
   echo "-> Converting to COG: $OUT" >&2
   gdal_translate "$INPUT" "$OUT" \
