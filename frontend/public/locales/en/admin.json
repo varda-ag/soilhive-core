@@ -308,7 +308,24 @@
         "preview": {
             "step_title": "Preview",
             "step_description": "Review data",
-            "title": "Preview"
+            "title": "Preview",
+            "message": "This is the data you are going to load, make sure everything is correct, you can unselect the rows that are not consistent, they won't be loaded in the dataset.",
+            "show_original_name": "Show original name",
+            "loading": "Loading...",
+            "data_loading": {
+                "title": "Data loading started",
+                "description": "The system is loading your data, you can check the dataset status in the dataset table."
+            },
+            "columns": {
+                "lat": "Lat",
+                "long": "Long",
+                "min_depth": "Lower depth",
+                "max_depth": "Upper depth",
+                "sampling_date": "Sampling date",
+                "horizon": "Horizon",
+                "license": "License",
+                "delete": "Delete"
+            }
         },
         "quality_check": {
             "step_title": "Quality check",

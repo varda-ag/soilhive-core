@@ -29,3 +29,4 @@ export * from './Cropper/Cropper';
 export * from './TextArea/TextArea';
 export * from './Loader/Loader';
 export * from './Table/Table';
+export * from './ToggleButton/ToggleButton';

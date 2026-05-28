@@ -64,9 +64,11 @@ export type CropArea = {
 };
 
 export type TableColumn<T> = {
-  name: string;
+  name: ReactNode;
   value: string;
   sortable?: boolean;
+  reorderable?: boolean;
+  headerTooltip?: string;
   bodyTemplate?: (row: T) => ReactNode;
   sortFunction?: (event: ColumnSortEvent) => T[];
 };

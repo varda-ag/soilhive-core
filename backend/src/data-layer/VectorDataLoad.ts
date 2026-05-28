@@ -39,7 +39,7 @@ export default class VectorDataLoad {
   getDataCount = async (entityManager: EntityManager, dataMappingConfig: DataCleaningConfig, fileId: string): Promise<number> => {
     const table = `${process.env.POSTGRES_SCHEMA}.${getRawTableName(fileId)}`;
     let query = entityManager.createQueryBuilder().from(table, 'raw').select('COUNT(*)', 'count');
-    if (dataMappingConfig.drop_records) {
+    if (dataMappingConfig.drop_records && dataMappingConfig.drop_records.length > 0) {
       query = query.andWhere('raw.record_id NOT IN (:...drop_records)', { drop_records: dataMappingConfig.drop_records });
     }
     const result = await entityManager.query(...query.getQueryAndParameters());
@@ -95,6 +95,9 @@ export default class VectorDataLoad {
       metadataVals[mappedData] = sanitizedRecord[mappedData];
       metadataCols.push(mappedData);
     }
+
+    // TODO: remove after horizon has been restored
+    if (metadataCols.indexOf('horizon') === -1) metadataCols.push('horizon');
 
     const layer = await entityManager
       .createQueryBuilder()
@@ -184,7 +187,7 @@ const buildSortExpr = (sortKey: string, dataMappingConfig: DataCleaningConfig): 
     const expr = formula ? formula.replace(/x/g, `(raw.${sortKey})::numeric`) : `(raw.${sortKey})::numeric`;
     return `CASE WHEN ROUND(${sortKey}::numeric, 3)=${OUTSIDE_LOD_VALUE} THEN ROUND(${sortKey}::numeric, 3) ELSE ROUND(${expr},3) END`;
   }
-  return `raw.${sortKey}`;
+  return `${sortKey}`; // unmapped required columns
 };
 
 const getDataPreviewQuery = (query: any, dataMappingConfig: DataCleaningConfig, cursor?: string, sort?: string): any => {
@@ -254,7 +257,7 @@ const getDataPreviewQuery = (query: any, dataMappingConfig: DataCleaningConfig, 
   query.setParameters(params);
   query.addSelect('ST_AsGeoJSON(raw.geometry)', 'geometry');
 
-  if (dataMappingConfig.drop_records) {
+  if (dataMappingConfig.drop_records && dataMappingConfig.drop_records.length > 0) {
     query = query.andWhere('raw.record_id NOT IN (:...drop_records)', { drop_records: dataMappingConfig.drop_records });
   }
   return query;
