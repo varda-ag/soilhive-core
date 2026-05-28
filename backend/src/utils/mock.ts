@@ -578,7 +578,7 @@ export const addRasterData = async (
   const out = options?.out ?? `test_raster_${Date.now()}_cog.tif`;
 
   const outDir = options?.outDir ?? process.env.LOCAL_STORAGE_ROOT_FOLDER;
-  await ingestRaster({
+  const outName = await ingestRaster({
     input: path.resolve(input),
     out,
     ...(outDir !== undefined ? { outDir } : {}),
@@ -590,7 +590,7 @@ export const addRasterData = async (
   const dataSource = await getDataSource();
   const repo = dataSource.getRepository(RasterLayerEntity);
 
-  const entity = await repo.findOneOrFail({ where: { file: { file_path: out } }, relations: { file: true } });
+  const entity = await repo.findOneOrFail({ where: { file: { file_path: outName } }, relations: { file: true } });
 
   if (options?.layerFields && Object.keys(options.layerFields).length > 0) {
     Object.assign(entity, options.layerFields);

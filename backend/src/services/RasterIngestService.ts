@@ -67,7 +67,7 @@ async function insertFootprintBatch(
   );
 }
 
-export async function ingestRaster(opts: IngestRasterOptions): Promise<void> {
+export async function ingestRaster(opts: IngestRasterOptions): Promise<string> {
   log.info('Starting raster ingest', { input: opts.input });
 
   const cogPath = await runCogConversion(opts);
@@ -135,4 +135,5 @@ export async function ingestRaster(opts: IngestRasterOptions): Promise<void> {
   });
 
   log.info('Raster ingest complete', { outName, footprintCount: totalFootprints });
+  return outName;
 }
