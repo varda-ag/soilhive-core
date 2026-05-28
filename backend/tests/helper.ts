@@ -37,6 +37,7 @@ export const teardown = async () => {
 };
 
 export const clearDatabase = async () => {
+  assert(process.env.POSTGRES_SCHEMA === 'testschema', 'clearDatabase can only be run on testschema');
   const excludeTables: string[] = [];
   const includeTables: string[] = ['land_cover', 'soil_groups'];
   const dataSource = await getDataSource();
