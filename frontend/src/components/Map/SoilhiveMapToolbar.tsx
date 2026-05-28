@@ -7,6 +7,7 @@ import PencilIcon from 'assets/icons/pencil-icon.svg?react';
 import UploadIcon from 'assets/icons/small-upload-icon.svg?react';
 import { check } from '@placemarkio/check-geojson';
 import type { Polygon, MultiPolygon } from 'geojson';
+import useDevice from 'hooks/useDevice';
 import useNotifications from 'hooks/useNotifications';
 import { useTranslation } from 'react-i18next';
 
@@ -23,6 +24,7 @@ export default function SoilhiveMapToolbar({ visible, onDrawClick, onUpload }: S
   const selectionListRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const { isMobileLayout } = useDevice();
   const { showNotification } = useNotifications();
 
   const onWindowClick = (event: PointerEvent) => {
@@ -103,20 +105,22 @@ export default function SoilhiveMapToolbar({ visible, onDrawClick, onUpload }: S
 
   return (
     <div className={classnames('soilhive-map-toolbar', { hidden: !visible })}>
-      <button
-        ref={selectionButtonRef}
-        onClick={() => {
-          setOpen(!open);
-        }}
-      >
-        <span className="text-container">
-          <SmallPolygonIcon className="polygon" />
-          <span className="text-only">{t('map.polygon_button')}</span>
-        </span>
-        <span className="arrow-container">
-          <ArrowDownIcon className="arrow" />
-        </span>
-      </button>
+      {!isMobileLayout && (
+        <button
+          ref={selectionButtonRef}
+          onClick={() => {
+            setOpen(!open);
+          }}
+        >
+          <span className="text-container">
+            <SmallPolygonIcon className="polygon" />
+            <span className="text-only">{t('map.polygon_button')}</span>
+          </span>
+          <span className="arrow-container">
+            <ArrowDownIcon className="arrow" />
+          </span>
+        </button>
+      )}
       <div ref={selectionListRef} className={`selection-list${open ? ' open' : ''}`}>
         <button
           onClick={() => {

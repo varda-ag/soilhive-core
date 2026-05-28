@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import useDevice from 'hooks/useDevice';
 import { Button } from 'components/UI';
 import styles from './DownloadSummary.module.scss';
 import ArrowLeftIcon from 'assets/icons/arrow-left-icon.svg?react';
@@ -34,6 +35,7 @@ const availableFormats = [
 function DownloadSummary() {
   const navigate = useNavigate();
   const { t } = useTranslation('download');
+  const { isMobileLayout } = useDevice();
   const { startDownload, setIsOpened } = useDownloads();
 
   const [searchParams] = useSearchParams();
@@ -218,7 +220,7 @@ function DownloadSummary() {
               size="medium"
               type="primary"
               className={styles.DownloadButton}
-              isDisabled={isLoading || !termsAgreed || selectedDatasets.length === 0}
+              isDisabled={isMobileLayout || isLoading || !termsAgreed || selectedDatasets.length === 0}
               onClick={onDownloadButtonClick}
             >
               <DownloadIcon />

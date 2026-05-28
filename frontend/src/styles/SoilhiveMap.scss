@@ -68,6 +68,10 @@
     border-radius: 20px;
     padding: 6px 9px;
 
+    @media (max-width: $bp-mobile-max) {
+      padding-bottom: 10px;
+    }
+
     &.hidden {
       display: none;
     }

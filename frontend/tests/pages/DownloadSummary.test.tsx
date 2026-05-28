@@ -1,5 +1,6 @@
-import { render } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import DownloadSummary from '../../src/pages/DownloadSummary';
+import { __setIsMobileLayout, __resetIsMobileLayout } from 'hooks/useDevice';
 
 jest.mock('react-router', () => {
   const mockSearchParamsGet = jest.fn();
@@ -61,9 +62,22 @@ jest.mock('primereact/api', () => {
   return { PrimeReactProvider };
 });
 
+jest.mock('hooks/useDevice');
+
 describe('DownloadSummary', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+  });
+
+  afterEach(() => {
+    __resetIsMobileLayout();
+  });
+
+  it('disables download button on mobile layout', () => {
+    __setIsMobileLayout(true);
+    render(<DownloadSummary />);
+    const downloadButton = screen.getByRole('button', { name: /download data/i });
+    expect(downloadButton).toBeDisabled();
   });
 
   it('renders download summary page', () => {
