@@ -127,6 +127,7 @@ export function DatasetsPreviewStep() {
         bodyTemplate: (row: { record_id: number }) => (
           <div className={styles.DeleteCell}>
             <DeleteCheckboxCell
+              key={`${selectedFile}-${row.record_id}`}
               recordId={row.record_id}
               isInitiallyChecked={currentFileDeletions.has(row.record_id)}
               toggleDeletion={toggleDeletion}
@@ -135,7 +136,7 @@ export function DatasetsPreviewStep() {
         ),
       },
     ],
-    [tableColumns, visibleColumns, t, currentFileDeletions, toggleDeletion],
+    [tableColumns, visibleColumns, t, currentFileDeletions, toggleDeletion, selectedFile],
   );
 
   useEffect(() => {
@@ -200,7 +201,7 @@ export function DatasetsPreviewStep() {
           defaultSortField={sortField}
           defaultSortOrder={sortOrder}
           reorderableColumns={true}
-          dataKey="record_id"
+          dataKey="cursor"
           emptyMessage={!allSoilData.length && (isLoading || !!soilData?.length) ? t('datasets.preview.loading') : ''}
           onScrollNearBottom={loadMore}
           onSort={onSortChange}

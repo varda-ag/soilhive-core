@@ -16,6 +16,10 @@ jest.mock('hooks/useApiMutation', () => ({ useApiMutation: jest.fn() }));
 jest.mock('hooks/useJobsApi', () => ({ useCreateJobMutation: jest.fn() }));
 jest.mock('hooks/useSoilProperties', () => ({ useSoilProperties: jest.fn() }));
 
+jest.mock('@tanstack/react-query', () => ({
+  useQueryClient: jest.fn(() => ({ invalidateQueries: jest.fn() })),
+}));
+
 const DATASET_ID = 'ds-1';
 
 const fileMappings = [
