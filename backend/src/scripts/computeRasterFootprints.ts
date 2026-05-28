@@ -6,14 +6,7 @@ const MIN_TILES = 256;
 // Minimum number of overview pixels along each tile dimension for polygon precision.
 // Higher = finer polygons but more computation.
 const PIXELS_PER_TILE_MIN_DIM = 512;
-// Max tiles per INSERT batch — keeps params well under PG's 65535 limit
 const INSERT_BATCH_SIZE = 10;
-
-export interface FootprintTile {
-  tileCol: number;
-  tileRow: number;
-  geom: MultiPolygon;
-}
 
 export interface RasterFootprintMeta {
   nodata: number | null;
@@ -21,7 +14,7 @@ export interface RasterFootprintMeta {
   bbox: Polygon;
 }
 
-export type FootprintBatchCallback = (tiles: FootprintTile[]) => Promise<void>;
+export type FootprintBatchCallback = (tiles: MultiPolygon[]) => Promise<void>;
 
 function computeGrid(rasterWidth: number, rasterHeight: number): { nCols: number; nRows: number } {
   const rasterArea = rasterWidth * rasterHeight;
@@ -144,7 +137,7 @@ export async function streamRasterFootprints(
     const memDriver = gdal.drivers.get('MEM');
     const ogrDriver = gdal.drivers.get('Memory');
 
-    let batch: FootprintTile[] = [];
+    let batch: MultiPolygon[] = [];
 
     for (let iRow = 0; iRow < nRows; iRow++) {
       for (let iCol = 0; iCol < nCols; iCol++) {
@@ -212,7 +205,7 @@ export async function streamRasterFootprints(
 
         if (polygonCoords.length === 0) continue;
 
-        batch.push({ tileCol: iCol, tileRow: iRow, geom: { type: 'MultiPolygon', coordinates: polygonCoords } });
+        batch.push({ type: 'MultiPolygon', coordinates: polygonCoords });
 
         if (batch.length >= INSERT_BATCH_SIZE) {
           await onBatch(batch);

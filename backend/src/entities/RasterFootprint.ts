@@ -1,6 +1,5 @@
-import { Entity, Column, Index, PrimaryColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, Column, Index, PrimaryColumn } from 'typeorm';
 import type { MultiPolygon } from 'geojson';
-import RasterLayerEntity from './RasterLayer';
 
 @Entity('raster_footprints')
 export default class RasterFootprintEntity {
@@ -9,18 +8,8 @@ export default class RasterFootprintEntity {
   })
   id: string;
 
-  @Column({ type: 'uuid' })
-  raster_layer_id: string;
-
-  @ManyToOne(() => RasterLayerEntity, rl => rl.footprints, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'raster_layer_id' })
-  rasterLayer: RasterLayerEntity;
-
-  @Column({ type: 'int' })
-  tile_col: number;
-
-  @Column({ type: 'int' })
-  tile_row: number;
+  @Column({ type: 'text', insert: false, update: false })
+  geom_hash: string;
 
   @Index({ spatial: true })
   @Column({ type: 'geometry', spatialFeatureType: 'MultiPolygon', srid: 4326 })

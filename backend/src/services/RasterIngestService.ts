@@ -1,9 +1,9 @@
 import { spawn } from 'child_process';
 import path from 'path';
 import { analyzeRasterMeta, streamRasterFootprints } from '../scripts/computeRasterFootprints';
-import type { FootprintTile } from '../scripts/computeRasterFootprints';
 import { getEntityManager } from '../utils/data-source';
 import { log } from '../utils/logger';
+import { MultiPolygon } from 'geojson';
 
 export interface IngestRasterOptions {
   input: string;
@@ -43,14 +43,28 @@ function runCogConversion(opts: IngestRasterOptions): Promise<string> {
 async function insertFootprintBatch(
   em: Awaited<ReturnType<typeof import('../utils/data-source').getEntityManager>>,
   rasterLayerId: string,
-  batch: FootprintTile[],
+  batch: MultiPolygon[],
 ): Promise<void> {
-  const values = batch.map((_, i) => `($1, $${i * 3 + 2}, $${i * 3 + 3}, ST_SetSRID(ST_GeomFromGeoJSON($${i * 3 + 4}), 4326))`).join(', ');
+  const geomJsons = batch.map(fp => JSON.stringify(fp));
   await em.query(`SET search_path TO ${process.env.POSTGRES_SCHEMA}, public`);
-  await em.query(`INSERT INTO raster_footprints (raster_layer_id, tile_col, tile_row, geom) VALUES ${values}`, [
-    rasterLayerId,
-    ...batch.flatMap(fp => [fp.tileCol, fp.tileRow, JSON.stringify(fp.geom)]),
-  ]);
+  // Two separate statements: PostgreSQL CTE snapshot isolation means rows inserted
+  // in fp_ins would not be visible to the outer SELECT within the same statement.
+  await em.query(
+    `INSERT INTO raster_footprints (geom)
+     SELECT ST_SetSRID(ST_GeomFromGeoJSON(v), 4326)
+     FROM unnest($1::text[]) AS v
+     ON CONFLICT (geom_hash) DO NOTHING`,
+    [geomJsons],
+  );
+  await em.query(
+    `INSERT INTO raster_layer_footprints (raster_layer_id, raster_footprint_id)
+     SELECT $2, rf.id
+     FROM unnest($1::text[]) AS v
+     JOIN raster_footprints rf
+       ON rf.geom_hash = encode(sha256(ST_SetSRID(ST_GeomFromGeoJSON(v), 4326)::TEXT::BYTEA), 'hex')
+     ON CONFLICT DO NOTHING`,
+    [geomJsons, rasterLayerId],
+  );
 }
 
 export async function ingestRaster(opts: IngestRasterOptions): Promise<void> {

@@ -1,4 +1,4 @@
-import { Entity, Column, Index, PrimaryColumn, ManyToOne, OneToMany, JoinColumn } from 'typeorm';
+import { Entity, Column, Index, PrimaryColumn, ManyToOne, ManyToMany, JoinColumn, JoinTable } from 'typeorm';
 import type { Polygon } from 'geojson';
 import { RasterLayer } from '../interfaces/RasterLayer';
 import BaseTable from './BaseTable';
@@ -62,6 +62,11 @@ export default class RasterLayerEntity extends BaseTable implements RasterLayer 
   @Column({ type: 'geometry', spatialFeatureType: 'Polygon', srid: 4326 })
   bbox: Polygon;
 
-  @OneToMany(() => RasterFootprintEntity, fp => fp.rasterLayer)
+  @ManyToMany(() => RasterFootprintEntity)
+  @JoinTable({
+    name: 'raster_layer_footprints',
+    joinColumn: { name: 'raster_layer_id', referencedColumnName: 'id' },
+    inverseJoinColumn: { name: 'raster_footprint_id', referencedColumnName: 'id' },
+  })
   footprints: RasterFootprintEntity[];
 }
