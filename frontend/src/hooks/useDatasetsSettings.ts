@@ -7,7 +7,8 @@ import { isValidEmail, hasTextContent } from '../utilities/validation';
 import { useAuthContext } from '../auth/AuthContextProvider';
 import { AuthModes } from '../auth/types';
 import { useDataset } from './useDatasets';
-import { useUpdateDatasetVisibilityMutation } from './useDatasetMutation';
+import { useUpdateDatasetMutation } from './useDatasetMutation';
+import { IngestionStatus } from 'types/backend';
 import type { EntitlementCapability } from 'types/backend';
 import { useDatasetEntitlements, useDatasetEntitlementsMutation } from './useDatasetEntitlements';
 import useTheme from './useTheme';
@@ -28,7 +29,7 @@ export function useDatasetsSettings(datasetId: string | undefined) {
 
   const { data: dataset, isLoading: isDatasetLoading } = useDataset(datasetId);
   const { data: entitlements, isLoading: isEntitlementsLoading } = useDatasetEntitlements(datasetId);
-  const updateDataset = useUpdateDatasetVisibilityMutation(datasetId ?? '');
+  const updateDataset = useUpdateDatasetMutation(datasetId ?? '');
   const updateEntitlements = useDatasetEntitlementsMutation(datasetId ?? '');
 
   const [visibility, setVisibility] = useState<Visibility>('private');
@@ -106,7 +107,7 @@ export function useDatasetsSettings(datasetId: string | undefined) {
 
   async function handlePublishProceed() {
     setIsPublishWarningVisible(false);
-    await updateDataset.mutateAsync({ visibility });
+    await updateDataset.mutateAsync({ visibility, status: IngestionStatus.PUBLISHED });
     await queryClient.invalidateQueries({ queryKey: ['dataset', datasetId] });
     await queryClient.invalidateQueries({ queryKey: ['datasets'] });
     if (visibility === 'private') {
