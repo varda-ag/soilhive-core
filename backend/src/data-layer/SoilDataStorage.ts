@@ -780,7 +780,7 @@ export const buildDatasetFilterClauses = (
   p: (val: any) => string,
   schema: string,
 ): { outerWhere: string[]; lateralJoins: string[]; lateralWhere: string[] } => {
-  const outerWhere: string[] = ['ds.deleted_at IS NULL', `ds.spatial_extent && (SELECT geom FROM aoi)`];
+  const outerWhere: string[] = ['ds.deleted_at IS NULL', `ds.spatial_extent && (SELECT geom FROM aoi)`, `ds.status = 'PUBLISHED'`];
   const lateralJoins: string[] = [];
   const lateralWhere: string[] = [`ST_Intersects(f.geom, (SELECT geom FROM aoi))`];
   let needsLayerJoin = false;
