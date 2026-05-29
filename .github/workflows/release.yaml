@@ -11,6 +11,7 @@ jobs:
     uses: varda-ag/.github/.github/workflows/release.yaml@bf80d0c0e30b15a047dacd693bec8f5bfda03b67 # v1.13.3
     with:
       gh-app-id: ${{ vars.VARDA_VERSION_BUMPER_APPID }}
+      target-branch: ${{ github.ref_name }}
     secrets:
       gh-app-private-key: ${{ secrets.VARDA_VERSION_BUMPER_PRIVATE_KEY }}
     permissions:
