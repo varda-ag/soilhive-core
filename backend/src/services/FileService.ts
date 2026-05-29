@@ -577,7 +577,7 @@ export default class FileService {
       try {
         if (fileMetadata.driver) {
           const driver = gdal.drivers.get(fileMetadata.driver);
-          dataset = driver.open(mainFilePath, 'r+', openOpts);
+          dataset = driver.open(mainFilePath, 'r', openOpts);
         } else {
           dataset = await gdal.openAsync(mainFilePath);
         }
