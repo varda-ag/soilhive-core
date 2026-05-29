@@ -60,6 +60,7 @@
     },
     "mobile_download_dialog": {
         "header": "Information note",
+        "title": "Best experience on desktop or iPad",
         "message": "Some features are not available on mobile devices, including downloading data, drawing polygons on the map, and uploading shapefiles. For the full experience, please use a desktop or an iPad."
     },
     "errors": {

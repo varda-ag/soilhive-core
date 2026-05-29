@@ -11,12 +11,13 @@ interface Props {
   isVisible: boolean;
   storageKey: string;
   header: string;
+  title: string;
   message: string;
   onContinue: () => void;
   onCancel: () => void;
 }
 
-export function InfoDialog({ isVisible, storageKey, header, message, onContinue, onCancel }: Props) {
+export function InfoDialog({ isVisible, storageKey, header, title, message, onContinue, onCancel }: Props) {
   const { t } = useTranslation('common');
 
   const [dontShowAgain, setDontShowAgain] = useState(false);
@@ -36,6 +37,7 @@ export function InfoDialog({ isVisible, storageKey, header, message, onContinue,
 
   return (
     <Dialog visible={visible} header={header} onPrimary={handleContinue} onSecondary={handleCancel}>
+      <p className={styles.Title}>{title}</p>
       <p>{message}</p>
       <Checkbox
         className={styles.DontShowAgain}
