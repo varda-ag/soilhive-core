@@ -567,7 +567,7 @@ export default class FileService {
         gdal.config.set('CPL_DEBUG', 'ALL');
         gdal.config.set('CPL_CURL_VERBOSE', 'YES');
       }
-      log.debug('Starting gdal.vectorTranslateAsync', {
+      log.info('Starting gdal', {
         source: mainFilePath,
         opts: JSON.stringify(gdalOpts),
       });
@@ -585,7 +585,8 @@ export default class FileService {
         log.error('gdal.openAsync failed', {
           path: mainFilePath,
           driver: fileMetadata.driver ?? 'auto',
-          error: openError instanceof Error ? openError.message : String(openError),
+          error: JSON.stringify(openError),
+          openOpts: JSON.stringify(openOpts),
         });
         throw openError;
       }
