@@ -22,6 +22,7 @@ import ConfigService from './ConfigService';
 import FileEntity from '../entities/File';
 import assert from 'assert';
 import { getDBPassword } from '../utils/db-credentials';
+import { log } from '../utils/logger';
 import DataMappingService from './DataMappingService';
 import DatasetFileMappingEntity from '../entities/DatasetFileMapping';
 
@@ -562,11 +563,20 @@ export default class FileService {
       }
       // Open dataset with GDAL (if driver available, pass driver-specific open options)
       let dataset: gdal.Dataset;
-      if (fileMetadata.driver) {
-        const driver = gdal.drivers.get(fileMetadata.driver);
-        dataset = driver.open(mainFilePath, 'r+', openOpts);
-      } else {
-        dataset = await gdal.openAsync(mainFilePath);
+      try {
+        if (fileMetadata.driver) {
+          const driver = gdal.drivers.get(fileMetadata.driver);
+          dataset = driver.open(mainFilePath, 'r+', openOpts);
+        } else {
+          dataset = await gdal.openAsync(mainFilePath);
+        }
+      } catch (openError) {
+        log.error('gdal.openAsync failed', {
+          path: mainFilePath,
+          driver: fileMetadata.driver ?? 'auto',
+          error: openError instanceof Error ? openError.message : String(openError),
+        });
+        throw openError;
       }
 
       const { layer } = this.getDataLayer(dataset.layers, unknownGeomDrivers.includes(fileMetadata.driver ? fileMetadata.driver : ''));
@@ -584,15 +594,41 @@ export default class FileService {
         );
       gdalOpts.unshift(layer.name);
       await requestData.entityManager.query(`DROP TABLE IF EXISTS "${tableName}"`);
-      await gdal.vectorTranslateAsync(pgDataset, dataset, gdalOpts);
-      dataset.close();
+
+      const gdalDebug = true; // TODO: use env var process.env['GDAL_DEBUG'] === 'true';
+      if (gdalDebug) {
+        gdal.config.set('CPL_DEBUG', 'ALL');
+        gdal.config.set('CPL_CURL_VERBOSE', 'YES');
+      }
+      log.debug('Starting gdal.vectorTranslateAsync', {
+        source: mainFilePath,
+        target: pgDataset.replace(/password=\S+/, 'password=***'),
+        opts: JSON.stringify(gdalOpts),
+      });
+      try {
+        await gdal.vectorTranslateAsync(pgDataset, dataset, gdalOpts);
+      } catch (translateError) {
+        log.error('gdal.vectorTranslateAsync failed', {
+          source: mainFilePath,
+          target: pgDataset.replace(/password=\S+/, 'password=***'),
+          opts: JSON.stringify(gdalOpts),
+          error: translateError instanceof Error ? translateError.message : String(translateError),
+        });
+        throw translateError;
+      } finally {
+        if (gdalDebug) {
+          gdal.config.set('CPL_DEBUG', null);
+          gdal.config.set('CPL_CURL_VERBOSE', null);
+        }
+        dataset.close();
+      }
 
       await repo.update(fileEntity.id, { status: IngestionStatus.STAGED });
     } catch (error) {
       if (error instanceof ErrorResponse) {
         throw error;
       }
-      throw new ErrorResponse(`Failed to load file to table: ${error}`, StatusCodes.BAD_REQUEST);
+      throw new ErrorResponse(`Failed to load file to table: ${error instanceof Error ? error.message : error}`, StatusCodes.BAD_REQUEST);
     } finally {
       // Clean up temporary directory if ZIP was extracted
       if (tempZipExtractPath) {
