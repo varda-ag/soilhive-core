@@ -365,8 +365,16 @@ export default class FileService {
       ({ mainFilePath, tempZipExtractPath } = await FileService.getMainFilePath(fileKey));
 
       // Open dataset with GDAL
+      log.info('Extracting metadata with gdal', {
+        source: mainFilePath,
+      });
       const dataset = await gdal.openAsync(mainFilePath);
       const driver = dataset.driver.description;
+
+      log.info('Getting data layer and detecting geometry', {
+        driver,
+      });
+
       const { layer, geometryDetected } = this.getDataLayer(dataset.layers, unknownGeomDrivers.includes(driver));
 
       // Extract field names
@@ -463,6 +471,10 @@ export default class FileService {
 
       return metadata;
     } catch (error) {
+      log.error('Failed to extract metadata', {
+        fileKey,
+        error: JSON.stringify(error),
+      });
       if (error instanceof ErrorResponse) {
         throw error;
       }
