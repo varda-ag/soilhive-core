@@ -80,7 +80,11 @@ export default class SoilDataStorage {
               AND ST_Intersects(f.geom, aoi.geom)
           )`;
 
-      const innerWhere: string[] = [`dl.feature_id = ANY(ARRAY(SELECT id FROM ${featureSource})::uuid[])`, 'ds.deleted_at IS NULL'];
+      const innerWhere: string[] = [
+        `dl.feature_id = ANY(ARRAY(SELECT id FROM ${featureSource})::uuid[])`,
+        'ds.deleted_at IS NULL',
+        `ds.status = 'PUBLISHED'`,
+      ];
 
       if (filters.data_types && filters.data_types.length > 0) {
         innerWhere.push(`ds.gis_datatype IN (${filters.data_types.map(v => p(v)).join(', ')})`);

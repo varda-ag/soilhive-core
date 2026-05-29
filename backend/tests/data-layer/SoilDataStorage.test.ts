@@ -225,6 +225,28 @@ describe('SoilDataStorage class', () => {
     expect(results.map(r => r.id)).not.toContain(loadedDataset.slug);
   });
 
+  it('filter (coverage) should only return PUBLISHED datasets, not LOADED or other statuses', async () => {
+    const { dataset: publishedDataset } = await addSyntheticData({
+      ...syntheticDataOptions,
+      id: 93,
+      soilPropertyNames: ['coverage_status_test_pub'],
+    });
+    const { dataset: loadedDataset } = await addSyntheticData({
+      ...syntheticDataOptions,
+      id: 94,
+      soilPropertyNames: ['coverage_status_test_loaded'],
+    });
+
+    const entityManager = await getEntityManager();
+    await entityManager.getRepository(DatasetEntity).update(loadedDataset.id, { status: IngestionStatus.LOADED });
+
+    const sds = new SoilDataStorage();
+    const results = await sds.filter(entityManager, bboxPolygon, {});
+
+    expect(results.map(r => r.id)).toContain(publishedDataset.slug);
+    expect(results.map(r => r.id)).not.toContain(loadedDataset.slug);
+  });
+
   it.each([
     [{ min_depth: null }, 1, 1],
     [{ max_depth: null }, 1, 1],
