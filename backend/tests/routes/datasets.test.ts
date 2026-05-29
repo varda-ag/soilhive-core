@@ -129,7 +129,7 @@ describe('Testing /datasets routes', () => {
       const token = await getDataAdminToken();
       const postRes = await request(app).post('/datasets').set('Authorization', `Bearer ${token}`).send({ name: 'dataset-status-guard' });
 
-      for (const forbidden of ['PENDING', 'ONGOING', 'STAGED', 'LOADED', 'invalid-status']) {
+      for (const forbidden of ['PENDING', 'ONGOING', 'STAGED', 'LOADED', 'ARCHIVED', 'invalid-status']) {
         const res = await request(app)
           .patch(`/datasets/${postRes.body.id}`)
           .set('Authorization', `Bearer ${token}`)
