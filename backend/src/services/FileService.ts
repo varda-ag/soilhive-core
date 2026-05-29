@@ -561,6 +561,17 @@ export default class FileService {
         // when -s_srs EPSG:4326 is combined with -t_srs EPSG:4326 on a null-SRS CSV layer.
         gdalOpts.push('-a_srs', 'EPSG:4326');
       }
+
+      const gdalDebug = true; // TODO: use env var process.env['GDAL_DEBUG'] === 'true';
+      if (gdalDebug) {
+        gdal.config.set('CPL_DEBUG', 'ALL');
+        gdal.config.set('CPL_CURL_VERBOSE', 'YES');
+      }
+      log.debug('Starting gdal.vectorTranslateAsync', {
+        source: mainFilePath,
+        opts: JSON.stringify(gdalOpts),
+      });
+
       // Open dataset with GDAL (if driver available, pass driver-specific open options)
       let dataset: gdal.Dataset;
       try {
@@ -595,16 +606,6 @@ export default class FileService {
       gdalOpts.unshift(layer.name);
       await requestData.entityManager.query(`DROP TABLE IF EXISTS "${tableName}"`);
 
-      const gdalDebug = true; // TODO: use env var process.env['GDAL_DEBUG'] === 'true';
-      if (gdalDebug) {
-        gdal.config.set('CPL_DEBUG', 'ALL');
-        gdal.config.set('CPL_CURL_VERBOSE', 'YES');
-      }
-      log.debug('Starting gdal.vectorTranslateAsync', {
-        source: mainFilePath,
-        target: pgDataset.replace(/password=\S+/, 'password=***'),
-        opts: JSON.stringify(gdalOpts),
-      });
       try {
         await gdal.vectorTranslateAsync(pgDataset, dataset, gdalOpts);
       } catch (translateError) {
