@@ -402,7 +402,7 @@ export default class FileService {
 
       if (!geometryDetected) {
         // Try to detect geometry field name
-        geometryFieldName = FileService.detectField(fieldNames, ['geom', 'geometry', 'shape', 'wkb'], true);
+        geometryFieldName = FileService.detectField(fieldNames, ['geom', 'geometry', 'shape', 'wkb', 'wkt'], true);
       }
 
       // Try to detect other fields
@@ -514,9 +514,9 @@ export default class FileService {
       mappingGeomFields.geomField,
       mappingGeomFields.lonField,
       mappingGeomFields.latField,
-    ];
+    ].map(item => item?.toLowerCase());
     let selectClause = fileMetadata.field_names
-      .filter(item => !originalGeomFields.includes(item)) // exclude geometry columns. They will be managed later
+      .filter(item => !originalGeomFields.includes(item.toLowerCase())) // exclude geometry columns. They will be managed later
       .map(field => `"${field}" AS ${sanitizeField(field)}`)
       .join(', ');
 

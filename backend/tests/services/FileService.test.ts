@@ -567,6 +567,28 @@ describe('FileService', () => {
       const tableColumns = await getTableColumns(getRawTableName(fileEntity.id));
       expect(tableColumns.map(c => c.column_name)).toContain('geometry');
     });
+
+    it('CSV contains geometry column named WKT', async () => {
+      const fileKey = 'test_geom_wkt2.csv';
+      const fileEntity = await fileService.createFile(requestData, {
+        name: fileKey,
+        file_path: fileKey,
+      });
+
+      const dataset = await addDataset('test_wkt_named_column', [0, 0, 30, 60]);
+      const dataMapping = await addDataMapping({ WKT: 'geometry' });
+      const dfm = await addDatasetFileMapping(dataset.id, dataMapping.id);
+      dfm.file_id = fileEntity.id;
+      await dfm.save();
+
+      await fileService.fileToDB(requestData, fileEntity.slug);
+
+      const dataSource = await getDataSource();
+      const rows = await dataSource.query(
+        `SELECT ST_X(geometry) as x FROM "${process.env.POSTGRES_SCHEMA}"."${getRawTableName(fileEntity.id)}" WHERE geometry IS NOT NULL LIMIT 1`,
+      );
+      expect(parseFloat(rows[0].x)).toBeCloseTo(10.0, 4);
+    });
   });
 
   describe('getDetectedMapping', () => {
