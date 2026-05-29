@@ -1,7 +1,7 @@
 name: soilhive-core
 services:
   keycloak:
-    image: quay.io/keycloak/keycloak:latest@sha256:dea26401d06341095cc4ea9d66896200b55de5ca1daa1d2fcbe58493afa6e0ad
+    image: quay.io/keycloak/keycloak:latest@sha256:f9ba7b2af90db8dc749a57ca9aedca51e840cb9224441ab546a968da941da900
     environment:
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: admin_password
