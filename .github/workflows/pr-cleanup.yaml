@@ -12,15 +12,19 @@ jobs:
   docker-backend-cleanup:
     uses: varda-ag/.github/.github/workflows/docker-cleanup.yaml@bf80d0c0e30b15a047dacd693bec8f5bfda03b67 # v1.13.3
     with:
-      imageName: soilhive-core-backend
-      imageVersionsPrefix: pr-${{ github.event.pull_request.number }}-
+      image-name: soilhive-core-backend
+      image-version-prefix: pr-${{ github.event.pull_request.number }}-
+      aws-role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+      aws-region: ${{ vars.AWS_REGION }}
     permissions:
       id-token: write # This is required for requesting the JWT token from OIDC
   
   docker-frontend-cleanup:
     uses: varda-ag/.github/.github/workflows/docker-cleanup.yaml@bf80d0c0e30b15a047dacd693bec8f5bfda03b67 # v1.13.3
     with:
-      imageName: soilhive-core-frontend
-      imageVersionsPrefix: pr-${{ github.event.pull_request.number }}-
+      image-name: soilhive-core-frontend
+      image-version-prefix: pr-${{ github.event.pull_request.number }}-
+      aws-role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+      aws-region: ${{ vars.AWS_REGION }}
     permissions:
       id-token: write # This is required for requesting the JWT token from OIDC
