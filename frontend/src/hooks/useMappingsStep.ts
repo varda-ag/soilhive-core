@@ -419,18 +419,34 @@ export function useMappingsStep(datasetId?: string) {
 
   // Per-row concept options: metadata fields first (excluding those already selected by other rows),
   // then all soil properties. A row always sees its own current metadata selection so the user
-  // can change or clear it.
+  // can change or clear it. Geometry and Lat/Lon are mutually exclusive groups: picking one hides
+  // the other group across all rows.
   const conceptOptionsByColumn = useMemo((): Record<string, MenuOption[]> => {
     const usedMetadataCodes = new Set(
       columnMappings.filter(m => m.conceptId && METADATA_FIELD_CODES.has(m.conceptId)).map(m => m.conceptId!),
     );
+
+    const geometryCodesToHide = new Set<string>();
+    if (geometryDetected === true || usedMetadataCodes.has('geometry')) {
+      geometryCodesToHide.add('latitude');
+      geometryCodesToHide.add('longitude');
+      if (geometryDetected === true) geometryCodesToHide.add('geometry');
+    } else if (usedMetadataCodes.has('latitude') || usedMetadataCodes.has('longitude')) {
+      geometryCodesToHide.add('geometry');
+    }
+
     return Object.fromEntries(
       columnMappings.map(m => {
-        const availableMetadata = METADATA_FIELD_OPTIONS.filter(o => !usedMetadataCodes.has(o.code) || m.conceptId === o.code);
+        const availableMetadata = METADATA_FIELD_OPTIONS.filter(o => {
+          if (m.conceptId === o.code) return true; // keep own selection
+          if (usedMetadataCodes.has(o.code)) return false; // already used elsewhere
+          if (geometryCodesToHide.has(o.code)) return false; // excluded by geo-rule
+          return true;
+        });
         return [m.columnName, [...availableMetadata, ...soilPropertyOptions]];
       }),
     );
-  }, [columnMappings, soilPropertyOptions]);
+  }, [columnMappings, soilPropertyOptions, geometryDetected]);
 
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 

@@ -35,6 +35,7 @@ const defaultProps = {
   isVisible: true,
   storageKey: STORAGE_KEY,
   header: 'Test header',
+  title: 'Test title',
   message: 'Test message',
   onContinue: jest.fn(),
   onCancel: jest.fn(), // InfoDialog's own prop names remain unchanged
@@ -54,6 +55,12 @@ describe('InfoDialog', () => {
 
     expect(screen.getByTestId('mock-dialog')).toBeInTheDocument();
     expect(screen.getByText('Test message')).toBeInTheDocument();
+  });
+
+  it('renders the title text', () => {
+    render(<InfoDialog {...defaultProps} />);
+
+    expect(screen.getByText('Test title')).toBeInTheDocument();
   });
 
   it('does not show the dialog when already dismissed in localStorage', () => {
