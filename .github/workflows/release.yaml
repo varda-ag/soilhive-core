@@ -8,7 +8,7 @@ on:
 
 jobs:
   release:
-    uses: varda-ag/.github/.github/workflows/release.yaml@dfbf503b1c958885bb1e71732936cc4a1d25739b # v0.2.1
+    uses: varda-ag/.github/.github/workflows/release.yaml@bf80d0c0e30b15a047dacd693bec8f5bfda03b67 # v1.13.3
     with:
       gh-app-id: ${{ vars.VARDA_VERSION_BUMPER_APPID }}
     secrets:
