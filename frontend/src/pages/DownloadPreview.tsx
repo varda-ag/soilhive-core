@@ -20,7 +20,6 @@ import { useTranslation } from 'react-i18next';
 
 import { useDownloadPreview } from 'hooks/useDownloadPreview';
 
-import { InfoDialog } from 'components/UI';
 import useDevice from 'hooks/useDevice';
 
 const MAXIMUM_SOIL_DATA_PER_REQUEST = 100;
@@ -29,7 +28,6 @@ function DownloadPreview() {
   const navigate = useNavigate();
   const { t } = useTranslation(['download', 'common']);
   const { isMobileLayout } = useDevice();
-  const [showDownloadInfo, setShowDownloadInfo] = useState(false);
 
   const [searchParams] = useSearchParams();
   const selectionType = searchParams.get('selectionType') ?? undefined;
@@ -193,17 +191,7 @@ function DownloadPreview() {
             <ArrowLeftIcon />
             {t('download_preview.back')}
           </Button>
-          <Button
-            type="primary"
-            className={styles.DownloadButton}
-            onClick={() => {
-              if (isMobileLayout) {
-                setShowDownloadInfo(true);
-                return;
-              }
-              navigateToDownload();
-            }}
-          >
+          <Button type="primary" className={styles.DownloadButton} isDisabled={isMobileLayout} onClick={navigateToDownload}>
             <DownloadIcon />
             {t('download_preview.download_button')}
           </Button>
@@ -283,14 +271,6 @@ function DownloadPreview() {
           {t('download_preview.tab_table')}
         </Button>
       </div>
-      <InfoDialog
-        isVisible={showDownloadInfo}
-        storageKey="no-download-on-mobile"
-        header={t('common:mobile_download_dialog.header')}
-        message={t('common:mobile_download_dialog.message')}
-        onContinue={() => setShowDownloadInfo(false)}
-        onCancel={() => setShowDownloadInfo(false)}
-      />
     </div>
   );
 }

@@ -107,6 +107,34 @@ describe('DatasetsSidebar', () => {
     expect(screen.getByTestId('sh-ui-page-sidebar')).toHaveClass('Opened');
   });
 
+  it('disables download button on mobile layout', () => {
+    (useDevice as jest.Mock).mockReturnValue({ isDesktopLayout: false, isMobileLayout: true });
+
+    render(<DatasetsSidebar isOpened={true} onClose={() => {}} />);
+
+    const downloadButton = screen.getByRole('button', { name: /download/i });
+    expect(downloadButton).toBeDisabled();
+  });
+
+  it('calls navigate when clicking on download button on desktop', () => {
+    (useDevice as jest.Mock).mockReturnValue({ isDesktopLayout: true, isMobileLayout: false });
+
+    const navigateMockFn = jest.fn();
+    (useNavigate as jest.Mock).mockReturnValue(navigateMockFn);
+
+    render(<DatasetsSidebar isOpened={true} onClose={() => {}} />);
+
+    const button = screen.getByRole('button', { name: /download/i });
+    expect(button).toBeEnabled();
+    button.click();
+
+    expect(navigateMockFn).toHaveBeenCalledTimes(1);
+    expect(navigateMockFn).toHaveBeenCalledWith({
+      pathname: '/download',
+      search: '?source=availability&selectionType=mock-selection-type&filterId=mock-filter-id&datasets=test-dataset',
+    });
+  });
+
   it('calls navigate when clicking on explore button', () => {
     (useDevice as jest.Mock).mockReturnValue({ isDesktopLayout: true });
 
