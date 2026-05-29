@@ -36,7 +36,7 @@ export class GeoFileWriter {
         : fs.existsSync(filePath); // all other formats
 
     if (fileExists) {
-      this.dataset = gdal.open(filePath, 'r+');
+      this.dataset = await gdal.openAsync(filePath, 'r+');
 
       // Repopulate layerMap from existing layers in the file
       for (let i = 0; i < this.dataset.layers.count(); i++) {
@@ -140,7 +140,7 @@ export class GeoFileWriter {
     let dataset: gdal.Dataset;
 
     if (fs.existsSync(filePath)) {
-      dataset = gdal.open(filePath, 'r+');
+      dataset = await gdal.openAsync(filePath, 'r+');
       this.currentLayer = dataset.layers.get(0);
     } else {
       const driver = gdal.drivers.get(this.getDriverName());

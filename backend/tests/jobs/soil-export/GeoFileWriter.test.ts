@@ -97,7 +97,7 @@ describe('GeoFileWriter', () => {
       await writer.closeFile();
 
       // --- Verify ---
-      const dataset = gdal.open(getVerificationPath(format, 'Al'), 'r');
+      const dataset = await gdal.openAsync(getVerificationPath(format, 'Al'), 'r');
       const layer = dataset.layers.get('Al');
 
       expect(layer).toBeDefined();
@@ -159,7 +159,7 @@ describe('GeoFileWriter', () => {
       await writer.closeFile();
 
       // --- Verify Al ---
-      const alDataset = gdal.open(getVerificationPath(format, 'Al'), 'r');
+      const alDataset = await gdal.openAsync(getVerificationPath(format, 'Al'), 'r');
       const alLayer = alDataset.layers.get('Al');
 
       expect(alLayer).toBeDefined();
@@ -176,7 +176,7 @@ describe('GeoFileWriter', () => {
 
       // --- Verify Ca ---
       // For single-file formats Ca is in the same file, for multi-file formats it's a separate file
-      const caDataset = gdal.open(getVerificationPath(format, 'Ca'), 'r');
+      const caDataset = await gdal.openAsync(getVerificationPath(format, 'Ca'), 'r');
       const caLayer = caDataset.layers.get('Ca');
 
       expect(caLayer).toBeDefined();
@@ -213,7 +213,7 @@ describe('GeoFileWriter', () => {
       await writer.closeFile();
 
       // Verify via GDAL
-      const dataset = gdal.open(getVerificationPath(format, property), 'r');
+      const dataset = await gdal.openAsync(getVerificationPath(format, property), 'r');
       const layer = dataset.layers.get(0);
 
       // Get all field names currently in the SHP file

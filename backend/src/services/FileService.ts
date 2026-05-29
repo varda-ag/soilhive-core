@@ -566,7 +566,7 @@ export default class FileService {
         const driver = gdal.drivers.get(fileMetadata.driver);
         dataset = driver.open(mainFilePath, 'r+', openOpts);
       } else {
-        dataset = gdal.open(mainFilePath);
+        dataset = await gdal.openAsync(mainFilePath);
       }
 
       const { layer } = this.getDataLayer(dataset.layers, unknownGeomDrivers.includes(fileMetadata.driver ? fileMetadata.driver : ''));
