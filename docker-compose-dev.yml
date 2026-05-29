@@ -18,7 +18,7 @@ services:
     command: start-dev
 
   postgis:
-    image: postgis/postgis:18-3.6@sha256:4de7017b328c47b337ea86eb17277c45c5b05b8378924112972e79d60803b935
+    image: postgis/postgis:18-3.6@sha256:750ce289885691e80cae5850a719603345306acba5f9682e15fec09292e62de7
     platform: linux/amd64
     environment:
       POSTGRES_DB: database
