@@ -26,7 +26,7 @@ describe('BulkDeleter class', () => {
   it('Bulk deleting all synthetic data', async () => {
     const { dataset } = await addSyntheticData({ ...syntheticDataOptions, id: 101, featureCount: 2 });
 
-    expect(dataset.status).toBe(IngestionStatus.LOADED);
+    expect(dataset.status).toBe(IngestionStatus.PUBLISHED);
 
     const promise = BulkDeleterModule.processBulkDeletion(getJob(dataset.slug));
     await new Promise(r => setTimeout(r, 50));

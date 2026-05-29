@@ -7,7 +7,7 @@ import { addDataset, addSyntheticData, syntheticDataOptions } from '../../src/ut
 import SoilDataStorage, { buildDatasetFilterClauses } from '../../src/data-layer/SoilDataStorage';
 import DatasetEntity from '../../src/entities/Dataset';
 import { decodeCursor } from '../../src/utils/cursor';
-import { GISDataType } from '../../src/types/data';
+import { GISDataType, IngestionStatus } from '../../src/types/data';
 import { addRastersData, addRasterMappings } from '../helper';
 import * as RasterUtilsModule from '../../src/utils/raster';
 import { invalidGeometryPayload } from './invalidGeometryPayload.ts';
@@ -201,6 +201,28 @@ describe('SoilDataStorage class', () => {
     });
     expect(datasetResults.length).toBe(expectedResultCount);
     expect(datasetResults.map(ds => ds.id).sort()).toEqual(filterResults.map(ds => ds.id).sort());
+  });
+
+  it('filterDatasets should only return PUBLISHED datasets, not LOADED or other statuses', async () => {
+    const { dataset: publishedDataset } = await addSyntheticData({
+      ...syntheticDataOptions,
+      id: 91,
+      soilPropertyNames: ['status_test_pub'],
+    });
+    const { dataset: loadedDataset } = await addSyntheticData({
+      ...syntheticDataOptions,
+      id: 92,
+      soilPropertyNames: ['status_test_loaded'],
+    });
+
+    const entityManager = await getEntityManager();
+    await entityManager.getRepository(DatasetEntity).update(loadedDataset.id, { status: IngestionStatus.LOADED });
+
+    const sds = new SoilDataStorage();
+    const results = await sds.filterDatasets(entityManager, bboxPolygon, {});
+
+    expect(results.map(r => r.id)).toContain(publishedDataset.slug);
+    expect(results.map(r => r.id)).not.toContain(loadedDataset.slug);
   });
 
   it.each([
