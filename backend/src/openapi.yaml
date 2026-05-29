@@ -2214,7 +2214,7 @@ components:
           nullable: true
         status:
           type: string
-          readOnly: true
+          enum: [PUBLISHED]
         created_at:
           type: string
           format: date-time

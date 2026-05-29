@@ -3,7 +3,7 @@ import { useDatasetsSettings } from 'hooks/useDatasetsSettings';
 import { useAuthContext } from '../../src/auth/AuthContextProvider';
 import { useDataset } from 'hooks/useDatasets';
 import { useDatasetEntitlements, useDatasetEntitlementsMutation } from 'hooks/useDatasetEntitlements';
-import { useUpdateDatasetVisibilityMutation } from 'hooks/useDatasetMutation';
+import { useUpdateDatasetMutation } from 'hooks/useDatasetMutation';
 import { ADMIN_PATHS } from '../../src/configuration/admin';
 import { queryClientWrapper } from '../queryClientWrapper';
 import useTheme from 'hooks/useTheme';
@@ -29,7 +29,7 @@ jest.mock('hooks/useDatasetEntitlements', () => ({
 }));
 
 jest.mock('hooks/useDatasetMutation', () => ({
-  useUpdateDatasetVisibilityMutation: jest.fn(),
+  useUpdateDatasetMutation: jest.fn(),
 }));
 
 jest.mock('hooks/useTheme', () => ({
@@ -47,7 +47,7 @@ function setupMocks({
   (useAuthContext as jest.Mock).mockReturnValue({ authMode });
   (useDataset as jest.Mock).mockReturnValue({ data: { visibility: datasetVisibility }, isLoading: false });
   (useDatasetEntitlements as jest.Mock).mockReturnValue({ data: entitlements, isLoading: false });
-  (useUpdateDatasetVisibilityMutation as jest.Mock).mockReturnValue({ mutateAsync: mockMutateAsync, isPending: false });
+  (useUpdateDatasetMutation as jest.Mock).mockReturnValue({ mutateAsync: mockMutateAsync, isPending: false });
   (useDatasetEntitlementsMutation as jest.Mock).mockReturnValue({ mutateAsync: mockMutateAsync, isPending: false });
   (useTheme as jest.Mock).mockReturnValue({ themeConfig: { privacyPolicyHtml, termsAndConditionsHtml } });
 }
@@ -259,12 +259,12 @@ describe('useDatasetsSettings', () => {
   });
 
   describe('handlePublishProceed', () => {
-    it('patches visibility and navigates on success', async () => {
+    it('patches visibility and status=PUBLISHED and navigates on success', async () => {
       setupMocks({ datasetVisibility: 'public' });
       const { result } = renderHook(() => useDatasetsSettings('dataset-123'), { wrapper: queryClientWrapper });
       await waitFor(() => expect(result.current.visibility).toBe('public'));
       await act(() => result.current.handlePublishProceed());
-      expect(mockMutateAsync).toHaveBeenCalledWith({ visibility: 'public' });
+      expect(mockMutateAsync).toHaveBeenCalledWith({ visibility: 'public', status: 'PUBLISHED' });
       expect(mockNavigate).toHaveBeenCalledWith(ADMIN_PATHS.DATASETS);
     });
 
@@ -275,7 +275,7 @@ describe('useDatasetsSettings', () => {
       act(() => result.current.handleEmailChange('user@example.com'));
       act(() => result.current.handleAddEmail());
       await act(() => result.current.handlePublishProceed());
-      expect(mockMutateAsync).toHaveBeenCalledWith({ visibility: 'private' });
+      expect(mockMutateAsync).toHaveBeenCalledWith({ visibility: 'private', status: 'PUBLISHED' });
       expect(mockMutateAsync).toHaveBeenCalledWith({ 'user@example.com': ['preview', 'download'] });
     });
 
@@ -284,7 +284,7 @@ describe('useDatasetsSettings', () => {
       const { result } = renderHook(() => useDatasetsSettings('dataset-123'), { wrapper: queryClientWrapper });
       await waitFor(() => expect(result.current.visibility).toBe('private'));
       await act(() => result.current.handlePublishProceed());
-      expect(mockMutateAsync).toHaveBeenCalledWith({ visibility: 'private' });
+      expect(mockMutateAsync).toHaveBeenCalledWith({ visibility: 'private', status: 'PUBLISHED' });
       expect(mockMutateAsync).toHaveBeenCalledWith({});
     });
 
@@ -295,7 +295,7 @@ describe('useDatasetsSettings', () => {
       act(() => result.current.handleAddEmail());
       await act(() => result.current.handlePublishProceed());
       expect(mockMutateAsync).toHaveBeenCalledTimes(1);
-      expect(mockMutateAsync).toHaveBeenCalledWith({ visibility: 'public' });
+      expect(mockMutateAsync).toHaveBeenCalledWith({ visibility: 'public', status: 'PUBLISHED' });
     });
 
     it('closes the publish warning dialog', async () => {
