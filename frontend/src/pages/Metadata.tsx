@@ -159,6 +159,7 @@ export default function Metadata() {
                           ? { type: 'FeatureCollection', features: [{ type: 'Feature', properties: {}, geometry: dataset.spatial_extent }] }
                           : undefined
                       }
+                      geometryStyle="fill"
                       showNavigation={false}
                     />
                     <button type="button" className={styles.MapOverlay} onClick={handleMapOverlayClick} aria-label={t('map.view_aria')}>
@@ -431,6 +432,7 @@ export default function Metadata() {
                   ? { type: 'FeatureCollection', features: [{ type: 'Feature', properties: {}, geometry: dataset.spatial_extent }] }
                   : undefined
               }
+              geometryStyle="fill"
               showNavigation={true}
             />
           </div>
