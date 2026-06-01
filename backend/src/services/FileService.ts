@@ -574,11 +574,6 @@ export default class FileService {
         gdalOpts.push('-a_srs', 'EPSG:4326');
       }
 
-      const gdalDebug = true; // TODO: use env var process.env['GDAL_DEBUG'] === 'true';
-      if (gdalDebug) {
-        gdal.config.set('CPL_DEBUG', 'ALL');
-        gdal.config.set('CPL_CURL_VERBOSE', 'YES');
-      }
       log.info('Starting gdal', {
         source: mainFilePath,
         opts: JSON.stringify(gdalOpts),
@@ -594,7 +589,7 @@ export default class FileService {
           dataset = await gdal.openAsync(mainFilePath);
         }
       } catch (openError) {
-        log.error('gdal.openAsync failed', {
+        log.error('gdal failure', {
           path: mainFilePath,
           driver: fileMetadata.driver ?? 'auto',
           error: JSON.stringify(openError),
@@ -630,10 +625,6 @@ export default class FileService {
         });
         throw translateError;
       } finally {
-        if (gdalDebug) {
-          gdal.config.set('CPL_DEBUG', null);
-          gdal.config.set('CPL_CURL_VERBOSE', null);
-        }
         dataset.close();
       }
 
