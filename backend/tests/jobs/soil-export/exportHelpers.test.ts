@@ -34,7 +34,10 @@ let generateExportPdfSpy: ReturnType<typeof jest.spyOn>;
 // Builds requestData with a mock TypeORM repo. When logoFileKey is provided,
 // findOneBy returns a matching JsonStorage row so ConfigService.getLogoFileKey
 // returns the key; otherwise it returns null (no logo configured).
-function makeRequestData({ withLogo = false } = {}) {
+function makeRequestData({
+  withLogo = false,
+  datasets,
+}: { withLogo?: boolean; datasets?: Array<{ slug: string; name: string; gis_datatype: string }> } = {}) {
   const rowById: Record<string, any> = {
     ...(withLogo ? { 'frontend-logo': { id: 'frontend-logo', data: { fileKey: 'logos/logo.png' }, deleted_at: null } } : {}),
     'filter-123': mockFilterEntity,
@@ -45,16 +48,12 @@ function makeRequestData({ withLogo = false } = {}) {
         findOneBy: jest
           .fn<(criteria: Record<string, any>) => Promise<any>>()
           .mockImplementation(criteria => Promise.resolve(rowById[criteria.id] ?? null)),
-        find: jest.fn<() => Promise<any>>().mockResolvedValue([
-          {
-            slug: 'dataset-alpha',
-            name: 'Dataset Alpha',
-          },
-          {
-            slug: 'dataset-beta',
-            name: 'Dataset Beta',
-          },
-        ]),
+        find: jest.fn<() => Promise<any>>().mockResolvedValue(
+          datasets ?? [
+            { slug: 'dataset-alpha', name: 'Dataset Alpha', gis_datatype: 'point' },
+            { slug: 'dataset-beta', name: 'Dataset Beta', gis_datatype: 'point' },
+          ],
+        ),
       }),
     },
     entitlements: {},
@@ -185,7 +184,6 @@ describe('createReadmeFile E2E (real pdfkit, no generateExportPdf mock)', () => 
   });
 
   afterEach(() => {
-    //fs.rmSync(tempDir, { recursive: true, force: true });
     jest.restoreAllMocks();
   });
 
@@ -218,5 +216,47 @@ describe('createReadmeFile E2E (real pdfkit, no generateExportPdf mock)', () => 
     const pdfPath = path.join(tempDir, 'Readme.pdf');
     expect(fs.existsSync(pdfPath)).toBe(true);
     expect(fs.readFileSync(pdfPath).subarray(0, 4).toString()).toBe('%PDF');
+  });
+
+  describe('field dictionary page inclusion based on gis_datatype', () => {
+    function pageCount(pdfPath: string): number {
+      const content = fs.readFileSync(pdfPath).toString('latin1');
+      const match = content.match(/\/Count\s+(\d+)/);
+      expect(match).not.toBeNull();
+      return parseInt(match![1], 10);
+    }
+
+    it('includes field dictionary (4 pages) when all datasets are non-raster', async () => {
+      const requestData = makeRequestData({
+        datasets: [
+          { slug: 'dataset-alpha', name: 'Dataset Alpha', gis_datatype: 'point' },
+          { slug: 'dataset-beta', name: 'Dataset Beta', gis_datatype: 'point' },
+        ],
+      });
+      await createReadmeFile(requestData, tempDir, makePayload());
+      expect(pageCount(path.join(tempDir, 'Readme.pdf'))).toBe(4);
+    });
+
+    it('omits field dictionary (3 pages) when all datasets are raster', async () => {
+      const requestData = makeRequestData({
+        datasets: [
+          { slug: 'dataset-alpha', name: 'Dataset Alpha', gis_datatype: 'raster' },
+          { slug: 'dataset-beta', name: 'Dataset Beta', gis_datatype: 'raster' },
+        ],
+      });
+      await createReadmeFile(requestData, tempDir, makePayload());
+      expect(pageCount(path.join(tempDir, 'Readme.pdf'))).toBe(3);
+    });
+
+    it('includes field dictionary (4 pages) when datasets mix non-raster and raster', async () => {
+      const requestData = makeRequestData({
+        datasets: [
+          { slug: 'dataset-alpha', name: 'Dataset Alpha', gis_datatype: 'point' },
+          { slug: 'dataset-beta', name: 'Dataset Beta', gis_datatype: 'raster' },
+        ],
+      });
+      await createReadmeFile(requestData, tempDir, makePayload());
+      expect(pageCount(path.join(tempDir, 'Readme.pdf'))).toBe(4);
+    });
   });
 });

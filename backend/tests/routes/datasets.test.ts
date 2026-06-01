@@ -396,6 +396,70 @@ describe('Testing /datasets routes', () => {
         expect(nonNullBdfiod[i]).toBeGreaterThanOrEqual(nonNullBdfiod[i - 1]);
       }
     });
+
+    it('paginates in sorted order across pages for NULL columns (sort=license)', async () => {
+      const token = await getDataAdminToken();
+      // removed license from column mapping (should be rendered as all NULL)
+      const { dataset, datasetFileMapping } = await addSyntheticIngestionData({
+        ...syntheticIngestionDataOptions,
+        id: 1,
+        createTable: true,
+        tableRows: 'ALL',
+        columnMapping: {
+          upper_depth: 'min_depth',
+          lower_depth: 'max_depth',
+          date: 'sampling_date',
+          layer_name: 'horizon',
+          bdfi33: {
+            property_name: 'Bulk Density',
+            procedure_name: 'Fine earth 33kPa',
+            conversion_formula: 'x*10',
+            original_unit: 'kg/dm3',
+            standard_unit: 'mmolc/dm3',
+            max_val: 14,
+          },
+          bdfiod: {
+            property_name: 'Bulk Density 2',
+            procedure_name: 'Fine earth oven dry',
+            conversion_formula: 'x/10',
+            original_unit: 'kg/cm3',
+            standard_unit: 'mmolc/dm3',
+            min_val: 0.1,
+          },
+          drop_records: [10136, 10137],
+        },
+      });
+
+      const allLicenses: (number | null)[] = [];
+      const allRecordIds: number[] = [];
+      let cursor: string | undefined;
+      let iterations = 0;
+      const maxIterations = 10;
+
+      do {
+        const res = await request(app)
+          .get(`/datasets/${dataset.slug}/dataset-file-mapping/${datasetFileMapping.id}/soil-data`)
+          .query({ limit: 5, sort: 'license', ...(cursor ? { cursor } : {}) })
+          .set('Authorization', `Bearer ${token}`);
+        expect(res.statusCode).toBe(StatusCodes.OK);
+        if (res.body.length === 0) break;
+        for (const record of res.body) {
+          allLicenses.push(record.license);
+          allRecordIds.push(record.record_id);
+        }
+        cursor = res.body[res.body.length - 1].cursor;
+        iterations++;
+      } while (iterations < maxIterations);
+
+      expect(allRecordIds.length).toBe(18);
+      expect(new Set(allRecordIds).size).toBe(allRecordIds.length);
+      // Column with all nulls will be ignored for sorting, the second order by clause (by record id) prevails.
+      const nonNullLicenses = allLicenses.filter(v => v !== null);
+      expect(nonNullLicenses.length).toBe(0);
+      for (let i = 1; i < allRecordIds.length; i++) {
+        expect(allRecordIds[i]).toBeGreaterThanOrEqual(allRecordIds[i - 1]);
+      }
+    });
   });
 
   describe('GET /datasets/:datasetId/dataset-file-mapping/:datasetFileMappingId/soil-data/count', () => {
