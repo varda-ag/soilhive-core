@@ -453,8 +453,7 @@ describe('Testing /datasets routes', () => {
 
       expect(allRecordIds.length).toBe(18);
       expect(new Set(allRecordIds).size).toBe(allRecordIds.length);
-      // Non-NULL bdfiod values (those within min_val range) must appear in ascending order.
-      // NULL values sort last (PostgreSQL NULLS LAST for ASC) and are excluded from the check.
+      // Column with all nulls will be ignored for sorting, the second order by clause (by record id) prevails.
       const nonNullLicenses = allLicenses.filter(v => v !== null);
       expect(nonNullLicenses.length).toBe(0);
       for (let i = 1; i < allRecordIds.length; i++) {
