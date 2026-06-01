@@ -29,7 +29,7 @@ on:
 concurrency: renovate
 jobs:
   renovate:
-    uses: varda-ag/.github/.github/workflows/renovate.yaml@4a354a27c3af07427e493126caf465dff203169b # v1.11.1
+    uses: varda-ag/.github/.github/workflows/renovate.yaml@bf80d0c0e30b15a047dacd693bec8f5bfda03b67 # v1.13.3
     with:
       log-level: ${{ github.event.inputs.log-level || 'info' }}
       gh-app-id: ${{ vars.VARDA_RENOVATE_APP_ID }}
