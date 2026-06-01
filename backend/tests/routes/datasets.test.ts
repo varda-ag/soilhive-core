@@ -112,22 +112,30 @@ describe('Testing /datasets routes', () => {
       expect(res.body.author).toBe(updatePayload.author);
     });
 
-    it('should fail when attempting to update a readOnly field (e.g. status)', async () => {
+    it('should update status to PUBLISHED successfully (200)', async () => {
       const token = await getDataAdminToken();
-      const payload = {
-        name: 'name',
-        author: 'author',
-      };
+      const postRes = await request(app).post('/datasets').set('Authorization', `Bearer ${token}`).send({ name: 'dataset-to-publish' });
 
-      // add dataset to update
-      const postRes = await request(app).post('/datasets').set('Authorization', `Bearer ${token}`).send(payload);
+      const res = await request(app)
+        .patch(`/datasets/${postRes.body.id}`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ status: 'PUBLISHED' });
 
-      const originalId = postRes.body.id;
-      const forbiddenPayload = { status: 'new-status-manually-set' }; // 'status' is readOnly
+      expect(res.statusCode).toBe(StatusCodes.OK);
+      expect(res.body.status).toBe('PUBLISHED');
+    });
 
-      const res = await request(app).patch(`/datasets/${originalId}`).set('Authorization', `Bearer ${token}`).send(forbiddenPayload);
+    it('should reject status values reserved for background jobs (400)', async () => {
+      const token = await getDataAdminToken();
+      const postRes = await request(app).post('/datasets').set('Authorization', `Bearer ${token}`).send({ name: 'dataset-status-guard' });
 
-      expect(res.statusCode).toBe(StatusCodes.BAD_REQUEST);
+      for (const forbidden of ['PENDING', 'ONGOING', 'STAGED', 'LOADED', 'ARCHIVED', 'invalid-status']) {
+        const res = await request(app)
+          .patch(`/datasets/${postRes.body.id}`)
+          .set('Authorization', `Bearer ${token}`)
+          .send({ status: forbidden });
+        expect(res.statusCode).toBe(StatusCodes.BAD_REQUEST);
+      }
     });
   });
 

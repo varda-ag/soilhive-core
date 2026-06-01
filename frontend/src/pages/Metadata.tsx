@@ -3,6 +3,7 @@ import { useParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { useMetadata, type SaveCallbacks } from 'hooks/useMetadata';
 import { useEntitlements, ADMIN_PORTAL_ACCESS } from 'hooks/useEntitlementsHook';
+import useDevice from 'hooks/useDevice';
 import styles from './Metadata.module.scss';
 import Worm from 'assets/images/worm.svg?react';
 import SoilhiveSimpleMap from 'components/Map/SoilhiveSimpleMap';
@@ -31,7 +32,8 @@ export default function Metadata() {
   useEffect(() => setIsMounted(true), []);
   const { dataset, allLicenses, inferredProperties, isLoading, isError, updateProperty } = useMetadata(id);
   const { can } = useEntitlements();
-  const isAdmin = isMounted && can(ADMIN_PORTAL_ACCESS);
+  const { isMobileLayout } = useDevice();
+  const isAdmin = isMounted && !isMobileLayout && can(ADMIN_PORTAL_ACCESS);
   const [isEditing, setIsEditing] = useState(false);
 
   const onStartEditing: (property: string) => void = useCallback(() => {
@@ -157,6 +159,7 @@ export default function Metadata() {
                           ? { type: 'FeatureCollection', features: [{ type: 'Feature', properties: {}, geometry: dataset.spatial_extent }] }
                           : undefined
                       }
+                      geometryStyle="fill"
                       showNavigation={false}
                     />
                     <button type="button" className={styles.MapOverlay} onClick={handleMapOverlayClick} aria-label={t('map.view_aria')}>
@@ -429,6 +432,7 @@ export default function Metadata() {
                   ? { type: 'FeatureCollection', features: [{ type: 'Feature', properties: {}, geometry: dataset.spatial_extent }] }
                   : undefined
               }
+              geometryStyle="fill"
               showNavigation={true}
             />
           </div>

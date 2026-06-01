@@ -1,5 +1,9 @@
+import { useState } from 'react';
 import { Navigate, Outlet, Route, Routes } from 'react-router';
+import { useTranslation } from 'react-i18next';
 import PageTitle from 'components/PageTitle';
+import { InfoDialog } from 'components/UI';
+import useDevice from 'hooks/useDevice';
 import { AvailabilityProvider } from '../contexts/AvailabilityContext';
 import { AvailabilityMapProvider } from '../contexts/AvailabilityMapContext';
 import DownloadSummary from '../pages/DownloadSummary';
@@ -15,9 +19,22 @@ const AvailabilityMapLayout = () => {
 };
 
 const AvailabilityDataLayout = () => {
+  const { isMobileLayout } = useDevice();
+  const { t } = useTranslation(['common']);
+  const [showMobileDialog, setShowMobileDialog] = useState(true);
+
   return (
     <AvailabilityProvider>
       <Outlet />
+      <InfoDialog
+        isVisible={isMobileLayout && showMobileDialog}
+        storageKey="no-download-on-mobile"
+        header={t('mobile_download_dialog.header')}
+        title={t('mobile_download_dialog.title')}
+        message={t('mobile_download_dialog.message')}
+        onContinue={() => setShowMobileDialog(false)}
+        onCancel={() => setShowMobileDialog(false)}
+      />
     </AvailabilityProvider>
   );
 };

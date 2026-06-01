@@ -8,6 +8,7 @@ jest.mock('hooks/useDatasetsSettings', () => ({
 
 jest.mock('react-router', () => ({
   useParams: () => ({ id: 'dataset-123' }),
+  Link: ({ children, ...props }: any) => <a {...props}>{children}</a>,
 }));
 
 jest.mock('components/UI', () => ({

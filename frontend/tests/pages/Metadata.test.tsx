@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import Metadata from '../../src/pages/Metadata';
 import { useMetadata } from 'hooks/useMetadata';
 import { useEntitlements } from 'hooks/useEntitlementsHook';
+import { __setIsMobileLayout, __resetIsMobileLayout } from 'hooks/useDevice';
 
 jest.mock('react-router', () => ({
   __esModule: true,
@@ -40,6 +41,8 @@ jest.mock('@tanstack/react-query', () => ({
   ...jest.requireActual('@tanstack/react-query'),
   useQueryClient: jest.fn().mockReturnValue({ invalidateQueries: jest.fn() }),
 }));
+
+jest.mock('hooks/useDevice');
 
 jest.mock('utilities/buildMetadataHead', () => ({
   getMetadataHeadValues: jest.fn().mockReturnValue({
@@ -234,30 +237,30 @@ describe('Metadata page', () => {
   });
 });
 
-describe('Metadata page – admin editing behavior', () => {
-  const buildAdminDataset = () => ({
-    id: 'test-id',
-    name: 'Test Dataset',
-    full_name: 'Test Dataset Full Name',
-    version: '1.0',
-    description: '<p>A description</p>',
-    author: 'Test Author',
-    data_producer: 'Test Producer',
-    soilProperties: ['ph'],
-    soil_depth: { min: 0, max: 30 },
-    gis_datatype: 'raster',
-    spatial_resolution: '250m',
-    reference_period_start: '2020-01-01',
-    reference_period_stop: '2020-12-31',
-    publication_date: '2021-06-01',
-    licenses: [
-      { id: 'lic-1', url: 'https://license.example', full_name: 'Test License', name: 'TL', created_at: new Date(), updated_at: null },
-    ],
-    citation: 'Test citation',
-    spatial_extent: null,
-    inferred_properties: [],
-  });
+const buildAdminDataset = () => ({
+  id: 'test-id',
+  name: 'Test Dataset',
+  full_name: 'Test Dataset Full Name',
+  version: '1.0',
+  description: '<p>A description</p>',
+  author: 'Test Author',
+  data_producer: 'Test Producer',
+  soilProperties: ['ph'],
+  soil_depth: { min: 0, max: 30 },
+  gis_datatype: 'raster',
+  spatial_resolution: '250m',
+  reference_period_start: '2020-01-01',
+  reference_period_stop: '2020-12-31',
+  publication_date: '2021-06-01',
+  licenses: [
+    { id: 'lic-1', url: 'https://license.example', full_name: 'Test License', name: 'TL', created_at: new Date(), updated_at: null },
+  ],
+  citation: 'Test citation',
+  spatial_extent: null,
+  inferred_properties: [],
+});
 
+describe('Metadata page – admin editing behavior', () => {
   const renderAsAdmin = (overrides: object = {}) => {
     (useMetadata as jest.Mock).mockReturnValue({
       dataset: buildAdminDataset(),
@@ -379,5 +382,47 @@ describe('Metadata page – admin editing behavior', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     expect(screen.getAllByRole('button', { name: 'Edit' }).length).toBe(initialCount);
+  });
+});
+
+describe('Metadata page – mobile layout', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    document.head.innerHTML = '';
+    document.title = '';
+    document.body.style.overflow = '';
+    __setIsMobileLayout(true);
+  });
+
+  afterEach(() => {
+    __resetIsMobileLayout();
+  });
+
+  it('does not show the admin notice on mobile even when user is admin', () => {
+    (useMetadata as jest.Mock).mockReturnValue({
+      dataset: buildAdminDataset(),
+      allLicenses: [],
+      inferredProperties: new Set(),
+      isLoading: false,
+      isError: false,
+      updateProperty: jest.fn(),
+    });
+    (useEntitlements as jest.Mock).mockReturnValue({ can: () => true });
+    render(<Metadata />);
+    expect(screen.queryByText(/You can edit fields directly/i)).not.toBeInTheDocument();
+  });
+
+  it('does not show edit buttons on mobile even when user is admin', () => {
+    (useMetadata as jest.Mock).mockReturnValue({
+      dataset: buildAdminDataset(),
+      allLicenses: [],
+      inferredProperties: new Set(),
+      isLoading: false,
+      isError: false,
+      updateProperty: jest.fn(),
+    });
+    (useEntitlements as jest.Mock).mockReturnValue({ can: () => true });
+    render(<Metadata />);
+    expect(screen.queryAllByRole('button', { name: 'Edit' })).toHaveLength(0);
   });
 });

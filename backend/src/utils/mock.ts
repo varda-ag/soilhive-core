@@ -127,7 +127,7 @@ export const addDataset = async (
     created_by: 'tests',
     gis_datatype,
     licenses,
-    status: IngestionStatus.LOADED,
+    status: IngestionStatus.PUBLISHED,
     spatial_extent: getPolygonFromBbox(spatial_extent),
     visibility: 'public',
   });

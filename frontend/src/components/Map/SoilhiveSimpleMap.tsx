@@ -25,6 +25,7 @@ type MapStyle = string | StyleSpecification | ImmutableLike<StyleSpecification>;
 interface SoilhiveSimpleMapProps {
   initialViewBoundingBox?: [number, number, number, number];
   geometryFeature?: FeatureCollection;
+  geometryStyle?: 'fill' | 'line';
   selectedFeature?: Feature<Point | Polygon | MultiPolygon, GeoJsonProperties>;
   showH3Cells?: boolean;
   showNavigation?: boolean;
@@ -35,12 +36,22 @@ interface SoilhiveSimpleMapProps {
   onBboxChange?: (bbox: number[]) => void;
 }
 
-const geometryLayerSelection: LayerProps = {
+const geometryFillLayer: LayerProps = {
   id: 'geometry',
   type: 'fill',
   paint: {
     'fill-color': '#F5B200',
     'fill-opacity': 0.5,
+  },
+};
+
+const geometryLineLayer: LayerProps = {
+  id: 'geometry',
+  type: 'line',
+  paint: {
+    'line-color': '#F5B200',
+    'line-width': 2,
+    'line-opacity': 1,
   },
 };
 
@@ -112,6 +123,7 @@ function SoilhiveSimpleMap({
   initialViewBoundingBox,
   selectedFeature = undefined,
   geometryFeature = undefined,
+  geometryStyle = 'line',
   showNavigation = true,
   showH3Cells = false,
   mapStyle = EOX_SATELLITE_MAP_STYLE,
@@ -120,6 +132,7 @@ function SoilhiveSimpleMap({
   showGeocoder = false,
   onBboxChange = undefined,
 }: SoilhiveSimpleMapProps) {
+  const geometryLayer = geometryStyle === 'fill' ? geometryFillLayer : geometryLineLayer;
   const mapRef = useRef<any>(null);
   const [h3Cells, setH3Cells] = useState<any | null>(null);
 
@@ -196,7 +209,7 @@ function SoilhiveSimpleMap({
         )}
         {geometryFeature && (
           <Source id="geometry" type="geojson" data={geometryFeature}>
-            <Layer {...geometryLayerSelection} />
+            <Layer {...geometryLayer} />
           </Source>
         )}
         {selectedFeature && <MapSelection feature={selectedFeature} />}

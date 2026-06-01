@@ -18,7 +18,7 @@ jobs:
 
   nodejs-frontend:
     name: Node.js CI
-    uses: varda-ag/.github/.github/workflows/nodejs.yaml@dfbf503b1c958885bb1e71732936cc4a1d25739b # v0.2.1
+    uses: varda-ag/.github/.github/workflows/nodejs.yaml@bf80d0c0e30b15a047dacd693bec8f5bfda03b67 # v1.13.3
     with:
       node-version: '24'
       project-path: './frontend'
@@ -32,7 +32,7 @@ jobs:
 
   nodejs-backend:
     name: Node.js CI
-    uses: varda-ag/.github/.github/workflows/nodejs.yaml@dfbf503b1c958885bb1e71732936cc4a1d25739b # v0.2.1
+    uses: varda-ag/.github/.github/workflows/nodejs.yaml@bf80d0c0e30b15a047dacd693bec8f5bfda03b67 # v1.13.3
     with:
       node-version: '24'
       project-path: './backend'

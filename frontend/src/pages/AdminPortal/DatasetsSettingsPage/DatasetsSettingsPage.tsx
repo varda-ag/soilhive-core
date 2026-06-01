@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { useParams } from 'react-router';
+import { Link, useParams } from 'react-router';
 import classnames from 'classnames';
 
 import CodeIcon from 'assets/icons/code-icon.svg?react';
@@ -84,9 +84,9 @@ export function DatasetsSettingsPage() {
             <h3 className={styles.SectionTitle}>{t('datasets.settings.metadata_preview.title')}</h3>
           </div>
           <p className={styles.SectionDescription}>{t('datasets.settings.metadata_preview.description')}</p>
-          <a href="#" className={styles.MetadataLink}>
+          <Link to={`/datasets/${id}`} className={styles.MetadataLink}>
             {t('datasets.settings.metadata_preview.link')}
-          </a>
+          </Link>
         </div>
 
         <div className={styles.Section}>

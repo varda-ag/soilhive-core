@@ -23,6 +23,7 @@ import ConfigService from './ConfigService';
 import FileEntity from '../entities/File';
 import assert from 'assert';
 import { getDBPassword } from '../utils/db-credentials';
+import { log } from '../utils/logger';
 import DataMappingService from './DataMappingService';
 import DatasetFileMappingEntity from '../entities/DatasetFileMapping';
 
@@ -372,8 +373,16 @@ export default class FileService {
       ({ mainFilePath, tempZipExtractPath } = await FileService.getMainFilePath(fileKey));
 
       // Open dataset with GDAL
+      log.info('Extracting metadata with gdal', {
+        source: mainFilePath,
+      });
       const dataset = await gdal.openAsync(mainFilePath);
       const driver = dataset.driver.description;
+
+      log.info('Getting data layer and detecting geometry', {
+        driver,
+      });
+
       const { layer, geometryDetected } = this.getDataLayer(dataset.layers, unknownGeomDrivers.includes(driver));
 
       // Extract field names
@@ -410,7 +419,7 @@ export default class FileService {
 
       if (!geometryDetected) {
         // Try to detect geometry field name
-        geometryFieldName = FileService.detectField(fieldNames, ['geom', 'geometry', 'shape', 'wkb'], true);
+        geometryFieldName = FileService.detectField(fieldNames, ['geom', 'geometry', 'shape', 'wkb', 'wkt'], true);
       }
 
       // Try to detect other fields
@@ -470,6 +479,10 @@ export default class FileService {
 
       return metadata;
     } catch (error) {
+      log.error('Failed to extract metadata', {
+        fileKey,
+        error: JSON.stringify(error),
+      });
       if (error instanceof ErrorResponse) {
         throw error;
       }
@@ -522,9 +535,9 @@ export default class FileService {
       mappingGeomFields.geomField,
       mappingGeomFields.lonField,
       mappingGeomFields.latField,
-    ];
+    ].map(item => item?.toLowerCase());
     let selectClause = fileMetadata.field_names
-      .filter(item => !originalGeomFields.includes(item)) // exclude geometry columns. They will be managed later
+      .filter(item => !originalGeomFields.includes(item.toLowerCase())) // exclude geometry columns. They will be managed later
       .map(field => `"${field}" AS ${sanitizeField(field)}`)
       .join(', ');
 
@@ -568,13 +581,29 @@ export default class FileService {
         // when -s_srs EPSG:4326 is combined with -t_srs EPSG:4326 on a null-SRS CSV layer.
         gdalOpts.push('-a_srs', 'EPSG:4326');
       }
+
+      log.info('Starting gdal', {
+        source: mainFilePath,
+        opts: JSON.stringify(gdalOpts),
+      });
+
       // Open dataset with GDAL (if driver available, pass driver-specific open options)
       let dataset: gdal.Dataset;
-      if (fileMetadata.driver) {
-        const driver = gdal.drivers.get(fileMetadata.driver);
-        dataset = driver.open(mainFilePath, 'r+', openOpts);
-      } else {
-        dataset = gdal.open(mainFilePath);
+      try {
+        if (fileMetadata.driver) {
+          const driver = gdal.drivers.get(fileMetadata.driver);
+          dataset = driver.open(mainFilePath, 'r', openOpts);
+        } else {
+          dataset = await gdal.openAsync(mainFilePath);
+        }
+      } catch (openError) {
+        log.error('gdal failure', {
+          path: mainFilePath,
+          driver: fileMetadata.driver ?? 'auto',
+          error: JSON.stringify(openError),
+          openOpts: JSON.stringify(openOpts),
+        });
+        throw openError;
       }
 
       const { layer } = this.getDataLayer(dataset.layers, unknownGeomDrivers.includes(fileMetadata.driver ? fileMetadata.driver : ''));
@@ -592,15 +621,27 @@ export default class FileService {
         );
       gdalOpts.unshift(layer.name);
       await requestData.entityManager.query(`DROP TABLE IF EXISTS "${tableName}"`);
-      await gdal.vectorTranslateAsync(pgDataset, dataset, gdalOpts);
-      dataset.close();
+
+      try {
+        await gdal.vectorTranslateAsync(pgDataset, dataset, gdalOpts);
+      } catch (translateError) {
+        log.error('gdal.vectorTranslateAsync failed', {
+          source: mainFilePath,
+          target: pgDataset.replace(/password=\S+/, 'password=***'),
+          opts: JSON.stringify(gdalOpts),
+          error: translateError instanceof Error ? translateError.message : String(translateError),
+        });
+        throw translateError;
+      } finally {
+        dataset.close();
+      }
 
       await repo.update(fileEntity.id, { status: IngestionStatus.STAGED });
     } catch (error) {
       if (error instanceof ErrorResponse) {
         throw error;
       }
-      throw new ErrorResponse(`Failed to load file to table: ${error}`, StatusCodes.BAD_REQUEST);
+      throw new ErrorResponse(`Failed to load file to table: ${error instanceof Error ? error.message : error}`, StatusCodes.BAD_REQUEST);
     } finally {
       // Clean up temporary directory if ZIP was extracted
       if (tempZipExtractPath) {

@@ -1,7 +1,7 @@
 import { DatasetsSidebarHeader } from './DatasetsSidebarHeader/DatasetsSidebarHeader';
 import { DatasetsSidebarSummary } from './DatasetsSidebarSummary/DatasetsSidebarSummary';
 import { DatasetsList } from './DatasetsList/DatasetsList';
-import { Button, PageSidebar, InfoDialog } from 'components/UI';
+import { Button, PageSidebar } from 'components/UI';
 import DownloadIcon from 'assets/icons/small-download-icon.svg?react';
 import useDevice from 'hooks/useDevice';
 import useAvailability from 'hooks/useAvailability';
@@ -10,8 +10,8 @@ import { useTranslation } from 'react-i18next';
 
 import styles from './DatasetsSidebar.module.scss';
 import { useNavigate } from 'react-router';
-import { useCallback, useState } from 'react';
 import { GISDataType } from '../../types/backend';
+import { useCallback } from 'react';
 
 interface Props {
   isOpened: boolean;
@@ -26,13 +26,8 @@ export function DatasetsSidebar({ isOpened, onClose }: Props) {
   const { selectionType, locationName } = useAvailabilityMap();
 
   const navigate = useNavigate();
-  const [showNoDownloadInfoDialog, setShowNoDownloadInfoDialog] = useState(false);
 
   const handleDownloadClick = () => {
-    if (isMobileLayout) {
-      setShowNoDownloadInfoDialog(true);
-      return;
-    }
     navigate({ pathname: '/download', search: `?${getSearchParams({ source: 'availability' }).toString()}` });
   };
 
@@ -76,24 +71,16 @@ export function DatasetsSidebar({ isOpened, onClose }: Props) {
           >
             {t('datasets_sidebar.explore')}
           </Button>
-          <Button className={styles.DownloadButton} isDisabled={availableDatasets.length === 0} onClick={handleDownloadClick}>
+          <Button
+            className={styles.DownloadButton}
+            isDisabled={isMobileLayout || availableDatasets.length === 0}
+            onClick={handleDownloadClick}
+          >
             <DownloadIcon />
             {t('datasets_sidebar.download')}
           </Button>
         </div>
       </div>
-      <InfoDialog
-        storageKey="no-download-on-mobile"
-        isVisible={showNoDownloadInfoDialog}
-        header={t('common:mobile_download_dialog.header')}
-        message={t('common:mobile_download_dialog.message')}
-        onContinue={() => {
-          setShowNoDownloadInfoDialog(false);
-        }}
-        onCancel={() => {
-          setShowNoDownloadInfoDialog(false);
-        }}
-      />
     </PageSidebar>
   );
 }
