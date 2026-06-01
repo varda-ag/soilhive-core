@@ -9,7 +9,7 @@ exports[`FilteringSidebarMobileContent renders component by default 1`] = `
       class="TabsWrapper"
     >
       <div
-        class="MobileTabNavigation Secondary Tabs"
+        class="MobileTabNavigation Secondary Scrollable Tabs"
         data-testid="sh-ui-mobile-tab-navigation"
         style="--tab-font-size: var(--font-size-lg);"
       >

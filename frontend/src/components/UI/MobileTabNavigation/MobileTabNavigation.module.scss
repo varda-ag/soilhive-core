@@ -13,7 +13,6 @@
 
   &.Primary {
     > .MobileTabNavigationItem {
-      width: calc(100% / 3);
       padding: 0.3125rem;
       border-top: 0.25rem solid transparent;
 
@@ -21,6 +20,25 @@
         color: var(--color-cta-default-solid);
         border-color: var(--color-cta-default-solid);
       }
+    }
+
+    &:not(.Scrollable) > .MobileTabNavigationItem {
+      width: calc(100% / 3);
+    }
+  }
+
+  &.Scrollable {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
+
+    > .MobileTabNavigationItem {
+      flex-shrink: 0;
+      min-width: fit-content;
     }
   }
 

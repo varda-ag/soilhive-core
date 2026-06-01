@@ -33,6 +33,7 @@ export function FilteringSidebarMobileContent() {
           config={config}
           type="secondary"
           fontSize="lg"
+          scrollable
           active={activeTab}
           onChange={setActiveTab}
         />

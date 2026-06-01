@@ -72,4 +72,16 @@ describe('MobileTabNavigation component', () => {
       '--tab-font-size': 'var(--font-size-sm)',
     });
   });
+
+  it('applies Scrollable class when scrollable=true', () => {
+    render(<MobileTabNavigation config={mockConfig} scrollable active="tab1" onChange={() => {}} />);
+
+    expect(screen.getByTestId('sh-ui-mobile-tab-navigation')).toHaveClass('Scrollable');
+  });
+
+  it('does not apply Scrollable class when scrollable is omitted', () => {
+    render(<MobileTabNavigation config={mockConfig} active="tab1" onChange={() => {}} />);
+
+    expect(screen.getByTestId('sh-ui-mobile-tab-navigation')).not.toHaveClass('Scrollable');
+  });
 });

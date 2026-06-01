@@ -11,12 +11,13 @@ type Props = {
   config: MobileTabNavigationConfig[];
   type?: MobileTabNavigationType;
   fontSize?: MobileTabNavigationFontSize;
+  scrollable?: boolean;
   active: string;
   className?: string;
   onChange: (id: string) => void;
 };
 
-export function MobileTabNavigation({ config, type = 'primary', fontSize = 'xs', active, className, onChange }: Props) {
+export function MobileTabNavigation({ config, type = 'primary', fontSize = 'xs', scrollable = false, active, className, onChange }: Props) {
   const typeClass = useMemo(
     () =>
       ({
@@ -29,7 +30,7 @@ export function MobileTabNavigation({ config, type = 'primary', fontSize = 'xs',
   return (
     <div
       data-testid="sh-ui-mobile-tab-navigation"
-      className={classnames(styles.MobileTabNavigation, typeClass, className)}
+      className={classnames(styles.MobileTabNavigation, typeClass, { [styles.Scrollable]: scrollable }, className)}
       style={{ '--tab-font-size': `var(--font-size-${fontSize})` } as CSSProperties}
     >
       {config.map(({ name, id, Icon }) => (
