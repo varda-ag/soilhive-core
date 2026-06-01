@@ -11,6 +11,7 @@ exports[`FilteringSidebarMobileContent renders component by default 1`] = `
       <div
         class="MobileTabNavigation Secondary Tabs"
         data-testid="sh-ui-mobile-tab-navigation"
+        style="--tab-font-size: var(--font-size-lg);"
       >
         <div
           class="MobileTabNavigationItem Active"

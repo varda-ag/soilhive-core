@@ -56,4 +56,20 @@ describe('MobileTabNavigation component', () => {
 
     expect(onChange).toHaveBeenCalledWith('tab2');
   });
+
+  it('applies default xs font size as CSS variable', () => {
+    render(<MobileTabNavigation config={mockConfig} active="tab1" onChange={() => {}} />);
+
+    expect(screen.getByTestId('sh-ui-mobile-tab-navigation')).toHaveStyle({
+      '--tab-font-size': 'var(--font-size-xs)',
+    });
+  });
+
+  it('applies custom font size as CSS variable', () => {
+    render(<MobileTabNavigation config={mockConfig} fontSize="sm" active="tab1" onChange={() => {}} />);
+
+    expect(screen.getByTestId('sh-ui-mobile-tab-navigation')).toHaveStyle({
+      '--tab-font-size': 'var(--font-size-sm)',
+    });
+  });
 });
