@@ -11,7 +11,7 @@ exports[`FilteringSidebarMobileContent renders component by default 1`] = `
       <div
         class="MobileTabNavigation Secondary Scrollable Tabs"
         data-testid="sh-ui-mobile-tab-navigation"
-        style="--tab-font-size: var(--font-size-lg);"
+        style="--tab-font-size: var(--font-size-lg); --tab-item-gap: 30px;"
       >
         <div
           class="MobileTabNavigationItem Active"

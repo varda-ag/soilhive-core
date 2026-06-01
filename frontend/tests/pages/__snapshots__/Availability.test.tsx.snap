@@ -88,7 +88,7 @@ exports[`Availability renders availability page on mobile 1`] = `
     <div
       class="MobileTabNavigation Primary"
       data-testid="sh-ui-mobile-tab-navigation"
-      style="--tab-font-size: var(--font-size-xs);"
+      style="--tab-font-size: var(--font-size-xs); --tab-item-gap: 0;"
     >
       <div
         class="MobileTabNavigationItem Active"

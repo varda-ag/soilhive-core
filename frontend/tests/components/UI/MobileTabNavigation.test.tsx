@@ -73,6 +73,22 @@ describe('MobileTabNavigation component', () => {
     });
   });
 
+  it('applies default 0.25rem gap as CSS variable', () => {
+    render(<MobileTabNavigation config={mockConfig} active="tab1" onChange={() => {}} />);
+
+    expect(screen.getByTestId('sh-ui-mobile-tab-navigation')).toHaveStyle({
+      '--tab-item-gap': '0',
+    });
+  });
+
+  it('applies custom gap as CSS variable', () => {
+    render(<MobileTabNavigation config={mockConfig} gap="8px" active="tab1" onChange={() => {}} />);
+
+    expect(screen.getByTestId('sh-ui-mobile-tab-navigation')).toHaveStyle({
+      '--tab-item-gap': '8px',
+    });
+  });
+
   it('applies Scrollable class when scrollable=true', () => {
     render(<MobileTabNavigation config={mockConfig} scrollable active="tab1" onChange={() => {}} />);
 

@@ -1,5 +1,6 @@
 .MobileTabNavigation {
   display: flex;
+  gap: var(--tab-item-gap, 0);
 
   > .MobileTabNavigationItem {
     display: flex;
