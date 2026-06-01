@@ -140,6 +140,7 @@ export async function createReadmeFile(requestData: RequestData, tempDir: string
     slug: ds.slug,
     name: ds.name,
     url: payload.public_metadata_urls ? payload.public_metadata_urls[ds.slug] : undefined,
+    gis_datatype: ds.gis_datatype!,
   }));
 
   const filterEntity = await filterService.getFilterById(requestData, payload.filter_id);
