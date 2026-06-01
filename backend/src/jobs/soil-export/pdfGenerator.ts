@@ -1,6 +1,7 @@
 import PDFDocument from 'pdfkit';
 import * as fs from 'fs';
 import path from 'path';
+import { GISDataType } from '../../types/data';
 
 const COLOR = {
   teal: '#3E7F77',
@@ -48,6 +49,7 @@ export interface DatasetPdfInfo {
   slug: string;
   name: string;
   url: string | undefined;
+  gis_datatype: GISDataType;
 }
 
 export interface GeneratePdfParams {
@@ -232,7 +234,7 @@ function getFilterString(params: GeneratePdfParams): string {
   return params.filter ?? 'No filters applied';
 }
 
-function drawDataRequestSection(doc: PDFKit.PDFDocument, params: GeneratePdfParams): void {
+function drawDataRequestSection(doc: PDFKit.PDFDocument, params: GeneratePdfParams, hasVector: boolean, hasRaster: boolean): void {
   sectionHeading(doc, 'Data request summary and data');
 
   bodyText(doc, 'This section summarizes the parameters used to generate this data download.');
@@ -240,7 +242,13 @@ function drawDataRequestSection(doc: PDFKit.PDFDocument, params: GeneratePdfPara
 
   //bullet(doc, 'Area of interest', ''); // TODO: add AOI description when available
   bullet(doc, 'Applied filters', getFilterString(params));
-  bullet(doc, 'File format', getFormatString(params.fileFormat));
+  if (hasVector && hasRaster) {
+    bullet(doc, 'File format', getFormatString(params.fileFormat) + ' + GeoTIFF');
+  } else if (hasVector) {
+    bullet(doc, 'File format', getFormatString(params.fileFormat));
+  } else if (hasRaster) {
+    bullet(doc, 'File format', 'GeoTIFF');
+  }
   bullet(doc, 'Date of extraction', params.exportDate.toISOString().split('T')[0]);
 
   doc.moveDown(VERTICAL_SPACE);
@@ -261,17 +269,42 @@ function drawDataRequestSection(doc: PDFKit.PDFDocument, params: GeneratePdfPara
   doc.moveDown(VERTICAL_SPACE);
 }
 
-function drawDataStructureSection(doc: PDFKit.PDFDocument, fileFormat: string): void {
+function drawDataStructureSection(doc: PDFKit.PDFDocument, fileFormat: string, hasVector: boolean, hasRaster: boolean): void {
   sectionHeading(doc, 'Data structure');
 
-  bodyText(
-    doc,
-    'The downloaded data package is organized as one file per soil property. Each file contains observations from multiple datasets that have been harmonized and structured using a common schema.',
-  );
+  const fmt = fileFormat.toLowerCase();
+
+  let message = '';
+  if (hasVector && hasRaster) {
+    if (fmt === 'gpkg') {
+      message = 'The downloaded GeoPackage is organized to support both raster maps and vector observations within a single file.';
+    } else {
+      message = 'The downloaded data package is organized into two file formats depending on the data type selected.';
+    }
+  } else if (hasRaster) {
+    message = '';
+  } else if (hasVector) {
+    message =
+      'The downloaded data package is organized as one file per soil property. Each file contains observations from multiple datasets that have been harmonized and structured using a common schema.';
+  }
+
+  if (message) {
+    bodyText(doc, message);
+  }
   bodyText(doc, 'Data is structured as follows:');
   doc.moveDown(VERTICAL_SPACE);
 
-  const fmt = fileFormat.toLowerCase();
+  if (hasRaster) {
+    bullet(
+      doc,
+      'Raster maps (GeoTIFF) are delivered as one file per combination of soil property, dataset, depth range, and year, following the naming convention: [dataset_name]_[property_name]_[depth_range_cm]_[year].tif',
+    );
+    if (!hasVector) {
+      return;
+    }
+    doc.moveDown(VERTICAL_SPACE);
+  }
+
   switch (fmt) {
     case 'csv':
     case 'shp':
@@ -426,6 +459,9 @@ export async function generateExportPdf(params: GeneratePdfParams): Promise<void
   doc.registerFont(FONT.regular, path.join(__dirname, '../../assets/fonts/Inter-VariableFont_opsz.ttf'));
   doc.registerFont(FONT.bold, path.join(__dirname, '../../assets/fonts/Inter-Bold.ttf'));
 
+  const hasVector = params.datasets.some(ds => ds.gis_datatype !== GISDataType.RASTER);
+  const hasRaster = params.datasets.some(ds => ds.gis_datatype === GISDataType.RASTER);
+
   const stream = fs.createWriteStream(params.outputPath);
   doc.pipe(stream);
 
@@ -464,19 +500,21 @@ export async function generateExportPdf(params: GeneratePdfParams): Promise<void
   tocEntries.push({ title: 'Data structure', indent: false, page: p2 });
   drawHeader(doc, params.logoBuffer);
   doc.moveDown(5);
-  drawDataRequestSection(doc, params);
+  drawDataRequestSection(doc, params, hasVector, hasRaster);
   doc.moveDown(3);
-  drawDataStructureSection(doc, params.fileFormat);
+  drawDataStructureSection(doc, params.fileFormat, hasVector, hasRaster);
   drawFooter(doc, p2, params.homepageUrl);
 
-  // ── PAGE 3: Field dictionary ───────────────────────────────────────────────
-  doc.addPage();
-  doc.rect(0, 0, PAGE_WIDTH, 60).fill(COLOR.header);
-  const p3 = doc.bufferedPageRange().count;
-  drawHeader(doc, params.logoBuffer);
-  doc.moveDown(5);
-  drawFieldDictionarySection(doc);
-  drawFooter(doc, p3, params.homepageUrl);
+  if (hasVector) {
+    // ── PAGE 3: Field dictionary ───────────────────────────────────────────────
+    doc.addPage();
+    doc.rect(0, 0, PAGE_WIDTH, 60).fill(COLOR.header);
+    const p3 = doc.bufferedPageRange().count;
+    drawHeader(doc, params.logoBuffer);
+    doc.moveDown(5);
+    drawFieldDictionarySection(doc);
+    drawFooter(doc, p3, params.homepageUrl);
+  }
 
   // ── PAGE 4: Standards + Terms ──────────────────────────────────────────────
   doc.addPage();
