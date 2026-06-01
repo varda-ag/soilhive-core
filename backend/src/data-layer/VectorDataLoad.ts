@@ -187,7 +187,7 @@ const buildSortExpr = (sortKey: string, dataMappingConfig: DataCleaningConfig): 
     const expr = formula ? formula.replace(/x/g, `(raw.${sortKey})::numeric`) : `(raw.${sortKey})::numeric`;
     return `CASE WHEN ROUND(${sortKey}::numeric, 3)=${OUTSIDE_LOD_VALUE} THEN ROUND(${sortKey}::numeric, 3) ELSE ROUND(${expr},3) END`;
   }
-  return `${sortKey}`; // unmapped required columns
+  return `NULL`; // unmapped required columns
 };
 
 const getDataPreviewQuery = (query: any, dataMappingConfig: DataCleaningConfig, cursor?: string, sort?: string): any => {
@@ -197,12 +197,12 @@ const getDataPreviewQuery = (query: any, dataMappingConfig: DataCleaningConfig, 
     const sortKey = isDesc ? sort.substring(1) : sort;
     const dir = isDesc ? 'DESC' : 'ASC';
     const sortExpr = buildSortExpr(sortKey, dataMappingConfig);
-    query.orderBy(sortExpr, dir);
-    query.addOrderBy('raw.record_id', dir);
     // Hidden column carrying the sort expression value for cursor encoding.
     // Uses the raw expression without the CASE/min-max wrapper so the cursor
     // value is always non-NULL even when the visible SELECT output is NULL.
     query.addSelect(sortExpr, `_cursor_${sortKey}`);
+    query.orderBy(`_cursor_${sortKey}`, dir);
+    query.addOrderBy('raw.record_id', dir);
   } else {
     query.orderBy('raw.record_id', 'ASC');
   }
