@@ -28,6 +28,7 @@ exports[`FilteringSidebarParameters renders accordion components 1`] = `
             value=""
           />
           <div
+            class="Toggle"
             data-testid="global-toggle"
           >
             Expand All
