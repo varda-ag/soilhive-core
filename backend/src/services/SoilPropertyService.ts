@@ -3,7 +3,7 @@ import { SoilProperty } from '../interfaces/SoilProperty';
 import SoilPropertyEntity from '../entities/SoilProperty';
 import { getEntity, getEntities, idToSlug } from '../utils/slugs';
 import { EntityType, UnitConversionType } from '../types/data';
-import UnitConversionEntity from 'src/entities/UnitConversion';
+import UnitConversionEntity from '../entities/UnitConversion';
 
 export default class SoilPropertyService {
   getSoilProperties = async (requestData: RequestData): Promise<SoilPropertyEntity[]> => {

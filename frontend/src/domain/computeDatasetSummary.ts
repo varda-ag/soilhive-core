@@ -7,7 +7,7 @@ export function computeDatasetSummary(
   fullFilterDatasets?: FilteredDataset[],
 ): DatasetSummary {
   let globalDataPoints = 0;
-  const globalLayers = 0;
+  let globalLayers = 0;
   let globalMinDepth: number | null = null;
   let globalMaxDepth: number | null = null;
   let globalDateStart: string | null = null;
@@ -16,7 +16,8 @@ export function computeDatasetSummary(
 
   if (fetchedFilteredResults) {
     for (const dataset of fetchedFilteredResults) {
-      globalDataPoints += dataset.dataset_layer_count;
+      globalDataPoints += dataset.dataset_layer_count ?? 0;
+      globalLayers += dataset.raster_layer_count ?? 0;
 
       if (dataset.min_depth !== undefined) {
         globalMinDepth = globalMinDepth === null ? dataset.min_depth : Math.min(globalMinDepth, dataset.min_depth);

@@ -31,6 +31,7 @@ const mockDataset = {
   name: 'SoilGrid Global',
   views: '12.3k',
   tags: ['Global', 'Primary'],
+  dataType: 'point',
   properties: {
     points: 34546,
     layers: 12,
@@ -110,7 +111,6 @@ describe('DatasetsListItem', () => {
     render(<DatasetsListItem dataset={mockDataset} />);
 
     expect(screen.getByText('34546 points')).toBeInTheDocument();
-    expect(screen.getByText('12 raster layers')).toBeInTheDocument();
     expect(screen.getByText('0-60 cm')).toBeInTheDocument();
     expect(screen.getByText('2012 - 2024')).toBeInTheDocument();
   });

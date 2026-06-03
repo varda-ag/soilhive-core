@@ -1,4 +1,4 @@
-import type { BackendStoredDataFilter, DataFilter } from 'types/backend';
+import { GISDataType, type BackendStoredDataFilter, type DataFilter } from 'types/backend';
 import { useApiQuery } from './useApiQuery';
 import { useFilteredCoverageQuery } from './useFilteredCoverageQuery';
 import { computeDatasetSummary } from '../domain';
@@ -34,7 +34,7 @@ export function useDownloadPreview({
   const availableFixedDatasets = useMemo(
     () =>
       (availabilityCoverageData ? availabilityCoverageData.datasets : [])
-        .filter(dataset => datasetsIds.includes(dataset.id))
+        .filter(dataset => datasetsIds.includes(dataset.id) && dataset.data_type !== GISDataType.RASTER)
         .sort((a, b) => a.name.localeCompare(b.name, 'en', { sensitivity: 'base' })),
     [availabilityCoverageData, datasetsIds],
   );
