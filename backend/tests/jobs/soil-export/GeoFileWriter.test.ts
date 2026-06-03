@@ -72,7 +72,10 @@ async function readLayerRows(
   const filePath = getVerificationPath(format, propertyAcronym);
   const csvPath = path.join(TEST_OUTPUT_DIR, `_verify_${propertyAcronym}_${format}.csv`);
 
-  const args = ['-f', 'CSV', csvPath, filePath];
+  const isSpatial = !TABULAR_FORMATS.includes(format);
+  const args = ['-f', 'CSV'];
+  if (isSpatial) args.push('-lco', 'GEOMETRY=AS_WKT');
+  args.push(csvPath, filePath);
   if (format === FileFormat.GPKG || format === FileFormat.XLSX) {
     args.push(propertyAcronym);
   }
@@ -92,6 +95,8 @@ async function readLayerRows(
 }
 
 const ALL_FORMATS: FileFormat[] = [FileFormat.CSV, FileFormat.XLSX, FileFormat.GPKG, FileFormat.SHP, FileFormat.GEOJSON];
+const SPATIAL_FORMATS: FileFormat[] = [FileFormat.GPKG, FileFormat.SHP, FileFormat.GEOJSON];
+const TABULAR_FORMATS: FileFormat[] = [FileFormat.CSV, FileFormat.XLSX];
 
 describe('GeoFileWriter', () => {
   beforeAll(() => {
@@ -201,6 +206,89 @@ describe('GeoFileWriter', () => {
       // --- Verify no cross-contamination ---
       expect(alValues).not.toEqual(expect.arrayContaining([55.5, 66.6, 77.7]));
       expect(caValues).not.toEqual(expect.arrayContaining([10.1, 20.2, 30.3]));
+    });
+  });
+
+  describe('precondition: setProperty required before writeRecord', () => {
+    it('should throw if writeRecord is called without a prior setProperty', async () => {
+      const writer = new GeoFileWriter(FileFormat.CSV);
+      await writer.openFile(TEST_OUTPUT_DIR);
+      await expect(writer.writeRecord(soilSampleToExportRecord(makeSample()))).rejects.toThrow(
+        'GeoFileWriter: No active layer. Call setProperty() first.',
+      );
+    });
+  });
+
+  describe('empty batch', () => {
+    it('should not create any output files when a property has no records', async () => {
+      const writer = new GeoFileWriter(FileFormat.CSV);
+      await writer.openFile(TEST_OUTPUT_DIR);
+      await writer.setProperty('Al');
+      await writer.closeFile();
+      expect(fs.readdirSync(TEST_OUTPUT_DIR)).toHaveLength(0);
+    });
+  });
+
+  describe('geometry in spatial formats', () => {
+    it.each(SPATIAL_FORMATS)('%s: should write Point geometry with correct coordinates', async format => {
+      const writer = new GeoFileWriter(format);
+      await writer.openFile(TEST_OUTPUT_DIR);
+      await writer.setProperty('Al');
+      await writer.writeRecord(soilSampleToExportRecord(makeSample({ id: '1' })));
+      await writer.closeFile();
+
+      const { rows } = await readLayerRows(format, 'Al');
+      expect(rows).toHaveLength(1);
+      // ogr2ogr emits geometry as WKT when converting to CSV (-lco GEOMETRY=AS_WKT).
+      // The column name varies by source format (e.g. 'WKT' for SHP/GeoJSON, 'geom' for GPKG),
+      // so we locate the geometry value by searching for the POINT prefix.
+      const wkt = Object.values(rows[0]).find(v => v.startsWith('POINT'));
+      expect(wkt).toMatch(/POINT \(-124\.1303482 40\.4684982\)/);
+    });
+  });
+
+  describe('geom as text column in tabular formats', () => {
+    it.each(TABULAR_FORMATS)('%s: should include geom as a WKT text column', async format => {
+      const writer = new GeoFileWriter(format);
+      await writer.openFile(TEST_OUTPUT_DIR);
+      await writer.setProperty('Al');
+      await writer.writeRecord(soilSampleToExportRecord(makeSample({ id: '1' })));
+      await writer.closeFile();
+
+      const { rows, fieldNames } = await readLayerRows(format, 'Al');
+      expect(fieldNames).toContain('geom');
+      expect(rows[0]['geom']).toMatch(/POINT \(-124\.1303482 40\.4684982\)/);
+      // tabular formats have null geometry — no WKT geometry column from ogr2ogr
+      expect(fieldNames).not.toContain('WKT');
+    });
+  });
+
+  describe('all EXPORT_SCHEMA fields present in output', () => {
+    it.each(ALL_FORMATS)('%s: should emit all schema field names and round-trip values correctly', async format => {
+      const isTabular = TABULAR_FORMATS.includes(format);
+      const writer = new GeoFileWriter(format);
+      // laboratory_method is null in the default sample factory
+      const sample = makeSample({ id: '1' });
+
+      await writer.openFile(TEST_OUTPUT_DIR);
+      await writer.setProperty('Al');
+      await writer.writeRecord(soilSampleToExportRecord(sample));
+      await writer.closeFile();
+
+      const { rows, fieldNames } = await readLayerRows(format, 'Al');
+
+      EXPORT_SCHEMA.forEach(field => {
+        if (field.key === 'geom' && !isTabular) return; // geometry in spatial formats, not a property column
+        const name = format === FileFormat.SHP ? field.title_truncated : field.title;
+        expect(fieldNames).toContain(name);
+      });
+
+      const nameFor = (title: string, truncated: string) => (format === FileFormat.SHP ? truncated : title);
+
+      expect(rows[0][nameFor('dataset_name', 'dataset')]).toBe('Test Dataset');
+      expect(parseFloat(rows[0][nameFor('value', 'value')])).toBeCloseTo(42.5);
+      // null fields come back as empty string after the CSV round-trip
+      expect(rows[0][nameFor('laboratory_method', 'lab_method')]).toBe('');
     });
   });
 
