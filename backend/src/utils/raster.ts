@@ -1,5 +1,9 @@
-import { xyz } from 'gdal-async';
 import { Envelope, PixelWindow } from '../interfaces/RasterLayer';
+
+type xyz = {
+  x: number;
+  y: number;
+};
 
 /**
  * Returns the PostGIS table name to query given an AOI area in m².

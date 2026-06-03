@@ -9,7 +9,6 @@ import SoilDataStorage, { buildDatasetFilterClauses } from '../../src/data-layer
 import DatasetEntity from '../../src/entities/Dataset';
 import { decodeCursor } from '../../src/utils/cursor';
 import { addRasterFilterData, addRasterFilterMappings } from '../helper';
-import { clearRasterPool } from '../../src/services/FileService';
 import { GISDataType, IngestionStatus } from '../../src/types/data';
 import * as RasterUtilsModule from '../../src/utils/raster';
 import * as FilteringMasksModule from '../../src/data-layer/FilteringMasks';
@@ -706,7 +705,6 @@ describe('SoilDataStorage class', () => {
   describe('Raster data filtering', () => {
     let mockSelectOverview: any;
     beforeEach(() => {
-      clearRasterPool();
       // Do not reference any overview (they don't exist in test dump)
       mockSelectOverview = jest.spyOn(RasterUtilsModule, 'selectOverviewTable').mockImplementation((table: string) => {
         return table;

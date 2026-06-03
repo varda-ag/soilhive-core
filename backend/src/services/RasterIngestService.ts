@@ -1,10 +1,10 @@
 import path from 'path';
-import gdal from 'gdal-async';
 import { analyzeRasterMeta, streamRasterFootprints } from '../scripts/computeRasterFootprints';
 import { getEntityManager } from '../utils/data-source';
 import { log } from '../utils/logger';
 import { MultiPolygon } from 'geojson';
 import FileService from './FileService';
+import { GdalCLI } from '../utils/GdalCLI';
 
 export interface IngestRasterOptions {
   input: string;
@@ -16,16 +16,11 @@ export interface IngestRasterOptions {
 
 async function assertIsCog(filePath: string): Promise<void> {
   const { mainFilePath } = await FileService.getMainFilePath(filePath);
-  const ds = await gdal.openAsync(mainFilePath);
-  try {
-    const meta = ds.getMetadata('') as Record<string, string>;
-    const band = ds.bands.get(1);
-    const isCog = meta['LAYOUT'] === 'COG' || (band.blockSize.x >= 256 && band.overviews.count() > 0);
-    if (!isCog) {
-      throw new Error(`Input is not a Cloud Optimized GeoTIFF: ${filePath}. Convert it first with convert_raster.sh.`);
-    }
-  } finally {
-    ds.close();
+  const info = await GdalCLI.gdalinfo(mainFilePath);
+  const band = info.bands?.[0];
+  const isCog = info.metadata?.IMAGE_STRUCTURE?.LAYOUT === 'COG' || ((band?.block?.[0] ?? 0) >= 256 && (band?.overviews?.length ?? 0) > 0);
+  if (!isCog) {
+    throw new Error(`Input is not a Cloud Optimized GeoTIFF: ${filePath}. Convert it first with convert_raster.sh.`);
   }
 }
 
