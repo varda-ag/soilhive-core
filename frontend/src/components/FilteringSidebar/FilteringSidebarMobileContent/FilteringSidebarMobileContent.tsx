@@ -28,7 +28,16 @@ export function FilteringSidebarMobileContent() {
   return (
     <div className={styles.FilteringSidebarMobileContent}>
       <div className={styles.TabsWrapper}>
-        <MobileTabNavigation className={styles.Tabs} config={config} type="secondary" active={activeTab} onChange={setActiveTab} />
+        <MobileTabNavigation
+          className={styles.Tabs}
+          config={config}
+          type="secondary"
+          fontSize="lg"
+          gap="30px"
+          scrollable
+          active={activeTab}
+          onChange={setActiveTab}
+        />
       </div>
 
       {activeTab === 'scope' && <FilteringSidebarDataScope />}

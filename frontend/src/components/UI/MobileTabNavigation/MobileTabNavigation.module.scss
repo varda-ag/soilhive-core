@@ -1,19 +1,19 @@
 .MobileTabNavigation {
   display: flex;
+  gap: var(--tab-item-gap, 0);
 
   > .MobileTabNavigationItem {
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 0.25rem;
-    font-size: var(--font-size-sm);
+    font-size: var(--tab-font-size, var(--font-size-xs));
     line-height: 100%;
     cursor: pointer;
   }
 
   &.Primary {
     > .MobileTabNavigationItem {
-      width: calc(100% / 3);
       padding: 0.3125rem;
       border-top: 0.25rem solid transparent;
 
@@ -21,6 +21,25 @@
         color: var(--color-cta-default-solid);
         border-color: var(--color-cta-default-solid);
       }
+    }
+
+    &:not(.Scrollable) > .MobileTabNavigationItem {
+      width: calc(100% / 3);
+    }
+  }
+
+  &.Scrollable {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
+
+    > .MobileTabNavigationItem {
+      flex-shrink: 0;
+      min-width: fit-content;
     }
   }
 

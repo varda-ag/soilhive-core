@@ -5,6 +5,7 @@ exports[`MobileTabNavigation component renders all tabs with primary styles by d
   <div
     class="MobileTabNavigation Primary"
     data-testid="sh-ui-mobile-tab-navigation"
+    style="--tab-font-size: var(--font-size-xs); --tab-item-gap: 0;"
   >
     <div
       class="MobileTabNavigationItem Active"
