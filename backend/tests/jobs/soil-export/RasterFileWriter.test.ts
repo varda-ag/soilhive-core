@@ -76,7 +76,7 @@ describe('RasterFileWriter', () => {
       ds.close();
     });
 
-    it('produces a valid GeoPackage file', async () => {
+    it('produces a valid GeoPackage file with one layer', async () => {
       const writer = new RasterFileWriter(RasterFileFormat.GPKG, TEST_OUTPUT_DIR);
       await writer.writeLayer(makeLayer(), mockAoi);
 

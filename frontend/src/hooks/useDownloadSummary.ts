@@ -63,7 +63,7 @@ export function useDownloadSummary({ filterId, datasetsIds }: { filterId: string
           name: dataset.name,
           licenses: (dataset.licenses ?? []).map(licenseId => allLicensesMap.get(licenseId)).filter(license => license !== undefined),
           dataType: dataset.data_type,
-          layerCount: dataset.dataset_layer_count,
+          layerCount: dataset.dataset_layer_count ?? dataset.raster_layer_count,
         }))
         .sort((a, b) => a.name.localeCompare(b.name));
     }

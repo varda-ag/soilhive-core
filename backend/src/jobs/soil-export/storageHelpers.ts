@@ -2,9 +2,10 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import archiver from 'archiver';
+import * as gdal from 'gdal-async';
 import { FileStorage } from '@flystorage/file-storage';
 import FileService from '../../services/FileService';
-import { EXPORT_CONFIG } from './types';
+import { EXPORT_CONFIG, RasterFileFormat } from './types';
 import { log } from '../../utils/logger';
 
 /**
@@ -81,6 +82,35 @@ export function generateDownloadPath(filterId: string): string {
   const month = String(now.getUTCMonth() + 1).padStart(2, '0');
   const dateTimeString = getDateTimeString();
   return path.join(EXPORT_CONFIG.EXPORTS_BASE_PATH, String(year), month, `${dateTimeString}_${filterId}.zip`);
+}
+
+export async function mergeGPKG(tempDir: string, globalFilename: string = 'export.gpkg'): Promise<void> {
+  const vectorPath = path.join(tempDir, globalFilename);
+
+  const rasterFiles = fs.readdirSync(tempDir).filter(f => f.endsWith(RasterFileFormat.GPKG) && f !== globalFilename);
+
+  for (const rasterFile of rasterFiles) {
+    const rasterPath = path.join(tempDir, rasterFile);
+    const tableName = path.basename(rasterFile, '.gpkg');
+    const srcDs = await gdal.openAsync(rasterPath);
+    const outDs = await gdal.translateAsync(vectorPath, srcDs, [
+      '-of',
+      'GPKG',
+      '-b',
+      '1',
+      '-co',
+      `RASTER_TABLE=${tableName}`,
+      '-co',
+      'TILE_FORMAT=TIFF',
+      '-co',
+      'APPEND_SUBDATASET=YES',
+      '-ot',
+      'Float32',
+    ]);
+    outDs.close();
+    srcDs.close();
+    fs.unlinkSync(rasterPath);
+  }
 }
 
 /**

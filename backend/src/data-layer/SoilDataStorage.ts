@@ -418,7 +418,7 @@ export default class SoilDataStorage {
         .createQueryBuilder('rl')
         .addCommonTableExpression(selectGeometry(), 'aoi')
         .setParameter('inputGeom', geomJson)
-        .innerJoin('rl.dataset', 'ds')
+        .innerJoin('rl.dataset', 'ds', `ds.status = 'PUBLISHED'`)
         .innerJoin('rl.file', 'f', 'f.deleted_at IS NULL')
         .innerJoin('rl.soil_property', 'sp')
         .select('rl.id', 'id')
@@ -428,7 +428,7 @@ export default class SoilDataStorage {
         .addSelect('rl.max_depth', 'max_depth')
         .addSelect('rl.reference_period_start', 'reference_period_start')
         .addSelect('rl.reference_period_stop', 'reference_period_stop')
-        .addSelect('sp.property_name', 'soil_property');
+        .addSelect('sp.property_name', 'soil_property_name');
 
       candidateQuery.andWhere('ds.slug IN (:...dataset_slugs)', { dataset_slugs: datasetSlugs });
       candidateQuery.andWhere('rl.bbox && (SELECT geom FROM aoi)');

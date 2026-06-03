@@ -583,7 +583,7 @@ export const addRasterData = async (
   const dataSource = await getDataSource();
   const repo = dataSource.getRepository(RasterLayerEntity);
 
-  const entity = await repo.findOneOrFail({ where: { file: { file_path: outName } }, relations: { file: true } });
+  const entity = await repo.findOneOrFail({ where: { file: { file_path: outName } }, relations: { file: true, dataset: true } });
 
   if (options?.layerFields && Object.keys(options.layerFields).length > 0) {
     Object.assign(entity, options.layerFields);

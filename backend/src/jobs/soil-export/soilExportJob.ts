@@ -17,7 +17,14 @@ import {
 import { getPgBoss, PG_BOSS_SCHEMA } from '../../services/PgBoss';
 import { GeoFileWriter } from './GeoFileWriter';
 import { RasterFileWriter } from './RasterFileWriter';
-import { cleanupTempFiles, generateDownloadFilename, generateDownloadPath, moveToDownloadFolder, zipFiles } from './storageHelpers';
+import {
+  cleanupTempFiles,
+  generateDownloadFilename,
+  generateDownloadPath,
+  mergeGPKG,
+  moveToDownloadFolder,
+  zipFiles,
+} from './storageHelpers';
 import EntitlementService from '../../services/EntitlementService';
 import { EVERYONE } from '../../constants/constants';
 import { RequestData } from '../../interfaces/RequestData';
@@ -88,6 +95,12 @@ export async function processExportJob(job: Job<ExportJob>): Promise<void> {
       return;
     }
 
+    const needsFileMerge =
+      (vectorRequested && rasterRequested && vectorFormat === rasterFormat) ||
+      (rasterRequested && totalLayersProcessed > 1 && rasterFormat === RasterFileFormat.GPKG);
+    if (needsFileMerge) {
+      await mergeGPKG(tempDir);
+    }
     const downloadPath = generateDownloadPath(filter_id);
     const localZipPath = path.join(os.tmpdir(), path.basename(downloadPath));
     await zipFiles(tempDir, localZipPath);
@@ -156,7 +169,7 @@ async function exportVectorData(
       current_cursor: cursor ?? null,
       total_records_processed: totalRecordsProcessed,
       progress_percentage,
-      progress_description: `Processed ${totalRecordsProcessed} records...`,
+      progress_description_vector: `Processed ${totalRecordsProcessed} records...`,
     });
 
     if (batch.length < EXPORT_CONFIG.BATCH_SIZE) break;
@@ -194,7 +207,7 @@ async function exportRasterData(
       ...data,
       total_layers_processed: totalLayersProcessed,
       progress_percentage,
-      progress_description: `Processed ${totalLayersProcessed} raster layers...`,
+      progress_description_raster: `Processed ${totalLayersProcessed} raster layers...`,
     });
   }
 

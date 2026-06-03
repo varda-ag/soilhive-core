@@ -54,9 +54,10 @@ export class RasterFileWriter {
       if (this.fileFormat === RasterFileFormat.TIFF) {
         warpArgs.push('-co', 'COMPRESS=DEFLATE', '-co', 'TILED=YES');
       } else {
-        warpArgs.push('-co', `RASTER_TABLE=${layerName}`, '-co', 'COMPRESS=LZW', '-co', 'TILE_FORMAT=TIFF');
+        warpArgs.push('-co', `RASTER_TABLE=${layerName}`, '-co', 'COMPRESS=LZW', '-co', 'TILE_FORMAT=TIFF', '-ot', 'Float32');
       }
-      const filePath = path.join(this.outputDir, `${layerName}.${this.getFileExtension()}`);
+      const fileName = `${layerName}.${this.getFileExtension()}`;
+      const filePath = path.join(this.outputDir, fileName);
       const outDs = await gdal.warpAsync(filePath, null, [ds], warpArgs);
       outDs.close();
     } finally {

@@ -42,6 +42,8 @@ export interface ExportJob extends ExportJobParameters, CommonJobData {
   total_layers_processed: number | null;
   download_path: string | null;
   download_filename?: string;
+  progress_description_vector?: string;
+  progress_description_raster?: string;
 }
 
 export interface ExportOutputs {
