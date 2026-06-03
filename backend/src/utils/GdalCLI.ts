@@ -10,7 +10,7 @@ export interface OgrInfoLayer {
   geometry: string;
   geomColumn: string | null;
   fields: OgrInfoField[];
-  featureCount: number;
+  featureCount: number | null;
   epsg: number | undefined;
 }
 
@@ -85,7 +85,7 @@ export class GdalCLI {
         name: f.name as string,
         type: f.type as string,
       })),
-      featureCount: (l.featureCount as number) ?? -1,
+      featureCount: (l.featureCount as number | null) ?? null,
       epsg: GdalCLI.extractEpsg((l.geometryFields as any[])?.[0]?.coordinateSystem?.projjson),
     }));
     return { driver, layers };

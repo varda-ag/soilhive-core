@@ -331,6 +331,7 @@ export default class FileService {
       }
     }
 
+    // null featureCount means "unknown": throw only if it's explicitly 0
     if (layer.featureCount === 0) {
       throw new ErrorResponse('No features found in input file', StatusCodes.BAD_REQUEST);
     }
