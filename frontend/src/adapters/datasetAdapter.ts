@@ -37,7 +37,7 @@ export function mapFilteredDatasetSummaryToAvailabilityDataset(dataset: Filtered
     dataType: dataset.data_type,
     properties: {
       points: dataset.dataset_layer_count,
-      layers: 0, // TODO: raster not supported at the moment
+      layers: dataset.raster_layer_count,
       minDepth: dataset.min_depth,
       maxDepth: dataset.max_depth,
       dateStart: getYear(dataset.min_sampling_date),

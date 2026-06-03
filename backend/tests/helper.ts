@@ -37,6 +37,7 @@ export const teardown = async () => {
 };
 
 export const clearDatabase = async () => {
+  assert(process.env.POSTGRES_SCHEMA === 'testschema', 'clearDatabase can only be run on testschema');
   const excludeTables: string[] = [];
   const includeTables: string[] = ['land_cover', 'soil_groups'];
   const dataSource = await getDataSource();
@@ -112,7 +113,7 @@ const getToken = async (password: string): Promise<string> => {
   return res.body.access_token;
 };
 
-export const addRastersData = async (): Promise<void> => {
+export const addRasterFilterData = async (): Promise<void> => {
   // Loading data (it takes a while)
   const landCoverDump = path.join(__dirname, './assets/land_cover/land_cover.dump');
   const soilGroupsDump = path.join(__dirname, './assets/soil_groups/soil_groups.dump');
@@ -120,7 +121,7 @@ export const addRastersData = async (): Promise<void> => {
   await dbRestore(soilGroupsDump).catch(() => {});
 };
 
-export const addRasterMappings = async (): Promise<void> => {
+export const addRasterFilterMappings = async (): Promise<void> => {
   const landCoverMappingsFile = path.join(__dirname, './assets/land_cover/land_cover.mappings');
   const soilGroupsMappingsFile = path.join(__dirname, './assets/soil_groups/soil_groups.mappings');
   const dataSource = await getDataSource();

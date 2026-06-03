@@ -9,7 +9,7 @@ import {
   getLoadedDataCount,
 } from '../../src/utils/mock';
 import { getPolygonFromBbox } from '../../src/utils/geometry';
-import { addRastersData, addRasterMappings, getDataAdminToken } from '../helper';
+import { addRasterFilterData, addRasterFilterMappings, getDataAdminToken } from '../helper';
 import { StatusCodes } from 'http-status-codes';
 import * as RasterUtilsModule from '../../src/utils/raster';
 import { GISDataType } from '../../src/types/data';
@@ -89,8 +89,8 @@ describe('Testing /soil-data routes', () => {
       });
 
       if (addRasterData) {
-        await addRastersData();
-        await addRasterMappings();
+        await addRasterFilterData();
+        await addRasterFilterMappings();
       }
 
       // Do not reference any overview (they don't exist in test dump)
