@@ -257,7 +257,7 @@ export default class FileService {
     return null;
   };
 
-  private static getMainFilePath = async (fileKey: string): Promise<ExtractedFilePath> => {
+  static getMainFilePath = async (fileKey: string): Promise<ExtractedFilePath> => {
     const config: StorageConfig = ConfigService.getStorageConfig();
     let mainFilePath: string;
     let tempZipExtractPath: string | null = null;
@@ -266,7 +266,7 @@ export default class FileService {
       // Get dataset path based on storage mode
       if (config.storageMode === StorageModes.LOCAL) {
         const localConfig = config.config as LocalStorageConfig;
-        mainFilePath = path.join(localConfig.rootFolder, fileKey);
+        mainFilePath = path.isAbsolute(fileKey) ? fileKey : path.join(localConfig.rootFolder, fileKey);
         if (!fs.existsSync(mainFilePath)) {
           throw new ErrorResponse(`File ${mainFilePath} not found`, StatusCodes.NOT_FOUND);
         }

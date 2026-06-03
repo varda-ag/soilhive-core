@@ -63,7 +63,7 @@
         "points_suffix": "points",
         "raster_layers_suffix": "raster layers",
         "depth_cm_suffix": "cm",
-        "date_range_separator": " - "
+        "date_range_separator": "-"
     },
     "availability_mobile_navigation": {
         "datasets": "Datasets",

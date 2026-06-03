@@ -1,24 +1,27 @@
 import * as turf from '@turf/turf';
 import { Polygon, MultiPolygon } from 'geojson';
-import { Capability, OverlapType } from '../types/enums';
+import { StatusCodes } from 'http-status-codes';
 import { EntityManager, SelectQueryBuilder } from 'typeorm';
+import { createCursor, decodeCursor, encodeCursor } from '../utils/cursor';
+import { ErrorResponse } from '../utils/error';
+import { selectOverviewTable } from '../utils/raster';
+import { Capability, OverlapType } from '../types/enums';
 import { FilteredDatasetSummary, FilteredDataset, FilterCriteria, DataFilter } from '../interfaces/DatasetFilter';
 import DatasetEntity from '../entities/Dataset';
 import DatasetLayerEntity from '../entities/DatasetLayer';
 import { SoilDataSample } from '../interfaces/SoilDataSample';
 import assert from 'assert';
-import { createCursor, decodeCursor, encodeCursor } from '../utils/cursor';
-import { ErrorResponse } from '../utils/error';
-import { StatusCodes } from 'http-status-codes';
 import RasterFilterService from '../services/RasterFilterService';
 import { getDataSource } from '../utils/data-source';
-import { selectOverviewTable } from '../utils/raster';
 import { RequestData } from '../interfaces/RequestData';
 import EntitlementService from '../services/EntitlementService';
 import { geometryUnion } from '../utils/geometry';
+import { RasterLayerMatch } from '../interfaces/RasterLayer';
+import RasterLayerEntity from '../entities/RasterLayer';
+import { GISDataType } from '../types/data';
+import { getVectorMask } from './FilteringMasks';
 
 const AREA_THRESHOLD_M2 = 7_000_000 * 1_000 * 1_000; // 7,000,000 km²
-
 const rasterFilterService = new RasterFilterService();
 const entitlementService = new EntitlementService();
 
@@ -46,11 +49,17 @@ export default class SoilDataStorage {
     return new Map(results.map(row => [row.dataset_id, row.overlap_type as OverlapType]));
   };
 
-  filter = async (
+  filterVector = async (
     entityManager: EntityManager,
     geometry: Polygon | MultiPolygon,
     filters: FilterCriteria,
   ): Promise<FilteredDatasetSummary[]> => {
+    const vectorTypeRequested: boolean =
+      (filters.data_types?.length && [GISDataType.POINT, GISDataType.POLYGONAL].some(dt => filters.data_types?.includes(dt))) ||
+      !filters.data_types;
+    if (!vectorTypeRequested) {
+      return [];
+    }
     return entityManager.connection.transaction(async entityManager => {
       await entityManager.query("SET LOCAL work_mem = '512MB';");
 
@@ -203,11 +212,17 @@ export default class SoilDataStorage {
     });
   };
 
-  filterDatasets = async (
+  filterVectorDatasets = async (
     entityManager: EntityManager,
     geometry: Polygon | MultiPolygon,
     filters: FilterCriteria,
   ): Promise<FilteredDataset[]> => {
+    const vectorTypeRequested: boolean =
+      (filters.data_types?.length && [GISDataType.POINT, GISDataType.POLYGONAL].some(dt => filters.data_types?.includes(dt))) ||
+      !filters.data_types;
+    if (!vectorTypeRequested) {
+      return [];
+    }
     await entityManager.query("SET LOCAL work_mem = '256MB';");
     const schema = process.env.POSTGRES_SCHEMA;
     const params: any[] = [];
@@ -264,6 +279,112 @@ export default class SoilDataStorage {
     `;
 
     return entityManager.query(sql, params);
+  };
+
+  // Assess whether a simplified version (as filterVectorDatasets) is needed
+  filterRaster = async (
+    entityManager: EntityManager,
+    geometry: Polygon | MultiPolygon,
+    filters: FilterCriteria,
+  ): Promise<FilteredDatasetSummary[]> => {
+    const dataFilter = { geometries: [geometry], parameters: filters };
+    let filteredGeom = geometry;
+
+    const rasterTypeRequested: boolean =
+      (filters.data_types?.length && filters.data_types.includes(GISDataType.RASTER)) || !filters.data_types;
+    if (!rasterTypeRequested) {
+      return [];
+    }
+
+    if (hasRasterFilters(dataFilter)) {
+      const mask = await getVectorMask(entityManager, dataFilter);
+      if (mask.coordinates.length === 0) return [];
+      filteredGeom = mask;
+    }
+
+    const geomJson = JSON.stringify(filteredGeom);
+
+    await entityManager.query("SET LOCAL work_mem = '256MB';");
+    // Step 1 — candidate raster layer IDs matching FilterCriteria + coarse spatial pre-filter
+    const candidateQuery = entityManager
+      .getRepository(RasterLayerEntity)
+      .createQueryBuilder('rl')
+      .addCommonTableExpression(selectGeometry(), 'aoi')
+      .setParameter('inputGeom', geomJson)
+      .innerJoin('rl.dataset', 'ds', 'ds.deleted_at IS NULL AND ds.spatial_extent && (SELECT ST_Envelope(geom) FROM aoi)')
+      .innerJoin('rl.soil_property', 'sp')
+      .select('rl.id', 'id');
+
+    candidateQuery.andWhere('rl.bbox && (SELECT geom FROM aoi)');
+    candidateQuery.andWhere('ds.gis_datatype=:gis_datatype', { gis_datatype: GISDataType.RASTER });
+    if (filters.min_depth === null) {
+      candidateQuery.andWhere('rl.min_depth IS NULL');
+    } else if (filters.min_depth !== undefined) {
+      candidateQuery.andWhere('rl.max_depth >= :min_depth', { min_depth: filters.min_depth });
+    }
+    if (filters.max_depth === null) {
+      candidateQuery.andWhere('rl.max_depth IS NULL');
+    } else if (filters.max_depth !== undefined) {
+      candidateQuery.andWhere('rl.min_depth <= :max_depth', { max_depth: filters.max_depth });
+    }
+    if (filters.min_sampling_date === null) {
+      candidateQuery.andWhere('rl.reference_period_start IS NULL');
+    } else if (filters.min_sampling_date) {
+      candidateQuery.andWhere('rl.reference_period_stop >= :min_sampling_date', { min_sampling_date: filters.min_sampling_date });
+    }
+    if (filters.max_sampling_date === null) {
+      candidateQuery.andWhere('rl.reference_period_stop IS NULL');
+    } else if (filters.max_sampling_date) {
+      candidateQuery.andWhere('rl.reference_period_start <= :max_sampling_date', { max_sampling_date: filters.max_sampling_date });
+    }
+    if (filters.soil_properties?.length) {
+      candidateQuery.andWhere('sp.slug IN (:...soil_properties)', { soil_properties: filters.soil_properties });
+    }
+    if (filters.licenses?.length) {
+      candidateQuery.andWhere('ds.licenses && ARRAY[:...licenses]', { licenses: filters.licenses });
+    }
+
+    const candidateIds = (await candidateQuery.getRawMany<{ id: string }>()).map(r => r.id);
+    // Step 2 — precise spatial filter via footprint tile intersection
+    const candidates = await spatialFilter(entityManager, geomJson, candidateIds);
+
+    const hasDataPaths = new Set(candidates.map(r => r.file_path));
+    if (hasDataPaths.size === 0) return [];
+
+    // Step 3 — aggregate surviving layers into dataset summaries
+    // Assess whether this performs better calculated in memory (one less query, up to ~1.5k records in memory)
+    const rows = await entityManager
+      .getRepository(RasterLayerEntity)
+      .createQueryBuilder('rl')
+      .innerJoin('rl.dataset', 'ds')
+      .innerJoin('rl.file', 'f')
+      .innerJoin('rl.soil_property', 'sp')
+      .select('ds.slug', 'id')
+      .addSelect('ds.name', 'name')
+      .addSelect('ds.gis_datatype', 'data_type')
+      .addSelect('ds.licenses', 'licenses')
+      .addSelect('COUNT(rl.id)', 'raster_layer_count')
+      .addSelect("COALESCE(MIN(rl.min_depth), (ds.soil_depth->>'min')::int)", 'min_depth')
+      .addSelect("COALESCE(MAX(rl.max_depth), (ds.soil_depth->>'max')::int)", 'max_depth')
+      .addSelect('COALESCE(MIN(rl.reference_period_start), ds.reference_period_start)', 'min_sampling_date')
+      .addSelect('COALESCE(MAX(rl.reference_period_stop), ds.reference_period_stop)', 'max_sampling_date')
+      .addSelect("STRING_AGG(DISTINCT sp.slug, ',')", 'soil_properties')
+      .where('f.file_path IN (:...hasDataPaths)', { hasDataPaths: [...hasDataPaths] })
+      .groupBy('ds.slug, ds.name, ds.gis_datatype, ds.licenses, ds.soil_depth, ds.reference_period_start, ds.reference_period_stop')
+      .getRawMany();
+
+    return rows.map(row => ({
+      id: row.id,
+      name: row.name,
+      data_type: row.data_type,
+      licenses: Array.isArray(row.licenses) ? row.licenses : [],
+      min_sampling_date: row.min_sampling_date ?? null,
+      max_sampling_date: row.max_sampling_date ?? null,
+      min_depth: row.min_depth !== null ? Number(row.min_depth) : null,
+      max_depth: row.max_depth !== null ? Number(row.max_depth) : null,
+      soil_properties: row.soil_properties ? row.soil_properties.split(',') : [],
+      raster_layer_count: Number.parseInt(row.raster_layer_count, 10),
+    }));
   };
 
   getSoilData = async (
@@ -861,7 +982,7 @@ export const buildDatasetFilterClauses = (
  * Builds raster filter CTEs for raw SQL queries: aoi_subdivided (for large geometries),
  * candidate_features, clipped raster CTEs, and matching_features.
  *
- * Used by both filterDatasets (LATERAL pattern) and buildRawSoilQuery (CTE join pattern).
+ * Used by both filterVectorDatasets (LATERAL pattern) and buildRawSoilQuery (CTE join pattern).
  * Returns { ctes, usesMatchingFeatures } where ctes is a comma-joined string ready to
  * insert after the aoi CTE. When usesMatchingFeatures is false, ctes is empty and the
  * caller handles its own spatial CTEs.
@@ -1212,4 +1333,22 @@ const joinProcedures = (query: any) => {
     .leftJoin('vocabulary', 'pv5', "pv5.id = procedure.extraction_base_id AND pv5.category = 'extraction_base'")
     .leftJoin('vocabulary', 'pv6', "pv6.id = procedure.measurement_procedure_id AND pv6.category = 'measurement_procedure'")
     .leftJoin('vocabulary', 'pv7', "pv7.id = procedure.limit_of_detection_id AND pv7.category = 'limit_of_detection'");
+};
+
+const spatialFilter = async (entityManager: EntityManager, geojsonStr: string, candidateLayers: string[]): Promise<RasterLayerMatch[]> => {
+  if (candidateLayers.length === 0) return [];
+  return entityManager
+    .getRepository(RasterLayerEntity)
+    .createQueryBuilder('rl')
+    .addCommonTableExpression(selectGeometry(), 'aoi')
+    .setParameter('inputGeom', geojsonStr)
+    .innerJoin('rl.file', 'f')
+    .innerJoin('raster_layer_footprints', 'rlf', 'rlf.raster_layer_id = rl.id')
+    .innerJoin('raster_footprints', 'rf', 'rf.id = rlf.raster_footprint_id')
+    .select('rl.id', 'id')
+    .addSelect('f.file_path', 'file_path')
+    .addSelect('rl.resolution_m', 'resolution_m')
+    .where('rl.id IN (:...candidateLayers)', { candidateLayers })
+    .andWhere('ST_Intersects(rf.geom, (SELECT geom FROM aoi))')
+    .getRawMany();
 };

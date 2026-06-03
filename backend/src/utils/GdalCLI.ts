@@ -19,7 +19,29 @@ export interface OgrInfoResult {
   layers: OgrInfoLayer[];
 }
 
+export interface GdalInfoBand {
+  block?: [number, number];
+  overviews?: Array<{ size: { x: number; y: number } }>;
+  noDataValue?: number;
+}
+
+export interface GdalInfoOutput {
+  geoTransform?: number[];
+  size?: [number, number];
+  bands?: GdalInfoBand[];
+  metadata?: {
+    IMAGE_STRUCTURE?: { LAYOUT?: string };
+    [key: string]: Record<string, string> | undefined;
+  };
+  coordinateSystem?: { wkt?: string };
+}
+
 export class GdalCLI {
+  static async gdalinfo(filePath: string): Promise<GdalInfoOutput> {
+    const stdout = await GdalCLI.run('gdalinfo', ['-json', filePath]);
+    return JSON.parse(stdout) as GdalInfoOutput;
+  }
+
   static async ogrinfo(filePath: string, openOptions: string[] = []): Promise<OgrInfoResult> {
     const ooArgs = openOptions.flatMap(o => ['-oo', o]);
     const stdout = await GdalCLI.run('ogrinfo', ['-al', '-so', '-json', ...ooArgs, filePath]);

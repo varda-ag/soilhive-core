@@ -1,18 +1,21 @@
 import { describe, it, expect, beforeEach, jest, afterAll } from '@jest/globals';
+import * as fs from 'fs';
 import * as turf from '@turf/turf';
 import { MultiPolygon, Polygon } from 'geojson';
 import { getEntityManager } from '../../src/utils/data-source';
 import { getPolygonFromBbox } from '../../src/utils/geometry';
-import { addDataset, addSyntheticData, syntheticDataOptions } from '../../src/utils/mock';
+import { addDataset, addRasterData, addRasterDataset, addSyntheticData, syntheticDataOptions } from '../../src/utils/mock';
 import SoilDataStorage, { buildDatasetFilterClauses } from '../../src/data-layer/SoilDataStorage';
 import DatasetEntity from '../../src/entities/Dataset';
 import { decodeCursor } from '../../src/utils/cursor';
+import { addRasterFilterData, addRasterFilterMappings } from '../helper';
 import { GISDataType, IngestionStatus } from '../../src/types/data';
-import { addRastersData, addRasterMappings } from '../helper';
 import * as RasterUtilsModule from '../../src/utils/raster';
+import * as FilteringMasksModule from '../../src/data-layer/FilteringMasks';
 import { invalidGeometryPayload } from './invalidGeometryPayload.ts';
 import { getRasterMask, getVectorMask } from '../../src/data-layer/FilteringMasks';
 import { FilterCriteria } from '../../src/interfaces/DatasetFilter';
+import path from 'path';
 
 const bbox = [0, 0, 1, 1];
 const bboxPolygon: Polygon = getPolygonFromBbox(bbox);
@@ -53,7 +56,7 @@ describe('SoilDataStorage class', () => {
     });
     const sds = new SoilDataStorage();
     const entityManager = await getEntityManager();
-    const results = await sds.filter(entityManager, getPolygonFromBbox([0, 0, 10, 10]), {});
+    const results = await sds.filterVector(entityManager, getPolygonFromBbox([0, 0, 10, 10]), {});
     expect(results.length).toBe(1);
     expect(results[0].dataset_layer_count).toBe(layers);
     expect(results[0].soil_properties).toContain('prop1');
@@ -78,7 +81,7 @@ describe('SoilDataStorage class', () => {
     }
     const sds = new SoilDataStorage();
     const entityManager = await getEntityManager();
-    const results = await sds.filter(entityManager, bboxPolygon, { data_types: [filterType as GISDataType] });
+    const results = await sds.filterVector(entityManager, bboxPolygon, { data_types: [filterType as GISDataType] });
     expect(results.length).toBe(expectedDatasetCount);
     for (let i = 0; i < expectedDatasetCount; i++) {
       expect(datasets.map(d => d.slug)).toContain(results[i].id);
@@ -104,12 +107,12 @@ describe('SoilDataStorage class', () => {
     await addSyntheticData({ ...syntheticDataOptions, depthLayers: 10 }); // 10 layers with depths 0-100
     const sds = new SoilDataStorage();
     const entityManager = await getEntityManager();
-    const filterResults = await sds.filter(entityManager, bboxPolygon, { min_depth, max_depth });
+    const filterResults = await sds.filterVector(entityManager, bboxPolygon, { min_depth, max_depth });
     expect(filterResults.length).toBe(expectedResultCount);
     if (expectedResultCount > 0) {
       expect(filterResults[0].dataset_layer_count).toBe(expectedCount);
     }
-    const datasetResults = await sds.filterDatasets(entityManager, bboxPolygon, { min_depth, max_depth });
+    const datasetResults = await sds.filterVectorDatasets(entityManager, bboxPolygon, { min_depth, max_depth });
     expect(datasetResults.length).toBe(expectedResultCount);
     expect(datasetResults.map(ds => ds.id).sort()).toEqual(filterResults.map(ds => ds.id).sort());
   });
@@ -134,9 +137,9 @@ describe('SoilDataStorage class', () => {
     }
     const sds = new SoilDataStorage();
     const entityManager = await getEntityManager();
-    const filterResults = await sds.filter(entityManager, bboxPolygon, { min_sampling_date, max_sampling_date });
+    const filterResults = await sds.filterVector(entityManager, bboxPolygon, { min_sampling_date, max_sampling_date });
     expect(filterResults.length).toBe(expectedResultCount);
-    const datasetResults = await sds.filterDatasets(entityManager, bboxPolygon, { min_sampling_date, max_sampling_date });
+    const datasetResults = await sds.filterVectorDatasets(entityManager, bboxPolygon, { min_sampling_date, max_sampling_date });
     expect(datasetResults.length).toBe(expectedResultCount);
     expect(datasetResults.map(ds => ds.id).sort()).toEqual(filterResults.map(ds => ds.id).sort());
   });
@@ -162,13 +165,13 @@ describe('SoilDataStorage class', () => {
     }); // 5 layers with horizons A0 -> A4, two observations per layer
     const sds = new SoilDataStorage();
     const entityManager = await getEntityManager();
-    const filterResults = await sds.filter(entityManager, bboxPolygon, { horizons } as any);
+    const filterResults = await sds.filterVector(entityManager, bboxPolygon, { horizons } as any);
     expect(filterResults.length).toBe(expectedResultCount);
     if (expectedResultCount > 0) {
-      const total: number = filterResults.reduce((acc, curr) => acc + curr.dataset_layer_count, 0);
+      const total: number = filterResults.reduce((acc, curr) => acc + curr.dataset_layer_count!, 0);
       expect(total).toBe(expectedCount);
     }
-    const datasetResults = await sds.filterDatasets(entityManager, bboxPolygon, { horizons } as any);
+    const datasetResults = await sds.filterVectorDatasets(entityManager, bboxPolygon, { horizons } as any);
     expect(datasetResults.length).toBe(expectedResultCount);
     expect(datasetResults.map(ds => ds.id).sort()).toEqual(filterResults.map(ds => ds.id).sort());
   });
@@ -188,15 +191,15 @@ describe('SoilDataStorage class', () => {
     await addSyntheticData({ ...syntheticDataOptions, id: 2, soilPropertyNames: ['c', 'd'], depthLayers: 10 });
     const sds = new SoilDataStorage();
     const entityManager = await getEntityManager();
-    const filterResults = await sds.filter(entityManager, bboxPolygon, {
+    const filterResults = await sds.filterVector(entityManager, bboxPolygon, {
       soil_properties: filter as any,
     });
     expect(filterResults.length).toBe(expectedResultCount);
     if (expectedResultCount > 0) {
-      const total: number = filterResults.reduce((acc, curr) => acc + curr.dataset_layer_count, 0);
+      const total: number = filterResults.reduce((acc, curr) => acc + curr.dataset_layer_count!, 0);
       expect(total).toBe(expectedCount);
     }
-    const datasetResults = await sds.filterDatasets(entityManager, bboxPolygon, {
+    const datasetResults = await sds.filterVectorDatasets(entityManager, bboxPolygon, {
       soil_properties: filter as any,
     });
     expect(datasetResults.length).toBe(expectedResultCount);
@@ -219,7 +222,7 @@ describe('SoilDataStorage class', () => {
     await entityManager.getRepository(DatasetEntity).update(loadedDataset.id, { status: IngestionStatus.LOADED });
 
     const sds = new SoilDataStorage();
-    const results = await sds.filterDatasets(entityManager, bboxPolygon, {});
+    const results = await sds.filterVectorDatasets(entityManager, bboxPolygon, {});
 
     expect(results.map(r => r.id)).toContain(publishedDataset.slug);
     expect(results.map(r => r.id)).not.toContain(loadedDataset.slug);
@@ -241,7 +244,7 @@ describe('SoilDataStorage class', () => {
     await entityManager.getRepository(DatasetEntity).update(loadedDataset.id, { status: IngestionStatus.LOADED });
 
     const sds = new SoilDataStorage();
-    const results = await sds.filter(entityManager, bboxPolygon, {});
+    const results = await sds.filterVector(entityManager, bboxPolygon, {});
 
     expect(results.map(r => r.id)).toContain(publishedDataset.slug);
     expect(results.map(r => r.id)).not.toContain(loadedDataset.slug);
@@ -260,7 +263,7 @@ describe('SoilDataStorage class', () => {
     await addSyntheticData({ ...syntheticDataOptions, depthLayers: 1, addNullValues: true }); // Adding another layer with NULL values
     const sds = new SoilDataStorage();
     const entityManager = await getEntityManager();
-    const results = await sds.filter(entityManager, bboxPolygon, { ...filter });
+    const results = await sds.filterVector(entityManager, bboxPolygon, { ...filter });
     expect(results.length).toBe(expectedResultCount);
     if (expectedResultCount > 0) {
       expect(results[0].dataset_layer_count).toBe(expectedCount);
@@ -426,15 +429,15 @@ describe('SoilDataStorage class', () => {
     });
     const sds = new SoilDataStorage();
     const entityManager = await getEntityManager();
-    const results = await sds.filter(entityManager, invalidGeometryPayload as MultiPolygon, {});
+    const results = await sds.filterVector(entityManager, invalidGeometryPayload as MultiPolygon, {});
     expect(results.length).toBe(1);
   });
 
   describe('Raster filtering', () => {
     let mockSelectOverview: any;
     beforeEach(async () => {
-      await addRastersData();
-      await addRasterMappings();
+      await addRasterFilterData();
+      await addRasterFilterMappings();
       // Do not reference any overview (they don't exist in test dump)
       mockSelectOverview = jest.spyOn(RasterUtilsModule, 'selectOverviewTable').mockImplementation((table: string) => {
         return table;
@@ -459,12 +462,12 @@ describe('SoilDataStorage class', () => {
         const entityManager = await getEntityManager();
         const raster_filters: Record<string, number[]> = {};
         raster_filters[tableName] = values;
-        const filterResults = await sds.filter(entityManager, getPolygonFromBbox(bboxQuery), { raster_filters });
+        const filterResults = await sds.filterVector(entityManager, getPolygonFromBbox(bboxQuery), { raster_filters });
         expect(filterResults.length).toBe(expectedResultCount);
         if (expectedResultCount > 0) {
           expect(filterResults[0].dataset_layer_count).toBe(expectedFeatureCount);
         }
-        const datasetResults = await sds.filterDatasets(entityManager, getPolygonFromBbox(bboxQuery), { raster_filters });
+        const datasetResults = await sds.filterVectorDatasets(entityManager, getPolygonFromBbox(bboxQuery), { raster_filters });
         expect(datasetResults.length).toBe(filterResults.length);
         if (expectedResultCount > 0) {
           expect(datasetResults[0].id).toBe(filterResults[0].id);
@@ -698,4 +701,148 @@ describe('SoilDataStorage class', () => {
       expect(maxSize).toEqual(1024);
     });
   });
+
+  describe('Raster data filtering', () => {
+    let mockSelectOverview: any;
+    beforeEach(() => {
+      // Do not reference any overview (they don't exist in test dump)
+      mockSelectOverview = jest.spyOn(RasterUtilsModule, 'selectOverviewTable').mockImplementation((table: string) => {
+        return table;
+      });
+    });
+
+    afterAll(() => {
+      mockSelectOverview.mockRestore();
+    });
+
+    afterAll(() => {
+      const dir = process.env.LOCAL_STORAGE_ROOT_FOLDER!;
+      for (const file of fs.readdirSync(dir)) {
+        if (file.endsWith('_cog.tif')) {
+          fs.unlinkSync(path.join(dir, file));
+        }
+      }
+    });
+
+    const rasterCoordinates = [
+      [-82, -35],
+      [-82, -33],
+      [-80, -33],
+      [-80, -35],
+      [-82, -35],
+    ];
+
+    it('Filtering raster data should return a dataset when geometry intersects with its footprint', async () => {
+      await addRasterData();
+      const sds = new SoilDataStorage();
+      const entityManager = await getEntityManager();
+      // Filtering rectangle
+      const filteringRectangle: Polygon = {
+        coordinates: [rasterCoordinates],
+        type: 'Polygon',
+      };
+      const results = await sds.filterRaster(entityManager, filteringRectangle, {});
+      expect(results).toHaveLength(1);
+      expect(results[0].raster_layer_count).toBe(1);
+    });
+
+    it('Filtering raster data should return empty array when geometry does not intersect any raster layer', async () => {
+      await addRasterData();
+      const sds = new SoilDataStorage();
+      const entityManager = await getEntityManager();
+      const results = await sds.filterRaster(entityManager, getPolygonFromBbox([170, 80, 171, 81]), {});
+      expect(results).toHaveLength(0);
+    });
+
+    it.each([
+      [{ min_depth: 0, max_depth: 30 }, { min_depth: 100 }, 0],
+      [{ min_depth: 5, max_depth: 15 }, { min_depth: 5, max_depth: 15 }, 1],
+      [{ reference_period_start: '2010-01-01', reference_period_stop: '2015-12-31' }, { min_sampling_date: '2020-01-01' }, 0],
+      [
+        { reference_period_start: '2010-01-01', reference_period_stop: '2020-12-31' },
+        { min_sampling_date: '2015-01-01', max_sampling_date: '2018-01-01' },
+        1,
+      ],
+    ])('Filtering with criteria: layer=%j filter=%j should return %i result(s)', async (layerFields, filter, expectedCount) => {
+      await addRasterData(undefined, { layerFields });
+      const sds = new SoilDataStorage();
+      const entityManager = await getEntityManager();
+      const results = await sds.filterRaster(entityManager, getPolygonFromBbox([-180, -90, 180, 90]), filter);
+      expect(results).toHaveLength(expectedCount);
+    });
+
+    it('Filtering raster data should aggregate multiple layers from the same dataset into one summary', async () => {
+      await addRasterData();
+      await addRasterData(undefined, { layerFields: { reference_period_start: '2010-01-01', reference_period_stop: '2020-12-31' } });
+      const sds = new SoilDataStorage();
+      const entityManager = await getEntityManager();
+      const filteringRectangle: Polygon = {
+        coordinates: [rasterCoordinates],
+        type: 'Polygon',
+      };
+      const results = await sds.filterRaster(entityManager, filteringRectangle, {});
+      expect(results).toHaveLength(1);
+      expect(results[0].raster_layer_count).toBe(2);
+    }, 10000);
+
+    describe('Filtering raster data with raster_filters', () => {
+      beforeEach(async () => {
+        await addRasterData();
+        await addRasterFilterData();
+        await addRasterFilterMappings();
+      }, 10000);
+
+      it('Should call getVectorMask when raster_filters are present', async () => {
+        const spy = jest.spyOn(FilteringMasksModule, 'getVectorMask');
+        const sds = new SoilDataStorage();
+        const entityManager = await getEntityManager();
+        await sds.filterRaster(entityManager, getPolygonFromBbox([-82, -35, -80, -33]), { raster_filters: { land_cover: [30] } });
+        expect(spy).toHaveBeenCalled();
+        spy.mockRestore();
+      }, 12000);
+
+      it.each([
+        [[30], 1],
+        [[40], 0],
+      ])(
+        'For raster_filter.land_cover value %j → %i raster dataset(s) should be returned',
+        async (landCoverValues, expectedCount) => {
+          const sds = new SoilDataStorage();
+          const entityManager = await getEntityManager();
+          const results = await sds.filterRaster(entityManager, getPolygonFromBbox([-82, -35, -80, -33]), {
+            raster_filters: { land_cover: landCoverValues },
+          });
+          expect(results).toHaveLength(expectedCount);
+        },
+        10000,
+      );
+    });
+  });
+});
+
+describe('Local testing', () => {
+  it.skip(
+    'Local DB loading',
+    async () => {
+      const dir = process.env.LOCAL_STORAGE_ROOT_FOLDER!;
+      for (const file of fs.readdirSync(dir)) {
+        if (file.startsWith('test_raster')) {
+          fs.unlinkSync(path.join(dir, file));
+        }
+      }
+      for (const input of [
+        `${dir}/clsoilmaps_ksat_100-200cm.tif`,
+        `${dir}/cog_isda_sol_db_od_m_30m_0__20cm_2001__2017_v0_13_wgs84.tif`,
+        `${dir}/holisoils_nitrogen_topsoil_0-30cm_mean_forest.tif`,
+        `${dir}/olm_sol_coarsefrag.vfraction_usda.3b1_m_250m_b0..0cm_1950..2017_v0.2.tif`,
+        `${dir}/olm_sol_texture_class_usda_tt_m_250m_b0_0cm_1950_2017_v0_2.tif`,
+        `${dir}/soilgrids250_bdod_5-15cm_mean.tif`,
+        `${dir}/gSSURGO_AK_rootznemc.tiff`,
+      ]) {
+        const id = input.split('/').pop()!.split('.')[0];
+        await addRasterDataset(id, input);
+      }
+    },
+    2000 * 60 * 60,
+  );
 });

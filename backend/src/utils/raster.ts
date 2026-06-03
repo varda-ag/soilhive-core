@@ -1,3 +1,10 @@
+import { Envelope, PixelWindow } from '../interfaces/RasterLayer';
+
+type xyz = {
+  x: number;
+  y: number;
+};
+
 /**
  * Returns the PostGIS table name to query given an AOI area in m².
  *
@@ -35,6 +42,33 @@ export const selectOverviewTable = (table: string, aoiAreaM2: number): string =>
   return table;
 };
 
+export const selectFileOverviewLevel = (band, queryEnvelope) => {
+  const queryWidth = queryEnvelope.maxX - queryEnvelope.minX;
+  const queryHeight = queryEnvelope.maxY - queryEnvelope.minY;
+  const queryMinDim = Math.min(queryWidth, queryHeight);
+
+  // Native pixel size in degrees (or map units)
+  const nativePixelSize = Math.abs(band.ds.geoTransform[1]);
+
+  const ovCount = band.overviews.count();
+
+  for (let i = ovCount - 1; i >= 0; i--) {
+    const ov = band.overviews.get(i);
+    // Pixel size at this overview level
+    const ovPixelSize = nativePixelSize * (band.size.x / ov.size.x);
+
+    // Use this overview only if its pixel covers less than
+    // 1/8 the query's smallest dimension — ensures multiple
+    // pixels fall within the query area
+    if (ovPixelSize < queryMinDim / 8) {
+      return ov;
+    }
+  }
+  // Query is smaller than even the finest overview pixel —
+  // fall back to native resolution
+  return band;
+};
+
 export const getOverviewPixelSizeM = (aoiAreaM2: number, targetPixels: number): number => {
   const BASE_PIXEL_SIZE_M = 100;
   const OVERVIEWS = [32, 16, 8, 4, 2] as const;
@@ -43,4 +77,28 @@ export const getOverviewPixelSizeM = (aoiAreaM2: number, targetPixels: number): 
     if (aoiAreaM2 / pixelSizeM ** 2 >= targetPixels) return pixelSizeM;
   }
   return BASE_PIXEL_SIZE_M;
+};
+
+export const envelopeToPixelWindow = (geoTransform: number[], env: Envelope, ovSize: xyz, rasterSize: xyz): PixelWindow | null => {
+  const originX = geoTransform[0] ?? 0;
+  const pixelW = geoTransform[1] ?? 1;
+  const originY = geoTransform[3] ?? 0;
+  const pixelH = geoTransform[5] ?? -1; // negative for north-up rasters
+
+  // Scale pixel size from base resolution to this overview's resolution
+  const ovPixelW = pixelW * (rasterSize.x / ovSize.x);
+  const ovPixelH = pixelH * (rasterSize.y / ovSize.y);
+
+  const colLeft = Math.floor((env.minX - originX) / ovPixelW);
+  const rowTop = Math.floor((env.maxY - originY) / ovPixelH); // maxY→small row (north-up)
+  const colRight = Math.ceil((env.maxX - originX) / ovPixelW);
+  const rowBot = Math.ceil((env.minY - originY) / ovPixelH); // minY→large row
+
+  const x = Math.max(0, colLeft);
+  const y = Math.max(0, rowTop);
+  const xEnd = Math.min(ovSize.x, colRight);
+  const yEnd = Math.min(ovSize.y, rowBot);
+
+  if (xEnd <= x || yEnd <= y) return null;
+  return { x, y, w: xEnd - x, h: yEnd - y };
 };

@@ -13,6 +13,7 @@ import styles from './DatasetsListItem.module.scss';
 import useAvailability from 'hooks/useAvailability';
 import { useTranslation } from 'react-i18next';
 import { MetaItem } from './MetaItem/MetaItem';
+import { GISDataType } from '../../../../types/backend';
 
 type Props = {
   dataset: AvailabilityDataset;
@@ -49,17 +50,21 @@ export function DatasetsListItem({ dataset }: Props) {
       </div>
       <div className={styles.MetaWrapper}>
         <div className={styles.Meta}>
-          <MetaItem icon={<MapIcon className={styles.PointsIcon} />} isLoading={isCoverageLoading}>
-            {dataset.properties.points} points
-          </MetaItem>
-          <MetaItem icon={<LayersIcon className={styles.LayersIcon} />} isLoading={isCoverageLoading}>
-            {dataset.properties.layers} raster layers
-          </MetaItem>
+          {dataset.dataType === GISDataType.POINT && (
+            <MetaItem icon={<MapIcon className={styles.PointsIcon} />} isLoading={isCoverageLoading}>
+              {dataset.properties.points} {t('datasets_list.points_suffix')}
+            </MetaItem>
+          )}
+          {dataset.dataType === GISDataType.RASTER && (
+            <MetaItem icon={<LayersIcon className={styles.LayersIcon} />} isLoading={isCoverageLoading}>
+              {dataset.properties.layers} {t('datasets_list.raster_layers_suffix')}
+            </MetaItem>
+          )}
           <MetaItem icon={<RullerIcon className={styles.DepthIcon} />} isLoading={isCoverageLoading}>
-            {dataset.properties.minDepth}-{dataset.properties.maxDepth} cm
+            {dataset.properties.minDepth}-{dataset.properties.maxDepth} {t('datasets_list.depth_cm_suffix')}
           </MetaItem>
           <MetaItem icon={<CalendarIcon className={styles.DateIcon} />} isLoading={isCoverageLoading}>
-            {dataset.properties.dateStart} - {dataset.properties.dateEnd}
+            {dataset.properties.dateStart} {t('datasets_list.date_range_separator')} {dataset.properties.dateEnd}
           </MetaItem>
         </div>
       </div>
