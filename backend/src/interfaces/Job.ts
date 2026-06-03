@@ -27,7 +27,7 @@ export interface BulkLoadJob extends CommonJobData {
 
 export interface ExportJobParameters {
   filter_id: string;
-  format: string;
+  formats: string[];
   dataset_ids: string[];
   public_homepage_url?: string;
   public_terms_url?: string;
@@ -35,11 +35,18 @@ export interface ExportJobParameters {
 }
 
 export interface ExportJob extends ExportJobParameters, CommonJobData {
-  total_records_estimate: number;
+  total_records_estimate: number | null;
   current_cursor: string | null;
-  total_records_processed: number;
+  total_records_processed: number | null;
+  total_layers_estimate: number | null;
+  total_layers_processed: number | null;
   download_path: string | null;
   download_filename?: string;
+}
+
+export interface ExportOutputs {
+  total_records_processed: number | null;
+  total_layers_processed: number | null;
 }
 
 export interface FileToDbJob extends CommonJobData {

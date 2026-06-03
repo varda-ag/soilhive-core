@@ -5,10 +5,10 @@ import * as os from 'os';
 import extractZip from 'extract-zip';
 import request from 'supertest';
 import { app } from '../../../src/app';
-import { addSyntheticData, syntheticDataOptions } from '../../../src/utils/mock';
+import { addDataset, addSyntheticData, syntheticDataOptions } from '../../../src/utils/mock';
 import { initPgBoss, stopPgBoss } from '../../../src/services/PgBoss';
 import { sleep } from '../../../src/utils/utils';
-import { EXPORT_CONFIG, FileFormat } from '../../../src/jobs/soil-export/types';
+import { EXPORT_CONFIG, VectorFileFormat } from '../../../src/jobs/soil-export/types';
 import { StatusCodes } from 'http-status-codes';
 import { SoilDataSample } from '../../../src/interfaces/SoilDataSample';
 import * as exportHelpers from '../../../src/jobs/soil-export/exportHelpers';
@@ -23,7 +23,7 @@ describe('Soil Export Job Integration Test', () => {
     await stopPgBoss();
   });
 
-  it('should create observations, queue export job, wait for completion, download and verify file', async () => {
+  it('vector dataset - should create observations, queue export job, wait for completion, download and verify file', async () => {
     // 1. Create synthetic data with observations
     const { dataset } = await addSyntheticData({
       ...syntheticDataOptions,
@@ -72,7 +72,7 @@ describe('Soil Export Job Integration Test', () => {
         type: 'export',
         filter_id: filterId,
         dataset_ids: [dataset.slug],
-        format: FileFormat.CSV,
+        formats: [VectorFileFormat.CSV],
       });
 
     expect(exportJobResponse.statusCode).toBe(201);
@@ -200,6 +200,8 @@ describe('Soil Export Job Integration Test', () => {
       cursor: 'fake-cursor',
     };
 
+    await addDataset('fake-dataset', [0, 0, 1, 1]);
+
     const fetchBatchSpy = jest.spyOn(exportHelpers, 'fetchBatch').mockResolvedValue(Array(EXPORT_CONFIG.BATCH_SIZE).fill(fakeRecord));
     const getTotalRecordsCountSpy = jest.spyOn(exportHelpers, 'getTotalRecordsCount').mockResolvedValue(1000);
     const createReadmeFileSpy = jest.spyOn(exportHelpers, 'createReadmeFile').mockResolvedValue(undefined);
@@ -211,7 +213,7 @@ describe('Soil Export Job Integration Test', () => {
         type: 'export',
         filter_id: '3b0fab67-f73c-4cc7-b97f-2c688212f7b0',
         dataset_ids: ['fake-dataset'],
-        format: FileFormat.CSV,
+        formats: [VectorFileFormat.CSV],
       });
 
     expect(exportJobResponse.statusCode).toBe(StatusCodes.CREATED);

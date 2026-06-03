@@ -2,24 +2,34 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { Job } from 'pg-boss';
-import { ExportJob } from '../../interfaces/Job';
-import { EXPORT_CONFIG, FileFormat } from './types';
+import { ExportJob, ExportOutputs } from '../../interfaces/Job';
+import { EXPORT_CONFIG, VectorFileFormat, RasterFileFormat } from './types';
 import { getEntityManager } from '../../utils/data-source';
-import { getTotalRecordsCount, createReadmeFile, fetchBatch, groupByProperty } from './exportHelpers';
+import {
+  getTotalRecordsCount,
+  createReadmeFile,
+  fetchBatch,
+  groupByProperty,
+  getTotalLayersCount,
+  fetchRasterLayers,
+  validateFileFormats,
+} from './exportHelpers';
 import { getPgBoss, PG_BOSS_SCHEMA } from '../../services/PgBoss';
 import { GeoFileWriter } from './GeoFileWriter';
+import { RasterFileWriter } from './RasterFileWriter';
 import { cleanupTempFiles, generateDownloadFilename, generateDownloadPath, moveToDownloadFolder, zipFiles } from './storageHelpers';
 import EntitlementService from '../../services/EntitlementService';
 import { EVERYONE } from '../../constants/constants';
 import { RequestData } from '../../interfaces/RequestData';
 import { log } from '../../utils/logger';
+import DatasetService from '../../services/DatasetService';
+import { GISDataType } from '../../types/data';
 
 export async function processExportJob(job: Job<ExportJob>): Promise<void> {
   const { id: jobId, data } = job;
   const { created_by } = job as unknown as ExportJob;
-  const { filter_id, format } = data;
+  const { filter_id, formats, dataset_ids } = data;
 
-  const file_format = parseFileFormat(format);
   const entityManager = await getEntityManager();
   const entitlementService = new EntitlementService();
   const entitlements = await entitlementService.getUserEntitlements({ entityManager } as any, created_by ?? EVERYONE);
@@ -28,13 +38,27 @@ export async function processExportJob(job: Job<ExportJob>): Promise<void> {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), EXPORT_CONFIG.TEMP_DIR_PREFIX));
 
   try {
-    // Get total records for progress tracking
+    // Get total records and layers for progress tracking
     const requestData = {
       entityManager,
       entitlements,
       token: { isDataAdmin: data.isDataAdmin, isSuperAdmin: data.isSuperAdmin },
     } as RequestData;
-    const total_records_estimate = await getTotalRecordsCount(requestData, data);
+
+    const datasetService = new DatasetService();
+    const datasets = await Promise.all(dataset_ids.map(d => datasetService.getDataset(requestData, d)));
+    const vectorDatasets = datasets.filter(d => d.gis_datatype && [GISDataType.POINT, GISDataType.POLYGONAL].includes(d.gis_datatype));
+    const rasterDatasets = datasets.filter(d => d.gis_datatype === GISDataType.RASTER);
+    const vectorRequested = vectorDatasets.length > 0;
+    const rasterRequested = rasterDatasets.length > 0;
+
+    const { vectorFormat, rasterFormat } = validateFileFormats(formats, vectorRequested, rasterRequested);
+
+    const vectorData = { ...data, dataset_ids: vectorDatasets.map(d => d.slug) };
+    const rasterData = { ...data, dataset_ids: rasterDatasets.map(d => d.slug) };
+
+    const total_records_estimate = vectorRequested ? await getTotalRecordsCount(requestData, vectorData) : 0;
+    const total_layers_estimate = rasterRequested ? await getTotalLayersCount(requestData, rasterData) : 0;
 
     await updateJobState(jobId, {
       ...data,
@@ -46,84 +70,37 @@ export async function processExportJob(job: Job<ExportJob>): Promise<void> {
 
     await createReadmeFile(requestData, tempDir, data);
 
-    // Initialize writer
-    const writer = new GeoFileWriter(file_format);
+    const downloadPromises: Promise<Partial<ExportOutputs>>[] = [];
 
-    let cursor: string | undefined = data.current_cursor ?? undefined;
-    let totalRecordsProcessed = data.total_records_processed ?? 0;
-    let wasCancelled = false;
-
-    // --- Main batch processing loop ---
-    while (true) {
-      // Check if job was cancelled before processing next batch
-      if (await isJobCancelled(jobId)) {
-        wasCancelled = true;
-        break;
-      }
-
-      // 1. Fetch batch
-      const batch = await fetchBatch(requestData, data, cursor);
-
-      if (!batch || batch.length === 0) {
-        break;
-      }
-
-      // 2. Group batch records by property
-      const grouped = groupByProperty(batch);
-
-      // 3. Open writer for this batch
-      await writer.openFile(tempDir);
-
-      // 4. Write grouped records
-      for (const [propertyKey, records] of Object.entries(grouped)) {
-        await writer.setProperty(propertyKey);
-        for (const record of records) {
-          await writer.writeRecord(record);
-        }
-      }
-
-      // 5. Close writer after batch
-      await writer.closeFile();
-
-      // 6. Update cursor and progress
-      cursor = batch[batch.length - 1]?.cursor;
-      totalRecordsProcessed += batch.length;
-
-      const progress_percentage = total_records_estimate > 0 ? Math.round((totalRecordsProcessed / total_records_estimate) * 100) : 0;
-
-      await updateJobState(jobId, {
-        ...data,
-        current_cursor: cursor ?? null,
-        total_records_processed: totalRecordsProcessed,
-        progress_percentage,
-        progress_description: `Processed ${totalRecordsProcessed} records...`,
-      });
-
-      // If batch is smaller than page size, we've reached the end
-      if (batch.length < EXPORT_CONFIG.BATCH_SIZE) {
-        break;
-      }
+    if (vectorRequested && vectorFormat) {
+      downloadPromises.push(exportVectorData(jobId, requestData, vectorData, vectorFormat, tempDir, total_records_estimate));
     }
 
-    // --- Post-processing ---
+    if (rasterRequested && rasterFormat) {
+      downloadPromises.push(exportRasterData(jobId, requestData, rasterData, rasterFormat, tempDir, total_layers_estimate));
+    }
 
-    if (wasCancelled) return;
+    const results = await Promise.all(downloadPromises);
+    const totalRecordsProcessed = results.reduce((sum, r) => sum + (r.total_records_processed ?? 0), 0);
+    const totalLayersProcessed = results.reduce((sum, r) => sum + (r.total_layers_processed ?? 0), 0);
 
-    // Zip temp directory contents
+    if (await isJobCancelled(jobId)) {
+      return;
+    }
+
     const downloadPath = generateDownloadPath(filter_id);
     const localZipPath = path.join(os.tmpdir(), path.basename(downloadPath));
     await zipFiles(tempDir, localZipPath);
 
-    // Move zip to download folder via storage engine
     const final_storage_path = await moveToDownloadFolder(localZipPath, downloadPath);
 
-    // Update job state as completed
     await updateJobState(jobId, {
       ...data,
       progress_percentage: 100,
       progress_description: 'Export complete',
-      current_cursor: cursor ?? null,
+      current_cursor: null,
       total_records_processed: totalRecordsProcessed,
+      total_layers_processed: totalLayersProcessed,
       download_path: final_storage_path,
       download_filename: generateDownloadFilename(),
     });
@@ -131,17 +108,97 @@ export async function processExportJob(job: Job<ExportJob>): Promise<void> {
     log.error(`Error processing export job ${jobId}:`, { error: error as any });
     throw error;
   } finally {
-    // Always cleanup temp files, even on error
     await cleanupTempFiles(tempDir);
   }
 }
 
-function parseFileFormat(format: string): FileFormat {
-  const valid = Object.values(FileFormat) as string[];
-  if (!valid.includes(format)) {
-    throw new Error(`Unsupported file format: ${format}`);
+async function exportVectorData(
+  jobId: string,
+  requestData: RequestData,
+  data: any,
+  fileFormat: VectorFileFormat,
+  tempDir: string,
+  total_records_estimate: number,
+): Promise<Partial<ExportOutputs>> {
+  if (!data.dataset_ids?.length) return { total_records_processed: 0 };
+
+  const writer = new GeoFileWriter(fileFormat);
+
+  let cursor: string | undefined = data.current_cursor ?? undefined;
+  let totalRecordsProcessed = data.total_records_processed ?? 0;
+
+  while (true) {
+    if (await isJobCancelled(jobId)) break;
+
+    const batch = await fetchBatch(requestData, data, cursor);
+    if (!batch || batch.length === 0) break;
+
+    const grouped = groupByProperty(batch);
+
+    await writer.openFile(tempDir);
+
+    for (const [propertyKey, records] of Object.entries(grouped)) {
+      await writer.setProperty(propertyKey);
+      for (const record of records) {
+        await writer.writeRecord(record);
+      }
+    }
+
+    await writer.closeFile();
+
+    cursor = batch.at(-1)?.cursor;
+    totalRecordsProcessed += batch.length;
+
+    const progress_percentage = total_records_estimate > 0 ? Math.round((totalRecordsProcessed / total_records_estimate) * 100) : 0;
+
+    await updateJobState(jobId, {
+      ...data,
+      current_cursor: cursor ?? null,
+      total_records_processed: totalRecordsProcessed,
+      progress_percentage,
+      progress_description: `Processed ${totalRecordsProcessed} records...`,
+    });
+
+    if (batch.length < EXPORT_CONFIG.BATCH_SIZE) break;
   }
-  return format as FileFormat;
+
+  return { total_records_processed: totalRecordsProcessed };
+}
+
+async function exportRasterData(
+  jobId: string,
+  requestData: RequestData,
+  data: any,
+  fileFormat: RasterFileFormat,
+  tempDir: string,
+  total_layers_estimate: number,
+): Promise<Partial<ExportOutputs>> {
+  if (!data.dataset_ids?.length) return { total_layers_processed: 0 };
+
+  const { layers, aoi } = await fetchRasterLayers(requestData, data);
+
+  if (!layers.length || !aoi) return { total_layers_processed: 0 };
+
+  const writer = new RasterFileWriter(fileFormat, tempDir);
+  let totalLayersProcessed = 0;
+
+  for (const layer of layers) {
+    if (await isJobCancelled(jobId)) break;
+
+    await writer.writeLayer(layer, aoi);
+    totalLayersProcessed++;
+
+    const progress_percentage = total_layers_estimate > 0 ? Math.round((totalLayersProcessed / total_layers_estimate) * 100) : 0;
+
+    await updateJobState(jobId, {
+      ...data,
+      total_layers_processed: totalLayersProcessed,
+      progress_percentage,
+      progress_description: `Processed ${totalLayersProcessed} raster layers...`,
+    });
+  }
+
+  return { total_layers_processed: totalLayersProcessed };
 }
 
 async function updateJobState(jobId: string, update: Partial<ExportJob>): Promise<void> {

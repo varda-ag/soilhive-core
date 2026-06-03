@@ -61,6 +61,8 @@ export interface GeneratePdfParams {
   exportDate: Date;
   homepageUrl: string | undefined;
   termsUrl: string | undefined;
+  hasVector: boolean;
+  hasRaster: boolean;
 }
 
 interface TocEntry {
@@ -269,7 +271,7 @@ function drawDataRequestSection(doc: PDFKit.PDFDocument, params: GeneratePdfPara
   doc.moveDown(VERTICAL_SPACE);
 }
 
-function drawDataStructureSection(doc: PDFKit.PDFDocument, fileFormat: string, hasVector: boolean, hasRaster: boolean): void {
+function drawDataStructureSection(doc: PDFKit.PDFDocument, hasVector: boolean, hasRaster: boolean, fileFormat: string): void {
   sectionHeading(doc, 'Data structure');
 
   const fmt = fileFormat.toLowerCase();
@@ -459,9 +461,6 @@ export async function generateExportPdf(params: GeneratePdfParams): Promise<void
   doc.registerFont(FONT.regular, path.join(__dirname, '../../assets/fonts/Inter-VariableFont_opsz.ttf'));
   doc.registerFont(FONT.bold, path.join(__dirname, '../../assets/fonts/Inter-Bold.ttf'));
 
-  const hasVector = params.datasets.some(ds => ds.gis_datatype !== GISDataType.RASTER);
-  const hasRaster = params.datasets.some(ds => ds.gis_datatype === GISDataType.RASTER);
-
   const stream = fs.createWriteStream(params.outputPath);
   doc.pipe(stream);
 
@@ -500,12 +499,12 @@ export async function generateExportPdf(params: GeneratePdfParams): Promise<void
   tocEntries.push({ title: 'Data structure', indent: false, page: p2 });
   drawHeader(doc, params.logoBuffer);
   doc.moveDown(5);
-  drawDataRequestSection(doc, params, hasVector, hasRaster);
+  drawDataRequestSection(doc, params, params.hasVector, params.hasRaster);
   doc.moveDown(3);
-  drawDataStructureSection(doc, params.fileFormat, hasVector, hasRaster);
+  drawDataStructureSection(doc, params.hasVector, params.hasRaster, params.fileFormat);
   drawFooter(doc, p2, params.homepageUrl);
 
-  if (hasVector) {
+  if (params.hasVector) {
     // ── PAGE 3: Field dictionary ───────────────────────────────────────────────
     doc.addPage();
     doc.rect(0, 0, PAGE_WIDTH, 60).fill(COLOR.header);

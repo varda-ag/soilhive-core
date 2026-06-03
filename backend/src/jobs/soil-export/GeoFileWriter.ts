@@ -3,17 +3,17 @@
 import * as path from 'path';
 import * as fs from 'fs';
 import * as gdal from 'gdal-async';
-import { ExportRecord, FileFormat, EXPORT_SCHEMA, FieldMetadata } from './types';
+import { ExportRecord, VectorFileFormat, EXPORT_SCHEMA, FieldMetadata } from './types';
 
 export class GeoFileWriter {
   private dataset: gdal.Dataset | null = null;
   private currentLayer: gdal.Layer | null = null;
   private outputDir: string = '';
-  private fileFormat: FileFormat;
+  private fileFormat: VectorFileFormat;
   private layerMap = new Map<string, gdal.Layer>();
   private datasetMap = new Map<string, gdal.Dataset>();
 
-  constructor(fileFormat: FileFormat) {
+  constructor(fileFormat: VectorFileFormat) {
     this.fileFormat = fileFormat;
   }
 
@@ -31,7 +31,7 @@ export class GeoFileWriter {
 
     const filePath = this.buildFilePath();
     const fileExists =
-      this.fileFormat === FileFormat.SHP
+      this.fileFormat === VectorFileFormat.SHP
         ? fs.readdirSync(outputDir).some(f => f.endsWith('.shp')) // check for any .shp file in dir
         : fs.existsSync(filePath); // all other formats
 
@@ -166,7 +166,12 @@ export class GeoFileWriter {
 
       const fieldName = this.getFieldName(field);
       const gdalFieldType = field.gdalType === 'OFTReal' ? gdal.OFTReal : gdal.OFTString;
-      layer.fields.add(new gdal.FieldDefn(fieldName, gdalFieldType));
+      const fieldDefn = new gdal.FieldDefn(fieldName, gdalFieldType);
+      if (field.gdalPrecision) {
+        fieldDefn.precision = field.gdalPrecision;
+      }
+
+      layer.fields.add(fieldDefn);
     }
 
     return layer;
@@ -178,7 +183,7 @@ export class GeoFileWriter {
    * are handled by the zip naming convention
    */
   private buildFilePath(): string {
-    if (this.fileFormat === FileFormat.SHP) {
+    if (this.fileFormat === VectorFileFormat.SHP) {
       return this.outputDir; // SHP driver expects directory, not file path
     }
     return path.join(this.outputDir, `export.${this.getFileExtension()}`);
@@ -192,24 +197,24 @@ export class GeoFileWriter {
   }
 
   private isSingleFileFormat(): boolean {
-    return [FileFormat.XLSX, FileFormat.GPKG, FileFormat.SHP].includes(this.fileFormat);
+    return [VectorFileFormat.XLSX, VectorFileFormat.GPKG, VectorFileFormat.SHP].includes(this.fileFormat);
   }
 
   private isTabularFormat(): boolean {
-    return [FileFormat.CSV, FileFormat.XLSX].includes(this.fileFormat);
+    return [VectorFileFormat.CSV, VectorFileFormat.XLSX].includes(this.fileFormat);
   }
 
   private getDriverName(): string {
     switch (this.fileFormat) {
-      case FileFormat.CSV:
+      case VectorFileFormat.CSV:
         return 'CSV';
-      case FileFormat.XLSX:
+      case VectorFileFormat.XLSX:
         return 'XLSX';
-      case FileFormat.GPKG:
+      case VectorFileFormat.GPKG:
         return 'GPKG';
-      case FileFormat.SHP:
+      case VectorFileFormat.SHP:
         return 'ESRI Shapefile';
-      case FileFormat.GEOJSON:
+      case VectorFileFormat.GEOJSON:
         return 'GeoJSON';
       default:
         throw new Error(`Unsupported format: ${this.fileFormat}`);
@@ -218,15 +223,15 @@ export class GeoFileWriter {
 
   private getFileExtension(): string {
     switch (this.fileFormat) {
-      case FileFormat.CSV:
+      case VectorFileFormat.CSV:
         return 'csv';
-      case FileFormat.XLSX:
+      case VectorFileFormat.XLSX:
         return 'xlsx';
-      case FileFormat.GPKG:
+      case VectorFileFormat.GPKG:
         return 'gpkg';
-      case FileFormat.SHP:
+      case VectorFileFormat.SHP:
         return 'shp';
-      case FileFormat.GEOJSON:
+      case VectorFileFormat.GEOJSON:
         return 'geojson';
       default:
         throw new Error(`Unsupported format: ${this.fileFormat}`);
@@ -234,7 +239,7 @@ export class GeoFileWriter {
   }
 
   private getFieldName(field: FieldMetadata): string {
-    if (this.fileFormat === FileFormat.SHP) {
+    if (this.fileFormat === VectorFileFormat.SHP) {
       return field.title_truncated;
     }
 

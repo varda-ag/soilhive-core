@@ -3,7 +3,7 @@ import * as path from 'path';
 import * as fs from 'fs';
 import * as gdal from 'gdal-async';
 import { GeoFileWriter } from '../../../src/jobs/soil-export/GeoFileWriter';
-import { EXPORT_SCHEMA, FileFormat, soilSampleToExportRecord } from '../../../src/jobs/soil-export/types';
+import { EXPORT_SCHEMA, VectorFileFormat, soilSampleToExportRecord } from '../../../src/jobs/soil-export/types';
 import { SoilDataSample } from '../../../src/interfaces/SoilDataSample';
 
 const TEST_OUTPUT_DIR = path.join(__dirname, 'output');
@@ -42,22 +42,28 @@ function makeSample(overrides: Partial<SoilDataSample> = {}): SoilDataSample {
  * For multi-file formats (CSV, GeoJSON) each property gets its own file.
  * This helper returns the path GDAL should open for verification.
  */
-function getVerificationPath(format: FileFormat, propertyAcronym: string): string {
+function getVerificationPath(format: VectorFileFormat, propertyAcronym: string): string {
   switch (format) {
-    case FileFormat.CSV:
+    case VectorFileFormat.CSV:
       return path.join(TEST_OUTPUT_DIR, `${propertyAcronym}.csv`);
-    case FileFormat.GEOJSON:
+    case VectorFileFormat.GEOJSON:
       return path.join(TEST_OUTPUT_DIR, `${propertyAcronym}.geojson`);
-    case FileFormat.XLSX:
+    case VectorFileFormat.XLSX:
       return path.join(TEST_OUTPUT_DIR, 'export.xlsx');
-    case FileFormat.GPKG:
+    case VectorFileFormat.GPKG:
       return path.join(TEST_OUTPUT_DIR, 'export.gpkg');
-    case FileFormat.SHP:
+    case VectorFileFormat.SHP:
       return path.join(TEST_OUTPUT_DIR, `${propertyAcronym}.shp`);
   }
 }
 
-const ALL_FORMATS: FileFormat[] = [FileFormat.CSV, FileFormat.XLSX, FileFormat.GPKG, FileFormat.SHP, FileFormat.GEOJSON];
+const ALL_FORMATS: VectorFileFormat[] = [
+  VectorFileFormat.CSV,
+  VectorFileFormat.XLSX,
+  VectorFileFormat.GPKG,
+  VectorFileFormat.SHP,
+  VectorFileFormat.GEOJSON,
+];
 
 describe('GeoFileWriter', () => {
   beforeAll(() => {
@@ -200,7 +206,7 @@ describe('GeoFileWriter', () => {
   describe('ESRI Shapefile field name truncation', () => {
     it('should use truncated field names for SHP format to comply with 10-character limit', async () => {
       // We only care about SHP for this specific logic
-      const format = FileFormat.SHP;
+      const format = VectorFileFormat.SHP;
       const writer = new GeoFileWriter(format);
       const property = 'Al';
 
