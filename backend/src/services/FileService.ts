@@ -518,10 +518,13 @@ export default class FileService {
       }
       ({ mainFilePath, tempZipExtractPath } = await FileService.getMainFilePath(fileKey));
 
+      let keepGeomColumn = 'YES';
+
       if (!fileMetadata.geometry_detected) {
         if (mappingGeomFields.geomField) {
           ogr2ogrOpts.push('-oo', `GEOM_POSSIBLE_NAMES=${mappingGeomFields.geomField}`);
           selectClause = `${selectClause}, "${mappingGeomFields.geomField}" AS geometry`;
+          keepGeomColumn = 'NO';
         } else if (mappingGeomFields.latField && mappingGeomFields.lonField) {
           ogr2ogrOpts.push(
             '-oo',
@@ -533,6 +536,7 @@ export default class FileService {
         } else if (fileMetadata.detected_fields[DetectableFields.GEOMETRY]) {
           ogr2ogrOpts.push('-oo', `GEOM_POSSIBLE_NAMES=${fileMetadata.detected_fields[DetectableFields.GEOMETRY]}`);
           selectClause = `${selectClause}, "${fileMetadata.detected_fields[DetectableFields.GEOMETRY]}" AS geometry`;
+          keepGeomColumn = 'NO';
         } else if (fileMetadata.detected_fields[DetectableFields.LATITUDE] && fileMetadata.detected_fields[DetectableFields.LONGITUDE]) {
           ogr2ogrOpts.push(
             '-oo',
@@ -550,7 +554,7 @@ export default class FileService {
       }
 
       if (unknownGeomDrivers.includes(fileMetadata.driver ?? '')) {
-        ogr2ogrOpts.push('-oo', 'AUTODETECT_TYPE=YES', '-oo', 'EMPTY_STRING_AS_NULL=YES', '-oo', 'KEEP_GEOM_COLUMNS=NO');
+        ogr2ogrOpts.push('-oo', 'AUTODETECT_TYPE=YES', '-oo', 'EMPTY_STRING_AS_NULL=YES', '-oo', `KEEP_GEOM_COLUMNS=${keepGeomColumn}`);
       }
 
       if (fileMetadata.epsg && fileMetadata.epsg !== 4326) {
