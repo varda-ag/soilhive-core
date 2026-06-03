@@ -32,21 +32,14 @@ export async function processOrphanFileCleanup(): Promise<void> {
 
   for (const file of orphanFiles) {
     try {
-      try {
-        await fileService.deleteFileFromStorage(file.file_path);
-      } catch (storageError) {
-        log.warn('Failed to delete orphan file from storage, proceeding with DB deletion', {
-          file_id: file.id,
-          file_path: file.file_path,
-          error: storageError instanceof Error ? storageError.message : String(storageError),
-        });
-      }
+      await fileService.deleteFileFromStorage(file.file_path);
       await entityManager.getRepository(FileEntity).delete({ id: file.id });
       deleted++;
     } catch (error) {
       errors++;
       log.error('Failed to clean up orphan file', {
         file_id: file.id,
+        file_path: file.file_path,
         error: error instanceof Error ? error.message : String(error),
       });
     }
