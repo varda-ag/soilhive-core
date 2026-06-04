@@ -15,7 +15,7 @@ import FileService from '../../src/services/FileService';
 const vectorFilesPassPath = path.join(__dirname, '../assets/vector_files/pass');
 const fileName = 'sample_point.geojson';
 
-describe.skip('Testing /files routes (s3 storage)', () => {
+describe('Testing /files routes (s3 storage)', () => {
   let dataAdminAuthHeader: IncomingHttpHeaders;
   const setS3TestEnv = () => {
     process.env.STORAGE_MODE = 's3';
@@ -43,7 +43,7 @@ describe.skip('Testing /files routes (s3 storage)', () => {
       expect(res.body.status).toBe(IngestionStatus.PENDING);
 
       const fileService = new FileService();
-      expect(fileService.exists(`${vectorFilesPassPath}/${res.body.file_path}`)).toBeTruthy();
+      expect(await fileService.exists(res.body.file_path)).toBeTruthy();
     });
   });
 });
