@@ -17,19 +17,21 @@ import RasterLayerEntity from '../../../src/entities/RasterLayer';
 import { GdalCLI } from '../../../src/utils/GdalCLI';
 import { IngestionStatus } from '../../../src/types/data';
 
-const rasterFilesPath = path.join(__dirname, '../../assets/raster');
+const storageRoot = process.env.LOCAL_STORAGE_ROOT_FOLDER!;
+
 describe('Soil Export Job Integration Test', () => {
-  const setLocalStorageRootFolder = async (rootFolder: string) => {
-    process.env.LOCAL_STORAGE_ROOT_FOLDER = rootFolder;
-  };
-  setLocalStorageRootFolder(rasterFilesPath);
   beforeAll(async () => {
+    const rasterAssetsDir = path.join(__dirname, '../../assets/raster');
+    fs.cpSync(rasterAssetsDir, storageRoot, { recursive: true });
     await initPgBoss();
     await sleep(2000); // Wait for pg-boss table to be ready
   });
 
   afterAll(async () => {
     await stopPgBoss();
+    for (const entry of fs.readdirSync(storageRoot)) {
+      fs.rmSync(path.join(storageRoot, entry), { recursive: true, force: true });
+    }
   });
 
   describe('Raster and vector datasets', () => {
@@ -190,7 +192,6 @@ describe('Soil Export Job Integration Test', () => {
     }, 6000); // 6 seconds timeout for integration test
 
     it('should create one output file with one band and one vector layer when format requested is GPKG', async () => {
-      process.env.LOCAL_STORAGE_ROOT_FOLDER = rasterFilesPath;
       const filterResponse = await request(app)
         .post('/data-filters')
         .send({
@@ -305,7 +306,6 @@ describe('Soil Export Job Integration Test', () => {
     }, 8000);
 
     it('should create several output files with the corresponding formats when several are requested', async () => {
-      process.env.LOCAL_STORAGE_ROOT_FOLDER = rasterFilesPath;
       const filterResponse = await request(app)
         .post('/data-filters')
         .send({
@@ -432,8 +432,7 @@ describe('Soil Export Job Integration Test', () => {
     }, 8000);
 
     it('should create one output file with several bands when several raster datasets requested with format GPKG', async () => {
-      process.env.LOCAL_STORAGE_ROOT_FOLDER = rasterFilesPath;
-      const extra_raster_layer = await addRasterData(path.join(__dirname, '../../assets/raster/bdod_5-15cm_mean_cog.tif'), {
+      const extra_raster_layer = await addRasterData(path.join(__dirname, '../../assets/raster/bdod_5-15cm_mean.tif'), {
         dataset: 'test-raster-ds-2',
         visibility: 'public',
         dataset_status: IngestionStatus.PUBLISHED,

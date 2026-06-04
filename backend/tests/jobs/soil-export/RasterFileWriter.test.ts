@@ -9,7 +9,7 @@ import FileService from '../../../src/services/FileService';
 import { GdalCLI } from '../../../src/utils/GdalCLI';
 
 const TEST_OUTPUT_DIR = path.join(__dirname, 'raster-test-output');
-const TEST_RASTER = path.join(__dirname, '../../assets/raster/bdod_5-15cm_mean_cog.tif');
+const TEST_RASTER = path.join(__dirname, '../../assets/raster/bdod_5-15cm_mean.tif');
 
 const mockAoi: Polygon = {
   type: 'Polygon',
@@ -28,7 +28,7 @@ function makeLayer(overrides: Partial<FilteredRasterLayer> = {}): FilteredRaster
   return {
     id: 'layer-1',
     dataset_name: 'SoilGrids 250m',
-    path: 'uploads/raster/SoilGrids 250m/bdod_5-15cm_mean_cog.tif',
+    path: 'uploads/raster/SoilGrids 250m/bdod_5-15cm_mean.tif',
     min_depth: 5,
     max_depth: 15,
     reference_period_start: null,
