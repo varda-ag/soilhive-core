@@ -94,7 +94,13 @@ async function readLayerRows(
   return { rows, fieldNames };
 }
 
-const ALL_FORMATS: VectorFileFormat[] = [VectorFileFormat.CSV, VectorFileFormat.XLSX, VectorFileFormat.GPKG, VectorFileFormat.SHP, VectorFileFormat.GEOJSON];
+const ALL_FORMATS: VectorFileFormat[] = [
+  VectorFileFormat.CSV,
+  VectorFileFormat.XLSX,
+  VectorFileFormat.GPKG,
+  VectorFileFormat.SHP,
+  VectorFileFormat.GEOJSON,
+];
 const SPATIAL_FORMATS: VectorFileFormat[] = [VectorFileFormat.GPKG, VectorFileFormat.SHP, VectorFileFormat.GEOJSON];
 const TABULAR_FORMATS: VectorFileFormat[] = [VectorFileFormat.CSV, VectorFileFormat.XLSX];
 

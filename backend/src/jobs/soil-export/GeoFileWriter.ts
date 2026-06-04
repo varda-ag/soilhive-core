@@ -93,11 +93,11 @@ export class GeoFileWriter {
       args.push('-update');
     }
 
-    if (this.fileFormat === FileFormat.SHP) {
+    if (this.fileFormat === VectorFileFormat.SHP) {
       args.push('-f', 'ESRI Shapefile');
-    } else if (this.fileFormat === FileFormat.CSV) {
+    } else if (this.fileFormat === VectorFileFormat.CSV) {
       args.push('-f', 'CSV');
-    } else if (this.fileFormat === FileFormat.GEOJSON) {
+    } else if (this.fileFormat === VectorFileFormat.GEOJSON) {
       args.push('-f', 'GeoJSON');
     }
 

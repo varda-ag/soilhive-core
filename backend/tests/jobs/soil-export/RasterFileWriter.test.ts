@@ -1,12 +1,12 @@
 import { describe, it, expect, beforeAll, beforeEach, afterEach, jest } from '@jest/globals';
 import * as path from 'path';
 import * as fs from 'node:fs';
-import * as gdal from 'gdal-async';
 import { Polygon } from 'geojson';
 import { RasterFileWriter } from '../../../src/jobs/soil-export/RasterFileWriter';
 import { RasterFileFormat } from '../../../src/jobs/soil-export/types';
 import { FilteredRasterLayer } from '../../../src/interfaces/DatasetFilter';
 import FileService from '../../../src/services/FileService';
+import { GdalCLI } from '../../../src/utils/GdalCLI';
 
 const TEST_OUTPUT_DIR = path.join(__dirname, 'raster-test-output');
 const TEST_RASTER = path.join(__dirname, '../../assets/raster/bdod_5-15cm_mean_cog.tif');
@@ -71,9 +71,8 @@ describe('RasterFileWriter', () => {
       const tif = outputFiles().find(f => f.endsWith('.tif'));
       if (!tif) throw new Error('No .tif output file produced');
 
-      const ds = await gdal.openAsync(path.join(TEST_OUTPUT_DIR, tif));
-      expect(ds.bands.count()).toBeGreaterThan(0);
-      ds.close();
+      const info = await GdalCLI.gdalinfo(path.join(TEST_OUTPUT_DIR, gpkg));
+      expect(info.bands?.length).toBeGreaterThan(0);
     });
 
     it('produces a valid GeoPackage file with one layer', async () => {
@@ -83,9 +82,8 @@ describe('RasterFileWriter', () => {
       const gpkg = outputFiles().find(f => f.endsWith('.gpkg'));
       if (!gpkg) throw new Error('No .gpkg output file produced');
 
-      const ds = await gdal.openAsync(path.join(TEST_OUTPUT_DIR, gpkg));
-      expect(ds.bands.count()).toBeGreaterThan(0);
-      ds.close();
+      const info = await GdalCLI.gdalinfo(path.join(TEST_OUTPUT_DIR, gpkg));
+      expect(info.bands?.length).toBeGreaterThan(0);
     });
 
     it('clips output extent to within the AOI bounding box', async () => {
@@ -94,18 +92,27 @@ describe('RasterFileWriter', () => {
 
       const tif = outputFiles().find(f => f.endsWith('.tif'));
       if (!tif) throw new Error('No .tif output file produced');
-      const ds = await gdal.openAsync(path.join(TEST_OUTPUT_DIR, tif));
+
+      const info = await GdalCLI.gdalinfo(path.join(tif));
       const gt =
-        ds.geoTransform ??
+        info.geoTransform ??
         (() => {
           throw new Error('No geoTransform on output dataset');
         })();
-      // gt[0] = minX, gt[3] = maxY
+      const rasterSizeX =
+        info.size ? info.size[0] :
+        (() => {
+          throw new Error('No width information on output dataset');
+        })();
+      const rasterSizeY =
+        info.size ? info.size[1] :
+        (() => {
+          throw new Error('No height information on output dataset');
+        })();
       const minX = gt[0];
       const maxY = gt[3];
-      const maxX = minX + gt[1] * ds.rasterSize.x;
-      const minY = maxY + gt[5] * ds.rasterSize.y;
-      ds.close();
+      const maxX = minX + gt[1] * rasterSizeX;
+      const minY = maxY + gt[5] * rasterSizeY;
 
       expect(minX).toBeGreaterThanOrEqual(-80.817984705196 - 0.01);
       expect(maxX).toBeLessThanOrEqual(-80.76723043805315 + 0.01);

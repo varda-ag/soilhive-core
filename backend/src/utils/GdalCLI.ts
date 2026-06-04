@@ -52,6 +52,14 @@ export class GdalCLI {
     await GdalCLI.run('ogr2ogr', args);
   }
 
+  static async warp(src: string, dst: string, args: string[]): Promise<void> {
+    await GdalCLI.run('gdalwarp', [...args, src, dst]);
+  }
+
+  static async translate(src: string, dst: string, args: string[]): Promise<void> {
+    await GdalCLI.run('gdal_translate', [...args, src, dst]);
+  }
+
   private static run(cmd: string, args: string[]): Promise<string> {
     return new Promise((resolve, reject) => {
       const proc = spawn(cmd, args);
