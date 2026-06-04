@@ -419,6 +419,35 @@ describe('SoilDataStorage class', () => {
     }
   });
 
+  it('Cursor and sorting should work when sort column contains null values', async () => {
+    // laboratory_method is null for all synthetic data (no vocabulary values added)
+    const { dataset } = await addSyntheticData({
+      ...syntheticDataOptions,
+      depthLayers: 3,
+      soilPropertyNames: ['prop1'],
+      featureCount: 2,
+      observationsPerLayer: 2,
+    });
+    const sds = new SoilDataStorage();
+    const entityManager = await getEntityManager();
+    const filter = { geometries: [], parameters: {} };
+    const limit = 6;
+
+    // Page 1 sorting by laboratory_method DESC (all values are null)
+    const page1 = await sds.getSoilData({ entityManager, entitlements }, filter, [dataset.slug], limit, undefined, '-laboratory_method');
+    expect(page1.length).toBeGreaterThan(0);
+
+    // Page 2: using the last cursor from page 1 must not throw "sort field is not matching cursor"
+    const lastCursor = page1[page1.length - 1].cursor;
+    const page2 = await sds.getSoilData({ entityManager, entitlements }, filter, [dataset.slug], limit, lastCursor, '-laboratory_method');
+
+    // No row from page 1 should appear on page 2
+    const page1Ids = new Set(page1.map(r => r.id));
+    for (const row of page2) {
+      expect(page1Ids.has(row.id)).toBe(false);
+    }
+  });
+
   it('Filtering should work even with an invalid geometry', async () => {
     await addSyntheticData({
       ...syntheticDataOptions,

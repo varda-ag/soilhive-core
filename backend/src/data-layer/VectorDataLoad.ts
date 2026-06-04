@@ -211,11 +211,20 @@ const getDataPreviewQuery = (query: any, dataMappingConfig: DataCleaningConfig, 
     if (sort && decoded.column) {
       const isDesc = sort.startsWith('-');
       const sortKey = isDesc ? sort.substring(1) : sort;
-      const operator = isDesc ? '<' : '>';
-      query.andWhere(`(${buildSortExpr(sortKey, dataMappingConfig)}, raw.record_id) ${operator} (:cursorValue, :cursorId)`, {
-        cursorValue: decoded.value,
-        cursorId: decoded.id,
-      });
+      const sortExpr = buildSortExpr(sortKey, dataMappingConfig);
+      if (decoded.value !== null && decoded.value !== undefined) {
+        const operator = isDesc ? '<' : '>';
+        query.andWhere(`(${sortExpr}, raw.record_id) ${operator} (:cursorValue, :cursorId)`, {
+          cursorValue: decoded.value,
+          cursorId: decoded.id,
+        });
+      } else if (isDesc) {
+        // DESC NULLS FIRST: remaining nulls (id < cursor) plus all non-null rows that follow
+        query.andWhere(`((${sortExpr} IS NULL AND raw.record_id < :cursorId) OR ${sortExpr} IS NOT NULL)`, { cursorId: decoded.id });
+      } else {
+        // ASC NULLS LAST: only remaining null rows with higher id
+        query.andWhere(`${sortExpr} IS NULL AND raw.record_id > :cursorId`, { cursorId: decoded.id });
+      }
     } else {
       query.andWhere('raw.record_id > :cursorId', { cursorId: decoded.id });
     }
