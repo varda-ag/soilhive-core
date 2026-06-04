@@ -1,5 +1,7 @@
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useClickAway } from 'react-use';
+import type { CSSProperties } from 'react';
 
 import classnames from 'classnames';
 
@@ -60,8 +62,9 @@ export function Dropdown({
 
   const [currentValues, setCurrentValues] = useState<string[]>([]);
   const [isOpen, setIsOpen] = useState(false);
+  const [menuStyle, setMenuStyle] = useState<CSSProperties>({});
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
+  const portalRef = useRef<HTMLDivElement>(null);
 
   const sizeClass = useMemo(
     () =>
@@ -89,6 +92,15 @@ export function Dropdown({
 
   const toggleDropdown = useCallback(() => {
     if (!isDisabled && !isReadOnly) {
+      if (!isOpen && dropdownRef.current) {
+        const rect = dropdownRef.current.getBoundingClientRect();
+        const spaceBelow = window.innerHeight - rect.bottom;
+        if (spaceBelow < 240) {
+          setMenuStyle({ position: 'fixed', bottom: window.innerHeight - rect.top + 2, left: rect.left - 2, width: rect.width + 4 });
+        } else {
+          setMenuStyle({ position: 'fixed', top: rect.bottom + 2, left: rect.left - 2, width: rect.width + 4 });
+        }
+      }
       setIsOpen(!isOpen);
     }
   }, [isOpen, isDisabled, isReadOnly]);
@@ -106,7 +118,25 @@ export function Dropdown({
     [onChange, name, isMultiselect],
   );
 
-  useClickAway(dropdownRef, () => setIsOpen(false), ['click']);
+  useClickAway(
+    dropdownRef,
+    e => {
+      if (portalRef.current?.contains(e.target as Node)) return;
+      setIsOpen(false);
+    },
+    ['click'],
+  );
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const close = () => setIsOpen(false);
+    window.addEventListener('scroll', close, true);
+    window.addEventListener('resize', close);
+    return () => {
+      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('resize', close);
+    };
+  }, [isOpen]);
 
   useEffect(() => {
     if (Array.isArray(value)) {
@@ -150,19 +180,21 @@ export function Dropdown({
           </div>
           <ArrowIcon className={styles.ArrowIcon} />
         </div>
-        {isOpen && (
-          <Menu
-            ref={menuRef}
-            size={size}
-            className={styles.OptionsList}
-            options={options}
-            isMultiselect={isMultiselect}
-            keepSelection={true}
-            selectedOptions={currentlySelectedOptionsCodes}
-            showSelectedCheckIcon={showSelectedCheckIcon}
-            onSelect={handleSelection}
-          />
-        )}
+        {isOpen &&
+          createPortal(
+            <div ref={portalRef} style={menuStyle} className={styles.PortalMenu}>
+              <Menu
+                size={size}
+                options={options}
+                isMultiselect={isMultiselect}
+                keepSelection={true}
+                selectedOptions={currentlySelectedOptionsCodes}
+                showSelectedCheckIcon={showSelectedCheckIcon}
+                onSelect={handleSelection}
+              />
+            </div>,
+            document.body,
+          )}
       </div>
     </FormFieldWrapper>
   );
