@@ -7,6 +7,7 @@ import { processExportJob } from '../jobs/soil-export/soilExportJob';
 import { processFileToDb } from '../jobs/file-to-db/FileToDbJob';
 import { processBulkLoad } from '../jobs/bulk-load/BulkLoader';
 import { processBulkDeletion } from '../jobs/bulk-delete/BulkDeleter';
+import { processOrphanFileCleanup } from '../jobs/orphan-file-cleanup/OrphanFileCleanupJob';
 import { log } from '../utils/logger';
 
 setupEnv();
@@ -99,7 +100,18 @@ const setupWorkers = async () => {
       await runJob(JobQueues.BULK_DELETE, job, processBulkDeletion);
     }
   });
+  await boss.work(JobQueues.CLEANUP_ORPHAN_FILES, options, async (jobs: Job<object>[]) => {
+    for (const job of jobs) {
+      await runJob(JobQueues.CLEANUP_ORPHAN_FILES, job, processOrphanFileCleanup);
+    }
+  });
   log.info('PgBoss workers registered', { queues: Object.values(JobQueues) });
+};
+
+const setupSchedules = async () => {
+  const boss = getPgBoss();
+  await boss.schedule(JobQueues.CLEANUP_ORPHAN_FILES, '0 0 * * *');
+  log.info('PgBoss schedules registered');
 };
 
 export const initPgBoss = async () => {
@@ -110,6 +122,7 @@ export const initPgBoss = async () => {
   await startPgBoss();
   await setupQueues();
   await setupWorkers();
+  await setupSchedules();
 };
 
 export const stopPgBoss = async () => {
