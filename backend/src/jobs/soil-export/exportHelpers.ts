@@ -184,6 +184,33 @@ export async function fetchRasterLayers(
   return { layers, aoi };
 }
 
+/**
+ * Combines vector and raster export progress into a single percentage.
+ *
+ * Raster work scales with AOI area (more pixels per layer → more time), so the raster
+ * contribution is weighted by `aoiAreaKm2`. Vector work scales with record count.
+ * When only one type is present, its fraction is returned directly.
+ */
+export function computeCombinedProgress(
+  vectorProcessed: number,
+  totalVectorRecords: number,
+  rasterProcessed: number,
+  totalRasterLayers: number,
+  aoiAreaKm2: number | null, // aoiAreaKm2 is not required if only vector data is requested
+): number {
+  const vectorFraction = totalVectorRecords > 0 ? vectorProcessed / totalVectorRecords : null;
+  const rasterFraction = totalRasterLayers > 0 ? rasterProcessed / totalRasterLayers : null;
+
+  if (vectorFraction === null && rasterFraction === null) return 0;
+  if (vectorFraction === null) return Math.round(rasterFraction! * 100);
+  if (rasterFraction === null) return Math.round(vectorFraction * 100);
+
+  const vectorWeight = totalVectorRecords;
+  const rasterWeight = totalRasterLayers * Math.max(aoiAreaKm2!, 1);
+
+  return Math.round(((vectorFraction * vectorWeight + rasterFraction * rasterWeight) / (vectorWeight + rasterWeight)) * 100);
+}
+
 export function validateFileFormats(
   formats: string[],
   vectorRequested: boolean,

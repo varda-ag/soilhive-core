@@ -35,15 +35,14 @@ export interface ExportJobParameters {
 }
 
 export interface ExportJob extends ExportJobParameters, CommonJobData {
-  total_records_estimate: number | null;
+  total_records_estimate: number;
   current_cursor: string | null;
   total_records_processed: number | null;
-  total_layers_estimate: number | null;
+  total_layers_estimate: number;
   total_layers_processed: number | null;
   download_path: string | null;
   download_filename?: string;
-  progress_description_vector?: string;
-  progress_description_raster?: string;
+  aoi_area_km2: number | null;
 }
 
 export interface ExportOutputs {

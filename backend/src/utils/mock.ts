@@ -570,6 +570,7 @@ export const addRasterData = async (
       reference_period_start?: string | null;
       reference_period_stop?: string | null;
     };
+    visibility?: 'public' | 'private';
   },
 ): Promise<RasterLayerEntity> => {
   const input = tifPath ?? path.join(__dirname, '../../tests/assets/raster/sol_ph.h2o_usda.4c1a2a_m_250m_b0..0cm_1950..2017_v0.2_250.tif');
@@ -582,6 +583,13 @@ export const addRasterData = async (
 
   const dataSource = await getDataSource();
   const repo = dataSource.getRepository(RasterLayerEntity);
+
+  if (options?.visibility) {
+    const datasetRepo = dataSource.getRepository(DatasetEntity);
+    const datasetEntity = await datasetRepo.findOneByOrFail({ name: options?.dataset ?? 'test-ds' });
+    datasetEntity.visibility = options?.visibility;
+    await datasetEntity.save();
+  }
 
   const entity = await repo.findOneOrFail({
     where: { file: { file_path: outName } },

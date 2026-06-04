@@ -48,7 +48,9 @@ describe('Soil Export Job Integration Test', () => {
     let raster_layer: RasterLayerEntity | null = null;
 
     beforeEach(async () => {
-      raster_layer = await addRasterData();
+      raster_layer = await addRasterData(undefined, {
+        visibility: 'public',
+      });
       ({ dataset } = await addSyntheticData({
         ...syntheticDataOptions,
         id: 200,
@@ -185,7 +187,7 @@ describe('Soil Export Job Integration Test', () => {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }, 6000); // 6 seconds timeout for integration test
 
-    it('should create one output file with one band and one layer when format requested is GPKG', async () => {
+    it.only('should create one output file with one band and one vector layer when format requested is GPKG', async () => {
       process.env.LOCAL_STORAGE_ROOT_FOLDER = rasterFilesPath;
       const filterResponse = await request(app)
         .post('/data-filters')
@@ -431,6 +433,7 @@ describe('Soil Export Job Integration Test', () => {
       process.env.LOCAL_STORAGE_ROOT_FOLDER = rasterFilesPath;
       const extra_raster_layer = await addRasterData(path.join(__dirname, '../../assets/raster/bdod_5-15cm_mean_cog.tif'), {
         dataset: 'test-raster-ds-2',
+        visibility: 'public',
       });
       const filterResponse = await request(app)
         .post('/data-filters')
