@@ -7,8 +7,6 @@ import { loggingMiddleware } from './middlewares/logging';
 import { getOpenApiMiddleware, getSwaggerDocument } from './middlewares/openapi';
 import { transactionMiddleware } from './middlewares/transaction';
 import { initPgBoss } from './services/PgBoss';
-import ConfigService from './services/ConfigService';
-import FileService from './services/FileService';
 import { setupCLI } from './utils/cli';
 import { getEntityManager, initializeSchema } from './utils/data-source';
 import { log } from './utils/logger';
@@ -69,9 +67,6 @@ export const initApp = async (app: Application) => {
 
   await initPgBoss();
   initializeSchema();
-
-  const { storageMode } = ConfigService.getStorageConfig();
-  FileService.configureGdal(storageMode);
 
   const port = getServerPort();
   app.listen(port, () => {

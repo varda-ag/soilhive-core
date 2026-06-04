@@ -2,186 +2,121 @@
 
 import * as path from 'path';
 import * as fs from 'fs';
-import * as gdal from 'gdal-async';
+import * as wellknown from 'wellknown';
 import { ExportRecord, VectorFileFormat, EXPORT_SCHEMA, FieldMetadata } from './types';
+import { GdalCLI } from '../../utils/GdalCLI';
 
 export class GeoFileWriter {
-  private dataset: gdal.Dataset | null = null;
-  private currentLayer: gdal.Layer | null = null;
   private outputDir: string = '';
   private fileFormat: VectorFileFormat;
-  private layerMap = new Map<string, gdal.Layer>();
-  private datasetMap = new Map<string, gdal.Dataset>();
+  private createdLayers = new Set<string>();
+  private batchBuffer = new Map<string, ExportRecord[]>();
+  private currentPropertyAcronym: string | null = null;
 
   constructor(fileFormat: VectorFileFormat) {
     this.fileFormat = fileFormat;
   }
 
-  /**
-   * Open or create the output file(s).
-   * @param outputDir - Directory where files will be written
-   */
   async openFile(outputDir: string): Promise<void> {
     this.outputDir = outputDir;
-
-    if (!this.isSingleFileFormat()) {
-      // CSV/GeoJSON: files are created per property in setProperty()
-      return;
-    }
-
-    const filePath = this.buildFilePath();
-    const fileExists =
-      this.fileFormat === VectorFileFormat.SHP
-        ? fs.readdirSync(outputDir).some(f => f.endsWith('.shp')) // check for any .shp file in dir
-        : fs.existsSync(filePath); // all other formats
-
-    if (fileExists) {
-      this.dataset = await gdal.openAsync(filePath, 'r+');
-
-      // Repopulate layerMap from existing layers in the file
-      for (let i = 0; i < this.dataset.layers.count(); i++) {
-        const layer = this.dataset.layers.get(i);
-        this.layerMap.set(layer.name, layer);
-      }
-    } else {
-      const driver = gdal.drivers.get(this.getDriverName());
-      this.dataset = driver.create(filePath);
-    }
+    this.batchBuffer = new Map();
+    this.currentPropertyAcronym = null;
   }
 
-  /**
-   * Switch to the sheet/layer/file for the given property.
-   * Creates it if it doesn't exist.
-   */
   async setProperty(propertyAcronym: string): Promise<void> {
-    if (this.isSingleFileFormat()) {
-      await this.setPropertySingleFile(propertyAcronym);
-    } else {
-      await this.setPropertyMultiFile(propertyAcronym);
+    this.currentPropertyAcronym = propertyAcronym;
+    if (!this.batchBuffer.has(propertyAcronym)) {
+      this.batchBuffer.set(propertyAcronym, []);
     }
   }
 
   async writeRecord(record: ExportRecord): Promise<void> {
-    if (!this.currentLayer) {
+    if (!this.currentPropertyAcronym) {
       throw new Error('GeoFileWriter: No active layer. Call setProperty() first.');
     }
-
-    const feature = new gdal.Feature(this.currentLayer);
-
-    if (record.geom && !this.isTabularFormat()) {
-      const geometry = gdal.Geometry.fromWKT(record.geom);
-      feature.setGeometry(geometry);
-    }
-
-    // Build a complete field object — every field present, null values included.
-    // When passed as an object, gdal-async calls OGR_F_SetFieldNull() for null
-    // values rather than leaving them unset, which prevents the GeoJSON driver
-    // from dropping those JSON members and corrupting the layer FeatureDefn.
-    const fieldValues: Record<string, unknown> = {};
-
-    for (const field of EXPORT_SCHEMA) {
-      if (field.key === 'geom') {
-        if (this.isTabularFormat()) {
-          fieldValues['geom'] = record.geom ?? null;
-        }
-        continue;
-      }
-      const fieldName = this.getFieldName(field);
-      fieldValues[fieldName] = record[field.key] ?? null;
-    }
-
-    feature.fields.set(fieldValues);
-
-    await this.currentLayer.features.addAsync(feature);
+    this.batchBuffer.get(this.currentPropertyAcronym)!.push(record);
   }
 
   async closeFile(): Promise<void> {
-    if (this.isSingleFileFormat()) {
-      if (this.dataset) {
-        this.dataset.close();
-        this.dataset = null;
+    for (const [propertyAcronym, records] of this.batchBuffer) {
+      if (records.length === 0) continue;
+
+      const batchPath = path.join(this.outputDir, `_batch_${propertyAcronym}.geojson`);
+      const featureCollection = this.buildFeatureCollection(records);
+      fs.writeFileSync(batchPath, JSON.stringify(featureCollection));
+
+      try {
+        await GdalCLI.ogr2ogr(this.buildOgr2ogrArgs(propertyAcronym, batchPath));
+      } finally {
+        fs.unlinkSync(batchPath);
       }
-    } else {
-      for (const [, dataset] of this.datasetMap) {
-        dataset.close();
-      }
-      this.datasetMap.clear();
+
+      this.createdLayers.add(propertyAcronym);
     }
 
-    this.currentLayer = null;
-    this.layerMap.clear();
+    this.batchBuffer = new Map();
+    this.currentPropertyAcronym = null;
   }
 
   // --- Private Helpers ---
 
-  private async setPropertySingleFile(propertyAcronym: string): Promise<void> {
-    if (!this.dataset) {
-      throw new Error('GeoFileWriter: File not open. Call openFile() first.');
-    }
-
-    if (this.layerMap.has(propertyAcronym)) {
-      this.currentLayer = this.layerMap.get(propertyAcronym)!;
-      return;
-    }
-
-    const layer = await this.createLayer(this.dataset, propertyAcronym);
-    this.layerMap.set(propertyAcronym, layer);
-    this.currentLayer = layer;
+  private buildFeatureCollection(records: ExportRecord[]): object {
+    return {
+      type: 'FeatureCollection',
+      features: records.map(record => ({
+        type: 'Feature',
+        geometry: this.isTabularFormat() ? null : wellknown.parse(record.geom),
+        properties: this.buildProperties(record),
+      })),
+    };
   }
 
-  private async setPropertyMultiFile(propertyAcronym: string): Promise<void> {
-    const filePath = this.buildPropertyFilePath(propertyAcronym);
-
-    if (this.datasetMap.has(propertyAcronym)) {
-      this.currentLayer = this.datasetMap.get(propertyAcronym)!.layers.get(0);
-      return;
-    }
-
-    let dataset: gdal.Dataset;
-
-    if (fs.existsSync(filePath)) {
-      dataset = await gdal.openAsync(filePath, 'r+');
-      this.currentLayer = dataset.layers.get(0);
-    } else {
-      const driver = gdal.drivers.get(this.getDriverName());
-      dataset = driver.create(filePath);
-      this.currentLayer = await this.createLayer(dataset, propertyAcronym);
-    }
-
-    this.datasetMap.set(propertyAcronym, dataset);
-  }
-
-  private async createLayer(dataset: gdal.Dataset, propertyAcronym: string): Promise<gdal.Layer> {
-    let layer: gdal.Layer;
-
-    if (this.isTabularFormat()) {
-      layer = dataset.layers.create(propertyAcronym);
-    } else {
-      const srs = gdal.SpatialReference.fromEPSG(4326);
-      layer = dataset.layers.create(propertyAcronym, srs, gdal.wkbPoint);
-    }
-
+  private buildProperties(record: ExportRecord): Record<string, unknown> {
+    const props: Record<string, unknown> = {};
     for (const field of EXPORT_SCHEMA) {
-      if (field.key === 'geom' && !this.isTabularFormat()) continue; // geometry is always handled separately for some formats
-
-      const fieldName = this.getFieldName(field);
-      const gdalFieldType = field.gdalType === 'OFTReal' ? gdal.OFTReal : gdal.OFTString;
-      const fieldDefn = new gdal.FieldDefn(fieldName, gdalFieldType);
-      if (field.gdalPrecision) {
-        fieldDefn.precision = field.gdalPrecision;
-      }
-
-      layer.fields.add(fieldDefn);
+      if (field.key === 'geom' && !this.isTabularFormat()) continue;
+      props[this.getFieldName(field)] = record[field.key] ?? null;
     }
-
-    return layer;
+    return props;
   }
 
-  /**
-   * Build file path for single-file formats (XLSX, GPKG, SHP)
-   * Uses just the format extension as filename since filterId/timestamp
-   * are handled by the zip naming convention
-   */
+  private buildOgr2ogrArgs(propertyAcronym: string, batchPath: string): string[] {
+    const isExistingLayer = this.createdLayers.has(propertyAcronym);
+    const isExistingFile = this.isSingleFileFormat() && this.createdLayers.size > 0;
+    const outputPath = this.getOutputPath(propertyAcronym);
+
+    const args: string[] = [];
+
+    if (isExistingLayer) {
+      args.push('-update', '-append');
+    } else if (isExistingFile) {
+      args.push('-update');
+    }
+
+    if (this.fileFormat === FileFormat.SHP) {
+      args.push('-f', 'ESRI Shapefile');
+    } else if (this.fileFormat === FileFormat.CSV) {
+      args.push('-f', 'CSV');
+    } else if (this.fileFormat === FileFormat.GEOJSON) {
+      args.push('-f', 'GeoJSON');
+    }
+
+    args.push(outputPath, batchPath, '-nln', propertyAcronym);
+
+    if (!this.isTabularFormat() && !isExistingLayer) {
+      args.push('-a_srs', 'EPSG:4326');
+    }
+
+    return args;
+  }
+
+  private getOutputPath(propertyAcronym: string): string {
+    if (this.isSingleFileFormat()) {
+      return this.buildFilePath();
+    }
+    return this.buildPropertyFilePath(propertyAcronym);
+  }
+
   private buildFilePath(): string {
     if (this.fileFormat === VectorFileFormat.SHP) {
       return this.outputDir; // SHP driver expects directory, not file path
@@ -189,9 +124,6 @@ export class GeoFileWriter {
     return path.join(this.outputDir, `export.${this.getFileExtension()}`);
   }
 
-  /**
-   * Build file path for multi-file formats (CSV, GeoJSON)
-   */
   private buildPropertyFilePath(propertyAcronym: string): string {
     return path.join(this.outputDir, `${propertyAcronym}.${this.getFileExtension()}`);
   }
@@ -242,7 +174,6 @@ export class GeoFileWriter {
     if (this.fileFormat === VectorFileFormat.SHP) {
       return field.title_truncated;
     }
-
     return field.title;
   }
 }
