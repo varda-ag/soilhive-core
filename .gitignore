@@ -156,5 +156,4 @@ vite.config.ts.timestamp-*
 !frontend/.env
 
 # Raster data load for tests
-backend/tests/assets/raster/*_cog.tif
 backend/tests/assets/raster/*.aux.xml
