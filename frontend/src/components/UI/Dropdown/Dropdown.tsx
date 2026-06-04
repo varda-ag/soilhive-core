@@ -60,7 +60,6 @@ export function Dropdown({
 
   const [currentValues, setCurrentValues] = useState<string[]>([]);
   const [isOpen, setIsOpen] = useState(false);
-  const [menuOpenUp, setMenuOpenUp] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -90,10 +89,6 @@ export function Dropdown({
 
   const toggleDropdown = useCallback(() => {
     if (!isDisabled && !isReadOnly) {
-      if (!isOpen && dropdownRef.current) {
-        const rect = dropdownRef.current.getBoundingClientRect();
-        setMenuOpenUp(window.innerHeight - rect.bottom < 240);
-      }
       setIsOpen(!isOpen);
     }
   }, [isOpen, isDisabled, isReadOnly]);
@@ -138,7 +133,6 @@ export function Dropdown({
           styles.Dropdown,
           sizeClass,
           { [styles.Active]: isOpen },
-          { [styles.OpenUp]: isOpen && menuOpenUp },
           { [styles.Invalid]: isError },
           { [styles.Disabled]: isDisabled },
           { [styles.ReadOnly]: isReadOnly },
