@@ -414,6 +414,10 @@ function SoilhiveMap({
     return selectedPoint && !showDrawControl;
   }, [selectedPoint, showDrawControl]);
 
+  const attributionControl = useMemo(() => {
+    return isMobileLayout ? { compact: false } : { compact: false, customAttribution };
+  }, [isMobileLayout]);
+
   return (
     <div
       className={classnames('soilhive-map', {
@@ -436,7 +440,8 @@ function SoilhiveMap({
         onMoveEnd={onMapMoveEnd}
         onClick={onMapClick}
         interactiveLayerIds={['data-fills']}
-        attributionControl={{ compact: false, customAttribution }}
+        // Note: attributionControl is used only during the onLoad so it won't be updated if it changes after that (e.g. when in Desktop you resize the window to make it small as a Mobile device)
+        attributionControl={attributionControl}
       >
         <SoilhiveMapToolbar visible={!showDrawControl} onDrawClick={onDrawClick} onUpload={onUpload} />
 
