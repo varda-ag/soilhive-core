@@ -6,6 +6,7 @@ import { useSoilProperties } from 'hooks/useSoilProperties';
 import { useCreateProcedureMutation } from 'hooks/useCreateProcedureMutation';
 import { useCreateMappingsMutation } from 'hooks/useCreateMappingsMutation';
 import { useCreateJobMutation, useJobsQueries } from 'hooks/useJobsApi';
+import useIngestionFlow from 'hooks/useIngestionFlow';
 
 jest.mock('react-router', () => ({
   useNavigate: jest.fn(),
@@ -42,6 +43,11 @@ jest.mock('hooks/useIngestionStatus', () => ({
   })),
 }));
 
+jest.mock('hooks/useIngestionFlow', () => ({
+  __esModule: true,
+  default: jest.fn(),
+}));
+
 jest.mock('hooks/useDatasetMutation', () => ({
   useUpdateDatasetFileMappingMutation: jest.fn(() => ({ mutateAsync: jest.fn() })),
 }));
@@ -62,10 +68,14 @@ jest.mock('@tanstack/react-query', () => ({
 const mockUseApiQuery = useApiQuery as jest.Mock;
 const mockUseSoilProperties = useSoilProperties as jest.Mock;
 
+const mockMarkAsChanged = jest.fn();
+const mockResetChanges = jest.fn();
+
 beforeEach(() => {
   mockUseApiQuery.mockReturnValue({ data: undefined, isLoading: false, dataUpdatedAt: 0 });
   mockUseSoilProperties.mockReturnValue({ data: undefined, isLoading: false });
   mockQueryClient.invalidateQueries.mockClear();
+  (useIngestionFlow as jest.Mock).mockReturnValue({ markAsChanged: mockMarkAsChanged, resetChanges: mockResetChanges });
 });
 
 const defaultDatasetFileMappings = [{ id: 'dfm-1', fileID: 'file-1' }];
@@ -677,6 +687,34 @@ describe('useMappingsStep', () => {
       });
       const payload = mockCreateMapping.mock.calls[0][0];
       expect(payload).not.toHaveProperty('col2');
+    });
+  });
+
+  describe('leave Ingestion flow', () => {
+    it('handleConceptChange calls markAsChanged', () => {
+      const { result } = renderHook(() => useMappingsStep('42'));
+      act(() => result.current.handleConceptChange('col1', 'geometry'));
+      expect(mockMarkAsChanged).toHaveBeenCalled();
+    });
+
+    it('handleUnitChange calls markAsChanged', () => {
+      const { result } = renderHook(() => useMappingsStep('42'));
+      act(() => result.current.handleUnitChange('col1', 'mg/kg'));
+      expect(mockMarkAsChanged).toHaveBeenCalled();
+    });
+
+    it('handleDetailChange calls markAsChanged', () => {
+      const { result } = renderHook(() => useMappingsStep('42'));
+      act(() => result.current.handleDetailChange('col1', 'technique', 'acid_digestion'));
+      expect(mockMarkAsChanged).toHaveBeenCalled();
+    });
+
+    it('handleSaveAndContinueLater calls resetChanges', async () => {
+      const { result } = renderHook(() => useMappingsStep('42'));
+      await act(async () => {
+        await result.current.handleSaveAndContinueLater();
+      });
+      expect(mockResetChanges).toHaveBeenCalled();
     });
   });
 });

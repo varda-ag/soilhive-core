@@ -100,6 +100,17 @@ exports[`DatasetsPublicationStepsLayout renders DatasetsPublicationStepsLayout a
         data-testid="outlet"
       />
     </div>
+    <div
+      data-testid="leave-ingestion-modal"
+      data-visible="false"
+    >
+      <button
+        data-testid="modal-continue"
+      />
+      <button
+        data-testid="modal-cancel"
+      />
+    </div>
   </div>
 </div>
 `;

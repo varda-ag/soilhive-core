@@ -378,6 +378,12 @@
                 "cancel": "Cancel",
                 "publish": "Publish"
             }
+        },
+        "leave_ingestion_modal": {
+            "title": "Leave this process?",
+            "message": "Your progress will be saved. You can return later and continue editing from the datasets list.",
+            "cancel": "Stay here",
+            "confirm": "Leave and save progress"
         }
     },
     "filters": {
