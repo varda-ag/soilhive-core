@@ -34,6 +34,7 @@ export const setupTestEnv = () => {
     S3_STORAGE_ROOT_FOLDER: 'Original_Data',
     S3_STORAGE_ENDPOINT: 'http://localhost:4566',
     ENTITLEMENTS_ENDPOINT: undefined,
+    EXPORT_BATCH_SIZE: 100,
   };
   for (const [key, value] of Object.entries(env)) {
     if (value) {

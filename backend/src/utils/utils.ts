@@ -50,6 +50,10 @@ export const getServerPort = (): number => {
   return Number(process.env.PORT) || 4001;
 };
 
+export const getExportBatchSize = (): number => {
+  return Number(process.env.EXPORT_BATCH_SIZE) || 100;
+};
+
 export const getJobLocalConcurrency = (): number => {
   return Number(process.env.JOB_LOCAL_CONCURRENCY) || 3;
 };

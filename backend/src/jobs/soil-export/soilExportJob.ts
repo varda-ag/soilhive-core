@@ -13,6 +13,7 @@ import EntitlementService from '../../services/EntitlementService';
 import { EVERYONE } from '../../constants/constants';
 import { RequestData } from '../../interfaces/RequestData';
 import { log } from '../../utils/logger';
+import { getExportBatchSize } from '../../utils/utils';
 
 export async function processExportJob(job: Job<ExportJob>): Promise<void> {
   const { id: jobId, data } = job;
@@ -100,7 +101,7 @@ export async function processExportJob(job: Job<ExportJob>): Promise<void> {
       });
 
       // If batch is smaller than page size, we've reached the end
-      if (batch.length < EXPORT_CONFIG.BATCH_SIZE) {
+      if (batch.length < getExportBatchSize()) {
         break;
       }
     }
