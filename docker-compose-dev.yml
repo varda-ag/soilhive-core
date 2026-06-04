@@ -30,7 +30,7 @@ services:
       - "5432:5432"
 
   localstack:
-    image: localstack/localstack:latest@sha256:235ba7feb837a14fc3478c9dae8305d9b2dfa7813c94150a6dd407d557f74cee
+    image: localstack/localstack:latest@sha256:787ccd0bdca95b2a8906683fc41d7c1a5dd394d9fdd1313d8aed945dfaac101f
     environment:
       SERVICES: s3
       DEBUG: "1"
