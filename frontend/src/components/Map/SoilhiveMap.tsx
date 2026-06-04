@@ -26,7 +26,7 @@ import {
   isPointInFeatureCollection,
 } from '../../utilities/geo';
 import { bbox as bboxFn, centerOfMass } from '@turf/turf';
-import { getMapStyles, h3ResolutionForZoomLevel } from '../../utilities/map';
+import { customAttribution, getMapStyles, h3ResolutionForZoomLevel } from '../../utilities/map';
 import DrawControl, { type DrawControlRef } from '../DrawControl';
 import SoilhiveMapToolbar from './SoilhiveMapToolbar';
 import SoilhiveMapSelectionToolbar, { type SoilhiveMapSelectionToolbarMode } from './SoilhiveMapSelectionToolbar';
@@ -436,7 +436,7 @@ function SoilhiveMap({
         onMoveEnd={onMapMoveEnd}
         onClick={onMapClick}
         interactiveLayerIds={['data-fills']}
-        attributionControl={{ compact: false }}
+        attributionControl={{ compact: false, customAttribution }}
       >
         <SoilhiveMapToolbar visible={!showDrawControl} onDrawClick={onDrawClick} onUpload={onUpload} />
 
