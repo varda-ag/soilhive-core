@@ -10,12 +10,13 @@ import FilterService from '../../services/FilterService';
 import RasterFilterService from '../../services/RasterFilterService';
 import SoilPropertyService from '../../services/SoilPropertyService';
 import { generateExportPdf } from './pdfGenerator';
-import { EXPORT_CONFIG, GroupedRecords, soilSampleToExportRecord } from './types';
+import { GroupedRecords, soilSampleToExportRecord } from './types';
 import { getEntities } from '../../utils/slugs';
 import DatasetEntity from '../../entities/Dataset';
 import { EntityType } from '../../types/data';
 import { ExportJobParameters } from '../../interfaces/Job';
 import { FilterCriteria } from '../../interfaces/DatasetFilter';
+import { getExportBatchSize } from '../../utils/utils';
 
 const filterService = new FilterService();
 const soilDataStorage = new SoilDataStorage();
@@ -34,14 +35,7 @@ export async function getTotalRecordsCount(requestData: RequestData, payload: Ex
  */
 export async function fetchBatch(requestData: RequestData, payload: ExportJobParameters, cursor?: string): Promise<SoilDataSample[]> {
   const storedFilter = await filterService.getFilterById(requestData, payload.filter_id);
-  return await soilDataStorage.getSoilData(
-    requestData,
-    storedFilter.filter,
-    payload.dataset_ids,
-    EXPORT_CONFIG.BATCH_SIZE,
-    cursor,
-    undefined,
-  );
+  return await soilDataStorage.getSoilData(requestData, storedFilter.filter, payload.dataset_ids, getExportBatchSize(), cursor, undefined);
 }
 
 /**

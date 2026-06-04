@@ -7,8 +7,8 @@ import request from 'supertest';
 import { app } from '../../../src/app';
 import { addSyntheticData, syntheticDataOptions } from '../../../src/utils/mock';
 import { initPgBoss, stopPgBoss } from '../../../src/services/PgBoss';
-import { sleep } from '../../../src/utils/utils';
-import { EXPORT_CONFIG, FileFormat } from '../../../src/jobs/soil-export/types';
+import { getExportBatchSize, sleep } from '../../../src/utils/utils';
+import { FileFormat } from '../../../src/jobs/soil-export/types';
 import { StatusCodes } from 'http-status-codes';
 import { SoilDataSample } from '../../../src/interfaces/SoilDataSample';
 import * as exportHelpers from '../../../src/jobs/soil-export/exportHelpers';
@@ -200,7 +200,7 @@ describe('Soil Export Job Integration Test', () => {
       cursor: 'fake-cursor',
     };
 
-    const fetchBatchSpy = jest.spyOn(exportHelpers, 'fetchBatch').mockResolvedValue(Array(EXPORT_CONFIG.BATCH_SIZE).fill(fakeRecord));
+    const fetchBatchSpy = jest.spyOn(exportHelpers, 'fetchBatch').mockResolvedValue(Array(getExportBatchSize()).fill(fakeRecord));
     const getTotalRecordsCountSpy = jest.spyOn(exportHelpers, 'getTotalRecordsCount').mockResolvedValue(1000);
     const createReadmeFileSpy = jest.spyOn(exportHelpers, 'createReadmeFile').mockResolvedValue(undefined);
 
