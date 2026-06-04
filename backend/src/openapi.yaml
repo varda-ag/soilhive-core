@@ -2248,6 +2248,15 @@ components:
             type: string
           nullable: true
           readOnly: true
+        preprocessing_steps:
+          type: string
+          nullable: true
+        related_resources:
+          type: array
+          items:
+            type: string
+            format: uri
+          nullable: true
 
     SoilProperty:
       type: object
