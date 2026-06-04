@@ -94,14 +94,14 @@ describe('useDownloads', () => {
       await result.current.startDownload({
         filter_id: 'filter-1',
         dataset_ids: ['dataset-1'],
-        format: 'csv',
+        formats: ['csv'],
       });
     });
 
     expect(createMutateAsync).toHaveBeenCalledWith({
       filter_id: 'filter-1',
       dataset_ids: ['dataset-1'],
-      format: 'csv',
+      formats: ['csv'],
       public_homepage_url: 'http://localhost',
       public_metadata_urls: {
         'dataset-1': 'http://localhost/datasets/dataset-1',
@@ -143,7 +143,7 @@ describe('useDownloads', () => {
       await result.current.startDownload({
         filter_id: 'filter-1',
         dataset_ids: ['dataset-1'],
-        format: 'csv',
+        formats: ['csv'],
       });
     });
 
@@ -180,7 +180,7 @@ describe('useDownloads', () => {
       await result.current.startDownload({
         filter_id: 'filter-1',
         dataset_ids: ['dataset-1'],
-        format: 'csv',
+        formats: ['csv'],
       });
     });
 
@@ -210,7 +210,7 @@ describe('useDownloads', () => {
       await result.current.startDownload({
         filter_id: 'filter-1',
         dataset_ids: ['dataset-1'],
-        format: 'csv',
+        formats: ['csv'],
       });
     });
 
@@ -247,7 +247,7 @@ describe('useDownloads', () => {
       await result.current.startDownload({
         filter_id: 'filter-1',
         dataset_ids: ['dataset-1'],
-        format: 'csv',
+        formats: ['csv'],
       });
     });
 
@@ -287,7 +287,7 @@ describe('useDownloads', () => {
       await result.current.startDownload({
         filter_id: 'filter-1',
         dataset_ids: ['dataset-1'],
-        format: 'csv',
+        formats: ['csv'],
       });
     });
 
@@ -338,7 +338,7 @@ describe('useDownloads', () => {
       result.current.startDownload({
         filter_id: 'filter-1',
         dataset_ids: ['dataset-1'],
-        format: 'csv',
+        formats: ['csv'],
       });
     });
 

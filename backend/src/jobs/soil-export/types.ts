@@ -4,12 +4,17 @@ import { SoilDataSample } from '../../interfaces/SoilDataSample';
 /**
  * Supported file formats for soil data export
  */
-export enum FileFormat {
+export enum VectorFileFormat {
   CSV = 'csv',
   XLSX = 'xlsx',
   GPKG = 'gpkg',
   SHP = 'shp',
   GEOJSON = 'geojson',
+}
+
+export enum RasterFileFormat {
+  TIFF = 'tiff',
+  GPKG = 'gpkg',
 }
 
 /**
@@ -43,6 +48,7 @@ export interface FieldMetadata {
   title_truncated: string;
   type: 'string' | 'number';
   gdalType?: 'OFTString' | 'OFTReal';
+  gdalPrecision?: number;
 }
 
 /**

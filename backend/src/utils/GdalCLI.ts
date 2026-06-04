@@ -31,6 +31,7 @@ export interface GdalInfoOutput {
   bands?: GdalInfoBand[];
   metadata?: {
     IMAGE_STRUCTURE?: { LAYOUT?: string };
+    SUBDATASETS?: Record<string, string>;
     [key: string]: Record<string, string> | undefined;
   };
   coordinateSystem?: { wkt?: string };
@@ -50,6 +51,14 @@ export class GdalCLI {
 
   static async ogr2ogr(args: string[]): Promise<void> {
     await GdalCLI.run('ogr2ogr', args);
+  }
+
+  static async warp(src: string, dst: string, args: string[]): Promise<void> {
+    await GdalCLI.run('gdalwarp', [...args, src, dst]);
+  }
+
+  static async translate(src: string, dst: string, args: string[]): Promise<void> {
+    await GdalCLI.run('gdal_translate', [...args, src, dst]);
   }
 
   private static run(cmd: string, args: string[]): Promise<string> {

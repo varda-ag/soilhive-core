@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterEach } from '@jest/globals';
 import * as path from 'path';
 import * as fs from 'fs';
 import { GeoFileWriter } from '../../../src/jobs/soil-export/GeoFileWriter';
-import { EXPORT_SCHEMA, FileFormat, soilSampleToExportRecord } from '../../../src/jobs/soil-export/types';
+import { EXPORT_SCHEMA, VectorFileFormat, soilSampleToExportRecord } from '../../../src/jobs/soil-export/types';
 import { SoilDataSample } from '../../../src/interfaces/SoilDataSample';
 import { GdalCLI } from '../../../src/utils/GdalCLI';
 
@@ -46,17 +46,17 @@ function stripQuotes(s: string): string {
  * For multi-file formats (CSV, GeoJSON) each property gets its own file.
  * This helper returns the path ogr2ogr/ogrinfo should open for verification.
  */
-function getVerificationPath(format: FileFormat, propertyAcronym: string): string {
+function getVerificationPath(format: VectorFileFormat, propertyAcronym: string): string {
   switch (format) {
-    case FileFormat.CSV:
+    case VectorFileFormat.CSV:
       return path.join(TEST_OUTPUT_DIR, `${propertyAcronym}.csv`);
-    case FileFormat.GEOJSON:
+    case VectorFileFormat.GEOJSON:
       return path.join(TEST_OUTPUT_DIR, `${propertyAcronym}.geojson`);
-    case FileFormat.XLSX:
+    case VectorFileFormat.XLSX:
       return path.join(TEST_OUTPUT_DIR, 'export.xlsx');
-    case FileFormat.GPKG:
+    case VectorFileFormat.GPKG:
       return path.join(TEST_OUTPUT_DIR, 'export.gpkg');
-    case FileFormat.SHP:
+    case VectorFileFormat.SHP:
       return path.join(TEST_OUTPUT_DIR, `${propertyAcronym}.shp`);
   }
 }
@@ -66,7 +66,7 @@ function getVerificationPath(format: FileFormat, propertyAcronym: string): strin
  * For single-file formats with multiple layers, pass propertyAcronym to select the layer.
  */
 async function readLayerRows(
-  format: FileFormat,
+  format: VectorFileFormat,
   propertyAcronym: string,
 ): Promise<{ rows: Record<string, string>[]; fieldNames: string[] }> {
   const filePath = getVerificationPath(format, propertyAcronym);
@@ -76,7 +76,7 @@ async function readLayerRows(
   const args = ['-f', 'CSV'];
   if (isSpatial) args.push('-lco', 'GEOMETRY=AS_WKT');
   args.push(csvPath, filePath);
-  if (format === FileFormat.GPKG || format === FileFormat.XLSX) {
+  if (format === VectorFileFormat.GPKG || format === VectorFileFormat.XLSX) {
     args.push(propertyAcronym);
   }
   await GdalCLI.ogr2ogr(args);
@@ -94,9 +94,15 @@ async function readLayerRows(
   return { rows, fieldNames };
 }
 
-const ALL_FORMATS: FileFormat[] = [FileFormat.CSV, FileFormat.XLSX, FileFormat.GPKG, FileFormat.SHP, FileFormat.GEOJSON];
-const SPATIAL_FORMATS: FileFormat[] = [FileFormat.GPKG, FileFormat.SHP, FileFormat.GEOJSON];
-const TABULAR_FORMATS: FileFormat[] = [FileFormat.CSV, FileFormat.XLSX];
+const ALL_FORMATS: VectorFileFormat[] = [
+  VectorFileFormat.CSV,
+  VectorFileFormat.XLSX,
+  VectorFileFormat.GPKG,
+  VectorFileFormat.SHP,
+  VectorFileFormat.GEOJSON,
+];
+const SPATIAL_FORMATS: VectorFileFormat[] = [VectorFileFormat.GPKG, VectorFileFormat.SHP, VectorFileFormat.GEOJSON];
+const TABULAR_FORMATS: VectorFileFormat[] = [VectorFileFormat.CSV, VectorFileFormat.XLSX];
 
 describe('GeoFileWriter', () => {
   beforeAll(() => {
@@ -211,7 +217,7 @@ describe('GeoFileWriter', () => {
 
   describe('precondition: setProperty required before writeRecord', () => {
     it('should throw if writeRecord is called without a prior setProperty', async () => {
-      const writer = new GeoFileWriter(FileFormat.CSV);
+      const writer = new GeoFileWriter(VectorFileFormat.CSV);
       await writer.openFile(TEST_OUTPUT_DIR);
       await expect(writer.writeRecord(soilSampleToExportRecord(makeSample()))).rejects.toThrow(
         'GeoFileWriter: No active layer. Call setProperty() first.',
@@ -221,7 +227,7 @@ describe('GeoFileWriter', () => {
 
   describe('empty batch', () => {
     it('should not create any output files when a property has no records', async () => {
-      const writer = new GeoFileWriter(FileFormat.CSV);
+      const writer = new GeoFileWriter(VectorFileFormat.CSV);
       await writer.openFile(TEST_OUTPUT_DIR);
       await writer.setProperty('Al');
       await writer.closeFile();
@@ -279,11 +285,11 @@ describe('GeoFileWriter', () => {
 
       EXPORT_SCHEMA.forEach(field => {
         if (field.key === 'geom' && !isTabular) return; // geometry in spatial formats, not a property column
-        const name = format === FileFormat.SHP ? field.title_truncated : field.title;
+        const name = format === VectorFileFormat.SHP ? field.title_truncated : field.title;
         expect(fieldNames).toContain(name);
       });
 
-      const nameFor = (title: string, truncated: string) => (format === FileFormat.SHP ? truncated : title);
+      const nameFor = (title: string, truncated: string) => (format === VectorFileFormat.SHP ? truncated : title);
 
       expect(rows[0][nameFor('dataset_name', 'dataset')]).toBe('Test Dataset');
       expect(parseFloat(rows[0][nameFor('value', 'value')])).toBeCloseTo(42.5);
@@ -294,7 +300,7 @@ describe('GeoFileWriter', () => {
 
   describe('ESRI Shapefile field name truncation', () => {
     it('should use truncated field names for SHP format to comply with 10-character limit', async () => {
-      const format = FileFormat.SHP;
+      const format = VectorFileFormat.SHP;
       const writer = new GeoFileWriter(format);
       const property = 'Al';
 
