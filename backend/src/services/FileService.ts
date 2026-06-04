@@ -276,14 +276,13 @@ export default class FileService {
           ({ tempZipExtractPath, mainFilePath } = await this.extractZipAndFindMainFile(mainFilePath));
         }
       } else if (config.storageMode === StorageModes.S3) {
-        // For S3, we would need to download the file first to extract it
-        // For now, use GDAL's S3 VSI support (which may not support ZIP)
+        // For S3, use GDAL's S3 VSI support + VSIZIP to handle ZIP files directly from S3 without downloading.
+        // This requires the S3 bucket to allow range requests.
+        const isZip = fileKey.toLowerCase().endsWith('.zip');
+        const vsiPrefix = isZip ? '/vsizip/vsis3/' : '/vsis3/';
         const s3Config = config.config as S3StorageConfig;
         const key = s3Config.rootFolder ? `${s3Config.rootFolder}/${fileKey}` : fileKey;
-        mainFilePath = `/vsis3/${s3Config.bucketName}/${key}`;
-
-        // If it's a ZIP file on S3, we'd need to handle it differently
-        // For now, this will be attempted directly with GDAL
+        mainFilePath = `${vsiPrefix}${s3Config.bucketName}/${key}`;
       } else {
         throw new ErrorResponse(`Unsupported storage mode: ${config.storageMode}`, StatusCodes.INTERNAL_SERVER_ERROR);
       }

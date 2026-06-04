@@ -1320,12 +1320,20 @@ const buildRawSoilQuery = (
       if (sort && cursor.column !== sort) {
         throw new ErrorResponse(`Sort field is not matching cursor: ${sort} != ${cursor.column}`, StatusCodes.BAD_REQUEST);
       }
-      if (cursor.column && cursor.value) {
+      if (cursor.column) {
         const isDesc = cursor.column.startsWith('-');
         const sortKey = isDesc ? cursor.column.substring(1) : cursor.column;
         const qualifiedColumn = sortFieldMapping[sortKey];
-        const operator = isDesc ? '<' : '>';
-        cursorClause = `AND (${qualifiedColumn}, obs.id) ${operator} (${p(cursor.value)}, ${p(cursor.id)})`;
+        if (cursor.value !== null && cursor.value !== undefined) {
+          const operator = isDesc ? '<' : '>';
+          cursorClause = `AND (${qualifiedColumn}, obs.id) ${operator} (${p(cursor.value)}, ${p(cursor.id)})`;
+        } else if (isDesc) {
+          // DESC NULLS FIRST: remaining nulls (id < cursor) plus all non-null rows that follow
+          cursorClause = `AND ((${qualifiedColumn} IS NULL AND obs.id < ${p(cursor.id)}) OR ${qualifiedColumn} IS NOT NULL)`;
+        } else {
+          // ASC NULLS LAST: only remaining null rows with higher id
+          cursorClause = `AND ${qualifiedColumn} IS NULL AND obs.id > ${p(cursor.id)}`;
+        }
       } else {
         cursorClause = `AND obs.id > ${p(cursor.id)}`;
       }

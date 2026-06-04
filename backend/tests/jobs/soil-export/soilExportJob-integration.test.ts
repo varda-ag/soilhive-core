@@ -7,8 +7,8 @@ import request from 'supertest';
 import { app } from '../../../src/app';
 import { addDataset, addSyntheticData, syntheticDataOptions, addRasterData } from '../../../src/utils/mock';
 import { initPgBoss, stopPgBoss } from '../../../src/services/PgBoss';
-import { sanitizeField, sleep } from '../../../src/utils/utils';
-import { EXPORT_CONFIG, RasterFileFormat, VectorFileFormat } from '../../../src/jobs/soil-export/types';
+import { getExportBatchSize, sanitizeField, sleep } from '../../../src/utils/utils';
+import { RasterFileFormat, VectorFileFormat } from '../../../src/jobs/soil-export/types';
 import { StatusCodes } from 'http-status-codes';
 import { SoilDataSample } from '../../../src/interfaces/SoilDataSample';
 import * as exportHelpers from '../../../src/jobs/soil-export/exportHelpers';
@@ -583,7 +583,7 @@ describe('Soil Export Job Integration Test', () => {
 
     await addDataset('fake-dataset', [0, 0, 1, 1]);
 
-    const fetchBatchSpy = jest.spyOn(exportHelpers, 'fetchBatch').mockResolvedValue(Array(EXPORT_CONFIG.BATCH_SIZE).fill(fakeRecord));
+    const fetchBatchSpy = jest.spyOn(exportHelpers, 'fetchBatch').mockResolvedValue(Array(getExportBatchSize()).fill(fakeRecord));
     const getTotalRecordsCountSpy = jest.spyOn(exportHelpers, 'getTotalRecordsCount').mockResolvedValue(1000);
     const createReadmeFileSpy = jest.spyOn(exportHelpers, 'createReadmeFile').mockResolvedValue(undefined);
 

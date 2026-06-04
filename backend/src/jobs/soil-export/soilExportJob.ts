@@ -34,6 +34,7 @@ import { log } from '../../utils/logger';
 import DatasetService from '../../services/DatasetService';
 import FilterService from '../../services/FilterService';
 import { GISDataType } from '../../types/data';
+import { getExportBatchSize } from '../../utils/utils';
 
 export async function processExportJob(job: Job<ExportJob>): Promise<void> {
   const { id: jobId, data } = job;
@@ -195,7 +196,7 @@ async function exportVectorData(
       progress_description: `Processed ${[progress_description_vector, progress_description_raster].filter(e => e !== null).join(' and ')}...`,
     });
 
-    if (batch.length < EXPORT_CONFIG.BATCH_SIZE) break;
+    if (batch.length < getExportBatchSize()) break;
   }
 
   return { total_records_processed: totalRecordsProcessed };

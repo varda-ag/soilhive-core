@@ -92,7 +92,6 @@ export interface GroupedRecords {
  * Configuration constants
  */
 export const EXPORT_CONFIG = {
-  BATCH_SIZE: 100,
   TEMP_DIR_PREFIX: 'soil-export-',
   EXPORTS_BASE_PATH: 'exports',
   JOB_NAME: 'soil-data-export',
