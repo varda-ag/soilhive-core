@@ -7,13 +7,14 @@ import request from 'supertest';
 import { app } from '../../../src/app';
 import { addDataset, addSyntheticData, syntheticDataOptions, addRasterData } from '../../../src/utils/mock';
 import { initPgBoss, stopPgBoss } from '../../../src/services/PgBoss';
-import { sleep } from '../../../src/utils/utils';
+import { sanitizeField, sleep } from '../../../src/utils/utils';
 import { EXPORT_CONFIG, RasterFileFormat, VectorFileFormat } from '../../../src/jobs/soil-export/types';
 import { StatusCodes } from 'http-status-codes';
 import { SoilDataSample } from '../../../src/interfaces/SoilDataSample';
 import * as exportHelpers from '../../../src/jobs/soil-export/exportHelpers';
 import DatasetEntity from '../../../src/entities/Dataset';
 import RasterLayerEntity from '../../../src/entities/RasterLayer';
+import { GdalCLI } from '../../../src/utils/GdalCLI';
 
 const rasterFilesPath = path.join(__dirname, '../../assets/raster');
 describe('Soil Export Job Integration Test', () => {
@@ -177,7 +178,7 @@ describe('Soil Export Job Integration Test', () => {
         expect(lines.length).toBeGreaterThan(1); // Header + at least one data row
 
         // Verify it contains dataset name
-        expect(csvContent.toLowerCase()).toContain(dataset.slug.toLowerCase());
+        expect(csvContent.toLowerCase()).toContain(dataset!.slug.toLowerCase());
       }
 
       // Cleanup
@@ -284,9 +285,16 @@ describe('Soil Export Job Integration Test', () => {
 
       // Find GPKG file
       const gpkgFiles = extractedFiles.filter((file: string) => file.toLowerCase().endsWith('.gpkg'));
-      expect(gpkgFiles.length).toBeGreaterThan(0);
+      expect(gpkgFiles.length).toBe(1);
 
-      // TODO: Verify GPKG content contains expected data - without gdal-async
+      // Verify GPKG content contains expected data
+      const rasterInfo = await GdalCLI.gdalinfo(path.join(extractDir, gpkgFiles[0]));
+      expect(rasterInfo.bands?.length).toBeGreaterThan(0);
+      expect(rasterInfo.metadata!['']!.IDENTIFIER).toContain(sanitizeField(raster_layer!.dataset.name));
+      expect(rasterInfo.metadata!['']!.IDENTIFIER).toContain(sanitizeField(raster_layer!.soil_property.property_name));
+
+      const vectorInfo = await GdalCLI.ogrinfo(path.join(extractDir, gpkgFiles[0]));
+      expect(vectorInfo.layers.length).toBeGreaterThan(0);
 
       // Cleanup
       fs.rmSync(tempDir, { recursive: true, force: true });
@@ -399,7 +407,21 @@ describe('Soil Export Job Integration Test', () => {
       const tiffFiles = extractedFiles.filter((file: string) => file.toLowerCase().endsWith('.tif'));
       expect(tiffFiles.length).toBeGreaterThan(0);
 
-      // TODO: Verify output content contains expected data
+      // Verify output content contains expected data
+      const rasterInfo = await GdalCLI.gdalinfo(path.join(extractDir, tiffFiles[0]));
+      expect(rasterInfo.bands?.length).toBeGreaterThan(0);
+
+      const csvPath = path.join(extractDir, csvFiles[0]);
+      const csvContent = fs.readFileSync(csvPath, 'utf-8');
+      expect(csvContent).toBeTruthy();
+      expect(csvContent.length).toBeGreaterThan(0);
+
+      // Check for expected headers/columns
+      const lines = csvContent.split('\n').filter(line => line.trim().length > 0);
+      expect(lines.length).toBeGreaterThan(1); // Header + at least one data row
+
+      // Verify it contains dataset name
+      expect(csvContent.toLowerCase()).toContain(dataset!.slug.toLowerCase());
 
       // Cleanup
       fs.rmSync(tempDir, { recursive: true, force: true });
@@ -509,9 +531,18 @@ describe('Soil Export Job Integration Test', () => {
 
       // Find GPKG files
       const gpkgFiles = extractedFiles.filter((file: string) => file.toLowerCase().endsWith('.gpkg'));
-      expect(gpkgFiles.length).toBeGreaterThan(0);
+      expect(gpkgFiles.length).toBe(1);
 
-      // TODO: Verify GPKG content contains expected data
+      // Verify GPKG content contains expected data
+      const rasterInfo = await GdalCLI.gdalinfo(path.join(extractDir, gpkgFiles[0]));
+      expect(rasterInfo.metadata?.SUBDATASETS).toHaveProperty('SUBDATASET_1_NAME');
+      expect(rasterInfo.metadata?.SUBDATASETS).toHaveProperty('SUBDATASET_2_NAME');
+      expect(Object.values(rasterInfo.metadata?.SUBDATASETS ?? {})).toEqual(
+        expect.arrayContaining([
+          expect.stringContaining(sanitizeField(raster_layer!.dataset.name)),
+          expect.stringContaining(sanitizeField(extra_raster_layer.dataset.name)),
+        ]),
+      );
 
       // Cleanup
       fs.rmSync(tempDir, { recursive: true, force: true });

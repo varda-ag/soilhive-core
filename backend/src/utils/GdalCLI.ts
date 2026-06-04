@@ -31,6 +31,7 @@ export interface GdalInfoOutput {
   bands?: GdalInfoBand[];
   metadata?: {
     IMAGE_STRUCTURE?: { LAYOUT?: string };
+    SUBDATASETS?: Record<string, string>;
     [key: string]: Record<string, string> | undefined;
   };
   coordinateSystem?: { wkt?: string };

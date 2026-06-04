@@ -71,7 +71,7 @@ describe('RasterFileWriter', () => {
       const tif = outputFiles().find(f => f.endsWith('.tif'));
       if (!tif) throw new Error('No .tif output file produced');
 
-      const info = await GdalCLI.gdalinfo(path.join(TEST_OUTPUT_DIR, gpkg));
+      const info = await GdalCLI.gdalinfo(path.join(TEST_OUTPUT_DIR, tif));
       expect(info.bands?.length).toBeGreaterThan(0);
     });
 
@@ -93,22 +93,22 @@ describe('RasterFileWriter', () => {
       const tif = outputFiles().find(f => f.endsWith('.tif'));
       if (!tif) throw new Error('No .tif output file produced');
 
-      const info = await GdalCLI.gdalinfo(path.join(tif));
+      const info = await GdalCLI.gdalinfo(path.join(TEST_OUTPUT_DIR, tif));
       const gt =
         info.geoTransform ??
         (() => {
           throw new Error('No geoTransform on output dataset');
         })();
-      const rasterSizeX =
-        info.size ? info.size[0] :
-        (() => {
-          throw new Error('No width information on output dataset');
-        })();
-      const rasterSizeY =
-        info.size ? info.size[1] :
-        (() => {
-          throw new Error('No height information on output dataset');
-        })();
+      const rasterSizeX = info.size
+        ? info.size[0]
+        : (() => {
+            throw new Error('No width information on output dataset');
+          })();
+      const rasterSizeY = info.size
+        ? info.size[1]
+        : (() => {
+            throw new Error('No height information on output dataset');
+          })();
       const minX = gt[0];
       const maxY = gt[3];
       const maxX = minX + gt[1] * rasterSizeX;
