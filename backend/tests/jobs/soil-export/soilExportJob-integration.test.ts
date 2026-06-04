@@ -15,6 +15,7 @@ import * as exportHelpers from '../../../src/jobs/soil-export/exportHelpers';
 import DatasetEntity from '../../../src/entities/Dataset';
 import RasterLayerEntity from '../../../src/entities/RasterLayer';
 import { GdalCLI } from '../../../src/utils/GdalCLI';
+import { IngestionStatus } from '../../../src/types/data';
 
 const rasterFilesPath = path.join(__dirname, '../../assets/raster');
 describe('Soil Export Job Integration Test', () => {
@@ -50,6 +51,7 @@ describe('Soil Export Job Integration Test', () => {
     beforeEach(async () => {
       raster_layer = await addRasterData(undefined, {
         visibility: 'public',
+        dataset_status: IngestionStatus.PUBLISHED,
       });
       ({ dataset } = await addSyntheticData({
         ...syntheticDataOptions,
@@ -187,7 +189,7 @@ describe('Soil Export Job Integration Test', () => {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }, 6000); // 6 seconds timeout for integration test
 
-    it.only('should create one output file with one band and one vector layer when format requested is GPKG', async () => {
+    it('should create one output file with one band and one vector layer when format requested is GPKG', async () => {
       process.env.LOCAL_STORAGE_ROOT_FOLDER = rasterFilesPath;
       const filterResponse = await request(app)
         .post('/data-filters')
@@ -434,6 +436,7 @@ describe('Soil Export Job Integration Test', () => {
       const extra_raster_layer = await addRasterData(path.join(__dirname, '../../assets/raster/bdod_5-15cm_mean_cog.tif'), {
         dataset: 'test-raster-ds-2',
         visibility: 'public',
+        dataset_status: IngestionStatus.PUBLISHED,
       });
       const filterResponse = await request(app)
         .post('/data-filters')

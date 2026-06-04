@@ -70,7 +70,7 @@ export async function ingestRaster(opts: IngestRasterOptions): Promise<string> {
      ),
      ds_ins AS (
        INSERT INTO datasets ("name", created_by, spatial_extent, gis_datatype, n_raster_layers, status)
-       VALUES ($2, 'data-admin', ST_SetSRID(ST_GeomFromGeoJSON($3), 4326), 'raster', 1, 'PUBLISHED')
+       VALUES ($2, 'data-admin', ST_SetSRID(ST_GeomFromGeoJSON($3), 4326), 'raster', 1, 'LOADED')
        ON CONFLICT ("name") WHERE deleted_at IS NULL DO UPDATE SET
          updated_at = now(),
          spatial_extent = COALESCE(datasets.spatial_extent, EXCLUDED.spatial_extent),

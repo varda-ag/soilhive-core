@@ -136,23 +136,6 @@ export class GeoFileWriter {
     return [VectorFileFormat.CSV, VectorFileFormat.XLSX].includes(this.fileFormat);
   }
 
-  private getDriverName(): string {
-    switch (this.fileFormat) {
-      case VectorFileFormat.CSV:
-        return 'CSV';
-      case VectorFileFormat.XLSX:
-        return 'XLSX';
-      case VectorFileFormat.GPKG:
-        return 'GPKG';
-      case VectorFileFormat.SHP:
-        return 'ESRI Shapefile';
-      case VectorFileFormat.GEOJSON:
-        return 'GeoJSON';
-      default:
-        throw new Error(`Unsupported format: ${this.fileFormat}`);
-    }
-  }
-
   private getFileExtension(): string {
     switch (this.fileFormat) {
       case VectorFileFormat.CSV:
