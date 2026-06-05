@@ -1,7 +1,7 @@
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import FileEntity from '../../../src/entities/File';
 import DatasetFileMappingEntity from '../../../src/entities/DatasetFileMapping';
-import { processOrphanCleanup } from '../../../src/jobs/orphan-file-cleanup/OrphanCleanupJob';
+import { processOrphanCleanup } from '../../../src/jobs/orphan-cleanup/OrphanCleanupJob';
 import { IngestionStatus } from '../../../src/types/data';
 import { getDataSource } from '../../../src/utils/data-source';
 import { addFile, addDataset, addDataMapping } from '../../../src/utils/mock';
