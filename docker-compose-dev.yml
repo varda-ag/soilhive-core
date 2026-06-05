@@ -29,18 +29,5 @@ services:
     ports:
       - "5432:5432"
 
-  localstack:
-    image: localstack/localstack:latest@sha256:235ba7feb837a14fc3478c9dae8305d9b2dfa7813c94150a6dd407d557f74cee
-    environment:
-      SERVICES: s3
-      DEBUG: "1"
-    ports:
-      - "4566:4566"
-      - "4571:4571"
-    volumes:
-      - localstack_data:/var/lib/localstack
-      - /var/run/docker.sock:/var/run/docker.sock
-
 volumes:
   postgis_data:
-  localstack_data:
