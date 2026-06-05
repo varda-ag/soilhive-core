@@ -7,7 +7,7 @@ import { processExportJob } from '../jobs/soil-export/soilExportJob';
 import { processFileToDb } from '../jobs/file-to-db/FileToDbJob';
 import { processBulkLoad } from '../jobs/bulk-load/BulkLoader';
 import { processBulkDeletion } from '../jobs/bulk-delete/BulkDeleter';
-import { processOrphanCleanup } from '../jobs/orphan-file-cleanup/OrphanFileCleanupJob';
+import { processOrphanCleanup } from '../jobs/orphan-file-cleanup/OrphanCleanupJob';
 import { log } from '../utils/logger';
 
 setupEnv();
