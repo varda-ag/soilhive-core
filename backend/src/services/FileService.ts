@@ -3,7 +3,8 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import extractZip from 'extract-zip';
-import { S3Client } from '@aws-sdk/client-s3';
+import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { FileStorage } from '@flystorage/file-storage';
 import { AwsS3StorageAdapter } from '@flystorage/aws-s3';
 import { LocalStorageAdapter } from '@flystorage/local-fs';
@@ -298,6 +299,22 @@ export default class FileService {
       }
       throw new ErrorResponse(`Failed to extract file path: ${error}`, StatusCodes.BAD_REQUEST);
     }
+  };
+
+  static getPresignedUrl = async (fileKey: string, expiresIn = 3600): Promise<string> => {
+    const config: StorageConfig = ConfigService.getStorageConfig();
+    if (config.storageMode !== StorageModes.S3) {
+      throw new ErrorResponse('getPresignedUrl is only supported for S3 storage mode', StatusCodes.INTERNAL_SERVER_ERROR);
+    }
+    const s3Config = config.config as S3StorageConfig;
+    const s3Client = new S3Client({
+      region: s3Config.region,
+      ...(s3Config.endpoint ? { endpoint: s3Config.endpoint, forcePathStyle: true } : {}),
+      ...(s3Config.credentials ? { credentials: s3Config.credentials } : {}),
+    });
+    const key = s3Config.rootFolder ? `${s3Config.rootFolder}/${fileKey}` : fileKey;
+    const command = new GetObjectCommand({ Bucket: s3Config.bucketName, Key: key });
+    return getSignedUrl(s3Client, command, { expiresIn });
   };
 
   getDataLayer = (layers: OgrInfoLayer[], allowUnknownGeometry: boolean = false): { layer: OgrInfoLayer; geometryDetected: boolean } => {
