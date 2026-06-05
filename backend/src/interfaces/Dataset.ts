@@ -38,4 +38,6 @@ export interface Dataset {
   capabilities?: Capability[];
   visibility: 'public' | 'private';
   inferred_properties?: string[] | null;
+  preprocessing_steps?: string | null;
+  related_resources?: string[] | null;
 }

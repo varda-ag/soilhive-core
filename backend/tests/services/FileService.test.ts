@@ -359,8 +359,10 @@ describe('FileService', () => {
     });
 
     describe('extractMetadata - batch tests', () => {
-      it('should process all valid files without errors', async () => {
-        setLocalStorageRootFolder(vectorFilesPassPath);
+      it.each(['s3', 'local'])('should process all valid files without errors. Storage mode: %s', async storageMode => {
+        process.env.STORAGE_MODE = storageMode;
+        setLocalStorageRootFolder(vectorFilesPassPath); // This affects only local storage
+        const prefix = storageMode === 's3' ? 'vector_files/pass/' : '';
         const files = fs
           .readdirSync(vectorFilesPassPath, { withFileTypes: true })
           .filter(dirent => dirent.isFile())
@@ -369,7 +371,7 @@ describe('FileService', () => {
 
         for (const file of files) {
           try {
-            const metadata = await fileService.extractMetadata(requestData, file);
+            const metadata = await fileService.extractMetadata(requestData, prefix + file);
             results.push({ file, success: true, metadata });
           } catch (error) {
             results.push({ file, success: false, error });

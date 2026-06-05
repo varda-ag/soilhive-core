@@ -3,7 +3,7 @@ import { ErrorResponse } from './error';
 import { StatusCodes } from 'http-status-codes';
 
 export const createCursor = (id: string, column?: string, value?: any): Cursor => {
-  if (typeof column !== 'string' || value === undefined || value === null) {
+  if (typeof column !== 'string' || value === undefined) {
     return { id };
   }
   return { column, value, id };

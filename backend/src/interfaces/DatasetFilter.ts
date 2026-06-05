@@ -43,3 +43,14 @@ export interface FilteredDataset {
   name: string;
   data_type: GISDataType;
 }
+
+export interface FilteredRasterLayer {
+  id: string;
+  dataset_name: string;
+  path: string;
+  min_depth: number | null;
+  max_depth: number | null;
+  reference_period_start: string | null;
+  reference_period_stop: string | null;
+  soil_property_name: string;
+}

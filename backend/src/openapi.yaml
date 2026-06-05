@@ -2248,6 +2248,15 @@ components:
             type: string
           nullable: true
           readOnly: true
+        preprocessing_steps:
+          type: string
+          nullable: true
+        related_resources:
+          type: array
+          items:
+            type: string
+            format: uri
+          nullable: true
 
     SoilProperty:
       type: object
@@ -2501,7 +2510,7 @@ components:
         - type
         - filter_id
         - dataset_ids
-        - format
+        - formats
       properties:
         type:
           type: string
@@ -2519,10 +2528,12 @@ components:
           items:
             type: string
           description: list of dataset IDs to include in the export
-        format:
-          type: string
-          enum: [csv, xlsx, gpkg, shp, geojson]
-          description: Export file format
+        formats:
+          type: array
+          items:
+            type: string
+            enum: [csv, xlsx, gpkg, shp, geojson, tiff]
+          description: List of export file formats
         public_homepage_url:
           type: string
           format: uri

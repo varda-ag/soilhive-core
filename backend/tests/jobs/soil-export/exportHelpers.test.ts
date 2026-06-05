@@ -3,13 +3,12 @@ import * as os from 'os';
 import * as fs from 'fs';
 import * as path from 'path';
 import { Readable } from 'stream';
-
-import { createReadmeFile } from '../../../src/jobs/soil-export/exportHelpers';
+import { createReadmeFile, validateFileFormats } from '../../../src/jobs/soil-export/exportHelpers';
 import * as pdfGenerator from '../../../src/jobs/soil-export/pdfGenerator';
 import FileService from '../../../src/services/FileService';
 import RasterFilterService from '../../../src/services/RasterFilterService';
 import SoilPropertyService from '../../../src/services/SoilPropertyService';
-import { FileFormat } from '../../../src/jobs/soil-export/types';
+import { VectorFileFormat } from '../../../src/jobs/soil-export/types';
 
 const mockFilterEntity = {
   filter: {
@@ -64,7 +63,7 @@ function makePayload(overrides = {}) {
   return {
     filter_id: 'filter-123',
     dataset_ids: ['dataset-alpha', 'dataset-beta'],
-    format: FileFormat.GEOJSON,
+    formats: [VectorFileFormat.GEOJSON],
     public_homepage_url: 'https://example.com',
     public_terms_url: 'https://example.com/terms',
     public_metadata_urls: {
@@ -137,14 +136,14 @@ describe('createReadmeFile', () => {
   });
 
   it('passes dataset slugs and file format from payload', async () => {
-    const payload = makePayload({ dataset_ids: ['dataset-alpha', 'dataset-beta'], format: FileFormat.GPKG });
+    const payload = makePayload({ dataset_ids: ['dataset-alpha', 'dataset-beta'], formats: [VectorFileFormat.GPKG] });
 
     await createReadmeFile(makeRequestData(), '/tmp', payload);
 
     const call = generateExportPdfSpy.mock.calls[0][0] as any;
     expect(call.datasets[0].slug).toEqual('dataset-alpha');
     expect(call.datasets[1].slug).toEqual('dataset-beta');
-    expect(call.fileFormat).toBe(FileFormat.GPKG);
+    expect(call.fileFormat).toBe(VectorFileFormat.GPKG);
   });
 
   it('passes an exportDate close to now', async () => {
@@ -258,5 +257,27 @@ describe('createReadmeFile E2E (real pdfkit, no generateExportPdf mock)', () => 
       await createReadmeFile(requestData, tempDir, makePayload());
       expect(pageCount(path.join(tempDir, 'Readme.pdf'))).toBe(4);
     });
+  });
+});
+
+describe('validateFileFormats', () => {
+  it.each([
+    [['gpkg'], true, true, { vectorFormat: 'gpkg', rasterFormat: 'gpkg' }],
+    [['csv', 'tiff'], true, true, { vectorFormat: 'csv', rasterFormat: 'tiff' }],
+    [['geojson'], true, true, { vectorFormat: 'geojson', rasterFormat: 'tiff' }],
+    [['xlsx'], true, false, { vectorFormat: 'xlsx', rasterFormat: null }],
+    [['tiff'], false, true, { vectorFormat: null, rasterFormat: 'tiff' }],
+  ])('Valid formats', (formats, vectorRequested, rasterRequested, expectedOutput) => {
+    const output = validateFileFormats(formats, vectorRequested, rasterRequested);
+    expect(output).toStrictEqual(expectedOutput);
+  });
+
+  it('Invalid vector format throws error', () => {
+    const formats = ['xls'];
+    const vectorRequested = true;
+    const rasterRequested = true;
+    expect(() => validateFileFormats(formats, vectorRequested, rasterRequested)).toThrow(
+      `No valid vector format in [${formats.join(', ')}]`,
+    );
   });
 });

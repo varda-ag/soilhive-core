@@ -14,7 +14,7 @@ type DownloadsItem = {
 
 type DownloadsContextType = {
   downloads: DownloadsItem[];
-  startDownload: (payload: { filter_id: string; dataset_ids: string[]; format: string }) => void;
+  startDownload: (payload: { filter_id: string; dataset_ids: string[]; formats: string[] }) => void;
   cancelDownload: (id: string) => void;
   isOpened: boolean;
   setIsOpened: (value: boolean) => void;
@@ -55,7 +55,7 @@ export const DownloadsProvider: React.FC<DownloadsProviderProps> = ({ children }
   }, [jobsData]);
 
   const startDownload = useCallback(
-    async (payload: { filter_id: string; dataset_ids: string[]; format: string }) => {
+    async (payload: { filter_id: string; dataset_ids: string[]; formats: string[] }) => {
       const public_metadata_urls: Record<string, string> = {};
       payload.dataset_ids.forEach(id => {
         public_metadata_urls[id] = `${window.location.origin}/datasets/${id}`;

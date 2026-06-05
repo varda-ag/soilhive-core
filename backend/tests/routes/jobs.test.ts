@@ -70,7 +70,7 @@ describe('Testing /jobs routes', () => {
     const mockId = '960ee487-a6bd-4da8-8ef0-da6ef23d0e80';
     const exportRes = await request(app)
       .post('/jobs')
-      .send({ type: 'export', filter_id: mockId, format: 'csv', dataset_ids: ['fake_dataset'] });
+      .send({ type: 'export', filter_id: mockId, formats: ['csv'], dataset_ids: ['fake_dataset'] });
     expect(exportRes.statusCode).toBe(201);
     expect(exportRes.body).toHaveProperty('id');
 
@@ -198,7 +198,9 @@ describe('Testing /jobs routes', () => {
 
   it('POST /jobs fails if required fields are missing', async () => {
     const mockId = '960ee487-a6bd-4da8-8ef0-da6ef23d0e80';
-    const res = await request(app).post('/jobs').send({ type: 'export', filter_id: mockId, format: 'csv' }); // Missing dataset_ids
+    const res = await request(app)
+      .post('/jobs')
+      .send({ type: 'export', filter_id: mockId, formats: ['csv'] }); // Missing dataset_ids
     expect(res.statusCode).toBe(400);
   });
 
@@ -211,7 +213,7 @@ describe('Testing /jobs routes', () => {
       .send({
         type: 'export',
         filter_id: mockId,
-        format: 'csv',
+        formats: ['csv'],
         dataset_ids: ['fake_dataset'],
         anonymous: true,
       });
@@ -233,7 +235,7 @@ describe('Testing /jobs routes', () => {
       .send({
         type: 'export',
         filter_id: mockId,
-        format: 'csv',
+        formats: ['csv'],
         dataset_ids: ['fake_dataset'],
         anonymous: true,
       });
