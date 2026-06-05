@@ -26,7 +26,7 @@ import {
   isPointInFeatureCollection,
 } from '../../utilities/geo';
 import { bbox as bboxFn, centerOfMass } from '@turf/turf';
-import { getMapStyles, h3ResolutionForZoomLevel } from '../../utilities/map';
+import { customAttribution, getMapStyles, h3ResolutionForZoomLevel } from '../../utilities/map';
 import DrawControl, { type DrawControlRef } from '../DrawControl';
 import SoilhiveMapToolbar from './SoilhiveMapToolbar';
 import SoilhiveMapSelectionToolbar, { type SoilhiveMapSelectionToolbarMode } from './SoilhiveMapSelectionToolbar';
@@ -414,6 +414,10 @@ function SoilhiveMap({
     return selectedPoint && !showDrawControl;
   }, [selectedPoint, showDrawControl]);
 
+  const attributionControl = useMemo(() => {
+    return isMobileLayout ? { compact: false } : { compact: false, customAttribution };
+  }, [isMobileLayout]);
+
   return (
     <div
       className={classnames('soilhive-map', {
@@ -436,7 +440,8 @@ function SoilhiveMap({
         onMoveEnd={onMapMoveEnd}
         onClick={onMapClick}
         interactiveLayerIds={['data-fills']}
-        attributionControl={{ compact: false }}
+        // Note: attributionControl is used only during the onLoad so it won't be updated if it changes after that (e.g. when in Desktop you resize the window to make it small as a Mobile device)
+        attributionControl={attributionControl}
       >
         <SoilhiveMapToolbar visible={!showDrawControl} onDrawClick={onDrawClick} onUpload={onUpload} />
 

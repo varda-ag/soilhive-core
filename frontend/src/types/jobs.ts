@@ -8,7 +8,7 @@ export type AsyncJob = {
     download_path?: string;
     download_filename?: string;
     progress_percentage: number;
-    format: string;
+    formats: string[];
   };
   message?: string;
 };

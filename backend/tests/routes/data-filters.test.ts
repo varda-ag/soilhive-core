@@ -179,8 +179,26 @@ describe('Testing /data-filters routes', () => {
     expect(resultDatasets[0].soil_properties).toContain('prop1');
     expect(resultDatasets[0].soil_properties).toContain('prop2');
     expect(resultDatasets[0].licenses).toContain('test_license_1');
+    expect(resultDatasets[0].visibility).toBe('public');
     const resultDatasetIds = resultDatasets.map(r => r.id);
     expect(resultDatasetIds).toContain(dataset.slug);
+  });
+
+  it('Coverage should reflect dataset visibility', async () => {
+    const { dataset } = await addSyntheticData({ ...syntheticDataOptions, depthLayers: 1 });
+    // Flip to private directly via the datasets PATCH endpoint
+    const token = await getDataAdminToken();
+    await request(app).patch(`/datasets/${dataset.slug}`).set('Authorization', `Bearer ${token}`).send({ visibility: 'private' });
+
+    const resPost = await request(app)
+      .post('/data-filters')
+      .send({ parameters: {}, geometries: [filteringPolygon] });
+    const resCoverage = await request(app).get(`/data-filters/${resPost.body.id}/coverage`);
+    const resultDatasets: FilteredDatasetSummary[] = resCoverage.body.datasets;
+
+    expect(resultDatasets.length).toBe(1);
+    expect(resultDatasets[0].id).toBe(dataset.slug);
+    expect(resultDatasets[0].visibility).toBe('private');
   });
 
   it('Coverage should not return data for a deleted dataset', async () => {

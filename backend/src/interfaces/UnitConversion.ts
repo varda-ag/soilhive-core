@@ -1,4 +1,4 @@
-import { UnitConversionType } from 'src/types/data';
+import { UnitConversionType } from '../types/data';
 
 export interface UnitConversion {
   id: string;
