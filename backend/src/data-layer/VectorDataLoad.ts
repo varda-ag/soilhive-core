@@ -239,8 +239,14 @@ const getDataPreviewQuery = (query: any, dataMappingConfig: DataCleaningConfig, 
       continue;
     }
     if (mapping === DetectableFields.DEPTH) {
-      query.addSelect(`NULLIF(regexp_replace(split_part(${field}::text, '-', 1), '[^0-9]', '', 'g'), '')::integer`, DetectableFields.MIN_DEPTH);
-      query.addSelect(`NULLIF(regexp_replace(split_part(${field}::text, '-', 2), '[^0-9]', '', 'g'), '')::integer`, DetectableFields.MAX_DEPTH);
+      query.addSelect(
+        `NULLIF(regexp_replace(split_part(${field}::text, '-', 1), '[^0-9]', '', 'g'), '')::integer`,
+        DetectableFields.MIN_DEPTH,
+      );
+      query.addSelect(
+        `NULLIF(regexp_replace(split_part(${field}::text, '-', 2), '[^0-9]', '', 'g'), '')::integer`,
+        DetectableFields.MAX_DEPTH,
+      );
       continue;
     }
     if (field) {
@@ -260,7 +266,6 @@ const getDataPreviewQuery = (query: any, dataMappingConfig: DataCleaningConfig, 
       : `NULLIF((raw.${field})::numeric, 0)`;
 
     const max_val = props.max_val ?? (props.standard_unit === '%' ? 100 : undefined);
-    console.log(max_val);
     const min_val = props.min_val ?? 0;
 
     if (min_val !== undefined && max_val !== undefined) {

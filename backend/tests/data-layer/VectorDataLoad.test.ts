@@ -107,13 +107,14 @@ describe('VectorDataLoad class', () => {
     it('should parse "depth" field to min and max depth', async () => {
       const vdl = new VectorDataLoad();
       const entityManager = await getEntityManager();
-      const dataMappingDepthRange: DataCleaningConfig = { ...dataMappingConfig!,
+      const dataMappingDepthRange: DataCleaningConfig = {
+        ...dataMappingConfig!,
         metadata_cols: {
           sampling_date: 'date',
           license: 'licence',
           horizon: 'layer_name',
           depth: 'depthrange',
-        }
+        },
       };
       const results = await vdl.getDataPreview(entityManager, dataMappingDepthRange, fileId!);
       expect(results[0].min_depth).toBe(100);
@@ -122,14 +123,15 @@ describe('VectorDataLoad class', () => {
     it('should set negative min/max depth values to NULL', async () => {
       const vdl = new VectorDataLoad();
       const entityManager = await getEntityManager();
-      const dataMappingNegativeDepths: DataCleaningConfig = { ...dataMappingConfig!,
+      const dataMappingNegativeDepths: DataCleaningConfig = {
+        ...dataMappingConfig!,
         metadata_cols: {
           sampling_date: 'date',
           license: 'licence',
           horizon: 'layer_name',
           min_depth: 'min_depth2',
           max_depth: 'max_depth2',
-        }
+        },
       };
       const results = await vdl.getDataPreview(entityManager, dataMappingNegativeDepths, fileId!);
       expect(results.map(r => r.min_depth).filter(n => n !== null).length).toBe(0);
@@ -138,16 +140,17 @@ describe('VectorDataLoad class', () => {
     it('should remove % soil property values above 100', async () => {
       const vdl = new VectorDataLoad();
       const entityManager = await getEntityManager();
-      const dataMappingPropertyPercent: DataCleaningConfig = { ...dataMappingConfig!,
+      const dataMappingPropertyPercent: DataCleaningConfig = {
+        ...dataMappingConfig!,
         property_cols: {
           bdfi33: {
             property_id: dataMappingConfig!.property_cols.bdfi33.property_id,
             procedure_id: dataMappingConfig!.property_cols.bdfi33.procedure_id,
             conversion_id: dataMappingConfig!.property_cols.bdfi33.conversion_id,
             standard_unit: '%',
-            conversion_formula: 'x*100'
-        }
-        }
+            conversion_formula: 'x*100',
+          },
+        },
       };
       const results = await vdl.getDataPreview(entityManager, dataMappingPropertyPercent, fileId!);
       const resultBdfi33 = results.map(r => parseFloat(r.bdfi33 as string)).filter(n => !isNaN(n) && n !== OUTSIDE_LOD_VALUE);
