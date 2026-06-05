@@ -21,7 +21,6 @@ export default class DataMappingService {
     if (dataMapping.drop_records && !Array.isArray(dataMapping.drop_records)) {
       throw new ErrorResponse(`drop_records must be an array of numbers`, StatusCodes.BAD_REQUEST);
     }
-
     const repo = requestData.entityManager.getRepository(DataMappingEntity);
 
     const result = await repo
