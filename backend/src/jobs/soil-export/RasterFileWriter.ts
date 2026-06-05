@@ -9,6 +9,8 @@ import FileService from '../../services/FileService';
 import { sanitizeField } from '../../utils/utils';
 import { GdalCLI } from '../../utils/GdalCLI';
 
+const fileService = new FileService();
+
 export class RasterFileWriter {
   private outputDir: string;
   private fileFormat: RasterFileFormat;
@@ -23,6 +25,10 @@ export class RasterFileWriter {
    * Output layer naming convention is {outputDir}/{dataset_slug}_{soil_property}{_depth}{_date}
    */
   async writeLayer(layer: FilteredRasterLayer, aoi: Polygon | MultiPolygon): Promise<void> {
+    const fileExists = await fileService.exists(layer.path);
+    if (!fileExists) {
+      throw new Error(`Requested raster layer not found in storage: ${layer.path}`);
+    }
     const [minX, minY, maxX, maxY] = turf.bbox(aoi);
     const layerName = this.buildLayerName(layer);
     fs.mkdirSync(path.dirname(this.outputDir), { recursive: true });
@@ -50,7 +56,7 @@ export class RasterFileWriter {
     if (this.fileFormat === RasterFileFormat.TIFF) {
       warpArgs.push('-co', 'COMPRESS=DEFLATE', '-co', 'TILED=YES');
     } else {
-      warpArgs.push('-co', `RASTER_TABLE=${layerName}`, '-co', 'COMPRESS=LZW', '-co', 'TILE_FORMAT=TIFF', '-ot', 'Float32');
+      warpArgs.push('-co', `RASTER_TABLE=${layerName}`, '-co', 'TILE_FORMAT=TIFF', '-ot', 'Float16');
     }
 
     const filePath = path.join(this.outputDir, `${layerName}.${this.getFileExtension()}`);

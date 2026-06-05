@@ -60,6 +60,7 @@
         "download_format": "Download Format",
         "datasets_included_in_download": "These are the datasets included in the download",
         "data_points": "data points",
+        "raster_layers": "raster Layers",
         "dataset_column_header": "Dataset/s",
         "licenses_column_header": "License/s",
         "amount_of_data_column_header": "Amount of data ≈"

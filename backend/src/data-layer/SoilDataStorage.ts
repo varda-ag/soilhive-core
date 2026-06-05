@@ -311,7 +311,11 @@ export default class SoilDataStorage {
       .createQueryBuilder('rl')
       .addCommonTableExpression(selectGeometry(), 'aoi')
       .setParameter('inputGeom', geomJson)
-      .innerJoin('rl.dataset', 'ds', 'ds.deleted_at IS NULL AND ds.spatial_extent && (SELECT ST_Envelope(geom) FROM aoi)')
+      .innerJoin(
+        'rl.dataset',
+        'ds',
+        `ds.deleted_at IS NULL AND ds.status = 'PUBLISHED' AND ds.spatial_extent && (SELECT ST_Envelope(geom) FROM aoi)`,
+      )
       .innerJoin('rl.soil_property', 'sp')
       .select('rl.id', 'id');
 
