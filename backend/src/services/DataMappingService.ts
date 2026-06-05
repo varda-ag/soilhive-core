@@ -137,6 +137,7 @@ export default class DataMappingService {
         const ucInfo = props.conversion_id ? (ucInfoMap[props.conversion_id] ?? null) : null;
         const pInfo = props.procedure_id ? (pInfoMap[props.procedure_id] ?? null) : null;
         propsProcessed.property_id = spInfo.id;
+        propsProcessed.standard_unit = spInfo.standard_unit;
         if (ucInfo) {
           propsProcessed.conversion_formula = ucInfo.conversion_formula;
         }

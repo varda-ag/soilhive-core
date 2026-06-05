@@ -21,7 +21,7 @@ The files uploaded to load in the platform must meet the following requirements:
 
 - Formats supported: `GeoJSON`, `GPKG`, `SHP`, `CSV`, `XLSX`, `GML`, `KML`, `GDB` (or `ZIP` containing any of the mentioned formats).
 - If format is `SHP`, all Shapefile files must be zipped.
-- A geometry (or latitude and longitude) field is required. Additional fields with the sampling date (in format `YYYY` or `YYYY-MM` or `YYYY-MM-DD`), upper and lower depth in cm (or a depth range), horizon code and license are recommended. If not supplied, there is an option to fill part of this information with fixed values in the dataset metadata in a posterior step.
+- A geometry (or latitude and longitude) field is required. Additional fields with the sampling date (in format `YYYY` or `YYYY-MM` or `YYYY-MM-DD`), upper and lower depth in cm (as integers) or a depth range (as a text field with integer values separated by character '-'), horizon code and license are recommended. If not supplied, there is an option to fill part of this information with fixed values in the dataset metadata in a posterior step.
 - Soil data provided as one field per soil property, unit and procedure.
 - A dataset may have several files.
 - All files uploaded for a dataset need to have the same structure (same fields and datatypes).
@@ -43,5 +43,17 @@ For every field in the file, there will be an option to either:
     6. Extraction base: Basis of the extraction ratio (mass/mass, volume/mass, or volume/volume).
     7. Measurement procedure: Technique, instrument, or procedure used to determine the soil property value.
     8. Limit of detection: The lowest concentration or amount of the target analyte that can be reliably distinguished from zero by the method used.
-- Map the field to a **standard metadata** field - The system attempts to infer these mappings based on the field name. Supported fields are: *latitude*, *longitude*, *geometry*, *minimum depth*, *maximum depth*, *depth* (range), *sampling date*, *license* and *horizon*.
+- Map the field to a **standard metadata** field - The system attempts to infer these mappings based on the field name. Supported fields are: *latitude*, *longitude*, *geometry*, *minimum depth*, *maximum depth*, *depth* (range of numeric values), *sampling date*, *license* and *horizon*.
 - Ignore the field from loading to the platform (by leaving `Map to` empty).
+
+## Data preview
+
+Uploaded and mapped data will be rendered in this step. This preview provides an overview of the values that will be loaded into the system with some cleaning steps applied and soil property values converted to the standard unit of measurement for any given soil property. 
+The table rendered preserves the structure of the uploaded file(s), one row per record.
+This step allows to delete records (full table rows) to exclude them from the load into the platform.
+The basic cleaning steps applied are:
+- All negative depth values will be marked as `NULL`.
+- All negative or 0 soil property values will be marked as `NULL` and skipped in the loading process.
+- Soil property values for which the standard unit of measurement is `%` and their value (once converted from the original unit of measurement if applies) is above 100 will be marked as `NULL` and skipped in the loading process.
+- Soil samples with value -999 are assumed to be below limit of detection and will be loaded as is, without applying conversion formulas.
+- Soil property values are rounded to 3 decimals.
