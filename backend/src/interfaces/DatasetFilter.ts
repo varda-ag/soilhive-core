@@ -29,6 +29,7 @@ export interface FilteredDatasetSummary extends FilterCriteria {
   id: string;
   name: string;
   data_type: GISDataType;
+  visibility: 'public' | 'private';
   dataset_layer_count?: number;
   raster_layer_count?: number;
 }
