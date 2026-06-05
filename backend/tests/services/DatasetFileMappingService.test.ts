@@ -176,7 +176,7 @@ describe('DatasetFileMappingService', () => {
     const datasetFileMapping = await service.createMapping(requestData, dataset.slug, initialPayload);
 
     // Create data mapping
-    const dataMapping = await dataMappingService.postDataMapping(requestData, {});
+    const dataMapping = await dataMappingService.postDataMapping(requestData, { col1: { property_id: 'ph' } });
 
     // Update with mapping ID
     const updatePayload: DatasetFileMappingRequest = {
@@ -202,7 +202,7 @@ describe('DatasetFileMappingService', () => {
     const dataset = await datasetService.createDataset(requestData, input);
 
     // Create data mapping
-    const dataMapping = await dataMappingService.postDataMapping(requestData, {});
+    const dataMapping = await dataMappingService.postDataMapping(requestData, { col1: { property_id: 'ph' } });
 
     // Create initial mapping with mapping ID
     const initialPayload: DatasetFileMappingRequest = {
@@ -247,7 +247,7 @@ describe('DatasetFileMappingService', () => {
     const reloaded = await fileRepo.findOneBy({ id: savedFile.id });
 
     // Create data mapping
-    const dataMapping = await dataMappingService.postDataMapping(requestData, {});
+    const dataMapping = await dataMappingService.postDataMapping(requestData, { col1: { property_id: 'ph' } });
 
     const payload: DatasetFileMappingRequest = {
       fileID: reloaded!.slug,

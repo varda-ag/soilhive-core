@@ -61,7 +61,7 @@ describe('DataMappingService', () => {
     const entityManager = await getEntityManager();
     const requestData = { entityManager, token: mockToken, entitlements: {} };
 
-    const created = await service.postDataMapping(requestData, { test: 'data' });
+    const created = await service.postDataMapping(requestData, { col1: { property_id: 'ph' } });
 
     await service.deleteDataMapping(requestData, created.id);
 
