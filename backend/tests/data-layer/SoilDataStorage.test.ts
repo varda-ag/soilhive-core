@@ -62,6 +62,7 @@ describe('SoilDataStorage class', () => {
     expect(results[0].soil_properties).toContain('prop1');
     expect(results[0].soil_properties).toContain('prop2');
     expect(results[0].licenses).toContain('test_license_1');
+    expect(results[0].visibility).toBe('public');
     const resultDatasetIds = results.map(r => r.id);
     expect(resultDatasetIds).toContain(dataset.slug);
   });
@@ -773,6 +774,8 @@ describe('SoilDataStorage class', () => {
       const results = await sds.filterRaster(entityManager, filteringRectangle, {});
       expect(results).toHaveLength(1);
       expect(results[0].raster_layer_count).toBe(1);
+      // ingestRaster upserts without setting visibility so the DB default ('private') applies
+      expect(results[0].visibility).toBe('private');
     });
 
     it('Filtering raster data should return empty array when geometry does not intersect any raster layer', async () => {

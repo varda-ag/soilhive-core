@@ -1989,12 +1989,17 @@ components:
                 - polygonal
                 - raster
               description: Type of data contained in the dataset (e.g., point samples, raster data)
+            visibility:
+              type: string
+              enum: [public, private]
+              description: Dataset visibility
             dataset_layer_count:
               type: integer
               description: Number of features matching the filter in this dataset
           required:
             - id
             - name
+            - visibility
             - dataset_layer_count
 
     StoredDataFilter:
