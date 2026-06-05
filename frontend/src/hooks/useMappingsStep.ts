@@ -478,11 +478,12 @@ export function useMappingsStep(datasetId?: string) {
     return null;
   }, [columnMappings, t]);
 
-  const isContinueEnabled = useMemo(
-    () =>
-      soilPropertyMappedCount > 0 && geometryDetected !== undefined && geometryMessage?.type !== 'warning' && depthConflictMessage === null,
-    [soilPropertyMappedCount, geometryDetected, geometryMessage, depthConflictMessage],
+  const isSaveEnabled = useMemo(
+    () => geometryDetected !== undefined && geometryMessage?.type !== 'warning' && depthConflictMessage === null,
+    [geometryDetected, geometryMessage, depthConflictMessage],
   );
+
+  const isContinueEnabled = useMemo(() => soilPropertyMappedCount > 0 && isSaveEnabled, [soilPropertyMappedCount, isSaveEnabled]);
 
   const toggleRow = useCallback((columnName: string) => {
     setExpandedRows(prev => {
@@ -586,6 +587,7 @@ export function useMappingsStep(datasetId?: string) {
     isImporting,
     geometryMessage,
     depthConflictMessage,
+    isSaveEnabled,
     isContinueEnabled,
     columnMappings,
     conceptOptionsByColumn,

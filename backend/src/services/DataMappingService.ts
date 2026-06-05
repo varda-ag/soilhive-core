@@ -21,13 +21,6 @@ export default class DataMappingService {
     if (dataMapping.drop_records && !Array.isArray(dataMapping.drop_records)) {
       throw new ErrorResponse(`drop_records must be an array of numbers`, StatusCodes.BAD_REQUEST);
     }
-    const hasSoilProperty = Object.entries(dataMapping).some(
-      ([key, value]) => key !== 'drop_records' && typeof value === 'object' && value !== null && !Array.isArray(value),
-    );
-    if (!hasSoilProperty) {
-      throw new ErrorResponse('At least one soil property mapping is required', StatusCodes.BAD_REQUEST);
-    }
-
     const repo = requestData.entityManager.getRepository(DataMappingEntity);
 
     const result = await repo
