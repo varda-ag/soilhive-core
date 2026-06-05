@@ -1,7 +1,9 @@
-import { fromFile } from 'geotiff';
+import { fromFile, fromUrl } from 'geotiff';
 import type { MultiPolygon, Polygon } from 'geojson';
 import FileService from '../services/FileService';
 import { GdalCLI } from '../utils/GdalCLI';
+import ConfigService from '../services/ConfigService';
+import { StorageModes } from '../types/enums';
 
 const MAX_TILES = 256 * 256;
 const MIN_TILES = 256;
@@ -42,7 +44,7 @@ export async function analyzeRasterMeta(cogPath: string, nodataOverride?: number
 
   const nodata: number | null = nodataOverride !== undefined ? nodataOverride : (info.bands?.[0]?.noDataValue ?? null);
 
-  const isGeo = info.coordinateSystem?.wkt?.includes('GEOGCS') ?? true;
+  const isGeo = (info.coordinateSystem?.wkt?.includes('GEOGCS') || info.coordinateSystem?.wkt?.includes('GEOGCRS')) ?? true;
   const resolution = Math.round(Math.abs(pixW) * (isGeo ? 111320 : 1));
 
   const bbox: Polygon = {
@@ -90,7 +92,9 @@ export async function streamRasterFootprints(
   const tileH = rasterHeightDeg / nRows;
   const tileMinDim = Math.min(tileW, tileH);
 
-  const tiff = await fromFile(mainFilePath);
+  const config = ConfigService.getStorageConfig();
+  const tiff =
+    config.storageMode === StorageModes.S3 ? await fromUrl(await FileService.getPresignedUrl(cogPath)) : await fromFile(mainFilePath);
   const imageCount = await tiff.getImageCount();
 
   // Select overview: mirrors original GDAL logic — coarsest overview satisfying
