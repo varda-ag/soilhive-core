@@ -4,7 +4,7 @@ import { type APIRequestConfig } from './types/api';
 
 export async function httpClient<T = any>(config: APIRequestConfig): Promise<T> {
   const { url, method = 'GET', headers = {}, body, signal, isBlobResponse } = config;
-  const token = getToken();
+  const token = config.authenticate === false ? null : getToken();
   const defaultHeaders: HeadersInit = {
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };

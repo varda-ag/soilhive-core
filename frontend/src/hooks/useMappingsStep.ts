@@ -450,12 +450,16 @@ export function useMappingsStep(datasetId?: string) {
 
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
-  const { mappedCount, unmappedCount } = useMemo(() => {
+  const { mappedCount, unmappedCount, soilPropertyMappedCount } = useMemo(() => {
     let mapped = 0;
+    let soilPropertyMapped = 0;
     for (const m of columnMappings) {
-      if (m.conceptId !== null) mapped++;
+      if (m.conceptId !== null) {
+        mapped++;
+        if (!METADATA_FIELD_CODES.has(m.conceptId)) soilPropertyMapped++;
+      }
     }
-    return { mappedCount: mapped, unmappedCount: columnMappings.length - mapped };
+    return { mappedCount: mapped, unmappedCount: columnMappings.length - mapped, soilPropertyMappedCount: soilPropertyMapped };
   }, [columnMappings]);
 
   const geometryMessage = useMemo((): { message: string; type: 'info' | 'warning' } | null => {
@@ -474,10 +478,12 @@ export function useMappingsStep(datasetId?: string) {
     return null;
   }, [columnMappings, t]);
 
-  const isContinueEnabled = useMemo(
-    () => mappedCount > 0 && geometryDetected !== undefined && geometryMessage?.type !== 'warning' && depthConflictMessage === null,
-    [mappedCount, geometryDetected, geometryMessage, depthConflictMessage],
+  const isSaveEnabled = useMemo(
+    () => geometryDetected !== undefined && geometryMessage?.type !== 'warning' && depthConflictMessage === null,
+    [geometryDetected, geometryMessage, depthConflictMessage],
   );
+
+  const isContinueEnabled = useMemo(() => soilPropertyMappedCount > 0 && isSaveEnabled, [soilPropertyMappedCount, isSaveEnabled]);
 
   const toggleRow = useCallback((columnName: string) => {
     setExpandedRows(prev => {
@@ -581,6 +587,7 @@ export function useMappingsStep(datasetId?: string) {
     isImporting,
     geometryMessage,
     depthConflictMessage,
+    isSaveEnabled,
     isContinueEnabled,
     columnMappings,
     conceptOptionsByColumn,

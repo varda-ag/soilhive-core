@@ -53,8 +53,19 @@ exports[`DatasetsListItem renders main dataset info 1`] = `
           rel="noreferrer"
           target="_blank"
         >
+          <svg
+            data-testid="svg-icon-mock"
+          >
+            mock-svg
+          </svg>
+           
           Metadata
         </a>
+        <span
+          data-testid="tag-Public"
+        >
+          Public
+        </span>
       </div>
     </div>
     <div

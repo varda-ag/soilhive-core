@@ -487,30 +487,41 @@ describe('useMappingsStep', () => {
       expect(result.current.isContinueEnabled).toBe(false);
     });
 
-    it('is true when geometry is detected and at least one column is mapped', () => {
+    it('is true when geometry is detected and at least one soil property is mapped', () => {
       setupWithColumns(['col1'], undefined, true);
       const { result } = renderHook(() => useMappingsStep('1'));
       act(() => {
-        result.current.handleConceptChange('col1', 'geometry');
+        result.current.handleConceptChange('col1', 'ph');
       });
       expect(result.current.isContinueEnabled).toBe(true);
     });
 
-    it('is true when geometry_detected is false but geometry is manually mapped', () => {
+    it('is false when geometry is detected but only metadata columns are mapped (no soil property)', () => {
+      setupWithColumns(['col1'], undefined, true);
+      const { result } = renderHook(() => useMappingsStep('1'));
+      act(() => {
+        result.current.handleConceptChange('col1', 'sampling_date');
+      });
+      expect(result.current.isContinueEnabled).toBe(false);
+    });
+
+    it('is true when geometry_detected is false but geometry is manually mapped and a soil property is mapped', () => {
       setupWithColumns(['geom', 'ph'], undefined, false);
       const { result } = renderHook(() => useMappingsStep('1'));
       act(() => {
         result.current.handleConceptChange('geom', 'geometry');
+        result.current.handleConceptChange('ph', 'ph');
       });
       expect(result.current.isContinueEnabled).toBe(true);
     });
 
-    it('is true when geometry_detected is false but both lat and lon are mapped', () => {
-      setupWithColumns(['lat', 'lon'], undefined, false);
+    it('is true when geometry_detected is false but both lat and lon are mapped and a soil property is mapped', () => {
+      setupWithColumns(['lat', 'lon', 'ph'], undefined, false);
       const { result } = renderHook(() => useMappingsStep('1'));
       act(() => {
         result.current.handleConceptChange('lat', 'latitude');
         result.current.handleConceptChange('lon', 'longitude');
+        result.current.handleConceptChange('ph', 'ph');
       });
       expect(result.current.isContinueEnabled).toBe(true);
     });

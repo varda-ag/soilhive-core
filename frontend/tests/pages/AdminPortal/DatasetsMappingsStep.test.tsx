@@ -43,11 +43,13 @@ function stubHookReturn(
   geometryMessage: { message: string; type: 'info' | 'warning' } | null = null,
   isContinueEnabled = false,
   depthConflictMessage: { message: string; type: 'warning' } | null = null,
+  isSaveEnabled = false,
 ) {
   return {
     isLoading: false,
     geometryMessage,
     depthConflictMessage,
+    isSaveEnabled,
     isContinueEnabled,
     columnMappings: columnNames.map(columnName => ({
       columnName,
@@ -150,15 +152,22 @@ describe('DatasetsMappingsStep', () => {
   });
 
   describe('action buttons', () => {
-    it('is disabled when isContinueEnabled is false', () => {
-      (useMappingsStep as jest.Mock).mockReturnValue(stubHookReturn([], null, false));
+    it('disables both buttons when neither flag is set', () => {
+      (useMappingsStep as jest.Mock).mockReturnValue(stubHookReturn([], null, false, null, false));
       render(<DatasetsMappingsStep />);
       expect(screen.getByTestId('sh-mappings-continue')).toBeDisabled();
       expect(screen.getByTestId('sh-mappings-save-later')).toBeDisabled();
     });
 
-    it('is enabled when isContinueEnabled is true', () => {
-      (useMappingsStep as jest.Mock).mockReturnValue(stubHookReturn([], null, true));
+    it('enables save-later but not continue when only isSaveEnabled is true', () => {
+      (useMappingsStep as jest.Mock).mockReturnValue(stubHookReturn([], null, false, null, true));
+      render(<DatasetsMappingsStep />);
+      expect(screen.getByTestId('sh-mappings-continue')).toBeDisabled();
+      expect(screen.getByTestId('sh-mappings-save-later')).not.toBeDisabled();
+    });
+
+    it('enables both buttons when isContinueEnabled and isSaveEnabled are both true', () => {
+      (useMappingsStep as jest.Mock).mockReturnValue(stubHookReturn([], null, true, null, true));
       render(<DatasetsMappingsStep />);
       expect(screen.getByTestId('sh-mappings-continue')).not.toBeDisabled();
       expect(screen.getByTestId('sh-mappings-save-later')).not.toBeDisabled();

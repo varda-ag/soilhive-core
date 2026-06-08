@@ -15,6 +15,7 @@ export function DatasetsMappingsStep() {
     isImporting,
     geometryMessage,
     depthConflictMessage,
+    isSaveEnabled,
     isContinueEnabled,
     columnMappings,
     conceptOptionsByColumn,
@@ -69,7 +70,7 @@ export function DatasetsMappingsStep() {
           {t('datasets.actions.previous')}
         </Button>
         <div className={styles.ActionsSpacer} />
-        <Button type="secondary" onClick={handleSaveAndContinueLater} dataTestId="sh-mappings-save-later" isDisabled={!isContinueEnabled}>
+        <Button type="secondary" onClick={handleSaveAndContinueLater} dataTestId="sh-mappings-save-later" isDisabled={!isSaveEnabled}>
           {t('datasets.actions.save_and_continue_later')}
         </Button>
         <Button type="primary" onClick={handleContinue} dataTestId="sh-mappings-continue" isDisabled={!isContinueEnabled}>

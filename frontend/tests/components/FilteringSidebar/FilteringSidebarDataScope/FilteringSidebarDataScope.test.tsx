@@ -72,7 +72,7 @@ describe('FilteringSidebarDataScope', () => {
 
   const defaultHookValue = {
     isLoading: false,
-    datasetFrontendFilters: { type: [], ownership: [] },
+    datasetFrontendFilters: { type: [], visibility: [] },
     typeFilterOptions: [
       { id: 'point', label: 'Point' },
       { id: 'raster', label: 'Raster' },
@@ -116,7 +116,7 @@ describe('FilteringSidebarDataScope', () => {
   it('Data type: shows pillsSlot if filter is selected and calls typeFilterPillRemove on pill removing', () => {
     (useDataScopeFilters as jest.Mock).mockReturnValueOnce({
       ...defaultHookValue,
-      datasetFrontendFilters: { type: ['point'], ownership: [] },
+      datasetFrontendFilters: { type: ['point'], visibility: [] },
       typeFilterPills: [{ id: 'point', label: 'Point' }],
     });
 
@@ -133,7 +133,7 @@ describe('FilteringSidebarDataScope', () => {
   it('Data type: supports multiple selections', () => {
     (useDataScopeFilters as jest.Mock).mockReturnValueOnce({
       ...defaultHookValue,
-      datasetFrontendFilters: { type: ['point'], ownership: [] },
+      datasetFrontendFilters: { type: ['point'], visibility: [] },
       typeFilterPills: [{ id: 'point', label: 'Point' }],
     });
 
@@ -144,18 +144,18 @@ describe('FilteringSidebarDataScope', () => {
     expect(mockSetFrontendFilters).toHaveBeenCalledWith(['point', 'raster'], 'type');
   });
 
-  it('Data access: sets frontend filter on the ownership select', () => {
+  it('Data access: sets frontend filter on the visibility select', () => {
     render(<FilteringSidebarDataScope />);
 
     fireEvent.click(screen.getByTestId('mock-select-private'));
 
-    expect(mockSetFrontendFilters).toHaveBeenCalledWith(['private'], 'ownership');
+    expect(mockSetFrontendFilters).toHaveBeenCalledWith(['private'], 'visibility');
   });
 
   it('Data access: shows pillsSlot if filter is selected and clears filter on pill removing', () => {
     (useDataScopeFilters as jest.Mock).mockReturnValueOnce({
       ...defaultHookValue,
-      datasetFrontendFilters: { type: [], ownership: ['private'] },
+      datasetFrontendFilters: { type: [], visibility: ['private'] },
       accessFilterPills: [{ id: 'private', label: 'Private' }],
     });
 

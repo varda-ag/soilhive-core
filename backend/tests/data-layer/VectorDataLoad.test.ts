@@ -1,4 +1,4 @@
-import { describe, it, expect } from '@jest/globals';
+import { describe, it, expect, beforeEach } from '@jest/globals';
 import { getEntityManager } from '../../src/utils/data-source';
 import { DATA_PREVIEW_SIZE, OUTSIDE_LOD_VALUE } from '../../src/constants/constants';
 import { addSyntheticIngestionData, syntheticIngestionDataOptions } from '../../src/utils/mock';
@@ -10,6 +10,7 @@ import LayerEntity from '../../src/entities/Layer';
 import DatasetLayerEntity from '../../src/entities/DatasetLayer';
 import ObservationEntity from '../../src/entities/Observation';
 import { SoilRecord } from '../../src/interfaces/Record';
+import { DataCleaningConfig } from '../../src/interfaces/DataMapping';
 
 describe('VectorDataLoad class', () => {
   it('Data preview should be generated based on parsed data mapping', async () => {
@@ -42,7 +43,7 @@ describe('VectorDataLoad class', () => {
     const resultRecordIds = results.map(r => parseFloat(r.record_id as string));
     const maxRecordId = Math.max(...resultRecordIds);
     expect(maxRecordId).toBe(10102);
-    // bdfi33 in raw data insert has 6 non-null values, 1 of them is 0 (should be NULL) and 2 of them are less than LOD (should stay as is, no conversion formula "x*10" applied)
+    // bdfi33 in raw data insert has 6 non-null values, 3 of them are 0 or negative (should be NULL), and 2 of them are less than LOD (should stay as is, no conversion formula "x*10" applied)
     expect(resultBdfi33.length).toBe(5);
     expect(resultBdfi33.filter(n => n === OUTSIDE_LOD_VALUE).length).toBe(2);
   });
@@ -77,6 +78,85 @@ describe('VectorDataLoad class', () => {
     // 20 fixture rows minus 2 drop_records = 18
     expect(allIds).toHaveLength(18);
     expect(new Set(allIds).size).toBe(18);
+  });
+  describe('Data preview should clean the values as required', () => {
+    let fileId: string | null = null;
+    let dataMappingConfig: DataCleaningConfig | null = null;
+
+    beforeEach(async () => {
+      const { file, dataMapping } = await addSyntheticIngestionData({ ...syntheticIngestionDataOptions });
+      const entityManager = await getEntityManager();
+      const mockToken = {
+        scope: 'mock-scope',
+        raw: 'raw-auth-token',
+        email: 'mock-email',
+        isDataAdmin: true,
+        isSuperAdmin: false,
+        isInternalRequest: false,
+      };
+      const requestData: RequestData = {
+        entityManager,
+        token: mockToken,
+        entitlements: {},
+      };
+      const service = new DataMappingService();
+      dataMappingConfig = await service.parseDataMapping(requestData, dataMapping.id);
+      fileId = file.id;
+    });
+
+    it('should parse "depth" field to min and max depth', async () => {
+      const vdl = new VectorDataLoad();
+      const entityManager = await getEntityManager();
+      const dataMappingDepthRange: DataCleaningConfig = {
+        ...dataMappingConfig!,
+        metadata_cols: {
+          sampling_date: 'date',
+          license: 'licence',
+          horizon: 'layer_name',
+          depth: 'depthrange',
+        },
+      };
+      const results = await vdl.getDataPreview(entityManager, dataMappingDepthRange, fileId!);
+      expect(results[0].min_depth).toBe(100);
+      expect(results[0].max_depth).toBe(200);
+    });
+    it('should set negative min/max depth values to NULL', async () => {
+      const vdl = new VectorDataLoad();
+      const entityManager = await getEntityManager();
+      const dataMappingNegativeDepths: DataCleaningConfig = {
+        ...dataMappingConfig!,
+        metadata_cols: {
+          sampling_date: 'date',
+          license: 'licence',
+          horizon: 'layer_name',
+          min_depth: 'min_depth2',
+          max_depth: 'max_depth2',
+        },
+      };
+      const results = await vdl.getDataPreview(entityManager, dataMappingNegativeDepths, fileId!);
+      expect(results.map(r => r.min_depth).filter(n => n !== null).length).toBe(0);
+      expect(results.map(r => r.max_depth).filter(n => n !== null).length).toBe(0);
+    });
+    it('should remove % soil property values above 100', async () => {
+      const vdl = new VectorDataLoad();
+      const entityManager = await getEntityManager();
+      const dataMappingPropertyPercent: DataCleaningConfig = {
+        ...dataMappingConfig!,
+        property_cols: {
+          bdfi33: {
+            property_id: dataMappingConfig!.property_cols.bdfi33.property_id,
+            procedure_id: dataMappingConfig!.property_cols.bdfi33.procedure_id,
+            conversion_id: dataMappingConfig!.property_cols.bdfi33.conversion_id,
+            standard_unit: '%',
+            conversion_formula: 'x*100',
+          },
+        },
+      };
+      const results = await vdl.getDataPreview(entityManager, dataMappingPropertyPercent, fileId!);
+      const resultBdfi33 = results.map(r => parseFloat(r.bdfi33 as string)).filter(n => !isNaN(n) && n !== OUTSIDE_LOD_VALUE);
+      // bdfi33 value in raw_data_insert.sql that are not 0, not negative, not BELOW_LOD and less than 1 (after converting, less than 100%) is 1
+      expect(resultBdfi33.length).toBe(1);
+    });
   });
   it('rawRecordToDataModel should create new features, layers, dataset_layers and observations', async () => {
     const { dataset, file, dataMapping } = await addSyntheticIngestionData({ ...syntheticIngestionDataOptions });

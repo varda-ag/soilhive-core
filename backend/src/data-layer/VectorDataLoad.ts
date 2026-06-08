@@ -8,7 +8,7 @@ import LayerEntity from '../entities/Layer';
 import DatasetLayerEntity from '../entities/DatasetLayer';
 import ObservationEntity from '../entities/Observation';
 import { getRawTableName, sanitizeField } from '../utils/utils';
-import { DetectableFields } from '../types/DataMapping';
+import { DetectableFields, LayerFields } from '../types/DataMapping';
 import { createCursor, decodeCursor, encodeCursor } from '../utils/cursor';
 
 export default class VectorDataLoad {
@@ -91,13 +91,12 @@ export default class VectorDataLoad {
     // Dynamic layer select/insert
     const metadataVals: Record<string, any> = {};
     const metadataCols: string[] = [];
-    for (const mappedData of Object.keys(dataMappingConfig.metadata_cols)) {
-      metadataVals[mappedData] = sanitizedRecord[mappedData];
+    for (const mappedData of Object.values(LayerFields)) {
+      if (sanitizedRecord[mappedData]) {
+        metadataVals[mappedData] = sanitizedRecord[mappedData];
+      }
       metadataCols.push(mappedData);
     }
-
-    // TODO: remove after horizon has been restored
-    if (metadataCols.indexOf('horizon') === -1) metadataCols.push('horizon');
 
     const layer = await entityManager
       .createQueryBuilder()
@@ -235,6 +234,21 @@ const getDataPreviewQuery = (query: any, dataMappingConfig: DataCleaningConfig, 
       query.addSelect(`${field}::text`, mapping);
       continue;
     }
+    if (mapping === DetectableFields.MIN_DEPTH || mapping === DetectableFields.MAX_DEPTH) {
+      query.addSelect(`CASE WHEN ${field}::integer < 0 THEN NULL ELSE ${field}::integer END`, mapping);
+      continue;
+    }
+    if (mapping === DetectableFields.DEPTH) {
+      query.addSelect(
+        `NULLIF(regexp_replace(split_part(${field}::text, '-', 1), '[^0-9]', '', 'g'), '')::integer`,
+        DetectableFields.MIN_DEPTH,
+      );
+      query.addSelect(
+        `NULLIF(regexp_replace(split_part(${field}::text, '-', 2), '[^0-9]', '', 'g'), '')::integer`,
+        DetectableFields.MAX_DEPTH,
+      );
+      continue;
+    }
     if (field) {
       query.addSelect(field, mapping);
     } else {
@@ -251,17 +265,20 @@ const getDataPreviewQuery = (query: any, dataMappingConfig: DataCleaningConfig, 
       ? conversionFormula.replace(/x/g, `NULLIF((raw.${field})::numeric, 0)`)
       : `NULLIF((raw.${field})::numeric, 0)`;
 
-    if (props.min_val !== undefined && props.max_val !== undefined) {
+    const max_val = props.max_val ?? (props.standard_unit === '%' ? 100 : undefined);
+    const min_val = props.min_val ?? 0;
+
+    if (min_val !== undefined && max_val !== undefined) {
       propertyCleanup = `CASE WHEN (raw.${field})::numeric=${OUTSIDE_LOD_VALUE} THEN (raw.${field})::numeric WHEN ${expr} BETWEEN :min_val${field} AND :max_val${field} THEN ROUND(${expr},3) ELSE NULL END`;
-    } else if (props.min_val !== undefined) {
+    } else if (min_val !== undefined) {
       propertyCleanup = `CASE WHEN (raw.${field})::numeric=${OUTSIDE_LOD_VALUE} THEN (raw.${field})::numeric WHEN ${expr} >= :min_val${field} THEN ROUND(${expr},3) ELSE NULL END`;
-    } else if (props.max_val !== undefined) {
+    } else if (max_val !== undefined) {
       propertyCleanup = `CASE WHEN (raw.${field})::numeric=${OUTSIDE_LOD_VALUE} THEN (raw.${field})::numeric WHEN ${expr} <= :max_val${field} THEN ROUND(${expr},3) ELSE NULL END`;
     } else {
       propertyCleanup = `CASE WHEN (raw.${field})::numeric=${OUTSIDE_LOD_VALUE} THEN (raw.${field})::numeric ELSE ROUND(${expr},3) END`;
     }
-    params[`min_val${field}`] = props.min_val;
-    params[`max_val${field}`] = props.max_val;
+    params[`min_val${field}`] = min_val;
+    params[`max_val${field}`] = max_val;
     query.addSelect(propertyCleanup, field);
   }
   query.setParameters(params);

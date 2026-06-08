@@ -18,6 +18,7 @@ const useConfig = <T>(id: string, defaultConfig?: T) => {
     enabled: !!id,
     showErrorNotification: false,
     notFoundAsNull: true,
+    authenticate: false,
   });
 
   const config: T | undefined = data ?? defaultConfig;

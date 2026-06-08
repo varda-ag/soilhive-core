@@ -73,7 +73,7 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
   const [searchValue, setSearchValue] = useState<string>('');
   const [datasetFrontendFilters, setDatasetFrontendFilters] = useState<DatasetFrontendFilters>({
     type: [],
-    ownership: [],
+    visibility: [],
   });
   const [isAllSelected, setIsAllSelected] = useState<boolean>(false);
 
@@ -138,6 +138,9 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
       .filter(dataset => {
         return (
           (!dataset.dataType || !datasetFrontendFilters.type.length || datasetFrontendFilters.type.includes(dataset.dataType)) &&
+          (!dataset.visibility ||
+            !datasetFrontendFilters.visibility.length ||
+            datasetFrontendFilters.visibility.includes(dataset.visibility)) &&
           (!searchValue || dataset.name.toLowerCase().includes(searchValue.toLowerCase()))
         );
       })
@@ -181,7 +184,7 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
       (datasetFilters.soil_properties?.length || 0) +
       (datasetFilters.min_sampling_date && datasetFilters.max_sampling_date ? 1 : 0) +
       datasetFrontendFilters.type.length +
-      datasetFrontendFilters.ownership.length +
+      datasetFrontendFilters.visibility.length +
       (datasetFilters.raster_filters
         ? Object.values(datasetFilters.raster_filters).reduce((count, filters) => count + filters.length, 0)
         : 0)
@@ -191,7 +194,7 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
   const clearAllFilters = useCallback(() => {
     setDatasetFrontendFilters({
       type: [],
-      ownership: [],
+      visibility: [],
     });
     setDatasetFilters({});
     setSelectedSoilProperties([]);
@@ -201,7 +204,7 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
   const isFiltersSelected = useMemo((): boolean => {
     return !!(
       datasetFrontendFilters.type.length ||
-      datasetFrontendFilters.ownership.length ||
+      datasetFrontendFilters.visibility.length ||
       selectedTimeFilter.min ||
       selectedTimeFilter.max ||
       selectedSoilProperties.length ||

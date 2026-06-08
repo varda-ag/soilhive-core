@@ -25,8 +25,6 @@ type DataScopeFiltersType = {
   typeFilterPillRemove: (id: string) => void;
   accessFilterPillRemove: (id: string) => void;
   handleTimeFilterChange: (value: TimeFilterState) => void;
-
-  isDataAccessHidden: boolean;
 };
 
 const useDataScopeFilters = (): DataScopeFiltersType => {
@@ -117,18 +115,31 @@ const useDataScopeFilters = (): DataScopeFiltersType => {
     [datasetFrontendFilters.type, setFrontendFilters],
   );
 
+  const accessFilterOptions = useMemo((): Selection[] => {
+    if (!allDatasets.length) return [];
+    const visibilityOptions: string[] = [];
+
+    for (const dataset of allDatasets) {
+      if (dataset.visibility && !visibilityOptions.includes(dataset.visibility)) {
+        visibilityOptions.push(dataset.visibility);
+      }
+    }
+
+    return DATA_ACCESS_ITEMS.filter(item => visibilityOptions.includes(item.id));
+  }, [allDatasets]);
+
   const accessFilterPills = useMemo((): Selection[] => {
-    return DATA_ACCESS_ITEMS.filter(item => datasetFrontendFilters.ownership.includes(item.id));
-  }, [datasetFrontendFilters.ownership]);
+    return DATA_ACCESS_ITEMS.filter(item => datasetFrontendFilters.visibility.includes(item.id));
+  }, [datasetFrontendFilters.visibility]);
 
   const accessFilterPillRemove = useCallback(
     (id: string) => {
       setFrontendFilters(
-        datasetFrontendFilters.ownership.filter(selectedId => selectedId !== id),
-        'ownership',
+        datasetFrontendFilters.visibility.filter(selectedId => selectedId !== id),
+        'visibility',
       );
     },
-    [datasetFrontendFilters.ownership, setFrontendFilters],
+    [datasetFrontendFilters.visibility, setFrontendFilters],
   );
 
   const hasUnavailableScopeSelected = useMemo(() => {
@@ -143,15 +154,13 @@ const useDataScopeFilters = (): DataScopeFiltersType => {
     timeFilterPills,
     typeFilterOptions,
     typeFilterPills,
-    accessFilterOptions: DATA_ACCESS_ITEMS,
+    accessFilterOptions,
     accessFilterPills,
     hasUnavailableScopeSelected,
     typeFilterPillRemove,
     accessFilterPillRemove,
     handleTimeFilterChange,
     setFrontendFilters,
-
-    isDataAccessHidden: true,
   };
 };
 

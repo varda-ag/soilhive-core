@@ -31,6 +31,7 @@ const mockDataset = {
   name: 'SoilGrid Global',
   views: '12.3k',
   tags: ['Global', 'Primary'],
+  visibility: 'public',
   dataType: 'point',
   properties: {
     points: 34546,
@@ -59,6 +60,8 @@ describe('DatasetsListItem', () => {
     expect(screen.getByTestId('sh-datasets-list-item')).toBeInTheDocument();
     expect(screen.getByTestId('mock-checkbox')).toHaveTextContent('SoilGrid Global');
     expect(screen.getByTestId('mock-button')).toHaveTextContent('Metadata');
+
+    expect(screen.getByTestId('tag-Public')).not.toHaveAttribute('data-type');
 
     expect(container).toMatchSnapshot();
   });

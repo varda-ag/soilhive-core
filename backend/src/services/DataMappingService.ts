@@ -21,7 +21,6 @@ export default class DataMappingService {
     if (dataMapping.drop_records && !Array.isArray(dataMapping.drop_records)) {
       throw new ErrorResponse(`drop_records must be an array of numbers`, StatusCodes.BAD_REQUEST);
     }
-
     const repo = requestData.entityManager.getRepository(DataMappingEntity);
 
     const result = await repo
@@ -137,6 +136,7 @@ export default class DataMappingService {
         const ucInfo = props.conversion_id ? (ucInfoMap[props.conversion_id] ?? null) : null;
         const pInfo = props.procedure_id ? (pInfoMap[props.procedure_id] ?? null) : null;
         propsProcessed.property_id = spInfo.id;
+        propsProcessed.standard_unit = spInfo.standard_unit;
         if (ucInfo) {
           propsProcessed.conversion_formula = ucInfo.conversion_formula;
         }

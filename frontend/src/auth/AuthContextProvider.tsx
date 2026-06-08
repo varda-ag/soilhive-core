@@ -23,6 +23,7 @@ export function AuthContextProvider({ children }: { children: React.ReactNode })
     method: 'GET',
     queryKey: ['/auth/config'],
     enabled: true,
+    authenticate: false,
   });
 
   if (isAuthConfigLoading) return;
@@ -71,6 +72,8 @@ function OidcAuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (reactOidcAuth.user?.access_token) {
       saveToken(reactOidcAuth.user.access_token);
+    } else {
+      clearToken();
     }
   }, [reactOidcAuth.user?.access_token]);
 
