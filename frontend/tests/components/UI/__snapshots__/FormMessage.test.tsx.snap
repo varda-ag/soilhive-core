@@ -1,9 +1,9 @@
 // Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
 
-exports[`FormMessage component applies withBackground class 1`] = `
+exports[`FormMessage component applies withBackground and Border classes 1`] = `
 <div>
   <div
-    class="FormMessage InfoMessage Global"
+    class="FormMessage InfoMessage Global Border"
     data-testid="sh-form-message"
   >
     <svg

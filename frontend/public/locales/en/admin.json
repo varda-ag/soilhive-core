@@ -310,6 +310,7 @@
             "step_description": "Review data",
             "title": "Preview",
             "message": "This is the data you are going to load, make sure everything is correct, you can unselect the rows that are not consistent, they won't be loaded in the dataset.",
+            "deletion_warning": "If you delete a row, all the soil properties belonging to it will not be ingested including those not visible on screen.",
             "show_original_name": "Show original name",
             "loading": "Loading...",
             "data_loading": {

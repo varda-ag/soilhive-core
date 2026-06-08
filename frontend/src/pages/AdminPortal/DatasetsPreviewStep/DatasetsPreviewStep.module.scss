@@ -7,6 +7,12 @@
   position: relative;
 }
 
+.TextContent {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
 .Title {
   font-size: var(--font-size-lg);
   font-weight: var(--font-weight-bold);
@@ -15,6 +21,10 @@
 
 .Message {
   font-size: var(--font-size-md);
+}
+
+.DeleteWarning {
+  font-size: var(--font-size-sm);
 }
 
 .TableFilters {

@@ -13,9 +13,11 @@ interface Props {
   message: string;
   type?: FormMessageType;
   withBackground?: boolean;
+  showBorder?: boolean;
+  className?: string;
 }
 
-export function FormMessage({ message, withBackground, type = 'info' }: Props) {
+export function FormMessage({ message, withBackground, className, type = 'info', showBorder = true }: Props) {
   const typeClass = useMemo(
     () =>
       ({
@@ -39,8 +41,9 @@ export function FormMessage({ message, withBackground, type = 'info' }: Props) {
   return (
     <div
       data-testid="sh-form-message"
-      className={classnames(styles.FormMessage, typeClass, {
+      className={classnames(styles.FormMessage, typeClass, className, {
         [styles.Global]: withBackground,
+        [styles.Border]: withBackground && showBorder,
       })}
     >
       <Icon data-testid={`sh-form-message-icon-${type}`} className={styles.FormMessageIcon} />

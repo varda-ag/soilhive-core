@@ -5,16 +5,36 @@ exports[`DatasetsPreviewStep matches snapshot 1`] = `
   <div
     class="DatasetsPreviewStep"
   >
-    <h2
-      class="Title"
+    <div
+      class="TextContent"
     >
-      Preview
-    </h2>
-    <p
-      class="Message"
-    >
-      This is the data you are going to load, make sure everything is correct, you can unselect the rows that are not consistent, they won't be loaded in the dataset.
-    </p>
+      <h2
+        class="Title"
+      >
+        Preview
+      </h2>
+      <p
+        class="Message"
+      >
+        This is the data you are going to load, make sure everything is correct, you can unselect the rows that are not consistent, they won't be loaded in the dataset.
+      </p>
+      <div
+        class="FormMessage WarningMessage DeleteWarning Global"
+        data-testid="sh-form-message"
+      >
+        <svg
+          class="FormMessageIcon"
+          data-testid="sh-form-message-icon-warning"
+        >
+          mock-svg
+        </svg>
+        <span
+          class="FormMessageText"
+        >
+          If you delete a row, all the soil properties belonging to it will not be ingested including those not visible on screen.
+        </span>
+      </div>
+    </div>
     <div
       class="TableFilters"
     >
