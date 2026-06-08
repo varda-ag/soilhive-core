@@ -52,6 +52,7 @@ export interface FilteredDatasetSummary extends FilterCriteria {
   id: string;
   name: string;
   data_type: GISDataType;
+  visibility: string;
   dataset_layer_count: number;
   raster_layer_count: number;
 }
@@ -65,6 +66,7 @@ export interface FilteredDataset {
   id: string;
   name: string;
   data_type: GISDataType;
+  visibility: string;
 }
 
 export interface ResultItem {

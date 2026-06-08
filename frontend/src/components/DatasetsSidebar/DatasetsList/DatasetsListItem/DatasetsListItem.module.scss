@@ -52,15 +52,18 @@
     > .Bottom {
       display: flex;
       justify-content: space-between;
-      align-items: center;
+      align-items: flex-start;
 
       > .MetadataButton {
-        color: var(--color-cta-default-solid);
-        background-color: var(--color-bg-primary);
+        font-weight: normal;
+        color: var(--color-neutral-black);
+        background-color: var(--color-neutral-dark-300);
+      }
 
-        &:hover {
-          color: var(--color-cta-default-hover);
-        }
+      > .VisibilityTag {
+        color: var(--color-neutral-white);
+        background-color: var(--color-neutral-black);
+        border-color: var(--color-neutral-black);
       }
     }
   }

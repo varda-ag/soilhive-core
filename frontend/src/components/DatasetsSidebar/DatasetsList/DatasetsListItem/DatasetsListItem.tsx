@@ -7,6 +7,7 @@ import MapIcon from 'assets/icons/small-map-icon.svg?react';
 import RullerIcon from 'assets/icons/small-ruller-icon.svg?react';
 import LayersIcon from 'assets/icons/small-layers-icon.svg?react';
 import CalendarIcon from 'assets/icons/small-calendar-icon.svg?react';
+import NewTabIcon from 'assets/icons/small-new-tab-icon.svg?react';
 import type { AvailabilityDataset } from 'types/availability';
 
 import styles from './DatasetsListItem.module.scss';
@@ -44,8 +45,9 @@ export function DatasetsListItem({ dataset }: Props) {
         </div>
         <div className={styles.Bottom}>
           <Button size="tiny" type="custom" className={styles.MetadataButton} href={`/datasets/${dataset.id}`}>
-            {t('datasets_list.metadata')}
+            <NewTabIcon /> {t('datasets_list.metadata')}
           </Button>
+          {dataset.visibility && <Tag className={styles.VisibilityTag} text={t(`datasets_list.${dataset.visibility}`)} />}
         </div>
       </div>
       <div className={styles.MetaWrapper}>

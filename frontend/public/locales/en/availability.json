@@ -11,6 +11,7 @@
         "land_ecosystem": "LAND & ECOSYSTEM",
         "soil_properties": "Soil Properties",
         "data_type": "Data type",
+        "data_access": "Data access",
         "time": "Time"
     },
     "filter": {
@@ -60,6 +61,8 @@
     },
     "datasets_list": {
         "metadata": "Metadata",
+        "private": "Private",
+        "public": "Public",
         "points_suffix": "points",
         "raster_layers_suffix": "raster layers",
         "depth_cm_suffix": "cm",
