@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import { useParams } from 'react-router';
 
 import LeaveIngestionImage from 'assets/images/stop-sign-hand.svg?react';
 import { Dialog } from 'components/UI';
@@ -13,6 +14,7 @@ interface Props {
 
 export function LeaveIngestionModal({ visible, onContinue, onCancel }: Props) {
   const { t } = useTranslation('admin');
+  const { id } = useParams();
 
   return (
     <Dialog
@@ -28,7 +30,7 @@ export function LeaveIngestionModal({ visible, onContinue, onCancel }: Props) {
     >
       <>
         <LeaveIngestionImage />
-        <p>{t('datasets.leave_ingestion_modal.message')}</p>
+        <p>{t(`datasets.leave_ingestion_modal.${id ? 'message' : 'message_new_dataset'}`)}</p>
       </>
     </Dialog>
   );

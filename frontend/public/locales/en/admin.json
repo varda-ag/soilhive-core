@@ -381,9 +381,10 @@
         },
         "leave_ingestion_modal": {
             "title": "Leave this process?",
-            "message": "Your progress will be saved. You can return later and continue editing from the datasets list.",
+            "message": "You can return later and continue editing from the datasets list.",
+            "message_new_dataset": "If you leave this process at this point, the progress won’t be saved.",
             "cancel": "Stay here",
-            "confirm": "Leave and save progress"
+            "confirm": "Leave without saving"
         }
     },
     "filters": {

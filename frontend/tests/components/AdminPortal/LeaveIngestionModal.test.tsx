@@ -1,5 +1,10 @@
 import { render, screen, fireEvent } from '@testing-library/react';
+import { useParams } from 'react-router';
 import { LeaveIngestionModal } from 'components/AdminPortal/LeaveIngestionModal/LeaveIngestionModal';
+
+jest.mock('react-router', () => ({
+  useParams: jest.fn(),
+}));
 
 jest.mock('components/UI', () => ({
   Dialog: ({ visible, header, secondaryText, primaryText, onPrimary, onSecondary, onClose, children }: any) =>
@@ -24,6 +29,10 @@ describe('LeaveIngestionModal', () => {
     onContinue: jest.fn(),
     onCancel: jest.fn(),
   };
+
+  beforeEach(() => {
+    (useParams as jest.Mock).mockReturnValue({});
+  });
 
   afterEach(() => {
     jest.clearAllMocks();
@@ -50,16 +59,21 @@ describe('LeaveIngestionModal', () => {
   it('renders the translated button texts', () => {
     render(<LeaveIngestionModal {...defaultProps} />);
 
-    expect(screen.getByTestId('btn-secondary')).toHaveTextContent('Leave and save progress');
+    expect(screen.getByTestId('btn-secondary')).toHaveTextContent('Leave without saving');
     expect(screen.getByTestId('btn-primary')).toHaveTextContent('Stay here');
   });
 
-  it('renders the translated message', () => {
+  it('renders the new-dataset message when no id is in the URL', () => {
     render(<LeaveIngestionModal {...defaultProps} />);
 
-    expect(screen.getByTestId('dialog-content')).toHaveTextContent(
-      'Your progress will be saved. You can return later and continue editing from the datasets list.',
-    );
+    expect(screen.getByTestId('dialog-content')).toHaveTextContent('If you leave this process at this point, the progress won’t be saved.');
+  });
+
+  it('renders the existing-dataset message when id is present in the URL', () => {
+    (useParams as jest.Mock).mockReturnValue({ id: 'abc' });
+    render(<LeaveIngestionModal {...defaultProps} />);
+
+    expect(screen.getByTestId('dialog-content')).toHaveTextContent('You can return later and continue editing from the datasets list.');
   });
 
   it('calls onContinue when the confirm (secondary) button is clicked', () => {
