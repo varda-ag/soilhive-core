@@ -8,4 +8,5 @@ export interface APIRequestConfig {
   showErrorNotification?: boolean;
   notFoundAsNull?: boolean;
   ignoreAbortError?: boolean;
+  authenticate?: boolean;
 }
