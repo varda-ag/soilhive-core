@@ -11,6 +11,7 @@ export class UserGeometries1781000000000 implements MigrationInterface {
         "id" uuid NOT NULL DEFAULT uuidv7(),
         "geom" geometry,
         "geom_hash" text GENERATED ALWAYS AS (encode(sha256(geom::TEXT::BYTEA), 'hex')) STORED NOT NULL,
+        "area" double precision GENERATED ALWAYS AS (ST_Area(geom::geography)) STORED,
         CONSTRAINT "UQ_user_geometries_geom_hash" UNIQUE ("geom_hash"),
         CONSTRAINT "PK_user_geometries_id" PRIMARY KEY ("id")
       )`,

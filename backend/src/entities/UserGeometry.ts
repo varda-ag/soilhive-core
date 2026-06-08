@@ -19,4 +19,7 @@ export default class UserGeometryEntity extends BaseEntity {
 
   @Column({ type: 'text', generatedType: 'STORED', asExpression: `encode(sha256(geom::TEXT::BYTEA), 'hex')` })
   geom_hash: string;
+
+  @Column({ type: 'double precision', generatedType: 'STORED', asExpression: `ST_Area(geom::geography)`, nullable: true })
+  area: number | null;
 }
