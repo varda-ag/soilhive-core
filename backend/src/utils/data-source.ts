@@ -31,12 +31,11 @@ const createDataSource = async (schema: string, includeEntities = true): Promise
     poolSize: 50,
     extra: {
       statement_timeout: 20000,
+      options: `-c search_path="${schema}",public`,
     },
     cache: !isJest(),
   });
   await dataSource.initialize();
-  const escapedSchema = `"${schema}"`;
-  await dataSource.query(`SET search_path TO ${escapedSchema}, public`);
   return dataSource;
 };
 

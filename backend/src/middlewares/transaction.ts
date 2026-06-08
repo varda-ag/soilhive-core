@@ -28,11 +28,6 @@ export const transactionMiddleware = async (req: Request, res: Response, next: N
   };
 
   if (req.method === 'GET') {
-    if (schema) {
-      const escapedSchema = `"${schema.replaceAll('"', '""')}"`;
-      await queryRunner.query(`SET search_path TO ${escapedSchema}, public`);
-    }
-
     req.customData = req.customData || { entityManager: queryRunner.manager };
 
     res.on('close', async () => {
