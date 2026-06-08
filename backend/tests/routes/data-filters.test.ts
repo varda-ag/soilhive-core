@@ -81,6 +81,64 @@ describe('Testing /data-filters routes', () => {
     expect(row).toBeTruthy();
   });
 
+  it('Filter geometry should be stored in user_geometries with a join row', async () => {
+    const payload = { parameters: {}, geometries: [filteringPolygon] };
+    const res = await request(app).post('/data-filters').set(superAdminAuthHeader).send(payload);
+    expect(res.statusCode).toBe(StatusCodes.CREATED);
+
+    const dataSource = await getDataSource();
+    const joinRepo = dataSource.getRepository('DataFilterUserGeometryEntity');
+    const geomRepo = dataSource.getRepository('UserGeometryEntity');
+
+    const joinRows = await joinRepo.findBy({ data_filter_id: res.body.id });
+    expect(joinRows.length).toBe(1);
+
+    const userGeom = await geomRepo.findOneBy({ id: joinRows[0].user_geometry_id });
+    expect(userGeom).toBeDefined();
+    expect(userGeom!.geom).toBeTruthy();
+  });
+
+  it('Two filters with the same geometry share one user_geometries row', async () => {
+    const payload = { parameters: {}, geometries: [filteringPolygon] };
+    const res1 = await request(app).post('/data-filters').set(superAdminAuthHeader).send(payload);
+    const res2 = await request(app).post('/data-filters').set(superAdminAuthHeader).send(payload);
+
+    const dataSource = await getDataSource();
+    const joinRepo = dataSource.getRepository('DataFilterUserGeometryEntity');
+
+    const [join1] = await joinRepo.findBy({ data_filter_id: res1.body.id });
+    const [join2] = await joinRepo.findBy({ data_filter_id: res2.body.id });
+
+    expect(join1.user_geometry_id).toBe(join2.user_geometry_id);
+  });
+
+  it('Multiple geometries in a filter each get a user_geometries row and join entry', async () => {
+    const secondPolygon = {
+      type: 'Polygon',
+      coordinates: [
+        [
+          [10, 10],
+          [11, 10],
+          [11, 11],
+          [10, 11],
+          [10, 10],
+        ],
+      ],
+    };
+    const payload = { parameters: {}, geometries: [filteringPolygon, secondPolygon] };
+    const res = await request(app).post('/data-filters').set(superAdminAuthHeader).send(payload);
+    expect(res.statusCode).toBe(StatusCodes.CREATED);
+
+    const dataSource = await getDataSource();
+    const joinRepo = dataSource.getRepository('DataFilterUserGeometryEntity');
+
+    const joinRows = await joinRepo.findBy({ data_filter_id: res.body.id });
+    expect(joinRows.length).toBe(2);
+
+    const ids = joinRows.map((r: any) => r.user_geometry_id);
+    expect(new Set(ids).size).toBe(2);
+  });
+
   it('Filter should be stored in DB twice even if parameters are the same', async () => {
     const payload = {
       parameters: {},

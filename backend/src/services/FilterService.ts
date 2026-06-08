@@ -9,6 +9,8 @@ import { RequestData } from '../interfaces/RequestData';
 import { ErrorResponse } from '../utils/error';
 import { mergeMin, mergeMax } from '../utils/utils';
 import DataFilterEntity from '../entities/DataFilter';
+import UserGeometryEntity from '../entities/UserGeometry';
+import DataFilterUserGeometryEntity from '../entities/DataFilterUserGeometry';
 import { DataAvailabilityIndex } from '../interfaces/Dai';
 import { getPolygonFromBbox, geometryUnion } from '../utils/geometry';
 
@@ -30,7 +32,32 @@ export default class FilterService {
     const owner = requestData.token?.sub;
     const repo = requestData.entityManager.getRepository(DataFilterEntity);
     const entity = repo.create({ filter, ...(owner ? { owner } : {}) });
-    return await repo.save(entity);
+    const savedFilter = await repo.save(entity);
+
+    for (const geometry of filter.geometries) {
+      const geomJson = JSON.stringify(geometry);
+
+      const inserted = await requestData.entityManager
+        .createQueryBuilder()
+        .insert()
+        .into(UserGeometryEntity)
+        .values({ geom: () => `ST_GeomFromGeoJSON(:geom)` })
+        .setParameter('geom', geomJson)
+        .orUpdate(['geom'], ['geom_hash'])
+        .returning('id')
+        .execute();
+
+      const userGeometryId: string = inserted.raw[0].id;
+
+      await requestData.entityManager
+        .createQueryBuilder()
+        .insert()
+        .into(DataFilterUserGeometryEntity)
+        .values({ data_filter_id: savedFilter.id, user_geometry_id: userGeometryId })
+        .execute();
+    }
+
+    return savedFilter;
   };
 
   getFilters = async (requestData: RequestData): Promise<DataFilterEntity[]> => {

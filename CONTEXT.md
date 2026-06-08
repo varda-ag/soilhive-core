@@ -36,6 +36,10 @@ _Avoid_: Query, search, selection
 The effective spatial geometry used for a query. For the DAI, this is the intersection of the Filter's geometries with the current map viewport bounding box.
 _Avoid_: Geometry, polygon, bounding box (when referring to the combined effective area)
 
+**UserGeometry**:
+A user-supplied Polygon or MultiPolygon stored in PostGIS format, representing one spatial boundary within a Filter's AOI definition. Persisted in the `user_geometries` table. Distinct from a Feature, which is a soil sampling location within a Dataset.
+_Avoid_: Feature, AOI (a UserGeometry is one component of the AOI, not the AOI itself), geometry (too generic)
+
 **Data Availability Index (DAI)**:
 A composite score that quantifies the richness of soil data within an H3 cell. Computed on-demand per filter + viewport. Only point and polygonal features contribute; raster datasets are excluded from scoring.
 _Avoid_: Data density, coverage score, heatmap score
@@ -52,6 +56,7 @@ _Avoid_: Hex, hexagon, grid cell
 - A **DatasetLayer** has one or more **Observations**
 - A **Layer** carries the `sampling_date`, `min_depth`, and `max_depth` for its associated **Observations** — there is no date on **Observation** itself
 - A **Filter** defines the scope for **DAI** computation; the effective **AOI** is the intersection of the Filter's geometries with the map viewport
+- A **Filter** has zero or more **UserGeometries**; each **UserGeometry** may belong to more than one **Filter**
 
 ## Example dialogue
 
