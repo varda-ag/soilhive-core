@@ -33,10 +33,23 @@ describe('FormMessage component', () => {
     expect(container).toMatchSnapshot();
   });
 
-  it('applies withBackground class', () => {
+  it('applies withBackground and Border classes', () => {
     const { container } = render(<FormMessage message="With background" withBackground />);
 
     expect(screen.getByTestId('sh-form-message')).toHaveClass('Global');
+    expect(screen.getByTestId('sh-form-message')).toHaveClass('Border');
     expect(container).toMatchSnapshot();
+  });
+
+  it('accepts additional className', () => {
+    render(<FormMessage message="Message" className="test-class" />);
+
+    expect(screen.getByTestId('sh-form-message')).toHaveClass('test-class');
+  });
+
+  it('does not apply Border class with showBorder false', () => {
+    render(<FormMessage message="Message" withBackground showBorder={false} />);
+
+    expect(screen.getByTestId('sh-form-message')).not.toHaveClass('Border');
   });
 });
