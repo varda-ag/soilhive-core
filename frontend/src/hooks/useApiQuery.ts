@@ -25,6 +25,7 @@ type UseApiQueryOptions<TResponse, TBody = void> = {
   notFoundAsNull?: boolean;
   isBlobResponse?: boolean;
   abortOnNewQuery?: boolean;
+  authenticate?: boolean;
 };
 
 export function useApiQuery<TResponse, TBody = void>({
@@ -40,6 +41,7 @@ export function useApiQuery<TResponse, TBody = void>({
   notFoundAsNull,
   isBlobResponse = false,
   abortOnNewQuery = false,
+  authenticate,
 }: UseApiQueryOptions<TResponse, TBody>) {
   const { request } = useRequest();
 
@@ -62,6 +64,7 @@ export function useApiQuery<TResponse, TBody = void>({
       showErrorNotification,
       notFoundAsNull,
       isBlobResponse,
+      authenticate,
     }).finally(() => {
       inflightRequests.delete(requestKey);
     });
