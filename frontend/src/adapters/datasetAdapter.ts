@@ -24,6 +24,7 @@ export function mapFilteredDatasetToAvailabilityDataset(dataset: FilteredDataset
     views: '0', // TODO: views not supported at the moment
     tags: [], // TODO: tags not supported at the moment
     dataType: dataset.data_type,
+    visibility: dataset.visibility,
     properties: {},
   };
 }
@@ -35,6 +36,7 @@ export function mapFilteredDatasetSummaryToAvailabilityDataset(dataset: Filtered
     views: '0', // TODO: views not supported at the moment
     tags: [], // TODO: tags not supported at the moment
     dataType: dataset.data_type,
+    visibility: dataset.visibility,
     properties: {
       points: dataset.dataset_layer_count,
       layers: dataset.raster_layer_count,
