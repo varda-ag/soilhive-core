@@ -58,7 +58,7 @@ export function FilteringSidebarDataScope() {
         )}
       </Accordion>
       <Accordion
-        title="Data access"
+        title={t('filtering_sidebar_content.data_access', 'Data access')}
         type="secondary"
         pillsSlot={accessFilterPills.length ? <SelectionPills selections={accessFilterPills} onRemove={accessFilterPillRemove} /> : null}
       >
