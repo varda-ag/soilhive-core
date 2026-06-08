@@ -13,7 +13,7 @@ import { GISDataType, IngestionStatus } from '../../src/types/data';
 import * as RasterUtilsModule from '../../src/utils/raster';
 import * as FilteringMasksModule from '../../src/data-layer/FilteringMasks';
 import { invalidGeometryPayload } from './invalidGeometryPayload.ts';
-import { getRasterMask, getVectorMask } from '../../src/data-layer/FilteringMasks';
+import { getRasterMask, getVectorMaskGeometry as getVectorMask } from '../../src/data-layer/FilteringMasks';
 import { FilterCriteria } from '../../src/interfaces/DatasetFilter';
 import path from 'path';
 

@@ -6,7 +6,7 @@ import { MultiPolygon, Polygon } from 'geojson';
 import { EntityManager } from 'typeorm';
 import { selectOverviewTable, getOverviewPixelSizeM } from '../utils/raster';
 import { geometryUnion } from '../utils/geometry';
-import { DataFilter } from '../interfaces/DatasetFilter';
+import { DataFilter, FilterCriteria } from '../interfaces/DatasetFilter';
 import { getEnabledRasterFilterTables } from './SoilDataStorage';
 import { getDateTimeString } from '../jobs/soil-export/storageHelpers';
 
@@ -64,7 +64,79 @@ const hasMatchingRasterValues = async (entityManager: EntityManager, dataFilter:
   return true;
 };
 
-export const getVectorMask = async (entityManager: EntityManager, dataFilter: DataFilter): Promise<MultiPolygon> => {
+export type CteDef = { name: string; sql: string; materialized?: boolean };
+
+/**
+ * Returns a chain of CTEs that resolves to an `aoi` CTE containing the vector mask
+ * geometry (user geometry intersected with any active raster filter values).
+ * The chain is: aoi_raw → clipped raster CTEs → mask CTEs → aoi.
+ * Pass the returned array to the query builder via addCommonTableExpression, then
+ * setParameter('geometryId', ...) to bind the UUID.
+ */
+export const getVectorMask = async (entityManager: EntityManager, geometryId: string, filters: FilterCriteria): Promise<CteDef[]> => {
+  const schema = process.env.POSTGRES_SCHEMA;
+  const enabledRasterFilterTables = await getEnabledRasterFilterTables();
+  const raster_filters = filters.raster_filters;
+  const ctes: CteDef[] = [];
+  const maskCteNames: string[] = [];
+
+  ctes.push({
+    name: 'aoi_raw',
+    sql: `SELECT ST_CollectionExtract(ST_MakeValid(ug.geom, 'method=structure'), 3) AS geom
+          FROM ${schema}.user_geometries ug WHERE ug.id = :geometryId`,
+    materialized: true,
+  });
+
+  if (raster_filters) {
+    const [{ area }] = await entityManager.query(`SELECT area FROM ${schema}.user_geometries WHERE id = $1::uuid`, [geometryId]);
+    const aoiAreaM2 = Number(area);
+
+    for (const baseTable of enabledRasterFilterTables) {
+      const values = raster_filters[baseTable];
+      if (!values || values.length === 0) continue;
+
+      const table = selectOverviewTable(baseTable, aoiAreaM2);
+      const clippedRaster = `clipped_${table}`;
+      const maskCte = `mask_${baseTable}`;
+
+      ctes.push({
+        name: clippedRaster,
+        sql: `SELECT ST_Union(ST_Clip(rr.rast, aoi_raw.geom, touched => TRUE)) AS rast
+              FROM ${schema}.${table} rr
+              CROSS JOIN aoi_raw
+              WHERE ST_Intersects(rr.rast, aoi_raw.geom)`,
+        materialized: true,
+      });
+
+      ctes.push({
+        name: maskCte,
+        sql: `SELECT ST_Union(dp.geom) AS geom
+              FROM ${clippedRaster}
+              CROSS JOIN LATERAL ST_DumpAsPolygons(${clippedRaster}.rast) dp
+              WHERE dp.val = ANY(ARRAY[${values.join(',')}]::double precision[])`,
+        materialized: true,
+      });
+
+      maskCteNames.push(maskCte);
+    }
+  }
+
+  const resultExpr = maskCteNames.reduce((acc, m) => `ST_Intersection(${acc}, ${m}.geom)`, 'aoi_raw.geom');
+  const fromTables = ['aoi_raw', ...maskCteNames].join(', ');
+  const whereClause = maskCteNames.length > 0 ? `WHERE ${maskCteNames.map(m => `${m}.geom IS NOT NULL`).join(' AND ')}` : '';
+
+  ctes.push({
+    name: 'aoi',
+    sql: `SELECT ST_Multi(ST_CollectionExtract(ST_MakeValid(${resultExpr}, 'method=structure'), 3)) AS geom
+          FROM ${fromTables}
+          ${whereClause}`,
+    materialized: true,
+  });
+
+  return ctes;
+};
+
+export const getVectorMaskGeometry = async (entityManager: EntityManager, dataFilter: DataFilter): Promise<MultiPolygon> => {
   if (dataFilter.geometries.length === 0) {
     return { type: 'MultiPolygon', coordinates: [] };
   }
