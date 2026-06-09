@@ -4,7 +4,7 @@
 2. Install [GDAL](https://gdal.org/en/stable/download.html)
 3. Copy `.env-example` to `.env` and set proper values (defaults are provided)
 4. Install `node` version 24
-5. Install dependencies with `npm i --build-from-source --shared_gdal`
+5. Install dependencies with `npm i`
 6. Test with `npm run test`
 7. Run with `npm run dev`
 
