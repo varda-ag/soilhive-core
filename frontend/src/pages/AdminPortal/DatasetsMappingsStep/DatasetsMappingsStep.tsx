@@ -5,7 +5,12 @@ import { useMappingsStep } from 'hooks/useMappingsStep';
 import { MappingsBanner } from './MappingsBanner';
 import { MappingsTable } from './MappingsTable';
 import { MappingFieldsPane } from './MappingFieldsPane';
+import { IngestionStepTitleRow } from 'components/AdminPortal/IngestionStepTitleRow/IngestionStepTitleRow';
+import { INGESTION_DOCS_URL } from 'configuration/ingestion';
+
 import styles from './DatasetsMappingsStep.module.scss';
+
+const DOCS_URL = `${INGESTION_DOCS_URL}#data-mapping`;
 
 export function DatasetsMappingsStep() {
   const { t } = useTranslation('admin');
@@ -40,7 +45,7 @@ export function DatasetsMappingsStep() {
   return (
     <>
       <div className={styles.DatasetsMappingsStep}>
-        <h2 className={styles.PageTitle}>{t('datasets.mappings.title')}</h2>
+        <IngestionStepTitleRow className={styles.TitleRow} title={t('datasets.mappings.title')} docsLink={DOCS_URL} />
         <p className={styles.Subtitle}>{t('datasets.mappings.subtitle')}</p>
 
         <MappingsBanner mappedCount={mappedCount} unmappedCount={unmappedCount} />

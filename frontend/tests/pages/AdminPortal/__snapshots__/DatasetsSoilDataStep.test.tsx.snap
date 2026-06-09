@@ -5,11 +5,30 @@ exports[`DatasetsSoilDataStep renders matches snapshot 1`] = `
   <div
     class="DatasetsSoilDataStep"
   >
-    <h2
-      class="Title"
+    <div
+      class="IngestionStepTitleRow TitleRow"
     >
-      Add file/s
-    </h2>
+      <h2
+        class="Title"
+      >
+        Add file/s
+      </h2>
+      <a
+        class="DocumentationLink"
+        data-testid="sh-documentaion-link"
+        href="https://github.com/varda-ag/soilhive-core/blob/main/docs/user-guides/data-load.md#file-upload"
+        rel="noreferrer"
+        target="_blank"
+      >
+        <svg
+          data-testid="svg-icon-mock"
+        >
+          mock-svg
+        </svg>
+         
+        Open documentation
+      </a>
+    </div>
     <div
       class="InfoBanner"
     >

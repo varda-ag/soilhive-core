@@ -223,7 +223,8 @@
             "save_and_continue_later": "Save and continue later",
             "continue": "Continue",
             "previous": "Previous",
-            "cancel": "Cancel"
+            "cancel": "Cancel",
+            "open_documentation": "Open documentation"
         },
         "general_info": {
             "step_title": "General info",
