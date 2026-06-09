@@ -44,7 +44,6 @@ export const initializeSchema = async () => {
   const dataSourcePublic = await createDataSource('public', false);
   const escapedSchema = `"${process.env.POSTGRES_SCHEMA}"`;
   await dataSourcePublic.query(`CREATE SCHEMA IF NOT EXISTS ${escapedSchema}`);
-  await dataSourcePublic.query(`CREATE EXTENSION IF NOT EXISTS postgis SCHEMA ${escapedSchema}`);
   // Connect to custom schema to run migrations
   const dataSource = await createDataSource(process.env.POSTGRES_SCHEMA!);
   await runConditionalMigrations(dataSource);

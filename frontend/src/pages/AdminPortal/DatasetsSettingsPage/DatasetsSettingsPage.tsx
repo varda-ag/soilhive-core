@@ -157,7 +157,13 @@ export function DatasetsSettingsPage() {
                   onChange={handleEmailChange}
                   onBlur={handleEmailBlur}
                 />
-                <Button type="primary" size="small" form="add-email-form" isDisabled={!isValidEmail(emailInput)}>
+                <Button
+                  className={styles.EmailAddButton}
+                  type="primary"
+                  size="small"
+                  form="add-email-form"
+                  isDisabled={!isValidEmail(emailInput)}
+                >
                   {t('datasets.settings.access.add_button')}
                 </Button>
               </form>
