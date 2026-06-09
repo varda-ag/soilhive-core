@@ -34,6 +34,10 @@ jest.mock('../../src/pages/AdminPortal/DatasetsMappingsStep/DatasetsMappingsStep
   DatasetsMappingsStep: () => <div>DatasetsMappingsStep page</div>,
 }));
 
+jest.mock('../../src/pages/AdminPortal/DatasetsSoilDataStep/DatasetsSoilDataStep', () => ({
+  DatasetsSoilDataStep: () => <div>DatasetsSoilDataStep page</div>,
+}));
+
 jest.mock('hooks/useTheme', () => ({
   __esModule: true,
   default: jest.fn().mockReturnValue({
@@ -68,6 +72,14 @@ jest.mock('../../src/hooks/useDatasetsSoilData', () => ({
     handleContinue: jest.fn(),
   }),
   ALLOWED_EXTENSIONS: ['.csv', '.gpkg', '.geojson', '.shp', '.xlsx', '.zip'],
+}));
+
+jest.mock('../../src/contexts/IngestionFlowContext', () => ({
+  IngestionFlowProvider: ({ children }: { children: React.ReactNode }) => <div data-testid="ingestion-flow-provider">{children}</div>,
+}));
+
+jest.mock('../../src/guards/IngestionFlowGuard', () => ({
+  IngestionFlowGuard: () => <div data-testid="ingestion-flow-guard" />,
 }));
 
 function renderWithRouter(initialPath = ADMIN_ROOT) {
@@ -162,5 +174,18 @@ describe('AdminPortalModule', () => {
 
     expect(screen.getByText('MapBasedFilters page')).toBeInTheDocument();
     expect(screen.getByTestId('page-title')).toHaveTextContent('SoilHive - Map-based filters');
+  });
+
+  it('wraps the module in IngestionFlowProvider', () => {
+    renderWithRouter();
+
+    expect(screen.getByTestId('ingestion-flow-provider')).toBeInTheDocument();
+  });
+
+  it('renders IngestionFlowGuard inside IngestionFlowProvider', () => {
+    renderWithRouter();
+
+    const provider = screen.getByTestId('ingestion-flow-provider');
+    expect(provider).toContainElement(screen.getByTestId('ingestion-flow-guard'));
   });
 });

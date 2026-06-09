@@ -15,12 +15,14 @@ import type {
 import { useSoilProperties } from './useSoilProperties';
 import { ADMIN_PATHS } from '../configuration/admin';
 import { sanitizeField } from '../utilities/dataMapping';
+import useIngestionFlow from './useIngestionFlow';
 
 export const SOIL_DATA_LIMIT = 12;
 
 export function useDatasetPreview(datasetId?: string) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { markAsChanged, resetChanges } = useIngestionFlow();
 
   useEffect(() => {
     return () => {
@@ -144,6 +146,7 @@ export function useDatasetPreview(datasetId?: string) {
   const toggleDeletion = useCallback(
     (recordId: number) => {
       if (!selectedFile) return;
+      markAsChanged();
       setMarkedForDeletion(prev => {
         const next = new Map(prev);
         const fileSet = new Set(next.get(selectedFile) ?? []);
@@ -156,7 +159,7 @@ export function useDatasetPreview(datasetId?: string) {
         return next;
       });
     },
-    [selectedFile],
+    [selectedFile, markAsChanged],
   );
 
   const currentFileDeletions = useMemo(
@@ -218,6 +221,7 @@ export function useDatasetPreview(datasetId?: string) {
   const save = useCallback(async () => {
     if (!datasetId || !datasetFileMappings?.length) return;
 
+    resetChanges();
     for (const fileMapping of datasetFileMappings) {
       const dataMapping = mappings?.find(m => m.id === fileMapping.mappingId)?.data_mapping;
       if (!dataMapping) continue;
@@ -227,7 +231,7 @@ export function useDatasetPreview(datasetId?: string) {
       const newMapping = await createMapping({ ...dataMapping, drop_records: [...deletionSet] });
       await updateFileMapping({ fileID: fileMapping.fileID, mappingId: newMapping.id });
     }
-  }, [datasetId, datasetFileMappings, mappings, markedForDeletion, createMapping, updateFileMapping]);
+  }, [datasetId, datasetFileMappings, mappings, markedForDeletion, createMapping, updateFileMapping, resetChanges]);
 
   const handlePrevious = useCallback(() => {
     navigate(`${ADMIN_PATHS.DATASETS}/edit/${datasetId}/mappings`);

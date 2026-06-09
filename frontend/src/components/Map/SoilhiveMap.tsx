@@ -311,6 +311,9 @@ function SoilhiveMap({
       mapRef.current.setFeatureState({ source: 'data', id: selectedH3Cell.id }, { selected: false });
       setSelectedH3Cell(null);
     }
+    // Removes the last searched place from the geocoder's input in the toolbar otherwise if you search for the same
+    // place again it doesnt re-select the area
+    (document.querySelector('.maplibregl-ctrl-geocoder--button') as HTMLButtonElement)?.click();
     setSelectedPoint(null);
     setSelection(emptySelection);
     selectionTypeRef.current = 'drawn-polygon';
