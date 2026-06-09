@@ -1,8 +1,7 @@
-import { useTranslation, Trans } from 'react-i18next';
+import { useTranslation } from 'react-i18next';
 
 import { Button, FileUploadBox } from 'components/UI';
 import { IngestionStepTitleRow } from 'components/AdminPortal/IngestionStepTitleRow/IngestionStepTitleRow';
-import InfoIcon from 'assets/icons/info-icon.svg?react';
 import { SoilDataFileRow } from './SoilDataFileRow/SoilDataFileRow';
 import { useDatasetsSoilData, ALLOWED_EXTENSIONS } from '../../../hooks/useDatasetsSoilData';
 import { INGESTION_DOCS_URL } from 'configuration/ingestion';
@@ -33,17 +32,6 @@ export function DatasetsSoilDataStep() {
   return (
     <div className={styles.DatasetsSoilDataStep}>
       <IngestionStepTitleRow className={styles.TitleRow} title={t('datasets.soil_data.title')} docsLink={DOCS_URL} />
-
-      <div className={styles.InfoBanner}>
-        <InfoIcon className={styles.InfoIcon} />
-        <Trans
-          t={t}
-          i18nKey="datasets.soil_data.template_docs_banner"
-          components={{
-            a: <a href={DOCS_URL} target="_blank" rel="noopener noreferrer" className={styles.DocLink} />,
-          }}
-        />
-      </div>
 
       <FileUploadBox
         files={uploadingFiles}

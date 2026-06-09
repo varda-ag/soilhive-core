@@ -29,17 +29,6 @@ exports[`DatasetsSoilDataStep renders matches snapshot 1`] = `
         Open documentation
       </a>
     </div>
-    <div
-      class="InfoBanner"
-    >
-      <svg
-        class="InfoIcon"
-        data-testid="svg-icon-mock"
-      >
-        mock-svg
-      </svg>
-      datasets.soil_data.template_docs_banner
-    </div>
     <div>
       <label
         class="FileUploadBox"
