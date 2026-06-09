@@ -4,8 +4,6 @@ export class UserGeometries1781000000000 implements MigrationInterface {
   name = 'UserGeometries1781000000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`SET search_path TO ${process.env.POSTGRES_SCHEMA}, public`);
-
     await queryRunner.query(
       `CREATE TABLE "user_geometries" (
         "id" uuid NOT NULL DEFAULT uuidv7(),
@@ -34,7 +32,6 @@ export class UserGeometries1781000000000 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`SET search_path TO ${process.env.POSTGRES_SCHEMA}, public`);
     await queryRunner.query(`DROP TABLE IF EXISTS "data_filter_user_geometries"`);
     await queryRunner.query(`DROP INDEX IF EXISTS "idx_user_geometries_geometry_type"`);
     await queryRunner.query(`DROP INDEX IF EXISTS "idx_user_geometries_geography"`);

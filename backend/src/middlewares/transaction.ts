@@ -8,7 +8,6 @@ export const transactionMiddleware = async (req: Request, res: Response, next: N
     return next();
   }
 
-  const schema = process.env.POSTGRES_SCHEMA;
   const dataSource = await getDataSource();
   const queryRunner = dataSource.createQueryRunner();
   await queryRunner.connect();
@@ -39,11 +38,6 @@ export const transactionMiddleware = async (req: Request, res: Response, next: N
   }
 
   await queryRunner.startTransaction();
-
-  if (schema) {
-    const escapedSchema = `"${schema.replaceAll('"', '""')}"`;
-    await queryRunner.query(`SET LOCAL search_path TO ${escapedSchema}, public`);
-  }
 
   req.customData = req.customData || { entityManager: queryRunner.manager };
 
