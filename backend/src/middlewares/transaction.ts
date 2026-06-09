@@ -1,10 +1,11 @@
 import { Request, Response, NextFunction } from 'express';
 import { getDataSource } from '../utils/data-source';
 
-const skip = ['/health', '/ready', '/docs', '/openapi.json'];
+const skip = ['/health', '/ready', '/docs', '/openapi.json', '/oauth'];
 
 export const transactionMiddleware = async (req: Request, res: Response, next: NextFunction) => {
   if (skip.some(p => req.path.startsWith(p))) {
+    req.customData = req.customData || {};
     return next();
   }
 
