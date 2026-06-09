@@ -79,11 +79,8 @@ gdal-config --version   # should print 3.x.x
 ```sh
 cd backend
 cp .env-example .env   # then edit .env — see section 5
-npm install --build-from-source --shared_gdal
+npm install
 ```
-
-The `--build-from-source --shared_gdal` flags compile `gdal-async` against the
-system GDAL library instead of bundling its own.
 
 ### Run migrations
 
