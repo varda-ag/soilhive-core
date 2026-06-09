@@ -3,9 +3,13 @@ import { useParams } from 'react-router';
 import { Button, FormMessage, TextInput, TextArea } from 'components/UI';
 import { useGeneralInfoForm } from 'hooks/useGeneralInfoForm';
 import InfoSquareIcon from 'assets/icons/info-square-icon.svg?react';
+import { IngestionStepTitleRow } from 'components/AdminPortal/IngestionStepTitleRow/IngestionStepTitleRow';
 import { ADMIN_PATHS } from '../../../configuration/admin';
+import { INGESTION_DOCS_URL } from 'configuration/ingestion';
 
 import styles from './DatasetsGeneralInfoStep.module.scss';
+
+const DOCS_URL = `${INGESTION_DOCS_URL}#dataset-metadata`;
 
 export function DatasetsGeneralInfoStep() {
   const { t } = useTranslation('admin');
@@ -35,7 +39,7 @@ export function DatasetsGeneralInfoStep() {
   return (
     <>
       <div className={styles.DatasetsGeneralInfoStep}>
-        <h2 className={styles.PageTitle}>{t('datasets.general_info.page_title')}</h2>
+        <IngestionStepTitleRow className={styles.TitleRow} title={t('datasets.general_info.page_title')} docsLink={DOCS_URL} />
 
         <div className={styles.Card}>
           <div className={styles.CardHeader}>

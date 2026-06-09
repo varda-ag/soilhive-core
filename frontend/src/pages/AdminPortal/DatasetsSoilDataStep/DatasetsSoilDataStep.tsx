@@ -1,11 +1,14 @@
-import { useTranslation, Trans } from 'react-i18next';
+import { useTranslation } from 'react-i18next';
+
 import { Button, FileUploadBox } from 'components/UI';
+import { IngestionStepTitleRow } from 'components/AdminPortal/IngestionStepTitleRow/IngestionStepTitleRow';
 import { SoilDataFileRow } from './SoilDataFileRow/SoilDataFileRow';
 import { useDatasetsSoilData, ALLOWED_EXTENSIONS } from '../../../hooks/useDatasetsSoilData';
-import styles from './DatasetsSoilDataStep.module.scss';
-import InfoIcon from 'assets/icons/info-icon.svg?react';
+import { INGESTION_DOCS_URL } from 'configuration/ingestion';
 
-const TEMPLATE_DOCS_URL = 'https://github.com/varda-ag/soilhive-core/blob/main/docs/data-load.md#file-upload';
+import styles from './DatasetsSoilDataStep.module.scss';
+
+const DOCS_URL = `${INGESTION_DOCS_URL}#file-upload`;
 
 export function DatasetsSoilDataStep() {
   const { t } = useTranslation('admin');
@@ -28,18 +31,7 @@ export function DatasetsSoilDataStep() {
 
   return (
     <div className={styles.DatasetsSoilDataStep}>
-      <h2 className={styles.Title}>{t('datasets.soil_data.title')}</h2>
-
-      <div className={styles.InfoBanner}>
-        <InfoIcon className={styles.InfoIcon} />
-        <Trans
-          t={t}
-          i18nKey="datasets.soil_data.template_docs_banner"
-          components={{
-            a: <a href={TEMPLATE_DOCS_URL} target="_blank" rel="noopener noreferrer" className={styles.DocLink} />,
-          }}
-        />
-      </div>
+      <IngestionStepTitleRow className={styles.TitleRow} title={t('datasets.soil_data.title')} docsLink={DOCS_URL} />
 
       <FileUploadBox
         files={uploadingFiles}
