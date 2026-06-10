@@ -261,9 +261,8 @@ const getDataPreviewQuery = (query: any, dataMappingConfig: DataCleaningConfig, 
     let propertyCleanup: string = '';
 
     const conversionFormula = props?.conversion_formula ? props.conversion_formula.replace(/"/g, '').trim() : null;
-    const expr = conversionFormula
-      ? conversionFormula.replace(/x/g, `NULLIF((raw.${field})::numeric, 0)`)
-      : `NULLIF((raw.${field})::numeric, 0)`;
+    const rawExpr = `(raw.${field})::numeric`;
+    const expr = conversionFormula ? `NULLIF(${conversionFormula.replace(/x/g, rawExpr)}, 0)` : `NULLIF(${rawExpr}, 0)`;
 
     const max_val = props.max_val ?? (props.standard_unit === '%' ? 100 : undefined);
     const min_val = props.min_val ?? 0;

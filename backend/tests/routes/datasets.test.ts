@@ -505,6 +505,49 @@ describe('Testing /datasets routes', () => {
         expect(allRecordIds[i]).toBeGreaterThanOrEqual(allRecordIds[i - 1]);
       }
     });
+
+    it('returns records with properly formatted depth range', async () => {
+      const token = await getDataAdminToken();
+      const { dataset, datasetFileMapping } = await addSyntheticIngestionData({
+        ...syntheticIngestionDataOptions,
+        columnMapping: {
+          depthrange: 'depth',
+          date: 'sampling_date',
+          licence: 'license',
+          layer_name: 'horizon',
+          bdfi33: {
+            property_name: 'Bulk Density',
+            procedure_name: 'Fine earth 33kPa',
+            conversion_formula: 'x*10',
+            original_unit: 'kg/dm3',
+            standard_unit: 'mmolc/dm3',
+          },
+          bdfiod: {
+            property_name: 'Bulk Density 2',
+            procedure_name: 'Fine earth oven dry',
+            conversion_formula: 'x/10',
+            original_unit: 'kg/cm3',
+            standard_unit: 'mmolc/dm3',
+          },
+        },
+        id: 1,
+        createTable: true,
+        tableRows: 'ALL',
+      });
+
+      const res = await request(app)
+        .get(`/datasets/${dataset.slug}/dataset-file-mapping/${datasetFileMapping.id}/soil-data`)
+        .query({ limit: 5 })
+        .set('Authorization', `Bearer ${token}`);
+
+      expect(res.statusCode).toBe(StatusCodes.OK);
+      expect(Array.isArray(res.body)).toBe(true);
+      expect(res.body.length).toBe(5);
+      for (const record of res.body) {
+        expect(record.min_depth).toBe(100);
+        expect(record.max_depth).toBe(200);
+      }
+    });
   });
 
   describe('GET /datasets/:datasetId/dataset-file-mapping/:datasetFileMappingId/soil-data/count', () => {
