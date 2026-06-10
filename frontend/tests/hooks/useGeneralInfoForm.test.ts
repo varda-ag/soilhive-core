@@ -96,6 +96,16 @@ describe('useGeneralInfoForm', () => {
   });
 
   describe('leave Ingestion flow', () => {
+    it('calls markAsChanged on mount when id is provided', () => {
+      renderHook(() => useGeneralInfoForm('abc', validationMessages));
+      expect(mockMarkAsChanged).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not call markAsChanged on mount when id is undefined', () => {
+      renderHook(() => useGeneralInfoForm(undefined, validationMessages));
+      expect(mockMarkAsChanged).not.toHaveBeenCalled();
+    });
+
     it('handleChange calls markAsChanged', () => {
       const { result } = renderHook(() => useGeneralInfoForm(undefined, validationMessages));
       act(() => result.current.handleChange('name', 'test'));

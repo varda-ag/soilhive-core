@@ -198,6 +198,11 @@ export function useMappingsStep(datasetId?: string) {
   const { markAsChanged, resetChanges } = useIngestionFlow();
   const { isLoading: isIngestionLoading, updateFurthestStep } = useIngestionStatus();
   const hasTracked = useRef(false);
+
+  useEffect(() => {
+    markAsChanged();
+  }, [markAsChanged]);
+
   useEffect(() => {
     if (!hasTracked.current && datasetId && !isIngestionLoading) {
       hasTracked.current = true;
@@ -499,52 +504,40 @@ export function useMappingsStep(datasetId?: string) {
     });
   }, []);
 
-  const handleConceptChange = useCallback(
-    (columnName: string, value: string) => {
-      markAsChanged();
-      const conceptId = value || null;
-      const isStructural = conceptId !== null && METADATA_FIELD_CODES.has(conceptId);
+  const handleConceptChange = useCallback((columnName: string, value: string) => {
+    const conceptId = value || null;
+    const isStructural = conceptId !== null && METADATA_FIELD_CODES.has(conceptId);
 
-      setColumnMappings(prev =>
-        prev.map(m => {
-          if (m.columnName !== columnName) return m;
-          // Clear the unit whenever the concept is removed
-          const unitId = conceptId === null ? null : m.unitId;
-          // Clear detail fields when switching to a structural field — they don't apply
-          const details = isStructural ? { ...EMPTY_DETAILS } : m.details;
-          return { ...m, conceptId, unitId, details };
-        }),
-      );
+    setColumnMappings(prev =>
+      prev.map(m => {
+        if (m.columnName !== columnName) return m;
+        // Clear the unit whenever the concept is removed
+        const unitId = conceptId === null ? null : m.unitId;
+        // Clear detail fields when switching to a structural field — they don't apply
+        const details = isStructural ? { ...EMPTY_DETAILS } : m.details;
+        return { ...m, conceptId, unitId, details };
+      }),
+    );
 
-      // Collapse the row when switching to a structural field
-      if (isStructural) {
-        setExpandedRows(prev => {
-          const next = new Set(prev);
-          next.delete(columnName);
-          return next;
-        });
-      }
-    },
-    [markAsChanged],
-  );
+    // Collapse the row when switching to a structural field
+    if (isStructural) {
+      setExpandedRows(prev => {
+        const next = new Set(prev);
+        next.delete(columnName);
+        return next;
+      });
+    }
+  }, []);
 
-  const handleUnitChange = useCallback(
-    (columnName: string, value: string) => {
-      markAsChanged();
-      setColumnMappings(prev => prev.map(m => (m.columnName === columnName ? { ...m, unitId: value || null } : m)));
-    },
-    [markAsChanged],
-  );
+  const handleUnitChange = useCallback((columnName: string, value: string) => {
+    setColumnMappings(prev => prev.map(m => (m.columnName === columnName ? { ...m, unitId: value || null } : m)));
+  }, []);
 
-  const handleDetailChange = useCallback(
-    (columnName: string, field: keyof RowDetails, value: string) => {
-      markAsChanged();
-      setColumnMappings(prev =>
-        prev.map(m => (m.columnName === columnName ? { ...m, details: { ...m.details, [field]: value || null } } : m)),
-      );
-    },
-    [markAsChanged],
-  );
+  const handleDetailChange = useCallback((columnName: string, field: keyof RowDetails, value: string) => {
+    setColumnMappings(prev =>
+      prev.map(m => (m.columnName === columnName ? { ...m, details: { ...m.details, [field]: value || null } } : m)),
+    );
+  }, []);
 
   const save = useCallback(async () => {
     const procedureIds = await createMappingProcedures(columnMappings, procedureByColumn, createProcedure);
