@@ -32,9 +32,9 @@ export function DatasetsList() {
       <div className={styles.Wrapper}>
         {isDatasetsLoading ? (
           <span data-testid="skeleton-container">
-            <Skeleton count={1} height={120} />
-            <Skeleton count={1} height={120} />
-            <Skeleton count={1} height={120} />
+            <Skeleton count={1} height={95} />
+            <Skeleton count={1} height={95} />
+            <Skeleton count={1} height={95} />
           </span>
         ) : !datasets.length && searchValue ? (
           <i>{t('datasets_sidebar.no_data_matching_search')}</i>
