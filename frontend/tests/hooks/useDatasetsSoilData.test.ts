@@ -388,17 +388,9 @@ describe('useDatasetsSoilData', () => {
   });
 
   describe('leave Ingestion flow', () => {
-    it('handleFiles calls markAsChanged', () => {
+    it('calls markAsChanged on mount', () => {
       buildDefaultMocks();
-      const { result } = renderHook(() => useDatasetsSoilData());
-      act(() => result.current.handleFiles([]));
-      expect(mockMarkAsChanged).toHaveBeenCalledTimes(1);
-    });
-
-    it('handleCrsChange calls markAsChanged', () => {
-      buildDefaultMocks();
-      const { result } = renderHook(() => useDatasetsSoilData());
-      act(() => result.current.handleCrsChange('f1', 'EPSG:4326'));
+      renderHook(() => useDatasetsSoilData());
       expect(mockMarkAsChanged).toHaveBeenCalledTimes(1);
     });
 

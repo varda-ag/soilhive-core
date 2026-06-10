@@ -41,6 +41,10 @@ export function useGeneralInfoForm(id: string | undefined, validationMessages: V
   }
 
   useEffect(() => {
+    if (id) markAsChanged();
+  }, [id, markAsChanged]);
+
+  useEffect(() => {
     if (dataset) {
       setFormData({
         name: dataset.name ?? '',
