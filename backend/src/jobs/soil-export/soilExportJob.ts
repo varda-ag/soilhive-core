@@ -75,7 +75,7 @@ export async function processExportJob(job: Job<ExportJob>): Promise<void> {
     let aoi_area_km2: number | null = null;
     if (rasterRequested) {
       const filterService = new FilterService();
-      const { geometries } = (await filterService.getFilterById(requestData, filter_id)).filter;
+      const { geometries } = (await filterService.getDataFilterEntityById(requestData, filter_id)).filter;
       aoi_area_km2 = turf.area(geometries[0]!) * 1e-6;
     }
 

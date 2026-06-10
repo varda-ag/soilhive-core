@@ -1,6 +1,6 @@
 import { Entity, Column, PrimaryColumn } from 'typeorm';
 import BaseTable from './BaseTable';
-import { type DataFilter, StoredDataFilter } from '../interfaces/DatasetFilter';
+import { type DataFilterDTO, StoredDataFilter } from '../interfaces/DatasetFilter';
 
 @Entity('data_filters')
 export default class DataFilterEntity extends BaseTable implements StoredDataFilter {
@@ -10,7 +10,7 @@ export default class DataFilterEntity extends BaseTable implements StoredDataFil
   id: string;
 
   @Column({ type: 'jsonb' })
-  filter: DataFilter;
+  filter: DataFilterDTO;
 
   @Column({ type: 'boolean', default: false })
   persistent: boolean;

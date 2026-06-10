@@ -128,7 +128,7 @@ describe('BulkLoader class', () => {
       id: 1,
       soilPropertyNames: ['a', 'b'],
       depthLayers: 10,
-      featureCount: 100,
+      featureCount: 10,
     });
 
     const entityManager = await getEntityManager();

@@ -4,7 +4,14 @@ import * as turf from '@turf/turf';
 import { latLngToCell } from 'h3-js';
 import { Polygon, MultiPolygon } from 'geojson';
 import SoilDataStorage from '../data-layer/SoilDataStorage';
-import { DataFilter, FilteredDatasetSummary, FilteredDataset, FilteredData, FilterCriteria } from '../interfaces/DatasetFilter';
+import {
+  DataFilterDTO,
+  FilteredDatasetSummary,
+  FilteredDataset,
+  FilteredData,
+  FilterCriteria,
+  DataFilter,
+} from '../interfaces/DatasetFilter';
 import { RequestData } from '../interfaces/RequestData';
 import { ErrorResponse } from '../utils/error';
 import { mergeMin, mergeMax } from '../utils/utils';
@@ -14,8 +21,24 @@ import DataFilterUserGeometryEntity from '../entities/DataFilterUserGeometry';
 import { DataAvailabilityIndex } from '../interfaces/Dai';
 import { getPolygonFromBbox, geometryUnion } from '../utils/geometry';
 
+const sds = new SoilDataStorage();
+
 export default class FilterService {
-  createFilter = async (requestData: RequestData, filter: DataFilter): Promise<DataFilterEntity> => {
+  insertUserGeometry = async (requestData: RequestData, geometry: Polygon | MultiPolygon): Promise<{ id: string; area: number }> => {
+    const geomJson = JSON.stringify(geometry);
+    const inserted = await requestData.entityManager
+      .createQueryBuilder()
+      .insert()
+      .into(UserGeometryEntity)
+      .values({ geom: () => `ST_GeomFromGeoJSON(:geom)` })
+      .setParameter('geom', geomJson)
+      .orUpdate(['geom'], ['geom_hash'])
+      .returning(['id', 'area'])
+      .execute();
+    return { id: inserted.raw[0].id, area: Number(inserted.raw[0].area) };
+  };
+
+  createFilter = async (requestData: RequestData, filter: DataFilterDTO): Promise<DataFilterEntity> => {
     // Validate geometries in the payload
     for (const geometry of filter.geometries) {
       if (!['Polygon', 'MultiPolygon'].includes(geometry.type)) {
@@ -35,25 +58,13 @@ export default class FilterService {
     const savedFilter = await repo.save(entity);
 
     for (const geometry of filter.geometries) {
-      const geomJson = JSON.stringify(geometry);
-
-      const inserted = await requestData.entityManager
-        .createQueryBuilder()
-        .insert()
-        .into(UserGeometryEntity)
-        .values({ geom: () => `ST_GeomFromGeoJSON(:geom)` })
-        .setParameter('geom', geomJson)
-        .orUpdate(['geom'], ['geom_hash'])
-        .returning('id')
-        .execute();
-
-      const userGeometryId: string = inserted.raw[0].id;
+      const { id: user_geometry_id } = await this.insertUserGeometry(requestData, geometry);
 
       await requestData.entityManager
         .createQueryBuilder()
         .insert()
         .into(DataFilterUserGeometryEntity)
-        .values({ data_filter_id: savedFilter.id, user_geometry_id: userGeometryId })
+        .values({ data_filter_id: savedFilter.id, user_geometry_id })
         .execute();
     }
 
@@ -69,13 +80,36 @@ export default class FilterService {
     return await repo.findBy({ owner });
   };
 
-  getFilterById = async (requestData: RequestData, filterId: string): Promise<DataFilterEntity> => {
+  getDataFilterEntityById = async (requestData: RequestData, filterId: string): Promise<DataFilterEntity> => {
     const repo = requestData.entityManager.getRepository(DataFilterEntity);
     const storedFilter = await repo.findOneBy({ id: filterId });
     if (!storedFilter) {
       throw new ErrorResponse(`Filter ${filterId} not found`, StatusCodes.NOT_FOUND);
     }
     return storedFilter;
+  };
+
+  getFilterById = async (requestData: RequestData, filterId: string): Promise<DataFilter> => {
+    const result = await requestData.entityManager.query(
+      `SELECT
+        df.filter->'parameters' AS parameters,
+        COALESCE(ARRAY_AGG(dfug.user_geometry_id) FILTER (WHERE dfug.user_geometry_id IS NOT NULL), '{}') AS geometry_ids,
+        COALESCE(SUM(ug.area), 0) AS area
+      FROM data_filters df
+      LEFT JOIN data_filter_user_geometries dfug ON dfug.data_filter_id = df.id
+      LEFT JOIN user_geometries ug ON ug.id = dfug.user_geometry_id
+      WHERE df.id = $1 AND df.deleted_at IS NULL
+      GROUP BY df.id, df.filter`,
+      [filterId],
+    );
+    if (!result.length) {
+      throw new ErrorResponse(`Filter ${filterId} not found`, StatusCodes.NOT_FOUND);
+    }
+    return {
+      geometryIds: result[0].geometry_ids,
+      parameters: result[0].parameters,
+      area: Number(result[0].area),
+    };
   };
 
   getFilterCriteria = async (requestData: RequestData, filterId: string): Promise<FilterCriteria> => {
@@ -90,55 +124,32 @@ export default class FilterService {
   };
 
   getFilterGeometryIds = async (requestData: RequestData, filterId: string): Promise<string[]> => {
-    await this.getFilterById(requestData, filterId);
     const repo = requestData.entityManager.getRepository(DataFilterUserGeometryEntity);
     const result = await repo.findBy({ data_filter_id: filterId });
     return result.map((r: any) => r.user_geometry_id);
   };
 
   getCoverage = async (requestData: RequestData, filterId: string, geometryOnly: boolean): Promise<FilteredData> => {
-    // Get filter geometries and parameters
-    const geometryIds = await this.getFilterGeometryIds(requestData, filterId);
-    // Only keep geometries for coverage calculation, ignore other parameters
-    const parameters = geometryOnly ? {} : await this.getFilterCriteria(requestData, filterId);
-    const sds = new SoilDataStorage();
-    // Create filtering promises
-    const filteringPromises: Promise<FilteredDatasetSummary[]>[] = [];
-    for (const g of geometryIds) {
-      filteringPromises.push(
-        sds.filterVector(requestData.entityManager, g, parameters),
-        sds.filterRaster(requestData.entityManager, g, parameters),
-      );
-    }
-    // Wait for all filtering to complete
-    const batches = await Promise.all(filteringPromises);
-    // Aggregate summeries across geometries
-    const datasets = mergeDatasetSummaries(batches);
-    // Add raster coverage
-    const rasterCoverage = await sds.getRasterCoverage(requestData.entityManager, geometryIds, parameters.raster_filters);
-    // Deduplicate datasets across geometries
+    const filter = await this.getFilterById(requestData, filterId);
+    const effectiveFilter = geometryOnly ? { ...filter, parameters: {} } : filter;
+    const [vectorDatasets, rasterDatasets, rasterCoverage] = await Promise.all([
+      sds.filterVector(requestData.entityManager, effectiveFilter),
+      sds.filterRaster(requestData.entityManager, effectiveFilter),
+      sds.getRasterCoverage(requestData.entityManager, effectiveFilter),
+    ]);
+    const datasets = mergeDatasetSummaries([vectorDatasets, rasterDatasets]);
     return { datasets: Array.from(new Map(datasets.map(r => [r.id, r])).values()), raster_filters: rasterCoverage };
   };
 
   getDatasets = async (requestData: RequestData, filterId: string): Promise<FilteredDataset[]> => {
-    const [storedFilter, geometryIds] = await Promise.all([
-      this.getFilterById(requestData, filterId),
-      this.getFilterGeometryIds(requestData, filterId),
+    const filter = await this.getFilterById(requestData, filterId);
+    const [vectorDatasets, rasterDatasets] = await Promise.all([
+      sds.filterVectorDatasets(requestData.entityManager, filter),
+      sds
+        .filterRaster(requestData.entityManager, filter)
+        .then(results => results.map(({ id, name, data_type }) => ({ id, name, data_type }))),
     ]);
-    const filter = storedFilter!.filter;
-    const sds = new SoilDataStorage();
-    const filteringPromises: Promise<FilteredDataset[]>[] = [];
-    for (const g of filter.geometries) {
-      filteringPromises.push(sds.filterVectorDatasets(requestData.entityManager, g, filter.parameters));
-    }
-    for (const id of geometryIds) {
-      filteringPromises.push(
-        sds
-          .filterRaster(requestData.entityManager, id, filter.parameters)
-          .then(results => results.map(({ id, name, data_type }) => ({ id, name, data_type }))),
-      );
-    }
-    const results = (await Promise.all(filteringPromises)).flat();
+    const results = [...vectorDatasets, ...rasterDatasets];
     return Array.from(new Map(results.map(r => [r.id, r])).values());
   };
 
@@ -148,7 +159,7 @@ export default class FilterService {
     resolution: number,
     filterId: string,
   ): Promise<DataAvailabilityIndex> => {
-    const storedFilter = await this.getFilterById(requestData, filterId);
+    const storedFilter = await this.getDataFilterEntityById(requestData, filterId);
     const { geometries, parameters } = storedFilter.filter;
 
     const bboxPolygon = getPolygonFromBbox(bbox);
@@ -162,8 +173,10 @@ export default class FilterService {
       effectiveAoi = intersection.geometry;
     }
 
-    const sds = new SoilDataStorage();
-    const rows = await sds.getDaiPointData(requestData.entityManager, effectiveAoi, parameters);
+    // Store effective AOI in user_geometries
+    const { id: userGeometryId, area } = await this.insertUserGeometry(requestData, effectiveAoi);
+
+    const rows = await sds.getDaiPointData(requestData.entityManager, { geometryIds: [userGeometryId], parameters, area });
 
     const cells: Record<string, number> = {};
     for (const row of rows) {
