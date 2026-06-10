@@ -4,14 +4,7 @@ import * as turf from '@turf/turf';
 import { latLngToCell } from 'h3-js';
 import { Polygon, MultiPolygon } from 'geojson';
 import SoilDataStorage from '../data-layer/SoilDataStorage';
-import {
-  DataFilterDTO,
-  FilteredDatasetSummary,
-  FilteredDataset,
-  FilteredData,
-  FilterCriteria,
-  DataFilter,
-} from '../interfaces/DatasetFilter';
+import { DataFilterDTO, FilteredDatasetSummary, FilteredDataset, FilteredData, DataFilter } from '../interfaces/DatasetFilter';
 import { RequestData } from '../interfaces/RequestData';
 import { ErrorResponse } from '../utils/error';
 import { mergeMin, mergeMax } from '../utils/utils';
@@ -38,6 +31,18 @@ export default class FilterService {
     return { id: inserted.raw[0].id, area: Number(inserted.raw[0].area) };
   };
 
+  deleteUserGeometry = async (requestData: RequestData, id: string): Promise<void> => {
+    const schema = process.env.POSTGRES_SCHEMA;
+    await requestData.entityManager.query(
+      `DELETE FROM ${schema}.user_geometries
+       WHERE id = $1
+       AND NOT EXISTS (
+         SELECT 1 FROM ${schema}.data_filter_user_geometries WHERE user_geometry_id = $1
+       )`,
+      [id],
+    );
+  };
+
   createFilter = async (requestData: RequestData, filter: DataFilterDTO): Promise<DataFilterEntity> => {
     // Validate geometries in the payload
     for (const geometry of filter.geometries) {
@@ -57,16 +62,17 @@ export default class FilterService {
     const entity = repo.create({ filter, ...(owner ? { owner } : {}) });
     const savedFilter = await repo.save(entity);
 
-    for (const geometry of filter.geometries) {
-      const { id: user_geometry_id } = await this.insertUserGeometry(requestData, geometry);
-
-      await requestData.entityManager
-        .createQueryBuilder()
-        .insert()
-        .into(DataFilterUserGeometryEntity)
-        .values({ data_filter_id: savedFilter.id, user_geometry_id })
-        .execute();
-    }
+    await Promise.all(
+      filter.geometries.map(async geometry => {
+        const { id: user_geometry_id } = await this.insertUserGeometry(requestData, geometry);
+        await requestData.entityManager
+          .createQueryBuilder()
+          .insert()
+          .into(DataFilterUserGeometryEntity)
+          .values({ data_filter_id: savedFilter.id, user_geometry_id })
+          .execute();
+      }),
+    );
 
     return savedFilter;
   };
@@ -90,14 +96,15 @@ export default class FilterService {
   };
 
   getFilterById = async (requestData: RequestData, filterId: string): Promise<DataFilter> => {
+    const schema = process.env.POSTGRES_SCHEMA;
     const result = await requestData.entityManager.query(
       `SELECT
         df.filter->'parameters' AS parameters,
         COALESCE(ARRAY_AGG(dfug.user_geometry_id) FILTER (WHERE dfug.user_geometry_id IS NOT NULL), '{}') AS geometry_ids,
         COALESCE(SUM(ug.area), 0) AS area
-      FROM data_filters df
-      LEFT JOIN data_filter_user_geometries dfug ON dfug.data_filter_id = df.id
-      LEFT JOIN user_geometries ug ON ug.id = dfug.user_geometry_id
+      FROM ${schema}.data_filters df
+      LEFT JOIN ${schema}.data_filter_user_geometries dfug ON dfug.data_filter_id = df.id
+      LEFT JOIN ${schema}.user_geometries ug ON ug.id = dfug.user_geometry_id
       WHERE df.id = $1 AND df.deleted_at IS NULL
       GROUP BY df.id, df.filter`,
       [filterId],
@@ -112,23 +119,6 @@ export default class FilterService {
     };
   };
 
-  getFilterCriteria = async (requestData: RequestData, filterId: string): Promise<FilterCriteria> => {
-    const result = await requestData.entityManager.query(
-      `SELECT filter->'parameters' AS parameters FROM data_filters WHERE id = $1 AND deleted_at IS NULL`,
-      [filterId],
-    );
-    if (!result.length) {
-      throw new ErrorResponse(`Filter ${filterId} not found`, StatusCodes.NOT_FOUND);
-    }
-    return result[0].parameters;
-  };
-
-  getFilterGeometryIds = async (requestData: RequestData, filterId: string): Promise<string[]> => {
-    const repo = requestData.entityManager.getRepository(DataFilterUserGeometryEntity);
-    const result = await repo.findBy({ data_filter_id: filterId });
-    return result.map((r: any) => r.user_geometry_id);
-  };
-
   getCoverage = async (requestData: RequestData, filterId: string, geometryOnly: boolean): Promise<FilteredData> => {
     const filter = await this.getFilterById(requestData, filterId);
     const effectiveFilter = geometryOnly ? { ...filter, parameters: {} } : filter;
@@ -138,7 +128,7 @@ export default class FilterService {
       sds.getRasterCoverage(requestData.entityManager, effectiveFilter),
     ]);
     const datasets = mergeDatasetSummaries([vectorDatasets, rasterDatasets]);
-    return { datasets: Array.from(new Map(datasets.map(r => [r.id, r])).values()), raster_filters: rasterCoverage };
+    return { datasets, raster_filters: rasterCoverage };
   };
 
   getDatasets = async (requestData: RequestData, filterId: string): Promise<FilteredDataset[]> => {
@@ -149,8 +139,7 @@ export default class FilterService {
         .filterRaster(requestData.entityManager, filter)
         .then(results => results.map(({ id, name, data_type }) => ({ id, name, data_type }))),
     ]);
-    const results = [...vectorDatasets, ...rasterDatasets];
-    return Array.from(new Map(results.map(r => [r.id, r])).values());
+    return [...vectorDatasets, ...rasterDatasets];
   };
 
   getDai = async (
@@ -159,24 +148,33 @@ export default class FilterService {
     resolution: number,
     filterId: string,
   ): Promise<DataAvailabilityIndex> => {
-    const storedFilter = await this.getDataFilterEntityById(requestData, filterId);
-    const { geometries, parameters } = storedFilter.filter;
+    const filter = await this.getFilterById(requestData, filterId);
+    const { geometryIds, parameters } = filter;
 
     const bboxPolygon = getPolygonFromBbox(bbox);
     let effectiveAoi: Polygon | MultiPolygon;
-    if (geometries.length === 0) {
+    if (geometryIds.length === 0) {
       effectiveAoi = bboxPolygon;
     } else {
-      const filterGeom = geometryUnion(geometries);
+      const schema = process.env.POSTGRES_SCHEMA;
+      const geomRows: { geom: Polygon | MultiPolygon }[] = await requestData.entityManager.query(
+        `SELECT ST_AsGeoJSON(ug.geom)::json AS geom FROM ${schema}.user_geometries ug WHERE ug.id = ANY($1::uuid[])`,
+        [geometryIds],
+      );
+      const filterGeom = geometryUnion(geomRows.map(r => r.geom));
       const intersection = turf.intersect(turf.featureCollection([turf.feature(filterGeom), turf.feature(bboxPolygon)]));
       if (!intersection) return { resolution, min: 0, max: 0, cells: {} };
       effectiveAoi = intersection.geometry;
     }
 
-    // Store effective AOI in user_geometries
     const { id: userGeometryId, area } = await this.insertUserGeometry(requestData, effectiveAoi);
 
-    const rows = await sds.getDaiPointData(requestData.entityManager, { geometryIds: [userGeometryId], parameters, area });
+    let rows: Awaited<ReturnType<typeof sds.getDaiPointData>>;
+    try {
+      rows = await sds.getDaiPointData(requestData.entityManager, { geometryIds: [userGeometryId], parameters, area });
+    } finally {
+      await this.deleteUserGeometry(requestData, userGeometryId);
+    }
 
     const cells: Record<string, number> = {};
     for (const row of rows) {

@@ -27,20 +27,21 @@ export const transactionMiddleware = async (req: Request, res: Response, next: N
     }
   };
 
-  if (req.method === 'GET') {
-    req.customData = req.customData || { entityManager: queryRunner.manager };
+  await queryRunner.startTransaction();
+  req.customData = req.customData || { entityManager: queryRunner.manager };
 
+  if (req.method === 'GET') {
     res.on('close', async () => {
       if (!res.writableEnded) await cancelBackend();
-      await queryRunner.release();
+      try {
+        await queryRunner.rollbackTransaction();
+      } finally {
+        await queryRunner.release();
+      }
     });
 
     return next();
   }
-
-  await queryRunner.startTransaction();
-
-  req.customData = req.customData || { entityManager: queryRunner.manager };
 
   let cleaned = false;
 
