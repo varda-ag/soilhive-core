@@ -20,14 +20,6 @@ import path from 'path';
 const bbox = [0, 0, 1, 1];
 const bboxPolygon: Polygon = getPolygonFromBbox(bbox);
 
-const insertUserGeometry = async (entityManager: any, geometry: Polygon | MultiPolygon): Promise<string> => {
-  const [{ id }] = await entityManager.query(
-    `INSERT INTO user_geometries (geom) VALUES (ST_GeomFromGeoJSON($1)) ON CONFLICT (geom_hash) DO UPDATE SET geom = EXCLUDED.geom RETURNING id`,
-    [JSON.stringify(geometry)],
-  );
-  return id;
-};
-
 export const makeFilter = async (
   entityManager: any,
   geometry?: Polygon | MultiPolygon,
@@ -710,8 +702,8 @@ describe('SoilDataStorage class', () => {
         type: 'Polygon',
       };
       const entityManager = await getEntityManager();
-      const geomId = await insertUserGeometry(entityManager, filteringRectangle as Polygon);
-      const polygon = await getVectorMask(entityManager, [geomId], parameters);
+      const filter = await makeFilter(entityManager, filteringRectangle as Polygon, parameters as FilterCriteria);
+      const polygon = await getVectorMask(entityManager, filter);
       expect(turf.area(polygon)).toEqual(turf.area({ type: 'Polygon', coordinates: [expectedPolygon] }));
     });
 
@@ -732,7 +724,8 @@ describe('SoilDataStorage class', () => {
           type: 'Polygon',
         };
         const entityManager = await getEntityManager();
-        const table = await getRasterMask(entityManager, { geometries: [filteringRectangle as Polygon], parameters }, 'table', rasterize);
+        const filter = await makeFilter(entityManager, filteringRectangle as Polygon, parameters as FilterCriteria);
+        const table = await getRasterMask(entityManager, filter, 'table', rasterize);
         expect(table).toBeDefined();
 
         const [row] = await entityManager.query(`
@@ -757,7 +750,8 @@ describe('SoilDataStorage class', () => {
       // Filtering rectangle
       const filteringRectangle = getPolygonFromBbox(bbox);
       const entityManager = await getEntityManager();
-      const table = await getRasterMask(entityManager, { geometries: [filteringRectangle as Polygon], parameters: {} }, 'table');
+      const filter = await makeFilter(entityManager, filteringRectangle as Polygon);
+      const table = await getRasterMask(entityManager, filter, 'table');
       expect(table).toBeDefined();
 
       const [row] = await entityManager.query(`

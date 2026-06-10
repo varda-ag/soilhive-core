@@ -47,7 +47,7 @@ export default class SoilDataStorage {
   };
 
   filterVector = async (entityManager: EntityManager, filter: DataFilter): Promise<FilteredDatasetSummary[]> => {
-    const { geometryIds, parameters: filters, area } = filter;
+    const { geometryIds, parameters: filters } = filter;
     if (geometryIds.length === 0) {
       return [];
     }
@@ -62,7 +62,7 @@ export default class SoilDataStorage {
 
       const schema = process.env.POSTGRES_SCHEMA;
       const enabledRasterFilterTables = await getEnabledRasterFilterTables();
-      const { ctes: rasterCtes, usesMatchingFeatures } = buildRasterSql(geometryIds, filters, area, enabledRasterFilterTables);
+      const { ctes: rasterCtes, usesMatchingFeatures } = buildRasterSql(filter, enabledRasterFilterTables);
 
       // Feature IDs resolved entirely in-DB: MATERIALIZED CTE evaluated first, then
       // = ANY(ARRAY(...)) preserves bitmap index scan on dataset_layers(feature_id).
@@ -211,7 +211,7 @@ export default class SoilDataStorage {
   };
 
   filterVectorDatasets = async (entityManager: EntityManager, filter: DataFilter): Promise<FilteredDataset[]> => {
-    const { geometryIds, parameters: filters, area } = filter;
+    const { geometryIds, parameters: filters } = filter;
     if (geometryIds.length === 0) {
       return [];
     }
@@ -232,7 +232,7 @@ export default class SoilDataStorage {
     const { outerWhere, lateralJoins, lateralWhere } = buildDatasetFilterClauses(filters, p, schema!);
 
     const enabledRasterFilterTables = await getEnabledRasterFilterTables();
-    const { ctes: rasterCtes, usesMatchingFeatures } = buildRasterSql(geometryIds, filters, area, enabledRasterFilterTables);
+    const { ctes: rasterCtes, usesMatchingFeatures } = buildRasterSql(filter, enabledRasterFilterTables);
 
     // Pre-compute spatially-intersecting features once as a materialized CTE to avoid
     // re-running the ST_Intersects scan for each candidate dataset in the outer query.
@@ -289,7 +289,7 @@ export default class SoilDataStorage {
     }
 
     const aoiCtes: CteDef[] = hasRasterFilters(filters)
-      ? await getVectorMaskCtes(entityManager, geometryIds, filters)
+      ? await getVectorMaskCtes(entityManager, filter)
       : [{ name: 'aoi', sql: selectGeometryByIds() }];
 
     await entityManager.query("SET LOCAL work_mem = '256MB';");
@@ -366,7 +366,7 @@ export default class SoilDataStorage {
 
     const schema = process.env.POSTGRES_SCHEMA;
     const aoiCtes: CteDef[] = hasRasterFilters(filters)
-      ? await getVectorMaskCtes(requestData.entityManager, geometryIds, filters)
+      ? await getVectorMaskCtes(requestData.entityManager, filter)
       : [
           {
             name: 'aoi',
@@ -437,7 +437,6 @@ export default class SoilDataStorage {
     cursor?: string,
     sort?: string,
   ): Promise<SoilDataSample[]> => {
-    const { geometryIds, parameters: filters, area: aoiAreaM2 } = filter;
     await entitlementService.enforceEntitlements(requestData, datasetSlugs, Capability.PREVIEW);
 
     return await requestData.entityManager.transaction(async transactionalEntityManager => {
@@ -445,7 +444,7 @@ export default class SoilDataStorage {
       await transactionalEntityManager.query("SET LOCAL statement_timeout = '60s';");
 
       const enabledRasterFilterTables = await getEnabledRasterFilterTables();
-      const { sql, params } = buildRawSoilQuery(geometryIds, filters, aoiAreaM2, datasetSlugs, {
+      const { sql, params } = buildRawSoilQuery(filter, datasetSlugs, {
         limit,
         cursor,
         sort,
@@ -460,13 +459,12 @@ export default class SoilDataStorage {
   };
 
   getSoilDataCount = async (requestData: RequestData, filter: DataFilter, datasetSlugs: string[]): Promise<number> => {
-    const { geometryIds, parameters: filters, area: aoiAreaM2 } = filter;
     return await requestData.entityManager.transaction(async transactionalEntityManager => {
       await transactionalEntityManager.query("SET LOCAL work_mem = '256MB';");
       await transactionalEntityManager.query("SET LOCAL statement_timeout = '60s';");
 
       const enabledRasterFilterTables = await getEnabledRasterFilterTables();
-      const { sql, params } = buildRawSoilQuery(geometryIds, filters, aoiAreaM2, datasetSlugs, {
+      const { sql, params } = buildRawSoilQuery(filter, datasetSlugs, {
         mode: 'count',
         enabledRasterFilterTables,
       });
@@ -549,7 +547,7 @@ export default class SoilDataStorage {
     const whereClause = whereClauses.length > 0 ? `AND ${whereClauses.join('\n      AND ')}` : '';
 
     const enabledRasterFilterTables = await getEnabledRasterFilterTables();
-    const { ctes: rasterCtes, usesMatchingFeatures } = buildRasterSql(geometryIds, filters, aoiAreaM2, enabledRasterFilterTables);
+    const { ctes: rasterCtes, usesMatchingFeatures } = buildRasterSql(filter, enabledRasterFilterTables);
 
     const useSubdivide = !usesMatchingFeatures && aoiAreaM2 > AREA_THRESHOLD_M2;
     const spatialSource = useSubdivide ? 'aoi_subdivided' : 'aoi';
@@ -814,12 +812,8 @@ export const buildDatasetFilterClauses = (
  * insert after the aoi CTE. When usesMatchingFeatures is false, ctes is empty and the
  * caller handles its own spatial CTEs.
  */
-const buildRasterSql = (
-  geometryIds: string[],
-  filters: FilterCriteria,
-  aoiAreaM2: number,
-  enabledRasterFilterTables: string[],
-): { ctes: string; usesMatchingFeatures: boolean } => {
+const buildRasterSql = (filter: DataFilter, enabledRasterFilterTables: string[]): { ctes: string; usesMatchingFeatures: boolean } => {
+  const { geometryIds, parameters: filters, area: aoiAreaM2 } = filter;
   const hasGeometry = geometryIds.length > 0;
   if (!hasGeometry || !hasRasterFilters(filters) || enabledRasterFilterTables.length === 0) {
     return { ctes: '', usesMatchingFeatures: false };
@@ -903,9 +897,7 @@ const buildRasterSql = (
  * when it anchors from `dataset_layers` and hash-joins everything bottom-up.
  */
 const buildRawSoilQuery = (
-  geometryIds: string[],
-  filters: FilterCriteria,
-  aoiAreaM2: number,
+  filter: DataFilter,
   datasetSlugs: string[],
   options: {
     mode: 'count' | 'data';
@@ -915,6 +907,7 @@ const buildRawSoilQuery = (
     enabledRasterFilterTables?: string[] | undefined;
   },
 ): { sql: string; params: any[] } => {
+  const { geometryIds, parameters: filters, area: aoiAreaM2 } = filter;
   const schema = process.env.POSTGRES_SCHEMA;
   const params: any[] = [];
   const p = (val: any) => {
@@ -988,7 +981,7 @@ const buildRawSoilQuery = (
     : '';
 
   const enabledRasterFilterTables = options.enabledRasterFilterTables ?? [];
-  const { ctes: rasterCtes, usesMatchingFeatures } = buildRasterSql(geometryIds, filters, aoiAreaM2, enabledRasterFilterTables);
+  const { ctes: rasterCtes, usesMatchingFeatures } = buildRasterSql(filter, enabledRasterFilterTables);
 
   // When buildRasterSql produced matching_features it also generated aoi_subdivided +
   // candidate_features internally — skip generating them here to avoid duplicate CTEs.

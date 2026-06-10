@@ -2,7 +2,6 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { Job } from 'pg-boss';
-import * as turf from '@turf/turf';
 import { ExportJob, ExportOutputs } from '../../interfaces/Job';
 import { EXPORT_CONFIG, VectorFileFormat, RasterFileFormat } from './types';
 import { getEntityManager } from '../../utils/data-source';
@@ -75,8 +74,8 @@ export async function processExportJob(job: Job<ExportJob>): Promise<void> {
     let aoi_area_km2: number | null = null;
     if (rasterRequested) {
       const filterService = new FilterService();
-      const { geometries } = (await filterService.getDataFilterEntityById(requestData, filter_id)).filter;
-      aoi_area_km2 = turf.area(geometries[0]!) * 1e-6;
+      const filter = await filterService.getFilterById(requestData, filter_id);
+      aoi_area_km2 = filter.area / 1e6; // Convert from m2 to km2
     }
 
     await updateJobState(jobId, {
