@@ -8,7 +8,7 @@ import { queryClient } from '../App';
 import { isEmptyString } from '../utilities/validation';
 import useIngestionFlow from './useIngestionFlow';
 
-const DESCRIPTION_MAX_LENGTH = 200;
+const DESCRIPTION_MAX_LENGTH = 2770;
 
 const EMPTY_FORM: GeneralInfoFormData = {
   name: '',
@@ -39,6 +39,10 @@ export function useGeneralInfoForm(id: string | undefined, validationMessages: V
     if (isEmptyString(data.author)) errors.author = validationMessages.author;
     return errors;
   }
+
+  useEffect(() => {
+    if (id) markAsChanged();
+  }, [id, markAsChanged]);
 
   useEffect(() => {
     if (dataset) {

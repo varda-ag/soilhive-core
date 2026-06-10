@@ -135,4 +135,8 @@ describe('dateStringToDDMMYYYY', () => {
   it('pads single-digit day and month with leading zero', () => {
     expect(dateStringToDDMMYYYY(new Date(2025, 2, 5))).toBe('05-03-2025');
   });
+
+  it('returns date string separated by custom separator', () => {
+    expect(dateStringToDDMMYYYY(new Date(2025, 2, 5), '/')).toBe('05/03/2025');
+  });
 });

@@ -10,8 +10,12 @@ import { useIngestionStatus } from 'hooks/useIngestionStatus';
 import { useDatasetPreview } from 'hooks/useDatasetPreviewStep';
 import { DeleteCheckboxCell } from './DeleteCheckboxCell';
 import { DataLoadingStartedPanel } from './DataLoadingStartedPanel';
+import { IngestionStepTitleRow } from 'components/AdminPortal/IngestionStepTitleRow/IngestionStepTitleRow';
+import { INGESTION_DOCS_URL } from 'configuration/ingestion';
 
 import styles from './DatasetsPreviewStep.module.scss';
+
+const DOCS_URL = `${INGESTION_DOCS_URL}#data-preview`;
 
 const initialVisibleColumns = ['min_depth', 'max_depth', 'sampling_date', 'horizon'];
 
@@ -165,7 +169,7 @@ export function DatasetsPreviewStep() {
     <>
       <div className={styles.DatasetsPreviewStep}>
         <div className={styles.TextContent}>
-          <h2 className={styles.Title}>{t('datasets.preview.title')}</h2>
+          <IngestionStepTitleRow title={t('datasets.preview.title')} docsLink={DOCS_URL} />
           <p className={styles.Message}>{t('datasets.preview.message')}</p>
           <FormMessage
             className={styles.DeleteWarning}

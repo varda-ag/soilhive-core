@@ -5,11 +5,28 @@ exports[`DatasetsGeneralInfoStep renders matches snapshot 1`] = `
   <div
     class="DatasetsGeneralInfoStep"
   >
-    <h2
-      class="PageTitle"
+    <div
+      class="IngestionStepTitleRow TitleRow"
     >
-      Data preview
-    </h2>
+      <h2
+        class="Title"
+      >
+        Data preview
+      </h2>
+      <a
+        class="DocumentationLink"
+        data-testid="sh-documentaion-link"
+        href="https://github.com/varda-ag/soilhive-core/blob/main/docs/user-guides/data-load.md#dataset-metadata"
+        rel="noreferrer"
+        target="_blank"
+      >
+        <div
+          data-testid="info-square-icon"
+        />
+         
+        Open documentation
+      </a>
+    </div>
     <div
       class="Card"
     >
@@ -114,7 +131,7 @@ exports[`DatasetsGeneralInfoStep renders matches snapshot 1`] = `
               maxlength="200"
               name="description"
               placeholder=""
-              rows="5"
+              rows="10"
             />
           </div>
           <span

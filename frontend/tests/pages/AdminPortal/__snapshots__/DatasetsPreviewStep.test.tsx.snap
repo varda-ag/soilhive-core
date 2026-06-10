@@ -8,11 +8,30 @@ exports[`DatasetsPreviewStep matches snapshot 1`] = `
     <div
       class="TextContent"
     >
-      <h2
-        class="Title"
+      <div
+        class="IngestionStepTitleRow"
       >
-        Preview
-      </h2>
+        <h2
+          class="Title"
+        >
+          Preview
+        </h2>
+        <a
+          class="DocumentationLink"
+          data-testid="sh-documentaion-link"
+          href="https://github.com/varda-ag/soilhive-core/blob/main/docs/user-guides/data-load.md#data-preview"
+          rel="noreferrer"
+          target="_blank"
+        >
+          <svg
+            data-testid="svg-icon-mock"
+          >
+            mock-svg
+          </svg>
+           
+          Open documentation
+        </a>
+      </div>
       <p
         class="Message"
       >
