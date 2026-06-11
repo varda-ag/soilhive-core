@@ -15,6 +15,8 @@
     "dev": "nodemon --exec 'ts-node --transpile-only' src/app.ts --watch src/**/*.ts src/openapi.yaml",
     "test": "jest --runInBand --bail --detectOpenHandles --coverage --collectCoverageFrom='src/**/*.ts'",
     "test:watch": "jest --detectOpenHandles --watch",
+    "perf": "npm run build && node dist/scripts/perf/runner.js",
+    "perf:diff": "ts-node --transpile-only src/scripts/perf/diff.ts",
     "typeorm": "typeorm-ts-node-commonjs"
   },
   "keywords": [],

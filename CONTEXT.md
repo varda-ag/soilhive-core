@@ -76,5 +76,6 @@ _Avoid_: Links, references, attachments
 
 ## Flagged ambiguities
 
+- "dataset ID" in the public API means the Dataset's `slug`, not its database primary key: `GET /data-filters/{filterId}/datasets` returns the slug in the `id` field, and the `datasets` query parameter of `GET /soil-data` matches against slugs. In domain discussions, say **slug** when you mean the public identifier and reserve "ID" for the internal primary key.
 - "layer" was used in the codebase to mean both the domain entity (depth/date slice) and Mapbox/map rendering layers — in domain discussions, **Layer** always refers to the soil data entity.
 - "observation" was initially used loosely to mean any data point or measurement; resolved: **Observation** is specifically a row in the `observations` table with a numeric `value`, linked to a **DatasetLayer**.
