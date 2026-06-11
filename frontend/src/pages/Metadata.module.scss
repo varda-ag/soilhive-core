@@ -258,6 +258,29 @@
       }
 
     }
+
+    .OptionalProperties {
+      background-color: var(--color-neutral-white);
+      margin-top: 24px;
+      padding: 16px 0 40px 0;
+      box-shadow: 0px 4px 16px 0px #0000001F;
+
+      @media screen and (min-width: $bp-tablet) {
+        border-radius: 8px;
+        padding: 24px 32px 51px 32px;
+        margin-bottom: 24px;
+      }
+
+      .Title {
+        color: var(--color-neutral-dark-400);
+        font-size: var(--font-size-md);
+        margin-bottom: 10px;
+
+        @media (max-width: $bp-mobile-max) {
+          padding-left: 13px;
+        }
+      }
+    }
   }
 
   .Footer {

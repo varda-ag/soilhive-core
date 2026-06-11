@@ -11,14 +11,21 @@
         "reference_period_start": "Start date of the data coverage (YYYY-MM-DD)",
         "reference_period_stop": "Stop date of the data coverage (YYYY-MM-DD)",
         "publication_date": "Type YYYY-MM-DD",
-        "citation": "Preferred citation (authors, year, title, journal, DOI/URL)"
+        "citation": "Preferred citation (authors, year, title, journal, DOI/URL)",
+        "preprocessing_steps": "Describe any preprocessing, normalization, or transformation steps applied to the dataset"
     },
     "editor": {
         "save": "Save",
         "saving": "Saving…",
         "cancel": "Cancel",
         "edit_aria": "Edit",
-        "failed_to_save": "Failed to save"
+        "failed_to_save": "Failed to save",
+        "add": "Add",
+        "added_resources": "Added resources",
+        "remove_resource_aria": "Remove resource",
+        "add_link": "Add a link",
+        "url_placeholder": "e.g. https://example.com/resource",
+        "invalid_url": "Please enter a valid URL"
     },
     "license_row": {
         "custom_license": "Custom license",
@@ -65,8 +72,11 @@
         "reference_period_stop": "Reference coverage end:",
         "publication_date": "Publication date:",
         "license": "License:",
-        "citation": "Citation:"
+        "citation": "Citation:",
+        "preprocessing_steps": "Preprocessing steps:",
+        "related_resources": "Related resources:"
     },
+    "optional_properties_title": "OPTIONAL PROPERTIES",
     "footer": {
         "varda_website": "Varda Foundation website",
         "contact": "Contact us",
