@@ -16,6 +16,8 @@ export function EditorRow({
   property,
   variant = 'editor',
   placeholder,
+  displayPlaceholder,
+  disableBackground,
   onStartEditing,
   onSave,
   onCancel,
@@ -25,7 +27,11 @@ export function EditorRow({
   isEditable: boolean;
   property: string;
   variant?: 'editor' | 'text';
+  /** Text shown inside the editor/input while the user is typing and the field is empty. Only visible in edit mode. */
   placeholder?: string;
+  /** Text shown in view mode when the field has no value. Replaces the empty display area so the row never looks blank. */
+  displayPlaceholder?: string;
+  disableBackground?: boolean;
   onStartEditing: (property: string) => void;
   onSave: (property: string, value: string, callbacks: SaveCallbacks) => void;
   onCancel: (property: string) => void;
@@ -57,12 +63,16 @@ export function EditorRow({
   };
 
   return (
-    <div className={`${styles.Row}${isEditable && !isEditing ? ` ${styles.RowAdmin}` : ''}`}>
+    <div
+      className={[styles.Row, isEditable && !isEditing ? styles.RowAdmin : '', disableBackground ? styles.RowNoBackground : '']
+        .filter(Boolean)
+        .join(' ')}
+    >
       <p className={styles.Label}>
         <strong>{label}</strong>
       </p>
       {isEditing ? (
-        <div className={`${styles.EditArea}${isSaving ? ` ${styles.EditAreaSaving}` : ''}`}>
+        <div className={styles.EditArea}>
           {variant === 'text' ? (
             <div className={styles.TextInputWrapper}>
               <TextInput size="small" value={editValue} onChange={v => setEditValue(v)} isDisabled={isSaving} placeholder={placeholder} />
@@ -98,7 +108,7 @@ export function EditorRow({
         </div>
       ) : (
         <>
-          <div className={styles.Text}>{variant === 'text' ? value : htmlDisplay(value)}</div>
+          <div className={styles.Text}>{value ? (variant === 'text' ? value : htmlDisplay(value)) : displayPlaceholder}</div>
           {isEditable && (
             <button
               type="button"
