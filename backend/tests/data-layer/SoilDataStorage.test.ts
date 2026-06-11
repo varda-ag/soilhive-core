@@ -308,17 +308,20 @@ describe('SoilDataStorage class', () => {
     { min_sampling_date: null, max_sampling_date: null },
     { horizons: [null] },
     { horizons: ['A0', 'A1'] },
-  ])('Datasets list query filter builder should have intersection filter as the first clause', filter => {
-    const firstClause = `ST_Intersects(f.geom, (SELECT geom FROM aoi))`;
+  ])('Datasets list query filter builder should leave spatial filtering to the aoi feature CTEs', filter => {
     const schema = 'test';
     const params: any[] = [];
     const p = (val: any) => {
       params.push(val);
       return `$${params.length}`;
     };
-    const { lateralWhere } = buildDatasetFilterClauses(filter, p, schema!);
+    const { outerWhere, lateralWhere } = buildDatasetFilterClauses(filter, p, schema!);
 
-    expect(lateralWhere[0]).toBe(firstClause);
+    // Spatial intersection is enforced by the aoi_features / matching_features CTEs
+    // (built on user_geometry_subdivisions pieces), not by the lateral clauses; the
+    // dataset-level prefilter works on the pieces' overall extent.
+    expect(lateralWhere.some(clause => clause.includes('ST_Intersects'))).toBe(false);
+    expect(outerWhere).toContain(`ds.spatial_extent && (SELECT ST_SetSRID(ST_Extent(geom), 4326) FROM aoi)`);
   });
 
   it('Filtering using cursor and sorting at the same time should return consistent results', async () => {

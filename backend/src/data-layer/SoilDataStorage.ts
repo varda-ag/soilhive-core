@@ -19,7 +19,6 @@ import { GISDataType } from '../types/data';
 import { getVectorMaskCtes, type CteDef } from './FilteringMasks';
 
 const SET_LOCAL_WORK_MEM_SQL = "SET LOCAL work_mem = '512MB';";
-const AREA_THRESHOLD_M2 = 7_000_000 * 1_000 * 1_000; // 7,000,000 km²
 const rasterFilterService = new RasterFilterService();
 const entitlementService = new EntitlementService();
 
@@ -79,9 +78,7 @@ export default class SoilDataStorage {
           aoi_features AS MATERIALIZED (
             SELECT f.id
             FROM ${schema}.features f
-            CROSS JOIN aoi
-            WHERE f.geom && aoi.geom
-              AND ST_Intersects(f.geom, aoi.geom)
+            WHERE EXISTS (SELECT 1 FROM aoi WHERE ST_Intersects(f.geom, aoi.geom))
           )`;
 
     const innerWhere: string[] = [
@@ -146,8 +143,8 @@ export default class SoilDataStorage {
     const sql = `
       WITH
       aoi AS MATERIALIZED (
-        SELECT ST_CollectionExtract(ST_Union(ug.geom), 3) AS geom
-        FROM ${schema}.user_geometries ug WHERE ug.id = ANY($1::uuid[])
+        SELECT ugs.geom
+        FROM ${schema}.user_geometry_subdivisions ugs WHERE ugs.user_geometry_id = ANY($1::uuid[])
       )
       ${aoiFeaturesCte}
       ${activeSoilPropertiesCte}
@@ -235,10 +232,8 @@ export default class SoilDataStorage {
     // Pre-compute spatially-intersecting features once as a materialized CTE to avoid
     // re-running the ST_Intersects scan for each candidate dataset in the outer query.
     // When raster filters are active, matching_features already contains the spatial set
-    // (derived from candidate_features). In both cases lateralWhere[0] (the ST_Intersects
-    // clause) is dropped — the chosen featureTable already enforces spatial intersection.
+    // (derived from candidate_features). The chosen featureTable enforces spatial intersection.
     const featureTable = usesMatchingFeatures ? 'matching_features' : 'aoi_features';
-    const effectiveExistsWhere = lateralWhere.slice(1);
 
     const aoiFeaturesCte = usesMatchingFeatures
       ? ''
@@ -246,18 +241,16 @@ export default class SoilDataStorage {
       aoi_features AS MATERIALIZED (
         SELECT f.id
         FROM ${schema}.features f
-        CROSS JOIN aoi
-        WHERE f.geom && aoi.geom
-          AND ST_Intersects(f.geom, aoi.geom)
+        WHERE EXISTS (SELECT 1 FROM aoi WHERE ST_Intersects(f.geom, aoi.geom))
       )`;
 
-    const existsWhere = [`dl.dataset_id = ds.id`, ...effectiveExistsWhere];
+    const existsWhere = [`dl.dataset_id = ds.id`, ...lateralWhere];
 
     const sql = `
       WITH
       aoi AS MATERIALIZED (
-        SELECT ST_CollectionExtract(ST_Union(ug.geom), 3) AS geom
-        FROM ${schema}.user_geometries ug WHERE ug.id = ANY($1::uuid[])
+        SELECT ugs.geom
+        FROM ${schema}.user_geometry_subdivisions ugs WHERE ugs.user_geometry_id = ANY($1::uuid[])
       )${rasterCtes ? `,\n      ${rasterCtes}` : ''}${aoiFeaturesCte}
       SELECT ds.slug AS id, ds.name, ds.gis_datatype AS data_type, ds.visibility
       FROM ${schema}.datasets ds
@@ -289,14 +282,14 @@ export default class SoilDataStorage {
 
     const aoiCtes: CteDef[] = hasRasterFilters(filters)
       ? await getVectorMaskCtes(entityManager, filter)
-      : [{ name: 'aoi', sql: selectGeometryByIds() }];
+      : [{ name: 'aoi', sql: selectGeometryPiecesByIds() }];
 
     await entityManager.query(SET_LOCAL_WORK_MEM_SQL);
     // Step 1 — candidate raster layer IDs matching FilterCriteria + coarse spatial pre-filter
     const candidateQuery = entityManager
       .getRepository(RasterLayerEntity)
       .createQueryBuilder('rl')
-      .innerJoin('rl.dataset', 'ds', 'ds.deleted_at IS NULL AND ds.spatial_extent && (SELECT ST_Envelope(geom) FROM aoi)')
+      .innerJoin('rl.dataset', 'ds', 'ds.deleted_at IS NULL AND ds.spatial_extent && (SELECT ST_SetSRID(ST_Extent(geom), 4326) FROM aoi)')
       .innerJoin('rl.soil_property', 'sp')
       .select('rl.id', 'id');
 
@@ -304,7 +297,7 @@ export default class SoilDataStorage {
       candidateQuery.addCommonTableExpression(cte.sql, cte.name, cte.materialized ? { materialized: true } : undefined);
     }
     candidateQuery.setParameter('geometryIds', geometryIds);
-    candidateQuery.andWhere('rl.bbox && (SELECT geom FROM aoi)');
+    candidateQuery.andWhere('EXISTS (SELECT 1 FROM aoi WHERE rl.bbox && aoi.geom)');
     candidateQuery.andWhere('ds.gis_datatype=:gis_datatype', { gis_datatype: GISDataType.RASTER });
     applyRasterLayerFilters(candidateQuery, filters);
 
@@ -364,6 +357,9 @@ export default class SoilDataStorage {
     await entitlementService.enforceEntitlements(requestData, datasetSlugs, Capability.DOWNLOAD);
 
     const schema = process.env.POSTGRES_SCHEMA;
+    // Unlike the filtering paths, this aoi is returned to the caller as a GeoJSON
+    // output geometry, so it must stay a single unioned row — subdivision pieces
+    // would leak internal edges into the API response.
     const aoiCtes: CteDef[] = hasRasterFilters(filters)
       ? await getVectorMaskCtes(requestData.entityManager, filter)
       : [
@@ -487,7 +483,7 @@ export default class SoilDataStorage {
       num_distinct_years: number;
     }>
   > => {
-    const { geometryIds, parameters: filters, area: aoiAreaM2 } = filter;
+    const { geometryIds, parameters: filters } = filter;
     const schema = process.env.POSTGRES_SCHEMA;
     const params: any[] = [geometryIds]; // $1 = geometryIds
     const p = (val: any) => {
@@ -495,8 +491,8 @@ export default class SoilDataStorage {
       return `$${params.length}`;
     };
     const aoiCte = `aoi AS MATERIALIZED (
-      SELECT ST_CollectionExtract(ST_Union(ug.geom), 3) AS geom
-      FROM ${schema}.user_geometries ug WHERE ug.id = ANY($1::uuid[])
+      SELECT ugs.geom
+      FROM ${schema}.user_geometry_subdivisions ugs WHERE ugs.user_geometry_id = ANY($1::uuid[])
     )`;
 
     const whereClauses: string[] = [];
@@ -552,16 +548,14 @@ export default class SoilDataStorage {
     const enabledRasterFilterTables = await getEnabledRasterFilterTables();
     const { ctes: rasterCtes, usesMatchingFeatures } = buildRasterSql(filter, enabledRasterFilterTables);
 
-    const useSubdivide = !usesMatchingFeatures && aoiAreaM2 > AREA_THRESHOLD_M2;
-    const spatialSource = useSubdivide ? 'aoi_subdivided' : 'aoi';
     const featureSource = usesMatchingFeatures ? 'matching_features' : 'candidate_features';
 
     const spatialCtePart = usesMatchingFeatures
       ? rasterCtes
-      : `${useSubdivide ? `aoi_subdivided AS MATERIALIZED (\n        SELECT ST_Subdivide(aoi.geom, 64) AS geom FROM aoi\n      ),\n      ` : ''}candidate_features AS MATERIALIZED (
-        SELECT DISTINCT f.id, f.geom
+      : `candidate_features AS MATERIALIZED (
+        SELECT f.id, f.geom
         FROM ${schema}.features f
-        JOIN ${spatialSource} ON ST_Intersects(f.geom, ${spatialSource}.geom)
+        WHERE EXISTS (SELECT 1 FROM aoi WHERE ST_Intersects(f.geom, aoi.geom))
       )`;
 
     const sql = `
@@ -586,7 +580,7 @@ export default class SoilDataStorage {
         INNER JOIN ${schema}.datasets ds ON ds.id = dl.dataset_id
           AND ds.deleted_at IS NULL
           AND ds.gis_datatype != 'raster'
-          AND ds.spatial_extent && (SELECT geom FROM aoi)
+          AND ds.spatial_extent && (SELECT ST_SetSRID(ST_Extent(geom), 4326) FROM aoi)
         INNER JOIN ${schema}.layers layer ON layer.id = dl.layer_id
         ${joins.join('\n        ')}
         WHERE dl.feature_id = f.id
@@ -651,8 +645,8 @@ export default class SoilDataStorage {
       }
     }
     const aoi_cte = `aoi AS MATERIALIZED (
-          SELECT ST_CollectionExtract(ST_Union(ug.geom), 3) AS geom
-          FROM ${schema}.user_geometries ug WHERE ug.id = ANY($1::uuid[])
+          SELECT ugs.geom
+          FROM ${schema}.user_geometry_subdivisions ugs WHERE ugs.user_geometry_id = ANY($1::uuid[])
     )`;
     const sql = `
       WITH
@@ -732,9 +726,13 @@ export const buildDatasetFilterClauses = (
   p: (val: any) => string,
   schema: string,
 ): { outerWhere: string[]; lateralJoins: string[]; lateralWhere: string[] } => {
-  const outerWhere: string[] = ['ds.deleted_at IS NULL', `ds.spatial_extent && (SELECT geom FROM aoi)`, `ds.status = 'PUBLISHED'`];
+  const outerWhere: string[] = [
+    'ds.deleted_at IS NULL',
+    `ds.spatial_extent && (SELECT ST_SetSRID(ST_Extent(geom), 4326) FROM aoi)`,
+    `ds.status = 'PUBLISHED'`,
+  ];
   const lateralJoins: string[] = [];
-  const lateralWhere: string[] = [`ST_Intersects(f.geom, (SELECT geom FROM aoi))`];
+  const lateralWhere: string[] = [];
   let needsLayerJoin = false;
 
   if (filters.data_types && filters.data_types.length > 0) {
@@ -806,8 +804,8 @@ export const buildDatasetFilterClauses = (
 };
 
 /**
- * Builds raster filter CTEs for raw SQL queries: aoi_subdivided (for large geometries),
- * candidate_features, clipped raster CTEs, and matching_features.
+ * Builds raster filter CTEs for raw SQL queries: candidate_features, clipped raster
+ * CTEs, and matching_features.
  *
  * Used by both filterVectorDatasets (LATERAL pattern) and buildRawSoilQuery (CTE join pattern).
  * Returns { ctes, usesMatchingFeatures } where ctes is a comma-joined string ready to
@@ -857,21 +855,12 @@ const buildRasterSql = (filter: DataFilter, enabledRasterFilterTables: string[])
     return { ctes: '', usesMatchingFeatures: false };
   }
 
-  const useSubdivide = aoiAreaM2 > AREA_THRESHOLD_M2;
-  const spatialSource = useSubdivide ? 'aoi_subdivided' : 'aoi';
-
   const allCtes: string[] = [];
 
-  if (useSubdivide) {
-    allCtes.push(`aoi_subdivided AS MATERIALIZED (
-      SELECT ST_Subdivide(aoi.geom, 64) AS geom FROM aoi
-    )`);
-  }
-
   allCtes.push(`candidate_features AS MATERIALIZED (
-    SELECT DISTINCT f.id, f.geom
+    SELECT f.id, f.geom
     FROM ${schema}.features f
-    JOIN ${spatialSource} ON ST_Intersects(f.geom, ${spatialSource}.geom)
+    WHERE EXISTS (SELECT 1 FROM aoi WHERE ST_Intersects(f.geom, aoi.geom))
   )`);
 
   allCtes.push(...clippedRasterCtes);
@@ -909,7 +898,7 @@ const buildRawSoilQuery = (
     enabledRasterFilterTables?: string[] | undefined;
   },
 ): { sql: string; params: any[] } => {
-  const { geometryIds, parameters: filters, area: aoiAreaM2 } = filter;
+  const { geometryIds, parameters: filters } = filter;
   const schema = process.env.POSTGRES_SCHEMA;
   const params: any[] = [];
   const p = (val: any) => {
@@ -977,32 +966,22 @@ const buildRawSoilQuery = (
   // ── spatial + raster CTEs ────────────────────────────────────────────────────
   const aoi_cte = hasGeometry
     ? `aoi AS MATERIALIZED (
-        SELECT ST_CollectionExtract(ST_Union(ug.geom), 3) AS geom
-        FROM ${schema}.user_geometries ug WHERE ug.id = ANY(${geomIdsParam}::uuid[])
+        SELECT ugs.geom
+        FROM ${schema}.user_geometry_subdivisions ugs WHERE ugs.user_geometry_id = ANY(${geomIdsParam}::uuid[])
       ),`
     : '';
 
   const enabledRasterFilterTables = options.enabledRasterFilterTables ?? [];
   const { ctes: rasterCtes, usesMatchingFeatures } = buildRasterSql(filter, enabledRasterFilterTables);
 
-  // When buildRasterSql produced matching_features it also generated aoi_subdivided +
-  // candidate_features internally — skip generating them here to avoid duplicate CTEs.
-  const spatialSource = hasGeometry && aoiAreaM2 > AREA_THRESHOLD_M2 ? 'aoi_subdivided' : 'aoi';
-
-  const aoi_subdivided_cte =
-    !usesMatchingFeatures && hasGeometry && aoiAreaM2 > AREA_THRESHOLD_M2
-      ? `aoi_subdivided AS MATERIALIZED (
-        SELECT ST_Subdivide(aoi.geom, 64) AS geom
-        FROM aoi
-      ),`
-      : '';
-
+  // When buildRasterSql produced matching_features it also generated candidate_features
+  // internally — skip generating it here to avoid duplicate CTEs.
   const candidate_features_cte =
     !usesMatchingFeatures && hasGeometry
       ? `candidate_features AS MATERIALIZED (
-        SELECT distinct f.id, f.geom
+        SELECT f.id, f.geom
         FROM ${schema}.features f
-        JOIN ${spatialSource} ON ST_Intersects(f.geom, ${spatialSource}.geom)
+        WHERE EXISTS (SELECT 1 FROM aoi WHERE ST_Intersects(f.geom, aoi.geom))
       ),`
       : '';
 
@@ -1011,7 +990,7 @@ const buildRawSoilQuery = (
     ? `INNER JOIN ${featureSourceCte} matching_features ON matching_features.id = dl.feature_id`
     : `INNER JOIN ${schema}.features matching_features ON matching_features.id = dl.feature_id`;
 
-  const datasetSpatialFilter = hasGeometry ? `AND ds.spatial_extent && (SELECT geom FROM aoi)` : '';
+  const datasetSpatialFilter = hasGeometry ? `AND ds.spatial_extent && (SELECT ST_SetSRID(ST_Extent(geom), 4326) FROM aoi)` : '';
 
   // ── cursor / sort (data mode only) ──────────────────────────────────────────
   let cursorClause = '';
@@ -1110,7 +1089,7 @@ const buildRawSoilQuery = (
   const sql = `
     WITH
     ${aoi_cte}
-    ${usesMatchingFeatures ? `${rasterCtes},` : `${aoi_subdivided_cte}${candidate_features_cte}`}
+    ${usesMatchingFeatures ? `${rasterCtes},` : candidate_features_cte}
     -- Resolve slug(s) to dataset id(s) first — drives the join order
     target_dataset AS MATERIALIZED (
       SELECT ds.id
@@ -1156,10 +1135,10 @@ const selectGeometry = (): string => {
   return "SELECT ST_CollectionExtract(ST_MakeValid(ST_GeomFromGeoJSON(:inputGeom), 'method=structure'), 3) AS geom";
 };
 
-const selectGeometryByIds = (): string => {
+const selectGeometryPiecesByIds = (): string => {
   const schema = process.env.POSTGRES_SCHEMA;
-  return `SELECT ST_CollectionExtract(ST_Union(ug.geom), 3) AS geom
-          FROM ${schema}.user_geometries ug WHERE ug.id = ANY(:geometryIds::uuid[])`;
+  return `SELECT ugs.geom
+          FROM ${schema}.user_geometry_subdivisions ugs WHERE ugs.user_geometry_id = ANY(:geometryIds::uuid[])`;
 };
 
 const spatialFilterByCte = async (
@@ -1182,7 +1161,7 @@ const spatialFilterByCte = async (
     .addSelect('f.file_path', 'file_path')
     .addSelect('rl.resolution_m', 'resolution_m')
     .where('rl.id IN (:...candidateLayers)', { candidateLayers })
-    .andWhere('ST_Intersects(rf.geom, (SELECT geom FROM aoi))')
+    .andWhere('EXISTS (SELECT 1 FROM aoi WHERE ST_Intersects(rf.geom, aoi.geom))')
     .getRawMany();
 };
 

@@ -86,8 +86,8 @@ export const getVectorMaskCtes = async (entityManager: EntityManager, filter: Da
 
   ctes.push({
     name: 'aoi_raw',
-    sql: `SELECT ST_CollectionExtract(ug.geom, 3) AS geom
-          FROM ${schema}.user_geometries ug WHERE ug.id = ANY(:geometryIds::uuid[])`,
+    sql: `SELECT ugs.geom
+          FROM ${schema}.user_geometry_subdivisions ugs WHERE ugs.user_geometry_id = ANY(:geometryIds::uuid[])`,
     materialized: true,
   });
 
@@ -126,9 +126,13 @@ export const getVectorMaskCtes = async (entityManager: EntityManager, filter: Da
   const fromTables = ['aoi_raw', ...maskCteNames].join(', ');
   const whereClause = maskCteNames.length > 0 ? `WHERE ${maskCteNames.map(m => `${m}.geom IS NOT NULL`).join(' AND ')}` : '';
 
+  // aoi_raw holds subdivision pieces (one row each), so the masked intersections are
+  // aggregated back into a single row: consumers treat aoi as one geometry (scalar
+  // subqueries, GeoJSON output). The union is bounded by the mask extent, not the
+  // full user geometry.
   ctes.push({
     name: 'aoi',
-    sql: `SELECT ST_Multi(ST_CollectionExtract(ST_MakeValid(${resultExpr}, 'method=structure'), 3)) AS geom
+    sql: `SELECT ST_Multi(ST_CollectionExtract(ST_Union(ST_MakeValid(${resultExpr}, 'method=structure')), 3)) AS geom
           FROM ${fromTables}
           ${whereClause}`,
     materialized: true,
@@ -181,17 +185,17 @@ export const getRasterMask = async (
     params = built.params;
 
     ctes.push(`vector_mask AS MATERIALIZED (
-      SELECT ${built.resultExpr} AS geom
+      SELECT ST_Union(${built.resultExpr}) AS geom
       FROM ${built.fromTables}
       ${built.whereClause}
     )`);
 
     ctes.push(`bbox AS MATERIALIZED (
       SELECT
-        ST_XMin(ST_Envelope(aoi.geom)) AS min_x,
-        ST_YMin(ST_Envelope(aoi.geom)) AS min_y,
-        ST_XMax(ST_Envelope(aoi.geom)) AS max_x,
-        ST_YMax(ST_Envelope(aoi.geom)) AS max_y
+        ST_XMin(ST_Extent(aoi.geom)) AS min_x,
+        ST_YMin(ST_Extent(aoi.geom)) AS min_y,
+        ST_XMax(ST_Extent(aoi.geom)) AS max_x,
+        ST_YMax(ST_Extent(aoi.geom)) AS max_y
       FROM aoi
     )`);
 
@@ -406,8 +410,8 @@ const buildVectorMaskCtes = (
   const maskCteNames: string[] = [];
 
   ctes.push(`aoi AS MATERIALIZED (
-      SELECT ST_CollectionExtract(ST_MakeValid(ST_Union(ug.geom), 'method=structure'), 3) AS geom
-      FROM ${schema}.user_geometries ug WHERE ug.id = ANY($1::uuid[])
+      SELECT ugs.geom
+      FROM ${schema}.user_geometry_subdivisions ugs WHERE ugs.user_geometry_id = ANY($1::uuid[])
     )`);
 
   if (raster_filters) {

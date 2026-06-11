@@ -1,5 +1,8 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
+// See docs/adr/0006-precomputed-geometry-subdivision-table.md
+const SUBDIVIDE_MAX_VERTICES = 64;
+
 export class UserGeometries1781000000000 implements MigrationInterface {
   name = 'UserGeometries1781000000000';
 
@@ -37,6 +40,54 @@ export class UserGeometries1781000000000 implements MigrationInterface {
     `);
 
     await queryRunner.query(
+      `CREATE TABLE "user_geometry_subdivisions" (
+        "id" uuid NOT NULL DEFAULT uuidv7(),
+        "user_geometry_id" uuid NOT NULL,
+        "geom" geometry NOT NULL,
+        CONSTRAINT "PK_user_geometry_subdivisions_id" PRIMARY KEY ("id"),
+        CONSTRAINT "FK_ugs_user_geometry_id" FOREIGN KEY ("user_geometry_id") REFERENCES "user_geometries"("id") ON DELETE CASCADE
+      )`,
+    );
+
+    await queryRunner.query(`CREATE INDEX "IDX_user_geometry_subdivisions_geom" ON "user_geometry_subdivisions" USING GiST ("geom")`);
+    await queryRunner.query(
+      `CREATE INDEX "IDX_user_geometry_subdivisions_user_geometry_id" ON "user_geometry_subdivisions" ("user_geometry_id")`,
+    );
+    await queryRunner.query(`ALTER TABLE "user_geometry_subdivisions" ALTER COLUMN "geom" SET STATISTICS 1000`);
+
+    // SET search_path FROM CURRENT pins the migration-time search_path so the
+    // unqualified table reference resolves correctly when fired from app sessions.
+    await queryRunner.query(`
+      CREATE OR REPLACE FUNCTION subdivide_user_geometry()
+      RETURNS trigger AS $$
+      BEGIN
+        DELETE FROM user_geometry_subdivisions WHERE user_geometry_id = NEW.id;
+        INSERT INTO user_geometry_subdivisions (user_geometry_id, geom)
+        SELECT NEW.id, ST_Subdivide(ST_CollectionExtract(NEW.geom, 3), ${SUBDIVIDE_MAX_VERTICES})
+        WHERE NEW.geom IS NOT NULL AND NOT ST_IsEmpty(ST_CollectionExtract(NEW.geom, 3));
+        RETURN NEW;
+      END;
+      $$ LANGUAGE plpgsql SET search_path FROM CURRENT
+    `);
+
+    // AFTER triggers so NEW.geom has already been fixed by the BEFORE ST_MakeValid
+    // trigger (ST_Subdivide requires valid input). The UPDATE trigger is guarded so
+    // the dedup upsert in insertUserGeometry (geom rewritten with an identical value)
+    // does not re-subdivide.
+    await queryRunner.query(`
+      CREATE TRIGGER trg_user_geometries_subdivide_insert
+      AFTER INSERT ON user_geometries
+      FOR EACH ROW EXECUTE FUNCTION subdivide_user_geometry()
+    `);
+    await queryRunner.query(`
+      CREATE TRIGGER trg_user_geometries_subdivide_update
+      AFTER UPDATE OF geom ON user_geometries
+      FOR EACH ROW
+      WHEN (OLD.geom IS DISTINCT FROM NEW.geom)
+      EXECUTE FUNCTION subdivide_user_geometry()
+    `);
+
+    await queryRunner.query(
       `CREATE TABLE "data_filter_user_geometries" (
         "data_filter_id" uuid NOT NULL,
         "user_geometry_id" uuid NOT NULL,
@@ -49,6 +100,10 @@ export class UserGeometries1781000000000 implements MigrationInterface {
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`DROP TABLE IF EXISTS "data_filter_user_geometries"`);
+    await queryRunner.query(`DROP TRIGGER IF EXISTS trg_user_geometries_subdivide_update ON user_geometries`);
+    await queryRunner.query(`DROP TRIGGER IF EXISTS trg_user_geometries_subdivide_insert ON user_geometries`);
+    await queryRunner.query(`DROP FUNCTION IF EXISTS subdivide_user_geometry`);
+    await queryRunner.query(`DROP TABLE IF EXISTS "user_geometry_subdivisions"`);
     await queryRunner.query(`DROP INDEX IF EXISTS "idx_user_geometries_geometry_type"`);
     await queryRunner.query(`DROP INDEX IF EXISTS "idx_user_geometries_geography"`);
     await queryRunner.query(`DROP INDEX IF EXISTS "IDX_user_geometries_geom"`);
