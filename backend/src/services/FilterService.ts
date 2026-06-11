@@ -9,7 +9,6 @@ import { RequestData } from '../interfaces/RequestData';
 import { ErrorResponse } from '../utils/error';
 import { mergeMin, mergeMax } from '../utils/utils';
 import DataFilterEntity from '../entities/DataFilter';
-import UserGeometryEntity from '../entities/UserGeometry';
 import DataFilterUserGeometryEntity from '../entities/DataFilterUserGeometry';
 import { DataAvailabilityIndex } from '../interfaces/Dai';
 import { getPolygonFromBbox, geometryUnion } from '../utils/geometry';
@@ -18,17 +17,41 @@ const sds = new SoilDataStorage();
 
 export default class FilterService {
   insertUserGeometry = async (requestData: RequestData, geometry: Polygon | MultiPolygon): Promise<{ id: string; area: number }> => {
+    const schema = process.env.POSTGRES_SCHEMA;
     const geomJson = JSON.stringify(geometry);
-    const inserted = await requestData.entityManager
-      .createQueryBuilder()
-      .insert()
-      .into(UserGeometryEntity)
-      .values({ geom: () => `ST_GeomFromGeoJSON(:geom)` })
-      .setParameter('geom', geomJson)
-      .orUpdate(['geom'], ['geom_hash'])
-      .returning(['id', 'area'])
-      .execute();
-    return { id: inserted.raw[0].id, area: Number(inserted.raw[0].area) };
+    // The geometry is canonicalised with ST_MakeValid exactly once, here, before it
+    // is hashed and stored. ST_MakeValid is not byte-idempotent (re-applying it can
+    // change the byte representation and therefore geom_hash), so a stored row must
+    // never be rewritten: on a dedup hit we DO NOTHING and return the existing row
+    // as is. Do not "simplify" this to ON CONFLICT DO UPDATE — repeated submissions
+    // of the same geometry would then drift the row's hash and eventually collide
+    // with the duplicate row created in the meantime (unique violation on geom_hash).
+    // The fallback SELECT's hash expression must mirror the generated geom_hash
+    // column in the user_geometries migration.
+    const query = `
+      WITH input AS (
+        SELECT ST_MakeValid(ST_GeomFromGeoJSON($1), 'method=structure') AS geom
+      ), inserted AS (
+        INSERT INTO ${schema}.user_geometries (geom)
+        SELECT geom FROM input
+        ON CONFLICT (geom_hash) DO NOTHING
+        RETURNING id, area
+      )
+      SELECT id, area FROM inserted
+      UNION ALL
+      SELECT ug.id, ug.area
+      FROM ${schema}.user_geometries ug, input
+      WHERE ug.geom_hash = encode(sha256(input.geom::TEXT::BYTEA), 'hex')
+      LIMIT 1`;
+    // The insert can conflict with a row committed after this statement's snapshot,
+    // which the fallback SELECT then cannot see; a second attempt takes a fresh
+    // snapshot and finds it.
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const rows: { id: string; area: number }[] = await requestData.entityManager.query(query, [geomJson]);
+      const [row] = rows;
+      if (row) return { id: row.id, area: Number(row.area) };
+    }
+    throw new ErrorResponse('Failed to store filtering geometry', StatusCodes.INTERNAL_SERVER_ERROR);
   };
 
   deleteUserGeometry = async (requestData: RequestData, id: string): Promise<void> => {
@@ -65,11 +88,14 @@ export default class FilterService {
     await Promise.all(
       filter.geometries.map(async geometry => {
         const { id: user_geometry_id } = await this.insertUserGeometry(requestData, geometry);
+        // A filter's geometries are a set: payload geometries that canonicalise to
+        // the same stored row collapse to a single join entry.
         await requestData.entityManager
           .createQueryBuilder()
           .insert()
           .into(DataFilterUserGeometryEntity)
           .values({ data_filter_id: savedFilter.id, user_geometry_id })
+          .orIgnore()
           .execute();
       }),
     );

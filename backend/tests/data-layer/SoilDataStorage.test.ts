@@ -26,8 +26,23 @@ export const makeFilter = async (
   parameters: FilterCriteria = {},
 ): Promise<DataFilter> => {
   if (!geometry) return { geometryIds: [], parameters, area: 0 };
+  // Mirrors FilterService.insertUserGeometry: canonicalise with ST_MakeValid once,
+  // never rewrite a stored row on a dedup hit (ST_MakeValid is not byte-idempotent).
   const [{ id, area }] = await entityManager.query(
-    `INSERT INTO user_geometries (geom) VALUES (ST_GeomFromGeoJSON($1)) ON CONFLICT (geom_hash) DO UPDATE SET geom = EXCLUDED.geom RETURNING id, area`,
+    `WITH input AS (
+       SELECT ST_MakeValid(ST_GeomFromGeoJSON($1), 'method=structure') AS geom
+     ), inserted AS (
+       INSERT INTO user_geometries (geom)
+       SELECT geom FROM input
+       ON CONFLICT (geom_hash) DO NOTHING
+       RETURNING id, area
+     )
+     SELECT id, area FROM inserted
+     UNION ALL
+     SELECT ug.id, ug.area
+     FROM user_geometries ug, input
+     WHERE ug.geom_hash = encode(sha256(input.geom::TEXT::BYTEA), 'hex')
+     LIMIT 1`,
     [JSON.stringify(geometry)],
   );
   return { geometryIds: [id], parameters, area: Number(area) };

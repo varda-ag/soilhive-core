@@ -112,6 +112,48 @@ describe('Testing /data-filters routes', () => {
     expect(join1.user_geometry_id).toBe(join2.user_geometry_id);
   });
 
+  it('Repeated filters with a geometry needing validation keep reusing one stored row', async () => {
+    // Self-intersecting bowtie: ST_MakeValid canonicalises it, and re-applying
+    // ST_MakeValid to its own output changes the byte representation. Before the
+    // DO NOTHING upsert this poisoned dedup and the 4th POST failed with a
+    // unique violation on geom_hash.
+    const bowtie = {
+      type: 'Polygon',
+      coordinates: [
+        [
+          [0, 0],
+          [2, 2],
+          [2, 0],
+          [0, 2],
+          [0, 0],
+        ],
+      ],
+    };
+    const payload = { parameters: {}, geometries: [bowtie] };
+
+    const geometryIds = new Set<string>();
+    const dataSource = await getDataSource();
+    const joinRepo = dataSource.getRepository('DataFilterUserGeometryEntity');
+    for (let i = 0; i < 4; i++) {
+      const res = await request(app).post('/data-filters').set(superAdminAuthHeader).send(payload);
+      expect(res.statusCode).toBe(StatusCodes.CREATED);
+      const [join] = await joinRepo.findBy({ data_filter_id: res.body.id });
+      geometryIds.add(join.user_geometry_id);
+    }
+    expect(geometryIds.size).toBe(1);
+  });
+
+  it('Duplicate geometries in one payload collapse to a single join row', async () => {
+    const payload = { parameters: {}, geometries: [filteringPolygon, filteringPolygon] };
+    const res = await request(app).post('/data-filters').set(superAdminAuthHeader).send(payload);
+    expect(res.statusCode).toBe(StatusCodes.CREATED);
+
+    const dataSource = await getDataSource();
+    const joinRepo = dataSource.getRepository('DataFilterUserGeometryEntity');
+    const joinRows = await joinRepo.findBy({ data_filter_id: res.body.id });
+    expect(joinRows.length).toBe(1);
+  });
+
   it('Multiple geometries in a filter each get a user_geometries row and join entry', async () => {
     const secondPolygon = {
       type: 'Polygon',
