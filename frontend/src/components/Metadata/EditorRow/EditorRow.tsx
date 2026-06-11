@@ -72,7 +72,7 @@ export function EditorRow({
         <strong>{label}</strong>
       </p>
       {isEditing ? (
-        <div className={`${styles.EditArea}${isSaving ? ` ${styles.EditAreaSaving}` : ''}`}>
+        <div className={styles.EditArea}>
           {variant === 'text' ? (
             <div className={styles.TextInputWrapper}>
               <TextInput size="small" value={editValue} onChange={v => setEditValue(v)} isDisabled={isSaving} placeholder={placeholder} />

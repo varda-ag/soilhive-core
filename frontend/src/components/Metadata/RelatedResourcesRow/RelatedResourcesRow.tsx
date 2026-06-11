@@ -114,7 +114,7 @@ export function RelatedResourcesRow({
         <strong>{label}</strong>
       </p>
       {isEditing ? (
-        <div className={`${styles.EditArea}${isSaving ? ` ${styles.EditAreaSaving}` : ''}`}>
+        <div className={styles.EditArea}>
           <div className={styles.EditContent}>
             <p className={styles.AddLinkLabel}>
               <ChainIcon width={16} height={16} className={styles.ChainIcon} />
