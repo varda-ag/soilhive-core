@@ -32,6 +32,7 @@ export function DatasetsListItem({ dataset }: Props) {
             <Checkbox
               label={dataset.name}
               size="small"
+              labelClassName={styles.DatasetTitle}
               value={selectedDatasets.includes(dataset.id)}
               onChange={() => selectDataset(dataset.id)}
             />
@@ -47,7 +48,7 @@ export function DatasetsListItem({ dataset }: Props) {
           <Button size="tiny" type="custom" className={styles.MetadataButton} href={`/datasets/${dataset.id}`}>
             <NewTabIcon /> {t('datasets_list.metadata')}
           </Button>
-          {dataset.visibility && <Tag className={styles.VisibilityTag} text={t(`datasets_list.${dataset.visibility}`)} />}
+          {dataset.visibility === 'private' && <Tag className={styles.VisibilityTag} text={t(`datasets_list.${dataset.visibility}`)} />}
         </div>
       </div>
       <div className={styles.MetaWrapper}>

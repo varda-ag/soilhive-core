@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
+import classnames from 'classnames';
 import { useMetadata, type SaveCallbacks } from 'hooks/useMetadata';
 import { useEntitlements, ADMIN_PORTAL_ACCESS } from 'hooks/useEntitlementsHook';
 import useDevice from 'hooks/useDevice';
@@ -17,6 +18,7 @@ import InfoIcon from 'assets/icons/info-icon.svg?react';
 import { EditorRow } from 'components/Metadata/EditorRow/EditorRow';
 import { LicenseRow } from 'components/Metadata/LicenseRow/LicenseRow';
 import { NumberRow } from 'components/Metadata/NumberRow/NumberRow';
+import { dateStringToDDMMYYYY } from 'utilities/date';
 
 const GIS_DATATYPE_OPTIONS = [
   { code: 'point', name: 'Point' },
@@ -177,12 +179,25 @@ export default function Metadata() {
 
       <div className={styles.Content}>
         <div className={styles.DatasetProperties}>
-          {isAdmin && (
-            <div className={styles.AdminNotice}>
-              <InfoIcon />
-              <span>{t('admin_notice')}</span>
-            </div>
-          )}
+          <div
+            className={classnames(styles.TopRow, {
+              [styles.AdminView]: isAdmin,
+            })}
+          >
+            {isAdmin && (
+              <div className={styles.AdminNotice}>
+                <InfoIcon />
+                <span>{t('admin_notice')}</span>
+              </div>
+            )}
+            {!!dataset?.updated_at && (
+              <p className={styles.LastUpdated} data-testid="sh-last-update">
+                {t('last_update', {
+                  date: dateStringToDDMMYYYY(dataset.updated_at, '/'),
+                })}
+              </p>
+            )}
+          </div>
           <EditorRow
             label={t('fields.name')}
             value={dataset?.name}

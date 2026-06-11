@@ -378,18 +378,9 @@ describe('useDatasetPreview', () => {
   });
 
   describe('leave Ingestion flow', () => {
-    it('toggleDeletion calls markAsChanged when a file is selected', async () => {
-      const { result } = renderHook(() => useDatasetPreview(DATASET_ID));
-      await waitFor(() => expect(result.current.selectedFile).toBe('file-a'));
-      act(() => result.current.toggleDeletion(42));
+    it('calls markAsChanged on mount', () => {
+      renderHook(() => useDatasetPreview(DATASET_ID));
       expect(mockMarkAsChanged).toHaveBeenCalledTimes(1);
-    });
-
-    it('toggleDeletion does not call markAsChanged when no file is selected', () => {
-      setupMocks({ fileMappingsData: [] });
-      const { result } = renderHook(() => useDatasetPreview(DATASET_ID));
-      act(() => result.current.toggleDeletion(42));
-      expect(mockMarkAsChanged).not.toHaveBeenCalled();
     });
 
     it('handleSaveAndContinueLater calls resetChanges', async () => {

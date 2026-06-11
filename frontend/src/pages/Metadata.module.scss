@@ -103,7 +103,7 @@
           font-size: var(--font-size-md);
           line-height: 150%;
           margin-bottom: 10px;
-          
+
           @media screen and (min-width: $bp-tablet) {
             font-size: var(--font-size-lg);
             margin-bottom: 24px;
@@ -128,7 +128,7 @@
 
           .SplitButton {
             > button:first-of-type {
-              padding: .75rem 1.9rem;
+              padding: 0.75rem 1.9rem;
             }
           }
         }
@@ -238,6 +238,23 @@
         margin-bottom: 24px;
       }
 
+      .TopRow {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+
+        &.AdminView {
+          justify-content: space-between;
+        }
+
+        .LastUpdated {
+          font-style: italic;
+
+          @media (max-width: $bp-mobile-max) {
+            padding-right: 24px;
+          }
+        }
+      }
       .AdminNotice {
         display: flex;
         align-items: center;
@@ -256,7 +273,6 @@
           margin-left: 4px;
         }
       }
-
     }
   }
 

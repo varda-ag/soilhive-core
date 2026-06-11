@@ -28,6 +28,11 @@ export function useDatasetsSoilData() {
   const { isLoading: isIngestionLoading, updateFurthestStep } = useIngestionStatus();
 
   const hasTracked = useRef(false);
+
+  useEffect(() => {
+    markAsChanged();
+  }, [markAsChanged]);
+
   useEffect(() => {
     if (!hasTracked.current && datasetId && !isIngestionLoading) {
       hasTracked.current = true;
@@ -78,18 +83,16 @@ export function useDatasetsSoilData() {
 
   const handleFiles = useCallback(
     (files: FileList | File[] | null) => {
-      markAsChanged();
       handleFilesUpload(files);
     },
-    [markAsChanged, handleFilesUpload],
+    [handleFilesUpload],
   );
 
   const handleCrsChange = useCallback(
     (id: string, crs: string) => {
-      markAsChanged();
       updateSoilDataFile(id, { crs });
     },
-    [markAsChanged, updateSoilDataFile],
+    [updateSoilDataFile],
   );
 
   const { deleteFileAndMapping } = useFileManagement();
