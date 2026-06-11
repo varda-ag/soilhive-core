@@ -118,6 +118,19 @@ describe('Metadata page', () => {
     expect(container).toMatchSnapshot();
   });
 
+  it('renders date of the last update when update_at is provided', () => {
+    (useMetadata as jest.Mock).mockReturnValue({
+      dataset: { ...buildDataset(), updated_at: '05-05-2020' },
+      allLicenses: [{ id: 'lic-1', url: 'https://license.example', full_name: 'Test License' }],
+      inferredProperties: new Set(),
+      isLoading: false,
+      isError: false,
+    });
+
+    render(<Metadata />);
+    expect(screen.getByTestId('sh-last-update')).toBeInTheDocument();
+  });
+
   it('upserts document title and meta tags from dataset name', () => {
     (useMetadata as jest.Mock).mockReturnValue({
       dataset: buildDataset(),

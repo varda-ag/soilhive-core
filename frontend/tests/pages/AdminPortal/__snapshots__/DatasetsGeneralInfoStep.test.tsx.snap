@@ -131,7 +131,7 @@ exports[`DatasetsGeneralInfoStep renders matches snapshot 1`] = `
               maxlength="200"
               name="description"
               placeholder=""
-              rows="5"
+              rows="10"
             />
           </div>
           <span

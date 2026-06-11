@@ -26,5 +26,6 @@ export function useDataset(id: string | undefined) {
     method: 'GET',
     queryKey: ['dataset', id],
     enabled: !!id,
+    disableCache: true,
   });
 }

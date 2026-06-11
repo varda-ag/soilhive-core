@@ -76,7 +76,7 @@ export function DatasetsGeneralInfoStep() {
               errorMessage={errors.description}
               maxLength={descriptionMaxLength}
               showCounter
-              rows={5}
+              rows={10}
               onChange={value => handleChange('description', value)}
             />
 

@@ -25,6 +25,10 @@ export function useDatasetPreview(datasetId?: string) {
   const { markAsChanged, resetChanges } = useIngestionFlow();
 
   useEffect(() => {
+    markAsChanged();
+  }, [markAsChanged]);
+
+  useEffect(() => {
     return () => {
       queryClient.invalidateQueries({ queryKey: ['datasets', datasetId, 'mappings'] });
       queryClient.invalidateQueries({ queryKey: ['datasets', datasetId, 'dataset-file-mapping'] });
@@ -146,7 +150,7 @@ export function useDatasetPreview(datasetId?: string) {
   const toggleDeletion = useCallback(
     (recordId: number) => {
       if (!selectedFile) return;
-      markAsChanged();
+
       setMarkedForDeletion(prev => {
         const next = new Map(prev);
         const fileSet = new Set(next.get(selectedFile) ?? []);
@@ -159,7 +163,7 @@ export function useDatasetPreview(datasetId?: string) {
         return next;
       });
     },
-    [selectedFile, markAsChanged],
+    [selectedFile],
   );
 
   const currentFileDeletions = useMemo(

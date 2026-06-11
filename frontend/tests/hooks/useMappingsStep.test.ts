@@ -691,21 +691,8 @@ describe('useMappingsStep', () => {
   });
 
   describe('leave Ingestion flow', () => {
-    it('handleConceptChange calls markAsChanged', () => {
-      const { result } = renderHook(() => useMappingsStep('42'));
-      act(() => result.current.handleConceptChange('col1', 'geometry'));
-      expect(mockMarkAsChanged).toHaveBeenCalled();
-    });
-
-    it('handleUnitChange calls markAsChanged', () => {
-      const { result } = renderHook(() => useMappingsStep('42'));
-      act(() => result.current.handleUnitChange('col1', 'mg/kg'));
-      expect(mockMarkAsChanged).toHaveBeenCalled();
-    });
-
-    it('handleDetailChange calls markAsChanged', () => {
-      const { result } = renderHook(() => useMappingsStep('42'));
-      act(() => result.current.handleDetailChange('col1', 'technique', 'acid_digestion'));
+    it('calls markAsChanged on mount', () => {
+      renderHook(() => useMappingsStep('42'));
       expect(mockMarkAsChanged).toHaveBeenCalled();
     });
 
