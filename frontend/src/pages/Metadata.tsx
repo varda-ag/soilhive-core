@@ -384,7 +384,7 @@ export default function Metadata() {
         </div>
 
         <div className={styles.OptionalProperties}>
-          <div className={styles.Title}>OPTIONAL PROPERTIES</div>
+          <div className={styles.Title}>{t('optional_properties_title')}</div>
           <EditorRow
             label={t('fields.preprocessing_steps')}
             value={dataset?.preprocessing_steps}
