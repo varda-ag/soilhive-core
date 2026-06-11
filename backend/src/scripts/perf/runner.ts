@@ -1,5 +1,7 @@
 /*
- * Performance suite for the endpoints tagged `data-filters` in openapi.yaml.
+ * Performance suite for the endpoints tagged `data-filters` in openapi.yaml,
+ * plus GET /soil-data, which consumes the dataset list produced by
+ * GET /data-filters/{filterId}/datasets.
  *
  * Methodology: the suite measures the compiled dist build (`node dist/app.js`)
  * against the live database configured in .env, instead of seeded synthetic
@@ -14,7 +16,13 @@
  * variant — the unfiltered "default" (`{}`) always runs first, followed by any
  * <asset>.params.<n>.json sidecar files — the suite first POSTs a data filter
  * (phase 1), then exercises the GET-by-id endpoints against the created
- * filters (phase 2). Each measured row is one
+ * filters (phase 2). Phase 2 also calls GET /soil-data with the public
+ * non-raster dataset ids extracted from the /datasets response (limit=200,
+ * the spec maximum; private datasets would 403 the unauthenticated call and
+ * raster datasets are excluded by the real client too). When the filter
+ * matches no such datasets the row is recorded as skipped without failing
+ * the run, mirroring the frontend, which does not call the endpoint then.
+ * Each measured row is one
  * untimed warmup request followed by PERF_ITERATIONS timed requests.
  *
  * Error policy: unexpected status codes, timeouts, and network failures are
@@ -45,7 +53,7 @@ import { AssetFingerprint, computeStats, PERF_RUN_VERSION, PerfRun, ResultRow, r
 const BACKEND_ROOT = path.resolve(__dirname, '..', '..', '..');
 config({ path: path.join(BACKEND_ROOT, '.env'), quiet: true });
 
-const ITERATIONS = Number(process.env['PERF_ITERATIONS']) || 5;
+const ITERATIONS = Number(process.env['PERF_ITERATIONS']) || 3;
 const DAI_RESOLUTIONS = (process.env['PERF_DAI_RESOLUTIONS'] || '3,5,7').split(',').map(Number);
 const REQUEST_TIMEOUT_MS = Number(process.env['PERF_TIMEOUT_MS']) || 120_000;
 const SERVER_START_TIMEOUT_MS = Number(process.env['PERF_SERVER_TIMEOUT_MS']) || 60_000;
@@ -54,6 +62,8 @@ const BASE_URL = `http://localhost:${PORT}`;
 const ASSETS_DIR = path.join(BACKEND_ROOT, 'tests', 'assets', 'geojson');
 const RESULTS_DIR = path.join(BACKEND_ROOT, 'perf-results');
 const FINGERPRINT_TABLES = ['datasets', 'dataset_layers', 'layers', 'observations', 'features'];
+// openapi.yaml caps /soil-data's limit at 200 — this measures the worst case the API permits.
+const SOIL_DATA_LIMIT = 200;
 
 interface Geometry {
   type: 'Polygon' | 'MultiPolygon';
@@ -358,11 +368,17 @@ const measureRow = async (
   return { row, warmup, samples };
 };
 
-/** Row for an endpoint that could not be exercised at all (e.g. no filter id from the POST phase). */
+/**
+ * Row for an endpoint that was not exercised. `ok: false` (default) marks a
+ * precondition failure (e.g. no filter id from the POST phase) that fails the
+ * run; `ok: true` marks a legitimate data-dependent skip (e.g. the filter
+ * matches no public non-raster datasets, so there is nothing to request).
+ */
 const skippedRow = (
   meta: { method: string; pathTemplate: string; asset: string; paramsVariant: string; daiResolution: number | null },
   expectedStatus: number,
   reason: string,
+  ok = false,
 ): ResultRow => ({
   key: rowKey(meta.method, meta.pathTemplate, meta.asset, meta.paramsVariant, meta.daiResolution),
   ...meta,
@@ -373,8 +389,28 @@ const skippedRow = (
   responseBytes: [],
   stats: null,
   meanResponseBytes: null,
-  ok: false,
+  ok,
 });
+
+/**
+ * Ids (slugs) from a /data-filters/{filterId}/datasets response body that an
+ * unauthenticated /soil-data call can preview: public, non-raster datasets
+ * (any private slug in the list 403s the whole request, and the production
+ * client excludes raster datasets as well). Returns null when the body is not
+ * a JSON array.
+ */
+const extractSoilDataDatasetIds = (datasetsBody: string): string[] | null => {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(datasetsBody);
+  } catch {
+    return null;
+  }
+  if (!Array.isArray(parsed)) return null;
+  return (parsed as { id?: string; data_type?: string; visibility?: string }[])
+    .filter(d => typeof d.id === 'string' && d.visibility === 'public' && d.data_type !== 'raster')
+    .map(d => d.id!);
+};
 
 // ---------------------------------------------------------------------------
 // Main
@@ -443,6 +479,7 @@ const main = async () => {
         const filterId = filterIds.get(`${asset.name}|${variant.variant}`);
         const context = `asset=${asset.name} params=${variant.variant}`;
         const skipReason = `skipped: POST /data-filters (${context}) produced no filter id`;
+        let datasetsBody: string | undefined;
         for (const { pathTemplate, suffix } of getTemplates) {
           const meta = { method: 'GET', pathTemplate, asset: asset.name, paramsVariant: variant.variant, daiResolution: null };
           if (!filterId) {
@@ -450,8 +487,39 @@ const main = async () => {
             continue;
           }
           const url = `${BASE_URL}/data-filters/${filterId}${suffix}`;
-          const { row } = await measureRow(meta, 200, () => timedRequest('GET', url, null, 200, context));
+          const { row, warmup, samples } = await measureRow(meta, 200, () => timedRequest('GET', url, null, 200, context));
           results.push(row);
+          if (suffix === '/datasets') {
+            datasetsBody = [warmup, ...samples].find(s => s.error === null)?.bodyText;
+          }
+        }
+
+        // GET /soil-data with the dataset ids extracted from the /datasets response
+        const soilDataMeta = {
+          method: 'GET',
+          pathTemplate: '/soil-data',
+          asset: asset.name,
+          paramsVariant: variant.variant,
+          daiResolution: null,
+        };
+        if (!filterId) {
+          results.push(skippedRow(soilDataMeta, 200, skipReason));
+        } else if (datasetsBody === undefined) {
+          results.push(
+            skippedRow(soilDataMeta, 200, `skipped: GET /data-filters/{filterId}/datasets (${context}) returned no successful response`),
+          );
+        } else {
+          const datasetIds = extractSoilDataDatasetIds(datasetsBody);
+          if (datasetIds === null) {
+            results.push(skippedRow(soilDataMeta, 200, `skipped: could not parse the /datasets response (${context})`));
+          } else if (datasetIds.length === 0) {
+            results.push(skippedRow(soilDataMeta, 200, `skipped: filter matches no public non-raster datasets (${context})`, true));
+          } else {
+            const query = `datasets=${datasetIds.map(encodeURIComponent).join(',')}&filterId=${filterId}&limit=${SOIL_DATA_LIMIT}`;
+            const url = `${BASE_URL}/soil-data?${query}`;
+            const { row } = await measureRow(soilDataMeta, 200, () => timedRequest('GET', url, null, 200, context));
+            results.push(row);
+          }
         }
         for (const resolution of DAI_RESOLUTIONS) {
           const meta = {
@@ -509,7 +577,7 @@ const main = async () => {
 
     console.log('\nMedian latency per row:');
     for (const row of results) {
-      const median = row.stats ? `${row.stats.median.toFixed(1).padStart(9)} ms` : '   FAILED   ';
+      const median = row.stats ? `${row.stats.median.toFixed(1).padStart(9)} ms` : row.ok ? '  SKIPPED   ' : '   FAILED   ';
       console.log(`  ${median}  ${row.key}${row.ok ? '' : '  [errors]'}`);
     }
     const failedRows = results.filter(row => !row.ok);

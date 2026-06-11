@@ -17,7 +17,12 @@ export interface ResultRow {
   expectedStatus: number;
   /** One entry per timed sample; 0 means the request failed before a response arrived. */
   statusCodes: number[];
-  /** One entry per failed sample; empty when every sample returned the expected status. */
+  /**
+   * One entry per failed sample; empty when every sample returned the expected
+   * status. For rows that were not exercised at all (statusCodes empty), holds
+   * a single skip reason instead — with `ok: true` when the skip is a
+   * legitimate data-dependent outcome rather than a failure.
+   */
   errors: string[];
   durationsMs: number[];
   responseBytes: number[];
