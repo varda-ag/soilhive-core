@@ -14,6 +14,14 @@ export interface ResultRow {
   asset: string;
   paramsVariant: string;
   daiResolution: number | null;
+  /**
+   * Id of the data filter the row's requests ran against, so any row can be
+   * reproduced by hand: for GET rows the id in the request URL, for POST rows
+   * the id extracted from the first successful response (the one the GET
+   * phase reuses). Null when no filter was obtained; absent in result files
+   * recorded before the field existed.
+   */
+  filterId?: string | null;
   expectedStatus: number;
   /** One entry per timed sample; 0 means the request failed before a response arrived. */
   statusCodes: number[];
