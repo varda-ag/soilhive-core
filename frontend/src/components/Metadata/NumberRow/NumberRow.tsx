@@ -59,7 +59,7 @@ export function NumberRow({
         <strong>{label}</strong>
       </p>
       {isEditing ? (
-        <div className={`${styles.EditArea}${isSaving ? ` ${styles.EditAreaSaving}` : ''}`}>
+        <div className={styles.EditArea}>
           <div className={styles.EditorWrapper}>
             <TextInput
               type="number"

@@ -164,6 +164,8 @@ export interface Dataset {
   capabilities?: Capability[];
   visibility: 'public' | 'private';
   inferred_properties?: InferredProperty[] | null;
+  preprocessing_steps?: string | null;
+  related_resources?: string[] | null;
 }
 
 export interface SoilDataParameters {

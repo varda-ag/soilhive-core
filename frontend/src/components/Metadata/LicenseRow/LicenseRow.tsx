@@ -124,7 +124,7 @@ export function LicenseRow({
         <strong>{label}</strong>
       </p>
       {isEditing ? (
-        <div className={`${styles.EditArea}${isSaving ? ` ${styles.EditAreaSaving}` : ''}`}>
+        <div className={styles.EditArea}>
           <div className={styles.EditorWrapper}>
             <Dropdown
               options={licenseOptions}
