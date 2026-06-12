@@ -389,7 +389,8 @@ export default class FileService {
       ({ mainFilePath, tempZipExtractPath } = await FileService.getMainFilePath(fileKey));
 
       log.info('Extracting metadata with ogrinfo', { source: mainFilePath });
-      const { driver, layers } = await GdalCLI.ogrinfo(mainFilePath);
+      const isExcel = ['.xlsx', '.xls'].includes(path.extname(mainFilePath).toLowerCase());
+      const { driver, layers } = await GdalCLI.ogrinfo(mainFilePath, isExcel ? ['HEADERS=FORCE'] : []);
 
       log.info('Getting data layer and detecting geometry', { driver });
       const { layer, geometryDetected } = this.getDataLayer(layers, unknownGeomDrivers.includes(driver));
@@ -571,6 +572,10 @@ export default class FileService {
 
       if (unknownGeomDrivers.includes(fileMetadata.driver ?? '')) {
         ogr2ogrOpts.push('-oo', 'AUTODETECT_TYPE=YES', '-oo', 'EMPTY_STRING_AS_NULL=YES', '-oo', `KEEP_GEOM_COLUMNS=${keepGeomColumn}`);
+      }
+
+      if (fileMetadata.driver === 'XLSX') {
+        ogr2ogrOpts.push('-oo', 'HEADERS=FORCE');
       }
 
       if (fileMetadata.epsg && fileMetadata.epsg !== 4326) {
