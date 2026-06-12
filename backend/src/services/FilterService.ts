@@ -12,6 +12,7 @@ import DataFilterEntity from '../entities/DataFilter';
 import DataFilterUserGeometryEntity from '../entities/DataFilterUserGeometry';
 import { DataAvailabilityIndex } from '../interfaces/Dai';
 import { getPolygonFromBbox, geometryUnion } from '../utils/geometry';
+import { timed } from '../utils/logger';
 
 const sds = new SoilDataStorage();
 
@@ -146,12 +147,12 @@ export default class FilterService {
   };
 
   getCoverage = async (requestData: RequestData, filterId: string, geometryOnly: boolean): Promise<FilteredData> => {
-    const filter = await this.getFilterById(requestData, filterId);
+    const filter = await timed('coverage.getFilterById', () => this.getFilterById(requestData, filterId), { filterId });
     const effectiveFilter = geometryOnly ? { ...filter, parameters: {} } : filter;
     const [vectorDatasets, rasterDatasets, rasterCoverage] = await Promise.all([
-      sds.filterVector(requestData.entityManager, effectiveFilter),
-      sds.filterRaster(requestData.entityManager, effectiveFilter),
-      sds.getRasterCoverage(requestData.entityManager, effectiveFilter),
+      timed('coverage.filterVector', () => sds.filterVector(requestData.entityManager, effectiveFilter), { filterId }),
+      timed('coverage.filterRaster', () => sds.filterRaster(requestData.entityManager, effectiveFilter), { filterId }),
+      timed('coverage.getRasterCoverage', () => sds.getRasterCoverage(requestData.entityManager, effectiveFilter), { filterId }),
     ]);
     const datasets = mergeDatasetSummaries([vectorDatasets, rasterDatasets]);
     return { datasets, raster_filters: rasterCoverage };

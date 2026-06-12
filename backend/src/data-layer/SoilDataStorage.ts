@@ -17,6 +17,7 @@ import { RasterLayerMatch } from '../interfaces/RasterLayer';
 import RasterLayerEntity from '../entities/RasterLayer';
 import { GISDataType } from '../types/data';
 import { getVectorMaskCtes, type CteDef } from './FilteringMasks';
+import { timed } from '../utils/logger';
 
 const SET_LOCAL_WORK_MEM_SQL = "SET LOCAL work_mem = '512MB';";
 const rasterFilterService = new RasterFilterService();
@@ -60,7 +61,7 @@ export default class SoilDataStorage {
     await entityManager.query(SET_LOCAL_WORK_MEM_SQL);
 
     const schema = process.env.POSTGRES_SCHEMA;
-    const enabledRasterFilterTables = await getEnabledRasterFilterTables();
+    const enabledRasterFilterTables = await timed('filterVector.enabledRasterFilterTables', () => getEnabledRasterFilterTables());
     const { ctes: rasterCtes, usesMatchingFeatures } = buildRasterSql(filter, enabledRasterFilterTables);
 
     // Feature IDs resolved entirely in-DB: MATERIALIZED CTE evaluated first, then
@@ -72,13 +73,16 @@ export default class SoilDataStorage {
     };
 
     const featureSource = usesMatchingFeatures ? 'matching_features' : 'aoi_features';
+    // JOIN (not EXISTS) so the planner can drive IDX_features_geom from the small aoi
+    // side; an EXISTS semi-join pins features as the outer relation and falls back to
+    // a seq scan. DISTINCT dedupes features intersecting multiple subdivision pieces.
     const aoiFeaturesCte = usesMatchingFeatures
       ? `, ${rasterCtes}`
       : `,
           aoi_features AS MATERIALIZED (
-            SELECT f.id
+            SELECT DISTINCT f.id
             FROM ${schema}.features f
-            WHERE EXISTS (SELECT 1 FROM aoi WHERE ST_Intersects(f.geom, aoi.geom))
+            JOIN aoi ON ST_Intersects(f.geom, aoi.geom)
           )`;
 
     const innerWhere: string[] = [
@@ -187,7 +191,7 @@ export default class SoilDataStorage {
       GROUP BY base_agg.dataset_id, ds.slug, ds.name, ds.gis_datatype, ds.visibility, ds.licenses
     `;
 
-    const results = await entityManager.query(sql, params);
+    const results = await timed('filterVector.query', () => entityManager.query(sql, params));
 
     return results.map(row => ({
       id: row.dataset_slug,
@@ -239,9 +243,9 @@ export default class SoilDataStorage {
       ? ''
       : `,
       aoi_features AS MATERIALIZED (
-        SELECT f.id
+        SELECT DISTINCT f.id
         FROM ${schema}.features f
-        WHERE EXISTS (SELECT 1 FROM aoi WHERE ST_Intersects(f.geom, aoi.geom))
+        JOIN aoi ON ST_Intersects(f.geom, aoi.geom)
       )`;
 
     const existsWhere = [`dl.dataset_id = ds.id`, ...lateralWhere];
@@ -281,7 +285,7 @@ export default class SoilDataStorage {
     }
 
     const aoiCtes: CteDef[] = hasRasterFilters(filters)
-      ? await getVectorMaskCtes(entityManager, filter)
+      ? await timed('filterRaster.vectorMaskCtes', () => getVectorMaskCtes(entityManager, filter))
       : [{ name: 'aoi', sql: selectGeometryPiecesByIds() }];
 
     await entityManager.query(SET_LOCAL_WORK_MEM_SQL);
@@ -301,16 +305,18 @@ export default class SoilDataStorage {
     candidateQuery.andWhere('ds.gis_datatype=:gis_datatype', { gis_datatype: GISDataType.RASTER });
     applyRasterLayerFilters(candidateQuery, filters);
 
-    const candidateIds = (await candidateQuery.getRawMany<{ id: string }>()).map(r => r.id);
+    const candidateIds = (await timed('filterRaster.candidateLayers', () => candidateQuery.getRawMany<{ id: string }>())).map(r => r.id);
     // Step 2 — precise spatial filter via footprint tile intersection
-    const candidates = await spatialFilterByCte(entityManager, aoiCtes, { name: 'geometryIds', value: geometryIds }, candidateIds);
+    const candidates = await timed('filterRaster.spatialFilter', () =>
+      spatialFilterByCte(entityManager, aoiCtes, { name: 'geometryIds', value: geometryIds }, candidateIds),
+    );
 
     const hasDataPaths = new Set(candidates.map(r => r.file_path));
     if (hasDataPaths.size === 0) return [];
 
     // Step 3 — aggregate surviving layers into dataset summaries
     // Assess whether this performs better calculated in memory (one less query, up to ~1.5k records in memory)
-    const rows = await entityManager
+    const aggregateQuery = entityManager
       .getRepository(RasterLayerEntity)
       .createQueryBuilder('rl')
       .innerJoin('rl.dataset', 'ds')
@@ -330,8 +336,8 @@ export default class SoilDataStorage {
       .where('f.file_path IN (:...hasDataPaths)', { hasDataPaths: [...hasDataPaths] })
       .groupBy(
         'ds.slug, ds.name, ds.gis_datatype, ds.visibility, ds.licenses, ds.soil_depth, ds.reference_period_start, ds.reference_period_stop',
-      )
-      .getRawMany();
+      );
+    const rows = await timed('filterRaster.aggregate', () => aggregateQuery.getRawMany());
 
     return rows.map(row => ({
       id: row.id,
@@ -555,7 +561,8 @@ export default class SoilDataStorage {
       : `candidate_features AS MATERIALIZED (
         SELECT f.id, f.geom
         FROM ${schema}.features f
-        WHERE EXISTS (SELECT 1 FROM aoi WHERE ST_Intersects(f.geom, aoi.geom))
+        JOIN aoi ON ST_Intersects(f.geom, aoi.geom)
+        GROUP BY f.id
       )`;
 
     const sql = `
@@ -604,7 +611,7 @@ export default class SoilDataStorage {
       // No input geometry, raster coverage cannot be applied
       return {};
     }
-    const enabledRasterFilterTables = await getEnabledRasterFilterTables();
+    const enabledRasterFilterTables = await timed('getRasterCoverage.enabledRasterFilterTables', () => getEnabledRasterFilterTables());
 
     if (enabledRasterFilterTables.length === 0) {
       // No raster data is available
@@ -654,7 +661,9 @@ export default class SoilDataStorage {
       SELECT ${selectClauses.join(', ')}
     `;
     await entityManager.query(SET_LOCAL_WORK_MEM_SQL);
-    const results = await entityManager.query(sql, [geometryIds]);
+    const results = await timed('getRasterCoverage.query', () => entityManager.query(sql, [geometryIds]), {
+      realCoverage: calculateRealCoverage,
+    });
     assert(results.length === 1, 'Expecting one raster coverage aggregated result row');
 
     return decodeRasterColumns(results[0]);
@@ -860,7 +869,8 @@ const buildRasterSql = (filter: DataFilter, enabledRasterFilterTables: string[])
   allCtes.push(`candidate_features AS MATERIALIZED (
     SELECT f.id, f.geom
     FROM ${schema}.features f
-    WHERE EXISTS (SELECT 1 FROM aoi WHERE ST_Intersects(f.geom, aoi.geom))
+    JOIN aoi ON ST_Intersects(f.geom, aoi.geom)
+    GROUP BY f.id
   )`);
 
   allCtes.push(...clippedRasterCtes);
@@ -981,7 +991,8 @@ const buildRawSoilQuery = (
       ? `candidate_features AS MATERIALIZED (
         SELECT f.id, f.geom
         FROM ${schema}.features f
-        WHERE EXISTS (SELECT 1 FROM aoi WHERE ST_Intersects(f.geom, aoi.geom))
+        JOIN aoi ON ST_Intersects(f.geom, aoi.geom)
+        GROUP BY f.id
       ),`
       : '';
 
