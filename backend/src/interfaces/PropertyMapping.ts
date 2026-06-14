@@ -8,4 +8,5 @@ export interface PropertyMapping {
 
 export interface PropertyCleaningConfig extends PropertyMapping {
   conversion_formula?: string;
+  standard_unit?: string;
 }

@@ -103,6 +103,12 @@ export default class DatasetEntity extends BaseTable implements Dataset {
   @Column({ type: 'text', nullable: true, array: true })
   inferred_properties?: string[] | null;
 
+  @Column({ type: 'text', nullable: true })
+  preprocessing_steps?: string | null;
+
+  @Column({ type: 'text', nullable: true, array: true })
+  related_resources?: string[] | null;
+
   // Not a column, populated at runtime based on entitlements
   capabilities?: Capability[];
 }

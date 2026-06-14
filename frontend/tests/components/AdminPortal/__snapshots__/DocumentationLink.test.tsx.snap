@@ -1,0 +1,21 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`DocumentationLink matches the snapshot 1`] = `
+<div>
+  <a
+    class="DocumentationLink"
+    data-testid="sh-documentaion-link"
+    href="https://docs.example.com"
+    rel="noreferrer"
+    target="_blank"
+  >
+    <svg
+      data-testid="svg-icon-mock"
+    >
+      mock-svg
+    </svg>
+     
+    Open documentation
+  </a>
+</div>
+`;

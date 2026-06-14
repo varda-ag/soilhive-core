@@ -53,6 +53,12 @@ exports[`DatasetsListItem renders main dataset info 1`] = `
           rel="noreferrer"
           target="_blank"
         >
+          <svg
+            data-testid="svg-icon-mock"
+          >
+            mock-svg
+          </svg>
+           
           Metadata
         </a>
       </div>
@@ -73,19 +79,8 @@ exports[`DatasetsListItem renders main dataset info 1`] = `
             mock-svg
           </svg>
           34546
-           points
-        </p>
-        <p
-          class="MetaItem"
-        >
-          <svg
-            class="LayersIcon"
-            data-testid="svg-icon-mock"
-          >
-            mock-svg
-          </svg>
-          12
-           raster layers
+           
+          points
         </p>
         <p
           class="MetaItem"
@@ -99,7 +94,8 @@ exports[`DatasetsListItem renders main dataset info 1`] = `
           0
           -
           60
-           cm
+           
+          cm
         </p>
         <p
           class="MetaItem"
@@ -111,7 +107,9 @@ exports[`DatasetsListItem renders main dataset info 1`] = `
             mock-svg
           </svg>
           2012
-           - 
+           
+          -
+           
           2024
         </p>
       </div>

@@ -154,3 +154,9 @@ vite.config.ts.timestamp-*
 
 # TODO: REMOVE once we have dynamic env loading (Check also .dockerignore)
 !frontend/.env
+
+# Raster data load for tests
+backend/tests/assets/raster/*_cog.tif
+backend/tests/assets/raster/*.aux.xml
+# Performance suite output (backend/src/scripts/perf)
+backend/perf-results/

@@ -56,4 +56,48 @@ describe('MobileTabNavigation component', () => {
 
     expect(onChange).toHaveBeenCalledWith('tab2');
   });
+
+  it('applies default xs font size as CSS variable', () => {
+    render(<MobileTabNavigation config={mockConfig} active="tab1" onChange={() => {}} />);
+
+    expect(screen.getByTestId('sh-ui-mobile-tab-navigation')).toHaveStyle({
+      '--tab-font-size': 'var(--font-size-xs)',
+    });
+  });
+
+  it('applies custom font size as CSS variable', () => {
+    render(<MobileTabNavigation config={mockConfig} fontSize="sm" active="tab1" onChange={() => {}} />);
+
+    expect(screen.getByTestId('sh-ui-mobile-tab-navigation')).toHaveStyle({
+      '--tab-font-size': 'var(--font-size-sm)',
+    });
+  });
+
+  it('applies default 0.25rem gap as CSS variable', () => {
+    render(<MobileTabNavigation config={mockConfig} active="tab1" onChange={() => {}} />);
+
+    expect(screen.getByTestId('sh-ui-mobile-tab-navigation')).toHaveStyle({
+      '--tab-item-gap': '0',
+    });
+  });
+
+  it('applies custom gap as CSS variable', () => {
+    render(<MobileTabNavigation config={mockConfig} gap="8px" active="tab1" onChange={() => {}} />);
+
+    expect(screen.getByTestId('sh-ui-mobile-tab-navigation')).toHaveStyle({
+      '--tab-item-gap': '8px',
+    });
+  });
+
+  it('applies Scrollable class when scrollable=true', () => {
+    render(<MobileTabNavigation config={mockConfig} scrollable active="tab1" onChange={() => {}} />);
+
+    expect(screen.getByTestId('sh-ui-mobile-tab-navigation')).toHaveClass('Scrollable');
+  });
+
+  it('does not apply Scrollable class when scrollable is omitted', () => {
+    render(<MobileTabNavigation config={mockConfig} active="tab1" onChange={() => {}} />);
+
+    expect(screen.getByTestId('sh-ui-mobile-tab-navigation')).not.toHaveClass('Scrollable');
+  });
 });

@@ -182,6 +182,50 @@ describe('EditorRow', () => {
     });
   });
 
+  describe('displayPlaceholder prop', () => {
+    it('shows displayPlaceholder in text variant when value is null', () => {
+      render(<EditorRow {...defaultProps} variant="text" value={null} displayPlaceholder="No value yet" />);
+      expect(screen.getByText('No value yet')).toBeInTheDocument();
+    });
+
+    it('shows displayPlaceholder in editor variant when value is null', () => {
+      render(<EditorRow {...defaultProps} variant="editor" value={null} displayPlaceholder="No value yet" />);
+      expect(screen.getByText('No value yet')).toBeInTheDocument();
+    });
+
+    it('does not show displayPlaceholder when value is present', () => {
+      render(<EditorRow {...defaultProps} variant="text" value="Real Value" displayPlaceholder="No value yet" />);
+      expect(screen.queryByText('No value yet')).not.toBeInTheDocument();
+      expect(screen.getByText('Real Value')).toBeInTheDocument();
+    });
+  });
+
+  describe('disableBackground prop', () => {
+    it('applies RowNoBackground class when disableBackground is true', () => {
+      const { container } = render(<EditorRow {...defaultProps} disableBackground={true} />);
+      expect(container.firstChild).toHaveClass('RowNoBackground');
+    });
+
+    it('does not apply RowNoBackground class when disableBackground is not set', () => {
+      const { container } = render(<EditorRow {...defaultProps} />);
+      expect(container.firstChild).not.toHaveClass('RowNoBackground');
+    });
+  });
+
+  describe('placeholder prop', () => {
+    it('passes placeholder to TextInput in text variant edit mode', () => {
+      render(<EditorRow {...defaultProps} variant="text" isEditable={true} placeholder="Enter name…" />);
+      fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+      expect(screen.getByTestId('sh-ui-textinputfield')).toHaveAttribute('placeholder', 'Enter name…');
+    });
+
+    it('passes placeholder to Editor in editor variant edit mode', () => {
+      render(<EditorRow {...defaultProps} variant="editor" isEditable={true} placeholder="Enter description…" />);
+      fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+      expect(screen.getByTestId('mock-editor')).toHaveAttribute('placeholder', 'Enter description…');
+    });
+  });
+
   it('matches snapshot in display mode with edit button', () => {
     const { container } = render(<EditorRow {...defaultProps} variant="text" isEditable={true} />);
     expect(container).toMatchSnapshot();

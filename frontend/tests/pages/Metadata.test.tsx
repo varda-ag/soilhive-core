@@ -118,6 +118,19 @@ describe('Metadata page', () => {
     expect(container).toMatchSnapshot();
   });
 
+  it('renders date of the last update when update_at is provided', () => {
+    (useMetadata as jest.Mock).mockReturnValue({
+      dataset: { ...buildDataset(), updated_at: '05-05-2020' },
+      allLicenses: [{ id: 'lic-1', url: 'https://license.example', full_name: 'Test License' }],
+      inferredProperties: new Set(),
+      isLoading: false,
+      isError: false,
+    });
+
+    render(<Metadata />);
+    expect(screen.getByTestId('sh-last-update')).toBeInTheDocument();
+  });
+
   it('upserts document title and meta tags from dataset name', () => {
     (useMetadata as jest.Mock).mockReturnValue({
       dataset: buildDataset(),
@@ -271,6 +284,7 @@ describe('Metadata page – admin editing behavior', () => {
       isLoading: false,
       isError: false,
       updateProperty: jest.fn(),
+      updateRelatedResources: jest.fn(),
       ...overrides,
     });
     (useEntitlements as jest.Mock).mockReturnValue({ can: () => true });
@@ -334,8 +348,8 @@ describe('Metadata page – admin editing behavior', () => {
 
     // Min/max soil depth rows have isEditable guarded by inferredProperties.has('soil_depth'),
     // so their edit buttons must not be present. We confirm the overall edit-button count
-    // is lower than when no properties are inferred (15 editable when nothing inferred,
-    // 13 when soil_depth is inferred — 2 rows lose their button).
+    // is lower than when no properties are inferred (16 editable when nothing inferred,
+    // 14 when soil_depth is inferred — 2 rows lose their button).
     const editButtonCount = screen.getAllByRole('button', { name: 'Edit' }).length;
 
     (useMetadata as jest.Mock).mockReturnValue({

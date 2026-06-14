@@ -41,13 +41,9 @@ psql -U postgres
 CREATE USER dbuser WITH PASSWORD 'dbpass';
 CREATE DATABASE database OWNER dbuser;
 \c database
-CREATE EXTENSION IF NOT EXISTS postgis;
-CREATE EXTENSION IF NOT EXISTS postgis_raster;
+CREATE SCHEMA soilhive
 \q
 ```
-
-> The schema (`soilhive` by default) and any PostGIS extensions scoped to it are
-> created automatically by the TypeORM migration on first run.
 
 ---
 
@@ -83,17 +79,14 @@ gdal-config --version   # should print 3.x.x
 ```sh
 cd backend
 cp .env-example .env   # then edit .env — see section 5
-npm install --build-from-source --shared_gdal
+npm install
 ```
-
-The `--build-from-source --shared_gdal` flags compile `gdal-async` against the
-system GDAL library instead of bundling its own.
 
 ### Run migrations
 
 ```sh
 npm run build
-npm run typeorm migration:run -- -d dist/utils/migrations-data-source.js
+npm run typeorm migration:run -- -d dist/utils/migrations-data-source-with-schema.js
 ```
 
 ### Start
@@ -241,13 +234,34 @@ See [docs/keycloak-setup.md](keycloak-setup.md) for the full configuration walkt
 
 ---
 
-## 8. Optional: S3-compatible storage (LocalStack)
+## 8. Optional: S3-compatible storage (MinIO)
 
-For local development with S3 storage without Docker, install LocalStack via `pip`:
+For local development with S3 storage without Docker, download and run MinIO directly:
 
+**macOS (Homebrew)**
 ```sh
-pip install localstack
-localstack start
+brew install minio/stable/minio
+minio server /tmp/minio-data --console-address ":9001"
+```
+
+**Linux**
+```sh
+wget https://dl.min.io/server/minio/release/linux-amd64/minio
+chmod +x minio
+./minio server /tmp/minio-data --console-address ":9001"
+```
+
+MinIO listens on **http://localhost:9000** (API) and **http://localhost:9001** (web console).
+Default credentials: `minioadmin` / `minioadmin`.
+
+Create the bucket via the console or CLI:
+```sh
+# Install the MinIO client
+brew install minio/stable/mc   # macOS
+# or: wget https://dl.min.io/client/mc/release/linux-amd64/mc && chmod +x mc
+
+mc alias set local http://localhost:9000 minioadmin minioadmin
+mc mb local/soilhive-local
 ```
 
 Then set in `.env`:
@@ -256,9 +270,11 @@ STORAGE_MODE=s3
 S3_STORAGE_REGION=us-east-1
 S3_STORAGE_BUCKET=soilhive-local
 S3_STORAGE_ROOT_FOLDER=data
+S3_ENDPOINT=http://localhost:9000
+S3_ACCESS_KEY_ID=minioadmin
+S3_SECRET_ACCESS_KEY=minioadmin
+S3_FORCE_PATH_STYLE=true
 ```
-
-And configure your AWS credentials to point at `http://localhost:4566`.
 
 ---
 

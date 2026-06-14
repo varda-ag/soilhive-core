@@ -7,14 +7,18 @@
   position: relative;
 }
 
-.Title {
-  font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-bold);
-  margin: 0;
+.TextContent {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
 .Message {
   font-size: var(--font-size-md);
+}
+
+.DeleteWarning {
+  font-size: var(--font-size-sm);
 }
 
 .TableFilters {

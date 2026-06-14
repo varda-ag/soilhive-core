@@ -1,0 +1,19 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`IngestionStepTitleRow matches the snapshot 1`] = `
+<div>
+  <div
+    class="IngestionStepTitleRow"
+  >
+    <h2
+      class="Title"
+    >
+      General info
+    </h2>
+    <a
+      data-testid="documentation-link"
+      href="https://docs.example.com"
+    />
+  </div>
+</div>
+`;

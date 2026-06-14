@@ -1,6 +1,6 @@
 import { register, unregister, type TimeZone } from 'timezone-mock';
 import type { AvailabilityDataset } from 'types/availability';
-import type { FilteredDataset, FilteredDatasetSummary } from 'types/backend';
+import { GISDataType, type FilteredDataset, type FilteredDatasetSummary } from 'types/backend';
 import {
   getYear,
   mapFilteredDatasetToAvailabilityDataset,
@@ -38,7 +38,10 @@ describe.each(testTimezones)('datasetAdapter (multiple-timezones)', testTimezone
       const filteredDataset: FilteredDatasetSummary = {
         id: 'dataset-1',
         name: 'dataset-name-1',
+        data_type: GISDataType.POINT,
         dataset_layer_count: 0,
+        raster_layer_count: 0,
+        visibility: 'private',
       };
 
       const expectedAvailabilityDataset: AvailabilityDataset = {
@@ -46,6 +49,8 @@ describe.each(testTimezones)('datasetAdapter (multiple-timezones)', testTimezone
         name: 'dataset-name-1',
         views: '0',
         tags: [],
+        dataType: 'point',
+        visibility: 'private',
         properties: {
           points: 0,
           layers: 0,
@@ -68,11 +73,13 @@ describe.each(testTimezones)('datasetAdapter (multiple-timezones)', testTimezone
         id: 'dataset-2',
         name: 'dataset-name-2',
         dataset_layer_count: 10,
+        raster_layer_count: 0,
         min_depth: 10,
         max_depth: 20,
         min_sampling_date: '2023-01-01',
         max_sampling_date: '2025-12-31',
-        data_type: 'point',
+        data_type: GISDataType.POINT,
+        visibility: 'public',
       };
 
       const expectedAvailabilityDataset: AvailabilityDataset = {
@@ -80,7 +87,8 @@ describe.each(testTimezones)('datasetAdapter (multiple-timezones)', testTimezone
         name: 'dataset-name-2',
         views: '0',
         tags: [],
-        dataType: 'point',
+        dataType: GISDataType.POINT,
+        visibility: 'public',
         properties: {
           points: 10,
           layers: 0,
@@ -104,6 +112,7 @@ describe.each(testTimezones)('datasetAdapter (multiple-timezones)', testTimezone
       const filteredDataset = {
         id: 'dataset-1',
         name: 'dataset-name-1',
+        visibility: 'private',
       } as FilteredDataset;
 
       const expectedAvailabilityDataset: AvailabilityDataset = {
@@ -112,6 +121,7 @@ describe.each(testTimezones)('datasetAdapter (multiple-timezones)', testTimezone
         views: '0',
         tags: [],
         dataType: undefined,
+        visibility: 'private',
         properties: {},
       };
 
@@ -122,7 +132,8 @@ describe.each(testTimezones)('datasetAdapter (multiple-timezones)', testTimezone
       const filteredDataset = {
         id: 'dataset-2',
         name: 'dataset-name-2',
-        data_type: 'point',
+        data_type: GISDataType.POINT,
+        visibility: 'private',
       } as FilteredDataset;
 
       const expectedAvailabilityDataset: AvailabilityDataset = {
@@ -132,6 +143,7 @@ describe.each(testTimezones)('datasetAdapter (multiple-timezones)', testTimezone
         tags: [],
         dataType: 'point',
         properties: {},
+        visibility: 'private',
       };
 
       expect(mapFilteredDatasetToAvailabilityDataset(filteredDataset)).toEqual(expectedAvailabilityDataset);

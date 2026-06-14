@@ -4,7 +4,6 @@ import path from 'path';
 import request from 'supertest';
 import fs from 'fs';
 import { app } from '../../src/app';
-import * as gdal from 'gdal-async';
 import { getDataAdminToken } from '../helper';
 import { IngestionStatus } from '../../src/types/data';
 import { StatusCodes } from 'http-status-codes';
@@ -16,12 +15,10 @@ import FileService from '../../src/services/FileService';
 const vectorFilesPassPath = path.join(__dirname, '../assets/vector_files/pass');
 const fileName = 'sample_point.geojson';
 
-describe.skip('Testing /files routes (s3 storage)', () => {
+describe('Testing /files routes (s3 storage)', () => {
   let dataAdminAuthHeader: IncomingHttpHeaders;
   const setS3TestEnv = () => {
     process.env.STORAGE_MODE = 's3';
-    gdal.config.set('AWS_VIRTUAL_HOSTING', process.env.AWS_VIRTUAL_HOSTING ? process.env.AWS_VIRTUAL_HOSTING : null);
-    gdal.config.set('AWS_HTTPS', process.env.AWS_HTTPS ? process.env.AWS_HTTPS : null);
   };
   setS3TestEnv();
 
@@ -46,7 +43,7 @@ describe.skip('Testing /files routes (s3 storage)', () => {
       expect(res.body.status).toBe(IngestionStatus.PENDING);
 
       const fileService = new FileService();
-      expect(fileService.exists(`${vectorFilesPassPath}/${res.body.file_path}`)).toBeTruthy();
+      expect(await fileService.exists(res.body.file_path)).toBeTruthy();
     });
   });
 });

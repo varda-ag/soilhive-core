@@ -1,6 +1,6 @@
 import bcrypt from 'bcrypt';
 import { AuthConfig } from '../interfaces/AuthConfig';
-import { AuthModes, TokenScopes } from '../types/enums';
+import { AuthModes, TOKEN_ISSUER, TokenScopes } from '../types/enums';
 import ConfigService from './ConfigService';
 import { ErrorResponse } from '../utils/error';
 import { signToken } from '../utils/utils';
@@ -60,6 +60,7 @@ export default class AuthService {
     return {
       scope: scopes.join(' '),
       sub: scope,
+      iss: TOKEN_ISSUER,
       email_verified: true,
       given_name,
       family_name,

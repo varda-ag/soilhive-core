@@ -61,7 +61,16 @@ _Avoid_: Hex, hexagon, grid cell
 > **Dev:** "If a filter has no geometries, what's the AOI?"
 > **Domain expert:** "The viewport bounding box is the AOI. Geometries clip the bbox; without them, the whole viewport is in scope."
 
+**Preprocessing Steps** (`preprocessing_steps`):
+An optional free-text field on a Dataset that documents the data cleaning and transformation steps applied to the raw source data prior to ingestion. Set by data admins; not computed by the system.
+_Avoid_: Processing instructions, pipeline steps, ETL steps
+
+**Related Resources** (`related_resources`):
+An optional list of external URLs associated with a Dataset (e.g. publications, source repositories, data provider pages). Set by data admins; not computed by the system.
+_Avoid_: Links, references, attachments
+
 ## Flagged ambiguities
 
+- "dataset ID" in the public API means the Dataset's `slug`, not its database primary key: `GET /data-filters/{filterId}/datasets` returns the slug in the `id` field, and the `datasets` query parameter of `GET /soil-data` matches against slugs. In domain discussions, say **slug** when you mean the public identifier and reserve "ID" for the internal primary key.
 - "layer" was used in the codebase to mean both the domain entity (depth/date slice) and Mapbox/map rendering layers — in domain discussions, **Layer** always refers to the soil data entity.
 - "observation" was initially used loosely to mean any data point or measurement; resolved: **Observation** is specifically a row in the `observations` table with a numeric `value`, linked to a **DatasetLayer**.

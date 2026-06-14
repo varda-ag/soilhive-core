@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeAll, afterEach } from '@jest/globals';
 import * as path from 'path';
 import * as fs from 'fs';
-import * as gdal from 'gdal-async';
 import { GeoFileWriter } from '../../../src/jobs/soil-export/GeoFileWriter';
-import { EXPORT_SCHEMA, FileFormat, soilSampleToExportRecord } from '../../../src/jobs/soil-export/types';
+import { EXPORT_SCHEMA, VectorFileFormat, soilSampleToExportRecord } from '../../../src/jobs/soil-export/types';
 import { SoilDataSample } from '../../../src/interfaces/SoilDataSample';
+import { GdalCLI } from '../../../src/utils/GdalCLI';
 
 const TEST_OUTPUT_DIR = path.join(__dirname, 'output');
 
@@ -37,27 +37,72 @@ function makeSample(overrides: Partial<SoilDataSample> = {}): SoilDataSample {
   };
 }
 
+function stripQuotes(s: string): string {
+  return s.startsWith('"') && s.endsWith('"') ? s.slice(1, -1) : s;
+}
+
 /**
  * For single-file formats (XLSX, GPKG, SHP) the output is one file.
  * For multi-file formats (CSV, GeoJSON) each property gets its own file.
- * This helper returns the path GDAL should open for verification.
+ * This helper returns the path ogr2ogr/ogrinfo should open for verification.
  */
-function getVerificationPath(format: FileFormat, propertyAcronym: string): string {
+function getVerificationPath(format: VectorFileFormat, propertyAcronym: string): string {
   switch (format) {
-    case FileFormat.CSV:
+    case VectorFileFormat.CSV:
       return path.join(TEST_OUTPUT_DIR, `${propertyAcronym}.csv`);
-    case FileFormat.GEOJSON:
+    case VectorFileFormat.GEOJSON:
       return path.join(TEST_OUTPUT_DIR, `${propertyAcronym}.geojson`);
-    case FileFormat.XLSX:
+    case VectorFileFormat.XLSX:
       return path.join(TEST_OUTPUT_DIR, 'export.xlsx');
-    case FileFormat.GPKG:
+    case VectorFileFormat.GPKG:
       return path.join(TEST_OUTPUT_DIR, 'export.gpkg');
-    case FileFormat.SHP:
+    case VectorFileFormat.SHP:
       return path.join(TEST_OUTPUT_DIR, `${propertyAcronym}.shp`);
   }
 }
 
-const ALL_FORMATS: FileFormat[] = [FileFormat.CSV, FileFormat.XLSX, FileFormat.GPKG, FileFormat.SHP, FileFormat.GEOJSON];
+/**
+ * Convert the output file (or layer within it) to a temp CSV and return rows.
+ * For single-file formats with multiple layers, pass propertyAcronym to select the layer.
+ */
+async function readLayerRows(
+  format: VectorFileFormat,
+  propertyAcronym: string,
+): Promise<{ rows: Record<string, string>[]; fieldNames: string[] }> {
+  const filePath = getVerificationPath(format, propertyAcronym);
+  const csvPath = path.join(TEST_OUTPUT_DIR, `_verify_${propertyAcronym}_${format}.csv`);
+
+  const isSpatial = !TABULAR_FORMATS.includes(format);
+  const args = ['-f', 'CSV'];
+  if (isSpatial) args.push('-lco', 'GEOMETRY=AS_WKT');
+  args.push(csvPath, filePath);
+  if (format === VectorFileFormat.GPKG || format === VectorFileFormat.XLSX) {
+    args.push(propertyAcronym);
+  }
+  await GdalCLI.ogr2ogr(args);
+
+  const csv = fs.readFileSync(csvPath, 'utf-8').trim();
+  fs.unlinkSync(csvPath);
+
+  const lines = csv.split('\n');
+  const fieldNames = lines[0].split(',').map(h => stripQuotes(h.trim()));
+  const rows = lines.slice(1).map(line => {
+    const cols = line.split(',');
+    return Object.fromEntries(fieldNames.map((h, i) => [h, stripQuotes((cols[i] ?? '').trim())]));
+  });
+
+  return { rows, fieldNames };
+}
+
+const ALL_FORMATS: VectorFileFormat[] = [
+  VectorFileFormat.CSV,
+  VectorFileFormat.XLSX,
+  VectorFileFormat.GPKG,
+  VectorFileFormat.SHP,
+  VectorFileFormat.GEOJSON,
+];
+const SPATIAL_FORMATS: VectorFileFormat[] = [VectorFileFormat.GPKG, VectorFileFormat.SHP, VectorFileFormat.GEOJSON];
+const TABULAR_FORMATS: VectorFileFormat[] = [VectorFileFormat.CSV, VectorFileFormat.XLSX];
 
 describe('GeoFileWriter', () => {
   beforeAll(() => {
@@ -97,20 +142,12 @@ describe('GeoFileWriter', () => {
       await writer.closeFile();
 
       // --- Verify ---
-      const dataset = await gdal.openAsync(getVerificationPath(format, 'Al'), 'r');
-      const layer = dataset.layers.get('Al');
+      const { rows } = await readLayerRows(format, 'Al');
 
-      expect(layer).toBeDefined();
-      expect(layer.features.count()).toBe(4);
+      expect(rows).toHaveLength(4);
 
-      const values: number[] = [];
-      layer.features.forEach(feature => {
-        const value = feature.fields.get('value');
-        values.push(typeof value === 'string' ? parseFloat(value) : (value as number));
-      });
+      const values = rows.map(r => parseFloat(r['value']));
       expect(values).toEqual(expect.arrayContaining([10.1, 20.2, 30.3, 40.4]));
-
-      dataset.close();
     });
   });
 
@@ -159,37 +196,18 @@ describe('GeoFileWriter', () => {
       await writer.closeFile();
 
       // --- Verify Al ---
-      const alDataset = await gdal.openAsync(getVerificationPath(format, 'Al'), 'r');
-      const alLayer = alDataset.layers.get('Al');
+      const { rows: alRows } = await readLayerRows(format, 'Al');
 
-      expect(alLayer).toBeDefined();
-      expect(alLayer.features.count()).toBe(3);
-
-      const alValues: number[] = [];
-      alLayer.features.forEach(feature => {
-        const value = feature.fields.get('value');
-        alValues.push(typeof value === 'string' ? parseFloat(value) : (value as number));
-      });
+      expect(alRows).toHaveLength(3);
+      const alValues = alRows.map(r => parseFloat(r['value']));
       expect(alValues).toEqual(expect.arrayContaining([10.1, 20.2, 30.3]));
 
-      alDataset.close();
-
       // --- Verify Ca ---
-      // For single-file formats Ca is in the same file, for multi-file formats it's a separate file
-      const caDataset = await gdal.openAsync(getVerificationPath(format, 'Ca'), 'r');
-      const caLayer = caDataset.layers.get('Ca');
+      const { rows: caRows } = await readLayerRows(format, 'Ca');
 
-      expect(caLayer).toBeDefined();
-      expect(caLayer.features.count()).toBe(3);
-
-      const caValues: number[] = [];
-      caLayer.features.forEach(feature => {
-        const value = feature.fields.get('value');
-        caValues.push(typeof value === 'string' ? parseFloat(value) : (value as number));
-      });
+      expect(caRows).toHaveLength(3);
+      const caValues = caRows.map(r => parseFloat(r['value']));
       expect(caValues).toEqual(expect.arrayContaining([55.5, 66.6, 77.7]));
-
-      caDataset.close();
 
       // --- Verify no cross-contamination ---
       expect(alValues).not.toEqual(expect.arrayContaining([55.5, 66.6, 77.7]));
@@ -197,45 +215,113 @@ describe('GeoFileWriter', () => {
     });
   });
 
+  describe('precondition: setProperty required before writeRecord', () => {
+    it('should throw if writeRecord is called without a prior setProperty', async () => {
+      const writer = new GeoFileWriter(VectorFileFormat.CSV);
+      await writer.openFile(TEST_OUTPUT_DIR);
+      await expect(writer.writeRecord(soilSampleToExportRecord(makeSample()))).rejects.toThrow(
+        'GeoFileWriter: No active layer. Call setProperty() first.',
+      );
+    });
+  });
+
+  describe('empty batch', () => {
+    it('should not create any output files when a property has no records', async () => {
+      const writer = new GeoFileWriter(VectorFileFormat.CSV);
+      await writer.openFile(TEST_OUTPUT_DIR);
+      await writer.setProperty('Al');
+      await writer.closeFile();
+      expect(fs.readdirSync(TEST_OUTPUT_DIR)).toHaveLength(0);
+    });
+  });
+
+  describe('geometry in spatial formats', () => {
+    it.each(SPATIAL_FORMATS)('%s: should write Point geometry with correct coordinates', async format => {
+      const writer = new GeoFileWriter(format);
+      await writer.openFile(TEST_OUTPUT_DIR);
+      await writer.setProperty('Al');
+      await writer.writeRecord(soilSampleToExportRecord(makeSample({ id: '1' })));
+      await writer.closeFile();
+
+      const { rows } = await readLayerRows(format, 'Al');
+      expect(rows).toHaveLength(1);
+      // ogr2ogr emits geometry as WKT when converting to CSV (-lco GEOMETRY=AS_WKT).
+      // The column name varies by source format (e.g. 'WKT' for SHP/GeoJSON, 'geom' for GPKG),
+      // so we locate the geometry value by searching for the POINT prefix.
+      const wkt = Object.values(rows[0]).find(v => v.startsWith('POINT'));
+      expect(wkt).toMatch(/POINT \(-124\.1303482 40\.4684982\)/);
+    });
+  });
+
+  describe('geom as text column in tabular formats', () => {
+    it.each(TABULAR_FORMATS)('%s: should include geom as a WKT text column', async format => {
+      const writer = new GeoFileWriter(format);
+      await writer.openFile(TEST_OUTPUT_DIR);
+      await writer.setProperty('Al');
+      await writer.writeRecord(soilSampleToExportRecord(makeSample({ id: '1' })));
+      await writer.closeFile();
+
+      const { rows, fieldNames } = await readLayerRows(format, 'Al');
+      expect(fieldNames).toContain('geom');
+      expect(rows[0]['geom']).toMatch(/POINT \(-124\.1303482 40\.4684982\)/);
+      // tabular formats have null geometry — no WKT geometry column from ogr2ogr
+      expect(fieldNames).not.toContain('WKT');
+    });
+  });
+
+  describe('all EXPORT_SCHEMA fields present in output', () => {
+    it.each(ALL_FORMATS)('%s: should emit all schema field names and round-trip values correctly', async format => {
+      const isTabular = TABULAR_FORMATS.includes(format);
+      const writer = new GeoFileWriter(format);
+      // laboratory_method is null in the default sample factory
+      const sample = makeSample({ id: '1' });
+
+      await writer.openFile(TEST_OUTPUT_DIR);
+      await writer.setProperty('Al');
+      await writer.writeRecord(soilSampleToExportRecord(sample));
+      await writer.closeFile();
+
+      const { rows, fieldNames } = await readLayerRows(format, 'Al');
+
+      EXPORT_SCHEMA.forEach(field => {
+        if (field.key === 'geom' && !isTabular) return; // geometry in spatial formats, not a property column
+        const name = format === VectorFileFormat.SHP ? field.title_truncated : field.title;
+        expect(fieldNames).toContain(name);
+      });
+
+      const nameFor = (title: string, truncated: string) => (format === VectorFileFormat.SHP ? truncated : title);
+
+      expect(rows[0][nameFor('dataset_name', 'dataset')]).toBe('Test Dataset');
+      expect(parseFloat(rows[0][nameFor('value', 'value')])).toBeCloseTo(42.5);
+      // null fields come back as empty string after the CSV round-trip
+      expect(rows[0][nameFor('laboratory_method', 'lab_method')]).toBe('');
+    });
+  });
+
   describe('ESRI Shapefile field name truncation', () => {
     it('should use truncated field names for SHP format to comply with 10-character limit', async () => {
-      // We only care about SHP for this specific logic
-      const format = FileFormat.SHP;
+      const format = VectorFileFormat.SHP;
       const writer = new GeoFileWriter(format);
       const property = 'Al';
 
       await writer.openFile(TEST_OUTPUT_DIR);
       await writer.setProperty(property);
 
-      // Write a sample record
       const sample = makeSample({ id: '1', property_acronym: property });
       await writer.writeRecord(soilSampleToExportRecord(sample));
       await writer.closeFile();
 
-      // Verify via GDAL
-      const dataset = await gdal.openAsync(getVerificationPath(format, property), 'r');
-      const layer = dataset.layers.get(0);
+      const { fieldNames } = await readLayerRows(format, property);
 
-      // Get all field names currently in the SHP file
-      const actualFieldNames: string[] = [];
-      for (let i = 0; i < layer.fields.count(); i++) {
-        actualFieldNames.push(layer.fields.get(i).name);
-      }
-
-      // Check against EXPORT_SCHEMA
-      // For SHP, every field name in the file should match field.title_truncated
       EXPORT_SCHEMA.forEach(field => {
         // 'geom' is handled as geometry, not a field, in SHP
         if (field.key !== 'geom') {
-          expect(actualFieldNames).toContain(field.title_truncated);
-          // Also verify it did NOT use the full title if they are different
+          expect(fieldNames).toContain(field.title_truncated);
           if (field.title !== field.title_truncated) {
-            expect(actualFieldNames).not.toContain(field.title);
+            expect(fieldNames).not.toContain(field.title);
           }
         }
       });
-
-      dataset.close();
     });
   });
 });

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from '@jest/globals';
 import request from 'supertest';
 import { app } from '../../src/app';
-import { addRasterMappings, addRasterFilters } from '../helper';
+import { addRasterFilterMappings, addRasterFilters } from '../helper';
 
 describe('Testing /raster-filters routes', () => {
   beforeEach(async () => {
@@ -43,7 +43,7 @@ describe('Testing /raster-filters routes', () => {
   it.each(['land_cover', 'soil_groups'])('Raster filter is enabled after adding mappings to it', async (filterId: string) => {
     const res = await request(app).get(`/raster-filters/${filterId}`);
     expect(res.body.enabled).toBeFalsy();
-    await addRasterMappings();
+    await addRasterFilterMappings();
     const resAfter = await request(app).get(`/raster-filters/${filterId}`);
     expect(resAfter.body.enabled).toBeTruthy();
   });

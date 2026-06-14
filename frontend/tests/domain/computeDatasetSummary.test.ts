@@ -1,6 +1,7 @@
 import { register, unregister, type TimeZone } from 'timezone-mock';
 import { computeDatasetSummary } from '../../src/domain/computeDatasetSummary';
 import { testTimezones } from '../setupTests';
+import { GISDataType } from '../../src/types/backend';
 
 describe.each(testTimezones)('computeDatasetSummary domain logic (multiple-timezones)', testTimezone => {
   beforeEach(() => {
@@ -18,7 +19,10 @@ describe.each(testTimezones)('computeDatasetSummary domain logic (multiple-timez
         {
           id: 'dataset-id-1',
           name: 'dataset-name-1',
+          data_type: GISDataType.POINT,
+          visibility: 'public',
           dataset_layer_count: 25,
+          raster_layer_count: 0,
         },
       ],
       expected: {
@@ -39,7 +43,10 @@ describe.each(testTimezones)('computeDatasetSummary domain logic (multiple-timez
         {
           id: 'dataset-id-2',
           name: 'dataset-name-2',
+          data_type: GISDataType.POINT,
+          visibility: 'public',
           dataset_layer_count: 20,
+          raster_layer_count: 0,
           min_depth: 0,
           max_depth: 60,
           min_sampling_date: '2023-01-01',
@@ -65,9 +72,9 @@ describe.each(testTimezones)('computeDatasetSummary domain logic (multiple-timez
 
   it('uses fullFilterDatasets length for count when fetchedFilteredResults is undefined', () => {
     const fullFilterDatasets = [
-      { id: 'ds-1', name: 'Dataset 1', data_type: 'vector' },
-      { id: 'ds-2', name: 'Dataset 2', data_type: 'raster' },
-      { id: 'ds-3', name: 'Dataset 3', data_type: 'vector' },
+      { id: 'ds-1', name: 'Dataset 1', data_type: GISDataType.POINT, visibility: 'public' },
+      { id: 'ds-2', name: 'Dataset 2', data_type: GISDataType.RASTER, visibility: 'public' },
+      { id: 'ds-3', name: 'Dataset 3', data_type: GISDataType.POINT, visibility: 'public' },
     ];
     const actual = computeDatasetSummary(undefined, fullFilterDatasets as any);
     expect(actual).toEqual({
@@ -85,8 +92,8 @@ describe.each(testTimezones)('computeDatasetSummary domain logic (multiple-timez
 
   it('uses fullFilterDatasets length for count when fetchedFilteredResults is empty', () => {
     const fullFilterDatasets = [
-      { id: 'ds-1', name: 'Dataset 1', data_type: 'vector' },
-      { id: 'ds-2', name: 'Dataset 2', data_type: 'raster' },
+      { id: 'ds-1', name: 'Dataset 1', data_type: 'vector', visibility: 'public' },
+      { id: 'ds-2', name: 'Dataset 2', data_type: 'raster', visibility: 'public' },
     ];
     const actual = computeDatasetSummary([], fullFilterDatasets as any);
     expect(actual.count).toBe(2);
@@ -94,11 +101,13 @@ describe.each(testTimezones)('computeDatasetSummary domain logic (multiple-timez
   });
 
   it('fetchedFilteredResults count takes precedence over fullFilterDatasets count', () => {
-    const fetchedFilteredResults = [{ id: 'ds-1', name: 'Dataset 1', dataset_layer_count: 10 }];
+    const fetchedFilteredResults = [
+      { id: 'ds-1', name: 'Dataset 1', data_type: GISDataType.POINT, visibility: 'public', dataset_layer_count: 10, raster_layer_count: 0 },
+    ];
     const fullFilterDatasets = [
-      { id: 'ds-1', name: 'Dataset 1', data_type: 'vector' },
-      { id: 'ds-2', name: 'Dataset 2', data_type: 'raster' },
-      { id: 'ds-3', name: 'Dataset 3', data_type: 'vector' },
+      { id: 'ds-1', name: 'Dataset 1', data_type: GISDataType.POINT, visibility: 'public' },
+      { id: 'ds-2', name: 'Dataset 2', data_type: GISDataType.RASTER, visibility: 'public' },
+      { id: 'ds-3', name: 'Dataset 3', data_type: GISDataType.POINT, visibility: 'public' },
     ];
     const actual = computeDatasetSummary(fetchedFilteredResults, fullFilterDatasets as any);
     expect(actual.count).toBe(1);

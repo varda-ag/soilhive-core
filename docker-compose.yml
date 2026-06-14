@@ -1,7 +1,7 @@
 name: soilhive-core
 services:
   keycloak:
-    image: quay.io/keycloak/keycloak:latest@sha256:f9ba7b2af90db8dc749a57ca9aedca51e840cb9224441ab546a968da941da900
+    image: quay.io/keycloak/keycloak:latest@sha256:5fdbf2dbb5897cc34e82de49d13e23db011f9925089dbc555fc095f2c8bc1dac
     environment:
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: admin_password
@@ -18,7 +18,7 @@ services:
     command: start-dev
 
   postgis:
-    image: postgis/postgis:18-3.6@sha256:1ac8d723bbf66159010056348cb54f521a8ee4c83d8df7ccec0c103ca004c0b8
+    image: postgis/postgis:18-3.6@sha256:804c0a7b287a58e40d7b6ea012d97346922f56a301de9f6c4860ef4c4059f259
     platform: linux/amd64
     environment:
       POSTGRES_DB: database
@@ -28,18 +28,6 @@ services:
       - postgis_data:/var/lib/postgresql
     ports:
       - "5432:5432"
-
-  localstack:
-    image: localstack/localstack:latest@sha256:235ba7feb837a14fc3478c9dae8305d9b2dfa7813c94150a6dd407d557f74cee
-    environment:
-      SERVICES: s3
-      DEBUG: "1"
-    ports:
-      - "4566:4566"
-      - "4571:4571"
-    volumes:
-      - localstack_data:/var/lib/localstack
-      - /var/run/docker.sock:/var/run/docker.sock
 
   backend:
     build:
@@ -56,7 +44,6 @@ services:
       - "4001:3000"
     depends_on:
       - postgis
-      - localstack
 
   frontend:
     build:
@@ -72,4 +59,3 @@ services:
 
 volumes:
   postgis_data:
-  localstack_data:

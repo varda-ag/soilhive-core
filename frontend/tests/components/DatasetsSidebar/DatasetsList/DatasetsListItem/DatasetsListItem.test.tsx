@@ -31,6 +31,8 @@ const mockDataset = {
   name: 'SoilGrid Global',
   views: '12.3k',
   tags: ['Global', 'Primary'],
+  visibility: 'public',
+  dataType: 'point',
   properties: {
     points: 34546,
     layers: 12,
@@ -60,6 +62,12 @@ describe('DatasetsListItem', () => {
     expect(screen.getByTestId('mock-button')).toHaveTextContent('Metadata');
 
     expect(container).toMatchSnapshot();
+  });
+
+  it('renders private tag for private datasets', () => {
+    render(<DatasetsListItem dataset={{ ...mockDataset, visibility: 'private' }} />);
+
+    expect(screen.getByTestId('tag-Private')).not.toHaveAttribute('data-type');
   });
 
   it('renders tags with correct types', () => {
@@ -110,7 +118,6 @@ describe('DatasetsListItem', () => {
     render(<DatasetsListItem dataset={mockDataset} />);
 
     expect(screen.getByText('34546 points')).toBeInTheDocument();
-    expect(screen.getByText('12 raster layers')).toBeInTheDocument();
     expect(screen.getByText('0-60 cm')).toBeInTheDocument();
     expect(screen.getByText('2012 - 2024')).toBeInTheDocument();
   });

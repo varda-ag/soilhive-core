@@ -16,8 +16,6 @@ RUN apk update && apk add --no-cache \
     py3-pip \
     make \
     g++ \
-    gdal-dev \
-    gdal-driver-pg \
     && ln -sf /usr/bin/python3 /usr/bin/python
 
 # ========================================
@@ -30,7 +28,7 @@ COPY package*.json ./
 
 # Install production dependencies
 RUN --mount=type=cache,target=/root/.npm,sharing=locked \
-    npm ci --omit=dev --build-from-source --shared_gdal && \
+    npm ci --omit=dev && \
     npm cache clean --force
 
 # Set proper ownership
@@ -46,7 +44,7 @@ COPY package*.json ./
 
 # Install all dependencies with build optimizations
 RUN --mount=type=cache,target=/root/.npm,sharing=locked \
-    npm ci --no-audit --no-fund --build-from-source --shared_gdal && \
+    npm ci --no-audit --no-fund && \
     npm cache clean --force
 
 # Create necessary directories and set permissions
@@ -85,7 +83,7 @@ ENV NODE_ENV=production \
     NODE_OPTIONS="--max-old-space-size=256 --no-warnings" \
     NPM_CONFIG_LOGLEVEL=silent
 
-RUN apk add --no-cache gdal gdal-driver-pg
+RUN apk add --no-cache gdal gdal-tools gdal-driver-pg
 
 # Copy production dependencies from deps stage
 COPY --from=deps --chown=nodejs:nodejs /app/node_modules ./node_modules

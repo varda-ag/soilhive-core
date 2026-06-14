@@ -1,0 +1,6 @@
+{
+  "soil_properties": ["ph"],
+  "raster_filters": {
+    "agroecological_zones": [21]
+  }
+}

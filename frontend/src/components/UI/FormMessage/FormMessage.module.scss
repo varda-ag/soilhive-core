@@ -2,6 +2,8 @@
   display: flex;
   align-items: flex-start;
   gap: 0.25rem;
+  font-size: var(--font-size-xs);
+  line-height: var(--line-height-lg);
 
   &.Global {
     padding: 0.5rem 0.75rem;
@@ -11,11 +13,6 @@
   > .FormMessageIcon {
     min-width: 1rem;
     margin-top: 0.125rem;
-  }
-
-  > .FormMessageText {
-    font-size: var(--font-size-xs);
-    line-height: var(--line-height-lg);
   }
 
   &.ErrorMessage {
@@ -43,7 +40,10 @@
 
     &.Global {
       background-color: var(--color-brand-yellow-bg);
-      border: 1px solid var(--color-accent-warning-1000);
+
+      &.Border {
+        border: 1px solid var(--color-accent-warning-1000);
+      }
     }
   }
 

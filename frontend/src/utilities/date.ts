@@ -31,7 +31,7 @@ export function firstDayOfTheMonth(date: Date): Date {
   return new Date(date.getFullYear(), date.getMonth(), 1);
 }
 
-export function dateStringToDDMMYYYY(dateString: Date | null) {
+export function dateStringToDDMMYYYY(dateString: Date | null, separator = '-') {
   if (!dateString) return '—';
 
   const date = new Date(dateString);
@@ -39,5 +39,5 @@ export function dateStringToDDMMYYYY(dateString: Date | null) {
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const year = date.getFullYear();
 
-  return `${day}-${month}-${year}`;
+  return `${day}${separator}${month}${separator}${year}`;
 }

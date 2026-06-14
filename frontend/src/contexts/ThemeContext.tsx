@@ -138,6 +138,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     notFoundAsNull: true,
     retry: false,
     isBlobResponse: true,
+    authenticate: false,
   });
 
   useEffect(() => {

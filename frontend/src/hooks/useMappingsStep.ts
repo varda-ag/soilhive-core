@@ -12,6 +12,7 @@ import { useSoilProperties } from './useSoilProperties';
 import { useCreateJobMutation, useJobsQueries } from './useJobsApi';
 import { ADMIN_PATHS } from '../configuration/admin';
 import { IngestionStatus } from 'types/backend';
+import useIngestionFlow from './useIngestionFlow';
 import type {
   FileDescriptor,
   VocabularyItem,
@@ -194,8 +195,14 @@ export function useMappingsStep(datasetId?: string) {
   const { t } = useTranslation('admin');
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { markAsChanged, resetChanges } = useIngestionFlow();
   const { isLoading: isIngestionLoading, updateFurthestStep } = useIngestionStatus();
   const hasTracked = useRef(false);
+
+  useEffect(() => {
+    markAsChanged();
+  }, [markAsChanged]);
+
   useEffect(() => {
     if (!hasTracked.current && datasetId && !isIngestionLoading) {
       hasTracked.current = true;
@@ -409,7 +416,11 @@ export function useMappingsStep(datasetId?: string) {
   // Unit options and sorted soil properties — depends only on API data, not user selections.
   const { soilPropertyOptions, unitOptionsByConcept } = useMemo(() => {
     const properties = soilProperties ?? [];
-    const soilPropertyOptions = properties.map(p => ({ code: p.id, name: p.property_name })).sort((a, b) => a.name.localeCompare(b.name));
+    const parentIds = new Set(properties.map(p => p.parent_property_id).filter(Boolean));
+    const filteredProperties = properties.filter(p => !parentIds.has(p.id));
+    const soilPropertyOptions = filteredProperties
+      .map(p => ({ code: p.id, name: p.property_name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
     const unitOptionsByConcept: Record<string, MenuOption[]> = {};
     for (const p of properties) {
       unitOptionsByConcept[p.id] = Object.entries(p.original_units_of_measurement ?? {}).map(([code, name]) => ({ code, name }));
@@ -450,12 +461,16 @@ export function useMappingsStep(datasetId?: string) {
 
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
-  const { mappedCount, unmappedCount } = useMemo(() => {
+  const { mappedCount, unmappedCount, soilPropertyMappedCount } = useMemo(() => {
     let mapped = 0;
+    let soilPropertyMapped = 0;
     for (const m of columnMappings) {
-      if (m.conceptId !== null) mapped++;
+      if (m.conceptId !== null) {
+        mapped++;
+        if (!METADATA_FIELD_CODES.has(m.conceptId)) soilPropertyMapped++;
+      }
     }
-    return { mappedCount: mapped, unmappedCount: columnMappings.length - mapped };
+    return { mappedCount: mapped, unmappedCount: columnMappings.length - mapped, soilPropertyMappedCount: soilPropertyMapped };
   }, [columnMappings]);
 
   const geometryMessage = useMemo((): { message: string; type: 'info' | 'warning' } | null => {
@@ -474,10 +489,12 @@ export function useMappingsStep(datasetId?: string) {
     return null;
   }, [columnMappings, t]);
 
-  const isContinueEnabled = useMemo(
-    () => mappedCount > 0 && geometryDetected !== undefined && geometryMessage?.type !== 'warning' && depthConflictMessage === null,
-    [mappedCount, geometryDetected, geometryMessage, depthConflictMessage],
+  const isSaveEnabled = useMemo(
+    () => geometryDetected !== undefined && geometryMessage?.type !== 'warning' && depthConflictMessage === null,
+    [geometryDetected, geometryMessage, depthConflictMessage],
   );
+
+  const isContinueEnabled = useMemo(() => soilPropertyMappedCount > 0 && isSaveEnabled, [soilPropertyMappedCount, isSaveEnabled]);
 
   const toggleRow = useCallback((columnName: string) => {
     setExpandedRows(prev => {
@@ -529,6 +546,7 @@ export function useMappingsStep(datasetId?: string) {
   const save = useCallback(async () => {
     const procedureIds = await createMappingProcedures(columnMappings, procedureByColumn, createProcedure);
     const mappingResponse = await createMapping(buildDataMappingRequest(columnMappings, procedureIds));
+    resetChanges();
 
     if (datasetId && datasetFileMappings?.length) {
       await Promise.all(
@@ -551,6 +569,7 @@ export function useMappingsStep(datasetId?: string) {
     datasetId,
     datasetFileMappings,
     queryClient,
+    resetChanges,
   ]);
 
   const handlePrevious = useCallback(() => {
@@ -581,6 +600,7 @@ export function useMappingsStep(datasetId?: string) {
     isImporting,
     geometryMessage,
     depthConflictMessage,
+    isSaveEnabled,
     isContinueEnabled,
     columnMappings,
     conceptOptionsByColumn,

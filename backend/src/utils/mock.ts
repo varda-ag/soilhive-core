@@ -22,7 +22,9 @@ import fs from 'fs';
 import { getRawTableName } from './utils';
 import DatasetFileMappingEntity from '../entities/DatasetFileMapping';
 import VocabularyEntity from '../entities/Vocabulary';
+import RasterLayerEntity from '../entities/RasterLayer';
 import { log } from './logger';
+import { ingestRaster } from '../services/RasterIngestService';
 
 export interface PropertyInfo {
   property_name: string;
@@ -338,7 +340,8 @@ export const addObservations = async (values: number[], procedure_id: string, da
 
 export interface SyntheticDataset {
   dataset: DatasetEntity;
-  features: FeatureEntity[];
+  features?: FeatureEntity[];
+  raster_layers?: RasterLayerEntity[];
   soilProperties: SoilPropertyEntity[];
 }
 
@@ -549,4 +552,73 @@ export const getLoadedDataCount = async (datasetId?: string): Promise<DataCount>
     n_observations,
   };
   return result;
+};
+
+export interface SyntheticRasterDataset {
+  dataset: DatasetEntity;
+}
+
+export const addRasterData = async (
+  tifPath?: string,
+  options?: {
+    dataset?: string;
+    soilProperty?: string;
+    soilPropertyCategory?: string;
+    layerFields?: {
+      min_depth?: number | null;
+      max_depth?: number | null;
+      reference_period_start?: string | null;
+      reference_period_stop?: string | null;
+    };
+    visibility?: 'public' | 'private';
+    dataset_status?: IngestionStatus;
+  },
+): Promise<RasterLayerEntity> => {
+  const input = tifPath ?? path.join(__dirname, '../../tests/assets/raster/sol_ph.h2o_usda.4c1a2a_m_250m_b0..0cm_1950..2017_v0.2_250.tif');
+  const outName = await ingestRaster({
+    input: path.resolve(input),
+    dataset: options?.dataset ?? 'test-ds',
+    soilProperty: options?.soilProperty ?? 'Organic Carbon Stock',
+    soilPropertyCategory: options?.soilPropertyCategory ?? 'Chemical',
+  });
+
+  const dataSource = await getDataSource();
+  const repo = dataSource.getRepository(RasterLayerEntity);
+
+  if (options?.visibility) {
+    const datasetRepo = dataSource.getRepository(DatasetEntity);
+    const datasetEntity = await datasetRepo.findOneByOrFail({ name: options?.dataset ?? 'test-ds' });
+    datasetEntity.visibility = options?.visibility;
+    await datasetEntity.save();
+  }
+  if (options?.dataset_status) {
+    const datasetRepo = dataSource.getRepository(DatasetEntity);
+    const datasetEntity = await datasetRepo.findOneByOrFail({ name: options?.dataset ?? 'test-ds' });
+    datasetEntity.status = options?.dataset_status;
+    await datasetEntity.save();
+  }
+
+  const entity = await repo.findOneOrFail({
+    where: { file: { file_path: outName } },
+    relations: { file: true, dataset: true, soil_property: true },
+  });
+
+  if (options?.layerFields && Object.keys(options.layerFields).length > 0) {
+    Object.assign(entity, options.layerFields);
+    await repo.save(entity);
+  }
+
+  return entity;
+};
+
+export const addRasterDataset = async (id: string, tifPath?: string): Promise<SyntheticRasterDataset> => {
+  const input = tifPath ?? path.join(__dirname, '../../tests/assets/raster/sol_ph.h2o_usda.4c1a2a_m_250m_b0..0cm_1950..2017_v0.2_250.tif');
+  const spatial_extent = [-180, -90, 180, 90];
+  const license = await addLicense(`test_raster_license_${id}`);
+  const dataset = await addDataset(`test_raster_dataset_${id}`, spatial_extent, GISDataType.RASTER, [license.slug]);
+  await addRasterData(input, {
+    dataset: dataset.slug,
+    soilProperty: 'test_soil_property',
+  });
+  return { dataset };
 };

@@ -21,8 +21,6 @@ export function FilteringSidebarDataScope() {
     accessFilterPillRemove,
     handleTimeFilterChange,
     setFrontendFilters,
-
-    isDataAccessHidden,
   } = useDataScopeFilters();
 
   return (
@@ -59,21 +57,19 @@ export function FilteringSidebarDataScope() {
           !timeFilterPills && <TimeFilter />
         )}
       </Accordion>
-      {!isDataAccessHidden && (
-        <Accordion
-          title="Data access"
-          type="secondary"
-          pillsSlot={accessFilterPills.length ? <SelectionPills selections={accessFilterPills} onRemove={accessFilterPillRemove} /> : null}
-        >
-          <div className={styles.AccordionContent}>
-            <MultiselectButtons
-              items={accessFilterOptions}
-              selected={datasetFrontendFilters.ownership}
-              onChange={selected => setFrontendFilters(selected, 'ownership')}
-            />
-          </div>
-        </Accordion>
-      )}
+      <Accordion
+        title={t('filtering_sidebar_content.data_access', 'Data access')}
+        type="secondary"
+        pillsSlot={accessFilterPills.length ? <SelectionPills selections={accessFilterPills} onRemove={accessFilterPillRemove} /> : null}
+      >
+        <div className={styles.AccordionContent}>
+          <MultiselectButtons
+            items={accessFilterOptions}
+            selected={datasetFrontendFilters.visibility}
+            onChange={selected => setFrontendFilters(selected, 'visibility')}
+          />
+        </div>
+      </Accordion>
     </div>
   );
 }

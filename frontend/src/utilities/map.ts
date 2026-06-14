@@ -36,3 +36,7 @@ export const getMapStyles = () => {
   ];
   return open;
 };
+
+// TODO: change href of open-source with the actual public github repository address of soilhive-core when it will be published
+export const customAttribution =
+  '<a href="https://varda.ag" target="_blank">Varda Foundation</a>’s <a href="https://varda.ag" target="_blank">open-source</a> infrastructure';

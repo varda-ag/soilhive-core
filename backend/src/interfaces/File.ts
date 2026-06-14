@@ -21,6 +21,8 @@ export interface FileMetadata {
   geometry_detected: boolean;
   driver?: string;
   epsg?: number;
+  layer_name?: string;
+  geom_column?: string;
 }
 
 export interface ExtractedFilePath {

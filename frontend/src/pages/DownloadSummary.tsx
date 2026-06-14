@@ -19,17 +19,19 @@ import { Column } from 'primereact/column';
 import useDownloads from 'hooks/useDownloads';
 import { useOnceDefined } from 'hooks/useOnceDefined';
 import Skeleton from 'react-loading-skeleton';
+import { GISDataType } from '../types/backend';
 
 // console.debug(numberFormatter.format(1234567));
 // Output: "1.234.567"
 const numberFormatter = new Intl.NumberFormat('de-DE');
 
 const availableFormats = [
-  { id: 'csv', name: 'CSV' },
-  { id: 'gpkg', name: 'Geopackage' },
-  { id: 'geojson', name: 'GeoJSON' },
-  { id: 'shp', name: 'Shapefile' },
-  { id: 'xlsx', name: 'XLSX' },
+  { id: 'csv', name: 'CSV (Vector data)' },
+  { id: 'gpkg', name: 'Geopackage (Vector & raster data)' },
+  { id: 'geojson', name: 'GeoJSON (Vector data)' },
+  { id: 'shp', name: 'Shapefile (Vector data)' },
+  { id: 'xlsx', name: 'XLSX (Vector data)' },
+  { id: 'tiff', name: 'Geotiff (Raster data)' },
 ];
 
 function DownloadSummary() {
@@ -61,7 +63,7 @@ function DownloadSummary() {
 
   const onDownloadButtonClick = () => {
     if (filterId) {
-      startDownload({ filter_id: filterId, dataset_ids: selectedDatasets.map(dataset => dataset.id), format: selectedFormat });
+      startDownload({ filter_id: filterId, dataset_ids: selectedDatasets.map(dataset => dataset.id), formats: [selectedFormat] });
       setIsOpened(true);
       navigate('/');
     }
@@ -84,14 +86,11 @@ function DownloadSummary() {
 
   const dataCountCell = ({ dataType, layerCount }: DownloadSummaryDataset) => {
     const formattedCount = numberFormatter.format(layerCount);
-    if (dataType === 'point') {
-      return (
-        <>
-          {formattedCount} {t('download_summary.data_points')}
-        </>
-      );
-    }
-    return <>{formattedCount}</>;
+    return (
+      <>
+        {formattedCount} {dataType === GISDataType.RASTER ? t('download_summary.raster_layers') : t('download_summary.data_points')}
+      </>
+    );
   };
 
   const loaderCell = () => <Skeleton count={1} height={12} width="100%" />;

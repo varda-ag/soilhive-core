@@ -3,12 +3,13 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import extractZip from 'extract-zip';
-import { S3Client } from '@aws-sdk/client-s3';
+import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { FileStorage } from '@flystorage/file-storage';
 import { AwsS3StorageAdapter } from '@flystorage/aws-s3';
 import { LocalStorageAdapter } from '@flystorage/local-fs';
 import { FlystorageMulterStorageEngine } from '@flystorage/multer-storage';
-import * as gdal from 'gdal-async';
+import { GdalCLI, OgrInfoLayer } from '../utils/GdalCLI';
 import { LocalStorageConfig, S3StorageConfig, StorageConfig } from '../interfaces/StorageConfig';
 import { RequestData } from '../interfaces/RequestData';
 import { File, FileMetadata, ExtractedFilePath } from '../interfaces/File';
@@ -28,17 +29,30 @@ import DatasetFileMappingEntity from '../entities/DatasetFileMapping';
 
 const dataMappingService = new DataMappingService();
 
-const allowedGeometryTypes = [
-  gdal.wkbNone, // This allows generic tabular file support
-  gdal.wkbPoint,
-  gdal.wkbPoint25D,
-  gdal.wkbMultiPoint,
-  gdal.wkbMultiPoint25D,
-  gdal.wkbPolygon,
-  gdal.wkbPolygon25D,
-  gdal.wkbMultiPolygon,
-  gdal.wkbMultiPolygon25D,
-];
+const ALLOWED_GEOMETRY_TYPES = new Set([
+  'None', // Tabular file support
+  'Geometry', // Generic geometry support
+  'Point',
+  'Point Z',
+  'Point M',
+  'Point ZM',
+  '3D Point',
+  'Multi Point',
+  'Multi Point Z',
+  'Multi Point M',
+  'Multi Point ZM',
+  '3D Multi Point',
+  'Polygon',
+  'Polygon Z',
+  'Polygon M',
+  'Polygon ZM',
+  '3D Polygon',
+  'Multi Polygon',
+  'Multi Polygon Z',
+  'Multi Polygon M',
+  'Multi Polygon ZM',
+  '3D Multi Polygon',
+]);
 
 const unknownGeomDrivers = ['CSV', 'XLSX'];
 
@@ -244,7 +258,7 @@ export default class FileService {
     return null;
   };
 
-  private static getMainFilePath = async (fileKey: string): Promise<ExtractedFilePath> => {
+  static getMainFilePath = async (fileKey: string): Promise<ExtractedFilePath> => {
     const config: StorageConfig = ConfigService.getStorageConfig();
     let mainFilePath: string;
     let tempZipExtractPath: string | null = null;
@@ -253,7 +267,7 @@ export default class FileService {
       // Get dataset path based on storage mode
       if (config.storageMode === StorageModes.LOCAL) {
         const localConfig = config.config as LocalStorageConfig;
-        mainFilePath = path.join(localConfig.rootFolder, fileKey);
+        mainFilePath = path.isAbsolute(fileKey) ? fileKey : path.join(localConfig.rootFolder, fileKey);
         if (!fs.existsSync(mainFilePath)) {
           throw new ErrorResponse(`File ${mainFilePath} not found`, StatusCodes.NOT_FOUND);
         }
@@ -263,14 +277,13 @@ export default class FileService {
           ({ tempZipExtractPath, mainFilePath } = await this.extractZipAndFindMainFile(mainFilePath));
         }
       } else if (config.storageMode === StorageModes.S3) {
-        // For S3, we would need to download the file first to extract it
-        // For now, use GDAL's S3 VSI support (which may not support ZIP)
+        // For S3, use GDAL's S3 VSI support + VSIZIP to handle ZIP files directly from S3 without downloading.
+        // This requires the S3 bucket to allow range requests.
+        const isZip = fileKey.toLowerCase().endsWith('.zip');
+        const vsiPrefix = isZip ? '/vsizip/vsis3/' : '/vsis3/';
         const s3Config = config.config as S3StorageConfig;
         const key = s3Config.rootFolder ? `${s3Config.rootFolder}/${fileKey}` : fileKey;
-        mainFilePath = `/vsis3/${s3Config.bucketName}/${key}`;
-
-        // If it's a ZIP file on S3, we'd need to handle it differently
-        // For now, this will be attempted directly with GDAL
+        mainFilePath = `${vsiPrefix}${s3Config.bucketName}/${key}`;
       } else {
         throw new ErrorResponse(`Unsupported storage mode: ${config.storageMode}`, StatusCodes.INTERNAL_SERVER_ERROR);
       }
@@ -288,30 +301,40 @@ export default class FileService {
     }
   };
 
-  getDataLayer = (layers: gdal.DatasetLayers, allowWkbUnknown: boolean = false): { layer: gdal.Layer; geometryDetected: boolean } => {
-    let layer: gdal.Layer | null = null;
+  static getPresignedUrl = async (fileKey: string, expiresIn = 3600): Promise<string> => {
+    const config: StorageConfig = ConfigService.getStorageConfig();
+    if (config.storageMode !== StorageModes.S3) {
+      throw new ErrorResponse('getPresignedUrl is only supported for S3 storage mode', StatusCodes.INTERNAL_SERVER_ERROR);
+    }
+    const s3Config = config.config as S3StorageConfig;
+    const s3Client = new S3Client({
+      region: s3Config.region,
+      ...(s3Config.endpoint ? { endpoint: s3Config.endpoint, forcePathStyle: true } : {}),
+      ...(s3Config.credentials ? { credentials: s3Config.credentials } : {}),
+    });
+    const key = s3Config.rootFolder ? `${s3Config.rootFolder}/${fileKey}` : fileKey;
+    const command = new GetObjectCommand({ Bucket: s3Config.bucketName, Key: key });
+    return getSignedUrl(s3Client, command, { expiresIn });
+  };
+
+  getDataLayer = (layers: OgrInfoLayer[], allowUnknownGeometry: boolean = false): { layer: OgrInfoLayer; geometryDetected: boolean } => {
+    let layer: OgrInfoLayer | null = null;
     let geometryDetected = false;
 
-    for (let i = 0; i < layers.count(); i++) {
-      const currentLayer = layers.get(i);
-      // Check that layer contains point or polygon geometry
-      let layerGeometry = currentLayer.geomType;
+    for (const currentLayer of layers) {
+      const geomType = currentLayer.geometry ?? 'None';
 
-      if (!layerGeometry && layerGeometry !== 0) {
-        continue;
+      if (geomType === 'Unknown (any)') {
+        if (!allowUnknownGeometry) continue;
+        geometryDetected = true;
+        layer = currentLayer;
+        break;
       }
-      geometryDetected = layerGeometry !== gdal.wkbNone;
-      if (allowWkbUnknown && layerGeometry === gdal.wkbUnknown) {
-        const firstGeom = currentLayer.features.first()?.getGeometry();
-        if (!firstGeom) {
-          continue;
-        }
-        layerGeometry = firstGeom.wkbType;
-      }
-      if (!allowedGeometryTypes.includes(layerGeometry)) {
-        continue;
-      }
-      // Valid layer found
+
+      geometryDetected = geomType !== 'None';
+
+      if (!ALLOWED_GEOMETRY_TYPES.has(geomType)) continue;
+
       layer = currentLayer;
       break;
     }
@@ -324,7 +347,8 @@ export default class FileService {
       }
     }
 
-    if (layer.features.count() === 0) {
+    // null featureCount means "unknown": throw only if it's explicitly 0
+    if (layer.featureCount === 0) {
       throw new ErrorResponse('No features found in input file', StatusCodes.BAD_REQUEST);
     }
     return { layer, geometryDetected };
@@ -364,22 +388,13 @@ export default class FileService {
     try {
       ({ mainFilePath, tempZipExtractPath } = await FileService.getMainFilePath(fileKey));
 
-      // Open dataset with GDAL
-      log.info('Extracting metadata with gdal', {
-        source: mainFilePath,
-      });
-      const dataset = await gdal.openAsync(mainFilePath);
-      const driver = dataset.driver.description;
+      log.info('Extracting metadata with ogrinfo', { source: mainFilePath });
+      const { driver, layers } = await GdalCLI.ogrinfo(mainFilePath);
 
-      log.info('Getting data layer and detecting geometry', {
-        driver,
-      });
+      log.info('Getting data layer and detecting geometry', { driver });
+      const { layer, geometryDetected } = this.getDataLayer(layers, unknownGeomDrivers.includes(driver));
 
-      const { layer, geometryDetected } = this.getDataLayer(dataset.layers, unknownGeomDrivers.includes(driver));
-
-      // Extract field names
-      const fieldNames: string[] = [];
-      const fieldDefinitions = layer.fields as any;
+      const fieldNames = layer.fields.map(f => f.name);
       let geometryFieldName: string | null = null;
       let latitudeFieldName: string | null = null;
       let longitudeFieldName: string | null = null;
@@ -390,18 +405,9 @@ export default class FileService {
       let maxDepthFieldName: string | null = null;
       let horizonFieldName: string | null = null;
 
-      // Iterate through fields
-      for (let i = 0; i < fieldDefinitions.count(); i++) {
-        const fieldDef = fieldDefinitions.get(i);
-        const fieldName = fieldDef.name;
-        fieldNames.push(fieldName);
-
-        // Detect (first) date field
-        const fieldType = fieldDef.type;
-        if (fieldType === gdal.OFTDate || fieldType === gdal.OFTDateTime) {
-          if (!samplingDateFieldName) {
-            samplingDateFieldName = fieldName;
-          }
+      for (const field of layer.fields) {
+        if (field.type === 'Date' || field.type === 'DateTime') {
+          if (!samplingDateFieldName) samplingDateFieldName = field.name;
         }
       }
 
@@ -410,18 +416,16 @@ export default class FileService {
       }
 
       if (!geometryDetected) {
-        // Try to detect geometry field name
         geometryFieldName = FileService.detectField(fieldNames, ['geom', 'geometry', 'shape', 'wkb', 'wkt'], true);
       }
 
-      // Try to detect other fields
       latitudeFieldName = FileService.detectField(fieldNames, ['latitude', 'lat'], true);
       if (!latitudeFieldName) {
-        latitudeFieldName = FileService.detectField(fieldNames, ['y'], false); // No partial match
+        latitudeFieldName = FileService.detectField(fieldNames, ['y'], false);
       }
       longitudeFieldName = FileService.detectField(fieldNames, ['longitude', 'lon', 'lng'], true);
       if (!longitudeFieldName) {
-        longitudeFieldName = FileService.detectField(fieldNames, ['x'], false); // No partial match
+        longitudeFieldName = FileService.detectField(fieldNames, ['x'], false);
       }
       licenseFieldName = FileService.detectField(fieldNames, ['license', 'licence', 'lic', 'copyright', 'attribution'], true);
       minDepthFieldName = FileService.detectField(fieldNames, ['mindepth', 'upperdepth', 'upperhorizon', 'depthtop'], true);
@@ -431,24 +435,8 @@ export default class FileService {
       }
       horizonFieldName = FileService.detectField(fieldNames, ['horizon', 'layername'], true);
 
-      // Get CRS/SRID
-      let epsg: number | undefined = undefined;
-      try {
-        const spatialRef = layer.srs;
-        if (spatialRef) {
-          const epsgString = spatialRef.getAttrValue('AUTHORITY', 1);
-          if (!isNaN(Number(epsgString))) {
-            epsg = parseInt(epsgString, 10);
-          }
-        }
-      } catch {
-        // Ignore CRS errors
-      }
-      dataset.close();
-
-      // Get all previous mappings
       const mappings: DataMappingObject[] = (await dataMappingService.getDataMappings(requestData)).map(dm => dm.data_mapping);
-      const detected_mapping: DataMappingObject = await this.getDetectedMapping(fieldNames, mappings);
+      const detected_mapping: DataMappingObject = this.getDetectedMapping(fieldNames, mappings);
 
       const metadata: FileMetadata = {
         field_names: fieldNames,
@@ -466,7 +454,9 @@ export default class FileService {
         },
         geometry_detected: geometryDetected,
         driver,
-        ...(epsg && { epsg }),
+        layer_name: layer.name,
+        ...(layer.geomColumn && { geom_column: layer.geomColumn }),
+        ...(layer.epsg && { epsg: layer.epsg }),
       };
 
       return metadata;
@@ -480,7 +470,6 @@ export default class FileService {
       }
       throw new ErrorResponse(`Failed to extract metadata: ${error}`, StatusCodes.BAD_REQUEST);
     } finally {
-      // Clean up temporary directory if ZIP was extracted
       if (tempZipExtractPath) {
         FileService.removeTempFolder(tempZipExtractPath);
       }
@@ -491,18 +480,24 @@ export default class FileService {
     const fileEntity = await this.getFile(requestData, fileId);
     assert(fileEntity.file_path, `File path not found for file ${fileId}`);
     assert(fileEntity.metadata, `Metadata not found for file ${fileId}`);
+    assert(
+      fileEntity.metadata.layer_name,
+      `layer_name missing from metadata for file ${fileId}; re-upload the file to regenerate metadata`,
+    );
 
     const repo = requestData.entityManager.getRepository(FileEntity);
     await repo.update(fileEntity.id, { status: IngestionStatus.ONGOING });
 
     const fileKey = fileEntity.file_path!;
     const fileMetadata = fileEntity.metadata!;
+    const layerName = fileMetadata.layer_name!;
 
     const mappingGeomFields = await this.extractGeomFieldsFromMapping(requestData, fileEntity.id);
 
     let mainFilePath: string;
     let tempZipExtractPath: string | null = null;
-    const gdalOpts: string[] = [
+    const tableName = getRawTableName(fileEntity.id);
+    const ogr2ogrOpts: string[] = [
       '-f',
       'PostgreSQL',
       '-explodecollections',
@@ -516,10 +511,10 @@ export default class FileService {
       'GEOM_TYPE=geometry',
       '-lco',
       'GEOMETRY_NAME=geometry',
+      '-nln',
+      tableName,
     ];
-    const openOpts: string[] = ['AUTODETECT_TYPE=YES', 'EMPTY_STRING_AS_NULL=YES', 'KEEP_GEOM_COLUMNS=NO'];
-    const tableName = getRawTableName(fileEntity.id);
-    gdalOpts.push('-nln', tableName);
+
     const originalGeomFields = [
       fileMetadata.detected_fields[DetectableFields.GEOMETRY],
       fileMetadata.detected_fields[DetectableFields.LONGITUDE],
@@ -539,19 +534,30 @@ export default class FileService {
       }
       ({ mainFilePath, tempZipExtractPath } = await FileService.getMainFilePath(fileKey));
 
+      let keepGeomColumn = 'YES';
+
       if (!fileMetadata.geometry_detected) {
         if (mappingGeomFields.geomField) {
-          openOpts.push(`GEOM_POSSIBLE_NAMES=${mappingGeomFields.geomField}`);
+          ogr2ogrOpts.push('-oo', `GEOM_POSSIBLE_NAMES=${mappingGeomFields.geomField}`);
           selectClause = `${selectClause}, "${mappingGeomFields.geomField}" AS geometry`;
+          keepGeomColumn = 'NO';
         } else if (mappingGeomFields.latField && mappingGeomFields.lonField) {
-          openOpts.push(`X_POSSIBLE_NAMES=${mappingGeomFields.lonField}`, `Y_POSSIBLE_NAMES=${mappingGeomFields.latField}`);
+          ogr2ogrOpts.push(
+            '-oo',
+            `X_POSSIBLE_NAMES=${mappingGeomFields.lonField}`,
+            '-oo',
+            `Y_POSSIBLE_NAMES=${mappingGeomFields.latField}`,
+          );
           selectClause = `${selectClause}, "_ogr_geometry_" AS geometry`;
         } else if (fileMetadata.detected_fields[DetectableFields.GEOMETRY]) {
-          openOpts.push(`GEOM_POSSIBLE_NAMES=${fileMetadata.detected_fields[DetectableFields.GEOMETRY]}`);
+          ogr2ogrOpts.push('-oo', `GEOM_POSSIBLE_NAMES=${fileMetadata.detected_fields[DetectableFields.GEOMETRY]}`);
           selectClause = `${selectClause}, "${fileMetadata.detected_fields[DetectableFields.GEOMETRY]}" AS geometry`;
+          keepGeomColumn = 'NO';
         } else if (fileMetadata.detected_fields[DetectableFields.LATITUDE] && fileMetadata.detected_fields[DetectableFields.LONGITUDE]) {
-          openOpts.push(
+          ogr2ogrOpts.push(
+            '-oo',
             `X_POSSIBLE_NAMES=${fileMetadata.detected_fields[DetectableFields.LONGITUDE]}`,
+            '-oo',
             `Y_POSSIBLE_NAMES=${fileMetadata.detected_fields[DetectableFields.LATITUDE]}`,
           );
           selectClause = `${selectClause}, "_ogr_geometry_" AS geometry`;
@@ -563,47 +569,27 @@ export default class FileService {
         }
       }
 
+      if (unknownGeomDrivers.includes(fileMetadata.driver ?? '')) {
+        ogr2ogrOpts.push('-oo', 'AUTODETECT_TYPE=YES', '-oo', 'EMPTY_STRING_AS_NULL=YES', '-oo', `KEEP_GEOM_COLUMNS=${keepGeomColumn}`);
+      }
+
       if (fileMetadata.epsg && fileMetadata.epsg !== 4326) {
         // Reproject from the declared non-WGS84 source CRS to WGS84.
-        gdalOpts.push('-s_srs', `EPSG:${fileMetadata.epsg}`);
-        gdalOpts.push('-t_srs', 'EPSG:4326');
+        ogr2ogrOpts.push('-s_srs', `EPSG:${fileMetadata.epsg}`);
+        ogr2ogrOpts.push('-t_srs', 'EPSG:4326');
       } else {
         // Source is WGS84 or CRS unknown (assumed WGS84): assign SRID without reprojecting.
         // -a_srs avoids GDAL 3.10.x's PostgreSQL driver spurious coordinate shift that occurs
         // when -s_srs EPSG:4326 is combined with -t_srs EPSG:4326 on a null-SRS CSV layer.
-        gdalOpts.push('-a_srs', 'EPSG:4326');
+        ogr2ogrOpts.push('-a_srs', 'EPSG:4326');
       }
 
-      log.info('Starting gdal', {
-        source: mainFilePath,
-        opts: JSON.stringify(gdalOpts),
-      });
-
-      // Open dataset with GDAL (if driver available, pass driver-specific open options)
-      let dataset: gdal.Dataset;
-      try {
-        if (fileMetadata.driver) {
-          const driver = gdal.drivers.get(fileMetadata.driver);
-          dataset = driver.open(mainFilePath, 'r', openOpts);
-        } else {
-          dataset = await gdal.openAsync(mainFilePath);
-        }
-      } catch (openError) {
-        log.error('gdal failure', {
-          path: mainFilePath,
-          driver: fileMetadata.driver ?? 'auto',
-          error: JSON.stringify(openError),
-          openOpts: JSON.stringify(openOpts),
-        });
-        throw openError;
+      if (fileMetadata.geometry_detected && fileMetadata.geom_column) {
+        selectClause = `${selectClause}, ${fileMetadata.geom_column} as geometry`;
       }
 
-      const { layer } = this.getDataLayer(dataset.layers, unknownGeomDrivers.includes(fileMetadata.driver ? fileMetadata.driver : ''));
-      if (fileMetadata.geometry_detected && layer.geomColumn) {
-        selectClause = `${selectClause}, ${layer.geomColumn} as geometry`;
-      }
+      ogr2ogrOpts.push('-sql', `SELECT ${selectClause} FROM "${layerName}"`);
 
-      gdalOpts.push('-sql', `SELECT ${selectClause} FROM "${layer.name}"`);
       const bundleFile = path.join(__dirname, '..', 'assets', 'global-bundle.pem');
       const sslOpts = `sslmode=verify-full sslrootcert=${bundleFile}`;
       const pgDataset =
@@ -611,21 +597,24 @@ export default class FileService {
           /\n/g,
           ' ',
         );
-      gdalOpts.unshift(layer.name);
+
+      log.info('Starting ogr2ogr', {
+        source: mainFilePath,
+        opts: JSON.stringify(ogr2ogrOpts),
+      });
+
       await requestData.entityManager.query(`DROP TABLE IF EXISTS "${tableName}"`);
 
       try {
-        await gdal.vectorTranslateAsync(pgDataset, dataset, gdalOpts);
+        await GdalCLI.ogr2ogr([...ogr2ogrOpts, pgDataset, mainFilePath]);
       } catch (translateError) {
-        log.error('gdal.vectorTranslateAsync failed', {
+        log.error('ogr2ogr failed', {
           source: mainFilePath,
           target: pgDataset.replace(/password=\S+/, 'password=***'),
-          opts: JSON.stringify(gdalOpts),
+          opts: JSON.stringify(ogr2ogrOpts),
           error: translateError instanceof Error ? translateError.message : String(translateError),
         });
         throw translateError;
-      } finally {
-        dataset.close();
       }
 
       await repo.update(fileEntity.id, { status: IngestionStatus.STAGED });
@@ -635,7 +624,6 @@ export default class FileService {
       }
       throw new ErrorResponse(`Failed to load file to table: ${error instanceof Error ? error.message : error}`, StatusCodes.BAD_REQUEST);
     } finally {
-      // Clean up temporary directory if ZIP was extracted
       if (tempZipExtractPath) {
         FileService.removeTempFolder(tempZipExtractPath);
       }

@@ -51,7 +51,10 @@ export interface StoredDataFilter extends DataFilter {
 export interface FilteredDatasetSummary extends FilterCriteria {
   id: string;
   name: string;
+  data_type: GISDataType;
+  visibility: string;
   dataset_layer_count: number;
+  raster_layer_count: number;
 }
 
 export interface FilteredData {
@@ -63,6 +66,7 @@ export interface FilteredDataset {
   id: string;
   name: string;
   data_type: GISDataType;
+  visibility: string;
 }
 
 export interface ResultItem {
@@ -160,6 +164,8 @@ export interface Dataset {
   capabilities?: Capability[];
   visibility: 'public' | 'private';
   inferred_properties?: InferredProperty[] | null;
+  preprocessing_steps?: string | null;
+  related_resources?: string[] | null;
 }
 
 export interface SoilDataParameters {

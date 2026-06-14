@@ -13,6 +13,7 @@ import { useRequest } from '../api-client';
 import type { SoilDataFile } from '../types/soilDataFile';
 import type { FileDescriptor } from 'types/backend';
 import { useTranslation } from 'react-i18next';
+import useIngestionFlow from './useIngestionFlow';
 
 export const ALLOWED_EXTENSIONS = ['.csv', '.gpkg', '.geojson', '.shp', '.xlsx', '.zip'];
 
@@ -21,11 +22,17 @@ export function useDatasetsSoilData() {
   const navigate = useNavigate();
   const { request } = useRequest();
   const { id: datasetId } = useParams();
+  const { markAsChanged, resetChanges } = useIngestionFlow();
   const queryClient = useQueryClient();
   const { mutateAsync: createFileMapping } = useCreateDatasetFileMapping();
   const { isLoading: isIngestionLoading, updateFurthestStep } = useIngestionStatus();
 
   const hasTracked = useRef(false);
+
+  useEffect(() => {
+    markAsChanged();
+  }, [markAsChanged]);
+
   useEffect(() => {
     if (!hasTracked.current && datasetId && !isIngestionLoading) {
       hasTracked.current = true;
@@ -66,8 +73,26 @@ export function useDatasetsSoilData() {
     setSoilDataFiles(prev => prev.map(f => (f.id === id ? { ...f, ...updates } : f)));
   }, []);
 
-  const { fileInputRef, uploadingFiles, uploadProgress, uploadErrors, handleFiles } = useFileUpload((uploaded: SoilDataFile) =>
-    setSoilDataFiles(prev => [...prev, uploaded]),
+  const {
+    fileInputRef,
+    uploadingFiles,
+    uploadProgress,
+    uploadErrors,
+    handleFiles: handleFilesUpload,
+  } = useFileUpload((uploaded: SoilDataFile) => setSoilDataFiles(prev => [...prev, uploaded]));
+
+  const handleFiles = useCallback(
+    (files: FileList | File[] | null) => {
+      handleFilesUpload(files);
+    },
+    [handleFilesUpload],
+  );
+
+  const handleCrsChange = useCallback(
+    (id: string, crs: string) => {
+      updateSoilDataFile(id, { crs });
+    },
+    [updateSoilDataFile],
   );
 
   const { deleteFileAndMapping } = useFileManagement();
@@ -116,6 +141,7 @@ export function useDatasetsSoilData() {
 
   const handleSave = useCallback(async () => {
     if (!datasetId) return;
+    resetChanges();
     const newFiles = soilDataFiles.filter(f => !existingFileIds.current.has(f.id));
 
     await Promise.allSettled(newFiles.map(f => createFileMapping({ datasetId, fileID: f.id })));
@@ -135,7 +161,7 @@ export function useDatasetsSoilData() {
 
     await queryClient.invalidateQueries({ queryKey: ['datasets', datasetId, 'files'] }); // if we save successfully, refetch files to make sure UI is in sync with backend
     await queryClient.invalidateQueries({ queryKey: ['datasets', datasetId, 'dataset-file-mapping'] });
-  }, [datasetId, soilDataFiles, createFileMapping, request, queryClient]);
+  }, [datasetId, soilDataFiles, createFileMapping, request, queryClient, resetChanges]);
 
   return {
     fileInputRef,
@@ -147,7 +173,7 @@ export function useDatasetsSoilData() {
     isContinueEnabled,
     isLoadingFiles,
     handleFiles,
-    handleCrsChange: (id: string, crs: string) => updateSoilDataFile(id, { crs }),
+    handleCrsChange,
     removeFile,
     clearAll,
     handlePrevious: () => navigate(`${ADMIN_PATHS.DATASETS}/edit/${datasetId}/general-info`),

@@ -4,6 +4,8 @@ export enum TokenScopes {
   INTERNAL_REQUEST = 'internal-request',
 }
 
+export const TOKEN_ISSUER = 'soilhive-core';
+
 export enum AuthModes {
   NONE = 'none',
   PASSWORD = 'password',
@@ -29,6 +31,7 @@ export enum JobQueues {
   EXPORT = 'export',
   FILE_TO_DB = 'file-to-db',
   BULK_DELETE = 'bulk-delete',
+  CLEANUP_ORPHAN_FILES = 'cleanup-orphan-files',
 }
 
 export enum Capability {

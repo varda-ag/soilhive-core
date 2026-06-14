@@ -13,6 +13,7 @@ export type AvailabilityDataset = {
   views: string;
   tags: string[];
   dataType?: string;
+  visibility?: string;
   properties: DatasetProperties;
 };
 
@@ -35,5 +36,5 @@ export type TimeFilterState = {
 
 export type DatasetFrontendFilters = {
   type: string[];
-  ownership: string[];
+  visibility: string[];
 };

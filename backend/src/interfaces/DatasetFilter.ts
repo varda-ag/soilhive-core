@@ -29,7 +29,9 @@ export interface FilteredDatasetSummary extends FilterCriteria {
   id: string;
   name: string;
   data_type: GISDataType;
-  dataset_layer_count: number;
+  visibility: 'public' | 'private';
+  dataset_layer_count?: number;
+  raster_layer_count?: number;
 }
 
 export interface FilteredData {
@@ -41,4 +43,15 @@ export interface FilteredDataset {
   id: string;
   name: string;
   data_type: GISDataType;
+}
+
+export interface FilteredRasterLayer {
+  id: string;
+  dataset_name: string;
+  path: string;
+  min_depth: number | null;
+  max_depth: number | null;
+  reference_period_start: string | null;
+  reference_period_stop: string | null;
+  soil_property_name: string;
 }

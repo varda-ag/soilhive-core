@@ -134,6 +134,27 @@ export function useMetadata(datasetId: string | undefined) {
     [dataset, datasetId, updateDataset, queryClient],
   );
 
+  const updateRelatedResources = useCallback(
+    (newValue: string[], callbacks: SaveCallbacks) => {
+      const original = dataset?.related_resources ?? [];
+      if (JSON.stringify(newValue) === JSON.stringify(original)) {
+        callbacks.onSuccess();
+        return;
+      }
+      updateDataset.mutate(
+        { related_resources: newValue.length > 0 ? newValue : null },
+        {
+          onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['dataset', datasetId] });
+            callbacks.onSuccess();
+          },
+          onError: error => callbacks.onError(error),
+        },
+      );
+    },
+    [dataset, datasetId, updateDataset, queryClient],
+  );
+
   return {
     dataset,
     allLicenses,
@@ -141,5 +162,6 @@ export function useMetadata(datasetId: string | undefined) {
     isLoading: isDatasetLoading || areLicensesLoading || areSoilPropertiesLoading,
     isError: isDatasetError || areLicensesError || areSoilPropertiesError,
     updateProperty,
+    updateRelatedResources,
   };
 }

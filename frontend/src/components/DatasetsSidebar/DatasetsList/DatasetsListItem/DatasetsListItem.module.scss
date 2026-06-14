@@ -15,24 +15,28 @@
       transition: transform 0.5s ease-in;
     }
     .MetaWrapper {
-      max-height: 500px;
+      max-height: 475px;
       transition: max-height 0.5s ease-in;
     }
   }
 
   .Main {
-    height: 120px;
+    height: 95px;
     position: relative;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    padding: 11px 14px 14px 12px;
+    padding: 11px 12px 10px;
 
     > .Top {
       > .Title {
         font-weight: bold;
         padding-right: 1.125rem;
         margin-bottom: 2px;
+
+        .DatasetTitle {
+          line-height: 1rem;
+        }
 
         > .DropdownIcon {
           position: absolute;
@@ -55,12 +59,15 @@
       align-items: center;
 
       > .MetadataButton {
-        color: var(--color-cta-default-solid);
-        background-color: var(--color-bg-primary);
+        font-weight: normal;
+        color: var(--color-neutral-black);
+        background-color: var(--color-neutral-dark-300);
+      }
 
-        &:hover {
-          color: var(--color-cta-default-hover);
-        }
+      > .VisibilityTag {
+        color: var(--color-neutral-white);
+        background-color: var(--color-neutral-black);
+        border-color: var(--color-neutral-black);
       }
     }
   }

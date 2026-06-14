@@ -24,7 +24,7 @@ describe('useDataScopeFilters', () => {
     isLoading: false,
     allDatasets: [],
     selectedTimeFilter: { min: 0, max: 0 },
-    datasetFrontendFilters: { type: [], ownership: [] },
+    datasetFrontendFilters: { type: [], visibility: [] },
     setSelectedTimeFilter: mockSetSelectedTimeFilter,
     setFrontendFilters: mockSetFrontendFilters,
     setDatasetFilters: mockSetDatasetFilters,
@@ -127,7 +127,7 @@ describe('useDataScopeFilters', () => {
     (useAvailability as jest.Mock).mockReturnValue({
       ...defaultAvailabilityState,
       allDatasets: [{ dataType: 'raster', properties: {} }],
-      datasetFrontendFilters: { type: ['raster', 'point'], ownership: [] },
+      datasetFrontendFilters: { type: ['raster', 'point'], visibility: [] },
     });
 
     const { result } = renderHook(() => useDataScopeFilters());
@@ -145,7 +145,7 @@ describe('useDataScopeFilters', () => {
       ...defaultAvailabilityState,
       isLoading: true,
       allDatasets: [{ dataType: 'raster', properties: {} }],
-      datasetFrontendFilters: { type: ['point'], ownership: [] },
+      datasetFrontendFilters: { type: ['point'], visibility: [] },
     });
 
     const { result } = renderHook(() => useDataScopeFilters());
@@ -157,7 +157,7 @@ describe('useDataScopeFilters', () => {
     (useAvailability as jest.Mock).mockReturnValue({
       ...defaultAvailabilityState,
       isLoading: true,
-      datasetFrontendFilters: { type: ['raster', 'point'], ownership: [] },
+      datasetFrontendFilters: { type: ['raster', 'point'], visibility: [] },
     });
 
     const { result } = renderHook(() => useDataScopeFilters());
@@ -169,20 +169,20 @@ describe('useDataScopeFilters', () => {
     expect(mockSetFrontendFilters).toHaveBeenCalledWith(['raster'], 'type');
   });
 
-  it('accessFilterPills is derived from datasetFrontendFilters.ownership', () => {
+  it('accessFilterPills is derived from datasetFrontendFilters.visibility', () => {
     (useAvailability as jest.Mock).mockReturnValue({
       ...defaultAvailabilityState,
-      datasetFrontendFilters: { type: [], ownership: ['public'] },
+      datasetFrontendFilters: { type: [], visibility: ['public'] },
     });
 
     const { result } = renderHook(() => useDataScopeFilters());
     expect(result.current.accessFilterPills).toEqual((DATA_ACCESS_ITEMS as any).filter((x: any) => x.id === 'public'));
   });
 
-  it("accessFilterPillRemove calls setFrontendFilters with removed id and name 'ownership'", () => {
+  it("accessFilterPillRemove calls setFrontendFilters with removed id and name 'visibility'", () => {
     (useAvailability as jest.Mock).mockReturnValue({
       ...defaultAvailabilityState,
-      datasetFrontendFilters: { type: [], ownership: ['public', 'private'] },
+      datasetFrontendFilters: { type: [], visibility: ['public', 'private'] },
     });
 
     const { result } = renderHook(() => useDataScopeFilters());
@@ -191,7 +191,7 @@ describe('useDataScopeFilters', () => {
       result.current.accessFilterPillRemove('private');
     });
 
-    expect(mockSetFrontendFilters).toHaveBeenCalledWith(['public'], 'ownership');
+    expect(mockSetFrontendFilters).toHaveBeenCalledWith(['public'], 'visibility');
   });
 
   it('hasUnavailableScopeSelected is true if any pill is disabled (time/type/access)', () => {
@@ -199,7 +199,7 @@ describe('useDataScopeFilters', () => {
       ...defaultAvailabilityState,
       isLoading: false,
       allDatasets: [{ dataType: 'raster', properties: { dateStart: 2000, dateEnd: 2010 } }],
-      datasetFrontendFilters: { type: ['point'], ownership: [] },
+      datasetFrontendFilters: { type: ['point'], visibility: [] },
       selectedTimeFilter: { min: 2000, max: 2010 },
     });
 

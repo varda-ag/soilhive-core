@@ -201,51 +201,46 @@ describe('Testing /files routes (local storage)', () => {
 });
 
 describe('Testing /download route', () => {
+  const filePath = 'test-file';
+
+  afterEach(() => {
+    const dir = process.env.LOCAL_STORAGE_ROOT_FOLDER!;
+    try {
+      fs.unlinkSync(path.join(dir, filePath));
+    } catch {
+      // Ignore error if file does not exist
+    }
+  });
+
   it('should return 400 (bad request) if no token is provided', async () => {
-    const filePath = 'test-file';
-
     const storage = FileService.getStorageEngine();
-
     await storage.write(filePath, 'some content');
 
     const response = await request(app).get(`/downloads/${filePath}`);
-
     expect(response.status).toBe(StatusCodes.BAD_REQUEST);
   });
 
   it('should return 401 (unauthorized) if invalid token is provided ', async () => {
-    const filePath = 'test-file';
-
     const invalidToken = 'invalidtoken';
 
     const storage = FileService.getStorageEngine();
-
     await storage.write(filePath, 'some content');
 
     const response = await request(app).get(`/downloads/${filePath}?token=${invalidToken}`);
-
     expect(response.status).toBe(StatusCodes.UNAUTHORIZED);
   });
 
   it('should return 200 (ok) if valid token is provided ', async () => {
-    const filePath = 'test-file';
-
     const storage = FileService.getStorageEngine();
-
     await storage.write(filePath, 'some content');
 
     const validFilePath = createSignedPath(filePath);
-
     const response = await request(app).get(`/downloads/${validFilePath}`);
-
     expect(response.status).toBe(StatusCodes.OK);
   });
 
   it('should return 410 (gone) if expired token is provided ', async () => {
-    const filePath = 'test-file';
-
     const storage = FileService.getStorageEngine();
-
     await storage.write(filePath, 'some content');
 
     const expiredFilePath = createSignedPath(filePath, 1); // just one second of validity
@@ -254,7 +249,6 @@ describe('Testing /download route', () => {
     await sleep(2000);
 
     const response = await request(app).get(`/downloads/${expiredFilePath}`);
-
     expect(response.status).toBe(StatusCodes.GONE);
   });
 
@@ -270,5 +264,8 @@ describe('Testing /download route', () => {
 
     expect(response.status).toBe(StatusCodes.OK);
     expect(response.headers['content-type']).toContain('text/csv');
+
+    const dir = process.env.LOCAL_STORAGE_ROOT_FOLDER!;
+    fs.unlinkSync(path.join(dir, filePath));
   });
 });

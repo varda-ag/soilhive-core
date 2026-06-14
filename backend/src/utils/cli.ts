@@ -6,6 +6,7 @@ import { addSyntheticData, syntheticDataOptions } from '../utils/mock';
 import { randomInt } from 'crypto';
 import { dbRestore } from './db-restore';
 import { log } from './logger';
+import { ingestRaster } from '../services/RasterIngestService';
 
 export const setupCLI = async () => {
   program
@@ -14,9 +15,30 @@ export const setupCLI = async () => {
     .option('--create-data <number>', 'Create synthetic data given feature count', validInt)
     .option('--bbox <minx,miny,maxx,maxy>', 'Synthetic data bounds')
     .option('--load-raster-filter <file.dump>', 'Load raster filter')
+    .option('--ingest-raster <input.tif>', 'Ingest a COG raster file into the catalog')
+    .option('--nodata <value>', 'NoData value (auto-detected if omitted)', parseFloat)
+    .option('--dataset <name>', 'Dataset name', 'test-ds')
+    .option('--soil-property <name>', 'Soil property name', 'Organic Carbon Stock')
+    .option('--soil-property-category <name>', 'Soil property category name', 'Chemical')
     .parse();
 
   const options = program.opts();
+  if (options['ingestRaster']) {
+    log.info('Ingesting raster', options);
+    try {
+      await ingestRaster({
+        input: options['ingestRaster'],
+        nodata: options['nodata'],
+        dataset: options['dataset'],
+        soilProperty: options['soilProperty'],
+        soilPropertyCategory: options['soilPropertyCategory'],
+      });
+    } catch (e) {
+      log.error(`Raster ingest error: ${e}`);
+    } finally {
+      process.exit();
+    }
+  }
   if (options['createData']) {
     log.info('Creating synthetic data:', options);
     if (!options['bbox']) {

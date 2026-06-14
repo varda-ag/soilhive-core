@@ -174,6 +174,7 @@ export function FilteringSidebarParameters() {
               className={styles.SearchInput}
             />
             <Toggle
+              className={styles.Toggle}
               labelOne="Expand All"
               labelTwo="Collapse All"
               isToggled={soilPropertiesExpanded}

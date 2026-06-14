@@ -8,7 +8,6 @@ import DataMappingEntity from '../entities/DataMapping';
 import UnitConversionEntity from '../entities/UnitConversion';
 import SoilPropertyEntity from '../entities/SoilProperty';
 import ProcedureEntity from '../entities/Procedure';
-import { REQUIRED_METADATA_FIELDS } from '../constants/constants';
 import UnitConversionService from './UnitConversionService';
 import SoilPropertyService from './SoilPropertyService';
 import ProcedureService from './ProcedureService';
@@ -21,7 +20,6 @@ export default class DataMappingService {
     if (dataMapping.drop_records && !Array.isArray(dataMapping.drop_records)) {
       throw new ErrorResponse(`drop_records must be an array of numbers`, StatusCodes.BAD_REQUEST);
     }
-
     const repo = requestData.entityManager.getRepository(DataMappingEntity);
 
     const result = await repo
@@ -137,6 +135,7 @@ export default class DataMappingService {
         const ucInfo = props.conversion_id ? (ucInfoMap[props.conversion_id] ?? null) : null;
         const pInfo = props.procedure_id ? (pInfoMap[props.procedure_id] ?? null) : null;
         propsProcessed.property_id = spInfo.id;
+        propsProcessed.standard_unit = spInfo.standard_unit;
         if (ucInfo) {
           propsProcessed.conversion_formula = ucInfo.conversion_formula;
         }
@@ -146,10 +145,18 @@ export default class DataMappingService {
         result.property_cols[sanitizedField] = propsProcessed;
       }
     }
-    for (const requiredField of REQUIRED_METADATA_FIELDS) {
+    for (const requiredField of [DetectableFields.SAMPLING_DATE, DetectableFields.LICENSE]) {
       if (!result.metadata_cols[requiredField]) {
         result.metadata_cols[requiredField] = null;
       }
+    }
+    if (
+      !result.metadata_cols[DetectableFields.DEPTH] &&
+      !result.metadata_cols[DetectableFields.MIN_DEPTH] &&
+      result.metadata_cols[DetectableFields.MAX_DEPTH]
+    ) {
+      result.metadata_cols[DetectableFields.MIN_DEPTH] = null;
+      result.metadata_cols[DetectableFields.MAX_DEPTH] = null;
     }
     if (data_mapping.drop_records && Array.isArray(data_mapping.drop_records)) {
       result.drop_records = data_mapping.drop_records;

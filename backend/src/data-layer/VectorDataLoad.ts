@@ -8,7 +8,7 @@ import LayerEntity from '../entities/Layer';
 import DatasetLayerEntity from '../entities/DatasetLayer';
 import ObservationEntity from '../entities/Observation';
 import { getRawTableName, sanitizeField } from '../utils/utils';
-import { DetectableFields } from '../types/DataMapping';
+import { DetectableFields, LayerFields } from '../types/DataMapping';
 import { createCursor, decodeCursor, encodeCursor } from '../utils/cursor';
 
 export default class VectorDataLoad {
@@ -91,13 +91,12 @@ export default class VectorDataLoad {
     // Dynamic layer select/insert
     const metadataVals: Record<string, any> = {};
     const metadataCols: string[] = [];
-    for (const mappedData of Object.keys(dataMappingConfig.metadata_cols)) {
-      metadataVals[mappedData] = sanitizedRecord[mappedData];
+    for (const mappedData of Object.values(LayerFields)) {
+      if (sanitizedRecord[mappedData]) {
+        metadataVals[mappedData] = sanitizedRecord[mappedData];
+      }
       metadataCols.push(mappedData);
     }
-
-    // TODO: remove after horizon has been restored
-    if (metadataCols.indexOf('horizon') === -1) metadataCols.push('horizon');
 
     const layer = await entityManager
       .createQueryBuilder()
@@ -187,7 +186,7 @@ const buildSortExpr = (sortKey: string, dataMappingConfig: DataCleaningConfig): 
     const expr = formula ? formula.replace(/x/g, `(raw.${sortKey})::numeric`) : `(raw.${sortKey})::numeric`;
     return `CASE WHEN ROUND(${sortKey}::numeric, 3)=${OUTSIDE_LOD_VALUE} THEN ROUND(${sortKey}::numeric, 3) ELSE ROUND(${expr},3) END`;
   }
-  return `${sortKey}`; // unmapped required columns
+  return `NULL`; // unmapped required columns
 };
 
 const getDataPreviewQuery = (query: any, dataMappingConfig: DataCleaningConfig, cursor?: string, sort?: string): any => {
@@ -197,12 +196,12 @@ const getDataPreviewQuery = (query: any, dataMappingConfig: DataCleaningConfig, 
     const sortKey = isDesc ? sort.substring(1) : sort;
     const dir = isDesc ? 'DESC' : 'ASC';
     const sortExpr = buildSortExpr(sortKey, dataMappingConfig);
-    query.orderBy(sortExpr, dir);
-    query.addOrderBy('raw.record_id', dir);
     // Hidden column carrying the sort expression value for cursor encoding.
     // Uses the raw expression without the CASE/min-max wrapper so the cursor
     // value is always non-NULL even when the visible SELECT output is NULL.
     query.addSelect(sortExpr, `_cursor_${sortKey}`);
+    query.orderBy(`_cursor_${sortKey}`, dir);
+    query.addOrderBy('raw.record_id', dir);
   } else {
     query.orderBy('raw.record_id', 'ASC');
   }
@@ -211,11 +210,20 @@ const getDataPreviewQuery = (query: any, dataMappingConfig: DataCleaningConfig, 
     if (sort && decoded.column) {
       const isDesc = sort.startsWith('-');
       const sortKey = isDesc ? sort.substring(1) : sort;
-      const operator = isDesc ? '<' : '>';
-      query.andWhere(`(${buildSortExpr(sortKey, dataMappingConfig)}, raw.record_id) ${operator} (:cursorValue, :cursorId)`, {
-        cursorValue: decoded.value,
-        cursorId: decoded.id,
-      });
+      const sortExpr = buildSortExpr(sortKey, dataMappingConfig);
+      if (decoded.value !== null && decoded.value !== undefined) {
+        const operator = isDesc ? '<' : '>';
+        query.andWhere(`(${sortExpr}, raw.record_id) ${operator} (:cursorValue, :cursorId)`, {
+          cursorValue: decoded.value,
+          cursorId: decoded.id,
+        });
+      } else if (isDesc) {
+        // DESC NULLS FIRST: remaining nulls (id < cursor) plus all non-null rows that follow
+        query.andWhere(`((${sortExpr} IS NULL AND raw.record_id < :cursorId) OR ${sortExpr} IS NOT NULL)`, { cursorId: decoded.id });
+      } else {
+        // ASC NULLS LAST: only remaining null rows with higher id
+        query.andWhere(`${sortExpr} IS NULL AND raw.record_id > :cursorId`, { cursorId: decoded.id });
+      }
     } else {
       query.andWhere('raw.record_id > :cursorId', { cursorId: decoded.id });
     }
@@ -224,6 +232,21 @@ const getDataPreviewQuery = (query: any, dataMappingConfig: DataCleaningConfig, 
   for (const [mapping, field] of Object.entries(dataMappingConfig.metadata_cols)) {
     if (mapping === DetectableFields.SAMPLING_DATE) {
       query.addSelect(`${field}::text`, mapping);
+      continue;
+    }
+    if (mapping === DetectableFields.MIN_DEPTH || mapping === DetectableFields.MAX_DEPTH) {
+      query.addSelect(`CASE WHEN ${field}::integer < 0 THEN NULL ELSE ${field}::integer END`, mapping);
+      continue;
+    }
+    if (mapping === DetectableFields.DEPTH) {
+      query.addSelect(
+        `NULLIF(regexp_replace(split_part(${field}::text, '-', 1), '[^0-9]', '', 'g'), '')::integer`,
+        DetectableFields.MIN_DEPTH,
+      );
+      query.addSelect(
+        `NULLIF(regexp_replace(split_part(${field}::text, '-', 2), '[^0-9]', '', 'g'), '')::integer`,
+        DetectableFields.MAX_DEPTH,
+      );
       continue;
     }
     if (field) {
@@ -238,21 +261,23 @@ const getDataPreviewQuery = (query: any, dataMappingConfig: DataCleaningConfig, 
     let propertyCleanup: string = '';
 
     const conversionFormula = props?.conversion_formula ? props.conversion_formula.replace(/"/g, '').trim() : null;
-    const expr = conversionFormula
-      ? conversionFormula.replace(/x/g, `NULLIF((raw.${field})::numeric, 0)`)
-      : `NULLIF((raw.${field})::numeric, 0)`;
+    const rawExpr = `(raw.${field})::numeric`;
+    const expr = conversionFormula ? `NULLIF(${conversionFormula.replace(/x/g, rawExpr)}, 0)` : `NULLIF(${rawExpr}, 0)`;
 
-    if (props.min_val !== undefined && props.max_val !== undefined) {
+    const max_val = props.max_val ?? (props.standard_unit === '%' ? 100 : undefined);
+    const min_val = props.min_val ?? 0;
+
+    if (min_val !== undefined && max_val !== undefined) {
       propertyCleanup = `CASE WHEN (raw.${field})::numeric=${OUTSIDE_LOD_VALUE} THEN (raw.${field})::numeric WHEN ${expr} BETWEEN :min_val${field} AND :max_val${field} THEN ROUND(${expr},3) ELSE NULL END`;
-    } else if (props.min_val !== undefined) {
+    } else if (min_val !== undefined) {
       propertyCleanup = `CASE WHEN (raw.${field})::numeric=${OUTSIDE_LOD_VALUE} THEN (raw.${field})::numeric WHEN ${expr} >= :min_val${field} THEN ROUND(${expr},3) ELSE NULL END`;
-    } else if (props.max_val !== undefined) {
+    } else if (max_val !== undefined) {
       propertyCleanup = `CASE WHEN (raw.${field})::numeric=${OUTSIDE_LOD_VALUE} THEN (raw.${field})::numeric WHEN ${expr} <= :max_val${field} THEN ROUND(${expr},3) ELSE NULL END`;
     } else {
       propertyCleanup = `CASE WHEN (raw.${field})::numeric=${OUTSIDE_LOD_VALUE} THEN (raw.${field})::numeric ELSE ROUND(${expr},3) END`;
     }
-    params[`min_val${field}`] = props.min_val;
-    params[`max_val${field}`] = props.max_val;
+    params[`min_val${field}`] = min_val;
+    params[`max_val${field}`] = max_val;
     query.addSelect(propertyCleanup, field);
   }
   query.setParameters(params);

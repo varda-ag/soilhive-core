@@ -22,8 +22,54 @@ const calcEffectiveResolution = (geomUnion: Polygon | MultiPolygon, overviewPixe
   return Math.min(RASTER_MASK_RESOLUTION, naturalResolution);
 };
 
+const hasMatchingRasterValues = async (entityManager: EntityManager, dataFilter: DataFilter): Promise<boolean> => {
+  const enabledRasterFilterTables = await getEnabledRasterFilterTables();
+  const raster_filters = dataFilter.parameters.raster_filters;
+  if (!raster_filters) return true;
+
+  const schema = process.env.POSTGRES_SCHEMA;
+  const geomUnion = geometryUnion(dataFilter.geometries);
+  const aoiAreaM2 = turf.area(dataFilter.geometries[0]!);
+  const geomJson = JSON.stringify(geomUnion);
+
+  for (const baseTable of enabledRasterFilterTables) {
+    const values = raster_filters[baseTable];
+    if (!values || values.length === 0) continue;
+
+    const table = selectOverviewTable(baseTable, aoiAreaM2);
+
+    const bboxCheck = await entityManager.query(
+      `SELECT EXISTS (
+        SELECT 1 FROM ${schema}.${table} rr
+        WHERE rr.rast && ST_GeomFromGeoJSON($1)::geometry
+      ) AS has_tiles`,
+      [geomJson],
+    );
+    if (!bboxCheck[0].has_tiles) return false;
+
+    const valueCheck = await entityManager.query(
+      `SELECT EXISTS (
+        SELECT 1
+        FROM ${schema}.${table} rr
+        CROSS JOIN LATERAL unnest(ST_DumpValues(rr.rast, 1)) v(val)
+        WHERE rr.rast && ST_GeomFromGeoJSON($1)::geometry
+          AND v.val = ANY(ARRAY[${values.join(',')}]::double precision[])
+        LIMIT 1
+      ) AS has_values`,
+      [geomJson],
+    );
+    if (!valueCheck[0].has_values) return false;
+  }
+
+  return true;
+};
+
 export const getVectorMask = async (entityManager: EntityManager, dataFilter: DataFilter): Promise<MultiPolygon> => {
   if (dataFilter.geometries.length === 0) {
+    return { type: 'MultiPolygon', coordinates: [] };
+  }
+  const hasValues = await hasMatchingRasterValues(entityManager, dataFilter);
+  if (!hasValues) {
     return { type: 'MultiPolygon', coordinates: [] };
   }
   const enabledRasterFilterTables = await getEnabledRasterFilterTables();
@@ -51,6 +97,10 @@ export const getRasterMask = async (
   rasterize: boolean = true, // If true, will rasterize the AOI and apply raster filters in a single step; if false, will create a vector mask and then rasterize it
 ): Promise<string | undefined> => {
   if (dataFilter.geometries.length === 0) {
+    return undefined;
+  }
+  const hasValues = await hasMatchingRasterValues(entityManager, dataFilter);
+  if (!hasValues) {
     return undefined;
   }
 

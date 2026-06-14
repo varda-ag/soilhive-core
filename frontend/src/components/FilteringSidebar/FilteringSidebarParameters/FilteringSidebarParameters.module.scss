@@ -1,3 +1,5 @@
+@import 'styles/variables/breakpoints';
+
 .FilteringSidebarParameters {
   display: flex;
   flex-direction: column;
@@ -10,6 +12,13 @@
   flex-direction: column;
   gap: 0.3125rem;
   background-color: var(--color-neutral-white);
+
+  .Toggle {
+    @media (max-width: $bp-mobile-max) {
+      font-size: var(--font-size-lg);
+      padding: 6px 0;
+    }
+  }
 }
 
 .SoilPropertiesList {

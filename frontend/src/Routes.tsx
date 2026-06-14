@@ -1,6 +1,7 @@
+import { useMemo } from 'react';
 import { QueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { BrowserRouter, Route, Routes } from 'react-router';
+import { createBrowserRouter, createRoutesFromElements, Route, RouterProvider } from 'react-router';
 import PageTitle from './components/PageTitle';
 import { ADMIN_ROOT } from './configuration/admin';
 import { AdminPortalGuard } from './guards/AdminPortalGuard';
@@ -22,81 +23,85 @@ export const queryClient = new QueryClient();
 function AppRoutes() {
   const { t } = useTranslation('common');
   const { isLoadingThemeConfig, themeConfig } = useTheme();
-  if (isLoadingThemeConfig) {
-    return <div></div>;
-  }
-  return (
-    <BrowserRouter>
-      <Routes>
-        <Route element={<MainLayout />}>
-          <Route path="/*" element={<AvailabilityModule />} />
-          <Route
-            path="/donation"
-            element={
-              <>
-                <PageTitle title={t('page_titles.donation')} />
-              </>
-            }
-          />
-          {!!themeConfig.termsAndConditionsHtml && (
+
+  const router = useMemo(() => {
+    if (isLoadingThemeConfig) return null;
+    return createBrowserRouter(
+      createRoutesFromElements(
+        <>
+          <Route element={<MainLayout />}>
+            <Route path="/*" element={<AvailabilityModule />} />
             <Route
-              path="/terms-of-use"
+              path="/donation"
               element={
                 <>
-                  <PageTitle title={t('page_titles.terms_of_use')} />
-                  <TermsOfUse />
+                  <PageTitle title={t('page_titles.donation')} />
                 </>
               }
             />
-          )}
-          {!!themeConfig.privacyPolicyHtml && (
+            {!!themeConfig.termsAndConditionsHtml && (
+              <Route
+                path="/terms-of-use"
+                element={
+                  <>
+                    <PageTitle title={t('page_titles.terms_of_use')} />
+                    <TermsOfUse />
+                  </>
+                }
+              />
+            )}
+            {!!themeConfig.privacyPolicyHtml && (
+              <Route
+                path="/privacy-policy"
+                element={
+                  <>
+                    <PageTitle title={t('page_titles.privacy_policy')} />
+                    <PrivacyPolicy />
+                  </>
+                }
+              />
+            )}
             <Route
-              path="/privacy-policy"
+              path="/admin-old"
               element={
                 <>
-                  <PageTitle title={t('page_titles.privacy_policy')} />
-                  <PrivacyPolicy />
+                  <PageTitle title={t('page_titles.admin')} />
+                  <Admin />
                 </>
               }
             />
-          )}
-          <Route
-            path="/admin-old"
-            element={
-              <>
-                <PageTitle title={t('page_titles.admin')} />
-                <Admin />
-              </>
-            }
-          />
-          <Route
-            path="/datasets/:id"
-            element={
-              <>
-                <PageTitle title="SoilHive - Metadata" />
-                <Metadata />
-              </>
-            }
-          />
-          {singlePages.map(({ name, route, Page }) => (
             <Route
-              key={`/${route}`}
-              path={`/${route}`}
+              path="/datasets/:id"
               element={
                 <>
-                  <PageTitle title={`SoilHive - ${name}`} />
-                  <Page />
+                  <PageTitle title="SoilHive - Metadata" />
+                  <Metadata />
                 </>
               }
             />
-          ))}
-        </Route>
-        <Route path={`${ADMIN_ROOT}/*`} element={<AdminPortalGuard />}>
-          <Route path="*" element={<AdminPortalModule />} />
-        </Route>
-      </Routes>
-    </BrowserRouter>
-  );
+            {singlePages.map(({ name, route, Page }) => (
+              <Route
+                key={`/${route}`}
+                path={`/${route}`}
+                element={
+                  <>
+                    <PageTitle title={`SoilHive - ${name}`} />
+                    <Page />
+                  </>
+                }
+              />
+            ))}
+          </Route>
+          <Route path={`${ADMIN_ROOT}/*`} element={<AdminPortalGuard />}>
+            <Route path="*" element={<AdminPortalModule />} />
+          </Route>
+        </>,
+      ),
+    );
+  }, [isLoadingThemeConfig, t, themeConfig.termsAndConditionsHtml, themeConfig.privacyPolicyHtml]);
+
+  if (!router) return <div />;
+  return <RouterProvider router={router} />;
 }
 
 export default AppRoutes;

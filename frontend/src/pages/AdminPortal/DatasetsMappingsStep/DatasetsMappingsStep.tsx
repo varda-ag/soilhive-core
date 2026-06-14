@@ -5,7 +5,12 @@ import { useMappingsStep } from 'hooks/useMappingsStep';
 import { MappingsBanner } from './MappingsBanner';
 import { MappingsTable } from './MappingsTable';
 import { MappingFieldsPane } from './MappingFieldsPane';
+import { IngestionStepTitleRow } from 'components/AdminPortal/IngestionStepTitleRow/IngestionStepTitleRow';
+import { INGESTION_DOCS_URL } from 'configuration/ingestion';
+
 import styles from './DatasetsMappingsStep.module.scss';
+
+const DOCS_URL = `${INGESTION_DOCS_URL}#data-mapping`;
 
 export function DatasetsMappingsStep() {
   const { t } = useTranslation('admin');
@@ -15,6 +20,7 @@ export function DatasetsMappingsStep() {
     isImporting,
     geometryMessage,
     depthConflictMessage,
+    isSaveEnabled,
     isContinueEnabled,
     columnMappings,
     conceptOptionsByColumn,
@@ -39,7 +45,7 @@ export function DatasetsMappingsStep() {
   return (
     <>
       <div className={styles.DatasetsMappingsStep}>
-        <h2 className={styles.PageTitle}>{t('datasets.mappings.title')}</h2>
+        <IngestionStepTitleRow className={styles.TitleRow} title={t('datasets.mappings.title')} docsLink={DOCS_URL} />
         <p className={styles.Subtitle}>{t('datasets.mappings.subtitle')}</p>
 
         <MappingsBanner mappedCount={mappedCount} unmappedCount={unmappedCount} />
@@ -69,7 +75,7 @@ export function DatasetsMappingsStep() {
           {t('datasets.actions.previous')}
         </Button>
         <div className={styles.ActionsSpacer} />
-        <Button type="secondary" onClick={handleSaveAndContinueLater} dataTestId="sh-mappings-save-later" isDisabled={!isContinueEnabled}>
+        <Button type="secondary" onClick={handleSaveAndContinueLater} dataTestId="sh-mappings-save-later" isDisabled={!isSaveEnabled}>
           {t('datasets.actions.save_and_continue_later')}
         </Button>
         <Button type="primary" onClick={handleContinue} dataTestId="sh-mappings-continue" isDisabled={!isContinueEnabled}>

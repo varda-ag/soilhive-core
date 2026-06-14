@@ -17,3 +17,11 @@ export enum DetectableFields {
   LATITUDE = 'latitude',
   LONGITUDE = 'longitude',
 }
+
+export enum LayerFields {
+  LICENSE = 'license',
+  SAMPLING_DATE = 'sampling_date',
+  MIN_DEPTH = 'min_depth',
+  MAX_DEPTH = 'max_depth',
+  HORIZON = 'horizon',
+}

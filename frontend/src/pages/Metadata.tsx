@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
+import classnames from 'classnames';
 import { useMetadata, type SaveCallbacks } from 'hooks/useMetadata';
 import { useEntitlements, ADMIN_PORTAL_ACCESS } from 'hooks/useEntitlementsHook';
 import useDevice from 'hooks/useDevice';
@@ -17,6 +18,8 @@ import InfoIcon from 'assets/icons/info-icon.svg?react';
 import { EditorRow } from 'components/Metadata/EditorRow/EditorRow';
 import { LicenseRow } from 'components/Metadata/LicenseRow/LicenseRow';
 import { NumberRow } from 'components/Metadata/NumberRow/NumberRow';
+import { RelatedResourcesRow } from 'components/Metadata/RelatedResourcesRow/RelatedResourcesRow';
+import { dateStringToDDMMYYYY } from 'utilities/date';
 
 const GIS_DATATYPE_OPTIONS = [
   { code: 'point', name: 'Point' },
@@ -30,7 +33,7 @@ export default function Metadata() {
   const [isMounted, setIsMounted] = useState(false);
   const [isMapPopupOpen, setIsMapPopupOpen] = useState(false);
   useEffect(() => setIsMounted(true), []);
-  const { dataset, allLicenses, inferredProperties, isLoading, isError, updateProperty } = useMetadata(id);
+  const { dataset, allLicenses, inferredProperties, isLoading, isError, updateProperty, updateRelatedResources } = useMetadata(id);
   const { can } = useEntitlements();
   const { isMobileLayout } = useDevice();
   const isAdmin = isMounted && !isMobileLayout && can(ADMIN_PORTAL_ACCESS);
@@ -51,6 +54,19 @@ export default function Metadata() {
       });
     },
     [updateProperty],
+  );
+
+  const onSaveRelatedResources = useCallback(
+    (_property: string, newValue: string[], callbacks: SaveCallbacks) => {
+      updateRelatedResources(newValue, {
+        onSuccess: () => {
+          setIsEditing(false);
+          callbacks.onSuccess();
+        },
+        onError: callbacks.onError,
+      });
+    },
+    [updateRelatedResources],
   );
 
   const onCancel: (property: string) => void = useCallback(() => {
@@ -177,12 +193,25 @@ export default function Metadata() {
 
       <div className={styles.Content}>
         <div className={styles.DatasetProperties}>
-          {isAdmin && (
-            <div className={styles.AdminNotice}>
-              <InfoIcon />
-              <span>{t('admin_notice')}</span>
-            </div>
-          )}
+          <div
+            className={classnames(styles.TopRow, {
+              [styles.AdminView]: isAdmin,
+            })}
+          >
+            {isAdmin && (
+              <div className={styles.AdminNotice}>
+                <InfoIcon />
+                <span>{t('admin_notice')}</span>
+              </div>
+            )}
+            {!!dataset?.updated_at && (
+              <p className={styles.LastUpdated} data-testid="sh-last-update">
+                {t('last_update', {
+                  date: dateStringToDDMMYYYY(dataset.updated_at, '/'),
+                })}
+              </p>
+            )}
+          </div>
           <EditorRow
             label={t('fields.name')}
             value={dataset?.name}
@@ -351,6 +380,33 @@ export default function Metadata() {
             onStartEditing={onStartEditing}
             onSave={onSave}
             onCancel={onCancel}
+          />
+        </div>
+
+        <div className={styles.OptionalProperties}>
+          <div className={styles.Title}>{t('optional_properties_title')}</div>
+          <EditorRow
+            label={t('fields.preprocessing_steps')}
+            value={dataset?.preprocessing_steps}
+            isEditable={isAdmin && !isEditing}
+            placeholder={t('placeholders.preprocessing_steps')}
+            displayPlaceholder="-"
+            property="preprocessing_steps"
+            onStartEditing={onStartEditing}
+            onSave={onSave}
+            onCancel={onCancel}
+            disableBackground
+          />
+          <RelatedResourcesRow
+            label={t('fields.related_resources')}
+            value={dataset?.related_resources}
+            isEditable={isAdmin && !isEditing}
+            displayPlaceholder="-"
+            property="related_resources"
+            onStartEditing={onStartEditing}
+            onSave={onSaveRelatedResources}
+            onCancel={onCancel}
+            disableBackground
           />
         </div>
       </div>

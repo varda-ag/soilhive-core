@@ -4,6 +4,7 @@ import { useApiQuery } from 'hooks/useApiQuery';
 import { useApiMutation } from 'hooks/useApiMutation';
 import { useCreateJobMutation } from 'hooks/useJobsApi';
 import { useSoilProperties } from 'hooks/useSoilProperties';
+import useIngestionFlow from 'hooks/useIngestionFlow';
 
 const mockNavigate = jest.fn();
 
@@ -18,6 +19,11 @@ jest.mock('hooks/useSoilProperties', () => ({ useSoilProperties: jest.fn() }));
 
 jest.mock('@tanstack/react-query', () => ({
   useQueryClient: jest.fn(() => ({ invalidateQueries: jest.fn() })),
+}));
+
+jest.mock('hooks/useIngestionFlow', () => ({
+  __esModule: true,
+  default: jest.fn(),
 }));
 
 const DATASET_ID = 'ds-1';
@@ -53,6 +59,9 @@ const makeSoilRow = (id: number, extra: Record<string, unknown> = {}) => ({
 const createMutateAsync = jest.fn();
 const updateMutateAsync = jest.fn();
 const createJobMutateAsync = jest.fn();
+
+const mockMarkAsChanged = jest.fn();
+const mockResetChanges = jest.fn();
 
 function setupMocks(
   overrides: {
@@ -97,6 +106,7 @@ describe('useDatasetPreview', () => {
     createMutateAsync.mockResolvedValue({ id: 99 });
     updateMutateAsync.mockResolvedValue({});
     createJobMutateAsync.mockResolvedValue({ id: 'job-1' });
+    (useIngestionFlow as jest.Mock).mockReturnValue({ markAsChanged: mockMarkAsChanged, resetChanges: mockResetChanges });
     setupMocks();
   });
 
@@ -365,5 +375,19 @@ describe('useDatasetPreview', () => {
     });
 
     expect(result.current.showLoadingPanel).toBe(false);
+  });
+
+  describe('leave Ingestion flow', () => {
+    it('calls markAsChanged on mount', () => {
+      renderHook(() => useDatasetPreview(DATASET_ID));
+      expect(mockMarkAsChanged).toHaveBeenCalledTimes(1);
+    });
+
+    it('handleSaveAndContinueLater calls resetChanges', async () => {
+      const { result } = renderHook(() => useDatasetPreview(DATASET_ID));
+      await waitFor(() => expect(result.current.selectedFile).toBe('file-a'));
+      await act(() => result.current.handleSaveAndContinueLater());
+      expect(mockResetChanges).toHaveBeenCalledTimes(1);
+    });
   });
 });

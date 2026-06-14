@@ -3,13 +3,12 @@ import * as os from 'os';
 import * as fs from 'fs';
 import * as path from 'path';
 import { Readable } from 'stream';
-
-import { createReadmeFile } from '../../../src/jobs/soil-export/exportHelpers';
+import { createReadmeFile, validateFileFormats } from '../../../src/jobs/soil-export/exportHelpers';
 import * as pdfGenerator from '../../../src/jobs/soil-export/pdfGenerator';
 import FileService from '../../../src/services/FileService';
 import RasterFilterService from '../../../src/services/RasterFilterService';
 import SoilPropertyService from '../../../src/services/SoilPropertyService';
-import { FileFormat } from '../../../src/jobs/soil-export/types';
+import { VectorFileFormat } from '../../../src/jobs/soil-export/types';
 
 const mockFilterEntity = {
   filter: {
@@ -34,7 +33,10 @@ let generateExportPdfSpy: ReturnType<typeof jest.spyOn>;
 // Builds requestData with a mock TypeORM repo. When logoFileKey is provided,
 // findOneBy returns a matching JsonStorage row so ConfigService.getLogoFileKey
 // returns the key; otherwise it returns null (no logo configured).
-function makeRequestData({ withLogo = false } = {}) {
+function makeRequestData({
+  withLogo = false,
+  datasets,
+}: { withLogo?: boolean; datasets?: Array<{ slug: string; name: string; gis_datatype: string }> } = {}) {
   const rowById: Record<string, any> = {
     ...(withLogo ? { 'frontend-logo': { id: 'frontend-logo', data: { fileKey: 'logos/logo.png' }, deleted_at: null } } : {}),
     'filter-123': mockFilterEntity,
@@ -45,16 +47,12 @@ function makeRequestData({ withLogo = false } = {}) {
         findOneBy: jest
           .fn<(criteria: Record<string, any>) => Promise<any>>()
           .mockImplementation(criteria => Promise.resolve(rowById[criteria.id] ?? null)),
-        find: jest.fn<() => Promise<any>>().mockResolvedValue([
-          {
-            slug: 'dataset-alpha',
-            name: 'Dataset Alpha',
-          },
-          {
-            slug: 'dataset-beta',
-            name: 'Dataset Beta',
-          },
-        ]),
+        find: jest.fn<() => Promise<any>>().mockResolvedValue(
+          datasets ?? [
+            { slug: 'dataset-alpha', name: 'Dataset Alpha', gis_datatype: 'point' },
+            { slug: 'dataset-beta', name: 'Dataset Beta', gis_datatype: 'point' },
+          ],
+        ),
       }),
     },
     entitlements: {},
@@ -65,7 +63,7 @@ function makePayload(overrides = {}) {
   return {
     filter_id: 'filter-123',
     dataset_ids: ['dataset-alpha', 'dataset-beta'],
-    format: FileFormat.GEOJSON,
+    formats: [VectorFileFormat.GEOJSON],
     public_homepage_url: 'https://example.com',
     public_terms_url: 'https://example.com/terms',
     public_metadata_urls: {
@@ -138,14 +136,14 @@ describe('createReadmeFile', () => {
   });
 
   it('passes dataset slugs and file format from payload', async () => {
-    const payload = makePayload({ dataset_ids: ['dataset-alpha', 'dataset-beta'], format: FileFormat.GPKG });
+    const payload = makePayload({ dataset_ids: ['dataset-alpha', 'dataset-beta'], formats: [VectorFileFormat.GPKG] });
 
     await createReadmeFile(makeRequestData(), '/tmp', payload);
 
     const call = generateExportPdfSpy.mock.calls[0][0] as any;
     expect(call.datasets[0].slug).toEqual('dataset-alpha');
     expect(call.datasets[1].slug).toEqual('dataset-beta');
-    expect(call.fileFormat).toBe(FileFormat.GPKG);
+    expect(call.fileFormat).toBe(VectorFileFormat.GPKG);
   });
 
   it('passes an exportDate close to now', async () => {
@@ -185,7 +183,6 @@ describe('createReadmeFile E2E (real pdfkit, no generateExportPdf mock)', () => 
   });
 
   afterEach(() => {
-    //fs.rmSync(tempDir, { recursive: true, force: true });
     jest.restoreAllMocks();
   });
 
@@ -218,5 +215,69 @@ describe('createReadmeFile E2E (real pdfkit, no generateExportPdf mock)', () => 
     const pdfPath = path.join(tempDir, 'Readme.pdf');
     expect(fs.existsSync(pdfPath)).toBe(true);
     expect(fs.readFileSync(pdfPath).subarray(0, 4).toString()).toBe('%PDF');
+  });
+
+  describe('field dictionary page inclusion based on gis_datatype', () => {
+    function pageCount(pdfPath: string): number {
+      const content = fs.readFileSync(pdfPath).toString('latin1');
+      const match = content.match(/\/Count\s+(\d+)/);
+      expect(match).not.toBeNull();
+      return parseInt(match![1], 10);
+    }
+
+    it('includes field dictionary (4 pages) when all datasets are non-raster', async () => {
+      const requestData = makeRequestData({
+        datasets: [
+          { slug: 'dataset-alpha', name: 'Dataset Alpha', gis_datatype: 'point' },
+          { slug: 'dataset-beta', name: 'Dataset Beta', gis_datatype: 'point' },
+        ],
+      });
+      await createReadmeFile(requestData, tempDir, makePayload());
+      expect(pageCount(path.join(tempDir, 'Readme.pdf'))).toBe(4);
+    });
+
+    it('omits field dictionary (3 pages) when all datasets are raster', async () => {
+      const requestData = makeRequestData({
+        datasets: [
+          { slug: 'dataset-alpha', name: 'Dataset Alpha', gis_datatype: 'raster' },
+          { slug: 'dataset-beta', name: 'Dataset Beta', gis_datatype: 'raster' },
+        ],
+      });
+      await createReadmeFile(requestData, tempDir, makePayload());
+      expect(pageCount(path.join(tempDir, 'Readme.pdf'))).toBe(3);
+    });
+
+    it('includes field dictionary (4 pages) when datasets mix non-raster and raster', async () => {
+      const requestData = makeRequestData({
+        datasets: [
+          { slug: 'dataset-alpha', name: 'Dataset Alpha', gis_datatype: 'point' },
+          { slug: 'dataset-beta', name: 'Dataset Beta', gis_datatype: 'raster' },
+        ],
+      });
+      await createReadmeFile(requestData, tempDir, makePayload());
+      expect(pageCount(path.join(tempDir, 'Readme.pdf'))).toBe(4);
+    });
+  });
+});
+
+describe('validateFileFormats', () => {
+  it.each([
+    [['gpkg'], true, true, { vectorFormat: 'gpkg', rasterFormat: 'gpkg' }],
+    [['csv', 'tiff'], true, true, { vectorFormat: 'csv', rasterFormat: 'tiff' }],
+    [['geojson'], true, true, { vectorFormat: 'geojson', rasterFormat: 'tiff' }],
+    [['xlsx'], true, false, { vectorFormat: 'xlsx', rasterFormat: null }],
+    [['tiff'], false, true, { vectorFormat: null, rasterFormat: 'tiff' }],
+  ])('Valid formats', (formats, vectorRequested, rasterRequested, expectedOutput) => {
+    const output = validateFileFormats(formats, vectorRequested, rasterRequested);
+    expect(output).toStrictEqual(expectedOutput);
+  });
+
+  it('Invalid vector format throws error', () => {
+    const formats = ['xls'];
+    const vectorRequested = true;
+    const rasterRequested = true;
+    expect(() => validateFileFormats(formats, vectorRequested, rasterRequested)).toThrow(
+      `No valid vector format in [${formats.join(', ')}]`,
+    );
   });
 });
