@@ -64,8 +64,14 @@ export default class SoilDataStorage {
     const enabledRasterFilterTables = await timed('filterVector.enabledRasterFilterTables', () => getEnabledRasterFilterTables());
     const { ctes: rasterCtes, usesMatchingFeatures } = buildRasterSql(filter, enabledRasterFilterTables);
 
-    // Feature IDs resolved entirely in-DB: MATERIALIZED CTE evaluated first, then
-    // = ANY(ARRAY(...)) preserves bitmap index scan on dataset_layers(feature_id).
+    // Feature IDs resolved entirely in-DB: the MATERIALIZED feature CTE is evaluated
+    // first, then JOINed to dataset_layers (rather than `= ANY(ARRAY(...))`). The array
+    // form gave the planner no array-length stats, so it estimated ~86 rows for a set
+    // that is actually ~2.7M, and then picked per-row PK probes into `layers` (~11M
+    // buffer hits) plus a sort-based GroupAggregate. Anchoring from the feature CTE
+    // gives a realistic cardinality, so the planner hash-joins `layers` and uses a
+    // HashAggregate. Both feature sources emit distinct ids, so the JOIN is row-for-row
+    // equivalent to the old semi-join.
     const params: any[] = [geometryIds];
     const p = (val: any) => {
       params.push(val);
@@ -85,11 +91,7 @@ export default class SoilDataStorage {
             JOIN aoi ON ST_Intersects(f.geom, aoi.geom)
           )`;
 
-    const innerWhere: string[] = [
-      `dl.feature_id = ANY(ARRAY(SELECT id FROM ${featureSource})::uuid[])`,
-      'ds.deleted_at IS NULL',
-      `ds.status = 'PUBLISHED'`,
-    ];
+    const innerWhere: string[] = ['ds.deleted_at IS NULL', `ds.status = 'PUBLISHED'`];
 
     if (filters.data_types && filters.data_types.length > 0) {
       innerWhere.push(`ds.gis_datatype IN (${filters.data_types.map(v => p(v)).join(', ')})`);
@@ -163,7 +165,8 @@ export default class SoilDataStorage {
           MAX(layer.max_depth) AS max_depth,
           STRING_AGG(DISTINCT layer.horizon, ',') AS horizons,
           STRING_AGG(DISTINCT soil_property.slug, ',') AS soil_properties
-        FROM ${schema}.dataset_layers dl
+        FROM ${featureSource} fsrc
+        INNER JOIN ${schema}.dataset_layers dl ON dl.feature_id = fsrc.id
         INNER JOIN active_soil_properties soil_property on dl.soil_property_id=soil_property.id
         INNER JOIN ${schema}.datasets ds ON ds.id = dl.dataset_id
         INNER JOIN ${schema}.layers layer ON layer.id = dl.layer_id
