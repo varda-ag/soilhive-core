@@ -19,6 +19,8 @@ import { DatasetsMappingsStep } from '../pages/AdminPortal/DatasetsMappingsStep/
 import { DatasetsPreviewStep } from '../pages/AdminPortal/DatasetsPreviewStep/DatasetsPreviewStep';
 import { DatasetsSettingsPage } from '../pages/AdminPortal/DatasetsSettingsPage/DatasetsSettingsPage';
 import { DatasetsEditRedirect } from '../pages/AdminPortal/DatasetsEditRedirect';
+import { IngestionFlowProvider } from '../contexts/IngestionFlowContext';
+import { IngestionFlowGuard } from '../guards/IngestionFlowGuard';
 
 function DatasetsRoutes() {
   const { t } = useTranslation('admin');
@@ -112,78 +114,81 @@ export function AdminPortalModule() {
   const { can } = useEntitlements();
 
   return (
-    <Routes>
-      <Route
-        index
-        element={<Navigate to={can(ADMIN_PORTAL_UI_MENU) ? ADMIN_ROUTES.TERMS_AND_CONDITIONS : ADMIN_ROUTES.DATASETS} replace />}
-      />
-      {can(ADMIN_PORTAL_UI_MENU) && (
-        <>
-          <Route
-            path={ADMIN_ROUTES.TERMS_AND_CONDITIONS}
-            element={
-              <>
-                <PageTitle title={t('page_titles.terms_and_conditions')} />
-                <TermsAndConditions />
-              </>
-            }
-          />
-          <Route
-            path={ADMIN_ROUTES.PRIVACY_POLICY}
-            element={
-              <>
-                <PageTitle title={t('page_titles.privacy_policy')} />
-                <PrivacyPolicy />
-              </>
-            }
-          />
-          <Route
-            path={ADMIN_ROUTES.NOTIFICATION_BANNER}
-            element={
-              <>
-                <PageTitle title={t('page_titles.notification_banner')} />
-                <NotificationBanner />
-              </>
-            }
-          />
-          <Route
-            path={ADMIN_ROUTES.MAP}
-            element={
-              <>
-                <PageTitle title={t('page_titles.map_settings')} />
-                <MapSettings />
-              </>
-            }
-          />
-          <Route
-            path={`${ADMIN_ROUTES.LOOK_AND_FEEL}/*`}
-            element={
-              <>
-                <PageTitle title={t('page_titles.look_and_feel')} />
-                <LookAndFeel />
-              </>
-            }
-          />
-        </>
-      )}
+    <IngestionFlowProvider>
+      <IngestionFlowGuard />
+      <Routes>
+        <Route
+          index
+          element={<Navigate to={can(ADMIN_PORTAL_UI_MENU) ? ADMIN_ROUTES.TERMS_AND_CONDITIONS : ADMIN_ROUTES.DATASETS} replace />}
+        />
+        {can(ADMIN_PORTAL_UI_MENU) && (
+          <>
+            <Route
+              path={ADMIN_ROUTES.TERMS_AND_CONDITIONS}
+              element={
+                <>
+                  <PageTitle title={t('page_titles.terms_and_conditions')} />
+                  <TermsAndConditions />
+                </>
+              }
+            />
+            <Route
+              path={ADMIN_ROUTES.PRIVACY_POLICY}
+              element={
+                <>
+                  <PageTitle title={t('page_titles.privacy_policy')} />
+                  <PrivacyPolicy />
+                </>
+              }
+            />
+            <Route
+              path={ADMIN_ROUTES.NOTIFICATION_BANNER}
+              element={
+                <>
+                  <PageTitle title={t('page_titles.notification_banner')} />
+                  <NotificationBanner />
+                </>
+              }
+            />
+            <Route
+              path={ADMIN_ROUTES.MAP}
+              element={
+                <>
+                  <PageTitle title={t('page_titles.map_settings')} />
+                  <MapSettings />
+                </>
+              }
+            />
+            <Route
+              path={`${ADMIN_ROUTES.LOOK_AND_FEEL}/*`}
+              element={
+                <>
+                  <PageTitle title={t('page_titles.look_and_feel')} />
+                  <LookAndFeel />
+                </>
+              }
+            />
+          </>
+        )}
 
-      {can(ADMIN_PORTAL_DATA_MENU) && (
-        <>
-          <Route path={`${ADMIN_ROUTES.DATASETS}/*`}>
-            <Route path="*" element={<DatasetsRoutes />} />
-          </Route>
-          <Route
-            path={ADMIN_ROUTES.FILTERS}
-            element={
-              <>
-                <PageTitle title={t('page_titles.filters')} />
-                <MapBasedFilters />
-              </>
-            }
-          />
-        </>
-      )}
-      <Route path="*" element={<Navigate to={ADMIN_ROOT} replace />} />
-    </Routes>
+        {can(ADMIN_PORTAL_DATA_MENU) && (
+          <>
+            <Route path={`${ADMIN_ROUTES.DATASETS}/*`}>
+              <Route path="*" element={<DatasetsRoutes />} />
+            </Route>
+            <Route
+              path={ADMIN_ROUTES.FILTERS}
+              element={
+                <>
+                  <PageTitle title={t('page_titles.filters')} />
+                  <MapBasedFilters />
+                </>
+              }
+            />
+          </>
+        )}
+        <Route path="*" element={<Navigate to={ADMIN_ROOT} replace />} />
+      </Routes>
+    </IngestionFlowProvider>
   );
 }

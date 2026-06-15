@@ -4,6 +4,8 @@ export enum TokenScopes {
   INTERNAL_REQUEST = 'internal-request',
 }
 
+export const TOKEN_ISSUER = 'soilhive-core';
+
 export enum AuthModes {
   NONE = 'none',
   PASSWORD = 'password',

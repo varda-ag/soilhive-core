@@ -6,8 +6,9 @@ import { useDataset } from './useDatasets';
 import { useCreateDatasetMutation, useUpdateDatasetMutation } from 'hooks/useDatasetMutation';
 import { queryClient } from '../App';
 import { isEmptyString } from '../utilities/validation';
+import useIngestionFlow from './useIngestionFlow';
 
-const DESCRIPTION_MAX_LENGTH = 200;
+const DESCRIPTION_MAX_LENGTH = 2770;
 
 const EMPTY_FORM: GeneralInfoFormData = {
   name: '',
@@ -21,6 +22,7 @@ type ValidationErrors = Partial<Record<keyof GeneralInfoFormData, string>>;
 
 export function useGeneralInfoForm(id: string | undefined, validationMessages: ValidationMessages) {
   const navigate = useNavigate();
+  const { markAsChanged, resetChanges } = useIngestionFlow();
   const [formData, setFormData] = useState<GeneralInfoFormData>(EMPTY_FORM);
   const [errors, setErrors] = useState<ValidationErrors>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -39,6 +41,10 @@ export function useGeneralInfoForm(id: string | undefined, validationMessages: V
   }
 
   useEffect(() => {
+    if (id) markAsChanged();
+  }, [id, markAsChanged]);
+
+  useEffect(() => {
     if (dataset) {
       setFormData({
         name: dataset.name ?? '',
@@ -50,6 +56,7 @@ export function useGeneralInfoForm(id: string | undefined, validationMessages: V
   }, [dataset]);
 
   function handleChange(field: keyof GeneralInfoFormData, value: string) {
+    markAsChanged();
     setFormData(prev => ({ ...prev, [field]: value }));
     if (errors[field]) setErrors(prev => ({ ...prev, [field]: undefined }));
   }
@@ -62,6 +69,7 @@ export function useGeneralInfoForm(id: string | undefined, validationMessages: V
     }
 
     setSubmitError(null);
+    resetChanges();
 
     try {
       let response;

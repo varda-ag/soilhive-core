@@ -140,6 +140,9 @@ exports[`Metadata page renders dataset content and matches snapshot 1`] = `
         class="DatasetProperties"
       >
         <div
+          class="TopRow"
+        />
+        <div
           class="Row"
         >
           <p
@@ -382,6 +385,47 @@ exports[`Metadata page renders dataset content and matches snapshot 1`] = `
             class="Text"
           >
             Test citation
+          </div>
+        </div>
+      </div>
+      <div
+        class="OptionalProperties"
+      >
+        <div
+          class="Title"
+        >
+          OPTIONAL PROPERTIES
+        </div>
+        <div
+          class="Row RowNoBackground"
+        >
+          <p
+            class="Label"
+          >
+            <strong>
+              Preprocessing steps:
+            </strong>
+          </p>
+          <div
+            class="Text"
+          >
+            -
+          </div>
+        </div>
+        <div
+          class="Row RowNoBackground"
+        >
+          <p
+            class="Label"
+          >
+            <strong>
+              Related resources:
+            </strong>
+          </p>
+          <div
+            class="Text"
+          >
+            -
           </div>
         </div>
       </div>

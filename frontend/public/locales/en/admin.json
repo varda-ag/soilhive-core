@@ -223,7 +223,8 @@
             "save_and_continue_later": "Save and continue later",
             "continue": "Continue",
             "previous": "Previous",
-            "cancel": "Cancel"
+            "cancel": "Cancel",
+            "open_documentation": "Open documentation"
         },
         "general_info": {
             "step_title": "General info",
@@ -310,6 +311,7 @@
             "step_description": "Review data",
             "title": "Preview",
             "message": "This is the data you are going to load, make sure everything is correct, you can unselect the rows that are not consistent, they won't be loaded in the dataset.",
+            "deletion_warning": "If you delete a row, all the soil properties belonging to it will not be ingested including those not visible on screen.",
             "show_original_name": "Show original name",
             "loading": "Loading...",
             "data_loading": {
@@ -378,6 +380,13 @@
                 "cancel": "Cancel",
                 "publish": "Publish"
             }
+        },
+        "leave_ingestion_modal": {
+            "title": "Leave this process?",
+            "message": "You can return later and continue editing from the datasets list.",
+            "message_new_dataset": "If you leave this process at this point, the progress won’t be saved.",
+            "cancel": "Stay here",
+            "confirm": "Leave without saving"
         }
     },
     "filters": {

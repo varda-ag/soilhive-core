@@ -2,6 +2,8 @@ import { Outlet, useLocation } from 'react-router';
 import { Steps } from 'components/UI';
 import styles from './DatasetsPublicationStepsLayout.module.scss';
 import { useTranslation } from 'react-i18next';
+import { LeaveIngestionModal } from 'components/AdminPortal/LeaveIngestionModal/LeaveIngestionModal';
+import useIngestionFlow from 'hooks/useIngestionFlow';
 
 type StepPath = keyof typeof indexMap;
 
@@ -16,6 +18,7 @@ const indexMap = {
 
 export function DatasetsPublicationStepsLayout() {
   const { t } = useTranslation('admin');
+  const { isLeaveModalVisible, confirmLeave, cancelLeave } = useIngestionFlow();
 
   const location = useLocation();
   const pathSegments = location.pathname.split('/').filter(Boolean);
@@ -38,6 +41,7 @@ export function DatasetsPublicationStepsLayout() {
       <div className={styles.Content}>
         <Outlet />
       </div>
+      <LeaveIngestionModal visible={isLeaveModalVisible} onContinue={confirmLeave} onCancel={cancelLeave} />
     </div>
   );
 }

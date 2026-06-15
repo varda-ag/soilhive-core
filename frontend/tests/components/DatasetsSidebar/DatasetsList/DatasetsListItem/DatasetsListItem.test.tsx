@@ -61,9 +61,13 @@ describe('DatasetsListItem', () => {
     expect(screen.getByTestId('mock-checkbox')).toHaveTextContent('SoilGrid Global');
     expect(screen.getByTestId('mock-button')).toHaveTextContent('Metadata');
 
-    expect(screen.getByTestId('tag-Public')).not.toHaveAttribute('data-type');
-
     expect(container).toMatchSnapshot();
+  });
+
+  it('renders private tag for private datasets', () => {
+    render(<DatasetsListItem dataset={{ ...mockDataset, visibility: 'private' }} />);
+
+    expect(screen.getByTestId('tag-Private')).not.toHaveAttribute('data-type');
   });
 
   it('renders tags with correct types', () => {

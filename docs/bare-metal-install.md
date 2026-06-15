@@ -41,13 +41,9 @@ psql -U postgres
 CREATE USER dbuser WITH PASSWORD 'dbpass';
 CREATE DATABASE database OWNER dbuser;
 \c database
-CREATE EXTENSION IF NOT EXISTS postgis;
-CREATE EXTENSION IF NOT EXISTS postgis_raster;
+CREATE SCHEMA soilhive
 \q
 ```
-
-> The schema (`soilhive` by default) and any PostGIS extensions scoped to it are
-> created automatically by the TypeORM migration on first run.
 
 ---
 
@@ -83,17 +79,14 @@ gdal-config --version   # should print 3.x.x
 ```sh
 cd backend
 cp .env-example .env   # then edit .env — see section 5
-npm install --build-from-source --shared_gdal
+npm install
 ```
-
-The `--build-from-source --shared_gdal` flags compile `gdal-async` against the
-system GDAL library instead of bundling its own.
 
 ### Run migrations
 
 ```sh
 npm run build
-npm run typeorm migration:run -- -d dist/utils/migrations-data-source.js
+npm run typeorm migration:run -- -d dist/utils/migrations-data-source-with-schema.js
 ```
 
 ### Start

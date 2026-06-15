@@ -1,0 +1,207 @@
+@import 'styles/variables/colors';
+@import 'styles/variables/typography';
+@import 'styles/variables/breakpoints';
+
+.Row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  position: relative;
+  border: 1px dashed transparent;
+
+  &.RowAdmin {
+    padding-right: 28px;
+  }
+
+  &:has(.EditButton:hover) {
+    border-color: var(--color-neutral-dark-100);
+  }
+
+  @media screen and (min-width: $bp-tablet) {
+    flex-direction: row;
+  }
+
+  &:nth-child(odd) {
+    background-color: var(--color-neutral-light);
+  }
+
+  &.RowNoBackground {
+    &:nth-child(odd) {
+      background-color: transparent;
+    }
+  }
+
+  .EditButton {
+    position: absolute;
+    top: 8px;
+    right: 12px;
+    background: none;
+    border: none;
+    padding: 4px;
+    cursor: pointer;
+    color: #c0c0c0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 0;
+
+    svg {
+      width: 18px;
+      height: 18px;
+
+      path {
+        stroke: currentColor;
+      }
+    }
+
+    &:hover {
+      color: #0f0f0f;
+    }
+  }
+
+  .Label {
+    padding: 12px 24px 0;
+
+    @media screen and (min-width: $bp-tablet) {
+      padding: 12px 24px;
+      width: 220px;
+      min-width: 220px;
+    }
+  }
+
+  .Text {
+    flex: 1;
+    padding: 0 24px 12px;
+
+    @media screen and (min-width: $bp-tablet) {
+      padding: 12px 18px;
+    }
+
+    a {
+      color: var(--color-brand-green-1000);
+    }
+  }
+
+  .EditArea {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    padding: 8px 16px 8px 0;
+  }
+
+  .EditContent {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .AddRow {
+    display: flex;
+    flex-direction: row;
+    gap: 17px;
+    align-items: flex-start;
+
+    > :first-child {
+      flex: 1;
+    }
+  }
+
+  .AddedResources {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 20px;
+  }
+
+  .AddLinkLabel {
+    font-size: var(--font-size-md);
+    margin: 0;
+
+    .ChainIcon {
+      margin-right: 4px;
+      margin-bottom: -2px;
+    }
+  }
+
+  .AddedResourcesTitle {
+    font-size: var(--font-size-md);
+    margin: 0;
+  }
+
+  .ResourceType {
+    padding: 2px 11px;
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-bold);
+    border: 1px solid var(--color-neutral-dark-200);
+    border-radius: 30px;
+  }
+
+  .ResourceList {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .ResourceItem {
+    font-size: var(--font-size-sm);
+    border: 2px solid var(--color-neutral-dark-100);
+    border-radius: 4px;
+    color: var(--color-neutral-black);
+
+    a {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      text-decoration: none;
+      padding: 16px;
+      color: var(--color-neutral-black);
+
+      &:hover {
+        text-shadow: none;
+      }
+
+      .ChainIcon {
+        color: var(--color-neutral-dark-400);
+        margin-right: 2px;
+      }
+
+      .ResourceUrl {
+        flex: 1;
+        word-break: break-all;
+      }
+
+      .RemoveButton {
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 0 4px;
+        font-size: 18px;
+        line-height: 1;
+        color: var(--color-neutral-dark-400);
+        flex-shrink: 0;
+
+        &:hover {
+          color: var(--color-neutral-dark);
+        }
+
+        &:disabled {
+          opacity: 0.4;
+          cursor: default;
+        }
+      }
+    }
+  }
+
+  .EditActions {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+  }
+}

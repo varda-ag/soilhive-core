@@ -21,9 +21,14 @@
     flex-direction: row;
   }
 
-  &:nth-child(odd),
-  &:last-child {
+  &:nth-child(odd) {
     background-color: var(--color-neutral-light);
+  }
+
+  &.RowNoBackground {
+    &:nth-child(odd) {
+      background-color: transparent;
+    }
   }
 
   .EditButton {

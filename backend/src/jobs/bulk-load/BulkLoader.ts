@@ -23,6 +23,7 @@ import { FileStorage } from '@flystorage/file-storage';
 import FileService from '../../services/FileService';
 import EntitlementService from '../../services/EntitlementService';
 import { EVERYONE, INTERNAL_REQUEST_TOKEN_PAYLOAD } from '../../constants/constants';
+import { createCursor, encodeCursor } from '../../utils/cursor';
 
 export async function processBulkLoad(job: Job<BulkLoadJob>): Promise<void> {
   const { data } = job;
@@ -117,7 +118,8 @@ const processFile = async (
       break;
     }
 
-    cursor = results[results.length - 1]!['record_id'] as string;
+    const cursorValue = results[results.length - 1]!['record_id'] as string;
+    cursor = encodeCursor(createCursor(cursorValue));
   }
 };
 

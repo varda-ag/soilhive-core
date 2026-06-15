@@ -1,0 +1,23 @@
+.DocumentationLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  color: var(--color-cta-tertiary-solid);
+  font-weight: normal;
+  font-size: var(--font-size-sm);
+  text-decoration: none;
+  cursor: pointer;
+
+  &:hover {
+    color: var(--color-cta-tertiary-hover);
+  }
+
+  &:active {
+    color: var(--color-cta-tertiary-pressed);
+  }
+
+  &:visited {
+    color: var(--color-cta-tertiary-solid);
+  }
+}

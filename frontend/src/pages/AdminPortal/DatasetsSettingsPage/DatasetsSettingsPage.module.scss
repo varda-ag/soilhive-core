@@ -7,7 +7,7 @@
 
 .Wrapper {
   background-color: var(--color-neutral-white);
-  border-radius: 0.5rem;
+  border-radius: 0.5rem 0.5rem 0 0;
   padding: 1.5rem;
   flex: 1;
   overflow: auto;
@@ -15,7 +15,6 @@
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
-  margin-bottom: 8px;
 }
 
 .Header {
@@ -26,7 +25,7 @@
 
 .PageTitle {
   font-size: var(--font-size-xl);
-  font-weight: var( --font-weight-bold);
+  font-weight: var(--font-weight-bold);
   color: var(--color-neutral-black);
   margin: 0;
 }
@@ -126,7 +125,7 @@
 }
 
 .RadioCardDescription {
-  font-size: var( --font-size-sm);
+  font-size: var(--font-size-sm);
   font-weight: var(--font-weight-regular);
   color: var(--color-neutral-black);
   margin: 0;
@@ -143,7 +142,6 @@
 }
 
 .RadioIndicatorSelected {
-
   &::after {
     content: '';
     position: absolute;
@@ -181,18 +179,22 @@
 .AccessSectionTitle {
   font-size: var(--font-size-lg);
   font-weight: var(--font-weight-bold);
-  color: var( --color-neutral-black);
+  color: var(--color-neutral-black);
   margin: 0;
 }
 
 .EmailInputRow {
   display: flex;
   gap: 8px;
-  align-items: flex-end;
+  align-items: flex-start;
 }
 
 .EmailInput {
   flex: 1;
+}
+
+.EmailAddButton {
+  margin-top: 1.5rem;
 }
 
 .EmailCell {
@@ -210,7 +212,6 @@
   color: var(--color-neutral-black);
   background-color: var(--color-neutral-white);
 }
-
 
 .RemoveDialog {
   min-height: unset !important;

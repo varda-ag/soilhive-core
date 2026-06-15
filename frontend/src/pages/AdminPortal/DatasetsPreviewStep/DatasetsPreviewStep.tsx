@@ -4,14 +4,18 @@ import { useParams } from 'react-router';
 import { MultiSelect } from 'primereact/multiselect';
 import { Dropdown, type DropdownChangeEvent } from 'primereact/dropdown';
 
-import { Button, Table, ToggleButton } from 'components/UI';
+import { Button, FormMessage, Table, ToggleButton } from 'components/UI';
 import type { TableHandle } from 'components/UI/Table/Table';
 import { useIngestionStatus } from 'hooks/useIngestionStatus';
 import { useDatasetPreview } from 'hooks/useDatasetPreviewStep';
 import { DeleteCheckboxCell } from './DeleteCheckboxCell';
 import { DataLoadingStartedPanel } from './DataLoadingStartedPanel';
+import { IngestionStepTitleRow } from 'components/AdminPortal/IngestionStepTitleRow/IngestionStepTitleRow';
+import { INGESTION_DOCS_URL } from 'configuration/ingestion';
 
 import styles from './DatasetsPreviewStep.module.scss';
+
+const DOCS_URL = `${INGESTION_DOCS_URL}#data-preview`;
 
 const initialVisibleColumns = ['min_depth', 'max_depth', 'sampling_date', 'horizon'];
 
@@ -164,8 +168,17 @@ export function DatasetsPreviewStep() {
   return (
     <>
       <div className={styles.DatasetsPreviewStep}>
-        <h2 className={styles.Title}>{t('datasets.preview.title')}</h2>
-        <p className={styles.Message}>{t('datasets.preview.message')}</p>
+        <div className={styles.TextContent}>
+          <IngestionStepTitleRow title={t('datasets.preview.title')} docsLink={DOCS_URL} />
+          <p className={styles.Message}>{t('datasets.preview.message')}</p>
+          <FormMessage
+            className={styles.DeleteWarning}
+            message={t('datasets.preview.deletion_warning')}
+            type="warning"
+            withBackground={true}
+            showBorder={false}
+          />
+        </div>
         <div className={styles.TableFilters}>
           <div className={styles.Left}>
             <ToggleButton checked={showOriginalName} onChange={() => setShowOriginalName(prevValue => !prevValue)} />

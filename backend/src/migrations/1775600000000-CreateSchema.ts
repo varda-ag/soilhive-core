@@ -9,6 +9,7 @@ export class CreateSchema1775600000000 implements MigrationInterface {
     await queryRunner.query(`SET search_path TO ${process.env.POSTGRES_SCHEMA}, public`);
 
     // Extensions
+    await queryRunner.query(`CREATE EXTENSION IF NOT EXISTS postgis SCHEMA public`);
     await queryRunner.query(`CREATE EXTENSION IF NOT EXISTS postgis_raster SCHEMA public`);
     await queryRunner.query(`CREATE EXTENSION IF NOT EXISTS "unaccent" SCHEMA public`);
 

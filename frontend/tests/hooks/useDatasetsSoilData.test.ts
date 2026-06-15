@@ -3,6 +3,7 @@ import { useDatasetsSoilData } from 'hooks/useDatasetsSoilData';
 import { useFileManagement } from 'hooks/useFileManagement';
 import { useApiQuery } from 'hooks/useApiQuery';
 import { useCreateDatasetFileMapping } from 'hooks/useDatasetMutation';
+import useIngestionFlow from 'hooks/useIngestionFlow';
 
 // --- Module mocks -----------------------------------------------------------
 
@@ -54,6 +55,14 @@ jest.mock('../../src/configuration/api', () => ({
   BACKEND_BASE_URL: 'http://mocked-backend',
 }));
 
+jest.mock('hooks/useIngestionFlow', () => ({
+  __esModule: true,
+  default: jest.fn(),
+}));
+
+const mockMarkAsChanged = jest.fn();
+const mockResetChanges = jest.fn();
+
 // --- Helpers ----------------------------------------------------------------
 
 const useFileManagementMock = useFileManagement as jest.MockedFunction<typeof useFileManagement>;
@@ -84,6 +93,7 @@ function buildSoilDataFile(id: string, name: string, crs: string | null = 'EPSG:
 describe('useDatasetsSoilData', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    (useIngestionFlow as jest.Mock).mockReturnValue({ markAsChanged: mockMarkAsChanged, resetChanges: mockResetChanges });
   });
 
   // --- isContinueEnabled ---------------------------------------------------
@@ -374,6 +384,21 @@ describe('useDatasetsSoilData', () => {
         expect(result.current.soilDataFiles).toHaveLength(1);
         expect(result.current.soilDataFiles[0].id).toBe('2');
       });
+    });
+  });
+
+  describe('leave Ingestion flow', () => {
+    it('calls markAsChanged on mount', () => {
+      buildDefaultMocks();
+      renderHook(() => useDatasetsSoilData());
+      expect(mockMarkAsChanged).toHaveBeenCalledTimes(1);
+    });
+
+    it('handleSaveAndContinueLater calls resetChanges', async () => {
+      buildDefaultMocks();
+      const { result } = renderHook(() => useDatasetsSoilData());
+      await act(async () => result.current.handleSaveAndContinueLater());
+      expect(mockResetChanges).toHaveBeenCalledTimes(1);
     });
   });
 });

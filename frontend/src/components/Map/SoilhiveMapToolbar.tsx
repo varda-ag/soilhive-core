@@ -74,11 +74,16 @@ export default function SoilhiveMapToolbar({ visible, onDrawClick, onUpload }: S
         fail('no-file-uploaded', 'No file uploaded');
         return;
       }
+
       const text = await file.text();
       if (!text) {
         fail('cant-read-file', 'Cannot read uploaded file as text');
         return;
       }
+
+      // Resets the fileInput otherwise if you upload again the same file the onchange won't trigger
+      fileInput.value = '';
+
       let json;
       try {
         json = check(text);
@@ -86,11 +91,13 @@ export default function SoilhiveMapToolbar({ visible, onDrawClick, onUpload }: S
         fail('invalid-json', 'Uploaded file does not contain valid GeoJSON');
         return;
       }
+
       const polygon = selectFirstPolygon(json);
       if (!polygon) {
         fail('invalid-polygon', 'Uploaded file does not contain any valid Polygon or MultiPolygon');
         return;
       }
+
       onUpload(polygon);
     };
     fileInputRef.current = fileInput;

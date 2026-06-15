@@ -1,0 +1,88 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`RelatedResourcesRow matches snapshot in display mode with isEditable=true and a value 1`] = `
+<div>
+  <div
+    class="Row RowAdmin"
+  >
+    <p
+      class="Label"
+    >
+      <strong>
+        Related Resources
+      </strong>
+    </p>
+    <div
+      class="Text"
+    >
+      <ul
+        class="ResourceList"
+      >
+        <li
+          class="ResourceItem"
+        >
+          <a
+            href="https://example.com"
+            rel="noreferrer"
+            target="_blank"
+          >
+            <svg
+              class="ChainIcon"
+              data-testid="svg-icon-mock"
+            >
+              mock-svg
+            </svg>
+            <span
+              class="ResourceUrl"
+            >
+              https://example.com
+            </span>
+            <span
+              class="ResourceType"
+            >
+              Link
+            </span>
+          </a>
+        </li>
+        <li
+          class="ResourceItem"
+        >
+          <a
+            href="https://soil.org"
+            rel="noreferrer"
+            target="_blank"
+          >
+            <svg
+              class="ChainIcon"
+              data-testid="svg-icon-mock"
+            >
+              mock-svg
+            </svg>
+            <span
+              class="ResourceUrl"
+            >
+              https://soil.org
+            </span>
+            <span
+              class="ResourceType"
+            >
+              Link
+            </span>
+          </a>
+        </li>
+      </ul>
+    </div>
+    <button
+      aria-label="Edit"
+      class="EditButton"
+      type="button"
+    >
+      <svg
+        data-testid="svg-icon-mock"
+      >
+        mock-svg
+      </svg>
+    </button>
+  </div>
+</div>
+`;
