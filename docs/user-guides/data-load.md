@@ -21,6 +21,8 @@ The files uploaded to load in the platform must meet the following requirements:
 
 - Formats supported: `GeoJSON`, `GPKG`, `SHP`, `CSV`, `XLSX`, `GML`, `KML`, `GDB` (or `ZIP` containing any of the mentioned formats).
 - If format is `SHP`, all Shapefile files must be zipped.
+- If format is `XLSX`, then data must be in the **first sheet**.
+- If file is `multi-layer GPKG`, then only the first layer with a supported geometry type (point or polygon/multipolygon) will be considered.
 - A geometry (or latitude and longitude) field is required. Additional fields with the sampling date (in format `YYYY` or `YYYY-MM` or `YYYY-MM-DD`), upper and lower depth in cm (as integers) or a depth range (as a text field with integer values separated by character '-'), horizon code and license are recommended. If not supplied, there is an option to fill part of this information with fixed values in the dataset metadata in a posterior step.
 - Soil data provided as one field per soil property, unit and procedure.
 - A dataset may have several files.

@@ -74,6 +74,8 @@ export function RelatedResourcesRow({
 
   const { showNotification } = useNotifications();
 
+  const isDirty = JSON.stringify(editValues) !== JSON.stringify(value ?? []);
+
   const handleAdd = () => {
     const trimmed = inputValue.trim();
     if (!trimmed) return;
@@ -157,7 +159,7 @@ export function RelatedResourcesRow({
             )}
           </div>
           <div className={styles.EditActions}>
-            <Button size="small" onClick={handleSave} isDisabled={isSaving}>
+            <Button size="small" onClick={handleSave} isDisabled={isSaving || !isDirty}>
               {isSaving ? t('editor.saving') : t('editor.save')}
             </Button>
             <Button

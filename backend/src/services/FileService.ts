@@ -237,6 +237,26 @@ export default class FileService {
     }
   };
 
+  // The XLSX driver does not support X_POSSIBLE_NAMES / Y_POSSIBLE_NAMES open options (CSV-only).
+  // Wrapping the source in a VRT lets GDAL construct point geometry from lat/lon columns before
+  // ogr2ogr sees it, so no driver-specific open options are needed.
+  private static createPointVrt(srcPath: string, layerName: string, xField: string, yField: string): string {
+    const vrtPath = path.join(os.tmpdir(), `${path.basename(srcPath, path.extname(srcPath))}-${Date.now()}.vrt`);
+    const content = `<OGRVRTDataSource>
+  <OGRVRTLayer name="${layerName}">
+    <SrcDataSource>${srcPath}</SrcDataSource>
+    <SrcLayer>${layerName}</SrcLayer>
+    <OpenOptions>
+      <OOI key="HEADERS">FORCE</OOI>
+    </OpenOptions>
+    <GeometryType>wkbPoint</GeometryType>
+    <GeometryField encoding="PointFromColumns" x="${xField}" y="${yField}"/>
+  </OGRVRTLayer>
+</OGRVRTDataSource>`;
+    fs.writeFileSync(vrtPath, content, 'utf8');
+    return vrtPath;
+  }
+
   private static detectField = (fields: string[], expected: string[], partialMatch: boolean): string | null => {
     for (const field of fields) {
       const cleanField = sanitizeField(field, true);
@@ -389,7 +409,8 @@ export default class FileService {
       ({ mainFilePath, tempZipExtractPath } = await FileService.getMainFilePath(fileKey));
 
       log.info('Extracting metadata with ogrinfo', { source: mainFilePath });
-      const { driver, layers } = await GdalCLI.ogrinfo(mainFilePath);
+      const isExcel = ['.xlsx', '.xls'].includes(path.extname(mainFilePath).toLowerCase());
+      const { driver, layers } = await GdalCLI.ogrinfo(mainFilePath, isExcel ? ['HEADERS=FORCE'] : []);
 
       log.info('Getting data layer and detecting geometry', { driver });
       const { layer, geometryDetected } = this.getDataLayer(layers, unknownGeomDrivers.includes(driver));
@@ -496,6 +517,7 @@ export default class FileService {
 
     let mainFilePath: string;
     let tempZipExtractPath: string | null = null;
+    let tempVrtPath: string | null = null;
     const tableName = getRawTableName(fileEntity.id);
     const ogr2ogrOpts: string[] = [
       '-f',
@@ -542,25 +564,38 @@ export default class FileService {
           selectClause = `${selectClause}, "${mappingGeomFields.geomField}" AS geometry`;
           keepGeomColumn = 'NO';
         } else if (mappingGeomFields.latField && mappingGeomFields.lonField) {
-          ogr2ogrOpts.push(
-            '-oo',
-            `X_POSSIBLE_NAMES=${mappingGeomFields.lonField}`,
-            '-oo',
-            `Y_POSSIBLE_NAMES=${mappingGeomFields.latField}`,
-          );
-          selectClause = `${selectClause}, "_ogr_geometry_" AS geometry`;
+          if (fileMetadata.driver === 'XLSX') {
+            tempVrtPath = FileService.createPointVrt(mainFilePath, layerName, mappingGeomFields.lonField, mappingGeomFields.latField);
+          } else {
+            ogr2ogrOpts.push(
+              '-oo',
+              `X_POSSIBLE_NAMES=${mappingGeomFields.lonField}`,
+              '-oo',
+              `Y_POSSIBLE_NAMES=${mappingGeomFields.latField}`,
+            );
+            selectClause = `${selectClause}, "_ogr_geometry_" AS geometry`;
+          }
         } else if (fileMetadata.detected_fields[DetectableFields.GEOMETRY]) {
           ogr2ogrOpts.push('-oo', `GEOM_POSSIBLE_NAMES=${fileMetadata.detected_fields[DetectableFields.GEOMETRY]}`);
           selectClause = `${selectClause}, "${fileMetadata.detected_fields[DetectableFields.GEOMETRY]}" AS geometry`;
           keepGeomColumn = 'NO';
         } else if (fileMetadata.detected_fields[DetectableFields.LATITUDE] && fileMetadata.detected_fields[DetectableFields.LONGITUDE]) {
-          ogr2ogrOpts.push(
-            '-oo',
-            `X_POSSIBLE_NAMES=${fileMetadata.detected_fields[DetectableFields.LONGITUDE]}`,
-            '-oo',
-            `Y_POSSIBLE_NAMES=${fileMetadata.detected_fields[DetectableFields.LATITUDE]}`,
-          );
-          selectClause = `${selectClause}, "_ogr_geometry_" AS geometry`;
+          if (fileMetadata.driver === 'XLSX') {
+            tempVrtPath = FileService.createPointVrt(
+              mainFilePath,
+              layerName,
+              fileMetadata.detected_fields[DetectableFields.LONGITUDE],
+              fileMetadata.detected_fields[DetectableFields.LATITUDE],
+            );
+          } else {
+            ogr2ogrOpts.push(
+              '-oo',
+              `X_POSSIBLE_NAMES=${fileMetadata.detected_fields[DetectableFields.LONGITUDE]}`,
+              '-oo',
+              `Y_POSSIBLE_NAMES=${fileMetadata.detected_fields[DetectableFields.LATITUDE]}`,
+            );
+            selectClause = `${selectClause}, "_ogr_geometry_" AS geometry`;
+          }
         } else {
           throw new ErrorResponse(
             'Geometry not found: no geometry column in user mapping or auto-detected fields',
@@ -571,6 +606,10 @@ export default class FileService {
 
       if (unknownGeomDrivers.includes(fileMetadata.driver ?? '')) {
         ogr2ogrOpts.push('-oo', 'AUTODETECT_TYPE=YES', '-oo', 'EMPTY_STRING_AS_NULL=YES', '-oo', `KEEP_GEOM_COLUMNS=${keepGeomColumn}`);
+      }
+
+      if (fileMetadata.driver === 'XLSX') {
+        ogr2ogrOpts.push('-oo', 'HEADERS=FORCE');
       }
 
       if (fileMetadata.epsg && fileMetadata.epsg !== 4326) {
@@ -606,7 +645,7 @@ export default class FileService {
       await requestData.entityManager.query(`DROP TABLE IF EXISTS "${tableName}"`);
 
       try {
-        await GdalCLI.ogr2ogr([...ogr2ogrOpts, pgDataset, mainFilePath]);
+        await GdalCLI.ogr2ogr([...ogr2ogrOpts, pgDataset, tempVrtPath ?? mainFilePath]);
       } catch (translateError) {
         log.error('ogr2ogr failed', {
           source: mainFilePath,
@@ -626,6 +665,9 @@ export default class FileService {
     } finally {
       if (tempZipExtractPath) {
         FileService.removeTempFolder(tempZipExtractPath);
+      }
+      if (tempVrtPath) {
+        FileService.removeTempFolder(tempVrtPath);
       }
     }
   };
