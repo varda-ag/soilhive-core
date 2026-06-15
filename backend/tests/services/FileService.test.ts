@@ -592,6 +592,70 @@ describe('FileService', () => {
     });
   });
 
+  describe('extractMetadata and fileToDB - XLSX file with lat/lon columns', () => {
+    const fileKey = 'excel.xlsx';
+    let fileEntity: FileEntity;
+
+    beforeEach(async () => {
+      setLocalStorageRootFolder(vectorFilesPassPath);
+      requestData = { entityManager, token: mockToken, entitlements: {} };
+      fileEntity = await fileService.createFile(requestData, { name: fileKey, file_path: fileKey });
+    });
+
+    it('should detect driver XLSX with no native geometry and auto-detect lat/lon fields', () => {
+      const metadata = fileEntity.metadata!;
+      expect(metadata.driver).toBe('XLSX');
+      expect(metadata.geometry_detected).toBeFalsy();
+      expect(metadata.detected_fields[DetectableFields.LATITUDE]).toBeTruthy();
+      expect(metadata.detected_fields[DetectableFields.LONGITUDE]).toBeTruthy();
+    });
+
+    it('should load XLSX to DB using auto-detected lat/lon columns (VRT path)', async () => {
+      await fileService.fileToDB(requestData, fileEntity.slug);
+
+      const tableName = getRawTableName(fileEntity.id);
+      const tableColumns = await getTableColumns(tableName);
+      expect(tableColumns.map(c => c.column_name)).toContain('geometry');
+      expect(tableColumns.map(c => c.column_name)).toContain('record_id');
+
+      const dataSource = await getDataSource();
+      const rows = await dataSource.query(
+        `SELECT ST_X(geometry) as x, ST_Y(geometry) as y FROM "${process.env.POSTGRES_SCHEMA}"."${tableName}" WHERE geometry IS NOT NULL LIMIT 1`,
+      );
+      expect(rows.length).toBeGreaterThan(0);
+      expect(parseFloat(rows[0].x)).toBeCloseTo(39.6464, 3);
+      expect(parseFloat(rows[0].y)).toBeCloseTo(-3.7892, 3);
+
+      const reloaded = await entityManager.findOne(FileEntity, { where: { id: fileEntity.id } });
+      expect(reloaded?.status).toBe(IngestionStatus.STAGED);
+    });
+
+    it('should load XLSX to DB using mapped lat/lon columns (VRT path)', async () => {
+      const latField = fileEntity.metadata!.detected_fields[DetectableFields.LATITUDE]!;
+      const lonField = fileEntity.metadata!.detected_fields[DetectableFields.LONGITUDE]!;
+
+      const dataset = await addDataset('test_xlsx_mapped_latlon', [0, 0, 50, 10]);
+      const dataMapping = await addDataMapping({ [latField]: 'latitude', [lonField]: 'longitude' });
+      const dfm = await addDatasetFileMapping(dataset.id, dataMapping.id);
+      dfm.file_id = fileEntity.id;
+      await dfm.save();
+
+      await fileService.fileToDB(requestData, fileEntity.slug);
+
+      const tableName = getRawTableName(fileEntity.id);
+      const tableColumns = await getTableColumns(tableName);
+      expect(tableColumns.map(c => c.column_name)).toContain('geometry');
+
+      const dataSource = await getDataSource();
+      const rows = await dataSource.query(
+        `SELECT ST_X(geometry) as x, ST_Y(geometry) as y FROM "${process.env.POSTGRES_SCHEMA}"."${tableName}" WHERE geometry IS NOT NULL LIMIT 1`,
+      );
+      expect(rows.length).toBeGreaterThan(0);
+      expect(parseFloat(rows[0].x)).toBeCloseTo(39.6464, 3);
+      expect(parseFloat(rows[0].y)).toBeCloseTo(-3.7892, 3);
+    });
+  });
+
   describe('getDetectedMapping', () => {
     it('returns {} when fieldNames is empty', () => {
       expect(fileService.getDetectedMapping([], [{ col_a: 'x' }])).toEqual({});
