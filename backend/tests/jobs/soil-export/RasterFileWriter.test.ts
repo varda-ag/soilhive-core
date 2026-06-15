@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, beforeEach, afterEach, jest } from '@jest/globals';
+import { describe, it, expect, beforeAll, beforeEach, afterEach, jest, afterAll } from '@jest/globals';
 import * as path from 'path';
 import * as fs from 'node:fs';
 import { writeArrayBuffer } from 'geotiff';
@@ -68,6 +68,9 @@ describe('RasterFileWriter', () => {
       .forEach(f => fs.rmSync(path.join(TEST_OUTPUT_DIR, f), { recursive: true }));
   });
 
+  afterAll(() => {
+    fs.unlinkSync(MASK_TIFF);
+  });
   describe('writeLayer', () => {
     it('resolves layer.path via FileService.getMainFilePath', async () => {
       const writer = new RasterFileWriter(RasterFileFormat.TIFF, TEST_OUTPUT_DIR);
