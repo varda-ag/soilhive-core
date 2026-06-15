@@ -154,24 +154,67 @@ export default class SoilDataStorage {
       )
       ${aoiFeaturesCte}
       ${activeSoilPropertiesCte}
-      , base_agg AS (
+      -- The AOI/filter-scoped rows, before any aggregation. Materialized once and read
+      -- by both rollups below. dataset_layers fans out by soil_property (one row per
+      -- active property of each (dataset, feature, layer)), so this is the ~2.7M-row set.
+      , scoped AS MATERIALIZED (
         SELECT
           dl.dataset_id,
+          dl.feature_id,
+          dl.layer_id,
           layer.license,
-          COUNT(DISTINCT dl.datasets_feature_layer_hash) AS dataset_layer_count,
-          MIN(layer.sampling_date) AS min_sampling_date,
-          MAX(layer.sampling_date) AS max_sampling_date,
-          MIN(layer.min_depth) AS min_depth,
-          MAX(layer.max_depth) AS max_depth,
-          STRING_AGG(DISTINCT layer.horizon, ',') AS horizons,
-          STRING_AGG(DISTINCT soil_property.slug, ',') AS soil_properties
+          soil_property.slug AS soil_property_slug
         FROM ${featureSource} fsrc
         INNER JOIN ${schema}.dataset_layers dl ON dl.feature_id = fsrc.id
         INNER JOIN active_soil_properties soil_property on dl.soil_property_id=soil_property.id
         INNER JOIN ${schema}.datasets ds ON ds.id = dl.dataset_id
         INNER JOIN ${schema}.layers layer ON layer.id = dl.layer_id
         WHERE ${innerWhere.join('\n          AND ')}
-        GROUP BY dl.dataset_id, layer.license
+      )
+      -- datasets_feature_layer_hash = sha256(dataset_id || feature_id || layer_id), so
+      -- COUNT(DISTINCT hash) per (dataset, license) is exactly the count of distinct
+      -- (dataset, feature, layer) tuples. Collapsing the soil_property fan-out with a
+      -- plain DISTINCT lets the planner HashAggregate instead of sorting all 2.7M rows
+      -- on the 64-char hex hash (the dominant cost before this rewrite).
+      , layer_combos AS (
+        SELECT DISTINCT dataset_id, feature_id, layer_id, license
+        FROM scoped
+      )
+      , layer_agg AS (
+        SELECT
+          lc.dataset_id,
+          lc.license,
+          COUNT(*) AS dataset_layer_count,
+          MIN(layer.sampling_date) AS min_sampling_date,
+          MAX(layer.sampling_date) AS max_sampling_date,
+          MIN(layer.min_depth) AS min_depth,
+          MAX(layer.max_depth) AS max_depth,
+          STRING_AGG(DISTINCT layer.horizon, ',') AS horizons
+        FROM layer_combos lc
+        INNER JOIN ${schema}.layers layer ON layer.id = lc.layer_id
+        GROUP BY lc.dataset_id, lc.license
+      )
+      -- Same idea for soil properties: DISTINCT (dataset, license, slug) first, then a
+      -- plain STRING_AGG, so this stays off the sort path too.
+      , prop_agg AS (
+        SELECT dataset_id, license, STRING_AGG(slug, ',') AS soil_properties
+        FROM (SELECT DISTINCT dataset_id, license, soil_property_slug AS slug FROM scoped) d
+        GROUP BY dataset_id, license
+      )
+      , base_agg AS (
+        SELECT
+          la.dataset_id,
+          la.license,
+          la.dataset_layer_count,
+          la.min_sampling_date,
+          la.max_sampling_date,
+          la.min_depth,
+          la.max_depth,
+          la.horizons,
+          pa.soil_properties
+        FROM layer_agg la
+        INNER JOIN prop_agg pa
+          ON pa.dataset_id = la.dataset_id AND pa.license IS NOT DISTINCT FROM la.license
       )
       SELECT
         base_agg.dataset_id,
