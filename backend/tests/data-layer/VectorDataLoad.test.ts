@@ -229,7 +229,7 @@ describe('VectorDataLoad class', () => {
     expect(layers.length).toBeGreaterThan(0);
     // Horizon not specified in column mapping:
     expect(layers.map(l => l.horizon).filter(e => e !== null).length).toBe(0);
-    // Min depth with value 0 should be kept as value 0 (4 occurences):
+    // Min depth with value 0 should be kept as value 0 (4 occurrences):
     expect(layers.map(l => l.min_depth).filter(e => e === 0).length).toBe(4);
   });
 });
