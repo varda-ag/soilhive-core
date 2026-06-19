@@ -50,8 +50,8 @@ const setupQueues = async () => {
     retentionSeconds: 60 * 60 * 24 * 30, // 30 days — retain failed jobs for error surfacing
   };
   const boss = getPgBoss();
-  const promises = Object.values(JobQueues).map(async queue => await boss.createQueue(queue, options));
-  await Promise.all(promises);
+  await Promise.all(Object.values(JobQueues).map(queue => boss.createQueue(queue, options)));
+  await Promise.all(Object.values(JobQueues).map(queue => boss.updateQueue(queue, options)));
   log.info('PgBoss queues created', { queues: Object.values(JobQueues) });
 };
 

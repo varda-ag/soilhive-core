@@ -26,7 +26,7 @@ export default class ErrorService {
            AND state = 'failed'
            AND data->>'dataset_id' IS NOT NULL
            AND data->'errors' IS NOT NULL
-         ORDER BY data->>'dataset_id', createdon DESC`,
+         ORDER BY data->>'dataset_id', created_on DESC`,
       );
 
     return rows.map(row => ({
