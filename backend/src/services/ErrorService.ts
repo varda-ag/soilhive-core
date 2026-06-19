@@ -16,6 +16,13 @@ export interface DatasetError {
 }
 
 export default class ErrorService {
+  async clearDatasetErrors(dataset_id: string, entityManager: RequestData['entityManager']): Promise<void> {
+    await entityManager.query(
+      `UPDATE ${PG_BOSS_SCHEMA}.job SET data = data - 'errors' WHERE name IN ('file-to-db', 'bulk-load') AND state = 'failed' AND data->>'dataset_id' = $1`,
+      [dataset_id],
+    );
+  }
+
   async getDatasetErrors(requestData: RequestData): Promise<DatasetError[]> {
     const rows: Array<{ dataset_id: string; errors: Array<{ code: string; params: Record<string, unknown>; detail?: string }> }> =
       await requestData.entityManager.query(
