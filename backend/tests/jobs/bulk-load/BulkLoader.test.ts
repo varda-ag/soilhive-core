@@ -105,7 +105,10 @@ describe('BulkLoader class', () => {
         return response;
       });
 
-    await expect(BulkLoaderModule.processBulkLoad(getJob(dataset.slug))).rejects.toThrow();
+    await expect(BulkLoaderModule.processBulkLoad(getJob(dataset.slug))).rejects.toMatchObject({
+      name: 'JobError',
+      code: 'BL_RECORD_WRITE_FAILED',
+    });
 
     const createdData = await getLoadedDataCount();
     expect(createdData.n_features).toBe(0);
@@ -120,6 +123,29 @@ describe('BulkLoader class', () => {
     expect(datasets[0].status).toBe(IngestionStatus.PENDING);
 
     mockMakeRequest.mockRestore();
+  });
+
+  it('E06 — BL_RAW_TABLE_NOT_FOUND when raw staging table does not exist', async () => {
+    const { dataset } = await addSyntheticIngestionData({ ...syntheticIngestionDataOptions, createTable: false });
+
+    await expect(BulkLoaderModule.processBulkLoad(getJob(dataset.slug))).rejects.toMatchObject({
+      name: 'JobError',
+      code: 'BL_RAW_TABLE_NOT_FOUND',
+    });
+  });
+
+  it('E07 — BL_MISSING_COLUMN_MAPPING when data_mapping_id is null', async () => {
+    const { dataset, datasetFileMapping } = await addSyntheticIngestionData({
+      ...syntheticIngestionDataOptions,
+      createTable: false,
+    });
+    const entityManager = await getEntityManager();
+    await entityManager.query(`UPDATE dataset_file_mappings SET data_mapping_id = NULL WHERE id = $1`, [datasetFileMapping.id]);
+
+    await expect(BulkLoaderModule.processBulkLoad(getJob(dataset.slug))).rejects.toMatchObject({
+      name: 'JobError',
+      code: 'BL_MISSING_COLUMN_MAPPING',
+    });
   });
 
   it('updateDatasetMetadata sets data correctly', async () => {
