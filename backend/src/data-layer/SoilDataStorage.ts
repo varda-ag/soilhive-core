@@ -65,13 +65,13 @@ export default class SoilDataStorage {
     const { ctes: rasterCtes, usesMatchingFeatures } = buildRasterSql(filter, enabledRasterFilterTables);
 
     // Feature IDs resolved entirely in-DB: the MATERIALIZED feature CTE is evaluated
-    // first, then JOINed to dataset_layers (rather than `= ANY(ARRAY(...))`). The array
-    // form gave the planner no array-length stats, so it estimated ~86 rows for a set
-    // that is actually ~2.7M, and then picked per-row PK probes into `layers` (~11M
-    // buffer hits) plus a sort-based GroupAggregate. Anchoring from the feature CTE
-    // gives a realistic cardinality, so the planner hash-joins `layers` and uses a
-    // HashAggregate. Both feature sources emit distinct ids, so the JOIN is row-for-row
-    // equivalent to the old semi-join.
+    // first, then matched against dataset_layers via `= ANY(ARRAY(SELECT id FROM ...))`.
+    // The array form lets the planner drive a bitmap index scan on
+    // dataset_layers(feature_id), touching only the ~55K AOI-scoped rows instead of
+    // seq-scanning all ~6.6M. Feeding those rows straight into one base_agg GROUP BY
+    // (rather than a materialized `scoped` CTE re-read three times) keeps the layers
+    // join down to ~55K cached PK probes; see idx_layers_id_covering to make them
+    // index-only.
     const params: any[] = [geometryIds];
     const p = (val: any) => {
       params.push(val);
@@ -154,67 +154,30 @@ export default class SoilDataStorage {
       )
       ${aoiFeaturesCte}
       ${activeSoilPropertiesCte}
-      -- The AOI/filter-scoped rows, before any aggregation. Materialized once and read
-      -- by both rollups below. dataset_layers fans out by soil_property (one row per
-      -- active property of each (dataset, feature, layer)), so this is the ~2.7M-row set.
-      , scoped AS MATERIALIZED (
+      -- Single rollup over the AOI/filter-scoped dataset_layers. datasets_feature_layer_hash
+      -- = sha256(dataset_id || feature_id || layer_id), so COUNT(DISTINCT hash) per
+      -- (dataset, license) is exactly the count of distinct (dataset, feature, layer)
+      -- tuples; the DISTINCT STRING_AGGs make the soil_property fan-out idempotent. This
+      -- collapses what used to be a materialized scoped CTE read three times (by
+      -- layer_combos/layer_agg and prop_agg) into one GROUP BY.
+      , base_agg AS (
         SELECT
           dl.dataset_id,
-          dl.feature_id,
-          dl.layer_id,
           layer.license,
-          soil_property.slug AS soil_property_slug
-        FROM ${featureSource} fsrc
-        INNER JOIN ${schema}.dataset_layers dl ON dl.feature_id = fsrc.id
-        INNER JOIN active_soil_properties soil_property on dl.soil_property_id=soil_property.id
-        INNER JOIN ${schema}.datasets ds ON ds.id = dl.dataset_id
-        INNER JOIN ${schema}.layers layer ON layer.id = dl.layer_id
-        WHERE ${innerWhere.join('\n          AND ')}
-      )
-      -- datasets_feature_layer_hash = sha256(dataset_id || feature_id || layer_id), so
-      -- COUNT(DISTINCT hash) per (dataset, license) is exactly the count of distinct
-      -- (dataset, feature, layer) tuples. Collapsing the soil_property fan-out with a
-      -- plain DISTINCT lets the planner HashAggregate instead of sorting all 2.7M rows
-      -- on the 64-char hex hash (the dominant cost before this rewrite).
-      , layer_combos AS (
-        SELECT DISTINCT dataset_id, feature_id, layer_id, license
-        FROM scoped
-      )
-      , layer_agg AS (
-        SELECT
-          lc.dataset_id,
-          lc.license,
-          COUNT(*) AS dataset_layer_count,
+          COUNT(DISTINCT dl.datasets_feature_layer_hash) AS dataset_layer_count,
           MIN(layer.sampling_date) AS min_sampling_date,
           MAX(layer.sampling_date) AS max_sampling_date,
           MIN(layer.min_depth) AS min_depth,
           MAX(layer.max_depth) AS max_depth,
-          STRING_AGG(DISTINCT layer.horizon, ',') AS horizons
-        FROM layer_combos lc
-        INNER JOIN ${schema}.layers layer ON layer.id = lc.layer_id
-        GROUP BY lc.dataset_id, lc.license
-      )
-      -- Same idea for soil properties: DISTINCT (dataset, license, slug) first, then a
-      -- plain STRING_AGG, so this stays off the sort path too.
-      , prop_agg AS (
-        SELECT dataset_id, license, STRING_AGG(slug, ',') AS soil_properties
-        FROM (SELECT DISTINCT dataset_id, license, soil_property_slug AS slug FROM scoped) d
-        GROUP BY dataset_id, license
-      )
-      , base_agg AS (
-        SELECT
-          la.dataset_id,
-          la.license,
-          la.dataset_layer_count,
-          la.min_sampling_date,
-          la.max_sampling_date,
-          la.min_depth,
-          la.max_depth,
-          la.horizons,
-          pa.soil_properties
-        FROM layer_agg la
-        INNER JOIN prop_agg pa
-          ON pa.dataset_id = la.dataset_id AND pa.license IS NOT DISTINCT FROM la.license
+          STRING_AGG(DISTINCT layer.horizon, ',') AS horizons,
+          STRING_AGG(DISTINCT soil_property.slug, ',') AS soil_properties
+        FROM ${schema}.dataset_layers dl
+        INNER JOIN active_soil_properties soil_property on dl.soil_property_id=soil_property.id
+        INNER JOIN ${schema}.datasets ds ON ds.id = dl.dataset_id
+        INNER JOIN ${schema}.layers layer ON layer.id = dl.layer_id
+        WHERE dl.feature_id = ANY(ARRAY(SELECT id FROM ${featureSource})::uuid[])
+          AND ${innerWhere.join('\n          AND ')}
+        GROUP BY dl.dataset_id, layer.license
       )
       SELECT
         base_agg.dataset_id,
@@ -720,13 +683,21 @@ const hasRasterFilters = (filters: FilterCriteria): boolean => {
   return Boolean(filters.raster_filters && Object.keys(filters.raster_filters).length > 0);
 };
 
-export const getEnabledRasterFilterTables = async () => {
+const ENABLED_RASTER_FILTER_TABLES_TTL_MS = 30 * 60 * 1000;
+let enabledRasterFilterTablesCache: { value: string[]; expiresAt: number } | undefined;
+
+export const getEnabledRasterFilterTables = async (): Promise<string[]> => {
+  if (enabledRasterFilterTablesCache && enabledRasterFilterTablesCache.expiresAt > Date.now()) {
+    return enabledRasterFilterTablesCache.value;
+  }
   const dataSource = await getDataSource();
   const queryRunner = dataSource.createQueryRunner();
   await queryRunner.connect();
   try {
     const enabledFilters = await rasterFilterService.getEnabledRasterFilters({ entityManager: queryRunner.manager, entitlements: {} });
-    return enabledFilters.map(f => f.id);
+    const value = enabledFilters.map(f => f.id);
+    enabledRasterFilterTablesCache = { value, expiresAt: Date.now() + ENABLED_RASTER_FILTER_TABLES_TTL_MS };
+    return value;
   } finally {
     await queryRunner.release();
   }
