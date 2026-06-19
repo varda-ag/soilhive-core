@@ -102,7 +102,7 @@ const processFile = async (
       if (error?.code === '42P01' || /does not exist/.test(error?.message ?? '')) {
         throw new JobError('BL_RAW_TABLE_NOT_FOUND');
       }
-      throw error;
+      throw new JobError('BL_RECORD_WRITE_FAILED');
     }
 
     const payloads: SoilRecord[][] = [];
