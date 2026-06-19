@@ -61,6 +61,7 @@ const resultRowHtml = (row: ResultRow): string => {
     `<td>${escapeHtml(row.asset)}</td>`,
     `<td>${escapeHtml(row.paramsVariant)}</td>`,
     `<td class="num">${row.daiResolution ?? ''}</td>`,
+    `<td>${row.filterId ? `<code>${escapeHtml(row.filterId)}</code>` : '—'}</td>`,
     `<td class="num">${escapeHtml(statuses)}</td>`,
     `<td class="num">${row.stats ? formatMs(row.stats.min) : '—'}</td>`,
     `<td class="num">${row.stats ? formatMs(row.stats.median) : '—'}</td>`,
@@ -87,7 +88,7 @@ ${renderFingerprintHtml(run.fingerprint)}
 <h2>Results (${run.results.length} rows, ${run.totals.requests} timed requests, ${(run.totals.wallClockMs / 1000).toFixed(1)}s wall clock)</h2>
 <table>
 <thead>
-<tr><th>Endpoint</th><th>Asset</th><th>Params</th><th>Res</th><th>Status</th><th>Min ms</th><th>Median ms</th><th>Mean ms</th><th>P95 ms</th><th>Max ms</th><th>~Size</th></tr>
+<tr><th>Endpoint</th><th>Asset</th><th>Params</th><th>Res</th><th>Filter</th><th>Status</th><th>Min ms</th><th>Median ms</th><th>Mean ms</th><th>P95 ms</th><th>Max ms</th><th>~Size</th></tr>
 </thead>
 <tbody>
 ${rows}

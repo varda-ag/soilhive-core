@@ -12,7 +12,9 @@
  * iteration count) and the diff report (diff.ts) warns when fingerprints
  * differ.
  *
- * Flow: for every *.geojson asset in tests/assets/geojson and every params
+ * Flow: for every *.geojson asset in tests/assets/geojson (or only the assets
+ * named in PERF_ASSETS, comma-separated, exact names without the extension —
+ * an unknown name aborts the run) and every params
  * variant — the unfiltered "default" (`{}`) always runs first, followed by any
  * <asset>.params.<n>.json sidecar files — the suite first POSTs a data filter
  * (phase 1), then exercises the GET-by-id endpoints against the created
@@ -26,13 +28,15 @@
  * untimed warmup request followed by PERF_ITERATIONS timed requests.
  *
  * Error policy: unexpected status codes, timeouts, and network failures are
- * recorded on the affected row (statusCodes/errors, status 0 = no response)
- * and the run continues; latency stats are computed over successful samples
- * only. The process exits non-zero when any row failed, after writing the
- * result files. Only precondition failures (server does not start, assets
- * missing, fingerprint DB unreachable) abort the run.
+ * recorded on the affected row (statusCodes/errors, status 0 = no response).
+ * A row stops at its first failed request — a failed warmup skips the timed
+ * iterations entirely — because the identical request would fail again; the
+ * run then continues with the remaining rows. Latency stats are computed over
+ * successful samples only. The process exits non-zero when any row failed,
+ * after writing the result files. Only precondition failures (server does not
+ * start, assets missing, fingerprint DB unreachable) abort the run.
  *
- * Side effect: each run persists (1 + PERF_ITERATIONS) data filters per
+ * Side effect: each run persists up to (1 + PERF_ITERATIONS) data filters per
  * asset/params variant in the target database.
  *
  * Output: perf-results/<timestamp>-<short-sha>.json + .html.
@@ -54,6 +58,11 @@ const BACKEND_ROOT = path.resolve(__dirname, '..', '..', '..');
 config({ path: path.join(BACKEND_ROOT, '.env'), quiet: true });
 
 const ITERATIONS = Number(process.env['PERF_ITERATIONS']) || 3;
+// Comma-separated exact asset names (file name minus .geojson); empty = all assets.
+const ASSET_FILTER = (process.env['PERF_ASSETS'] || '')
+  .split(',')
+  .map(s => s.trim())
+  .filter(s => s.length > 0);
 const DAI_RESOLUTIONS = (process.env['PERF_DAI_RESOLUTIONS'] || '3,5,7').split(',').map(Number);
 const REQUEST_TIMEOUT_MS = Number(process.env['PERF_TIMEOUT_MS']) || 120_000;
 const SERVER_START_TIMEOUT_MS = Number(process.env['PERF_SERVER_TIMEOUT_MS']) || 60_000;
@@ -173,9 +182,17 @@ const discoverAssets = (): AssetSpec[] => {
     throw new RunAbort(`Assets directory not found: ${ASSETS_DIR}`);
   }
   const files = fs.readdirSync(ASSETS_DIR);
-  const geojsonFiles = files.filter(f => f.endsWith('.geojson')).sort((a, b) => a.localeCompare(b));
+  let geojsonFiles = files.filter(f => f.endsWith('.geojson')).sort((a, b) => a.localeCompare(b));
   if (geojsonFiles.length === 0) {
     throw new RunAbort(`No .geojson assets found in ${ASSETS_DIR}`);
+  }
+  if (ASSET_FILTER.length > 0) {
+    const names = geojsonFiles.map(f => f.slice(0, -'.geojson'.length));
+    const unknown = ASSET_FILTER.filter(name => !names.includes(name));
+    if (unknown.length > 0) {
+      throw new RunAbort(`Unknown asset(s) in PERF_ASSETS: ${unknown.join(', ')} — available: ${names.join(', ')}`);
+    }
+    geojsonFiles = geojsonFiles.filter(f => ASSET_FILTER.includes(f.slice(0, -'.geojson'.length)));
   }
   return geojsonFiles.map(file => {
     const fullPath = path.join(ASSETS_DIR, file);
@@ -336,7 +353,14 @@ const timedRequest = async (
 };
 
 const measureRow = async (
-  meta: { method: string; pathTemplate: string; asset: string; paramsVariant: string; daiResolution: number | null },
+  meta: {
+    method: string;
+    pathTemplate: string;
+    asset: string;
+    paramsVariant: string;
+    daiResolution: number | null;
+    filterId: string | null;
+  },
   expectedStatus: number,
   request: () => Promise<Sample>,
 ): Promise<{ row: ResultRow; warmup: Sample; samples: Sample[] }> => {
@@ -344,11 +368,21 @@ const measureRow = async (
   console.log(`  ${key}`);
   const warmup = await request();
   const samples: Sample[] = [];
-  for (let i = 0; i < ITERATIONS; i++) {
-    samples.push(await request());
+  // Fail fast: the same request is repeated verbatim, so an error is
+  // deterministic — further iterations would only burn timeout budget and
+  // persist more junk filters. A failed warmup skips the timed loop entirely.
+  if (warmup.error === null) {
+    for (let i = 0; i < ITERATIONS; i++) {
+      const sample = await request();
+      samples.push(sample);
+      if (sample.error !== null) break;
+    }
   }
   const successful = samples.filter(s => s.error === null);
   const errors = samples.map(s => s.error).filter((e): e is string => e !== null);
+  if (warmup.error !== null) {
+    errors.push(`warmup: ${warmup.error}`);
+  }
   for (const error of errors) {
     console.warn(`    FAILED: ${error.split('\n')[0]}`);
   }
@@ -375,7 +409,14 @@ const measureRow = async (
  * matches no public non-raster datasets, so there is nothing to request).
  */
 const skippedRow = (
-  meta: { method: string; pathTemplate: string; asset: string; paramsVariant: string; daiResolution: number | null },
+  meta: {
+    method: string;
+    pathTemplate: string;
+    asset: string;
+    paramsVariant: string;
+    daiResolution: number | null;
+    filterId: string | null;
+  },
   expectedStatus: number,
   reason: string,
   ok = false,
@@ -425,7 +466,7 @@ const main = async () => {
   const timestamp = new Date().toISOString();
 
   console.log(
-    `Performance suite: ${assets.length} asset(s), ${ITERATIONS} iterations/row, DAI resolutions [${DAI_RESOLUTIONS.join(', ')}]`,
+    `Performance suite: ${assets.length} asset(s)${ASSET_FILTER.length > 0 ? ' (selected via PERF_ASSETS)' : ''}, ${ITERATIONS} iterations/row, DAI resolutions [${DAI_RESOLUTIONS.join(', ')}]`,
   );
 
   const { child, outputTail } = await startServer();
@@ -444,7 +485,14 @@ const main = async () => {
         const context = `asset=${asset.name} params=${variant.variant}`;
         const payload = { geometries: asset.geometries, parameters: variant.parameters };
         const { row, warmup, samples } = await measureRow(
-          { method: 'POST', pathTemplate: '/data-filters', asset: asset.name, paramsVariant: variant.variant, daiResolution: null },
+          {
+            method: 'POST',
+            pathTemplate: '/data-filters',
+            asset: asset.name,
+            paramsVariant: variant.variant,
+            daiResolution: null,
+            filterId: null,
+          },
           201,
           () => timedRequest('POST', `${BASE_URL}/data-filters`, payload, 201, context),
         );
@@ -461,6 +509,8 @@ const main = async () => {
           .find(id => id !== undefined);
         if (filterId) {
           filterIds.set(`${asset.name}|${variant.variant}`, filterId);
+          // The POST row reports the filter its GET rows ran against, so any row can be reproduced from the report alone
+          row.filterId = filterId;
         } else {
           console.warn(`    no filter id obtained (${context}) — its GET endpoints will be recorded as skipped`);
         }
@@ -481,7 +531,14 @@ const main = async () => {
         const skipReason = `skipped: POST /data-filters (${context}) produced no filter id`;
         let datasetsBody: string | undefined;
         for (const { pathTemplate, suffix } of getTemplates) {
-          const meta = { method: 'GET', pathTemplate, asset: asset.name, paramsVariant: variant.variant, daiResolution: null };
+          const meta = {
+            method: 'GET',
+            pathTemplate,
+            asset: asset.name,
+            paramsVariant: variant.variant,
+            daiResolution: null,
+            filterId: filterId ?? null,
+          };
           if (!filterId) {
             results.push(skippedRow(meta, 200, skipReason));
             continue;
@@ -501,6 +558,7 @@ const main = async () => {
           asset: asset.name,
           paramsVariant: variant.variant,
           daiResolution: null,
+          filterId: filterId ?? null,
         };
         if (!filterId) {
           results.push(skippedRow(soilDataMeta, 200, skipReason));
@@ -528,6 +586,7 @@ const main = async () => {
             asset: asset.name,
             paramsVariant: variant.variant,
             daiResolution: resolution,
+            filterId: filterId ?? null,
           };
           if (!filterId) {
             results.push(skippedRow(meta, 200, skipReason));

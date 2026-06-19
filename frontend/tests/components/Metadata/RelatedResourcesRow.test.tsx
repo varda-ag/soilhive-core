@@ -167,11 +167,51 @@ describe('RelatedResourcesRow', () => {
     });
   });
 
+  describe('save button dirty state', () => {
+    it('is disabled when no changes have been made (empty initial value)', () => {
+      render(<RelatedResourcesRow {...defaultProps} isEditable={true} value={[]} />);
+      fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+      expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+    });
+
+    it('is disabled when no changes have been made (non-empty initial value)', () => {
+      render(<RelatedResourcesRow {...defaultProps} isEditable={true} value={['https://existing.com']} />);
+      fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+      expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+    });
+
+    it('is enabled after adding a URL', () => {
+      render(<RelatedResourcesRow {...defaultProps} isEditable={true} value={[]} />);
+      fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+      fireEvent.change(screen.getByTestId('sh-ui-textinputfield'), { target: { value: 'https://new.com' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+      expect(screen.getByRole('button', { name: 'Save' })).not.toBeDisabled();
+    });
+
+    it('is disabled again after removing a newly-added URL (back to original)', () => {
+      render(<RelatedResourcesRow {...defaultProps} isEditable={true} value={[]} />);
+      fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+      fireEvent.change(screen.getByTestId('sh-ui-textinputfield'), { target: { value: 'https://new.com' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Remove resource' }));
+      expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+    });
+
+    it('is enabled after removing an existing saved URL', () => {
+      render(<RelatedResourcesRow {...defaultProps} isEditable={true} value={['https://existing.com']} />);
+      fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Remove resource' }));
+      expect(screen.getByRole('button', { name: 'Save' })).not.toBeDisabled();
+    });
+  });
+
   describe('save flow', () => {
     it('clicking Save calls onSave with property, current editValues, and callbacks', () => {
       const onSave = jest.fn();
-      render(<RelatedResourcesRow {...defaultProps} isEditable={true} value={['https://a.com']} onSave={onSave} />);
+      render(<RelatedResourcesRow {...defaultProps} isEditable={true} value={[]} onSave={onSave} />);
       fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+      fireEvent.change(screen.getByTestId('sh-ui-textinputfield'), { target: { value: 'https://a.com' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Add' }));
 
       fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
@@ -186,6 +226,8 @@ describe('RelatedResourcesRow', () => {
       const onSave = jest.fn((_prop: string, _val: string[], { onSuccess }: any) => onSuccess());
       render(<RelatedResourcesRow {...defaultProps} isEditable={true} onSave={onSave} />);
       fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+      fireEvent.change(screen.getByTestId('sh-ui-textinputfield'), { target: { value: 'https://new.com' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Add' }));
 
       fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
@@ -198,6 +240,8 @@ describe('RelatedResourcesRow', () => {
       const onSave = jest.fn((_prop: string, _val: string[], { onError }: any) => onError(error));
       render(<RelatedResourcesRow {...defaultProps} isEditable={true} onSave={onSave} />);
       fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+      fireEvent.change(screen.getByTestId('sh-ui-textinputfield'), { target: { value: 'https://new.com' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Add' }));
 
       fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
@@ -209,6 +253,8 @@ describe('RelatedResourcesRow', () => {
       const onSave = jest.fn(); // never calls callbacks — simulates pending request
       render(<RelatedResourcesRow {...defaultProps} isEditable={true} onSave={onSave} />);
       fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+      fireEvent.change(screen.getByTestId('sh-ui-textinputfield'), { target: { value: 'https://new.com' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Add' }));
 
       fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
