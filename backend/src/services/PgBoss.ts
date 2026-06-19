@@ -9,6 +9,8 @@ import { processBulkLoad } from '../jobs/bulk-load/BulkLoader';
 import { processBulkDeletion } from '../jobs/bulk-delete/BulkDeleter';
 import { processOrphanCleanup } from '../jobs/orphan-cleanup/OrphanCleanupJob';
 import { log } from '../utils/logger';
+import { JobError } from '../errors/JobError';
+import { getEntityManager } from '../utils/data-source';
 
 setupEnv();
 
@@ -52,7 +54,7 @@ const setupQueues = async () => {
   log.info('PgBoss queues created', { queues: Object.values(JobQueues) });
 };
 
-const runJob = async <T>(queue: JobQueues, job: Job<T>, processor: (job: Job<T>) => Promise<void>): Promise<void> => {
+export const runJob = async <T>(queue: JobQueues, job: Job<T>, processor: (job: Job<T>) => Promise<void>): Promise<void> => {
   const start = Date.now();
   log.info('Job started', { queue, job_id: job.id });
   try {
@@ -66,6 +68,20 @@ const runJob = async <T>(queue: JobQueues, job: Job<T>, processor: (job: Job<T>)
       error: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined,
     });
+    if (JobError.isJobError(error)) {
+      try {
+        const entityManager = await getEntityManager();
+        await entityManager.query(`UPDATE ${PG_BOSS_SCHEMA}.job SET data = data || $1::jsonb WHERE id = $2`, [
+          JSON.stringify({ errors: [{ code: error.code, params: error.params }] }),
+          job.id,
+        ]);
+      } catch (writeErr) {
+        log.error('Failed to write JobError to pg-boss data', {
+          job_id: job.id,
+          error: writeErr instanceof Error ? writeErr.message : String(writeErr),
+        });
+      }
+    }
     throw error;
   }
 };
