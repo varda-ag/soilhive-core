@@ -1052,6 +1052,9 @@ const buildRawSoilQuery = (
   // ── cursor / sort (data mode only) ──────────────────────────────────────────
   let cursorClause = '';
   let orderClause = 'ORDER BY obs.id ASC';
+  // Raw sort expression + direction, surfaced for the keyset page CTE below.
+  let sortExpr: string | null = null;
+  let pageDir = 'ASC';
 
   if (options.mode === 'data') {
     const sort = options.sort;
@@ -1086,6 +1089,8 @@ const buildRawSoilQuery = (
       if (!qualifiedColumn) throw new ErrorResponse(`Unknown sort field: ${sortKey}`, StatusCodes.BAD_REQUEST);
       const dir = isDesc ? 'DESC' : 'ASC';
       orderClause = `ORDER BY ${qualifiedColumn} ${dir}, obs.id ${dir}`;
+      sortExpr = qualifiedColumn;
+      pageDir = dir;
     }
 
     if (options.cursor) {
@@ -1143,8 +1148,23 @@ const buildRawSoilQuery = (
   const limitClause = options.mode === 'data' && options.limit ? `LIMIT ${parseInt(String(options.limit), 10)}` : '';
   if (options.mode === 'count') orderClause = '';
 
-  const sql = `
-    WITH
+  // LEFT JOINs for projection/sort, reused by the filter phase and the projection phase.
+  // Unreferenced unique LEFT JOINs are pruned by the planner, so it's safe to always include them.
+  const leftJoinBlock = `LEFT JOIN ${schema}.layers layer ON layer.id = dl.layer_id
+    LEFT JOIN ${schema}.soil_properties soil_property ON soil_property.id = dl.soil_property_id AND soil_property.deleted_at IS NULL
+    LEFT JOIN ${schema}.licenses license ON license.id = layer.license AND license.deleted_at IS NULL
+    LEFT JOIN ${schema}.licenses license_fallback ON license_fallback.slug = ds.licenses[1]
+    LEFT JOIN ${schema}.procedures procedure ON procedure.id = obs.procedure_id AND procedure.deleted_at IS NULL
+    LEFT JOIN ${schema}.vocabulary pv1 ON pv1.id = procedure.sample_pretreatment_id AND pv1.category = 'sample_pretreatment' AND pv1.deleted_at IS NULL
+    LEFT JOIN ${schema}.vocabulary pv2 ON pv2.id = procedure.laboratory_method_id AND pv2.category = 'laboratory_method' AND pv2.deleted_at IS NULL
+    LEFT JOIN ${schema}.vocabulary pv3 ON pv3.id = procedure.extractant_concentration_id AND pv3.category = 'extractant_concentration' AND pv3.deleted_at IS NULL
+    LEFT JOIN ${schema}.vocabulary pv4 ON pv4.id = procedure.extraction_ratio_id AND pv4.category = 'extraction_ratio' AND pv4.deleted_at IS NULL
+    LEFT JOIN ${schema}.vocabulary pv5 ON pv5.id = procedure.extraction_base_id AND pv5.category = 'extraction_base' AND pv5.deleted_at IS NULL
+    LEFT JOIN ${schema}.vocabulary pv6 ON pv6.id = procedure.measurement_procedure_id AND pv6.category = 'measurement_procedure' AND pv6.deleted_at IS NULL
+    LEFT JOIN ${schema}.vocabulary pv7 ON pv7.id = procedure.limit_of_detection_id AND pv7.category = 'limit_of_detection' AND pv7.deleted_at IS NULL`;
+
+  // Spatial/raster fences + dataset/layer narrowing, shared by every mode.
+  const ctePrefix = `WITH
     ${aoi_cte}
     ${usesMatchingFeatures ? `${rasterCtes},` : candidate_features_cte}
     -- Resolve slug(s) to dataset id(s) first — drives the join order
@@ -1161,29 +1181,57 @@ const buildRawSoilQuery = (
       FROM ${schema}.dataset_layers dl
       INNER JOIN target_dataset td ON td.id = dl.dataset_id
       ${featureJoin}
-    )
-    SELECT ${selectColumns}
-    FROM target_layers dl
+    )`;
+
+  // FROM/JOIN block anchored on target_layers, used for filtering (count + page 1).
+  const baseFrom = `FROM target_layers dl
     INNER JOIN ${schema}.datasets ds ON ds.id = dl.dataset_id
     INNER JOIN ${schema}.observations obs ON obs.dataset_layer_id = dl.id
-    LEFT JOIN ${schema}.layers layer ON layer.id = dl.layer_id
-    LEFT JOIN ${schema}.soil_properties soil_property ON soil_property.id = dl.soil_property_id AND soil_property.deleted_at IS NULL
-    LEFT JOIN ${schema}.licenses license ON license.id = layer.license AND license.deleted_at IS NULL
-    LEFT JOIN ${schema}.licenses license_fallback ON license_fallback.slug = ds.licenses[1]
-    LEFT JOIN ${schema}.procedures procedure ON procedure.id = obs.procedure_id AND procedure.deleted_at IS NULL
-    LEFT JOIN ${schema}.vocabulary pv1 ON pv1.id = procedure.sample_pretreatment_id AND pv1.category = 'sample_pretreatment' AND pv1.deleted_at IS NULL
-    LEFT JOIN ${schema}.vocabulary pv2 ON pv2.id = procedure.laboratory_method_id AND pv2.category = 'laboratory_method' AND pv2.deleted_at IS NULL
-    LEFT JOIN ${schema}.vocabulary pv3 ON pv3.id = procedure.extractant_concentration_id AND pv3.category = 'extractant_concentration' AND pv3.deleted_at IS NULL
-    LEFT JOIN ${schema}.vocabulary pv4 ON pv4.id = procedure.extraction_ratio_id AND pv4.category = 'extraction_ratio' AND pv4.deleted_at IS NULL
-    LEFT JOIN ${schema}.vocabulary pv5 ON pv5.id = procedure.extraction_base_id AND pv5.category = 'extraction_base' AND pv5.deleted_at IS NULL
-    LEFT JOIN ${schema}.vocabulary pv6 ON pv6.id = procedure.measurement_procedure_id AND pv6.category = 'measurement_procedure' AND pv6.deleted_at IS NULL
-    LEFT JOIN ${schema}.vocabulary pv7 ON pv7.id = procedure.limit_of_detection_id AND pv7.category = 'limit_of_detection' AND pv7.deleted_at IS NULL
+    ${leftJoinBlock}`;
+
+  let sql: string;
+  if (options.mode === 'count') {
+    sql = `
+    ${ctePrefix}
+    SELECT ${selectColumns}
+    ${baseFrom}
     WHERE 1=1
       ${whereClause}
-      ${cursorClause}
-    ${orderClause}
-    ${limitClause}
   `;
+  } else {
+    // Two-phase keyset pagination — avoids the early-stopping observations_pkey
+    // index scan that made `ORDER BY obs.id ASC LIMIT n` effectively non-terminating
+    // when matching rows are sparse:
+    //  • matched: filter-first, keys only, no ORDER BY/LIMIT → planner drives from
+    //    the tiny target_layers set instead of walking the observations PK.
+    //  • page: ORDER BY + LIMIT over the *materialized* keys → cheap Top-N, the base
+    //    index is no longer reachable so the bad plan can't recur.
+    //  • outer: project the heavy columns for the LIMIT rows only.
+    const pageOrderClause = `ORDER BY ${sortExpr ? `__sort_val ${pageDir}, ` : ''}id ${pageDir}`;
+    sql = `
+    ${ctePrefix},
+    matched AS MATERIALIZED (
+      SELECT obs.id${sortExpr ? `, ${sortExpr} AS __sort_val` : ''}
+      ${baseFrom}
+      WHERE 1=1
+        ${whereClause}
+        ${cursorClause}
+    ),
+    page AS (
+      SELECT id
+      FROM matched
+      ${pageOrderClause}
+      ${limitClause}
+    )
+    SELECT ${selectColumns}
+    FROM page
+    INNER JOIN ${schema}.observations obs ON obs.id = page.id
+    INNER JOIN target_layers dl ON dl.id = obs.dataset_layer_id
+    INNER JOIN ${schema}.datasets ds ON ds.id = dl.dataset_id
+    ${leftJoinBlock}
+    ${orderClause}
+  `;
+  }
 
   return { sql, params };
 };

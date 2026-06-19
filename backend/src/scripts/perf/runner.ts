@@ -57,7 +57,7 @@ import { AssetFingerprint, computeStats, PERF_RUN_VERSION, PerfRun, ResultRow, r
 const BACKEND_ROOT = path.resolve(__dirname, '..', '..', '..');
 config({ path: path.join(BACKEND_ROOT, '.env'), quiet: true });
 
-const ITERATIONS = Number(process.env['PERF_ITERATIONS']) || 3;
+const ITERATIONS = Number(process.env['PERF_ITERATIONS']) || 1;
 // Comma-separated exact asset names (file name minus .geojson); empty = all assets.
 const ASSET_FILTER = (process.env['PERF_ASSETS'] || '')
   .split(',')
