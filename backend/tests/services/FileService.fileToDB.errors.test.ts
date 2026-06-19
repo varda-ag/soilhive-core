@@ -104,23 +104,4 @@ describe('FileService.fileToDB — JobError surfacing', () => {
       code: 'FTD_GDAL_PARSE_ERROR',
     });
   });
-
-  it('E09 — FTD_GDAL_NOT_INSTALLED when ogr2ogr binary is missing from the server', async () => {
-    jest.spyOn(fileService, 'getFile').mockResolvedValue(makeFileEntity());
-    jest.spyOn(fileService as any, 'extractGeomFieldsFromMapping').mockResolvedValue({
-      geomField: null,
-      latField: null,
-      lonField: null,
-    });
-    jest.spyOn(FileService, 'getMainFilePath').mockResolvedValue({
-      mainFilePath: '/tmp/test.gpkg',
-      tempZipExtractPath: null,
-    });
-    jest.spyOn(GdalCLI, 'ogr2ogr').mockRejectedValue(new Error('GDAL_NOT_INSTALLED: ogr2ogr not found on this server'));
-
-    await expect(fileService.fileToDB({ entityManager: makeEntityManager(), entitlements: {} }, 'file-id')).rejects.toMatchObject({
-      name: 'JobError',
-      code: 'FTD_GDAL_NOT_INSTALLED',
-    });
-  });
 });

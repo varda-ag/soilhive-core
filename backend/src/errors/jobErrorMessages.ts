@@ -48,10 +48,14 @@ const JOB_ERROR_MESSAGES: Record<string, JobErrorMessage> = {
     action:
       'Try starting the ingestion again. If it keeps failing, check the column mapping for duplicate key conflicts or contact support.',
   },
-  FTD_GDAL_NOT_INSTALLED: {
-    message: 'File staging failed due to a server configuration problem.',
-    action: 'Contact your system administrator — the GDAL geo-processing tools are missing from this server.',
-  },
+  // FTD_GDAL_NOT_INSTALLED: reserved for future use — GdalCLI already emits a
+  // 'GDAL_NOT_INSTALLED:' prefix on ENOENT so the code is detectable, but by
+  // the time fileToDB runs GDAL has already been used (ogrinfo during metadata
+  // extraction), making this condition practically unreachable there.
+  // FTD_GDAL_NOT_INSTALLED: {
+  //   message: 'File staging failed due to a server configuration problem.',
+  //   action: 'Contact your system administrator — the GDAL geo-processing tools are missing from this server.',
+  // },
 };
 
 const FALLBACK: JobErrorMessage = {

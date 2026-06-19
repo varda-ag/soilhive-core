@@ -661,9 +661,6 @@ export default class FileService {
           opts: JSON.stringify(ogr2ogrOpts),
           error: errMsg,
         });
-        if (errMsg.includes('GDAL_NOT_INSTALLED:')) {
-          throw new JobError('FTD_GDAL_NOT_INSTALLED');
-        }
         if (/ogr2ogr failed \(exit \d+\)/.test(errMsg)) {
           throw new JobError('FTD_GDAL_PARSE_ERROR');
         }

@@ -10,7 +10,6 @@ describe('translateJobError', () => {
     'BL_RAW_TABLE_NOT_FOUND',
     'BL_MISSING_COLUMN_MAPPING',
     'BL_RECORD_WRITE_FAILED',
-    'FTD_GDAL_NOT_INSTALLED',
   ];
 
   test.each(DEFINED_CODES)('returns non-empty message and action for %s', code => {
