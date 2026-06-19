@@ -2560,6 +2560,9 @@ components:
         file_id:
           type: string
           description: File ID to be processed and inserted into the database
+        dataset_id:
+          type: string
+          description: Dataset the file belongs to — used to surface staging errors per dataset
 
     BulkDeleteJob:
       type: object
