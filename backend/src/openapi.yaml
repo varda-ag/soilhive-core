@@ -2611,7 +2611,8 @@ components:
           description: File ID to be processed and inserted into the database
         dataset_id:
           type: string
-          description: Dataset the file belongs to — used to surface staging errors per dataset
+          nullable: true
+          description: Optional. Dataset the file belongs to — used to surface staging errors per dataset. If omitted, errors for this job will not appear in GET /errors/datasets.
 
     BulkDeleteJob:
       type: object
