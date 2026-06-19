@@ -92,7 +92,7 @@ export default class VectorDataLoad {
     const metadataVals: Record<string, any> = {};
     const metadataCols: string[] = [];
     for (const mappedData of Object.values(LayerFields)) {
-      if (sanitizedRecord[mappedData]) {
+      if (sanitizedRecord[mappedData] !== null) {
         metadataVals[mappedData] = sanitizedRecord[mappedData];
       }
       metadataCols.push(mappedData);

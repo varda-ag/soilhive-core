@@ -188,4 +188,48 @@ describe('VectorDataLoad class', () => {
     const observations = await entityManager.find(ObservationEntity);
     expect(observations.length).toBeGreaterThan(0);
   });
+  it('rawRecordToDataModel with missing metadata columns should insert null for these fields but keep 0 value metadata', async () => {
+    const { dataset, file, dataMapping } = await addSyntheticIngestionData({
+      ...syntheticIngestionDataOptions,
+      columnMapping: {
+        upper_depth: 'min_depth',
+        lower_depth: 'max_depth',
+        date: 'sampling_date',
+        licence: 'license',
+        bdfi33: {
+          property_name: 'Bulk Density',
+        },
+        bdfiod: {
+          property_name: 'Bulk Density 2',
+        },
+        drop_records: [10136, 10137],
+      },
+    });
+    const vdl = new VectorDataLoad();
+    const entityManager = await getEntityManager();
+    const mockToken = {
+      scope: 'mock-scope',
+      raw: 'raw-auth-token',
+      email: 'mock-email',
+      isDataAdmin: true,
+      isSuperAdmin: false,
+      isInternalRequest: false,
+    };
+    const requestData: RequestData = {
+      entityManager,
+      token: mockToken,
+      entitlements: {},
+    };
+    const service = new DataMappingService();
+    const dataMappingConfig = await service.parseDataMapping(requestData, dataMapping.id);
+    const records = (await vdl.getDataPreview(entityManager, dataMappingConfig, file.id)) as SoilRecord[];
+    const promises = records.map(async record => await vdl.rawRecordToDataModel(entityManager, dataMappingConfig, record, dataset.id));
+    await Promise.all(promises);
+    const layers = await entityManager.find(LayerEntity);
+    expect(layers.length).toBeGreaterThan(0);
+    // Horizon not specified in column mapping:
+    expect(layers.map(l => l.horizon).filter(e => e !== null).length).toBe(0);
+    // Min depth with value 0 should be kept as value 0 (4 occurrences):
+    expect(layers.map(l => l.min_depth).filter(e => e === 0).length).toBe(4);
+  });
 });

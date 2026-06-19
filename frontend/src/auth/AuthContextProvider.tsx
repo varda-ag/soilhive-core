@@ -69,13 +69,31 @@ function InnerProvider({ children, authMode }: { children: React.ReactNode; auth
 function OidcAuthProvider({ children }: { children: React.ReactNode }) {
   const reactOidcAuth = useReactOidcAuth();
 
+  // Persist a token only if valid. Avoid saving an expired access_token
+  // (e.g. a stale user restored from storage at load which would then be sent on every request and 401)
+  const validToken = reactOidcAuth.user && !reactOidcAuth.user.expired ? reactOidcAuth.user.access_token : undefined;
+
   useEffect(() => {
-    if (reactOidcAuth.user?.access_token) {
-      saveToken(reactOidcAuth.user.access_token);
+    if (validToken) {
+      saveToken(validToken);
     } else {
       clearToken();
     }
-  }, [reactOidcAuth.user?.access_token]);
+  }, [validToken]);
+
+  // react-oidc-context does not subscribe to accessTokenExpired, so on expiry
+  // it never clears the user and the stale token keeps being used. Handle it
+  // explicitly: drop the token and remove the user so isAuthenticated flips to
+  // false (login UI reappears). This is a quiet logout, not a forced re-login.
+  const { events, removeUser } = reactOidcAuth;
+  useEffect(() => {
+    const handleExpired = () => {
+      clearToken();
+      removeUser();
+    };
+    events.addAccessTokenExpired(handleExpired);
+    return () => events.removeAccessTokenExpired(handleExpired);
+  }, [events, removeUser]);
 
   const value: AuthContext = {
     isAuthenticated: !!reactOidcAuth.isAuthenticated,
