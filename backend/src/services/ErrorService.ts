@@ -1,0 +1,41 @@
+import { RequestData } from '../interfaces/RequestData';
+import { PG_BOSS_SCHEMA } from './PgBoss';
+import { translateJobError } from '../errors/jobErrorMessages';
+
+export interface DatasetErrorItem {
+  code: string;
+  message: string;
+  action: string;
+  params: Record<string, unknown>;
+}
+
+export interface DatasetError {
+  dataset_id: string;
+  errors: DatasetErrorItem[];
+}
+
+export default class ErrorService {
+  async getDatasetErrors(requestData: RequestData): Promise<DatasetError[]> {
+    const rows: Array<{ dataset_id: string; errors: Array<{ code: string; params: Record<string, unknown> }> }> =
+      await requestData.entityManager.query(
+        `SELECT DISTINCT ON (data->>'dataset_id')
+           data->>'dataset_id' AS dataset_id,
+           data->'errors' AS errors
+         FROM ${PG_BOSS_SCHEMA}.job
+         WHERE name IN ('file-to-db', 'bulk-load')
+           AND state = 'failed'
+           AND data->>'dataset_id' IS NOT NULL
+           AND data->'errors' IS NOT NULL
+         ORDER BY data->>'dataset_id', createdon DESC`,
+      );
+
+    return rows.map(row => ({
+      dataset_id: row.dataset_id,
+      errors: (row.errors ?? []).map(e => ({
+        code: e.code,
+        params: e.params ?? {},
+        ...translateJobError(e.code),
+      })),
+    }));
+  }
+}

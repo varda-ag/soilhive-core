@@ -47,6 +47,7 @@ const setupQueues = async () => {
   const options = {
     retryLimit: 0, // Zero retries
     expireInSeconds: 60 * 60 * 24 - 1, // 24 hours (minus one according to pg-boss policy)
+    retentionSeconds: 60 * 60 * 24 * 30, // 30 days — retain failed jobs for error surfacing
   };
   const boss = getPgBoss();
   const promises = Object.values(JobQueues).map(async queue => await boss.createQueue(queue, options));
