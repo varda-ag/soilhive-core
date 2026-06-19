@@ -3,6 +3,16 @@ export interface JobErrorMessage {
   action: string;
 }
 
+// To reference a param in a message or action, use {paramName}.
+// The value is drawn from the `params` object passed to JobError:
+//
+//   throw new JobError('BL_DUPLICATE_COLUMN', { file_id: 'ex.csv', column: 'ph' });
+//
+//   BL_DUPLICATE_COLUMN: {
+//     message: "Column '{column}' is mapped to more than one soil property.",
+//     action:  "Open the mapping for file '{file_id}' and remove the duplicate.",
+//   },
+
 const JOB_ERROR_MESSAGES: Record<string, JobErrorMessage> = {
   FTD_FILE_NOT_FOUND: {
     message: 'Your file was removed from storage before processing could start.',
@@ -49,6 +59,13 @@ const FALLBACK: JobErrorMessage = {
   action: 'Try again. If the problem persists, contact support.',
 };
 
-export const translateJobError = (code: string): JobErrorMessage => {
-  return JOB_ERROR_MESSAGES[code] ?? FALLBACK;
+const interpolate = (template: string, params: Record<string, unknown>): string =>
+  template.replace(/\{(\w+)\}/g, (_, key) => (params[key] !== undefined ? String(params[key]) : `{${key}}`));
+
+export const translateJobError = (code: string, params: Record<string, unknown> = {}): JobErrorMessage => {
+  const { message, action } = JOB_ERROR_MESSAGES[code] ?? FALLBACK;
+  return {
+    message: interpolate(message, params),
+    action: interpolate(action, params),
+  };
 };

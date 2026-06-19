@@ -34,7 +34,7 @@ export default class ErrorService {
       errors: (row.errors ?? []).map(e => ({
         code: e.code,
         params: e.params ?? {},
-        ...translateJobError(e.code),
+        ...translateJobError(e.code, e.params ?? {}),
       })),
     }));
   }
