@@ -73,7 +73,7 @@ export const runJob = async <T>(queue: JobQueues, job: Job<T>, processor: (job: 
       try {
         const entityManager = await getEntityManager();
         await entityManager.query(`UPDATE ${PG_BOSS_SCHEMA}.job SET data = data || $1::jsonb WHERE id = $2`, [
-          JSON.stringify({ errors: [{ code: error.code, params: error.params }] }),
+          JSON.stringify({ errors: [{ code: error.code, params: error.params, detail: error.detail }] }),
           job.id,
         ]);
       } catch (writeErr) {

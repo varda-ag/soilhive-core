@@ -44,6 +44,20 @@ describe('ErrorService.getDatasetErrors', () => {
     });
   });
 
+  it('forwards detail when present in stored error', async () => {
+    const service = new ErrorService();
+    const rows = [{ dataset_id: 'ds-1', errors: [{ code: 'BL_RECORD_WRITE_FAILED', params: {}, detail: 'duplicate key value' }] }];
+    const result = await service.getDatasetErrors({ entityManager: makeEntityManager(rows), entitlements: {} });
+    expect(result[0]!.errors[0]!.detail).toBe('duplicate key value');
+  });
+
+  it('omits detail when absent from stored error', async () => {
+    const service = new ErrorService();
+    const rows = [{ dataset_id: 'ds-1', errors: [{ code: 'BL_RECORD_WRITE_FAILED', params: {} }] }];
+    const result = await service.getDatasetErrors({ entityManager: makeEntityManager(rows), entitlements: {} });
+    expect(result[0]!.errors[0]!.detail).toBeUndefined();
+  });
+
   it('handles multiple datasets each with their own error', async () => {
     const service = new ErrorService();
     const rows = [

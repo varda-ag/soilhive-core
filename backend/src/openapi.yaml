@@ -1835,6 +1835,9 @@ components:
               params:
                 type: object
                 additionalProperties: true
+              detail:
+                type: string
+                nullable: true
 
     AuthConfig:
       type: object

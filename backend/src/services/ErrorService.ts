@@ -7,6 +7,7 @@ export interface DatasetErrorItem {
   message: string;
   action: string;
   params: Record<string, unknown>;
+  detail?: string;
 }
 
 export interface DatasetError {
@@ -16,7 +17,7 @@ export interface DatasetError {
 
 export default class ErrorService {
   async getDatasetErrors(requestData: RequestData): Promise<DatasetError[]> {
-    const rows: Array<{ dataset_id: string; errors: Array<{ code: string; params: Record<string, unknown> }> }> =
+    const rows: Array<{ dataset_id: string; errors: Array<{ code: string; params: Record<string, unknown>; detail?: string }> }> =
       await requestData.entityManager.query(
         `SELECT DISTINCT ON (data->>'dataset_id')
            data->>'dataset_id' AS dataset_id,
@@ -34,6 +35,7 @@ export default class ErrorService {
       errors: (row.errors ?? []).map(e => ({
         code: e.code,
         params: e.params ?? {},
+        detail: e.detail,
         ...translateJobError(e.code, e.params ?? {}),
       })),
     }));

@@ -1,4 +1,17 @@
+import { JobError } from '../../src/errors/JobError';
 import { translateJobError } from '../../src/errors/jobErrorMessages';
+
+describe('JobError', () => {
+  it('stores detail when provided', () => {
+    const err = new JobError('BL_RECORD_WRITE_FAILED', {}, 'duplicate key value');
+    expect(err.detail).toBe('duplicate key value');
+  });
+
+  it('detail is undefined when omitted', () => {
+    const err = new JobError('BL_RECORD_WRITE_FAILED');
+    expect(err.detail).toBeUndefined();
+  });
+});
 
 describe('translateJobError', () => {
   const DEFINED_CODES = [
