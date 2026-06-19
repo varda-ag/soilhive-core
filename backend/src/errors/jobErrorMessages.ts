@@ -35,18 +35,18 @@ const JOB_ERROR_MESSAGES: Record<string, JobErrorMessage> = {
     action: 'Wait a few minutes for automatic cleanup, then try again. If it persists, contact support.',
   },
   BL_RAW_TABLE_NOT_FOUND: {
-    message: "One or more files haven't been staged yet and can't be ingested.",
+    message: "One or more files haven't been staged yet and can't be loaded.",
     action:
-      'Go to Files, check the status of each file in this dataset. Re-run file staging for any files showing an error, then retry ingestion.',
+      'Go to Files, check the status of each file in this dataset. Re-run file staging for any files showing an error, then retry data loading.',
   },
   BL_MISSING_COLUMN_MAPPING: {
     message: 'A file in this dataset has no column mapping configured.',
-    action: "Go to the dataset's mapping step and configure column mappings for all files, then retry ingestion.",
+    action: "Go to the dataset's mapping step and configure column mappings for all files, then retry data loading.",
   },
   BL_RECORD_WRITE_FAILED: {
     message: 'An error occurred while writing soil records to the database.',
     action:
-      'Try starting the ingestion again. If it keeps failing, check the column mapping for duplicate key conflicts or contact support.',
+      'Try starting data loading again. If it keeps failing, check the column mapping for duplicate key conflicts or contact support.',
   },
   // FTD_GDAL_NOT_INSTALLED: reserved for future use — GdalCLI already emits a
   // 'GDAL_NOT_INSTALLED:' prefix on ENOENT so the code is detectable, but by
