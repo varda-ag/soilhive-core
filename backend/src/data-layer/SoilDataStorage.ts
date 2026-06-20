@@ -686,6 +686,13 @@ const hasRasterFilters = (filters: FilterCriteria): boolean => {
 const ENABLED_RASTER_FILTER_TABLES_TTL_MS = 30 * 60 * 1000;
 let enabledRasterFilterTablesCache: { value: string[]; expiresAt: number } | undefined;
 
+// Test hook: the cache outlives any single DB state, so it must be cleared whenever
+// the underlying raster_filters table is reset (e.g. clearDatabase between tests),
+// otherwise a value cached while the table was empty leaks across tests.
+export const resetEnabledRasterFilterTablesCache = (): void => {
+  enabledRasterFilterTablesCache = undefined;
+};
+
 export const getEnabledRasterFilterTables = async (): Promise<string[]> => {
   if (enabledRasterFilterTablesCache && enabledRasterFilterTablesCache.expiresAt > Date.now()) {
     return enabledRasterFilterTablesCache.value;
