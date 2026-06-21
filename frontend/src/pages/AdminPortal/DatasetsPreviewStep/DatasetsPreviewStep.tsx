@@ -146,7 +146,8 @@ export function DatasetsPreviewStep() {
   useEffect(() => {
     if (availableColumns.length && !visibleColumns.length) {
       const propertyColumns = availableColumns.filter(column => column !== 'license' && !initialVisibleColumns.includes(column));
-      setVisibleColumns(propertyColumns.length ? [...initialVisibleColumns, ...propertyColumns] : initialVisibleColumns);
+      const availableInitialColumns = initialVisibleColumns.filter(col => availableColumns.includes(col));
+      setVisibleColumns([...availableInitialColumns, ...propertyColumns]);
     }
   }, [availableColumns, visibleColumns]);
 

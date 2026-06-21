@@ -82,6 +82,7 @@ exports[`DatasetsPreviewStep matches snapshot 1`] = `
         <div
           data-disabled="false"
           data-testid="column-multiselect"
+          data-value="["min_depth","max_depth","ph"]"
         >
           <button
             data-testid="col-option-min_depth"
