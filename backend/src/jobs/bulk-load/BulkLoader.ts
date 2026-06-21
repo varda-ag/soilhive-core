@@ -99,10 +99,10 @@ const processFile = async (
     try {
       results = await vdl.getDataPreview(requestData.entityManager, dataMappingConfig, file.id, BATCH_SIZE, cursor);
     } catch (error: any) {
-      if (error?.code === '42P01' || /does not exist/.test(error?.message ?? '')) {
-        throw new JobError('BL_RAW_TABLE_NOT_FOUND');
+      if (error?.code === '42P01' || /does not exist/.test(error?.detail ?? error?.message ?? '')) {
+        throw new JobError('BL_RAW_TABLE_NOT_FOUND', {}, error?.detail ?? error?.message);
       }
-      throw new JobError('BL_RECORD_WRITE_FAILED');
+      throw new JobError('BL_RECORD_WRITE_FAILED', {}, error?.detail ?? error?.message);
     }
 
     const payloads: SoilRecord[][] = [];
@@ -115,8 +115,8 @@ const processFile = async (
 
     try {
       await Promise.all(promises);
-    } catch {
-      throw new JobError('BL_RECORD_WRITE_FAILED');
+    } catch (error: any) {
+      throw new JobError('BL_RECORD_WRITE_FAILED', {}, error?.detail ?? error?.message);
     }
 
     if (results.length < BATCH_SIZE) {

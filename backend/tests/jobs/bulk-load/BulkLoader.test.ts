@@ -108,6 +108,7 @@ describe('BulkLoader class', () => {
     await expect(BulkLoaderModule.processBulkLoad(getJob(dataset.slug))).rejects.toMatchObject({
       name: 'JobError',
       code: 'BL_RECORD_WRITE_FAILED',
+      detail: expect.any(String),
     });
 
     const createdData = await getLoadedDataCount();
@@ -131,6 +132,7 @@ describe('BulkLoader class', () => {
     await expect(BulkLoaderModule.processBulkLoad(getJob(dataset.slug))).rejects.toMatchObject({
       name: 'JobError',
       code: 'BL_RAW_TABLE_NOT_FOUND',
+      detail: expect.any(String),
     });
   });
 

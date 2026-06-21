@@ -662,7 +662,7 @@ export default class FileService {
           error: errMsg,
         });
         if (/ogr2ogr failed \(exit \d+\)/.test(errMsg)) {
-          throw new JobError('FTD_GDAL_PARSE_ERROR');
+          throw new JobError('FTD_GDAL_PARSE_ERROR', {}, errMsg);
         }
         throw translateError;
       }
