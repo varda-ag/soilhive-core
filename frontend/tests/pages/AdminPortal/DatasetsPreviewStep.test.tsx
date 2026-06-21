@@ -24,11 +24,7 @@ jest.mock('primereact/dropdown', () => ({
 
 jest.mock('primereact/multiselect', () => ({
   MultiSelect: ({ onChange, value, options, disabled }: any) => (
-    <div
-      data-testid="column-multiselect"
-      data-disabled={String(disabled)}
-      data-value={JSON.stringify(value ?? [])}
-    >
+    <div data-testid="column-multiselect" data-disabled={String(disabled)} data-value={JSON.stringify(value ?? [])}>
       {(options ?? []).map((opt: any) => (
         <button
           key={opt.value}
@@ -221,9 +217,7 @@ describe('DatasetsPreviewStep', () => {
       // for any selected value it could not resolve to an option label.
       mockHook({ availableColumns: ['sampling_date', 'ph', 'carbon'] });
       render(<DatasetsPreviewStep />);
-      const selected: string[] = JSON.parse(
-        screen.getByTestId('column-multiselect').getAttribute('data-value') ?? '[]',
-      );
+      const selected: string[] = JSON.parse(screen.getByTestId('column-multiselect').getAttribute('data-value') ?? '[]');
       expect(selected).not.toContain('min_depth');
       expect(selected).not.toContain('max_depth');
       expect(selected).not.toContain('horizon');
