@@ -257,24 +257,29 @@ export default class SoilDataStorage {
         JOIN aoi ON ST_Intersects(f.geom, aoi.geom)
       )`;
 
-    const existsWhere = [`dl.dataset_id = ds.id`, ...lateralWhere];
+    // Resolve the matching datasets feature-first in a dedicated CTE rather than via a
+    // dataset-correlated EXISTS. The `= ANY(ARRAY(...))` predicate on feature_id forces an
+    // index scan on dataset_layers(feature_id) over the ~hundreds of AOI features. The
+    // correlated EXISTS instead let the planner pick the dataset_id index and bitmap-scan
+    // every layer of each candidate dataset (millions of rows) before filtering by feature.
+    const matchingDatasetsWhere = [`dl.feature_id = ANY(ARRAY(SELECT id FROM ${featureTable}))`, ...lateralWhere];
 
     const sql = `
       WITH
       aoi AS MATERIALIZED (
         SELECT ugs.geom
         FROM ${schema}.user_geometry_subdivisions ugs WHERE ugs.user_geometry_id = ANY($1::uuid[])
-      )${rasterCtes ? `,\n      ${rasterCtes}` : ''}${aoiFeaturesCte}
+      )${rasterCtes ? `,\n      ${rasterCtes}` : ''}${aoiFeaturesCte},
+      matching_datasets AS MATERIALIZED (
+        SELECT DISTINCT dl.dataset_id
+        FROM ${schema}.dataset_layers dl
+        ${lateralJoins.join('\n        ')}
+        WHERE ${matchingDatasetsWhere.join('\n          AND ')}
+      )
       SELECT ds.slug AS id, ds.name, ds.gis_datatype AS data_type, ds.visibility
       FROM ${schema}.datasets ds
       WHERE ${outerWhere.join('\n        AND ')}
-        AND EXISTS (
-          SELECT 1
-          FROM ${schema}.dataset_layers dl
-          INNER JOIN ${featureTable} af ON af.id = dl.feature_id
-          ${lateralJoins.join('\n          ')}
-          WHERE ${existsWhere.join('\n            AND ')}
-        )
+        AND ds.id IN (SELECT dataset_id FROM matching_datasets)
     `;
 
     await entityManager.query(SET_LOCAL_WORK_MEM_SQL);
