@@ -1161,10 +1161,23 @@ const buildRawSoilQuery = (
       ${featureJoin}
     )`;
 
-  // FROM/JOIN block anchored on target_layers, used for filtering (count + page 1).
+  // FROM/JOIN block anchored on target_layers, used for the count phase.
   const baseFrom = `FROM target_layers dl
     INNER JOIN ${schema}.datasets ds ON ds.id = dl.dataset_id
     INNER JOIN ${schema}.observations obs ON obs.dataset_layer_id = dl.id
+    ${leftJoinBlock}`;
+
+  // The `matched` phase anchors on observations instead, reached through an
+  // `= ANY(ARRAY(...))` predicate on dataset_layer_id (the same idiom used for
+  // dataset_layers.feature_id). This forces an index scan on
+  // observations(dataset_layer_id); without it the planner seq-scans the whole
+  // observations table and hash-joins, because the MATERIALIZED CTEs strip
+  // statistics and grossly inflate the target_layers/matched row estimates,
+  // making the one-pass hash join look cheaper than the index probes it isn't.
+  // target_layers is still joined back for the projection/filter columns.
+  const matchedFrom = `FROM ${schema}.observations obs
+    INNER JOIN target_layers dl ON dl.id = obs.dataset_layer_id
+    INNER JOIN ${schema}.datasets ds ON ds.id = dl.dataset_id
     ${leftJoinBlock}`;
 
   let sql: string;
@@ -1180,8 +1193,8 @@ const buildRawSoilQuery = (
     // Two-phase keyset pagination — avoids the early-stopping observations_pkey
     // index scan that made `ORDER BY obs.id ASC LIMIT n` effectively non-terminating
     // when matching rows are sparse:
-    //  • matched: filter-first, keys only, no ORDER BY/LIMIT → planner drives from
-    //    the tiny target_layers set instead of walking the observations PK.
+    //  • matched: filter-first, keys only, no ORDER BY/LIMIT → reaches observations
+    //    by index on dataset_layer_id (ANY-array predicate) instead of walking the PK.
     //  • page: ORDER BY + LIMIT over the *materialized* keys → cheap Top-N, the base
     //    index is no longer reachable so the bad plan can't recur.
     //  • outer: project the heavy columns for the LIMIT rows only.
@@ -1190,8 +1203,8 @@ const buildRawSoilQuery = (
     ${ctePrefix},
     matched AS MATERIALIZED (
       SELECT obs.id${sortExpr ? `, ${sortExpr} AS __sort_val` : ''}
-      ${baseFrom}
-      WHERE 1=1
+      ${matchedFrom}
+      WHERE obs.dataset_layer_id = ANY(ARRAY(SELECT id FROM target_layers)::uuid[])
         ${whereClause}
         ${cursorClause}
     ),
