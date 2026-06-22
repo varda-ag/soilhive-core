@@ -1,20 +1,12 @@
-import { fromFile, fromUrl } from 'geotiff';
-import type { MultiPolygon, Polygon } from 'geojson';
+import type { MultiPolygon } from 'geojson';
 import FileService from '../services/FileService';
 import { GdalCLI } from '../utils/GdalCLI';
-import ConfigService from '../services/ConfigService';
-import { StorageModes } from '../types/enums';
+import { openTiff } from '../utils/raster';
 
 const MAX_TILES = 256 * 256;
 const MIN_TILES = 256;
 const PIXELS_PER_TILE_MIN_DIM = 512;
 const INSERT_BATCH_SIZE = 10;
-
-export interface RasterFootprintMeta {
-  nodata: number | null;
-  resolution: number;
-  bbox: Polygon;
-}
 
 export type FootprintBatchCallback = (tiles: MultiPolygon[]) => Promise<void>;
 
@@ -25,42 +17,6 @@ function computeGrid(rasterWidth: number, rasterHeight: number): { nCols: number
   const nCols = Math.max(1, Math.round(Math.sqrt(targetTiles * (rasterWidth / rasterHeight))));
   const nRows = Math.max(1, Math.round(Math.sqrt(targetTiles * (rasterHeight / rasterWidth))));
   return { nCols, nRows };
-}
-
-export async function analyzeRasterMeta(cogPath: string, nodataOverride?: number): Promise<RasterFootprintMeta> {
-  const { mainFilePath } = await FileService.getMainFilePath(cogPath);
-  const info = await GdalCLI.gdalinfo(mainFilePath);
-
-  const gt = info.geoTransform;
-  if (!gt) throw new Error('Raster has no geoTransform');
-
-  const [rasterNativeWidth, rasterNativeHeight] = info.size ?? [0, 0];
-  const xMin = gt[0]!;
-  const yMax = gt[3]!;
-  const pixW = gt[1]!;
-  const pixH = gt[5]!;
-  const xMax = xMin + rasterNativeWidth * pixW;
-  const yMin = yMax + rasterNativeHeight * pixH;
-
-  const nodata: number | null = nodataOverride !== undefined ? nodataOverride : (info.bands?.[0]?.noDataValue ?? null);
-
-  const isGeo = (info.coordinateSystem?.wkt?.includes('GEOGCS') || info.coordinateSystem?.wkt?.includes('GEOGCRS')) ?? true;
-  const resolution = Math.round(Math.abs(pixW) * (isGeo ? 111320 : 1));
-
-  const bbox: Polygon = {
-    type: 'Polygon',
-    coordinates: [
-      [
-        [xMin, yMin],
-        [xMax, yMin],
-        [xMax, yMax],
-        [xMin, yMax],
-        [xMin, yMin],
-      ],
-    ],
-  };
-
-  return { nodata, resolution, bbox };
 }
 
 export async function streamRasterFootprints(
@@ -92,9 +48,7 @@ export async function streamRasterFootprints(
   const tileH = rasterHeightDeg / nRows;
   const tileMinDim = Math.min(tileW, tileH);
 
-  const config = ConfigService.getStorageConfig();
-  const tiff =
-    config.storageMode === StorageModes.S3 ? await fromUrl(await FileService.getPresignedUrl(cogPath)) : await fromFile(mainFilePath);
+  const tiff = await openTiff(cogPath);
   const imageCount = await tiff.getImageCount();
 
   // Select overview: mirrors original GDAL logic — coarsest overview satisfying
