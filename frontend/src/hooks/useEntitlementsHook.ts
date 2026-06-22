@@ -1,5 +1,6 @@
 import { decodeTokenFromString, type Role } from '../auth/tokenScopes';
 import { useAuthContext } from '../auth/AuthContextProvider';
+import { FEATURE_FLAGS } from '../utilities/environmentVariables';
 
 // Special roles — not in token, resolved at runtime
 export const ANYONE = 'anyone' as const;
@@ -40,10 +41,8 @@ const ENTITLEMENT_MATRIX: Record<Action, AllRoles[]> = {
   [MAP_BASED_FILTERS]: ['data-admin'],
   [ADMIN_PORTAL_ACCESS]: ['data-admin'],
   [ADMIN_PORTAL_DATA_MENU]: ['data-admin'],
-  [DELETE_DATASET]: [],
+  [DELETE_DATASET]: ['data-admin'],
 };
-
-const DISABLED_ACTIONS: Action[] = [DELETE_DATASET];
 
 export function useEntitlements() {
   const { user } = useAuthContext();
@@ -57,7 +56,7 @@ export function useEntitlements() {
       throw new Error(`Action ${action} is not defined in the entitlement matrix.`);
     }
 
-    if (DISABLED_ACTIONS.includes(action)) {
+    if (FEATURE_FLAGS?.includes('DISABLE_DELETE_DATASET') && action === DELETE_DATASET) {
       return false;
     }
 
