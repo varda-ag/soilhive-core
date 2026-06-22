@@ -42,7 +42,7 @@ export default class ErrorService {
       errors: (row.errors ?? []).map(e => ({
         code: e.code,
         params: e.params ?? {},
-        detail: e.detail,
+        ...(e.detail !== undefined && { detail: e.detail }),
         ...translateJobError(e.code, e.params ?? {}),
       })),
     }));
