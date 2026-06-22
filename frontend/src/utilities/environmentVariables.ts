@@ -5,6 +5,7 @@ declare global {
       BACKEND_BASE_URL?: string;
       GTM_CONTAINER_ID?: string;
       COOKIE_DOMAIN?: string;
+      FEATURE_FLAGS?: string;
     };
   }
 }
@@ -17,3 +18,4 @@ export const MAPBOX_ACCESS_TOKEN: string | undefined = _env.MAPBOX_ACCESS_TOKEN;
 export const BACKEND_BASE_URL: string | undefined = _env.BACKEND_BASE_URL;
 export const GTM_CONTAINER_ID: string | undefined = _env.GTM_CONTAINER_ID;
 export const COOKIE_DOMAIN: string | undefined = _env.COOKIE_DOMAIN;
+export const FEATURE_FLAGS: string | undefined = _env.FEATURE_FLAGS;

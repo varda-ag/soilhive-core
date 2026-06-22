@@ -28,6 +28,7 @@ window._env_ = {
   MAPBOX_ACCESS_TOKEN: '<your Mapbox token, or empty string to disable the map>',
   GTM_CONTAINER_ID: '',    // optional — Google Tag Manager container ID
   COOKIE_DOMAIN: '',       // optional — overrides cookie domain for consent banner
+  FEATURE_FLAGS: '',       // optional — frontend feature flags
 };
 ```
 
@@ -125,7 +126,7 @@ import { Button } from '../../../components/UI/Button';
 
 ## Docker
 
-A `Dockerfile` is provided for containerized deployments. It runs `pnpm build` and then `node dist/server/index.cjs`. All four runtime env vars (`BACKEND_BASE_URL`, `MAPBOX_ACCESS_TOKEN`, `GTM_CONTAINER_ID`, `COOKIE_DOMAIN`) can be passed with `--env` or Docker Compose's `environment:` block.
+A `Dockerfile` is provided for containerized deployments. It runs `pnpm build` and then `node dist/server/index.cjs`. All runtime env vars (`BACKEND_BASE_URL`, `MAPBOX_ACCESS_TOKEN`, `GTM_CONTAINER_ID`, `COOKIE_DOMAIN`, `FEATURE_FLAGS`) can be passed with `--env` or Docker Compose's `environment:` block.
 
 ## Health checks
 
