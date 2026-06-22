@@ -16,6 +16,9 @@ import DatasetEntity from '../../../src/entities/Dataset';
 import RasterLayerEntity from '../../../src/entities/RasterLayer';
 import { GdalCLI } from '../../../src/utils/GdalCLI';
 import { IngestionStatus } from '../../../src/types/data';
+import * as FilteringMasksModule from '../../../src/data-layer/FilteringMasks';
+import { addRasterFilterData, addRasterFilterMappings } from '../../helper';
+import * as RasterUtilsModule from '../../../src/utils/raster';
 
 const storageRoot = process.env.LOCAL_STORAGE_ROOT_FOLDER!;
 
@@ -191,7 +194,7 @@ describe('Soil Export Job Integration Test', () => {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }, 6000); // 6 seconds timeout for integration test
 
-    it('should create one output file with one band and one vector layer when format requested is GPKG', async () => {
+    it('should create one output file with one raster band and one vector layer when format requested is GPKG', async () => {
       const filterResponse = await request(app)
         .post('/data-filters')
         .send({
@@ -552,6 +555,129 @@ describe('Soil Export Job Integration Test', () => {
       // Cleanup
       fs.rmSync(tempDir, { recursive: true, force: true });
     }, 8000);
+
+    it('should create properly filtered raster output when raster filters are applied', async () => {
+      await addRasterFilterData();
+      await addRasterFilterMappings();
+      // Do not reference any overview (they don't exist in test dump)
+      const mockSelectOverview = jest.spyOn(RasterUtilsModule, 'selectOverviewTable').mockImplementation((table: string) => {
+        return table;
+      });
+      const spy = jest.spyOn(FilteringMasksModule, 'getRasterMask');
+      const filterResponse = await request(app)
+        .post('/data-filters')
+        .send({
+          geometries: [filterPolygon],
+          parameters: {
+            raster_filters: {
+              land_cover: [30, 60],
+            },
+          },
+        });
+
+      expect(filterResponse.statusCode).toBe(201);
+      const filterId = filterResponse.body.id;
+      expect(filterId).toBeDefined();
+
+      // 3. Queue an export job via API
+      const exportJobResponse = await request(app)
+        .post('/jobs')
+        .send({
+          type: 'export',
+          filter_id: filterId,
+          dataset_ids: [raster_layer?.dataset.slug],
+          formats: [RasterFileFormat.TIFF],
+        });
+
+      expect(exportJobResponse.statusCode).toBe(201);
+      const jobId = exportJobResponse.body.id;
+      expect(jobId).toBeDefined();
+
+      // 4. Poll for job completion
+      let jobStatus = 'created';
+      let attempts = 0;
+      const maxAttempts = 60; // Wait up to 60 seconds
+      let completedJob: any;
+
+      while (jobStatus !== 'completed' && attempts < maxAttempts) {
+        await sleep(1000); // Wait 1 second between polls
+        attempts++;
+
+        const statusResponse = await request(app).get(`/jobs/${jobId}`);
+        expect(statusResponse.statusCode).toBe(200);
+
+        completedJob = statusResponse.body;
+        jobStatus = completedJob.status;
+
+        // If job failed, throw error
+        if (jobStatus === 'failed') {
+          throw new Error(`Job failed: ${JSON.stringify(completedJob)}`);
+        }
+      }
+
+      expect(jobStatus).toBe('completed');
+      expect(completedJob.data.download_path).toBeDefined();
+      expect(completedJob.data.progress_percentage).toBe(100);
+
+      // 5. Download the file
+      const downloadPath = completedJob.data.download_path;
+      // The API expects path separators to be encoded as %2F
+      const escapedDownloadPath = downloadPath.replace(/\//g, '%2F');
+
+      const downloadResponse = await request(app)
+        .get(`/downloads/${escapedDownloadPath}`)
+        .buffer()
+        // Explicitly tell SuperTest NOT to parse this as JSON/Object
+        .parse((res, callback) => {
+          res.setEncoding('binary');
+          let data = '';
+          res.on('data', chunk => {
+            data += chunk;
+          });
+          res.on('end', () => {
+            callback(null, Buffer.from(data, 'binary'));
+          });
+        });
+
+      expect(downloadResponse.statusCode).toBe(StatusCodes.OK);
+
+      // 6. Save and verify the zip file
+      const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'export-test-'));
+      const zipPath = path.join(tempDir, 'export.zip');
+
+      fs.writeFileSync(zipPath, downloadResponse.body);
+
+      // Verify zip file exists and is not empty
+      expect(fs.existsSync(zipPath)).toBe(true);
+      const stats = fs.statSync(zipPath);
+      expect(stats.size).toBeGreaterThan(0);
+
+      // Extract and verify contents
+      const extractDir = path.join(tempDir, 'extracted');
+      fs.mkdirSync(extractDir, { recursive: true });
+      await extractZip(zipPath, { dir: extractDir });
+
+      // List extracted files (zip should contain files at root level)
+      const extractedFiles = fs.readdirSync(extractDir);
+      expect(extractedFiles.length).toBeGreaterThan(0);
+
+      // Should contain at least a README file
+      const readmeFile = extractedFiles.find((file: string) => file.toLowerCase().includes('readme'));
+      expect(readmeFile).toBeDefined();
+
+      // Find TIFF files
+      const tiffFiles = extractedFiles.filter((file: string) => file.toLowerCase().endsWith('.tif'));
+      expect(tiffFiles.length).toBe(1);
+      expect(tiffFiles[0]).toContain(sanitizeField(raster_layer!.dataset.name));
+      expect(tiffFiles[0]).toContain(sanitizeField(raster_layer!.soil_property.property_name));
+
+      expect(spy).toHaveBeenCalled();
+      spy.mockRestore();
+      // Cleanup
+      fs.rmSync(tempDir, { recursive: true, force: true });
+
+      mockSelectOverview.mockRestore();
+    }, 15000);
   });
 
   it('should stop processing and not produce a download_path when job is cancelled mid-run', async () => {

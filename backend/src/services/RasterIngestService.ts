@@ -1,5 +1,6 @@
 import path from 'path';
-import { analyzeRasterMeta, streamRasterFootprints } from '../scripts/computeRasterFootprints';
+import { streamRasterFootprints } from '../scripts/computeRasterFootprints';
+import { analyzeRasterMeta } from '../utils/raster';
 import { getEntityManager } from '../utils/data-source';
 import { log } from '../utils/logger';
 import { MultiPolygon } from 'geojson';

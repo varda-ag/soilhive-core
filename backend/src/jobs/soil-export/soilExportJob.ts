@@ -34,6 +34,7 @@ import DatasetService from '../../services/DatasetService';
 import FilterService from '../../services/FilterService';
 import { GISDataType } from '../../types/data';
 import { getExportBatchSize } from '../../utils/utils';
+import { getRasterMask } from '../../data-layer/FilteringMasks';
 
 export async function processExportJob(job: Job<ExportJob>): Promise<void> {
   const { id: jobId, data } = job;
@@ -210,37 +211,45 @@ async function exportRasterData(
 ): Promise<Partial<ExportOutputs>> {
   if (!data.dataset_ids?.length) return { total_layers_processed: 0 };
 
-  const { layers, aoi } = await fetchRasterLayers(requestData, data);
+  const { layers } = await fetchRasterLayers(requestData, data);
+  const filterService = new FilterService();
+  const filter = await filterService.getFilterById(requestData, data.filter_id);
+  const rasterMaskFile = await getRasterMask(requestData.entityManager, filter, 'file');
 
-  if (!layers.length || !aoi) return { total_layers_processed: 0 };
+  if (!layers.length) return { total_layers_processed: 0 };
+  if (!rasterMaskFile) return { total_layers_processed: 0 };
 
   const writer = new RasterFileWriter(fileFormat, tempDir);
   let totalLayersProcessed = 0;
 
-  for (const layer of layers) {
-    if (await isJobCancelled(jobId)) break;
+  try {
+    for (const layer of layers) {
+      if (await isJobCancelled(jobId)) break;
 
-    await writer.writeLayer(layer, aoi);
-    totalLayersProcessed++;
+      await writer.writeLayer(layer, rasterMaskFile);
+      totalLayersProcessed++;
 
-    const stored_data = await getJobData(jobId);
-    const progress_percentage = computeCombinedProgress(
-      stored_data.total_records_processed ?? 0,
-      stored_data.total_records_estimate,
-      totalLayersProcessed,
-      stored_data.total_layers_estimate,
-      stored_data.aoi_area_km2,
-    );
-    const progress_description_vector =
-      (stored_data.total_records_processed ?? 0) > 0 ? `${stored_data.total_records_processed} records` : null;
-    const progress_description_raster = totalLayersProcessed > 0 ? `${totalLayersProcessed} raster layers` : null;
+      const stored_data = await getJobData(jobId);
+      const progress_percentage = computeCombinedProgress(
+        stored_data.total_records_processed ?? 0,
+        stored_data.total_records_estimate,
+        totalLayersProcessed,
+        stored_data.total_layers_estimate,
+        stored_data.aoi_area_km2,
+      );
+      const progress_description_vector =
+        (stored_data.total_records_processed ?? 0) > 0 ? `${stored_data.total_records_processed} records` : null;
+      const progress_description_raster = totalLayersProcessed > 0 ? `${totalLayersProcessed} raster layers` : null;
 
-    await updateJobState(jobId, {
-      ...data,
-      total_layers_processed: totalLayersProcessed,
-      progress_percentage,
-      progress_description: `Processed ${[progress_description_vector, progress_description_raster].filter(e => e !== null).join(' and ')}...`,
-    });
+      await updateJobState(jobId, {
+        ...data,
+        total_layers_processed: totalLayersProcessed,
+        progress_percentage,
+        progress_description: `Processed ${[progress_description_vector, progress_description_raster].filter(e => e !== null).join(' and ')}...`,
+      });
+    }
+  } finally {
+    fs.unlinkSync(rasterMaskFile);
   }
 
   return { total_layers_processed: totalLayersProcessed };
@@ -266,5 +275,5 @@ async function getJobData(jobId: string): Promise<ExportJob> {
   const boss = getPgBoss();
   const db = boss.getDb();
   const result = await db.executeSql(`SELECT data FROM ${PG_BOSS_SCHEMA}.job WHERE id = $1 AND state = 'active'`, [jobId]);
-  return result.rows[0];
+  return result.rows[0]?.data;
 }

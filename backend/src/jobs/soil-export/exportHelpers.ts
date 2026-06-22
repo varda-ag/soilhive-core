@@ -164,8 +164,7 @@ export async function createReadmeFile(requestData: RequestData, tempDir: string
 export async function getTotalLayersCount(requestData: RequestData, payload: ExportJobParameters): Promise<number> {
   if (!payload.dataset_ids?.length) return 0;
   const filter = await filterService.getFilterById(requestData, payload.filter_id);
-  const { layers } = await soilDataStorage.getRasterLayers(requestData, filter, payload.dataset_ids);
-  return layers.length;
+  return await soilDataStorage.getRasterLayerCount(requestData, filter, payload.dataset_ids);
 }
 
 export async function fetchRasterLayers(

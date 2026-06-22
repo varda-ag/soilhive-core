@@ -168,8 +168,13 @@ export const getRasterMask = async (
   );
   const geomUnion = geometryUnion(rows.map(r => r.geom));
   const hasValues = await hasMatchingRasterValues(entityManager, filter, geomUnion);
+
+  // When raster filter values don't match any pixels in the AOI, fall back to
+  // the AOI-only mask so the caller still receives geographic clipping.
+  let effectiveFilter = filter;
   if (!hasValues) {
-    return undefined;
+    const { raster_filters: _rf, ...parametersWithoutFilters } = filter.parameters;
+    effectiveFilter = { ...filter, parameters: parametersWithoutFilters };
   }
 
   const enabledRasterFilterTables = await getEnabledRasterFilterTables();
@@ -178,9 +183,9 @@ export const getRasterMask = async (
   let params: any[];
 
   if (rasterize) {
-    ({ ctes, params } = buildRasterizeCtes(filter, geomUnion, enabledRasterFilterTables));
+    ({ ctes, params } = buildRasterizeCtes(effectiveFilter, geomUnion, enabledRasterFilterTables));
   } else {
-    const built = buildVectorMaskCtes(filter, enabledRasterFilterTables);
+    const built = buildVectorMaskCtes(effectiveFilter, enabledRasterFilterTables);
     ctes = built.ctes;
     params = built.params;
 
@@ -199,7 +204,7 @@ export const getRasterMask = async (
       FROM aoi
     )`);
 
-    const raster_filters = filter.parameters.raster_filters;
+    const raster_filters = effectiveFilter.parameters.raster_filters;
     const hasActiveFiltersNR = raster_filters != null && enabledRasterFilterTables.some(t => (raster_filters[t]?.length ?? 0) > 0);
     const overviewPixelSizeMNR = hasActiveFiltersNR
       ? getOverviewPixelSizeM(filter.area, RASTER_MASK_RESOLUTION)

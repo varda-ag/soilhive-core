@@ -21,6 +21,7 @@ export interface OgrInfoResult {
 
 export interface GdalInfoBand {
   block?: [number, number];
+  type?: string;
   overviews?: Array<{ size: { x: number; y: number } }>;
   noDataValue?: number;
 }

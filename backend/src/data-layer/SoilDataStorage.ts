@@ -307,7 +307,11 @@ export default class SoilDataStorage {
     const candidateQuery = entityManager
       .getRepository(RasterLayerEntity)
       .createQueryBuilder('rl')
-      .innerJoin('rl.dataset', 'ds', 'ds.deleted_at IS NULL AND ds.spatial_extent && (SELECT ST_SetSRID(ST_Extent(geom), 4326) FROM aoi)')
+      .innerJoin(
+        'rl.dataset',
+        'ds',
+        `ds.deleted_at IS NULL AND ds.status = 'PUBLISHED' AND ds.spatial_extent && (SELECT ST_SetSRID(ST_Extent(geom), 4326) FROM aoi)`,
+      )
       .innerJoin('rl.soil_property', 'sp')
       .select('rl.id', 'id');
 
@@ -441,6 +445,51 @@ export default class SoilDataStorage {
         soil_property_name: row.soil_property_name,
       }));
       return { layers, aoi: filteredGeom };
+    });
+  };
+
+  // Count-only sibling of getRasterLayers: skips the GeoJSON AOI projection and the
+  // per-layer column fetch — the export progress estimate only needs how many raster
+  // layers match. An empty AOI (e.g. raster filters matching no pixels) naturally
+  // yields 0 via the `rl.bbox && (SELECT geom FROM aoi)` predicate.
+  getRasterLayerCount = async (requestData: RequestData, filter: DataFilter, datasetSlugs: string[]): Promise<number> => {
+    const { geometryIds, parameters: filters } = filter;
+    await entitlementService.enforceEntitlements(requestData, datasetSlugs, Capability.DOWNLOAD);
+
+    const schema = process.env.POSTGRES_SCHEMA;
+    const aoiCtes: CteDef[] = hasRasterFilters(filters)
+      ? await getVectorMaskCtes(requestData.entityManager, filter)
+      : [
+          {
+            name: 'aoi',
+            sql: `SELECT ST_CollectionExtract(ST_Union(ug.geom), 3) AS geom
+              FROM ${schema}.user_geometries ug WHERE ug.id = ANY(:geometryIds::uuid[])`,
+            materialized: true,
+          },
+        ];
+
+    return await requestData.entityManager.transaction(async transactionalEntityManager => {
+      await transactionalEntityManager.query(SET_LOCAL_WORK_MEM_SQL);
+      await transactionalEntityManager.query("SET LOCAL statement_timeout = '60s';");
+
+      const candidateQuery = transactionalEntityManager.getRepository(RasterLayerEntity).createQueryBuilder('rl');
+      for (const cte of aoiCtes) {
+        candidateQuery.addCommonTableExpression(cte.sql, cte.name, cte.materialized ? { materialized: true } : undefined);
+      }
+      candidateQuery
+        .setParameter('geometryIds', geometryIds)
+        .innerJoin('rl.dataset', 'ds', `ds.status = 'PUBLISHED'`)
+        .innerJoin('rl.file', 'f', 'f.deleted_at IS NULL')
+        .innerJoin('rl.soil_property', 'sp')
+        .select('COUNT(rl.id)', 'count');
+
+      candidateQuery.andWhere('ds.slug IN (:...dataset_slugs)', { dataset_slugs: datasetSlugs });
+      candidateQuery.andWhere('rl.bbox && (SELECT geom FROM aoi)');
+      candidateQuery.andWhere('ds.gis_datatype=:gis_datatype', { gis_datatype: GISDataType.RASTER });
+      applyRasterLayerFilters(candidateQuery, filters);
+
+      const result = await candidateQuery.getRawOne<{ count: string }>();
+      return parseInt(result?.count ?? '0', 10);
     });
   };
 
