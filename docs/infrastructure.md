@@ -58,7 +58,7 @@ The following represent minimum recommended database requirements.
 | Component        | Requirement                           |
 | ---------------- | ------------------------------------- |
 | PostgreSQL       | Version 18                            |
-| Extension        | PostGIS enabled                       |
+| Extensions        | PostGIS, postgis_raster, unaccent                       |
 | CPU              | 4 cores minimum                       |
 | RAM              | 8 GB minimum                          |
 | Storage          | SSD required                          |
