@@ -24,7 +24,7 @@ jest.mock('primereact/dropdown', () => ({
 
 jest.mock('primereact/multiselect', () => ({
   MultiSelect: ({ onChange, value, options, disabled }: any) => (
-    <div data-testid="column-multiselect" data-disabled={String(disabled)}>
+    <div data-testid="column-multiselect" data-disabled={String(disabled)} data-value={JSON.stringify(value ?? [])}>
       {(options ?? []).map((opt: any) => (
         <button
           key={opt.value}
@@ -208,6 +208,20 @@ describe('DatasetsPreviewStep', () => {
       mockHook({ availableColumns: ['min_depth'] });
       render(<DatasetsPreviewStep />);
       expect(screen.getByTestId('table-col-delete')).toBeInTheDocument();
+    });
+
+    it('does not pass initialVisibleColumns absent from availableColumns as selected MultiSelect values', () => {
+      // Regression test: CSV has no min_depth/max_depth/horizon columns so the API
+      // only returns sampling_date + soil property columns. Previously visibleColumns
+      // always included all initialVisibleColumns, causing PrimeReact to display "null"
+      // for any selected value it could not resolve to an option label.
+      mockHook({ availableColumns: ['sampling_date', 'ph', 'carbon'] });
+      render(<DatasetsPreviewStep />);
+      const selected: string[] = JSON.parse(screen.getByTestId('column-multiselect').getAttribute('data-value') ?? '[]');
+      expect(selected).not.toContain('min_depth');
+      expect(selected).not.toContain('max_depth');
+      expect(selected).not.toContain('horizon');
+      expect(selected).toContain('sampling_date');
     });
   });
 
