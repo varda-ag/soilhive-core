@@ -164,18 +164,22 @@ export async function createReadmeFile(requestData: RequestData, tempDir: string
 export async function getTotalLayersCount(requestData: RequestData, payload: ExportJobParameters): Promise<number> {
   if (!payload.dataset_ids?.length) return 0;
   const storedFilter = await filterService.getFilterById(requestData, payload.filter_id);
-  const { layers } = await soilDataStorage.getRasterLayers(requestData, storedFilter.filter, payload.dataset_ids);
-  return layers.length;
+  return await soilDataStorage.getRasterLayerCount(requestData, storedFilter.filter, payload.dataset_ids);
 }
 
-export async function fetchRasterLayers(
+export async function fetchRasterLayersAoi(
   requestData: RequestData,
   payload: ExportJobParameters,
 ): Promise<{ layers: FilteredRasterLayer[]; aoi: Polygon | MultiPolygon | null }> {
   if (!payload.dataset_ids?.length) return { layers: [], aoi: null };
   const storedFilter = await filterService.getFilterById(requestData, payload.filter_id);
-  const { layers, aoi } = await soilDataStorage.getRasterLayers(requestData, storedFilter.filter, payload.dataset_ids);
+  const { layers, aoi } = await soilDataStorage.getRasterLayersAoi(requestData, storedFilter.filter, payload.dataset_ids);
   return { layers, aoi };
+}
+export async function fetchRasterLayers(requestData: RequestData, payload: ExportJobParameters): Promise<FilteredRasterLayer[]> {
+  if (!payload.dataset_ids?.length) return [];
+  const storedFilter = await filterService.getFilterById(requestData, payload.filter_id);
+  return await soilDataStorage.getRasterLayers(requestData, storedFilter.filter, payload.dataset_ids);
 }
 
 /**

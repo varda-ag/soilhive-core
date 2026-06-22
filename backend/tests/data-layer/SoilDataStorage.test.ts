@@ -763,7 +763,7 @@ describe('SoilDataStorage class', () => {
     ];
 
     it('Filtering raster data should return a dataset when geometry intersects with its footprint', async () => {
-      await addRasterData();
+      await addRasterData(undefined, { dataset_status: IngestionStatus.PUBLISHED });
       const sds = new SoilDataStorage();
       const entityManager = await getEntityManager();
       // Filtering rectangle
@@ -779,7 +779,7 @@ describe('SoilDataStorage class', () => {
     });
 
     it('Filtering raster data should return empty array when geometry does not intersect any raster layer', async () => {
-      await addRasterData();
+      await addRasterData(undefined, { dataset_status: IngestionStatus.PUBLISHED });
       const sds = new SoilDataStorage();
       const entityManager = await getEntityManager();
       const results = await sds.filterRaster(entityManager, getPolygonFromBbox([170, 80, 171, 81]), {});
@@ -796,7 +796,7 @@ describe('SoilDataStorage class', () => {
         1,
       ],
     ])('Filtering with criteria: layer=%j filter=%j should return %i result(s)', async (layerFields, filter, expectedCount) => {
-      await addRasterData(undefined, { layerFields });
+      await addRasterData(undefined, { layerFields, dataset_status: IngestionStatus.PUBLISHED });
       const sds = new SoilDataStorage();
       const entityManager = await getEntityManager();
       const results = await sds.filterRaster(entityManager, getPolygonFromBbox([-180, -90, 180, 90]), filter);
@@ -804,8 +804,11 @@ describe('SoilDataStorage class', () => {
     });
 
     it('Filtering raster data should aggregate multiple layers from the same dataset into one summary', async () => {
-      await addRasterData();
-      await addRasterData(undefined, { layerFields: { reference_period_start: '2010-01-01', reference_period_stop: '2020-12-31' } });
+      await addRasterData(undefined, { dataset_status: IngestionStatus.PUBLISHED });
+      await addRasterData(undefined, {
+        layerFields: { reference_period_start: '2010-01-01', reference_period_stop: '2020-12-31' },
+        dataset_status: IngestionStatus.PUBLISHED,
+      });
       const sds = new SoilDataStorage();
       const entityManager = await getEntityManager();
       const filteringRectangle: Polygon = {
@@ -819,7 +822,7 @@ describe('SoilDataStorage class', () => {
 
     describe('Filtering raster data with raster_filters', () => {
       beforeEach(async () => {
-        await addRasterData();
+        await addRasterData(undefined, { dataset_status: IngestionStatus.PUBLISHED });
         await addRasterFilterData();
         await addRasterFilterMappings();
       }, 10000);

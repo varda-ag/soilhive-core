@@ -9,6 +9,7 @@ import { CONSENT_PARAMS } from './configuration/analytics';
 import { GTM_CONTAINER_ID } from './utilities/environmentVariables';
 import { NotificationProvider, ThemeProvider } from './contexts';
 import { SsrAuthContextProvider } from './auth/AuthContextProvider';
+import { loadGoogleTagManager } from 'utilities/analytics';
 
 // SSR page components — loaded lazily so they are not bundled into every page.
 // The key must exactly match the `data-ssr-page` attribute injected by the server.
@@ -36,10 +37,7 @@ if (GTM_CONTAINER_ID) {
   });
 
   // Inject GTM script dynamically
-  const gtmScript = document.createElement('script');
-  gtmScript.async = true;
-  gtmScript.src = `https://www.googletagmanager.com/gtm.js?id=${GTM_CONTAINER_ID}`;
-  document.head.appendChild(gtmScript);
+  loadGoogleTagManager(GTM_CONTAINER_ID);
 }
 
 const rootEl = document.getElementById('root');
