@@ -57,7 +57,7 @@ The following represent minimum recommended database requirements.
 
 | Component        | Requirement                           |
 | ---------------- | ------------------------------------- |
-| PostgreSQL       | Version 16                            |
+| PostgreSQL       | Version 18                            |
 | Extension        | PostGIS enabled                       |
 | CPU              | 4 cores minimum                       |
 | RAM              | 8 GB minimum                          |
@@ -74,7 +74,7 @@ The following represent minimum recommended database requirements.
 | ------------------- | --------------------------------------------------------------- |
 | Operating System    | Ubuntu Server LTS or RHEL compatible Linux                      |
 | Application Runtime | Docker                                                          |
-| Database            | PostgreSQL 16 + PostGIS                                         |
+| Database            | PostgreSQL 18 + PostGIS                                         |
 | Reverse Proxy       | Nginx or equivalent                                             |
 | Authentication      | Optional Keycloak or compatible OIDC provider                   |
 | Storage             | Local SSD, NAS, or object storage depending on deployment size  |
