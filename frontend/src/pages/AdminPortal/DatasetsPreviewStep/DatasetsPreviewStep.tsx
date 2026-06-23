@@ -10,6 +10,7 @@ import { useIngestionStatus } from 'hooks/useIngestionStatus';
 import { useDatasetPreview } from 'hooks/useDatasetPreviewStep';
 import { DeleteCheckboxCell } from './DeleteCheckboxCell';
 import { DataLoadingStartedPanel } from './DataLoadingStartedPanel';
+import { PreviewStepSummary } from './PreviewStepSummary/PreviewStepSummary';
 import { IngestionStepTitleRow } from 'components/AdminPortal/IngestionStepTitleRow/IngestionStepTitleRow';
 import { INGESTION_DOCS_URL } from 'configuration/ingestion';
 
@@ -209,13 +210,18 @@ export function DatasetsPreviewStep() {
         <div className={styles.TextContent}>
           <IngestionStepTitleRow title={t('datasets.preview.title')} docsLink={DOCS_URL} />
           <p className={styles.Message}>{t('datasets.preview.message')}</p>
-          <FormMessage
-            className={styles.DeleteWarning}
-            message={t('datasets.preview.deletion_warning')}
-            type="warning"
-            withBackground={true}
-            showBorder={false}
+        </div>
+        <div className={styles.FileSelection}>
+          <Dropdown
+            className={styles.FilesFilter}
+            value={selectedFile}
+            options={filesOptions}
+            onChange={handleFileChange}
+            optionValue="id"
+            optionLabel="name"
+            disabled={isLoading}
           />
+          <PreviewStepSummary removedByUser={currentFileDeletions.size} />
         </div>
         <div className={styles.TableFilters}>
           <div className={styles.Left}>
@@ -224,15 +230,6 @@ export function DatasetsPreviewStep() {
           </div>
 
           <div className={styles.Right}>
-            <Dropdown
-              className={styles.FilesFilter}
-              value={selectedFile}
-              options={filesOptions}
-              onChange={handleFileChange}
-              optionValue="id"
-              optionLabel="name"
-              disabled={isLoading}
-            />
             <MultiSelect
               className={styles.ColumnsFilter}
               value={visibleColumns}
@@ -244,6 +241,13 @@ export function DatasetsPreviewStep() {
             />
           </div>
         </div>
+        <FormMessage
+          className={styles.DeleteWarning}
+          message={t('datasets.preview.deletion_warning')}
+          type="warning"
+          withBackground={true}
+          showBorder={false}
+        />
         <div className={styles.TableWrapper} ref={tableWrapperRef}>
           <Table
             tableRef={tableHandleRef}

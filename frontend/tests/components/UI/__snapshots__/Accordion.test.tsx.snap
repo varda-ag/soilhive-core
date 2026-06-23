@@ -14,12 +14,16 @@ exports[`Accordion component renders with title and is closed by default 1`] = `
         class="Title"
       >
         My Accordion
-        <svg
-          class="ArrowIcon"
-          data-testid="svg-icon-mock"
+        <div
+          class="Left"
         >
-          mock-svg
-        </svg>
+          <svg
+            class="ArrowIcon"
+            data-testid="svg-icon-mock"
+          >
+            mock-svg
+          </svg>
+        </div>
       </p>
     </div>
     <div

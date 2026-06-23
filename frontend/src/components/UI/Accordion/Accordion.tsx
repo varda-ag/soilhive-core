@@ -5,11 +5,15 @@ import ArrowDownIcon from 'assets/icons/dropdown-arrow-down-icon.svg?react';
 import styles from './Accordion.module.scss';
 import type { AccordionRef } from 'types/components';
 
-type AccordionType = 'primary' | 'secondary' | 'tertiary';
+type AccordionType = 'primary' | 'secondary' | 'tertiary' | 'custom';
 
 interface Props {
   ref?: Ref<AccordionRef>;
-  title: string;
+  title: string | ReactNode;
+  className?: string;
+  headerClassName?: string;
+  headerOpenedClassName?: string;
+  headerLeftContent?: string | ReactNode;
   openedFromStart?: boolean;
   type?: AccordionType;
   Icon?: React.FC<React.SVGProps<SVGSVGElement>>;
@@ -18,7 +22,20 @@ interface Props {
   onToggle?: (isOpened: boolean) => void;
 }
 
-export function Accordion({ ref, title, openedFromStart = false, type = 'primary', Icon, children, pillsSlot, onToggle }: Props) {
+export function Accordion({
+  ref,
+  title,
+  className,
+  headerClassName,
+  headerOpenedClassName,
+  headerLeftContent,
+  openedFromStart = false,
+  type = 'primary',
+  Icon,
+  children,
+  pillsSlot,
+  onToggle,
+}: Props) {
   const [isOpened, setIsOpened] = useState<boolean>(openedFromStart);
 
   const typeClass = useMemo(
@@ -27,6 +44,7 @@ export function Accordion({ ref, title, openedFromStart = false, type = 'primary
         primary: styles.Primary,
         secondary: styles.Secondary,
         tertiary: styles.Tertiary,
+        custom: styles.Custom,
       })[type],
     [type],
   );
@@ -53,16 +71,25 @@ export function Accordion({ ref, title, openedFromStart = false, type = 'primary
   return (
     <div
       data-testid="sh-ui-accordion"
-      className={classnames(styles.Accordion, typeClass, {
+      className={classnames(styles.Accordion, typeClass, className, {
         [styles.Opened]: isOpened,
       })}
     >
-      <div className={styles.Header} role="button" onClick={handleOnToggle}>
+      <div
+        className={classnames(styles.Header, headerClassName, !!headerOpenedClassName && isOpened && headerOpenedClassName)}
+        role="button"
+        onClick={handleOnToggle}
+      >
         <p className={styles.Title}>
           {type === 'tertiary' && <ArrowDownIcon className={styles.ArrowIcon} />}
           {!!Icon && <Icon className={styles.Icon} />}
           {title}
-          {type !== 'tertiary' && <ArrowDownIcon className={styles.ArrowIcon} />}
+          {type !== 'tertiary' && (
+            <div className={styles.Left}>
+              {headerLeftContent}
+              <ArrowDownIcon className={styles.ArrowIcon} />
+            </div>
+          )}
         </p>
       </div>
       {pillsSlot && <div className={styles.PillsContainer}>{pillsSlot}</div>}

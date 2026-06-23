@@ -37,21 +37,421 @@ exports[`DatasetsPreviewStep matches snapshot 1`] = `
       >
         This is the data you are going to load, make sure everything is correct, you can unselect the rows that are not consistent, they won't be loaded in the dataset.
       </p>
+    </div>
+    <div
+      class="FileSelection"
+    >
+      <select
+        data-testid="file-dropdown"
+      />
       <div
-        class="FormMessage WarningMessage DeleteWarning Global"
-        data-testid="sh-form-message"
+        class="PreviewStepSummary"
       >
-        <svg
-          class="FormMessageIcon"
-          data-testid="sh-form-message-icon-warning"
+        <div
+          class="PreviewStepSummaryCards"
         >
-          mock-svg
-        </svg>
-        <span
-          class="FormMessageText"
+          <div
+            class="InfoCard InfoCard"
+          >
+            <h3
+              class="Title"
+            >
+              Modified values
+            </h3>
+            <div
+              class="ContentWrapper"
+            >
+              <div
+                class="Content"
+              >
+                <p
+                  class="Value"
+                  style="color: rgb(162, 209, 65);"
+                >
+                  19
+                </p>
+                <p
+                  class="Description"
+                >
+                  Cleaned & standardised
+                </p>
+              </div>
+            </div>
+          </div>
+          <div
+            class="InfoCard InfoCard Multicolumn"
+          >
+            <h3
+              class="Title"
+            >
+              Discarded rows
+            </h3>
+            <div
+              class="ContentWrapper"
+            >
+              <div
+                class="Content"
+              >
+                <p
+                  class="Value"
+                  style="color: rgb(245, 178, 0);"
+                >
+                  107
+                </p>
+                <p
+                  class="Description"
+                >
+                  Failed validation
+                </p>
+              </div>
+              <div
+                class="Content"
+              >
+                <p
+                  class="Value"
+                  style="color: rgb(170, 139, 77);"
+                >
+                  0
+                </p>
+                <p
+                  class="Description"
+                >
+                  User rejected
+                </p>
+              </div>
+            </div>
+          </div>
+          <div
+            class="InfoCard InfoCard"
+          >
+            <h3
+              class="Title"
+            >
+              Discarded cells
+            </h3>
+            <div
+              class="ContentWrapper"
+            >
+              <div
+                class="Content"
+              >
+                <p
+                  class="Value"
+                  style="color: rgb(188, 0, 31);"
+                >
+                  34
+                </p>
+                <p
+                  class="Description"
+                >
+                  Failed validation
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div
+          class="PreviewStepSummaryAccordions"
         >
-          If you delete a row, all the soil properties belonging to it will not be ingested including those not visible on screen.
-        </span>
+          <div
+            class="Accordion Custom"
+            data-testid="sh-ui-accordion"
+          >
+            <div
+              class="Header AccordionHeader"
+              role="button"
+            >
+              <p
+                class="Title"
+              >
+                <div
+                  class="AccordionTitle"
+                >
+                  <div
+                    class="ColorMark"
+                    style="background-color: rgb(162, 209, 65);"
+                  />
+                  Modified values
+                </div>
+                <div
+                  class="Left"
+                >
+                  <div
+                    class="AccordionHeaderTotal"
+                  >
+                    {{number}} total
+                  </div>
+                  <svg
+                    class="ArrowIcon"
+                    data-testid="svg-icon-mock"
+                  >
+                    mock-svg
+                  </svg>
+                </div>
+              </p>
+            </div>
+            <div
+              class="Content"
+            >
+              <div
+                class="AccordionChildren"
+              >
+                <div
+                  class="AccordionChildrenItem"
+                >
+                  <p>
+                    Depth rounded to integer
+                  </p>
+                  <p>
+                    7
+                  </p>
+                </div>
+                <div
+                  class="AccordionChildrenItem"
+                >
+                  <p>
+                    Value rounded to 3 decimal places
+                  </p>
+                  <p>
+                    5
+                  </p>
+                </div>
+                <div
+                  class="AccordionChildrenItem"
+                >
+                  <p>
+                    Converted to standard unit of measurement
+                  </p>
+                  <p>
+                    7
+                  </p>
+                </div>
+                <div
+                  class="AccordionChildrenItem AccordionChildrenTotal"
+                >
+                  <p>
+                    Total
+                  </p>
+                  <p>
+                    19
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div
+            class="Accordion Custom"
+            data-testid="sh-ui-accordion"
+          >
+            <div
+              class="Header AccordionHeader"
+              role="button"
+            >
+              <p
+                class="Title"
+              >
+                <div
+                  class="AccordionTitle"
+                >
+                  <div
+                    class="ColorMark"
+                    style="background-color: rgb(245, 178, 0);"
+                  />
+                  Discarded rows
+                </div>
+                <div
+                  class="Left"
+                >
+                  <div
+                    class="AccordionHeaderTotal"
+                  >
+                    {{number}} total
+                  </div>
+                  <svg
+                    class="ArrowIcon"
+                    data-testid="svg-icon-mock"
+                  >
+                    mock-svg
+                  </svg>
+                </div>
+              </p>
+            </div>
+            <div
+              class="Content"
+            >
+              <div
+                class="AccordionChildren"
+              >
+                <div
+                  class="AccordionChildrenItem"
+                >
+                  <p>
+                    Invalid coordinates (out of range)
+                  </p>
+                  <p>
+                    7
+                  </p>
+                </div>
+                <div
+                  class="AccordionChildrenItem"
+                >
+                  <p>
+                    Invalid depth interval (upper ≥ lower)
+                  </p>
+                  <p>
+                    5
+                  </p>
+                </div>
+                <div
+                  class="AccordionChildrenItem"
+                >
+                  <p>
+                    Minimum data requirement not met (missing geometry or invalid soil property value)
+                  </p>
+                  <p>
+                    7
+                  </p>
+                </div>
+                <div
+                  class="AccordionChildrenItem"
+                >
+                  <p>
+                    Duplicate row (same coordinates, date, depth, value across all properties)
+                  </p>
+                  <p>
+                    7
+                  </p>
+                </div>
+                <div
+                  class="AccordionChildrenItem"
+                >
+                  <p>
+                    User discarded row
+                  </p>
+                  <p>
+                    7
+                  </p>
+                </div>
+                <div
+                  class="AccordionChildrenItem AccordionChildrenTotal"
+                >
+                  <p>
+                    Total
+                  </p>
+                  <p>
+                    19
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div
+            class="Accordion Custom Accordion"
+            data-testid="sh-ui-accordion"
+          >
+            <div
+              class="Header AccordionHeader"
+              role="button"
+            >
+              <p
+                class="Title"
+              >
+                <div
+                  class="AccordionTitle"
+                >
+                  <div
+                    class="ColorMark"
+                    style="background-color: rgb(188, 0, 31);"
+                  />
+                  Discarded cells
+                </div>
+                <div
+                  class="Left"
+                >
+                  <div
+                    class="AccordionHeaderTotal"
+                  >
+                    {{number}} total
+                  </div>
+                  <svg
+                    class="ArrowIcon"
+                    data-testid="svg-icon-mock"
+                  >
+                    mock-svg
+                  </svg>
+                </div>
+              </p>
+            </div>
+            <div
+              class="Content"
+            >
+              <div
+                class="AccordionChildren"
+              >
+                <div
+                  class="AccordionChildrenItem"
+                >
+                  <p>
+                    Invalid property value (non-numeric)
+                  </p>
+                  <p>
+                    7
+                  </p>
+                </div>
+                <div
+                  class="AccordionChildrenItem"
+                >
+                  <p>
+                    Negative value
+                  </p>
+                  <p>
+                    5
+                  </p>
+                </div>
+                <div
+                  class="AccordionChildrenItem"
+                >
+                  <p>
+                    Zero value (treated as null)
+                  </p>
+                  <p>
+                    7
+                  </p>
+                </div>
+                <div
+                  class="AccordionChildrenItem"
+                >
+                  <p>
+                    Duplicate value (same coordinates, date, depth, value)
+                  </p>
+                  <p>
+                    7
+                  </p>
+                </div>
+                <div
+                  class="AccordionChildrenItem"
+                >
+                  <p>
+                    Out-of-bounds value
+                  </p>
+                  <p>
+                    7
+                  </p>
+                </div>
+                <div
+                  class="AccordionChildrenItem AccordionChildrenTotal"
+                >
+                  <p>
+                    Total
+                  </p>
+                  <p>
+                    19
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
     <div
@@ -76,9 +476,6 @@ exports[`DatasetsPreviewStep matches snapshot 1`] = `
       <div
         class="Right"
       >
-        <select
-          data-testid="file-dropdown"
-        />
         <div
           data-disabled="false"
           data-testid="column-multiselect"
@@ -101,6 +498,22 @@ exports[`DatasetsPreviewStep matches snapshot 1`] = `
           </button>
         </div>
       </div>
+    </div>
+    <div
+      class="FormMessage WarningMessage DeleteWarning Global"
+      data-testid="sh-form-message"
+    >
+      <svg
+        class="FormMessageIcon"
+        data-testid="sh-form-message-icon-warning"
+      >
+        mock-svg
+      </svg>
+      <span
+        class="FormMessageText"
+      >
+        If you delete a row, all the soil properties belonging to it will not be ingested including those not visible on screen.
+      </span>
     </div>
     <div
       class="TableWrapper"
