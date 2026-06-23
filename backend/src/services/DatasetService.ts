@@ -11,6 +11,7 @@ import { Entitlements } from '../types/Entitlements';
 import VectorDataLoad from '../data-layer/VectorDataLoad';
 import DataMappingService from './DataMappingService';
 import DatasetFileMappingService from './DatasetFileMappingService';
+import { CleaningReport } from '../interfaces/CleaningReport';
 
 const vdl = new VectorDataLoad();
 const dmService = new DataMappingService();
@@ -111,6 +112,7 @@ export default class DatasetService {
       dataMappingConfig,
       datasetFileMapping.file_id!,
       limit,
+      true,
       cursor,
       sort,
     );
@@ -121,5 +123,11 @@ export default class DatasetService {
     const datasetFileMapping = await dfmService.getDatasetFileMapping(requestData, datasetFileMappingId);
     const dataMappingConfig = await dmService.parseDataMapping(requestData, datasetFileMapping.data_mapping_id!);
     return vdl.getDataCount(requestData.entityManager, dataMappingConfig, datasetFileMapping.file_id!);
+  }
+
+  async getSoilDataStats(requestData: RequestData, datasetFileMappingId: string): Promise<CleaningReport> {
+    const datasetFileMapping = await dfmService.getDatasetFileMapping(requestData, datasetFileMappingId);
+    const dataMappingConfig = await dmService.parseDataMapping(requestData, datasetFileMapping.data_mapping_id!);
+    return vdl.getDataPreviewStats(requestData.entityManager, dataMappingConfig, datasetFileMapping.file_id!);
   }
 }
