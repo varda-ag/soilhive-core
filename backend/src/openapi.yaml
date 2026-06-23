@@ -411,6 +411,27 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
+  /errors/datasets:
+    get:
+      x-eov-operation-handler: controllers/errors
+      x-eov-operation-id: getDatasetErrors
+      summary: Get latest ingestion errors per dataset
+      tags:
+        - errors
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Array of datasets with their latest ingestion error
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DatasetError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
   /jobs/{jobId}:
     parameters:
       - name: jobId
@@ -1787,6 +1808,37 @@ components:
       bearerFormat: JWT
 
   schemas:
+    DatasetError:
+      type: object
+      required:
+        - dataset_id
+        - errors
+      properties:
+        dataset_id:
+          type: string
+          format: uuid
+        errors:
+          type: array
+          items:
+            type: object
+            required:
+              - code
+              - message
+              - action
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+              action:
+                type: string
+              params:
+                type: object
+                additionalProperties: true
+              detail:
+                type: string
+                nullable: true
+
     AuthConfig:
       type: object
       required:
@@ -2560,6 +2612,10 @@ components:
         file_id:
           type: string
           description: File ID to be processed and inserted into the database
+        dataset_id:
+          type: string
+          nullable: true
+          description: Optional. Dataset the file belongs to — used to surface staging errors per dataset. If omitted, errors for this job will not appear in GET /errors/datasets.
 
     BulkDeleteJob:
       type: object
