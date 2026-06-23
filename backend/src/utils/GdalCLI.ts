@@ -80,7 +80,13 @@ export class GdalCLI {
           resolve(stdout);
         }
       });
-      proc.on('error', err => reject(new Error(`Failed to run ${cmd}: ${err.message}`)));
+      proc.on('error', err => {
+        if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+          reject(new Error(`GDAL_NOT_INSTALLED: ${cmd} not found on this server`));
+        } else {
+          reject(new Error(`Failed to run ${cmd}: ${err.message}`));
+        }
+      });
     });
   }
 

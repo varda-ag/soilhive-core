@@ -283,6 +283,7 @@
             },
             "row": {
                 "select_concept": "Select a concept",
+                "select_one": "Select one",
                 "unit_placeholder": "Unit",
                 "no_unit": "No unit"
             },

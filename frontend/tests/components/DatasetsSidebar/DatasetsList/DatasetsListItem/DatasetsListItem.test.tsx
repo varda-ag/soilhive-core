@@ -1,6 +1,11 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { DatasetsListItem } from 'components/DatasetsSidebar/DatasetsList/DatasetsListItem/DatasetsListItem';
+import { useAuthContext } from '../../../../../src/auth/AuthContextProvider';
 import useAvailability from 'hooks/useAvailability';
+
+jest.mock('../../../../../src/auth/AuthContextProvider', () => ({
+  useAuthContext: jest.fn(),
+}));
 
 jest.mock('hooks/useAvailability', () => ({
   __esModule: true,
@@ -51,6 +56,9 @@ describe('DatasetsListItem', () => {
     (useAvailability as jest.Mock).mockReturnValue({
       selectedDatasets: ['dataset-1'],
       selectDataset: mockSelectDataset,
+    });
+    (useAuthContext as jest.Mock).mockReturnValue({
+      isAuthenticated: true,
     });
   });
 
