@@ -8,6 +8,7 @@ import enTranslations from '../../public/locales/en/consent.json';
 import itTranslations from '../../public/locales/it/consent.json';
 import deTranslations from '../../public/locales/de/consent.json';
 import esTranslations from '../../public/locales/es/consent.json';
+import { loadGoogleTagManager } from 'utilities/analytics';
 
 interface CookieConsentContextType {
   analyticsAccepted: boolean;
@@ -35,12 +36,31 @@ const updateGA4Consent = (analyticsGranted: boolean): void => {
   });
 };
 
+function injectGoogleAnalytics() {
+  const dataLayer = window.dataLayer || [];
+  const gtag = (...args: any) => dataLayer.push(args);
+
+  // Default-denied BEFORE any script loads
+  gtag('consent', 'default', {
+    [CONSENT_PARAMS.ANALYTICS_STORAGE]: 'denied',
+    [CONSENT_PARAMS.AD_STORAGE]: 'denied',
+    [CONSENT_PARAMS.AD_USER_DATA]: 'denied',
+    [CONSENT_PARAMS.AD_PERSONALIZATION]: 'denied',
+    [CONSENT_PARAMS.FUNCTIONALITY_STORAGE]: 'denied',
+    [CONSENT_PARAMS.PERSONALIZATION_STORAGE]: 'denied',
+    wait_for_update: 500,
+  });
+
+  if (GTM_CONTAINER_ID) {
+    // Inject GTM script dynamically
+    loadGoogleTagManager(GTM_CONTAINER_ID);
+  }
+}
+
 export const CookieConsentProvider = ({ children }: { children: ReactNode }) => {
   const [analyticsAccepted, setAnalyticsAccepted] = useState(false);
 
   useEffect(() => {
-    const isAnalyticsAccepted = (): boolean => CookieConsent.acceptedService(GA4_SERVICE_NAME, CONSENT_CATEGORIES.ANALYTICS);
-
     const categories = {
       [CONSENT_CATEGORIES.NECESSARY]: {
         enabled: true,
@@ -60,9 +80,14 @@ export const CookieConsentProvider = ({ children }: { children: ReactNode }) => 
     };
 
     const handleConsentUpdate = (): void => {
-      const accepted = isAnalyticsAccepted();
-      setAnalyticsAccepted(accepted);
-      updateGA4Consent(accepted);
+      const isAnalyticsAccepted = CookieConsent.acceptedService(GA4_SERVICE_NAME, CONSENT_CATEGORIES.ANALYTICS);
+      setAnalyticsAccepted(isAnalyticsAccepted);
+      updateGA4Consent(isAnalyticsAccepted);
+      if (isAnalyticsAccepted) {
+        injectGoogleAnalytics();
+      } else if ((window as any).gtag) {
+        window.location.reload();
+      }
     };
 
     CookieConsent.run({
@@ -84,9 +109,7 @@ export const CookieConsentProvider = ({ children }: { children: ReactNode }) => 
           layout: 'box',
         },
       },
-
       categories,
-
       language: {
         default: 'en',
         autoDetect: 'browser',
@@ -97,10 +120,8 @@ export const CookieConsentProvider = ({ children }: { children: ReactNode }) => 
           de: deTranslations,
         },
       },
-
-      onFirstConsent: handleConsentUpdate,
+      onConsent: handleConsentUpdate,
       onChange: handleConsentUpdate,
-      onConsent: handleConsentUpdate, // fires on revisit if prefs already stored
     });
 
     // Re-apply stored consent on page reload

@@ -5,40 +5,15 @@ import { QueryClient, QueryClientProvider, HydrationBoundary } from '@tanstack/r
 import App from './App';
 
 import './styles/index.scss';
-import { CONSENT_PARAMS } from './configuration/analytics';
-import { GTM_CONTAINER_ID } from './utilities/environmentVariables';
 import { NotificationProvider, ThemeProvider } from './contexts';
 import { SsrAuthContextProvider } from './auth/AuthContextProvider';
-import { loadGoogleTagManager } from 'utilities/analytics';
+import { CookieConsentProvider } from './components/CookieConsentProvider';
 
 // SSR page components — loaded lazily so they are not bundled into every page.
 // The key must exactly match the `data-ssr-page` attribute injected by the server.
 const SSR_COMPONENTS: Record<string, () => Promise<{ default: React.ComponentType }>> = {
   '/datasets/:id': () => import('./pages/Metadata'),
 };
-
-if (GTM_CONTAINER_ID) {
-  // Initialize dataLayer + gtag
-  window.dataLayer = window.dataLayer || [];
-  function gtag(...args: unknown[]) {
-    window.dataLayer.push(args);
-  }
-  window.gtag = gtag;
-
-  // Default-denied BEFORE any script loads
-  window.gtag('consent', 'default', {
-    [CONSENT_PARAMS.ANALYTICS_STORAGE]: 'denied',
-    [CONSENT_PARAMS.AD_STORAGE]: 'denied',
-    [CONSENT_PARAMS.AD_USER_DATA]: 'denied',
-    [CONSENT_PARAMS.AD_PERSONALIZATION]: 'denied',
-    [CONSENT_PARAMS.FUNCTIONALITY_STORAGE]: 'denied',
-    [CONSENT_PARAMS.PERSONALIZATION_STORAGE]: 'denied',
-    wait_for_update: 500,
-  });
-
-  // Inject GTM script dynamically
-  loadGoogleTagManager(GTM_CONTAINER_ID);
-}
 
 const rootEl = document.getElementById('root');
 if (rootEl) {
@@ -55,15 +30,17 @@ if (rootEl) {
         <QueryClientProvider client={queryClient}>
           <HydrationBoundary state={queryState}>
             <NotificationProvider>
-              <SsrAuthContextProvider>
-                <ThemeProvider>
-                  <BrowserRouter>
-                    <Routes>
-                      <Route path={ssrPage} element={<PageComponent />} />
-                    </Routes>
-                  </BrowserRouter>
-                </ThemeProvider>
-              </SsrAuthContextProvider>
+              <CookieConsentProvider>
+                <SsrAuthContextProvider>
+                  <ThemeProvider>
+                    <BrowserRouter>
+                      <Routes>
+                        <Route path={ssrPage} element={<PageComponent />} />
+                      </Routes>
+                    </BrowserRouter>
+                  </ThemeProvider>
+                </SsrAuthContextProvider>
+              </CookieConsentProvider>
             </NotificationProvider>
           </HydrationBoundary>
         </QueryClientProvider>,
