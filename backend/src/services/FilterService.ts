@@ -12,7 +12,7 @@ import DataFilterEntity from '../entities/DataFilter';
 import DataFilterUserGeometryEntity from '../entities/DataFilterUserGeometry';
 import { DataAvailabilityIndex } from '../interfaces/Dai';
 import { getPolygonFromBbox, geometryUnion } from '../utils/geometry';
-import { timed } from '../utils/logger';
+import { timed, log } from '../utils/logger';
 
 const sds = new SoilDataStorage();
 
@@ -200,7 +200,10 @@ export default class FilterService {
     try {
       rows = await sds.getDaiPointData(requestData.entityManager, { geometryIds: [userGeometryId], parameters, area });
     } finally {
-      await this.deleteUserGeometry(requestData, userGeometryId);
+      // Catch here so that original exception isn't masked by cleanup failure
+      await this.deleteUserGeometry(requestData, userGeometryId).catch((err: unknown) =>
+        log.error('Failed to clean up user geometry', { userGeometryId, error: String(err) }),
+      );
     }
 
     const cells: Record<string, number> = {};
