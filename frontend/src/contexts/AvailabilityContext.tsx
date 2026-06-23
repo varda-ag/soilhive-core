@@ -225,17 +225,18 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
 
   const availableDatasets = useMemo(() => {
     const datasets = fullFilterResults ? fullFilterResults.datasets : fullFilterDatasets || [];
+    const allowedDatasets = isAuthenticated ? datasets : datasets.filter(dataset => dataset.visibility === 'public');
     if (selectedDatasets.length > 0) {
-      const datasetIds = new Set(datasets.map(dataset => dataset.id));
+      const datasetIds = new Set(allowedDatasets.map(dataset => dataset.id));
       // Excludes the selected datasets that are not available anymore in the current
       // map view/selection
       const validSelectedDatasets = new Set(selectedDatasets.filter(id => datasetIds.has(id)));
       if (validSelectedDatasets.size > 0) {
-        return datasets.filter(dataset => validSelectedDatasets.has(dataset.id));
+        return allowedDatasets.filter(dataset => validSelectedDatasets.has(dataset.id));
       }
     }
-    return datasets.sort((a, b) => a.name.localeCompare(b.name, 'en', { sensitivity: 'base' }));
-  }, [fullFilterResults, fullFilterDatasets, selectedDatasets]);
+    return allowedDatasets.sort((a, b) => a.name.localeCompare(b.name, 'en', { sensitivity: 'base' }));
+  }, [fullFilterResults, fullFilterDatasets, isAuthenticated, selectedDatasets]);
 
   return (
     <AvailabilityContext.Provider
