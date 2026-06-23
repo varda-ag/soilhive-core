@@ -6,9 +6,6 @@ import { OUTSIDE_LOD_VALUE } from '../constants/constants';
 
 interface CleaningCteBundle {
   /**
-   * Full SQL string: `WITH cell_cleaned AS (...), ..., cleaning_result AS (...)`.
-   * Use positional params ($1, $2 …) — pass `values` as the second arg to `entityManager.query`.
-   *
    * Columns exposed by `cleaning_result`:
    *   record_id, geom (WKB), sampling_date, horizon, license,
    *   min_depth (int|null), max_depth (int|null),
@@ -21,11 +18,8 @@ interface CleaningCteBundle {
    */
   cte: string;
   values: unknown[];
-  /** Property column names in iteration order — needed to build the SELECT list. */
   propertyCols: string[];
 }
-
-// ── builder ───────────────────────────────────────────────────────────────────
 
 const NUMERIC_RE = `'^-?[0-9]+(\\.[0-9]+)?$'`;
 
@@ -53,7 +47,6 @@ export function buildCleaningCte(config: DataCleaningConfig, fileId: string): Cl
 
   const maxDepthRaw = maxDepthCol ? `(raw.${maxDepthCol})::numeric` : depthCol ? splitDepth(2, depthCol) : 'NULL::numeric';
 
-  // Null out sentinel and negative depths, round to integer.
   const cleanDepth = (raw: string) =>
     `CASE
       WHEN (${raw}) IS NULL                THEN NULL
@@ -62,11 +55,9 @@ export function buildCleaningCte(config: DataCleaningConfig, fileId: string): Cl
       ELSE ROUND(${raw})::integer
     END`;
 
-  // True when the raw depth had a non-zero fractional part that was rounded.
   const depthWasRounded = (raw: string) =>
     `((${raw}) IS NOT NULL AND (${raw}) != ${OUTSIDE_LOD_VALUE} AND (${raw}) >= 0 AND (${raw}) != ROUND(${raw}))`;
 
-  // True when the raw depth was negative
   const depthWasNeg = (raw: string) => `((${raw}) IS NOT NULL AND (${raw}) != ${OUTSIDE_LOD_VALUE} AND (${raw}) < 0)`;
 
   // Per-cell rules: non-numeric, sentinel, negative, zero, out-of-range.
@@ -230,7 +221,6 @@ export function buildCleaningCte(config: DataCleaningConfig, fileId: string): Cl
 )`;
 
   // Full-row duplicate detection among rows that passed all row-level checks.
-  // Partition by every identity field + all final cleaned property values.
 
   const rowPartition = [
     'ST_AsBinary(ra.geom)',
@@ -251,7 +241,6 @@ export function buildCleaningCte(config: DataCleaningConfig, fileId: string): Cl
   WHERE ra.row_delete_reason IS NULL
 )`;
 
-  // Unified output: surviving rows (with duplicate flagging) UNION ALL deleted rows.
 
   const cte5 = `cleaning_result AS (
     SELECT
