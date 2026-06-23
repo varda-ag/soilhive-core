@@ -1,6 +1,4 @@
-import assert from 'assert';
 import http from 'http';
-import { StatusCodes } from 'http-status-codes';
 import pLimit from 'p-limit';
 import { Job } from 'pg-boss';
 import { EntityManager, In } from 'typeorm';
@@ -16,6 +14,7 @@ import DatasetFileMappingService from '../../services/DatasetFileMappingService'
 import DatasetService from '../../services/DatasetService';
 import { IngestionStatus } from '../../types/data';
 import { getEntityManager } from '../../utils/data-source';
+import { JobError } from '../../errors/JobError';
 import { ErrorResponse } from '../../utils/error';
 import { getLoopbackUrl, getRawTableName, signToken } from '../../utils/utils';
 import { updateDatasetMetadata } from './UpdateDatasetMetadata';
@@ -46,12 +45,8 @@ export async function processBulkLoad(job: Job<BulkLoadJob>): Promise<void> {
     const files = await getStagedFilesWithMapping(entityManager, datasetFileMappings);
     for (const file of files) {
       const datasetFileMapping = datasetFileMappings.find(m => m.file_id === file.id);
-      assert(datasetFileMapping, `No dataset file mapping found for file ${file.id}`);
-      if (!datasetFileMapping.data_mapping_id) {
-        throw new ErrorResponse(
-          `No data mapping ID found for dataset file mapping ${datasetFileMapping.id}`,
-          StatusCodes.INTERNAL_SERVER_ERROR,
-        );
+      if (!datasetFileMapping || !datasetFileMapping.data_mapping_id) {
+        throw new JobError('BL_MISSING_COLUMN_MAPPING');
       }
       await processFile(file, requestData, datasetFileMapping, data.dataset_id);
       file.status = IngestionStatus.LOADED;
@@ -87,7 +82,9 @@ const processFile = async (
   datasetFileMapping: DatasetFileMappingEntity,
   datasetSlug: string,
 ) => {
-  assert(datasetFileMapping.data_mapping_id, `No data mapping ID found for dataset file mapping ${datasetFileMapping.id}`);
+  if (!datasetFileMapping.data_mapping_id) {
+    throw new JobError('BL_MISSING_COLUMN_MAPPING');
+  }
   let cursor: string | undefined = undefined;
   const vdl = new VectorDataLoad();
   const service = new DataMappingService();
@@ -98,7 +95,15 @@ const processFile = async (
   const limit = pLimit(PARALLELISM);
   while (true) {
     // Get the data from the preview
-    const results = await vdl.getDataPreview(requestData.entityManager, dataMappingConfig, file.id, BATCH_SIZE, false, cursor);
+    let results;
+    try {
+      results = await vdl.getDataPreview(requestData.entityManager, dataMappingConfig, file.id, BATCH_SIZE, false, cursor);
+    } catch (error: any) {
+      if (error?.code === '42P01' || /does not exist/.test(error?.detail ?? error?.message ?? '')) {
+        throw new JobError('BL_RAW_TABLE_NOT_FOUND', {}, error?.detail ?? error?.message);
+      }
+      throw new JobError('BL_RECORD_WRITE_FAILED', {}, error?.detail ?? error?.message);
+    }
 
     const payloads: SoilRecord[][] = [];
     for (let i = 0; i < results.length; i += PAYLOAD_SIZE) {
@@ -110,8 +115,8 @@ const processFile = async (
 
     try {
       await Promise.all(promises);
-    } catch (error) {
-      throw new ErrorResponse(`Failed to process file ${file.id}: ${error}`, StatusCodes.INTERNAL_SERVER_ERROR);
+    } catch (error: any) {
+      throw new JobError('BL_RECORD_WRITE_FAILED', {}, error?.detail ?? error?.message);
     }
 
     if (results.length < BATCH_SIZE) {

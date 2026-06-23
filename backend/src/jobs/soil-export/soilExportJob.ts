@@ -21,6 +21,7 @@ import { GeoFileWriter } from './GeoFileWriter';
 import { RasterFileWriter } from './RasterFileWriter';
 import {
   cleanupTempFiles,
+  cleanupTempZip,
   generateDownloadFilename,
   generateDownloadPath,
   mergeGPKG,
@@ -48,6 +49,7 @@ export async function processExportJob(job: Job<ExportJob>): Promise<void> {
 
   // Create temp working directory - fresh start on every run (handles pod eviction)
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), EXPORT_CONFIG.TEMP_DIR_PREFIX));
+  let localZipPath: string | null = null;
 
   try {
     // Get total records and layers for progress tracking
@@ -118,7 +120,7 @@ export async function processExportJob(job: Job<ExportJob>): Promise<void> {
       await mergeGPKG(tempDir);
     }
     const downloadPath = generateDownloadPath(filter_id);
-    const localZipPath = path.join(os.tmpdir(), path.basename(downloadPath));
+    localZipPath = path.join(os.tmpdir(), path.basename(downloadPath));
     await zipFiles(tempDir, localZipPath);
 
     const final_storage_path = await moveToDownloadFolder(localZipPath, downloadPath);
@@ -138,6 +140,9 @@ export async function processExportJob(job: Job<ExportJob>): Promise<void> {
     throw error;
   } finally {
     await cleanupTempFiles(tempDir);
+    if (localZipPath) {
+      await cleanupTempZip(localZipPath);
+    }
   }
 }
 
