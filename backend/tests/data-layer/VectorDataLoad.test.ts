@@ -11,9 +11,10 @@ import DatasetLayerEntity from '../../src/entities/DatasetLayer';
 import ObservationEntity from '../../src/entities/Observation';
 import { SoilRecord } from '../../src/interfaces/Record';
 import { DataCleaningConfig } from '../../src/interfaces/DataMapping';
+import { CellModifyReason, RowDeleteReason, CellDeleteReason } from '../../src/interfaces/CleaningReport';
 
 describe('VectorDataLoad class', () => {
-  it('Data preview should be generated based on parsed data mapping', async () => {
+  it('Data preview and stats should be generated based on parsed data mapping', async () => {
     const { file, dataMapping } = await addSyntheticIngestionData({ ...syntheticIngestionDataOptions });
     const vdl = new VectorDataLoad();
     const entityManager = await getEntityManager();
@@ -33,19 +34,36 @@ describe('VectorDataLoad class', () => {
     const service = new DataMappingService();
     const dataMappingConfig = await service.parseDataMapping(requestData, dataMapping.id);
     const results = await vdl.getDataPreview(entityManager, dataMappingConfig, file.id);
-    expect(results.length).toBe(DATA_PREVIEW_SIZE - (dataMappingConfig.drop_records ? dataMappingConfig.drop_records.length : 0));
+    // Results: after removal of min_val, max_val, minimum data requirement (Including sentinel): 8 (with user-deleted records)
+    expect(results.length).toBe(8);
+    expect(results.filter(r => r.user_dropped === true).length).toBe(dataMappingConfig.drop_records?.length);
     const resultBdfi33 = results.map(r => parseFloat(r.bdfi33 as string)).filter(n => !isNaN(n));
     const maxBdfi33 = resultBdfi33.length ? Math.max(...resultBdfi33) : null;
     expect(maxBdfi33).toBeLessThanOrEqual(syntheticIngestionDataOptions.columnMapping.bdfi33.max_val);
     const resultBdfiod = results.map(r => parseFloat(r.bdfiod as string)).filter(n => !isNaN(n));
     const minBdfiod = resultBdfiod.length ? Math.min(...resultBdfiod) : null;
     expect(minBdfiod).toBeGreaterThanOrEqual(syntheticIngestionDataOptions.columnMapping.bdfiod.min_val);
-    const resultRecordIds = results.map(r => parseFloat(r.record_id as string));
+    const resultRecordIds = results.map(r => parseFloat(r.record_id as unknown as string));
     const maxRecordId = Math.max(...resultRecordIds);
-    expect(maxRecordId).toBe(10102);
+    expect(maxRecordId).toBe(10137);
     // bdfi33 in raw data insert has 6 non-null values, 3 of them are 0 or negative (should be NULL), and 2 of them are less than LOD (should stay as is, no conversion formula "x*10" applied)
     expect(resultBdfi33.length).toBe(5);
     expect(resultBdfi33.filter(n => n === OUTSIDE_LOD_VALUE).length).toBe(2);
+    // Stats values should be coherent with cleaned up data:
+    const stats = await vdl.getDataPreviewStats(entityManager, dataMappingConfig, file.id);
+    expect(stats.summary.rows_deleted - dataMappingConfig.drop_records!.length).toBe(DATA_PREVIEW_SIZE - results.length);
+    expect(
+      stats.row_deletions
+        .filter(rd => rd.reason === RowDeleteReason.USER_DELETION)
+        .map(f => f.count)
+        .pop(),
+    ).toBe(dataMappingConfig.drop_records?.length);
+    expect(
+      stats.cell_deletions
+        .filter(rd => rd.reason === CellDeleteReason.DUPLICATE_CELL)
+        .map(f => f.count)
+        .pop(),
+    ).toBe(1);
   });
   it('sorted cursor pagination should visit every record exactly once', async () => {
     const { file, dataMapping } = await addSyntheticIngestionData({ ...syntheticIngestionDataOptions });
@@ -68,16 +86,16 @@ describe('VectorDataLoad class', () => {
     let iterations = 0;
 
     do {
-      const page = await vdl.getDataPreview(entityManager, dataMappingConfig, file.id, 3, cursor, 'min_depth');
+      const page = await vdl.getDataPreview(entityManager, dataMappingConfig, file.id, 3, true, cursor, 'min_depth');
       if (!page.length) break;
       allIds.push(...page.map(r => Number(r.record_id)));
       cursor = page[page.length - 1].cursor as string;
       iterations++;
     } while (iterations < 20);
 
-    // 20 fixture rows minus 2 drop_records = 18
-    expect(allIds).toHaveLength(18);
-    expect(new Set(allIds).size).toBe(18);
+    // Results: after removal of min_val, max_val, minimum data requirement (Including sentinel and user-dropped values): 8
+    expect(allIds).toHaveLength(8);
+    expect(new Set(allIds).size).toBe(8);
   });
   describe('Data preview should clean the values as required', () => {
     let fileId: string | null = null;
@@ -104,7 +122,7 @@ describe('VectorDataLoad class', () => {
       fileId = file.id;
     });
 
-    it('should parse "depth" field to min and max depth', async () => {
+    it('should parse "depth" field to min and max depth and round to int', async () => {
       const vdl = new VectorDataLoad();
       const entityManager = await getEntityManager();
       const dataMappingDepthRange: DataCleaningConfig = {
@@ -117,8 +135,16 @@ describe('VectorDataLoad class', () => {
         },
       };
       const results = await vdl.getDataPreview(entityManager, dataMappingDepthRange, fileId!);
-      expect(results[0].min_depth).toBe(100);
+      expect(results[0].min_depth).toBe(101);
       expect(results[0].max_depth).toBe(200);
+      // Stats values should be coherent with cleaned up data:
+      const stats = await vdl.getDataPreviewStats(entityManager, dataMappingDepthRange, fileId!);
+      expect(
+        stats.modifications
+          .filter(m => m.reason === CellModifyReason.DEPTH_ROUNDED)
+          .map(f => f.count)
+          .pop(),
+      ).toBe(results.length - dataMappingDepthRange.drop_records!.length);
     });
     it('should set negative min/max depth values to NULL', async () => {
       const vdl = new VectorDataLoad();
@@ -136,6 +162,14 @@ describe('VectorDataLoad class', () => {
       const results = await vdl.getDataPreview(entityManager, dataMappingNegativeDepths, fileId!);
       expect(results.map(r => r.min_depth).filter(n => n !== null).length).toBe(0);
       expect(results.map(r => r.max_depth).filter(n => n !== null).length).toBe(0);
+      // Stats values should be coherent with cleaned up data:
+      const stats = await vdl.getDataPreviewStats(entityManager, dataMappingNegativeDepths, fileId!);
+      expect(
+        stats.cell_deletions
+          .filter(m => m.reason === CellDeleteReason.NEGATIVE_VALUE)
+          .map(f => f.count)
+          .pop(),
+      ).toBe(results.length - dataMappingNegativeDepths.drop_records!.length);
     });
     it('should remove % soil property values above 100', async () => {
       const vdl = new VectorDataLoad();
@@ -177,7 +211,7 @@ describe('VectorDataLoad class', () => {
     };
     const service = new DataMappingService();
     const dataMappingConfig = await service.parseDataMapping(requestData, dataMapping.id);
-    const record = (await vdl.getDataPreview(entityManager, dataMappingConfig, file.id, 1))[0] as SoilRecord;
+    const record = (await vdl.getDataPreview(entityManager, dataMappingConfig, file.id, 1, false))[0] as SoilRecord;
     await vdl.rawRecordToDataModel(entityManager, dataMappingConfig, record, dataset.id);
     const features = await entityManager.find(FeatureEntity);
     expect(features.length).toBeGreaterThan(0);
@@ -222,7 +256,7 @@ describe('VectorDataLoad class', () => {
     };
     const service = new DataMappingService();
     const dataMappingConfig = await service.parseDataMapping(requestData, dataMapping.id);
-    const records = (await vdl.getDataPreview(entityManager, dataMappingConfig, file.id)) as SoilRecord[];
+    const records = (await vdl.getDataPreview(entityManager, dataMappingConfig, file.id, 20, false)) as SoilRecord[];
     const promises = records.map(async record => await vdl.rawRecordToDataModel(entityManager, dataMappingConfig, record, dataset.id));
     await Promise.all(promises);
     const layers = await entityManager.find(LayerEntity);

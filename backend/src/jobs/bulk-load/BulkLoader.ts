@@ -98,7 +98,7 @@ const processFile = async (
   const limit = pLimit(PARALLELISM);
   while (true) {
     // Get the data from the preview
-    const results = await vdl.getDataPreview(requestData.entityManager, dataMappingConfig, file.id, BATCH_SIZE, cursor);
+    const results = await vdl.getDataPreview(requestData.entityManager, dataMappingConfig, file.id, BATCH_SIZE, false, cursor);
 
     const payloads: SoilRecord[][] = [];
     for (let i = 0; i < results.length; i += PAYLOAD_SIZE) {
