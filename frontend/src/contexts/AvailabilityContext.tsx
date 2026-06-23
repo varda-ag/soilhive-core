@@ -20,6 +20,7 @@ import { useRaster } from 'hooks/useRaster';
 import useAvailabilityMap from '../hooks/useAvailabilityMap';
 import { useFilteredCoverageQuery } from 'hooks/useFilteredCoverageQuery';
 import { useFilteredDatasetsQuery } from 'hooks/useFilteredDatasetsQuery';
+import { useAuthContext } from '../auth/AuthContextProvider';
 
 type AvailabilityContextType = {
   allSoilProperties: SoilProperty[];
@@ -68,6 +69,7 @@ type AvailabilityProviderProps = {
 };
 
 export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ children }) => {
+  const { isAuthenticated } = useAuthContext();
   const { geometryFilter } = useAvailabilityMap();
   const [selectedDatasets, setSelectedDatasets] = useState<string[]>([]);
   const [searchValue, setSearchValue] = useState<string>('');
@@ -120,10 +122,19 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
 
   const selectAllDatasets = useCallback(
     (select: boolean) => {
-      setSelectedDatasets(select && fullFilterResults ? fullFilterResults?.datasets.map(result => result.id) : []);
+      const datasets = fullFilterResults?.datasets || fullFilterDatasets;
+      setSelectedDatasets(
+        select && datasets
+          ? datasets
+              .filter(dataset => {
+                return isAuthenticated || dataset.visibility === 'public';
+              })
+              .map(result => result.id)
+          : [],
+      );
       setIsAllSelected(select);
     },
-    [fullFilterResults],
+    [fullFilterResults, fullFilterDatasets, isAuthenticated],
   );
 
   const allDatasets = useMemo(() => {
