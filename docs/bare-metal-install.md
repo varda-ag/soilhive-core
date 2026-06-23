@@ -128,6 +128,7 @@ window._env_ = {
   MAPBOX_ACCESS_TOKEN: '',   // leave empty to disable map tiles
   GTM_CONTAINER_ID: '',      // optional Google Tag Manager container ID
   COOKIE_DOMAIN: '',         // optional cookie domain override
+  FEATURE_FLAGS: '',         // optional feature flags
 };
 ```
 
