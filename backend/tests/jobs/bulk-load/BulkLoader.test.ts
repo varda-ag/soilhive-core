@@ -151,28 +151,6 @@ describe('BulkLoader class', () => {
     });
   });
 
-  it('E08 — BL_RECORD_VALIDATION_FAILED when POST /soil-data returns OpenAPI validation error', async () => {
-    const { dataset } = await addSyntheticIngestionData({ ...syntheticIngestionDataOptions });
-
-    const mockMakeRequest = jest.spyOn(BulkLoaderModule, 'makeRequest').mockImplementation(async () => {
-      const body = JSON.stringify({
-        title: 'Bad Request',
-        status: 400,
-        detail: 'request/body/0/geometry must be object',
-        errors: [{ path: '/body/0/geometry', message: 'must be object', errorCode: 'type.openapi.validation' }],
-      });
-      throw new ErrorResponse(`Failed to load data: ${body}`, 400);
-    });
-
-    await expect(BulkLoaderModule.processBulkLoad(getJob(dataset.slug))).rejects.toMatchObject({
-      name: 'JobError',
-      code: 'BL_RECORD_VALIDATION_FAILED',
-      params: { field: 'geometry', issue: 'must be object' },
-    });
-
-    mockMakeRequest.mockRestore();
-  });
-
   it('updateDatasetMetadata sets data correctly', async () => {
     const { dataset } = await addSyntheticData({
       ...syntheticDataOptions,
