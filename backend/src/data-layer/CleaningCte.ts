@@ -241,7 +241,6 @@ export function buildCleaningCte(config: DataCleaningConfig, fileId: string): Cl
   WHERE ra.row_delete_reason IS NULL
 )`;
 
-
   const cte5 = `cleaning_result AS (
     SELECT
       *,
