@@ -4,13 +4,26 @@
 
 SoilHive Open Source is a Node.js and React based application connected to a PostgreSQL/PostGIS database.
 
-The recommended deployment model is a Docker based deployment running the SoilHive application container alongside a PostgreSQL/PostGIS database.
+The recommended deployment model is a Docker based deployment running the SoilHive **backend and frontend containers** alongside a PostgreSQL/PostGIS database.
 
-For **pilot** and **small production** environments, the application container and PostgreSQL database can run on the same server, simplifying deployment and operations.
+For **pilot** and **small production** environments, the **application containers** and PostgreSQL database can run on the same server, simplifying deployment and operations.
 
 For **medium** and **large production** environments, PostgreSQL/PostGIS should run on a dedicated server, as the database is the primary performance sensitive component of the system and is responsible for geospatial queries, indexing, ingestion, and export workloads.
 
 SoilHive does not require public cloud infrastructure and can run in government data centres, virtual machines, or bare metal Linux servers.
+
+---
+
+## Application Containers
+
+SoilHive is composed of two application containers:
+
+| Container | Role | Exposes |
+|---|---|---|
+| **backend** | Node.js API server — handles data access, geospatial queries, ingestion, and export | Port 3000 (internal) |
+| **frontend** | React SSR server (Express + React) — serves the web UI | Port 80 (external) |
+
+Both containers are lightweight and not the primary driver of infrastructure sizing. The PostgreSQL/PostGIS database is the dominant resource consumer. See *Why PostgreSQL/PostGIS Drives Sizing* below.
 
 ---
 
@@ -20,12 +33,14 @@ The following profiles provide recommended starting points for provisioning infr
 
 Actual requirements will depend on dataset size, ingestion frequency, user concurrency, and export workloads.
 
-| Profile | Deployment Layout | CPU | RAM | Storage | Typical Use |
+| Profile | Deployment Layout | CPU | RAM | Storage¹ | Typical Use |
 |---|---|---:|---:|---:|---|
-| **Pilot** | 1 server running SoilHive + PostgreSQL | 4 cores | 16 GB | 250 GB SSD | Evaluation, demos, training |
-| **Small Production** | 1 server running SoilHive + PostgreSQL | 8 cores | 32 GB | 500 GB to 1 TB SSD | Initial institutional deployment |
-| **Medium Production** | 1 SoilHive server + 1 PostgreSQL server | App: 4 cores<br>DB: 8 cores | App: 16 GB<br>DB: 32 GB | App: 250 GB SSD<br>DB: 1 TB SSD | Operational deployment with multiple datasets |
-| **Large Production** | Dedicated application, database and storage servers | App: 8+ cores<br>DB: 16+ cores | App: 32 GB<br>DB: 64+ GB | App: 250 GB SSD<br>DB: 2+ TB SSD | Large scale or national deployments |
+| **Pilot** | 1 server running SoilHive (backend + frontend) + PostgreSQL | 4 cores | 16 GB | 250 GB SSD | Evaluation, demos, training |
+| **Small Production** | 1 server running SoilHive (backend + frontend) + PostgreSQL | 8 cores | 32 GB | 500 GB to 1 TB SSD | Initial institutional deployment |
+| **Medium Production** | 1 SoilHive server (backend + frontend) + 1 PostgreSQL server | App: 4 cores<br>DB: 8 cores | App: 16 GB<br>DB: 32 GB | App: 250 GB SSD<br>DB: 1 TB SSD | Operational deployment with multiple datasets |
+| **Large Production** | Dedicated application (backend + frontend), database and storage servers | App: 8+ cores<br>DB: 16+ cores | App: 32 GB<br>DB: 64+ GB | App: 250 GB SSD<br>DB: 2+ TB SSD | Large scale or national deployments |
+
+> ¹ App storage figures cover OS and application runtime only. Raster file storage is additional — see *Application Storage Sizing* below.
 
 ---
 
@@ -91,7 +106,7 @@ Recommended storage includes additional capacity for indexes, WAL files, tempora
 | 50,000,000 | ~30 GB | 250 GB |
 | 500,000,000 | ~300 GB | 500 GB to 1 TB |
 
-> **Note on raster data:** Raster datasets are stored as files on disk outside PostgreSQL. Only raster metadata and spatial indexes are stored in the database, so raster storage should be planned separately from the observation estimates above.
+> **Note on raster data:** Raster files are stored on the application server's disk, not in PostgreSQL. Only raster metadata and spatial indexes enter the database. Raster storage must be planned separately from the observation estimates above — see *Application Storage Sizing* below.
 
 ### Memory Relative to Data Volume
 
@@ -108,12 +123,34 @@ As a general guideline, provision enough RAM for the active working set of the d
 
 ---
 
+## Application Storage Sizing
+
+The application server hosts the SoilHive backend and frontend containers. Storage requirements come from two sources:
+
+**Application runtime** — the OS, Docker images, logs, and temporary files. This is bounded and small. The baseline figures in the Infrastructure Profiles table cover this component.
+
+**Raster files** — stored on the application server's disk outside PostgreSQL. Raster storage requirements depend on the datasets in use and must be planned separately from the application runtime baseline.
+
+### Map-based filter rasters (current release)
+
+The current release uses a fixed set of raster files to support map-based filters. These are not included in the Docker containers — they must be installed as a separate step after the system first starts. See [Map-Based Filters](map-based-filters.md) for installation instructions and the full list of available filters.
+
+Each filter is a separate package. Sizes range from **30 MB** (Soil Groups) to **3.6 GB** (Land Cover 2019). Installing all available filters requires approximately **6.3 GB** of disk space on the application server. Operators should allocate this in addition to the application runtime baseline before completing the initial setup.
+
+### User-loaded raster datasets (future releases)
+
+Future releases will allow users to load their own raster datasets into SoilHive. Raster files (GeoTIFFs and similar formats) vary widely in size depending on spatial resolution, geographic extent, and band count. A single national-scale dataset at moderate resolution can range from a few hundred MB to tens of GB.
+
+For deployments planning to support user-loaded raster data, allocate raster storage in addition to the application baseline figures in the Infrastructure Profiles table. Local SSD, NAS, or object storage (S3-compatible) are all viable depending on deployment size and access patterns.
+
+---
+
 ## Recommended Software Stack
 
 | Component | Recommendation |
 |---|---|
 | Operating System | Ubuntu Server LTS or RHEL compatible Linux |
-| Application Runtime | Docker |
+| Application Runtime | Docker (two application containers: backend and frontend) |
 | Database | PostgreSQL 18 + PostGIS |
 | Reverse Proxy | Nginx or equivalent |
 | Authentication | Optional Keycloak or compatible OIDC provider |
