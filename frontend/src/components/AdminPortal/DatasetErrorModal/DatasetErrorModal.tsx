@@ -6,6 +6,7 @@ import { Dialog } from 'components/UI';
 import type { DatasetErrorItem } from 'types/datasetErrors';
 import type { DatasetsPublicationListItem } from 'types/datasetsPublication';
 import { dateStringToDDMMYYYY } from '../../../utilities/date';
+import { linkify } from '../../../utilities/linkify';
 
 import styles from './DatasetErrorModal.module.scss';
 
@@ -61,7 +62,7 @@ export function DatasetErrorModal({ visible, dataset, errors, onClose }: Props) 
           </p>
           <ul className={styles.FixList}>
             {actions.map((action, index) => (
-              <li key={index}>{action}</li>
+              <li key={index}>{linkify(action)}</li>
             ))}
           </ul>
         </div>

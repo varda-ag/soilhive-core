@@ -50,7 +50,7 @@ const JOB_ERROR_MESSAGES: Record<string, JobErrorMessage> = {
     message: 'An error occurred while writing soil records to the database.',
     actions: [
       'Try starting data loading again.',
-      'If it keeps failing, check the column mapping for duplicate key conflicts or contact support.',
+      'If it keeps failing, double check your data against the guidelines in the documentation at: https://github.com/varda-ag/soilhive-core/blob/main/docs/user-guides/data-load.md',
     ],
   },
   // FTD_GDAL_NOT_INSTALLED: reserved for future use — GdalCLI already emits a
