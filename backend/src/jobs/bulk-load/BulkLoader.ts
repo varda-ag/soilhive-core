@@ -15,6 +15,7 @@ import DatasetService from '../../services/DatasetService';
 import { IngestionStatus } from '../../types/data';
 import { getEntityManager } from '../../utils/data-source';
 import { JobError } from '../../errors/JobError';
+import ErrorService from '../../services/ErrorService';
 import { ErrorResponse } from '../../utils/error';
 import { getLoopbackUrl, getRawTableName, signToken } from '../../utils/utils';
 import { updateDatasetMetadata } from './UpdateDatasetMetadata';
@@ -29,6 +30,7 @@ export async function processBulkLoad(job: Job<BulkLoadJob>): Promise<void> {
   const { created_by } = job as unknown as BulkLoadJob;
   const datasetService = new DatasetService();
   const entityManager = await getEntityManager();
+  await new ErrorService().clearDatasetErrors(data.dataset_id, entityManager);
   const entitlementService = new EntitlementService();
   const entitlements = await entitlementService.getUserEntitlements({ entityManager } as any, created_by ?? EVERYONE);
   const token = { sub: data.created_by } as Token; // Only sub is required
@@ -116,7 +118,7 @@ const processFile = async (
     try {
       await Promise.all(promises);
     } catch (error: any) {
-      throw new JobError('BL_RECORD_WRITE_FAILED', {}, error?.detail ?? error?.message);
+      throw parseWriteError(error);
     }
 
     if (results.length < BATCH_SIZE) {
@@ -126,6 +128,31 @@ const processFile = async (
     const cursorValue = results[results.length - 1]!['record_id'] as string;
     cursor = encodeCursor(createCursor(cursorValue));
   }
+};
+
+export const parseWriteError = (error: any): JobError => {
+  const raw: string = error?.message ?? '';
+  const jsonStart = raw.indexOf('Failed to load data: ');
+  if (jsonStart !== -1) {
+    try {
+      const body = JSON.parse(raw.slice(jsonStart + 'Failed to load data: '.length));
+      if (Array.isArray(body?.errors) && body.errors.length > 0) {
+        const first = body.errors[0];
+        const field = String(first.path ?? '')
+          .split('/')
+          .filter(Boolean)
+          .filter(seg => seg !== 'body' && isNaN(Number(seg)))
+          .join('.');
+        const issue = String(first.message ?? '');
+        if (field && issue) {
+          return new JobError('BL_RECORD_VALIDATION_FAILED', { field, issue }, raw);
+        }
+      }
+    } catch {
+      // not parseable — fall through
+    }
+  }
+  return new JobError('BL_RECORD_WRITE_FAILED', {}, error?.detail ?? raw);
 };
 
 export const makeRequest = (datasetSlug: string, datasetFileMappingId: string, payload: any) =>

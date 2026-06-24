@@ -53,6 +53,13 @@ const JOB_ERROR_MESSAGES: Record<string, JobErrorMessage> = {
       'If it keeps failing, double check your data against the guidelines in the documentation at: https://github.com/varda-ag/soilhive-core/blob/main/docs/user-guides/data-load.md',
     ],
   },
+  BL_RECORD_VALIDATION_FAILED: {
+    message: "A record was rejected because field '{field}' {issue}.",
+    actions: [
+      "Check your source file: the '{field}' field contains an invalid value.",
+      'Correct the data and re-upload the file, then retry data loading.',
+    ],
+  },
   // FTD_GDAL_NOT_INSTALLED: reserved for future use — GdalCLI already emits a
   // 'GDAL_NOT_INSTALLED:' prefix on ENOENT so the code is detectable, but by
   // the time fileToDB runs GDAL has already been used (ogrinfo during metadata

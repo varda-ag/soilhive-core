@@ -7,7 +7,7 @@ export function linkify(text: string): ReactNode {
   // They always interleave: [text, url, text, url, ..., text] (parts.length === urls.length + 1).
   const parts = text.split(URL_REGEX);
   const urls = text.match(URL_REGEX) ?? [];
-  return parts.flatMap((part, i) =>
+  return parts.map((part, i) =>
     urls[i]
       ? [
           part,
