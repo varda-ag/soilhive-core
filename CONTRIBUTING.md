@@ -1,5 +1,16 @@
 # Contributing to SoilHive Core
 
+## Who can contribute
+
+
+SoilHive Core welcomes external contributions. To keep the process manageable, we maintain an **approved contributors list** — a lightweight step before your first pull request.
+
+If you would like to contribute for the first time, open a GitHub issue describing the change you intend to make (or identify an existing one), then contact the team with a link to that issue to request access. Once approved and added to the list, you may fork the repo and open a pull request following the process below.
+
+Every pull request must be linked to a GitHub issue describing the change. PRs without a corresponding issue will not be reviewed.
+
+---
+
 ## Prerequisites
 
 - Node.js 24
