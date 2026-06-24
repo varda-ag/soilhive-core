@@ -38,6 +38,27 @@
   }
 }
 
+.TableWrapper {
+  :global(.p-datatable-wrapper) {
+    overflow-x: auto;
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
+  }
+}
+
+.StickyScrollbar {
+  position: sticky;
+  bottom: 72px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  height: 16px;
+  background-color: transparent;
+  z-index: 1;
+}
+
 .TableColumn {
   max-width: 174px;
   vertical-align: top;

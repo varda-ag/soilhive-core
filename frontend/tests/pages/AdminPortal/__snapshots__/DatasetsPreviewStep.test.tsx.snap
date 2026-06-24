@@ -103,43 +103,54 @@ exports[`DatasetsPreviewStep matches snapshot 1`] = `
       </div>
     </div>
     <div
-      data-testid="mock-table"
+      class="TableWrapper"
     >
       <div
-        data-testid="table-columns"
+        data-testid="mock-table"
       >
         <div
-          data-testid="table-col-min_depth"
+          data-testid="table-columns"
         >
-          <p
-            class="ColumnName"
+          <div
+            data-testid="table-col-min_depth"
           >
-            Lower depth
-          </p>
-        </div>
-        <div
-          data-testid="table-col-max_depth"
-        >
-          <p
-            class="ColumnName"
+            <p
+              class="ColumnName"
+            >
+              Lower depth
+            </p>
+          </div>
+          <div
+            data-testid="table-col-max_depth"
           >
-            Upper depth
-          </p>
-        </div>
-        <div
-          data-testid="table-col-ph"
-        >
-          <p
-            class="ColumnName"
+            <p
+              class="ColumnName"
+            >
+              Upper depth
+            </p>
+          </div>
+          <div
+            data-testid="table-col-ph"
           >
-            ph
-          </p>
+            <p
+              class="ColumnName"
+            >
+              ph
+            </p>
+          </div>
+          <div
+            data-testid="table-col-delete"
+          >
+            Delete
+          </div>
         </div>
+      </div>
+      <div
+        class="StickyScrollbar"
+      >
         <div
-          data-testid="table-col-delete"
-        >
-          Delete
-        </div>
+          style="width: 0px;"
+        />
       </div>
     </div>
   </div>

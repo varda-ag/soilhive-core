@@ -24,6 +24,43 @@ export function DatasetsPreviewStep() {
   const { id } = useParams();
   const { isLoading: isIngestionLoading, updateFurthestStep } = useIngestionStatus();
 
+  const tableWrapperRef = useRef<HTMLDivElement>(null);
+  const mirrorScrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const wrapperDiv = tableWrapperRef.current;
+    const mirror = mirrorScrollRef.current;
+    if (!wrapperDiv || !mirror) return;
+
+    const scrollEl = (wrapperDiv.querySelector('.p-datatable-wrapper') as HTMLElement) ?? wrapperDiv;
+    const mirrorInner = mirror.firstElementChild as HTMLElement;
+
+    const updateWidth = () => {
+      mirrorInner.style.width = `${scrollEl.scrollWidth}px`;
+    };
+    updateWidth();
+
+    const tableEl = wrapperDiv.querySelector('table');
+    const ro = new ResizeObserver(updateWidth);
+    ro.observe(tableEl ?? scrollEl);
+
+    const toMirror = () => {
+      mirror.scrollLeft = scrollEl.scrollLeft;
+    };
+    const toScrollEl = () => {
+      scrollEl.scrollLeft = mirror.scrollLeft;
+    };
+
+    scrollEl.addEventListener('scroll', toMirror);
+    mirror.addEventListener('scroll', toScrollEl);
+
+    return () => {
+      ro.disconnect();
+      scrollEl.removeEventListener('scroll', toMirror);
+      mirror.removeEventListener('scroll', toScrollEl);
+    };
+  }, []);
+
   const hasTracked = useRef(false);
   useEffect(() => {
     if (!hasTracked.current && id && !isIngestionLoading) {
@@ -207,19 +244,24 @@ export function DatasetsPreviewStep() {
             />
           </div>
         </div>
-        <Table
-          tableRef={tableHandleRef}
-          value={allSoilData}
-          columns={filteredTableColumns}
-          columnClassName={styles.TableColumn}
-          defaultSortField={sortField}
-          defaultSortOrder={sortOrder}
-          reorderableColumns={true}
-          dataKey="cursor"
-          emptyMessage={!allSoilData.length && (isLoading || !!soilData?.length) ? t('datasets.preview.loading') : ''}
-          onScrollNearBottom={loadMore}
-          onSort={onSortChange}
-        />
+        <div className={styles.TableWrapper} ref={tableWrapperRef}>
+          <Table
+            tableRef={tableHandleRef}
+            value={allSoilData}
+            columns={filteredTableColumns}
+            columnClassName={styles.TableColumn}
+            defaultSortField={sortField}
+            defaultSortOrder={sortOrder}
+            reorderableColumns={true}
+            dataKey="cursor"
+            emptyMessage={!allSoilData.length && (isLoading || !!soilData?.length) ? t('datasets.preview.loading') : ''}
+            onScrollNearBottom={loadMore}
+            onSort={onSortChange}
+          />
+          <div ref={mirrorScrollRef} className={styles.StickyScrollbar}>
+            <div />
+          </div>
+        </div>
       </div>
       <div className={styles.Actions}>
         <Button type="secondary" onClick={handlePrevious} dataTestId="sh-preview-previous">
