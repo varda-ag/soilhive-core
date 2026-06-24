@@ -5,7 +5,7 @@ import { translateJobError } from '../errors/jobErrorMessages';
 export interface DatasetErrorItem {
   code: string;
   message: string;
-  action: string;
+  actions: string[];
   params: Record<string, unknown>;
   detail?: string;
 }

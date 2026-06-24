@@ -6,4 +6,5 @@ export type DatasetsPublicationListItem = {
   status: IngestionStatus;
   updated_at: Date | null;
   visibility?: string;
+  hasErrors?: boolean;
 };
