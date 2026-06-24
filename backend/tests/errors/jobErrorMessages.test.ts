@@ -25,16 +25,17 @@ describe('translateJobError', () => {
     'BL_RECORD_WRITE_FAILED',
   ];
 
-  test.each(DEFINED_CODES)('returns non-empty message and action for %s', code => {
+  test.each(DEFINED_CODES)('returns non-empty message and actions for %s', code => {
     const result = translateJobError(code);
     expect(result.message).toBeTruthy();
-    expect(result.action).toBeTruthy();
+    expect(result.actions.length).toBeGreaterThan(0);
+    result.actions.forEach(a => expect(a).toBeTruthy());
   });
 
   it('returns a generic fallback for an unknown code', () => {
     const result = translateJobError('UNKNOWN_CODE');
     expect(result.message).toBeTruthy();
-    expect(result.action).toBeTruthy();
+    expect(result.actions.length).toBeGreaterThan(0);
   });
 
   it('fallback differs from any defined message to confirm it is truly generic', () => {

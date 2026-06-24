@@ -13,7 +13,7 @@ describe('ErrorService.getDatasetErrors', () => {
     expect(result).toEqual([]);
   });
 
-  it('translates error codes to message and action', async () => {
+  it('translates error codes to message and actions', async () => {
     const service = new ErrorService();
     const rows = [
       {
@@ -27,7 +27,7 @@ describe('ErrorService.getDatasetErrors', () => {
     expect(result[0]!.errors[0]).toMatchObject({
       code: 'FTD_FILE_NOT_FOUND',
       message: expect.any(String),
-      action: expect.any(String),
+      actions: expect.arrayContaining([expect.any(String)]),
       params: {},
     });
   });
@@ -40,7 +40,7 @@ describe('ErrorService.getDatasetErrors', () => {
       code: 'UNKNOWN_CODE',
       params: { x: 1 },
       message: expect.any(String),
-      action: expect.any(String),
+      actions: expect.arrayContaining([expect.any(String)]),
     });
   });
 

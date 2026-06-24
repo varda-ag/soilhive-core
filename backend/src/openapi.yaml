@@ -1824,14 +1824,16 @@ components:
             required:
               - code
               - message
-              - action
+              - actions
             properties:
               code:
                 type: string
               message:
                 type: string
-              action:
-                type: string
+              actions:
+                type: array
+                items:
+                  type: string
               params:
                 type: object
                 additionalProperties: true

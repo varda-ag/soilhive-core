@@ -25,8 +25,8 @@ const dataset: DatasetsPublicationListItem = {
 };
 
 const errors: DatasetErrorItem[] = [
-  { code: 'FTD_FILE_NOT_FOUND', message: 'Your file was removed from storage.', action: 'Re-upload the file.', params: {} },
-  { code: 'BL_RAW_TABLE_NOT_FOUND', message: 'Files not staged yet.', action: 'Check file status.', params: {} },
+  { code: 'FTD_FILE_NOT_FOUND', message: 'Your file was removed from storage.', actions: ['Re-upload the file.'], params: {} },
+  { code: 'BL_RAW_TABLE_NOT_FOUND', message: 'Files not staged yet.', actions: ['Check file status.', 'Contact support.'], params: {} },
 ];
 
 const defaultProps = {
@@ -64,11 +64,12 @@ describe('DatasetErrorModal', () => {
     expect(screen.getByTestId('dialog-content')).toHaveTextContent('Files not staged yet.');
   });
 
-  it('renders suggested fix actions as bullets', () => {
+  it('renders all suggested fix actions flattened across errors', () => {
     render(<DatasetErrorModal {...defaultProps} />);
 
     expect(screen.getByTestId('dialog-content')).toHaveTextContent('Re-upload the file.');
     expect(screen.getByTestId('dialog-content')).toHaveTextContent('Check file status.');
+    expect(screen.getByTestId('dialog-content')).toHaveTextContent('Contact support.');
   });
 
   it('does not render suggested fixes section when there are no errors', () => {

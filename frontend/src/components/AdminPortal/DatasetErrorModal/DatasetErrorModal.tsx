@@ -19,7 +19,7 @@ interface Props {
 export function DatasetErrorModal({ visible, dataset, errors, onClose }: Props) {
   const { t } = useTranslation('admin');
 
-  const actions = errors.map(e => e.action);
+  const actions = errors.flatMap(e => e.actions);
 
   return (
     <Dialog
