@@ -130,7 +130,7 @@ const processFile = async (
   }
 };
 
-const parseWriteError = (error: any): JobError => {
+export const parseWriteError = (error: any): JobError => {
   const raw: string = error?.message ?? '';
   const jsonStart = raw.indexOf('Failed to load data: ');
   if (jsonStart !== -1) {
