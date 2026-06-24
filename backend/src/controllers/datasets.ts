@@ -92,3 +92,8 @@ export const getSoilDataCount = async (req: Request, res: Response) => {
   const count = await datasetService.getSoilDataCount(req.customData, req.params['datasetFileMappingId']! as string);
   res.json({ count });
 };
+
+export const getSoilDataStats = async (req: Request, res: Response) => {
+  const data = await datasetService.getSoilDataStats(req.customData, req.params['datasetFileMappingId']! as string);
+  res.json(data);
+};

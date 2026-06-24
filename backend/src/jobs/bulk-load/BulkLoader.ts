@@ -97,7 +97,7 @@ const processFile = async (
     // Get the data from the preview
     let results;
     try {
-      results = await vdl.getDataPreview(requestData.entityManager, dataMappingConfig, file.id, BATCH_SIZE, cursor);
+      results = await vdl.getDataPreview(requestData.entityManager, dataMappingConfig, file.id, BATCH_SIZE, false, cursor);
     } catch (error: any) {
       if (error?.code === '42P01' || /does not exist/.test(error?.detail ?? error?.message ?? '')) {
         throw new JobError('BL_RAW_TABLE_NOT_FOUND', {}, error?.detail ?? error?.message);

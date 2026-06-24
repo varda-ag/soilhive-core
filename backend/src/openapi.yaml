@@ -1399,6 +1399,40 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
+  /datasets/{datasetId}/dataset-file-mapping/{datasetFileMappingId}/soil-data/stats:
+    parameters:
+      - name: datasetId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: ID of the dataset containing soil data
+      - name: datasetFileMappingId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Unique identifier of the mapping related to the raw record
+    get:
+      x-eov-operation-handler: controllers/datasets
+      x-eov-operation-id: getSoilDataStats
+      summary: Returns the summary of cleaned cells/rows applied to the raw data
+      tags:
+        - datasets
+      security:
+        - bearerAuth: [data-admin]
+      responses:
+        '200':
+          description: Cleaning summary retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CleaningReport'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
   /datasets/{datasetId}/dataset-file-mapping/{datasetFileMappingId}/soil-data:
     parameters:
       - name: datasetId
@@ -2460,6 +2494,8 @@ components:
           nullable: true
         geometry:
           $ref: '#/components/schemas/Geometry'
+        user_dropped:
+          type: boolean
       additionalProperties:
         anyOf:
           - type: string
@@ -2714,3 +2750,58 @@ components:
           type: object
           additionalProperties:
             type: number
+    
+    cleaningReportModifications:
+      type: object
+      properties:
+        reason:
+          type: string
+          enum: [depth_rounded, value_rounded, unit_converted]
+        count: 
+          type: number
+
+    cleaningReportRowDeletions:
+      type: object
+      properties:
+        reason:
+          type: string
+          enum: [invalid_coordinates, invalid_depth_interval, minimum_data_requirement, duplicate_row]
+        count: 
+          type: number
+
+    cleaningReportCellDeletions:
+      type: object
+      properties:
+        reason:
+          type: string
+          enum: [non_numeric, negative_value, zero_value, duplicate_cell, out_of_bounds]
+        count: 
+          type: number
+        property: 
+          type: string
+          nullable: true
+
+    CleaningReport:
+      type: object
+      properties:
+        summary:
+          type: object
+          properties:
+            values_modified: 
+              type: number
+            rows_deleted: 
+              type: number
+            cells_deleted: 
+              type: number
+        modifications:
+          type: array
+          items:
+            $ref: '#/components/schemas/cleaningReportModifications'
+        row_deletions:
+          type: array
+          items:
+            $ref: '#/components/schemas/cleaningReportRowDeletions'
+        cell_deletions:
+          type: array
+          items:
+            $ref: '#/components/schemas/cleaningReportCellDeletions'

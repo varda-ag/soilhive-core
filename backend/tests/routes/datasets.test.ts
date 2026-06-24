@@ -356,8 +356,8 @@ describe('Testing /datasets routes', () => {
         iterations++;
       } while (iterations < maxIterations);
 
-      // 20 rows in fixture minus 2 drop_records = 18 usable records
-      expect(allRecordIds.length).toBe(18);
+      // 20 fixture rows minus invalid data (including sentinel and user dropped) = 8
+      expect(allRecordIds.length).toBe(8);
       expect(new Set(allRecordIds).size).toBe(allRecordIds.length);
     });
 
@@ -391,7 +391,7 @@ describe('Testing /datasets routes', () => {
         iterations++;
       } while (iterations < maxIterations);
 
-      expect(allRecordIds.length).toBe(18);
+      expect(allRecordIds.length).toBe(8);
       expect(new Set(allRecordIds).size).toBe(allRecordIds.length);
       for (let i = 1; i < allMinDepths.length; i++) {
         expect(allMinDepths[i]).toBeGreaterThanOrEqual(allMinDepths[i - 1]);
@@ -432,7 +432,8 @@ describe('Testing /datasets routes', () => {
         iterations++;
       } while (iterations < maxIterations);
 
-      expect(allRecordIds.length).toBe(18);
+      // 20 fixture rows minus invalid data (including sentinel and user dropped) = 8
+      expect(allRecordIds.length).toBe(8);
       expect(new Set(allRecordIds).size).toBe(allRecordIds.length);
       // Non-NULL bdfiod values (those within min_val range) must appear in ascending order.
       // NULL values sort last (PostgreSQL NULLS LAST for ASC) and are excluded from the check.
@@ -496,7 +497,7 @@ describe('Testing /datasets routes', () => {
         iterations++;
       } while (iterations < maxIterations);
 
-      expect(allRecordIds.length).toBe(18);
+      expect(allRecordIds.length).toBe(8);
       expect(new Set(allRecordIds).size).toBe(allRecordIds.length);
       // Column with all nulls will be ignored for sorting, the second order by clause (by record id) prevails.
       const nonNullLicenses = allLicenses.filter(v => v !== null);
@@ -544,7 +545,7 @@ describe('Testing /datasets routes', () => {
       expect(Array.isArray(res.body)).toBe(true);
       expect(res.body.length).toBe(5);
       for (const record of res.body) {
-        expect(record.min_depth).toBe(100);
+        expect(record.min_depth).toBe(101);
         expect(record.max_depth).toBe(200);
       }
     });
@@ -564,8 +565,30 @@ describe('Testing /datasets routes', () => {
         .set('Authorization', `Bearer ${token}`);
       expect(res.statusCode).toBe(StatusCodes.OK);
       expect(res.body).toHaveProperty('count');
-      // 20 fixture rows minus 2 drop_records = 18
-      expect(res.body.count).toBe(18);
+      // 20 fixture rows minus invalid data (including sentinel and user dropped) = 8
+      expect(res.body.count).toBe(8);
+    });
+  });
+
+  describe('GET /datasets/:datasetId/dataset-file-mapping/:datasetFileMappingId/soil-data/stats', () => {
+    it('returns the expected count of deleted rows in the summary', async () => {
+      const token = await getDataAdminToken();
+      const { dataset, datasetFileMapping } = await addSyntheticIngestionData({
+        ...syntheticIngestionDataOptions,
+        id: 1,
+        createTable: true,
+        tableRows: 'ALL',
+      });
+      const res = await request(app)
+        .get(`/datasets/${dataset.slug}/dataset-file-mapping/${datasetFileMapping.id}/soil-data/stats`)
+        .set('Authorization', `Bearer ${token}`);
+      expect(res.statusCode).toBe(StatusCodes.OK);
+      expect(res.body).toHaveProperty('summary');
+      expect(res.body).toHaveProperty('cell_deletions');
+      expect(res.body).toHaveProperty('modifications');
+      expect(res.body).toHaveProperty('row_deletions');
+      // Internally deleted rows: 12 + user_deleted drows 2
+      expect(res.body.summary.rows_deleted).toBe(14);
     });
   });
 });
