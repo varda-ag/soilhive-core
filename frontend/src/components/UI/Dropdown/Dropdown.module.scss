@@ -121,4 +121,9 @@
     max-height: 15rem;
     overflow: auto;
     z-index: 1000;
+    box-shadow: var(--shadow-interface);
+}
+
+.FullWidthMenu {
+    width: 100% !important;
 }
