@@ -1,6 +1,7 @@
 import { describe, it, expect, jest } from '@jest/globals';
 import { signToken } from '../../../src/utils/utils';
 import { ErrorResponse } from '../../../src/utils/error';
+import { parseWriteError } from '../../../src/jobs/bulk-load/BulkLoader';
 import { Job } from 'pg-boss';
 import request from 'supertest';
 import { validate } from 'uuid';
@@ -193,5 +194,44 @@ describe('BulkLoader class', () => {
     const minY = y.reduce((min, current) => (current < min ? current : min), y[0]);
     expect(datasetEntity!.spatial_extent?.coordinates[0][0][0]).toBe(minX);
     expect(datasetEntity!.spatial_extent?.coordinates[0][0][1]).toBe(minY);
+  });
+});
+
+describe('parseWriteError', () => {
+  it('returns BL_RECORD_VALIDATION_FAILED with field and issue when response contains OpenAPI validation errors', () => {
+    const body = JSON.stringify({
+      title: 'Bad Request',
+      status: 400,
+      detail: 'request/body/8/geometry must be object',
+      errors: [{ path: '/body/8/geometry', message: 'must be object', errorCode: 'type.openapi.validation' }],
+    });
+    const error = new ErrorResponse(`Failed to load data: ${body}`, 400);
+
+    expect(parseWriteError(error)).toMatchObject({
+      name: 'JobError',
+      code: 'BL_RECORD_VALIDATION_FAILED',
+      params: { field: 'geometry', issue: 'must be object' },
+    });
+  });
+
+  it('returns BL_RECORD_VALIDATION_FAILED with dotted path for nested fields', () => {
+    const body = JSON.stringify({
+      errors: [{ path: '/body/3/properties/ph', message: 'must be number' }],
+    });
+    const error = new ErrorResponse(`Failed to load data: ${body}`, 400);
+
+    expect(parseWriteError(error)).toMatchObject({
+      code: 'BL_RECORD_VALIDATION_FAILED',
+      params: { field: 'properties.ph', issue: 'must be number' },
+    });
+  });
+
+  it('returns BL_RECORD_WRITE_FAILED for a non-validation error', () => {
+    const error = new ErrorResponse('Failed to load data: Internal Server Error', 500);
+
+    expect(parseWriteError(error)).toMatchObject({
+      name: 'JobError',
+      code: 'BL_RECORD_WRITE_FAILED',
+    });
   });
 });

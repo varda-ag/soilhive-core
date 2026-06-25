@@ -28,6 +28,10 @@ jest.mock('hooks/useDatasetMutation', () => ({
   useDeleteDatasetMutation: jest.fn(),
 }));
 
+jest.mock('hooks/useDatasetErrors', () => ({
+  useDatasetErrors: jest.fn(() => ({ datasetErrors: [], isLoading: false })),
+}));
+
 jest.mock('../../src/App', () => ({
   queryClient: {
     invalidateQueries: jest.fn(),
@@ -59,9 +63,12 @@ describe('useDatasetsPublicationList', () => {
 
     expect(result.current.isLoading).toBe(false);
     expect(result.current.searchValue).toBe('');
-    expect(result.current.filteredDatasets).toEqual(datasets);
+    expect(result.current.filteredDatasets).toEqual(datasets.map(d => ({ ...d, hasErrors: false })));
     expect(result.current.selectedDataset).toBeNull();
     expect(result.current.isDeleteModalOpened).toBe(false);
+    expect(result.current.isErrorModalOpened).toBe(false);
+    expect(result.current.selectedErrorDataset).toBeNull();
+    expect(result.current.errorsForSelectedDataset).toEqual([]);
   });
 
   it('isLoading is true when useDatasets is loading', () => {
@@ -87,7 +94,7 @@ describe('useDatasetsPublicationList', () => {
       result.current.setSearchValue('carbon');
     });
 
-    expect(result.current.filteredDatasets).toEqual([{ id: '1', name: 'Carbon Dataset' }]);
+    expect(result.current.filteredDatasets).toEqual([{ id: '1', name: 'Carbon Dataset', hasErrors: false }]);
   });
 
   it('filteredDatasets returns all datasets when searchValue is empty', () => {
@@ -97,7 +104,7 @@ describe('useDatasetsPublicationList', () => {
       result.current.setSearchValue('');
     });
 
-    expect(result.current.filteredDatasets).toEqual(datasets);
+    expect(result.current.filteredDatasets).toEqual(datasets.map(d => ({ ...d, hasErrors: false })));
   });
 
   it('filteredDatasets returns empty array when datasets is undefined', () => {

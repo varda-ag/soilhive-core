@@ -1,3 +1,10 @@
+.StatusCell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+}
+
 .Tag {
   width: 5.125rem;
   justify-content: center;
@@ -17,4 +24,27 @@
     border-color: var(--color-brand-light-green-1000);
     color: var(--color-accent-success-1000);
   }
+}
+
+.ErrorLink {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: var(--color-accent-danger-1000);
+  font-size: var(--font-size-xs);
+  text-decoration: underline;
+
+  &:hover {
+    color: var(--color-accent-danger-600);
+  }
+}
+
+.ErrorLinkIcon {
+  width: 0.875rem;
+  height: 0.875rem;
+  flex-shrink: 0;
 }

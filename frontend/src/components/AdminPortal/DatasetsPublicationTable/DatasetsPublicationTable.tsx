@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ColumnSortEvent } from 'primereact/column';
-
+import WarningIcon from 'assets/icons/warning-icon.svg?react';
 import { DatasetsTableStatusTemplate } from './DatasetsTableStatusTemplate/DatasetsTableStatusTemplate';
 import { DatasetsTableVisibilityTemplate } from './DatasetsTableVisibilityTemplate/DatasetsTableVisibilityTemplate';
 import { DatasetsTableActionTemplate } from './DatasetsTableActionTemplate/DatasetsTableActionTemplate';
@@ -27,9 +27,10 @@ interface Props {
   onEdit: (id: string) => void;
   onDelete: (dataset: DatasetsPublicationListItem) => void;
   onPublish: (id: string) => void;
+  onShowErrors: (dataset: DatasetsPublicationListItem) => void;
 }
 
-export function DatasetsPublicationTable({ datasets, isSearch, onEdit, onDelete, onPublish }: Props) {
+export function DatasetsPublicationTable({ datasets, isSearch, onEdit, onDelete, onPublish, onShowErrors }: Props) {
   const { t } = useTranslation('admin');
 
   const statusSortFunction = useCallback((event: ColumnSortEvent) => {
@@ -40,6 +41,21 @@ export function DatasetsPublicationTable({ datasets, isSearch, onEdit, onDelete,
     });
   }, []);
 
+  const nameBodyTemplate = useCallback(
+    (dataset: DatasetsPublicationListItem) => (
+      <span className={styles.NameCell}>
+        {dataset.hasErrors && <WarningIcon className={styles.NameWarningIcon} />}
+        {dataset.name}
+      </span>
+    ),
+    [],
+  );
+
+  const statusBodyTemplate = useCallback(
+    (dataset: DatasetsPublicationListItem) => <DatasetsTableStatusTemplate dataset={dataset} onShowErrors={onShowErrors} />,
+    [onShowErrors],
+  );
+
   const actionsBodyTemplate = useCallback(
     (dataset: DatasetsPublicationListItem) => (
       <DatasetsTableActionTemplate dataset={dataset} onEdit={onEdit} onDelete={onDelete} onPublish={onPublish} />
@@ -49,12 +65,12 @@ export function DatasetsPublicationTable({ datasets, isSearch, onEdit, onDelete,
 
   const columns: TableColumn<DatasetsPublicationListItem>[] = useMemo(
     () => [
-      { name: t('datasets.list.columns.name'), value: 'name', sortable: true },
+      { name: t('datasets.list.columns.name'), value: 'name', sortable: true, bodyTemplate: nameBodyTemplate },
       {
         name: t('datasets.list.columns.status'),
         value: 'status',
         sortable: true,
-        bodyTemplate: DatasetsTableStatusTemplate,
+        bodyTemplate: statusBodyTemplate,
         sortFunction: statusSortFunction,
       },
       { name: t('datasets.list.columns.visibility'), value: 'visibility', sortable: true, bodyTemplate: DatasetsTableVisibilityTemplate },
@@ -71,11 +87,13 @@ export function DatasetsPublicationTable({ datasets, isSearch, onEdit, onDelete,
         bodyTemplate: actionsBodyTemplate,
       },
     ],
-    [t, actionsBodyTemplate, statusSortFunction],
+    [t, nameBodyTemplate, statusBodyTemplate, actionsBodyTemplate, statusSortFunction],
   );
 
   const rowClassName = (row: DatasetsPublicationListItem) => {
-    return row.status === IngestionStatus.LOADED ? styles.TableRowHighlighted : undefined;
+    if (row.hasErrors) return 'sh-row-error';
+    if (row.status === IngestionStatus.LOADED) return 'sh-row-highlighted';
+    return undefined;
   };
 
   return (

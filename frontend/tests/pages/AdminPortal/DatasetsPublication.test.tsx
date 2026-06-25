@@ -27,6 +27,10 @@ jest.mock('components/AdminPortal/DatasetDeleteModal/DatasetDeleteModal', () => 
     ) : null,
 }));
 
+jest.mock('components/AdminPortal/DatasetErrorModal/DatasetErrorModal', () => ({
+  DatasetErrorModal: () => null,
+}));
+
 jest.mock('components/UI', () => ({
   Button: ({ children, onClick }: any) => (
     <button data-testid="sh-ui-button" onClick={onClick}>
@@ -43,11 +47,16 @@ const baseHookValue = {
   searchValue: '',
   selectedDataset: null,
   isDeleteModalOpened: false,
+  isErrorModalOpened: false,
+  selectedErrorDataset: null,
+  errorsForSelectedDataset: [],
   onEdit: jest.fn(),
   onDelete: jest.fn(),
   onPublish: jest.fn(),
+  onShowErrors: jest.fn(),
   onDeletionConfirm: jest.fn(),
   onDeleteModalClose: jest.fn(),
+  onErrorModalClose: jest.fn(),
   setSearchValue: jest.fn(),
   navigateToNewDataset: jest.fn(),
 };
