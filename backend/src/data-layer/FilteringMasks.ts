@@ -22,14 +22,17 @@ const calcEffectiveResolution = (geomUnion: Polygon | MultiPolygon, overviewPixe
   return Math.min(RASTER_MASK_RESOLUTION, naturalResolution);
 };
 
-const hasMatchingRasterValues = async (entityManager: EntityManager, dataFilter: DataFilter): Promise<boolean> => {
+const hasMatchingRasterValues = async (
+  entityManager: EntityManager,
+  filter: DataFilter,
+  geomUnion: Polygon | MultiPolygon,
+): Promise<boolean> => {
   const enabledRasterFilterTables = await getEnabledRasterFilterTables();
-  const raster_filters = dataFilter.parameters.raster_filters;
+  const raster_filters = filter.parameters.raster_filters;
   if (!raster_filters) return true;
 
   const schema = process.env.POSTGRES_SCHEMA;
-  const geomUnion = geometryUnion(dataFilter.geometries);
-  const aoiAreaM2 = turf.area(dataFilter.geometries[0]!);
+  const aoiAreaM2 = filter.area;
   const geomJson = JSON.stringify(geomUnion);
 
   for (const baseTable of enabledRasterFilterTables) {
@@ -64,49 +67,114 @@ const hasMatchingRasterValues = async (entityManager: EntityManager, dataFilter:
   return true;
 };
 
-export const getVectorMask = async (entityManager: EntityManager, dataFilter: DataFilter): Promise<MultiPolygon> => {
-  if (dataFilter.geometries.length === 0) {
-    return { type: 'MultiPolygon', coordinates: [] };
-  }
-  const hasValues = await hasMatchingRasterValues(entityManager, dataFilter);
-  if (!hasValues) {
-    return { type: 'MultiPolygon', coordinates: [] };
-  }
+export type CteDef = { name: string; sql: string; materialized?: boolean };
+
+/**
+ * Returns a chain of CTEs that resolves to an `aoi` CTE containing the vector mask
+ * geometry (user geometry intersected with any active raster filter values).
+ * The chain is: aoi_raw → clipped raster CTEs → mask CTEs → aoi.
+ * Pass the returned array to the query builder via addCommonTableExpression, then
+ * setParameter('geometryIds', ...) to bind the UUIDs.
+ */
+export const getVectorMaskCtes = async (entityManager: EntityManager, filter: DataFilter): Promise<CteDef[]> => {
+  const { parameters: filters, area: aoiAreaM2 } = filter;
+  const schema = process.env.POSTGRES_SCHEMA;
   const enabledRasterFilterTables = await getEnabledRasterFilterTables();
-  const { ctes, resultExpr, fromTables, whereClause, params } = buildVectorMaskCtes(dataFilter, enabledRasterFilterTables);
-  const sql = `
-      WITH ${ctes.join(',\n      ')}
-      SELECT ST_AsGeoJSON(
-        ST_Multi(ST_CollectionExtract(ST_MakeValid(${resultExpr}, 'method=structure'), 3))
-      )::json AS geom
-      FROM ${fromTables}
-      ${whereClause}
-    `;
-  await entityManager.query("SET LOCAL work_mem = '256MB';");
-  const results = await entityManager.query(sql, params);
-  if (results.length === 0 || results[0].geom === null) {
-    return { type: 'MultiPolygon', coordinates: [] };
+  const raster_filters = filters.raster_filters;
+  const ctes: CteDef[] = [];
+  const maskCteNames: string[] = [];
+
+  ctes.push({
+    name: 'aoi_raw',
+    sql: `SELECT ugs.geom
+          FROM ${schema}.user_geometry_subdivisions ugs WHERE ugs.user_geometry_id = ANY(:geometryIds::uuid[])`,
+    materialized: true,
+  });
+
+  if (raster_filters) {
+    for (const baseTable of enabledRasterFilterTables) {
+      const values = raster_filters[baseTable];
+      if (!values || values.length === 0) continue;
+
+      const table = selectOverviewTable(baseTable, aoiAreaM2);
+      const clippedRaster = `clipped_${table}`;
+      const maskCte = `mask_${baseTable}`;
+
+      ctes.push({
+        name: clippedRaster,
+        sql: `SELECT ST_Union(ST_Clip(rr.rast, aoi_raw.geom, touched => TRUE)) AS rast
+              FROM ${schema}.${table} rr
+              CROSS JOIN aoi_raw
+              WHERE ST_Intersects(rr.rast, aoi_raw.geom)`,
+        materialized: true,
+      });
+
+      ctes.push({
+        name: maskCte,
+        sql: `SELECT ST_Union(dp.geom) AS geom
+              FROM ${clippedRaster}
+              CROSS JOIN LATERAL ST_DumpAsPolygons(${clippedRaster}.rast) dp
+              WHERE dp.val = ANY(ARRAY[${values.join(',')}]::double precision[])`,
+        materialized: true,
+      });
+
+      maskCteNames.push(maskCte);
+    }
   }
-  return results[0].geom as MultiPolygon;
+
+  const resultExpr = maskCteNames.reduce((acc, m) => `ST_Intersection(${acc}, ${m}.geom)`, 'aoi_raw.geom');
+  const fromTables = ['aoi_raw', ...maskCteNames].join(', ');
+  const whereClause = maskCteNames.length > 0 ? `WHERE ${maskCteNames.map(m => `${m}.geom IS NOT NULL`).join(' AND ')}` : '';
+
+  // aoi_raw holds subdivision pieces (one row each), so the masked intersections are
+  // aggregated back into a single row: consumers treat aoi as one geometry (scalar
+  // subqueries, GeoJSON output). The union is bounded by the mask extent, not the
+  // full user geometry.
+  ctes.push({
+    name: 'aoi',
+    sql: `SELECT ST_Multi(ST_CollectionExtract(ST_Union(ST_MakeValid(${resultExpr}, 'method=structure')), 3)) AS geom
+          FROM ${fromTables}
+          ${whereClause}`,
+    materialized: true,
+  });
+
+  return ctes;
+};
+
+export const getVectorMask = async (entityManager: EntityManager, filter: DataFilter): Promise<Polygon | MultiPolygon> => {
+  const ctes = await getVectorMaskCtes(entityManager, filter);
+  const cteStrings = ctes.map(
+    cte => `${cte.name}${cte.materialized ? ' AS MATERIALIZED' : ''} (${cte.sql.replace(/:geometryIds/g, '$1')})`,
+  );
+  const [row] = await entityManager.query(`WITH ${cteStrings.join(',\n')} SELECT ST_AsGeoJSON(geom)::json AS geom FROM aoi`, [
+    filter.geometryIds,
+  ]);
+  return row.geom;
 };
 
 export const getRasterMask = async (
   entityManager: EntityManager,
-  dataFilter: DataFilter,
+  filter: DataFilter,
   output: 'file' | 'table', // It is caller responsability to drop the temp table after use (if output is 'table') or delete temp file (if output is 'file')
   rasterize: boolean = true, // If true, will rasterize the AOI and apply raster filters in a single step; if false, will create a vector mask and then rasterize it
 ): Promise<string | undefined> => {
-  if (dataFilter.geometries.length === 0) {
+  if (filter.geometryIds.length === 0) {
     return undefined;
   }
-  const hasValues = await hasMatchingRasterValues(entityManager, dataFilter);
+  const schema = process.env.POSTGRES_SCHEMA;
+  const rows: { geom: Polygon | MultiPolygon }[] = await entityManager.query(
+    `SELECT ST_AsGeoJSON(ug.geom)::json AS geom FROM ${schema}.user_geometries ug WHERE ug.id = ANY($1::uuid[])`,
+    [filter.geometryIds],
+  );
+  const geomUnion = geometryUnion(rows.map(r => r.geom));
+  const hasValues = await hasMatchingRasterValues(entityManager, filter, geomUnion);
 
   // When raster filter values don't match any pixels in the AOI, fall back to
   // the AOI-only mask so the caller still receives geographic clipping.
-  let effectiveFilter = dataFilter;
+  let effectiveFilter = filter;
   if (!hasValues) {
-    const { raster_filters: _rf, ...parametersWithoutFilters } = dataFilter.parameters;
-    effectiveFilter = { ...dataFilter, parameters: parametersWithoutFilters };
+    const { raster_filters: _rf, ...parametersWithoutFilters } = filter.parameters;
+    effectiveFilter = { ...filter, parameters: parametersWithoutFilters };
   }
 
   const enabledRasterFilterTables = await getEnabledRasterFilterTables();
@@ -115,35 +183,33 @@ export const getRasterMask = async (
   let params: any[];
 
   if (rasterize) {
-    ({ ctes, params } = buildRasterizeCtes(effectiveFilter, enabledRasterFilterTables));
+    ({ ctes, params } = buildRasterizeCtes(effectiveFilter, geomUnion, enabledRasterFilterTables));
   } else {
     const built = buildVectorMaskCtes(effectiveFilter, enabledRasterFilterTables);
     ctes = built.ctes;
     params = built.params;
 
     ctes.push(`vector_mask AS MATERIALIZED (
-      SELECT ${built.resultExpr} AS geom
+      SELECT ST_Union(${built.resultExpr}) AS geom
       FROM ${built.fromTables}
       ${built.whereClause}
     )`);
 
     ctes.push(`bbox AS MATERIALIZED (
       SELECT
-        ST_XMin(ST_Envelope(aoi.geom)) AS min_x,
-        ST_YMin(ST_Envelope(aoi.geom)) AS min_y,
-        ST_XMax(ST_Envelope(aoi.geom)) AS max_x,
-        ST_YMax(ST_Envelope(aoi.geom)) AS max_y
+        ST_XMin(ST_Extent(aoi.geom)) AS min_x,
+        ST_YMin(ST_Extent(aoi.geom)) AS min_y,
+        ST_XMax(ST_Extent(aoi.geom)) AS max_x,
+        ST_YMax(ST_Extent(aoi.geom)) AS max_y
       FROM aoi
     )`);
 
     const raster_filters = effectiveFilter.parameters.raster_filters;
     const hasActiveFiltersNR = raster_filters != null && enabledRasterFilterTables.some(t => (raster_filters[t]?.length ?? 0) > 0);
-    const geomUnionNR = geometryUnion(dataFilter.geometries);
-    const aoiAreaM2NR = turf.area(dataFilter.geometries[0]!);
     const overviewPixelSizeMNR = hasActiveFiltersNR
-      ? getOverviewPixelSizeM(aoiAreaM2NR, RASTER_MASK_RESOLUTION)
+      ? getOverviewPixelSizeM(filter.area, RASTER_MASK_RESOLUTION)
       : BASE_OVERVIEW_PIXEL_SIZE_M;
-    const effectiveResolutionNR = calcEffectiveResolution(geomUnionNR, overviewPixelSizeMNR);
+    const effectiveResolutionNR = calcEffectiveResolution(geomUnion, overviewPixelSizeMNR);
 
     ctes.push(`raster_params AS (
       SELECT
@@ -212,7 +278,11 @@ export const getRasterMask = async (
   return filePath;
 };
 
-const buildRasterizeCtes = (dataFilter: DataFilter, enabledRasterFilterTables: string[]): { ctes: string[]; params: any[] } => {
+const buildRasterizeCtes = (
+  filter: DataFilter,
+  geomUnion: Polygon | MultiPolygon,
+  enabledRasterFilterTables: string[],
+): { ctes: string[]; params: any[] } => {
   const schema = process.env.POSTGRES_SCHEMA;
   const params: any[] = [];
   const p = (val: any) => {
@@ -220,10 +290,9 @@ const buildRasterizeCtes = (dataFilter: DataFilter, enabledRasterFilterTables: s
     return `$${params.length}`;
   };
 
-  const geomUnion = geometryUnion(dataFilter.geometries);
-  const aoiAreaM2 = turf.area(dataFilter.geometries[0]!);
+  const aoiAreaM2 = filter.area;
   const geomParam = p(JSON.stringify(geomUnion));
-  const raster_filters = dataFilter.parameters.raster_filters;
+  const raster_filters = filter.parameters.raster_filters;
   const ctes: string[] = [];
 
   const hasActiveFilters = raster_filters != null && enabledRasterFilterTables.some(t => (raster_filters[t]?.length ?? 0) > 0);
@@ -334,26 +403,20 @@ const buildRasterizeCtes = (dataFilter: DataFilter, enabledRasterFilterTables: s
 };
 
 const buildVectorMaskCtes = (
-  dataFilter: DataFilter,
+  filter: DataFilter,
   enabledRasterFilterTables: string[],
 ): { ctes: string[]; resultExpr: string; fromTables: string; whereClause: string; params: any[] } => {
   const schema = process.env.POSTGRES_SCHEMA;
-  const params: any[] = [];
-  const p = (val: any) => {
-    params.push(val);
-    return `$${params.length}`;
-  };
+  const params: any[] = [filter.geometryIds];
 
-  const geomUnion = geometryUnion(dataFilter.geometries);
-  const aoiAreaM2 = turf.area(dataFilter.geometries[0]!);
-  const geomParam = p(JSON.stringify(geomUnion));
-
-  const raster_filters = dataFilter.parameters.raster_filters;
+  const aoiAreaM2 = filter.area;
+  const raster_filters = filter.parameters.raster_filters;
   const ctes: string[] = [];
   const maskCteNames: string[] = [];
 
   ctes.push(`aoi AS MATERIALIZED (
-      SELECT ST_CollectionExtract(ST_MakeValid(ST_GeomFromGeoJSON(${geomParam}), 'method=structure'), 3) AS geom
+      SELECT ugs.geom
+      FROM ${schema}.user_geometry_subdivisions ugs WHERE ugs.user_geometry_id = ANY($1::uuid[])
     )`);
 
   if (raster_filters) {

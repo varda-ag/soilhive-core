@@ -16,6 +16,16 @@ setupEnv();
 
 export const app: Application = express();
 
+// Defers every request until initApp completes, so no request races the
+// async middleware registration (e.g. getOpenApiMiddleware).
+let _resolveReady: () => void;
+const ready = new Promise<void>(res => {
+  _resolveReady = res;
+});
+if (isJest()) {
+  app.use((_req, _res, next) => ready.then(next));
+}
+
 export const initApp = async (app: Application) => {
   await setupCLI();
 
@@ -76,4 +86,5 @@ export const initApp = async (app: Application) => {
 
 (async () => {
   await initApp(app);
+  if (isJest()) _resolveReady!();
 })();

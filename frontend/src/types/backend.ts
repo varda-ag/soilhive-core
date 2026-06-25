@@ -20,7 +20,7 @@ export interface BackendDataFilter {
 
 export interface BackendStoredDataFilter {
   id: string;
-  filter: DataFilter;
+  filter: DataFilterDTO;
   name?: string;
   owner?: string;
 }
@@ -38,12 +38,12 @@ export interface FilterCriteria {
   raster_filters?: Record<string, number[]>; // server side is Map <table_name, raster_values>, but on FE this can lead to React equality checks errors
 }
 
-export interface DataFilter {
+export interface DataFilterDTO {
   geometries: (Polygon | MultiPolygon)[];
   parameters: FilterCriteria;
 }
 
-export interface StoredDataFilter extends DataFilter {
+export interface StoredDataFilter extends DataFilterDTO {
   id: string;
   name: string;
 }

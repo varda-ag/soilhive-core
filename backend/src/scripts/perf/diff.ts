@@ -118,10 +118,10 @@ const comparedRowHtml = (row: ComparedRow): string => {
       ? '—'
       : `${formatBytes(baseline.meanResponseBytes)} → ${formatBytes(current.meanResponseBytes)} (${formatDelta(row.sizeDelta)})`;
   const cells = [
-    `<td><code>${escapeHtml(`${current.method} ${current.pathTemplate}`)}</code></td>`,
     `<td>${escapeHtml(current.asset)}</td>`,
     `<td>${escapeHtml(current.paramsVariant)}</td>`,
     `<td class="num">${current.daiResolution ?? ''}</td>`,
+    `<td>${current.filterId ? `<code>${escapeHtml(current.filterId)}</code>` : '—'}</td>`,
     `<td class="num">${formatMs(baselineStats.median)}</td>`,
     `<td class="num">${formatMs(currentStats.median)}</td>`,
     `<td class="num"><strong>${formatDelta(row.medianDelta)}</strong></td>`,
@@ -145,6 +145,36 @@ const incomparableRowHtml = (row: IncomparableRow): string =>
 
 const onlyRowHtml = (row: ResultRow, cls: 'added' | 'removed'): string =>
   `<tr class="${cls}"><td><code>${escapeHtml(row.key)}</code></td><td class="num">${row.stats ? formatMs(row.stats.median) : '—'}</td><td>${cls === 'added' ? 'only in current run' : 'only in baseline run'}</td></tr>`;
+
+const endpointLabel = (row: ResultRow): string => `${row.method} ${row.pathTemplate}`;
+
+/**
+ * Groups the already-sorted compared rows into one table per endpoint
+ * (method + path template). Tables are emitted alphabetically by endpoint;
+ * rows within each table keep the incoming order (abs median delta descending).
+ */
+const comparedTablesHtml = (compared: ComparedRow[]): string => {
+  const groups = new Map<string, ComparedRow[]>();
+  for (const row of compared) {
+    const label = endpointLabel(row.current);
+    (groups.get(label) ?? groups.set(label, []).get(label)!).push(row);
+  }
+  return [...groups.keys()]
+    .sort()
+    .map(label => {
+      const rows = groups.get(label)!;
+      return `<h3><code>${escapeHtml(label)}</code> (${rows.length})</h3>
+<table>
+<thead>
+<tr><th>Asset</th><th>Params</th><th>Res</th><th>Filter ID</th><th>Median base</th><th>Median curr</th><th>Δ median</th><th>P95</th><th>Mean</th><th>~Size</th></tr>
+</thead>
+<tbody>
+${rows.map(comparedRowHtml).join('\n')}
+</tbody>
+</table>`;
+    })
+    .join('\n');
+};
 
 const renderDiffHtml = (
   baseline: PerfRun,
@@ -197,14 +227,7 @@ ${renderFingerprintHtml(baseline.fingerprint)}
 <h2>Current: ${escapeHtml(current.fingerprint.gitSha.slice(0, 10))} (${escapeHtml(current.fingerprint.timestamp)})</h2>
 ${renderFingerprintHtml(current.fingerprint)}
 <h2>Compared rows (${compared.length})</h2>
-<table>
-<thead>
-<tr><th>Endpoint</th><th>Asset</th><th>Params</th><th>Res</th><th>Median base</th><th>Median curr</th><th>Δ median</th><th>P95</th><th>Mean</th><th>~Size</th></tr>
-</thead>
-<tbody>
-${compared.map(comparedRowHtml).join('\n')}
-</tbody>
-</table>
+${comparedTablesHtml(compared)}
 ${incomparableTable}
 ${onlyTable}
 </body>

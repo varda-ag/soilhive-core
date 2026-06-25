@@ -2,7 +2,7 @@ import { renderHook } from '@testing-library/react';
 import { useApiQuery } from 'hooks/useApiQuery';
 import { useDebounce } from 'hooks/useDebounce';
 import { useDataFilterQuery } from 'hooks/useDataFilterQuery';
-import type { DataFilter } from 'types/backend';
+import type { DataFilterDTO } from 'types/backend';
 
 jest.mock('hooks/useApiQuery', () => ({
   useApiQuery: jest.fn(),
@@ -27,7 +27,7 @@ const MOCK_GEOMETRY = {
   ],
 };
 
-const MOCK_FILTERS: DataFilter = {
+const MOCK_FILTERS: DataFilterDTO = {
   geometries: [MOCK_GEOMETRY],
   parameters: { min_depth: 0, max_depth: 50 },
 };
@@ -88,7 +88,7 @@ describe('useDataFilterQuery', () => {
 
   it('is disabled when geometries array is empty', () => {
     useApiQueryMock.mockReturnValue({ data: undefined, isLoading: false } as any);
-    const filtersWithoutGeometries: DataFilter = { geometries: [], parameters: {} };
+    const filtersWithoutGeometries: DataFilterDTO = { geometries: [], parameters: {} };
 
     renderHook(() => useDataFilterQuery(filtersWithoutGeometries, true));
 
