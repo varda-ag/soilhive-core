@@ -49,7 +49,7 @@ export function groupByProperty(samples: SoilDataSample[]): GroupedRecords {
   const grouped: GroupedRecords = {};
 
   for (const sample of samples) {
-    const propertyKey = sample.property_name.replace(/ /g, '_');
+    const propertyKey = sample.property_name.replace(/[^a-zA-Z0-9._-]/g, '_');
 
     if (!grouped[propertyKey]) {
       grouped[propertyKey] = [];

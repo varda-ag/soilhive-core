@@ -11,7 +11,7 @@ WITH ins_props1 AS (
     ('Boron', 'Bor', NULL, NULL, 1, 'Chemical'),
     ('Cadmium', 'Cad', NULL, NULL, 1, 'Chemical'),
     ('Calcium', 'Cal', NULL, NULL, 1, 'Chemical'),
-    ('Carbon/Nitrogen', 'CaN', 'The C/N ratio represents the proportion of carbon to nitrogen in organic matter. It influences decomposition rates and nutrient availability. A lower C/N ratio promotes rapid organic matter breakdown and nitrogen release, while a high ratio may lead to nitrogen immobilization, affecting plant growth. Source: Brady & Weil (2017).', NULL, 1, 'Biological'),
+    ('C/N ratio', 'CaN', 'The C/N ratio represents the proportion of carbon to nitrogen in organic matter. It influences decomposition rates and nutrient availability. A lower C/N ratio promotes rapid organic matter breakdown and nitrogen release, while a high ratio may lead to nitrogen immobilization, affecting plant growth. Source: Brady & Weil (2017).', NULL, 1, 'Biological'),
     ('Carbon', 'Car', NULL, NULL, 1, 'Chemical'),
     ('Organic Carbon Index', 'Carorgindx', NULL, NULL, 1, 'Derived'),
     ('Cation Ratios', 'Catratio', NULL, NULL, 1, 'Chemical'),
