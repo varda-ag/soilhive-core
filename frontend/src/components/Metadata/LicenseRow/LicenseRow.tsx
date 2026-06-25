@@ -37,7 +37,6 @@ export function LicenseRow({
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [editValue, setEditValue] = useState(currentLicenseIds[0] ?? '');
-  const [error, setError] = useState('');
   const [newLicenseName, setNewLicenseName] = useState('');
   const [newLicenseFullName, setNewLicenseFullName] = useState('');
   const [newLicenseUrl, setNewLicenseUrl] = useState('');
@@ -61,11 +60,9 @@ export function LicenseRow({
           .join(', ')
       : undefined;
 
+  const isSaveDisabled = isRequired ? !editValue : false;
+
   const handleSave = () => {
-    if (isRequired && !editValue) {
-      setError(t('editor.field_required'));
-      return;
-    }
     if (editValue === NEW_LICENSE_CODE) {
       if (!newLicenseName.trim()) return;
       setIsSaving(true);
@@ -136,15 +133,10 @@ export function LicenseRow({
             <Dropdown
               options={licenseOptions}
               value={editValue}
-              onChange={selected => {
-                setEditValue(selected as string);
-                setError('');
-              }}
+              onChange={selected => setEditValue(selected as string)}
               isDisabled={isSaving}
               placeholder={t('license_row.select_placeholder')}
               size="small"
-              isError={!!error}
-              errorMessage={error}
             />
             {editValue === NEW_LICENSE_CODE && (
               <div className={styles.NewLicenseFields}>
@@ -177,7 +169,11 @@ export function LicenseRow({
             )}
           </div>
           <div className={styles.EditActions}>
-            <Button size="small" onClick={handleSave} isDisabled={isSaving || (editValue === NEW_LICENSE_CODE && !newLicenseName.trim())}>
+            <Button
+              size="small"
+              onClick={handleSave}
+              isDisabled={isSaving || isSaveDisabled || (editValue === NEW_LICENSE_CODE && !newLicenseName.trim())}
+            >
               {isSaving ? t('editor.saving') : t('editor.save')}
             </Button>
             <Button

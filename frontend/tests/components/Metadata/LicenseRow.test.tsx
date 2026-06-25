@@ -24,18 +24,15 @@ jest.mock('components/UI', () => ({
       {children}
     </button>
   ),
-  Dropdown: ({ options, value, onChange, placeholder, isDisabled, errorMessage }: any) => (
-    <>
-      <select data-testid="sh-ui-dropdown" value={value ?? ''} disabled={!!isDisabled} onChange={(e: any) => onChange(e.target.value)}>
-        <option value="">{placeholder}</option>
-        {options.map((o: any) => (
-          <option key={o.code} value={o.code}>
-            {o.name}
-          </option>
-        ))}
-      </select>
-      {errorMessage && <span data-testid="sh-ui-dropdown-error">{errorMessage}</span>}
-    </>
+  Dropdown: ({ options, value, onChange, placeholder, isDisabled }: any) => (
+    <select data-testid="sh-ui-dropdown" value={value ?? ''} disabled={!!isDisabled} onChange={(e: any) => onChange(e.target.value)}>
+      <option value="">{placeholder}</option>
+      {options.map((o: any) => (
+        <option key={o.code} value={o.code}>
+          {o.name}
+        </option>
+      ))}
+    </select>
   ),
   TextInput: ({ label, value, onChange, placeholder, isDisabled, isRequired }: any) => (
     <input
@@ -195,27 +192,22 @@ describe('LicenseRow', () => {
     });
   });
 
-  describe('isRequired validation', () => {
-    it('shows error and does not call onSave when no license is selected and Save is clicked', () => {
-      const onSave = jest.fn();
-      render(<LicenseRow {...defaultProps} isEditable={true} isRequired onSave={onSave} currentLicenseIds={[]} />);
-
-      fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
-      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-
-      expect(screen.getByTestId('sh-ui-dropdown-error')).toHaveTextContent('This field is required');
-      expect(onSave).not.toHaveBeenCalled();
-    });
-
-    it('clears error when user selects a license', () => {
+  describe('isRequired', () => {
+    it('disables Save when no license is selected', () => {
       render(<LicenseRow {...defaultProps} isEditable={true} isRequired currentLicenseIds={[]} />);
 
       fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
-      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-      expect(screen.getByTestId('sh-ui-dropdown-error')).toBeInTheDocument();
 
+      expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+    });
+
+    it('enables Save when a license is selected', () => {
+      render(<LicenseRow {...defaultProps} isEditable={true} isRequired currentLicenseIds={[]} />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
       fireEvent.change(screen.getByTestId('sh-ui-dropdown'), { target: { value: 'lic-1' } });
-      expect(screen.queryByTestId('sh-ui-dropdown-error')).not.toBeInTheDocument();
+
+      expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled();
     });
   });
 

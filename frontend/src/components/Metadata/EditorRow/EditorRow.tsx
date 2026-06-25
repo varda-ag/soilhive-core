@@ -43,18 +43,12 @@ export function EditorRow({
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [editValue, setEditValue] = useState(value ?? '');
-  const [error, setError] = useState('');
 
   const { showNotification } = useNotifications();
 
+  const isSaveDisabled = isRequired ? (variant === 'editor' ? !hasTextContent(editValue) : isEmptyString(editValue)) : false;
+
   const handleSave = () => {
-    if (isRequired) {
-      const isEmpty = variant === 'editor' ? !hasTextContent(editValue) : isEmptyString(editValue);
-      if (isEmpty) {
-        setError(t('editor.field_required'));
-        return;
-      }
-    }
     setIsSaving(true);
     onSave(property, editValue, {
       onSuccess: () => {
@@ -86,36 +80,21 @@ export function EditorRow({
         <div className={styles.EditArea}>
           {variant === 'text' ? (
             <div className={styles.TextInputWrapper}>
-              <TextInput
-                size="small"
-                value={editValue}
-                onChange={v => {
-                  setEditValue(v);
-                  setError('');
-                }}
-                isDisabled={isSaving}
-                placeholder={placeholder}
-                isError={!!error}
-                errorMessage={error}
-              />
+              <TextInput size="small" value={editValue} onChange={v => setEditValue(v)} isDisabled={isSaving} placeholder={placeholder} />
             </div>
           ) : (
-            <div className={error ? styles.EditorError : styles.EditorWrapper}>
+            <div className={styles.EditorWrapper}>
               <Editor
                 value={editValue}
-                onTextChange={(e: EditorTextChangeEvent) => {
-                  setEditValue(e.htmlValue ?? '');
-                  setError('');
-                }}
+                onTextChange={(e: EditorTextChangeEvent) => setEditValue(e.htmlValue ?? '')}
                 headerTemplate={EDITOR_HEADER}
                 readOnly={isSaving}
                 placeholder={placeholder}
               />
-              {error && <span className={styles.ErrorMessage}>{error}</span>}
             </div>
           )}
           <div className={styles.EditActions}>
-            <Button size="small" onClick={handleSave} isDisabled={isSaving}>
+            <Button size="small" onClick={handleSave} isDisabled={isSaving || isSaveDisabled}>
               {isSaving ? t('editor.saving') : t('editor.save')}
             </Button>
             <Button

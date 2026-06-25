@@ -231,58 +231,42 @@ describe('EditorRow', () => {
     expect(container).toMatchSnapshot();
   });
 
-  describe('isRequired validation – text variant', () => {
-    it('shows error and does not call onSave when field is cleared and Save is clicked', () => {
-      const onSave = jest.fn();
-      render(<EditorRow {...defaultProps} variant="text" isEditable={true} isRequired onSave={onSave} value="Initial" />);
+  describe('isRequired – text variant', () => {
+    it('disables Save when field is empty', () => {
+      render(<EditorRow {...defaultProps} variant="text" isEditable={true} isRequired value="Initial" />);
 
       fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
       fireEvent.change(screen.getByTestId('sh-ui-textinputfield'), { target: { value: '' } });
-      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
-      expect(screen.getByText('This field is required')).toBeInTheDocument();
-      expect(onSave).not.toHaveBeenCalled();
+      expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
     });
 
-    it('clears error and saves successfully after user fills the field', () => {
-      const onSave = jest.fn((_property: string, _value: string, { onSuccess }: any) => onSuccess());
-      render(<EditorRow {...defaultProps} variant="text" isEditable={true} isRequired onSave={onSave} value="Initial" />);
+    it('enables Save when field has content', () => {
+      render(<EditorRow {...defaultProps} variant="text" isEditable={true} isRequired value="" />);
 
       fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
-      fireEvent.change(screen.getByTestId('sh-ui-textinputfield'), { target: { value: '' } });
-      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-      expect(screen.getByText('This field is required')).toBeInTheDocument();
-
       fireEvent.change(screen.getByTestId('sh-ui-textinputfield'), { target: { value: 'New Value' } });
-      expect(screen.queryByText('This field is required')).not.toBeInTheDocument();
 
-      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-      expect(onSave).toHaveBeenCalledWith('name', 'New Value', expect.any(Object));
+      expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled();
     });
   });
 
-  describe('isRequired validation – editor variant', () => {
-    it('shows error message and does not call onSave when rich-text editor is empty', () => {
-      const onSave = jest.fn();
-      render(<EditorRow {...defaultProps} variant="editor" isEditable={true} isRequired onSave={onSave} value="" />);
+  describe('isRequired – editor variant', () => {
+    it('disables Save when editor is empty', () => {
+      render(<EditorRow {...defaultProps} variant="editor" isEditable={true} isRequired value="" />);
 
       fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
-      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
-      expect(screen.getByText('This field is required')).toBeInTheDocument();
-      expect(onSave).not.toHaveBeenCalled();
+      expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
     });
 
-    it('clears error when user types in the editor', () => {
-      const onSave = jest.fn((_property: string, _value: string, { onSuccess }: any) => onSuccess());
-      render(<EditorRow {...defaultProps} variant="editor" isEditable={true} isRequired onSave={onSave} value="" />);
+    it('enables Save when editor has content', () => {
+      render(<EditorRow {...defaultProps} variant="editor" isEditable={true} isRequired value="" />);
 
       fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
-      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-      expect(screen.getByText('This field is required')).toBeInTheDocument();
-
       fireEvent.change(screen.getByTestId('mock-editor'), { target: { value: '<p>Content</p>' } });
-      expect(screen.queryByText('This field is required')).not.toBeInTheDocument();
+
+      expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled();
     });
   });
 });

@@ -34,15 +34,12 @@ export function NumberRow({
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [editValue, setEditValue] = useState(value?.toString() ?? '');
-  const [error, setError] = useState('');
 
   const { showNotification } = useNotifications();
 
+  const isSaveDisabled = isRequired ? isEmptyString(editValue) : false;
+
   const handleSave = () => {
-    if (isRequired && isEmptyString(editValue)) {
-      setError(t('editor.field_required'));
-      return;
-    }
     setIsSaving(true);
     onSave(property, editValue, {
       onSuccess: () => {
@@ -73,18 +70,13 @@ export function NumberRow({
               type="number"
               size="small"
               value={editValue}
-              onChange={v => {
-                setEditValue(v);
-                setError('');
-              }}
+              onChange={v => setEditValue(v)}
               isDisabled={isSaving}
               placeholder={min !== undefined && max !== undefined ? `${min}–${max}` : undefined}
-              isError={!!error}
-              errorMessage={error}
             />
           </div>
           <div className={styles.EditActions}>
-            <Button size="small" onClick={handleSave} isDisabled={isSaving}>
+            <Button size="small" onClick={handleSave} isDisabled={isSaving || isSaveDisabled}>
               {isSaving ? t('editor.saving') : t('editor.save')}
             </Button>
             <Button
