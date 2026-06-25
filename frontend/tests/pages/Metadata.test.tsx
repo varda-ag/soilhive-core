@@ -199,6 +199,18 @@ describe('Metadata page', () => {
     }
   });
 
+  it('renders "MANDATORY PROPERTIES" header above the Name field', () => {
+    (useMetadata as jest.Mock).mockReturnValue({
+      dataset: buildDataset(),
+      allLicenses: [{ id: 'lic-1', url: 'https://license.example', full_name: 'Test License' }],
+      inferredProperties: new Set(),
+      isLoading: false,
+      isError: false,
+    });
+    render(<Metadata />);
+    expect(screen.getByText('MANDATORY PROPERTIES')).toBeInTheDocument();
+  });
+
   it('opens map popup on overlay click and closes it on Escape', () => {
     (useMetadata as jest.Mock).mockReturnValue({
       dataset: buildDataset(),

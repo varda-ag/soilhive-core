@@ -193,6 +193,7 @@ export default function Metadata() {
 
       <div className={styles.Content}>
         <div className={styles.DatasetProperties}>
+          <div className={styles.MandatoryTitle}>{t('mandatory_properties_title')}</div>
           <div
             className={classnames(styles.TopRow, {
               [styles.AdminView]: isAdmin,

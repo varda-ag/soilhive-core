@@ -255,6 +255,16 @@
           }
         }
       }
+      .MandatoryTitle {
+        color: var(--color-neutral-dark-400);
+        font-size: var(--font-size-md);
+        margin-bottom: 10px;
+
+        @media (max-width: $bp-mobile-max) {
+          padding-left: 13px;
+        }
+      }
+
       .AdminNotice {
         display: flex;
         align-items: center;

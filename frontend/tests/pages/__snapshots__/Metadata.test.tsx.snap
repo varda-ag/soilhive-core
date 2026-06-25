@@ -140,6 +140,11 @@ exports[`Metadata page renders dataset content and matches snapshot 1`] = `
         class="DatasetProperties"
       >
         <div
+          class="MandatoryTitle"
+        >
+          MANDATORY PROPERTIES
+        </div>
+        <div
           class="TopRow"
         />
         <div
