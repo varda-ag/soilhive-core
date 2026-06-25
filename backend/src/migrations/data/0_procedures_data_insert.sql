@@ -226,9 +226,10 @@ INSERT INTO _proc_data VALUES
   (NULL, 'calculated', NULL, NULL, NULL, NULL, NULL, NULL),
   (NULL, 'lab procedure', NULL, NULL, NULL, NULL, 'Conductivity meter with two electrodes and high impedance voltmeter', NULL),
   (NULL, NULL, NULL, NULL, NULL, 'mass / mass', 'Elemental analyzer or combustion apparatus with CO2 detection (IR, GC, titrimetry,conductometry, or gravimetry conductometry, or gravimetry)', NULL),
-  ('Air-dried soil, sieved (<2 mm)', 'lab procedure', 'Calgon (sodium hexametaphosphate)', NULL, NULL, NULL, 'Particle size determined after dispersion; fractions (sand, silt, clay) recorded after 4 minutes of ultrasonication', NULL)
+  ('Air-dried soil, sieved (<2 mm)', 'lab procedure', 'Calgon (sodium hexametaphosphate)', NULL, NULL, NULL, 'Particle size determined after dispersion; fractions (sand, silt, clay) recorded after 4 minutes of ultrasonication', NULL),
   (NULL, NULL, 'Aluminium Lactate', NULL, NULL, NULL, NULL, NULL),
-  (NULL, NULL, NULL, NULL, NULL, NULL, 'Flame photometry', NULL);
+  (NULL, NULL, NULL, NULL, NULL, NULL, 'Flame photometry', NULL),
+  (NULL, NULL, NULL, NULL, NULL, NULL, 'X-ray sedimentation', NULL);
 
 -- Insert distinct vocabulary entries per category (triggers handle slug + slug_history)
 INSERT INTO vocabulary (name, category)
