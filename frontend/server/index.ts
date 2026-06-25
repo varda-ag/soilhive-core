@@ -22,6 +22,7 @@ const _envVars = {
   MAPBOX_ACCESS_TOKEN: process.env.MAPBOX_ACCESS_TOKEN ?? '',
   GTM_CONTAINER_ID: process.env.GTM_CONTAINER_ID ?? '',
   COOKIE_DOMAIN: process.env.COOKIE_DOMAIN ?? '',
+  FEATURE_FLAGS: process.env.FEATURE_FLAGS ?? '',
 };
 const _envConfigPath = path.join(CLIENT_DIST, 'env-config.js');
 const _hasEnvVars = Object.values(_envVars).some(v => v !== '');
@@ -122,6 +123,7 @@ app.use((req, res) => {
               MAPBOX_ACCESS_TOKEN: process.env.MAPBOX_ACCESS_TOKEN ?? '',
               GTM_CONTAINER_ID: process.env.GTM_CONTAINER_ID ?? '',
               COOKIE_DOMAIN: process.env.COOKIE_DOMAIN ?? '',
+              FEATURE_FLAGS: process.env.FEATURE_FLAGS ?? '',
             })};window.__REACT_QUERY_STATE__=${JSON.stringify(dehydratedState)};</script>`,
           );
 

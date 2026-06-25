@@ -1,4 +1,4 @@
-import { GISDataType, type BackendStoredDataFilter, type DataFilter } from 'types/backend';
+import { GISDataType, type BackendStoredDataFilter, type DataFilterDTO } from 'types/backend';
 import { useApiQuery } from './useApiQuery';
 import { useFilteredCoverageQuery } from './useFilteredCoverageQuery';
 import { computeDatasetSummary } from '../domain';
@@ -18,7 +18,7 @@ export function useDownloadPreview({
 
   const { data: allSoilProperties, isLoading: areSoilPropertiesLoading } = useSoilProperties();
 
-  const { data: availabilityFilters, isLoading: areAvailabilityFiltersLoading } = useApiQuery<BackendStoredDataFilter, DataFilter>({
+  const { data: availabilityFilters, isLoading: areAvailabilityFiltersLoading } = useApiQuery<BackendStoredDataFilter, DataFilterDTO>({
     endpoint: `/data-filters/${filterId}`,
     method: 'GET',
     queryKey: ['data-filter', filterId],

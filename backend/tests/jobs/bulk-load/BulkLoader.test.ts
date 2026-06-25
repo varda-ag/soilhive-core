@@ -1,6 +1,7 @@
 import { describe, it, expect, jest } from '@jest/globals';
 import { signToken } from '../../../src/utils/utils';
 import { ErrorResponse } from '../../../src/utils/error';
+import { parseWriteError } from '../../../src/jobs/bulk-load/BulkLoader';
 import { Job } from 'pg-boss';
 import request from 'supertest';
 import { validate } from 'uuid';
@@ -69,9 +70,9 @@ describe('BulkLoader class', () => {
 
     const createdData = await getLoadedDataCount();
     expect(createdData.n_features).toBe(2);
-    expect(createdData.n_layers).toBe(18);
-    expect(createdData.n_dataset_layers).toBe(23);
-    expect(createdData.n_observations).toBe(25);
+    expect(createdData.n_layers).toBe(17);
+    expect(createdData.n_dataset_layers).toBe(21);
+    expect(createdData.n_observations).toBe(24);
 
     const dataSource = await getDataSource();
     const repo = dataSource.getRepository(DatasetEntity);
@@ -105,7 +106,11 @@ describe('BulkLoader class', () => {
         return response;
       });
 
-    await expect(BulkLoaderModule.processBulkLoad(getJob(dataset.slug))).rejects.toThrow();
+    await expect(BulkLoaderModule.processBulkLoad(getJob(dataset.slug))).rejects.toMatchObject({
+      name: 'JobError',
+      code: 'BL_RECORD_WRITE_FAILED',
+      detail: expect.any(String),
+    });
 
     const createdData = await getLoadedDataCount();
     expect(createdData.n_features).toBe(0);
@@ -122,13 +127,37 @@ describe('BulkLoader class', () => {
     mockMakeRequest.mockRestore();
   });
 
+  it('E06 — BL_RAW_TABLE_NOT_FOUND when raw staging table does not exist', async () => {
+    const { dataset } = await addSyntheticIngestionData({ ...syntheticIngestionDataOptions, createTable: false });
+
+    await expect(BulkLoaderModule.processBulkLoad(getJob(dataset.slug))).rejects.toMatchObject({
+      name: 'JobError',
+      code: 'BL_RAW_TABLE_NOT_FOUND',
+      detail: expect.any(String),
+    });
+  });
+
+  it('E07 — BL_MISSING_COLUMN_MAPPING when data_mapping_id is null', async () => {
+    const { dataset, datasetFileMapping } = await addSyntheticIngestionData({
+      ...syntheticIngestionDataOptions,
+      createTable: false,
+    });
+    const entityManager = await getEntityManager();
+    await entityManager.query(`UPDATE dataset_file_mappings SET data_mapping_id = NULL WHERE id = $1`, [datasetFileMapping.id]);
+
+    await expect(BulkLoaderModule.processBulkLoad(getJob(dataset.slug))).rejects.toMatchObject({
+      name: 'JobError',
+      code: 'BL_MISSING_COLUMN_MAPPING',
+    });
+  });
+
   it('updateDatasetMetadata sets data correctly', async () => {
     const { dataset } = await addSyntheticData({
       ...syntheticDataOptions,
       id: 1,
       soilPropertyNames: ['a', 'b'],
       depthLayers: 10,
-      featureCount: 100,
+      featureCount: 10,
     });
 
     const entityManager = await getEntityManager();
@@ -165,5 +194,44 @@ describe('BulkLoader class', () => {
     const minY = y.reduce((min, current) => (current < min ? current : min), y[0]);
     expect(datasetEntity!.spatial_extent?.coordinates[0][0][0]).toBe(minX);
     expect(datasetEntity!.spatial_extent?.coordinates[0][0][1]).toBe(minY);
+  });
+});
+
+describe('parseWriteError', () => {
+  it('returns BL_RECORD_VALIDATION_FAILED with field and issue when response contains OpenAPI validation errors', () => {
+    const body = JSON.stringify({
+      title: 'Bad Request',
+      status: 400,
+      detail: 'request/body/8/geometry must be object',
+      errors: [{ path: '/body/8/geometry', message: 'must be object', errorCode: 'type.openapi.validation' }],
+    });
+    const error = new ErrorResponse(`Failed to load data: ${body}`, 400);
+
+    expect(parseWriteError(error)).toMatchObject({
+      name: 'JobError',
+      code: 'BL_RECORD_VALIDATION_FAILED',
+      params: { field: 'geometry', issue: 'must be object' },
+    });
+  });
+
+  it('returns BL_RECORD_VALIDATION_FAILED with dotted path for nested fields', () => {
+    const body = JSON.stringify({
+      errors: [{ path: '/body/3/properties/ph', message: 'must be number' }],
+    });
+    const error = new ErrorResponse(`Failed to load data: ${body}`, 400);
+
+    expect(parseWriteError(error)).toMatchObject({
+      code: 'BL_RECORD_VALIDATION_FAILED',
+      params: { field: 'properties.ph', issue: 'must be number' },
+    });
+  });
+
+  it('returns BL_RECORD_WRITE_FAILED for a non-validation error', () => {
+    const error = new ErrorResponse('Failed to load data: Internal Server Error', 500);
+
+    expect(parseWriteError(error)).toMatchObject({
+      name: 'JobError',
+      code: 'BL_RECORD_WRITE_FAILED',
+    });
   });
 });

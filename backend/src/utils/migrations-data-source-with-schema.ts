@@ -17,4 +17,8 @@ export default new DataSource({
   entities: ['dist/entities/*.js'],
   migrations: ['dist/migrations/*.js'],
   namingStrategy: new DatabaseNamingStrategy(),
+  extra: {
+    statement_timeout: 20000,
+    ...(process.env.POSTGRES_SCHEMA ? { options: `-c search_path="${process.env.POSTGRES_SCHEMA}",public` } : {}),
+  },
 });

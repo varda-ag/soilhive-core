@@ -52,6 +52,7 @@ export interface ExportOutputs {
 
 export interface FileToDbJob extends CommonJobData {
   file_id: string;
+  dataset_id?: string;
 }
 
 export interface BulkDeleteJob extends CommonJobData {

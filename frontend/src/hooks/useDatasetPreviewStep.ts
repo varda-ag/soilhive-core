@@ -187,7 +187,7 @@ export function useDatasetPreview(datasetId?: string) {
 
   useEffect(() => {
     if (allSoilData.length) {
-      setAvailableColumns(Object.keys(allSoilData[0]).filter(key => !['record_id', 'geometry', 'cursor'].includes(key)));
+      setAvailableColumns(Object.keys(allSoilData[0]).filter(key => !['record_id', 'geometry', 'cursor', 'user_dropped'].includes(key)));
     }
   }, [allSoilData]);
 

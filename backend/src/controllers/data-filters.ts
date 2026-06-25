@@ -16,7 +16,7 @@ export const getDataFilters = async (req: Request, res: Response) => {
 };
 
 export const getDataFilterById = async (req: Request, res: Response) => {
-  const data = await filterService.getFilterById(req.customData, req.params['filterId']! as string);
+  const data = await filterService.getDataFilterEntityById(req.customData, req.params['filterId']! as string);
   res.json(data);
 };
 

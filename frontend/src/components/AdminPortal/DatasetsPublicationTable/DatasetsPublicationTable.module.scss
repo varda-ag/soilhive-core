@@ -1,3 +1,16 @@
+.NameCell {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+
+  .NameWarningIcon {
+    flex-shrink: 0;
+    color: var(--color-accent-danger-1000);
+    width: 1rem;
+    height: 1rem;
+  }
+}
+
 .DatasetsPublicationTable {
   display: flex;
   flex-direction: column;
@@ -23,8 +36,5 @@
       width: 214px;
       min-width: 214px;
     }
-  }
-  .TableRowHighlighted {
-    background-color: var(--color-neutral-light);
   }
 }

@@ -4,7 +4,6 @@ export class RasterLayer1779000000000 implements MigrationInterface {
   name = 'RasterLayer1779000000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`SET search_path TO ${process.env.POSTGRES_SCHEMA}, public`);
     await queryRunner.query(
       `CREATE TABLE IF NOT EXISTS "raster_layers" ("created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP, "id" uuid NOT NULL DEFAULT uuidv7(), "file_id" uuid NOT NULL, "resolution_m" int NOT NULL, "min_depth" int, "max_depth" int, "reference_period_start" text, "reference_period_stop" text, "dataset_id" uuid NOT NULL, "soil_property_id" uuid NOT NULL, "description" jsonb, "nodata_value" int, "bbox" geometry(Polygon,4326) NOT NULL, CONSTRAINT "PK_raster_layers_id" PRIMARY KEY ("id"))`,
     );
@@ -101,7 +100,6 @@ export class RasterLayer1779000000000 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`SET search_path TO ${process.env.POSTGRES_SCHEMA}, public`);
     await queryRunner.query(`DROP TRIGGER IF EXISTS trg_delete_orphan_raster_footprints ON raster_layer_footprints`);
     await queryRunner.query(`DROP FUNCTION IF EXISTS delete_orphan_raster_footprints`);
     await queryRunner.query(`DROP TABLE IF EXISTS "raster_layer_footprints"`);

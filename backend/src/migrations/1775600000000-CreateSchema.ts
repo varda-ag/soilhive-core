@@ -6,8 +6,6 @@ export class CreateSchema1775600000000 implements MigrationInterface {
   name = 'CreateSchema1775600000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`SET search_path TO ${process.env.POSTGRES_SCHEMA}, public`);
-
     // Extensions
     await queryRunner.query(`CREATE EXTENSION IF NOT EXISTS postgis SCHEMA public`);
     await queryRunner.query(`CREATE EXTENSION IF NOT EXISTS postgis_raster SCHEMA public`);
@@ -452,8 +450,6 @@ export class CreateSchema1775600000000 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`SET search_path TO ${process.env.POSTGRES_SCHEMA}, public`);
-
     // Drop triggers
     await queryRunner.query(`DROP TRIGGER IF EXISTS dataset_slug ON datasets`);
     await queryRunner.query(`DROP TRIGGER IF EXISTS property_slug ON soil_properties`);

@@ -9,7 +9,7 @@ import { Button } from '../Button/Button';
 
 interface Props {
   visible: boolean;
-  header: string;
+  header: ReactNode;
   removeTransition?: boolean;
   primaryText?: string;
   secondaryText?: string;

@@ -9,6 +9,7 @@
 | @apidevtools/swagger-cli | MIT | 4.0.4 |
 | @aws-sdk/credential-providers | Apache-2.0 | 3.1045.0 |
 | @aws-sdk/rds-signer | Apache-2.0 | 3.1045.0 |
+| @aws-sdk/s3-request-presigner | Apache-2.0 | 3.1045.0 |
 | @flystorage/aws-s3 | MIT | 1.2.0 |
 | @flystorage/file-storage | MIT | 1.2.2 |
 | @flystorage/local-fs | MIT | 1.2.0 |
@@ -20,7 +21,7 @@
 | @turf/turf | MIT | 7.3.5 |
 | @types/bcrypt | MIT | 6.0.0 |
 | archiver | MIT | 7.0.1 |
-| baseline-browser-mapping | Apache-2.0 | 2.10.28 |
+| baseline-browser-mapping | Apache-2.0 | 2.10.29 |
 | bcrypt | MIT | 6.0.0 |
 | commander | MIT | 14.0.3 |
 | cors | MIT | 2.8.6 |
@@ -28,8 +29,9 @@
 | express | MIT | 5.2.1 |
 | express-openapi-validator | MIT | 5.6.2 |
 | extract-zip | BSD-2-Clause | 2.0.1 |
-| gdal-async | Apache-2.0 | 3.12.3 |
 | geojson-validation | LGPL-3 | 1.0.2 |
+| geotiff | MIT | 3.0.5 |
+| h3-js | Apache-2.0 | 4.4.0 |
 | http-status-codes | MIT | 2.3.0 |
 | js-yaml | MIT | 4.1.1 |
 | jsonwebtoken | MIT | 9.0.3 |

@@ -15,11 +15,13 @@ import useAvailability from 'hooks/useAvailability';
 import { useTranslation } from 'react-i18next';
 import { MetaItem } from './MetaItem/MetaItem';
 import { GISDataType } from '../../../../types/backend';
+import { useAuthContext } from '../../../../auth/AuthContextProvider';
 
 type Props = {
   dataset: AvailabilityDataset;
 };
 export function DatasetsListItem({ dataset }: Props) {
+  const { isAuthenticated } = useAuthContext();
   const { selectedDatasets, selectDataset, isCoverageLoading } = useAvailability();
   const [isOpened, setIsOpened] = useState<boolean>(false);
   const { t } = useTranslation('availability');
@@ -29,13 +31,16 @@ export function DatasetsListItem({ dataset }: Props) {
       <div className={styles.Main}>
         <div className={styles.Top}>
           <div className={styles.Title}>
-            <Checkbox
-              label={dataset.name}
-              size="small"
-              labelClassName={styles.DatasetTitle}
-              value={selectedDatasets.includes(dataset.id)}
-              onChange={() => selectDataset(dataset.id)}
-            />
+            {(isAuthenticated || dataset.visibility === 'public') && (
+              <Checkbox
+                label={dataset.name}
+                size="small"
+                labelClassName={styles.DatasetTitle}
+                value={selectedDatasets.includes(dataset.id)}
+                onChange={() => selectDataset(dataset.id)}
+              />
+            )}
+            {!isAuthenticated && dataset.visibility === 'private' && <p>{dataset.name}</p>}
             <ArrowDownIcon className={styles.DropdownIcon} onClick={() => setIsOpened(!isOpened)} />
           </div>
           <div className={styles.Tags}>

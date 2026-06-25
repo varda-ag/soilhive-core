@@ -164,7 +164,7 @@ describe('FileService', () => {
 
     it('should fail to load to DB only area GeoJSON file', async () => {
       const fileId = fileEntity.slug;
-      await expect(fileService.fileToDB(requestData, fileId)).rejects.toThrow('No data besides geometry detected');
+      await expect(fileService.fileToDB(requestData, fileId)).rejects.toMatchObject({ name: 'JobError', code: 'FTD_NO_DATA_COLUMNS' });
     });
   });
 
@@ -190,7 +190,7 @@ describe('FileService', () => {
 
     it('should fail to load to DB only area GeoJSON file', async () => {
       const fileId = fileEntity.slug;
-      await expect(fileService.fileToDB(requestData, fileId)).rejects.toThrow('No data besides geometry detected');
+      await expect(fileService.fileToDB(requestData, fileId)).rejects.toMatchObject({ name: 'JobError', code: 'FTD_NO_DATA_COLUMNS' });
     });
   });
 

@@ -2,7 +2,6 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { Job } from 'pg-boss';
-import * as turf from '@turf/turf';
 import { ExportJob, ExportOutputs } from '../../interfaces/Job';
 import { EXPORT_CONFIG, VectorFileFormat, RasterFileFormat } from './types';
 import { getEntityManager } from '../../utils/data-source';
@@ -21,6 +20,7 @@ import { GeoFileWriter } from './GeoFileWriter';
 import { RasterFileWriter } from './RasterFileWriter';
 import {
   cleanupTempFiles,
+  cleanupTempZip,
   generateDownloadFilename,
   generateDownloadPath,
   mergeGPKG,
@@ -48,6 +48,7 @@ export async function processExportJob(job: Job<ExportJob>): Promise<void> {
 
   // Create temp working directory - fresh start on every run (handles pod eviction)
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), EXPORT_CONFIG.TEMP_DIR_PREFIX));
+  let localZipPath: string | null = null;
 
   try {
     // Get total records and layers for progress tracking
@@ -76,8 +77,8 @@ export async function processExportJob(job: Job<ExportJob>): Promise<void> {
     let aoi_area_km2: number | null = null;
     if (rasterRequested) {
       const filterService = new FilterService();
-      const { geometries } = (await filterService.getFilterById(requestData, filter_id)).filter;
-      aoi_area_km2 = turf.area(geometries[0]!) * 1e-6;
+      const filter = await filterService.getFilterById(requestData, filter_id);
+      aoi_area_km2 = filter.area / 1e6; // Convert from m2 to km2
     }
 
     await updateJobState(jobId, {
@@ -118,7 +119,7 @@ export async function processExportJob(job: Job<ExportJob>): Promise<void> {
       await mergeGPKG(tempDir);
     }
     const downloadPath = generateDownloadPath(filter_id);
-    const localZipPath = path.join(os.tmpdir(), path.basename(downloadPath));
+    localZipPath = path.join(os.tmpdir(), path.basename(downloadPath));
     await zipFiles(tempDir, localZipPath);
 
     const final_storage_path = await moveToDownloadFolder(localZipPath, downloadPath);
@@ -138,6 +139,9 @@ export async function processExportJob(job: Job<ExportJob>): Promise<void> {
     throw error;
   } finally {
     await cleanupTempFiles(tempDir);
+    if (localZipPath) {
+      await cleanupTempZip(localZipPath);
+    }
   }
 }
 
@@ -212,9 +216,9 @@ async function exportRasterData(
 ): Promise<Partial<ExportOutputs>> {
   if (!data.dataset_ids?.length) return { total_layers_processed: 0 };
 
-  const layers = await fetchRasterLayers(requestData, data);
+  const { layers } = await fetchRasterLayers(requestData, data);
   const filterService = new FilterService();
-  const { filter } = await filterService.getFilterById(requestData, data.filter_id);
+  const filter = await filterService.getFilterById(requestData, data.filter_id);
   const rasterMaskFile = await getRasterMask(requestData.entityManager, filter, 'file');
 
   if (!layers.length) return { total_layers_processed: 0 };

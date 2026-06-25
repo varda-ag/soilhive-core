@@ -209,7 +209,25 @@ export class RasterFileWriter {
   }
 
   private async writeTile(ctx: TileWriteContext, tileX: number, tileY: number, tw: number, th: number): Promise<string | null> {
-    const { sourceImage, maskImage, srcOffX, srcOffY, outMinX, outMaxY, srcPixW, srcPixH, maskMinX, maskMaxY, maskPixW, maskPixH, maskW, maskH, nodataFill, nodataStr, layerName } = ctx;
+    const {
+      sourceImage,
+      maskImage,
+      srcOffX,
+      srcOffY,
+      outMinX,
+      outMaxY,
+      srcPixW,
+      srcPixH,
+      maskMinX,
+      maskMaxY,
+      maskPixW,
+      maskPixH,
+      maskW,
+      maskH,
+      nodataFill,
+      nodataStr,
+      layerName,
+    } = ctx;
 
     const srcRasters = await sourceImage.readRasters({
       window: [srcOffX + tileX, srcOffY + tileY, srcOffX + tileX + tw, srcOffY + tileY + th],
@@ -265,7 +283,16 @@ export class RasterFileWriter {
     return tilePath;
   }
 
-  private buildVrt(tiles: TilePlacement[], outW: number, outH: number, xMin: number, yMax: number, pixW: number, pixH: number, nodataStr: string): string {
+  private buildVrt(
+    tiles: TilePlacement[],
+    outW: number,
+    outH: number,
+    xMin: number,
+    yMax: number,
+    pixW: number,
+    pixH: number,
+    nodataStr: string,
+  ): string {
     const sources = tiles
       .map(
         t => `    <SimpleSource>

@@ -210,6 +210,20 @@
       > tr {
         background-color: transparent;
 
+        &.sh-row-error {
+          background-color: #F4E1E4;
+          > td {
+            background-color: #F4E1E4;
+          }
+        }
+
+        &.sh-row-highlighted {
+          background-color: var(--color-neutral-light);
+          > td {
+            background-color: var(--color-neutral-light);
+          }
+        }
+
         > td {
           background-color: transparent;
           color: var(--color-neutral-black);
