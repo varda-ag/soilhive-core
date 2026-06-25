@@ -598,6 +598,23 @@ export class CreateSchema1775600000000 implements MigrationInterface {
       $$ LANGUAGE plpgsql SET search_path FROM CURRENT
     `);
 
+    // TypeORM metadata
+    await queryRunner.query(
+      `INSERT INTO "typeorm_metadata"("database", "schema", "table", "type", "name", "value") VALUES ($1, $2, $3, $4, $5, $6)`,
+      [
+        'database',
+        process.env.POSTGRES_SCHEMA,
+        'user_geometries',
+        'GENERATED_COLUMN',
+        'geom_hash',
+        "(encode(sha256(geom::TEXT::BYTEA), 'hex'))",
+      ],
+    );
+    await queryRunner.query(
+      `INSERT INTO "typeorm_metadata"("database", "schema", "table", "type", "name", "value") VALUES ($1, $2, $3, $4, $5, $6)`,
+      ['database', process.env.POSTGRES_SCHEMA, 'user_geometries', 'GENERATED_COLUMN', 'area', '(ST_Area(geom::geography))'],
+    );
+
     // Geometries are canonicalised (ST_MakeValid) by insertUserGeometry before they
     // reach this table, so NEW.geom is always valid (ST_Subdivide requires valid
     // input). Validation must NOT happen in a trigger here: ST_MakeValid is not
