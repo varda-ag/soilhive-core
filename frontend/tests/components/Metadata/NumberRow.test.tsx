@@ -136,6 +136,36 @@ describe('NumberRow', () => {
     });
   });
 
+  describe('isRequired validation', () => {
+    it('shows error and does not call onSave when field is cleared and Save is clicked', () => {
+      const onSave = jest.fn();
+      render(<NumberRow {...defaultProps} isEditable={true} isRequired onSave={onSave} value={10} />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+      fireEvent.change(screen.getByTestId('sh-ui-textinputfield'), { target: { value: '' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+      expect(screen.getByText('This field is required')).toBeInTheDocument();
+      expect(onSave).not.toHaveBeenCalled();
+    });
+
+    it('clears error and saves successfully after user fills the field', () => {
+      const onSave = jest.fn((_property: string, _value: string, { onSuccess }: any) => onSuccess());
+      render(<NumberRow {...defaultProps} isEditable={true} isRequired onSave={onSave} value={10} />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+      fireEvent.change(screen.getByTestId('sh-ui-textinputfield'), { target: { value: '' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+      expect(screen.getByText('This field is required')).toBeInTheDocument();
+
+      fireEvent.change(screen.getByTestId('sh-ui-textinputfield'), { target: { value: '25' } });
+      expect(screen.queryByText('This field is required')).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+      expect(onSave).toHaveBeenCalledWith('soil_depth_min', '25', expect.any(Object));
+    });
+  });
+
   describe('cancel flow', () => {
     it('clicking Cancel calls onCancel and exits editing mode', () => {
       const onCancel = jest.fn();

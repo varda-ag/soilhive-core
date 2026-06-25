@@ -230,4 +230,59 @@ describe('EditorRow', () => {
     const { container } = render(<EditorRow {...defaultProps} variant="text" isEditable={true} />);
     expect(container).toMatchSnapshot();
   });
+
+  describe('isRequired validation – text variant', () => {
+    it('shows error and does not call onSave when field is cleared and Save is clicked', () => {
+      const onSave = jest.fn();
+      render(<EditorRow {...defaultProps} variant="text" isEditable={true} isRequired onSave={onSave} value="Initial" />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+      fireEvent.change(screen.getByTestId('sh-ui-textinputfield'), { target: { value: '' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+      expect(screen.getByText('This field is required')).toBeInTheDocument();
+      expect(onSave).not.toHaveBeenCalled();
+    });
+
+    it('clears error and saves successfully after user fills the field', () => {
+      const onSave = jest.fn((_property: string, _value: string, { onSuccess }: any) => onSuccess());
+      render(<EditorRow {...defaultProps} variant="text" isEditable={true} isRequired onSave={onSave} value="Initial" />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+      fireEvent.change(screen.getByTestId('sh-ui-textinputfield'), { target: { value: '' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+      expect(screen.getByText('This field is required')).toBeInTheDocument();
+
+      fireEvent.change(screen.getByTestId('sh-ui-textinputfield'), { target: { value: 'New Value' } });
+      expect(screen.queryByText('This field is required')).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+      expect(onSave).toHaveBeenCalledWith('name', 'New Value', expect.any(Object));
+    });
+  });
+
+  describe('isRequired validation – editor variant', () => {
+    it('shows error message and does not call onSave when rich-text editor is empty', () => {
+      const onSave = jest.fn();
+      render(<EditorRow {...defaultProps} variant="editor" isEditable={true} isRequired onSave={onSave} value="" />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+      expect(screen.getByText('This field is required')).toBeInTheDocument();
+      expect(onSave).not.toHaveBeenCalled();
+    });
+
+    it('clears error when user types in the editor', () => {
+      const onSave = jest.fn((_property: string, _value: string, { onSuccess }: any) => onSuccess());
+      render(<EditorRow {...defaultProps} variant="editor" isEditable={true} isRequired onSave={onSave} value="" />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+      expect(screen.getByText('This field is required')).toBeInTheDocument();
+
+      fireEvent.change(screen.getByTestId('mock-editor'), { target: { value: '<p>Content</p>' } });
+      expect(screen.queryByText('This field is required')).not.toBeInTheDocument();
+    });
+  });
 });

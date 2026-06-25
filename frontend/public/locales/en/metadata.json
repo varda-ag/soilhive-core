@@ -21,6 +21,7 @@
         "cancel": "Cancel",
         "edit_aria": "Edit",
         "failed_to_save": "Failed to save",
+        "field_required": "This field is required",
         "add": "Add",
         "added_resources": "Added resources",
         "remove_resource_aria": "Remove resource",

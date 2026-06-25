@@ -116,6 +116,22 @@
     flex: 1;
   }
 
+  .EditorError {
+    flex: 1;
+
+    :global(.p-editor-content),
+    :global(.ql-editor) {
+      border: 1px solid var(--color-error-600);
+    }
+  }
+
+  .ErrorMessage {
+    display: block;
+    margin-top: 4px;
+    font-size: var(--font-size-sm);
+    color: var(--color-error-600);
+  }
+
   .TextInputWrapper {
     flex: 1;
   }

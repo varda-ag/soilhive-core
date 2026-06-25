@@ -7,6 +7,7 @@ import { EDITOR_HEADER } from 'configuration/editor';
 import styles from './EditorRow.module.scss';
 import { Button, TextInput } from 'components/UI';
 import { htmlDisplay } from 'utilities/isomorphicHTMLDisplay';
+import { isEmptyString, hasTextContent } from 'utilities/validation';
 import EditIcon from 'assets/icons/pencil-icon.svg?react';
 
 export function EditorRow({
@@ -18,6 +19,7 @@ export function EditorRow({
   placeholder,
   displayPlaceholder,
   disableBackground,
+  isRequired,
   onStartEditing,
   onSave,
   onCancel,
@@ -32,6 +34,7 @@ export function EditorRow({
   /** Text shown in view mode when the field has no value. Replaces the empty display area so the row never looks blank. */
   displayPlaceholder?: string;
   disableBackground?: boolean;
+  isRequired?: boolean;
   onStartEditing: (property: string) => void;
   onSave: (property: string, value: string, callbacks: SaveCallbacks) => void;
   onCancel: (property: string) => void;
@@ -40,10 +43,18 @@ export function EditorRow({
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [editValue, setEditValue] = useState(value ?? '');
+  const [error, setError] = useState('');
 
   const { showNotification } = useNotifications();
 
   const handleSave = () => {
+    if (isRequired) {
+      const isEmpty = variant === 'editor' ? !hasTextContent(editValue) : isEmptyString(editValue);
+      if (isEmpty) {
+        setError(t('editor.field_required'));
+        return;
+      }
+    }
     setIsSaving(true);
     onSave(property, editValue, {
       onSuccess: () => {
@@ -75,17 +86,32 @@ export function EditorRow({
         <div className={styles.EditArea}>
           {variant === 'text' ? (
             <div className={styles.TextInputWrapper}>
-              <TextInput size="small" value={editValue} onChange={v => setEditValue(v)} isDisabled={isSaving} placeholder={placeholder} />
+              <TextInput
+                size="small"
+                value={editValue}
+                onChange={v => {
+                  setEditValue(v);
+                  setError('');
+                }}
+                isDisabled={isSaving}
+                placeholder={placeholder}
+                isError={!!error}
+                errorMessage={error}
+              />
             </div>
           ) : (
-            <div className={styles.EditorWrapper}>
+            <div className={error ? styles.EditorError : styles.EditorWrapper}>
               <Editor
                 value={editValue}
-                onTextChange={(e: EditorTextChangeEvent) => setEditValue(e.htmlValue ?? '')}
+                onTextChange={(e: EditorTextChangeEvent) => {
+                  setEditValue(e.htmlValue ?? '');
+                  setError('');
+                }}
                 headerTemplate={EDITOR_HEADER}
                 readOnly={isSaving}
                 placeholder={placeholder}
               />
+              {error && <span className={styles.ErrorMessage}>{error}</span>}
             </div>
           )}
           <div className={styles.EditActions}>

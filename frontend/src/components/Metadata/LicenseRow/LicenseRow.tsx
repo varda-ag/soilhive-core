@@ -18,6 +18,7 @@ export function LicenseRow({
   allLicenses,
   isEditable,
   property,
+  isRequired,
   onStartEditing,
   onSave,
   onCancel,
@@ -27,6 +28,7 @@ export function LicenseRow({
   allLicenses: License[];
   isEditable: boolean;
   property: string;
+  isRequired?: boolean;
   onStartEditing: (property: string) => void;
   onSave: (property: string, value: string, callbacks: SaveCallbacks) => void;
   onCancel: (property: string) => void;
@@ -35,6 +37,7 @@ export function LicenseRow({
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [editValue, setEditValue] = useState(currentLicenseIds[0] ?? '');
+  const [error, setError] = useState('');
   const [newLicenseName, setNewLicenseName] = useState('');
   const [newLicenseFullName, setNewLicenseFullName] = useState('');
   const [newLicenseUrl, setNewLicenseUrl] = useState('');
@@ -59,6 +62,10 @@ export function LicenseRow({
       : undefined;
 
   const handleSave = () => {
+    if (isRequired && !editValue) {
+      setError(t('editor.field_required'));
+      return;
+    }
     if (editValue === NEW_LICENSE_CODE) {
       if (!newLicenseName.trim()) return;
       setIsSaving(true);
@@ -129,10 +136,15 @@ export function LicenseRow({
             <Dropdown
               options={licenseOptions}
               value={editValue}
-              onChange={selected => setEditValue(selected as string)}
+              onChange={selected => {
+                setEditValue(selected as string);
+                setError('');
+              }}
               isDisabled={isSaving}
               placeholder={t('license_row.select_placeholder')}
               size="small"
+              isError={!!error}
+              errorMessage={error}
             />
             {editValue === NEW_LICENSE_CODE && (
               <div className={styles.NewLicenseFields}>

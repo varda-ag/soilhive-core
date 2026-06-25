@@ -220,6 +220,7 @@ export default function Metadata() {
             placeholder={t('placeholders.name')}
             property="name"
             variant="text"
+            isRequired
             onStartEditing={onStartEditing}
             onSave={onSave}
             onCancel={onCancel}
@@ -231,6 +232,7 @@ export default function Metadata() {
             placeholder={t('placeholders.full_name')}
             property="full_name"
             variant="text"
+            isRequired
             onStartEditing={onStartEditing}
             onSave={onSave}
             onCancel={onCancel}
@@ -242,6 +244,7 @@ export default function Metadata() {
             placeholder={t('placeholders.version')}
             property="version"
             variant="text"
+            isRequired
             onStartEditing={onStartEditing}
             onSave={onSave}
             onCancel={onCancel}
@@ -252,6 +255,7 @@ export default function Metadata() {
             isEditable={isAdmin && !isEditing}
             placeholder={t('placeholders.description')}
             property="description"
+            isRequired
             onStartEditing={onStartEditing}
             onSave={onSave}
             onCancel={onCancel}
@@ -263,6 +267,7 @@ export default function Metadata() {
             placeholder={t('placeholders.author')}
             property="author"
             variant="text"
+            isRequired
             onStartEditing={onStartEditing}
             onSave={onSave}
             onCancel={onCancel}
@@ -295,6 +300,7 @@ export default function Metadata() {
             value={(dataset?.soil_depth as { min?: number } | null | undefined)?.min}
             isEditable={isAdmin && !inferredProperties.has('soil_depth') && !isEditing}
             property="soil_depth_min"
+            isRequired
             onStartEditing={onStartEditing}
             onSave={onSave}
             onCancel={onCancel}
@@ -304,6 +310,7 @@ export default function Metadata() {
             value={(dataset?.soil_depth as { max?: number } | null | undefined)?.max}
             isEditable={isAdmin && !inferredProperties.has('soil_depth') && !isEditing}
             property="soil_depth_max"
+            isRequired
             onStartEditing={onStartEditing}
             onSave={onSave}
             onCancel={onCancel}
@@ -325,6 +332,7 @@ export default function Metadata() {
             placeholder={t('placeholders.spatial_resolution')}
             property="spatial_resolution"
             variant="text"
+            isRequired
             onStartEditing={onStartEditing}
             onSave={onSave}
             onCancel={onCancel}
@@ -336,6 +344,7 @@ export default function Metadata() {
             placeholder={t('placeholders.reference_period_start')}
             property="reference_period_start"
             variant="text"
+            isRequired
             onStartEditing={onStartEditing}
             onSave={onSave}
             onCancel={onCancel}
@@ -347,6 +356,7 @@ export default function Metadata() {
             placeholder={t('placeholders.reference_period_stop')}
             property="reference_period_stop"
             variant="text"
+            isRequired
             onStartEditing={onStartEditing}
             onSave={onSave}
             onCancel={onCancel}
@@ -358,6 +368,7 @@ export default function Metadata() {
             placeholder={t('placeholders.publication_date')}
             property="publication_date"
             variant="text"
+            isRequired
             onStartEditing={onStartEditing}
             onSave={onSave}
             onCancel={onCancel}
@@ -368,6 +379,7 @@ export default function Metadata() {
             allLicenses={allLicenses ?? []}
             isEditable={isAdmin && !inferredProperties.has('licenses') && !isEditing}
             property="licenses"
+            isRequired
             onStartEditing={onStartEditing}
             onSave={onSave}
             onCancel={onCancel}
@@ -378,6 +390,7 @@ export default function Metadata() {
             isEditable={isAdmin && !isEditing}
             placeholder={t('placeholders.citation')}
             property="citation"
+            isRequired
             onStartEditing={onStartEditing}
             onSave={onSave}
             onCancel={onCancel}
