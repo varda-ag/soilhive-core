@@ -6,6 +6,7 @@ import { usePasswordAuth } from './usePasswordAuth';
 import { LoginModal } from './LoginModal';
 import { AuthModes, type AuthModesType } from './types';
 import { clearToken, saveToken, getToken } from './tokenStore';
+import { setTokenRefresher } from './tokenRefresher';
 import { WebStorageStateStore } from 'oidc-client-ts';
 import { useApiQuery } from 'hooks/useApiQuery';
 
@@ -94,6 +95,24 @@ function OidcAuthProvider({ children }: { children: React.ReactNode }) {
     events.addAccessTokenExpired(handleExpired);
     return () => events.removeAccessTokenExpired(handleExpired);
   }, [events, removeUser]);
+
+  // Expose a one-shot silent renew to the standalone httpClient so it can
+  // recover from a 401 caused by an expired token (e.g. the scheduled
+  // automaticSilentRenew missed its window while the tab was throttled/asleep).
+  const { signinSilent } = reactOidcAuth;
+  useEffect(() => {
+    setTokenRefresher(async () => {
+      const renewed = await signinSilent();
+      const token = renewed && !renewed.expired ? renewed.access_token : undefined;
+      if (token) {
+        saveToken(token);
+      } else {
+        clearToken();
+      }
+      return token;
+    });
+    return () => setTokenRefresher(undefined);
+  }, [signinSilent]);
 
   const value: AuthContext = {
     isAuthenticated: !!reactOidcAuth.isAuthenticated,
