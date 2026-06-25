@@ -64,7 +64,7 @@ describe('Soil Export Job Integration Test', () => {
         depthLayers: 1,
         featureCount: 2,
         observationsPerLayer: 2,
-        soilPropertyNames: ['aluminum', 'calcium'],
+        soilPropertyNames: ['C/N ratio'],
         featureCoordinates: [
           [-80.8013337, -33.759169],
           [-80.7786728, -33.772006],

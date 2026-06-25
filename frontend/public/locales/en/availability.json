@@ -64,6 +64,7 @@
         "private": "Private",
         "public": "Public",
         "points_suffix": "points",
+        "polygons_suffix": "polygons",
         "raster_layers_suffix": "raster layers",
         "depth_cm_suffix": "cm",
         "date_range_separator": "-"

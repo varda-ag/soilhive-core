@@ -63,6 +63,11 @@ export function DatasetsListItem({ dataset }: Props) {
               {dataset.properties.points} {t('datasets_list.points_suffix')}
             </MetaItem>
           )}
+          {dataset.dataType === GISDataType.POLYGONAL && (
+            <MetaItem icon={<MapIcon className={styles.PointsIcon} />} isLoading={isCoverageLoading}>
+              {dataset.properties.points} {t('datasets_list.polygons_suffix')}
+            </MetaItem>
+          )}
           {dataset.dataType === GISDataType.RASTER && (
             <MetaItem icon={<LayersIcon className={styles.LayersIcon} />} isLoading={isCoverageLoading}>
               {dataset.properties.layers} {t('datasets_list.raster_layers_suffix')}
