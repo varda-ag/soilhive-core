@@ -77,3 +77,17 @@ export const log = {
   warn: (message: string, attributes?: LogAttributes) => emit(SeverityNumber.WARN, 'WARN', message, attributes),
   error: (message: string, attributes?: LogAttributes) => emit(SeverityNumber.ERROR, 'ERROR', message, attributes),
 };
+
+export const timed = async <T>(step: string, fn: () => Promise<T>, attributes?: LogAttributes): Promise<T> => {
+  const start = Date.now();
+  let outcome = 'completed';
+  try {
+    return await fn();
+  } catch (err) {
+    outcome = 'failed';
+    throw err;
+  } finally {
+    const duration_ms = Date.now() - start;
+    log.debug(`${step} ${outcome} in ${duration_ms}ms`, { ...attributes, step, duration_ms });
+  }
+};

@@ -3,6 +3,7 @@ import { addSyntheticData, syntheticDataOptions } from '../../src/utils/mock';
 import SoilDataStorage from '../../src/data-layer/SoilDataStorage';
 import { getEntityManager } from '../../src/utils/data-source';
 import { getPolygonFromBbox } from '../../src/utils/geometry';
+import { makeFilter } from './SoilDataStorage.test';
 
 const entitlements = {};
 
@@ -24,7 +25,7 @@ describe('SoilDataStorage count', () => {
 
     const sds = new SoilDataStorage();
     const entityManager = await getEntityManager();
-    const filter = { geometries: [], parameters: {} };
+    const filter = { geometryIds: [], area: 0, parameters: {} };
 
     // 2. Execute: Get the count
     const count = await sds.getSoilDataCount({ entityManager, entitlements }, filter, [dataset.slug]);
@@ -43,7 +44,7 @@ describe('SoilDataStorage count', () => {
 
     const sds = new SoilDataStorage();
     const entityManager = await getEntityManager();
-    const filter = { geometries: [], parameters: {} };
+    const filter = { geometryIds: [], area: 0, parameters: {} };
 
     // 2. Execute: Search for a slug that doesn't exist
     const count = await sds.getSoilDataCount({ entityManager, entitlements }, filter, [dataset.id]);
@@ -70,7 +71,8 @@ describe('SoilDataStorage count', () => {
 
     // 2. Execute: Filter only for 'clay'
     const filter = {
-      geometries: [],
+      geometryIds: [],
+      area: 0,
       parameters: { soil_properties: ['clay'] },
     };
 
@@ -97,7 +99,8 @@ describe('SoilDataStorage count', () => {
 
     // We want to capture 0-10, 10-20, and 20-30
     const filter = {
-      geometries: [],
+      geometryIds: [],
+      area: 0,
       parameters: { min_depth: 0, max_depth: 25 },
     };
 
@@ -137,11 +140,7 @@ describe('SoilDataStorage count', () => {
     // 2. Execute: Define a search box that only covers the first two points
     // Bounding box from (0, 0) to (0.25, 0.25)
     const queryPolygon = getPolygonFromBbox([0, 0, 0.25, 0.25]);
-
-    const filter = {
-      geometries: [queryPolygon],
-      parameters: {},
-    };
+    const filter = await makeFilter(entityManager, queryPolygon, {});
 
     const count = await sds.getSoilDataCount({ entityManager, entitlements }, filter, [dataset.slug]);
 
@@ -153,7 +152,7 @@ describe('SoilDataStorage count', () => {
   it('getSoilDataCount should correctly isolate counts between multiple datasets', async () => {
     const sds = new SoilDataStorage();
     const entityManager = await getEntityManager();
-    const filter = { geometries: [], parameters: {} };
+    const filter = { geometryIds: [], area: 0, parameters: {} };
 
     // 1. Setup Dataset A: 1 layer * 1 feature * 2 obs = 2 total
     const { dataset: datasetA } = await addSyntheticData({

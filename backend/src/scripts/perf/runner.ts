@@ -24,13 +24,14 @@
  * raster datasets are excluded by the real client too). When the filter
  * matches no such datasets the row is recorded as skipped without failing
  * the run, mirroring the frontend, which does not call the endpoint then.
- * Each measured row is one
- * untimed warmup request followed by PERF_ITERATIONS timed requests.
+ * Each measured row is PERF_ITERATIONS timed requests, optionally preceded by
+ * one untimed warmup request (opt-in via PERF_WARMUP=true, off by default).
  *
  * Error policy: unexpected status codes, timeouts, and network failures are
  * recorded on the affected row (statusCodes/errors, status 0 = no response).
- * A row stops at its first failed request — a failed warmup skips the timed
- * iterations entirely — because the identical request would fail again; the
+ * A row stops at its first failed request — a failed warmup, when enabled,
+ * skips the timed iterations entirely — because the identical request would
+ * fail again; the
  * run then continues with the remaining rows. Latency stats are computed over
  * successful samples only. The process exits non-zero when any row failed,
  * after writing the result files. Only precondition failures (server does not
@@ -57,7 +58,9 @@ import { AssetFingerprint, computeStats, PERF_RUN_VERSION, PerfRun, ResultRow, r
 const BACKEND_ROOT = path.resolve(__dirname, '..', '..', '..');
 config({ path: path.join(BACKEND_ROOT, '.env'), quiet: true });
 
-const ITERATIONS = Number(process.env['PERF_ITERATIONS']) || 3;
+const ITERATIONS = Number(process.env['PERF_ITERATIONS']) || 1;
+// Untimed warmup request before the timed iterations. Off by default; set PERF_WARMUP=true to enable.
+const WARMUP = process.env['PERF_WARMUP'] === 'true';
 // Comma-separated exact asset names (file name minus .geojson); empty = all assets.
 const ASSET_FILTER = (process.env['PERF_ASSETS'] || '')
   .split(',')
@@ -363,15 +366,15 @@ const measureRow = async (
   },
   expectedStatus: number,
   request: () => Promise<Sample>,
-): Promise<{ row: ResultRow; warmup: Sample; samples: Sample[] }> => {
+): Promise<{ row: ResultRow; warmup: Sample | null; samples: Sample[] }> => {
   const key = rowKey(meta.method, meta.pathTemplate, meta.asset, meta.paramsVariant, meta.daiResolution);
   console.log(`  ${key}`);
-  const warmup = await request();
+  const warmup = WARMUP ? await request() : null;
   const samples: Sample[] = [];
   // Fail fast: the same request is repeated verbatim, so an error is
   // deterministic — further iterations would only burn timeout budget and
   // persist more junk filters. A failed warmup skips the timed loop entirely.
-  if (warmup.error === null) {
+  if (warmup === null || warmup.error === null) {
     for (let i = 0; i < ITERATIONS; i++) {
       const sample = await request();
       samples.push(sample);
@@ -380,7 +383,7 @@ const measureRow = async (
   }
   const successful = samples.filter(s => s.error === null);
   const errors = samples.map(s => s.error).filter((e): e is string => e !== null);
-  if (warmup.error !== null) {
+  if (warmup !== null && warmup.error !== null) {
     errors.push(`warmup: ${warmup.error}`);
   }
   for (const error of errors) {
@@ -466,7 +469,7 @@ const main = async () => {
   const timestamp = new Date().toISOString();
 
   console.log(
-    `Performance suite: ${assets.length} asset(s)${ASSET_FILTER.length > 0 ? ' (selected via PERF_ASSETS)' : ''}, ${ITERATIONS} iterations/row, DAI resolutions [${DAI_RESOLUTIONS.join(', ')}]`,
+    `Performance suite: ${assets.length} asset(s)${ASSET_FILTER.length > 0 ? ' (selected via PERF_ASSETS)' : ''}, ${ITERATIONS} iterations/row, warmup ${WARMUP ? 'on' : 'off'}, DAI resolutions [${DAI_RESOLUTIONS.join(', ')}]`,
   );
 
   const { child, outputTail } = await startServer();
@@ -497,7 +500,7 @@ const main = async () => {
           () => timedRequest('POST', `${BASE_URL}/data-filters`, payload, 201, context),
         );
         results.push(row);
-        const filterId = [warmup, ...samples]
+        const filterId = [...(warmup ? [warmup] : []), ...samples]
           .filter(s => s.error === null)
           .map(s => {
             try {
@@ -547,7 +550,7 @@ const main = async () => {
           const { row, warmup, samples } = await measureRow(meta, 200, () => timedRequest('GET', url, null, 200, context));
           results.push(row);
           if (suffix === '/datasets') {
-            datasetsBody = [warmup, ...samples].find(s => s.error === null)?.bodyText;
+            datasetsBody = [...(warmup ? [warmup] : []), ...samples].find(s => s.error === null)?.bodyText;
           }
         }
 

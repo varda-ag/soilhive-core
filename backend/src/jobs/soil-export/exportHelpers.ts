@@ -24,8 +24,8 @@ const filterService = new FilterService();
 const soilDataStorage = new SoilDataStorage();
 
 export async function getTotalRecordsCount(requestData: RequestData, payload: ExportJobParameters): Promise<number> {
-  const storedFilter = await filterService.getFilterById(requestData, payload.filter_id);
-  return await soilDataStorage.getSoilDataCount(requestData, storedFilter.filter, payload.dataset_ids);
+  const filter = await filterService.getFilterById(requestData, payload.filter_id);
+  return await soilDataStorage.getSoilDataCount(requestData, filter, payload.dataset_ids);
 }
 
 /**
@@ -36,8 +36,8 @@ export async function getTotalRecordsCount(requestData: RequestData, payload: Ex
  * @returns Array of soil data samples
  */
 export async function fetchBatch(requestData: RequestData, payload: ExportJobParameters, cursor?: string): Promise<SoilDataSample[]> {
-  const storedFilter = await filterService.getFilterById(requestData, payload.filter_id);
-  return await soilDataStorage.getSoilData(requestData, storedFilter.filter, payload.dataset_ids, getExportBatchSize(), cursor, undefined);
+  const filter = await filterService.getFilterById(requestData, payload.filter_id);
+  return await soilDataStorage.getSoilData(requestData, filter, payload.dataset_ids, getExportBatchSize(), cursor, undefined);
 }
 
 /**
@@ -139,7 +139,7 @@ export async function createReadmeFile(requestData: RequestData, tempDir: string
     gis_datatype: ds.gis_datatype!,
   }));
 
-  const filterEntity = await filterService.getFilterById(requestData, payload.filter_id);
+  const filterEntity = await filterService.getDataFilterEntityById(requestData, payload.filter_id);
   const filter = await getFilterString(requestData, filterEntity.filter.parameters);
 
   const hasVector = datasetPdfInfo.some(ds => ds.gis_datatype !== GISDataType.RASTER);
@@ -163,23 +163,18 @@ export async function createReadmeFile(requestData: RequestData, tempDir: string
 
 export async function getTotalLayersCount(requestData: RequestData, payload: ExportJobParameters): Promise<number> {
   if (!payload.dataset_ids?.length) return 0;
-  const storedFilter = await filterService.getFilterById(requestData, payload.filter_id);
-  return await soilDataStorage.getRasterLayerCount(requestData, storedFilter.filter, payload.dataset_ids);
+  const filter = await filterService.getFilterById(requestData, payload.filter_id);
+  return await soilDataStorage.getRasterLayerCount(requestData, filter, payload.dataset_ids);
 }
 
-export async function fetchRasterLayersAoi(
+export async function fetchRasterLayers(
   requestData: RequestData,
   payload: ExportJobParameters,
 ): Promise<{ layers: FilteredRasterLayer[]; aoi: Polygon | MultiPolygon | null }> {
   if (!payload.dataset_ids?.length) return { layers: [], aoi: null };
-  const storedFilter = await filterService.getFilterById(requestData, payload.filter_id);
-  const { layers, aoi } = await soilDataStorage.getRasterLayersAoi(requestData, storedFilter.filter, payload.dataset_ids);
+  const filter = await filterService.getFilterById(requestData, payload.filter_id);
+  const { layers, aoi } = await soilDataStorage.getRasterLayers(requestData, filter, payload.dataset_ids);
   return { layers, aoi };
-}
-export async function fetchRasterLayers(requestData: RequestData, payload: ExportJobParameters): Promise<FilteredRasterLayer[]> {
-  if (!payload.dataset_ids?.length) return [];
-  const storedFilter = await filterService.getFilterById(requestData, payload.filter_id);
-  return await soilDataStorage.getRasterLayers(requestData, storedFilter.filter, payload.dataset_ids);
 }
 
 /**

@@ -24,8 +24,6 @@ describe('RasterIngestService', () => {
       expect(result).toBe(TEST_FILE);
 
       const ds = await getDataSource();
-      await ds.query(`SET search_path TO ${process.env.POSTGRES_SCHEMA}, public`);
-
       const layers = await ds.query(`SELECT id, resolution_m FROM raster_layers`);
       expect(layers).toHaveLength(1);
       expect(layers[0].resolution_m).toBeGreaterThan(0);
@@ -53,8 +51,6 @@ describe('RasterIngestService', () => {
       expect(result).toBe(TEST_FILE);
 
       const ds = await getDataSource();
-      await ds.query(`SET search_path TO ${process.env.POSTGRES_SCHEMA}, public`);
-
       const layers = await ds.query(`SELECT id, resolution_m FROM raster_layers`);
       expect(layers).toHaveLength(1);
       expect(layers[0].resolution_m).toBeGreaterThan(0);
