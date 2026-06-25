@@ -84,7 +84,7 @@ export function DatasetsSettingsPage() {
             <h3 className={styles.SectionTitle}>{t('datasets.settings.metadata_preview.title')}</h3>
           </div>
           <p className={styles.SectionDescription}>{t('datasets.settings.metadata_preview.description')}</p>
-          <Link to={`/datasets/${id}`} className={styles.MetadataLink}>
+          <Link to={`/datasets/${id}`} className={styles.MetadataLink} target="_blank">
             {t('datasets.settings.metadata_preview.link')}
           </Link>
         </div>
