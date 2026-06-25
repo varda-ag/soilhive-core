@@ -13,6 +13,7 @@ import { AuthContextProvider } from '../../src/auth/AuthContextProvider';
 import { useAuth as useReactOidcAuth } from 'react-oidc-context';
 import { useApiQuery } from 'hooks/useApiQuery';
 import { saveToken, clearToken } from '../../src/auth/tokenStore';
+import { setTokenRefresher } from '../../src/auth/tokenRefresher';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
@@ -36,6 +37,10 @@ jest.mock('../../src/auth/tokenStore', () => ({
   getToken: jest.fn(),
 }));
 
+jest.mock('../../src/auth/tokenRefresher', () => ({
+  setTokenRefresher: jest.fn(),
+}));
+
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 const OIDC_CONFIG = {
@@ -54,6 +59,7 @@ const addAccessTokenExpired = jest.fn((h: () => void) => {
   capturedExpiredHandler = h;
 });
 const removeAccessTokenExpired = jest.fn();
+const signinSilent = jest.fn();
 
 type OidcUser = { access_token: string; expired: boolean } | null | undefined;
 
@@ -64,9 +70,16 @@ const buildAuth = (user: OidcUser) => ({
   user,
   signinRedirect: jest.fn(),
   signoutRedirect: jest.fn(),
+  signinSilent,
   removeUser,
   events: { addAccessTokenExpired, removeAccessTokenExpired },
 });
+
+// Returns the latest refresher registered via setTokenRefresher.
+const getRegisteredRefresher = (): (() => Promise<string | undefined>) => {
+  const calls = (setTokenRefresher as jest.Mock).mock.calls.filter(([fn]) => typeof fn === 'function');
+  return calls[calls.length - 1][0];
+};
 
 const renderWithUser = (user: OidcUser) => {
   (useReactOidcAuth as jest.Mock).mockReturnValue(buildAuth(user));
@@ -140,6 +153,65 @@ describe('OidcAuthProvider token lifecycle', () => {
 
       expect(removeAccessTokenExpired).toHaveBeenCalledTimes(1);
       expect(removeAccessTokenExpired).toHaveBeenCalledWith(capturedExpiredHandler);
+    });
+  });
+
+  describe('silent-refresh registration', () => {
+    it('registers a refresher that silently renews and persists the fresh token', async () => {
+      renderWithUser({ access_token: 'valid-token', expired: false });
+      signinSilent.mockResolvedValue({ access_token: 'fresh-token', expired: false });
+      (saveToken as jest.Mock).mockClear();
+
+      const refresher = getRegisteredRefresher();
+      let result: string | undefined;
+      await act(async () => {
+        result = await refresher();
+      });
+
+      expect(signinSilent).toHaveBeenCalledTimes(1);
+      expect(saveToken).toHaveBeenCalledWith('fresh-token');
+      expect(result).toBe('fresh-token');
+    });
+
+    it('clears the token and returns undefined when the silent renew yields no valid user', async () => {
+      renderWithUser({ access_token: 'valid-token', expired: false });
+      signinSilent.mockResolvedValue(null);
+      (clearToken as jest.Mock).mockClear();
+      (saveToken as jest.Mock).mockClear();
+
+      const refresher = getRegisteredRefresher();
+      let result: string | undefined;
+      await act(async () => {
+        result = await refresher();
+      });
+
+      expect(clearToken).toHaveBeenCalledTimes(1);
+      expect(saveToken).not.toHaveBeenCalled();
+      expect(result).toBeUndefined();
+    });
+
+    it('treats an expired renewed user as a failed refresh', async () => {
+      renderWithUser({ access_token: 'valid-token', expired: false });
+      signinSilent.mockResolvedValue({ access_token: 'stale-token', expired: true });
+      (saveToken as jest.Mock).mockClear();
+
+      const refresher = getRegisteredRefresher();
+      let result: string | undefined;
+      await act(async () => {
+        result = await refresher();
+      });
+
+      expect(result).toBeUndefined();
+      expect(saveToken).not.toHaveBeenCalled();
+    });
+
+    it('unregisters the refresher on unmount', () => {
+      const { unmount } = renderWithUser({ access_token: 'valid-token', expired: false });
+      (setTokenRefresher as jest.Mock).mockClear();
+
+      unmount();
+
+      expect(setTokenRefresher).toHaveBeenCalledWith(undefined);
     });
   });
 });
