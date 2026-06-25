@@ -1,28 +1,43 @@
 import { getToken } from '../auth/tokenStore';
+import { refreshAccessToken } from '../auth/tokenRefresher';
 import { handleError } from './error';
 import { type APIRequestConfig } from './types/api';
 
 export async function httpClient<T = any>(config: APIRequestConfig): Promise<T> {
   const { url, method = 'GET', headers = {}, body, signal, isBlobResponse } = config;
-  const token = config.authenticate === false ? null : getToken();
-  const defaultHeaders: HeadersInit = {
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  const useAuth = config.authenticate !== false;
+
+  const doFetch = (token: string | null): Promise<Response> => {
+    const defaultHeaders: HeadersInit = {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    };
+    if (body && !(body instanceof FormData)) {
+      defaultHeaders['Content-Type'] = 'application/json';
+    }
+
+    const finalHeaders: HeadersInit = {
+      ...defaultHeaders,
+      ...headers,
+    };
+
+    return fetch(url, {
+      method,
+      headers: finalHeaders,
+      body: body ? (finalHeaders['Content-Type']?.includes('application/json') ? JSON.stringify(body) : body) : undefined,
+      signal,
+    });
   };
-  if (body && !(body instanceof FormData)) {
-    defaultHeaders['Content-Type'] = 'application/json';
+
+  let response = await doFetch(useAuth ? getToken() : null);
+
+  // Access token can expire before silent renew.
+  // Force renew and retry once before surfacing 401 error.
+  if (response.status === 401 && useAuth) {
+    const refreshed = await refreshAccessToken();
+    if (refreshed) {
+      response = await doFetch(refreshed);
+    }
   }
-
-  const finalHeaders: HeadersInit = {
-    ...defaultHeaders,
-    ...headers,
-  };
-
-  const response = await fetch(url, {
-    method,
-    headers: finalHeaders,
-    body: body ? (finalHeaders['Content-Type']?.includes('application/json') ? JSON.stringify(body) : body) : undefined,
-    signal,
-  });
 
   if (!response.ok) {
     // delegate standardized error handling
