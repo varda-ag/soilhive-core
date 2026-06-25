@@ -9,10 +9,6 @@ export class CreateSchema1782000000000 implements MigrationInterface {
   name = 'CreateSchema1782000000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-    // ============================================================
-    // CreateSchema1775600000000
-    // ============================================================
-
     // Extensions
     await queryRunner.query(`CREATE EXTENSION IF NOT EXISTS postgis SCHEMA public`);
     await queryRunner.query(`CREATE EXTENSION IF NOT EXISTS postgis_raster SCHEMA public`);
@@ -240,7 +236,7 @@ export class CreateSchema1782000000000 implements MigrationInterface {
       `CREATE TABLE "features" ("id" uuid NOT NULL DEFAULT uuidv7(), "geom" geometry, "geom_hash" text GENERATED ALWAYS AS (encode(sha256(geom::TEXT::BYTEA), 'hex')) STORED NOT NULL, CONSTRAINT "UQ_features_geom_hash" UNIQUE ("geom_hash"), CONSTRAINT "PK_features_id" PRIMARY KEY ("id"))`,
     );
     await queryRunner.query(
-      `CREATE TABLE "datasets" ("created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP, "id" uuid NOT NULL DEFAULT uuidv7(), "slug" text NOT NULL, "name" text NOT NULL, "full_name" text, "version" text, "author" text, "description" text, "data_producer" text, "variables_measured" jsonb, "spatial_resolution" text, "publication_date" date, "reference_period_start" text, "reference_period_stop" text, "licenses" text[], "citation" text, "geographical_extent" text, "gis_datatype" text, "spatial_extent" geometry(Polygon,4326), "n_observations" bigint, "n_raster_layers" integer, "soil_depth" jsonb, "status" text NOT NULL DEFAULT 'PENDING', "created_by" text NOT NULL, "updated_by" text, "service_location" text, "processing_steps" JSONB, "visibility" "visibility_enum" NOT NULL DEFAULT 'private', CONSTRAINT "PK_datasets_id" PRIMARY KEY ("id"))`,
+      `CREATE TABLE "datasets" ("created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP, "id" uuid NOT NULL DEFAULT uuidv7(), "slug" text NOT NULL, "name" text NOT NULL, "full_name" text, "version" text, "author" text, "description" text, "data_producer" text, "variables_measured" jsonb, "spatial_resolution" text, "publication_date" date, "reference_period_start" text, "reference_period_stop" text, "licenses" text[], "citation" text, "geographical_extent" text, "gis_datatype" text, "spatial_extent" geometry(Polygon,4326), "n_observations" bigint, "n_raster_layers" integer, "soil_depth" jsonb, "status" text NOT NULL DEFAULT 'PENDING', "created_by" text NOT NULL, "updated_by" text, "service_location" text, "processing_steps" JSONB, "visibility" "visibility_enum" NOT NULL DEFAULT 'private', "inferred_properties" text[], "preprocessing_steps" text, "related_resources" text[], CONSTRAINT "PK_datasets_id" PRIMARY KEY ("id"))`,
     );
     await queryRunner.query(
       `CREATE TABLE "vocabulary" ("created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP, "id" uuid NOT NULL DEFAULT uuidv7(), "slug" text NOT NULL, "category" "vocabulary_category_enum" NOT NULL, "name" text NOT NULL, CONSTRAINT "UQ_vocabulary_id_category" UNIQUE ("id", "category"), CONSTRAINT "PK_vocabulary_id_slug" PRIMARY KEY ("id", "slug"))`,
@@ -455,14 +451,6 @@ export class CreateSchema1782000000000 implements MigrationInterface {
       await queryRunner.query(sql);
     }
 
-    // ============================================================
-    // InferredProperties1778687000000
-    // ============================================================
-    await queryRunner.query(`ALTER TABLE "datasets" ADD COLUMN IF NOT EXISTS "inferred_properties" text[]`);
-
-    // ============================================================
-    // RasterLayer1779000000000
-    // ============================================================
     await queryRunner.query(
       `CREATE TABLE IF NOT EXISTS "raster_layers" ("created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP, "id" uuid NOT NULL DEFAULT uuidv7(), "file_id" uuid NOT NULL, "resolution_m" int NOT NULL, "min_depth" int, "max_depth" int, "reference_period_start" text, "reference_period_stop" text, "dataset_id" uuid NOT NULL, "soil_property_id" uuid NOT NULL, "description" jsonb, "nodata_value" int, "bbox" geometry(Polygon,4326) NOT NULL, CONSTRAINT "PK_raster_layers_id" PRIMARY KEY ("id"))`,
     );
@@ -557,15 +545,6 @@ export class CreateSchema1782000000000 implements MigrationInterface {
        FOR EACH ROW EXECUTE FUNCTION delete_orphan_raster_footprints()`,
     );
 
-    // ============================================================
-    // DatasetMetadataFields1780000000000
-    // ============================================================
-    await queryRunner.query(`ALTER TABLE "datasets" ADD COLUMN IF NOT EXISTS "preprocessing_steps" text`);
-    await queryRunner.query(`ALTER TABLE "datasets" ADD COLUMN IF NOT EXISTS "related_resources" text[]`);
-
-    // ============================================================
-    // UserGeometries1781000000000
-    // ============================================================
     await queryRunner.query(
       `CREATE TABLE IF NOT EXISTS "user_geometries" (
         "id" uuid NOT NULL DEFAULT uuidv7(),
@@ -652,9 +631,6 @@ export class CreateSchema1782000000000 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    // ============================================================
-    // UserGeometries1781000000000 (reverse)
-    // ============================================================
     await queryRunner.query(`DROP TABLE IF EXISTS "data_filter_user_geometries"`);
     await queryRunner.query(`DROP TRIGGER IF EXISTS trg_user_geometries_subdivide_update ON user_geometries`);
     await queryRunner.query(`DROP TRIGGER IF EXISTS trg_user_geometries_subdivide_insert ON user_geometries`);
@@ -665,15 +641,6 @@ export class CreateSchema1782000000000 implements MigrationInterface {
     await queryRunner.query(`DROP INDEX IF EXISTS "IDX_user_geometries_geom"`);
     await queryRunner.query(`DROP TABLE IF EXISTS "user_geometries"`);
 
-    // ============================================================
-    // DatasetMetadataFields1780000000000 (reverse)
-    // ============================================================
-    await queryRunner.query(`ALTER TABLE "datasets" DROP COLUMN IF EXISTS "related_resources"`);
-    await queryRunner.query(`ALTER TABLE "datasets" DROP COLUMN IF EXISTS "preprocessing_steps"`);
-
-    // ============================================================
-    // RasterLayer1779000000000 (reverse)
-    // ============================================================
     await queryRunner.query(`DROP TRIGGER IF EXISTS trg_delete_orphan_raster_footprints ON raster_layer_footprints`);
     await queryRunner.query(`DROP FUNCTION IF EXISTS delete_orphan_raster_footprints`);
     await queryRunner.query(`DROP TABLE IF EXISTS "raster_layer_footprints"`);
@@ -684,14 +651,6 @@ export class CreateSchema1782000000000 implements MigrationInterface {
       `DELETE FROM "typeorm_metadata" WHERE "type" = 'GENERATED_COLUMN' AND "name" = 'geom_hash' AND "table" = 'raster_footprints'`,
     );
 
-    // ============================================================
-    // InferredProperties1778687000000 (reverse)
-    // ============================================================
-    await queryRunner.query(`ALTER TABLE "datasets" DROP COLUMN IF EXISTS "inferred_properties"`);
-
-    // ============================================================
-    // CreateSchema1775600000000 (reverse)
-    // ============================================================
     // Drop triggers
     await queryRunner.query(`DROP TRIGGER IF EXISTS dataset_slug ON datasets`);
     await queryRunner.query(`DROP TRIGGER IF EXISTS property_slug ON soil_properties`);
