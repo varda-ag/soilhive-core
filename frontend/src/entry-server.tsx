@@ -14,6 +14,7 @@ import { ssrAuthStore } from './auth/ssrAuthStore';
 import { SsrAuthContextProvider } from './auth/AuthContextProvider';
 import { buildMetadataHeadHtml } from './utilities/buildMetadataHead';
 import type { Dataset } from 'types/backend';
+import { IngestionStatus } from 'types/backend';
 
 // Initialize i18next synchronously for SSR — no HTTP backend, no browser
 // language detector.  Translation files are imported directly so server
@@ -31,6 +32,17 @@ if (!i18n.isInitialized) {
     fallbackLng: 'en',
     interpolation: { escapeValue: false },
   });
+}
+
+function isAdminToken(token: string | null): boolean {
+  if (!token) return false;
+  try {
+    const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString('utf8'));
+    const roles = (payload.scope ?? '').toLowerCase().split(' ');
+    return roles.includes('data-admin') || roles.includes('super-admin');
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -78,7 +90,7 @@ export function matchSSRRoute(pathname: string): string | null {
 export async function render(
   url: string,
   context?: { authToken?: string | null },
-): Promise<{ html: string; dehydratedState: unknown; head: string } | null> {
+): Promise<{ html: string; dehydratedState: unknown; head: string } | { redirect: string } | null> {
   const pathname = new URL(url, 'http://localhost').pathname;
   const matchedPattern = matchSSRRoute(pathname);
   const PageComponent = matchedPattern ? SSR_ROUTES[matchedPattern] : null;
@@ -127,6 +139,12 @@ export async function render(
         },
       }),
     ]);
+
+    const cachedDataset = queryClient.getQueryData<Dataset>(['dataset', datasetMatch[1]]);
+    if (cachedDataset && cachedDataset.status !== IngestionStatus.PUBLISHED && !isAdminToken(context?.authToken ?? null)) {
+      ssrAuthStore.set(null);
+      return { redirect: '/' };
+    }
   }
 
   // Prefetch theme config so ThemeProvider has data during renderToString.

@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useParams } from 'react-router';
+import { useParams, Navigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import classnames from 'classnames';
 import { useMetadata, type SaveCallbacks } from 'hooks/useMetadata';
 import { useEntitlements, ADMIN_PORTAL_ACCESS } from 'hooks/useEntitlementsHook';
+import { useAuthContext } from '../auth/AuthContextProvider';
+import { IngestionStatus } from 'types/backend';
 import useDevice from 'hooks/useDevice';
 import styles from './Metadata.module.scss';
 import Worm from 'assets/images/worm.svg?react';
@@ -35,6 +37,7 @@ export default function Metadata() {
   useEffect(() => setIsMounted(true), []);
   const { dataset, allLicenses, inferredProperties, isLoading, isError, updateProperty, updateRelatedResources } = useMetadata(id);
   const { can } = useEntitlements();
+  const { isLoading: isAuthLoading } = useAuthContext();
   const { isMobileLayout } = useDevice();
   const isAdmin = isMounted && !isMobileLayout && can(ADMIN_PORTAL_ACCESS);
   const [isEditing, setIsEditing] = useState(false);
@@ -123,6 +126,9 @@ export default function Metadata() {
 
   if (isLoading) return <p>{t('loading')}</p>;
   if (isError) return <p>{t('error_load_failed')}</p>;
+  if (!isAuthLoading && dataset?.status !== IngestionStatus.PUBLISHED && !can(ADMIN_PORTAL_ACCESS)) {
+    return <Navigate to="/" replace />;
+  }
 
   return (
     <div className={styles.Page}>
