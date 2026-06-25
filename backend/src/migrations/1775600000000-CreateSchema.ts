@@ -5,8 +5,8 @@ import * as path from 'path';
 // See docs/adr/0006-precomputed-geometry-subdivision-table.md
 const SUBDIVIDE_MAX_VERTICES = 64;
 
-export class CreateSchema1782000000000 implements MigrationInterface {
-  name = 'CreateSchema1782000000000';
+export class CreateSchema1775600000000 implements MigrationInterface {
+  name = 'CreateSchema1775600000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     // Extensions
