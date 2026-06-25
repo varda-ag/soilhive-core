@@ -350,7 +350,8 @@
             "metadata_preview": {
                 "title": "Metadata preview",
                 "description": "The metadata will be shown to all users, even if the dataset is private. This will contribute to the discoverability of soil data.",
-                "link": "Check your metadata"
+                "link": "Check your metadata",
+                "mandatory_warning": "You need to fill all the mandatory metadata fields before publishing."
             },
             "visibility": {
                 "title": "Data visibility",

@@ -211,6 +211,18 @@ describe('Metadata page', () => {
     expect(screen.getByText('MANDATORY PROPERTIES')).toBeInTheDocument();
   });
 
+  it('renders "MANDATORY PROPERTIES" header for non-admin users too', () => {
+    (useMetadata as jest.Mock).mockReturnValue({
+      dataset: buildDataset(),
+      allLicenses: [],
+      inferredProperties: new Set(),
+      isLoading: false,
+      isError: false,
+    });
+    render(<Metadata />);
+    expect(screen.getByText('MANDATORY PROPERTIES')).toBeInTheDocument();
+  });
+
   it('opens map popup on overlay click and closes it on Escape', () => {
     (useMetadata as jest.Mock).mockReturnValue({
       dataset: buildDataset(),
