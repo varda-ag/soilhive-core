@@ -244,7 +244,6 @@ export const getRasterMask = async (
   }
 
   await entityManager.query("SET LOCAL work_mem = '256MB';");
-  await entityManager.query("SET postgis.gdal_enabled_drivers = 'GTiff';");
 
   const dateTimeString = getDateTimeString();
   const randomSuffix = Math.random().toString(36).slice(2, 8);
