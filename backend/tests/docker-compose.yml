@@ -3,6 +3,7 @@ services:
   postgis:
     image: postgis/postgis:18-3.6
     platform: linux/amd64
+    command: ["postgres", "-c", "postgis.gdal_enabled_drivers=ENABLE_ALL"]
     environment:
       POSTGRES_DB: database
       POSTGRES_USER: dbuser
