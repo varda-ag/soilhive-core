@@ -5,6 +5,7 @@ import { useApiMutation } from 'hooks/useApiMutation';
 import { useCreateJobMutation } from 'hooks/useJobsApi';
 import { useSoilProperties } from 'hooks/useSoilProperties';
 import useIngestionFlow from 'hooks/useIngestionFlow';
+import { useDataset } from 'hooks/useDatasets';
 
 const mockNavigate = jest.fn();
 
@@ -18,7 +19,7 @@ jest.mock('hooks/useJobsApi', () => ({ useCreateJobMutation: jest.fn() }));
 jest.mock('hooks/useSoilProperties', () => ({ useSoilProperties: jest.fn() }));
 
 jest.mock('@tanstack/react-query', () => ({
-  useQueryClient: jest.fn(() => ({ invalidateQueries: jest.fn() })),
+  useQueryClient: jest.fn(() => ({ invalidateQueries: jest.fn(), removeQueries: jest.fn() })),
 }));
 
 jest.mock('hooks/useIngestionFlow', () => ({
@@ -26,7 +27,11 @@ jest.mock('hooks/useIngestionFlow', () => ({
   default: jest.fn(),
 }));
 
+jest.mock('hooks/useDatasets', () => ({ useDataset: jest.fn() }));
+
 const DATASET_ID = 'ds-1';
+
+const mockDataset = { id: DATASET_ID, name: 'My Dataset' };
 
 const fileMappings = [
   { id: 1, fileID: 'file-a', mappingId: 10 },
@@ -70,6 +75,8 @@ function setupMocks(
     soilData?: any[];
     soilProperties?: any;
     isLoadingSoilData?: boolean;
+    datasetData?: any;
+    isDatasetLoading?: boolean;
   } = {},
 ) {
   const fileMappingsData = 'fileMappingsData' in overrides ? overrides.fileMappingsData : fileMappings;
@@ -77,7 +84,10 @@ function setupMocks(
   const soilDataArr = 'soilData' in overrides ? overrides.soilData! : ([] as any[]);
   const soilPropsData = 'soilProperties' in overrides ? overrides.soilProperties : soilProperties;
   const isLoadingSoilData = overrides.isLoadingSoilData ?? false;
+  const datasetData = 'datasetData' in overrides ? overrides.datasetData : mockDataset;
+  const isDatasetLoading = overrides.isDatasetLoading ?? false;
 
+  (useDataset as jest.Mock).mockReturnValue({ data: datasetData, isLoading: isDatasetLoading });
   (useSoilProperties as jest.Mock).mockReturnValue({ data: soilPropsData, isLoading: false });
 
   (useApiQuery as jest.Mock).mockImplementation(({ queryKey, enabled }: { queryKey: string[]; enabled?: boolean }) => {
@@ -102,13 +112,14 @@ function setupMocks(
 
 describe('useDatasetPreview', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
     createMutateAsync.mockResolvedValue({ id: 99 });
     updateMutateAsync.mockResolvedValue({});
     createJobMutateAsync.mockResolvedValue({ id: 'job-1' });
     (useIngestionFlow as jest.Mock).mockReturnValue({ markAsChanged: mockMarkAsChanged, resetChanges: mockResetChanges });
     setupMocks();
   });
+
+  afterEach(() => jest.clearAllMocks());
 
   it('returns corect initial state', () => {
     setupMocks({ fileMappingsData: [] });
@@ -322,6 +333,24 @@ describe('useDatasetPreview', () => {
   it('isSaving is false when no mutation is pending', () => {
     const { result } = renderHook(() => useDatasetPreview(DATASET_ID));
     expect(result.current.isSaving).toBe(false);
+  });
+
+  it('returns the dataset name when dataset is loaded', () => {
+    setupMocks({ datasetData: { id: DATASET_ID, name: 'My Dataset' } });
+    const { result } = renderHook(() => useDatasetPreview(DATASET_ID));
+    expect(result.current.datasetName).toBe('My Dataset');
+  });
+
+  it('returns an empty string for datasetName when dataset is not loaded', () => {
+    setupMocks({ datasetData: undefined });
+    const { result } = renderHook(() => useDatasetPreview(DATASET_ID));
+    expect(result.current.datasetName).toBe('');
+  });
+
+  it('isLoading is true when dataset is loading', () => {
+    setupMocks({ isDatasetLoading: true });
+    const { result } = renderHook(() => useDatasetPreview(DATASET_ID));
+    expect(result.current.isLoading).toBe(true);
   });
 
   it('handlePrevious navigates to the mappings step', () => {

@@ -16,6 +16,7 @@ import { useSoilProperties } from './useSoilProperties';
 import { ADMIN_PATHS } from '../configuration/admin';
 import { sanitizeField } from '../utilities/dataMapping';
 import useIngestionFlow from './useIngestionFlow';
+import { useDataset } from './useDatasets';
 
 export const SOIL_DATA_LIMIT = 12;
 
@@ -33,6 +34,7 @@ export function useDatasetPreview(datasetId?: string) {
       queryClient.invalidateQueries({ queryKey: ['datasets', datasetId, 'mappings'] });
       queryClient.invalidateQueries({ queryKey: ['datasets', datasetId, 'dataset-file-mapping'] });
       queryClient.invalidateQueries({ queryKey: ['datasets', datasetId, 'files'] });
+      queryClient.removeQueries({ queryKey: ['datasets', datasetId, 'mapping-soil-data'], exact: false });
     };
   }, [queryClient, datasetId]);
 
@@ -47,9 +49,12 @@ export function useDatasetPreview(datasetId?: string) {
   const [sortOrder, setSortOrder] = useState<1 | -1 | null>(null);
   const [markedForDeletion, setMarkedForDeletion] = useState<Map<string, Set<number>>>(new Map());
   const fileMappingIdRef = useRef<string | undefined>(undefined);
+  const selectedFileRef = useRef<string | null>(selectedFile);
 
   const [availableColumns, setAvailableColumns] = useState<string[]>([]);
   const [showLoadingPanel, setShowLoadingPanel] = useState(false);
+
+  const { data: dataset, isLoading: isDatasetLoading } = useDataset(datasetId);
 
   const { data: soilProperties, isLoading: isLoadingSoilProperties } = useSoilProperties();
 
@@ -107,6 +112,10 @@ export function useDatasetPreview(datasetId?: string) {
   }, [computedMappings, soilProperties]);
 
   useEffect(() => {
+    selectedFileRef.current = selectedFile;
+  }, [selectedFile]);
+
+  useEffect(() => {
     if (datasetFileMappings?.length) {
       setSelectedFile(datasetFileMappings[0].fileID);
       setSelectedMapping(datasetFileMappings[0]);
@@ -139,8 +148,24 @@ export function useDatasetPreview(datasetId?: string) {
   useEffect(() => {
     if (soilData?.length) {
       setAllSoilData(prev => [...prev, ...soilData]);
+
+      if (!selectedFile) return;
+
+      setMarkedForDeletion(prev => {
+        const next = new Map(prev);
+        const fileSet = new Set(next.get(selectedFile) ?? []);
+
+        soilData.forEach(record => {
+          if (record.user_dropped) {
+            fileSet.add(record.record_id);
+          }
+        });
+
+        next.set(selectedFile, fileSet);
+        return next;
+      });
     }
-  }, [soilData]);
+  }, [selectedFile, soilData]);
 
   const loadMore = useCallback(() => {
     if (!soilData?.length || !hasMore) return;
@@ -205,7 +230,8 @@ export function useDatasetPreview(datasetId?: string) {
     [datasetFileMappings],
   );
 
-  const isLoading = isLoadingSoilProperties || isLoadingMappings || isLoadingFileMapping || isLoadingSoilData || isLoadingFiles;
+  const isLoading =
+    isLoadingSoilProperties || isLoadingMappings || isLoadingFileMapping || isLoadingSoilData || isLoadingFiles || isDatasetLoading;
 
   const { mutateAsync: createJob } = useCreateJobMutation();
 
@@ -256,7 +282,12 @@ export function useDatasetPreview(datasetId?: string) {
     navigate(ADMIN_PATHS.DATASETS);
   }, [navigate]);
 
+  const datasetName = useMemo(() => {
+    return dataset?.name || '';
+  }, [dataset]);
+
   return {
+    datasetName,
     datasetFileMappings,
     files,
     soilData,

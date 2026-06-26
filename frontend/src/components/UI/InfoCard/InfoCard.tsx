@@ -28,7 +28,7 @@ export function InfoCard({ title, primaryContent, secondaryContent, className, c
           <p className={styles.Description}>{primaryContent.description}</p>
         </div>
         {!!secondaryContent && (
-          <div className={classnames(styles.Content, contentClassName)}>
+          <div className={classnames(styles.Content, styles.Secondary, contentClassName)}>
             <p className={styles.Value} style={{ color: secondaryContent.color }}>
               {secondaryContent.value}
             </p>

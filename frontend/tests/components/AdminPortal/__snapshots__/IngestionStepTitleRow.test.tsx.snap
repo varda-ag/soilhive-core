@@ -5,11 +5,15 @@ exports[`IngestionStepTitleRow matches the snapshot 1`] = `
   <div
     class="IngestionStepTitleRow"
   >
-    <h2
-      class="Title"
+    <div
+      class="Left"
     >
-      General info
-    </h2>
+      <h2
+        class="Title"
+      >
+        General info
+      </h2>
+    </div>
     <a
       data-testid="documentation-link"
       href="https://docs.example.com"

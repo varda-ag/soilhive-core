@@ -13,6 +13,13 @@
     flex-direction: column;
     gap: 0.125rem;
     width: 100%;
+    padding: 0.25rem 0;
+
+    &.Secondary {
+      padding: 0.25rem 1rem;
+      background-color: var(--color-neutral-light);
+      border-radius: 0.5rem;
+    }
   }
   .Title {
     color: var(--color-neutral-dark-600);
@@ -37,6 +44,11 @@
     .Content {
       min-width: 137px;
       width: 137px;
+
+      &.Secondary {
+        min-width: 117px;
+        width: 117px;
+      }
     }
   }
 }

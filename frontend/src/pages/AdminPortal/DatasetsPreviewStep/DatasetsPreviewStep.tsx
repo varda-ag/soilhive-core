@@ -3,8 +3,10 @@ import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router';
 import { MultiSelect } from 'primereact/multiselect';
 import { Dropdown, type DropdownChangeEvent } from 'primereact/dropdown';
+import { Tooltip } from 'react-tooltip';
 
-import { Button, FormMessage, Table, ToggleButton } from 'components/UI';
+import TooltipIcon from 'assets/icons/small-info-icon.svg?react';
+import { Button, Table, ToggleButton } from 'components/UI';
 import type { TableHandle } from 'components/UI/Table/Table';
 import { useIngestionStatus } from 'hooks/useIngestionStatus';
 import { useDatasetPreview } from 'hooks/useDatasetPreviewStep';
@@ -75,6 +77,7 @@ export function DatasetsPreviewStep() {
   const [showOriginalName, setShowOriginalName] = useState<boolean>(false);
 
   const {
+    datasetName,
     datasetFileMappings,
     soilData,
     allSoilData,
@@ -163,7 +166,20 @@ export function DatasetsPreviewStep() {
     () => [
       ...tableColumns.filter(column => visibleColumns.includes(column.value)),
       {
-        name: t('datasets.preview.columns.delete'),
+        // name: t('datasets.preview.columns.delete'),
+        name: (
+          <div>
+            <p
+              className={styles.ColumnNameTooltip}
+              data-tooltip-id="delete-tooltip"
+              data-tooltip-content={t('datasets.preview.deletion_warning')}
+            >
+              {t('datasets.preview.columns.delete')}
+              <TooltipIcon className={styles.Icon} />
+              <Tooltip id="delete-tooltip" positionStrategy="fixed" place="left" />
+            </p>
+          </div>
+        ),
         value: 'delete',
         reorderable: false,
         bodyTemplate: (row: { record_id: number }) => (
@@ -208,7 +224,7 @@ export function DatasetsPreviewStep() {
     <>
       <div className={styles.DatasetsPreviewStep}>
         <div className={styles.TextContent}>
-          <IngestionStepTitleRow title={t('datasets.preview.title')} docsLink={DOCS_URL} />
+          <IngestionStepTitleRow title={t('datasets.preview.title')} datasetName={datasetName} docsLink={DOCS_URL} />
           <p className={styles.Message}>{t('datasets.preview.message')}</p>
         </div>
         <div className={styles.FileSelection}>
@@ -241,13 +257,6 @@ export function DatasetsPreviewStep() {
             />
           </div>
         </div>
-        <FormMessage
-          className={styles.DeleteWarning}
-          message={t('datasets.preview.deletion_warning')}
-          type="warning"
-          withBackground={true}
-          showBorder={false}
-        />
         <div className={styles.TableWrapper} ref={tableWrapperRef}>
           <Table
             tableRef={tableHandleRef}

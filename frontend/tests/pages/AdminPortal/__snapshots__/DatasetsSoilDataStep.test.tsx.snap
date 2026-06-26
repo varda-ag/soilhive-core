@@ -8,11 +8,15 @@ exports[`DatasetsSoilDataStep renders matches snapshot 1`] = `
     <div
       class="IngestionStepTitleRow TitleRow"
     >
-      <h2
-        class="Title"
+      <div
+        class="Left"
       >
-        Add file/s
-      </h2>
+        <h2
+          class="Title"
+        >
+          Add file/s
+        </h2>
+      </div>
       <a
         class="DocumentationLink"
         data-testid="sh-documentaion-link"

@@ -64,6 +64,7 @@ jest.mock('components/UI/Table/Table', () => ({
 // ---------------------------------------------------------------------------
 
 const baseHook = {
+  datasetName: '',
   datasetFileMappings: [] as any[],
   soilData: [] as any[],
   allSoilData: [] as any[],

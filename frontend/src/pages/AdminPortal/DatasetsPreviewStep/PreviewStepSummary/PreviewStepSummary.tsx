@@ -29,12 +29,12 @@ export function PreviewStepSummary({ removedByUser }: Props) {
           title={t('datasets.preview.summary.cards.deleted_rows.title')}
           primaryContent={{
             value: 107,
-            color: '#F5B200',
+            color: '#820005',
             description: t('datasets.preview.summary.cards.deleted_rows.description_1'),
           }}
           secondaryContent={{
             value: removedByUser,
-            color: '#AA8B4D',
+            color: '#BC001F',
             description: t('datasets.preview.summary.cards.deleted_rows.description_2'),
           }}
         />
@@ -43,7 +43,7 @@ export function PreviewStepSummary({ removedByUser }: Props) {
           title={t('datasets.preview.summary.cards.deleted_cells.title')}
           primaryContent={{
             value: 34,
-            color: '#BC001F',
+            color: '#F5B200',
             description: t('datasets.preview.summary.cards.deleted_cells.description'),
           }}
         />
@@ -86,7 +86,7 @@ export function PreviewStepSummary({ removedByUser }: Props) {
           headerOpenedClassName={styles.Opened}
           title={
             <div className={styles.AccordionTitle}>
-              <div className={styles.ColorMark} style={{ backgroundColor: '#F5B200' }} />
+              <div className={styles.ColorMark} style={{ backgroundColor: '#820005' }} />
               {t('datasets.preview.summary.cards.deleted_rows.title')}
             </div>
           }
@@ -113,11 +113,11 @@ export function PreviewStepSummary({ removedByUser }: Props) {
             </div>
             <div className={styles.AccordionChildrenItem}>
               <p>{t('datasets.preview.summary.reasons.user_deletion')}</p>
-              <p>7</p>
+              <p>{removedByUser}</p>
             </div>
             <div className={classnames(styles.AccordionChildrenItem, styles.AccordionChildrenTotal)}>
               <p>{t('datasets.preview.summary.reasons.total')}</p>
-              <p>19</p>
+              <p>{26 + removedByUser}</p>
             </div>
           </div>
         </Accordion>
@@ -128,7 +128,7 @@ export function PreviewStepSummary({ removedByUser }: Props) {
           headerOpenedClassName={styles.Opened}
           title={
             <div className={styles.AccordionTitle}>
-              <div className={styles.ColorMark} style={{ backgroundColor: '#BC001F' }} />
+              <div className={styles.ColorMark} style={{ backgroundColor: '#F5B200' }} />
               {t('datasets.preview.summary.cards.deleted_cells.title')}
             </div>
           }
