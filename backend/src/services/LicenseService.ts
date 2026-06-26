@@ -5,6 +5,7 @@ import { EntityType } from '../types/data';
 import { CreateLicenseInput } from '../types/LicenseInput';
 import { StatusCodes } from 'http-status-codes/build/cjs/status-codes';
 import { ErrorResponse } from '../utils/error';
+import { requireSub } from '../utils/auth';
 
 export default class LicenseService {
   getLicenses = async (requestData: RequestData): Promise<LicenseEntity[]> => {
@@ -17,13 +18,8 @@ export default class LicenseService {
   };
 
   createLicense = async (requestData: RequestData, data: CreateLicenseInput): Promise<LicenseEntity> => {
+    requireSub(requestData);
     const repo = requestData.entityManager.getRepository(LicenseEntity);
-
-    const { sub } = requestData.token ?? {};
-    if (!sub) {
-      throw new ErrorResponse('Token subject is missing', StatusCodes.UNAUTHORIZED);
-    }
-
     const license = repo.create(data);
 
     try {

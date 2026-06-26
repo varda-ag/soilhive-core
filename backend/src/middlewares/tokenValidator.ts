@@ -85,6 +85,10 @@ export const tokenValidator = async (req: Request, scopes: string[]): Promise<bo
         errors.push(new ErrorResponse('Invalid token: no sub', StatusCodes.UNAUTHORIZED));
         continue;
       }
+      if (!decoded['email']) {
+        errors.push(new ErrorResponse('Invalid token: no email', StatusCodes.UNAUTHORIZED));
+        continue;
+      }
       const decodedToken = decoded as Token;
       assertTokenScope(decodedToken, scopes);
       req.customData.token = decodedToken;
