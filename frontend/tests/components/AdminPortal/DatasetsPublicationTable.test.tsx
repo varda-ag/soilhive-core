@@ -35,7 +35,7 @@ jest.mock('components/AdminPortal/DatasetsPublicationTable/DatasetsTableActionTe
 }));
 
 jest.mock('components/AdminPortal/DatasetsPublicationTable/DatasetsTableStatusTemplate/DatasetsTableStatusTemplate', () => ({
-  DatasetsTableStatusTemplate: ({ status }: any) => <span data-testid="status-template">{status}</span>,
+  DatasetsTableStatusTemplate: ({ dataset }: any) => <span data-testid="status-template">{dataset.status}</span>,
 }));
 
 jest.mock('components/AdminPortal/DatasetsPublicationTable/DatasetsTableVisibilityTemplate/DatasetsTableVisibilityTemplate', () => ({
@@ -43,8 +43,9 @@ jest.mock('components/AdminPortal/DatasetsPublicationTable/DatasetsTableVisibili
 }));
 
 const datasets = [
-  { id: '1', name: 'Alpha', status: 'PENDING', visibility: 'public' },
-  { id: '2', name: 'Beta', status: 'LOADED', visibility: 'private' },
+  { id: '1', name: 'Alpha', status: 'PENDING', visibility: 'public', hasErrors: false },
+  { id: '2', name: 'Beta', status: 'LOADED', visibility: 'private', hasErrors: false },
+  { id: '3', name: 'Gamma', status: 'PENDING', visibility: 'public', hasErrors: true },
 ];
 
 const defaultProps = {
@@ -53,6 +54,7 @@ const defaultProps = {
   onEdit: jest.fn(),
   onDelete: jest.fn(),
   onPublish: jest.fn(),
+  onShowErrors: jest.fn(),
 };
 
 describe('DatasetsPublicationTable', () => {
@@ -88,16 +90,23 @@ describe('DatasetsPublicationTable', () => {
     expect(screen.getByTestId('empty-message')).toHaveTextContent('No datasets matching your search query');
   });
 
-  it('rowClassName returns highlighted class for LOADED status', () => {
+  it('rowClassName returns highlighted class for LOADED status without errors', () => {
     render(<DatasetsPublicationTable {...defaultProps} />);
 
-    expect(screen.getByTestId('row-2')).toHaveClass('TableRowHighlighted');
+    expect(screen.getByTestId('row-2')).toHaveClass('sh-row-highlighted');
   });
 
-  it('rowClassName returns undefined for non-LOADED status', () => {
+  it('rowClassName returns error class for rows with hasErrors', () => {
     render(<DatasetsPublicationTable {...defaultProps} />);
 
-    expect(screen.getByTestId('row-1')).not.toHaveClass('TableRowHighlighted');
+    expect(screen.getByTestId('row-3')).toHaveClass('sh-row-error');
+  });
+
+  it('rowClassName returns undefined for non-LOADED status without errors', () => {
+    render(<DatasetsPublicationTable {...defaultProps} />);
+
+    expect(screen.getByTestId('row-1')).not.toHaveClass('sh-row-highlighted');
+    expect(screen.getByTestId('row-1')).not.toHaveClass('sh-row-error');
   });
 
   it('renders DatasetsTableActionTemplate for each row via actionsBodyTemplate', () => {

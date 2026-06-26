@@ -21,9 +21,7 @@ export const getSoilData = async (req: Request, res: Response) => {
 
 const getDataFilter = async (req: Request): Promise<DataFilter> => {
   if (!req.query['filterId']) {
-    return { geometries: [], parameters: {} };
+    return { geometryIds: [], parameters: {}, area: 0 };
   }
-  const filterId = req.query['filterId'] as string;
-  const storedFilter = await filterService.getFilterById(req.customData, filterId);
-  return storedFilter!.filter;
+  return filterService.getFilterById(req.customData, req.query['filterId'] as string);
 };

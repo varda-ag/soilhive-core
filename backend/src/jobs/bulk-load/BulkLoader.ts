@@ -1,6 +1,4 @@
-import assert from 'assert';
 import http from 'http';
-import { StatusCodes } from 'http-status-codes';
 import pLimit from 'p-limit';
 import { Job } from 'pg-boss';
 import { EntityManager, In } from 'typeorm';
@@ -16,6 +14,8 @@ import DatasetFileMappingService from '../../services/DatasetFileMappingService'
 import DatasetService from '../../services/DatasetService';
 import { IngestionStatus } from '../../types/data';
 import { getEntityManager } from '../../utils/data-source';
+import { JobError } from '../../errors/JobError';
+import ErrorService from '../../services/ErrorService';
 import { ErrorResponse } from '../../utils/error';
 import { getLoopbackUrl, getRawTableName, signToken } from '../../utils/utils';
 import { updateDatasetMetadata } from './UpdateDatasetMetadata';
@@ -30,9 +30,10 @@ export async function processBulkLoad(job: Job<BulkLoadJob>): Promise<void> {
   const { created_by } = job as unknown as BulkLoadJob;
   const datasetService = new DatasetService();
   const entityManager = await getEntityManager();
+  await new ErrorService().clearDatasetErrors(data.dataset_id, entityManager);
   const entitlementService = new EntitlementService();
   const entitlements = await entitlementService.getUserEntitlements({ entityManager } as any, created_by ?? EVERYONE);
-  const token = { sub: data.created_by } as Token; // Only sub is required
+  const token = { email: data.created_by } as Token; // Only email is required
   const requestData = { entityManager, token, entitlements };
   const dataset = await datasetService.getDataset(requestData, data.dataset_id);
   try {
@@ -46,12 +47,8 @@ export async function processBulkLoad(job: Job<BulkLoadJob>): Promise<void> {
     const files = await getStagedFilesWithMapping(entityManager, datasetFileMappings);
     for (const file of files) {
       const datasetFileMapping = datasetFileMappings.find(m => m.file_id === file.id);
-      assert(datasetFileMapping, `No dataset file mapping found for file ${file.id}`);
-      if (!datasetFileMapping.data_mapping_id) {
-        throw new ErrorResponse(
-          `No data mapping ID found for dataset file mapping ${datasetFileMapping.id}`,
-          StatusCodes.INTERNAL_SERVER_ERROR,
-        );
+      if (!datasetFileMapping || !datasetFileMapping.data_mapping_id) {
+        throw new JobError('BL_MISSING_COLUMN_MAPPING');
       }
       await processFile(file, requestData, datasetFileMapping, data.dataset_id);
       file.status = IngestionStatus.LOADED;
@@ -87,7 +84,9 @@ const processFile = async (
   datasetFileMapping: DatasetFileMappingEntity,
   datasetSlug: string,
 ) => {
-  assert(datasetFileMapping.data_mapping_id, `No data mapping ID found for dataset file mapping ${datasetFileMapping.id}`);
+  if (!datasetFileMapping.data_mapping_id) {
+    throw new JobError('BL_MISSING_COLUMN_MAPPING');
+  }
   let cursor: string | undefined = undefined;
   const vdl = new VectorDataLoad();
   const service = new DataMappingService();
@@ -98,7 +97,15 @@ const processFile = async (
   const limit = pLimit(PARALLELISM);
   while (true) {
     // Get the data from the preview
-    const results = await vdl.getDataPreview(requestData.entityManager, dataMappingConfig, file.id, BATCH_SIZE, cursor);
+    let results;
+    try {
+      results = await vdl.getDataPreview(requestData.entityManager, dataMappingConfig, file.id, BATCH_SIZE, false, cursor);
+    } catch (error: any) {
+      if (error?.code === '42P01' || /does not exist/.test(error?.detail ?? error?.message ?? '')) {
+        throw new JobError('BL_RAW_TABLE_NOT_FOUND', {}, error?.detail ?? error?.message);
+      }
+      throw new JobError('BL_RECORD_WRITE_FAILED', {}, error?.detail ?? error?.message);
+    }
 
     const payloads: SoilRecord[][] = [];
     for (let i = 0; i < results.length; i += PAYLOAD_SIZE) {
@@ -110,8 +117,8 @@ const processFile = async (
 
     try {
       await Promise.all(promises);
-    } catch (error) {
-      throw new ErrorResponse(`Failed to process file ${file.id}: ${error}`, StatusCodes.INTERNAL_SERVER_ERROR);
+    } catch (error: any) {
+      throw parseWriteError(error);
     }
 
     if (results.length < BATCH_SIZE) {
@@ -121,6 +128,31 @@ const processFile = async (
     const cursorValue = results[results.length - 1]!['record_id'] as string;
     cursor = encodeCursor(createCursor(cursorValue));
   }
+};
+
+export const parseWriteError = (error: any): JobError => {
+  const raw: string = error?.message ?? '';
+  const jsonStart = raw.indexOf('Failed to load data: ');
+  if (jsonStart !== -1) {
+    try {
+      const body = JSON.parse(raw.slice(jsonStart + 'Failed to load data: '.length));
+      if (Array.isArray(body?.errors) && body.errors.length > 0) {
+        const first = body.errors[0];
+        const field = String(first.path ?? '')
+          .split('/')
+          .filter(Boolean)
+          .filter(seg => seg !== 'body' && isNaN(Number(seg)))
+          .join('.');
+        const issue = String(first.message ?? '');
+        if (field && issue) {
+          return new JobError('BL_RECORD_VALIDATION_FAILED', { field, issue }, raw);
+        }
+      }
+    } catch {
+      // not parseable — fall through
+    }
+  }
+  return new JobError('BL_RECORD_WRITE_FAILED', {}, error?.detail ?? raw);
 };
 
 export const makeRequest = (datasetSlug: string, datasetFileMappingId: string, payload: any) =>

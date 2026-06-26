@@ -36,8 +36,8 @@ describe('DatasetService', () => {
       expect(result.id).toBeDefined();
       expect(result.name).toBe('Test Dataset');
       expect(result.slug).toBeTruthy();
-      expect(result.created_by).toBe('test-user-id');
-      expect(result.updated_by).toBe('test-user-id');
+      expect(result.created_by).toBe('test@example.com');
+      expect(result.updated_by).toBe('test@example.com');
       expect(result.created_at).toBeDefined();
       expect(result.updated_at).toBeDefined();
     });
@@ -106,20 +106,20 @@ describe('DatasetService', () => {
     it('should throw error when token subject is missing', async () => {
       const service = new DatasetService();
       const entityManager = await getEntityManager();
-      const tokenWithoutSub: Token = {
+      const tokenWithoutEmail: Token = {
         ...mockToken,
-        sub: undefined,
+        email: undefined as unknown as string,
       };
       const requestData: RequestData = {
         entityManager,
-        token: tokenWithoutSub,
+        token: tokenWithoutEmail,
         entitlements: {},
       };
       const input: CreateDatasetInput = {
         name: 'Test Dataset',
       };
 
-      await expect(service.createDataset(requestData, input)).rejects.toThrow('Token subject is missing');
+      await expect(service.createDataset(requestData, input)).rejects.toThrow('Token email is missing');
     });
   });
 
@@ -159,7 +159,7 @@ describe('DatasetService', () => {
       expect(updated.author).toBe('Original Author');
       expect(updated.description).toBe('Original description');
 
-      expect(updated.updated_by).toBe('test-user-id');
+      expect(updated.updated_by).toBe('test@example.com');
       expect(updated.updated_at).toBeDefined();
     });
 

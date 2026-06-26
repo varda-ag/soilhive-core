@@ -1,5 +1,5 @@
 import { EntityManager } from 'typeorm';
-import { DATA_PREVIEW_SIZE, OUTSIDE_LOD_VALUE } from '../constants/constants';
+import { DATA_PREVIEW_SIZE } from '../constants/constants';
 import { DataCleaningConfig } from '../interfaces/DataMapping';
 import { SoilRecord } from '../interfaces/Record';
 import FeatureEntity from '../entities/Feature';
@@ -7,9 +7,11 @@ import LicenseEntity from '../entities/License';
 import LayerEntity from '../entities/Layer';
 import DatasetLayerEntity from '../entities/DatasetLayer';
 import ObservationEntity from '../entities/Observation';
-import { getRawTableName, sanitizeField } from '../utils/utils';
-import { DetectableFields, LayerFields } from '../types/DataMapping';
+import { sanitizeField } from '../utils/utils';
+import { LayerFields } from '../types/DataMapping';
 import { createCursor, decodeCursor, encodeCursor } from '../utils/cursor';
+import { buildCleaningCte } from './CleaningCte';
+import { CleaningReport, RowDeleteReason, CellDeleteReason, CellModifyReason } from '../interfaces/CleaningReport';
 
 export default class VectorDataLoad {
   getDataPreview = async (
@@ -17,32 +19,141 @@ export default class VectorDataLoad {
     dataMappingConfig: DataCleaningConfig,
     fileId: string,
     limit: number = DATA_PREVIEW_SIZE,
+    includeUserDropped: boolean = true,
     cursor?: string,
     sort?: string,
   ): Promise<SoilRecord[]> => {
-    const table = `${process.env.POSTGRES_SCHEMA}.${getRawTableName(fileId)}`;
-    let query = entityManager.createQueryBuilder().from(table, 'raw');
-    query = getDataPreviewQuery(query, dataMappingConfig, cursor, sort);
-    // Workaround using raw query to be able to use dynamic table name without entity
-    const results = await entityManager.query(...query.take(limit).getQueryAndParameters());
-    const sortKey = sort ? (sort.startsWith('-') ? sort.substring(1) : sort) : undefined;
-    const cursorCol = sortKey ? `_cursor_${sortKey}` : undefined;
+    const { cte, values, propertyCols } = buildCleaningCte(dataMappingConfig, fileId);
+    const extraValues: unknown[] = [];
+    const p = (val: unknown) => {
+      extraValues.push(val);
+      return `$${values.length + extraValues.length}`;
+    };
+
+    const selectCols = [
+      'record_id',
+      'ST_AsGeoJSON(geom)::json AS geometry',
+      'sampling_date',
+      'horizon',
+      'min_depth',
+      'max_depth',
+      'license',
+      ...propertyCols.map(prop => `${prop}_cleaned AS ${prop}`),
+    ];
+
+    let sortKey: string | undefined;
+    let sortExpr: string | undefined;
+    let isDesc = false;
+    let orderClause = 'ORDER BY record_id ASC';
+
+    if (sort) {
+      isDesc = sort.startsWith('-');
+      sortKey = isDesc ? sort.substring(1) : sort;
+      const dir = isDesc ? 'DESC' : 'ASC';
+      sortExpr = buildSortExpr(sortKey, dataMappingConfig);
+      orderClause = `ORDER BY ${sortExpr} ${dir} NULLS ${isDesc ? 'FIRST' : 'LAST'}, record_id ${dir}`;
+    }
+
+    let cursorClause = '';
+    if (cursor) {
+      const decoded = decodeCursor(cursor);
+      if (sortExpr && decoded.column) {
+        if (decoded.value !== null && decoded.value !== undefined) {
+          const operator = isDesc ? '<' : '>';
+          cursorClause = `AND (${sortExpr}, record_id) ${operator} (${p(decoded.value)}, ${p(decoded.id)})`;
+        } else if (isDesc) {
+          // DESC NULLS FIRST: remaining nulls (id < cursor) plus all non-null rows that follow
+          cursorClause = `AND ((${sortExpr} IS NULL AND record_id < ${p(decoded.id)}) OR ${sortExpr} IS NOT NULL)`;
+        } else {
+          // ASC NULLS LAST: only remaining null rows with higher id
+          cursorClause = `AND ${sortExpr} IS NULL AND record_id > ${p(decoded.id)}`;
+        }
+      } else {
+        cursorClause = `AND record_id > ${p(decoded.id)}`;
+      }
+    }
+
+    // User-dropped records are retained and marked as delete=true in the UI for the data preview, should be excluded from the response for the bulk-load
+    const statusFilter = includeUserDropped
+      ? `(final_row_delete_reason IS NULL OR final_row_delete_reason = '${RowDeleteReason.USER_DELETION}')`
+      : `final_row_delete_reason IS NULL`;
+    const sql = `
+      ${cte}
+      SELECT ${selectCols.join(', ')}, CASE WHEN final_row_delete_reason = '${RowDeleteReason.USER_DELETION}' THEN TRUE ELSE FALSE END AS user_dropped
+      FROM cleaning_result
+      WHERE ${statusFilter}
+      ${cursorClause}
+      ${orderClause}
+      LIMIT ${parseInt(String(limit), 10)}
+    `;
+    const results = await entityManager.query(sql, [...values, ...extraValues]);
     return results.map((r: any) => {
-      const cursorValue = cursorCol ? r[cursorCol] : undefined;
-      const cursor = encodeCursor(createCursor(String(r.record_id), sort, cursorValue));
-      const record = { ...r, geometry: JSON.parse(r.geometry) };
-      if (cursorCol) delete record[cursorCol];
-      return { ...record, cursor };
+      const cursorValue = sortKey ? r[sortKey] : undefined;
+      const encodedCursor = encodeCursor(createCursor(String(r.record_id), sort, cursorValue));
+      return { ...r, cursor: encodedCursor };
     });
   };
 
+  getDataPreviewStats = async (
+    entityManager: EntityManager,
+    dataMappingConfig: DataCleaningConfig,
+    fileId: string,
+  ): Promise<CleaningReport> => {
+    const { cte, values } = buildCleaningCte(dataMappingConfig, fileId);
+    const query = `${cte},
+      row_stats AS (
+        SELECT final_row_delete_reason AS reason, COUNT(*)::int AS count
+        FROM cleaning_result WHERE final_row_delete_reason IS NOT NULL
+        GROUP BY final_row_delete_reason
+      ),
+      cell_delete_stats AS (
+        SELECT val AS reason, key AS property, COUNT(*)::int AS count
+        FROM cleaning_result,
+            jsonb_each_text(cell_delete_reasons) AS t(key, val)
+        WHERE cell_delete_reasons IS NOT NULL AND final_row_delete_reason IS NULL
+        GROUP BY val, key
+      ),
+      cell_modify_stats AS (
+        SELECT reason, COUNT(*)::int AS count
+        FROM (
+          SELECT jsonb_array_elements_text(arr) AS reason
+          FROM cleaning_result,
+              jsonb_each(cell_modify_reasons) AS t(prop, arr)
+          WHERE cell_modify_reasons IS NOT NULL AND final_row_delete_reason IS NULL
+        ) sub
+        GROUP BY reason
+      )
+    SELECT
+      (SELECT COUNT(*)::int FROM cleaning_result WHERE final_row_delete_reason IS NOT NULL) AS rows_deleted,
+      (SELECT COALESCE(SUM(count),0)::int FROM cell_delete_stats)  AS cells_deleted,
+      (SELECT COALESCE(SUM(count),0)::int FROM cell_modify_stats)  AS values_modified,
+      (SELECT json_agg(row_stats)         FROM row_stats)           AS row_deletions,
+      (SELECT json_agg(cell_delete_stats) FROM cell_delete_stats)   AS cell_deletions,
+      (SELECT json_agg(cell_modify_stats) FROM cell_modify_stats)   AS modifications`;
+    // Workaround using raw query to be able to use dynamic table name without entity
+    const [row] = await entityManager.query(query, values);
+    return {
+      summary: {
+        rows_deleted: row.rows_deleted,
+        cells_deleted: row.cells_deleted,
+        values_modified: row.values_modified,
+      },
+      row_deletions: (row.row_deletions ?? []).map((r: any) => ({ reason: r.reason as RowDeleteReason, count: r.count })),
+      cell_deletions: (row.cell_deletions ?? []).map((r: any) => ({
+        reason: r.reason as CellDeleteReason,
+        property: r.property,
+        count: r.count,
+      })),
+      modifications: (row.modifications ?? []).map((r: any) => ({ reason: r.reason as CellModifyReason, count: r.count })),
+    };
+  };
+
   getDataCount = async (entityManager: EntityManager, dataMappingConfig: DataCleaningConfig, fileId: string): Promise<number> => {
-    const table = `${process.env.POSTGRES_SCHEMA}.${getRawTableName(fileId)}`;
-    let query = entityManager.createQueryBuilder().from(table, 'raw').select('COUNT(*)', 'count');
-    if (dataMappingConfig.drop_records && dataMappingConfig.drop_records.length > 0) {
-      query = query.andWhere('raw.record_id NOT IN (:...drop_records)', { drop_records: dataMappingConfig.drop_records });
-    }
-    const result = await entityManager.query(...query.getQueryAndParameters());
+    const { cte, values } = buildCleaningCte(dataMappingConfig, fileId);
+    const query = `${cte} SELECT COUNT(*) AS count
+      FROM cleaning_result
+      WHERE final_row_delete_reason IS NULL OR final_row_delete_reason = '${RowDeleteReason.USER_DELETION}'`;
+    const result = await entityManager.query(query, values);
     return parseInt(result[0].count, 10);
   };
 
@@ -178,113 +289,7 @@ export default class VectorDataLoad {
 }
 
 const buildSortExpr = (sortKey: string, dataMappingConfig: DataCleaningConfig): string => {
-  const metadataCol = dataMappingConfig.metadata_cols[sortKey];
-  if (metadataCol) return `raw.${metadataCol}`;
   const propConfig = dataMappingConfig.property_cols[sortKey];
-  if (propConfig) {
-    const formula = propConfig.conversion_formula?.replace(/"/g, '').trim() ?? null;
-    const expr = formula ? formula.replace(/x/g, `(raw.${sortKey})::numeric`) : `(raw.${sortKey})::numeric`;
-    return `CASE WHEN ROUND(${sortKey}::numeric, 3)=${OUTSIDE_LOD_VALUE} THEN ROUND(${sortKey}::numeric, 3) ELSE ROUND(${expr},3) END`;
-  }
-  return `NULL`; // unmapped required columns
-};
-
-const getDataPreviewQuery = (query: any, dataMappingConfig: DataCleaningConfig, cursor?: string, sort?: string): any => {
-  query.select('raw.record_id', 'record_id');
-  if (sort) {
-    const isDesc = sort.startsWith('-');
-    const sortKey = isDesc ? sort.substring(1) : sort;
-    const dir = isDesc ? 'DESC' : 'ASC';
-    const sortExpr = buildSortExpr(sortKey, dataMappingConfig);
-    // Hidden column carrying the sort expression value for cursor encoding.
-    // Uses the raw expression without the CASE/min-max wrapper so the cursor
-    // value is always non-NULL even when the visible SELECT output is NULL.
-    query.addSelect(sortExpr, `_cursor_${sortKey}`);
-    query.orderBy(`_cursor_${sortKey}`, dir);
-    query.addOrderBy('raw.record_id', dir);
-  } else {
-    query.orderBy('raw.record_id', 'ASC');
-  }
-  if (cursor) {
-    const decoded = decodeCursor(cursor);
-    if (sort && decoded.column) {
-      const isDesc = sort.startsWith('-');
-      const sortKey = isDesc ? sort.substring(1) : sort;
-      const sortExpr = buildSortExpr(sortKey, dataMappingConfig);
-      if (decoded.value !== null && decoded.value !== undefined) {
-        const operator = isDesc ? '<' : '>';
-        query.andWhere(`(${sortExpr}, raw.record_id) ${operator} (:cursorValue, :cursorId)`, {
-          cursorValue: decoded.value,
-          cursorId: decoded.id,
-        });
-      } else if (isDesc) {
-        // DESC NULLS FIRST: remaining nulls (id < cursor) plus all non-null rows that follow
-        query.andWhere(`((${sortExpr} IS NULL AND raw.record_id < :cursorId) OR ${sortExpr} IS NOT NULL)`, { cursorId: decoded.id });
-      } else {
-        // ASC NULLS LAST: only remaining null rows with higher id
-        query.andWhere(`${sortExpr} IS NULL AND raw.record_id > :cursorId`, { cursorId: decoded.id });
-      }
-    } else {
-      query.andWhere('raw.record_id > :cursorId', { cursorId: decoded.id });
-    }
-  }
-
-  for (const [mapping, field] of Object.entries(dataMappingConfig.metadata_cols)) {
-    if (mapping === DetectableFields.SAMPLING_DATE) {
-      query.addSelect(`${field}::text`, mapping);
-      continue;
-    }
-    if (mapping === DetectableFields.MIN_DEPTH || mapping === DetectableFields.MAX_DEPTH) {
-      query.addSelect(`CASE WHEN ${field}::integer < 0 THEN NULL ELSE ${field}::integer END`, mapping);
-      continue;
-    }
-    if (mapping === DetectableFields.DEPTH) {
-      query.addSelect(
-        `NULLIF(regexp_replace(split_part(${field}::text, '-', 1), '[^0-9]', '', 'g'), '')::integer`,
-        DetectableFields.MIN_DEPTH,
-      );
-      query.addSelect(
-        `NULLIF(regexp_replace(split_part(${field}::text, '-', 2), '[^0-9]', '', 'g'), '')::integer`,
-        DetectableFields.MAX_DEPTH,
-      );
-      continue;
-    }
-    if (field) {
-      query.addSelect(field, mapping);
-    } else {
-      query.addSelect('NULL', mapping);
-    }
-  }
-  // Process metadata (string types) and property columns (object types)
-  const params: Record<string, any> = {};
-  for (const [field, props] of Object.entries(dataMappingConfig.property_cols)) {
-    let propertyCleanup: string = '';
-
-    const conversionFormula = props?.conversion_formula ? props.conversion_formula.replace(/"/g, '').trim() : null;
-    const rawExpr = `(raw.${field})::numeric`;
-    const expr = conversionFormula ? `NULLIF(${conversionFormula.replace(/x/g, rawExpr)}, 0)` : `NULLIF(${rawExpr}, 0)`;
-
-    const max_val = props.max_val ?? (props.standard_unit === '%' ? 100 : undefined);
-    const min_val = props.min_val ?? 0;
-
-    if (min_val !== undefined && max_val !== undefined) {
-      propertyCleanup = `CASE WHEN (raw.${field})::numeric=${OUTSIDE_LOD_VALUE} THEN (raw.${field})::numeric WHEN ${expr} BETWEEN :min_val${field} AND :max_val${field} THEN ROUND(${expr},3) ELSE NULL END`;
-    } else if (min_val !== undefined) {
-      propertyCleanup = `CASE WHEN (raw.${field})::numeric=${OUTSIDE_LOD_VALUE} THEN (raw.${field})::numeric WHEN ${expr} >= :min_val${field} THEN ROUND(${expr},3) ELSE NULL END`;
-    } else if (max_val !== undefined) {
-      propertyCleanup = `CASE WHEN (raw.${field})::numeric=${OUTSIDE_LOD_VALUE} THEN (raw.${field})::numeric WHEN ${expr} <= :max_val${field} THEN ROUND(${expr},3) ELSE NULL END`;
-    } else {
-      propertyCleanup = `CASE WHEN (raw.${field})::numeric=${OUTSIDE_LOD_VALUE} THEN (raw.${field})::numeric ELSE ROUND(${expr},3) END`;
-    }
-    params[`min_val${field}`] = min_val;
-    params[`max_val${field}`] = max_val;
-    query.addSelect(propertyCleanup, field);
-  }
-  query.setParameters(params);
-  query.addSelect('ST_AsGeoJSON(raw.geometry)', 'geometry');
-
-  if (dataMappingConfig.drop_records && dataMappingConfig.drop_records.length > 0) {
-    query = query.andWhere('raw.record_id NOT IN (:...drop_records)', { drop_records: dataMappingConfig.drop_records });
-  }
-  return query;
+  if (propConfig) return `${sortKey}_cleaned`;
+  return sortKey;
 };

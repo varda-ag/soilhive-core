@@ -5,6 +5,7 @@ import { Button, Loader, TextInput } from 'components/UI';
 import { useDatasetsPublicationList } from 'hooks/useDatasetsPublicationList';
 import { DatasetsPublicationTable } from 'components/AdminPortal/DatasetsPublicationTable/DatasetsPublicationTable';
 import { DatasetDeleteModal } from 'components/AdminPortal/DatasetDeleteModal/DatasetDeleteModal';
+import { DatasetErrorModal } from 'components/AdminPortal/DatasetErrorModal/DatasetErrorModal';
 
 import styles from './DatasetsPublication.module.scss';
 
@@ -17,11 +18,16 @@ export function DatasetsPublication() {
     searchValue,
     selectedDataset,
     isDeleteModalOpened,
+    isErrorModalOpened,
+    selectedErrorDataset,
+    errorsForSelectedDataset,
     onEdit,
     onDelete,
     onPublish,
+    onShowErrors,
     onDeletionConfirm,
     onDeleteModalClose,
+    onErrorModalClose,
     setSearchValue,
     navigateToNewDataset,
   } = useDatasetsPublicationList();
@@ -52,12 +58,19 @@ export function DatasetsPublication() {
               onEdit={onEdit}
               onDelete={onDelete}
               onPublish={onPublish}
+              onShowErrors={onShowErrors}
             />
             <DatasetDeleteModal
               visible={isDeleteModalOpened}
               datasetName={selectedDataset?.name}
               onContinue={onDeletionConfirm}
               onCancel={onDeleteModalClose}
+            />
+            <DatasetErrorModal
+              visible={isErrorModalOpened}
+              dataset={selectedErrorDataset}
+              errors={errorsForSelectedDataset}
+              onClose={onErrorModalClose}
             />
           </>
         )}

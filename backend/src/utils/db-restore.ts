@@ -40,6 +40,5 @@ export const dbRestore = async (dumpPath: string, mappingsPath?: string): Promis
   }
 
   const sql = readFileSync(mappingsPath, 'utf8');
-  await dataSource.query(`SET search_path TO ${process.env.POSTGRES_SCHEMA}, public`);
   await dataSource.query(sql);
 };

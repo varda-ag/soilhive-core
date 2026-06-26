@@ -14,6 +14,7 @@ import { LocalStorageConfig, S3StorageConfig, StorageConfig } from '../interface
 import { RequestData } from '../interfaces/RequestData';
 import { File, FileMetadata, ExtractedFilePath } from '../interfaces/File';
 import { ErrorResponse } from '../utils/error';
+import { requireEmail } from '../utils/auth';
 import { getEntity } from '../utils/slugs';
 import { sanitizeField, buildDatedFileKey, getRawTableName } from '../utils/utils';
 import { StorageModes } from '../types/enums';
@@ -22,6 +23,7 @@ import { DataMappingObject, DetectableFields } from '../types/DataMapping';
 import ConfigService from './ConfigService';
 import FileEntity from '../entities/File';
 import assert from 'assert';
+import { JobError } from '../errors/JobError';
 import { getDBPassword } from '../utils/db-credentials';
 import { log } from '../utils/logger';
 import DataMappingService from './DataMappingService';
@@ -137,7 +139,7 @@ export default class FileService {
 
   createFile = async (requestData: RequestData, data: Partial<File>): Promise<FileEntity> => {
     const repo = requestData.entityManager.getRepository(FileEntity);
-    const { sub } = requestData.token ?? {};
+    const email = requireEmail(requestData);
 
     assert(data.file_path, 'file_path is required to create a file');
     const metadata = await this.extractMetadata(requestData, data.file_path);
@@ -146,8 +148,8 @@ export default class FileService {
       ...data,
       metadata,
       status: IngestionStatus.PENDING,
-      created_by: String(sub),
-      updated_by: String(sub),
+      created_by: email,
+      updated_by: email,
     });
 
     try {
@@ -165,13 +167,13 @@ export default class FileService {
 
   updateFile = async (requestData: RequestData, slug: string, data: Partial<File>): Promise<FileEntity> => {
     const repo = requestData.entityManager.getRepository(FileEntity);
-    const { sub } = requestData.token ?? {};
+    const email = requireEmail(requestData);
 
     const file = await getEntity(requestData, FileEntity, EntityType.FILE, slug);
 
     repo.merge(file, {
       ...data,
-      updated_by: String(sub),
+      updated_by: email,
       updated_at: new Date(),
     });
 
@@ -501,10 +503,9 @@ export default class FileService {
     const fileEntity = await this.getFile(requestData, fileId);
     assert(fileEntity.file_path, `File path not found for file ${fileId}`);
     assert(fileEntity.metadata, `Metadata not found for file ${fileId}`);
-    assert(
-      fileEntity.metadata.layer_name,
-      `layer_name missing from metadata for file ${fileId}; re-upload the file to regenerate metadata`,
-    );
+    if (!fileEntity.metadata.layer_name) {
+      throw new JobError('FTD_MISSING_LAYER_NAME');
+    }
 
     const repo = requestData.entityManager.getRepository(FileEntity);
     await repo.update(fileEntity.id, { status: IngestionStatus.ONGOING });
@@ -552,9 +553,16 @@ export default class FileService {
 
     try {
       if (fileMetadata.field_names.length === 0) {
-        throw new ErrorResponse('No data besides geometry detected', StatusCodes.BAD_REQUEST);
+        throw new JobError('FTD_NO_DATA_COLUMNS');
       }
-      ({ mainFilePath, tempZipExtractPath } = await FileService.getMainFilePath(fileKey));
+      try {
+        ({ mainFilePath, tempZipExtractPath } = await FileService.getMainFilePath(fileKey));
+      } catch (err) {
+        if (err instanceof ErrorResponse && err.status === StatusCodes.NOT_FOUND) {
+          throw new JobError('FTD_FILE_NOT_FOUND');
+        }
+        throw err;
+      }
 
       let keepGeomColumn = 'YES';
 
@@ -647,17 +655,24 @@ export default class FileService {
       try {
         await GdalCLI.ogr2ogr([...ogr2ogrOpts, pgDataset, tempVrtPath ?? mainFilePath]);
       } catch (translateError) {
+        const errMsg = translateError instanceof Error ? translateError.message : String(translateError);
         log.error('ogr2ogr failed', {
           source: mainFilePath,
           target: pgDataset.replace(/password=\S+/, 'password=***'),
           opts: JSON.stringify(ogr2ogrOpts),
-          error: translateError instanceof Error ? translateError.message : String(translateError),
+          error: errMsg,
         });
+        if (/ogr2ogr failed \(exit \d+\)/.test(errMsg)) {
+          throw new JobError('FTD_GDAL_PARSE_ERROR', {}, errMsg);
+        }
         throw translateError;
       }
 
       await repo.update(fileEntity.id, { status: IngestionStatus.STAGED });
     } catch (error) {
+      if (JobError.isJobError(error)) {
+        throw error;
+      }
       if (error instanceof ErrorResponse) {
         throw error;
       }

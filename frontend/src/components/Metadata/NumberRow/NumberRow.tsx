@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { type SaveCallbacks } from 'hooks/useMetadata';
 import useNotifications from 'hooks/useNotifications';
+import { isEmptyString } from 'utilities/validation';
 import styles from './NumberRow.module.scss';
 import { Button, TextInput } from 'components/UI';
 import EditIcon from 'assets/icons/pencil-icon.svg?react';
@@ -13,6 +14,7 @@ export function NumberRow({
   property,
   min,
   max,
+  isRequired,
   onStartEditing,
   onSave,
   onCancel,
@@ -23,6 +25,7 @@ export function NumberRow({
   property: string;
   min?: number;
   max?: number;
+  isRequired?: boolean;
   onStartEditing: (property: string) => void;
   onSave: (property: string, value: string, callbacks: SaveCallbacks) => void;
   onCancel: (property: string) => void;
@@ -33,6 +36,8 @@ export function NumberRow({
   const [editValue, setEditValue] = useState(value?.toString() ?? '');
 
   const { showNotification } = useNotifications();
+
+  const isSaveDisabled = isRequired ? isEmptyString(editValue) : false;
 
   const handleSave = () => {
     setIsSaving(true);
@@ -71,7 +76,7 @@ export function NumberRow({
             />
           </div>
           <div className={styles.EditActions}>
-            <Button size="small" onClick={handleSave} isDisabled={isSaving}>
+            <Button size="small" onClick={handleSave} isDisabled={isSaving || isSaveDisabled}>
               {isSaving ? t('editor.saving') : t('editor.save')}
             </Button>
             <Button

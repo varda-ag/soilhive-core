@@ -2,8 +2,7 @@ import { RequestData } from '../interfaces/RequestData';
 import VocabularyEntity from '../entities/Vocabulary';
 import { getEntity } from '../utils/slugs';
 import { EntityType } from '../types/data';
-import { StatusCodes } from 'http-status-codes';
-import { ErrorResponse } from '../utils/error';
+import { requireSub } from '../utils/auth';
 import { CreateVocabularyInput } from '../types/VocabularyInput';
 
 export default class VocabularyService {
@@ -17,13 +16,8 @@ export default class VocabularyService {
   };
 
   createVocabulary = async (requestData: RequestData, data: CreateVocabularyInput): Promise<VocabularyEntity> => {
+    requireSub(requestData);
     const repo = requestData.entityManager.getRepository(VocabularyEntity);
-
-    const { sub } = requestData.token ?? {};
-    if (!sub) {
-      throw new ErrorResponse('Token subject is missing', StatusCodes.UNAUTHORIZED);
-    }
-
     const vocabulary = repo.create(data);
 
     const saved = await repo.save(vocabulary);

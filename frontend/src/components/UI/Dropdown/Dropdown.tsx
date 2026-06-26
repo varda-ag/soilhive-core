@@ -129,7 +129,10 @@ export function Dropdown({
 
   useEffect(() => {
     if (!isOpen) return;
-    const close = () => setIsOpen(false);
+    const close = (event: Event) => {
+      if (portalRef.current?.contains(event.target as Node)) return;
+      setIsOpen(false);
+    };
     window.addEventListener('scroll', close, true);
     window.addEventListener('resize', close);
     return () => {
@@ -185,6 +188,7 @@ export function Dropdown({
             <div ref={portalRef} style={menuStyle} className={styles.PortalMenu}>
               <Menu
                 size={size}
+                className={styles.FullWidthMenu}
                 options={options}
                 isMultiselect={isMultiselect}
                 keepSelection={true}

@@ -1,14 +1,14 @@
 import { Request, Response, NextFunction } from 'express';
 import { getDataSource } from '../utils/data-source';
 
-const skip = ['/health', '/ready', '/docs', '/openapi.json'];
+const skip = ['/health', '/ready', '/docs', '/openapi.json', '/oauth'];
 
 export const transactionMiddleware = async (req: Request, res: Response, next: NextFunction) => {
   if (skip.some(p => req.path.startsWith(p))) {
+    req.customData = req.customData || {};
     return next();
   }
 
-  const schema = process.env.POSTGRES_SCHEMA;
   const dataSource = await getDataSource();
   const queryRunner = dataSource.createQueryRunner();
   await queryRunner.connect();
@@ -27,30 +27,21 @@ export const transactionMiddleware = async (req: Request, res: Response, next: N
     }
   };
 
+  await queryRunner.startTransaction();
+  req.customData = req.customData || { entityManager: queryRunner.manager };
+
   if (req.method === 'GET') {
-    if (schema) {
-      const escapedSchema = `"${schema.replaceAll('"', '""')}"`;
-      await queryRunner.query(`SET search_path TO ${escapedSchema}, public`);
-    }
-
-    req.customData = req.customData || { entityManager: queryRunner.manager };
-
     res.on('close', async () => {
       if (!res.writableEnded) await cancelBackend();
-      await queryRunner.release();
+      try {
+        await queryRunner.rollbackTransaction();
+      } finally {
+        await queryRunner.release();
+      }
     });
 
     return next();
   }
-
-  await queryRunner.startTransaction();
-
-  if (schema) {
-    const escapedSchema = `"${schema.replaceAll('"', '""')}"`;
-    await queryRunner.query(`SET LOCAL search_path TO ${escapedSchema}, public`);
-  }
-
-  req.customData = req.customData || { entityManager: queryRunner.manager };
 
   let cleaned = false;
 

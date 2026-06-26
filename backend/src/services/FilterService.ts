@@ -4,16 +4,70 @@ import * as turf from '@turf/turf';
 import { latLngToCell } from 'h3-js';
 import { Polygon, MultiPolygon } from 'geojson';
 import SoilDataStorage from '../data-layer/SoilDataStorage';
-import { DataFilter, FilteredDatasetSummary, FilteredDataset, FilteredData } from '../interfaces/DatasetFilter';
+import { DataFilterDTO, FilteredDatasetSummary, FilteredDataset, FilteredData, DataFilter } from '../interfaces/DatasetFilter';
 import { RequestData } from '../interfaces/RequestData';
 import { ErrorResponse } from '../utils/error';
 import { mergeMin, mergeMax } from '../utils/utils';
 import DataFilterEntity from '../entities/DataFilter';
+import DataFilterUserGeometryEntity from '../entities/DataFilterUserGeometry';
 import { DataAvailabilityIndex } from '../interfaces/Dai';
 import { getPolygonFromBbox, geometryUnion } from '../utils/geometry';
+import { timed, log } from '../utils/logger';
+
+const sds = new SoilDataStorage();
 
 export default class FilterService {
-  createFilter = async (requestData: RequestData, filter: DataFilter): Promise<DataFilterEntity> => {
+  insertUserGeometry = async (requestData: RequestData, geometry: Polygon | MultiPolygon): Promise<{ id: string; area: number }> => {
+    const schema = process.env.POSTGRES_SCHEMA;
+    const geomJson = JSON.stringify(geometry);
+    // The geometry is canonicalised with ST_MakeValid exactly once, here, before it
+    // is hashed and stored. ST_MakeValid is not byte-idempotent (re-applying it can
+    // change the byte representation and therefore geom_hash), so a stored row must
+    // never be rewritten: on a dedup hit we DO NOTHING and return the existing row
+    // as is. Do not "simplify" this to ON CONFLICT DO UPDATE — repeated submissions
+    // of the same geometry would then drift the row's hash and eventually collide
+    // with the duplicate row created in the meantime (unique violation on geom_hash).
+    // The fallback SELECT's hash expression must mirror the generated geom_hash
+    // column in the user_geometries migration.
+    const query = `
+      WITH input AS (
+        SELECT ST_MakeValid(ST_GeomFromGeoJSON($1), 'method=structure') AS geom
+      ), inserted AS (
+        INSERT INTO ${schema}.user_geometries (geom)
+        SELECT geom FROM input
+        ON CONFLICT (geom_hash) DO NOTHING
+        RETURNING id, area
+      )
+      SELECT id, area FROM inserted
+      UNION ALL
+      SELECT ug.id, ug.area
+      FROM ${schema}.user_geometries ug, input
+      WHERE ug.geom_hash = encode(sha256(input.geom::TEXT::BYTEA), 'hex')
+      LIMIT 1`;
+    // The insert can conflict with a row committed after this statement's snapshot,
+    // which the fallback SELECT then cannot see; a second attempt takes a fresh
+    // snapshot and finds it.
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const rows: { id: string; area: number }[] = await requestData.entityManager.query(query, [geomJson]);
+      const [row] = rows;
+      if (row) return { id: row.id, area: Number(row.area) };
+    }
+    throw new ErrorResponse('Failed to store filtering geometry', StatusCodes.INTERNAL_SERVER_ERROR);
+  };
+
+  deleteUserGeometry = async (requestData: RequestData, id: string): Promise<void> => {
+    const schema = process.env.POSTGRES_SCHEMA;
+    await requestData.entityManager.query(
+      `DELETE FROM ${schema}.user_geometries
+       WHERE id = $1
+       AND NOT EXISTS (
+         SELECT 1 FROM ${schema}.data_filter_user_geometries WHERE user_geometry_id = $1
+       )`,
+      [id],
+    );
+  };
+
+  createFilter = async (requestData: RequestData, filter: DataFilterDTO): Promise<DataFilterEntity> => {
     // Validate geometries in the payload
     for (const geometry of filter.geometries) {
       if (!['Polygon', 'MultiPolygon'].includes(geometry.type)) {
@@ -30,7 +84,24 @@ export default class FilterService {
     const owner = requestData.token?.sub;
     const repo = requestData.entityManager.getRepository(DataFilterEntity);
     const entity = repo.create({ filter, ...(owner ? { owner } : {}) });
-    return await repo.save(entity);
+    const savedFilter = await repo.save(entity);
+
+    await Promise.all(
+      filter.geometries.map(async geometry => {
+        const { id: user_geometry_id } = await this.insertUserGeometry(requestData, geometry);
+        // A filter's geometries are a set: payload geometries that canonicalise to
+        // the same stored row collapse to a single join entry.
+        await requestData.entityManager
+          .createQueryBuilder()
+          .insert()
+          .into(DataFilterUserGeometryEntity)
+          .values({ data_filter_id: savedFilter.id, user_geometry_id })
+          .orIgnore()
+          .execute();
+      }),
+    );
+
+    return savedFilter;
   };
 
   getFilters = async (requestData: RequestData): Promise<DataFilterEntity[]> => {
@@ -42,7 +113,7 @@ export default class FilterService {
     return await repo.findBy({ owner });
   };
 
-  getFilterById = async (requestData: RequestData, filterId: string): Promise<DataFilterEntity> => {
+  getDataFilterEntityById = async (requestData: RequestData, filterId: string): Promise<DataFilterEntity> => {
     const repo = requestData.entityManager.getRepository(DataFilterEntity);
     const storedFilter = await repo.findOneBy({ id: filterId });
     if (!storedFilter) {
@@ -51,48 +122,51 @@ export default class FilterService {
     return storedFilter;
   };
 
+  getFilterById = async (requestData: RequestData, filterId: string): Promise<DataFilter> => {
+    const schema = process.env.POSTGRES_SCHEMA;
+    const result = await requestData.entityManager.query(
+      `SELECT
+        df.filter->'parameters' AS parameters,
+        COALESCE(ARRAY_AGG(dfug.user_geometry_id) FILTER (WHERE dfug.user_geometry_id IS NOT NULL), '{}') AS geometry_ids,
+        COALESCE(SUM(ug.area), 0) AS area
+      FROM ${schema}.data_filters df
+      LEFT JOIN ${schema}.data_filter_user_geometries dfug ON dfug.data_filter_id = df.id
+      LEFT JOIN ${schema}.user_geometries ug ON ug.id = dfug.user_geometry_id
+      WHERE df.id = $1 AND df.deleted_at IS NULL
+      GROUP BY df.id, df.filter`,
+      [filterId],
+    );
+    if (!result.length) {
+      throw new ErrorResponse(`Filter ${filterId} not found`, StatusCodes.NOT_FOUND);
+    }
+    return {
+      geometryIds: result[0].geometry_ids,
+      parameters: result[0].parameters,
+      area: Number(result[0].area),
+    };
+  };
+
   getCoverage = async (requestData: RequestData, filterId: string, geometryOnly: boolean): Promise<FilteredData> => {
-    const storedFilter = await this.getFilterById(requestData, filterId);
-    const filter = storedFilter!.filter;
-    if (geometryOnly) {
-      // Only keep geometries for coverage calculation, ignore other parameters
-      filter.parameters = {};
-    }
-    const sds = new SoilDataStorage();
-    // Create filtering promisees
-    const filteringPromises: Promise<FilteredDatasetSummary[]>[] = [];
-    for (const g of filter.geometries) {
-      filteringPromises.push(
-        sds.filterVector(requestData.entityManager, g, filter.parameters),
-        sds.filterRaster(requestData.entityManager, g, filter.parameters),
-      );
-    }
-    // Wait for all filtering to complete
-    const batches = await Promise.all(filteringPromises);
-    // Aggregate summeries across geometries
-    const datasets = mergeDatasetSummaries(batches);
-    // Add raster coverage
-    const rasterCoverage = await sds.getRasterCoverage(requestData.entityManager, filter.geometries, filter.parameters.raster_filters);
-    // Deduplicate datasets across geometries
-    return { datasets: Array.from(new Map(datasets.map(r => [r.id, r])).values()), raster_filters: rasterCoverage };
+    const filter = await timed('coverage.getFilterById', () => this.getFilterById(requestData, filterId), { filterId });
+    const effectiveFilter = geometryOnly ? { ...filter, parameters: {} } : filter;
+    const [vectorDatasets, rasterDatasets, rasterCoverage] = await Promise.all([
+      timed('coverage.filterVector', () => sds.filterVector(requestData.entityManager, effectiveFilter), { filterId }),
+      timed('coverage.filterRaster', () => sds.filterRaster(requestData.entityManager, effectiveFilter), { filterId }),
+      timed('coverage.getRasterCoverage', () => sds.getRasterCoverage(requestData.entityManager, effectiveFilter), { filterId }),
+    ]);
+    const datasets = mergeDatasetSummaries([vectorDatasets, rasterDatasets]);
+    return { datasets, raster_filters: rasterCoverage };
   };
 
   getDatasets = async (requestData: RequestData, filterId: string): Promise<FilteredDataset[]> => {
-    const storedFilter = await this.getFilterById(requestData, filterId);
-    const filter = storedFilter!.filter;
-    const sds = new SoilDataStorage();
-    // Create filtering promisees
-    const filteringPromises: Promise<FilteredDataset[]>[] = [];
-    for (const g of filter.geometries) {
-      filteringPromises.push(
-        sds.filterVectorDatasets(requestData.entityManager, g, filter.parameters),
-        sds
-          .filterRaster(requestData.entityManager, g, filter.parameters)
-          .then(results => results.map(({ id, name, data_type }) => ({ id, name, data_type }))),
-      );
-    }
-    const results = (await Promise.all(filteringPromises)).flat();
-    return Array.from(new Map(results.map(r => [r.id, r])).values());
+    const filter = await this.getFilterById(requestData, filterId);
+    const [vectorDatasets, rasterDatasets] = await Promise.all([
+      sds.filterVectorDatasets(requestData.entityManager, filter),
+      sds
+        .filterRaster(requestData.entityManager, filter)
+        .then(results => results.map(({ id, name, data_type }) => ({ id, name, data_type }))),
+    ]);
+    return [...vectorDatasets, ...rasterDatasets];
   };
 
   getDai = async (
@@ -101,22 +175,36 @@ export default class FilterService {
     resolution: number,
     filterId: string,
   ): Promise<DataAvailabilityIndex> => {
-    const storedFilter = await this.getFilterById(requestData, filterId);
-    const { geometries, parameters } = storedFilter.filter;
+    const filter = await this.getFilterById(requestData, filterId);
+    const { geometryIds, parameters } = filter;
 
     const bboxPolygon = getPolygonFromBbox(bbox);
     let effectiveAoi: Polygon | MultiPolygon;
-    if (geometries.length === 0) {
+    if (geometryIds.length === 0) {
       effectiveAoi = bboxPolygon;
     } else {
-      const filterGeom = geometryUnion(geometries);
+      const schema = process.env.POSTGRES_SCHEMA;
+      const geomRows: { geom: Polygon | MultiPolygon }[] = await requestData.entityManager.query(
+        `SELECT ST_AsGeoJSON(ug.geom)::json AS geom FROM ${schema}.user_geometries ug WHERE ug.id = ANY($1::uuid[])`,
+        [geometryIds],
+      );
+      const filterGeom = geometryUnion(geomRows.map(r => r.geom));
       const intersection = turf.intersect(turf.featureCollection([turf.feature(filterGeom), turf.feature(bboxPolygon)]));
       if (!intersection) return { resolution, min: 0, max: 0, cells: {} };
       effectiveAoi = intersection.geometry;
     }
 
-    const sds = new SoilDataStorage();
-    const rows = await sds.getDaiPointData(requestData.entityManager, effectiveAoi, parameters);
+    const { id: userGeometryId, area } = await this.insertUserGeometry(requestData, effectiveAoi);
+
+    let rows: Awaited<ReturnType<typeof sds.getDaiPointData>>;
+    try {
+      rows = await sds.getDaiPointData(requestData.entityManager, { geometryIds: [userGeometryId], parameters, area });
+    } finally {
+      // Catch here so that original exception isn't masked by cleanup failure
+      await this.deleteUserGeometry(requestData, userGeometryId).catch((err: unknown) =>
+        log.error('Failed to clean up user geometry', { userGeometryId, error: String(err) }),
+      );
+    }
 
     const cells: Record<string, number> = {};
     for (const row of rows) {

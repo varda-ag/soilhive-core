@@ -1,6 +1,7 @@
 import { StatusCodes } from 'http-status-codes';
 import { RequestData } from '../interfaces/RequestData';
 import { ErrorResponse } from '../utils/error';
+import { requireEmail } from '../utils/auth';
 import DatasetEntity from '../entities/Dataset';
 import { CreateDatasetInput, UpdateDatasetInput } from '../types/DatasetInput';
 import { getEntity } from '../utils/slugs';
@@ -11,6 +12,7 @@ import { Entitlements } from '../types/Entitlements';
 import VectorDataLoad from '../data-layer/VectorDataLoad';
 import DataMappingService from './DataMappingService';
 import DatasetFileMappingService from './DatasetFileMappingService';
+import { CleaningReport } from '../interfaces/CleaningReport';
 
 const vdl = new VectorDataLoad();
 const dmService = new DataMappingService();
@@ -33,15 +35,12 @@ export default class DatasetService {
   createDataset = async (requestData: RequestData, data: CreateDatasetInput): Promise<DatasetEntity> => {
     const repo = requestData.entityManager.getRepository(DatasetEntity);
 
-    const { sub } = requestData.token ?? {};
-    if (!sub) {
-      throw new ErrorResponse('Token subject is missing', StatusCodes.UNAUTHORIZED);
-    }
+    const email = requireEmail(requestData);
 
     const dataset = repo.create({
       ...data,
-      created_by: String(sub),
-      updated_by: String(sub),
+      created_by: email,
+      updated_by: email,
     });
 
     try {
@@ -60,17 +59,13 @@ export default class DatasetService {
 
   updateDataset = async (requestData: RequestData, slug: string, data: UpdateDatasetInput): Promise<DatasetEntity> => {
     const repo = requestData.entityManager.getRepository(DatasetEntity);
-    const { sub } = requestData.token ?? {};
-
-    if (!sub) {
-      throw new ErrorResponse('Token subject is missing', StatusCodes.UNAUTHORIZED);
-    }
+    const email = requireEmail(requestData);
 
     const dataset: DatasetEntity = await getEntity(requestData, DatasetEntity, EntityType.DATASET, slug);
 
     repo.merge(dataset, {
       ...data,
-      updated_by: String(sub),
+      updated_by: email,
       updated_at: new Date(),
     });
 
@@ -82,13 +77,10 @@ export default class DatasetService {
 
   deleteDataset = async (requestData: RequestData, slug: string): Promise<void> => {
     const dataset = await getEntity(requestData, DatasetEntity, EntityType.DATASET, slug);
-    const { sub } = requestData.token ?? {};
+    const email = requireEmail(requestData);
 
-    if (!sub) {
-      throw new ErrorResponse('Token subject is missing', StatusCodes.UNAUTHORIZED);
-    }
     dataset.status = IngestionStatus.ARCHIVED;
-    dataset.updated_by = String(sub);
+    dataset.updated_by = email;
     await dataset.save();
     await requestData.entityManager.getRepository(DatasetEntity).softRemove(dataset);
   };
@@ -111,6 +103,7 @@ export default class DatasetService {
       dataMappingConfig,
       datasetFileMapping.file_id!,
       limit,
+      true,
       cursor,
       sort,
     );
@@ -121,5 +114,11 @@ export default class DatasetService {
     const datasetFileMapping = await dfmService.getDatasetFileMapping(requestData, datasetFileMappingId);
     const dataMappingConfig = await dmService.parseDataMapping(requestData, datasetFileMapping.data_mapping_id!);
     return vdl.getDataCount(requestData.entityManager, dataMappingConfig, datasetFileMapping.file_id!);
+  }
+
+  async getSoilDataStats(requestData: RequestData, datasetFileMappingId: string): Promise<CleaningReport> {
+    const datasetFileMapping = await dfmService.getDatasetFileMapping(requestData, datasetFileMappingId);
+    const dataMappingConfig = await dmService.parseDataMapping(requestData, datasetFileMapping.data_mapping_id!);
+    return vdl.getDataPreviewStats(requestData.entityManager, dataMappingConfig, datasetFileMapping.file_id!);
   }
 }

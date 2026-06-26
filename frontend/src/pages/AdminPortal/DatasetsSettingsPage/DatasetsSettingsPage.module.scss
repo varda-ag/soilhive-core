@@ -85,6 +85,24 @@
   }
 }
 
+.MandatoryWarning {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 14px;
+  background-color: #fde8e8;
+  border-radius: 6px;
+  font-size: var(--font-size-sm);
+  color: var(--color-neutral-black);
+}
+
+.MandatoryWarningIcon {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+}
+
 .RadioCards {
   display: flex;
   flex-direction: column;

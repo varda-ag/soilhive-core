@@ -1,4 +1,4 @@
-import type { BackendStoredDataFilter, DataFilter, License } from 'types/backend';
+import type { BackendStoredDataFilter, DataFilterDTO, License } from 'types/backend';
 import { useApiQuery } from './useApiQuery';
 import { useFilteredCoverageQuery } from './useFilteredCoverageQuery';
 import { useFilteredDatasetsQuery } from './useFilteredDatasetsQuery';
@@ -17,7 +17,7 @@ export interface DownloadSummaryDataset {
 export function useDownloadSummary({ filterId, datasetsIds }: { filterId: string | null; datasetsIds: string[] }) {
   const { data: allSoilProperties, isLoading: areSoilPropertiesLoading } = useSoilProperties();
 
-  const { data: filterData, isLoading: isFilterLoading } = useApiQuery<BackendStoredDataFilter, DataFilter>({
+  const { data: filterData, isLoading: isFilterLoading } = useApiQuery<BackendStoredDataFilter, DataFilterDTO>({
     endpoint: `/data-filters/${filterId}`,
     method: 'GET',
     queryKey: ['data-filter', filterId],

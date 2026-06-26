@@ -20,6 +20,7 @@ import { useRaster } from 'hooks/useRaster';
 import useAvailabilityMap from '../hooks/useAvailabilityMap';
 import { useFilteredCoverageQuery } from 'hooks/useFilteredCoverageQuery';
 import { useFilteredDatasetsQuery } from 'hooks/useFilteredDatasetsQuery';
+import { useAuthContext } from '../auth/AuthContextProvider';
 
 type AvailabilityContextType = {
   allSoilProperties: SoilProperty[];
@@ -68,6 +69,7 @@ type AvailabilityProviderProps = {
 };
 
 export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ children }) => {
+  const { isAuthenticated } = useAuthContext();
   const { geometryFilter } = useAvailabilityMap();
   const [selectedDatasets, setSelectedDatasets] = useState<string[]>([]);
   const [searchValue, setSearchValue] = useState<string>('');
@@ -120,10 +122,19 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
 
   const selectAllDatasets = useCallback(
     (select: boolean) => {
-      setSelectedDatasets(select && fullFilterResults ? fullFilterResults?.datasets.map(result => result.id) : []);
+      const datasets = fullFilterResults?.datasets || fullFilterDatasets;
+      setSelectedDatasets(
+        select && datasets
+          ? datasets
+              .filter(dataset => {
+                return isAuthenticated || dataset.visibility === 'public';
+              })
+              .map(result => result.id)
+          : [],
+      );
       setIsAllSelected(select);
     },
-    [fullFilterResults],
+    [fullFilterResults, fullFilterDatasets, isAuthenticated],
   );
 
   const allDatasets = useMemo(() => {
@@ -214,17 +225,18 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
 
   const availableDatasets = useMemo(() => {
     const datasets = fullFilterResults ? fullFilterResults.datasets : fullFilterDatasets || [];
+    const allowedDatasets = isAuthenticated ? datasets : datasets.filter(dataset => dataset.visibility === 'public');
     if (selectedDatasets.length > 0) {
-      const datasetIds = new Set(datasets.map(dataset => dataset.id));
+      const datasetIds = new Set(allowedDatasets.map(dataset => dataset.id));
       // Excludes the selected datasets that are not available anymore in the current
       // map view/selection
       const validSelectedDatasets = new Set(selectedDatasets.filter(id => datasetIds.has(id)));
       if (validSelectedDatasets.size > 0) {
-        return datasets.filter(dataset => validSelectedDatasets.has(dataset.id));
+        return allowedDatasets.filter(dataset => validSelectedDatasets.has(dataset.id));
       }
     }
-    return datasets.sort((a, b) => a.name.localeCompare(b.name, 'en', { sensitivity: 'base' }));
-  }, [fullFilterResults, fullFilterDatasets, selectedDatasets]);
+    return allowedDatasets.sort((a, b) => a.name.localeCompare(b.name, 'en', { sensitivity: 'base' }));
+  }, [fullFilterResults, fullFilterDatasets, isAuthenticated, selectedDatasets]);
 
   return (
     <AvailabilityContext.Provider

@@ -13,14 +13,20 @@ export interface FilterCriteria {
   raster_filters?: Record<string, number[]>; // Map <table_name, raster_values>
 }
 
-export interface DataFilter {
+export interface DataFilterDTO {
   geometries: (Polygon | MultiPolygon)[];
   parameters: FilterCriteria;
 }
 
+export interface DataFilter {
+  geometryIds: string[];
+  parameters: FilterCriteria;
+  area: number; // Total area covered by the geometries in m2
+}
+
 export interface StoredDataFilter {
   id: string;
-  filter: DataFilter;
+  filter: DataFilterDTO;
   name?: string;
   owner?: string;
 }

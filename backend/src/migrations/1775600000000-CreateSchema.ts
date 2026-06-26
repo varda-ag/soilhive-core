@@ -2,12 +2,13 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
 import * as fs from 'fs';
 import * as path from 'path';
 
+// See docs/adr/0006-precomputed-geometry-subdivision-table.md
+const SUBDIVIDE_MAX_VERTICES = 64;
+
 export class CreateSchema1775600000000 implements MigrationInterface {
   name = 'CreateSchema1775600000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`SET search_path TO ${process.env.POSTGRES_SCHEMA}, public`);
-
     // Extensions
     await queryRunner.query(`CREATE EXTENSION IF NOT EXISTS postgis SCHEMA public`);
     await queryRunner.query(`CREATE EXTENSION IF NOT EXISTS postgis_raster SCHEMA public`);
@@ -235,7 +236,7 @@ export class CreateSchema1775600000000 implements MigrationInterface {
       `CREATE TABLE "features" ("id" uuid NOT NULL DEFAULT uuidv7(), "geom" geometry, "geom_hash" text GENERATED ALWAYS AS (encode(sha256(geom::TEXT::BYTEA), 'hex')) STORED NOT NULL, CONSTRAINT "UQ_features_geom_hash" UNIQUE ("geom_hash"), CONSTRAINT "PK_features_id" PRIMARY KEY ("id"))`,
     );
     await queryRunner.query(
-      `CREATE TABLE "datasets" ("created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP, "id" uuid NOT NULL DEFAULT uuidv7(), "slug" text NOT NULL, "name" text NOT NULL, "full_name" text, "version" text, "author" text, "description" text, "data_producer" text, "variables_measured" jsonb, "spatial_resolution" text, "publication_date" date, "reference_period_start" text, "reference_period_stop" text, "licenses" text[], "citation" text, "geographical_extent" text, "gis_datatype" text, "spatial_extent" geometry(Polygon,4326), "n_observations" bigint, "n_raster_layers" integer, "soil_depth" jsonb, "status" text NOT NULL DEFAULT 'PENDING', "created_by" text NOT NULL, "updated_by" text, "service_location" text, "processing_steps" JSONB, "visibility" "visibility_enum" NOT NULL DEFAULT 'private', CONSTRAINT "PK_datasets_id" PRIMARY KEY ("id"))`,
+      `CREATE TABLE "datasets" ("created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP, "id" uuid NOT NULL DEFAULT uuidv7(), "slug" text NOT NULL, "name" text NOT NULL, "full_name" text, "version" text, "author" text, "description" text, "data_producer" text, "variables_measured" jsonb, "spatial_resolution" text, "publication_date" date, "reference_period_start" text, "reference_period_stop" text, "licenses" text[], "citation" text, "geographical_extent" text, "gis_datatype" text, "spatial_extent" geometry(Polygon,4326), "n_observations" bigint, "n_raster_layers" integer, "soil_depth" jsonb, "status" text NOT NULL DEFAULT 'PENDING', "created_by" text NOT NULL, "updated_by" text, "service_location" text, "processing_steps" JSONB, "visibility" "visibility_enum" NOT NULL DEFAULT 'private', "inferred_properties" text[], "preprocessing_steps" text, "related_resources" text[], CONSTRAINT "PK_datasets_id" PRIMARY KEY ("id"))`,
     );
     await queryRunner.query(
       `CREATE TABLE "vocabulary" ("created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP, "id" uuid NOT NULL DEFAULT uuidv7(), "slug" text NOT NULL, "category" "vocabulary_category_enum" NOT NULL, "name" text NOT NULL, CONSTRAINT "UQ_vocabulary_id_category" UNIQUE ("id", "category"), CONSTRAINT "PK_vocabulary_id_slug" PRIMARY KEY ("id", "slug"))`,
@@ -449,10 +450,223 @@ export class CreateSchema1775600000000 implements MigrationInterface {
       const sql = fs.readFileSync(path.join(base, file), 'utf8');
       await queryRunner.query(sql);
     }
+
+    await queryRunner.query(
+      `CREATE TABLE IF NOT EXISTS "raster_layers" ("created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP, "id" uuid NOT NULL DEFAULT uuidv7(), "file_id" uuid NOT NULL, "resolution_m" int NOT NULL, "min_depth" int, "max_depth" int, "reference_period_start" text, "reference_period_stop" text, "dataset_id" uuid NOT NULL, "soil_property_id" uuid NOT NULL, "description" jsonb, "nodata_value" int, "bbox" geometry(Polygon,4326) NOT NULL, CONSTRAINT "PK_raster_layers_id" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(`CREATE INDEX IF NOT EXISTS "IDX_raster_layers_bbox" ON "raster_layers" USING GiST ("bbox")`);
+    await queryRunner.query(
+      `DO $$ BEGIN
+         IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'FK_raster_layers_file_id_files_id') THEN
+           ALTER TABLE "raster_layers" ADD CONSTRAINT "FK_raster_layers_file_id_files_id" FOREIGN KEY ("file_id") REFERENCES "files"("id") ON DELETE CASCADE ON UPDATE NO ACTION DEFERRABLE INITIALLY DEFERRED;
+         END IF;
+       END $$`,
+    );
+    await queryRunner.query(
+      `DO $$ BEGIN
+         IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'FK_raster_layers_dataset_id_datasets_id') THEN
+           ALTER TABLE "raster_layers" ADD CONSTRAINT "FK_raster_layers_dataset_id_datasets_id" FOREIGN KEY ("dataset_id") REFERENCES "datasets"("id") ON DELETE CASCADE ON UPDATE NO ACTION DEFERRABLE INITIALLY DEFERRED;
+         END IF;
+       END $$`,
+    );
+    await queryRunner.query(
+      `DO $$ BEGIN
+         IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'FK_raster_layers_soil_property_id_soil_properties_id') THEN
+           ALTER TABLE "raster_layers" ADD CONSTRAINT "FK_raster_layers_soil_property_id_soil_properties_id" FOREIGN KEY ("soil_property_id") REFERENCES "soil_properties"("id") ON DELETE CASCADE ON UPDATE NO ACTION DEFERRABLE INITIALLY DEFERRED;
+         END IF;
+       END $$`,
+    );
+
+    await queryRunner.query(
+      `CREATE TABLE IF NOT EXISTS "raster_layer_assets" ("created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP, "id" uuid NOT NULL DEFAULT uuidv7(), "file_id" uuid NOT NULL, "raster_layer_id" uuid NOT NULL, "description" jsonb, CONSTRAINT "PK_raster_layer_assets_id" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(
+      `DO $$ BEGIN
+         IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'FK_raster_layer_assets_file_id_files_id') THEN
+           ALTER TABLE "raster_layer_assets" ADD CONSTRAINT "FK_raster_layer_assets_file_id_files_id" FOREIGN KEY ("file_id") REFERENCES "files"("id") ON DELETE CASCADE ON UPDATE NO ACTION DEFERRABLE INITIALLY DEFERRED;
+         END IF;
+       END $$`,
+    );
+    await queryRunner.query(
+      `DO $$ BEGIN
+         IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'FK_raster_layer_assets_raster_layer_id_raster_layers_id') THEN
+           ALTER TABLE "raster_layer_assets" ADD CONSTRAINT "FK_raster_layer_assets_raster_layer_id_raster_layers_id" FOREIGN KEY ("raster_layer_id") REFERENCES "raster_layers"("id") ON DELETE CASCADE ON UPDATE NO ACTION DEFERRABLE INITIALLY DEFERRED;
+         END IF;
+       END $$`,
+    );
+
+    await queryRunner.query(
+      `INSERT INTO "typeorm_metadata"("database", "schema", "table", "type", "name", "value") VALUES ($1, $2, $3, $4, $5, $6)`,
+      [
+        'database',
+        process.env.POSTGRES_SCHEMA,
+        'raster_footprints',
+        'GENERATED_COLUMN',
+        'geom_hash',
+        "(encode(sha256(geom::TEXT::BYTEA), 'hex'))",
+      ],
+    );
+    await queryRunner.query(
+      `CREATE TABLE IF NOT EXISTS "raster_footprints" ("id" uuid NOT NULL DEFAULT uuidv7(), "geom" geometry(MultiPolygon,4326) NOT NULL, "geom_hash" text GENERATED ALWAYS AS (encode(sha256(geom::TEXT::BYTEA), 'hex')) STORED NOT NULL, CONSTRAINT "UQ_raster_footprints_geom_hash" UNIQUE ("geom_hash"), CONSTRAINT "PK_raster_footprints_id" PRIMARY KEY ("id"))`,
+    );
+    await queryRunner.query(`CREATE INDEX IF NOT EXISTS "IDX_raster_footprints_geom" ON "raster_footprints" USING GiST ("geom")`);
+
+    await queryRunner.query(
+      `CREATE TABLE IF NOT EXISTS "raster_layer_footprints" ("raster_layer_id" uuid NOT NULL, "raster_footprint_id" uuid NOT NULL, CONSTRAINT "PK_raster_layer_footprints" PRIMARY KEY ("raster_layer_id", "raster_footprint_id"))`,
+    );
+    await queryRunner.query(
+      `DO $$ BEGIN
+         IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'FK_raster_layer_footprints_raster_layer_id') THEN
+           ALTER TABLE "raster_layer_footprints" ADD CONSTRAINT "FK_raster_layer_footprints_raster_layer_id" FOREIGN KEY ("raster_layer_id") REFERENCES "raster_layers"("id") ON DELETE CASCADE ON UPDATE NO ACTION;
+         END IF;
+       END $$`,
+    );
+    await queryRunner.query(
+      `DO $$ BEGIN
+         IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'FK_raster_layer_footprints_raster_footprint_id') THEN
+           ALTER TABLE "raster_layer_footprints" ADD CONSTRAINT "FK_raster_layer_footprints_raster_footprint_id" FOREIGN KEY ("raster_footprint_id") REFERENCES "raster_footprints"("id") ON DELETE CASCADE ON UPDATE NO ACTION;
+         END IF;
+       END $$`,
+    );
+    await queryRunner.query(
+      `CREATE OR REPLACE FUNCTION delete_orphan_raster_footprints() RETURNS trigger LANGUAGE plpgsql AS $$
+       BEGIN
+         DELETE FROM raster_footprints
+         WHERE id = OLD.raster_footprint_id
+           AND NOT EXISTS (
+             SELECT 1 FROM raster_layer_footprints WHERE raster_footprint_id = OLD.raster_footprint_id
+           );
+         RETURN NULL;
+       END $$`,
+    );
+    await queryRunner.query(
+      `CREATE TRIGGER trg_delete_orphan_raster_footprints
+       AFTER DELETE ON raster_layer_footprints
+       FOR EACH ROW EXECUTE FUNCTION delete_orphan_raster_footprints()`,
+    );
+
+    await queryRunner.query(
+      `CREATE TABLE IF NOT EXISTS "user_geometries" (
+        "id" uuid NOT NULL DEFAULT uuidv7(),
+        "geom" geometry,
+        "geom_hash" text GENERATED ALWAYS AS (encode(sha256(geom::TEXT::BYTEA), 'hex')) STORED NOT NULL,
+        "area" double precision GENERATED ALWAYS AS (ST_Area(geom::geography)) STORED,
+        CONSTRAINT "UQ_user_geometries_geom_hash" UNIQUE ("geom_hash"),
+        CONSTRAINT "PK_user_geometries_id" PRIMARY KEY ("id")
+      )`,
+    );
+
+    await queryRunner.query(`CREATE INDEX IF NOT EXISTS "IDX_user_geometries_geom" ON "user_geometries" USING GiST ("geom")`);
+    await queryRunner.query(
+      `CREATE INDEX IF NOT EXISTS "idx_user_geometries_geography" ON "user_geometries" USING gist (((geom)::geography))`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX IF NOT EXISTS "idx_user_geometries_geometry_type" ON "user_geometries" USING btree (st_geometrytype(geom))`,
+    );
+    await queryRunner.query(`ALTER TABLE "user_geometries" ALTER COLUMN "geom" SET STATISTICS 1000`);
+
+    await queryRunner.query(
+      `CREATE TABLE IF NOT EXISTS "user_geometry_subdivisions" (
+        "id" uuid NOT NULL DEFAULT uuidv7(),
+        "user_geometry_id" uuid NOT NULL,
+        "geom" geometry NOT NULL,
+        CONSTRAINT "PK_user_geometry_subdivisions_id" PRIMARY KEY ("id"),
+        CONSTRAINT "FK_ugs_user_geometry_id" FOREIGN KEY ("user_geometry_id") REFERENCES "user_geometries"("id") ON DELETE CASCADE
+      )`,
+    );
+
+    await queryRunner.query(
+      `CREATE INDEX IF NOT EXISTS "IDX_user_geometry_subdivisions_geom" ON "user_geometry_subdivisions" USING GiST ("geom")`,
+    );
+    await queryRunner.query(
+      `CREATE INDEX IF NOT EXISTS "IDX_user_geometry_subdivisions_user_geometry_id" ON "user_geometry_subdivisions" ("user_geometry_id")`,
+    );
+    await queryRunner.query(`ALTER TABLE "user_geometry_subdivisions" ALTER COLUMN "geom" SET STATISTICS 1000`);
+
+    // SET search_path FROM CURRENT pins the migration-time search_path so the
+    // unqualified table reference resolves correctly when fired from app sessions.
+    await queryRunner.query(`
+      CREATE OR REPLACE FUNCTION subdivide_user_geometry()
+      RETURNS trigger AS $$
+      BEGIN
+        DELETE FROM user_geometry_subdivisions WHERE user_geometry_id = NEW.id;
+        INSERT INTO user_geometry_subdivisions (user_geometry_id, geom)
+        SELECT NEW.id, ST_Subdivide(ST_CollectionExtract(NEW.geom, 3), ${SUBDIVIDE_MAX_VERTICES})
+        WHERE NEW.geom IS NOT NULL AND NOT ST_IsEmpty(ST_CollectionExtract(NEW.geom, 3));
+        RETURN NEW;
+      END;
+      $$ LANGUAGE plpgsql SET search_path FROM CURRENT
+    `);
+
+    // TypeORM metadata
+    await queryRunner.query(
+      `INSERT INTO "typeorm_metadata"("database", "schema", "table", "type", "name", "value") VALUES ($1, $2, $3, $4, $5, $6)`,
+      [
+        'database',
+        process.env.POSTGRES_SCHEMA,
+        'user_geometries',
+        'GENERATED_COLUMN',
+        'geom_hash',
+        "(encode(sha256(geom::TEXT::BYTEA), 'hex'))",
+      ],
+    );
+    await queryRunner.query(
+      `INSERT INTO "typeorm_metadata"("database", "schema", "table", "type", "name", "value") VALUES ($1, $2, $3, $4, $5, $6)`,
+      ['database', process.env.POSTGRES_SCHEMA, 'user_geometries', 'GENERATED_COLUMN', 'area', '(ST_Area(geom::geography))'],
+    );
+
+    // Geometries are canonicalised (ST_MakeValid) by insertUserGeometry before they
+    // reach this table, so NEW.geom is always valid (ST_Subdivide requires valid
+    // input). Validation must NOT happen in a trigger here: ST_MakeValid is not
+    // byte-idempotent, so re-validating on the upsert's update path moves geom_hash
+    // and corrupts dedup. The UPDATE trigger is guarded so a rewrite with an
+    // identical value does not re-subdivide.
+    await queryRunner.query(`DROP TRIGGER IF EXISTS trg_user_geometries_subdivide_insert ON user_geometries`);
+    await queryRunner.query(`
+      CREATE TRIGGER trg_user_geometries_subdivide_insert
+      AFTER INSERT ON user_geometries
+      FOR EACH ROW EXECUTE FUNCTION subdivide_user_geometry()
+    `);
+    await queryRunner.query(`DROP TRIGGER IF EXISTS trg_user_geometries_subdivide_update ON user_geometries`);
+    await queryRunner.query(`
+      CREATE TRIGGER trg_user_geometries_subdivide_update
+      AFTER UPDATE OF geom ON user_geometries
+      FOR EACH ROW
+      WHEN (OLD.geom IS DISTINCT FROM NEW.geom)
+      EXECUTE FUNCTION subdivide_user_geometry()
+    `);
+
+    await queryRunner.query(
+      `CREATE TABLE IF NOT EXISTS "data_filter_user_geometries" (
+        "data_filter_id" uuid NOT NULL,
+        "user_geometry_id" uuid NOT NULL,
+        CONSTRAINT "PK_data_filter_user_geometries" PRIMARY KEY ("data_filter_id", "user_geometry_id"),
+        CONSTRAINT "FK_dfug_data_filter_id" FOREIGN KEY ("data_filter_id") REFERENCES "data_filters"("id") ON DELETE CASCADE,
+        CONSTRAINT "FK_dfug_user_geometry_id" FOREIGN KEY ("user_geometry_id") REFERENCES "user_geometries"("id") ON DELETE RESTRICT
+      )`,
+    );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`SET search_path TO ${process.env.POSTGRES_SCHEMA}, public`);
+    await queryRunner.query(`DROP TABLE IF EXISTS "data_filter_user_geometries"`);
+    await queryRunner.query(`DROP TRIGGER IF EXISTS trg_user_geometries_subdivide_update ON user_geometries`);
+    await queryRunner.query(`DROP TRIGGER IF EXISTS trg_user_geometries_subdivide_insert ON user_geometries`);
+    await queryRunner.query(`DROP FUNCTION IF EXISTS subdivide_user_geometry`);
+    await queryRunner.query(`DROP TABLE IF EXISTS "user_geometry_subdivisions"`);
+    await queryRunner.query(`DROP INDEX IF EXISTS "idx_user_geometries_geometry_type"`);
+    await queryRunner.query(`DROP INDEX IF EXISTS "idx_user_geometries_geography"`);
+    await queryRunner.query(`DROP INDEX IF EXISTS "IDX_user_geometries_geom"`);
+    await queryRunner.query(`DROP TABLE IF EXISTS "user_geometries"`);
+
+    await queryRunner.query(`DROP TRIGGER IF EXISTS trg_delete_orphan_raster_footprints ON raster_layer_footprints`);
+    await queryRunner.query(`DROP FUNCTION IF EXISTS delete_orphan_raster_footprints`);
+    await queryRunner.query(`DROP TABLE IF EXISTS "raster_layer_footprints"`);
+    await queryRunner.query(`DROP TABLE IF EXISTS "raster_footprints"`);
+    await queryRunner.query(`DROP TABLE IF EXISTS "raster_layers"`);
+    await queryRunner.query(`DROP TABLE IF EXISTS "raster_layer_assets"`);
+    await queryRunner.query(
+      `DELETE FROM "typeorm_metadata" WHERE "type" = 'GENERATED_COLUMN' AND "name" = 'geom_hash' AND "table" = 'raster_footprints'`,
+    );
 
     // Drop triggers
     await queryRunner.query(`DROP TRIGGER IF EXISTS dataset_slug ON datasets`);

@@ -64,7 +64,7 @@ describe('Soil Export Job Integration Test', () => {
         depthLayers: 1,
         featureCount: 2,
         observationsPerLayer: 2,
-        soilPropertyNames: ['aluminum', 'calcium'],
+        soilPropertyNames: ['C/N ratio'],
         featureCoordinates: [
           [-80.8013337, -33.759169],
           [-80.7786728, -33.772006],
@@ -725,8 +725,17 @@ describe('Soil Export Job Integration Test', () => {
     expect(exportJobResponse.statusCode).toBe(StatusCodes.CREATED);
     const jobId = exportJobResponse.body.id;
 
-    // 3. Wait briefly to ensure job has started processing
-    await sleep(2000);
+    // 3. Poll until job has processed at least one batch before cancelling
+    let started = false;
+    for (let i = 0; i < 30; i++) {
+      await sleep(200);
+      const s = await request(app).get(`/jobs/${jobId}`);
+      if ((s.body.data?.total_records_processed ?? 0) > 0) {
+        started = true;
+        break;
+      }
+    }
+    expect(started).toBe(true); // job must have processed something before we cancel
 
     // 4. Cancel the job via API
     const cancelResponse = await request(app).delete(`/jobs/${jobId}`);
@@ -752,5 +761,5 @@ describe('Soil Export Job Integration Test', () => {
     fetchBatchSpy.mockRestore();
     getTotalRecordsCountSpy.mockRestore();
     createReadmeFileSpy.mockRestore();
-  }, 7000);
+  }, 15000);
 });

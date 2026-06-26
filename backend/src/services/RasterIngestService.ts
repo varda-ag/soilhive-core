@@ -31,7 +31,6 @@ async function insertFootprintBatch(
   batch: MultiPolygon[],
 ): Promise<void> {
   const geomJsons = batch.map(fp => JSON.stringify(fp));
-  await em.query(`SET search_path TO ${process.env.POSTGRES_SCHEMA}, public`);
   await em.query(
     `WITH fp_ins AS (INSERT INTO raster_footprints (geom)
      SELECT ST_SetSRID(ST_GeomFromGeoJSON(v), 4326)
@@ -59,7 +58,6 @@ export async function ingestRaster(opts: IngestRasterOptions): Promise<string> {
   const outName = path.basename(cogPath);
   const bboxJson = JSON.stringify(bbox);
 
-  await em.query(`SET search_path TO ${process.env.POSTGRES_SCHEMA}, public`);
   await em.query("SET statement_timeout = '600s';");
   const result = await em.query(
     `WITH

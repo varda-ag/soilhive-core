@@ -195,7 +195,7 @@ function SoilhiveSimpleMap({
         ref={mapRef}
         scrollZoom={scrollZoom}
         dragPan={dragPan}
-        minZoom={3}
+        minZoom={0}
         maxZoom={24}
         renderWorldCopies={false}
         dragRotate={false}

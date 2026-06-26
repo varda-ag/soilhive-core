@@ -1,6 +1,7 @@
 import { JwtPayload } from 'jsonwebtoken';
 
 export interface Token extends JwtPayload {
+  sub: string; // Making it mandatory
   raw: string;
   email: string;
   scope: string;

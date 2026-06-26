@@ -1,8 +1,8 @@
-import type { BackendStoredDataFilter, DataFilter } from 'types/backend';
+import type { BackendStoredDataFilter, DataFilterDTO } from 'types/backend';
 import { useApiQuery } from './useApiQuery';
 import { useDebounce } from './useDebounce';
 
-export function useDataFilterQuery(filters: DataFilter, enabled: boolean = true, debounceTime: number = 500) {
+export function useDataFilterQuery(filters: DataFilterDTO, enabled: boolean = true, debounceTime: number = 500) {
   const { value: debounced, isPending } = useDebounce({ filters, enabled }, debounceTime);
   const { filters: debouncedFilters, enabled: debouncedEnabled } = debounced;
 
@@ -10,7 +10,7 @@ export function useDataFilterQuery(filters: DataFilter, enabled: boolean = true,
   // between when inputs change and when the query actually starts.
   const isDebouncePending = enabled && isPending;
 
-  const { data, isLoading } = useApiQuery<BackendStoredDataFilter, DataFilter>({
+  const { data, isLoading } = useApiQuery<BackendStoredDataFilter, DataFilterDTO>({
     endpoint: '/data-filters',
     method: 'POST',
     body: debouncedFilters,

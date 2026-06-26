@@ -212,6 +212,16 @@
                 "public": "Public"
             },
             "publish_button_text": "Publish",
+            "error_details_link": "Error details",
+            "error_modal": {
+                "title": "Error details",
+                "close": "Close",
+                "dataset_label": "Dataset",
+                "uploaded_prefix": "Uploaded",
+                "what_happened_label": "What happened",
+                "error_prefix": "Error {{index}}:",
+                "suggested_fixes_title": "Suggested fix/es"
+            },
             "delete_modal": {
                 "title": "Delete this dataset?",
                 "message": "Are you sure you want to permanently delete <strong>{{datasetName}}</strong>? This action cannot be undone and the dataset will be removed from the list.",
@@ -283,6 +293,7 @@
             },
             "row": {
                 "select_concept": "Select a concept",
+                "select_one": "Select one",
                 "unit_placeholder": "Unit",
                 "no_unit": "No unit"
             },
@@ -339,7 +350,8 @@
             "metadata_preview": {
                 "title": "Metadata preview",
                 "description": "The metadata will be shown to all users, even if the dataset is private. This will contribute to the discoverability of soil data.",
-                "link": "Check your metadata"
+                "link": "Check your metadata",
+                "mandatory_warning": "You need to fill all the mandatory metadata fields before publishing."
             },
             "visibility": {
                 "title": "Data visibility",

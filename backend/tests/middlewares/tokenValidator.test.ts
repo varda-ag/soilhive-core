@@ -113,38 +113,46 @@ describe('tokenValidator — PASSWORD mode', () => {
   });
 
   it('validates successfully when the token scope satisfies a required scope', async () => {
-    const token = signTestToken({ sub: 'u1', scope: 'super-admin' }, { expiresIn: 3600 });
+    const token = signTestToken({ sub: 'u1', scope: 'super-admin', email: 'u1@test.com' }, { expiresIn: 3600 });
     expect(await tokenValidator(makeRequest(`Bearer ${token}`), ['super-admin'])).toBe(true);
   });
 
   it('throws 403 when the token scope does not satisfy any required scope', async () => {
-    const token = signTestToken({ sub: 'u1', scope: 'data-admin' }, { expiresIn: 3600 });
+    const token = signTestToken({ sub: 'u1', scope: 'data-admin', email: 'u1@test.com' }, { expiresIn: 3600 });
     await expect(tokenValidator(makeRequest(`Bearer ${token}`), ['super-admin'])).rejects.toMatchObject({
       status: 403,
     });
   });
 
   it('throws 401 when the decoded token has no sub claim', async () => {
-    const token = signTestToken({ scope: 'super-admin' }, { expiresIn: 3600 });
+    const token = signTestToken({ scope: 'super-admin', email: 'u1@test.com' }, { expiresIn: 3600 });
     await expect(tokenValidator(makeRequest(`Bearer ${token}`), [])).rejects.toMatchObject({
       message: 'Invalid token: no sub',
       status: 401,
     });
   });
 
+  it('throws 401 when the decoded token has no email claim', async () => {
+    const token = signTestToken({ sub: 'u1', scope: 'super-admin' }, { expiresIn: 3600 });
+    await expect(tokenValidator(makeRequest(`Bearer ${token}`), [])).rejects.toMatchObject({
+      message: 'Invalid token: no email',
+      status: 401,
+    });
+  });
+
   it('throws "Token has expired" for an already-expired token', async () => {
-    const token = signTestToken({ sub: 'u1', scope: 'super-admin' }, { expiresIn: -1 });
+    const token = signTestToken({ sub: 'u1', scope: 'super-admin', email: 'u1@test.com' }, { expiresIn: -1 });
     await expect(tokenValidator(makeRequest(`Bearer ${token}`), [])).rejects.toThrow('Token has expired');
   });
 
   it('throws "Invalid token: ..." for a token with a tampered signature', async () => {
-    const token = signTestToken({ sub: 'u1', scope: 'super-admin' }, { expiresIn: 3600 });
+    const token = signTestToken({ sub: 'u1', scope: 'super-admin', email: 'u1@test.com' }, { expiresIn: 3600 });
     const tampered = token.slice(0, -5) + 'XXXXX';
     await expect(tokenValidator(makeRequest(`Bearer ${tampered}`), [])).rejects.toThrow(/^Invalid token: /);
   });
 
   it('isSuperAdmin === true and isDataAdmin === false when scope is super-admin', async () => {
-    const token = signTestToken({ sub: 'u1', scope: 'super-admin' }, { expiresIn: 3600 });
+    const token = signTestToken({ sub: 'u1', scope: 'super-admin', email: 'u1@test.com' }, { expiresIn: 3600 });
     const req = makeRequest(`Bearer ${token}`);
     await tokenValidator(req, []);
     expect(req.customData.token.isSuperAdmin).toBe(true);
@@ -152,7 +160,7 @@ describe('tokenValidator — PASSWORD mode', () => {
   });
 
   it('isDataAdmin === true and isSuperAdmin === false when scope is data-admin', async () => {
-    const token = signTestToken({ sub: 'u1', scope: 'data-admin' }, { expiresIn: 3600 });
+    const token = signTestToken({ sub: 'u1', scope: 'data-admin', email: 'u1@test.com' }, { expiresIn: 3600 });
     const req = makeRequest(`Bearer ${token}`);
     await tokenValidator(req, []);
     expect(req.customData.token.isDataAdmin).toBe(true);
@@ -169,7 +177,7 @@ describe('tokenValidator — PASSWORD mode', () => {
       callback(new Error('not an internal token'));
     });
 
-    const token = signTestToken({ sub: 'u1', scope: 'super-admin' }, { expiresIn: 3600 });
+    const token = signTestToken({ sub: 'u1', scope: 'super-admin', email: 'u1@test.com' }, { expiresIn: 3600 });
     await expect(tokenValidator(makeRequest(`Bearer ${token}`), [])).rejects.toMatchObject({
       message: 'Invalid token: not an internal token',
       status: 401,
@@ -203,7 +211,7 @@ describe('tokenValidator — OIDC mode, successful JWKS lookup', () => {
   });
 
   it('validates a token by fetching the signing key from JWKS', async () => {
-    const token = signTestToken({ sub: 'u1', scope: 'super-admin' }, { expiresIn: 3600 });
+    const token = signTestToken({ sub: 'u1', scope: 'super-admin', email: 'u1@test.com' }, { expiresIn: 3600 });
     expect(await tokenValidator(makeRequest(`Bearer ${token}`), [])).toBe(true);
   });
 
@@ -211,7 +219,7 @@ describe('tokenValidator — OIDC mode, successful JWKS lookup', () => {
     // The jwks-rsa module was loaded (and cached) by tokenValidator's import above.
     // Re-importing it here fetches the same cached instance from the module registry.
     const { default: jwksRsa } = await import('jwks-rsa');
-    const token = signTestToken({ sub: 'u1', scope: 'super-admin' }, { expiresIn: 3600 });
+    const token = signTestToken({ sub: 'u1', scope: 'super-admin', email: 'u1@test.com' }, { expiresIn: 3600 });
     await tokenValidator(makeRequest(`Bearer ${token}`), []);
     await tokenValidator(makeRequest(`Bearer ${token}`), []);
     // The constructor should only be called once; the module-level client is reused.
@@ -243,7 +251,7 @@ describe('tokenValidator — OIDC mode, JWKS key retrieval failure', () => {
   });
 
   it('throws when JWKS returns an error for the kid lookup', async () => {
-    const token = signTestToken({ sub: 'u1', scope: 'super-admin' }, { expiresIn: 3600 });
+    const token = signTestToken({ sub: 'u1', scope: 'super-admin', email: 'u1@test.com' }, { expiresIn: 3600 });
     await expect(tokenValidator(makeRequest(`Bearer ${token}`), [])).rejects.toThrow('Invalid token: JWKS fetch failed');
   });
 });
@@ -277,7 +285,7 @@ describe('tokenValidator — OIDC mode, getPublicKey throws', () => {
   });
 
   it('throws when getPublicKey throws during signing key extraction', async () => {
-    const token = signTestToken({ sub: 'u1', scope: 'super-admin' }, { expiresIn: 3600 });
+    const token = signTestToken({ sub: 'u1', scope: 'super-admin', email: 'u1@test.com' }, { expiresIn: 3600 });
     await expect(tokenValidator(makeRequest(`Bearer ${token}`), [])).rejects.toThrow('Invalid token: key format unsupported');
   });
 });
@@ -304,7 +312,10 @@ describe('tokenValidator — OIDC mode, internal-request kid skips JWKS lookup',
   });
 
   it('does not call getSigningKey when token kid equals TokenScopes.INTERNAL_REQUEST', async () => {
-    const token = signTestToken({ sub: 'u1', scope: 'super-admin' }, { kid: TokenScopes.INTERNAL_REQUEST, expiresIn: 3600 });
+    const token = signTestToken(
+      { sub: 'u1', scope: 'super-admin', email: 'u1@test.com' },
+      { kid: TokenScopes.INTERNAL_REQUEST, expiresIn: 3600 },
+    );
     await expect(tokenValidator(makeRequest(`Bearer ${token}`), [])).resolves.toBe(true);
     expect(getSigningKeySpy).not.toHaveBeenCalled();
   });

@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router';
 import classnames from 'classnames';
 
 import CodeIcon from 'assets/icons/code-icon.svg?react';
+import WarningIcon from 'assets/icons/warning-icon.svg?react';
 import FaceIdIconSelected from 'assets/icons/face-id-icon-selected.svg?react';
 import FaceIdIconDeselected from 'assets/icons/face-id-icon-deselected.svg?react';
 import LockCircleIconSelected from 'assets/icons/lock-circle-icon-selected.svg?react';
@@ -27,6 +28,7 @@ export function DatasetsSettingsPage() {
     isLoading,
     isSaving,
     isOidcAuth,
+    hasMandatoryMetadata,
     visibility,
     setVisibility,
     emailInput,
@@ -84,9 +86,15 @@ export function DatasetsSettingsPage() {
             <h3 className={styles.SectionTitle}>{t('datasets.settings.metadata_preview.title')}</h3>
           </div>
           <p className={styles.SectionDescription}>{t('datasets.settings.metadata_preview.description')}</p>
-          <Link to={`/datasets/${id}`} className={styles.MetadataLink}>
+          <Link to={`/datasets/${id}`} className={styles.MetadataLink} target="_blank">
             {t('datasets.settings.metadata_preview.link')}
           </Link>
+          {!hasMandatoryMetadata && (
+            <div className={styles.MandatoryWarning} data-testid="mandatory-metadata-warning">
+              <WarningIcon className={styles.MandatoryWarningIcon} />
+              <span>{t('datasets.settings.metadata_preview.mandatory_warning')}</span>
+            </div>
+          )}
         </div>
 
         <div className={styles.Section}>
@@ -177,7 +185,7 @@ export function DatasetsSettingsPage() {
         <Button type="secondary" onClick={handleCancel}>
           {t('datasets.settings.actions.cancel')}
         </Button>
-        <Button type="primary" isDisabled={isSaving} onClick={handlePublish}>
+        <Button type="primary" isDisabled={isSaving || !hasMandatoryMetadata} onClick={handlePublish}>
           {t('datasets.settings.actions.publish')}
         </Button>
       </div>

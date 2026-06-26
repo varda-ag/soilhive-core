@@ -22,6 +22,7 @@ const _envVars = {
   MAPBOX_ACCESS_TOKEN: process.env.MAPBOX_ACCESS_TOKEN ?? '',
   GTM_CONTAINER_ID: process.env.GTM_CONTAINER_ID ?? '',
   COOKIE_DOMAIN: process.env.COOKIE_DOMAIN ?? '',
+  FEATURE_FLAGS: process.env.FEATURE_FLAGS ?? '',
 };
 const _envConfigPath = path.join(CLIENT_DIST, 'env-config.js');
 const _hasEnvVars = Object.values(_envVars).some(v => v !== '');
@@ -50,11 +51,30 @@ app.use(
 );
 
 // ---------------------------------------------------------------------------
-// SSR auth resolution — reads Bearer token from Authorization header only
+// SSR auth resolution
+//
+// On a document navigation the browser cannot attach an Authorization header
+// (the token lives in localStorage, which is never transmitted). The client
+// mirrors the token into a `token` cookie (see src/auth/tokenStore.ts) so it
+// rides along with the navigation. Read the cookie first, then fall back to
+// the Authorization header for any programmatic callers.
 // ---------------------------------------------------------------------------
 
+function readTokenCookie(req: Request): string | null {
+  const cookieHeader = req.headers.cookie;
+  if (!cookieHeader) return null;
+  for (const part of cookieHeader.split(';')) {
+    const eq = part.indexOf('=');
+    if (eq === -1) continue;
+    if (part.slice(0, eq).trim() === 'token') {
+      return decodeURIComponent(part.slice(eq + 1).trim()) || null;
+    }
+  }
+  return null;
+}
+
 function resolveAuthToken(req: Request): string | null {
-  const bearer = req.headers.authorization?.match(/^Bearer (.+)$/)?.[1];
+  const bearer = readTokenCookie(req) ?? req.headers.authorization?.match(/^Bearer (.+)$/)?.[1];
   if (!bearer) return null;
 
   // Decode JWT payload to check expiry (no signature verification needed —
@@ -106,6 +126,10 @@ app.use((req, res) => {
 
   render(url, { authToken })
     .then(result => {
+      if (result !== null && 'redirect' in result) {
+        res.redirect(302, result.redirect);
+        return;
+      }
       if (result !== null) {
         const { html: ssrContent, dehydratedState, head } = result;
         // SSR route: inject server-rendered HTML and mark the root element so
@@ -122,6 +146,7 @@ app.use((req, res) => {
               MAPBOX_ACCESS_TOKEN: process.env.MAPBOX_ACCESS_TOKEN ?? '',
               GTM_CONTAINER_ID: process.env.GTM_CONTAINER_ID ?? '',
               COOKIE_DOMAIN: process.env.COOKIE_DOMAIN ?? '',
+              FEATURE_FLAGS: process.env.FEATURE_FLAGS ?? '',
             })};window.__REACT_QUERY_STATE__=${JSON.stringify(dehydratedState)};</script>`,
           );
 

@@ -110,6 +110,11 @@ jest.mock('hooks/useIngestionStatus', () => ({
 
 describe('DatasetsPreviewStep', () => {
   beforeEach(() => {
+    global.ResizeObserver = jest.fn().mockImplementation(() => ({
+      observe: jest.fn(),
+      unobserve: jest.fn(),
+      disconnect: jest.fn(),
+    }));
     mockHook();
     jest.clearAllMocks();
     mockHook();
