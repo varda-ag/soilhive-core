@@ -51,11 +51,30 @@ app.use(
 );
 
 // ---------------------------------------------------------------------------
-// SSR auth resolution — reads Bearer token from Authorization header only
+// SSR auth resolution
+//
+// On a document navigation the browser cannot attach an Authorization header
+// (the token lives in localStorage, which is never transmitted). The client
+// mirrors the token into a `token` cookie (see src/auth/tokenStore.ts) so it
+// rides along with the navigation. Read the cookie first, then fall back to
+// the Authorization header for any programmatic callers.
 // ---------------------------------------------------------------------------
 
+function readTokenCookie(req: Request): string | null {
+  const cookieHeader = req.headers.cookie;
+  if (!cookieHeader) return null;
+  for (const part of cookieHeader.split(';')) {
+    const eq = part.indexOf('=');
+    if (eq === -1) continue;
+    if (part.slice(0, eq).trim() === 'token') {
+      return decodeURIComponent(part.slice(eq + 1).trim()) || null;
+    }
+  }
+  return null;
+}
+
 function resolveAuthToken(req: Request): string | null {
-  const bearer = req.headers.authorization?.match(/^Bearer (.+)$/)?.[1];
+  const bearer = readTokenCookie(req) ?? req.headers.authorization?.match(/^Bearer (.+)$/)?.[1];
   if (!bearer) return null;
 
   // Decode JWT payload to check expiry (no signature verification needed —
