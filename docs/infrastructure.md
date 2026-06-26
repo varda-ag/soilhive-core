@@ -23,7 +23,7 @@ SoilHive is composed of two application containers:
 | **backend** | Node.js API server — handles data access, geospatial queries, ingestion, and export | Port 3000 (internal) |
 | **frontend** | React SSR server (Express + React) — serves the web UI | Port 80 (external) |
 
-Both containers are lightweight and not the primary driver of infrastructure sizing. The PostgreSQL/PostGIS database is the dominant resource consumer. See *Why PostgreSQL/PostGIS Drives Sizing* below.
+Both containers are lightweight and not the primary driver of infrastructure sizing. The PostgreSQL/PostGIS database is the dominant resource consumer. See [Why PostgreSQL/PostGIS Drives Sizing](#why-postgresqlpostgis-drives-sizing) below.
 
 ---
 
