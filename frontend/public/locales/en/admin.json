@@ -197,6 +197,7 @@
                 "status": "Status",
                 "visibility": "Visibility",
                 "updated_at": "Updated At",
+                "updated_by": "Updated By",
                 "actions": "Actions"
             },
             "status": {

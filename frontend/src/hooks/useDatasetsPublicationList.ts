@@ -102,6 +102,7 @@ export function useDatasetsPublicationList(): DatasetsPublicationListType {
         name: dataset.name,
         status: dataset.status,
         updated_at: dataset.updated_at,
+        updated_by: dataset.updated_by,
         visibility: dataset.visibility,
         hasErrors: errorIds.has(dataset.id),
       })) || [];
