@@ -93,11 +93,11 @@ function DownloadSummary() {
 
   const onDownloadButtonClick = () => {
     if (filterId) {
-      const option = activeFormatOptions.find(o => o.id === selectedFormat);
+      const option = activeFormatOptions.find(o => o.id === selectedFormat)!;
       startDownload({
         filter_id: filterId,
         dataset_ids: selectedDatasets.map(dataset => dataset.id),
-        formats: option?.formats ?? [selectedFormat],
+        formats: option.formats,
       });
       setIsOpened(true);
       navigate('/');
