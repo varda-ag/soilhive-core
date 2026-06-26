@@ -12,6 +12,13 @@ interface Props {
   isLoading: boolean;
 }
 
+const COLORS = {
+  VALUES_MODIFIED: '#A2D141',
+  ROWS_DELETED: '#820005',
+  REMOVED_BY_USER: '#BC001F',
+  CELLS_DELETED: '#F5B200',
+};
+
 export function PreviewStepSummary({ removedByUser, soilDataSummary, isLoading }: Props) {
   const { t } = useTranslation('admin');
 
@@ -23,7 +30,7 @@ export function PreviewStepSummary({ removedByUser, soilDataSummary, isLoading }
           title={t('datasets.preview.summary.cards.values_modified.title')}
           primaryContent={{
             value: soilDataSummary.summary.values_modified,
-            color: '#A2D141',
+            color: COLORS.VALUES_MODIFIED,
             description: t('datasets.preview.summary.cards.values_modified.description'),
           }}
           isLoading={isLoading}
@@ -33,12 +40,12 @@ export function PreviewStepSummary({ removedByUser, soilDataSummary, isLoading }
           title={t('datasets.preview.summary.cards.rows_deleted.title')}
           primaryContent={{
             value: soilDataSummary.summary.rows_deleted,
-            color: '#820005',
+            color: COLORS.ROWS_DELETED,
             description: t('datasets.preview.summary.cards.rows_deleted.description_1'),
           }}
           secondaryContent={{
             value: removedByUser,
-            color: '#BC001F',
+            color: COLORS.REMOVED_BY_USER,
             description: t('datasets.preview.summary.cards.rows_deleted.description_2'),
           }}
           isLoading={isLoading}
@@ -48,7 +55,7 @@ export function PreviewStepSummary({ removedByUser, soilDataSummary, isLoading }
           title={t('datasets.preview.summary.cards.cells_deleted.title')}
           primaryContent={{
             value: soilDataSummary.summary.cells_deleted,
-            color: '#F5B200',
+            color: COLORS.CELLS_DELETED,
             description: t('datasets.preview.summary.cards.cells_deleted.description'),
           }}
           isLoading={isLoading}
@@ -57,7 +64,7 @@ export function PreviewStepSummary({ removedByUser, soilDataSummary, isLoading }
       <div className={styles.PreviewStepSummaryAccordions}>
         <PreviewSummaryAccordion
           config={{
-            color: '#A2D141',
+            color: COLORS.VALUES_MODIFIED,
             title: t('datasets.preview.summary.cards.values_modified.title'),
             total: soilDataSummary.summary.values_modified,
             items: [
@@ -69,7 +76,7 @@ export function PreviewStepSummary({ removedByUser, soilDataSummary, isLoading }
         />
         <PreviewSummaryAccordion
           config={{
-            color: '#820005',
+            color: COLORS.ROWS_DELETED,
             title: t('datasets.preview.summary.cards.rows_deleted.title'),
             total: soilDataSummary.summary.rows_deleted + removedByUser,
             items: [
@@ -93,7 +100,7 @@ export function PreviewStepSummary({ removedByUser, soilDataSummary, isLoading }
         <PreviewSummaryAccordion
           isLast
           config={{
-            color: '#F5B200',
+            color: COLORS.CELLS_DELETED,
             title: t('datasets.preview.summary.cards.cells_deleted.title'),
             total: soilDataSummary.summary.cells_deleted,
             items: [

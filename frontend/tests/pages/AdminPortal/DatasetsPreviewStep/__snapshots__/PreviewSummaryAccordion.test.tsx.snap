@@ -10,7 +10,7 @@ exports[`PreviewSummaryAccordion matches snapshot 1`] = `
       class="Header AccordionHeader"
       role="button"
     >
-      <p
+      <div
         class="Title"
       >
         <div
@@ -37,7 +37,7 @@ exports[`PreviewSummaryAccordion matches snapshot 1`] = `
             mock-svg
           </svg>
         </div>
-      </p>
+      </div>
     </div>
     <div
       class="Content"
@@ -101,7 +101,7 @@ exports[`PreviewSummaryAccordion matches snapshot with isLast 1`] = `
       class="Header AccordionHeader Last"
       role="button"
     >
-      <p
+      <div
         class="Title"
       >
         <div
@@ -128,7 +128,7 @@ exports[`PreviewSummaryAccordion matches snapshot with isLast 1`] = `
             mock-svg
           </svg>
         </div>
-      </p>
+      </div>
     </div>
     <div
       class="Content"

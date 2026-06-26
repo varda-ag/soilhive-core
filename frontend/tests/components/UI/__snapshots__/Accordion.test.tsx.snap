@@ -10,7 +10,7 @@ exports[`Accordion component renders with title and is closed by default 1`] = `
       class="Header"
       role="button"
     >
-      <p
+      <div
         class="Title"
       >
         My Accordion
@@ -24,7 +24,7 @@ exports[`Accordion component renders with title and is closed by default 1`] = `
             mock-svg
           </svg>
         </div>
-      </p>
+      </div>
     </div>
     <div
       class="Content"

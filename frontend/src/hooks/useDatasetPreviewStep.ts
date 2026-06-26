@@ -158,11 +158,12 @@ export function useDatasetPreview(datasetId?: string) {
     if (soilData?.length) {
       setAllSoilData(prev => [...prev, ...soilData]);
 
-      if (!selectedFile) return;
+      const file = selectedFileRef.current;
+      if (!file) return;
 
       setMarkedForDeletion(prev => {
         const next = new Map(prev);
-        const fileSet = new Set(next.get(selectedFile) ?? []);
+        const fileSet = new Set(next.get(file) ?? []);
 
         soilData.forEach(record => {
           if (record.user_dropped) {
@@ -170,11 +171,11 @@ export function useDatasetPreview(datasetId?: string) {
           }
         });
 
-        next.set(selectedFile, fileSet);
+        next.set(file, fileSet);
         return next;
       });
     }
-  }, [selectedFile, soilData]);
+  }, [soilData]);
 
   const loadMore = useCallback(() => {
     if (!soilData?.length || !hasMore) return;

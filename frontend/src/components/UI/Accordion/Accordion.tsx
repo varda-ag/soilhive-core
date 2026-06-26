@@ -80,7 +80,7 @@ export function Accordion({
         role="button"
         onClick={handleOnToggle}
       >
-        <p className={styles.Title}>
+        <div className={styles.Title}>
           {type === 'tertiary' && <ArrowDownIcon className={styles.ArrowIcon} />}
           {!!Icon && <Icon className={styles.Icon} />}
           {title}
@@ -90,7 +90,7 @@ export function Accordion({
               <ArrowDownIcon className={styles.ArrowIcon} />
             </div>
           )}
-        </p>
+        </div>
       </div>
       {pillsSlot && <div className={styles.PillsContainer}>{pillsSlot}</div>}
       <div className={styles.Content}>{children}</div>
