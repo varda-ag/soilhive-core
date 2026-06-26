@@ -60,6 +60,7 @@ const baseHookValue = {
   isLoading: false,
   isSaving: false,
   isOidcAuth: true,
+  hasMandatoryMetadata: true,
   visibility: 'public' as const,
   setVisibility,
   emailInput: '',
@@ -208,5 +209,32 @@ describe('DatasetsSettingsPage', () => {
     render(<DatasetsSettingsPage />);
     fireEvent.click(screen.getByTestId('sh-ui-dialog-cancel'));
     expect(handlePublishProceed).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not show the mandatory warning banner when all metadata is filled', () => {
+    (useDatasetsSettings as jest.Mock).mockReturnValue({ ...baseHookValue, hasMandatoryMetadata: true });
+    render(<DatasetsSettingsPage />);
+    expect(screen.queryByTestId('mandatory-metadata-warning')).not.toBeInTheDocument();
+  });
+
+  it('shows the mandatory warning banner when metadata is incomplete', () => {
+    (useDatasetsSettings as jest.Mock).mockReturnValue({ ...baseHookValue, hasMandatoryMetadata: false });
+    render(<DatasetsSettingsPage />);
+    expect(screen.getByTestId('mandatory-metadata-warning')).toBeInTheDocument();
+    expect(screen.getByTestId('mandatory-metadata-warning')).toHaveTextContent(
+      'You need to fill all the mandatory metadata fields before publishing.',
+    );
+  });
+
+  it('publish button is disabled when mandatory metadata is missing', () => {
+    (useDatasetsSettings as jest.Mock).mockReturnValue({ ...baseHookValue, hasMandatoryMetadata: false });
+    render(<DatasetsSettingsPage />);
+    expect(screen.getByTestId('sh-ui-button-primary')).toBeDisabled();
+  });
+
+  it('publish button is enabled when all metadata is filled and not saving', () => {
+    (useDatasetsSettings as jest.Mock).mockReturnValue({ ...baseHookValue, hasMandatoryMetadata: true, isSaving: false });
+    render(<DatasetsSettingsPage />);
+    expect(screen.getByTestId('sh-ui-button-primary')).not.toBeDisabled();
   });
 });

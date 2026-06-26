@@ -230,4 +230,43 @@ describe('EditorRow', () => {
     const { container } = render(<EditorRow {...defaultProps} variant="text" isEditable={true} />);
     expect(container).toMatchSnapshot();
   });
+
+  describe('isRequired – text variant', () => {
+    it('disables Save when field is empty', () => {
+      render(<EditorRow {...defaultProps} variant="text" isEditable={true} isRequired value="Initial" />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+      fireEvent.change(screen.getByTestId('sh-ui-textinputfield'), { target: { value: '' } });
+
+      expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+    });
+
+    it('enables Save when field has content', () => {
+      render(<EditorRow {...defaultProps} variant="text" isEditable={true} isRequired value="" />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+      fireEvent.change(screen.getByTestId('sh-ui-textinputfield'), { target: { value: 'New Value' } });
+
+      expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled();
+    });
+  });
+
+  describe('isRequired – editor variant', () => {
+    it('disables Save when editor is empty', () => {
+      render(<EditorRow {...defaultProps} variant="editor" isEditable={true} isRequired value="" />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+
+      expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+    });
+
+    it('enables Save when editor has content', () => {
+      render(<EditorRow {...defaultProps} variant="editor" isEditable={true} isRequired value="" />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+      fireEvent.change(screen.getByTestId('mock-editor'), { target: { value: '<p>Content</p>' } });
+
+      expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled();
+    });
+  });
 });

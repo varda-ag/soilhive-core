@@ -192,6 +192,25 @@ describe('LicenseRow', () => {
     });
   });
 
+  describe('isRequired', () => {
+    it('disables Save when no license is selected', () => {
+      render(<LicenseRow {...defaultProps} isEditable={true} isRequired currentLicenseIds={[]} />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+
+      expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+    });
+
+    it('enables Save when a license is selected', () => {
+      render(<LicenseRow {...defaultProps} isEditable={true} isRequired currentLicenseIds={[]} />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+      fireEvent.change(screen.getByTestId('sh-ui-dropdown'), { target: { value: 'lic-1' } });
+
+      expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled();
+    });
+  });
+
   describe('custom license flow', () => {
     const enterCustomLicense = () => {
       fireEvent.click(screen.getByRole('button', { name: 'Edit' }));

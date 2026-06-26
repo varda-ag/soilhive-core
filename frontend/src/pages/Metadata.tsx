@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useParams } from 'react-router';
+import { useParams, Navigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import classnames from 'classnames';
 import { useMetadata, type SaveCallbacks } from 'hooks/useMetadata';
 import { useEntitlements, ADMIN_PORTAL_ACCESS } from 'hooks/useEntitlementsHook';
+import { useAuthContext } from '../auth/AuthContextProvider';
+import { IngestionStatus } from 'types/backend';
 import useDevice from 'hooks/useDevice';
 import styles from './Metadata.module.scss';
 import Worm from 'assets/images/worm.svg?react';
@@ -35,6 +37,7 @@ export default function Metadata() {
   useEffect(() => setIsMounted(true), []);
   const { dataset, allLicenses, inferredProperties, isLoading, isError, updateProperty, updateRelatedResources } = useMetadata(id);
   const { can } = useEntitlements();
+  const { isLoading: isAuthLoading } = useAuthContext();
   const { isMobileLayout } = useDevice();
   const isAdmin = isMounted && !isMobileLayout && can(ADMIN_PORTAL_ACCESS);
   const [isEditing, setIsEditing] = useState(false);
@@ -123,6 +126,9 @@ export default function Metadata() {
 
   if (isLoading) return <p>{t('loading')}</p>;
   if (isError) return <p>{t('error_load_failed')}</p>;
+  if (!isAuthLoading && dataset?.status !== IngestionStatus.PUBLISHED && !can(ADMIN_PORTAL_ACCESS)) {
+    return <Navigate to="/" replace />;
+  }
 
   return (
     <div className={styles.Page}>
@@ -193,24 +199,27 @@ export default function Metadata() {
 
       <div className={styles.Content}>
         <div className={styles.DatasetProperties}>
-          <div
-            className={classnames(styles.TopRow, {
-              [styles.AdminView]: isAdmin,
-            })}
-          >
-            {isAdmin && (
-              <div className={styles.AdminNotice}>
-                <InfoIcon />
-                <span>{t('admin_notice')}</span>
-              </div>
-            )}
-            {!!dataset?.updated_at && (
-              <p className={styles.LastUpdated} data-testid="sh-last-update">
-                {t('last_update', {
-                  date: dateStringToDDMMYYYY(dataset.updated_at, '/'),
-                })}
-              </p>
-            )}
+          <div className={styles.DatasetPropertiesHeader}>
+            <div className={styles.MandatoryTitle}>{t('mandatory_properties_title')}</div>
+            <div
+              className={classnames(styles.TopRow, {
+                [styles.AdminView]: isAdmin,
+              })}
+            >
+              {isAdmin && (
+                <div className={styles.AdminNotice}>
+                  <InfoIcon />
+                  <span>{t('admin_notice')}</span>
+                </div>
+              )}
+              {!!dataset?.updated_at && (
+                <p className={styles.LastUpdated} data-testid="sh-last-update">
+                  {t('last_update', {
+                    date: dateStringToDDMMYYYY(dataset.updated_at, '/'),
+                  })}
+                </p>
+              )}
+            </div>
           </div>
           <EditorRow
             label={t('fields.name')}
@@ -219,6 +228,7 @@ export default function Metadata() {
             placeholder={t('placeholders.name')}
             property="name"
             variant="text"
+            isRequired
             onStartEditing={onStartEditing}
             onSave={onSave}
             onCancel={onCancel}
@@ -230,6 +240,7 @@ export default function Metadata() {
             placeholder={t('placeholders.full_name')}
             property="full_name"
             variant="text"
+            isRequired
             onStartEditing={onStartEditing}
             onSave={onSave}
             onCancel={onCancel}
@@ -241,6 +252,7 @@ export default function Metadata() {
             placeholder={t('placeholders.version')}
             property="version"
             variant="text"
+            isRequired
             onStartEditing={onStartEditing}
             onSave={onSave}
             onCancel={onCancel}
@@ -251,6 +263,7 @@ export default function Metadata() {
             isEditable={isAdmin && !isEditing}
             placeholder={t('placeholders.description')}
             property="description"
+            isRequired
             onStartEditing={onStartEditing}
             onSave={onSave}
             onCancel={onCancel}
@@ -262,6 +275,7 @@ export default function Metadata() {
             placeholder={t('placeholders.author')}
             property="author"
             variant="text"
+            isRequired
             onStartEditing={onStartEditing}
             onSave={onSave}
             onCancel={onCancel}
@@ -294,6 +308,7 @@ export default function Metadata() {
             value={(dataset?.soil_depth as { min?: number } | null | undefined)?.min}
             isEditable={isAdmin && !inferredProperties.has('soil_depth') && !isEditing}
             property="soil_depth_min"
+            isRequired
             onStartEditing={onStartEditing}
             onSave={onSave}
             onCancel={onCancel}
@@ -303,6 +318,7 @@ export default function Metadata() {
             value={(dataset?.soil_depth as { max?: number } | null | undefined)?.max}
             isEditable={isAdmin && !inferredProperties.has('soil_depth') && !isEditing}
             property="soil_depth_max"
+            isRequired
             onStartEditing={onStartEditing}
             onSave={onSave}
             onCancel={onCancel}
@@ -324,6 +340,7 @@ export default function Metadata() {
             placeholder={t('placeholders.spatial_resolution')}
             property="spatial_resolution"
             variant="text"
+            isRequired
             onStartEditing={onStartEditing}
             onSave={onSave}
             onCancel={onCancel}
@@ -335,6 +352,7 @@ export default function Metadata() {
             placeholder={t('placeholders.reference_period_start')}
             property="reference_period_start"
             variant="text"
+            isRequired
             onStartEditing={onStartEditing}
             onSave={onSave}
             onCancel={onCancel}
@@ -346,6 +364,7 @@ export default function Metadata() {
             placeholder={t('placeholders.reference_period_stop')}
             property="reference_period_stop"
             variant="text"
+            isRequired
             onStartEditing={onStartEditing}
             onSave={onSave}
             onCancel={onCancel}
@@ -357,6 +376,7 @@ export default function Metadata() {
             placeholder={t('placeholders.publication_date')}
             property="publication_date"
             variant="text"
+            isRequired
             onStartEditing={onStartEditing}
             onSave={onSave}
             onCancel={onCancel}
@@ -367,6 +387,7 @@ export default function Metadata() {
             allLicenses={allLicenses ?? []}
             isEditable={isAdmin && !inferredProperties.has('licenses') && !isEditing}
             property="licenses"
+            isRequired
             onStartEditing={onStartEditing}
             onSave={onSave}
             onCancel={onCancel}
@@ -377,6 +398,7 @@ export default function Metadata() {
             isEditable={isAdmin && !isEditing}
             placeholder={t('placeholders.citation')}
             property="citation"
+            isRequired
             onStartEditing={onStartEditing}
             onSave={onSave}
             onCancel={onCancel}
