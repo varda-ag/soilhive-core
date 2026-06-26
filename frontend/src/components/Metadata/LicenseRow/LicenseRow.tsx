@@ -18,6 +18,7 @@ export function LicenseRow({
   allLicenses,
   isEditable,
   property,
+  isRequired,
   onStartEditing,
   onSave,
   onCancel,
@@ -27,6 +28,7 @@ export function LicenseRow({
   allLicenses: License[];
   isEditable: boolean;
   property: string;
+  isRequired?: boolean;
   onStartEditing: (property: string) => void;
   onSave: (property: string, value: string, callbacks: SaveCallbacks) => void;
   onCancel: (property: string) => void;
@@ -57,6 +59,8 @@ export function LicenseRow({
           })
           .join(', ')
       : undefined;
+
+  const isSaveDisabled = isRequired ? !editValue : false;
 
   const handleSave = () => {
     if (editValue === NEW_LICENSE_CODE) {
@@ -165,7 +169,11 @@ export function LicenseRow({
             )}
           </div>
           <div className={styles.EditActions}>
-            <Button size="small" onClick={handleSave} isDisabled={isSaving || (editValue === NEW_LICENSE_CODE && !newLicenseName.trim())}>
+            <Button
+              size="small"
+              onClick={handleSave}
+              isDisabled={isSaving || isSaveDisabled || (editValue === NEW_LICENSE_CODE && !newLicenseName.trim())}
+            >
               {isSaving ? t('editor.saving') : t('editor.save')}
             </Button>
             <Button

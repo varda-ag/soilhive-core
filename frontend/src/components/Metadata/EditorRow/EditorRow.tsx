@@ -7,6 +7,7 @@ import { EDITOR_HEADER } from 'configuration/editor';
 import styles from './EditorRow.module.scss';
 import { Button, TextInput } from 'components/UI';
 import { htmlDisplay } from 'utilities/isomorphicHTMLDisplay';
+import { isEmptyString, hasTextContent } from 'utilities/validation';
 import EditIcon from 'assets/icons/pencil-icon.svg?react';
 
 export function EditorRow({
@@ -18,6 +19,7 @@ export function EditorRow({
   placeholder,
   displayPlaceholder,
   disableBackground,
+  isRequired,
   onStartEditing,
   onSave,
   onCancel,
@@ -32,6 +34,7 @@ export function EditorRow({
   /** Text shown in view mode when the field has no value. Replaces the empty display area so the row never looks blank. */
   displayPlaceholder?: string;
   disableBackground?: boolean;
+  isRequired?: boolean;
   onStartEditing: (property: string) => void;
   onSave: (property: string, value: string, callbacks: SaveCallbacks) => void;
   onCancel: (property: string) => void;
@@ -42,6 +45,8 @@ export function EditorRow({
   const [editValue, setEditValue] = useState(value ?? '');
 
   const { showNotification } = useNotifications();
+
+  const isSaveDisabled = isRequired ? (variant === 'editor' ? !hasTextContent(editValue) : isEmptyString(editValue)) : false;
 
   const handleSave = () => {
     setIsSaving(true);
@@ -89,7 +94,7 @@ export function EditorRow({
             </div>
           )}
           <div className={styles.EditActions}>
-            <Button size="small" onClick={handleSave} isDisabled={isSaving}>
+            <Button size="small" onClick={handleSave} isDisabled={isSaving || isSaveDisabled}>
               {isSaving ? t('editor.saving') : t('editor.save')}
             </Button>
             <Button

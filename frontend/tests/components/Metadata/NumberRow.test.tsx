@@ -136,6 +136,26 @@ describe('NumberRow', () => {
     });
   });
 
+  describe('isRequired', () => {
+    it('disables Save when field is empty', () => {
+      render(<NumberRow {...defaultProps} isEditable={true} isRequired value={10} />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+      fireEvent.change(screen.getByTestId('sh-ui-textinputfield'), { target: { value: '' } });
+
+      expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+    });
+
+    it('enables Save when field has a value', () => {
+      render(<NumberRow {...defaultProps} isEditable={true} isRequired value={undefined} />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+      fireEvent.change(screen.getByTestId('sh-ui-textinputfield'), { target: { value: '25' } });
+
+      expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled();
+    });
+  });
+
   describe('cancel flow', () => {
     it('clicking Cancel calls onCancel and exits editing mode', () => {
       const onCancel = jest.fn();

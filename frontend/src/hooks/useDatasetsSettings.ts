@@ -54,6 +54,29 @@ export function useDatasetsSettings(datasetId: string | undefined) {
   const isLoading = isDatasetLoading || isEntitlementsLoading;
   const isSaving = updateDataset.isPending || updateEntitlements.isPending;
 
+  const hasMandatoryMetadata =
+    !!dataset &&
+    [
+      dataset.name,
+      dataset.full_name,
+      dataset.version,
+      dataset.author,
+      dataset.description,
+      dataset.spatial_resolution,
+      dataset.publication_date,
+      dataset.citation,
+      dataset.reference_period_start,
+      dataset.reference_period_stop,
+      dataset.gis_datatype,
+    ].every(v => typeof v === 'string' && v.trim().length > 0) &&
+    Array.isArray(dataset.licenses) &&
+    dataset.licenses.length > 0 &&
+    Array.isArray(dataset.measured_properties) &&
+    dataset.measured_properties.length > 0 &&
+    dataset.soil_depth != null &&
+    (dataset.soil_depth as { min?: number; max?: number }).min != null &&
+    (dataset.soil_depth as { min?: number; max?: number }).max != null;
+
   function handleEmailChange(value: string) {
     setEmailInput(value);
     setEmailError('');
@@ -131,6 +154,7 @@ export function useDatasetsSettings(datasetId: string | undefined) {
     isLoading,
     isSaving,
     isOidcAuth,
+    hasMandatoryMetadata,
     visibility,
     setVisibility,
     emailInput,

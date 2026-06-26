@@ -37,15 +37,33 @@ jest.mock('hooks/useTheme', () => ({
   default: jest.fn(),
 }));
 
+const fullyFilledDataset = {
+  visibility: 'public',
+  name: 'Test Dataset',
+  full_name: 'Test Dataset Full Name',
+  version: '1.0',
+  author: 'Test Author',
+  description: 'A description',
+  spatial_resolution: '250m',
+  publication_date: '2021-06-01',
+  citation: 'Test citation',
+  reference_period_start: '2020-01-01',
+  reference_period_stop: '2020-12-31',
+  gis_datatype: 'raster',
+  licenses: ['lic-1'],
+  measured_properties: [{ slug: 'ph' }],
+  soil_depth: { min: 0, max: 30 },
+};
+
 function setupMocks({
   authMode = 'oidc',
-  datasetVisibility = 'public',
+  dataset = { visibility: 'public' } as any,
   entitlements = {},
   privacyPolicyHtml = '',
   termsAndConditionsHtml = '',
 } = {}) {
   (useAuthContext as jest.Mock).mockReturnValue({ authMode });
-  (useDataset as jest.Mock).mockReturnValue({ data: { visibility: datasetVisibility }, isLoading: false });
+  (useDataset as jest.Mock).mockReturnValue({ data: dataset, isLoading: false });
   (useDatasetEntitlements as jest.Mock).mockReturnValue({ data: entitlements, isLoading: false });
   (useUpdateDatasetMutation as jest.Mock).mockReturnValue({ mutateAsync: mockMutateAsync, isPending: false });
   (useDatasetEntitlementsMutation as jest.Mock).mockReturnValue({ mutateAsync: mockMutateAsync, isPending: false });
@@ -57,7 +75,7 @@ describe('useDatasetsSettings', () => {
   afterEach(() => jest.clearAllMocks());
 
   it('initialises visibility from dataset API response', async () => {
-    setupMocks({ datasetVisibility: 'public' });
+    setupMocks({ dataset: { visibility: 'public' } });
     const { result } = renderHook(() => useDatasetsSettings('dataset-123'), { wrapper: queryClientWrapper });
     await waitFor(() => expect(result.current.visibility).toBe('public'));
   });
@@ -260,7 +278,7 @@ describe('useDatasetsSettings', () => {
 
   describe('handlePublishProceed', () => {
     it('patches visibility and status=PUBLISHED and navigates on success', async () => {
-      setupMocks({ datasetVisibility: 'public' });
+      setupMocks({ dataset: { visibility: 'public' } });
       const { result } = renderHook(() => useDatasetsSettings('dataset-123'), { wrapper: queryClientWrapper });
       await waitFor(() => expect(result.current.visibility).toBe('public'));
       await act(() => result.current.handlePublishProceed());
@@ -269,7 +287,7 @@ describe('useDatasetsSettings', () => {
     });
 
     it('also updates entitlements when private and emails are present', async () => {
-      setupMocks({ datasetVisibility: 'private' });
+      setupMocks({ dataset: { visibility: 'private' } });
       const { result } = renderHook(() => useDatasetsSettings('dataset-123'), { wrapper: queryClientWrapper });
       await waitFor(() => expect(result.current.visibility).toBe('private'));
       act(() => result.current.handleEmailChange('user@example.com'));
@@ -280,7 +298,7 @@ describe('useDatasetsSettings', () => {
     });
 
     it('updates entitlements with empty payload when private and no emails (revokes all access)', async () => {
-      setupMocks({ datasetVisibility: 'private' });
+      setupMocks({ dataset: { visibility: 'private' } });
       const { result } = renderHook(() => useDatasetsSettings('dataset-123'), { wrapper: queryClientWrapper });
       await waitFor(() => expect(result.current.visibility).toBe('private'));
       await act(() => result.current.handlePublishProceed());
@@ -289,7 +307,7 @@ describe('useDatasetsSettings', () => {
     });
 
     it('does not update entitlements when public', async () => {
-      setupMocks({ datasetVisibility: 'public' });
+      setupMocks({ dataset: { visibility: 'public' } });
       const { result } = renderHook(() => useDatasetsSettings('dataset-123'), { wrapper: queryClientWrapper });
       act(() => result.current.handleEmailChange('user@example.com'));
       act(() => result.current.handleAddEmail());
@@ -322,6 +340,44 @@ describe('useDatasetsSettings', () => {
       const { result } = renderHook(() => useDatasetsSettings('dataset-123'), { wrapper: queryClientWrapper });
       act(() => result.current.handleCancel());
       expect(mockNavigate).toHaveBeenCalledWith(ADMIN_PATHS.DATASETS);
+    });
+  });
+
+  describe('hasMandatoryMetadata', () => {
+    it('is true when all mandatory fields are present', () => {
+      setupMocks({ dataset: fullyFilledDataset });
+      const { result } = renderHook(() => useDatasetsSettings('dataset-123'), { wrapper: queryClientWrapper });
+      expect(result.current.hasMandatoryMetadata).toBe(true);
+    });
+
+    it('is false when version is missing', () => {
+      setupMocks({ dataset: { ...fullyFilledDataset, version: null } });
+      const { result } = renderHook(() => useDatasetsSettings('dataset-123'), { wrapper: queryClientWrapper });
+      expect(result.current.hasMandatoryMetadata).toBe(false);
+    });
+
+    it('is false when licenses array is empty', () => {
+      setupMocks({ dataset: { ...fullyFilledDataset, licenses: [] } });
+      const { result } = renderHook(() => useDatasetsSettings('dataset-123'), { wrapper: queryClientWrapper });
+      expect(result.current.hasMandatoryMetadata).toBe(false);
+    });
+
+    it('is false when measured_properties is empty', () => {
+      setupMocks({ dataset: { ...fullyFilledDataset, measured_properties: [] } });
+      const { result } = renderHook(() => useDatasetsSettings('dataset-123'), { wrapper: queryClientWrapper });
+      expect(result.current.hasMandatoryMetadata).toBe(false);
+    });
+
+    it('is false when soil_depth min is null', () => {
+      setupMocks({ dataset: { ...fullyFilledDataset, soil_depth: { min: null, max: 30 } } });
+      const { result } = renderHook(() => useDatasetsSettings('dataset-123'), { wrapper: queryClientWrapper });
+      expect(result.current.hasMandatoryMetadata).toBe(false);
+    });
+
+    it('is false when dataset is null', () => {
+      setupMocks({ dataset: null });
+      const { result } = renderHook(() => useDatasetsSettings('dataset-123'), { wrapper: queryClientWrapper });
+      expect(result.current.hasMandatoryMetadata).toBe(false);
     });
   });
 });
