@@ -198,4 +198,32 @@ describe('useDatasetsPublicationList', () => {
 
     expect(navigate).toHaveBeenCalledWith(`${ADMIN_PATHS.DATASETS}/new`);
   });
+
+  it('filteredDatasets maps updated_by from dataset', () => {
+    (useDatasets as jest.Mock).mockReturnValue({
+      datasets: [{ id: '1', name: 'Carbon Dataset', updated_by: 'user-uuid-123' }],
+      isLoading: false,
+    });
+
+    const { result } = renderHook(() => useDatasetsPublicationList());
+
+    expect(result.current.filteredDatasets[0].updated_by).toBe('user-uuid-123');
+  });
+
+  it('filteredDatasets carries updated_by as null when dataset has null updated_by', () => {
+    (useDatasets as jest.Mock).mockReturnValue({
+      datasets: [{ id: '1', name: 'Carbon Dataset', updated_by: null }],
+      isLoading: false,
+    });
+
+    const { result } = renderHook(() => useDatasetsPublicationList());
+
+    expect(result.current.filteredDatasets[0].updated_by).toBeNull();
+  });
+
+  it('filteredDatasets carries updated_by as undefined when dataset has no updated_by', () => {
+    const { result } = renderHook(() => useDatasetsPublicationList());
+
+    expect(result.current.filteredDatasets[0].updated_by).toBeUndefined();
+  });
 });
