@@ -82,7 +82,7 @@ function DownloadSummary() {
 
   useEffect(() => {
     setSelectedFormat(defaultFormat);
-  }, [scenario]);
+  }, [scenario, defaultFormat]);
 
   const onFormatDropdownChange = (e: DropdownChangeEvent) => {
     setSelectedFormat(e.value);
@@ -93,7 +93,12 @@ function DownloadSummary() {
 
   const onDownloadButtonClick = () => {
     if (filterId) {
-      startDownload({ filter_id: filterId, dataset_ids: selectedDatasets.map(dataset => dataset.id), formats: [selectedFormat] });
+      const option = activeFormatOptions.find(o => o.id === selectedFormat);
+      startDownload({
+        filter_id: filterId,
+        dataset_ids: selectedDatasets.map(dataset => dataset.id),
+        formats: option?.formats ?? [selectedFormat],
+      });
       setIsOpened(true);
       navigate('/');
     }
