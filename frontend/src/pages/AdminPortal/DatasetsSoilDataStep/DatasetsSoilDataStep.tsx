@@ -13,6 +13,7 @@ const DOCS_URL = `${INGESTION_DOCS_URL}#file-upload`;
 export function DatasetsSoilDataStep() {
   const { t } = useTranslation('admin');
   const {
+    datasetName,
     fileInputRef,
     soilDataFiles,
     uploadingFiles,
@@ -31,7 +32,12 @@ export function DatasetsSoilDataStep() {
 
   return (
     <div className={styles.DatasetsSoilDataStep}>
-      <IngestionStepTitleRow className={styles.TitleRow} title={t('datasets.soil_data.title')} docsLink={DOCS_URL} />
+      <IngestionStepTitleRow
+        className={styles.TitleRow}
+        title={t('datasets.soil_data.title')}
+        datasetName={datasetName}
+        docsLink={DOCS_URL}
+      />
 
       <FileUploadBox
         files={uploadingFiles}

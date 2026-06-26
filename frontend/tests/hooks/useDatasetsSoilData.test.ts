@@ -4,6 +4,7 @@ import { useFileManagement } from 'hooks/useFileManagement';
 import { useApiQuery } from 'hooks/useApiQuery';
 import { useCreateDatasetFileMapping } from 'hooks/useDatasetMutation';
 import useIngestionFlow from 'hooks/useIngestionFlow';
+import { useDataset } from 'hooks/useDatasets';
 
 // --- Module mocks -----------------------------------------------------------
 
@@ -60,6 +61,8 @@ jest.mock('hooks/useIngestionFlow', () => ({
   default: jest.fn(),
 }));
 
+jest.mock('hooks/useDatasets', () => ({ useDataset: jest.fn() }));
+
 const mockMarkAsChanged = jest.fn();
 const mockResetChanges = jest.fn();
 
@@ -94,6 +97,7 @@ describe('useDatasetsSoilData', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (useIngestionFlow as jest.Mock).mockReturnValue({ markAsChanged: mockMarkAsChanged, resetChanges: mockResetChanges });
+    (useDataset as jest.Mock).mockReturnValue({ data: { name: 'Mock-dataset' } });
   });
 
   // --- isContinueEnabled ---------------------------------------------------

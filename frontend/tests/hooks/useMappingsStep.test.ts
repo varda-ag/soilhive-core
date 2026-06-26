@@ -7,6 +7,7 @@ import { useCreateProcedureMutation } from 'hooks/useCreateProcedureMutation';
 import { useCreateMappingsMutation } from 'hooks/useCreateMappingsMutation';
 import { useCreateJobMutation, useJobsQueries } from 'hooks/useJobsApi';
 import useIngestionFlow from 'hooks/useIngestionFlow';
+import { useDataset } from 'hooks/useDatasets';
 
 jest.mock('react-router', () => ({
   useNavigate: jest.fn(),
@@ -65,6 +66,8 @@ jest.mock('@tanstack/react-query', () => ({
   useQueryClient: jest.fn(() => mockQueryClient),
 }));
 
+jest.mock('hooks/useDatasets', () => ({ useDataset: jest.fn() }));
+
 const mockUseApiQuery = useApiQuery as jest.Mock;
 const mockUseSoilProperties = useSoilProperties as jest.Mock;
 
@@ -76,6 +79,7 @@ beforeEach(() => {
   mockUseSoilProperties.mockReturnValue({ data: undefined, isLoading: false });
   mockQueryClient.invalidateQueries.mockClear();
   (useIngestionFlow as jest.Mock).mockReturnValue({ markAsChanged: mockMarkAsChanged, resetChanges: mockResetChanges });
+  (useDataset as jest.Mock).mockReturnValue({ data: { name: 'Mock-dataset' } });
 });
 
 const defaultDatasetFileMappings = [{ id: 'dfm-1', fileID: 'file-1' }];

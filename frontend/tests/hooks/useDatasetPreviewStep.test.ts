@@ -97,7 +97,6 @@ function setupMocks(
     soilProperties?: any;
     isLoadingSoilData?: boolean;
     datasetData?: any;
-    isDatasetLoading?: boolean;
     soilDataStats?: CleaningReport | undefined;
     isStatsLoading?: boolean;
   } = {},
@@ -108,11 +107,10 @@ function setupMocks(
   const soilPropsData = 'soilProperties' in overrides ? overrides.soilProperties : soilProperties;
   const isLoadingSoilData = overrides.isLoadingSoilData ?? false;
   const datasetData = 'datasetData' in overrides ? overrides.datasetData : mockDataset;
-  const isDatasetLoading = overrides.isDatasetLoading ?? false;
   const soilDataStatsData = 'soilDataStats' in overrides ? overrides.soilDataStats : undefined;
   const isStatsLoadingVal = overrides.isStatsLoading ?? false;
 
-  (useDataset as jest.Mock).mockReturnValue({ data: datasetData, isLoading: isDatasetLoading });
+  (useDataset as jest.Mock).mockReturnValue({ data: datasetData });
   (useSoilProperties as jest.Mock).mockReturnValue({ data: soilPropsData, isLoading: false });
 
   (useApiQuery as jest.Mock).mockImplementation(({ queryKey, enabled }: { queryKey: string[]; enabled?: boolean }) => {
@@ -373,12 +371,6 @@ describe('useDatasetPreview', () => {
     setupMocks({ datasetData: undefined });
     const { result } = renderHook(() => useDatasetPreview(DATASET_ID));
     expect(result.current.datasetName).toBe('');
-  });
-
-  it('isLoading is true when dataset is loading', () => {
-    setupMocks({ isDatasetLoading: true });
-    const { result } = renderHook(() => useDatasetPreview(DATASET_ID));
-    expect(result.current.isLoading).toBe(true);
   });
 
   it('handlePrevious navigates to the mappings step', () => {

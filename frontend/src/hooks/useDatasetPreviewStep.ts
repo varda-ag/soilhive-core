@@ -63,7 +63,7 @@ export function useDatasetPreview(datasetId?: string) {
   const [availableColumns, setAvailableColumns] = useState<string[]>([]);
   const [showLoadingPanel, setShowLoadingPanel] = useState(false);
 
-  const { data: dataset, isLoading: isDatasetLoading } = useDataset(datasetId);
+  const { data: dataset } = useDataset(datasetId);
 
   const { data: soilProperties, isLoading: isLoadingSoilProperties } = useSoilProperties();
 
@@ -289,8 +289,7 @@ export function useDatasetPreview(datasetId?: string) {
     [datasetFileMappings],
   );
 
-  const isLoading =
-    isLoadingSoilProperties || isLoadingMappings || isLoadingFileMapping || isLoadingSoilData || isLoadingFiles || isDatasetLoading;
+  const isLoading = isLoadingSoilProperties || isLoadingMappings || isLoadingFileMapping || isLoadingSoilData || isLoadingFiles;
 
   const { mutateAsync: createJob } = useCreateJobMutation();
 
