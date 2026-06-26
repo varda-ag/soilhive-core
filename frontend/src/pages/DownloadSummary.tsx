@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import useDevice from 'hooks/useDevice';
 import { Button } from 'components/UI';
 import styles from './DownloadSummary.module.scss';
@@ -67,6 +67,22 @@ function DownloadSummary() {
   const [selectedFormat, setSelectedFormat] = useState<string>('csv');
   const [showUpdatedMessage, setShowUpdatedMessage] = useState(false);
   const [termsAgreed, setTermsAgreed] = useState(false);
+
+  const scenario = useMemo(() => {
+    if (selectedDatasets.length === 0 || selectedDatasets.every(d => d.dataType !== GISDataType.RASTER)) return 'vector' as const;
+    if (selectedDatasets.every(d => d.dataType === GISDataType.RASTER)) return 'raster' as const;
+    return 'mixed' as const;
+  }, [selectedDatasets]);
+
+  const { activeFormatOptions, defaultFormat } = useMemo(() => {
+    if (scenario === 'raster') return { activeFormatOptions: RASTER_FORMAT_OPTIONS, defaultFormat: 'tiff' };
+    if (scenario === 'mixed') return { activeFormatOptions: MIXED_FORMAT_OPTIONS, defaultFormat: 'gpkg' };
+    return { activeFormatOptions: VECTOR_FORMAT_OPTIONS, defaultFormat: 'csv' };
+  }, [scenario]);
+
+  useEffect(() => {
+    setSelectedFormat(defaultFormat);
+  }, [scenario]);
 
   const onFormatDropdownChange = (e: DropdownChangeEvent) => {
     setSelectedFormat(e.value);
@@ -169,7 +185,7 @@ function DownloadSummary() {
                   className={styles.FormatPickerDropdown}
                   panelClassName={styles.FormatPickerDropdownPanel}
                   value={selectedFormat}
-                  options={VECTOR_FORMAT_OPTIONS}
+                  options={activeFormatOptions}
                   onChange={onFormatDropdownChange}
                   optionValue="id"
                   optionLabel="name"
