@@ -6,6 +6,8 @@ import { useCreateJobMutation } from 'hooks/useJobsApi';
 import { useSoilProperties } from 'hooks/useSoilProperties';
 import useIngestionFlow from 'hooks/useIngestionFlow';
 import { useDataset } from 'hooks/useDatasets';
+import type { CleaningReport } from 'types/backend';
+import { CellDeleteReason, CellModifyReason, RowDeleteReason } from 'types/backend';
 
 const mockNavigate = jest.fn();
 
@@ -32,6 +34,25 @@ jest.mock('hooks/useDatasets', () => ({ useDataset: jest.fn() }));
 const DATASET_ID = 'ds-1';
 
 const mockDataset = { id: DATASET_ID, name: 'My Dataset' };
+
+const mockCleaningReport: CleaningReport = {
+  summary: { values_modified: 30, rows_deleted: 10, cells_deleted: 12 },
+  modifications: [
+    { reason: CellModifyReason.DEPTH_ROUNDED, count: 5 },
+    { reason: CellModifyReason.VALUE_ROUNDED, count: 15 },
+    { reason: CellModifyReason.UNIT_CONVERTED, count: 10 },
+  ],
+  row_deletions: [
+    { reason: RowDeleteReason.INVALID_COORDINATES, count: 3 },
+    { reason: RowDeleteReason.DUPLICATE_ROW, count: 2 },
+    { reason: RowDeleteReason.USER_DELETION, count: 5 },
+  ],
+  cell_deletions: [
+    { reason: CellDeleteReason.NON_NUMERIC, count: 4, property: 'ph' },
+    { reason: CellDeleteReason.NON_NUMERIC, count: 3, property: 'carbon' },
+    { reason: CellDeleteReason.NEGATIVE_VALUE, count: 5 },
+  ],
+};
 
 const fileMappings = [
   { id: 1, fileID: 'file-a', mappingId: 10 },
@@ -77,6 +98,8 @@ function setupMocks(
     isLoadingSoilData?: boolean;
     datasetData?: any;
     isDatasetLoading?: boolean;
+    soilDataStats?: CleaningReport | undefined;
+    isStatsLoading?: boolean;
   } = {},
 ) {
   const fileMappingsData = 'fileMappingsData' in overrides ? overrides.fileMappingsData : fileMappings;
@@ -86,6 +109,8 @@ function setupMocks(
   const isLoadingSoilData = overrides.isLoadingSoilData ?? false;
   const datasetData = 'datasetData' in overrides ? overrides.datasetData : mockDataset;
   const isDatasetLoading = overrides.isDatasetLoading ?? false;
+  const soilDataStatsData = 'soilDataStats' in overrides ? overrides.soilDataStats : undefined;
+  const isStatsLoadingVal = overrides.isStatsLoading ?? false;
 
   (useDataset as jest.Mock).mockReturnValue({ data: datasetData, isLoading: isDatasetLoading });
   (useSoilProperties as jest.Mock).mockReturnValue({ data: soilPropsData, isLoading: false });
@@ -94,9 +119,12 @@ function setupMocks(
     const key = queryKey[2];
     if (key === 'dataset-file-mapping') return { data: fileMappingsData, isLoading: false };
     if (key === 'mappings') return { data: mappingsData, isLoading: false };
-    // Respect enabled: when disabled (no selectedMapping yet) return undefined so the
-    // accumulation effect doesn't fire before the reset effect can clear stale data.
-    if (key === 'mapping-soil-data') return { data: enabled ? soilDataArr : undefined, isLoading: isLoadingSoilData };
+    if (key === 'mapping-soil-data') {
+      if (queryKey[4] === 'stats') return { data: soilDataStatsData, isLoading: isStatsLoadingVal };
+      // Respect enabled: when disabled (no selectedMapping yet) return undefined so the
+      // accumulation effect doesn't fire before the reset effect can clear stale data.
+      return { data: enabled ? soilDataArr : undefined, isLoading: isLoadingSoilData };
+    }
     if (key === 'files') return { data: [], isLoading: false };
     return { data: undefined, isLoading: false };
   });
@@ -404,6 +432,75 @@ describe('useDatasetPreview', () => {
     });
 
     expect(result.current.showLoadingPanel).toBe(false);
+  });
+
+  describe('soilDataSummary', () => {
+    it('returns all-zero summary when no stats are loaded', () => {
+      setupMocks({ soilDataStats: undefined });
+      const { result } = renderHook(() => useDatasetPreview(DATASET_ID));
+      expect(result.current.soilDataSummary.summary).toEqual({ values_modified: 0, rows_deleted: 0, cells_deleted: 0 });
+      expect(Object.values(result.current.soilDataSummary.modifications).every(v => v === 0)).toBe(true);
+      expect(Object.values(result.current.soilDataSummary.row_deletions).every(v => v === 0)).toBe(true);
+      expect(Object.values(result.current.soilDataSummary.cell_deletions).every(v => v === 0)).toBe(true);
+    });
+
+    it('maps modifications counts correctly', async () => {
+      setupMocks({ soilDataStats: mockCleaningReport });
+      const { result } = renderHook(() => useDatasetPreview(DATASET_ID));
+      await waitFor(() => expect(result.current.soilDataSummary.modifications[CellModifyReason.DEPTH_ROUNDED]).toBe(5));
+      expect(result.current.soilDataSummary.modifications[CellModifyReason.VALUE_ROUNDED]).toBe(15);
+      expect(result.current.soilDataSummary.modifications[CellModifyReason.UNIT_CONVERTED]).toBe(10);
+    });
+
+    it('fills in 0 for missing row_deletion reasons', async () => {
+      setupMocks({ soilDataStats: mockCleaningReport });
+      const { result } = renderHook(() => useDatasetPreview(DATASET_ID));
+      await waitFor(() => expect(result.current.soilDataSummary.row_deletions[RowDeleteReason.INVALID_DEPTH_INTERVAL]).toBe(0));
+      expect(result.current.soilDataSummary.row_deletions[RowDeleteReason.MINIMUM_DATA_REQUIREMENT]).toBe(0);
+    });
+
+    it('maps present row_deletion counts correctly', async () => {
+      setupMocks({ soilDataStats: mockCleaningReport });
+      const { result } = renderHook(() => useDatasetPreview(DATASET_ID));
+      await waitFor(() => expect(result.current.soilDataSummary.row_deletions[RowDeleteReason.INVALID_COORDINATES]).toBe(3));
+      expect(result.current.soilDataSummary.row_deletions[RowDeleteReason.DUPLICATE_ROW]).toBe(2);
+      expect(result.current.soilDataSummary.row_deletions[RowDeleteReason.USER_DELETION]).toBe(5);
+    });
+
+    it('sums cell_deletions across multiple properties for the same reason', async () => {
+      setupMocks({ soilDataStats: mockCleaningReport });
+      const { result } = renderHook(() => useDatasetPreview(DATASET_ID));
+      // non_numeric appears for 'ph' (4) and 'carbon' (3) → sum = 7
+      await waitFor(() => expect(result.current.soilDataSummary.cell_deletions[CellDeleteReason.NON_NUMERIC]).toBe(7));
+    });
+
+    it('fills in 0 for missing cell_deletion reasons', async () => {
+      setupMocks({ soilDataStats: mockCleaningReport });
+      const { result } = renderHook(() => useDatasetPreview(DATASET_ID));
+      await waitFor(() => expect(result.current.soilDataSummary.cell_deletions[CellDeleteReason.ZERO_VALUE]).toBe(0));
+      expect(result.current.soilDataSummary.cell_deletions[CellDeleteReason.DUPLICATE_CELL]).toBe(0);
+      expect(result.current.soilDataSummary.cell_deletions[CellDeleteReason.OOB]).toBe(0);
+    });
+
+    it('subtracts user_deletion from rows_deleted in summary', async () => {
+      setupMocks({ soilDataStats: mockCleaningReport });
+      const { result } = renderHook(() => useDatasetPreview(DATASET_ID));
+      // summary.rows_deleted = 10, user_deletion = 5 → adjusted = 5
+      await waitFor(() => expect(result.current.soilDataSummary.summary.rows_deleted).toBe(5));
+    });
+
+    it('passes summary.values_modified and cells_deleted through unchanged', async () => {
+      setupMocks({ soilDataStats: mockCleaningReport });
+      const { result } = renderHook(() => useDatasetPreview(DATASET_ID));
+      await waitFor(() => expect(result.current.soilDataSummary.summary.values_modified).toBe(30));
+      expect(result.current.soilDataSummary.summary.cells_deleted).toBe(12);
+    });
+
+    it('isStatsLoading reflects the stats query loading state', () => {
+      setupMocks({ isStatsLoading: true });
+      const { result } = renderHook(() => useDatasetPreview(DATASET_ID));
+      expect(result.current.isStatsLoading).toBe(true);
+    });
   });
 
   describe('leave Ingestion flow', () => {

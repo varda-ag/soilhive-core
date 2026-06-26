@@ -331,16 +331,16 @@
             },
             "summary": {
                 "cards": {
-                    "modified_values": {
+                    "values_modified": {
                         "title": "Modified values",
                         "description": "Cleaned & standardised"
                     },
-                    "deleted_rows": {
+                    "rows_deleted": {
                         "title": "Discarded rows",
                         "description_1": "Failed validation",
                         "description_2": "User rejected"
                     },
-                    "deleted_cells": {
+                    "cells_deleted": {
                         "title": "Discarded cells",
                         "description": "Failed validation"
                     }

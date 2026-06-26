@@ -81,8 +81,10 @@ export function DatasetsPreviewStep() {
     datasetFileMappings,
     soilData,
     allSoilData,
+    soilDataSummary,
     availableColumns,
     isLoading,
+    isStatsLoading,
     onFileChange,
     selectedFile,
     loadMore,
@@ -237,7 +239,11 @@ export function DatasetsPreviewStep() {
             optionLabel="name"
             disabled={isLoading}
           />
-          <PreviewStepSummary removedByUser={currentFileDeletions.size} />
+          <PreviewStepSummary
+            removedByUser={currentFileDeletions.size}
+            soilDataSummary={soilDataSummary}
+            isLoading={isLoading || isStatsLoading}
+          />
         </div>
         <div className={styles.TableFilters}>
           <div className={styles.Left}>
