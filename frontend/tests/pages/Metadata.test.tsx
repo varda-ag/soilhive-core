@@ -3,10 +3,12 @@ import Metadata from '../../src/pages/Metadata';
 import { useMetadata } from 'hooks/useMetadata';
 import { useEntitlements } from 'hooks/useEntitlementsHook';
 import { __setIsMobileLayout, __resetIsMobileLayout } from 'hooks/useDevice';
+import { useAuthContext } from '../../src/auth/AuthContextProvider';
 
 jest.mock('react-router', () => ({
   __esModule: true,
   useParams: jest.fn().mockReturnValue({ id: 'test-id' }),
+  Navigate: ({ to }: { to: string }) => <div data-testid="navigate" data-to={to} />,
 }));
 
 jest.mock('hooks/useMetadata', () => ({
@@ -44,6 +46,10 @@ jest.mock('@tanstack/react-query', () => ({
 
 jest.mock('hooks/useDevice');
 
+jest.mock('../../src/auth/AuthContextProvider', () => ({
+  useAuthContext: jest.fn().mockReturnValue({ isLoading: false }),
+}));
+
 jest.mock('utilities/buildMetadataHead', () => ({
   getMetadataHeadValues: jest.fn().mockReturnValue({
     title: 'Test Title',
@@ -57,6 +63,7 @@ jest.mock('utilities/buildMetadataHead', () => ({
 const buildDataset = () => ({
   id: 'test-id',
   name: 'Test Dataset',
+  status: 'PUBLISHED',
   full_name: 'Test Dataset Full Name',
   version: '1.0.0',
   description: 'A test dataset description',
@@ -420,6 +427,70 @@ describe('Metadata page – admin editing behavior', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     expect(screen.getAllByRole('button', { name: 'Edit' }).length).toBe(initialCount);
+  });
+});
+
+describe('Metadata page – visibility guard', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    document.head.innerHTML = '';
+    document.title = '';
+  });
+
+  it('redirects to / when dataset is not published and user is not admin', () => {
+    (useMetadata as jest.Mock).mockReturnValue({
+      dataset: { ...buildDataset(), status: 'STAGED' },
+      allLicenses: [],
+      inferredProperties: new Set(),
+      isLoading: false,
+      isError: false,
+    });
+    (useEntitlements as jest.Mock).mockReturnValue({ can: () => false });
+    (useAuthContext as jest.Mock).mockReturnValue({ isLoading: false });
+    render(<Metadata />);
+    expect(screen.getByTestId('navigate')).toHaveAttribute('data-to', '/');
+  });
+
+  it('does not redirect while auth is still loading', () => {
+    (useMetadata as jest.Mock).mockReturnValue({
+      dataset: { ...buildDataset(), status: 'STAGED' },
+      allLicenses: [],
+      inferredProperties: new Set(),
+      isLoading: false,
+      isError: false,
+    });
+    (useEntitlements as jest.Mock).mockReturnValue({ can: () => false });
+    (useAuthContext as jest.Mock).mockReturnValue({ isLoading: true });
+    render(<Metadata />);
+    expect(screen.queryByTestId('navigate')).not.toBeInTheDocument();
+  });
+
+  it('does not redirect when dataset is published and user is not admin', () => {
+    (useMetadata as jest.Mock).mockReturnValue({
+      dataset: buildDataset(),
+      allLicenses: [],
+      inferredProperties: new Set(),
+      isLoading: false,
+      isError: false,
+    });
+    (useEntitlements as jest.Mock).mockReturnValue({ can: () => false });
+    (useAuthContext as jest.Mock).mockReturnValue({ isLoading: false });
+    render(<Metadata />);
+    expect(screen.queryByTestId('navigate')).not.toBeInTheDocument();
+  });
+
+  it('does not redirect when user is admin even if dataset is not published', () => {
+    (useMetadata as jest.Mock).mockReturnValue({
+      dataset: { ...buildDataset(), status: 'STAGED' },
+      allLicenses: [],
+      inferredProperties: new Set(),
+      isLoading: false,
+      isError: false,
+    });
+    (useEntitlements as jest.Mock).mockReturnValue({ can: () => true });
+    (useAuthContext as jest.Mock).mockReturnValue({ isLoading: false });
+    render(<Metadata />);
+    expect(screen.queryByTestId('navigate')).not.toBeInTheDocument();
   });
 });
 

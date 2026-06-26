@@ -107,6 +107,10 @@ app.use((req, res) => {
 
   render(url, { authToken })
     .then(result => {
+      if (result !== null && 'redirect' in result) {
+        res.redirect(302, result.redirect);
+        return;
+      }
       if (result !== null) {
         const { html: ssrContent, dehydratedState, head } = result;
         // SSR route: inject server-rendered HTML and mark the root element so
