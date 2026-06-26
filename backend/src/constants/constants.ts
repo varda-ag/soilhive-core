@@ -8,4 +8,5 @@ export const INTERNAL_REQUEST_TOKEN_PAYLOAD = {
   sub: TokenScopes.INTERNAL_REQUEST,
   iss: TOKEN_ISSUER,
   scope: `${TokenScopes.INTERNAL_REQUEST} ${TokenScopes.DATA_ADMIN}`,
+  email: `${TokenScopes.INTERNAL_REQUEST}@localhost`,
 };

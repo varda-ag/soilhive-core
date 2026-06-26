@@ -6,6 +6,7 @@ import { getEntity, getEntities } from '../utils/slugs';
 import { EntityType, ProcedureTechnique, VocabularyType } from '../types/data';
 import { ProcedureObject } from '../types/Procedure';
 import { ErrorResponse } from '../utils/error';
+import { requireSub } from '../utils/auth';
 
 const PROCEDURE_RELATIONS = [
   'sample_pretreatment',
@@ -46,10 +47,7 @@ export default class ProcedureService {
   };
 
   createProcedure = async (requestData: RequestData, data: Omit<ProcedureObject, 'id'>): Promise<ProcedureObject> => {
-    const { sub } = requestData.token ?? {};
-    if (!sub) {
-      throw new ErrorResponse('Token subject is missing', StatusCodes.UNAUTHORIZED);
-    }
+    requireSub(requestData);
 
     const vocabRepo = requestData.entityManager.getRepository(VocabularyEntity);
 

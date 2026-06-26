@@ -33,7 +33,7 @@ export async function processBulkLoad(job: Job<BulkLoadJob>): Promise<void> {
   await new ErrorService().clearDatasetErrors(data.dataset_id, entityManager);
   const entitlementService = new EntitlementService();
   const entitlements = await entitlementService.getUserEntitlements({ entityManager } as any, created_by ?? EVERYONE);
-  const token = { sub: data.created_by } as Token; // Only sub is required
+  const token = { email: data.created_by } as Token; // Only email is required
   const requestData = { entityManager, token, entitlements };
   const dataset = await datasetService.getDataset(requestData, data.dataset_id);
   try {
