@@ -25,13 +25,27 @@ import { GISDataType } from '../types/backend';
 // Output: "1.234.567"
 const numberFormatter = new Intl.NumberFormat('de-DE');
 
-const availableFormats = [
-  { id: 'csv', name: 'CSV (Vector data)' },
-  { id: 'gpkg', name: 'Geopackage (Vector & raster data)' },
-  { id: 'geojson', name: 'GeoJSON (Vector data)' },
-  { id: 'shp', name: 'Shapefile (Vector data)' },
-  { id: 'xlsx', name: 'XLSX (Vector data)' },
-  { id: 'tiff', name: 'Geotiff (Raster data)' },
+export type FormatOption = { id: string; name: string; formats: string[] };
+
+export const VECTOR_FORMAT_OPTIONS: FormatOption[] = [
+  { id: 'csv', name: 'CSV', formats: ['csv'] },
+  { id: 'gpkg', name: 'Geopackage', formats: ['gpkg'] },
+  { id: 'geojson', name: 'GeoJSON', formats: ['geojson'] },
+  { id: 'shp', name: 'Shapefile', formats: ['shp'] },
+  { id: 'xlsx', name: 'XLSX', formats: ['xlsx'] },
+];
+
+export const RASTER_FORMAT_OPTIONS: FormatOption[] = [
+  { id: 'tiff', name: 'Geotiff', formats: ['tiff'] },
+  { id: 'gpkg', name: 'Geopackage', formats: ['gpkg'] },
+];
+
+export const MIXED_FORMAT_OPTIONS: FormatOption[] = [
+  { id: 'csv+tiff', name: 'CSV + Geotiff', formats: ['csv', 'tiff'] },
+  { id: 'gpkg', name: 'Geopackage', formats: ['gpkg'] },
+  { id: 'geojson+tiff', name: 'GeoJSON + Geotiff', formats: ['geojson', 'tiff'] },
+  { id: 'shp+tiff', name: 'Shapefile + Geotiff', formats: ['shp', 'tiff'] },
+  { id: 'xlsx+tiff', name: 'XLSX + Geotiff', formats: ['xlsx', 'tiff'] },
 ];
 
 function DownloadSummary() {
@@ -155,7 +169,7 @@ function DownloadSummary() {
                   className={styles.FormatPickerDropdown}
                   panelClassName={styles.FormatPickerDropdownPanel}
                   value={selectedFormat}
-                  options={availableFormats}
+                  options={VECTOR_FORMAT_OPTIONS}
                   onChange={onFormatDropdownChange}
                   optionValue="id"
                   optionLabel="name"
