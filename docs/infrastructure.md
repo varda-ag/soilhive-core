@@ -119,6 +119,23 @@ PostgreSQL performs best when the active working dataset fits within the combine
 | 60–300 GB | 64 GB | Larger buffer pool reduces I/O. SSD storage is critical |
 | > 300 GB | 128+ GB | Consider a dedicated database server |
 
+### Per-Query Memory (work_mem)
+
+SoilHive sets `work_mem` to **512 MB** for the duration of heavy transactions (data export, ingestion, and geospatial queries) and **256 MB** for filtering mask operations. This is set with `SET LOCAL`, so it applies only for the lifetime of those transactions, not globally.
+
+If RAM is insufficient to satisfy `work_mem` requests, PostgreSQL spills sort and hash operations to temporary disk files. This degrades query performance severely — operations that should complete in seconds can stall for minutes. Under sustained memory pressure, the Linux OOM killer may terminate the PostgreSQL process entirely, causing an unplanned database restart.
+
+PostgreSQL allocates `work_mem` per sort or hash operation, per concurrent connection running a heavy transaction. The table below shows how this stacks up across concurrent heavy operations:
+
+| Concurrent heavy operations | Additional RAM for work_mem |
+|---:|---:|
+| 2 | ~1 GB |
+| 5 | ~2.5 GB |
+| 10 | ~5 GB |
+| 20 | ~10 GB |
+
+For **pilot and small-production** deployments with few concurrent users, the profiles in the Infrastructure Profiles table already accommodate this. For **medium and large** deployments with frequent concurrent exports or ingestions, ensure RAM headroom above the data-volume figures above, or reduce `max_connections` to match available RAM.
+
 As a general guideline, provision enough RAM for the active working set of the database rather than the entire database.
 
 ---
