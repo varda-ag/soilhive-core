@@ -87,7 +87,7 @@ export function buildCleaningCte(config: DataCleaningConfig, fileId: string): Cl
     const converted = formula ? formula.replace(/x/g, rawNum) : rawNum;
 
     const minVal = cfg.min_val ?? 0;
-    const maxVal = cfg.max_val ?? (cfg.standard_unit === '%' ? 100 : undefined);
+    const maxVal = cfg.max_val ?? (cfg.standard_unit && ['%', '%v', '%w'].includes(cfg.standard_unit) ? 100 : undefined);
 
     const inRange = maxVal ? `(${converted}) BETWEEN ${p(minVal)} AND ${p(maxVal)}` : `(${converted}) >= ${p(minVal)}`;
 
@@ -129,6 +129,17 @@ export function buildCleaningCte(config: DataCleaningConfig, fileId: string): Cl
     c1.push(`((${isValid}) AND (${converted}) != ROUND((${converted}), 3)) AS ${prop}_value_rounded`);
   }
 
+  // Full-row duplicate detection on raw (pre-cleaning) values so that an exact
+  // copy of a row is tagged duplicate_row regardless of how its cells clean.
+  const fullRowPartition = [
+    'ST_AsBinary(raw.geometry)',
+    minDepthRaw,
+    maxDepthRaw,
+    sdCol ? `raw.${sdCol}::text` : 'NULL::text',
+    ...props.map(([prop]) => `raw.${prop}`),
+  ].join(', ');
+  c1.push(`ROW_NUMBER() OVER (PARTITION BY ${fullRowPartition} ORDER BY raw.record_id) AS _full_row_rn`);
+
   const cte1 = `cell_cleaned AS MATERIALIZED (
   SELECT
     ${c1.join(',\n    ')}
@@ -139,7 +150,16 @@ export function buildCleaningCte(config: DataCleaningConfig, fileId: string): Cl
   // can reference it in both the deduped-value CASE and the JSONB builds
   // without repeating the window function.
 
-  const c2BaseCols = ['sub.record_id', 'sub.geom', 'sub.sampling_date', 'sub.horizon', 'sub.license', 'sub.min_depth', 'sub.max_depth'];
+  const c2BaseCols = [
+    'sub.record_id',
+    'sub.geom',
+    'sub.sampling_date',
+    'sub.horizon',
+    'sub.license',
+    'sub.min_depth',
+    'sub.max_depth',
+    'sub._full_row_rn',
+  ];
 
   const subSelectCols: string[] = ['cc.*'];
   for (const [prop] of props) {
@@ -213,6 +233,8 @@ export function buildCleaningCte(config: DataCleaningConfig, fileId: string): Cl
        AND cd.max_depth IS NOT NULL
        AND cd.min_depth >= cd.max_depth
         THEN '${RowDeleteReason.INVALID_DEPTH_INTERVAL}'
+      WHEN cd._full_row_rn > 1
+        THEN '${RowDeleteReason.DUPLICATE_ROW}'
       WHEN COALESCE(${finalCleaned}) IS NULL
         THEN '${RowDeleteReason.MINIMUM_DATA_REQUIREMENT}'
       ELSE NULL
@@ -220,40 +242,17 @@ export function buildCleaningCte(config: DataCleaningConfig, fileId: string): Cl
   FROM cell_deduped cd
 )`;
 
-  // Full-row duplicate detection among rows that passed all row-level checks.
-
-  const rowPartition = [
-    'ST_AsBinary(ra.geom)',
-    'ra.min_depth',
-    'ra.max_depth',
-    'ra.sampling_date',
-    ...props.map(([p]) => `ra.${p}_cleaned`),
-  ].join(', ');
-
   const cte4 = `surviving AS (
-  SELECT
-    ra.*,
-    ROW_NUMBER() OVER (
-      PARTITION BY ${rowPartition}
-      ORDER BY ra.record_id
-    ) AS _rn
+  SELECT ra.*, 1 AS _rn
   FROM row_annotated ra
   WHERE ra.row_delete_reason IS NULL
 )`;
 
   const cte5 = `cleaning_result AS (
-    SELECT
-      *,
-      CASE
-        WHEN _rn > 1 THEN '${RowDeleteReason.DUPLICATE_ROW}'
-        ELSE NULL
-      END AS final_row_delete_reason
+    SELECT *, NULL::text AS final_row_delete_reason
     FROM surviving
     UNION ALL
-    SELECT
-    *,
-    0 AS _rn,
-    row_delete_reason AS final_row_delete_reason
+    SELECT *, 0 AS _rn, row_delete_reason AS final_row_delete_reason
     FROM row_annotated
     WHERE row_delete_reason IS NOT NULL
   )`;
