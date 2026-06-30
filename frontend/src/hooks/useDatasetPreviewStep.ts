@@ -146,7 +146,7 @@ export function useDatasetPreview(datasetId?: string) {
   const { data: soilData, isLoading: isLoadingSoilData } = useApiQuery<SoilRecord[]>({
     endpoint: `/datasets/${datasetId}/dataset-file-mapping/${selectedMapping?.id}/soil-data`,
     method: 'GET',
-    queryKey: ['datasets', datasetId, 'mapping-soil-data', selectedMapping?.id, cursor, sort],
+    queryKey: ['datasets', datasetId, 'mapping-soil-data', selectedMapping?.id, selectedMapping?.mappingId, cursor, sort],
     parameters: soilDataQueryParameters,
     enabled: !!datasetId && !!selectedMapping?.id,
     retry: 0,
