@@ -62,8 +62,8 @@ export async function ingestRaster(opts: IngestRasterOptions): Promise<string> {
   const result = await em.query(
     `WITH
      file_ins AS (
-       INSERT INTO files ("name", file_path, created_by)
-       VALUES ($1, $1, 'data-admin')
+       INSERT INTO files ("name", file_path, created_by, status)
+       VALUES ($1, $1, 'data-admin', 'LOADED')
        ON CONFLICT (file_path) DO UPDATE SET updated_at = now()
        RETURNING *
      ),
