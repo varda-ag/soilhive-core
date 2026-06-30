@@ -19,8 +19,8 @@
 
 .Header {
   display: flex;
-  align-items: baseline;
-  gap: 12px;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .PageTitle {
@@ -28,6 +28,12 @@
   font-weight: var(--font-weight-bold);
   color: var(--color-neutral-black);
   margin: 0;
+}
+
+.Separator {
+  width: 1px;
+  height: 1.75rem;
+  background-color: var(--color-neutral-dark-100);
 }
 
 .DatasetName {
