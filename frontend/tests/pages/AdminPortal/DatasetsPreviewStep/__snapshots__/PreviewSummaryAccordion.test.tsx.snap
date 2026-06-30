@@ -43,47 +43,51 @@ exports[`PreviewSummaryAccordion matches snapshot 1`] = `
       class="Content"
     >
       <div
-        class="AccordionChildren"
+        class="ContentInner"
       >
         <div
-          class="AccordionChildrenItem"
+          class="AccordionChildren"
         >
-          <p>
-            Depth rounded
-          </p>
-          <p>
-            10
-          </p>
-        </div>
-        <div
-          class="AccordionChildrenItem"
-        >
-          <p>
-            Value rounded
-          </p>
-          <p>
-            20
-          </p>
-        </div>
-        <div
-          class="AccordionChildrenItem"
-        >
-          <p>
-            Unit converted
-          </p>
-          <p>
-            12
-          </p>
-        </div>
-        <div
-          class="AccordionChildrenItem AccordionChildrenTotal"
-        >
-          <p>
-            Total
-          </p>
-          <p>
-            42
-          </p>
+          <div
+            class="AccordionChildrenItem"
+          >
+            <p>
+              Depth rounded
+            </p>
+            <p>
+              10
+            </p>
+          </div>
+          <div
+            class="AccordionChildrenItem"
+          >
+            <p>
+              Value rounded
+            </p>
+            <p>
+              20
+            </p>
+          </div>
+          <div
+            class="AccordionChildrenItem"
+          >
+            <p>
+              Unit converted
+            </p>
+            <p>
+              12
+            </p>
+          </div>
+          <div
+            class="AccordionChildrenItem AccordionChildrenTotal"
+          >
+            <p>
+              Total
+            </p>
+            <p>
+              42
+            </p>
+          </div>
         </div>
       </div>
     </div>
@@ -134,47 +138,51 @@ exports[`PreviewSummaryAccordion matches snapshot with isLast 1`] = `
       class="Content"
     >
       <div
-        class="AccordionChildren"
+        class="ContentInner"
       >
         <div
-          class="AccordionChildrenItem"
+          class="AccordionChildren"
         >
-          <p>
-            Depth rounded
-          </p>
-          <p>
-            10
-          </p>
-        </div>
-        <div
-          class="AccordionChildrenItem"
-        >
-          <p>
-            Value rounded
-          </p>
-          <p>
-            20
-          </p>
-        </div>
-        <div
-          class="AccordionChildrenItem"
-        >
-          <p>
-            Unit converted
-          </p>
-          <p>
-            12
-          </p>
-        </div>
-        <div
-          class="AccordionChildrenItem AccordionChildrenTotal"
-        >
-          <p>
-            Total
-          </p>
-          <p>
-            42
-          </p>
+          <div
+            class="AccordionChildrenItem"
+          >
+            <p>
+              Depth rounded
+            </p>
+            <p>
+              10
+            </p>
+          </div>
+          <div
+            class="AccordionChildrenItem"
+          >
+            <p>
+              Value rounded
+            </p>
+            <p>
+              20
+            </p>
+          </div>
+          <div
+            class="AccordionChildrenItem"
+          >
+            <p>
+              Unit converted
+            </p>
+            <p>
+              12
+            </p>
+          </div>
+          <div
+            class="AccordionChildrenItem AccordionChildrenTotal"
+          >
+            <p>
+              Total
+            </p>
+            <p>
+              42
+            </p>
+          </div>
         </div>
       </div>
     </div>
