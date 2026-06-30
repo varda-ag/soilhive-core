@@ -29,8 +29,12 @@ exports[`Accordion component renders with title and is closed by default 1`] = `
     <div
       class="Content"
     >
-      <div>
-        Content
+      <div
+        class="ContentInner"
+      >
+        <div>
+          Content
+        </div>
       </div>
     </div>
   </div>

@@ -93,7 +93,9 @@ export function Accordion({
         </div>
       </div>
       {pillsSlot && <div className={styles.PillsContainer}>{pillsSlot}</div>}
-      <div className={styles.Content}>{children}</div>
+      <div className={styles.Content}>
+        <div className={styles.ContentInner}>{children}</div>
+      </div>
     </div>
   );
 }
