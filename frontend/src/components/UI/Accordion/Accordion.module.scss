@@ -76,6 +76,11 @@
         font-size: var(--font-size-lg);
       }
     }
+
+    .Left {
+      display: flex;
+      align-items: center;
+    }
   }
 
   &.Primary {

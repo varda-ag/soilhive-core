@@ -1,0 +1,147 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`PreviewStepSummary matches snapshot 1`] = `
+<div>
+  <div
+    class="PreviewStepSummary"
+  >
+    <div
+      class="PreviewStepSummaryCards"
+    >
+      <div
+        class="InfoCard InfoCard"
+        data-testid="sh-ui-infocard"
+      >
+        <h3
+          class="Title"
+        >
+          Modified values
+        </h3>
+        <div
+          class="ContentWrapper"
+        >
+          <div
+            class="Content"
+          >
+            <p
+              class="Value"
+              style="color: rgb(162, 209, 65);"
+            >
+              30
+            </p>
+            <p
+              class="Description"
+            >
+              Cleaned & standardised
+            </p>
+          </div>
+        </div>
+      </div>
+      <div
+        class="InfoCard InfoCard Multicolumn"
+        data-testid="sh-ui-infocard"
+      >
+        <h3
+          class="Title"
+        >
+          Discarded rows
+        </h3>
+        <div
+          class="ContentWrapper"
+        >
+          <div
+            class="Content"
+          >
+            <p
+              class="Value"
+              style="color: rgb(130, 0, 5);"
+            >
+              5
+            </p>
+            <p
+              class="Description"
+            >
+              Failed validation
+            </p>
+          </div>
+          <div
+            class="Content Secondary"
+          >
+            <p
+              class="Value"
+              style="color: rgb(188, 0, 31);"
+            >
+              3
+            </p>
+            <p
+              class="Description"
+            >
+              User rejected
+            </p>
+          </div>
+        </div>
+      </div>
+      <div
+        class="InfoCard InfoCard"
+        data-testid="sh-ui-infocard"
+      >
+        <h3
+          class="Title"
+        >
+          Discarded cells
+        </h3>
+        <div
+          class="ContentWrapper"
+        >
+          <div
+            class="Content"
+          >
+            <p
+              class="Value"
+              style="color: rgb(245, 178, 0);"
+            >
+              12
+            </p>
+            <p
+              class="Description"
+            >
+              Failed validation
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div
+      class="PreviewStepSummaryAccordions"
+    >
+      <div
+        data-is-last="false"
+        data-testid="preview-summary-accordion"
+        data-total="30"
+      >
+        <span>
+          Modified values
+        </span>
+      </div>
+      <div
+        data-is-last="false"
+        data-testid="preview-summary-accordion"
+        data-total="8"
+      >
+        <span>
+          Discarded rows
+        </span>
+      </div>
+      <div
+        data-is-last="true"
+        data-testid="preview-summary-accordion"
+        data-total="12"
+      >
+        <span>
+          Discarded cells
+        </span>
+      </div>
+    </div>
+  </div>
+</div>
+`;

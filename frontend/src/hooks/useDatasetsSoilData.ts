@@ -14,6 +14,7 @@ import type { SoilDataFile } from '../types/soilDataFile';
 import type { FileDescriptor } from 'types/backend';
 import { useTranslation } from 'react-i18next';
 import useIngestionFlow from './useIngestionFlow';
+import { useDataset } from './useDatasets';
 
 export const ALLOWED_EXTENSIONS = ['.csv', '.gpkg', '.geojson', '.shp', '.xlsx', '.zip'];
 
@@ -43,6 +44,7 @@ export function useDatasetsSoilData() {
   const [soilDataFiles, setSoilDataFiles] = useState<SoilDataFile[]>([]);
   const existingFileIds = useRef<Set<string>>(new Set());
 
+  const { data: dataset } = useDataset(datasetId);
   const { data: crsOptions = [] } = useApiQuery<number[]>({
     endpoint: '/epsg',
     method: 'GET',
@@ -163,7 +165,12 @@ export function useDatasetsSoilData() {
     await queryClient.invalidateQueries({ queryKey: ['datasets', datasetId, 'dataset-file-mapping'] });
   }, [datasetId, soilDataFiles, createFileMapping, request, queryClient, resetChanges]);
 
+  const datasetName = useMemo(() => {
+    return dataset?.name || '';
+  }, [dataset]);
+
   return {
+    datasetName,
     fileInputRef,
     soilDataFiles: annotatedFiles,
     uploadingFiles,
@@ -171,7 +178,7 @@ export function useDatasetsSoilData() {
     uploadProgress,
     crsOptions,
     isContinueEnabled,
-    isLoadingFiles,
+    isLoadingFiles: isLoadingFiles,
     handleFiles,
     handleCrsChange,
     removeFile,

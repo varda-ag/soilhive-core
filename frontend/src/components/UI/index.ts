@@ -30,3 +30,4 @@ export * from './TextArea/TextArea';
 export * from './Loader/Loader';
 export * from './Table/Table';
 export * from './ToggleButton/ToggleButton';
+export * from './InfoCard/InfoCard';

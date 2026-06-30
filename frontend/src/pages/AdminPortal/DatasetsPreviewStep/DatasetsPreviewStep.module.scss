@@ -5,6 +5,12 @@
   padding: 1.5rem 1.5rem 2.5rem;
   gap: 1.125rem;
   position: relative;
+
+  //   :global(.p-datatable.sh-primereact-table .p-datatable-thead th) {
+  //     padding-top: 0.25rem;
+  //     padding-bottom: 0.25rem;
+  //     vertical-align: middle;
+  //   }
 }
 
 .TextContent {
@@ -17,8 +23,15 @@
   font-size: var(--font-size-md);
 }
 
-.DeleteWarning {
-  font-size: var(--font-size-sm);
+.FileSelection {
+  background-color: var(--color-neutral-light);
+  padding: 1rem;
+  border-radius: 0.5rem;
+
+  .FilesFilter {
+    min-width: 15.75rem;
+    margin-bottom: 1.125rem;
+  }
 }
 
 .TableFilters {
@@ -32,7 +45,6 @@
     gap: 1.125rem;
   }
 
-  .FilesFilter,
   .ColumnsFilter {
     max-width: 300px;
   }
@@ -69,6 +81,18 @@
   white-space: nowrap;
 }
 
+.ColumnNameTooltip {
+  display: flex;
+  align-items: center;
+  gap: 0.125rem;
+  position: relative;
+
+  :global(.react-tooltip) {
+    max-width: 214px;
+    font-weight: 400;
+  }
+}
+
 .DeleteCell {
   display: flex;
   justify-content: flex-end;
@@ -84,6 +108,7 @@
   padding: 16px 24px;
   background-color: var(--color-neutral-white);
   box-shadow: 0 -0.15rem 0.625rem var(--color-shadow-interface);
+  z-index: 2;
 }
 
 .ActionsSpacer {

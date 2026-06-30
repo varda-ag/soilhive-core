@@ -1,4 +1,4 @@
-import type { IngestionStatus } from './backend';
+import type { CellDeleteReason, CellModifyReason, IngestionStatus, RowDeleteReason } from './backend';
 
 export type DatasetsPublicationListItem = {
   id: string;
@@ -8,4 +8,11 @@ export type DatasetsPublicationListItem = {
   updated_by?: string | null;
   visibility?: string;
   hasErrors?: boolean;
+};
+
+export type SoilDataSummary = {
+  summary: { values_modified: number; rows_deleted: number; cells_deleted: number };
+  modifications: Record<CellModifyReason, number>;
+  row_deletions: Record<RowDeleteReason, number>;
+  cell_deletions: Record<CellDeleteReason, number>;
 };

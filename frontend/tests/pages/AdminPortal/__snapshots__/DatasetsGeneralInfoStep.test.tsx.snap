@@ -8,11 +8,15 @@ exports[`DatasetsGeneralInfoStep renders matches snapshot 1`] = `
     <div
       class="IngestionStepTitleRow TitleRow"
     >
-      <h2
-        class="Title"
+      <div
+        class="Left"
       >
-        Data preview
-      </h2>
+        <h2
+          class="Title"
+        >
+          Data preview
+        </h2>
+      </div>
       <a
         class="DocumentationLink"
         data-testid="sh-documentaion-link"

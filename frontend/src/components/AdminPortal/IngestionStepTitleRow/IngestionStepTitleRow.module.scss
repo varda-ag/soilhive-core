@@ -2,9 +2,23 @@
   display: flex;
   justify-content: space-between;
 }
+.Left {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
 .Title {
   font-size: var(--font-size-lg);
   font-weight: var(--font-weight-bold);
   color: var(--color-text-primary);
   margin: 0;
+}
+.Separator {
+  width: 1px;
+  height: 1.75rem;
+  background-color: var(--color-neutral-dark-100);
+}
+.DatasetName {
+  font-size: var(--font-size-sm);
+  color: var(--color-neutral-dark-600);
 }

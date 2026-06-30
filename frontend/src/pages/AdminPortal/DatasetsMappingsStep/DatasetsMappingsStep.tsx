@@ -17,6 +17,7 @@ export function DatasetsMappingsStep() {
   const { id } = useParams();
 
   const {
+    datasetName,
     isImporting,
     geometryMessage,
     depthConflictMessage,
@@ -45,7 +46,12 @@ export function DatasetsMappingsStep() {
   return (
     <>
       <div className={styles.DatasetsMappingsStep}>
-        <IngestionStepTitleRow className={styles.TitleRow} title={t('datasets.mappings.title')} docsLink={DOCS_URL} />
+        <IngestionStepTitleRow
+          className={styles.TitleRow}
+          title={t('datasets.mappings.title')}
+          datasetName={datasetName}
+          docsLink={DOCS_URL}
+        />
         <p className={styles.Subtitle}>{t('datasets.mappings.subtitle')}</p>
 
         <MappingsBanner mappedCount={mappedCount} unmappedCount={unmappedCount} />
