@@ -323,7 +323,7 @@
             "step_description": "Review data",
             "title": "Preview",
             "message": "This is the data you are going to load, make sure everything is correct, you can unselect the rows that are not consistent, they won't be loaded in the dataset.",
-            "deletion_warning": "If you delete a row, all the soil properties belonging to it will not be ingested including those not visible on screen.",
+            "deletion_warning": "If you discard a row, all the soil properties belonging to it will not be ingested including those not visible on screen.",
             "show_original_name": "Show original name",
             "loading": "Loading...",
             "data_loading": {
@@ -338,7 +338,41 @@
                 "sampling_date": "Sampling date",
                 "horizon": "Horizon",
                 "license": "License",
-                "delete": "Delete"
+                "delete": "Discard"
+            },
+            "summary": {
+                "cards": {
+                    "values_modified": {
+                        "title": "Modified values",
+                        "description": "Cleaned & standardised"
+                    },
+                    "rows_deleted": {
+                        "title": "Discarded rows",
+                        "description_1": "Failed validation",
+                        "description_2": "User rejected"
+                    },
+                    "cells_deleted": {
+                        "title": "Discarded cells",
+                        "description": "Failed validation"
+                    }
+                },
+                "total": "{{number}} total",
+                "reasons": {
+                    "depth_rounded": "Depth rounded to integer",
+                    "value_rounded": "Value rounded to 3 decimal places",
+                    "unit_converted": "Converted to standard unit of measurement",
+                    "invalid_coordinates": "Invalid coordinates (out of range)",
+                    "invalid_depth_interval": "Invalid depth interval (upper ≥ lower)",
+                    "minimum_data_requirement": "Minimum data requirement not met (missing geometry or invalid soil property value)",
+                    "duplicate_row": "Duplicate row (same coordinates, date, depth, value across all properties)",
+                    "user_deletion": "User discarded row",
+                    "non_numeric": "Invalid property value (non-numeric)",
+                    "negative_value": "Negative value",
+                    "zero_value": "Zero value (treated as null)",
+                    "duplicate_cell": "Duplicate value (same coordinates, date, depth, value)",
+                    "out_of_bounds": "Out-of-bounds value",
+                    "total": "Total" 
+                }
             }
         },
         "quality_check": {

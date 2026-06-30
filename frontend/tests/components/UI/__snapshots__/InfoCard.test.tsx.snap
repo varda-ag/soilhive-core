@@ -1,0 +1,84 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`InfoCard matches snapshot with secondary content 1`] = `
+<div>
+  <div
+    class="InfoCard Multicolumn"
+    data-testid="sh-ui-infocard"
+  >
+    <h3
+      class="Title"
+    >
+      Card
+    </h3>
+    <div
+      class="ContentWrapper"
+    >
+      <div
+        class="Content"
+      >
+        <p
+          class="Value"
+          style="color: rgb(162, 209, 65);"
+        >
+          42
+        </p>
+        <p
+          class="Description"
+        >
+          Primary description
+        </p>
+      </div>
+      <div
+        class="Content Secondary"
+      >
+        <p
+          class="Value"
+          style="color: rgb(188, 0, 31);"
+        >
+          7
+        </p>
+        <p
+          class="Description"
+        >
+          Secondary description
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`InfoCard matches snapshot without secondary content 1`] = `
+<div>
+  <div
+    class="InfoCard"
+    data-testid="sh-ui-infocard"
+  >
+    <h3
+      class="Title"
+    >
+      Card
+    </h3>
+    <div
+      class="ContentWrapper"
+    >
+      <div
+        class="Content"
+      >
+        <p
+          class="Value"
+          style="color: rgb(162, 209, 65);"
+        >
+          42
+        </p>
+        <p
+          class="Description"
+        >
+          Primary description
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+`;

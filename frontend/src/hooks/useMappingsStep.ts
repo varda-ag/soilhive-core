@@ -24,6 +24,7 @@ import type {
   ProcedureResponse,
 } from 'types/backend';
 import type { MenuOption } from 'types/components';
+import { useDataset } from './useDatasets';
 
 export interface RowDetails {
   samplePretreatment: string | null;
@@ -218,6 +219,8 @@ export function useMappingsStep(datasetId?: string) {
   // true from the moment Continue is clicked until navigate fires (or save fails)
   const [isImportingState, setIsImportingState] = useState(false);
   const [activeJobIds, setActiveJobIds] = useState<string[]>([]);
+
+  const { data: dataset } = useDataset(datasetId);
 
   const { data: files, isLoading: isLoadingFiles } = useApiQuery<FileDescriptor[]>({
     endpoint: `/datasets/${datasetId}/files`,
@@ -595,8 +598,13 @@ export function useMappingsStep(datasetId?: string) {
     setActiveJobIds(jobs.map(j => j.id));
   }, [columnMappings, existingMappings, procedureByColumn, allFilesStaged, save, navigate, datasetId, datasetFileMappings, createJob]);
 
+  const datasetName = useMemo(() => {
+    return dataset?.name || '';
+  }, [dataset]);
+
   return {
     isLoading,
+    datasetName,
     isImporting,
     geometryMessage,
     depthConflictMessage,

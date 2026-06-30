@@ -1,0 +1,54 @@
+.InfoCard {
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--color-neutral-dark-100);
+  border-radius: 0.5rem;
+  background-color: var(--color-neutral-white);
+
+  .ContentWrapper {
+    display: flex;
+    gap: 1.5rem;
+  }
+  .Content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+    width: 100%;
+    padding: 0.25rem 0;
+
+    &.Secondary {
+      padding: 0.25rem 1rem;
+      background-color: var(--color-neutral-light);
+      border-radius: 0.5rem;
+    }
+  }
+  .Title {
+    color: var(--color-neutral-dark-600);
+    text-transform: uppercase;
+    font-size: var(--font-size-sm);
+    font-weight: 700;
+    margin: 0 0 0.125rem;
+  }
+
+  .Value {
+    font-size: var(--font-size-xl);
+    line-height: var(--line-height-sm);
+    font-weight: 700;
+  }
+
+  .Description {
+    font-size: var(--font-size-xs);
+    color: var(--color-neutral-black);
+  }
+
+  &.Multicolumn {
+    .Content {
+      min-width: 137px;
+      width: 137px;
+
+      &.Secondary {
+        min-width: 117px;
+        width: 117px;
+      }
+    }
+  }
+}

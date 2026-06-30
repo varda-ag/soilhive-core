@@ -3,13 +3,16 @@ import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router';
 import { MultiSelect } from 'primereact/multiselect';
 import { Dropdown, type DropdownChangeEvent } from 'primereact/dropdown';
+import { Tooltip } from 'react-tooltip';
 
-import { Button, FormMessage, Table, ToggleButton } from 'components/UI';
+import TooltipIcon from 'assets/icons/small-info-icon.svg?react';
+import { Button, Table, ToggleButton } from 'components/UI';
 import type { TableHandle } from 'components/UI/Table/Table';
 import { useIngestionStatus } from 'hooks/useIngestionStatus';
 import { useDatasetPreview } from 'hooks/useDatasetPreviewStep';
 import { DeleteCheckboxCell } from './DeleteCheckboxCell';
 import { DataLoadingStartedPanel } from './DataLoadingStartedPanel';
+import { PreviewStepSummary } from './PreviewStepSummary/PreviewStepSummary';
 import { IngestionStepTitleRow } from 'components/AdminPortal/IngestionStepTitleRow/IngestionStepTitleRow';
 import { INGESTION_DOCS_URL } from 'configuration/ingestion';
 
@@ -74,11 +77,14 @@ export function DatasetsPreviewStep() {
   const [showOriginalName, setShowOriginalName] = useState<boolean>(false);
 
   const {
+    datasetName,
     datasetFileMappings,
     soilData,
     allSoilData,
+    soilDataSummary,
     availableColumns,
     isLoading,
+    isStatsLoading,
     onFileChange,
     selectedFile,
     loadMore,
@@ -162,7 +168,20 @@ export function DatasetsPreviewStep() {
     () => [
       ...tableColumns.filter(column => visibleColumns.includes(column.value)),
       {
-        name: t('datasets.preview.columns.delete'),
+        // name: t('datasets.preview.columns.delete'),
+        name: (
+          <div>
+            <p
+              className={styles.ColumnNameTooltip}
+              data-tooltip-id="delete-tooltip"
+              data-tooltip-content={t('datasets.preview.deletion_warning')}
+            >
+              {t('datasets.preview.columns.delete')}
+              <TooltipIcon className={styles.Icon} />
+              <Tooltip id="delete-tooltip" positionStrategy="fixed" place="left" />
+            </p>
+          </div>
+        ),
         value: 'delete',
         reorderable: false,
         bodyTemplate: (row: { record_id: number }) => (
@@ -207,14 +226,23 @@ export function DatasetsPreviewStep() {
     <>
       <div className={styles.DatasetsPreviewStep}>
         <div className={styles.TextContent}>
-          <IngestionStepTitleRow title={t('datasets.preview.title')} docsLink={DOCS_URL} />
+          <IngestionStepTitleRow title={t('datasets.preview.title')} datasetName={datasetName} docsLink={DOCS_URL} />
           <p className={styles.Message}>{t('datasets.preview.message')}</p>
-          <FormMessage
-            className={styles.DeleteWarning}
-            message={t('datasets.preview.deletion_warning')}
-            type="warning"
-            withBackground={true}
-            showBorder={false}
+        </div>
+        <div className={styles.FileSelection}>
+          <Dropdown
+            className={styles.FilesFilter}
+            value={selectedFile}
+            options={filesOptions}
+            onChange={handleFileChange}
+            optionValue="id"
+            optionLabel="name"
+            disabled={isLoading}
+          />
+          <PreviewStepSummary
+            removedByUser={currentFileDeletions.size}
+            soilDataSummary={soilDataSummary}
+            isLoading={isLoading || isStatsLoading}
           />
         </div>
         <div className={styles.TableFilters}>
@@ -224,15 +252,6 @@ export function DatasetsPreviewStep() {
           </div>
 
           <div className={styles.Right}>
-            <Dropdown
-              className={styles.FilesFilter}
-              value={selectedFile}
-              options={filesOptions}
-              onChange={handleFileChange}
-              optionValue="id"
-              optionLabel="name"
-              disabled={isLoading}
-            />
             <MultiSelect
               className={styles.ColumnsFilter}
               value={visibleColumns}
