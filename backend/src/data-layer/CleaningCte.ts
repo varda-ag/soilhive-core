@@ -13,7 +13,6 @@ interface CleaningCteBundle {
    *   cell_delete_reasons (jsonb|null)        — {"prop": CellDeleteReason, ...}; null when empty
    *   cell_modify_reasons (jsonb|null)        — {"prop": ["unit_converted"|"value_rounded", ...], "depth": ["depth_rounded"]}; null when empty
    *   row_delete_reason (text|null)           — from row-level checks; null on surviving rows
-   *   _rn (int)                               — ROW_NUMBER for full-row dedup within surviving rows
    *   final_row_delete_reason (text|null)     — null = row survives; string = deletion reason
    */
   cte: string;
@@ -136,6 +135,8 @@ export function buildCleaningCte(config: DataCleaningConfig, fileId: string): Cl
     minDepthRaw,
     maxDepthRaw,
     sdCol ? `raw.${sdCol}::text` : 'NULL::text',
+    hzCol ? `raw.${hzCol}::text` : 'NULL::text',
+    licCol ? `raw.${licCol}::text` : 'NULL::text',
     ...props.map(([prop]) => `raw.${prop}`),
   ].join(', ');
   c1.push(`ROW_NUMBER() OVER (PARTITION BY ${fullRowPartition} ORDER BY raw.record_id) AS _full_row_rn`);
@@ -219,7 +220,7 @@ export function buildCleaningCte(config: DataCleaningConfig, fileId: string): Cl
     ? `WHEN cd.record_id IN (${config.drop_records.join(', ')}) THEN '${RowDeleteReason.USER_DELETION}'`
     : '';
 
-  const cte3 = `row_annotated AS MATERIALIZED (
+  const cte3 = `cleaning_result AS MATERIALIZED (
   SELECT
     cd.*,
     CASE
@@ -238,26 +239,11 @@ export function buildCleaningCte(config: DataCleaningConfig, fileId: string): Cl
       WHEN COALESCE(${finalCleaned}) IS NULL
         THEN '${RowDeleteReason.MINIMUM_DATA_REQUIREMENT}'
       ELSE NULL
-    END AS row_delete_reason
+    END AS final_row_delete_reason
   FROM cell_deduped cd
 )`;
 
-  const cte4 = `surviving AS (
-  SELECT ra.*, 1 AS _rn
-  FROM row_annotated ra
-  WHERE ra.row_delete_reason IS NULL
-)`;
-
-  const cte5 = `cleaning_result AS (
-    SELECT *, NULL::text AS final_row_delete_reason
-    FROM surviving
-    UNION ALL
-    SELECT *, 0 AS _rn, row_delete_reason AS final_row_delete_reason
-    FROM row_annotated
-    WHERE row_delete_reason IS NOT NULL
-  )`;
-
-  const cte = [cte1, cte2, cte3, cte4, cte5].join(',\n');
+  const cte = [cte1, cte2, cte3].join(',\n');
 
   return {
     cte: `WITH\n${cte}`,
