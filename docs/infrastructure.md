@@ -106,7 +106,7 @@ Recommended storage includes additional capacity for indexes, WAL files, tempora
 | 50,000,000 | ~30 GB | 250 GB |
 | 500,000,000 | ~300 GB | 500 GB to 1 TB |
 
-> **Note on raster data:** Raster files are stored on the application server's disk, not in PostgreSQL. Only raster metadata and spatial indexes enter the database. Raster storage must be planned separately from the observation estimates above — see *Application Storage Sizing* below.
+> **Note on raster data:** Raster files are stored on the application server's disk, not in PostgreSQL. Only raster metadata and spatial indexes enter the database. The exception is **map-based filter rasters**, which are loaded directly into PostgreSQL using `postgis_raster` — their database storage impact is already accounted for in the *Application Storage Sizing* section below. All other raster storage must be planned separately from the observation estimates above — see *Application Storage Sizing* below.
 
 ### Memory Relative to Data Volume
 
