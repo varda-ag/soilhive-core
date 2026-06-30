@@ -81,6 +81,12 @@ export function DatasetsPublicationTable({ datasets, isSearch, onEdit, onDelete,
         bodyTemplate: ({ updated_at }: { updated_at: Date | null }) => dateStringToDDMMYYYY(updated_at),
       },
       {
+        name: t('datasets.list.columns.updated_by'),
+        value: 'updated_by',
+        sortable: true,
+        bodyTemplate: ({ updated_by }: { updated_by?: string | null }) => updated_by ?? '—',
+      },
+      {
         name: t('datasets.list.columns.actions'),
         value: 'actions',
         sortable: false,

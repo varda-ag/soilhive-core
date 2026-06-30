@@ -68,13 +68,14 @@ describe('DatasetsPublicationTable', () => {
     expect(screen.getByTestId('mock-table')).toBeInTheDocument();
   });
 
-  it('renders all 5 columns', () => {
+  it('renders all 6 columns', () => {
     render(<DatasetsPublicationTable {...defaultProps} />);
 
     expect(screen.getByTestId('col-name')).toBeInTheDocument();
     expect(screen.getByTestId('col-status')).toBeInTheDocument();
     expect(screen.getByTestId('col-visibility')).toBeInTheDocument();
     expect(screen.getByTestId('col-updated_at')).toBeInTheDocument();
+    expect(screen.getByTestId('col-updated_by')).toBeInTheDocument();
     expect(screen.getByTestId('col-actions')).toBeInTheDocument();
   });
 
@@ -176,5 +177,26 @@ describe('DatasetsPublicationTable', () => {
 
     const sorted = statusCol.sortFunction({ data, order: undefined });
     expect(sorted).toHaveLength(2);
+  });
+
+  it('updated_by column renders the value when present', () => {
+    render(<DatasetsPublicationTable {...defaultProps} />);
+
+    const updatedByCol = capturedColumns.find((c: any) => c.value === 'updated_by');
+    expect(updatedByCol.bodyTemplate({ updated_by: 'user-uuid-abc' })).toBe('user-uuid-abc');
+  });
+
+  it('updated_by column renders em dash when value is null', () => {
+    render(<DatasetsPublicationTable {...defaultProps} />);
+
+    const updatedByCol = capturedColumns.find((c: any) => c.value === 'updated_by');
+    expect(updatedByCol.bodyTemplate({ updated_by: null })).toBe('—');
+  });
+
+  it('updated_by column renders em dash when value is undefined', () => {
+    render(<DatasetsPublicationTable {...defaultProps} />);
+
+    const updatedByCol = capturedColumns.find((c: any) => c.value === 'updated_by');
+    expect(updatedByCol.bodyTemplate({ updated_by: undefined })).toBe('—');
   });
 });

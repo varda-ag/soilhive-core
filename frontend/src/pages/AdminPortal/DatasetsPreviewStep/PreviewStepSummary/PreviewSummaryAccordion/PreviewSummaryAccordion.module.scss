@@ -1,0 +1,59 @@
+.PreviewSummaryAccordion {
+  .AccordionHeader {
+    padding: 0.5rem 1rem;
+    position: relative;
+
+    &:after {
+      content: '';
+      display: block;
+      width: calc(100% - 2rem);
+      height: 1px;
+      background-color: var(--color-neutral-dark-300);
+      position: absolute;
+      bottom: 0;
+    }
+
+    &.Opened,
+    &.Last {
+      &:after {
+        display: none;
+      }
+    }
+  }
+
+  .AccordionTitle {
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+
+    .ColorMark {
+      border-radius: 50%;
+      width: 0.5rem;
+      height: 0.5rem;
+    }
+  }
+
+  .AccordionHeaderTotal {
+    font-size: var(--font-size-xs);
+    margin-right: 0.5rem;
+  }
+
+  .AccordionChildren {
+    padding: 0 1rem;
+    background-color: var(--color-neutral-light);
+  }
+
+  .AccordionChildrenItem {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.375rem 0;
+    border-bottom: 1px dashed var(--color-neutral-dark-200);
+
+    &.AccordionChildrenTotal {
+      border-bottom: none;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+  }
+}

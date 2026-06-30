@@ -1,0 +1,183 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`PreviewSummaryAccordion matches snapshot 1`] = `
+<div>
+  <div
+    class="Accordion Custom PreviewSummaryAccordion"
+    data-testid="sh-ui-accordion"
+  >
+    <div
+      class="Header AccordionHeader"
+      role="button"
+    >
+      <div
+        class="Title"
+      >
+        <div
+          class="AccordionTitle"
+        >
+          <div
+            class="ColorMark"
+            style="background-color: rgb(162, 209, 65);"
+          />
+          Values Modified
+        </div>
+        <div
+          class="Left"
+        >
+          <div
+            class="AccordionHeaderTotal"
+          >
+            {{number}} total
+          </div>
+          <svg
+            class="ArrowIcon"
+            data-testid="svg-icon-mock"
+          >
+            mock-svg
+          </svg>
+        </div>
+      </div>
+    </div>
+    <div
+      class="Content"
+    >
+      <div
+        class="AccordionChildren"
+      >
+        <div
+          class="AccordionChildrenItem"
+        >
+          <p>
+            Depth rounded
+          </p>
+          <p>
+            10
+          </p>
+        </div>
+        <div
+          class="AccordionChildrenItem"
+        >
+          <p>
+            Value rounded
+          </p>
+          <p>
+            20
+          </p>
+        </div>
+        <div
+          class="AccordionChildrenItem"
+        >
+          <p>
+            Unit converted
+          </p>
+          <p>
+            12
+          </p>
+        </div>
+        <div
+          class="AccordionChildrenItem AccordionChildrenTotal"
+        >
+          <p>
+            Total
+          </p>
+          <p>
+            42
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`PreviewSummaryAccordion matches snapshot with isLast 1`] = `
+<div>
+  <div
+    class="Accordion Custom PreviewSummaryAccordion"
+    data-testid="sh-ui-accordion"
+  >
+    <div
+      class="Header AccordionHeader Last"
+      role="button"
+    >
+      <div
+        class="Title"
+      >
+        <div
+          class="AccordionTitle"
+        >
+          <div
+            class="ColorMark"
+            style="background-color: rgb(162, 209, 65);"
+          />
+          Values Modified
+        </div>
+        <div
+          class="Left"
+        >
+          <div
+            class="AccordionHeaderTotal"
+          >
+            {{number}} total
+          </div>
+          <svg
+            class="ArrowIcon"
+            data-testid="svg-icon-mock"
+          >
+            mock-svg
+          </svg>
+        </div>
+      </div>
+    </div>
+    <div
+      class="Content"
+    >
+      <div
+        class="AccordionChildren"
+      >
+        <div
+          class="AccordionChildrenItem"
+        >
+          <p>
+            Depth rounded
+          </p>
+          <p>
+            10
+          </p>
+        </div>
+        <div
+          class="AccordionChildrenItem"
+        >
+          <p>
+            Value rounded
+          </p>
+          <p>
+            20
+          </p>
+        </div>
+        <div
+          class="AccordionChildrenItem"
+        >
+          <p>
+            Unit converted
+          </p>
+          <p>
+            12
+          </p>
+        </div>
+        <div
+          class="AccordionChildrenItem AccordionChildrenTotal"
+        >
+          <p>
+            Total
+          </p>
+          <p>
+            42
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+`;

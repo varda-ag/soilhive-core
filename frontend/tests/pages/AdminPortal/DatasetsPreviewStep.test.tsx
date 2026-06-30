@@ -1,6 +1,8 @@
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { DatasetsPreviewStep } from '../../../src/pages/AdminPortal/DatasetsPreviewStep/DatasetsPreviewStep';
 import { useDatasetPreview } from 'hooks/useDatasetPreviewStep';
+import type { SoilDataSummary } from 'types/datasetsPublication';
+import { CellDeleteReason, CellModifyReason, RowDeleteReason } from 'types/backend';
 
 jest.mock('react-router', () => ({
   useParams: () => ({ id: '123' }),
@@ -44,6 +46,17 @@ jest.mock('primereact/multiselect', () => ({
   ),
 }));
 
+jest.mock('pages/AdminPortal/DatasetsPreviewStep/PreviewStepSummary/PreviewStepSummary', () => ({
+  PreviewStepSummary: ({ removedByUser, soilDataSummary, isLoading }: any) => (
+    <div
+      data-testid="preview-step-summary"
+      data-removed-by-user={removedByUser}
+      data-is-loading={String(isLoading)}
+      data-values-modified={soilDataSummary?.summary?.values_modified}
+    />
+  ),
+}));
+
 jest.mock('components/UI/Table/Table', () => ({
   Table: ({ columns, emptyMessage }: any) => (
     <div data-testid="mock-table">
@@ -63,7 +76,31 @@ jest.mock('components/UI/Table/Table', () => ({
 // Fixtures
 // ---------------------------------------------------------------------------
 
+const emptySoilDataSummary: SoilDataSummary = {
+  summary: { values_modified: 0, rows_deleted: 0, cells_deleted: 0 },
+  modifications: {
+    [CellModifyReason.DEPTH_ROUNDED]: 0,
+    [CellModifyReason.VALUE_ROUNDED]: 0,
+    [CellModifyReason.UNIT_CONVERTED]: 0,
+  },
+  row_deletions: {
+    [RowDeleteReason.INVALID_COORDINATES]: 0,
+    [RowDeleteReason.INVALID_DEPTH_INTERVAL]: 0,
+    [RowDeleteReason.MINIMUM_DATA_REQUIREMENT]: 0,
+    [RowDeleteReason.DUPLICATE_ROW]: 0,
+    [RowDeleteReason.USER_DELETION]: 0,
+  },
+  cell_deletions: {
+    [CellDeleteReason.NON_NUMERIC]: 0,
+    [CellDeleteReason.NEGATIVE_VALUE]: 0,
+    [CellDeleteReason.ZERO_VALUE]: 0,
+    [CellDeleteReason.DUPLICATE_CELL]: 0,
+    [CellDeleteReason.OOB]: 0,
+  },
+};
+
 const baseHook = {
+  datasetName: '',
   datasetFileMappings: [] as any[],
   soilData: [] as any[],
   allSoilData: [] as any[],
@@ -84,6 +121,8 @@ const baseHook = {
   handleSaveAndContinueLater: jest.fn(),
   handleContinue: jest.fn(),
   navigateToDatasets: jest.fn(),
+  soilDataSummary: emptySoilDataSummary,
+  isStatsLoading: false,
 };
 
 function mockHook(overrides: Partial<typeof baseHook> = {}) {
@@ -346,6 +385,43 @@ describe('DatasetsPreviewStep', () => {
       render(<DatasetsPreviewStep />);
       fireEvent.click(screen.getByText('Continue'));
       expect(navigateToDatasets).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('PreviewStepSummary', () => {
+    it('renders when showLoadingPanel is false', () => {
+      mockHook({ showLoadingPanel: false });
+      render(<DatasetsPreviewStep />);
+      expect(screen.getByTestId('preview-step-summary')).toBeInTheDocument();
+    });
+
+    it('does not render when showLoadingPanel is true', () => {
+      mockHook({ showLoadingPanel: true });
+      render(<DatasetsPreviewStep />);
+      expect(screen.queryByTestId('preview-step-summary')).not.toBeInTheDocument();
+    });
+
+    it('passes currentFileDeletions.size as removedByUser', () => {
+      const currentFileDeletions = new Set([1, 2, 3]);
+      mockHook({ currentFileDeletions });
+      render(<DatasetsPreviewStep />);
+      expect(screen.getByTestId('preview-step-summary')).toHaveAttribute('data-removed-by-user', '3');
+    });
+
+    it('passes isStatsLoading as isLoading', () => {
+      mockHook({ isStatsLoading: true });
+      render(<DatasetsPreviewStep />);
+      expect(screen.getByTestId('preview-step-summary')).toHaveAttribute('data-is-loading', 'true');
+    });
+
+    it('passes soilDataSummary values to the component', () => {
+      const soilDataSummary: SoilDataSummary = {
+        ...emptySoilDataSummary,
+        summary: { values_modified: 42, rows_deleted: 5, cells_deleted: 8 },
+      };
+      mockHook({ soilDataSummary });
+      render(<DatasetsPreviewStep />);
+      expect(screen.getByTestId('preview-step-summary')).toHaveAttribute('data-values-modified', '42');
     });
   });
 

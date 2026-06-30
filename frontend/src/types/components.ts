@@ -72,3 +72,9 @@ export type TableColumn<T> = {
   bodyTemplate?: (row: T) => ReactNode;
   sortFunction?: (event: ColumnSortEvent) => T[];
 };
+
+export type InfoCardContent = {
+  value: string | number;
+  description: string;
+  color: string;
+};

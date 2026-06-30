@@ -5,6 +5,7 @@ import { useApiQuery } from './useApiQuery';
 import { useApiMutation } from './useApiMutation';
 import { useCreateJobMutation } from './useJobsApi';
 import type {
+  CleaningReport,
   DataMappingRequestWithDrop,
   DataMappingResponse,
   DatasetFileMappingRequest,
@@ -12,12 +13,21 @@ import type {
   FileDescriptor,
   SoilRecord,
 } from 'types/backend';
+import { CellDeleteReason, CellModifyReason, RowDeleteReason } from 'types/backend';
 import { useSoilProperties } from './useSoilProperties';
 import { ADMIN_PATHS } from '../configuration/admin';
 import { sanitizeField } from '../utilities/dataMapping';
 import useIngestionFlow from './useIngestionFlow';
+import { useDataset } from './useDatasets';
 
 export const SOIL_DATA_LIMIT = 12;
+
+const EMPTY_SOIL_DATA_SUMMARY = {
+  summary: { values_modified: 0, rows_deleted: 0, cells_deleted: 0 },
+  modifications: Object.fromEntries(Object.values(CellModifyReason).map(r => [r, 0])) as Record<CellModifyReason, number>,
+  row_deletions: Object.fromEntries(Object.values(RowDeleteReason).map(r => [r, 0])) as Record<RowDeleteReason, number>,
+  cell_deletions: Object.fromEntries(Object.values(CellDeleteReason).map(r => [r, 0])) as Record<CellDeleteReason, number>,
+};
 
 export function useDatasetPreview(datasetId?: string) {
   const navigate = useNavigate();
@@ -33,6 +43,7 @@ export function useDatasetPreview(datasetId?: string) {
       queryClient.invalidateQueries({ queryKey: ['datasets', datasetId, 'mappings'] });
       queryClient.invalidateQueries({ queryKey: ['datasets', datasetId, 'dataset-file-mapping'] });
       queryClient.invalidateQueries({ queryKey: ['datasets', datasetId, 'files'] });
+      queryClient.removeQueries({ queryKey: ['datasets', datasetId, 'mapping-soil-data'], exact: false });
     };
   }, [queryClient, datasetId]);
 
@@ -47,9 +58,12 @@ export function useDatasetPreview(datasetId?: string) {
   const [sortOrder, setSortOrder] = useState<1 | -1 | null>(null);
   const [markedForDeletion, setMarkedForDeletion] = useState<Map<string, Set<number>>>(new Map());
   const fileMappingIdRef = useRef<string | undefined>(undefined);
+  const selectedFileRef = useRef<string | null>(selectedFile);
 
   const [availableColumns, setAvailableColumns] = useState<string[]>([]);
   const [showLoadingPanel, setShowLoadingPanel] = useState(false);
+
+  const { data: dataset } = useDataset(datasetId);
 
   const { data: soilProperties, isLoading: isLoadingSoilProperties } = useSoilProperties();
 
@@ -107,6 +121,10 @@ export function useDatasetPreview(datasetId?: string) {
   }, [computedMappings, soilProperties]);
 
   useEffect(() => {
+    selectedFileRef.current = selectedFile;
+  }, [selectedFile]);
+
+  useEffect(() => {
     if (datasetFileMappings?.length) {
       setSelectedFile(datasetFileMappings[0].fileID);
       setSelectedMapping(datasetFileMappings[0]);
@@ -139,6 +157,23 @@ export function useDatasetPreview(datasetId?: string) {
   useEffect(() => {
     if (soilData?.length) {
       setAllSoilData(prev => [...prev, ...soilData]);
+
+      const file = selectedFileRef.current;
+      if (!file) return;
+
+      setMarkedForDeletion(prev => {
+        const next = new Map(prev);
+        const fileSet = new Set(next.get(file) ?? []);
+
+        soilData.forEach(record => {
+          if (record.user_dropped) {
+            fileSet.add(record.record_id);
+          }
+        });
+
+        next.set(file, fileSet);
+        return next;
+      });
     }
   }, [soilData]);
 
@@ -146,6 +181,56 @@ export function useDatasetPreview(datasetId?: string) {
     if (!soilData?.length || !hasMore) return;
     setCursor(soilData[soilData.length - 1].cursor);
   }, [soilData, hasMore]);
+
+  const { data: soilDataStats, isLoading: isStatsLoading } = useApiQuery<CleaningReport>({
+    endpoint: `/datasets/${datasetId}/dataset-file-mapping/${selectedMapping?.id}/soil-data/stats`,
+    method: 'GET',
+    queryKey: ['datasets', datasetId, 'mapping-soil-data', selectedMapping?.id, 'stats'],
+    enabled: !!datasetId && !!selectedMapping?.id,
+    retry: 0,
+  });
+
+  const soilDataSummary = useMemo(() => {
+    if (!soilDataStats) {
+      return EMPTY_SOIL_DATA_SUMMARY;
+    }
+
+    const modifications = Object.values(CellModifyReason).reduce<Record<CellModifyReason, number>>(
+      (acc, reason) => {
+        const found = soilDataStats.modifications.find(m => m.reason === reason);
+        acc[reason] = found?.count ?? 0;
+        return acc;
+      },
+      {} as Record<CellModifyReason, number>,
+    );
+
+    const row_deletions = Object.values(RowDeleteReason).reduce<Record<RowDeleteReason, number>>(
+      (acc, reason) => {
+        const found = soilDataStats.row_deletions.find(r => r.reason === reason);
+        acc[reason] = found?.count ?? 0;
+        return acc;
+      },
+      {} as Record<RowDeleteReason, number>,
+    );
+
+    const cell_deletions = Object.values(CellDeleteReason).reduce<Record<CellDeleteReason, number>>(
+      (acc, reason) => {
+        acc[reason] = soilDataStats.cell_deletions.filter(c => c.reason === reason).reduce((sum, c) => sum + c.count, 0);
+        return acc;
+      },
+      {} as Record<CellDeleteReason, number>,
+    );
+
+    return {
+      summary: {
+        ...soilDataStats.summary,
+        rows_deleted: soilDataStats.summary.rows_deleted - row_deletions.user_deletion,
+      },
+      modifications,
+      row_deletions,
+      cell_deletions,
+    };
+  }, [soilDataStats]);
 
   const toggleDeletion = useCallback(
     (recordId: number) => {
@@ -256,16 +341,23 @@ export function useDatasetPreview(datasetId?: string) {
     navigate(ADMIN_PATHS.DATASETS);
   }, [navigate]);
 
+  const datasetName = useMemo(() => {
+    return dataset?.name || '';
+  }, [dataset]);
+
   return {
+    datasetName,
     datasetFileMappings,
     files,
     soilData,
+    soilDataSummary,
     selectedFile,
     allSoilData,
     computedPropertyNames,
     unitsMapping,
     availableColumns,
     isLoading,
+    isStatsLoading,
     hasMore,
     isLoadingMore: isLoadingSoilData && allSoilData.length > 0,
     sortField,

@@ -11,11 +11,15 @@ exports[`DatasetsPreviewStep matches snapshot 1`] = `
       <div
         class="IngestionStepTitleRow"
       >
-        <h2
-          class="Title"
+        <div
+          class="Left"
         >
-          Preview
-        </h2>
+          <h2
+            class="Title"
+          >
+            Preview
+          </h2>
+        </div>
         <a
           class="DocumentationLink"
           data-testid="sh-documentaion-link"
@@ -37,22 +41,19 @@ exports[`DatasetsPreviewStep matches snapshot 1`] = `
       >
         This is the data you are going to load, make sure everything is correct, you can unselect the rows that are not consistent, they won't be loaded in the dataset.
       </p>
+    </div>
+    <div
+      class="FileSelection"
+    >
+      <select
+        data-testid="file-dropdown"
+      />
       <div
-        class="FormMessage WarningMessage DeleteWarning Global"
-        data-testid="sh-form-message"
-      >
-        <svg
-          class="FormMessageIcon"
-          data-testid="sh-form-message-icon-warning"
-        >
-          mock-svg
-        </svg>
-        <span
-          class="FormMessageText"
-        >
-          If you delete a row, all the soil properties belonging to it will not be ingested including those not visible on screen.
-        </span>
-      </div>
+        data-is-loading="false"
+        data-removed-by-user="0"
+        data-testid="preview-step-summary"
+        data-values-modified="0"
+      />
     </div>
     <div
       class="TableFilters"
@@ -76,9 +77,6 @@ exports[`DatasetsPreviewStep matches snapshot 1`] = `
       <div
         class="Right"
       >
-        <select
-          data-testid="file-dropdown"
-        />
         <div
           data-disabled="false"
           data-testid="column-multiselect"
@@ -141,7 +139,21 @@ exports[`DatasetsPreviewStep matches snapshot 1`] = `
           <div
             data-testid="table-col-delete"
           >
-            Delete
+            <div>
+              <p
+                class="ColumnNameTooltip"
+                data-tooltip-content="If you discard a row, all the soil properties belonging to it will not be ingested including those not visible on screen."
+                data-tooltip-id="delete-tooltip"
+              >
+                Discard
+                <svg
+                  class="Icon"
+                  data-testid="svg-icon-mock"
+                >
+                  mock-svg
+                </svg>
+              </p>
+            </div>
           </div>
         </div>
       </div>
