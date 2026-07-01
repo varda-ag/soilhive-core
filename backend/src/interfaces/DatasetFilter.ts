@@ -49,6 +49,7 @@ export interface FilteredDataset {
   id: string;
   name: string;
   data_type: GISDataType;
+  visibility: 'public' | 'private';
 }
 
 export interface FilteredRasterLayer {

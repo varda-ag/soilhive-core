@@ -4,9 +4,10 @@ import request from 'supertest';
 import { app } from '../../src/app';
 import { FilteredDatasetSummary, FilteredData, FilteredDataset } from '../../src/interfaces/DatasetFilter';
 import { getDataSource } from '../../src/utils/data-source';
-import { addSyntheticData, syntheticDataOptions } from '../../src/utils/mock';
+import { addRasterData, addSyntheticData, syntheticDataOptions } from '../../src/utils/mock';
 import { getDataAdminToken, getSuperAdminToken } from '../helper';
 import { StatusCodes } from 'http-status-codes';
+import { IngestionStatus } from '../../src/types/data';
 
 const filteringPolygon = {
   coordinates: [
@@ -452,5 +453,30 @@ describe('Testing /data-filters routes', () => {
     expect(resDatasets.statusCode).toBe(StatusCodes.OK);
     const ids = (resDatasets.body as FilteredDataset[]).map(ds => ds.id);
     expect(ids).not.toContain(dataset.slug);
+  });
+
+  it('Datasets endpoint includes visibility for raster datasets', async () => {
+    await addRasterData(undefined, { dataset_status: IngestionStatus.PUBLISHED, visibility: 'private' });
+    const rasterPolygon = {
+      type: 'Polygon',
+      coordinates: [
+        [
+          [-82, -35],
+          [-82, -33],
+          [-80, -33],
+          [-80, -35],
+          [-82, -35],
+        ],
+      ],
+    };
+    const resPost = await request(app)
+      .post('/data-filters')
+      .send({ parameters: {}, geometries: [rasterPolygon] });
+    const resDatasets = await request(app).get(`/data-filters/${resPost.body.id}/datasets`);
+    const datasets: FilteredDataset[] = resDatasets.body;
+
+    expect(datasets.length).toBeGreaterThan(0);
+    expect(datasets.every(ds => ds.data_type === 'raster')).toBe(true);
+    datasets.forEach(ds => expect(ds.visibility).toBe('private'));
   });
 });
