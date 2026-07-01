@@ -164,7 +164,7 @@ export default class FilterService {
       sds.filterVectorDatasets(requestData.entityManager, filter),
       sds
         .filterRaster(requestData.entityManager, filter)
-        .then(results => results.map(({ id, name, data_type }) => ({ id, name, data_type }))),
+        .then(results => results.map(({ id, name, data_type, visibility }) => ({ id, name, data_type, visibility }))),
     ]);
     return [...vectorDatasets, ...rasterDatasets];
   };
