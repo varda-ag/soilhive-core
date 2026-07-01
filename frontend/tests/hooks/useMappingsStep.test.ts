@@ -208,7 +208,7 @@ describe('useMappingsStep', () => {
       await act(async () => {
         await result.current.handleContinue();
       });
-      expect(mockCreateJob).toHaveBeenCalledWith({ type: 'file-to-db', file_id: 'file-1' });
+      expect(mockCreateJob).toHaveBeenCalledWith({ dataset_id: '42', type: 'file-to-db', file_id: 'file-1' });
     });
 
     it('handleContinue creates jobs when files are not yet STAGED even if mapping is unchanged', async () => {
@@ -227,7 +227,7 @@ describe('useMappingsStep', () => {
       await act(async () => {
         await result.current.handleContinue();
       });
-      expect(mockCreateJob).toHaveBeenCalledWith({ type: 'file-to-db', file_id: 'file-1' });
+      expect(mockCreateJob).toHaveBeenCalledWith({ dataset_id: '42', type: 'file-to-db', file_id: 'file-1' });
     });
   });
 
