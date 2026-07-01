@@ -75,6 +75,7 @@ export function DatasetsSettingsPage() {
       <div className={styles.Wrapper}>
         <div className={styles.Header}>
           <h2 className={styles.PageTitle}>{t('datasets.settings.title')}</h2>
+          <div className={styles.Separator} />
           <span className={styles.DatasetName}>{id}</span>
         </div>
 

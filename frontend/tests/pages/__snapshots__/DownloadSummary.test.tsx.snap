@@ -82,9 +82,35 @@ exports[`DownloadSummary renders download summary page 1`] = `
             <div
               class="FormatPickerContent"
             >
-              <div>
-                Mock Dropdown
-              </div>
+              <select
+                data-testid="format-dropdown"
+              >
+                <option
+                  value="csv"
+                >
+                  CSV
+                </option>
+                <option
+                  value="gpkg"
+                >
+                  Geopackage
+                </option>
+                <option
+                  value="geojson"
+                >
+                  GeoJSON
+                </option>
+                <option
+                  value="shp"
+                >
+                  Shapefile
+                </option>
+                <option
+                  value="xlsx"
+                >
+                  XLSX
+                </option>
+              </select>
             </div>
           </div>
           <div
@@ -116,9 +142,10 @@ exports[`DownloadSummary renders download summary page 1`] = `
           <div
             class="TermsOfUse"
           >
-            <div>
-              Mock Checkbox
-            </div>
+            <input
+              id="agree-to-terms-for-download"
+              type="checkbox"
+            />
             <label
               for="agree-to-terms-for-download"
             >
@@ -235,9 +262,35 @@ exports[`DownloadSummary renders download summary page coming from availability 
             <div
               class="FormatPickerContent"
             >
-              <div>
-                Mock Dropdown
-              </div>
+              <select
+                data-testid="format-dropdown"
+              >
+                <option
+                  value="csv"
+                >
+                  CSV
+                </option>
+                <option
+                  value="gpkg"
+                >
+                  Geopackage
+                </option>
+                <option
+                  value="geojson"
+                >
+                  GeoJSON
+                </option>
+                <option
+                  value="shp"
+                >
+                  Shapefile
+                </option>
+                <option
+                  value="xlsx"
+                >
+                  XLSX
+                </option>
+              </select>
             </div>
           </div>
           <div
@@ -269,9 +322,10 @@ exports[`DownloadSummary renders download summary page coming from availability 
           <div
             class="TermsOfUse"
           >
-            <div>
-              Mock Checkbox
-            </div>
+            <input
+              id="agree-to-terms-for-download"
+              type="checkbox"
+            />
             <label
               for="agree-to-terms-for-download"
             >
@@ -388,9 +442,35 @@ exports[`DownloadSummary renders download summary page coming from data explorer
             <div
               class="FormatPickerContent"
             >
-              <div>
-                Mock Dropdown
-              </div>
+              <select
+                data-testid="format-dropdown"
+              >
+                <option
+                  value="csv"
+                >
+                  CSV
+                </option>
+                <option
+                  value="gpkg"
+                >
+                  Geopackage
+                </option>
+                <option
+                  value="geojson"
+                >
+                  GeoJSON
+                </option>
+                <option
+                  value="shp"
+                >
+                  Shapefile
+                </option>
+                <option
+                  value="xlsx"
+                >
+                  XLSX
+                </option>
+              </select>
             </div>
           </div>
           <div
@@ -422,9 +502,10 @@ exports[`DownloadSummary renders download summary page coming from data explorer
           <div
             class="TermsOfUse"
           >
-            <div>
-              Mock Checkbox
-            </div>
+            <input
+              id="agree-to-terms-for-download"
+              type="checkbox"
+            />
             <label
               for="agree-to-terms-for-download"
             >

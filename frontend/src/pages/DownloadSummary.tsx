@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import useDevice from 'hooks/useDevice';
 import { Button } from 'components/UI';
 import styles from './DownloadSummary.module.scss';
@@ -25,13 +25,27 @@ import { GISDataType } from '../types/backend';
 // Output: "1.234.567"
 const numberFormatter = new Intl.NumberFormat('de-DE');
 
-const availableFormats = [
-  { id: 'csv', name: 'CSV (Vector data)' },
-  { id: 'gpkg', name: 'Geopackage (Vector & raster data)' },
-  { id: 'geojson', name: 'GeoJSON (Vector data)' },
-  { id: 'shp', name: 'Shapefile (Vector data)' },
-  { id: 'xlsx', name: 'XLSX (Vector data)' },
-  { id: 'tiff', name: 'Geotiff (Raster data)' },
+export type FormatOption = { id: string; name: string; formats: string[] };
+
+export const VECTOR_FORMAT_OPTIONS: FormatOption[] = [
+  { id: 'csv', name: 'CSV', formats: ['csv'] },
+  { id: 'gpkg', name: 'Geopackage', formats: ['gpkg'] },
+  { id: 'geojson', name: 'GeoJSON', formats: ['geojson'] },
+  { id: 'shp', name: 'Shapefile', formats: ['shp'] },
+  { id: 'xlsx', name: 'XLSX', formats: ['xlsx'] },
+];
+
+export const RASTER_FORMAT_OPTIONS: FormatOption[] = [
+  { id: 'tiff', name: 'Geotiff', formats: ['tiff'] },
+  { id: 'gpkg', name: 'Geopackage', formats: ['gpkg'] },
+];
+
+export const MIXED_FORMAT_OPTIONS: FormatOption[] = [
+  { id: 'csv+tiff', name: 'CSV + Geotiff', formats: ['csv', 'tiff'] },
+  { id: 'gpkg', name: 'Geopackage', formats: ['gpkg'] },
+  { id: 'geojson+tiff', name: 'GeoJSON + Geotiff', formats: ['geojson', 'tiff'] },
+  { id: 'shp+tiff', name: 'Shapefile + Geotiff', formats: ['shp', 'tiff'] },
+  { id: 'xlsx+tiff', name: 'XLSX + Geotiff', formats: ['xlsx', 'tiff'] },
 ];
 
 function DownloadSummary() {
@@ -54,6 +68,22 @@ function DownloadSummary() {
   const [showUpdatedMessage, setShowUpdatedMessage] = useState(false);
   const [termsAgreed, setTermsAgreed] = useState(false);
 
+  const scenario = useMemo(() => {
+    if (selectedDatasets.length === 0 || selectedDatasets.every(d => d.dataType !== GISDataType.RASTER)) return 'vector' as const;
+    if (selectedDatasets.every(d => d.dataType === GISDataType.RASTER)) return 'raster' as const;
+    return 'mixed' as const;
+  }, [selectedDatasets]);
+
+  const { activeFormatOptions, defaultFormat } = useMemo(() => {
+    if (scenario === 'raster') return { activeFormatOptions: RASTER_FORMAT_OPTIONS, defaultFormat: 'tiff' };
+    if (scenario === 'mixed') return { activeFormatOptions: MIXED_FORMAT_OPTIONS, defaultFormat: 'gpkg' };
+    return { activeFormatOptions: VECTOR_FORMAT_OPTIONS, defaultFormat: 'csv' };
+  }, [scenario]);
+
+  useEffect(() => {
+    setSelectedFormat(defaultFormat);
+  }, [scenario, defaultFormat]);
+
   const onFormatDropdownChange = (e: DropdownChangeEvent) => {
     setSelectedFormat(e.value);
     if (e.value !== selectedFormat) {
@@ -63,7 +93,12 @@ function DownloadSummary() {
 
   const onDownloadButtonClick = () => {
     if (filterId) {
-      startDownload({ filter_id: filterId, dataset_ids: selectedDatasets.map(dataset => dataset.id), formats: [selectedFormat] });
+      const option = activeFormatOptions.find(o => o.id === selectedFormat)!;
+      startDownload({
+        filter_id: filterId,
+        dataset_ids: selectedDatasets.map(dataset => dataset.id),
+        formats: option.formats,
+      });
       setIsOpened(true);
       navigate('/');
     }
@@ -155,7 +190,7 @@ function DownloadSummary() {
                   className={styles.FormatPickerDropdown}
                   panelClassName={styles.FormatPickerDropdownPanel}
                   value={selectedFormat}
-                  options={availableFormats}
+                  options={activeFormatOptions}
                   onChange={onFormatDropdownChange}
                   optionValue="id"
                   optionLabel="name"

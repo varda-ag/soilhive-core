@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router';
 // import BellIcon from 'assets/icons/bell-icon.svg?react';
 import LogoutIcon from 'assets/icons/logout-icon.svg?react';
-import { PAGE_TITLE_KEYS } from '../../../configuration/admin';
+import { ADMIN_PATHS, PAGE_TITLE_KEYS } from '../../../configuration/admin';
 import { useAuthContext } from '../../../auth/AuthContextProvider';
 import { UserAvatar } from 'components/AccountWidget/UserAvatar/UserAvatar';
 import { Logo } from 'components/Logo/Logo';
@@ -21,7 +21,10 @@ export function AdminHeader() {
     navigate('/');
   }, [logout, navigate]);
 
-  const titleKey = useMemo(() => PAGE_TITLE_KEYS[pathname], [pathname]);
+  const titleKey = useMemo(() => {
+    if (pathname.startsWith(ADMIN_PATHS.DATASETS)) return PAGE_TITLE_KEYS[ADMIN_PATHS.DATASETS];
+    return PAGE_TITLE_KEYS[pathname];
+  }, [pathname]);
 
   return (
     <header className={styles.AdminHeader}>
