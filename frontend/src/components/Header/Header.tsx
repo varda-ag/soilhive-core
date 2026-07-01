@@ -54,6 +54,9 @@ export default function Header() {
       } as NavMenuEntry,
     ];
 
+    // Adding plugins after Home
+    output.push(...pluginEntries);
+
     if (!isLoadingThemeConfig && (themeConfig.termsAndConditionsHtml || themeConfig.privacyPolicyHtml)) {
       const children: NavMenuEntry[] = [];
 
@@ -72,9 +75,6 @@ export default function Header() {
         children,
       });
     }
-
-    // Adding plugins after the built-in entries
-    output.push(...pluginEntries);
 
     return output;
   }, [pluginEntries, isLoadingThemeConfig, themeConfig.termsAndConditionsHtml, themeConfig.privacyPolicyHtml]);

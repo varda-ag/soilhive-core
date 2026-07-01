@@ -207,17 +207,17 @@ describe('Header component', () => {
 
     fireEvent.click(screen.getByTestId('sh-header-hamburger'));
 
-    // Order mirrors desktop: built-in entries (home, legal) then plugins (single-page, new-tab).
+    // Order mirrors desktop: home, then plugins (single-page, new-tab), then legal.
     const entries = screen.getAllByTestId('mobile-menu-entry');
     expect(entries.map(entry => entry.textContent)).toEqual([
       'nav_menu.home:/',
-      'nav_menu.legal:',
       'single-page-module:single-page-route',
       'new-tab-module:https://example.com/plugin',
+      'nav_menu.legal:',
     ]);
     // The new-tab plugin is carried as an external entry so the mobile menu opens it in a new tab.
-    expect(entries[3]).toHaveAttribute('data-type', 'external');
-    expect(entries[2]).toHaveAttribute('data-type', 'internal');
+    expect(entries[2]).toHaveAttribute('data-type', 'external');
+    expect(entries[1]).toHaveAttribute('data-type', 'internal');
     expect(container).toMatchSnapshot();
   });
 
@@ -301,10 +301,10 @@ describe('Header component', () => {
 
     fireEvent.click(screen.getByTestId('sh-header-hamburger'));
 
-    // home, legal, single-page plugin, new-tab plugin
+    // home, single-page plugin, new-tab plugin, legal
     const entries = screen.getAllByTestId('mobile-menu-entry');
     expect(entries).toHaveLength(4);
-    expect(entries[1]).toHaveTextContent('nav_menu.legal');
+    expect(entries[3]).toHaveTextContent('nav_menu.legal');
   });
 
   it('renders only home entry in mobile menu when no legal html and no plugins', () => {

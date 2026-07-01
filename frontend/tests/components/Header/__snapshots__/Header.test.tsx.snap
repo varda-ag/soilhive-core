@@ -60,13 +60,6 @@ exports[`Header component renders built-in and plugin entries in the mobile menu
       data-testid="mobile-menu-entry"
       data-type="internal"
     >
-      nav_menu.legal
-      :
-    </div>
-    <div
-      data-testid="mobile-menu-entry"
-      data-type="internal"
-    >
       single-page-module
       :
       single-page-route
@@ -78,6 +71,13 @@ exports[`Header component renders built-in and plugin entries in the mobile menu
       new-tab-module
       :
       https://example.com/plugin
+    </div>
+    <div
+      data-testid="mobile-menu-entry"
+      data-type="internal"
+    >
+      nav_menu.legal
+      :
     </div>
   </div>
 </div>
@@ -118,6 +118,29 @@ exports[`Header component renders component correctly on desktop 1`] = `
             Home
           </span>
         </a>
+        <a
+          class=""
+          data-discover="true"
+          data-testid="sh-header-nav-link"
+          href="/single-page-route"
+        >
+          <span
+            class="LinkText"
+          >
+            single-page-module
+          </span>
+        </a>
+        <a
+          href="https://example.com/plugin"
+          rel="noopener noreferrer"
+          target="_blank"
+        >
+          <span
+            class="LinkText"
+          >
+            new-tab-module
+          </span>
+        </a>
         <div
           class="DropdownMenuItem"
         >
@@ -153,29 +176,6 @@ exports[`Header component renders component correctly on desktop 1`] = `
             </a>
           </div>
         </div>
-        <a
-          class=""
-          data-discover="true"
-          data-testid="sh-header-nav-link"
-          href="/single-page-route"
-        >
-          <span
-            class="LinkText"
-          >
-            single-page-module
-          </span>
-        </a>
-        <a
-          href="https://example.com/plugin"
-          rel="noopener noreferrer"
-          target="_blank"
-        >
-          <span
-            class="LinkText"
-          >
-            new-tab-module
-          </span>
-        </a>
       </nav>
       <div
         class="Additional"
