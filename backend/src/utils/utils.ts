@@ -10,12 +10,40 @@ export const sleep = async (ms: number) => {
   return new Promise(resolve => setTimeout(resolve, ms));
 };
 
+const RESERVED_KEYWORDS = new Set([
+  'all', 'analyse', 'analyze', 'and', 'any', 'array', 'as', 'asc', 'asymmetric',
+  'authorization', 'between', 'bigint', 'binary', 'bit', 'boolean', 'both',
+  'case', 'cast', 'check', 'collate', 'collation', 'column', 'concurrently',
+  'constraint', 'create', 'cross', 'current_catalog', 'current_date',
+  'current_role', 'current_schema', 'current_time', 'current_timestamp',
+  'current_user', 'dec', 'decimal', 'default', 'deferrable', 'delete', 'desc',
+  'distinct', 'do', 'drop', 'else', 'end', 'except', 'exists', 'false', 'fetch',
+  'filter', 'float', 'for', 'foreign', 'freeze', 'from', 'full', 'grant',
+  'group', 'groups', 'having', 'if', 'ilike', 'in', 'index', 'initially',
+  'inner', 'insert', 'int', 'integer', 'intersect', 'into', 'is', 'isnull',
+  'join', 'key', 'lateral', 'leading', 'left', 'like', 'limit', 'localtime',
+  'localtimestamp', 'match', 'natural', 'not', 'notnull', 'null', 'numeric',
+  'of', 'offset', 'on', 'only', 'or', 'order', 'out', 'outer', 'over',
+  'overlaps', 'partition', 'placing', 'precision', 'primary', 'query', 'range',
+  'real', 'references', 'returning', 'right', 'row', 'rows', 'select', 'set',
+  'session_user', 'similar', 'smallint', 'some', 'symmetric', 'table', 'temp',
+  'temporary', 'then', 'ties', 'to', 'trailing', 'true', 'union', 'unique',
+  'update', 'user', 'using', 'values', 'varchar', 'variadic', 'verbose', 'view',
+  'when', 'where', 'window', 'with', 'without',
+]);
+
 export const sanitizeField = (field: string, removeSpacePlaceholders: boolean = false) => {
   let replaceString = /[^a-z0-9_]/g;
   if (removeSpacePlaceholders) {
     replaceString = /[^a-z]/g;
   }
-  return field.toLowerCase().replaceAll('-', '_').replace(replaceString, '');
+  let result = field.toLowerCase().replaceAll('-', '_').replace(replaceString, '');
+  result = result.replace(/^_+/, '');
+  result = result.replace(/^[0-9]+/, '');
+  if (RESERVED_KEYWORDS.has(result)) {
+    result = `${result}_col`;
+  }
+  return result;
 };
 
 export const sanitizeFilename = (originalName: string): string => {
