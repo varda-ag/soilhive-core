@@ -1,5 +1,5 @@
 import { useId, useState } from 'react';
-import { modules } from '../utilities/moduleFederation';
+import useRemotes from '../hooks/useRemotes';
 import { useAuthContext } from '../auth/AuthContextProvider';
 import { Dropdown } from 'components/UI';
 import { useTranslation } from 'react-i18next';
@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 function Admin() {
   const { isAuthenticated, isLoading, user } = useAuthContext();
   const { t } = useTranslation('common');
+  const { modules } = useRemotes();
 
   const mapGeocoderInputId = useId();
   const [mapGeocoder, setMapGeocoder] = useState(localStorage.getItem('MAP_GEOCODER') ?? 'nominatim');
