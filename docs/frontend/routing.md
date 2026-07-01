@@ -12,7 +12,6 @@ BrowserRouter
     │
     ├── /terms-of-use              → TermsOfUse page (conditional on theme config)
     ├── /privacy-policy            → PrivacyPolicy page (conditional on theme config)
-    ├── /donation                  → Donation page
     │
     ├── Module Federation pages    → Injected at runtime from remote modules
     │
