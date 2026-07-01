@@ -10,7 +10,6 @@ import useTheme from './hooks/useTheme';
 import { MainLayout } from './layouts';
 import { AdminPortalModule } from './modules/AdminPortalModule';
 import AvailabilityModule from './modules/AvailabilityModule';
-import Admin from './pages/Admin';
 import TermsOfUse from './pages/TermsOfUse';
 import Metadata from './pages/Metadata';
 import PrivacyPolicy from 'pages/PrivacyPolicy';
@@ -32,14 +31,6 @@ function AppRoutes() {
         <>
           <Route element={<MainLayout />}>
             <Route path="/*" element={<AvailabilityModule />} />
-            <Route
-              path="/donation"
-              element={
-                <>
-                  <PageTitle title={t('page_titles.donation')} />
-                </>
-              }
-            />
             {!!themeConfig.termsAndConditionsHtml && (
               <Route
                 path="/terms-of-use"
@@ -62,15 +53,6 @@ function AppRoutes() {
                 }
               />
             )}
-            <Route
-              path="/admin-old"
-              element={
-                <>
-                  <PageTitle title={t('page_titles.admin')} />
-                  <Admin />
-                </>
-              }
-            />
             <Route
               path="/datasets/:id"
               element={
