@@ -10,10 +10,10 @@ import useTheme from './hooks/useTheme';
 import { MainLayout } from './layouts';
 import { AdminPortalModule } from './modules/AdminPortalModule';
 import AvailabilityModule from './modules/AvailabilityModule';
-import Admin from './pages/Admin';
 import TermsOfUse from './pages/TermsOfUse';
 import Metadata from './pages/Metadata';
 import PrivacyPolicy from 'pages/PrivacyPolicy';
+import { isSinglePageModule } from './utilities/moduleFederation';
 import './utilities/i18n';
 
 import './App.module.scss';
@@ -23,7 +23,8 @@ export const queryClient = new QueryClient();
 function AppRoutes() {
   const { t } = useTranslation('common');
   const { isLoadingThemeConfig, themeConfig } = useTheme();
-  const { singlePages, isLoadingRemotes } = useRemotes();
+  const { plugins, isLoadingRemotes } = useRemotes();
+  const pluginRoutes = useMemo(() => plugins.filter(isSinglePageModule), [plugins]);
 
   const router = useMemo(() => {
     if (isLoadingThemeConfig || isLoadingRemotes) return null;
@@ -32,14 +33,6 @@ function AppRoutes() {
         <>
           <Route element={<MainLayout />}>
             <Route path="/*" element={<AvailabilityModule />} />
-            <Route
-              path="/donation"
-              element={
-                <>
-                  <PageTitle title={t('page_titles.donation')} />
-                </>
-              }
-            />
             {!!themeConfig.termsAndConditionsHtml && (
               <Route
                 path="/terms-of-use"
@@ -63,15 +56,6 @@ function AppRoutes() {
               />
             )}
             <Route
-              path="/admin-old"
-              element={
-                <>
-                  <PageTitle title={t('page_titles.admin')} />
-                  <Admin />
-                </>
-              }
-            />
-            <Route
               path="/datasets/:id"
               element={
                 <>
@@ -80,7 +64,7 @@ function AppRoutes() {
                 </>
               }
             />
-            {singlePages.map(({ name, route, Page }) => (
+            {pluginRoutes.map(({ name, route, Page }) => (
               <Route
                 key={`/${route}`}
                 path={`/${route}`}
@@ -99,7 +83,7 @@ function AppRoutes() {
         </>,
       ),
     );
-  }, [isLoadingThemeConfig, isLoadingRemotes, singlePages, t, themeConfig.termsAndConditionsHtml, themeConfig.privacyPolicyHtml]);
+  }, [isLoadingThemeConfig, isLoadingRemotes, pluginRoutes, t, themeConfig.termsAndConditionsHtml, themeConfig.privacyPolicyHtml]);
 
   if (!router) return <div />;
   return <RouterProvider router={router} />;

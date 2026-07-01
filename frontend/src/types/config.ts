@@ -1,4 +1,4 @@
-import type { Plugin } from '../utilities/moduleFederation';
+import type { Plugin } from './plugins';
 
 export type ThemeColors = Record<string, string>;
 

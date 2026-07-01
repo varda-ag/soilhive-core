@@ -1,10 +1,10 @@
 import React, { createContext, useEffect, useRef, useState, type ReactNode } from 'react';
-import { isSinglePageModule, loadRemotes, type Plugin, type RemoteModule, type SinglePageModule } from '../utilities/moduleFederation';
+import { loadRemotes } from '../utilities/moduleFederation';
+import type { Plugin, RemotePlugin } from '../types/plugins';
 import useTheme from '../hooks/useTheme';
 
 type RemotesContextType = {
-  modules: RemoteModule[];
-  singlePages: SinglePageModule[];
+  plugins: RemotePlugin[];
   isLoadingRemotes: boolean;
 };
 
@@ -20,7 +20,7 @@ const EMPTY_REMOTES: Plugin[] = [];
 export const RemotesProvider: React.FC<RemotesProviderProps> = ({ children }) => {
   const { themeConfig, isLoadingThemeConfig } = useTheme();
 
-  const [modules, setModules] = useState<RemoteModule[]>([]);
+  const [plugins, setPlugins] = useState<RemotePlugin[]>([]);
   const [isLoadingModules, setIsLoadingModules] = useState(true);
 
   // Guards against re-loading the same config (e.g. React Strict Mode double-invoke
@@ -36,7 +36,7 @@ export const RemotesProvider: React.FC<RemotesProviderProps> = ({ children }) =>
     const load = async () => {
       try {
         const loaded = await loadRemotes(themeConfig.plugins ?? EMPTY_REMOTES);
-        if (!cancelled) setModules(loaded);
+        if (!cancelled) setPlugins(loaded);
       } finally {
         if (!cancelled) setIsLoadingModules(false);
       }
@@ -48,13 +48,10 @@ export const RemotesProvider: React.FC<RemotesProviderProps> = ({ children }) =>
     };
   }, [themeConfig?.plugins, isLoadingThemeConfig]);
 
-  const singlePages = modules.filter(isSinglePageModule);
-
   return (
     <RemotesContext.Provider
       value={{
-        modules,
-        singlePages,
+        plugins,
         isLoadingRemotes: isLoadingThemeConfig || isLoadingModules,
       }}
     >
