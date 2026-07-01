@@ -2,16 +2,13 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import useTheme from 'hooks/useTheme';
 import useDevice from 'hooks/useDevice';
+import useRemotes from 'hooks/useRemotes';
 import Header from 'components/Header/Header';
 import { useAuthContext } from '../../../src/auth/AuthContextProvider';
 
-jest.mock('../../../src/utilities/moduleFederation', () => ({
-  singlePages: [
-    {
-      name: 'test-module-name',
-      route: 'test-module-route',
-    },
-  ],
+jest.mock('hooks/useRemotes', () => ({
+  __esModule: true,
+  default: jest.fn(),
 }));
 
 jest.mock('hooks/useTheme', () => ({
@@ -73,6 +70,17 @@ describe('Header component', () => {
       themeConfig: { termsAndConditionsHtml: '<div>Mock</div>', privacyPolicyHtml: '' },
     });
     (useDevice as jest.Mock).mockReturnValue({ isDesktopLayout: true, isMobileLayout: false });
+
+    (useRemotes as jest.Mock).mockReturnValue({
+      modules: [],
+      singlePages: [
+        {
+          name: 'test-module-name',
+          route: 'test-module-route',
+        },
+      ],
+      isLoadingRemotes: false,
+    });
 
     (useAuthContext as jest.Mock).mockReturnValue({
       isAuthenticated: false,

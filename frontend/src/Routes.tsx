@@ -5,6 +5,7 @@ import { createBrowserRouter, createRoutesFromElements, Route, RouterProvider } 
 import PageTitle from './components/PageTitle';
 import { ADMIN_ROOT } from './configuration/admin';
 import { AdminPortalGuard } from './guards/AdminPortalGuard';
+import useRemotes from './hooks/useRemotes';
 import useTheme from './hooks/useTheme';
 import { MainLayout } from './layouts';
 import { AdminPortalModule } from './modules/AdminPortalModule';
@@ -14,7 +15,6 @@ import TermsOfUse from './pages/TermsOfUse';
 import Metadata from './pages/Metadata';
 import PrivacyPolicy from 'pages/PrivacyPolicy';
 import './utilities/i18n';
-import { singlePages } from './utilities/moduleFederation';
 
 import './App.module.scss';
 
@@ -23,9 +23,10 @@ export const queryClient = new QueryClient();
 function AppRoutes() {
   const { t } = useTranslation('common');
   const { isLoadingThemeConfig, themeConfig } = useTheme();
+  const { singlePages, isLoadingRemotes } = useRemotes();
 
   const router = useMemo(() => {
-    if (isLoadingThemeConfig) return null;
+    if (isLoadingThemeConfig || isLoadingRemotes) return null;
     return createBrowserRouter(
       createRoutesFromElements(
         <>
@@ -98,7 +99,7 @@ function AppRoutes() {
         </>,
       ),
     );
-  }, [isLoadingThemeConfig, t, themeConfig.termsAndConditionsHtml, themeConfig.privacyPolicyHtml]);
+  }, [isLoadingThemeConfig, isLoadingRemotes, singlePages, t, themeConfig.termsAndConditionsHtml, themeConfig.privacyPolicyHtml]);
 
   if (!router) return <div />;
   return <RouterProvider router={router} />;

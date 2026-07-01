@@ -21,7 +21,11 @@ const useConfig = <T>(id: string, defaultConfig?: T) => {
     authenticate: false,
   });
 
-  const config: T | undefined = data ?? defaultConfig;
+  // Backfill top-level keys that are missing in fetched data, keeping stored values
+  // where present. (data ?? defaultConfig handles the not-found / null case.)
+  const isObject = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null;
+
+  const config: T | undefined = isObject(data) && isObject(defaultConfig) ? { ...defaultConfig, ...data } : (data ?? defaultConfig);
 
   const saveConfig = async (newConfig: unknown): Promise<void> => {
     await saveMutation.mutateAsync(newConfig);

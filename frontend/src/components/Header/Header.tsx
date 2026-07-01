@@ -8,7 +8,6 @@ import ScalesIcon from 'assets/icons/scales-icon.svg?react';
 import AwardIcon from 'assets/icons/award-icon.svg?react';
 import LockIcon from 'assets/icons/lock-icon.svg?react';
 
-import { singlePages } from '../../utilities/moduleFederation';
 import MobileMenu from 'components/MobileMenu/MobileMenu';
 import { DownloadsStatus } from 'components/DownloadsStatus/DownloadsStatus';
 import { AccountWidget } from 'components/AccountWidget/AccountWidget';
@@ -17,6 +16,7 @@ import { LoginButton } from 'components/AccountWidget/LoginButton/LoginButton';
 import { Logo } from 'components/Logo/Logo';
 import { useAuthContext } from '../../auth/AuthContextProvider';
 import useTheme from 'hooks/useTheme';
+import useRemotes from 'hooks/useRemotes';
 import useDevice from 'hooks/useDevice';
 import type { NavMenuEntry } from 'types/components';
 import DropdownMenuItem from './DropdownMenuItem/DropdownMenuItem';
@@ -30,6 +30,7 @@ export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { isAuthenticated } = useAuthContext();
   const { isLoadingThemeConfig, themeConfig } = useTheme();
+  const { singlePages } = useRemotes();
 
   const menuEntries: NavMenuEntry[] = useMemo(() => {
     const output = [
