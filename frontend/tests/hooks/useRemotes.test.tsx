@@ -2,7 +2,8 @@ import { renderHook } from '@testing-library/react';
 
 import useRemotes from 'hooks/useRemotes';
 import { RemotesContext } from '../../src/contexts/RemotesContext';
-import type { SinglePageModule } from '../../src/utilities/moduleFederation';
+import type { SinglePagePlugin } from '../../src/types/plugins';
+import { PluginType } from '../../src/types/plugins';
 
 // RemotesContext transitively imports useTheme -> ThemeContext -> App -> i18n.
 // Mock useTheme to cut that chain; the hook under test never reads it here.
@@ -13,16 +14,16 @@ jest.mock('hooks/useTheme', () => ({
 
 const Page = () => null;
 
-const singlePageModule: SinglePageModule = {
+const singlePageModule: SinglePagePlugin = {
   name: 'single-page-module',
-  type: 'single-page',
+  type: PluginType.SINGLE_PAGE,
   route: '/remote',
+  hasMenuItem: true,
   Page,
 };
 
 const contextValue = {
-  modules: [singlePageModule],
-  singlePages: [singlePageModule],
+  plugins: [singlePageModule],
   isLoadingRemotes: false,
 };
 
