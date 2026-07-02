@@ -58,12 +58,13 @@ describe('VectorDataLoad class', () => {
         .map(f => f.count)
         .pop(),
     ).toBe(dataMappingConfig.drop_records?.length);
+    // Values with >3 decimals: 2
     expect(
-      stats.cell_deletions
-        .filter(rd => rd.reason === CellDeleteReason.DUPLICATE_CELL)
+      stats.modifications
+        .filter(rd => rd.reason === CellModifyReason.VALUE_ROUNDED)
         .map(f => f.count)
         .pop(),
-    ).toBe(1);
+    ).toBe(2);
   });
   it('sorted cursor pagination should visit every record exactly once', async () => {
     const { file, dataMapping } = await addSyntheticIngestionData({ ...syntheticIngestionDataOptions });
@@ -166,7 +167,13 @@ describe('VectorDataLoad class', () => {
       const stats = await vdl.getDataPreviewStats(entityManager, dataMappingNegativeDepths, fileId!);
       expect(
         stats.cell_deletions
-          .filter(m => m.reason === CellDeleteReason.NEGATIVE_VALUE)
+          .filter(m => m.reason === CellDeleteReason.NEGATIVE_VALUE && m.property === 'max_depth')
+          .map(f => f.count)
+          .pop(),
+      ).toBe(results.length - dataMappingNegativeDepths.drop_records!.length);
+      expect(
+        stats.cell_deletions
+          .filter(m => m.reason === CellDeleteReason.NEGATIVE_VALUE && m.property === 'min_depth')
           .map(f => f.count)
           .pop(),
       ).toBe(results.length - dataMappingNegativeDepths.drop_records!.length);

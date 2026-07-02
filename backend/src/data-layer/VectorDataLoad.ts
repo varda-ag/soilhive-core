@@ -110,7 +110,7 @@ export default class VectorDataLoad {
         SELECT val AS reason, key AS property, COUNT(*)::int AS count
         FROM cleaning_result,
             jsonb_each_text(cell_delete_reasons) AS t(key, val)
-        WHERE cell_delete_reasons IS NOT NULL AND (final_row_delete_reason IS NULL OR final_row_delete_reason = '${RowDeleteReason.DUPLICATE_ROW}')
+        WHERE cell_delete_reasons IS NOT NULL AND final_row_delete_reason IS NULL
         GROUP BY val, key
       ),
       cell_modify_stats AS (

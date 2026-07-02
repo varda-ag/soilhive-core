@@ -7,7 +7,7 @@ import { getTableColumns } from '../helper';
 import { getRawTableName, sanitizeField } from '../../src/utils/utils';
 import { DetectableFields } from '../../src/types/DataMapping';
 import { getDataSource, getEntityManager } from '../../src/utils/data-source';
-import { addDataset, addDataMapping, addDatasetFileMapping } from '../../src/utils/mock';
+import { addDataset, addDataMapping, addDatasetFileMapping, addSoilProperty, addCategory } from '../../src/utils/mock';
 import { RequestData } from '../../src/interfaces/RequestData';
 import { Token } from '../../src/interfaces/Token';
 import { EntityManager } from 'typeorm';
@@ -476,7 +476,9 @@ describe('FileService', () => {
         file_path: 'sample_point.geojson',
       });
       const dataset = await addDataset('test_geom_native_mapping', [0, 0, 30, 60]);
-      const dataMapping = await addDataMapping({ wkt_col: 'geometry' });
+      const cat = await addCategory();
+      const prop = await addSoilProperty('pH', cat.id);
+      const dataMapping = await addDataMapping({ wkt_col: 'geometry', rawParameters: { property_id: prop.slug } });
       const dfm = await addDatasetFileMapping(dataset.id, dataMapping.id);
       dfm.file_id = fileEntity.id;
       await dfm.save();
@@ -499,7 +501,9 @@ describe('FileService', () => {
         file_path: 'test_geom_wkt.csv',
       });
       const dataset = await addDataset('test_geom_wkt_mapping', [0, 0, 30, 60]);
-      const dataMapping = await addDataMapping({ wkt_col: 'geometry' });
+      const cat = await addCategory();
+      const prop = await addSoilProperty('pH', cat.id);
+      const dataMapping = await addDataMapping({ wkt_col: 'geometry', ph: { property_id: prop.slug } });
       const dfm = await addDatasetFileMapping(dataset.id, dataMapping.id);
       dfm.file_id = fileEntity.id;
       await dfm.save();
@@ -526,7 +530,9 @@ describe('FileService', () => {
         },
       });
       const dataset = await addDataset('test_geom_latlon_mapping', [0, 0, 30, 60]);
-      const dataMapping = await addDataMapping({ y_coord: 'latitude', x_coord: 'longitude' });
+      const cat = await addCategory();
+      const prop = await addSoilProperty('pH', cat.id);
+      const dataMapping = await addDataMapping({ y_coord: 'latitude', x_coord: 'longitude', ph: { property_id: prop.slug } });
       const dfm = await addDatasetFileMapping(dataset.id, dataMapping.id);
       dfm.file_id = fileEntity.id;
       await dfm.save();
@@ -543,7 +549,9 @@ describe('FileService', () => {
         file_path: 'test_geom_override.csv',
       });
       const dataset = await addDataset('test_geom_override_mapping', [0, 0, 30, 60]);
-      const dataMapping = await addDataMapping({ wkt_col: 'geometry' });
+      const cat = await addCategory();
+      const prop = await addSoilProperty('pH', cat.id);
+      const dataMapping = await addDataMapping({ wkt_col: 'geometry', ph: { property_id: prop.slug } });
       const dfm = await addDatasetFileMapping(dataset.id, dataMapping.id);
       dfm.file_id = fileEntity.id;
       await dfm.save();
@@ -558,7 +566,7 @@ describe('FileService', () => {
     });
 
     it('falls back to auto-detected lat/lon when no mapping exists for the file', async () => {
-      // Uses standard lat/lon column names so extractMetadata auto-detects them (no mapping needed)
+      // Uses standard lat/lon column names so extractMetadata auto-detects them (no geometry mapping needed)
       const fileEntity = await fileService.createFile(requestData, {
         name: 'test_geom_latlon_std.csv',
         file_path: 'test_geom_latlon_std.csv',
@@ -577,7 +585,9 @@ describe('FileService', () => {
       });
 
       const dataset = await addDataset('test_wkt_named_column', [0, 0, 30, 60]);
-      const dataMapping = await addDataMapping({ WKT: 'geometry' });
+      const cat = await addCategory();
+      const prop = await addSoilProperty('pH', cat.id);
+      const dataMapping = await addDataMapping({ WKT: 'geometry', ph: { property_id: prop.slug } });
       const dfm = await addDatasetFileMapping(dataset.id, dataMapping.id);
       dfm.file_id = fileEntity.id;
       await dfm.save();
@@ -635,7 +645,9 @@ describe('FileService', () => {
       const lonField = fileEntity.metadata!.detected_fields[DetectableFields.LONGITUDE]!;
 
       const dataset = await addDataset('test_xlsx_mapped_latlon', [0, 0, 50, 10]);
-      const dataMapping = await addDataMapping({ [latField]: 'latitude', [lonField]: 'longitude' });
+      const cat = await addCategory();
+      const prop = await addSoilProperty('pH', cat.id);
+      const dataMapping = await addDataMapping({ [latField]: 'latitude', [lonField]: 'longitude', shheight: { property_id: prop.slug } });
       const dfm = await addDatasetFileMapping(dataset.id, dataMapping.id);
       dfm.file_id = fileEntity.id;
       await dfm.save();

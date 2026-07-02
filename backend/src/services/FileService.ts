@@ -514,7 +514,14 @@ export default class FileService {
     const fileMetadata = fileEntity.metadata!;
     const layerName = fileMetadata.layer_name!;
 
-    const mappingGeomFields = await this.extractGeomFieldsFromMapping(requestData, fileEntity.id);
+    const mappingRepo = requestData.entityManager.getRepository(DatasetFileMappingEntity);
+    const datasetFileMapping = await mappingRepo.findOne({
+      where: { file_id: fileEntity.id },
+      relations: ['data_mapping'],
+    });
+    const mapping: DataMappingObject | undefined = datasetFileMapping?.data_mapping?.data_mapping;
+
+    const mappingGeomFields = await this.extractGeomFieldsFromMapping(mapping);
 
     let mainFilePath: string;
     let tempZipExtractPath: string | null = null;
@@ -546,13 +553,16 @@ export default class FileService {
       mappingGeomFields.lonField,
       mappingGeomFields.latField,
     ].map(item => item?.toLowerCase());
-    let selectClause = fileMetadata.field_names
-      .filter(item => !originalGeomFields.includes(item.toLowerCase())) // exclude geometry columns. They will be managed later
-      .map(field => `"${field}" AS ${sanitizeField(field)}`)
-      .join(', ');
+    let mappingNonGeomFields: string[];
+    if (mapping) {
+      mappingNonGeomFields = Object.keys(mapping).filter(item => !originalGeomFields.includes(item.toLowerCase()));
+    } else {
+      mappingNonGeomFields = fileMetadata.field_names.filter(item => !originalGeomFields.includes(item.toLowerCase()));
+    }
+    let selectClause = mappingNonGeomFields.map(field => `"${field}" AS ${sanitizeField(field)}`).join(', ');
 
     try {
-      if (fileMetadata.field_names.length === 0) {
+      if (mappingNonGeomFields.length === 0) {
         throw new JobError('FTD_NO_DATA_COLUMNS');
       }
       try {
@@ -688,15 +698,8 @@ export default class FileService {
   };
 
   private async extractGeomFieldsFromMapping(
-    requestData: RequestData,
-    fileId: string,
+    mapping: DataMappingObject | undefined,
   ): Promise<{ geomField: string | null; latField: string | null; lonField: string | null }> {
-    const mappingRepo = requestData.entityManager.getRepository(DatasetFileMappingEntity);
-    const datasetFileMapping = await mappingRepo.findOne({
-      where: { file_id: fileId },
-      relations: ['data_mapping'],
-    });
-    const mapping: DataMappingObject | undefined = datasetFileMapping?.data_mapping?.data_mapping;
     if (!mapping) return { geomField: null, latField: null, lonField: null };
     let geomField: string | null = null;
     let latField: string | null = null;

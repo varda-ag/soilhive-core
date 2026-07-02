@@ -139,6 +139,7 @@ export default class DataMappingService {
         propsProcessed.standard_unit = spInfo.standard_unit;
         if (ucInfo) {
           propsProcessed.conversion_formula = ucInfo.conversion_formula;
+          propsProcessed.original_unit = ucInfo.original_unit_of_measurement;
         }
         if (pInfo) {
           propsProcessed.procedure_id = pInfo.id;
