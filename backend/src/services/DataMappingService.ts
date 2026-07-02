@@ -4,7 +4,7 @@ import { PropertyMapping, PropertyCleaningConfig } from '../interfaces/PropertyM
 import { RequestData } from '../interfaces/RequestData';
 import { DetectableFields, type DataMappingObject } from '../types/DataMapping';
 import { ErrorResponse } from '../utils/error';
-import { requireEmail } from '../utils/auth';
+import { getSubject } from '../utils/auth';
 import DataMappingEntity from '../entities/DataMapping';
 import UnitConversionEntity from '../entities/UnitConversion';
 import SoilPropertyEntity from '../entities/SoilProperty';
@@ -16,7 +16,7 @@ import { sanitizeField } from '../utils/utils';
 
 export default class DataMappingService {
   postDataMapping = async (requestData: RequestData, dataMapping: DataMappingObject): Promise<DataMappingEntity> => {
-    const email = requireEmail(requestData);
+    const subject = getSubject(requestData);
     // Validate
     if (dataMapping.drop_records && !Array.isArray(dataMapping.drop_records)) {
       throw new ErrorResponse(`drop_records must be an array of numbers`, StatusCodes.BAD_REQUEST);
@@ -29,7 +29,7 @@ export default class DataMappingService {
       .into(DataMappingEntity)
       .values({
         data_mapping: dataMapping,
-        created_by: email,
+        created_by: subject,
       })
       .orUpdate(
         ['updated_at'], // on conflict update updated_at timestamp

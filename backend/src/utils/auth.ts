@@ -17,10 +17,9 @@ export const requireSub = (requestData: RequestData): string => {
   return sub;
 };
 
-export const requireEmail = (requestData: RequestData): string => {
+export const getSubject = (requestData: RequestData): string => {
+  const sub = requireSub(requestData);
   const email = requestData.token?.email;
-  if (!email) {
-    throw new ErrorResponse('Token email is missing', StatusCodes.UNAUTHORIZED);
-  }
-  return email;
+  const client_id = requestData.token?.client_id;
+  return email ?? client_id ?? sub; // Prefer email, then client_id, then sub as a fallback
 };
