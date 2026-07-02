@@ -14,7 +14,7 @@ import { LocalStorageConfig, S3StorageConfig, StorageConfig } from '../interface
 import { RequestData } from '../interfaces/RequestData';
 import { File, FileMetadata, ExtractedFilePath } from '../interfaces/File';
 import { ErrorResponse } from '../utils/error';
-import { requireEmail } from '../utils/auth';
+import { getSubject } from '../utils/auth';
 import { getEntity } from '../utils/slugs';
 import { sanitizeField, buildDatedFileKey, getRawTableName } from '../utils/utils';
 import { StorageModes } from '../types/enums';
@@ -139,7 +139,7 @@ export default class FileService {
 
   createFile = async (requestData: RequestData, data: Partial<File>): Promise<FileEntity> => {
     const repo = requestData.entityManager.getRepository(FileEntity);
-    const email = requireEmail(requestData);
+    const subject = getSubject(requestData);
 
     assert(data.file_path, 'file_path is required to create a file');
     const metadata = await this.extractMetadata(requestData, data.file_path);
@@ -148,8 +148,8 @@ export default class FileService {
       ...data,
       metadata,
       status: IngestionStatus.PENDING,
-      created_by: email,
-      updated_by: email,
+      created_by: subject,
+      updated_by: subject,
     });
 
     try {
@@ -167,13 +167,13 @@ export default class FileService {
 
   updateFile = async (requestData: RequestData, slug: string, data: Partial<File>): Promise<FileEntity> => {
     const repo = requestData.entityManager.getRepository(FileEntity);
-    const email = requireEmail(requestData);
+    const subject = getSubject(requestData);
 
     const file = await getEntity(requestData, FileEntity, EntityType.FILE, slug);
 
     repo.merge(file, {
       ...data,
-      updated_by: email,
+      updated_by: subject,
       updated_at: new Date(),
     });
 

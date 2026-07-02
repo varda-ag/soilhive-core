@@ -103,7 +103,7 @@ describe('DatasetService', () => {
       await expect(service.createDataset(requestData, input)).rejects.toThrow("Dataset with name 'Duplicate Dataset' already exists");
     });
 
-    it('should throw error when token subject is missing', async () => {
+    it('should fallback to sub when token email is missing', async () => {
       const service = new DatasetService();
       const entityManager = await getEntityManager();
       const tokenWithoutEmail: Token = {
@@ -118,8 +118,9 @@ describe('DatasetService', () => {
       const input: CreateDatasetInput = {
         name: 'Test Dataset',
       };
-
-      await expect(service.createDataset(requestData, input)).rejects.toThrow('Token email is missing');
+      const dataset = await service.createDataset(requestData, input);
+      expect(dataset.created_by).toBe(tokenWithoutEmail.sub);
+      expect(dataset.updated_by).toBe(tokenWithoutEmail.sub);
     });
   });
 
