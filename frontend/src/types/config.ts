@@ -1,3 +1,5 @@
+import type { Plugin } from './plugins';
+
 export type ThemeColors = Record<string, string>;
 
 export type ThemeConfig = {
@@ -9,6 +11,7 @@ export type ThemeConfig = {
   privacyPolicyLatestUpdate: string;
   notificationBannerHtml: string;
   initialBbox: [number, number, number, number];
+  plugins: Plugin[];
 };
 
 export type ColorsConfigField = {

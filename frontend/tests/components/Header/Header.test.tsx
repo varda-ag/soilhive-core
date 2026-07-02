@@ -2,16 +2,24 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import useTheme from 'hooks/useTheme';
 import useDevice from 'hooks/useDevice';
+import useRemotes from 'hooks/useRemotes';
 import Header from 'components/Header/Header';
 import { useAuthContext } from '../../../src/auth/AuthContextProvider';
+import { PluginType, type NewTabPlugin, type SinglePagePlugin } from '../../../src/types/plugins';
 
-jest.mock('../../../src/utilities/moduleFederation', () => ({
-  singlePages: [
-    {
-      name: 'test-module-name',
-      route: 'test-module-route',
-    },
-  ],
+// Header now imports the plugin type guards from moduleFederation, which spins up
+// the MF host at module load. Stub the runtime so the import stays side-effect free.
+jest.mock('@module-federation/enhanced/runtime', () => ({
+  createInstance: jest.fn(() => ({
+    registerShared: jest.fn(),
+    registerRemotes: jest.fn(),
+    loadRemote: jest.fn(),
+  })),
+}));
+
+jest.mock('hooks/useRemotes', () => ({
+  __esModule: true,
+  default: jest.fn(),
 }));
 
 jest.mock('hooks/useTheme', () => ({
@@ -34,10 +42,10 @@ jest.mock('components/DownloadsStatus/DownloadsStatus', () => ({
 
 jest.mock('components/MobileMenu/MobileMenu', () => ({
   __esModule: true,
-  default: ({ menuEntries }: { menuEntries: Array<{ name: string; route?: string }> }) => (
+  default: ({ menuEntries }: { menuEntries: Array<{ name: string; route?: string; type?: string }> }) => (
     <div data-testid="mobile-menu-mock">
       {menuEntries.map(item => (
-        <div key={item.name} data-testid="mobile-menu-entry">
+        <div key={item.name} data-testid="mobile-menu-entry" data-type={item.type}>
           {item.name}:{item.route}
         </div>
       ))}
@@ -65,6 +73,21 @@ jest.mock('components/Logo/Logo', () => ({
   Logo: () => <div data-testid="sh-header-logo">Logo component</div>,
 }));
 
+const singlePagePlugin: SinglePagePlugin = {
+  name: 'single-page-module',
+  type: PluginType.SINGLE_PAGE,
+  hasMenuItem: true,
+  route: 'single-page-route',
+  Page: () => null,
+};
+
+const newTabPlugin: NewTabPlugin = {
+  name: 'new-tab-module',
+  type: PluginType.NEW_TAB,
+  hasMenuItem: true,
+  targetUrl: 'https://example.com/plugin',
+};
+
 describe('Header component', () => {
   beforeEach(() => {
     (useTheme as jest.Mock).mockReturnValue({
@@ -73,6 +96,11 @@ describe('Header component', () => {
       themeConfig: { termsAndConditionsHtml: '<div>Mock</div>', privacyPolicyHtml: '' },
     });
     (useDevice as jest.Mock).mockReturnValue({ isDesktopLayout: true, isMobileLayout: false });
+
+    (useRemotes as jest.Mock).mockReturnValue({
+      plugins: [singlePagePlugin, newTabPlugin],
+      isLoadingRemotes: false,
+    });
 
     (useAuthContext as jest.Mock).mockReturnValue({
       isAuthenticated: false,
@@ -168,7 +196,7 @@ describe('Header component', () => {
     expect(screen.queryByTestId('mobile-menu-mock')).not.toBeInTheDocument();
   });
 
-  it('renders menu entries in the mobile menu', () => {
+  it('renders built-in and plugin entries in the mobile menu in the same order as desktop', () => {
     (useDevice as jest.Mock).mockReturnValue({ isDesktopLayout: false, isMobileLayout: true });
 
     const { container } = render(
@@ -179,7 +207,17 @@ describe('Header component', () => {
 
     fireEvent.click(screen.getByTestId('sh-header-hamburger'));
 
-    expect(screen.getAllByTestId('mobile-menu-entry')).toHaveLength(2);
+    // Order mirrors desktop: home, then plugins (single-page, new-tab), then legal.
+    const entries = screen.getAllByTestId('mobile-menu-entry');
+    expect(entries.map(entry => entry.textContent)).toEqual([
+      'nav_menu.home:/',
+      'single-page-module:single-page-route',
+      'new-tab-module:https://example.com/plugin',
+      'nav_menu.legal:',
+    ]);
+    // The new-tab plugin is carried as an external entry so the mobile menu opens it in a new tab.
+    expect(entries[2]).toHaveAttribute('data-type', 'external');
+    expect(entries[1]).toHaveAttribute('data-type', 'internal');
     expect(container).toMatchSnapshot();
   });
 
@@ -263,17 +301,19 @@ describe('Header component', () => {
 
     fireEvent.click(screen.getByTestId('sh-header-hamburger'));
 
+    // home, single-page plugin, new-tab plugin, legal
     const entries = screen.getAllByTestId('mobile-menu-entry');
-    expect(entries).toHaveLength(2);
-    expect(entries[1]).toHaveTextContent('nav_menu.legal');
+    expect(entries).toHaveLength(4);
+    expect(entries[3]).toHaveTextContent('nav_menu.legal');
   });
 
-  it('renders only home entry in mobile menu when no legal html is set', () => {
+  it('renders only home entry in mobile menu when no legal html and no plugins', () => {
     (useDevice as jest.Mock).mockReturnValue({ isDesktopLayout: false, isMobileLayout: true });
     (useTheme as jest.Mock).mockReturnValue({
       isLoadingThemeConfig: false,
       themeConfig: { termsAndConditionsHtml: '', privacyPolicyHtml: '' },
     });
+    (useRemotes as jest.Mock).mockReturnValue({ plugins: [], isLoadingRemotes: false });
 
     render(
       <MemoryRouter initialEntries={['/']}>
@@ -284,5 +324,24 @@ describe('Header component', () => {
     fireEvent.click(screen.getByTestId('sh-header-hamburger'));
 
     expect(screen.getAllByTestId('mobile-menu-entry')).toHaveLength(1);
+  });
+
+  it('renders a single-page plugin as an internal desktop nav link and a new-tab plugin as an external link', () => {
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <Header />
+      </MemoryRouter>,
+    );
+
+    // Single-page plugin is an internal NavLink alongside home and the legal terms child.
+    const singlePageLink = screen.getByRole('link', { name: 'single-page-module' });
+    expect(singlePageLink).toHaveAttribute('data-testid', 'sh-header-nav-link');
+    expect(singlePageLink).not.toHaveAttribute('target');
+
+    // New-tab plugin is a plain anchor that opens its targetUrl in a new tab.
+    const externalLink = screen.getByRole('link', { name: 'new-tab-module' });
+    expect(externalLink).toHaveAttribute('href', 'https://example.com/plugin');
+    expect(externalLink).toHaveAttribute('target', '_blank');
+    expect(externalLink).toHaveAttribute('rel', 'noopener noreferrer');
   });
 });

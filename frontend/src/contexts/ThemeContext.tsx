@@ -36,6 +36,7 @@ export const defaultThemeConfig: ThemeConfig = {
   privacyPolicyLatestUpdate: '',
   notificationBannerHtml: '',
   initialBbox: [6.6272658, 35.2889616, 18.7844746, 47.0921462],
+  plugins: [],
 };
 
 export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {

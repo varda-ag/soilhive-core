@@ -1,5 +1,88 @@
 // Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
 
+exports[`Header component renders built-in and plugin entries in the mobile menu in the same order as desktop 1`] = `
+<div>
+  <header
+    class="Header"
+  >
+    <div
+      data-testid="sh-header-logo"
+    >
+      Logo component
+    </div>
+    <div
+      class="BetaPill"
+    >
+      Beta
+    </div>
+    <div
+      class="Menu"
+    >
+      <div
+        class="Additional"
+      >
+        <div
+          data-testid="downloads-status-mock"
+        >
+          Downloads Status component
+        </div>
+      </div>
+    </div>
+    <div
+      data-testid="login-button-mock"
+    >
+      Login Button
+    </div>
+    <button
+      aria-label="Menu"
+      class="Hamburger"
+      data-testid="sh-header-hamburger"
+    >
+      <svg
+        data-testid="svg-icon-mock"
+      >
+        mock-svg
+      </svg>
+    </button>
+  </header>
+  <div
+    data-testid="mobile-menu-mock"
+  >
+    <div
+      data-testid="mobile-menu-entry"
+      data-type="internal"
+    >
+      nav_menu.home
+      :
+      /
+    </div>
+    <div
+      data-testid="mobile-menu-entry"
+      data-type="internal"
+    >
+      single-page-module
+      :
+      single-page-route
+    </div>
+    <div
+      data-testid="mobile-menu-entry"
+      data-type="external"
+    >
+      new-tab-module
+      :
+      https://example.com/plugin
+    </div>
+    <div
+      data-testid="mobile-menu-entry"
+      data-type="internal"
+    >
+      nav_menu.legal
+      :
+    </div>
+  </div>
+</div>
+`;
+
 exports[`Header component renders component correctly on desktop 1`] = `
 <div>
   <header
@@ -33,6 +116,29 @@ exports[`Header component renders component correctly on desktop 1`] = `
             class="LinkText"
           >
             Home
+          </span>
+        </a>
+        <a
+          class=""
+          data-discover="true"
+          data-testid="sh-header-nav-link"
+          href="/single-page-route"
+        >
+          <span
+            class="LinkText"
+          >
+            single-page-module
+          </span>
+        </a>
+        <a
+          href="https://example.com/plugin"
+          rel="noopener noreferrer"
+          target="_blank"
+        >
+          <span
+            class="LinkText"
+          >
+            new-tab-module
           </span>
         </a>
         <div
@@ -70,18 +176,6 @@ exports[`Header component renders component correctly on desktop 1`] = `
             </a>
           </div>
         </div>
-        <a
-          class=""
-          data-discover="true"
-          data-testid="sh-header-nav-link"
-          href="/test-module-route"
-        >
-          <span
-            class="LinkText"
-          >
-            test-module-name
-          </span>
-        </a>
       </nav>
       <div
         class="Additional"
@@ -147,70 +241,5 @@ exports[`Header component renders component correctly on mobile and tablets for 
       </svg>
     </button>
   </header>
-</div>
-`;
-
-exports[`Header component renders menu entries in the mobile menu 1`] = `
-<div>
-  <header
-    class="Header"
-  >
-    <div
-      data-testid="sh-header-logo"
-    >
-      Logo component
-    </div>
-    <div
-      class="BetaPill"
-    >
-      Beta
-    </div>
-    <div
-      class="Menu"
-    >
-      <div
-        class="Additional"
-      >
-        <div
-          data-testid="downloads-status-mock"
-        >
-          Downloads Status component
-        </div>
-      </div>
-    </div>
-    <div
-      data-testid="login-button-mock"
-    >
-      Login Button
-    </div>
-    <button
-      aria-label="Menu"
-      class="Hamburger"
-      data-testid="sh-header-hamburger"
-    >
-      <svg
-        data-testid="svg-icon-mock"
-      >
-        mock-svg
-      </svg>
-    </button>
-  </header>
-  <div
-    data-testid="mobile-menu-mock"
-  >
-    <div
-      data-testid="mobile-menu-entry"
-    >
-      nav_menu.home
-      :
-      /
-    </div>
-    <div
-      data-testid="mobile-menu-entry"
-    >
-      nav_menu.legal
-      :
-    </div>
-  </div>
 </div>
 `;
