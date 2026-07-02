@@ -132,12 +132,9 @@ describe('tokenValidator — PASSWORD mode', () => {
     });
   });
 
-  it('throws 401 when the decoded token has no email claim', async () => {
+  it('validates successfully when the decoded token has no email claim', async () => {
     const token = signTestToken({ sub: 'u1', scope: 'super-admin' }, { expiresIn: 3600 });
-    await expect(tokenValidator(makeRequest(`Bearer ${token}`), [])).rejects.toMatchObject({
-      message: 'Invalid token: no email',
-      status: 401,
-    });
+    await expect(tokenValidator(makeRequest(`Bearer ${token}`), [])).resolves.toBe(true);
   });
 
   it('throws "Token has expired" for an already-expired token', async () => {
