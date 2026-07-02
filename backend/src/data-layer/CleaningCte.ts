@@ -60,8 +60,6 @@ export function buildCleaningCte(config: DataCleaningConfig, fileId: string): Cl
   const depthWasNeg = (raw: string) => `((${raw}) IS NOT NULL AND (${raw}) != ${OUTSIDE_LOD_VALUE} AND (${raw}) < 0)`;
 
   // Per-cell rules: non-numeric, sentinel, negative, zero, out-of-range.
-  // Duplicate cell detection is deferred to CTE 2 because ROW_NUMBER cannot
-  // reference column aliases from the same SELECT.
 
   const c1: string[] = ['raw.record_id', 'raw.geometry AS geom'];
 
@@ -76,8 +74,10 @@ export function buildCleaningCte(config: DataCleaningConfig, fileId: string): Cl
 
   c1.push(`${cleanDepth(minDepthRaw)} AS min_depth`);
   c1.push(`${cleanDepth(maxDepthRaw)} AS max_depth`);
-  c1.push(`(${depthWasRounded(minDepthRaw)} OR ${depthWasRounded(maxDepthRaw)}) AS depth_rounded`);
-  c1.push(`(${depthWasNeg(minDepthRaw)} OR ${depthWasNeg(maxDepthRaw)}) AS depth_was_negative`);
+  c1.push(`${depthWasRounded(minDepthRaw)} AS min_depth_rounded`);
+  c1.push(`${depthWasRounded(maxDepthRaw)} AS max_depth_rounded`);
+  c1.push(`${depthWasNeg(minDepthRaw)} AS min_depth_was_negative`);
+  c1.push(`${depthWasNeg(maxDepthRaw)} AS max_depth_was_negative`);
 
   for (const [prop, cfg] of props) {
     const rawText = `raw.${prop}::text`;
@@ -88,6 +88,8 @@ export function buildCleaningCte(config: DataCleaningConfig, fileId: string): Cl
     const minVal = cfg.min_val ?? 0;
     const maxVal = cfg.max_val ?? (cfg.standard_unit && ['%', '%v', '%w'].includes(cfg.standard_unit) ? 100 : undefined);
 
+    const rawMaxVal = cfg.original_unit && ['%', '%v', '%w'].includes(cfg.original_unit) ? 100 : undefined;
+
     const inRange = maxVal ? `(${converted}) BETWEEN ${p(minVal)} AND ${p(maxVal)}` : `(${converted}) >= ${p(minVal)}`;
 
     // Rejection flags (evaluated in CASE order — earlier wins).
@@ -97,7 +99,7 @@ export function buildCleaningCte(config: DataCleaningConfig, fileId: string): Cl
     const isSentinel = `${rawNum} = ${OUTSIDE_LOD_VALUE}`;
     const isNeg = `${rawNum} < 0`;
     const isZero = `(${converted}) = 0`;
-    const isOob = `NOT (${inRange})`;
+    const isOob = `NOT (${inRange})${rawMaxVal ? `OR NOT ((${rawNum}) <= ${p(rawMaxVal)})` : ''}`;
 
     c1.push(`
       CASE
@@ -147,43 +149,22 @@ export function buildCleaningCte(config: DataCleaningConfig, fileId: string): Cl
   FROM ${table} raw
 )`;
 
-  // Sub-select pre-computes one {p}_dup_rn per property so the outer SELECT
-  // can reference it in both the deduped-value CASE and the JSONB builds
-  // without repeating the window function.
-
-  const c2BaseCols = [
-    'sub.record_id',
-    'sub.geom',
-    'sub.sampling_date',
-    'sub.horizon',
-    'sub.license',
-    'sub.min_depth',
-    'sub.max_depth',
-    'sub._full_row_rn',
+  const c2Cols = [
+    'cc.record_id',
+    'cc.geom',
+    'cc.sampling_date',
+    'cc.horizon',
+    'cc.license',
+    'cc.min_depth',
+    'cc.max_depth',
+    'cc._full_row_rn',
+    ...props.map(([prop]) => `cc.${prop}_cleaned`),
   ];
 
-  const subSelectCols: string[] = ['cc.*'];
-  for (const [prop] of props) {
-    const dupPartition = ['ST_AsBinary(cc.geom)', 'cc.min_depth', 'cc.max_depth', 'cc.sampling_date', `cc.${prop}_cleaned`].join(', ');
-    subSelectCols.push(`
-      CASE WHEN cc.${prop}_cleaned IS NOT NULL
-        THEN ROW_NUMBER() OVER (PARTITION BY ${dupPartition} ORDER BY cc.record_id)
-        ELSE 1
-      END AS ${prop}_dup_rn`);
-  }
-
-  const c2PropCleanedCols: string[] = [];
-  for (const [prop] of props) {
-    c2PropCleanedCols.push(`
-      CASE WHEN sub.${prop}_dup_rn > 1 THEN NULL ELSE sub.${prop}_cleaned
-      END AS ${prop}_cleaned`);
-  }
-
   const deleteEntries = [
-    ...props.map(
-      ([prop]) => `'${prop}', CASE WHEN sub.${prop}_dup_rn > 1 THEN '${CellDeleteReason.DUPLICATE_CELL}' ELSE sub.${prop}_cell_reason END`,
-    ),
-    `'depth', CASE WHEN sub.depth_was_negative THEN '${CellDeleteReason.NEGATIVE_VALUE}'::text ELSE NULL END`,
+    ...props.map(([prop]) => `'${prop}', cc.${prop}_cell_reason`),
+    `'min_depth', CASE WHEN cc.min_depth_was_negative THEN '${CellDeleteReason.NEGATIVE_VALUE}'::text ELSE NULL END`,
+    `'max_depth', CASE WHEN cc.max_depth_was_negative THEN '${CellDeleteReason.NEGATIVE_VALUE}'::text ELSE NULL END`,
   ].join(',\n      ');
   const cellDeleteReasons = `NULLIF(jsonb_strip_nulls(jsonb_build_object(
       ${deleteEntries}
@@ -193,11 +174,12 @@ export function buildCleaningCte(config: DataCleaningConfig, fileId: string): Cl
     ...props.map(
       ([prop]) =>
         `'${prop}', NULLIF(to_jsonb(ARRAY_REMOVE(ARRAY[
-        CASE WHEN sub.${prop}_unit_converted THEN '${CellModifyReason.UNIT_CONVERTED}'::text ELSE NULL END,
-        CASE WHEN sub.${prop}_value_rounded  THEN '${CellModifyReason.VALUE_ROUNDED}'::text  ELSE NULL END
+        CASE WHEN cc.${prop}_unit_converted THEN '${CellModifyReason.UNIT_CONVERTED}'::text ELSE NULL END,
+        CASE WHEN cc.${prop}_value_rounded  THEN '${CellModifyReason.VALUE_ROUNDED}'::text  ELSE NULL END
       ], NULL)), '[]'::jsonb)`,
     ),
-    `'depth', CASE WHEN sub.depth_rounded THEN '["${CellModifyReason.DEPTH_ROUNDED}"]'::jsonb ELSE NULL END`,
+    `'min_depth', CASE WHEN cc.min_depth_rounded THEN '["${CellModifyReason.DEPTH_ROUNDED}"]'::jsonb ELSE NULL END`,
+    `'max_depth', CASE WHEN cc.max_depth_rounded THEN '["${CellModifyReason.DEPTH_ROUNDED}"]'::jsonb ELSE NULL END`,
   ].join(',\n      ');
   const cellModifyReasons = `NULLIF(jsonb_strip_nulls(jsonb_build_object(
       ${modifyEntries}
@@ -205,12 +187,8 @@ export function buildCleaningCte(config: DataCleaningConfig, fileId: string): Cl
 
   const cte2 = `cell_deduped AS MATERIALIZED (
   SELECT
-    ${[...c2BaseCols, ...c2PropCleanedCols, cellDeleteReasons, cellModifyReasons].join(',\n    ')}
-  FROM (
-    SELECT
-      ${subSelectCols.join(',\n      ')}
-    FROM cell_cleaned cc
-  ) sub
+    ${[...c2Cols, cellDeleteReasons, cellModifyReasons].join(',\n    ')}
+  FROM cell_cleaned cc
 )`;
 
   // Row-level checks; minimum-data-requirement uses the post-dedup cleaned values.
@@ -227,8 +205,8 @@ export function buildCleaningCte(config: DataCleaningConfig, fileId: string): Cl
       ${dropClause} 
       WHEN cd.geom IS NULL
         THEN '${RowDeleteReason.MINIMUM_DATA_REQUIREMENT}'
-      WHEN ST_X(cd.geom) NOT BETWEEN -180 AND 180
-        OR ST_Y(cd.geom) NOT BETWEEN -90 AND 90
+      WHEN ST_GeometryType(geom)='ST_Point' AND (ST_X(cd.geom) NOT BETWEEN -180 AND 180
+        OR ST_Y(cd.geom) NOT BETWEEN -90 AND 90) OR ST_GeometryType(cd.geom) IN ('ST_Polygon', 'ST_MultiPolygon') AND NOT ST_IsValid(cd.geom)
         THEN '${RowDeleteReason.INVALID_COORDINATES}'
       WHEN cd.min_depth IS NOT NULL
        AND cd.max_depth IS NOT NULL

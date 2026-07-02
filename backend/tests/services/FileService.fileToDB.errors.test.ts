@@ -32,6 +32,7 @@ const makeEntityManager = () =>
   ({
     getRepository: jest.fn().mockReturnValue({
       update: jest.fn().mockResolvedValue({}),
+      findOne: jest.fn().mockReturnValue(Promise.resolve(null)),
     }),
     query: jest.fn().mockResolvedValue([]),
   }) as any;
