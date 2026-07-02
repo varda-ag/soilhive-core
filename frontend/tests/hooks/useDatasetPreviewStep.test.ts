@@ -470,7 +470,6 @@ describe('useDatasetPreview', () => {
       setupMocks({ soilDataStats: mockCleaningReport });
       const { result } = renderHook(() => useDatasetPreview(DATASET_ID));
       await waitFor(() => expect(result.current.soilDataSummary.cell_deletions[CellDeleteReason.ZERO_VALUE]).toBe(0));
-      expect(result.current.soilDataSummary.cell_deletions[CellDeleteReason.DUPLICATE_CELL]).toBe(0);
       expect(result.current.soilDataSummary.cell_deletions[CellDeleteReason.OOB]).toBe(0);
     });
 

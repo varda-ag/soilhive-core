@@ -107,7 +107,6 @@ export function PreviewStepSummary({ removedByUser, soilDataSummary, isLoading }
               { label: t('datasets.preview.summary.reasons.non_numeric'), value: soilDataSummary.cell_deletions.non_numeric },
               { label: t('datasets.preview.summary.reasons.negative_value'), value: soilDataSummary.cell_deletions.negative_value },
               { label: t('datasets.preview.summary.reasons.zero_value'), value: soilDataSummary.cell_deletions.zero_value },
-              { label: t('datasets.preview.summary.reasons.duplicate_cell'), value: soilDataSummary.cell_deletions.duplicate_cell },
               { label: t('datasets.preview.summary.reasons.out_of_bounds'), value: soilDataSummary.cell_deletions.out_of_bounds },
             ],
           }}

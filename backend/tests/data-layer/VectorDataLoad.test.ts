@@ -178,6 +178,40 @@ describe('VectorDataLoad class', () => {
           .pop(),
       ).toBe(results.length - dataMappingNegativeDepths.drop_records!.length);
     });
+    it('should count converted values only when conversion formula is not "x"', async () => {
+      const vdl = new VectorDataLoad();
+      const entityManager = await getEntityManager();
+      const dataMappingStdUnit: DataCleaningConfig = {
+        ...dataMappingConfig!,
+        metadata_cols: {
+          sampling_date: 'date',
+          license: 'licence',
+          horizon: 'layer_name',
+          min_depth: 'min_depth2',
+          max_depth: 'max_depth2',
+        },
+        property_cols: {
+          ...dataMappingConfig!.property_cols,
+          bdfiod: {
+            ...dataMappingConfig!.property_cols.bdfiod,
+            conversion_formula: 'x',
+            original_unit: 'mmolc/dm3',
+            standard_unit: 'mmolc/dm3',
+          },
+        },
+      };
+      const results = await vdl.getDataPreview(entityManager, dataMappingStdUnit, fileId!);
+      const resultBdfi33 = results.map(r => parseFloat(r.bdfi33 as string)).filter(n => !isNaN(n) && n !== OUTSIDE_LOD_VALUE);
+      expect(resultBdfi33.length).toBeGreaterThan(0);
+      // Stats values should be coherent with cleaned up data:
+      const stats = await vdl.getDataPreviewStats(entityManager, dataMappingStdUnit, fileId!);
+      expect(
+        stats.modifications
+          .filter(m => m.reason === CellModifyReason.UNIT_CONVERTED)
+          .map(f => f.count)
+          .pop(),
+      ).toBe(resultBdfi33.length);
+    });
     it('should remove % soil property values above 100', async () => {
       const vdl = new VectorDataLoad();
       const entityManager = await getEntityManager();

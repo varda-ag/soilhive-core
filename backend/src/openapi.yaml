@@ -2774,7 +2774,7 @@ components:
       properties:
         reason:
           type: string
-          enum: [non_numeric, negative_value, zero_value, duplicate_cell, out_of_bounds]
+          enum: [non_numeric, negative_value, zero_value, out_of_bounds]
         count: 
           type: number
         property: 
