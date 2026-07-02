@@ -369,7 +369,6 @@
                     "non_numeric": "Invalid property value (non-numeric)",
                     "negative_value": "Negative value",
                     "zero_value": "Zero value (treated as null)",
-                    "duplicate_cell": "Duplicate value (same coordinates, date, depth, value)",
                     "out_of_bounds": "Out-of-bounds value",
                     "total": "Total" 
                 }

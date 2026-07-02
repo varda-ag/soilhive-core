@@ -10,7 +10,6 @@ export enum CellDeleteReason {
   NON_NUMERIC = 'non_numeric',
   NEGATIVE_VALUE = 'negative_value',
   ZERO_VALUE = 'zero_value',
-  DUPLICATE_CELL = 'duplicate_cell',
   OOB = 'out_of_bounds',
 }
 

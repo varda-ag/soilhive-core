@@ -125,7 +125,7 @@ export function buildCleaningCte(config: DataCleaningConfig, fileId: string): Cl
 
     // Modification flags — only set when the value actually survives all checks.
     const isValid = `NOT ${isNull} AND NOT (${isNonNum}) AND NOT ${isSentinel} AND NOT ${isNeg} AND NOT ${isZero} AND NOT ${isOob}`;
-    c1.push(formula ? `(${isValid}) AS ${prop}_unit_converted` : `FALSE AS ${prop}_unit_converted`);
+    c1.push(formula && formula !== 'x' ? `(${isValid}) AS ${prop}_unit_converted` : `FALSE AS ${prop}_unit_converted`);
 
     c1.push(`((${isValid}) AND (${converted}) != ROUND((${converted}), 3)) AS ${prop}_value_rounded`);
   }
@@ -205,7 +205,7 @@ export function buildCleaningCte(config: DataCleaningConfig, fileId: string): Cl
       ${dropClause} 
       WHEN cd.geom IS NULL
         THEN '${RowDeleteReason.MINIMUM_DATA_REQUIREMENT}'
-      WHEN ST_GeometryType(geom)='ST_Point' AND (ST_X(cd.geom) NOT BETWEEN -180 AND 180
+      WHEN ST_GeometryType(cd.geom)='ST_Point' AND (ST_X(cd.geom) NOT BETWEEN -180 AND 180
         OR ST_Y(cd.geom) NOT BETWEEN -90 AND 90) OR ST_GeometryType(cd.geom) IN ('ST_Polygon', 'ST_MultiPolygon') AND NOT ST_IsValid(cd.geom)
         THEN '${RowDeleteReason.INVALID_COORDINATES}'
       WHEN cd.min_depth IS NOT NULL
