@@ -670,6 +670,7 @@ export default class FileService {
 
       await repo.update(fileEntity.id, { status: IngestionStatus.STAGED });
     } catch (error) {
+      await repo.update(fileEntity.id, { status: IngestionStatus.PENDING });
       if (JobError.isJobError(error)) {
         throw error;
       }
