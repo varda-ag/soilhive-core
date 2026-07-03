@@ -237,7 +237,7 @@ async function exportRasterData(
       if (await isJobCancelled(jobId)) break;
 
       if (useBboxFastPath) {
-        await writer.writeLayerAoi(layer, aoi!);
+        await writer.cropToAoiBbox(layer, aoi!);
       } else {
         await writer.writeLayer(layer, rasterMaskFile!);
       }

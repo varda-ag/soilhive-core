@@ -50,10 +50,13 @@ export class RasterFileWriter {
   }
 
   /**
-   * Clips the source raster layer to the AOI and writes it to the output directory.
+   * Crops the source raster layer to the AOI's bounding box extent and writes it to the output
+   * directory. This is a rectangular crop (via gdal_translate -projwin), not a polygon clip — pixels
+   * inside the bbox but outside the AOI's actual shape are still included. Only safe to use when the
+   * AOI is itself an axis-aligned bbox, so the crop extent matches the AOI exactly.
    * Output layer naming convention is {outputDir}/{dataset_slug}_{soil_property}{_depth}{_date}
    */
-  async writeLayerAoi(layer: FilteredRasterLayer, aoi: Polygon | MultiPolygon): Promise<void> {
+  async cropToAoiBbox(layer: FilteredRasterLayer, aoi: Polygon | MultiPolygon): Promise<void> {
     const layerName = this.buildLayerName(layer);
     fs.mkdirSync(path.dirname(this.outputDir), { recursive: true });
 

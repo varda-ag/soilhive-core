@@ -136,7 +136,7 @@ describe('RasterFileWriter', () => {
     });
   });
 
-  describe('writeLayerAoi', () => {
+  describe('cropToAoiBbox', () => {
     // Well within the bdod_5-15cm_mean.tif source extent (-81.144..-80.479, -34.003..-33.446)
     const bboxAoi = {
       type: 'Polygon' as const,
@@ -153,13 +153,13 @@ describe('RasterFileWriter', () => {
 
     it('resolves layer.path via FileService.getMainFilePath', async () => {
       const writer = new RasterFileWriter(RasterFileFormat.TIFF, TEST_OUTPUT_DIR);
-      await writer.writeLayerAoi(makeLayer(), bboxAoi);
+      await writer.cropToAoiBbox(makeLayer(), bboxAoi);
       expect(FileService.getMainFilePath).toHaveBeenCalledWith(makeLayer().path);
     });
 
     it('produces a valid GeoTIFF clipped to the bbox extent with DEFLATE/TILED creation options', async () => {
       const writer = new RasterFileWriter(RasterFileFormat.TIFF, TEST_OUTPUT_DIR);
-      await writer.writeLayerAoi(makeLayer(), bboxAoi);
+      await writer.cropToAoiBbox(makeLayer(), bboxAoi);
 
       const tif = outputFiles().find(f => f.endsWith('.tif'));
       if (!tif) throw new Error('No .tif output file produced');
@@ -193,7 +193,7 @@ describe('RasterFileWriter', () => {
 
     it('produces a valid GeoPackage with a raster table named per buildLayerName, Float32 single band', async () => {
       const writer = new RasterFileWriter(RasterFileFormat.GPKG, TEST_OUTPUT_DIR);
-      await writer.writeLayerAoi(makeLayer(), bboxAoi);
+      await writer.cropToAoiBbox(makeLayer(), bboxAoi);
 
       const gpkg = outputFiles().find(f => f.endsWith('.gpkg'));
       if (!gpkg) throw new Error('No .gpkg output file produced');
