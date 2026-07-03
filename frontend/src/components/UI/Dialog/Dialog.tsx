@@ -15,8 +15,9 @@ interface Props {
   secondaryText?: string;
   className?: string;
   contentClassName?: string;
-  onPrimary: () => void;
-  onSecondary: () => void;
+  hideButtons?: boolean;
+  onPrimary?: () => void;
+  onSecondary?: () => void;
   onClose?: () => void;
   children: ReactNode;
 }
@@ -29,6 +30,7 @@ export function Dialog({
   removeTransition,
   className,
   contentClassName,
+  hideButtons = false,
   onPrimary,
   onSecondary,
   onClose,
@@ -63,16 +65,18 @@ export function Dialog({
           <div className={classnames(styles.Content, contentClassName)} ref={contentRef as RefObject<HTMLDivElement>}>
             {children}
           </div>
-          <div className={styles.Footer} ref={footerRef as RefObject<HTMLDivElement>}>
-            {!!secondaryText && (
-              <Button className={styles.Button} type="secondary" onClick={onSecondary}>
-                {secondaryText}
+          {!hideButtons && (
+            <div className={styles.Footer} ref={footerRef as RefObject<HTMLDivElement>}>
+              {!!secondaryText && (
+                <Button className={styles.Button} type="secondary" onClick={onSecondary}>
+                  {secondaryText}
+                </Button>
+              )}
+              <Button className={styles.Button} onClick={onPrimary}>
+                {primaryText || t('dialog.continue')}
               </Button>
-            )}
-            <Button className={styles.Button} onClick={onPrimary}>
-              {primaryText || t('dialog.continue')}
-            </Button>
-          </div>
+            </div>
+          )}
         </>
       )}
     />

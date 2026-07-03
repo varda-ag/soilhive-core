@@ -2,6 +2,11 @@ import type { Plugin } from './plugins';
 
 export type ThemeColors = Record<string, string>;
 
+export type DaiConfig = {
+  isEnabled: boolean;
+  defaultValue: boolean;
+};
+
 export type ThemeConfig = {
   colors: ThemeColors;
   defaultColors: ThemeColors | undefined;
@@ -12,6 +17,7 @@ export type ThemeConfig = {
   notificationBannerHtml: string;
   initialBbox: [number, number, number, number];
   plugins: Plugin[];
+  daiConfig: DaiConfig;
 };
 
 export type ColorsConfigField = {

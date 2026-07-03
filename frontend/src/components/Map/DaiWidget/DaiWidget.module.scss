@@ -1,0 +1,124 @@
+.DaiWidget {
+  background: var(--color-neutral-white);
+  border-radius: 0.25rem;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
+  padding: 0.5rem 0.75rem;
+  min-width: 15.125rem;
+  max-width: 15.125rem;
+}
+
+.Header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.Title {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-neutral-dark-900);
+}
+
+.LayersIcon {
+  color: var(--color-neutral-dark-600);
+}
+
+.Controls {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+.ChevronButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  padding: 0.125rem;
+  cursor: pointer;
+  color: var(--color-neutral-dark-900);
+
+  &.Collapsed {
+    transform: rotate(-180deg);
+  }
+}
+
+.Body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  margin-top: 0.625rem;
+}
+
+.OpacityTitleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.Label {
+  font-size: var(--font-size-xs);
+  color: var(--color-neutral-dark-400);
+}
+
+.OpacityValue {
+  font-size: var(--font-size-xs);
+}
+
+.LegendSection {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.LegendItems {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.LegendItem {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.Swatch {
+  width: 0.875rem;
+  height: 0.875rem;
+  border-radius: 0.25rem;
+  flex-shrink: 0;
+}
+
+.LegendLabel {
+  font-size: var(--font-size-2xs);
+  white-space: nowrap;
+}
+
+.FaqLink {
+  font-size: var(--font-size-xs);
+  color: var(--color-neutral-black);
+  text-decoration: underline;
+  cursor: pointer;
+
+  &:hover,
+  &:visited {
+    color: var(--color-neutral-black);
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(-360deg);
+  }
+}
+
+.ReloadIcon {
+  animation: spin 0.75s linear infinite;
+}

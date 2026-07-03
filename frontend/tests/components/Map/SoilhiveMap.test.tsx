@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import SoilhiveMap from 'components/Map/SoilhiveMap';
-import { __setIsMobileLayout, __resetIsMobileLayout } from 'hooks/useDevice';
+import { __setIsMobileLayout, __setIsDesktopLayout, __resetIsMobileLayout } from 'hooks/useDevice';
+import useTheme from 'hooks/useTheme';
 
 jest.mock('hooks/useDevice');
 
@@ -58,10 +59,20 @@ jest.mock('hooks/useDai', () => ({
   useDai: jest.fn().mockReturnValue({ dai: null }),
 }));
 
+jest.mock('hooks/useTheme', () => ({
+  __esModule: true,
+  default: jest.fn(),
+}));
+
 jest.mock('components/DrawControl', () => ({ __esModule: true, default: () => null }));
 jest.mock('components/Map/SoilhiveMapToolbar', () => ({ __esModule: true, default: () => null }));
 jest.mock('components/Map/SoilhiveMapSelectionToolbar', () => ({ __esModule: true, default: () => null }));
 jest.mock('components/Map/AreaInfo', () => ({ AreaInfoPopup: () => null, AreaInfoBar: () => null }));
+jest.mock('components/Map/MapStyleSwitcher/MapStyleSwitcher', () => ({
+  __esModule: true,
+  MapStyleSwitcher: () => <div data-testid="map-style-switcher" />,
+}));
+jest.mock('components/Map/DaiWidget/DaiWidget', () => ({ __esModule: true, DaiWidget: () => <div data-testid="dai-widget" /> }));
 jest.mock('components/Map/GeocoderControl', () => ({ __esModule: true, default: () => null }));
 
 jest.mock('utilities/geo', () => ({
@@ -80,8 +91,20 @@ jest.mock('@turf/turf', () => ({
 }));
 
 describe('SoilhiveMap', () => {
+  beforeEach(() => {
+    (useTheme as jest.Mock).mockReturnValue({
+      isLoadingThemeConfig: false,
+      themeConfig: {
+        daiConfig: {
+          isEnabled: true,
+          defaultValue: false,
+        },
+      },
+    });
+  });
   afterEach(() => {
     __resetIsMobileLayout();
+    jest.clearAllMocks();
   });
 
   it('includes customAttribution in attributionControl on desktop', () => {
@@ -99,5 +122,30 @@ describe('SoilhiveMap', () => {
     const attrControl = JSON.parse(map.dataset.attributionControl!);
     expect(attrControl.compact).toBe(false);
     expect(attrControl.customAttribution).toBeUndefined();
+  });
+
+  it('renders DaiWidget if DAI is enabled in the config', () => {
+    __setIsDesktopLayout(true);
+
+    render(<SoilhiveMap />);
+
+    expect(screen.getByTestId('dai-widget')).toBeInTheDocument();
+  });
+
+  it('does not render DaiWidget if DAI is disabled in the config', () => {
+    (useTheme as jest.Mock).mockReturnValue({
+      isLoadingThemeConfig: false,
+      themeConfig: {
+        daiConfig: {
+          isEnabled: false,
+          defaultValue: false,
+        },
+      },
+    });
+    __setIsDesktopLayout(true);
+
+    render(<SoilhiveMap />);
+
+    expect(screen.queryByTestId('dai-widget')).not.toBeInTheDocument();
   });
 });

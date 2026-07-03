@@ -31,6 +31,7 @@ describe('ThemeProvider / useTheme', () => {
 
   const mockThemeConfig = {
     initialBbox: [6.6272658, 35.2889616, 18.7844746, 47.0921462],
+    daiConfig: { isEnabled: false, defaultValue: false },
     defaultColors: undefined,
     termsAndConditionsHtml: '<p>Terms text</p>',
     termsAndConditionsLatestUpdate: '',
@@ -111,7 +112,7 @@ describe('ThemeProvider / useTheme', () => {
     expect(result.current.themeConfig.termsAndConditionsHtml).toBe('<p>Terms text</p>');
     expect(typeof result.current.saveColors).toBe('function');
     expect(typeof result.current.saveDefaultColors).toBe('function');
-    expect(typeof result.current.saveInitialBbox).toBe('function');
+    expect(typeof result.current.saveMapSettings).toBe('function');
     expect(typeof result.current.saveTermsAndConditions).toBe('function');
     expect(typeof result.current.savePrivacyPolicy).toBe('function');
     expect(typeof result.current.saveNotificationBanner).toBe('function');
@@ -230,20 +231,22 @@ describe('ThemeProvider / useTheme', () => {
     });
   });
 
-  it('saveInitialBbox calls saveConfig with bbox payload and shows notification', async () => {
+  it('saveMapSettings calls saveConfig with bbox and daiConfig payload and shows notification', async () => {
     const { result } = renderHook(() => useTheme(), { wrapper });
     const newBbox = [1.0, 2.0, 3.0, 4.0];
+    const newDaiConfig = { isEnabled: true, defaultValue: true };
 
     await act(async () => {
-      await result.current.saveInitialBbox(newBbox);
+      await result.current.saveMapSettings(newBbox, newDaiConfig);
     });
 
     expect(saveThemeConfigMock).toHaveBeenCalledWith({
       ...mockThemeConfig,
       initialBbox: newBbox,
+      daiConfig: newDaiConfig,
     });
 
-    expect(showNotification).toHaveBeenCalled();
+    expect(showNotification).toHaveBeenCalledWith(expect.objectContaining({ id: 'saveMapSettingsSuccess', type: 'success' }));
   });
 
   it('savePrivacyPolicy calls saveConfig with html payload and sets latestUpdate', async () => {

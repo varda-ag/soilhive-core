@@ -1,4 +1,4 @@
-import { useId, useRef, useState, useCallback, useEffect, type Dispatch, useMemo } from 'react';
+import { useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import classnames from 'classnames';
 import {
   GeolocateControl,
@@ -6,8 +6,6 @@ import {
   NavigationControl,
   ScaleControl,
   type MapGeoJSONFeature,
-  type StyleSpecification,
-  type ImmutableLike,
   type LayerProps,
   Source,
   Layer,
@@ -37,36 +35,13 @@ import useDevice from 'hooks/useDevice';
 import useAvailabilityMap from 'hooks/useAvailabilityMap';
 import { useDai } from 'hooks/useDai';
 import useAvailability from '../../hooks/useAvailability';
+import useTheme from 'hooks/useTheme';
 import { AreaInfoPopup, AreaInfoBar } from './AreaInfo';
-
-type MapStyle = string | StyleSpecification | ImmutableLike<StyleSpecification>;
-type MapStyles = Array<{ name: string; mapStyle: MapStyle }>;
-
-function MapStyleSwitcher({ mapStyles, onMapStyleChange }: { mapStyles: MapStyles; onMapStyleChange: Dispatch<MapStyle> }) {
-  const id = useId();
-  return (
-    <div className="map-style-switcher">
-      {/* <label for={id}>Map style</label>  */}
-      <select
-        name="map-styles"
-        id={id}
-        defaultValue={0}
-        onChange={event => {
-          const selectedIndex = Number(event.target.value);
-          onMapStyleChange(mapStyles[selectedIndex].mapStyle);
-        }}
-      >
-        {mapStyles.map(({ name }, index) => {
-          return (
-            <option key={index} value={index}>
-              {name}
-            </option>
-          );
-        })}
-      </select>
-    </div>
-  );
-}
+import { DaiWidget } from './DaiWidget/DaiWidget';
+import LayersIcon from 'assets/icons/layers-icon.svg?react';
+import type { MapStyles } from 'types/components';
+import { MapStyleSwitcher } from './MapStyleSwitcher/MapStyleSwitcher';
+import LoadingLine from './LoadingLine/LoadingLine';
 
 interface SoilhiveMapProps {
   initialViewBoundingBox?: [number, number, number, number];
@@ -111,37 +86,6 @@ const dataLayerBorders: LayerProps = {
   },
 };
 
-const dataLayerDAI: LayerProps = {
-  id: 'data-dai',
-  type: 'fill',
-  paint: {
-    'fill-opacity': [
-      'interpolate',
-      ['linear'],
-      ['get', 'dai'], // the numeric property
-      0,
-      0.0,
-      0.01,
-      0.1,
-      0.5,
-      0.25,
-      1.0,
-      0.75,
-    ],
-    'fill-color': [
-      'interpolate',
-      ['linear'],
-      ['get', 'dai'], // the numeric property
-      0,
-      '#ffffcc', // low  → light yellow
-      0.5,
-      '#fd8d3c', // mid → orange
-      1.0,
-      '#800026', // high → dark red
-    ],
-  },
-};
-
 function SoilhiveMap({
   initialViewBoundingBox,
   showGeocoder = false,
@@ -178,29 +122,54 @@ function SoilhiveMap({
   const [isPointResultSelection, setIsPointResultSelection] = useState(false);
   const [selectedLocationName, setSelectedLocationName] = useState<string | undefined>(undefined);
   const [mapBounds, setMapBounds] = useState<LngLatBounds | null>(null);
-  const [currentMapStyle, setCurrentMapStyle] = useState(mapStyles[0].mapStyle);
+  const [currentMapStyleIndex, setCurrentMapStyleIndex] = useState<number>(0);
+  const { themeConfig } = useTheme();
   const drawControlRef = useRef<DrawControlRef>(null);
   const selectionTypeRef = useRef<'drawn-polygon' | 'h3-cell' | 'country'>('drawn-polygon');
   const locationNameRef = useRef<string>(undefined);
 
   // This prevents onMapMoveEnd from being called concurrently with applySelection
   const isApplyingSelection = useRef(false);
+  const [isDaiEnabled, setIsDaiEnabled] = useState<boolean>(themeConfig.daiConfig?.isEnabled && themeConfig.daiConfig?.defaultValue);
+  const [daiOpacity, setDaiOpacity] = useState(80);
+  const [isDaiWidgetOpen, setIsDaiWidgetOpen] = useState(false);
+  const dataLayerDAI = useMemo<LayerProps>(
+    () => ({
+      id: 'data-dai',
+      type: 'fill',
+      paint: {
+        'fill-opacity': [
+          'case',
+          ['has', 'dai'],
+          ['*', daiOpacity / 100, ['interpolate', ['linear'], ['get', 'dai'], 0, 0.0, 0.01, 0.1, 0.5, 0.25, 1.0, 0.75]],
+          0,
+        ],
+        'fill-color': ['interpolate', ['linear'], ['get', 'dai'], 0, '#ffffcc', 0.5, '#fd8d3c', 1.0, '#800026'],
+      },
+    }),
+    [daiOpacity],
+  );
   const [daiParams, setDaiParams] = useState<{ bbox: [number, number, number, number]; resolution: number } | null>(null);
 
-  const ENABLE_DAI = ((window._env_ as any)?.['ENABLE_DAI'] as string) === 'true';
+  // const ENABLE_DAI = ((window._env_ as any)?.['ENABLE_DAI'] as string) === 'true';
 
-  const { dai } = useDai(filterId, daiParams?.bbox, daiParams?.resolution, ENABLE_DAI && !!filterId && daiParams !== null && showH3Cells);
+  const { dai, isLoading: isDaiLoading } = useDai(
+    filterId,
+    daiParams?.bbox,
+    daiParams?.resolution,
+    isDaiEnabled && !!filterId && daiParams !== null && showH3Cells,
+  );
 
   useEffect(() => {
-    if (!daiParams || !showH3Cells || (ENABLE_DAI && !dai)) return;
+    if (!daiParams || !showH3Cells || (isDaiEnabled && !dai)) return;
     try {
       const h3Indexes = bBoxToH3Cells(daiParams?.bbox, h3ResolutionForZoomLevel(daiParams?.resolution));
-      const h3CellsFeatureCollection = ENABLE_DAI ? dataAvailabilityIndexToGeoJSONPolygons(dai!) : h3IndexesToGeoJSONPolygons(h3Indexes);
+      const h3CellsFeatureCollection = isDaiEnabled ? dataAvailabilityIndexToGeoJSONPolygons(dai!) : h3IndexesToGeoJSONPolygons(h3Indexes);
       setH3Cells(h3CellsFeatureCollection);
     } catch (error) {
       console.error('Error while updating the H3 Cells:', error);
     }
-  }, [dai, daiParams, showH3Cells, setH3Cells, ENABLE_DAI]);
+  }, [dai, daiParams, showH3Cells, setH3Cells, isDaiEnabled]);
 
   const { isMobileLayout, isDesktopLayout } = useDevice();
 
@@ -425,6 +394,7 @@ function SoilhiveMap({
     <div
       className={classnames('soilhive-map', {
         'soilhive-map-show-selection-toolbar': showSelectionToolbar,
+        'soilhive-map-show-area-info': isAreaInfoVisible,
       })}
     >
       <Map
@@ -435,7 +405,7 @@ function SoilhiveMap({
         maxZoom={15}
         renderWorldCopies={false}
         dragRotate={false}
-        mapStyle={currentMapStyle}
+        mapStyle={mapStyles[currentMapStyleIndex].mapStyle}
         {...(initialViewBoundingBox ? { initialViewState: { bounds: initialViewBoundingBox } } : {})}
         onLoad={onLoad}
         onDragEnd={onMapMoveEnd}
@@ -464,7 +434,7 @@ function SoilhiveMap({
             <Source id="data" type="geojson" data={h3Cells} promoteId="h3Index">
               <Layer {...dataLayerFills} />
               <Layer {...dataLayerBorders} />
-              {ENABLE_DAI && <Layer {...dataLayerDAI} />}
+              {isDaiEnabled && !!dai && !isDaiLoading && <Layer {...dataLayerDAI} />}
             </Source>
             <Source id="selection" type="geojson" data={selection as GeoJSON.GeoJSON}>
               <Layer {...dataLayerSelection} />
@@ -480,21 +450,45 @@ function SoilhiveMap({
             // because since mapbox-gl internally uses an imperative method to add controls (e.g. `map.addControl()`)
             // the react wrapper library probably doesn't implement correctly a `useEffect` to update them and so the
             // component remains in the initial state.
-            key={isMobileLayout ? 'mobile' : 'desktop'}
+            key={isDesktopLayout ? 'desktop' : 'mobile'}
             position="bottom-right"
             showCompass={false}
-            showZoom={!isMobileLayout}
+            showZoom={isDesktopLayout}
             visualizePitch={false}
           />
         )}
         {showDrawControl && <DrawControl ref={drawControlRef} position="bottom-right" onFinish={onFinishDrawing} />}
 
         {showScale && <ScaleControl />}
-        {mapStyles.length > 1 && <MapStyleSwitcher mapStyles={mapStyles} onMapStyleChange={setCurrentMapStyle} />}
+        {mapStyles.length > 1 && (
+          <MapStyleSwitcher
+            className="map-style-switcher"
+            mapStyles={mapStyles}
+            currentValue={currentMapStyleIndex}
+            onMapStyleChange={setCurrentMapStyleIndex}
+          />
+        )}
       </Map>
       {!isDesktopLayout && isAreaInfoVisible && (
         <AreaInfoBar onClose={onAreaInfoClose} locationName={selectedLocationName} selection={selection} />
       )}
+      {themeConfig.daiConfig?.isEnabled && !isDesktopLayout && (
+        <button className="soilhive-map-dai-btn" onClick={() => setIsDaiWidgetOpen(v => !v)}>
+          <LayersIcon />
+        </button>
+      )}
+      {themeConfig.daiConfig?.isEnabled && (isDesktopLayout || isDaiWidgetOpen) && (
+        <DaiWidget
+          isEnabled={isDaiEnabled}
+          isLoading={isDaiEnabled && !dai}
+          isDefaultExpanded={isDesktopLayout}
+          opacity={daiOpacity}
+          className="soilhive-map-dai"
+          onToggle={() => setIsDaiEnabled(prevValue => !prevValue)}
+          onOpacityChange={setDaiOpacity}
+        />
+      )}
+      {themeConfig.daiConfig?.isEnabled && <LoadingLine isLoading={isDaiEnabled && !dai} />}
     </div>
   );
 }
