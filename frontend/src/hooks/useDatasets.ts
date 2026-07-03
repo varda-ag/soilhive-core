@@ -11,6 +11,7 @@ export function useDatasets() {
     method: 'GET',
     queryKey: ['datasets'],
     enabled: true,
+    refetchInterval: 2000,
   });
 
   return {
