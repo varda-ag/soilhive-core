@@ -79,6 +79,8 @@ export function buildCleaningCte(config: DataCleaningConfig, fileId: string): Cl
   c1.push(`${depthWasNeg(minDepthRaw)} AS min_depth_was_negative`);
   c1.push(`${depthWasNeg(maxDepthRaw)} AS max_depth_was_negative`);
 
+  const isPercentUnit = (u: string | null | undefined) => !!u && ['%', '%v', '%w'].includes(u);
+
   for (const [prop, cfg] of props) {
     const rawText = `raw.${prop}::text`;
     const rawNum = `(raw.${prop})::numeric`;
@@ -86,11 +88,18 @@ export function buildCleaningCte(config: DataCleaningConfig, fileId: string): Cl
     const converted = formula ? formula.replace(/x/g, rawNum) : rawNum;
 
     const minVal = cfg.min_val ?? 0;
-    const maxVal = cfg.max_val ?? (cfg.standard_unit && ['%', '%v', '%w'].includes(cfg.standard_unit) ? 100 : undefined);
+    let maxExpr: string | undefined;
+    if (cfg.max_val != null) {
+      maxExpr = p(cfg.max_val);
+    } else if (isPercentUnit(cfg.standard_unit)) {
+      maxExpr = p(100);
+    } else if (isPercentUnit(cfg.original_unit)) {
+      maxExpr = formula ? formula.replace(/x/g, '100.0') : p(100);
+    }
 
-    const rawMaxVal = cfg.original_unit && ['%', '%v', '%w'].includes(cfg.original_unit) ? 100 : undefined;
-
-    const inRange = maxVal ? `(${converted}) BETWEEN ${p(minVal)} AND ${p(maxVal)}` : `(${converted}) >= ${p(minVal)}`;
+    const inRange = maxExpr
+      ? `(${converted}) BETWEEN ${p(minVal)} AND ${maxExpr}`
+      : `(${converted}) >= ${p(minVal)}`;
 
     // Rejection flags (evaluated in CASE order — earlier wins).
     // Non-numeric must be first so the numeric cast in later conditions is safe.
@@ -99,7 +108,7 @@ export function buildCleaningCte(config: DataCleaningConfig, fileId: string): Cl
     const isSentinel = `${rawNum} = ${OUTSIDE_LOD_VALUE}`;
     const isNeg = `${rawNum} < 0`;
     const isZero = `(${converted}) = 0`;
-    const isOob = `NOT (${inRange})${rawMaxVal ? `OR NOT ((${rawNum}) <= ${p(rawMaxVal)})` : ''}`;
+    const isOob = `NOT (${inRange})`;
 
     c1.push(`
       CASE
