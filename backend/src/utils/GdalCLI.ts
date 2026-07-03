@@ -31,7 +31,7 @@ export interface GdalInfoOutput {
   size?: [number, number];
   bands?: GdalInfoBand[];
   metadata?: {
-    IMAGE_STRUCTURE?: { LAYOUT?: string };
+    IMAGE_STRUCTURE?: { LAYOUT?: string; COMPRESSION?: string };
     SUBDATASETS?: Record<string, string>;
     [key: string]: Record<string, string> | undefined;
   };

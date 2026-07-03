@@ -136,6 +136,75 @@ describe('RasterFileWriter', () => {
     });
   });
 
+  describe('writeLayerAoi', () => {
+    // Well within the bdod_5-15cm_mean.tif source extent (-81.144..-80.479, -34.003..-33.446)
+    const bboxAoi = {
+      type: 'Polygon' as const,
+      coordinates: [
+        [
+          [-80.9, -33.9],
+          [-80.9, -33.7],
+          [-80.7, -33.7],
+          [-80.7, -33.9],
+          [-80.9, -33.9],
+        ],
+      ],
+    };
+
+    it('resolves layer.path via FileService.getMainFilePath', async () => {
+      const writer = new RasterFileWriter(RasterFileFormat.TIFF, TEST_OUTPUT_DIR);
+      await writer.writeLayerAoi(makeLayer(), bboxAoi);
+      expect(FileService.getMainFilePath).toHaveBeenCalledWith(makeLayer().path);
+    });
+
+    it('produces a valid GeoTIFF clipped to the bbox extent with DEFLATE/TILED creation options', async () => {
+      const writer = new RasterFileWriter(RasterFileFormat.TIFF, TEST_OUTPUT_DIR);
+      await writer.writeLayerAoi(makeLayer(), bboxAoi);
+
+      const tif = outputFiles().find(f => f.endsWith('.tif'));
+      if (!tif) throw new Error('No .tif output file produced');
+
+      const info = await GdalCLI.gdalinfo(path.join(TEST_OUTPUT_DIR, tif));
+      const gt =
+        info.geoTransform ??
+        (() => {
+          throw new Error('No geoTransform on output dataset');
+        })();
+      const rasterSizeX = info.size![0];
+      const rasterSizeY = info.size![1];
+      const minX = gt[0]!;
+      const maxY = gt[3]!;
+      const maxX = minX + gt[1]! * rasterSizeX!;
+      const minY = maxY + gt[5]! * rasterSizeY!;
+
+      const tolerance = 0.01;
+      expect(minX).toBeGreaterThanOrEqual(-80.9 - tolerance);
+      expect(minX).toBeLessThanOrEqual(-80.9 + tolerance);
+      expect(maxX).toBeGreaterThanOrEqual(-80.7 - tolerance);
+      expect(maxX).toBeLessThanOrEqual(-80.7 + tolerance);
+      expect(minY).toBeGreaterThanOrEqual(-33.9 - tolerance);
+      expect(minY).toBeLessThanOrEqual(-33.9 + tolerance);
+      expect(maxY).toBeGreaterThanOrEqual(-33.7 - tolerance);
+      expect(maxY).toBeLessThanOrEqual(-33.7 + tolerance);
+
+      expect(info.metadata?.IMAGE_STRUCTURE?.COMPRESSION).toBe('DEFLATE');
+      expect(info.bands?.[0]?.block).toEqual([256, 256]);
+    });
+
+    it('produces a valid GeoPackage with a raster table named per buildLayerName, Float32 single band', async () => {
+      const writer = new RasterFileWriter(RasterFileFormat.GPKG, TEST_OUTPUT_DIR);
+      await writer.writeLayerAoi(makeLayer(), bboxAoi);
+
+      const gpkg = outputFiles().find(f => f.endsWith('.gpkg'));
+      if (!gpkg) throw new Error('No .gpkg output file produced');
+
+      const layerName = path.basename(gpkg, '.gpkg');
+      const info = await GdalCLI.gdalinfo(`GPKG:${path.join(TEST_OUTPUT_DIR, gpkg)}:${layerName}`);
+      expect(info.bands?.length).toBe(1);
+      expect(info.bands?.[0]?.type).toBe('Float32');
+    });
+  });
+
   describe('layer naming', () => {
     it('builds filename from sanitized dataset and property names', async () => {
       const writer = new RasterFileWriter(RasterFileFormat.TIFF, TEST_OUTPUT_DIR);
