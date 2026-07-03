@@ -97,9 +97,7 @@ export function buildCleaningCte(config: DataCleaningConfig, fileId: string): Cl
       maxExpr = formula ? formula.replace(/x/g, '100.0') : p(100);
     }
 
-    const inRange = maxExpr
-      ? `(${converted}) BETWEEN ${p(minVal)} AND ${maxExpr}`
-      : `(${converted}) >= ${p(minVal)}`;
+    const inRange = maxExpr ? `(${converted}) BETWEEN ${p(minVal)} AND ${maxExpr}` : `(${converted}) >= ${p(minVal)}`;
 
     // Rejection flags (evaluated in CASE order — earlier wins).
     // Non-numeric must be first so the numeric cast in later conditions is safe.

@@ -247,9 +247,7 @@ describe('VectorDataLoad class', () => {
         },
       };
       const stats = await vdl.getDataPreviewStats(entityManager, dataMappingWithTextProp, fileId!);
-      const nonNumericDeletion = stats.cell_deletions.find(
-        d => d.reason === CellDeleteReason.NON_NUMERIC && d.property === 'depthrange',
-      );
+      const nonNumericDeletion = stats.cell_deletions.find(d => d.reason === CellDeleteReason.NON_NUMERIC && d.property === 'depthrange');
       expect(nonNumericDeletion).toBeDefined();
       expect(nonNumericDeletion!.count).toBeGreaterThan(0);
     });
