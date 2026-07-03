@@ -63,6 +63,11 @@ exports[`DownloadSummary renders download summary page 1`] = `
             >
               mock-svg
             </svg>
+            <div
+              class="MainContentHeaderText"
+            >
+              These are the datasets included in the download
+            </div>
           </div>
           <div
             class="FormatPicker"
@@ -71,6 +76,7 @@ exports[`DownloadSummary renders download summary page 1`] = `
               class="FormatPickerHeader"
             >
               <svg
+                class="FormatPickerHeaderIcon"
                 data-testid="svg-icon-mock"
               >
                 mock-svg
@@ -243,6 +249,11 @@ exports[`DownloadSummary renders download summary page coming from availability 
             >
               mock-svg
             </svg>
+            <div
+              class="MainContentHeaderText"
+            >
+              These are the datasets included in the download
+            </div>
           </div>
           <div
             class="FormatPicker"
@@ -251,6 +262,7 @@ exports[`DownloadSummary renders download summary page coming from availability 
               class="FormatPickerHeader"
             >
               <svg
+                class="FormatPickerHeaderIcon"
                 data-testid="svg-icon-mock"
               >
                 mock-svg
@@ -423,6 +435,11 @@ exports[`DownloadSummary renders download summary page coming from data explorer
             >
               mock-svg
             </svg>
+            <div
+              class="MainContentHeaderText"
+            >
+              These are the datasets included in the download
+            </div>
           </div>
           <div
             class="FormatPicker"
@@ -431,6 +448,7 @@ exports[`DownloadSummary renders download summary page coming from data explorer
               class="FormatPickerHeader"
             >
               <svg
+                class="FormatPickerHeaderIcon"
                 data-testid="svg-icon-mock"
               >
                 mock-svg
