@@ -69,8 +69,9 @@
 
           &Text {
             font-family: 'Inter', Arial, Helvetica, sans-serif;
-            font-size: var(--font-size-sm);
-            color: var(--color-neutral-dark-500);
+            font-size: var(--font-size-md);
+            font-weight: var(--font-weight-bold);
+            color: var(--color-neutral-black);
           }
         }
 
