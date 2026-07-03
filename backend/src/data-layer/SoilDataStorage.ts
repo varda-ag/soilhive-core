@@ -733,7 +733,7 @@ export default class SoilDataStorage {
   };
 }
 
-const hasRasterFilters = (filters: FilterCriteria): boolean => {
+export const hasRasterFilters = (filters: FilterCriteria): boolean => {
   return Boolean(filters.raster_filters && Object.keys(filters.raster_filters).length > 0);
 };
 

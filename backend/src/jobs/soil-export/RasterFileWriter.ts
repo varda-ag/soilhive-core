@@ -1,7 +1,6 @@
 import * as path from 'path';
 import * as fs from 'fs';
 import * as turf from '@turf/turf';
-import * as wellknown from 'wellknown';
 import { fromFile, writeArrayBuffer, GeoTIFFImage } from 'geotiff';
 import { Polygon, MultiPolygon } from 'geojson';
 import { RasterFileFormat } from './types';
@@ -41,8 +40,6 @@ interface TilePlacement {
   th: number;
 }
 
-const fileService = new FileService();
-
 export class RasterFileWriter {
   private readonly outputDir: string;
   private readonly fileFormat: RasterFileFormat;
@@ -53,46 +50,43 @@ export class RasterFileWriter {
   }
 
   /**
-   * Clips the source raster layer to the AOI and writes it to the output directory.
+   * Crops the source raster layer to the AOI's bounding box extent and writes it to the output
+   * directory. This is a rectangular crop (via gdal_translate -projwin), not a polygon clip — pixels
+   * inside the bbox but outside the AOI's actual shape are still included. Only safe to use when the
+   * AOI is itself an axis-aligned bbox, so the crop extent matches the AOI exactly.
    * Output layer naming convention is {outputDir}/{dataset_slug}_{soil_property}{_depth}{_date}
    */
-  async writeLayerAoi(layer: FilteredRasterLayer, aoi: Polygon | MultiPolygon): Promise<void> {
-    const fileExists = await fileService.exists(layer.path);
-    if (!fileExists) {
-      throw new Error(`Requested raster layer not found in storage: ${layer.path}`);
-    }
-    const [minX, minY, maxX, maxY] = turf.bbox(aoi);
+  async cropToAoiBbox(layer: FilteredRasterLayer, aoi: Polygon | MultiPolygon): Promise<void> {
     const layerName = this.buildLayerName(layer);
     fs.mkdirSync(path.dirname(this.outputDir), { recursive: true });
 
     const { mainFilePath } = await FileService.getMainFilePath(layer.path);
-    const wkt = wellknown.stringify(aoi);
+    const [minX, minY, maxX, maxY] = turf.bbox(aoi);
+    const ulx = minX;
+    const uly = maxY;
+    const lrx = maxX;
+    const lry = minY;
 
-    const warpArgs: string[] = [
-      '-cutline_srs',
-      'EPSG:4326',
-      '-cutline',
-      wkt,
-      '-te',
-      String(minX),
-      String(minY),
-      String(maxX),
-      String(maxY),
-      '-te_srs',
+    const translateArgs: string[] = [
+      '-projwin',
+      String(ulx),
+      String(uly),
+      String(lrx),
+      String(lry),
+      '-projwin_srs',
       'EPSG:4326',
       '-of',
       this.getDriverName(),
-      '-crop_to_cutline',
     ];
 
     if (this.fileFormat === RasterFileFormat.TIFF) {
-      warpArgs.push('-co', 'COMPRESS=DEFLATE', '-co', 'TILED=YES');
+      translateArgs.push('-co', 'COMPRESS=DEFLATE', '-co', 'TILED=YES');
     } else {
-      warpArgs.push('-co', `RASTER_TABLE=${layerName}`, '-co', 'TILE_FORMAT=TIFF', '-ot', 'Float32');
+      translateArgs.push('-b', '1', '-co', `RASTER_TABLE=${layerName}`, '-co', 'TILE_FORMAT=TIFF', '-ot', 'Float32');
     }
 
     const filePath = path.join(this.outputDir, `${layerName}.${this.getFileExtension()}`);
-    await GdalCLI.warp(mainFilePath, filePath, warpArgs);
+    await GdalCLI.translate(mainFilePath, filePath, translateArgs);
   }
 
   /**
