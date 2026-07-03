@@ -5,30 +5,59 @@ exports[`MapSettings page matches snapshot 1`] = `
   <div
     class="Layout"
   >
-    <main
-      class="Content"
+    <div
+      class="ContentWrapper"
     >
-      <h3>
-        Default map extent
-      </h3>
-      <p>
-        Select the area you want to show in the map when the user arrives to the platform
-      </p>
-      <div
-        class="Map"
+      <main
+        class="Content"
       >
         <div
-          data-testid="soilhive-simple-map"
-        />
-      </div>
-      <button
-        class="Button Primary Small"
-        data-testid="sh-ui-button"
-        type="button"
+          class="TextBlock"
+        >
+          <h3
+            class="Title"
+          >
+            Default map extent
+          </h3>
+          <p
+            class="Subtitle"
+          >
+            Select the area you want to show in the map when the user arrives to the platform
+          </p>
+        </div>
+        <div
+          class="Map"
+        >
+          <div
+            data-testid="soilhive-simple-map"
+          />
+        </div>
+        <div
+          data-default-value="false"
+          data-is-dai-enabled="false"
+          data-testid="map-coverage-settings"
+        >
+          <button
+            data-testid="toggle-dai"
+          />
+          <button
+            data-testid="set-default-active"
+          />
+          <button
+            data-testid="set-default-inactive"
+          />
+        </div>
+      </main>
+      <div
+        class="Footer"
       >
-        Set view as default
-      </button>
-    </main>
+        <button
+          data-testid="sh-ui-button"
+        >
+          Save changes
+        </button>
+      </div>
+    </div>
   </div>
 </div>
 `;

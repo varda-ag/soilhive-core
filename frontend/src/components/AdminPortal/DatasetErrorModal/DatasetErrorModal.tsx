@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 
-import WarningIcon from 'assets/icons/warning-icon.svg?react';
+import WarningIcon from 'assets/icons/small-warning-icon.svg?react';
 import BulbIcon from 'assets/icons/bulb-icon.svg?react';
 import { Dialog } from 'components/UI';
 import type { DatasetErrorItem } from 'types/datasetErrors';

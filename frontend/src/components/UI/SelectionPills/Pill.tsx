@@ -1,6 +1,6 @@
 import classnames from 'classnames';
 import CloseIcon from 'assets/icons/small-cross-icon.svg?react';
-import WarningIcon from 'assets/icons/warning-icon.svg?react';
+import WarningIcon from 'assets/icons/small-warning-icon.svg?react';
 import type { Selection } from 'types/components';
 
 import styles from './Pill.module.scss';

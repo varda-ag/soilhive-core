@@ -86,6 +86,7 @@ exports[`DownloadDataSummary renders the download data summary (sidebar) 1`] = `
             class="DataSummaryRowTitle"
           >
             <svg
+              class="LayersIcon"
               data-testid="svg-icon-mock"
             >
               mock-svg
@@ -223,6 +224,7 @@ exports[`DownloadDataSummary renders the download data summary (sidebar) in mobi
             class="DataSummaryRowTitle"
           >
             <svg
+              class="LayersIcon"
               data-testid="svg-icon-mock"
             >
               mock-svg
@@ -371,6 +373,7 @@ exports[`DownloadDataSummary renders the download data summary (sidebar) with re
             class="DataSummaryRowTitle"
           >
             <svg
+              class="LayersIcon"
               data-testid="svg-icon-mock"
             >
               mock-svg
@@ -519,6 +522,7 @@ exports[`DownloadDataSummary renders the download data summary (sidebar) with se
             class="DataSummaryRowTitle"
           >
             <svg
+              class="LayersIcon"
               data-testid="svg-icon-mock"
             >
               mock-svg
@@ -667,6 +671,7 @@ exports[`DownloadDataSummary renders the download data summary (sidebar) with se
             class="DataSummaryRowTitle"
           >
             <svg
+              class="LayersIcon"
               data-testid="svg-icon-mock"
             >
               mock-svg
@@ -815,6 +820,7 @@ exports[`DownloadDataSummary renders the download data summary (sidebar) with se
             class="DataSummaryRowTitle"
           >
             <svg
+              class="LayersIcon"
               data-testid="svg-icon-mock"
             >
               mock-svg
@@ -963,6 +969,7 @@ exports[`DownloadDataSummary renders the expanded download data summary (sidebar
             class="DataSummaryRowTitle"
           >
             <svg
+              class="LayersIcon"
               data-testid="svg-icon-mock"
             >
               mock-svg
@@ -1111,6 +1118,7 @@ exports[`DownloadDataSummary renders the reduced download data summary (sidebar)
             class="DataSummaryRowTitle"
           >
             <svg
+              class="LayersIcon"
               data-testid="svg-icon-mock"
             >
               mock-svg

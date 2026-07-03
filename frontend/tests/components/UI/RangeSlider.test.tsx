@@ -123,6 +123,21 @@ describe('RangeSlider', () => {
     expect(mockOnChange).toHaveBeenCalledWith(10);
   });
 
+  it('applies the Medium class by default', () => {
+    render(<RangeSlider min={0} max={10} initialValue={5} onChange={mockOnChange} />);
+    expect(screen.getByTestId('sh-ui-range')).toHaveClass('Medium');
+  });
+
+  it('applies the Small class when size is small', () => {
+    render(<RangeSlider min={0} max={10} initialValue={5} onChange={mockOnChange} size="small" />);
+    expect(screen.getByTestId('sh-ui-range')).toHaveClass('Small');
+  });
+
+  it('applies the Tiny class when size is tiny', () => {
+    render(<RangeSlider min={0} max={10} initialValue={5} onChange={mockOnChange} size="tiny" />);
+    expect(screen.getByTestId('sh-ui-range')).toHaveClass('Tiny');
+  });
+
   it('disables input when disabled prop is true', () => {
     render(<RangeSlider min={0} max={10} initialValue={5} onChange={mockOnChange} disabled={true} />);
     const input = screen.getByRole('slider') as HTMLInputElement;

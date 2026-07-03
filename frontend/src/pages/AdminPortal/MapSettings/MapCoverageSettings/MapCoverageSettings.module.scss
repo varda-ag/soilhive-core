@@ -1,0 +1,64 @@
+.MapCoverageSettings {
+  padding-top: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+
+  .Text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+  .Title {
+    margin: 0;
+    font-size: var(--font-size-lg);
+  }
+  .Subtitle {
+    font-size: var(--font-size-md);
+  }
+  .DaiSettings {
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    border: 1px solid var(--color-neutral-dark-100);
+    border-radius: 0.5rem;
+
+    .Main {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+    .Title {
+      font-size: var(--font-size-sm);
+    }
+    .Subtitle {
+      font-size: var(--font-size-sm);
+    }
+
+    .DefaultSection {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      padding: 1rem 0.75rem;
+      border: 1px solid var(--color-neutral-dark-100);
+      border-radius: 0.25rem;
+    }
+    .DefaultSectionItem {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .WarningBanner {
+      display: flex;
+      gap: 1rem;
+      padding: 1rem 0.75rem;
+      border: 1px dashed var(--color-accent-danger-1000);
+      border-radius: 0.25rem;
+      color: var(--color-accent-danger-1000);
+    }
+    .WarningIcon {
+      flex-shrink: 0;
+    }
+  }
+}

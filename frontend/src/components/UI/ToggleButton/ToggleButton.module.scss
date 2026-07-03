@@ -43,7 +43,7 @@
     }
   }
 
-  .Small {
+  &.Small {
     width: 2.7rem;
     height: 1.47rem;
 
@@ -59,6 +59,26 @@
         width: 1.23rem;
         left: 0.13rem;
         bottom: 0.13rem;
+      }
+    }
+  }
+
+  &.Tiny {
+    width: 1.75rem;
+    height: 0.925rem;
+
+    .ToggleCheckbox {
+      &:checked + .ToggleSlider::before {
+        transform: translateX(0.8rem);
+      }
+    }
+
+    .ToggleSlider {
+      &::before {
+        height: 0.775rem;
+        width: 0.775rem;
+        left: 0.08rem;
+        bottom: 0.07rem;
       }
     }
   }

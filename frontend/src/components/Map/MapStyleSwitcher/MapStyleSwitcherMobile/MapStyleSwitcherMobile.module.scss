@@ -1,0 +1,71 @@
+@import 'styles/variables/breakpoints';
+
+.MapStyleSwitcherMobile {
+  background-color: var(--color-neutral-white);
+  padding: 0.25rem;
+  border-radius: 0.25rem;
+  box-shadow: var(--shadow-interface-large);
+
+  .SwitcherButton {
+    display: flex;
+    background: none;
+    border: none;
+    outline: none;
+  }
+  .Select {
+    display: block;
+    display: none;
+    padding: 0.25rem;
+  }
+}
+
+.Dialog {
+  min-height: 160px;
+  max-height: max-content;
+
+  @media (max-width: $bp-mobile-max) {
+    min-height: 160px;
+    max-height: max-content;
+  }
+
+  .DialogContent {
+    padding: 0.75rem 1rem 1.25rem;
+  }
+
+  .List {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .ListItem {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+
+    &.Active {
+      .Name {
+        font-weight: 700;
+      }
+    }
+  }
+
+  .ThumbnailWrapper {
+    flex-shrink: 0;
+    padding: 0.5px;
+    border: 0.5px solid var(--color-neutral-dark-100);
+    border-radius: 0.5rem;
+  }
+
+  .Thumbnail {
+    display: block;
+    border-radius: 0.5rem;
+    width: 34px;
+    height: 34px;
+  }
+
+  .Name {
+    font-size: var(--font-size-xs);
+  }
+}
