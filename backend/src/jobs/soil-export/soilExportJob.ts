@@ -36,6 +36,8 @@ import FilterService from '../../services/FilterService';
 import { GISDataType } from '../../types/data';
 import { getExportBatchSize } from '../../utils/utils';
 import { getRasterMask } from '../../data-layer/FilteringMasks';
+import { hasRasterFilters } from '../../data-layer/SoilDataStorage';
+import { isAxisAlignedBboxPolygon } from '../../utils/geometry';
 
 export async function processExportJob(job: Job<ExportJob>): Promise<void> {
   const { id: jobId, data } = job;
@@ -216,13 +218,16 @@ async function exportRasterData(
 ): Promise<Partial<ExportOutputs>> {
   if (!data.dataset_ids?.length) return { total_layers_processed: 0 };
 
-  const { layers } = await fetchRasterLayers(requestData, data);
+  const { layers, aoi } = await fetchRasterLayers(requestData, data);
   const filterService = new FilterService();
   const filter = await filterService.getFilterById(requestData, data.filter_id);
-  const rasterMaskFile = await getRasterMask(requestData.entityManager, filter, 'file');
 
   if (!layers.length) return { total_layers_processed: 0 };
-  if (!rasterMaskFile) return { total_layers_processed: 0 };
+
+  const useBboxFastPath = isAxisAlignedBboxPolygon(aoi) && !hasRasterFilters(filter.parameters);
+  const rasterMaskFile = useBboxFastPath ? null : await getRasterMask(requestData.entityManager, filter, 'file');
+
+  if (!useBboxFastPath && !rasterMaskFile) return { total_layers_processed: 0 };
 
   const writer = new RasterFileWriter(fileFormat, tempDir);
   let totalLayersProcessed = 0;
@@ -231,7 +236,11 @@ async function exportRasterData(
     for (const layer of layers) {
       if (await isJobCancelled(jobId)) break;
 
-      await writer.writeLayer(layer, rasterMaskFile);
+      if (useBboxFastPath) {
+        await writer.writeLayerAoi(layer, aoi!);
+      } else {
+        await writer.writeLayer(layer, rasterMaskFile!);
+      }
       totalLayersProcessed++;
 
       const stored_data = await getJobData(jobId);
@@ -254,7 +263,7 @@ async function exportRasterData(
       });
     }
   } finally {
-    fs.unlinkSync(rasterMaskFile);
+    if (rasterMaskFile) fs.unlinkSync(rasterMaskFile);
   }
 
   return { total_layers_processed: totalLayersProcessed };
