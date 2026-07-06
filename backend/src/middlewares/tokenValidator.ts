@@ -1,7 +1,7 @@
 import { Request } from 'express';
 import jwt, { JwtPayload, PublicKey, Secret, VerifyErrors } from 'jsonwebtoken';
 import jwksClient from 'jwks-rsa';
-import { ErrorResponse } from '../utils/error';
+import { ErrorResponse, getErrorMessage } from '../utils/error';
 import StatusCodes from 'http-status-codes';
 import { Token } from '../interfaces/Token';
 import { AuthModes, TokenScopes } from '../types/enums';
@@ -74,7 +74,7 @@ export const tokenValidator = async (req: Request, scopes: string[]): Promise<bo
     try {
       secretOrPublicKey.push(await getSigningKeyAsync(kid));
     } catch (err) {
-      throw new ErrorResponse(`Invalid token: ${(err as Error).message}`, StatusCodes.UNAUTHORIZED);
+      throw new ErrorResponse(`Invalid token: ${getErrorMessage(err)}`, StatusCodes.UNAUTHORIZED);
     }
   }
   const errors: any[] = [];
@@ -101,7 +101,7 @@ export const tokenValidator = async (req: Request, scopes: string[]): Promise<bo
   if (err instanceof ErrorResponse) {
     throw err;
   }
-  const errorMessage = err['name'] === 'TokenExpiredError' ? 'Token has expired' : `Invalid token: ${err.message}`;
+  const errorMessage = err['name'] === 'TokenExpiredError' ? 'Token has expired' : `Invalid token: ${getErrorMessage(err)}`;
   throw new ErrorResponse(errorMessage, StatusCodes.UNAUTHORIZED);
 };
 

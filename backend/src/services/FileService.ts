@@ -13,7 +13,7 @@ import { GdalCLI, OgrInfoLayer } from '../utils/GdalCLI';
 import { LocalStorageConfig, S3StorageConfig, StorageConfig } from '../interfaces/StorageConfig';
 import { RequestData } from '../interfaces/RequestData';
 import { File, FileMetadata, ExtractedFilePath } from '../interfaces/File';
-import { ErrorResponse } from '../utils/error';
+import { ErrorResponse, getErrorMessage } from '../utils/error';
 import { getSubject } from '../utils/auth';
 import { getEntity } from '../utils/slugs';
 import { sanitizeField, buildDatedFileKey, getRawTableName } from '../utils/utils';
@@ -665,7 +665,7 @@ export default class FileService {
       try {
         await GdalCLI.ogr2ogr([...ogr2ogrOpts, pgDataset, tempVrtPath ?? mainFilePath]);
       } catch (translateError) {
-        const errMsg = translateError instanceof Error ? translateError.message : String(translateError);
+        const errMsg = getErrorMessage(translateError);
         log.error('ogr2ogr failed', {
           source: mainFilePath,
           target: pgDataset.replace(/password=\S+/, 'password=***'),
@@ -687,7 +687,7 @@ export default class FileService {
       if (error instanceof ErrorResponse) {
         throw error;
       }
-      throw new ErrorResponse(`Failed to load file to table: ${error instanceof Error ? error.message : error}`, StatusCodes.BAD_REQUEST);
+      throw new ErrorResponse(`Failed to load file to table: ${getErrorMessage(error)}`, StatusCodes.BAD_REQUEST);
     } finally {
       if (tempZipExtractPath) {
         FileService.removeTempFolder(tempZipExtractPath);
