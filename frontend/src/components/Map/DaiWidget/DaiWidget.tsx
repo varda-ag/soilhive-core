@@ -67,16 +67,13 @@ export function DaiWidget({ isEnabled, opacity, className, isLoading, isDefaultE
             <RangeSlider min={0} max={100} initialValue={opacity} size="small" onChange={onOpacityChange} />
           </div>
 
-          <div className={styles.LegendSection}>
-            <span className={styles.Label}>{t('dai_widget.legend')}</span>
-            <div className={styles.LegendItems}>
-              {LEGEND_ITEMS.map(({ label, color }) => (
-                <div key={label} className={styles.LegendItem}>
-                  <span className={styles.Swatch} style={{ backgroundColor: color }} />
-                  <span className={styles.LegendLabel}>{t(`dai_widget.${label}`)}</span>
-                </div>
-              ))}
-            </div>
+          <div className={styles.LegendItems}>
+            {LEGEND_ITEMS.map(({ label, color }) => (
+              <div key={label} className={styles.LegendItem}>
+                <span className={styles.Swatch} style={{ backgroundColor: color }} />
+                <span className={styles.LegendLabel}>{t(`dai_widget.${label}`)}</span>
+              </div>
+            ))}
           </div>
 
           {faqUrl && (

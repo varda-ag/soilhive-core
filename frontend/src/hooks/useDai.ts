@@ -1,5 +1,6 @@
 import type { DataAvailabilityIndex } from '../types/backend';
 import { useApiQuery } from './useApiQuery';
+import { useDebounce } from './useDebounce';
 
 export function useDai(
   filterId: string | undefined,
@@ -7,25 +8,30 @@ export function useDai(
   resolution: number | undefined,
   enabled = true,
 ) {
+  const { value: debounced, isPending } = useDebounce({ filterId, bbox, resolution, enabled }, 500);
+  const { filterId: debouncedFilterId, bbox: debouncedBbox, resolution: debouncedResolution, enabled: debouncedEnabled } = debounced;
+
+  const isDebouncePending = enabled && isPending;
+
   const query = new URLSearchParams({
-    bbox: bbox ? bbox.join(',') : '',
-    resolution: resolution !== undefined ? String(resolution) : '',
+    bbox: debouncedBbox ? debouncedBbox.join(',') : '',
+    resolution: debouncedResolution !== undefined ? String(debouncedResolution) : '',
   }).toString();
   const {
     data: dai,
     isLoading,
     isError,
   } = useApiQuery<DataAvailabilityIndex>({
-    endpoint: `/data-filters/${filterId}/dai?${query}`,
+    endpoint: `/data-filters/${debouncedFilterId}/dai?${query}`,
     method: 'GET',
-    queryKey: ['dai', filterId, bbox, resolution],
-    enabled: enabled && !!bbox && bbox.length === 4 && !!resolution && !!filterId,
+    queryKey: ['dai', debouncedFilterId, debouncedBbox, debouncedResolution],
+    enabled: debouncedEnabled && !!debouncedBbox && debouncedBbox.length === 4 && !!debouncedResolution && !!debouncedFilterId,
     abortOnNewQuery: true,
   });
 
   return {
     dai,
-    isLoading,
+    isLoading: isLoading || isDebouncePending,
     isError,
   };
 }

@@ -45,6 +45,9 @@
     cursor: pointer;
 
     &.Active {
+      .ThumbnailWrapper {
+        border-color: var(--color-neutral-black);
+      }
       .Name {
         font-weight: 700;
       }
