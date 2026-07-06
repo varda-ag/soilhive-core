@@ -6,15 +6,24 @@ on:
       - main
   workflow_dispatch: {}
 
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
 jobs:
-  release:
-    uses: varda-ag/.github/.github/workflows/release.yaml@bf80d0c0e30b15a047dacd693bec8f5bfda03b67 # v1.13.3
-    with:
-      gh-app-id: ${{ vars.VARDA_VERSION_BUMPER_APPID }}
-      target-branch: ${{ github.ref_name }}
-    secrets:
-      gh-app-private-key: ${{ secrets.VARDA_VERSION_BUMPER_PRIVATE_KEY }}
-    permissions:
-      contents: write
-      issues: write
-      pull-requests: write
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        id: app-token
+        with:
+          client-id: ${{ vars.RELEASE_PLEASE_VARDA_APPID }}
+          private-key: ${{ secrets.RELEASE_PLEASE_VARDA_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+
+      - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          target-branch: ${{ inputs.target-branch }}

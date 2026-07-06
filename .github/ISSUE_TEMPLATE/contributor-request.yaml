@@ -1,0 +1,46 @@
+name: Contributor Request
+description: Request to be added to the external contributors list.
+title: "[Contributor Request] <your GitHub username>"
+labels: ["contributor-request"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for your interest in contributing! Please fill out this form to request access.
+        Once approved, you will be added to the contributors list and will be able to open PRs.
+
+  - type: input
+    id: github_username
+    attributes:
+      label: GitHub Username
+      placeholder: "@username"
+    validations:
+      required: true
+
+  - type: input
+    id: first_issue
+    attributes:
+      label: First Issue Link
+      description: Link to the issue you intend to work on first. You must have an existing issue open before requesting contributor access.
+      placeholder: "https://github.com/owner/repo/issues/123"
+    validations:
+      required: true
+
+  - type: textarea
+    id: background
+    attributes:
+      label: Background
+      description: Brief description of your background and why you want to contribute.
+      placeholder: "I'm a backend engineer with experience in..."
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Acknowledgements
+      options:
+        - label: I have read the [CONTRIBUTING.md](../CONTRIBUTING.md) guidelines.
+          required: true
+        - label: I understand that each PR I open must be linked to an issue.
+          required: true

@@ -11,12 +11,22 @@ on:
       - main
   workflow_dispatch: {}
 
-permissions:
-  contents: write
-
 jobs:
+
+  gate:
+    name: Contributor Gate
+    if: github.event_name == 'pull_request'
+    uses: ./.github/workflows/gate-check-reusable.yaml
+    with:
+      username: ${{ github.event.pull_request.user.login }}
+      base-sha: ${{ github.event.pull_request.base.sha }}
+      author-association: ${{ github.event.pull_request.author_association }}
+
   image-version:
     name: Determine Image Version
+    needs:
+      - gate
+    if: always() && (needs.gate.result == 'skipped' || needs.gate.outputs.allowed == 'true')
     runs-on: ubuntu-latest
     outputs:
       imageVersion: ${{ steps.image_version.outputs.imageVersion }}
@@ -33,36 +43,32 @@ jobs:
           fi
 
   build-push-docker-backend:
-    uses: varda-ag/.github/.github/workflows/docker-build.yaml@bf80d0c0e30b15a047dacd693bec8f5bfda03b67 # v1.13.3
-    needs:
+    uses: ./.github/workflows/docker-build-reusable.yaml
+    needs: 
+      - gate
       - image-version
+    if: always() && (needs.gate.result == 'skipped' || needs.gate.outputs.allowed == 'true')
     with:
       context: backend
       image-name: soilhive-core-backend
       image-version: ${{ needs.image-version.outputs.imageVersion }}
-      push: true
-      aws-role-to-assume: ${{ vars.AWS_ROLE_ARN }}
-      aws-region: ${{ vars.AWS_REGION }}
     permissions:
       contents: read
       packages: write
-      id-token: write # This is required for requesting the JWT token from OIDC
       pull-requests: write
 
   build-push-docker-frontend:
-    uses: varda-ag/.github/.github/workflows/docker-build.yaml@bf80d0c0e30b15a047dacd693bec8f5bfda03b67 # v1.13.3
-    needs:
+    uses: ./.github/workflows/docker-build-reusable.yaml
+    needs: 
+      - gate
       - image-version
+    if: always() && (needs.gate.result == 'skipped' || needs.gate.outputs.allowed == 'true')
     with:
       context: frontend
       image-name: soilhive-core-frontend
       image-version: ${{ needs.image-version.outputs.imageVersion }}
-      push: true
-      aws-role-to-assume: ${{ vars.AWS_ROLE_ARN }}
-      aws-region: ${{ vars.AWS_REGION }}
     permissions:
       contents: read
       packages: write
-      id-token: write # This is required for requesting the JWT token from OIDC
       pull-requests: write
 

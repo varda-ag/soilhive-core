@@ -1,0 +1,38 @@
+name: Gate PRs
+on:
+  pull_request_target:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - edited
+
+jobs:
+  check:
+    uses: ./.github/workflows/gate-check-reusable.yaml
+    with:
+      username: ${{ github.event.pull_request.user.login }}
+      base-sha: ${{ github.event.pull_request.base.sha }}
+      author-association: ${{ github.event.pull_request.author_association }}
+
+  close-pr:
+    needs: check
+    if: needs.check.outputs.allowed == 'false'
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+    steps:
+      - uses: actions/github-script@v9
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              ...context.repo,
+              issue_number: context.payload.pull_request.number,
+              body: `Thanks @${context.payload.pull_request.user.login}, but PRs are limited to approved contributors right now. You can open a [Contributor Request issue](https://github.com/${context.repo.owner}/${context.repo.repo}/issues/new?template=contributor-request.yml) to request access.`
+            });
+            await github.rest.pulls.update({
+              ...context.repo,
+              pull_number: context.payload.pull_request.number,
+              state: 'closed'
+            });

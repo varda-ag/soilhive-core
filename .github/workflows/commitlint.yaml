@@ -10,14 +10,202 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+  pull-requests: write
+
 jobs:
 
-  commitlint:
-    uses: varda-ag/.github/.github/workflows/commitlint.yaml@bf80d0c0e30b15a047dacd693bec8f5bfda03b67 # v1.13.3
+  gate:
+    name: Contributor Gate
+    uses: ./.github/workflows/gate-check-reusable.yaml
     with:
-      pr_base_sha: ${{ github.event.pull_request.base.sha }}
-      pr_head_sha: ${{ github.event.pull_request.head.sha }}
-      pr_title: ${{ github.event.pull_request.title }}
-    permissions:
-      contents: read
-      pull-requests: write
+      username: ${{ github.event.pull_request.user.login }}
+      base-sha: ${{ github.event.pull_request.base.sha }}
+      author-association: ${{ github.event.pull_request.author_association }}
+
+  commitlint:
+    name: Commitlint (Commits)
+    runs-on: ubuntu-latest
+    needs: gate
+    if: needs.gate.outputs.allowed == 'true'
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: lts/*
+
+      - name: Install commitlint
+        run: npm install -D @commitlint/cli @commitlint/config-conventional
+
+      - name: Configure commitlint
+        run: |
+          echo "export default { extends: ['@commitlint/config-conventional'] };" > commitlint.config.js
+
+      - name: Lint commits
+        id: commitlint
+        continue-on-error: true
+        env:
+          NO_COLOR: "1"
+        run: |
+          set -o pipefail
+          npx commitlint \
+            --from ${{ github.event.pull_request.base.sha }} \
+            --to ${{ github.event.pull_request.head.sha }} \
+            --verbose | tee commitlint-output.txt
+
+      - name: Remove old comments
+        if: github.event.pull_request.head.repo.full_name == github.repository
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const marker = '<!-- commitlint-commits -->';
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            for (const comment of comments) {
+              if (
+                comment.user.login === 'github-actions[bot]' &&
+                comment.body.includes(marker)
+              ) {
+                await github.rest.issues.deleteComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: comment.id,
+                });
+              }
+            }
+
+      - name: Comment on PR if commitlint failed
+        if: steps.commitlint.outcome == 'failure' && github.event.pull_request.head.repo.full_name == github.repository
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const fs = require('fs');
+            const output = fs.readFileSync('commitlint-output.txt', 'utf8');
+            const marker = '<!-- commitlint-commits -->';
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `${marker}
+              ❌ **Commitlint failed (commits)**
+
+              One or more commits do not follow the Conventional Commits specification.
+
+              <details>
+              <summary>Details</summary>
+
+              \`\`\`
+              ${output}
+              \`\`\`
+              </details>
+
+              Please amend the commits to match the Conventional Commits format.`
+            });
+
+      - name: Fail job if commitlint failed
+        if: steps.commitlint.outcome == 'failure'
+        run: exit 1
+
+  pr-title-lint:
+    name: Commitlint (PR title)
+    runs-on: ubuntu-latest
+    needs: gate
+    if: needs.gate.outputs.allowed == 'true'
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: lts/*
+
+      - name: Install commitlint
+        run: npm install -D @commitlint/cli @commitlint/config-conventional
+
+      - name: Configure commitlint
+        run: |
+          echo "export default { extends: ['@commitlint/config-conventional'] };" > commitlint.config.js
+
+      - name: Lint PR title
+        id: prtitle
+        continue-on-error: true
+        env:
+          NO_COLOR: "1"
+        run: |
+          set -o pipefail
+          echo "${{ github.event.pull_request.title }}" | \
+          npx commitlint --verbose | tee pr-title-lint-output.txt
+
+      - name: Remove old comments
+        if: github.event.pull_request.head.repo.full_name == github.repository
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const marker = '<!-- commitlint-pr-title -->';
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            for (const comment of comments) {
+              if (
+                comment.user.login === 'github-actions[bot]' &&
+                comment.body.includes(marker)
+              ) {
+                await github.rest.issues.deleteComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: comment.id,
+                });
+              }
+            }
+
+      - name: Comment on PR if title lint failed
+        if: steps.prtitle.outcome == 'failure' && github.event.pull_request.head.repo.full_name == github.repository
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const fs = require('fs');
+            const output = fs.readFileSync('pr-title-lint-output.txt', 'utf8');
+            const marker = '<!-- commitlint-pr-title -->';
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `${marker}
+              ❌ **Commitlint failed (PR title)**
+
+              The PR title does not follow the Conventional Commits specification.
+
+              <details>
+              <summary>Details</summary>
+
+              \`\`\`
+              ${output}
+              \`\`\`
+              </details>
+
+              Please rename the PR to match the Conventional Commits format.`
+            });
+
+      - name: Fail job if PR title lint failed
+        if: steps.prtitle.outcome == 'failure'
+        run: exit 1

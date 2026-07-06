@@ -1,2 +1,3 @@
 CODEOWNERS @varda-ag/platform-team
 .github/workflows/* @varda-ag/platform-team
+contributors.txt @varda-ag/github-org-owners

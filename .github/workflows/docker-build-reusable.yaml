@@ -1,0 +1,272 @@
+name: Docker Build reusable
+
+on:
+  workflow_call:
+    inputs:
+      image-name:
+        description: The name of the Docker image to build
+        type: string
+        required: true
+      context:
+        description: The build context path for the Docker build. Defaults to the repository root (.). This directory is sent to the Docker daemon during the build process
+        type: string
+        required: false
+        default: .
+      image-version:
+        description: The version tag to apply to the built Docker image
+        type: string
+        required: true
+      cleanup-on-failure:
+        description: Wether to delete or not the images on any failure (images tag can't be pushed twice)
+        type: boolean
+        default: true
+        required: false
+
+jobs:
+  build:
+    runs-on: "${{ matrix.platform.runner }}"
+    permissions:
+      contents: read
+      packages: write
+
+    strategy:
+      matrix:
+        platform:
+          [
+            {
+              name: "amd64",
+              dockerName: "linux/amd64",
+              runner: "ubuntu-latest",
+            },
+            {
+              name: "arm64",
+              dockerName: "linux/arm64",
+              runner: "ubuntu-24.04-arm",
+            },
+          ]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      # Set up BuildKit Docker container builder to be able to build
+      # multi-platform images and export cache
+      # https://github.com/docker/setup-buildx-action
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Determine image name
+        id: image-name
+        run: |
+          IMAGE_NAME=ghcr.io/$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')/${{ inputs.image-name }} >> $GITHUB_ENV
+          echo "image-name=$IMAGE_NAME" >> $GITHUB_OUTPUT
+
+      # Extract metadata (tags, labels) for Docker
+      # https://github.com/docker/metadata-action
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@030e881283bb7a6894de51c315a6bfe6a94e05cf # v6.0.0
+        with:
+          images: ${{ steps.image-name.outputs.image-name }}
+          tags: |
+            ${{ inputs.image-version }}-${{ matrix.platform.name }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+          annotations: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+
+      - name: Build and push Docker image
+        id: build-and-push
+        uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7.1.0
+        with:
+          context: ${{ inputs.context }}
+          platforms: ${{ matrix.platform.dockerName }}
+          push: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          annotations: ${{ steps.meta.outputs.annotations }}
+          cache-from: type=gha,scope=${{ inputs.image-name }}-${{ matrix.platform.name }}
+          cache-to: type=gha,mode=max,scope=${{ inputs.image-name }}-${{ matrix.platform.name }}
+
+  create-image-manifest:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+
+    needs:
+      - build
+
+    steps:
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Determine image name
+        id: image-name
+        run: |
+          IMAGE_NAME=ghcr.io/$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')/${{ inputs.image-name }} >> $GITHUB_ENV
+          echo "image-name=$IMAGE_NAME" >> $GITHUB_OUTPUT
+
+      - name: Create and push multi-arch manifest
+        run: |
+          docker buildx imagetools create \
+            --tag ${{ steps.image-name.outputs.image-name }}:${{ inputs.image-version }} \
+            ${{ steps.image-name.outputs.image-name }}:${{ inputs.image-version }}-amd64 \
+            ${{ steps.image-name.outputs.image-name }}:${{ inputs.image-version }}-arm64
+
+  update-pr-comment:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      pull-requests: write
+      packages: read
+
+    if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
+
+    needs:
+      - create-image-manifest
+
+    steps:
+      - name: Update PR comment with Docker tags
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          NEW_TAG: ${{ inputs.image-version }}
+          IMAGE_NAME: ${{ inputs.image-name }}
+        with:
+          script: |
+            const newTag = process.env.NEW_TAG;
+            const imageName = process.env.IMAGE_NAME;
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const packageUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/pkgs/container/${imageName}`;
+
+            let versionUrl = packageUrl;
+            try {
+              const tag = `${newTag}`;
+              let versions;
+              ({ data: versions } = await github.rest.packages.getAllPackageVersionsForPackageOwnedByOrg({
+                package_type: 'container',
+                package_name: imageName,
+                org: context.repo.owner,
+                per_page: 100,
+              }));
+              const version = versions.find(v => v.metadata?.container?.tags?.includes(tag));
+              if (version) {
+                versionUrl = `${packageUrl}/${version.id}`;
+              }
+            } catch (_) {}
+
+            const marker = `<!-- docker-build-tags-list:${imageName} -->`;
+
+            // 1. Find existing comment for this image
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const existingComment = comments.find(
+              (c) =>
+                c.user.login === 'github-actions[bot]' &&
+                c.body.includes(marker)
+            );
+
+            // 2. Extract previous builds from the existing comment
+            // Marker format: <!-- build:{tag}|{runUrl}|{versionUrl} -->
+            // (versionUrl is optional for backwards compat with older comments)
+            let previousBuilds = [];
+            if (existingComment) {
+              const buildRegex = /<!-- build:([^|]+)\|([^|\s]+)(?:\|([^\s]+))? -->/g;
+              let match;
+              while ((match = buildRegex.exec(existingComment.body)) !== null) {
+                const tag = match[1];
+                const url = match[2];
+                const pkgUrl = match[3] || null;
+                if (tag !== newTag && !previousBuilds.some((b) => b.tag === tag)) {
+                  previousBuilds.push({ tag, url, pkgUrl });
+                }
+              }
+            }
+
+            // 4. Build the new comment body
+            const formatBuildLine = ({ tag, url, pkgUrl }) => {
+              const links = [`[workflow run](${url})`];
+              if (pkgUrl) links.push(`[package](${pkgUrl})`);
+              return `- \`${tag}\` · ${links.join(' · ')} <!-- build:${tag}|${url}|${pkgUrl ?? ''} -->`;
+            };
+
+            const previousSection =
+              previousBuilds.length > 0
+                ? `<details>\n<summary><b>📦 Previous builds (${previousBuilds.length})</b></summary>\n\n${previousBuilds
+                    .map(formatBuildLine)
+                    .join('\n')}\n</details>`
+                : '';
+
+            const body = [
+              marker,
+              `<!-- build:${newTag}|${runUrl}|${versionUrl} -->`,
+              `## 🐳 ${imageName}`,
+              '',
+              `A new Docker image has been built for **\`${imageName}\`** on this PR.`,
+              '',
+              '### ✨ Latest build',
+              '',
+              `**Tag:** \`${newTag}\``,
+              `**Workflow:** [View run](${runUrl})`,
+              `**Package:** [View on GitHub Packages](${versionUrl})`,
+              '',
+              previousSection,
+              '',
+              '---',
+              `<sub>📋 Updated on every push · Image: <code>${imageName}</code></sub>`,
+            ].join('\n');
+
+            // 3. Delete the old comment
+            if (existingComment) {
+              await github.rest.issues.deleteComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existingComment.id,
+              });
+            }
+
+            // 5. Create the new comment
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body,
+            });
+
+  cleanup-on-failure:
+    permissions:
+      contents: read
+      pull-requests: write
+      packages: write
+    needs:
+      - build
+      - create-image-manifest
+    if: >
+      always() &&
+      inputs.cleanup-on-failure && (
+      contains(needs.*.result, 'failure') ||
+      contains(needs.*.result, 'cancelled')) &&
+      (github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name == github.repository)
+    uses: ./.github/workflows/docker-cleanup.yaml
+    with:
+      image-name: ${{ inputs.image-name }}
+      image-version: ${{ inputs.image-version }}

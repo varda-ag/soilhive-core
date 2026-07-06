@@ -16,9 +16,20 @@ permissions:
 
 jobs:
 
+  gate:
+    name: Contributor Gate
+    if: github.event_name == 'pull_request'
+    uses: ./.github/workflows/gate-check-reusable.yaml
+    with:
+      username: ${{ github.event.pull_request.user.login }}
+      base-sha: ${{ github.event.pull_request.base.sha }}
+      author-association: ${{ github.event.pull_request.author_association }}
+
   nodejs-frontend:
-    name: Node.js CI
-    uses: varda-ag/.github/.github/workflows/nodejs.yaml@bf80d0c0e30b15a047dacd693bec8f5bfda03b67 # v1.13.3
+    name: Node.js Frontend
+    needs: gate
+    if: always() && (needs.gate.result == 'skipped' || needs.gate.outputs.allowed == 'true')
+    uses: ./.github/workflows/nodejs-reusable.yaml
     with:
       node-version: '24'
       project-path: './frontend'
@@ -31,8 +42,10 @@ jobs:
       disable-e2e-tests-coverage: true
 
   nodejs-backend:
-    name: Node.js CI
-    uses: varda-ag/.github/.github/workflows/nodejs.yaml@bf80d0c0e30b15a047dacd693bec8f5bfda03b67 # v1.13.3
+    name: Node.js Backend
+    needs: gate
+    if: always() && (needs.gate.result == 'skipped' || needs.gate.outputs.allowed == 'true')
+    uses: ./.github/workflows/nodejs-reusable.yaml
     with:
       node-version: '24'
       project-path: './backend'
@@ -43,7 +56,6 @@ jobs:
       disable-integration-tests-coverage: true
       disable-e2e-tests: true
       disable-e2e-tests-coverage: true
-      # TODO: use pnpm instead of npm
       use-npm: true
       use-pnpm: false
 
