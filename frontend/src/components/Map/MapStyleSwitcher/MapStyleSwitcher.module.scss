@@ -1,8 +1,7 @@
 @import 'styles/variables/breakpoints';
 
-.MapStyleSwitcherMobile {
+.MapStyleSwitcher {
   background-color: var(--color-neutral-white);
-  padding: 0.25rem;
   border-radius: 0.25rem;
   box-shadow: var(--shadow-interface-large);
 
@@ -11,6 +10,10 @@
     background: none;
     border: none;
     outline: none;
+    width: 2.25rem;
+    height: 2.25rem;
+    justify-content: center;
+    align-items: center;
   }
   .Select {
     display: block;
@@ -22,6 +25,8 @@
 .Dialog {
   min-height: 160px;
   max-height: max-content;
+  max-width: 328px;
+  min-width: 328px;
 
   @media (max-width: $bp-mobile-max) {
     min-height: 160px;
