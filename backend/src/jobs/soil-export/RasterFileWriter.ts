@@ -126,6 +126,11 @@ export class RasterFileWriter {
     // Top-left pixel of the output extent in source pixel space
     const srcOffX = Math.floor((outMinX - srcMinX) / srcPixW);
     const srcOffY = Math.floor((srcMaxY - outMaxY) / srcPixH);
+    // Snap to the source pixel grid so that tile GeoTransforms and ModelTiepoints
+    // align with the pixels actually being read (outMinX/outMaxY may fall between
+    // pixel boundaries, producing a sub-pixel offset if used directly).
+    const alignedOutMinX = srcMinX + srcOffX * srcPixW;
+    const alignedOutMaxY = srcMaxY - srcOffY * srcPixH;
 
     const nodata = nodataFromImage(sourceImage);
     const nodataFill = Number.isNaN(nodata) ? Number.NaN : nodata;
@@ -139,8 +144,8 @@ export class RasterFileWriter {
       maskImage,
       srcOffX,
       srcOffY,
-      outMinX,
-      outMaxY,
+      outMinX: alignedOutMinX,
+      outMaxY: alignedOutMaxY,
       srcPixW,
       srcPixH,
       maskMinX,
@@ -169,7 +174,7 @@ export class RasterFileWriter {
 
       const filePath = path.join(this.outputDir, `${layerName}.${this.getFileExtension()}`);
       const vrtPath = path.join(this.outputDir, `${layerName}.tmp.vrt`);
-      fs.writeFileSync(vrtPath, this.buildVrt(tiles, outW, outH, outMinX, outMaxY, srcPixW, srcPixH, nodataStr));
+      fs.writeFileSync(vrtPath, this.buildVrt(tiles, outW, outH, alignedOutMinX, alignedOutMaxY, srcPixW, srcPixH, nodataStr));
 
       try {
         if (this.fileFormat === RasterFileFormat.TIFF) {
