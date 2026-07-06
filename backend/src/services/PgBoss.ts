@@ -11,6 +11,7 @@ import { processOrphanCleanup } from '../jobs/orphan-cleanup/OrphanCleanupJob';
 import { log } from '../utils/logger';
 import { JobError } from '../errors/JobError';
 import { getEntityManager } from '../utils/data-source';
+import { getErrorMessage } from '../utils/error';
 
 setupEnv();
 
@@ -33,7 +34,7 @@ export const getPgBoss = () => {
     schema: `${PG_BOSS_SCHEMA}`,
     ...(isJest() ? { __test__enableSpies: true } : {}),
   });
-  globalBoss.on('error', err => log.error('pg-boss internal error', { error: err.message, stack: err.stack }));
+  globalBoss.on('error', err => log.error('pg-boss internal error', { error: getErrorMessage(err), stack: err.stack }));
   return globalBoss;
 };
 
@@ -66,7 +67,7 @@ export const runJob = async <T>(queue: JobQueues, job: Job<T>, processor: (job: 
       queue,
       job_id: job.id,
       duration_ms: Date.now() - start,
-      error: error instanceof Error ? error.message : String(error),
+      error: getErrorMessage(error),
       stack: error instanceof Error ? error.stack : undefined,
     });
     if (JobError.isJobError(error)) {
@@ -79,7 +80,7 @@ export const runJob = async <T>(queue: JobQueues, job: Job<T>, processor: (job: 
       } catch (writeErr) {
         log.error('Failed to write JobError to pg-boss data', {
           job_id: job.id,
-          error: writeErr instanceof Error ? writeErr.message : String(writeErr),
+          error: getErrorMessage(writeErr),
         });
       }
     }

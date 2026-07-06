@@ -5,6 +5,7 @@ import FileService from '../../services/FileService';
 import { IngestionStatus } from '../../types/data';
 import { getRawTableName } from '../../utils/utils';
 import { log } from '../../utils/logger';
+import { getErrorMessage } from '../../utils/error';
 
 const ORPHAN_FILE_TTL_DAYS = 7;
 const ORPHAN_STAGING_TABLE_TTL_DAYS = 1;
@@ -48,7 +49,7 @@ async function processOrphanFileCleanup(entityManager: Awaited<ReturnType<typeof
       log.error('Failed to clean up orphan file', {
         file_id: file.id,
         file_path: file.file_path,
-        error: error instanceof Error ? error.message : String(error),
+        error: getErrorMessage(error),
       });
     }
   }
@@ -89,7 +90,7 @@ async function processOrphanStagingTableCleanup(entityManager: Awaited<ReturnTyp
       errors++;
       log.error('Failed to drop orphan staging table', {
         file_id: file.id,
-        error: error instanceof Error ? error.message : String(error),
+        error: getErrorMessage(error),
       });
     }
   }

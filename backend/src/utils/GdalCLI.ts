@@ -1,4 +1,5 @@
 import { spawn } from 'child_process';
+import { getErrorMessage } from './error';
 
 export interface OgrInfoField {
   name: string;
@@ -84,7 +85,7 @@ export class GdalCLI {
         if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
           reject(new Error(`GDAL_NOT_INSTALLED: ${cmd} not found on this server`));
         } else {
-          reject(new Error(`Failed to run ${cmd}: ${err.message}`));
+          reject(new Error(`Failed to run ${cmd}: ${getErrorMessage(err)}`));
         }
       });
     });
