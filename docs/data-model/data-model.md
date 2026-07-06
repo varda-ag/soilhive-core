@@ -1,6 +1,6 @@
-## 3. Data Model
+## Data Model
 
-### 3.1 Conceptual Data Model and Standards Alignment
+### Conceptual Data Model and Standards Alignment
 
 Significant effort has gone into aligning the data model with established soil data standards, to avoid reinvention and strengthen interoperability with institutional and research-grade soil information systems.
 
@@ -10,7 +10,7 @@ Significant effort has gone into aligning the data model with established soil d
 
 **ANSIS** (Australian National Soil Information System) was reviewed as part of the broader standards landscape. While not directly adopted, it remains a valuable reference for future expansion, particularly for horizon-level descriptors such as soil colour, structural features, and field observations.
 
-### 3.2 Physical Data Model
+### Physical Data Model
 
 The SoilHive database schema is organised around five logical groups of tables, each serving a distinct purpose in the platform's data lifecycle.
 

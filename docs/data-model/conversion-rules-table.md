@@ -1,4 +1,4 @@
-## 6.3 Conversion Rules Table
+## Conversion Rules Table
 
 | property_name | property_code | subproperty_name | subproperty_code | original_unit | original_unit_QUDT_URI | standard_unit | standard_unit_QUDT_URI | conversion_type | factor | formula | extra_params | notes |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|

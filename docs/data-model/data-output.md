@@ -1,4 +1,4 @@
-## 8. Data Output
+## Data Output
 
 When data is downloaded from SoilHive, a ZIP folder appears in the downloads directory. The folder name follows the format `SoilHive_YYYY_MM_DD_HH_MM_SS`, timestamped to the moment of export.
 

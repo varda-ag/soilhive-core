@@ -1,4 +1,4 @@
-## 7. List of Supported Licenses
+## List of Supported Licenses
 
 Below is the list of supported licenses, each with a brief description and a link to the original documentation. If the license you need isn't listed, you can select **Other** and provide a name and a link to the relevant documentation.
 

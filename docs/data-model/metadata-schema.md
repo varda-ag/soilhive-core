@@ -1,4 +1,4 @@
-## 4. Metadata Schema
+## Metadata Schema
 
 The SoilHive metadata schema is designed to be interoperable with the most widely used scientific metadata standards. Field naming may differ slightly from individual standards, but all essential information is captured to ensure compliance with:
 

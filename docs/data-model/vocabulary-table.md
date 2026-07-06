@@ -1,4 +1,4 @@
-## 5.3 Vocabulary Table
+## Vocabulary Table
 
 | Property | property_Code | subproperty | subproperty_code | standard_unit | Classification | Description | Link to GloSIS | AGROVOC | CHEBI | ENVO | OTHER LINKS |
 |---|---|---|---|---|---|---|---|---|---|---|---|

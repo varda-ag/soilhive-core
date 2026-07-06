@@ -1,6 +1,6 @@
 # Data Management Portal
 
-## 1. Introduction
+## Introduction
 
 The SoilHive Data Management Portal gives anyone who owns soil data a straightforward way to upload, harmonise, and publish datasets in a standardised, interoperable format, with full control over who can access them.
 
@@ -8,7 +8,7 @@ Soil data has long suffered from fragmentation: datasets produced by different l
 
 SoilHive addresses this by guiding users through a step-by-step workflow for loading data into the platform that requires no technical expertise. The workflow maps fields to a standardised vocabulary aligned with existing ontologies (GloSIS and AGROVOC), applies automatic unit conversions, and captures rich analytical metadata, giving every datapoint the context it needs to be genuinely useful for further analysis and decision-making.
 
-### 1.1 Who Is This Documentation For?
+### Who Is This Documentation For?
 
 This documentation is intended for:
 
@@ -16,7 +16,7 @@ This documentation is intended for:
 - Scientists and data managers looking for a reference on the supported vocabulary, metadata schema, and unit conversion rules
 - Data contributors uploading and publishing soil datasets
 
-### 1.2 Getting Started
+### Getting Started
 
 1. Sign up to the platform.
 2. Make sure you've been assigned the **Data Administrator** role. Only users with this role can load data into the platform.
@@ -39,9 +39,9 @@ All steps are described in detail in the sections below.
 
 ---
 
-## 2. How to Upload Data Into the Platform
+## How to Upload Data Into the Platform
 
-### 2.1 General Info — Describe the Dataset
+### General Info — Describe the Dataset
 
 Provide basic descriptive information about the dataset you're about to create. This forms the core of the metadata record; many additional fields are inferred automatically by the system, reducing the amount of manual input required.
 
@@ -52,7 +52,7 @@ The following fields are requested at this stage:
 - **Description** — a brief description covering content, purpose, methodology, soil properties measured, and temporal and geographic coverage.
 - **Author** — the person or organisation responsible for creating the dataset.
 
-### 2.2 Soil Data — Upload Your File(s)
+### Soil Data — Upload Your File(s)
 
 Upload one or more files to associate with your dataset. All files within the same dataset must share an identical field structure — the same fields and the same data types — and must be loaded together. The platform does not currently support incremental additions to an existing dataset.
 
@@ -93,13 +93,13 @@ After upload, the system will ask you to specify the coordinate reference system
 
 SoilHive stores all spatial data in EPSG:4326 (WGS 84). If your file uses a different CRS, the platform will reproject it automatically. For most file formats the CRS is detected without any input; you only need to specify it manually if the system can't determine it from the file.
 
-### 2.3 Field Mapping — Match Your Data
+### Field Mapping — Match Your Data
 
 This is the first harmonisation step. It's required to align the property names in your dataset with a common, shared vocabulary, and to determine which conversion formula should be applied to transform each value into its standard unit of measurement. The system reads all fields in your file and attempts to map them automatically using field-name matching.
 
 The following structural fields are recognised without any input from you: latitude, longitude, geometry, minimum and maximum depth, depth range, sampling date, license, and horizon.
 
-For soil property fields, you complete the mapping manually by selecting the matching property from the SoilHive vocabulary (see Section 3.2) and specifying the original unit. The platform then determines the standard unit and records the conversion rule automatically (see Section 3.3).
+For soil property fields, you complete the mapping manually by selecting the matching property from the SoilHive vocabulary (see [Soil Property Vocabulary](soil-property-vocabulary.md)) and specifying the original unit. The platform then determines the standard unit and records the conversion rule automatically (see [Unit Conversion Reference](unit-conversion-reference.md)).
 
 Any field left unmapped will not be loaded into the platform.
 
@@ -116,7 +116,7 @@ For each mapped property, you can expand the methodology panel to record how the
 - **Measurement procedure** — instrument or procedure used to determine the value [add link]
 - **Limit of detection** — the lowest concentration reliably distinguishable from zero
 
-### 2.4 Preview — Review Data
+### Preview — Review Data
 
 Your data may be subject to modification, and some data may be discarded if it doesn't comply with SoilHive's data quality rules. Before your data is loaded into the platform, an automatic cleaning step runs to standardise values and flag records that can't be safely loaded. A summary of everything the cleaning step did is shown above the preview table, broken down into three categories: **Modified values**, **Discarded rows**, and **Discarded cells**.
 
@@ -126,7 +126,7 @@ Your data may be subject to modification, and some data may be discarded if it d
 |---|---|
 | Depth values are rounded to the nearest whole number (e.g. 10.4 cm becomes 10 cm) | *Depth rounded to integer* |
 | Soil property values are rounded to a maximum of 3 decimal places | *Value rounded to 3 decimal places* |
-| Soil property values are converted to SoilHive's standard unit, based on the original unit you specified in Field Mapping (Section 2.3) | *Converted to standard unit of measurement* |
+| Soil property values are converted to SoilHive's standard unit, based on the original unit you specified in Field Mapping | *Converted to standard unit of measurement* |
 
 **Discarded rows** — an entire row is removed when:
 
@@ -154,7 +154,7 @@ You can review exactly which rows and cells were affected directly in the previe
 
 Once you're satisfied with the preview, confirm to load the data into the SoilHive database. The system applies all field mappings, coordinate reprojection, and unit conversions defined in the previous steps.
 
-### 2.5 Publication
+### Publication
 
 After loading, your dataset will appear in the dataset list in the administrative portal. It remains invisible to other users until you explicitly publish it.
 
