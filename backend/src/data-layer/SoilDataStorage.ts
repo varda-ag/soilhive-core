@@ -67,11 +67,11 @@ export default class SoilDataStorage {
     // Feature IDs resolved entirely in-DB: the MATERIALIZED feature CTE is evaluated
     // first, then matched against dataset_layers via `= ANY(ARRAY(SELECT id FROM ...))`.
     // The array form lets the planner drive a bitmap index scan on
-    // dataset_layers(feature_id), touching only the ~55K AOI-scoped rows instead of
-    // seq-scanning all ~6.6M. Feeding those rows straight into one base_agg GROUP BY
-    // (rather than a materialized `scoped` CTE re-read three times) keeps the layers
-    // join down to ~55K cached PK probes; see idx_layers_id_covering to make them
-    // index-only.
+    // dataset_layers(feature_id), touching only the AOI-scoped rows instead of
+    // seq-scanning all ~6.6M. Those rows are collapsed to one row per (dataset, layer)
+    // in per_layer BEFORE joining layers/datasets, because the planner has no reliable
+    // cardinality for the AOI row set (a country-sized AOI yields ~1.5M rows where the
+    // estimate says ~700) and would otherwise nested-loop the layers PK ~1.5M times.
     const params: any[] = [geometryIds];
     const p = (val: any) => {
       params.push(val);
@@ -91,48 +91,52 @@ export default class SoilDataStorage {
             JOIN aoi ON ST_Intersects(f.geom, aoi.geom)
           )`;
 
-    const innerWhere: string[] = ['ds.deleted_at IS NULL', `ds.status = 'PUBLISHED'`];
+    // Dataset predicates apply in the outer query and layer predicates in base_agg:
+    // both key on a GROUP BY column of the stage below them (dataset_id / layer_id),
+    // so filtering after the per_layer collapse is equivalent to filtering the raw
+    // dataset_layers rows. Soil-property filtering happens in active_soil_properties.
+    const datasetWhere: string[] = ['ds.deleted_at IS NULL', `ds.status = 'PUBLISHED'`];
+    const layerWhere: string[] = [];
 
     if (filters.data_types && filters.data_types.length > 0) {
-      innerWhere.push(`ds.gis_datatype IN (${filters.data_types.map(v => p(v)).join(', ')})`);
+      datasetWhere.push(`ds.gis_datatype IN (${filters.data_types.map(v => p(v)).join(', ')})`);
     }
     if (filters.min_sampling_date === null) {
-      innerWhere.push('layer.sampling_date IS NULL');
+      layerWhere.push('layer.sampling_date IS NULL');
     } else if (filters.min_sampling_date) {
-      innerWhere.push(`ds.reference_period_stop >= ${p(filters.min_sampling_date)}`);
-      innerWhere.push(`layer.sampling_date >= ${p(filters.min_sampling_date)}`);
+      datasetWhere.push(`ds.reference_period_stop >= ${p(filters.min_sampling_date)}`);
+      layerWhere.push(`layer.sampling_date >= ${p(filters.min_sampling_date)}`);
     }
     if (filters.max_sampling_date === null) {
-      innerWhere.push('layer.sampling_date IS NULL');
+      layerWhere.push('layer.sampling_date IS NULL');
     } else if (filters.max_sampling_date) {
-      innerWhere.push(`ds.reference_period_start <= ${p(filters.max_sampling_date)}`);
-      innerWhere.push(`layer.sampling_date <= ${p(filters.max_sampling_date)}`);
+      datasetWhere.push(`ds.reference_period_start <= ${p(filters.max_sampling_date)}`);
+      layerWhere.push(`layer.sampling_date <= ${p(filters.max_sampling_date)}`);
     }
     if (filters.min_depth === null) {
-      innerWhere.push('layer.min_depth IS NULL');
+      layerWhere.push('layer.min_depth IS NULL');
     } else if (filters.min_depth !== undefined) {
-      innerWhere.push(`(ds.soil_depth->>'max')::int >= ${p(filters.min_depth)}`);
-      innerWhere.push(`layer.max_depth >= ${p(filters.min_depth)}`);
+      datasetWhere.push(`(ds.soil_depth->>'max')::int >= ${p(filters.min_depth)}`);
+      layerWhere.push(`layer.max_depth >= ${p(filters.min_depth)}`);
     }
     if (filters.max_depth === null) {
-      innerWhere.push('layer.max_depth IS NULL');
+      layerWhere.push('layer.max_depth IS NULL');
     } else if (filters.max_depth !== undefined) {
-      innerWhere.push(`(ds.soil_depth->>'min')::int <= ${p(filters.max_depth)}`);
-      innerWhere.push(`layer.min_depth <= ${p(filters.max_depth)}`);
+      datasetWhere.push(`(ds.soil_depth->>'min')::int <= ${p(filters.max_depth)}`);
+      layerWhere.push(`layer.min_depth <= ${p(filters.max_depth)}`);
     }
     if (filters.horizons && filters.horizons.length > 0) {
       const nonNull = filters.horizons.filter(h => h !== null);
       const nullClause = filters.horizons.includes(null) ? ' OR layer.horizon IS NULL' : '';
-      innerWhere.push(
+      layerWhere.push(
         nonNull.length > 0 ? `(layer.horizon IN (${nonNull.map(h => p(h)).join(', ')})${nullClause})` : 'layer.horizon IS NULL',
       );
     }
 
-    const outerWhere: string[] = [];
+    const outerWhere: string[] = [...datasetWhere];
     let soilPropertiesWhere: string = '';
     if (filters.soil_properties && filters.soil_properties.length > 0) {
       soilPropertiesWhere = ` AND slug IN (${filters.soil_properties.map(v => p(v)).join(', ')})`;
-      innerWhere.push(`soil_property.slug IN (${filters.soil_properties.map(v => p(v)).join(', ')})`);
     }
     if (filters.licenses && filters.licenses.length > 0) {
       outerWhere.push(`license.slug IN (${filters.licenses.map(v => p(v)).join(', ')})`);
@@ -144,7 +148,7 @@ export default class SoilDataStorage {
             FROM ${schema}.soil_properties
             WHERE deleted_at IS NULL ${soilPropertiesWhere}
           )`;
-    const outerWhereClause = outerWhere.length > 0 ? `WHERE ${outerWhere.join(' AND ')}` : '';
+    const layerWhereClause = layerWhere.length > 0 ? `WHERE ${layerWhere.join('\n          AND ')}` : '';
 
     const sql = `
       WITH
@@ -154,30 +158,41 @@ export default class SoilDataStorage {
       )
       ${aoiFeaturesCte}
       ${activeSoilPropertiesCte}
-      -- Single rollup over the AOI/filter-scoped dataset_layers. datasets_feature_layer_hash
-      -- = sha256(dataset_id || feature_id || layer_id), so COUNT(DISTINCT hash) per
-      -- (dataset, license) is exactly the count of distinct (dataset, feature, layer)
-      -- tuples; the DISTINCT STRING_AGGs make the soil_property fan-out idempotent. This
-      -- collapses what used to be a materialized scoped CTE read three times (by
-      -- layer_combos/layer_agg and prop_agg) into one GROUP BY.
-      , base_agg AS (
+      -- Collapse the raw feature × layer × soil_property fan-out to one narrow row per
+      -- (dataset, layer) before any join. SUM(COUNT(DISTINCT feature_id)) over these
+      -- groups equals the distinct (dataset, feature, layer) tuple count that
+      -- COUNT(DISTINCT datasets_feature_layer_hash) used to compute over raw rows —
+      -- (feature, layer) pairs are disjoint across layer groups — while sorting only
+      -- uuids instead of 64-char hash text.
+      , per_layer AS (
         SELECT
           dl.dataset_id,
+          dl.layer_id,
+          COUNT(DISTINCT dl.feature_id) AS feature_layer_count,
+          ARRAY_AGG(DISTINCT soil_property.slug) AS prop_slugs
+        FROM ${schema}.dataset_layers dl
+        INNER JOIN active_soil_properties soil_property on dl.soil_property_id=soil_property.id
+        WHERE dl.feature_id = ANY(ARRAY(SELECT id FROM ${featureSource})::uuid[])
+        GROUP BY dl.dataset_id, dl.layer_id
+      )
+      -- License rollup and layer-level filters on the collapsed set: layers is now
+      -- probed once per distinct (dataset, layer) instead of once per raw row.
+      -- soil_properties may repeat slugs across layers; the mapper dedupes client-side.
+      , base_agg AS (
+        SELECT
+          pl.dataset_id,
           layer.license,
-          COUNT(DISTINCT dl.datasets_feature_layer_hash) AS dataset_layer_count,
+          SUM(pl.feature_layer_count) AS dataset_layer_count,
           MIN(layer.sampling_date) AS min_sampling_date,
           MAX(layer.sampling_date) AS max_sampling_date,
           MIN(layer.min_depth) AS min_depth,
           MAX(layer.max_depth) AS max_depth,
           STRING_AGG(DISTINCT layer.horizon, ',') AS horizons,
-          STRING_AGG(DISTINCT soil_property.slug, ',') AS soil_properties
-        FROM ${schema}.dataset_layers dl
-        INNER JOIN active_soil_properties soil_property on dl.soil_property_id=soil_property.id
-        INNER JOIN ${schema}.datasets ds ON ds.id = dl.dataset_id
-        INNER JOIN ${schema}.layers layer ON layer.id = dl.layer_id
-        WHERE dl.feature_id = ANY(ARRAY(SELECT id FROM ${featureSource})::uuid[])
-          AND ${innerWhere.join('\n          AND ')}
-        GROUP BY dl.dataset_id, layer.license
+          STRING_AGG(DISTINCT array_to_string(pl.prop_slugs, ','), ',') AS soil_properties
+        FROM per_layer pl
+        INNER JOIN ${schema}.layers layer ON layer.id = pl.layer_id
+        ${layerWhereClause}
+        GROUP BY pl.dataset_id, layer.license
       )
       SELECT
         base_agg.dataset_id,
@@ -196,7 +211,7 @@ export default class SoilDataStorage {
       FROM base_agg
       INNER JOIN ${schema}.datasets ds ON ds.id = base_agg.dataset_id
       LEFT JOIN ${schema}.licenses license ON license.id = base_agg.license AND license.deleted_at IS NULL
-      ${outerWhereClause}
+      WHERE ${outerWhere.join('\n        AND ')}
       GROUP BY base_agg.dataset_id, ds.slug, ds.name, ds.gis_datatype, ds.visibility, ds.licenses
     `;
 
