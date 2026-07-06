@@ -277,7 +277,15 @@ export class CreateSchema1775600000000 implements MigrationInterface {
       `CREATE TABLE "dataset_file_mappings" ("created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP, "id" uuid NOT NULL DEFAULT uuidv7(), "data_mapping_id" uuid, "file_id" uuid, "dataset_id" uuid NOT NULL, CONSTRAINT "UQ_dataset_file_mappings_data_mapping_id_file_id_dataset_id" UNIQUE ("data_mapping_id", "file_id", "dataset_id"), CONSTRAINT "PK_dataset_file_mappings_id" PRIMARY KEY ("id"))`,
     );
     await queryRunner.query(
-      `CREATE TABLE "data_filters" ("created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP, "id" uuid NOT NULL DEFAULT uuidv7(), "filter" jsonb NOT NULL, "persistent" boolean NOT NULL DEFAULT false, "name" text, "owner" text, CONSTRAINT "PK_data_filters_id" PRIMARY KEY ("id"))`,
+      `CREATE TABLE "data_filters" ("created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP, "id" uuid NOT NULL DEFAULT uuidv7(), "filter" jsonb NOT NULL, "filter_hash" text, "persistent" boolean NOT NULL DEFAULT false, "name" text, "owner" text, CONSTRAINT "PK_data_filters_id" PRIMARY KEY ("id"))`,
+    );
+    // filter_hash is the app-computed canonical content identity of a filter (sorted
+    // canonical user_geometry ids + normalized parameters, see FilterService). NULLS NOT
+    // DISTINCT makes anonymous submissions (owner IS NULL) dedupe among themselves; rows
+    // predating idempotent createFilter have a NULL hash and are excluded via the
+    // predicate so they never collide with each other. See ADR 0007.
+    await queryRunner.query(
+      `CREATE UNIQUE INDEX "UQ_data_filters_owner_filter_hash" ON "data_filters" ("owner", "filter_hash") NULLS NOT DISTINCT WHERE "deleted_at" IS NULL AND "filter_hash" IS NOT NULL`,
     );
     await queryRunner.query(
       `CREATE TABLE "raster_filters" ("created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP, "id" text NOT NULL, "name" text NOT NULL, "description" text NOT NULL, "mappings" jsonb, CONSTRAINT "PK_raster_filters_id" PRIMARY KEY ("id"))`,
