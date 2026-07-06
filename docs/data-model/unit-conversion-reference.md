@@ -1,6 +1,6 @@
 ## Unit Conversion Reference
 
-The Conversion Rules Registry is the component of SoilHive that determines, for every soil property and original unit encountered during upload, which mathematical transformation is needed to express the reported value in SoilHive's standard unit. It acts as a lookup registry: each supported unit is linked to a specific rule describing how to move from the original measurement to the harmonised one. This is what makes the automatic conversion step described in [Field Mapping](data-management-portal.md) possible — once a property and its original unit are mapped, the registry already holds the formula that applies.
+The Conversion Rules Registry is the component of SoilHive that determines, for every soil property and original unit encountered during upload, which mathematical transformation is needed to express the reported value in SoilHive's standard unit. It acts as a lookup registry: each supported unit is linked to a specific rule describing how to move from the original measurement to the harmonised one. This is what makes the automatic conversion step described in [Field Mapping](data-management-portal.md#field-mapping--match-your-data) possible — once a property and its original unit are mapped, the registry already holds the formula that applies.
 
 ### Design Principles
 
