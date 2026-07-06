@@ -3,6 +3,7 @@ import { DataSource, EntityManager, MigrationExecutor } from 'typeorm';
 import path from 'path';
 import { getDBPassword, getSSL } from './db-credentials';
 import { DatabaseNamingStrategy } from './naming-strategy';
+import { isQueryDebugEnabled, QueryDebugLogger } from './query-debug';
 import { isJest } from './utils';
 
 // This global variable at module level
@@ -23,6 +24,7 @@ const createDataSource = async (schema: string, includeEntities = true): Promise
     migrations: [path.join(__dirname, '../migrations/**/*{.ts,.js}')],
     synchronize: false,
     logging: false, //['query'],
+    ...(isQueryDebugEnabled() ? { logger: new QueryDebugLogger() } : {}),
     invalidWhereValuesBehavior: {
       null: 'sql-null',
       undefined: 'throw',

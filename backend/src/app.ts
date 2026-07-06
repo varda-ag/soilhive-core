@@ -10,6 +10,7 @@ import { initPgBoss } from './services/PgBoss';
 import { setupCLI } from './utils/cli';
 import { getEntityManager, initializeSchema } from './utils/data-source';
 import { log } from './utils/logger';
+import { isQueryDebugEnabled, queryDebugMiddleware } from './utils/query-debug';
 import { getServerPort, isJest, setupEnv } from './utils/utils';
 
 setupEnv();
@@ -31,6 +32,9 @@ export const initApp = async (app: Application) => {
 
   const origin = (process.env.CORS_ORIGINS || 'http://localhost,http://localhost:3000').split(',').map(o => o.trim());
 
+  if (isQueryDebugEnabled()) {
+    app.use(queryDebugMiddleware);
+  }
   app.use(loggingMiddleware);
   app.use(
     cors({
@@ -76,7 +80,7 @@ export const initApp = async (app: Application) => {
   }
 
   await initPgBoss();
-  initializeSchema();
+  await initializeSchema();
 
   const port = getServerPort();
   app.listen(port, () => {
