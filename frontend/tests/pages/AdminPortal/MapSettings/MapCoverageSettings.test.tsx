@@ -84,7 +84,7 @@ describe('MapCoverageSettings', () => {
       render(<MapCoverageSettings {...defaultProps} isDaiEnabled />);
       expect(screen.getByText('Display on the map')).toBeInTheDocument();
       expect(screen.getByText('Shown by default')).toBeInTheDocument();
-      expect(screen.getByText('Off by default (user can enable)')).toBeInTheDocument();
+      expect(screen.getByText('Hidden by default (user can enable)')).toBeInTheDocument();
     });
 
     it('checks "active" radio when defaultValue is true', () => {
