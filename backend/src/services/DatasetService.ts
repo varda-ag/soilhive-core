@@ -13,6 +13,7 @@ import VectorDataLoad from '../data-layer/VectorDataLoad';
 import DataMappingService from './DataMappingService';
 import DatasetFileMappingService from './DatasetFileMappingService';
 import { CleaningReport } from '../interfaces/CleaningReport';
+import { bumpCacheEpoch } from '../utils/cache-epoch';
 
 const vdl = new VectorDataLoad();
 const dmService = new DataMappingService();
@@ -70,6 +71,7 @@ export default class DatasetService {
     });
 
     const saved = await repo.save(dataset);
+    await bumpCacheEpoch();
     const reloaded = await repo.findOneBy({ id: saved.id });
     this.decorateWithCapabilities(reloaded!, requestData.entitlements);
     return reloaded!;
@@ -83,6 +85,7 @@ export default class DatasetService {
     dataset.updated_by = subject;
     await dataset.save();
     await requestData.entityManager.getRepository(DatasetEntity).softRemove(dataset);
+    await bumpCacheEpoch();
   };
 
   getEpsgCodes = (): number[] => {

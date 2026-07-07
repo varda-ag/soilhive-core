@@ -4,11 +4,12 @@ import SoilPropertyEntity from '../entities/SoilProperty';
 import { getEntity, getEntities, idToSlug } from '../utils/slugs';
 import { EntityType, UnitConversionType } from '../types/data';
 import UnitConversionEntity from '../entities/UnitConversion';
+import { CACHE_TTL_REFERENCE_MS } from '../utils/query-cache';
 
 export default class SoilPropertyService {
   getSoilProperties = async (requestData: RequestData): Promise<SoilPropertyEntity[]> => {
     const repo = requestData.entityManager.getRepository(SoilPropertyEntity);
-    return await repo.find({ relations: ['soil_property_category', 'unit_conversions'] });
+    return await repo.find({ relations: ['soil_property_category', 'unit_conversions'], cache: CACHE_TTL_REFERENCE_MS });
   };
 
   getSoilProperty = async (requestData: RequestData, slug: string): Promise<SoilPropertyEntity> => {

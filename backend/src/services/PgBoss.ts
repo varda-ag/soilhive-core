@@ -12,6 +12,7 @@ import { log } from '../utils/logger';
 import { JobError } from '../errors/JobError';
 import { getEntityManager } from '../utils/data-source';
 import { getErrorMessage } from '../utils/error';
+import { bumpCacheEpoch } from '../utils/cache-epoch';
 
 setupEnv();
 
@@ -56,6 +57,11 @@ const setupQueues = async () => {
   log.info('PgBoss queues created', { queues: Object.values(JobQueues) });
 };
 
+// Queues whose jobs mutate soil data and must invalidate the query cache on
+// every node (see docs/adr/0008). Bumped in `finally`: a failed bulk job may
+// still have committed partial batches.
+const DATA_MUTATING_QUEUES: JobQueues[] = [JobQueues.BULK_LOAD, JobQueues.BULK_DELETE];
+
 export const runJob = async <T>(queue: JobQueues, job: Job<T>, processor: (job: Job<T>) => Promise<void>): Promise<void> => {
   const start = Date.now();
   log.info('Job started', { queue, job_id: job.id });
@@ -85,6 +91,10 @@ export const runJob = async <T>(queue: JobQueues, job: Job<T>, processor: (job: 
       }
     }
     throw error;
+  } finally {
+    if (DATA_MUTATING_QUEUES.includes(queue)) {
+      await bumpCacheEpoch();
+    }
   }
 };
 
