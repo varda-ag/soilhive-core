@@ -241,7 +241,8 @@ INSERT INTO _proc_data VALUES
   (NULL, NULL, NULL, NULL, NULL, NULL, 'matric potential = 3000 hPa', NULL),
   (NULL, NULL, NULL, NULL, NULL, NULL, 'matric potential = 5000 hPa', NULL),
   (NULL, NULL, NULL, NULL, NULL, NULL, 'matric potential = 15000 hPa', NULL),
-  (NULL, NULL, NULL, NULL, NULL, NULL, 'saturation point', NULL);
+  (NULL, NULL, NULL, NULL, NULL, NULL, 'saturation point', NULL),
+  (NULL, NULL, 'EDTA', NULL, NULL, NULL, NULL, NULL);
 
 -- Insert distinct vocabulary entries per category (triggers handle slug + slug_history)
 INSERT INTO vocabulary (name, category)

@@ -24,14 +24,19 @@
 
   .map-style-switcher {
     position: absolute;
-    bottom: 50px;
-    left: 10px;
+    bottom: 163px;
+    right: 10px;
+
+    @media (max-width: $bp-tablet-max) {
+      bottom: auto;
+      bottom: 116px;
+      right: 10px;
+    }
 
     @media (max-width: $bp-mobile-max) {
       bottom: auto;
       top: 77px;
       right: 18px;
-      left: auto;
     }
   }
 
@@ -63,16 +68,16 @@
   }
 
   .maplibregl-ctrl-group button {
-    @media (max-width: $bp-tablet-max) {
-      width: 36px;
-      height: 36px;
-    }
+    width: 36px;
+    height: 36px;
   }
 
   .maplibregl-ctrl-group:not(:empty) {
-    @media (max-width: $bp-tablet-max) {
-      box-shadow: none;
-      border-radius: 0 0 0.25rem 0.25rem;
+    box-shadow: none;
+    border-radius: 0 0 0.25rem 0.25rem;
+
+    button + button {
+      border-top: none;
     }
   }
 
