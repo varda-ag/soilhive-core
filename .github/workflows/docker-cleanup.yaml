@@ -1,0 +1,73 @@
+name: PR Cleanup
+
+on:
+  pull_request:
+    types:
+      - closed
+    branches:
+      - main
+  workflow_call:
+    inputs:
+      image-name:
+        description: The name of the Docker image to clean up
+        type: string
+        required: true
+      image-version:
+        description: The version tag to clean up (all tags starting with this prefix will be deleted)
+        type: string
+        required: true
+
+jobs:
+  delete-images:
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+      - name: Delete PR images from GHCR
+        run: |
+          OWNER="${{ github.repository_owner }}"
+
+          if [[ "${{ github.event_name }}" == "workflow_call" ]]; then
+            PACKAGE_NAME="${{ inputs.image-name }}"
+            TAG_PREFIX="${{ inputs.image-version }}"
+          else
+            PR_NUMBER="${{ github.event.pull_request.number }}"
+            PACKAGE_NAME="prima-tech-challenge"
+            TAG_PREFIX="pr-${PR_NUMBER}-"
+          fi
+
+          if gh api "/orgs/${OWNER}" --silent 2>/dev/null; then
+            API_BASE="orgs/${OWNER}"
+          else
+            API_BASE="users/${OWNER}"
+          fi
+
+          echo "Looking for images with tag prefix: ${TAG_PREFIX}"
+
+          gh api "${API_BASE}/packages/container/${PACKAGE_NAME}/versions" \
+            --paginate \
+            --jq '.[] | {id: .id, tags: .metadata.container.tags}' | \
+          jq -c '.' | while IFS= read -r version; do
+            VERSION_ID=$(echo "$version" | jq -r '.id')
+            TAGS=$(echo "$version" | jq -r '.tags[]?' 2>/dev/null)
+
+            MATCH=false
+            while IFS= read -r tag; do
+              if [[ "$tag" == ${TAG_PREFIX}* ]]; then
+                MATCH=true
+                break
+              fi
+            done <<< "$TAGS"
+
+            if [ "$MATCH" = "true" ]; then
+              echo "Deleting version ${VERSION_ID} (tags: $(echo "$TAGS" | tr '\n' ' '))"
+              gh api --method DELETE \
+                "${API_BASE}/packages/container/${PACKAGE_NAME}/versions/${VERSION_ID}" \
+                && echo "Deleted ${VERSION_ID}" \
+                || echo "Failed to delete ${VERSION_ID}, skipping"
+            fi
+          done

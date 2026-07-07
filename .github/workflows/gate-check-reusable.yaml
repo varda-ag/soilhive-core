@@ -1,0 +1,61 @@
+name: Gate Check (Reusable)
+
+on:
+  workflow_call:
+    inputs:
+      username:
+        required: true
+        type: string
+      base-sha:
+        required: true
+        type: string
+      author-association:
+        required: true
+        type: string
+    outputs:
+      allowed:
+        description: "'true' if the contributor is allowed, 'false' otherwise"
+        value: ${{ jobs.check.outputs.allowed }}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      allowed: ${{ steps.gate.outputs.allowed }}
+    steps:
+      - id: gate
+        uses: actions/github-script@v9
+        env:
+          USERNAME: ${{ inputs.username }}
+          BASE_SHA: ${{ inputs.base-sha }}
+          AUTHOR_ASSOCIATION: ${{ inputs.author-association }}
+        with:
+          script: |
+            const author = process.env.USERNAME;
+            const baseSha = process.env.BASE_SHA;
+            const association = process.env.AUTHOR_ASSOCIATION;
+
+            // GitHub computes this server-side; no extra API permissions needed.
+            // OWNER = org/repo owner, MEMBER = org member, COLLABORATOR = direct collaborator.
+            if (['OWNER', 'MEMBER', 'COLLABORATOR'].includes(association)) {
+              core.setOutput('allowed', 'true');
+              return;
+            }
+
+            try {
+              const { data } = await github.rest.repos.getContent({
+                ...context.repo,
+                path: 'contributors.txt',
+                ref: baseSha,
+              });
+              const list = Buffer.from(data.content, 'base64').toString('utf8')
+                .split('\n').map(s => s.trim().toLowerCase()).filter(Boolean);
+              if (list.includes(author.toLowerCase())) {
+                core.setOutput('allowed', 'true');
+                return;
+              }
+            } catch (_) {}
+
+            core.setOutput('allowed', 'false');
