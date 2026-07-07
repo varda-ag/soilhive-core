@@ -10,7 +10,7 @@ import {
   Source,
   Layer,
 } from 'react-map-gl/maplibre';
-import { LngLat, LngLatBounds, type MapLayerMouseEvent } from 'maplibre-gl';
+import { LngLat, LngLatBounds, type MapLayerMouseEvent, type MapLibreEvent } from 'maplibre-gl';
 import type { Polygon, MultiPolygon, Point } from 'geojson';
 import GeocoderControl from './GeocoderControl';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -387,14 +387,25 @@ function SoilhiveMap({
   }, [selectedPoint, showDrawControl]);
 
   const attributionControl = useMemo(() => {
-    return isMobileLayout ? { compact: false } : { compact: false, customAttribution };
+    return isMobileLayout ? { compact: true } : { compact: false, customAttribution };
   }, [isMobileLayout]);
+
+  const onMapRender = useCallback(
+    (mapEvent: MapLibreEvent) => {
+      if (!isMobileLayout) return;
+      // Closes the attribution element that shows copyrights on the map since it can be very long and obstruct the view.
+      // It can be re-opened by clicking on the info button.
+      const attributionEl = mapEvent.target.getContainer().querySelector('.maplibregl-ctrl-attrib');
+      attributionEl?.removeAttribute('open');
+      attributionEl?.classList.remove('maplibregl-compact-show');
+    },
+    [isMobileLayout],
+  );
 
   return (
     <div
       className={classnames('soilhive-map', {
         'soilhive-map-show-selection-toolbar': showSelectionToolbar,
-        'soilhive-map-show-area-info': isAreaInfoVisible,
       })}
     >
       <Map
@@ -412,6 +423,7 @@ function SoilhiveMap({
         onZoomEnd={onMapMoveEnd}
         onMoveEnd={onMapMoveEnd}
         onClick={onMapClick}
+        onRender={onMapRender}
         interactiveLayerIds={['data-fills']}
         // Note: attributionControl is used only during the onLoad so it won't be updated if it changes after that (e.g. when in Desktop you resize the window to make it small as a Mobile device)
         attributionControl={attributionControl}
@@ -468,27 +480,27 @@ function SoilhiveMap({
             onMapStyleChange={setCurrentMapStyleIndex}
           />
         )}
+        {themeConfig.daiConfig?.isEnabled && !isDesktopLayout && (
+          <button className="soilhive-map-dai-btn" onClick={() => setIsDaiWidgetOpen(v => !v)}>
+            <LayersIcon />
+          </button>
+        )}
+        {themeConfig.daiConfig?.isEnabled && (isDesktopLayout || isDaiWidgetOpen) && (
+          <DaiWidget
+            isEnabled={isDaiEnabled}
+            isLoading={isDaiEnabled && !dai}
+            isDefaultExpanded={isDesktopLayout && themeConfig.daiConfig.defaultValue}
+            opacity={daiOpacity}
+            className="soilhive-map-dai"
+            onToggle={() => setIsDaiEnabled(prevValue => !prevValue)}
+            onOpacityChange={setDaiOpacity}
+          />
+        )}
+        {themeConfig.daiConfig?.isEnabled && <LoadingLine isLoading={isDaiEnabled && !dai} />}
       </Map>
       {!isDesktopLayout && isAreaInfoVisible && (
         <AreaInfoBar onClose={onAreaInfoClose} locationName={selectedLocationName} selection={selection} />
       )}
-      {themeConfig.daiConfig?.isEnabled && !isDesktopLayout && (
-        <button className="soilhive-map-dai-btn" onClick={() => setIsDaiWidgetOpen(v => !v)}>
-          <LayersIcon />
-        </button>
-      )}
-      {themeConfig.daiConfig?.isEnabled && (isDesktopLayout || isDaiWidgetOpen) && (
-        <DaiWidget
-          isEnabled={isDaiEnabled}
-          isLoading={isDaiEnabled && !dai}
-          isDefaultExpanded={isDesktopLayout && themeConfig.daiConfig.defaultValue}
-          opacity={daiOpacity}
-          className="soilhive-map-dai"
-          onToggle={() => setIsDaiEnabled(prevValue => !prevValue)}
-          onOpacityChange={setDaiOpacity}
-        />
-      )}
-      {themeConfig.daiConfig?.isEnabled && <LoadingLine isLoading={isDaiEnabled && !dai} />}
     </div>
   );
 }
