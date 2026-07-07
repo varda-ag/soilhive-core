@@ -1,1 +1,2 @@
 release-please-varda[bot]
+varda-version-bumper[bot]
