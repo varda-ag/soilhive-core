@@ -26,6 +26,7 @@ import assert from 'assert';
 import { JobError } from '../errors/JobError';
 import { getDBPassword } from '../utils/db-credentials';
 import { log } from '../utils/logger';
+import { bumpCacheEpoch } from '../utils/cache-epoch';
 import DataMappingService from './DataMappingService';
 import DatasetFileMappingEntity from '../entities/DatasetFileMapping';
 
@@ -185,6 +186,8 @@ export default class FileService {
   deleteFile = async (requestData: RequestData, slug: string): Promise<void> => {
     const file = await getEntity(requestData, FileEntity, EntityType.FILE, slug);
     await requestData.entityManager.getRepository(FileEntity).softRemove(file);
+    // Raster filter queries join on files (f.deleted_at IS NULL); see docs/adr/0008.
+    await bumpCacheEpoch();
   };
 
   /**

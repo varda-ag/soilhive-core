@@ -8,6 +8,7 @@ import { getOpenApiMiddleware, getSwaggerDocument } from './middlewares/openapi'
 import { transactionMiddleware } from './middlewares/transaction';
 import { initPgBoss } from './services/PgBoss';
 import { setupCLI } from './utils/cli';
+import { startCacheEpochWatcher } from './utils/cache-epoch';
 import { getEntityManager, initializeSchema } from './utils/data-source';
 import { log } from './utils/logger';
 import { isQueryDebugEnabled, queryDebugMiddleware } from './utils/query-debug';
@@ -81,6 +82,7 @@ export const initApp = async (app: Application) => {
 
   await initPgBoss();
   await initializeSchema();
+  await startCacheEpochWatcher();
 
   const port = getServerPort();
   app.listen(port, () => {

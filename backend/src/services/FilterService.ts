@@ -21,6 +21,7 @@ import DataFilterUserGeometryEntity from '../entities/DataFilterUserGeometry';
 import { DataAvailabilityIndex } from '../interfaces/Dai';
 import { getPolygonFromBbox, geometryUnion } from '../utils/geometry';
 import { timed, log } from '../utils/logger';
+import { CACHE_TTL_SPATIAL_MS, cachedCompute } from '../utils/query-cache';
 
 const sds = new SoilDataStorage();
 
@@ -232,7 +233,23 @@ export default class FilterService {
     return [...vectorDatasets, ...rasterDatasets];
   };
 
+  // Cached at the service boundary rather than the query layer: each computation
+  // queries against an ephemeral UserGeometry UUID that never repeats, so no
+  // SQL-derived cache key can ever hit. The manual key is complete because a
+  // Filter's content is immutable per id (deduplicated by content identity,
+  // see docs/adr/0007) and /dai is not entitlement-gated.
   getDai = async (
+    requestData: RequestData,
+    bbox: [number, number, number, number],
+    resolution: number,
+    filterId: string,
+  ): Promise<DataAvailabilityIndex> => {
+    return cachedCompute(`dai:${filterId}:${bbox.join(',')}:${resolution}`, CACHE_TTL_SPATIAL_MS, () =>
+      this.computeDai(requestData, bbox, resolution, filterId),
+    );
+  };
+
+  private computeDai = async (
     requestData: RequestData,
     bbox: [number, number, number, number],
     resolution: number,
