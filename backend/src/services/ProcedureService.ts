@@ -7,6 +7,8 @@ import { EntityType, ProcedureTechnique, VocabularyType } from '../types/data';
 import { ProcedureObject } from '../types/Procedure';
 import { ErrorResponse } from '../utils/error';
 import { requireSub } from '../utils/auth';
+import { CACHE_TTL_REFERENCE_MS } from '../utils/query-cache';
+import { bumpCacheEpoch } from '../utils/cache-epoch';
 
 const PROCEDURE_RELATIONS = [
   'sample_pretreatment',
@@ -33,7 +35,7 @@ const toProcedureObject = (procedure: ProcedureEntity): ProcedureObject => ({
 export default class ProcedureService {
   getProcedures = async (requestData: RequestData): Promise<ProcedureObject[]> => {
     const repo = requestData.entityManager.getRepository(ProcedureEntity);
-    const data = await repo.find({ relations: PROCEDURE_RELATIONS });
+    const data = await repo.find({ relations: PROCEDURE_RELATIONS, cache: CACHE_TTL_REFERENCE_MS });
     return data.map(toProcedureObject);
   };
 
@@ -108,6 +110,7 @@ export default class ProcedureService {
       .returning('slug')
       .execute();
 
+    await bumpCacheEpoch();
     const newProcedure = await getEntity(requestData, ProcedureEntity, EntityType.PROCEDURE, result.raw[0].slug, PROCEDURE_RELATIONS);
     return toProcedureObject(newProcedure);
   };

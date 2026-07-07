@@ -18,6 +18,7 @@ import RasterLayerEntity from '../entities/RasterLayer';
 import { GISDataType } from '../types/data';
 import { getVectorMaskCtes, type CteDef } from './FilteringMasks';
 import { timed } from '../utils/logger';
+import { CACHE_TTL_SPATIAL_MS, cachedQuery } from '../utils/query-cache';
 
 const SET_LOCAL_WORK_MEM_SQL = "SET LOCAL work_mem = '512MB';";
 const rasterFilterService = new RasterFilterService();
@@ -215,7 +216,7 @@ export default class SoilDataStorage {
       GROUP BY base_agg.dataset_id, ds.slug, ds.name, ds.gis_datatype, ds.visibility, ds.licenses
     `;
 
-    const results = await timed('filterVector.query', () => entityManager.query(sql, params));
+    const results = await timed('filterVector.query', () => cachedQuery<any>(entityManager, sql, params, CACHE_TTL_SPATIAL_MS));
 
     return results.map(row => ({
       id: row.dataset_slug,
@@ -338,7 +339,9 @@ export default class SoilDataStorage {
     candidateQuery.andWhere('ds.gis_datatype=:gis_datatype', { gis_datatype: GISDataType.RASTER });
     applyRasterLayerFilters(candidateQuery, filters);
 
-    const candidateIds = (await timed('filterRaster.candidateLayers', () => candidateQuery.getRawMany<{ id: string }>())).map(r => r.id);
+    const candidateIds = (
+      await timed('filterRaster.candidateLayers', () => candidateQuery.cache(CACHE_TTL_SPATIAL_MS).getRawMany<{ id: string }>())
+    ).map(r => r.id);
     // Step 2 — precise spatial filter via footprint tile intersection
     const candidates = await timed('filterRaster.spatialFilter', () =>
       spatialFilterByCte(entityManager, aoiCtes, { name: 'geometryIds', value: geometryIds }, candidateIds),
@@ -370,7 +373,7 @@ export default class SoilDataStorage {
       .groupBy(
         'ds.slug, ds.name, ds.gis_datatype, ds.visibility, ds.licenses, ds.soil_depth, ds.reference_period_start, ds.reference_period_stop',
       );
-    const rows = await timed('filterRaster.aggregate', () => aggregateQuery.getRawMany());
+    const rows = await timed('filterRaster.aggregate', () => aggregateQuery.cache(CACHE_TTL_SPATIAL_MS).getRawMany());
 
     return rows.map(row => ({
       id: row.id,
@@ -503,7 +506,7 @@ export default class SoilDataStorage {
       candidateQuery.andWhere('ds.gis_datatype=:gis_datatype', { gis_datatype: GISDataType.RASTER });
       applyRasterLayerFilters(candidateQuery, filters);
 
-      const result = await candidateQuery.getRawOne<{ count: string }>();
+      const result = await candidateQuery.cache(CACHE_TTL_SPATIAL_MS).getRawOne<{ count: string }>();
       return parseInt(result?.count ?? '0', 10);
     });
   };
@@ -548,9 +551,9 @@ export default class SoilDataStorage {
         enabledRasterFilterTables,
       });
 
-      const result = await transactionalEntityManager.query(sql, params);
+      const result = await cachedQuery<{ count: string }[]>(transactionalEntityManager, sql, params, CACHE_TTL_SPATIAL_MS);
 
-      return parseInt(result[0].count, 10);
+      return parseInt(result[0]!.count, 10);
     });
   };
 
@@ -739,9 +742,13 @@ export default class SoilDataStorage {
       SELECT ${selectClauses.join(', ')}
     `;
     await entityManager.query(SET_LOCAL_WORK_MEM_SQL);
-    const results = await timed('getRasterCoverage.query', () => entityManager.query(sql, [geometryIds]), {
-      realCoverage: calculateRealCoverage,
-    });
+    const results = await timed(
+      'getRasterCoverage.query',
+      () => cachedQuery<any[]>(entityManager, sql, [geometryIds], CACHE_TTL_SPATIAL_MS),
+      {
+        realCoverage: calculateRealCoverage,
+      },
+    );
     assert(results.length === 1, 'Expecting one raster coverage aggregated result row');
 
     return decodeRasterColumns(results[0]);
@@ -1327,6 +1334,7 @@ const spatialFilterByCte = async (
     .addSelect('rl.resolution_m', 'resolution_m')
     .where('rl.id IN (:...candidateLayers)', { candidateLayers })
     .andWhere('EXISTS (SELECT 1 FROM aoi WHERE ST_Intersects(rf.geom, aoi.geom))')
+    .cache(CACHE_TTL_SPATIAL_MS)
     .getRawMany();
 };
 

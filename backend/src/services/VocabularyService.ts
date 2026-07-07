@@ -4,11 +4,13 @@ import { getEntity } from '../utils/slugs';
 import { EntityType } from '../types/data';
 import { requireSub } from '../utils/auth';
 import { CreateVocabularyInput } from '../types/VocabularyInput';
+import { CACHE_TTL_REFERENCE_MS } from '../utils/query-cache';
+import { bumpCacheEpoch } from '../utils/cache-epoch';
 
 export default class VocabularyService {
   getVocabulary = async (requestData: RequestData): Promise<VocabularyEntity[]> => {
     const repo = requestData.entityManager.getRepository(VocabularyEntity);
-    return await repo.find();
+    return await repo.find({ cache: CACHE_TTL_REFERENCE_MS });
   };
 
   getVocabularyItem = async (requestData: RequestData, slug: string): Promise<VocabularyEntity> => {
@@ -21,6 +23,7 @@ export default class VocabularyService {
     const vocabulary = repo.create(data);
 
     const saved = await repo.save(vocabulary);
+    await bumpCacheEpoch();
     const reloaded = await repo.findOneBy({ id: saved.id });
     return reloaded!;
   };

@@ -4,7 +4,7 @@ import path from 'path';
 import { getDBPassword, getSSL } from './db-credentials';
 import { DatabaseNamingStrategy } from './naming-strategy';
 import { isQueryDebugEnabled, QueryDebugLogger } from './query-debug';
-import { isJest } from './utils';
+import { InMemoryQueryResultCache, isQueryCacheEnabled } from './query-cache';
 
 // This global variable at module level
 // is used to apply lazy loading to DB connection
@@ -35,7 +35,7 @@ const createDataSource = async (schema: string, includeEntities = true): Promise
       statement_timeout: 20000,
       options: `-c search_path="${schema}",public`,
     },
-    cache: !isJest(),
+    cache: isQueryCacheEnabled() ? { provider: () => new InMemoryQueryResultCache() } : false,
   });
   await dataSource.initialize();
   return dataSource;

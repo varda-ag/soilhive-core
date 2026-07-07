@@ -6,11 +6,13 @@ import { CreateLicenseInput } from '../types/LicenseInput';
 import { StatusCodes } from 'http-status-codes/build/cjs/status-codes';
 import { ErrorResponse } from '../utils/error';
 import { requireSub } from '../utils/auth';
+import { CACHE_TTL_REFERENCE_MS } from '../utils/query-cache';
+import { bumpCacheEpoch } from '../utils/cache-epoch';
 
 export default class LicenseService {
   getLicenses = async (requestData: RequestData): Promise<LicenseEntity[]> => {
     const repo = requestData.entityManager.getRepository(LicenseEntity);
-    return await repo.find();
+    return await repo.find({ cache: CACHE_TTL_REFERENCE_MS });
   };
 
   getLicense = async (requestData: RequestData, slug: string): Promise<LicenseEntity> => {
@@ -24,6 +26,7 @@ export default class LicenseService {
 
     try {
       const saved = await repo.save(license);
+      await bumpCacheEpoch();
       const reloaded = await repo.findOneBy({ id: saved.id });
       return reloaded!;
     } catch (error: any) {

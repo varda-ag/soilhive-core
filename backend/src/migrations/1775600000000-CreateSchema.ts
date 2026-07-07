@@ -293,6 +293,13 @@ export class CreateSchema1775600000000 implements MigrationInterface {
     await queryRunner.query(
       `CREATE TABLE "entitlements" ("created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP, "deleted_at" TIMESTAMP, "id" text NOT NULL, "data" jsonb NOT NULL, CONSTRAINT "PK_entitlements_id" PRIMARY KEY ("id"))`,
     );
+    // Single-row version counter bumped by ingestion jobs to invalidate the
+    // per-node query cache. Also self-provisioned at startup (utils/cache-epoch.ts)
+    // for schemas that predate this edit.
+    await queryRunner.query(
+      `CREATE TABLE IF NOT EXISTS "cache_epoch" ("id" int NOT NULL DEFAULT 1, "version" bigint NOT NULL DEFAULT 0, "updated_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_cache_epoch_id" PRIMARY KEY ("id"), CONSTRAINT "CHK_cache_epoch_single_row" CHECK (id = 1))`,
+    );
+    await queryRunner.query(`INSERT INTO cache_epoch (id) VALUES (1) ON CONFLICT (id) DO NOTHING`);
     await queryRunner.query(
       `CREATE TABLE "unit_conversions" ("created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP, "id" uuid NOT NULL DEFAULT uuidv7(), "slug" text NOT NULL, "original_unit_of_measurement" text, "conversion_formula" text, "property_id" uuid NOT NULL, "metadata" jsonb, "type" unit_conversions_type_enum NOT NULL DEFAULT 'IDENTITY'::unit_conversions_type_enum, CONSTRAINT "UQ_unit_conversions_property_id_original_unit_of_measurement" UNIQUE ("property_id", "original_unit_of_measurement"), CONSTRAINT "PK_unit_conversions_id" PRIMARY KEY ("id"))`,
     );
@@ -656,6 +663,7 @@ export class CreateSchema1775600000000 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`DROP TABLE IF EXISTS "cache_epoch"`);
     await queryRunner.query(`DROP TABLE IF EXISTS "data_filter_user_geometries"`);
     await queryRunner.query(`DROP TRIGGER IF EXISTS trg_user_geometries_subdivide_update ON user_geometries`);
     await queryRunner.query(`DROP TRIGGER IF EXISTS trg_user_geometries_subdivide_insert ON user_geometries`);
