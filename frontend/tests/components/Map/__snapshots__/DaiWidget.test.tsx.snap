@@ -68,68 +68,59 @@ exports[`DaiWidget matches snapshot on desktop 1`] = `
         />
       </div>
       <div
-        class="LegendSection"
+        class="LegendItems"
       >
-        <span
-          class="Label"
-        >
-          Legend
-        </span>
         <div
-          class="LegendItems"
+          class="LegendItem"
         >
-          <div
-            class="LegendItem"
+          <span
+            class="Swatch"
+            style="background-color: rgb(232, 218, 210);"
+          />
+          <span
+            class="LegendLabel"
           >
-            <span
-              class="Swatch"
-              style="background-color: rgb(232, 218, 210);"
-            />
-            <span
-              class="LegendLabel"
-            >
-              Very low
-            </span>
-          </div>
-          <div
-            class="LegendItem"
+            Very low
+          </span>
+        </div>
+        <div
+          class="LegendItem"
+        >
+          <span
+            class="Swatch"
+            style="background-color: rgb(239, 179, 150);"
+          />
+          <span
+            class="LegendLabel"
           >
-            <span
-              class="Swatch"
-              style="background-color: rgb(239, 179, 150);"
-            />
-            <span
-              class="LegendLabel"
-            >
-              Low
-            </span>
-          </div>
-          <div
-            class="LegendItem"
+            Low
+          </span>
+        </div>
+        <div
+          class="LegendItem"
+        >
+          <span
+            class="Swatch"
+            style="background-color: rgb(247, 158, 103);"
+          />
+          <span
+            class="LegendLabel"
           >
-            <span
-              class="Swatch"
-              style="background-color: rgb(247, 158, 103);"
-            />
-            <span
-              class="LegendLabel"
-            >
-              Medium
-            </span>
-          </div>
-          <div
-            class="LegendItem"
+            Medium
+          </span>
+        </div>
+        <div
+          class="LegendItem"
+        >
+          <span
+            class="Swatch"
+            style="background-color: rgb(188, 0, 31);"
+          />
+          <span
+            class="LegendLabel"
           >
-            <span
-              class="Swatch"
-              style="background-color: rgb(188, 0, 31);"
-            />
-            <span
-              class="LegendLabel"
-            >
-              High
-            </span>
-          </div>
+            High
+          </span>
         </div>
       </div>
       <a
@@ -203,68 +194,59 @@ exports[`DaiWidget matches snapshot on mobile 1`] = `
         />
       </div>
       <div
-        class="LegendSection"
+        class="LegendItems"
       >
-        <span
-          class="Label"
-        >
-          Legend
-        </span>
         <div
-          class="LegendItems"
+          class="LegendItem"
         >
-          <div
-            class="LegendItem"
+          <span
+            class="Swatch"
+            style="background-color: rgb(232, 218, 210);"
+          />
+          <span
+            class="LegendLabel"
           >
-            <span
-              class="Swatch"
-              style="background-color: rgb(232, 218, 210);"
-            />
-            <span
-              class="LegendLabel"
-            >
-              Very low
-            </span>
-          </div>
-          <div
-            class="LegendItem"
+            Very low
+          </span>
+        </div>
+        <div
+          class="LegendItem"
+        >
+          <span
+            class="Swatch"
+            style="background-color: rgb(239, 179, 150);"
+          />
+          <span
+            class="LegendLabel"
           >
-            <span
-              class="Swatch"
-              style="background-color: rgb(239, 179, 150);"
-            />
-            <span
-              class="LegendLabel"
-            >
-              Low
-            </span>
-          </div>
-          <div
-            class="LegendItem"
+            Low
+          </span>
+        </div>
+        <div
+          class="LegendItem"
+        >
+          <span
+            class="Swatch"
+            style="background-color: rgb(247, 158, 103);"
+          />
+          <span
+            class="LegendLabel"
           >
-            <span
-              class="Swatch"
-              style="background-color: rgb(247, 158, 103);"
-            />
-            <span
-              class="LegendLabel"
-            >
-              Medium
-            </span>
-          </div>
-          <div
-            class="LegendItem"
+            Medium
+          </span>
+        </div>
+        <div
+          class="LegendItem"
+        >
+          <span
+            class="Swatch"
+            style="background-color: rgb(188, 0, 31);"
+          />
+          <span
+            class="LegendLabel"
           >
-            <span
-              class="Swatch"
-              style="background-color: rgb(188, 0, 31);"
-            />
-            <span
-              class="LegendLabel"
-            >
-              High
-            </span>
-          </div>
+            High
+          </span>
         </div>
       </div>
       <a

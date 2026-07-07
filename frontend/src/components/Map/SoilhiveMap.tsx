@@ -116,7 +116,7 @@ function SoilhiveMap({
     setShowSelectionToolbar,
   } = useAvailabilityMap();
 
-  const { filterId } = useAvailability();
+  const { filterId, isLoadingPartialFilter } = useAvailability();
 
   const mapRef = useRef<any>(null);
   const [isPointResultSelection, setIsPointResultSelection] = useState(false);
@@ -157,7 +157,7 @@ function SoilhiveMap({
     filterId,
     daiParams?.bbox,
     daiParams?.resolution,
-    isDaiEnabled && !!filterId && daiParams !== null && showH3Cells,
+    isDaiEnabled && !!filterId && !isLoadingPartialFilter && daiParams !== null && showH3Cells,
   );
 
   useEffect(() => {
@@ -433,7 +433,7 @@ function SoilhiveMap({
           <>
             <Source id="data" type="geojson" data={h3Cells} promoteId="h3Index">
               <Layer {...dataLayerFills} />
-              <Layer {...dataLayerBorders} />
+              {isDaiEnabled && <Layer {...dataLayerBorders} />}
               {isDaiEnabled && !!dai && !isDaiLoading && <Layer {...dataLayerDAI} />}
             </Source>
             <Source id="selection" type="geojson" data={selection as GeoJSON.GeoJSON}>

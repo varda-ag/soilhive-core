@@ -1,33 +1,20 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { MapStyleSwitcher } from 'components/Map/MapStyleSwitcher/MapStyleSwitcher';
-import { __setIsMobileLayout, __resetIsMobileLayout } from 'hooks/useDevice';
 import type { MapStyles } from 'types/components';
 
-jest.mock('hooks/useDevice');
-
-jest.mock('components/Map/MapStyleSwitcher/MapStyleSwitcherDesktop/MapStyleSwitcherDesktop', () => ({
-  MapStyleSwitcherDesktop: ({ mapStyles, currentValue, className, onMapStyleChange }: any) => (
-    <div
-      data-testid="map-style-switcher-desktop"
-      data-current-value={currentValue}
-      data-class-name={className}
-      data-styles-count={mapStyles.length}
-      onClick={() => onMapStyleChange(0)}
-    />
-  ),
+jest.mock('components/UI', () => ({
+  Dialog: ({ visible, header, onClose, children }: any) =>
+    visible ? (
+      <div data-testid="mock-dialog">
+        <span data-testid="dialog-header">{header}</span>
+        <button data-testid="dialog-close" onClick={onClose} />
+        <div>{children}</div>
+      </div>
+    ) : null,
 }));
 
-jest.mock('components/Map/MapStyleSwitcher/MapStyleSwitcherMobile/MapStyleSwitcherMobile', () => ({
-  MapStyleSwitcherMobile: ({ mapStyles, currentValue, className, onMapStyleChange }: any) => (
-    <div
-      data-testid="map-style-switcher-mobile"
-      data-current-value={currentValue}
-      data-class-name={className}
-      data-styles-count={mapStyles.length}
-      onClick={() => onMapStyleChange(0)}
-    />
-  ),
-}));
+jest.mock('assets/images/sattelite-thumbnail.png', () => 'satellite-thumbnail.png');
+jest.mock('assets/images/map-thumbnail.png', () => 'map-thumbnail.png');
 
 const mapStyles: MapStyles = [
   { name: 'Satellite', mapStyle: 'satellite-url', type: 'satellite' },
@@ -35,40 +22,83 @@ const mapStyles: MapStyles = [
 ];
 
 describe('MapStyleSwitcher', () => {
-  afterEach(() => {
-    jest.clearAllMocks();
-    __resetIsMobileLayout();
-  });
-
-  it('renders MapStyleSwitcherDesktop when not mobile', () => {
-    __setIsMobileLayout(false);
+  it('renders the switcher button', () => {
     render(<MapStyleSwitcher mapStyles={mapStyles} currentValue={0} onMapStyleChange={jest.fn()} />);
-    expect(screen.getByTestId('map-style-switcher-desktop')).toBeInTheDocument();
-    expect(screen.queryByTestId('map-style-switcher-mobile')).not.toBeInTheDocument();
+    expect(screen.getByTestId('map-icon')).toBeInTheDocument();
   });
 
-  it('renders MapStyleSwitcherMobile when mobile', () => {
-    __setIsMobileLayout(true);
+  it('does not show the dialog initially', () => {
     render(<MapStyleSwitcher mapStyles={mapStyles} currentValue={0} onMapStyleChange={jest.fn()} />);
-    expect(screen.getByTestId('map-style-switcher-mobile')).toBeInTheDocument();
-    expect(screen.queryByTestId('map-style-switcher-desktop')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('mock-dialog')).not.toBeInTheDocument();
   });
 
-  it('passes all props to the desktop variant', () => {
-    __setIsMobileLayout(false);
-    render(<MapStyleSwitcher mapStyles={mapStyles} currentValue={1} className="my-class" onMapStyleChange={jest.fn()} />);
-    const el = screen.getByTestId('map-style-switcher-desktop');
-    expect(el).toHaveAttribute('data-current-value', '1');
-    expect(el).toHaveAttribute('data-class-name', 'my-class');
-    expect(el).toHaveAttribute('data-styles-count', '2');
+  it('opens the dialog when the button is clicked', () => {
+    render(<MapStyleSwitcher mapStyles={mapStyles} currentValue={0} onMapStyleChange={jest.fn()} />);
+    fireEvent.click(screen.getByRole('button'));
+    expect(screen.getByTestId('mock-dialog')).toBeInTheDocument();
   });
 
-  it('passes all props to the mobile variant', () => {
-    __setIsMobileLayout(true);
-    render(<MapStyleSwitcher mapStyles={mapStyles} currentValue={1} className="my-class" onMapStyleChange={jest.fn()} />);
-    const el = screen.getByTestId('map-style-switcher-mobile');
-    expect(el).toHaveAttribute('data-current-value', '1');
-    expect(el).toHaveAttribute('data-class-name', 'my-class');
-    expect(el).toHaveAttribute('data-styles-count', '2');
+  it('shows the dialog title', () => {
+    render(<MapStyleSwitcher mapStyles={mapStyles} currentValue={0} onMapStyleChange={jest.fn()} />);
+    fireEvent.click(screen.getByRole('button'));
+    expect(screen.getByTestId('dialog-header')).toHaveTextContent('Select a map style');
+  });
+
+  it('renders all map style items in the dialog', () => {
+    render(<MapStyleSwitcher mapStyles={mapStyles} currentValue={0} onMapStyleChange={jest.fn()} />);
+    fireEvent.click(screen.getByRole('button'));
+    expect(screen.getByText('Satellite satellite')).toBeInTheDocument();
+    expect(screen.getByText('Streets streets')).toBeInTheDocument();
+  });
+
+  it('closes the dialog when onClose is called', () => {
+    render(<MapStyleSwitcher mapStyles={mapStyles} currentValue={0} onMapStyleChange={jest.fn()} />);
+    fireEvent.click(screen.getByRole('button'));
+    expect(screen.getByTestId('mock-dialog')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('dialog-close'));
+    expect(screen.queryByTestId('mock-dialog')).not.toBeInTheDocument();
+  });
+
+  it('calls onMapStyleChange with the correct index when an item is selected', () => {
+    const onMapStyleChange = jest.fn();
+    render(<MapStyleSwitcher mapStyles={mapStyles} currentValue={0} onMapStyleChange={onMapStyleChange} />);
+    fireEvent.click(screen.getByRole('button'));
+    fireEvent.click(screen.getByRole('button', { name: 'Streets streets' }));
+    expect(onMapStyleChange).toHaveBeenCalledWith(1);
+  });
+
+  it('closes the dialog after selecting an item', () => {
+    render(<MapStyleSwitcher mapStyles={mapStyles} currentValue={0} onMapStyleChange={jest.fn()} />);
+    fireEvent.click(screen.getByRole('button'));
+    fireEvent.click(screen.getByRole('button', { name: 'Streets streets' }));
+    expect(screen.queryByTestId('mock-dialog')).not.toBeInTheDocument();
+  });
+
+  it('applies Active class to the currently selected item', () => {
+    render(<MapStyleSwitcher mapStyles={mapStyles} currentValue={1} onMapStyleChange={jest.fn()} />);
+    fireEvent.click(screen.getByRole('button'));
+    expect(screen.getByRole('button', { name: 'Streets streets' })).toHaveClass('Active');
+    expect(screen.getByRole('button', { name: 'Satellite satellite' })).not.toHaveClass('Active');
+  });
+
+  it('uses satellite thumbnail for satellite type', () => {
+    render(<MapStyleSwitcher mapStyles={mapStyles} currentValue={0} onMapStyleChange={jest.fn()} />);
+    fireEvent.click(screen.getByRole('button'));
+    const images = screen.getAllByRole('img');
+    expect(images[0]).toHaveAttribute('src', 'satellite-thumbnail.png');
+  });
+
+  it('uses map thumbnail for non-satellite type', () => {
+    render(<MapStyleSwitcher mapStyles={mapStyles} currentValue={0} onMapStyleChange={jest.fn()} />);
+    fireEvent.click(screen.getByRole('button'));
+    const images = screen.getAllByRole('img');
+    expect(images[1]).toHaveAttribute('src', 'map-thumbnail.png');
+  });
+
+  it('applies a custom className', () => {
+    const { container } = render(
+      <MapStyleSwitcher mapStyles={mapStyles} currentValue={0} className="custom-class" onMapStyleChange={jest.fn()} />,
+    );
+    expect(container.firstChild).toHaveClass('custom-class');
   });
 });
