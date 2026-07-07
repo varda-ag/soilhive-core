@@ -481,7 +481,7 @@ function SoilhiveMap({
         <DaiWidget
           isEnabled={isDaiEnabled}
           isLoading={isDaiEnabled && !dai}
-          isDefaultExpanded={isDesktopLayout}
+          isDefaultExpanded={isDesktopLayout && themeConfig.daiConfig.defaultValue}
           opacity={daiOpacity}
           className="soilhive-map-dai"
           onToggle={() => setIsDaiEnabled(prevValue => !prevValue)}
