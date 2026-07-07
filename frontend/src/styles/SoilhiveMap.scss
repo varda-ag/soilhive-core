@@ -42,7 +42,7 @@
 
   .soilhive-map-dai {
     position: absolute;
-    bottom: 30px;
+    bottom: 35px;
     right: 74px;
 
     @media (max-width: $bp-tablet-max) {
@@ -65,6 +65,7 @@
     border-radius: 0.25rem 0.25rem 0 0;
     cursor: pointer;
     color: var(--color-neutral-dark-900);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
   }
 
   .maplibregl-ctrl-group button {
@@ -75,6 +76,12 @@
   .maplibregl-ctrl-group:not(:empty) {
     box-shadow: none;
     border-radius: 0 0 0.25rem 0.25rem;
+    box-shadow: 0 10px 12px rgba(0, 0, 0, 0.12);
+
+    @media (min-width: $bp-desktop) {
+      border-radius: 0.25rem;
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
+    }
 
     button + button {
       border-top: none;
