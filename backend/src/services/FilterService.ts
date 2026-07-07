@@ -1,10 +1,18 @@
+import { createHash } from 'node:crypto';
 import { valid } from 'geojson-validation';
 import { StatusCodes } from 'http-status-codes';
 import * as turf from '@turf/turf';
 import { latLngToCell } from 'h3-js';
 import { Polygon, MultiPolygon } from 'geojson';
 import SoilDataStorage from '../data-layer/SoilDataStorage';
-import { DataFilterDTO, FilteredDatasetSummary, FilteredDataset, FilteredData, DataFilter } from '../interfaces/DatasetFilter';
+import {
+  DataFilterDTO,
+  FilterCriteria,
+  FilteredDatasetSummary,
+  FilteredDataset,
+  FilteredData,
+  DataFilter,
+} from '../interfaces/DatasetFilter';
 import { RequestData } from '../interfaces/RequestData';
 import { ErrorResponse } from '../utils/error';
 import { mergeMin, mergeMax } from '../utils/utils';
@@ -15,6 +23,42 @@ import { getPolygonFromBbox, geometryUnion } from '../utils/geometry';
 import { timed, log } from '../utils/logger';
 
 const sds = new SoilDataStorage();
+
+const sortedUnique = <T extends string | number | null>(values: T[]): T[] =>
+  [...new Set(values)].sort((a, b) => {
+    if (a === b) return 0;
+    if (a === null) return -1;
+    if (b === null) return 1;
+    return a < b ? -1 : 1;
+  });
+
+// Canonical content identity of a filter (ADR 0007): the sorted set of canonical
+// user_geometry ids plus normalized parameters, serialized with a fixed key order.
+// List criteria compare as sets (contents sorted and deduped), but an EMPTY list is
+// not collapsed into an absent key: `data_types: []` matches nothing in filterVector
+// while an absent data_types is unconstrained. Explicit nulls are likewise preserved:
+// `min_depth: null` matches layers WITHOUT a recorded depth, whereas an absent
+// min_depth is unconstrained (see the scalar handling in SoilDataStorage).
+export const computeFilterHash = (userGeometryIds: string[], parameters: FilterCriteria): string => {
+  const normalized: Record<string, unknown> = {};
+  for (const key of ['data_types', 'licenses', 'horizons', 'soil_properties'] as const) {
+    const values = parameters[key];
+    if (values !== undefined) normalized[key] = sortedUnique(values as (string | null)[]);
+  }
+  for (const key of ['min_sampling_date', 'max_sampling_date', 'min_depth', 'max_depth'] as const) {
+    if (parameters[key] !== undefined) normalized[key] = parameters[key];
+  }
+  if (parameters.raster_filters !== undefined) {
+    const rasterFilters: Record<string, number[]> = {};
+    for (const table of Object.keys(parameters.raster_filters).sort()) {
+      rasterFilters[table] = sortedUnique(parameters.raster_filters[table] ?? []);
+    }
+    normalized['raster_filters'] = rasterFilters;
+  }
+  return createHash('sha256')
+    .update(JSON.stringify({ geometry_ids: sortedUnique(userGeometryIds), parameters: normalized }))
+    .digest('hex');
+};
 
 export default class FilterService {
   insertUserGeometry = async (requestData: RequestData, geometry: Polygon | MultiPolygon): Promise<{ id: string; area: number }> => {
@@ -81,24 +125,43 @@ export default class FilterService {
       }
     }
 
-    const owner = requestData.token?.sub;
-    const repo = requestData.entityManager.getRepository(DataFilterEntity);
-    const entity = repo.create({ filter, ...(owner ? { owner } : {}) });
-    const savedFilter = await repo.save(entity);
+    // Geometries are stored (and deduplicated) before the filter row so the filter's
+    // identity can be computed over their canonical ids. A filter's geometries are a
+    // set: payload geometries that canonicalise to the same stored row collapse to one.
+    const geometryIds = [
+      ...new Set(await Promise.all(filter.geometries.map(async geometry => (await this.insertUserGeometry(requestData, geometry)).id))),
+    ];
+
+    const owner = requestData.token?.sub || null;
+    const filterHash = computeFilterHash(geometryIds, filter.parameters);
+    const schema = process.env.POSTGRES_SCHEMA;
+    // Upsert on canonical content identity: resubmitting an equivalent filter returns
+    // the existing row (with its originally submitted raw DTO, which may differ
+    // byte-wise from the current submission). Unlike user_geometries — where DO NOTHING
+    // is mandatory because geom_hash derives from stored bytes — DO UPDATE is safe here:
+    // filter_hash is computed from canonical inputs and cannot drift. Bumping updated_at
+    // gives it "last used" semantics, so an age-based cleanup of non-persistent filters
+    // must reap on updated_at, never created_at. See ADR 0007.
+    const rows: DataFilterEntity[] = await requestData.entityManager.query(
+      `INSERT INTO ${schema}.data_filters (filter, filter_hash, owner)
+       VALUES ($1::jsonb, $2, $3)
+       ON CONFLICT ("owner", "filter_hash") WHERE deleted_at IS NULL AND filter_hash IS NOT NULL
+       DO UPDATE SET updated_at = now()
+       RETURNING id, created_at, updated_at, deleted_at, filter, persistent, name, owner`,
+      [JSON.stringify(filter), filterHash, owner],
+    );
+    const savedFilter = rows[0]!;
 
     await Promise.all(
-      filter.geometries.map(async geometry => {
-        const { id: user_geometry_id } = await this.insertUserGeometry(requestData, geometry);
-        // A filter's geometries are a set: payload geometries that canonicalise to
-        // the same stored row collapse to a single join entry.
-        await requestData.entityManager
+      geometryIds.map(user_geometry_id =>
+        requestData.entityManager
           .createQueryBuilder()
           .insert()
           .into(DataFilterUserGeometryEntity)
           .values({ data_filter_id: savedFilter.id, user_geometry_id })
           .orIgnore()
-          .execute();
-      }),
+          .execute(),
+      ),
     );
 
     return savedFilter;
@@ -164,7 +227,7 @@ export default class FilterService {
       sds.filterVectorDatasets(requestData.entityManager, filter),
       sds
         .filterRaster(requestData.entityManager, filter)
-        .then(results => results.map(({ id, name, data_type }) => ({ id, name, data_type }))),
+        .then(results => results.map(({ id, name, data_type, visibility }) => ({ id, name, data_type, visibility }))),
     ]);
     return [...vectorDatasets, ...rasterDatasets];
   };

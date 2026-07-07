@@ -29,7 +29,6 @@ const baseSoilDataSummary: SoilDataSummary = {
     [CellDeleteReason.NON_NUMERIC]: 3,
     [CellDeleteReason.NEGATIVE_VALUE]: 3,
     [CellDeleteReason.ZERO_VALUE]: 2,
-    [CellDeleteReason.DUPLICATE_CELL]: 2,
     [CellDeleteReason.OOB]: 2,
   },
 };

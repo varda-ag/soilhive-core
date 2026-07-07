@@ -2002,18 +2002,25 @@ components:
           type: array
           items:
             type: string
+        # An explicit null matches data where the value is unset (e.g. min_depth: null
+        # matches layers without a depth), while an absent key means "no constraint".
         min_sampling_date:
           type: string
+          nullable: true
         max_sampling_date:
           type: string
+          nullable: true
         min_depth:
           type: number
+          nullable: true
         max_depth:
           type: number
+          nullable: true
         horizons:
           type: array
           items:
             type: string
+            nullable: true
         soil_properties:
           type: array
           items:
@@ -2774,7 +2781,7 @@ components:
       properties:
         reason:
           type: string
-          enum: [non_numeric, negative_value, zero_value, duplicate_cell, out_of_bounds]
+          enum: [non_numeric, negative_value, zero_value, out_of_bounds]
         count: 
           type: number
         property: 

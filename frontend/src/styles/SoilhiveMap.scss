@@ -8,9 +8,12 @@
   height: 100%;
 
   @media (max-width: $bp-tablet-max) {
-    &.soilhive-map-show-selection-toolbar {
-      .map-style-switcher {
-        bottom: 80px !important;
+    &.soilhive-map-show-area-info {
+      .soilhive-map-dai-btn {
+        bottom: 117px;
+      }
+      .soilhive-map-dai {
+        bottom: 153px;
       }
     }
   }
@@ -21,24 +24,69 @@
 
   .map-style-switcher {
     position: absolute;
-    bottom: 50px;
-    left: 10px;
-    background-color: white;
-    box-shadow: 0 0 0 2px #0000001a;
-    border-radius: 4px;
+    bottom: 163px;
+    right: 10px;
 
-    label {
-      display: block;
+    @media (max-width: $bp-tablet-max) {
+      bottom: auto;
+      bottom: 116px;
+      right: 10px;
     }
 
-    select {
-      display: block;
-      padding: 4px;
+    @media (max-width: $bp-mobile-max) {
+      bottom: auto;
+      top: 77px;
+      right: 18px;
+    }
+  }
+
+  .soilhive-map-dai {
+    position: absolute;
+    bottom: 30px;
+    right: 74px;
+
+    @media (max-width: $bp-tablet-max) {
+      bottom: 104px;
+      right: 10px;
+    }
+  }
+
+  .soilhive-map-dai-btn {
+    position: absolute;
+    bottom: 70px;
+    right: 10px;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--color-neutral-white);
+    border: none;
+    border-radius: 0.25rem 0.25rem 0 0;
+    cursor: pointer;
+    color: var(--color-neutral-dark-900);
+  }
+
+  .maplibregl-ctrl-group button {
+    width: 36px;
+    height: 36px;
+  }
+
+  .maplibregl-ctrl-group:not(:empty) {
+    box-shadow: none;
+    border-radius: 0 0 0.25rem 0.25rem;
+
+    button + button {
+      border-top: none;
     }
   }
 
   .maplibregl-terradraw-add-control.active {
     background-color: var(--color-pills);
+  }
+
+  .maplibregl-ctrl-bottom-right {
+    bottom: 5px;
   }
 
   // To fix double "X" clear icon in geocoder input of type "search"
@@ -69,7 +117,9 @@
     padding: 6px 9px;
 
     @media (max-width: $bp-mobile-max) {
-      padding-bottom: 10px;
+      width: calc(100% - 36px);
+      padding: 4px;
+      border: none;
     }
 
     &.hidden {
@@ -82,6 +132,11 @@
       width: 298px;
       height: 32px;
       font-size: 15px;
+
+      @media (max-width: $bp-mobile-max) {
+        width: 100%;
+      }
+
       input {
         width: 298px;
         height: 36px;
@@ -95,6 +150,11 @@
         line-height: 20px;
         letter-spacing: 0px;
         vertical-align: middle;
+
+        @media (max-width: $bp-mobile-max) {
+          width: 100%;
+          height: 32px;
+        }
       }
       .maplibregl-ctrl-geocoder--result-icon {
         height: 16px;
@@ -128,6 +188,10 @@
         display: flex;
         gap: 4px;
         align-items: center;
+
+        @media (max-width: $bp-mobile-max) {
+          top: 7px;
+        }
       }
     }
     & > button {
@@ -324,12 +388,24 @@
 }
 
 @keyframes markerBounce {
-  0%   { transform: translateY(0); }
-  20%  { transform: translateY(-14px); }
-  40%  { transform: translateY(-6px); }
-  60%  { transform: translateY(-10px); }
-  80%  { transform: translateY(-3px); }
-  100% { transform: translateY(0); }
+  0% {
+    transform: translateY(0);
+  }
+  20% {
+    transform: translateY(-14px);
+  }
+  40% {
+    transform: translateY(-6px);
+  }
+  60% {
+    transform: translateY(-10px);
+  }
+  80% {
+    transform: translateY(-3px);
+  }
+  100% {
+    transform: translateY(0);
+  }
 }
 
 .marker-container {

@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ColumnSortEvent } from 'primereact/column';
-import WarningIcon from 'assets/icons/warning-icon.svg?react';
+import WarningIcon from 'assets/icons/small-warning-icon.svg?react';
 import { DatasetsTableStatusTemplate } from './DatasetsTableStatusTemplate/DatasetsTableStatusTemplate';
 import { DatasetsTableVisibilityTemplate } from './DatasetsTableVisibilityTemplate/DatasetsTableVisibilityTemplate';
 import { DatasetsTableActionTemplate } from './DatasetsTableActionTemplate/DatasetsTableActionTemplate';

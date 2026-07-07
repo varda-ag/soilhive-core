@@ -1,7 +1,7 @@
 import { StatusCodes } from 'http-status-codes';
 import { RequestData } from '../interfaces/RequestData';
 import { ErrorResponse } from '../utils/error';
-import { requireEmail } from '../utils/auth';
+import { getSubject } from '../utils/auth';
 import DatasetEntity from '../entities/Dataset';
 import { CreateDatasetInput, UpdateDatasetInput } from '../types/DatasetInput';
 import { getEntity } from '../utils/slugs';
@@ -35,12 +35,12 @@ export default class DatasetService {
   createDataset = async (requestData: RequestData, data: CreateDatasetInput): Promise<DatasetEntity> => {
     const repo = requestData.entityManager.getRepository(DatasetEntity);
 
-    const email = requireEmail(requestData);
+    const subject = getSubject(requestData);
 
     const dataset = repo.create({
       ...data,
-      created_by: email,
-      updated_by: email,
+      created_by: subject,
+      updated_by: subject,
     });
 
     try {
@@ -59,13 +59,13 @@ export default class DatasetService {
 
   updateDataset = async (requestData: RequestData, slug: string, data: UpdateDatasetInput): Promise<DatasetEntity> => {
     const repo = requestData.entityManager.getRepository(DatasetEntity);
-    const email = requireEmail(requestData);
+    const subject = getSubject(requestData);
 
     const dataset: DatasetEntity = await getEntity(requestData, DatasetEntity, EntityType.DATASET, slug);
 
     repo.merge(dataset, {
       ...data,
-      updated_by: email,
+      updated_by: subject,
       updated_at: new Date(),
     });
 
@@ -77,10 +77,10 @@ export default class DatasetService {
 
   deleteDataset = async (requestData: RequestData, slug: string): Promise<void> => {
     const dataset = await getEntity(requestData, DatasetEntity, EntityType.DATASET, slug);
-    const email = requireEmail(requestData);
+    const subject = getSubject(requestData);
 
     dataset.status = IngestionStatus.ARCHIVED;
-    dataset.updated_by = email;
+    dataset.updated_by = subject;
     await dataset.save();
     await requestData.entityManager.getRepository(DatasetEntity).softRemove(dataset);
   };

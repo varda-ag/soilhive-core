@@ -1,0 +1,141 @@
+.RadioButton {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+
+  &:hover {
+    cursor: pointer;
+
+    > * {
+      cursor: pointer;
+    }
+
+    > .Input {
+      box-shadow: var(--shadow-hover-default);
+    }
+  }
+
+  &.Medium > .Input {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+
+  &.Small > .Input {
+    width: 1.25rem;
+    height: 1.25rem;
+    margin-top: 0.1rem;
+  }
+
+  &.Tiny > .Input {
+    width: 1rem;
+    height: 1rem;
+    margin-top: 0.16rem;
+  }
+
+  &.Checked {
+    > .Input::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      border-radius: 50%;
+    }
+
+    &.Medium > .Input::after {
+      border: 0.25rem solid var(--color-neutral-white);
+    }
+
+    &.Small > .Input::after {
+      border: 0.188rem solid var(--color-neutral-white);
+    }
+
+    &.Tiny > .Input::after {
+      border: 0.125rem solid var(--color-neutral-white);
+    }
+  }
+
+  &.Disabled {
+    pointer-events: none;
+  }
+
+  &:not(.Error) {
+    &.Disabled {
+      > .Input {
+        border-color: var(--color-cta-default-disabled);
+      }
+
+      > .Label {
+        color: var(--color-neutral-dark-400);
+      }
+
+      &.Checked > .Input {
+        background: var(--color-cta-default-disabled);
+      }
+    }
+
+    &:not(.Disabled) {
+      > .Input {
+        border-color: var(--color-cta-default-solid);
+      }
+
+      &.Checked {
+        > .Input {
+          background: var(--color-cta-default-solid);
+        }
+
+        &:active > .Input {
+          background: var(--color-cta-default-pressed);
+        }
+      }
+
+      &:active > .Input {
+        border-color: var(--color-cta-default-pressed);
+      }
+    }
+  }
+
+  &.Error {
+    &.Disabled {
+      > .Input {
+        border-color: var(--color-cta-danger-disabled);
+      }
+
+      &.Checked > .Input {
+        background: var(--color-cta-danger-disabled);
+      }
+    }
+
+    &:not(.Disabled) {
+      > .Input {
+        border-color: var(--color-cta-danger-solid);
+      }
+
+      &.Checked {
+        > .Input {
+          background: var(--color-cta-danger-solid);
+        }
+
+        &:active > .Input {
+          background: var(--color-cta-danger-pressed);
+        }
+      }
+
+      &:active > .Input {
+        border-color: var(--color-cta-danger-pressed);
+      }
+    }
+  }
+
+  > .Input {
+    position: relative;
+    appearance: none;
+    border-width: 0.125rem;
+    border-style: solid;
+    border-radius: 50%;
+    margin: 0;
+    flex-grow: 0;
+    flex-shrink: 0;
+  }
+}

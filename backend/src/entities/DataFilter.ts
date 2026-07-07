@@ -12,6 +12,11 @@ export default class DataFilterEntity extends BaseTable implements StoredDataFil
   @Column({ type: 'jsonb' })
   filter: DataFilterDTO;
 
+  // Canonical content identity (see FilterService.computeFilterHash / ADR 0007).
+  // Excluded from API responses via select: false.
+  @Column({ type: 'text', nullable: true, select: false })
+  filter_hash?: string;
+
   @Column({ type: 'boolean', default: false })
   persistent: boolean;
 

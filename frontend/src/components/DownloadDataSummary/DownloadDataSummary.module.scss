@@ -1,6 +1,7 @@
 @import 'styles/variables/breakpoints';
 
-.DownloadDataSummary, .DownloadDataSummaryNonResponsive {
+.DownloadDataSummary,
+.DownloadDataSummaryNonResponsive {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -18,13 +19,13 @@
       border-radius: 8px;
       overflow: hidden;
 
-      >button {
+      > button {
         position: absolute;
         top: 4px;
         right: 4px;
         padding: 0 !important;
 
-        >svg {
+        > svg {
           width: 28px;
           height: 28px;
         }
@@ -35,21 +36,21 @@
       width: 214px;
       padding-top: 10px;
       padding-bottom: 12px;
-  
+
       .SectionTitle {
         padding-bottom: 5px;
       }
-  
+
       .Location {
         display: flex;
         align-items: center;
         gap: 4px;
-  
-        >svg {          
+
+        > svg {
           width: 16px;
           height: 16px;
           /* Prevents the SVG from shrinking when space is tight */
-          flex-shrink: 0; 
+          flex-shrink: 0;
           /* Prevents the SVG from expanding beyond its set width */
           flex-grow: 0;
         }
@@ -80,20 +81,24 @@
         font-size: var(--font-size-sm);
         line-height: var(--line-height-lg);
         letter-spacing: 0px;
-    
+
         .DataSummaryRowTitle {
           display: flex;
           align-items: center;
           gap: 5px;
           font-weight: var(--font-weight-regular);
           text-wrap: nowrap;
-    
-          >svg {
+
+          > svg {
             width: 16px;
             height: 16px;
           }
+
+          .LayersIcon {
+            color: var(--color-brand-prompt-1000);
+          }
         }
-    
+
         .DataSummaryRowData {
           font-weight: var(--font-weight-bold);
           text-align: right;
@@ -189,11 +194,11 @@
         .Map {
           width: 410px;
           height: 322px;
-      
-          >button {
+
+          > button {
             top: 9px;
             right: 8.5px;
-            >svg {
+            > svg {
               width: 28.5px;
               height: 28.3px;
             }
@@ -241,14 +246,14 @@
         transition-duration: 0.5s;
         transition-timing-function: ease-out;
       }
-  
-      >button {
+
+      > button {
         @media (max-width: $bp-mobile-max) {
           display: none;
         }
       }
     }
-  
+
     .SubMap {
       @media (max-width: $bp-mobile-max) {
         width: 90%;
@@ -316,10 +321,10 @@
       }
 
       .Filter {
-       @media (max-width: $bp-mobile-max) {
+        @media (max-width: $bp-mobile-max) {
           width: 100%;
           flex-grow: 1;
-        } 
+        }
       }
     }
   }
@@ -350,11 +355,11 @@
       .Map {
         width: 410px;
         height: 322px;
-    
-        >button {
+
+        > button {
           top: 9px;
           right: 8.5px;
-          >svg {
+          > svg {
             width: 28.5px;
             height: 28.3px;
           }

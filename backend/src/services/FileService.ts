@@ -13,8 +13,8 @@ import { GdalCLI, OgrInfoLayer } from '../utils/GdalCLI';
 import { LocalStorageConfig, S3StorageConfig, StorageConfig } from '../interfaces/StorageConfig';
 import { RequestData } from '../interfaces/RequestData';
 import { File, FileMetadata, ExtractedFilePath } from '../interfaces/File';
-import { ErrorResponse } from '../utils/error';
-import { requireEmail } from '../utils/auth';
+import { ErrorResponse, getErrorMessage } from '../utils/error';
+import { getSubject } from '../utils/auth';
 import { getEntity } from '../utils/slugs';
 import { sanitizeField, buildDatedFileKey, getRawTableName } from '../utils/utils';
 import { StorageModes } from '../types/enums';
@@ -139,7 +139,7 @@ export default class FileService {
 
   createFile = async (requestData: RequestData, data: Partial<File>): Promise<FileEntity> => {
     const repo = requestData.entityManager.getRepository(FileEntity);
-    const email = requireEmail(requestData);
+    const subject = getSubject(requestData);
 
     assert(data.file_path, 'file_path is required to create a file');
     const metadata = await this.extractMetadata(requestData, data.file_path);
@@ -148,8 +148,8 @@ export default class FileService {
       ...data,
       metadata,
       status: IngestionStatus.PENDING,
-      created_by: email,
-      updated_by: email,
+      created_by: subject,
+      updated_by: subject,
     });
 
     try {
@@ -167,13 +167,13 @@ export default class FileService {
 
   updateFile = async (requestData: RequestData, slug: string, data: Partial<File>): Promise<FileEntity> => {
     const repo = requestData.entityManager.getRepository(FileEntity);
-    const email = requireEmail(requestData);
+    const subject = getSubject(requestData);
 
     const file = await getEntity(requestData, FileEntity, EntityType.FILE, slug);
 
     repo.merge(file, {
       ...data,
-      updated_by: email,
+      updated_by: subject,
       updated_at: new Date(),
     });
 
@@ -514,7 +514,14 @@ export default class FileService {
     const fileMetadata = fileEntity.metadata!;
     const layerName = fileMetadata.layer_name!;
 
-    const mappingGeomFields = await this.extractGeomFieldsFromMapping(requestData, fileEntity.id);
+    const mappingRepo = requestData.entityManager.getRepository(DatasetFileMappingEntity);
+    const datasetFileMapping = await mappingRepo.findOne({
+      where: { file_id: fileEntity.id },
+      relations: ['data_mapping'],
+    });
+    const mapping: DataMappingObject | undefined = datasetFileMapping?.data_mapping?.data_mapping;
+
+    const mappingGeomFields = await this.extractGeomFieldsFromMapping(mapping);
 
     let mainFilePath: string;
     let tempZipExtractPath: string | null = null;
@@ -546,13 +553,16 @@ export default class FileService {
       mappingGeomFields.lonField,
       mappingGeomFields.latField,
     ].map(item => item?.toLowerCase());
-    let selectClause = fileMetadata.field_names
-      .filter(item => !originalGeomFields.includes(item.toLowerCase())) // exclude geometry columns. They will be managed later
-      .map(field => `"${field}" AS ${sanitizeField(field)}`)
-      .join(', ');
+    let mappingNonGeomFields: string[];
+    if (mapping) {
+      mappingNonGeomFields = Object.keys(mapping).filter(item => !originalGeomFields.includes(item.toLowerCase()));
+    } else {
+      mappingNonGeomFields = fileMetadata.field_names.filter(item => !originalGeomFields.includes(item.toLowerCase()));
+    }
+    let selectClause = mappingNonGeomFields.map(field => `"${field}" AS ${sanitizeField(field)}`).join(', ');
 
     try {
-      if (fileMetadata.field_names.length === 0) {
+      if (mappingNonGeomFields.length === 0) {
         throw new JobError('FTD_NO_DATA_COLUMNS');
       }
       try {
@@ -655,7 +665,7 @@ export default class FileService {
       try {
         await GdalCLI.ogr2ogr([...ogr2ogrOpts, pgDataset, tempVrtPath ?? mainFilePath]);
       } catch (translateError) {
-        const errMsg = translateError instanceof Error ? translateError.message : String(translateError);
+        const errMsg = getErrorMessage(translateError);
         log.error('ogr2ogr failed', {
           source: mainFilePath,
           target: pgDataset.replace(/password=\S+/, 'password=***'),
@@ -670,13 +680,14 @@ export default class FileService {
 
       await repo.update(fileEntity.id, { status: IngestionStatus.STAGED });
     } catch (error) {
+      await repo.update(fileEntity.id, { status: IngestionStatus.PENDING });
       if (JobError.isJobError(error)) {
         throw error;
       }
       if (error instanceof ErrorResponse) {
         throw error;
       }
-      throw new ErrorResponse(`Failed to load file to table: ${error instanceof Error ? error.message : error}`, StatusCodes.BAD_REQUEST);
+      throw new ErrorResponse(`Failed to load file to table: ${getErrorMessage(error)}`, StatusCodes.BAD_REQUEST);
     } finally {
       if (tempZipExtractPath) {
         FileService.removeTempFolder(tempZipExtractPath);
@@ -688,15 +699,8 @@ export default class FileService {
   };
 
   private async extractGeomFieldsFromMapping(
-    requestData: RequestData,
-    fileId: string,
+    mapping: DataMappingObject | undefined,
   ): Promise<{ geomField: string | null; latField: string | null; lonField: string | null }> {
-    const mappingRepo = requestData.entityManager.getRepository(DatasetFileMappingEntity);
-    const datasetFileMapping = await mappingRepo.findOne({
-      where: { file_id: fileId },
-      relations: ['data_mapping'],
-    });
-    const mapping: DataMappingObject | undefined = datasetFileMapping?.data_mapping?.data_mapping;
     if (!mapping) return { geomField: null, latField: null, lonField: null };
     let geomField: string | null = null;
     let latField: string | null = null;

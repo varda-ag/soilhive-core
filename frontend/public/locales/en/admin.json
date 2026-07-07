@@ -57,10 +57,26 @@
         "title": "Map settings",
         "subtitle": "Default map extent",
         "description": "Select the area you want to show in the map when the user arrives to the platform",
-        "save": "Set view as default",
+        "save": "Save changes",
         "notification": {
             "title": "Successful update",
-            "message": "The default view has been replaced"
+            "message": "Map settings have been updated"
+        },
+        "coverage": {
+            "title": "Coverage map",
+            "subtitle": "Display the dataset coverage layer on the public map.",
+            "settings_title": "Activate coverage map",
+            "settings_subtitle": "When enabled, users will see the coverage overlay on the map",
+            "default_value": {
+                "description_title": "Display on the map",
+                "description_message": "Choose whether the coverage layer is visible by default or if end users need to enable it themselves.",
+                "active_label": "Shown by default",
+                "active_message": "The coverage layer is visible when users open the map. They can still hide it.",
+                "inactive_label": "Off by default (user can enable)",
+                "inactive_message": "Users see the layer as an optional toggle and can turn it on when needed."
+            },
+            "warning_title": "Performance impact",
+            "warning_subtitle": "Activating the coverage map will increase map response times and may degrade the user experience, especially on lower-end devices or slower connections."
         }
     },
     "look_and_feel": {
@@ -363,13 +379,12 @@
                     "unit_converted": "Converted to standard unit of measurement",
                     "invalid_coordinates": "Invalid coordinates (out of range)",
                     "invalid_depth_interval": "Invalid depth interval (upper ≥ lower)",
-                    "minimum_data_requirement": "Minimum data requirement not met (missing geometry or invalid soil property value)",
+                    "minimum_data_requirement": "Minimum data requirement not met (missing geometry or no valid soil property values)",
                     "duplicate_row": "Duplicate row (same coordinates, date, depth, value across all properties)",
                     "user_deletion": "User discarded row",
                     "non_numeric": "Invalid property value (non-numeric)",
                     "negative_value": "Negative value",
                     "zero_value": "Zero value (treated as null)",
-                    "duplicate_cell": "Duplicate value (same coordinates, date, depth, value)",
                     "out_of_bounds": "Out-of-bounds value",
                     "total": "Total" 
                 }

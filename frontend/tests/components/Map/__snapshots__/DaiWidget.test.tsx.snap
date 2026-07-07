@@ -1,0 +1,263 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`DaiWidget matches snapshot on desktop 1`] = `
+<div>
+  <div
+    class="DaiWidget"
+  >
+    <div
+      class="Header"
+    >
+      <div
+        class="Title"
+      >
+        <svg
+          class="LayersIcon"
+          data-testid="svg-icon-mock"
+        >
+          mock-svg
+        </svg>
+        <span>
+          Coverage map
+        </span>
+      </div>
+      <div
+        class="Controls"
+      >
+        <button
+          data-checked="true"
+          data-testid="toggle-button"
+        />
+        <button
+          aria-label="Collapse"
+          class="ChevronButton"
+        >
+          <svg
+            data-testid="svg-icon-mock"
+          >
+            mock-svg
+          </svg>
+        </button>
+      </div>
+    </div>
+    <div
+      class="Body"
+    >
+      <div
+        class="OpacitySection"
+      >
+        <div
+          class="OpacityTitleRow"
+        >
+          <span
+            class="Label"
+          >
+            Opacity
+          </span>
+          <span
+            class="OpacityValue"
+          >
+            80
+            %
+          </span>
+        </div>
+        <input
+          data-testid="range-slider"
+          type="range"
+          value="80"
+        />
+      </div>
+      <div
+        class="LegendItems"
+      >
+        <div
+          class="LegendItem"
+        >
+          <span
+            class="Swatch"
+            style="background-color: rgb(232, 218, 210);"
+          />
+          <span
+            class="LegendLabel"
+          >
+            Very low
+          </span>
+        </div>
+        <div
+          class="LegendItem"
+        >
+          <span
+            class="Swatch"
+            style="background-color: rgb(239, 179, 150);"
+          />
+          <span
+            class="LegendLabel"
+          >
+            Low
+          </span>
+        </div>
+        <div
+          class="LegendItem"
+        >
+          <span
+            class="Swatch"
+            style="background-color: rgb(247, 158, 103);"
+          />
+          <span
+            class="LegendLabel"
+          >
+            Medium
+          </span>
+        </div>
+        <div
+          class="LegendItem"
+        >
+          <span
+            class="Swatch"
+            style="background-color: rgb(188, 0, 31);"
+          />
+          <span
+            class="LegendLabel"
+          >
+            High
+          </span>
+        </div>
+      </div>
+      <a
+        class="FaqLink"
+        href="#"
+        rel="noopener noreferrer"
+        target="_blank"
+      >
+        Read FAQ's about this map
+      </a>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`DaiWidget matches snapshot on mobile 1`] = `
+<div>
+  <div
+    class="DaiWidget"
+  >
+    <div
+      class="Header"
+    >
+      <div
+        class="Title"
+      >
+        <svg
+          class="LayersIcon"
+          data-testid="svg-icon-mock"
+        >
+          mock-svg
+        </svg>
+        <span>
+          Coverage map
+        </span>
+      </div>
+      <div
+        class="Controls"
+      >
+        <button
+          data-checked="true"
+          data-testid="toggle-button"
+        />
+      </div>
+    </div>
+    <div
+      class="Body"
+    >
+      <div
+        class="OpacitySection"
+      >
+        <div
+          class="OpacityTitleRow"
+        >
+          <span
+            class="Label"
+          >
+            Opacity
+          </span>
+          <span
+            class="OpacityValue"
+          >
+            80
+            %
+          </span>
+        </div>
+        <input
+          data-testid="range-slider"
+          type="range"
+          value="80"
+        />
+      </div>
+      <div
+        class="LegendItems"
+      >
+        <div
+          class="LegendItem"
+        >
+          <span
+            class="Swatch"
+            style="background-color: rgb(232, 218, 210);"
+          />
+          <span
+            class="LegendLabel"
+          >
+            Very low
+          </span>
+        </div>
+        <div
+          class="LegendItem"
+        >
+          <span
+            class="Swatch"
+            style="background-color: rgb(239, 179, 150);"
+          />
+          <span
+            class="LegendLabel"
+          >
+            Low
+          </span>
+        </div>
+        <div
+          class="LegendItem"
+        >
+          <span
+            class="Swatch"
+            style="background-color: rgb(247, 158, 103);"
+          />
+          <span
+            class="LegendLabel"
+          >
+            Medium
+          </span>
+        </div>
+        <div
+          class="LegendItem"
+        >
+          <span
+            class="Swatch"
+            style="background-color: rgb(188, 0, 31);"
+          />
+          <span
+            class="LegendLabel"
+          >
+            High
+          </span>
+        </div>
+      </div>
+      <a
+        class="FaqLink"
+        href="#"
+        rel="noopener noreferrer"
+        target="_blank"
+      >
+        Read FAQ's about this map
+      </a>
+    </div>
+  </div>
+</div>
+`;

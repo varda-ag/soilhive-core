@@ -121,6 +121,27 @@
     outline: none;
     z-index: 4;
   }
+
+  &.Small {
+    .RangeSliderWrapper {
+      padding: 0.5rem 0rem;
+    }
+
+    .RangeThumb::-webkit-slider-thumb {
+      height: 1rem;
+      width: 1rem;
+      margin-top: 0.125rem;
+      border-width: 1px;
+    }
+
+    /* For Firefox browsers */
+    .RangeThumb::-moz-range-thumb {
+      height: 1rem;
+      width: 1rem;
+      margin-top: 0.125rem;
+      border-width: 1px;
+    }
+  }
 }
 
 /* Removing the default appearance */

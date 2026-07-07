@@ -29,14 +29,13 @@ export const EOX_SATELLITE_MAP_STYLE: StyleSpecification = {
 
 export const getMapStyles = () => {
   const open = [
-    { name: 'CartoCDN Voyager', mapStyle: 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json' },
-    { name: 'Sentinel-2 cloudless 2024 © EOX', mapStyle: EOX_SATELLITE_MAP_STYLE },
-    { name: 'Maplibre Demotile Globe', mapStyle: 'https://demotiles.maplibre.org/globe.json' },
-    { name: 'OpenMap Tiles OSM Bright', mapStyle: 'https://openmaptiles.geo.data.gouv.fr/styles/osm-bright/style.json' },
+    { name: 'CartoCDN Voyager', mapStyle: 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json', type: 'map' },
+    { name: 'Sentinel-2 cloudless 2024 © EOX', mapStyle: EOX_SATELLITE_MAP_STYLE, type: 'satellite' },
+    { name: 'Maplibre Demotile Globe', mapStyle: 'https://demotiles.maplibre.org/globe.json', type: 'map' },
+    { name: 'OpenMap Tiles OSM Bright', mapStyle: 'https://openmaptiles.geo.data.gouv.fr/styles/osm-bright/style.json', type: 'map' },
   ];
   return open;
 };
 
-// TODO: change href of open-source with the actual public github repository address of soilhive-core when it will be published
 export const customAttribution =
-  '<a href="https://varda.ag" target="_blank">Varda Foundation</a>’s <a href="https://varda.ag" target="_blank">open-source</a> infrastructure';
+  '<a href="https://www.varda.ag" target="_blank">Varda Foundation</a>’s <a href="https://github.com/varda-ag/soilhive-core" target="_blank">open source</a> infrastructure';

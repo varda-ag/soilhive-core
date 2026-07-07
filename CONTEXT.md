@@ -29,8 +29,12 @@ A measurable characteristic of soil (e.g., pH, organic carbon). Identified by a 
 _Avoid_: Attribute, variable, parameter
 
 **Filter**:
-A persisted combination of one or more AOI geometries and parameter criteria (date range, depth range, soil properties, data types, licenses, raster filters). Used to scope all data queries.
+A persisted combination of one or more AOI geometries and parameter criteria (date range, depth range, soil properties, data types, licenses, raster filters). Used to scope all data queries. Filters are deduplicated per owner by **content identity**: submitting an equivalent combination reuses the existing Filter rather than creating a new one, so a client may receive back a Filter whose stored raw form differs byte-wise from what it submitted.
 _Avoid_: Query, search, selection
+
+**Content identity** (of a Filter):
+What makes two Filter submissions "the same Filter": the same owner, the same *set* of canonical UserGeometries (order and duplicates irrelevant), and equivalent parameter criteria (list-valued criteria compare as sets; an explicitly null criterion is **not** the same as an absent one). Byte equality of the submission is neither necessary nor sufficient.
+_Avoid_: Hash, checksum (mechanisms, not the concept), equality (too generic)
 
 **AOI (Area of Interest)**:
 The effective spatial geometry used for a query. For the DAI, this is the intersection of the Filter's geometries with the current map viewport bounding box.
@@ -83,3 +87,4 @@ _Avoid_: Links, references, attachments
 - "dataset ID" in the public API means the Dataset's `slug`, not its database primary key: `GET /data-filters/{filterId}/datasets` returns the slug in the `id` field, and the `datasets` query parameter of `GET /soil-data` matches against slugs. In domain discussions, say **slug** when you mean the public identifier and reserve "ID" for the internal primary key.
 - "layer" was used in the codebase to mean both the domain entity (depth/date slice) and Mapbox/map rendering layers — in domain discussions, **Layer** always refers to the soil data entity.
 - "observation" was initially used loosely to mean any data point or measurement; resolved: **Observation** is specifically a row in the `observations` table with a numeric `value`, linked to a **DatasetLayer**.
+- A **null** parameter criterion and an **absent** one mean different things and yield different Filters: `min_depth: null` means "match Layers with no recorded depth", while omitting `min_depth` means "no depth constraint" (same for `max_depth` and the sampling-date criteria). Never normalise null to absent (or vice versa) when comparing filter criteria.

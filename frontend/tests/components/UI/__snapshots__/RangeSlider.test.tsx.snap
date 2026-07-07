@@ -3,7 +3,7 @@
 exports[`RangeSlider renders buttons when showButtons is true 1`] = `
 <div>
   <div
-    class="Range"
+    class="Range Medium"
     data-testid="sh-ui-range"
   >
     <button
@@ -47,7 +47,7 @@ exports[`RangeSlider renders buttons when showButtons is true 1`] = `
 exports[`RangeSlider renders with initial value and matches snapshot 1`] = `
 <div>
   <div
-    class="Range"
+    class="Range Medium"
     data-testid="sh-ui-range"
   >
     <div

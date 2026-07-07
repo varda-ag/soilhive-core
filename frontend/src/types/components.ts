@@ -1,5 +1,6 @@
 import type { ColumnSortEvent } from 'primereact/column';
 import type { ReactNode } from 'react';
+import type { ImmutableLike, StyleSpecification } from 'react-map-gl/maplibre';
 
 export type ComponentSizeType = 'medium' | 'small' | 'tiny';
 
@@ -78,3 +79,6 @@ export type InfoCardContent = {
   description: string;
   color: string;
 };
+
+export type MapStyle = string | StyleSpecification | ImmutableLike<StyleSpecification>;
+export type MapStyles = Array<{ name: string; mapStyle: MapStyle; type: string }>;

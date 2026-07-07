@@ -63,6 +63,16 @@
 
         &Header {
           display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 12px;
+
+          &Text {
+            font-family: 'Inter', Arial, Helvetica, sans-serif;
+            font-size: var(--font-size-md);
+            font-weight: var(--font-weight-bold);
+            color: var(--color-neutral-black);
+          }
         }
 
         .TableContainer {
@@ -143,17 +153,23 @@
         .FormatPicker {
           background-color: var(--color-neutral-light);
           border: 1px solid var(--color-neutral-dark-300);
-          padding: 20px 24px;
+          padding: 8px 24px;
           border-radius: 8px;
           display: flex;
-          flex-direction: column;
+          flex-direction: row;
           align-items: center;
           gap: 30px;
 
           &Header {
             display: flex;
+            align-items: center;
             gap: 8px;
             font-weight: var(--font-weight-bold);
+
+            &Icon {
+              width: 16px;
+              height: 16px;
+            }
           }
 
           &Content {

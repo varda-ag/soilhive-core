@@ -92,6 +92,35 @@ describe('Dialog', () => {
     expect(screen.queryByText('hidden content')).not.toBeInTheDocument();
   });
 
+  describe('hideButtons', () => {
+    it('hides the footer when hideButtons is true', () => {
+      render(
+        <Dialog {...defaultProps} hideButtons>
+          <p>content</p>
+        </Dialog>,
+      );
+      expect(screen.queryByText('dialog.continue')).not.toBeInTheDocument();
+    });
+
+    it('shows the footer by default', () => {
+      render(
+        <Dialog {...defaultProps}>
+          <p>content</p>
+        </Dialog>,
+      );
+      expect(screen.getByText('dialog.continue')).toBeInTheDocument();
+    });
+
+    it('shows the footer when hideButtons is false', () => {
+      render(
+        <Dialog {...defaultProps} hideButtons={false}>
+          <p>content</p>
+        </Dialog>,
+      );
+      expect(screen.getByText('dialog.continue')).toBeInTheDocument();
+    });
+  });
+
   it('applies custom className to the dialog', () => {
     render(
       <Dialog {...defaultProps} className="my-custom-class" removeTransition>

@@ -5,7 +5,7 @@ import { MultiPolygon, Polygon } from 'geojson';
 import { getEntityManager } from '../../src/utils/data-source';
 import { getPolygonFromBbox } from '../../src/utils/geometry';
 import { addDataset, addRasterData, addRasterDataset, addSyntheticData, syntheticDataOptions } from '../../src/utils/mock';
-import SoilDataStorage, { buildDatasetFilterClauses } from '../../src/data-layer/SoilDataStorage';
+import SoilDataStorage, { buildDatasetFilterClauses, hasRasterFilters } from '../../src/data-layer/SoilDataStorage';
 import DatasetEntity from '../../src/entities/Dataset';
 import { decodeCursor } from '../../src/utils/cursor';
 import { addRasterFilterData, addRasterFilterMappings } from '../helper';
@@ -56,6 +56,17 @@ const filteringMaskCoordinates = [
   [-80.717474913, -33.788328755],
   [-80.721933926, -33.788328755],
 ];
+
+describe('hasRasterFilters', () => {
+  it('returns true when parameters.raster_filters is non-empty', () => {
+    expect(hasRasterFilters({ raster_filters: { land_cover: [1, 2] } })).toBe(true);
+  });
+
+  it('returns false when parameters.raster_filters is empty or absent', () => {
+    expect(hasRasterFilters({ raster_filters: {} })).toBe(false);
+    expect(hasRasterFilters({})).toBe(false);
+  });
+});
 
 describe('SoilDataStorage class', () => {
   it.each([

@@ -1,4 +1,5 @@
 import { spawn } from 'child_process';
+import { getErrorMessage } from './error';
 
 export interface OgrInfoField {
   name: string;
@@ -31,7 +32,7 @@ export interface GdalInfoOutput {
   size?: [number, number];
   bands?: GdalInfoBand[];
   metadata?: {
-    IMAGE_STRUCTURE?: { LAYOUT?: string };
+    IMAGE_STRUCTURE?: { LAYOUT?: string; COMPRESSION?: string };
     SUBDATASETS?: Record<string, string>;
     [key: string]: Record<string, string> | undefined;
   };
@@ -84,7 +85,7 @@ export class GdalCLI {
         if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
           reject(new Error(`GDAL_NOT_INSTALLED: ${cmd} not found on this server`));
         } else {
-          reject(new Error(`Failed to run ${cmd}: ${err.message}`));
+          reject(new Error(`Failed to run ${cmd}: ${getErrorMessage(err)}`));
         }
       });
     });

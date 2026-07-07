@@ -54,8 +54,9 @@ export default class JobService {
     const results = await Promise.all(promises);
     const jobs: JobWithMetadata<unknown>[] = results.flat();
 
-    // Filter jobs to only include those created by the user
-    const userJobs = jobs.map(j => this.translateJob(j)).filter(j => !sub || j.data.created_by === sub);
+    // Filter jobs to only include those created by the user.
+    // j.data === null for CLEANUP_ORPHAN_FILES jobs.
+    const userJobs = jobs.map(j => this.translateJob(j)).filter(j => !sub || j.data?.created_by === sub);
 
     log.info('Jobs listed', { count: userJobs.length, user: sub });
     return userJobs.map(job => this.prepareJobForResponse(job));

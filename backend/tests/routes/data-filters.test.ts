@@ -4,9 +4,10 @@ import request from 'supertest';
 import { app } from '../../src/app';
 import { FilteredDatasetSummary, FilteredData, FilteredDataset } from '../../src/interfaces/DatasetFilter';
 import { getDataSource } from '../../src/utils/data-source';
-import { addSyntheticData, syntheticDataOptions } from '../../src/utils/mock';
+import { addRasterData, addSyntheticData, syntheticDataOptions } from '../../src/utils/mock';
 import { getDataAdminToken, getSuperAdminToken } from '../helper';
 import { StatusCodes } from 'http-status-codes';
+import { IngestionStatus } from '../../src/types/data';
 
 const filteringPolygon = {
   coordinates: [
@@ -181,20 +182,79 @@ describe('Testing /data-filters routes', () => {
     expect(new Set(ids).size).toBe(2);
   });
 
-  it('Filter should be stored in DB twice even if parameters are the same', async () => {
+  it('Resubmitting an identical filter returns the same filter ID and stores one row', async () => {
     const payload = {
-      parameters: {},
+      parameters: { licenses: ['test_license_1'] },
       geometries: [filteringPolygon],
     };
     const res1 = await request(app).post('/data-filters').set(superAdminAuthHeader).send(payload);
     const res2 = await request(app).post('/data-filters').set(superAdminAuthHeader).send(payload);
+    expect(res1.statusCode).toBe(StatusCodes.CREATED);
+    expect(res2.statusCode).toBe(StatusCodes.CREATED);
+    expect(res2.body.id).toBe(res1.body.id);
+
+    const dataSource = await getDataSource();
+    const rows = await dataSource.getRepository('DataFilterEntity').find();
+    expect(rows.length).toBe(1);
+  });
+
+  it('A dedup hit bumps updated_at (last-used semantics for TTL cleanup)', async () => {
+    const payload = { parameters: {}, geometries: [filteringPolygon] };
+    const res1 = await request(app).post('/data-filters').set(superAdminAuthHeader).send(payload);
     const dataSource = await getDataSource();
     const repo = dataSource.getRepository('DataFilterEntity');
-    const row1 = await repo.findBy({ id: res1.body.id });
-    const row2 = await repo.findBy({ id: res2.body.id });
-    expect(row1.length).toEqual(1);
-    expect(row2.length).toEqual(1);
-    expect(row1[0].filter).toEqual(row2[0].filter);
+    const before = (await repo.findOneByOrFail({ id: res1.body.id })).updated_at;
+
+    const res2 = await request(app).post('/data-filters').set(superAdminAuthHeader).send(payload);
+    expect(res2.body.id).toBe(res1.body.id);
+    const after = (await repo.findOneByOrFail({ id: res1.body.id })).updated_at;
+    expect(new Date(after).getTime()).toBeGreaterThan(new Date(before).getTime());
+  });
+
+  it('Canonically equivalent submissions dedupe: geometry order, duplicates, and list order are irrelevant', async () => {
+    const secondPolygon = {
+      type: 'Polygon',
+      coordinates: [
+        [
+          [10, 10],
+          [11, 10],
+          [11, 11],
+          [10, 11],
+          [10, 10],
+        ],
+      ],
+    };
+    const res1 = await request(app)
+      .post('/data-filters')
+      .set(superAdminAuthHeader)
+      .send({ parameters: { licenses: ['a', 'b'] }, geometries: [filteringPolygon, secondPolygon] });
+    const res2 = await request(app)
+      .post('/data-filters')
+      .set(superAdminAuthHeader)
+      .send({ parameters: { licenses: ['b', 'a', 'b'] }, geometries: [secondPolygon, filteringPolygon, secondPolygon] });
+    expect(res2.body.id).toBe(res1.body.id);
+  });
+
+  it('Dedup is scoped per owner: anonymous and authenticated submissions of the same filter stay separate', async () => {
+    const payload = { parameters: {}, geometries: [filteringPolygon] };
+    const resOwned = await request(app).post('/data-filters').set(superAdminAuthHeader).send(payload);
+    const resAnon1 = await request(app).post('/data-filters').send(payload);
+    const resAnon2 = await request(app).post('/data-filters').send(payload);
+    expect(resAnon1.body.id).not.toBe(resOwned.body.id);
+    expect(resAnon2.body.id).toBe(resAnon1.body.id);
+  });
+
+  it('A null parameter is a different filter from an absent one', async () => {
+    // min_depth: null means "layers with no recorded depth"; omitting it means unconstrained
+    const resNull = await request(app)
+      .post('/data-filters')
+      .set(superAdminAuthHeader)
+      .send({ parameters: { min_depth: null }, geometries: [filteringPolygon] });
+    const resAbsent = await request(app)
+      .post('/data-filters')
+      .set(superAdminAuthHeader)
+      .send({ parameters: {}, geometries: [filteringPolygon] });
+    expect(resNull.body.id).not.toBe(resAbsent.body.id);
   });
 
   it('Invalid geometry should return 400', async () => {
@@ -224,12 +284,13 @@ describe('Testing /data-filters routes', () => {
   });
 
   it('Getting all owned filters', async () => {
-    const payload = {
-      parameters: {},
-      geometries: [filteringPolygon],
-    };
     const count = 3;
     for (let i = 0; i < count; i++) {
+      // Distinct parameters per iteration: identical submissions would dedupe to one filter
+      const payload = {
+        parameters: { min_depth: i },
+        geometries: [filteringPolygon],
+      };
       await request(app).post('/data-filters').set(superAdminAuthHeader).send(payload);
     }
     const res = await request(app).get('/data-filters').set(superAdminAuthHeader);
@@ -452,5 +513,30 @@ describe('Testing /data-filters routes', () => {
     expect(resDatasets.statusCode).toBe(StatusCodes.OK);
     const ids = (resDatasets.body as FilteredDataset[]).map(ds => ds.id);
     expect(ids).not.toContain(dataset.slug);
+  });
+
+  it('Datasets endpoint includes visibility for raster datasets', async () => {
+    await addRasterData(undefined, { dataset_status: IngestionStatus.PUBLISHED, visibility: 'private' });
+    const rasterPolygon = {
+      type: 'Polygon',
+      coordinates: [
+        [
+          [-82, -35],
+          [-82, -33],
+          [-80, -33],
+          [-80, -35],
+          [-82, -35],
+        ],
+      ],
+    };
+    const resPost = await request(app)
+      .post('/data-filters')
+      .send({ parameters: {}, geometries: [rasterPolygon] });
+    const resDatasets = await request(app).get(`/data-filters/${resPost.body.id}/datasets`);
+    const datasets: FilteredDataset[] = resDatasets.body;
+
+    expect(datasets.length).toBeGreaterThan(0);
+    expect(datasets.every(ds => ds.data_type === 'raster')).toBe(true);
+    datasets.forEach(ds => expect(ds.visibility).toBe('private'));
   });
 });

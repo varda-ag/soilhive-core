@@ -7,6 +7,7 @@ export function useDatasetErrors() {
     method: 'GET',
     queryKey: ['datasetErrors'],
     enabled: true,
+    refetchInterval: 2000,
   });
 
   return { datasetErrors, isLoading };

@@ -2,7 +2,7 @@ import React, { createContext, useState, useEffect, type ReactNode } from 'react
 import { useTranslation } from 'react-i18next';
 import useConfig from '../hooks/useConfig';
 import { REST_END_POINTS } from '../configuration/api';
-import type { ThemeColors, ThemeConfig } from '../types/config';
+import type { DaiConfig, ThemeColors, ThemeConfig } from '../types/config';
 import useNotifications from 'hooks/useNotifications';
 import { useApiQuery } from '../hooks/useApiQuery';
 import { defaultColors } from '../configuration/colors';
@@ -15,7 +15,7 @@ type ThemeContextType = {
   isLoadingThemeConfig: boolean;
   saveColors: (colors: ThemeColors) => Promise<void>;
   saveDefaultColors: (defaultColors: ThemeColors) => Promise<void>;
-  saveInitialBbox: (initialBbox: number[]) => Promise<void>;
+  saveMapSettings: (initialBbox: number[], daiConfig: DaiConfig) => Promise<void>;
   saveTermsAndConditions: (termsAndConditionsHtml: string) => Promise<void>;
   savePrivacyPolicy: (privacyPolicyHtml: string) => Promise<void>;
   saveNotificationBanner: (notificationBannerHtml: string) => Promise<void>;
@@ -37,6 +37,10 @@ export const defaultThemeConfig: ThemeConfig = {
   notificationBannerHtml: '',
   initialBbox: [6.6272658, 35.2889616, 18.7844746, 47.0921462],
   plugins: [],
+  daiConfig: {
+    isEnabled: false,
+    defaultValue: false,
+  },
 };
 
 export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
@@ -58,14 +62,15 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     });
   };
 
-  const saveInitialBbox = async (initialBbox: number[]) => {
+  const saveMapSettings = async (initialBbox: number[], daiConfig: DaiConfig) => {
     await saveConfig({
       ...themeConfig,
       initialBbox,
+      daiConfig,
     });
 
     showNotification({
-      id: 'saveInitialBboxSuccess',
+      id: 'saveMapSettingsSuccess',
       title: t('map_settings.notification.title'),
       message: t('map_settings.notification.message'),
       type: 'success',
@@ -166,7 +171,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
         logo,
         saveColors,
         saveDefaultColors,
-        saveInitialBbox,
+        saveMapSettings,
         saveTermsAndConditions,
         savePrivacyPolicy,
         saveNotificationBanner,

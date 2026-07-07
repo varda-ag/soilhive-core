@@ -46,8 +46,8 @@ describe('VectorDataLoad class', () => {
     const resultRecordIds = results.map(r => parseFloat(r.record_id as unknown as string));
     const maxRecordId = Math.max(...resultRecordIds);
     expect(maxRecordId).toBe(10137);
-    // bdfi33 in raw data insert has 6 non-null values, 3 of them are 0 or negative (should be NULL), and 2 of them are less than LOD (should stay as is, no conversion formula "x*10" applied)
-    expect(resultBdfi33.length).toBe(5);
+    // bdfi33 in raw data insert has 6 non-null values, 3 of them are 0 or negative (should be NULL), 1 is out of bounds (original unit %, value>100), and 2 of them are less than LOD (should stay as is, no conversion formula "x*10" applied)
+    expect(resultBdfi33.length).toBe(4);
     expect(resultBdfi33.filter(n => n === OUTSIDE_LOD_VALUE).length).toBe(2);
     // Stats values should be coherent with cleaned up data:
     const stats = await vdl.getDataPreviewStats(entityManager, dataMappingConfig, file.id);
@@ -58,12 +58,13 @@ describe('VectorDataLoad class', () => {
         .map(f => f.count)
         .pop(),
     ).toBe(dataMappingConfig.drop_records?.length);
+    // Values with >3 decimals: 2
     expect(
-      stats.cell_deletions
-        .filter(rd => rd.reason === CellDeleteReason.DUPLICATE_CELL)
+      stats.modifications
+        .filter(rd => rd.reason === CellModifyReason.VALUE_ROUNDED)
         .map(f => f.count)
         .pop(),
-    ).toBe(1);
+    ).toBe(2);
   });
   it('sorted cursor pagination should visit every record exactly once', async () => {
     const { file, dataMapping } = await addSyntheticIngestionData({ ...syntheticIngestionDataOptions });
@@ -166,10 +167,50 @@ describe('VectorDataLoad class', () => {
       const stats = await vdl.getDataPreviewStats(entityManager, dataMappingNegativeDepths, fileId!);
       expect(
         stats.cell_deletions
-          .filter(m => m.reason === CellDeleteReason.NEGATIVE_VALUE)
+          .filter(m => m.reason === CellDeleteReason.NEGATIVE_VALUE && m.property === 'max_depth')
           .map(f => f.count)
           .pop(),
       ).toBe(results.length - dataMappingNegativeDepths.drop_records!.length);
+      expect(
+        stats.cell_deletions
+          .filter(m => m.reason === CellDeleteReason.NEGATIVE_VALUE && m.property === 'min_depth')
+          .map(f => f.count)
+          .pop(),
+      ).toBe(results.length - dataMappingNegativeDepths.drop_records!.length);
+    });
+    it('should count converted values only when conversion formula is not "x"', async () => {
+      const vdl = new VectorDataLoad();
+      const entityManager = await getEntityManager();
+      const dataMappingStdUnit: DataCleaningConfig = {
+        ...dataMappingConfig!,
+        metadata_cols: {
+          sampling_date: 'date',
+          license: 'licence',
+          horizon: 'layer_name',
+          min_depth: 'min_depth2',
+          max_depth: 'max_depth2',
+        },
+        property_cols: {
+          ...dataMappingConfig!.property_cols,
+          bdfiod: {
+            ...dataMappingConfig!.property_cols.bdfiod,
+            conversion_formula: 'x',
+            original_unit: 'mmolc/dm3',
+            standard_unit: 'mmolc/dm3',
+          },
+        },
+      };
+      const results = await vdl.getDataPreview(entityManager, dataMappingStdUnit, fileId!);
+      const resultBdfi33 = results.map(r => parseFloat(r.bdfi33 as string)).filter(n => !isNaN(n) && n !== OUTSIDE_LOD_VALUE);
+      expect(resultBdfi33.length).toBeGreaterThan(0);
+      // Stats values should be coherent with cleaned up data:
+      const stats = await vdl.getDataPreviewStats(entityManager, dataMappingStdUnit, fileId!);
+      expect(
+        stats.modifications
+          .filter(m => m.reason === CellModifyReason.UNIT_CONVERTED)
+          .map(f => f.count)
+          .pop(),
+      ).toBe(resultBdfi33.length);
     });
     it('should remove % soil property values above 100', async () => {
       const vdl = new VectorDataLoad();
@@ -190,6 +231,49 @@ describe('VectorDataLoad class', () => {
       const resultBdfi33 = results.map(r => parseFloat(r.bdfi33 as string)).filter(n => !isNaN(n) && n !== OUTSIDE_LOD_VALUE);
       // bdfi33 value in raw_data_insert.sql that are not 0, not negative, not BELOW_LOD and less than 1 (after converting, less than 100%) is 1
       expect(resultBdfi33.length).toBe(1);
+    });
+    it('should report non_numeric cell deletion for text column values mapped as properties', async () => {
+      const vdl = new VectorDataLoad();
+      const entityManager = await getEntityManager();
+      // depthrange contains '100.5-200 cm' for every row — a non-numeric string.
+      // Including it as a property alongside bdfi33/bdfiod ensures rows still survive
+      // minimum_data_requirement (other props have valid values), so the cell deletion
+      // is visible in stats.
+      const dataMappingWithTextProp: DataCleaningConfig = {
+        ...dataMappingConfig!,
+        property_cols: {
+          ...dataMappingConfig!.property_cols,
+          depthrange: { ...dataMappingConfig!.property_cols.bdfi33 },
+        },
+      };
+      const stats = await vdl.getDataPreviewStats(entityManager, dataMappingWithTextProp, fileId!);
+      const nonNumericDeletion = stats.cell_deletions.find(d => d.reason === CellDeleteReason.NON_NUMERIC && d.property === 'depthrange');
+      expect(nonNumericDeletion).toBeDefined();
+      expect(nonNumericDeletion!.count).toBeGreaterThan(0);
+    });
+    it('should scale OOB threshold by conversion formula when original_unit is %', async () => {
+      const vdl = new VectorDataLoad();
+      const entityManager = await getEntityManager();
+      // With original_unit='%' and formula x*100 max val should be 100*100 - one value OOB, two valid ones.
+      const dataMappingOriginalPercent: DataCleaningConfig = {
+        ...dataMappingConfig!,
+        property_cols: {
+          ...dataMappingConfig?.property_cols,
+          bdfi33: {
+            ...dataMappingConfig!.property_cols.bdfi33,
+            original_unit: '%',
+            standard_unit: 'g/kg',
+            conversion_formula: 'x*100',
+            max_val: undefined,
+          },
+        },
+      };
+      const results = await vdl.getDataPreview(entityManager, dataMappingOriginalPercent, fileId!);
+      const resultBdfi33 = results.map(r => parseFloat(r.bdfi33 as string)).filter(n => !isNaN(n) && n !== OUTSIDE_LOD_VALUE);
+      expect(resultBdfi33.length).toBe(2);
+      const stats = await vdl.getDataPreviewStats(entityManager, dataMappingOriginalPercent, fileId!);
+      expect(stats.cell_deletions.find(d => d.reason === CellDeleteReason.OOB && d.property === 'bdfi33')).toBeDefined();
+      expect(stats.cell_deletions.find(d => d.reason === CellDeleteReason.OOB && d.property === 'bdfi33')!.count).toBe(1);
     });
   });
   it('rawRecordToDataModel should create new features, layers, dataset_layers and observations', async () => {

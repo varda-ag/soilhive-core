@@ -59,6 +59,19 @@
         "area_unit": "km<sup>2</sup>",
         "download_geojson": "Download GeoJSON"
     },
+    "dai_widget": {
+        "title": "Coverage map",
+        "opacity": "Opacity",
+        "legend": "Legend",
+        "read_faq": "Read FAQ's about this map",
+        "legend_very_low": "Very low",
+        "legend_low": "Low",
+        "legend_medium": "Medium",
+        "legend_heigh": "High"
+    },
+    "map_style_switcher": {
+        "popup_title": "Select a map style"
+    },
     "datasets_list": {
         "metadata": "Metadata",
         "private": "Private",

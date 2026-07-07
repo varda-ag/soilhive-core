@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router';
 import classnames from 'classnames';
 
 import CodeIcon from 'assets/icons/code-icon.svg?react';
-import WarningIcon from 'assets/icons/warning-icon.svg?react';
+import WarningIcon from 'assets/icons/small-warning-icon.svg?react';
 import FaceIdIconSelected from 'assets/icons/face-id-icon-selected.svg?react';
 import FaceIdIconDeselected from 'assets/icons/face-id-icon-deselected.svg?react';
 import LockCircleIconSelected from 'assets/icons/lock-circle-icon-selected.svg?react';

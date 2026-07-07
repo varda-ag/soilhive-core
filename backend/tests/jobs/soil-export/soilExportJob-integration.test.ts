@@ -19,8 +19,23 @@ import { IngestionStatus } from '../../../src/types/data';
 import * as FilteringMasksModule from '../../../src/data-layer/FilteringMasks';
 import { addRasterFilterData, addRasterFilterMappings } from '../../helper';
 import * as RasterUtilsModule from '../../../src/utils/raster';
+import { fromFile } from 'geotiff';
 
 const storageRoot = process.env.LOCAL_STORAGE_ROOT_FOLDER!;
+
+async function readPixelValue(tifPath: string, lon: number, lat: number): Promise<number> {
+  const tiff = await fromFile(tifPath);
+  const image = await tiff.getImage(0);
+  const [minX, , , maxY] = image.getBoundingBox() as [number, number, number, number];
+  const width = image.getWidth();
+  const height = image.getHeight();
+  const pixW = (image.getBoundingBox()[2] - minX) / width;
+  const pixH = (maxY - image.getBoundingBox()[1]) / height;
+  const px = Math.floor((lon - minX) / pixW);
+  const py = Math.floor((maxY - lat) / pixH);
+  const rasters = await image.readRasters({ window: [px, py, px + 1, py + 1], samples: [0] });
+  return (rasters[0] as ArrayLike<number>)[0] as number;
+}
 
 describe('Soil Export Job Integration Test', () => {
   beforeAll(async () => {
@@ -677,6 +692,222 @@ describe('Soil Export Job Integration Test', () => {
       fs.rmSync(tempDir, { recursive: true, force: true });
 
       mockSelectOverview.mockRestore();
+    }, 15000);
+
+    it('should skip mask building and crop via projwin for an axis-aligned bbox AOI without raster filters', async () => {
+      const spy = jest.spyOn(FilteringMasksModule, 'getRasterMask');
+      const filterResponse = await request(app)
+        .post('/data-filters')
+        .send({
+          geometries: [filterPolygon],
+          parameters: {},
+        });
+
+      expect(filterResponse.statusCode).toBe(201);
+      const filterId = filterResponse.body.id;
+      expect(filterId).toBeDefined();
+
+      const exportJobResponse = await request(app)
+        .post('/jobs')
+        .send({
+          type: 'export',
+          filter_id: filterId,
+          dataset_ids: [raster_layer?.dataset.slug],
+          formats: [RasterFileFormat.TIFF],
+        });
+
+      expect(exportJobResponse.statusCode).toBe(201);
+      const jobId = exportJobResponse.body.id;
+      expect(jobId).toBeDefined();
+
+      let jobStatus = 'created';
+      let attempts = 0;
+      const maxAttempts = 60;
+      let completedJob: any;
+
+      while (jobStatus !== 'completed' && attempts < maxAttempts) {
+        await sleep(1000);
+        attempts++;
+
+        const statusResponse = await request(app).get(`/jobs/${jobId}`);
+        expect(statusResponse.statusCode).toBe(200);
+
+        completedJob = statusResponse.body;
+        jobStatus = completedJob.status;
+
+        if (jobStatus === 'failed') {
+          throw new Error(`Job failed: ${JSON.stringify(completedJob)}`);
+        }
+      }
+
+      expect(jobStatus).toBe('completed');
+      expect(completedJob.data.download_path).toBeDefined();
+
+      const downloadPath = completedJob.data.download_path;
+      const escapedDownloadPath = downloadPath.replace(/\//g, '%2F');
+
+      const downloadResponse = await request(app)
+        .get(`/downloads/${escapedDownloadPath}`)
+        .buffer()
+        .parse((res, callback) => {
+          res.setEncoding('binary');
+          let data = '';
+          res.on('data', chunk => {
+            data += chunk;
+          });
+          res.on('end', () => {
+            callback(null, Buffer.from(data, 'binary'));
+          });
+        });
+
+      expect(downloadResponse.statusCode).toBe(StatusCodes.OK);
+
+      const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'export-test-'));
+      const zipPath = path.join(tempDir, 'export.zip');
+      fs.writeFileSync(zipPath, downloadResponse.body);
+
+      const extractDir = path.join(tempDir, 'extracted');
+      fs.mkdirSync(extractDir, { recursive: true });
+      await extractZip(zipPath, { dir: extractDir });
+
+      const extractedFiles = fs.readdirSync(extractDir);
+      const tiffFiles = extractedFiles.filter((file: string) => file.toLowerCase().endsWith('.tif'));
+      expect(tiffFiles.length).toBe(1);
+
+      const outputTif = path.join(extractDir, tiffFiles[0]!);
+      const rasterInfo = await GdalCLI.gdalinfo(outputTif);
+      const gt = rasterInfo.geoTransform!;
+      const rasterSizeX = rasterInfo.size![0];
+      const rasterSizeY = rasterInfo.size![1];
+      const minX = gt[0]!;
+      const maxY = gt[3]!;
+      const maxX = minX + gt[1]! * rasterSizeX!;
+      const minY = maxY + gt[5]! * rasterSizeY!;
+
+      const tolerance = 0.01;
+      const [bboxMinX, bboxMinY, bboxMaxX, bboxMaxY] = [
+        filterPolygon.coordinates[0]![0]![0]!,
+        filterPolygon.coordinates[0]![0]![1]!,
+        filterPolygon.coordinates[0]![1]![0]!,
+        filterPolygon.coordinates[0]![2]![1]!,
+      ];
+      expect(minX).toBeGreaterThanOrEqual(bboxMinX - tolerance);
+      expect(minX).toBeLessThanOrEqual(bboxMinX + tolerance);
+      expect(maxX).toBeGreaterThanOrEqual(bboxMaxX - tolerance);
+      expect(maxX).toBeLessThanOrEqual(bboxMaxX + tolerance);
+      expect(minY).toBeGreaterThanOrEqual(bboxMinY - tolerance);
+      expect(minY).toBeLessThanOrEqual(bboxMinY + tolerance);
+      expect(maxY).toBeGreaterThanOrEqual(bboxMaxY - tolerance);
+      expect(maxY).toBeLessThanOrEqual(bboxMaxY + tolerance);
+
+      expect(spy).not.toHaveBeenCalled();
+      spy.mockRestore();
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }, 15000);
+
+    it('should build a raster mask for an irregular (non-rectangular) polygon AOI and clip to its shape', async () => {
+      const trianglePolygon = {
+        type: 'Polygon' as const,
+        coordinates: [
+          [
+            [-80.817984705196, -33.783002865481436], // bottom-left
+            [-80.76723043805315, -33.783002865481436], // bottom-right
+            [-80.817984705196, -33.74798702332339], // top-left
+            [-80.817984705196, -33.783002865481436], // close
+          ],
+        ],
+      };
+      const spy = jest.spyOn(FilteringMasksModule, 'getRasterMask');
+      const filterResponse = await request(app)
+        .post('/data-filters')
+        .send({
+          geometries: [trianglePolygon],
+          parameters: {},
+        });
+
+      expect(filterResponse.statusCode).toBe(201);
+      const filterId = filterResponse.body.id;
+      expect(filterId).toBeDefined();
+
+      const exportJobResponse = await request(app)
+        .post('/jobs')
+        .send({
+          type: 'export',
+          filter_id: filterId,
+          dataset_ids: [raster_layer?.dataset.slug],
+          formats: [RasterFileFormat.TIFF],
+        });
+
+      expect(exportJobResponse.statusCode).toBe(201);
+      const jobId = exportJobResponse.body.id;
+      expect(jobId).toBeDefined();
+
+      let jobStatus = 'created';
+      let attempts = 0;
+      const maxAttempts = 60;
+      let completedJob: any;
+
+      while (jobStatus !== 'completed' && attempts < maxAttempts) {
+        await sleep(1000);
+        attempts++;
+
+        const statusResponse = await request(app).get(`/jobs/${jobId}`);
+        expect(statusResponse.statusCode).toBe(200);
+
+        completedJob = statusResponse.body;
+        jobStatus = completedJob.status;
+
+        if (jobStatus === 'failed') {
+          throw new Error(`Job failed: ${JSON.stringify(completedJob)}`);
+        }
+      }
+
+      expect(jobStatus).toBe('completed');
+      expect(completedJob.data.download_path).toBeDefined();
+
+      const downloadPath = completedJob.data.download_path;
+      const escapedDownloadPath = downloadPath.replace(/\//g, '%2F');
+
+      const downloadResponse = await request(app)
+        .get(`/downloads/${escapedDownloadPath}`)
+        .buffer()
+        .parse((res, callback) => {
+          res.setEncoding('binary');
+          let data = '';
+          res.on('data', chunk => {
+            data += chunk;
+          });
+          res.on('end', () => {
+            callback(null, Buffer.from(data, 'binary'));
+          });
+        });
+
+      expect(downloadResponse.statusCode).toBe(StatusCodes.OK);
+
+      const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'export-test-'));
+      const zipPath = path.join(tempDir, 'export.zip');
+      fs.writeFileSync(zipPath, downloadResponse.body);
+
+      const extractDir = path.join(tempDir, 'extracted');
+      fs.mkdirSync(extractDir, { recursive: true });
+      await extractZip(zipPath, { dir: extractDir });
+
+      const extractedFiles = fs.readdirSync(extractDir);
+      const tiffFiles = extractedFiles.filter((file: string) => file.toLowerCase().endsWith('.tif'));
+      expect(tiffFiles.length).toBe(1);
+
+      const outputTif = path.join(extractDir, tiffFiles[0]!);
+      // Inside the triangle (near the right-angle corner) — must retain source data.
+      const insideValue = await readPixelValue(outputTif, -80.81, -33.78);
+      // Within the AOI's bbox but outside the triangle (the excluded corner) — must be clipped to nodata.
+      const outsideValue = await readPixelValue(outputTif, -80.775, -33.752);
+
+      expect(insideValue).not.toBe(255);
+      expect(outsideValue).toBe(255);
+
+      expect(spy).toHaveBeenCalled();
+      spy.mockRestore();
+      fs.rmSync(tempDir, { recursive: true, force: true });
     }, 15000);
   });
 

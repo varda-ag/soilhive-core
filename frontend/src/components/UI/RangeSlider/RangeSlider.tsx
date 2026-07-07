@@ -1,20 +1,33 @@
 import { useCallback, useEffect, useMemo, useState, type ChangeEvent } from 'react';
 import classnames from 'classnames';
 
+import type { ComponentSizeType } from 'types/components';
+
 import styles from './RangeSlider.module.scss';
 
 interface Props {
   min: number;
   max: number;
   initialValue: number;
+  size?: ComponentSizeType;
   step?: number;
   showButtons?: boolean;
   disabled?: boolean;
   onChange: (value: number) => void;
 }
 
-export function RangeSlider({ min, max, initialValue, disabled, showButtons, step = 1, onChange }: Props) {
+export function RangeSlider({ min, max, initialValue, size = 'medium', disabled, showButtons, step = 1, onChange }: Props) {
   const [selectedValue, setSelectedValue] = useState(initialValue);
+
+  const sizeClass = useMemo(
+    () =>
+      ({
+        medium: styles.Medium,
+        small: styles.Small,
+        tiny: styles.Tiny,
+      })[size],
+    [size],
+  );
 
   const getPercent = useCallback((value: number) => Math.round(((value - min) / (max - min)) * 100), [min, max]);
 
@@ -56,7 +69,7 @@ export function RangeSlider({ min, max, initialValue, disabled, showButtons, ste
   return (
     <div
       data-testid="sh-ui-range"
-      className={classnames(styles.Range, {
+      className={classnames(styles.Range, sizeClass, {
         [styles.Disabled]: disabled,
       })}
     >

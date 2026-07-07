@@ -594,7 +594,9 @@ export function useMappingsStep(datasetId?: string) {
 
     setIsImportingState(true);
     await save();
-    const jobs = await Promise.all(datasetFileMappings!.map(dfm => createJob({ type: 'file-to-db', file_id: dfm.fileID })));
+    const jobs = await Promise.all(
+      datasetFileMappings!.map(dfm => createJob({ type: 'file-to-db', file_id: dfm.fileID, dataset_id: datasetId })),
+    );
     setActiveJobIds(jobs.map(j => j.id));
   }, [columnMappings, existingMappings, procedureByColumn, allFilesStaged, save, navigate, datasetId, datasetFileMappings, createJob]);
 

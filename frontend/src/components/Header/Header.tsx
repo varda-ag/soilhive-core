@@ -18,6 +18,7 @@ import { useAuthContext } from '../../auth/AuthContextProvider';
 import useTheme from 'hooks/useTheme';
 import useRemotes from 'hooks/useRemotes';
 import useDevice from 'hooks/useDevice';
+import { isNewTabModule, isSinglePageModule } from 'utilities/moduleFederation';
 import type { NavMenuEntry } from 'types/components';
 import DropdownMenuItem from './DropdownMenuItem/DropdownMenuItem';
 import MenuLink from './MenuLink/MenuLink';
@@ -30,7 +31,18 @@ export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { isAuthenticated } = useAuthContext();
   const { isLoadingThemeConfig, themeConfig } = useTheme();
-  const { singlePages } = useRemotes();
+  const { plugins } = useRemotes();
+  const singlePages = useMemo(() => plugins.filter(isSinglePageModule), [plugins]);
+  const newTabs = useMemo(() => plugins.filter(isNewTabModule), [plugins]);
+
+  // Plugin menu items, as nav entries so desktop and mobile render them identically.
+  const pluginEntries: NavMenuEntry[] = useMemo(
+    () => [
+      ...singlePages.map(({ route, name }): NavMenuEntry => ({ name, route, type: 'internal' })),
+      ...newTabs.map(({ targetUrl, name }): NavMenuEntry => ({ name, route: targetUrl, type: 'external' })),
+    ],
+    [singlePages, newTabs],
+  );
 
   const menuEntries: NavMenuEntry[] = useMemo(() => {
     const output = [
@@ -41,6 +53,10 @@ export default function Header() {
         Icon: PlanetIcon,
       } as NavMenuEntry,
     ];
+
+    // Adding plugins after Home
+    output.push(...pluginEntries);
+
     if (!isLoadingThemeConfig && (themeConfig.termsAndConditionsHtml || themeConfig.privacyPolicyHtml)) {
       const children: NavMenuEntry[] = [];
 
@@ -59,8 +75,9 @@ export default function Header() {
         children,
       });
     }
+
     return output;
-  }, [isLoadingThemeConfig, themeConfig.termsAndConditionsHtml, themeConfig.privacyPolicyHtml]);
+  }, [pluginEntries, isLoadingThemeConfig, themeConfig.termsAndConditionsHtml, themeConfig.privacyPolicyHtml]);
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
@@ -88,10 +105,6 @@ export default function Header() {
                   />
                 ),
               )}
-
-              {singlePages.map(({ route, name }) => (
-                <MenuLink key={route} to={`${route}`} text={t(name)} activeClassName={styles.Active} textClassName={styles.LinkText} />
-              ))}
             </nav>
           )}
           <div className={styles.Additional}>

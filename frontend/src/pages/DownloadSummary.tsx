@@ -179,10 +179,11 @@ function DownloadSummary() {
           <div className={styles.MainContent}>
             <div className={styles.MainContentHeader}>
               <CloudDownload />
+              <div className={styles.MainContentHeaderText}>{t('download_summary.datasets_included_in_download')}</div>
             </div>
             <div className={styles.FormatPicker}>
               <div className={styles.FormatPickerHeader}>
-                <DownloadIcon />
+                <DownloadIcon className={styles.FormatPickerHeaderIcon} />
                 <div>{t('download_summary.download_format')}</div>
               </div>
               <div className={styles.FormatPickerContent}>

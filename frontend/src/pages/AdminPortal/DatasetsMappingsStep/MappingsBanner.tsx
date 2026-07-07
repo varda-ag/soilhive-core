@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import classnames from 'classnames';
 import CheckIconCircle from 'assets/icons/check-icon-circle.svg?react';
-import WarningIcon from 'assets/icons/warning-icon.svg?react';
+import WarningIcon from 'assets/icons/small-warning-icon.svg?react';
 import QuestionIcon from 'assets/icons/question-round-icon.svg?react';
 import styles from './MappingsBanner.module.scss';
 

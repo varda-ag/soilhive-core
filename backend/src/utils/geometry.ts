@@ -73,3 +73,21 @@ export const envelopeFromGeoJSON = (geometry: Polygon | MultiPolygon): Envelope 
   const [minX, minY, maxX, maxY] = turf.bbox(geometry);
   return { minX, minY, maxX, maxY };
 };
+
+export const isAxisAlignedBboxPolygon = (aoi: Polygon | MultiPolygon | null): boolean => {
+  if (!aoi || aoi.type !== 'Polygon') return false;
+  if (aoi.coordinates.length !== 1) return false;
+
+  const ring = aoi.coordinates[0]!;
+  if (ring.length !== 5) return false;
+
+  for (let i = 0; i < 4; i++) {
+    const [x1, y1] = ring[i]!;
+    const [x2, y2] = ring[i + 1]!;
+    const sameX = x1 === x2;
+    const sameY = y1 === y2;
+    if (sameX === sameY) return false;
+  }
+
+  return true;
+};
