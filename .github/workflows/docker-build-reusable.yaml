@@ -17,7 +17,7 @@ on:
         type: string
         required: true
       cleanup-on-failure:
-        description: Wether to delete or not the images on any failure (images tag can't be pushed twice)
+        description: Wether to delete or not the images on any failure (image tags can't be pushed twice)
         type: boolean
         default: true
         required: false
