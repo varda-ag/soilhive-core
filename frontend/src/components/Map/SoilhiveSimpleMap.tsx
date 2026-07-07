@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect, useCallback, useMemo } from 'react';
+import { useRef, useState, useEffect, useCallback } from 'react';
 import {
   Map,
   NavigationControl,
@@ -19,7 +19,6 @@ import type { Feature, FeatureCollection, GeoJsonProperties, MultiPolygon, Point
 import type { MapLibreEvent } from 'maplibre-gl';
 import GeocoderControl from './GeocoderControl';
 import MarkerPinIcon from 'assets/icons/marker-pin-icon.svg?react';
-import useDevice from 'hooks/useDevice';
 
 type MapStyle = string | StyleSpecification | ImmutableLike<StyleSpecification>;
 
@@ -137,8 +136,6 @@ function SoilhiveSimpleMap({
   const mapRef = useRef<any>(null);
   const [h3Cells, setH3Cells] = useState<any | null>(null);
 
-  const { isMobileLayout } = useDevice();
-
   function updateH3Cells(mapEvent: MapLibreEvent) {
     const map = mapEvent.target;
     const bounds = map.getBounds().toArray().flat();
@@ -185,9 +182,13 @@ function SoilhiveSimpleMap({
     fitBoundsToGeometryFeature();
   }
 
-  const attributionControl = useMemo(() => {
-    return isMobileLayout ? { compact: false } : { compact: false, customAttribution };
-  }, [isMobileLayout]);
+  function onMapRender(mapEvent: MapLibreEvent) {
+    // Closes the attribution element that shows copyrights on the map since it can be very long and obstruct the view.
+    // It can be re-opened by clicking on the info button.
+    const attributionEl = mapEvent.target.getContainer().querySelector('.maplibregl-ctrl-attrib');
+    attributionEl?.removeAttribute('open');
+    attributionEl?.classList.remove('maplibregl-compact-show');
+  }
 
   return (
     <div className="soilhive-map">
@@ -205,8 +206,8 @@ function SoilhiveSimpleMap({
         onLoad={onMapLoad}
         onZoomEnd={updateH3Cells}
         onMoveEnd={updateH3Cells}
-        // Note: attributionControl is used only during the onLoad so it won't be updated if it changes after that (e.g. when in Desktop you resize the window to make it small as a Mobile device)
-        attributionControl={attributionControl}
+        onRender={onMapRender}
+        attributionControl={{ compact: true, customAttribution }}
       >
         {showGeocoder && <GeocoderControl position="top-left" geocoder="nominatim" />}
 

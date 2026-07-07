@@ -1,8 +1,5 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import SoilhiveSimpleMap from 'components/Map/SoilhiveSimpleMap';
-import { __setIsMobileLayout, __resetIsMobileLayout } from 'hooks/useDevice';
-
-jest.mock('hooks/useDevice');
 
 jest.mock('utilities/map', () => ({
   customAttribution: 'test-attribution',
@@ -11,8 +8,13 @@ jest.mock('utilities/map', () => ({
 }));
 
 jest.mock('react-map-gl/maplibre', () => ({
-  Map: ({ children, attributionControl }: any) => (
+  Map: ({ children, attributionControl, onRender }: any) => (
     <div data-testid="map" data-attribution-control={JSON.stringify(attributionControl)}>
+      <div className="maplibregl-ctrl-attrib maplibregl-compact-show" ref={(el: HTMLDivElement | null) => el?.setAttribute('open', '')} />
+      <button
+        data-testid="trigger-render"
+        onClick={() => onRender?.({ target: { getContainer: () => document.querySelector('[data-testid="map"]') } })}
+      />
       {children}
     </div>
   ),
@@ -35,24 +37,22 @@ jest.mock('utilities/simplifyGeometry', () => ({ simplifyGeometry: jest.fn(g => 
 jest.mock('@turf/turf', () => ({ bbox: jest.fn().mockReturnValue([0, 0, 1, 1]) }));
 
 describe('SoilhiveSimpleMap', () => {
-  afterEach(() => {
-    __resetIsMobileLayout();
-  });
-
-  it('includes customAttribution in attributionControl on desktop', () => {
+  it('sets attributionControl to compact with customAttribution', () => {
     render(<SoilhiveSimpleMap />);
     const map = screen.getByTestId('map');
     const attrControl = JSON.parse(map.dataset.attributionControl!);
-    expect(attrControl.compact).toBe(false);
+    expect(attrControl.compact).toBe(true);
     expect(attrControl.customAttribution).toBe('test-attribution');
   });
 
-  it('omits customAttribution from attributionControl on mobile', () => {
-    __setIsMobileLayout(true);
+  it('closes the attribution control on render', () => {
     render(<SoilhiveSimpleMap />);
-    const map = screen.getByTestId('map');
-    const attrControl = JSON.parse(map.dataset.attributionControl!);
-    expect(attrControl.compact).toBe(false);
-    expect(attrControl.customAttribution).toBeUndefined();
+    const attributionEl = document.querySelector('.maplibregl-ctrl-attrib')!;
+    expect(attributionEl.getAttribute('open')).not.toBeNull();
+
+    fireEvent.click(screen.getByTestId('trigger-render'));
+
+    expect(attributionEl.getAttribute('open')).toBeNull();
+    expect(attributionEl.classList.contains('maplibregl-compact-show')).toBe(false);
   });
 });

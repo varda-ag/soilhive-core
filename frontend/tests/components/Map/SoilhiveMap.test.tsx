@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import SoilhiveMap from 'components/Map/SoilhiveMap';
 import { __setIsMobileLayout, __setIsDesktopLayout, __resetIsMobileLayout } from 'hooks/useDevice';
 import useTheme from 'hooks/useTheme';
@@ -12,8 +12,13 @@ jest.mock('utilities/map', () => ({
 }));
 
 jest.mock('react-map-gl/maplibre', () => ({
-  Map: ({ children, attributionControl }: any) => (
+  Map: ({ children, attributionControl, onRender }: any) => (
     <div data-testid="map" data-attribution-control={JSON.stringify(attributionControl)}>
+      <div className="maplibregl-ctrl-attrib maplibregl-compact-show" ref={(el: HTMLDivElement | null) => el?.setAttribute('open', '')} />
+      <button
+        data-testid="trigger-render"
+        onClick={() => onRender?.({ target: { getContainer: () => document.querySelector('[data-testid="map"]') } })}
+      />
       {children}
     </div>
   ),
@@ -120,8 +125,30 @@ describe('SoilhiveMap', () => {
     render(<SoilhiveMap />);
     const map = screen.getByTestId('map');
     const attrControl = JSON.parse(map.dataset.attributionControl!);
-    expect(attrControl.compact).toBe(false);
+    expect(attrControl.compact).toBe(true);
     expect(attrControl.customAttribution).toBeUndefined();
+  });
+
+  it('closes the attribution control on render when on mobile', () => {
+    __setIsMobileLayout(true);
+    render(<SoilhiveMap />);
+    const attributionEl = document.querySelector('.maplibregl-ctrl-attrib')!;
+    expect(attributionEl.getAttribute('open')).not.toBeNull();
+
+    fireEvent.click(screen.getByTestId('trigger-render'));
+
+    expect(attributionEl.getAttribute('open')).toBeNull();
+    expect(attributionEl.classList.contains('maplibregl-compact-show')).toBe(false);
+  });
+
+  it('does not touch the attribution control on render when on desktop', () => {
+    render(<SoilhiveMap />);
+    const attributionEl = document.querySelector('.maplibregl-ctrl-attrib')!;
+
+    fireEvent.click(screen.getByTestId('trigger-render'));
+
+    expect(attributionEl.getAttribute('open')).not.toBeNull();
+    expect(attributionEl.classList.contains('maplibregl-compact-show')).toBe(true);
   });
 
   it('renders DaiWidget if DAI is enabled in the config', () => {
