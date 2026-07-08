@@ -1,6 +1,6 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import SoilhiveMap from 'components/Map/SoilhiveMap';
-import { __setIsMobileLayout, __setIsDesktopLayout, __resetIsMobileLayout } from 'hooks/useDevice';
+import { __setIsMobileLayout, __setIsDesktopLayout, __resetIsMobileLayout, __resetIsDesktopLayout } from 'hooks/useDevice';
 import useTheme from 'hooks/useTheme';
 
 jest.mock('hooks/useDevice');
@@ -12,19 +12,37 @@ jest.mock('utilities/map', () => ({
 }));
 
 jest.mock('react-map-gl/maplibre', () => ({
-  Map: ({ children, attributionControl, onRender }: any) => (
+  Map: ({ children, attributionControl, onRender, onZoomStart, onZoomEnd }: any) => (
     <div data-testid="map" data-attribution-control={JSON.stringify(attributionControl)}>
       <div className="maplibregl-ctrl-attrib maplibregl-compact-show" ref={(el: HTMLDivElement | null) => el?.setAttribute('open', '')} />
       <button
         data-testid="trigger-render"
         onClick={() => onRender?.({ target: { getContainer: () => document.querySelector('[data-testid="map"]') } })}
       />
+      <button data-testid="trigger-zoom-start" onClick={() => onZoomStart?.()} />
+      <button
+        data-testid="trigger-zoom-end"
+        onClick={() =>
+          onZoomEnd?.({
+            target: {
+              getBounds: () => ({
+                toArray: () => [
+                  [0, 0],
+                  [1, 1],
+                ],
+              }),
+              getZoom: () => 5,
+            },
+            originalEvent: undefined,
+          })
+        }
+      />
       {children}
     </div>
   ),
   NavigationControl: () => null,
   GeolocateControl: () => null,
-  ScaleControl: () => null,
+  ScaleControl: ({ style }: any) => <div data-testid="scale-control" style={style} />,
   Source: ({ children }: any) => <>{children}</>,
   Layer: () => null,
 }));
@@ -109,6 +127,7 @@ describe('SoilhiveMap', () => {
   });
   afterEach(() => {
     __resetIsMobileLayout();
+    __resetIsDesktopLayout();
     jest.clearAllMocks();
   });
 
@@ -174,5 +193,94 @@ describe('SoilhiveMap', () => {
     render(<SoilhiveMap />);
 
     expect(screen.queryByTestId('dai-widget')).not.toBeInTheDocument();
+  });
+
+  it('does not render ScaleControl before any zoom interaction', () => {
+    render(<SoilhiveMap />);
+    expect(screen.queryByTestId('scale-control')).not.toBeInTheDocument();
+  });
+
+  it('renders and makes ScaleControl visible when zoom starts', () => {
+    render(<SoilhiveMap />);
+    fireEvent.click(screen.getByTestId('trigger-zoom-start'));
+    const scaleControl = screen.getByTestId('scale-control');
+    expect(scaleControl).toBeInTheDocument();
+    expect(scaleControl.style.opacity).toBe('1');
+  });
+
+  it('never renders ScaleControl when showScale is false, even after zoom start/end', () => {
+    render(<SoilhiveMap showScale={false} />);
+    fireEvent.click(screen.getByTestId('trigger-zoom-start'));
+    expect(screen.queryByTestId('scale-control')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('trigger-zoom-end'));
+    expect(screen.queryByTestId('scale-control')).not.toBeInTheDocument();
+  });
+
+  it('always renders ScaleControl on desktop, without fading, even through zoom start/end', () => {
+    __setIsDesktopLayout(true);
+    render(<SoilhiveMap />);
+
+    expect(screen.getByTestId('scale-control')).toBeInTheDocument();
+    expect(screen.getByTestId('scale-control').style.opacity).toBe('');
+
+    jest.useFakeTimers();
+    fireEvent.click(screen.getByTestId('trigger-zoom-start'));
+    fireEvent.click(screen.getByTestId('trigger-zoom-end'));
+
+    act(() => {
+      jest.advanceTimersByTime(1000 + 300); // SCALE_LINGER_MS + SCALE_FADE_MS
+    });
+
+    expect(screen.getByTestId('scale-control')).toBeInTheDocument();
+    expect(screen.getByTestId('scale-control').style.opacity).toBe('');
+    jest.useRealTimers();
+  });
+
+  describe('ScaleControl fade-out timing', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('keeps ScaleControl visible immediately after zoom ends, fades it after SCALE_LINGER_MS, and unmounts it after SCALE_FADE_MS', () => {
+      render(<SoilhiveMap />);
+      fireEvent.click(screen.getByTestId('trigger-zoom-start'));
+      fireEvent.click(screen.getByTestId('trigger-zoom-end'));
+
+      expect(screen.getByTestId('scale-control').style.opacity).toBe('1');
+
+      act(() => {
+        jest.advanceTimersByTime(1000); // SCALE_LINGER_MS
+      });
+      expect(screen.getByTestId('scale-control').style.opacity).toBe('0');
+
+      act(() => {
+        jest.advanceTimersByTime(300); // SCALE_FADE_MS
+      });
+      expect(screen.queryByTestId('scale-control')).not.toBeInTheDocument();
+    });
+
+    it('cancels the pending hide/unmount when a new zoom starts before the timers elapse', () => {
+      render(<SoilhiveMap />);
+      fireEvent.click(screen.getByTestId('trigger-zoom-start'));
+      fireEvent.click(screen.getByTestId('trigger-zoom-end'));
+
+      act(() => {
+        jest.advanceTimersByTime(1000); // fires the hide, schedules the unmount 300ms later
+      });
+      expect(screen.getByTestId('scale-control').style.opacity).toBe('0');
+
+      fireEvent.click(screen.getByTestId('trigger-zoom-start')); // should cancel the pending unmount
+      expect(screen.getByTestId('scale-control').style.opacity).toBe('1');
+
+      act(() => {
+        jest.advanceTimersByTime(300);
+      });
+      expect(screen.getByTestId('scale-control')).toBeInTheDocument();
+      expect(screen.getByTestId('scale-control').style.opacity).toBe('1');
+    });
   });
 });

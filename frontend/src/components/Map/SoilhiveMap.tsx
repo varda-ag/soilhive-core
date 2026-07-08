@@ -86,6 +86,11 @@ const dataLayerBorders: LayerProps = {
   },
 };
 
+// How long the ScaleControl stays visible after zooming stops before it starts fading out
+const SCALE_LINGER_MS = 1000;
+// How long the ScaleControl's fade-out transition takes
+const SCALE_FADE_MS = 300;
+
 function SoilhiveMap({
   initialViewBoundingBox,
   showGeocoder = false,
@@ -123,6 +128,10 @@ function SoilhiveMap({
   const [selectedLocationName, setSelectedLocationName] = useState<string | undefined>(undefined);
   const [mapBounds, setMapBounds] = useState<LngLatBounds | null>(null);
   const [currentMapStyleIndex, setCurrentMapStyleIndex] = useState<number>(0);
+  const [isScaleMounted, setIsScaleMounted] = useState(false);
+  const [isScaleVisible, setIsScaleVisible] = useState(false);
+  const scaleHideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scaleUnmountTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { themeConfig } = useTheme();
   const drawControlRef = useRef<DrawControlRef>(null);
   const selectionTypeRef = useRef<'drawn-polygon' | 'h3-cell' | 'country'>('drawn-polygon');
@@ -266,6 +275,33 @@ function SoilhiveMap({
     },
     [onMapMoveEnd],
   );
+
+  const onMapZoomStart = useCallback(() => {
+    if (isDesktopLayout) return;
+    if (scaleHideTimeoutRef.current) clearTimeout(scaleHideTimeoutRef.current);
+    if (scaleUnmountTimeoutRef.current) clearTimeout(scaleUnmountTimeoutRef.current);
+    setIsScaleMounted(true);
+    setIsScaleVisible(true);
+  }, [isDesktopLayout]);
+
+  const onMapZoomEnd = useCallback(
+    (mapEvent: any) => {
+      onMapMoveEnd(mapEvent);
+      if (isDesktopLayout) return;
+      scaleHideTimeoutRef.current = setTimeout(() => {
+        setIsScaleVisible(false);
+        scaleUnmountTimeoutRef.current = setTimeout(() => setIsScaleMounted(false), SCALE_FADE_MS);
+      }, SCALE_LINGER_MS);
+    },
+    [isDesktopLayout, onMapMoveEnd],
+  );
+
+  useEffect(() => {
+    return () => {
+      if (scaleHideTimeoutRef.current) clearTimeout(scaleHideTimeoutRef.current);
+      if (scaleUnmountTimeoutRef.current) clearTimeout(scaleUnmountTimeoutRef.current);
+    };
+  }, []);
 
   const resetDrawing = useCallback(() => {
     drawControlRef.current?.reset();
@@ -420,7 +456,8 @@ function SoilhiveMap({
         {...(initialViewBoundingBox ? { initialViewState: { bounds: initialViewBoundingBox } } : {})}
         onLoad={onLoad}
         onDragEnd={onMapMoveEnd}
-        onZoomEnd={onMapMoveEnd}
+        onZoomStart={onMapZoomStart}
+        onZoomEnd={onMapZoomEnd}
         onMoveEnd={onMapMoveEnd}
         onClick={onMapClick}
         onRender={onMapRender}
@@ -471,7 +508,11 @@ function SoilhiveMap({
         )}
         {showDrawControl && <DrawControl ref={drawControlRef} position="bottom-right" onFinish={onFinishDrawing} />}
 
-        {showScale && <ScaleControl />}
+        {showScale && (isDesktopLayout || isScaleMounted) && (
+          <ScaleControl
+            style={isDesktopLayout ? undefined : { opacity: isScaleVisible ? 1 : 0, transition: `opacity ${SCALE_FADE_MS}ms ease` }}
+          />
+        )}
         {mapStyles.length > 1 && (
           <MapStyleSwitcher
             className="map-style-switcher"
