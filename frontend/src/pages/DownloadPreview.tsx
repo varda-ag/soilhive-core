@@ -45,9 +45,11 @@ function DownloadPreview() {
     availabilitySelectedSoilProperties,
     availabilityFilteredSoilProperties,
     selectedDatasets,
+    nonRasterSelectedDatasets,
     setSelectedDatasets,
     geometryFilter,
     isLoading: isDownloadPreviewLoading,
+    isSelectedDatasetRaster,
   } = useDownloadPreview({ filterId, datasetsIds, datasetTypesParams });
 
   const [summaryExpanded, setSummaryExpanded] = useState(false);
@@ -147,9 +149,9 @@ function DownloadPreview() {
     loadMore,
     reset,
   } = useSoilData({
-    selectedDatasets,
+    selectedDatasets: nonRasterSelectedDatasets,
     availableDatasets: availableFixedDatasets.map(dataset => dataset.id),
-    filterId: downloadPreviewFilterId,
+    filterId: isSelectedDatasetRaster ? undefined : downloadPreviewFilterId,
     limit: MAXIMUM_SOIL_DATA_PER_REQUEST + 1,
     sort,
   });
@@ -225,6 +227,7 @@ function DownloadPreview() {
           <DownloadPreviewDataSection
             datasets={availableFixedDatasets}
             selectedDatasets={selectedDatasets}
+            isRasterDataset={isSelectedDatasetRaster}
             onDatasetsChange={newDatasets => {
               reset();
               setSelectedDatasets(newDatasets);

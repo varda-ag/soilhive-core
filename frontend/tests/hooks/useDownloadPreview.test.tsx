@@ -134,4 +134,39 @@ describe('useDownloadPreview', () => {
       geometryFilter: ['mock-geometry'],
     });
   });
+
+  it('isSelectedDatasetRaster is true when all selected datasets are RASTER', () => {
+    useSoilPropertiesMock.mockReturnValue({ data: [], isLoading: false } as any);
+    useApiQueryMock.mockReturnValue({ data: undefined, isLoading: false } as any);
+    computeDatasetSummaryMock.mockReturnValue({} as any);
+    useFilteredCoverageQueryMock.mockReturnValue({
+      data: { datasets: [{ id: 'raster-1', data_type: 'raster', name: 'Raster 1', soil_properties: [] }] },
+      isLoading: false,
+    } as any);
+
+    const { result } = renderHook(() => useDownloadPreview({ filterId: 'filter-id', datasetsIds: ['raster-1'], datasetTypesParams: [] }));
+    expect(result.current.isSelectedDatasetRaster).toBe(true);
+    expect(result.current.nonRasterSelectedDatasets).toEqual([]);
+  });
+
+  it('isSelectedDatasetRaster is false and nonRasterSelectedDatasets excludes RASTER for mixed selection', () => {
+    useSoilPropertiesMock.mockReturnValue({ data: [], isLoading: false } as any);
+    useApiQueryMock.mockReturnValue({ data: undefined, isLoading: false } as any);
+    computeDatasetSummaryMock.mockReturnValue({} as any);
+    useFilteredCoverageQueryMock.mockReturnValue({
+      data: {
+        datasets: [
+          { id: 'raster-1', data_type: 'raster', name: 'Raster 1', soil_properties: [] },
+          { id: 'point-1', data_type: 'point', name: 'Point 1', soil_properties: [] },
+        ],
+      },
+      isLoading: false,
+    } as any);
+
+    const { result } = renderHook(() =>
+      useDownloadPreview({ filterId: 'filter-id', datasetsIds: ['raster-1', 'point-1'], datasetTypesParams: [] }),
+    );
+    expect(result.current.isSelectedDatasetRaster).toBe(false);
+    expect(result.current.nonRasterSelectedDatasets).toEqual(['point-1']);
+  });
 });

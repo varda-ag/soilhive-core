@@ -30,6 +30,8 @@
         "select_columns": "Select columns to show",
         "metadata": "Metadata",
         "no_data_available": "No data available",
+        "raster_notification_message": "We’re working on raster dataset preview for a future update",
+        "raster_notification_title": "Preview of raster datasets not supported",
         "columns": {
             "date": "Date",
             "depth_min": "Depth (min)",

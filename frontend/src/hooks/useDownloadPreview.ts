@@ -34,7 +34,7 @@ export function useDownloadPreview({
   const availableFixedDatasets = useMemo(
     () =>
       (availabilityCoverageData ? availabilityCoverageData.datasets : [])
-        .filter(dataset => datasetsIds.includes(dataset.id) && dataset.data_type !== GISDataType.RASTER)
+        .filter(dataset => datasetsIds.includes(dataset.id))
         .sort((a, b) => a.name.localeCompare(b.name, 'en', { sensitivity: 'base' })),
     [availabilityCoverageData, datasetsIds],
   );
@@ -46,6 +46,16 @@ export function useDownloadPreview({
   const selectedDatasets = useMemo(
     () => userSelectedDatasets ?? (firstAvailableFixedDataset ? [firstAvailableFixedDataset] : []),
     [userSelectedDatasets, firstAvailableFixedDataset],
+  );
+
+  const nonRasterSelectedDatasets = useMemo(
+    () => availableFixedDatasets.filter(d => selectedDatasets.includes(d.id) && d.data_type !== GISDataType.RASTER).map(d => d.id),
+    [selectedDatasets, availableFixedDatasets],
+  );
+
+  const isSelectedDatasetRaster = useMemo(
+    () => selectedDatasets.length > 0 && nonRasterSelectedDatasets.length === 0,
+    [selectedDatasets, nonRasterSelectedDatasets],
   );
 
   const availableFixedDatasetsSoilProperties = useMemo(() => {
@@ -70,7 +80,9 @@ export function useDownloadPreview({
     availabilityFilteredSoilProperties,
     datasetsSummary,
     selectedDatasets,
+    nonRasterSelectedDatasets,
     setSelectedDatasets: setUserSelectedDatasets,
     geometryFilter,
+    isSelectedDatasetRaster,
   };
 }
