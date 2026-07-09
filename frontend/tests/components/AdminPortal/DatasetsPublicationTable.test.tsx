@@ -117,11 +117,11 @@ describe('DatasetsPublicationTable', () => {
     expect(screen.getByTestId('action-2')).toBeInTheDocument();
   });
 
-  it('passes defaultSortField "name" and defaultSortOrder 1 to Table', () => {
+  it('passes defaultSortField "updated_at" and defaultSortOrder -1 to Table', () => {
     render(<DatasetsPublicationTable {...defaultProps} />);
 
-    expect(capturedTableProps.defaultSortField).toBe('name');
-    expect(capturedTableProps.defaultSortOrder).toBe(1);
+    expect(capturedTableProps.defaultSortField).toBe('updated_at');
+    expect(capturedTableProps.defaultSortOrder).toBe(-1);
   });
 
   it('statusSortFunction sorts ascending by status order', () => {
