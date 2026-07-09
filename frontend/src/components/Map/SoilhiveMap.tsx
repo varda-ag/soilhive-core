@@ -113,12 +113,16 @@ function SoilhiveMap({
     selection,
     showDrawControl,
     showSelectionToolbar,
+    isDaiEnabled,
+    daiOpacity,
     setSelectedPoint,
     setSelectedH3Cell,
     setH3Cells,
     setSelection,
     setShowDrawControl,
     setShowSelectionToolbar,
+    setIsDaiEnabled,
+    setDaiOpacity,
   } = useAvailabilityMap();
 
   const { filterId, isLoadingPartialFilter } = useAvailability();
@@ -139,8 +143,6 @@ function SoilhiveMap({
 
   // This prevents onMapMoveEnd from being called concurrently with applySelection
   const isApplyingSelection = useRef(false);
-  const [isDaiEnabled, setIsDaiEnabled] = useState<boolean>(themeConfig.daiConfig?.isEnabled && themeConfig.daiConfig?.defaultValue);
-  const [daiOpacity, setDaiOpacity] = useState(80);
   const [isDaiWidgetOpen, setIsDaiWidgetOpen] = useState(false);
   const dataLayerDAI = useMemo<LayerProps>(
     () => ({
