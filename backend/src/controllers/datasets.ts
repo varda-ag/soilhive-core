@@ -7,6 +7,7 @@ import { CreateDatasetInput, UpdateDatasetInput } from '../types/DatasetInput';
 import { getNewPath, idToSlug } from '../utils/slugs';
 import DatasetFileMappingService from '../services/DatasetFileMappingService';
 import { bumpCacheEpoch } from '../utils/cache-epoch';
+import { refreshDaiStats } from '../data-layer/DaiStats';
 
 const vectorDataLoad = new VectorDataLoad();
 const dataMappingService = new DataMappingService();
@@ -56,8 +57,11 @@ export const postSoilData = async (req: Request, res: Response) => {
   for (const record of req.body) {
     await vectorDataLoad.rawRecordToDataModel(req.customData.entityManager, dataMappingConfig, record, dataset.id);
   }
-  // Direct soil-data write outside pg-boss — invalidate cached spatial queries.
-  await bumpCacheEpoch();
+  if (!req.customData.token?.isInternalRequest) {
+    await refreshDaiStats(req.customData.entityManager, [dataset.id]);
+    // Direct soil-data write outside pg-boss — invalidate cached spatial queries.
+    await bumpCacheEpoch();
+  }
   res.status(201).send();
 };
 

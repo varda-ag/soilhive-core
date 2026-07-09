@@ -48,6 +48,7 @@ export const renderFingerprintHtml = (fp: Fingerprint): string => {
     <dt>Node</dt><dd>${escapeHtml(fp.nodeVersion)}</dd>
     <dt>Iterations per row</dt><dd>${fp.iterations} (after 1 warmup)</dd>
     <dt>DAI resolutions</dt><dd>${fp.daiResolutions.join(', ')}</dd>
+    <dt>Endpoint selection</dt><dd>${escapeHtml(fp.endpoint ?? 'full suite')}</dd>
     <dt>DB row counts</dt><dd>${db}</dd>
     <dt>Assets</dt><dd>${assets}</dd>
   </dl>`;
