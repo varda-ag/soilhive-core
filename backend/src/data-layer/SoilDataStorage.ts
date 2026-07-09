@@ -667,6 +667,7 @@ export default class SoilDataStorage {
         FROM ${schema}.dataset_layers dl
         INNER JOIN ${schema}.datasets ds ON ds.id = dl.dataset_id
           AND ds.deleted_at IS NULL
+          AND ds.status = 'PUBLISHED'
           AND ds.gis_datatype != 'raster'
           AND ds.spatial_extent && (SELECT ST_SetSRID(ST_Extent(geom), 4326) FROM aoi)
         INNER JOIN ${schema}.layers layer ON layer.id = dl.layer_id

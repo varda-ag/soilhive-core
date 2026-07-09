@@ -22,7 +22,7 @@ import { DataAvailabilityIndex } from '../interfaces/Dai';
 import { getPolygonFromBbox, geometryUnion } from '../utils/geometry';
 import { timed, log } from '../utils/logger';
 import { CACHE_TTL_SPATIAL_MS, cachedCompute } from '../utils/query-cache';
-import { DaiPointRow, getDaiPointDataPrecomputed, isUnfilteredDaiParameters } from '../data-layer/DaiStats';
+import { DaiPointRow, getDaiPointDataPrecomputed, isPrecomputableDaiParameters } from '../data-layer/DaiStats';
 
 const sds = new SoilDataStorage();
 
@@ -276,11 +276,15 @@ export default class FilterService {
     }
 
     let rows: DaiPointRow[];
-    if (isUnfilteredDaiParameters(parameters)) {
-      // Unfiltered viewports read the ingestion-time feature_dai_stats rows: a
-      // GiST point lookup instead of the per-feature LATERAL aggregation, and no
-      // user-geometry insert/subdivide/delete round-trip on a GET.
-      rows = await timed('dai.precomputed', () => getDaiPointDataPrecomputed(requestData.entityManager, effectiveAoi));
+    if (isPrecomputableDaiParameters(parameters)) {
+      // Viewports without count-affecting criteria read the ingestion-time
+      // feature_dai_stats rows: a GiST point lookup instead of the per-feature
+      // LATERAL aggregation, and no user-geometry insert/subdivide/delete
+      // round-trip on a GET. Raster filters are applied in there as a vector
+      // mask on the AOI. The area only selects the raster overview resolution,
+      // so the client-side approximation is sufficient.
+      const area = turf.area(turf.feature(effectiveAoi));
+      rows = await timed('dai.precomputed', () => getDaiPointDataPrecomputed(requestData.entityManager, effectiveAoi, parameters, area));
     } else {
       const { id: userGeometryId, area } = await this.insertUserGeometry(requestData, effectiveAoi);
 

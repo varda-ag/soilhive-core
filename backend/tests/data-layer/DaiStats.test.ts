@@ -1,14 +1,17 @@
-import { describe, it, expect } from '@jest/globals';
+import { describe, it, expect, beforeEach, afterAll, jest } from '@jest/globals';
 import { Polygon } from 'geojson';
 import { getEntityManager } from '../../src/utils/data-source';
 import { getPolygonFromBbox } from '../../src/utils/geometry';
 import { addDatasetLayer, addLayer, addSyntheticData, syntheticDataOptions } from '../../src/utils/mock';
 import SoilDataStorage from '../../src/data-layer/SoilDataStorage';
-import { getDaiPointDataPrecomputed, isUnfilteredDaiParameters, refreshDaiStats } from '../../src/data-layer/DaiStats';
+import { getDaiPointDataPrecomputed, isPrecomputableDaiParameters, refreshDaiStats } from '../../src/data-layer/DaiStats';
+import * as RasterUtilsModule from '../../src/utils/raster';
 import DatasetService from '../../src/services/DatasetService';
 import FilterService from '../../src/services/FilterService';
 import { RequestData } from '../../src/interfaces/RequestData';
 import { Token } from '../../src/interfaces/Token';
+import { IngestionStatus } from '../../src/types/data';
+import { addRasterFilterData, addRasterFilterMappings } from '../helper';
 import { makeFilter } from './SoilDataStorage.test';
 
 const worldBbox: [number, number, number, number] = [0, 0, 1, 1];
@@ -36,24 +39,24 @@ const statsRowFor = async (featureId: string) => {
   return rows[0];
 };
 
-describe('isUnfilteredDaiParameters', () => {
-  it('treats empty parameters as unfiltered', () => {
-    expect(isUnfilteredDaiParameters({})).toBe(true);
+describe('isPrecomputableDaiParameters', () => {
+  it('treats empty parameters as precomputable', () => {
+    expect(isPrecomputableDaiParameters({})).toBe(true);
   });
 
-  it('treats raster_filters with only empty value arrays as unfiltered (matching buildRasterSql)', () => {
-    expect(isUnfilteredDaiParameters({ raster_filters: {} })).toBe(true);
-    expect(isUnfilteredDaiParameters({ raster_filters: { land_cover: [] } })).toBe(true);
-    expect(isUnfilteredDaiParameters({ raster_filters: { land_cover: [1, 2] } })).toBe(false);
+  it('ignores raster_filters — the fast path applies them as an AOI mask', () => {
+    expect(isPrecomputableDaiParameters({ raster_filters: {} })).toBe(true);
+    expect(isPrecomputableDaiParameters({ raster_filters: { land_cover: [] } })).toBe(true);
+    expect(isPrecomputableDaiParameters({ raster_filters: { land_cover: [1, 2] } })).toBe(true);
   });
 
-  it('treats any present criterion as filtered, including explicit nulls', () => {
-    expect(isUnfilteredDaiParameters({ soil_properties: ['ph'] })).toBe(false);
-    expect(isUnfilteredDaiParameters({ data_types: [] })).toBe(false);
-    expect(isUnfilteredDaiParameters({ min_sampling_date: null })).toBe(false);
-    expect(isUnfilteredDaiParameters({ max_depth: 30 })).toBe(false);
-    expect(isUnfilteredDaiParameters({ horizons: [null] })).toBe(false);
-    expect(isUnfilteredDaiParameters({ licenses: ['cc-by'] })).toBe(false);
+  it('treats any count-affecting criterion as not precomputable, including explicit nulls', () => {
+    expect(isPrecomputableDaiParameters({ soil_properties: ['ph'] })).toBe(false);
+    expect(isPrecomputableDaiParameters({ data_types: [] })).toBe(false);
+    expect(isPrecomputableDaiParameters({ min_sampling_date: null })).toBe(false);
+    expect(isPrecomputableDaiParameters({ max_depth: 30 })).toBe(false);
+    expect(isPrecomputableDaiParameters({ horizons: [null] })).toBe(false);
+    expect(isPrecomputableDaiParameters({ licenses: ['cc-by'] })).toBe(false);
   });
 });
 
@@ -85,7 +88,7 @@ describe('refreshDaiStats + getDaiPointDataPrecomputed', () => {
     const legacy = await sds.getDaiPointData(entityManager, filter);
 
     await refreshDaiStats(entityManager);
-    const precomputed = await getDaiPointDataPrecomputed(entityManager, worldPolygon);
+    const precomputed = await getDaiPointDataPrecomputed(entityManager, worldPolygon, {}, 0);
 
     const byLon = (a: { lon: number }, b: { lon: number }) => a.lon - b.lon;
     expect(precomputed).toHaveLength(3);
@@ -105,7 +108,7 @@ describe('refreshDaiStats + getDaiPointDataPrecomputed', () => {
     const entityManager = await getEntityManager();
     await refreshDaiStats(entityManager);
 
-    const rows = await getDaiPointDataPrecomputed(entityManager, getPolygonFromBbox([0, 0, 0.5, 0.5]));
+    const rows = await getDaiPointDataPrecomputed(entityManager, getPolygonFromBbox([0, 0, 0.5, 0.5]), {}, 0);
     expect(rows).toHaveLength(1);
     expect(rows[0]!.lon).toBeCloseTo(0.1);
     expect(rows[0]!.lat).toBeCloseTo(0.1);
@@ -138,6 +141,29 @@ describe('refreshDaiStats + getDaiPointDataPrecomputed', () => {
 
     await refreshDaiStats(entityManager);
     expect(await statsCount()).toBe(0);
+  });
+
+  it('excludes datasets that are not PUBLISHED', async () => {
+    const entityManager = await getEntityManager();
+    const a = await addSyntheticData({ ...syntheticDataOptions, id: 8, featureCount: 1, featureCoordinates: [[0.45, 0.45]] });
+    await entityManager.query(`UPDATE datasets SET status = 'PENDING' WHERE id = $1`, [a.dataset.id]);
+
+    await refreshDaiStats(entityManager);
+    expect(await statsCount()).toBe(0);
+  });
+
+  it('updateDataset refreshes the rollup on unpublish and republish', async () => {
+    const a = await addSyntheticData({ ...syntheticDataOptions, id: 9, featureCount: 1, featureCoordinates: [[0.55, 0.55]] });
+    const entityManager = await getEntityManager();
+    await refreshDaiStats(entityManager);
+    expect(await statsCount()).toBe(1);
+
+    const datasetService = new DatasetService();
+    await datasetService.updateDataset(await getRequestData(), a.dataset.slug, { status: IngestionStatus.PENDING });
+    expect(await statsCount()).toBe(0);
+
+    await datasetService.updateDataset(await getRequestData(), a.dataset.slug, { status: IngestionStatus.PUBLISHED });
+    expect(await statsCount()).toBe(1);
   });
 
   it('dataset soft-delete recomputes shared features and drops exclusive ones', async () => {
@@ -192,6 +218,48 @@ describe('refreshDaiStats + getDaiPointDataPrecomputed', () => {
 
     await new DatasetService().deleteDataset(await getRequestData(), a.dataset.slug);
     expect(await statsCount()).toBe(0);
+  });
+});
+
+describe('getDaiPointDataPrecomputed with raster filters', () => {
+  let mockSelectOverview: jest.SpiedFunction<typeof RasterUtilsModule.selectOverviewTable>;
+
+  beforeEach(async () => {
+    await addRasterFilterData();
+    await addRasterFilterMappings();
+    // Do not reference any overview (they don't exist in test dump)
+    mockSelectOverview = jest.spyOn(RasterUtilsModule, 'selectOverviewTable').mockImplementation((table: string) => table);
+  });
+
+  afterAll(() => {
+    mockSelectOverview.mockRestore();
+  });
+
+  // The point feature at [-80.7811, -33.7413] sits on a land_cover pixel with
+  // value 30 (same fixture as the SoilDataStorage raster filtering tests).
+  it.each([
+    [[30], 1],
+    [[11], 0],
+  ])('applies land cover values %p as an AOI mask (%p features)', async (values, expectedCount) => {
+    const bboxQuery = [-80.7812, -33.7414, -80.781, -33.7412];
+    await addSyntheticData({
+      ...syntheticDataOptions,
+      depthLayers: 1,
+      featureCoordinates: [[-80.7811, -33.7413]],
+      spatial_extent: [-81, -34, -80, -33],
+    });
+    const entityManager = await getEntityManager();
+    await refreshDaiStats(entityManager);
+
+    const raster_filters = { land_cover: values };
+    const aoi = getPolygonFromBbox(bboxQuery);
+    const precomputed = await getDaiPointDataPrecomputed(entityManager, aoi, { raster_filters }, 1_000);
+    expect(precomputed).toHaveLength(expectedCount);
+
+    // Point features must match the legacy per-feature pixel test exactly
+    const sds = new SoilDataStorage();
+    const legacy = await sds.getDaiPointData(entityManager, await makeFilter(entityManager, aoi, { raster_filters }));
+    expect(precomputed).toEqual(legacy);
   });
 });
 

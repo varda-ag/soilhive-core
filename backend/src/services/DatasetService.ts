@@ -72,8 +72,9 @@ export default class DatasetService {
     });
 
     const saved = await repo.save(dataset);
-    // gis_datatype flips a dataset in/out of the DAI aggregate (raster excluded)
-    if (data.gis_datatype !== undefined) {
+    // status and gis_datatype flip a dataset in/out of the DAI aggregate, which
+    // counts PUBLISHED non-raster datasets only (publish/unpublish goes through here)
+    if (data.gis_datatype !== undefined || data.status !== undefined) {
       await refreshDaiStats(requestData.entityManager, [dataset.id]);
     }
     await bumpCacheEpoch();

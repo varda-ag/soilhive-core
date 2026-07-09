@@ -75,8 +75,13 @@ export type CteDef = { name: string; sql: string; materialized?: boolean };
  * The chain is: aoi_raw → clipped raster CTEs → mask CTEs → aoi.
  * Pass the returned array to the query builder via addCommonTableExpression, then
  * setParameter('geometryIds', ...) to bind the UUIDs.
+ *
+ * aoiRawSeed overrides the default subdivision-based aoi_raw CTE with a caller
+ * geometry source (its `name` is forced to 'aoi_raw' — the rest of the chain
+ * references it by that name). Used by the DAI fast path, whose AOI is the
+ * viewport intersection rather than a stored user geometry.
  */
-export const getVectorMaskCtes = async (entityManager: EntityManager, filter: DataFilter): Promise<CteDef[]> => {
+export const getVectorMaskCtes = async (entityManager: EntityManager, filter: DataFilter, aoiRawSeed?: CteDef): Promise<CteDef[]> => {
   const { parameters: filters, area: aoiAreaM2 } = filter;
   const schema = process.env.POSTGRES_SCHEMA;
   const enabledRasterFilterTables = await getEnabledRasterFilterTables();
@@ -84,12 +89,16 @@ export const getVectorMaskCtes = async (entityManager: EntityManager, filter: Da
   const ctes: CteDef[] = [];
   const maskCteNames: string[] = [];
 
-  ctes.push({
-    name: 'aoi_raw',
-    sql: `SELECT ugs.geom
+  ctes.push(
+    aoiRawSeed
+      ? { ...aoiRawSeed, name: 'aoi_raw' }
+      : {
+          name: 'aoi_raw',
+          sql: `SELECT ugs.geom
           FROM ${schema}.user_geometry_subdivisions ugs WHERE ugs.user_geometry_id = ANY(:geometryIds::uuid[])`,
-    materialized: true,
-  });
+          materialized: true,
+        },
+  );
 
   if (raster_filters) {
     for (const baseTable of enabledRasterFilterTables) {

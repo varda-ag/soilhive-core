@@ -1,6 +1,8 @@
 import { Polygon, MultiPolygon } from 'geojson';
 import { EntityManager } from 'typeorm';
 import { FilterCriteria } from '../interfaces/DatasetFilter';
+import { getVectorMaskCtes } from './FilteringMasks';
+import { getEnabledRasterFilterTables, hasRasterFilters } from './SoilDataStorage';
 
 export interface DaiPointRow {
   lon: number;
@@ -12,13 +14,14 @@ export interface DaiPointRow {
 }
 
 /**
- * The precomputed feature_dai_stats rows are only valid for the unfiltered DAI
- * case: every FilterCriteria key changes what the per-feature counts include, so
- * any present key (including explicit nulls, which filter for undated/undepthed
- * layers) forces the live getDaiPointData path. raster_filters with only empty
- * value arrays is treated as absent, matching buildRasterSql, which ignores them.
+ * The precomputed feature_dai_stats rows are only valid when no criterion
+ * changes what the per-feature counts include: any present key (explicit nulls
+ * too, which filter for undated/undepthed layers) forces the live
+ * getDaiPointData path. raster_filters is deliberately NOT a criterion here —
+ * it never enters the count aggregation; the fast path applies it as a spatial
+ * mask on the AOI instead (see getDaiPointDataPrecomputed).
  */
-export const isUnfilteredDaiParameters = (parameters: FilterCriteria): boolean => {
+export const isPrecomputableDaiParameters = (parameters: FilterCriteria): boolean => {
   if (!parameters) {
     return true;
   }
@@ -32,26 +35,54 @@ export const isUnfilteredDaiParameters = (parameters: FilterCriteria): boolean =
     'horizons',
     'soil_properties',
   ];
-  if (filteringKeys.some(key => parameters[key] !== undefined)) {
-    return false;
-  }
-  return Object.values(parameters.raster_filters ?? {}).every(values => values.length === 0);
+  return !filteringKeys.some(key => parameters[key] !== undefined);
 };
 
 /**
- * Fast-path counterpart of SoilDataStorage.getDaiPointData for unfiltered
- * requests: reads the ingestion-time feature_dai_stats rows via the GiST index
- * on centroid instead of aggregating dataset_layers per feature. Selection is by
- * centroid (the point that getDaiPointData would emit anyway), not by feature
- * polygon: a polygonal feature straddling the AOI edge with its centroid outside
- * is dropped here, where the legacy path returned it binned to an outside cell.
+ * Fast-path counterpart of SoilDataStorage.getDaiPointData: reads the
+ * ingestion-time feature_dai_stats rows via the GiST index on centroid instead
+ * of aggregating dataset_layers per feature.
+ *
+ * Active raster filters become a vector mask on the AOI (getVectorMaskCtes:
+ * AOI ∩ union of matching pixels), composed as CTEs into this same statement so
+ * the mask geometry — potentially megabytes of vectorized pixels — never
+ * round-trips through GeoJSON; only the small viewport AOI is bound as $1.
+ *
+ * Selection semantics are centroid-based throughout: a feature counts where its
+ * centroid is, for the AOI and the raster mask alike. Point features match the
+ * legacy per-feature ST_Value test exactly; a polygonal feature whose centroid
+ * sits on a non-matching pixel is dropped here even when its shape overlaps
+ * matching pixels elsewhere (the legacy path counted it) — the same trade-off
+ * already accepted for AOI selection in ADR 0009.
  */
-export const getDaiPointDataPrecomputed = async (entityManager: EntityManager, aoi: Polygon | MultiPolygon): Promise<DaiPointRow[]> => {
+export const getDaiPointDataPrecomputed = async (
+  entityManager: EntityManager,
+  aoi: Polygon | MultiPolygon,
+  parameters: FilterCriteria,
+  aoiAreaM2: number,
+): Promise<DaiPointRow[]> => {
   const schema = process.env.POSTGRES_SCHEMA;
+  const aoiSeedSql = `SELECT ST_CollectionExtract(ST_MakeValid(ST_GeomFromGeoJSON($1), 'method=structure'), 3) AS geom`;
+
+  // Mirrors buildRasterSql's activation rule: only enabled tables with a
+  // non-empty value selection mask anything; otherwise the plain AOI is used.
+  const enabledRasterFilterTables = hasRasterFilters(parameters) ? await getEnabledRasterFilterTables() : [];
+  const rasterMaskActive = enabledRasterFilterTables.some(table => (parameters.raster_filters?.[table]?.length ?? 0) > 0);
+
+  let cteSql: string;
+  if (rasterMaskActive) {
+    const ctes = await getVectorMaskCtes(
+      entityManager,
+      { geometryIds: [], parameters, area: aoiAreaM2 },
+      { name: 'aoi_raw', sql: aoiSeedSql, materialized: true },
+    );
+    cteSql = ctes.map(cte => `${cte.name}${cte.materialized ? ' AS MATERIALIZED' : ''} (${cte.sql})`).join(',\n    ');
+  } else {
+    cteSql = `aoi AS MATERIALIZED (${aoiSeedSql})`;
+  }
+
   const sql = `
-    WITH aoi AS MATERIALIZED (
-      SELECT ST_CollectionExtract(ST_MakeValid(ST_GeomFromGeoJSON($1), 'method=structure'), 3) AS geom
-    )
+    WITH ${cteSql}
     SELECT
       ST_X(s.centroid) AS lon,
       ST_Y(s.centroid) AS lat,
@@ -67,9 +98,9 @@ export const getDaiPointDataPrecomputed = async (entityManager: EntityManager, a
 
 // The per-feature aggregate. Mirrors the unfiltered branch of
 // SoilDataStorage.getDaiPointData and must stay in lockstep with it: same dataset
-// predicates (deleted_at IS NULL, gis_datatype != 'raster' — deliberately no
-// status filter) and the same four counts. scripts/dai-stats-backfill.sql inlines
-// the same rebuild for existing DBs — keep the two in sync.
+// predicates (deleted_at IS NULL, status = 'PUBLISHED', gis_datatype != 'raster')
+// and the same four counts. Backfilling an existing DB = one full
+// refreshDaiStats(entityManager) call; there is no SQL copy to keep in sync.
 const daiAggregateLateral = (schema: string): string => `
   SELECT
     COUNT(DISTINCT dl.soil_property_id)::int AS num_soil_properties,
@@ -79,6 +110,7 @@ const daiAggregateLateral = (schema: string): string => `
   FROM ${schema}.dataset_layers dl
   INNER JOIN ${schema}.datasets ds ON ds.id = dl.dataset_id
     AND ds.deleted_at IS NULL
+    AND ds.status = 'PUBLISHED'
     AND ds.gis_datatype != 'raster'
   INNER JOIN ${schema}.layers layer ON layer.id = dl.layer_id
   WHERE dl.feature_id = f.id
@@ -103,7 +135,7 @@ const upsertFromComputed = (schema: string): string => `
  *
  * Staleness contract (mirrors bumpCacheEpoch, ADR 0008/0009): every write path
  * that changes DAI inputs — dataset_layers/layers rows or the datasets columns
- * deleted_at / gis_datatype — must call this.
+ * deleted_at / status / gis_datatype — must call this.
  *
  * Scoped refreshes (datasetIds given) resolve affected features through the
  * dataset's CURRENT dataset_layers rows, so they must run while those rows still

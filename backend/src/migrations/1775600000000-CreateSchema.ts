@@ -661,13 +661,15 @@ export class CreateSchema1775600000000 implements MigrationInterface {
       )`,
     );
 
-    // Precomputed per-feature DAI aggregates (see docs/adr/0009). The four counts
-    // depend only on dataset_layers/layers/datasets — data that changes only on
+    // Precomputed per-feature DAI aggregates (see docs/adr/0009): PUBLISHED
+    // non-raster datasets only. The four counts depend only on
+    // dataset_layers/layers/datasets — data that changes only on
     // ingestion/mutation — so they are maintained by refreshDaiStats
     // (src/data-layer/DaiStats.ts, which owns the aggregate SQL) instead of being
     // recomputed per /dai request, under the same staleness contract as the query
     // cache (ADR 0008): every write path that changes DAI inputs must refresh.
-    // scripts/dai-stats-schema.sql mirrors this DDL for already-migrated DBs.
+    // Already-migrated DBs get this DDL applied manually and are backfilled with
+    // one full refreshDaiStats call.
     await queryRunner.query(
       `CREATE TABLE IF NOT EXISTS "feature_dai_stats" (
         "feature_id" uuid NOT NULL,
