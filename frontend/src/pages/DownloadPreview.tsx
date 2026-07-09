@@ -21,6 +21,7 @@ import { useTranslation } from 'react-i18next';
 import { useDownloadPreview } from 'hooks/useDownloadPreview';
 
 import useDevice from 'hooks/useDevice';
+import { VardaFoundationAttribution } from 'components/VardaFoundationAttribution/VardaFoundationAttribution';
 
 const MAXIMUM_SOIL_DATA_PER_REQUEST = 100;
 
@@ -222,6 +223,7 @@ function DownloadPreview() {
             expanded={summaryExpanded}
             onExpandClicked={newExpanded => setSummaryExpanded(newExpanded)}
           />
+          <VardaFoundationAttribution className={styles.Attribution} />
         </div>
         <div className={classNames(styles.Data, { [styles.HideInMobile]: selectedTab !== 'availability' })}>
           <DownloadPreviewDataSection

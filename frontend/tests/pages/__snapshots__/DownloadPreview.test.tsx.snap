@@ -82,6 +82,24 @@ exports[`DownloadPreview calls navigate when clicking on the back button 1`] = `
         <div>
           Mock DownloadDataSummary
         </div>
+        <div
+          class="VardaFoundationAttribution Attribution"
+        >
+          <a
+            href="https://www.varda.ag"
+            target="_blank"
+          >
+            Varda Foundation
+          </a>
+          ’s 
+          <a
+            href="https://github.com/varda-ag/soilhive-core"
+            target="_blank"
+          >
+            open source
+          </a>
+           infrastructure
+        </div>
       </div>
       <div
         class="Data HideInMobile"
@@ -194,6 +212,24 @@ exports[`DownloadPreview renders download preview page 1`] = `
       >
         <div>
           Mock DownloadDataSummary
+        </div>
+        <div
+          class="VardaFoundationAttribution Attribution"
+        >
+          <a
+            href="https://www.varda.ag"
+            target="_blank"
+          >
+            Varda Foundation
+          </a>
+          ’s 
+          <a
+            href="https://github.com/varda-ag/soilhive-core"
+            target="_blank"
+          >
+            open source
+          </a>
+           infrastructure
         </div>
       </div>
       <div

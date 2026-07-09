@@ -171,6 +171,7 @@
     }
 
     .Sidebar {
+      position: relative;
       box-shadow: 0px 4px 16px 0px #00000014;
       
       @media (max-width: $bp-mobile-max) {
@@ -181,7 +182,15 @@
       @media (min-width: $bp-tablet) and (max-width: $bp-tablet-max) {
         box-shadow: 0px 2px 12px 2px #5555553D;
         z-index: 1;
-      }      
+      }
+
+      .Attribution {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        padding: 24px 24px 12px;
+      }
     }
 
     .Data {
