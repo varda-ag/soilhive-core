@@ -56,6 +56,11 @@ export interface Fingerprint {
   nodeVersion: string;
   iterations: number;
   daiResolutions: number[];
+  /**
+   * Single endpoint the run was restricted to via PERF_ENDPOINT; absent for
+   * full-suite runs (and in result files recorded before the field existed).
+   */
+  endpoint?: string;
   assets: AssetFingerprint[];
   db: Record<string, number>;
 }

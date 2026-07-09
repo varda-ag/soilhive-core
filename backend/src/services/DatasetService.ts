@@ -14,6 +14,7 @@ import DataMappingService from './DataMappingService';
 import DatasetFileMappingService from './DatasetFileMappingService';
 import { CleaningReport } from '../interfaces/CleaningReport';
 import { bumpCacheEpoch } from '../utils/cache-epoch';
+import { refreshDaiStats } from '../data-layer/DaiStats';
 
 const vdl = new VectorDataLoad();
 const dmService = new DataMappingService();
@@ -71,6 +72,10 @@ export default class DatasetService {
     });
 
     const saved = await repo.save(dataset);
+    // gis_datatype flips a dataset in/out of the DAI aggregate (raster excluded)
+    if (data.gis_datatype !== undefined) {
+      await refreshDaiStats(requestData.entityManager, [dataset.id]);
+    }
     await bumpCacheEpoch();
     const reloaded = await repo.findOneBy({ id: saved.id });
     this.decorateWithCapabilities(reloaded!, requestData.entitlements);
@@ -85,6 +90,9 @@ export default class DatasetService {
     dataset.updated_by = subject;
     await dataset.save();
     await requestData.entityManager.getRepository(DatasetEntity).softRemove(dataset);
+    // Must run here, while dataset_layers rows still reference the dataset: the
+    // bulk-delete job hard-deletes them right after this call (see refreshDaiStats)
+    await refreshDaiStats(requestData.entityManager, [dataset.id]);
     await bumpCacheEpoch();
   };
 

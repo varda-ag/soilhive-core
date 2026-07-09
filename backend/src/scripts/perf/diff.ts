@@ -79,6 +79,9 @@ const fingerprintMismatches = (a: PerfRun, b: PerfRun): string[] => {
   if (fpA.daiResolutions.join(',') !== fpB.daiResolutions.join(',')) {
     mismatches.push(`DAI resolutions: [${fpA.daiResolutions}] vs [${fpB.daiResolutions}]`);
   }
+  if ((fpA.endpoint ?? 'full suite') !== (fpB.endpoint ?? 'full suite')) {
+    mismatches.push(`endpoint selection: ${fpA.endpoint ?? 'full suite'} vs ${fpB.endpoint ?? 'full suite'}`);
+  }
   if (fpA.nodeVersion !== fpB.nodeVersion) {
     mismatches.push(`node version: ${fpA.nodeVersion} vs ${fpB.nodeVersion}`);
   }

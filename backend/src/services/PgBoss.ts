@@ -13,6 +13,7 @@ import { JobError } from '../errors/JobError';
 import { getEntityManager } from '../utils/data-source';
 import { getErrorMessage } from '../utils/error';
 import { bumpCacheEpoch } from '../utils/cache-epoch';
+import { refreshDaiStats } from '../data-layer/DaiStats';
 
 setupEnv();
 
@@ -94,6 +95,17 @@ export const runJob = async <T>(queue: JobQueues, job: Job<T>, processor: (job: 
   } finally {
     if (DATA_MUTATING_QUEUES.includes(queue)) {
       await bumpCacheEpoch();
+    }
+    // Same rationale as the epoch bump: a failed bulk load may have committed
+    // partial batches, so the DAI rollup is refreshed regardless of outcome.
+    // BULK_DELETE needs no hook here — it soft-deletes the dataset first via
+    // DatasetService.deleteDataset, which refreshes while dataset_layers rows
+    // still exist (see refreshDaiStats). Must never fail the job result.
+    if (queue === JobQueues.BULK_LOAD) {
+      const datasetId = (job.data as unknown as BulkLoadJob).dataset_id;
+      await getEntityManager()
+        .then(entityManager => refreshDaiStats(entityManager, [datasetId]))
+        .catch((error: unknown) => log.warn('Failed to refresh DAI stats after bulk load', { datasetId, error: getErrorMessage(error) }));
     }
   }
 };

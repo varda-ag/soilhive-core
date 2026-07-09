@@ -22,6 +22,7 @@ import { DataAvailabilityIndex } from '../interfaces/Dai';
 import { getPolygonFromBbox, geometryUnion } from '../utils/geometry';
 import { timed, log } from '../utils/logger';
 import { CACHE_TTL_SPATIAL_MS, cachedCompute } from '../utils/query-cache';
+import { DaiPointRow, getDaiPointDataPrecomputed, isUnfilteredDaiParameters } from '../data-layer/DaiStats';
 
 const sds = new SoilDataStorage();
 
@@ -274,16 +275,23 @@ export default class FilterService {
       effectiveAoi = intersection.geometry;
     }
 
-    const { id: userGeometryId, area } = await this.insertUserGeometry(requestData, effectiveAoi);
+    let rows: DaiPointRow[];
+    if (isUnfilteredDaiParameters(parameters)) {
+      // Unfiltered viewports read the ingestion-time feature_dai_stats rows: a
+      // GiST point lookup instead of the per-feature LATERAL aggregation, and no
+      // user-geometry insert/subdivide/delete round-trip on a GET.
+      rows = await timed('dai.precomputed', () => getDaiPointDataPrecomputed(requestData.entityManager, effectiveAoi));
+    } else {
+      const { id: userGeometryId, area } = await this.insertUserGeometry(requestData, effectiveAoi);
 
-    let rows: Awaited<ReturnType<typeof sds.getDaiPointData>>;
-    try {
-      rows = await sds.getDaiPointData(requestData.entityManager, { geometryIds: [userGeometryId], parameters, area });
-    } finally {
-      // Catch here so that original exception isn't masked by cleanup failure
-      await this.deleteUserGeometry(requestData, userGeometryId).catch((err: unknown) =>
-        log.error('Failed to clean up user geometry', { userGeometryId, error: String(err) }),
-      );
+      try {
+        rows = await sds.getDaiPointData(requestData.entityManager, { geometryIds: [userGeometryId], parameters, area });
+      } finally {
+        // Catch here so that original exception isn't masked by cleanup failure
+        await this.deleteUserGeometry(requestData, userGeometryId).catch((err: unknown) =>
+          log.error('Failed to clean up user geometry', { userGeometryId, error: String(err) }),
+        );
+      }
     }
 
     const cells: Record<string, number> = {};
