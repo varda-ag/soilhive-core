@@ -1,6 +1,6 @@
 import { PgBoss, Job } from 'pg-boss';
 import { getDBPassword, getSSL } from '../utils/db-credentials';
-import { BulkLoadJob, ExportJob, FileToDbJob, BulkDeleteJob } from '../interfaces/Job';
+import { BulkLoadJob, ExportJob, FileToDbJob, BulkDeleteJob, RefreshDaiStatsJob } from '../interfaces/Job';
 import { JobQueues } from '../types/enums';
 import { getJobGroupConcurrency, getJobLocalConcurrency, isJest, setupEnv } from '../utils/utils';
 import { processExportJob } from '../jobs/soil-export/soilExportJob';
@@ -14,6 +14,7 @@ import { getEntityManager } from '../utils/data-source';
 import { getErrorMessage } from '../utils/error';
 import { bumpCacheEpoch } from '../utils/cache-epoch';
 import { refreshDaiStats } from '../data-layer/DaiStats';
+import { processRefreshDaiStats } from '../jobs/refresh-dai-stats/RefreshDaiStatsJob';
 
 setupEnv();
 
@@ -58,10 +59,13 @@ const setupQueues = async () => {
   log.info('PgBoss queues created', { queues: Object.values(JobQueues) });
 };
 
-// Queues whose jobs mutate soil data and must invalidate the query cache on
-// every node (see docs/adr/0008). Bumped in `finally`: a failed bulk job may
-// still have committed partial batches.
-const DATA_MUTATING_QUEUES: JobQueues[] = [JobQueues.BULK_LOAD, JobQueues.BULK_DELETE];
+// Queues whose jobs mutate soil data — or derived tables that cached queries
+// read, like feature_dai_stats — and must invalidate the query cache on every
+// node (see docs/adr/0008). Bumped in `finally`: a failed bulk job may still
+// have committed partial batches. For REFRESH_DAI_STATS the enqueue-time bump
+// in DatasetService happens before the stats change; this one invalidates
+// whatever was cached against the old rollup while the job was pending.
+const DATA_MUTATING_QUEUES: JobQueues[] = [JobQueues.BULK_LOAD, JobQueues.BULK_DELETE, JobQueues.REFRESH_DAI_STATS];
 
 export const runJob = async <T>(queue: JobQueues, job: Job<T>, processor: (job: Job<T>) => Promise<void>): Promise<void> => {
   const start = Date.now();
@@ -99,8 +103,9 @@ export const runJob = async <T>(queue: JobQueues, job: Job<T>, processor: (job: 
     // Same rationale as the epoch bump: a failed bulk load may have committed
     // partial batches, so the DAI rollup is refreshed regardless of outcome.
     // BULK_DELETE needs no hook here — it soft-deletes the dataset first via
-    // DatasetService.deleteDataset, which refreshes while dataset_layers rows
-    // still exist (see refreshDaiStats). Must never fail the job result.
+    // DatasetService.deleteDataset with syncDaiRefresh, which refreshes while
+    // dataset_layers rows still exist (see refreshDaiStats). Must never fail
+    // the job result.
     if (queue === JobQueues.BULK_LOAD) {
       const datasetId = (job.data as unknown as BulkLoadJob).dataset_id;
       await getEntityManager()
@@ -143,6 +148,11 @@ const setupWorkers = async () => {
   await boss.work(JobQueues.CLEANUP_ORPHAN_FILES, options, async (jobs: Job<object>[]) => {
     for (const job of jobs) {
       await runJob(JobQueues.CLEANUP_ORPHAN_FILES, job, processOrphanCleanup);
+    }
+  });
+  await boss.work<RefreshDaiStatsJob>(JobQueues.REFRESH_DAI_STATS, options, async (jobs: Job<RefreshDaiStatsJob>[]) => {
+    for (const job of jobs) {
+      await runJob(JobQueues.REFRESH_DAI_STATS, job, processRefreshDaiStats);
     }
   });
   log.info('PgBoss workers registered', { queues: Object.values(JobQueues) });

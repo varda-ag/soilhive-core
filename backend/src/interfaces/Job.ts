@@ -1,4 +1,4 @@
-export type AnyJob = BulkLoadJob | ExportJob | FileToDbJob;
+export type AnyJob = BulkLoadJob | ExportJob | FileToDbJob | RefreshDaiStatsJob;
 
 export interface Job {
   id: string | null;
@@ -57,4 +57,8 @@ export interface FileToDbJob extends CommonJobData {
 
 export interface BulkDeleteJob extends CommonJobData {
   dataset_id: string;
+}
+
+export interface RefreshDaiStatsJob extends CommonJobData {
+  dataset_ids: string[];
 }

@@ -57,9 +57,11 @@ export const postSoilData = async (req: Request, res: Response) => {
   for (const record of req.body) {
     await vectorDataLoad.rawRecordToDataModel(req.customData.entityManager, dataMappingConfig, record, dataset.id);
   }
-  await refreshDaiStats(req.customData.entityManager, [dataset.id]);
-  // Direct soil-data write outside pg-boss — invalidate cached spatial queries.
-  await bumpCacheEpoch();
+  if (!req.customData.token?.isInternalRequest) {
+    await refreshDaiStats(req.customData.entityManager, [dataset.id]);
+    // Direct soil-data write outside pg-boss — invalidate cached spatial queries.
+    await bumpCacheEpoch();
+  }
   res.status(201).send();
 };
 

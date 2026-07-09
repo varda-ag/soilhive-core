@@ -1,5 +1,6 @@
-import { describe, it, expect } from '@jest/globals';
+import { describe, it, expect, beforeAll, afterAll, jest } from '@jest/globals';
 import DatasetService from '../../src/services/DatasetService';
+import JobService from '../../src/services/JobService';
 import { getEntityManager } from '../../src/utils/data-source';
 import { Token } from '../../src/interfaces/Token';
 import { RequestData } from '../../src/interfaces/RequestData';
@@ -17,6 +18,19 @@ const mockToken: Token = {
 };
 
 describe('DatasetService', () => {
+  // Status changes and deletes enqueue an async DAI refresh; pg-boss is not
+  // started in this suite, so stub the enqueue (the real queue flow is covered
+  // by tests/jobs/refresh-dai-stats)
+  let createJobSpy: ReturnType<typeof jest.spyOn>;
+
+  beforeAll(() => {
+    createJobSpy = jest.spyOn(JobService.prototype, 'createJob').mockResolvedValue({} as never);
+  });
+
+  afterAll(() => {
+    createJobSpy.mockRestore();
+  });
+
   describe('createDataset', () => {
     it('should create a dataset with only name provided', async () => {
       const datasetService = new DatasetService();

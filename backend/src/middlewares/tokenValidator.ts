@@ -91,7 +91,7 @@ export const tokenValidator = async (req: Request, scopes: string[]): Promise<bo
       req.customData.token.raw = tokenString; // Putting original token string here
       req.customData.token.isSuperAdmin = decodedToken.scope?.includes(TokenScopes.SUPER_ADMIN);
       req.customData.token.isDataAdmin = decodedToken.scope?.includes(TokenScopes.DATA_ADMIN);
-      req.customData.token.isInternalRequest = decodedToken.scope?.includes(TokenScopes.INTERNAL_REQUEST); // Always false
+      req.customData.token.isInternalRequest = decodedToken.scope?.includes(TokenScopes.INTERNAL_REQUEST); // True on bulk load jobs
       return true;
     } catch (err: any) {
       errors.push(err);

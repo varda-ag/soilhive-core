@@ -32,6 +32,7 @@ export enum JobQueues {
   FILE_TO_DB = 'file-to-db',
   BULK_DELETE = 'bulk-delete',
   CLEANUP_ORPHAN_FILES = 'cleanup-orphan-files',
+  REFRESH_DAI_STATS = 'refresh-dai-stats',
 }
 
 export enum Capability {

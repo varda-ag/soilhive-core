@@ -7,7 +7,7 @@ import { CreateDatasetInput, UpdateDatasetInput } from '../types/DatasetInput';
 import { getEntity } from '../utils/slugs';
 import { EntityType, IngestionStatus } from '../types/data';
 import { epsgList } from '../assets/epsg';
-import { Capability } from '../types/enums';
+import { Capability, JobQueues } from '../types/enums';
 import { Entitlements } from '../types/Entitlements';
 import VectorDataLoad from '../data-layer/VectorDataLoad';
 import DataMappingService from './DataMappingService';
@@ -15,11 +15,16 @@ import DatasetFileMappingService from './DatasetFileMappingService';
 import { CleaningReport } from '../interfaces/CleaningReport';
 import { bumpCacheEpoch } from '../utils/cache-epoch';
 import { refreshDaiStats } from '../data-layer/DaiStats';
+import JobService from './JobService';
+import { RefreshDaiStatsJob } from '../interfaces/Job';
 
 const vdl = new VectorDataLoad();
 const dmService = new DataMappingService();
 const dfmService = new DatasetFileMappingService();
 
+// Delay (seconds) before a REFRESH_DAI_STATS job becomes visible to workers,
+// so the enqueuing request's transaction has committed by the time it runs
+const DAI_REFRESH_START_AFTER_SECONDS = 5;
 export default class DatasetService {
   getDatasets = async (requestData: RequestData): Promise<DatasetEntity[]> => {
     const repo = requestData.entityManager.getRepository(DatasetEntity);
@@ -75,7 +80,19 @@ export default class DatasetService {
     // status and gis_datatype flip a dataset in/out of the DAI aggregate, which
     // counts PUBLISHED non-raster datasets only (publish/unpublish goes through here)
     if (data.gis_datatype !== undefined || data.status !== undefined) {
-      await refreshDaiStats(requestData.entityManager, [dataset.id]);
+      // Async DAI refresh. startAfter keeps the worker from picking the job up
+      // before this request's transaction commits (the enqueue goes through
+      // pg-boss's own connection): a refresh computed from pre-commit state
+      // would never be retried (retryLimit is 0).
+      const jobService = new JobService();
+      await jobService.createJob(
+        requestData,
+        {
+          type: JobQueues.REFRESH_DAI_STATS,
+          dataset_ids: [dataset.id],
+        } as RefreshDaiStatsJob,
+        { startAfter: DAI_REFRESH_START_AFTER_SECONDS },
+      );
     }
     await bumpCacheEpoch();
     const reloaded = await repo.findOneBy({ id: saved.id });
@@ -83,7 +100,7 @@ export default class DatasetService {
     return reloaded!;
   };
 
-  deleteDataset = async (requestData: RequestData, slug: string): Promise<void> => {
+  deleteDataset = async (requestData: RequestData, slug: string, syncDaiRefresh = false): Promise<void> => {
     const dataset = await getEntity(requestData, DatasetEntity, EntityType.DATASET, slug);
     const subject = getSubject(requestData);
 
@@ -91,9 +108,23 @@ export default class DatasetService {
     dataset.updated_by = subject;
     await dataset.save();
     await requestData.entityManager.getRepository(DatasetEntity).softRemove(dataset);
-    // Must run here, while dataset_layers rows still reference the dataset: the
-    // bulk-delete job hard-deletes them right after this call (see refreshDaiStats)
-    await refreshDaiStats(requestData.entityManager, [dataset.id]);
+    if (syncDaiRefresh) {
+      // The bulk-delete job hard-deletes the dataset_layers rows right after this
+      // call, and the scoped refresh resolves affected features through them — so
+      // it must run inline, before returning (see refreshDaiStats)
+      await refreshDaiStats(requestData.entityManager, [dataset.id]);
+    } else {
+      // Async DAI refresh, delayed past the request transaction commit (see updateDataset)
+      const jobService = new JobService();
+      await jobService.createJob(
+        requestData,
+        {
+          type: JobQueues.REFRESH_DAI_STATS,
+          dataset_ids: [dataset.id],
+        } as RefreshDaiStatsJob,
+        { startAfter: DAI_REFRESH_START_AFTER_SECONDS },
+      );
+    }
     await bumpCacheEpoch();
   };
 

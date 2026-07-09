@@ -1,12 +1,25 @@
-import { describe, it, expect } from '@jest/globals';
+import { describe, it, expect, beforeAll, afterAll, jest } from '@jest/globals';
 import request from 'supertest';
 import { app } from '../../src/app';
 import { addSyntheticData, addSyntheticIngestionData, syntheticDataOptions, syntheticIngestionDataOptions } from '../../src/utils/mock';
 import { getDataAdminToken } from '../helper';
 import StatusCodes from 'http-status-codes';
 import { Capability } from '../../src/types/enums';
+import JobService from '../../src/services/JobService';
 
 describe('Testing /datasets routes', () => {
+  // Status changes and deletes enqueue an async DAI refresh; pg-boss is not
+  // started in this suite, so stub the enqueue (the real queue flow is covered
+  // by tests/jobs/refresh-dai-stats)
+  let createJobSpy: ReturnType<typeof jest.spyOn>;
+
+  beforeAll(() => {
+    createJobSpy = jest.spyOn(JobService.prototype, 'createJob').mockResolvedValue({} as never);
+  });
+
+  afterAll(() => {
+    createJobSpy.mockRestore();
+  });
   describe('GET /datasets', () => {
     it('GET /datasets responds with the list of all available datasets', async () => {
       const s1 = await addSyntheticData({ ...syntheticDataOptions, id: 1, soilPropertyNames: ['ph'] });

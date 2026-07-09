@@ -8,6 +8,7 @@ import { getDaiPointDataPrecomputed, isPrecomputableDaiParameters, refreshDaiSta
 import * as RasterUtilsModule from '../../src/utils/raster';
 import DatasetService from '../../src/services/DatasetService';
 import FilterService from '../../src/services/FilterService';
+import JobService from '../../src/services/JobService';
 import { RequestData } from '../../src/interfaces/RequestData';
 import { Token } from '../../src/interfaces/Token';
 import { IngestionStatus } from '../../src/types/data';
@@ -152,7 +153,10 @@ describe('refreshDaiStats + getDaiPointDataPrecomputed', () => {
     expect(await statsCount()).toBe(0);
   });
 
-  it('updateDataset refreshes the rollup on unpublish and republish', async () => {
+  it('updateDataset enqueues a refresh job on unpublish and republish', async () => {
+    // The refresh itself is async (REFRESH_DAI_STATS queue); here the enqueue is
+    // mocked and replayed synchronously to verify the rollup effect end to end
+    const createJobSpy = jest.spyOn(JobService.prototype, 'createJob').mockResolvedValue({} as never);
     const a = await addSyntheticData({ ...syntheticDataOptions, id: 9, featureCount: 1, featureCoordinates: [[0.55, 0.55]] });
     const entityManager = await getEntityManager();
     await refreshDaiStats(entityManager);
@@ -160,10 +164,21 @@ describe('refreshDaiStats + getDaiPointDataPrecomputed', () => {
 
     const datasetService = new DatasetService();
     await datasetService.updateDataset(await getRequestData(), a.dataset.slug, { status: IngestionStatus.PENDING });
+    expect(createJobSpy).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ dataset_ids: [a.dataset.id] }),
+      // startAfter delays the job past the enqueuing transaction's commit
+      expect.objectContaining({ startAfter: expect.any(Number) }),
+    );
+    await refreshDaiStats(entityManager, [a.dataset.id]);
     expect(await statsCount()).toBe(0);
 
     await datasetService.updateDataset(await getRequestData(), a.dataset.slug, { status: IngestionStatus.PUBLISHED });
+    expect(createJobSpy).toHaveBeenCalledTimes(2);
+    await refreshDaiStats(entityManager, [a.dataset.id]);
     expect(await statsCount()).toBe(1);
+
+    createJobSpy.mockRestore();
   });
 
   it('dataset soft-delete recomputes shared features and drops exclusive ones', async () => {
@@ -198,8 +213,9 @@ describe('refreshDaiStats + getDaiPointDataPrecomputed', () => {
       num_distinct_years: 2, // 2021 (A) + 2023 (extra layer)
     });
 
-    // deleteDataset soft-deletes and refreshes the rollup for A's features
-    await new DatasetService().deleteDataset(await getRequestData(), a.dataset.slug);
+    // deleteDataset with syncDaiRefresh (the bulk-delete path) soft-deletes and
+    // refreshes the rollup for A's features inline
+    await new DatasetService().deleteDataset(await getRequestData(), a.dataset.slug, true);
 
     expect(await statsCount()).toBe(2); // shared feature survives with B-only counts
     expect(await statsRowFor(sharedFeature.id)).toEqual({
@@ -216,7 +232,7 @@ describe('refreshDaiStats + getDaiPointDataPrecomputed', () => {
     await refreshDaiStats(entityManager);
     expect(await statsCount()).toBe(1);
 
-    await new DatasetService().deleteDataset(await getRequestData(), a.dataset.slug);
+    await new DatasetService().deleteDataset(await getRequestData(), a.dataset.slug, true);
     expect(await statsCount()).toBe(0);
   });
 });
