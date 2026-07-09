@@ -38,6 +38,15 @@
 
     .Sidebar {
       box-shadow: 0px 4px 16px 0px #00000014;
+      position: relative;
+
+      .Attribution {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        padding: 24px 24px 12px;
+      }
     }
 
     .Main {

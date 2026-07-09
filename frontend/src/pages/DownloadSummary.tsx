@@ -20,6 +20,7 @@ import useDownloads from 'hooks/useDownloads';
 import { useOnceDefined } from 'hooks/useOnceDefined';
 import Skeleton from 'react-loading-skeleton';
 import { GISDataType } from '../types/backend';
+import { VardaFoundationAttribution } from 'components/VardaFoundationAttribution/VardaFoundationAttribution';
 
 // console.debug(numberFormatter.format(1234567));
 // Output: "1.234.567"
@@ -174,6 +175,7 @@ function DownloadSummary() {
             expanded={summaryExpanded}
             onExpandClicked={newExpanded => setSummaryExpanded(newExpanded)}
           />
+          <VardaFoundationAttribution className={styles.Attribution} />
         </div>
         <div className={styles.Main}>
           <div className={styles.MainContent}>
