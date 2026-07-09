@@ -19,6 +19,8 @@ type AvailabilityMapContextType = {
   geometryFilter: (Polygon | MultiPolygon)[];
   selectionType: 'h3-cell' | 'drawn-polygon' | 'country';
   locationName?: string;
+  isDaiEnabled: boolean;
+  daiOpacity: number;
   setSelectedPoint: React.Dispatch<React.SetStateAction<LngLat | null>>;
   setSelectedH3Cell: React.Dispatch<React.SetStateAction<MapGeoJSONFeature | null>>;
   setH3Cells: React.Dispatch<React.SetStateAction<FeatureCollection | null>>;
@@ -29,6 +31,8 @@ type AvailabilityMapContextType = {
   setGeometryFilter: React.Dispatch<React.SetStateAction<(Polygon | MultiPolygon)[]>>;
   setSelectionType: React.Dispatch<React.SetStateAction<'h3-cell' | 'drawn-polygon' | 'country'>>;
   setLocationName: React.Dispatch<React.SetStateAction<string | undefined>>;
+  setIsDaiEnabled: React.Dispatch<React.SetStateAction<boolean>>;
+  setDaiOpacity: React.Dispatch<React.SetStateAction<number>>;
 };
 
 export const AvailabilityMapContext = createContext<AvailabilityMapContextType | undefined>(undefined);
@@ -52,6 +56,8 @@ export const AvailabilityMapProvider: React.FC<AvailabilityMapProviderProps> = (
   const [locationName, setLocationName] = useState<string>();
   const [boundingBox, setBoundingBox] = useState<[number, number, number, number]>(themeConfig.initialBbox);
   const [geometryFilter, setGeometryFilter] = useState<(Polygon | MultiPolygon)[]>([bboxPolygon(themeConfig.initialBbox).geometry]);
+  const [isDaiEnabled, setIsDaiEnabled] = useState<boolean>(themeConfig.daiConfig?.isEnabled && themeConfig.daiConfig?.defaultValue);
+  const [daiOpacity, setDaiOpacity] = useState(80);
 
   return (
     <AvailabilityMapContext.Provider
@@ -67,6 +73,8 @@ export const AvailabilityMapProvider: React.FC<AvailabilityMapProviderProps> = (
         geometryFilter,
         selectionType,
         locationName,
+        isDaiEnabled,
+        daiOpacity,
         setSelectedPoint,
         setSelectedH3Cell,
         setH3Cells,
@@ -77,6 +85,8 @@ export const AvailabilityMapProvider: React.FC<AvailabilityMapProviderProps> = (
         setGeometryFilter,
         setSelectionType,
         setLocationName,
+        setIsDaiEnabled,
+        setDaiOpacity,
       }}
     >
       {children}
