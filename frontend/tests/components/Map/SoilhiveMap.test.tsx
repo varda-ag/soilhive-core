@@ -63,6 +63,8 @@ jest.mock('hooks/useAvailabilityMap', () => ({
     showDrawControl: false,
     showSelectionToolbar: false,
     selectionType: 'drawn-polygon',
+    isDaiEnabled: false,
+    daiOpacity: 80,
     setSelectedPoint: jest.fn(),
     setSelectedH3Cell: jest.fn(),
     setH3Cells: jest.fn(),
@@ -70,6 +72,8 @@ jest.mock('hooks/useAvailabilityMap', () => ({
     setShowDrawControl: jest.fn(),
     setShowSelectionToolbar: jest.fn(),
     setSelectionType: jest.fn(),
+    setIsDaiEnabled: jest.fn(),
+    setDaiOpacity: jest.fn(),
   }),
 }));
 
