@@ -31,6 +31,10 @@
 
     > .Attribution {
       padding: 8px 24px;
+
+      @media (max-width: $bp-tablet-max) {
+        display: none;
+      }
     }
   }
 }

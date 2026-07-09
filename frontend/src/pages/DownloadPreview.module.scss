@@ -190,6 +190,10 @@
         left: 0;
         right: 0;
         padding: 24px 24px 12px;
+
+        @media (max-width: $bp-tablet-max) {
+          display: none;
+        }
       }
     }
 
