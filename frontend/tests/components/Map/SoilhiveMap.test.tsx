@@ -6,7 +6,6 @@ import useTheme from 'hooks/useTheme';
 jest.mock('hooks/useDevice');
 
 jest.mock('utilities/map', () => ({
-  customAttribution: 'test-attribution',
   getMapStyles: jest.fn().mockReturnValue([{ name: 'Default', mapStyle: 'default-style' }]),
   h3ResolutionForZoomLevel: jest.fn().mockReturnValue(5),
 }));
@@ -133,23 +132,6 @@ describe('SoilhiveMap', () => {
     __resetIsMobileLayout();
     __resetIsDesktopLayout();
     jest.clearAllMocks();
-  });
-
-  it('includes customAttribution in attributionControl on desktop', () => {
-    render(<SoilhiveMap />);
-    const map = screen.getByTestId('map');
-    const attrControl = JSON.parse(map.dataset.attributionControl!);
-    expect(attrControl.compact).toBe(false);
-    expect(attrControl.customAttribution).toBe('test-attribution');
-  });
-
-  it('omits customAttribution from attributionControl on mobile', () => {
-    __setIsMobileLayout(true);
-    render(<SoilhiveMap />);
-    const map = screen.getByTestId('map');
-    const attrControl = JSON.parse(map.dataset.attributionControl!);
-    expect(attrControl.compact).toBe(true);
-    expect(attrControl.customAttribution).toBeUndefined();
   });
 
   it('closes the attribution control on render when on mobile', () => {

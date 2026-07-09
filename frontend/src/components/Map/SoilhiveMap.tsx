@@ -24,7 +24,7 @@ import {
   isPointInFeatureCollection,
 } from '../../utilities/geo';
 import { bbox as bboxFn, centerOfMass } from '@turf/turf';
-import { customAttribution, getMapStyles, h3ResolutionForZoomLevel } from '../../utilities/map';
+import { getMapStyles, h3ResolutionForZoomLevel } from '../../utilities/map';
 import DrawControl, { type DrawControlRef } from '../DrawControl';
 import SoilhiveMapToolbar from './SoilhiveMapToolbar';
 import SoilhiveMapSelectionToolbar, { type SoilhiveMapSelectionToolbarMode } from './SoilhiveMapSelectionToolbar';
@@ -425,7 +425,7 @@ function SoilhiveMap({
   }, [selectedPoint, showDrawControl]);
 
   const attributionControl = useMemo(() => {
-    return isMobileLayout ? { compact: true } : { compact: false, customAttribution };
+    return isMobileLayout ? { compact: true } : { compact: false };
   }, [isMobileLayout]);
 
   const onMapRender = useCallback(

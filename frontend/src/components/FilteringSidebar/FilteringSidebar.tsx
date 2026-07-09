@@ -9,6 +9,7 @@ import useSoilPropertiesFilters from 'hooks/useSoilPropertiesFilters';
 import { useRasterFilters } from 'hooks/useRasterFilters';
 
 import styles from './FilteringSidebar.module.scss';
+import { VardaFoundationAttribution } from 'components/VardaFoundationAttribution/VardaFoundationAttribution';
 interface Props {
   isOpened: boolean;
   onClose: () => void;
@@ -25,13 +26,16 @@ export function FilteringSidebar({ isOpened, onClose }: Props) {
     <PageSidebar className={styles.FilteringSidebar} isOpened={isOpened} position="right">
       <div className={styles.Wrapper}>
         {isDesktopLayout && <FilteringSidebarHeader onClose={onClose} />}
-        {!isLoading && (hasUnavailableScopeSelected || hasUnavailablePropertySelected || hasUnavailableRasterSelected) && (
-          <div data-testid="sh-unavailable-filter-message" className={styles.WarningMessage}>
-            <FormMessage message={t('filtering_sidebar.unavailable_notice')} type="warning" withBackground={true} />
-          </div>
-        )}
-        {isDesktopLayout && <FilteringSidebarContent />}
-        {!isDesktopLayout && <FilteringSidebarMobileContent />}
+        <div className={styles.Content}>
+          {!isLoading && (hasUnavailableScopeSelected || hasUnavailablePropertySelected || hasUnavailableRasterSelected) && (
+            <div data-testid="sh-unavailable-filter-message" className={styles.WarningMessage}>
+              <FormMessage message={t('filtering_sidebar.unavailable_notice')} type="warning" withBackground={true} />
+            </div>
+          )}
+          {isDesktopLayout && <FilteringSidebarContent />}
+          {!isDesktopLayout && <FilteringSidebarMobileContent />}
+        </div>
+        <VardaFoundationAttribution className={styles.Attribution} />
       </div>
     </PageSidebar>
   );
