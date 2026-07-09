@@ -257,6 +257,31 @@ describe('Metadata page', () => {
     expect(document.body.style.overflow).toBe('');
   });
 
+  it('shows the spatial_resolution row when gis_datatype is raster', () => {
+    (useMetadata as jest.Mock).mockReturnValue({
+      dataset: buildDataset(), // gis_datatype: 'raster', spatial_resolution: '250m'
+      allLicenses: [],
+      inferredProperties: new Set(),
+      isLoading: false,
+      isError: false,
+    });
+    render(<Metadata />);
+    expect(screen.getByText('Spatial resolution:')).toBeInTheDocument();
+    expect(screen.getByText('250m')).toBeInTheDocument();
+  });
+
+  it('hides the spatial_resolution row when gis_datatype is not raster', () => {
+    (useMetadata as jest.Mock).mockReturnValue({
+      dataset: { ...buildDataset(), gis_datatype: 'point', spatial_resolution: '250m' },
+      allLicenses: [],
+      inferredProperties: new Set(),
+      isLoading: false,
+      isError: false,
+    });
+    render(<Metadata />);
+    expect(screen.queryByText('Spatial resolution:')).not.toBeInTheDocument();
+  });
+
   it('closes the map popup when the backdrop is clicked', () => {
     (useMetadata as jest.Mock).mockReturnValue({
       dataset: buildDataset(),

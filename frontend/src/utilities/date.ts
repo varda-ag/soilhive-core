@@ -31,13 +31,31 @@ export function firstDayOfTheMonth(date: Date): Date {
   return new Date(date.getFullYear(), date.getMonth(), 1);
 }
 
-export function dateStringToDDMMYYYY(dateString: Date | null, separator = '-') {
-  if (!dateString) return '—';
-
+function getDateStringEntities(dateString: Date): {
+  day: string;
+  month: string;
+  year: number;
+} {
   const date = new Date(dateString);
   const day = String(date.getDate()).padStart(2, '0');
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const year = date.getFullYear();
 
+  return { day, month, year };
+}
+
+export function dateStringToDDMMYYYY(dateString: Date | null, separator = '-') {
+  if (!dateString) return '—';
+
+  const { day, month, year } = getDateStringEntities(dateString);
+
   return `${day}${separator}${month}${separator}${year}`;
+}
+
+export function dateStringToYYYYMMDD(dateString: Date | null, separator = '-') {
+  if (!dateString) return '—';
+
+  const { day, month, year } = getDateStringEntities(dateString);
+
+  return `${year}${separator}${month}${separator}${day}`;
 }
