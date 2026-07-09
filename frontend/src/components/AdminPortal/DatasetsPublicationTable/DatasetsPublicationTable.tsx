@@ -110,8 +110,8 @@ export function DatasetsPublicationTable({ datasets, isSearch, onEdit, onDelete,
         rowClassName={rowClassName}
         columnClassName={styles.TableColumn}
         emptyMessage={t(isSearch ? 'datasets.list.empty_search_message' : 'datasets.list.empty_message')}
-        defaultSortField="name"
-        defaultSortOrder={1}
+        defaultSortField="updated_at"
+        defaultSortOrder={-1}
         dataKey="name"
       />
     </div>
