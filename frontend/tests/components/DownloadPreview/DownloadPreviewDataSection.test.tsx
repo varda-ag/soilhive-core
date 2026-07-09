@@ -26,4 +26,16 @@ describe('DownloadPreviewDataSection', () => {
     await act(async () => filtersButton.click());
     expect(filtersButton.classList.contains('Secondary')).toBe(false);
   });
+
+  it('shows raster notification instead of table when isRasterDataset is true', () => {
+    const { queryByTestId, queryByText } = render(<DownloadPreviewDataSection isRasterDataset={true} />);
+    expect(queryByTestId('sh-raster-notification')).toBeInTheDocument();
+    expect(queryByText('Mock DownloadPreviewTable')).not.toBeInTheDocument();
+  });
+
+  it('shows table when isRasterDataset is false', () => {
+    const { queryByTestId, queryByText } = render(<DownloadPreviewDataSection isRasterDataset={false} />);
+    expect(queryByTestId('sh-raster-notification')).not.toBeInTheDocument();
+    expect(queryByText('Mock DownloadPreviewTable')).toBeInTheDocument();
+  });
 });
