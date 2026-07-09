@@ -4,7 +4,7 @@ import { ErrorResponse } from '../utils/error';
 import { AnyJob, ExportJob, Job } from '../interfaces/Job';
 import { Capability, JobQueues } from '../types/enums';
 import { getPgBoss } from './PgBoss';
-import { JobWithMetadata } from 'pg-boss';
+import { JobWithMetadata, SendOptions } from 'pg-boss';
 import { createSignedPath } from '../utils/presigned-url';
 import EntitlementService from './EntitlementService';
 import { log } from '../utils/logger';
@@ -14,7 +14,7 @@ const entitlementService = new EntitlementService();
 export default class JobService {
   private boss = getPgBoss();
 
-  async createJob(requestData: RequestData, data: AnyJob): Promise<Job> {
+  async createJob(requestData: RequestData, data: AnyJob, options?: SendOptions): Promise<Job> {
     const { sub } = requestData.token ?? {};
 
     // Checking preconditions
@@ -37,7 +37,7 @@ export default class JobService {
     data.isDataAdmin = requestData.token?.isDataAdmin;
     data.isSuperAdmin = requestData.token?.isSuperAdmin;
 
-    const id = await this.boss.send(data.type, data);
+    const id = await this.boss.send(data.type, data, options ?? {});
     if (!id) {
       throw new ErrorResponse('Failed to create job', StatusCodes.INTERNAL_SERVER_ERROR);
     }

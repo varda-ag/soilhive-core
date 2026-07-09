@@ -660,9 +660,33 @@ export class CreateSchema1775600000000 implements MigrationInterface {
         CONSTRAINT "FK_dfug_user_geometry_id" FOREIGN KEY ("user_geometry_id") REFERENCES "user_geometries"("id") ON DELETE RESTRICT
       )`,
     );
+
+    // Precomputed per-feature DAI aggregates (see docs/adr/0009): PUBLISHED
+    // non-raster datasets only. The four counts depend only on
+    // dataset_layers/layers/datasets — data that changes only on
+    // ingestion/mutation — so they are maintained by refreshDaiStats
+    // (src/data-layer/DaiStats.ts, which owns the aggregate SQL) instead of being
+    // recomputed per /dai request, under the same staleness contract as the query
+    // cache (ADR 0008): every write path that changes DAI inputs must refresh.
+    // Already-migrated DBs get this DDL applied manually and are backfilled with
+    // one full refreshDaiStats call.
+    await queryRunner.query(
+      `CREATE TABLE IF NOT EXISTS "feature_dai_stats" (
+        "feature_id" uuid NOT NULL,
+        "centroid" geometry(Point,4326) NOT NULL,
+        "num_soil_properties" integer NOT NULL,
+        "num_props_below_30" integer NOT NULL,
+        "num_dated_layers" integer NOT NULL,
+        "num_distinct_years" integer NOT NULL,
+        CONSTRAINT "PK_feature_dai_stats_feature_id" PRIMARY KEY ("feature_id"),
+        CONSTRAINT "FK_feature_dai_stats_feature_id" FOREIGN KEY ("feature_id") REFERENCES "features"("id") ON DELETE CASCADE
+      )`,
+    );
+    await queryRunner.query(`CREATE INDEX IF NOT EXISTS "IDX_feature_dai_stats_centroid" ON "feature_dai_stats" USING GiST ("centroid")`);
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`DROP TABLE IF EXISTS "feature_dai_stats"`);
     await queryRunner.query(`DROP TABLE IF EXISTS "cache_epoch"`);
     await queryRunner.query(`DROP TABLE IF EXISTS "data_filter_user_geometries"`);
     await queryRunner.query(`DROP TRIGGER IF EXISTS trg_user_geometries_subdivide_update ON user_geometries`);

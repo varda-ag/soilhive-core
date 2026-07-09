@@ -13,7 +13,9 @@ export async function processBulkDeletion(job: Job<BulkDeleteJob>): Promise<void
   const requestData = { entityManager, token, entitlements: {} };
   const datasetId = (await datasetService.getDataset(requestData, data.dataset_id)).id;
 
-  await datasetService.deleteDataset(requestData, data.dataset_id); // First set dataset as deleted
+  // First set dataset as deleted; the DAI refresh must be synchronous here so it
+  // still sees the dataset_layers rows deleted below
+  await datasetService.deleteDataset(requestData, data.dataset_id, true);
   // Then, remove linked entities in a separate transaction
   await entityManager.transaction(async manager => {
     await manager.query(`SET LOCAL statement_timeout = '5min'`);

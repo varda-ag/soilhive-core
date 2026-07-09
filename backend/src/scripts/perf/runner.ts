@@ -18,7 +18,11 @@
  * variant — the unfiltered "default" (`{}`) always runs first, followed by any
  * <asset>.params.<n>.json sidecar files — the suite first POSTs a data filter
  * (phase 1), then exercises the GET-by-id endpoints against the created
- * filters (phase 2). Phase 2 also calls GET /soil-data with the public
+ * filters (phase 2). PERF_ENDPOINT (coverage | datasets | soil-data | dai;
+ * unknown values abort) restricts phase 2 to a single endpoint; phase 1 always
+ * runs because every phase-2 row consumes its filter ids. In soil-data-only
+ * mode the /datasets response the endpoint depends on is fetched once untimed
+ * as a prerequisite instead of being measured. Phase 2 also calls GET /soil-data with the public
  * non-raster dataset ids extracted from the /datasets response (limit=200,
  * the spec maximum; private datasets would 403 the unauthenticated call and
  * raster datasets are excluded by the real client too). When the filter
@@ -67,6 +71,11 @@ const ASSET_FILTER = (process.env['PERF_ASSETS'] || '')
   .map(s => s.trim())
   .filter(s => s.length > 0);
 const DAI_RESOLUTIONS = (process.env['PERF_DAI_RESOLUTIONS'] || '3,5,7').split(',').map(Number);
+// Single phase-2 endpoint to measure; empty = the full suite. POST /data-filters
+// is not an option: it always runs, since it produces the filter ids every other
+// row consumes. The plain GET /data-filters/{filterId} row only runs unrestricted.
+const ENDPOINT_OPTIONS = ['coverage', 'datasets', 'soil-data', 'dai'] as const;
+type PerfEndpoint = (typeof ENDPOINT_OPTIONS)[number];
 const REQUEST_TIMEOUT_MS = Number(process.env['PERF_TIMEOUT_MS']) || 120_000;
 const SERVER_START_TIMEOUT_MS = Number(process.env['PERF_SERVER_TIMEOUT_MS']) || 60_000;
 const PORT = Number(process.env.PORT) || 4001;
@@ -178,6 +187,15 @@ const discoverParamsVariants = (assetName: string, files: string[]): ParamsVaria
     });
   // The unfiltered default always runs first, so every asset has a worst-case baseline row
   return [defaultVariant, ...sidecars];
+};
+
+const parseEndpointFilter = (): PerfEndpoint | null => {
+  const raw = (process.env['PERF_ENDPOINT'] || '').trim();
+  if (raw.length === 0) return null;
+  if (!(ENDPOINT_OPTIONS as readonly string[]).includes(raw)) {
+    throw new RunAbort(`Unknown PERF_ENDPOINT: ${raw} — available: ${ENDPOINT_OPTIONS.join(', ')}`);
+  }
+  return raw as PerfEndpoint;
 };
 
 const discoverAssets = (): AssetSpec[] => {
@@ -462,6 +480,7 @@ const extractSoilDataDatasetIds = (datasetsBody: string): string[] | null => {
 
 const main = async () => {
   const wallClockStart = performance.now();
+  const endpointFilter = parseEndpointFilter();
   const assets = discoverAssets();
   const gitSha = git('rev-parse HEAD');
   const gitBranch = git('rev-parse --abbrev-ref HEAD');
@@ -469,7 +488,7 @@ const main = async () => {
   const timestamp = new Date().toISOString();
 
   console.log(
-    `Performance suite: ${assets.length} asset(s)${ASSET_FILTER.length > 0 ? ' (selected via PERF_ASSETS)' : ''}, ${ITERATIONS} iterations/row, warmup ${WARMUP ? 'on' : 'off'}, DAI resolutions [${DAI_RESOLUTIONS.join(', ')}]`,
+    `Performance suite: ${assets.length} asset(s)${ASSET_FILTER.length > 0 ? ' (selected via PERF_ASSETS)' : ''}, ${ITERATIONS} iterations/row, warmup ${WARMUP ? 'on' : 'off'}, DAI resolutions [${DAI_RESOLUTIONS.join(', ')}]${endpointFilter ? `, endpoint=${endpointFilter} (selected via PERF_ENDPOINT)` : ''}`,
   );
 
   const { child, outputTail } = await startServer();
@@ -526,7 +545,9 @@ const main = async () => {
       { pathTemplate: '/data-filters/{filterId}', suffix: '' },
       { pathTemplate: '/data-filters/{filterId}/coverage', suffix: '/coverage' },
       { pathTemplate: '/data-filters/{filterId}/datasets', suffix: '/datasets' },
-    ];
+      // With a PERF_ENDPOINT selection the plain GET-by-id ('') and the
+      // unselected endpoints drop out.
+    ].filter(t => endpointFilter === null || t.suffix === `/${endpointFilter}`);
     for (const asset of assets) {
       for (const variant of asset.variants) {
         const filterId = filterIds.get(`${asset.name}|${variant.variant}`);
@@ -554,35 +575,54 @@ const main = async () => {
           }
         }
 
-        // GET /soil-data with the dataset ids extracted from the /datasets response
-        const soilDataMeta = {
-          method: 'GET',
-          pathTemplate: '/soil-data',
-          asset: asset.name,
-          paramsVariant: variant.variant,
-          daiResolution: null,
-          filterId: filterId ?? null,
-        };
-        if (!filterId) {
-          results.push(skippedRow(soilDataMeta, 200, skipReason));
-        } else if (datasetsBody === undefined) {
-          results.push(
-            skippedRow(soilDataMeta, 200, `skipped: GET /data-filters/{filterId}/datasets (${context}) returned no successful response`),
+        // /soil-data consumes the dataset ids from the /datasets response; in
+        // soil-data-only mode that row is not measured, so fetch it once
+        // untimed as a prerequisite instead.
+        if (endpointFilter === 'soil-data' && filterId) {
+          const prerequisite = await timedRequest(
+            'GET',
+            `${BASE_URL}/data-filters/${filterId}/datasets`,
+            null,
+            200,
+            `${context} untimed prerequisite for /soil-data`,
           );
-        } else {
-          const datasetIds = extractSoilDataDatasetIds(datasetsBody);
-          if (datasetIds === null) {
-            results.push(skippedRow(soilDataMeta, 200, `skipped: could not parse the /datasets response (${context})`));
-          } else if (datasetIds.length === 0) {
-            results.push(skippedRow(soilDataMeta, 200, `skipped: filter matches no public non-raster datasets (${context})`, true));
-          } else {
-            const query = `datasets=${datasetIds.map(encodeURIComponent).join(',')}&filterId=${filterId}&limit=${SOIL_DATA_LIMIT}`;
-            const url = `${BASE_URL}/soil-data?${query}`;
-            const { row } = await measureRow(soilDataMeta, 200, () => timedRequest('GET', url, null, 200, context));
-            results.push(row);
+          if (prerequisite.error === null) {
+            datasetsBody = prerequisite.bodyText;
           }
         }
-        for (const resolution of DAI_RESOLUTIONS) {
+
+        // GET /soil-data with the dataset ids extracted from the /datasets response
+        if (endpointFilter === null || endpointFilter === 'soil-data') {
+          const soilDataMeta = {
+            method: 'GET',
+            pathTemplate: '/soil-data',
+            asset: asset.name,
+            paramsVariant: variant.variant,
+            daiResolution: null,
+            filterId: filterId ?? null,
+          };
+          if (!filterId) {
+            results.push(skippedRow(soilDataMeta, 200, skipReason));
+          } else if (datasetsBody === undefined) {
+            results.push(
+              skippedRow(soilDataMeta, 200, `skipped: GET /data-filters/{filterId}/datasets (${context}) returned no successful response`),
+            );
+          } else {
+            const datasetIds = extractSoilDataDatasetIds(datasetsBody);
+            if (datasetIds === null) {
+              results.push(skippedRow(soilDataMeta, 200, `skipped: could not parse the /datasets response (${context})`));
+            } else if (datasetIds.length === 0) {
+              results.push(skippedRow(soilDataMeta, 200, `skipped: filter matches no public non-raster datasets (${context})`, true));
+            } else {
+              const query = `datasets=${datasetIds.map(encodeURIComponent).join(',')}&filterId=${filterId}&limit=${SOIL_DATA_LIMIT}`;
+              const url = `${BASE_URL}/soil-data?${query}`;
+              const { row } = await measureRow(soilDataMeta, 200, () => timedRequest('GET', url, null, 200, context));
+              results.push(row);
+            }
+          }
+        }
+        const daiResolutions = endpointFilter === null || endpointFilter === 'dai' ? DAI_RESOLUTIONS : [];
+        for (const resolution of daiResolutions) {
           const meta = {
             method: 'GET',
             pathTemplate: '/data-filters/{filterId}/dai',
@@ -620,6 +660,7 @@ const main = async () => {
         nodeVersion: process.version,
         iterations: ITERATIONS,
         daiResolutions: DAI_RESOLUTIONS,
+        ...(endpointFilter ? { endpoint: endpointFilter } : {}),
         assets: assetFingerprints,
         db: dbCounts,
       },

@@ -1,12 +1,14 @@
 import fs from 'fs';
 import { InvalidArgumentError, program } from 'commander';
-import { isDBAvailable } from './data-source';
+import { getDataSource, isDBAvailable } from './data-source';
 import { replaceExtension, sleep } from './utils';
 import { addSyntheticData, syntheticDataOptions } from '../utils/mock';
 import { randomInt } from 'crypto';
 import { dbRestore } from './db-restore';
 import { log } from './logger';
 import { ingestRaster } from '../services/RasterIngestService';
+import { refreshDaiStats } from '../data-layer/DaiStats';
+import { bumpCacheEpoch } from './cache-epoch';
 
 export const setupCLI = async () => {
   program
@@ -15,6 +17,7 @@ export const setupCLI = async () => {
     .option('--create-data <number>', 'Create synthetic data given feature count', validInt)
     .option('--bbox <minx,miny,maxx,maxy>', 'Synthetic data bounds')
     .option('--load-raster-filter <file.dump>', 'Load raster filter')
+    .option('--refresh-dai-stats', 'Fully rebuild the precomputed DAI stats (feature_dai_stats)')
     .option('--ingest-raster <input.tif>', 'Ingest a COG raster file into the catalog')
     .option('--nodata <value>', 'NoData value (auto-detected if omitted)', parseFloat)
     .option('--dataset <name>', 'Dataset name', 'test-ds')
@@ -58,6 +61,17 @@ export const setupCLI = async () => {
       process.exit();
     }
   }
+  if (options['refreshDaiStats']) {
+    log.info('Rebuilding DAI stats');
+    try {
+      await refreshAllDaiStats();
+    } catch (e) {
+      log.error(`DAI stats rebuild error: ${e}`);
+      process.exitCode = 1;
+    } finally {
+      process.exit();
+    }
+  }
 };
 
 function validInt(value) {
@@ -84,6 +98,28 @@ async function createSyntheticData(featureCount: number, spatial_extent: [number
     addNullValues: true,
     showProgress: true,
   });
+}
+
+// Backfill/repair entry point for the precomputed DAI rollup (docs/adr/0009):
+// run after deploying to an existing database, or whenever feature_dai_stats is
+// suspected stale (e.g. ingestions performed by nodes on a pre-DAI-stats build).
+// The rebuild upserts in place, so concurrent DAI reads stay consistent.
+async function refreshAllDaiStats() {
+  while (!(await isDBAvailable())) {
+    await sleep(1000);
+  }
+  const dataSource = await getDataSource();
+  await dataSource.transaction(async manager => {
+    // One statement over every feature: override the global statement timeout
+    // and match the work_mem the heavy spatial queries run with.
+    await manager.query('SET LOCAL statement_timeout = 0;');
+    await manager.query("SET LOCAL work_mem = '512MB';");
+    await refreshDaiStats(manager);
+    const [{ count }] = await manager.query(`SELECT COUNT(*)::int AS count FROM ${process.env.POSTGRES_SCHEMA}.feature_dai_stats`);
+    log.info('DAI stats rebuilt', { rows: count });
+  });
+  // Cached /dai responses on all nodes were computed from the old rollup
+  await bumpCacheEpoch();
 }
 
 async function loadRasterFilter(file: string) {
