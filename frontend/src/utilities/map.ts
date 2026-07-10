@@ -36,6 +36,3 @@ export const getMapStyles = () => {
   ];
   return open;
 };
-
-export const customAttribution =
-  '<a href="https://www.varda.ag" target="_blank">Varda Foundation</a>’s <a href="https://github.com/varda-ag/soilhive-core" target="_blank">open source</a> infrastructure';

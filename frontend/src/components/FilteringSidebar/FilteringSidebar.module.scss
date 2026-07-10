@@ -17,8 +17,24 @@
       max-height: calc(100vh - 56px);
     }
 
-    > .WarningMessage {
-      padding: 0.625rem 0.5rem 0;
+    > .Content {
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow-y: auto;
+      // reserve room so the last item can scroll clear of the attribution bar overlaid on top of it
+      padding-bottom: 4rem;
+
+      > .WarningMessage {
+        padding: 0.625rem 0.5rem 0;
+      }
+    }
+
+    > .Attribution {
+      padding: 8px 24px;
+
+      @media (max-width: $bp-tablet-max) {
+        display: none;
+      }
     }
   }
 }

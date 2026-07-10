@@ -2,7 +2,6 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import SoilhiveSimpleMap from 'components/Map/SoilhiveSimpleMap';
 
 jest.mock('utilities/map', () => ({
-  customAttribution: 'test-attribution',
   EOX_SATELLITE_MAP_STYLE: 'eox-style',
   h3ResolutionForZoomLevel: jest.fn().mockReturnValue(5),
 }));
@@ -37,12 +36,11 @@ jest.mock('utilities/simplifyGeometry', () => ({ simplifyGeometry: jest.fn(g => 
 jest.mock('@turf/turf', () => ({ bbox: jest.fn().mockReturnValue([0, 0, 1, 1]) }));
 
 describe('SoilhiveSimpleMap', () => {
-  it('sets attributionControl to compact with customAttribution', () => {
+  it('sets attributionControl to compact', () => {
     render(<SoilhiveSimpleMap />);
     const map = screen.getByTestId('map');
     const attrControl = JSON.parse(map.dataset.attributionControl!);
     expect(attrControl.compact).toBe(true);
-    expect(attrControl.customAttribution).toBe('test-attribution');
   });
 
   it('closes the attribution control on render', () => {

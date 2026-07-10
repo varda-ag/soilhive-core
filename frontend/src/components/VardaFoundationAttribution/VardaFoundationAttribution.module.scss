@@ -1,0 +1,11 @@
+@import 'styles/variables/colors';
+@import 'styles/variables/typography';
+@import 'styles/variables/breakpoints';
+
+.VardaFoundationAttribution {
+  background-color: #FAFAFA;
+  font-size: var(--font-size-2xs);
+  a, a:hover, a:visited {
+    color: var(--color-neutral-black);
+  }
+}

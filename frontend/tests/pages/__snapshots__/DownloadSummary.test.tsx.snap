@@ -48,6 +48,24 @@ exports[`DownloadSummary renders download summary page 1`] = `
         <div>
           Mock DownloadDataSummary
         </div>
+        <div
+          class="VardaFoundationAttribution Attribution"
+        >
+          <a
+            href="https://www.varda.ag"
+            target="_blank"
+          >
+            Varda Foundation
+          </a>
+          ’s 
+          <a
+            href="https://github.com/varda-ag/soilhive-core"
+            target="_blank"
+          >
+            open source
+          </a>
+           infrastructure
+        </div>
       </div>
       <div
         class="Main"
@@ -234,6 +252,24 @@ exports[`DownloadSummary renders download summary page coming from availability 
         <div>
           Mock DownloadDataSummary
         </div>
+        <div
+          class="VardaFoundationAttribution Attribution"
+        >
+          <a
+            href="https://www.varda.ag"
+            target="_blank"
+          >
+            Varda Foundation
+          </a>
+          ’s 
+          <a
+            href="https://github.com/varda-ag/soilhive-core"
+            target="_blank"
+          >
+            open source
+          </a>
+           infrastructure
+        </div>
       </div>
       <div
         class="Main"
@@ -419,6 +455,24 @@ exports[`DownloadSummary renders download summary page coming from data explorer
       >
         <div>
           Mock DownloadDataSummary
+        </div>
+        <div
+          class="VardaFoundationAttribution Attribution"
+        >
+          <a
+            href="https://www.varda.ag"
+            target="_blank"
+          >
+            Varda Foundation
+          </a>
+          ’s 
+          <a
+            href="https://github.com/varda-ag/soilhive-core"
+            target="_blank"
+          >
+            open source
+          </a>
+           infrastructure
         </div>
       </div>
       <div
