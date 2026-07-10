@@ -13,7 +13,7 @@ When mapping a soil property during [Field Mapping](1-data-management-portal.md#
 
 ### Categories
 
-Each entry belongs to one of the following categories, corresponding to the methodology fields described in [Field Mapping](data-management-portal.md#field-mapping--match-your-data):
+Each entry belongs to one of the following categories, corresponding to the methodology fields described in [Field Mapping](1-data-management-portal.md#field-mapping--match-your-data):
 
 - **`sample_pretreatment`** — physical or chemical preparation applied before analysis
 - **`laboratory_method`** — the named protocol or analytical method used
