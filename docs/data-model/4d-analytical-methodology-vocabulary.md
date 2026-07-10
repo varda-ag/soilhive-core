@@ -1,6 +1,6 @@
 ## Analytical Methodology Vocabulary
 
-When mapping a soil property during [Field Mapping](1-data-management-portal.md#field-mapping--match-your-data), you can optionally record how the reported value was produced by expanding the methodology panel. To keep this information consistent and comparable across datasets, most of these fields are populated by selecting a term from a controlled vocabulary rather than typing free text. This is the vocabulary referenced in the [Data Model](4a-data-model.md#physical-data-model) as the table that stores classified analytical methodology concepts used to populate the procedures table.
+When mapping a soil property during [Field Mapping](1-data-management-portal.md#field-mapping--match-your-data), you can optionally record how the reported value was produced by expanding the methodology panel. To keep this information consistent and comparable across datasets, most of these fields are populated by selecting a term from a controlled vocabulary rather than typing free text. This is the vocabulary referenced in the [Data Model](4a-soil-data-model.md#physical-data-model) as the table that stores classified analytical methodology concepts used to populate the procedures table.
 
 ### Columns
 
