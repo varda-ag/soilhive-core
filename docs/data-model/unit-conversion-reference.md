@@ -33,4 +33,4 @@ Conversion requires one or more additional site or sample parameters beyond the 
 
 > **Current limitation:** Conditional conversions (those requiring additional parameters such as bulk density or sampling depth) are not yet executed automatically by the platform. The conversion rules are recorded and will be applied in a future release. Users are advised to convert conditional units manually before upload where possible.
 
-See [Conversion Rules Table](conversion-rules-table.md) for the full conversion rules table.
+See [Conversion Rules Table](conversion-rules-table.csv) for the full conversion rules table.
