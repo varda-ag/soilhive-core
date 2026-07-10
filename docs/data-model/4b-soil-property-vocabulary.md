@@ -15,4 +15,4 @@ The vocabulary is hierarchical and aligned with two established ontologies, GloS
 
 Each property is defined by a full name, a short database code, a description linked to the corresponding ontology entry where one exists, a standard unit of measurement, and a category. Where a property has multiple sub-types — for example, Carbon total, Carbon organic, and Carbon inorganic — each sub-property carries its own code, unit, and semantic definition.
 
-See [Vocabulary Table](soil-property-vocabulary-table.csv) for the full property list.
+See [Vocabulary Table](4c-soil-property-vocabulary-table.csv) for the full property list.
