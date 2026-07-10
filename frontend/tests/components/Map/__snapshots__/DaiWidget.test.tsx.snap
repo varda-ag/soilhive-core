@@ -125,11 +125,11 @@ exports[`DaiWidget matches snapshot on desktop 1`] = `
       </div>
       <a
         class="FaqLink"
-        href="#"
+        href="https://github.com/varda-ag/soilhive-core/blob/main/docs/user-guides/coverage-map.md"
         rel="noopener noreferrer"
         target="_blank"
       >
-        Read FAQ's about this map
+        Documentation about this map
       </a>
     </div>
   </div>
@@ -251,11 +251,11 @@ exports[`DaiWidget matches snapshot on mobile 1`] = `
       </div>
       <a
         class="FaqLink"
-        href="#"
+        href="https://github.com/varda-ag/soilhive-core/blob/main/docs/user-guides/coverage-map.md"
         rel="noopener noreferrer"
         target="_blank"
       >
-        Read FAQ's about this map
+        Documentation about this map
       </a>
     </div>
   </div>

@@ -27,7 +27,7 @@ interface Props {
   onToggle: () => void;
   onOpacityChange: (value: number) => void;
 }
-const faqUrl = '#';
+const faqUrl = 'https://github.com/varda-ag/soilhive-core/blob/main/docs/user-guides/coverage-map.md';
 export function DaiWidget({ isEnabled, opacity, className, isLoading, isDefaultExpanded, onToggle, onOpacityChange }: Props) {
   const { t } = useTranslation('availability');
   const { isDesktopLayout } = useDevice();
