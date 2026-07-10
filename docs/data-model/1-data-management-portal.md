@@ -98,7 +98,7 @@ This is the first harmonisation step. It's required to align the property names 
 
 The following structural fields are recognised automatically when they follow commonly used naming conventions: latitude, longitude, geometry, minimum and maximum depth, depth range, sampling date, license, and horizon. If a field name doesn't match a recognised convention, you'll need to map it manually.
 
-For soil property fields, you complete the mapping manually by selecting the matching property from the SoilHive vocabulary (see [Soil Property Vocabulary](soil-property-vocabulary.md)) and specifying the original unit. The platform then determines the standard unit and records the conversion rule automatically (see [Unit Conversion Reference](unit-conversion-reference.md)).
+For soil property fields, you complete the mapping manually by selecting the matching property from the SoilHive vocabulary (see [Soil Property Vocabulary](4b-soil-property-vocabulary.md)) and specifying the original unit. The platform then determines the standard unit and records the conversion rule automatically (see [Unit Conversion Reference](5a-unit-conversion-reference.md)).
 
 Any field left unmapped will not be loaded into the platform.
 
@@ -108,12 +108,14 @@ For each mapped property, you can expand the methodology panel to record how the
 
 - **Sample pre-treatment** — physical or chemical preparation applied before analysis
 - **Technique** — Lab procedure (physical or chemical analysis), Spectral (NIR or MIR), or Calculated (derived from formulas, statistical models, or process-based models)
-- **Laboratory method** — the named protocol used [add link]
-- **Extractant concentration** — concentration of the extraction solution [add link]
-- **Extraction ratio** — soil-to-solution ratio [add link]
-- **Extraction base** — mass/mass, volume/mass, or volume/volume [add link]
-- **Measurement procedure** — instrument or procedure used to determine the value [add link]
+- **Laboratory method** — the named protocol used
+- **Extractant concentration** — concentration of the extraction solution
+- **Extraction ratio** — soil-to-solution ratio
+- **Extraction base** — mass/mass, volume/mass, or volume/volume
+- **Measurement procedure** — instrument or procedure used to determine the value
 - **Limit of detection** — the lowest concentration reliably distinguishable from zero
+
+see [Analytical Methodology Vocabulary](4d-analytical-methodology-vocabulary.md)
 
 ### Preview — Review Data
 
