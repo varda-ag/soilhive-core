@@ -9,9 +9,10 @@ import { AuthModes } from '../auth/types';
 import { useDataset } from './useDatasets';
 import { useUpdateDatasetMutation } from './useDatasetMutation';
 import { IngestionStatus } from 'types/backend';
-import type { EntitlementCapability } from 'types/backend';
+import type { Dataset, EntitlementCapability } from 'types/backend';
 import { useDatasetEntitlements, useDatasetEntitlementsMutation } from './useDatasetEntitlements';
 import useTheme from './useTheme';
+import { dateStringToYYYYMMDD } from 'utilities/date';
 
 export type Visibility = 'public' | 'private';
 
@@ -54,21 +55,24 @@ export function useDatasetsSettings(datasetId: string | undefined) {
   const isLoading = isDatasetLoading || isEntitlementsLoading;
   const isSaving = updateDataset.isPending || updateEntitlements.isPending;
 
+  type MandatoryField = string | null | undefined;
+  const mandatoryFields: MandatoryField[] = [
+    dataset?.name,
+    dataset?.full_name,
+    dataset?.author,
+    dataset?.description,
+    dataset?.reference_period_start,
+    dataset?.reference_period_stop,
+    dataset?.gis_datatype,
+  ];
+
+  if (dataset?.gis_datatype === 'raster') {
+    mandatoryFields.push(dataset?.spatial_resolution);
+  }
+
   const hasMandatoryMetadata =
     !!dataset &&
-    [
-      dataset.name,
-      dataset.full_name,
-      dataset.version,
-      dataset.author,
-      dataset.description,
-      dataset.spatial_resolution,
-      dataset.publication_date,
-      dataset.citation,
-      dataset.reference_period_start,
-      dataset.reference_period_stop,
-      dataset.gis_datatype,
-    ].every(v => typeof v === 'string' && v.trim().length > 0) &&
+    mandatoryFields.every(v => typeof v === 'string' && v.trim().length > 0) &&
     Array.isArray(dataset.licenses) &&
     dataset.licenses.length > 0 &&
     Array.isArray(dataset.measured_properties) &&
@@ -130,7 +134,16 @@ export function useDatasetsSettings(datasetId: string | undefined) {
 
   async function handlePublishProceed() {
     setIsPublishWarningVisible(false);
-    await updateDataset.mutateAsync({ visibility, status: IngestionStatus.PUBLISHED });
+
+    const datasetUpdateData: Partial<Dataset> = {
+      visibility,
+      status: IngestionStatus.PUBLISHED,
+    };
+
+    if (!dataset?.publication_date) {
+      datasetUpdateData.publication_date = dateStringToYYYYMMDD(new Date());
+    }
+    await updateDataset.mutateAsync(datasetUpdateData);
     await queryClient.invalidateQueries({ queryKey: ['dataset', datasetId] });
     await queryClient.invalidateQueries({ queryKey: ['datasets'] });
     if (visibility === 'private') {

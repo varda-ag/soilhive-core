@@ -132,8 +132,8 @@ export default function Metadata() {
 
   return (
     <div className={styles.Page}>
-      <div className={styles.Logo}>
-        <Logo autoHeight />
+      <div className={styles.LogoWrapper}>
+        <Logo className={styles.Logo} autoHeight />
       </div>
       <div className={styles.BannerContainer}>
         <div className={styles.Banner}>
@@ -252,7 +252,6 @@ export default function Metadata() {
             placeholder={t('placeholders.version')}
             property="version"
             variant="text"
-            isRequired
             onStartEditing={onStartEditing}
             onSave={onSave}
             onCancel={onCancel}
@@ -333,18 +332,19 @@ export default function Metadata() {
             onSave={onSave}
             onCancel={onCancel}
           />
-          <EditorRow
-            label={t('fields.spatial_resolution')}
-            value={dataset?.spatial_resolution}
-            isEditable={isAdmin && !isEditing}
-            placeholder={t('placeholders.spatial_resolution')}
-            property="spatial_resolution"
-            variant="text"
-            isRequired
-            onStartEditing={onStartEditing}
-            onSave={onSave}
-            onCancel={onCancel}
-          />
+          {dataset?.gis_datatype === 'raster' && (
+            <EditorRow
+              label={t('fields.spatial_resolution')}
+              value={dataset?.spatial_resolution}
+              isEditable={false}
+              placeholder={t('placeholders.spatial_resolution')}
+              property="spatial_resolution"
+              variant="text"
+              onStartEditing={onStartEditing}
+              onSave={onSave}
+              onCancel={onCancel}
+            />
+          )}
           <EditorRow
             label={t('fields.reference_period_start')}
             value={dataset?.reference_period_start}
@@ -398,7 +398,6 @@ export default function Metadata() {
             isEditable={isAdmin && !isEditing}
             placeholder={t('placeholders.citation')}
             property="citation"
-            isRequired
             onStartEditing={onStartEditing}
             onSave={onSave}
             onCancel={onCancel}

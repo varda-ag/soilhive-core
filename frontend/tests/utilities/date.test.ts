@@ -1,5 +1,11 @@
 import { register, unregister, type TimeZone } from 'timezone-mock';
-import { backendToLocalFrontendDate, dateStringToDDMMYYYY, firstDayOfTheMonth, lastDayOfTheMonth } from '../../src/utilities/date';
+import {
+  backendToLocalFrontendDate,
+  dateStringToDDMMYYYY,
+  firstDayOfTheMonth,
+  lastDayOfTheMonth,
+  dateStringToYYYYMMDD,
+} from '../../src/utilities/date';
 import { testTimezones } from '../setupTests';
 
 describe.each(testTimezones)('date utilities (multiple-timezones)', testTimezone => {
@@ -138,5 +144,28 @@ describe('dateStringToDDMMYYYY', () => {
 
   it('returns date string separated by custom separator', () => {
     expect(dateStringToDDMMYYYY(new Date(2025, 2, 5), '/')).toBe('05/03/2025');
+  });
+});
+
+describe('dateStringToYYYYMMDD', () => {
+  it('returns "—" for null', () => {
+    expect(dateStringToYYYYMMDD(null)).toBe('—');
+  });
+
+  it.each([
+    [new Date(2025, 5, 15), '2025-06-15'],
+    [new Date(2025, 0, 1), '2025-01-01'],
+    [new Date(2025, 11, 31), '2025-12-31'],
+    [new Date(2024, 1, 29), '2024-02-29'],
+  ])('given a Date object, returns YYYY-MM-DD', (input, expected) => {
+    expect(dateStringToYYYYMMDD(input)).toBe(expected);
+  });
+
+  it('pads single-digit day and month with leading zero', () => {
+    expect(dateStringToYYYYMMDD(new Date(2025, 2, 5))).toBe('2025-03-05');
+  });
+
+  it('returns date string separated by custom separator', () => {
+    expect(dateStringToYYYYMMDD(new Date(2025, 2, 5), '/')).toBe('2025/03/05');
   });
 });

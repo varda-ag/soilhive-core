@@ -278,7 +278,7 @@ describe('useDatasetsSettings', () => {
 
   describe('handlePublishProceed', () => {
     it('patches visibility and status=PUBLISHED and navigates on success', async () => {
-      setupMocks({ dataset: { visibility: 'public' } });
+      setupMocks({ dataset: { visibility: 'public', publication_date: '2026-07-09' } });
       const { result } = renderHook(() => useDatasetsSettings('dataset-123'), { wrapper: queryClientWrapper });
       await waitFor(() => expect(result.current.visibility).toBe('public'));
       await act(() => result.current.handlePublishProceed());
@@ -287,7 +287,7 @@ describe('useDatasetsSettings', () => {
     });
 
     it('also updates entitlements when private and emails are present', async () => {
-      setupMocks({ dataset: { visibility: 'private' } });
+      setupMocks({ dataset: { visibility: 'private', publication_date: '2026-07-09' } });
       const { result } = renderHook(() => useDatasetsSettings('dataset-123'), { wrapper: queryClientWrapper });
       await waitFor(() => expect(result.current.visibility).toBe('private'));
       act(() => result.current.handleEmailChange('user@example.com'));
@@ -298,7 +298,7 @@ describe('useDatasetsSettings', () => {
     });
 
     it('updates entitlements with empty payload when private and no emails (revokes all access)', async () => {
-      setupMocks({ dataset: { visibility: 'private' } });
+      setupMocks({ dataset: { visibility: 'private', publication_date: '2026-07-09' } });
       const { result } = renderHook(() => useDatasetsSettings('dataset-123'), { wrapper: queryClientWrapper });
       await waitFor(() => expect(result.current.visibility).toBe('private'));
       await act(() => result.current.handlePublishProceed());
@@ -307,7 +307,7 @@ describe('useDatasetsSettings', () => {
     });
 
     it('does not update entitlements when public', async () => {
-      setupMocks({ dataset: { visibility: 'public' } });
+      setupMocks({ dataset: { visibility: 'public', publication_date: '2026-07-09' } });
       const { result } = renderHook(() => useDatasetsSettings('dataset-123'), { wrapper: queryClientWrapper });
       act(() => result.current.handleEmailChange('user@example.com'));
       act(() => result.current.handleAddEmail());
@@ -350,10 +350,22 @@ describe('useDatasetsSettings', () => {
       expect(result.current.hasMandatoryMetadata).toBe(true);
     });
 
-    it('is false when version is missing', () => {
-      setupMocks({ dataset: { ...fullyFilledDataset, version: null } });
+    it('is false when a mandatory text field is missing', () => {
+      setupMocks({ dataset: { ...fullyFilledDataset, author: null } });
       const { result } = renderHook(() => useDatasetsSettings('dataset-123'), { wrapper: queryClientWrapper });
       expect(result.current.hasMandatoryMetadata).toBe(false);
+    });
+
+    it('is false when spatial_resolution is missing for a raster dataset', () => {
+      setupMocks({ dataset: { ...fullyFilledDataset, gis_datatype: 'raster', spatial_resolution: null } });
+      const { result } = renderHook(() => useDatasetsSettings('dataset-123'), { wrapper: queryClientWrapper });
+      expect(result.current.hasMandatoryMetadata).toBe(false);
+    });
+
+    it('is true when spatial_resolution is missing for a non-raster dataset', () => {
+      setupMocks({ dataset: { ...fullyFilledDataset, gis_datatype: 'point', spatial_resolution: null } });
+      const { result } = renderHook(() => useDatasetsSettings('dataset-123'), { wrapper: queryClientWrapper });
+      expect(result.current.hasMandatoryMetadata).toBe(true);
     });
 
     it('is false when licenses array is empty', () => {
