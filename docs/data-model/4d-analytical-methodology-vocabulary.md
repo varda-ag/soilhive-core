@@ -1,6 +1,6 @@
 ## Analytical Methodology Vocabulary
 
-When mapping a soil property during [Field Mapping](data-management-portal.md#field-mapping--match-your-data), you can optionally record how the reported value was produced by expanding the methodology panel. To keep this information consistent and comparable across datasets, most of these fields are populated by selecting a term from a controlled vocabulary rather than typing free text. This is the vocabulary referenced in the [Data Model](data-model.md#physical-data-model) as the table that stores classified analytical methodology concepts used to populate the procedures table.
+When mapping a soil property during [Field Mapping](1-data-management-portal.md#field-mapping--match-your-data), you can optionally record how the reported value was produced by expanding the methodology panel. To keep this information consistent and comparable across datasets, most of these fields are populated by selecting a term from a controlled vocabulary rather than typing free text. This is the vocabulary referenced in the [Data Model](4a-data-model.md#physical-data-model) as the table that stores classified analytical methodology concepts used to populate the procedures table.
 
 ### Columns
 
@@ -29,4 +29,4 @@ Note: **Technique** (Lab procedure, Spectral, or Calculated) is not part of this
 - **Spectral** — the value was derived from NIR or MIR spectroscopy using calibration models.
 - **Calculated** — the value was computed from other variables using formulas, statistical models, or process-based models.
 
-See [Analytical Methodology Table](analytical-methodology-table.md) for the full vocabulary table.
+See [Analytical Methodology Table](4e-analytical-methodology-table.csv) for the full vocabulary table.
