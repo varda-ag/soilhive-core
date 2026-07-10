@@ -6,7 +6,7 @@ The SoilHive Data Management Portal gives anyone who owns soil data a straightfo
 
 Soil data has long suffered from fragmentation: datasets produced by different laboratories, projects, and countries rarely share a common vocabulary, unit system, or metadata structure, which makes them difficult to combine, compare, or put to full use for sustainable agriculture.
 
-SoilHive addresses this by guiding users through a step-by-step workflow for loading data into the platform that requires no technical expertise. The workflow maps fields to a standardised vocabulary aligned with existing ontologies (GloSIS and AGROVOC), applies automatic unit conversions, and captures rich analytical metadata, giving every datapoint the context it needs to be genuinely useful for further analysis and decision-making.
+SoilHive addresses this by guiding users through a step-by-step workflow for loading data into the platform that requires no technical expertise. The workflow maps fields to a standardised vocabulary aligned with existing ontologies (GloSIS and AGROVOC), applies automatic unit conversions, and captures rich analytical metadata, giving every datapoint the context it needs to be genuinely useful for further analysis and decision-making. 
 
 ### Who Is This Documentation For?
 
