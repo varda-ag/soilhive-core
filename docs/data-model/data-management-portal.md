@@ -50,7 +50,7 @@ The following fields are requested at this stage:
 - **Name** — a concise, descriptive name for the dataset.
 - **Full Name** — the extended or formal name of the dataset.
 - **Description** — a brief description covering content, purpose, methodology, soil properties measured, and temporal and geographic coverage.
-- **Author** — the person or organisation responsible for creating the dataset.
+- **Author** — the person or organisation responsible for creating the dataset. 
 
 ### Soil Data — Upload Your File(s)
 
