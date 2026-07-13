@@ -20,7 +20,7 @@ exports[`DatasetsSoilDataStep renders matches snapshot 1`] = `
       <a
         class="DocumentationLink"
         data-testid="sh-documentaion-link"
-        href="https://github.com/varda-ag/soilhive-core/blob/main/docs/user-guides/data-load.md#file-upload"
+        href="https://github.com/varda-ag/soilhive-core/blob/main/docs/data-model/1-data-management-portal.md#soil-data--upload-your-files"
         rel="noreferrer"
         target="_blank"
       >

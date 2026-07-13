@@ -1,8 +1,8 @@
-import { Polygon, MultiPolygon } from 'geojson';
 import { EntityManager } from 'typeorm';
 import { FilterCriteria } from '../interfaces/DatasetFilter';
 import { getVectorMaskCtes } from './FilteringMasks';
 import { getEnabledRasterFilterTables, hasRasterFilters } from './SoilDataStorage';
+import { viewportAoiParams, viewportAoiSql } from './ViewportAoi';
 
 export interface DaiPointRow {
   lon: number;
@@ -43,10 +43,13 @@ export const isPrecomputableDaiParameters = (parameters: FilterCriteria): boolea
  * ingestion-time feature_dai_stats rows via the GiST index on centroid instead
  * of aggregating dataset_layers per feature.
  *
+ * The AOI is resolved in-DB (ADR 0010): the Filter's persistent subdivision
+ * pieces clipped to the viewport envelope (viewportAoiSql), so no geometry is
+ * bound as a parameter at all — only the bbox numbers and the geometry ids.
  * Active raster filters become a vector mask on the AOI (getVectorMaskCtes:
  * AOI ∩ union of matching pixels), composed as CTEs into this same statement so
  * the mask geometry — potentially megabytes of vectorized pixels — never
- * round-trips through GeoJSON; only the small viewport AOI is bound as $1.
+ * round-trips through GeoJSON.
  *
  * Selection semantics are centroid-based throughout: a feature counts where its
  * centroid is, for the AOI and the raster mask alike. Point features match the
@@ -57,12 +60,13 @@ export const isPrecomputableDaiParameters = (parameters: FilterCriteria): boolea
  */
 export const getDaiPointDataPrecomputed = async (
   entityManager: EntityManager,
-  aoi: Polygon | MultiPolygon,
+  geometryIds: string[],
+  bbox: [number, number, number, number],
   parameters: FilterCriteria,
   aoiAreaM2: number,
 ): Promise<DaiPointRow[]> => {
   const schema = process.env.POSTGRES_SCHEMA;
-  const aoiSeedSql = `SELECT ST_CollectionExtract(ST_MakeValid(ST_GeomFromGeoJSON($1), 'method=structure'), 3) AS geom`;
+  const aoiSeedSql = viewportAoiSql(geometryIds.length > 0);
 
   // Mirrors buildRasterSql's activation rule: only enabled tables with a
   // non-empty value selection mask anything; otherwise the plain AOI is used.
@@ -81,9 +85,14 @@ export const getDaiPointDataPrecomputed = async (
     cteSql = `aoi AS MATERIALIZED (${aoiSeedSql})`;
   }
 
+  // The non-masked aoi CTE is piece rows, so a centroid sitting exactly on a
+  // shared subdivision edge would join twice: DISTINCT ON (feature_id) dedupes
+  // without collapsing distinct coincident features. Keep the JOIN (not an
+  // EXISTS semi-join, which pins the stats table as outer and seq-scans — same
+  // reasoning as filterVector's aoi_features).
   const sql = `
     WITH ${cteSql}
-    SELECT
+    SELECT DISTINCT ON (s.feature_id)
       ST_X(s.centroid) AS lon,
       ST_Y(s.centroid) AS lat,
       s.num_soil_properties,
@@ -93,7 +102,7 @@ export const getDaiPointDataPrecomputed = async (
     FROM ${schema}.feature_dai_stats s
     JOIN aoi ON ST_Intersects(s.centroid, aoi.geom)
   `;
-  return entityManager.query(sql, [JSON.stringify(aoi)]);
+  return entityManager.query(sql, viewportAoiParams(bbox, geometryIds));
 };
 
 // The per-feature aggregate. Mirrors the unfiltered branch of

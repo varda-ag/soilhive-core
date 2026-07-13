@@ -21,6 +21,8 @@ export const getPolygonFromBbox = (bbox: number[]): Polygon => {
   };
 };
 
+export const bboxAreaM2 = (bbox: [number, number, number, number]): number => turf.area(getPolygonFromBbox(bbox));
+
 export const parseBboxString = (input: string): [number, number, number, number] => {
   const parts = input.split(',');
   if (parts.length !== 4) throw new Error('Bounding box must have exactly 4 comma-separated values');
