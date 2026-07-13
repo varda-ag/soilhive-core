@@ -8,7 +8,7 @@ import { INGESTION_DOCS_URL } from 'configuration/ingestion';
 
 import styles from './DatasetsSoilDataStep.module.scss';
 
-const DOCS_URL = `${INGESTION_DOCS_URL}#file-upload`;
+const DOCS_URL = `${INGESTION_DOCS_URL}#soil-data--upload-your-files`;
 
 export function DatasetsSoilDataStep() {
   const { t } = useTranslation('admin');
