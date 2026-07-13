@@ -6,6 +6,7 @@ import { log } from '../utils/logger';
 import { MultiPolygon } from 'geojson';
 import FileService from './FileService';
 import { GdalCLI } from '../utils/GdalCLI';
+import SoilPropertyEntity from '../entities/SoilProperty';
 
 export interface IngestRasterOptions {
   input: string;
@@ -13,15 +14,41 @@ export interface IngestRasterOptions {
   dataset: string;
   soilProperty: string;
   soilPropertyCategory: string;
+  originaUnit?: string;
 }
 
 async function assertIsCog(filePath: string): Promise<void> {
   const { mainFilePath } = await FileService.getMainFilePath(filePath);
   const info = await GdalCLI.gdalinfo(mainFilePath);
   const band = info.bands?.[0];
-  const isCog = info.metadata?.IMAGE_STRUCTURE?.LAYOUT === 'COG' || ((band?.block?.[0] ?? 0) >= 256 && (band?.overviews?.length ?? 0) > 0);
+  const isCog =
+    info.metadata?.IMAGE_STRUCTURE?.LAYOUT === 'COG' ||
+    ((band?.block?.[0] ?? 0) >= 256 && (band?.block?.[1] ?? 0) >= 256 && (band?.overviews?.length ?? 0) > 0);
   if (!isCog) {
     throw new Error(`Input is not a Cloud Optimized GeoTIFF: ${filePath}. Convert it first with convert_raster.sh.`);
+  }
+}
+
+async function assertStandardUnit(
+  em: Awaited<ReturnType<typeof import('../utils/data-source').getEntityManager>>,
+  soilProperty: string,
+  originalUnit: string,
+): Promise<void> {
+  const entity = await em.getRepository(SoilPropertyEntity).findOne({
+    where: { property_name: soilProperty },
+    relations: ['unit_conversions'],
+  });
+  if (!entity) {
+    return;
+  }
+  const stdUnit = entity.standard_unit;
+  if (!stdUnit || originalUnit === stdUnit) return;
+
+  const conversion = entity.unit_conversions?.find(uc => uc.original_unit_of_measurement === originalUnit);
+  if (conversion?.conversion_formula && conversion?.conversion_formula !== 'x') {
+    throw new Error(
+      `Input unit "${originalUnit}" does not match standard unit "${stdUnit}" for "${soilProperty}". Convert it first with convert_raster.sh. with conversion_factor ${conversion.conversion_formula.replace('x', '').replace('*', '')}`,
+    );
   }
 }
 
@@ -45,6 +72,11 @@ async function insertFootprintBatch(
 
 export async function ingestRaster(opts: IngestRasterOptions): Promise<string> {
   log.info('Starting raster ingest', { input: opts.input });
+  const em = await getEntityManager();
+
+  if (opts.originaUnit) {
+    await assertStandardUnit(em, opts.soilProperty, opts.originaUnit);
+  }
 
   await assertIsCog(opts.input);
   const cogPath = opts.input;
@@ -54,7 +86,6 @@ export async function ingestRaster(opts: IngestRasterOptions): Promise<string> {
   const { nodata, resolution, bbox } = await analyzeRasterMeta(cogPath, opts.nodata);
   log.info('Raster metadata ready', { resolution });
 
-  const em = await getEntityManager();
   const outName = path.basename(cogPath);
   const bboxJson = JSON.stringify(bbox);
 

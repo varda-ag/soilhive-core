@@ -31,7 +31,7 @@ export class CreateSchema1775600000000 implements MigrationInterface {
                                         RETURNS TEXT AS $$
                                         -- removes accents (diacritic signs) from a given string --
                                         WITH unaccented AS (
-                                            SELECT value AS value
+                                            SELECT unaccent(value) AS value
                                         ),
                                         -- lowercases the string
                                         lowercase AS (
