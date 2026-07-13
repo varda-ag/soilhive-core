@@ -53,6 +53,7 @@ function Availability() {
           initialViewBoundingBox={boundingBox}
           showGeocoder={true}
           showH3Cells={true}
+          enableFileDrop={true}
           onSelectionChange={handleMapSelectionChange}
           geocoder={localStorage.getItem('MAP_GEOCODER') ?? ('nominatim' as any)}
           mapStyles={getMapStyles()}

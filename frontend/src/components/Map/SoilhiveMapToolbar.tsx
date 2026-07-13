@@ -5,11 +5,11 @@ import SmallPolygonIcon from 'assets/icons/small-polygon-icon.svg?react';
 import ArrowDownIcon from 'assets/icons/arrow-down-icon.svg?react';
 import PencilIcon from 'assets/icons/pencil-icon.svg?react';
 import UploadIcon from 'assets/icons/small-upload-icon.svg?react';
-import { check } from '@placemarkio/check-geojson';
 import type { Polygon, MultiPolygon } from 'geojson';
 import useDevice from 'hooks/useDevice';
 import useNotifications from 'hooks/useNotifications';
 import { useTranslation } from 'react-i18next';
+import { parseGeoJSONFile } from 'utilities/parseGeoJSONFile';
 
 interface SoilhiveMapToolbarProps {
   visible: boolean;
@@ -36,27 +36,6 @@ export default function SoilhiveMapToolbar({ visible, onDrawClick, onUpload }: S
     }
   };
 
-  const isGeometryCompliant = (geometry: any): boolean => {
-    return geometry && (geometry.type === 'Polygon' || geometry.type === 'MultiPolygon');
-  };
-
-  const selectFirstPolygon = (json: any): Polygon | MultiPolygon | null => {
-    if (json.type === 'FeatureCollection') {
-      for (const feature of json.features) {
-        if (isGeometryCompliant(feature.geometry)) {
-          return feature.geometry;
-        }
-      }
-    } else if (json.type === 'Feature') {
-      if (isGeometryCompliant(json.geometry)) {
-        return json.geometry;
-      }
-    } else if (isGeometryCompliant(json)) {
-      return json;
-    }
-    return null;
-  };
-
   useEffect(() => {
     window.addEventListener('click', onWindowClick);
     const fileInput = document.createElement('input');
@@ -64,41 +43,21 @@ export default function SoilhiveMapToolbar({ visible, onDrawClick, onUpload }: S
     fileInput.accept = '.geojson,.json';
     fileInput.onchange = async function onFileInputChange(event) {
       const file = (event as any).target?.files?.item(0);
-
-      const fail = (id: string, message: string) => {
-        showNotification({ id, title: 'Upload failed', message });
-        fileInput.value = '';
-      };
-
       if (!file) {
-        fail('no-file-uploaded', 'No file uploaded');
-        return;
-      }
-
-      const text = await file.text();
-      if (!text) {
-        fail('cant-read-file', 'Cannot read uploaded file as text');
+        showNotification({ id: 'no-file-uploaded', title: 'Upload failed', message: 'No file uploaded' });
         return;
       }
 
       // Resets the fileInput otherwise if you upload again the same file the onchange won't trigger
       fileInput.value = '';
 
-      let json;
-      try {
-        json = check(text);
-      } catch (e) {
-        fail('invalid-json', 'Uploaded file does not contain valid GeoJSON');
+      const result = await parseGeoJSONFile(file);
+      if (result.error) {
+        showNotification({ id: result.error.id, title: 'Upload failed', message: result.error.message });
         return;
       }
 
-      const polygon = selectFirstPolygon(json);
-      if (!polygon) {
-        fail('invalid-polygon', 'Uploaded file does not contain any valid Polygon or MultiPolygon');
-        return;
-      }
-
-      onUpload(polygon);
+      onUpload(result.polygon);
     };
     fileInputRef.current = fileInput;
     return () => {

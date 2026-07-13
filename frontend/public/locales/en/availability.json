@@ -44,7 +44,9 @@
         "no_file_uploaded": "No file uploaded",
         "cannot_read_file": "Cannot read uploaded file as text",
         "invalid_json": "Uploaded file does not contain valid GeoJSON",
-        "invalid_polygon": "Uploaded file does not contain any valid Polygon or MultiPolygon"
+        "invalid_polygon": "Uploaded file does not contain any valid Polygon or MultiPolygon",
+        "drop_file_message": "Drag and drop a file here",
+        "drop_file_caption": "Supported formats: GeoJSON."
     },
     "map_selection_toolbar": {
         "reset": "Reset",
