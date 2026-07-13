@@ -24,14 +24,14 @@ Soil data is abundant but siloed: collected by different institutions, at differ
 
 ## Platform and data documentation
 
-- [Data Management Portal](docs/data-model/data-management-portal.md): How to upload, map, clean, and publish a dataset
-- [Data Model](docs/data-model/data-model.md): Standards alignment and physical database schema
-- [Metadata Schema](docs/data-model/metadata-schema.md): Dataset-level metadata fields and standards compliance
-- [Soil Property Vocabulary](docs/data-model/soil-property-vocabulary.md): Design principles and structure of the controlled vocabulary
-- [Analytical Methodology Vocabulary](docs/data-model/analytical-methodology-vocabulary.md): Controlled terms describing how a reported value was produced
-- [Unit Conversion Reference](docs/data-model/unit-conversion-reference.md): How original units are converted to SoilHive's standard units
-- [Supported Licenses](docs/data-model/supported-licenses.md): Licenses recognized for published datasets
-- [Data Output](docs/data-model/data-output.md): Structure and contents of downloaded data packages
+- [Data Management Portal](docs/data-model/1-data-management-portal.md): How to upload, map, clean, and publish a dataset
+- [Data Model](docs/data-model/4a-soil-data-model.md): Standards alignment and physical database schema
+- [Metadata Schema](docs/data-model/3-metadata-schema.md): Dataset-level metadata fields and standards compliance
+- [Soil Property Vocabulary](docs/data-model/4b-soil-property-vocabulary.md): Design principles and structure of the controlled vocabulary
+- [Analytical Methodology Vocabulary](docs/data-model/4d-analytical-methodology-vocabulary.md): Controlled terms describing how a reported value was produced
+- [Unit Conversion Reference](docs/data-model/5a-unit-conversion-reference.md): How original units are converted to SoilHive's standard units
+- [Supported Licenses](docs/data-model/6-license_options.csv): Licenses recognized for published datasets
+- [Data Output](docs/data-model/2-data-output.md): Structure and contents of downloaded data packages
 
 For more details please visit each linked section above.
 
