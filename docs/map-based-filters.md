@@ -13,7 +13,7 @@ Each filter provides **global coverage** and is distributed as a **separate pack
 
 ### Available Filters
 
-- Agroecological zones (42 MB)
+- Agroecological zones (37 MB)
   - https://static.soilhive.ag/map-based-filters/agroecological_zones.dump
   - https://static.soilhive.ag/map-based-filters/agroecological_zones.mappings
   - <details>
@@ -54,7 +54,7 @@ Each filter provides **global coverage** and is distributed as a **separate pack
     | Arctic Very cold climate | 31 |
 
     </details>
-- Agroecological zones v5 (42 MB)
+- Agroecological zones v5 (37 MB)
   - https://static.soilhive.ag/map-based-filters/agroecological_zones_v5.dump
   - https://static.soilhive.ag/map-based-filters/agroecological_zones_v5.mappings
   - <details>
