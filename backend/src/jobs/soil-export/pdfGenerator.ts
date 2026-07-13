@@ -393,15 +393,14 @@ function drawStandardsSection(doc: PDFKit.PDFDocument): void {
     doc,
     'The SoilHive data model defines the structure and relationships used to organize soil data and associated metadata across datasets.',
   );
-  // TODO: add link to data model docs when available
-  // doc
-  //   .font(FONT.regular)
-  //   .fontSize(FONT_SIZE)
-  //   .fillColor(COLOR.teal)
-  //   .text('Data model', MARGIN, doc.y - 6, {
-  //     link: 'https://soilhive.org/docs/data-model',
-  //     width: CONTENT_WIDTH,
-  //   });
+  doc
+    .font(FONT.regular)
+    .fontSize(FONT_SIZE)
+    .fillColor(COLOR.teal)
+    .text('Data model', MARGIN, doc.y - 6, {
+      link: 'https://github.com/varda-ag/soilhive-core/tree/main/docs/data-model/4a-soil-data-model.md',
+      width: CONTENT_WIDTH,
+    });
   doc.moveDown(VERTICAL_SPACE);
 
   subHeading(doc, 'SoilHive vocabulary');
@@ -410,15 +409,14 @@ function drawStandardsSection(doc: PDFKit.PDFDocument): void {
     'All soil properties are standardized using a controlled vocabulary aligned, where possible, with the GLOSIS ontology developed by FAO. Each property corresponds to a unique concept with a clear definition and a standardized unit of measurement.',
   );
   bodyText(doc, 'This approach supports semantic consistency across datasets and interoperability with external systems.');
-  // TODO: add link to vocabulary docs when available
-  // doc
-  //   .font(FONT.regular)
-  //   .fontSize(FONT_SIZE)
-  //   .fillColor(COLOR.teal)
-  //   .text('SoilHive soil data vocabulary', MARGIN, doc.y - 6, {
-  //     link: 'https://soilhive.org/docs/vocabulary',
-  //     width: CONTENT_WIDTH,
-  //   });
+  doc
+    .font(FONT.regular)
+    .fontSize(FONT_SIZE)
+    .fillColor(COLOR.teal)
+    .text('SoilHive soil data vocabulary', MARGIN, doc.y - 6, {
+      link: 'https://github.com/varda-ag/soilhive-core/tree/main/docs/data-model/4b-soil-property-vocabulary.md',
+      width: CONTENT_WIDTH,
+    });
   doc.moveDown(0.8);
 }
 

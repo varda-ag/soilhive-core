@@ -9,7 +9,7 @@ import { INGESTION_DOCS_URL } from 'configuration/ingestion';
 
 import styles from './DatasetsGeneralInfoStep.module.scss';
 
-const DOCS_URL = `${INGESTION_DOCS_URL}#dataset-metadata`;
+const DOCS_URL = `${INGESTION_DOCS_URL}#general-info--describe-the-dataset`;
 
 export function DatasetsGeneralInfoStep() {
   const { t } = useTranslation('admin');

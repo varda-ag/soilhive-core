@@ -10,7 +10,7 @@ import { INGESTION_DOCS_URL } from 'configuration/ingestion';
 
 import styles from './DatasetsMappingsStep.module.scss';
 
-const DOCS_URL = `${INGESTION_DOCS_URL}#data-mapping`;
+const DOCS_URL = `${INGESTION_DOCS_URL}#field-mapping--match-your-data`;
 
 export function DatasetsMappingsStep() {
   const { t } = useTranslation('admin');

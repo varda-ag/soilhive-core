@@ -26,11 +26,11 @@ The SoilHive database schema is organised around five logical groups of tables, 
 **Fixed vocabularies** are mostly static dimension tables that provide the controlled lists used throughout the platform:
 
 - **Soil property categories** group properties into four classes: physical, chemical, biological, and derived.
-- **Soil properties** contains a curated list of widely used properties drawn primarily from GloSIS, AGROVOC, ChEBI, and ENVO, each with an acronym and standard unit. The table supports a two-level hierarchy through a self-referencing parent property ID; child properties are collapsed under their parent in the platform interface.
-- **Vocabulary** stores classified analytical methodology concepts used to populate the procedures table.
+- **Soil properties** contains a curated list of widely used properties drawn primarily from GloSIS, AGROVOC, ChEBI, and ENVO, each with an acronym and standard unit. The table supports a two-level hierarchy through a self-referencing parent property ID; child properties are collapsed under their parent in the platform interface. See [Soil Property Vocabulary](4b-soil-property-vocabulary.md).
+- **Vocabulary** stores classified analytical methodology concepts used to populate the procedures table. See [Analytical Methodology Vocabulary](4d-analytical-methodology-vocabulary.md).
 - **Procedures** stores the analytical methodology (a combination of concepts from the vocabulary table) for each soil property measurement.
-- **Licenses** holds the list of supported licenses (short name, full name, and URL).
-- **Unit conversions** stores conversion rules for the most widely used units across supported soil properties, supporting the data loading pipeline.
+- **Licenses** holds the list of supported licenses (short name, full name, and URL). See [License Options](6-license_options.csv).
+- **Unit conversions** stores conversion rules for the most widely used units across supported soil properties, supporting the data loading pipeline. See [Unit Conversion Reference](5a-unit-conversion-reference.md).
 
 **Data loading tables** capture the state of the data loading process:
 

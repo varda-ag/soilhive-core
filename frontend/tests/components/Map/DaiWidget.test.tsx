@@ -158,7 +158,7 @@ describe('DaiWidget', () => {
 
     it('renders the FAQ link', () => {
       render(<DaiWidget {...defaultProps} />);
-      expect(screen.getByText("Documentation about this map")).toBeInTheDocument();
+      expect(screen.getByText('Documentation about this map')).toBeInTheDocument();
     });
   });
 

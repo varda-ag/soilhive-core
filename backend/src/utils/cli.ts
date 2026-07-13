@@ -23,6 +23,7 @@ export const setupCLI = async () => {
     .option('--dataset <name>', 'Dataset name', 'test-ds')
     .option('--soil-property <name>', 'Soil property name', 'Organic Carbon Stock')
     .option('--soil-property-category <name>', 'Soil property category name', 'Chemical')
+    .option('--original_unit [unit]', 'Unit of measurement')
     .parse();
 
   const options = program.opts();
@@ -35,6 +36,7 @@ export const setupCLI = async () => {
         dataset: options['dataset'],
         soilProperty: options['soilProperty'],
         soilPropertyCategory: options['soilPropertyCategory'],
+        originaUnit: options['originalUnit'],
       });
     } catch (e) {
       log.error(`Raster ingest error: ${e}`);

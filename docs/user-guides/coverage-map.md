@@ -7,7 +7,7 @@ This page explains what counts towards the score, how the score is calculated, a
 
 ## What counts towards the score
 
-- **Only data matching your active filter.** The score is computed within your current selection: soil properties, sampling date range, depth range, licenses, and data types all scope what is counted. Tightening a filter lowers scores; clearing it raises them.
+- **Only data matching your active filter.** The score is computed within your current selection: soil properties, sampling date range, …, all scope what is counted. Tightening a filter lowers scores; clearing it raises them.
 - **Only published datasets.** Datasets still in draft or unpublished state are invisible to the coverage map.
 - **Only point and polygonal datasets.** Raster datasets (continuous gridded products) do not contribute to the score, because their values are modelled surfaces rather than per-location samples. Raster *filters*, however, still apply: they restrict the area over which scores are computed.
 - **Each sampling location lands in exactly one hexagon.** A location — including a polygonal one, such as a field — is assigned to the hexagon containing its centre point. A large field therefore colours a single cell, not every cell it overlaps.
@@ -28,7 +28,7 @@ score = soil properties
 
 | Component | What is counted | What it rewards |
 |---|---|---|
-| **Soil properties** | The number of distinct soil properties measured at the location. A property measured at several depths or dates still counts once. | Breadth of characterisation — locations where many different properties were analysed. |
+| **Soil properties** | The number of distinct soil properties measured at the location, regardless of depth or sampling date. A property measured at several depths or dates still counts once. | Breadth of characterisation — locations where many different properties were analysed. |
 | **Soil properties below 30 cm** | The number of distinct soil properties measured in a layer whose lower depth exceeds 30 cm. | Subsoil coverage. Data below the conventional topsoil boundary is rarer and particularly valuable, for example for carbon stock assessment. |
 | **Dated layers** | The number of distinct depth/date layers that carry a sampling date. | Sampling intensity with known provenance — every dated sampling slice adds to the score. |
 | **Distinct sampling years** | The number of different calendar years in which the location was sampled. | Temporal coverage — locations revisited over multiple years score higher than one-off campaigns. |
