@@ -5,7 +5,7 @@ sieved over 2 mm sieve and field pH,Hydrochloric acid [HCl],0.2 M,01:50,mass / v
 field moist,dissolution of Carbonates by Sulphuric acid [H2SO4],0.02 M,01:05,,pipette,20
 "Sample pretreated per ISO 11464:2006 (air-dried, ground, sieved <2 mm).","dissolution of Carbonates by Hydrochloric acid [HCl], or Perchloric acid [HClO4]",0.1 M,00:01,,"kPa=33, cm water head=337.1, bar=0.33, pF=2.5",0.2
 "air dry, then saturated",DTPA,1 M,01:01,,Gravimetric,1
-sieved over 2mm sieve and Hydrogen peroxide [H2O2],Sugar flotation centrifugation,4 M,01:02,,colorimetry,02-Oct
+sieved over 2mm sieve and Hydrogen peroxide [H2O2],Sugar flotation centrifugation,4 M,01:02,,colorimetry,02-10
 oven dry (at 105-110 degrees),Hot water [H2O],,01:10,,Laser diffraction,
 "field moist condition, then saturated",Ammonium chloride [NH4Cl],,01:20,,titrimetric,
 sieved over 1 mm sieve,Bray 1,,01:25,,Glass electrode,
