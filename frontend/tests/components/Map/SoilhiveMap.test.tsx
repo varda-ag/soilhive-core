@@ -5,6 +5,15 @@ import useTheme from 'hooks/useTheme';
 
 jest.mock('hooks/useDevice');
 
+jest.mock('hooks/useNotifications', () => ({
+  __esModule: true,
+  default: jest.fn().mockReturnValue({ showNotification: jest.fn() }),
+}));
+
+jest.mock('utilities/parseGeoJSONFile', () => ({
+  parseGeoJSONFile: jest.fn(),
+}));
+
 jest.mock('utilities/map', () => ({
   getMapStyles: jest.fn().mockReturnValue([{ name: 'Default', mapStyle: 'default-style' }]),
   h3ResolutionForZoomLevel: jest.fn().mockReturnValue(5),
