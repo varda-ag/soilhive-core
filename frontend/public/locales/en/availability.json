@@ -65,7 +65,7 @@
         "title": "Coverage map",
         "opacity": "Opacity",
         "legend": "Legend",
-        "read_faq": "Read FAQ's about this map",
+        "read_faq": "Documentation about this map",
         "legend_very_low": "Very low",
         "legend_low": "Low",
         "legend_medium": "Medium",

@@ -52,6 +52,10 @@ _Avoid_: Normalised geometry, cleaned geometry, validated geometry
 A composite score that quantifies the richness of soil data within an H3 cell. Computed on-demand per filter + viewport. Only point and polygonal features contribute; raster datasets are excluded from scoring.
 _Avoid_: Data density, coverage score, heatmap score
 
+**Coverage map**:
+The map visualisation of the DAI — the hexagonal heat layer users see in the UI (widget title: "Coverage map"). The map is the picture; the DAI is the number it colours by. Use "Coverage map" in user-facing text and "DAI" for the underlying score.
+_Avoid_: Heatmap (rendering detail), coverage score (conflates map and score), density map
+
 **H3 Cell**:
 A hexagonal grid cell from Uber's H3 library, identified by an H3 index string. The spatial unit of aggregation for the DAI.
 _Avoid_: Hex, hexagon, grid cell
