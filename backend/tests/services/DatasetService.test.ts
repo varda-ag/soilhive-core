@@ -100,7 +100,8 @@ describe('DatasetService', () => {
       expect(result.status).toBe(IngestionStatus.LOADED);
       expect(result.slug).toBeDefined();
     });
-    it('should create a dataset with preprocessing steps', async () => {
+
+    it('should create a dataset with preprocessing steps as text stored in the DB as object', async () => {
       const service = new DatasetService();
       const entityManager = await getEntityManager();
       const requestData: RequestData = {
