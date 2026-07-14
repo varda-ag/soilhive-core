@@ -3,9 +3,11 @@ import DatasetService from '../../src/services/DatasetService';
 import JobService from '../../src/services/JobService';
 import { getEntityManager } from '../../src/utils/data-source';
 import { Token } from '../../src/interfaces/Token';
+import { ProcessingSteps } from '../../src/interfaces/Dataset';
 import { RequestData } from '../../src/interfaces/RequestData';
 import { CreateDatasetInput, UpdateDatasetInput } from '../../src/types/DatasetInput';
 import { GISDataType, IngestionStatus } from '../../src/types/data';
+import DatasetEntity from '../../src/entities/Dataset';
 
 const mockToken: Token = {
   sub: 'test-user-id',
@@ -98,6 +100,36 @@ describe('DatasetService', () => {
       expect(result.gis_datatype).toBe(GISDataType.POINT);
       expect(result.status).toBe(IngestionStatus.LOADED);
       expect(result.slug).toBeDefined();
+    });
+
+    it('should create a dataset with preprocessing steps as text stored in the DB as object', async () => {
+      const service = new DatasetService();
+      const entityManager = await getEntityManager();
+      const requestData: RequestData = {
+        entityManager,
+        token: mockToken,
+        entitlements: {},
+      };
+      const input: CreateDatasetInput = {
+        name: 'Complete Dataset',
+        preprocessing_steps: 'Removed outliers using IQR. Normalized units to SI.',
+      };
+
+      const result = await service.createDataset(requestData, input);
+
+      expect(result.name).toBe('Complete Dataset');
+      expect(result.preprocessing_steps).toBe('Removed outliers using IQR. Normalized units to SI.');
+
+      const datasetEntity = await entityManager.getRepository(DatasetEntity).findOne({
+        where: {
+          name: result.name,
+        },
+      });
+      expect(datasetEntity).not.toBeNull();
+      expect(datasetEntity!.processing_steps && typeof datasetEntity!.processing_steps === 'object').toBe(true);
+      const processing_steps = datasetEntity!.processing_steps as ProcessingSteps;
+      expect(processing_steps.description).toBeDefined();
+      expect(processing_steps.description).toBe('Removed outliers using IQR. Normalized units to SI.');
     });
 
     it('should throw error when creating dataset with duplicate name', async () => {

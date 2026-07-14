@@ -1,6 +1,6 @@
 import { Entity, Column, PrimaryColumn, Unique, Index, ForeignKey } from 'typeorm';
 import type { Polygon } from 'typeorm';
-import { Dataset, MeasuredProperty } from '../interfaces/Dataset';
+import { Dataset, MeasuredProperty, ProcessingSteps } from '../interfaces/Dataset';
 import BaseTable from './BaseTable';
 import SlugHistoryEntity from './SlugHistory';
 import { GISDataType, IngestionStatus } from '../types/data';
@@ -103,12 +103,15 @@ export default class DatasetEntity extends BaseTable implements Dataset {
   @Column({ type: 'text', nullable: true, array: true })
   inferred_properties?: string[] | null;
 
-  @Column({ type: 'text', nullable: true })
-  preprocessing_steps?: string | null;
+  @Column({ type: 'jsonb', nullable: true })
+  processing_steps?: ProcessingSteps | null;
 
   @Column({ type: 'text', nullable: true, array: true })
   related_resources?: string[] | null;
 
   // Not a column, populated at runtime based on entitlements
   capabilities?: Capability[];
+
+  // Not a column, populated at runtime from processing_steps.description
+  preprocessing_steps?: string | null;
 }
