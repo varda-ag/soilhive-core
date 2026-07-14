@@ -38,7 +38,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 [[ -z "$INPUT" ]] && { echo "Error: input file required" >&2; exit 1; }
-# [[ ! -f "$INPUT" ]] && { echo "Error: file not found: $INPUT" >&2; exit 1; }
+[[ ! -f "$INPUT" ]] && { echo "Error: file not found: $INPUT" >&2; exit 1; }
 
 for cmd in gdal_translate gdalinfo gdal_edit.py jq; do
   command -v "$cmd" >/dev/null 2>&1 || { echo "Error: $cmd not found in PATH" >&2; exit 1; }
