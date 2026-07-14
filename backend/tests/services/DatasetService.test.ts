@@ -296,6 +296,34 @@ describe('DatasetService', () => {
         "Resource 'non-existent-slug' not found",
       );
     });
+
+    it('should keep processing_steps value when updating other fields', async () => {
+      const service = new DatasetService();
+      const entityManager = await getEntityManager();
+      const requestData: RequestData = {
+        entityManager,
+        token: mockToken,
+        entitlements: {},
+      };
+
+      // Create dataset with preprocessing_steps
+      const createInput: CreateDatasetInput = {
+        name: 'Dataset With Full Name',
+        preprocessing_steps: 'Removed outliers using IQR. Normalized units to SI.',
+      };
+      const created = await service.createDataset(requestData, createInput);
+
+      const updateInput: UpdateDatasetInput = {
+        reference_period_start: '2020-01-01',
+        reference_period_stop: '2022-01-01',
+      };
+      const updated = await service.updateDataset(requestData, created.slug, updateInput);
+
+      // Verify preprocessing_steps remain unchanged
+      expect(updated.preprocessing_steps).toBeDefined();
+      expect(updated.name).toBe('Dataset With Full Name');
+      expect(updated.preprocessing_steps).toBe('Removed outliers using IQR. Normalized units to SI.');
+    });
   });
 
   describe('deleteDataset', () => {
