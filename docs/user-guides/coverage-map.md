@@ -7,9 +7,10 @@ This page explains what counts towards the score, how the score is calculated, a
 
 ## What counts towards the score
 
-- **Only data matching your active filter.** The score is computed within your current selection: soil properties, sampling date range, …, all scope what is counted. Tightening a filter lowers scores; clearing it raises them.
+- **Only point and polygonal datasets.** Raster datasets (continuous gridded products) do not contribute to the score, because their values are modelled surfaces rather than per-location samples.
+- **Only data matching your active filter.** The score is computed within your current selection: soil properties, sampling date range, …, all scope what is counted. Tightening a filter lowers scores; clearing it raises them. Raster *filters* are also applicable: they restrict the area over which scores are computed.
 - **Only published datasets.** Datasets still in draft or unpublished state are invisible to the coverage map.
-- **Only point and polygonal datasets.** Raster datasets (continuous gridded products) do not contribute to the score, because their values are modelled surfaces rather than per-location samples. Raster *filters*, however, still apply: they restrict the area over which scores are computed.
+- **Private data counts too.** Datasets marked as private contribute to the score on the same basis as public ones — visibility settings affect who can access the underlying data, not whether it's counted in the score calculation.
 - **Each sampling location lands in exactly one hexagon.** A location — including a polygonal one, such as a field — is assigned to the hexagon containing its centre point. A large field therefore colours a single cell, not every cell it overlaps.
 
 
