@@ -5,6 +5,7 @@ import { DownloadsProvider } from '../../src/contexts/DownloadsContext';
 import { useCreateJobMutation, useCancelJobMutation, useJobsQueries } from 'hooks/useJobsApi';
 import useNotifications from 'hooks/useNotifications';
 import { getStoredJobIds, addStoredJobId, removeStoredJobId } from '../../src/utilities/downloadJobStorage';
+import { useAuthContext } from '../../src/auth/AuthContextProvider';
 
 jest.mock('../../src/utilities/downloadJobStorage', () => ({
   getStoredJobIds: jest.fn(),
@@ -21,6 +22,10 @@ jest.mock('hooks/useJobsApi', () => ({
 jest.mock('hooks/useNotifications', () => ({
   __esModule: true,
   default: jest.fn(),
+}));
+
+jest.mock('../../src/auth/AuthContextProvider', () => ({
+  useAuthContext: jest.fn(),
 }));
 
 jest.mock('../../src/configuration/api', () => ({
@@ -52,6 +57,10 @@ describe('useDownloads', () => {
     (useJobsQueries as jest.Mock).mockReturnValue([]);
 
     (getStoredJobIds as jest.Mock).mockReturnValue([]);
+
+    (useAuthContext as jest.Mock).mockReturnValue({
+      isAuthenticated: true,
+    });
   });
 
   afterEach(() => {
@@ -406,6 +415,30 @@ describe('useDownloads', () => {
     // and result in an empty downloads list
     await waitFor(() => {
       expect(result.current.downloads).toHaveLength(0);
+    });
+  });
+
+  it('does not start persisted downloads for not logged in user', async () => {
+    (useAuthContext as jest.Mock).mockReturnValue({
+      isAuthenticated: false,
+    });
+
+    (getStoredJobIds as jest.Mock).mockReturnValue(['job-existing']);
+
+    (useJobsQueries as jest.Mock).mockImplementation((jobIds: string[]) => {
+      return jobIds.map(id => ({
+        data: {
+          id,
+          status: 'running',
+          data: { progress_percentage: 50 },
+        },
+      }));
+    });
+
+    renderHook(() => useDownloads(), { wrapper });
+
+    await waitFor(() => {
+      expect(useJobsQueries as jest.Mock).toHaveBeenCalledWith([]);
     });
   });
 });

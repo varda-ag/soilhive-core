@@ -5,6 +5,7 @@ import useNotifications from 'hooks/useNotifications';
 import { BACKEND_BASE_URL, REST_END_POINTS } from '../configuration/api';
 import { addStoredJobId, getStoredJobIds, removeStoredJobId } from '../utilities/downloadJobStorage';
 import { downloadFile } from '../utilities/download';
+import { useAuthContext } from '../auth/AuthContextProvider';
 
 type DownloadsItem = {
   id: string;
@@ -27,6 +28,7 @@ type DownloadsProviderProps = {
 };
 
 export const DownloadsProvider: React.FC<DownloadsProviderProps> = ({ children }) => {
+  const { isAuthenticated } = useAuthContext();
   const [jobsIds, setJobsIds] = useState<string[]>([]);
   const [isOpened, setIsOpened] = useState(false);
   const prevStatusRef = useRef<Record<string, string | undefined>>({});
@@ -37,8 +39,10 @@ export const DownloadsProvider: React.FC<DownloadsProviderProps> = ({ children }
 
   // Load pending jobs
   useEffect(() => {
-    setJobsIds(getStoredJobIds());
-  }, []);
+    if (isAuthenticated) {
+      setJobsIds(getStoredJobIds());
+    }
+  }, [isAuthenticated]);
 
   const jobsQueries = useJobsQueries(jobsIds);
 
