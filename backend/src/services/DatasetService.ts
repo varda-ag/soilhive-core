@@ -29,13 +29,17 @@ export default class DatasetService {
   getDatasets = async (requestData: RequestData): Promise<DatasetEntity[]> => {
     const repo = requestData.entityManager.getRepository(DatasetEntity);
     const entities = await repo.find();
-    entities.map(e => this.decorateWithCapabilities(e, requestData.entitlements));
+    entities.map(e => {
+      this.decorateWithCapabilities(e, requestData.entitlements);
+      this.decoratePreprocessingSteps(e);
+    });
     return entities;
   };
 
   getDataset = async (requestData: RequestData, slug: string): Promise<DatasetEntity> => {
     const entity = await getEntity(requestData, DatasetEntity, EntityType.DATASET, slug);
     this.decorateWithCapabilities(entity, requestData.entitlements);
+    this.decoratePreprocessingSteps(entity);
     return entity;
   };
 
@@ -43,9 +47,9 @@ export default class DatasetService {
     const repo = requestData.entityManager.getRepository(DatasetEntity);
 
     const subject = getSubject(requestData);
-
     const dataset = repo.create({
       ...data,
+      processing_steps: this.toProcessingSteps(data.preprocessing_steps),
       created_by: subject,
       updated_by: subject,
     });
@@ -54,6 +58,7 @@ export default class DatasetService {
       const saved = await repo.save(dataset);
       const reloaded = await repo.findOneBy({ id: saved.id });
       this.decorateWithCapabilities(reloaded!, requestData.entitlements);
+      this.decoratePreprocessingSteps(reloaded!);
       return reloaded!;
     } catch (error: any) {
       if (error.code === '23505') {
@@ -72,6 +77,7 @@ export default class DatasetService {
 
     repo.merge(dataset, {
       ...data,
+      processing_steps: this.toProcessingSteps(data.preprocessing_steps),
       updated_by: subject,
       updated_at: new Date(),
     });
@@ -97,6 +103,7 @@ export default class DatasetService {
     await bumpCacheEpoch();
     const reloaded = await repo.findOneBy({ id: saved.id });
     this.decorateWithCapabilities(reloaded!, requestData.entitlements);
+    this.decoratePreprocessingSteps(reloaded!);
     return reloaded!;
   };
 
@@ -136,6 +143,15 @@ export default class DatasetService {
     // For private datasets, capabilities are determined by entitlements.
     // For public datasets, all capabilities are granted.
     dataset.capabilities = dataset.visibility === 'private' ? entitlements[dataset.slug] || [] : [Capability.PREVIEW, Capability.DOWNLOAD];
+  };
+
+  decoratePreprocessingSteps = (dataset: DatasetEntity) => {
+    const ps = dataset.processing_steps as { description?: string } | null | undefined;
+    dataset.preprocessing_steps = ps?.description ?? null;
+  };
+
+  private toProcessingSteps = (value: string | null | undefined): object | null => {
+    return value ? { description: value } : null;
   };
 
   async getSoilData(requestData: RequestData, datasetFileMappingId: string, limit: number, cursor?: string, sort?: string) {
