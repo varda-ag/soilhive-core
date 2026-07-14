@@ -1,7 +1,6 @@
 import { createHash } from 'node:crypto';
 import { valid } from 'geojson-validation';
 import { StatusCodes } from 'http-status-codes';
-import * as turf from '@turf/turf';
 import { latLngToCell } from 'h3-js';
 import { Polygon, MultiPolygon } from 'geojson';
 import SoilDataStorage from '../data-layer/SoilDataStorage';
@@ -19,8 +18,8 @@ import { mergeMin, mergeMax } from '../utils/utils';
 import DataFilterEntity from '../entities/DataFilter';
 import DataFilterUserGeometryEntity from '../entities/DataFilterUserGeometry';
 import { DataAvailabilityIndex } from '../interfaces/Dai';
-import { getPolygonFromBbox, geometryUnion } from '../utils/geometry';
-import { timed, log } from '../utils/logger';
+import { bboxAreaM2 } from '../utils/geometry';
+import { timed } from '../utils/logger';
 import { CACHE_TTL_SPATIAL_MS, cachedCompute } from '../utils/query-cache';
 import { DaiPointRow, getDaiPointDataPrecomputed, isPrecomputableDaiParameters } from '../data-layer/DaiStats';
 
@@ -99,18 +98,6 @@ export default class FilterService {
       if (row) return { id: row.id, area: Number(row.area) };
     }
     throw new ErrorResponse('Failed to store filtering geometry', StatusCodes.INTERNAL_SERVER_ERROR);
-  };
-
-  deleteUserGeometry = async (requestData: RequestData, id: string): Promise<void> => {
-    const schema = process.env.POSTGRES_SCHEMA;
-    await requestData.entityManager.query(
-      `DELETE FROM ${schema}.user_geometries
-       WHERE id = $1
-       AND NOT EXISTS (
-         SELECT 1 FROM ${schema}.data_filter_user_geometries WHERE user_geometry_id = $1
-       )`,
-      [id],
-    );
   };
 
   createFilter = async (requestData: RequestData, filter: DataFilterDTO): Promise<DataFilterEntity> => {
@@ -234,11 +221,12 @@ export default class FilterService {
     return [...vectorDatasets, ...rasterDatasets];
   };
 
-  // Cached at the service boundary rather than the query layer: each computation
-  // queries against an ephemeral UserGeometry UUID that never repeats, so no
-  // SQL-derived cache key can ever hit. The manual key is complete because a
-  // Filter's content is immutable per id (deduplicated by content identity,
-  // see docs/adr/0007) and /dai is not entitlement-gated.
+  // Cached at the service boundary rather than the query layer: the entry
+  // caches the H3 binning on top of the query, and the manual key is complete
+  // because a Filter's content is immutable per id (deduplicated by content
+  // identity, see docs/adr/0007) and /dai is not entitlement-gated. Since the
+  // DAI SQL binds stable inputs (persistent geometry ids + bbox, ADR 0010) a
+  // query-layer cache would hit too — this one just short-circuits earlier.
   getDai = async (
     requestData: RequestData,
     bbox: [number, number, number, number],
@@ -259,43 +247,25 @@ export default class FilterService {
     const filter = await this.getFilterById(requestData, filterId);
     const { geometryIds, parameters } = filter;
 
-    const bboxPolygon = getPolygonFromBbox(bbox);
-    let effectiveAoi: Polygon | MultiPolygon;
-    if (geometryIds.length === 0) {
-      effectiveAoi = bboxPolygon;
-    } else {
-      const schema = process.env.POSTGRES_SCHEMA;
-      const geomRows: { geom: Polygon | MultiPolygon }[] = await requestData.entityManager.query(
-        `SELECT ST_AsGeoJSON(ug.geom)::json AS geom FROM ${schema}.user_geometries ug WHERE ug.id = ANY($1::uuid[])`,
-        [geometryIds],
-      );
-      const filterGeom = geometryUnion(geomRows.map(r => r.geom));
-      const intersection = turf.intersect(turf.featureCollection([turf.feature(filterGeom), turf.feature(bboxPolygon)]));
-      if (!intersection) return { resolution, min: 0, max: 0, cells: {} };
-      effectiveAoi = intersection.geometry;
-    }
+    // The AOI (filter geometries ∩ viewport) is resolved in-DB from the
+    // persistent subdivisions — no geometry is loaded, clipped, or written
+    // back here (ADR 0010). Its exact area therefore never materialises; it
+    // only selects the raster overview resolution, so an upper bound suffices:
+    // min(viewport, filter) is exact whenever one contains the other.
+    const viewportAreaM2 = bboxAreaM2(bbox);
+    const area = geometryIds.length > 0 ? Math.min(viewportAreaM2, filter.area) : viewportAreaM2;
 
     let rows: DaiPointRow[];
     if (isPrecomputableDaiParameters(parameters)) {
       // Viewports without count-affecting criteria read the ingestion-time
       // feature_dai_stats rows: a GiST point lookup instead of the per-feature
-      // LATERAL aggregation, and no user-geometry insert/subdivide/delete
-      // round-trip on a GET. Raster filters are applied in there as a vector
-      // mask on the AOI. The area only selects the raster overview resolution,
-      // so the client-side approximation is sufficient.
-      const area = turf.area(turf.feature(effectiveAoi));
-      rows = await timed('dai.precomputed', () => getDaiPointDataPrecomputed(requestData.entityManager, effectiveAoi, parameters, area));
+      // LATERAL aggregation. Raster filters are applied in there as a vector
+      // mask on the AOI.
+      rows = await timed('dai.precomputed', () =>
+        getDaiPointDataPrecomputed(requestData.entityManager, geometryIds, bbox, parameters, area),
+      );
     } else {
-      const { id: userGeometryId, area } = await this.insertUserGeometry(requestData, effectiveAoi);
-
-      try {
-        rows = await sds.getDaiPointData(requestData.entityManager, { geometryIds: [userGeometryId], parameters, area });
-      } finally {
-        // Catch here so that original exception isn't masked by cleanup failure
-        await this.deleteUserGeometry(requestData, userGeometryId).catch((err: unknown) =>
-          log.error('Failed to clean up user geometry', { userGeometryId, error: String(err) }),
-        );
-      }
+      rows = await timed('dai.live', () => sds.getDaiPointData(requestData.entityManager, { geometryIds, parameters, area }, bbox));
     }
 
     const cells: Record<string, number> = {};

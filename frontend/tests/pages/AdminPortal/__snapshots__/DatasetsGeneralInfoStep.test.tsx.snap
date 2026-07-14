@@ -20,7 +20,7 @@ exports[`DatasetsGeneralInfoStep renders matches snapshot 1`] = `
       <a
         class="DocumentationLink"
         data-testid="sh-documentaion-link"
-        href="https://github.com/varda-ag/soilhive-core/blob/main/docs/user-guides/data-load.md#dataset-metadata"
+        href="https://github.com/varda-ag/soilhive-core/blob/main/docs/data-model/1-data-management-portal.md#general-info--describe-the-dataset"
         rel="noreferrer"
         target="_blank"
       >

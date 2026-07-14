@@ -86,10 +86,10 @@ describe('refreshDaiStats + getDaiPointDataPrecomputed', () => {
     const entityManager = await getEntityManager();
     const sds = new SoilDataStorage();
     const filter = await makeFilter(entityManager, worldPolygon, {});
-    const legacy = await sds.getDaiPointData(entityManager, filter);
+    const legacy = await sds.getDaiPointData(entityManager, filter, worldBbox);
 
     await refreshDaiStats(entityManager);
-    const precomputed = await getDaiPointDataPrecomputed(entityManager, worldPolygon, {}, 0);
+    const precomputed = await getDaiPointDataPrecomputed(entityManager, [], worldBbox, {}, 0);
 
     const byLon = (a: { lon: number }, b: { lon: number }) => a.lon - b.lon;
     expect(precomputed).toHaveLength(3);
@@ -109,7 +109,7 @@ describe('refreshDaiStats + getDaiPointDataPrecomputed', () => {
     const entityManager = await getEntityManager();
     await refreshDaiStats(entityManager);
 
-    const rows = await getDaiPointDataPrecomputed(entityManager, getPolygonFromBbox([0, 0, 0.5, 0.5]), {}, 0);
+    const rows = await getDaiPointDataPrecomputed(entityManager, [], [0, 0, 0.5, 0.5], {}, 0);
     expect(rows).toHaveLength(1);
     expect(rows[0]!.lon).toBeCloseTo(0.1);
     expect(rows[0]!.lat).toBeCloseTo(0.1);
@@ -257,7 +257,7 @@ describe('getDaiPointDataPrecomputed with raster filters', () => {
     [[30], 1],
     [[11], 0],
   ])('applies land cover values %p as an AOI mask (%p features)', async (values, expectedCount) => {
-    const bboxQuery = [-80.7812, -33.7414, -80.781, -33.7412];
+    const bboxQuery: [number, number, number, number] = [-80.7812, -33.7414, -80.781, -33.7412];
     await addSyntheticData({
       ...syntheticDataOptions,
       depthLayers: 1,
@@ -268,13 +268,13 @@ describe('getDaiPointDataPrecomputed with raster filters', () => {
     await refreshDaiStats(entityManager);
 
     const raster_filters = { land_cover: values };
-    const aoi = getPolygonFromBbox(bboxQuery);
-    const precomputed = await getDaiPointDataPrecomputed(entityManager, aoi, { raster_filters }, 1_000);
+    const precomputed = await getDaiPointDataPrecomputed(entityManager, [], bboxQuery, { raster_filters }, 1_000);
     expect(precomputed).toHaveLength(expectedCount);
 
     // Point features must match the legacy per-feature pixel test exactly
     const sds = new SoilDataStorage();
-    const legacy = await sds.getDaiPointData(entityManager, await makeFilter(entityManager, aoi, { raster_filters }));
+    const aoi = getPolygonFromBbox(bboxQuery);
+    const legacy = await sds.getDaiPointData(entityManager, await makeFilter(entityManager, aoi, { raster_filters }), bboxQuery);
     expect(precomputed).toEqual(legacy);
   });
 });
