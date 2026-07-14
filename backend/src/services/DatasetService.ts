@@ -17,6 +17,7 @@ import { bumpCacheEpoch } from '../utils/cache-epoch';
 import { refreshDaiStats } from '../data-layer/DaiStats';
 import JobService from './JobService';
 import { RefreshDaiStatsJob } from '../interfaces/Job';
+import { ProcessingSteps } from '../interfaces/Dataset';
 
 const vdl = new VectorDataLoad();
 const dmService = new DataMappingService();
@@ -146,7 +147,7 @@ export default class DatasetService {
   };
 
   decoratePreprocessingSteps = (dataset: DatasetEntity) => {
-    const ps = dataset.processing_steps as { description?: string } | null | undefined;
+    const ps = dataset.processing_steps as ProcessingSteps | null | undefined;
     dataset.preprocessing_steps = ps?.description ?? null;
   };
 

@@ -3,6 +3,7 @@ import DatasetService from '../../src/services/DatasetService';
 import JobService from '../../src/services/JobService';
 import { getEntityManager } from '../../src/utils/data-source';
 import { Token } from '../../src/interfaces/Token';
+import { ProcessingSteps } from '../../src/interfaces/Dataset';
 import { RequestData } from '../../src/interfaces/RequestData';
 import { CreateDatasetInput, UpdateDatasetInput } from '../../src/types/DatasetInput';
 import { GISDataType, IngestionStatus } from '../../src/types/data';
@@ -126,7 +127,7 @@ describe('DatasetService', () => {
       });
       expect(datasetEntity).not.toBeNull();
       expect(datasetEntity!.processing_steps && typeof datasetEntity!.processing_steps === 'object').toBe(true);
-      const processing_steps = datasetEntity!.processing_steps as { description?: string };
+      const processing_steps = datasetEntity!.processing_steps as ProcessingSteps;
       expect(processing_steps.description).toBeDefined();
       expect(processing_steps.description).toBe('Removed outliers using IQR. Normalized units to SI.');
     });

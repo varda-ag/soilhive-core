@@ -7,6 +7,10 @@ export interface MeasuredProperty {
   procedure_id: string;
 }
 
+export interface ProcessingSteps {
+  description?: string;
+}
+
 export interface Dataset {
   id: string;
   slug: string;
