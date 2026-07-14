@@ -17,6 +17,7 @@ import { RasterLayerMatch } from '../interfaces/RasterLayer';
 import RasterLayerEntity from '../entities/RasterLayer';
 import { GISDataType } from '../types/data';
 import { getVectorMaskCtes, type CteDef } from './FilteringMasks';
+import { viewportAoiParams, viewportAoiSql } from './ViewportAoi';
 import { timed } from '../utils/logger';
 import { CACHE_TTL_SPATIAL_MS, cachedQuery } from '../utils/query-cache';
 
@@ -560,6 +561,7 @@ export default class SoilDataStorage {
   getDaiPointData = async (
     entityManager: EntityManager,
     filter: DataFilter,
+    bbox: [number, number, number, number],
   ): Promise<
     Array<{
       lon: number;
@@ -572,15 +574,14 @@ export default class SoilDataStorage {
   > => {
     const { geometryIds, parameters: filters } = filter;
     const schema = process.env.POSTGRES_SCHEMA;
-    const params: any[] = [geometryIds]; // $1 = geometryIds
+    // $1..$4 = viewport envelope, $5 = geometryIds when present (ADR 0010);
+    // p() continues the numbering from wherever viewportAoiParams left it.
+    const params: any[] = viewportAoiParams(bbox, geometryIds);
     const p = (val: any) => {
       params.push(val);
       return `$${params.length}`;
     };
-    const aoiCte = `aoi AS MATERIALIZED (
-      SELECT ugs.geom
-      FROM ${schema}.user_geometry_subdivisions ugs WHERE ugs.user_geometry_id = ANY($1::uuid[])
-    )`;
+    const aoiCte = `aoi AS MATERIALIZED (${viewportAoiSql(geometryIds.length > 0)})`;
 
     const whereClauses: string[] = [];
     const joins: string[] = [];

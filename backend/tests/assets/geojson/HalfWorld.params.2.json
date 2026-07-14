@@ -1,0 +1,6 @@
+{
+  "soil_properties": ["clay-fraction", "sand-fraction", "silt-fraction"],
+  "min_sampling_date": "1959-01-01",
+  "max_sampling_date": "2020-12-31",
+  "raster_filters": { "land_cover": [30] }
+}
