@@ -11,6 +11,7 @@ export interface FilterCriteria {
   horizons?: (string | null)[]; // Short strings
   soil_properties?: string[]; // slugs
   raster_filters?: Record<string, number[]>; // Map <table_name, raster_values>
+  visibility?: 'public' | 'private';
 }
 
 export interface DataFilterDTO {

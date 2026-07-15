@@ -29,7 +29,7 @@ A measurable characteristic of soil (e.g., pH, organic carbon). Identified by a 
 _Avoid_: Attribute, variable, parameter
 
 **Filter**:
-A persisted combination of one or more AOI geometries and parameter criteria (date range, depth range, soil properties, data types, licenses, raster filters). Used to scope all data queries. Filters are deduplicated per owner by **content identity**: submitting an equivalent combination reuses the existing Filter rather than creating a new one, so a client may receive back a Filter whose stored raw form differs byte-wise from what it submitted.
+A persisted combination of one or more AOI geometries and parameter criteria (date range, depth range, soil properties, data types, licenses, visibility, raster filters). Used to scope all data queries. Filters are deduplicated per owner by **content identity**: submitting an equivalent combination reuses the existing Filter rather than creating a new one, so a client may receive back a Filter whose stored raw form differs byte-wise from what it submitted.
 _Avoid_: Query, search, selection
 
 **Content identity** (of a Filter):
@@ -47,6 +47,10 @@ _Avoid_: Feature, AOI (a UserGeometry is one component of the AOI, not the AOI i
 **Canonical form** (of a UserGeometry):
 The validity-normalised representation of a submitted geometry, produced once at write time. Content identity (and therefore deduplication) is defined over the canonical form, not the raw submission. A stored canonical form is immutable — resubmitting an equivalent geometry never rewrites it.
 _Avoid_: Normalised geometry, cleaned geometry, validated geometry
+
+**Visibility**:
+A Dataset attribute: `public` or `private`. Private Datasets are still discoverable by everyone — visibility governs which capabilities (preview, download) require an entitlement, not whether the Dataset appears in results. As a Filter criterion, visibility matches Datasets by this attribute alone; it is entitlement-agnostic: filtering on `private` returns *all* private Datasets, not "private Datasets I can access". Absent means unconstrained; there is no null form (every Dataset has a visibility).
+_Avoid_: Access level, permission, "my datasets" (entitlement concepts — a different axis)
 
 **Data Availability Index (DAI)**:
 A composite score that quantifies the richness of soil data within an H3 cell. Computed on-demand per filter + viewport. Only point and polygonal features contribute; raster datasets are excluded from scoring.

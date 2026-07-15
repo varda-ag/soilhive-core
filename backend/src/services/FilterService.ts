@@ -46,7 +46,7 @@ export const computeFilterHash = (userGeometryIds: string[], parameters: FilterC
     const values = parameters[key];
     if (values !== undefined) normalized[key] = sortedUnique(values as (string | null)[]);
   }
-  for (const key of ['min_sampling_date', 'max_sampling_date', 'min_depth', 'max_depth'] as const) {
+  for (const key of ['min_sampling_date', 'max_sampling_date', 'min_depth', 'max_depth', 'visibility'] as const) {
     if (parameters[key] !== undefined) normalized[key] = parameters[key];
   }
   if (parameters.raster_filters !== undefined) {

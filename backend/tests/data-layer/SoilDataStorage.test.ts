@@ -132,6 +132,47 @@ describe('SoilDataStorage class', () => {
     }
   });
 
+  it('Filtering by visibility should match datasets by their visibility attribute', async () => {
+    const { dataset: publicDataset } = await addSyntheticData({ ...syntheticDataOptions, id: 1, soilPropertyNames: ['prop_pub'] });
+    const { dataset: privateDataset } = await addSyntheticData({ ...syntheticDataOptions, id: 2, soilPropertyNames: ['prop_priv'] });
+    const sds = new SoilDataStorage();
+    const entityManager = await getEntityManager();
+    await entityManager.query(`UPDATE datasets SET visibility = 'private' WHERE id = $1`, [privateDataset.id]);
+
+    const publicOnly = await sds.filterVector(entityManager, await makeFilter(entityManager, bboxPolygon, { visibility: 'public' }));
+    expect(publicOnly.map(r => r.id)).toEqual([publicDataset.slug]);
+
+    const privateOnly = await sds.filterVector(entityManager, await makeFilter(entityManager, bboxPolygon, { visibility: 'private' }));
+    expect(privateOnly.map(r => r.id)).toEqual([privateDataset.slug]);
+
+    // Absent means unconstrained (ADR 0011: attribute filter, not entitlement-aware)
+    const unconstrained = await sds.filterVector(entityManager, await makeFilter(entityManager, bboxPolygon, {}));
+    expect(unconstrained.map(r => r.id).sort()).toEqual([privateDataset.slug, publicDataset.slug].sort());
+  });
+
+  it('filterVectorDatasets should honor the visibility criterion', async () => {
+    const { dataset: publicDataset } = await addSyntheticData({ ...syntheticDataOptions, id: 1, soilPropertyNames: ['prop_pub'] });
+    const { dataset: privateDataset } = await addSyntheticData({ ...syntheticDataOptions, id: 2, soilPropertyNames: ['prop_priv'] });
+    const sds = new SoilDataStorage();
+    const entityManager = await getEntityManager();
+    await entityManager.query(`UPDATE datasets SET visibility = 'private' WHERE id = $1`, [privateDataset.id]);
+
+    const publicOnly = await sds.filterVectorDatasets(
+      entityManager,
+      await makeFilter(entityManager, bboxPolygon, { visibility: 'public' }),
+    );
+    expect(publicOnly.map(r => r.id)).toEqual([publicDataset.slug]);
+
+    const privateOnly = await sds.filterVectorDatasets(
+      entityManager,
+      await makeFilter(entityManager, bboxPolygon, { visibility: 'private' }),
+    );
+    expect(privateOnly.map(r => r.id)).toEqual([privateDataset.slug]);
+
+    const unconstrained = await sds.filterVectorDatasets(entityManager, await makeFilter(entityManager, bboxPolygon, {}));
+    expect(unconstrained.map(r => r.id).sort()).toEqual([privateDataset.slug, publicDataset.slug].sort());
+  });
+
   it.each([
     [undefined, undefined, 1, 10],
     [-100, undefined, 1, 10],
@@ -871,6 +912,32 @@ describe('SoilDataStorage class', () => {
       );
       expect(results).toHaveLength(expectedCount);
     });
+
+    it.each([
+      ['private', 'private', 1],
+      ['private', 'public', 0],
+      ['public', 'public', 1],
+      ['public', 'private', 0],
+    ])(
+      'Filtering raster data with dataset visibility %s and criterion %s should return %i result(s)',
+      async (datasetVisibility, criterion, expectedCount) => {
+        await addRasterData(undefined, {
+          dataset_status: IngestionStatus.PUBLISHED,
+          visibility: datasetVisibility as 'public' | 'private',
+        });
+        const sds = new SoilDataStorage();
+        const entityManager = await getEntityManager();
+        const filteringRectangle: Polygon = {
+          coordinates: [rasterCoordinates],
+          type: 'Polygon',
+        };
+        const results = await sds.filterRaster(
+          entityManager,
+          await makeFilter(entityManager, filteringRectangle, { visibility: criterion as 'public' | 'private' }),
+        );
+        expect(results).toHaveLength(expectedCount);
+      },
+    );
 
     it('Filtering raster data should aggregate multiple layers from the same dataset into one summary', async () => {
       await addRasterData(undefined, { dataset_status: IngestionStatus.PUBLISHED });
