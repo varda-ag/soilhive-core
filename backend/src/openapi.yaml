@@ -2031,6 +2031,9 @@ components:
             type: array
             items:
               type: number
+        visibility:
+          type: string
+          enum: [public, private]
 
     DataFilter:
       type: object

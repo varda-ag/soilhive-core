@@ -58,6 +58,7 @@ describe('isPrecomputableDaiParameters', () => {
     expect(isPrecomputableDaiParameters({ max_depth: 30 })).toBe(false);
     expect(isPrecomputableDaiParameters({ horizons: [null] })).toBe(false);
     expect(isPrecomputableDaiParameters({ licenses: ['cc-by'] })).toBe(false);
+    expect(isPrecomputableDaiParameters({ visibility: 'public' })).toBe(false);
   });
 });
 
@@ -310,6 +311,29 @@ describe('FilterService.getDai routing', () => {
     });
 
     // feature_dai_stats is empty; a non-empty result proves the live path ran
+    const dai = await filterService.getDai(requestData, worldBbox, resolution, filter.id);
+    expect(Object.values(dai.cells)).toEqual([3]);
+  });
+
+  it('routes visibility-filtered requests to the live path and applies the criterion', async () => {
+    await addSyntheticData({ ...syntheticDataOptions, id: 10, featureCount: 1, featureCoordinates: [[0.1, 0.1]] });
+    const priv = await addSyntheticData({
+      ...syntheticDataOptions,
+      id: 11,
+      featureCount: 1,
+      featureCoordinates: [[0.8, 0.8]],
+      soilPropertyNames: ['prop_b'],
+    });
+    const requestData = await getRequestData();
+    await requestData.entityManager.query(`UPDATE datasets SET visibility = 'private' WHERE id = $1`, [priv.dataset.id]);
+    const filter = await filterService.createFilter(requestData, {
+      geometries: [worldPolygon],
+      parameters: { visibility: 'public' },
+    });
+
+    // feature_dai_stats is empty; a non-empty result proves the live path ran.
+    // Only the public feature may contribute: a single cell scoring 3 — if the
+    // private one leaked in, there would be a second cell (or a 6 in a merged one).
     const dai = await filterService.getDai(requestData, worldBbox, resolution, filter.id);
     expect(Object.values(dai.cells)).toEqual([3]);
   });

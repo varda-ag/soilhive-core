@@ -1,8 +1,8 @@
 import { useCallback, useMemo } from 'react';
 import useAvailability from './useAvailability';
 import type { Selection } from 'types/components';
-import type { DatasetFrontendFilters, TimeFilterState } from 'types/availability';
-import { yearRangeToDatasetFilters } from '../adapters';
+import type { AvailabilityDataset, DatasetFrontendFilters, TimeFilterState } from 'types/availability';
+import { mapFilteredDatasetSummaryToAvailabilityDataset, yearRangeToDatasetFilters } from '../adapters';
 import { DATA_ACCESS_ITEMS, DATA_TYPE_ITEMS } from '../configuration/filters';
 
 type TimeFilterRange = {
@@ -31,12 +31,23 @@ const useDataScopeFilters = (): DataScopeFiltersType => {
   const {
     isLoading,
     allDatasets,
+    geometryFilterResults,
     selectedTimeFilter,
     datasetFrontendFilters,
     setSelectedTimeFilter,
     setFrontendFilters,
     setDatasetFilters,
   } = useAvailability();
+
+  // Options reflect what exists in the AOI regardless of the active criteria:
+  // geometryFilterResults is the criteria-free coverage, while allDatasets is
+  // already narrowed by data_types/visibility and would collapse the option
+  // lists to the current selection. allDatasets is only a fallback while the
+  // geometry-only coverage loads.
+  const optionSourceDatasets = useMemo(
+    (): AvailabilityDataset[] => geometryFilterResults?.datasets.map(mapFilteredDatasetSummaryToAvailabilityDataset) ?? allDatasets,
+    [geometryFilterResults, allDatasets],
+  );
 
   const timeFilterRange = useMemo((): TimeFilterRange => {
     if (!allDatasets.length) return { min: 0, max: 0 };
@@ -85,17 +96,17 @@ const useDataScopeFilters = (): DataScopeFiltersType => {
   }, [isLoading, selectedTimeFilter, timeFilterRange]);
 
   const typeFilterOptions = useMemo((): Selection[] => {
-    if (!allDatasets.length) return [];
+    if (!optionSourceDatasets.length) return [];
     const types: string[] = [];
 
-    for (const dataset of allDatasets) {
+    for (const dataset of optionSourceDatasets) {
       if (dataset.dataType && !types.includes(dataset.dataType)) {
         types.push(dataset.dataType);
       }
     }
 
     return DATA_TYPE_ITEMS.filter(item => types.includes(item.id));
-  }, [allDatasets]);
+  }, [optionSourceDatasets]);
 
   const typeFilterPills = useMemo((): Selection[] => {
     const availableOptions = typeFilterOptions.map(option => option.id);
@@ -116,17 +127,17 @@ const useDataScopeFilters = (): DataScopeFiltersType => {
   );
 
   const accessFilterOptions = useMemo((): Selection[] => {
-    if (!allDatasets.length) return [];
+    if (!optionSourceDatasets.length) return [];
     const visibilityOptions: string[] = [];
 
-    for (const dataset of allDatasets) {
+    for (const dataset of optionSourceDatasets) {
       if (dataset.visibility && !visibilityOptions.includes(dataset.visibility)) {
         visibilityOptions.push(dataset.visibility);
       }
     }
 
     return DATA_ACCESS_ITEMS.filter(item => visibilityOptions.includes(item.id));
-  }, [allDatasets]);
+  }, [optionSourceDatasets]);
 
   const accessFilterPills = useMemo((): Selection[] => {
     return DATA_ACCESS_ITEMS.filter(item => datasetFrontendFilters.visibility.includes(item.id));
