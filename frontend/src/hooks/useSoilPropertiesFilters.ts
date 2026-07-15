@@ -121,7 +121,12 @@ const useSoilPropertiesFilters = (): SoilPropertiesFiltersType => {
   const handleOnChange = (selected: string[]) => {
     setSelectedSoilProperties(selected);
     setDatasetFilters(prevFilters => {
-      return selected.length === 0 ? { ...prevFilters, soil_properties: undefined } : { ...prevFilters, soil_properties: selected };
+      // Remove the key entirely when empty: an undefined value would still count
+      // in the Object.keys gates on the filter payload (e.g. the geometryOnly fetch)
+      const next = { ...prevFilters };
+      if (selected.length === 0) delete next.soil_properties;
+      else next.soil_properties = selected;
+      return next;
     });
   };
 
