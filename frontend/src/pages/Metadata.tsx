@@ -16,7 +16,6 @@ import { getMetadataHeadValues } from 'utilities/buildMetadataHead';
 import { upsertMeta } from 'utilities/upsertMeta';
 import EyeIcon from 'assets/icons/small-eye-icon.svg?react';
 import ReduceIcon from 'assets/icons/reduce-icon.svg?react';
-import InfoIcon from 'assets/icons/info-icon.svg?react';
 import { EditorRow } from 'components/Metadata/EditorRow/EditorRow';
 import { LicenseRow } from 'components/Metadata/LicenseRow/LicenseRow';
 import { NumberRow } from 'components/Metadata/NumberRow/NumberRow';
@@ -200,17 +199,16 @@ export default function Metadata() {
       <div className={styles.Content}>
         <div className={styles.DatasetProperties}>
           <div className={styles.DatasetPropertiesHeader}>
-            <div className={styles.MandatoryTitle}>{t('mandatory_properties_title')}</div>
             <div
               className={classnames(styles.TopRow, {
                 [styles.AdminView]: isAdmin,
               })}
             >
-              {isAdmin && (
-                <div className={styles.AdminNotice}>
-                  <InfoIcon />
-                  <span>{t('admin_notice')}</span>
-                </div>
+              {isAdmin && !isMobileLayout && (
+                <p className={styles.MandatoryFields} data-testid="sh-mandatory-fields">
+                  <sup>*</sup>
+                  {t('mandatory_fields')}
+                </p>
               )}
               {!!dataset?.updated_at && (
                 <p className={styles.LastUpdated} data-testid="sh-last-update">
@@ -228,7 +226,7 @@ export default function Metadata() {
             placeholder={t('placeholders.name')}
             property="name"
             variant="text"
-            isRequired
+            isRequired={isAdmin}
             onStartEditing={onStartEditing}
             onSave={onSave}
             onCancel={onCancel}
@@ -240,7 +238,7 @@ export default function Metadata() {
             placeholder={t('placeholders.full_name')}
             property="full_name"
             variant="text"
-            isRequired
+            isRequired={isAdmin}
             onStartEditing={onStartEditing}
             onSave={onSave}
             onCancel={onCancel}
@@ -252,6 +250,7 @@ export default function Metadata() {
             placeholder={t('placeholders.version')}
             property="version"
             variant="text"
+            isRequired={isAdmin}
             onStartEditing={onStartEditing}
             onSave={onSave}
             onCancel={onCancel}
@@ -262,7 +261,7 @@ export default function Metadata() {
             isEditable={isAdmin && !isEditing}
             placeholder={t('placeholders.description')}
             property="description"
-            isRequired
+            isRequired={isAdmin}
             onStartEditing={onStartEditing}
             onSave={onSave}
             onCancel={onCancel}
@@ -274,7 +273,7 @@ export default function Metadata() {
             placeholder={t('placeholders.author')}
             property="author"
             variant="text"
-            isRequired
+            isRequired={isAdmin}
             onStartEditing={onStartEditing}
             onSave={onSave}
             onCancel={onCancel}
@@ -307,7 +306,7 @@ export default function Metadata() {
             value={(dataset?.soil_depth as { min?: number } | null | undefined)?.min}
             isEditable={isAdmin && !inferredProperties.has('soil_depth') && !isEditing}
             property="soil_depth_min"
-            isRequired
+            isRequired={isAdmin && !inferredProperties.has('soil_depth')}
             onStartEditing={onStartEditing}
             onSave={onSave}
             onCancel={onCancel}
@@ -317,7 +316,7 @@ export default function Metadata() {
             value={(dataset?.soil_depth as { max?: number } | null | undefined)?.max}
             isEditable={isAdmin && !inferredProperties.has('soil_depth') && !isEditing}
             property="soil_depth_max"
-            isRequired
+            isRequired={isAdmin && !inferredProperties.has('soil_depth')}
             onStartEditing={onStartEditing}
             onSave={onSave}
             onCancel={onCancel}
@@ -352,7 +351,7 @@ export default function Metadata() {
             placeholder={t('placeholders.reference_period_start')}
             property="reference_period_start"
             variant="text"
-            isRequired
+            isRequired={isAdmin && !inferredProperties.has('reference_period_start')}
             onStartEditing={onStartEditing}
             onSave={onSave}
             onCancel={onCancel}
@@ -364,7 +363,7 @@ export default function Metadata() {
             placeholder={t('placeholders.reference_period_stop')}
             property="reference_period_stop"
             variant="text"
-            isRequired
+            isRequired={isAdmin && !inferredProperties.has('reference_period_stop')}
             onStartEditing={onStartEditing}
             onSave={onSave}
             onCancel={onCancel}
@@ -376,7 +375,7 @@ export default function Metadata() {
             placeholder={t('placeholders.publication_date')}
             property="publication_date"
             variant="text"
-            isRequired
+            isRequired={isAdmin}
             onStartEditing={onStartEditing}
             onSave={onSave}
             onCancel={onCancel}
@@ -387,7 +386,7 @@ export default function Metadata() {
             allLicenses={allLicenses ?? []}
             isEditable={isAdmin && !inferredProperties.has('licenses') && !isEditing}
             property="licenses"
-            isRequired
+            isRequired={isAdmin && !inferredProperties.has('licenses')}
             onStartEditing={onStartEditing}
             onSave={onSave}
             onCancel={onCancel}
@@ -398,14 +397,11 @@ export default function Metadata() {
             isEditable={isAdmin && !isEditing}
             placeholder={t('placeholders.citation')}
             property="citation"
+            isRequired={isAdmin}
             onStartEditing={onStartEditing}
             onSave={onSave}
             onCancel={onCancel}
           />
-        </div>
-
-        <div className={styles.OptionalProperties}>
-          <div className={styles.Title}>{t('optional_properties_title')}</div>
           <EditorRow
             label={t('fields.preprocessing_steps')}
             value={dataset?.preprocessing_steps}
