@@ -78,6 +78,18 @@ describe('LicenseRow', () => {
       expect(screen.getByText('License')).toBeInTheDocument();
     });
 
+    it('renders an asterisk next to the label when isRequired', () => {
+      const { container } = render(<LicenseRow {...defaultProps} isRequired />);
+      const label = container.querySelector('p > strong');
+      expect(label?.textContent).toBe('License*');
+      expect(label?.querySelector('sup')).toHaveTextContent('*');
+    });
+
+    it('does not render an asterisk when isRequired is not set', () => {
+      const { container } = render(<LicenseRow {...defaultProps} />);
+      expect(container.querySelector('p > strong sup')).not.toBeInTheDocument();
+    });
+
     it('renders license full_name when present', () => {
       render(<LicenseRow {...defaultProps} currentLicenseIds={['lic-1']} />);
       expect(screen.getByText('MIT License')).toBeInTheDocument();

@@ -50,7 +50,7 @@ export default class DatasetService {
     const subject = getSubject(requestData);
     const dataset = repo.create({
       ...data,
-      processing_steps: this.toProcessingSteps(data.preprocessing_steps),
+      processing_steps: data.preprocessing_steps ? this.toProcessingSteps(data.preprocessing_steps) : null,
       created_by: subject,
       updated_by: subject,
     });
@@ -78,7 +78,7 @@ export default class DatasetService {
 
     repo.merge(dataset, {
       ...data,
-      processing_steps: this.toProcessingSteps(data.preprocessing_steps),
+      processing_steps: data.preprocessing_steps ? this.toProcessingSteps(data.preprocessing_steps) : (dataset.processing_steps ?? null),
       updated_by: subject,
       updated_at: new Date(),
     });
@@ -151,7 +151,7 @@ export default class DatasetService {
     dataset.preprocessing_steps = ps?.description ?? null;
   };
 
-  private toProcessingSteps = (value: string | null | undefined): object | null => {
+  private toProcessingSteps = (value: string | null): ProcessingSteps | null => {
     return value ? { description: value } : null;
   };
 

@@ -362,6 +362,49 @@ describe('Testing /data-filters routes', () => {
     expect(resultDatasets[0].visibility).toBe('private');
   });
 
+  it('Coverage with a visibility criterion only returns matching datasets', async () => {
+    const { dataset: publicDataset } = await addSyntheticData({ ...syntheticDataOptions, id: 50, soilPropertyNames: ['prop_pub'] });
+    const { dataset: privateDataset } = await addSyntheticData({ ...syntheticDataOptions, id: 51, soilPropertyNames: ['prop_priv'] });
+    const token = await getDataAdminToken();
+    await request(app).patch(`/datasets/${privateDataset.slug}`).set('Authorization', `Bearer ${token}`).send({ visibility: 'private' });
+
+    const resPrivate = await request(app)
+      .post('/data-filters')
+      .send({ parameters: { visibility: 'private' }, geometries: [filteringPolygon] });
+    const privateCoverage = await request(app).get(`/data-filters/${resPrivate.body.id}/coverage`);
+    const privateDatasets: FilteredDatasetSummary[] = privateCoverage.body.datasets;
+    expect(privateDatasets.map(ds => ds.id)).toEqual([privateDataset.slug]);
+    expect(privateDatasets[0].visibility).toBe('private');
+
+    const resPublic = await request(app)
+      .post('/data-filters')
+      .send({ parameters: { visibility: 'public' }, geometries: [filteringPolygon] });
+    const publicCoverage = await request(app).get(`/data-filters/${resPublic.body.id}/coverage`);
+    expect((publicCoverage.body.datasets as FilteredDatasetSummary[]).map(ds => ds.id)).toEqual([publicDataset.slug]);
+  });
+
+  it('Filters differing only in visibility are distinct, identical ones dedupe', async () => {
+    const send = (parameters: object) =>
+      request(app)
+        .post('/data-filters')
+        .set(superAdminAuthHeader)
+        .send({ parameters, geometries: [filteringPolygon] });
+    const resPublic1 = await send({ visibility: 'public' });
+    const resPublic2 = await send({ visibility: 'public' });
+    const resPrivate = await send({ visibility: 'private' });
+    const resAbsent = await send({});
+    expect(resPublic2.body.id).toBe(resPublic1.body.id);
+    expect(resPrivate.body.id).not.toBe(resPublic1.body.id);
+    expect(resAbsent.body.id).not.toBe(resPublic1.body.id);
+  });
+
+  it('An invalid visibility value is rejected', async () => {
+    const res = await request(app)
+      .post('/data-filters')
+      .send({ parameters: { visibility: 'internal' }, geometries: [filteringPolygon] });
+    expect(res.statusCode).toBe(400);
+  });
+
   it('Coverage should not return data for a deleted dataset', async () => {
     // 1. Prepare a dataset with its observations
     const layers = 5;

@@ -10,6 +10,7 @@ jest.mock('hooks/useAvailability', () => ({
 }));
 
 jest.mock('../../src/adapters', () => ({
+  ...jest.requireActual('../../src/adapters'),
   yearRangeToDatasetFilters: jest.fn(),
 }));
 
@@ -121,6 +122,40 @@ describe('useDataScopeFilters', () => {
 
     const { result } = renderHook(() => useDataScopeFilters());
     expect(result.current.typeFilterOptions).toEqual(DATA_TYPE_ITEMS.filter((x: any) => ['raster', 'point'].includes(x.id)));
+  });
+
+  it('filter options derive from geometryFilterResults (criteria-free coverage) when present', () => {
+    (useAvailability as jest.Mock).mockReturnValue({
+      ...defaultAvailabilityState,
+      // allDatasets is criteria-filtered: only raster/private survived the active filters
+      allDatasets: [{ dataType: 'raster', visibility: 'private', properties: {} }],
+      geometryFilterResults: {
+        datasets: [
+          { id: 'a', name: 'a', data_type: 'point', visibility: 'public' },
+          { id: 'b', name: 'b', data_type: 'raster', visibility: 'private' },
+        ],
+        raster_filters: {},
+      },
+    });
+
+    const { result } = renderHook(() => useDataScopeFilters());
+
+    // Options must not collapse to the filtered selection
+    expect(result.current.typeFilterOptions.map(o => o.id)).toEqual(['point', 'raster']);
+    expect(result.current.accessFilterOptions.map(o => o.id)).toEqual(['private', 'public']);
+  });
+
+  it('filter options fall back to allDatasets while geometryFilterResults is unavailable', () => {
+    (useAvailability as jest.Mock).mockReturnValue({
+      ...defaultAvailabilityState,
+      allDatasets: [{ dataType: 'polygonal', visibility: 'public', properties: {} }],
+      geometryFilterResults: undefined,
+    });
+
+    const { result } = renderHook(() => useDataScopeFilters());
+
+    expect(result.current.typeFilterOptions.map(o => o.id)).toEqual(['polygonal']);
+    expect(result.current.accessFilterOptions.map(o => o.id)).toEqual(['public']);
   });
 
   it('typeFilterPills marks selected types disabled if not available and not loading', () => {

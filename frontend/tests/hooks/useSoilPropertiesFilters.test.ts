@@ -174,7 +174,7 @@ describe('useSoilPropertiesFilters', () => {
     expect(merged).toEqual({ soil_properties: ['2', '4'] });
   });
 
-  it('handleOnChange sets soil_properties undefined when selection becomes empty', () => {
+  it('handleOnChange removes the soil_properties key when selection becomes empty', () => {
     const { result } = renderHook(() => useSoilPropertiesFilters());
 
     act(() => {
@@ -182,9 +182,12 @@ describe('useSoilPropertiesFilters', () => {
     });
 
     const updater = mockSetDatasetFilters.mock.calls[0][0];
-    const merged = updater({ soil_properties: ['old_selected'] });
+    const merged = updater({ soil_properties: ['old_selected'], min_depth: 10 });
 
-    expect(merged).toEqual({ soil_properties: undefined });
+    // The key must be gone entirely, not set to undefined: undefined keys still
+    // count in the Object.keys gates on the filter payload
+    expect('soil_properties' in merged).toBe(false);
+    expect(merged).toEqual({ min_depth: 10 });
   });
 
   it('handlePillRemove uses getBranchIds and removes those ids from selection', () => {

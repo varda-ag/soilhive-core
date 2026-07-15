@@ -74,7 +74,10 @@ export function EditorRow({
         .join(' ')}
     >
       <p className={styles.Label}>
-        <strong>{label}</strong>
+        <strong>
+          {label}
+          {isRequired && <sup>*</sup>}
+        </strong>
       </p>
       {isEditing ? (
         <div className={styles.EditArea}>

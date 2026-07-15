@@ -9,6 +9,14 @@ If you would like to contribute for the first time, open a GitHub issue describi
 
 Every pull request must be linked to a GitHub issue describing the change. PRs without a corresponding issue will not be reviewed.
 
+## What can be contributed
+
+We're happy to consider most contributions, but to keep the project focused, please keep the following in mind:
+
+- **New features** should be core to the platform — that is, they help with uploading, harmonizing, or serving data. If you have an idea outside that scope, it's still worth opening an issue to discuss it, but be aware it may not be a fit.
+- **Bug fixes** are always welcome. Please describe the issue clearly in the linked GitHub issue: what's happening, what you expected instead, and how to reproduce it.
+- Once your issue is open, the team will take a look and mark it as valid before work begins. This helps make sure your effort goes toward something we can merge, and it's the point at which we're happy for you to start working on a PR.
+
 ---
 
 ## Prerequisites
@@ -100,6 +108,12 @@ pnpm run lint:fix     # fix lint errors (eslint)
 ```
 
 Run both before opening a PR to avoid CI noise. Prettier covers `ts`, `tsx`, `json`, `css`, and `md` files.
+
+Beyond formatting, code should follow the conventions already established elsewhere in the codebase (naming, file layout, error handling, etc.) — when in doubt, match the style of the surrounding code.
+
+## Tests
+
+New code should come with tests, written in the same style and using the same tools as the existing tests in that package (see `frontend/` and `backend/` for examples). Bug fixes should include a test that reproduces the bug and confirms the fix. PRs that reduce test coverage without a good reason will be asked to add it back.
 
 ## Project structure
 

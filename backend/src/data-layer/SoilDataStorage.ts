@@ -103,6 +103,9 @@ export default class SoilDataStorage {
     if (filters.data_types && filters.data_types.length > 0) {
       datasetWhere.push(`ds.gis_datatype IN (${filters.data_types.map(v => p(v)).join(', ')})`);
     }
+    if (filters.visibility) {
+      datasetWhere.push(`ds.visibility = ${p(filters.visibility)}`);
+    }
     if (filters.min_sampling_date === null) {
       layerWhere.push('layer.sampling_date IS NULL');
     } else if (filters.min_sampling_date) {
@@ -589,6 +592,9 @@ export default class SoilDataStorage {
     if (filters.data_types && filters.data_types.length > 0) {
       whereClauses.push(`ds.gis_datatype IN (${filters.data_types.map(v => p(v)).join(', ')})`);
     }
+    if (filters.visibility) {
+      whereClauses.push(`ds.visibility = ${p(filters.visibility)}`);
+    }
     if (filters.min_sampling_date === null) {
       whereClauses.push('layer.sampling_date IS NULL');
     } else if (filters.min_sampling_date) {
@@ -848,6 +854,10 @@ export const buildDatasetFilterClauses = (
 
   if (filters.data_types && filters.data_types.length > 0) {
     outerWhere.push(`ds.gis_datatype IN (${filters.data_types.map(v => p(v)).join(', ')})`);
+  }
+
+  if (filters.visibility) {
+    outerWhere.push(`ds.visibility = ${p(filters.visibility)}`);
   }
 
   if (filters.min_sampling_date === null) {
@@ -1366,5 +1376,8 @@ const applyRasterLayerFilters = (query: SelectQueryBuilder<RasterLayerEntity>, f
   }
   if (filters.licenses?.length) {
     query.andWhere('ds.licenses && ARRAY[:...licenses]', { licenses: filters.licenses });
+  }
+  if (filters.visibility) {
+    query.andWhere('ds.visibility = :visibility', { visibility: filters.visibility });
   }
 };

@@ -358,6 +358,12 @@ export class CreateSchema1775600000000 implements MigrationInterface {
       `ALTER TABLE "datasets" ADD CONSTRAINT "FK_datasets_id_id_slug_slug_slug_history_slug_entity_id_slug_entity_id" FOREIGN KEY ("id", "slug") REFERENCES "slug_history"("entity_id","slug") ON DELETE NO ACTION ON UPDATE NO ACTION DEFERRABLE INITIALLY DEFERRED`,
     );
     await queryRunner.query(
+      `ALTER TABLE "datasets" ADD CONSTRAINT chk_date_format_start CHECK ("reference_period_start" ~ '^\\d{4}$' OR "reference_period_start" ~ '^\\d{4}-\\d{2}$' OR "reference_period_start" ~ '^\\d{4}-\\d{2}-\\d{2}$')`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "datasets" ADD CONSTRAINT chk_date_format_stop CHECK ("reference_period_stop" ~ '^\\d{4}$' OR "reference_period_stop" ~ '^\\d{4}-\\d{2}$' OR "reference_period_stop" ~ '^\\d{4}-\\d{2}-\\d{2}$')`,
+    );
+    await queryRunner.query(
       `ALTER TABLE "licenses" ADD CONSTRAINT "FK_licenses_id_id_slug_slug_slug_history_entity_id_slug_entity_id_slug" FOREIGN KEY ("id", "slug") REFERENCES "slug_history"("entity_id","slug") ON DELETE NO ACTION ON UPDATE NO ACTION DEFERRABLE INITIALLY DEFERRED`,
     );
     await queryRunner.query(

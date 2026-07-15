@@ -26,6 +26,18 @@ describe('NumberRow', () => {
   });
 
   describe('display mode', () => {
+    it('renders an asterisk next to the label when isRequired', () => {
+      const { container } = render(<NumberRow {...defaultProps} isRequired />);
+      const label = container.querySelector('p > strong');
+      expect(label?.textContent).toBe('Min depth*');
+      expect(label?.querySelector('sup')).toHaveTextContent('*');
+    });
+
+    it('does not render an asterisk when isRequired is not set', () => {
+      const { container } = render(<NumberRow {...defaultProps} />);
+      expect(container.querySelector('p > strong sup')).not.toBeInTheDocument();
+    });
+
     it('renders label and numeric value', () => {
       render(<NumberRow {...defaultProps} />);
       expect(screen.getByText('Min depth')).toBeInTheDocument();

@@ -47,6 +47,18 @@ describe('EditorRow', () => {
       expect(screen.getByText('Test Value')).toBeInTheDocument();
     });
 
+    it('renders an asterisk next to the label when isRequired', () => {
+      const { container } = render(<EditorRow {...defaultProps} variant="text" isRequired />);
+      const label = container.querySelector('p > strong');
+      expect(label?.textContent).toBe('Name*');
+      expect(label?.querySelector('sup')).toHaveTextContent('*');
+    });
+
+    it('does not render an asterisk when isRequired is not set', () => {
+      const { container } = render(<EditorRow {...defaultProps} variant="text" />);
+      expect(container.querySelector('p > strong sup')).not.toBeInTheDocument();
+    });
+
     it('does not show edit button when isEditable=false', () => {
       render(<EditorRow {...defaultProps} variant="text" isEditable={false} />);
       expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument();

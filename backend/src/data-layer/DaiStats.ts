@@ -34,6 +34,7 @@ export const isPrecomputableDaiParameters = (parameters: FilterCriteria): boolea
     'max_depth',
     'horizons',
     'soil_properties',
+    'visibility',
   ];
   return !filteringKeys.some(key => parameters[key] !== undefined);
 };
