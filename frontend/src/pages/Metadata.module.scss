@@ -244,11 +244,15 @@
 
       .TopRow {
         display: flex;
-        justify-content: flex-end;
+        justify-content: space-between;
         align-items: center;
 
         &.AdminView {
           justify-content: space-between;
+        }
+
+        .MandatoryFields {
+          color: var(--color-neutral-dark-400);
         }
 
         .LastUpdated {
@@ -257,34 +261,6 @@
           @media (max-width: $bp-mobile-max) {
             padding-right: 24px;
           }
-        }
-      }
-      .MandatoryTitle {
-        color: var(--color-neutral-dark-400);
-        font-size: var(--font-size-md);
-        margin-bottom: 10px;
-
-        @media (max-width: $bp-mobile-max) {
-          padding-left: 13px;
-        }
-      }
-
-      .AdminNotice {
-        display: flex;
-        align-items: center;
-        padding: 8px 12px;
-        background-color: var(--color-neutral-light);
-        border-radius: 4px;
-        max-width: 400px;
-
-        svg {
-          flex-shrink: 0;
-          width: 16px;
-          height: 16px;
-        }
-
-        span {
-          margin-left: 4px;
         }
       }
     }
@@ -299,16 +275,6 @@
         border-radius: 8px;
         padding: 24px 32px 51px 32px;
         margin-bottom: 24px;
-      }
-
-      .Title {
-        color: var(--color-neutral-dark-400);
-        font-size: var(--font-size-md);
-        margin-bottom: 10px;
-
-        @media (max-width: $bp-mobile-max) {
-          padding-left: 13px;
-        }
       }
     }
   }

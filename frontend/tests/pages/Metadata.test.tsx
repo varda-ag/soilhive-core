@@ -206,7 +206,7 @@ describe('Metadata page', () => {
     }
   });
 
-  it('renders "MANDATORY PROPERTIES" header above the Name field', () => {
+  it('does not render the mandatory-fields legend or label asterisks for non-admin users', () => {
     (useMetadata as jest.Mock).mockReturnValue({
       dataset: buildDataset(),
       allLicenses: [{ id: 'lic-1', url: 'https://license.example', full_name: 'Test License' }],
@@ -214,20 +214,9 @@ describe('Metadata page', () => {
       isLoading: false,
       isError: false,
     });
-    render(<Metadata />);
-    expect(screen.getByText('MANDATORY PROPERTIES')).toBeInTheDocument();
-  });
-
-  it('renders "MANDATORY PROPERTIES" header for non-admin users too', () => {
-    (useMetadata as jest.Mock).mockReturnValue({
-      dataset: buildDataset(),
-      allLicenses: [],
-      inferredProperties: new Set(),
-      isLoading: false,
-      isError: false,
-    });
-    render(<Metadata />);
-    expect(screen.getByText('MANDATORY PROPERTIES')).toBeInTheDocument();
+    const { container } = render(<Metadata />);
+    expect(screen.queryByTestId('sh-mandatory-fields')).not.toBeInTheDocument();
+    expect(container.querySelector('sup')).not.toBeInTheDocument();
   });
 
   it('opens map popup on overlay click and closes it on Escape', () => {
@@ -354,12 +343,16 @@ describe('Metadata page – admin editing behavior', () => {
     document.body.style.overflow = '';
   });
 
-  it('shows admin notice when user is admin', () => {
+  const getRowLabel = (label: string) => Array.from(document.querySelectorAll('p > strong')).find(el => el.textContent?.startsWith(label));
+
+  it('shows the mandatory-fields legend when user is admin', () => {
     renderAsAdmin();
-    expect(screen.getByText(/You can edit fields directly/i)).toBeInTheDocument();
+    const legend = screen.getByTestId('sh-mandatory-fields');
+    expect(legend).toBeInTheDocument();
+    expect(legend).toHaveTextContent('Mandatory properties');
   });
 
-  it('does not show admin notice for non-admin', () => {
+  it('does not show the mandatory-fields legend for non-admin', () => {
     (useMetadata as jest.Mock).mockReturnValue({
       dataset: buildAdminDataset(),
       allLicenses: [],
@@ -370,7 +363,29 @@ describe('Metadata page – admin editing behavior', () => {
     });
     (useEntitlements as jest.Mock).mockReturnValue({ can: () => false });
     render(<Metadata />);
-    expect(screen.queryByText(/You can edit fields directly/i)).not.toBeInTheDocument();
+    expect(screen.queryByTestId('sh-mandatory-fields')).not.toBeInTheDocument();
+  });
+
+  it('marks required row labels with an asterisk when admin', () => {
+    renderAsAdmin();
+    expect(getRowLabel('Name:')?.querySelector('sup')).toHaveTextContent('*');
+    expect(getRowLabel('Description:')?.querySelector('sup')).toHaveTextContent('*');
+    expect(getRowLabel('License:')?.querySelector('sup')).toHaveTextContent('*');
+    // data_producer is never required
+    expect(getRowLabel('Data producer:')?.querySelector('sup')).toBeFalsy();
+  });
+
+  it('does not mark inferred properties as required', () => {
+    renderAsAdmin({
+      inferredProperties: new Set(['soil_depth', 'licenses', 'reference_period_start', 'reference_period_stop']),
+    });
+    expect(getRowLabel('Min Soil Depth (cm):')?.querySelector('sup')).toBeFalsy();
+    expect(getRowLabel('Max Soil Depth (cm):')?.querySelector('sup')).toBeFalsy();
+    expect(getRowLabel('Reference coverage start:')?.querySelector('sup')).toBeFalsy();
+    expect(getRowLabel('Reference coverage end:')?.querySelector('sup')).toBeFalsy();
+    expect(getRowLabel('License:')?.querySelector('sup')).toBeFalsy();
+    // non-inferred required fields keep the asterisk
+    expect(getRowLabel('Name:')?.querySelector('sup')).toHaveTextContent('*');
   });
 
   it('shows edit buttons on editable rows when admin', () => {
@@ -532,7 +547,7 @@ describe('Metadata page – mobile layout', () => {
     __resetIsMobileLayout();
   });
 
-  it('does not show the admin notice on mobile even when user is admin', () => {
+  it('does not show the mandatory-fields legend on mobile even when user is admin', () => {
     (useMetadata as jest.Mock).mockReturnValue({
       dataset: buildAdminDataset(),
       allLicenses: [],
@@ -543,7 +558,7 @@ describe('Metadata page – mobile layout', () => {
     });
     (useEntitlements as jest.Mock).mockReturnValue({ can: () => true });
     render(<Metadata />);
-    expect(screen.queryByText(/You can edit fields directly/i)).not.toBeInTheDocument();
+    expect(screen.queryByTestId('sh-mandatory-fields')).not.toBeInTheDocument();
   });
 
   it('does not show edit buttons on mobile even when user is admin', () => {

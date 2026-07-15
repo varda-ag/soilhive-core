@@ -1,6 +1,7 @@
 {
     "loading": "Loading...",
     "admin_notice": "You can edit fields directly from this list",
+    "mandatory_fields": "Mandatory properties",
     "last_update": "Last update on {{date}}",
     "placeholders": {
         "name": "Abbreviated name or acronym for the dataset (displayed in the platform)",

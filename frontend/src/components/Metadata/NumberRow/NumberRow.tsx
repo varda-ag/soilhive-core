@@ -61,7 +61,10 @@ export function NumberRow({
   return (
     <div className={`${styles.Row}${isEditable && !isEditing ? ` ${styles.RowAdmin}` : ''}`}>
       <p className={styles.Label}>
-        <strong>{label}</strong>
+        <strong>
+          {label}
+          {isRequired && <sup>*</sup>}
+        </strong>
       </p>
       {isEditing ? (
         <div className={styles.EditArea}>
