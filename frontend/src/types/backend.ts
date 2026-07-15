@@ -11,6 +11,7 @@ export interface BackendFilterCriteria {
   horizons?: (string | null)[];
   soil_properties?: string[];
   raster_filters?: Map<string, number[]>;
+  visibility?: 'public' | 'private';
 }
 
 export interface BackendDataFilter {
@@ -27,7 +28,7 @@ export interface BackendStoredDataFilter {
 
 // THE FOLLOWING DEFINITIONS DO NOT CORRESPOND TO THE BACKEND ONES
 export interface FilterCriteria {
-  data_type?: string;
+  data_types?: GISDataType[];
   licenses?: string[];
   min_sampling_date?: string;
   max_sampling_date?: string;
@@ -36,6 +37,7 @@ export interface FilterCriteria {
   horizons?: string[];
   soil_properties?: string[];
   raster_filters?: Record<string, number[]>; // server side is Map <table_name, raster_values>, but on FE this can lead to React equality checks errors
+  visibility?: 'public' | 'private';
 }
 
 export interface DataFilterDTO {
@@ -52,7 +54,7 @@ export interface FilteredDatasetSummary extends FilterCriteria {
   id: string;
   name: string;
   data_type: GISDataType;
-  visibility: string;
+  visibility: 'public' | 'private';
   dataset_layer_count: number;
   raster_layer_count: number;
 }

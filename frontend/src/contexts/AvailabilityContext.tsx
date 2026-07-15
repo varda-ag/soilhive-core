@@ -12,7 +12,7 @@ import type {
   FilteredData,
   FilteredDataset,
 } from 'types/backend';
-import { computeDatasetSummary } from '../domain';
+import { applyDataScopeCriteria, computeDatasetSummary } from '../domain';
 import { useDataFilterQuery } from 'hooks/useDataFilterQuery';
 import { useSoilProperties } from '../hooks/useSoilProperties';
 import { usePropertiesCategories } from 'hooks/usePropertiesCategories';
@@ -116,6 +116,7 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
         ...datasetFrontendFilters,
         [name]: value,
       });
+      setDatasetFilters(prevFilters => applyDataScopeCriteria(prevFilters, name, value));
     },
     [datasetFrontendFilters],
   );

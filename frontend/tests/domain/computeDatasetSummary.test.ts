@@ -20,7 +20,7 @@ describe.each(testTimezones)('computeDatasetSummary domain logic (multiple-timez
           id: 'dataset-id-1',
           name: 'dataset-name-1',
           data_type: GISDataType.POINT,
-          visibility: 'public',
+          visibility: 'public' as const,
           dataset_layer_count: 25,
           raster_layer_count: 0,
         },
@@ -44,7 +44,7 @@ describe.each(testTimezones)('computeDatasetSummary domain logic (multiple-timez
           id: 'dataset-id-2',
           name: 'dataset-name-2',
           data_type: GISDataType.POINT,
-          visibility: 'public',
+          visibility: 'public' as const,
           dataset_layer_count: 20,
           raster_layer_count: 0,
           min_depth: 0,
@@ -102,7 +102,14 @@ describe.each(testTimezones)('computeDatasetSummary domain logic (multiple-timez
 
   it('fetchedFilteredResults count takes precedence over fullFilterDatasets count', () => {
     const fetchedFilteredResults = [
-      { id: 'ds-1', name: 'Dataset 1', data_type: GISDataType.POINT, visibility: 'public', dataset_layer_count: 10, raster_layer_count: 0 },
+      {
+        id: 'ds-1',
+        name: 'Dataset 1',
+        data_type: GISDataType.POINT,
+        visibility: 'public' as const,
+        dataset_layer_count: 10,
+        raster_layer_count: 0,
+      },
     ];
     const fullFilterDatasets = [
       { id: 'ds-1', name: 'Dataset 1', data_type: GISDataType.POINT, visibility: 'public' },
