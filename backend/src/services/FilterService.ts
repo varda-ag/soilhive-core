@@ -22,6 +22,7 @@ import { bboxAreaM2 } from '../utils/geometry';
 import { timed } from '../utils/logger';
 import { CACHE_TTL_SPATIAL_MS, cachedCompute } from '../utils/query-cache';
 import { DaiPointRow, getDaiPointDataPrecomputed, isPrecomputableDaiParameters } from '../data-layer/DaiStats';
+import { GISDataType } from '../types/data';
 
 const sds = new SoilDataStorage();
 
@@ -246,6 +247,12 @@ export default class FilterService {
   ): Promise<DataAvailabilityIndex> => {
     const filter = await this.getFilterById(requestData, filterId);
     const { geometryIds, parameters } = filter;
+
+    // Raster datasets do not concur to DAI calculation
+    const uniqueDataTypes = new Set(parameters.data_types ?? []);
+    if (uniqueDataTypes.size === 1 && uniqueDataTypes.has(GISDataType.RASTER)) {
+      return { resolution, min: 0, max: 0, cells: {} };
+    }
 
     // The AOI (filter geometries ∩ viewport) is resolved in-DB from the
     // persistent subdivisions — no geometry is loaded, clipped, or written
