@@ -59,7 +59,7 @@ describe('useDownloads', () => {
     (getStoredJobIds as jest.Mock).mockReturnValue([]);
 
     (useAuthContext as jest.Mock).mockReturnValue({
-      isAuthenticated: true,
+      isAuthenticated: false,
     });
   });
 
@@ -352,7 +352,7 @@ describe('useDownloads', () => {
     });
 
     // Verify that the utility function was called with the new ID
-    expect(addStoredJobId).toHaveBeenCalledWith(jobId);
+    expect(addStoredJobId).toHaveBeenCalledWith(jobId, null);
   });
 
   it('deletes the job ID from the storage when a download is cancelled', async () => {
@@ -366,7 +366,7 @@ describe('useDownloads', () => {
     });
 
     // Verify that the utility function was called with the new ID
-    expect(removeStoredJobId).toHaveBeenCalledWith(jobId);
+    expect(removeStoredJobId).toHaveBeenCalledWith(jobId, null);
   });
 
   it.each(['completed', 'failed'])(`automatically removes the job ID from storage when status is %s`, async (status: string) => {
@@ -388,7 +388,7 @@ describe('useDownloads', () => {
 
     // We wait for the useEffect inside the component to trigger the removal
     await waitFor(() => {
-      expect(removeStoredJobId).toHaveBeenCalledWith(jobId);
+      expect(removeStoredJobId).toHaveBeenCalledWith(jobId, null);
     });
   });
 
@@ -418,9 +418,14 @@ describe('useDownloads', () => {
     });
   });
 
-  it('does not start persisted downloads for not logged in user', async () => {
+  it('starts persisted downloads for current logged in user', async () => {
     (useAuthContext as jest.Mock).mockReturnValue({
-      isAuthenticated: false,
+      isAuthenticated: true,
+      user: {
+        profile: {
+          sub: 'mockUserId',
+        },
+      },
     });
 
     (getStoredJobIds as jest.Mock).mockReturnValue(['job-existing']);
@@ -438,7 +443,8 @@ describe('useDownloads', () => {
     renderHook(() => useDownloads(), { wrapper });
 
     await waitFor(() => {
-      expect(useJobsQueries as jest.Mock).toHaveBeenCalledWith([]);
+      expect(getStoredJobIds as jest.Mock).toHaveBeenCalledWith('mockUserId');
+      expect(useJobsQueries as jest.Mock).toHaveBeenCalledWith(['job-existing']);
     });
   });
 });
