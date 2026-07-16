@@ -441,11 +441,17 @@ export function useMappingsStep(datasetId?: string) {
     );
 
     const geometryCodesToHide = new Set<string>();
-    if (geometryDetected === true || usedMetadataCodes.has('geometry')) {
+    if (usedMetadataCodes.has('geometry')) {
       geometryCodesToHide.add('latitude');
       geometryCodesToHide.add('longitude');
-      if (geometryDetected === true) geometryCodesToHide.add('geometry');
-    } else if (usedMetadataCodes.has('latitude') || usedMetadataCodes.has('longitude')) {
+      geometryCodesToHide.add('geometry');
+    }
+    if (usedMetadataCodes.has('latitude')) {
+      geometryCodesToHide.add('latitude');
+      geometryCodesToHide.add('geometry');
+    }
+    if (usedMetadataCodes.has('longitude')) {
+      geometryCodesToHide.add('longitude');
       geometryCodesToHide.add('geometry');
     }
 
@@ -460,7 +466,7 @@ export function useMappingsStep(datasetId?: string) {
         return [m.columnName, [...availableMetadata, ...soilPropertyOptions]];
       }),
     );
-  }, [columnMappings, soilPropertyOptions, geometryDetected]);
+  }, [columnMappings, soilPropertyOptions]);
 
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
