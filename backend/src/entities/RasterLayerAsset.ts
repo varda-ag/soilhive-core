@@ -12,6 +12,9 @@ export default class RasterLayerAssetEntity extends BaseTable implements RasterL
   })
   id: string;
 
+  @Column({ type: 'text' })
+  slug: string;
+
   @Column({ type: 'uuid' })
   file_id: string;
 

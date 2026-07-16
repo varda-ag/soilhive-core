@@ -6,6 +6,7 @@ import DatasetEntity from './Dataset';
 import SoilPropertyEntity from './SoilProperty';
 import FileEntity from './File';
 import RasterFootprintEntity from './RasterFootprint';
+import ProcedureEntity from './Procedure';
 
 @Entity('raster_layers')
 export default class RasterLayerEntity extends BaseTable implements RasterLayer {
@@ -69,4 +70,11 @@ export default class RasterLayerEntity extends BaseTable implements RasterLayer 
     inverseJoinColumn: { name: 'raster_footprint_id', referencedColumnName: 'id' },
   })
   footprints: RasterFootprintEntity[];
+
+  @Column({ type: 'uuid', nullable: true })
+  procedure_id?: string;
+
+  @ManyToOne(() => ProcedureEntity, procedure => procedure.id)
+  @JoinColumn({ name: 'procedure_id' })
+  procedure: ProcedureEntity;
 }
