@@ -1,6 +1,5 @@
 import type { Polygon } from 'geojson';
 
-// TODO: add slug
 export interface RasterLayer {
   id: string;
   file_id: string;
@@ -17,7 +16,6 @@ export interface RasterLayer {
   procedure_id?: string | null;
 }
 
-//TODO: Add slug
 export interface RasterLayerAsset {
   id: string;
   file_id: string;

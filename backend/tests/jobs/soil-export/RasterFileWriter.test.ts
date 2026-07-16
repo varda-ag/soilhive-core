@@ -221,7 +221,14 @@ describe('RasterFileWriter', () => {
     it('appends laboratroy method and unit info if available', async () => {
       const writer = new RasterFileWriter(RasterFileFormat.TIFF, TEST_OUTPUT_DIR);
       await writer.writeLayer(
-        makeLayer({ dataset_name: 'My Dataset', soil_property_name: 'pH', laboratory_method: 'H2O', standard_unit: 'pH*10', min_depth: null, max_depth: null }),
+        makeLayer({
+          dataset_name: 'My Dataset',
+          soil_property_name: 'pH',
+          laboratory_method: 'H2O',
+          standard_unit: 'pH*10',
+          min_depth: null,
+          max_depth: null,
+        }),
         MASK_TIFF,
       );
       // sanitizeField: toLowerCase → replace '-' with '_' → strip non-[a-z0-9_]
