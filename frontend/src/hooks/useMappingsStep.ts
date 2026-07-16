@@ -42,6 +42,7 @@ export interface ColumnMapping {
   conceptId: string | null;
   unitId: string | null;
   details: RowDetails;
+  isGeometryDetectedField: boolean;
 }
 
 export type DetailOptionMap = Record<keyof RowDetails, MenuOption[]>;
@@ -366,12 +367,22 @@ export function useMappingsStep(datasetId?: string) {
 
     setColumnMappings(
       columnNames.map(columnName => {
+        const isGeometryDetectedField =
+          files[0]?.metadata?.geometry_detected === true &&
+          ['geometry', 'latitude', 'longitude'].includes(detectedConceptByColumn[columnName] ?? '');
         const existing = existingDataMapping[columnName];
         if (!existing) {
-          return { columnName, conceptId: detectedConceptByColumn[columnName] ?? null, unitId: null, details: { ...EMPTY_DETAILS } };
+          return {
+            columnName,
+            conceptId: detectedConceptByColumn[columnName] ?? null,
+            unitId: null,
+            details: { ...EMPTY_DETAILS },
+            isGeometryDetectedField,
+          };
         }
-        if (typeof existing === 'string') return { columnName, conceptId: existing, unitId: null, details: { ...EMPTY_DETAILS } };
-
+        if (typeof existing === 'string') {
+          return { columnName, conceptId: existing, unitId: null, details: { ...EMPTY_DETAILS }, isGeometryDetectedField };
+        }
         const proc = procedureByColumn[columnName];
         const details: RowDetails = proc
           ? {
@@ -386,7 +397,7 @@ export function useMappingsStep(datasetId?: string) {
             }
           : { ...EMPTY_DETAILS };
 
-        return { columnName, conceptId: existing.property_id, unitId: existing.conversion_id ?? null, details };
+        return { columnName, conceptId: existing.property_id, unitId: existing.conversion_id ?? null, details, isGeometryDetectedField };
       }),
     );
   }, [files, procedureByColumn, mergedMappings]);
@@ -441,7 +452,7 @@ export function useMappingsStep(datasetId?: string) {
     );
 
     const geometryCodesToHide = new Set<string>();
-    if (usedMetadataCodes.has('geometry')) {
+    if (geometryDetected === true || usedMetadataCodes.has('geometry')) {
       geometryCodesToHide.add('latitude');
       geometryCodesToHide.add('longitude');
       geometryCodesToHide.add('geometry');
@@ -466,7 +477,7 @@ export function useMappingsStep(datasetId?: string) {
         return [m.columnName, [...availableMetadata, ...soilPropertyOptions]];
       }),
     );
-  }, [columnMappings, soilPropertyOptions]);
+  }, [columnMappings, geometryDetected, soilPropertyOptions]);
 
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 

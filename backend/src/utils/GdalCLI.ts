@@ -96,8 +96,8 @@ export class GdalCLI {
     const driver = (parsed.driverShortName as string) ?? '';
     const layers: OgrInfoLayer[] = ((parsed.layers ?? []) as any[]).map(l => ({
       name: l.name as string,
-      geometry: ((l.geometryFields as any[])?.[0]?.type as string) ?? 'None',
-      geomColumn: ((l.geometryFields as any[])?.[0]?.name as string) ?? null,
+      geometry: GdalCLI.extractGeomType(l),
+      geomColumn: GdalCLI.extractGeomColumn(l),
       fields: ((l.fields ?? []) as any[]).map(f => ({
         name: f.name as string,
         type: f.type as string,
@@ -113,5 +113,36 @@ export class GdalCLI {
     const entries: any[] = Array.isArray(srs.id) ? srs.id : [srs.id];
     const epsg = entries.find(e => e.authority === 'EPSG');
     return epsg ? Number(epsg.code) : undefined;
+  }
+
+  private static extractGeomType(layer: any): string {
+    // Take type from the first geometry field with an extent
+    const geomFields = layer.geometryFields as any[];
+    if (!geomFields || geomFields.length === 0) return 'None';
+    for (let i = 0; i < geomFields.length; i++) {
+      if (geomFields[i].extent) {
+        return geomFields[i].type as string;
+      }
+    }
+    return 'None';
+  }
+
+  private static extractGeomColumn(layer: any): string | null {
+    // Rationale: if a geometry field has an extent, it is likely the main geometry field.
+    // If multiple geometry fields have extents, we take the first one.
+    // If name is not available, we use the layer fields list but only if it has the same length as the geometry fields list.
+    // This covers the case of CSV files with geometry columns detected by GDAL, where the geometry fields may not have names.
+    const geomFields = layer.geometryFields as any[];
+    if (!geomFields || geomFields.length === 0) return null;
+    for (let i = 0; i < geomFields.length; i++) {
+      if (geomFields[i].extent) {
+        if (geomFields[i].name) {
+          return geomFields[i].name as string;
+        } else if (layer.fields && layer.fields.length === geomFields.length) {
+          return layer.fields[i].name as string;
+        }
+      }
+    }
+    return null;
   }
 }

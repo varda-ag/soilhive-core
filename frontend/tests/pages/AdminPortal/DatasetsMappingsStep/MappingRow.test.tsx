@@ -49,6 +49,7 @@ function unmappedMapping(overrides?: Partial<ColumnMapping>): ColumnMapping {
     conceptId: null,
     unitId: null,
     details: { ...EMPTY_DETAILS },
+    isGeometryDetectedField: false,
     ...overrides,
   };
 }
@@ -62,6 +63,7 @@ function defaultProps(overrides?: Partial<ColumnMapping>) {
     isExpanded: false,
     isUnitEnabled: false,
     isDetailsEnabled: true,
+    isGeometryDetectedField: false,
     onToggle: jest.fn(),
     onConceptChange: jest.fn(),
     onUnitChange: jest.fn(),

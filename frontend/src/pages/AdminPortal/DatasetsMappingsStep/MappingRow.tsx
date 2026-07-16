@@ -17,6 +17,7 @@ interface Props {
   isExpanded: boolean;
   isUnitEnabled: boolean;
   isDetailsEnabled: boolean;
+  isGeometryDetectedField: boolean;
   onToggle: (columnName: string) => void;
   onConceptChange: (columnName: string, value: string) => void;
   onUnitChange: (columnName: string, value: string) => void;
@@ -31,6 +32,7 @@ export function MappingRow({
   isExpanded,
   isUnitEnabled,
   isDetailsEnabled,
+  isGeometryDetectedField,
   onToggle,
   onConceptChange,
   onUnitChange,
@@ -68,7 +70,8 @@ export function MappingRow({
             value={mapping.conceptId ?? undefined}
             placeholder={t('datasets.mappings.row.select_concept')}
             onChange={code => onConceptChange(mapping.columnName, code)}
-            onClear={() => onConceptChange(mapping.columnName, '')}
+            onClear={isGeometryDetectedField ? undefined : () => onConceptChange(mapping.columnName, '')}
+            isDisabled={isGeometryDetectedField}
           />
         </div>
 
