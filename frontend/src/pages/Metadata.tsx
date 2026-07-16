@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, Navigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
-import classnames from 'classnames';
 import { useMetadata, type SaveCallbacks } from 'hooks/useMetadata';
 import { useEntitlements, ADMIN_PORTAL_ACCESS } from 'hooks/useEntitlementsHook';
 import { useAuthContext } from '../auth/AuthContextProvider';
@@ -199,11 +198,7 @@ export default function Metadata() {
       <div className={styles.Content}>
         <div className={styles.DatasetProperties}>
           <div className={styles.DatasetPropertiesHeader}>
-            <div
-              className={classnames(styles.TopRow, {
-                [styles.AdminView]: isAdmin,
-              })}
-            >
+            <div className={styles.TopRow}>
               {isAdmin && !isMobileLayout && (
                 <p className={styles.MandatoryFields} data-testid="sh-mandatory-fields">
                   <sup>*</sup>
