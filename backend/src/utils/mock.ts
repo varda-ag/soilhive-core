@@ -569,6 +569,7 @@ export const addRasterData = async (
       max_depth?: number | null;
       reference_period_start?: string | null;
       reference_period_stop?: string | null;
+      laboratoryMethod?: string | null;
     };
     visibility?: 'public' | 'private';
     dataset_status?: IngestionStatus;
@@ -580,6 +581,7 @@ export const addRasterData = async (
     dataset: options?.dataset ?? 'test-ds',
     soilProperty: options?.soilProperty ?? 'Organic Carbon Stock',
     soilPropertyCategory: options?.soilPropertyCategory ?? 'Chemical',
+    ...(options?.layerFields?.laboratoryMethod != null && { laboratoryMethod: options.layerFields.laboratoryMethod }),
   });
 
   const dataSource = await getDataSource();

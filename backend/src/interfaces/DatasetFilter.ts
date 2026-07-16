@@ -62,4 +62,6 @@ export interface FilteredRasterLayer {
   reference_period_start: string | null;
   reference_period_stop: string | null;
   soil_property_name: string;
+  standard_unit: string | null;
+  laboratory_method: string | null;
 }

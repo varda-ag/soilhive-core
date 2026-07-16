@@ -15,6 +15,7 @@ export interface IngestRasterOptions {
   soilProperty: string;
   soilPropertyCategory: string;
   originaUnit?: string;
+  laboratoryMethod?: string;
 }
 
 async function assertIsCog(filePath: string): Promise<void> {
@@ -89,7 +90,45 @@ export async function ingestRaster(opts: IngestRasterOptions): Promise<string> {
   const outName = path.basename(cogPath);
   const bboxJson = JSON.stringify(bbox);
 
-  await em.query("SET statement_timeout = '600s';");
+  let procedureId: string | null = null;
+  if (opts.laboratoryMethod) {
+    const vocabResult = await em.query(
+      `
+      SELECT id FROM vocabulary WHERE "name"=$1 AND category='laboratory_method'::"vocabulary_category_enum"`,
+      [opts.laboratoryMethod],
+    );
+    let lmResult: { id: string }[] = [];
+    if (vocabResult.length === 0) {
+      lmResult = await em.query(
+        `WITH
+        vocab_ins AS (
+          INSERT INTO vocabulary ("name", category)
+          VALUES ($1, 'laboratory_method'::"vocabulary_category_enum")
+          RETURNING id
+        )
+        INSERT INTO procedures (
+          laboratory_method_id
+        )  
+        SELECT vocab_ins.id FROM vocab_ins
+        ON CONFLICT (sample_pretreatment_id, technique, laboratory_method_id, extractant_concentration_id, extraction_ratio_id, extraction_base_id, measurement_procedure_id, limit_of_detection_id) DO UPDATE SET updated_at = now()
+        RETURNING id`,
+        [opts.laboratoryMethod],
+      );
+    } else {
+      const vocabId = (vocabResult as { id: string }[])[0]!.id;
+      lmResult = await em.query(
+        `INSERT INTO procedures (
+          laboratory_method_id
+        )  
+        VALUES ($1)
+        ON CONFLICT (sample_pretreatment_id, technique, laboratory_method_id, extractant_concentration_id, extraction_ratio_id, extraction_base_id, measurement_procedure_id, limit_of_detection_id) DO UPDATE SET updated_at = now()
+        RETURNING id`,
+        [vocabId],
+      );
+    }
+    procedureId = (lmResult as { id: string }[])[0]!.id;
+  }
+
   const result = await em.query(
     `WITH
      file_ins AS (
@@ -122,19 +161,20 @@ export async function ingestRaster(opts: IngestRasterOptions): Promise<string> {
      )
      INSERT INTO raster_layers (
        file_id, dataset_id, soil_property_id, resolution_m,
-       nodata_value, bbox
+       nodata_value, bbox, procedure_id
      )
      SELECT
        file_ins.id, ds_ins.id, sp_ins.id, $6,
-       $7, ST_SetSRID(ST_GeomFromGeoJSON($3), 4326)
+       $7, ST_SetSRID(ST_GeomFromGeoJSON($3), 4326), $8
      FROM file_ins, ds_ins, sp_ins
      RETURNING id`,
-    [outName, opts.dataset, bboxJson, opts.soilPropertyCategory, opts.soilProperty, resolution, nodata],
+    [outName, opts.dataset, bboxJson, opts.soilPropertyCategory, opts.soilProperty, resolution, nodata, procedureId],
   );
 
   const rasterLayerId = (result as { id: string }[])[0]!.id;
 
   // Phase 2: stream footprint tiles in batches — each batch is inserted and released immediately.
+  await em.query("SET statement_timeout = '600s';");
   let totalFootprints = 0;
   await streamRasterFootprints(cogPath, opts.nodata, async batch => {
     await insertFootprintBatch(em, rasterLayerId, batch);
