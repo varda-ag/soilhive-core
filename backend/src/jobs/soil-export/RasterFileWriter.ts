@@ -321,7 +321,9 @@ ${sources}
     } else if (layer.reference_period_start !== null) {
       datePart = `_${layer.reference_period_start}`;
     }
-    return `${sanitizeField(layer.dataset_name)}_${sanitizeField(layer.soil_property_name)}${depthPart}${datePart}`;
+    const lmPart = layer.laboratory_method !== null ? `_${sanitizeField(layer.laboratory_method)}` : '';
+    const suPart = layer.standard_unit !== null ? `_${sanitizeField(layer.standard_unit)}` : '';
+    return `${sanitizeField(layer.dataset_name)}_${sanitizeField(layer.soil_property_name)}${lmPart}${suPart}${depthPart}${datePart}`;
   }
 
   private getDriverName(): string {

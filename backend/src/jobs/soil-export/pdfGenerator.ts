@@ -299,7 +299,7 @@ function drawDataStructureSection(doc: PDFKit.PDFDocument, hasVector: boolean, h
   if (hasRaster) {
     bullet(
       doc,
-      `Raster maps (GeoTIFF) are delivered as one single-band layer per combination of soil property, dataset, depth range, and year, following the naming convention: [dataset_name]_[property_name]_[depth_range_cm]_[year](.tif)`,
+      `Raster maps (GeoTIFF) are delivered as one single-band layer per combination of soil property, dataset, depth range (if available), year (if available) and laboratory method information (if available), following the naming convention: [dataset_name]_[property_name]_[laboratory_method]_[standard_unit]_[depth_range_cm]_[year](.tif)`,
     );
     if (!hasVector) {
       return;
