@@ -244,12 +244,7 @@
 
       .TopRow {
         display: flex;
-        justify-content: space-between;
         align-items: center;
-
-        &.AdminView {
-          justify-content: space-between;
-        }
 
         .MandatoryFields {
           color: var(--color-neutral-dark-400);
@@ -257,6 +252,7 @@
 
         .LastUpdated {
           font-style: italic;
+          margin-left: auto;
 
           @media (max-width: $bp-mobile-max) {
             padding-right: 24px;
