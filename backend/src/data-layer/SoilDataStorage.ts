@@ -398,6 +398,7 @@ export default class SoilDataStorage {
     requestData: RequestData,
     filter: DataFilter,
     datasetSlugs: string[],
+    includeProcedureInfo: boolean = false,
   ): Promise<{ layers: FilteredRasterLayer[]; aoi: Polygon | MultiPolygon | null }> => {
     const { geometryIds, parameters: filters } = filter;
     await entitlementService.enforceEntitlements(requestData, datasetSlugs, Capability.DOWNLOAD);
@@ -449,7 +450,15 @@ export default class SoilDataStorage {
         .addSelect('rl.max_depth', 'max_depth')
         .addSelect('rl.reference_period_start', 'reference_period_start')
         .addSelect('rl.reference_period_stop', 'reference_period_stop')
-        .addSelect('sp.property_name', 'soil_property_name');
+        .addSelect('sp.property_name', 'soil_property_name')
+        .addSelect('sp.standard_unit', 'standard_unit');
+
+      if (includeProcedureInfo) {
+        candidateQuery
+          .leftJoin('rl.procedure', 'p', 'p.deleted_at IS NULL')
+          .leftJoin('p.laboratory_method', 'lm')
+          .addSelect('lm.name', 'laboratory_method');
+      }
 
       candidateQuery.andWhere('ds.slug IN (:...dataset_slugs)', { dataset_slugs: datasetSlugs });
       candidateQuery.andWhere('rl.bbox && (SELECT geom FROM aoi)');
@@ -465,6 +474,8 @@ export default class SoilDataStorage {
         reference_period_start: row.reference_period_start,
         reference_period_stop: row.reference_period_stop,
         soil_property_name: row.soil_property_name,
+        standard_unit: row.standard_unit,
+        laboratory_method: row.laboratory_method ?? null,
       }));
       return { layers, aoi: filteredGeom };
     });

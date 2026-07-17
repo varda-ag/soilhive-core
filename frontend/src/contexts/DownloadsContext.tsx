@@ -5,6 +5,7 @@ import useNotifications from 'hooks/useNotifications';
 import { BACKEND_BASE_URL, REST_END_POINTS } from '../configuration/api';
 import { addStoredJobId, getStoredJobIds, removeStoredJobId } from '../utilities/downloadJobStorage';
 import { downloadFile } from '../utilities/download';
+import { useAuthContext } from '../auth/AuthContextProvider';
 
 type DownloadsItem = {
   id: string;
@@ -27,6 +28,7 @@ type DownloadsProviderProps = {
 };
 
 export const DownloadsProvider: React.FC<DownloadsProviderProps> = ({ children }) => {
+  const { isAuthenticated, user } = useAuthContext();
   const [jobsIds, setJobsIds] = useState<string[]>([]);
   const [isOpened, setIsOpened] = useState(false);
   const prevStatusRef = useRef<Record<string, string | undefined>>({});
@@ -35,10 +37,12 @@ export const DownloadsProvider: React.FC<DownloadsProviderProps> = ({ children }
 
   const { showNotification } = useNotifications();
 
+  const userId = useMemo((): string | null => (isAuthenticated ? user?.profile?.sub || null : null), [isAuthenticated, user]);
+
   // Load pending jobs
   useEffect(() => {
-    setJobsIds(getStoredJobIds());
-  }, []);
+    setJobsIds(getStoredJobIds(userId));
+  }, [userId]);
 
   const jobsQueries = useJobsQueries(jobsIds);
 
@@ -72,11 +76,11 @@ export const DownloadsProvider: React.FC<DownloadsProviderProps> = ({ children }
       setJobsIds(prev => [...prev, res.id]);
       prevStatusRef.current[res.id] = 'created';
 
-      addStoredJobId(res.id);
+      addStoredJobId(res.id, userId);
 
       return res.id;
     },
-    [createJob],
+    [createJob, userId],
   );
 
   const cancelDownload = useCallback(
@@ -84,9 +88,9 @@ export const DownloadsProvider: React.FC<DownloadsProviderProps> = ({ children }
       await cancelJob.mutateAsync({ jobId: id });
       setJobsIds(prev => prev.filter(jobId => jobId !== id));
       delete prevStatusRef.current[id];
-      removeStoredJobId(id);
+      removeStoredJobId(id, userId);
     },
-    [cancelJob],
+    [cancelJob, userId],
   );
 
   useEffect(() => {
@@ -104,24 +108,24 @@ export const DownloadsProvider: React.FC<DownloadsProviderProps> = ({ children }
         downloadFile(url);
 
         setJobsIds(prev => prev.filter(jobId => jobId !== job.id));
-        removeStoredJobId(job.id);
+        removeStoredJobId(job.id, userId);
       }
 
       if (nextStatus === 'failed') {
         showNotification({ id: `downloads-${job.id}`, title: 'Data export error', message: job.message ?? 'Please try again later' });
         setJobsIds(prev => prev.filter(jobId => jobId !== job.id));
-        removeStoredJobId(job.id);
+        removeStoredJobId(job.id, userId);
       }
 
       // job removed in another tab
       if (nextStatus === 'cancelled') {
         setJobsIds(prev => prev.filter(jobId => jobId !== job.id));
-        removeStoredJobId(job.id); // if removed from another tab this should be already cleared, but just to be on the safe side
+        removeStoredJobId(job.id, userId); // if removed from another tab this should be already cleared, but just to be on the safe side
       }
 
       prevStatusRef.current[job.id] = nextStatus;
     });
-  }, [jobsData, showNotification]);
+  }, [jobsData, showNotification, userId]);
 
   const value = useMemo(
     () => ({ downloads, startDownload, cancelDownload, isOpened, setIsOpened }),

@@ -5,7 +5,7 @@ import * as os from 'os';
 import extractZip from 'extract-zip';
 import request from 'supertest';
 import { app } from '../../../src/app';
-import { addDataset, addSyntheticData, syntheticDataOptions, addRasterData } from '../../../src/utils/mock';
+import { addDataset, addSyntheticData, syntheticDataOptions, addRasterData, addSoilProperty, addCategory } from '../../../src/utils/mock';
 import { initPgBoss, stopPgBoss } from '../../../src/services/PgBoss';
 import { getExportBatchSize, sanitizeField, sleep } from '../../../src/utils/utils';
 import { RasterFileFormat, VectorFileFormat } from '../../../src/jobs/soil-export/types';
@@ -67,11 +67,20 @@ describe('Soil Export Job Integration Test', () => {
     };
     let dataset: DatasetEntity | null = null;
     let raster_layer: RasterLayerEntity | null = null;
+    let laboratoryMethod: string | null = null;
 
     beforeEach(async () => {
+      // Add soil property prior to raster ingestion to ensure standard unit is set
+      const spCategory = await addCategory('Chemical');
+      await addSoilProperty('Aluminium', spCategory.id, 'mg/kg');
+      laboratoryMethod = 'ammonium chloride [NH4Cl]';
       raster_layer = await addRasterData(undefined, {
         visibility: 'public',
         dataset_status: IngestionStatus.PUBLISHED,
+        soilProperty: 'Aluminium',
+        layerFields: {
+          laboratoryMethod,
+        },
       });
       ({ dataset } = await addSyntheticData({
         ...syntheticDataOptions,
@@ -315,6 +324,8 @@ describe('Soil Export Job Integration Test', () => {
       expect(rasterInfo.bands?.length).toBeGreaterThan(0);
       expect(rasterInfo.metadata!['']!.IDENTIFIER).toContain(sanitizeField(raster_layer!.dataset.name));
       expect(rasterInfo.metadata!['']!.IDENTIFIER).toContain(sanitizeField(raster_layer!.soil_property.property_name));
+      expect(rasterInfo.metadata!['']!.IDENTIFIER).toContain(sanitizeField(raster_layer!.soil_property.standard_unit!));
+      expect(rasterInfo.metadata!['']!.IDENTIFIER).toContain(sanitizeField(laboratoryMethod ?? ''));
 
       const vectorInfo = await GdalCLI.ogrinfo(path.join(extractDir, gpkgFiles[0]));
       expect(vectorInfo.layers.length).toBeGreaterThan(0);
@@ -428,6 +439,12 @@ describe('Soil Export Job Integration Test', () => {
       // Find TIFF files
       const tiffFiles = extractedFiles.filter((file: string) => file.toLowerCase().endsWith('.tif'));
       expect(tiffFiles.length).toBeGreaterThan(0);
+
+      // Verify TIFF file name
+      expect(tiffFiles[0]).toContain(sanitizeField(raster_layer!.dataset.name));
+      expect(tiffFiles[0]).toContain(sanitizeField(raster_layer!.soil_property.property_name));
+      expect(tiffFiles[0]).toContain(sanitizeField(raster_layer!.soil_property.standard_unit!));
+      expect(tiffFiles[0]).toContain(sanitizeField(laboratoryMethod ?? ''));
 
       // Verify output content contains expected data
       const rasterInfo = await GdalCLI.gdalinfo(path.join(extractDir, tiffFiles[0]));
@@ -564,6 +581,8 @@ describe('Soil Export Job Integration Test', () => {
         expect.arrayContaining([
           expect.stringContaining(sanitizeField(raster_layer!.dataset.name)),
           expect.stringContaining(sanitizeField(extra_raster_layer.dataset.name)),
+          expect.stringContaining(sanitizeField(raster_layer!.soil_property.standard_unit!)),
+          expect.stringContaining(sanitizeField(laboratoryMethod ?? '')),
         ]),
       );
 

@@ -1,6 +1,5 @@
 import type { Polygon } from 'geojson';
 
-// TODO: add slug
 export interface RasterLayer {
   id: string;
   file_id: string;
@@ -14,9 +13,9 @@ export interface RasterLayer {
   description: object | null;
   nodata_value: number | null;
   bbox: Polygon;
+  procedure_id?: string | null;
 }
 
-// TODO: add slug
 export interface RasterLayerAsset {
   id: string;
   file_id: string;
@@ -29,34 +28,9 @@ export interface RasterLayerMatch {
   file_path: string;
   resolution_m: number;
 }
-
-export interface QueryResult {
-  file_path: string;
-  has_data: boolean;
-}
-
-export interface PixelWindow {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-}
-
 export interface Envelope {
   minX: number;
   minY: number;
   maxX: number;
   maxY: number;
-}
-
-export interface IngestInput {
-  filePath: string;
-  resolutionM: number;
-  nodataValue?: number;
-}
-
-export interface IngestResult {
-  id: number;
-  file_path: string;
-  resolution_m: number;
 }
