@@ -452,16 +452,8 @@ export function useMappingsStep(datasetId?: string) {
     );
 
     const geometryCodesToHide = new Set<string>();
-    if (geometryDetected === true || usedMetadataCodes.has('geometry')) {
+    if (geometryDetected === true) {
       geometryCodesToHide.add('latitude');
-      geometryCodesToHide.add('longitude');
-      geometryCodesToHide.add('geometry');
-    }
-    if (usedMetadataCodes.has('latitude')) {
-      geometryCodesToHide.add('latitude');
-      geometryCodesToHide.add('geometry');
-    }
-    if (usedMetadataCodes.has('longitude')) {
       geometryCodesToHide.add('longitude');
       geometryCodesToHide.add('geometry');
     }
@@ -498,14 +490,20 @@ export function useMappingsStep(datasetId?: string) {
     if (geometryDetected === true) return { message: t('datasets.mappings.geometry_detected'), type: 'info' };
     const hasGeometry = columnMappings.some(m => m.conceptId === 'geometry');
     const hasLatLon = columnMappings.some(m => m.conceptId === 'latitude') && columnMappings.some(m => m.conceptId === 'longitude');
+    const hasEitherLatLon = columnMappings.some(m => m.conceptId === 'latitude') || columnMappings.some(m => m.conceptId === 'longitude');
+    if (hasGeometry && hasEitherLatLon) return { message: t('datasets.mappings.geometry_conflict'), type: 'warning' };
     if (hasGeometry || hasLatLon) return null;
     return { message: t('datasets.mappings.geometry_not_detected'), type: 'warning' };
   }, [geometryDetected, columnMappings, t]);
 
   const depthConflictMessage = useMemo((): { message: string; type: 'warning' } | null => {
     const hasDepth = columnMappings.some(m => m.conceptId === 'depth');
-    const hasRangeDepth = columnMappings.some(m => m.conceptId === 'min_depth' || m.conceptId === 'max_depth');
+    const hasMinDepth = columnMappings.some(m => m.conceptId === 'min_depth');
+    const hasMaxDepth = columnMappings.some(m => m.conceptId === 'max_depth');
+    const hasRangeDepth = hasMinDepth || hasMaxDepth;
+    const rangeDepthMissing = hasMinDepth !== hasMaxDepth;
     if (hasDepth && hasRangeDepth) return { message: t('datasets.mappings.depth_conflict'), type: 'warning' };
+    if (rangeDepthMissing) return { message: t('datasets.mappings.range_depth_missing'), type: 'warning' };
     return null;
   }, [columnMappings, t]);
 

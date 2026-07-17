@@ -32,6 +32,13 @@ const JOB_ERROR_MESSAGES: Record<string, JobErrorMessage> = {
     message: "File metadata is incomplete and can't be processed.",
     actions: ['Delete the file and re-upload it to regenerate its metadata. If this happens again, contact support.'],
   },
+  FTD_INVALID_DEPTH_RANGE: {
+    message: 'Column mapped to depth did not contain a valid range.',
+    actions: [
+      'Review your mapping to ensure you have mapped the depth related columns to depth if range, or min depth and max depth if separate values.',
+      'Check your file is compliant with the guidelines in the documentation: https://github.com/varda-ag/soilhive-core/blob/main/docs/data-model/1-data-management-portal.md#soil-data--upload-your-files.',
+    ],
+  },
   FTD_STALE_STAGING_TABLE: {
     message: 'A previous import attempt left behind incomplete staging data.',
     actions: ['Wait a few minutes for automatic cleanup, then try again. If it persists, contact support.'],
@@ -50,7 +57,7 @@ const JOB_ERROR_MESSAGES: Record<string, JobErrorMessage> = {
     message: 'An error occurred while writing soil records to the database.',
     actions: [
       'Try starting data loading again.',
-      'If it keeps failing, double check your data against the guidelines in the documentation at: https://github.com/varda-ag/soilhive-core/blob/main/docs/user-guides/data-load.md',
+      'If it keeps failing, double check your data against the guidelines in the documentation at: https://github.com/varda-ag/soilhive-core/blob/main/docs/data-model/1-data-management-portal.md#soil-data--upload-your-files',
     ],
   },
   BL_RECORD_VALIDATION_FAILED: {

@@ -475,6 +475,17 @@ describe('useMappingsStep', () => {
       });
       expect(result.current.geometryMessage?.type).toBe('warning');
     });
+
+    it('is warning when both geometry and lat/lon are mapped', () => {
+      setupWithColumns(['lat', 'lon', 'other'], undefined, false);
+      const { result } = renderHook(() => useMappingsStep('1'));
+      act(() => {
+        result.current.handleConceptChange('lat', 'latitude');
+        result.current.handleConceptChange('lon', 'longitude');
+        result.current.handleConceptChange('other', 'geometry');
+      });
+      expect(result.current.geometryMessage?.type).toBe('warning');
+    });
   });
 
   describe('isContinueEnabled', () => {
@@ -603,7 +614,7 @@ describe('useMappingsStep', () => {
       expect(result.current.depthConflictMessage?.type).toBe('warning');
     });
 
-    it('clears when the conflicting depth mapping is removed', () => {
+    it('transitions from depth_conflict to range_depth_missing when only depth is removed, then clears when min_depth is also removed', () => {
       setupWithColumns(['d', 'min_d'], undefined, true);
       const { result } = renderHook(() => useMappingsStep('1'));
       act(() => {
@@ -613,6 +624,33 @@ describe('useMappingsStep', () => {
       expect(result.current.depthConflictMessage?.type).toBe('warning');
       act(() => {
         result.current.handleConceptChange('d', '');
+      });
+      // min_depth alone is an incomplete pair — still a warning, but range_depth_missing
+      expect(result.current.depthConflictMessage?.type).toBe('warning');
+      act(() => {
+        result.current.handleConceptChange('min_d', '');
+      });
+      expect(result.current.depthConflictMessage).toBeNull();
+    });
+
+    it('is type warning when only min_depth is mapped without max_depth', () => {
+      setupWithColumns(['min_d'], undefined, true);
+      const { result } = renderHook(() => useMappingsStep('1'));
+      act(() => {
+        result.current.handleConceptChange('min_d', 'min_depth');
+      });
+      expect(result.current.depthConflictMessage?.type).toBe('warning');
+    });
+
+    it('clears range_depth_missing when the missing pair partner is added', () => {
+      setupWithColumns(['min_d', 'max_d'], undefined, true);
+      const { result } = renderHook(() => useMappingsStep('1'));
+      act(() => {
+        result.current.handleConceptChange('min_d', 'min_depth');
+      });
+      expect(result.current.depthConflictMessage?.type).toBe('warning');
+      act(() => {
+        result.current.handleConceptChange('max_d', 'max_depth');
       });
       expect(result.current.depthConflictMessage).toBeNull();
     });
