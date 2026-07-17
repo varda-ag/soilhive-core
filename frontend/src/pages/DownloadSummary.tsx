@@ -248,7 +248,7 @@ function DownloadSummary() {
               />
               <label htmlFor="agree-to-terms-for-download">
                 {t('download_summary.terms_label_prefix')}{' '}
-                <a href="https://soilhive.ag" target="_blank" rel="noreferrer">
+                <a href="/terms-of-use" target="_blank" rel="noreferrer">
                   {t('download_summary.terms_link')}
                 </a>
               </label>
