@@ -23,6 +23,8 @@ function makeLayer(overrides: Partial<FilteredRasterLayer> = {}): FilteredRaster
     reference_period_start: null,
     reference_period_stop: null,
     soil_property_name: 'Bulk density',
+    standard_unit: null,
+    laboratory_method: null,
     ...overrides,
   };
 }
@@ -209,12 +211,28 @@ describe('RasterFileWriter', () => {
     it('builds filename from sanitized dataset and property names', async () => {
       const writer = new RasterFileWriter(RasterFileFormat.TIFF, TEST_OUTPUT_DIR);
       // sanitizeField: toLowerCase → replace '-' with '_' → strip non-[a-z0-9_]
-      // 'My Dataset' → 'mydataset', 'pH' → 'ph'
       await writer.writeLayer(
         makeLayer({ dataset_name: 'My Dataset', soil_property_name: 'pH', min_depth: null, max_depth: null }),
         MASK_TIFF,
       );
       expect(outputFiles()).toContain('mydataset_ph.tif');
+    });
+
+    it('appends laboratroy method and unit info if available', async () => {
+      const writer = new RasterFileWriter(RasterFileFormat.TIFF, TEST_OUTPUT_DIR);
+      await writer.writeLayer(
+        makeLayer({
+          dataset_name: 'My Dataset',
+          soil_property_name: 'pH',
+          laboratory_method: 'H2O',
+          standard_unit: 'pH*10',
+          min_depth: null,
+          max_depth: null,
+        }),
+        MASK_TIFF,
+      );
+      // sanitizeField: toLowerCase → replace '-' with '_' → strip non-[a-z0-9_]
+      expect(outputFiles()).toContain('mydataset_ph_h2o_ph10.tif');
     });
 
     it('appends depth range when both min and max depth are set', async () => {

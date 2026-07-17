@@ -1,0 +1,245 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          39.6544,
+          -3.79168
+        ]
+      },
+      "properties": {
+        "minDepth": 0,
+        "maxDepth": 20,
+        "value": 47.0
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          39.6544,
+          -3.79168
+        ]
+      },
+      "properties": {
+        "minDepth": 20,
+        "maxDepth": 50,
+        "value": 50.0
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          39.6499,
+          -3.78608
+        ]
+      },
+      "properties": {
+        "minDepth": 0,
+        "maxDepth": 20,
+        "value": 50.0
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          39.6499,
+          -3.78608
+        ]
+      },
+      "properties": {
+        "minDepth": 20,
+        "maxDepth": 50,
+        "value": 62.0
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          39.6516,
+          -3.75973
+        ]
+      },
+      "properties": {
+        "minDepth": 0,
+        "maxDepth": 20,
+        "value": 36.0
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          39.6516,
+          -3.75973
+        ]
+      },
+      "properties": {
+        "minDepth": 20,
+        "maxDepth": 50,
+        "value": 47.0
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          39.6469,
+          -3.75864
+        ]
+      },
+      "properties": {
+        "minDepth": 0,
+        "maxDepth": 20,
+        "value": 31.0
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          39.6469,
+          -3.75864
+        ]
+      },
+      "properties": {
+        "minDepth": 20,
+        "maxDepth": 50,
+        "value": 51.0
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          39.6563,
+          -3.73748
+        ]
+      },
+      "properties": {
+        "minDepth": 0,
+        "maxDepth": 20,
+        "value": 38.0
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          39.6563,
+          -3.73748
+        ]
+      },
+      "properties": {
+        "minDepth": 20,
+        "maxDepth": 50,
+        "value": 55.0
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          39.648,
+          -3.74467
+        ]
+      },
+      "properties": {
+        "minDepth": 0,
+        "maxDepth": 20,
+        "value": 18.0
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          39.648,
+          -3.74467
+        ]
+      },
+      "properties": {
+        "minDepth": 20,
+        "maxDepth": 50,
+        "value": 20.0
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          39.7114,
+          -3.75598
+        ]
+      },
+      "properties": {
+        "minDepth": 0,
+        "maxDepth": 20,
+        "value": 51.0
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          39.7114,
+          -3.75598
+        ]
+      },
+      "properties": {
+        "minDepth": 20,
+        "maxDepth": 50,
+        "value": 57.0
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          37.6871,
+          -0.637193
+        ]
+      },
+      "properties": {
+        "minDepth": 0,
+        "maxDepth": 20,
+        "value": 26.0
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          37.6871,
+          -0.637193
+        ]
+      },
+      "properties": {
+        "minDepth": 20,
+        "maxDepth": 50,
+        "value": 31.0
+      }
+    }
+  ]
+}

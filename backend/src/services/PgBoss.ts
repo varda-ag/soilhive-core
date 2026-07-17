@@ -15,6 +15,9 @@ import { getErrorMessage } from '../utils/error';
 import { bumpCacheEpoch } from '../utils/cache-epoch';
 import { refreshDaiStats } from '../data-layer/DaiStats';
 import { processRefreshDaiStats } from '../jobs/refresh-dai-stats/RefreshDaiStatsJob';
+import { getEntity } from '../utils/slugs';
+import DatasetEntity from '../entities/Dataset';
+import { EntityType } from '../types/data';
 
 setupEnv();
 
@@ -107,10 +110,15 @@ export const runJob = async <T>(queue: JobQueues, job: Job<T>, processor: (job: 
     // dataset_layers rows still exist (see refreshDaiStats). Must never fail
     // the job result.
     if (queue === JobQueues.BULK_LOAD) {
-      const datasetId = (job.data as unknown as BulkLoadJob).dataset_id;
-      await getEntityManager()
-        .then(entityManager => refreshDaiStats(entityManager, [datasetId]))
-        .catch((error: unknown) => log.warn('Failed to refresh DAI stats after bulk load', { datasetId, error: getErrorMessage(error) }));
+      // dataset_id is actually a slug, but we need the UUID to refresh DAI stats
+      const slug = (job.data as unknown as BulkLoadJob).dataset_id;
+      try {
+        const entityManager = await getEntityManager();
+        const entity = await getEntity({ entityManager, entitlements: {} }, DatasetEntity, EntityType.DATASET, slug);
+        await refreshDaiStats(entityManager, [entity.id]);
+      } catch (error) {
+        log.warn('Failed to refresh DAI stats after bulk load', { slug, error: getErrorMessage(error) });
+      }
     }
   }
 };

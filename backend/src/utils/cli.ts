@@ -24,6 +24,7 @@ export const setupCLI = async () => {
     .option('--soil-property <name>', 'Soil property name', 'Organic Carbon Stock')
     .option('--soil-property-category <name>', 'Soil property category name', 'Chemical')
     .option('--original_unit [unit]', 'Unit of measurement')
+    .option('--laboratory_method [method]', 'Laboratory method (if applicable)')
     .parse();
 
   const options = program.opts();
@@ -37,6 +38,7 @@ export const setupCLI = async () => {
         soilProperty: options['soilProperty'],
         soilPropertyCategory: options['soilPropertyCategory'],
         originaUnit: options['originalUnit'],
+        laboratoryMethod: options['laboratoryMethod'],
       });
     } catch (e) {
       log.error(`Raster ingest error: ${e}`);

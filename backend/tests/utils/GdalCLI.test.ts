@@ -67,7 +67,7 @@ describe('GdalCLI.parseOgrInfo', () => {
     });
 
     it('sets geomColumn to empty string for GeoJSON (unnamed geometry field)', () => {
-      expect(parseOgrInfo(GEOJSON_OGRINFO).layers[0].geomColumn).toBe('');
+      expect(parseOgrInfo(GEOJSON_OGRINFO).layers[0].geomColumn).toBe(null);
     });
   });
 

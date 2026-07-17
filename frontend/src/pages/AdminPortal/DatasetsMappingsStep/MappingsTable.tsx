@@ -58,6 +58,7 @@ export function MappingsTable({
               onConceptChange={onConceptChange}
               onUnitChange={onUnitChange}
               onDetailChange={onDetailChange}
+              isGeometryDetectedField={mapping.isGeometryDetectedField}
             />
           );
         })}
