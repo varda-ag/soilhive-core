@@ -316,6 +316,7 @@
             },
             "geometry_detected": "Geometry was automatically detected. You don't need to map the geometry or lat/lon fields.",
             "geometry_not_detected": "No geometry was detected. You must map the geometry field or both latitude and longitude fields to continue.",
+            "geometry_conflict": "The 'geometry' field cannot be used together with 'latitude' or 'longitude'. Please remove one of these mappings to continue.",
             "depth_conflict": "The 'depth' field cannot be used together with 'min depth' or 'max depth'. Please remove one of these mappings to continue.",
             "range_depth_missing": "Both 'min depth' and 'max depth' must be mapped together. Please map the missing field or remove the other to continue.",
             "importing": {

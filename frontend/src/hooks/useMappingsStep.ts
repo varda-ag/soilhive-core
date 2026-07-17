@@ -452,16 +452,8 @@ export function useMappingsStep(datasetId?: string) {
     );
 
     const geometryCodesToHide = new Set<string>();
-    if (geometryDetected === true || usedMetadataCodes.has('geometry')) {
+    if (geometryDetected === true) {
       geometryCodesToHide.add('latitude');
-      geometryCodesToHide.add('longitude');
-      geometryCodesToHide.add('geometry');
-    }
-    if (usedMetadataCodes.has('latitude')) {
-      geometryCodesToHide.add('latitude');
-      geometryCodesToHide.add('geometry');
-    }
-    if (usedMetadataCodes.has('longitude')) {
       geometryCodesToHide.add('longitude');
       geometryCodesToHide.add('geometry');
     }
@@ -499,6 +491,7 @@ export function useMappingsStep(datasetId?: string) {
     const hasGeometry = columnMappings.some(m => m.conceptId === 'geometry');
     const hasLatLon = columnMappings.some(m => m.conceptId === 'latitude') && columnMappings.some(m => m.conceptId === 'longitude');
     if (hasGeometry || hasLatLon) return null;
+    if (hasGeometry && hasLatLon) return { message: t('datasets.mappings.geometry_conflict'), type: 'warning' };
     return { message: t('datasets.mappings.geometry_not_detected'), type: 'warning' };
   }, [geometryDetected, columnMappings, t]);
 
