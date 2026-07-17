@@ -34,13 +34,13 @@ To stop the stack, run `docker compose down`. Add `-v` to also remove the `postg
 
 All configuration for the local stack lives in the `environment:` block of each service in `docker-compose.yml` — there's no separate `.env` file to create. The values that matter most:
 
-| Variable(s) | Service | Purpose |
-|---|---|---|
-| `POSTGRES_HOST`, `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_SCHEMA` | backend | Connection details for the `postgis` database. |
-| `SELF_SIGNING_SECRET` | backend | Signs internal loopback requests the backend makes to itself, e.g. the bulk-load job writing ingested records back through its own API. Required regardless of auth mode. |
-| `OIDC_AUTHORITY`, `OIDC_CLIENT_ID`, `OIDC_JWKS_URL`, `OIDC_REDIRECT_URI`, `OIDC_POST_LOGOUT_REDIRECT_URI`, `OIDC_SILENT_REDIRECT_URI`, `OIDC_SCOPE` | backend | Point the platform at the local Keycloak `soilhive` realm/client so login works out of the box. See [Authentication](authentication.md) for what each one does. |
-| `PORT`, `BACKEND_BASE_URL` | frontend | Which port the frontend listens on, and where it reaches the backend API. |
-| `KEYCLOAK_ADMIN`, `KEYCLOAK_ADMIN_PASSWORD` | keycloak | Master realm admin credentials, see [Keycloak admin console](#keycloak-admin-console). |
+| Variable(s)                                                                                          | Service  | Purpose                                                                                              |
+| ---------------------------------------------------------------------------------------------------- | -------- | ---------------------------------------------------------------------------------------------------- |
+| `POSTGRES_HOST`, `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_SCHEMA`              | backend  | Connection details for the `postgis` database.                                                       |
+| `SELF_SIGNING_SECRET`                                                                                | backend  | Signs internal loopback requests the backend makes to itself, e.g. the bulk-load job writing ingested records back through its own API. Required regardless of auth mode. |
+| `OIDC_AUTHORITY`, `OIDC_CLIENT_ID`, `OIDC_JWKS_URL`, `OIDC_REDIRECT_URI`, `OIDC_POST_LOGOUT_REDIRECT_URI`, `OIDC_SILENT_REDIRECT_URI`, `OIDC_SCOPE` | backend  | Point the platform at the local Keycloak `soilhive` realm/client so login works out of the box. See [Authentication](authentication.md) for what each one does. |
+| `PORT`, `BACKEND_BASE_URL`                                                                           | frontend | Which port the frontend listens on, and where it reaches the backend API.                            |
+| `KEYCLOAK_ADMIN`, `KEYCLOAK_ADMIN_PASSWORD`                                                          | keycloak | Master realm admin credentials, see [Keycloak admin console](#keycloak-admin-console).               |
 
 > **These are demo-only credentials, hardcoded in `docker-compose.yml` for convenience.** They're fine for exploring the platform locally, but this Compose setup is not meant to be exposed publicly or reused as-is for a real deployment.
 
@@ -52,8 +52,8 @@ The backend supports several more options not set by default in `docker-compose.
 
 The `keycloak` container comes up with a master realm admin account, used to sign into the admin console at http://localhost:8080/admin/master/console/:
 
-| Username | Password |
-|----------|----------|
+| Username | Password         |
+| -------- | ---------------- |
 | `admin`  | `admin_password` |
 
 Use this if you need to inspect or modify the `soilhive` realm directly (add users, change role mappings, etc.). For routine use of the platform, the demo accounts below are enough.
@@ -62,17 +62,17 @@ Use this if you need to inspect or modify the `soilhive` realm directly (add use
 
 On first boot, Keycloak automatically imports a `soilhive` realm (see [quickstart-sample-data/soilhive-realm.json](../quickstart-sample-data/soilhive-realm.json)) with an OIDC client and three test users, so you have something to log in with right away — no manual setup in the Keycloak admin console required. The import is idempotent: it only runs once per Postgres volume, so re-running `docker compose up -d` or restarting the containers won't reset or duplicate the realm.
 
-| Username | Password | Email | Role | What it's for |
-|---|---|---|---|---|
-| `user` | `password` | `user@soilhive.local` | none | An authenticated account with no elevated role. Search, browse, and download work the same as anonymously, except for datasets specifically shared with it (see [step 4](#4-check-what-each-account-can-see) of the walkthrough); the **Admin console** option also correctly stays hidden for this account. |
-| `data-admin` | `password` | `data-admin@soilhive.local` | `data-admin` | Can upload, map, clean, and publish datasets through the Admin console's Data Publication panel, manage map-based filters, and edit (but not delete) platform configuration. This is the account to use for the [ingestion walkthrough](#2-upload-a-dataset-data-admin) below. |
+| Username      | Password   | Email                        | Role          | What it's for                                                                                        |
+| ------------- | ---------- | ---------------------------- | ------------- | ---------------------------------------------------------------------------------------------------- |
+| `user`        | `password` | `user@soilhive.local`        | none          | An authenticated account with no elevated role. Search, browse, and download work the same as anonymously, except for datasets specifically shared with it (see [step 4](#4-check-what-each-account-can-see) of the walkthrough); the **Admin console** option also correctly stays hidden for this account. |
+| `data-admin`  | `password` | `data-admin@soilhive.local`  | `data-admin`  | Can upload, map, clean, and publish datasets through the Admin console's Data Publication panel, manage map-based filters, and edit (but not delete) platform configuration. This is the account to use for the [ingestion walkthrough](#2-upload-a-dataset-data-admin) below. |
 | `super-admin` | `password` | `super-admin@soilhive.local` | `super-admin` | Everything `data-admin` can do, plus platform-wide settings: branding/logo, terms & conditions, privacy policy, notification banner, and default map settings, and can delete or export platform configuration. |
 
 Note that you don't need to log in at all to search, browse, filter, or download published datasets — that's available anonymously. Logging in is only required to reach the Admin console.
 
 ## Sample dataset
 
-[quickstart-sample-data/soilhive-quickstart-sample.csv](../quickstart-sample-data/soilhive-quickstart-sample.csv) is a small (12-row), ready-to-upload CSV purpose-built for this guide, so you can try out the ingestion pipeline end to end without sourcing your own file first. It has a WKT point-geometry column plus six soil property columns (pH, organic carbon, total nitrogen, clay %, sand %, CEC), covering fabricated sample points — at two depths for a couple of them — across ten cities on six continents:
+[quickstart-sample-data/soilhive-quickstart-sample.csv](../quickstart-sample-data/soilhive-quickstart-sample.csv) is a small (12-row), ready-to-upload CSV purpose-built for this guide, so you can try out the ingestion pipeline end to end without sourcing your own file first. It has a WKT point-geometry column plus six soil property columns (pH, organic carbon, total nitrogen, clay %, sand %, CEC), covering fabricated sample points, at two depths for a couple of them across ten cities:
 
 ```
 WKT,depth,pH,SOC_g_kg,TN_g_kg,clay_pct,sand_pct,CEC_cmolc_kg
@@ -81,6 +81,8 @@ POINT (36.8219 -1.2921),20,6.2,21.5,1.9,32,40,15.6
 ```
 
 It doesn't include a `licence` column — during the **Field Mapping** or dataset settings step, set a single fixed license for the whole dataset instead (see the platform's [supported licenses list](data-model/6-license_options.csv)).
+
+[quickstart-sample-data/random_east_west_africa_soil_samples.csv](../quickstart-sample-data/random_east_west_africa_soil_samples.csv) is a second sample file, with WKT polygon geometries and multiple depth ranges per location. Its values were randomly generated and have no real-world meaning — they exist solely to provide sample data for testing the ingestion flow. Use [quickstart-sample-data/data_mappings_for_east_west_africa_soil_samples.md](../quickstart-sample-data/data_mappings_for_east_west_africa_soil_samples.md) as the **Field Mapping** reference when uploading it.
 
 ## Walkthrough: exploring the platform
 
