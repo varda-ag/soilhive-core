@@ -3,6 +3,8 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { DatasetsSidebar } from 'components/DatasetsSidebar/DatasetsSidebar';
 import useDevice from 'hooks/useDevice';
 import { useNavigate } from 'react-router';
+import { AvailabilityContext } from '../../../src/contexts/AvailabilityContext';
+import { GISDataType } from 'types/backend';
 
 jest.mock('hooks/useDevice', () => ({
   __esModule: true,
@@ -52,6 +54,21 @@ jest.mock('../../../src/contexts/AvailabilityMapContext', () => {
   };
 });
 
+function renderWithDatasets(availableDatasets: unknown[]) {
+  const contextValue = {
+    availableDatasets,
+    filterId: 'mock-filter-id',
+    datasetFrontendFilters: { type: [] },
+    datasetsSummary: { count: 5, dataPoints: 1000, layers: 3, depth: '0-30', date: '2020 - 2024' },
+  } as unknown as React.ContextType<typeof AvailabilityContext>;
+
+  return render(
+    <AvailabilityContext.Provider value={contextValue}>
+      <DatasetsSidebar isOpened={true} onClose={() => {}} />
+    </AvailabilityContext.Provider>,
+  );
+}
+
 describe('DatasetsSidebar', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -86,13 +103,21 @@ describe('DatasetsSidebar', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it.skip('renders disabled button', () => {
-    (useDevice as jest.Mock).mockReturnValue({ isDesktopLayout: true });
+  it('disables explore and download buttons when there are no available datasets', () => {
+    (useDevice as jest.Mock).mockReturnValue({ isDesktopLayout: true, isMobileLayout: false });
 
-    render(<DatasetsSidebar isOpened={true} onClose={() => {}} />);
+    renderWithDatasets([]);
 
-    const button = screen.getByText('Download');
-    expect(button).toBeDisabled();
+    expect(screen.getByRole('button', { name: /explore/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /download/i })).toBeDisabled();
+  });
+
+  it('enables explore button when only raster datasets are available', () => {
+    (useDevice as jest.Mock).mockReturnValue({ isDesktopLayout: true, isMobileLayout: false });
+
+    renderWithDatasets([{ id: 'raster-dataset', data_type: GISDataType.RASTER }]);
+
+    expect(screen.getByRole('button', { name: /explore/i })).toBeEnabled();
   });
 
   it.skip('passes isOpened correctly to PageSidebar', () => {

@@ -176,7 +176,7 @@ exports[`DownloadSummary renders download summary page 1`] = `
               I have read and agree to the platform’s
                
               <a
-                href="https://soilhive.ag"
+                href="/terms-of-use"
                 rel="noreferrer"
                 target="_blank"
               >
@@ -380,7 +380,7 @@ exports[`DownloadSummary renders download summary page coming from availability 
               I have read and agree to the platform’s
                
               <a
-                href="https://soilhive.ag"
+                href="/terms-of-use"
                 rel="noreferrer"
                 target="_blank"
               >
@@ -584,7 +584,7 @@ exports[`DownloadSummary renders download summary page coming from data explorer
               I have read and agree to the platform’s
                
               <a
-                href="https://soilhive.ag"
+                href="/terms-of-use"
                 rel="noreferrer"
                 target="_blank"
               >
