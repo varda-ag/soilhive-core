@@ -407,7 +407,6 @@ export default function Metadata() {
             onStartEditing={onStartEditing}
             onSave={onSave}
             onCancel={onCancel}
-            disableBackground
           />
           <RelatedResourcesRow
             label={t('fields.related_resources')}
@@ -418,7 +417,6 @@ export default function Metadata() {
             onStartEditing={onStartEditing}
             onSave={onSaveRelatedResources}
             onCancel={onCancel}
-            disableBackground
           />
         </div>
       </div>
