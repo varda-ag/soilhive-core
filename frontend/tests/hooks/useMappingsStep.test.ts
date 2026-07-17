@@ -476,7 +476,7 @@ describe('useMappingsStep', () => {
       expect(result.current.geometryMessage?.type).toBe('warning');
     });
 
-    it.only('is warning when both geometry and lat/lon are mapped', () => {
+    it('is warning when both geometry and lat/lon are mapped', () => {
       setupWithColumns(['lat', 'lon', 'other'], undefined, false);
       const { result } = renderHook(() => useMappingsStep('1'));
       act(() => {
