@@ -2,6 +2,8 @@
 
 This example uses the Keycloak instance included in the SoilHiveCore docker-compose setup.
 
+> For local development, a `soilhive` realm with a preconfigured client, roles, and test users is imported automatically on first boot, see [Quickstart](quickstart.md#test-realm-and-users). The manual steps below are useful if you want to understand how it was built, or need to set up your own realm/client from scratch (e.g., against an external Keycloak instance).
+
 ## 1. Start Keycloak
 Run `docker-compose up`. Keycloak will be available at `http://localhost:8080`.
 

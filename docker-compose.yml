@@ -15,7 +15,9 @@ services:
       - "8080:8080"
     depends_on:
       - postgis
-    command: start-dev
+    volumes:
+      - ./quickstart-sample-data/soilhive-realm.json:/opt/keycloak/data/import/soilhive-realm.json
+    command: start-dev --import-realm
 
   postgis:
     image: postgis/postgis:18-3.6@sha256:f248a10d133f63d01aefab324f3462d7e1002e9cc1b65c6585626f6cb7a3d85c
@@ -41,20 +43,29 @@ services:
       POSTGRES_USER: dbuser
       POSTGRES_PASSWORD: dbpass
       POSTGRES_SCHEMA: soilhive
+      SELF_SIGNING_SECRET: quickstart-demo-signing-secret
+      OIDC_JWKS_URL: http://keycloak:8080/realms/soilhive/protocol/openid-connect/certs
+      OIDC_AUTHORITY: http://localhost:8080/realms/soilhive
+      OIDC_CLIENT_ID: soilhive
+      OIDC_REDIRECT_URI: http://localhost:3000/admin
+      OIDC_POST_LOGOUT_REDIRECT_URI: http://localhost:3000/
+      OIDC_SILENT_REDIRECT_URI: http://localhost:3000/
+      OIDC_SCOPE: openid
     ports:
       - "4001:3000"
     depends_on:
       - postgis
+      - keycloak
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
     environment:
-      PORT: 80
+      PORT: 3000
       BACKEND_BASE_URL: http://localhost:4001/api/v1
     ports:
-      - "80:80"
+      - "3000:3000"
     stdin_open: true
     tty: true
 
