@@ -392,7 +392,7 @@ exports[`Metadata page renders dataset content and matches snapshot 1`] = `
           </div>
         </div>
         <div
-          class="Row RowNoBackground"
+          class="Row"
         >
           <p
             class="Label"
@@ -408,7 +408,7 @@ exports[`Metadata page renders dataset content and matches snapshot 1`] = `
           </div>
         </div>
         <div
-          class="Row RowNoBackground"
+          class="Row"
         >
           <p
             class="Label"

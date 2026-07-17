@@ -211,12 +211,13 @@ describe('FileService', () => {
       expect(metadata).toBeDefined();
       expect(metadata.field_names).toBeDefined();
       expect(Array.isArray(metadata.field_names)).toBe(true);
-      expect(metadata.geometry_detected).toBeFalsy();
+      // GEOM_POSSIBLE_NAMES=* makes GDAL detect the WKT column as native geometry
+      expect(metadata.geometry_detected).toBeTruthy();
       expect(metadata.detected_fields).toBeDefined();
 
       // Check detected_fields structure
       expect(metadata.detected_fields).toHaveProperty(DetectableFields.GEOMETRY);
-      expect(metadata.detected_fields[DetectableFields.GEOMETRY]).toBeDefined();
+      expect(metadata.detected_fields[DetectableFields.GEOMETRY]).toBe('geom WKT');
       expect(metadata.detected_fields).toHaveProperty(DetectableFields.LICENSE);
       expect(metadata.detected_fields[DetectableFields.LICENSE]).toBeDefined();
       expect(metadata.detected_fields).toHaveProperty(DetectableFields.SAMPLING_DATE);
@@ -495,7 +496,7 @@ describe('FileService', () => {
       expect(parseFloat(rows[0].x)).toBeCloseTo(39.6544, 4);
     });
 
-    it('uses mapping geometry when no geometry is auto-detected', async () => {
+    it('loads geometry from a WKT column auto-detected as native geometry (CSV)', async () => {
       const fileEntity = await fileService.createFile(requestData, {
         name: 'test_geom_wkt.csv',
         file_path: 'test_geom_wkt.csv',
@@ -543,7 +544,7 @@ describe('FileService', () => {
       expect(tableColumns.map(c => c.column_name)).toContain('geometry');
     });
 
-    it('mapping WKT column overrides auto-detected lat/lon fields', async () => {
+    it('auto-detected WKT column takes precedence over auto-detected lat/lon fields', async () => {
       const fileEntity = await fileService.createFile(requestData, {
         name: 'test_geom_override.csv',
         file_path: 'test_geom_override.csv',

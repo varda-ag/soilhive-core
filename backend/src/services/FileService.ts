@@ -416,7 +416,10 @@ export default class FileService {
 
       log.info('Extracting metadata with ogrinfo', { source: mainFilePath });
       const isExcel = ['.xlsx', '.xls'].includes(path.extname(mainFilePath).toLowerCase());
-      const { driver, layers } = await GdalCLI.ogrinfo(mainFilePath, isExcel ? ['HEADERS=FORCE'] : []);
+      const { driver, layers } = await GdalCLI.ogrinfo(
+        mainFilePath,
+        isExcel ? ['GEOM_POSSIBLE_NAMES=*', 'HEADERS=FORCE'] : ['GEOM_POSSIBLE_NAMES=*'],
+      );
 
       log.info('Getting data layer and detecting geometry', { driver });
       const { layer, geometryDetected } = this.getDataLayer(layers, unknownGeomDrivers.includes(driver));
@@ -442,9 +445,7 @@ export default class FileService {
         samplingDateFieldName = FileService.detectField(fieldNames, ['date', 'time'], true);
       }
 
-      if (!geometryDetected) {
-        geometryFieldName = FileService.detectField(fieldNames, ['geom', 'geometry', 'shape', 'wkb', 'wkt'], true);
-      }
+      geometryFieldName = layer.geomColumn ?? FileService.detectField(fieldNames, ['geom', 'geometry', 'shape', 'wkb', 'wkt'], true);
 
       latitudeFieldName = FileService.detectField(fieldNames, ['latitude', 'lat'], true);
       if (!latitudeFieldName) {
@@ -626,10 +627,6 @@ export default class FileService {
         }
       }
 
-      if (unknownGeomDrivers.includes(fileMetadata.driver ?? '')) {
-        ogr2ogrOpts.push('-oo', 'AUTODETECT_TYPE=YES', '-oo', 'EMPTY_STRING_AS_NULL=YES', '-oo', `KEEP_GEOM_COLUMNS=${keepGeomColumn}`);
-      }
-
       if (fileMetadata.driver === 'XLSX') {
         ogr2ogrOpts.push('-oo', 'HEADERS=FORCE');
       }
@@ -646,7 +643,20 @@ export default class FileService {
       }
 
       if (fileMetadata.geometry_detected && fileMetadata.geom_column) {
-        selectClause = `${selectClause}, ${fileMetadata.geom_column} as geometry`;
+        if (unknownGeomDrivers.includes(fileMetadata.driver ?? '')) {
+          // CSV/XLSX: re-open with the sniffed column as geometry. A column literally
+          // named "WKT" becomes an unnamed OGR geometry field that cannot be referenced
+          // in SQL; OGR SQL passes the geometry through implicitly instead.
+          ogr2ogrOpts.push('-oo', `GEOM_POSSIBLE_NAMES=${fileMetadata.geom_column}`);
+          keepGeomColumn = 'NO';
+        } else {
+          // e.g. GPKG executes -sql natively (SQLite), where geometry must be selected explicitly.
+          selectClause = `${selectClause}, "${fileMetadata.geom_column}" as geometry`;
+        }
+      }
+
+      if (unknownGeomDrivers.includes(fileMetadata.driver ?? '')) {
+        ogr2ogrOpts.push('-oo', 'AUTODETECT_TYPE=YES', '-oo', 'EMPTY_STRING_AS_NULL=YES', '-oo', `KEEP_GEOM_COLUMNS=${keepGeomColumn}`);
       }
 
       ogr2ogrOpts.push('-sql', `SELECT ${selectClause} FROM "${layerName}"`);
