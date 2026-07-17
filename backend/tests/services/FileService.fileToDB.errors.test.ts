@@ -5,9 +5,10 @@ import { ErrorResponse } from '../../src/utils/error';
 import { StatusCodes } from 'http-status-codes';
 import FileEntity from '../../src/entities/File';
 import { FileMetadata } from '../../src/interfaces/File';
+import { DetectableFields } from '../../src/types/DataMapping';
 
 jest.mock('../../src/utils/db-credentials', () => ({
-  getDBPassword: jest.fn().mockResolvedValue('test-password'),
+  getDBPassword: jest.fn().mockResolvedValue('test-password' as never),
 }));
 
 const BASE_METADATA: FileMetadata = {
@@ -31,10 +32,21 @@ const makeFileEntity = (metaOverrides: Partial<FileMetadata> = {}): FileEntity =
 const makeEntityManager = () =>
   ({
     getRepository: jest.fn().mockReturnValue({
-      update: jest.fn().mockResolvedValue({}),
+      update: jest.fn().mockResolvedValue({} as never),
       findOne: jest.fn().mockReturnValue(Promise.resolve(null)),
     }),
-    query: jest.fn().mockResolvedValue([]),
+    query: jest.fn().mockResolvedValue([] as never),
+  }) as any;
+
+const makeEntityManagerWithDepthMapping = (depthColName: string) =>
+  ({
+    getRepository: jest.fn().mockReturnValue({
+      update: jest.fn().mockResolvedValue({} as never),
+      findOne: jest.fn().mockResolvedValue({
+        data_mapping: { data_mapping: { [depthColName]: DetectableFields.DEPTH } },
+      } as never),
+    }),
+    query: jest.fn().mockResolvedValue([] as never),
   }) as any;
 
 describe('FileService.fileToDB — JobError surfacing', () => {
@@ -104,5 +116,41 @@ describe('FileService.fileToDB — JobError surfacing', () => {
       name: 'JobError',
       code: 'FTD_GDAL_PARSE_ERROR',
     });
+  });
+
+  it('E05 — FTD_INVALID_DEPTH_RANGE when depth column has no valid X-Y format rows', async () => {
+    jest.spyOn(fileService, 'getFile').mockResolvedValue(makeFileEntity({ field_names: ['depth_col'] }));
+    jest.spyOn(fileService as any, 'extractGeomFieldsFromMapping').mockResolvedValue({ geomField: null, latField: null, lonField: null });
+    jest.spyOn(FileService, 'getMainFilePath').mockResolvedValue({ mainFilePath: '/tmp/test.gpkg', tempZipExtractPath: null });
+    jest.spyOn(GdalCLI, 'ogr2ogr').mockResolvedValue(undefined as any);
+    jest.spyOn(fileService as any, 'getValidDepthRangeCount').mockResolvedValue(0);
+
+    await expect(
+      fileService.fileToDB({ entityManager: makeEntityManagerWithDepthMapping('depth_col'), entitlements: {} }, 'file-id'),
+    ).rejects.toMatchObject({ name: 'JobError', code: 'FTD_INVALID_DEPTH_RANGE' });
+  });
+
+  it('proceeds past depth check when at least one valid X-Y format depth row exists', async () => {
+    jest.spyOn(fileService, 'getFile').mockResolvedValue(makeFileEntity({ field_names: ['depth_col'] }));
+    jest.spyOn(fileService as any, 'extractGeomFieldsFromMapping').mockResolvedValue({ geomField: null, latField: null, lonField: null });
+    jest.spyOn(FileService, 'getMainFilePath').mockResolvedValue({ mainFilePath: '/tmp/test.gpkg', tempZipExtractPath: null });
+    jest.spyOn(GdalCLI, 'ogr2ogr').mockResolvedValue(undefined as any);
+    jest.spyOn(fileService as any, 'getValidDepthRangeCount').mockResolvedValue(3);
+
+    await expect(
+      fileService.fileToDB({ entityManager: makeEntityManagerWithDepthMapping('depth_col'), entitlements: {} }, 'file-id'),
+    ).resolves.toBeUndefined();
+  });
+
+  it('skips depth range check entirely when no field is mapped to depth', async () => {
+    jest.spyOn(fileService, 'getFile').mockResolvedValue(makeFileEntity());
+    jest.spyOn(fileService as any, 'extractGeomFieldsFromMapping').mockResolvedValue({ geomField: null, latField: null, lonField: null });
+    jest.spyOn(FileService, 'getMainFilePath').mockResolvedValue({ mainFilePath: '/tmp/test.gpkg', tempZipExtractPath: null });
+    jest.spyOn(GdalCLI, 'ogr2ogr').mockResolvedValue(undefined as any);
+    const depthSpy = jest.spyOn(fileService as any, 'getValidDepthRangeCount');
+
+    await fileService.fileToDB({ entityManager: makeEntityManager(), entitlements: {} }, 'file-id');
+
+    expect(depthSpy).not.toHaveBeenCalled();
   });
 });

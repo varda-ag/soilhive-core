@@ -78,6 +78,11 @@ export function buildCleaningCte(config: DataCleaningConfig, fileId: string): Cl
   c1.push(`${depthWasRounded(maxDepthRaw)} AS max_depth_rounded`);
   c1.push(`${depthWasNeg(minDepthRaw)} AS min_depth_was_negative`);
   c1.push(`${depthWasNeg(maxDepthRaw)} AS max_depth_was_negative`);
+  c1.push(
+    depthCol
+      ? `(raw.${depthCol} IS NOT NULL AND array_length(string_to_array(raw.${depthCol}::text, '-'), 1) != 2) AS depth_format_invalid`
+      : 'FALSE AS depth_format_invalid',
+  );
 
   const isPercentUnit = (u: string | null | undefined) => !!u && ['%', '%v', '%w'].includes(u);
 
@@ -164,6 +169,7 @@ export function buildCleaningCte(config: DataCleaningConfig, fileId: string): Cl
     'cc.license',
     'cc.min_depth',
     'cc.max_depth',
+    'cc.depth_format_invalid',
     'cc._full_row_rn',
     ...props.map(([prop]) => `cc.${prop}_cleaned`),
   ];
@@ -215,6 +221,8 @@ export function buildCleaningCte(config: DataCleaningConfig, fileId: string): Cl
       WHEN ST_GeometryType(cd.geom)='ST_Point' AND (ST_X(cd.geom) NOT BETWEEN -180 AND 180
         OR ST_Y(cd.geom) NOT BETWEEN -90 AND 90) OR ST_GeometryType(cd.geom) IN ('ST_Polygon', 'ST_MultiPolygon') AND NOT ST_IsValid(cd.geom)
         THEN '${RowDeleteReason.INVALID_COORDINATES}'
+      WHEN cd.depth_format_invalid
+        THEN '${RowDeleteReason.INVALID_DEPTH_INTERVAL}'
       WHEN cd.min_depth IS NOT NULL
        AND cd.max_depth IS NOT NULL
        AND cd.min_depth >= cd.max_depth

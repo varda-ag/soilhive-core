@@ -147,6 +147,28 @@ describe('VectorDataLoad class', () => {
           .pop(),
       ).toBe(results.length - dataMappingDepthRange.drop_records!.length);
     });
+
+    it('should remove rows with invalid ranges in "depth" field', async () => {
+      const vdl = new VectorDataLoad();
+      const entityManager = await getEntityManager();
+      const dataMappingDepthRange: DataCleaningConfig = {
+        ...dataMappingConfig!,
+        metadata_cols: {
+          sampling_date: 'date',
+          license: 'licence',
+          horizon: 'layer_name',
+          depth: 'depthrange2',
+        },
+      };
+      // depth2 column has 4 values with 2 hyphens and 4 values with integer
+      const stats = await vdl.getDataPreviewStats(entityManager, dataMappingDepthRange, fileId!);
+      expect(
+        stats.row_deletions
+          .filter(rd => rd.reason === RowDeleteReason.INVALID_DEPTH_INTERVAL)
+          .map(f => f.count)
+          .pop(),
+      ).toBe(8);
+    });
     it('should set negative min/max depth values to NULL', async () => {
       const vdl = new VectorDataLoad();
       const entityManager = await getEntityManager();
