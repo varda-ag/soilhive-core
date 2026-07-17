@@ -7,7 +7,7 @@ import styles from './SoilDataFileRow.module.scss';
 import { type SoilDataFile } from '../../../../types/soilDataFile';
 import CrossIcon from 'assets/icons/cross-icon.svg?react';
 import QuestionIcon from 'assets/icons/question-round-icon.svg?react';
-import { useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 
 interface Props {
   soilDataFile: SoilDataFile;
@@ -28,22 +28,30 @@ export function SoilDataFileRow({ soilDataFile, onCrsChange, onRemove, crsOption
   const { id, name, file, crs, inferredCrs, error, missingFields, extraFields } = soilDataFile;
   const [filteredCrs, setFilteredCrs] = useState<string[]>([]);
   const [diffOpen, setDiffOpen] = useState(false);
+  const autoCompleteRef = useRef<AutoComplete>(null);
+  // PrimeReact refocuses the input after a selection; this flag keeps that programmatic focus from reopening the panel
+  const skipNextFocusOpen = useRef(false);
 
   const isReadOnly = !!inferredCrs;
 
+  const allCrsOptions = useMemo(() => crsOptions.map(n => `EPSG:${n}`), [crsOptions]);
+
   const filterCrsOptions = (e: AutoCompleteCompleteEvent) => {
-    const query = e.query;
-    if (query && /\d/.test(query)) {
-      // single digit --> start filtering
-      setFilteredCrs(crsOptions.map(n => `EPSG:${n}`).filter(option => option.toLowerCase().includes(query.toLowerCase())));
-    } else {
-      setFilteredCrs([]);
+    const query = e.query.trim().toLowerCase();
+    setFilteredCrs(query ? allCrsOptions.filter(option => option.toLowerCase().includes(query)) : [...allCrsOptions]);
+  };
+
+  const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+    if (skipNextFocusOpen.current) {
+      skipNextFocusOpen.current = false;
+      return;
     }
+    autoCompleteRef.current?.search(e, e.target.value, 'dropdown');
   };
 
   const handleBlur = () => {
-    const validValues = crsOptions.map(n => `EPSG:${n}`);
-    if (crs && !validValues.includes(crs)) {
+    skipNextFocusOpen.current = false;
+    if (crs && !allCrsOptions.includes(crs)) {
       onCrsChange(id, inferredCrs ?? '');
     }
   };
@@ -61,17 +69,23 @@ export function SoilDataFileRow({ soilDataFile, onCrsChange, onRemove, crsOption
             {t('datasets.soil_data.crs_label')}
           </label>
           <AutoComplete
+            ref={autoCompleteRef}
             inputId={`crs-${id}`}
             value={crs ? crs : (inferredCrs ?? '')}
             suggestions={filteredCrs}
             completeMethod={filterCrsOptions}
+            virtualScrollerOptions={{ itemSize: 38 }}
             onChange={e => onCrsChange(id, e.value)}
+            onSelect={() => {
+              skipNextFocusOpen.current = true;
+            }}
             placeholder={t('datasets.soil_data.crs_placeholder')}
             className={styles.CrsDropdown}
             inputClassName={styles.CrsInput}
             panelClassName={styles.CrsPanel}
             dropdown={false}
             disabled={isReadOnly}
+            onFocus={handleFocus}
             onBlur={handleBlur}
           />
         </div>
