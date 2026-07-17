@@ -490,8 +490,8 @@ export function useMappingsStep(datasetId?: string) {
     if (geometryDetected === true) return { message: t('datasets.mappings.geometry_detected'), type: 'info' };
     const hasGeometry = columnMappings.some(m => m.conceptId === 'geometry');
     const hasLatLon = columnMappings.some(m => m.conceptId === 'latitude') && columnMappings.some(m => m.conceptId === 'longitude');
-    if (hasGeometry || hasLatLon) return null;
     if (hasGeometry && hasLatLon) return { message: t('datasets.mappings.geometry_conflict'), type: 'warning' };
+    if (hasGeometry || hasLatLon) return null;
     return { message: t('datasets.mappings.geometry_not_detected'), type: 'warning' };
   }, [geometryDetected, columnMappings, t]);
 

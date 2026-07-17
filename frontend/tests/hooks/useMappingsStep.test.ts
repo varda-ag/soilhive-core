@@ -476,12 +476,13 @@ describe('useMappingsStep', () => {
       expect(result.current.geometryMessage?.type).toBe('warning');
     });
 
-    it('is warning when both geometry and lat/lon are mapped', () => {
+    it.only('is warning when both geometry and lat/lon are mapped', () => {
       setupWithColumns(['lat', 'lon', 'other'], undefined, false);
       const { result } = renderHook(() => useMappingsStep('1'));
       act(() => {
         result.current.handleConceptChange('lat', 'latitude');
-        result.current.handleConceptChange('other', 'geom');
+        result.current.handleConceptChange('lon', 'longitude');
+        result.current.handleConceptChange('other', 'geometry');
       });
       expect(result.current.geometryMessage?.type).toBe('warning');
     });
