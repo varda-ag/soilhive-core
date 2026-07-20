@@ -57,5 +57,5 @@ The basic cleaning steps applied are:
 - All negative depth values will be marked as `NULL`.
 - All negative or 0 soil property values will be marked as `NULL` and skipped in the loading process.
 - Soil property values for which the standard unit of measurement is `%` and their value (once converted from the original unit of measurement if applies) is above 100 will be marked as `NULL` and skipped in the loading process.
-- Soil samples with value -999 are assumed to be below limit of detection and will be loaded as is, without applying conversion formulas.
+- Soil property values of -999 are assumed to be below limit of detection and will be marked as `NULL` and skipped in the loading process.
 - Soil property values are rounded to 3 decimals.

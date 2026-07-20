@@ -388,7 +388,8 @@
                     "negative_value": "Negative value",
                     "zero_value": "Zero value (treated as null)",
                     "out_of_bounds": "Out-of-bounds value",
-                    "total": "Total" 
+                    "below_lod": "Below limit of detection",
+                    "total": "Total"
                 }
             }
         },

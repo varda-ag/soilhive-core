@@ -369,8 +369,8 @@ describe('Testing /datasets routes', () => {
         iterations++;
       } while (iterations < maxIterations);
 
-      // 20 fixture rows minus invalid data (including sentinel and user dropped) = 8
-      expect(allRecordIds.length).toBe(8);
+      // 20 fixture rows minus invalid data (including sentinel and user dropped) = 6
+      expect(allRecordIds.length).toBe(6);
       expect(new Set(allRecordIds).size).toBe(allRecordIds.length);
     });
 
@@ -404,7 +404,7 @@ describe('Testing /datasets routes', () => {
         iterations++;
       } while (iterations < maxIterations);
 
-      expect(allRecordIds.length).toBe(8);
+      expect(allRecordIds.length).toBe(6);
       expect(new Set(allRecordIds).size).toBe(allRecordIds.length);
       for (let i = 1; i < allMinDepths.length; i++) {
         expect(allMinDepths[i]).toBeGreaterThanOrEqual(allMinDepths[i - 1]);
@@ -445,8 +445,8 @@ describe('Testing /datasets routes', () => {
         iterations++;
       } while (iterations < maxIterations);
 
-      // 20 fixture rows minus invalid data (including sentinel and user dropped) = 8
-      expect(allRecordIds.length).toBe(8);
+      // 20 fixture rows minus invalid data (including sentinel and user dropped) = 6
+      expect(allRecordIds.length).toBe(6);
       expect(new Set(allRecordIds).size).toBe(allRecordIds.length);
       // Non-NULL bdfiod values (those within min_val range) must appear in ascending order.
       // NULL values sort last (PostgreSQL NULLS LAST for ASC) and are excluded from the check.
@@ -510,7 +510,7 @@ describe('Testing /datasets routes', () => {
         iterations++;
       } while (iterations < maxIterations);
 
-      expect(allRecordIds.length).toBe(8);
+      expect(allRecordIds.length).toBe(6);
       expect(new Set(allRecordIds).size).toBe(allRecordIds.length);
       // Column with all nulls will be ignored for sorting, the second order by clause (by record id) prevails.
       const nonNullLicenses = allLicenses.filter(v => v !== null);
@@ -578,8 +578,8 @@ describe('Testing /datasets routes', () => {
         .set('Authorization', `Bearer ${token}`);
       expect(res.statusCode).toBe(StatusCodes.OK);
       expect(res.body).toHaveProperty('count');
-      // 20 fixture rows minus invalid data (including sentinel and user dropped) = 8
-      expect(res.body.count).toBe(8);
+      // 20 fixture rows minus invalid data (including sentinel and user dropped) = 6
+      expect(res.body.count).toBe(6);
     });
   });
 
@@ -600,8 +600,8 @@ describe('Testing /datasets routes', () => {
       expect(res.body).toHaveProperty('cell_deletions');
       expect(res.body).toHaveProperty('modifications');
       expect(res.body).toHaveProperty('row_deletions');
-      // Internally deleted rows: 12 + user_deleted drows 2
-      expect(res.body.summary.rows_deleted).toBe(14);
+      // Internally deleted rows: 14 + user_deleted rows 2
+      expect(res.body.summary.rows_deleted).toBe(16);
     });
   });
 });
