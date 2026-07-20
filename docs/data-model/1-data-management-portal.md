@@ -144,9 +144,10 @@ Your data may be subject to modification, and some data may be discarded if it d
 | What happens | Shown in the summary as |
 |---|---|
 | The value isn't numeric (e.g. text was entered in a numeric field) | *Invalid property value (non-numeric)* |
-| The value is negative (with −999 as the recognised "no data" convention, always treated as missing without being flagged here) | *Negative value* |
+| The value is negative | *Negative value* |
 | The value is exactly zero, which SoilHive treats as no measurement rather than a true zero reading | *Zero value (treated as null)* |
 | The value is a percentage above 100% | *Out-of-bounds value* |
+| The value is exactly −999, the recognised "below limit of detection" convention | *Below limit of detection* |
 
 You can review exactly which rows and cells were affected directly in the preview table, and you can delete additional individual rows yourself as a final quality check before confirming the upload.
 
