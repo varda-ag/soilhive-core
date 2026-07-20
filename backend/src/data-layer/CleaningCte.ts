@@ -117,7 +117,7 @@ export function buildCleaningCte(config: DataCleaningConfig, fileId: string): Cl
       CASE
         WHEN ${isNull}     THEN NULL
         WHEN ${isNonNum}   THEN NULL
-        WHEN ${isSentinel} THEN ${OUTSIDE_LOD_VALUE}
+        WHEN ${isSentinel} THEN NULL
         WHEN ${isNeg}      THEN NULL
         WHEN ${isZero}     THEN NULL
         WHEN ${isOob}      THEN NULL
@@ -128,7 +128,7 @@ export function buildCleaningCte(config: DataCleaningConfig, fileId: string): Cl
       CASE
         WHEN ${isNull}     THEN NULL
         WHEN ${isNonNum}   THEN '${CellDeleteReason.NON_NUMERIC}'
-        WHEN ${isSentinel} THEN NULL
+        WHEN ${isSentinel} THEN '${CellDeleteReason.BELOW_LOD}'
         WHEN ${isNeg}      THEN '${CellDeleteReason.NEGATIVE_VALUE}'
         WHEN ${isZero}     THEN '${CellDeleteReason.ZERO_VALUE}'
         WHEN ${isOob}     THEN '${CellDeleteReason.OOB}'

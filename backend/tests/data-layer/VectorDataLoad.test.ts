@@ -34,8 +34,8 @@ describe('VectorDataLoad class', () => {
     const service = new DataMappingService();
     const dataMappingConfig = await service.parseDataMapping(requestData, dataMapping.id);
     const results = await vdl.getDataPreview(entityManager, dataMappingConfig, file.id);
-    // Results: after removal of min_val, max_val, minimum data requirement (Including sentinel): 8 (with user-deleted records)
-    expect(results.length).toBe(8);
+    // Results: after removal of min_val, max_val, minimum data requirement (Including sentinel): 6 (with user-deleted records)
+    expect(results.length).toBe(6);
     expect(results.filter(r => r.user_dropped === true).length).toBe(dataMappingConfig.drop_records?.length);
     const resultBdfi33 = results.map(r => parseFloat(r.bdfi33 as string)).filter(n => !isNaN(n));
     const maxBdfi33 = resultBdfi33.length ? Math.max(...resultBdfi33) : null;
@@ -46,9 +46,9 @@ describe('VectorDataLoad class', () => {
     const resultRecordIds = results.map(r => parseFloat(r.record_id as unknown as string));
     const maxRecordId = Math.max(...resultRecordIds);
     expect(maxRecordId).toBe(10137);
-    // bdfi33 in raw data insert has 6 non-null values, 3 of them are 0 or negative (should be NULL), 1 is out of bounds (original unit %, value>100), and 2 of them are less than LOD (should stay as is, no conversion formula "x*10" applied)
-    expect(resultBdfi33.length).toBe(4);
-    expect(resultBdfi33.filter(n => n === OUTSIDE_LOD_VALUE).length).toBe(2);
+    // bdfi33 in raw data insert has 6 non-null values, 3 of them are 0 or negative (should be NULL), 1 is out of bounds (original unit %, value>100), and 2 of them are below LOD (should be NULL and reported as below_lod)
+    expect(resultBdfi33.length).toBe(2);
+    expect(resultBdfi33.filter(n => n === OUTSIDE_LOD_VALUE).length).toBe(0);
     // Stats values should be coherent with cleaned up data:
     const stats = await vdl.getDataPreviewStats(entityManager, dataMappingConfig, file.id);
     expect(stats.summary.rows_deleted - dataMappingConfig.drop_records!.length).toBe(DATA_PREVIEW_SIZE - results.length);
@@ -94,9 +94,9 @@ describe('VectorDataLoad class', () => {
       iterations++;
     } while (iterations < 20);
 
-    // Results: after removal of min_val, max_val, minimum data requirement (Including sentinel and user-dropped values): 8
-    expect(allIds).toHaveLength(8);
-    expect(new Set(allIds).size).toBe(8);
+    // Results: after removal of min_val, max_val, minimum data requirement (Including sentinel and user-dropped values): 6
+    expect(allIds).toHaveLength(6);
+    expect(new Set(allIds).size).toBe(6);
   });
   describe('Data preview should clean the values as required', () => {
     let fileId: string | null = null;
@@ -272,6 +272,46 @@ describe('VectorDataLoad class', () => {
       const nonNumericDeletion = stats.cell_deletions.find(d => d.reason === CellDeleteReason.NON_NUMERIC && d.property === 'depthrange');
       expect(nonNumericDeletion).toBeDefined();
       expect(nonNumericDeletion!.count).toBeGreaterThan(0);
+    });
+    it('should null out values below LOD (-999) and report them as below_lod cell deletions', async () => {
+      const vdl = new VectorDataLoad();
+      const entityManager = await getEntityManager();
+      // bdfiod's default min_val (0.1, after the /10 conversion) would OOB-reject bdfiod for
+      // rows 10085/10087 too, making the whole row fail minimum_data_requirement and hiding
+      // the below_lod cell reason from the stats. Relax it so only bdfi33's sentinel is at play.
+      const dataMappingNoBdfiodFloor: DataCleaningConfig = {
+        ...dataMappingConfig!,
+        property_cols: {
+          ...dataMappingConfig!.property_cols,
+          bdfiod: { ...dataMappingConfig!.property_cols.bdfiod, conversion_formula: 'x', min_val: 0 },
+        },
+      };
+      const results = await vdl.getDataPreview(entityManager, dataMappingNoBdfiodFloor, fileId!);
+      const resultBdfi33 = results.map(r => parseFloat(r.bdfi33 as string)).filter(n => !isNaN(n));
+      // Both -999 rows (10085, 10087) should be cleaned to NULL instead of kept as the literal sentinel.
+      expect(resultBdfi33.filter(n => n === OUTSIDE_LOD_VALUE).length).toBe(0);
+      const stats = await vdl.getDataPreviewStats(entityManager, dataMappingNoBdfiodFloor, fileId!);
+      const belowLodDeletion = stats.cell_deletions.find(d => d.reason === CellDeleteReason.BELOW_LOD && d.property === 'bdfi33');
+      expect(belowLodDeletion).toBeDefined();
+      expect(belowLodDeletion!.count).toBe(2);
+    });
+    it('should still report negative_value (not below_lod) for genuine negative property values', async () => {
+      const vdl = new VectorDataLoad();
+      const entityManager = await getEntityManager();
+      // Same rationale as above: relax bdfiod's floor so rows 10088/10089 survive on bdfiod
+      // and their bdfi33 negative-value reason is visible in the stats.
+      const dataMappingNoBdfiodFloor: DataCleaningConfig = {
+        ...dataMappingConfig!,
+        property_cols: {
+          ...dataMappingConfig!.property_cols,
+          bdfiod: { ...dataMappingConfig!.property_cols.bdfiod, conversion_formula: 'x', min_val: 0 },
+        },
+      };
+      const stats = await vdl.getDataPreviewStats(entityManager, dataMappingNoBdfiodFloor, fileId!);
+      // bdfi33 raw data has two genuine negative (non-sentinel) values: -2 (10088) and -3 (10089).
+      const negativeDeletion = stats.cell_deletions.find(d => d.reason === CellDeleteReason.NEGATIVE_VALUE && d.property === 'bdfi33');
+      expect(negativeDeletion).toBeDefined();
+      expect(negativeDeletion!.count).toBe(2);
     });
     it('should scale OOB threshold by conversion formula when original_unit is %', async () => {
       const vdl = new VectorDataLoad();
