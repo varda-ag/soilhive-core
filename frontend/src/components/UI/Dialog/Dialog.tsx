@@ -1,4 +1,4 @@
-import { useMemo, type ReactNode, type RefObject } from 'react';
+import { useCallback, useMemo, type ReactNode, type RefObject, type MouseEvent } from 'react';
 import classnames from 'classnames';
 import { ConfirmDialog } from 'primereact/confirmdialog';
 import { useTranslation } from 'react-i18next';
@@ -15,7 +15,9 @@ interface Props {
   secondaryText?: string;
   className?: string;
   contentClassName?: string;
+  headerClassName?: string;
   hideButtons?: boolean;
+  closeOnOverlay?: boolean;
   onPrimary?: () => void;
   onSecondary?: () => void;
   onClose?: () => void;
@@ -30,7 +32,9 @@ export function Dialog({
   removeTransition,
   className,
   contentClassName,
+  headerClassName,
   hideButtons = false,
+  closeOnOverlay = false,
   onPrimary,
   onSecondary,
   onClose,
@@ -48,15 +52,26 @@ export function Dialog({
     return props;
   }, [removeTransition]);
 
+  const onMaskClick = useCallback(
+    (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (target && target.classList.contains('p-dialog-mask')) {
+        onClose?.();
+      }
+    },
+    [onClose],
+  );
+
   return (
     <ConfirmDialog
       group="headless"
       visible={visible}
       className={classnames(styles.Dialog, className)}
       {...conditionalProps}
+      onMaskClick={closeOnOverlay ? onMaskClick : undefined}
       content={({ contentRef, headerRef, footerRef }) => (
         <>
-          <div className={styles.Header} ref={headerRef as RefObject<HTMLDivElement>}>
+          <div className={classnames(styles.Header, headerClassName)} ref={headerRef as RefObject<HTMLDivElement>}>
             {header}
             <button className={styles.CloseButton} onClick={onClose ?? onSecondary} aria-label="Close">
               <CloseIcon />

@@ -11,6 +11,21 @@ jest.mock('assets/icons/cross-icon.svg?react', () => {
   return CloseIconMock;
 });
 
+jest.mock('primereact/confirmdialog', () => {
+  const ConfirmDialogMock = ({ content, visible, className, onMaskClick }: any) => {
+    if (!visible) return null;
+    const refs = { contentRef: { current: null }, headerRef: { current: null }, footerRef: { current: null } };
+    return (
+      <div className={className}>
+        <div className="p-dialog-mask" data-testid="dialog-mask" onClick={onMaskClick} />
+        {content?.(refs)}
+      </div>
+    );
+  };
+  ConfirmDialogMock.displayName = 'ConfirmDialogMock';
+  return { ConfirmDialog: ConfirmDialogMock };
+});
+
 describe('Dialog', () => {
   const defaultProps = {
     visible: true,
@@ -128,5 +143,47 @@ describe('Dialog', () => {
       </Dialog>,
     );
     expect(document.querySelector('.my-custom-class')).toBeInTheDocument();
+  });
+
+  it('applies headerClassName to the header element', () => {
+    render(
+      <Dialog {...defaultProps} headerClassName="custom-header">
+        <p>content</p>
+      </Dialog>,
+    );
+    expect(document.querySelector('.custom-header')).toBeInTheDocument();
+  });
+
+  it('calls onClose when the overlay mask is clicked and closeOnOverlay is true', () => {
+    const onClose = jest.fn();
+    render(
+      <Dialog {...defaultProps} closeOnOverlay onClose={onClose}>
+        <p>content</p>
+      </Dialog>,
+    );
+    fireEvent.click(screen.getByTestId('dialog-mask'));
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not call onClose when clicking inside the dialog content (not the mask)', () => {
+    const onClose = jest.fn();
+    render(
+      <Dialog {...defaultProps} closeOnOverlay onClose={onClose}>
+        <p>content</p>
+      </Dialog>,
+    );
+    fireEvent.click(screen.getByText('Test header'));
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('does not call onClose when closeOnOverlay is false (default)', () => {
+    const onClose = jest.fn();
+    render(
+      <Dialog {...defaultProps} onClose={onClose}>
+        <p>content</p>
+      </Dialog>,
+    );
+    fireEvent.click(screen.getByTestId('dialog-mask'));
+    expect(onClose).not.toHaveBeenCalled();
   });
 });

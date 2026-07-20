@@ -1,0 +1,75 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`UploadPolygonModal renders the component and matches the snapshot 1`] = `
+<div>
+  <div
+    data-testid="dialog"
+  >
+    <span
+      data-testid="dialog-header"
+    >
+      upload_polygon_modal.title
+    </span>
+    <button
+      data-testid="dialog-close"
+    />
+    <div
+      class="UploadBoxWrapper"
+    >
+      <p
+        class="UploadBoxMessage"
+      >
+        upload_polygon_modal.message
+      </p>
+      <div
+        data-testid="file-upload-box"
+      >
+        <input
+          data-testid="file-input"
+        />
+        <button
+          data-testid="trigger-upload"
+        />
+        <button
+          data-testid="trigger-empty-upload"
+        />
+      </div>
+    </div>
+    <div
+      class="Tip"
+    >
+      <svg
+        data-testid="svg-icon-mock"
+      >
+        mock-svg
+      </svg>
+       
+      <p>
+        upload_polygon_modal.tip
+      </p>
+    </div>
+    <div
+      class="Divider"
+    />
+    <ul
+      class="List"
+    >
+      <li
+        class="ListItem"
+      >
+        upload_polygon_modal.list.0
+      </li>
+      <li
+        class="ListItem"
+      >
+        upload_polygon_modal.list.1
+      </li>
+      <li
+        class="ListItem"
+      >
+        upload_polygon_modal.list.2
+      </li>
+    </ul>
+  </div>
+</div>
+`;
