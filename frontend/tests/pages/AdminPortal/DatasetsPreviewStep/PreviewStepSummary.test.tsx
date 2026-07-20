@@ -3,12 +3,17 @@ import { PreviewStepSummary } from '../../../../src/pages/AdminPortal/DatasetsPr
 import type { SoilDataSummary } from 'types/datasetsPublication';
 import { CellDeleteReason, CellModifyReason, RowDeleteReason } from 'types/backend';
 
+const mockAccordionSpy = jest.fn();
 jest.mock('pages/AdminPortal/DatasetsPreviewStep/PreviewStepSummary/PreviewSummaryAccordion/PreviewSummaryAccordion', () => ({
-  PreviewSummaryAccordion: ({ config, isLast }: any) => (
-    <div data-testid="preview-summary-accordion" data-is-last={String(!!isLast)} data-total={config.total}>
-      <span>{config.title}</span>
-    </div>
-  ),
+  PreviewSummaryAccordion: (props: any) => {
+    mockAccordionSpy(props);
+    const { config, isLast } = props;
+    return (
+      <div data-testid="preview-summary-accordion" data-is-last={String(!!isLast)} data-total={config.total}>
+        <span>{config.title}</span>
+      </div>
+    );
+  },
 }));
 
 const baseSoilDataSummary: SoilDataSummary = {
@@ -30,6 +35,7 @@ const baseSoilDataSummary: SoilDataSummary = {
     [CellDeleteReason.NEGATIVE_VALUE]: 3,
     [CellDeleteReason.ZERO_VALUE]: 2,
     [CellDeleteReason.OOB]: 2,
+    [CellDeleteReason.BELOW_LOD]: 2,
   },
 };
 
@@ -83,6 +89,28 @@ describe('PreviewStepSummary', () => {
       render(<PreviewStepSummary removedByUser={0} soilDataSummary={baseSoilDataSummary} isLoading={false} />);
       const accordions = screen.getAllByTestId('preview-summary-accordion');
       expect(accordions[2]).toHaveAttribute('data-total', '12');
+    });
+
+    it('passes the below_lod reason with its count to the cells_deleted accordion config', () => {
+      mockAccordionSpy.mockClear();
+      render(<PreviewStepSummary removedByUser={0} soilDataSummary={baseSoilDataSummary} isLoading={false} />);
+      const cellsDeletedCall = mockAccordionSpy.mock.calls.find(([props]) => props.config.title === 'Discarded cells');
+      const belowLodItem = cellsDeletedCall[0].config.items.find((item: { label: string }) => item.label === 'Below limit of detection');
+      expect(belowLodItem).toBeDefined();
+      expect(belowLodItem.value).toBe(2);
+    });
+
+    it('still passes the below_lod reason to the config when its count is 0', () => {
+      mockAccordionSpy.mockClear();
+      const soilDataSummary = {
+        ...baseSoilDataSummary,
+        cell_deletions: { ...baseSoilDataSummary.cell_deletions, [CellDeleteReason.BELOW_LOD]: 0 },
+      };
+      render(<PreviewStepSummary removedByUser={0} soilDataSummary={soilDataSummary} isLoading={false} />);
+      const cellsDeletedCall = mockAccordionSpy.mock.calls.find(([props]) => props.config.title === 'Discarded cells');
+      const belowLodItem = cellsDeletedCall[0].config.items.find((item: { label: string }) => item.label === 'Below limit of detection');
+      expect(belowLodItem).toBeDefined();
+      expect(belowLodItem.value).toBe(0);
     });
 
     it('sets isLast only on the last accordion', () => {
