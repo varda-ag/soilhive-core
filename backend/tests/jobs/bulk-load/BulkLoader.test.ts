@@ -8,9 +8,12 @@ import { validate } from 'uuid';
 import { app } from '../../../src/app';
 import DatasetEntity from '../../../src/entities/Dataset';
 import FeatureEntity from '../../../src/entities/Feature';
+import FileEntity from '../../../src/entities/File';
 import { BulkLoadJob } from '../../../src/interfaces/Job';
 import * as BulkLoaderModule from '../../../src/jobs/bulk-load/BulkLoader';
 import { updateDatasetMetadata } from '../../../src/jobs/bulk-load/UpdateDatasetMetadata';
+import DatasetService from '../../../src/services/DatasetService';
+import { translateJobError } from '../../../src/errors/jobErrorMessages';
 import { IngestionStatus } from '../../../src/types/data';
 import { getDataSource, getEntityManager } from '../../../src/utils/data-source';
 import {
@@ -157,6 +160,90 @@ describe('BulkLoader class', () => {
 
     expect(updatedDataset.processing_steps?.description).toBe('existing description');
     expect(Object.keys(updatedDataset.processing_steps?.cleaning_steps ?? {}).length).toBe(1);
+
+    mockMakeRequest.mockRestore();
+  });
+
+  it('E08 — BL_STATS_FETCH_FAILED when the cleaning-stats fetch fails; file stays STAGED for retry', async () => {
+    const { dataset, file } = await addSyntheticIngestionData({ ...syntheticIngestionDataOptions });
+    const token = signToken(INTERNAL_REQUEST_TOKEN_PAYLOAD);
+
+    const mockMakeRequest = jest
+      .spyOn(BulkLoaderModule, 'makeRequest')
+      .mockImplementation(async (datasetSlug: string, datasetFileMappingId: string, payload: any) => {
+        const response = await request(app)
+          .post(`/datasets/${datasetSlug}/dataset-file-mapping/${datasetFileMappingId}/soil-data`)
+          .set('Authorization', `Bearer ${token}`)
+          .send(payload);
+        expect(response.statusCode).toBe(StatusCodes.CREATED);
+        return response;
+      });
+
+    const mockGetSoilDataStats = jest
+      .spyOn(DatasetService.prototype, 'getSoilDataStats')
+      .mockRejectedValue(new Error('stats computation exploded'));
+
+    await expect(BulkLoaderModule.processBulkLoad(getJob(dataset.slug))).rejects.toMatchObject({
+      name: 'JobError',
+      code: 'BL_STATS_FETCH_FAILED',
+      detail: expect.any(String),
+    });
+
+    const dataSource = await getDataSource();
+    const datasetRepo = dataSource.getRepository(DatasetEntity);
+    const updatedDataset = await datasetRepo.findOneByOrFail({ id: dataset.id });
+    expect(updatedDataset.status).toBe(IngestionStatus.PENDING);
+
+    const fileRepo = dataSource.getRepository(FileEntity);
+    const updatedFile = await fileRepo.findOneByOrFail({ id: file.id });
+    expect(updatedFile.status).toBe(IngestionStatus.STAGED);
+
+    expect(translateJobError('BL_STATS_FETCH_FAILED')).toEqual({
+      message: 'An unexpected error occurred during processing.',
+      actions: ['Try again. If the problem persists, contact support.'],
+    });
+
+    mockMakeRequest.mockRestore();
+    mockGetSoilDataStats.mockRestore();
+  });
+
+  it('merges cleaning_steps across separate bulk-load job runs on the same dataset', async () => {
+    const options = JSON.parse(JSON.stringify(syntheticIngestionDataOptions));
+    delete options.columnMapping.bdfi33.max_val;
+    delete options.columnMapping.bdfiod.min_val;
+    delete options.columnMapping.drop_records;
+
+    const { dataset, file: fileA, dataMapping } = await addSyntheticIngestionData({ ...options });
+    const token = signToken(INTERNAL_REQUEST_TOKEN_PAYLOAD);
+
+    const mockMakeRequest = jest
+      .spyOn(BulkLoaderModule, 'makeRequest')
+      .mockImplementation(async (datasetSlug: string, datasetFileMappingId: string, payload: any) => {
+        const response = await request(app)
+          .post(`/datasets/${datasetSlug}/dataset-file-mapping/${datasetFileMappingId}/soil-data`)
+          .set('Authorization', `Bearer ${token}`)
+          .send(payload);
+        expect(response.statusCode).toBe(StatusCodes.CREATED);
+        return response;
+      });
+
+    // First run: only file A is STAGED
+    await BulkLoaderModule.processBulkLoad(getJob(dataset.slug));
+
+    const dataSource = await getDataSource();
+    const repo = dataSource.getRepository(DatasetEntity);
+    const afterFirstRun = await repo.findOneByOrFail({ id: dataset.id });
+    expect(Object.keys(afterFirstRun.processing_steps?.cleaning_steps ?? {})).toEqual([fileA.slug]);
+    const firstRunReportForA = afterFirstRun.processing_steps!.cleaning_steps![fileA.slug];
+
+    // Stage a second file on the same dataset/mapping, then run bulk-load again
+    const { file: fileB } = await addSyntheticIngestionFile(dataset, dataMapping, 'test_file_run2');
+    await BulkLoaderModule.processBulkLoad(getJob(dataset.slug));
+
+    const afterSecondRun = await repo.findOneByOrFail({ id: dataset.id });
+    const cleaningSteps = afterSecondRun.processing_steps?.cleaning_steps;
+    expect(Object.keys(cleaningSteps ?? {}).sort()).toEqual([fileA.slug, fileB.slug].sort());
+    expect(cleaningSteps![fileA.slug]).toEqual(firstRunReportForA);
 
     mockMakeRequest.mockRestore();
   });
