@@ -796,7 +796,7 @@ export const getEnabledRasterFilterTables = async (): Promise<string[]> => {
   const queryRunner = dataSource.createQueryRunner();
   await queryRunner.connect();
   try {
-    const enabledFilters = await rasterFilterService.getEnabledRasterFilters({ entityManager: queryRunner.manager, entitlements: {} });
+    const enabledFilters = await rasterFilterService.getActiveRasterFilters({ entityManager: queryRunner.manager, entitlements: {} });
     const value = enabledFilters.map(f => f.id);
     enabledRasterFilterTablesCache = { value, expiresAt: Date.now() + ENABLED_RASTER_FILTER_TABLES_TTL_MS };
     return value;

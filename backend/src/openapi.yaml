@@ -1783,6 +1783,33 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RasterFilter'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      x-eov-operation-handler: controllers/raster-filters
+      x-eov-operation-id: patchRasterFilter
+      summary: Update a raster filter's active status
+      tags:
+        - raster-filters
+      security:
+        - bearerAuth: [super-admin, data-admin]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RasterFilterPatchPayload'
+      responses:
+        '200':
+          description: Raster filter updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RasterFilter'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
 components:
   responses:
@@ -2736,9 +2763,21 @@ components:
           type: string
         enabled:
           type: boolean
+        active:
+          type: boolean
+          description: Whether a data-admin has made this raster filter available for use. Independent of `enabled`.
         mappings:
           type: object
           nullable: true
+
+    RasterFilterPatchPayload:
+      type: object
+      required:
+        - active
+      properties:
+        active:
+          type: boolean
+          description: Whether this raster filter should be available for use.
 
     Entitlements:
       type: object

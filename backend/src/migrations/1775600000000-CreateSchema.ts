@@ -288,7 +288,7 @@ export class CreateSchema1775600000000 implements MigrationInterface {
       `CREATE UNIQUE INDEX "UQ_data_filters_owner_filter_hash" ON "data_filters" ("owner", "filter_hash") NULLS NOT DISTINCT WHERE "deleted_at" IS NULL AND "filter_hash" IS NOT NULL`,
     );
     await queryRunner.query(
-      `CREATE TABLE "raster_filters" ("created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP, "id" text NOT NULL, "name" text NOT NULL, "description" text NOT NULL, "mappings" jsonb, CONSTRAINT "PK_raster_filters_id" PRIMARY KEY ("id"))`,
+      `CREATE TABLE "raster_filters" ("created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP, "id" text NOT NULL, "name" text NOT NULL, "description" text NOT NULL, "mappings" jsonb, "active" boolean NOT NULL DEFAULT true, CONSTRAINT "PK_raster_filters_id" PRIMARY KEY ("id"))`,
     );
     await queryRunner.query(
       `CREATE TABLE "entitlements" ("created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP, "deleted_at" TIMESTAMP, "id" text NOT NULL, "data" jsonb NOT NULL, CONSTRAINT "PK_entitlements_id" PRIMARY KEY ("id"))`,

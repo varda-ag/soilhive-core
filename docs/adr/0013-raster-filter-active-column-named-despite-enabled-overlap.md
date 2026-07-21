@@ -1,0 +1,5 @@
+# Raster Filter `active` column kept as named despite overlap with `enabled`
+
+We added a persisted `active` boolean to `raster_filters` for admin-controlled catalog visibility (SP-5458). This name overlaps with the existing computed `enabled` field (`hasTable && mappings present`, see `RasterFilterService.decorateWithEnable`) and with the informal per-request "active filters" notion in `FilteringMasks.ts` (`hasActiveFilters` — whether the current Filter's `raster_filters` criterion has non-empty selected values). We considered renaming the new column to something more distinct (e.g. `is_published`, `admin_enabled`) to avoid the collision, but decided to keep `active`: it's the most natural name for a simple admin on/off toggle, and the three names read fine in isolation — the risk is only in cross-referencing them. We chose to disambiguate via documentation (see the **Raster Filter** entry and "Flagged ambiguities" in `CONTEXT.md`) rather than via naming.
+
+Consequence: anyone touching raster filter code should check `CONTEXT.md` before assuming `active`, `enabled`, and "active filter" (query-time) refer to the same thing — they are three independent concepts.
