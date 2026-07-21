@@ -84,6 +84,7 @@ const emptySoilDataSummary: SoilDataSummary = {
     [CellModifyReason.UNIT_CONVERTED]: 0,
   },
   row_deletions: {
+    [RowDeleteReason.MIXED_DATA_TYPE]: 0,
     [RowDeleteReason.INVALID_COORDINATES]: 0,
     [RowDeleteReason.INVALID_DEPTH_INTERVAL]: 0,
     [RowDeleteReason.MINIMUM_DATA_REQUIREMENT]: 0,

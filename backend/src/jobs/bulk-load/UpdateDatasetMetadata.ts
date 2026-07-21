@@ -2,7 +2,7 @@ import { EntityManager } from 'typeorm';
 import DatasetEntity from '../../entities/Dataset';
 import DatasetLayerEntity from '../../entities/DatasetLayer';
 import assert from 'assert';
-import { IngestionStatus } from '../../types/data';
+import { GISDataType, IngestionStatus } from '../../types/data';
 import { toGisDatatype } from '../../utils/geometry';
 
 export const updateDatasetMetadata = async (entityManager: EntityManager, datasetId: string, status: IngestionStatus): Promise<void> => {
@@ -35,10 +35,11 @@ export const updateDatasetMetadata = async (entityManager: EntityManager, datase
   assert(tmp.length === 1, 'Expecting one aggregated result row');
   const data = tmp[0];
 
-  // GIS datatype check
+  // GIS datatype check — one data type per dataset; Polygon and MultiPolygon both count as polygonal
   const geomTypes = data.gis_datatypes.filter(Boolean);
-  assert(geomTypes.length <= 1, `Expected at most one geometry type, got ${geomTypes.join(', ')}`);
-  const gis_datatype = geomTypes.length > 0 ? toGisDatatype(geomTypes[0]) : null;
+  const dataTypes = Array.from(new Set<GISDataType>(geomTypes.map((t: string) => toGisDatatype(t))));
+  assert(dataTypes.length <= 1, `Expected at most one data type, got ${dataTypes.join(', ')}`);
+  const gis_datatype = dataTypes[0] ?? null;
 
   const hasContent = (arr: unknown[] | null): boolean => Array.isArray(arr) && arr.some(v => v !== null);
 

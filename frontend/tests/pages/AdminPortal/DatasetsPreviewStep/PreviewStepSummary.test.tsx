@@ -19,6 +19,7 @@ const baseSoilDataSummary: SoilDataSummary = {
     [CellModifyReason.UNIT_CONVERTED]: 5,
   },
   row_deletions: {
+    [RowDeleteReason.MIXED_DATA_TYPE]: 1,
     [RowDeleteReason.INVALID_COORDINATES]: 1,
     [RowDeleteReason.INVALID_DEPTH_INTERVAL]: 1,
     [RowDeleteReason.MINIMUM_DATA_REQUIREMENT]: 1,

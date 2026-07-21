@@ -1,4 +1,5 @@
 export enum RowDeleteReason {
+  MIXED_DATA_TYPE = 'mixed_data_type',
   INVALID_COORDINATES = 'invalid_coordinates',
   INVALID_DEPTH_INTERVAL = 'invalid_depth_interval',
   MINIMUM_DATA_REQUIREMENT = 'minimum_data_requirement',
