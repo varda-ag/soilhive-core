@@ -624,3 +624,33 @@ export const addRasterDataset = async (id: string, tifPath?: string): Promise<Sy
   });
   return { dataset };
 };
+
+export const addSyntheticIngestionDataManyCols = async (): Promise<{ datasetId: string; fileId: string; dataMappingId: string }> => {
+  const dataset = await addDataset('test_dataset_nematodes', [-180, -90, 180, 90]);
+  dataset.status = IngestionStatus.PENDING;
+  await dataset.save();
+  const category = await addCategory('test_dataset_nematodes');
+  const file = await addFile('test_file_nematodes');
+  file.status = IngestionStatus.STAGED;
+  await file.save();
+
+  const soilProps = ['nembact', 'nemfungi', 'nemherbi', 'nemomni', 'nempred', 'nemunidentified', 'nemtot'];
+  for (const sp of soilProps) {
+    const soilProperty = await addSoilProperty(sp, category.id, 'n/100g');
+    await addUnitConversion(soilProperty.id, 'n/100g', 'x');
+  }
+  // Load procedures, raw data sample, data_mapping
+  const sqlFile = path.join(__dirname, '..', '..', 'tests', 'assets', 'raw_data', 'raw_data_84col_insert.sql');
+  const sqlTemplate = fs.readFileSync(sqlFile, 'utf8');
+  let sql = sqlTemplate.replace(/{{table}}/g, getRawTableName(file.id));
+  sql = sql.replace(/{{datasetId}}/g, dataset.id);
+  sql = sql.replace(/{{fileId}}/g, file.id);
+  const dataSource = await getDataSource();
+  await dataSource.query(sql);
+  const [mapping] = await dataSource.query(`SELECT data_mapping_id FROM dataset_file_mappings WHERE dataset_id = $1 AND file_id = $2`, [
+    dataset.id,
+    file.id,
+  ]);
+
+  return { datasetId: dataset.id, fileId: file.id, dataMappingId: mapping.data_mapping_id };
+};
