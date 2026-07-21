@@ -76,9 +76,14 @@ export default class DatasetService {
 
     const dataset: DatasetEntity = await getEntity(requestData, DatasetEntity, EntityType.DATASET, slug);
 
+    const existingSteps = (dataset.processing_steps ?? {}) as ProcessingSteps;
+    const nextProcessingSteps: ProcessingSteps | null = data.preprocessing_steps
+      ? { ...existingSteps, description: data.preprocessing_steps }
+      : (dataset.processing_steps ?? null);
+
     repo.merge(dataset, {
       ...data,
-      processing_steps: data.preprocessing_steps ? this.toProcessingSteps(data.preprocessing_steps) : (dataset.processing_steps ?? null),
+      processing_steps: nextProcessingSteps,
       updated_by: subject,
       updated_at: new Date(),
     });

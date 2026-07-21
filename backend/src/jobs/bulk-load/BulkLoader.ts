@@ -14,6 +14,8 @@ import DatasetFileMappingService from '../../services/DatasetFileMappingService'
 import DatasetService from '../../services/DatasetService';
 import { IngestionStatus } from '../../types/data';
 import { getEntityManager } from '../../utils/data-source';
+import { CleaningReport } from '../../interfaces/CleaningReport';
+import { ProcessingSteps } from '../../interfaces/Dataset';
 import { JobError } from '../../errors/JobError';
 import ErrorService from '../../services/ErrorService';
 import { ErrorResponse } from '../../utils/error';
@@ -45,12 +47,18 @@ export async function processBulkLoad(job: Job<BulkLoadJob>): Promise<void> {
 
     // Process all pending files associated with this mapping
     const files = await getStagedFilesWithMapping(entityManager, datasetFileMappings);
+    const cleaningSteps: Record<string, CleaningReport> = {};
     for (const file of files) {
       const datasetFileMapping = datasetFileMappings.find(m => m.file_id === file.id);
       if (!datasetFileMapping || !datasetFileMapping.data_mapping_id) {
         throw new JobError('BL_MISSING_COLUMN_MAPPING');
       }
       await processFile(file, requestData, datasetFileMapping, data.dataset_id);
+      try {
+        cleaningSteps[file.slug] = await datasetService.getSoilDataStats(requestData, datasetFileMapping.id);
+      } catch (error: any) {
+        throw new JobError('BL_STATS_FETCH_FAILED', {}, error?.detail ?? error?.message);
+      }
       file.status = IngestionStatus.LOADED;
       await file.save();
       // Delete raw table
@@ -62,6 +70,13 @@ export async function processBulkLoad(job: Job<BulkLoadJob>): Promise<void> {
         storage.deleteFile(file.file_path);
       }
     }
+
+    const existingSteps = (dataset.processing_steps ?? {}) as ProcessingSteps;
+    dataset.processing_steps = {
+      ...existingSteps,
+      cleaning_steps: { ...existingSteps.cleaning_steps, ...cleaningSteps },
+    };
+    await dataset.save();
 
     // Calculate new dataset metadata and update status
     await updateDatasetMetadata(entityManager, dataset.id, IngestionStatus.LOADED);

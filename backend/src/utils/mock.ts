@@ -503,6 +503,29 @@ export const addSyntheticIngestionData = async (syntheticIngestionDataOptions): 
   return { dataset, file, dataMapping, datasetFileMapping };
 };
 
+export const addSyntheticIngestionFile = async (
+  dataset: DatasetEntity,
+  dataMapping: DataMappingEntity,
+  name: string,
+  tableRows: string | number = 'ALL',
+): Promise<{ file: FileEntity; datasetFileMapping: DatasetFileMappingEntity }> => {
+  const file = await addFile(name);
+  file.status = IngestionStatus.STAGED;
+  await file.save();
+
+  const datasetFileMapping = await addDatasetFileMapping(dataset.id, dataMapping.id);
+  datasetFileMapping.file_id = file.id;
+  await datasetFileMapping.save();
+
+  const sqlFile = path.join(__dirname, '..', '..', 'tests', 'assets', 'raw_data', 'raw_data_insert.sql');
+  const sqlTemplate = fs.readFileSync(sqlFile, 'utf8');
+  const sql = sqlTemplate.replace(/{{table}}/g, getRawTableName(file.id)).replace(/{{limit}}/g, String(tableRows));
+  const dataSource = await getDataSource();
+  await dataSource.query(sql);
+
+  return { file, datasetFileMapping };
+};
+
 export interface DataCount {
   n_features: number;
   n_layers: number;

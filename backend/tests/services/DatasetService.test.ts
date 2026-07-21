@@ -1,13 +1,21 @@
 import { describe, it, expect, beforeAll, afterAll, jest } from '@jest/globals';
 import DatasetService from '../../src/services/DatasetService';
 import JobService from '../../src/services/JobService';
-import { getEntityManager } from '../../src/utils/data-source';
+import { getDataSource, getEntityManager } from '../../src/utils/data-source';
 import { Token } from '../../src/interfaces/Token';
 import { ProcessingSteps } from '../../src/interfaces/Dataset';
 import { RequestData } from '../../src/interfaces/RequestData';
 import { CreateDatasetInput, UpdateDatasetInput } from '../../src/types/DatasetInput';
 import { GISDataType, IngestionStatus } from '../../src/types/data';
 import DatasetEntity from '../../src/entities/Dataset';
+import { CellDeleteReason, CleaningReport } from '../../src/interfaces/CleaningReport';
+
+const mockCleaningReport: CleaningReport = {
+  summary: { values_modified: 0, rows_deleted: 0, cells_deleted: 1 },
+  modifications: [],
+  row_deletions: [],
+  cell_deletions: [{ reason: CellDeleteReason.BELOW_LOD, count: 1, property: 'ph' }],
+};
 
 const mockToken: Token = {
   sub: 'test-user-id',
@@ -323,6 +331,31 @@ describe('DatasetService', () => {
       expect(updated.preprocessing_steps).toBeDefined();
       expect(updated.name).toBe('Dataset With Full Name');
       expect(updated.preprocessing_steps).toBe('Removed outliers using IQR. Normalized units to SI.');
+    });
+
+    it('should preserve processing_steps.cleaning_steps recorded by a prior bulk-load when preprocessing_steps changes', async () => {
+      const service = new DatasetService();
+      const entityManager = await getEntityManager();
+      const requestData: RequestData = {
+        entityManager,
+        token: mockToken,
+        entitlements: {},
+      };
+
+      const created = await service.createDataset(requestData, { name: 'Bulk-Loaded Dataset' });
+
+      // Simulate a prior bulk-load run having already recorded cleaning stats.
+      const dataSource = await getDataSource();
+      const repo = dataSource.getRepository(DatasetEntity);
+      await repo.update({ id: created.id }, { processing_steps: { cleaning_steps: { 'file-a.csv': mockCleaningReport } } });
+
+      await service.updateDataset(requestData, created.slug, {
+        preprocessing_steps: 'Normalized units to SI.',
+      });
+
+      const reloaded = await repo.findOneByOrFail({ id: created.id });
+      expect(reloaded.processing_steps?.description).toBe('Normalized units to SI.');
+      expect(reloaded.processing_steps?.cleaning_steps).toEqual({ 'file-a.csv': mockCleaningReport });
     });
   });
 
