@@ -371,4 +371,5 @@ export interface CleaningReport {
   modifications: Array<{ reason: CellModifyReason; count: number }>;
   row_deletions: Array<{ reason: RowDeleteReason; count: number }>;
   cell_deletions: Array<{ reason: CellDeleteReason; count: number; property?: string }>;
+  gis_datatype: string;
 }

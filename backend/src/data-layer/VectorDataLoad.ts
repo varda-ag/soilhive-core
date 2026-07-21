@@ -127,6 +127,7 @@ export default class VectorDataLoad {
       (SELECT COUNT(*)::int FROM cleaning_result WHERE final_row_delete_reason IS NOT NULL) AS rows_deleted,
       (SELECT COALESCE(SUM(count),0)::int FROM cell_delete_stats)  AS cells_deleted,
       (SELECT COALESCE(SUM(count),0)::int FROM cell_modify_stats)  AS values_modified,
+      (SELECT data_type FROM dominant_data_type)                   AS gis_datatype,
       (SELECT json_agg(row_stats)         FROM row_stats)           AS row_deletions,
       (SELECT json_agg(cell_delete_stats) FROM cell_delete_stats)   AS cell_deletions,
       (SELECT json_agg(cell_modify_stats) FROM cell_modify_stats)   AS modifications`;
@@ -138,6 +139,7 @@ export default class VectorDataLoad {
         cells_deleted: row.cells_deleted,
         values_modified: row.values_modified,
       },
+      gis_datatype: row.gis_datatype ?? null,
       row_deletions: (row.row_deletions ?? []).map((r: any) => ({ reason: r.reason as RowDeleteReason, count: r.count })),
       cell_deletions: (row.cell_deletions ?? []).map((r: any) => ({
         reason: r.reason as CellDeleteReason,

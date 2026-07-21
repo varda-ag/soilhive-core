@@ -38,6 +38,7 @@ const baseSoilDataSummary: SoilDataSummary = {
     [CellDeleteReason.OOB]: 2,
     [CellDeleteReason.BELOW_LOD]: 2,
   },
+  gis_datatype: 'point',
 };
 
 describe('PreviewStepSummary', () => {

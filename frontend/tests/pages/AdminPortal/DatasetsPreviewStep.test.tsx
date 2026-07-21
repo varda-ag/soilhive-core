@@ -98,6 +98,7 @@ const emptySoilDataSummary: SoilDataSummary = {
     [CellDeleteReason.OOB]: 0,
     [CellDeleteReason.BELOW_LOD]: 0,
   },
+  gis_datatype: 'point',
 };
 
 const baseHook = {

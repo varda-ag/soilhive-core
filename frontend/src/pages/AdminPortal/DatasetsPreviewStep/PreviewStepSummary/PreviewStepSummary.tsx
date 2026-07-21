@@ -81,7 +81,7 @@ export function PreviewStepSummary({ removedByUser, soilDataSummary, isLoading }
             total: soilDataSummary.summary.rows_deleted + removedByUser,
             items: [
               {
-                label: t('datasets.preview.summary.reasons.mixed_data_type'),
+                label: t('datasets.preview.summary.reasons.mixed_data_type', { gis_datatype: soilDataSummary.gis_datatype }),
                 value: soilDataSummary.row_deletions.mixed_data_type,
               },
               {

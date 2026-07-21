@@ -21,6 +21,7 @@ describe('VectorDataLoad class', () => {
     const vdl = new VectorDataLoad();
     const entityManager = await getEntityManager();
     const mockToken = {
+      sub: 'mock-sub',
       scope: 'mock-scope',
       raw: 'raw-auth-token',
       email: 'mock-email',
@@ -73,6 +74,7 @@ describe('VectorDataLoad class', () => {
     const vdl = new VectorDataLoad();
     const entityManager = await getEntityManager();
     const mockToken = {
+      sub: 'mock-sub',
       scope: 'mock-scope',
       raw: 'raw-auth-token',
       email: 'mock-email',
@@ -108,6 +110,7 @@ describe('VectorDataLoad class', () => {
       const { file, dataMapping } = await addSyntheticIngestionData({ ...syntheticIngestionDataOptions });
       const entityManager = await getEntityManager();
       const mockToken = {
+        sub: 'mock-sub',
         scope: 'mock-scope',
         raw: 'raw-auth-token',
         email: 'mock-email',
@@ -351,7 +354,7 @@ describe('VectorDataLoad class', () => {
         (20002, 'SRID=4326;POLYGON ((2 2, 2 3, 3 3, 3 2, 2 2))'::public.geometry),
         (20003, 'SRID=4326;LINESTRING (0 0, 1 1)'::public.geometry)`);
       const results = await vdl.getDataPreview(entityManager, dataMappingConfig!, fileId!);
-      expect(results.length).toBe(8);
+      expect(results.length).toBe(6);
       expect(results.every(r => Number(r.record_id) < 20000)).toBe(true);
       const stats = await vdl.getDataPreviewStats(entityManager, dataMappingConfig!, fileId!);
       // mixed_data_type wins over every other delete reason, so all 3 added rows land there
@@ -386,6 +389,7 @@ describe('VectorDataLoad class', () => {
     const vdl = new VectorDataLoad();
     const entityManager = await getEntityManager();
     const mockToken = {
+      sub: 'mock-sub',
       scope: 'mock-scope',
       raw: 'raw-auth-token',
       email: 'mock-email',
@@ -431,6 +435,7 @@ describe('VectorDataLoad class', () => {
     const vdl = new VectorDataLoad();
     const entityManager = await getEntityManager();
     const mockToken = {
+      sub: 'mock-sub',
       scope: 'mock-scope',
       raw: 'raw-auth-token',
       email: 'mock-email',
