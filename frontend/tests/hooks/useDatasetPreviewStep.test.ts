@@ -52,6 +52,7 @@ const mockCleaningReport: CleaningReport = {
     { reason: CellDeleteReason.NON_NUMERIC, count: 3, property: 'carbon' },
     { reason: CellDeleteReason.NEGATIVE_VALUE, count: 5 },
   ],
+  gis_datatype: 'point',
 };
 
 const fileMappings = [

@@ -27,6 +27,7 @@ const EMPTY_SOIL_DATA_SUMMARY = {
   modifications: Object.fromEntries(Object.values(CellModifyReason).map(r => [r, 0])) as Record<CellModifyReason, number>,
   row_deletions: Object.fromEntries(Object.values(RowDeleteReason).map(r => [r, 0])) as Record<RowDeleteReason, number>,
   cell_deletions: Object.fromEntries(Object.values(CellDeleteReason).map(r => [r, 0])) as Record<CellDeleteReason, number>,
+  gis_datatype: '',
 };
 
 export function useDatasetPreview(datasetId?: string) {
@@ -229,6 +230,7 @@ export function useDatasetPreview(datasetId?: string) {
       modifications,
       row_deletions,
       cell_deletions,
+      gis_datatype: soilDataStats.gis_datatype,
     };
   }, [soilDataStats]);
 

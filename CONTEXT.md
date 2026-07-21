@@ -9,8 +9,16 @@ A collection of soil features ingested from a single data provider. Has a `gis_d
 _Avoid_: Data source, layer (overloaded)
 
 **Feature**:
-A single spatial geometry (point or polygon) that represents a physical sampling location within a Dataset.
+A single spatial geometry (point, polygon, or multipolygon) that represents a physical sampling location within a Dataset.
 _Avoid_: Sample, location, site
+
+**Data Type** (`gis_datatype`):
+The spatial modality of a Dataset: `point`, `polygonal`, or `raster`. Every Dataset has exactly one. Data Type is coarser than Geometry Type: `polygonal` covers both Polygon and MultiPolygon geometries.
+_Avoid_: Geometry type (the finer PostGIS-level concept), format, "data access" (a UI label for Visibility)
+
+**Geometry Type**:
+The PostGIS-level type of a single Feature's geometry (`ST_Point`, `ST_Polygon`, `ST_MultiPolygon`). A property of one Feature, not of a Dataset. Two Features with different Geometry Types can share the same Data Type.
+_Avoid_: Data type (the Dataset-level modality), shape
 
 **Layer**:
 A depth/date slice within a Feature. Carries `min_depth`, `max_depth`, `horizon`, and `sampling_date`.

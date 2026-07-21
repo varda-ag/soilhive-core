@@ -24,6 +24,7 @@ const baseSoilDataSummary: SoilDataSummary = {
     [CellModifyReason.UNIT_CONVERTED]: 5,
   },
   row_deletions: {
+    [RowDeleteReason.MIXED_DATA_TYPE]: 1,
     [RowDeleteReason.INVALID_COORDINATES]: 1,
     [RowDeleteReason.INVALID_DEPTH_INTERVAL]: 1,
     [RowDeleteReason.MINIMUM_DATA_REQUIREMENT]: 1,
@@ -37,6 +38,7 @@ const baseSoilDataSummary: SoilDataSummary = {
     [CellDeleteReason.OOB]: 2,
     [CellDeleteReason.BELOW_LOD]: 2,
   },
+  gis_datatype: 'point',
 };
 
 describe('PreviewStepSummary', () => {

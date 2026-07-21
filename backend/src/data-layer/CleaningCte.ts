@@ -1,6 +1,7 @@
 import { DataCleaningConfig } from '../interfaces/DataMapping';
 import { RowDeleteReason, CellDeleteReason, CellModifyReason } from '../interfaces/CleaningReport';
 import { DetectableFields } from '../types/DataMapping';
+import { GISDataType } from '../types/data';
 import { getRawTableName } from '../utils/utils';
 import { OUTSIDE_LOD_VALUE } from '../constants/constants';
 
@@ -61,7 +62,14 @@ export function buildCleaningCte(config: DataCleaningConfig, fileId: string): Cl
 
   // Per-cell rules: non-numeric, sentinel, negative, zero, out-of-range.
 
-  const c1: string[] = ['raw.record_id', 'raw.geometry AS geom'];
+  // Data type of one geometry; NULL for NULL geometries and unsupported types
+  // (LineString, MultiPoint, ...) — those never compete for the dominant type.
+  const dataTypeExpr = `CASE
+      WHEN ST_GeometryType(raw.geometry) = 'ST_Point' THEN '${GISDataType.POINT}'
+      WHEN ST_GeometryType(raw.geometry) IN ('ST_Polygon', 'ST_MultiPolygon') THEN '${GISDataType.POLYGONAL}'
+    END`;
+
+  const c1: string[] = ['raw.record_id', 'raw.geometry AS geom', `${dataTypeExpr} AS _data_type`];
 
   const sdCol = metaCol(DetectableFields.SAMPLING_DATE);
   c1.push(sdCol ? `raw.${sdCol}::text AS sampling_date` : 'NULL::text AS sampling_date');
@@ -161,9 +169,22 @@ export function buildCleaningCte(config: DataCleaningConfig, fileId: string): Cl
   FROM ${table} raw
 )`;
 
+  // Dominant data type over raw rows (ADR 0012): the tally deliberately includes
+  // rows deleted for other reasons (duplicates, invalid coords, user drops);
+  // ties go to point. Empty when the file has no point/polygonal rows at all.
+  const cteDominant = `dominant_data_type AS MATERIALIZED (
+  SELECT _data_type AS data_type
+  FROM cell_cleaned
+  WHERE _data_type IS NOT NULL
+  GROUP BY _data_type
+  ORDER BY COUNT(*) DESC, (_data_type = '${GISDataType.POINT}') DESC
+  LIMIT 1
+)`;
+
   const c2Cols = [
     'cc.record_id',
     'cc.geom',
+    'cc._data_type',
     'cc.sampling_date',
     'cc.horizon',
     'cc.license',
@@ -211,11 +232,16 @@ export function buildCleaningCte(config: DataCleaningConfig, fileId: string): Cl
     ? `WHEN cd.record_id IN (${config.drop_records.join(', ')}) THEN '${RowDeleteReason.USER_DELETION}'`
     : '';
 
+  // mixed_data_type must stay first: losing-type rows always report under it and
+  // never linger in the preview, even when they are also user-dropped (ADR 0012).
   const cte3 = `cleaning_result AS MATERIALIZED (
   SELECT
     cd.*,
     CASE
-      ${dropClause} 
+      WHEN cd.geom IS NOT NULL
+       AND (cd._data_type IS NULL OR cd._data_type != (SELECT data_type FROM dominant_data_type))
+        THEN '${RowDeleteReason.MIXED_DATA_TYPE}'
+      ${dropClause}
       WHEN cd.geom IS NULL
         THEN '${RowDeleteReason.MINIMUM_DATA_REQUIREMENT}'
       WHEN ST_GeometryType(cd.geom)='ST_Point' AND (ST_X(cd.geom) NOT BETWEEN -180 AND 180
@@ -236,7 +262,7 @@ export function buildCleaningCte(config: DataCleaningConfig, fileId: string): Cl
   FROM cell_deduped cd
 )`;
 
-  const cte = [cte1, cte2, cte3].join(',\n');
+  const cte = [cte1, cteDominant, cte2, cte3].join(',\n');
 
   return {
     cte: `WITH\n${cte}`,
