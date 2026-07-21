@@ -47,6 +47,8 @@
 
 // Actions bar — full width, inverted top shadow, flush to bottom
 .Actions {
+  position: sticky;
+  bottom: 0;
   display: flex;
   justify-content: space-between;
   padding: 16px 24px;
