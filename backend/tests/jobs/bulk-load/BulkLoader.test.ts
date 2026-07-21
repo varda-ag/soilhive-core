@@ -16,6 +16,7 @@ import { getDataSource, getEntityManager } from '../../../src/utils/data-source'
 import {
   addSyntheticData,
   addSyntheticIngestionData,
+  addSyntheticIngestionFile,
   getLoadedDataCount,
   syntheticDataOptions,
   syntheticIngestionDataOptions,
@@ -86,6 +87,76 @@ describe('BulkLoader class', () => {
     const rawTableName = getRawTableName(file.id);
     const rawTableExists = await queryRunner.hasTable(rawTableName);
     expect(rawTableExists).toBeFalsy();
+
+    mockMakeRequest.mockRestore();
+  });
+
+  it('stores per-file cleaning stats under processing_steps.cleaning_steps, keyed by file slug', async () => {
+    const options = JSON.parse(JSON.stringify(syntheticIngestionDataOptions));
+    delete options.columnMapping.bdfi33.max_val;
+    delete options.columnMapping.bdfiod.min_val;
+    delete options.columnMapping.drop_records;
+
+    const { dataset, file, dataMapping } = await addSyntheticIngestionData({ ...options });
+    const { file: file2 } = await addSyntheticIngestionFile(dataset, dataMapping, 'test_file_2');
+    const token = signToken(INTERNAL_REQUEST_TOKEN_PAYLOAD);
+
+    const mockMakeRequest = jest
+      .spyOn(BulkLoaderModule, 'makeRequest')
+      .mockImplementation(async (datasetSlug: string, datasetFileMappingId: string, payload: any) => {
+        const response = await request(app)
+          .post(`/datasets/${datasetSlug}/dataset-file-mapping/${datasetFileMappingId}/soil-data`)
+          .set('Authorization', `Bearer ${token}`)
+          .send(payload);
+        expect(response.statusCode).toBe(StatusCodes.CREATED);
+        return response;
+      });
+
+    await BulkLoaderModule.processBulkLoad(getJob(dataset.slug));
+
+    const dataSource = await getDataSource();
+    const repo = dataSource.getRepository(DatasetEntity);
+    const updatedDataset = await repo.findOneByOrFail({ id: dataset.id });
+    const cleaningSteps = updatedDataset.processing_steps?.cleaning_steps;
+
+    expect(Object.keys(cleaningSteps ?? {}).sort()).toEqual([file.slug, file2.slug].sort());
+    for (const slug of [file.slug, file2.slug]) {
+      expect(cleaningSteps![slug]).toMatchObject({
+        summary: { values_modified: expect.any(Number), rows_deleted: expect.any(Number), cells_deleted: expect.any(Number) },
+        modifications: expect.any(Array),
+        row_deletions: expect.any(Array),
+        cell_deletions: expect.any(Array),
+      });
+    }
+
+    mockMakeRequest.mockRestore();
+  });
+
+  it('merges cleaning_steps alongside an existing processing_steps.description rather than clobbering it', async () => {
+    const { dataset } = await addSyntheticIngestionData({ ...syntheticIngestionDataOptions });
+    dataset.processing_steps = { description: 'existing description' };
+    await dataset.save();
+
+    const token = signToken(INTERNAL_REQUEST_TOKEN_PAYLOAD);
+    const mockMakeRequest = jest
+      .spyOn(BulkLoaderModule, 'makeRequest')
+      .mockImplementation(async (datasetSlug: string, datasetFileMappingId: string, payload: any) => {
+        const response = await request(app)
+          .post(`/datasets/${datasetSlug}/dataset-file-mapping/${datasetFileMappingId}/soil-data`)
+          .set('Authorization', `Bearer ${token}`)
+          .send(payload);
+        expect(response.statusCode).toBe(StatusCodes.CREATED);
+        return response;
+      });
+
+    await BulkLoaderModule.processBulkLoad(getJob(dataset.slug));
+
+    const dataSource = await getDataSource();
+    const repo = dataSource.getRepository(DatasetEntity);
+    const updatedDataset = await repo.findOneByOrFail({ id: dataset.id });
+
+    expect(updatedDataset.processing_steps?.description).toBe('existing description');
+    expect(Object.keys(updatedDataset.processing_steps?.cleaning_steps ?? {}).length).toBe(1);
 
     mockMakeRequest.mockRestore();
   });

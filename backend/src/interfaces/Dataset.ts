@@ -1,6 +1,7 @@
 import type { Polygon } from 'geojson';
 import { GISDataType, IngestionStatus } from '../types/data';
 import { Capability } from '../types/enums';
+import { CleaningReport } from './CleaningReport';
 
 export interface MeasuredProperty {
   soil_property_id: string;
@@ -9,6 +10,7 @@ export interface MeasuredProperty {
 
 export interface ProcessingSteps {
   description?: string;
+  cleaning_steps?: Record<string, CleaningReport>;
 }
 
 export interface Dataset {
