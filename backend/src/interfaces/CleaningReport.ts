@@ -12,6 +12,7 @@ export enum CellDeleteReason {
   NEGATIVE_VALUE = 'negative_value',
   ZERO_VALUE = 'zero_value',
   OOB = 'out_of_bounds',
+  BELOW_LOD = 'below_lod',
 }
 
 export enum CellModifyReason {

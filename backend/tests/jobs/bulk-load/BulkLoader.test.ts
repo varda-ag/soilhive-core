@@ -71,8 +71,10 @@ describe('BulkLoader class', () => {
     const createdData = await getLoadedDataCount();
     expect(createdData.n_features).toBe(2);
     expect(createdData.n_layers).toBe(17);
-    expect(createdData.n_dataset_layers).toBe(21);
-    expect(createdData.n_observations).toBe(24);
+    // n_dataset_layers/n_observations are 2 lower than before the below-LOD fix: rows 10085/10087
+    // no longer insert a literal -999 bdfi33 observation (nor the dataset_layer that only existed for it).
+    expect(createdData.n_dataset_layers).toBe(19);
+    expect(createdData.n_observations).toBe(22);
 
     const dataSource = await getDataSource();
     const repo = dataSource.getRepository(DatasetEntity);

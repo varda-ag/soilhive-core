@@ -316,7 +316,9 @@
             },
             "geometry_detected": "Geometry was automatically detected. You don't need to map the geometry or lat/lon fields.",
             "geometry_not_detected": "No geometry was detected. You must map the geometry field or both latitude and longitude fields to continue.",
+            "geometry_conflict": "The 'geometry' field cannot be used together with 'latitude' or 'longitude'. Please remove one of these mappings to continue.",
             "depth_conflict": "The 'depth' field cannot be used together with 'min depth' or 'max depth'. Please remove one of these mappings to continue.",
+            "range_depth_missing": "Both 'min depth' and 'max depth' must be mapped together. Please map the missing field or remove the other to continue.",
             "importing": {
                 "title": "Mapping fields",
                 "description_1": "This operation may take a few minutes to complete.",
@@ -379,7 +381,7 @@
                     "value_rounded": "Value rounded to 3 decimal places",
                     "unit_converted": "Converted to standard unit of measurement",
                     "invalid_coordinates": "Invalid coordinates (out of range)",
-                    "invalid_depth_interval": "Invalid depth interval (upper ≥ lower)",
+                    "invalid_depth_interval": "Invalid depth interval (upper ≥ lower or invalid range)",
                     "minimum_data_requirement": "Minimum data requirement not met (missing geometry or no valid soil property values)",
                     "duplicate_row": "Duplicate row (same coordinates, date, depth, value across all properties)",
                     "user_deletion": "User discarded row",
@@ -387,7 +389,8 @@
                     "negative_value": "Negative value",
                     "zero_value": "Zero value (treated as null)",
                     "out_of_bounds": "Out-of-bounds value",
-                    "total": "Total" 
+                    "below_lod": "Below limit of detection",
+                    "total": "Total"
                 }
             }
         },

@@ -112,6 +112,7 @@ export function PreviewStepSummary({ removedByUser, soilDataSummary, isLoading }
               { label: t('datasets.preview.summary.reasons.negative_value'), value: soilDataSummary.cell_deletions.negative_value },
               { label: t('datasets.preview.summary.reasons.zero_value'), value: soilDataSummary.cell_deletions.zero_value },
               { label: t('datasets.preview.summary.reasons.out_of_bounds'), value: soilDataSummary.cell_deletions.out_of_bounds },
+              { label: t('datasets.preview.summary.reasons.below_lod'), value: soilDataSummary.cell_deletions.below_lod },
             ],
           }}
         />

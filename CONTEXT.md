@@ -72,6 +72,14 @@ _Avoid_: Heatmap (rendering detail), coverage score (conflates map and score), d
 A hexagonal grid cell from Uber's H3 library, identified by an H3 index string. The spatial unit of aggregation for the DAI.
 _Avoid_: Hex, hexagon, grid cell
 
+**CRS (Coordinate Reference System)**:
+The spatial reference system of a soil data file, expressed as an EPSG code in the form `EPSG:<number>`. Every ingested file must have one, either inferred or supplied by the data admin. The set of accepted codes is the EPSG registry subset served by the `/epsg` endpoint.
+_Avoid_: Projection (a CRS component, not the whole), SRID (database-level identifier)
+
+**Inferred CRS**:
+The CRS detected by the backend from an uploaded file's own metadata during upload. When present it is authoritative: the data admin cannot override it. Distinct from a user-supplied CRS, which is required only when inference fails.
+_Avoid_: Default CRS, detected projection
+
 ## Relationships
 
 - A **Dataset** contains one or more **Features**

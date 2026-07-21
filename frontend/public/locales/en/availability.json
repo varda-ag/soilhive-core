@@ -48,6 +48,17 @@
         "drop_file_message": "Drag and drop a file here",
         "drop_file_caption": "Supported formats: GeoJSON."
     },
+    "upload_polygon_modal": {
+        "title": "Upload your area of interest",
+        "message": "Add a GeoJson file with only one polygon.",
+        "supported_formats": "Supported formats: GeoJson. Max size: 5 Mb",
+        "tip": "Tip: You can also drop your file directly onto the map (no need to open this dialog).",
+        "list": [
+            "Coordinate system <strong>WGS 84</strong>",
+            "Area between <strong>1 and 300,000,000km²</strong>",
+            "Only the first polygon is used if the file has several"
+        ]
+    },
     "map_selection_toolbar": {
         "reset": "Reset",
         "cancel": "Cancel draw",

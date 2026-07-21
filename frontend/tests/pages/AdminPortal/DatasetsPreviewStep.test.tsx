@@ -96,6 +96,7 @@ const emptySoilDataSummary: SoilDataSummary = {
     [CellDeleteReason.NEGATIVE_VALUE]: 0,
     [CellDeleteReason.ZERO_VALUE]: 0,
     [CellDeleteReason.OOB]: 0,
+    [CellDeleteReason.BELOW_LOD]: 0,
   },
 };
 

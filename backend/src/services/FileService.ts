@@ -29,6 +29,7 @@ import { log } from '../utils/logger';
 import { bumpCacheEpoch } from '../utils/cache-epoch';
 import DataMappingService from './DataMappingService';
 import DatasetFileMappingEntity from '../entities/DatasetFileMapping';
+import { EntityManager } from 'node_modules/typeorm';
 
 const dataMappingService = new DataMappingService();
 
@@ -691,6 +692,16 @@ export default class FileService {
         throw translateError;
       }
 
+      const depthRangeField: string | null = mapping
+        ? (Object.keys(mapping).find(key => mapping[key] === DetectableFields.DEPTH) ?? null)
+        : null;
+      if (depthRangeField) {
+        const nrows = await this.getValidDepthRangeCount(requestData.entityManager, tableName, depthRangeField);
+        if (nrows === 0) {
+          throw new JobError('FTD_INVALID_DEPTH_RANGE');
+        }
+      }
+
       await repo.update(fileEntity.id, { status: IngestionStatus.STAGED });
     } catch (error) {
       await repo.update(fileEntity.id, { status: IngestionStatus.PENDING });
@@ -724,5 +735,15 @@ export default class FileService {
       else if (value === DetectableFields.LONGITUDE) lonField = key;
     }
     return { geomField, latField, lonField };
+  }
+
+  private async getValidDepthRangeCount(entityManager: EntityManager, tableName: string, depthCol: string): Promise<number> {
+    const query = entityManager
+      .createQueryBuilder()
+      .from(tableName, 'raw')
+      .select('COUNT(*)', 'count')
+      .where(`(raw.${depthCol} IS NOT NULL AND array_length(string_to_array(raw.${depthCol}::text, '-'), 1) = 2)`);
+    const result = await entityManager.query(...query.getQueryAndParameters());
+    return parseInt(result[0].count, 10);
   }
 }
