@@ -195,29 +195,41 @@ export function buildCleaningCte(config: DataCleaningConfig, fileId: string): Cl
     ...props.map(([prop]) => `cc.${prop}_cleaned`),
   ];
 
-  const deleteEntries = [
-    ...props.map(([prop]) => `'${prop}', cc.${prop}_cell_reason`),
-    `'min_depth', CASE WHEN cc.min_depth_was_negative THEN '${CellDeleteReason.NEGATIVE_VALUE}'::text ELSE NULL END`,
-    `'max_depth', CASE WHEN cc.max_depth_was_negative THEN '${CellDeleteReason.NEGATIVE_VALUE}'::text ELSE NULL END`,
-  ].join(',\n      ');
-  const cellDeleteReasons = `NULLIF(jsonb_strip_nulls(jsonb_build_object(
-      ${deleteEntries}
-    )), '{}'::jsonb) AS cell_delete_reasons`;
+  const deleteKeys = [...props.map(([prop]) => `'${prop}'`), `'min_depth'`, `'max_depth'`];
+  const deleteVals = [
+    ...props.map(([prop]) => `cc.${prop}_cell_reason`),
+    `CASE WHEN cc.min_depth_was_negative THEN '${CellDeleteReason.NEGATIVE_VALUE}'::text ELSE NULL END`,
+    `CASE WHEN cc.max_depth_was_negative THEN '${CellDeleteReason.NEGATIVE_VALUE}'::text ELSE NULL END`,
+  ];
+  const cellDeleteReasons = `(
+    SELECT NULLIF(jsonb_object_agg(k, v), '{}'::jsonb)
+    FROM unnest(
+      ARRAY[${deleteKeys.join(', ')}]::text[],
+      ARRAY[${deleteVals.join(', ')}]::text[]
+    ) AS t(k, v)
+    WHERE v IS NOT NULL
+  ) AS cell_delete_reasons`;
 
-  const modifyEntries = [
+  const modifyKeys = [...props.map(([prop]) => `'${prop}'`), `'min_depth'`, `'max_depth'`];
+  const modifyVals = [
     ...props.map(
       ([prop]) =>
-        `'${prop}', NULLIF(to_jsonb(ARRAY_REMOVE(ARRAY[
+        `NULLIF(to_jsonb(ARRAY_REMOVE(ARRAY[
         CASE WHEN cc.${prop}_unit_converted THEN '${CellModifyReason.UNIT_CONVERTED}'::text ELSE NULL END,
         CASE WHEN cc.${prop}_value_rounded  THEN '${CellModifyReason.VALUE_ROUNDED}'::text  ELSE NULL END
       ], NULL)), '[]'::jsonb)`,
     ),
-    `'min_depth', CASE WHEN cc.min_depth_rounded THEN '["${CellModifyReason.DEPTH_ROUNDED}"]'::jsonb ELSE NULL END`,
-    `'max_depth', CASE WHEN cc.max_depth_rounded THEN '["${CellModifyReason.DEPTH_ROUNDED}"]'::jsonb ELSE NULL END`,
-  ].join(',\n      ');
-  const cellModifyReasons = `NULLIF(jsonb_strip_nulls(jsonb_build_object(
-      ${modifyEntries}
-    )), '{}'::jsonb) AS cell_modify_reasons`;
+    `CASE WHEN cc.min_depth_rounded THEN '["${CellModifyReason.DEPTH_ROUNDED}"]'::jsonb ELSE NULL END`,
+    `CASE WHEN cc.max_depth_rounded THEN '["${CellModifyReason.DEPTH_ROUNDED}"]'::jsonb ELSE NULL END`,
+  ];
+  const cellModifyReasons = `(
+    SELECT NULLIF(jsonb_object_agg(k, v), '{}'::jsonb)
+    FROM unnest(
+      ARRAY[${modifyKeys.join(', ')}]::text[],
+      ARRAY[${modifyVals.join(', ')}]::jsonb[]
+    ) AS t(k, v)
+    WHERE v IS NOT NULL
+  ) AS cell_modify_reasons`;
 
   const cte2 = `cell_deduped AS MATERIALIZED (
   SELECT

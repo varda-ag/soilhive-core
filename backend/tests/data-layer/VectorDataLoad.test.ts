@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach } from '@jest/globals';
 import { getEntityManager } from '../../src/utils/data-source';
 import { getRawTableName } from '../../src/utils/utils';
 import { DATA_PREVIEW_SIZE, OUTSIDE_LOD_VALUE } from '../../src/constants/constants';
-import { addSyntheticIngestionData, syntheticIngestionDataOptions } from '../../src/utils/mock';
+import { addSyntheticIngestionData, addSyntheticIngestionDataManyCols, syntheticIngestionDataOptions } from '../../src/utils/mock';
 import VectorDataLoad from '../../src/data-layer/VectorDataLoad';
 import DataMappingService from '../../src/services/DataMappingService';
 import { RequestData } from '../../src/interfaces/RequestData';
@@ -383,6 +383,31 @@ describe('VectorDataLoad class', () => {
       const stats = await vdl.getDataPreviewStats(entityManager, config, tieFileId);
       expect(stats.row_deletions.find(rd => rd.reason === RowDeleteReason.MIXED_DATA_TYPE)?.count).toBe(5);
     });
+  });
+  it('Data preview and stats should handle files with >50 columns', async () => {
+    const { fileId, dataMappingId } = await addSyntheticIngestionDataManyCols();
+    const vdl = new VectorDataLoad();
+    const entityManager = await getEntityManager();
+    const mockToken = {
+      scope: 'mock-scope',
+      raw: 'raw-auth-token',
+      email: 'mock-email',
+      isDataAdmin: true,
+      isSuperAdmin: false,
+      isInternalRequest: false,
+    };
+    const requestData: RequestData = {
+      entityManager,
+      token: mockToken,
+      entitlements: {},
+    };
+    const service = new DataMappingService();
+    const dataMappingConfig = await service.parseDataMapping(requestData, dataMappingId);
+    const results = await vdl.getDataPreview(entityManager, dataMappingConfig, fileId!);
+    // Keeps all mapped property columns plus 8 fixed fields in SoilRecord + cursor
+    expect(Object.keys(results[0]).length).toBe(Object.keys(dataMappingConfig.property_cols).length + 9);
+    const stats = await vdl.getDataPreviewStats(entityManager, dataMappingConfig, fileId!);
+    expect(stats).toBeDefined();
   });
   it('rawRecordToDataModel should create new features, layers, dataset_layers and observations', async () => {
     const { dataset, file, dataMapping } = await addSyntheticIngestionData({ ...syntheticIngestionDataOptions });
