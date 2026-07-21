@@ -133,6 +133,7 @@ Your data may be subject to modification, and some data may be discarded if it d
 
 | What happens | Shown in the summary as |
 |---|---|
+| Geometry contains a different type with respect to the dominant data type (e.g. 18 Point rows and 2 Polygon rows: 2 are discarded) | *Mixed geometry type* |
 | Coordinates fall outside the valid range for latitude (−90 to 90) or longitude (−180 to 180) — for polygon or multipolygon geometries, this is raised if any vertex falls outside these ranges (see [criteria](https://postgis.net/docs/using_postgis_dbmanagement.html#Valid_Geometry))| *Invalid coordinates (out of range)* |
 | The upper depth is greater than or equal to the lower depth (e.g. 30–0 cm) or the depth range column is not properly formed (e.g. 0-20-30 cm) | *Invalid depth interval (upper ≥ lower or invalid range)* |
 | After all other cleaning steps, the row no longer has both a valid location and at least one valid soil property value | *Minimum data requirement not met (missing geometry or invalid soil property value)* |

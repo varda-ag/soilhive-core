@@ -1,6 +1,7 @@
 import { DataCleaningConfig } from '../interfaces/DataMapping';
 import { RowDeleteReason, CellDeleteReason, CellModifyReason } from '../interfaces/CleaningReport';
 import { DetectableFields } from '../types/DataMapping';
+import { GISDataType } from '../types/data';
 import { getRawTableName } from '../utils/utils';
 import { OUTSIDE_LOD_VALUE } from '../constants/constants';
 
@@ -61,7 +62,14 @@ export function buildCleaningCte(config: DataCleaningConfig, fileId: string): Cl
 
   // Per-cell rules: non-numeric, sentinel, negative, zero, out-of-range.
 
-  const c1: string[] = ['raw.record_id', 'raw.geometry AS geom'];
+  // Data type of one geometry; NULL for NULL geometries and unsupported types
+  // (LineString, MultiPoint, ...) — those never compete for the dominant type.
+  const dataTypeExpr = `CASE
+      WHEN ST_GeometryType(raw.geometry) = 'ST_Point' THEN '${GISDataType.POINT}'
+      WHEN ST_GeometryType(raw.geometry) IN ('ST_Polygon', 'ST_MultiPolygon') THEN '${GISDataType.POLYGONAL}'
+    END`;
+
+  const c1: string[] = ['raw.record_id', 'raw.geometry AS geom', `${dataTypeExpr} AS _data_type`];
 
   const sdCol = metaCol(DetectableFields.SAMPLING_DATE);
   c1.push(sdCol ? `raw.${sdCol}::text AS sampling_date` : 'NULL::text AS sampling_date');
@@ -161,9 +169,22 @@ export function buildCleaningCte(config: DataCleaningConfig, fileId: string): Cl
   FROM ${table} raw
 )`;
 
+  // Dominant data type over raw rows (ADR 0012): the tally deliberately includes
+  // rows deleted for other reasons (duplicates, invalid coords, user drops);
+  // ties go to point. Empty when the file has no point/polygonal rows at all.
+  const cteDominant = `dominant_data_type AS MATERIALIZED (
+  SELECT _data_type AS data_type
+  FROM cell_cleaned
+  WHERE _data_type IS NOT NULL
+  GROUP BY _data_type
+  ORDER BY COUNT(*) DESC, (_data_type = '${GISDataType.POINT}') DESC
+  LIMIT 1
+)`;
+
   const c2Cols = [
     'cc.record_id',
     'cc.geom',
+    'cc._data_type',
     'cc.sampling_date',
     'cc.horizon',
     'cc.license',
@@ -174,29 +195,41 @@ export function buildCleaningCte(config: DataCleaningConfig, fileId: string): Cl
     ...props.map(([prop]) => `cc.${prop}_cleaned`),
   ];
 
-  const deleteEntries = [
-    ...props.map(([prop]) => `'${prop}', cc.${prop}_cell_reason`),
-    `'min_depth', CASE WHEN cc.min_depth_was_negative THEN '${CellDeleteReason.NEGATIVE_VALUE}'::text ELSE NULL END`,
-    `'max_depth', CASE WHEN cc.max_depth_was_negative THEN '${CellDeleteReason.NEGATIVE_VALUE}'::text ELSE NULL END`,
-  ].join(',\n      ');
-  const cellDeleteReasons = `NULLIF(jsonb_strip_nulls(jsonb_build_object(
-      ${deleteEntries}
-    )), '{}'::jsonb) AS cell_delete_reasons`;
+  const deleteKeys = [...props.map(([prop]) => `'${prop}'`), `'min_depth'`, `'max_depth'`];
+  const deleteVals = [
+    ...props.map(([prop]) => `cc.${prop}_cell_reason`),
+    `CASE WHEN cc.min_depth_was_negative THEN '${CellDeleteReason.NEGATIVE_VALUE}'::text ELSE NULL END`,
+    `CASE WHEN cc.max_depth_was_negative THEN '${CellDeleteReason.NEGATIVE_VALUE}'::text ELSE NULL END`,
+  ];
+  const cellDeleteReasons = `(
+    SELECT NULLIF(jsonb_object_agg(k, v), '{}'::jsonb)
+    FROM unnest(
+      ARRAY[${deleteKeys.join(', ')}]::text[],
+      ARRAY[${deleteVals.join(', ')}]::text[]
+    ) AS t(k, v)
+    WHERE v IS NOT NULL
+  ) AS cell_delete_reasons`;
 
-  const modifyEntries = [
+  const modifyKeys = [...props.map(([prop]) => `'${prop}'`), `'min_depth'`, `'max_depth'`];
+  const modifyVals = [
     ...props.map(
       ([prop]) =>
-        `'${prop}', NULLIF(to_jsonb(ARRAY_REMOVE(ARRAY[
+        `NULLIF(to_jsonb(ARRAY_REMOVE(ARRAY[
         CASE WHEN cc.${prop}_unit_converted THEN '${CellModifyReason.UNIT_CONVERTED}'::text ELSE NULL END,
         CASE WHEN cc.${prop}_value_rounded  THEN '${CellModifyReason.VALUE_ROUNDED}'::text  ELSE NULL END
       ], NULL)), '[]'::jsonb)`,
     ),
-    `'min_depth', CASE WHEN cc.min_depth_rounded THEN '["${CellModifyReason.DEPTH_ROUNDED}"]'::jsonb ELSE NULL END`,
-    `'max_depth', CASE WHEN cc.max_depth_rounded THEN '["${CellModifyReason.DEPTH_ROUNDED}"]'::jsonb ELSE NULL END`,
-  ].join(',\n      ');
-  const cellModifyReasons = `NULLIF(jsonb_strip_nulls(jsonb_build_object(
-      ${modifyEntries}
-    )), '{}'::jsonb) AS cell_modify_reasons`;
+    `CASE WHEN cc.min_depth_rounded THEN '["${CellModifyReason.DEPTH_ROUNDED}"]'::jsonb ELSE NULL END`,
+    `CASE WHEN cc.max_depth_rounded THEN '["${CellModifyReason.DEPTH_ROUNDED}"]'::jsonb ELSE NULL END`,
+  ];
+  const cellModifyReasons = `(
+    SELECT NULLIF(jsonb_object_agg(k, v), '{}'::jsonb)
+    FROM unnest(
+      ARRAY[${modifyKeys.join(', ')}]::text[],
+      ARRAY[${modifyVals.join(', ')}]::jsonb[]
+    ) AS t(k, v)
+    WHERE v IS NOT NULL
+  ) AS cell_modify_reasons`;
 
   const cte2 = `cell_deduped AS MATERIALIZED (
   SELECT
@@ -211,11 +244,16 @@ export function buildCleaningCte(config: DataCleaningConfig, fileId: string): Cl
     ? `WHEN cd.record_id IN (${config.drop_records.join(', ')}) THEN '${RowDeleteReason.USER_DELETION}'`
     : '';
 
+  // mixed_data_type must stay first: losing-type rows always report under it and
+  // never linger in the preview, even when they are also user-dropped (ADR 0012).
   const cte3 = `cleaning_result AS MATERIALIZED (
   SELECT
     cd.*,
     CASE
-      ${dropClause} 
+      WHEN cd.geom IS NOT NULL
+       AND (cd._data_type IS NULL OR cd._data_type != (SELECT data_type FROM dominant_data_type))
+        THEN '${RowDeleteReason.MIXED_DATA_TYPE}'
+      ${dropClause}
       WHEN cd.geom IS NULL
         THEN '${RowDeleteReason.MINIMUM_DATA_REQUIREMENT}'
       WHEN ST_GeometryType(cd.geom)='ST_Point' AND (ST_X(cd.geom) NOT BETWEEN -180 AND 180
@@ -236,7 +274,7 @@ export function buildCleaningCte(config: DataCleaningConfig, fileId: string): Cl
   FROM cell_deduped cd
 )`;
 
-  const cte = [cte1, cte2, cte3].join(',\n');
+  const cte = [cte1, cteDominant, cte2, cte3].join(',\n');
 
   return {
     cte: `WITH\n${cte}`,

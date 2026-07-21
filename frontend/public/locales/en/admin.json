@@ -376,6 +376,7 @@
                 },
                 "total": "{{number}} total",
                 "reasons": {
+                    "mixed_data_type": "Mixed data types (only {{gis_datatype}} rows are kept)",
                     "depth_rounded": "Depth rounded to integer",
                     "value_rounded": "Value rounded to 3 decimal places",
                     "unit_converted": "Converted to standard unit of measurement",

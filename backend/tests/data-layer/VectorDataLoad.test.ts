@@ -1,7 +1,9 @@
+import { randomUUID } from 'crypto';
 import { describe, it, expect, beforeEach } from '@jest/globals';
 import { getEntityManager } from '../../src/utils/data-source';
+import { getRawTableName } from '../../src/utils/utils';
 import { DATA_PREVIEW_SIZE, OUTSIDE_LOD_VALUE } from '../../src/constants/constants';
-import { addSyntheticIngestionData, syntheticIngestionDataOptions } from '../../src/utils/mock';
+import { addSyntheticIngestionData, addSyntheticIngestionDataManyCols, syntheticIngestionDataOptions } from '../../src/utils/mock';
 import VectorDataLoad from '../../src/data-layer/VectorDataLoad';
 import DataMappingService from '../../src/services/DataMappingService';
 import { RequestData } from '../../src/interfaces/RequestData';
@@ -19,6 +21,7 @@ describe('VectorDataLoad class', () => {
     const vdl = new VectorDataLoad();
     const entityManager = await getEntityManager();
     const mockToken = {
+      sub: 'mock-sub',
       scope: 'mock-scope',
       raw: 'raw-auth-token',
       email: 'mock-email',
@@ -71,6 +74,7 @@ describe('VectorDataLoad class', () => {
     const vdl = new VectorDataLoad();
     const entityManager = await getEntityManager();
     const mockToken = {
+      sub: 'mock-sub',
       scope: 'mock-scope',
       raw: 'raw-auth-token',
       email: 'mock-email',
@@ -106,6 +110,7 @@ describe('VectorDataLoad class', () => {
       const { file, dataMapping } = await addSyntheticIngestionData({ ...syntheticIngestionDataOptions });
       const entityManager = await getEntityManager();
       const mockToken = {
+        sub: 'mock-sub',
         scope: 'mock-scope',
         raw: 'raw-auth-token',
         email: 'mock-email',
@@ -337,12 +342,79 @@ describe('VectorDataLoad class', () => {
       expect(stats.cell_deletions.find(d => d.reason === CellDeleteReason.OOB && d.property === 'bdfi33')).toBeDefined();
       expect(stats.cell_deletions.find(d => d.reason === CellDeleteReason.OOB && d.property === 'bdfi33')!.count).toBe(1);
     });
+
+    it('should keep only the dominant data type and report the rest as mixed_data_type', async () => {
+      const vdl = new VectorDataLoad();
+      const entityManager = await getEntityManager();
+      const table = getRawTableName(fileId!);
+      // Points dominate the fixture; add polygons plus an unsupported geometry type
+      await entityManager.query(`ALTER TABLE ${table} ALTER COLUMN geometry TYPE public.geometry`);
+      await entityManager.query(`INSERT INTO ${table} (record_id, geometry) VALUES
+        (20001, 'SRID=4326;POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))'::public.geometry),
+        (20002, 'SRID=4326;POLYGON ((2 2, 2 3, 3 3, 3 2, 2 2))'::public.geometry),
+        (20003, 'SRID=4326;LINESTRING (0 0, 1 1)'::public.geometry)`);
+      const results = await vdl.getDataPreview(entityManager, dataMappingConfig!, fileId!);
+      expect(results.length).toBe(6);
+      expect(results.every(r => Number(r.record_id) < 20000)).toBe(true);
+      const stats = await vdl.getDataPreviewStats(entityManager, dataMappingConfig!, fileId!);
+      // mixed_data_type wins over every other delete reason, so all 3 added rows land there
+      expect(stats.row_deletions.find(rd => rd.reason === RowDeleteReason.MIXED_DATA_TYPE)?.count).toBe(3);
+    });
+
+    it('should break data type ties in favour of point and never let unsupported types win', async () => {
+      const vdl = new VectorDataLoad();
+      const entityManager = await getEntityManager();
+      const tieFileId = randomUUID();
+      const table = getRawTableName(tieFileId);
+      await entityManager.query(`CREATE TABLE ${table} (record_id int PRIMARY KEY, myprop float8, geometry public.geometry)`);
+      // 2 points vs 2 polygons (tie) plus 3 linestrings (a plurality, but unsupported)
+      await entityManager.query(`INSERT INTO ${table} (record_id, myprop, geometry) VALUES
+        (1, 1.5, 'SRID=4326;POINT (10 10)'::public.geometry),
+        (2, 2.5, 'SRID=4326;POINT (20 20)'::public.geometry),
+        (3, 3.5, 'SRID=4326;POLYGON ((0 0, 0 1, 1 1, 1 0, 0 0))'::public.geometry),
+        (4, 4.5, 'SRID=4326;POLYGON ((2 2, 2 3, 3 3, 3 2, 2 2))'::public.geometry),
+        (5, 5.5, 'SRID=4326;LINESTRING (0 0, 1 1)'::public.geometry),
+        (6, 6.5, 'SRID=4326;LINESTRING (1 1, 2 2)'::public.geometry),
+        (7, 7.5, 'SRID=4326;LINESTRING (2 2, 3 3)'::public.geometry)`);
+      const config: DataCleaningConfig = { metadata_cols: {}, property_cols: { myprop: { property_id: 'test-prop' } } };
+      const results = await vdl.getDataPreview(entityManager, config, tieFileId);
+      expect(results.map(r => Number(r.record_id)).sort()).toEqual([1, 2]);
+      results.forEach(r => expect(r.geometry.type).toBe('Point'));
+      const stats = await vdl.getDataPreviewStats(entityManager, config, tieFileId);
+      expect(stats.row_deletions.find(rd => rd.reason === RowDeleteReason.MIXED_DATA_TYPE)?.count).toBe(5);
+    });
+  });
+  it('Data preview and stats should handle files with >50 columns', async () => {
+    const { fileId, dataMappingId } = await addSyntheticIngestionDataManyCols();
+    const vdl = new VectorDataLoad();
+    const entityManager = await getEntityManager();
+    const mockToken = {
+      scope: 'mock-scope',
+      raw: 'raw-auth-token',
+      email: 'mock-email',
+      isDataAdmin: true,
+      isSuperAdmin: false,
+      isInternalRequest: false,
+    };
+    const requestData: RequestData = {
+      entityManager,
+      token: mockToken,
+      entitlements: {},
+    };
+    const service = new DataMappingService();
+    const dataMappingConfig = await service.parseDataMapping(requestData, dataMappingId);
+    const results = await vdl.getDataPreview(entityManager, dataMappingConfig, fileId!);
+    // Keeps all mapped property columns plus 8 fixed fields in SoilRecord + cursor
+    expect(Object.keys(results[0]).length).toBe(Object.keys(dataMappingConfig.property_cols).length + 9);
+    const stats = await vdl.getDataPreviewStats(entityManager, dataMappingConfig, fileId!);
+    expect(stats).toBeDefined();
   });
   it('rawRecordToDataModel should create new features, layers, dataset_layers and observations', async () => {
     const { dataset, file, dataMapping } = await addSyntheticIngestionData({ ...syntheticIngestionDataOptions });
     const vdl = new VectorDataLoad();
     const entityManager = await getEntityManager();
     const mockToken = {
+      sub: 'mock-sub',
       scope: 'mock-scope',
       raw: 'raw-auth-token',
       email: 'mock-email',
@@ -388,6 +460,7 @@ describe('VectorDataLoad class', () => {
     const vdl = new VectorDataLoad();
     const entityManager = await getEntityManager();
     const mockToken = {
+      sub: 'mock-sub',
       scope: 'mock-scope',
       raw: 'raw-auth-token',
       email: 'mock-email',

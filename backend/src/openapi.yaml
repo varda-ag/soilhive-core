@@ -2771,7 +2771,7 @@ components:
       properties:
         reason:
           type: string
-          enum: [invalid_coordinates, invalid_depth_interval, minimum_data_requirement, duplicate_row]
+          enum: [mixed_data_type, invalid_coordinates, invalid_depth_interval, minimum_data_requirement, duplicate_row]
         count: 
           type: number
 
@@ -2797,8 +2797,11 @@ components:
               type: number
             rows_deleted: 
               type: number
-            cells_deleted: 
+            cells_deleted:
               type: number
+        gis_datatype:
+          type: string
+          nullable: true
         modifications:
           type: array
           items:
