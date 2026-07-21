@@ -346,6 +346,7 @@ export interface SoilRecord {
 }
 
 export enum RowDeleteReason {
+  MIXED_DATA_TYPE = 'mixed_data_type',
   INVALID_COORDINATES = 'invalid_coordinates',
   INVALID_DEPTH_INTERVAL = 'invalid_depth_interval',
   MINIMUM_DATA_REQUIREMENT = 'minimum_data_requirement',
@@ -370,4 +371,5 @@ export interface CleaningReport {
   modifications: Array<{ reason: CellModifyReason; count: number }>;
   row_deletions: Array<{ reason: RowDeleteReason; count: number }>;
   cell_deletions: Array<{ reason: CellDeleteReason; count: number; property?: string }>;
+  gis_datatype: string;
 }

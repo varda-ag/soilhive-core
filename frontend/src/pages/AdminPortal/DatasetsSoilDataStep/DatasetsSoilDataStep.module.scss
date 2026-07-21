@@ -90,6 +90,9 @@
 // ─── Footer (Actions Bar) ─────────────────────────────────────────────────────
 
 .Footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
   display: flex;
   align-items: center;
   justify-content: space-between;

@@ -15,4 +15,5 @@ export type SoilDataSummary = {
   modifications: Record<CellModifyReason, number>;
   row_deletions: Record<RowDeleteReason, number>;
   cell_deletions: Record<CellDeleteReason, number>;
+  gis_datatype: string;
 };

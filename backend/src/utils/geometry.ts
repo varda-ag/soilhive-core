@@ -46,6 +46,7 @@ export const toGisDatatype = (input: string): GISDataType => {
     case 'ST_Point':
       return GISDataType.POINT;
     case 'ST_Polygon':
+    case 'ST_MultiPolygon':
       return GISDataType.POLYGONAL;
     default:
       throw new Error(`Unsupported geometry type: ${input}`);
