@@ -14,3 +14,9 @@ export const getRasterFilter = async (req: Request, res: Response) => {
   const decorated = await RasterFilterService.decorateWithEnable(req.customData, data);
   res.json(decorated);
 };
+
+export const patchRasterFilter = async (req: Request, res: Response) => {
+  const data = await rasterFilterService.patchRasterFilter(req.customData, req.params['rasterFilterId']! as string, req.body.active);
+  const decorated = await RasterFilterService.decorateWithEnable(req.customData, data);
+  res.json(decorated);
+};

@@ -3,6 +3,7 @@ export interface RasterFilter {
   name: string;
   description: string;
   mappings: Record<string, number> | null;
+  active: boolean;
   created_at: Date;
   updated_at: Date | null;
 }

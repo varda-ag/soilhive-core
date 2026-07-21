@@ -3,6 +3,7 @@ import { RequestData } from '../interfaces/RequestData';
 import { RasterFilterWithEnabled } from '../interfaces/RasterFilter';
 import { ErrorResponse } from '../utils/error';
 import { StatusCodes } from 'http-status-codes';
+import { resetEnabledRasterFilterTablesCache } from '../data-layer/SoilDataStorage';
 
 export default class RasterFilterService {
   async getRasterFilters(requestData: RequestData): Promise<RasterFilterEntity[]> {
@@ -19,10 +20,20 @@ export default class RasterFilterService {
     return entity;
   };
 
-  getEnabledRasterFilters = async (requestData: RequestData): Promise<RasterFilterWithEnabled[]> => {
+  patchRasterFilter = async (requestData: RequestData, id: string, active: boolean): Promise<RasterFilterEntity> => {
+    const repo = requestData.entityManager.getRepository(RasterFilterEntity);
+    const entity = await this.getRasterFilter(requestData, id);
+    if (active !== entity.active) {
+      entity.active = active;
+      resetEnabledRasterFilterTablesCache();
+    }
+    return await repo.save(entity);
+  };
+
+  getActiveRasterFilters = async (requestData: RequestData): Promise<RasterFilterWithEnabled[]> => {
     const data = await this.getRasterFilters(requestData);
     const decorated = await RasterFilterService.decorateWithEnable(requestData, data);
-    return (decorated as RasterFilterWithEnabled[]).filter(d => d.enabled);
+    return (decorated as RasterFilterWithEnabled[]).filter(d => d.enabled && d.active);
   };
 
   static decorateWithEnable = async (

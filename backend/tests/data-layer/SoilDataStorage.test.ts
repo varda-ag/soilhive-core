@@ -5,7 +5,7 @@ import { MultiPolygon, Polygon } from 'geojson';
 import { getEntityManager } from '../../src/utils/data-source';
 import { getPolygonFromBbox } from '../../src/utils/geometry';
 import { addDataset, addRasterData, addRasterDataset, addSyntheticData, syntheticDataOptions } from '../../src/utils/mock';
-import SoilDataStorage, { buildDatasetFilterClauses, hasRasterFilters } from '../../src/data-layer/SoilDataStorage';
+import SoilDataStorage, { buildDatasetFilterClauses, hasRasterFilters, resetEnabledRasterFilterTablesCache } from '../../src/data-layer/SoilDataStorage';
 import DatasetEntity from '../../src/entities/Dataset';
 import { decodeCursor } from '../../src/utils/cursor';
 import { addRasterFilterData, addRasterFilterMappings } from '../helper';
@@ -627,6 +627,16 @@ describe('SoilDataStorage class', () => {
             expectedSoilGroupsOptions.sort((a: number, b: number) => a - b),
           );
         }
+        // Disable raster filters and check that no option is returned
+        await entityManager.query('UPDATE raster_filters SET active = false');
+        resetEnabledRasterFilterTablesCache();
+
+        const resultsNoRasterFilters = await sds.getRasterCoverage(
+          entityManager,
+          await makeFilter(entityManager, getPolygonFromBbox(bbox)),
+        );
+        expect(resultsNoRasterFilters['land_cover']).toBeUndefined();
+        expect(resultsNoRasterFilters['soil_groups']).toBeUndefined();
       },
       10000,
     );
