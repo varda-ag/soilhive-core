@@ -7,12 +7,12 @@ import WrenchIcon from 'assets/icons/wrench-icon.svg?react';
 
 import styles from './MapBasedFilters.module.scss';
 import { useRaster } from 'hooks/useRaster';
-import type { RasterFilterCategory } from 'types/backend';
 import { ExpandableText } from 'components/UI/ExpandableText/ExpandableText';
+import { ToggleButton } from 'components/UI';
 
 export function MapBasedFilters() {
   const { t } = useTranslation('admin');
-  const { allCategories: allRasterCategories } = useRaster();
+  const { allCategories: allRasterCategories, setCategoryActive, isLoading } = useRaster();
 
   return (
     <div className={styles.MapBasedFilters}>
@@ -68,7 +68,7 @@ export function MapBasedFilters() {
 
             <div className={styles.StatusTitle}>{t('filters.activation.status_title')}</div>
 
-            {allRasterCategories?.map((category: RasterFilterCategory) => (
+            {allRasterCategories?.map(category => (
               <div key={`state-${category.id}`} className={styles.StatusRow} data-testid={`status-row-${category.id}`}>
                 <span className={styles.Label} data-testid="status-label">
                   {category.name}
@@ -82,6 +82,13 @@ export function MapBasedFilters() {
                 >
                   {category.enabled ? t('filters.common.active') : t('filters.common.not_active')}
                 </div>
+                {category.enabled && (
+                  <ToggleButton
+                    checked={category.active}
+                    onChange={checked => setCategoryActive(category.id, checked)}
+                    disabled={isLoading}
+                  />
+                )}
               </div>
             ))}
           </div>
