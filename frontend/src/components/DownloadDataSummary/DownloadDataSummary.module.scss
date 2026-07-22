@@ -163,6 +163,12 @@
   }
 }
 
+.SoilSamplesTooltip {
+  max-width: 255px;
+  white-space: normal;
+  word-break: break-word;
+}
+
 .DownloadDataSummary {
   @media (max-width: $bp-mobile-max) {
     width: 100%;

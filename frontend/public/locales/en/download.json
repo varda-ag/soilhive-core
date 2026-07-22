@@ -8,6 +8,7 @@
         },
         "data_summary": "Data summary",
         "soil_samples": "Soil Samples",
+        "soil_samples_tooltip": "Number of data across the area of interest, spanning space (latitude/longitude), soil profile (depth), and time.",
         "raster_layers": "Raster Layers",
         "applied_filters": "Applied Filters",
         "depth_range": "Depth range",

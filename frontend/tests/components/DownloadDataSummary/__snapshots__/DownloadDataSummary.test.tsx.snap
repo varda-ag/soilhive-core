@@ -72,6 +72,14 @@ exports[`DownloadDataSummary renders the download data summary (sidebar) 1`] = `
               mock-svg
             </svg>
             Soil Samples
+            <svg
+              data-testid="svg-icon-mock"
+            >
+              mock-svg
+            </svg>
+            <div
+              data-testid="tooltip-soil-samples-tooltip"
+            />
           </div>
           <div
             class="DataSummaryRowData"
@@ -210,6 +218,14 @@ exports[`DownloadDataSummary renders the download data summary (sidebar) in mobi
               mock-svg
             </svg>
             Soil Samples
+            <svg
+              data-testid="svg-icon-mock"
+            >
+              mock-svg
+            </svg>
+            <div
+              data-testid="tooltip-soil-samples-tooltip"
+            />
           </div>
           <div
             class="DataSummaryRowData"
@@ -359,6 +375,14 @@ exports[`DownloadDataSummary renders the download data summary (sidebar) with re
               mock-svg
             </svg>
             Soil Samples
+            <svg
+              data-testid="svg-icon-mock"
+            >
+              mock-svg
+            </svg>
+            <div
+              data-testid="tooltip-soil-samples-tooltip"
+            />
           </div>
           <div
             class="DataSummaryRowData"
@@ -508,6 +532,14 @@ exports[`DownloadDataSummary renders the download data summary (sidebar) with se
               mock-svg
             </svg>
             Soil Samples
+            <svg
+              data-testid="svg-icon-mock"
+            >
+              mock-svg
+            </svg>
+            <div
+              data-testid="tooltip-soil-samples-tooltip"
+            />
           </div>
           <div
             class="DataSummaryRowData"
@@ -657,6 +689,14 @@ exports[`DownloadDataSummary renders the download data summary (sidebar) with se
               mock-svg
             </svg>
             Soil Samples
+            <svg
+              data-testid="svg-icon-mock"
+            >
+              mock-svg
+            </svg>
+            <div
+              data-testid="tooltip-soil-samples-tooltip"
+            />
           </div>
           <div
             class="DataSummaryRowData"
@@ -806,6 +846,14 @@ exports[`DownloadDataSummary renders the download data summary (sidebar) with se
               mock-svg
             </svg>
             Soil Samples
+            <svg
+              data-testid="svg-icon-mock"
+            >
+              mock-svg
+            </svg>
+            <div
+              data-testid="tooltip-soil-samples-tooltip"
+            />
           </div>
           <div
             class="DataSummaryRowData"
@@ -955,6 +1003,14 @@ exports[`DownloadDataSummary renders the expanded download data summary (sidebar
               mock-svg
             </svg>
             Soil Samples
+            <svg
+              data-testid="svg-icon-mock"
+            >
+              mock-svg
+            </svg>
+            <div
+              data-testid="tooltip-soil-samples-tooltip"
+            />
           </div>
           <div
             class="DataSummaryRowData"
@@ -1104,6 +1160,14 @@ exports[`DownloadDataSummary renders the reduced download data summary (sidebar)
               mock-svg
             </svg>
             Soil Samples
+            <svg
+              data-testid="svg-icon-mock"
+            >
+              mock-svg
+            </svg>
+            <div
+              data-testid="tooltip-soil-samples-tooltip"
+            />
           </div>
           <div
             class="DataSummaryRowData"
