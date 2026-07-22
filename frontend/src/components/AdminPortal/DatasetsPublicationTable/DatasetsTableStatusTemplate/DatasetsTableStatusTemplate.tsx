@@ -21,7 +21,7 @@ export function DatasetsTableStatusTemplate({ dataset, onShowErrors }: Props) {
       {dataset.hasErrors && (
         <button className={styles.ErrorLink} onClick={() => onShowErrors(dataset)}>
           <NewTabIcon className={styles.ErrorLinkIcon} />
-          {t('datasets.list.error_details_link')}
+          <span className={styles.ErrorLinkText}>{t('datasets.list.error_details_link')}</span>
         </button>
       )}
     </div>

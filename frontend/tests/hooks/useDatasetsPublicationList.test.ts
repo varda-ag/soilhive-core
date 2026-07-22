@@ -39,9 +39,17 @@ jest.mock('../../src/App', () => ({
 }));
 
 const datasets = [
-  { id: '1', name: 'Carbon Dataset' },
-  { id: '2', name: 'Nitrogen Dataset' },
-  { id: '3', name: 'Soil pH' },
+  { id: '1', name: 'Carbon Dataset', gis_datatype: 'point', visibility: 'public', status: 'PENDING', updated_at: null, updated_by: null },
+  {
+    id: '2',
+    name: 'Nitrogen Dataset',
+    gis_datatype: 'polygonal',
+    visibility: 'private',
+    status: 'LOADED',
+    updated_at: null,
+    updated_by: null,
+  },
+  { id: '3', name: 'Soil pH', gis_datatype: 'raster', visibility: 'public', status: 'PUBLISHED', updated_at: null, updated_by: null },
 ];
 
 describe('useDatasetsPublicationList', () => {
@@ -63,6 +71,8 @@ describe('useDatasetsPublicationList', () => {
 
     expect(result.current.isLoading).toBe(false);
     expect(result.current.searchValue).toBe('');
+    expect(result.current.gisDataTypeFilter).toEqual([]);
+    expect(result.current.visibilityFilter).toEqual([]);
     expect(result.current.filteredDatasets).toEqual(datasets.map(d => ({ ...d, hasErrors: false })));
     expect(result.current.selectedDataset).toBeNull();
     expect(result.current.isDeleteModalOpened).toBe(false);
@@ -87,32 +97,210 @@ describe('useDatasetsPublicationList', () => {
     expect(result.current.isLoading).toBe(true);
   });
 
-  it('filteredDatasets filters by searchValue case-insensitively', () => {
-    const { result } = renderHook(() => useDatasetsPublicationList());
+  describe('search filter', () => {
+    it('filteredDatasets filters by searchValue case-insensitively', () => {
+      const { result } = renderHook(() => useDatasetsPublicationList());
 
-    act(() => {
-      result.current.setSearchValue('carbon');
+      act(() => {
+        result.current.setSearchValue('carbon');
+      });
+
+      expect(result.current.filteredDatasets).toHaveLength(1);
+      expect(result.current.filteredDatasets[0]).toMatchObject({ id: '1', name: 'Carbon Dataset' });
     });
 
-    expect(result.current.filteredDatasets).toEqual([{ id: '1', name: 'Carbon Dataset', hasErrors: false }]);
-  });
+    it('filteredDatasets returns all datasets when searchValue is empty', () => {
+      const { result } = renderHook(() => useDatasetsPublicationList());
 
-  it('filteredDatasets returns all datasets when searchValue is empty', () => {
-    const { result } = renderHook(() => useDatasetsPublicationList());
+      act(() => {
+        result.current.setSearchValue('');
+      });
 
-    act(() => {
-      result.current.setSearchValue('');
+      expect(result.current.filteredDatasets).toEqual(datasets.map(d => ({ ...d, hasErrors: false })));
     });
 
-    expect(result.current.filteredDatasets).toEqual(datasets.map(d => ({ ...d, hasErrors: false })));
+    it('filteredDatasets returns empty array when datasets is undefined', () => {
+      (useDatasets as jest.Mock).mockReturnValue({ datasets: undefined, isLoading: false });
+
+      const { result } = renderHook(() => useDatasetsPublicationList());
+
+      expect(result.current.filteredDatasets).toEqual([]);
+    });
   });
 
-  it('filteredDatasets returns empty array when datasets is undefined', () => {
-    (useDatasets as jest.Mock).mockReturnValue({ datasets: undefined, isLoading: false });
+  describe('gisDataTypeFilter', () => {
+    it('exposes setGisDataTypeFilter', () => {
+      const { result } = renderHook(() => useDatasetsPublicationList());
 
-    const { result } = renderHook(() => useDatasetsPublicationList());
+      expect(typeof result.current.setGisDataTypeFilter).toBe('function');
+    });
 
-    expect(result.current.filteredDatasets).toEqual([]);
+    it('returns all datasets when gisDataTypeFilter is empty', () => {
+      const { result } = renderHook(() => useDatasetsPublicationList());
+
+      expect(result.current.filteredDatasets).toHaveLength(3);
+    });
+
+    it('filters datasets by a single gis_datatype', () => {
+      const { result } = renderHook(() => useDatasetsPublicationList());
+
+      act(() => {
+        result.current.setGisDataTypeFilter(['point'] as any);
+      });
+
+      expect(result.current.filteredDatasets).toHaveLength(1);
+      expect(result.current.filteredDatasets[0]).toMatchObject({ id: '1', name: 'Carbon Dataset' });
+    });
+
+    it('filters datasets by multiple gis_datatypes', () => {
+      const { result } = renderHook(() => useDatasetsPublicationList());
+
+      act(() => {
+        result.current.setGisDataTypeFilter(['point', 'raster'] as any);
+      });
+
+      expect(result.current.filteredDatasets).toHaveLength(2);
+      expect(result.current.filteredDatasets.map(d => d.id)).toEqual(['1', '3']);
+    });
+
+    it('excludes datasets with null gis_datatype when filter is set', () => {
+      (useDatasets as jest.Mock).mockReturnValue({
+        datasets: [
+          { id: '1', name: 'A', gis_datatype: 'point', visibility: 'public', status: 'PENDING' },
+          { id: '2', name: 'B', gis_datatype: null, visibility: 'public', status: 'PENDING' },
+        ],
+        isLoading: false,
+      });
+
+      const { result } = renderHook(() => useDatasetsPublicationList());
+
+      act(() => {
+        result.current.setGisDataTypeFilter(['point'] as any);
+      });
+
+      expect(result.current.filteredDatasets).toHaveLength(1);
+      expect(result.current.filteredDatasets[0].id).toBe('1');
+    });
+
+    it('clears filter when set back to empty array', () => {
+      const { result } = renderHook(() => useDatasetsPublicationList());
+
+      act(() => {
+        result.current.setGisDataTypeFilter(['point'] as any);
+      });
+
+      act(() => {
+        result.current.setGisDataTypeFilter([]);
+      });
+
+      expect(result.current.filteredDatasets).toHaveLength(3);
+    });
+  });
+
+  describe('visibilityFilter', () => {
+    it('exposes setVisibilityFilter', () => {
+      const { result } = renderHook(() => useDatasetsPublicationList());
+
+      expect(typeof result.current.setVisibilityFilter).toBe('function');
+    });
+
+    it('returns all datasets when visibilityFilter is empty', () => {
+      const { result } = renderHook(() => useDatasetsPublicationList());
+
+      expect(result.current.filteredDatasets).toHaveLength(3);
+    });
+
+    it('filters datasets by public visibility', () => {
+      const { result } = renderHook(() => useDatasetsPublicationList());
+
+      act(() => {
+        result.current.setVisibilityFilter(['public']);
+      });
+
+      expect(result.current.filteredDatasets).toHaveLength(2);
+      expect(result.current.filteredDatasets.map(d => d.id)).toEqual(['1', '3']);
+    });
+
+    it('filters datasets by private visibility', () => {
+      const { result } = renderHook(() => useDatasetsPublicationList());
+
+      act(() => {
+        result.current.setVisibilityFilter(['private']);
+      });
+
+      expect(result.current.filteredDatasets).toHaveLength(1);
+      expect(result.current.filteredDatasets[0].id).toBe('2');
+    });
+
+    it('excludes datasets with null visibility when filter is set', () => {
+      (useDatasets as jest.Mock).mockReturnValue({
+        datasets: [
+          { id: '1', name: 'A', gis_datatype: 'point', visibility: 'public', status: 'PENDING' },
+          { id: '2', name: 'B', gis_datatype: 'point', visibility: null, status: 'PENDING' },
+        ],
+        isLoading: false,
+      });
+
+      const { result } = renderHook(() => useDatasetsPublicationList());
+
+      act(() => {
+        result.current.setVisibilityFilter(['public']);
+      });
+
+      expect(result.current.filteredDatasets).toHaveLength(1);
+      expect(result.current.filteredDatasets[0].id).toBe('1');
+    });
+
+    it('clears filter when set back to empty array', () => {
+      const { result } = renderHook(() => useDatasetsPublicationList());
+
+      act(() => {
+        result.current.setVisibilityFilter(['public']);
+      });
+
+      act(() => {
+        result.current.setVisibilityFilter([]);
+      });
+
+      expect(result.current.filteredDatasets).toHaveLength(3);
+    });
+  });
+
+  describe('combined filters', () => {
+    it('applies search and gisDataTypeFilter simultaneously', () => {
+      const { result } = renderHook(() => useDatasetsPublicationList());
+
+      act(() => {
+        result.current.setSearchValue('dataset');
+        result.current.setGisDataTypeFilter(['point'] as any);
+      });
+
+      expect(result.current.filteredDatasets).toHaveLength(1);
+      expect(result.current.filteredDatasets[0]).toMatchObject({ id: '1', name: 'Carbon Dataset' });
+    });
+
+    it('applies gisDataTypeFilter and visibilityFilter simultaneously', () => {
+      const { result } = renderHook(() => useDatasetsPublicationList());
+
+      act(() => {
+        result.current.setGisDataTypeFilter(['point', 'polygonal'] as any);
+        result.current.setVisibilityFilter(['public']);
+      });
+
+      expect(result.current.filteredDatasets).toHaveLength(1);
+      expect(result.current.filteredDatasets[0]).toMatchObject({ id: '1', name: 'Carbon Dataset' });
+    });
+
+    it('returns empty array when no datasets match combined filters', () => {
+      const { result } = renderHook(() => useDatasetsPublicationList());
+
+      act(() => {
+        result.current.setGisDataTypeFilter(['raster'] as any);
+        result.current.setVisibilityFilter(['private']);
+      });
+
+      expect(result.current.filteredDatasets).toHaveLength(0);
+    });
   });
 
   it('onEdit navigates to the edit page for the given id', () => {
@@ -222,6 +410,11 @@ describe('useDatasetsPublicationList', () => {
   });
 
   it('filteredDatasets carries updated_by as undefined when dataset has no updated_by', () => {
+    (useDatasets as jest.Mock).mockReturnValue({
+      datasets: [{ id: '1', name: 'Carbon Dataset' }],
+      isLoading: false,
+    });
+
     const { result } = renderHook(() => useDatasetsPublicationList());
 
     expect(result.current.filteredDatasets[0].updated_by).toBeUndefined();

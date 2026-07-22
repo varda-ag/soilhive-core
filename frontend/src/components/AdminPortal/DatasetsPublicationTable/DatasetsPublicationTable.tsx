@@ -43,10 +43,13 @@ export function DatasetsPublicationTable({ datasets, isSearch, onEdit, onDelete,
 
   const nameBodyTemplate = useCallback(
     (dataset: DatasetsPublicationListItem) => (
-      <span className={styles.NameCell}>
+      <div className={styles.NameCell}>
         {dataset.hasErrors && <WarningIcon className={styles.NameWarningIcon} />}
-        {dataset.name}
-      </span>
+        <div className={styles.NameCellTextBlock}>
+          <span className={styles.NameCellName}>{dataset.name}</span>
+          {dataset.gis_datatype && <span className={styles.NameCellType}>{dataset.gis_datatype}</span>}
+        </div>
+      </div>
     ),
     [],
   );
@@ -78,13 +81,12 @@ export function DatasetsPublicationTable({ datasets, isSearch, onEdit, onDelete,
         name: t('datasets.list.columns.updated_at'),
         value: 'updated_at',
         sortable: true,
-        bodyTemplate: ({ updated_at }: { updated_at: Date | null }) => dateStringToDDMMYYYY(updated_at),
-      },
-      {
-        name: t('datasets.list.columns.updated_by'),
-        value: 'updated_by',
-        sortable: true,
-        bodyTemplate: ({ updated_by }: { updated_by?: string | null }) => updated_by ?? '—',
+        bodyTemplate: ({ updated_at, updated_by }: { updated_at: Date | null; updated_by?: string | null }) => (
+          <div className={styles.UpdatedAtCell}>
+            <span>{dateStringToDDMMYYYY(updated_at)}</span>
+            <span>{updated_by ?? '—'}</span>
+          </div>
+        ),
       },
       {
         name: t('datasets.list.columns.actions'),
@@ -101,7 +103,6 @@ export function DatasetsPublicationTable({ datasets, isSearch, onEdit, onDelete,
     if (row.status === IngestionStatus.LOADED) return 'sh-row-highlighted';
     return undefined;
   };
-
   return (
     <div className={styles.DatasetsPublicationTable}>
       <Table

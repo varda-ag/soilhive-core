@@ -1,4 +1,4 @@
-import type { CellDeleteReason, CellModifyReason, IngestionStatus, RowDeleteReason } from './backend';
+import type { CellDeleteReason, CellModifyReason, GISDataType, IngestionStatus, RowDeleteReason } from './backend';
 
 export type DatasetsPublicationListItem = {
   id: string;
@@ -7,6 +7,7 @@ export type DatasetsPublicationListItem = {
   updated_at: Date | null;
   updated_by?: string | null;
   visibility?: string;
+  gis_datatype?: GISDataType | null;
   hasErrors?: boolean;
 };
 
