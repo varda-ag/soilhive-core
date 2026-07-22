@@ -97,6 +97,10 @@
           .LayersIcon {
             color: var(--color-brand-prompt-1000);
           }
+
+          .InfoIcon {
+            margin-left: -3px;
+          }
         }
 
         .DataSummaryRowData {
@@ -161,6 +165,12 @@
     line-height: var(--line-height-lg);
     letter-spacing: 0px;
   }
+}
+
+.SoilSamplesTooltip {
+  max-width: 255px;
+  white-space: normal;
+  word-break: break-word;
 }
 
 .DownloadDataSummary {

@@ -1,4 +1,5 @@
 import classNames from 'classnames';
+import { Tooltip } from 'react-tooltip';
 import SoilhiveSimpleMap from 'components/Map/SoilhiveSimpleMap';
 import { Button } from 'components/UI';
 import styles from './DownloadDataSummary.module.scss';
@@ -7,6 +8,7 @@ import ReduceIcon from 'assets/icons/reduce-icon.svg?react';
 import LayersIcon from 'assets/icons/small-layers-icon.svg?react';
 import MapPinIcon from 'assets/icons/small-map-pin-icon.svg?react';
 import WorldIcon from 'assets/icons/world-icon.svg?react';
+import InfoIcon from 'assets/icons/small-info-icon.svg?react';
 import useDevice from 'hooks/useDevice';
 import { useTranslation } from 'react-i18next';
 import type { Feature, GeoJsonProperties, MultiPolygon, Point, Polygon } from 'geojson';
@@ -112,7 +114,13 @@ function DownloadDataSummary({
           <div className={styles.DataSummaryRow}>
             <div className={styles.DataSummaryRowTitle}>
               <MapPinIcon />
-              {t('download_data_summary.data_points')}
+              {t('download_data_summary.soil_samples')}
+              <InfoIcon
+                className={styles.InfoIcon}
+                data-tooltip-id="soil-samples-tooltip"
+                data-tooltip-content={t('download_data_summary.soil_samples_tooltip')}
+              />
+              <Tooltip id="soil-samples-tooltip" className={styles.SoilSamplesTooltip} place="right" />
             </div>
             <div className={styles.DataSummaryRowData}>{dataPoints ? numberFormatter.format(dataPoints) : '0'}</div>
           </div>

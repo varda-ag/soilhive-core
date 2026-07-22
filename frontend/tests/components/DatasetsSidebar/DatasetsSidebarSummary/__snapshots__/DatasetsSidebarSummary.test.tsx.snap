@@ -27,15 +27,15 @@ exports[`DatasetsSidebarSummary renders all summary items with correct values 1`
       <div
         data-loading="undefined"
         data-preview="undefined"
-        data-testid="summary-item-Data Points"
+        data-testid="summary-item-Soil Samples"
       >
         <span
-          data-testid="value-Data Points"
+          data-testid="value-Soil Samples"
         >
           345000
         </span>
         <span
-          data-testid="color-Data Points"
+          data-testid="color-Soil Samples"
         >
           #F5B200
         </span>

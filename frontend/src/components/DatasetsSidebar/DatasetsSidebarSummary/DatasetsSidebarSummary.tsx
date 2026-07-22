@@ -28,7 +28,7 @@ export function DatasetsSidebarSummary({ datasetsSummary, preview, isCountLoadin
           isLoading={isCountLoading}
         />
         <DatasetsSidebarSummaryItem
-          name={t('datasets_sidebar_summary.data_points')}
+          name={t('datasets_sidebar_summary.soil_samples')}
           value={datasetsSummary.dataPoints}
           color="#F5B200"
           preview={preview}
