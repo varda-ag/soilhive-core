@@ -7,7 +7,8 @@
             "country_selected": "Country selected"
         },
         "data_summary": "Data summary",
-        "data_points": "Data points",
+        "soil_samples": "Soil Samples",
+        "soil_samples_tooltip": "Number of data across the area of interest, spanning space (latitude/longitude), soil profile (depth), and time.",
         "raster_layers": "Raster Layers",
         "applied_filters": "Applied Filters",
         "depth_range": "Depth range",
@@ -61,7 +62,7 @@
         "loading": "Loading...",
         "download_format": "Download Format",
         "datasets_included_in_download": "These are the datasets included in the download",
-        "data_points": "data points",
+        "soil_samples": "soil samples",
         "raster_layers": "raster Layers",
         "dataset_column_header": "Dataset/s",
         "licenses_column_header": "License/s",

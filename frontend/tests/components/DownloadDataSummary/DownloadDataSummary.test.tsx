@@ -11,6 +11,10 @@ jest.mock('../../../src/utilities/environmentVariables', () => ({
   MAPBOX_ACCESS_TOKEN: 'mock_access_token',
 }));
 
+jest.mock('react-tooltip', () => ({
+  Tooltip: ({ id }: { id: string }) => <div data-testid={`tooltip-${id}`} />,
+}));
+
 jest.mock('hooks/useDevice');
 
 describe('DownloadDataSummary', () => {
@@ -19,7 +23,7 @@ describe('DownloadDataSummary', () => {
   });
 
   it('renders the download data summary (sidebar)', () => {
-    const { container, getByText } = render(
+    const { container, getByText, queryByTestId } = render(
       <DownloadDataSummary
         locationName="France"
         depthRange="0-50cm"
@@ -31,6 +35,7 @@ describe('DownloadDataSummary', () => {
     expect(container).toMatchSnapshot();
     expect(container.querySelector('.DownloadDataSummary')).not.toBeNull();
     expect(getByText('Drawn polygon')).not.toBeUndefined();
+    expect(queryByTestId('tooltip-soil-samples-tooltip')).not.toBeNull();
   });
 
   it('renders the download data summary (sidebar) in mobile and tablet', () => {

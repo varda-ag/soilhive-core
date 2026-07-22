@@ -48,7 +48,7 @@ describe('DatasetsSidebarSummary', () => {
     render(<DatasetsSidebarSummary datasetsSummary={datasetsSummary} isLoading />);
 
     expect(screen.getByTestId(/^summary-item-Datasets/)).toHaveAttribute('data-loading', 'undefined');
-    expect(screen.getByTestId(/^summary-item-Data Points/)).toHaveAttribute('data-loading', 'true');
+    expect(screen.getByTestId(/^summary-item-Soil Samples/)).toHaveAttribute('data-loading', 'true');
     expect(screen.getByTestId(/^summary-item-Raster layers/)).toHaveAttribute('data-loading', 'true');
     expect(screen.getByTestId(/^summary-item-Depth range/)).toHaveAttribute('data-loading', 'true');
   });
@@ -57,7 +57,7 @@ describe('DatasetsSidebarSummary', () => {
     render(<DatasetsSidebarSummary datasetsSummary={datasetsSummary} isCountLoading />);
 
     expect(screen.getByTestId(/^summary-item-Datasets/)).toHaveAttribute('data-loading', 'true');
-    expect(screen.getByTestId(/^summary-item-Data Points/)).toHaveAttribute('data-loading', 'undefined');
+    expect(screen.getByTestId(/^summary-item-Soil Samples/)).toHaveAttribute('data-loading', 'undefined');
     expect(screen.getByTestId(/^summary-item-Raster layers/)).toHaveAttribute('data-loading', 'undefined');
     expect(screen.getByTestId(/^summary-item-Depth range/)).toHaveAttribute('data-loading', 'undefined');
   });
