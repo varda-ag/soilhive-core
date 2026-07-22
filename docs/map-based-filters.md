@@ -11,6 +11,20 @@ Each filter provides **global coverage** and is distributed as a **separate pack
 5. Wait for the process to complete
 6. Access SoilHive admin portal to confirm filter has been enabled
 
+## Turning On/Off Installed Filters
+
+Installing a filter (see above) is a one-time step that makes the filter **available** to the instance, or **active**. Whether an installed filter is actually **on** is controlled separately by a toggle in the admin portal — no CLI reload is needed to switch it on or off.
+
+> **Prerequisite:** the filter must already be installed. The toggle only appears for filters that have been loaded via `--load-raster-filter`.
+
+To turn on or off an installed filter:
+1. Open the SoilHive admin portal and go to the **Map-based filters** page
+2. Scroll to the **Activate the filters** list inside the **Activate the filters** section
+3. Each installed filter shows its current status (**Active** or **Not active**) next to a toggle switch
+4. Flip the toggle to turn on or off the filter — the change is saved immediately (the toggle is briefly disabled while saving)
+
+Turning a filter off does **not** uninstall it or delete its data; it only disables it. You can re-enable it at any time with the same toggle, without re-running the installation command.
+
 ### Available Filters
 
 - Agroecological zones (37 MB)
