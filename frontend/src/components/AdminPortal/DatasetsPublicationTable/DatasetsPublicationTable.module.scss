@@ -50,15 +50,9 @@
       width: 211px;
       min-width: 211px;
     }
-    // :global('.p-sortable-column') {
-    //   background-color: red;
-    // }
+
     :global(.p-sortable-column-icon) {
       margin-left: 0;
     }
-    // &:nth-child(5) {
-    //   width: 214px;
-    //   min-width: 214px;
-    // }
   }
 }
