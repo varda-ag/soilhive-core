@@ -6,7 +6,7 @@
 }
 
 .Tag {
-  width: 5.125rem;
+  width: 6.375rem;
   justify-content: center;
 
   &.ONGOING {
@@ -35,7 +35,7 @@
   padding: 0;
   cursor: pointer;
   color: var(--color-accent-danger-1000);
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
   text-decoration: underline;
 
   &:hover {
@@ -44,7 +44,11 @@
 }
 
 .ErrorLinkIcon {
-  width: 0.875rem;
-  height: 0.875rem;
+  // width: 0.875rem;
+  // height: 0.875rem;
   flex-shrink: 0;
+}
+
+.ErrorLinkText {
+  padding-top: 2px;
 }

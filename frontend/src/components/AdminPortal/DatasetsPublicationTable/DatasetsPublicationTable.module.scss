@@ -9,6 +9,22 @@
     width: 1rem;
     height: 1rem;
   }
+
+  .NameCellTextBlock {
+    display: flex;
+    flex-direction: column;
+  }
+  .NameCellType {
+    font-size: var(--font-size-xs);
+    font-weight: 400;
+    text-transform: capitalize;
+  }
+}
+
+.UpdatedAtCell {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .DatasetsPublicationTable {
@@ -18,23 +34,25 @@
 
   .TableColumn {
     &:nth-child(1) {
+      width: 394px;
+      max-width: 394px;
       font-weight: var(--font-weight-bold);
     }
     &:nth-child(2) {
-      width: 142px;
-      min-width: 142px;
+      width: 162px;
+      min-width: 162px;
     }
     &:nth-child(3) {
-      width: 142px;
-      min-width: 142px;
+      width: 108px;
+      min-width: 108px;
     }
     &:nth-child(4) {
-      width: 130px;
-      min-width: 130px;
+      width: 211px;
+      min-width: 211px;
     }
-    &:nth-child(5) {
-      width: 214px;
-      min-width: 214px;
+
+    :global(.p-sortable-column-icon) {
+      margin-left: 0;
     }
   }
 }

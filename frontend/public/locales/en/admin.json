@@ -207,13 +207,21 @@
         "title": "Datasets publication",
         "list": {
             "search_placeholder": "Search by name",
+            "filter_by_type": "Filter by type",
+            "filter_by_visibility": "Filter by visibility",
+            "filter_options": {
+                "point": "Point",
+                "polygonal": "Polygonal",
+                "raster": "Raster",
+                "pirvate": "Private",
+                "public": "Public"
+            },
             "add_button_text": "Add dataset",
             "columns": {
                 "name": "Name",
                 "status": "Status",
                 "visibility": "Visibility",
-                "updated_at": "Updated At",
-                "updated_by": "Updated By",
+                "updated_at": "Last update",
                 "actions": "Actions"
             },
             "status": {

@@ -9,13 +9,15 @@ import { queryClient } from '../App';
 import { ADMIN_PATHS } from '../configuration/admin';
 import type { DatasetsPublicationListItem } from 'types/datasetsPublication';
 import type { DatasetErrorItem } from 'types/datasetErrors';
-import { type Dataset } from 'types/backend';
+import { type Dataset, GISDataType } from 'types/backend';
 
 type DatasetsPublicationListType = {
   isLoading: boolean;
   datasets?: Dataset[];
   filteredDatasets: DatasetsPublicationListItem[];
   searchValue: string;
+  gisDataTypeFilter: GISDataType[];
+  visibilityFilter: ('public' | 'private')[];
   selectedDataset: DatasetsPublicationListItem | null;
   isDeleteModalOpened: boolean;
   isErrorModalOpened: boolean;
@@ -29,6 +31,8 @@ type DatasetsPublicationListType = {
   onDeleteModalClose: () => void;
   onErrorModalClose: () => void;
   setSearchValue: (value: string) => void;
+  setGisDataTypeFilter: (value: GISDataType[]) => void;
+  setVisibilityFilter: (value: ('public' | 'private')[]) => void;
   navigateToNewDataset: () => void;
 };
 
@@ -37,6 +41,8 @@ export function useDatasetsPublicationList(): DatasetsPublicationListType {
   const { datasets, isLoading } = useDatasets();
   const { datasetErrors } = useDatasetErrors();
   const [searchValue, setSearchValue] = useState<string>('');
+  const [gisDataTypeFilter, setGisDataTypeFilter] = useState<GISDataType[]>([]);
+  const [visibilityFilter, setVisibilityFilter] = useState<('public' | 'private')[]>([]);
   const [isDeleteModalOpened, setIsDeleteModalOpened] = useState<boolean>(false);
   const [selectedDataset, setSelectedDataset] = useState<DatasetsPublicationListItem | null>(null);
   const [isErrorModalOpened, setIsErrorModalOpened] = useState<boolean>(false);
@@ -95,8 +101,7 @@ export function useDatasetsPublicationList(): DatasetsPublicationListType {
 
   const datasetListItems = useMemo((): DatasetsPublicationListItem[] => {
     const errorIds = new Set(datasetErrors?.map(e => e.dataset_id) ?? []);
-
-    const d =
+    return (
       datasets?.map(dataset => ({
         id: dataset.id,
         name: dataset.name,
@@ -104,14 +109,23 @@ export function useDatasetsPublicationList(): DatasetsPublicationListType {
         updated_at: dataset.updated_at,
         updated_by: dataset.updated_by,
         visibility: dataset.visibility,
+        gis_datatype: dataset.gis_datatype,
         hasErrors: errorIds.has(dataset.id),
-      })) || [];
-    return d;
+      })) || []
+    );
   }, [datasets, datasetErrors]);
 
   const filteredDatasets = useMemo((): DatasetsPublicationListItem[] => {
-    return datasetListItems?.filter(dataset => dataset.name.toLowerCase().includes(searchValue.toLowerCase()));
-  }, [datasetListItems, searchValue]);
+    return datasetListItems.filter(dataset => {
+      const matchesSearch = dataset.name.toLowerCase().includes(searchValue.toLowerCase());
+      const matchesType =
+        gisDataTypeFilter.length === 0 || (dataset.gis_datatype != null && gisDataTypeFilter.includes(dataset.gis_datatype));
+      const matchesVisibility =
+        visibilityFilter.length === 0 ||
+        (dataset.visibility != null && visibilityFilter.includes(dataset.visibility as 'public' | 'private'));
+      return matchesSearch && matchesType && matchesVisibility;
+    });
+  }, [datasetListItems, searchValue, gisDataTypeFilter, visibilityFilter]);
 
   const navigateToNewDataset = useCallback(() => {
     navigate(`${ADMIN_PATHS.DATASETS}/new`);
@@ -121,6 +135,8 @@ export function useDatasetsPublicationList(): DatasetsPublicationListType {
     datasets,
     isLoading: isLoading || isDeleting,
     searchValue,
+    gisDataTypeFilter,
+    visibilityFilter,
     filteredDatasets,
     selectedDataset,
     isDeleteModalOpened,
@@ -135,6 +151,8 @@ export function useDatasetsPublicationList(): DatasetsPublicationListType {
     onDeleteModalClose,
     onErrorModalClose,
     setSearchValue,
+    setGisDataTypeFilter,
+    setVisibilityFilter,
     navigateToNewDataset,
   };
 }
