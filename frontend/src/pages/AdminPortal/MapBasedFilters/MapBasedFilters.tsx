@@ -68,6 +68,8 @@ export function MapBasedFilters() {
 
             <div className={styles.StatusTitle}>{t('filters.activation.status_title')}</div>
 
+            <div className={styles.StatusDescription}>{t('filters.activation.status_description')}</div>
+
             {allRasterCategories?.map(category => (
               <div key={`state-${category.id}`} className={styles.StatusRow} data-testid={`status-row-${category.id}`}>
                 <span className={styles.Label} data-testid="status-label">
@@ -75,12 +77,12 @@ export function MapBasedFilters() {
                 </span>
                 <div
                   className={classNames(styles.StatusBox, {
-                    [styles.Active]: category.enabled,
-                    [styles.Inactive]: !category.enabled,
+                    [styles.Installed]: category.enabled,
+                    [styles.NotInstalled]: !category.enabled,
                   })}
                   data-testid="status-box"
                 >
-                  {category.enabled ? t('filters.common.active') : t('filters.common.not_active')}
+                  {category.enabled ? t('filters.common.installed') : t('filters.common.not_installed')}
                 </div>
                 {category.enabled && (
                   <ToggleButton

@@ -57,7 +57,7 @@ describe('MapBasedFilters page', () => {
       expect(within(row).getByTestId('status-label')).toHaveTextContent(category.name);
 
       // Verify the status text matches the 'enabled' boolean logic
-      const expectedKey = category.enabled ? 'Active' : 'Not active';
+      const expectedKey = category.enabled ? 'Installed' : 'Not installed';
       expect(within(row).getByTestId('status-box')).toHaveTextContent(expectedKey);
     });
   });
