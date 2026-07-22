@@ -65,8 +65,12 @@
 
   .StatusTitle {
     font-weight: var(--font-weight-bold);
-    margin-bottom: 12px;
     font-size: var(--font-size-md);
+  }
+
+  .StatusDescription {
+    margin-top: 6px;
+    margin-bottom: 16px;
   }
 
   .StatusRow {
@@ -85,16 +89,18 @@
 .StatusBox {
   display: inline-flex;
   align-items: center;
-  padding: 4px 12px;
+  padding: 3px 6px;
   border-radius: 4px;
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-medium);
   border: 1px solid var(--color-neutral-dark-200);
   min-width: 85px;
   justify-content: center;
+  margin-right: 12px;
 
   &.Installed {
     border-color: var(--color-brand-light-green-1000);
+    background-color: var(--color-brand-light-green-100);
     color: var(--color-text-primary);
 
     &::before {
@@ -105,7 +111,8 @@
   }
 
   &.NotInstalled {
-    border-color: var(--color-neutral-dark-200);
+    border-color: var(--color-neutral-dark-100);
+    background-color: var(--color-neutral-light);
     color: var(--color-neutral-dark-400);
   }
 }

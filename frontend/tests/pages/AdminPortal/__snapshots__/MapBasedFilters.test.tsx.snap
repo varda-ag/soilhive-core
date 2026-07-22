@@ -117,6 +117,11 @@ exports[`MapBasedFilters page matches snapshot 1`] = `
             Filter states
           </div>
           <div
+            class="StatusDescription"
+          >
+            Check if the filters are correctly activated:
+          </div>
+          <div
             class="StatusRow"
             data-testid="status-row-lc"
           >

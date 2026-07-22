@@ -491,7 +491,8 @@
         "activation": {
             "title": "Activate the filters",
             "description": "Access our documentation and follow the instructions to activate the map-based filters:",
-            "status_title": "Filter states"
+            "status_title": "Filter states",
+            "status_description": "Check if the filters are correctly activated:"
         }
     },
     "logoAlt": "Logo",

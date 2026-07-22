@@ -68,6 +68,8 @@ export function MapBasedFilters() {
 
             <div className={styles.StatusTitle}>{t('filters.activation.status_title')}</div>
 
+            <div className={styles.StatusDescription}>{t('filters.activation.status_description')}</div>
+
             {allRasterCategories?.map(category => (
               <div key={`state-${category.id}`} className={styles.StatusRow} data-testid={`status-row-${category.id}`}>
                 <span className={styles.Label} data-testid="status-label">
