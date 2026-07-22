@@ -15,6 +15,7 @@ Soil data is abundant but siloed: collected by different institutions, at differ
 ## Getting started
 
 - [Quickstart](docs/quickstart.md): How to run SoilHive Core in a Docker stack
+- [System Requirements](docs/infrastructure.md): Recommended Configuration and Considerations on Infrastructure Sizing
 - [Bare metal install](docs/bare-metal-install.md): How to setup and run platform without containerization
 - [Authentication](docs/authentication.md): Modes and configuration
 - [Frontend](docs/frontend.md): Running and developing the frontend
