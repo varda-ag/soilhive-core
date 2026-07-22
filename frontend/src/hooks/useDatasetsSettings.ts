@@ -55,31 +55,39 @@ export function useDatasetsSettings(datasetId: string | undefined) {
   const isLoading = isDatasetLoading || isEntitlementsLoading;
   const isSaving = updateDataset.isPending || updateEntitlements.isPending;
 
-  type MandatoryField = string | null | undefined;
-  const mandatoryFields: MandatoryField[] = [
+  const inferredProperties = new Set(dataset?.inferred_properties ?? []);
+
+  const requiredTextFields: (string | null | undefined)[] = [
     dataset?.name,
     dataset?.full_name,
+    dataset?.version,
     dataset?.author,
     dataset?.description,
-    dataset?.reference_period_start,
-    dataset?.reference_period_stop,
+    dataset?.citation,
     dataset?.gis_datatype,
   ];
 
-  if (dataset?.gis_datatype === 'raster') {
-    mandatoryFields.push(dataset?.spatial_resolution);
+  if (!inferredProperties.has('reference_period_start')) {
+    requiredTextFields.push(dataset?.reference_period_start);
   }
+  if (!inferredProperties.has('reference_period_stop')) {
+    requiredTextFields.push(dataset?.reference_period_stop);
+  }
+  if (dataset?.gis_datatype === 'raster') {
+    requiredTextFields.push(dataset?.spatial_resolution);
+  }
+
+  const soilDepth = dataset?.soil_depth as { min?: number; max?: number } | null | undefined;
+  const hasSoilDepth = inferredProperties.has('soil_depth') || (soilDepth?.min != null && soilDepth?.max != null);
+  const hasLicenses = inferredProperties.has('licenses') || (Array.isArray(dataset?.licenses) && dataset.licenses.length > 0);
 
   const hasMandatoryMetadata =
     !!dataset &&
-    mandatoryFields.every(v => typeof v === 'string' && v.trim().length > 0) &&
-    Array.isArray(dataset.licenses) &&
-    dataset.licenses.length > 0 &&
+    requiredTextFields.every(v => typeof v === 'string' && v.trim().length > 0) &&
     Array.isArray(dataset.measured_properties) &&
     dataset.measured_properties.length > 0 &&
-    dataset.soil_depth != null &&
-    (dataset.soil_depth as { min?: number; max?: number }).min != null &&
-    (dataset.soil_depth as { min?: number; max?: number }).max != null;
+    hasSoilDepth &&
+    hasLicenses;
 
   function handleEmailChange(value: string) {
     setEmailInput(value);
