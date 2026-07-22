@@ -986,13 +986,17 @@ describe('SoilDataStorage class', () => {
       }, 12000);
 
       it.each([
-        [[30], 1],
-        [[40], 0],
+        [[30], 1, true],
+        [[40], 0, true],
+        [[30], 1, false],
+        [[40], 1, false],
       ])(
-        'For raster_filter.land_cover value %j → %i raster dataset(s) should be returned',
-        async (landCoverValues, expectedCount) => {
+        'For raster_filter.land_cover value %j → %i raster dataset(s) should be returned (filterIsActive=%s)',
+        async (landCoverValues, expectedCount, filterIsActive) => {
           const sds = new SoilDataStorage();
           const entityManager = await getEntityManager();
+          await entityManager.query(`UPDATE raster_filters SET active = ${filterIsActive}`);
+          resetEnabledRasterFilterTablesCache();
           const results = await sds.filterRaster(
             entityManager,
             await makeFilter(entityManager, getPolygonFromBbox([-82, -35, -80, -33]), { raster_filters: { land_cover: landCoverValues } }),
