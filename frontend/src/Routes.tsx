@@ -5,6 +5,7 @@ import { createBrowserRouter, createRoutesFromElements, Route, RouterProvider } 
 import PageTitle from './components/PageTitle';
 import { ADMIN_ROOT } from './configuration/admin';
 import { AdminPortalGuard } from './guards/AdminPortalGuard';
+import { useAuthContext } from './auth/AuthContextProvider';
 import useRemotes from './hooks/useRemotes';
 import useTheme from './hooks/useTheme';
 import { MainLayout } from './layouts';
@@ -13,6 +14,7 @@ import AvailabilityModule from './modules/AvailabilityModule';
 import TermsOfUse from './pages/TermsOfUse';
 import Metadata from './pages/Metadata';
 import PrivacyPolicy from 'pages/PrivacyPolicy';
+import type { PluginContext } from './types/plugins';
 import { isSinglePageModule } from './utilities/moduleFederation';
 import './utilities/i18n';
 
@@ -25,6 +27,16 @@ function AppRoutes() {
   const { isLoadingThemeConfig, themeConfig } = useTheme();
   const { plugins, isLoadingRemotes } = useRemotes();
   const pluginRoutes = useMemo(() => plugins.filter(isSinglePageModule), [plugins]);
+  const { user } = useAuthContext();
+  // Narrow explicitly rather than passing `user` through as-is: it carries
+  // access_token/refresh_token/id_token, which PluginContext's thin contract
+  // must not leak to plugins.
+  const pluginContext = useMemo<PluginContext>(
+    () => ({
+      user: user ? { profile: { name: user.profile?.name, email: user.profile?.email } } : user,
+    }),
+    [user],
+  );
 
   const router = useMemo(() => {
     if (isLoadingThemeConfig || isLoadingRemotes) return null;
@@ -71,7 +83,7 @@ function AppRoutes() {
                 element={
                   <>
                     <PageTitle title={`SoilHive - ${name}`} />
-                    <Page />
+                    <Page context={pluginContext} />
                   </>
                 }
               />
@@ -83,7 +95,15 @@ function AppRoutes() {
         </>,
       ),
     );
-  }, [isLoadingThemeConfig, isLoadingRemotes, pluginRoutes, t, themeConfig.termsAndConditionsHtml, themeConfig.privacyPolicyHtml]);
+  }, [
+    isLoadingThemeConfig,
+    isLoadingRemotes,
+    pluginRoutes,
+    pluginContext,
+    t,
+    themeConfig.termsAndConditionsHtml,
+    themeConfig.privacyPolicyHtml,
+  ]);
 
   if (!router) return <div />;
   return <RouterProvider router={router} />;

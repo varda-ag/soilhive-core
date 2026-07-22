@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "lib": ["ES2021"],
+    "target": "ES2021",
+    "noEmit": true,
+    "skipLibCheck": true,
+
+    "module": "ESNext",
+    "moduleDetection": "force",
+    "moduleResolution": "bundler",
+    "verbatimModuleSyntax": true,
+    "resolveJsonModule": true,
+    "allowImportingTsExtensions": true,
+
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true
+  },
+  "include": ["."]
+}

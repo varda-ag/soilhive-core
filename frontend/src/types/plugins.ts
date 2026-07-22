@@ -1,5 +1,8 @@
 import type React from 'react';
 import type { MapSelection } from '../contexts';
+import type { PluginContext } from 'frontend-plugin-types';
+
+export type { PluginContext };
 
 export interface Plugin {
   url: string; // Remote URL pointing to mf-manifest.json
@@ -32,7 +35,7 @@ export interface SinglePagePlugin extends RemotePlugin {
   type: PluginType.SINGLE_PAGE;
   hasMenuItem: true;
   route: string;
-  Page: React.ComponentType;
+  Page: React.ComponentType<{ context: PluginContext }>;
 }
 
 // A plugin that opens into a new tab
