@@ -75,12 +75,12 @@ export function MapBasedFilters() {
                 </span>
                 <div
                   className={classNames(styles.StatusBox, {
-                    [styles.Active]: category.enabled,
-                    [styles.Inactive]: !category.enabled,
+                    [styles.Installed]: category.enabled,
+                    [styles.NotInstalled]: !category.enabled,
                   })}
                   data-testid="status-box"
                 >
-                  {category.enabled ? t('filters.common.active') : t('filters.common.not_active')}
+                  {category.enabled ? t('filters.common.installed') : t('filters.common.not_installed')}
                 </div>
                 {category.enabled && (
                   <ToggleButton

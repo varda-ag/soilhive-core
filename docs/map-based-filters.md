@@ -20,7 +20,7 @@ Installing a filter (see above) is a one-time step that makes the filter **avail
 To turn on or off an installed filter:
 1. Open the SoilHive admin portal and go to the **Map-based filters** page
 2. Scroll to the **Activate the filters** list inside the **Activate the filters** section
-3. Each installed filter shows its current status (**Active** or **Not active**) next to a toggle switch
+3. Each filter shows its installation status (**Installed** or **Not installed**) next to a toggle switch
 4. Flip the toggle to turn on or off the filter — the change is saved immediately (the toggle is briefly disabled while saving)
 
 Turning a filter off does **not** uninstall it or delete its data; it only disables it. You can re-enable it at any time with the same toggle, without re-running the installation command.

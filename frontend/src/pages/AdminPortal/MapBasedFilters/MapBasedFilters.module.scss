@@ -93,7 +93,7 @@
   min-width: 85px;
   justify-content: center;
 
-  &.Active {
+  &.Installed {
     border-color: var(--color-brand-light-green-1000);
     color: var(--color-text-primary);
 
@@ -104,7 +104,7 @@
     }
   }
 
-  &.Inactive {
+  &.NotInstalled {
     border-color: var(--color-neutral-dark-200);
     color: var(--color-neutral-dark-400);
   }

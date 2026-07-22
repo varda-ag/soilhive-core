@@ -127,10 +127,10 @@ exports[`MapBasedFilters page matches snapshot 1`] = `
               Land Cover
             </span>
             <div
-              class="StatusBox Active"
+              class="StatusBox Installed"
               data-testid="status-box"
             >
-              Active
+              Installed
             </div>
             <label
               class="ToggleButton Medium"
@@ -156,10 +156,10 @@ exports[`MapBasedFilters page matches snapshot 1`] = `
               Soil Groups
             </span>
             <div
-              class="StatusBox Inactive"
+              class="StatusBox NotInstalled"
               data-testid="status-box"
             >
-              Not active
+              Not installed
             </div>
           </div>
           <div
@@ -173,10 +173,10 @@ exports[`MapBasedFilters page matches snapshot 1`] = `
               Agroecological Zones
             </span>
             <div
-              class="StatusBox Active"
+              class="StatusBox Installed"
               data-testid="status-box"
             >
-              Active
+              Installed
             </div>
             <label
               class="ToggleButton Medium"

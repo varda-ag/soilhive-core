@@ -465,8 +465,8 @@
     },
     "filters": {
         "common": {
-            "active": "Active",
-            "not_active": "Not active"
+            "installed": "Installed",
+            "not_installed": "Not installed"
         },
         "title": "Map settings",
         "intro": {
