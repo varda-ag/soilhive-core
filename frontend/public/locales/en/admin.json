@@ -213,7 +213,7 @@
                 "point": "Point",
                 "polygonal": "Polygonal",
                 "raster": "Raster",
-                "pirvate": "Private",
+                "private": "Private",
                 "public": "Public"
             },
             "add_button_text": "Add dataset",
