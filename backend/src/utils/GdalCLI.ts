@@ -21,13 +21,17 @@ export interface OgrInfoResult {
 }
 
 export interface GdalInfoBand {
+  band?: number;
   block?: [number, number];
   type?: string;
+  min?: number;
+  max?: number;
   overviews?: Array<{ size: { x: number; y: number } }>;
   noDataValue?: number;
 }
 
 export interface GdalInfoOutput {
+  driverShortName?: string;
   geoTransform?: number[];
   size?: [number, number];
   bands?: GdalInfoBand[];
@@ -37,6 +41,7 @@ export interface GdalInfoOutput {
     [key: string]: Record<string, string> | undefined;
   };
   coordinateSystem?: { wkt?: string };
+  wgs84Extent?: { type: string; coordinates: number[][][] };
 }
 
 export class GdalCLI {
@@ -113,6 +118,15 @@ export class GdalCLI {
     const entries: any[] = Array.isArray(srs.id) ? srs.id : [srs.id];
     const epsg = entries.find(e => e.authority === 'EPSG');
     return epsg ? Number(epsg.code) : undefined;
+  }
+
+  // gdalinfo's raster output has no structured authority code (unlike ogrinfo's projjson), so the
+  // CRS's own EPSG code is read off the last ID["EPSG", n] entry in the WKT, which is the outermost one.
+  static extractEpsgFromWkt(wkt?: string): number | undefined {
+    if (!wkt) return undefined;
+    const matches = [...wkt.matchAll(/ID\["EPSG",\s*(\d+)\]/g)];
+    const last = matches.at(-1);
+    return last ? Number(last[1]) : undefined;
   }
 
   private static extractGeomType(layer: any): string {

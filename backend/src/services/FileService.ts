@@ -9,10 +9,10 @@ import { FileStorage } from '@flystorage/file-storage';
 import { AwsS3StorageAdapter } from '@flystorage/aws-s3';
 import { LocalStorageAdapter } from '@flystorage/local-fs';
 import { FlystorageMulterStorageEngine } from '@flystorage/multer-storage';
-import { GdalCLI, OgrInfoLayer } from '../utils/GdalCLI';
+import { GdalCLI, OgrInfoLayer, GdalInfoOutput } from '../utils/GdalCLI';
 import { LocalStorageConfig, S3StorageConfig, StorageConfig } from '../interfaces/StorageConfig';
 import { RequestData } from '../interfaces/RequestData';
-import { File, FileMetadata, ExtractedFilePath } from '../interfaces/File';
+import { File, FileMetadata, RasterBandMetadata, ExtractedFilePath } from '../interfaces/File';
 import { ErrorResponse, getErrorMessage } from '../utils/error';
 import { getSubject } from '../utils/auth';
 import { getEntity } from '../utils/slugs';
@@ -409,6 +409,32 @@ export default class FileService {
   }
 
   async extractMetadata(requestData: RequestData, fileKey: string): Promise<FileMetadata> {
+    // ZIPs are always vector bundles in this codebase, so skip the raster probe entirely
+    if (fileKey.toLowerCase().endsWith('.zip')) {
+      return this.extractVectorMetadata(requestData, fileKey);
+    }
+
+    const { mainFilePath } = await FileService.getMainFilePath(fileKey);
+
+    let gdalInfo: GdalInfoOutput | undefined;
+    try {
+      gdalInfo = await GdalCLI.gdalinfo(mainFilePath);
+    } catch (error) {
+      // GDAL is a hard deployment dependency (see ADR 0004 and ADR 0014): if gdalinfo can't even run,
+      // the vector path would fail identically, so surface this failure directly instead of falling through.
+      if (getErrorMessage(error).startsWith('GDAL_NOT_INSTALLED')) {
+        throw new ErrorResponse(`Failed to extract metadata: ${error}`, StatusCodes.BAD_REQUEST);
+      }
+    }
+
+    if (gdalInfo && (gdalInfo.bands?.length ?? 0) > 0) {
+      return this.extractRasterMetadata(fileKey, gdalInfo);
+    }
+
+    return this.extractVectorMetadata(requestData, fileKey);
+  }
+
+  private async extractVectorMetadata(requestData: RequestData, fileKey: string): Promise<FileMetadata> {
     let mainFilePath: string;
     let tempZipExtractPath: string | null = null;
     try {
@@ -467,6 +493,7 @@ export default class FileService {
       const detected_mapping: DataMappingObject = this.getDetectedMapping(fieldNames, mappings);
 
       const metadata: FileMetadata = {
+        is_raster: false,
         field_names: fieldNames,
         detected_mapping,
         detected_fields: {
@@ -504,10 +531,63 @@ export default class FileService {
     }
   }
 
+  private async extractRasterMetadata(fileKey: string, gdalInfo: GdalInfoOutput): Promise<FileMetadata> {
+    assert(!fileKey.toLowerCase().endsWith('.zip'), 'Raster ZIP files are not supported');
+    try {
+      const { mainFilePath } = await FileService.getMainFilePath(fileKey);
+      log.info('Extracting raster metadata from gdalinfo', { source: mainFilePath });
+
+      const raster_bands: RasterBandMetadata[] = (gdalInfo.bands ?? []).map(band => ({
+        band_number: band.band ?? 0,
+        data_type: band.type ?? '',
+        ...(band.min !== undefined && { min_value: band.min }),
+        ...(band.max !== undefined && { max_value: band.max }),
+        ...(band.noDataValue !== undefined && { no_data_value: band.noDataValue }),
+        ...(band.overviews !== undefined && { overviews: band.overviews.map(ov => [ov.size.x, ov.size.y]) }),
+      }));
+
+      const epsg = GdalCLI.extractEpsgFromWkt(gdalInfo.coordinateSystem?.wkt);
+      const extent = FileService.extractWgs84Extent(gdalInfo.wgs84Extent);
+      const size: [number, number] = gdalInfo.size ?? [0, 0];
+
+      const metadata: FileMetadata = {
+        is_raster: true,
+        size,
+        band_count: raster_bands.length,
+        raster_bands,
+        ...(gdalInfo.driverShortName && { driver: gdalInfo.driverShortName }),
+        ...(epsg !== undefined && { epsg }),
+        ...(extent && { extent }),
+      };
+
+      return metadata;
+    } catch (error) {
+      log.error('Failed to extract raster metadata', {
+        fileKey,
+        error: JSON.stringify(error),
+      });
+      if (error instanceof ErrorResponse) {
+        throw error;
+      }
+      throw new ErrorResponse(`Failed to extract metadata: ${error}`, StatusCodes.BAD_REQUEST);
+    }
+  }
+
+  private static extractWgs84Extent(wgs84Extent?: { coordinates: number[][][] }): [number, number, number, number] | undefined {
+    const ring = wgs84Extent?.coordinates?.[0];
+    if (!ring || ring.length === 0) return undefined;
+    const lons = ring.map(([lon]) => lon!);
+    const lats = ring.map(([, lat]) => lat!);
+    return [Math.min(...lons), Math.min(...lats), Math.max(...lons), Math.max(...lats)];
+  }
+
   fileToDB = async (requestData: RequestData, fileId: string) => {
     const fileEntity = await this.getFile(requestData, fileId);
     assert(fileEntity.file_path, `File path not found for file ${fileId}`);
     assert(fileEntity.metadata, `Metadata not found for file ${fileId}`);
+    if (fileEntity.metadata.is_raster) {
+      throw new JobError('FTD_RASTER_NOT_SUPPORTED');
+    }
     if (!fileEntity.metadata.layer_name) {
       throw new JobError('FTD_MISSING_LAYER_NAME');
     }
@@ -517,6 +597,7 @@ export default class FileService {
 
     const fileKey = fileEntity.file_path!;
     const fileMetadata = fileEntity.metadata!;
+    assert(!fileMetadata.is_raster, `Metadata is raster for file ${fileId}`);
     const layerName = fileMetadata.layer_name!;
 
     const mappingRepo = requestData.entityManager.getRepository(DatasetFileMappingEntity);
