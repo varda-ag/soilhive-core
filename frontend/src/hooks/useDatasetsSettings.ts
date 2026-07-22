@@ -55,8 +55,6 @@ export function useDatasetsSettings(datasetId: string | undefined) {
   const isLoading = isDatasetLoading || isEntitlementsLoading;
   const isSaving = updateDataset.isPending || updateEntitlements.isPending;
 
-  const inferredProperties = new Set(dataset?.inferred_properties ?? []);
-
   const requiredTextFields: (string | null | undefined)[] = [
     dataset?.name,
     dataset?.full_name,
@@ -65,21 +63,17 @@ export function useDatasetsSettings(datasetId: string | undefined) {
     dataset?.description,
     dataset?.citation,
     dataset?.gis_datatype,
+    dataset?.reference_period_start,
+    dataset?.reference_period_stop,
   ];
 
-  if (!inferredProperties.has('reference_period_start')) {
-    requiredTextFields.push(dataset?.reference_period_start);
-  }
-  if (!inferredProperties.has('reference_period_stop')) {
-    requiredTextFields.push(dataset?.reference_period_stop);
-  }
   if (dataset?.gis_datatype === 'raster') {
     requiredTextFields.push(dataset?.spatial_resolution);
   }
 
   const soilDepth = dataset?.soil_depth as { min?: number; max?: number } | null | undefined;
-  const hasSoilDepth = inferredProperties.has('soil_depth') || (soilDepth?.min != null && soilDepth?.max != null);
-  const hasLicenses = inferredProperties.has('licenses') || (Array.isArray(dataset?.licenses) && dataset.licenses.length > 0);
+  const hasSoilDepth = soilDepth?.min != null && soilDepth?.max != null;
+  const hasLicenses = Array.isArray(dataset?.licenses) && dataset.licenses.length > 0;
 
   const hasMandatoryMetadata =
     !!dataset &&

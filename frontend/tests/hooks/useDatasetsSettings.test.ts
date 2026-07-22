@@ -368,19 +368,19 @@ describe('useDatasetsSettings', () => {
       expect(result.current.hasMandatoryMetadata).toBe(false);
     });
 
-    it('is false when reference_period_start is missing and not inferred', () => {
+    it('is false when reference_period_start is missing', () => {
       setupMocks({ dataset: { ...fullyFilledDataset, reference_period_start: null } });
       const { result } = renderHook(() => useDatasetsSettings('dataset-123'), { wrapper: queryClientWrapper });
       expect(result.current.hasMandatoryMetadata).toBe(false);
     });
 
-    it('is false when reference_period_stop is missing and not inferred', () => {
+    it('is false when reference_period_stop is missing', () => {
       setupMocks({ dataset: { ...fullyFilledDataset, reference_period_stop: null } });
       const { result } = renderHook(() => useDatasetsSettings('dataset-123'), { wrapper: queryClientWrapper });
       expect(result.current.hasMandatoryMetadata).toBe(false);
     });
 
-    it('is true when reference period fields are missing but inferred', () => {
+    it('is false when reference period fields are missing even if inferred', () => {
       setupMocks({
         dataset: {
           ...fullyFilledDataset,
@@ -390,19 +390,19 @@ describe('useDatasetsSettings', () => {
         },
       });
       const { result } = renderHook(() => useDatasetsSettings('dataset-123'), { wrapper: queryClientWrapper });
-      expect(result.current.hasMandatoryMetadata).toBe(true);
+      expect(result.current.hasMandatoryMetadata).toBe(false);
     });
 
-    it('is true when soil_depth is missing but inferred', () => {
+    it('is false when soil_depth is missing even if inferred', () => {
       setupMocks({ dataset: { ...fullyFilledDataset, soil_depth: null, inferred_properties: ['soil_depth'] } });
       const { result } = renderHook(() => useDatasetsSettings('dataset-123'), { wrapper: queryClientWrapper });
-      expect(result.current.hasMandatoryMetadata).toBe(true);
+      expect(result.current.hasMandatoryMetadata).toBe(false);
     });
 
-    it('is true when licenses is empty but inferred', () => {
+    it('is false when licenses is empty even if inferred', () => {
       setupMocks({ dataset: { ...fullyFilledDataset, licenses: [], inferred_properties: ['licenses'] } });
       const { result } = renderHook(() => useDatasetsSettings('dataset-123'), { wrapper: queryClientWrapper });
-      expect(result.current.hasMandatoryMetadata).toBe(true);
+      expect(result.current.hasMandatoryMetadata).toBe(false);
     });
 
     it('is false when spatial_resolution is missing for a raster dataset', () => {
