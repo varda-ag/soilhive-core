@@ -14,7 +14,25 @@ export interface File {
   updated_by?: string;
 }
 
-export interface FileMetadata {
+export interface RasterBandMetadata {
+  band_number: number;
+  data_type: string;
+  min_value?: number;
+  max_value?: number;
+  no_data_value?: number;
+}
+
+export interface RasterFileMetadata {
+  is_raster: true;
+  driver?: string;
+  epsg?: number;
+  extent?: [number, number, number, number]; // If empty the raster is not georeferenced
+  band_count: number;
+  raster_bands: RasterBandMetadata[];
+}
+
+export interface VectorFileMetadata {
+  is_raster: false;
   field_names: string[];
   detected_fields: Record<DetectableFields, string | null>;
   detected_mapping: DataMappingObject;
@@ -24,6 +42,8 @@ export interface FileMetadata {
   layer_name?: string;
   geom_column?: string;
 }
+
+export type FileMetadata = RasterFileMetadata | VectorFileMetadata;
 
 export interface ExtractedFilePath {
   mainFilePath: string;

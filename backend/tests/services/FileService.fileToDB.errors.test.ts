@@ -12,6 +12,7 @@ jest.mock('../../src/utils/db-credentials', () => ({
 }));
 
 const BASE_METADATA: FileMetadata = {
+  is_raster: false,
   layer_name: 'test_layer',
   field_names: ['col1', 'col2'],
   detected_fields: {} as any,
@@ -67,6 +68,20 @@ describe('FileService.fileToDB — JobError surfacing', () => {
     await expect(fileService.fileToDB({ entityManager: makeEntityManager(), entitlements: {} }, 'file-id')).rejects.toMatchObject({
       name: 'JobError',
       code: 'FTD_MISSING_LAYER_NAME',
+    });
+  });
+
+  it('E06 — FTD_RASTER_NOT_SUPPORTED when metadata.is_raster is true', async () => {
+    jest.spyOn(fileService, 'getFile').mockResolvedValue({
+      id: 'file-id',
+      slug: 'file-slug',
+      file_path: 'test/path.tif',
+      metadata: { is_raster: true, band_count: 1, raster_bands: [] },
+    } as unknown as FileEntity);
+
+    await expect(fileService.fileToDB({ entityManager: makeEntityManager(), entitlements: {} }, 'file-id')).rejects.toMatchObject({
+      name: 'JobError',
+      code: 'FTD_RASTER_NOT_SUPPORTED',
     });
   });
 
