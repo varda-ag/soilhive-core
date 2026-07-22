@@ -112,7 +112,7 @@ function DownloadDataSummary({
           <div className={styles.DataSummaryRow}>
             <div className={styles.DataSummaryRowTitle}>
               <MapPinIcon />
-              {t('download_data_summary.data_points')}
+              {t('download_data_summary.soil_samples')}
             </div>
             <div className={styles.DataSummaryRowData}>{dataPoints ? numberFormatter.format(dataPoints) : '0'}</div>
           </div>

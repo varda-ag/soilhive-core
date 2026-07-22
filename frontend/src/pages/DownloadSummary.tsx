@@ -124,7 +124,7 @@ function DownloadSummary() {
     const formattedCount = numberFormatter.format(layerCount);
     return (
       <>
-        {formattedCount} {dataType === GISDataType.RASTER ? t('download_summary.raster_layers') : t('download_summary.data_points')}
+        {formattedCount} {dataType === GISDataType.RASTER ? t('download_summary.raster_layers') : t('download_summary.soil_samples')}
       </>
     );
   };

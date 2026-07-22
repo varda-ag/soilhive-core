@@ -71,7 +71,7 @@ exports[`DownloadDataSummary renders the download data summary (sidebar) 1`] = `
             >
               mock-svg
             </svg>
-            Data points
+            Soil Samples
           </div>
           <div
             class="DataSummaryRowData"
@@ -209,7 +209,7 @@ exports[`DownloadDataSummary renders the download data summary (sidebar) in mobi
             >
               mock-svg
             </svg>
-            Data points
+            Soil Samples
           </div>
           <div
             class="DataSummaryRowData"
@@ -358,7 +358,7 @@ exports[`DownloadDataSummary renders the download data summary (sidebar) with re
             >
               mock-svg
             </svg>
-            Data points
+            Soil Samples
           </div>
           <div
             class="DataSummaryRowData"
@@ -507,7 +507,7 @@ exports[`DownloadDataSummary renders the download data summary (sidebar) with se
             >
               mock-svg
             </svg>
-            Data points
+            Soil Samples
           </div>
           <div
             class="DataSummaryRowData"
@@ -656,7 +656,7 @@ exports[`DownloadDataSummary renders the download data summary (sidebar) with se
             >
               mock-svg
             </svg>
-            Data points
+            Soil Samples
           </div>
           <div
             class="DataSummaryRowData"
@@ -805,7 +805,7 @@ exports[`DownloadDataSummary renders the download data summary (sidebar) with se
             >
               mock-svg
             </svg>
-            Data points
+            Soil Samples
           </div>
           <div
             class="DataSummaryRowData"
@@ -954,7 +954,7 @@ exports[`DownloadDataSummary renders the expanded download data summary (sidebar
             >
               mock-svg
             </svg>
-            Data points
+            Soil Samples
           </div>
           <div
             class="DataSummaryRowData"
@@ -1103,7 +1103,7 @@ exports[`DownloadDataSummary renders the reduced download data summary (sidebar)
             >
               mock-svg
             </svg>
-            Data points
+            Soil Samples
           </div>
           <div
             class="DataSummaryRowData"

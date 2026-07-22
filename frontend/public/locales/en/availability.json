@@ -32,7 +32,7 @@
     },
     "datasets_sidebar_summary": {
         "datasets": "Datasets",
-        "data_points": "Data Points",
+        "soil_samples": "Soil Samples",
         "raster_layers": "Raster layers",
         "depth_range": "Depth range"
     },
