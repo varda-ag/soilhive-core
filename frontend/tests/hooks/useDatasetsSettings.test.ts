@@ -356,6 +356,55 @@ describe('useDatasetsSettings', () => {
       expect(result.current.hasMandatoryMetadata).toBe(false);
     });
 
+    it('is false when version is missing', () => {
+      setupMocks({ dataset: { ...fullyFilledDataset, version: null } });
+      const { result } = renderHook(() => useDatasetsSettings('dataset-123'), { wrapper: queryClientWrapper });
+      expect(result.current.hasMandatoryMetadata).toBe(false);
+    });
+
+    it('is false when citation is missing', () => {
+      setupMocks({ dataset: { ...fullyFilledDataset, citation: null } });
+      const { result } = renderHook(() => useDatasetsSettings('dataset-123'), { wrapper: queryClientWrapper });
+      expect(result.current.hasMandatoryMetadata).toBe(false);
+    });
+
+    it('is false when reference_period_start is missing', () => {
+      setupMocks({ dataset: { ...fullyFilledDataset, reference_period_start: null } });
+      const { result } = renderHook(() => useDatasetsSettings('dataset-123'), { wrapper: queryClientWrapper });
+      expect(result.current.hasMandatoryMetadata).toBe(false);
+    });
+
+    it('is false when reference_period_stop is missing', () => {
+      setupMocks({ dataset: { ...fullyFilledDataset, reference_period_stop: null } });
+      const { result } = renderHook(() => useDatasetsSettings('dataset-123'), { wrapper: queryClientWrapper });
+      expect(result.current.hasMandatoryMetadata).toBe(false);
+    });
+
+    it('is false when reference period fields are missing even if inferred', () => {
+      setupMocks({
+        dataset: {
+          ...fullyFilledDataset,
+          reference_period_start: null,
+          reference_period_stop: null,
+          inferred_properties: ['reference_period_start', 'reference_period_stop'],
+        },
+      });
+      const { result } = renderHook(() => useDatasetsSettings('dataset-123'), { wrapper: queryClientWrapper });
+      expect(result.current.hasMandatoryMetadata).toBe(false);
+    });
+
+    it('is false when soil_depth is missing even if inferred', () => {
+      setupMocks({ dataset: { ...fullyFilledDataset, soil_depth: null, inferred_properties: ['soil_depth'] } });
+      const { result } = renderHook(() => useDatasetsSettings('dataset-123'), { wrapper: queryClientWrapper });
+      expect(result.current.hasMandatoryMetadata).toBe(false);
+    });
+
+    it('is false when licenses is empty even if inferred', () => {
+      setupMocks({ dataset: { ...fullyFilledDataset, licenses: [], inferred_properties: ['licenses'] } });
+      const { result } = renderHook(() => useDatasetsSettings('dataset-123'), { wrapper: queryClientWrapper });
+      expect(result.current.hasMandatoryMetadata).toBe(false);
+    });
+
     it('is false when spatial_resolution is missing for a raster dataset', () => {
       setupMocks({ dataset: { ...fullyFilledDataset, gis_datatype: 'raster', spatial_resolution: null } });
       const { result } = renderHook(() => useDatasetsSettings('dataset-123'), { wrapper: queryClientWrapper });
