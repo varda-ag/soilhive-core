@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { AuthContext as sharedAuthContext, useAuthContext } from 'frontend-hooks';
 import type { AuthConfig } from './AuthConfig';
 import { AuthProvider as ReactOidcProvider, useAuth as useReactOidcAuth } from 'react-oidc-context';
 import { type AuthContext } from './AuthContext';
@@ -10,13 +11,7 @@ import { setTokenRefresher } from './tokenRefresher';
 import { WebStorageStateStore } from 'oidc-client-ts';
 import { useApiQuery } from 'hooks/useApiQuery';
 
-const authContext = createContext<AuthContext | undefined>(undefined);
-
-export function useAuthContext(): AuthContext {
-  const ctx = useContext(authContext);
-  if (!ctx) throw new Error('Auth Context not defined');
-  return ctx;
-}
+export { useAuthContext };
 
 export function AuthContextProvider({ children }: { children: React.ReactNode }) {
   const { data: authConfig, isLoading: isAuthConfigLoading } = useApiQuery<AuthConfig>({
@@ -127,7 +122,7 @@ function OidcAuthProvider({ children }: { children: React.ReactNode }) {
     authMode: AuthModes.OIDC,
   };
 
-  return <authContext.Provider value={value}>{reactOidcAuth.isLoading ? null : children}</authContext.Provider>;
+  return <sharedAuthContext.Provider value={value}>{reactOidcAuth.isLoading ? null : children}</sharedAuthContext.Provider>;
 }
 
 function PasswordAuthProvider({ children }: { children: React.ReactNode }) {
@@ -145,7 +140,7 @@ function PasswordAuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <authContext.Provider value={value}>
+    <sharedAuthContext.Provider value={value}>
       {passwordAuth.isLoading ? null : children}
       <LoginModal
         isOpen={showLoginModal}
@@ -153,7 +148,7 @@ function PasswordAuthProvider({ children }: { children: React.ReactNode }) {
         onLogin={passwordAuth.login}
         error={passwordAuth.error}
       />
-    </authContext.Provider>
+    </sharedAuthContext.Provider>
   );
 }
 
@@ -168,7 +163,7 @@ function NoAuthProvider({ children }: { children: React.ReactNode }) {
     authMode: AuthModes.NONE,
   };
 
-  return <authContext.Provider value={value}>{children}</authContext.Provider>;
+  return <sharedAuthContext.Provider value={value}>{children}</sharedAuthContext.Provider>;
 }
 
 export function SsrAuthContextProvider({ children }: { children: React.ReactNode }) {
@@ -182,5 +177,5 @@ export function SsrAuthContextProvider({ children }: { children: React.ReactNode
     logout: () => {},
     authMode: AuthModes.NONE,
   };
-  return <authContext.Provider value={value}>{children}</authContext.Provider>;
+  return <sharedAuthContext.Provider value={value}>{children}</sharedAuthContext.Provider>;
 }
