@@ -21,7 +21,7 @@ const CATEGORIES_ICONS_MAP: Record<string, React.FC<React.SVGProps<SVGSVGElement
   physical: PhysicalIcon,
 };
 
-export function FilteringSidebarParameters() {
+export function FilteringSidebarParameters({ hasSoilGroupsRasterFilter = false }: { hasSoilGroupsRasterFilter?: boolean }) {
   const {
     isLoading,
     isNoData,
@@ -211,7 +211,7 @@ export function FilteringSidebarParameters() {
           </div>
         )}
       </Accordion>
-      <RasterFilter categoryId="soil_groups" />
+      {hasSoilGroupsRasterFilter && <RasterFilter categoryId="soil_groups" />}
     </div>
   );
 }

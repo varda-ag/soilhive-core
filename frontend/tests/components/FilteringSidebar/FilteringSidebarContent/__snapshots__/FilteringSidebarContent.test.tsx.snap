@@ -30,6 +30,7 @@ exports[`FilteringSidebarContent renders three sections with child components 1`
         Soil parameters
       </p>
       <div
+        data-has-soil-groups="false"
         data-testid="mock-filtering-sidebar-parameters"
       >
         Mock FilteringSidebarParameters
