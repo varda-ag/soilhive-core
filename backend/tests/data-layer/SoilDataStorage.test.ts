@@ -5,7 +5,11 @@ import { MultiPolygon, Polygon } from 'geojson';
 import { getEntityManager } from '../../src/utils/data-source';
 import { getPolygonFromBbox } from '../../src/utils/geometry';
 import { addDataset, addRasterData, addRasterDataset, addSyntheticData, syntheticDataOptions } from '../../src/utils/mock';
-import SoilDataStorage, { buildDatasetFilterClauses, hasRasterFilters, resetEnabledRasterFilterTablesCache } from '../../src/data-layer/SoilDataStorage';
+import SoilDataStorage, {
+  buildDatasetFilterClauses,
+  hasRasterFilters,
+  resetEnabledRasterFilterTablesCache,
+} from '../../src/data-layer/SoilDataStorage';
 import DatasetEntity from '../../src/entities/Dataset';
 import { decodeCursor } from '../../src/utils/cursor';
 import { addRasterFilterData, addRasterFilterMappings } from '../helper';

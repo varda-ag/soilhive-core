@@ -1,5 +1,6 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { QueryClient } from '@tanstack/react-query';
+import { TestValueProvider, useTestValue } from 'frontend-hooks';
 import { useTranslation } from 'react-i18next';
 import { createBrowserRouter, createRoutesFromElements, Route, RouterProvider } from 'react-router';
 import PageTitle from './components/PageTitle';
@@ -19,6 +20,12 @@ import './utilities/i18n';
 import './App.module.scss';
 
 export const queryClient = new QueryClient();
+
+function HostTestValueSetter() {
+  const { setValue } = useTestValue();
+  useEffect(() => setValue('hello from Alberto'), [setValue]);
+  return null;
+}
 
 function AppRoutes() {
   const { t } = useTranslation('common');
@@ -86,7 +93,12 @@ function AppRoutes() {
   }, [isLoadingThemeConfig, isLoadingRemotes, pluginRoutes, t, themeConfig.termsAndConditionsHtml, themeConfig.privacyPolicyHtml]);
 
   if (!router) return <div />;
-  return <RouterProvider router={router} />;
+  return (
+    <TestValueProvider>
+      <HostTestValueSetter />
+      <RouterProvider router={router} />
+    </TestValueProvider>
+  );
 }
 
 export default AppRoutes;

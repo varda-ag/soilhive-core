@@ -12,6 +12,7 @@
     "preview": "rsbuild preview"
   },
   "dependencies": {
+    "frontend-hooks": "link:../frontend-hooks",
     "react": "19.2.0",
     "react-dom": "19.2.0"
   },

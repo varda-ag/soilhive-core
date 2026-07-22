@@ -12,6 +12,10 @@ const sharedAlias = {
   styles: './src/styles',
   adapters: './src/adapters',
   utilities: './src/utilities',
+  // Force any package (e.g. the symlinked frontend-hooks) to resolve react/react-dom
+  // to this app's own copy, rather than one pnpm may install alongside that package.
+  react: './node_modules/react',
+  'react-dom': './node_modules/react-dom',
 };
 
 export default defineConfig({

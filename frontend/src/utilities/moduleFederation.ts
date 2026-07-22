@@ -1,6 +1,7 @@
 import { createInstance, type ModuleFederationRuntimePlugin } from '@module-federation/enhanced/runtime';
 import React from 'react';
 import ReactDOM from 'react-dom';
+import * as frontendHooks from 'frontend-hooks';
 import { PluginType, type NewTabPlugin, type Plugin, type RemotePlugin, type SinglePagePlugin } from '../types/plugins';
 
 export const isSinglePageModule = (module: RemotePlugin): module is SinglePagePlugin =>
@@ -53,6 +54,15 @@ mf.registerShared({
     shareConfig: {
       singleton: true,
       requiredVersion: '19.2.0',
+    },
+  },
+  'frontend-hooks': {
+    version: '1.0.0',
+    scope: 'default',
+    lib: () => frontendHooks,
+    shareConfig: {
+      singleton: true,
+      requiredVersion: '1.0.0',
     },
   },
 });

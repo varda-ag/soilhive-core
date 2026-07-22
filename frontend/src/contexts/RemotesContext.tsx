@@ -1,6 +1,6 @@
 import React, { createContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { loadRemotes } from '../utilities/moduleFederation';
-import type { Plugin, RemotePlugin } from '../types/plugins';
+import type { /*Plugin,*/ RemotePlugin } from '../types/plugins';
 import useTheme from '../hooks/useTheme';
 
 type RemotesContextType = {
@@ -15,7 +15,7 @@ type RemotesProviderProps = {
 };
 
 // Stable default so useConfig's fallback identity doesn't change between renders.
-const EMPTY_REMOTES: Plugin[] = [];
+//const EMPTY_REMOTES: Plugin[] = [];
 
 export const RemotesProvider: React.FC<RemotesProviderProps> = ({ children }) => {
   const { themeConfig, isLoadingThemeConfig } = useTheme();
@@ -35,7 +35,10 @@ export const RemotesProvider: React.FC<RemotesProviderProps> = ({ children }) =>
 
     const load = async () => {
       try {
-        const loaded = await loadRemotes(themeConfig.plugins ?? EMPTY_REMOTES);
+        // const loaded = await loadRemotes(themeConfig.plugins ?? EMPTY_REMOTES);
+        const loaded = await loadRemotes([
+          { url: 'http://localhost:3333/mf-manifest.json', enabled: true, mustBeLoggedIn: false, enableACL: false, acl: [] },
+        ]);
         if (!cancelled) setPlugins(loaded);
       } finally {
         if (!cancelled) setIsLoadingModules(false);
