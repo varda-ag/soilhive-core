@@ -6,6 +6,16 @@ jest.mock('hooks/useDatasetsPublicationList', () => ({
   useDatasetsPublicationList: jest.fn(),
 }));
 
+jest.mock('primereact/multiselect', () => ({
+  MultiSelect: ({ value, onChange, placeholder }: any) => (
+    <button
+      data-testid={`multiselect-${placeholder}`}
+      data-selected={JSON.stringify(value)}
+      onClick={() => onChange({ value: [`selected-${placeholder}`] })}
+    />
+  ),
+}));
+
 jest.mock('components/AdminPortal/DatasetsPublicationTable/DatasetsPublicationTable', () => ({
   DatasetsPublicationTable: ({ datasets, onEdit, onDelete, onPublish }: any) => (
     <div data-testid="mock-publication-table" data-count={datasets.length}>
@@ -45,6 +55,8 @@ const baseHookValue = {
   isLoading: false,
   filteredDatasets: [{ id: 'dataset-1', name: 'Dataset One' }],
   searchValue: '',
+  gisDataTypeFilter: [],
+  visibilityFilter: [],
   selectedDataset: null,
   isDeleteModalOpened: false,
   isErrorModalOpened: false,
@@ -58,6 +70,8 @@ const baseHookValue = {
   onDeleteModalClose: jest.fn(),
   onErrorModalClose: jest.fn(),
   setSearchValue: jest.fn(),
+  setGisDataTypeFilter: jest.fn(),
+  setVisibilityFilter: jest.fn(),
   navigateToNewDataset: jest.fn(),
 };
 
@@ -198,5 +212,71 @@ describe('DatasetsPublication page', () => {
     fireEvent.click(screen.getByTestId('btn-cancel'));
 
     expect(onDeleteModalClose).toHaveBeenCalledTimes(1);
+  });
+
+  describe('gis_datatype MultiSelect filter', () => {
+    it('renders the gis_datatype filter', () => {
+      render(<DatasetsPublication />);
+
+      expect(screen.getByTestId('multiselect-Filter by type')).toBeInTheDocument();
+    });
+
+    it('reflects current gisDataTypeFilter value', () => {
+      (useDatasetsPublicationList as jest.Mock).mockReturnValue({ ...baseHookValue, gisDataTypeFilter: ['point'] });
+
+      render(<DatasetsPublication />);
+
+      expect(screen.getByTestId('multiselect-Filter by type')).toHaveAttribute('data-selected', '["point"]');
+    });
+
+    it('reflects empty gisDataTypeFilter', () => {
+      render(<DatasetsPublication />);
+
+      expect(screen.getByTestId('multiselect-Filter by type')).toHaveAttribute('data-selected', '[]');
+    });
+
+    it('calls setGisDataTypeFilter when selection changes', () => {
+      const setGisDataTypeFilter = jest.fn();
+      (useDatasetsPublicationList as jest.Mock).mockReturnValue({ ...baseHookValue, setGisDataTypeFilter });
+
+      render(<DatasetsPublication />);
+
+      fireEvent.click(screen.getByTestId('multiselect-Filter by type'));
+
+      expect(setGisDataTypeFilter).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('visibility MultiSelect filter', () => {
+    it('renders the visibility filter', () => {
+      render(<DatasetsPublication />);
+
+      expect(screen.getByTestId('multiselect-Filter by visibility')).toBeInTheDocument();
+    });
+
+    it('reflects current visibilityFilter value', () => {
+      (useDatasetsPublicationList as jest.Mock).mockReturnValue({ ...baseHookValue, visibilityFilter: ['public'] });
+
+      render(<DatasetsPublication />);
+
+      expect(screen.getByTestId('multiselect-Filter by visibility')).toHaveAttribute('data-selected', '["public"]');
+    });
+
+    it('reflects empty visibilityFilter', () => {
+      render(<DatasetsPublication />);
+
+      expect(screen.getByTestId('multiselect-Filter by visibility')).toHaveAttribute('data-selected', '[]');
+    });
+
+    it('calls setVisibilityFilter when selection changes', () => {
+      const setVisibilityFilter = jest.fn();
+      (useDatasetsPublicationList as jest.Mock).mockReturnValue({ ...baseHookValue, setVisibilityFilter });
+
+      render(<DatasetsPublication />);
+
+      fireEvent.click(screen.getByTestId('multiselect-Filter by visibility'));
+
+      expect(setVisibilityFilter).toHaveBeenCalledTimes(1);
+    });
   });
 });

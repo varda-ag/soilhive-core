@@ -17,10 +17,28 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
+    }
+
+    .Filters {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
 
       .Search {
         min-width: 19.5rem;
       }
+      .DropdownType {
+        width: 10.75rem;
+      }
+      .DropdownVisibility {
+        width: 11.6rem;
+      }
     }
+  }
+}
+
+.DropdownPanel {
+  :global(.p-multiselect-header) {
+    display: none;
   }
 }
