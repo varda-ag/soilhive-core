@@ -26,7 +26,7 @@ export interface GdalInfoBand {
   type?: string;
   min?: number;
   max?: number;
-  overviews?: Array<{ size: { x: number; y: number } }>;
+  overviews?: Array<{ size: [number, number] }>;
   noDataValue?: number;
 }
 

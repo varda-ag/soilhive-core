@@ -543,7 +543,7 @@ export default class FileService {
         ...(band.min !== undefined && { min_value: band.min }),
         ...(band.max !== undefined && { max_value: band.max }),
         ...(band.noDataValue !== undefined && { no_data_value: band.noDataValue }),
-        ...(band.overviews !== undefined && { overviews: band.overviews.map(ov => [ov.size.x, ov.size.y]) }),
+        ...(band.overviews !== undefined && { overviews: band.overviews.map(ov => ov.size) }),
       }));
 
       const epsg = GdalCLI.extractEpsgFromWkt(gdalInfo.coordinateSystem?.wkt);

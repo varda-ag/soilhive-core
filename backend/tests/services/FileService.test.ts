@@ -498,6 +498,19 @@ describe('FileService', () => {
       });
     });
 
+    it('should populate band overview pyramid sizes', async () => {
+      const metadata = await fileService.extractMetadata(requestData, 'bdod_5-15cm_mean.tif');
+      if (!metadata.is_raster) throw new Error('expected raster metadata');
+
+      expect(metadata.raster_bands[0]!.overviews).toEqual([
+        [146, 123],
+        [73, 62],
+        [37, 31],
+        [19, 16],
+        [10, 8],
+      ]);
+    });
+
     it('should leave band min/max undefined when no cached stats are present', async () => {
       const metadata = await fileService.extractMetadata(requestData, 'sol_ph.h2o_usda.4c1a2a_m_250m_b0..0cm_1950..2017_v0.2_1000.tif');
       if (!metadata.is_raster) throw new Error('expected raster metadata');
