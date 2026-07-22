@@ -543,13 +543,16 @@ export default class FileService {
         ...(band.min !== undefined && { min_value: band.min }),
         ...(band.max !== undefined && { max_value: band.max }),
         ...(band.noDataValue !== undefined && { no_data_value: band.noDataValue }),
+        ...(band.overviews !== undefined && { overviews: band.overviews.map(ov => [ov.size.x, ov.size.y]) }),
       }));
 
       const epsg = GdalCLI.extractEpsgFromWkt(gdalInfo.coordinateSystem?.wkt);
       const extent = FileService.extractWgs84Extent(gdalInfo.wgs84Extent);
+      const size: [number, number] = gdalInfo.size ?? [0, 0];
 
       const metadata: FileMetadata = {
         is_raster: true,
+        size,
         band_count: raster_bands.length,
         raster_bands,
         ...(gdalInfo.driverShortName && { driver: gdalInfo.driverShortName }),

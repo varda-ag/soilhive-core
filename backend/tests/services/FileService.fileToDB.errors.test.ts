@@ -76,7 +76,7 @@ describe('FileService.fileToDB — JobError surfacing', () => {
       id: 'file-id',
       slug: 'file-slug',
       file_path: 'test/path.tif',
-      metadata: { is_raster: true, band_count: 1, raster_bands: [] },
+      metadata: { is_raster: true, size: [10, 10], band_count: 1, raster_bands: [] },
     } as unknown as FileEntity);
 
     await expect(fileService.fileToDB({ entityManager: makeEntityManager(), entitlements: {} }, 'file-id')).rejects.toMatchObject({

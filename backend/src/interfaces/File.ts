@@ -20,6 +20,7 @@ export interface RasterBandMetadata {
   min_value?: number;
   max_value?: number;
   no_data_value?: number;
+  overviews?: Array<[number, number]>; // [width, height] in pixels
 }
 
 export interface RasterFileMetadata {
@@ -27,6 +28,7 @@ export interface RasterFileMetadata {
   driver?: string;
   epsg?: number;
   extent?: [number, number, number, number]; // If empty the raster is not georeferenced
+  size: [number, number]; // [width, height] in pixels
   band_count: number;
   raster_bands: RasterBandMetadata[];
 }

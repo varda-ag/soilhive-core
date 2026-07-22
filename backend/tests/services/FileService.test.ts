@@ -466,7 +466,7 @@ describe('FileService', () => {
       setLocalStorageRootFolder(rasterFilesPath);
     });
 
-    it('should detect a GeoTIFF as raster and populate driver/epsg/band_count/extent', async () => {
+    it('should detect a GeoTIFF as raster and populate driver/epsg/band_count/extent/size', async () => {
       const metadata = await fileService.extractMetadata(requestData, 'bdod_5-15cm_mean.tif');
 
       expect(metadata.is_raster).toBe(true);
@@ -475,6 +475,7 @@ describe('FileService', () => {
       expect(metadata.driver).toBe('GTiff');
       expect(metadata.epsg).toBe(4326);
       expect(metadata.band_count).toBe(1);
+      expect(metadata.size).toEqual([292, 245]);
 
       const [minX, minY, maxX, maxY] = metadata.extent!;
       expect(minX).toBeCloseTo(-81.1441253, 5);
@@ -503,6 +504,7 @@ describe('FileService', () => {
 
       expect(metadata.driver).toBe('GTiff');
       expect(metadata.band_count).toBe(1);
+      expect(metadata.size).toEqual([56, 47]);
       expect(metadata.raster_bands[0]).toMatchObject({
         band_number: 1,
         data_type: 'Byte',
@@ -513,14 +515,15 @@ describe('FileService', () => {
     });
 
     it.each([
-      'sol_ph.h2o_usda.4c1a2a_m_250m_b0..0cm_1950..2017_v0.2_250.tif',
-      'sol_ph.h2o_usda.4c1a2a_m_250m_b0..0cm_1950..2017_v0.2_500.tif',
-    ])('should detect %s as raster with the expected driver/epsg/extent', async fileName => {
+      { fileName: 'sol_ph.h2o_usda.4c1a2a_m_250m_b0..0cm_1950..2017_v0.2_250.tif', size: [335, 281] },
+      { fileName: 'sol_ph.h2o_usda.4c1a2a_m_250m_b0..0cm_1950..2017_v0.2_500.tif', size: [160, 140] },
+    ])('should detect $fileName as raster with the expected driver/epsg/extent/size', async ({ fileName, size }) => {
       const metadata = await fileService.extractMetadata(requestData, fileName);
       if (!metadata.is_raster) throw new Error('expected raster metadata');
 
       expect(metadata.driver).toBe('GTiff');
       expect(metadata.epsg).toBe(4326);
+      expect(metadata.size).toEqual(size);
 
       const [minX, minY, maxX, maxY] = metadata.extent!;
       expect(minX).toBeCloseTo(-81.1625158, 5);
