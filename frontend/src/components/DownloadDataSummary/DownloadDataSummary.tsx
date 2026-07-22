@@ -115,7 +115,11 @@ function DownloadDataSummary({
             <div className={styles.DataSummaryRowTitle}>
               <MapPinIcon />
               {t('download_data_summary.soil_samples')}
-              <InfoIcon data-tooltip-id="soil-samples-tooltip" data-tooltip-content={t('download_data_summary.soil_samples_tooltip')} />
+              <InfoIcon
+                className={styles.InfoIcon}
+                data-tooltip-id="soil-samples-tooltip"
+                data-tooltip-content={t('download_data_summary.soil_samples_tooltip')}
+              />
               <Tooltip id="soil-samples-tooltip" className={styles.SoilSamplesTooltip} place="right" />
             </div>
             <div className={styles.DataSummaryRowData}>{dataPoints ? numberFormatter.format(dataPoints) : '0'}</div>

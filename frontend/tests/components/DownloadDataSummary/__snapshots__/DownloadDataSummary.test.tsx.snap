@@ -73,6 +73,7 @@ exports[`DownloadDataSummary renders the download data summary (sidebar) 1`] = `
             </svg>
             Soil Samples
             <svg
+              class="InfoIcon"
               data-testid="svg-icon-mock"
             >
               mock-svg
@@ -219,6 +220,7 @@ exports[`DownloadDataSummary renders the download data summary (sidebar) in mobi
             </svg>
             Soil Samples
             <svg
+              class="InfoIcon"
               data-testid="svg-icon-mock"
             >
               mock-svg
@@ -376,6 +378,7 @@ exports[`DownloadDataSummary renders the download data summary (sidebar) with re
             </svg>
             Soil Samples
             <svg
+              class="InfoIcon"
               data-testid="svg-icon-mock"
             >
               mock-svg
@@ -533,6 +536,7 @@ exports[`DownloadDataSummary renders the download data summary (sidebar) with se
             </svg>
             Soil Samples
             <svg
+              class="InfoIcon"
               data-testid="svg-icon-mock"
             >
               mock-svg
@@ -690,6 +694,7 @@ exports[`DownloadDataSummary renders the download data summary (sidebar) with se
             </svg>
             Soil Samples
             <svg
+              class="InfoIcon"
               data-testid="svg-icon-mock"
             >
               mock-svg
@@ -847,6 +852,7 @@ exports[`DownloadDataSummary renders the download data summary (sidebar) with se
             </svg>
             Soil Samples
             <svg
+              class="InfoIcon"
               data-testid="svg-icon-mock"
             >
               mock-svg
@@ -1004,6 +1010,7 @@ exports[`DownloadDataSummary renders the expanded download data summary (sidebar
             </svg>
             Soil Samples
             <svg
+              class="InfoIcon"
               data-testid="svg-icon-mock"
             >
               mock-svg
@@ -1161,6 +1168,7 @@ exports[`DownloadDataSummary renders the reduced download data summary (sidebar)
             </svg>
             Soil Samples
             <svg
+              class="InfoIcon"
               data-testid="svg-icon-mock"
             >
               mock-svg
