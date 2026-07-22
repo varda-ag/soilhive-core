@@ -8,10 +8,6 @@ INSERT INTO licenses ("name",full_name,url) VALUES
 	 ('CC BY-SA 4.0','Attribution-ShareAlike 4.0 International','https://creativecommons.org/licenses/by-sa/4.0/'),
 	 ('CC0 1.0','CC0 1.0 Universal','https://creativecommons.org/publicdomain/zero/1.0/'),
 	 ('ODbL v1.0','Open Data Commons Open Database License v1.0','https://opendatacommons.org/licenses/odbl/1-0/'),
-	 ('OGL-UK-3.0','Open Government Licence v3.0','https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/')
-on conflict(name) do nothing; 
-INSERT INTO licenses ("name",full_name,url) VALUES
-	 ('US Public Domain','US Public Domain','https://www.idmanagement.gov/license/'),
-	 ('Data4SoilHealth Challenge Data Use Agreement','World Bank Data4SoilHealth Challenge Data Use Agreement','https://app.soilhive.ag/terms-of-use-world-bank-challenge'),
-	 ('LICENCE LUCAS SOIL DATA','LICENCE LUCAS SOIL DATA','https://esdac.jrc.ec.europa.eu/projects/LUCAS/Documents/LUCAS_SOIL_LIC_AGR_final_for_web.pdf')
-on conflict(name) do nothing; 
+	 ('OGL-UK-3.0','Open Government Licence v3.0','https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/'),
+	 ('US Public Domain','US Public Domain','https://www.idmanagement.gov/license/')
+on conflict(name) do nothing;
