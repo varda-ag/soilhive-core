@@ -9,7 +9,7 @@ interface Props {
   checked?: boolean;
   size?: ComponentSizeType;
   disabled?: boolean;
-  onChange?: () => void;
+  onChange?: (checked: boolean) => void;
 }
 
 export function ToggleButton({ checked, onChange, size = 'medium', disabled }: Props) {
@@ -25,7 +25,13 @@ export function ToggleButton({ checked, onChange, size = 'medium', disabled }: P
 
   return (
     <label className={classnames(styles.ToggleButton, sizeClass, { [styles.Disabled]: disabled })}>
-      <input className={styles.ToggleCheckbox} type="checkbox" checked={checked} onChange={onChange} disabled={disabled} />
+      <input
+        className={styles.ToggleCheckbox}
+        type="checkbox"
+        checked={checked}
+        onChange={e => onChange?.(e.target.checked)}
+        disabled={disabled}
+      />
       <span className={styles.ToggleSlider}></span>
     </label>
   );

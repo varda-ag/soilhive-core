@@ -132,6 +132,18 @@ exports[`MapBasedFilters page matches snapshot 1`] = `
             >
               Active
             </div>
+            <label
+              class="ToggleButton Medium"
+            >
+              <input
+                checked=""
+                class="ToggleCheckbox"
+                type="checkbox"
+              />
+              <span
+                class="ToggleSlider"
+              />
+            </label>
           </div>
           <div
             class="StatusRow"
@@ -166,6 +178,17 @@ exports[`MapBasedFilters page matches snapshot 1`] = `
             >
               Active
             </div>
+            <label
+              class="ToggleButton Medium"
+            >
+              <input
+                class="ToggleCheckbox"
+                type="checkbox"
+              />
+              <span
+                class="ToggleSlider"
+              />
+            </label>
           </div>
         </div>
       </div>

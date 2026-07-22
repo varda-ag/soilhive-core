@@ -3,7 +3,11 @@ import { FilteringSidebarContent } from 'components/FilteringSidebar/FilteringSi
 import useAvailability from 'hooks/useAvailability';
 
 jest.mock('components/FilteringSidebar/FilteringSidebarParameters/FilteringSidebarParameters', () => ({
-  FilteringSidebarParameters: () => <div data-testid="mock-filtering-sidebar-parameters">Mock FilteringSidebarParameters</div>,
+  FilteringSidebarParameters: ({ hasSoilGroupsRasterFilter }: { hasSoilGroupsRasterFilter: boolean }) => (
+    <div data-testid="mock-filtering-sidebar-parameters" data-has-soil-groups={String(hasSoilGroupsRasterFilter)}>
+      Mock FilteringSidebarParameters
+    </div>
+  ),
 }));
 
 jest.mock('components/FilteringSidebar/FilteringSidebarDataScope/FilteringSidebarDataScope', () => ({
@@ -22,7 +26,7 @@ jest.mock('hooks/useAvailability', () => ({
 describe('FilteringSidebarContent', () => {
   beforeEach(() => {
     jest.mocked(useAvailability).mockReturnValue({
-      allRasterCategories: [{ id: 'agroecological_zones', enabled: true }],
+      allRasterCategories: [{ id: 'agroecological_zones', enabled: true, active: true }],
     } as any);
   });
 
@@ -41,9 +45,10 @@ describe('FilteringSidebarContent', () => {
   });
 
   const reasterCombinations = [
-    ['a non-soil_groups enabled category', [{ id: 'agroecological_zones', enabled: true }], 3],
-    ['only disabled categories', [{ id: 'agroecological_zones', enabled: false }], 2],
-    ['only soil_groups enabled', [{ id: 'soil_groups', enabled: true }], 2],
+    ['a non-soil_groups enabled and active category', [{ id: 'agroecological_zones', enabled: true, active: true }], 3],
+    ['a non-soil_groups enabled but inactive category', [{ id: 'agroecological_zones', enabled: true, active: false }], 2],
+    ['only disabled categories', [{ id: 'agroecological_zones', enabled: false, active: true }], 2],
+    ['only soil_groups enabled and active', [{ id: 'soil_groups', enabled: true, active: true }], 2],
     ['undefined categories', undefined, 2],
   ] as const;
 
@@ -54,4 +59,23 @@ describe('FilteringSidebarContent', () => {
 
     expect(screen.getAllByTestId('sh-filtering-sidebar-section')).toHaveLength(expectedSections);
   });
+
+  const soilGroupsCombinations = [
+    ['soil_groups is enabled and active', [{ id: 'soil_groups', enabled: true, active: true }], 'true'],
+    ['soil_groups is enabled but inactive', [{ id: 'soil_groups', enabled: true, active: false }], 'false'],
+    ['soil_groups is disabled', [{ id: 'soil_groups', enabled: false, active: true }], 'false'],
+    ['there is no soil_groups category', [{ id: 'agroecological_zones', enabled: true, active: true }], 'false'],
+    ['categories are undefined', undefined, 'false'],
+  ] as const;
+
+  it.each(soilGroupsCombinations)(
+    'passes hasSoilGroupsRasterFilter to FilteringSidebarParameters when %s',
+    (_, allRasterCategories, expected) => {
+      jest.mocked(useAvailability).mockReturnValue({ allRasterCategories } as any);
+
+      render(<FilteringSidebarContent />);
+
+      expect(screen.getByTestId('mock-filtering-sidebar-parameters')).toHaveAttribute('data-has-soil-groups', expected);
+    },
+  );
 });

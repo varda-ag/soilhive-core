@@ -10,7 +10,8 @@ export function FilteringSidebarContent() {
   const { t } = useTranslation('availability');
   const { allRasterCategories } = useAvailability();
 
-  const hasRasterFilters = allRasterCategories?.some(cat => cat.id !== 'soil_groups' && cat.enabled) ?? false;
+  const hasRasterFilters = allRasterCategories?.some(cat => cat.id !== 'soil_groups' && cat.enabled && cat.active) ?? false;
+  const hasSoilGroupsRasterFilter = allRasterCategories?.some(cat => cat.id === 'soil_groups' && cat.enabled && cat.active) ?? false;
 
   return (
     <div className={styles.FilteringSidebarContent}>
@@ -20,7 +21,7 @@ export function FilteringSidebarContent() {
       </div>
       <div data-testid="sh-filtering-sidebar-section" className={styles.Section}>
         <p className={styles.Title}>{t('filtering_sidebar_content.soil_parameters')}</p>
-        <FilteringSidebarParameters />
+        <FilteringSidebarParameters hasSoilGroupsRasterFilter={hasSoilGroupsRasterFilter} />
       </div>
       {hasRasterFilters && (
         <div data-testid="sh-filtering-sidebar-section" className={styles.Section}>

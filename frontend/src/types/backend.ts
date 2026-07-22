@@ -210,6 +210,7 @@ export interface RasterFilterCategory {
   name: string; // e.g. Land Cover
   description: string;
   enabled: boolean;
+  active: boolean;
   mappings: Record<string, number> | null; // e.g., { "Artic": 1 }
   created_at: string;
   updated_at: string;

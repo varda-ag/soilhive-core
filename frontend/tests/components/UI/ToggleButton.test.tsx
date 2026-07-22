@@ -20,11 +20,20 @@ describe('ToggleButton', () => {
     expect(getCheckbox(container)).not.toBeChecked();
   });
 
-  it('calls onChange when the checkbox is clicked', () => {
+  it('calls onChange with true when an unchecked checkbox is clicked', () => {
     const onChange = jest.fn();
     const { container } = render(<ToggleButton checked={false} onChange={onChange} />);
     fireEvent.click(getCheckbox(container));
     expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange).toHaveBeenCalledWith(true);
+  });
+
+  it('calls onChange with false when a checked checkbox is clicked', () => {
+    const onChange = jest.fn();
+    const { container } = render(<ToggleButton checked={true} onChange={onChange} />);
+    fireEvent.click(getCheckbox(container));
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange).toHaveBeenCalledWith(false);
   });
 
   it('disables the checkbox when disabled=true', () => {

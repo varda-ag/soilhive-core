@@ -15,9 +15,9 @@ jest.mock('components/FilteringSidebar/RasterFilter/RasterFilter', () => ({
 const useAvailabilityMock = useAvailability as jest.MockedFunction<typeof useAvailability>;
 
 const ALL_CATEGORIES = [
-  { id: 'soil_groups', name: 'Soil Groups', enabled: true, mapping: {} },
-  { id: 'climate_zones', name: 'Climate Zones', enabled: true, mapping: {} },
-  { id: 'land_cover', name: 'Land Cover', enabled: false, mapping: {} },
+  { id: 'soil_groups', name: 'Soil Groups', enabled: true, active: true, mapping: {} },
+  { id: 'climate_zones', name: 'Climate Zones', enabled: true, active: true, mapping: {} },
+  { id: 'land_cover', name: 'Land Cover', enabled: false, active: true, mapping: {} },
 ];
 
 describe('FilteringSidebarLandEcosystem', () => {
@@ -41,7 +41,7 @@ describe('FilteringSidebarLandEcosystem', () => {
     expect(screen.queryByTestId('mock-raster-filter-soil_groups')).not.toBeInTheDocument();
   });
 
-  it('renders a RasterFilter for each category except soil_groups', () => {
+  it('renders a RasterFilter for each enabled and active category except soil_groups', () => {
     useAvailabilityMock.mockReturnValue({
       allRasterCategories: ALL_CATEGORIES,
       isLoadingRasterCategories: false,
@@ -51,7 +51,18 @@ describe('FilteringSidebarLandEcosystem', () => {
     render(<FilteringSidebarLandEcosystem />);
 
     expect(screen.getByTestId('mock-raster-filter-climate_zones')).toBeInTheDocument();
-    expect(screen.getByTestId('mock-raster-filter-land_cover')).toBeInTheDocument();
+    // land_cover is disabled, so it must not render
+    expect(screen.queryByTestId('mock-raster-filter-land_cover')).not.toBeInTheDocument();
+  });
+
+  it('excludes categories that are enabled but not active', () => {
+    useAvailabilityMock.mockReturnValue({
+      allRasterCategories: [{ id: 'climate_zones', name: 'Climate Zones', enabled: true, active: false, mapping: {} }],
+    } as any);
+
+    render(<FilteringSidebarLandEcosystem />);
+
+    expect(screen.queryByTestId('mock-raster-filter-climate_zones')).not.toBeInTheDocument();
   });
   it('renders nothing when all categories are soil_groups', () => {
     useAvailabilityMock.mockReturnValue({
