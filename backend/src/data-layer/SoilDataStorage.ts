@@ -1114,10 +1114,13 @@ const buildRawSoilQuery = (
   }
 
   const whereClause = whereClauses.length > 0 ? `AND ${whereClauses.join('\n  AND ')}` : '';
+  // Aliased to tl (target_layers_by_feature), not dl: these joins apply on top of the
+  // already feature-matched, materialized set — see the target_layers CTE comment below
+  // for why they must not be joined directly onto dataset_layers.
   const targetLayersJoins = [
-    needsLayerJoin ? `LEFT JOIN ${schema}.layers layer ON layer.id = dl.layer_id` : '',
+    needsLayerJoin ? `LEFT JOIN ${schema}.layers layer ON layer.id = tl.layer_id` : '',
     needsSoilPropertyJoin
-      ? `LEFT JOIN ${schema}.soil_properties soil_property ON soil_property.id = dl.soil_property_id AND soil_property.deleted_at IS NULL`
+      ? `LEFT JOIN ${schema}.soil_properties soil_property ON soil_property.id = tl.soil_property_id AND soil_property.deleted_at IS NULL`
       : '',
     needsLicenseJoin ? `LEFT JOIN ${schema}.licenses license ON license.id = layer.license AND license.deleted_at IS NULL` : '',
   ]
@@ -1280,15 +1283,29 @@ const buildRawSoilQuery = (
         AND ds.deleted_at IS NULL
         ${datasetSpatialFilter}
     ),
-    -- Narrow dataset_layers using index on dataset_id before touching observations.
-    -- Per-layer filters (soil_property, license, depth, date, horizon) are applied
-    -- here, so they shrink target_layers itself instead of being re-checked once
-    -- per observation later joined to it.
-    target_layers AS MATERIALIZED (
+    -- Narrow dataset_layers by dataset + spatial feature match ONLY, using the
+    -- (dataset_id, feature_id) prefix of the dataset_layers unique index — this is
+    -- always the selective entry point. Kept as its own MATERIALIZED stage (an
+    -- optimization fence) so the planner cannot instead enter via the per-layer
+    -- filters applied below: (dataset_id, soil_property_id) is also a prefix of
+    -- that same index, but with feature_id/layer_id unpinned it is far less
+    -- selective and can multiply row counts badly on large AOIs / broad date
+    -- ranges (regression found via live EXPLAIN, SP-5492) if the planner is left
+    -- free to choose it as the starting join instead.
+    target_layers_by_feature AS MATERIALIZED (
       SELECT dl.*, matching_features.geom AS feature_geom
       FROM ${schema}.dataset_layers dl
       INNER JOIN target_dataset td ON td.id = dl.dataset_id
       ${featureJoin}
+    ),
+    -- Per-layer filters (soil_property, license, depth, date, horizon) applied on
+    -- top of the already feature-matched, materialized set above, so they shrink
+    -- target_layers itself instead of being re-checked once per observation later
+    -- joined to it — without reopening a second path into dataset_layers/layers.
+    target_layers AS MATERIALIZED (
+      SELECT tl.*
+      FROM target_layers_by_feature tl
+      INNER JOIN target_dataset td ON td.id = tl.dataset_id
       ${targetLayersJoins}
       WHERE 1=1
         ${whereClause}
