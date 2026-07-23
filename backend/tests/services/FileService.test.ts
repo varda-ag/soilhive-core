@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, beforeEach } from '@jest/globals';
 import fs from 'fs';
 import path from 'path';
+import { execFileSync } from 'child_process';
 import FileService from '../../src/services/FileService';
 import { VectorFileMetadata } from '../../src/interfaces/File';
 import { getTableColumns } from '../helper';
@@ -485,17 +486,28 @@ describe('FileService', () => {
     });
 
     it('should populate band min/max only when cached in a PAM sidecar (.aux.xml)', async () => {
-      const metadata = await fileService.extractMetadata(requestData, 'bdod_5-15cm_mean.tif');
-      if (!metadata.is_raster) throw new Error('expected raster metadata');
+      // gdalinfo -stats writes a PAM sidecar (bdod_5-15cm_mean.tif.aux.xml) caching the band's real
+      // min/max; generated here rather than committed since GDAL's .aux.xml output isn't stable across
+      // versions and the raster/*.aux.xml glob is otherwise gitignored (see .gitignore).
+      const tifPath = path.join(rasterFilesPath, 'bdod_5-15cm_mean.tif');
+      const auxPath = `${tifPath}.aux.xml`;
+      execFileSync('gdalinfo', ['-stats', tifPath]);
 
-      expect(metadata.raster_bands).toHaveLength(1);
-      expect(metadata.raster_bands[0]).toMatchObject({
-        band_number: 1,
-        data_type: 'Int16',
-        min_value: 89,
-        max_value: 112,
-        no_data_value: -32768,
-      });
+      try {
+        const metadata = await fileService.extractMetadata(requestData, 'bdod_5-15cm_mean.tif');
+        if (!metadata.is_raster) throw new Error('expected raster metadata');
+
+        expect(metadata.raster_bands).toHaveLength(1);
+        expect(metadata.raster_bands[0]).toMatchObject({
+          band_number: 1,
+          data_type: 'Int16',
+          min_value: 89,
+          max_value: 112,
+          no_data_value: -32768,
+        });
+      } finally {
+        fs.rmSync(auxPath, { force: true });
+      }
     });
 
     it('should populate band overview pyramid sizes', async () => {
