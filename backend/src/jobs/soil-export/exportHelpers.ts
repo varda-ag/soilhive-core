@@ -1,11 +1,9 @@
 import * as path from 'path';
-import { Readable } from 'stream';
 import { Polygon, MultiPolygon } from 'geojson';
 import SoilDataStorage from '../../data-layer/SoilDataStorage';
 import { JsonStorage } from '../../entities/JsonStorage';
 import { RequestData } from '../../interfaces/RequestData';
 import { SoilDataSample } from '../../interfaces/SoilDataSample';
-import ConfigService from '../../services/ConfigService';
 import FileService from '../../services/FileService';
 import FilterService from '../../services/FilterService';
 import RasterFilterService from '../../services/RasterFilterService';
@@ -62,14 +60,6 @@ export function groupByProperty(samples: SoilDataSample[]): GroupedRecords {
   return grouped;
 }
 
-async function streamToBuffer(stream: Readable): Promise<Buffer> {
-  const chunks: Buffer[] = [];
-  for await (const chunk of stream) {
-    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-  }
-  return Buffer.concat(chunks);
-}
-
 async function getFilterString(requestData: RequestData, filterEntity: FilterCriteria): Promise<string | null> {
   const parts: string[] = [];
 
@@ -121,15 +111,8 @@ async function getFilterString(requestData: RequestData, filterEntity: FilterCri
 export async function createReadmeFile(requestData: RequestData, tempDir: string, payload: ExportJobParameters): Promise<void> {
   const readmePath = path.join(tempDir, 'Readme.pdf');
 
-  const configService = new ConfigService();
-  const logoFileKey = await configService.getLogoFileKey(requestData.entityManager.getRepository(JsonStorage));
-
-  let logoBuffer: Buffer | null = null;
-  if (logoFileKey) {
-    const storage = FileService.getStorageEngine();
-    const logoStream = await storage.read(logoFileKey);
-    logoBuffer = await streamToBuffer(logoStream as Readable);
-  }
+  const logo = await FileService.getLogo(requestData.entityManager.getRepository(JsonStorage));
+  const logoBuffer: Buffer | null = logo?.buffer ?? null;
 
   const datasets = await getEntities(requestData, DatasetEntity, EntityType.DATASET, payload.dataset_ids);
   const datasetPdfInfo = datasets.map(ds => ({
