@@ -86,6 +86,12 @@ export async function ingestRaster(opts: IngestRasterOptions): Promise<string> {
   // Phase 1: read file header only — needed before inserting raster_layer to get resolution/bbox.
   const { nodata, resolution, bbox } = await analyzeRasterMeta(cogPath, opts.nodata);
   log.info('Raster metadata ready', { resolution });
+  // nodata_value is an int column, but Float32 rasters carry huge out-of-range sentinels (e.g. -3.4e+38)
+  // that Postgres can't parse as an integer. Store those as null — it's just a marker, not real data.
+  const INT4_MIN = -2147483648;
+  const INT4_MAX = 2147483647;
+  const roundedNodata = nodata == null ? null : Math.round(nodata);
+  const dbNodataValue = roundedNodata != null && roundedNodata >= INT4_MIN && roundedNodata <= INT4_MAX ? roundedNodata : null;
 
   const outName = path.basename(cogPath);
   const bboxJson = JSON.stringify(bbox);
@@ -168,7 +174,7 @@ export async function ingestRaster(opts: IngestRasterOptions): Promise<string> {
        $7, ST_SetSRID(ST_GeomFromGeoJSON($3), 4326), $8
      FROM file_ins, ds_ins, sp_ins
      RETURNING id`,
-    [outName, opts.dataset, bboxJson, opts.soilPropertyCategory, opts.soilProperty, resolution, nodata, procedureId],
+    [outName, opts.dataset, bboxJson, opts.soilPropertyCategory, opts.soilProperty, resolution, dbNodataValue, procedureId],
   );
 
   const rasterLayerId = (result as { id: string }[])[0]!.id;
