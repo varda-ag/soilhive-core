@@ -1,5 +1,163 @@
 # Changelog
 
+## 1.0.0 (2026-07-23)
+
+## What's Changed
+* fix: sp-5288 missing visibility property in filter coverage endpoint response by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/582
+* fix: geotiff file open from s3 by @svaccari in https://github.com/varda-ag/soilhive-core/pull/584
+* fix: sp-5283 require at least one soil property mapping by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/585
+* fix: sp-5287 orphan staging table cleanup by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/587
+* fix: dataPreview cleaning by @d-rom in https://github.com/varda-ag/soilhive-core/pull/586
+* feat: sp-5266 - datasets access filters by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/589
+* fix: clear token with OIDC provider by @svaccari in https://github.com/varda-ag/soilhive-core/pull/591
+* feat: sp-5292 - warning about row deletion during preview by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/592
+* feat: sp-5053 - alert popup when leaving ingestion flow by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/590
+* fix: sp-5253 uploading a polygon or search for a location doesn't work the second time by @cristbello in https://github.com/varda-ag/soilhive-core/pull/594
+* feat: token iss by @svaccari in https://github.com/varda-ag/soilhive-core/pull/596
+* chore(deps): update postgis/postgis:18-3.6 docker digest to 804c0a7 by @varda-renovate[bot] in https://github.com/varda-ag/soilhive-core/pull/588
+* fix: sp-5299 - ui enhancement on the publication page by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/598
+* fix(be): sp-5280 fix database creation by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/597
+* fix(be): sp-SP-5280 remove gdal build from source by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/599
+* feat: sp-5291 - docs links on ingestion steps by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/595
+* feat: sp-5290 - metadata page last update by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/600
+* feat: sp-5266 - datasets sidebar list item update by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/601
+* feat: sp-5053 - leave ingestion popup turned on by default on edit by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/602
+* fix: sp-5304 - mapping step only low level properties selection by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/603
+* fix: sp-5301 - dataset general info description field limit by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/604
+* fix: depth ranges mapping by @d-rom in https://github.com/varda-ag/soilhive-core/pull/605
+* feat: performance suite by @svaccari in https://github.com/varda-ag/soilhive-core/pull/606
+* feat: sp-5265 added optional related resources and preprocessing steps in metadata page by @cristbello in https://github.com/varda-ag/soilhive-core/pull/607
+* fix: update cursor creation to new logic in bulk-load job by @d-rom in https://github.com/varda-ag/soilhive-core/pull/608
+* feat: new features in perf suite by @svaccari in https://github.com/varda-ag/soilhive-core/pull/610
+* fix(be): sp-5321 fix Excel ingestion with lat/lon columns by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/609
+* feat: sp-5265 added dirty state to en/dis-able save button by @cristbello in https://github.com/varda-ag/soilhive-core/pull/611
+* fix: detail xlsx and GPKG constraints by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/613
+* fix: expired token removal by @svaccari in https://github.com/varda-ag/soilhive-core/pull/614
+* fix: explicit null check for metadata columns by @d-rom in https://github.com/varda-ag/soilhive-core/pull/615
+* fix: sp-5177 raster download optimizations by @d-rom in https://github.com/varda-ag/soilhive-core/pull/612
+* fix: sp-5326 exclude unavailable initialVisibleColumns from MultiSelect value by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/619
+* fix: sp-5218 google tag manager not loading correctly and emitting analytics by @cristbello in https://github.com/varda-ag/soilhive-core/pull/618
+* chore(deps): update postgis/postgis:18-3.6 docker digest to c48eb51 by @varda-renovate[bot] in https://github.com/varda-ag/soilhive-core/pull/616
+* feat: added frontend feature flags by @svaccari in https://github.com/varda-ag/soilhive-core/pull/621
+* feat(be): sp-5331 surface dataset ingestion errors by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/617
+* fix(UI): sp-5341 fix mapping details placeholder by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/622
+* fix: sp-5218 fixed cookie popup not affecting analytics and added them also on datasets routes by @cristbello in https://github.com/varda-ag/soilhive-core/pull/623
+* fix: sp-5346 - private datasets are selecteble only for logged in users by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/626
+* feat: data cleaning summary by @d-rom in https://github.com/varda-ag/soilhive-core/pull/624
+* fix: sp-5337 - preview step horizontal scrollbar by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/627
+* feat: sp-5332 surface dataset ingestion errors by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/625
+* fix(be): sp-5332 improve ingestion flow messages in case of errors by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/628
+* fix: sp-5340 license dropdown in metadata page unusable by @cristbello in https://github.com/varda-ag/soilhive-core/pull/629
+* feat: storing user geometries in dedicated table by @svaccari in https://github.com/varda-ag/soilhive-core/pull/593
+* fix: sp-5351 metadata link now opens in a new tab by @cristbello in https://github.com/varda-ag/soilhive-core/pull/630
+* fix: soil export filename sanitizing, polygonal counts in ds list by @d-rom in https://github.com/varda-ag/soilhive-core/pull/631
+* chore: add vocabulary items by @d-rom in https://github.com/varda-ag/soilhive-core/pull/620
+* feat: refresh token on 401 by @svaccari in https://github.com/varda-ag/soilhive-core/pull/633
+* fix: enable postgis_gdal_drivers in docker compose by @d-rom in https://github.com/varda-ag/soilhive-core/pull/635
+* refactor: merging migrations by @svaccari in https://github.com/varda-ag/soilhive-core/pull/634
+* fix: map min zoom level by @svaccari in https://github.com/varda-ag/soilhive-core/pull/638
+* feat: sp-5334 mandatory metadata fields ux by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/632
+* feat: sp-5352 made unpublished metadata page only accessible by admin by @cristbello in https://github.com/varda-ag/soilhive-core/pull/636
+* chore(deps): update quay.io/keycloak/keycloak:latest docker digest to 9b03307 by @varda-renovate[bot] in https://github.com/varda-ag/soilhive-core/pull/637
+* feat: storing email instead of sub by @svaccari in https://github.com/varda-ag/soilhive-core/pull/640
+* fix: server side token from cookie by @svaccari in https://github.com/varda-ag/soilhive-core/pull/642
+* feat: sp-5364 add updated-by column to datasets publication table by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/639
+* chore(deps): update quay.io/keycloak/keycloak:latest docker digest to 20e96e4 by @varda-renovate[bot] in https://github.com/varda-ag/soilhive-core/pull/643
+* chore(deps): update postgis/postgis:18-3.6 docker digest to db37d16 by @varda-renovate[bot] in https://github.com/varda-ag/soilhive-core/pull/645
+* Feature/sp 5336 preview step summary by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/641
+* fix: soil data preview caching by @svaccari in https://github.com/varda-ag/soilhive-core/pull/646
+* fix: discard duplicate rows before duplicate cells, percentage units … by @d-rom in https://github.com/varda-ag/soilhive-core/pull/644
+* feat: sp-5336 - accordion transition, infocard responsivness by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/648
+* feat: sp-5333 dynamic download format options by dataset type by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/647
+* fix: sp-5372 - dataset publication title on the subpages by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/649
+* docs: added recommendations regarding infrastructure sizing by @robertoprato in https://github.com/varda-ag/soilhive-core/pull/564
+* fix: update sanitizeField to comply with sqlite rules by @d-rom in https://github.com/varda-ag/soilhive-core/pull/652
+* feat: loading plugins from config by @svaccari in https://github.com/varda-ag/soilhive-core/pull/650
+* fix: sp-5387 include visibility in raster dataset response by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/651
+* fix(fe): sp-5393 fix file-to-db job invocation by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/655
+* feat: plugin support by @svaccari in https://github.com/varda-ag/soilhive-core/pull/654
+* fix: sp-5333 align download dropdown by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/656
+* feat: sp-5392 data cleaning fixes by @d-rom in https://github.com/varda-ag/soilhive-core/pull/658
+* feat: removed email from required token claims by @svaccari in https://github.com/varda-ag/soilhive-core/pull/660
+* fix: sp-5393 fix file status on error by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/662
+* feat:sp-5392 data cleaning fixes by @d-rom in https://github.com/varda-ag/soilhive-core/pull/663
+* fix: sp-5333 fix download dropdown by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/661
+* feat: sp-5373 poll dataset publication page for live status updates by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/659
+* fix: sp-5333 download typography by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/664
+* chore: procedures data cleanup by @d-rom in https://github.com/varda-ag/soilhive-core/pull/665
+* feat: sp-5388 raster downloads optimization by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/666
+* feat: sp-5311 data cleaning OOB check fixes by @d-rom in https://github.com/varda-ag/soilhive-core/pull/668
+* feat: sp-5314 - dai visualization settings and widget by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/667
+* fix: null data in job, error messages by @svaccari in https://github.com/varda-ag/soilhive-core/pull/669
+* fix: snap output bounds to the source pixel grid by @d-rom in https://github.com/varda-ag/soilhive-core/pull/671
+* docs: sp-5400 docs for soil ingestion and data mapping by @cristbello in https://github.com/varda-ag/soilhive-core/pull/674
+* feat: sp-5134 - dai visualization fixes by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/673
+* feat: query optimizations, new queryDebugMiddleware by @svaccari in https://github.com/varda-ag/soilhive-core/pull/672
+* chore(deps): update postgis/postgis:18-3.6 docker digest to f248a10 by @varda-renovate[bot] in https://github.com/varda-ag/soilhive-core/pull/675
+* chore(deps): update quay.io/keycloak/keycloak:latest docker digest to 0aae0de by @varda-renovate[bot] in https://github.com/varda-ag/soilhive-core/pull/657
+* feat: sp-5408 - enhancements to the dai implementation by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/676
+* feat: cache layer by @svaccari in https://github.com/varda-ag/soilhive-core/pull/677
+* feat: sp-5314-dai-widget-style-updates by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/678
+* feat: sp-5314 - searchbar fix on mobile by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/679
+* refactor: use standalone workflows by @Butterneck in https://github.com/varda-ag/soilhive-core/pull/670
+* feat: sp-5405 hidden map attribution in mobile and thumbnail by @cristbello in https://github.com/varda-ag/soilhive-core/pull/681
+* feat: sp-5406 show map's scale only when zooming in/out in mobile by @cristbello in https://github.com/varda-ag/soilhive-core/pull/682
+* fix: dataset table sorting by @svaccari in https://github.com/varda-ag/soilhive-core/pull/684
+* feat: sp-5165 - users are notified that raster preview is not supported by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/685
+* fix: sp-5416 - dai selection is saved after the navigation by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/686
+* perf: dai without filters precompute by @svaccari in https://github.com/varda-ag/soilhive-core/pull/683
+* feat: sp-5404 added varda attribution in availability page by @cristbello in https://github.com/varda-ag/soilhive-core/pull/688
+* feat: sp-5414 - necessary changes to the metadata page by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/687
+* fix: added conversion logic for rasterIngestService by @d-rom in https://github.com/varda-ag/soilhive-core/pull/692
+* docs: update data-model documentation by @estermiglio in https://github.com/varda-ag/soilhive-core/pull/690
+* feat: sp-4722 - drag n drop upload on the map by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/693
+* perf: dai in-query aoi by @svaccari in https://github.com/varda-ag/soilhive-core/pull/694
+* docs: coverage map by @svaccari in https://github.com/varda-ag/soilhive-core/pull/691
+* fix: sp-5427 merge processing_steps fields by @d-rom in https://github.com/varda-ag/soilhive-core/pull/696
+* docs: coverage by @svaccari in https://github.com/varda-ag/soilhive-core/pull/698
+* fix: processing_steps update behavior, reference_period start and sto… by @d-rom in https://github.com/varda-ag/soilhive-core/pull/699
+* fix: processing_steps type error by @d-rom in https://github.com/varda-ag/soilhive-core/pull/700
+* feat: supporting visibility and data type filters by @svaccari in https://github.com/varda-ag/soilhive-core/pull/701
+* feat: sp-5421 metadata page shows required fields by @cristbello in https://github.com/varda-ag/soilhive-core/pull/702
+* docs: added details on scope for contributions by @robertoprato in https://github.com/varda-ag/soilhive-core/pull/697
+* feat: sp-5421 fixed metadata toprow positioning by @cristbello in https://github.com/varda-ag/soilhive-core/pull/705
+* fix: sp-5431 - failed job request issue by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/695
+* fix: add laboratory_method information to raster layers by @d-rom in https://github.com/varda-ag/soilhive-core/pull/706
+* fix: mapping dropdown options by @svaccari in https://github.com/varda-ag/soilhive-core/pull/704
+* fix: endpoint scopes by @svaccari in https://github.com/varda-ag/soilhive-core/pull/707
+* fix: sp-5421 fixed missing striped rows in metadata page by @cristbello in https://github.com/varda-ag/soilhive-core/pull/708
+* fix: sp-5461 fixed link to download terms and conditions by @cristbello in https://github.com/varda-ag/soilhive-core/pull/711
+* feat: sp-5446 leave explore button enabled for raster data by @cristbello in https://github.com/varda-ag/soilhive-core/pull/710
+* docs: quickstart guide lets you boot up a fully functioning env with a single command [SP-5437] by @robertoprato in https://github.com/varda-ag/soilhive-core/pull/703
+* fix: avoid loading invalid depth ranges by @d-rom in https://github.com/varda-ag/soilhive-core/pull/712
+* fix: epsg selection by @svaccari in https://github.com/varda-ag/soilhive-core/pull/709
+* fix: sp-5448 delete values below lod (-999) by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/714
+* feat: sp-4722 - upload geojson modal by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/713
+* fix: sp-5452 - sticky bottom navbar in the ingestion process by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/716
+* fix: discarding mixed geometries by @svaccari in https://github.com/varda-ag/soilhive-core/pull/715
+* fix: sp-5464 cleaningCte fix for tables with >50 cols by @d-rom in https://github.com/varda-ag/soilhive-core/pull/718
+* feat: sp-5426 store per-file cleaning stats on bulk-load by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/717
+* feat: raster filter toggle endpoint by @svaccari in https://github.com/varda-ag/soilhive-core/pull/719
+* test: raster filtering by @svaccari in https://github.com/varda-ag/soilhive-core/pull/721
+* chore: release 1.0.0 by @svaccari in https://github.com/varda-ag/soilhive-core/pull/722
+* feat: sp-5449 admins can now (de)activate raster filters previously enabled by @cristbello in https://github.com/varda-ag/soilhive-core/pull/720
+* feat: sp-5459 dataset table redesign by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/723
+* feat: sp-5459 - translation fix by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/725
+* feat: raster metadata extraction by @svaccari in https://github.com/varda-ag/soilhive-core/pull/724
+* fix: removed custom licenses from seed sql by @d-rom in https://github.com/varda-ag/soilhive-core/pull/726
+* feat: sp-5449 upadte admin filters raster by @cristbello in https://github.com/varda-ag/soilhive-core/pull/727
+* fix: raster overviews in metadata by @svaccari in https://github.com/varda-ag/soilhive-core/pull/728
+* feat: sp-5220 clarified unclear meaning of Data Points in the download sections by @cristbello in https://github.com/varda-ag/soilhive-core/pull/729
+* fix: sp-5485 info tooltip going under the table by @cristbello in https://github.com/varda-ag/soilhive-core/pull/731
+* feat: sp-5490 made publishing dataset have the same checks of metadat… by @cristbello in https://github.com/varda-ag/soilhive-core/pull/730
+* docs: added link to infrastructure documentation by @robertoprato in https://github.com/varda-ag/soilhive-core/pull/732
+
+## New Contributors
+* @robertoprato made their first contribution in https://github.com/varda-ag/soilhive-core/pull/564
+* @estermiglio made their first contribution in https://github.com/varda-ag/soilhive-core/pull/690
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v0.90.0...v1.0.0
+
 ## 0.90.0 (2026-06-05)
 
 ## What's Changed
