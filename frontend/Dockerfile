@@ -46,5 +46,5 @@ USER appuser
 # Expose the Node server port
 EXPOSE 3000
 
-# The server generates dist/client/env-config.js at startup from runtime env vars.
+# The server inlines runtime env vars (window._env_) into index.html at request time.
 CMD ["node", "/app/dist/server/index.cjs"]
