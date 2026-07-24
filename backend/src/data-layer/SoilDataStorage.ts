@@ -1045,37 +1045,53 @@ const buildRawSoilQuery = (
 
   // ── slug placeholders ────────────────────────────────────────────────────────
   const slugPlaceholders = datasetSlugs.map(s => p(s)).join(', ');
+
+  // Per-dataset_layer filters. None of these reference obs/procedure, so they
+  // are evaluated once while building target_layers (below) rather than once
+  // per observation joined to it.
   const whereClauses: string[] = [];
+  let needsLayerJoin = false;
+  let needsSoilPropertyJoin = false;
+  let needsLicenseJoin = false;
 
   if (filters.data_types && filters.data_types.length > 0) {
     const dtPlaceholders = filters.data_types.map((v: string) => p(v)).join(', ');
-    whereClauses.push(`ds.gis_datatype IN (${dtPlaceholders})`);
+    whereClauses.push(`td.gis_datatype IN (${dtPlaceholders})`);
   }
   if (filters.min_sampling_date === null) {
+    needsLayerJoin = true;
     whereClauses.push('layer.sampling_date IS NULL');
   } else if (filters.min_sampling_date) {
-    whereClauses.push(`ds.reference_period_stop >= ${p(filters.min_sampling_date)}`);
+    needsLayerJoin = true;
+    whereClauses.push(`td.reference_period_stop >= ${p(filters.min_sampling_date)}`);
     whereClauses.push(`layer.sampling_date >= ${p(filters.min_sampling_date)}`);
   }
   if (filters.max_sampling_date === null) {
+    needsLayerJoin = true;
     whereClauses.push('layer.sampling_date IS NULL');
   } else if (filters.max_sampling_date) {
-    whereClauses.push(`ds.reference_period_start <= ${p(filters.max_sampling_date)}`);
+    needsLayerJoin = true;
+    whereClauses.push(`td.reference_period_start <= ${p(filters.max_sampling_date)}`);
     whereClauses.push(`layer.sampling_date <= ${p(filters.max_sampling_date)}`);
   }
   if (filters.min_depth === null) {
+    needsLayerJoin = true;
     whereClauses.push('layer.min_depth IS NULL');
   } else if (filters.min_depth !== undefined) {
-    whereClauses.push(`(ds.soil_depth->>'max')::int >= ${p(filters.min_depth)}`);
+    needsLayerJoin = true;
+    whereClauses.push(`(td.soil_depth->>'max')::int >= ${p(filters.min_depth)}`);
     whereClauses.push(`layer.max_depth >= ${p(filters.min_depth)}`);
   }
   if (filters.max_depth === null) {
+    needsLayerJoin = true;
     whereClauses.push('layer.max_depth IS NULL');
   } else if (filters.max_depth !== undefined) {
-    whereClauses.push(`(ds.soil_depth->>'min')::int <= ${p(filters.max_depth)}`);
+    needsLayerJoin = true;
+    whereClauses.push(`(td.soil_depth->>'min')::int <= ${p(filters.max_depth)}`);
     whereClauses.push(`layer.min_depth <= ${p(filters.max_depth)}`);
   }
   if (filters.horizons && filters.horizons.length > 0) {
+    needsLayerJoin = true;
     const nonNull = filters.horizons.filter((h: any) => h !== null);
     const hPlaceholders = nonNull.map((h: string | null) => p(h)).join(', ');
     const nullClause = filters.horizons.includes(null) ? ' OR layer.horizon IS NULL' : '';
@@ -1086,15 +1102,30 @@ const buildRawSoilQuery = (
     }
   }
   if (filters.soil_properties && filters.soil_properties.length > 0) {
+    needsSoilPropertyJoin = true;
     const spPlaceholders = filters.soil_properties.map((v: string) => p(v)).join(', ');
     whereClauses.push(`soil_property.slug IN (${spPlaceholders})`);
   }
   if (filters.licenses && filters.licenses.length > 0) {
+    needsLayerJoin = true;
+    needsLicenseJoin = true;
     const lPlaceholders = filters.licenses.map((v: string) => p(v)).join(', ');
     whereClauses.push(`license.slug IN (${lPlaceholders})`);
   }
 
   const whereClause = whereClauses.length > 0 ? `AND ${whereClauses.join('\n  AND ')}` : '';
+  // Aliased to tl (target_layers_by_feature), not dl: these joins apply on top of the
+  // already feature-matched, materialized set — see the target_layers CTE comment below
+  // for why they must not be joined directly onto dataset_layers.
+  const targetLayersJoins = [
+    needsLayerJoin ? `LEFT JOIN ${schema}.layers layer ON layer.id = tl.layer_id` : '',
+    needsSoilPropertyJoin
+      ? `LEFT JOIN ${schema}.soil_properties soil_property ON soil_property.id = tl.soil_property_id AND soil_property.deleted_at IS NULL`
+      : '',
+    needsLicenseJoin ? `LEFT JOIN ${schema}.licenses license ON license.id = layer.license AND license.deleted_at IS NULL` : '',
+  ]
+    .filter(Boolean)
+    .join('\n      ');
 
   // ── spatial + raster CTEs ────────────────────────────────────────────────────
   const aoi_cte = hasGeometry
@@ -1246,18 +1277,38 @@ const buildRawSoilQuery = (
     ${usesMatchingFeatures ? `${rasterCtes},` : candidate_features_cte}
     -- Resolve slug(s) to dataset id(s) first — drives the join order
     target_dataset AS MATERIALIZED (
-      SELECT ds.id
+      SELECT ds.id, ds.gis_datatype, ds.reference_period_start, ds.reference_period_stop, ds.soil_depth
       FROM ${schema}.datasets ds
       WHERE ds.slug IN (${slugPlaceholders})
         AND ds.deleted_at IS NULL
         ${datasetSpatialFilter}
     ),
-    -- Narrow dataset_layers using index on dataset_id before touching observations
-    target_layers AS MATERIALIZED (
+    -- Narrow dataset_layers by dataset + spatial feature match ONLY, using the
+    -- (dataset_id, feature_id) prefix of the dataset_layers unique index — this is
+    -- always the selective entry point. Kept as its own MATERIALIZED stage (an
+    -- optimization fence) so the planner cannot instead enter via the per-layer
+    -- filters applied below: (dataset_id, soil_property_id) is also a prefix of
+    -- that same index, but with feature_id/layer_id unpinned it is far less
+    -- selective and can multiply row counts badly on large AOIs / broad date
+    -- ranges (regression found via live EXPLAIN, SP-5492) if the planner is left
+    -- free to choose it as the starting join instead.
+    target_layers_by_feature AS MATERIALIZED (
       SELECT dl.*, matching_features.geom AS feature_geom
       FROM ${schema}.dataset_layers dl
       INNER JOIN target_dataset td ON td.id = dl.dataset_id
       ${featureJoin}
+    ),
+    -- Per-layer filters (soil_property, license, depth, date, horizon) applied on
+    -- top of the already feature-matched, materialized set above, so they shrink
+    -- target_layers itself instead of being re-checked once per observation later
+    -- joined to it — without reopening a second path into dataset_layers/layers.
+    target_layers AS MATERIALIZED (
+      SELECT tl.*
+      FROM target_layers_by_feature tl
+      INNER JOIN target_dataset td ON td.id = tl.dataset_id
+      ${targetLayersJoins}
+      WHERE 1=1
+        ${whereClause}
     )`;
 
   // FROM/JOIN block anchored on target_layers, used for the count phase.
@@ -1266,13 +1317,14 @@ const buildRawSoilQuery = (
     INNER JOIN ${schema}.observations obs ON obs.dataset_layer_id = dl.id
     ${leftJoinBlock}`;
 
-  // The `matched` phase anchors on observations instead, reached through an
-  // `= ANY(ARRAY(...))` predicate on dataset_layer_id (the same idiom used for
-  // dataset_layers.feature_id). This forces an index scan on
-  // observations(dataset_layer_id); without it the planner seq-scans the whole
-  // observations table and hash-joins, because the MATERIALIZED CTEs strip
-  // statistics and grossly inflate the target_layers/matched row estimates,
-  // making the one-pass hash join look cheaper than the index probes it isn't.
+  // The `matched` phase anchors on observations instead, reached through the
+  // `INNER JOIN target_layers dl ON dl.id = obs.dataset_layer_id` below, which
+  // forces an index scan on observations(dataset_layer_id) via the correlated
+  // equality alone. (An earlier revision additionally filtered on
+  // `obs.dataset_layer_id = ANY(ARRAY(SELECT id FROM target_layers))` — logically
+  // redundant with this join — as a planner nudge; measured live, that redundant
+  // array-membership check was itself re-evaluated once per joined row against
+  // the full target_layers id set, dominating query time, so it was removed.)
   // target_layers is still joined back for the projection/filter columns.
   const matchedFrom = `FROM ${schema}.observations obs
     INNER JOIN target_layers dl ON dl.id = obs.dataset_layer_id
@@ -1285,15 +1337,13 @@ const buildRawSoilQuery = (
     ${ctePrefix}
     SELECT ${selectColumns}
     ${baseFrom}
-    WHERE 1=1
-      ${whereClause}
   `;
   } else {
     // Two-phase keyset pagination — avoids the early-stopping observations_pkey
     // index scan that made `ORDER BY obs.id ASC LIMIT n` effectively non-terminating
     // when matching rows are sparse:
     //  • matched: filter-first, keys only, no ORDER BY/LIMIT → reaches observations
-    //    by index on dataset_layer_id (ANY-array predicate) instead of walking the PK.
+    //    by index on dataset_layer_id (the target_layers join) instead of walking the PK.
     //  • page: ORDER BY + LIMIT over the *materialized* keys → cheap Top-N, the base
     //    index is no longer reachable so the bad plan can't recur.
     //  • outer: project the heavy columns for the LIMIT rows only.
@@ -1303,8 +1353,7 @@ const buildRawSoilQuery = (
     matched AS MATERIALIZED (
       SELECT obs.id${sortExpr ? `, ${sortExpr} AS __sort_val` : ''}
       ${matchedFrom}
-      WHERE obs.dataset_layer_id = ANY(ARRAY(SELECT id FROM target_layers)::uuid[])
-        ${whereClause}
+      WHERE 1=1
         ${cursorClause}
     ),
     page AS (
