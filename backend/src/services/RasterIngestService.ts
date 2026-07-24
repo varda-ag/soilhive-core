@@ -145,12 +145,13 @@ export async function ingestRaster(opts: IngestRasterOptions): Promise<string> {
        RETURNING *
      ),
      ds_ins AS (
-       INSERT INTO datasets ("name", created_by, spatial_extent, gis_datatype, n_raster_layers, status)
-       VALUES ($2, 'data-admin', ST_SetSRID(ST_GeomFromGeoJSON($3), 4326), 'raster', 1, 'LOADED')
+       INSERT INTO datasets ("name", created_by, spatial_extent, gis_datatype, spatial_resolution, n_raster_layers, status)
+       VALUES ($2, 'data-admin', ST_SetSRID(ST_GeomFromGeoJSON($3), 4326), 'raster', $6::text || 'm', 1, 'LOADED')
        ON CONFLICT ("name") WHERE deleted_at IS NULL DO UPDATE SET
          updated_at = now(),
          spatial_extent = COALESCE(datasets.spatial_extent, EXCLUDED.spatial_extent),
          gis_datatype = COALESCE(datasets.gis_datatype, EXCLUDED.gis_datatype),
+         spatial_resolution = COALESCE(datasets.spatial_resolution, EXCLUDED.spatial_resolution),
          n_raster_layers = datasets.n_raster_layers + 1
        RETURNING *
      ),
@@ -171,7 +172,7 @@ export async function ingestRaster(opts: IngestRasterOptions): Promise<string> {
        nodata_value, bbox, procedure_id
      )
      SELECT
-       file_ins.id, ds_ins.id, sp_ins.id, $6,
+       file_ins.id, ds_ins.id, sp_ins.id, $6::int,
        $7, ST_SetSRID(ST_GeomFromGeoJSON($3), 4326), $8
      FROM file_ins, ds_ins, sp_ins
      RETURNING id`,

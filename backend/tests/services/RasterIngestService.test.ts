@@ -32,6 +32,9 @@ describe('RasterIngestService', () => {
         layers[0].id,
       ]);
       expect(parseInt(count, 10)).toBeGreaterThan(0);
+
+      const [dataset] = await ds.query(`SELECT spatial_resolution FROM datasets WHERE name = $1`, ['test-raster-local']);
+      expect(dataset.spatial_resolution).toBe(`${layers[0].resolution_m}m`);
     });
 
     it('stores an out-of-range float32 nodata sentinel as null instead of failing the insert', async () => {
@@ -76,6 +79,9 @@ describe('RasterIngestService', () => {
         layers[0].id,
       ]);
       expect(parseInt(count, 10)).toBeGreaterThan(0);
+
+      const [dataset] = await ds.query(`SELECT spatial_resolution FROM datasets WHERE name = $1`, ['test-raster-s3']);
+      expect(dataset.spatial_resolution).toBe(`${layers[0].resolution_m}m`);
     });
   });
 });
