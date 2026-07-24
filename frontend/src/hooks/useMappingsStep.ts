@@ -197,7 +197,8 @@ export function useMappingsStep(datasetId?: string) {
   const { t } = useTranslation('admin');
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { markAsChanged, resetChanges } = useIngestionFlow();
+  const { markAsChanged, resetChanges, isRaster } = useIngestionFlow();
+  const [showLoadingPanel, setShowLoadingPanel] = useState(false);
   const { isLoading: isIngestionLoading, updateFurthestStep } = useIngestionStatus();
   const hasTracked = useRef(false);
 
@@ -339,9 +340,13 @@ export function useMappingsStep(datasetId?: string) {
       setIsImportingState(false);
       setActiveJobIds([]);
       updateFurthestStep(datasetId, 'preview');
-      navigate(`${ADMIN_PATHS.DATASETS}/edit/${datasetId}/preview`);
+      if (isRaster) {
+        setShowLoadingPanel(true);
+      } else {
+        navigate(`${ADMIN_PATHS.DATASETS}/edit/${datasetId}/preview`);
+      }
     }
-  }, [isImportingState, activeJobIds, jobsData, isIngestionLoading, datasetId, updateFurthestStep, navigate]);
+  }, [isImportingState, activeJobIds, jobsData, isIngestionLoading, datasetId, updateFurthestStep, navigate, isRaster]);
 
   const geometryDetected = useMemo(() => {
     if (!files || files.length === 0) return undefined;
@@ -603,7 +608,11 @@ export function useMappingsStep(datasetId?: string) {
     const changed = isMappingChanged(columnMappings, existingMappings?.[0]?.data_mapping, procedureByColumn);
 
     if (!changed && allFilesStaged) {
-      navigate(`${ADMIN_PATHS.DATASETS}/edit/${datasetId}/preview`);
+      if (isRaster) {
+        setShowLoadingPanel(true);
+      } else {
+        navigate(`${ADMIN_PATHS.DATASETS}/edit/${datasetId}/preview`);
+      }
       return;
     }
 
@@ -613,7 +622,18 @@ export function useMappingsStep(datasetId?: string) {
       datasetFileMappings!.map(dfm => createJob({ type: 'file-to-db', file_id: dfm.fileID, dataset_id: datasetId })),
     );
     setActiveJobIds(jobs.map(j => j.id));
-  }, [columnMappings, existingMappings, procedureByColumn, allFilesStaged, save, navigate, datasetId, datasetFileMappings, createJob]);
+  }, [
+    columnMappings,
+    existingMappings,
+    procedureByColumn,
+    allFilesStaged,
+    save,
+    navigate,
+    datasetId,
+    datasetFileMappings,
+    createJob,
+    isRaster,
+  ]);
 
   const datasetName = useMemo(() => {
     return dataset?.name || '';
@@ -623,6 +643,7 @@ export function useMappingsStep(datasetId?: string) {
     isLoading,
     datasetName,
     isImporting,
+    showLoadingPanel,
     geometryMessage,
     depthConflictMessage,
     isSaveEnabled,

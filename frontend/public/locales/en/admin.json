@@ -286,7 +286,7 @@
             "step_description": "Upload your files",
             "title": "Add file/s",
             "template_docs_banner": "Check the template documentation <a>here</a> on Github.",
-            "upload_caption": "Supported formats: CSV, Geopackage, GeoJSON, Shapefile, XLSX and ZIP.",
+            "upload_caption": "Supported formats: CSV, GeoPackage, GeoJSON, Shapefile, XLSX, ZIP and GeoTIFF.",
             "files_uploaded_count": "Files uploaded: {{count}}",
             "clear_all": "Clear all",
             "upload_error": "Error uploading file. Check the template documentation in Github.",
@@ -294,6 +294,7 @@
             "crs_label": "Add a Coordinate Reference System (CRS)",
             "crs_placeholder": "EPSG code, e.g. 4326",
             "invalid_file_type": "Invalid file type",
+            "mixed_format_error": "{{count}} file(s) were discarded. All files must be the same data type — either all vector or all raster.",
             "diff_dialog": {
                 "header": "Field structure mismatch",
                 "missing_fields": "Fields missing from this file",

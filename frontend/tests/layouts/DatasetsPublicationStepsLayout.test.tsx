@@ -81,4 +81,11 @@ describe('DatasetsPublicationStepsLayout', () => {
 
     expect(cancelLeave).toHaveBeenCalledTimes(1);
   });
+
+  it('renders 3 steps without preview for raster datasets', () => {
+    mockIngestionFlow({ isRaster: true });
+    const { container } = render(<DatasetsPublicationStepsLayout />);
+    expect(container.querySelectorAll('.Step')).toHaveLength(3);
+    expect(screen.queryByText('Preview')).not.toBeInTheDocument();
+  });
 });

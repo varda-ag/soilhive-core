@@ -13,6 +13,8 @@ type IngestionFlowContextType = {
   requestLeave: (onConfirm: () => void, onCancel: () => void) => void;
   confirmLeave: () => void;
   cancelLeave: () => void;
+  isRaster: boolean | undefined;
+  setIsRaster: (value: boolean | undefined) => void;
 };
 
 export const IngestionFlowContext = createContext<IngestionFlowContextType | undefined>(undefined);
@@ -24,6 +26,7 @@ type IngestionFlowProviderProps = {
 export const IngestionFlowProvider: React.FC<IngestionFlowProviderProps> = ({ children }) => {
   const [hasChanges, setHasChanges] = useState(false);
   const [isLeaveModalVisible, setIsLeaveModalVisible] = useState(false);
+  const [isRaster, setIsRaster] = useState<boolean | undefined>(undefined);
   const leaveHandlersRef = useRef<LeaveHandlers | null>(null);
 
   const markAsChanged = useCallback(() => {
@@ -54,7 +57,17 @@ export const IngestionFlowProvider: React.FC<IngestionFlowProviderProps> = ({ ch
 
   return (
     <IngestionFlowContext.Provider
-      value={{ hasChanges, markAsChanged, resetChanges, isLeaveModalVisible, requestLeave, confirmLeave, cancelLeave }}
+      value={{
+        hasChanges,
+        markAsChanged,
+        resetChanges,
+        isLeaveModalVisible,
+        requestLeave,
+        confirmLeave,
+        cancelLeave,
+        isRaster,
+        setIsRaster,
+      }}
     >
       {children}
     </IngestionFlowContext.Provider>

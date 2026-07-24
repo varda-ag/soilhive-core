@@ -2,7 +2,7 @@ import { useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { useApiQuery } from './useApiQuery';
-import { useCreateDatasetFileMapping } from 'hooks/useDatasetMutation';
+import { useCreateDatasetFileMapping, useUpdateDatasetMutation } from 'hooks/useDatasetMutation';
 import { useFileUpload } from './useFileUpload';
 import { arraysMatch } from '../utilities/validation';
 import { useFileManagement } from './useFileManagement';
@@ -12,20 +12,22 @@ import { BACKEND_BASE_URL } from '../configuration/api';
 import { useRequest } from '../api-client';
 import type { SoilDataFile } from '../types/soilDataFile';
 import type { FileDescriptor } from 'types/backend';
+import { GISDataType } from 'types/backend';
 import { useTranslation } from 'react-i18next';
 import useIngestionFlow from './useIngestionFlow';
 import { useDataset } from './useDatasets';
 
-export const ALLOWED_EXTENSIONS = ['.csv', '.gpkg', '.geojson', '.shp', '.xlsx', '.zip'];
+export const ALLOWED_EXTENSIONS = ['.csv', '.gpkg', '.geojson', '.shp', '.xlsx', '.zip', '.tif', '.tiff'];
 
 export function useDatasetsSoilData() {
   const { t } = useTranslation('admin');
   const navigate = useNavigate();
   const { request } = useRequest();
   const { id: datasetId } = useParams();
-  const { markAsChanged, resetChanges } = useIngestionFlow();
+  const { markAsChanged, resetChanges, setIsRaster, isRaster } = useIngestionFlow();
   const queryClient = useQueryClient();
   const { mutateAsync: createFileMapping } = useCreateDatasetFileMapping();
+  const { mutateAsync: updateDataset } = useUpdateDatasetMutation(datasetId ?? '');
   const { isLoading: isIngestionLoading, updateFurthestStep } = useIngestionStatus();
 
   const hasTracked = useRef(false);
@@ -42,7 +44,11 @@ export function useDatasetsSoilData() {
   }, [datasetId, isIngestionLoading, updateFurthestStep]);
 
   const [soilDataFiles, setSoilDataFiles] = useState<SoilDataFile[]>([]);
+  const [dataFormatErrors, setDataFormatErrors] = useState<string[]>([]);
   const existingFileIds = useRef<Set<string>>(new Set());
+  // Tracks the format established by the first uploaded/loaded file.
+  // undefined = no files yet; true = raster; false = vector
+  const establishedIsRasterRef = useRef<boolean | undefined>(undefined);
 
   const { data: dataset } = useDataset(datasetId);
   const { data: crsOptions = [] } = useApiQuery<number[]>({
@@ -75,16 +81,29 @@ export function useDatasetsSoilData() {
     setSoilDataFiles(prev => prev.map(f => (f.id === id ? { ...f, ...updates } : f)));
   }, []);
 
-  const {
-    fileInputRef,
-    uploadingFiles,
-    uploadProgress,
-    uploadErrors,
-    handleFiles: handleFilesUpload,
-  } = useFileUpload((uploaded: SoilDataFile) => setSoilDataFiles(prev => [...prev, uploaded]));
+  const { deleteFileAndMapping } = useFileManagement();
+
+  const onFileUploaded = useCallback(
+    (uploaded: SoilDataFile) => {
+      if (establishedIsRasterRef.current === undefined) {
+        establishedIsRasterRef.current = uploaded.isRaster;
+        setIsRaster(uploaded.isRaster);
+        setSoilDataFiles(prev => [...prev, uploaded]);
+      } else if (uploaded.isRaster === undefined || uploaded.isRaster === establishedIsRasterRef.current) {
+        setSoilDataFiles(prev => [...prev, uploaded]);
+      } else {
+        deleteFileAndMapping(uploaded.id);
+        setDataFormatErrors(prev => [...prev, t('datasets.soil_data.mixed_format_error', { count: 1 })]);
+      }
+    },
+    [deleteFileAndMapping, setIsRaster, t],
+  );
+
+  const { fileInputRef, uploadingFiles, uploadProgress, uploadErrors, handleFiles: handleFilesUpload } = useFileUpload(onFileUploaded);
 
   const handleFiles = useCallback(
     (files: FileList | File[] | null) => {
+      setDataFormatErrors([]);
       handleFilesUpload(files);
     },
     [handleFilesUpload],
@@ -97,8 +116,6 @@ export function useDatasetsSoilData() {
     [updateSoilDataFile],
   );
 
-  const { deleteFileAndMapping } = useFileManagement();
-
   // Load all files that are already in the backend
   const { data: existingFiles, isLoading: isLoadingFiles } = useApiQuery<FileDescriptor[]>({
     endpoint: `/datasets/${datasetId}/files`,
@@ -110,28 +127,38 @@ export function useDatasetsSoilData() {
   useEffect(() => {
     if (!existingFiles) return;
     existingFileIds.current = new Set(existingFiles.filter(f => f !== null).map(f => f.id)); // keep track of files that already exist in the backend
-    setSoilDataFiles(
-      // align UI files with backend state
-      existingFiles
-        .filter(f => f !== null)
-        .map(f => ({
-          id: f.id,
-          file: null,
-          name: f.name,
-          crs: null, // manually added by user
-          inferredCrs: f.metadata?.epsg ? `EPSG:${f.metadata.epsg}` : undefined,
-          fieldNames: f.metadata?.field_names,
-          progress: 100,
-        })),
-    );
-  }, [existingFiles]);
+    const mapped = existingFiles
+      .filter(f => f !== null)
+      .map(f => ({
+        id: f.id,
+        file: null,
+        name: f.name,
+        crs: null, // manually added by user
+        inferredCrs: f.metadata?.epsg ? `EPSG:${f.metadata.epsg}` : undefined,
+        fieldNames: f.metadata?.field_names,
+        isRaster: f.metadata?.['is_raster'] as boolean | undefined,
+        progress: 100,
+      }));
+    establishedIsRasterRef.current = mapped[0]?.isRaster;
+    setIsRaster(mapped[0]?.isRaster);
+    setSoilDataFiles(mapped);
+  }, [existingFiles, setIsRaster]);
 
   const removeFile = useCallback(
     async (id: string) => {
       await deleteFileAndMapping(id);
-      setSoilDataFiles(prev => prev.filter(f => f.id !== id));
+      setSoilDataFiles(prev => {
+        const wasFirst = prev[0]?.id === id;
+        const newFiles = prev.filter(f => f.id !== id);
+        if (wasFirst) {
+          // Update established format to the new first file, or reset if list is now empty
+          establishedIsRasterRef.current = newFiles[0]?.isRaster;
+          setIsRaster(newFiles[0]?.isRaster);
+        }
+        return newFiles;
+      });
     },
-    [deleteFileAndMapping],
+    [deleteFileAndMapping, setIsRaster],
   );
 
   const clearAll = useCallback(async () => {
@@ -139,7 +166,12 @@ export function useDatasetsSoilData() {
     const results = await Promise.allSettled(toDeleteIds.map(id => deleteFileAndMapping(id)));
     const deletedIds = toDeleteIds.filter((_, i) => results[i]!.status === 'fulfilled'); // only remove from UI if successfully deleted from backend to avoid mismatch
     setSoilDataFiles(prev => prev.filter(f => !deletedIds.includes(f.id)));
-  }, [soilDataFiles, deleteFileAndMapping]);
+    setDataFormatErrors([]);
+    if (deletedIds.length >= soilDataFiles.length) {
+      establishedIsRasterRef.current = undefined;
+      setIsRaster(undefined);
+    }
+  }, [soilDataFiles, deleteFileAndMapping, setIsRaster]);
 
   const handleSave = useCallback(async () => {
     if (!datasetId) return;
@@ -161,9 +193,12 @@ export function useDatasetsSoilData() {
       ),
     );
 
+    await updateDataset({ gis_datatype: isRaster ? GISDataType.RASTER : null });
+
     await queryClient.invalidateQueries({ queryKey: ['datasets', datasetId, 'files'] }); // if we save successfully, refetch files to make sure UI is in sync with backend
     await queryClient.invalidateQueries({ queryKey: ['datasets', datasetId, 'dataset-file-mapping'] });
-  }, [datasetId, soilDataFiles, createFileMapping, request, queryClient, resetChanges]);
+    await queryClient.invalidateQueries({ queryKey: ['datasets', datasetId] });
+  }, [datasetId, soilDataFiles, createFileMapping, request, queryClient, resetChanges, isRaster, updateDataset]);
 
   const datasetName = useMemo(() => {
     return dataset?.name || '';
@@ -174,7 +209,7 @@ export function useDatasetsSoilData() {
     fileInputRef,
     soilDataFiles: annotatedFiles,
     uploadingFiles,
-    uploadErrors,
+    uploadErrors: [...uploadErrors, ...dataFormatErrors],
     uploadProgress,
     crsOptions,
     isContinueEnabled,
@@ -184,8 +219,8 @@ export function useDatasetsSoilData() {
     removeFile,
     clearAll,
     handlePrevious: () => navigate(`${ADMIN_PATHS.DATASETS}/edit/${datasetId}/general-info`),
-    handleSaveAndContinueLater: () => {
-      handleSave();
+    handleSaveAndContinueLater: async () => {
+      await handleSave();
       navigate(ADMIN_PATHS.DATASETS);
     },
     handleContinue: () => {
