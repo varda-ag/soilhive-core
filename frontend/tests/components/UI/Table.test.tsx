@@ -47,12 +47,15 @@ jest.mock('primereact/datatable', () => ({
 }));
 
 jest.mock('primereact/column', () => ({
-  Column: ({ header, field, sortable, reorderable, headerTooltip, className, body }: any) => (
+  Column: ({ header, field, sortable, reorderable, headerTooltip, className, bodyClassName, frozen, alignFrozen, body }: any) => (
     <div
       data-testid={`mock-column-${field}`}
       data-sortable={String(sortable)}
       data-reorderable={String(reorderable)}
       data-header-tooltip={headerTooltip}
+      data-body-class-name={bodyClassName}
+      data-frozen={String(frozen)}
+      data-align-frozen={alignFrozen}
       className={className}
     >
       <span data-testid={`header-${field}`}>{header}</span>
@@ -174,6 +177,24 @@ describe('Table component', () => {
     const columnsWithTooltip: TableColumn<Row>[] = [{ name: 'Name', value: 'name', headerTooltip: 'Full name of the record' }];
     render(<Table value={rows} columns={columnsWithTooltip} />);
     expect(screen.getByTestId('mock-column-name')).toHaveAttribute('data-header-tooltip', 'Full name of the record');
+  });
+
+  it('passes bodyClassName to Column', () => {
+    const columnsWithBodyClass: TableColumn<Row>[] = [{ name: 'Name', value: 'name', bodyClassName: 'body-cell-class' }];
+    render(<Table value={rows} columns={columnsWithBodyClass} />);
+    expect(screen.getByTestId('mock-column-name')).toHaveAttribute('data-body-class-name', 'body-cell-class');
+  });
+
+  it('passes frozen to Column', () => {
+    const columnsWithFrozen: TableColumn<Row>[] = [{ name: 'Name', value: 'name', frozen: true }];
+    render(<Table value={rows} columns={columnsWithFrozen} />);
+    expect(screen.getByTestId('mock-column-name')).toHaveAttribute('data-frozen', 'true');
+  });
+
+  it('passes alignFrozen to Column', () => {
+    const columnsWithAlignFrozen: TableColumn<Row>[] = [{ name: 'Name', value: 'name', frozen: true, alignFrozen: 'right' }];
+    render(<Table value={rows} columns={columnsWithAlignFrozen} />);
+    expect(screen.getByTestId('mock-column-name')).toHaveAttribute('data-align-frozen', 'right');
   });
 
   it('calls onSort when sort is triggered', () => {

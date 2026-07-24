@@ -110,6 +110,7 @@ exports[`DatasetsPreviewStep matches snapshot 1`] = `
           data-testid="table-columns"
         >
           <div
+            data-frozen="undefined"
             data-testid="table-col-min_depth"
           >
             <p
@@ -119,6 +120,7 @@ exports[`DatasetsPreviewStep matches snapshot 1`] = `
             </p>
           </div>
           <div
+            data-frozen="undefined"
             data-testid="table-col-max_depth"
           >
             <p
@@ -128,6 +130,7 @@ exports[`DatasetsPreviewStep matches snapshot 1`] = `
             </p>
           </div>
           <div
+            data-frozen="undefined"
             data-testid="table-col-ph"
           >
             <p
@@ -137,6 +140,9 @@ exports[`DatasetsPreviewStep matches snapshot 1`] = `
             </p>
           </div>
           <div
+            data-align-frozen="right"
+            data-body-class-name="DeleteBodyCell"
+            data-frozen="true"
             data-testid="table-col-delete"
           >
             <div>

@@ -71,7 +71,10 @@ export type TableColumn<T> = {
   reorderable?: boolean;
   headerTooltip?: string;
   bodyTemplate?: (row: T) => ReactNode;
+  bodyClassName?: string;
   sortFunction?: (event: ColumnSortEvent) => T[];
+  frozen?: boolean;
+  alignFrozen?: 'left' | 'right';
 };
 
 export type InfoCardContent = {

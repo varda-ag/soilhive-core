@@ -63,7 +63,13 @@ jest.mock('components/UI/Table/Table', () => ({
       {emptyMessage && <span data-testid="table-empty-message">{emptyMessage}</span>}
       <div data-testid="table-columns">
         {(columns ?? []).map((col: any) => (
-          <div key={col.value} data-testid={`table-col-${col.value}`}>
+          <div
+            key={col.value}
+            data-testid={`table-col-${col.value}`}
+            data-frozen={String(col.frozen)}
+            data-align-frozen={col.alignFrozen}
+            data-body-class-name={col.bodyClassName}
+          >
             {col.name}
           </div>
         ))}
@@ -254,6 +260,14 @@ describe('DatasetsPreviewStep', () => {
       mockHook({ availableColumns: ['min_depth'] });
       render(<DatasetsPreviewStep />);
       expect(screen.getByTestId('table-col-delete')).toBeInTheDocument();
+    });
+
+    it('renders the delete column as frozen and aligned to the right', () => {
+      mockHook({ availableColumns: ['min_depth'] });
+      render(<DatasetsPreviewStep />);
+      const deleteCol = screen.getByTestId('table-col-delete');
+      expect(deleteCol).toHaveAttribute('data-frozen', 'true');
+      expect(deleteCol).toHaveAttribute('data-align-frozen', 'right');
     });
 
     it('does not pass initialVisibleColumns absent from availableColumns as selected MultiSelect values', () => {

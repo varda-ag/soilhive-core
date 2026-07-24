@@ -122,21 +122,26 @@ export function Table<T extends object>({
       onPage={onPage ? (e: DataTablePageEvent) => onPage(e.page ?? 0) : undefined}
       onSort={onSort ? (e: DataTableSortEvent) => onSort(e.sortField, e.sortOrder) : undefined}
     >
-      {columns.map(({ name, value: field, sortable, reorderable, headerTooltip, bodyTemplate, sortFunction }) => (
-        <Column
-          key={field}
-          headerClassName={columnClassName}
-          className={columnClassName}
-          header={name}
-          field={field}
-          sortable={sortable}
-          reorderable={reorderable}
-          headerTooltip={headerTooltip}
-          headerTooltipOptions={{ position: 'top' }}
-          body={bodyTemplate}
-          sortFunction={sortFunction}
-        />
-      ))}
+      {columns.map(
+        ({ name, value: field, sortable, reorderable, headerTooltip, bodyTemplate, bodyClassName, sortFunction, frozen, alignFrozen }) => (
+          <Column
+            key={field}
+            headerClassName={columnClassName}
+            className={columnClassName}
+            header={name}
+            field={field}
+            sortable={sortable}
+            reorderable={reorderable}
+            headerTooltip={headerTooltip}
+            headerTooltipOptions={{ position: 'top' }}
+            body={bodyTemplate}
+            bodyClassName={bodyClassName}
+            sortFunction={sortFunction}
+            frozen={frozen}
+            alignFrozen={alignFrozen}
+          />
+        ),
+      )}
     </DataTable>
   );
 }
