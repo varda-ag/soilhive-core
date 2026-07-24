@@ -59,6 +59,14 @@
       display: none;
     }
   }
+
+  // The second selector matches the specificity of the global `thead th` override in
+  // prime.react.override.scss (which sets box-shadow: none), so the shadow also applies
+  // to the frozen header cell instead of being reset.
+  :global(.p-datatable .p-frozen-column),
+  :global(.p-datatable.sh-primereact-table .p-datatable-thead th.p-frozen-column) {
+    box-shadow: -0.15rem 0 0.625rem var(--color-shadow-interface);
+  }
 }
 
 .StickyScrollbar {
@@ -96,6 +104,10 @@
 .DeleteCell {
   display: flex;
   justify-content: flex-end;
+}
+
+.DeleteBodyCell {
+  background-color: var(--color-neutral-white) !important;
 }
 
 .Actions {

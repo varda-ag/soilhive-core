@@ -12,6 +12,7 @@ exports[`Table component matches snapshot 1`] = `
       data-testid="mock-columns"
     >
       <div
+        data-frozen="undefined"
         data-reorderable="undefined"
         data-sortable="undefined"
         data-testid="mock-column-name"
@@ -23,6 +24,7 @@ exports[`Table component matches snapshot 1`] = `
         </span>
       </div>
       <div
+        data-frozen="undefined"
         data-reorderable="undefined"
         data-sortable="true"
         data-testid="mock-column-status"

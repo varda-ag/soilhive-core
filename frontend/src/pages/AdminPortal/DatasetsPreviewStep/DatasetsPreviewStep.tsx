@@ -8,6 +8,8 @@ import { Tooltip } from 'react-tooltip';
 import TooltipIcon from 'assets/icons/small-info-icon.svg?react';
 import { Button, Table, ToggleButton } from 'components/UI';
 import type { TableHandle } from 'components/UI/Table/Table';
+import type { TableColumn } from 'types/components';
+import type { SoilRecord } from 'types/backend';
 import { useIngestionStatus } from 'hooks/useIngestionStatus';
 import { useDatasetPreview } from 'hooks/useDatasetPreviewStep';
 import { DeleteCheckboxCell } from './DeleteCheckboxCell';
@@ -128,7 +130,7 @@ export function DatasetsPreviewStep() {
     [availableColumns, columnsTranslations, computedPropertyNames],
   );
 
-  const tableColumns = useMemo(() => {
+  const tableColumns = useMemo<TableColumn<SoilRecord>[]>(() => {
     const extraColumns = availableColumns.filter(col => !initialVisibleColumns.includes(col));
     const orderedKeys = [...initialVisibleColumns.filter(col => availableColumns.includes(col)), ...extraColumns];
     return orderedKeys.map(columnKey => {
@@ -144,7 +146,7 @@ export function DatasetsPreviewStep() {
         value: columnKey,
         sortable: true,
         headerTooltip: name.length > 16 ? name : undefined,
-        bodyTemplate: (row: Record<string, unknown>) => (row[columnKey] ?? '-') as ReactNode,
+        bodyTemplate: (row: SoilRecord) => (row[columnKey] ?? '-') as ReactNode,
       };
     });
   }, [availableColumns, columnsTranslations, computedPropertyNames, showOriginalName, unitsMapping]);
@@ -164,7 +166,7 @@ export function DatasetsPreviewStep() {
     setVisibleColumns(newCols);
   }, []);
 
-  const filteredTableColumns = useMemo(
+  const filteredTableColumns = useMemo<TableColumn<SoilRecord>[]>(
     () => [
       ...tableColumns.filter(column => visibleColumns.includes(column.value)),
       {
@@ -184,7 +186,10 @@ export function DatasetsPreviewStep() {
         ),
         value: 'delete',
         reorderable: false,
-        bodyTemplate: (row: { record_id: number }) => (
+        frozen: true,
+        alignFrozen: 'right',
+        bodyClassName: styles.DeleteBodyCell,
+        bodyTemplate: (row: SoilRecord) => (
           <div className={styles.DeleteCell}>
             <DeleteCheckboxCell
               key={`${selectedFile}-${row.record_id}`}
