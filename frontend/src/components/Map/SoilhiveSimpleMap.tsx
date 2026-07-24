@@ -33,6 +33,8 @@ interface SoilhiveSimpleMapProps {
   scrollZoom?: boolean;
   dragPan?: boolean;
   showGeocoder?: boolean;
+  minZoom?: number;
+  maxZoom?: number;
   onBboxChange?: (bbox: number[]) => void;
 }
 
@@ -130,6 +132,8 @@ function SoilhiveSimpleMap({
   scrollZoom = true,
   dragPan = true,
   showGeocoder = false,
+  minZoom = 0,
+  maxZoom = 24,
   onBboxChange = undefined,
 }: SoilhiveSimpleMapProps) {
   const geometryLayer = geometryStyle === 'fill' ? geometryFillLayer : geometryLineLayer;
@@ -196,8 +200,8 @@ function SoilhiveSimpleMap({
         ref={mapRef}
         scrollZoom={scrollZoom}
         dragPan={dragPan}
-        minZoom={0}
-        maxZoom={24}
+        minZoom={minZoom}
+        maxZoom={maxZoom}
         renderWorldCopies={false}
         dragRotate={false}
         mapStyle={mapStyle}
