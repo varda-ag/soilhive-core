@@ -30,9 +30,9 @@ const mockFilterEntity = {
 let mockStorageRead: jest.MockedFunction<(filePath: string) => Promise<Readable>>;
 let generateExportPdfSpy: ReturnType<typeof jest.spyOn>;
 
-// Builds requestData with a mock TypeORM repo. When logoFileKey is provided,
-// findOneBy returns a matching JsonStorage row so ConfigService.getLogoFileKey
-// returns the key; otherwise it returns null (no logo configured).
+// Builds requestData with a mock TypeORM repo. When withLogo is set, findOneBy returns a
+// matching JsonStorage row carrying only a fileKey (no bytes), so FileService.getLogo falls
+// back to reading from storage (the legacy path); otherwise it returns null (no logo configured).
 function makeRequestData({
   withLogo = false,
   datasets,

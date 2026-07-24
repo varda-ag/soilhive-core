@@ -22,6 +22,7 @@ import { EntityType, IngestionStatus } from '../types/data';
 import { DataMappingObject, DetectableFields } from '../types/DataMapping';
 import ConfigService from './ConfigService';
 import FileEntity from '../entities/File';
+import { JsonStorage } from '../entities/JsonStorage';
 import assert from 'assert';
 import { JobError } from '../errors/JobError';
 import { getDBPassword } from '../utils/db-credentials';
@@ -29,7 +30,8 @@ import { log } from '../utils/logger';
 import { bumpCacheEpoch } from '../utils/cache-epoch';
 import DataMappingService from './DataMappingService';
 import DatasetFileMappingEntity from '../entities/DatasetFileMapping';
-import { EntityManager } from 'node_modules/typeorm';
+import { EntityManager, Repository } from 'node_modules/typeorm';
+import { Readable } from 'stream';
 
 const dataMappingService = new DataMappingService();
 
@@ -69,6 +71,33 @@ export default class FileService {
   deleteFileFromStorage = async (fileKey: string): Promise<void> => {
     const storage = FileService.getStorageEngine();
     await storage.deleteFile(fileKey);
+  };
+
+  static streamToBuffer = async (stream: Readable): Promise<Buffer> => {
+    const chunks: Buffer[] = [];
+    for await (const chunk of stream) {
+      chunks.push(Buffer.from(chunk));
+    }
+    return Buffer.concat(chunks);
+  };
+
+  /**
+   * Resolves the custom frontend logo to a Buffer, regardless of where it lives.
+   * DB-backed logos (see ADR 0015) carry base64 bytes in the jsonstorage row; legacy
+   * logos have only a fileKey and are streamed from storage. Returns null when no logo is set.
+   */
+  static getLogo = async (repo: Repository<JsonStorage>): Promise<{ buffer: Buffer; fileKey: string } | null> => {
+    const logo = await new ConfigService().getLogoData(repo);
+    if (!logo?.fileKey) {
+      return null;
+    }
+    if (logo.bytes) {
+      return { buffer: Buffer.from(logo.bytes, 'base64'), fileKey: logo.fileKey };
+    }
+    const storage = FileService.getStorageEngine();
+    const stream = await storage.read(logo.fileKey);
+    const buffer = await FileService.streamToBuffer(stream as Readable);
+    return { buffer, fileKey: logo.fileKey };
   };
 
   static getUploadStorageEngine = (): FlystorageMulterStorageEngine => {

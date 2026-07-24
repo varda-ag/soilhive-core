@@ -33,6 +33,23 @@ describe('RasterIngestService', () => {
       ]);
       expect(parseInt(count, 10)).toBeGreaterThan(0);
     });
+
+    it('stores an out-of-range float32 nodata sentinel as null instead of failing the insert', async () => {
+      const result = await ingestRaster({
+        input: TEST_FILE,
+        dataset: 'test-raster-nodata-clamp',
+        soilProperty: 'Bulk Density',
+        soilPropertyCategory: 'Physical',
+        nodata: -3.4e38,
+      });
+
+      expect(result).toBe(TEST_FILE);
+
+      const ds = await getDataSource();
+      const layers = await ds.query(`SELECT nodata_value FROM raster_layers`);
+      expect(layers).toHaveLength(1);
+      expect(layers[0].nodata_value).toBeNull();
+    });
   });
 
   describe('ingestRaster - S3 storage', () => {
