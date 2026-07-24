@@ -2,7 +2,7 @@ import path from 'path';
 import { streamRasterFootprints } from '../scripts/computeRasterFootprints';
 import { analyzeRasterMeta } from '../utils/raster';
 import { getEntityManager } from '../utils/data-source';
-import { log } from '../utils/logger';
+import { log, timed } from '../utils/logger';
 import { MultiPolygon } from 'geojson';
 import FileService from './FileService';
 import { GdalCLI } from '../utils/GdalCLI';
@@ -135,8 +135,9 @@ export async function ingestRaster(opts: IngestRasterOptions): Promise<string> {
     procedureId = (lmResult as { id: string }[])[0]!.id;
   }
 
-  const result = await em.query(
-    `WITH
+  const result = await timed('insert raster_layers', () =>
+    em.query(
+      `WITH
      file_ins AS (
        INSERT INTO files ("name", file_path, created_by, status)
        VALUES ($1, $1, 'data-admin', 'LOADED')
@@ -174,7 +175,8 @@ export async function ingestRaster(opts: IngestRasterOptions): Promise<string> {
        $7, ST_SetSRID(ST_GeomFromGeoJSON($3), 4326), $8
      FROM file_ins, ds_ins, sp_ins
      RETURNING id`,
-    [outName, opts.dataset, bboxJson, opts.soilPropertyCategory, opts.soilProperty, resolution, dbNodataValue, procedureId],
+      [outName, opts.dataset, bboxJson, opts.soilPropertyCategory, opts.soilProperty, resolution, dbNodataValue, procedureId],
+    ),
   );
 
   const rasterLayerId = (result as { id: string }[])[0]!.id;
