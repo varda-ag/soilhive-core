@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.1.0 (2026-07-24)
+
+## What's Changed
+* fix(be): sp-5489 round raster nodata by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/734
+* feat: storing logo bytes in json config by @svaccari in https://github.com/varda-ag/soilhive-core/pull/736
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v1.0.0...v1.1.0
+
 ## 1.0.0 (2026-07-23)
 
 ## What's Changed
