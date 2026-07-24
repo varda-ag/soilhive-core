@@ -1,12 +1,13 @@
 import type { MultiPolygon } from 'geojson';
 import FileService from '../services/FileService';
 import { GdalCLI } from '../utils/GdalCLI';
+import { log, timed } from '../utils/logger';
 import { openTiff } from '../utils/raster';
 
 const MAX_TILES = 256 * 256;
 const MIN_TILES = 256;
 const PIXELS_PER_TILE_MIN_DIM = 512;
-const INSERT_BATCH_SIZE = 10;
+const INSERT_BATCH_SIZE = 100;
 
 export type FootprintBatchCallback = (tiles: MultiPolygon[]) => Promise<void>;
 
@@ -24,56 +25,85 @@ export async function streamRasterFootprints(
   nodataOverride: number | undefined,
   onBatch: FootprintBatchCallback,
 ): Promise<void> {
-  const { mainFilePath } = await FileService.getMainFilePath(cogPath);
+  const { selectedImage, ovWidth, ovHeight, ovPixelW, ovPixelH, xMin, yMax, tileW, tileH, nCols, nRows, nodata } = await timed(
+    'footprint extraction setup',
+    async () => {
+      const { mainFilePath } = await FileService.getMainFilePath(cogPath);
 
-  const info = await GdalCLI.gdalinfo(mainFilePath);
-  const gt = info.geoTransform;
-  if (!gt) throw new Error('Raster has no geoTransform');
+      const info = await GdalCLI.gdalinfo(mainFilePath);
+      const gt = info.geoTransform;
+      if (!gt) throw new Error('Raster has no geoTransform');
 
-  const [rasterNativeWidth, rasterNativeHeight] = info.size ?? [0, 0];
-  const xMin = gt[0]!;
-  const yMax = gt[3]!;
-  const pixWFull = gt[1]!;
-  const pixHFull = gt[5]!;
-  const xMax = xMin + rasterNativeWidth * pixWFull;
-  const yMin = yMax + rasterNativeHeight * pixHFull;
-  const rasterWidthDeg = xMax - xMin;
-  const rasterHeightDeg = yMax - yMin;
+      const [rasterNativeWidth, rasterNativeHeight] = info.size ?? [0, 0];
+      const xMin = gt[0]!;
+      const yMax = gt[3]!;
+      const pixWFull = gt[1]!;
+      const pixHFull = gt[5]!;
+      const xMax = xMin + rasterNativeWidth * pixWFull;
+      const yMin = yMax + rasterNativeHeight * pixHFull;
+      const rasterWidthDeg = xMax - xMin;
+      const rasterHeightDeg = yMax - yMin;
 
-  const nodata: number | null = nodataOverride !== undefined ? nodataOverride : (info.bands?.[0]?.noDataValue ?? null);
-  const nativePixelSize = Math.abs(pixWFull);
+      const nodata: number | null = nodataOverride !== undefined ? nodataOverride : (info.bands?.[0]?.noDataValue ?? null);
+      const nativePixelSize = Math.abs(pixWFull);
 
-  const { nCols, nRows } = computeGrid(rasterWidthDeg, rasterHeightDeg);
-  const tileW = rasterWidthDeg / nCols;
-  const tileH = rasterHeightDeg / nRows;
-  const tileMinDim = Math.min(tileW, tileH);
+      const { nCols, nRows } = computeGrid(rasterWidthDeg, rasterHeightDeg);
+      const tileW = rasterWidthDeg / nCols;
+      const tileH = rasterHeightDeg / nRows;
+      const tileMinDim = Math.min(tileW, tileH);
 
-  const tiff = await openTiff(cogPath);
-  const imageCount = await tiff.getImageCount();
+      const tiff = await openTiff(cogPath);
+      const imageCount = await tiff.getImageCount();
 
-  // Select overview: mirrors original GDAL logic — coarsest overview satisfying
-  // the resolution criterion, falling back to finest overview.
-  let selectedIndex = 0;
-  for (let i = imageCount - 1; i >= 1; i--) {
-    const ovImage = await tiff.getImage(i);
-    const ovPixelSize = nativePixelSize * (rasterNativeWidth / ovImage.getWidth());
-    if (ovPixelSize < tileMinDim / PIXELS_PER_TILE_MIN_DIM) {
-      selectedIndex = i;
-      break;
-    }
-  }
-  if (selectedIndex === 0 && imageCount > 1) selectedIndex = 1;
+      // Select overview: mirrors original GDAL logic — coarsest overview satisfying
+      // the resolution criterion, falling back to finest overview.
+      let selectedIndex = 0;
+      for (let i = imageCount - 1; i >= 1; i--) {
+        const ovImage = await tiff.getImage(i);
+        const ovPixelSize = nativePixelSize * (rasterNativeWidth / ovImage.getWidth());
+        if (ovPixelSize < tileMinDim / PIXELS_PER_TILE_MIN_DIM) {
+          selectedIndex = i;
+          break;
+        }
+      }
+      if (selectedIndex === 0 && imageCount > 1) selectedIndex = 1;
 
-  const selectedImage = await tiff.getImage(selectedIndex);
-  const ovWidth = selectedImage.getWidth();
-  const ovHeight = selectedImage.getHeight();
-  const ovPixelW = rasterWidthDeg / ovWidth;
-  const ovPixelH = rasterHeightDeg / ovHeight;
+      const selectedImage = await tiff.getImage(selectedIndex);
+      const ovWidth = selectedImage.getWidth();
+      const ovHeight = selectedImage.getHeight();
+      const ovPixelW = rasterWidthDeg / ovWidth;
+      const ovPixelH = rasterHeightDeg / ovHeight;
+
+      return { selectedImage, ovWidth, ovHeight, ovPixelW, ovPixelH, xMin, yMax, tileW, tileH, nCols, nRows, nodata };
+    },
+  );
 
   let batch: MultiPolygon[] = [];
 
+  const totalTiles = nRows * nCols;
+  const progressLogInterval = Math.max(1, Math.floor(totalTiles / 20));
+  let tilesProcessed = 0;
+  let footprintsFound = 0;
+  let readMs = 0;
+  let traceMs = 0;
+  let dbMs = 0;
+  const startedAt = Date.now();
+
   for (let iRow = 0; iRow < nRows; iRow++) {
     for (let iCol = 0; iCol < nCols; iCol++) {
+      tilesProcessed++;
+      if (tilesProcessed % progressLogInterval === 0) {
+        log.info('Footprint extraction progress', {
+          tilesProcessed,
+          totalTiles,
+          footprintsFound,
+          elapsedMs: Date.now() - startedAt,
+          readMs,
+          traceMs,
+          dbMs,
+        });
+      }
+
       const tileXMin = xMin + iCol * tileW;
       const tileXMax = xMin + (iCol + 1) * tileW;
       const tileYMax = yMax - iRow * tileH;
@@ -88,10 +118,12 @@ export async function streamRasterFootprints(
       const tilePixH = pyEnd - pyStart;
       if (tilePixW <= 0 || tilePixH <= 0) continue;
 
+      let t = Date.now();
       const rasters = await selectedImage.readRasters({
         window: [pxStart, pyStart, pxEnd, pyEnd],
         samples: [0],
       });
+      readMs += Date.now() - t;
       const rawData = rasters[0] as ArrayLike<number>;
 
       const mask = new Uint8Array(tilePixW * tilePixH);
@@ -109,19 +141,38 @@ export async function streamRasterFootprints(
       const tileGeoXMin = xMin + pxStart * ovPixelW;
       const tileGeoYMax = yMax - pyStart * ovPixelH;
 
+      t = Date.now();
       const polygonCoords = traceMaskToPolygons(mask, tilePixW, tilePixH, tileGeoXMin, tileGeoYMax, ovPixelW, ovPixelH);
+      traceMs += Date.now() - t;
       if (polygonCoords.length === 0) continue;
 
       batch.push({ type: 'MultiPolygon', coordinates: polygonCoords });
+      footprintsFound++;
 
       if (batch.length >= INSERT_BATCH_SIZE) {
+        t = Date.now();
         await onBatch(batch);
+        dbMs += Date.now() - t;
         batch = [];
       }
     }
   }
 
-  if (batch.length > 0) await onBatch(batch);
+  if (batch.length > 0) {
+    const t = Date.now();
+    await onBatch(batch);
+    dbMs += Date.now() - t;
+  }
+
+  log.info('Footprint extraction complete', {
+    tilesProcessed,
+    totalTiles,
+    footprintsFound,
+    elapsedMs: Date.now() - startedAt,
+    readMs,
+    traceMs,
+    dbMs,
+  });
 }
 
 function traceMaskToPolygons(
