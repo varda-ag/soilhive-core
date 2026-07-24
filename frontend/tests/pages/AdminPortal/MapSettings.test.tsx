@@ -73,6 +73,13 @@ describe('MapSettings page', () => {
     expect(mapProps.initialViewBoundingBox).toEqual([0, 0, 1, 1]);
   });
 
+  it('constrains SoilhiveSimpleMap zoom levels to match the availability map', () => {
+    render(<MapSettings />);
+    const mapProps = (SoilhiveSimpleMap as jest.Mock).mock.calls[0][0];
+    expect(mapProps.minZoom).toBe(3);
+    expect(mapProps.maxZoom).toBe(15);
+  });
+
   it('calls saveMapSettings with current bbox and daiConfig on save', () => {
     render(<MapSettings />);
     fireEvent.click(screen.getByText('Save changes'));
