@@ -13,6 +13,6 @@ Endpoints to manage logo are:
 
 ```
 GET /frontend/logo
-PUT /frontend/logo
+POST /frontend/logo
 DELETE /frontend/logo
 ```

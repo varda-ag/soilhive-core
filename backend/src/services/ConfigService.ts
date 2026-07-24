@@ -9,6 +9,12 @@ import assert from 'assert';
 
 const FRONTEND_LOGO = 'frontend-logo';
 
+export interface LogoData {
+  fileKey: string;
+  // Base64-encoded logo bytes. Absent for legacy logos still served from storage (see ADR 0015).
+  bytes?: string;
+}
+
 export default class ConfigService {
   putConfig = async (repo: Repository<JsonStorage>, id: string, data: any): Promise<any> => {
     await repo.upsert([{ id, data, deleted_at: null }], ['id']);
@@ -36,19 +42,19 @@ export default class ConfigService {
     return output;
   };
 
-  async getLogoFileKey(repo: Repository<JsonStorage>): Promise<string | undefined> {
+  async getLogoData(repo: Repository<JsonStorage>): Promise<LogoData | undefined> {
     const row = await repo.findOneBy({ id: FRONTEND_LOGO });
     if (!row) {
       return undefined;
     }
-    return row.data['fileKey'];
+    return row.data as LogoData;
   }
 
-  setLogoFileKey = async (repo: Repository<JsonStorage>, fileKey: string): Promise<void> => {
-    await repo.upsert([{ id: FRONTEND_LOGO, data: { fileKey }, deleted_at: null }], ['id']);
+  setLogo = async (repo: Repository<JsonStorage>, data: LogoData): Promise<void> => {
+    await repo.upsert([{ id: FRONTEND_LOGO, data, deleted_at: null }], ['id']);
   };
 
-  deleteLogoFileKey = async (repo: Repository<JsonStorage>): Promise<void> => {
+  deleteLogo = async (repo: Repository<JsonStorage>): Promise<void> => {
     await repo.softDelete({ id: FRONTEND_LOGO });
   };
 
