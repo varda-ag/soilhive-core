@@ -144,17 +144,6 @@ export async function ingestRaster(opts: IngestRasterOptions): Promise<string> {
        ON CONFLICT (file_path) DO UPDATE SET updated_at = now()
        RETURNING *
      ),
-     ds_ins AS (
-       INSERT INTO datasets ("name", created_by, spatial_extent, gis_datatype, spatial_resolution, n_raster_layers, status)
-       VALUES ($2, 'data-admin', ST_SetSRID(ST_GeomFromGeoJSON($3), 4326), 'raster', $6::text || 'm', 1, 'LOADED')
-       ON CONFLICT ("name") WHERE deleted_at IS NULL DO UPDATE SET
-         updated_at = now(),
-         spatial_extent = COALESCE(datasets.spatial_extent, EXCLUDED.spatial_extent),
-         gis_datatype = COALESCE(datasets.gis_datatype, EXCLUDED.gis_datatype),
-         spatial_resolution = COALESCE(datasets.spatial_resolution, EXCLUDED.spatial_resolution),
-         n_raster_layers = datasets.n_raster_layers + 1
-       RETURNING *
-     ),
      spc_ins AS (
        INSERT INTO soil_property_categories (category_name, category_acronym)
        VALUES ($4, $4)
@@ -166,6 +155,27 @@ export async function ingestRaster(opts: IngestRasterOptions): Promise<string> {
        SELECT $5, $5, spc_ins.id FROM spc_ins
        ON CONFLICT (property_name) DO UPDATE SET updated_at = now()
        RETURNING *
+     ),
+     measured_property_entry AS (
+       SELECT jsonb_build_array(jsonb_build_object('soil_property_id', sp_ins.slug, 'procedure_id', proc.slug)) AS entry
+       FROM sp_ins
+       LEFT JOIN procedures proc ON proc.id = $8::uuid
+     ),
+     ds_ins AS (
+       INSERT INTO datasets ("name", created_by, spatial_extent, gis_datatype, spatial_resolution, variables_measured, n_raster_layers, status)
+       SELECT $2, 'data-admin', ST_SetSRID(ST_GeomFromGeoJSON($3), 4326), 'raster', $6::text || 'm', measured_property_entry.entry, 1, 'LOADED'
+       FROM measured_property_entry
+       ON CONFLICT ("name") WHERE deleted_at IS NULL DO UPDATE SET
+         updated_at = now(),
+         spatial_extent = COALESCE(datasets.spatial_extent, EXCLUDED.spatial_extent),
+         gis_datatype = COALESCE(datasets.gis_datatype, EXCLUDED.gis_datatype),
+         spatial_resolution = COALESCE(datasets.spatial_resolution, EXCLUDED.spatial_resolution),
+         variables_measured = CASE
+           WHEN COALESCE(datasets.variables_measured, '[]'::jsonb) @> EXCLUDED.variables_measured THEN datasets.variables_measured
+           ELSE COALESCE(datasets.variables_measured, '[]'::jsonb) || EXCLUDED.variables_measured
+         END,
+         n_raster_layers = datasets.n_raster_layers + 1
+       RETURNING *
      )
      INSERT INTO raster_layers (
        file_id, dataset_id, soil_property_id, resolution_m,
@@ -173,7 +183,7 @@ export async function ingestRaster(opts: IngestRasterOptions): Promise<string> {
      )
      SELECT
        file_ins.id, ds_ins.id, sp_ins.id, $6::int,
-       $7, ST_SetSRID(ST_GeomFromGeoJSON($3), 4326), $8
+       $7, ST_SetSRID(ST_GeomFromGeoJSON($3), 4326), $8::uuid
      FROM file_ins, ds_ins, sp_ins
      RETURNING id`,
       [outName, opts.dataset, bboxJson, opts.soilPropertyCategory, opts.soilProperty, resolution, dbNodataValue, procedureId],
