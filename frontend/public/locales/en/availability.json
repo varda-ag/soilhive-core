@@ -46,7 +46,8 @@
         "invalid_json": "Uploaded file does not contain valid GeoJSON",
         "invalid_polygon": "Uploaded file does not contain any valid Polygon or MultiPolygon",
         "drop_file_message": "Drag and drop a file here",
-        "drop_file_caption": "Supported formats: GeoJSON."
+        "drop_file_caption": "Supported formats: GeoJSON.",
+        "search_button_aria": "Search button"
     },
     "upload_polygon_modal": {
         "title": "Upload your area of interest",
@@ -80,10 +81,16 @@
         "legend_very_low": "Very low",
         "legend_low": "Low",
         "legend_medium": "Medium",
-        "legend_heigh": "High"
+        "legend_heigh": "High",
+        "toggle_aria": "Toggle DAI"
     },
     "map_style_switcher": {
-        "popup_title": "Select a map style"
+        "popup_title": "Select a map style",
+        "switcher_button_aria": "Map switcher button"
+    },
+    "time_filter": {
+        "min_year_aria": "Minimum year",
+        "max_year_aria": "Maximum year"
     },
     "datasets_list": {
         "metadata": "Metadata",

@@ -27,6 +27,11 @@ describe('MapStyleSwitcher', () => {
     expect(screen.getByTestId('map-icon')).toBeInTheDocument();
   });
 
+  it('gives the switcher button an accessible label', () => {
+    render(<MapStyleSwitcher mapStyles={mapStyles} currentValue={0} onMapStyleChange={jest.fn()} />);
+    expect(screen.getByRole('button', { name: 'Map switcher button' })).toBeInTheDocument();
+  });
+
   it('does not show the dialog initially', () => {
     render(<MapStyleSwitcher mapStyles={mapStyles} currentValue={0} onMapStyleChange={jest.fn()} />);
     expect(screen.queryByTestId('mock-dialog')).not.toBeInTheDocument();

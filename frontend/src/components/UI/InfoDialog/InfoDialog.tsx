@@ -36,7 +36,7 @@ export function InfoDialog({ isVisible, storageKey, header, title, message, onCo
   const handleCancel = () => onCancel?.();
 
   return (
-    <Dialog visible={visible} header={header} onPrimary={handleContinue} onSecondary={handleCancel}>
+    <Dialog visible={visible} header={header} onPrimary={handleContinue} onSecondary={handleCancel} ariaLabel={title}>
       <p className={styles.Title}>{title}</p>
       <p>{message}</p>
       <Checkbox
