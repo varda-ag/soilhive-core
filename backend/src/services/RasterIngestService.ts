@@ -2,7 +2,7 @@ import path from 'path';
 import { streamRasterFootprints } from '../scripts/computeRasterFootprints';
 import { analyzeRasterMeta } from '../utils/raster';
 import { getEntityManager } from '../utils/data-source';
-import { log } from '../utils/logger';
+import { log, timed } from '../utils/logger';
 import { MultiPolygon } from 'geojson';
 import FileService from './FileService';
 import { GdalCLI } from '../utils/GdalCLI';
@@ -135,22 +135,13 @@ export async function ingestRaster(opts: IngestRasterOptions): Promise<string> {
     procedureId = (lmResult as { id: string }[])[0]!.id;
   }
 
-  const result = await em.query(
-    `WITH
+  const result = await timed('insert raster_layers', () =>
+    em.query(
+      `WITH
      file_ins AS (
        INSERT INTO files ("name", file_path, created_by, status)
        VALUES ($1, $1, 'data-admin', 'LOADED')
        ON CONFLICT (file_path) DO UPDATE SET updated_at = now()
-       RETURNING *
-     ),
-     ds_ins AS (
-       INSERT INTO datasets ("name", created_by, spatial_extent, gis_datatype, n_raster_layers, status)
-       VALUES ($2, 'data-admin', ST_SetSRID(ST_GeomFromGeoJSON($3), 4326), 'raster', 1, 'LOADED')
-       ON CONFLICT ("name") WHERE deleted_at IS NULL DO UPDATE SET
-         updated_at = now(),
-         spatial_extent = COALESCE(datasets.spatial_extent, EXCLUDED.spatial_extent),
-         gis_datatype = COALESCE(datasets.gis_datatype, EXCLUDED.gis_datatype),
-         n_raster_layers = datasets.n_raster_layers + 1
        RETURNING *
      ),
      spc_ins AS (
@@ -164,17 +155,39 @@ export async function ingestRaster(opts: IngestRasterOptions): Promise<string> {
        SELECT $5, $5, spc_ins.id FROM spc_ins
        ON CONFLICT (property_name) DO UPDATE SET updated_at = now()
        RETURNING *
+     ),
+     measured_property_entry AS (
+       SELECT jsonb_build_array(jsonb_build_object('soil_property_id', sp_ins.slug, 'procedure_id', proc.slug)) AS entry
+       FROM sp_ins
+       LEFT JOIN procedures proc ON proc.id = $8::uuid
+     ),
+     ds_ins AS (
+       INSERT INTO datasets ("name", created_by, spatial_extent, gis_datatype, spatial_resolution, variables_measured, n_raster_layers, status)
+       SELECT $2, 'data-admin', ST_SetSRID(ST_GeomFromGeoJSON($3), 4326), 'raster', $6::text || 'm', measured_property_entry.entry, 1, 'LOADED'
+       FROM measured_property_entry
+       ON CONFLICT ("name") WHERE deleted_at IS NULL DO UPDATE SET
+         updated_at = now(),
+         spatial_extent = COALESCE(datasets.spatial_extent, EXCLUDED.spatial_extent),
+         gis_datatype = COALESCE(datasets.gis_datatype, EXCLUDED.gis_datatype),
+         spatial_resolution = COALESCE(datasets.spatial_resolution, EXCLUDED.spatial_resolution),
+         variables_measured = CASE
+           WHEN COALESCE(datasets.variables_measured, '[]'::jsonb) @> EXCLUDED.variables_measured THEN datasets.variables_measured
+           ELSE COALESCE(datasets.variables_measured, '[]'::jsonb) || EXCLUDED.variables_measured
+         END,
+         n_raster_layers = datasets.n_raster_layers + 1
+       RETURNING *
      )
      INSERT INTO raster_layers (
        file_id, dataset_id, soil_property_id, resolution_m,
        nodata_value, bbox, procedure_id
      )
      SELECT
-       file_ins.id, ds_ins.id, sp_ins.id, $6,
-       $7, ST_SetSRID(ST_GeomFromGeoJSON($3), 4326), $8
+       file_ins.id, ds_ins.id, sp_ins.id, $6::int,
+       $7, ST_SetSRID(ST_GeomFromGeoJSON($3), 4326), $8::uuid
      FROM file_ins, ds_ins, sp_ins
      RETURNING id`,
-    [outName, opts.dataset, bboxJson, opts.soilPropertyCategory, opts.soilProperty, resolution, dbNodataValue, procedureId],
+      [outName, opts.dataset, bboxJson, opts.soilPropertyCategory, opts.soilProperty, resolution, dbNodataValue, procedureId],
+    ),
   );
 
   const rasterLayerId = (result as { id: string }[])[0]!.id;

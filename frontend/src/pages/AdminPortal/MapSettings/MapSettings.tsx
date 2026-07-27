@@ -42,6 +42,8 @@ export function MapSettings() {
               initialViewBoundingBox={themeConfig.initialBbox}
               showNavigation={true}
               showGeocoder={true}
+              minZoom={3}
+              maxZoom={15}
               onBboxChange={bbox => setBbox(bbox)}
             />
           </div>
