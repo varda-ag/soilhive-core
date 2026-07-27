@@ -13,7 +13,8 @@
   },
   "dependencies": {
     "react": "19.2.0",
-    "react-dom": "19.2.0"
+    "react-dom": "19.2.0",
+    "@module-federation/enhanced": "0.21.2"
   },
   "devDependencies": {
     "@rsbuild/core": "1.5.14",

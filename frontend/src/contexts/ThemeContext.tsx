@@ -6,6 +6,7 @@ import type { DaiConfig, ThemeColors, ThemeConfig } from '../types/config';
 import useNotifications from 'hooks/useNotifications';
 import { useApiQuery } from '../hooks/useApiQuery';
 import { defaultColors } from '../configuration/colors';
+import { mf } from '../utilities/moduleFederation';
 
 type ThemeContextType = {
   themeConfig: ThemeConfig;
@@ -22,6 +23,28 @@ type ThemeContextType = {
 };
 
 export const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
+
+// Spike (sp-5483): expose this Context object itself to plugins as an MF
+// shared singleton, same mechanism as react/react-dom (see
+// utilities/moduleFederation.ts). Registered here, next to the Context
+// definition, rather than centrally in moduleFederation.ts - that file
+// would otherwise need to import every Context in the app, which pulls its
+// low-level MF bootstrap code into each Context's dependency graph (this
+// broke `moduleFederation.test.ts` when tried the other way round: an
+// existing `useConfig.ts -> App.tsx` import for `queryClient` turned into a
+// transitive import of the whole app root).
+// See docs/frontend/plugin-context-mf-shared.md.
+mf.registerShared({
+  'theme-context': {
+    version: '1.0.0',
+    scope: 'default',
+    lib: () => ThemeContext,
+    shareConfig: {
+      singleton: true,
+      requiredVersion: '1.0.0',
+    },
+  },
+});
 
 type ThemeProviderProps = {
   children: ReactNode;
