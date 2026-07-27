@@ -28,6 +28,11 @@ export default defineConfig({
       },
       output: {
         target: 'web',
+        sourceMap: {
+          // Emit public .map files so Lighthouse can map minified JS back to
+          // source and developers can debug production builds.
+          js: 'source-map',
+        },
         distPath: {
           root: 'dist/client',
         },
