@@ -168,16 +168,24 @@ export default class FileService {
     return await getEntity(requestData, FileEntity, EntityType.FILE, slug);
   };
 
-  createFile = async (requestData: RequestData, data: Partial<File>): Promise<FileEntity> => {
+  /**
+   * Creates a File row for an already-uploaded blob.
+   *
+   * `spatial: false` uploads a non-spatial File: GDAL is never invoked, so `metadata` stays NULL
+   * and the file has no CRS and no ingestion path (fileToDB requires metadata). Because nothing
+   * probes the bytes, nothing can reject them either — non-spatial uploads are stored as-is.
+   */
+  createFile = async (requestData: RequestData, data: Partial<File>, spatial: boolean = true): Promise<FileEntity> => {
     const repo = requestData.entityManager.getRepository(FileEntity);
     const subject = getSubject(requestData);
 
     assert(data.file_path, 'file_path is required to create a file');
-    const metadata = await this.extractMetadata(requestData, data.file_path);
+    const metadata = spatial ? await this.extractMetadata(requestData, data.file_path) : undefined;
 
     const file = repo.create({
       ...data,
-      metadata,
+      // Omit the column entirely for non-spatial files so it is stored as NULL.
+      ...(metadata && { metadata }),
       status: IngestionStatus.PENDING,
       created_by: subject,
       updated_by: subject,

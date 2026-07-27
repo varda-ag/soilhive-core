@@ -74,10 +74,15 @@ export const createFile = async (req: Request, res: Response, next: NextFunction
     if (!req.customData.uploadedFileInfo) {
       throw new ErrorResponse('Uploaded file information missing from request', StatusCodes.BAD_REQUEST);
     }
-    fileEntity = await fileService.createFile(req.customData, {
-      name: req.customData.uploadedFileInfo.originalname!,
-      file_path: req.customData.uploadedFileInfo.fileKey!,
-    });
+    const spatial = (req.query['spatial'] as boolean | undefined) ?? true;
+    fileEntity = await fileService.createFile(
+      req.customData,
+      {
+        name: req.customData.uploadedFileInfo.originalname!,
+        file_path: req.customData.uploadedFileInfo.fileKey!,
+      },
+      spatial,
+    );
     res.status(StatusCodes.CREATED).json(idToSlug(fileEntity));
   } catch (err) {
     if (req.customData.uploadedFileInfo) {

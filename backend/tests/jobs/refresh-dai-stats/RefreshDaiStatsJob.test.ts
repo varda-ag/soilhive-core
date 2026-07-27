@@ -134,7 +134,7 @@ describe('async DAI refresh through the REFRESH_DAI_STATS queue', () => {
 
     expect(await statsCount()).toBe(1);
     expect(await statsRowFor(features![0]!.id)).toBeDefined();
-  }, 20000);
+  });
 
   it('metadata-only PATCH does not enqueue a refresh job', async () => {
     const { dataset } = await addSyntheticData({ ...syntheticDataOptions, id: 1, featureCount: 1 });
@@ -164,5 +164,5 @@ describe('async DAI refresh through the REFRESH_DAI_STATS queue', () => {
     expect(job.data.dataset_ids).toEqual([dataset.id]);
 
     expect(await statsCount()).toBe(0);
-  }, 20000);
+  });
 });

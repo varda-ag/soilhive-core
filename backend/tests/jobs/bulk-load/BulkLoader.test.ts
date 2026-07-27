@@ -9,8 +9,9 @@ import { app } from '../../../src/app';
 import DatasetEntity from '../../../src/entities/Dataset';
 import FeatureEntity from '../../../src/entities/Feature';
 import FileEntity from '../../../src/entities/File';
-import { BulkLoadJob } from '../../../src/interfaces/Job';
+import { BulkLoadJob, ExportJob } from '../../../src/interfaces/Job';
 import * as BulkLoaderModule from '../../../src/jobs/bulk-load/BulkLoader';
+import * as PgBossModule from '../../../src/services/PgBoss';
 import { updateDatasetMetadata } from '../../../src/jobs/bulk-load/UpdateDatasetMetadata';
 import DatasetService from '../../../src/services/DatasetService';
 import { translateJobError } from '../../../src/errors/jobErrorMessages';
@@ -132,6 +133,50 @@ describe('BulkLoader class', () => {
       });
     }
 
+    mockMakeRequest.mockRestore();
+  });
+
+  it('reports progress: 0 while counting, <= 90 while loading, 100 when done, never going backwards', async () => {
+    // Default options keep drop_records, so the fixture has user-dropped rows: the loop
+    // can only reach exactly 90 if the count excludes them the same way the load does.
+    const { dataset, dataMapping } = await addSyntheticIngestionData({ ...syntheticIngestionDataOptions });
+    await addSyntheticIngestionFile(dataset, dataMapping, 'test_file_2');
+    const token = signToken(INTERNAL_REQUEST_TOKEN_PAYLOAD);
+
+    const mockMakeRequest = jest
+      .spyOn(BulkLoaderModule, 'makeRequest')
+      .mockImplementation(async (datasetSlug: string, datasetFileMappingId: string, payload: any) => {
+        const response = await request(app)
+          .post(`/datasets/${datasetSlug}/dataset-file-mapping/${datasetFileMappingId}/soil-data`)
+          .set('Authorization', `Bearer ${token}`)
+          .send(payload);
+        expect(response.statusCode).toBe(StatusCodes.CREATED);
+        return response;
+      });
+    const mockUpdateJobState = jest.spyOn(PgBossModule, 'updateJobState').mockResolvedValue(undefined);
+
+    await BulkLoaderModule.processBulkLoad(getJob(dataset.slug));
+
+    const updates = mockUpdateJobState.mock.calls.map(([, update]) => update as Partial<ExportJob>);
+    const percentages = updates.map(u => u.progress_percentage!);
+
+    expect(percentages.every(Number.isInteger)).toBe(true);
+    expect(percentages).toEqual([...percentages].sort((a, b) => a - b));
+
+    expect(updates[0]).toMatchObject({ progress_percentage: 0, progress_description: expect.stringContaining('Bulk load started') });
+    expect(updates[1]).toMatchObject({ progress_percentage: 0, progress_description: 'Counting records in 2 file(s)...' });
+
+    // Loading spans everything up to the metadata step, and must stay under the ceiling.
+    const loading = updates.slice(2, -2);
+    expect(Math.max(...loading.map(u => u.progress_percentage!))).toBe(90);
+    // Both files hold the same number of records, so the denominator is only global if
+    // the bar sits at 45 when the second file starts.
+    expect(loading.find(u => u.progress_description?.includes('(2 of 2)'))).toMatchObject({ progress_percentage: 45 });
+
+    expect(updates.at(-2)).toEqual({ progress_percentage: 90, progress_description: 'Computing dataset metadata...' });
+    expect(updates.at(-1)).toEqual({ progress_percentage: 100, progress_description: 'Bulk load complete' });
+
+    mockUpdateJobState.mockRestore();
     mockMakeRequest.mockRestore();
   });
 
