@@ -13,6 +13,7 @@ import MaplibreGeocoder, {
   type MaplibreGeocoderApiConfig,
   type CarmenGeojsonFeature,
 } from '@maplibre/maplibre-gl-geocoder';
+import { useTranslation } from 'react-i18next';
 import { MAPBOX_ACCESS_TOKEN } from '../../utilities/environmentVariables';
 import { bbox as bboxFn, centerOfMass } from '@turf/turf';
 import { createPortal } from 'react-dom';
@@ -141,6 +142,7 @@ const mapboxGeocoderAPI: MaplibreGeocoderApi = {
 };
 
 export default function GeocoderControl(props: GeocoderControlProps) {
+  const { t } = useTranslation('availability');
   const [marker, setMarker] = useState<JSX.Element | null>(null);
 
   const geocoderAPI = useMemo(() => {
@@ -325,7 +327,7 @@ export default function GeocoderControl(props: GeocoderControlProps) {
     <>
       {marker}
       <PrependPortal targetSelector=".maplibregl-ctrl-geocoder--pin-right" className="search-button-wrapper">
-        <button onClick={onGeocoderSearch} className="search-button" aria-label="Search button">
+        <button onClick={onGeocoderSearch} className="search-button" aria-label={t('map.search_button_aria')}>
           <SearchIcon />
         </button>
       </PrependPortal>

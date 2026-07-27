@@ -37,7 +37,11 @@ export function MapStyleSwitcher({ mapStyles, currentValue, className, onMapStyl
 
   return (
     <div className={classnames(styles.MapStyleSwitcher, className)}>
-      <button className={styles.SwitcherButton} onClick={() => setIsVisible(true)} aria-label="Map switcher button">
+      <button
+        className={styles.SwitcherButton}
+        onClick={() => setIsVisible(true)}
+        aria-label={t('map_style_switcher.switcher_button_aria')}
+      >
         <MapIcon data-testid="map-icon" className={styles.MapIcon} />
       </button>
       <Dialog

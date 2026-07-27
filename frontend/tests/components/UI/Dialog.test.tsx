@@ -54,7 +54,7 @@ describe('Dialog', () => {
       </Dialog>,
     );
 
-    fireEvent.click(screen.getByLabelText('Close'));
+    fireEvent.click(screen.getByLabelText('dialog.close_aria'));
     expect(onSecondary).toHaveBeenCalledTimes(1);
   });
 
@@ -67,7 +67,7 @@ describe('Dialog', () => {
       </Dialog>,
     );
 
-    fireEvent.click(screen.getByLabelText('Close'));
+    fireEvent.click(screen.getByLabelText('dialog.close_aria'));
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(onSecondary).not.toHaveBeenCalled();
   });

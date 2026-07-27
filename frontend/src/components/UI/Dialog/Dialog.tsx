@@ -79,7 +79,7 @@ export function Dialog({
         <>
           <div className={classnames(styles.Header, headerClassName)} ref={headerRef as RefObject<HTMLDivElement>}>
             {header}
-            <button className={styles.CloseButton} onClick={onClose ?? onSecondary} aria-label="Close">
+            <button className={styles.CloseButton} onClick={onClose ?? onSecondary} aria-label={t('dialog.close_aria')}>
               <CloseIcon />
             </button>
           </div>
