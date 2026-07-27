@@ -150,6 +150,10 @@ export default class FileService {
         adapter = new AwsS3StorageAdapter(s3Client, {
           bucket: s3Config.bucketName,
           ...(s3Config.rootFolder ? { prefix: s3Config.rootFolder } : {}),
+          uploadConfiguration: {
+            ...(s3Config.uploadPartSize ? { partSize: s3Config.uploadPartSize } : {}),
+            ...(s3Config.uploadQueueSize ? { queueSize: s3Config.uploadQueueSize } : {}),
+          },
         });
         break;
       }

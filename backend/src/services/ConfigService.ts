@@ -121,6 +121,8 @@ export default class ConfigService {
             ...(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY
               ? { credentials: { accessKeyId: process.env.AWS_ACCESS_KEY_ID, secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY } }
               : {}),
+            ...(process.env.S3_STORAGE_UPLOAD_PART_SIZE ? { uploadPartSize: Number(process.env.S3_STORAGE_UPLOAD_PART_SIZE) } : {}),
+            ...(process.env.S3_STORAGE_UPLOAD_QUEUE_SIZE ? { uploadQueueSize: Number(process.env.S3_STORAGE_UPLOAD_QUEUE_SIZE) } : {}),
           },
         };
       default:
