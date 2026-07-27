@@ -23,6 +23,7 @@ jest.mock('hooks/useApiQuery', () => ({
 
 jest.mock('hooks/useDatasetMutation', () => ({
   useCreateDatasetFileMapping: jest.fn(),
+  useUpdateDatasetMutation: jest.fn(() => ({ mutateAsync: jest.fn() })),
 }));
 
 jest.mock('hooks/useIngestionStatus', () => ({
@@ -96,7 +97,12 @@ function buildSoilDataFile(id: string, name: string, crs: string | null = 'EPSG:
 describe('useDatasetsSoilData', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    (useIngestionFlow as jest.Mock).mockReturnValue({ markAsChanged: mockMarkAsChanged, resetChanges: mockResetChanges });
+    (useIngestionFlow as jest.Mock).mockReturnValue({
+      markAsChanged: mockMarkAsChanged,
+      resetChanges: mockResetChanges,
+      setIsRaster: jest.fn(),
+      isRaster: undefined,
+    });
     (useDataset as jest.Mock).mockReturnValue({ data: { name: 'Mock-dataset' } });
   });
 
@@ -390,6 +396,194 @@ describe('useDatasetsSoilData', () => {
       });
     });
   });
+
+  // --- isRaster / data format validation ------------------------------------
+
+  describe('onFileUploaded — data format validation', () => {
+    let mockSetIsRaster: jest.Mock;
+
+    beforeEach(() => {
+      mockSetIsRaster = jest.fn();
+      (useIngestionFlow as jest.Mock).mockReturnValue({
+        markAsChanged: mockMarkAsChanged,
+        resetChanges: mockResetChanges,
+        setIsRaster: mockSetIsRaster,
+        isRaster: undefined,
+      });
+      buildDefaultMocks({ deleteFileAndMapping: jest.fn().mockResolvedValue(undefined) });
+    });
+
+    function uploadFile(file: ReturnType<typeof buildSoilDataFile> & { isRaster?: boolean }) {
+      const { useFileUpload } = jest.requireMock('hooks/useFileUpload');
+      const onFileUploaded = useFileUpload.mock.calls[0][0];
+      onFileUploaded(file);
+    }
+
+    it('calls setIsRaster with the first uploaded file isRaster value', () => {
+      renderHook(() => useDatasetsSoilData());
+      act(() => {
+        uploadFile({ ...buildSoilDataFile('1', 'raster.tif'), isRaster: true });
+      });
+      expect(mockSetIsRaster).toHaveBeenCalledWith(true);
+    });
+
+    it('accepts a second file whose isRaster matches the established format', () => {
+      const { result } = renderHook(() => useDatasetsSoilData());
+      act(() => {
+        uploadFile({ ...buildSoilDataFile('1', 'raster1.tif'), isRaster: true });
+        uploadFile({ ...buildSoilDataFile('2', 'raster2.tif'), isRaster: true });
+      });
+      expect(result.current.soilDataFiles).toHaveLength(2);
+      expect(result.current.uploadErrors).toHaveLength(0);
+    });
+
+    it('discards a file with a different isRaster than established and adds an error', async () => {
+      const deleteFileAndMapping = jest.fn().mockResolvedValue(undefined);
+      buildDefaultMocks({ deleteFileAndMapping });
+      const { result } = renderHook(() => useDatasetsSoilData());
+      act(() => {
+        uploadFile({ ...buildSoilDataFile('1', 'layer.csv'), isRaster: false });
+        uploadFile({ ...buildSoilDataFile('2', 'raster.tif'), isRaster: true });
+      });
+      await waitFor(() => {
+        expect(result.current.soilDataFiles).toHaveLength(1);
+        expect(deleteFileAndMapping).toHaveBeenCalledWith('2');
+        expect(result.current.uploadErrors.length).toBeGreaterThan(0);
+      });
+    });
+
+    it('accepts a file with isRaster: undefined regardless of established format', () => {
+      const { result } = renderHook(() => useDatasetsSoilData());
+      act(() => {
+        uploadFile({ ...buildSoilDataFile('1', 'layer.csv'), isRaster: false });
+        uploadFile({ ...buildSoilDataFile('2', 'unknown.gpkg'), isRaster: undefined });
+      });
+      expect(result.current.soilDataFiles).toHaveLength(2);
+    });
+  });
+
+  describe('existingFiles — isRaster', () => {
+    let mockSetIsRaster: jest.Mock;
+
+    beforeEach(() => {
+      mockSetIsRaster = jest.fn();
+      (useIngestionFlow as jest.Mock).mockReturnValue({
+        markAsChanged: mockMarkAsChanged,
+        resetChanges: mockResetChanges,
+        setIsRaster: mockSetIsRaster,
+        isRaster: undefined,
+      });
+    });
+
+    it('calls setIsRaster with the first existing file is_raster value', async () => {
+      buildDefaultMocks({
+        existingFiles: [{ id: 'f1', name: 'raster.tif', metadata: { epsg: 4326, is_raster: true } }],
+      });
+      renderHook(() => useDatasetsSoilData());
+      await waitFor(() => {
+        expect(mockSetIsRaster).toHaveBeenCalledWith(true);
+      });
+    });
+
+    it('calls setIsRaster(undefined) when existing files list is empty', async () => {
+      buildDefaultMocks({ existingFiles: [] });
+      renderHook(() => useDatasetsSoilData());
+      await waitFor(() => {
+        expect(mockSetIsRaster).toHaveBeenCalledWith(undefined);
+      });
+    });
+  });
+
+  describe('removeFile — isRaster', () => {
+    let mockSetIsRaster: jest.Mock;
+
+    beforeEach(() => {
+      mockSetIsRaster = jest.fn();
+      (useIngestionFlow as jest.Mock).mockReturnValue({
+        markAsChanged: mockMarkAsChanged,
+        resetChanges: mockResetChanges,
+        setIsRaster: mockSetIsRaster,
+        isRaster: undefined,
+      });
+    });
+
+    function uploadFile(file: ReturnType<typeof buildSoilDataFile> & { isRaster?: boolean }) {
+      const { useFileUpload } = jest.requireMock('hooks/useFileUpload');
+      const onFileUploaded = useFileUpload.mock.calls[0][0];
+      onFileUploaded(file);
+    }
+
+    it('calls setIsRaster(undefined) when removing the only file', async () => {
+      const deleteFileAndMapping = jest.fn().mockResolvedValue(undefined);
+      buildDefaultMocks({ deleteFileAndMapping });
+      const { result } = renderHook(() => useDatasetsSoilData());
+      act(() => {
+        uploadFile({ ...buildSoilDataFile('1', 'raster.tif'), isRaster: true });
+      });
+      mockSetIsRaster.mockClear();
+      await act(async () => {
+        await result.current.removeFile('1');
+      });
+      expect(mockSetIsRaster).toHaveBeenCalledWith(undefined);
+    });
+
+    it('calls setIsRaster with the second file isRaster when the first file is removed', async () => {
+      const deleteFileAndMapping = jest.fn().mockResolvedValue(undefined);
+      buildDefaultMocks({ deleteFileAndMapping });
+      const { result } = renderHook(() => useDatasetsSoilData());
+      act(() => {
+        uploadFile({ ...buildSoilDataFile('1', 'raster1.tif'), isRaster: true });
+        uploadFile({ ...buildSoilDataFile('2', 'raster2.tif'), isRaster: true });
+      });
+      mockSetIsRaster.mockClear();
+      await act(async () => {
+        await result.current.removeFile('1');
+      });
+      expect(mockSetIsRaster).toHaveBeenCalledWith(true);
+    });
+
+    it('does not call setIsRaster when removing a non-first file', async () => {
+      const deleteFileAndMapping = jest.fn().mockResolvedValue(undefined);
+      buildDefaultMocks({ deleteFileAndMapping });
+      const { result } = renderHook(() => useDatasetsSoilData());
+      act(() => {
+        uploadFile({ ...buildSoilDataFile('1', 'raster1.tif'), isRaster: true });
+        uploadFile({ ...buildSoilDataFile('2', 'raster2.tif'), isRaster: true });
+      });
+      mockSetIsRaster.mockClear();
+      await act(async () => {
+        await result.current.removeFile('2');
+      });
+      expect(mockSetIsRaster).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('clearAll — isRaster', () => {
+    it('calls setIsRaster(undefined) after all files are successfully deleted', async () => {
+      const mockSetIsRaster = jest.fn();
+      (useIngestionFlow as jest.Mock).mockReturnValue({
+        markAsChanged: mockMarkAsChanged,
+        resetChanges: mockResetChanges,
+        setIsRaster: mockSetIsRaster,
+        isRaster: undefined,
+      });
+      const deleteFileAndMapping = jest.fn().mockResolvedValue(undefined);
+      buildDefaultMocks({ deleteFileAndMapping });
+      const { result } = renderHook(() => useDatasetsSoilData());
+      act(() => {
+        const { useFileUpload } = jest.requireMock('hooks/useFileUpload');
+        const onFileUploaded = useFileUpload.mock.calls[0][0];
+        onFileUploaded({ ...buildSoilDataFile('1', 'raster.tif'), isRaster: true });
+      });
+      mockSetIsRaster.mockClear();
+      await act(async () => {
+        await result.current.clearAll();
+      });
+      expect(mockSetIsRaster).toHaveBeenCalledWith(undefined);
+    });
+  });
+
+  // --- leave Ingestion flow ---------------------------------------------------
 
   describe('leave Ingestion flow', () => {
     it('calls markAsChanged on mount', () => {

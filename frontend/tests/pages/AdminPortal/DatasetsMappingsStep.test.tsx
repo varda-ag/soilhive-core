@@ -1,7 +1,8 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { useNavigate, useParams } from 'react-router';
 import { DatasetsMappingsStep } from '../../../src/pages/AdminPortal/DatasetsMappingsStep/DatasetsMappingsStep';
 import { useMappingsStep, type RowDetails, type DetailOptionMap } from 'hooks/useMappingsStep';
+import { ADMIN_PATHS } from 'configuration/admin';
 
 jest.mock('react-router', () => ({
   useNavigate: jest.fn(),
@@ -44,9 +45,12 @@ function stubHookReturn(
   isContinueEnabled = false,
   depthConflictMessage: { message: string; type: 'warning' } | null = null,
   isSaveEnabled = false,
+  showLoadingPanel = false,
 ) {
   return {
     isLoading: false,
+    isImporting: false,
+    showLoadingPanel,
     geometryMessage,
     depthConflictMessage,
     isSaveEnabled,
@@ -171,6 +175,31 @@ describe('DatasetsMappingsStep', () => {
       render(<DatasetsMappingsStep />);
       expect(screen.getByTestId('sh-mappings-continue')).not.toBeDisabled();
       expect(screen.getByTestId('sh-mappings-save-later')).not.toBeDisabled();
+    });
+  });
+
+  describe('DataLoadingStartedPanel', () => {
+    it('does not render the panel when showLoadingPanel is false', () => {
+      render(<DatasetsMappingsStep />);
+      expect(screen.queryByText('Data loading started')).not.toBeInTheDocument();
+    });
+
+    it('renders the panel and hides the regular content when showLoadingPanel is true', () => {
+      (useMappingsStep as jest.Mock).mockReturnValue(stubHookReturn([], null, false, null, false, true));
+      render(<DatasetsMappingsStep />);
+      expect(screen.getByText('Data loading started')).toBeInTheDocument();
+      expect(screen.queryByTestId('sh-mappings-banner')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('sh-mappings-table')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('sh-mappings-continue')).not.toBeInTheDocument();
+    });
+
+    it('calls navigate with the datasets path when the panel Continue button is clicked', () => {
+      const navigateMock = jest.fn();
+      (useNavigate as jest.Mock).mockReturnValue(navigateMock);
+      (useMappingsStep as jest.Mock).mockReturnValue(stubHookReturn([], null, false, null, false, true));
+      render(<DatasetsMappingsStep />);
+      fireEvent.click(screen.getByText('Continue'));
+      expect(navigateMock).toHaveBeenCalledWith(ADMIN_PATHS.DATASETS);
     });
   });
 

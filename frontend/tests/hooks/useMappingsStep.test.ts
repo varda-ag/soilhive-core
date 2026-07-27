@@ -732,6 +732,36 @@ describe('useMappingsStep', () => {
     });
   });
 
+  describe('showLoadingPanel', () => {
+    beforeEach(() => {
+      setupWithFileStatuses(['PENDING']);
+      (useJobsQueries as jest.Mock).mockImplementation((ids: string[]) => ids.map(id => ({ data: { id, status: 'completed' } })));
+    });
+
+    it('navigates to preview and keeps showLoadingPanel false when isRaster is false', async () => {
+      const { result } = renderHook(() => useMappingsStep('42'));
+      await act(async () => {
+        await result.current.handleContinue();
+      });
+      expect(result.current.showLoadingPanel).toBe(false);
+      expect(mockNavigate).toHaveBeenCalledWith('/admin/datasets/edit/42/preview');
+    });
+
+    it('sets showLoadingPanel to true and does not navigate when isRaster is true', async () => {
+      (useIngestionFlow as jest.Mock).mockReturnValue({
+        markAsChanged: mockMarkAsChanged,
+        resetChanges: mockResetChanges,
+        isRaster: true,
+      });
+      const { result } = renderHook(() => useMappingsStep('42'));
+      await act(async () => {
+        await result.current.handleContinue();
+      });
+      expect(result.current.showLoadingPanel).toBe(true);
+      expect(mockNavigate).not.toHaveBeenCalled();
+    });
+  });
+
   describe('leave Ingestion flow', () => {
     it('calls markAsChanged on mount', () => {
       renderHook(() => useMappingsStep('42'));
