@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { useParams } from 'react-router';
+import { useParams, useNavigate } from 'react-router';
 import { Button, FormMessage } from 'components/UI';
 import { useMappingsStep } from 'hooks/useMappingsStep';
 import { MappingsBanner } from './MappingsBanner';
@@ -7,6 +7,8 @@ import { MappingsTable } from './MappingsTable';
 import { MappingFieldsPane } from './MappingFieldsPane';
 import { IngestionStepTitleRow } from 'components/AdminPortal/IngestionStepTitleRow/IngestionStepTitleRow';
 import { INGESTION_DOCS_URL } from 'configuration/ingestion';
+import { DataLoadingStartedPanel } from 'pages/AdminPortal/DatasetsPreviewStep/DataLoadingStartedPanel';
+import { ADMIN_PATHS } from 'configuration/admin';
 
 import styles from './DatasetsMappingsStep.module.scss';
 
@@ -15,10 +17,12 @@ const DOCS_URL = `${INGESTION_DOCS_URL}#field-mapping--match-your-data`;
 export function DatasetsMappingsStep() {
   const { t } = useTranslation('admin');
   const { id } = useParams();
+  const navigate = useNavigate();
 
   const {
     datasetName,
     isImporting,
+    showLoadingPanel,
     geometryMessage,
     depthConflictMessage,
     isSaveEnabled,
@@ -38,6 +42,10 @@ export function DatasetsMappingsStep() {
     handleSaveAndContinueLater,
     handleContinue,
   } = useMappingsStep(id);
+
+  if (showLoadingPanel) {
+    return <DataLoadingStartedPanel onContinue={() => navigate(ADMIN_PATHS.DATASETS)} />;
+  }
 
   if (isImporting) {
     return <MappingFieldsPane />;

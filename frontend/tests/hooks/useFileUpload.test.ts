@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { useFileUpload } from 'hooks/useFileUpload';
 
 jest.mock('hooks/useDatasetsSoilData', () => ({
-  ALLOWED_EXTENSIONS: ['.csv', '.gpkg', '.geojson', '.shp', '.xlsx', '.zip'],
+  ALLOWED_EXTENSIONS: ['.csv', '.gpkg', '.geojson', '.shp', '.xlsx', '.zip', '.tif', '.tiff'],
   useDatasetsSoilData: jest.fn(),
 }));
 
@@ -80,6 +80,65 @@ describe('useFileUpload', () => {
         expect(result.current.uploadErrors).toHaveLength(1);
         expect(result.current.uploadErrors[0]).toContain('report.pdf');
       });
+    });
+  });
+
+  describe('handleFiles — raster extension validation', () => {
+    it('accepts .tif files', async () => {
+      const onFileUploaded = jest.fn();
+      const { result } = renderHook(() => useFileUpload(onFileUploaded));
+      const file = new File(['data'], 'elevation.tif', { type: 'image/tiff' });
+      await act(async () => {
+        await result.current.handleFiles([file]);
+      });
+      expect(onFileUploaded).toHaveBeenCalledTimes(1);
+      expect(result.current.uploadErrors).toHaveLength(0);
+    });
+
+    it('accepts .tiff files', async () => {
+      const onFileUploaded = jest.fn();
+      const { result } = renderHook(() => useFileUpload(onFileUploaded));
+      const file = new File(['data'], 'elevation.tiff', { type: 'image/tiff' });
+      await act(async () => {
+        await result.current.handleFiles([file]);
+      });
+      expect(onFileUploaded).toHaveBeenCalledTimes(1);
+      expect(result.current.uploadErrors).toHaveLength(0);
+    });
+  });
+
+  describe('handleFiles — is_raster field', () => {
+    it('passes isRaster: true to onFileUploaded when metadata.is_raster is true', async () => {
+      xhrMock.responseText = JSON.stringify({ id: 'file-123', metadata: { is_raster: true } });
+      const onFileUploaded = jest.fn();
+      const { result } = renderHook(() => useFileUpload(onFileUploaded));
+      const file = new File(['data'], 'elevation.tif', { type: 'image/tiff' });
+      await act(async () => {
+        await result.current.handleFiles([file]);
+      });
+      expect(onFileUploaded).toHaveBeenCalledWith(expect.objectContaining({ isRaster: true }));
+    });
+
+    it('passes isRaster: false to onFileUploaded when metadata.is_raster is false', async () => {
+      xhrMock.responseText = JSON.stringify({ id: 'file-123', metadata: { is_raster: false } });
+      const onFileUploaded = jest.fn();
+      const { result } = renderHook(() => useFileUpload(onFileUploaded));
+      const file = new File(['data'], 'layer.csv', { type: 'text/csv' });
+      await act(async () => {
+        await result.current.handleFiles([file]);
+      });
+      expect(onFileUploaded).toHaveBeenCalledWith(expect.objectContaining({ isRaster: false }));
+    });
+
+    it('passes isRaster: false to onFileUploaded when metadata.is_raster is absent', async () => {
+      xhrMock.responseText = JSON.stringify({ id: 'file-123', metadata: {} });
+      const onFileUploaded = jest.fn();
+      const { result } = renderHook(() => useFileUpload(onFileUploaded));
+      const file = new File(['data'], 'layer.gpkg', { type: 'application/octet-stream' });
+      await act(async () => {
+        await result.current.handleFiles([file]);
+      });
+      expect(onFileUploaded).toHaveBeenCalledWith(expect.objectContaining({ isRaster: false }));
     });
   });
 

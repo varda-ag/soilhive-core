@@ -56,7 +56,7 @@ exports[`DatasetsSoilDataStep renders matches snapshot 1`] = `
           <p
             class="Caption"
           >
-            Supported formats: CSV, Geopackage, GeoJSON, Shapefile, XLSX and ZIP.
+            Supported formats: CSV, GeoPackage, GeoJSON, Shapefile, XLSX, ZIP and GeoTIFF.
           </p>
           <input
             accept=""

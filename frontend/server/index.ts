@@ -10,13 +10,12 @@ const CLIENT_DIST = path.resolve(__dirname, '../client');
 
 const PORT = Number(process.env.PORT ?? 3000);
 
-// Generate env-config.js at startup so non-SSR (SPA) routes can load
-// window._env_ via <script src="/env-config.js">.
-//
-// Only write the file when at least one env var is explicitly provided
-// (i.e. in Docker / CI where vars are injected at runtime).  In local dev,
-// public/env-config.js is copied to dist/client/ by Rsbuild during the build
-// and must not be overwritten with empty values.
+// Runtime env vars are injected at process start (Docker / CI) and never
+// change during the process lifetime, so build the inline env script once and
+// splice it into the served index.html for every response (see baseHtml
+// below).  This replaces the external <script src="/env-config.js"> reference
+// so runtime env vars are available before any JS bundle executes — with no
+// extra network round-trip and no cache-busting concern.
 const _envVars = {
   BACKEND_BASE_URL: process.env.BACKEND_BASE_URL ?? '',
   MAPBOX_ACCESS_TOKEN: process.env.MAPBOX_ACCESS_TOKEN ?? '',
@@ -24,12 +23,7 @@ const _envVars = {
   COOKIE_DOMAIN: process.env.COOKIE_DOMAIN ?? '',
   FEATURE_FLAGS: process.env.FEATURE_FLAGS ?? '',
 };
-const _envConfigPath = path.join(CLIENT_DIST, 'env-config.js');
-const _hasEnvVars = Object.values(_envVars).some(v => v !== '');
-if (_hasEnvVars || !fs.existsSync(_envConfigPath)) {
-  fs.mkdirSync(CLIENT_DIST, { recursive: true });
-  fs.writeFileSync(_envConfigPath, `window._env_ = ${JSON.stringify(_envVars)};`, 'utf-8');
-}
+const ENV_SCRIPT = `<script>window._env_=${JSON.stringify(_envVars)};</script>`;
 
 // ---------------------------------------------------------------------------
 // Bootstrap Express
@@ -39,16 +33,9 @@ const app = express();
 app.use(compression());
 
 // Static assets with long-lived cache for hashed filenames.
-// env-config.js is regenerated at startup so it must NOT be cached.
-app.use(
-  express.static(CLIENT_DIST, {
-    setHeaders(res, filePath) {
-      if (filePath.endsWith('env-config.js')) {
-        res.setHeader('Cache-Control', 'no-store');
-      }
-    },
-  }),
-);
+// index: false so `/` falls through to the catch-all below and is served the
+// env-inlined SPA shell (baseHtml) rather than the raw index.html on disk.
+app.use(express.static(CLIENT_DIST, { index: false }));
 
 // ---------------------------------------------------------------------------
 // SSR auth resolution
@@ -111,6 +98,11 @@ app.get('/ready', (_req, res) => {
 
 const indexHtml = fs.readFileSync(path.join(CLIENT_DIST, 'index.html'), 'utf-8');
 
+// Inline the runtime env config into the SPA shell so it is served with every
+// response — no separate /env-config.js request. All response paths (SSR, SPA
+// fallback, error fallback) build on this.
+const baseHtml = indexHtml.replace('<script src="/env-config.js"></script>', ENV_SCRIPT);
+
 // Use app.use() as the catch-all — compatible with Express 4 and Express 5
 // (Express 5 removed support for the bare `*` wildcard in app.get).
 app.use((req, res) => {
@@ -134,32 +126,23 @@ app.use((req, res) => {
         const { html: ssrContent, dehydratedState, head } = result;
         // SSR route: inject server-rendered HTML and mark the root element so
         // the client-side hydration path is chosen instead of a full SPA boot.
-        const headReplaced = head ? indexHtml.replace('<!--ssr-head-->\n    <title>SoilHive</title>', head) : indexHtml;
+        // baseHtml already has window._env_ inlined (see ENV_SCRIPT); append the
+        // React Query state right after it so both are set before any bundle runs.
+        const headReplaced = head ? baseHtml.replace('<!--ssr-head-->\n    <title>SoilHive</title>', head) : baseHtml;
         const html = headReplaced
           .replace('<div id="root"><!--ssr-outlet--></div>', `<div id="root" data-ssr-page="${matchedPattern}">${ssrContent}</div>`)
-          // Replace the external env-config.js reference with an inline script
-          // so the runtime env vars are available before any JS bundle executes.
-          .replace(
-            '<script src="/env-config.js"></script>',
-            `<script>window._env_=${JSON.stringify({
-              BACKEND_BASE_URL: process.env.BACKEND_BASE_URL ?? '',
-              MAPBOX_ACCESS_TOKEN: process.env.MAPBOX_ACCESS_TOKEN ?? '',
-              GTM_CONTAINER_ID: process.env.GTM_CONTAINER_ID ?? '',
-              COOKIE_DOMAIN: process.env.COOKIE_DOMAIN ?? '',
-              FEATURE_FLAGS: process.env.FEATURE_FLAGS ?? '',
-            })};window.__REACT_QUERY_STATE__=${JSON.stringify(dehydratedState)};</script>`,
-          );
+          .replace(ENV_SCRIPT, `${ENV_SCRIPT}<script>window.__REACT_QUERY_STATE__=${JSON.stringify(dehydratedState)};</script>`);
 
         res.status(200).set({ 'Content-Type': 'text/html' }).send(html);
       } else {
         // Non-SSR route: serve the SPA shell and let client-side routing handle it.
-        res.status(200).set({ 'Content-Type': 'text/html' }).send(indexHtml);
+        res.status(200).set({ 'Content-Type': 'text/html' }).send(baseHtml);
       }
     })
     .catch(err => {
       console.error('SSR render error:', err);
       // On render failure fall back to the SPA shell so the user sees the app.
-      res.status(200).set({ 'Content-Type': 'text/html' }).send(indexHtml);
+      res.status(200).set({ 'Content-Type': 'text/html' }).send(baseHtml);
     });
 });
 

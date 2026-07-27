@@ -13,7 +13,7 @@ export function useFileUpload(onFileUploaded: (file: SoilDataFile) => void) {
   const [uploadErrors, setUploadErrors] = useState<string[]>([]);
 
   const uploadFile = useCallback(
-    (file: File): Promise<{ id: string; crs?: string; fieldNames?: string[] }> => {
+    (file: File): Promise<{ id: string; crs?: string; fieldNames?: string[]; isRaster?: boolean }> => {
       return new Promise((resolve, reject) => {
         const formData = new FormData();
         formData.append('file', file);
@@ -35,6 +35,7 @@ export function useFileUpload(onFileUploaded: (file: SoilDataFile) => void) {
                 id: response.id,
                 crs: response.metadata?.epsg ? `EPSG:${response.metadata.epsg}` : undefined,
                 fieldNames: response.metadata?.field_names as string[] | undefined,
+                isRaster: response.metadata?.is_raster === true,
               });
             } else if (xhr.status === 0) {
               // Network failure
@@ -87,8 +88,8 @@ export function useFileUpload(onFileUploaded: (file: SoilDataFile) => void) {
       await Promise.allSettled(
         validFiles.map(async file => {
           try {
-            const { id, crs, fieldNames } = await uploadFile(file);
-            onFileUploaded({ id, file, name: file.name, crs: crs ?? null, inferredCrs: crs, fieldNames, progress: 100 });
+            const { id, crs, fieldNames, isRaster } = await uploadFile(file);
+            onFileUploaded({ id, file, name: file.name, crs: crs ?? null, inferredCrs: crs, fieldNames, isRaster, progress: 100 });
           } catch (err) {
             const message = err instanceof Error && err.message ? err.message : t('datasets.soil_data.upload_error');
             setUploadErrors(prev => [...prev, `${file.name}: ${message}`]);
