@@ -9,10 +9,21 @@ interface Props {
   selectedMin: number;
   selectedMax: number;
   disabled?: boolean;
+  minAriaLabel?: string;
+  maxAriaLabel?: string;
   onChange: (min: number, max: number) => void;
 }
 
-export function MultirangeSlider({ min, max, selectedMin, selectedMax, disabled, onChange }: Props) {
+export function MultirangeSlider({
+  min,
+  max,
+  selectedMin,
+  selectedMax,
+  disabled,
+  minAriaLabel = 'Minimum value',
+  maxAriaLabel = 'Maximum value',
+  onChange,
+}: Props) {
   const [minVal, setMinVal] = useState(selectedMin);
   const [maxVal, setMaxVal] = useState(selectedMax);
   const minInputRef = useRef<HTMLInputElement | null>(null);
@@ -126,6 +137,7 @@ export function MultirangeSlider({ min, max, selectedMin, selectedMax, disabled,
         value={minVal}
         onChange={handleMinChange}
         disabled={disabled}
+        aria-label={`${minAriaLabel} slider`}
         className={classnames(styles.MultirangeThumb, styles.MultirangeThumbLeft)}
         style={{ zIndex: minVal === max ? '5' : '' }}
       />
@@ -136,6 +148,7 @@ export function MultirangeSlider({ min, max, selectedMin, selectedMax, disabled,
         value={maxVal}
         onChange={handleMaxChange}
         disabled={disabled}
+        aria-label={`${maxAriaLabel} slider`}
         className={classnames(styles.MultirangeThumb, styles.MultirangeThumbRight)}
       />
       <div className={styles.MultirangeSlider}>
@@ -151,6 +164,7 @@ export function MultirangeSlider({ min, max, selectedMin, selectedMax, disabled,
           onChange={handleMinInputChange}
           onBlur={handleMinInputFocusOut}
           defaultValue={minVal}
+          aria-label={minAriaLabel}
           className={styles.MultirangeSliderInput}
           disabled={disabled}
         />
@@ -162,6 +176,7 @@ export function MultirangeSlider({ min, max, selectedMin, selectedMax, disabled,
           onChange={handleMaxInputChange}
           onBlur={handleMaxInputFocusOut}
           defaultValue={maxVal}
+          aria-label={maxAriaLabel}
           className={styles.MultirangeSliderInput}
           disabled={disabled}
         />

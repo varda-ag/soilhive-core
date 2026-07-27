@@ -44,6 +44,8 @@ export function TimeFilter() {
         selectedMin={selectedTime.min}
         selectedMax={selectedTime.max}
         disabled={timeFilterRange.min === timeFilterRange.max}
+        minAriaLabel="Minimum year"
+        maxAriaLabel="Maximum year"
         onChange={onTimeChange}
       />
       <div className={styles.TimeFilterActions}>

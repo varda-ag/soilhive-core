@@ -160,6 +160,34 @@ describe('MultirangeSlider', () => {
     expect(numbers[1].value).toBe('95');
   });
 
+  it('applies default aria-labels to all four inputs', () => {
+    render(<MultirangeSlider min={0} max={100} selectedMin={10} selectedMax={90} onChange={jest.fn()} />);
+
+    expect(screen.getByRole('slider', { name: 'Minimum value slider' })).toBeInTheDocument();
+    expect(screen.getByRole('slider', { name: 'Maximum value slider' })).toBeInTheDocument();
+    expect(screen.getByRole('spinbutton', { name: 'Minimum value' })).toBeInTheDocument();
+    expect(screen.getByRole('spinbutton', { name: 'Maximum value' })).toBeInTheDocument();
+  });
+
+  it('applies custom aria-labels from minAriaLabel/maxAriaLabel props', () => {
+    render(
+      <MultirangeSlider
+        min={0}
+        max={100}
+        selectedMin={10}
+        selectedMax={90}
+        minAriaLabel="Minimum year"
+        maxAriaLabel="Maximum year"
+        onChange={jest.fn()}
+      />,
+    );
+
+    expect(screen.getByRole('slider', { name: 'Minimum year slider' })).toBeInTheDocument();
+    expect(screen.getByRole('slider', { name: 'Maximum year slider' })).toBeInTheDocument();
+    expect(screen.getByRole('spinbutton', { name: 'Minimum year' })).toBeInTheDocument();
+    expect(screen.getByRole('spinbutton', { name: 'Maximum year' })).toBeInTheDocument();
+  });
+
   it('accepts disabled property correctly', () => {
     const { container } = render(
       <MultirangeSlider min={0} max={100} selectedMin={10} selectedMax={90} disabled={true} onChange={jest.fn()} />,
