@@ -25,6 +25,32 @@ const _envVars = {
 };
 const ENV_SCRIPT = `<script>window._env_=${JSON.stringify(_envVars)};</script>`;
 
+// Preconnect to the API origin so the browser can warm DNS/TCP/TLS in parallel
+// with bundle execution, cutting handshake latency off the first API request.
+// Built once at startup — the env var never changes during the process lifetime.
+const PRECONNECT_LINK = (() => {
+  const raw = process.env.BACKEND_BASE_URL;
+  if (!raw) return null;
+  try {
+    // `crossorigin` is required: API calls are CORS fetches, and only an
+    // anonymous-CORS preconnected socket is reused for them.
+    return `<${new URL(raw).origin}>; rel=preconnect; crossorigin`;
+  } catch {
+    console.warn('BACKEND_BASE_URL is not a valid absolute URL; skipping preconnect header');
+    return null;
+  }
+})();
+
+// Preconnect to the CARTO basemap tile CDNs so the map on the availability page
+// (served at both `/` and `/availability`) can start fetching tiles without
+// paying DNS/TCP/TLS setup first. Tiles are fetched as anonymous-CORS requests,
+// so `crossorigin` is required for the preconnected socket to be reused.
+const CARTO_PRECONNECT_LINKS = [
+  '<https://basemaps.cartocdn.com>; rel=preconnect; crossorigin',
+  '<https://tiles.basemaps.cartocdn.com>; rel=preconnect; crossorigin',
+];
+const CARTO_PRECONNECT_PATHS = new Set(['/', '/availability']);
+
 // ---------------------------------------------------------------------------
 // Bootstrap Express
 // ---------------------------------------------------------------------------
@@ -108,6 +134,10 @@ const baseHtml = indexHtml.replace('<script src="/env-config.js"></script>', ENV
 app.use((req, res) => {
   const url = req.originalUrl;
   const pathname = new URL(url, 'http://localhost').pathname;
+
+  const linkValues = PRECONNECT_LINK ? [PRECONNECT_LINK] : [];
+  if (CARTO_PRECONNECT_PATHS.has(pathname)) linkValues.push(...CARTO_PRECONNECT_LINKS);
+  if (linkValues.length > 0) res.setHeader('Link', linkValues.join(', '));
 
   // Only spend cycles on auth resolution for routes that actually SSR.
   let authToken: string | null = null;
