@@ -95,7 +95,7 @@ describe('Soil Export Job Integration Test', () => {
         ],
         spatial_extent: [-81, -34, -79, -32],
       }));
-    }, 10000);
+    });
 
     it('vector dataset - should create observations, queue export job, wait for completion, download and verify file', async () => {
       const filterResponse = await request(app)
@@ -216,7 +216,7 @@ describe('Soil Export Job Integration Test', () => {
 
       // Cleanup
       fs.rmSync(tempDir, { recursive: true, force: true });
-    }, 6000); // 6 seconds timeout for integration test
+    });
 
     it('should create one output file with one raster band and one vector layer when format requested is GPKG', async () => {
       const filterResponse = await request(app)
@@ -332,7 +332,7 @@ describe('Soil Export Job Integration Test', () => {
 
       // Cleanup
       fs.rmSync(tempDir, { recursive: true, force: true });
-    }, 8000);
+    });
 
     it('should create several output files with the corresponding formats when several are requested', async () => {
       const filterResponse = await request(app)
@@ -464,7 +464,7 @@ describe('Soil Export Job Integration Test', () => {
 
       // Cleanup
       fs.rmSync(tempDir, { recursive: true, force: true });
-    }, 8000);
+    });
 
     it('should create one output file with several bands when several raster datasets requested with format GPKG', async () => {
       const extra_raster_layer = await addRasterData(path.join(__dirname, '../../assets/raster/bdod_5-15cm_mean.tif'), {
@@ -588,7 +588,7 @@ describe('Soil Export Job Integration Test', () => {
 
       // Cleanup
       fs.rmSync(tempDir, { recursive: true, force: true });
-    }, 8000);
+    });
 
     it('should create properly filtered raster output when raster filters are applied', async () => {
       await addRasterFilterData();
@@ -711,7 +711,7 @@ describe('Soil Export Job Integration Test', () => {
       fs.rmSync(tempDir, { recursive: true, force: true });
 
       mockSelectOverview.mockRestore();
-    }, 15000);
+    });
 
     it('should skip mask building and crop via projwin for an axis-aligned bbox AOI without raster filters', async () => {
       const spy = jest.spyOn(FilteringMasksModule, 'getRasterMask');
@@ -822,7 +822,7 @@ describe('Soil Export Job Integration Test', () => {
       expect(spy).not.toHaveBeenCalled();
       spy.mockRestore();
       fs.rmSync(tempDir, { recursive: true, force: true });
-    }, 15000);
+    });
 
     it('should build a raster mask for an irregular (non-rectangular) polygon AOI and clip to its shape', async () => {
       const trianglePolygon = {
@@ -927,7 +927,7 @@ describe('Soil Export Job Integration Test', () => {
       expect(spy).toHaveBeenCalled();
       spy.mockRestore();
       fs.rmSync(tempDir, { recursive: true, force: true });
-    }, 15000);
+    });
   });
 
   it('should stop processing and not produce a download_path when job is cancelled mid-run', async () => {
@@ -1011,5 +1011,5 @@ describe('Soil Export Job Integration Test', () => {
     fetchBatchSpy.mockRestore();
     getTotalRecordsCountSpy.mockRestore();
     createReadmeFileSpy.mockRestore();
-  }, 15000);
+  });
 });

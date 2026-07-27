@@ -15,7 +15,7 @@ import {
   validateFileFormats,
   computeCombinedProgress,
 } from './exportHelpers';
-import { getPgBoss, PG_BOSS_SCHEMA } from '../../services/PgBoss';
+import { getPgBoss, PG_BOSS_SCHEMA, updateJobState } from '../../services/PgBoss';
 import { GeoFileWriter } from './GeoFileWriter';
 import { RasterFileWriter } from './RasterFileWriter';
 import {
@@ -267,15 +267,6 @@ async function exportRasterData(
   }
 
   return { total_layers_processed: totalLayersProcessed };
-}
-
-async function updateJobState(jobId: string, update: Partial<ExportJob>): Promise<void> {
-  const boss = getPgBoss();
-  const db = boss.getDb();
-  await db.executeSql(`UPDATE ${PG_BOSS_SCHEMA}.job SET data = data || $1::jsonb WHERE id = $2 AND state = 'active'`, [
-    JSON.stringify(update),
-    jobId,
-  ]);
 }
 
 async function isJobCancelled(jobId: string): Promise<boolean> {

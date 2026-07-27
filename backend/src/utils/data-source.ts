@@ -32,6 +32,9 @@ const createDataSource = async (schema: string, includeEntities = true): Promise
     namingStrategy: new DatabaseNamingStrategy(),
     poolSize: 50,
     extra: {
+      // Also an upper bound on how long a query can outlive the test that issued it: Jest's
+      // testTimeout must stay above this, or abandoned queries deadlock with clearDatabase's
+      // TRUNCATE. See the invariant documented on clearDatabase in tests/helper.ts.
       statement_timeout: 20000,
       options: `-c search_path="${schema}",public`,
     },
@@ -51,9 +54,24 @@ export const initializeSchema = async () => {
   await runConditionalMigrations(dataSource);
 };
 
+/**
+ * Whether Postgres is accepting connections, established with a real handshake.
+ *
+ * Returns false rather than throwing when the server is unreachable, so callers can poll it in a
+ * `while (!(await isDBAvailable()))` loop. The probe connection is destroyed before returning:
+ * every `createDataSource` opens its own `poolSize` pool, and this one is not the module-level
+ * instance that `destroyDataSource` cleans up.
+ */
 export const isDBAvailable = async (): Promise<boolean> => {
-  const dataSourcePublic = await createDataSource('public', false);
-  return dataSourcePublic.isInitialized;
+  let dataSourcePublic: DataSource | undefined;
+  try {
+    dataSourcePublic = await createDataSource('public', false);
+    return dataSourcePublic.isInitialized;
+  } catch {
+    return false;
+  } finally {
+    await dataSourcePublic?.destroy().catch(() => {});
+  }
 };
 
 export const getDataSource = async (): Promise<DataSource> => {
