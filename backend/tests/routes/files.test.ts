@@ -83,6 +83,51 @@ describe('Testing /files routes (local storage)', () => {
       expect(matchingPaths.length).toBe(0);
     });
 
+    it('skips metadata extraction for a non-spatial file when spatial=false', async () => {
+      const nonSpatialName = 'methodology.pdf';
+      // Bytes GDAL cannot read: this same upload is a 400 on the default (spatial) path.
+      const res = await request(app)
+        .post('/files?spatial=false')
+        .set(dataAdminAuthHeader)
+        .attach('file', Buffer.from('not a geospatial file at all'), nonSpatialName);
+
+      expect(res.statusCode).toBe(StatusCodes.CREATED);
+      expect(res.body.name).toBe(nonSpatialName);
+      expect(res.body.metadata).toBeNull();
+      expect(res.body.file_path).toBeDefined();
+      expect(res.body.status).toBe(IngestionStatus.PENDING);
+
+      // The blob is retained: nothing threw, so the cleanup path in the controller never ran.
+      expect(fs.existsSync(`${vectorFilesPassPath}/${res.body.file_path}`)).toBeTruthy();
+    });
+
+    it('extracts metadata when spatial is absent or explicitly true', async () => {
+      const extractSpy = jest.spyOn(FileService.prototype, 'extractMetadata');
+
+      // Distinct upload names: file_path keys have second resolution and are unique, so reusing
+      // one name for both requests would collide with a 409.
+      const cases: [string, string][] = [
+        ['/files', 'spatial_default.geojson'],
+        ['/files?spatial=true', 'spatial_explicit.geojson'],
+      ];
+      for (const [url, uploadName] of cases) {
+        const res = await request(app)
+          .post(url)
+          .set(dataAdminAuthHeader)
+          .attach('file', Buffer.from(fs.readFileSync(`${vectorFilesPassPath}/${fileName}`)), uploadName);
+        expect(res.statusCode).toBe(StatusCodes.CREATED);
+        expect(res.body.metadata.epsg).toEqual(4326);
+      }
+
+      // Guards against reading the param with `!!`, which would make an absent `spatial` skip extraction.
+      expect(extractSpy).toHaveBeenCalledTimes(2);
+    });
+
+    it('rejects a non-boolean spatial parameter', async () => {
+      const res = await request(app).post('/files?spatial=maybe').set(dataAdminAuthHeader).attach('file', Buffer.from('x'), 'x.txt');
+      expect(res.statusCode).toBe(StatusCodes.BAD_REQUEST);
+    });
+
     it('rejects invalid multipart field', async () => {
       const res = await request(app).post('/files').set(dataAdminAuthHeader).attach('wrong', Buffer.from('x'), 'x.txt');
       expect(res.statusCode).toBe(StatusCodes.BAD_REQUEST);
