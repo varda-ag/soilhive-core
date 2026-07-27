@@ -1,5 +1,11 @@
 import type { MultiPolygon } from 'geojson';
+import fs from 'fs/promises';
+import os from 'os';
+import path from 'path';
+import { fromFile } from 'geotiff';
 import FileService from '../services/FileService';
+import ConfigService from '../services/ConfigService';
+import { StorageModes } from '../types/enums';
 import { GdalCLI } from '../utils/GdalCLI';
 import { log, timed } from '../utils/logger';
 import { openTiff } from '../utils/raster';
@@ -25,9 +31,8 @@ export async function streamRasterFootprints(
   nodataOverride: number | undefined,
   onBatch: FootprintBatchCallback,
 ): Promise<void> {
-  const { selectedImage, ovWidth, ovHeight, ovPixelW, ovPixelH, xMin, yMax, tileW, tileH, nCols, nRows, nodata } = await timed(
-    'footprint extraction setup',
-    async () => {
+  const { selectedImage, ovWidth, ovHeight, ovPixelW, ovPixelH, xMin, yMax, tileW, tileH, nCols, nRows, nodata, overviewTempPath } =
+    await timed('footprint extraction setup', async () => {
       const { mainFilePath } = await FileService.getMainFilePath(cogPath);
 
       const info = await GdalCLI.gdalinfo(mainFilePath);
@@ -68,111 +73,147 @@ export async function streamRasterFootprints(
       }
       if (selectedIndex === 0 && imageCount > 1) selectedIndex = 1;
 
-      const selectedImage = await tiff.getImage(selectedIndex);
+      let selectedImage = await tiff.getImage(selectedIndex);
       const ovWidth = selectedImage.getWidth();
       const ovHeight = selectedImage.getHeight();
       const ovPixelW = rasterWidthDeg / ovWidth;
       const ovPixelH = rasterHeightDeg / ovHeight;
 
-      return { selectedImage, ovWidth, ovHeight, ovPixelW, ovPixelH, xMin, yMax, tileW, tileH, nCols, nRows, nodata };
-    },
-  );
-
-  let batch: MultiPolygon[] = [];
-
-  const totalTiles = nRows * nCols;
-  const progressLogInterval = Math.max(1, Math.floor(totalTiles / 20));
-  let tilesProcessed = 0;
-  let footprintsFound = 0;
-  let readMs = 0;
-  let traceMs = 0;
-  let dbMs = 0;
-  const startedAt = Date.now();
-
-  for (let iRow = 0; iRow < nRows; iRow++) {
-    for (let iCol = 0; iCol < nCols; iCol++) {
-      tilesProcessed++;
-      if (tilesProcessed % progressLogInterval === 0) {
-        log.info('Footprint extraction progress', {
-          tilesProcessed,
-          totalTiles,
-          footprintsFound,
-          elapsedMs: Date.now() - startedAt,
-          readMs,
-          traceMs,
-          dbMs,
-        });
+      // Over the network (S3), reading each tile window directly against a presigned URL costs one
+      // HTTP round-trip per tile — thousands of them. Pull the selected overview once via GDAL's
+      // pooled /vsis3/ VSI (same path gdalinfo already uses above) and read tiles from that local
+      // copy instead. -outsize matches the overview's own dimensions exactly, so GDAL reads the
+      // COG's embedded overview data as-is rather than resampling from full resolution.
+      let overviewTempPath: string | null = null;
+      if (ConfigService.getStorageConfig().storageMode === StorageModes.S3) {
+        overviewTempPath = path.join(os.tmpdir(), `footprint-overview-${Date.now()}-${Math.random().toString(36).slice(2)}.tif`);
+        await timed('download overview locally', () =>
+          GdalCLI.translate(mainFilePath, overviewTempPath!, [
+            '-b',
+            '1',
+            '-outsize',
+            String(ovWidth),
+            String(ovHeight),
+            '-r',
+            'nearest',
+            '-co',
+            'TILED=YES',
+            '-co',
+            'BLOCKXSIZE=256',
+            '-co',
+            'BLOCKYSIZE=256',
+            '-co',
+            'COMPRESS=DEFLATE',
+          ]),
+        );
+        const localTiff = await fromFile(overviewTempPath);
+        selectedImage = await localTiff.getImage(0);
       }
 
-      const tileXMin = xMin + iCol * tileW;
-      const tileXMax = xMin + (iCol + 1) * tileW;
-      const tileYMax = yMax - iRow * tileH;
-      const tileYMin = yMax - (iRow + 1) * tileH;
+      return { selectedImage, ovWidth, ovHeight, ovPixelW, ovPixelH, xMin, yMax, tileW, tileH, nCols, nRows, nodata, overviewTempPath };
+    });
 
-      const pxStart = Math.max(0, Math.floor((tileXMin - xMin) / ovPixelW));
-      const pxEnd = Math.min(ovWidth, Math.ceil((tileXMax - xMin) / ovPixelW));
-      const pyStart = Math.max(0, Math.floor((yMax - tileYMax) / ovPixelH));
-      const pyEnd = Math.min(ovHeight, Math.ceil((yMax - tileYMin) / ovPixelH));
+  try {
+    let batch: MultiPolygon[] = [];
 
-      const tilePixW = pxEnd - pxStart;
-      const tilePixH = pyEnd - pyStart;
-      if (tilePixW <= 0 || tilePixH <= 0) continue;
+    const totalTiles = nRows * nCols;
+    const progressLogInterval = Math.max(1, Math.floor(totalTiles / 20));
+    let tilesProcessed = 0;
+    let footprintsFound = 0;
+    let readMs = 0;
+    let traceMs = 0;
+    let dbMs = 0;
+    const startedAt = Date.now();
 
-      let t = Date.now();
-      const rasters = await selectedImage.readRasters({
-        window: [pxStart, pyStart, pxEnd, pyEnd],
-        samples: [0],
-      });
-      readMs += Date.now() - t;
-      const rawData = rasters[0] as ArrayLike<number>;
+    for (let iRow = 0; iRow < nRows; iRow++) {
+      for (let iCol = 0; iCol < nCols; iCol++) {
+        tilesProcessed++;
+        if (tilesProcessed % progressLogInterval === 0) {
+          log.info('Footprint extraction progress', {
+            tilesProcessed,
+            totalTiles,
+            footprintsFound,
+            elapsedMs: Date.now() - startedAt,
+            readMs,
+            traceMs,
+            dbMs,
+          });
+        }
 
-      const mask = new Uint8Array(tilePixW * tilePixH);
-      let hasValid = false;
-      for (let i = 0; i < rawData.length; i++) {
-        const v = rawData[i] as number;
-        const valid = !Number.isNaN(v) && (nodata === null || v !== nodata);
-        if (valid) {
-          mask[i] = 1;
-          hasValid = true;
+        const tileXMin = xMin + iCol * tileW;
+        const tileXMax = xMin + (iCol + 1) * tileW;
+        const tileYMax = yMax - iRow * tileH;
+        const tileYMin = yMax - (iRow + 1) * tileH;
+
+        const pxStart = Math.max(0, Math.floor((tileXMin - xMin) / ovPixelW));
+        const pxEnd = Math.min(ovWidth, Math.ceil((tileXMax - xMin) / ovPixelW));
+        const pyStart = Math.max(0, Math.floor((yMax - tileYMax) / ovPixelH));
+        const pyEnd = Math.min(ovHeight, Math.ceil((yMax - tileYMin) / ovPixelH));
+
+        const tilePixW = pxEnd - pxStart;
+        const tilePixH = pyEnd - pyStart;
+        if (tilePixW <= 0 || tilePixH <= 0) continue;
+
+        let t = Date.now();
+        const rasters = await selectedImage.readRasters({
+          window: [pxStart, pyStart, pxEnd, pyEnd],
+          samples: [0],
+        });
+        readMs += Date.now() - t;
+        const rawData = rasters[0] as ArrayLike<number>;
+
+        const mask = new Uint8Array(tilePixW * tilePixH);
+        let hasValid = false;
+        for (let i = 0; i < rawData.length; i++) {
+          const v = rawData[i] as number;
+          const valid = !Number.isNaN(v) && (nodata === null || v !== nodata);
+          if (valid) {
+            mask[i] = 1;
+            hasValid = true;
+          }
+        }
+        if (!hasValid) continue;
+
+        const tileGeoXMin = xMin + pxStart * ovPixelW;
+        const tileGeoYMax = yMax - pyStart * ovPixelH;
+
+        t = Date.now();
+        const polygonCoords = traceMaskToPolygons(mask, tilePixW, tilePixH, tileGeoXMin, tileGeoYMax, ovPixelW, ovPixelH);
+        traceMs += Date.now() - t;
+        if (polygonCoords.length === 0) continue;
+
+        batch.push({ type: 'MultiPolygon', coordinates: polygonCoords });
+        footprintsFound++;
+
+        if (batch.length >= INSERT_BATCH_SIZE) {
+          t = Date.now();
+          await onBatch(batch);
+          dbMs += Date.now() - t;
+          batch = [];
         }
       }
-      if (!hasValid) continue;
+    }
 
-      const tileGeoXMin = xMin + pxStart * ovPixelW;
-      const tileGeoYMax = yMax - pyStart * ovPixelH;
+    if (batch.length > 0) {
+      const t = Date.now();
+      await onBatch(batch);
+      dbMs += Date.now() - t;
+    }
 
-      t = Date.now();
-      const polygonCoords = traceMaskToPolygons(mask, tilePixW, tilePixH, tileGeoXMin, tileGeoYMax, ovPixelW, ovPixelH);
-      traceMs += Date.now() - t;
-      if (polygonCoords.length === 0) continue;
-
-      batch.push({ type: 'MultiPolygon', coordinates: polygonCoords });
-      footprintsFound++;
-
-      if (batch.length >= INSERT_BATCH_SIZE) {
-        t = Date.now();
-        await onBatch(batch);
-        dbMs += Date.now() - t;
-        batch = [];
-      }
+    log.info('Footprint extraction complete', {
+      tilesProcessed,
+      totalTiles,
+      footprintsFound,
+      elapsedMs: Date.now() - startedAt,
+      readMs,
+      traceMs,
+      dbMs,
+    });
+  } finally {
+    if (overviewTempPath) {
+      await fs.unlink(overviewTempPath).catch(() => {});
     }
   }
-
-  if (batch.length > 0) {
-    const t = Date.now();
-    await onBatch(batch);
-    dbMs += Date.now() - t;
-  }
-
-  log.info('Footprint extraction complete', {
-    tilesProcessed,
-    totalTiles,
-    footprintsFound,
-    elapsedMs: Date.now() - startedAt,
-    readMs,
-    traceMs,
-    dbMs,
-  });
 }
 
 function traceMaskToPolygons(
