@@ -325,7 +325,7 @@ export default function GeocoderControl(props: GeocoderControlProps) {
     <>
       {marker}
       <PrependPortal targetSelector=".maplibregl-ctrl-geocoder--pin-right" className="search-button-wrapper">
-        <button onClick={onGeocoderSearch} className="search-button">
+        <button onClick={onGeocoderSearch} className="search-button" aria-label="Search button">
           <SearchIcon />
         </button>
       </PrependPortal>

@@ -595,7 +595,7 @@ function SoilhiveMap({
           />
         )}
         {themeConfig.daiConfig?.isEnabled && !isDesktopLayout && (
-          <button className="soilhive-map-dai-btn" onClick={() => setIsDaiWidgetOpen(v => !v)}>
+          <button className="soilhive-map-dai-btn" onClick={() => setIsDaiWidgetOpen(v => !v)} aria-label="Toggle DAI">
             <LayersIcon />
           </button>
         )}

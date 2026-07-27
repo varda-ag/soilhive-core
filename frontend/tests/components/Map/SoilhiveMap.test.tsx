@@ -173,6 +173,22 @@ describe('SoilhiveMap', () => {
     expect(screen.getByTestId('dai-widget')).toBeInTheDocument();
   });
 
+  it('renders the mobile DAI toggle button with an accessible label when DAI is enabled', () => {
+    __setIsMobileLayout(true);
+
+    render(<SoilhiveMap />);
+
+    expect(screen.getByRole('button', { name: 'Toggle DAI' })).toBeInTheDocument();
+  });
+
+  it('does not render the mobile DAI toggle button on desktop', () => {
+    __setIsDesktopLayout(true);
+
+    render(<SoilhiveMap />);
+
+    expect(screen.queryByRole('button', { name: 'Toggle DAI' })).not.toBeInTheDocument();
+  });
+
   it('does not render DaiWidget if DAI is disabled in the config', () => {
     (useTheme as jest.Mock).mockReturnValue({
       isLoadingThemeConfig: false,
