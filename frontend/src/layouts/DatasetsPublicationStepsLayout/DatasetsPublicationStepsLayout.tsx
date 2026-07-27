@@ -1,15 +1,28 @@
-import { Outlet, useLocation } from 'react-router';
+import { useEffect } from 'react';
+import { Outlet, useLocation, useParams } from 'react-router';
 import { Steps } from 'components/UI';
 import styles from './DatasetsPublicationStepsLayout.module.scss';
 import { useTranslation } from 'react-i18next';
 import { LeaveIngestionModal } from 'components/AdminPortal/LeaveIngestionModal/LeaveIngestionModal';
 import useIngestionFlow from 'hooks/useIngestionFlow';
+import { useDataset } from 'hooks/useDatasets';
+import { GISDataType } from 'types/backend';
 
 export function DatasetsPublicationStepsLayout() {
   const { t } = useTranslation('admin');
-  const { isLeaveModalVisible, confirmLeave, cancelLeave, isRaster } = useIngestionFlow();
+  const { id: datasetId } = useParams();
+  const { isLeaveModalVisible, confirmLeave, cancelLeave, isRaster, setIsRaster } = useIngestionFlow();
+  const { data: dataset, isLoading } = useDataset(datasetId);
+
+  useEffect(() => {
+    if (dataset?.gis_datatype === GISDataType.RASTER) {
+      setIsRaster(true);
+    }
+  }, [dataset, setIsRaster]);
 
   const location = useLocation();
+
+  if (isLoading) return null;
   const pathSegments = location.pathname.split('/').filter(Boolean);
   const lastSegment = pathSegments[pathSegments.length - 1];
 

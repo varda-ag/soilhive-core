@@ -84,7 +84,7 @@ export function useDatasetsSoilData() {
   const { deleteFileAndMapping } = useFileManagement();
 
   const onFileUploaded = useCallback(
-    (uploaded: SoilDataFile) => {
+    async (uploaded: SoilDataFile) => {
       if (establishedIsRasterRef.current === undefined) {
         establishedIsRasterRef.current = uploaded.isRaster;
         setIsRaster(uploaded.isRaster);
@@ -92,7 +92,7 @@ export function useDatasetsSoilData() {
       } else if (uploaded.isRaster === undefined || uploaded.isRaster === establishedIsRasterRef.current) {
         setSoilDataFiles(prev => [...prev, uploaded]);
       } else {
-        deleteFileAndMapping(uploaded.id);
+        await deleteFileAndMapping(uploaded.id);
         setDataFormatErrors(prev => [...prev, t('datasets.soil_data.mixed_format_error', { count: 1 })]);
       }
     },
