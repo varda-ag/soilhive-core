@@ -6,6 +6,7 @@ import PageTitle from './components/PageTitle';
 import { ADMIN_ROOT } from './configuration/admin';
 import { AdminPortalGuard } from './guards/AdminPortalGuard';
 import { useAuthContext } from './auth/AuthContextProvider';
+import { useDatasets } from './hooks/useDatasets';
 import useRemotes from './hooks/useRemotes';
 import useTheme from './hooks/useTheme';
 import { MainLayout } from './layouts';
@@ -14,13 +15,27 @@ import AvailabilityModule from './modules/AvailabilityModule';
 import TermsOfUse from './pages/TermsOfUse';
 import Metadata from './pages/Metadata';
 import PrivacyPolicy from 'pages/PrivacyPolicy';
-import type { PluginContext } from './types/plugins';
+import type { PluginContext, PluginDataset, PluginQueryResult } from './types/plugins';
 import { isSinglePageModule } from './utilities/moduleFederation';
 import './utilities/i18n';
 
 import './App.module.scss';
 
 export const queryClient = new QueryClient();
+
+// Curated wrapper around the host's useDatasets: plugins get a thin
+// PluginDataset[], never the full backend-internal Dataset shape. Handed to
+// plugins as a function value (not called here) so the plugin's own render
+// call stack executes it, resolving against the host's shared react-query
+// instance and staying reactive. See docs/frontend/plugin-context-props.md.
+function usePluginDatasets(): PluginQueryResult<PluginDataset[]> {
+  const { datasets, isLoading, isError } = useDatasets();
+  return {
+    data: datasets?.map(({ id, slug, name, description }) => ({ id, slug, name, description })),
+    isLoading,
+    isError,
+  };
+}
 
 function AppRoutes() {
   const { t } = useTranslation('common');
@@ -34,6 +49,7 @@ function AppRoutes() {
   const pluginContext = useMemo<PluginContext>(
     () => ({
       user: user ? { profile: { name: user.profile?.name, email: user.profile?.email } } : user,
+      useDatasets: usePluginDatasets,
     }),
     [user],
   );

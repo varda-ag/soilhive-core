@@ -2,8 +2,14 @@ import React from 'react';
 import type { PluginContext } from 'frontend-plugin-types';
 import './ProviderComponent.css';
 
-const Page: React.FC<{ context?: PluginContext }> = ({ context }) => {
-  const user = context?.user;
+const Page: React.FC<{ context: PluginContext }> = ({ context }) => {
+  // Destructured (with a fallback), not `context.useDatasets()` / `context.user`
+  // — keeps `useDatasets` a bare identifier, called unconditionally, so
+  // eslint-plugin-react-hooks can actually check it (see gotcha in
+  // docs/frontend/plugin-context-props.md). A ternary around the call
+  // itself would violate rules-of-hooks once destructured.
+  const { user, useDatasets = () => ({ data: undefined, isLoading: false, isError: false }) } = context;
+  const { data: datasets, isLoading, isError } = useDatasets();
 
   return (
     <div className="container">
@@ -12,6 +18,10 @@ const Page: React.FC<{ context?: PluginContext }> = ({ context }) => {
       </div>
       <h1 className="title">Hello Module Federation 2.0</h1>
       <p>User from host: {user ? (user.profile?.name ?? user.profile?.email ?? 'authenticated user') : '(none received)'}</p>
+      <p>
+        Datasets from host:{' '}
+        {isLoading ? 'Loading…' : isError ? 'Failed to load' : (datasets?.map(d => d.name).join(', ') ?? '(none received)')}
+      </p>
     </div>
   );
 };

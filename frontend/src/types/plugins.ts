@@ -1,8 +1,8 @@
 import type React from 'react';
 import type { MapSelection } from '../contexts';
-import type { PluginContext } from 'frontend-plugin-types';
+import type { PluginContext, PluginDataset, PluginQueryResult } from 'frontend-plugin-types';
 
-export type { PluginContext };
+export type { PluginContext, PluginDataset, PluginQueryResult };
 
 export interface Plugin {
   url: string; // Remote URL pointing to mf-manifest.json
