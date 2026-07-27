@@ -20,11 +20,13 @@ describe('IngestionFlowProvider / useIngestionFlow', () => {
 
     expect(result.current.hasChanges).toBe(false);
     expect(result.current.isLeaveModalVisible).toBe(false);
+    expect(result.current.isRaster).toBeUndefined();
     expect(typeof result.current.markAsChanged).toBe('function');
     expect(typeof result.current.resetChanges).toBe('function');
     expect(typeof result.current.requestLeave).toBe('function');
     expect(typeof result.current.confirmLeave).toBe('function');
     expect(typeof result.current.cancelLeave).toBe('function');
+    expect(typeof result.current.setIsRaster).toBe('function');
   });
 
   describe('markAsChanged', () => {
@@ -171,6 +173,29 @@ describe('IngestionFlowProvider / useIngestionFlow', () => {
       });
 
       expect(onConfirm).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('isRaster', () => {
+    it('is undefined by default', () => {
+      const { result } = renderHook(() => useIngestionFlow(), { wrapper });
+      expect(result.current.isRaster).toBeUndefined();
+    });
+
+    it('setIsRaster(true) sets isRaster to true', () => {
+      const { result } = renderHook(() => useIngestionFlow(), { wrapper });
+      act(() => {
+        result.current.setIsRaster(true);
+      });
+      expect(result.current.isRaster).toBe(true);
+    });
+
+    it('setIsRaster(false) sets isRaster to false', () => {
+      const { result } = renderHook(() => useIngestionFlow(), { wrapper });
+      act(() => {
+        result.current.setIsRaster(false);
+      });
+      expect(result.current.isRaster).toBe(false);
     });
   });
 

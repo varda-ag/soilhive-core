@@ -9,4 +9,5 @@ export interface SoilDataFile {
   fieldNames?: string[];
   missingFields?: string[];
   extraFields?: string[];
+  isRaster?: boolean;
 }
