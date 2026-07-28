@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback, useEffect, useMemo } from 'react';
+import { useRef, useState, useCallback, useEffect, useMemo, forwardRef, useImperativeHandle } from 'react';
 import classnames from 'classnames';
 import { useTranslation } from 'react-i18next';
 import {
@@ -28,8 +28,6 @@ import { bbox as bboxFn, centerOfMass } from '@turf/turf';
 import { getMapStyles, h3ResolutionForZoomLevel } from '../../utilities/map';
 import DrawControl, { type DrawControlRef } from '../DrawControl';
 import SoilhiveMapToolbar from './SoilhiveMapToolbar';
-import { parseGeoJSONFile } from '../../utilities/parseGeoJSONFile';
-import useNotifications from 'hooks/useNotifications';
 import SoilhiveMapSelectionToolbar, { type SoilhiveMapSelectionToolbarMode } from './SoilhiveMapSelectionToolbar';
 import { largestPolygon as largestPolygonFn } from '../../utilities/geo';
 import type { SoilhiveMapSelectionChangeEvent } from './SoilhiveMapSelectionChangeEvent';
@@ -42,7 +40,6 @@ import useTheme from 'hooks/useTheme';
 import { AreaInfoPopup, AreaInfoBar } from './AreaInfo';
 import { DaiWidget } from './DaiWidget/DaiWidget';
 import LayersIcon from 'assets/icons/layers-icon.svg?react';
-import UploadIcon from 'assets/icons/big-cloud-upload-icon.svg?react';
 import type { MapStyles } from 'types/components';
 import { MapStyleSwitcher } from './MapStyleSwitcher/MapStyleSwitcher';
 import LoadingLine from './LoadingLine/LoadingLine';
@@ -58,9 +55,12 @@ interface SoilhiveMapProps {
   mapStyles?: MapStyles;
   scrollZoom?: boolean;
   dragPan?: boolean;
-  enableFileDrop?: boolean;
   onSelectionChange?: (event: SoilhiveMapSelectionChangeEvent) => void;
   onSelectionToolbarVisibilityChange?: (isVisible: boolean) => void;
+}
+
+export interface SoilhiveMapRef {
+  onUpload: (geometry: Polygon | MultiPolygon) => void;
 }
 
 const dataLayerFills: LayerProps = {
@@ -96,21 +96,23 @@ const SCALE_LINGER_MS = 1000;
 // How long the ScaleControl's fade-out transition takes
 const SCALE_FADE_MS = 300;
 
-function SoilhiveMap({
-  initialViewBoundingBox,
-  showGeocoder = false,
-  geocoder = 'nominatim',
-  showNavigation = true,
-  showGeolocation = true,
-  showScale = true,
-  showH3Cells = false,
-  mapStyles = getMapStyles(),
-  scrollZoom = true,
-  dragPan = true,
-  enableFileDrop = false,
-  onSelectionChange,
-  onSelectionToolbarVisibilityChange,
-}: SoilhiveMapProps) {
+const SoilhiveMap = forwardRef<SoilhiveMapRef, SoilhiveMapProps>(function SoilhiveMap(
+  {
+    initialViewBoundingBox,
+    showGeocoder = false,
+    geocoder = 'nominatim',
+    showNavigation = true,
+    showGeolocation = true,
+    showScale = true,
+    showH3Cells = false,
+    mapStyles = getMapStyles(),
+    scrollZoom = true,
+    dragPan = true,
+    onSelectionChange,
+    onSelectionToolbarVisibilityChange,
+  },
+  ref,
+) {
   const { t } = useTranslation('availability');
   const {
     selectedPoint,
@@ -133,12 +135,9 @@ function SoilhiveMap({
   } = useAvailabilityMap();
 
   const { filterId, isLoadingPartialFilter } = useAvailability();
-  const { showNotification } = useNotifications();
 
   const mapRef = useRef<any>(null);
   const [isPointResultSelection, setIsPointResultSelection] = useState(false);
-  const [isDragOver, setIsDragOver] = useState(false);
-  const dragCounterRef = useRef(0);
   const [selectedLocationName, setSelectedLocationName] = useState<string | undefined>(undefined);
   const [mapBounds, setMapBounds] = useState<LngLatBounds | null>(null);
   const [currentMapStyleIndex, setCurrentMapStyleIndex] = useState<number>(0);
@@ -245,53 +244,7 @@ function SoilhiveMap({
     [applySelection],
   );
 
-  const onDragEnter = useCallback(
-    (event: React.DragEvent<HTMLDivElement>) => {
-      if (!enableFileDrop) return;
-      event.preventDefault();
-      dragCounterRef.current += 1;
-      if (dragCounterRef.current === 1) setIsDragOver(true);
-    },
-    [enableFileDrop],
-  );
-
-  const onDragOver = useCallback(
-    (event: React.DragEvent<HTMLDivElement>) => {
-      if (!enableFileDrop) return;
-      event.preventDefault();
-    },
-    [enableFileDrop],
-  );
-
-  const onDragLeave = useCallback(
-    (_event: React.DragEvent<HTMLDivElement>) => {
-      if (!enableFileDrop) return;
-      dragCounterRef.current -= 1;
-      if (dragCounterRef.current === 0) setIsDragOver(false);
-    },
-    [enableFileDrop],
-  );
-
-  const onDrop = useCallback(
-    async (event: React.DragEvent<HTMLDivElement>) => {
-      if (!enableFileDrop) return;
-      event.preventDefault();
-      dragCounterRef.current = 0;
-      setIsDragOver(false);
-
-      const file = event.dataTransfer.files?.[0];
-      if (!file) return;
-
-      const result = await parseGeoJSONFile(file);
-      if (result.error) {
-        showNotification({ id: result.error.id, title: 'Upload failed', message: result.error.message });
-        return;
-      }
-
-      onUpload(result.polygon);
-    },
-    [enableFileDrop, onUpload, showNotification],
-  );
+  useImperativeHandle(ref, () => ({ onUpload }), [onUpload]);
 
   const updateH3Cells = useCallback(
     ({ bounds, zoomLevel }: { bounds: number[]; zoomLevel: number }) => {
@@ -503,20 +456,7 @@ function SoilhiveMap({
       className={classnames('soilhive-map', {
         'soilhive-map-show-selection-toolbar': showSelectionToolbar,
       })}
-      onDragEnter={onDragEnter}
-      onDragOver={onDragOver}
-      onDragLeave={onDragLeave}
-      onDrop={onDrop}
     >
-      {enableFileDrop && isDragOver && (
-        <div className="soilhive-map-drop-overlay">
-          <div className="soilhive-map-drop-overlay-content">
-            <UploadIcon />
-            <p className="soilhive-map-drop-overlay-message">{t('map.drop_file_message')}</p>
-            <p className="soilhive-map-drop-overlay-caption">{t('map.drop_file_caption')}</p>
-          </div>
-        </div>
-      )}
       <Map
         ref={mapRef}
         scrollZoom={scrollZoom}
@@ -617,6 +557,6 @@ function SoilhiveMap({
       )}
     </div>
   );
-}
+});
 
 export default SoilhiveMap;
