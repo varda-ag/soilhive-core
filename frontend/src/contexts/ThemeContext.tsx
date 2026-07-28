@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect, type ReactNode } from 'react';
+import React, { useState, useEffect, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import useConfig from '../hooks/useConfig';
 import { REST_END_POINTS } from '../configuration/api';
@@ -6,9 +6,16 @@ import type { DaiConfig, ThemeColors, ThemeConfig } from '../types/config';
 import useNotifications from 'hooks/useNotifications';
 import { useApiQuery } from '../hooks/useApiQuery';
 import { defaultColors } from '../configuration/colors';
-import { mf } from '../utilities/moduleFederation';
+// Spike (sp-5483): the Context object itself is created and registered as
+// an MF shared singleton in moduleFederation.ts, not here - see
+// docs/frontend/plugin-context-mf-shared.md. Its type stays defined here,
+// next to the Provider that actually populates it; moduleFederation.ts
+// only needs a type-only import of it, which carries no runtime coupling.
+import { ThemeContext } from '../utilities/moduleFederation';
 
-type ThemeContextType = {
+export { ThemeContext };
+
+export type ThemeContextType = {
   themeConfig: ThemeConfig;
   logo: string | null;
   isLogoLoading: boolean;
@@ -21,30 +28,6 @@ type ThemeContextType = {
   savePrivacyPolicy: (privacyPolicyHtml: string) => Promise<void>;
   saveNotificationBanner: (notificationBannerHtml: string) => Promise<void>;
 };
-
-export const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
-
-// Spike (sp-5483): expose this Context object itself to plugins as an MF
-// shared singleton, same mechanism as react/react-dom (see
-// utilities/moduleFederation.ts). Registered here, next to the Context
-// definition, rather than centrally in moduleFederation.ts - that file
-// would otherwise need to import every Context in the app, which pulls its
-// low-level MF bootstrap code into each Context's dependency graph (this
-// broke `moduleFederation.test.ts` when tried the other way round: an
-// existing `useConfig.ts -> App.tsx` import for `queryClient` turned into a
-// transitive import of the whole app root).
-// See docs/frontend/plugin-context-mf-shared.md.
-mf.registerShared({
-  'theme-context': {
-    version: '1.0.0',
-    scope: 'default',
-    lib: () => ThemeContext,
-    shareConfig: {
-      singleton: true,
-      requiredVersion: '1.0.0',
-    },
-  },
-});
 
 type ThemeProviderProps = {
   children: ReactNode;
