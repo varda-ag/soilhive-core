@@ -642,7 +642,6 @@ describe('SoilDataStorage class', () => {
         expect(resultsNoRasterFilters['land_cover']).toBeUndefined();
         expect(resultsNoRasterFilters['soil_groups']).toBeUndefined();
       },
-      10000,
     );
 
     it.each([
@@ -968,14 +967,14 @@ describe('SoilDataStorage class', () => {
       const results = await sds.filterRaster(entityManager, await makeFilter(entityManager, filteringRectangle));
       expect(results).toHaveLength(1);
       expect(results[0].raster_layer_count).toBe(2);
-    }, 10000);
+    });
 
     describe('Filtering raster data with raster_filters', () => {
       beforeEach(async () => {
         await addRasterData(undefined, { dataset_status: IngestionStatus.PUBLISHED });
         await addRasterFilterData();
         await addRasterFilterMappings();
-      }, 10000);
+      });
 
       it('Should call getVectorMask when raster_filters are present', async () => {
         const spy = jest.spyOn(FilteringMasksModule, 'getVectorMaskCtes');
@@ -987,7 +986,7 @@ describe('SoilDataStorage class', () => {
         );
         expect(spy).toHaveBeenCalled();
         spy.mockRestore();
-      }, 12000);
+      });
 
       it.each([
         [[30], 1, true],
@@ -1007,7 +1006,6 @@ describe('SoilDataStorage class', () => {
           );
           expect(results).toHaveLength(expectedCount);
         },
-        10000,
       );
     });
   });

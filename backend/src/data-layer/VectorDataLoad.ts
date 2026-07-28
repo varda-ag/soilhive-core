@@ -150,11 +150,21 @@ export default class VectorDataLoad {
     };
   };
 
-  getDataCount = async (entityManager: EntityManager, dataMappingConfig: DataCleaningConfig, fileId: string): Promise<number> => {
+  getDataCount = async (
+    entityManager: EntityManager,
+    dataMappingConfig: DataCleaningConfig,
+    fileId: string,
+    includeUserDropped: boolean = true,
+  ): Promise<number> => {
     const { cte, values } = buildCleaningCte(dataMappingConfig, fileId);
+    // Must stay in step with getDataPreview's statusFilter: the bulk loader derives its
+    // progress denominator from this count and pages with includeUserDropped = false.
+    const statusFilter = includeUserDropped
+      ? `(final_row_delete_reason IS NULL OR final_row_delete_reason = '${RowDeleteReason.USER_DELETION}')`
+      : `final_row_delete_reason IS NULL`;
     const query = `${cte} SELECT COUNT(*) AS count
       FROM cleaning_result
-      WHERE final_row_delete_reason IS NULL OR final_row_delete_reason = '${RowDeleteReason.USER_DELETION}'`;
+      WHERE ${statusFilter}`;
     const result = await entityManager.query(query, values);
     return parseInt(result[0].count, 10);
   };

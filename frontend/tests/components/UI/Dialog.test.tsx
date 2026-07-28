@@ -12,11 +12,11 @@ jest.mock('assets/icons/cross-icon.svg?react', () => {
 });
 
 jest.mock('primereact/confirmdialog', () => {
-  const ConfirmDialogMock = ({ content, visible, className, onMaskClick }: any) => {
+  const ConfirmDialogMock = ({ content, visible, className, onMaskClick, ...rest }: any) => {
     if (!visible) return null;
     const refs = { contentRef: { current: null }, headerRef: { current: null }, footerRef: { current: null } };
     return (
-      <div className={className}>
+      <div className={className} aria-label={rest['aria-label']} data-testid="dialog-root">
         <div className="p-dialog-mask" data-testid="dialog-mask" onClick={onMaskClick} />
         {content?.(refs)}
       </div>
@@ -54,7 +54,7 @@ describe('Dialog', () => {
       </Dialog>,
     );
 
-    fireEvent.click(screen.getByLabelText('Close'));
+    fireEvent.click(screen.getByLabelText('dialog.close_aria'));
     expect(onSecondary).toHaveBeenCalledTimes(1);
   });
 
@@ -67,7 +67,7 @@ describe('Dialog', () => {
       </Dialog>,
     );
 
-    fireEvent.click(screen.getByLabelText('Close'));
+    fireEvent.click(screen.getByLabelText('dialog.close_aria'));
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(onSecondary).not.toHaveBeenCalled();
   });
@@ -152,6 +152,24 @@ describe('Dialog', () => {
       </Dialog>,
     );
     expect(document.querySelector('.custom-header')).toBeInTheDocument();
+  });
+
+  it('applies aria-label to the dialog when ariaLabel is provided', () => {
+    render(
+      <Dialog {...defaultProps} ariaLabel="Confirmation dialog">
+        <p>content</p>
+      </Dialog>,
+    );
+    expect(screen.getByTestId('dialog-root')).toHaveAttribute('aria-label', 'Confirmation dialog');
+  });
+
+  it('does not set aria-label when ariaLabel is not provided', () => {
+    render(
+      <Dialog {...defaultProps}>
+        <p>content</p>
+      </Dialog>,
+    );
+    expect(screen.getByTestId('dialog-root')).not.toHaveAttribute('aria-label');
   });
 
   it('calls onClose when the overlay mask is clicked and closeOnOverlay is true', () => {

@@ -9,10 +9,10 @@ jest.mock('react-i18next', () => ({
 jest.mock('hooks/useDialogDismiss');
 
 jest.mock('components/UI/Dialog/Dialog', () => ({
-  Dialog: ({ visible, children, onPrimary, onSecondary }: any) => {
+  Dialog: ({ visible, children, onPrimary, onSecondary, ariaLabel }: any) => {
     const MockDialog = () =>
       visible ? (
-        <div data-testid="mock-dialog">
+        <div data-testid="mock-dialog" aria-label={ariaLabel}>
           {children}
           <button data-testid="continue-btn" onClick={onPrimary}>
             Continue
@@ -61,6 +61,12 @@ describe('InfoDialog', () => {
     render(<InfoDialog {...defaultProps} />);
 
     expect(screen.getByText('Test title')).toBeInTheDocument();
+  });
+
+  it('passes the title as the dialog aria-label', () => {
+    render(<InfoDialog {...defaultProps} />);
+
+    expect(screen.getByTestId('mock-dialog')).toHaveAttribute('aria-label', 'Test title');
   });
 
   it('does not show the dialog when already dismissed in localStorage', () => {

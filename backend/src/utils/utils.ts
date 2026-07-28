@@ -180,7 +180,10 @@ export const buildDatedFileKey = (filename: string, date: Date = new Date()): st
   const year = date.getUTCFullYear();
   const month = (date.getUTCMonth() + 1).toString().padStart(2, '0');
 
-  const formatted = date.toISOString().split('.')[0]!.replace(/:/g, '-');
+  // Millisecond precision: file_path is unique, so second-resolution keys made two uploads of
+  // the same filename within one second collide as a 409. Uploads are issued in parallel.
+  // ':' and '.' are replaced so the key stays a clean path segment on every storage backend.
+  const formatted = date.toISOString().slice(0, -1).replace(/[:.]/g, '-');
 
   return `${year}/${month}/${formatted}_${safeName}`;
 };

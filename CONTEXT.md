@@ -76,12 +76,20 @@ _Avoid_: Heatmap (rendering detail), coverage score (conflates map and score), d
 A hexagonal grid cell from Uber's H3 library, identified by an H3 index string. The spatial unit of aggregation for the DAI.
 _Avoid_: Hex, hexagon, grid cell
 
+**File**:
+An uploaded blob plus its bookkeeping record. Every File is either **Spatial** or **Non-spatial**, decided once at upload time and never afterwards. A Spatial File is one the backend probes for metadata on upload and that may go on to be ingested as soil data; being spatial does not require the file to contain geometry — a table with no geometry column is still a Spatial File.
+_Avoid_: Dataset (a File is raw input; a Dataset is what ingestion produces), upload, document
+
+**Non-spatial File**:
+A File uploaded as explicitly non-spatial — documentation, attachments, anything not intended as soil data. Carries no metadata and therefore no CRS, and has no ingestion path. Its contents are never inspected, so they are never rejected either. A Non-spatial File appears in no listing: whoever uploads it must retain the returned slug, which is the only way to reach it again.
+_Avoid_: Tabular file (a geometry-less table is a Spatial File), attachment (fine informally, but it names one use rather than the category), invalid file (a Non-spatial File is not a failed upload)
+
 **CRS (Coordinate Reference System)**:
-The spatial reference system of a soil data file, expressed as an EPSG code in the form `EPSG:<number>`. Every ingested file must have one, either inferred or supplied by the data admin. The set of accepted codes is the EPSG registry subset served by the `/epsg` endpoint.
+The spatial reference system of a soil data file, expressed as an EPSG code in the form `EPSG:<number>`. Every Spatial File must have one, either inferred or supplied by the data admin; a Non-spatial File has none and never acquires one. The set of accepted codes is the EPSG registry subset served by the `/epsg` endpoint.
 _Avoid_: Projection (a CRS component, not the whole), SRID (database-level identifier)
 
 **Inferred CRS**:
-The CRS detected by the backend from an uploaded file's own metadata during upload. When present it is authoritative: the data admin cannot override it. Distinct from a user-supplied CRS, which is required only when inference fails.
+The CRS detected by the backend from an uploaded file's own metadata during upload. When present it is authoritative: the data admin cannot override it. Distinct from a user-supplied CRS, which is required only when inference fails. Only Spatial Files have an Inferred CRS — for a Non-spatial File no inference is attempted, which is not the same as inference failing.
 _Avoid_: Default CRS, detected projection
 
 ## Relationships
@@ -118,4 +126,5 @@ _Avoid_: Links, references, attachments
 - "layer" was used in the codebase to mean both the domain entity (depth/date slice) and Mapbox/map rendering layers — in domain discussions, **Layer** always refers to the soil data entity.
 - "observation" was initially used loosely to mean any data point or measurement; resolved: **Observation** is specifically a row in the `observations` table with a numeric `value`, linked to a **DatasetLayer**.
 - A **null** parameter criterion and an **absent** one mean different things and yield different Filters: `min_depth: null` means "match Layers with no recorded depth", while omitting `min_depth` means "no depth constraint" (same for `max_depth` and the sampling-date criteria). Never normalise null to absent (or vice versa) when comparing filter criteria.
+- **A File with no metadata is not a category.** Absent metadata means one of three unrelated things: a **Non-spatial File** (never probed), a File created by the raster ingestion CLI (which describes the raster by other means), or a test fixture. Never treat "has no metadata" as a way to identify Non-spatial Files — the distinction is known to whoever uploaded the File, not recoverable from the File itself.
 - "active" is used in two unrelated senses in the raster filtering code: the persisted `active` column on `raster_filters` (admin-controlled catalog availability — see **Raster Filter**), and query-time variables/comments like `hasActiveFilters` in `FilteringMasks.ts` (whether the current Filter's `raster_filters` criterion has non-empty selected values for a given raster table). Toggling a Raster Filter's `active` flag has no effect on the query-time check, and vice versa. In domain discussions, say "active Raster Filter" for the catalog flag and "selected raster filter values" for the query-time notion.

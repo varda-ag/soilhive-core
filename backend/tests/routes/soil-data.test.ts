@@ -107,7 +107,6 @@ describe('Testing /soil-data routes', () => {
       expect(soilDataRes.body.length).toBeGreaterThan(0); // Should have data
       mockSelectOverview.mockRestore();
     },
-    10000,
   );
 
   it('Should return zero data when searching outside spatial extent', async () => {
