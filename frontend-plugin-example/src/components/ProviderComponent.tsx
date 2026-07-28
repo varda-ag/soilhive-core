@@ -6,8 +6,12 @@ import './ProviderComponent.css';
 // ThemeContext. Nothing enforces this matches the host's actual
 // ThemeContextType (frontend/src/contexts/ThemeContext.tsx) - there's no
 // shared types package here, so this "contract" exists only because the
-// plugin author read the host's source. See
-// docs/frontend/plugin-context-mf-shared.md.
+// plugin author read the host's source. Two ways to reference the host's
+// real type directly were tried and both fail: a relative `import type`
+// into frontend/src/contexts/ThemeContext.tsx, and a `declare module`
+// re-export of it - both end up needing frontend's own path aliases
+// (hooks/*, types/*, components/*, assets/*.svg?react) that only exist in
+// frontend's own tsconfig. See docs/frontend/plugin-context-mf-shared.md.
 type HostThemeContextValue = {
   themeConfig: { colors: Record<string, string> };
 };

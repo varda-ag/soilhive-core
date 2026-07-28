@@ -1,8 +1,7 @@
 import { createInstance, type ModuleFederationRuntimePlugin } from '@module-federation/enhanced/runtime';
-import React, { createContext } from 'react';
+import React from 'react';
 import ReactDOM from 'react-dom';
 import { PluginType, type NewTabPlugin, type Plugin, type RemotePlugin, type SinglePagePlugin } from '../types/plugins';
-import type { ThemeContextType } from '../contexts/ThemeContext';
 
 export const isSinglePageModule = (module: RemotePlugin): module is SinglePagePlugin =>
   module.type === PluginType.SINGLE_PAGE && !!module.route && !!module.Page;
@@ -37,16 +36,6 @@ const mf = createInstance({
   plugins: [fallbackPlugin()],
 });
 
-// Spike (sp-5483): centralized alternative to registering each Context from
-// its own file (see docs/frontend/plugin-context-mf-shared.md). The Context
-// object is created and registered here, alongside react/react-dom - the
-// same file a plugin author already checks to see what's shared.
-// contexts/ThemeContext.tsx re-exports this binding (existing imports of it
-// keep working) but keeps owning ThemeContextType, since that's a
-// theme-domain shape (save*/mapSettings mutators) this file has no reason
-// to know about; a type-only import here carries no runtime coupling.
-export const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
-
 mf.registerShared({
   react: {
     version: '19.2.0',
@@ -64,15 +53,6 @@ mf.registerShared({
     shareConfig: {
       singleton: true,
       requiredVersion: '19.2.0',
-    },
-  },
-  'theme-context': {
-    version: '1.0.0',
-    scope: 'default',
-    lib: () => ThemeContext,
-    shareConfig: {
-      singleton: true,
-      requiredVersion: '1.0.0',
     },
   },
 });
