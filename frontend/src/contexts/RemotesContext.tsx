@@ -17,6 +17,19 @@ type RemotesProviderProps = {
 // Stable default so useConfig's fallback identity doesn't change between renders.
 const EMPTY_REMOTES: Plugin[] = [];
 
+// Spike (sp-5483): local plugin example, always loaded alongside whatever
+// the backend's theme config provides - lets the ThemeContext-sharing spike
+// be exercised without an admin-configured plugin entry. loadRemotes'
+// fallbackPlugin already swallows unreachable-remote failures silently, so
+// this is a no-op when frontend-plugin-example's dev server isn't running.
+const LOCAL_PLUGIN_EXAMPLE: Plugin = {
+  url: 'http://localhost:3333/mf-manifest.json',
+  enabled: true,
+  mustBeLoggedIn: false,
+  enableACL: false,
+  acl: [],
+};
+
 export const RemotesProvider: React.FC<RemotesProviderProps> = ({ children }) => {
   const { themeConfig, isLoadingThemeConfig } = useTheme();
 
@@ -35,7 +48,7 @@ export const RemotesProvider: React.FC<RemotesProviderProps> = ({ children }) =>
 
     const load = async () => {
       try {
-        const loaded = await loadRemotes(themeConfig.plugins ?? EMPTY_REMOTES);
+        const loaded = await loadRemotes([...(themeConfig.plugins ?? EMPTY_REMOTES), LOCAL_PLUGIN_EXAMPLE]);
         if (!cancelled) setPlugins(loaded);
       } finally {
         if (!cancelled) setIsLoadingModules(false);
