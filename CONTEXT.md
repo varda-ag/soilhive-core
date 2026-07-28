@@ -84,6 +84,18 @@ _Avoid_: Projection (a CRS component, not the whole), SRID (database-level ident
 The CRS detected by the backend from an uploaded file's own metadata during upload. When present it is authoritative: the data admin cannot override it. Distinct from a user-supplied CRS, which is required only when inference fails.
 _Avoid_: Default CRS, detected projection
 
+**Bulk Load**:
+The Dataset-scoped operation that turns a Dataset's staged files into Features, Layers, DatasetLayers and Observations. Operates on point and polygonal Datasets. Scoped to exactly one Dataset; the files it consumes are whichever staged files that Dataset has.
+_Avoid_: Import, upload (a separate earlier step), ingest (reserved for the per-file raster operation)
+
+**Raster Load**:
+The Dataset-scoped counterpart to Bulk Load for raster Datasets: it walks the Dataset's raster files and performs a Raster Ingest on each. Like Bulk Load it is scoped to one Dataset and named for the Dataset, not for any single file. A Raster Load produces no Features, Layers or Observations — raster data is not modelled as those — and therefore never contributes to the DAI. Unlike a Bulk Load, a Raster Load never consumes its source files: after a Bulk Load the file's contents live in the soil tables and the file is disposable, whereas after a Raster Load the file *is* the raster layer's data and must survive.
+_Avoid_: Raster ingest (the per-file operation Raster Load invokes), raster upload (the earlier step that puts files in storage), bulk load (the point/polygonal counterpart)
+
+**Raster Ingest**:
+The operation that takes a *single* Cloud Optimized GeoTIFF and registers it as a raster layer for each band with its footprints. One file in, one or more raster layers out. Invoked by a Raster Load, and independently from the CLI for one-off ingestion.
+_Avoid_: Raster load (the Dataset-scoped orchestration above it), conversion (producing the COG is a separate, prior step)
+
 ## Relationships
 
 - A **Dataset** contains one or more **Features**
@@ -92,6 +104,7 @@ _Avoid_: Default CRS, detected projection
 - A **DatasetLayer** has one or more **Observations**
 - A **Layer** carries the `sampling_date`, `min_depth`, and `max_depth` for its associated **Observations** — there is no date on **Observation** itself
 - A **Filter** defines the scope for **DAI** computation; the effective **AOI** is the intersection of the Filter's geometries with the map viewport
+- A **Raster Load** is scoped to one **Dataset** and performs one **Raster Ingest** per raster file in it; a **Bulk Load** is the equivalent for point and polygonal **Datasets**
 - A **Filter** has a *set* of zero or more **UserGeometries** (duplicates in a submission collapse to one); each **UserGeometry** may belong to more than one **Filter**
 
 ## Example dialogue

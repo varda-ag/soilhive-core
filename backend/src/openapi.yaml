@@ -367,6 +367,7 @@ paths:
             schema:
               oneOf:
                 - $ref: '#/components/schemas/BulkLoadJob'
+                - $ref: '#/components/schemas/RasterLoadJob'
                 - $ref: '#/components/schemas/ExportJob'
                 - $ref: '#/components/schemas/FileToDbJob'
                 - $ref: '#/components/schemas/BulkDeleteJob'
@@ -374,6 +375,7 @@ paths:
                 propertyName: type
                 mapping:
                   bulk-load: '#/components/schemas/BulkLoadJob'
+                  raster-load: '#/components/schemas/RasterLoadJob'
                   export: '#/components/schemas/ExportJob'
                   file-to-db: '#/components/schemas/FileToDbJob'
                   bulk-delete: '#/components/schemas/BulkDeleteJob'
@@ -2631,6 +2633,22 @@ components:
         delete_source_files:
           type: boolean
           description: When true, deletes source files from storage after loading
+
+    RasterLoadJob:
+      type: object
+      additionalProperties: false
+      required:
+        - type
+        - dataset_id
+      properties:
+        type:
+          type: string
+          enum: [raster-load]
+          description: Job type
+        dataset_id:
+          type: string
+          description: Dataset whose raster files are to be loaded
+      description: Loads a raster dataset. The ingested files remains the raster layer's data and must not be removed.
 
     ExportJob:
       type: object
