@@ -1536,6 +1536,14 @@ paths:
         - files
       security:
         - bearerAuth: [super-admin, data-admin]
+      parameters:
+        - in: query
+          name: spatial
+          required: false
+          description: Whether the upload is a spatial file.
+          schema:
+            type: boolean
+            default: true
       requestBody:
         required: true
         content:

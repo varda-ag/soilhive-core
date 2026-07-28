@@ -7,6 +7,7 @@ exports[`MultirangeSlider renders range inputs with predefined selectedMin/selec
     data-testid="sh-ui-multirange"
   >
     <input
+      aria-label="Minimum value slider"
       class="MultirangeThumb MultirangeThumbLeft"
       max="100"
       min="0"
@@ -14,6 +15,7 @@ exports[`MultirangeSlider renders range inputs with predefined selectedMin/selec
       value="10"
     />
     <input
+      aria-label="Maximum value slider"
       class="MultirangeThumb MultirangeThumbRight"
       max="100"
       min="0"
@@ -35,6 +37,7 @@ exports[`MultirangeSlider renders range inputs with predefined selectedMin/selec
       class="MultirangeSliderBox"
     >
       <input
+        aria-label="Minimum value"
         class="MultirangeSliderInput"
         max="90"
         min="0"
@@ -42,6 +45,7 @@ exports[`MultirangeSlider renders range inputs with predefined selectedMin/selec
         value="10"
       />
       <input
+        aria-label="Maximum value"
         class="MultirangeSliderInput"
         max="100"
         min="0"

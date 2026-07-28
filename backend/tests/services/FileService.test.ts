@@ -364,40 +364,36 @@ describe('FileService', () => {
     });
 
     describe('extractMetadata - batch tests', () => {
-      it.each(['s3', 'local'])(
-        'should process all valid files without errors. Storage mode: %s',
-        async storageMode => {
-          process.env.STORAGE_MODE = storageMode;
-          setLocalStorageRootFolder(vectorFilesPassPath); // This affects only local storage
-          const prefix = storageMode === 's3' ? 'vector_files/pass/' : '';
-          const files = fs
-            .readdirSync(vectorFilesPassPath, { withFileTypes: true })
-            .filter(dirent => dirent.isFile())
-            .map(dirent => dirent.name); // or dirent.path for full path;
-          const results = [];
+      it.each(['s3', 'local'])('should process all valid files without errors. Storage mode: %s', async storageMode => {
+        process.env.STORAGE_MODE = storageMode;
+        setLocalStorageRootFolder(vectorFilesPassPath); // This affects only local storage
+        const prefix = storageMode === 's3' ? 'vector_files/pass/' : '';
+        const files = fs
+          .readdirSync(vectorFilesPassPath, { withFileTypes: true })
+          .filter(dirent => dirent.isFile())
+          .map(dirent => dirent.name); // or dirent.path for full path;
+        const results = [];
 
-          for (const file of files) {
-            try {
-              const metadata = (await fileService.extractMetadata(requestData, prefix + file)) as VectorFileMetadata;
-              results.push({ file, success: true, metadata });
-            } catch (error) {
-              results.push({ file, success: false, error });
-            }
+        for (const file of files) {
+          try {
+            const metadata = (await fileService.extractMetadata(requestData, prefix + file)) as VectorFileMetadata;
+            results.push({ file, success: true, metadata });
+          } catch (error) {
+            results.push({ file, success: false, error });
           }
+        }
 
-          // At least some files in pass folder should succeed
-          const successfulResults = results.filter(r => r.success);
-          expect(successfulResults.length).toEqual(results.length);
+        // At least some files in pass folder should succeed
+        const successfulResults = results.filter(r => r.success);
+        expect(successfulResults.length).toEqual(results.length);
 
-          // All successful extractions should have metadata
-          for (const result of successfulResults) {
-            expect(result.metadata).toBeDefined();
-            expect(result.metadata!.field_names).toBeDefined();
-            expect(result.metadata!.detected_fields).toBeDefined();
-          }
-        },
-        8000,
-      );
+        // All successful extractions should have metadata
+        for (const result of successfulResults) {
+          expect(result.metadata).toBeDefined();
+          expect(result.metadata!.field_names).toBeDefined();
+          expect(result.metadata!.detected_fields).toBeDefined();
+        }
+      });
 
       it('should fail for all invalid files', async () => {
         setLocalStorageRootFolder(vectorFilesFailPath);

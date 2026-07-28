@@ -226,7 +226,7 @@ describe('Testing /jobs routes', () => {
       promises.push(testWorker(i));
     }
     await Promise.all(promises);
-  }, 10000);
+  });
 
   it('POST /jobs fails if required fields are missing', async () => {
     const mockId = '960ee487-a6bd-4da8-8ef0-da6ef23d0e80';

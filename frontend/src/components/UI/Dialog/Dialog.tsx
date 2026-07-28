@@ -14,6 +14,7 @@ interface Props {
   primaryText?: string;
   secondaryText?: string;
   className?: string;
+  ariaLabel?: string;
   contentClassName?: string;
   headerClassName?: string;
   hideButtons?: boolean;
@@ -31,6 +32,7 @@ export function Dialog({
   primaryText,
   removeTransition,
   className,
+  ariaLabel,
   contentClassName,
   headerClassName,
   hideButtons = false,
@@ -49,8 +51,12 @@ export function Dialog({
       props.transitionOptions = { timeout: 0 };
     }
 
+    if (ariaLabel) {
+      props['aria-label'] = ariaLabel;
+    }
+
     return props;
-  }, [removeTransition]);
+  }, [removeTransition, ariaLabel]);
 
   const onMaskClick = useCallback(
     (event: MouseEvent) => {
@@ -73,7 +79,7 @@ export function Dialog({
         <>
           <div className={classnames(styles.Header, headerClassName)} ref={headerRef as RefObject<HTMLDivElement>}>
             {header}
-            <button className={styles.CloseButton} onClick={onClose ?? onSecondary} aria-label="Close">
+            <button className={styles.CloseButton} onClick={onClose ?? onSecondary} aria-label={t('dialog.close_aria')}>
               <CloseIcon />
             </button>
           </div>

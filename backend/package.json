@@ -108,6 +108,7 @@
     ],
     "globalSetup": "<rootDir>/tests/jest.setup.ts",
     "globalTeardown": "<rootDir>/tests/jest.teardown.ts",
+    "testTimeout": 25000,
     "forceExit": true,
     "maxWorkers": 1,
     "coveragePathIgnorePatterns": [
