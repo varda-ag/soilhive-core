@@ -57,6 +57,7 @@ export interface FilteredRasterLayer {
   id: string;
   dataset_name: string;
   path: string;
+  band: number; // 1-based band within "path": a file may contain several bands/layers
   min_depth: number | null;
   max_depth: number | null;
   reference_period_start: string | null;

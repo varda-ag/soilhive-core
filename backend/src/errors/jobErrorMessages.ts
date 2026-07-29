@@ -64,6 +64,28 @@ const JOB_ERROR_MESSAGES: Record<string, JobErrorMessage> = {
       'If it keeps failing, double check your data against the guidelines in the documentation at: https://github.com/varda-ag/soilhive-core/blob/main/docs/data-model/1-data-management-portal.md#soil-data--upload-your-files',
     ],
   },
+  RL_MISSING_BAND_MAPPING: {
+    message: 'A raster file in this dataset has no band mapping configured.',
+    actions: ["Go to the dataset's mapping step and declare what each band of every raster file measures, then retry data loading."],
+  },
+  RL_INVALID_BAND: {
+    message: "The band mapping for '{file_name}' refers to band {band}, which the file does not have (it has {band_count}).",
+    actions: [
+      "Open the mapping for '{file_name}' and map only bands 1 to {band_count}.",
+      'If you expected more bands, re-upload the file and check it converted correctly.',
+    ],
+  },
+  RL_NOT_COG: {
+    message: "'{file_name}' is not a Cloud Optimized GeoTIFF and cannot be ingested as a raster.",
+    actions: ['Convert it with convert_raster.sh before uploading, then re-upload the file and retry data loading.'],
+  },
+  RL_UNIT_NOT_STANDARD: {
+    message: "Band {band} of '{file_name}' is in '{original_unit}' but '{soil_property}' is stored in '{standard_unit}'.",
+    actions: [
+      'Raster values are used as-is — they are never converted during loading.',
+      'Re-scale the raster with convert_raster.sh using conversion factor {conversion_factor}, then re-upload the file.',
+    ],
+  },
   BL_RECORD_VALIDATION_FAILED: {
     message: "A record was rejected because field '{field}' {issue}.",
     actions: [

@@ -1,55 +1,71 @@
-import path from 'path';
-import { streamRasterFootprints } from '../scripts/computeRasterFootprints';
+import { streamRasterFootprints, type FootprintProgressCallback } from '../scripts/computeRasterFootprints';
 import { analyzeRasterMeta } from '../utils/raster';
 import { getEntityManager } from '../utils/data-source';
 import { log, timed } from '../utils/logger';
 import { MultiPolygon } from 'geojson';
 import FileService from './FileService';
 import { GdalCLI } from '../utils/GdalCLI';
-import SoilPropertyEntity from '../entities/SoilProperty';
+import { JobError } from '../errors/JobError';
 
+/**
+ * Input for one Raster Ingest: one band of one already-uploaded COG.
+ *
+ * Reachable only through a Raster Load (docs/adr/0018), so the dataset and the file are
+ * referenced by id — both provably exist, and an ingest never creates either. Entities are
+ * referenced by slug and resolved in SQL: the raster_layers FK needs the id while
+ * variables_measured stores the slug, and passing both forms from the caller would mean two
+ * parameters that must describe the same row with nothing checking that they do.
+ */
 export interface IngestRasterOptions {
-  input: string;
-  nodata?: number;
-  dataset: string;
-  soilProperty: string;
-  soilPropertyCategory: string;
-  originaUnit?: string;
-  laboratoryMethod?: string;
+  fileId: string;
+  /** 1-based, matching GDAL and the band_number in file metadata. */
+  band: number;
+  datasetId: string;
+  soilPropertySlug: string;
+  /** Required keys: a caller must state the depth, and null is a legitimate answer. */
+  minDepth: number | null;
+  maxDepth: number | null;
+  referencePeriodStart?: string | null;
+  referencePeriodStop?: string | null;
+  procedureSlug?: string | null;
+  /** Resolved unit information, used to assert the pixels need no conversion. */
+  standardUnit?: string | null;
+  originalUnit?: string | null;
+  conversionFormula?: string | null;
+  onFootprintProgress?: FootprintProgressCallback;
 }
 
-async function assertIsCog(filePath: string): Promise<void> {
+async function assertIsCog(filePath: string, band: number): Promise<void> {
   const { mainFilePath } = await FileService.getMainFilePath(filePath);
   const info = await GdalCLI.gdalinfo(mainFilePath);
-  const band = info.bands?.[0];
+  // Check the band being ingested rather than band 1: a COG's bands share a layout, but
+  // gdalinfo reports blocks and overviews per band, so this is both free and stricter.
+  const bandInfo = info.bands?.[band - 1];
   const isCog =
     info.metadata?.IMAGE_STRUCTURE?.LAYOUT === 'COG' ||
-    ((band?.block?.[0] ?? 0) >= 256 && (band?.block?.[1] ?? 0) >= 256 && (band?.overviews?.length ?? 0) > 0);
+    ((bandInfo?.block?.[0] ?? 0) >= 256 && (bandInfo?.block?.[1] ?? 0) >= 256 && (bandInfo?.overviews?.length ?? 0) > 0);
   if (!isCog) {
-    throw new Error(`Input is not a Cloud Optimized GeoTIFF: ${filePath}. Convert it first with convert_raster.sh.`);
+    throw new JobError('RL_NOT_COG', { file_name: filePath });
   }
 }
 
-async function assertStandardUnit(
-  em: Awaited<ReturnType<typeof import('../utils/data-source').getEntityManager>>,
-  soilProperty: string,
-  originalUnit: string,
-): Promise<void> {
-  const entity = await em.getRepository(SoilPropertyEntity).findOne({
-    where: { property_name: soilProperty },
-    relations: ['unit_conversions'],
-  });
-  if (!entity) {
-    return;
-  }
-  const stdUnit = entity.standard_unit;
-  if (!stdUnit || originalUnit === stdUnit) return;
-
-  const conversion = entity.unit_conversions?.find(uc => uc.original_unit_of_measurement === originalUnit);
-  if (conversion?.conversion_formula && conversion?.conversion_formula !== 'x') {
-    throw new Error(
-      `Input unit "${originalUnit}" does not match standard unit "${stdUnit}" for "${soilProperty}". Convert it first with convert_raster.sh. with conversion_factor ${conversion.conversion_formula.replace('x', '').replace('*', '')}`,
-    );
+/**
+ * Raster values are used as-is — nothing converts pixels during a load — so a band whose values
+ * are not already in the property's standard unit cannot be ingested. Kept here rather than in the
+ * loader so a direct caller (including test fixtures) cannot bypass it.
+ */
+function assertStandardUnit(opts: IngestRasterOptions, filePath: string): void {
+  const { standardUnit, originalUnit, conversionFormula } = opts;
+  if (!standardUnit || !originalUnit || originalUnit === standardUnit) return;
+  if (conversionFormula && conversionFormula !== 'x') {
+    throw new JobError('RL_UNIT_NOT_STANDARD', {
+      band: opts.band,
+      file_name: filePath,
+      original_unit: originalUnit,
+      standard_unit: standardUnit,
+      soil_property: opts.soilPropertySlug,
+      conversion_factor: conversionFormula.replace('x', '').replace('*', ''),
+    });
   }
 }
 
@@ -66,26 +82,37 @@ async function insertFootprintBatch(
      ON CONFLICT (geom_hash) DO UPDATE SET id = raster_footprints.id
      RETURNING id)
      INSERT INTO raster_layer_footprints (raster_layer_id, raster_footprint_id)
-     SELECT $2, id FROM fp_ins;`,
+     SELECT $2, id FROM fp_ins
+     ON CONFLICT (raster_layer_id, raster_footprint_id) DO NOTHING;`,
     [geomJsons, rasterLayerId],
   );
 }
 
+/**
+ * Registers one band of a COG as a raster layer with its footprints, and returns the layer id.
+ *
+ * Idempotent per (file, band): re-ingesting a band updates its layer in place rather than adding a
+ * sibling, so a Raster Load that failed part-way can simply be re-run. Writes nothing at dataset
+ * level — updateRasterDatasetMetadata is the single writer of that (docs/adr/0018).
+ */
 export async function ingestRaster(opts: IngestRasterOptions): Promise<string> {
-  log.info('Starting raster ingest', { input: opts.input });
   const em = await getEntityManager();
 
-  if (opts.originaUnit) {
-    await assertStandardUnit(em, opts.soilProperty, opts.originaUnit);
+  const file = await em.query(`SELECT file_path, "name" FROM files WHERE id = $1`, [opts.fileId]);
+  const filePath: string | null = file[0]?.file_path ?? null;
+  if (!filePath) {
+    throw new Error(`File ${opts.fileId} has no file_path`);
   }
+  log.info('Starting raster ingest', { input: filePath, band: opts.band });
 
-  await assertIsCog(opts.input);
-  const cogPath = opts.input;
-  log.info('COG ready', { cogPath });
+  assertStandardUnit(opts, filePath);
+  await assertIsCog(filePath, opts.band);
+  log.info('COG ready', { filePath, band: opts.band });
 
-  // Phase 1: read file header only — needed before inserting raster_layer to get resolution/bbox.
-  const { nodata, resolution, bbox } = await analyzeRasterMeta(cogPath, opts.nodata);
-  log.info('Raster metadata ready', { resolution });
+  // Phase 1: read the file header only — needed before inserting raster_layer to get
+  // resolution/bbox. Resolution and bbox belong to the file; nodata is read per band.
+  const { nodata, resolution, bbox } = await analyzeRasterMeta(filePath, opts.band);
+  log.info('Raster metadata ready', { resolution, band: opts.band });
   // nodata_value is an int column, but Float32 rasters carry huge out-of-range sentinels (e.g. -3.4e+38)
   // that Postgres can't parse as an integer. Store those as null — it's just a marker, not real data.
   const INT4_MIN = -2147483648;
@@ -93,113 +120,83 @@ export async function ingestRaster(opts: IngestRasterOptions): Promise<string> {
   const roundedNodata = nodata == null ? null : Math.round(nodata);
   const dbNodataValue = roundedNodata != null && roundedNodata >= INT4_MIN && roundedNodata <= INT4_MAX ? roundedNodata : null;
 
-  const outName = path.basename(cogPath);
   const bboxJson = JSON.stringify(bbox);
-
-  let procedureId: string | null = null;
-  if (opts.laboratoryMethod) {
-    const vocabResult = await em.query(
-      `
-      SELECT id FROM vocabulary WHERE "name"=$1 AND category='laboratory_method'::"vocabulary_category_enum"`,
-      [opts.laboratoryMethod],
-    );
-    let lmResult: { id: string }[] = [];
-    if (vocabResult.length === 0) {
-      lmResult = await em.query(
-        `WITH
-        vocab_ins AS (
-          INSERT INTO vocabulary ("name", category)
-          VALUES ($1, 'laboratory_method'::"vocabulary_category_enum")
-          RETURNING id
-        )
-        INSERT INTO procedures (
-          laboratory_method_id
-        )  
-        SELECT vocab_ins.id FROM vocab_ins
-        ON CONFLICT (sample_pretreatment_id, technique, laboratory_method_id, extractant_concentration_id, extraction_ratio_id, extraction_base_id, measurement_procedure_id, limit_of_detection_id) DO UPDATE SET updated_at = now()
-        RETURNING id`,
-        [opts.laboratoryMethod],
-      );
-    } else {
-      const vocabId = (vocabResult as { id: string }[])[0]!.id;
-      lmResult = await em.query(
-        `INSERT INTO procedures (
-          laboratory_method_id
-        )  
-        VALUES ($1)
-        ON CONFLICT (sample_pretreatment_id, technique, laboratory_method_id, extractant_concentration_id, extraction_ratio_id, extraction_base_id, measurement_procedure_id, limit_of_detection_id) DO UPDATE SET updated_at = now()
-        RETURNING id`,
-        [vocabId],
-      );
-    }
-    procedureId = (lmResult as { id: string }[])[0]!.id;
-  }
 
   const result = await timed('insert raster_layers', () =>
     em.query(
       `WITH
-     file_ins AS (
-       INSERT INTO files ("name", file_path, created_by, status)
-       VALUES ($1, $1, 'data-admin', 'LOADED')
-       ON CONFLICT (file_path) DO UPDATE SET updated_at = now()
-       RETURNING *
+     sp AS (
+       SELECT id, slug FROM soil_properties WHERE slug = $4 AND deleted_at IS NULL
      ),
-     spc_ins AS (
-       INSERT INTO soil_property_categories (category_name, category_acronym)
-       VALUES ($4, $4)
-       ON CONFLICT (category_name) DO UPDATE SET updated_at = now()
-       RETURNING *
-     ),
-     sp_ins AS (
-       INSERT INTO soil_properties (property_name, property_acronym, category_id)
-       SELECT $5, $5, spc_ins.id FROM spc_ins
-       ON CONFLICT (property_name) DO UPDATE SET updated_at = now()
-       RETURNING *
-     ),
-     measured_property_entry AS (
-       SELECT jsonb_build_array(jsonb_build_object('soil_property_id', sp_ins.slug, 'procedure_id', proc.slug)) AS entry
-       FROM sp_ins
-       LEFT JOIN procedures proc ON proc.id = $8::uuid
-     ),
-     ds_ins AS (
-       INSERT INTO datasets ("name", created_by, spatial_extent, gis_datatype, spatial_resolution, variables_measured, n_raster_layers, status)
-       SELECT $2, 'data-admin', ST_SetSRID(ST_GeomFromGeoJSON($3), 4326), 'raster', $6::text || 'm', measured_property_entry.entry, 1, 'LOADED'
-       FROM measured_property_entry
-       ON CONFLICT ("name") WHERE deleted_at IS NULL DO UPDATE SET
-         updated_at = now(),
-         spatial_extent = COALESCE(datasets.spatial_extent, EXCLUDED.spatial_extent),
-         gis_datatype = COALESCE(datasets.gis_datatype, EXCLUDED.gis_datatype),
-         spatial_resolution = COALESCE(datasets.spatial_resolution, EXCLUDED.spatial_resolution),
-         variables_measured = CASE
-           WHEN COALESCE(datasets.variables_measured, '[]'::jsonb) @> EXCLUDED.variables_measured THEN datasets.variables_measured
-           ELSE COALESCE(datasets.variables_measured, '[]'::jsonb) || EXCLUDED.variables_measured
-         END,
-         n_raster_layers = datasets.n_raster_layers + 1
-       RETURNING *
+     proc AS (
+       SELECT id, slug FROM procedures WHERE slug = $5 AND deleted_at IS NULL
      )
      INSERT INTO raster_layers (
-       file_id, dataset_id, soil_property_id, resolution_m,
-       nodata_value, bbox, procedure_id
+       file_id, dataset_id, band, soil_property_id, resolution_m,
+       nodata_value, bbox, procedure_id, min_depth, max_depth,
+       reference_period_start, reference_period_stop
      )
      SELECT
-       file_ins.id, ds_ins.id, sp_ins.id, $6::int,
-       $7, ST_SetSRID(ST_GeomFromGeoJSON($3), 4326), $8::uuid
-     FROM file_ins, ds_ins, sp_ins
+       $1::uuid, $2::uuid, $3::int, sp.id, $6::int,
+       $7, ST_SetSRID(ST_GeomFromGeoJSON($8), 4326), proc.id, $9::int, $10::int,
+       $11, $12
+     FROM sp LEFT JOIN proc ON true
+     ON CONFLICT (file_id, band) WHERE deleted_at IS NULL DO UPDATE SET
+       updated_at = now(),
+       dataset_id = EXCLUDED.dataset_id,
+       soil_property_id = EXCLUDED.soil_property_id,
+       resolution_m = EXCLUDED.resolution_m,
+       nodata_value = EXCLUDED.nodata_value,
+       bbox = EXCLUDED.bbox,
+       procedure_id = EXCLUDED.procedure_id,
+       min_depth = EXCLUDED.min_depth,
+       max_depth = EXCLUDED.max_depth,
+       reference_period_start = EXCLUDED.reference_period_start,
+       reference_period_stop = EXCLUDED.reference_period_stop
      RETURNING id`,
-      [outName, opts.dataset, bboxJson, opts.soilPropertyCategory, opts.soilProperty, resolution, dbNodataValue, procedureId],
+      [
+        opts.fileId,
+        opts.datasetId,
+        opts.band,
+        opts.soilPropertySlug,
+        opts.procedureSlug ?? null,
+        resolution,
+        dbNodataValue,
+        bboxJson,
+        opts.minDepth,
+        opts.maxDepth,
+        opts.referencePeriodStart ?? null,
+        opts.referencePeriodStop ?? null,
+      ],
     ),
   );
 
-  const rasterLayerId = (result as { id: string }[])[0]!.id;
+  const rasterLayerId = (result as { id: string }[])[0]?.id;
+  if (!rasterLayerId) {
+    throw new Error(`Soil property '${opts.soilPropertySlug}' not found — cannot create raster layer`);
+  }
 
   // Phase 2: stream footprint tiles in batches — each batch is inserted and released immediately.
+  // Footprints are per band: a sibling band's mask can cover different ground.
+  //
+  // Drop this layer's existing links first so a re-ingest cannot leave footprints from a previous
+  // run behind. For unchanged pixels the links are simply rebuilt identically; the reset only
+  // matters when the file's contents changed under the same path. raster_footprints rows are
+  // shared between layers by geom_hash, so only the links are removed here, never the geometry.
+  await em.query(`DELETE FROM raster_layer_footprints WHERE raster_layer_id = $1`, [rasterLayerId]);
+
   await em.query("SET statement_timeout = '600s';");
   let totalFootprints = 0;
-  await streamRasterFootprints(cogPath, opts.nodata, async batch => {
-    await insertFootprintBatch(em, rasterLayerId, batch);
-    totalFootprints += batch.length;
-  });
+  await streamRasterFootprints(
+    filePath,
+    opts.band,
+    async batch => {
+      await insertFootprintBatch(em, rasterLayerId, batch);
+      totalFootprints += batch.length;
+    },
+    opts.onFootprintProgress,
+  );
 
-  log.info('Raster ingest complete', { outName, footprintCount: totalFootprints });
-  return outName;
+  log.info('Raster ingest complete', { filePath, band: opts.band, rasterLayerId, footprintCount: totalFootprints });
+  return rasterLayerId;
 }

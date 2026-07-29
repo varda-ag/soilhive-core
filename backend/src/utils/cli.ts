@@ -6,7 +6,6 @@ import { addSyntheticData, syntheticDataOptions } from '../utils/mock';
 import { randomInt } from 'crypto';
 import { dbRestore } from './db-restore';
 import { log } from './logger';
-import { ingestRaster } from '../services/RasterIngestService';
 import { refreshDaiStats } from '../data-layer/DaiStats';
 import { bumpCacheEpoch } from './cache-epoch';
 
@@ -18,34 +17,9 @@ export const setupCLI = async () => {
     .option('--bbox <minx,miny,maxx,maxy>', 'Synthetic data bounds')
     .option('--load-raster-filter <file.dump>', 'Load raster filter')
     .option('--refresh-dai-stats', 'Fully rebuild the precomputed DAI stats (feature_dai_stats)')
-    .option('--ingest-raster <input.tif>', 'Ingest a COG raster file into the catalog')
-    .option('--nodata <value>', 'NoData value (auto-detected if omitted)', parseFloat)
-    .option('--dataset <name>', 'Dataset name', 'test-ds')
-    .option('--soil-property <name>', 'Soil property name', 'Organic Carbon Stock')
-    .option('--soil-property-category <name>', 'Soil property category name', 'Chemical')
-    .option('--original_unit [unit]', 'Unit of measurement')
-    .option('--laboratory_method [method]', 'Laboratory method (if applicable)')
     .parse();
 
   const options = program.opts();
-  if (options['ingestRaster']) {
-    log.info('Ingesting raster', options);
-    try {
-      await ingestRaster({
-        input: options['ingestRaster'],
-        nodata: options['nodata'],
-        dataset: options['dataset'],
-        soilProperty: options['soilProperty'],
-        soilPropertyCategory: options['soilPropertyCategory'],
-        originaUnit: options['originalUnit'],
-        laboratoryMethod: options['laboratoryMethod'],
-      });
-    } catch (e) {
-      log.error(`Raster ingest error: ${e}`);
-    } finally {
-      process.exit();
-    }
-  }
   if (options['createData']) {
     log.info('Creating synthetic data:', options);
     if (!options['bbox']) {

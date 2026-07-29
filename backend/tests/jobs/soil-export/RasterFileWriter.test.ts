@@ -18,6 +18,7 @@ function makeLayer(overrides: Partial<FilteredRasterLayer> = {}): FilteredRaster
     id: 'layer-1',
     dataset_name: 'SoilGrids 250m',
     path: 'uploads/raster/SoilGrids 250m/bdod_5-15cm_mean.tif',
+    band: 1,
     min_depth: 5,
     max_depth: 15,
     reference_period_start: null,

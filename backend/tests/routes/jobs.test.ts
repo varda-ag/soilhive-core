@@ -13,6 +13,8 @@ import FileService from '../../src/services/FileService';
 import * as BulkLoaderModule from '../../src/jobs/bulk-load/BulkLoader';
 import * as SoilExportJobModule from '../../src/jobs/soil-export/soilExportJob';
 import { VectorFileMetadata } from '../../src/interfaces/File';
+import { addDataset } from '../../src/utils/mock';
+import { GISDataType } from '../../src/types/data';
 
 const mockToken: Token = {
   sub: 'test-user-id',
@@ -124,6 +126,10 @@ describe('Testing /jobs routes', () => {
   // same data admin, which would otherwise show up in that list.
   it('POST /jobs creates a raster load job that the worker drains', async () => {
     const token = await getDataAdminToken();
+
+    // The real processRasterLoad runs here: it resolves the dataset up front, so without this row
+    // the job fails instead of draining. With no staged files it has nothing to ingest and completes.
+    await addDataset('test-dataset', [-180, -90, 180, 90], GISDataType.RASTER);
 
     const res = await request(app)
       .post('/jobs')

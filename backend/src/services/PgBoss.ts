@@ -211,3 +211,14 @@ export async function updateJobState(jobId: string, update: Partial<ExportJob>):
     jobId,
   ]);
 }
+
+// Progress is telemetry: a failed write must never abort a load that is otherwise fine.
+export const progressReporter =
+  (jobId: string) =>
+  async (progress_percentage: number, progress_description: string): Promise<void> => {
+    try {
+      await updateJobState(jobId, { progress_percentage, progress_description });
+    } catch (error) {
+      log.warn('Failed to write bulk load progress', { job_id: jobId, error: getErrorMessage(error) });
+    }
+  };
