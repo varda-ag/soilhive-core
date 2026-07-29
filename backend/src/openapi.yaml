@@ -1887,7 +1887,7 @@ components:
       properties:
         dataset_id:
           type: string
-          format: uuid
+          description: The dataset's slug, as carried on the failed job's data.
         errors:
           type: array
           items:
@@ -2285,8 +2285,8 @@ components:
       properties:
         id:
           type: string
-          format: uuid
           readOnly: true
+          description: The dataset's slug. Responses never expose the primary key for an entity that has a slug.
         name:
           type: string
         full_name:
@@ -2612,9 +2612,11 @@ components:
       properties:
         fileID:
           type: string
+          description: The file's slug.
         mappingId:
           type: string
           format: uuid
+          description: A data mapping's id. Data mappings have no slug, so this is the primary key.
 
     DatasetFileMappingResponse:
       type: object
@@ -2622,12 +2624,14 @@ components:
         id:
           type: string
           format: uuid
+          description: The mapping's own id. Dataset-file mappings have no slug, so this is the primary key.
         fileID:
           type: string
-          format: uuid
+          description: The file's slug — never its primary key.
         mappingId:
           type: string
           format: uuid
+          description: A data mapping's id. Data mappings have no slug, so this is the primary key.
 
     BulkLoadJob:
       type: object

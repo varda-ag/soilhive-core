@@ -75,6 +75,24 @@ const JOB_ERROR_MESSAGES: Record<string, JobErrorMessage> = {
       'If you expected more bands, re-upload the file and check it converted correctly.',
     ],
   },
+  RL_ASSET_URL_UNSUPPORTED: {
+    message: "An additional resource for band {band} of '{file_name}' is declared by URL, which cannot be loaded yet.",
+    actions: [
+      "Upload the resource as a file, then reference it in the band mapping by that file's id as file_id instead of a url.",
+      'Downloading a resource straight from a URL is not implemented yet.',
+    ],
+  },
+  RL_MISSING_ASSET_REFERENCE: {
+    message: "An additional resource for band {band} of '{file_name}' names neither a file_id nor a url.",
+    actions: ["Open the mapping for '{file_name}' and give every additional resource a file id as file_id, or remove the empty entry."],
+  },
+  RL_ASSET_FILE_NOT_FOUND: {
+    message: "An additional resource for band {band} of '{file_name}' points at file '{file_id}', which does not exist.",
+    actions: [
+      "Check that '{file_id}' is the id of an uploaded file, and correct it in the band mapping.",
+      'The referenced file may have been deleted since the mapping was written.',
+    ],
+  },
   RL_CONVERSION_FAILED: {
     message: "'{file_name}' could not be normalized for ingestion ({reasons}).",
     actions: [

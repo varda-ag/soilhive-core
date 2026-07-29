@@ -8,6 +8,7 @@ import DatasetEntity from '../../../src/entities/Dataset';
 import DatasetFileMappingEntity from '../../../src/entities/DatasetFileMapping';
 import FileEntity from '../../../src/entities/File';
 import RasterLayerEntity from '../../../src/entities/RasterLayer';
+import RasterLayerAssetEntity from '../../../src/entities/RasterLayerAsset';
 import { RasterLoadJob } from '../../../src/interfaces/Job';
 import { RasterFileMetadata } from '../../../src/interfaces/File';
 import { processRasterLoad } from '../../../src/jobs/raster-load/RasterLoader';
@@ -15,7 +16,7 @@ import * as PgBossModule from '../../../src/services/PgBoss';
 import { GISDataType, IngestionStatus } from '../../../src/types/data';
 import { getDataSource } from '../../../src/utils/data-source';
 import { GdalCLI } from '../../../src/utils/GdalCLI';
-import { addCategory, addDataMapping, addDataset, addSoilProperty, addUnitConversion } from '../../../src/utils/mock';
+import { addCategory, addDataMapping, addDataset, addFile, addSoilProperty, addUnitConversion } from '../../../src/utils/mock';
 
 const rasterAssetsPath = path.join(__dirname, '../../assets/raster');
 // Two bands whose valid data occupies opposite halves of the raster: band 1 the west
@@ -255,6 +256,207 @@ describe('RasterLoader', () => {
     } finally {
       spy.mockRestore();
     }
+  });
+
+  describe('layer description', () => {
+    it("stores the mapping's layer_description wrapped under a description key", async () => {
+      const { dataset, file } = await setUpRasterLoad(uniqueName('description'), slug => ({
+        '1': { ...bandEntry(slug, 0, 5), layer_description: 'Topsoil prediction, 2019 epoch.' },
+        '2': bandEntry(slug, 5, 15),
+      }));
+
+      await processRasterLoad(getJob(dataset.slug));
+
+      const [band1, band2] = await getLayers(file.id);
+      // Wrapped rather than stored as a bare string, so the jsonb column keeps saying what is in
+      // it and a second descriptive facet is an added key (docs/adr/0019).
+      expect(band1!.description).toEqual({ description: 'Topsoil prediction, 2019 epoch.' });
+      // A band that declares none gets none, rather than inheriting a sibling's.
+      expect(band2!.description).toBeNull();
+    });
+
+    it('refreshes the description on re-run, clearing it when the mapping drops it', async () => {
+      const { dataset, file, property } = await setUpRasterLoad(uniqueName('description-rerun'), slug => ({
+        '1': { ...bandEntry(slug, 0, 5), layer_description: 'First wording.' },
+      }));
+
+      await processRasterLoad(getJob(dataset.slug));
+      expect((await getLayers(file.id))[0]!.description).toEqual({ description: 'First wording.' });
+
+      // The band mapping is authoritative for the description, as it is for every other layer
+      // field: dropping layer_description clears what the previous load wrote.
+      const dataSource = await getDataSource();
+      const dataMapping = await addDataMapping({ '1': bandEntry(property.slug, 0, 5) });
+      await dataSource
+        .getRepository(DatasetFileMappingEntity)
+        .update({ dataset_id: dataset.id, file_id: file.id }, { data_mapping_id: dataMapping.id });
+      await dataSource.getRepository(FileEntity).update({ id: file.id }, { status: IngestionStatus.PENDING });
+
+      await processRasterLoad(getJob(dataset.slug));
+
+      const layers = await getLayers(file.id);
+      expect(layers).toHaveLength(1);
+      expect(layers[0]!.description).toBeNull();
+    });
+  });
+
+  describe('layer assets', () => {
+    const getAssets = async (rasterLayerId: string): Promise<RasterLayerAssetEntity[]> => {
+      const dataSource = await getDataSource();
+      return dataSource.getRepository(RasterLayerAssetEntity).find({ where: { raster_layer_id: rasterLayerId } });
+    };
+
+    it('attaches one asset per declared resource to that band’s layer', async () => {
+      const manual = await addFile(uniqueName('manual'));
+      const companion = await addFile(uniqueName('companion'));
+      const { dataset, file } = await setUpRasterLoad(uniqueName('assets'), slug => ({
+        '1': { ...bandEntry(slug, 0, 5), additional_resources: [{ file_id: manual.slug }, { file_id: companion.slug }] },
+        '2': bandEntry(slug, 5, 15),
+      }));
+
+      await processRasterLoad(getJob(dataset.slug));
+
+      const [band1, band2] = await getLayers(file.id);
+      // Declared by slug, stored as the File's uuid.
+      expect((await getAssets(band1!.id)).map(asset => asset.file_id).sort()).toEqual([manual.id, companion.id].sort());
+      // Resources are declared per band, so a band that names none gets none.
+      expect(await getAssets(band2!.id)).toHaveLength(0);
+    });
+
+    it('gives each band its own asset row when two bands name the same file', async () => {
+      const manual = await addFile(uniqueName('shared-manual'));
+      const { dataset, file } = await setUpRasterLoad(uniqueName('assets-shared'), slug => ({
+        '1': { ...bandEntry(slug, 0, 5), additional_resources: [{ file_id: manual.slug }] },
+        '2': { ...bandEntry(slug, 5, 15), additional_resources: [{ file_id: manual.slug }] },
+      }));
+
+      await processRasterLoad(getJob(dataset.slug));
+
+      const [band1, band2] = await getLayers(file.id);
+      expect((await getAssets(band1!.id)).map(asset => asset.file_id)).toEqual([manual.id]);
+      expect((await getAssets(band2!.id)).map(asset => asset.file_id)).toEqual([manual.id]);
+    });
+
+    it('uses the file_id and skips the url when an entry carries both', async () => {
+      const manual = await addFile(uniqueName('both-keys'));
+      const { dataset, file } = await setUpRasterLoad(uniqueName('assets-both'), slug => ({
+        '1': {
+          ...bandEntry(slug, 0, 5),
+          additional_resources: [{ file_id: manual.slug, url: 'https://example.invalid/manual.pdf' }],
+        },
+      }));
+
+      // The url is documentation of where the file came from; nothing fetches it, so a host that
+      // does not resolve is harmless.
+      await processRasterLoad(getJob(dataset.slug));
+
+      const [band1] = await getLayers(file.id);
+      expect((await getAssets(band1!.id)).map(asset => asset.file_id)).toEqual([manual.id]);
+    });
+
+    it('is safe to re-run: a second load adds no duplicate assets', async () => {
+      const manual = await addFile(uniqueName('rerun-manual'));
+      const { dataset, file } = await setUpRasterLoad(uniqueName('assets-rerun'), slug => ({
+        '1': { ...bandEntry(slug, 0, 5), additional_resources: [{ file_id: manual.slug }] },
+      }));
+
+      await processRasterLoad(getJob(dataset.slug));
+      const firstIds = (await getAssets((await getLayers(file.id))[0]!.id)).map(asset => asset.id);
+      expect(firstIds).toHaveLength(1);
+
+      const dataSource = await getDataSource();
+      await dataSource.getRepository(FileEntity).update({ id: file.id }, { status: IngestionStatus.PENDING });
+      await processRasterLoad(getJob(dataset.slug));
+
+      // Identity is the pair (raster layer, file), so the same declaration re-attaches nothing.
+      expect((await getAssets((await getLayers(file.id))[0]!.id)).map(asset => asset.id)).toEqual(firstIds);
+    });
+
+    it('deduplicates a resource the same band names twice', async () => {
+      const manual = await addFile(uniqueName('twice-manual'));
+      const { dataset, file } = await setUpRasterLoad(uniqueName('assets-twice'), slug => ({
+        '1': { ...bandEntry(slug, 0, 5), additional_resources: [{ file_id: manual.slug }, { file_id: manual.slug }] },
+      }));
+
+      await processRasterLoad(getJob(dataset.slug));
+
+      expect(await getAssets((await getLayers(file.id))[0]!.id)).toHaveLength(1);
+    });
+
+    it('RL_ASSET_URL_UNSUPPORTED when a resource is declared by url alone', async () => {
+      const { dataset, file } = await setUpRasterLoad(uniqueName('assets-url'), slug => ({
+        '1': { ...bandEntry(slug, 0, 5), additional_resources: [{ url: 'https://example.org/manual.pdf' }] },
+      }));
+
+      await expect(processRasterLoad(getJob(dataset.slug))).rejects.toMatchObject({
+        name: 'JobError',
+        code: 'RL_ASSET_URL_UNSUPPORTED',
+      });
+
+      // Resources are validated with the bands, before the first ingest writes anything.
+      expect(await getLayers(file.id)).toHaveLength(0);
+    });
+
+    it('RL_MISSING_ASSET_REFERENCE when a resource names neither key', async () => {
+      const { dataset, file } = await setUpRasterLoad(uniqueName('assets-empty'), slug => ({
+        '1': { ...bandEntry(slug, 0, 5), additional_resources: [{}] },
+      }));
+
+      await expect(processRasterLoad(getJob(dataset.slug))).rejects.toMatchObject({
+        name: 'JobError',
+        code: 'RL_MISSING_ASSET_REFERENCE',
+      });
+
+      expect(await getLayers(file.id)).toHaveLength(0);
+    });
+
+    it('RL_ASSET_FILE_NOT_FOUND when no file has that slug', async () => {
+      const { dataset, file } = await setUpRasterLoad(uniqueName('assets-missing'), slug => ({
+        '1': { ...bandEntry(slug, 0, 5), additional_resources: [{ file_id: 'no-such-manual' }] },
+      }));
+
+      await expect(processRasterLoad(getJob(dataset.slug))).rejects.toMatchObject({
+        name: 'JobError',
+        code: 'RL_ASSET_FILE_NOT_FOUND',
+      });
+
+      expect(await getLayers(file.id)).toHaveLength(0);
+    });
+
+    it('RL_ASSET_FILE_NOT_FOUND when the referenced file was deleted', async () => {
+      const manual = await addFile(uniqueName('deleted-manual'));
+      const { dataset, file } = await setUpRasterLoad(uniqueName('assets-deleted'), slug => ({
+        '1': { ...bandEntry(slug, 0, 5), additional_resources: [{ file_id: manual.slug }] },
+      }));
+      const dataSource = await getDataSource();
+      await dataSource.getRepository(FileEntity).softDelete({ id: manual.id });
+
+      await expect(processRasterLoad(getJob(dataset.slug))).rejects.toMatchObject({
+        name: 'JobError',
+        code: 'RL_ASSET_FILE_NOT_FOUND',
+      });
+
+      expect(await getLayers(file.id)).toHaveLength(0);
+    });
+
+    it('resolves a file by a slug it used to have, so a rename does not break the mapping', async () => {
+      const manual = await addFile(uniqueName('renamed-manual'));
+      const originalSlug = manual.slug;
+      const { dataset, file } = await setUpRasterLoad(uniqueName('assets-renamed'), slug => ({
+        '1': { ...bandEntry(slug, 0, 5), additional_resources: [{ file_id: originalSlug }] },
+      }));
+
+      // Renaming regenerates the slug and keeps the old one in slug_history, which is what
+      // resolving through getEntity buys over a lookup on the current slug alone.
+      const dataSource = await getDataSource();
+      await dataSource.getRepository(FileEntity).update({ id: manual.id }, { name: uniqueName('manual-new-name') });
+      const renamed = await dataSource.getRepository(FileEntity).findOneByOrFail({ id: manual.id });
+      expect(renamed.slug).not.toBe(originalSlug);
+
+      await processRasterLoad(getJob(dataset.slug));
+
+      expect((await getAssets((await getLayers(file.id))[0]!.id)).map(asset => asset.file_id)).toEqual([manual.id]);
+    });
   });
 
   describe('format normalization', () => {

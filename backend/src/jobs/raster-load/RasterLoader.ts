@@ -1,4 +1,5 @@
 import { Job } from 'pg-boss';
+import { StatusCodes } from 'http-status-codes';
 import { EntityManager, In } from 'typeorm';
 import DatasetEntity from '../../entities/Dataset';
 import DatasetFileMappingEntity from '../../entities/DatasetFileMapping';
@@ -11,12 +12,15 @@ import { RasterFileMetadata } from '../../interfaces/File';
 import DataMappingService from '../../services/DataMappingService';
 import DatasetFileMappingService from '../../services/DatasetFileMappingService';
 import DatasetService from '../../services/DatasetService';
-import { IngestionStatus } from '../../types/data';
+import { EntityType, IngestionStatus } from '../../types/data';
 import { getEntityManager } from '../../utils/data-source';
+import { getEntity } from '../../utils/slugs';
+import { ErrorResponse } from '../../utils/error';
 import { JobError } from '../../errors/JobError';
 import ErrorService from '../../services/ErrorService';
 import { checkFileFormat, ingestRaster } from '../../services/RasterIngestService';
 import { updateRasterDatasetMetadata } from './UpdateDatasetMetadata';
+import { createRasterLayerAssets, StagedLayerAssets } from './LoadLayerAssets';
 import EntitlementService from '../../services/EntitlementService';
 import { progressReporter } from '../../services/PgBoss';
 import { getSubject } from '../../utils/auth';
@@ -32,6 +36,11 @@ const CONVERSION_PROGRESS_CEILING = 40;
 interface StagedBand {
   file: FileEntity;
   bandMapping: ResolvedBandMapping;
+  /**
+   * The ids of the Files this band's additional resources named, resolved from their slugs during
+   * preparation. Empty until then, and empty for a band that declares no resources.
+   */
+  assetFileIds: string[];
 }
 
 export async function processRasterLoad(job: Job<RasterLoadJob>): Promise<void> {
@@ -71,13 +80,16 @@ export async function processRasterLoad(job: Job<RasterLoadJob>): Promise<void> 
     const anyConverted = await normalizeFiles(stagedBands, reportProgress);
     const bandFloor = anyConverted ? CONVERSION_PROGRESS_CEILING : 0;
 
+    // Collected as each band is ingested, written once every band has succeeded (see below).
+    const stagedAssets: StagedLayerAssets[] = [];
+
     for (const [index, staged] of stagedBands.entries()) {
       const { file, bandMapping } = staged;
       const loading = `Ingesting band ${bandMapping.band} of '${file.name}' (${index + 1} of ${stagedBands.length})...`;
       await reportProgress(bandPercentage(index, stagedBands.length, bandFloor), loading);
 
       let lastPercentage = -1;
-      await ingestRaster({
+      const rasterLayerId = await ingestRaster({
         fileId: file.id,
         band: bandMapping.band,
         datasetId: dataset.id,
@@ -87,6 +99,7 @@ export async function processRasterLoad(job: Job<RasterLoadJob>): Promise<void> 
         referencePeriodStart: bandMapping.referencePeriodStart,
         referencePeriodStop: bandMapping.referencePeriodStop,
         procedureSlug: bandMapping.procedureSlug,
+        description: bandMapping.layerDescription,
         // A single band's footprint pass runs for minutes, so report inside it rather than
         // letting the job sit silent between bands.
         onFootprintProgress: async (tilesProcessed, totalTiles) => {
@@ -99,7 +112,18 @@ export async function processRasterLoad(job: Job<RasterLoadJob>): Promise<void> 
           }
         },
       });
+
+      if (staged.assetFileIds.length > 0) {
+        // Already resolved from slugs to ids in prepareStagedBands.
+        stagedAssets.push({ rasterLayerId, fileIds: staged.assetFileIds });
+      }
     }
+
+    // Attach each layer's auxiliary Files. Deliberately after the band loop rather than inside it,
+    // and with no progress step of its own: inserting asset rows from file_ids that were already
+    // checked takes milliseconds, so it belongs inside the band range rather than owning a slice
+    // of it. The URL-fetch flow, when it lands, is what will need a window here.
+    await createRasterLayerAssets(entityManager, stagedAssets);
 
     // A file is loaded once every band its mapping names has been ingested. Unlike a bulk load,
     // the source file is never deleted and no raw table exists to drop: after a raster load the
@@ -187,7 +211,8 @@ const normalizeFiles = async (
 };
 
 /**
- * Resolves each file's Band Mapping and checks every band against the bands the file actually has.
+ * Resolves each file's Band Mapping and checks every band against the bands the file actually has,
+ * along with the auxiliary Files its additional resources reference.
  *
  * Band counts come from the metadata probed at upload, so an invalid band is rejected without
  * opening the raster. Bands a mapping does not name are skipped, which is how uncertainty and
@@ -221,9 +246,64 @@ const prepareStagedBands = async (
       if (!Number.isInteger(band) || band < 1 || (bandCount > 0 && !availableBands.has(band))) {
         throw new JobError('RL_INVALID_BAND', { file_name: file.name, band: String(band), band_count: String(bandCount) });
       }
-      stagedBands.push({ file, bandMapping });
+      stagedBands.push({ file, bandMapping, assetFileIds: [] });
     }
   }
 
+  await resolveAdditionalResources(requestData, stagedBands);
+
   return stagedBands;
+};
+
+/**
+ * Resolves every additional resource to the id of the File it names, and rejects the unusable ones
+ * before the first ingest writes anything — for the same reason band numbers are checked here: a
+ * typo in a mapping should not cost a partial load.
+ *
+ * A resource names a File by **slug**, as "id" does throughout the API, so resolution goes through
+ * getEntity: it consults slug history, which means a File renamed after the mapping was written
+ * still resolves, and a soft-deleted one does not resolve at all. A `url` alone is not enough yet —
+ * fetching it is a future flow — and an entry naming both is treated as a slug with the url as
+ * documentation of where it came from.
+ *
+ * Nothing else about the File is checked: an asset is as legitimately a GeoTIFF prediction layer as
+ * a PDF manual, and "has no metadata" is not a way to tell those apart (see CONTEXT.md, flagged
+ * ambiguities).
+ */
+const resolveAdditionalResources = async (requestData: RequestData, stagedBands: StagedBand[]): Promise<void> => {
+  // A mapping can name the same manual on every band of every file, and each of those is the same
+  // lookup — so resolve a slug once per load and reuse it.
+  const fileIdBySlug = new Map<string, string>();
+
+  for (const staged of stagedBands) {
+    const { file, bandMapping } = staged;
+    for (const resource of bandMapping.additionalResources) {
+      const params = { file_name: file.name, band: String(bandMapping.band) };
+      if (!resource.file_id) {
+        throw new JobError(resource.url ? 'RL_ASSET_URL_UNSUPPORTED' : 'RL_MISSING_ASSET_REFERENCE', params);
+      }
+
+      const slug = resource.file_id;
+      if (!fileIdBySlug.has(slug)) {
+        fileIdBySlug.set(slug, await resolveAssetFileId(requestData, slug, { ...params, file_id: slug }));
+      }
+      staged.assetFileIds.push(fileIdBySlug.get(slug)!);
+    }
+  }
+};
+
+/**
+ * Translates the not-found a slug lookup raises into the job's own error, leaving every other
+ * failure — a dropped connection, a broken query — to surface as itself.
+ */
+const resolveAssetFileId = async (requestData: RequestData, slug: string, params: Record<string, string>): Promise<string> => {
+  try {
+    const assetFile = await getEntity(requestData, FileEntity, EntityType.FILE, slug);
+    return assetFile.id;
+  } catch (error: any) {
+    if (error instanceof ErrorResponse && error.status === StatusCodes.NOT_FOUND) {
+      throw new JobError('RL_ASSET_FILE_NOT_FOUND', params);
+    }
+    throw error;
+  }
 };

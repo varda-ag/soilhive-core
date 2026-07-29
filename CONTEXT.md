@@ -4,6 +4,10 @@ SoilHive is a platform for discovering, filtering, and visualising soil datasets
 
 ## Language
 
+**Public identifier** (`id`):
+The only identifier that crosses the API boundary: an entity's **slug** when it has one, its primary key when it has none. Always carried in a key named `id` (or `<entity>_id` when referencing another entity), never accompanied by a separate `slug` key — so a client cannot tell from a payload which of the two kinds it holds, and must never parse or infer it. A database UUID is never exposed for an entity that has a slug; entities without one (data mappings, dataset-file mappings, filters, user geometries, raster layers, raster layer assets, jobs) expose their UUID as `id` because there is nothing better to expose.
+_Avoid_: UUID, primary key, internal ID (all internal-only concepts), slug (the *kind of value* an id holds, not the name of the field)
+
 **Dataset**:
 A collection of soil features ingested from a single data provider. Has a `gis_datatype` of `point`, `polygonal`, or `raster`.
 _Avoid_: Data source, layer (overloaded)
@@ -109,8 +113,12 @@ The catalog record for one Band of one raster File within a Dataset, carrying th
 _Avoid_: Layer (the soil data depth/date slice), Band (the pixel plane a Raster Layer points at), raster dataset (a Dataset, not a Raster Layer)
 
 **Band Mapping**:
-The per-Band declaration of what a Band measures: its soil property, depth range, and optionally its procedure, unit conversion and reference period. A Raster Load ingests exactly the Bands a Band Mapping names — Bands left unmapped are not ingested, which is how uncertainty or count Bands are excluded. The raster counterpart of the column mapping used for point and polygonal Files.
+The per-Band declaration of what a Band measures: its soil property, depth range, and optionally its procedure, unit conversion, reference period, prose description and Raster Layer Assets. A Raster Load ingests exactly the Bands a Band Mapping names — Bands left unmapped are not ingested, which is how uncertainty or count Bands are excluded. The raster counterpart of the column mapping used for point and polygonal Files.
 _Avoid_: Column mapping (the tabular counterpart), data mapping (the shared container — see Flagged ambiguities), band metadata (what the file itself reports, not what an admin declares)
+
+**Raster Layer Asset**:
+An auxiliary File attached to one Raster Layer — a technical manual, a prediction layer, anything shipped alongside the pixels — declared per Band in the Band Mapping and identified by the pair (Raster Layer, File). Never soil data: an asset File is attached, never ingested, and nothing about it is probed or validated beyond its existence.
+_Avoid_: Related Resources (the Dataset-level list of external URLs — see Flagged ambiguities), attachment, additional resource (the mapping key's name, not the entity's)
 
 **Band**:
 One of the pixel planes of a raster file, identified by a 1-based number. The unit a Raster Ingest consumes: every Raster Layer names exactly one Band of exactly one file. Bands of a file share its resolution and geographic extent, but each carries its own values and its own nodata marker, and therefore its own footprints. Distinct from a Layer — a Band is a property of the file, not of the soil model.
@@ -126,6 +134,7 @@ _Avoid_: Layer (the soil data depth/date slice), channel, raster layer (the cata
 - A **Filter** defines the scope for **DAI** computation; the effective **AOI** is the intersection of the Filter's geometries with the map viewport
 - A **Raster Load** is scoped to one **Dataset** and performs one **Raster Ingest** per **Band** named by each raster File's **Band Mapping**; a **Bulk Load** is the equivalent for point and polygonal **Datasets**
 - A **Raster Layer** belongs to one **Dataset** and names exactly one **Band** of exactly one **File**; a **File** has as many **Raster Layers** as it has mapped **Bands**
+- A **Raster Layer** has zero or more **Raster Layer Assets**, each pointing at one **File**; the same **File** may be an asset of several **Raster Layers** (one per **Band** whose **Band Mapping** declares it)
 - A **Filter** has a *set* of zero or more **UserGeometries** (duplicates in a submission collapse to one); each **UserGeometry** may belong to more than one **Filter**
 
 ## Example dialogue
@@ -141,19 +150,21 @@ An optional free-text field on a Dataset that documents the data cleaning and tr
 _Avoid_: Processing instructions, pipeline steps, ETL steps
 
 **Related Resources** (`related_resources`):
-An optional list of external URLs associated with a Dataset (e.g. publications, source repositories, data provider pages). Set by data admins; not computed by the system.
-_Avoid_: Links, references, attachments
+An optional list of external URLs associated with a Dataset (e.g. publications, source repositories, data provider pages). Set by data admins; not computed by the system. Distinct from a Raster Layer Asset, which is a File attached to one Raster Layer rather than a URL recorded on a Dataset.
+_Avoid_: Links, references, attachments, additional resources (the Band Mapping key that declares Raster Layer Assets)
 
 ## Flagged ambiguities
 
 - The UI's **"Data access"** filter (options "Private"/"Public") filters by **Visibility** — the entitlement-agnostic Dataset attribute. Selecting "Private" means "datasets whose visibility is private", never "datasets I have access to". Likewise the UI's **"Data type"** filter maps to the `data_types` criterion (`gis_datatype`). In domain discussions prefer **Visibility** and **data type**; "access" is a UI label only.
 
-- "dataset ID" in the public API means the Dataset's `slug`, not its database primary key: `GET /data-filters/{filterId}/datasets` returns the slug in the `id` field, and the `datasets` query parameter of `GET /soil-data` matches against slugs. In domain discussions, say **slug** when you mean the public identifier and reserve "ID" for the internal primary key.
+- **"ID" almost never means the primary key** — see **Public identifier**. "dataset ID" means the Dataset's `slug`: `GET /data-filters/{filterId}/datasets` returns the slug in the `id` field, and the `datasets` query parameter of `GET /soil-data` matches against slugs. The same holds inside a Band Mapping: an additional resource's `file_id` is a **File slug**, resolved through slug history, so a File renamed after the mapping was written still resolves. In domain discussions, say **slug** when you mean the public identifier and reserve "primary key" for the internal UUID — never bare "ID" for either.
 - "layer" was used in the codebase to mean both the domain entity (depth/date slice) and Mapbox/map rendering layers — in domain discussions, **Layer** always refers to the soil data entity.
 - "observation" was initially used loosely to mean any data point or measurement; resolved: **Observation** is specifically a row in the `observations` table with a numeric `value`, linked to a **DatasetLayer**.
 - A **null** parameter criterion and an **absent** one mean different things and yield different Filters: `min_depth: null` means "match Layers with no recorded depth", while omitting `min_depth` means "no depth constraint" (same for `max_depth` and the sampling-date criteria). Never normalise null to absent (or vice versa) when comparing filter criteria.
 - **A File with no metadata is not a category.** Absent metadata means one of three unrelated things: a **Non-spatial File** (never probed), a File created by the raster ingestion CLI (which describes the raster by other means), or a test fixture. Never treat "has no metadata" as a way to identify Non-spatial Files — the distinction is known to whoever uploaded the File, not recoverable from the File itself.
 - **A data mapping means two different things depending on the Dataset's Data Type.** For a point or polygonal File its entries are *column references* — "the column named X supplies the sampling date". For a raster File its entries are a **Band Mapping**: keyed by Band number, and the values are *literal values* rather than references, because a Band has no columns to point at. The container is shared; the meaning is not. In domain discussions say **column mapping** or **Band Mapping**, never bare "mapping".
+
+- **`related_resources` and `additional_resources` are unrelated.** `related_resources` is a Dataset column holding external URLs; `additional_resources` is a Band Mapping key declaring that Band's **Raster Layer Assets**, which are Files. The near-identical names are the only thing they share. In domain discussions say **Related Resources** for the Dataset's URLs and **Raster Layer Asset** for an attached File — never "resources" bare.
 
 - The Dataset field holding its soil properties is called **`measured_properties`** in code but stored in a column named `variables_measured` (an older name, retained). They are one field, not two. Prefer **measured properties** in discussion.
 

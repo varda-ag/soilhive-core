@@ -35,6 +35,8 @@ export interface IngestRasterOptions {
   referencePeriodStart?: string | null;
   referencePeriodStop?: string | null;
   procedureSlug?: string | null;
+  /** Free prose from the band mapping. Stored wrapped as `{"description": ...}` — docs/adr/0019. */
+  description?: string | null;
   onFootprintProgress?: FootprintProgressCallback;
 }
 
@@ -304,12 +306,15 @@ export async function ingestRaster(opts: IngestRasterOptions): Promise<string> {
      INSERT INTO raster_layers (
        file_id, dataset_id, band, soil_property_id, resolution_m,
        nodata_value, bbox, procedure_id, min_depth, max_depth,
-       reference_period_start, reference_period_stop
+       reference_period_start, reference_period_stop, description
      )
      SELECT
        $1::uuid, $2::uuid, $3::int, sp.id, $6::int,
        $7, ST_SetSRID(ST_GeomFromGeoJSON($8), 4326), proc.id, $9::int, $10::int,
-       $11, $12
+       $11, $12,
+       -- Wrapped rather than stored as a bare jsonb string so the column keeps saying what is in
+       -- it and a second descriptive facet is an added key (docs/adr/0019).
+       CASE WHEN $13::text IS NULL THEN NULL ELSE jsonb_build_object('description', $13::text) END
      FROM sp LEFT JOIN proc ON true
      ON CONFLICT (file_id, band) WHERE deleted_at IS NULL DO UPDATE SET
        updated_at = now(),
@@ -322,7 +327,10 @@ export async function ingestRaster(opts: IngestRasterOptions): Promise<string> {
        min_depth = EXCLUDED.min_depth,
        max_depth = EXCLUDED.max_depth,
        reference_period_start = EXCLUDED.reference_period_start,
-       reference_period_stop = EXCLUDED.reference_period_stop
+       reference_period_stop = EXCLUDED.reference_period_stop,
+       -- Refreshed like every sibling field: the band mapping is authoritative, so dropping
+       -- layer_description from it clears the description on the next load.
+       description = EXCLUDED.description
      RETURNING id`,
       [
         opts.fileId,
@@ -337,6 +345,7 @@ export async function ingestRaster(opts: IngestRasterOptions): Promise<string> {
         opts.maxDepth,
         opts.referencePeriodStart ?? null,
         opts.referencePeriodStop ?? null,
+        opts.description ?? null,
       ],
     ),
   );

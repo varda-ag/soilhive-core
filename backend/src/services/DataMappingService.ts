@@ -175,7 +175,9 @@ export default class DataMappingService {
    * every key into a DB-safe SQL identifier — a transformation a band mapping key cannot survive.
    *
    * Band numbers are parsed but not validated against the file here; the loader does that, so
-   * every band failure is raised from one place before any ingest writes anything.
+   * every band failure is raised from one place before any ingest writes anything. The same holds
+   * for a band's additional resources: they reference Files, and checking those belongs with the
+   * rest of the loader's pre-flight validation rather than here.
    */
   parseRasterDataMapping = async (requestData: RequestData, id: string): Promise<ResolvedBandMapping[]> => {
     const dataMappingEntity = await this.getDataMapping(requestData, id);
@@ -216,6 +218,8 @@ export default class DataMappingService {
         standardUnit: property?.standard_unit ?? null,
         originalUnit: conversion?.original_unit_of_measurement ?? null,
         conversionFormula: conversion?.conversion_formula ?? null,
+        layerDescription: bandMapping.layer_description ?? null,
+        additionalResources: Array.isArray(bandMapping.additional_resources) ? bandMapping.additional_resources : [],
       };
     });
   };
