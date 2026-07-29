@@ -6,6 +6,7 @@ import PageTitle from './components/PageTitle';
 import { ADMIN_ROOT } from './configuration/admin';
 import { AdminPortalGuard } from './guards/AdminPortalGuard';
 import useRemotes from './hooks/useRemotes';
+import { usePluginContext } from './hooks/usePluginContext';
 import useTheme from './hooks/useTheme';
 import { MainLayout } from './layouts';
 import { AdminPortalModule } from './modules/AdminPortalModule';
@@ -25,6 +26,7 @@ function AppRoutes() {
   const { isLoadingThemeConfig, themeConfig } = useTheme();
   const { plugins, isLoadingRemotes } = useRemotes();
   const pluginRoutes = useMemo(() => plugins.filter(isSinglePageModule), [plugins]);
+  const pluginContext = usePluginContext();
 
   const router = useMemo(() => {
     if (isLoadingThemeConfig || isLoadingRemotes) return null;
@@ -71,7 +73,7 @@ function AppRoutes() {
                 element={
                   <>
                     <PageTitle title={`SoilHive - ${name}`} />
-                    <Page />
+                    <Page context={pluginContext} />
                   </>
                 }
               />
@@ -83,7 +85,15 @@ function AppRoutes() {
         </>,
       ),
     );
-  }, [isLoadingThemeConfig, isLoadingRemotes, pluginRoutes, t, themeConfig.termsAndConditionsHtml, themeConfig.privacyPolicyHtml]);
+  }, [
+    isLoadingThemeConfig,
+    isLoadingRemotes,
+    pluginContext,
+    pluginRoutes,
+    t,
+    themeConfig.termsAndConditionsHtml,
+    themeConfig.privacyPolicyHtml,
+  ]);
 
   if (!router) return <div />;
   return <RouterProvider router={router} />;
