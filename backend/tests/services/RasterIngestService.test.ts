@@ -147,24 +147,6 @@ describe('RasterIngestService', () => {
       expect(layers[0].min_depth).toBe(15);
       expect(layers[0].max_depth).toBe(30);
     });
-
-    it('rejects a band whose values are not already in the property standard unit', async () => {
-      const { dataset, property, file } = await setUpDataset('test-raster-unit', TEST_FILE);
-
-      await expect(
-        ingestRaster({
-          fileId: file.id,
-          band: 1,
-          datasetId: dataset.id,
-          soilPropertySlug: property.slug,
-          minDepth: null,
-          maxDepth: null,
-          standardUnit: 'mg/kg',
-          originalUnit: 'g/kg',
-          conversionFormula: 'x*1000',
-        }),
-      ).rejects.toMatchObject({ code: 'RL_UNIT_NOT_STANDARD' });
-    });
   });
 
   describe('updateRasterDatasetMetadata', () => {

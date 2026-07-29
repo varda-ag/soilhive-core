@@ -28,8 +28,8 @@ describe('translateJobError', () => {
     'BL_RECORD_VALIDATION_FAILED',
     'RL_MISSING_BAND_MAPPING',
     'RL_INVALID_BAND',
-    'RL_NOT_COG',
-    'RL_UNIT_NOT_STANDARD',
+    'RL_CONVERSION_FAILED',
+    'RL_UNIT_NOT_CONVERTIBLE',
   ];
 
   it.each(DEFINED_CODES)('returns non-empty message and actions for %s', code => {

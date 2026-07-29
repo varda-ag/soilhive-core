@@ -75,15 +75,19 @@ const JOB_ERROR_MESSAGES: Record<string, JobErrorMessage> = {
       'If you expected more bands, re-upload the file and check it converted correctly.',
     ],
   },
-  RL_NOT_COG: {
-    message: "'{file_name}' is not a Cloud Optimized GeoTIFF and cannot be ingested as a raster.",
-    actions: ['Convert it with convert_raster.sh before uploading, then re-upload the file and retry data loading.'],
-  },
-  RL_UNIT_NOT_STANDARD: {
-    message: "Band {band} of '{file_name}' is in '{original_unit}' but '{soil_property}' is stored in '{standard_unit}'.",
+  RL_CONVERSION_FAILED: {
+    message: "'{file_name}' could not be normalized for ingestion ({reasons}).",
     actions: [
-      'Raster values are used as-is — they are never converted during loading.',
-      'Re-scale the raster with convert_raster.sh using conversion factor {conversion_factor}, then re-upload the file.',
+      'Check the raster opens in QGIS or with gdalinfo, then retry data loading.',
+      'If it keeps failing, convert it manually with convert_raster.sh and re-upload the result.',
+    ],
+  },
+  RL_UNIT_NOT_CONVERTIBLE: {
+    message:
+      "Band {band} of '{file_name}' is in '{original_unit}' but '{soil_property}' is stored in '{standard_unit}', and the conversion '{formula}' cannot be applied automatically.",
+    actions: [
+      'Only a single multiplication of every pixel can be applied during loading.',
+      'Re-scale the raster yourself so its values are already in {standard_unit}, then re-upload the file.',
     ],
   },
   BL_RECORD_VALIDATION_FAILED: {
