@@ -135,8 +135,8 @@ export function useDatasetsSoilData() {
         name: f.name,
         crs: null, // manually added by user
         inferredCrs: f.metadata?.epsg ? `EPSG:${f.metadata.epsg}` : undefined,
-        fieldNames: f.metadata?.field_names,
-        isRaster: f.metadata?.['is_raster'] as boolean | undefined,
+        fieldNames: f.metadata && !f.metadata.is_raster ? f.metadata.field_names : undefined,
+        isRaster: f.metadata?.is_raster,
         progress: 100,
       }));
     establishedIsRasterRef.current = mapped[0]?.isRaster;

@@ -15,6 +15,9 @@ import { IngestionStatus } from 'types/backend';
 import useIngestionFlow from './useIngestionFlow';
 import type {
   FileDescriptor,
+  FileDescriptorMetadata,
+  RasterFileDescriptorMetadata,
+  VectorFileDescriptorMetadata,
   VocabularyItem,
   PropertyMapping,
   DataMappingRequest,
@@ -25,6 +28,12 @@ import type {
 } from 'types/backend';
 import type { MenuOption } from 'types/components';
 import { useDataset } from './useDatasets';
+
+const isRasterMetadata = (metadata?: FileDescriptorMetadata): metadata is RasterFileDescriptorMetadata =>
+  !!metadata && !!metadata.is_raster;
+
+const isVectorMetadata = (metadata?: FileDescriptorMetadata): metadata is VectorFileDescriptorMetadata =>
+  !!metadata && !isRasterMetadata(metadata);
 
 export interface RowDetails {
   samplePretreatment: string | null;
@@ -261,7 +270,7 @@ export function useMappingsStep(datasetId?: string) {
     // Deep-clone to avoid mutating the React Query cache.
     const firstMapping = existingMappings && existingMappings.length > 0 ? structuredClone(existingMappings[0].data_mapping) : {};
     for (const file of files) {
-      const detectedMapping = file.metadata?.detected_mapping ?? {};
+      const detectedMapping = (isVectorMetadata(file.metadata) ? file.metadata.detected_mapping : undefined) ?? {};
       for (const [columnName, obj] of Object.entries(detectedMapping)) {
         if (!(columnName in firstMapping)) firstMapping[columnName] = obj;
       }
@@ -350,7 +359,7 @@ export function useMappingsStep(datasetId?: string) {
 
   const geometryDetected = useMemo(() => {
     if (!files || files.length === 0) return undefined;
-    return files[0].metadata?.geometry_detected === true;
+    return isVectorMetadata(files[0].metadata) && files[0].metadata.geometry_detected === true;
   }, [files]);
 
   const [columnMappings, setColumnMappings] = useState<ColumnMapping[]>([]);
@@ -359,12 +368,13 @@ export function useMappingsStep(datasetId?: string) {
   // with any previously saved mapping and procedure details.
   useEffect(() => {
     if (!files) return;
-    const columnNames = [...new Set(files.flatMap(f => f.metadata?.field_names ?? []))];
+    const columnNames = [...new Set(files.flatMap(f => (isVectorMetadata(f.metadata) ? f.metadata.field_names : undefined) ?? []))];
     const existingDataMapping = mergedMappings?.[0]?.data_mapping ?? {};
 
     // Invert detected_fields ({ conceptCode → columnName }) into { columnName → conceptCode }
     // so we can look up the suggested concept for any unmapped column.
-    const detectedFields = files[0]?.metadata?.detected_fields ?? {};
+    const firstFileMetadata = files[0]?.metadata;
+    const detectedFields = (isVectorMetadata(firstFileMetadata) ? firstFileMetadata.detected_fields : undefined) ?? {};
     const detectedConceptByColumn: Record<string, string> = {};
     for (const [conceptCode, columnName] of Object.entries(detectedFields)) {
       if (columnName) detectedConceptByColumn[columnName] = conceptCode;
@@ -373,7 +383,8 @@ export function useMappingsStep(datasetId?: string) {
     setColumnMappings(
       columnNames.map(columnName => {
         const isGeometryDetectedField =
-          files[0]?.metadata?.geometry_detected === true &&
+          isVectorMetadata(firstFileMetadata) &&
+          firstFileMetadata.geometry_detected === true &&
           ['geometry', 'latitude', 'longitude'].includes(detectedConceptByColumn[columnName] ?? '');
         const existing = existingDataMapping[columnName];
         if (!existing) {
