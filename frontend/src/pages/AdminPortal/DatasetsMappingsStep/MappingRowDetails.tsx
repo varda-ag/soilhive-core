@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { AutocompleteDropdown } from 'components/UI';
+import { AutocompleteDropdown } from 'components/AutocompleteDropdown/AutocompleteDropdown';
 import InfoIcon from 'assets/icons/small-info-icon.svg?react';
 import type { RowDetails, DetailOptionMap } from 'hooks/useMappingsStep';
 import styles from './MappingRowDetails.module.scss';

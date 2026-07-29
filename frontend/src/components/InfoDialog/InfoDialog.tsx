@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { Dialog } from '../Dialog/Dialog';
+import { Dialog } from 'components/Dialog/Dialog';
 
 import styles from './InfoDialog.module.scss';
-import { Checkbox } from '../Checkbox/Checkbox';
+import { Checkbox } from '../UI/Checkbox/Checkbox';
 
 import { useTranslation } from 'react-i18next';
 import { useDialogDismiss } from 'hooks/useDialogDismiss';

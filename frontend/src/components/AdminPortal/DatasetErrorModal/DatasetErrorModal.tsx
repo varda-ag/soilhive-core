@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 
 import WarningIcon from 'assets/icons/small-warning-icon.svg?react';
 import BulbIcon from 'assets/icons/bulb-icon.svg?react';
-import { Dialog } from 'components/UI';
+import { Dialog } from 'components/Dialog/Dialog';
 import type { DatasetErrorItem } from 'types/datasetErrors';
 import type { DatasetsPublicationListItem } from 'types/datasetsPublication';
 import { dateStringToDDMMYYYY } from '../../../utilities/date';

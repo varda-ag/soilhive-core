@@ -1,5 +1,6 @@
-import { Accordion, FormMessage, NestedCheckbox, SelectionPills, Toggle } from 'components/UI';
-import { collectParentsIds, filterNestedItems } from 'components/UI/NestedCheckbox/nestedCheckboxHelpers';
+import { Accordion, FormMessage, SelectionPills, Toggle } from 'components/UI';
+import { NestedCheckbox } from 'components/NestedCheckbox/NestedCheckbox';
+import { collectParentsIds, filterNestedItems } from 'components/NestedCheckbox/nestedCheckboxHelpers';
 import { useCallback, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import Skeleton from 'react-loading-skeleton';
 import 'react-loading-skeleton/dist/skeleton.css';

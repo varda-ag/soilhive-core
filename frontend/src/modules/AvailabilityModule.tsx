@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Navigate, Outlet, Route, Routes } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import PageTitle from 'components/PageTitle';
-import { InfoDialog } from 'components/UI';
+import { InfoDialog } from 'components/InfoDialog/InfoDialog';
 import useDevice from 'hooks/useDevice';
 import { AvailabilityProvider } from '../contexts/AvailabilityContext';
 import { AvailabilityMapProvider } from '../contexts/AvailabilityMapContext';

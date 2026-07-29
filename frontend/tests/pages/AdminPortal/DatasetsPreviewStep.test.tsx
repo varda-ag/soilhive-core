@@ -57,7 +57,7 @@ jest.mock('pages/AdminPortal/DatasetsPreviewStep/PreviewStepSummary/PreviewStepS
   ),
 }));
 
-jest.mock('components/UI/Table/Table', () => ({
+jest.mock('components/Table/Table', () => ({
   Table: ({ columns, emptyMessage }: any) => (
     <div data-testid="mock-table">
       {emptyMessage && <span data-testid="table-empty-message">{emptyMessage}</span>}

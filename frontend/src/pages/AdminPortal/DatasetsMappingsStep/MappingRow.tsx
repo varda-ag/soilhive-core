@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import classnames from 'classnames';
-import { AutocompleteDropdown, Dropdown } from 'components/UI';
+import { AutocompleteDropdown } from 'components/AutocompleteDropdown/AutocompleteDropdown';
+import { Dropdown } from 'components/UI';
 import ArrowDownIcon from 'assets/icons/dropdown-arrow-down-icon.svg?react';
 import CheckIconCircle from 'assets/icons/check-icon-circle.svg?react';
 import WarningIcon from 'assets/icons/small-warning-icon.svg?react';

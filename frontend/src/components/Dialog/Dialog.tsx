@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 
 import CloseIcon from 'assets/icons/cross-icon.svg?react';
 import styles from './Dialog.module.scss';
-import { Button } from '../Button/Button';
+import { Button } from '../UI/Button/Button';
 
 interface Props {
   visible: boolean;

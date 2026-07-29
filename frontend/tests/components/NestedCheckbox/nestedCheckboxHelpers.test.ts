@@ -3,7 +3,7 @@ import {
   getTopLevelSelections,
   getBranchIds,
   collectParentsIds,
-} from 'components/UI/NestedCheckbox/nestedCheckboxHelpers';
+} from 'components/NestedCheckbox/nestedCheckboxHelpers';
 import type { NestedCheckboxItemType } from 'types/components';
 
 describe('isNestedLevelHasChildren', () => {

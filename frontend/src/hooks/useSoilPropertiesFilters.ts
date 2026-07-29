@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import useAvailability from './useAvailability';
 import type { NestedCheckboxItemType, Selection } from 'types/components';
 import type { SoilPropertyCategory } from '../types/backend';
-import { collectAllIds, getBranchIds } from 'components/UI/NestedCheckbox/nestedCheckboxHelpers';
+import { collectAllIds, getBranchIds } from 'components/NestedCheckbox/nestedCheckboxHelpers';
 
 type SoilPropertyCategoryWithNodes = SoilPropertyCategory & {
   nodes: NestedCheckboxItemType[];

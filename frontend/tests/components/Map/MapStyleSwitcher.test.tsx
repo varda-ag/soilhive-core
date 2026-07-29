@@ -2,7 +2,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { MapStyleSwitcher } from 'components/Map/MapStyleSwitcher/MapStyleSwitcher';
 import type { MapStyles } from 'types/components';
 
-jest.mock('components/UI', () => ({
+jest.mock('components/Dialog/Dialog', () => ({
   Dialog: ({ visible, header, onClose, children }: any) =>
     visible ? (
       <div data-testid="mock-dialog">

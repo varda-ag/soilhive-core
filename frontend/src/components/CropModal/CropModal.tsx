@@ -1,5 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
-import { Cropper, Dialog, RangeSlider } from 'components/UI';
+import { Dialog } from 'components/Dialog/Dialog';
+import { Cropper } from './Cropper/Cropper';
+import { RangeSlider } from 'components/UI';
 import { useTranslation } from 'react-i18next';
 import { type Area } from 'react-easy-crop';
 import { getCroppedFile } from '../../utilities/cropper';

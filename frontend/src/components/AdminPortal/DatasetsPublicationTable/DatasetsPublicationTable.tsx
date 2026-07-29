@@ -5,7 +5,7 @@ import WarningIcon from 'assets/icons/small-warning-icon.svg?react';
 import { DatasetsTableStatusTemplate } from './DatasetsTableStatusTemplate/DatasetsTableStatusTemplate';
 import { DatasetsTableVisibilityTemplate } from './DatasetsTableVisibilityTemplate/DatasetsTableVisibilityTemplate';
 import { DatasetsTableActionTemplate } from './DatasetsTableActionTemplate/DatasetsTableActionTemplate';
-import { Table } from 'components/UI/Table/Table';
+import { Table } from 'components/Table/Table';
 import { IngestionStatus } from 'types/backend';
 import type { TableColumn } from 'types/components';
 import type { DatasetsPublicationListItem } from 'types/datasetsPublication';

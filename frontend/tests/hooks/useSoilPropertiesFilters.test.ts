@@ -1,14 +1,14 @@
 import { act, renderHook } from '@testing-library/react';
 import useSoilPropertiesFilters from 'hooks/useSoilPropertiesFilters';
 import useAvailability from 'hooks/useAvailability';
-import { collectAllIds, getBranchIds } from 'components/UI/NestedCheckbox/nestedCheckboxHelpers';
+import { collectAllIds, getBranchIds } from 'components/NestedCheckbox/nestedCheckboxHelpers';
 
 jest.mock('hooks/useAvailability', () => ({
   __esModule: true,
   default: jest.fn(),
 }));
 
-jest.mock('components/UI/NestedCheckbox/nestedCheckboxHelpers', () => ({
+jest.mock('components/NestedCheckbox/nestedCheckboxHelpers', () => ({
   collectAllIds: jest.fn(),
   getBranchIds: jest.fn(),
 }));

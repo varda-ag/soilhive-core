@@ -104,6 +104,14 @@ jest.mock('components/UI', () => ({
     );
   },
   SelectionPills: () => null,
+  Toggle: ({ labelOne, labelTwo, isToggled, onToggle, className }: any) => (
+    <div data-testid="global-toggle" onClick={onToggle} className={className}>
+      {isToggled ? labelTwo : labelOne}
+    </div>
+  ),
+}));
+
+jest.mock('components/NestedCheckbox/NestedCheckbox', () => ({
   NestedCheckbox: ({ ref, items, selected, onChange, onToggleVisibility }: NestedCheckboxPropsType) => {
     const [localSelected, setLocalSelected] = React.useState(selected);
     const [isExpanded, setIsExpanded] = React.useState<boolean>(false);
@@ -137,11 +145,6 @@ jest.mock('components/UI', () => ({
       </div>
     );
   },
-  Toggle: ({ labelOne, labelTwo, isToggled, onToggle, className }: any) => (
-    <div data-testid="global-toggle" onClick={onToggle} className={className}>
-      {isToggled ? labelTwo : labelOne}
-    </div>
-  ),
 }));
 
 describe('FilteringSidebarParameters', () => {

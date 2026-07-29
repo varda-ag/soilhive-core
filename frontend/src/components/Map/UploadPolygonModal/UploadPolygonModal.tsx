@@ -2,7 +2,8 @@ import { Trans, useTranslation } from 'react-i18next';
 import type { Polygon, MultiPolygon } from 'geojson';
 
 import LightbulbIcon from 'assets/icons/small-lightbulb-icon.svg?react';
-import { Dialog, FileUploadBox } from 'components/UI';
+import { Dialog } from 'components/Dialog/Dialog';
+import { FileUploadBox } from 'components/UI';
 
 import styles from './UploadPolygonModal.module.scss';
 import { useCallback, useRef, useState, type RefObject } from 'react';

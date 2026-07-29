@@ -4,7 +4,7 @@ import { IngestionStatus } from 'types/backend';
 import type { DatasetsPublicationListItem } from 'types/datasetsPublication';
 import type { DatasetErrorItem } from 'types/datasetErrors';
 
-jest.mock('components/UI', () => ({
+jest.mock('components/Dialog/Dialog', () => ({
   Dialog: ({ visible, primaryText, onPrimary, children }: any) =>
     visible ? (
       <div data-testid="mock-dialog">

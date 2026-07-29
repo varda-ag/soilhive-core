@@ -1,5 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react';
-import { InfoDialog } from 'components/UI/InfoDialog/InfoDialog';
+import { InfoDialog } from 'components/InfoDialog/InfoDialog';
 import { useDialogDismiss } from 'hooks/useDialogDismiss';
 
 jest.mock('react-i18next', () => ({
@@ -8,7 +8,7 @@ jest.mock('react-i18next', () => ({
 
 jest.mock('hooks/useDialogDismiss');
 
-jest.mock('components/UI/Dialog/Dialog', () => ({
+jest.mock('components/Dialog/Dialog', () => ({
   Dialog: ({ visible, children, onPrimary, onSecondary, ariaLabel }: any) => {
     const MockDialog = () =>
       visible ? (

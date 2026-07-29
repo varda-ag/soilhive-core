@@ -1,7 +1,8 @@
 /* SoilDataFileRow.tsx */
 import { useTranslation } from 'react-i18next';
 import { AutoComplete, type AutoCompleteCompleteEvent } from 'primereact/autocomplete';
-import { Button, FormMessage, Dialog } from 'components/UI';
+import { Dialog } from 'components/Dialog/Dialog';
+import { Button, FormMessage } from 'components/UI';
 import classnames from 'classnames';
 import styles from './SoilDataFileRow.module.scss';
 import { type SoilDataFile } from '../../../../types/soilDataFile';

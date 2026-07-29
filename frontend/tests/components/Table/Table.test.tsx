@@ -1,8 +1,8 @@
 import { render, screen, act } from '@testing-library/react';
 import { useRef } from 'react';
-import { Table } from 'components/UI/Table/Table';
+import { Table } from 'components/Table/Table';
 import type { TableColumn } from 'types/components';
-import type { TableHandle } from 'components/UI/Table/Table';
+import type { TableHandle } from 'components/Table/Table';
 
 type Row = { id: string; name: string; status: string };
 
