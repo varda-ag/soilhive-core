@@ -1,18 +1,10 @@
+import { createRef } from 'react';
 import { render, screen, fireEvent, act } from '@testing-library/react';
-import SoilhiveMap from 'components/Map/SoilhiveMap';
+import SoilhiveMap, { type SoilhiveMapRef } from 'components/Map/SoilhiveMap';
 import { __setIsMobileLayout, __setIsDesktopLayout, __resetIsMobileLayout, __resetIsDesktopLayout } from 'hooks/useDevice';
 import useTheme from 'hooks/useTheme';
 
 jest.mock('hooks/useDevice');
-
-jest.mock('hooks/useNotifications', () => ({
-  __esModule: true,
-  default: jest.fn().mockReturnValue({ showNotification: jest.fn() }),
-}));
-
-jest.mock('utilities/parseGeoJSONFile', () => ({
-  parseGeoJSONFile: jest.fn(),
-}));
 
 jest.mock('utilities/map', () => ({
   getMapStyles: jest.fn().mockReturnValue([{ name: 'Default', mapStyle: 'default-style' }]),
@@ -293,5 +285,12 @@ describe('SoilhiveMap', () => {
       expect(screen.getByTestId('scale-control')).toBeInTheDocument();
       expect(screen.getByTestId('scale-control').style.opacity).toBe('1');
     });
+  });
+
+  it('exposes onUpload via the forwarded ref', () => {
+    const ref = createRef<SoilhiveMapRef>();
+    render(<SoilhiveMap ref={ref} />);
+    expect(ref.current).not.toBeNull();
+    expect(typeof ref.current?.onUpload).toBe('function');
   });
 });

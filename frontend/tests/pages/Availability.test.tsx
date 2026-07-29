@@ -1,23 +1,35 @@
 import React from 'react';
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, createEvent, fireEvent, render, screen } from '@testing-library/react';
 import Availability from '../../src/pages/Availability';
 import { __setIsDesktopLayout } from 'hooks/useDevice';
 import type { SoilhiveMapSelectionChangeEvent } from 'components/Map/SoilhiveMapSelectionChangeEvent';
+import { parseGeoJSONFile } from '../../src/utilities/parseGeoJSONFile';
+import useNotifications from 'hooks/useNotifications';
 
 let mockOnMapSelectionChange: ((event: any) => void) | undefined;
+const mockOnUpload = jest.fn();
+const mockShowNotification = jest.fn();
 
 /* eslint-disable react-hooks/globals */
 jest.mock('components/Map/SoilhiveMap', () => {
-  // Define the mock component with a name
-  const MockSoilhiveMap: React.FC<{ onSelectionChange: (event: unknown) => void }> = ({ onSelectionChange }) => {
+  const MockSoilhiveMap = React.forwardRef(function SoilhiveMap({ onSelectionChange }: any, ref: any) {
     mockOnMapSelectionChange = onSelectionChange;
+    React.useImperativeHandle(ref, () => ({ onUpload: mockOnUpload }));
     return <div data-test-id="mock-soilhive-map">Mock SoilhiveMap</div>;
-  };
-
-  // The component name is inferred from the function name
+  });
   return MockSoilhiveMap;
 });
 /* eslint-enable react-hooks/globals */
+
+jest.mock('../../src/utilities/parseGeoJSONFile', () => ({
+  parseGeoJSONFile: jest.fn(),
+}));
+
+jest.mock('hooks/useNotifications', () => ({
+  __esModule: true,
+  default: jest.fn(),
+}));
+
 jest.mock('../../src/utilities/environmentVariables', () => ({
   MAPBOX_ACCESS_TOKEN: 'mock_access_token',
 }));
@@ -78,6 +90,7 @@ const { mockSetGeometryFilter } = jest.requireMock('../../src/contexts/Availabil
 describe('Availability', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    (useNotifications as jest.Mock).mockReturnValue({ showNotification: mockShowNotification });
   });
 
   it('renders availability page on desktop', () => {
@@ -217,5 +230,128 @@ describe('Availability', () => {
     expect(geometries).toHaveLength(1);
     expect(geometries[0].type).toBe('Polygon');
     expect(geometries[0].coordinates).toBeDefined();
+  });
+
+  describe('drag and drop', () => {
+    function getRoot(container: HTMLElement) {
+      return container.firstChild as HTMLElement;
+    }
+
+    it('shows the drop overlay when a file is dragged over the container', () => {
+      const { container } = render(<Availability />);
+      expect(container.querySelector('.soilhive-map-drop-overlay')).not.toBeInTheDocument();
+
+      fireEvent.dragEnter(getRoot(container));
+
+      expect(container.querySelector('.soilhive-map-drop-overlay')).toBeInTheDocument();
+    });
+
+    it('hides the drop overlay when drag leaves the container', () => {
+      const { container } = render(<Availability />);
+
+      fireEvent.dragEnter(getRoot(container));
+      expect(container.querySelector('.soilhive-map-drop-overlay')).toBeInTheDocument();
+
+      fireEvent.dragLeave(getRoot(container));
+      expect(container.querySelector('.soilhive-map-drop-overlay')).not.toBeInTheDocument();
+    });
+
+    it('hides the drop overlay when a file is dropped', async () => {
+      (parseGeoJSONFile as jest.Mock).mockResolvedValue({
+        polygon: {
+          type: 'Polygon',
+          coordinates: [
+            [
+              [0, 0],
+              [1, 0],
+              [1, 1],
+              [0, 0],
+            ],
+          ],
+        },
+      });
+      const { container } = render(<Availability />);
+      const root = getRoot(container);
+
+      fireEvent.dragEnter(root);
+      expect(container.querySelector('.soilhive-map-drop-overlay')).toBeInTheDocument();
+
+      const file = new File(['{}'], 'region.geojson', { type: 'application/json' });
+      const dropEvent = createEvent.drop(root);
+      Object.defineProperty(dropEvent, 'dataTransfer', { value: { files: [file] } });
+
+      await act(async () => {
+        fireEvent(root, dropEvent);
+      });
+
+      expect(container.querySelector('.soilhive-map-drop-overlay')).not.toBeInTheDocument();
+    });
+
+    it('calls onUpload with the parsed polygon when a valid file is dropped', async () => {
+      const polygon = {
+        type: 'Polygon',
+        coordinates: [
+          [
+            [0, 0],
+            [1, 0],
+            [1, 1],
+            [0, 0],
+          ],
+        ],
+      };
+      (parseGeoJSONFile as jest.Mock).mockResolvedValue({ polygon });
+      const { container } = render(<Availability />);
+      const root = getRoot(container);
+
+      const file = new File(['{}'], 'region.geojson', { type: 'application/json' });
+      const dropEvent = createEvent.drop(root);
+      Object.defineProperty(dropEvent, 'dataTransfer', { value: { files: [file] } });
+
+      await act(async () => {
+        fireEvent(root, dropEvent);
+      });
+
+      expect(mockOnUpload).toHaveBeenCalledTimes(1);
+      expect(mockOnUpload).toHaveBeenCalledWith(polygon);
+    });
+
+    it('calls showNotification when the dropped file fails to parse', async () => {
+      (parseGeoJSONFile as jest.Mock).mockResolvedValue({
+        error: { id: 'parse-error', message: 'Invalid GeoJSON' },
+      });
+      const { container } = render(<Availability />);
+      const root = getRoot(container);
+
+      const file = new File(['invalid'], 'bad.geojson', { type: 'application/json' });
+      const dropEvent = createEvent.drop(root);
+      Object.defineProperty(dropEvent, 'dataTransfer', { value: { files: [file] } });
+
+      await act(async () => {
+        fireEvent(root, dropEvent);
+      });
+
+      expect(mockShowNotification).toHaveBeenCalledTimes(1);
+      expect(mockShowNotification).toHaveBeenCalledWith({
+        id: 'parse-error',
+        title: 'Upload failed',
+        message: 'Invalid GeoJSON',
+      });
+      expect(mockOnUpload).not.toHaveBeenCalled();
+    });
+
+    it('does not call onUpload when no file is present in the drop event', async () => {
+      const { container } = render(<Availability />);
+      const root = getRoot(container);
+
+      const dropEvent = createEvent.drop(root);
+      Object.defineProperty(dropEvent, 'dataTransfer', { value: { files: [] } });
+
+      await act(async () => {
+        fireEvent(root, dropEvent);
+      });
+
+      expect(parseGeoJSONFile).not.toHaveBeenCalled();
+      expect(mockOnUpload).not.toHaveBeenCalled();
+    });
   });
 });
