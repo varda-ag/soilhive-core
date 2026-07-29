@@ -9,6 +9,7 @@ import { IngestionStepTitleRow } from 'components/AdminPortal/IngestionStepTitle
 import { INGESTION_DOCS_URL } from 'configuration/ingestion';
 import { DataLoadingStartedPanel } from 'pages/AdminPortal/DatasetsPreviewStep/DataLoadingStartedPanel';
 import { ADMIN_PATHS } from 'configuration/admin';
+import { GISDataType } from 'types/backend';
 
 import styles from './DatasetsMappingsStep.module.scss';
 
@@ -21,6 +22,7 @@ export function DatasetsMappingsStep() {
 
   const {
     datasetName,
+    datasetGisDataType,
     isImporting,
     showLoadingPanel,
     geometryMessage,
@@ -43,6 +45,8 @@ export function DatasetsMappingsStep() {
     handleContinue,
   } = useMappingsStep(id);
 
+  const isRasterDataset = datasetGisDataType === GISDataType.RASTER;
+
   if (showLoadingPanel) {
     return <DataLoadingStartedPanel onContinue={() => navigate(ADMIN_PATHS.DATASETS)} />;
   }
@@ -56,13 +60,13 @@ export function DatasetsMappingsStep() {
       <div className={styles.DatasetsMappingsStep}>
         <IngestionStepTitleRow
           className={styles.TitleRow}
-          title={t('datasets.mappings.title')}
+          title={isRasterDataset ? t('datasets.mappings.title_raster') : t('datasets.mappings.title')}
           datasetName={datasetName}
           docsLink={DOCS_URL}
         />
-        <p className={styles.Subtitle}>{t('datasets.mappings.subtitle')}</p>
+        <p className={styles.Subtitle}>{isRasterDataset ? t('datasets.mappings.subtitle_raster') : t('datasets.mappings.subtitle')}</p>
 
-        <MappingsBanner mappedCount={mappedCount} unmappedCount={unmappedCount} />
+        <MappingsBanner mappedCount={mappedCount} unmappedCount={unmappedCount} isRaster={isRasterDataset} />
 
         {(geometryMessage || depthConflictMessage) && (
           <div className={styles.Messages}>

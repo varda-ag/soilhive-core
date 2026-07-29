@@ -166,6 +166,26 @@ describe('useMappingsStep', () => {
     });
   });
 
+  describe('datasetGisDataType', () => {
+    it('returns the dataset gis_datatype', () => {
+      (useDataset as jest.Mock).mockReturnValue({ data: { name: 'Mock-dataset', gis_datatype: 'raster' } });
+      const { result } = renderHook(() => useMappingsStep('1'));
+      expect(result.current.datasetGisDataType).toBe('raster');
+    });
+
+    it('is null when the dataset has no gis_datatype', () => {
+      (useDataset as jest.Mock).mockReturnValue({ data: { name: 'Mock-dataset' } });
+      const { result } = renderHook(() => useMappingsStep('1'));
+      expect(result.current.datasetGisDataType).toBeNull();
+    });
+
+    it('is null when the dataset has not loaded yet', () => {
+      (useDataset as jest.Mock).mockReturnValue({ data: undefined });
+      const { result } = renderHook(() => useMappingsStep('1'));
+      expect(result.current.datasetGisDataType).toBeNull();
+    });
+  });
+
   describe('navigation', () => {
     it('handlePrevious navigates to the soil-data step', () => {
       const { result } = renderHook(() => useMappingsStep('42'));

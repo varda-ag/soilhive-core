@@ -307,10 +307,13 @@
             "step_description": "Match your data",
             "title": "Map fields",
             "subtitle": "Map your fields to standard concepts and units",
+            "title_raster": "Map layers",
+            "subtitle_raster": "Map your layers to standard concepts and units",
             "banner": {
                 "mapped": "Mapped",
                 "unmapped": "Unmapped",
-                "warning": "Unmapped columns won't be loaded in the platform"
+                "warning": "Unmapped columns won't be loaded in the platform",
+                "warning_raster": "Unmapped layers won’t be loaded in the platform"
             },
             "table": {
                 "detected_columns": "Detected columns",

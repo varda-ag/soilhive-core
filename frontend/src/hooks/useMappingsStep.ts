@@ -639,9 +639,12 @@ export function useMappingsStep(datasetId?: string) {
     return dataset?.name || '';
   }, [dataset]);
 
+  const datasetGisDataType = useMemo(() => dataset?.gis_datatype ?? null, [dataset]);
+
   return {
     isLoading,
     datasetName,
+    datasetGisDataType,
     isImporting,
     showLoadingPanel,
     geometryMessage,

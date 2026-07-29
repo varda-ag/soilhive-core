@@ -13,6 +13,10 @@ jest.mock('hooks/useMappingsStep', () => ({
   useMappingsStep: jest.fn(),
 }));
 
+jest.mock('../../../src/pages/AdminPortal/DatasetsMappingsStep/MappingsBanner', () => ({
+  MappingsBanner: ({ isRaster }: { isRaster?: boolean }) => <div data-testid="sh-mappings-banner" data-israster={String(!!isRaster)} />,
+}));
+
 // ---------------------------------------------------------------------------
 // Fixtures
 // ---------------------------------------------------------------------------
@@ -46,11 +50,13 @@ function stubHookReturn(
   depthConflictMessage: { message: string; type: 'warning' } | null = null,
   isSaveEnabled = false,
   showLoadingPanel = false,
+  datasetGisDataType: string | null = null,
 ) {
   return {
     isLoading: false,
     isImporting: false,
     showLoadingPanel,
+    datasetGisDataType,
     geometryMessage,
     depthConflictMessage,
     isSaveEnabled,
@@ -92,6 +98,24 @@ describe('DatasetsMappingsStep', () => {
   it('renders the page title', () => {
     render(<DatasetsMappingsStep />);
     expect(screen.getByText('Map fields')).toBeInTheDocument();
+  });
+
+  describe('title and subtitle by gis data type', () => {
+    it('renders the fields title and subtitle for point datasets', () => {
+      (useMappingsStep as jest.Mock).mockReturnValue(stubHookReturn([], null, false, null, false, false, 'point'));
+      render(<DatasetsMappingsStep />);
+      expect(screen.getByText('Map fields')).toBeInTheDocument();
+      expect(screen.getByText('Map your fields to standard concepts and units')).toBeInTheDocument();
+      expect(screen.getByTestId('sh-mappings-banner')).toHaveAttribute('data-israster', 'false');
+    });
+
+    it('renders the layers title and subtitle for raster datasets', () => {
+      (useMappingsStep as jest.Mock).mockReturnValue(stubHookReturn([], null, false, null, false, false, 'raster'));
+      render(<DatasetsMappingsStep />);
+      expect(screen.getByText('Map layers')).toBeInTheDocument();
+      expect(screen.getByText('Map your layers to standard concepts and units')).toBeInTheDocument();
+      expect(screen.getByTestId('sh-mappings-banner')).toHaveAttribute('data-israster', 'true');
+    });
   });
 
   it('renders the banner', () => {
