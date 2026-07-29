@@ -1,5 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react';
-import { NestedCheckboxItem } from 'components/UI/NestedCheckbox/NestedCheckboxItem/NestedCheckboxItem';
+import { NestedCheckboxItem } from 'components/NestedCheckbox/NestedCheckboxItem/NestedCheckboxItem';
 import type { NestedCheckboxItemType } from 'types/components';
 import { __setIsMobileLayout } from 'hooks/useDevice';
 

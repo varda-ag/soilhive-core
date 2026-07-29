@@ -6,7 +6,7 @@ import satteliteThumbnail from 'assets/images/sattelite-thumbnail.png';
 import mapThumbnail from 'assets/images/map-thumbnail.png';
 
 import styles from './MapStyleSwitcher.module.scss';
-import { Dialog } from 'components/UI';
+import { Dialog } from 'components/Dialog/Dialog';
 import { useTranslation } from 'react-i18next';
 
 interface Props {

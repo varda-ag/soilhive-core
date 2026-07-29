@@ -34,6 +34,23 @@ jest.mock('components/UI', () => ({
       ))}
     </div>
   ),
+}));
+
+jest.mock('components/Table/Table', () => ({
+  Table: ({ value, columns }: any) => (
+    <div data-testid="sh-ui-table">
+      {value.map((row: any) => (
+        <div key={row.email} data-testid="sh-ui-table-row">
+          {columns.map((col: any, i: number) => (
+            <span key={i}>{col.bodyTemplate ? col.bodyTemplate(row) : row[col.value]}</span>
+          ))}
+        </div>
+      ))}
+    </div>
+  ),
+}));
+
+jest.mock('components/Dialog/Dialog', () => ({
   Dialog: ({ visible, onPrimary, onSecondary, children }: any) =>
     visible ? (
       <div data-testid="sh-ui-dialog">

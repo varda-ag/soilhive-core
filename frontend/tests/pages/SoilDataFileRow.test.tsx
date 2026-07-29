@@ -8,6 +8,9 @@ jest.mock('components/UI', () => ({
     </button>
   ),
   FormMessage: ({ message }: any) => <div data-testid="sh-form-message">{message}</div>,
+}));
+
+jest.mock('components/Dialog/Dialog', () => ({
   Dialog: ({ visible, header, children, onPrimary }: any) =>
     visible ? (
       <div data-testid="sh-dialog">

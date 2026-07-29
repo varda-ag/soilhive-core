@@ -6,7 +6,7 @@ jest.mock('react-router', () => ({
   useParams: jest.fn(),
 }));
 
-jest.mock('components/UI', () => ({
+jest.mock('components/Dialog/Dialog', () => ({
   Dialog: ({ visible, header, secondaryText, primaryText, onPrimary, onSecondary, onClose, children }: any) =>
     visible ? (
       <div data-testid="mock-dialog">

@@ -12,6 +12,17 @@ jest.mock('utilities/parseGeoJSONFile', () => ({
 }));
 
 jest.mock('components/UI', () => ({
+  FileUploadBox: ({ handleFiles, errorMessage, fileInputRef }: any) => (
+    <div data-testid="file-upload-box">
+      <input ref={fileInputRef} data-testid="file-input" />
+      <button data-testid="trigger-upload" onClick={() => handleFiles([new File(['{}'], 'test.geojson', { type: 'application/json' })])} />
+      <button data-testid="trigger-empty-upload" onClick={() => handleFiles(null)} />
+      {errorMessage && <span data-testid="upload-error">{errorMessage}</span>}
+    </div>
+  ),
+}));
+
+jest.mock('components/Dialog/Dialog', () => ({
   Dialog: ({ visible, onClose, children, header }: any) => {
     if (!visible) return null;
     return (
@@ -22,14 +33,6 @@ jest.mock('components/UI', () => ({
       </div>
     );
   },
-  FileUploadBox: ({ handleFiles, errorMessage, fileInputRef }: any) => (
-    <div data-testid="file-upload-box">
-      <input ref={fileInputRef} data-testid="file-input" />
-      <button data-testid="trigger-upload" onClick={() => handleFiles([new File(['{}'], 'test.geojson', { type: 'application/json' })])} />
-      <button data-testid="trigger-empty-upload" onClick={() => handleFiles(null)} />
-      {errorMessage && <span data-testid="upload-error">{errorMessage}</span>}
-    </div>
-  ),
 }));
 
 const parseGeoJSONFileMock = parseGeoJSONFile as jest.MockedFunction<typeof parseGeoJSONFile>;

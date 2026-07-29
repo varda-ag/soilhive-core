@@ -9,7 +9,7 @@ import type { ColumnMapping, DetailOptionMap } from 'hooks/useMappingsStep';
 
 // AutocompleteDropdown wraps PrimeReact's AutoComplete — stub it so these tests
 // stay focused on MappingRow logic and don't pull in PrimeReact internals.
-jest.mock('components/UI/AutocompleteDropdown/AutocompleteDropdown', () => {
+jest.mock('components/AutocompleteDropdown/AutocompleteDropdown', () => {
   const Mock = ({ isDisabled }: { isDisabled?: boolean }) => (
     <div data-testid="sh-autocomplete-dropdown" aria-disabled={isDisabled ?? false} />
   );

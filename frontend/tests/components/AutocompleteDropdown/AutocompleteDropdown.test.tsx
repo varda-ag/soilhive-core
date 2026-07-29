@@ -1,5 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react';
-import { AutocompleteDropdown } from 'components/UI/AutocompleteDropdown/AutocompleteDropdown';
+import { AutocompleteDropdown } from 'components/AutocompleteDropdown/AutocompleteDropdown';
 import type { MenuOption } from 'types/components';
 
 jest.mock('assets/icons/small-cross-icon.svg?react', () => {

@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { Cropper } from 'components/UI/Cropper/Cropper';
+import { Cropper } from 'components/CropModal/Cropper/Cropper';
 
 jest.mock('react-easy-crop', () => ({
   __esModule: true,

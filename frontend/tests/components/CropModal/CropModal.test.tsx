@@ -11,6 +11,24 @@ const cropperMock = jest.fn();
 const rangeSliderMock = jest.fn();
 
 jest.mock('components/UI', () => ({
+  RangeSlider: (props: any) => {
+    rangeSliderMock(props);
+    return (
+      <button data-testid="range-slider" onClick={() => props.onChange(2)}>
+        range-slider
+      </button>
+    );
+  },
+}));
+
+jest.mock('components/CropModal/Cropper/Cropper', () => ({
+  Cropper: (props: any) => {
+    cropperMock(props);
+    return <div data-testid="cropper" />;
+  },
+}));
+
+jest.mock('components/Dialog/Dialog', () => ({
   Dialog: (props: any) => {
     dialogMock(props);
     const { visible, header, children, onPrimary, onSecondary } = props;
@@ -28,18 +46,6 @@ jest.mock('components/UI', () => ({
         </button>
         {children}
       </div>
-    );
-  },
-  Cropper: (props: any) => {
-    cropperMock(props);
-    return <div data-testid="cropper" />;
-  },
-  RangeSlider: (props: any) => {
-    rangeSliderMock(props);
-    return (
-      <button data-testid="range-slider" onClick={() => props.onChange(2)}>
-        range-slider
-      </button>
     );
   },
 }));

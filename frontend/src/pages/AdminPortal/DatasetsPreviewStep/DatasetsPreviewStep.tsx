@@ -6,8 +6,8 @@ import { Dropdown, type DropdownChangeEvent } from 'primereact/dropdown';
 import { Tooltip } from 'react-tooltip';
 
 import TooltipIcon from 'assets/icons/small-info-icon.svg?react';
-import { Button, Table, ToggleButton } from 'components/UI';
-import type { TableHandle } from 'components/UI/Table/Table';
+import { Button, ToggleButton } from 'components/UI';
+import { Table, type TableHandle } from 'components/Table/Table';
 import type { TableColumn } from 'types/components';
 import type { SoilRecord } from 'types/backend';
 import { useIngestionStatus } from 'hooks/useIngestionStatus';

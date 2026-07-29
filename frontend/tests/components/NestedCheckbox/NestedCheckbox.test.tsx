@@ -1,6 +1,6 @@
 import React from 'react';
 import { act, render, screen, fireEvent } from '@testing-library/react';
-import { NestedCheckbox } from 'components/UI/NestedCheckbox/NestedCheckbox';
+import { NestedCheckbox } from 'components/NestedCheckbox/NestedCheckbox';
 
 jest.mock('hooks/useDevice');
 

@@ -6,7 +6,7 @@ jest.mock('react-i18next', () => ({
   Trans: ({ values }: any) => <span>{values?.datasetName}</span>,
 }));
 
-jest.mock('components/UI', () => ({
+jest.mock('components/Dialog/Dialog', () => ({
   Dialog: ({ visible, header, secondaryText, primaryText, onPrimary, onSecondary, children }: any) =>
     visible ? (
       <div data-testid="mock-dialog">

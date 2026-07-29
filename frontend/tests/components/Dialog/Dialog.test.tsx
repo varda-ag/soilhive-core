@@ -1,5 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react';
-import { Dialog } from 'components/UI/Dialog/Dialog';
+import { Dialog } from 'components/Dialog/Dialog';
 
 jest.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key }),

@@ -8,7 +8,7 @@ jest.mock('utilities/date', () => ({
   dateStringToDDMMYYYY: (date: Date | null) => (date ? '15/01/2024' : ''),
 }));
 
-jest.mock('components/UI/Table/Table', () => ({
+jest.mock('components/Table/Table', () => ({
   Table: ({ value, columns, emptyMessage, rowClassName, defaultSortField, defaultSortOrder }: any) => {
     capturedColumns = columns;
     capturedTableProps = { defaultSortField, defaultSortOrder };

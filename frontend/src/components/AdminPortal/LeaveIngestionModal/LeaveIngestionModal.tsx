@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router';
 
 import LeaveIngestionImage from 'assets/images/stop-sign-hand.svg?react';
-import { Dialog } from 'components/UI';
+import { Dialog } from 'components/Dialog/Dialog';
 
 import styles from './LeaveIngestionModal.module.scss';
 
