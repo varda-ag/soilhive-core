@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import useAvailability from './useAvailability';
-import { type Selection } from '../types/components';
+import type { Selection } from 'components/UI/types';
 
 export function useRasterFilters(categoryId?: string) {
   const {

@@ -1,5 +1,5 @@
 import classnames from 'classnames';
-import type { TabData } from 'types/components';
+import type { TabData } from 'components/UI/types';
 import { Tabs } from 'components/UI';
 
 import styles from './AdminPageTabs.module.scss';

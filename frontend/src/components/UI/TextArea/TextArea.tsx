@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type ChangeEvent } from 'react';
 import classnames from 'classnames';
-import { FormFieldWrapper } from 'components/UI';
-import type { ComponentSizeType } from 'types/components';
+import { FormFieldWrapper } from '../FormFieldWrapper/FormFieldWrapper';
+import type { ComponentSizeType } from '../types';
 import styles from './TextArea.module.scss';
 
 interface Props {

@@ -7,8 +7,9 @@ import classnames from 'classnames';
 
 import ArrowDownIcon from '../assets/icons/dropdown-arrow-down-icon.svg?react';
 import ArrowUpIcon from '../assets/icons/dropdown-arrow-up-icon.svg?react';
-import { FormFieldWrapper, Menu } from 'components/UI';
-import type { ComponentSizeType, MenuOption } from 'types/components';
+import { FormFieldWrapper } from '../FormFieldWrapper/FormFieldWrapper';
+import { Menu } from '../Menu/Menu';
+import type { ComponentSizeType, MenuOption } from '../types';
 
 import styles from './Dropdown.module.scss';
 

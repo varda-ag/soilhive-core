@@ -1,7 +1,7 @@
 import { useMemo, type ReactNode, type MouseEventHandler } from 'react';
 import { Link } from 'react-router';
 import classnames from 'classnames';
-import type { ComponentSizeType } from 'types/components';
+import type { ComponentSizeType } from '../types';
 
 import styles from './Button.module.scss';
 

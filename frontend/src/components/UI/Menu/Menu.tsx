@@ -3,7 +3,7 @@ import classnames from 'classnames';
 
 import BigCheckIcon from '../assets/icons/big-check-mark-icon.svg?react';
 import SmallCheckIcon from '../assets/icons/small-check-mark-icon.svg?react';
-import type { MenuOption, ComponentSizeType } from 'types/components';
+import type { ComponentSizeType, MenuOption } from '../types';
 
 import styles from './Menu.module.scss';
 

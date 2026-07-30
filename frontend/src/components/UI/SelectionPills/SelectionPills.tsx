@@ -1,5 +1,5 @@
 import { Pill } from './Pill';
-import type { Selection } from 'types/components';
+import type { Selection } from '../types';
 import styles from './SelectionPills.module.scss';
 
 interface SelectionPillsProps {

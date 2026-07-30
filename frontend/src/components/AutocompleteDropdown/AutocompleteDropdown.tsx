@@ -3,7 +3,7 @@ import { AutoComplete, type AutoCompleteCompleteEvent } from 'primereact/autocom
 import classnames from 'classnames';
 import { FormFieldWrapper } from 'components/UI';
 import SmallCrossIcon from 'assets/icons/small-cross-icon.svg?react';
-import type { ComponentSizeType, MenuOption } from 'types/components';
+import type { ComponentSizeType, MenuOption } from 'components/UI/types';
 import styles from './AutocompleteDropdown.module.scss';
 
 interface Props {

@@ -3,7 +3,7 @@ import classnames from 'classnames';
 import ArrowDownIcon from '../assets/icons/dropdown-arrow-down-icon.svg?react';
 
 import styles from './Accordion.module.scss';
-import type { AccordionRef } from 'types/components';
+import type { AccordionRef } from '../types';
 
 type AccordionType = 'primary' | 'secondary' | 'tertiary' | 'custom';
 

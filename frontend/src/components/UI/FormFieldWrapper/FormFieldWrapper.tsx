@@ -3,8 +3,8 @@ import classnames from 'classnames';
 import { Tooltip } from 'react-tooltip';
 
 import TooltipIcon from '../assets/icons/small-info-icon.svg?react';
-import type { ComponentSizeType } from 'types/components';
-import { FormMessage } from 'components/UI';
+import type { ComponentSizeType } from '../types';
+import { FormMessage } from '../FormMessage/FormMessage';
 
 import styles from './FormFieldWrapper.module.scss';
 

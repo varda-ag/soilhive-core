@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { AutocompleteDropdown } from 'components/AutocompleteDropdown/AutocompleteDropdown';
-import type { MenuOption } from 'types/components';
+import type { MenuOption } from 'components/UI/types';
 
 jest.mock('assets/icons/small-cross-icon.svg?react', () => {
   const Mock = () => <div data-testid="sh-autocomplete-clear-icon" />;

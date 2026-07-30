@@ -1,5 +1,5 @@
 import classnames from 'classnames';
-import type { TabData } from 'types/components';
+import type { TabData } from '../types';
 
 import styles from './Tabs.module.scss';
 
