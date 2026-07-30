@@ -1,21 +1,11 @@
 import { useMemo } from 'react';
-import type { PluginDataFilterInput, PluginDataset, PluginGeometry, PluginQueryResult, PluginTheme } from 'frontend-plugin-types';
+import type { PluginDataFilterInput, PluginGeometry, PluginQueryResult, PluginTheme } from 'frontend-plugin-types';
 import type { DataFilterDTO, GISDataType } from 'types/backend';
 import type { PluginContext } from 'types/plugins';
 import { useAuthContext } from '../auth/AuthContextProvider';
 import useAvailabilityMap from './useAvailabilityMap';
 import { useDataFilterQuery as useHostDataFilterQuery } from './useDataFilterQuery';
-import { useDatasets } from './useDatasets';
 import useHostTheme from './useTheme';
-
-function usePluginDatasets(): PluginQueryResult<PluginDataset[]> {
-  const { datasets, isLoading, isError } = useDatasets();
-  return {
-    data: datasets?.map(({ id, slug, name, description }) => ({ id, slug, name, description })),
-    isLoading,
-    isError,
-  };
-}
 
 function usePluginTheme(): PluginQueryResult<PluginTheme> {
   const { themeConfig, logo, isLoadingThemeConfig, isLogoLoading } = useHostTheme();
@@ -52,7 +42,6 @@ export function usePluginContext(): PluginContext {
       // carries access_token/refresh_token/id_token, which PluginContext's
       // thin contract must not leak to plugins.
       user: user ? { profile: { name: user.profile?.name, email: user.profile?.email } } : user,
-      useDatasets: usePluginDatasets,
       useTheme: usePluginTheme,
       useDataFilterQuery: usePluginDataFilterQuery,
       // Narrow explicitly too: selectedPoint/selectedH3Cell are maplibre-gl

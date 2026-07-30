@@ -3,11 +3,7 @@ import type { PluginContext } from 'frontend-plugin-types';
 import './ProviderComponent.css';
 
 const Page: React.FC<{ context: PluginContext }> = ({ context }) => {
-  // Destructured, not `context.useDatasets()` — keeps `useDatasets` a bare
-  // identifier, called unconditionally, so eslint-plugin-react-hooks can
-  // actually check it.
-  const { user, useDatasets, mapSelection, useTheme, useDataFilterQuery } = context;
-  const { data: datasets, isLoading, isError } = useDatasets();
+  const { user, mapSelection, useTheme, useDataFilterQuery } = context;
   const { data: theme } = useTheme();
   const { data: filterId, isLoading: isFilterLoading } = useDataFilterQuery({
     geometries: mapSelection?.geometryFilter ?? [],
@@ -21,16 +17,6 @@ const Page: React.FC<{ context: PluginContext }> = ({ context }) => {
       </div>
       <h1 className="title">Hello Module Federation 2.0</h1>
       <p>User from host: {user ? (user.profile?.name ?? user.profile?.email ?? 'authenticated user') : '(none received)'}</p>
-      <p>
-        Datasets from host:{' '}
-        {isLoading
-          ? 'loading…'
-          : isError
-            ? 'error loading datasets'
-            : datasets?.length
-              ? datasets.map(d => d.name).join(', ')
-              : '(none received)'}
-      </p>
       <p>
         Map selection from host:{' '}
         {mapSelection ? `${mapSelection.selectionType} in ${mapSelection.boundingBox ?? 'empty bounding box'}` : '(none received)'}

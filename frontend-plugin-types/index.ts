@@ -5,13 +5,6 @@ export interface PluginUser {
   };
 }
 
-export interface PluginDataset {
-  id: string;
-  slug: string;
-  name: string;
-  description?: string | null;
-}
-
 export interface PluginQueryResult<T> {
   data: T | undefined;
   isLoading: boolean;
@@ -68,7 +61,6 @@ export interface PluginDataFilterInput {
 
 export interface PluginContext {
   user?: PluginUser | null;
-  useDatasets: () => PluginQueryResult<PluginDataset[]>;
   mapSelection?: PluginMapSelection;
   useTheme: () => PluginQueryResult<PluginTheme>;
   useDataFilterQuery: (filters: PluginDataFilterInput, enabled?: boolean, debounceTime?: number) => PluginQueryResult<string>;

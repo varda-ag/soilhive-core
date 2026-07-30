@@ -1,17 +1,6 @@
-import type { PluginContext, PluginDataset, PluginMapSelection, PluginQueryResult, PluginTheme } from 'frontend-plugin-types';
+import type { PluginContext, PluginMapSelection, PluginQueryResult, PluginTheme } from 'frontend-plugin-types';
 import './App.css';
 import { Page } from './components/ProviderComponent';
-
-const mockDatasets: PluginDataset[] = [
-  { id: '1', slug: 'mock-dataset-1', name: 'Mock Dataset 1', description: 'A local preview dataset' },
-  { id: '2', slug: 'mock-dataset-2', name: 'Mock Dataset 2' },
-];
-
-const useMockDatasets = (): PluginQueryResult<PluginDataset[]> => ({
-  data: mockDatasets,
-  isLoading: false,
-  isError: false,
-});
 
 const mockMapSelection: PluginMapSelection = {
   selectedPoint: { lng: -122.4194, lat: 37.7749 },
@@ -37,7 +26,6 @@ const useMockDataFilterQuery = (): PluginQueryResult<string> => ({
 
 const mockContext: PluginContext = {
   user: { profile: { name: 'Local Preview User' } },
-  useDatasets: useMockDatasets,
   mapSelection: mockMapSelection,
   useTheme: useMockTheme,
   useDataFilterQuery: useMockDataFilterQuery,
