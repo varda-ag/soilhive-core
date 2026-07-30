@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useTranslation } from 'react-i18next';
 import { Button, MultirangeSlider } from 'components/UI';
 import type { TimeFilterState } from 'types/availability';
 import useDataScopeFilters from 'hooks/useDataScopeFilters';
@@ -7,7 +6,6 @@ import useDataScopeFilters from 'hooks/useDataScopeFilters';
 import styles from './TimeFilter.module.scss';
 
 export function TimeFilter() {
-  const { t } = useTranslation('availability');
   const { timeFilterRange, selectedTimeFilter, handleTimeFilterChange } = useDataScopeFilters();
 
   const [selectedTime, setSelectedTime] = useState<Required<TimeFilterState>>({
@@ -46,8 +44,6 @@ export function TimeFilter() {
         selectedMin={selectedTime.min}
         selectedMax={selectedTime.max}
         disabled={timeFilterRange.min === timeFilterRange.max}
-        minAriaLabel={t('time_filter.min_year_aria')}
-        maxAriaLabel={t('time_filter.max_year_aria')}
         onChange={onTimeChange}
       />
       <div className={styles.TimeFilterActions}>

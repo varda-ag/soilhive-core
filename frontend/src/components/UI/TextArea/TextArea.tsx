@@ -3,7 +3,6 @@ import classnames from 'classnames';
 import { FormFieldWrapper } from 'components/UI';
 import type { ComponentSizeType } from 'types/components';
 import styles from './TextArea.module.scss';
-import { useTranslation } from 'react-i18next';
 
 interface Props {
   className?: string;
@@ -23,6 +22,8 @@ interface Props {
   errorMessage?: string;
   helperMessage?: string;
   showCounter?: boolean;
+  symbolsText?: string;
+  symbolsLeftText?: string;
   onChange?: (value: string, name?: string) => void;
   onFocus?: () => void;
   onBlur?: () => void;
@@ -46,11 +47,12 @@ export function TextArea({
   errorMessage,
   helperMessage,
   showCounter = false,
+  symbolsText = 'symbols',
+  symbolsLeftText = 'symbols left',
   onChange,
   onFocus,
   onBlur,
 }: Props) {
-  const { t } = useTranslation('common');
   const [currentValue, setCurrentValue] = useState(value);
   const [isFocused, setFocused] = useState(false);
 
@@ -76,7 +78,7 @@ export function TextArea({
     onBlur?.();
   }, [onBlur]);
 
-  const counterLabel = maxLength ? `${maxLength - currentValue.length} ${t('symbols_left')}` : `${currentValue.length} ${t('symbols')}`;
+  const counterLabel = maxLength ? `${maxLength - currentValue.length} ${symbolsLeftText}` : `${currentValue.length} ${symbolsText}`;
 
   return (
     <FormFieldWrapper

@@ -13,6 +13,7 @@ const DOCS_URL = `${INGESTION_DOCS_URL}#general-info--describe-the-dataset`;
 
 export function DatasetsGeneralInfoStep() {
   const { t } = useTranslation('admin');
+  const { t: tCommon } = useTranslation('common');
   const { id } = useParams();
 
   const validationMessages = {
@@ -76,6 +77,8 @@ export function DatasetsGeneralInfoStep() {
               errorMessage={errors.description}
               maxLength={descriptionMaxLength}
               showCounter
+              symbolsText={tCommon('symbols')}
+              symbolsLeftText={tCommon('symbols_left')}
               rows={10}
               onChange={value => handleChange('description', value)}
             />

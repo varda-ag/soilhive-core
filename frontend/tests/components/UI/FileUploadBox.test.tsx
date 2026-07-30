@@ -2,12 +2,6 @@ import { createRef, type RefObject } from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { FileUploadBox } from 'components/UI/FileUploadBox/FileUploadBox';
 
-jest.mock('react-i18next', () => ({
-  ...jest.requireActual('react-i18next'),
-  useTranslation: () => ({ t: (key: string) => key }),
-  Trans: ({ i18nKey }: { i18nKey: string }) => <>{i18nKey}</>,
-}));
-
 const UseDropAreaMock = jest.fn();
 
 jest.mock('react-use/lib/useDropArea', () => ({
@@ -43,7 +37,7 @@ describe('FileUploadBox', () => {
     expect(screen.getByTestId('sh-ui-fileuploadbox-droparea')).toBeInTheDocument();
     expect(screen.getByTestId('svg-icon-mock')).toBeInTheDocument();
 
-    expect(screen.getByText('components.file_upload_box.title')).toBeInTheDocument();
+    expect(screen.getByText('Drag and drop a file here or')).toBeInTheDocument();
     expect(screen.getByText('Upload your file')).toBeInTheDocument();
 
     expect(container).toMatchSnapshot();
@@ -61,8 +55,8 @@ describe('FileUploadBox', () => {
       />,
     );
 
-    expect(screen.getByText('components.file_upload_box.uploading: first.csv')).toBeInTheDocument();
-    expect(screen.getByText('components.file_upload_box.uploading: second.csv')).toBeInTheDocument();
+    expect(screen.getByText('Uploading: first.csv')).toBeInTheDocument();
+    expect(screen.getByText('Uploading: second.csv')).toBeInTheDocument();
 
     const progressBars = screen.getAllByTestId('progress-bar');
     expect(progressBars).toHaveLength(2);

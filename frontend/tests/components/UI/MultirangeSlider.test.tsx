@@ -1,22 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MultirangeSlider } from 'components/UI/MultirangeSlider/MultirangeSlider';
 
-// Resolves the real en translations so the assertions below check actual accessible names
-jest.mock('react-i18next', () => ({
-  useTranslation: () => ({
-    t: (key: string, options?: Record<string, string>) => {
-      const translations: Record<string, string> = {
-        'components.multirange_slider.min_default_aria': 'Minimum value',
-        'components.multirange_slider.max_default_aria': 'Maximum value',
-        'components.multirange_slider.slider_aria': '{{label}} slider',
-      };
-      const value = translations[key] ?? key;
-
-      return value.replace(/{{(\w+)}}/g, (_, name) => options?.[name] ?? '');
-    },
-  }),
-}));
-
 function getInputs(container: HTMLElement) {
   const ranges = Array.from(container.querySelectorAll('input[type="range"]')) as HTMLInputElement[];
   const numbers = Array.from(container.querySelectorAll('input[type="number"]')) as HTMLInputElement[];
@@ -183,25 +167,6 @@ describe('MultirangeSlider', () => {
     expect(screen.getByRole('slider', { name: 'Maximum value slider' })).toBeInTheDocument();
     expect(screen.getByRole('spinbutton', { name: 'Minimum value' })).toBeInTheDocument();
     expect(screen.getByRole('spinbutton', { name: 'Maximum value' })).toBeInTheDocument();
-  });
-
-  it('applies custom aria-labels from minAriaLabel/maxAriaLabel props', () => {
-    render(
-      <MultirangeSlider
-        min={0}
-        max={100}
-        selectedMin={10}
-        selectedMax={90}
-        minAriaLabel="Minimum year"
-        maxAriaLabel="Maximum year"
-        onChange={jest.fn()}
-      />,
-    );
-
-    expect(screen.getByRole('slider', { name: 'Minimum year slider' })).toBeInTheDocument();
-    expect(screen.getByRole('slider', { name: 'Maximum year slider' })).toBeInTheDocument();
-    expect(screen.getByRole('spinbutton', { name: 'Minimum year' })).toBeInTheDocument();
-    expect(screen.getByRole('spinbutton', { name: 'Maximum year' })).toBeInTheDocument();
   });
 
   it('accepts disabled property correctly', () => {

@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import classnames from 'classnames';
-import { useTranslation } from 'react-i18next';
 
 import styles from './MultirangeSlider.module.scss';
 
@@ -10,17 +9,10 @@ interface Props {
   selectedMin: number;
   selectedMax: number;
   disabled?: boolean;
-  minAriaLabel?: string;
-  maxAriaLabel?: string;
   onChange: (min: number, max: number) => void;
 }
 
-export function MultirangeSlider({ min, max, selectedMin, selectedMax, disabled, minAriaLabel, maxAriaLabel, onChange }: Props) {
-  const { t } = useTranslation('common');
-
-  const minLabel = minAriaLabel || t('components.multirange_slider.min_default_aria');
-  const maxLabel = maxAriaLabel || t('components.multirange_slider.max_default_aria');
-
+export function MultirangeSlider({ min, max, selectedMin, selectedMax, disabled, onChange }: Props) {
   const [minVal, setMinVal] = useState(selectedMin);
   const [maxVal, setMaxVal] = useState(selectedMax);
   const minInputRef = useRef<HTMLInputElement | null>(null);
@@ -134,7 +126,7 @@ export function MultirangeSlider({ min, max, selectedMin, selectedMax, disabled,
         value={minVal}
         onChange={handleMinChange}
         disabled={disabled}
-        aria-label={t('components.multirange_slider.slider_aria', { label: minLabel })}
+        aria-label="Minimum value slider"
         className={classnames(styles.MultirangeThumb, styles.MultirangeThumbLeft)}
         style={{ zIndex: minVal === max ? '5' : '' }}
       />
@@ -145,7 +137,7 @@ export function MultirangeSlider({ min, max, selectedMin, selectedMax, disabled,
         value={maxVal}
         onChange={handleMaxChange}
         disabled={disabled}
-        aria-label={t('components.multirange_slider.slider_aria', { label: maxLabel })}
+        aria-label="Maximum value slider"
         className={classnames(styles.MultirangeThumb, styles.MultirangeThumbRight)}
       />
       <div className={styles.MultirangeSlider}>
@@ -161,7 +153,7 @@ export function MultirangeSlider({ min, max, selectedMin, selectedMax, disabled,
           onChange={handleMinInputChange}
           onBlur={handleMinInputFocusOut}
           defaultValue={minVal}
-          aria-label={minLabel}
+          aria-label="Minimum value"
           className={styles.MultirangeSliderInput}
           disabled={disabled}
         />
@@ -173,7 +165,7 @@ export function MultirangeSlider({ min, max, selectedMin, selectedMax, disabled,
           onChange={handleMaxInputChange}
           onBlur={handleMaxInputFocusOut}
           defaultValue={maxVal}
-          aria-label={maxLabel}
+          aria-label="Maximum value"
           className={styles.MultirangeSliderInput}
           disabled={disabled}
         />

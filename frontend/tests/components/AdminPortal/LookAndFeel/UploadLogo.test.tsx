@@ -2,6 +2,12 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { UploadLogo } from 'components/AdminPortal/LookAndFeel/UploadLogo/UploadLogo';
 import useLookAndFeel from 'hooks/useLookAndFeel';
 
+jest.mock('react-i18next', () => ({
+  ...jest.requireActual('react-i18next'),
+  useTranslation: () => ({ t: (key: string) => key }),
+  Trans: ({ i18nKey }: { i18nKey: string }) => <>{i18nKey}</>,
+}));
+
 jest.mock('hooks/useLookAndFeel', jest.fn);
 
 const fileUploadBoxMock = jest.fn();
@@ -107,7 +113,7 @@ describe('UploadLogo', () => {
   it('renders upload state without preview logo', () => {
     const { container } = render(<UploadLogo />);
 
-    expect(screen.getByText('Your picture will appear in the header')).toBeInTheDocument();
+    expect(screen.getByText('look_and_feel.logo.label')).toBeInTheDocument();
     expect(screen.getByTestId('file-upload-box')).toBeInTheDocument();
     expect(screen.getByTestId('crop-logo-modal')).toBeInTheDocument();
     expect(screen.queryByTestId('logo-preview')).not.toBeInTheDocument();
@@ -152,7 +158,7 @@ describe('UploadLogo', () => {
     await waitFor(() => {
       expect(fileUploadBoxMock).toHaveBeenLastCalledWith(
         expect.objectContaining({
-          errorMessage: 'Unsupported file format. Please upload a PNG, JPG or SVG file.',
+          errorMessage: 'look_and_feel.logo.unsupported_format_error',
         }),
       );
     });

@@ -1,5 +1,4 @@
-import type { ChangeEvent } from 'react';
-import { useTranslation, Trans } from 'react-i18next';
+import type { ChangeEvent, ReactNode } from 'react';
 import classnames from 'classnames';
 import type { DropAreaBond } from 'react-use/lib/useDropArea';
 
@@ -21,6 +20,8 @@ interface Props {
   fileInputRef?: React.RefObject<HTMLInputElement | null>;
   disabled?: boolean;
   caption?: string;
+  title?: ReactNode;
+  uploadingText?: string;
   errorMessage?: string | string[] | null;
   isSingleFileUpload?: boolean;
   handleFiles: (files: FileList | File[] | null) => void;
@@ -33,13 +34,17 @@ export function FileUploadBox({
   fileInputRef,
   disabled,
   caption,
+  title = (
+    <>
+      Drag and drop a file here or <span>browse</span>
+    </>
+  ),
+  uploadingText = 'Uploading',
   errorMessage,
   isSingleFileUpload,
   handleFiles,
   accept,
 }: Props) {
-  const { t } = useTranslation('common');
-
   const [bond] = useDropArea({
     onFiles: files => handleFiles(files),
   });
@@ -61,7 +66,7 @@ export function FileUploadBox({
               {files.map(file => (
                 <div key={file.name}>
                   <p className={styles.Title}>
-                    {t('components.file_upload_box.uploading')}: {file.name}
+                    {uploadingText}: {file.name}
                   </p>
                   <ProgressBar progress={uploadProgress?.[file.name] || []} />
                 </div>
@@ -69,15 +74,7 @@ export function FileUploadBox({
             </div>
           ) : (
             <>
-              <p className={styles.Title}>
-                <Trans
-                  t={t}
-                  i18nKey="components.file_upload_box.title"
-                  components={{
-                    span: <span />,
-                  }}
-                />
-              </p>
+              <p className={styles.Title}>{title}</p>
               <p className={styles.Caption}>{caption}</p>
             </>
           )}

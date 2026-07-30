@@ -17,6 +17,7 @@ interface Props {
 
 export function UploadPolygonModal({ visible, onUpload, onClose }: Props) {
   const { t } = useTranslation('availability');
+  const { t: tCommon } = useTranslation('common');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadError, setUploadError] = useState<string>('');
 
@@ -57,6 +58,16 @@ export function UploadPolygonModal({ visible, onUpload, onClose }: Props) {
             fileInputRef={fileInputRef as RefObject<HTMLInputElement>}
             handleFiles={handleFileUpload}
             caption={t('upload_polygon_modal.supported_formats')}
+            title={
+              <Trans
+                t={tCommon}
+                i18nKey="components.file_upload_box.title"
+                components={{
+                  span: <span />,
+                }}
+              />
+            }
+            uploadingText={tCommon('components.file_upload_box.uploading')}
             isSingleFileUpload
             errorMessage={uploadError}
           />
