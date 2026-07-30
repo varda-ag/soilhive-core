@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { MobileTabNavigation } from 'components/UI';
-import type { MobileTabNavigationConfig } from 'types/components';
+import type { MobileTabNavigationConfig } from 'components/UI/types';
 import { FilteringSidebarDataScope } from '../FilteringSidebarDataScope/FilteringSidebarDataScope';
 import { FilteringSidebarParameters } from '../FilteringSidebarParameters/FilteringSidebarParameters';
 

@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from 'react';
 import useAvailability from './useAvailability';
-import type { Selection } from 'types/components';
+import type { Selection } from 'components/UI/types';
 import type { AvailabilityDataset, DatasetFrontendFilters, TimeFilterState } from 'types/availability';
 import { mapFilteredDatasetSummaryToAvailabilityDataset, yearRangeToDatasetFilters } from '../adapters';
 import { DATA_ACCESS_ITEMS, DATA_TYPE_ITEMS } from '../configuration/filters';

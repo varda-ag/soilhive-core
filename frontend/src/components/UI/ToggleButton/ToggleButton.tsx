@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import classnames from 'classnames';
 
-import type { ComponentSizeType } from 'types/components';
+import type { ComponentSizeType } from '../types';
 
 import styles from './ToggleButton.module.scss';
 

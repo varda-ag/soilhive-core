@@ -1,7 +1,8 @@
 import React, { type Ref } from 'react';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { FilteringSidebarParameters } from 'components/FilteringSidebar/FilteringSidebarParameters/FilteringSidebarParameters';
-import type { NestedCheckboxItemType, NestedCheckboxRef, AccordionRef } from 'types/components';
+import type { NestedCheckboxItemType, NestedCheckboxRef } from 'types/components';
+import type { AccordionRef } from 'components/UI/types';
 import useSoilPropertiesFilters from 'hooks/useSoilPropertiesFilters';
 import { useRasterFilters } from 'hooks/useRasterFilters';
 import useAvailability from 'hooks/useAvailability';

@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { MappingRow } from './MappingRow';
 import { METADATA_FIELD_CODES } from 'hooks/useMappingsStep';
 import type { ColumnMapping, DetailOptionMap, RowDetails } from 'hooks/useMappingsStep';
-import type { MenuOption } from 'types/components';
+import type { MenuOption } from 'components/UI/types';
 import styles from './MappingsTable.module.scss';
 
 interface Props {

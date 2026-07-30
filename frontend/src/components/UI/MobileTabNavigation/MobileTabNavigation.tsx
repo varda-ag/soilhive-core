@@ -1,6 +1,6 @@
 import { type CSSProperties, useMemo } from 'react';
 import classnames from 'classnames';
-import type { MobileTabNavigationConfig } from 'types/components';
+import type { MobileTabNavigationConfig } from '../types';
 
 import styles from './MobileTabNavigation.module.scss';
 

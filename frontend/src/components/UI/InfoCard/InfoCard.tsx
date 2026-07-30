@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import classnames from 'classnames';
 
-import type { InfoCardContent } from 'types/components';
+import type { InfoCardContent } from '../types';
 
 import styles from './InfoCard.module.scss';
 
