@@ -6,7 +6,7 @@ const Page: React.FC<{ context: PluginContext }> = ({ context }) => {
   // Destructured (with a fallback), not `context.useDatasets()` — keeps
   // `useDatasets` a bare identifier, called unconditionally, so
   // eslint-plugin-react-hooks can actually check it.
-  const { user, useDatasets = () => ({ data: undefined, isLoading: false, isError: false }) } = context;
+  const { user, useDatasets = () => ({ data: undefined, isLoading: false, isError: false }), mapSelection } = context;
   const { data: datasets, isLoading, isError } = useDatasets();
 
   return (
@@ -25,6 +25,10 @@ const Page: React.FC<{ context: PluginContext }> = ({ context }) => {
             : datasets?.length
               ? datasets.map(d => d.name).join(', ')
               : '(none received)'}
+      </p>
+      <p>
+        Map selection from host:{' '}
+        {mapSelection ? `${mapSelection.selectionType} in ${mapSelection.boundingBox ?? 'empty bounding box'}` : '(none received)'}
       </p>
     </div>
   );
