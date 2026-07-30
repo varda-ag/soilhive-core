@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState, useImperativeHandle, type ReactNode, type Ref } from 'react';
 import classnames from 'classnames';
-import ArrowDownIcon from 'assets/icons/dropdown-arrow-down-icon.svg?react';
+import ArrowDownIcon from '../assets/icons/dropdown-arrow-down-icon.svg?react';
 
 import styles from './Accordion.module.scss';
 import type { AccordionRef } from 'types/components';

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import classnames from 'classnames';
 
-import ArrowDownIcon from 'assets/icons/dropdown-arrow-down-icon.svg?react';
+import ArrowDownIcon from '../assets/icons/dropdown-arrow-down-icon.svg?react';
 import type { ComponentSizeType } from 'types/components';
 
 import styles from './SplitButton.module.scss';

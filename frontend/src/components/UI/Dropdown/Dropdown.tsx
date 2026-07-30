@@ -5,8 +5,8 @@ import type { CSSProperties } from 'react';
 
 import classnames from 'classnames';
 
-import ArrowDownIcon from 'assets/icons/dropdown-arrow-down-icon.svg?react';
-import ArrowUpIcon from 'assets/icons/dropdown-arrow-up-icon.svg?react';
+import ArrowDownIcon from '../assets/icons/dropdown-arrow-down-icon.svg?react';
+import ArrowUpIcon from '../assets/icons/dropdown-arrow-up-icon.svg?react';
 import { FormFieldWrapper, Menu } from 'components/UI';
 import type { ComponentSizeType, MenuOption } from 'types/components';
 

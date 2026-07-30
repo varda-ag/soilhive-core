@@ -1,8 +1,8 @@
 import { forwardRef, useCallback, useMemo, useState, type ForwardedRef } from 'react';
 import classnames from 'classnames';
 
-import BigCheckIcon from 'assets/icons/big-check-mark-icon.svg?react';
-import SmallCheckIcon from 'assets/icons/small-check-mark-icon.svg?react';
+import BigCheckIcon from '../assets/icons/big-check-mark-icon.svg?react';
+import SmallCheckIcon from '../assets/icons/small-check-mark-icon.svg?react';
 import type { MenuOption, ComponentSizeType } from 'types/components';
 
 import styles from './Menu.module.scss';

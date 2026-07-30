@@ -4,7 +4,7 @@ import type { DropAreaBond } from 'react-use/lib/useDropArea';
 
 import { ProgressBar } from '../ProgressBar/ProgressBar';
 import { FormMessage } from '../FormMessage/FormMessage';
-import UploadIcon from 'assets/icons/big-cloud-upload-icon.svg?react';
+import UploadIcon from '../assets/icons/big-cloud-upload-icon.svg?react';
 
 import styles from './FileUploadBox.module.scss';
 import useDropArea from 'react-use/lib/useDropArea';

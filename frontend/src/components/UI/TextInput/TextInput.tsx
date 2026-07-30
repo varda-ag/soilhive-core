@@ -2,9 +2,9 @@ import { useCallback, useEffect, useMemo, useState, type ChangeEvent } from 'rea
 
 import classnames from 'classnames';
 
-import BigSearchIcon from 'assets/icons/search-icon.svg?react';
-import SmallSearchIcon from 'assets/icons/small-search-icon.svg?react';
-import SmallCrossIcon from 'assets/icons/small-cross-icon.svg?react';
+import BigSearchIcon from '../assets/icons/search-icon.svg?react';
+import SmallSearchIcon from '../assets/icons/small-search-icon.svg?react';
+import SmallCrossIcon from '../assets/icons/small-cross-icon.svg?react';
 import { FormFieldWrapper } from 'components/UI';
 import type { ComponentSizeType } from 'types/components';
 
