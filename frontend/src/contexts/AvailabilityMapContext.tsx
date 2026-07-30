@@ -1,4 +1,4 @@
-import React, { createContext, useState, type ReactNode } from 'react';
+import React, { createContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { LngLat, MapGeoJSONFeature } from 'maplibre-gl';
 import type { FeatureCollection, MultiPolygon, Polygon } from 'geojson';
 import { bboxPolygon } from '@turf/turf';
@@ -44,7 +44,7 @@ type AvailabilityMapProviderProps = {
 };
 
 export const AvailabilityMapProvider: React.FC<AvailabilityMapProviderProps> = ({ children }) => {
-  const { themeConfig } = useTheme();
+  const { themeConfig, isLoadingThemeConfig } = useTheme();
 
   const [selectedPoint, setSelectedPoint] = useState<LngLat | null>(null);
   const [selectedH3Cell, setSelectedH3Cell] = useState<MapGeoJSONFeature | null>(null);
@@ -58,6 +58,19 @@ export const AvailabilityMapProvider: React.FC<AvailabilityMapProviderProps> = (
   const [geometryFilter, setGeometryFilter] = useState<(Polygon | MultiPolygon)[]>([bboxPolygon(themeConfig.initialBbox).geometry]);
   const [isDaiEnabled, setIsDaiEnabled] = useState<boolean>(themeConfig.daiConfig?.isEnabled && themeConfig.daiConfig?.defaultValue);
   const [daiOpacity, setDaiOpacity] = useState(80);
+
+  // The state above is seeded from themeConfig, but themeConfig starts out as
+  // defaultThemeConfig until the real config finishes loading. Since this
+  // provider can now mount before that load completes, re-apply the real
+  // values once, the first time loading finishes.
+  const hasSyncedInitialConfig = useRef(false);
+  useEffect(() => {
+    if (isLoadingThemeConfig || hasSyncedInitialConfig.current) return;
+    hasSyncedInitialConfig.current = true;
+    setBoundingBox(themeConfig.initialBbox);
+    setGeometryFilter([bboxPolygon(themeConfig.initialBbox).geometry]);
+    setIsDaiEnabled(themeConfig.daiConfig?.isEnabled && themeConfig.daiConfig?.defaultValue);
+  }, [isLoadingThemeConfig, themeConfig]);
 
   return (
     <AvailabilityMapContext.Provider
