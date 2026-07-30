@@ -1,11 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { InfoCard } from 'components/UI/InfoCard/InfoCard';
 
-jest.mock('react-loading-skeleton', () => ({
-  __esModule: true,
-  default: () => <span data-testid="skeleton" />,
-}));
-
 const primaryContent = { value: 42, description: 'Primary description', color: '#A2D141' };
 const secondaryContent = { value: 7, description: 'Secondary description', color: '#BC001F' };
 
@@ -71,16 +66,36 @@ describe('InfoCard', () => {
   });
 
   describe('isLoading', () => {
-    it('hides the primary value and shows a skeleton when isLoading is true', () => {
+    it('hides the primary value and shows a default loader when isLoading is true', () => {
       render(<InfoCard title="Card" primaryContent={primaryContent} isLoading />);
       expect(screen.queryByText('42')).not.toBeInTheDocument();
-      expect(screen.getByTestId('skeleton')).toBeInTheDocument();
+      expect(screen.getByText('-')).toBeInTheDocument();
     });
 
-    it('hides secondary value and shows a skeleton when isLoading is true', () => {
+    it('hides the secondary value and shows a default loader when isLoading is true', () => {
       render(<InfoCard title="Card" primaryContent={primaryContent} secondaryContent={secondaryContent} isLoading />);
       expect(screen.queryByText('7')).not.toBeInTheDocument();
-      expect(screen.getAllByTestId('skeleton')).toHaveLength(2);
+      expect(screen.getAllByText('-')).toHaveLength(2);
+    });
+
+    it('hides the primary value and shows a loader from props when isLoading is true', () => {
+      render(<InfoCard title="Card" primaryContent={primaryContent} isLoading loader={<span data-testid="loader" />} />);
+      expect(screen.queryByText('42')).not.toBeInTheDocument();
+      expect(screen.getByTestId('loader')).toBeInTheDocument();
+    });
+
+    it('hides secondary value and shows a loader from props when isLoading is true', () => {
+      render(
+        <InfoCard
+          title="Card"
+          primaryContent={primaryContent}
+          secondaryContent={secondaryContent}
+          isLoading
+          loader={<span data-testid="loader" />}
+        />,
+      );
+      expect(screen.queryByText('7')).not.toBeInTheDocument();
+      expect(screen.getAllByTestId('loader')).toHaveLength(2);
     });
 
     it('still renders the title and descriptions while loading', () => {

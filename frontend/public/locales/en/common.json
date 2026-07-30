@@ -79,11 +79,6 @@
         },
         "varda_foundation_attribution": {
             "text": "<a href=\"https://www.varda.ag\" target=\"_blank\">Varda Foundation</a>’s <a href=\"https://github.com/varda-ag/soilhive-core\" target=\"_blank\">open source</a> infrastructure"
-        },
-        "multirange_slider": {
-            "min_default_aria": "Minimum value",
-            "max_default_aria": "Maximum value",
-            "slider_aria": "{{label}} slider"
         }
     },
     "symbols_left": "symbols left",

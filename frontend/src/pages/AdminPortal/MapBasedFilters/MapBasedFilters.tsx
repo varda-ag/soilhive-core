@@ -12,6 +12,7 @@ import { ToggleButton } from 'components/UI';
 
 export function MapBasedFilters() {
   const { t } = useTranslation('admin');
+  const { t: tCommon } = useTranslation('common');
   const { allCategories: allRasterCategories, setCategoryActive, isLoading } = useRaster();
 
   return (
@@ -34,17 +35,29 @@ export function MapBasedFilters() {
           <div className={styles.FilterList}>
             <div className={styles.FilterItem}>
               <h4>{t('filters.agroecological_zones.name')}</h4>
-              <ExpandableText text={t('filters.agroecological_zones.description')} />
+              <ExpandableText
+                text={t('filters.agroecological_zones.description')}
+                readMoreLabel={tCommon('actions.read_more')}
+                readLessLabel={tCommon('actions.read_less')}
+              />
             </div>
 
             <div className={styles.FilterItem}>
               <h4>{t('filters.land_cover.name')}</h4>
-              <ExpandableText text={t('filters.land_cover.description')} />
+              <ExpandableText
+                text={t('filters.land_cover.description')}
+                readMoreLabel={tCommon('actions.read_more')}
+                readLessLabel={tCommon('actions.read_less')}
+              />
             </div>
 
             <div className={styles.FilterItem}>
               <h4>{t('filters.soil_groups.name')}</h4>
-              <ExpandableText text={t('filters.soil_groups.description')} />
+              <ExpandableText
+                text={t('filters.soil_groups.description')}
+                readMoreLabel={tCommon('actions.read_more')}
+                readLessLabel={tCommon('actions.read_less')}
+              />
             </div>
           </div>
         </div>

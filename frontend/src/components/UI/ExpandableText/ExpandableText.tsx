@@ -1,7 +1,6 @@
 import classNames from 'classnames';
 import { useEffect, useRef, useState } from 'react';
 import styles from './ExpandableText.module.scss';
-import { useTranslation } from 'react-i18next';
 
 interface Props {
   text: string;
@@ -11,14 +10,10 @@ interface Props {
   textClassname?: string;
 }
 
-export function ExpandableText({ text, readMoreLabel, readLessLabel, className, textClassname }: Props) {
+export function ExpandableText({ text, readMoreLabel = 'Read more', readLessLabel = 'Read less', className, textClassname }: Props) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isTruncated, setIsTruncated] = useState(false);
   const textParagraphRef = useRef<HTMLParagraphElement>(null);
-
-  const { t } = useTranslation('common');
-  const readMoreLabelFinal = readMoreLabel ? readMoreLabel : t('actions.read_more');
-  const readLessLabelFinal = readLessLabel ? readLessLabel : t('actions.read_less');
 
   useEffect(() => {
     const element = textParagraphRef.current;
@@ -36,7 +31,7 @@ export function ExpandableText({ text, readMoreLabel, readLessLabel, className, 
       </p>
       {(isTruncated || isExpanded) && (
         <button type="button" className={styles.ReadMoreButton} onClick={() => setIsExpanded(!isExpanded)}>
-          {isExpanded ? readLessLabelFinal : readMoreLabelFinal}
+          {isExpanded ? readLessLabel : readMoreLabel}
         </button>
       )}
     </div>

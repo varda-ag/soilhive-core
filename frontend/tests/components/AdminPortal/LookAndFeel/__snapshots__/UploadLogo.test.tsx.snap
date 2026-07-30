@@ -11,7 +11,7 @@ exports[`UploadLogo renders LogoPreview when preview logo exists 1`] = `
       <p
         class="Label"
       >
-        Your picture will appear in the header
+        look_and_feel.logo.label
       </p>
       <div
         data-testid="file-upload-box"
@@ -96,7 +96,7 @@ exports[`UploadLogo renders upload state without preview logo 1`] = `
       <p
         class="Label"
       >
-        Your picture will appear in the header
+        look_and_feel.logo.label
       </p>
       <div
         data-testid="file-upload-box"
