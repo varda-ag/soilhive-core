@@ -14,6 +14,7 @@ const TILE_SIZE = 512;
 
 interface TileWriteContext {
   sourceImage: GeoTIFFImage;
+  sourceSampleIndex: number; // 0-based sample index: the layer's 1-based band, converted once here.
   maskImage: GeoTIFFImage;
   srcOffX: number;
   srcOffY: number;
@@ -67,6 +68,9 @@ export class RasterFileWriter {
     const lrx = maxX;
     const lry = minY;
 
+    // -b selects the layer's band from the source, which may hold several. It applies to both
+    // formats: without it a multiband source would export every band under a name that promises
+    // a single-band layer.
     const translateArgs: string[] = [
       '-projwin',
       String(ulx),
@@ -75,6 +79,8 @@ export class RasterFileWriter {
       String(lry),
       '-projwin_srs',
       'EPSG:4326',
+      '-b',
+      String(layer.band),
       '-of',
       this.getDriverName(),
     ];
@@ -82,7 +88,7 @@ export class RasterFileWriter {
     if (this.fileFormat === RasterFileFormat.TIFF) {
       translateArgs.push('-co', 'COMPRESS=DEFLATE', '-co', 'TILED=YES');
     } else {
-      translateArgs.push('-b', '1', '-co', `RASTER_TABLE=${layerName}`, '-co', 'TILE_FORMAT=TIFF', '-ot', 'Float32');
+      translateArgs.push('-co', `RASTER_TABLE=${layerName}`, '-co', 'TILE_FORMAT=TIFF', '-ot', 'Float32');
     }
 
     const filePath = path.join(this.outputDir, `${layerName}.${this.getFileExtension()}`);
@@ -141,6 +147,7 @@ export class RasterFileWriter {
 
     const ctx: TileWriteContext = {
       sourceImage,
+      sourceSampleIndex: layer.band - 1,
       maskImage,
       srcOffX,
       srcOffY,
@@ -210,6 +217,7 @@ export class RasterFileWriter {
   private async writeTile(ctx: TileWriteContext, tileX: number, tileY: number, tw: number, th: number): Promise<string | null> {
     const {
       sourceImage,
+      sourceSampleIndex,
       maskImage,
       srcOffX,
       srcOffY,
@@ -230,7 +238,7 @@ export class RasterFileWriter {
 
     const srcRasters = await sourceImage.readRasters({
       window: [srcOffX + tileX, srcOffY + tileY, srcOffX + tileX + tw, srcOffY + tileY + th],
-      samples: [0],
+      samples: [sourceSampleIndex],
     });
     const srcData = srcRasters[0] as ArrayLike<number>;
 

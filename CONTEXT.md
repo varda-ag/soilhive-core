@@ -4,6 +4,10 @@ SoilHive is a platform for discovering, filtering, and visualising soil datasets
 
 ## Language
 
+**Public identifier** (`id`):
+The only identifier that crosses the API boundary: an entity's **slug** when it has one, its primary key when it has none. Always carried in a key named `id` (or `<entity>_id` when referencing another entity), never accompanied by a separate `slug` key — so a client cannot tell from a payload which of the two kinds it holds, and must never parse or infer it. A database UUID is never exposed for an entity that has a slug; entities without one (data mappings, dataset-file mappings, filters, user geometries, raster layers, raster layer assets, jobs) expose their UUID as `id` because there is nothing better to expose.
+_Avoid_: UUID, primary key, internal ID (all internal-only concepts), slug (the *kind of value* an id holds, not the name of the field)
+
 **Dataset**:
 A collection of soil features ingested from a single data provider. Has a `gis_datatype` of `point`, `polygonal`, or `raster`.
 _Avoid_: Data source, layer (overloaded)
@@ -92,6 +96,34 @@ _Avoid_: Projection (a CRS component, not the whole), SRID (database-level ident
 The CRS detected by the backend from an uploaded file's own metadata during upload. When present it is authoritative: the data admin cannot override it. Distinct from a user-supplied CRS, which is required only when inference fails. Only Spatial Files have an Inferred CRS — for a Non-spatial File no inference is attempted, which is not the same as inference failing.
 _Avoid_: Default CRS, detected projection
 
+**Bulk Load**:
+The Dataset-scoped operation that turns a Dataset's staged files into Features, Layers, DatasetLayers and Observations. Operates on point and polygonal Datasets. Scoped to exactly one Dataset; the files it consumes are whichever staged files that Dataset has.
+_Avoid_: Import, upload (a separate earlier step), ingest (reserved for the per-file raster operation)
+
+**Raster Load**:
+The Dataset-scoped counterpart to Bulk Load for raster Datasets: it walks the Dataset's raster files and performs a Raster Ingest on each. Like Bulk Load it is scoped to one Dataset and named for the Dataset, not for any single file. A Raster Load produces no Features, Layers or Observations — raster data is not modelled as those — and therefore never contributes to the DAI. Unlike a Bulk Load, a Raster Load never consumes its source files: after a Bulk Load the file's contents live in the soil tables and the file is disposable, whereas after a Raster Load the file *is* the raster layer's data and must survive.
+_Avoid_: Raster ingest (the per-file operation Raster Load invokes), raster upload (the earlier step that puts files in storage), bulk load (the point/polygonal counterpart)
+
+**Raster Ingest**:
+The operation that takes one Band of a *single* Cloud Optimized GeoTIFF and registers it as one Raster Layer with its footprints. One Band in, one Raster Layer out — a multiband file is ingested by one Raster Ingest per mapped Band, each carrying its own soil property. A Raster Ingest is reached only through a Raster Load: it presumes the Dataset and the File already exist and never creates either, and it never records Dataset-level metadata.
+_Avoid_: Raster load (the Dataset-scoped orchestration above it), conversion (producing the COG is a separate, prior step), "ingesting a file" (a Raster Ingest consumes a Band, not a whole file)
+
+**Raster Layer**:
+The catalog record for one Band of one raster File within a Dataset, carrying that Band's soil property, depth range, reference period, resolution, nodata marker, bounding box and footprints. The raster counterpart of a DatasetLayer, and identified by the pair (File, Band) — a File and Band together have at most one Raster Layer. Unlike a Layer, a Raster Layer holds no Observations: its measurements stay in the File's pixels, which is why the File must survive the Raster Load.
+_Avoid_: Layer (the soil data depth/date slice), Band (the pixel plane a Raster Layer points at), raster dataset (a Dataset, not a Raster Layer)
+
+**Band Mapping**:
+The per-Band declaration of what a Band measures: its soil property, depth range, and optionally its procedure, unit conversion, reference period, prose description and Raster Layer Assets. A Raster Load ingests exactly the Bands a Band Mapping names — Bands left unmapped are not ingested, which is how uncertainty or count Bands are excluded. The raster counterpart of the column mapping used for point and polygonal Files.
+_Avoid_: Column mapping (the tabular counterpart), data mapping (the shared container — see Flagged ambiguities), band metadata (what the file itself reports, not what an admin declares)
+
+**Raster Layer Asset**:
+An auxiliary File attached to one Raster Layer — a technical manual, a prediction layer, anything shipped alongside the pixels — declared per Band in the Band Mapping and identified by the pair (Raster Layer, File). Never soil data: an asset File is attached, never ingested, and nothing about it is probed or validated beyond its existence.
+_Avoid_: Related Resources (the Dataset-level list of external URLs — see Flagged ambiguities), attachment, additional resource (the mapping key's name, not the entity's)
+
+**Band**:
+One of the pixel planes of a raster file, identified by a 1-based number. The unit a Raster Ingest consumes: every Raster Layer names exactly one Band of exactly one file. Bands of a file share its resolution and geographic extent, but each carries its own values and its own nodata marker, and therefore its own footprints. Distinct from a Layer — a Band is a property of the file, not of the soil model.
+_Avoid_: Layer (the soil data depth/date slice), channel, raster layer (the catalog record that points at a Band)
+
 ## Relationships
 
 - A **Dataset** contains one or more **Features**
@@ -100,6 +132,9 @@ _Avoid_: Default CRS, detected projection
 - A **DatasetLayer** has one or more **Observations**
 - A **Layer** carries the `sampling_date`, `min_depth`, and `max_depth` for its associated **Observations** — there is no date on **Observation** itself
 - A **Filter** defines the scope for **DAI** computation; the effective **AOI** is the intersection of the Filter's geometries with the map viewport
+- A **Raster Load** is scoped to one **Dataset** and performs one **Raster Ingest** per **Band** named by each raster File's **Band Mapping**; a **Bulk Load** is the equivalent for point and polygonal **Datasets**
+- A **Raster Layer** belongs to one **Dataset** and names exactly one **Band** of exactly one **File**; a **File** has as many **Raster Layers** as it has mapped **Bands**
+- A **Raster Layer** has zero or more **Raster Layer Assets**, each pointing at one **File**; the same **File** may be an asset of several **Raster Layers** (one per **Band** whose **Band Mapping** declares it)
 - A **Filter** has a *set* of zero or more **UserGeometries** (duplicates in a submission collapse to one); each **UserGeometry** may belong to more than one **Filter**
 
 ## Example dialogue
@@ -115,16 +150,22 @@ An optional free-text field on a Dataset that documents the data cleaning and tr
 _Avoid_: Processing instructions, pipeline steps, ETL steps
 
 **Related Resources** (`related_resources`):
-An optional list of external URLs associated with a Dataset (e.g. publications, source repositories, data provider pages). Set by data admins; not computed by the system.
-_Avoid_: Links, references, attachments
+An optional list of external URLs associated with a Dataset (e.g. publications, source repositories, data provider pages). Set by data admins; not computed by the system. Distinct from a Raster Layer Asset, which is a File attached to one Raster Layer rather than a URL recorded on a Dataset.
+_Avoid_: Links, references, attachments, additional resources (the Band Mapping key that declares Raster Layer Assets)
 
 ## Flagged ambiguities
 
 - The UI's **"Data access"** filter (options "Private"/"Public") filters by **Visibility** — the entitlement-agnostic Dataset attribute. Selecting "Private" means "datasets whose visibility is private", never "datasets I have access to". Likewise the UI's **"Data type"** filter maps to the `data_types` criterion (`gis_datatype`). In domain discussions prefer **Visibility** and **data type**; "access" is a UI label only.
 
-- "dataset ID" in the public API means the Dataset's `slug`, not its database primary key: `GET /data-filters/{filterId}/datasets` returns the slug in the `id` field, and the `datasets` query parameter of `GET /soil-data` matches against slugs. In domain discussions, say **slug** when you mean the public identifier and reserve "ID" for the internal primary key.
+- **"ID" almost never means the primary key** — see **Public identifier**. "dataset ID" means the Dataset's `slug`: `GET /data-filters/{filterId}/datasets` returns the slug in the `id` field, and the `datasets` query parameter of `GET /soil-data` matches against slugs. The same holds inside a Band Mapping: an additional resource's `file_id` is a **File slug**, resolved through slug history, so a File renamed after the mapping was written still resolves. In domain discussions, say **slug** when you mean the public identifier and reserve "primary key" for the internal UUID — never bare "ID" for either.
 - "layer" was used in the codebase to mean both the domain entity (depth/date slice) and Mapbox/map rendering layers — in domain discussions, **Layer** always refers to the soil data entity.
 - "observation" was initially used loosely to mean any data point or measurement; resolved: **Observation** is specifically a row in the `observations` table with a numeric `value`, linked to a **DatasetLayer**.
 - A **null** parameter criterion and an **absent** one mean different things and yield different Filters: `min_depth: null` means "match Layers with no recorded depth", while omitting `min_depth` means "no depth constraint" (same for `max_depth` and the sampling-date criteria). Never normalise null to absent (or vice versa) when comparing filter criteria.
 - **A File with no metadata is not a category.** Absent metadata means one of three unrelated things: a **Non-spatial File** (never probed), a File created by the raster ingestion CLI (which describes the raster by other means), or a test fixture. Never treat "has no metadata" as a way to identify Non-spatial Files — the distinction is known to whoever uploaded the File, not recoverable from the File itself.
+- **A data mapping means two different things depending on the Dataset's Data Type.** For a point or polygonal File its entries are *column references* — "the column named X supplies the sampling date". For a raster File its entries are a **Band Mapping**: keyed by Band number, and the values are *literal values* rather than references, because a Band has no columns to point at. The container is shared; the meaning is not. In domain discussions say **column mapping** or **Band Mapping**, never bare "mapping".
+
+- **`related_resources` and `additional_resources` are unrelated.** `related_resources` is a Dataset column holding external URLs; `additional_resources` is a Band Mapping key declaring that Band's **Raster Layer Assets**, which are Files. The near-identical names are the only thing they share. In domain discussions say **Related Resources** for the Dataset's URLs and **Raster Layer Asset** for an attached File — never "resources" bare.
+
+- The Dataset field holding its soil properties is called **`measured_properties`** in code but stored in a column named `variables_measured` (an older name, retained). They are one field, not two. Prefer **measured properties** in discussion.
+
 - "active" is used in two unrelated senses in the raster filtering code: the persisted `active` column on `raster_filters` (admin-controlled catalog availability — see **Raster Filter**), and query-time variables/comments like `hasActiveFilters` in `FilteringMasks.ts` (whether the current Filter's `raster_filters` criterion has non-empty selected values for a given raster table). Toggling a Raster Filter's `active` flag has no effect on the query-time check, and vice versa. In domain discussions, say "active Raster Filter" for the catalog flag and "selected raster filter values" for the query-time notion.

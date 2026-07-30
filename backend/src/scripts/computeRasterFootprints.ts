@@ -17,6 +17,9 @@ const INSERT_BATCH_SIZE = 100;
 
 export type FootprintBatchCallback = (tiles: MultiPolygon[]) => Promise<void>;
 
+/** Reports tile progress within a single band's footprint pass. */
+export type FootprintProgressCallback = (tilesProcessed: number, totalTiles: number) => Promise<void>;
+
 function computeGrid(rasterWidth: number, rasterHeight: number): { nCols: number; nRows: number } {
   const rasterArea = rasterWidth * rasterHeight;
   const earthArea = 360 * 180;
@@ -26,92 +29,134 @@ function computeGrid(rasterWidth: number, rasterHeight: number): { nCols: number
   return { nCols, nRows };
 }
 
+/**
+ * Streams the footprints of one band. Footprints are per-band: each band carries its own
+ * valid-data mask, so two bands of one file can cover different ground. `band` is 1-based.
+ */
 export async function streamRasterFootprints(
   cogPath: string,
-  nodataOverride: number | undefined,
+  band: number,
   onBatch: FootprintBatchCallback,
+  onProgress?: FootprintProgressCallback,
 ): Promise<void> {
-  const { selectedImage, ovWidth, ovHeight, ovPixelW, ovPixelH, xMin, yMax, tileW, tileH, nCols, nRows, nodata, overviewTempPath } =
-    await timed('footprint extraction setup', async () => {
-      const { mainFilePath } = await FileService.getMainFilePath(cogPath);
+  const {
+    selectedImage,
+    sampleIndex,
+    ovWidth,
+    ovHeight,
+    ovPixelW,
+    ovPixelH,
+    xMin,
+    yMax,
+    tileW,
+    tileH,
+    nCols,
+    nRows,
+    nodata,
+    overviewTempPath,
+  } = await timed('footprint extraction setup', async () => {
+    const { mainFilePath } = await FileService.getMainFilePath(cogPath);
 
-      const info = await GdalCLI.gdalinfo(mainFilePath);
-      const gt = info.geoTransform;
-      if (!gt) throw new Error('Raster has no geoTransform');
+    const info = await GdalCLI.gdalinfo(mainFilePath);
+    const gt = info.geoTransform;
+    if (!gt) throw new Error('Raster has no geoTransform');
 
-      const [rasterNativeWidth, rasterNativeHeight] = info.size ?? [0, 0];
-      const xMin = gt[0]!;
-      const yMax = gt[3]!;
-      const pixWFull = gt[1]!;
-      const pixHFull = gt[5]!;
-      const xMax = xMin + rasterNativeWidth * pixWFull;
-      const yMin = yMax + rasterNativeHeight * pixHFull;
-      const rasterWidthDeg = xMax - xMin;
-      const rasterHeightDeg = yMax - yMin;
+    const [rasterNativeWidth, rasterNativeHeight] = info.size ?? [0, 0];
+    const xMin = gt[0]!;
+    const yMax = gt[3]!;
+    const pixWFull = gt[1]!;
+    const pixHFull = gt[5]!;
+    const xMax = xMin + rasterNativeWidth * pixWFull;
+    const yMin = yMax + rasterNativeHeight * pixHFull;
+    const rasterWidthDeg = xMax - xMin;
+    const rasterHeightDeg = yMax - yMin;
 
-      const nodata: number | null = nodataOverride !== undefined ? nodataOverride : (info.bands?.[0]?.noDataValue ?? null);
-      const nativePixelSize = Math.abs(pixWFull);
+    const nodata: number | null = info.bands?.[band - 1]?.noDataValue ?? null;
+    const nativePixelSize = Math.abs(pixWFull);
 
-      const { nCols, nRows } = computeGrid(rasterWidthDeg, rasterHeightDeg);
-      const tileW = rasterWidthDeg / nCols;
-      const tileH = rasterHeightDeg / nRows;
-      const tileMinDim = Math.min(tileW, tileH);
+    const { nCols, nRows } = computeGrid(rasterWidthDeg, rasterHeightDeg);
+    const tileW = rasterWidthDeg / nCols;
+    const tileH = rasterHeightDeg / nRows;
+    const tileMinDim = Math.min(tileW, tileH);
 
-      const tiff = await openTiff(cogPath);
-      const imageCount = await tiff.getImageCount();
+    const tiff = await openTiff(cogPath);
+    const imageCount = await tiff.getImageCount();
 
-      // Select overview: mirrors original GDAL logic — coarsest overview satisfying
-      // the resolution criterion, falling back to finest overview.
-      let selectedIndex = 0;
-      for (let i = imageCount - 1; i >= 1; i--) {
-        const ovImage = await tiff.getImage(i);
-        const ovPixelSize = nativePixelSize * (rasterNativeWidth / ovImage.getWidth());
-        if (ovPixelSize < tileMinDim / PIXELS_PER_TILE_MIN_DIM) {
-          selectedIndex = i;
-          break;
-        }
+    // Select overview: mirrors original GDAL logic — coarsest overview satisfying
+    // the resolution criterion, falling back to finest overview.
+    let selectedIndex = 0;
+    for (let i = imageCount - 1; i >= 1; i--) {
+      const ovImage = await tiff.getImage(i);
+      const ovPixelSize = nativePixelSize * (rasterNativeWidth / ovImage.getWidth());
+      if (ovPixelSize < tileMinDim / PIXELS_PER_TILE_MIN_DIM) {
+        selectedIndex = i;
+        break;
       }
-      if (selectedIndex === 0 && imageCount > 1) selectedIndex = 1;
+    }
+    if (selectedIndex === 0 && imageCount > 1) selectedIndex = 1;
 
-      let selectedImage = await tiff.getImage(selectedIndex);
-      const ovWidth = selectedImage.getWidth();
-      const ovHeight = selectedImage.getHeight();
-      const ovPixelW = rasterWidthDeg / ovWidth;
-      const ovPixelH = rasterHeightDeg / ovHeight;
+    let selectedImage = await tiff.getImage(selectedIndex);
+    const ovWidth = selectedImage.getWidth();
+    const ovHeight = selectedImage.getHeight();
+    const ovPixelW = rasterWidthDeg / ovWidth;
+    const ovPixelH = rasterHeightDeg / ovHeight;
 
-      // Over the network (S3), reading each tile window directly against a presigned URL costs one
-      // HTTP round-trip per tile — thousands of them. Pull the selected overview once via GDAL's
-      // pooled /vsis3/ VSI (same path gdalinfo already uses above) and read tiles from that local
-      // copy instead. -outsize matches the overview's own dimensions exactly, so GDAL reads the
-      // COG's embedded overview data as-is rather than resampling from full resolution.
-      let overviewTempPath: string | null = null;
-      if (ConfigService.getStorageConfig().storageMode === StorageModes.S3) {
-        overviewTempPath = path.join(os.tmpdir(), `footprint-overview-${Date.now()}-${Math.random().toString(36).slice(2)}.tif`);
-        await timed('download overview locally', () =>
-          GdalCLI.translate(mainFilePath, overviewTempPath!, [
-            '-b',
-            '1',
-            '-outsize',
-            String(ovWidth),
-            String(ovHeight),
-            '-r',
-            'nearest',
-            '-co',
-            'TILED=YES',
-            '-co',
-            'BLOCKXSIZE=256',
-            '-co',
-            'BLOCKYSIZE=256',
-            '-co',
-            'COMPRESS=DEFLATE',
-          ]),
-        );
-        const localTiff = await fromFile(overviewTempPath);
-        selectedImage = await localTiff.getImage(0);
-      }
+    // The index to read from `selectedImage` differs between the two paths below, so it is
+    // decided here alongside the image itself rather than at the read site: the S3 path
+    // extracts the band into a single-band local file (index 0 forever), while the local
+    // path reads the original multiband overview (index band - 1).
+    let sampleIndex = band - 1;
 
-      return { selectedImage, ovWidth, ovHeight, ovPixelW, ovPixelH, xMin, yMax, tileW, tileH, nCols, nRows, nodata, overviewTempPath };
-    });
+    // Over the network (S3), reading each tile window directly against a presigned URL costs one
+    // HTTP round-trip per tile — thousands of them. Pull the selected overview once via GDAL's
+    // pooled /vsis3/ VSI (same path gdalinfo already uses above) and read tiles from that local
+    // copy instead. -outsize matches the overview's own dimensions exactly, so GDAL reads the
+    // COG's embedded overview data as-is rather than resampling from full resolution.
+    let overviewTempPath: string | null = null;
+    if (ConfigService.getStorageConfig().storageMode === StorageModes.S3) {
+      overviewTempPath = path.join(os.tmpdir(), `footprint-overview-${Date.now()}-${Math.random().toString(36).slice(2)}.tif`);
+      await timed('download overview locally', () =>
+        GdalCLI.translate(mainFilePath, overviewTempPath!, [
+          '-b',
+          String(band),
+          '-outsize',
+          String(ovWidth),
+          String(ovHeight),
+          '-r',
+          'nearest',
+          '-co',
+          'TILED=YES',
+          '-co',
+          'BLOCKXSIZE=256',
+          '-co',
+          'BLOCKYSIZE=256',
+          '-co',
+          'COMPRESS=DEFLATE',
+        ]),
+      );
+      const localTiff = await fromFile(overviewTempPath);
+      selectedImage = await localTiff.getImage(0);
+      // -b above already collapsed the file to the single requested band.
+      sampleIndex = 0;
+    }
+
+    return {
+      selectedImage,
+      sampleIndex,
+      ovWidth,
+      ovHeight,
+      ovPixelW,
+      ovPixelH,
+      xMin,
+      yMax,
+      tileW,
+      tileH,
+      nCols,
+      nRows,
+      nodata,
+      overviewTempPath,
+    };
+  });
 
   try {
     let batch: MultiPolygon[] = [];
@@ -130,6 +175,7 @@ export async function streamRasterFootprints(
         tilesProcessed++;
         if (tilesProcessed % progressLogInterval === 0) {
           log.info('Footprint extraction progress', {
+            band,
             tilesProcessed,
             totalTiles,
             footprintsFound,
@@ -138,6 +184,7 @@ export async function streamRasterFootprints(
             traceMs,
             dbMs,
           });
+          await onProgress?.(tilesProcessed, totalTiles);
         }
 
         const tileXMin = xMin + iCol * tileW;
@@ -157,7 +204,7 @@ export async function streamRasterFootprints(
         let t = Date.now();
         const rasters = await selectedImage.readRasters({
           window: [pxStart, pyStart, pxEnd, pyEnd],
-          samples: [0],
+          samples: [sampleIndex],
         });
         readMs += Date.now() - t;
         const rawData = rasters[0] as ArrayLike<number>;
@@ -201,6 +248,7 @@ export async function streamRasterFootprints(
     }
 
     log.info('Footprint extraction complete', {
+      band,
       tilesProcessed,
       totalTiles,
       footprintsFound,

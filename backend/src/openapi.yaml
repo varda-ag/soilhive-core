@@ -367,6 +367,7 @@ paths:
             schema:
               oneOf:
                 - $ref: '#/components/schemas/BulkLoadJob'
+                - $ref: '#/components/schemas/RasterLoadJob'
                 - $ref: '#/components/schemas/ExportJob'
                 - $ref: '#/components/schemas/FileToDbJob'
                 - $ref: '#/components/schemas/BulkDeleteJob'
@@ -374,6 +375,7 @@ paths:
                 propertyName: type
                 mapping:
                   bulk-load: '#/components/schemas/BulkLoadJob'
+                  raster-load: '#/components/schemas/RasterLoadJob'
                   export: '#/components/schemas/ExportJob'
                   file-to-db: '#/components/schemas/FileToDbJob'
                   bulk-delete: '#/components/schemas/BulkDeleteJob'
@@ -1885,7 +1887,7 @@ components:
       properties:
         dataset_id:
           type: string
-          format: uuid
+          description: The dataset's slug, as carried on the failed job's data.
         errors:
           type: array
           items:
@@ -2283,8 +2285,8 @@ components:
       properties:
         id:
           type: string
-          format: uuid
           readOnly: true
+          description: The dataset's slug. Responses never expose the primary key for an entity that has a slug.
         name:
           type: string
         full_name:
@@ -2610,9 +2612,11 @@ components:
       properties:
         fileID:
           type: string
+          description: The file's slug.
         mappingId:
           type: string
           format: uuid
+          description: A data mapping's id. Data mappings have no slug, so this is the primary key.
 
     DatasetFileMappingResponse:
       type: object
@@ -2620,12 +2624,14 @@ components:
         id:
           type: string
           format: uuid
+          description: The mapping's own id. Dataset-file mappings have no slug, so this is the primary key.
         fileID:
           type: string
-          format: uuid
+          description: The file's slug — never its primary key.
         mappingId:
           type: string
           format: uuid
+          description: A data mapping's id. Data mappings have no slug, so this is the primary key.
 
     BulkLoadJob:
       type: object
@@ -2639,6 +2645,22 @@ components:
         delete_source_files:
           type: boolean
           description: When true, deletes source files from storage after loading
+
+    RasterLoadJob:
+      type: object
+      additionalProperties: false
+      required:
+        - type
+        - dataset_id
+      properties:
+        type:
+          type: string
+          enum: [raster-load]
+          description: Job type
+        dataset_id:
+          type: string
+          description: Dataset whose raster files are to be loaded
+      description: Loads a raster dataset. The ingested files remains the raster layer's data and must not be removed.
 
     ExportJob:
       type: object

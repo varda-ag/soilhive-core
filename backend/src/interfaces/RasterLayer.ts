@@ -3,6 +3,7 @@ import type { Polygon } from 'geojson';
 export interface RasterLayer {
   id: string;
   file_id: string;
+  band: number;
   resolution_m: number;
   min_depth: number | null;
   max_depth: number | null;
@@ -24,8 +25,9 @@ export interface RasterLayerAsset {
 }
 
 export interface RasterLayerMatch {
-  id: number;
+  id: string;
   file_path: string;
+  band: number;
   resolution_m: number;
 }
 export interface Envelope {

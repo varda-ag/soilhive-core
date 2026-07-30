@@ -28,6 +28,7 @@ export enum OverlapType {
 export enum JobQueues {
   // Not using const to be able to iterate over values
   BULK_LOAD = 'bulk-load',
+  RASTER_LOAD = 'raster-load',
   EXPORT = 'export',
   FILE_TO_DB = 'file-to-db',
   BULK_DELETE = 'bulk-delete',
