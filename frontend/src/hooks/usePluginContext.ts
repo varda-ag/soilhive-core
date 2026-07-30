@@ -1,9 +1,10 @@
 import { useMemo } from 'react';
-import type { PluginDataset, PluginGeometry, PluginQueryResult } from 'frontend-plugin-types';
+import type { PluginDataset, PluginGeometry, PluginQueryResult, PluginTheme } from 'frontend-plugin-types';
 import type { PluginContext } from 'types/plugins';
 import { useAuthContext } from '../auth/AuthContextProvider';
 import useAvailabilityMap from './useAvailabilityMap';
 import { useDatasets } from './useDatasets';
+import useHostTheme from './useTheme';
 
 function usePluginDatasets(): PluginQueryResult<PluginDataset[]> {
   const { datasets, isLoading, isError } = useDatasets();
@@ -11,6 +12,15 @@ function usePluginDatasets(): PluginQueryResult<PluginDataset[]> {
     data: datasets?.map(({ id, slug, name, description }) => ({ id, slug, name, description })),
     isLoading,
     isError,
+  };
+}
+
+function usePluginTheme(): PluginQueryResult<PluginTheme> {
+  const { themeConfig, logo, isLoadingThemeConfig, isLogoLoading } = useHostTheme();
+  return {
+    data: { colors: themeConfig.colors, logoUrl: logo },
+    isLoading: isLoadingThemeConfig || isLogoLoading,
+    isError: false,
   };
 }
 
@@ -25,6 +35,7 @@ export function usePluginContext(): PluginContext {
       // thin contract must not leak to plugins.
       user: user ? { profile: { name: user.profile?.name, email: user.profile?.email } } : user,
       useDatasets: usePluginDatasets,
+      useTheme: usePluginTheme,
       // Narrow explicitly too: selectedPoint/selectedH3Cell are maplibre-gl
       // classes, not plain data, which PluginContext's thin contract must not depend on.
       mapSelection: {

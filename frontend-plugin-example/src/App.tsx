@@ -1,4 +1,4 @@
-import type { PluginContext, PluginDataset, PluginMapSelection, PluginQueryResult } from 'frontend-plugin-types';
+import type { PluginContext, PluginDataset, PluginMapSelection, PluginQueryResult, PluginTheme } from 'frontend-plugin-types';
 import './App.css';
 import { Page } from './components/ProviderComponent';
 
@@ -23,10 +23,17 @@ const mockMapSelection: PluginMapSelection = {
   locationName: 'Local Preview Area',
 };
 
+const useMockTheme = (): PluginQueryResult<PluginTheme> => ({
+  data: { colors: { primary: '#2f6f4f', background: '#ffffff' }, logoUrl: null },
+  isLoading: false,
+  isError: false,
+});
+
 const mockContext: PluginContext = {
   user: { profile: { name: 'Local Preview User' } },
   useDatasets: useMockDatasets,
   mapSelection: mockMapSelection,
+  useTheme: useMockTheme,
 };
 
 const App = () => {

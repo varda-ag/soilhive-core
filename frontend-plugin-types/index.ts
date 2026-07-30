@@ -41,8 +41,14 @@ export interface PluginMapSelection {
   locationName?: string;
 }
 
+export interface PluginTheme {
+  colors: Record<string, string>;
+  logoUrl: string | null;
+}
+
 export interface PluginContext {
   user?: PluginUser | null;
   useDatasets?: () => PluginQueryResult<PluginDataset[]>;
   mapSelection?: PluginMapSelection;
+  useTheme?: () => PluginQueryResult<PluginTheme>;
 }
