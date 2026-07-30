@@ -3,17 +3,16 @@ import type { PluginContext } from 'frontend-plugin-types';
 import './ProviderComponent.css';
 
 const Page: React.FC<{ context: PluginContext }> = ({ context }) => {
-  // Destructured (with a fallback), not `context.useDatasets()` — keeps
-  // `useDatasets` a bare identifier, called unconditionally, so
-  // eslint-plugin-react-hooks can actually check it.
-  const {
-    user,
-    useDatasets = () => ({ data: undefined, isLoading: false, isError: false }),
-    mapSelection,
-    useTheme = () => ({ data: undefined, isLoading: false, isError: false }),
-  } = context;
+  // Destructured, not `context.useDatasets()` — keeps `useDatasets` a bare
+  // identifier, called unconditionally, so eslint-plugin-react-hooks can
+  // actually check it.
+  const { user, useDatasets, mapSelection, useTheme, useDataFilterQuery } = context;
   const { data: datasets, isLoading, isError } = useDatasets();
   const { data: theme } = useTheme();
+  const { data: filterId, isLoading: isFilterLoading } = useDataFilterQuery({
+    geometries: mapSelection?.geometryFilter ?? [],
+    parameters: { data_types: ['point'] },
+  });
 
   return (
     <div className="container">
@@ -44,6 +43,7 @@ const Page: React.FC<{ context: PluginContext }> = ({ context }) => {
               .join(', ')
           : '(none received)'}
       </p>
+      <p>Data filter id from host: {isFilterLoading ? 'loading…' : (filterId ?? '(none received)')}</p>
     </div>
   );
 };

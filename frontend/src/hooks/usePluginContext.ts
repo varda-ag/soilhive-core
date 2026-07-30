@@ -1,8 +1,10 @@
 import { useMemo } from 'react';
-import type { PluginDataset, PluginGeometry, PluginQueryResult, PluginTheme } from 'frontend-plugin-types';
+import type { PluginDataFilterInput, PluginDataset, PluginGeometry, PluginQueryResult, PluginTheme } from 'frontend-plugin-types';
+import type { DataFilterDTO, GISDataType } from 'types/backend';
 import type { PluginContext } from 'types/plugins';
 import { useAuthContext } from '../auth/AuthContextProvider';
 import useAvailabilityMap from './useAvailabilityMap';
+import { useDataFilterQuery as useHostDataFilterQuery } from './useDataFilterQuery';
 import { useDatasets } from './useDatasets';
 import useHostTheme from './useTheme';
 
@@ -24,6 +26,22 @@ function usePluginTheme(): PluginQueryResult<PluginTheme> {
   };
 }
 
+function usePluginDataFilterQuery(filters: PluginDataFilterInput, enabled?: boolean, debounceTime?: number): PluginQueryResult<string> {
+  const { filterId, isLoading } = useHostDataFilterQuery(
+    {
+      geometries: filters.geometries as DataFilterDTO['geometries'],
+      parameters: {
+        ...filters.parameters,
+        data_types: filters.parameters.data_types as GISDataType[] | undefined,
+      },
+    },
+    enabled,
+    debounceTime,
+  );
+
+  return { data: filterId, isLoading, isError: false };
+}
+
 export function usePluginContext(): PluginContext {
   const { user } = useAuthContext();
   const { selectedPoint, selectedH3Cell, selection, boundingBox, geometryFilter, selectionType, locationName } = useAvailabilityMap();
@@ -36,6 +54,7 @@ export function usePluginContext(): PluginContext {
       user: user ? { profile: { name: user.profile?.name, email: user.profile?.email } } : user,
       useDatasets: usePluginDatasets,
       useTheme: usePluginTheme,
+      useDataFilterQuery: usePluginDataFilterQuery,
       // Narrow explicitly too: selectedPoint/selectedH3Cell are maplibre-gl
       // classes, not plain data, which PluginContext's thin contract must not depend on.
       mapSelection: {
@@ -52,7 +71,7 @@ export function usePluginContext(): PluginContext {
           })),
         },
         boundingBox,
-        geometryFilter: geometryFilter as unknown as PluginGeometry[],
+        geometryFilter: geometryFilter as PluginGeometry[],
         selectionType,
         locationName,
       },

@@ -29,11 +29,18 @@ const useMockTheme = (): PluginQueryResult<PluginTheme> => ({
   isError: false,
 });
 
+const useMockDataFilterQuery = (): PluginQueryResult<string> => ({
+  data: 'mock-filter-id',
+  isLoading: false,
+  isError: false,
+});
+
 const mockContext: PluginContext = {
   user: { profile: { name: 'Local Preview User' } },
   useDatasets: useMockDatasets,
   mapSelection: mockMapSelection,
   useTheme: useMockTheme,
+  useDataFilterQuery: useMockDataFilterQuery,
 };
 
 const App = () => {

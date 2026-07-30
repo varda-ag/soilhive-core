@@ -46,9 +46,30 @@ export interface PluginTheme {
   logoUrl: string | null;
 }
 
+export type PluginGISDataType = 'point' | 'polygonal' | 'raster';
+
+export interface PluginFilterCriteria {
+  data_types?: PluginGISDataType[];
+  licenses?: string[];
+  min_sampling_date?: string;
+  max_sampling_date?: string;
+  min_depth?: number;
+  max_depth?: number;
+  horizons?: string[];
+  soil_properties?: string[];
+  raster_filters?: Record<string, number[]>;
+  visibility?: 'public' | 'private';
+}
+
+export interface PluginDataFilterInput {
+  geometries: PluginGeometry[];
+  parameters: PluginFilterCriteria;
+}
+
 export interface PluginContext {
   user?: PluginUser | null;
-  useDatasets?: () => PluginQueryResult<PluginDataset[]>;
+  useDatasets: () => PluginQueryResult<PluginDataset[]>;
   mapSelection?: PluginMapSelection;
-  useTheme?: () => PluginQueryResult<PluginTheme>;
+  useTheme: () => PluginQueryResult<PluginTheme>;
+  useDataFilterQuery: (filters: PluginDataFilterInput, enabled?: boolean, debounceTime?: number) => PluginQueryResult<string>;
 }
