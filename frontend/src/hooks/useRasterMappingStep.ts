@@ -15,9 +15,7 @@ import { IngestionStatus } from 'types/backend';
 import useIngestionFlow from './useIngestionFlow';
 import type {
   FileDescriptor,
-  FileDescriptorMetadata,
   RasterFileDescriptorMetadata,
-  VectorFileDescriptorMetadata,
   VocabularyItem,
   PropertyMapping,
   DataMappingRequest,
@@ -28,12 +26,6 @@ import type {
 } from 'types/backend';
 import type { MenuOption } from 'types/components';
 import { useDataset } from './useDatasets';
-
-const isRasterMetadata = (metadata?: FileDescriptorMetadata): metadata is RasterFileDescriptorMetadata =>
-  !!metadata && !!metadata.is_raster;
-
-const isVectorMetadata = (metadata?: FileDescriptorMetadata): metadata is VectorFileDescriptorMetadata =>
-  !!metadata && !isRasterMetadata(metadata);
 
 export interface RowDetails {
   samplePretreatment: string | null;
@@ -56,16 +48,11 @@ export interface ColumnMapping {
 
 export type DetailOptionMap = Record<keyof RowDetails, MenuOption[]>;
 
+// Raster layers only carry depth range metadata (RasterLayer.min_depth/max_depth) —
+// no geometry/lat-lon/sampling_date/horizon/license concepts apply to a raster band.
 const METADATA_FIELD_OPTIONS: MenuOption[] = [
-  { code: 'geometry', name: 'Geometry' },
-  { code: 'latitude', name: 'Latitude' },
-  { code: 'longitude', name: 'Longitude' },
-  { code: 'sampling_date', name: 'Sampling date' },
-  { code: 'depth', name: 'Depth' },
   { code: 'min_depth', name: 'Min depth' },
   { code: 'max_depth', name: 'Max depth' },
-  { code: 'horizon', name: 'Horizon' },
-  { code: 'license', name: 'License' },
 ];
 
 // Exported so consumers can check whether a concept code is a metadata field
@@ -261,22 +248,14 @@ export function useRasterMappingStep(datasetId?: string) {
     enabled: !!datasetId,
   });
 
+  // Raster metadata has no server-side detected mapping to merge in (unlike vector's
+  // detected_mapping) — the saved mapping from the server is all there is.
   const mergedMappings = useMemo(() => {
     if (isLoadingFiles || isLoadingExistingMappings) {
       return [];
     }
-    if (!files) return existingMappings ?? [];
-    // Merge detected mappings from all files with any existing mappings from the server.
-    // Deep-clone to avoid mutating the React Query cache.
-    const firstMapping = existingMappings && existingMappings.length > 0 ? structuredClone(existingMappings[0].data_mapping) : {};
-    for (const file of files) {
-      const detectedMapping = (isVectorMetadata(file.metadata) ? file.metadata.detected_mapping : undefined) ?? {};
-      for (const [columnName, obj] of Object.entries(detectedMapping)) {
-        if (!(columnName in firstMapping)) firstMapping[columnName] = obj;
-      }
-    }
-    return [{ ...existingMappings?.[0], data_mapping: firstMapping }];
-  }, [existingMappings, files, isLoadingExistingMappings, isLoadingFiles]);
+    return existingMappings ?? [];
+  }, [existingMappings, isLoadingExistingMappings, isLoadingFiles]);
 
   // Extract procedures from existing (loaded from the server) mappings, so we can fetch them and pre-populate the details fields.
   const proceduresInMapping = useMemo(() => {
@@ -357,40 +336,30 @@ export function useRasterMappingStep(datasetId?: string) {
     }
   }, [isImportingState, activeJobIds, jobsData, isIngestionLoading, datasetId, updateFurthestStep, navigate, isRaster]);
 
-  const geometryDetected = useMemo(() => {
-    if (!files || files.length === 0) return undefined;
-    return isVectorMetadata(files[0].metadata) && files[0].metadata.geometry_detected === true;
-  }, [files]);
-
   const [columnMappings, setColumnMappings] = useState<ColumnMapping[]>([]);
 
-  // Initialise the column mapping table from the uploaded file columns, hydrating each row
-  // with any previously saved mapping and procedure details.
+  // Initialise the mapping table from the raster bands detected on the uploaded file(s),
+  // hydrating each row with any previously saved mapping and procedure details. Each band
+  // of each file becomes its own row, named after the file it came from — a raster with
+  // multiple bands appears once per band (e.g. "file_bulk_raster.tif (band 1)"), while a
+  // single-band raster is just named after the file, with no band number.
   useEffect(() => {
     if (!files) return;
-    const columnNames = [...new Set(files.flatMap(f => (isVectorMetadata(f.metadata) ? f.metadata.field_names : undefined) ?? []))];
+    const columnNames = files.flatMap(f => {
+      const bands = (f.metadata as RasterFileDescriptorMetadata).raster_bands;
+      if (bands.length <= 1) return [f.name];
+      return bands.map(b => `${f.name} (band ${b.band_number})`);
+    });
     const existingDataMapping = mergedMappings?.[0]?.data_mapping ?? {};
-
-    // Invert detected_fields ({ conceptCode → columnName }) into { columnName → conceptCode }
-    // so we can look up the suggested concept for any unmapped column.
-    const firstFileMetadata = files[0]?.metadata;
-    const detectedFields = (isVectorMetadata(firstFileMetadata) ? firstFileMetadata.detected_fields : undefined) ?? {};
-    const detectedConceptByColumn: Record<string, string> = {};
-    for (const [conceptCode, columnName] of Object.entries(detectedFields)) {
-      if (columnName) detectedConceptByColumn[columnName] = conceptCode;
-    }
 
     setColumnMappings(
       columnNames.map(columnName => {
-        const isGeometryDetectedField =
-          isVectorMetadata(firstFileMetadata) &&
-          firstFileMetadata.geometry_detected === true &&
-          ['geometry', 'latitude', 'longitude'].includes(detectedConceptByColumn[columnName] ?? '');
+        const isGeometryDetectedField = false;
         const existing = existingDataMapping[columnName];
         if (!existing) {
           return {
             columnName,
-            conceptId: detectedConceptByColumn[columnName] ?? null,
+            conceptId: null,
             unitId: null,
             details: { ...EMPTY_DETAILS },
             isGeometryDetectedField,
@@ -460,32 +429,23 @@ export function useRasterMappingStep(datasetId?: string) {
 
   // Per-row concept options: metadata fields first (excluding those already selected by other rows),
   // then all soil properties. A row always sees its own current metadata selection so the user
-  // can change or clear it. Geometry and Lat/Lon are mutually exclusive groups: picking one hides
-  // the other group across all rows.
+  // can change or clear it.
   const conceptOptionsByColumn = useMemo((): Record<string, MenuOption[]> => {
     const usedMetadataCodes = new Set(
       columnMappings.filter(m => m.conceptId && METADATA_FIELD_CODES.has(m.conceptId)).map(m => m.conceptId!),
     );
-
-    const geometryCodesToHide = new Set<string>();
-    if (geometryDetected === true) {
-      geometryCodesToHide.add('latitude');
-      geometryCodesToHide.add('longitude');
-      geometryCodesToHide.add('geometry');
-    }
 
     return Object.fromEntries(
       columnMappings.map(m => {
         const availableMetadata = METADATA_FIELD_OPTIONS.filter(o => {
           if (m.conceptId === o.code) return true; // keep own selection
           if (usedMetadataCodes.has(o.code)) return false; // already used elsewhere
-          if (geometryCodesToHide.has(o.code)) return false; // excluded by geo-rule
           return true;
         });
         return [m.columnName, [...availableMetadata, ...soilPropertyOptions]];
       }),
     );
-  }, [columnMappings, geometryDetected, soilPropertyOptions]);
+  }, [columnMappings, soilPropertyOptions]);
 
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
@@ -501,32 +461,14 @@ export function useRasterMappingStep(datasetId?: string) {
     return { mappedCount: mapped, unmappedCount: columnMappings.length - mapped, soilPropertyMappedCount: soilPropertyMapped };
   }, [columnMappings]);
 
-  const geometryMessage = useMemo((): { message: string; type: 'info' | 'warning' } | null => {
-    if (geometryDetected === undefined) return null;
-    if (geometryDetected === true) return { message: t('datasets.mappings.geometry_detected'), type: 'info' };
-    const hasGeometry = columnMappings.some(m => m.conceptId === 'geometry');
-    const hasLatLon = columnMappings.some(m => m.conceptId === 'latitude') && columnMappings.some(m => m.conceptId === 'longitude');
-    const hasEitherLatLon = columnMappings.some(m => m.conceptId === 'latitude') || columnMappings.some(m => m.conceptId === 'longitude');
-    if (hasGeometry && hasEitherLatLon) return { message: t('datasets.mappings.geometry_conflict'), type: 'warning' };
-    if (hasGeometry || hasLatLon) return null;
-    return { message: t('datasets.mappings.geometry_not_detected'), type: 'warning' };
-  }, [geometryDetected, columnMappings, t]);
-
   const depthConflictMessage = useMemo((): { message: string; type: 'warning' } | null => {
-    const hasDepth = columnMappings.some(m => m.conceptId === 'depth');
     const hasMinDepth = columnMappings.some(m => m.conceptId === 'min_depth');
     const hasMaxDepth = columnMappings.some(m => m.conceptId === 'max_depth');
-    const hasRangeDepth = hasMinDepth || hasMaxDepth;
-    const rangeDepthMissing = hasMinDepth !== hasMaxDepth;
-    if (hasDepth && hasRangeDepth) return { message: t('datasets.mappings.depth_conflict'), type: 'warning' };
-    if (rangeDepthMissing) return { message: t('datasets.mappings.range_depth_missing'), type: 'warning' };
+    if (hasMinDepth !== hasMaxDepth) return { message: t('datasets.mappings.range_depth_missing'), type: 'warning' };
     return null;
   }, [columnMappings, t]);
 
-  const isSaveEnabled = useMemo(
-    () => geometryDetected !== undefined && geometryMessage?.type !== 'warning' && depthConflictMessage === null,
-    [geometryDetected, geometryMessage, depthConflictMessage],
-  );
+  const isSaveEnabled = useMemo(() => depthConflictMessage === null, [depthConflictMessage]);
 
   const isContinueEnabled = useMemo(() => soilPropertyMappedCount > 0 && isSaveEnabled, [soilPropertyMappedCount, isSaveEnabled]);
 
@@ -629,6 +571,8 @@ export function useRasterMappingStep(datasetId?: string) {
 
     setIsImportingState(true);
     await save();
+    // NOTE: the backend's file-to-db job currently rejects raster files (FTD_RASTER_NOT_SUPPORTED) —
+    // this will fail server-side until a raster ingestion job is implemented.
     const jobs = await Promise.all(
       datasetFileMappings!.map(dfm => createJob({ type: 'file-to-db', file_id: dfm.fileID, dataset_id: datasetId })),
     );
@@ -658,7 +602,6 @@ export function useRasterMappingStep(datasetId?: string) {
     datasetGisDataType,
     isImporting,
     showLoadingPanel,
-    geometryMessage,
     depthConflictMessage,
     isSaveEnabled,
     isContinueEnabled,

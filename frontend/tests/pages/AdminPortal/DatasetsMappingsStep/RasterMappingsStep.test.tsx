@@ -1,7 +1,7 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { useNavigate } from 'react-router';
 import { RasterMappingsStep } from '../../../../src/pages/AdminPortal/DatasetsMappingsStep/RasterMappingsStep';
-import { useRasterMappingStep, type RowDetails, type DetailOptionMap } from 'hooks/useRasterMappingStep';
+import { useRasterMappingStep, type RowDetails, type DetailOptionMap, type ColumnMapping } from 'hooks/useRasterMappingStep';
 import { ADMIN_PATHS } from 'configuration/admin';
 
 jest.mock('react-router', () => ({
@@ -14,6 +14,18 @@ jest.mock('hooks/useRasterMappingStep', () => ({
 
 jest.mock('../../../../src/pages/AdminPortal/DatasetsMappingsStep/MappingsBanner', () => ({
   MappingsBanner: ({ isRaster }: { isRaster?: boolean }) => <div data-testid="sh-mappings-banner" data-israster={String(!!isRaster)} />,
+}));
+
+// RasterMappingsTable's own rendering/derivation logic is covered by RasterMappingsTable.test.tsx —
+// stub it here so these tests stay focused on RasterMappingsStep's layout/wiring.
+jest.mock('../../../../src/pages/AdminPortal/DatasetsMappingsStep/RasterMappingsTable', () => ({
+  RasterMappingsTable: ({ columnMappings }: { columnMappings: ColumnMapping[] }) => (
+    <div data-testid="sh-raster-mappings-table">
+      {columnMappings.map(m => (
+        <div key={m.columnName} data-testid="sh-mapping-row" />
+      ))}
+    </div>
+  ),
 }));
 
 // ---------------------------------------------------------------------------
@@ -44,7 +56,6 @@ const DETAIL_OPTIONS: DetailOptionMap = {
 
 function stubHookReturn(
   columnNames: string[] = [],
-  geometryMessage: { message: string; type: 'info' | 'warning' } | null = null,
   isContinueEnabled = false,
   depthConflictMessage: { message: string; type: 'warning' } | null = null,
   isSaveEnabled = false,
@@ -54,7 +65,6 @@ function stubHookReturn(
     isLoading: false,
     isImporting: false,
     showLoadingPanel,
-    geometryMessage,
     depthConflictMessage,
     isSaveEnabled,
     isContinueEnabled,
@@ -107,32 +117,11 @@ describe('RasterMappingsStep', () => {
     expect(screen.getByTestId('sh-raster-mappings-table')).toBeInTheDocument();
   });
 
-  describe('geometry detection message', () => {
-    it('shows the info message when hook provides an info geometry message', () => {
-      (useRasterMappingStep as jest.Mock).mockReturnValue(
-        stubHookReturn([], { message: 'Geometry was automatically detected.', type: 'info' }),
-      );
-      render(<RasterMappingsStep id="1" />);
-      expect(screen.getByText('Geometry was automatically detected.')).toBeInTheDocument();
-    });
-
-    it('shows the warning message when hook provides a warning geometry message', () => {
-      (useRasterMappingStep as jest.Mock).mockReturnValue(stubHookReturn([], { message: 'No geometry was detected.', type: 'warning' }));
-      render(<RasterMappingsStep id="1" />);
-      expect(screen.getByText('No geometry was detected.')).toBeInTheDocument();
-    });
-
-    it('shows no geometry message when hook returns null', () => {
-      render(<RasterMappingsStep id="1" />);
-      expect(screen.queryByTestId('sh-form-message')).not.toBeInTheDocument();
-    });
-  });
-
   describe('depth conflict message', () => {
     it('shows the warning when hook provides a depth conflict message', () => {
       (useRasterMappingStep as jest.Mock).mockReturnValue(
-        stubHookReturn([], null, false, {
-          message: "The 'depth' field cannot be used together with 'min depth' or 'max depth'.",
+        stubHookReturn([], false, {
+          message: "The 'min depth' field must be paired with 'max depth'.",
           type: 'warning',
         }),
       );
@@ -140,43 +129,29 @@ describe('RasterMappingsStep', () => {
       expect(screen.getByTestId('sh-form-message')).toBeInTheDocument();
     });
 
-    it('shows no depth conflict message when hook returns null (other messages can still render)', () => {
-      (useRasterMappingStep as jest.Mock).mockReturnValue(
-        stubHookReturn([], { message: 'Geometry was automatically detected.', type: 'info' }, false, null),
-      );
+    it('shows no message when depthConflictMessage is null', () => {
       render(<RasterMappingsStep id="1" />);
-      expect(screen.getAllByTestId('sh-form-message')).toHaveLength(1);
-    });
-
-    it('renders both messages when geometry and depth conflict messages are both non-null', () => {
-      (useRasterMappingStep as jest.Mock).mockReturnValue(
-        stubHookReturn([], { message: 'No geometry was detected.', type: 'warning' }, false, {
-          message: "The 'depth' field cannot be used together with 'min depth' or 'max depth'.",
-          type: 'warning',
-        }),
-      );
-      render(<RasterMappingsStep id="1" />);
-      expect(screen.getAllByTestId('sh-form-message')).toHaveLength(2);
+      expect(screen.queryByTestId('sh-form-message')).not.toBeInTheDocument();
     });
   });
 
   describe('action buttons', () => {
     it('disables both buttons when neither flag is set', () => {
-      (useRasterMappingStep as jest.Mock).mockReturnValue(stubHookReturn([], null, false, null, false));
+      (useRasterMappingStep as jest.Mock).mockReturnValue(stubHookReturn([], false, null, false));
       render(<RasterMappingsStep id="1" />);
       expect(screen.getByTestId('sh-mappings-continue')).toBeDisabled();
       expect(screen.getByTestId('sh-mappings-save-later')).toBeDisabled();
     });
 
     it('enables save-later but not continue when only isSaveEnabled is true', () => {
-      (useRasterMappingStep as jest.Mock).mockReturnValue(stubHookReturn([], null, false, null, true));
+      (useRasterMappingStep as jest.Mock).mockReturnValue(stubHookReturn([], false, null, true));
       render(<RasterMappingsStep id="1" />);
       expect(screen.getByTestId('sh-mappings-continue')).toBeDisabled();
       expect(screen.getByTestId('sh-mappings-save-later')).not.toBeDisabled();
     });
 
     it('enables both buttons when isContinueEnabled and isSaveEnabled are both true', () => {
-      (useRasterMappingStep as jest.Mock).mockReturnValue(stubHookReturn([], null, true, null, true));
+      (useRasterMappingStep as jest.Mock).mockReturnValue(stubHookReturn([], true, null, true));
       render(<RasterMappingsStep id="1" />);
       expect(screen.getByTestId('sh-mappings-continue')).not.toBeDisabled();
       expect(screen.getByTestId('sh-mappings-save-later')).not.toBeDisabled();
@@ -190,7 +165,7 @@ describe('RasterMappingsStep', () => {
     });
 
     it('renders the panel and hides the regular content when showLoadingPanel is true', () => {
-      (useRasterMappingStep as jest.Mock).mockReturnValue(stubHookReturn([], null, false, null, false, true));
+      (useRasterMappingStep as jest.Mock).mockReturnValue(stubHookReturn([], false, null, false, true));
       render(<RasterMappingsStep id="1" />);
       expect(screen.getByText('Data loading started')).toBeInTheDocument();
       expect(screen.queryByTestId('sh-mappings-banner')).not.toBeInTheDocument();
@@ -201,7 +176,7 @@ describe('RasterMappingsStep', () => {
     it('calls navigate with the datasets path when the panel Continue button is clicked', () => {
       const navigateMock = jest.fn();
       (useNavigate as jest.Mock).mockReturnValue(navigateMock);
-      (useRasterMappingStep as jest.Mock).mockReturnValue(stubHookReturn([], null, false, null, false, true));
+      (useRasterMappingStep as jest.Mock).mockReturnValue(stubHookReturn([], false, null, false, true));
       render(<RasterMappingsStep id="1" />);
       fireEvent.click(screen.getByText('Continue'));
       expect(navigateMock).toHaveBeenCalledWith(ADMIN_PATHS.DATASETS);

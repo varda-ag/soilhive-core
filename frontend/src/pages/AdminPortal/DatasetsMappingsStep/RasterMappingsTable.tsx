@@ -33,7 +33,7 @@ export function RasterMappingsTable({
     <div className={styles.RasterMappingsTable} data-testid="sh-raster-mappings-table">
       <div className={styles.Header}>
         <div className={styles.HeaderSpacer} />
-        <span className={styles.HeaderCell}>{t('datasets.mappings.table.detected_columns')}</span>
+        <span className={styles.HeaderCell}>{t('datasets.mappings.table.detected_layers')}</span>
         <span className={styles.HeaderCell}>{t('datasets.mappings.table.map_to')}</span>
         <span className={styles.HeaderCell}>{t('datasets.mappings.table.original_unit')}</span>
       </div>

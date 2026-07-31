@@ -317,6 +317,7 @@
             },
             "table": {
                 "detected_columns": "Detected columns",
+                "detected_layers": "Detected layers",
                 "map_to": "Map to",
                 "original_unit": "Original Unit"
             },

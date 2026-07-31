@@ -26,7 +26,6 @@ export function RasterMappingsStep({ id }: Props) {
     datasetName,
     isImporting,
     showLoadingPanel,
-    geometryMessage,
     depthConflictMessage,
     isSaveEnabled,
     isContinueEnabled,
@@ -67,10 +66,9 @@ export function RasterMappingsStep({ id }: Props) {
 
         <MappingsBanner mappedCount={mappedCount} unmappedCount={unmappedCount} isRaster={true} />
 
-        {(geometryMessage || depthConflictMessage) && (
+        {depthConflictMessage && (
           <div className={styles.Messages}>
-            {geometryMessage && <FormMessage type={geometryMessage.type} message={geometryMessage.message} withBackground />}
-            {depthConflictMessage && <FormMessage type={depthConflictMessage.type} message={depthConflictMessage.message} withBackground />}
+            <FormMessage type={depthConflictMessage.type} message={depthConflictMessage.message} withBackground />
           </div>
         )}
 
