@@ -1,6 +1,7 @@
 import React from 'react';
 import type { PluginContext } from 'frontend-plugin-types';
 import './ProviderComponent.css';
+import { SoilDataTest } from './SoilDataTest';
 
 const Page: React.FC<{ context: PluginContext }> = ({ context }) => {
   const {
@@ -23,16 +24,6 @@ const Page: React.FC<{ context: PluginContext }> = ({ context }) => {
   const { data: soilProperties, isLoading: isSoilPropertiesLoading } = useSoilProperties();
   const { data: propertiesCategories, isLoading: isPropertiesCategoriesLoading } = usePropertiesCategories();
   const { data: rasterCategories, isLoading: isRasterCategoriesLoading } = useRasterCategories();
-  const {
-    data: soilData,
-    isLoading: isSoilDataLoading,
-    hasMore: hasMoreSoilData,
-    loadMore: loadMoreSoilData,
-  } = useSoilData({
-    availableDatasets: coverage?.datasets.map(dataset => dataset.id) ?? [],
-    filterId,
-    limit: 10,
-  });
 
   return (
     <div className="container">
@@ -40,6 +31,7 @@ const Page: React.FC<{ context: PluginContext }> = ({ context }) => {
         <img src="https://module-federation.io/svg.svg" alt="logo" className="logo-image" />
       </div>
       <h1 className="title">Hello Module Federation 2.0</h1>
+      <SoilDataTest pluginContext={context} />
       <p>User from host: {user ? (user.profile?.name ?? user.profile?.email ?? 'authenticated user') : '(none received)'}</p>
       <p>
         Map selection from host:{' '}
@@ -73,14 +65,6 @@ const Page: React.FC<{ context: PluginContext }> = ({ context }) => {
       <p>
         Raster categories from host:{' '}
         {isRasterCategoriesLoading ? 'loading…' : (rasterCategories?.map(category => category.name).join(', ') ?? '(none received)')}
-      </p>
-      <p>
-        Soil data from host: {isSoilDataLoading ? 'loading…' : `${soilData.length} sample(s)`}
-        {hasMoreSoilData && (
-          <button type="button" onClick={loadMoreSoilData}>
-            Load more
-          </button>
-        )}
       </p>
     </div>
   );

@@ -35,7 +35,13 @@ export const RemotesProvider: React.FC<RemotesProviderProps> = ({ children }) =>
 
     const load = async () => {
       try {
-        const loaded = await loadRemotes(themeConfig.plugins ?? EMPTY_REMOTES);
+        const loaded = await loadRemotes([{
+          "acl": [],
+          "url": "http://localhost:3333/mf-manifest.json",
+          "enabled": true,
+          "enableACL": false,
+          "mustBeLoggedIn": false
+        }]);
         if (!cancelled) setPlugins(loaded);
       } finally {
         if (!cancelled) setIsLoadingModules(false);
