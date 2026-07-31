@@ -3,12 +3,13 @@ import type { PluginContext } from 'frontend-plugin-types';
 import './ProviderComponent.css';
 
 const Page: React.FC<{ context: PluginContext }> = ({ context }) => {
-  const { user, mapSelection, useTheme, useDataFilterQuery } = context;
+  const { user, mapSelection, useTheme, useDataFilterQuery, useFilteredCoverageQuery } = context;
   const { data: theme } = useTheme();
   const { data: filterId, isLoading: isFilterLoading } = useDataFilterQuery({
     geometries: mapSelection?.geometryFilter ?? [],
     parameters: { data_types: ['point'] },
   });
+  const { data: coverage, isLoading: isCoverageLoading } = useFilteredCoverageQuery(filterId);
 
   return (
     <div className="container">
@@ -30,6 +31,10 @@ const Page: React.FC<{ context: PluginContext }> = ({ context }) => {
           : '(none received)'}
       </p>
       <p>Data filter id from host: {isFilterLoading ? 'loading…' : (filterId ?? '(none received)')}</p>
+      <p>
+        Filtered coverage from host:{' '}
+        {isCoverageLoading ? 'loading…' : (coverage?.datasets.map(dataset => dataset.name).join(', ') ?? '(none received)')}
+      </p>
     </div>
   );
 };

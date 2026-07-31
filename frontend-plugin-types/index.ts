@@ -59,9 +59,24 @@ export interface PluginDataFilterInput {
   parameters: PluginFilterCriteria;
 }
 
+export interface PluginFilteredDatasetSummary extends PluginFilterCriteria {
+  id: string;
+  name: string;
+  data_type: PluginGISDataType;
+  visibility: 'public' | 'private';
+  dataset_layer_count: number;
+  raster_layer_count: number;
+}
+
+export interface PluginFilteredData {
+  datasets: PluginFilteredDatasetSummary[];
+  raster_filters: Record<string, number[]>;
+}
+
 export interface PluginContext {
   user?: PluginUser | null;
   mapSelection?: PluginMapSelection;
   useTheme: () => PluginQueryResult<PluginTheme>;
   useDataFilterQuery: (filters: PluginDataFilterInput, enabled?: boolean, debounceTime?: number) => PluginQueryResult<string>;
+  useFilteredCoverageQuery: (filterId: string | undefined, geometryOnly?: boolean) => PluginQueryResult<PluginFilteredData>;
 }

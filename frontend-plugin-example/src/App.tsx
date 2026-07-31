@@ -1,4 +1,4 @@
-import type { PluginContext, PluginMapSelection, PluginQueryResult, PluginTheme } from 'frontend-plugin-types';
+import type { PluginContext, PluginFilteredData, PluginMapSelection, PluginQueryResult, PluginTheme } from 'frontend-plugin-types';
 import './App.css';
 import { Page } from './components/ProviderComponent';
 
@@ -24,11 +24,30 @@ const useMockDataFilterQuery = (): PluginQueryResult<string> => ({
   isError: false,
 });
 
+const useMockFilteredCoverageQuery = (): PluginQueryResult<PluginFilteredData> => ({
+  data: {
+    datasets: [
+      {
+        id: 'mock-dataset-id',
+        name: 'Mock Dataset',
+        data_type: 'point',
+        visibility: 'public',
+        dataset_layer_count: 1,
+        raster_layer_count: 0,
+      },
+    ],
+    raster_filters: {},
+  },
+  isLoading: false,
+  isError: false,
+});
+
 const mockContext: PluginContext = {
   user: { profile: { name: 'Local Preview User' } },
   mapSelection: mockMapSelection,
   useTheme: useMockTheme,
   useDataFilterQuery: useMockDataFilterQuery,
+  useFilteredCoverageQuery: useMockFilteredCoverageQuery,
 };
 
 const App = () => {

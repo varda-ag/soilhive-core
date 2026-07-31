@@ -1,10 +1,11 @@
 import { useMemo } from 'react';
-import type { PluginDataFilterInput, PluginGeometry, PluginQueryResult, PluginTheme } from 'frontend-plugin-types';
+import type { PluginDataFilterInput, PluginFilteredData, PluginGeometry, PluginQueryResult, PluginTheme } from 'frontend-plugin-types';
 import type { DataFilterDTO, GISDataType } from 'types/backend';
 import type { PluginContext } from 'types/plugins';
 import { useAuthContext } from '../auth/AuthContextProvider';
 import useAvailabilityMap from './useAvailabilityMap';
 import { useDataFilterQuery as useHostDataFilterQuery } from './useDataFilterQuery';
+import { useFilteredCoverageQuery as useHostFilteredCoverageQuery } from './useFilteredCoverageQuery';
 import useHostTheme from './useTheme';
 
 function usePluginTheme(): PluginQueryResult<PluginTheme> {
@@ -32,6 +33,11 @@ function usePluginDataFilterQuery(filters: PluginDataFilterInput, enabled?: bool
   return { data: filterId, isLoading, isError: false };
 }
 
+function usePluginFilteredCoverageQuery(filterId: string | undefined, geometryOnly?: boolean): PluginQueryResult<PluginFilteredData> {
+  const { data, isLoading } = useHostFilteredCoverageQuery(filterId, geometryOnly);
+  return { data: data as PluginFilteredData | undefined, isLoading, isError: false };
+}
+
 export function usePluginContext(): PluginContext {
   const { user } = useAuthContext();
   const { selectedPoint, selectedH3Cell, selection, boundingBox, geometryFilter, selectionType, locationName } = useAvailabilityMap();
@@ -44,6 +50,7 @@ export function usePluginContext(): PluginContext {
       user: user ? { profile: { name: user.profile?.name, email: user.profile?.email } } : user,
       useTheme: usePluginTheme,
       useDataFilterQuery: usePluginDataFilterQuery,
+      useFilteredCoverageQuery: usePluginFilteredCoverageQuery,
       // Narrow explicitly too: selectedPoint/selectedH3Cell are maplibre-gl
       // classes, not plain data, which PluginContext's thin contract must not depend on.
       mapSelection: {
