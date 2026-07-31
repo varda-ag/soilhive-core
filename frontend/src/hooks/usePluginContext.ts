@@ -1,11 +1,26 @@
 import { useMemo } from 'react';
-import type { PluginDataFilterInput, PluginFilteredData, PluginGeometry, PluginQueryResult, PluginTheme } from 'frontend-plugin-types';
+import type {
+  PluginDataFilterInput,
+  PluginFilteredData,
+  PluginGeometry,
+  PluginQueryResult,
+  PluginRasterFilterCategory,
+  PluginSoilDataParameters,
+  PluginSoilDataResult,
+  PluginSoilProperty,
+  PluginSoilPropertyCategory,
+  PluginTheme,
+} from 'frontend-plugin-types';
 import type { DataFilterDTO, GISDataType } from 'types/backend';
 import type { PluginContext } from 'types/plugins';
 import { useAuthContext } from '../auth/AuthContextProvider';
 import useAvailabilityMap from './useAvailabilityMap';
 import { useDataFilterQuery as useHostDataFilterQuery } from './useDataFilterQuery';
 import { useFilteredCoverageQuery as useHostFilteredCoverageQuery } from './useFilteredCoverageQuery';
+import { usePropertiesCategories as useHostPropertiesCategories } from './usePropertiesCategories';
+import { useRaster as useHostRaster } from './useRaster';
+import { useSoilData as useHostSoilData } from './useSoilData';
+import { useSoilProperties as useHostSoilProperties } from './useSoilProperties';
 import useHostTheme from './useTheme';
 
 function usePluginTheme(): PluginQueryResult<PluginTheme> {
@@ -38,6 +53,26 @@ function usePluginFilteredCoverageQuery(filterId: string | undefined, geometryOn
   return { data: data as PluginFilteredData | undefined, isLoading, isError: false };
 }
 
+function usePluginSoilProperties(): PluginQueryResult<PluginSoilProperty[]> {
+  const { data, isLoading, isError } = useHostSoilProperties();
+  return { data, isLoading, isError };
+}
+
+function usePluginPropertiesCategories(): PluginQueryResult<PluginSoilPropertyCategory[]> {
+  const { data, isLoading, isError } = useHostPropertiesCategories();
+  return { data, isLoading, isError };
+}
+
+function usePluginRasterCategories(): PluginQueryResult<PluginRasterFilterCategory[]> {
+  const { allCategories, isLoading } = useHostRaster();
+  return { data: allCategories, isLoading, isError: false };
+}
+
+function usePluginSoilData(parameters: PluginSoilDataParameters): PluginSoilDataResult {
+  const { allData, isLoading, hasMore, loadMore, reset } = useHostSoilData(parameters);
+  return { data: allData, isLoading, hasMore, loadMore, reset };
+}
+
 export function usePluginContext(): PluginContext {
   const { user } = useAuthContext();
   const { selectedPoint, selectedH3Cell, selection, boundingBox, geometryFilter, selectionType, locationName } = useAvailabilityMap();
@@ -51,6 +86,10 @@ export function usePluginContext(): PluginContext {
       useTheme: usePluginTheme,
       useDataFilterQuery: usePluginDataFilterQuery,
       useFilteredCoverageQuery: usePluginFilteredCoverageQuery,
+      useSoilProperties: usePluginSoilProperties,
+      usePropertiesCategories: usePluginPropertiesCategories,
+      useRasterCategories: usePluginRasterCategories,
+      useSoilData: usePluginSoilData,
       // Narrow explicitly too: selectedPoint/selectedH3Cell are maplibre-gl
       // classes, not plain data, which PluginContext's thin contract must not depend on.
       mapSelection: {
