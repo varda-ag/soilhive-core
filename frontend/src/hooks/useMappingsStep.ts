@@ -23,7 +23,7 @@ import type {
   ProcedurePayload,
   ProcedureResponse,
 } from 'types/backend';
-import type { MenuOption } from 'types/components';
+import type { MenuOption } from 'components/UI/types';
 import { useDataset } from './useDatasets';
 
 export interface RowDetails {

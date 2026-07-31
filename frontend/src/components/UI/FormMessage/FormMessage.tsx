@@ -1,9 +1,9 @@
 import { useMemo } from 'react';
 import classnames from 'classnames';
 
-import WarningIcon from 'assets/icons/small-warning-icon.svg?react';
-import QuestionIcon from 'assets/icons/question-round-icon.svg?react';
-import InfoIcon from 'assets/icons/small-info-icon.svg?react';
+import WarningIcon from '../assets/icons/small-warning-icon.svg?react';
+import QuestionIcon from '../assets/icons/question-round-icon.svg?react';
+import InfoIcon from '../assets/icons/small-info-icon.svg?react';
 
 import styles from './FormMessage.module.scss';
 

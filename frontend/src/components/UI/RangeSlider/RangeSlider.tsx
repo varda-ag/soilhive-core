@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type ChangeEvent } from 'react';
 import classnames from 'classnames';
 
-import type { ComponentSizeType } from 'types/components';
+import type { ComponentSizeType } from '../types';
 
 import styles from './RangeSlider.module.scss';
 

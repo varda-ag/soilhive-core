@@ -2,6 +2,12 @@ import { render } from '@testing-library/react';
 import { DatasetsSoilDataStep } from '../../../src/pages/AdminPortal/DatasetsSoilDataStep/DatasetsSoilDataStep';
 import { useDatasetsSoilData } from 'hooks/useDatasetsSoilData';
 
+jest.mock('react-i18next', () => ({
+  ...jest.requireActual('react-i18next'),
+  useTranslation: () => ({ t: (key: string) => key }),
+  Trans: ({ i18nKey }: { i18nKey: string }) => <>{i18nKey}</>,
+}));
+
 jest.mock('hooks/useDatasetsSoilData', () => ({
   useDatasetsSoilData: jest.fn(),
   ALLOWED_EXTENSIONS: [],

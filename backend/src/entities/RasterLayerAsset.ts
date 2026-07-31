@@ -12,9 +12,8 @@ export default class RasterLayerAssetEntity extends BaseTable implements RasterL
   })
   id: string;
 
-  @Column({ type: 'text' })
-  slug: string;
-
+  // No slug: an asset is reached through its raster layer, and the thing a user downloads is the
+  // File, which carries its own slug and slug history. The column never existed in the schema.
   @Column({ type: 'uuid' })
   file_id: string;
 

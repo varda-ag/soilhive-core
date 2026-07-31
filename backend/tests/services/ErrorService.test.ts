@@ -58,6 +58,36 @@ describe('ErrorService.getDatasetErrors', () => {
     expect(result[0]!.errors[0]!.detail).toBeUndefined();
   });
 
+  it('reads raster-load failures too, not only file-to-db and bulk-load', async () => {
+    const service = new ErrorService();
+    const entityManager = makeEntityManager([]);
+    await service.getDatasetErrors({ entityManager, entitlements: {} });
+    // A raster load's JobError is written into the job's data like any other; excluding the queue
+    // here is what used to make every RL_ code unreachable from the API.
+    expect(entityManager.query.mock.calls[0]![0]).toContain("'raster-load'");
+  });
+
+  it('clears raster-load failures too', async () => {
+    const service = new ErrorService();
+    const entityManager = makeEntityManager([]);
+    await service.clearDatasetErrors('ds-1', entityManager);
+    expect(entityManager.query.mock.calls[0]![0]).toContain("'raster-load'");
+  });
+
+  it('translates a raster layer asset error with its params interpolated', async () => {
+    const service = new ErrorService();
+    const rows = [
+      {
+        dataset_id: 'ds-3',
+        errors: [{ code: 'RL_ASSET_FILE_NOT_FOUND', params: { file_name: 'soc.tif', band: '2', file_id: 'technical-manual' } }],
+      },
+    ];
+    const result = await service.getDatasetErrors({ entityManager: makeEntityManager(rows), entitlements: {} });
+    expect(result[0]!.errors[0]!.message).toBe(
+      "An additional resource for band 2 of 'soc.tif' points at file 'technical-manual', which does not exist.",
+    );
+  });
+
   it('handles multiple datasets each with their own error', async () => {
     const service = new ErrorService();
     const rows = [

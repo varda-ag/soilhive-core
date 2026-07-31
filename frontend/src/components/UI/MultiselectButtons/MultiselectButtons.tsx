@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import classnames from 'classnames';
-import type { Selection } from 'types/components';
+import type { Selection } from '../types';
 import { MultiselectButton } from './MultiselectButton/MultiselectButton';
 
 import styles from './MultiselectButtons.module.scss';

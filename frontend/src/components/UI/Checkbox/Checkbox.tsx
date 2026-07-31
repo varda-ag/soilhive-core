@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type ChangeEvent, type ReactNode } from 'react';
 import classnames from 'classnames';
 
-import type { ComponentSizeType } from 'types/components';
+import type { ComponentSizeType } from '../types';
 
 import styles from './Checkbox.module.scss';
 

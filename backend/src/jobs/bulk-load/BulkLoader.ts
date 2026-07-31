@@ -18,7 +18,7 @@ import { CleaningReport } from '../../interfaces/CleaningReport';
 import { ProcessingSteps } from '../../interfaces/Dataset';
 import { JobError } from '../../errors/JobError';
 import ErrorService from '../../services/ErrorService';
-import { ErrorResponse, getErrorMessage } from '../../utils/error';
+import { ErrorResponse } from '../../utils/error';
 import { getLoopbackUrl, getRawTableName, signToken } from '../../utils/utils';
 import { updateDatasetMetadata } from './UpdateDatasetMetadata';
 import { FileStorage } from '@flystorage/file-storage';
@@ -26,8 +26,7 @@ import FileService from '../../services/FileService';
 import EntitlementService from '../../services/EntitlementService';
 import { EVERYONE, INTERNAL_REQUEST_TOKEN_PAYLOAD } from '../../constants/constants';
 import { createCursor, encodeCursor } from '../../utils/cursor';
-import { updateJobState } from '../../services/PgBoss';
-import { log } from '../../utils/logger';
+import { progressReporter } from '../../services/PgBoss';
 import { DataCleaningConfig } from '../../interfaces/DataMapping';
 
 // Record loading owns 0..LOAD_PROGRESS_CEILING; the remainder covers dataset metadata.
@@ -131,17 +130,6 @@ const getStagedFilesWithMapping = async (entityManager: EntityManager, mappings:
   const files = await repo.find({ where: { status: IngestionStatus.STAGED, id: In(mappings.map(m => m.file_id)) } });
   return files;
 };
-
-// Progress is telemetry: a failed write must never abort a load that is otherwise fine.
-const progressReporter =
-  (jobId: string) =>
-  async (progress_percentage: number, progress_description: string): Promise<void> => {
-    try {
-      await updateJobState(jobId, { progress_percentage, progress_description });
-    } catch (error) {
-      log.warn('Failed to write bulk load progress', { job_id: jobId, error: getErrorMessage(error) });
-    }
-  };
 
 const loadPercentage = (recordsProcessed: number, totalRecords: number): number =>
   totalRecords > 0 ? Math.round((LOAD_PROGRESS_CEILING * recordsProcessed) / totalRecords) : 0;

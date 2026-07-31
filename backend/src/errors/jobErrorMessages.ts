@@ -64,6 +64,50 @@ const JOB_ERROR_MESSAGES: Record<string, JobErrorMessage> = {
       'If it keeps failing, double check your data against the guidelines in the documentation at: https://github.com/varda-ag/soilhive-core/blob/main/docs/data-model/1-data-management-portal.md#soil-data--upload-your-files',
     ],
   },
+  RL_MISSING_BAND_MAPPING: {
+    message: 'A raster file in this dataset has no band mapping configured.',
+    actions: ["Go to the dataset's mapping step and declare what each band of every raster file measures, then retry data loading."],
+  },
+  RL_INVALID_BAND: {
+    message: "The band mapping for '{file_name}' refers to band {band}, which the file does not have (it has {band_count}).",
+    actions: [
+      "Open the mapping for '{file_name}' and map only bands 1 to {band_count}.",
+      'If you expected more bands, re-upload the file and check it converted correctly.',
+    ],
+  },
+  RL_ASSET_URL_UNSUPPORTED: {
+    message: "An additional resource for band {band} of '{file_name}' is declared by URL, which cannot be loaded yet.",
+    actions: [
+      "Upload the resource as a file, then reference it in the band mapping by that file's id as file_id instead of a url.",
+      'Downloading a resource straight from a URL is not implemented yet.',
+    ],
+  },
+  RL_MISSING_ASSET_REFERENCE: {
+    message: "An additional resource for band {band} of '{file_name}' names neither a file_id nor a url.",
+    actions: ["Open the mapping for '{file_name}' and give every additional resource a file id as file_id, or remove the empty entry."],
+  },
+  RL_ASSET_FILE_NOT_FOUND: {
+    message: "An additional resource for band {band} of '{file_name}' points at file '{file_id}', which does not exist.",
+    actions: [
+      "Check that '{file_id}' is the id of an uploaded file, and correct it in the band mapping.",
+      'The referenced file may have been deleted since the mapping was written.',
+    ],
+  },
+  RL_CONVERSION_FAILED: {
+    message: "'{file_name}' could not be normalized for ingestion ({reasons}).",
+    actions: [
+      'Check the raster opens in QGIS or with gdalinfo, then retry data loading.',
+      'If it keeps failing, convert it manually with convert_raster.sh and re-upload the result.',
+    ],
+  },
+  RL_UNIT_NOT_CONVERTIBLE: {
+    message:
+      "Band {band} of '{file_name}' is in '{original_unit}' but '{soil_property}' is stored in '{standard_unit}', and the conversion '{formula}' cannot be applied automatically.",
+    actions: [
+      'Only a single multiplication of every pixel can be applied during loading.',
+      'Re-scale the raster yourself so its values are already in {standard_unit}, then re-upload the file.',
+    ],
+  },
   BL_RECORD_VALIDATION_FAILED: {
     message: "A record was rejected because field '{field}' {issue}.",
     actions: [

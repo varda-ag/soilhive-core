@@ -8,7 +8,8 @@ import BiologicalIcon from 'assets/icons/biological-icon.svg?react';
 import ChemicalIcon from 'assets/icons/chemical-icon.svg?react';
 import DerivedIcon from 'assets/icons/derived-icon.svg?react';
 import PhysicalIcon from 'assets/icons/physical-icon.svg?react';
-import type { AccordionRef, NestedCheckboxRef } from 'types/components';
+import type { NestedCheckboxRef } from 'types/components';
+import type { AccordionRef } from 'components/UI/types';
 import useSoilPropertiesFilters from 'hooks/useSoilPropertiesFilters';
 
 import styles from './FilteringSidebarParameters.module.scss';

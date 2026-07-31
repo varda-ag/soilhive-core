@@ -9,7 +9,7 @@ import { app } from '../../../src/app';
 import DatasetEntity from '../../../src/entities/Dataset';
 import FeatureEntity from '../../../src/entities/Feature';
 import FileEntity from '../../../src/entities/File';
-import { BulkLoadJob, ExportJob } from '../../../src/interfaces/Job';
+import { BulkLoadJob } from '../../../src/interfaces/Job';
 import * as BulkLoaderModule from '../../../src/jobs/bulk-load/BulkLoader';
 import * as PgBossModule from '../../../src/services/PgBoss';
 import { updateDatasetMetadata } from '../../../src/jobs/bulk-load/UpdateDatasetMetadata';
@@ -153,12 +153,19 @@ describe('BulkLoader class', () => {
         expect(response.statusCode).toBe(StatusCodes.CREATED);
         return response;
       });
-    const mockUpdateJobState = jest.spyOn(PgBossModule, 'updateJobState').mockResolvedValue(undefined);
+    // Intercept progressReporter rather than updateJobState: BulkLoader resolves
+    // progressReporter through the module namespace, so a spy is seen, whereas
+    // progressReporter's own call to updateJobState is module-local and never is.
+    const updates: { progress_percentage: number; progress_description: string }[] = [];
+    const mockProgressReporter = jest
+      .spyOn(PgBossModule, 'progressReporter')
+      .mockReturnValue(async (progress_percentage, progress_description) => {
+        updates.push({ progress_percentage, progress_description });
+      });
 
     await BulkLoaderModule.processBulkLoad(getJob(dataset.slug));
 
-    const updates = mockUpdateJobState.mock.calls.map(([, update]) => update as Partial<ExportJob>);
-    const percentages = updates.map(u => u.progress_percentage!);
+    const percentages = updates.map(u => u.progress_percentage);
 
     expect(percentages.every(Number.isInteger)).toBe(true);
     expect(percentages).toEqual([...percentages].sort((a, b) => a - b));
@@ -168,15 +175,15 @@ describe('BulkLoader class', () => {
 
     // Loading spans everything up to the metadata step, and must stay under the ceiling.
     const loading = updates.slice(2, -2);
-    expect(Math.max(...loading.map(u => u.progress_percentage!))).toBe(90);
+    expect(Math.max(...loading.map(u => u.progress_percentage))).toBe(90);
     // Both files hold the same number of records, so the denominator is only global if
     // the bar sits at 45 when the second file starts.
-    expect(loading.find(u => u.progress_description?.includes('(2 of 2)'))).toMatchObject({ progress_percentage: 45 });
+    expect(loading.find(u => u.progress_description.includes('(2 of 2)'))).toMatchObject({ progress_percentage: 45 });
 
     expect(updates.at(-2)).toEqual({ progress_percentage: 90, progress_description: 'Computing dataset metadata...' });
     expect(updates.at(-1)).toEqual({ progress_percentage: 100, progress_description: 'Bulk load complete' });
 
-    mockUpdateJobState.mockRestore();
+    mockProgressReporter.mockRestore();
     mockMakeRequest.mockRestore();
   });
 

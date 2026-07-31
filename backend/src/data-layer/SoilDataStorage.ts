@@ -351,8 +351,11 @@ export default class SoilDataStorage {
       spatialFilterByCte(entityManager, aoiCtes, { name: 'geometryIds', value: geometryIds }, candidateIds),
     );
 
-    const hasDataPaths = new Set(candidates.map(r => r.file_path));
-    if (hasDataPaths.size === 0) return [];
+    // Aggregate over the layers that actually survived the footprint intersection, not over their
+    // files: a file backs one layer per band, and sibling bands have their own footprints, so
+    // matching by file_path would fold in bands that are not in the AOI at all.
+    const survivingLayerIds = candidates.map(r => r.id);
+    if (survivingLayerIds.length === 0) return [];
 
     // Step 3 — aggregate surviving layers into dataset summaries
     // Assess whether this performs better calculated in memory (one less query, up to ~1.5k records in memory)
@@ -373,7 +376,7 @@ export default class SoilDataStorage {
       .addSelect('COALESCE(MIN(rl.reference_period_start), ds.reference_period_start)', 'min_sampling_date')
       .addSelect('COALESCE(MAX(rl.reference_period_stop), ds.reference_period_stop)', 'max_sampling_date')
       .addSelect("STRING_AGG(DISTINCT sp.slug, ',')", 'soil_properties')
-      .where('f.file_path IN (:...hasDataPaths)', { hasDataPaths: [...hasDataPaths] })
+      .where('rl.id IN (:...survivingLayerIds)', { survivingLayerIds })
       .groupBy(
         'ds.slug, ds.name, ds.gis_datatype, ds.visibility, ds.licenses, ds.soil_depth, ds.reference_period_start, ds.reference_period_stop',
       );
@@ -446,6 +449,7 @@ export default class SoilDataStorage {
         .select('rl.id', 'id')
         .addSelect('ds.name', 'dataset_name')
         .addSelect('f.file_path', 'path')
+        .addSelect('rl.band', 'band')
         .addSelect('rl.min_depth', 'min_depth')
         .addSelect('rl.max_depth', 'max_depth')
         .addSelect('rl.reference_period_start', 'reference_period_start')
@@ -469,6 +473,7 @@ export default class SoilDataStorage {
         id: row.id,
         dataset_name: row.dataset_name,
         path: row.path,
+        band: Number(row.band),
         min_depth: row.min_depth,
         max_depth: row.max_depth,
         reference_period_start: row.reference_period_start,
@@ -1403,6 +1408,7 @@ const spatialFilterByCte = async (
     .innerJoin('raster_footprints', 'rf', 'rf.id = rlf.raster_footprint_id')
     .select('rl.id', 'id')
     .addSelect('f.file_path', 'file_path')
+    .addSelect('rl.band', 'band')
     .addSelect('rl.resolution_m', 'resolution_m')
     .where('rl.id IN (:...candidateLayers)', { candidateLayers })
     .andWhere('EXISTS (SELECT 1 FROM aoi WHERE ST_Intersects(rf.geom, aoi.geom))')

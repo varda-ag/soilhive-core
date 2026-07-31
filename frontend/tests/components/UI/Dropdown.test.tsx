@@ -2,12 +2,15 @@ import { useState } from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { Dropdown } from 'components/UI/Dropdown/Dropdown';
 
-jest.mock('components/UI', () => ({
+jest.mock('components/UI/FormFieldWrapper/FormFieldWrapper', () => ({
   FormFieldWrapper: ({ children, className }: any) => (
     <div data-testid="mock-wrapper" className={className}>
       {children}
     </div>
   ),
+}));
+
+jest.mock('components/UI/Menu/Menu', () => ({
   Menu: ({ options, onSelect, isMultiselect, selectedOptions }: any) => {
     const [selected, setSelected] = useState<string[]>(selectedOptions || []);
     const handleSelect = (code: string) => {

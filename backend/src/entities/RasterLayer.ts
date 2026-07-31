@@ -24,6 +24,11 @@ export default class RasterLayerEntity extends BaseTable implements RasterLayer 
   @JoinColumn({ name: 'file_id' })
   file: FileEntity;
 
+  // 1-based, matching GDAL and the band_number reported in file metadata.
+  // (file_id, band) is unique among non-deleted rows.
+  @Column({ type: 'int', default: 1 })
+  band: number;
+
   @Column({ type: 'int' })
   resolution_m: number;
 

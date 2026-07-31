@@ -32,10 +32,12 @@ export function nodataFromImage(image: GeoTIFFImage): number {
 }
 
 /**
- * Reads raster metadata (nodata, pixel resolution, bbox) via gdalinfo.
- * nodataOverride takes precedence over the value embedded in the file.
+ * Reads raster metadata (nodata, pixel resolution, bbox) via gdalinfo for one band.
+ *
+ * `resolution` and `bbox` are properties of the file and identical for every band;
+ * `nodata` is read from the requested band. `band` is 1-based, matching GDAL.
  */
-export async function analyzeRasterMeta(cogPath: string, nodataOverride?: number): Promise<RasterMeta> {
+export async function analyzeRasterMeta(cogPath: string, band: number): Promise<RasterMeta> {
   const { mainFilePath } = await FileService.getMainFilePath(cogPath);
   const info = await GdalCLI.gdalinfo(mainFilePath);
 
@@ -50,7 +52,7 @@ export async function analyzeRasterMeta(cogPath: string, nodataOverride?: number
   const xMax = xMin + rasterNativeWidth * pixW;
   const yMin = yMax + rasterNativeHeight * pixH;
 
-  const nodata: number | null = nodataOverride !== undefined ? nodataOverride : (info.bands?.[0]?.noDataValue ?? null);
+  const nodata: number | null = info.bands?.[band - 1]?.noDataValue ?? null;
 
   const isGeo = (info.coordinateSystem?.wkt?.includes('GEOGCS') || info.coordinateSystem?.wkt?.includes('GEOGCRS')) ?? true;
   const resolution = Math.round(Math.abs(pixW) * (isGeo ? 111320 : 1));

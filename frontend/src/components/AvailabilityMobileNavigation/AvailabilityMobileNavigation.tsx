@@ -2,7 +2,7 @@ import MapIcon from 'assets/icons/earth-icon.svg?react';
 import FiltersIcon from 'assets/icons/filter2-icon.svg?react';
 import DatasetsMobileIcon from 'assets/icons/newspaper-icon.svg?react';
 import { MobileTabNavigation } from 'components/UI';
-import type { MobileTabNavigationConfig } from 'types/components';
+import type { MobileTabNavigationConfig } from 'components/UI/types';
 import { useTranslation } from 'react-i18next';
 
 export const AVAILABILITY_MOBILE_TABS = {

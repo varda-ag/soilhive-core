@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent, act } from '@testing-library/react';
-import type { AccordionRef } from 'types/components';
+import type { AccordionRef } from 'components/UI/types';
 import { Accordion } from 'components/UI/Accordion/Accordion';
 
 describe('Accordion component', () => {

@@ -12,6 +12,9 @@ import { RequestData } from '../../src/interfaces/RequestData';
 import FileService from '../../src/services/FileService';
 import * as BulkLoaderModule from '../../src/jobs/bulk-load/BulkLoader';
 import * as SoilExportJobModule from '../../src/jobs/soil-export/soilExportJob';
+import { VectorFileMetadata } from '../../src/interfaces/File';
+import { addDataset } from '../../src/utils/mock';
+import { GISDataType } from '../../src/types/data';
 
 const mockToken: Token = {
   sub: 'test-user-id',
@@ -40,7 +43,7 @@ describe('Testing /jobs routes', () => {
     await stopPgBoss();
   });
 
-  it.each([JobQueues.BULK_LOAD, JobQueues.FILE_TO_DB, JobQueues.BULK_DELETE])(
+  it.each([JobQueues.BULK_LOAD, JobQueues.RASTER_LOAD, JobQueues.FILE_TO_DB, JobQueues.BULK_DELETE])(
     'POST /jobs without a token trying to create a token protected job fails with HTTP 401',
     async (queue: string) => {
       const bulkRes = await request(app).post('/jobs').send({ type: queue, dataset_id: 'test-dataset' });
@@ -119,6 +122,40 @@ describe('Testing /jobs routes', () => {
     expect(statusRes.body.status).toBe('completed');
   });
 
+  // Kept after the GET /jobs count assertion above: these add jobs owned by the
+  // same data admin, which would otherwise show up in that list.
+  it('POST /jobs creates a raster load job that the worker drains', async () => {
+    const token = await getDataAdminToken();
+
+    // The real processRasterLoad runs here: it resolves the dataset up front, so without this row
+    // the job fails instead of draining. With no staged files it has nothing to ingest and completes.
+    await addDataset('test-dataset', [-180, -90, 180, 90], GISDataType.RASTER);
+
+    const res = await request(app)
+      .post('/jobs')
+      .send({ type: 'raster-load', dataset_id: 'test-dataset' })
+      .set('Authorization', `Bearer ${token}`);
+    expect(res.statusCode).toBe(201);
+    expect(res.body.queue).toBe(JobQueues.RASTER_LOAD);
+
+    const spy = getPgBoss().getSpy(JobQueues.RASTER_LOAD);
+    await spy.waitForJobWithId(res.body.id, 'completed');
+
+    const statusRes = await request(app).get(`/jobs/${res.body.id}`).set('Authorization', `Bearer ${token}`);
+    expect(statusRes.statusCode).toBe(200);
+    expect(statusRes.body.status).toBe('completed');
+  });
+
+  it('POST /jobs rejects a raster load job carrying delete_source_files', async () => {
+    const token = await getDataAdminToken();
+
+    const res = await request(app)
+      .post('/jobs')
+      .send({ type: 'raster-load', dataset_id: 'test-dataset', delete_source_files: true })
+      .set('Authorization', `Bearer ${token}`);
+    expect(res.statusCode).toBe(400);
+  });
+
   it('GET /jobs/:id returns 404 for unknown ID', async () => {
     const token = await getDataAdminToken();
     const res = await request(app).get(`/jobs/not-a-real-id`).set('Authorization', `Bearer ${token}`);
@@ -139,7 +176,7 @@ describe('Testing /jobs routes', () => {
 
     const testWorker = async (index: number): Promise<void> => {
       // Create file in DB
-      const metadata = {
+      const metadata: VectorFileMetadata = {
         driver: 'GeoJSON',
         field_names: ['metadata', 'rawParameters'],
         detected_fields: {
@@ -156,6 +193,7 @@ describe('Testing /jobs routes', () => {
         geometry_detected: true,
         epsg: 4326,
         detected_mapping: {},
+        is_raster: false,
       };
       const file = {
         name: `sample_point_${index}.geojson`,
