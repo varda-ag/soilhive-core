@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      frontend-plugin-types:
+        specifier: link:../frontend-plugin-types
+        version: link:../frontend-plugin-types
       react:
         specifier: 19.2.0
         version: 19.2.0
@@ -368,21 +371,25 @@ packages:
     resolution: {integrity: sha512-UAWCsOnpkvy8eAVRo0uipbHXDhnoDq5zmqWTMhpga0/a3yzCp2e+fnjZb/qnFNYb5MeL0O1mwMOYgn1M3oHILQ==}
     cpu: [arm64]
     os: [linux]
+    libc: [glibc]
 
   '@rspack/binding-linux-arm64-musl@1.5.8':
     resolution: {integrity: sha512-GnSvGT4GjokPSD45cTtE+g7LgghuxSP1MRmvd+Vp/I8pnxTVSTsebRod4TAqyiv+l11nuS8yqNveK9qiOkBLWw==}
     cpu: [arm64]
     os: [linux]
+    libc: [musl]
 
   '@rspack/binding-linux-x64-gnu@1.5.8':
     resolution: {integrity: sha512-XLxh5n/pzUfxsugz/8rVBv+Tx2nqEM+9rharK69kfooDsQNKyz7PANllBQ/v4svJ+W0BRHnDL4qXSGdteZeEjA==}
     cpu: [x64]
     os: [linux]
+    libc: [glibc]
 
   '@rspack/binding-linux-x64-musl@1.5.8':
     resolution: {integrity: sha512-gE0+MZmwF+01p9/svpEESkzkLpBkVUG2o03YMpwXYC/maeRRhWvF8BJ7R3i/Ls/jFGSE87dKX5NbRLVzqksq/w==}
     cpu: [x64]
     os: [linux]
+    libc: [musl]
 
   '@rspack/binding-wasm32-wasi@1.5.8':
     resolution: {integrity: sha512-cfg3niNHeJuxuml1Vy9VvaJrI/5TakzoaZvKX2g5S24wfzR50Eyy4JAsZ+L2voWQQp1yMJbmPYPmnTCTxdJQBQ==}
