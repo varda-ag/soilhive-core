@@ -298,4 +298,95 @@ describe('Testing /jobs routes', () => {
 
     expect(restrictedRes.statusCode).toBe(400);
   });
+
+  describe('POST /jobs soil-statistics validation', () => {
+    // Everything here is rejected at enqueue time on purpose: this is the only point at
+    // which the caller's raw token exists (so external entitlements are visible), and a
+    // synchronous 4xx beats a job that fails minutes later.
+    const createFilter = async (geometries: object[], parameters: object = {}): Promise<string> => {
+      const res = await request(app).post('/data-filters').send({ geometries, parameters }).expect(201);
+      return res.body.id;
+    };
+
+    const polygon = {
+      type: 'Polygon',
+      coordinates: [
+        [
+          [0, 0],
+          [2, 0],
+          [2, 2],
+          [0, 2],
+          [0, 0],
+        ],
+      ],
+    };
+
+    it('rejects an unknown filter with 404', async () => {
+      const res = await request(app).post('/jobs').send({
+        type: JobQueues.SOIL_STATISTICS,
+        filter_id: '960ee487-a6bd-4da8-8ef0-da6ef23d0e80',
+      });
+      expect(res.statusCode).toBe(404);
+    });
+
+    it('rejects a filter with no geometries when no file_id is given', async () => {
+      const filterId = await createFilter([]);
+      const res = await request(app).post('/jobs').send({ type: JobQueues.SOIL_STATISTICS, filter_id: filterId });
+      expect(res.statusCode).toBe(400);
+      expect(res.body.detail).toContain('no geometries');
+    });
+
+    it('rejects label_field without file_id', async () => {
+      const filterId = await createFilter([polygon]);
+      const res = await request(app).post('/jobs').send({
+        type: JobQueues.SOIL_STATISTICS,
+        filter_id: filterId,
+        label_field: 'field_name',
+      });
+      expect(res.statusCode).toBe(400);
+      expect(res.body.detail).toContain('label_field requires file_id');
+    });
+
+    it('rejects a named dataset the caller cannot preview with 403', async () => {
+      const dataset = await addDataset('private-stats-ds', [0, 0, 2, 2], GISDataType.POINT);
+      const entityManager = await getEntityManager();
+      await entityManager.query(`UPDATE datasets SET visibility = 'private' WHERE id = $1`, [dataset.id]);
+
+      const filterId = await createFilter([polygon]);
+      const res = await request(app)
+        .post('/jobs')
+        .send({
+          type: JobQueues.SOIL_STATISTICS,
+          filter_id: filterId,
+          dataset_ids: [dataset.slug],
+        });
+      expect(res.statusCode).toBe(403);
+    });
+
+    it('accepts a valid request and enqueues on its own queue', async () => {
+      const dataset = await addDataset('public-stats-ds', [0, 0, 2, 2], GISDataType.POINT);
+      const filterId = await createFilter([polygon]);
+      const res = await request(app)
+        .post('/jobs')
+        .send({
+          type: JobQueues.SOIL_STATISTICS,
+          filter_id: filterId,
+          dataset_ids: [dataset.slug],
+          histogram_bins: 20,
+        });
+      expect(res.statusCode).toBe(201);
+      expect(res.body.queue).toBe(JobQueues.SOIL_STATISTICS);
+      expect(res.body.data.histogram_bins).toBe(20);
+    });
+
+    it('rejects a histogram_bins value outside the allowed range', async () => {
+      const filterId = await createFilter([polygon]);
+      const res = await request(app).post('/jobs').send({
+        type: JobQueues.SOIL_STATISTICS,
+        filter_id: filterId,
+        histogram_bins: 1,
+      });
+      expect(res.statusCode).toBe(400);
+    });
+  });
 });

@@ -1,12 +1,14 @@
 import { StatusCodes } from 'http-status-codes';
 import { RequestData } from '../interfaces/RequestData';
 import { ErrorResponse } from '../utils/error';
-import { AnyJob, ExportJob, Job } from '../interfaces/Job';
+import { AnyJob, ExportJob, Job, SoilStatisticsJob } from '../interfaces/Job';
 import { Capability, JobQueues } from '../types/enums';
 import { getPgBoss } from './PgBoss';
 import { JobWithMetadata, SendOptions } from 'pg-boss';
 import { createSignedPath } from '../utils/presigned-url';
 import EntitlementService from './EntitlementService';
+import FilterService from './FilterService';
+import FileService from './FileService';
 import { log } from '../utils/logger';
 
 const entitlementService = new EntitlementService();
@@ -37,6 +39,10 @@ export default class JobService {
       await entitlementService.enforceEntitlements(requestData, (data as ExportJob).dataset_ids, Capability.DOWNLOAD);
     }
 
+    if (data.type === JobQueues.SOIL_STATISTICS) {
+      await this.validateSoilStatisticsJob(requestData, data as SoilStatisticsJob);
+    }
+
     // Set owner and enqueue the job
     data.created_by = sub ?? null;
     data.isDataAdmin = requestData.token?.isDataAdmin;
@@ -49,6 +55,49 @@ export default class JobService {
     log.info('Job created', { queue: data.type, job_id: id, created_by: data.created_by ?? null });
     return this.getJobById(requestData, id);
   }
+
+  /**
+   * Enqueue-time validation for soil-statistics jobs.
+   *
+   * The PREVIEW check has to happen here, not only in the processor: this is the one
+   * place a raw token exists, so it is the only place external entitlements are visible
+   * (getUserEntitlements can only reach them with `token.raw`, which a job processor
+   * never has). It also turns "you named a dataset you cannot read" into a synchronous
+   * 403 instead of a job that fails minutes later.
+   *
+   * The filter and label field are checked for the same reason: a bad name should be a
+   * 400 on submission, not a failed job.
+   */
+  private validateSoilStatisticsJob = async (requestData: RequestData, data: SoilStatisticsJob): Promise<void> => {
+    const filterService = new FilterService();
+    // Throws 404 when the filter does not exist.
+    const filter = await filterService.getFilterById(requestData, data.filter_id);
+
+    if (!data.file_id && filter.geometryIds.length === 0) {
+      throw new ErrorResponse(
+        `Filter '${data.filter_id}' has no geometries: supply a file_id or a filter with an area of interest`,
+        StatusCodes.BAD_REQUEST,
+      );
+    }
+
+    if (data.label_field) {
+      if (!data.file_id) {
+        throw new ErrorResponse('Parameter label_field requires file_id', StatusCodes.BAD_REQUEST);
+      }
+      const file = await new FileService().getFile(requestData, data.file_id);
+      const metadata = file.metadata;
+      if (!metadata || metadata.is_raster) {
+        throw new ErrorResponse(`File '${data.file_id}' has no vector metadata to take label_field from`, StatusCodes.BAD_REQUEST);
+      }
+      if (!metadata.field_names.includes(data.label_field)) {
+        throw new ErrorResponse(`File '${data.file_id}' has no field named '${data.label_field}'`, StatusCodes.BAD_REQUEST);
+      }
+    }
+
+    if (data.dataset_ids && data.dataset_ids.length > 0) {
+      await entitlementService.enforceEntitlements(requestData, data.dataset_ids, Capability.PREVIEW);
+    }
+  };
 
   getJobs = async (requestData: RequestData): Promise<Job[]> => {
     const { sub } = requestData.token ?? {};

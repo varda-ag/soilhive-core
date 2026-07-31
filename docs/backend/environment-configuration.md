@@ -29,3 +29,8 @@ S3_STORAGE_ROOT_FOLDER=...
 - `JOB_GROUP_CONCURRENCY`: Limit concurrent jobs per group globally across all nodes (database tracking). Coordinates across distributed deployments via database queries.
 
 More information is available in `pg-boss` website.
+
+The `soil-statistics` job runs one at a time per node regardless of `JOB_LOCAL_CONCURRENCY`, and has its own limits:
+- `SOIL_STATISTICS_MAX_UNITS` (default `200`): most aggregation areas a single job will report on. The job fails above this rather than dropping areas. Raising it grows the JSON stored in the job's data — see `docs/adr/0021`.
+- `SOIL_STATISTICS_MAX_CELLS` (default `200000`): budget for the per-year/per-depth breakdown. Above it, whole dataset/soil-property groups lose their breakdown; headline statistics are unaffected.
+- `SOIL_STATISTICS_STATEMENT_TIMEOUT_MS` (default `1800000`, 30 minutes): statement timeout for the aggregation queries.

@@ -582,4 +582,109 @@ describe('Testing /data-filters routes', () => {
     expect(datasets.every(ds => ds.data_type === 'raster')).toBe(true);
     datasets.forEach(ds => expect(ds.visibility).toBe('private'));
   });
+
+  describe('GET /data-filters/{filterId}/geometries', () => {
+    const secondPolygon = {
+      type: 'Polygon',
+      coordinates: [
+        [
+          [3, 3],
+          [4, 3],
+          [4, 4],
+          [3, 4],
+          [3, 3],
+        ],
+      ],
+    };
+
+    it('returns the filter geometries as a GeoJSON FeatureCollection', async () => {
+      const resPost = await request(app)
+        .post('/data-filters')
+        .send({ parameters: {}, geometries: [filteringPolygon, secondPolygon] })
+        .expect(StatusCodes.CREATED);
+
+      const res = await request(app).get(`/data-filters/${resPost.body.id}/geometries`).expect(StatusCodes.OK);
+
+      expect(res.body.type).toBe('FeatureCollection');
+      expect(res.body.total).toBe(2);
+      expect(res.body.features).toHaveLength(2);
+      // A page that returned everything must not advertise a further page.
+      expect(res.body.next_cursor).toBeNull();
+      for (const feature of res.body.features) {
+        expect(feature.type).toBe('Feature');
+        expect(feature.id).toMatch(/^[0-9a-f-]{36}$/);
+        expect(feature.geometry.type).toBe('Polygon');
+        expect(feature.properties.area_m2).toBeGreaterThan(0);
+      }
+    });
+
+    it('walks every geometry exactly once across cursor pages', async () => {
+      const resPost = await request(app)
+        .post('/data-filters')
+        .send({ parameters: {}, geometries: [filteringPolygon, secondPolygon] })
+        .expect(StatusCodes.CREATED);
+
+      const seen: string[] = [];
+      let cursor: string | null = null;
+      let pages = 0;
+      do {
+        const query = `limit=1${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`;
+        const res = await request(app).get(`/data-filters/${resPost.body.id}/geometries?${query}`).expect(StatusCodes.OK);
+        expect(res.body.total).toBe(2); // total is page-independent
+        expect(res.body.features).toHaveLength(1);
+        seen.push(res.body.features[0].id);
+        cursor = res.body.next_cursor;
+        pages++;
+        expect(pages).toBeLessThanOrEqual(3); // guards against a cursor that never advances
+      } while (cursor !== null);
+
+      expect(pages).toBe(2);
+      expect(new Set(seen).size).toBe(2); // no duplicates, no omissions
+    });
+
+    it('rejects a malformed cursor with 400 rather than failing on the uuid cast', async () => {
+      const resPost = await request(app)
+        .post('/data-filters')
+        .send({ parameters: {}, geometries: [filteringPolygon] })
+        .expect(StatusCodes.CREATED);
+
+      await request(app).get(`/data-filters/${resPost.body.id}/geometries?cursor=not-base64`).expect(StatusCodes.BAD_REQUEST);
+
+      const wrongShape = Buffer.from(JSON.stringify({ id: 'nonsense' })).toString('base64');
+      await request(app)
+        .get(`/data-filters/${resPost.body.id}/geometries?cursor=${encodeURIComponent(wrongShape)}`)
+        .expect(StatusCodes.BAD_REQUEST);
+    });
+
+    it('returns an empty page for a well-formed cursor that points past the last geometry', async () => {
+      // Validation must reject only malformed cursors, not unknown ones: a valid id that
+      // is simply not on this filter is a legitimate (empty) page, never a 400.
+      const resPost = await request(app)
+        .post('/data-filters')
+        .send({ parameters: {}, geometries: [filteringPolygon] })
+        .expect(StatusCodes.CREATED);
+
+      const beyondLast = Buffer.from(JSON.stringify({ id: 'ffffffff-ffff-4fff-bfff-ffffffffffff' })).toString('base64');
+      const res = await request(app)
+        .get(`/data-filters/${resPost.body.id}/geometries?cursor=${encodeURIComponent(beyondLast)}`)
+        .expect(StatusCodes.OK);
+
+      expect(res.body.features).toEqual([]);
+      expect(res.body.next_cursor).toBeNull();
+      expect(res.body.total).toBe(1); // total stays the filter's real count
+    });
+
+    it('returns 404 for an unknown filter', async () => {
+      await request(app).get('/data-filters/960ee487-a6bd-4da8-8ef0-da6ef23d0e80/geometries').expect(StatusCodes.NOT_FOUND);
+    });
+
+    it('returns an empty collection for a filter without geometries', async () => {
+      const resPost = await request(app).post('/data-filters').send({ parameters: {}, geometries: [] }).expect(StatusCodes.CREATED);
+
+      const res = await request(app).get(`/data-filters/${resPost.body.id}/geometries`).expect(StatusCodes.OK);
+      expect(res.body.total).toBe(0);
+      expect(res.body.features).toEqual([]);
+      expect(res.body.next_cursor).toBeNull();
+    });
+  });
 });

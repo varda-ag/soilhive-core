@@ -371,6 +371,7 @@ paths:
                 - $ref: '#/components/schemas/ExportJob'
                 - $ref: '#/components/schemas/FileToDbJob'
                 - $ref: '#/components/schemas/BulkDeleteJob'
+                - $ref: '#/components/schemas/SoilStatisticsJob'
               discriminator:
                 propertyName: type
                 mapping:
@@ -379,6 +380,7 @@ paths:
                   export: '#/components/schemas/ExportJob'
                   file-to-db: '#/components/schemas/FileToDbJob'
                   bulk-delete: '#/components/schemas/BulkDeleteJob'
+                  soil-statistics: '#/components/schemas/SoilStatisticsJob'
       responses:
         '201':
           description: Async job started successfull
@@ -1217,6 +1219,59 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  /data-filters/{filterId}/geometries:
+    parameters:
+      - name: filterId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Unique filter identifier
+      - name: limit
+        in: query
+        required: false
+        description: Maximum number of geometries to return
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 1000
+          default: 100
+      - name: cursor
+        in: query
+        required: false
+        description: Opaque cursor from the previous page's next_cursor. Omit for the first page.
+        schema:
+          type: string
+    get:
+      x-eov-operation-handler: controllers/data-filters
+      x-eov-operation-id: getDataFilterGeometries
+      summary: Retrieves the filter's stored geometries, one Feature per Aggregation Unit
+      description: >-
+        Returns the canonical stored geometries of the filter as a GeoJSON
+        FeatureCollection, paginated with an opaque cursor. Each Feature id is the
+        geometry's identifier, which is what soil-statistics job output references as
+        unit_id. For a filter derived from an uploaded file this is the only way to read
+        its geometries, since the filter's own stored form does not contain them.
+        Walk pages by passing the previous response's next_cursor; a null next_cursor
+        means the last page was reached.
+      tags:
+        - data-filters
+      security:
+        - bearerAuth: []
+        - {}
+      responses:
+        '200':
+          description: Paginated GeoJSON FeatureCollection of the filter's geometries
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FilterGeometryCollection'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /data-filters/{filterId}/dai:
     parameters:
       - name: filterId
@@ -1977,6 +2032,57 @@ components:
     Geometry:
       $ref: '../src/GeoJSON-OAS3.yaml#/components/schemas/Geometry'
 
+    FilterGeometry:
+      type: object
+      description: One stored filter geometry — one Aggregation Unit of soil-statistics output.
+      properties:
+        type:
+          type: string
+          enum: [Feature]
+        id:
+          type: string
+          format: uuid
+          description: Geometry identifier, referenced as unit_id in soil-statistics output
+        geometry:
+          $ref: '#/components/schemas/Geometry'
+        properties:
+          type: object
+          properties:
+            area_m2:
+              type: number
+              nullable: true
+              description: Area of the whole geometry in m². Raster filters do not reduce it, so it overstates the area the statistics cover whenever they are applied.
+      required:
+        - type
+        - id
+        - geometry
+
+    FilterGeometryCollection:
+      type: object
+      description: Cursor-paginated GeoJSON FeatureCollection; total, limit and next_cursor are GeoJSON foreign members.
+      properties:
+        type:
+          type: string
+          enum: [FeatureCollection]
+        total:
+          type: integer
+          description: Total number of geometries on the filter, ignoring pagination
+        limit:
+          type: integer
+        next_cursor:
+          type: string
+          nullable: true
+          description: Pass as `cursor` to fetch the next page. Null on the last page.
+        features:
+          type: array
+          items:
+            $ref: '#/components/schemas/FilterGeometry'
+      required:
+        - type
+        - total
+        - next_cursor
+        - features
+
     FileDescriptor:
       type: object
       properties:
@@ -2702,6 +2808,57 @@ components:
             type: string
             format: uri
           description: Optional mapping of dataset_id to metadata URL for Readme.PDF
+
+    SoilStatisticsJob:
+      type: object
+      description: >-
+        Computes descriptive statistics over the observations matching a filter, reported
+        per aggregation area, dataset, soil property, sampling year and depth interval.
+        The result is written into the job's own data and read back via GET /jobs/{jobId}.
+        Raster datasets never contribute — their measurements are pixels, not observations.
+      required:
+        - type
+        - filter_id
+      properties:
+        type:
+          type: string
+          enum: [soil-statistics]
+          description: Job type
+        anonymous:
+          type: boolean
+          description: Set to true to allow access without authentication
+        filter_id:
+          type: string
+          format: uuid
+          description: >-
+            Filter supplying the criteria. Also supplies the aggregation areas, unless
+            file_id is given — in which case the filter's own geometries are not used.
+        file_id:
+          type: string
+          description: >-
+            Optional spatial file whose geometries each become one aggregation area. Must
+            be a vector file with a known EPSG code and only polygon or multipolygon
+            geometries; a multipolygon counts as one area. The number of geometries is
+            capped by server configuration.
+        dataset_ids:
+          type: array
+          items:
+            type: string
+          description: >-
+            Optional list of dataset IDs. When given, preview access to each is enforced
+            on submission. When omitted, every dataset the filter matches is used and
+            those without preview access are skipped and reported in skipped_datasets.
+        histogram_bins:
+          type: integer
+          minimum: 2
+          maximum: 100
+          default: 10
+          description: Number of equal-width histogram bins spanning each cell's min-max range
+        label_field:
+          type: string
+          description: >-
+            Optional field of file_id whose value labels each aggregation area. Must name
+            an existing field of that file.
 
     FileToDbJob:
       type: object

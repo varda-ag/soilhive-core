@@ -129,6 +129,80 @@ When the job is retrieved via `GET /jobs/{jobId}`, the `download_path` is return
 
 ---
 
+## `soil-statistics`
+
+Extracts descriptive statistics from soil observations matching a filter, reported per spatial area, dataset, soil property, sampling year and depth interval. The result is written into the job's own data and read back through `GET /jobs/{jobId}`.
+
+> Not to be confused with `GET /datasets/{datasetId}/dataset-file-mapping/{id}/soil-data/stats`, which returns an ingest **cleaning report** — how many raw cells and rows were rejected. The two are unrelated.
+
+**Trigger**
+```json
+POST /jobs
+{
+  "type": "soil-statistics",
+  "filter_id": "<uuid>",
+  "file_id": "<file_id>",
+  "dataset_ids": ["<dataset_id>", "..."],
+  "histogram_bins": 10,
+  "label_field": "field_name"
+}
+```
+
+Only `filter_id` is required.
+
+### Aggregation areas
+
+Statistics are grouped by **aggregation unit**, and each unit is one stored filter geometry:
+
+- **without `file_id`** — one unit per geometry of `filter_id`;
+- **with `file_id`** — one unit per geometry in that file. **The filter's own geometries are then not used**: `filter_id` contributes only its criteria. The file's geometries are stored and attached to a new *derived* filter, whose id is returned as `derived_filter_id`.
+
+Either way the geometries are read back from `GET /data-filters/{filterId}/geometries`, which returns one GeoJSON Feature per unit whose `id` is the `unit_id` used throughout the output. A derived filter stores no geometries inline, so that endpoint is the only way to read them. It pages with an opaque `cursor`: pass the previous response's `next_cursor` until it comes back `null`.
+
+A file supplying units must be a spatial vector file with a known EPSG code and only polygon or multipolygon geometries; a multipolygon counts as **one** unit. Equivalent geometries collapse into one unit that keeps every source `record_id`. The number of units is capped by `SOIL_STATISTICS_MAX_UNITS` (default 200) and the job fails above it rather than dropping areas silently.
+
+### Filtering
+
+Identical to `GET /data-filters/{filterId}/coverage`, including raster filters, dataset status and visibility. Raster datasets never contribute — their measurements are pixels, not observations — and are reported in `excluded_datasets`.
+
+`PREVIEW` is enforced per dataset. Naming a dataset you cannot preview is rejected on submission with `403`; when `dataset_ids` is omitted, datasets you cannot preview are skipped and listed in `skipped_datasets`.
+
+**Sequence of operations**
+
+1. Resolve the filter and build the aggregation units, creating the derived filter when `file_id` is given.
+2. Select the datasets the filter matches, dropping raster ones and applying `PREVIEW`.
+3. Resolve the units to sampling locations (features) intersecting them.
+4. Collect the matching observations into a staging table, one row per observation.
+5. Aggregate: `overall` per (dataset, soil property), then per unit, then per (unit, year, depth interval).
+6. Write results, `truncated` and progress into the job data.
+
+### Output
+
+`results` is grouped by dataset and soil property. Each group carries:
+
+- `overall` — computed before areas are fanned out, so an observation inside two overlapping units is counted **once**. It therefore does *not* equal the sum of the per-unit counts.
+- `units[]` — the headline statistics per aggregation unit. Overlapping units each count a shared observation, so that "mean pH in this field" means exactly that.
+- `units[].breakdown[]` — the same statistics per sampling year and depth interval. Undated observations and those with no recorded depth form their own `null` buckets, never merged into a neighbour. **Absent when it would hold a single cell**, because that cell covers exactly the observations behind `units[]` and would repeat it field for field; the cell's own keys are then recoverable from the unit cell (`min_depth`/`max_depth` are its `depth_min`/`depth_max`, and `year` is the first four characters of `sampling_date_min` when they are digits). A present `breakdown` always holds at least two cells, and `l4_included: false` is what distinguishes "withheld to fit the budget" from "identical to the unit cell".
+
+Every cell reports `count`, `n_features`, `n_layers`, `min`, `max`, `mean`, `median`, `stddev`, `p05`, `p25`, `p75`, `p95`, sampling-date and depth ranges, the distinct `horizons` and `laboratory_methods` mixed into it, and a `histogram` of `histogram_bins` (default 10) equal-width bins spanning `min`–`max`. Values are in the soil property's `standard_unit`, applied at ingestion.
+
+The whole result has to fit inside the job's data, so a cell spends bytes only on what cannot be recovered from it. Four rules follow, and a client should be written to expect all four:
+
+- **Numbers are rounded to 3 decimals** — every statistic, plus `bin_width` and `area_m2`.
+- **A field with nothing to report is absent, not `null` or `[]`.** `stddev`, `sampling_date_min`/`_max`, `depth_min`/`_max`, `horizons` and `laboratory_methods` simply do not appear when they have no value. The one exception is a breakdown cell's `year`, `min_depth` and `max_depth`: there `null` identifies the bucket, so it is always spelled out.
+- **`histogram` is only emitted when `count > 100`.** Below that the bins describe the sample rather than the distribution, and `min`/`median`/`max` already say what little there is to say.
+- **Breakdown cells omit `depth_min`/`depth_max`.** The breakdown is grouped *by* depth interval, so those aggregates are exactly the cell's own `min_depth`/`max_depth`.
+
+Three figures are derivable and therefore not sent: the coefficient of variation (`stddev / |mean|`), the interquartile range (`p75 - p25`), and the histogram's bin boundaries (`min + i * bin_width`, the last one being `max`).
+
+`median` is interpolated (`percentile_cont`), not an observed value. When every value in a cell is identical the histogram degrades to a single bin — test `counts.length === 1` rather than `bin_width === 0`, because a genuine width below 0.0005 also rounds to 0.
+
+If the breakdown would exceed `SOIL_STATISTICS_MAX_CELLS` (default 200 000), whole (dataset, soil property) groups lose it: `truncated` becomes `true` and each affected group reports `l4_included: false`. Headline numbers are never truncated. The budget counts only cells that will actually be emitted, so the single cells omitted above are free and cannot push another group over the limit.
+
+`units[].area_m2` is the whole geometry's area. Raster filters restrict which observations count but never clip the geometry, so when `raster_filtered` is true the statistics cover less ground than that area suggests.
+
+---
+
 ## `bulk-delete`
 
 Permanently removes a dataset and all of its soil data, cleaning up any features and spatial layers that are no longer referenced by other datasets.

@@ -30,6 +30,33 @@ export const getDataFilterDatasets = async (req: Request, res: Response) => {
   res.json(data);
 };
 
+export const getDataFilterGeometries = async (req: Request, res: Response) => {
+  const limit = Number(req.query['limit'] ?? 100);
+  const cursor = req.query['cursor'] as string | undefined;
+  const { total, features, nextCursor } = await filterService.getFilterGeometries(
+    req.customData,
+    req.params['filterId']! as string,
+    limit,
+    cursor,
+  );
+  // A FeatureCollection with `total`/`limit`/`next_cursor` as GeoJSON foreign members, so
+  // the payload stays directly consumable by any GeoJSON client while remaining pageable.
+  // `next_cursor` is null on the last page — that, not an empty `features`, is the signal
+  // to stop walking.
+  res.json({
+    type: 'FeatureCollection',
+    total,
+    limit,
+    next_cursor: nextCursor,
+    features: features.map(feature => ({
+      type: 'Feature',
+      id: feature.id,
+      geometry: feature.geometry,
+      properties: { area_m2: feature.area_m2 },
+    })),
+  });
+};
+
 export const getDai = async (req: Request, res: Response): Promise<void> => {
   const filterId = req.params['filterId']! as string;
   const { bbox: bboxString, resolution } = req.query;

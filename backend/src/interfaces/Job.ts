@@ -1,4 +1,12 @@
-export type AnyJob = BulkLoadJob | RasterLoadJob | ExportJob | FileToDbJob | BulkDeleteJob | RefreshDaiStatsJob;
+import type {
+  AggregationUnit,
+  DatasetExcludeReason,
+  DatasetNote,
+  DatasetSkipReason,
+  SoilStatisticsResult,
+} from '../jobs/soil-statistics/types';
+
+export type AnyJob = BulkLoadJob | RasterLoadJob | ExportJob | FileToDbJob | BulkDeleteJob | RefreshDaiStatsJob | SoilStatisticsJob;
 
 export interface Job {
   id: string | null;
@@ -65,4 +73,31 @@ export interface BulkDeleteJob extends CommonJobData {
 
 export interface RefreshDaiStatsJob extends CommonJobData {
   dataset_ids: string[];
+}
+
+export interface SoilStatisticsJobParameters {
+  /** Supplies the criteria; also supplies the AOI when no file_id is given. */
+  filter_id: string;
+  /**
+   * When present, each geometry in this file becomes one Aggregation Unit and the
+   * Filter's own geometries are NOT used — filter_id then contributes criteria only.
+   */
+  file_id?: string;
+  /** Dataset slugs. Absent means every dataset the filter matches that the caller can preview. */
+  dataset_ids?: string[];
+  histogram_bins?: number;
+  /** Field of the source file whose value labels each Aggregation Unit. */
+  label_field?: string;
+}
+
+export interface SoilStatisticsJob extends SoilStatisticsJobParameters, CommonJobData {
+  /** Filter holding the Aggregation Units; null when they are filter_id's own geometries. */
+  derived_filter_id: string | null;
+  unit_count: number;
+  units: AggregationUnit[];
+  /** True when at least one group's per-(year, depth) breakdown was dropped. */
+  truncated: boolean;
+  results: SoilStatisticsResult[];
+  skipped_datasets: DatasetNote<DatasetSkipReason>[];
+  excluded_datasets: DatasetNote<DatasetExcludeReason>[];
 }
