@@ -10,10 +10,10 @@ jest.mock('hooks/useRasterMappingStep', () => ({
 }));
 
 // Isolate RasterMappingsTable's own logic (header, row wiring, isUnitEnabled/isDetailsEnabled
-// derivation) from MappingRow's rendering/interaction details, which are covered by
-// MappingRow.test.tsx.
-jest.mock('pages/AdminPortal/DatasetsMappingsStep/MappingRow', () => ({
-  MappingRow: (props: {
+// derivation) from RasterMappingRow's rendering/interaction details, which are covered by
+// RasterMappingRow.test.tsx.
+jest.mock('pages/AdminPortal/DatasetsMappingsStep/RasterMappingRow', () => ({
+  RasterMappingRow: (props: {
     mapping: ColumnMapping;
     conceptOptions: { code: string }[];
     unitOptions: { code: string }[];

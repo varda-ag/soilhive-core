@@ -5,10 +5,10 @@ import { Dropdown } from 'components/UI';
 import ArrowDownIcon from 'assets/icons/dropdown-arrow-down-icon.svg?react';
 import CheckIconCircle from 'assets/icons/check-icon-circle.svg?react';
 import WarningIcon from 'assets/icons/small-warning-icon.svg?react';
-import { MappingRowDetails } from './MappingRowDetails';
+import { DefaultMappingRowDetails } from './DefaultMappingRowDetails';
 import type { ColumnMapping, DetailOptionMap, RowDetails } from 'hooks/useMappingsStep';
 import type { MenuOption } from 'types/components';
-import styles from './MappingRow.module.scss';
+import styles from './DefaultMappingRow.module.scss';
 
 interface Props {
   mapping: ColumnMapping;
@@ -25,7 +25,7 @@ interface Props {
   onDetailChange: (columnName: string, field: keyof RowDetails, value: string) => void;
 }
 
-export function MappingRow({
+export function DefaultMappingRow({
   mapping,
   conceptOptions,
   unitOptions,
@@ -89,7 +89,7 @@ export function MappingRow({
       </div>
 
       {isExpanded && isDetailsEnabled && (
-        <MappingRowDetails
+        <DefaultMappingRowDetails
           columnName={mapping.columnName}
           details={mapping.details}
           detailOptions={detailOptions}

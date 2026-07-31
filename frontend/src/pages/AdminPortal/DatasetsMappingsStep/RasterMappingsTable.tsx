@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { MappingRow } from './MappingRow';
+import { RasterMappingRow } from './RasterMappingRow';
 import { METADATA_FIELD_CODES } from 'hooks/useRasterMappingStep';
 import type { ColumnMapping, DetailOptionMap, RowDetails } from 'hooks/useRasterMappingStep';
 import type { MenuOption } from 'types/components';
@@ -42,7 +42,7 @@ export function RasterMappingsTable({
           const unitOptions = mapping.conceptId ? (unitOptionsByConcept[mapping.conceptId] ?? []) : [];
           const isDetailsEnabled = mapping.conceptId !== null && !METADATA_FIELD_CODES.has(mapping.conceptId);
           return (
-            <MappingRow
+            <RasterMappingRow
               key={mapping.columnName}
               mapping={mapping}
               conceptOptions={conceptOptionsByColumn[mapping.columnName] ?? []}

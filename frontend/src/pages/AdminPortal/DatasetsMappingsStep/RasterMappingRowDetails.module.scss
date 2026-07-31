@@ -1,0 +1,27 @@
+.MappingRowDetails {
+  padding: 16px 20px 20px;
+  background-color: var(--color-neutral-light);
+  border-top: 1px solid var(--color-neutral-dark-100);
+}
+
+.Note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 16px;
+  font-size: var(--font-size-sm);
+  color: var(--color-neutral-dark-500);
+}
+
+.NoteIcon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  color: var(--color-neutral-dark-400);
+}
+
+.Grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 24px;
+}
