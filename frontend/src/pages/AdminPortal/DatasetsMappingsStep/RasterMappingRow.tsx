@@ -25,6 +25,9 @@ interface Props {
   onMinDepthChange: (columnName: string, value: string) => void;
   onMaxDepthChange: (columnName: string, value: string) => void;
   onDetailChange: (columnName: string, field: keyof RowDetails, value: string) => void;
+  onReferencePeriodStartChange: (columnName: string, value: string) => void;
+  onReferencePeriodStopChange: (columnName: string, value: string) => void;
+  onLayerDescriptionChange: (columnName: string, value: string) => void;
 }
 
 export function RasterMappingRow({
@@ -42,6 +45,9 @@ export function RasterMappingRow({
   onMinDepthChange,
   onMaxDepthChange,
   onDetailChange,
+  onReferencePeriodStartChange,
+  onReferencePeriodStopChange,
+  onLayerDescriptionChange,
 }: Props) {
   const { t } = useTranslation('admin');
   const isMapped = mapping.conceptId !== null;
@@ -116,7 +122,13 @@ export function RasterMappingRow({
           columnName={mapping.columnName}
           details={mapping.details}
           detailOptions={detailOptions}
+          referencePeriodStart={mapping.referencePeriodStart}
+          referencePeriodStop={mapping.referencePeriodStop}
+          layerDescription={mapping.layerDescription}
           onDetailChange={onDetailChange}
+          onReferencePeriodStartChange={onReferencePeriodStartChange}
+          onReferencePeriodStopChange={onReferencePeriodStopChange}
+          onLayerDescriptionChange={onLayerDescriptionChange}
         />
       )}
     </div>

@@ -240,6 +240,12 @@ export interface PropertyMapping {
   min_val?: number;
   max_val?: number;
   procedure_id?: string;
+  min_depth?: number;
+  max_depth?: number;
+  reference_period_start?: string;
+  reference_period_stop?: string;
+  layer_description?: string;
+  additional_resources?: { file_id: string }[];
 }
 
 export interface DataMappingObject {

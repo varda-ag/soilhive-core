@@ -33,25 +33,11 @@ jest.mock('../../../../src/pages/AdminPortal/DatasetsMappingsStep/RasterMappings
 // ---------------------------------------------------------------------------
 
 const EMPTY_DETAILS: RowDetails = {
-  samplePretreatment: null,
-  technique: null,
   laboratoryMethod: null,
-  extractantConcentration: null,
-  extractionRatio: null,
-  extractionBase: null,
-  measurementProcedure: null,
-  limitOfDetection: null,
 };
 
 const DETAIL_OPTIONS: DetailOptionMap = {
-  samplePretreatment: [],
-  technique: [],
   laboratoryMethod: [],
-  extractantConcentration: [],
-  extractionRatio: [],
-  extractionBase: [],
-  measurementProcedure: [],
-  limitOfDetection: [],
 };
 
 function stubHookReturn(
@@ -85,6 +71,9 @@ function stubHookReturn(
     handleConceptChange: jest.fn(),
     handleUnitChange: jest.fn(),
     handleDetailChange: jest.fn(),
+    handleReferencePeriodStartChange: jest.fn(),
+    handleReferencePeriodStopChange: jest.fn(),
+    handleLayerDescriptionChange: jest.fn(),
     handlePrevious: jest.fn(),
     handleSaveAndContinueLater: jest.fn(),
     handleContinue: jest.fn(),

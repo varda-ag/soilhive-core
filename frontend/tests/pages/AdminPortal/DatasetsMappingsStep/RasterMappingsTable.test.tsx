@@ -45,34 +45,25 @@ jest.mock('pages/AdminPortal/DatasetsMappingsStep/RasterMappingRow', () => ({
 // ---------------------------------------------------------------------------
 
 const EMPTY_DETAILS = {
-  samplePretreatment: null,
-  technique: null,
   laboratoryMethod: null,
-  extractantConcentration: null,
-  extractionRatio: null,
-  extractionBase: null,
-  measurementProcedure: null,
-  limitOfDetection: null,
 };
 
 const DETAIL_OPTIONS: DetailOptionMap = {
-  samplePretreatment: [],
-  technique: [],
   laboratoryMethod: [],
-  extractantConcentration: [],
-  extractionRatio: [],
-  extractionBase: [],
-  measurementProcedure: [],
-  limitOfDetection: [],
 };
 
 function mapping(overrides?: Partial<ColumnMapping>): ColumnMapping {
   return {
     columnName: 'file_a.tif',
+    fileId: 'file-1',
+    bandKey: 0,
     conceptId: null,
     unitId: null,
     minDepth: null,
     maxDepth: null,
+    referencePeriodStart: null,
+    referencePeriodStop: null,
+    layerDescription: null,
     details: { ...EMPTY_DETAILS },
     isGeometryDetectedField: false,
     ...overrides,
@@ -92,6 +83,9 @@ function defaultProps(overrides?: Partial<React.ComponentProps<typeof RasterMapp
     onMinDepthChange: jest.fn(),
     onMaxDepthChange: jest.fn(),
     onDetailChange: jest.fn(),
+    onReferencePeriodStartChange: jest.fn(),
+    onReferencePeriodStopChange: jest.fn(),
+    onLayerDescriptionChange: jest.fn(),
     ...overrides,
   };
 }

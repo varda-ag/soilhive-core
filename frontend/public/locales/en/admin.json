@@ -345,11 +345,20 @@
                 "sample_pretreatment": "Sample pretreatment",
                 "technique": "Technique",
                 "laboratory_method": "Laboratory method",
+                "laboratory_method_placeholder": "Select one method",
                 "extractant_concentration": "Extractant concentration",
                 "extraction_ratio": "Extraction ratio",
                 "extraction_base": "Extraction base",
                 "measurement_procedure": "Measurement procedure",
-                "limit_of_detection": "Limit of detection"
+                "limit_of_detection": "Limit of detection",
+                "reference_period_start": "Reference period start",
+                "reference_period_stop": "Reference period stop",
+                "reference_period_start_placeholder": "i.e. 1977",
+                "reference_period_stop_placeholder": "i.e. 2015",
+                "layer_description": "Layer description",
+                "layer_description_placeholder": "i.e. This layer is about how we discovered an ancient alien race with a really advance society that lives at 80cm deep in the vast land of Ciudad Real",
+                "additional_resources_title": "Additional resources",
+                "additional_resources_subtitle": "(e.g. prediction layer)"
             }
         },
         "preview": {

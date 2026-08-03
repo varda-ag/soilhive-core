@@ -17,6 +17,9 @@ interface Props {
   onMinDepthChange: (columnName: string, value: string) => void;
   onMaxDepthChange: (columnName: string, value: string) => void;
   onDetailChange: (columnName: string, field: keyof RowDetails, value: string) => void;
+  onReferencePeriodStartChange: (columnName: string, value: string) => void;
+  onReferencePeriodStopChange: (columnName: string, value: string) => void;
+  onLayerDescriptionChange: (columnName: string, value: string) => void;
 }
 
 export function RasterMappingsTable({
@@ -31,6 +34,9 @@ export function RasterMappingsTable({
   onMinDepthChange,
   onMaxDepthChange,
   onDetailChange,
+  onReferencePeriodStartChange,
+  onReferencePeriodStopChange,
+  onLayerDescriptionChange,
 }: Props) {
   const { t } = useTranslation('admin');
   return (
@@ -62,6 +68,9 @@ export function RasterMappingsTable({
               onMinDepthChange={onMinDepthChange}
               onMaxDepthChange={onMaxDepthChange}
               onDetailChange={onDetailChange}
+              onReferencePeriodStartChange={onReferencePeriodStartChange}
+              onReferencePeriodStopChange={onReferencePeriodStopChange}
+              onLayerDescriptionChange={onLayerDescriptionChange}
               isGeometryDetectedField={mapping.isGeometryDetectedField}
             />
           );

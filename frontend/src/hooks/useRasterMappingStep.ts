@@ -19,6 +19,7 @@ import type {
   VocabularyItem,
   PropertyMapping,
   DataMappingRequest,
+  DataMappingObject,
   DataMappingResponse,
   DatasetFileMappingResponse,
   ProcedurePayload,
@@ -28,24 +29,37 @@ import type { MenuOption } from 'types/components';
 import { useDataset } from './useDatasets';
 
 export interface RowDetails {
-  samplePretreatment: string | null;
-  technique: string | null;
   laboratoryMethod: string | null;
-  extractantConcentration: string | null;
-  extractionRatio: string | null;
-  extractionBase: string | null;
-  measurementProcedure: string | null;
-  limitOfDetection: string | null;
 }
 
 export interface ColumnMapping {
   columnName: string;
+  fileId: string;
+  bandKey: number;
   conceptId: string | null;
   unitId: string | null;
   minDepth: string | null;
   maxDepth: string | null;
+  referencePeriodStart: string | null;
+  referencePeriodStop: string | null;
+  layerDescription: string | null;
   details: RowDetails;
   isGeometryDetectedField: boolean;
+}
+
+// One row per raster band, named after the file it came from — a raster with multiple bands
+// gets one row per band (e.g. "file_bulk_raster.tif (band 1)"), while a single-band raster is
+// just named after the file, with no band number. The displayed band number (from the file's
+// metadata) is 1-indexed for readability, but bandKey — the key used to serialize into a file's
+// data_mapping — is the band's zero-based position within the file (0, 1, 2, ...).
+function buildColumns(files: FileDescriptor[]): { columnName: string; fileId: string; bandKey: number }[] {
+  return files.flatMap(f => {
+    const bands = (f.metadata as RasterFileDescriptorMetadata).raster_bands;
+    if (bands.length <= 1) {
+      return [{ columnName: f.name, fileId: f.id, bandKey: 0 }];
+    }
+    return bands.map((b, index) => ({ columnName: `${f.name} (band ${b.band_number})`, fileId: f.id, bandKey: index }));
+  });
 }
 
 export type DetailOptionMap = Record<keyof RowDetails, MenuOption[]>;
@@ -62,51 +76,22 @@ const METADATA_FIELD_OPTIONS: MenuOption[] = [
 export const METADATA_FIELD_CODES = new Set(METADATA_FIELD_OPTIONS.map(o => o.code));
 
 const VOCAB_CATEGORY_TO_KEY: Record<string, keyof RowDetails> = {
-  sample_pretreatment: 'samplePretreatment',
   laboratory_method: 'laboratoryMethod',
-  extractant_concentration: 'extractantConcentration',
-  extraction_ratio: 'extractionRatio',
-  extraction_base: 'extractionBase',
-  measurement_procedure: 'measurementProcedure',
-  limit_of_detection: 'limitOfDetection',
 };
 
 const EMPTY_DETAILS: RowDetails = {
-  samplePretreatment: null,
-  technique: null,
   laboratoryMethod: null,
-  extractantConcentration: null,
-  extractionRatio: null,
-  extractionBase: null,
-  measurementProcedure: null,
-  limitOfDetection: null,
 };
 
 function toProcedurePayload(details: RowDetails): ProcedurePayload {
   return {
-    sample_pretreatment: details.samplePretreatment ?? undefined,
-    technique: details.technique ?? undefined,
     laboratory_method: details.laboratoryMethod ?? undefined,
-    extractant_concentration: details.extractantConcentration ?? undefined,
-    extraction_ratio: details.extractionRatio ?? undefined,
-    extraction_base: details.extractionBase ?? undefined,
-    measurement_procedure: details.measurementProcedure ?? undefined,
-    limit_of_detection: details.limitOfDetection ?? undefined,
   };
 }
 
 function procedurePayloadMatches(details: RowDetails, proc: ProcedureResponse): boolean {
   const n = (v: string | null | undefined) => v ?? null;
-  return (
-    n(details.samplePretreatment) === n(proc.sample_pretreatment) &&
-    n(details.technique) === n(proc.technique) &&
-    n(details.laboratoryMethod) === n(proc.laboratory_method) &&
-    n(details.extractantConcentration) === n(proc.extractant_concentration) &&
-    n(details.extractionRatio) === n(proc.extraction_ratio) &&
-    n(details.extractionBase) === n(proc.extraction_base) &&
-    n(details.measurementProcedure) === n(proc.measurement_procedure) &&
-    n(details.limitOfDetection) === n(proc.limit_of_detection)
-  );
+  return n(details.laboratoryMethod) === n(proc.laboratory_method);
 }
 
 // Creates a procedure record for each mapped column that has at least one detail field filled in.
@@ -131,21 +116,35 @@ async function createMappingProcedures(
   return procedureIds;
 }
 
-// Builds the mapping payload. For metadata fields, this is just the concept id. For soil properties, it's an object that may include the concept id, unit conversion id, and procedure id.
-function buildDataMappingRequest(mappings: ColumnMapping[], procedureIds: Record<string, string>): DataMappingRequest {
-  const request: DataMappingRequest = {};
+// Builds one mapping payload per file, keyed by the band's zero-based position within that file
+// (not by column name) — a file's mapping only needs to distinguish its own bands, so the key
+// is just e.g. "0", "1".
+// For metadata fields, the value is just the concept id. For soil properties, it's an object
+// that may include the concept id, unit conversion id, and procedure id.
+function buildDataMappingRequestsByFile(
+  mappings: ColumnMapping[],
+  procedureIds: Record<string, string>,
+): Record<string, DataMappingRequest> {
+  const requestsByFile: Record<string, DataMappingRequest> = {};
   for (const m of mappings) {
     if (!m.conceptId) continue;
+    const request = (requestsByFile[m.fileId] ??= {});
+    const bandKey = String(m.bandKey);
     if (METADATA_FIELD_CODES.has(m.conceptId)) {
-      request[m.columnName] = m.conceptId;
+      request[bandKey] = m.conceptId;
     } else {
       const pm: PropertyMapping = { property_id: m.conceptId };
       if (m.unitId) pm.conversion_id = m.unitId;
       if (procedureIds[m.columnName]) pm.procedure_id = procedureIds[m.columnName];
-      request[m.columnName] = pm;
+      if (m.minDepth) pm.min_depth = Number(m.minDepth);
+      if (m.maxDepth) pm.max_depth = Number(m.maxDepth);
+      if (m.referencePeriodStart) pm.reference_period_start = m.referencePeriodStart;
+      if (m.referencePeriodStop) pm.reference_period_stop = m.referencePeriodStop;
+      if (m.layerDescription) pm.layer_description = m.layerDescription;
+      request[bandKey] = pm;
     }
   }
-  return request;
+  return requestsByFile;
 }
 
 // ---------------------------------------------------------------------------
@@ -154,13 +153,13 @@ function buildDataMappingRequest(mappings: ColumnMapping[], procedureIds: Record
 
 function isMappingChanged(
   columnMappings: ColumnMapping[],
-  existingDataMapping: DataMappingRequest | undefined,
+  dataMappingByFileId: Record<string, DataMappingObject>,
   procedureByColumn: Record<string, ProcedureResponse>,
 ): boolean {
-  if (!existingDataMapping) return true;
+  if (Object.keys(dataMappingByFileId).length === 0) return true;
 
   for (const m of columnMappings) {
-    const existing = existingDataMapping[m.columnName];
+    const existing = dataMappingByFileId[m.fileId]?.[String(m.bandKey)];
 
     if (m.conceptId === null) {
       if (existing !== undefined) return true;
@@ -175,6 +174,11 @@ function isMappingChanged(
       if (typeof existing === 'string') return true;
       if (existing.property_id !== m.conceptId) return true;
       if ((existing.conversion_id ?? null) !== m.unitId) return true;
+      if ((existing.min_depth ?? null) !== (m.minDepth ? Number(m.minDepth) : null)) return true;
+      if ((existing.max_depth ?? null) !== (m.maxDepth ? Number(m.maxDepth) : null)) return true;
+      if ((existing.reference_period_start ?? null) !== m.referencePeriodStart) return true;
+      if ((existing.reference_period_stop ?? null) !== m.referencePeriodStop) return true;
+      if ((existing.layer_description ?? null) !== m.layerDescription) return true;
       const proc = procedureByColumn[m.columnName];
       if (proc) {
         if (!procedurePayloadMatches(m.details, proc)) return true;
@@ -250,23 +254,39 @@ export function useRasterMappingStep(datasetId?: string) {
     enabled: !!datasetId,
   });
 
-  // Raster metadata has no server-side detected mapping to merge in (unlike vector's
-  // detected_mapping) — the saved mapping from the server is all there is.
-  const mergedMappings = useMemo(() => {
-    if (isLoadingFiles || isLoadingExistingMappings) {
-      return [];
+  // One raster file gets its own mapping (each keyed by band number, not by column name), so
+  // there's one DataMappingResponse per file rather than a single mapping for the whole dataset.
+  // dataset-file-mapping links each file to its mapping id; cross-reference the two to find the
+  // data_mapping that belongs to a given file.
+  const dataMappingById = useMemo(() => {
+    const map: Record<string, DataMappingObject> = {};
+    for (const dm of existingMappings ?? []) map[dm.id] = dm.data_mapping;
+    return map;
+  }, [existingMappings]);
+
+  const dataMappingByFileId = useMemo(() => {
+    if (isLoadingFiles || isLoadingExistingMappings || isLoadingDatasetFileMappings) return {};
+    const map: Record<string, DataMappingObject> = {};
+    for (const dfm of datasetFileMappings ?? []) {
+      const dataMapping = dataMappingById[dfm.mappingId];
+      if (dataMapping) map[dfm.fileID] = dataMapping;
     }
-    return existingMappings ?? [];
-  }, [existingMappings, isLoadingExistingMappings, isLoadingFiles]);
+    return map;
+  }, [datasetFileMappings, dataMappingById, isLoadingFiles, isLoadingExistingMappings, isLoadingDatasetFileMappings]);
+
+  const columns = useMemo(() => buildColumns(files ?? []), [files]);
 
   // Extract procedures from existing (loaded from the server) mappings, so we can fetch them and pre-populate the details fields.
   const proceduresInMapping = useMemo(() => {
-    const dataMapping = mergedMappings?.[0]?.data_mapping ?? {};
-    return Object.entries(dataMapping)
-      .filter((entry): entry is [string, PropertyMapping] => typeof entry[1] !== 'string') // exlude metadata fields (they are string)
-      .filter(([, v]) => !!v.procedure_id) // exlude mappings that don't have an associated procedure
-      .map(([columnName, v]) => ({ columnName, procedureId: v.procedure_id! }));
-  }, [mergedMappings]);
+    const result: { columnName: string; procedureId: string }[] = [];
+    for (const { columnName, fileId, bandKey } of columns) {
+      const entry = dataMappingByFileId[fileId]?.[String(bandKey)];
+      if (entry && typeof entry !== 'string' && entry.procedure_id) {
+        result.push({ columnName, procedureId: entry.procedure_id });
+      }
+    }
+    return result;
+  }, [columns, dataMappingByFileId]);
 
   // load procedures details from the server to populate detail fields
   const procedureDetails = useApiQueries<ProcedureResponse>(
@@ -300,18 +320,10 @@ export function useRasterMappingStep(datasetId?: string) {
     enabled: true,
   });
 
-  const { data: techniques, isLoading: isLoadingTechniques } = useApiQuery<string[]>({
-    endpoint: '/procedures/techniques',
-    method: 'GET',
-    queryKey: ['procedures', 'techniques'],
-    enabled: true,
-  });
-
   const isLoading =
     isLoadingFiles ||
     isLoadingSoilProperties ||
     isLoadingVocabulary ||
-    isLoadingTechniques ||
     isLoadingExistingMappings ||
     isLoadingProcedures ||
     isLoadingDatasetFileMappings;
@@ -341,30 +353,27 @@ export function useRasterMappingStep(datasetId?: string) {
   const [columnMappings, setColumnMappings] = useState<ColumnMapping[]>([]);
 
   // Initialise the mapping table from the raster bands detected on the uploaded file(s),
-  // hydrating each row with any previously saved mapping and procedure details. Each band
-  // of each file becomes its own row, named after the file it came from — a raster with
-  // multiple bands appears once per band (e.g. "file_bulk_raster.tif (band 1)"), while a
-  // single-band raster is just named after the file, with no band number.
+  // hydrating each row with any previously saved mapping (looked up per file/band via
+  // dataMappingByFileId) and procedure details.
   useEffect(() => {
     if (!files) return;
-    const columnNames = files.flatMap(f => {
-      const bands = (f.metadata as RasterFileDescriptorMetadata).raster_bands;
-      if (bands.length <= 1) return [f.name];
-      return bands.map(b => `${f.name} (band ${b.band_number})`);
-    });
-    const existingDataMapping = mergedMappings?.[0]?.data_mapping ?? {};
 
     setColumnMappings(
-      columnNames.map(columnName => {
+      columns.map(({ columnName, fileId, bandKey }) => {
         const isGeometryDetectedField = false;
-        const existing = existingDataMapping[columnName];
+        const existing = dataMappingByFileId[fileId]?.[String(bandKey)];
         if (!existing) {
           return {
             columnName,
+            fileId,
+            bandKey,
             conceptId: null,
             unitId: null,
             minDepth: null,
             maxDepth: null,
+            referencePeriodStart: null,
+            referencePeriodStop: null,
+            layerDescription: null,
             details: { ...EMPTY_DETAILS },
             isGeometryDetectedField,
           };
@@ -372,51 +381,43 @@ export function useRasterMappingStep(datasetId?: string) {
         if (typeof existing === 'string') {
           return {
             columnName,
+            fileId,
+            bandKey,
             conceptId: existing,
             unitId: null,
             minDepth: null,
             maxDepth: null,
+            referencePeriodStart: null,
+            referencePeriodStop: null,
+            layerDescription: null,
             details: { ...EMPTY_DETAILS },
             isGeometryDetectedField,
           };
         }
         const proc = procedureByColumn[columnName];
-        const details: RowDetails = proc
-          ? {
-              samplePretreatment: proc.sample_pretreatment ?? null,
-              technique: proc.technique ?? null,
-              laboratoryMethod: proc.laboratory_method ?? null,
-              extractantConcentration: proc.extractant_concentration ?? null,
-              extractionRatio: proc.extraction_ratio ?? null,
-              extractionBase: proc.extraction_base ?? null,
-              measurementProcedure: proc.measurement_procedure ?? null,
-              limitOfDetection: proc.limit_of_detection ?? null,
-            }
-          : { ...EMPTY_DETAILS };
+        const details: RowDetails = proc ? { laboratoryMethod: proc.laboratory_method ?? null } : { ...EMPTY_DETAILS };
 
         return {
           columnName,
+          fileId,
+          bandKey,
           conceptId: existing.property_id,
           unitId: existing.conversion_id ?? null,
-          minDepth: null,
-          maxDepth: null,
+          minDepth: existing.min_depth != null ? String(existing.min_depth) : null,
+          maxDepth: existing.max_depth != null ? String(existing.max_depth) : null,
+          referencePeriodStart: existing.reference_period_start ?? null,
+          referencePeriodStop: existing.reference_period_stop ?? null,
+          layerDescription: existing.layer_description ?? null,
           details,
           isGeometryDetectedField,
         };
       }),
     );
-  }, [files, procedureByColumn, mergedMappings]);
+  }, [files, columns, procedureByColumn, dataMappingByFileId]);
 
   const detailOptions = useMemo((): DetailOptionMap => {
     const base: DetailOptionMap = {
-      samplePretreatment: [],
-      technique: [],
       laboratoryMethod: [],
-      extractantConcentration: [],
-      extractionRatio: [],
-      extractionBase: [],
-      measurementProcedure: [],
-      limitOfDetection: [],
     };
 
     for (const item of vocabularyItems ?? []) {
@@ -424,13 +425,8 @@ export function useRasterMappingStep(datasetId?: string) {
       if (key) base[key] = [...base[key], { code: item.name, name: item.name }];
     }
 
-    base.technique = (techniques ?? []).map(t => ({
-      code: t,
-      name: t.charAt(0).toUpperCase() + t.slice(1),
-    }));
-
     return base;
-  }, [vocabularyItems, techniques]);
+  }, [vocabularyItems]);
 
   // Unit options and sorted soil properties — depends only on API data, not user selections.
   const { soilPropertyOptions, unitOptionsByConcept } = useMemo(() => {
@@ -547,18 +543,34 @@ export function useRasterMappingStep(datasetId?: string) {
     );
   }, []);
 
+  const handleReferencePeriodStartChange = useCallback((columnName: string, value: string) => {
+    setColumnMappings(prev => prev.map(m => (m.columnName === columnName ? { ...m, referencePeriodStart: value || null } : m)));
+  }, []);
+
+  const handleReferencePeriodStopChange = useCallback((columnName: string, value: string) => {
+    setColumnMappings(prev => prev.map(m => (m.columnName === columnName ? { ...m, referencePeriodStop: value || null } : m)));
+  }, []);
+
+  const handleLayerDescriptionChange = useCallback((columnName: string, value: string) => {
+    setColumnMappings(prev => prev.map(m => (m.columnName === columnName ? { ...m, layerDescription: value || null } : m)));
+  }, []);
+
   const save = useCallback(async () => {
     const procedureIds = await createMappingProcedures(columnMappings, procedureByColumn, createProcedure);
-    const mappingResponse = await createMapping(buildDataMappingRequest(columnMappings, procedureIds));
-    resetChanges();
+    const requestsByFile = buildDataMappingRequestsByFile(columnMappings, procedureIds);
 
-    if (datasetId && datasetFileMappings?.length) {
-      await Promise.all(
-        datasetFileMappings.map(dfm =>
-          updateDatasetFileMapping({ datasetId, datasetFileMappingId: dfm.id, mappingId: mappingResponse.id }),
-        ),
-      );
-    }
+    // One mapping per file — each keyed by band number — linked to that file via dataset-file-mapping.
+    await Promise.all(
+      Object.entries(requestsByFile).map(async ([fileId, request]) => {
+        const mappingResponse = await createMapping(request);
+        const dfm = datasetFileMappings?.find(d => d.fileID === fileId);
+        if (datasetId && dfm) {
+          await updateDatasetFileMapping({ datasetId, datasetFileMappingId: dfm.id, mappingId: mappingResponse.id });
+        }
+      }),
+    );
+
+    resetChanges();
 
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ['datasets', datasetId, 'mappings'] }),
@@ -586,7 +598,7 @@ export function useRasterMappingStep(datasetId?: string) {
   }, [save, navigate]);
 
   const handleContinue = useCallback(async () => {
-    const changed = isMappingChanged(columnMappings, existingMappings?.[0]?.data_mapping, procedureByColumn);
+    const changed = isMappingChanged(columnMappings, dataMappingByFileId, procedureByColumn);
 
     if (!changed && allFilesStaged) {
       if (isRaster) {
@@ -607,7 +619,7 @@ export function useRasterMappingStep(datasetId?: string) {
     setActiveJobIds(jobs.map(j => j.id));
   }, [
     columnMappings,
-    existingMappings,
+    dataMappingByFileId,
     procedureByColumn,
     allFilesStaged,
     save,
@@ -646,6 +658,9 @@ export function useRasterMappingStep(datasetId?: string) {
     handleMinDepthChange,
     handleMaxDepthChange,
     handleDetailChange,
+    handleReferencePeriodStartChange,
+    handleReferencePeriodStopChange,
+    handleLayerDescriptionChange,
     handlePrevious,
     handleSaveAndContinueLater,
     handleContinue,

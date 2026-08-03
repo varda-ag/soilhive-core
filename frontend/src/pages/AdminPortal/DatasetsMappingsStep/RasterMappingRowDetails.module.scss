@@ -1,27 +1,55 @@
 .MappingRowDetails {
   padding: 16px 20px 20px;
-  background-color: var(--color-neutral-light);
+  background-color: var(--color-neutral-white);
   border-top: 1px solid var(--color-neutral-dark-100);
 }
 
 .Note {
-  display: flex;
+  display: inline-block;
   align-items: center;
   gap: 6px;
   margin-bottom: 16px;
+  padding: 8px 100px 8px 12px;
+  background-color: var(--color-neutral-light);
   font-size: var(--font-size-sm);
-  color: var(--color-neutral-dark-500);
+  color: var(--color-neutral-black);
 }
 
 .NoteIcon {
   width: 14px;
   height: 14px;
   flex-shrink: 0;
-  color: var(--color-neutral-dark-400);
+  color: var(--color-neutral-black);
 }
 
 .Grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px 24px;
+}
+
+.FullRow {
+  grid-column: 1 / -1;
+}
+
+.LayerDescription {
+  margin-top: 16px;
+}
+
+.AdditionalResources {
+  margin-top: 20px;
+}
+
+.AdditionalResourcesTitle {
+  font-weight: 600;
+  color: var(--color-neutral-black);
+}
+
+.AdditionalResourcesSubtitle {
+  font-weight: 400;
+  color: var(--color-neutral-black);
+}
+
+.AdditionalResourcesContent {
+  margin-top: 12px;
 }

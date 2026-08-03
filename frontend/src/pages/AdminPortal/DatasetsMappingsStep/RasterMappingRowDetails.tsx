@@ -1,29 +1,38 @@
 import { useTranslation } from 'react-i18next';
 import { AutocompleteDropdown } from 'components/AutocompleteDropdown/AutocompleteDropdown';
+import { TextInput, TextArea } from 'components/UI';
 import InfoIcon from 'assets/icons/small-info-icon.svg?react';
 import type { RowDetails, DetailOptionMap } from 'hooks/useRasterMappingStep';
 import styles from './RasterMappingRowDetails.module.scss';
+
+const LAYER_DESCRIPTION_MAX_LENGTH = 180;
 
 interface Props {
   columnName: string;
   details: RowDetails;
   detailOptions: DetailOptionMap;
+  referencePeriodStart: string | null;
+  referencePeriodStop: string | null;
+  layerDescription: string | null;
   onDetailChange: (columnName: string, field: keyof RowDetails, value: string) => void;
+  onReferencePeriodStartChange: (columnName: string, value: string) => void;
+  onReferencePeriodStopChange: (columnName: string, value: string) => void;
+  onLayerDescriptionChange: (columnName: string, value: string) => void;
 }
 
-export function RasterMappingRowDetails({ columnName, details, detailOptions, onDetailChange }: Props) {
+export function RasterMappingRowDetails({
+  columnName,
+  details,
+  detailOptions,
+  referencePeriodStart,
+  referencePeriodStop,
+  layerDescription,
+  onDetailChange,
+  onReferencePeriodStartChange,
+  onReferencePeriodStopChange,
+  onLayerDescriptionChange,
+}: Props) {
   const { t } = useTranslation('admin');
-
-  const fields: { key: keyof RowDetails; label: string }[] = [
-    { key: 'samplePretreatment', label: t('datasets.mappings.details.sample_pretreatment') },
-    { key: 'extractionRatio', label: t('datasets.mappings.details.extraction_ratio') },
-    { key: 'technique', label: t('datasets.mappings.details.technique') },
-    { key: 'extractionBase', label: t('datasets.mappings.details.extraction_base') },
-    { key: 'laboratoryMethod', label: t('datasets.mappings.details.laboratory_method') },
-    { key: 'measurementProcedure', label: t('datasets.mappings.details.measurement_procedure') },
-    { key: 'extractantConcentration', label: t('datasets.mappings.details.extractant_concentration') },
-    { key: 'limitOfDetection', label: t('datasets.mappings.details.limit_of_detection') },
-  ];
 
   return (
     <div className={styles.MappingRowDetails} data-testid="sh-mapping-row-details">
@@ -32,18 +41,50 @@ export function RasterMappingRowDetails({ columnName, details, detailOptions, on
         <span>{t('datasets.mappings.details.non_mandatory_note')}</span>
       </div>
       <div className={styles.Grid}>
-        {fields.map(({ key, label }) => (
+        <div className={styles.FullRow}>
           <AutocompleteDropdown
-            key={key}
             size="small"
-            label={label}
-            options={detailOptions[key]}
-            value={details[key] ?? undefined}
-            placeholder={t('datasets.mappings.row.select_one')}
-            onChange={value => onDetailChange(columnName, key, value as string)}
-            onClear={() => onDetailChange(columnName, key, '')}
+            label={t('datasets.mappings.details.laboratory_method')}
+            options={detailOptions.laboratoryMethod}
+            value={details.laboratoryMethod ?? undefined}
+            placeholder={t('datasets.mappings.details.laboratory_method_placeholder')}
+            onChange={value => onDetailChange(columnName, 'laboratoryMethod', value as string)}
+            onClear={() => onDetailChange(columnName, 'laboratoryMethod', '')}
           />
-        ))}
+        </div>
+        <TextInput
+          size="small"
+          type="number"
+          label={t('datasets.mappings.details.reference_period_start')}
+          placeholder={t('datasets.mappings.details.reference_period_start_placeholder')}
+          value={referencePeriodStart ?? ''}
+          onChange={value => onReferencePeriodStartChange(columnName, value)}
+        />
+        <TextInput
+          size="small"
+          type="number"
+          label={t('datasets.mappings.details.reference_period_stop')}
+          placeholder={t('datasets.mappings.details.reference_period_stop_placeholder')}
+          value={referencePeriodStop ?? ''}
+          onChange={value => onReferencePeriodStopChange(columnName, value)}
+        />
+      </div>
+      <TextArea
+        className={styles.LayerDescription}
+        size="small"
+        label={t('datasets.mappings.details.layer_description')}
+        placeholder={t('datasets.mappings.details.layer_description_placeholder')}
+        value={layerDescription ?? ''}
+        maxLength={LAYER_DESCRIPTION_MAX_LENGTH}
+        showCounter
+        onChange={value => onLayerDescriptionChange(columnName, value)}
+      />
+      <div className={styles.AdditionalResources}>
+        <p className={styles.AdditionalResourcesTitle}>
+          {t('datasets.mappings.details.additional_resources_title')}{' '}
+          <span className={styles.AdditionalResourcesSubtitle}>{t('datasets.mappings.details.additional_resources_subtitle')}</span>
+        </p>
+        <div className={styles.AdditionalResourcesContent}>TODO...</div>
       </div>
     </div>
   );

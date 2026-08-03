@@ -5,6 +5,7 @@ import { useApiQuery } from 'hooks/useApiQuery';
 import { useSoilProperties } from 'hooks/useSoilProperties';
 import { useCreateProcedureMutation } from 'hooks/useCreateProcedureMutation';
 import { useCreateMappingsMutation } from 'hooks/useCreateMappingsMutation';
+import { useUpdateDatasetFileMappingMutation } from 'hooks/useDatasetMutation';
 import { useCreateJobMutation, useJobsQueries } from 'hooks/useJobsApi';
 import useIngestionFlow from 'hooks/useIngestionFlow';
 import { useDataset } from 'hooks/useDatasets';
@@ -82,55 +83,74 @@ beforeEach(() => {
   (useDataset as jest.Mock).mockReturnValue({ data: { name: 'Mock-dataset' } });
 });
 
-const defaultDatasetFileMappings = [{ id: 'dfm-1', fileID: 'file-1' }];
+// Maps a column name 1:1 to a single-band file named after it, with the file id derived from
+// the name — so a data_mapping keyed by fileID/"0" can be built for `setupWithColumnsAndExistingMapping`.
+function fileIdFor(columnName: string) {
+  return `${columnName}-file`;
+}
+
+function datasetFileMappingsFor(columns: string[]) {
+  return columns.map(name => ({ id: `dfm-${name}`, fileID: fileIdFor(name), mappingId: `mapping-${name}` }));
+}
 
 function setupWithColumns(columns: string[]) {
   // Stable reference — new array per call would re-trigger the columnMappings useEffect on every render.
   // Each column name becomes its own single-band raster file, so it maps 1:1 to a row.
   const filesData = columns.map(name => ({
+    id: fileIdFor(name),
     name,
     metadata: { is_raster: true, raster_bands: [{ band_number: 1 }] },
   }));
+  const datasetFileMappings = datasetFileMappingsFor(columns);
   mockUseApiQuery.mockImplementation(({ endpoint }: { endpoint: string }) => {
     if (endpoint.includes('/files')) return { data: filesData, isLoading: false };
-    if (endpoint.includes('dataset-file-mapping')) return { data: defaultDatasetFileMappings, isLoading: false };
+    if (endpoint.includes('dataset-file-mapping')) return { data: datasetFileMappings, isLoading: false };
     return { data: undefined, isLoading: false };
   });
 }
 
 function setupWithEmptyFiles() {
   const filesData: never[] = [];
+  const datasetFileMappings: never[] = [];
   mockUseApiQuery.mockImplementation(({ endpoint }: { endpoint: string }) => {
     if (endpoint.includes('/files')) return { data: filesData, isLoading: false };
-    if (endpoint.includes('dataset-file-mapping')) return { data: defaultDatasetFileMappings, isLoading: false };
+    if (endpoint.includes('dataset-file-mapping')) return { data: datasetFileMappings, isLoading: false };
     return { data: undefined, isLoading: false };
   });
 }
 
-function setupWithColumnsAndExistingMapping(columns: string[], dataMapping: Record<string, unknown>) {
+// dataMappingByColumn maps a column name to the value that should appear under its file's
+// data_mapping band-0 key (e.g. 'min_depth' or { property_id: 'ph' }).
+function setupWithColumnsAndExistingMapping(columns: string[], dataMappingByColumn: Record<string, unknown>) {
   // Stable references — new arrays on every render would re-trigger the columnMappings useEffect.
   const filesData = columns.map(name => ({
+    id: fileIdFor(name),
     name,
     metadata: { is_raster: true, raster_bands: [{ band_number: 1 }] },
   }));
-  const mappingsData = [{ data_mapping: dataMapping }];
+  const datasetFileMappings = datasetFileMappingsFor(columns);
+  const mappingsData = columns
+    .filter(name => name in dataMappingByColumn)
+    .map(name => ({ id: `mapping-${name}`, data_mapping: { '0': dataMappingByColumn[name] } }));
   mockUseApiQuery.mockImplementation(({ endpoint }: { endpoint: string }) => {
     if (endpoint.includes('/files')) return { data: filesData, isLoading: false };
     if (endpoint.includes('/mappings')) return { data: mappingsData, isLoading: false };
-    if (endpoint.includes('dataset-file-mapping')) return { data: defaultDatasetFileMappings, isLoading: false };
+    if (endpoint.includes('dataset-file-mapping')) return { data: datasetFileMappings, isLoading: false };
     return { data: undefined, isLoading: false };
   });
 }
 
 function setupWithFileStatuses(statuses: string[], dataUpdatedAt = 0) {
-  const filesData = statuses.map(status => ({
+  const filesData = statuses.map((status, i) => ({
+    id: `file-${i}`,
     status,
     name: 'col1',
     metadata: { is_raster: true, raster_bands: [{ band_number: 1 }] },
   }));
+  const datasetFileMappings = filesData.map(f => ({ id: `dfm-${f.id}`, fileID: f.id, mappingId: `mapping-${f.id}` }));
   mockUseApiQuery.mockImplementation(({ endpoint }: { endpoint: string }) => {
     if (endpoint.includes('/files')) return { data: filesData, isLoading: false, dataUpdatedAt };
-    if (endpoint.includes('dataset-file-mapping')) return { data: defaultDatasetFileMappings, isLoading: false };
+    if (endpoint.includes('dataset-file-mapping')) return { data: datasetFileMappings, isLoading: false };
     return { data: undefined, isLoading: false };
   });
 }
@@ -181,11 +201,16 @@ describe('useRasterMappingStep', () => {
 
     it('handleContinue navigates to the preview step when files are already uploaded and mapping is unchanged', async () => {
       // Fast path: all files STAGED + no mapping change → navigate immediately.
-      const filesData = [{ name: 'col1', metadata: { is_raster: true, raster_bands: [{ band_number: 1 }] }, status: 'STAGED' }];
-      const mappingsData = [{ data_mapping: {} }];
+      // Stable references — a fresh array/object on every render would re-trigger effects forever.
+      const filesData = [
+        { id: fileIdFor('col1'), name: 'col1', metadata: { is_raster: true, raster_bands: [{ band_number: 1 }] }, status: 'STAGED' },
+      ];
+      const datasetFileMappings = [{ id: 'dfm-col1', fileID: fileIdFor('col1'), mappingId: 'mapping-col1' }];
+      const mappingsData = [{ id: 'mapping-col1', data_mapping: {} }];
       mockUseApiQuery.mockImplementation(({ endpoint }: { endpoint: string }) => {
         if (endpoint.includes('/files')) return { data: filesData, isLoading: false };
         if (endpoint.includes('/mappings')) return { data: mappingsData, isLoading: false };
+        if (endpoint.includes('dataset-file-mapping')) return { data: datasetFileMappings, isLoading: false };
         return { data: undefined, isLoading: false };
       });
       const { result } = renderHook(() => useRasterMappingStep('42'));
@@ -212,17 +237,20 @@ describe('useRasterMappingStep', () => {
       await act(async () => {
         await result.current.handleContinue();
       });
-      expect(mockCreateJob).toHaveBeenCalledWith({ dataset_id: '42', type: 'file-to-db', file_id: 'file-1' });
+      expect(mockCreateJob).toHaveBeenCalledWith({ dataset_id: '42', type: 'file-to-db', file_id: fileIdFor('col1') });
     });
 
     it('handleContinue creates jobs when files are not yet STAGED even if mapping is unchanged', async () => {
       // Files still PENDING → allFilesUploaded=false → fast-path blocked → jobs must fire.
-      const filesData = [{ status: 'PENDING', name: 'col1', metadata: { is_raster: true, raster_bands: [{ band_number: 1 }] } }];
-      const mappingsData = [{ data_mapping: {} }];
+      const filesData = [
+        { id: fileIdFor('col1'), status: 'PENDING', name: 'col1', metadata: { is_raster: true, raster_bands: [{ band_number: 1 }] } },
+      ];
+      const datasetFileMappings = [{ id: 'dfm-1', fileID: fileIdFor('col1'), mappingId: 'mapping-1' }];
+      const mappingsData = [{ id: 'mapping-1', data_mapping: {} }];
       mockUseApiQuery.mockImplementation(({ endpoint }: { endpoint: string }) => {
         if (endpoint.includes('/files')) return { data: filesData, isLoading: false };
         if (endpoint.includes('/mappings')) return { data: mappingsData, isLoading: false };
-        if (endpoint.includes('dataset-file-mapping')) return { data: defaultDatasetFileMappings, isLoading: false };
+        if (endpoint.includes('dataset-file-mapping')) return { data: datasetFileMappings, isLoading: false };
         return { data: undefined, isLoading: false };
       });
       const mockCreateJob = jest.fn().mockResolvedValue({ id: 'job-1' });
@@ -231,7 +259,7 @@ describe('useRasterMappingStep', () => {
       await act(async () => {
         await result.current.handleContinue();
       });
-      expect(mockCreateJob).toHaveBeenCalledWith({ dataset_id: '42', type: 'file-to-db', file_id: 'file-1' });
+      expect(mockCreateJob).toHaveBeenCalledWith({ dataset_id: '42', type: 'file-to-db', file_id: fileIdFor('col1') });
     });
   });
 
@@ -374,28 +402,61 @@ describe('useRasterMappingStep', () => {
     });
   });
 
-  describe('mergedMappings', () => {
-    it('hydrates columnMappings conceptId from the existing server mapping', () => {
+  describe('dataMappingByFileId hydration', () => {
+    it('hydrates columnMappings conceptId from the existing server mapping, keyed per file/band', () => {
       setupWithColumnsAndExistingMapping(['col1', 'col2'], { col1: 'min_depth' });
       const { result } = renderHook(() => useRasterMappingStep('1'));
       const byName = Object.fromEntries(result.current.columnMappings.map(m => [m.columnName, m]));
       expect(byName['col1'].conceptId).toBe('min_depth');
       expect(byName['col2'].conceptId).toBeNull();
     });
+
+    it('hydrates soil-property mapping fields (unit, depth, reference period, description)', () => {
+      setupWithColumnsAndExistingMapping(['col1'], {
+        col1: {
+          property_id: 'ph',
+          conversion_id: 'mg/kg',
+          min_depth: 10,
+          max_depth: 20,
+          reference_period_start: '2020',
+          reference_period_stop: '2021',
+          layer_description: 'A description',
+        },
+      });
+      const { result } = renderHook(() => useRasterMappingStep('1'));
+      const mapping = result.current.columnMappings[0];
+      expect(mapping.conceptId).toBe('ph');
+      expect(mapping.unitId).toBe('mg/kg');
+      expect(mapping.minDepth).toBe('10');
+      expect(mapping.maxDepth).toBe('20');
+      expect(mapping.referencePeriodStart).toBe('2020');
+      expect(mapping.referencePeriodStop).toBe('2021');
+      expect(mapping.layerDescription).toBe('A description');
+    });
+
+    it('does not mix up mappings between two different files', () => {
+      setupWithColumnsAndExistingMapping(['col1', 'col2'], { col1: 'min_depth', col2: 'max_depth' });
+      const { result } = renderHook(() => useRasterMappingStep('1'));
+      const byName = Object.fromEntries(result.current.columnMappings.map(m => [m.columnName, m]));
+      expect(byName['col1'].conceptId).toBe('min_depth');
+      expect(byName['col2'].conceptId).toBe('max_depth');
+    });
   });
 
   describe('row naming from raster bands', () => {
     function setupWithFiles(files: { name: string; bandCount: number }[]) {
-      const filesData = files.map(f => ({
+      const filesData = files.map((f, i) => ({
+        id: `file-${i}`,
         name: f.name,
         metadata: {
           is_raster: true,
           raster_bands: Array.from({ length: f.bandCount }, (_, i) => ({ band_number: i + 1 })),
         },
       }));
+      const datasetFileMappings: never[] = [];
       mockUseApiQuery.mockImplementation(({ endpoint }: { endpoint: string }) => {
         if (endpoint.includes('/files')) return { data: filesData, isLoading: false };
-        if (endpoint.includes('dataset-file-mapping')) return { data: defaultDatasetFileMappings, isLoading: false };
+        if (endpoint.includes('dataset-file-mapping')) return { data: datasetFileMappings, isLoading: false };
         return { data: undefined, isLoading: false };
       });
     }
@@ -404,24 +465,27 @@ describe('useRasterMappingStep', () => {
       setupWithFiles([{ name: 'file_a.tif', bandCount: 1 }]);
       const { result } = renderHook(() => useRasterMappingStep('1'));
       expect(result.current.columnMappings.map(m => m.columnName)).toEqual(['file_a.tif']);
+      expect(result.current.columnMappings[0].bandKey).toBe(0);
     });
 
-    it('names each row after its band number for a multi-band file', () => {
+    it('names each row after its band number for a multi-band file, with a zero-based bandKey', () => {
       setupWithFiles([{ name: 'file_bulk_raster.tif', bandCount: 2 }]);
       const { result } = renderHook(() => useRasterMappingStep('1'));
       expect(result.current.columnMappings.map(m => m.columnName)).toEqual([
         'file_bulk_raster.tif (band 1)',
         'file_bulk_raster.tif (band 2)',
       ]);
+      expect(result.current.columnMappings.map(m => m.bandKey)).toEqual([0, 1]);
     });
 
-    it('produces one row set per file when multiple files are uploaded', () => {
+    it('produces one row set per file when multiple files are uploaded, each with its own fileId', () => {
       setupWithFiles([
         { name: 'single.tif', bandCount: 1 },
         { name: 'multi.tif', bandCount: 2 },
       ]);
       const { result } = renderHook(() => useRasterMappingStep('1'));
       expect(result.current.columnMappings.map(m => m.columnName)).toEqual(['single.tif', 'multi.tif (band 1)', 'multi.tif (band 2)']);
+      expect(result.current.columnMappings.map(m => m.fileId)).toEqual(['file-0', 'file-1', 'file-1']);
     });
   });
 
@@ -519,16 +583,19 @@ describe('useRasterMappingStep', () => {
   describe('save', () => {
     let mockCreateProcedure: jest.Mock;
     let mockCreateMapping: jest.Mock;
+    let mockUpdateDatasetFileMapping: jest.Mock;
 
     beforeEach(() => {
       mockCreateProcedure = jest.fn().mockResolvedValue({ id: 'proc-1' });
-      mockCreateMapping = jest.fn().mockResolvedValue({ id: 'mapping-1', data_mapping: {} });
+      mockCreateMapping = jest.fn().mockResolvedValue({ id: 'new-mapping-1', data_mapping: {} });
+      mockUpdateDatasetFileMapping = jest.fn().mockResolvedValue(undefined);
       (useCreateProcedureMutation as jest.Mock).mockReturnValue({ mutateAsync: mockCreateProcedure });
       (useCreateMappingsMutation as jest.Mock).mockReturnValue({ mutateAsync: mockCreateMapping });
+      (useUpdateDatasetFileMappingMutation as jest.Mock).mockReturnValue({ mutateAsync: mockUpdateDatasetFileMapping });
       setupWithColumns(['col1', 'col2']);
     });
 
-    it('saves a metadata field as a plain string', async () => {
+    it('saves a metadata field as a plain string, keyed by the band position (0)', async () => {
       const { result } = renderHook(() => useRasterMappingStep('42'));
       act(() => {
         result.current.handleConceptChange('col1', 'min_depth');
@@ -536,7 +603,7 @@ describe('useRasterMappingStep', () => {
       await act(async () => {
         await result.current.handleContinue();
       });
-      expect(mockCreateMapping).toHaveBeenCalledWith(expect.objectContaining({ col1: 'min_depth' }));
+      expect(mockCreateMapping).toHaveBeenCalledWith(expect.objectContaining({ '0': 'min_depth' }));
       expect(mockCreateProcedure).not.toHaveBeenCalled();
     });
 
@@ -548,7 +615,7 @@ describe('useRasterMappingStep', () => {
       await act(async () => {
         await result.current.handleContinue();
       });
-      expect(mockCreateMapping).toHaveBeenCalledWith(expect.objectContaining({ col1: { property_id: 'soil-ph' } }));
+      expect(mockCreateMapping).toHaveBeenCalledWith(expect.objectContaining({ '0': { property_id: 'soil-ph' } }));
       expect(mockCreateProcedure).not.toHaveBeenCalled();
     });
 
@@ -561,21 +628,48 @@ describe('useRasterMappingStep', () => {
       await act(async () => {
         await result.current.handleContinue();
       });
-      expect(mockCreateMapping).toHaveBeenCalledWith(expect.objectContaining({ col1: { property_id: 'soil-ph', conversion_id: 'mg/kg' } }));
+      expect(mockCreateMapping).toHaveBeenCalledWith(expect.objectContaining({ '0': { property_id: 'soil-ph', conversion_id: 'mg/kg' } }));
       expect(mockCreateProcedure).not.toHaveBeenCalled();
+    });
+
+    it('includes min/max depth, reference period, and layer description when set', async () => {
+      const { result } = renderHook(() => useRasterMappingStep('42'));
+      act(() => {
+        result.current.handleConceptChange('col1', 'soil-ph');
+        result.current.handleMinDepthChange('col1', '10');
+        result.current.handleMaxDepthChange('col1', '20');
+        result.current.handleReferencePeriodStartChange('col1', '2020');
+        result.current.handleReferencePeriodStopChange('col1', '2021');
+        result.current.handleLayerDescriptionChange('col1', 'A description');
+      });
+      await act(async () => {
+        await result.current.handleContinue();
+      });
+      expect(mockCreateMapping).toHaveBeenCalledWith(
+        expect.objectContaining({
+          '0': {
+            property_id: 'soil-ph',
+            min_depth: 10,
+            max_depth: 20,
+            reference_period_start: '2020',
+            reference_period_stop: '2021',
+            layer_description: 'A description',
+          },
+        }),
+      );
     });
 
     it('creates a procedure and links its id when detail fields are filled', async () => {
       const { result } = renderHook(() => useRasterMappingStep('42'));
       act(() => {
         result.current.handleConceptChange('col1', 'soil-ph');
-        result.current.handleDetailChange('col1', 'technique', 'acid_digestion');
+        result.current.handleDetailChange('col1', 'laboratoryMethod', 'ICP-OES');
       });
       await act(async () => {
         await result.current.handleContinue();
       });
-      expect(mockCreateProcedure).toHaveBeenCalledWith(expect.objectContaining({ technique: 'acid_digestion' }));
-      expect(mockCreateMapping).toHaveBeenCalledWith(expect.objectContaining({ col1: { property_id: 'soil-ph', procedure_id: 'proc-1' } }));
+      expect(mockCreateProcedure).toHaveBeenCalledWith(expect.objectContaining({ laboratory_method: 'ICP-OES' }));
+      expect(mockCreateMapping).toHaveBeenCalledWith(expect.objectContaining({ '0': { property_id: 'soil-ph', procedure_id: 'proc-1' } }));
     });
 
     it('excludes unmapped columns from the mapping request', async () => {
@@ -587,8 +681,33 @@ describe('useRasterMappingStep', () => {
       await act(async () => {
         await result.current.handleContinue();
       });
+      // col2 lives on a separate file (separate mapping request), so it must never be created.
       const payload = mockCreateMapping.mock.calls[0][0];
-      expect(payload).not.toHaveProperty('col2');
+      expect(payload).toEqual({ '0': 'min_depth' });
+    });
+
+    it('creates one mapping request per distinct file and links each to its own dataset-file-mapping', async () => {
+      const { result } = renderHook(() => useRasterMappingStep('42'));
+      act(() => {
+        result.current.handleConceptChange('col1', 'min_depth');
+        result.current.handleConceptChange('col2', 'max_depth');
+      });
+      await act(async () => {
+        await result.current.handleContinue();
+      });
+      expect(mockCreateMapping).toHaveBeenCalledTimes(2);
+      expect(mockCreateMapping).toHaveBeenCalledWith({ '0': 'min_depth' });
+      expect(mockCreateMapping).toHaveBeenCalledWith({ '0': 'max_depth' });
+      expect(mockUpdateDatasetFileMapping).toHaveBeenCalledWith({
+        datasetId: '42',
+        datasetFileMappingId: 'dfm-col1',
+        mappingId: 'new-mapping-1',
+      });
+      expect(mockUpdateDatasetFileMapping).toHaveBeenCalledWith({
+        datasetId: '42',
+        datasetFileMappingId: 'dfm-col2',
+        mappingId: 'new-mapping-1',
+      });
     });
   });
 

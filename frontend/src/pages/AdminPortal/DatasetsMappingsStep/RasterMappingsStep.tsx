@@ -42,6 +42,9 @@ export function RasterMappingsStep({ id }: Props) {
     handleMinDepthChange,
     handleMaxDepthChange,
     handleDetailChange,
+    handleReferencePeriodStartChange,
+    handleReferencePeriodStopChange,
+    handleLayerDescriptionChange,
     handlePrevious,
     handleSaveAndContinueLater,
     handleContinue,
@@ -86,6 +89,9 @@ export function RasterMappingsStep({ id }: Props) {
           onMinDepthChange={handleMinDepthChange}
           onMaxDepthChange={handleMaxDepthChange}
           onDetailChange={handleDetailChange}
+          onReferencePeriodStartChange={handleReferencePeriodStartChange}
+          onReferencePeriodStopChange={handleReferencePeriodStopChange}
+          onLayerDescriptionChange={handleLayerDescriptionChange}
         />
       </div>
 
