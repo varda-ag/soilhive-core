@@ -2812,10 +2812,11 @@ components:
     SoilStatisticsJob:
       type: object
       description: >-
-        Computes descriptive statistics over the observations matching a filter, reported
-        per aggregation area, dataset, soil property, sampling year and depth interval.
-        The result is written into the job's own data and read back via GET /jobs/{jobId}.
-        Raster datasets never contribute — their measurements are pixels, not observations.
+        Computes an analytical product over the aggregation areas matching a filter. Which
+        product is chosen by statistics_type; the areas are resolved identically for every
+        type, and only what is computed over them differs. The result is written into the
+        job's own data and read back via GET /jobs/{jobId}, under a key that depends on the
+        type — results for `descriptive`, crea_index for `crea-index`.
       required:
         - type
         - filter_id
@@ -2824,6 +2825,18 @@ components:
           type: string
           enum: [soil-statistics]
           description: Job type
+        statistics_type:
+          type: string
+          enum: [descriptive, crea-index]
+          default: descriptive
+          description: >-
+            Which product to compute. `descriptive` gives descriptive statistics over the
+            matching observations, per aggregation area, dataset, soil property, sampling
+            year and depth interval — raster datasets never contribute there, because their
+            measurements are pixels rather than observations. `crea-index` gives one scored
+            GeoJSON Point per aggregation area. Parameters that the chosen type does not use
+            are rejected with a 400 rather than ignored: histogram_bins and dataset_ids
+            apply to `descriptive` only.
         anonymous:
           type: boolean
           description: Set to true to allow access without authentication
@@ -2852,13 +2865,70 @@ components:
           type: integer
           minimum: 2
           maximum: 100
-          default: 10
-          description: Number of equal-width histogram bins spanning each cell's min-max range
+          description: >-
+            Number of equal-width histogram bins spanning each cell's min-max range.
+            Applies to statistics_type `descriptive` only; sending it with another type is
+            a 400.
         label_field:
           type: string
           description: >-
             Optional field of file_id whose value labels each aggregation area. Must name
             an existing field of that file.
+        crea_index:
+          readOnly: true
+          allOf:
+            - $ref: '#/components/schemas/CreaIndexCollection'
+          description: >-
+            Output, never sent on submission. Present only for statistics_type `crea-index`;
+            the `descriptive` type writes results and truncated instead.
+
+    CreaIndexCollection:
+      type: object
+      description: >-
+        Output of statistics_type `crea-index`: one Point per aggregation area, carrying the
+        index for that area. Written to the crea_index key of the job's data. Each Feature's
+        id is the aggregation area's unit_id, which is the only way back to the area — the
+        label and the area in m² are on the job's units array, and equivalent geometries in
+        a source file collapse into one area, so position in this list does not correspond
+        to a row of that file. The Point is the area's centroid where that falls inside the
+        geometry, and a guaranteed-interior point otherwise (a multipolygon of disjoint
+        parcels is one area, and its centroid can lie between them).
+      properties:
+        type:
+          type: string
+          enum: [FeatureCollection]
+        features:
+          type: array
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+                enum: [Feature]
+              id:
+                type: string
+                format: uuid
+                description: The aggregation area's unit_id
+              geometry:
+                $ref: '../src/GeoJSON-OAS3.yaml#/components/schemas/Point'
+              properties:
+                type: object
+                properties:
+                  value:
+                    type: number
+                    minimum: 0
+                    maximum: 1
+                    description: The index for this area, rounded to 3 decimals
+                required:
+                  - value
+            required:
+              - type
+              - id
+              - geometry
+              - properties
+      required:
+        - type
+        - features
 
     FileToDbJob:
       type: object

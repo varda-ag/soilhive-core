@@ -4,7 +4,7 @@ import request from 'supertest';
 import { app } from '../../src/app';
 import { Token } from '../../src/interfaces/Token';
 import { getPgBoss, initPgBoss, PG_BOSS_SCHEMA, stopPgBoss } from '../../src/services/PgBoss';
-import { JobQueues } from '../../src/types/enums';
+import { JobQueues, StatisticsType } from '../../src/types/enums';
 import { getDataSource, getEntityManager } from '../../src/utils/data-source';
 import { getRawTableName, sleep } from '../../src/utils/utils';
 import { getDataAdminToken } from '../helper';
@@ -377,6 +377,57 @@ describe('Testing /jobs routes', () => {
       expect(res.statusCode).toBe(201);
       expect(res.body.queue).toBe(JobQueues.SOIL_STATISTICS);
       expect(res.body.data.histogram_bins).toBe(20);
+    });
+
+    it('accepts statistics_type crea-index and echoes it back', async () => {
+      const filterId = await createFilter([polygon]);
+      const res = await request(app).post('/jobs').send({
+        type: JobQueues.SOIL_STATISTICS,
+        filter_id: filterId,
+        statistics_type: StatisticsType.CREA_INDEX,
+      });
+      expect(res.statusCode).toBe(201);
+      expect(res.body.queue).toBe(JobQueues.SOIL_STATISTICS);
+      expect(res.body.data.statistics_type).toBe(StatisticsType.CREA_INDEX);
+    });
+
+    it('rejects an unknown statistics_type', async () => {
+      const filterId = await createFilter([polygon]);
+      const res = await request(app).post('/jobs').send({
+        type: JobQueues.SOIL_STATISTICS,
+        filter_id: filterId,
+        statistics_type: 'not-a-type',
+      });
+      expect(res.statusCode).toBe(400);
+    });
+
+    // Inapplicable parameters are rejected rather than ignored: accepting one for a future
+    // type is additive, whereas ignoring it now and tightening later would be breaking.
+    it('rejects histogram_bins with statistics_type crea-index', async () => {
+      const filterId = await createFilter([polygon]);
+      const res = await request(app).post('/jobs').send({
+        type: JobQueues.SOIL_STATISTICS,
+        filter_id: filterId,
+        statistics_type: StatisticsType.CREA_INDEX,
+        histogram_bins: 20,
+      });
+      expect(res.statusCode).toBe(400);
+      expect(res.body.detail).toContain('histogram_bins does not apply');
+    });
+
+    it('rejects dataset_ids with statistics_type crea-index', async () => {
+      const dataset = await addDataset('crea-stats-ds', [0, 0, 2, 2], GISDataType.POINT);
+      const filterId = await createFilter([polygon]);
+      const res = await request(app)
+        .post('/jobs')
+        .send({
+          type: JobQueues.SOIL_STATISTICS,
+          filter_id: filterId,
+          statistics_type: StatisticsType.CREA_INDEX,
+          dataset_ids: [dataset.slug],
+        });
+      expect(res.statusCode).toBe(400);
+      expect(res.body.detail).toContain('dataset_ids does not apply');
     });
 
     it('rejects a histogram_bins value outside the allowed range', async () => {

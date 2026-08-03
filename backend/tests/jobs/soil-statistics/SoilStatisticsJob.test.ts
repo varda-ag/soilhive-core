@@ -9,7 +9,7 @@ import { SoilStatisticsJob } from '../../../src/interfaces/Job';
 import { processSoilStatistics } from '../../../src/jobs/soil-statistics/SoilStatisticsJob';
 import * as PgBossModule from '../../../src/services/PgBoss';
 import { getPgBoss, initPgBoss, PG_BOSS_SCHEMA, stopPgBoss } from '../../../src/services/PgBoss';
-import { JobQueues } from '../../../src/types/enums';
+import { Capability, JobQueues, StatisticsType } from '../../../src/types/enums';
 import { GISDataType, VocabularyType } from '../../../src/types/data';
 import { getDataSource, getEntityManager } from '../../../src/utils/data-source';
 import { getPolygonFromBbox } from '../../../src/utils/geometry';
@@ -27,6 +27,7 @@ import {
 } from '../../../src/utils/mock';
 import FileEntity from '../../../src/entities/File';
 import ProcedureEntity from '../../../src/entities/Procedure';
+import { getDataAdminToken, getUserToken } from '../../helper';
 
 const storageRoot = process.env.LOCAL_STORAGE_ROOT_FOLDER!;
 const DATASET_BBOX = [-1, -1, 5, 5];
@@ -373,6 +374,143 @@ describe('processSoilStatistics', () => {
     });
   });
 
+  /**
+   * The only tests in this file that let a real worker run the job.
+   *
+   * Everything else hand-builds a payload and calls processSoilStatistics directly, which
+   * cannot cover this: the identity a job runs under is decided by JobService.createJob,
+   * and createActiveJob writes created_by itself. The bug this guards against lived
+   * precisely in that gap — the API authorised the caller by their Subject (the email
+   * claim) while the processor re-derived entitlements from the raw sub, matched no rows,
+   * and fell back to `everyone`'s. So the chain has to start at a real token and a real
+   * POST /jobs, and the worker has to be the thing that picks the job up.
+   */
+  describe('caller entitlements', () => {
+    // Deliberately different strings: were created_by to regress to the sub, every
+    // assertion below would fail rather than quietly still pass.
+    const CALLER_SUB = 'stats-caller-sub';
+    const CALLER_EMAIL = 'stats-caller@localhost';
+
+    /** Seeds a private dataset and, when granted, gives the caller PREVIEW over it. */
+    const seedPrivateDataset = async (name: string, values: number[], granted: boolean) => {
+      const { dataset } = await seedDataset(name, values);
+      const entityManager = await getEntityManager();
+      await entityManager.query(`UPDATE datasets SET visibility = 'private' WHERE id = $1`, [dataset.id]);
+      if (granted) {
+        // Granted through the real admin route, so the key the grant is stored under is
+        // the product's, not one this test invented.
+        const adminToken = await getDataAdminToken();
+        await request(app)
+          .put(`/datasets/${dataset.slug}/entitlements`)
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({ [CALLER_EMAIL]: [Capability.PREVIEW] })
+          .expect(200);
+      }
+      return dataset;
+    };
+
+    /** POSTs the job as the caller and waits for the worker to finish it. */
+    const runAsCaller = async (token: string, body: object): Promise<{ jobId: string; data: SoilStatisticsJob }> => {
+      const res = await request(app).post('/jobs').set('Authorization', `Bearer ${token}`).send(body).expect(201);
+      const jobId = res.body.id;
+      const spy = getPgBoss().getSpy<SoilStatisticsJob>(JobQueues.SOIL_STATISTICS);
+      await spy.waitForJobWithId(jobId, 'completed');
+      return { jobId, data: await readJobData(jobId) };
+    };
+
+    it('reads the private datasets the caller is entitled to, and skips the one they are not', async () => {
+      const datasetA = await seedPrivateDataset('entitled-a', [10, 20], true);
+      const datasetB = await seedPrivateDataset('entitled-b', [30, 40], true);
+      const datasetC = await seedPrivateDataset('unentitled-c', [50, 60], false);
+
+      const token = getUserToken(CALLER_SUB, CALLER_EMAIL);
+      const filterResponse = await request(app)
+        .post('/data-filters')
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          geometries: [UNIT_A],
+          parameters: {},
+        });
+      expect(filterResponse.statusCode).toBe(201);
+
+      const { jobId, data } = await runAsCaller(token, {
+        type: JobQueues.SOIL_STATISTICS,
+        filter_id: filterResponse.body.id,
+      });
+
+      // The Subject, not the sub: this is the value the processor looks entitlements up by.
+      expect(data.created_by).toBe(CALLER_EMAIL);
+
+      const readDatasets = data.results.map(entry => entry.dataset_id);
+      expect(readDatasets).toEqual(expect.arrayContaining([datasetA.slug, datasetB.slug]));
+
+      // C is the negative control. Without it, a change that entitled everything would
+      // still satisfy the assertion above.
+      expect(readDatasets).not.toContain(datasetC.slug);
+      expect(data.skipped_datasets).toEqual([{ id: datasetC.slug, reason: 'no_preview_entitlement' }]);
+
+      // The same Subject decides job ownership, so the caller must be able to read back
+      // the job the API just created for them.
+      const jobResponse = await request(app).get(`/jobs/${jobId}`).set('Authorization', `Bearer ${token}`);
+      expect(jobResponse.statusCode).toBe(200);
+      expect(jobResponse.body.data.created_by).toBe(CALLER_EMAIL);
+    });
+
+    it('completes a run naming those datasets explicitly, rather than refusing what enqueue allowed', async () => {
+      // Named datasets are gated twice — enforceEntitlements at enqueue time, then again
+      // in the processor. If the two gates resolve identity differently the API returns
+      // 201 and the job then dies with SST_DATASET_NOT_ENTITLED, which is exactly what a
+      // sub-keyed processor did.
+      const datasetA = await seedPrivateDataset('named-a', [1, 2], true);
+      const datasetB = await seedPrivateDataset('named-b', [3, 4], true);
+
+      const token = getUserToken(CALLER_SUB, CALLER_EMAIL);
+      const filterResponse = await request(app)
+        .post('/data-filters')
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          geometries: [UNIT_A],
+          parameters: {},
+        });
+      expect(filterResponse.statusCode).toBe(201);
+
+      const { data } = await runAsCaller(token, {
+        type: JobQueues.SOIL_STATISTICS,
+        filter_id: filterResponse.body.id,
+        dataset_ids: [datasetA.slug, datasetB.slug],
+      });
+
+      expect(data.results.map(entry => entry.dataset_id)).toEqual(expect.arrayContaining([datasetA.slug, datasetB.slug]));
+      expect(data.skipped_datasets).toEqual([]);
+    });
+
+    it('refuses at enqueue time when the caller holds no entitlement for a named dataset', async () => {
+      // The mirror image, proving the grant is what the chain turns on rather than the
+      // dataset merely existing: same caller, same route, no grant.
+      const dataset = await seedPrivateDataset('ungranted', [1, 2], false);
+
+      const token = getUserToken(CALLER_SUB, CALLER_EMAIL);
+      const filterResponse = await request(app)
+        .post('/data-filters')
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          geometries: [UNIT_A],
+          parameters: {},
+        });
+      expect(filterResponse.statusCode).toBe(201);
+
+      const res = await request(app)
+        .post('/jobs')
+        .set('Authorization', `Bearer ${token}`)
+        .send({
+          type: JobQueues.SOIL_STATISTICS,
+          filter_id: filterResponse.body.id,
+          dataset_ids: [dataset.slug],
+        });
+      expect(res.statusCode).toBe(403);
+    });
+  });
+
   describe('progress and cancellation', () => {
     it('reports increasing progress and finishes at 100', async () => {
       await seedDataset('progress-ds', [1, 2, 3]);
@@ -412,6 +550,173 @@ describe('processSoilStatistics', () => {
 
       const stored = await readJobData(jobId);
       expect(stored.results).toBeUndefined();
+    });
+  });
+
+  describe('statistics_type', () => {
+    it('computes descriptive statistics when the type is absent', async () => {
+      const { dataset } = await seedDataset('type-default', [1, 2, 3]);
+      const filterId = await createFilter([UNIT_A]);
+
+      const { jobId, job } = await createActiveJob({ filter_id: filterId });
+      await processSoilStatistics(job);
+      const stored = await readJobData(jobId);
+
+      expect(stored.results.some(entry => entry.dataset_id === dataset.slug)).toBe(true);
+      expect(stored.crea_index).toBeUndefined();
+    });
+
+    it('fails rather than falling back to descriptive on an unrecognised type', async () => {
+      await seedDataset('type-unknown', [1]);
+      const filterId = await createFilter([UNIT_A]);
+      const { jobId, job } = await createActiveJob({
+        filter_id: filterId,
+        statistics_type: 'not-a-type' as StatisticsType,
+      });
+
+      await expect(processSoilStatistics(job)).rejects.toMatchObject({ code: 'SST_UNKNOWN_STATISTICS_TYPE' });
+
+      // Nothing of either product may be written: a wrong name must not silently yield the
+      // default one.
+      const stored = await readJobData(jobId);
+      expect(stored.results).toBeUndefined();
+      expect(stored.crea_index).toBeUndefined();
+    });
+  });
+
+  describe('crea-index', () => {
+    it('returns one scored Point per filter geometry, identified by unit_id', async () => {
+      const filterId = await createFilter([UNIT_A, UNIT_B]);
+      const { jobId, job } = await createActiveJob({ filter_id: filterId, statistics_type: StatisticsType.CREA_INDEX });
+      await processSoilStatistics(job);
+      const stored = await readJobData(jobId);
+
+      expect(stored.unit_count).toBe(2);
+      expect(stored.derived_filter_id).toBeNull();
+      expect(stored.crea_index.type).toBe('FeatureCollection');
+      expect(stored.crea_index.features).toHaveLength(2);
+
+      // Every Point carries its unit_id as `id` — the only join back to units[] — and
+      // exactly one property.
+      const unitIds = stored.units.map(unit => unit.unit_id).sort();
+      expect(stored.crea_index.features.map(feature => feature.id).sort()).toEqual(unitIds);
+      for (const feature of stored.crea_index.features) {
+        expect(feature.type).toBe('Feature');
+        expect(feature.geometry.type).toBe('Point');
+        expect(Object.keys(feature.properties)).toEqual(['value']);
+        expect(feature.properties.value).toBeGreaterThanOrEqual(0);
+        expect(feature.properties.value).toBeLessThanOrEqual(1);
+        // Rounded to 3 decimals like every other number in this job's output.
+        expect(feature.properties.value).toBe(Number(feature.properties.value.toFixed(3)));
+      }
+
+      // None of the descriptive type's output is written.
+      expect(stored.results).toBeUndefined();
+      expect(stored.truncated).toBeUndefined();
+      expect(stored.skipped_datasets).toBeUndefined();
+      expect(stored.excluded_datasets).toBeUndefined();
+    });
+
+    it('places each Point inside the area it scores', async () => {
+      // A C-shaped polygon whose centroid falls in the notch, outside the ring itself: the
+      // case ST_PointOnSurface exists for. A marker outside the field would be visibly wrong.
+      const cShape: Polygon = {
+        type: 'Polygon',
+        coordinates: [
+          [
+            [0, 0],
+            [3, 0],
+            [3, 1],
+            [1, 1],
+            [1, 2],
+            [3, 2],
+            [3, 3],
+            [0, 3],
+            [0, 0],
+          ],
+        ],
+      };
+      const filterId = await createFilter([cShape]);
+      const { jobId, job } = await createActiveJob({ filter_id: filterId, statistics_type: StatisticsType.CREA_INDEX });
+      await processSoilStatistics(job);
+      const stored = await readJobData(jobId);
+
+      const [feature] = stored.crea_index.features;
+      const [longitude, latitude] = feature!.geometry.coordinates;
+      const entityManager = await getEntityManager();
+      const [row] = await entityManager.query(
+        `SELECT ST_Within(ST_SetSRID(ST_MakePoint($2, $3), 4326), ug.geom) AS inside
+         FROM ${process.env.POSTGRES_SCHEMA}.user_geometries ug WHERE ug.id = $1`,
+        [feature!.id, longitude, latitude],
+      );
+      expect(row.inside).toBe(true);
+    });
+
+    it('scores the same area identically on a re-run', async () => {
+      const filterId = await createFilter([UNIT_A]);
+
+      const first = await createActiveJob({ filter_id: filterId, statistics_type: StatisticsType.CREA_INDEX });
+      await processSoilStatistics(first.job);
+      const second = await createActiveJob({ filter_id: filterId, statistics_type: StatisticsType.CREA_INDEX });
+      await processSoilStatistics(second.job);
+
+      const firstData = await readJobData(first.jobId);
+      const secondData = await readJobData(second.jobId);
+      expect(secondData.crea_index.features).toEqual(firstData.crea_index.features);
+    });
+
+    it('takes its areas from a file, ignoring the filter geometries, and records the derived filter', async () => {
+      // Same contract as the descriptive type: with a file, filter_id contributes criteria
+      // only, and the file's geometries are persisted under a derived filter.
+      const filterId = await createFilter([getPolygonFromBbox([-1, -1, 5, 5])]);
+      const file = await addVectorFileWithGeometries(
+        'crea-file-units',
+        featureCollection([
+          { geometry: UNIT_A, properties: { field_name: 'North' } },
+          { geometry: UNIT_B, properties: { field_name: 'South' } },
+          { geometry: UNIT_A, properties: { field_name: 'North duplicate' } },
+        ]),
+        { epsg: 4326 },
+      );
+
+      const { jobId, job } = await createActiveJob({
+        filter_id: filterId,
+        file_id: file.slug,
+        label_field: 'field_name',
+        statistics_type: StatisticsType.CREA_INDEX,
+      });
+      await processSoilStatistics(job);
+      const stored = await readJobData(jobId);
+
+      expect(stored.derived_filter_id).not.toBeNull();
+      // Equivalent geometries collapse, so there is no positional correspondence to the
+      // file's three rows — which is exactly why the Features carry unit_id.
+      expect(stored.unit_count).toBe(2);
+      expect(stored.crea_index.features).toHaveLength(2);
+      expect(stored.units.find(unit => unit.record_ids.length === 2)!.label).toBe('North; North duplicate');
+      // No raster mask is applied by this type, so the area caveat cannot arise.
+      expect(stored.units.every(unit => unit.raster_filtered === false)).toBe(true);
+    });
+
+    it('reaches 100% with monotonic progress', async () => {
+      const filterId = await createFilter([UNIT_A]);
+      const { jobId, job } = await createActiveJob({ filter_id: filterId, statistics_type: StatisticsType.CREA_INDEX });
+      await processSoilStatistics(job);
+
+      const stored = await readJobData(jobId);
+      expect(stored.progress_percentage).toBe(100);
+      expect(stored.progress_description).toContain('Completed');
+    });
+
+    it('stops without writing the index when the job is cancelled', async () => {
+      const filterId = await createFilter([UNIT_A]);
+      const { jobId, job } = await createActiveJob({ filter_id: filterId, statistics_type: StatisticsType.CREA_INDEX });
+      await setJobState(jobId, 'cancelled');
+
+      await expect(processSoilStatistics(job)).resolves.toBeUndefined();
+
+      const stored = await readJobData(jobId);
+      expect(stored.crea_index).toBeUndefined();
     });
   });
 });

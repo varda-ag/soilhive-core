@@ -68,6 +68,14 @@ _Avoid_: Normalised geometry, cleaned geometry, validated geometry
 A Dataset attribute: `public` or `private`. Private Datasets are still discoverable by everyone — visibility governs which capabilities (preview, download) require an entitlement, not whether the Dataset appears in results. As a Filter criterion, visibility matches Datasets by this attribute alone; it is entitlement-agnostic: filtering on `private` returns *all* private Datasets, not "private Datasets I can access". Absent means unconstrained; there is no null form (every Dataset has a visibility).
 _Avoid_: Access level, permission, "my datasets" (entitlement concepts — a different axis)
 
+**Subject**:
+The identity a caller acts under: the token's `email` claim, else its `client_id`, else its `sub`. It is what **Entitlements** are keyed by and what every `created_by`/`updated_by` record holds — a job's included, so a job resolves the same Entitlements its submitter had. Not a synonym for the token's `sub` claim, which is only the last fallback and in general is a different string.
+_Avoid_: sub, user, user id, owner, caller (the requester; the Subject is the resolved value it acts under)
+
+**Entitlement**:
+A **Capability** (`preview`, `download`, `obfuscate_as_points`) granted over a Dataset either to one **Subject** or to `everyone`. Consulted only for private Datasets — a public Dataset needs none — and granted from two independent sources: rows held locally, and an external entitlements endpoint reachable only while the caller's raw token exists. Entitlements are the access axis; **Visibility** is the attribute axis, and neither substitutes for the other.
+_Avoid_: Permission, access right, grant, role
+
 **Data Availability Index (DAI)**:
 A composite score that quantifies the richness of soil data within an H3 cell. Computed on-demand per filter + viewport. Only point and polygonal features contribute; raster datasets are excluded from scoring.
 _Avoid_: Data density, coverage score, heatmap score
@@ -125,8 +133,12 @@ One spatial bucket that soil statistics are reported for — always exactly one 
 _Avoid_: Feature (a sampling location), AOI (the whole spatial scope, not one bucket), parcel/field/polygon (naming one use rather than the concept), subdivision piece (an internal fragment of a UserGeometry, never a reporting unit)
 
 **Soil Statistics**:
-Descriptive statistics — count, min, max, mean, median, spread, and a value histogram — computed over the **Observations** matching a **Filter**, reported per **Aggregation Unit**, **Dataset**, **Soil Property**, sampling year and depth interval. Raster **Datasets** never contribute, because their measurements are pixels rather than Observations.
-_Avoid_: Soil data stats (already means the ingest **Cleaning Report** — see Flagged ambiguities), summary, metrics, aggregates
+Descriptive statistics — count, min, max, mean, median, spread, and a value histogram — computed over the **Observations** matching a **Filter**, reported per **Aggregation Unit**, **Dataset**, **Soil Property**, sampling year and depth interval. Raster **Datasets** never contribute, because their measurements are pixels rather than Observations. This is the `descriptive` **Statistics Type**, and it is not the only product computed over Aggregation Units — so "Soil Statistics" names *this* product, never whatever a soil-statistics run happens to have produced.
+_Avoid_: Soil data stats (already means the ingest **Cleaning Report** — see Flagged ambiguities), summary, metrics, aggregates, "the soil-statistics output" (which Statistics Type?)
+
+**Statistics Type** (`statistics_type`):
+Which analytical product is computed over a run's **Aggregation Units**. Every type resolves the same Aggregation Units from the same **Filter**, and differs only in what it computes for them and in the shape of what it returns — so a type is a choice of *product*, never a choice of area, criteria or entitlement. `descriptive` is the default and yields **Soil Statistics**; the parameters a type does not use are rejected rather than ignored, so a type is answerable for exactly the inputs it names.
+_Avoid_: Mode, algorithm, variant, "generic" (says nothing about what is computed), stat kind
 
 **Derived Filter**:
 A **Filter** created by the system rather than submitted by a user, whose UserGeometries come from a source file. It carries the criteria of the Filter it was derived from and is a fully usable Filter, but it is deliberately outside Filter **content identity**: it never deduplicates against a user's submission, and its stored raw form holds no geometries at all — the only way to read its geometries is to ask for them.
@@ -150,6 +162,9 @@ _Avoid_: Layer (the soil data depth/date slice), channel, raster layer (the cata
 - A **Filter** has a *set* of zero or more **UserGeometries** (duplicates in a submission collapse to one); each **UserGeometry** may belong to more than one **Filter**
 - An **Aggregation Unit** *is* one **UserGeometry**; a **Derived Filter** has one Aggregation Unit per geometry of its source file, and equivalent geometries in that file collapse to a single Unit
 - **Soil Statistics** are reported per (**Aggregation Unit**, **Dataset**, **Soil Property**) and, one level finer, per sampling year and depth interval; a **Feature** inside two Aggregation Units contributes its **Observations** to both
+- A soil-statistics run has exactly one **Statistics Type** and one set of **Aggregation Units**; the Units are resolved identically for every type, and only what is computed over them differs
+- An **Entitlement** grants one **Capability** over one **Dataset** to one **Subject** (or to `everyone`); a Subject's effective Entitlements are the union of its own and `everyone`'s
+- A job is recorded under the **Subject** that submitted it, and resolves its Entitlements under that same Subject — so what a job may read is what its submitter may read, minus whatever only the external endpoint knows
 
 ## Example dialogue
 
@@ -183,9 +198,13 @@ _Avoid_: Links, references, attachments, additional resources (the Band Mapping 
 
 - **Features and Layers are shared, not owned** — and the glossary previously said otherwise ("a sampling location *within a Dataset*", "a depth/date slice *within a Feature*"). Both are identified purely by their own content, so two Datasets sampling the same place, or the same depth/date slice, reference the *same* row rather than each getting a copy. Consequences worth stating out loud: nothing can be attributed to a Dataset by looking at a Feature or a Layer alone — only a **DatasetLayer** carries that; and a count of distinct Features is a count of *places*, so it is only per-Dataset if the count is taken within one Dataset.
 
+- **"sub" was used to mean both the token claim and the Subject** — and the two are different strings whenever a token carries an email. Resolved: the **Subject** is what Entitlements and `created_by` are keyed by; `sub` is one claim that only *sometimes* supplies it. The confusion was load-bearing, not cosmetic: the request path resolved Entitlements by email while the job path resolved them by `sub`, so a job saw only `everyone`'s Entitlements and silently skipped private Datasets its submitter was entitled to. Say **Subject** in domain discussions and reserve `sub` for the JWT claim.
+
 - **"Coverage" names two unrelated things.** The **Coverage map** is the DAI heat layer. But `GET /data-filters/{filterId}/coverage` returns neither a map nor a DAI: it answers "which **Datasets** have data matching this **Filter**, and which raster values occur in its AOI". When someone says "the same filtering as coverage" they mean that endpoint's criteria handling, not the DAI's. In domain discussions say **Coverage map** for the picture, **DAI** for the score, and **data availability** for what the coverage endpoint reports.
 
 - **"Soil data stats" is already taken, and it is not statistics.** `GET /datasets/{id}/dataset-file-mapping/{id}/soil-data/stats` (handler `getSoilDataStats`) returns a **Cleaning Report** — how many raw cells and rows were rejected or altered during ingestion. Scientific statistics over **Observations** are **Soil Statistics** (job type `soil-statistics`). The two share no data, no consumer and no code. Never say "soil data stats" for either; say **Cleaning Report** or **Soil Statistics**.
+
+- **"Statistics" now names three things, and the job queue is the loosest of them.** Beyond the **Cleaning Report** confusion above, the `soil-statistics` job queue is no longer synonymous with **Soil Statistics**: it dispatches on **Statistics Type**, and only `descriptive` produces Soil Statistics. So "the statistics job" is a queue, "Soil Statistics" is one of its products, and "soil data stats" is neither. Name the **Statistics Type** whenever the product matters; a request to "run the statistics" is under-specified.
 
 - **`related_resources` and `additional_resources` are unrelated.** `related_resources` is a Dataset column holding external URLs; `additional_resources` is a Band Mapping key declaring that Band's **Raster Layer Assets**, which are Files. The near-identical names are the only thing they share. In domain discussions say **Related Resources** for the Dataset's URLs and **Raster Layer Asset** for an attached File — never "resources" bare.
 

@@ -158,6 +158,10 @@ const JOB_ERROR_MESSAGES: Record<string, JobErrorMessage> = {
     message: "You do not have preview access to dataset '{dataset_id}'.",
     actions: ['Remove that dataset from the request, or request preview access to it.'],
   },
+  SST_UNKNOWN_STATISTICS_TYPE: {
+    message: "'{statistics_type}' is not a kind of statistics this server can compute.",
+    actions: ['Start the job again with one of: {supported}.'],
+  },
   // FTD_GDAL_NOT_INSTALLED: reserved for future use — GdalCLI already emits a
   // 'GDAL_NOT_INSTALLED:' prefix on ENOENT so the code is detectable, but by
   // the time fileToDB runs GDAL has already been used (ogrinfo during metadata

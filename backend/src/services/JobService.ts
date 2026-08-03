@@ -2,16 +2,27 @@ import { StatusCodes } from 'http-status-codes';
 import { RequestData } from '../interfaces/RequestData';
 import { ErrorResponse } from '../utils/error';
 import { AnyJob, ExportJob, Job, SoilStatisticsJob } from '../interfaces/Job';
-import { Capability, JobQueues } from '../types/enums';
+import { Capability, JobQueues, StatisticsType } from '../types/enums';
 import { getPgBoss } from './PgBoss';
 import { JobWithMetadata, SendOptions } from 'pg-boss';
 import { createSignedPath } from '../utils/presigned-url';
 import EntitlementService from './EntitlementService';
 import FilterService from './FilterService';
 import FileService from './FileService';
+import { getSubject } from '../utils/auth';
 import { log } from '../utils/logger';
 
 const entitlementService = new EntitlementService();
+
+/**
+ * The Subject the caller acts under, or undefined when the request carries no token.
+ *
+ * getSubject throws 401 on a missing sub, which is wrong for the job reads: an anonymous
+ * export job (created_by null) is deliberately readable without a token, so absence of a
+ * caller has to be representable rather than an error. Routes that do require a caller
+ * raise their own 401 before comparing.
+ */
+const subjectOf = (requestData: RequestData): string | undefined => (requestData.token ? getSubject(requestData) : undefined);
 
 export default class JobService {
   private boss = getPgBoss();
@@ -43,8 +54,11 @@ export default class JobService {
       await this.validateSoilStatisticsJob(requestData, data as SoilStatisticsJob);
     }
 
-    // Set owner and enqueue the job
-    data.created_by = sub ?? null;
+    // Set owner and enqueue the job. created_by holds the Subject, not the raw sub: it is
+    // what the entitlements table is keyed by (and what datasets.created_by already holds),
+    // so a processor re-deriving entitlements from it resolves the submitter's own rows
+    // rather than collapsing to `everyone`. See ADR 0022.
+    data.created_by = subjectOf(requestData) ?? null;
     data.isDataAdmin = requestData.token?.isDataAdmin;
     data.isSuperAdmin = requestData.token?.isSuperAdmin;
 
@@ -67,9 +81,32 @@ export default class JobService {
    *
    * The filter and label field are checked for the same reason: a bad name should be a
    * 400 on submission, not a failed job.
+   *
+   * Parameters that the requested statistics_type does not use are rejected rather than
+   * ignored, following the same rule as `label_field` without `file_id`: a caller who set
+   * histogram_bins: 50 and got no histograms deserves to be told, not left guessing.
+   * Rejecting now also keeps the door open — accepting one of these for a future type is
+   * an additive change, whereas silently ignoring it now and tightening later is breaking.
    */
   private validateSoilStatisticsJob = async (requestData: RequestData, data: SoilStatisticsJob): Promise<void> => {
     const filterService = new FilterService();
+
+    const statisticsType = data.statistics_type ?? StatisticsType.DESCRIPTIVE;
+    if (!Object.values(StatisticsType).includes(statisticsType)) {
+      throw new ErrorResponse(
+        `Parameter statistics_type '${statisticsType}' is not supported: use one of ${Object.values(StatisticsType).join(', ')}`,
+        StatusCodes.BAD_REQUEST,
+      );
+    }
+    if (statisticsType !== StatisticsType.DESCRIPTIVE) {
+      if (data.histogram_bins !== undefined) {
+        throw new ErrorResponse(`Parameter histogram_bins does not apply to statistics_type '${statisticsType}'`, StatusCodes.BAD_REQUEST);
+      }
+      if (data.dataset_ids && data.dataset_ids.length > 0) {
+        throw new ErrorResponse(`Parameter dataset_ids does not apply to statistics_type '${statisticsType}'`, StatusCodes.BAD_REQUEST);
+      }
+    }
+
     // Throws 404 when the filter does not exist.
     const filter = await filterService.getFilterById(requestData, data.filter_id);
 
@@ -100,24 +137,26 @@ export default class JobService {
   };
 
   getJobs = async (requestData: RequestData): Promise<Job[]> => {
-    const { sub } = requestData.token ?? {};
-    if (!sub) {
+    const subject = subjectOf(requestData);
+    if (!subject) {
       throw new ErrorResponse('Authentication required to list jobs', StatusCodes.UNAUTHORIZED);
     }
     const promises = Object.values(JobQueues).map(async queue => await this.boss.findJobs(queue));
     const results = await Promise.all(promises);
     const jobs: JobWithMetadata<unknown>[] = results.flat();
 
-    // Filter jobs to only include those created by the user.
+    // Filter jobs to only include those created by the user. Compared against the Subject
+    // because that is what createJob writes; comparing against the raw sub would hide a
+    // caller's own jobs from them whenever the token carries an email.
     // j.data === null for CLEANUP_ORPHAN_FILES jobs.
-    const userJobs = jobs.map(j => this.translateJob(j)).filter(j => !sub || j.data?.created_by === sub);
+    const userJobs = jobs.map(j => this.translateJob(j)).filter(j => j.data?.created_by === subject);
 
-    log.info('Jobs listed', { count: userJobs.length, user: sub });
+    log.info('Jobs listed', { count: userJobs.length, user: subject });
     return userJobs.map(job => this.prepareJobForResponse(job));
   };
 
   getJobById = async (requestData: RequestData, jobId: string): Promise<Job> => {
-    const { sub } = requestData.token ?? {};
+    const subject = subjectOf(requestData);
 
     const promises = Object.values(JobQueues).map(async queue => await this.boss.findJobs(queue, { id: jobId }));
     const results = await Promise.all(promises);
@@ -125,7 +164,7 @@ export default class JobService {
     if (jobs.length) {
       // Check ownership
       const job = this.translateJob(jobs[0]!);
-      if (job.data.created_by && job.data.created_by !== sub) {
+      if (job.data.created_by && job.data.created_by !== subject) {
         throw new ErrorResponse('Unauthorized to access this job', StatusCodes.UNAUTHORIZED);
       }
       return this.prepareJobForResponse(job);
@@ -134,12 +173,12 @@ export default class JobService {
   };
 
   deleteJobById = async (requestData: RequestData, jobId: string) => {
-    const { sub } = requestData.token ?? {};
+    const subject = subjectOf(requestData);
     const job = await this.getJobById(requestData, jobId);
-    if (sub && job.data.created_by && job.data.created_by !== sub) {
+    if (subject && job.data.created_by && job.data.created_by !== subject) {
       throw new ErrorResponse('Unauthorized to delete this job', StatusCodes.UNAUTHORIZED);
     }
-    log.info('Job cancelled', { job_id: jobId, user: sub ?? null });
+    log.info('Job cancelled', { job_id: jobId, user: subject ?? null });
     await this.boss.cancel(job.queue, jobId);
   };
 
