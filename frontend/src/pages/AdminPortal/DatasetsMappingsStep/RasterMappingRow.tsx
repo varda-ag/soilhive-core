@@ -28,6 +28,7 @@ interface Props {
   onReferencePeriodStartChange: (columnName: string, value: string) => void;
   onReferencePeriodStopChange: (columnName: string, value: string) => void;
   onLayerDescriptionChange: (columnName: string, value: string) => void;
+  onAdditionalResourcesChange: (columnName: string, value: { file_id: string }[]) => void;
 }
 
 export function RasterMappingRow({
@@ -48,6 +49,7 @@ export function RasterMappingRow({
   onReferencePeriodStartChange,
   onReferencePeriodStopChange,
   onLayerDescriptionChange,
+  onAdditionalResourcesChange,
 }: Props) {
   const { t } = useTranslation('admin');
   const isMapped = mapping.conceptId !== null;
@@ -127,10 +129,12 @@ export function RasterMappingRow({
           referencePeriodStart={mapping.referencePeriodStart}
           referencePeriodStop={mapping.referencePeriodStop}
           layerDescription={mapping.layerDescription}
+          additionalResources={mapping.additionalResources}
           onDetailChange={onDetailChange}
           onReferencePeriodStartChange={onReferencePeriodStartChange}
           onReferencePeriodStopChange={onReferencePeriodStopChange}
           onLayerDescriptionChange={onLayerDescriptionChange}
+          onAdditionalResourcesChange={onAdditionalResourcesChange}
         />
       )}
     </div>

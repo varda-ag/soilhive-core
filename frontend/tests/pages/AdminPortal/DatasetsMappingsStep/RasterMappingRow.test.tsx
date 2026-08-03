@@ -17,6 +17,14 @@ jest.mock('components/AutocompleteDropdown/AutocompleteDropdown', () => {
   return { AutocompleteDropdown: Mock };
 });
 
+// AdditionalResourcesUpload hits the /files API via useApiQueries/useRequest — stub it so these
+// tests stay focused on RasterMappingRow logic and don't need a QueryClient/notifications context.
+jest.mock('pages/AdminPortal/DatasetsMappingsStep/AdditionalResourcesUpload/AdditionalResourcesUpload', () => {
+  const Mock = () => <div data-testid="sh-additional-resources-upload" />;
+  Mock.displayName = 'AdditionalResourcesUpload';
+  return { AdditionalResourcesUpload: Mock };
+});
+
 // ---------------------------------------------------------------------------
 // Fixtures
 // ---------------------------------------------------------------------------
@@ -41,6 +49,7 @@ function unmappedMapping(overrides?: Partial<ColumnMapping>): ColumnMapping {
     referencePeriodStart: null,
     referencePeriodStop: null,
     layerDescription: null,
+    additionalResources: [],
     details: { ...EMPTY_DETAILS },
     isGeometryDetectedField: false,
     ...overrides,
@@ -66,6 +75,7 @@ function defaultProps(overrides?: Partial<ColumnMapping>) {
     onReferencePeriodStartChange: jest.fn(),
     onReferencePeriodStopChange: jest.fn(),
     onLayerDescriptionChange: jest.fn(),
+    onAdditionalResourcesChange: jest.fn(),
   };
 }
 

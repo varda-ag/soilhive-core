@@ -43,6 +43,7 @@ export interface ColumnMapping {
   referencePeriodStart: string | null;
   referencePeriodStop: string | null;
   layerDescription: string | null;
+  additionalResources: { file_id: string }[];
   details: RowDetails;
   isGeometryDetectedField: boolean;
 }
@@ -141,6 +142,7 @@ function buildDataMappingRequestsByFile(
       if (m.referencePeriodStart) pm.reference_period_start = m.referencePeriodStart;
       if (m.referencePeriodStop) pm.reference_period_stop = m.referencePeriodStop;
       if (m.layerDescription) pm.layer_description = m.layerDescription;
+      if (m.additionalResources.length > 0) pm.additional_resources = m.additionalResources;
       request[bandKey] = pm;
     }
   }
@@ -179,6 +181,9 @@ function isMappingChanged(
       if ((existing.reference_period_start ?? null) !== m.referencePeriodStart) return true;
       if ((existing.reference_period_stop ?? null) !== m.referencePeriodStop) return true;
       if ((existing.layer_description ?? null) !== m.layerDescription) return true;
+      const existingResourceIds = (existing.additional_resources ?? []).map(r => r.file_id).sort();
+      const currentResourceIds = m.additionalResources.map(r => r.file_id).sort();
+      if (JSON.stringify(existingResourceIds) !== JSON.stringify(currentResourceIds)) return true;
       const proc = procedureByColumn[m.columnName];
       if (proc) {
         if (!procedurePayloadMatches(m.details, proc)) return true;
@@ -374,6 +379,7 @@ export function useRasterMappingStep(datasetId?: string) {
             referencePeriodStart: null,
             referencePeriodStop: null,
             layerDescription: null,
+            additionalResources: [],
             details: { ...EMPTY_DETAILS },
             isGeometryDetectedField,
           };
@@ -390,6 +396,7 @@ export function useRasterMappingStep(datasetId?: string) {
             referencePeriodStart: null,
             referencePeriodStop: null,
             layerDescription: null,
+            additionalResources: [],
             details: { ...EMPTY_DETAILS },
             isGeometryDetectedField,
           };
@@ -408,6 +415,7 @@ export function useRasterMappingStep(datasetId?: string) {
           referencePeriodStart: existing.reference_period_start ?? null,
           referencePeriodStop: existing.reference_period_stop ?? null,
           layerDescription: existing.layer_description ?? null,
+          additionalResources: existing.additional_resources ?? [],
           details,
           isGeometryDetectedField,
         };
@@ -555,6 +563,10 @@ export function useRasterMappingStep(datasetId?: string) {
     setColumnMappings(prev => prev.map(m => (m.columnName === columnName ? { ...m, layerDescription: value || null } : m)));
   }, []);
 
+  const handleAdditionalResourcesChange = useCallback((columnName: string, value: { file_id: string }[]) => {
+    setColumnMappings(prev => prev.map(m => (m.columnName === columnName ? { ...m, additionalResources: value } : m)));
+  }, []);
+
   const save = useCallback(async () => {
     const procedureIds = await createMappingProcedures(columnMappings, procedureByColumn, createProcedure);
     const requestsByFile = buildDataMappingRequestsByFile(columnMappings, procedureIds);
@@ -661,6 +673,7 @@ export function useRasterMappingStep(datasetId?: string) {
     handleReferencePeriodStartChange,
     handleReferencePeriodStopChange,
     handleLayerDescriptionChange,
+    handleAdditionalResourcesChange,
     handlePrevious,
     handleSaveAndContinueLater,
     handleContinue,

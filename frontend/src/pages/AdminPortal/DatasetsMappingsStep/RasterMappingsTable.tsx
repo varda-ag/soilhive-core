@@ -20,6 +20,7 @@ interface Props {
   onReferencePeriodStartChange: (columnName: string, value: string) => void;
   onReferencePeriodStopChange: (columnName: string, value: string) => void;
   onLayerDescriptionChange: (columnName: string, value: string) => void;
+  onAdditionalResourcesChange: (columnName: string, value: { file_id: string }[]) => void;
 }
 
 export function RasterMappingsTable({
@@ -37,6 +38,7 @@ export function RasterMappingsTable({
   onReferencePeriodStartChange,
   onReferencePeriodStopChange,
   onLayerDescriptionChange,
+  onAdditionalResourcesChange,
 }: Props) {
   const { t } = useTranslation('admin');
   return (
@@ -71,6 +73,7 @@ export function RasterMappingsTable({
               onReferencePeriodStartChange={onReferencePeriodStartChange}
               onReferencePeriodStopChange={onReferencePeriodStopChange}
               onLayerDescriptionChange={onLayerDescriptionChange}
+              onAdditionalResourcesChange={onAdditionalResourcesChange}
               isGeometryDetectedField={mapping.isGeometryDetectedField}
             />
           );

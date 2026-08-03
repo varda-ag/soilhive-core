@@ -45,6 +45,7 @@ export function RasterMappingsStep({ id }: Props) {
     handleReferencePeriodStartChange,
     handleReferencePeriodStopChange,
     handleLayerDescriptionChange,
+    handleAdditionalResourcesChange,
     handlePrevious,
     handleSaveAndContinueLater,
     handleContinue,
@@ -92,6 +93,7 @@ export function RasterMappingsStep({ id }: Props) {
           onReferencePeriodStartChange={handleReferencePeriodStartChange}
           onReferencePeriodStopChange={handleReferencePeriodStopChange}
           onLayerDescriptionChange={handleLayerDescriptionChange}
+          onAdditionalResourcesChange={handleAdditionalResourcesChange}
         />
       </div>
 

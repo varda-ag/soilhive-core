@@ -64,6 +64,7 @@ function mapping(overrides?: Partial<ColumnMapping>): ColumnMapping {
     referencePeriodStart: null,
     referencePeriodStop: null,
     layerDescription: null,
+    additionalResources: [],
     details: { ...EMPTY_DETAILS },
     isGeometryDetectedField: false,
     ...overrides,
@@ -86,6 +87,7 @@ function defaultProps(overrides?: Partial<React.ComponentProps<typeof RasterMapp
     onReferencePeriodStartChange: jest.fn(),
     onReferencePeriodStopChange: jest.fn(),
     onLayerDescriptionChange: jest.fn(),
+    onAdditionalResourcesChange: jest.fn(),
     ...overrides,
   };
 }

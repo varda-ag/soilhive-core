@@ -358,7 +358,13 @@
                 "layer_description": "Layer description",
                 "layer_description_placeholder": "i.e. This layer is about how we discovered an ancient alien race with a really advance society that lives at 80cm deep in the vast land of Ciudad Real",
                 "additional_resources_title": "Additional resources",
-                "additional_resources_subtitle": "(e.g. prediction layer)"
+                "additional_resources_subtitle": "(e.g. prediction layer)",
+                "additional_resources_upload_caption": "Supported formats: CSV, GeoPackage, GeoJSON, Shapefile, XLSX and ZIP.",
+                "additional_resources_added_title": "Added resources",
+                "additional_resources_file_badge": "File",
+                "additional_resources_remove_aria": "Remove resource",
+                "additional_resources_invalid_file_type": "Invalid file type",
+                "additional_resources_upload_error": "Failed to upload file"
             }
         },
         "preview": {
