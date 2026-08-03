@@ -72,7 +72,9 @@ export function RasterMappingRow({
           {isMapped ? <CheckIconCircle className={styles.CheckIcon} /> : <WarningIcon className={styles.WarningIcon} />}
         </div>
 
-        <div className={styles.ColumnName}>{mapping.columnName}</div>
+        <div className={styles.ColumnName} title={mapping.columnName}>
+          {mapping.columnName}
+        </div>
 
         <div className={styles.ConceptCell}>
           <AutocompleteDropdown
