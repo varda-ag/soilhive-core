@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { RasterMappingRow } from './RasterMappingRow';
 import { METADATA_FIELD_CODES } from 'hooks/useRasterMappingStep';
 import type { ColumnMapping, DetailOptionMap, RowDetails } from 'hooks/useRasterMappingStep';
-import type { MenuOption } from 'types/components';
+import type { MenuOption } from 'components/UI/types';
 import styles from './RasterMappingsTable.module.scss';
 
 interface Props {
