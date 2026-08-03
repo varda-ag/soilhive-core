@@ -29,7 +29,7 @@ export function DatasetsSettingsPage() {
   const {
     isLoading,
     isSaving,
-    isOidcAuth,
+    isEmailBasedAuth,
     hasMandatoryMetadata,
     visibility,
     setVisibility,
@@ -62,7 +62,13 @@ export function DatasetsSettingsPage() {
       value: 'email',
       bodyTemplate: row => (
         <div className={styles.TrashCell}>
-          <Button type="custom" className={styles.TrashButton} isIconOnly onClick={() => handleRequestRemoveEmail(row.email)}>
+          <Button
+            type="custom"
+            className={styles.TrashButton}
+            isIconOnly
+            isDisabled={!isEmailBasedAuth}
+            onClick={() => handleRequestRemoveEmail(row.email)}
+          >
             <TrashIcon />
           </Button>
         </div>
@@ -144,12 +150,18 @@ export function DatasetsSettingsPage() {
             </div>
           </div>
 
-          {visibility === 'private' && isOidcAuth && (
+          {visibility === 'private' && (
             <div className={styles.AccessSection}>
               <div className={styles.AccessSectionHeader}>
                 <UserAddIcon className={styles.AccessSectionIcon} />
                 <h4 className={styles.AccessSectionTitle}>{t('datasets.settings.access.title')}</h4>
               </div>
+              {!isEmailBasedAuth && (
+                <div className={styles.AccessWarning} data-testid="email-claim-warning">
+                  <WarningIcon className={styles.AccessWarningIcon} />
+                  <span>{t('datasets.settings.access.email_unavailable_warning')}</span>
+                </div>
+              )}
               <form
                 id="add-email-form"
                 className={styles.EmailInputRow}
@@ -165,6 +177,7 @@ export function DatasetsSettingsPage() {
                   value={emailInput}
                   isError={!!emailError}
                   errorMessage={emailError}
+                  isDisabled={!isEmailBasedAuth}
                   onChange={handleEmailChange}
                   onBlur={handleEmailBlur}
                 />
@@ -173,7 +186,7 @@ export function DatasetsSettingsPage() {
                   type="primary"
                   size="small"
                   form="add-email-form"
-                  isDisabled={!isValidEmail(emailInput)}
+                  isDisabled={!isEmailBasedAuth || !isValidEmail(emailInput)}
                 >
                   {t('datasets.settings.access.add_button')}
                 </Button>

@@ -5,18 +5,20 @@ import { useQueryClient } from '@tanstack/react-query';
 import { ADMIN_PATHS } from '../configuration/admin';
 import { isValidEmail, hasTextContent } from '../utilities/validation';
 import { useAuthContext } from '../auth/AuthContextProvider';
-import { AuthModes } from '../auth/types';
 import { useDataset } from './useDatasets';
 import { useUpdateDatasetMutation } from './useDatasetMutation';
 import { IngestionStatus } from 'types/backend';
-import type { Dataset, EntitlementCapability } from 'types/backend';
+import type { Dataset, DatasetEntitlements, EntitlementCapability } from 'types/backend';
 import { useDatasetEntitlements, useDatasetEntitlementsMutation } from './useDatasetEntitlements';
 import useTheme from './useTheme';
 import { dateStringToYYYYMMDD } from 'utilities/date';
 
 export type Visibility = 'public' | 'private';
 
-export type AccessEmail = { email: string };
+export type AccessEmail = { email: string; capabilities: EntitlementCapability[] };
+
+// What a newly added email is granted. Emails loaded from the API keep whatever they already have.
+const DEFAULT_CAPABILITIES: EntitlementCapability[] = ['preview', 'download'];
 
 export function useDatasetsSettings(datasetId: string | undefined) {
   const navigate = useNavigate();
@@ -25,8 +27,7 @@ export function useDatasetsSettings(datasetId: string | undefined) {
 
   const queryClient = useQueryClient();
   const { themeConfig } = useTheme();
-  const { authMode } = useAuthContext();
-  const isOidcAuth = authMode === AuthModes.OIDC;
+  const { isEmailBasedAuth } = useAuthContext();
 
   const { data: dataset, isLoading: isDatasetLoading } = useDataset(datasetId);
   const { data: entitlements, isLoading: isEntitlementsLoading } = useDatasetEntitlements(datasetId);
@@ -48,7 +49,7 @@ export function useDatasetsSettings(datasetId: string | undefined) {
 
   useEffect(() => {
     if (entitlements) {
-      setAccessEmails(Object.keys(entitlements).map(email => ({ email })));
+      setAccessEmails(Object.entries(entitlements).map(([email, capabilities]) => ({ email, capabilities })));
     }
   }, [entitlements]);
 
@@ -105,7 +106,7 @@ export function useDatasetsSettings(datasetId: string | undefined) {
       setEmailError(t('datasets.settings.access.email_duplicate'));
       return;
     }
-    setAccessEmails(prev => [...prev, { email: trimmed }]);
+    setAccessEmails(prev => [...prev, { email: trimmed, capabilities: [...DEFAULT_CAPABILITIES] }]);
     setEmailInput('');
     setEmailError('');
   }
@@ -148,8 +149,11 @@ export function useDatasetsSettings(datasetId: string | undefined) {
     await updateDataset.mutateAsync(datasetUpdateData);
     await queryClient.invalidateQueries({ queryKey: ['dataset', datasetId] });
     await queryClient.invalidateQueries({ queryKey: ['datasets'] });
-    if (visibility === 'private') {
-      const payload = Object.fromEntries(accessEmails.map(({ email }) => [email, ['preview', 'download'] as EntitlementCapability[]]));
+    // Skipped when access is not email-based: the grant form is disabled in that case, so writing
+    // back a list the data admin cannot manage would silently rewrite it. The PUT is a full
+    // replace per dataset (backend `EntitlementService.setEntityEntitlements`), not a merge.
+    if (visibility === 'private' && isEmailBasedAuth) {
+      const payload: DatasetEntitlements = Object.fromEntries(accessEmails.map(({ email, capabilities }) => [email, capabilities]));
       await updateEntitlements.mutateAsync(payload);
       await queryClient.invalidateQueries({ queryKey: ['dataset-entitlements', datasetId] });
     }
@@ -168,7 +172,7 @@ export function useDatasetsSettings(datasetId: string | undefined) {
   return {
     isLoading,
     isSaving,
-    isOidcAuth,
+    isEmailBasedAuth,
     hasMandatoryMetadata,
     visibility,
     setVisibility,
