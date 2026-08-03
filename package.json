@@ -15,7 +15,7 @@
     "lint": "eslint \"**/*.{ts,tsx}\"",
     "lint:fix": "eslint \"**/*.{ts,tsx}\" --fix",
     "prepare": "husky",
-    "soilhive-plugin": "tsx scripts/soilhive-plugin/index.ts",
+    "soilhive-plugin": "tsx frontend-scripts/soilhive-plugin/index.ts",
     "test": "jest"
   },
   "devDependencies": {

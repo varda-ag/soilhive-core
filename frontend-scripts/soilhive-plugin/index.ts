@@ -1,5 +1,5 @@
 import { resolve } from 'node:path';
-import { resolveMode, resolvePluginPaths } from './paths';
+import { runSoilhivePlugin } from './run';
 
 function main(): void {
   const fullPathArg = process.argv[2];
@@ -7,11 +7,7 @@ function main(): void {
     throw new Error('Usage: soilhive-plugin <full-path>');
   }
 
-  const fullPath = resolve(fullPathArg);
-  const { root, pluginName } = resolvePluginPaths(fullPath);
-  const mode = resolveMode(fullPath);
-
-  console.log(`[soilhive-plugin] mode=${mode} pluginName="${pluginName}" root="${root}"`);
+  runSoilhivePlugin(resolve(fullPathArg));
 }
 
 try {

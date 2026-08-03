@@ -13,5 +13,5 @@ module.exports = {
       },
     ],
   },
-  testMatch: ['<rootDir>/scripts/soilhive-plugin/**/*.test.ts'],
+  testMatch: ['<rootDir>/frontend-scripts/soilhive-plugin/**/*.test.ts'],
 };
