@@ -42,6 +42,8 @@ export interface ColumnMapping {
   columnName: string;
   conceptId: string | null;
   unitId: string | null;
+  minDepth: string | null;
+  maxDepth: string | null;
   details: RowDetails;
   isGeometryDetectedField: boolean;
 }
@@ -361,12 +363,22 @@ export function useRasterMappingStep(datasetId?: string) {
             columnName,
             conceptId: null,
             unitId: null,
+            minDepth: null,
+            maxDepth: null,
             details: { ...EMPTY_DETAILS },
             isGeometryDetectedField,
           };
         }
         if (typeof existing === 'string') {
-          return { columnName, conceptId: existing, unitId: null, details: { ...EMPTY_DETAILS }, isGeometryDetectedField };
+          return {
+            columnName,
+            conceptId: existing,
+            unitId: null,
+            minDepth: null,
+            maxDepth: null,
+            details: { ...EMPTY_DETAILS },
+            isGeometryDetectedField,
+          };
         }
         const proc = procedureByColumn[columnName];
         const details: RowDetails = proc
@@ -382,7 +394,15 @@ export function useRasterMappingStep(datasetId?: string) {
             }
           : { ...EMPTY_DETAILS };
 
-        return { columnName, conceptId: existing.property_id, unitId: existing.conversion_id ?? null, details, isGeometryDetectedField };
+        return {
+          columnName,
+          conceptId: existing.property_id,
+          unitId: existing.conversion_id ?? null,
+          minDepth: null,
+          maxDepth: null,
+          details,
+          isGeometryDetectedField,
+        };
       }),
     );
   }, [files, procedureByColumn, mergedMappings]);
@@ -513,6 +533,14 @@ export function useRasterMappingStep(datasetId?: string) {
     setColumnMappings(prev => prev.map(m => (m.columnName === columnName ? { ...m, unitId: value || null } : m)));
   }, []);
 
+  const handleMinDepthChange = useCallback((columnName: string, value: string) => {
+    setColumnMappings(prev => prev.map(m => (m.columnName === columnName ? { ...m, minDepth: value || null } : m)));
+  }, []);
+
+  const handleMaxDepthChange = useCallback((columnName: string, value: string) => {
+    setColumnMappings(prev => prev.map(m => (m.columnName === columnName ? { ...m, maxDepth: value || null } : m)));
+  }, []);
+
   const handleDetailChange = useCallback((columnName: string, field: keyof RowDetails, value: string) => {
     setColumnMappings(prev =>
       prev.map(m => (m.columnName === columnName ? { ...m, details: { ...m.details, [field]: value || null } } : m)),
@@ -615,6 +643,8 @@ export function useRasterMappingStep(datasetId?: string) {
     toggleRow,
     handleConceptChange,
     handleUnitChange,
+    handleMinDepthChange,
+    handleMaxDepthChange,
     handleDetailChange,
     handlePrevious,
     handleSaveAndContinueLater,

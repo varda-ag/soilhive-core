@@ -319,13 +319,16 @@
                 "detected_columns": "Detected columns",
                 "detected_layers": "Detected layers",
                 "map_to": "Map to",
-                "original_unit": "Original Unit"
+                "original_unit": "Original Unit",
+                "min_max_depth": "Min-max depth (cm)"
             },
             "row": {
                 "select_concept": "Select a concept",
                 "select_one": "Select one",
                 "unit_placeholder": "Unit",
-                "no_unit": "No unit"
+                "no_unit": "No unit",
+                "depth_from_placeholder": "From",
+                "depth_to_placeholder": "To"
             },
             "geometry_detected": "Geometry was automatically detected. You don't need to map the geometry or lat/lon fields.",
             "geometry_not_detected": "No geometry was detected. You must map the geometry field or both latitude and longitude fields to continue.",

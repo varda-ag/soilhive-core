@@ -21,6 +21,8 @@ jest.mock('pages/AdminPortal/DatasetsMappingsStep/RasterMappingRow', () => ({
     isUnitEnabled: boolean;
     isDetailsEnabled: boolean;
     onToggle: (columnName: string) => void;
+    onMinDepthChange: (columnName: string, value: string) => void;
+    onMaxDepthChange: (columnName: string, value: string) => void;
   }) => (
     <div
       data-testid="sh-mapping-row"
@@ -31,7 +33,10 @@ jest.mock('pages/AdminPortal/DatasetsMappingsStep/RasterMappingRow', () => ({
       data-is-unit-enabled={String(props.isUnitEnabled)}
       data-is-details-enabled={String(props.isDetailsEnabled)}
       onClick={() => props.onToggle(props.mapping.columnName)}
-    />
+    >
+      <button data-testid="sh-min-depth-trigger" onClick={() => props.onMinDepthChange(props.mapping.columnName, '5')} />
+      <button data-testid="sh-max-depth-trigger" onClick={() => props.onMaxDepthChange(props.mapping.columnName, '30')} />
+    </div>
   ),
 }));
 
@@ -66,6 +71,8 @@ function mapping(overrides?: Partial<ColumnMapping>): ColumnMapping {
     columnName: 'file_a.tif',
     conceptId: null,
     unitId: null,
+    minDepth: null,
+    maxDepth: null,
     details: { ...EMPTY_DETAILS },
     isGeometryDetectedField: false,
     ...overrides,
@@ -82,6 +89,8 @@ function defaultProps(overrides?: Partial<React.ComponentProps<typeof RasterMapp
     onToggleRow: jest.fn(),
     onConceptChange: jest.fn(),
     onUnitChange: jest.fn(),
+    onMinDepthChange: jest.fn(),
+    onMaxDepthChange: jest.fn(),
     onDetailChange: jest.fn(),
     ...overrides,
   };
@@ -97,6 +106,7 @@ describe('RasterMappingsTable', () => {
     expect(screen.getByText('Detected layers')).toBeInTheDocument();
     expect(screen.getByText('Map to')).toBeInTheDocument();
     expect(screen.getByText('Original Unit')).toBeInTheDocument();
+    expect(screen.getByText('Min-max depth (cm)')).toBeInTheDocument();
   });
 
   it('renders no rows when columnMappings is empty', () => {
@@ -149,6 +159,18 @@ describe('RasterMappingsTable', () => {
     render(<RasterMappingsTable {...defaultProps({ columnMappings: [mapping({ columnName: 'col1' })], onToggleRow })} />);
     fireEvent.click(screen.getByTestId('sh-mapping-row'));
     expect(onToggleRow).toHaveBeenCalledWith('col1');
+  });
+
+  it('passes onMinDepthChange/onMaxDepthChange through to the row', () => {
+    const onMinDepthChange = jest.fn();
+    const onMaxDepthChange = jest.fn();
+    render(
+      <RasterMappingsTable {...defaultProps({ columnMappings: [mapping({ columnName: 'col1' })], onMinDepthChange, onMaxDepthChange })} />,
+    );
+    fireEvent.click(screen.getByTestId('sh-min-depth-trigger'));
+    fireEvent.click(screen.getByTestId('sh-max-depth-trigger'));
+    expect(onMinDepthChange).toHaveBeenCalledWith('col1', '5');
+    expect(onMaxDepthChange).toHaveBeenCalledWith('col1', '30');
   });
 
   describe('isUnitEnabled', () => {

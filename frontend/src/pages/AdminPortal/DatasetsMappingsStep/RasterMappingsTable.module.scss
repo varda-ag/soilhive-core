@@ -9,7 +9,7 @@
   display: grid;
   // mirrors MappingRow.RowMain grid: chevron(32) + icon(24) + columns
   // chevron + icon collapse into a single spacer
-  grid-template-columns: 68px 1fr 2fr 1fr;
+  grid-template-columns: 68px 1fr 2fr 1fr 1.4fr;
   gap: 12px;
   padding: 10px 8px;
   background-color: var(--color-bg-admin);

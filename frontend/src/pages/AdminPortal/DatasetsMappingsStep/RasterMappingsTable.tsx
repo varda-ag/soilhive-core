@@ -14,6 +14,8 @@ interface Props {
   onToggleRow: (columnName: string) => void;
   onConceptChange: (columnName: string, value: string) => void;
   onUnitChange: (columnName: string, value: string) => void;
+  onMinDepthChange: (columnName: string, value: string) => void;
+  onMaxDepthChange: (columnName: string, value: string) => void;
   onDetailChange: (columnName: string, field: keyof RowDetails, value: string) => void;
 }
 
@@ -26,6 +28,8 @@ export function RasterMappingsTable({
   onToggleRow,
   onConceptChange,
   onUnitChange,
+  onMinDepthChange,
+  onMaxDepthChange,
   onDetailChange,
 }: Props) {
   const { t } = useTranslation('admin');
@@ -36,6 +40,7 @@ export function RasterMappingsTable({
         <span className={styles.HeaderCell}>{t('datasets.mappings.table.detected_layers')}</span>
         <span className={styles.HeaderCell}>{t('datasets.mappings.table.map_to')}</span>
         <span className={styles.HeaderCell}>{t('datasets.mappings.table.original_unit')}</span>
+        <span className={styles.HeaderCell}>{t('datasets.mappings.table.min_max_depth')}</span>
       </div>
       <div className={styles.Rows}>
         {columnMappings.map(mapping => {
@@ -54,6 +59,8 @@ export function RasterMappingsTable({
               onToggle={onToggleRow}
               onConceptChange={onConceptChange}
               onUnitChange={onUnitChange}
+              onMinDepthChange={onMinDepthChange}
+              onMaxDepthChange={onMaxDepthChange}
               onDetailChange={onDetailChange}
               isGeometryDetectedField={mapping.isGeometryDetectedField}
             />

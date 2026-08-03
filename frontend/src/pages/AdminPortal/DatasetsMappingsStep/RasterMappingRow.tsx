@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import classnames from 'classnames';
 import { AutocompleteDropdown } from 'components/AutocompleteDropdown/AutocompleteDropdown';
-import { Dropdown } from 'components/UI';
+import { Dropdown, TextInput } from 'components/UI';
 import ArrowDownIcon from 'assets/icons/dropdown-arrow-down-icon.svg?react';
 import CheckIconCircle from 'assets/icons/check-icon-circle.svg?react';
 import WarningIcon from 'assets/icons/small-warning-icon.svg?react';
@@ -22,6 +22,8 @@ interface Props {
   onToggle: (columnName: string) => void;
   onConceptChange: (columnName: string, value: string) => void;
   onUnitChange: (columnName: string, value: string) => void;
+  onMinDepthChange: (columnName: string, value: string) => void;
+  onMaxDepthChange: (columnName: string, value: string) => void;
   onDetailChange: (columnName: string, field: keyof RowDetails, value: string) => void;
 }
 
@@ -37,6 +39,8 @@ export function RasterMappingRow({
   onToggle,
   onConceptChange,
   onUnitChange,
+  onMinDepthChange,
+  onMaxDepthChange,
   onDetailChange,
 }: Props) {
   const { t } = useTranslation('admin');
@@ -84,6 +88,25 @@ export function RasterMappingRow({
             placeholder={t('datasets.mappings.row.unit_placeholder')}
             isDisabled={!isUnitEnabled}
             onChange={value => onUnitChange(mapping.columnName, value as string)}
+          />
+        </div>
+
+        <div className={styles.DepthCell}>
+          <TextInput
+            className={styles.DepthInput}
+            size="small"
+            type="number"
+            placeholder={t('datasets.mappings.row.depth_from_placeholder')}
+            value={mapping.minDepth ?? ''}
+            onChange={value => onMinDepthChange(mapping.columnName, value)}
+          />
+          <TextInput
+            className={styles.DepthInput}
+            size="small"
+            type="number"
+            placeholder={t('datasets.mappings.row.depth_to_placeholder')}
+            value={mapping.maxDepth ?? ''}
+            onChange={value => onMaxDepthChange(mapping.columnName, value)}
           />
         </div>
       </div>

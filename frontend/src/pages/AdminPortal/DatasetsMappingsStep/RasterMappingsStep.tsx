@@ -39,6 +39,8 @@ export function RasterMappingsStep({ id }: Props) {
     toggleRow,
     handleConceptChange,
     handleUnitChange,
+    handleMinDepthChange,
+    handleMaxDepthChange,
     handleDetailChange,
     handlePrevious,
     handleSaveAndContinueLater,
@@ -81,6 +83,8 @@ export function RasterMappingsStep({ id }: Props) {
           onToggleRow={toggleRow}
           onConceptChange={handleConceptChange}
           onUnitChange={handleUnitChange}
+          onMinDepthChange={handleMinDepthChange}
+          onMaxDepthChange={handleMaxDepthChange}
           onDetailChange={handleDetailChange}
         />
       </div>

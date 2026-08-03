@@ -48,6 +48,8 @@ function unmappedMapping(overrides?: Partial<ColumnMapping>): ColumnMapping {
     columnName: 'Carbon_organic',
     conceptId: null,
     unitId: null,
+    minDepth: null,
+    maxDepth: null,
     details: { ...EMPTY_DETAILS },
     isGeometryDetectedField: false,
     ...overrides,
@@ -67,6 +69,8 @@ function defaultProps(overrides?: Partial<ColumnMapping>) {
     onToggle: jest.fn(),
     onConceptChange: jest.fn(),
     onUnitChange: jest.fn(),
+    onMinDepthChange: jest.fn(),
+    onMaxDepthChange: jest.fn(),
     onDetailChange: jest.fn(),
   };
 }
@@ -126,6 +130,34 @@ describe('RasterMappingRow', () => {
     it('enables the unit dropdown when isUnitEnabled is true', () => {
       render(<RasterMappingRow {...defaultProps()} isUnitEnabled={true} />);
       expect(screen.getByTestId('sh-ui-dropdown')).not.toHaveClass('Disabled');
+    });
+  });
+
+  describe('min-max depth inputs', () => {
+    it('renders a "From" and a "To" number input', () => {
+      render(<RasterMappingRow {...defaultProps()} />);
+      expect(screen.getByPlaceholderText('From')).toHaveAttribute('type', 'number');
+      expect(screen.getByPlaceholderText('To')).toHaveAttribute('type', 'number');
+    });
+
+    it('reflects mapping.minDepth/maxDepth as the input values', () => {
+      render(<RasterMappingRow {...defaultProps({ minDepth: '10', maxDepth: '20' })} />);
+      expect(screen.getByPlaceholderText('From')).toHaveValue(10);
+      expect(screen.getByPlaceholderText('To')).toHaveValue(20);
+    });
+
+    it('calls onMinDepthChange with the column name and new value when "From" changes', () => {
+      const props = defaultProps();
+      render(<RasterMappingRow {...props} />);
+      fireEvent.change(screen.getByPlaceholderText('From'), { target: { value: '5' } });
+      expect(props.onMinDepthChange).toHaveBeenCalledWith('Carbon_organic', '5');
+    });
+
+    it('calls onMaxDepthChange with the column name and new value when "To" changes', () => {
+      const props = defaultProps();
+      render(<RasterMappingRow {...props} />);
+      fireEvent.change(screen.getByPlaceholderText('To'), { target: { value: '30' } });
+      expect(props.onMaxDepthChange).toHaveBeenCalledWith('Carbon_organic', '30');
     });
   });
 });
