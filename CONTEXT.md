@@ -13,8 +13,8 @@ A collection of soil features ingested from a single data provider. Has a `gis_d
 _Avoid_: Data source, layer (overloaded)
 
 **Feature**:
-A single spatial geometry (point, polygon, or multipolygon) that represents a physical sampling location within a Dataset.
-_Avoid_: Sample, location, site
+A physical sampling location: a single spatial geometry (point, polygon, or multipolygon), identified **by that geometry alone** and therefore shared — two Datasets that sample the exact same location reference one Feature, not one each. A Feature belongs to no Dataset; the association runs through **DatasetLayers**, which is why deleting a Dataset only removes a Feature once no other Dataset still references it.
+_Avoid_: Sample, location, site, "the dataset's features" (a Dataset references Features, it does not own them)
 
 **Data Type** (`gis_datatype`):
 The spatial modality of a Dataset: `point`, `polygonal`, or `raster`. Every Dataset has exactly one. Data Type is coarser than Geometry Type: `polygonal` covers both Polygon and MultiPolygon geometries.
@@ -25,8 +25,8 @@ The PostGIS-level type of a single Feature's geometry (`ST_Point`, `ST_Polygon`,
 _Avoid_: Data type (the Dataset-level modality), shape
 
 **Layer**:
-A depth/date slice within a Feature. Carries `min_depth`, `max_depth`, `horizon`, and `sampling_date`.
-_Avoid_: Measurement, record
+A depth/date slice — `min_depth`, `max_depth`, `horizon`, `sampling_date` and licence — identified **by that combination alone** and therefore shared, exactly like a **Feature**: every Dataset sampling 0–30 cm on the same date under the same licence references one Layer. A Layer belongs to no Feature and no Dataset; a **DatasetLayer** is what ties it to both.
+_Avoid_: Measurement, record, "the feature's layers" (a Layer is not owned by a Feature)
 
 **DatasetLayer**:
 The join record that links a Feature to a Layer within a Dataset and associates it with a soil property. The atomic unit that a soil property measurement is attached to.
@@ -67,6 +67,14 @@ _Avoid_: Normalised geometry, cleaned geometry, validated geometry
 **Visibility**:
 A Dataset attribute: `public` or `private`. Private Datasets are still discoverable by everyone — visibility governs which capabilities (preview, download) require an entitlement, not whether the Dataset appears in results. As a Filter criterion, visibility matches Datasets by this attribute alone; it is entitlement-agnostic: filtering on `private` returns *all* private Datasets, not "private Datasets I can access". Absent means unconstrained; there is no null form (every Dataset has a visibility).
 _Avoid_: Access level, permission, "my datasets" (entitlement concepts — a different axis)
+
+**Subject**:
+The identity a caller acts under: the token's `email` claim, else its `client_id`, else its `sub`. It is what **Entitlements** are keyed by and what every `created_by`/`updated_by` record holds — a job's included, so a job resolves the same Entitlements its submitter had. Not a synonym for the token's `sub` claim, which is only the last fallback and in general is a different string.
+_Avoid_: sub, user, user id, owner, caller (the requester; the Subject is the resolved value it acts under)
+
+**Entitlement**:
+A **Capability** (`preview`, `download`, `obfuscate_as_points`) granted over a Dataset either to one **Subject** or to `everyone`. Consulted only for private Datasets — a public Dataset needs none — and granted from two independent sources: rows held locally, and an external entitlements endpoint reachable only while the caller's raw token exists. Entitlements are the access axis; **Visibility** is the attribute axis, and neither substitutes for the other.
+_Avoid_: Permission, access right, grant, role
 
 **Data Availability Index (DAI)**:
 A composite score that quantifies the richness of soil data within an H3 cell. Computed on-demand per filter + viewport. Only point and polygonal features contribute; raster datasets are excluded from scoring.
@@ -120,13 +128,29 @@ _Avoid_: Column mapping (the tabular counterpart), data mapping (the shared cont
 An auxiliary File attached to one Raster Layer — a technical manual, a prediction layer, anything shipped alongside the pixels — declared per Band in the Band Mapping and identified by the pair (Raster Layer, File). Never soil data: an asset File is attached, never ingested, and nothing about it is probed or validated beyond its existence.
 _Avoid_: Related Resources (the Dataset-level list of external URLs — see Flagged ambiguities), attachment, additional resource (the mapping key's name, not the entity's)
 
+**Aggregation Unit**:
+One spatial bucket that soil statistics are reported for — always exactly one **UserGeometry**. When a source file supplies the spatial scope, each geometry in that file becomes one Aggregation Unit; otherwise each UserGeometry of the **Filter** is one. Distinct from a **Feature**: an Aggregation Unit is a boundary that statistics are computed *over*, while a Feature is a sampling location whose Observations are computed *into* one. A **Feature** overlapped by two Aggregation Units belongs to both.
+_Avoid_: Feature (a sampling location), AOI (the whole spatial scope, not one bucket), parcel/field/polygon (naming one use rather than the concept), subdivision piece (an internal fragment of a UserGeometry, never a reporting unit)
+
+**Soil Statistics**:
+Descriptive statistics — count, min, max, mean, median, spread, and a value histogram — computed over the **Observations** matching a **Filter**, reported per **Aggregation Unit**, **Dataset**, **Soil Property**, sampling year and depth interval. Raster **Datasets** never contribute, because their measurements are pixels rather than Observations. This is the `descriptive` **Statistics Type**, and it is not the only product computed over Aggregation Units — so "Soil Statistics" names *this* product, never whatever a soil-statistics run happens to have produced.
+_Avoid_: Soil data stats (already means the ingest **Cleaning Report** — see Flagged ambiguities), summary, metrics, aggregates, "the soil-statistics output" (which Statistics Type?)
+
+**Statistics Type** (`statistics_type`):
+Which analytical product is computed over a run's **Aggregation Units**. Every type resolves the same Aggregation Units from the same **Filter**, and differs only in what it computes for them and in the shape of what it returns — so a type is a choice of *product*, never a choice of area, criteria or entitlement. `descriptive` is the default and yields **Soil Statistics**; the parameters a type does not use are rejected rather than ignored, so a type is answerable for exactly the inputs it names.
+_Avoid_: Mode, algorithm, variant, "generic" (says nothing about what is computed), stat kind
+
+**Derived Filter**:
+A **Filter** created by the system rather than submitted by a user, whose UserGeometries come from a source file. It carries the criteria of the Filter it was derived from and is a fully usable Filter, but it is deliberately outside Filter **content identity**: it never deduplicates against a user's submission, and its stored raw form holds no geometries at all — the only way to read its geometries is to ask for them.
+_Avoid_: System filter, temporary filter, virtual filter (it is persisted and permanent), copy (its geometries differ from the Filter it derives from)
+
 **Band**:
 One of the pixel planes of a raster file, identified by a 1-based number. The unit a Raster Ingest consumes: every Raster Layer names exactly one Band of exactly one file. Bands of a file share its resolution and geographic extent, but each carries its own values and its own nodata marker, and therefore its own footprints. Distinct from a Layer — a Band is a property of the file, not of the soil model.
 _Avoid_: Layer (the soil data depth/date slice), channel, raster layer (the catalog record that points at a Band)
 
 ## Relationships
 
-- A **Dataset** contains one or more **Features**
+- A **Dataset** *references* one or more **Features** through its **DatasetLayers**; it does not contain them, and the same **Feature** may be referenced by several **Datasets**
 - A **Feature** has one or more **DatasetLayers**
 - A **DatasetLayer** links a **Feature** to a **Layer** and a **Soil Property**
 - A **DatasetLayer** has one or more **Observations**
@@ -136,6 +160,11 @@ _Avoid_: Layer (the soil data depth/date slice), channel, raster layer (the cata
 - A **Raster Layer** belongs to one **Dataset** and names exactly one **Band** of exactly one **File**; a **File** has as many **Raster Layers** as it has mapped **Bands**
 - A **Raster Layer** has zero or more **Raster Layer Assets**, each pointing at one **File**; the same **File** may be an asset of several **Raster Layers** (one per **Band** whose **Band Mapping** declares it)
 - A **Filter** has a *set* of zero or more **UserGeometries** (duplicates in a submission collapse to one); each **UserGeometry** may belong to more than one **Filter**
+- An **Aggregation Unit** *is* one **UserGeometry**; a **Derived Filter** has one Aggregation Unit per geometry of its source file, and equivalent geometries in that file collapse to a single Unit
+- **Soil Statistics** are reported per (**Aggregation Unit**, **Dataset**, **Soil Property**) and, one level finer, per sampling year and depth interval; a **Feature** inside two Aggregation Units contributes its **Observations** to both
+- A soil-statistics run has exactly one **Statistics Type** and one set of **Aggregation Units**; the Units are resolved identically for every type, and only what is computed over them differs
+- An **Entitlement** grants one **Capability** over one **Dataset** to one **Subject** (or to `everyone`); a Subject's effective Entitlements are the union of its own and `everyone`'s
+- A job is recorded under the **Subject** that submitted it, and resolves its Entitlements under that same Subject — so what a job may read is what its submitter may read, minus whatever only the external endpoint knows
 
 ## Example dialogue
 
@@ -144,6 +173,9 @@ _Avoid_: Layer (the soil data depth/date slice), channel, raster layer (the cata
 
 > **Dev:** "If a filter has no geometries, what's the AOI?"
 > **Domain expert:** "The viewport bounding box is the AOI. Geometries clip the bbox; without them, the whole viewport is in scope."
+
+> **Dev:** "Two of my fields overlap, and there's one sampling point in the overlap. Does it count once or twice?"
+> **Domain expert:** "Twice — once in each **Aggregation Unit**. 'Mean pH in this field' has to be the mean pH in that field, whatever else it overlaps. But the `overall` figure counts that **Observation** once, so don't expect the per-unit counts to add up to it."
 
 **Preprocessing Steps** (`preprocessing_steps`):
 An optional free-text field on a Dataset that documents the data cleaning and transformation steps applied to the raw source data prior to ingestion. Set by data admins; not computed by the system.
@@ -163,6 +195,16 @@ _Avoid_: Links, references, attachments, additional resources (the Band Mapping 
 - A **null** parameter criterion and an **absent** one mean different things and yield different Filters: `min_depth: null` means "match Layers with no recorded depth", while omitting `min_depth` means "no depth constraint" (same for `max_depth` and the sampling-date criteria). Never normalise null to absent (or vice versa) when comparing filter criteria.
 - **A File with no metadata is not a category.** Absent metadata means one of three unrelated things: a **Non-spatial File** (never probed), a File created by the raster ingestion CLI (which describes the raster by other means), or a test fixture. Never treat "has no metadata" as a way to identify Non-spatial Files — the distinction is known to whoever uploaded the File, not recoverable from the File itself.
 - **A data mapping means two different things depending on the Dataset's Data Type.** For a point or polygonal File its entries are *column references* — "the column named X supplies the sampling date". For a raster File its entries are a **Band Mapping**: keyed by Band number, and the values are *literal values* rather than references, because a Band has no columns to point at. The container is shared; the meaning is not. In domain discussions say **column mapping** or **Band Mapping**, never bare "mapping".
+
+- **Features and Layers are shared, not owned** — and the glossary previously said otherwise ("a sampling location *within a Dataset*", "a depth/date slice *within a Feature*"). Both are identified purely by their own content, so two Datasets sampling the same place, or the same depth/date slice, reference the *same* row rather than each getting a copy. Consequences worth stating out loud: nothing can be attributed to a Dataset by looking at a Feature or a Layer alone — only a **DatasetLayer** carries that; and a count of distinct Features is a count of *places*, so it is only per-Dataset if the count is taken within one Dataset.
+
+- **"sub" was used to mean both the token claim and the Subject** — and the two are different strings whenever a token carries an email. Resolved: the **Subject** is what Entitlements and `created_by` are keyed by; `sub` is one claim that only *sometimes* supplies it. The confusion was load-bearing, not cosmetic: the request path resolved Entitlements by email while the job path resolved them by `sub`, so a job saw only `everyone`'s Entitlements and silently skipped private Datasets its submitter was entitled to. Say **Subject** in domain discussions and reserve `sub` for the JWT claim.
+
+- **"Coverage" names two unrelated things.** The **Coverage map** is the DAI heat layer. But `GET /data-filters/{filterId}/coverage` returns neither a map nor a DAI: it answers "which **Datasets** have data matching this **Filter**, and which raster values occur in its AOI". When someone says "the same filtering as coverage" they mean that endpoint's criteria handling, not the DAI's. In domain discussions say **Coverage map** for the picture, **DAI** for the score, and **data availability** for what the coverage endpoint reports.
+
+- **"Soil data stats" is already taken, and it is not statistics.** `GET /datasets/{id}/dataset-file-mapping/{id}/soil-data/stats` (handler `getSoilDataStats`) returns a **Cleaning Report** — how many raw cells and rows were rejected or altered during ingestion. Scientific statistics over **Observations** are **Soil Statistics** (job type `soil-statistics`). The two share no data, no consumer and no code. Never say "soil data stats" for either; say **Cleaning Report** or **Soil Statistics**.
+
+- **"Statistics" now names three things, and the job queue is the loosest of them.** Beyond the **Cleaning Report** confusion above, the `soil-statistics` job queue is no longer synonymous with **Soil Statistics**: it dispatches on **Statistics Type**, and only `descriptive` produces Soil Statistics. So "the statistics job" is a queue, "Soil Statistics" is one of its products, and "soil data stats" is neither. Name the **Statistics Type** whenever the product matters; a request to "run the statistics" is under-specified.
 
 - **`related_resources` and `additional_resources` are unrelated.** `related_resources` is a Dataset column holding external URLs; `additional_resources` is a Band Mapping key declaring that Band's **Raster Layer Assets**, which are Files. The near-identical names are the only thing they share. In domain discussions say **Related Resources** for the Dataset's URLs and **Raster Layer Asset** for an attached File — never "resources" bare.
 
