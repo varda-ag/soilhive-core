@@ -350,7 +350,7 @@ describe('BulkLoader class', () => {
   });
 
   it('E07 — BL_MISSING_COLUMN_MAPPING when data_mapping_id is null', async () => {
-    const { dataset, datasetFileMapping } = await addSyntheticIngestionData({
+    const { dataset, file, datasetFileMapping } = await addSyntheticIngestionData({
       ...syntheticIngestionDataOptions,
       createTable: false,
     });
@@ -360,6 +360,7 @@ describe('BulkLoader class', () => {
     await expect(BulkLoaderModule.processBulkLoad(getJob(dataset.slug))).rejects.toMatchObject({
       name: 'JobError',
       code: 'BL_MISSING_COLUMN_MAPPING',
+      params: { file_name: file.name },
     });
   });
 
