@@ -7,8 +7,64 @@ import { EntityType } from '../types/data';
 import { ErrorResponse } from '../utils/error';
 import { StatusCodes } from 'http-status-codes';
 import FileEntity from '../entities/File';
+import { log } from '../utils/logger';
+
+/**
+ * Orders two mappings of the same File by when they were last touched, falling back to their ids.
+ *
+ * The id comparison is lexicographic on purpose: a uuidv7 carries its timestamp in the leading bits,
+ * so string order is generation order — which makes it a tiebreak that still means "later" rather
+ * than an arbitrary but stable one. `updated_at` is NOT NULL in the database and equals `created_at`
+ * on insert; the null branch only exists because the entity types it as nullable.
+ */
+const isMoreRecent = (candidate: DatasetFileMappingEntity, current: DatasetFileMappingEntity): boolean => {
+  const candidateTime = candidate.updated_at?.getTime() ?? 0;
+  const currentTime = current.updated_at?.getTime() ?? 0;
+  return candidateTime === currentTime ? candidate.id > current.id : candidateTime > currentTime;
+};
 
 export default class DatasetFileMappingService {
+  /**
+   * Reduces a Dataset's mappings to the Current one per File: the most recently touched, with the
+   * rest treated as superseded history (see ADR 0020).
+   *
+   * `dataset_file_mappings` is unique on (data_mapping_id, file_id, dataset_id), so one File can
+   * carry several mappings, and the loaders need one answer to "which mapping governs this load".
+   * Ordering is by `updated_at` rather than creation, because re-declaring a mapping happens as a
+   * PATCH that repoints an existing row — under creation order that write could not change what a
+   * load ingests. `id` breaks ties: both timestamp defaults are `now()`, which is transaction-wide,
+   * so rows inserted together share an `updated_at` while `uuidv7()` is generated per row.
+   *
+   * Must be given the mappings of a *single* Dataset: the same File is mapped independently per
+   * Dataset, and comparing timestamps across them would pick a mapping belonging to another load.
+   * Mappings with no `file_id` belong to no File and are dropped.
+   */
+  static currentMappingsByFile = (mappings: DatasetFileMappingEntity[]): Map<string, DatasetFileMappingEntity> => {
+    const currentByFile = new Map<string, DatasetFileMappingEntity>();
+    let considered = 0;
+
+    for (const mapping of mappings) {
+      if (!mapping.file_id) continue;
+      considered++;
+      const current = currentByFile.get(mapping.file_id);
+      if (!current || isMoreRecent(mapping, current)) {
+        currentByFile.set(mapping.file_id, mapping);
+      }
+    }
+
+    // The admin UI re-declares a mapping by repointing the existing row, so it never leaves more
+    // than one behind — reaching this means the mappings were created through the API directly, and
+    // that a load is about to ignore declarations someone wrote. Worth a line before it does.
+    if (considered > currentByFile.size) {
+      log.info('Superseded dataset file mappings ignored', {
+        files: currentByFile.size,
+        superseded: considered - currentByFile.size,
+      });
+    }
+
+    return currentByFile;
+  };
+
   static toResponse = async (
     requestData: RequestData,
     resultData: DatasetFileMappingEntity | DatasetFileMappingEntity[],

@@ -142,10 +142,15 @@ const prepareStagedFiles = async (
   const vdl = new VectorDataLoad();
   const service = new DataMappingService();
   const stagedFiles: StagedFile[] = [];
+  const currentMappings = DatasetFileMappingService.currentMappingsByFile(mappings);
   for (const file of files) {
-    const datasetFileMapping = mappings.find(m => m.file_id === file.id);
+    // Cannot miss: the file list was built from these mappings' file_ids. Kept as a guard so a
+    // future change to how files are selected fails loudly rather than loading an unmapped file.
+    const datasetFileMapping = currentMappings.get(file.id);
     if (!datasetFileMapping || !datasetFileMapping.data_mapping_id) {
-      throw new JobError('BL_MISSING_COLUMN_MAPPING');
+      // The normal state of a file between the upload step and the mapping step: the upload step
+      // creates the mapping as a placeholder carrying only the file, with no data mapping yet.
+      throw new JobError('BL_MISSING_COLUMN_MAPPING', { file_name: file.name });
     }
     const dataMappingConfig = await service.parseDataMapping(requestData, datasetFileMapping.data_mapping_id);
     let recordCount: number;

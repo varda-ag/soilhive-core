@@ -54,8 +54,8 @@ const JOB_ERROR_MESSAGES: Record<string, JobErrorMessage> = {
     ],
   },
   BL_MISSING_COLUMN_MAPPING: {
-    message: 'A file in this dataset has no column mapping configured.',
-    actions: ["Go to the dataset's mapping step and configure column mappings for all files, then retry data loading."],
+    message: "The column mapping for '{file_name}' has not been configured yet.",
+    actions: ["Go to the dataset's mapping step, configure the columns of '{file_name}', save, then retry data loading."],
   },
   BL_RECORD_WRITE_FAILED: {
     message: 'An error occurred while writing soil records to the database.',
@@ -64,9 +64,16 @@ const JOB_ERROR_MESSAGES: Record<string, JobErrorMessage> = {
       'If it keeps failing, double check your data against the guidelines in the documentation at: https://github.com/varda-ag/soilhive-core/blob/main/docs/data-model/1-data-management-portal.md#soil-data--upload-your-files',
     ],
   },
+  RL_MAPPING_NOT_CONFIGURED: {
+    message: "The band mapping for '{file_name}' has not been configured yet.",
+    actions: ["Go to the dataset's mapping step, declare what each band of '{file_name}' measures, save, then retry data loading."],
+  },
   RL_MISSING_BAND_MAPPING: {
-    message: 'A raster file in this dataset has no band mapping configured.',
-    actions: ["Go to the dataset's mapping step and declare what each band of every raster file measures, then retry data loading."],
+    message: "The mapping for '{file_name}' declares no bands.",
+    actions: [
+      "Open the mapping for '{file_name}' and map at least one band to a soil property, then retry data loading.",
+      'If this file was mapped as a table rather than a raster, re-do the mapping step for the dataset — a raster mapping is keyed by band number, not by column name.',
+    ],
   },
   RL_INVALID_BAND: {
     message: "The band mapping for '{file_name}' refers to band {band}, which the file does not have (it has {band_count}).",

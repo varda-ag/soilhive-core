@@ -279,3 +279,63 @@ describe('DatasetFileMappingService', () => {
     expect(mappings.length).toBe(0);
   });
 });
+
+describe('DatasetFileMappingService.currentMappingsByFile', () => {
+  // Built in memory rather than saved: the rule is about ordering rows, and the interesting cases
+  // (identical timestamps, a null updated_at) are ones the database will not readily produce.
+  const mapping = (id: string, fileId: string | undefined, updatedAt: Date | null): DatasetFileMappingEntity =>
+    ({ id, file_id: fileId, updated_at: updatedAt, data_mapping_id: `dm-${id}` }) as DatasetFileMappingEntity;
+
+  it('keeps the most recently updated mapping of each file', () => {
+    const older = mapping('0197a000-0000-7000-8000-000000000001', 'file-a', new Date('2026-01-01T00:00:00Z'));
+    const newer = mapping('0197a000-0000-7000-8000-000000000002', 'file-a', new Date('2026-02-01T00:00:00Z'));
+
+    expect(DatasetFileMappingService.currentMappingsByFile([older, newer]).get('file-a')).toBe(newer);
+    // Input order must not decide the outcome — getMappings has no ORDER BY.
+    expect(DatasetFileMappingService.currentMappingsByFile([newer, older]).get('file-a')).toBe(newer);
+  });
+
+  it('prefers a mapping updated later over one created later', () => {
+    // The UI re-declares a mapping by repointing an existing row, so the current mapping is
+    // routinely the one with the *lower* id.
+    const editedLater = mapping('0197a000-0000-7000-8000-000000000001', 'file-a', new Date('2026-03-01T00:00:00Z'));
+    const createdLater = mapping('0197a000-0000-7000-8000-000000000002', 'file-a', new Date('2026-02-01T00:00:00Z'));
+
+    expect(DatasetFileMappingService.currentMappingsByFile([editedLater, createdLater]).get('file-a')).toBe(editedLater);
+  });
+
+  it('breaks an identical updated_at with the later id', () => {
+    // Both timestamp defaults are now(), which is transaction-wide, so rows inserted together
+    // share an updated_at to the microsecond.
+    const sameInstant = new Date('2026-01-01T00:00:00Z');
+    const first = mapping('0197a000-0000-7000-8000-000000000001', 'file-a', sameInstant);
+    const second = mapping('0197a000-0000-7000-8000-000000000002', 'file-a', sameInstant);
+
+    expect(DatasetFileMappingService.currentMappingsByFile([first, second]).get('file-a')).toBe(second);
+    expect(DatasetFileMappingService.currentMappingsByFile([second, first]).get('file-a')).toBe(second);
+  });
+
+  it('treats a null updated_at as older than any timestamp', () => {
+    const nullUpdated = mapping('0197a000-0000-7000-8000-000000000009', 'file-a', null);
+    const timestamped = mapping('0197a000-0000-7000-8000-000000000001', 'file-a', new Date('2026-01-01T00:00:00Z'));
+
+    expect(DatasetFileMappingService.currentMappingsByFile([nullUpdated, timestamped]).get('file-a')).toBe(timestamped);
+  });
+
+  it('resolves each file independently and drops mappings with no file', () => {
+    const fileA = mapping('0197a000-0000-7000-8000-000000000001', 'file-a', new Date('2026-01-01T00:00:00Z'));
+    const fileB = mapping('0197a000-0000-7000-8000-000000000002', 'file-b', new Date('2025-01-01T00:00:00Z'));
+    const unattached = mapping('0197a000-0000-7000-8000-000000000003', undefined, new Date('2027-01-01T00:00:00Z'));
+
+    const current = DatasetFileMappingService.currentMappingsByFile([fileA, fileB, unattached]);
+
+    // file-b's mapping is the oldest of the three and still current for its own file.
+    expect(current.get('file-a')).toBe(fileA);
+    expect(current.get('file-b')).toBe(fileB);
+    expect(current.size).toBe(2);
+  });
+
+  it('returns an empty map for no mappings', () => {
+    expect(DatasetFileMappingService.currentMappingsByFile([]).size).toBe(0);
+  });
+});

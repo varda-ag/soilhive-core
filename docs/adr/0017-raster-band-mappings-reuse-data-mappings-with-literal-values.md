@@ -12,7 +12,7 @@ The analogy breaks for metadata. A column mapping is a *reference* — "the colu
 
 ## Decision
 
-Store raster band mappings in `data_mappings`, using the same jsonb column and the same `dataset_file_mappings` link, one mapping per file. Keys are band numbers; each value carries the band's property and procedure/conversion slugs alongside its depth range and reference period as literal values. Mappings reference existing entities by slug, and slugs are resolved to ids at parse time.
+Store raster band mappings in `data_mappings`, using the same jsonb column and the same `dataset_file_mappings` link, one mapping in force per file (a file may hold several `dataset_file_mappings` rows, of which one is current — see ADR 0023). Keys are band numbers; each value carries the band's property and procedure/conversion slugs alongside its depth range and reference period as literal values. Mappings reference existing entities by slug, and slugs are resolved to ids at parse time.
 
 Raster mappings are parsed by a dedicated function, not by the tabular parser:
 

@@ -120,6 +120,14 @@ _Avoid_: Raster load (the Dataset-scoped orchestration above it), conversion (pr
 The catalog record for one Band of one raster File within a Dataset, carrying that Band's soil property, depth range, reference period, resolution, nodata marker, bounding box and footprints. The raster counterpart of a DatasetLayer, and identified by the pair (File, Band) — a File and Band together have at most one Raster Layer. Unlike a Layer, a Raster Layer holds no Observations: its measurements stay in the File's pixels, which is why the File must survive the Raster Load.
 _Avoid_: Layer (the soil data depth/date slice), Band (the pixel plane a Raster Layer points at), raster dataset (a Dataset, not a Raster Layer)
 
+**Dataset File Mapping**:
+The link that puts one File's declaration — a **Band Mapping** for a raster File, a column mapping for a point or polygonal one — into force for one Dataset. The declaration itself is shared and deduplicated, so the same declaration may be linked by several Files and several Datasets; the link is what is specific to the pair. A File may carry more than one Dataset File Mapping within a Dataset, of which exactly one is **Current**.
+_Avoid_: Data mapping (the shared declaration the link points at — see Flagged ambiguities), "the file's mapping" bare (ambiguous between Current and Superseded), join, association
+
+**Current** / **Superseded** (of a Dataset File Mapping):
+Which of a File's Dataset File Mappings governs a load. The **Current** one is the most recently touched; every earlier one is **Superseded** — deliberately retained history, not a data defect. A Bulk Load or Raster Load reads only the Current one and never falls back to a Superseded one, so re-declaring a File's mapping changes what the next load ingests without erasing what the last load used. A property of the link alone: the same declaration can be Current for one File and Superseded for another.
+_Avoid_: Active (already means an admin flag on a Raster Filter — see Flagged ambiguities), latest (says how it is found, not that it holds authority), obsolete/stale/orphaned (a Superseded mapping is intentional history), draft, version
+
 **Band Mapping**:
 The per-Band declaration of what a Band measures: its soil property, depth range, and optionally its procedure, unit conversion, reference period, prose description and Raster Layer Assets. A Raster Load ingests exactly the Bands a Band Mapping names — Bands left unmapped are not ingested, which is how uncertainty or count Bands are excluded. The raster counterpart of the column mapping used for point and polygonal Files.
 _Avoid_: Column mapping (the tabular counterpart), data mapping (the shared container — see Flagged ambiguities), band metadata (what the file itself reports, not what an admin declares)
@@ -157,6 +165,7 @@ _Avoid_: Layer (the soil data depth/date slice), channel, raster layer (the cata
 - A **Layer** carries the `sampling_date`, `min_depth`, and `max_depth` for its associated **Observations** — there is no date on **Observation** itself
 - A **Filter** defines the scope for **DAI** computation; the effective **AOI** is the intersection of the Filter's geometries with the map viewport
 - A **Raster Load** is scoped to one **Dataset** and performs one **Raster Ingest** per **Band** named by each raster File's **Band Mapping**; a **Bulk Load** is the equivalent for point and polygonal **Datasets**
+- A **File** has one or more **Dataset File Mappings** per **Dataset** it belongs to, of which exactly one is **Current**; both loads consult only the Current one
 - A **Raster Layer** belongs to one **Dataset** and names exactly one **Band** of exactly one **File**; a **File** has as many **Raster Layers** as it has mapped **Bands**
 - A **Raster Layer** has zero or more **Raster Layer Assets**, each pointing at one **File**; the same **File** may be an asset of several **Raster Layers** (one per **Band** whose **Band Mapping** declares it)
 - A **Filter** has a *set* of zero or more **UserGeometries** (duplicates in a submission collapse to one); each **UserGeometry** may belong to more than one **Filter**
