@@ -1,9 +1,9 @@
 import { useTranslation } from 'react-i18next';
-
+import Skeleton from 'react-loading-skeleton';
 import type { SoilDataSummary } from 'types/datasetsPublication';
 import { InfoCard } from 'components/UI';
-
 import { PreviewSummaryAccordion } from './PreviewSummaryAccordion/PreviewSummaryAccordion';
+
 import styles from './PreviewStepSummary.module.scss';
 
 interface Props {
@@ -34,6 +34,7 @@ export function PreviewStepSummary({ removedByUser, soilDataSummary, isLoading }
             description: t('datasets.preview.summary.cards.values_modified.description'),
           }}
           isLoading={isLoading}
+          loader={<Skeleton count={1} height={30} width={40} />}
         />
         <InfoCard
           className={styles.InfoCard}
@@ -49,6 +50,7 @@ export function PreviewStepSummary({ removedByUser, soilDataSummary, isLoading }
             description: t('datasets.preview.summary.cards.rows_deleted.description_2'),
           }}
           isLoading={isLoading}
+          loader={<Skeleton count={1} height={30} width={40} />}
         />
         <InfoCard
           className={styles.InfoCard}
@@ -59,6 +61,7 @@ export function PreviewStepSummary({ removedByUser, soilDataSummary, isLoading }
             description: t('datasets.preview.summary.cards.cells_deleted.description'),
           }}
           isLoading={isLoading}
+          loader={<Skeleton count={1} height={30} width={40} />}
         />
       </div>
       <div className={styles.PreviewStepSummaryAccordions}>

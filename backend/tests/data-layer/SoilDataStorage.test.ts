@@ -883,7 +883,7 @@ describe('SoilDataStorage class', () => {
     ];
 
     it('Filtering raster data should return a dataset when geometry intersects with its footprint', async () => {
-      await addRasterData(undefined, { dataset_status: IngestionStatus.PUBLISHED });
+      await addRasterData(undefined, { dataset_status: IngestionStatus.PUBLISHED, visibility: 'private' });
       const sds = new SoilDataStorage();
       const entityManager = await getEntityManager();
       // Filtering rectangle
@@ -954,7 +954,9 @@ describe('SoilDataStorage class', () => {
 
     it('Filtering raster data should aggregate multiple layers from the same dataset into one summary', async () => {
       await addRasterData(undefined, { dataset_status: IngestionStatus.PUBLISHED });
-      await addRasterData(undefined, {
+      // A second *file*, not the same one again: a raster layer is identified by (file, band),
+      // so two layers differing only in reference period cannot come from one band of one file.
+      await addRasterData(path.join(__dirname, '../assets/raster/bdod_5-15cm_mean.tif'), {
         layerFields: { reference_period_start: '2010-01-01', reference_period_stop: '2020-12-31' },
         dataset_status: IngestionStatus.PUBLISHED,
       });

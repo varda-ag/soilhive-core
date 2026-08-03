@@ -88,10 +88,6 @@
         "popup_title": "Select a map style",
         "switcher_button_aria": "Map switcher button"
     },
-    "time_filter": {
-        "min_year_aria": "Minimum year",
-        "max_year_aria": "Maximum year"
-    },
     "datasets_list": {
         "metadata": "Metadata",
         "private": "Private",

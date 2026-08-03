@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { FormFieldWrapper } from 'components/UI/FormFieldWrapper/FormFieldWrapper';
 
-jest.mock('components/UI', () => ({
+jest.mock('components/UI/FormMessage/FormMessage', () => ({
   FormMessage: ({ type, message }: any) => <div data-testid={`form-message-${type}`}>{message}</div>,
 }));
 

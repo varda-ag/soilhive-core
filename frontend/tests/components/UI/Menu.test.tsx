@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
-import type { MenuOption } from 'types/components';
+import type { MenuOption } from 'components/UI/types';
 import { Menu } from 'components/UI/Menu/Menu';
 
 const baseOptions: MenuOption[] = [

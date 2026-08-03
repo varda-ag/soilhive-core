@@ -1,6 +1,6 @@
 import classNames from 'classnames';
 import styles from './Steps.module.scss';
-import CheckIcon from 'assets/icons/big-check-mark-icon.svg?react';
+import CheckIcon from '../assets/icons/big-check-mark-icon.svg?react';
 
 export function Steps({ steps = [], currentIndex = 0 }: { steps: Array<{ title: string; description: string }>; currentIndex: number }) {
   return (

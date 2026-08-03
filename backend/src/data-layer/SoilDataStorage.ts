@@ -351,8 +351,11 @@ export default class SoilDataStorage {
       spatialFilterByCte(entityManager, aoiCtes, { name: 'geometryIds', value: geometryIds }, candidateIds),
     );
 
-    const hasDataPaths = new Set(candidates.map(r => r.file_path));
-    if (hasDataPaths.size === 0) return [];
+    // Aggregate over the layers that actually survived the footprint intersection, not over their
+    // files: a file backs one layer per band, and sibling bands have their own footprints, so
+    // matching by file_path would fold in bands that are not in the AOI at all.
+    const survivingLayerIds = candidates.map(r => r.id);
+    if (survivingLayerIds.length === 0) return [];
 
     // Step 3 — aggregate surviving layers into dataset summaries
     // Assess whether this performs better calculated in memory (one less query, up to ~1.5k records in memory)
@@ -373,7 +376,7 @@ export default class SoilDataStorage {
       .addSelect('COALESCE(MIN(rl.reference_period_start), ds.reference_period_start)', 'min_sampling_date')
       .addSelect('COALESCE(MAX(rl.reference_period_stop), ds.reference_period_stop)', 'max_sampling_date')
       .addSelect("STRING_AGG(DISTINCT sp.slug, ',')", 'soil_properties')
-      .where('f.file_path IN (:...hasDataPaths)', { hasDataPaths: [...hasDataPaths] })
+      .where('rl.id IN (:...survivingLayerIds)', { survivingLayerIds })
       .groupBy(
         'ds.slug, ds.name, ds.gis_datatype, ds.visibility, ds.licenses, ds.soil_depth, ds.reference_period_start, ds.reference_period_stop',
       );
@@ -446,6 +449,7 @@ export default class SoilDataStorage {
         .select('rl.id', 'id')
         .addSelect('ds.name', 'dataset_name')
         .addSelect('f.file_path', 'path')
+        .addSelect('rl.band', 'band')
         .addSelect('rl.min_depth', 'min_depth')
         .addSelect('rl.max_depth', 'max_depth')
         .addSelect('rl.reference_period_start', 'reference_period_start')
@@ -469,6 +473,7 @@ export default class SoilDataStorage {
         id: row.id,
         dataset_name: row.dataset_name,
         path: row.path,
+        band: Number(row.band),
         min_depth: row.min_depth,
         max_depth: row.max_depth,
         reference_period_start: row.reference_period_start,
@@ -849,6 +854,125 @@ const dataRowTranslation = (row: any, sort?: string): SoilDataSample => {
   return { ...output, cursor };
 };
 
+export interface ObservationCriteriaAliases {
+  dataset: string;
+  layer: string;
+  soilProperty: string;
+  license: string;
+}
+
+/**
+ * Alias set used by buildRawSoilQuery: dataset predicates land on the
+ * `target_dataset` CTE (`td`), the rest on the joins added over target_layers.
+ */
+export const DEFAULT_OBSERVATION_CRITERIA_ALIASES: ObservationCriteriaAliases = {
+  dataset: 'td',
+  layer: 'layer',
+  soilProperty: 'soil_property',
+  license: 'license',
+};
+
+export interface ObservationCriteria {
+  whereClauses: string[];
+  needsLayerJoin: boolean;
+  needsSoilPropertyJoin: boolean;
+  needsLicenseJoin: boolean;
+}
+
+/**
+ * Translates FilterCriteria into predicates for a query that reaches `observations`
+ * through dataset_layers — extracted verbatim from buildRawSoilQuery so both it and
+ * the soil-statistics job share one implementation of the null-vs-absent semantics
+ * (`min_depth: null` means "no recorded depth", an absent min_depth means
+ * "unconstrained"; see the Flagged ambiguities in CONTEXT.md).
+ *
+ * With the default aliases and `includeVisibility` off, the emitted SQL and the
+ * parameter order are byte-identical to what buildRawSoilQuery produced inline —
+ * that equivalence is what SoilDataStorage.test.ts / SoilDataStorageCount.test.ts
+ * guard, so keep the clause order untouched when editing.
+ *
+ * `visibility` is opt-in because /soil-data never applied it (nor `status`) while
+ * the coverage path does; adding it unconditionally would silently change
+ * /soil-data's result set. Callers wanting coverage parity pass the flag AND add
+ * `status = 'PUBLISHED'` themselves — status is a constant predicate, not a criterion.
+ */
+export const buildObservationCriteria = (
+  filters: FilterCriteria,
+  p: (val: any) => string,
+  aliases: ObservationCriteriaAliases = DEFAULT_OBSERVATION_CRITERIA_ALIASES,
+  options: { includeVisibility?: boolean } = {},
+): ObservationCriteria => {
+  const { dataset: ds, layer, soilProperty, license } = aliases;
+  const whereClauses: string[] = [];
+  let needsLayerJoin = false;
+  let needsSoilPropertyJoin = false;
+  let needsLicenseJoin = false;
+
+  if (filters.data_types && filters.data_types.length > 0) {
+    const dtPlaceholders = filters.data_types.map((v: string) => p(v)).join(', ');
+    whereClauses.push(`${ds}.gis_datatype IN (${dtPlaceholders})`);
+  }
+  if (options.includeVisibility && filters.visibility) {
+    whereClauses.push(`${ds}.visibility = ${p(filters.visibility)}`);
+  }
+  if (filters.min_sampling_date === null) {
+    needsLayerJoin = true;
+    whereClauses.push(`${layer}.sampling_date IS NULL`);
+  } else if (filters.min_sampling_date) {
+    needsLayerJoin = true;
+    whereClauses.push(`${ds}.reference_period_stop >= ${p(filters.min_sampling_date)}`);
+    whereClauses.push(`${layer}.sampling_date >= ${p(filters.min_sampling_date)}`);
+  }
+  if (filters.max_sampling_date === null) {
+    needsLayerJoin = true;
+    whereClauses.push(`${layer}.sampling_date IS NULL`);
+  } else if (filters.max_sampling_date) {
+    needsLayerJoin = true;
+    whereClauses.push(`${ds}.reference_period_start <= ${p(filters.max_sampling_date)}`);
+    whereClauses.push(`${layer}.sampling_date <= ${p(filters.max_sampling_date)}`);
+  }
+  if (filters.min_depth === null) {
+    needsLayerJoin = true;
+    whereClauses.push(`${layer}.min_depth IS NULL`);
+  } else if (filters.min_depth !== undefined) {
+    needsLayerJoin = true;
+    whereClauses.push(`(${ds}.soil_depth->>'max')::int >= ${p(filters.min_depth)}`);
+    whereClauses.push(`${layer}.max_depth >= ${p(filters.min_depth)}`);
+  }
+  if (filters.max_depth === null) {
+    needsLayerJoin = true;
+    whereClauses.push(`${layer}.max_depth IS NULL`);
+  } else if (filters.max_depth !== undefined) {
+    needsLayerJoin = true;
+    whereClauses.push(`(${ds}.soil_depth->>'min')::int <= ${p(filters.max_depth)}`);
+    whereClauses.push(`${layer}.min_depth <= ${p(filters.max_depth)}`);
+  }
+  if (filters.horizons && filters.horizons.length > 0) {
+    needsLayerJoin = true;
+    const nonNull = filters.horizons.filter((h: any) => h !== null);
+    const hPlaceholders = nonNull.map((h: string | null) => p(h)).join(', ');
+    const nullClause = filters.horizons.includes(null) ? ` OR ${layer}.horizon IS NULL` : '';
+    if (nonNull.length > 0) {
+      whereClauses.push(`(${layer}.horizon IN (${hPlaceholders})${nullClause})`);
+    } else {
+      whereClauses.push(`${layer}.horizon IS NULL`);
+    }
+  }
+  if (filters.soil_properties && filters.soil_properties.length > 0) {
+    needsSoilPropertyJoin = true;
+    const spPlaceholders = filters.soil_properties.map((v: string) => p(v)).join(', ');
+    whereClauses.push(`${soilProperty}.slug IN (${spPlaceholders})`);
+  }
+  if (filters.licenses && filters.licenses.length > 0) {
+    needsLayerJoin = true;
+    needsLicenseJoin = true;
+    const lPlaceholders = filters.licenses.map((v: string) => p(v)).join(', ');
+    whereClauses.push(`${license}.slug IN (${lPlaceholders})`);
+  }
+
+  return { whereClauses, needsLayerJoin, needsSoilPropertyJoin, needsLicenseJoin };
+};
+
 export const buildDatasetFilterClauses = (
   filters: FilterCriteria,
   p: (val: any) => string,
@@ -939,12 +1063,20 @@ export const buildDatasetFilterClauses = (
  * Builds raster filter CTEs for raw SQL queries: candidate_features, clipped raster
  * CTEs, and matching_features.
  *
- * Used by both filterVectorDatasets (LATERAL pattern) and buildRawSoilQuery (CTE join pattern).
- * Returns { ctes, usesMatchingFeatures } where ctes is a comma-joined string ready to
- * insert after the aoi CTE. When usesMatchingFeatures is false, ctes is empty and the
- * caller handles its own spatial CTEs.
+ * Used by filterVectorDatasets (LATERAL pattern), buildRawSoilQuery (CTE join pattern)
+ * and the soil-statistics job. Returns { ctes, usesMatchingFeatures } where ctes is a
+ * comma-joined string ready to insert after the aoi CTE. When usesMatchingFeatures is
+ * false, ctes is empty and the caller handles its own spatial CTEs.
+ *
+ * Exported (rather than kept private) so the soil-statistics job gets raster-filter
+ * parity with coverage without duplicating the clip/ST_ValueCount logic. It reads only
+ * the `aoi` CTE, so any caller whose aoi is the subdivision pieces of a geometry set —
+ * which is every caller — can reuse it unchanged.
  */
-const buildRasterSql = (filter: DataFilter, enabledRasterFilterTables: string[]): { ctes: string; usesMatchingFeatures: boolean } => {
+export const buildRasterSql = (
+  filter: DataFilter,
+  enabledRasterFilterTables: string[],
+): { ctes: string; usesMatchingFeatures: boolean } => {
   const { geometryIds, parameters: filters, area: aoiAreaM2 } = filter;
   const hasGeometry = geometryIds.length > 0;
   if (!hasGeometry || !hasRasterFilters(filters) || enabledRasterFilterTables.length === 0) {
@@ -1049,69 +1181,7 @@ const buildRawSoilQuery = (
   // Per-dataset_layer filters. None of these reference obs/procedure, so they
   // are evaluated once while building target_layers (below) rather than once
   // per observation joined to it.
-  const whereClauses: string[] = [];
-  let needsLayerJoin = false;
-  let needsSoilPropertyJoin = false;
-  let needsLicenseJoin = false;
-
-  if (filters.data_types && filters.data_types.length > 0) {
-    const dtPlaceholders = filters.data_types.map((v: string) => p(v)).join(', ');
-    whereClauses.push(`td.gis_datatype IN (${dtPlaceholders})`);
-  }
-  if (filters.min_sampling_date === null) {
-    needsLayerJoin = true;
-    whereClauses.push('layer.sampling_date IS NULL');
-  } else if (filters.min_sampling_date) {
-    needsLayerJoin = true;
-    whereClauses.push(`td.reference_period_stop >= ${p(filters.min_sampling_date)}`);
-    whereClauses.push(`layer.sampling_date >= ${p(filters.min_sampling_date)}`);
-  }
-  if (filters.max_sampling_date === null) {
-    needsLayerJoin = true;
-    whereClauses.push('layer.sampling_date IS NULL');
-  } else if (filters.max_sampling_date) {
-    needsLayerJoin = true;
-    whereClauses.push(`td.reference_period_start <= ${p(filters.max_sampling_date)}`);
-    whereClauses.push(`layer.sampling_date <= ${p(filters.max_sampling_date)}`);
-  }
-  if (filters.min_depth === null) {
-    needsLayerJoin = true;
-    whereClauses.push('layer.min_depth IS NULL');
-  } else if (filters.min_depth !== undefined) {
-    needsLayerJoin = true;
-    whereClauses.push(`(td.soil_depth->>'max')::int >= ${p(filters.min_depth)}`);
-    whereClauses.push(`layer.max_depth >= ${p(filters.min_depth)}`);
-  }
-  if (filters.max_depth === null) {
-    needsLayerJoin = true;
-    whereClauses.push('layer.max_depth IS NULL');
-  } else if (filters.max_depth !== undefined) {
-    needsLayerJoin = true;
-    whereClauses.push(`(td.soil_depth->>'min')::int <= ${p(filters.max_depth)}`);
-    whereClauses.push(`layer.min_depth <= ${p(filters.max_depth)}`);
-  }
-  if (filters.horizons && filters.horizons.length > 0) {
-    needsLayerJoin = true;
-    const nonNull = filters.horizons.filter((h: any) => h !== null);
-    const hPlaceholders = nonNull.map((h: string | null) => p(h)).join(', ');
-    const nullClause = filters.horizons.includes(null) ? ' OR layer.horizon IS NULL' : '';
-    if (nonNull.length > 0) {
-      whereClauses.push(`(layer.horizon IN (${hPlaceholders})${nullClause})`);
-    } else {
-      whereClauses.push('layer.horizon IS NULL');
-    }
-  }
-  if (filters.soil_properties && filters.soil_properties.length > 0) {
-    needsSoilPropertyJoin = true;
-    const spPlaceholders = filters.soil_properties.map((v: string) => p(v)).join(', ');
-    whereClauses.push(`soil_property.slug IN (${spPlaceholders})`);
-  }
-  if (filters.licenses && filters.licenses.length > 0) {
-    needsLayerJoin = true;
-    needsLicenseJoin = true;
-    const lPlaceholders = filters.licenses.map((v: string) => p(v)).join(', ');
-    whereClauses.push(`license.slug IN (${lPlaceholders})`);
-  }
+  const { whereClauses, needsLayerJoin, needsSoilPropertyJoin, needsLicenseJoin } = buildObservationCriteria(filters, p);
 
   const whereClause = whereClauses.length > 0 ? `AND ${whereClauses.join('\n  AND ')}` : '';
   // Aliased to tl (target_layers_by_feature), not dl: these joins apply on top of the
@@ -1403,6 +1473,7 @@ const spatialFilterByCte = async (
     .innerJoin('raster_footprints', 'rf', 'rf.id = rlf.raster_footprint_id')
     .select('rl.id', 'id')
     .addSelect('f.file_path', 'file_path')
+    .addSelect('rl.band', 'band')
     .addSelect('rl.resolution_m', 'resolution_m')
     .where('rl.id IN (:...candidateLayers)', { candidateLayers })
     .andWhere('EXISTS (SELECT 1 FROM aoi WHERE ST_Intersects(rf.geom, aoi.geom))')

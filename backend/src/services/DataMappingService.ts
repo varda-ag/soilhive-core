@@ -3,6 +3,7 @@ import { DataCleaningConfig } from '../interfaces/DataMapping';
 import { PropertyMapping, PropertyCleaningConfig } from '../interfaces/PropertyMapping';
 import { RequestData } from '../interfaces/RequestData';
 import { DetectableFields, type DataMappingObject } from '../types/DataMapping';
+import type { RasterMappingObject, ResolvedBandMapping } from '../interfaces/RasterMapping';
 import { ErrorResponse } from '../utils/error';
 import { getSubject } from '../utils/auth';
 import DataMappingEntity from '../entities/DataMapping';
@@ -164,6 +165,63 @@ export default class DataMappingService {
       result.drop_records = data_mapping.drop_records;
     }
     return result;
+  };
+
+  /**
+   * Resolves a raster file's Band Mapping into per-band ingest input.
+   *
+   * Deliberately separate from parseDataMapping rather than a branch inside it (docs/adr/0017):
+   * that function returns column-cleaning configuration, all of which is tabular, and it sanitises
+   * every key into a DB-safe SQL identifier — a transformation a band mapping key cannot survive.
+   *
+   * Band numbers are parsed but not validated against the file here; the loader does that, so
+   * every band failure is raised from one place before any ingest writes anything. The same holds
+   * for a band's additional resources: they reference Files, and checking those belongs with the
+   * rest of the loader's pre-flight validation rather than here.
+   */
+  parseRasterDataMapping = async (requestData: RequestData, id: string): Promise<ResolvedBandMapping[]> => {
+    const dataMappingEntity = await this.getDataMapping(requestData, id);
+    const mapping = dataMappingEntity.data_mapping as unknown as RasterMappingObject;
+
+    const entries = Object.entries(mapping).filter(
+      ([, bandMapping]) => bandMapping !== null && typeof bandMapping === 'object' && !Array.isArray(bandMapping),
+    );
+
+    const propertySlugs = [...new Set(entries.map(([, b]) => b.property_id).filter(Boolean))];
+    const conversionSlugs = [...new Set(entries.map(([, b]) => b.conversion_id).filter((s): s is string => !!s))];
+    const procedureSlugs = [...new Set(entries.map(([, b]) => b.procedure_id).filter((s): s is string => !!s))];
+
+    const [properties, conversions, procedures] = await Promise.all([
+      propertySlugs.length ? new SoilPropertyService().getSoilPropertiesBySlug(requestData, propertySlugs) : Promise.resolve([]),
+      conversionSlugs.length ? new UnitConversionService().getUnitConversionsBySlug(requestData, conversionSlugs) : Promise.resolve([]),
+      procedureSlugs.length ? new ProcedureService().getProceduresBySlug(requestData, procedureSlugs) : Promise.resolve([]),
+    ]);
+
+    const propertyBySlug = new Map(properties.map(p => [p.slug, p]));
+    const conversionBySlug = new Map(conversions.map(c => [c.slug, c]));
+    const procedureBySlug = new Map(procedures.map(p => [p.slug, p]));
+
+    return entries.map(([key, bandMapping]) => {
+      const property = propertyBySlug.get(bandMapping.property_id);
+      const conversion = bandMapping.conversion_id ? conversionBySlug.get(bandMapping.conversion_id) : undefined;
+      // Presence, not resolvability: an unknown procedure slug already threw in getProceduresBySlug.
+      const procedureSlug = bandMapping.procedure_id && procedureBySlug.has(bandMapping.procedure_id) ? bandMapping.procedure_id : null;
+
+      return {
+        band: Number(key),
+        soilPropertySlug: bandMapping.property_id,
+        procedureSlug,
+        minDepth: bandMapping.min_depth ?? null,
+        maxDepth: bandMapping.max_depth ?? null,
+        referencePeriodStart: bandMapping.reference_period_start ?? null,
+        referencePeriodStop: bandMapping.reference_period_stop ?? null,
+        standardUnit: property?.standard_unit ?? null,
+        originalUnit: conversion?.original_unit_of_measurement ?? null,
+        conversionFormula: conversion?.conversion_formula ?? null,
+        layerDescription: bandMapping.layer_description ?? null,
+        additionalResources: Array.isArray(bandMapping.additional_resources) ? bandMapping.additional_resources : [],
+      };
+    });
   };
 
   getDataMappings = async (requestData: RequestData): Promise<DataMappingEntity[]> => {

@@ -4,7 +4,7 @@ import request from 'supertest';
 import { app } from '../../src/app';
 import { Token } from '../../src/interfaces/Token';
 import { getPgBoss, initPgBoss, PG_BOSS_SCHEMA, stopPgBoss } from '../../src/services/PgBoss';
-import { JobQueues } from '../../src/types/enums';
+import { JobQueues, StatisticsType } from '../../src/types/enums';
 import { getDataSource, getEntityManager } from '../../src/utils/data-source';
 import { getRawTableName, sleep } from '../../src/utils/utils';
 import { getDataAdminToken } from '../helper';
@@ -12,6 +12,9 @@ import { RequestData } from '../../src/interfaces/RequestData';
 import FileService from '../../src/services/FileService';
 import * as BulkLoaderModule from '../../src/jobs/bulk-load/BulkLoader';
 import * as SoilExportJobModule from '../../src/jobs/soil-export/soilExportJob';
+import { VectorFileMetadata } from '../../src/interfaces/File';
+import { addDataset } from '../../src/utils/mock';
+import { GISDataType } from '../../src/types/data';
 
 const mockToken: Token = {
   sub: 'test-user-id',
@@ -40,7 +43,7 @@ describe('Testing /jobs routes', () => {
     await stopPgBoss();
   });
 
-  it.each([JobQueues.BULK_LOAD, JobQueues.FILE_TO_DB, JobQueues.BULK_DELETE])(
+  it.each([JobQueues.BULK_LOAD, JobQueues.RASTER_LOAD, JobQueues.FILE_TO_DB, JobQueues.BULK_DELETE])(
     'POST /jobs without a token trying to create a token protected job fails with HTTP 401',
     async (queue: string) => {
       const bulkRes = await request(app).post('/jobs').send({ type: queue, dataset_id: 'test-dataset' });
@@ -119,6 +122,40 @@ describe('Testing /jobs routes', () => {
     expect(statusRes.body.status).toBe('completed');
   });
 
+  // Kept after the GET /jobs count assertion above: these add jobs owned by the
+  // same data admin, which would otherwise show up in that list.
+  it('POST /jobs creates a raster load job that the worker drains', async () => {
+    const token = await getDataAdminToken();
+
+    // The real processRasterLoad runs here: it resolves the dataset up front, so without this row
+    // the job fails instead of draining. With no staged files it has nothing to ingest and completes.
+    await addDataset('test-dataset', [-180, -90, 180, 90], GISDataType.RASTER);
+
+    const res = await request(app)
+      .post('/jobs')
+      .send({ type: 'raster-load', dataset_id: 'test-dataset' })
+      .set('Authorization', `Bearer ${token}`);
+    expect(res.statusCode).toBe(201);
+    expect(res.body.queue).toBe(JobQueues.RASTER_LOAD);
+
+    const spy = getPgBoss().getSpy(JobQueues.RASTER_LOAD);
+    await spy.waitForJobWithId(res.body.id, 'completed');
+
+    const statusRes = await request(app).get(`/jobs/${res.body.id}`).set('Authorization', `Bearer ${token}`);
+    expect(statusRes.statusCode).toBe(200);
+    expect(statusRes.body.status).toBe('completed');
+  });
+
+  it('POST /jobs rejects a raster load job carrying delete_source_files', async () => {
+    const token = await getDataAdminToken();
+
+    const res = await request(app)
+      .post('/jobs')
+      .send({ type: 'raster-load', dataset_id: 'test-dataset', delete_source_files: true })
+      .set('Authorization', `Bearer ${token}`);
+    expect(res.statusCode).toBe(400);
+  });
+
   it('GET /jobs/:id returns 404 for unknown ID', async () => {
     const token = await getDataAdminToken();
     const res = await request(app).get(`/jobs/not-a-real-id`).set('Authorization', `Bearer ${token}`);
@@ -139,7 +176,7 @@ describe('Testing /jobs routes', () => {
 
     const testWorker = async (index: number): Promise<void> => {
       // Create file in DB
-      const metadata = {
+      const metadata: VectorFileMetadata = {
         driver: 'GeoJSON',
         field_names: ['metadata', 'rawParameters'],
         detected_fields: {
@@ -156,6 +193,7 @@ describe('Testing /jobs routes', () => {
         geometry_detected: true,
         epsg: 4326,
         detected_mapping: {},
+        is_raster: false,
       };
       const file = {
         name: `sample_point_${index}.geojson`,
@@ -259,5 +297,147 @@ describe('Testing /jobs routes', () => {
     });
 
     expect(restrictedRes.statusCode).toBe(400);
+  });
+
+  describe('POST /jobs soil-statistics validation', () => {
+    // Everything here is rejected at enqueue time on purpose: this is the only point at
+    // which the caller's raw token exists (so external entitlements are visible), and a
+    // synchronous 4xx beats a job that fails minutes later.
+    const createFilter = async (geometries: object[], parameters: object = {}): Promise<string> => {
+      const res = await request(app).post('/data-filters').send({ geometries, parameters }).expect(201);
+      return res.body.id;
+    };
+
+    const polygon = {
+      type: 'Polygon',
+      coordinates: [
+        [
+          [0, 0],
+          [2, 0],
+          [2, 2],
+          [0, 2],
+          [0, 0],
+        ],
+      ],
+    };
+
+    it('rejects an unknown filter with 404', async () => {
+      const res = await request(app).post('/jobs').send({
+        type: JobQueues.SOIL_STATISTICS,
+        filter_id: '960ee487-a6bd-4da8-8ef0-da6ef23d0e80',
+      });
+      expect(res.statusCode).toBe(404);
+    });
+
+    it('rejects a filter with no geometries when no file_id is given', async () => {
+      const filterId = await createFilter([]);
+      const res = await request(app).post('/jobs').send({ type: JobQueues.SOIL_STATISTICS, filter_id: filterId });
+      expect(res.statusCode).toBe(400);
+      expect(res.body.detail).toContain('no geometries');
+    });
+
+    it('rejects label_field without file_id', async () => {
+      const filterId = await createFilter([polygon]);
+      const res = await request(app).post('/jobs').send({
+        type: JobQueues.SOIL_STATISTICS,
+        filter_id: filterId,
+        label_field: 'field_name',
+      });
+      expect(res.statusCode).toBe(400);
+      expect(res.body.detail).toContain('label_field requires file_id');
+    });
+
+    it('rejects a named dataset the caller cannot preview with 403', async () => {
+      const dataset = await addDataset('private-stats-ds', [0, 0, 2, 2], GISDataType.POINT);
+      const entityManager = await getEntityManager();
+      await entityManager.query(`UPDATE datasets SET visibility = 'private' WHERE id = $1`, [dataset.id]);
+
+      const filterId = await createFilter([polygon]);
+      const res = await request(app)
+        .post('/jobs')
+        .send({
+          type: JobQueues.SOIL_STATISTICS,
+          filter_id: filterId,
+          dataset_ids: [dataset.slug],
+        });
+      expect(res.statusCode).toBe(403);
+    });
+
+    it('accepts a valid request and enqueues on its own queue', async () => {
+      const dataset = await addDataset('public-stats-ds', [0, 0, 2, 2], GISDataType.POINT);
+      const filterId = await createFilter([polygon]);
+      const res = await request(app)
+        .post('/jobs')
+        .send({
+          type: JobQueues.SOIL_STATISTICS,
+          filter_id: filterId,
+          dataset_ids: [dataset.slug],
+          histogram_bins: 20,
+        });
+      expect(res.statusCode).toBe(201);
+      expect(res.body.queue).toBe(JobQueues.SOIL_STATISTICS);
+      expect(res.body.data.histogram_bins).toBe(20);
+    });
+
+    it('accepts statistics_type crea-index and echoes it back', async () => {
+      const filterId = await createFilter([polygon]);
+      const res = await request(app).post('/jobs').send({
+        type: JobQueues.SOIL_STATISTICS,
+        filter_id: filterId,
+        statistics_type: StatisticsType.CREA_INDEX,
+      });
+      expect(res.statusCode).toBe(201);
+      expect(res.body.queue).toBe(JobQueues.SOIL_STATISTICS);
+      expect(res.body.data.statistics_type).toBe(StatisticsType.CREA_INDEX);
+    });
+
+    it('rejects an unknown statistics_type', async () => {
+      const filterId = await createFilter([polygon]);
+      const res = await request(app).post('/jobs').send({
+        type: JobQueues.SOIL_STATISTICS,
+        filter_id: filterId,
+        statistics_type: 'not-a-type',
+      });
+      expect(res.statusCode).toBe(400);
+    });
+
+    // Inapplicable parameters are rejected rather than ignored: accepting one for a future
+    // type is additive, whereas ignoring it now and tightening later would be breaking.
+    it('rejects histogram_bins with statistics_type crea-index', async () => {
+      const filterId = await createFilter([polygon]);
+      const res = await request(app).post('/jobs').send({
+        type: JobQueues.SOIL_STATISTICS,
+        filter_id: filterId,
+        statistics_type: StatisticsType.CREA_INDEX,
+        histogram_bins: 20,
+      });
+      expect(res.statusCode).toBe(400);
+      expect(res.body.detail).toContain('histogram_bins does not apply');
+    });
+
+    it('rejects dataset_ids with statistics_type crea-index', async () => {
+      const dataset = await addDataset('crea-stats-ds', [0, 0, 2, 2], GISDataType.POINT);
+      const filterId = await createFilter([polygon]);
+      const res = await request(app)
+        .post('/jobs')
+        .send({
+          type: JobQueues.SOIL_STATISTICS,
+          filter_id: filterId,
+          statistics_type: StatisticsType.CREA_INDEX,
+          dataset_ids: [dataset.slug],
+        });
+      expect(res.statusCode).toBe(400);
+      expect(res.body.detail).toContain('dataset_ids does not apply');
+    });
+
+    it('rejects a histogram_bins value outside the allowed range', async () => {
+      const filterId = await createFilter([polygon]);
+      const res = await request(app).post('/jobs').send({
+        type: JobQueues.SOIL_STATISTICS,
+        filter_id: filterId,
+        histogram_bins: 1,
+      });
+      expect(res.statusCode).toBe(400);
+    });
   });
 });

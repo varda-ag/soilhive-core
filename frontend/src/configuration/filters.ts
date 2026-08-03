@@ -1,4 +1,4 @@
-import type { Selection } from 'types/components';
+import type { Selection } from 'components/UI/types';
 
 const DATA_TYPE_ITEMS: Selection[] = [
   {

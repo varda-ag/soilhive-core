@@ -7,7 +7,7 @@ import CheckIconCircle from 'assets/icons/check-icon-circle.svg?react';
 import WarningIcon from 'assets/icons/small-warning-icon.svg?react';
 import { RasterMappingRowDetails } from './RasterMappingRowDetails';
 import type { ColumnMapping, DetailOptionMap, RowDetails } from 'hooks/useRasterMappingStep';
-import type { MenuOption } from 'types/components';
+import type { MenuOption } from 'components/UI/types';
 import styles from './RasterMappingRow.module.scss';
 
 interface Props {

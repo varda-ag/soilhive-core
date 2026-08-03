@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import useAvailability from './useAvailability';
-import type { NestedCheckboxItemType, Selection } from 'types/components';
+import type { NestedCheckboxItemType } from 'types/components';
+import type { Selection } from 'components/UI/types';
 import type { SoilPropertyCategory } from '../types/backend';
 import { collectAllIds, getBranchIds } from 'components/NestedCheckbox/nestedCheckboxHelpers';
 

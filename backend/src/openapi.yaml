@@ -367,16 +367,20 @@ paths:
             schema:
               oneOf:
                 - $ref: '#/components/schemas/BulkLoadJob'
+                - $ref: '#/components/schemas/RasterLoadJob'
                 - $ref: '#/components/schemas/ExportJob'
                 - $ref: '#/components/schemas/FileToDbJob'
                 - $ref: '#/components/schemas/BulkDeleteJob'
+                - $ref: '#/components/schemas/SoilStatisticsJob'
               discriminator:
                 propertyName: type
                 mapping:
                   bulk-load: '#/components/schemas/BulkLoadJob'
+                  raster-load: '#/components/schemas/RasterLoadJob'
                   export: '#/components/schemas/ExportJob'
                   file-to-db: '#/components/schemas/FileToDbJob'
                   bulk-delete: '#/components/schemas/BulkDeleteJob'
+                  soil-statistics: '#/components/schemas/SoilStatisticsJob'
       responses:
         '201':
           description: Async job started successfull
@@ -1215,6 +1219,59 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  /data-filters/{filterId}/geometries:
+    parameters:
+      - name: filterId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Unique filter identifier
+      - name: limit
+        in: query
+        required: false
+        description: Maximum number of geometries to return
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 1000
+          default: 100
+      - name: cursor
+        in: query
+        required: false
+        description: Opaque cursor from the previous page's next_cursor. Omit for the first page.
+        schema:
+          type: string
+    get:
+      x-eov-operation-handler: controllers/data-filters
+      x-eov-operation-id: getDataFilterGeometries
+      summary: Retrieves the filter's stored geometries, one Feature per Aggregation Unit
+      description: >-
+        Returns the canonical stored geometries of the filter as a GeoJSON
+        FeatureCollection, paginated with an opaque cursor. Each Feature id is the
+        geometry's identifier, which is what soil-statistics job output references as
+        unit_id. For a filter derived from an uploaded file this is the only way to read
+        its geometries, since the filter's own stored form does not contain them.
+        Walk pages by passing the previous response's next_cursor; a null next_cursor
+        means the last page was reached.
+      tags:
+        - data-filters
+      security:
+        - bearerAuth: []
+        - {}
+      responses:
+        '200':
+          description: Paginated GeoJSON FeatureCollection of the filter's geometries
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FilterGeometryCollection'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /data-filters/{filterId}/dai:
     parameters:
       - name: filterId
@@ -1885,7 +1942,7 @@ components:
       properties:
         dataset_id:
           type: string
-          format: uuid
+          description: The dataset's slug, as carried on the failed job's data.
         errors:
           type: array
           items:
@@ -2061,6 +2118,57 @@ components:
           type: string
         epsg:
           type: integer
+
+    FilterGeometry:
+      type: object
+      description: One stored filter geometry — one Aggregation Unit of soil-statistics output.
+      properties:
+        type:
+          type: string
+          enum: [Feature]
+        id:
+          type: string
+          format: uuid
+          description: Geometry identifier, referenced as unit_id in soil-statistics output
+        geometry:
+          $ref: '#/components/schemas/Geometry'
+        properties:
+          type: object
+          properties:
+            area_m2:
+              type: number
+              nullable: true
+              description: Area of the whole geometry in m². Raster filters do not reduce it, so it overstates the area the statistics cover whenever they are applied.
+      required:
+        - type
+        - id
+        - geometry
+
+    FilterGeometryCollection:
+      type: object
+      description: Cursor-paginated GeoJSON FeatureCollection; total, limit and next_cursor are GeoJSON foreign members.
+      properties:
+        type:
+          type: string
+          enum: [FeatureCollection]
+        total:
+          type: integer
+          description: Total number of geometries on the filter, ignoring pagination
+        limit:
+          type: integer
+        next_cursor:
+          type: string
+          nullable: true
+          description: Pass as `cursor` to fetch the next page. Null on the last page.
+        features:
+          type: array
+          items:
+            $ref: '#/components/schemas/FilterGeometry'
+      required:
+        - type
+        - total
+        - next_cursor
+        - features
 
     FileDescriptor:
       type: object
@@ -2373,8 +2481,8 @@ components:
       properties:
         id:
           type: string
-          format: uuid
           readOnly: true
+          description: The dataset's slug. Responses never expose the primary key for an entity that has a slug.
         name:
           type: string
         full_name:
@@ -2700,9 +2808,11 @@ components:
       properties:
         fileID:
           type: string
+          description: The file's slug.
         mappingId:
           type: string
           format: uuid
+          description: A data mapping's id. Data mappings have no slug, so this is the primary key.
 
     DatasetFileMappingResponse:
       type: object
@@ -2710,12 +2820,14 @@ components:
         id:
           type: string
           format: uuid
+          description: The mapping's own id. Dataset-file mappings have no slug, so this is the primary key.
         fileID:
           type: string
-          format: uuid
+          description: The file's slug — never its primary key.
         mappingId:
           type: string
           format: uuid
+          description: A data mapping's id. Data mappings have no slug, so this is the primary key.
 
     BulkLoadJob:
       type: object
@@ -2729,6 +2841,22 @@ components:
         delete_source_files:
           type: boolean
           description: When true, deletes source files from storage after loading
+
+    RasterLoadJob:
+      type: object
+      additionalProperties: false
+      required:
+        - type
+        - dataset_id
+      properties:
+        type:
+          type: string
+          enum: [raster-load]
+          description: Job type
+        dataset_id:
+          type: string
+          description: Dataset whose raster files are to be loaded
+      description: Loads a raster dataset. The ingested files remains the raster layer's data and must not be removed.
 
     ExportJob:
       type: object
@@ -2770,6 +2898,127 @@ components:
             type: string
             format: uri
           description: Optional mapping of dataset_id to metadata URL for Readme.PDF
+
+    SoilStatisticsJob:
+      type: object
+      description: >-
+        Computes an analytical product over the aggregation areas matching a filter. Which
+        product is chosen by statistics_type; the areas are resolved identically for every
+        type, and only what is computed over them differs. The result is written into the
+        job's own data and read back via GET /jobs/{jobId}, under a key that depends on the
+        type — results for `descriptive`, crea_index for `crea-index`.
+      required:
+        - type
+        - filter_id
+      properties:
+        type:
+          type: string
+          enum: [soil-statistics]
+          description: Job type
+        statistics_type:
+          type: string
+          enum: [descriptive, crea-index]
+          default: descriptive
+          description: >-
+            Which product to compute. `descriptive` gives descriptive statistics over the
+            matching observations, per aggregation area, dataset, soil property, sampling
+            year and depth interval — raster datasets never contribute there, because their
+            measurements are pixels rather than observations. `crea-index` gives one scored
+            GeoJSON Point per aggregation area. Parameters that the chosen type does not use
+            are rejected with a 400 rather than ignored: histogram_bins and dataset_ids
+            apply to `descriptive` only.
+        anonymous:
+          type: boolean
+          description: Set to true to allow access without authentication
+        filter_id:
+          type: string
+          format: uuid
+          description: >-
+            Filter supplying the criteria. Also supplies the aggregation areas, unless
+            file_id is given — in which case the filter's own geometries are not used.
+        file_id:
+          type: string
+          description: >-
+            Optional spatial file whose geometries each become one aggregation area. Must
+            be a vector file with a known EPSG code and only polygon or multipolygon
+            geometries; a multipolygon counts as one area. The number of geometries is
+            capped by server configuration.
+        dataset_ids:
+          type: array
+          items:
+            type: string
+          description: >-
+            Optional list of dataset IDs. When given, preview access to each is enforced
+            on submission. When omitted, every dataset the filter matches is used and
+            those without preview access are skipped and reported in skipped_datasets.
+        histogram_bins:
+          type: integer
+          minimum: 2
+          maximum: 100
+          description: >-
+            Number of equal-width histogram bins spanning each cell's min-max range.
+            Applies to statistics_type `descriptive` only; sending it with another type is
+            a 400.
+        label_field:
+          type: string
+          description: >-
+            Optional field of file_id whose value labels each aggregation area. Must name
+            an existing field of that file.
+        crea_index:
+          readOnly: true
+          allOf:
+            - $ref: '#/components/schemas/CreaIndexCollection'
+          description: >-
+            Output, never sent on submission. Present only for statistics_type `crea-index`;
+            the `descriptive` type writes results and truncated instead.
+
+    CreaIndexCollection:
+      type: object
+      description: >-
+        Output of statistics_type `crea-index`: one Point per aggregation area, carrying the
+        index for that area. Written to the crea_index key of the job's data. Each Feature's
+        id is the aggregation area's unit_id, which is the only way back to the area — the
+        label and the area in m² are on the job's units array, and equivalent geometries in
+        a source file collapse into one area, so position in this list does not correspond
+        to a row of that file. The Point is the area's centroid where that falls inside the
+        geometry, and a guaranteed-interior point otherwise (a multipolygon of disjoint
+        parcels is one area, and its centroid can lie between them).
+      properties:
+        type:
+          type: string
+          enum: [FeatureCollection]
+        features:
+          type: array
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+                enum: [Feature]
+              id:
+                type: string
+                format: uuid
+                description: The aggregation area's unit_id
+              geometry:
+                $ref: '../src/GeoJSON-OAS3.yaml#/components/schemas/Point'
+              properties:
+                type: object
+                properties:
+                  value:
+                    type: number
+                    minimum: 0
+                    maximum: 1
+                    description: The index for this area, rounded to 3 decimals
+                required:
+                  - value
+            required:
+              - type
+              - id
+              - geometry
+              - properties
+      required:
+        - type
+        - features
 
     FileToDbJob:
       type: object

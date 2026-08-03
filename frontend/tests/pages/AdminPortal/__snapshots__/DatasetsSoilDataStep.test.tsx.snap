@@ -14,7 +14,7 @@ exports[`DatasetsSoilDataStep renders matches snapshot 1`] = `
         <h2
           class="Title"
         >
-          Add file/s
+          datasets.soil_data.title
         </h2>
       </div>
       <a
@@ -30,7 +30,7 @@ exports[`DatasetsSoilDataStep renders matches snapshot 1`] = `
           mock-svg
         </svg>
          
-        Open documentation
+        datasets.actions.open_documentation
       </a>
     </div>
     <div>
@@ -56,7 +56,7 @@ exports[`DatasetsSoilDataStep renders matches snapshot 1`] = `
           <p
             class="Caption"
           >
-            Supported formats: CSV, GeoPackage, GeoJSON, Shapefile, XLSX, ZIP and GeoTIFF.
+            datasets.soil_data.upload_caption
           </p>
           <input
             accept=""
@@ -80,7 +80,7 @@ exports[`DatasetsSoilDataStep renders matches snapshot 1`] = `
         data-testid="sh-ui-button"
         type="button"
       >
-        Previous
+        datasets.actions.previous
       </button>
       <div
         class="FooterRight"
@@ -91,7 +91,7 @@ exports[`DatasetsSoilDataStep renders matches snapshot 1`] = `
           disabled=""
           type="button"
         >
-          Save and continue later
+          datasets.actions.save_and_continue_later
         </button>
         <button
           class="Button Primary Small"
@@ -99,7 +99,7 @@ exports[`DatasetsSoilDataStep renders matches snapshot 1`] = `
           disabled=""
           type="button"
         >
-          Continue
+          datasets.actions.continue
         </button>
       </div>
     </div>

@@ -1,7 +1,7 @@
+import type { ReactNode } from 'react';
 import classnames from 'classnames';
-import Skeleton from 'react-loading-skeleton';
 
-import type { InfoCardContent } from 'types/components';
+import type { InfoCardContent } from '../types';
 
 import styles from './InfoCard.module.scss';
 
@@ -12,9 +12,10 @@ interface Props {
   className?: string;
   contentClassName?: string;
   isLoading?: boolean;
+  loader?: ReactNode;
 }
 
-export function InfoCard({ title, primaryContent, secondaryContent, className, contentClassName, isLoading }: Props) {
+export function InfoCard({ title, primaryContent, secondaryContent, className, contentClassName, isLoading, loader }: Props) {
   return (
     <div
       className={classnames(styles.InfoCard, className, {
@@ -26,7 +27,7 @@ export function InfoCard({ title, primaryContent, secondaryContent, className, c
       <div className={styles.ContentWrapper}>
         <div className={classnames(styles.Content, contentClassName)}>
           <p className={styles.Value} style={{ color: primaryContent.color }}>
-            {isLoading && <Skeleton count={1} height={30} width={40} />}
+            {isLoading && (loader || <>-</>)}
             {!isLoading && primaryContent.value}
           </p>
           <p className={styles.Description}>{primaryContent.description}</p>
@@ -34,7 +35,7 @@ export function InfoCard({ title, primaryContent, secondaryContent, className, c
         {!!secondaryContent && (
           <div className={classnames(styles.Content, styles.Secondary, contentClassName)}>
             <p className={styles.Value} style={{ color: secondaryContent.color }}>
-              {isLoading && <Skeleton count={1} height={30} width={40} />}
+              {isLoading && (loader || <>-</>)}
               {!isLoading && secondaryContent.value}
             </p>
             <p className={styles.Description}>{secondaryContent.description}</p>

@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import classnames from 'classnames';
-import CrossIcon from 'assets/icons/small-cross-icon.svg?react';
-import type { NotificationType } from 'types/components';
+import CrossIcon from '../assets/icons/small-cross-icon.svg?react';
+import type { NotificationType } from '../types';
 
 import styles from './Notification.module.scss';
 

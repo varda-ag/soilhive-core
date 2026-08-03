@@ -581,12 +581,23 @@ export interface SyntheticRasterDataset {
   dataset: DatasetEntity;
 }
 
+/**
+ * Ingests one band of a raster fixture.
+ *
+ * A Raster Ingest no longer creates the dataset, file or soil property it references — those are
+ * a Raster Load's responsibility (docs/adr/0018) — so this helper sets them up first. Depths and
+ * reference periods are passed into the ingest rather than patched onto the layer afterwards.
+ *
+ * Note `(file_id, band)` is unique: two calls with the same tif and band update one layer rather
+ * than producing siblings. Pass a different `tifPath` (or `band`) for a second, distinct layer.
+ */
 export const addRasterData = async (
   tifPath?: string,
   options?: {
     dataset?: string;
     soilProperty?: string;
     soilPropertyCategory?: string;
+    band?: number;
     layerFields?: {
       min_depth?: number | null;
       max_depth?: number | null;
@@ -598,42 +609,72 @@ export const addRasterData = async (
     dataset_status?: IngestionStatus;
   },
 ): Promise<RasterLayerEntity> => {
-  const input = tifPath ?? path.join(__dirname, '../../tests/assets/raster/sol_ph.h2o_usda.4c1a2a_m_250m_b0..0cm_1950..2017_v0.2_250.tif');
-  const outName = await ingestRaster({
-    input: path.resolve(input),
-    dataset: options?.dataset ?? 'test-ds',
-    soilProperty: options?.soilProperty ?? 'Organic Carbon Stock',
-    soilPropertyCategory: options?.soilPropertyCategory ?? 'Chemical',
-    ...(options?.layerFields?.laboratoryMethod != null && { laboratoryMethod: options.layerFields.laboratoryMethod }),
-  });
+  const input = path.resolve(
+    tifPath ?? path.join(__dirname, '../../tests/assets/raster/sol_ph.h2o_usda.4c1a2a_m_250m_b0..0cm_1950..2017_v0.2_250.tif'),
+  );
+  const datasetName = options?.dataset ?? 'test-ds';
+  const propertyName = options?.soilProperty ?? 'Organic Carbon Stock';
+  const categoryName = options?.soilPropertyCategory ?? 'Chemical';
+  const band = options?.band ?? 1;
 
   const dataSource = await getDataSource();
   const repo = dataSource.getRepository(RasterLayerEntity);
+  const datasetRepo = dataSource.getRepository(DatasetEntity);
+  const fileRepo = dataSource.getRepository(FileEntity);
+  const propertyRepo = dataSource.getRepository(SoilPropertyEntity);
+  const categoryRepo = dataSource.getRepository(SoilPropertyCategoryEntity);
 
-  if (options?.visibility) {
-    const datasetRepo = dataSource.getRepository(DatasetEntity);
-    const datasetEntity = await datasetRepo.findOneByOrFail({ name: options?.dataset ?? 'test-ds' });
-    datasetEntity.visibility = options?.visibility;
-    await datasetEntity.save();
-  }
-  if (options?.dataset_status) {
-    const datasetRepo = dataSource.getRepository(DatasetEntity);
-    const datasetEntity = await datasetRepo.findOneByOrFail({ name: options?.dataset ?? 'test-ds' });
-    datasetEntity.status = options?.dataset_status;
-    await datasetEntity.save();
+  let dataset = await datasetRepo.findOneBy({ name: datasetName });
+  if (!dataset) {
+    dataset = await addDataset(datasetName, [-180, -90, 180, 90], GISDataType.RASTER);
   }
 
-  const entity = await repo.findOneOrFail({
-    where: { file: { file_path: outName } },
-    relations: { file: true, dataset: true, soil_property: true },
+  let property = await propertyRepo.findOneBy({ property_name: propertyName });
+  if (!property) {
+    const category = (await categoryRepo.findOneBy({ category_name: categoryName })) ?? (await addCategory(categoryName));
+    property = await addSoilProperty(propertyName, category.id);
+  }
+
+  let file = await fileRepo.findOneBy({ file_path: input });
+  if (!file) {
+    file = await fileRepo.save(
+      fileRepo.create({ name: path.basename(input), file_path: input, created_by: 'tests', status: IngestionStatus.LOADED }),
+    );
+  }
+
+  let procedureSlug: string | null = null;
+  if (options?.layerFields?.laboratoryMethod != null) {
+    const vocabulary = await addVocabulary(options.layerFields.laboratoryMethod, VocabularyType.LABORATORY_METHOD);
+    const procedureRepo = dataSource.getRepository(ProcedureEntity);
+    const procedure = await procedureRepo.save(procedureRepo.create({ laboratory_method_id: vocabulary.id }));
+    procedureSlug = (await procedureRepo.findOneByOrFail({ id: procedure.id })).slug;
+  }
+
+  const rasterLayerId = await ingestRaster({
+    fileId: file.id,
+    band,
+    datasetId: dataset.id,
+    soilPropertySlug: property.slug,
+    minDepth: options?.layerFields?.min_depth ?? null,
+    maxDepth: options?.layerFields?.max_depth ?? null,
+    referencePeriodStart: options?.layerFields?.reference_period_start ?? null,
+    referencePeriodStop: options?.layerFields?.reference_period_stop ?? null,
+    procedureSlug,
   });
 
-  if (options?.layerFields && Object.keys(options.layerFields).length > 0) {
-    Object.assign(entity, options.layerFields);
-    await repo.save(entity);
+  if (options?.visibility) {
+    dataset.visibility = options.visibility;
+    await dataset.save();
+  }
+  if (options?.dataset_status) {
+    dataset.status = options.dataset_status;
+    await dataset.save();
   }
 
-  return entity;
+  return await repo.findOneOrFail({
+    where: { id: rasterLayerId },
+    relations: { file: true, dataset: true, soil_property: true },
+  });
 };
 
 export const addRasterDataset = async (id: string, tifPath?: string): Promise<SyntheticRasterDataset> => {

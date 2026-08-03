@@ -1,4 +1,4 @@
-import { useTranslation } from 'react-i18next';
+import { Trans, useTranslation } from 'react-i18next';
 
 import { Button, FileUploadBox } from 'components/UI';
 import { IngestionStepTitleRow } from 'components/AdminPortal/IngestionStepTitleRow/IngestionStepTitleRow';
@@ -12,6 +12,7 @@ const DOCS_URL = `${INGESTION_DOCS_URL}#soil-data--upload-your-files`;
 
 export function DatasetsSoilDataStep() {
   const { t } = useTranslation('admin');
+  const { t: tCommon } = useTranslation('common');
   const {
     datasetName,
     fileInputRef,
@@ -44,6 +45,16 @@ export function DatasetsSoilDataStep() {
         uploadProgress={uploadProgress}
         fileInputRef={fileInputRef}
         caption={t('datasets.soil_data.upload_caption')}
+        title={
+          <Trans
+            t={tCommon}
+            i18nKey="components.file_upload_box.title"
+            components={{
+              span: <span />,
+            }}
+          />
+        }
+        uploadingText={tCommon('components.file_upload_box.uploading')}
         handleFiles={handleFiles}
         accept={ALLOWED_EXTENSIONS.join(', ')}
         errorMessage={uploadErrors}

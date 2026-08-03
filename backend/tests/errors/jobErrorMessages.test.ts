@@ -1,3 +1,4 @@
+import { describe, it, expect } from '@jest/globals';
 import { JobError } from '../../src/errors/JobError';
 import { translateJobError } from '../../src/errors/jobErrorMessages';
 
@@ -25,9 +26,14 @@ describe('translateJobError', () => {
     'BL_MISSING_COLUMN_MAPPING',
     'BL_RECORD_WRITE_FAILED',
     'BL_RECORD_VALIDATION_FAILED',
+    'RL_MAPPING_NOT_CONFIGURED',
+    'RL_MISSING_BAND_MAPPING',
+    'RL_INVALID_BAND',
+    'RL_CONVERSION_FAILED',
+    'RL_UNIT_NOT_CONVERTIBLE',
   ];
 
-  test.each(DEFINED_CODES)('returns non-empty message and actions for %s', code => {
+  it.each(DEFINED_CODES)('returns non-empty message and actions for %s', code => {
     const result = translateJobError(code);
     expect(result.message).toBeTruthy();
     expect(result.actions.length).toBeGreaterThan(0);

@@ -1,11 +1,20 @@
 import { PgBoss, Job } from 'pg-boss';
 import { getDBPassword, getSSL } from '../utils/db-credentials';
-import { BulkLoadJob, ExportJob, FileToDbJob, BulkDeleteJob, RefreshDaiStatsJob } from '../interfaces/Job';
+import {
+  BulkLoadJob,
+  ExportJob,
+  FileToDbJob,
+  BulkDeleteJob,
+  RefreshDaiStatsJob,
+  RasterLoadJob,
+  SoilStatisticsJob,
+} from '../interfaces/Job';
 import { JobQueues } from '../types/enums';
 import { getJobGroupConcurrency, getJobLocalConcurrency, isJest, setupEnv } from '../utils/utils';
 import { processExportJob } from '../jobs/soil-export/soilExportJob';
 import { processFileToDb } from '../jobs/file-to-db/FileToDbJob';
 import { processBulkLoad } from '../jobs/bulk-load/BulkLoader';
+import { processRasterLoad } from '../jobs/raster-load/RasterLoader';
 import { processBulkDeletion } from '../jobs/bulk-delete/BulkDeleter';
 import { processOrphanCleanup } from '../jobs/orphan-cleanup/OrphanCleanupJob';
 import { log } from '../utils/logger';
@@ -15,6 +24,7 @@ import { getErrorMessage } from '../utils/error';
 import { bumpCacheEpoch } from '../utils/cache-epoch';
 import { refreshDaiStats } from '../data-layer/DaiStats';
 import { processRefreshDaiStats } from '../jobs/refresh-dai-stats/RefreshDaiStatsJob';
+import { processSoilStatistics } from '../jobs/soil-statistics/SoilStatisticsJob';
 import { getEntity } from '../utils/slugs';
 import DatasetEntity from '../entities/Dataset';
 import { EntityType } from '../types/data';
@@ -68,7 +78,9 @@ const setupQueues = async () => {
 // have committed partial batches. For REFRESH_DAI_STATS the enqueue-time bump
 // in DatasetService happens before the stats change; this one invalidates
 // whatever was cached against the old rollup while the job was pending.
-const DATA_MUTATING_QUEUES: JobQueues[] = [JobQueues.BULK_LOAD, JobQueues.BULK_DELETE, JobQueues.REFRESH_DAI_STATS];
+// RASTER_LOAD is included because filterRaster caches the query.
+// It needs no DAI refresh, though: raster datasets are excluded from DAI scoring.
+const DATA_MUTATING_QUEUES: JobQueues[] = [JobQueues.BULK_LOAD, JobQueues.RASTER_LOAD, JobQueues.BULK_DELETE, JobQueues.REFRESH_DAI_STATS];
 
 export const runJob = async <T>(queue: JobQueues, job: Job<T>, processor: (job: Job<T>) => Promise<void>): Promise<void> => {
   const start = Date.now();
@@ -138,6 +150,14 @@ const setupWorkers = async () => {
       await runJob(JobQueues.BULK_LOAD, job, processBulkLoad);
     }
   });
+  // Raster ingest is GDAL-, disk- and memory-heavy, so only one raster load runs
+  // at a time. Note this is a per-node cap: with several backend nodes, each one
+  // may run its own raster load concurrently.
+  await boss.work<RasterLoadJob>(JobQueues.RASTER_LOAD, { ...options, localConcurrency: 1 }, async (jobs: Job<RasterLoadJob>[]) => {
+    for (const job of jobs) {
+      await runJob(JobQueues.RASTER_LOAD, job, processRasterLoad);
+    }
+  });
   await boss.work<ExportJob>(JobQueues.EXPORT, options, async (jobs: Job<ExportJob>[]) => {
     for (const job of jobs) {
       await runJob(JobQueues.EXPORT, job, processExportJob);
@@ -163,6 +183,18 @@ const setupWorkers = async () => {
       await runJob(JobQueues.REFRESH_DAI_STATS, job, processRefreshDaiStats);
     }
   });
+  // Capped at one per node: each run holds two staging tables and sorts them with
+  // work_mem = 512MB for the percentile aggregates, so concurrent runs would multiply
+  // that. Same per-node caveat as RASTER_LOAD — several nodes each run one.
+  await boss.work<SoilStatisticsJob>(
+    JobQueues.SOIL_STATISTICS,
+    { ...options, localConcurrency: 1 },
+    async (jobs: Job<SoilStatisticsJob>[]) => {
+      for (const job of jobs) {
+        await runJob(JobQueues.SOIL_STATISTICS, job, processSoilStatistics);
+      }
+    },
+  );
   log.info('PgBoss workers registered', { queues: Object.values(JobQueues) });
 };
 
@@ -200,3 +232,14 @@ export async function updateJobState(jobId: string, update: Partial<ExportJob>):
     jobId,
   ]);
 }
+
+// Progress is telemetry: a failed write must never abort a load that is otherwise fine.
+export const progressReporter =
+  (jobId: string) =>
+  async (progress_percentage: number, progress_description: string): Promise<void> => {
+    try {
+      await updateJobState(jobId, { progress_percentage, progress_description });
+    } catch (error) {
+      log.warn('Failed to write bulk load progress', { job_id: jobId, error: getErrorMessage(error) });
+    }
+  };

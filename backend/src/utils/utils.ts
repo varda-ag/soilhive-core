@@ -213,6 +213,33 @@ export const getJobGroupConcurrency = (): number => {
   return Number(process.env.JOB_GROUP_CONCURRENCY) || 8;
 };
 
+/**
+ * Maximum Aggregation Units a soil-statistics job will report on.
+ *
+ * This is what bounds the output, not the query: the result is a cross product of units ×
+ * datasets × soil properties × years × depth intervals stored in a jsonb job-data column
+ * (docs/adr/0021). At the default, a run spanning 5 datasets and 15 soil properties is
+ * already ~15 000 headline cells, so raising it materially needs the output to move out
+ * of job data first.
+ */
+export const getSoilStatisticsMaxUnits = (): number => {
+  return Number(process.env['SOIL_STATISTICS_MAX_UNITS']) || 200;
+};
+
+/** Upper bound on breakdown (per year and depth interval) cells before groups are dropped. */
+export const getSoilStatisticsMaxCells = (): number => {
+  return Number(process.env['SOIL_STATISTICS_MAX_CELLS']) || 200_000;
+};
+
+/**
+ * Statement timeout for the aggregation queries. Deliberately far above the 60s used on
+ * request paths — this is a batch job, not a request — and far below pg-boss's 24h job
+ * expiry so a stuck query fails the job rather than occupying a worker for a day.
+ */
+export const getSoilStatisticsStatementTimeoutMs = (): number => {
+  return Number(process.env['SOIL_STATISTICS_STATEMENT_TIMEOUT_MS']) || 30 * 60 * 1000;
+};
+
 export const getLoopbackUrl = (): string => {
   return process.env.LOOPBACK_URL || `http://localhost:${getServerPort()}`;
 };
@@ -255,3 +282,13 @@ export const mergeMax = (a: string | null, b: string | null): string | null => {
   if (b === null) return a;
   return a > b ? a : b;
 };
+
+/**
+ * Rounds to 3 decimals, dropping the digits that only cost bytes once a float is
+ * serialised into JSON. Via Number() rather than toFixed() so the result stays a number
+ * and trailing zeros do not come back ("5.500"); null and undefined pass through so
+ * callers can round a nullable statistic without branching.
+ */
+export function round3<T extends number | null | undefined>(value: T): T {
+  return (value === null || value === undefined ? value : Number(value.toFixed(3))) as T;
+}

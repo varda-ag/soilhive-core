@@ -1,6 +1,8 @@
 # ADR 0004: `ingestRaster` requires a pre-converted COG; conversion stays in `convert_raster.sh`
 
-**Status:** Accepted
+**Status:** Accepted — superseded in part by ADR 0018
+
+> **Note:** the core decision below still holds — `convert_raster.sh` converts, `ingestRaster` only validates and ingests. What ADR 0018 supersedes is this ADR's framing of one-off CLI ingestion as a supported context: raster ingestion has been removed from the CLI, and a Raster Ingest is now reachable only through a Raster Load.
 
 ## Context
 

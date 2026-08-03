@@ -20,7 +20,10 @@ exports[`FileUploadBox renders empty state and matches snapshot 1`] = `
         <p
           class="Title"
         >
-          components.file_upload_box.title
+          Drag and drop a file here or 
+          <span>
+            browse
+          </span>
         </p>
         <p
           class="Caption"

@@ -1,4 +1,5 @@
 import { spawn } from 'child_process';
+import path from 'path';
 import { getErrorMessage } from './error';
 import { log } from './logger';
 
@@ -90,6 +91,28 @@ export class GdalCLI {
 
   static async translate(src: string, dst: string, args: string[], onProgress?: GdalProgressCallback): Promise<void> {
     await GdalCLI.run('gdal_translate', [...args, src, dst], onProgress);
+  }
+
+  /**
+   * Runs `convert_raster.sh` and returns the normalized file's path, which the script prints on
+   * stdout. Invoked through `bash` rather than executed directly so the packaged copy does not
+   * need its executable bit preserved.
+   *
+   * The script redirects every GDAL invocation to stderr, but the last non-empty line is taken
+   * regardless so a stray write to stdout cannot be mistaken for the path.
+   */
+  static async convertRaster(args: string[]): Promise<string> {
+    const script = path.join(__dirname, '..', 'scripts', 'convert_raster.sh');
+    const stdout = await GdalCLI.run('bash', [script, ...args]);
+    const lines = stdout
+      .split('\n')
+      .map(line => line.trim())
+      .filter(Boolean);
+    const outputPath = lines[lines.length - 1];
+    if (!outputPath) {
+      throw new Error('convert_raster.sh produced no output path');
+    }
+    return outputPath;
   }
 
   private static async run(cmd: string, args: string[], onProgress?: GdalProgressCallback): Promise<string> {

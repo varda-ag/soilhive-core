@@ -18,7 +18,7 @@ import { CleaningReport } from '../../interfaces/CleaningReport';
 import { ProcessingSteps } from '../../interfaces/Dataset';
 import { JobError } from '../../errors/JobError';
 import ErrorService from '../../services/ErrorService';
-import { ErrorResponse, getErrorMessage } from '../../utils/error';
+import { ErrorResponse } from '../../utils/error';
 import { getLoopbackUrl, getRawTableName, signToken } from '../../utils/utils';
 import { updateDatasetMetadata } from './UpdateDatasetMetadata';
 import { FileStorage } from '@flystorage/file-storage';
@@ -26,8 +26,7 @@ import FileService from '../../services/FileService';
 import EntitlementService from '../../services/EntitlementService';
 import { EVERYONE, INTERNAL_REQUEST_TOKEN_PAYLOAD } from '../../constants/constants';
 import { createCursor, encodeCursor } from '../../utils/cursor';
-import { updateJobState } from '../../services/PgBoss';
-import { log } from '../../utils/logger';
+import { progressReporter } from '../../services/PgBoss';
 import { DataCleaningConfig } from '../../interfaces/DataMapping';
 
 // Record loading owns 0..LOAD_PROGRESS_CEILING; the remainder covers dataset metadata.
@@ -132,17 +131,6 @@ const getStagedFilesWithMapping = async (entityManager: EntityManager, mappings:
   return files;
 };
 
-// Progress is telemetry: a failed write must never abort a load that is otherwise fine.
-const progressReporter =
-  (jobId: string) =>
-  async (progress_percentage: number, progress_description: string): Promise<void> => {
-    try {
-      await updateJobState(jobId, { progress_percentage, progress_description });
-    } catch (error) {
-      log.warn('Failed to write bulk load progress', { job_id: jobId, error: getErrorMessage(error) });
-    }
-  };
-
 const loadPercentage = (recordsProcessed: number, totalRecords: number): number =>
   totalRecords > 0 ? Math.round((LOAD_PROGRESS_CEILING * recordsProcessed) / totalRecords) : 0;
 
@@ -154,10 +142,15 @@ const prepareStagedFiles = async (
   const vdl = new VectorDataLoad();
   const service = new DataMappingService();
   const stagedFiles: StagedFile[] = [];
+  const currentMappings = DatasetFileMappingService.currentMappingsByFile(mappings);
   for (const file of files) {
-    const datasetFileMapping = mappings.find(m => m.file_id === file.id);
+    // Cannot miss: the file list was built from these mappings' file_ids. Kept as a guard so a
+    // future change to how files are selected fails loudly rather than loading an unmapped file.
+    const datasetFileMapping = currentMappings.get(file.id);
     if (!datasetFileMapping || !datasetFileMapping.data_mapping_id) {
-      throw new JobError('BL_MISSING_COLUMN_MAPPING');
+      // The normal state of a file between the upload step and the mapping step: the upload step
+      // creates the mapping as a placeholder carrying only the file, with no data mapping yet.
+      throw new JobError('BL_MISSING_COLUMN_MAPPING', { file_name: file.name });
     }
     const dataMappingConfig = await service.parseDataMapping(requestData, datasetFileMapping.data_mapping_id);
     let recordCount: number;

@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState, type RefObject } from 'react';
-import { useTranslation } from 'react-i18next';
+import { Trans, useTranslation } from 'react-i18next';
 import classnames from 'classnames';
 
 import { FileUploadBox } from 'components/UI';
@@ -13,6 +13,7 @@ const SUPPORTED_EXTENSIONS = ['png', 'jpg', 'jpeg', 'svg'];
 
 export function UploadLogo() {
   const { t } = useTranslation('admin');
+  const { t: tCommon } = useTranslation('common');
 
   const { isLoading, previewLogo, isActualLogo, handleLogoChange, deleteLogo } = useLookAndFeel();
 
@@ -91,6 +92,16 @@ export function UploadLogo() {
           fileInputRef={fileInputRef as RefObject<HTMLInputElement>}
           handleFiles={handleFileChange}
           caption={t('look_and_feel.logo.supported_formats')}
+          title={
+            <Trans
+              t={tCommon}
+              i18nKey="components.file_upload_box.title"
+              components={{
+                span: <span />,
+              }}
+            />
+          }
+          uploadingText={tCommon('components.file_upload_box.uploading')}
           isSingleFileUpload
           errorMessage={errorMessage}
         />

@@ -1,7 +1,7 @@
 import React, { createContext, useState, type ReactNode, useCallback, useMemo, useRef, useEffect } from 'react';
 import classnames from 'classnames';
 import { Notification } from 'components/UI';
-import type { NotificationType } from 'types/components';
+import type { NotificationType } from 'components/UI/types';
 
 import styles from './NotificationsContext.module.scss';
 

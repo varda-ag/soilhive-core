@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthContextProvider } from './auth/AuthContextProvider';
 import { ThemeProvider, NotificationProvider, DownloadsProvider, RemotesProvider } from './contexts';
+import { AvailabilityMapProvider } from './contexts/AvailabilityMapContext';
 import './utilities/i18n';
 import './App.module.scss';
 import AppRoutes from './Routes';
@@ -18,7 +19,9 @@ function App() {
             <ThemeProvider>
               <DownloadsProvider>
                 <RemotesProvider>
-                  <AppRoutes />
+                  <AvailabilityMapProvider>
+                    <AppRoutes />
+                  </AvailabilityMapProvider>
                 </RemotesProvider>
               </DownloadsProvider>
             </ThemeProvider>
