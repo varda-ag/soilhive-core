@@ -79,6 +79,11 @@ describe('RasterMappingRow', () => {
       render(<RasterMappingRow {...defaultProps()} />);
       expect(screen.getByText('Carbon_organic')).toBeInTheDocument();
     });
+
+    it('sets the full column name as the title attribute for a hover tooltip', () => {
+      render(<RasterMappingRow {...defaultProps({ columnName: 'Carbon_organic_content_percent_0_30cm' })} />);
+      expect(screen.getByText('Carbon_organic_content_percent_0_30cm')).toHaveAttribute('title', 'Carbon_organic_content_percent_0_30cm');
+    });
   });
 
   describe('status icon', () => {
