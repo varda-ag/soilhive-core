@@ -46,7 +46,7 @@ export function RasterMappingRowDetails({
         <span>{t('datasets.mappings.details.non_mandatory_note')}</span>
       </div>
       <div className={styles.Grid}>
-        <div className={styles.FullRow}>
+        <div className={styles.HalfRow}>
           <AutocompleteDropdown
             size="small"
             label={t('datasets.mappings.details.laboratory_method')}
@@ -57,22 +57,24 @@ export function RasterMappingRowDetails({
             onClear={() => onDetailChange(columnName, 'laboratoryMethod', '')}
           />
         </div>
-        <TextInput
-          size="small"
-          type="number"
-          label={t('datasets.mappings.details.reference_period_start')}
-          placeholder={t('datasets.mappings.details.reference_period_start_placeholder')}
-          value={referencePeriodStart ?? ''}
-          onChange={value => onReferencePeriodStartChange(columnName, value)}
-        />
-        <TextInput
-          size="small"
-          type="number"
-          label={t('datasets.mappings.details.reference_period_stop')}
-          placeholder={t('datasets.mappings.details.reference_period_stop_placeholder')}
-          value={referencePeriodStop ?? ''}
-          onChange={value => onReferencePeriodStopChange(columnName, value)}
-        />
+        <div className={styles.ReferencePeriodRow}>
+          <TextInput
+            size="small"
+            type="number"
+            label={t('datasets.mappings.details.reference_period_start')}
+            placeholder={t('datasets.mappings.details.reference_period_start_placeholder')}
+            value={referencePeriodStart ?? ''}
+            onChange={value => onReferencePeriodStartChange(columnName, value)}
+          />
+          <TextInput
+            size="small"
+            type="number"
+            label={t('datasets.mappings.details.reference_period_stop')}
+            placeholder={t('datasets.mappings.details.reference_period_stop_placeholder')}
+            value={referencePeriodStop ?? ''}
+            onChange={value => onReferencePeriodStopChange(columnName, value)}
+          />
+        </div>
       </div>
       <TextArea
         className={styles.LayerDescription}

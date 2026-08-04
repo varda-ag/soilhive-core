@@ -28,8 +28,19 @@
   gap: 12px 24px;
 }
 
-.FullRow {
+.HalfRow {
   grid-column: 1 / -1;
+  width: calc(50% - 12px);
+}
+
+.ReferencePeriodRow {
+  display: flex;
+  gap: 24px;
+
+  > * {
+    flex: 1;
+    min-width: 0;
+  }
 }
 
 .LayerDescription {
@@ -37,7 +48,7 @@
 }
 
 .AdditionalResources {
-  margin-top: 20px;
+  margin-top: 4px;
 }
 
 .AdditionalResourcesTitle {
