@@ -197,6 +197,7 @@ const normalizeFiles = async (
         standardUnit: bandMapping.standardUnit,
         originalUnit: bandMapping.originalUnit,
         conversionFormula: bandMapping.conversionFormula,
+        isCategorical: bandMapping.isCategorical,
       })),
       onProgress: async (percentage, description) => {
         // Each file owns an equal slice of the conversion window.

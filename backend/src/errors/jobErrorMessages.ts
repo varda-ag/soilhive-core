@@ -104,7 +104,7 @@ const JOB_ERROR_MESSAGES: Record<string, JobErrorMessage> = {
     message: "'{file_name}' could not be normalized for ingestion ({reasons}).",
     actions: [
       'Check the raster opens in QGIS or with gdalinfo, then retry data loading.',
-      'If it keeps failing, convert it manually with convert_raster.sh and re-upload the result.',
+      'If it keeps failing, convert it to an EPSG:4326 Cloud Optimized GeoTIFF yourself, then re-upload it.',
     ],
   },
   RL_UNIT_NOT_CONVERTIBLE: {
