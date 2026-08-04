@@ -11,12 +11,16 @@
  * rows present in only one are listed as added/removed.
  *
  * Usage: npm run perf:diff [-- <baseline.json> <current.json> [output.html]]
- * Without arguments, the two most recent runs in perf-results are compared.
+ * Without arguments, the most recent run is compared against the most recent
+ * older run that measured the *same target* — runs against different targets
+ * (localhost versus a deployed environment reached via PERF_BASE_URL) measure
+ * different systems, so they are neither paired by default nor comparable when
+ * paired by hand.
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import { escapeHtml, formatBytes, formatMs, PAGE_CSS, renderFingerprintHtml } from './report';
-import { LatencyStats, PERF_RUN_VERSION, PerfRun, ResultRow } from './types';
+import { Fingerprint, LatencyStats, PERF_RUN_VERSION, PerfRun, ResultRow } from './types';
 
 const THRESHOLD = Number(process.env['PERF_DIFF_THRESHOLD']) || 0.15;
 
@@ -40,7 +44,24 @@ interface IncomparableRow {
 
 const RESULTS_DIR = path.resolve(__dirname, '..', '..', '..', 'perf-results');
 
-/** Run files are named <ISO-timestamp>-<sha>.json, so a lexicographic sort is chronological. */
+/**
+ * The system a run measured. An absent baseUrl means the local server the suite
+ * spawns itself — which is also how result files predating the field read, so
+ * they classify correctly rather than as an unknown target.
+ */
+const targetOf = (fp: Fingerprint): string => fp.baseUrl ?? 'localhost (server managed by the suite)';
+
+/**
+ * Zero-argument default: the newest run, paired with the newest *older run
+ * against the same target*. Taking the last two files outright would happily
+ * diff a run against a deployed environment with yesterday's localhost run, and
+ * a warning on a report you did not want is not a fix (docs/adr/0024).
+ *
+ * Run files are named <ISO-timestamp>-<sha>.json, so a lexicographic sort is
+ * chronological. Candidates that fail to load are skipped: walking backwards
+ * touches older files than the previous "last two" rule did, and one
+ * incompatible leftover in the directory must not break the default comparison.
+ */
 const findLastTwoRuns = (): [string, string] => {
   const files = fs.existsSync(RESULTS_DIR)
     ? fs
@@ -51,8 +72,22 @@ const findLastTwoRuns = (): [string, string] => {
   if (files.length < 2) {
     throw new Error(`Need at least two run files in ${RESULTS_DIR} to compare without arguments (found ${files.length})`);
   }
-  const [baseline, current] = files.slice(-2);
-  return [path.join(RESULTS_DIR, baseline!), path.join(RESULTS_DIR, current!)];
+  const currentFile = path.join(RESULTS_DIR, files[files.length - 1]!);
+  const target = targetOf(loadRun(currentFile).fingerprint);
+  for (let i = files.length - 2; i >= 0; i--) {
+    const candidateFile = path.join(RESULTS_DIR, files[i]!);
+    try {
+      if (targetOf(loadRun(candidateFile).fingerprint) === target) {
+        return [candidateFile, currentFile];
+      }
+    } catch {
+      // Unreadable or incompatible run file — not a candidate baseline
+    }
+  }
+  throw new Error(
+    `No earlier run against ${target} found in ${RESULTS_DIR} to compare ${path.basename(currentFile)} with — ` +
+      'pass a baseline and a current file explicitly',
+  );
 };
 
 const loadRun = (file: string): PerfRun => {
@@ -69,10 +104,53 @@ const loadRun = (file: string): PerfRun => {
 const relativeDelta = (baseline: number, current: number): number =>
   baseline === 0 ? (current === 0 ? 0 : Infinity) : (current - baseline) / baseline;
 
+/** Names the run(s) for which a fingerprint field was not collected. */
+const missingIn = (absentInBaseline: boolean, absentInCurrent: boolean): string =>
+  [absentInBaseline ? 'baseline' : null, absentInCurrent ? 'current' : null].filter(Boolean).join(' and ');
+
+/**
+ * Differences in the API-derived data fingerprint (docs/adr/0024) — the only
+ * data signal an attached run has. Returns nothing when either side lacks it;
+ * whether that absence matters depends on the DB counts, so the caller decides.
+ */
+const datasetMismatches = (fpA: Fingerprint, fpB: Fingerprint): string[] => {
+  if (fpA.datasets === undefined || fpB.datasets === undefined) return [];
+  const mismatches: string[] = [];
+  const byId = new Map(fpA.datasets.map(dataset => [dataset.id, dataset]));
+  for (const current of fpB.datasets) {
+    const baseline = byId.get(current.id);
+    if (!baseline) {
+      mismatches.push(`dataset ${current.id}: only in current run`);
+      continue;
+    }
+    if (baseline.n_observations !== current.n_observations) {
+      mismatches.push(`dataset ${current.id}: n_observations ${baseline.n_observations ?? 'n/a'} vs ${current.n_observations ?? 'n/a'}`);
+    }
+    if (baseline.n_raster_layers !== current.n_raster_layers) {
+      mismatches.push(`dataset ${current.id}: n_raster_layers ${baseline.n_raster_layers ?? 'n/a'} vs ${current.n_raster_layers ?? 'n/a'}`);
+    }
+    if (baseline.updated_at !== current.updated_at) {
+      mismatches.push(`dataset ${current.id}: updated_at ${baseline.updated_at ?? 'n/a'} vs ${current.updated_at ?? 'n/a'}`);
+    }
+  }
+  const currentIds = new Set(fpB.datasets.map(dataset => dataset.id));
+  for (const baseline of fpA.datasets) {
+    if (!currentIds.has(baseline.id)) {
+      mismatches.push(`dataset ${baseline.id}: only in baseline run`);
+    }
+  }
+  return mismatches;
+};
+
 const fingerprintMismatches = (a: PerfRun, b: PerfRun): string[] => {
   const mismatches: string[] = [];
   const fpA = a.fingerprint;
   const fpB = b.fingerprint;
+  // The measured system is as much a fingerprint as the data is: comparing a
+  // localhost run to a deployed one compares two different systems.
+  if (targetOf(fpA) !== targetOf(fpB)) {
+    mismatches.push(`target: ${targetOf(fpA)} vs ${targetOf(fpB)}`);
+  }
   if (fpA.iterations !== fpB.iterations) {
     mismatches.push(`iterations: ${fpA.iterations} vs ${fpB.iterations}`);
   }
@@ -85,12 +163,38 @@ const fingerprintMismatches = (a: PerfRun, b: PerfRun): string[] => {
   if (fpA.nodeVersion !== fpB.nodeVersion) {
     mismatches.push(`node version: ${fpA.nodeVersion} vs ${fpB.nodeVersion}`);
   }
-  const tables = new Set([...Object.keys(fpA.db), ...Object.keys(fpB.db)]);
-  for (const table of tables) {
-    if (fpA.db[table] !== fpB.db[table]) {
-      mismatches.push(`DB ${table} count: ${fpA.db[table] ?? 'n/a'} vs ${fpB.db[table] ?? 'n/a'}`);
+  /*
+   * The two data signals are reported together, because what matters is whether
+   * *either* established comparability. Absence must never be read as agreement:
+   * iterating the union of table keys when a side has no counts at all would
+   * find nothing to compare and stay silent, which is exactly the false
+   * confidence this report exists to prevent (docs/adr/0024). Conversely, a
+   * missing dataset fingerprint is only worth reporting when the stronger DB
+   * counts are not available on both sides — otherwise every diff against a
+   * baseline recorded before that field existed would carry a mismatch that
+   * tells the reader nothing.
+   */
+  const dbComparable = fpA.db !== undefined && fpB.db !== undefined;
+  const datasetsComparable = fpA.datasets !== undefined && fpB.datasets !== undefined;
+  if (dbComparable) {
+    const tables = new Set([...Object.keys(fpA.db!), ...Object.keys(fpB.db!)]);
+    for (const table of tables) {
+      if (fpA.db![table] !== fpB.db![table]) {
+        mismatches.push(`DB ${table} count: ${fpA.db![table] ?? 'n/a'} vs ${fpB.db![table] ?? 'n/a'}`);
+      }
     }
+  } else {
+    mismatches.push(
+      `DB row counts: not collected for the ${missingIn(fpA.db === undefined, fpB.db === undefined)} run — ` +
+        (datasetsComparable
+          ? 'comparability rests on the dataset fingerprint alone'
+          : 'and no dataset fingerprint either, so the data behind the two runs is unverified'),
+    );
   }
+  if (!datasetsComparable && !dbComparable) {
+    mismatches.push(`dataset fingerprint: not recorded in the ${missingIn(fpA.datasets === undefined, fpB.datasets === undefined)} run`);
+  }
+  mismatches.push(...datasetMismatches(fpA, fpB));
   const assetsA = new Map(fpA.assets.map(asset => [asset.name, asset]));
   for (const assetB of fpB.assets) {
     const assetA = assetsA.get(assetB.name);

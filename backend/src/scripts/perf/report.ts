@@ -31,6 +31,16 @@ export const PAGE_CSS = `
   code { background: #f0f2f7; padding: 0.1rem 0.3rem; border-radius: 3px; }
 `;
 
+/**
+ * n_observations is a bigint the API serialises as a string, summed as BigInt to
+ * avoid precision loss. Parsed defensively: a malformed value must not throw out
+ * of report rendering, which happens after the measurements are already done.
+ */
+const observationCount = (value: string | null): bigint => {
+  if (value === null || !/^\d+$/.test(value)) return 0n;
+  return BigInt(value);
+};
+
 export const renderFingerprintHtml = (fp: Fingerprint): string => {
   const assets = fp.assets
     .map(a => {
@@ -38,18 +48,29 @@ export const renderFingerprintHtml = (fp: Fingerprint): string => {
       return `${escapeHtml(a.name)} — ${formatBytes(a.sizeBytes)}, sha ${a.sha256.slice(0, 8)}, params: ${escapeHtml(variants)}`;
     })
     .join('<br>');
-  const db = Object.entries(fp.db)
-    .map(([table, count]) => `${escapeHtml(table)}: ${count}`)
-    .join(', ');
+  const db =
+    fp.db === undefined
+      ? 'not collected — the target database is not reachable from an attached run (docs/adr/0024)'
+      : Object.entries(fp.db)
+          .map(([table, count]) => `${escapeHtml(table)}: ${count}`)
+          .join(', ');
+  const datasets =
+    fp.datasets === undefined
+      ? 'not recorded'
+      : `${fp.datasets.length} visible, ` +
+        `${fp.datasets.reduce((acc, d) => acc + observationCount(d.n_observations), 0n).toLocaleString('en')} observations recorded, ` +
+        `${fp.datasets.reduce((acc, d) => acc + (d.n_raster_layers ?? 0), 0)} raster layer(s)`;
   return `
   <dl class="meta">
     <dt>Timestamp</dt><dd>${escapeHtml(fp.timestamp)}</dd>
-    <dt>Git</dt><dd><code>${escapeHtml(fp.gitSha.slice(0, 10))}</code> on ${escapeHtml(fp.gitBranch)}${fp.gitDirty ? ' (dirty working tree)' : ''}</dd>
+    <dt>Target</dt><dd>${fp.baseUrl === undefined ? 'localhost — server spawned and managed by the suite' : `<code>${escapeHtml(fp.baseUrl)}</code> — attached, caches uncontrolled`}</dd>
+    <dt>Git (suite)</dt><dd><code>${escapeHtml(fp.gitSha.slice(0, 10))}</code> on ${escapeHtml(fp.gitBranch)}${fp.gitDirty ? ' (dirty working tree)' : ''}</dd>
     <dt>Node</dt><dd>${escapeHtml(fp.nodeVersion)}</dd>
-    <dt>Iterations per row</dt><dd>${fp.iterations} (after 1 warmup)</dd>
+    <dt>Iterations per row</dt><dd>${fp.iterations}</dd>
     <dt>DAI resolutions</dt><dd>${fp.daiResolutions.join(', ')}</dd>
     <dt>Endpoint selection</dt><dd>${escapeHtml(fp.endpoint ?? 'full suite')}</dd>
     <dt>DB row counts</dt><dd>${db}</dd>
+    <dt>Datasets (via API)</dt><dd>${datasets}</dd>
     <dt>Assets</dt><dd>${assets}</dd>
   </dl>`;
 };
