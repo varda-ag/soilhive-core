@@ -179,7 +179,7 @@ Clicking **Publish** on a Loaded dataset opens the *Dataset settings* page. Noth
 
 *1. Metadata preview*
 
-The **Check your metadata** link opens the dataset's public metadata page in a new tab. As an administrator you can edit each field directly on that page, one at a time.
+The **Check your metadata** link opens the dataset's public metadata page in a new tab. As an administrator you can edit each field directly on that page.
 
 The metadata page is always visible to everyone, **even when the dataset is private**. That is intentional: people can discover that the data exists and see how it was produced, and then request access. Only the data itself is restricted.
 
@@ -217,6 +217,6 @@ On confirmation the platform sets the status to **Published**, records today's d
 
 **After publication**
 
-The dataset is now included in everything the consumer portal does: search, map layers, downloads, and the aggregated statistics. Only published datasets are ever returned by these queries.
+The dataset is now included in everything the consumer portal does: search, preview, downloads. Only published datasets are ever returned by these queries.
 
 Publication is not final. Clicking the edit icon on a published dataset takes you straight back to the same settings page, where you can correct metadata, switch between public and private, or change who has access — press **Publish** again to save your changes. There is no separate "unpublish" action: to withdraw a dataset from circulation, either switch it to private or delete it.
