@@ -85,9 +85,11 @@ export const initApp = async (app: Application) => {
   await startCacheEpochWatcher();
 
   const port = getServerPort();
-  app.listen(port, () => {
+  const server = app.listen(port, () => {
     log.info('Server started', { port });
   });
+  // Node defaults to requestTimeout = 5 minutes (HTTP 408 beyond that)
+  server.requestTimeout = Number(process.env['REQUEST_TIMEOUT_MS']) || 30 * 60 * 1000;
 };
 
 (async () => {

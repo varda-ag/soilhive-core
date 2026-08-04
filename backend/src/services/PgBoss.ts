@@ -1,6 +1,14 @@
 import { PgBoss, Job } from 'pg-boss';
 import { getDBPassword, getSSL } from '../utils/db-credentials';
-import { BulkLoadJob, ExportJob, FileToDbJob, BulkDeleteJob, RefreshDaiStatsJob, RasterLoadJob } from '../interfaces/Job';
+import {
+  BulkLoadJob,
+  ExportJob,
+  FileToDbJob,
+  BulkDeleteJob,
+  RefreshDaiStatsJob,
+  RasterLoadJob,
+  SoilStatisticsJob,
+} from '../interfaces/Job';
 import { JobQueues } from '../types/enums';
 import { getJobGroupConcurrency, getJobLocalConcurrency, isJest, setupEnv } from '../utils/utils';
 import { processExportJob } from '../jobs/soil-export/soilExportJob';
@@ -16,6 +24,7 @@ import { getErrorMessage } from '../utils/error';
 import { bumpCacheEpoch } from '../utils/cache-epoch';
 import { refreshDaiStats } from '../data-layer/DaiStats';
 import { processRefreshDaiStats } from '../jobs/refresh-dai-stats/RefreshDaiStatsJob';
+import { processSoilStatistics } from '../jobs/soil-statistics/SoilStatisticsJob';
 import { getEntity } from '../utils/slugs';
 import DatasetEntity from '../entities/Dataset';
 import { EntityType } from '../types/data';
@@ -174,6 +183,18 @@ const setupWorkers = async () => {
       await runJob(JobQueues.REFRESH_DAI_STATS, job, processRefreshDaiStats);
     }
   });
+  // Capped at one per node: each run holds two staging tables and sorts them with
+  // work_mem = 512MB for the percentile aggregates, so concurrent runs would multiply
+  // that. Same per-node caveat as RASTER_LOAD — several nodes each run one.
+  await boss.work<SoilStatisticsJob>(
+    JobQueues.SOIL_STATISTICS,
+    { ...options, localConcurrency: 1 },
+    async (jobs: Job<SoilStatisticsJob>[]) => {
+      for (const job of jobs) {
+        await runJob(JobQueues.SOIL_STATISTICS, job, processSoilStatistics);
+      }
+    },
+  );
   log.info('PgBoss workers registered', { queues: Object.values(JobQueues) });
 };
 

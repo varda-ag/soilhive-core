@@ -605,22 +605,52 @@ describe('RasterLoader', () => {
     });
   });
 
+  it('ingests the current mapping of a file and ignores superseded ones', async () => {
+    // A file can carry several dataset_file_mappings (the table is unique on the triple including
+    // data_mapping_id), which direct API use can produce. Only the most recently touched governs
+    // the load — see ADR 0020.
+    const { dataset, file, property } = await setUpRasterLoad(uniqueName('superseded'), slug => ({
+      '1': bandEntry(slug, 0, 5),
+      '2': bandEntry(slug, 5, 15),
+    }));
+
+    const dataSource = await getDataSource();
+    const currentDataMapping = await addDataMapping({ '2': bandEntry(property.slug, 20, 40) });
+    const mappingRepo = dataSource.getRepository(DatasetFileMappingEntity);
+    await mappingRepo.save(mappingRepo.create({ dataset_id: dataset.id, file_id: file.id, data_mapping_id: currentDataMapping.id }));
+    // now() is transaction-wide, so both rows may share a timestamp to the microsecond — make the
+    // ordering explicit rather than relying on insertion happening in separate transactions.
+    await dataSource.query(`UPDATE dataset_file_mappings SET updated_at = updated_at + interval '1 hour' WHERE data_mapping_id = $1`, [
+      currentDataMapping.id,
+    ]);
+
+    await processRasterLoad(getJob(dataset.slug));
+
+    // Band 1 came only from the superseded mapping, so it must not have been ingested, and band 2
+    // must carry the current mapping's depths rather than the superseded ones.
+    const layers = await getLayers(file.id);
+    expect(layers.map(l => l.band)).toEqual([2]);
+    expect(layers.map(l => [l.min_depth, l.max_depth])).toEqual([[20, 40]]);
+  });
+
   describe('failures', () => {
-    it('RL_MISSING_BAND_MAPPING when the file has no data mapping linked', async () => {
-      const { dataset } = await setUpRasterLoad(uniqueName('no-mapping'), () => null);
+    it('RL_MAPPING_NOT_CONFIGURED when the file has no data mapping linked', async () => {
+      const { dataset, file } = await setUpRasterLoad(uniqueName('no-mapping'), () => null);
 
       await expect(processRasterLoad(getJob(dataset.slug))).rejects.toMatchObject({
         name: 'JobError',
-        code: 'RL_MISSING_BAND_MAPPING',
+        code: 'RL_MAPPING_NOT_CONFIGURED',
+        params: { file_name: file.name },
       });
     });
 
     it('RL_MISSING_BAND_MAPPING when the mapping names no bands', async () => {
-      const { dataset } = await setUpRasterLoad(uniqueName('empty-mapping'), () => ({}));
+      const { dataset, file } = await setUpRasterLoad(uniqueName('empty-mapping'), () => ({}));
 
       await expect(processRasterLoad(getJob(dataset.slug))).rejects.toMatchObject({
         name: 'JobError',
         code: 'RL_MISSING_BAND_MAPPING',
+        params: { file_name: file.name },
       });
     });
 

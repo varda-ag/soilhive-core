@@ -54,8 +54,8 @@ const JOB_ERROR_MESSAGES: Record<string, JobErrorMessage> = {
     ],
   },
   BL_MISSING_COLUMN_MAPPING: {
-    message: 'A file in this dataset has no column mapping configured.',
-    actions: ["Go to the dataset's mapping step and configure column mappings for all files, then retry data loading."],
+    message: "The column mapping for '{file_name}' has not been configured yet.",
+    actions: ["Go to the dataset's mapping step, configure the columns of '{file_name}', save, then retry data loading."],
   },
   BL_RECORD_WRITE_FAILED: {
     message: 'An error occurred while writing soil records to the database.',
@@ -64,9 +64,16 @@ const JOB_ERROR_MESSAGES: Record<string, JobErrorMessage> = {
       'If it keeps failing, double check your data against the guidelines in the documentation at: https://github.com/varda-ag/soilhive-core/blob/main/docs/data-model/1-data-management-portal.md#soil-data--upload-your-files',
     ],
   },
+  RL_MAPPING_NOT_CONFIGURED: {
+    message: "The band mapping for '{file_name}' has not been configured yet.",
+    actions: ["Go to the dataset's mapping step, declare what each band of '{file_name}' measures, save, then retry data loading."],
+  },
   RL_MISSING_BAND_MAPPING: {
-    message: 'A raster file in this dataset has no band mapping configured.',
-    actions: ["Go to the dataset's mapping step and declare what each band of every raster file measures, then retry data loading."],
+    message: "The mapping for '{file_name}' declares no bands.",
+    actions: [
+      "Open the mapping for '{file_name}' and map at least one band to a soil property, then retry data loading.",
+      'If this file was mapped as a table rather than a raster, re-do the mapping step for the dataset — a raster mapping is keyed by band number, not by column name.',
+    ],
   },
   RL_INVALID_BAND: {
     message: "The band mapping for '{file_name}' refers to band {band}, which the file does not have (it has {band_count}).",
@@ -114,6 +121,53 @@ const JOB_ERROR_MESSAGES: Record<string, JobErrorMessage> = {
       "Check your source file: the '{field}' field contains an invalid value.",
       'Correct the data and re-upload the file, then retry data loading.',
     ],
+  },
+  SST_FILE_NOT_FOUND: {
+    message: 'The file supplying the aggregation areas could not be found.',
+    actions: ['Re-upload the file and start the soil statistics job again.'],
+  },
+  SST_FILE_NOT_SPATIAL: {
+    message: 'The file was uploaded as non-spatial, so no aggregation areas can be read from it.',
+    actions: ['Re-upload the file as a spatial file, then start the soil statistics job again.'],
+  },
+  SST_FILE_IS_RASTER: {
+    message: 'Aggregation areas must come from a vector file, but this file is a raster.',
+    actions: ['Supply a file of polygon boundaries (GeoJSON, GeoPackage, or Shapefile) instead.'],
+  },
+  SST_MISSING_EPSG: {
+    message: 'The file has no coordinate reference system, so its boundaries cannot be positioned on the map.',
+    actions: ['Open the file in the admin portal and set its EPSG code, then start the soil statistics job again.'],
+  },
+  SST_UNKNOWN_LABEL_FIELD: {
+    message: "The file has no field named '{label_field}'.",
+    actions: ['Check the field name against the file’s columns and start the job again with a name that exists.'],
+  },
+  SST_NO_UNITS: {
+    message: 'The file contains no geometries to aggregate over.',
+    actions: ['Check the file contains polygon boundaries, then start the soil statistics job again.'],
+  },
+  SST_TOO_MANY_UNITS: {
+    message: 'The file contains more than {max_units} boundaries, which is the most this job can report on.',
+    actions: [
+      'Split the file into batches of at most {max_units} boundaries and run one job per batch.',
+      'Alternatively, ask your administrator to raise the limit.',
+    ],
+  },
+  SST_NON_POLYGON_GEOMETRY: {
+    message: '{count} of the file’s geometries are not polygons, so they cannot define an aggregation area.',
+    actions: ['Remove the point and line geometries from the file, or supply a polygon-only file, then start the job again.'],
+  },
+  SST_NO_GEOMETRIES: {
+    message: 'The selected filter has no area of interest, so there is nothing to aggregate over.',
+    actions: ['Draw or upload an area of interest, save the filter, then start the soil statistics job again.'],
+  },
+  SST_DATASET_NOT_ENTITLED: {
+    message: "You do not have preview access to dataset '{dataset_id}'.",
+    actions: ['Remove that dataset from the request, or request preview access to it.'],
+  },
+  SST_UNKNOWN_STATISTICS_TYPE: {
+    message: "'{statistics_type}' is not a kind of statistics this server can compute.",
+    actions: ['Start the job again with one of: {supported}.'],
   },
   // FTD_GDAL_NOT_INSTALLED: reserved for future use — GdalCLI already emits a
   // 'GDAL_NOT_INSTALLED:' prefix on ENOENT so the code is detectable, but by

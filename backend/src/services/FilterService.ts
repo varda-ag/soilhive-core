@@ -1,4 +1,6 @@
 import { createHash } from 'node:crypto';
+import { validate as uuidValidate } from 'uuid';
+import { createCursor, decodeCursor, encodeCursor } from '../utils/cursor';
 import { valid } from 'geojson-validation';
 import { StatusCodes } from 'http-status-codes';
 import { latLngToCell } from 'h3-js';
@@ -41,7 +43,7 @@ const sortedUnique = <T extends string | number | null>(values: T[]): T[] =>
 // while an absent data_types is unconstrained. Explicit nulls are likewise preserved:
 // `min_depth: null` matches layers WITHOUT a recorded depth, whereas an absent
 // min_depth is unconstrained (see the scalar handling in SoilDataStorage).
-export const computeFilterHash = (userGeometryIds: string[], parameters: FilterCriteria): string => {
+export const computeFilterHash = (userGeometryIds: string[], parameters: FilterCriteria, namespace?: string): string => {
   const normalized: Record<string, unknown> = {};
   for (const key of ['data_types', 'licenses', 'horizons', 'soil_properties'] as const) {
     const values = parameters[key];
@@ -57,10 +59,20 @@ export const computeFilterHash = (userGeometryIds: string[], parameters: FilterC
     }
     normalized['raster_filters'] = rasterFilters;
   }
-  return createHash('sha256')
-    .update(JSON.stringify({ geometry_ids: sortedUnique(userGeometryIds), parameters: normalized }))
-    .digest('hex');
+  // `namespace` is appended last and only when present, so the serialized payload — and
+  // therefore every hash produced by the two-argument callers — is byte-identical to
+  // before it existed. A namespaced hash is deliberately unreachable from
+  // POST /data-filters: that is what keeps a Derived Filter from ever colliding with a
+  // user's own submission of the same geometries and criteria (see docs/adr/0020).
+  const payload: Record<string, unknown> = { geometry_ids: sortedUnique(userGeometryIds), parameters: normalized };
+  if (namespace !== undefined) {
+    payload['namespace'] = namespace;
+  }
+  return createHash('sha256').update(JSON.stringify(payload)).digest('hex');
 };
+
+/** Namespace applied to a Derived Filter's content identity. */
+export const derivedFilterNamespace = (sourceFileId: string): string => `source_file:${sourceFileId}`;
 
 export default class FilterService {
   insertUserGeometry = async (requestData: RequestData, geometry: Polygon | MultiPolygon): Promise<{ id: string; area: number }> => {
@@ -155,6 +167,125 @@ export default class FilterService {
     );
 
     return savedFilter;
+  };
+
+  /**
+   * Creates a Derived Filter: a Filter whose UserGeometries come from a source file
+   * rather than a client submission, carrying a copy of the originating Filter's
+   * criteria. Its Aggregation Units are simply its UserGeometries, which is what lets
+   * GET /data-filters/{id}/geometries serve the file and no-file cases alike.
+   *
+   * Two deliberate departures from createFilter, both load-bearing (docs/adr/0020):
+   *  - the stored `filter` jsonb holds NO geometries, only `source_file_id`. The
+   *    junction already holds them and inlining them would make the row huge.
+   *  - the hash is namespaced by the source file, so this row can never be handed back
+   *    to a user who later POSTs the same geometries and criteria — which would give
+   *    them a Filter whose `geometries` is empty and make the AOI vanish from the UI.
+   *    Re-running the same job stays idempotent because the namespaced hash still
+   *    deduplicates against itself.
+   */
+  createDerivedFilter = async (
+    requestData: RequestData,
+    input: { geometryIds: string[]; parameters: FilterCriteria; sourceFileId: string; name?: string },
+  ): Promise<DataFilterEntity> => {
+    const { geometryIds, parameters, sourceFileId, name } = input;
+    const owner = requestData.token?.sub || null;
+    const filterHash = computeFilterHash(geometryIds, parameters, derivedFilterNamespace(sourceFileId));
+    const schema = process.env.POSTGRES_SCHEMA;
+
+    const rows: DataFilterEntity[] = await requestData.entityManager.query(
+      `INSERT INTO ${schema}.data_filters (filter, filter_hash, owner, name)
+       VALUES ($1::jsonb, $2, $3, $4)
+       ON CONFLICT ("owner", "filter_hash") WHERE deleted_at IS NULL AND filter_hash IS NOT NULL
+       DO UPDATE SET updated_at = now()
+       RETURNING id, created_at, updated_at, deleted_at, filter, persistent, name, owner`,
+      [JSON.stringify({ geometries: [], parameters, source_file_id: sourceFileId }), filterHash, owner, name ?? null],
+    );
+    const savedFilter = rows[0]!;
+
+    await Promise.all(
+      geometryIds.map(user_geometry_id =>
+        requestData.entityManager
+          .createQueryBuilder()
+          .insert()
+          .into(DataFilterUserGeometryEntity)
+          .values({ data_filter_id: savedFilter.id, user_geometry_id })
+          .orIgnore()
+          .execute(),
+      ),
+    );
+
+    return savedFilter;
+  };
+
+  /**
+   * A Filter's UserGeometries as GeoJSON, paginated.
+   *
+   * Returns the canonical stored geometry, which may differ byte-wise from what was
+   * submitted, and never the user_geometry_subdivisions pieces — those would leak
+   * internal subdivision edges into the response.
+   */
+  getFilterGeometries = async (
+    requestData: RequestData,
+    filterId: string,
+    limit: number,
+    cursor?: string,
+  ): Promise<{
+    total: number;
+    features: { id: string; geometry: Polygon | MultiPolygon; area_m2: number | null }[];
+    nextCursor: string | null;
+  }> => {
+    await this.getDataFilterEntityById(requestData, filterId);
+    const schema = process.env.POSTGRES_SCHEMA;
+
+    const [{ total }] = await requestData.entityManager.query(
+      `SELECT COUNT(*)::int AS total
+       FROM ${schema}.data_filter_user_geometries dfug
+       WHERE dfug.data_filter_id = $1`,
+      [filterId],
+    );
+
+    // Keyset pagination on ug.id. The id is unique and the sole sort key, so it is a
+    // complete cursor on its own — no tie-break column is needed, and a geometry added to
+    // the filter mid-walk cannot shift a later page the way OFFSET would.
+    const params: any[] = [filterId];
+    let keysetClause = '';
+    if (cursor !== undefined) {
+      const { id } = decodeCursor(cursor);
+      if (typeof id !== 'string' || !uuidValidate(id)) {
+        // Without this the malformed value reaches the ::uuid cast and surfaces as a 500.
+        throw new ErrorResponse('Cursor does not carry a valid geometry id', StatusCodes.BAD_REQUEST);
+      }
+      params.push(id);
+      keysetClause = `AND ug.id > $${params.length}::uuid`;
+    }
+    // One extra row decides whether a further page exists, without a second query.
+    params.push(limit + 1);
+
+    const rows = await requestData.entityManager.query(
+      `SELECT ug.id, ST_AsGeoJSON(ug.geom)::json AS geometry, ug.area
+       FROM ${schema}.data_filter_user_geometries dfug
+       INNER JOIN ${schema}.user_geometries ug ON ug.id = dfug.user_geometry_id
+       WHERE dfug.data_filter_id = $1
+         ${keysetClause}
+       ORDER BY ug.id
+       LIMIT $${params.length}`,
+      params,
+    );
+
+    const hasMore = rows.length > limit;
+    const page = hasMore ? rows.slice(0, limit) : rows;
+    const lastId = page.length > 0 ? page[page.length - 1].id : null;
+
+    return {
+      total,
+      nextCursor: hasMore && lastId ? encodeCursor(createCursor(lastId)) : null,
+      features: page.map((row: any) => ({
+        id: row.id,
+        geometry: row.geometry,
+        area_m2: row.area !== null ? Number(row.area) : null,
+      })),
+    };
   };
 
   getFilters = async (requestData: RequestData): Promise<DataFilterEntity[]> => {

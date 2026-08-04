@@ -4,7 +4,8 @@ import request from 'supertest';
 import { app } from '../src/app';
 import { exec } from 'child_process';
 import { destroyDataSource, getDataSource, initializeSchema, isDBAvailable } from '../src/utils/data-source';
-import { sleep } from '../src/utils/utils';
+import { signToken, sleep } from '../src/utils/utils';
+import { TOKEN_ISSUER } from '../src/types/enums';
 import { setupTestEnv } from './environment';
 import assert from 'assert';
 import { readFileSync } from 'fs';
@@ -100,6 +101,19 @@ export const getSuperAdminToken = async (): Promise<string> => {
 
 export const getDataAdminToken = async (): Promise<string> => {
   return getToken('dataadmin');
+};
+
+/**
+ * Signs a token for a non-admin caller with an explicitly chosen sub and email.
+ *
+ * Password auth only mints super-admin and data-admin tokens, and both bypass entitlement
+ * checks outright — so any entitlement test driven by getDataAdminToken passes vacuously.
+ * The two claims are kept deliberately distinct by callers: the Subject is the email, and
+ * a test whose sub and email are the same string cannot detect a regression to sub-keying.
+ */
+export const getUserToken = (sub: string, email: string): string => {
+  setupTestEnv(); // Guarantees SELF_SIGNING_SECRET, which signToken asserts on
+  return signToken({ sub, email, email_verified: true, scope: 'user', iss: TOKEN_ISSUER }, 3600, { alg: 'HS256', kid: 'kid' });
 };
 
 const getToken = async (password: string): Promise<string> => {

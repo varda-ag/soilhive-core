@@ -225,16 +225,21 @@ const prepareStagedBands = async (
 ): Promise<StagedBand[]> => {
   const service = new DataMappingService();
   const stagedBands: StagedBand[] = [];
+  const currentMappings = DatasetFileMappingService.currentMappingsByFile(mappings);
 
   for (const file of files) {
-    const datasetFileMapping = mappings.find(m => m.file_id === file.id);
+    // Cannot miss: the file list was built from these mappings' file_ids. Kept as a guard so a
+    // future change to how files are selected fails loudly rather than loading an unmapped file.
+    const datasetFileMapping = currentMappings.get(file.id);
     if (!datasetFileMapping || !datasetFileMapping.data_mapping_id) {
-      throw new JobError('RL_MISSING_BAND_MAPPING');
+      // The normal state of a file between the upload step and the mapping step: the upload step
+      // creates the mapping as a placeholder carrying only the file, with no data mapping yet.
+      throw new JobError('RL_MAPPING_NOT_CONFIGURED', { file_name: file.name });
     }
 
     const bandMappings = await service.parseRasterDataMapping(requestData, datasetFileMapping.data_mapping_id);
     if (bandMappings.length === 0) {
-      throw new JobError('RL_MISSING_BAND_MAPPING');
+      throw new JobError('RL_MISSING_BAND_MAPPING', { file_name: file.name });
     }
 
     const rasterMetadata: RasterFileMetadata | null = file.metadata?.is_raster ? file.metadata : null;
