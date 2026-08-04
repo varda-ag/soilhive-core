@@ -1,3 +1,5 @@
+import { UnitConversionType } from '../types/data';
+
 /**
  * A raster file's Band Mapping: what each of its bands measures.
  *
@@ -64,6 +66,7 @@ export interface ResolvedBandMapping {
   standardUnit: string | null;
   originalUnit: string | null;
   conversionFormula: string | null;
+  unitType: UnitConversionType | null;
   /** Passed through verbatim: prose resolves to nothing, and the loader is what stores it. */
   layerDescription: string | null;
   /** Passed through unvalidated for the same reason band numbers are — the loader checks these. */

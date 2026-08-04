@@ -11,8 +11,9 @@ import { MultiPolygon } from 'geojson';
 import FileService from './FileService';
 import ConfigService from './ConfigService';
 import { StorageModes } from '../types/enums';
-import { GdalCLI } from '../utils/GdalCLI';
+import { GdalCLI, type GdalProgressCallback } from '../utils/GdalCLI';
 import { JobError } from '../errors/JobError';
+import { UnitConversionType } from '../types/data';
 
 /**
  * Input for one Raster Ingest: one band of one already-uploaded COG.
@@ -57,6 +58,7 @@ export interface RasterBandUnit {
   standardUnit?: string | null | undefined;
   originalUnit?: string | null | undefined;
   conversionFormula?: string | null | undefined;
+  unitType?: string | null | undefined;
 }
 
 export interface RasterFormatCheckOptions {
@@ -78,7 +80,7 @@ export interface RasterFormatCheckResult {
 }
 
 /**
- * A unit conversion is only expressible to convert_raster.sh as a single multiplier applied to
+ * A unit conversion is only expressible to gdal_edit.py as a single multiplier applied to
  * every pixel, so only identity and plain multiplications can be honoured. Returns null when no
  * scaling is needed, or a number to pass as --conversion_factor.
  */
@@ -94,7 +96,7 @@ function parseConversionFactor(formula: string): number | null {
 /**
  * Checks the file against the format a raster layer requires — Cloud Optimized GeoTIFF, EPSG:4326,
  * and pixels already in the soil property's standard unit — and normalizes it with
- * convert_raster.sh when it deviates, repointing the file record at the converted output.
+ * convertRaster function when it deviates, repointing the file record at the converted output.
  *
  * Replaces the previous pair of assertions: the same three conditions are still preconditions of
  * ingestion, but a deviation is now something the loader fixes rather than something it refuses.
@@ -168,7 +170,7 @@ export async function checkFileFormat(opts: RasterFormatCheckOptions): Promise<R
 }
 
 /**
- * Normalizes a file with convert_raster.sh and repoints its record at the result.
+ * Normalizes a file and repoints its record at the result.
  *
  * The script needs a real local file (it stats its input), so in S3 mode the object is pulled down
  * first and the output pushed back up. The converted key is derived deterministically from the
@@ -207,14 +209,11 @@ async function convertRasterFile(
     }
 
     await opts.onProgress?.(20, `Converting '${fileName}' (${reasons.join(', ')})...`);
-    const args = [inputPath, '-o', outputPath];
-    if (deviations.wrongCrs !== undefined) args.push('--target_srs', 'EPSG:4326');
-    // One --conversion_factor per band, in band order: a shorter list would be broadcast over
-    // every band, rescaling ones the caller never asked about.
-    for (const factor of deviations.unitFactors ?? []) {
-      args.push('--conversion_factor', String(factor));
-    }
-    const producedPath = await timed('convert_raster.sh', () => GdalCLI.convertRaster(args));
+    // Resampling applies to the whole file, not per band: if any mapped band is categorical
+    // (e.g. soil texture classes), NEAREST is used for all of them rather than averaging classes
+    // in the rest into meaningless intermediate values.
+    const resampling = opts.bands.some(b => b.unitType === UnitConversionType.CATEGORY_MAPPING) ? 'NEAREST' : 'AVERAGE';
+    const producedPath = await timed('convertRaster', () => convertRaster(inputPath, outputPath, deviations, resampling, opts.onProgress));
 
     // Deterministic so re-running a failed load overwrites its own output instead of piling up.
     let convertedKey = filePath.replace(/(\.tif)?$/i, '_cog.tif');
@@ -255,6 +254,118 @@ async function insertFootprintBatch(
      ON CONFLICT (raster_layer_id, raster_footprint_id) DO NOTHING;`,
     [geomJsons, rasterLayerId],
   );
+}
+
+/**
+ * Reports progress across a fixed [20, 85] sub-range of the overall conversion — the caller owns
+ * 0-20 (fetching the input) and 85-100 (storing the result). Only the warp and final COG translate
+ * are slow enough to need their own live GDAL progress bar; the VRT + gdal_edit.py scale step just
+ * edits metadata and returns near-instantly, so it gets no slice of its own.
+ */
+function stepProgress(
+  onProgress: RasterConversionProgressCallback | undefined,
+  start: number,
+  end: number,
+  description: string,
+): GdalProgressCallback | undefined {
+  if (!onProgress) return undefined;
+  return percent => onProgress(start + (percent / 100) * (end - start), description);
+}
+
+async function convertRaster(
+  inPath: string,
+  outPath: string,
+  deviations: FormatDeviations,
+  resampling: 'NEAREST' | 'AVERAGE',
+  onProgress?: RasterConversionProgressCallback | undefined,
+): Promise<string> {
+  const tmpPrefix = outPath.replace(/\.tif$/i, '');
+  const cleanup: string[] = [];
+  const willWarp = deviations.wrongCrs !== undefined;
+  const [translateStart, translateEnd] = willWarp ? [50, 85] : [20, 85];
+
+  try {
+    let src = inPath;
+    if (willWarp) {
+      const warped = `${tmpPrefix}.warped.tif`;
+      await GdalCLI.warp(
+        src,
+        warped,
+        [
+          '--config',
+          'GDAL_CACHEMAX',
+          '512',
+          '--config',
+          'GDAL_NUM_THREADS',
+          'ALL_CPUS',
+          '-t_srs',
+          'EPSG:4326',
+          '-r',
+          resampling === 'NEAREST' ? 'near' : 'bilinear',
+          '-of',
+          'GTiff',
+          '-co',
+          'TILED=YES',
+          '-co',
+          'COMPRESS=DEFLATE',
+          '-co',
+          'BIGTIFF=YES',
+        ],
+        stepProgress(onProgress, 20, 50, 'Reprojecting to EPSG:4326...'),
+      );
+      cleanup.push(warped);
+      src = warped;
+    }
+
+    let translateSrc = src;
+    const unscaleArgs: string[] = [];
+    if (deviations.unitFactors) {
+      const vrtPath = `${tmpPrefix}.vrt`;
+      await GdalCLI.translate(src, vrtPath, ['-of', 'VRT']);
+      cleanup.push(vrtPath);
+      // Grouped rather than interleaved (-scale a -scale b -offset 0 -offset 0): gdal_edit.py
+      // collects each option into its own list and pairs them with bands by position.
+      const editArgs: string[] = [];
+      for (const factor of deviations.unitFactors) editArgs.push('-scale', String(factor));
+      for (const _ of deviations.unitFactors) editArgs.push('-offset', '0');
+      await GdalCLI.editInPlace(vrtPath, editArgs);
+      translateSrc = vrtPath;
+      unscaleArgs.push('-unscale', '-ot', 'Float32');
+    }
+
+    await GdalCLI.translate(
+      translateSrc,
+      outPath,
+      [
+        '--config',
+        'GDAL_CACHEMAX',
+        '512',
+        '--config',
+        'GDAL_NUM_THREADS',
+        'ALL_CPUS',
+        '-of',
+        'COG',
+        ...unscaleArgs,
+        '-co',
+        'COMPRESS=ZSTD',
+        '-co',
+        'BLOCKSIZE=512',
+        '-co',
+        'OVERVIEWS=AUTO',
+        '-co',
+        'BIGTIFF=YES',
+        '-co',
+        'NUM_THREADS=ALL_CPUS',
+        '-co',
+        `OVERVIEW_RESAMPLING=${resampling}`,
+      ],
+      stepProgress(onProgress, translateStart, translateEnd, 'Converting to Cloud Optimized GeoTIFF...'),
+    );
+
+    return outPath;
+  } finally {
+    await Promise.all(cleanup.map(f => fs.rm(f, { force: true }).catch(() => {})));
+  }
 }
 
 /**

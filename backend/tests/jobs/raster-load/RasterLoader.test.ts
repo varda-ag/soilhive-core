@@ -585,6 +585,14 @@ describe('RasterLoader', () => {
         expect(normalizing.length).toBeGreaterThan(0);
         expect(normalizing.every(([percentage]) => percentage <= 40)).toBe(true);
 
+        // convertRaster forwards gdal_translate's own progress bar for the final COG encode
+        // (stepProgress in RasterIngestService.ts), not just the 0/20/85/100 checkpoints — those
+        // live updates land inside checkFileFormat's [20, 85] sub-range, which this single-file,
+        // no-reprojection load then rescales into [8, 34] of the overall 0..40 conversion window.
+        const cogProgress = reported.filter(([, description]) => description === 'Converting to Cloud Optimized GeoTIFF...');
+        expect(cogProgress.length).toBeGreaterThan(0);
+        expect(cogProgress.every(([percentage]) => percentage >= 8 && percentage <= 34)).toBe(true);
+
         const ingesting = reported.filter(([, description]) => description.includes('Ingesting band'));
         expect(ingesting.length).toBeGreaterThan(0);
         expect(ingesting.every(([percentage]) => percentage >= 40)).toBe(true);

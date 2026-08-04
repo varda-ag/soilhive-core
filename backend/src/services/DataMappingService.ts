@@ -218,6 +218,7 @@ export default class DataMappingService {
         standardUnit: property?.standard_unit ?? null,
         originalUnit: conversion?.original_unit_of_measurement ?? null,
         conversionFormula: conversion?.conversion_formula ?? null,
+        unitType: conversion?.type ?? null,
         layerDescription: bandMapping.layer_description ?? null,
         additionalResources: Array.isArray(bandMapping.additional_resources) ? bandMapping.additional_resources : [],
       };
