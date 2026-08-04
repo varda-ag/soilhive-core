@@ -1,5 +1,5 @@
 import { cpSync, existsSync, rmSync } from 'node:fs';
-import { basename } from 'node:path';
+import { basename, resolve } from 'node:path';
 
 /**
  * Assets that must never be copied into a plugin.
@@ -20,6 +20,9 @@ function copyFilter(source: string): boolean {
 /** Host is authoritative: destination is fully replaced with source on every run. */
 export function alwaysOverwrite(src: string, dest: string): void {
   neverCopy(src);
+  if (resolve(src) === resolve(dest)) {
+    throw new Error(`Refusing to overwrite "${dest}": it resolves to the same path as its source.`);
+  }
   if (existsSync(dest)) {
     rmSync(dest, { recursive: true, force: true });
   }

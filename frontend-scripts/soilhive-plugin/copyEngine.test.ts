@@ -28,6 +28,15 @@ describe('alwaysOverwrite', () => {
     expect(readdirSync(destDir).sort()).toEqual(['a.txt']);
     expect(readFileSync(join(destDir, 'a.txt'), 'utf-8')).toBe('new');
   });
+
+  it('refuses to overwrite a destination that resolves to the same path as the source', () => {
+    const srcDir = join(tempDir, 'shared');
+    mkdirSync(srcDir);
+    writeFileSync(join(srcDir, 'a.txt'), 'content');
+
+    expect(() => alwaysOverwrite(srcDir, join(tempDir, '.', 'shared'))).toThrow();
+    expect(readFileSync(join(srcDir, 'a.txt'), 'utf-8')).toBe('content');
+  });
 });
 
 describe('copyOnceIfMissing', () => {
