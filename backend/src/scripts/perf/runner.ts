@@ -3,14 +3,45 @@
  * plus GET /soil-data, which consumes the dataset list produced by
  * GET /data-filters/{filterId}/datasets.
  *
- * Methodology: the suite measures the compiled dist build (`node dist/app.js`)
- * against the live database configured in .env, instead of seeded synthetic
- * data. This keeps the measurements realistic and the script free of docker
- * orchestration, at the cost of reproducibility: two runs are only comparable
- * when the data did not change in between. To guard that, every result file
- * embeds an environment fingerprint (git sha, DB row counts, asset hashes,
- * iteration count) and the diff report (diff.ts) warns when fingerprints
- * differ.
+ * Two modes, selected by PERF_BASE_URL:
+ *
+ * - Managed (default): the suite measures the compiled dist build
+ *   (`node dist/app.js`), which it spawns itself on localhost, against the live
+ *   database configured in .env instead of seeded synthetic data. This keeps
+ *   the measurements realistic and the script free of docker orchestration.
+ * - Attached (PERF_BASE_URL set to an API root, e.g.
+ *   https://qa.example.com/api/v1): the suite measures a server it does not
+ *   manage — nothing is built for it, spawned or stopped, and GET /ready must
+ *   already succeed. What is measured is the deployed system as a client
+ *   experiences it: warm shared caches, load balancing across nodes, and real
+ *   network latency. See "Cache state" below.
+ *
+ * Either way, two runs are only comparable when the data did not change in
+ * between. To guard that, every result file embeds an environment fingerprint
+ * (git sha, asset hashes, iteration count, the measured target, DB row counts,
+ * and a data fingerprint read from GET /datasets) and the diff report (diff.ts)
+ * warns when fingerprints differ. Attached runs carry no DB row counts — the
+ * target's database is not reachable from here — so their data fingerprint
+ * rests on GET /datasets alone; see docs/adr/0024. The recorded git sha and node
+ * version describe this checkout and this process, i.e. the suite; in attached
+ * mode they say nothing about the code or runtime deployed on the target, which
+ * the API does not report.
+ *
+ * Cache state: query results are cached per process for 12h and invalidated
+ * only by writes (docs/adr/0008), and a Filter is deduplicated by canonical
+ * content identity (docs/adr/0007) — so a repeat run gets the same filter id,
+ * hence the same `dai:{filterId}:{bbox}:{resolution}` cache key. In managed
+ * mode the spawned process starts with an empty cache and every row measures
+ * real work. In attached mode the target has been serving traffic for hours, so
+ * DAI and coverage rows may measure a cache lookup rather than a query, and
+ * consecutive iterations of one row may land on nodes in different cache
+ * states. This is accepted, not worked around: the only cache-busting lever
+ * would be perturbing geometries, bbox or resolution, which changes the asset
+ * fingerprint and voids comparability with every existing baseline. For
+ * cold-cache numbers from a deployed environment, disable its query cache
+ * (QUERY_CACHE_ENABLED=false) or restart it. PERF_WARMUP correspondingly loses
+ * its point in attached mode: it exists to shed process-start cost, and there
+ * is no process start to shed.
  *
  * Flow: for every *.geojson asset in tests/assets/geojson (or only the assets
  * named in PERF_ASSETS, comma-separated, exact names without the extension —
@@ -41,8 +72,16 @@
  * after writing the result files. Only precondition failures (server does not
  * start, assets missing, fingerprint DB unreachable) abort the run.
  *
- * Side effect: each run persists up to (1 + PERF_ITERATIONS) data filters per
- * asset/params variant in the target database.
+ * Side effect: the suite is not read-only. Phase 1 persists one data filter per
+ * asset/params variant in the target database — one, not one per iteration,
+ * because createFilter upserts on canonical content identity, so repeated
+ * iterations and repeat runs resolve to the existing filter (and bump its
+ * updated_at). Creating one still canonicalises the geometries, persists user
+ * geometries and drives subdivision precomputation. In attached mode all of
+ * that lands in a shared environment's database, and the run warms caches other
+ * clients of that environment share. This is deliberately documented rather
+ * than gated: a confirmation prompt would make the suite unusable from CI, and
+ * a host allowlist would bake environment names into the repo.
  *
  * Output: perf-results/<timestamp>-<short-sha>.json + .html.
  * Compare runs with `npm run perf:diff -- <baseline.json> <current.json>`
@@ -57,7 +96,17 @@ import { config } from 'dotenv';
 import { Client } from 'pg';
 import { getDBPassword, getSSL } from '../../utils/db-credentials';
 import { renderRunHtml } from './report';
-import { AssetFingerprint, computeStats, PERF_RUN_VERSION, PerfRun, ResultRow, rowKey } from './types';
+import { AssetFingerprint, computeStats, DatasetFingerprint, PERF_RUN_VERSION, PerfRun, ResultRow, rowKey } from './types';
+
+/*
+ * Read BEFORE .env is loaded, deliberately — the ordering is load-bearing, not
+ * incidental. Every other knob may live in .env; this one decides which system
+ * gets measured and written to (docs/adr/0024), so it must come from the shell,
+ * where it is visible in the command and in shell history. Capturing it first
+ * means a forgotten PERF_BASE_URL line in .env cannot silently point a run at a
+ * deployed environment.
+ */
+const BASE_URL_FROM_SHELL = (process.env['PERF_BASE_URL'] || '').trim();
 
 const BACKEND_ROOT = path.resolve(__dirname, '..', '..', '..');
 config({ path: path.join(BACKEND_ROOT, '.env'), quiet: true });
@@ -79,7 +128,14 @@ type PerfEndpoint = (typeof ENDPOINT_OPTIONS)[number];
 const REQUEST_TIMEOUT_MS = Number(process.env['PERF_TIMEOUT_MS']) || 120_000;
 const SERVER_START_TIMEOUT_MS = Number(process.env['PERF_SERVER_TIMEOUT_MS']) || 60_000;
 const PORT = Number(process.env.PORT) || 4001;
-const BASE_URL = `http://localhost:${PORT}`;
+// Attached mode: the API root to measure, trailing slash trimmed so
+// https://host/api/v1 and https://host/api/v1/ behave identically. Null = the
+// suite spawns and measures its own server on localhost (managed mode).
+const ATTACHED_BASE_URL = BASE_URL_FROM_SHELL.length > 0 ? BASE_URL_FROM_SHELL.replace(/\/+$/, '') : null;
+const BASE_URL = ATTACHED_BASE_URL ?? `http://localhost:${PORT}`;
+// A deployed target is not booting: nothing was just spawned, so one probe with
+// a generous budget is the whole precondition — no polling loop.
+const READY_PROBE_TIMEOUT_MS = 10_000;
 const ASSETS_DIR = path.join(BACKEND_ROOT, 'tests', 'assets', 'geojson');
 const RESULTS_DIR = path.join(BACKEND_ROOT, 'perf-results');
 const FINGERPRINT_TABLES = ['datasets', 'dataset_layers', 'layers', 'observations', 'features'];
@@ -236,6 +292,34 @@ const discoverAssets = (): AssetSpec[] => {
 // Server lifecycle
 // ---------------------------------------------------------------------------
 
+/** Rejects a PERF_BASE_URL that is not an absolute http(s) URL, before anything is measured. */
+const validateAttachedTarget = (): void => {
+  if (ATTACHED_BASE_URL === null) return;
+  let parsed: URL;
+  try {
+    parsed = new URL(ATTACHED_BASE_URL);
+  } catch {
+    throw new RunAbort(`PERF_BASE_URL is not a valid absolute URL: ${ATTACHED_BASE_URL}`);
+  }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    throw new RunAbort(`PERF_BASE_URL must be an http(s) URL, got ${parsed.protocol}//`);
+  }
+};
+
+/**
+ * Attached-mode precondition. Returns null when the target is ready, otherwise a
+ * description of why it is not. Localhost is a legitimate target here: attaching
+ * to a server you started yourself is the only way to measure a dev server.
+ */
+const probeTargetReady = async (): Promise<string | null> => {
+  try {
+    const res = await fetch(`${BASE_URL}/ready`, { signal: AbortSignal.timeout(READY_PROBE_TIMEOUT_MS) });
+    return res.ok ? null : `responded ${res.status}`;
+  } catch (err) {
+    return (err as Error).message;
+  }
+};
+
 const isServerResponding = async (): Promise<boolean> => {
   try {
     const res = await fetch(`${BASE_URL}/health`, { signal: AbortSignal.timeout(2_000) });
@@ -298,6 +382,48 @@ const stopServer = async (child: ChildProcess): Promise<void> => {
 // ---------------------------------------------------------------------------
 // Fingerprint
 // ---------------------------------------------------------------------------
+
+/**
+ * Data fingerprint read through the API, collected in both modes so managed and
+ * attached runs carry the same field. In attached mode it is the *only* data
+ * signal available, hence the abort on failure — the same reasoning that makes
+ * getDbCounts fatal: a run whose comparability cannot be established is worse
+ * than no run, because the diff would report agreement it never verified.
+ *
+ * `n_observations` is a stored column that the bulk-load UpdateDatasetMetadata
+ * job rewrites, so it tracks data volume the way the DB row counts do. The
+ * response covers exactly the measured surface: the suite runs unauthenticated,
+ * so the datasets this call sees are the datasets the measurement can reach.
+ */
+const getDatasetsFingerprint = async (): Promise<DatasetFingerprint[]> => {
+  const url = `${BASE_URL}/datasets`;
+  const sample = await timedRequest('GET', url, null, 200, 'data fingerprint');
+  if (sample.error !== null) {
+    throw new RunAbort(
+      `Could not read GET ${url} for the data fingerprint (${sample.error}). ` +
+        'The fingerprint is what makes runs comparable, so the suite refuses to continue without it.',
+    );
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(sample.bodyText);
+  } catch {
+    throw new RunAbort(`GET ${url} did not return JSON, so no data fingerprint could be recorded`);
+  }
+  if (!Array.isArray(parsed)) {
+    throw new RunAbort(`GET ${url} did not return an array, so no data fingerprint could be recorded`);
+  }
+  // Sorted by id so the fingerprint compares stably regardless of response order
+  return (parsed as { id?: string; n_observations?: string | null; n_raster_layers?: number | null; updated_at?: string | null }[])
+    .filter(dataset => typeof dataset.id === 'string')
+    .map(dataset => ({
+      id: dataset.id!,
+      n_observations: dataset.n_observations ?? null,
+      n_raster_layers: dataset.n_raster_layers ?? null,
+      updated_at: dataset.updated_at ?? null,
+    }))
+    .sort((a, b) => a.id.localeCompare(b.id));
+};
 
 const getDbCounts = async (): Promise<Record<string, number>> => {
   const schema = process.env.POSTGRES_SCHEMA;
@@ -480,6 +606,7 @@ const extractSoilDataDatasetIds = (datasetsBody: string): string[] | null => {
 
 const main = async () => {
   const wallClockStart = performance.now();
+  validateAttachedTarget();
   const endpointFilter = parseEndpointFilter();
   const assets = discoverAssets();
   const gitSha = git('rev-parse HEAD');
@@ -487,16 +614,42 @@ const main = async () => {
   const gitDirty = git('status --porcelain') !== '';
   const timestamp = new Date().toISOString();
 
+  // The target is stated up front, before any measuring: it decides what the run
+  // means and where its writes land.
+  console.log(
+    ATTACHED_BASE_URL === null
+      ? `Target: ${BASE_URL} (server spawned and managed by the suite)`
+      : `Target: ${ATTACHED_BASE_URL} (attached via PERF_BASE_URL — server not managed by the suite, caches uncontrolled)`,
+  );
   console.log(
     `Performance suite: ${assets.length} asset(s)${ASSET_FILTER.length > 0 ? ' (selected via PERF_ASSETS)' : ''}, ${ITERATIONS} iterations/row, warmup ${WARMUP ? 'on' : 'off'}, DAI resolutions [${DAI_RESOLUTIONS.join(', ')}]${endpointFilter ? `, endpoint=${endpointFilter} (selected via PERF_ENDPOINT)` : ''}`,
   );
 
-  const { child, outputTail } = await startServer();
-  console.log(`Server ready on ${BASE_URL}`);
+  let child: ChildProcess | null = null;
+  let outputTail: () => string = () => '';
+  if (ATTACHED_BASE_URL === null) {
+    const started = await startServer();
+    child = started.child;
+    outputTail = started.outputTail;
+    console.log(`Server ready on ${BASE_URL}`);
+  } else {
+    const notReady = await probeTargetReady();
+    if (notReady !== null) {
+      throw new RunAbort(
+        `GET ${BASE_URL}/ready did not succeed (${notReady}). The suite does not manage this server, ` +
+          'so a ready target is a precondition rather than something to wait for.',
+      );
+    }
+    console.log(`Target is ready`);
+  }
 
   const results: ResultRow[] = [];
   try {
-    const dbCounts = await getDbCounts();
+    // No DB fingerprint in attached mode: the target's database is not reachable
+    // from here, which is the whole reason for measuring through its API
+    // (docs/adr/0024). The API-derived fingerprint carries both modes.
+    const dbCounts = ATTACHED_BASE_URL === null ? await getDbCounts() : null;
+    const datasetsFingerprint = await getDatasetsFingerprint();
 
     // Phase 1: POST /data-filters — one filter per (asset, params variant).
     // The id of the first successfully created filter is reused by the GET phase.
@@ -654,6 +807,9 @@ const main = async () => {
       version: PERF_RUN_VERSION,
       fingerprint: {
         timestamp,
+        // Omitted for managed runs, so pre-existing result files (which predate
+        // the field) classify as the same target rather than as an unknown one.
+        ...(ATTACHED_BASE_URL === null ? {} : { baseUrl: ATTACHED_BASE_URL }),
         gitSha,
         gitBranch,
         gitDirty,
@@ -662,7 +818,8 @@ const main = async () => {
         daiResolutions: DAI_RESOLUTIONS,
         ...(endpointFilter ? { endpoint: endpointFilter } : {}),
         assets: assetFingerprints,
-        db: dbCounts,
+        ...(dbCounts === null ? {} : { db: dbCounts }),
+        datasets: datasetsFingerprint,
       },
       results,
       totals: {
@@ -694,12 +851,16 @@ const main = async () => {
     console.log(`\nJSON:  ${jsonPath}`);
     console.log(`HTML:  ${htmlPath}`);
   } catch (err) {
-    if (!(err instanceof RunAbort)) {
+    // Only a server the suite spawned has output to show; an attached target's
+    // logs live wherever it is deployed.
+    if (!(err instanceof RunAbort) && child !== null) {
       console.error(`\n--- server output ---\n${outputTail()}`);
     }
     throw err;
   } finally {
-    await stopServer(child);
+    if (child !== null) {
+      await stopServer(child);
+    }
   }
 };
 
