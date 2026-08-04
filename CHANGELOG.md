@@ -1,5 +1,33 @@
 # Changelog
 
+## 1.1.0 (2026-08-03)
+
+## What's Changed
+* fix(be): sp-5489 round raster nodata by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/734
+* feat: storing logo bytes in json config by @svaccari in https://github.com/varda-ag/soilhive-core/pull/736
+* perf: soil data query by @svaccari in https://github.com/varda-ag/soilhive-core/pull/733
+* feat: sp-5486 made the discard column fixed in dataset publication by @cristbello in https://github.com/varda-ag/soilhive-core/pull/737
+* feat: sp-5493 availability and settings' map have now same zoom level by @cristbello in https://github.com/varda-ag/soilhive-core/pull/738
+* feat(be): sp-5489 add raster ingestion instrumentation by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/739
+* refactor: sp-5494 injected env-config.js for performance gains by @cristbello in https://github.com/varda-ag/soilhive-core/pull/741
+* feat: sp-5438 - raster files upload by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/740
+* fix(be): sp-5489 fix raster overview file read by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/742
+* feat: sp-5494 preconnected to 3 domains to speed up load time by @cristbello in https://github.com/varda-ag/soilhive-core/pull/743
+* feat: sp-5494 fixed Accessibility and SEO problems by @cristbello in https://github.com/varda-ag/soilhive-core/pull/747
+* feat: bulk load progress reporting by @svaccari in https://github.com/varda-ag/soilhive-core/pull/745
+* fix: sp-5494 added public sourcemaps by @cristbello in https://github.com/varda-ag/soilhive-core/pull/748
+* feat: sp-5504 - dragndrop zone includes sidebars by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/751
+* feat: sp-5508 - 6 components moved outside ui folder by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/753
+* feat: sp-5508 - skeleton-loader and react-i18n dependencies removed from the UI components by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/754
+* feat: raster load by @svaccari in https://github.com/varda-ag/soilhive-core/pull/752
+* feat: sp-5508 ui icons, types, relative paths by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/755
+* feat(UI): sp-5507 plugin interface by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/756
+* feat: soil statistics job by @svaccari in https://github.com/varda-ag/soilhive-core/pull/757
+* fix: upload timeout, mapping selection by @svaccari in https://github.com/varda-ag/soilhive-core/pull/759
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v1.0.0...v1.1.0
+
 ## 1.0.0 (2026-07-23)
 
 ## What's Changed
