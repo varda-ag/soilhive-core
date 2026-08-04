@@ -59,11 +59,13 @@ describe('syncUi', () => {
     expect(readFileSync(buttonPath, 'utf-8')).toBe(originalContent);
   });
 
-  it('generates styles/index.scss without the never-copied prime.react.override.scss import', () => {
+  it('generates styles/index.scss without the never-copied prime.react.override.scss import, or UI/-unrelated package CSS', () => {
     syncUi(pluginPath);
 
     const indexScss = readFileSync(join(pluginPath, 'styles', 'index.scss'), 'utf-8');
     expect(indexScss).not.toContain('prime.react.override');
+    expect(indexScss).not.toContain('primereact');
+    expect(indexScss).not.toContain('react-loading-skeleton');
     expect(indexScss).toContain("@import './variables/colors'");
     expect(indexScss).toContain("@import './base.scss'");
   });

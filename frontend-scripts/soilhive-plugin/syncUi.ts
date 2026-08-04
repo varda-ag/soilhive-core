@@ -22,7 +22,9 @@ export function syncUi(pluginPath: string): void {
 
 /**
  * index.scss is generated rather than copied byte-for-byte: it mirrors the host's index.scss
- * but drops the prime.react.override.scss import, since that file is never synced.
+ * but drops the prime.react.override.scss import (never synced) and the primereact /
+ * react-loading-skeleton package CSS (host-only concerns — no UI/ component imports either
+ * package, so a plugin shouldn't need to depend on them just to get UI/'s styles).
  * Copy-once-then-dev-owned, same as the other design-token partials it stitches together.
  */
 function writeGeneratedIndexScssOnceIfMissing(stylesDest: string): void {
@@ -34,7 +36,7 @@ function writeGeneratedIndexScssOnceIfMissing(stylesDest: string): void {
   const hostIndexScss = readFileSync(join(STYLES_SRC, 'index.scss'), 'utf-8');
   const generated = hostIndexScss
     .split('\n')
-    .filter(line => !line.includes('prime.react.override'))
+    .filter(line => !line.includes('prime.react.override') && !line.includes('primereact') && !line.includes('react-loading-skeleton'))
     .join('\n')
     .replace(/\n+$/, '\n');
 

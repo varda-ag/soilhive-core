@@ -52,6 +52,9 @@ describe('mergeManagedDependencies', () => {
     expect(pkg.dependencies['react-router']).toBe('7.9.4');
     expect(pkg.dependencies['react-tooltip']).toBe('5.30.0');
     expect(pkg.dependencies['react-use']).toBe('17.6.0');
+    // UI/ never imports these — depending on them would be unnecessary for a plugin
+    expect(pkg.dependencies.primereact).toBeUndefined();
+    expect(pkg.dependencies['react-loading-skeleton']).toBeUndefined();
   });
 
   it('adds a new external package automatically the next time UI/ starts importing it', () => {
