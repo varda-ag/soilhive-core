@@ -48,8 +48,29 @@ export interface AssetFingerprint {
   paramsVariants: { variant: string; sha256: string }[];
 }
 
+/**
+ * Per-dataset entry of the API-derived data fingerprint (docs/adr/0024). Field
+ * names mirror the API response rather than being camel-cased, so a fingerprint
+ * entry can be compared against `GET /datasets` output by eye.
+ */
+export interface DatasetFingerprint {
+  /** The dataset's slug, as the API reports it. */
+  id: string;
+  /** Stored observation count; a bigint the API serialises as a string. */
+  n_observations: string | null;
+  n_raster_layers: number | null;
+  updated_at: string | null;
+}
+
 export interface Fingerprint {
   timestamp: string;
+  /**
+   * API root the run measured, as passed via PERF_BASE_URL. Absent for runs
+   * that measured a server the suite spawned itself on localhost (and in
+   * result files recorded before the field existed) — so an absent value means
+   * the local managed target, not an unknown one.
+   */
+  baseUrl?: string;
   gitSha: string;
   gitBranch: string;
   gitDirty: boolean;
@@ -62,7 +83,19 @@ export interface Fingerprint {
    */
   endpoint?: string;
   assets: AssetFingerprint[];
-  db: Record<string, number>;
+  /**
+   * Row counts read straight from Postgres. Absent when PERF_BASE_URL pointed
+   * the run at a deployed target, whose database is not reachable from here
+   * (docs/adr/0024). An absent value must be reported as such, never treated
+   * as agreement between two runs.
+   */
+  db?: Record<string, number>;
+  /**
+   * Data fingerprint derived from GET /datasets — the API-visible substitute
+   * for `db`, and the only data signal a run against a deployed target has.
+   * Absent in result files recorded before the field existed.
+   */
+  datasets?: DatasetFingerprint[];
 }
 
 export interface PerfRun {
