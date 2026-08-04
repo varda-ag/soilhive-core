@@ -1,3 +1,4 @@
+import { styleText } from 'node:util';
 import { resolveMode, resolvePluginPaths } from './paths';
 import { scaffoldPlugin } from './scaffold';
 import { syncUi } from './syncUi';
@@ -19,8 +20,13 @@ export function runSoilhivePlugin(fullPath: string): void {
   syncPluginTypes(root);
   mergeManagedDependencies(fullPath);
 
-  console.log(
-    `[soilhive-plugin] Run "pnpm install" in "${fullPath}" — npm does not support the "link:" protocol used for frontend-plugin-types.`,
-  );
-  console.log(`[soilhive-plugin] Then run "pnpm dev" in "${fullPath}" to start the plugin locally.`);
+  console.log();
+  console.log(styleText(['bold', 'green'], `✔ ${pluginName} ready at ${fullPath}`));
+  console.log();
+  console.log(styleText('dim', '  npm does not support the "link:" protocol used for frontend-plugin-types — use pnpm'));
+  console.log();
+  console.log(`  cd ${fullPath}`);
+  console.log(`  ${styleText('cyan', 'pnpm install')}`);
+  console.log(`  ${styleText('cyan', 'pnpm dev')}`);
+  console.log();
 }

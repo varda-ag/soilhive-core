@@ -85,24 +85,20 @@ describe('runSoilhivePlugin end-to-end', () => {
     expect(forbidden).toEqual([]);
   });
 
-  it('hints that pnpm (not npm) must be used to install, since link: is not npm-supported', () => {
+  it('ends with a copy-pasteable next-steps block (cd, install, dev)', () => {
     const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
 
     runSoilhivePlugin(pluginPath);
 
-    const loggedLines = logSpy.mock.calls.map(call => call[0]);
-    expect(loggedLines.some(line => typeof line === 'string' && line.includes('pnpm install') && line.includes(pluginPath))).toBe(true);
-
-    logSpy.mockRestore();
-  });
-
-  it('hints how to run the plugin locally after install', () => {
-    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
-
-    runSoilhivePlugin(pluginPath);
-
-    const loggedLines = logSpy.mock.calls.map(call => call[0]);
-    expect(loggedLines.some(line => typeof line === 'string' && line.includes('pnpm dev') && line.includes(pluginPath))).toBe(true);
+    const output = logSpy.mock.calls
+      .map(call => String(call[0] ?? ''))
+      .join('\n')
+      // eslint-disable-next-line no-control-regex -- strips ANSI color codes so assertions are color-agnostic
+      .replace(/\x1b\[[0-9;]*m/g, '');
+    expect(output).toContain(`cd ${pluginPath}`);
+    expect(output).toContain('pnpm install');
+    expect(output).toContain('pnpm dev');
+    expect(output).toContain('npm does not support the "link:" protocol');
 
     logSpy.mockRestore();
   });
