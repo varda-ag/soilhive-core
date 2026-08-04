@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
-import { Button, FormMessage } from 'components/UI';
+import { Button } from 'components/UI';
 import { useRasterMappingStep } from 'hooks/useRasterMappingStep';
 import { MappingsBanner } from './MappingsBanner';
 import { RasterMappingsTable } from './RasterMappingsTable';
@@ -26,8 +26,6 @@ export function RasterMappingsStep({ id }: Props) {
     datasetName,
     isImporting,
     showLoadingPanel,
-    depthConflictMessage,
-    isSaveEnabled,
     isContinueEnabled,
     columnMappings,
     conceptOptionsByColumn,
@@ -72,12 +70,6 @@ export function RasterMappingsStep({ id }: Props) {
 
         <MappingsBanner mappedCount={mappedCount} unmappedCount={unmappedCount} isRaster={true} />
 
-        {depthConflictMessage && (
-          <div className={styles.Messages}>
-            <FormMessage type={depthConflictMessage.type} message={depthConflictMessage.message} withBackground />
-          </div>
-        )}
-
         <RasterMappingsTable
           columnMappings={columnMappings}
           conceptOptionsByColumn={conceptOptionsByColumn}
@@ -102,7 +94,7 @@ export function RasterMappingsStep({ id }: Props) {
           {t('datasets.actions.previous')}
         </Button>
         <div className={styles.ActionsSpacer} />
-        <Button type="secondary" onClick={handleSaveAndContinueLater} dataTestId="sh-mappings-save-later" isDisabled={!isSaveEnabled}>
+        <Button type="secondary" onClick={handleSaveAndContinueLater} dataTestId="sh-mappings-save-later">
           {t('datasets.actions.save_and_continue_later')}
         </Button>
         <Button type="primary" onClick={handleContinue} dataTestId="sh-mappings-continue" isDisabled={!isContinueEnabled}>

@@ -2,13 +2,6 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { RasterMappingsTable } from 'pages/AdminPortal/DatasetsMappingsStep/RasterMappingsTable';
 import type { ColumnMapping, DetailOptionMap } from 'hooks/useRasterMappingStep';
 
-// useRasterMappingStep pulls in a heavy transitive chain (useConfig → App → i18n setup) just by
-// being imported — RasterMappingsTable only needs the METADATA_FIELD_CODES constant from it, so
-// stub the module with that constant instead of loading the real hook.
-jest.mock('hooks/useRasterMappingStep', () => ({
-  METADATA_FIELD_CODES: new Set(['min_depth', 'max_depth']),
-}));
-
 // Isolate RasterMappingsTable's own logic (header, row wiring, isUnitEnabled/isDetailsEnabled
 // derivation) from RasterMappingRow's rendering/interaction details, which are covered by
 // RasterMappingRow.test.tsx.
@@ -198,11 +191,6 @@ describe('RasterMappingsTable', () => {
   describe('isDetailsEnabled', () => {
     it('is false when the row is unmapped', () => {
       render(<RasterMappingsTable {...defaultProps({ columnMappings: [mapping({ conceptId: null })] })} />);
-      expect(screen.getByTestId('sh-mapping-row')).toHaveAttribute('data-is-details-enabled', 'false');
-    });
-
-    it('is false when the mapped concept is a metadata field (min_depth/max_depth)', () => {
-      render(<RasterMappingsTable {...defaultProps({ columnMappings: [mapping({ conceptId: 'min_depth' })] })} />);
       expect(screen.getByTestId('sh-mapping-row')).toHaveAttribute('data-is-details-enabled', 'false');
     });
 

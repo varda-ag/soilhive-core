@@ -40,19 +40,11 @@ const DETAIL_OPTIONS: DetailOptionMap = {
   laboratoryMethod: [],
 };
 
-function stubHookReturn(
-  columnNames: string[] = [],
-  isContinueEnabled = false,
-  depthConflictMessage: { message: string; type: 'warning' } | null = null,
-  isSaveEnabled = false,
-  showLoadingPanel = false,
-) {
+function stubHookReturn(columnNames: string[] = [], isContinueEnabled = false, showLoadingPanel = false) {
   return {
     isLoading: false,
     isImporting: false,
     showLoadingPanel,
-    depthConflictMessage,
-    isSaveEnabled,
     isContinueEnabled,
     columnMappings: columnNames.map(columnName => ({
       columnName,
@@ -106,41 +98,16 @@ describe('RasterMappingsStep', () => {
     expect(screen.getByTestId('sh-raster-mappings-table')).toBeInTheDocument();
   });
 
-  describe('depth conflict message', () => {
-    it('shows the warning when hook provides a depth conflict message', () => {
-      (useRasterMappingStep as jest.Mock).mockReturnValue(
-        stubHookReturn([], false, {
-          message: "The 'min depth' field must be paired with 'max depth'.",
-          type: 'warning',
-        }),
-      );
-      render(<RasterMappingsStep id="1" />);
-      expect(screen.getByTestId('sh-form-message')).toBeInTheDocument();
-    });
-
-    it('shows no message when depthConflictMessage is null', () => {
-      render(<RasterMappingsStep id="1" />);
-      expect(screen.queryByTestId('sh-form-message')).not.toBeInTheDocument();
-    });
-  });
-
   describe('action buttons', () => {
-    it('disables both buttons when neither flag is set', () => {
-      (useRasterMappingStep as jest.Mock).mockReturnValue(stubHookReturn([], false, null, false));
-      render(<RasterMappingsStep id="1" />);
-      expect(screen.getByTestId('sh-mappings-continue')).toBeDisabled();
-      expect(screen.getByTestId('sh-mappings-save-later')).toBeDisabled();
-    });
-
-    it('enables save-later but not continue when only isSaveEnabled is true', () => {
-      (useRasterMappingStep as jest.Mock).mockReturnValue(stubHookReturn([], false, null, true));
+    it('save-later is always enabled; continue reflects isContinueEnabled', () => {
+      (useRasterMappingStep as jest.Mock).mockReturnValue(stubHookReturn([], false));
       render(<RasterMappingsStep id="1" />);
       expect(screen.getByTestId('sh-mappings-continue')).toBeDisabled();
       expect(screen.getByTestId('sh-mappings-save-later')).not.toBeDisabled();
     });
 
-    it('enables both buttons when isContinueEnabled and isSaveEnabled are both true', () => {
-      (useRasterMappingStep as jest.Mock).mockReturnValue(stubHookReturn([], true, null, true));
+    it('enables continue when isContinueEnabled is true', () => {
+      (useRasterMappingStep as jest.Mock).mockReturnValue(stubHookReturn([], true));
       render(<RasterMappingsStep id="1" />);
       expect(screen.getByTestId('sh-mappings-continue')).not.toBeDisabled();
       expect(screen.getByTestId('sh-mappings-save-later')).not.toBeDisabled();
@@ -154,7 +121,7 @@ describe('RasterMappingsStep', () => {
     });
 
     it('renders the panel and hides the regular content when showLoadingPanel is true', () => {
-      (useRasterMappingStep as jest.Mock).mockReturnValue(stubHookReturn([], false, null, false, true));
+      (useRasterMappingStep as jest.Mock).mockReturnValue(stubHookReturn([], false, true));
       render(<RasterMappingsStep id="1" />);
       expect(screen.getByText('Data loading started')).toBeInTheDocument();
       expect(screen.queryByTestId('sh-mappings-banner')).not.toBeInTheDocument();
@@ -165,7 +132,7 @@ describe('RasterMappingsStep', () => {
     it('calls navigate with the datasets path when the panel Continue button is clicked', () => {
       const navigateMock = jest.fn();
       (useNavigate as jest.Mock).mockReturnValue(navigateMock);
-      (useRasterMappingStep as jest.Mock).mockReturnValue(stubHookReturn([], false, null, false, true));
+      (useRasterMappingStep as jest.Mock).mockReturnValue(stubHookReturn([], false, true));
       render(<RasterMappingsStep id="1" />);
       fireEvent.click(screen.getByText('Continue'));
       expect(navigateMock).toHaveBeenCalledWith(ADMIN_PATHS.DATASETS);

@@ -347,15 +347,20 @@ describe('useRasterMappingStep', () => {
   });
 
   describe('conceptOptionsByColumn', () => {
-    it('always includes the hardcoded metadata field options for each column', () => {
+    it('only offers soil property options, never metadata fields', () => {
+      mockUseSoilProperties.mockReturnValue({
+        data: [{ id: 'p1', property_name: 'Zinc', property_acronym: 'Zn', category_id: 'c1', original_units_of_measurement: {} }],
+        isLoading: false,
+      });
       setupWithColumns(['col1']);
       const { result } = renderHook(() => useRasterMappingStep('1'));
       const codes = result.current.conceptOptionsByColumn['col1'].map(o => o.code);
-      expect(codes).toContain('min_depth');
-      expect(codes).toContain('max_depth');
+      expect(codes).not.toContain('min_depth');
+      expect(codes).not.toContain('max_depth');
+      expect(codes).toEqual(['p1']);
     });
 
-    it('appends soil properties sorted alphabetically after the metadata fields', () => {
+    it('lists soil properties sorted alphabetically', () => {
       mockUseSoilProperties.mockReturnValue({
         data: [
           { id: 'p1', property_name: 'Zinc', property_acronym: 'Zn', category_id: 'c1', original_units_of_measurement: {} },
@@ -366,39 +371,21 @@ describe('useRasterMappingStep', () => {
       setupWithColumns(['col1']);
       const { result } = renderHook(() => useRasterMappingStep('1'));
       const options = result.current.conceptOptionsByColumn['col1'];
-      const metadataCount = 2; // METADATA_FIELD_OPTIONS length
-      expect(options[metadataCount]).toEqual({ code: 'p2', name: 'Aluminium' });
-      expect(options[metadataCount + 1]).toEqual({ code: 'p1', name: 'Zinc' });
+      expect(options[0]).toEqual({ code: 'p2', name: 'Aluminium' });
+      expect(options[1]).toEqual({ code: 'p1', name: 'Zinc' });
     });
 
-    it('hides a metadata option from other rows once it is selected by one row', () => {
+    it('offers the same soil property options to every row regardless of other rows selections', () => {
+      mockUseSoilProperties.mockReturnValue({
+        data: [{ id: 'p1', property_name: 'Zinc', property_acronym: 'Zn', category_id: 'c1', original_units_of_measurement: {} }],
+        isLoading: false,
+      });
       setupWithColumns(['col1', 'col2']);
       const { result } = renderHook(() => useRasterMappingStep('1'));
       act(() => {
-        result.current.handleConceptChange('col1', 'min_depth');
+        result.current.handleConceptChange('col1', 'p1');
       });
-      expect(result.current.conceptOptionsByColumn['col2'].map(o => o.code)).not.toContain('min_depth');
-    });
-
-    it('keeps the metadata option visible in the row that owns it', () => {
-      setupWithColumns(['col1', 'col2']);
-      const { result } = renderHook(() => useRasterMappingStep('1'));
-      act(() => {
-        result.current.handleConceptChange('col1', 'min_depth');
-      });
-      expect(result.current.conceptOptionsByColumn['col1'].map(o => o.code)).toContain('min_depth');
-    });
-
-    it('restores a metadata option to all rows when its owning row is cleared', () => {
-      setupWithColumns(['col1', 'col2']);
-      const { result } = renderHook(() => useRasterMappingStep('1'));
-      act(() => {
-        result.current.handleConceptChange('col1', 'min_depth');
-      });
-      act(() => {
-        result.current.handleConceptChange('col1', '');
-      });
-      expect(result.current.conceptOptionsByColumn['col2'].map(o => o.code)).toContain('min_depth');
+      expect(result.current.conceptOptionsByColumn['col2'].map(o => o.code)).toContain('p1');
     });
   });
 
@@ -510,74 +497,6 @@ describe('useRasterMappingStep', () => {
       });
       expect(result.current.isContinueEnabled).toBe(true);
     });
-
-    it('is false when only a metadata column is mapped (no soil property)', () => {
-      setupWithColumns(['col1']);
-      const { result } = renderHook(() => useRasterMappingStep('1'));
-      act(() => {
-        result.current.handleConceptChange('col1', 'min_depth');
-      });
-      expect(result.current.isContinueEnabled).toBe(false);
-    });
-
-    it('is false when depth conflicts with a range depth field (even if a soil property is mapped)', () => {
-      setupWithColumns(['min_d', 'ph']);
-      const { result } = renderHook(() => useRasterMappingStep('1'));
-      act(() => {
-        result.current.handleConceptChange('ph', 'ph');
-        result.current.handleConceptChange('min_d', 'min_depth');
-      });
-      expect(result.current.isContinueEnabled).toBe(false);
-    });
-  });
-
-  describe('depthConflictMessage', () => {
-    it('is null when nothing is mapped', () => {
-      setupWithColumns(['d', 'other']);
-      const { result } = renderHook(() => useRasterMappingStep('1'));
-      expect(result.current.depthConflictMessage).toBeNull();
-    });
-
-    it('is null when only min_depth and max_depth are mapped', () => {
-      setupWithColumns(['min_d', 'max_d']);
-      const { result } = renderHook(() => useRasterMappingStep('1'));
-      act(() => {
-        result.current.handleConceptChange('min_d', 'min_depth');
-        result.current.handleConceptChange('max_d', 'max_depth');
-      });
-      expect(result.current.depthConflictMessage).toBeNull();
-    });
-
-    it('is type warning when only min_depth is mapped without max_depth', () => {
-      setupWithColumns(['min_d']);
-      const { result } = renderHook(() => useRasterMappingStep('1'));
-      act(() => {
-        result.current.handleConceptChange('min_d', 'min_depth');
-      });
-      expect(result.current.depthConflictMessage?.type).toBe('warning');
-    });
-
-    it('is type warning when only max_depth is mapped without min_depth', () => {
-      setupWithColumns(['max_d']);
-      const { result } = renderHook(() => useRasterMappingStep('1'));
-      act(() => {
-        result.current.handleConceptChange('max_d', 'max_depth');
-      });
-      expect(result.current.depthConflictMessage?.type).toBe('warning');
-    });
-
-    it('clears range_depth_missing when the missing pair partner is added', () => {
-      setupWithColumns(['min_d', 'max_d']);
-      const { result } = renderHook(() => useRasterMappingStep('1'));
-      act(() => {
-        result.current.handleConceptChange('min_d', 'min_depth');
-      });
-      expect(result.current.depthConflictMessage?.type).toBe('warning');
-      act(() => {
-        result.current.handleConceptChange('max_d', 'max_depth');
-      });
-      expect(result.current.depthConflictMessage).toBeNull();
-    });
   });
 
   describe('save', () => {
@@ -593,18 +512,6 @@ describe('useRasterMappingStep', () => {
       (useCreateMappingsMutation as jest.Mock).mockReturnValue({ mutateAsync: mockCreateMapping });
       (useUpdateDatasetFileMappingMutation as jest.Mock).mockReturnValue({ mutateAsync: mockUpdateDatasetFileMapping });
       setupWithColumns(['col1', 'col2']);
-    });
-
-    it('saves a metadata field as a plain string, keyed by the band position (0)', async () => {
-      const { result } = renderHook(() => useRasterMappingStep('42'));
-      act(() => {
-        result.current.handleConceptChange('col1', 'min_depth');
-      });
-      await act(async () => {
-        await result.current.handleContinue();
-      });
-      expect(mockCreateMapping).toHaveBeenCalledWith(expect.objectContaining({ '0': 'min_depth' }));
-      expect(mockCreateProcedure).not.toHaveBeenCalled();
     });
 
     it('saves a soil property without unit as { property_id }', async () => {
@@ -675,7 +582,7 @@ describe('useRasterMappingStep', () => {
     it('excludes unmapped columns from the mapping request', async () => {
       const { result } = renderHook(() => useRasterMappingStep('42'));
       act(() => {
-        result.current.handleConceptChange('col1', 'min_depth');
+        result.current.handleConceptChange('col1', 'soil-ph');
         // col2 intentionally left unmapped
       });
       await act(async () => {
@@ -683,21 +590,21 @@ describe('useRasterMappingStep', () => {
       });
       // col2 lives on a separate file (separate mapping request), so it must never be created.
       const payload = mockCreateMapping.mock.calls[0][0];
-      expect(payload).toEqual({ '0': 'min_depth' });
+      expect(payload).toEqual({ '0': { property_id: 'soil-ph' } });
     });
 
     it('creates one mapping request per distinct file and links each to its own dataset-file-mapping', async () => {
       const { result } = renderHook(() => useRasterMappingStep('42'));
       act(() => {
-        result.current.handleConceptChange('col1', 'min_depth');
-        result.current.handleConceptChange('col2', 'max_depth');
+        result.current.handleConceptChange('col1', 'soil-ph');
+        result.current.handleConceptChange('col2', 'soil-om');
       });
       await act(async () => {
         await result.current.handleContinue();
       });
       expect(mockCreateMapping).toHaveBeenCalledTimes(2);
-      expect(mockCreateMapping).toHaveBeenCalledWith({ '0': 'min_depth' });
-      expect(mockCreateMapping).toHaveBeenCalledWith({ '0': 'max_depth' });
+      expect(mockCreateMapping).toHaveBeenCalledWith({ '0': { property_id: 'soil-ph' } });
+      expect(mockCreateMapping).toHaveBeenCalledWith({ '0': { property_id: 'soil-om' } });
       expect(mockUpdateDatasetFileMapping).toHaveBeenCalledWith({
         datasetId: '42',
         datasetFileMappingId: 'dfm-col1',

@@ -1,5 +1,4 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { useApiQuery } from './useApiQuery';
@@ -65,17 +64,6 @@ function buildColumns(files: FileDescriptor[]): { columnName: string; fileId: st
 
 export type DetailOptionMap = Record<keyof RowDetails, MenuOption[]>;
 
-// Raster layers only carry depth range metadata (RasterLayer.min_depth/max_depth) —
-// no geometry/lat-lon/sampling_date/horizon/license concepts apply to a raster band.
-const METADATA_FIELD_OPTIONS: MenuOption[] = [
-  { code: 'min_depth', name: 'Min depth' },
-  { code: 'max_depth', name: 'Max depth' },
-];
-
-// Exported so consumers can check whether a concept code is a metadata field
-// without re-deriving it from METADATA_FIELD_OPTIONS.
-export const METADATA_FIELD_CODES = new Set(METADATA_FIELD_OPTIONS.map(o => o.code));
-
 const VOCAB_CATEGORY_TO_KEY: Record<string, keyof RowDetails> = {
   laboratory_method: 'laboratoryMethod',
 };
@@ -119,9 +107,8 @@ async function createMappingProcedures(
 
 // Builds one mapping payload per file, keyed by the band's zero-based position within that file
 // (not by column name) — a file's mapping only needs to distinguish its own bands, so the key
-// is just e.g. "0", "1".
-// For metadata fields, the value is just the concept id. For soil properties, it's an object
-// that may include the concept id, unit conversion id, and procedure id.
+// is just e.g. "0", "1". The value is an object that may include the concept id, unit
+// conversion id, and procedure id.
 function buildDataMappingRequestsByFile(
   mappings: ColumnMapping[],
   procedureIds: Record<string, string>,
@@ -131,20 +118,16 @@ function buildDataMappingRequestsByFile(
     if (!m.conceptId) continue;
     const request = (requestsByFile[m.fileId] ??= {});
     const bandKey = String(m.bandKey);
-    if (METADATA_FIELD_CODES.has(m.conceptId)) {
-      request[bandKey] = m.conceptId;
-    } else {
-      const pm: PropertyMapping = { property_id: m.conceptId };
-      if (m.unitId) pm.conversion_id = m.unitId;
-      if (procedureIds[m.columnName]) pm.procedure_id = procedureIds[m.columnName];
-      if (m.minDepth) pm.min_depth = Number(m.minDepth);
-      if (m.maxDepth) pm.max_depth = Number(m.maxDepth);
-      if (m.referencePeriodStart) pm.reference_period_start = m.referencePeriodStart;
-      if (m.referencePeriodStop) pm.reference_period_stop = m.referencePeriodStop;
-      if (m.layerDescription) pm.layer_description = m.layerDescription;
-      if (m.additionalResources.length > 0) pm.additional_resources = m.additionalResources;
-      request[bandKey] = pm;
-    }
+    const pm: PropertyMapping = { property_id: m.conceptId };
+    if (m.unitId) pm.conversion_id = m.unitId;
+    if (procedureIds[m.columnName]) pm.procedure_id = procedureIds[m.columnName];
+    if (m.minDepth) pm.min_depth = Number(m.minDepth);
+    if (m.maxDepth) pm.max_depth = Number(m.maxDepth);
+    if (m.referencePeriodStart) pm.reference_period_start = m.referencePeriodStart;
+    if (m.referencePeriodStop) pm.reference_period_stop = m.referencePeriodStop;
+    if (m.layerDescription) pm.layer_description = m.layerDescription;
+    if (m.additionalResources.length > 0) pm.additional_resources = m.additionalResources;
+    request[bandKey] = pm;
   }
   return requestsByFile;
 }
@@ -170,26 +153,22 @@ function isMappingChanged(
 
     if (existing === undefined) return true;
 
-    if (METADATA_FIELD_CODES.has(m.conceptId)) {
-      if (existing !== m.conceptId) return true;
+    if (typeof existing === 'string') return true;
+    if (existing.property_id !== m.conceptId) return true;
+    if ((existing.conversion_id ?? null) !== m.unitId) return true;
+    if ((existing.min_depth ?? null) !== (m.minDepth ? Number(m.minDepth) : null)) return true;
+    if ((existing.max_depth ?? null) !== (m.maxDepth ? Number(m.maxDepth) : null)) return true;
+    if ((existing.reference_period_start ?? null) !== m.referencePeriodStart) return true;
+    if ((existing.reference_period_stop ?? null) !== m.referencePeriodStop) return true;
+    if ((existing.layer_description ?? null) !== m.layerDescription) return true;
+    const existingResourceIds = (existing.additional_resources ?? []).map(r => r.file_id).sort();
+    const currentResourceIds = m.additionalResources.map(r => r.file_id).sort();
+    if (JSON.stringify(existingResourceIds) !== JSON.stringify(currentResourceIds)) return true;
+    const proc = procedureByColumn[m.columnName];
+    if (proc) {
+      if (!procedurePayloadMatches(m.details, proc)) return true;
     } else {
-      if (typeof existing === 'string') return true;
-      if (existing.property_id !== m.conceptId) return true;
-      if ((existing.conversion_id ?? null) !== m.unitId) return true;
-      if ((existing.min_depth ?? null) !== (m.minDepth ? Number(m.minDepth) : null)) return true;
-      if ((existing.max_depth ?? null) !== (m.maxDepth ? Number(m.maxDepth) : null)) return true;
-      if ((existing.reference_period_start ?? null) !== m.referencePeriodStart) return true;
-      if ((existing.reference_period_stop ?? null) !== m.referencePeriodStop) return true;
-      if ((existing.layer_description ?? null) !== m.layerDescription) return true;
-      const existingResourceIds = (existing.additional_resources ?? []).map(r => r.file_id).sort();
-      const currentResourceIds = m.additionalResources.map(r => r.file_id).sort();
-      if (JSON.stringify(existingResourceIds) !== JSON.stringify(currentResourceIds)) return true;
-      const proc = procedureByColumn[m.columnName];
-      if (proc) {
-        if (!procedurePayloadMatches(m.details, proc)) return true;
-      } else {
-        if (Object.values(m.details).some(v => v !== null)) return true;
-      }
+      if (Object.values(m.details).some(v => v !== null)) return true;
     }
   }
 
@@ -201,7 +180,6 @@ function isMappingChanged(
 // ---------------------------------------------------------------------------
 
 export function useRasterMappingStep(datasetId?: string) {
-  const { t } = useTranslation('admin');
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { markAsChanged, resetChanges, isRaster } = useIngestionFlow();
@@ -451,50 +429,19 @@ export function useRasterMappingStep(datasetId?: string) {
     return { soilPropertyOptions, unitOptionsByConcept };
   }, [soilProperties]);
 
-  // Per-row concept options: metadata fields first (excluding those already selected by other rows),
-  // then all soil properties. A row always sees its own current metadata selection so the user
-  // can change or clear it.
+  // Per-row concept options: every row offers the same list of soil properties.
   const conceptOptionsByColumn = useMemo((): Record<string, MenuOption[]> => {
-    const usedMetadataCodes = new Set(
-      columnMappings.filter(m => m.conceptId && METADATA_FIELD_CODES.has(m.conceptId)).map(m => m.conceptId!),
-    );
-
-    return Object.fromEntries(
-      columnMappings.map(m => {
-        const availableMetadata = METADATA_FIELD_OPTIONS.filter(o => {
-          if (m.conceptId === o.code) return true; // keep own selection
-          if (usedMetadataCodes.has(o.code)) return false; // already used elsewhere
-          return true;
-        });
-        return [m.columnName, [...availableMetadata, ...soilPropertyOptions]];
-      }),
-    );
+    return Object.fromEntries(columnMappings.map(m => [m.columnName, soilPropertyOptions]));
   }, [columnMappings, soilPropertyOptions]);
 
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
-  const { mappedCount, unmappedCount, soilPropertyMappedCount } = useMemo(() => {
-    let mapped = 0;
-    let soilPropertyMapped = 0;
-    for (const m of columnMappings) {
-      if (m.conceptId !== null) {
-        mapped++;
-        if (!METADATA_FIELD_CODES.has(m.conceptId)) soilPropertyMapped++;
-      }
-    }
-    return { mappedCount: mapped, unmappedCount: columnMappings.length - mapped, soilPropertyMappedCount: soilPropertyMapped };
+  const { mappedCount, unmappedCount } = useMemo(() => {
+    const mapped = columnMappings.filter(m => m.conceptId !== null).length;
+    return { mappedCount: mapped, unmappedCount: columnMappings.length - mapped };
   }, [columnMappings]);
 
-  const depthConflictMessage = useMemo((): { message: string; type: 'warning' } | null => {
-    const hasMinDepth = columnMappings.some(m => m.conceptId === 'min_depth');
-    const hasMaxDepth = columnMappings.some(m => m.conceptId === 'max_depth');
-    if (hasMinDepth !== hasMaxDepth) return { message: t('datasets.mappings.range_depth_missing'), type: 'warning' };
-    return null;
-  }, [columnMappings, t]);
-
-  const isSaveEnabled = useMemo(() => depthConflictMessage === null, [depthConflictMessage]);
-
-  const isContinueEnabled = useMemo(() => soilPropertyMappedCount > 0 && isSaveEnabled, [soilPropertyMappedCount, isSaveEnabled]);
+  const isContinueEnabled = useMemo(() => mappedCount > 0, [mappedCount]);
 
   const toggleRow = useCallback((columnName: string) => {
     setExpandedRows(prev => {
@@ -510,27 +457,15 @@ export function useRasterMappingStep(datasetId?: string) {
 
   const handleConceptChange = useCallback((columnName: string, value: string) => {
     const conceptId = value || null;
-    const isStructural = conceptId !== null && METADATA_FIELD_CODES.has(conceptId);
 
     setColumnMappings(prev =>
       prev.map(m => {
         if (m.columnName !== columnName) return m;
         // Clear the unit whenever the concept is removed
         const unitId = conceptId === null ? null : m.unitId;
-        // Clear detail fields when switching to a structural field — they don't apply
-        const details = isStructural ? { ...EMPTY_DETAILS } : m.details;
-        return { ...m, conceptId, unitId, details };
+        return { ...m, conceptId, unitId };
       }),
     );
-
-    // Collapse the row when switching to a structural field
-    if (isStructural) {
-      setExpandedRows(prev => {
-        const next = new Set(prev);
-        next.delete(columnName);
-        return next;
-      });
-    }
   }, []);
 
   const handleUnitChange = useCallback((columnName: string, value: string) => {
@@ -654,8 +589,6 @@ export function useRasterMappingStep(datasetId?: string) {
     datasetGisDataType,
     isImporting,
     showLoadingPanel,
-    depthConflictMessage,
-    isSaveEnabled,
     isContinueEnabled,
     columnMappings,
     conceptOptionsByColumn,
