@@ -16,7 +16,7 @@
     "lint:fix": "eslint \"**/*.{ts,tsx}\" --fix",
     "prepare": "husky",
     "soilhive-plugin": "tsx frontend-scripts/soilhive-plugin/index.ts",
-    "test": "jest"
+    "test": "jest --config frontend-scripts/soilhive-plugin/jest.config.js"
   },
   "devDependencies": {
     "@eslint/compat": "2.0.0",
