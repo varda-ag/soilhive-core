@@ -20,6 +20,7 @@
     "@rsbuild/core": "1.5.14",
     "@rsbuild/plugin-react": "1.4.1",
     "@rsbuild/plugin-sass": "1.4.0",
+    "@rsbuild/plugin-svgr": "1.2.2",
     "@types/react": "19.2.0",
     "@types/react-dom": "19.2.0",
     "typescript": "5.7.2",
