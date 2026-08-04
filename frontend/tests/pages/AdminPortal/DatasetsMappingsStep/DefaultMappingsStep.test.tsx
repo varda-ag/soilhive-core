@@ -10,6 +10,19 @@ jest.mock('react-router', () => ({
 
 jest.mock('hooks/useMappingsStep', () => ({
   useMappingsStep: jest.fn(),
+  // Mirrors the real METADATA_FIELD_CODES export without pulling in useMappingsStep's real
+  // module (which drags in the whole ingestion/i18n dependency chain via jest.requireActual).
+  METADATA_FIELD_CODES: new Set([
+    'geometry',
+    'latitude',
+    'longitude',
+    'sampling_date',
+    'depth',
+    'min_depth',
+    'max_depth',
+    'horizon',
+    'license',
+  ]),
 }));
 
 jest.mock('../../../../src/pages/AdminPortal/DatasetsMappingsStep/MappingsBanner', () => ({

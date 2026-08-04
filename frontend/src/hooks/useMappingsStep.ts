@@ -1,33 +1,21 @@
-import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router';
-import { useQueryClient } from '@tanstack/react-query';
 import { useApiQuery } from './useApiQuery';
-import { useIngestionStatus } from './useIngestionStatus';
-import { useApiQueries } from './useApiQueries';
-import { useCreateProcedureMutation } from './useCreateProcedureMutation';
-import { useCreateMappingsMutation } from './useCreateMappingsMutation';
-import { useUpdateDatasetFileMappingMutation } from './useDatasetMutation';
-import { useSoilProperties } from './useSoilProperties';
-import { useCreateJobMutation, useJobsQueries } from './useJobsApi';
 import { ADMIN_PATHS } from '../configuration/admin';
-import { IngestionStatus } from 'types/backend';
-import useIngestionFlow from './useIngestionFlow';
+import { useDatasetIngestionState } from './useDatasetIngestionState';
+import { useProcedureByColumn } from './useProcedureByColumn';
+import { useSoilPropertyOptions } from './useSoilPropertyOptions';
 import type {
-  FileDescriptor,
   FileDescriptorMetadata,
   RasterFileDescriptorMetadata,
   VectorFileDescriptorMetadata,
   VocabularyItem,
   PropertyMapping,
   DataMappingRequest,
-  DataMappingResponse,
-  DatasetFileMappingResponse,
   ProcedurePayload,
   ProcedureResponse,
 } from 'types/backend';
 import type { MenuOption } from 'components/UI/types';
-import { useDataset } from './useDatasets';
 
 const isRasterMetadata = (metadata?: FileDescriptorMetadata): metadata is RasterFileDescriptorMetadata =>
   !!metadata && !!metadata.is_raster;
@@ -204,62 +192,35 @@ function isMappingChanged(
 
 export function useMappingsStep(datasetId?: string) {
   const { t } = useTranslation('admin');
-  const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const { markAsChanged, resetChanges, isRaster } = useIngestionFlow();
-  const [showLoadingPanel, setShowLoadingPanel] = useState(false);
-  const { isLoading: isIngestionLoading, updateFurthestStep } = useIngestionStatus();
-  const hasTracked = useRef(false);
 
-  useEffect(() => {
-    markAsChanged();
-  }, [markAsChanged]);
-
-  useEffect(() => {
-    if (!hasTracked.current && datasetId && !isIngestionLoading) {
-      hasTracked.current = true;
-      updateFurthestStep(datasetId, 'mappings');
-    }
-  }, [datasetId, isIngestionLoading, updateFurthestStep]);
-
-  const { mutateAsync: createProcedure } = useCreateProcedureMutation();
-  const { mutateAsync: createMapping } = useCreateMappingsMutation();
-  const { mutateAsync: updateDatasetFileMapping } = useUpdateDatasetFileMappingMutation();
-  const { mutateAsync: createJob } = useCreateJobMutation();
-
-  // true from the moment Continue is clicked until navigate fires (or save fails)
-  const [isImportingState, setIsImportingState] = useState(false);
-  const [activeJobIds, setActiveJobIds] = useState<string[]>([]);
-
-  const { data: dataset } = useDataset(datasetId);
-
-  const { data: files, isLoading: isLoadingFiles } = useApiQuery<FileDescriptor[]>({
-    endpoint: `/datasets/${datasetId}/files`,
-    method: 'GET',
-    queryKey: ['datasets', datasetId, 'files'],
-    enabled: !!datasetId,
-  });
-
-  const jobQueries = useJobsQueries(activeJobIds);
-  const jobsData = useMemo(() => jobQueries.map(q => q.data).filter(Boolean), [jobQueries]);
-
-  const { data: datasetFileMappings, isLoading: isLoadingDatasetFileMappings } = useApiQuery<DatasetFileMappingResponse[]>({
-    endpoint: `/datasets/${datasetId}/dataset-file-mapping`,
-    method: 'GET',
-    queryKey: ['datasets', datasetId, 'dataset-file-mapping'],
-    enabled: !!datasetId,
-  });
-
-  const serverIsImporting = files?.some(f => f.status === IngestionStatus.ONGOING) ?? false;
-  const isImporting = isImportingState || serverIsImporting;
-  const allFilesStaged = files?.every(f => f.status === IngestionStatus.STAGED) ?? false;
-
-  const { data: existingMappings, isLoading: isLoadingExistingMappings } = useApiQuery<DataMappingResponse[]>({
-    endpoint: `/datasets/${datasetId}/mappings`,
-    method: 'GET',
-    queryKey: ['datasets', datasetId, 'mappings'],
-    enabled: !!datasetId,
-  });
+  const {
+    navigate,
+    queryClient,
+    resetChanges,
+    isRaster,
+    showLoadingPanel,
+    setShowLoadingPanel,
+    createProcedure,
+    createMapping,
+    updateDatasetFileMapping,
+    createJob,
+    setIsImportingState,
+    setActiveJobIds,
+    datasetName,
+    datasetGisDataType,
+    files,
+    isLoadingFiles,
+    datasetFileMappings,
+    isLoadingDatasetFileMappings,
+    isImporting,
+    allFilesStaged,
+    existingMappings,
+    isLoadingExistingMappings,
+    expandedRows,
+    toggleRow,
+    handlePrevious,
+    saveAndContinueLater,
+  } = useDatasetIngestionState(datasetId);
 
   const mergedMappings = useMemo(() => {
     if (isLoadingFiles || isLoadingExistingMappings) {
@@ -287,30 +248,9 @@ export function useMappingsStep(datasetId?: string) {
       .map(([columnName, v]) => ({ columnName, procedureId: v.procedure_id! }));
   }, [mergedMappings]);
 
-  // load procedures details from the server to populate detail fields
-  const procedureDetails = useApiQueries<ProcedureResponse>(
-    proceduresInMapping.map(({ procedureId }) => ({
-      endpoint: `/procedures/${procedureId}`,
-      method: 'GET',
-      queryKey: ['procedures', procedureId],
-      enabled: true,
-    })),
-  );
+  const { procedureByColumn, isLoadingProcedures } = useProcedureByColumn(proceduresInMapping);
 
-  const isLoadingProcedures = proceduresInMapping.length > 0 && procedureDetails.some(r => r.isLoading);
-
-  const procedureByColumn = useMemo(() => {
-    const map: Record<string, ProcedureResponse> = {};
-    proceduresInMapping.forEach(({ columnName }, i) => {
-      const data = procedureDetails[i]?.data;
-      if (data) map[columnName] = data;
-    });
-    return map;
-    // procedureDetails is a new array every render — use isLoadingProcedures as a stable proxy
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [proceduresInMapping, isLoadingProcedures]);
-
-  const { data: soilProperties, isLoading: isLoadingSoilProperties } = useSoilProperties();
+  const { soilPropertyOptions, unitOptionsByConcept, isLoadingSoilProperties } = useSoilPropertyOptions();
 
   const { data: vocabularyItems, isLoading: isLoadingVocabulary } = useApiQuery<VocabularyItem[]>({
     endpoint: '/vocabulary',
@@ -334,28 +274,6 @@ export function useMappingsStep(datasetId?: string) {
     isLoadingExistingMappings ||
     isLoadingProcedures ||
     isLoadingDatasetFileMappings;
-
-  useEffect(() => {
-    if (!isImportingState || activeJobIds.length === 0 || isIngestionLoading || !datasetId) return;
-    if (jobsData.length < activeJobIds.length) return;
-    const allCompleted = jobsData.every(job => job!.status === 'completed');
-    const anyFailed = jobsData.some(job => job!.status === 'failed');
-    if (anyFailed) {
-      setIsImportingState(false);
-      setActiveJobIds([]);
-      return;
-    }
-    if (allCompleted) {
-      setIsImportingState(false);
-      setActiveJobIds([]);
-      updateFurthestStep(datasetId, 'preview');
-      if (isRaster) {
-        setShowLoadingPanel(true);
-      } else {
-        navigate(`${ADMIN_PATHS.DATASETS}/edit/${datasetId}/preview`);
-      }
-    }
-  }, [isImportingState, activeJobIds, jobsData, isIngestionLoading, datasetId, updateFurthestStep, navigate, isRaster]);
 
   const geometryDetected = useMemo(() => {
     if (!files || files.length === 0) return undefined;
@@ -443,21 +361,6 @@ export function useMappingsStep(datasetId?: string) {
     return base;
   }, [vocabularyItems, techniques]);
 
-  // Unit options and sorted soil properties — depends only on API data, not user selections.
-  const { soilPropertyOptions, unitOptionsByConcept } = useMemo(() => {
-    const properties = soilProperties ?? [];
-    const parentIds = new Set(properties.map(p => p.parent_property_id).filter(Boolean));
-    const filteredProperties = properties.filter(p => !parentIds.has(p.id));
-    const soilPropertyOptions = filteredProperties
-      .map(p => ({ code: p.id, name: p.property_name }))
-      .sort((a, b) => a.name.localeCompare(b.name));
-    const unitOptionsByConcept: Record<string, MenuOption[]> = {};
-    for (const p of properties) {
-      unitOptionsByConcept[p.id] = Object.entries(p.original_units_of_measurement ?? {}).map(([code, name]) => ({ code, name }));
-    }
-    return { soilPropertyOptions, unitOptionsByConcept };
-  }, [soilProperties]);
-
   // Per-row concept options: metadata fields first (excluding those already selected by other rows),
   // then all soil properties. A row always sees its own current metadata selection so the user
   // can change or clear it. Geometry and Lat/Lon are mutually exclusive groups: picking one hides
@@ -486,8 +389,6 @@ export function useMappingsStep(datasetId?: string) {
       }),
     );
   }, [columnMappings, geometryDetected, soilPropertyOptions]);
-
-  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
   const { mappedCount, unmappedCount, soilPropertyMappedCount } = useMemo(() => {
     let mapped = 0;
@@ -530,18 +431,6 @@ export function useMappingsStep(datasetId?: string) {
 
   const isContinueEnabled = useMemo(() => soilPropertyMappedCount > 0 && isSaveEnabled, [soilPropertyMappedCount, isSaveEnabled]);
 
-  const toggleRow = useCallback((columnName: string) => {
-    setExpandedRows(prev => {
-      const next = new Set(prev);
-      if (next.has(columnName)) {
-        next.delete(columnName);
-      } else {
-        next.add(columnName);
-      }
-      return next;
-    });
-  }, []);
-
   const handleConceptChange = useCallback((columnName: string, value: string) => {
     const conceptId = value || null;
     const isStructural = conceptId !== null && METADATA_FIELD_CODES.has(conceptId);
@@ -556,15 +445,6 @@ export function useMappingsStep(datasetId?: string) {
         return { ...m, conceptId, unitId, details };
       }),
     );
-
-    // Collapse the row when switching to a structural field
-    if (isStructural) {
-      setExpandedRows(prev => {
-        const next = new Set(prev);
-        next.delete(columnName);
-        return next;
-      });
-    }
   }, []);
 
   const handleUnitChange = useCallback((columnName: string, value: string) => {
@@ -606,14 +486,7 @@ export function useMappingsStep(datasetId?: string) {
     resetChanges,
   ]);
 
-  const handlePrevious = useCallback(() => {
-    navigate(`${ADMIN_PATHS.DATASETS}/edit/${datasetId}/soil-data`);
-  }, [navigate, datasetId]);
-
-  const handleSaveAndContinueLater = useCallback(async () => {
-    await save();
-    navigate(ADMIN_PATHS.DATASETS);
-  }, [save, navigate]);
+  const handleSaveAndContinueLater = useCallback(() => saveAndContinueLater(save), [saveAndContinueLater, save]);
 
   const handleContinue = useCallback(async () => {
     const changed = isMappingChanged(columnMappings, existingMappings?.[0]?.data_mapping, procedureByColumn);
@@ -644,13 +517,10 @@ export function useMappingsStep(datasetId?: string) {
     datasetFileMappings,
     createJob,
     isRaster,
+    setShowLoadingPanel,
+    setIsImportingState,
+    setActiveJobIds,
   ]);
-
-  const datasetName = useMemo(() => {
-    return dataset?.name || '';
-  }, [dataset]);
-
-  const datasetGisDataType = useMemo(() => dataset?.gis_datatype ?? null, [dataset]);
 
   return {
     isLoading,

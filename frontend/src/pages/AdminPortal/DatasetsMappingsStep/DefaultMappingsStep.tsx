@@ -1,16 +1,14 @@
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
-import { Button, FormMessage } from 'components/UI';
-import { useMappingsStep } from 'hooks/useMappingsStep';
-import { MappingsBanner } from './MappingsBanner';
+import { useMappingsStep, METADATA_FIELD_CODES } from 'hooks/useMappingsStep';
+import { MappingsStep } from './MappingsStep';
 import { MappingsTable } from './MappingsTable';
+import { MappingRow } from './MappingRow';
+import { DefaultMappingRowDetails } from './DefaultMappingRowDetails';
 import { MappingFieldsPane } from './MappingFieldsPane';
-import { IngestionStepTitleRow } from 'components/AdminPortal/IngestionStepTitleRow/IngestionStepTitleRow';
 import { INGESTION_DOCS_URL } from 'configuration/ingestion';
 import { DataLoadingStartedPanel } from 'pages/AdminPortal/DatasetsPreviewStep/DataLoadingStartedPanel';
 import { ADMIN_PATHS } from 'configuration/admin';
-
-import styles from './DefaultMappingsStep.module.scss';
 
 const DOCS_URL = `${INGESTION_DOCS_URL}#field-mapping--match-your-data`;
 
@@ -54,51 +52,65 @@ export function DefaultMappingsStep({ id }: Props) {
     return <MappingFieldsPane />;
   }
 
+  const columnMappingByName = Object.fromEntries(columnMappings.map(m => [m.columnName, m]));
+
   return (
-    <>
-      <div className={styles.DefaultMappingsStep}>
-        <IngestionStepTitleRow
-          className={styles.TitleRow}
-          title={t('datasets.mappings.title')}
-          datasetName={datasetName}
-          docsLink={DOCS_URL}
-        />
-        <p className={styles.Subtitle}>{t('datasets.mappings.subtitle')}</p>
-
-        <MappingsBanner mappedCount={mappedCount} unmappedCount={unmappedCount} isRaster={false} />
-
-        {(geometryMessage || depthConflictMessage) && (
-          <div className={styles.Messages}>
-            {geometryMessage && <FormMessage type={geometryMessage.type} message={geometryMessage.message} withBackground />}
-            {depthConflictMessage && <FormMessage type={depthConflictMessage.type} message={depthConflictMessage.message} withBackground />}
-          </div>
-        )}
-
-        <MappingsTable
-          columnMappings={columnMappings}
-          conceptOptionsByColumn={conceptOptionsByColumn}
-          unitOptionsByConcept={unitOptionsByConcept}
-          detailOptions={detailOptions}
-          expandedRows={expandedRows}
-          onToggleRow={toggleRow}
-          onConceptChange={handleConceptChange}
-          onUnitChange={handleUnitChange}
-          onDetailChange={handleDetailChange}
-        />
-      </div>
-
-      <div className={styles.Actions}>
-        <Button type="secondary" onClick={handlePrevious} dataTestId="sh-mappings-previous">
-          {t('datasets.actions.previous')}
-        </Button>
-        <div className={styles.ActionsSpacer} />
-        <Button type="secondary" onClick={handleSaveAndContinueLater} dataTestId="sh-mappings-save-later" isDisabled={!isSaveEnabled}>
-          {t('datasets.actions.save_and_continue_later')}
-        </Button>
-        <Button type="primary" onClick={handleContinue} dataTestId="sh-mappings-continue" isDisabled={!isContinueEnabled}>
-          {t('datasets.actions.continue')}
-        </Button>
-      </div>
-    </>
+    <MappingsStep
+      datasetName={datasetName}
+      title={t('datasets.mappings.title')}
+      subtitle={t('datasets.mappings.subtitle')}
+      docsLink={DOCS_URL}
+      isRaster={false}
+      mappedCount={mappedCount}
+      unmappedCount={unmappedCount}
+      messages={[geometryMessage, depthConflictMessage]}
+      isSaveEnabled={isSaveEnabled}
+      isContinueEnabled={isContinueEnabled}
+      onPrevious={handlePrevious}
+      onSaveAndContinueLater={handleSaveAndContinueLater}
+      onContinue={handleContinue}
+    >
+      <MappingsTable
+        dataTestId="sh-mappings-table"
+        headerCells={[
+          t('datasets.mappings.table.detected_columns'),
+          t('datasets.mappings.table.map_to'),
+          t('datasets.mappings.table.original_unit'),
+        ]}
+        columnMappings={columnMappings}
+        renderRow={columnName => {
+          const mapping = columnMappingByName[columnName];
+          const unitOptions = mapping.conceptId ? (unitOptionsByConcept[mapping.conceptId] ?? []) : [];
+          // Details panel only applies to soil properties, not structural fields
+          const isDetailsEnabled = mapping.conceptId !== null && !METADATA_FIELD_CODES.has(mapping.conceptId);
+          return (
+            <MappingRow
+              key={columnName}
+              columnName={columnName}
+              isMapped={mapping.conceptId !== null}
+              conceptOptions={conceptOptionsByColumn[columnName] ?? []}
+              unitOptions={unitOptions}
+              conceptValue={mapping.conceptId}
+              unitValue={mapping.unitId}
+              isExpanded={expandedRows.has(columnName)}
+              isUnitEnabled={mapping.conceptId !== null && unitOptions.length > 0}
+              isDetailsEnabled={isDetailsEnabled}
+              isGeometryDetectedField={mapping.isGeometryDetectedField}
+              onToggle={toggleRow}
+              onConceptChange={handleConceptChange}
+              onUnitChange={handleUnitChange}
+              detailsContent={
+                <DefaultMappingRowDetails
+                  columnName={columnName}
+                  details={mapping.details}
+                  detailOptions={detailOptions}
+                  onDetailChange={handleDetailChange}
+                />
+              }
+            />
+          );
+        }}
+      />
+    </MappingsStep>
   );
 }

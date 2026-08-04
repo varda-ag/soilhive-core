@@ -1,68 +1,29 @@
-import { useTranslation } from 'react-i18next';
-import { DefaultMappingRow } from './DefaultMappingRow';
-import { METADATA_FIELD_CODES } from 'hooks/useMappingsStep';
-import type { ColumnMapping, DetailOptionMap, RowDetails } from 'hooks/useMappingsStep';
-import type { MenuOption } from 'components/UI/types';
+import type { ReactNode } from 'react';
+import classnames from 'classnames';
 import styles from './MappingsTable.module.scss';
 
 interface Props {
-  columnMappings: ColumnMapping[];
-  conceptOptionsByColumn: Record<string, MenuOption[]>;
-  unitOptionsByConcept: Record<string, MenuOption[]>;
-  detailOptions: DetailOptionMap;
-  expandedRows: Set<string>;
-  onToggleRow: (columnName: string) => void;
-  onConceptChange: (columnName: string, value: string) => void;
-  onUnitChange: (columnName: string, value: string) => void;
-  onDetailChange: (columnName: string, field: keyof RowDetails, value: string) => void;
+  columnMappings: { columnName: string }[];
+  headerCells: string[];
+  dataTestId: string;
+  renderRow: (columnName: string) => ReactNode;
 }
 
-export function MappingsTable({
-  columnMappings,
-  conceptOptionsByColumn,
-  unitOptionsByConcept,
-  detailOptions,
-  expandedRows,
-  onToggleRow,
-  onConceptChange,
-  onUnitChange,
-  onDetailChange,
-}: Props) {
-  const { t } = useTranslation('admin');
+export function MappingsTable({ columnMappings, headerCells, dataTestId, renderRow }: Props) {
+  const hasExtraColumn = headerCells.length > 3;
 
   return (
-    <div className={styles.MappingsTable} data-testid="sh-mappings-table">
-      <div className={styles.Header}>
+    <div className={styles.MappingsTable} data-testid={dataTestId}>
+      <div className={classnames(styles.Header, { [styles.HeaderWithExtra]: hasExtraColumn })}>
         <div className={styles.HeaderSpacer} />
-        <span className={styles.HeaderCell}>{t('datasets.mappings.table.detected_columns')}</span>
-        <span className={styles.HeaderCell}>{t('datasets.mappings.table.map_to')}</span>
-        <span className={styles.HeaderCell}>{t('datasets.mappings.table.original_unit')}</span>
+        {headerCells.map(cell => (
+          <span key={cell} className={styles.HeaderCell}>
+            {cell}
+          </span>
+        ))}
       </div>
 
-      <div className={styles.Rows}>
-        {columnMappings.map(mapping => {
-          const unitOptions = mapping.conceptId ? (unitOptionsByConcept[mapping.conceptId] ?? []) : [];
-          // Details panel only applies to soil properties, not structural fields
-          const isDetailsEnabled = mapping.conceptId !== null && !METADATA_FIELD_CODES.has(mapping.conceptId);
-          return (
-            <DefaultMappingRow
-              key={mapping.columnName}
-              mapping={mapping}
-              conceptOptions={conceptOptionsByColumn[mapping.columnName] ?? []}
-              unitOptions={unitOptions}
-              detailOptions={detailOptions}
-              isExpanded={expandedRows.has(mapping.columnName)}
-              isUnitEnabled={mapping.conceptId !== null && unitOptions.length > 0}
-              isDetailsEnabled={isDetailsEnabled}
-              onToggle={onToggleRow}
-              onConceptChange={onConceptChange}
-              onUnitChange={onUnitChange}
-              onDetailChange={onDetailChange}
-              isGeometryDetectedField={mapping.isGeometryDetectedField}
-            />
-          );
-        })}
-      </div>
+      <div className={styles.Rows}>{columnMappings.map(mapping => renderRow(mapping.columnName))}</div>
     </div>
   );
 }

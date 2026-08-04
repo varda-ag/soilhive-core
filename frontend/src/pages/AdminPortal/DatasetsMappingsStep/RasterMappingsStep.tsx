@@ -1,16 +1,16 @@
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
-import { Button } from 'components/UI';
+import { TextInput } from 'components/UI';
 import { useRasterMappingStep } from 'hooks/useRasterMappingStep';
-import { MappingsBanner } from './MappingsBanner';
-import { RasterMappingsTable } from './RasterMappingsTable';
+import { MappingsStep } from './MappingsStep';
+import { MappingsTable } from './MappingsTable';
+import { MappingRow } from './MappingRow';
+import { RasterMappingRowDetails } from './RasterMappingRowDetails';
 import { MappingFieldsPane } from './MappingFieldsPane';
-import { IngestionStepTitleRow } from 'components/AdminPortal/IngestionStepTitleRow/IngestionStepTitleRow';
 import { INGESTION_DOCS_URL } from 'configuration/ingestion';
 import { DataLoadingStartedPanel } from 'pages/AdminPortal/DatasetsPreviewStep/DataLoadingStartedPanel';
 import { ADMIN_PATHS } from 'configuration/admin';
-
-import styles from './RasterMappingsStep.module.scss';
+import styles from './MappingRow.module.scss';
 
 const DOCS_URL = `${INGESTION_DOCS_URL}#field-mapping--match-your-data`;
 
@@ -57,50 +57,91 @@ export function RasterMappingsStep({ id }: Props) {
     return <MappingFieldsPane />;
   }
 
+  const columnMappingByName = Object.fromEntries(columnMappings.map(m => [m.columnName, m]));
+
   return (
-    <>
-      <div className={styles.RasterMappingsStep}>
-        <IngestionStepTitleRow
-          className={styles.TitleRow}
-          title={t('datasets.mappings.title_raster')}
-          datasetName={datasetName}
-          docsLink={DOCS_URL}
-        />
-        <p className={styles.Subtitle}>{t('datasets.mappings.subtitle_raster')}</p>
-
-        <MappingsBanner mappedCount={mappedCount} unmappedCount={unmappedCount} isRaster={true} />
-
-        <RasterMappingsTable
-          columnMappings={columnMappings}
-          conceptOptionsByColumn={conceptOptionsByColumn}
-          unitOptionsByConcept={unitOptionsByConcept}
-          detailOptions={detailOptions}
-          expandedRows={expandedRows}
-          onToggleRow={toggleRow}
-          onConceptChange={handleConceptChange}
-          onUnitChange={handleUnitChange}
-          onMinDepthChange={handleMinDepthChange}
-          onMaxDepthChange={handleMaxDepthChange}
-          onDetailChange={handleDetailChange}
-          onReferencePeriodStartChange={handleReferencePeriodStartChange}
-          onReferencePeriodStopChange={handleReferencePeriodStopChange}
-          onLayerDescriptionChange={handleLayerDescriptionChange}
-          onAdditionalResourcesChange={handleAdditionalResourcesChange}
-        />
-      </div>
-
-      <div className={styles.Actions}>
-        <Button type="secondary" onClick={handlePrevious} dataTestId="sh-mappings-previous">
-          {t('datasets.actions.previous')}
-        </Button>
-        <div className={styles.ActionsSpacer} />
-        <Button type="secondary" onClick={handleSaveAndContinueLater} dataTestId="sh-mappings-save-later">
-          {t('datasets.actions.save_and_continue_later')}
-        </Button>
-        <Button type="primary" onClick={handleContinue} dataTestId="sh-mappings-continue" isDisabled={!isContinueEnabled}>
-          {t('datasets.actions.continue')}
-        </Button>
-      </div>
-    </>
+    <MappingsStep
+      datasetName={datasetName}
+      title={t('datasets.mappings.title_raster')}
+      subtitle={t('datasets.mappings.subtitle_raster')}
+      docsLink={DOCS_URL}
+      isRaster={true}
+      mappedCount={mappedCount}
+      unmappedCount={unmappedCount}
+      isContinueEnabled={isContinueEnabled}
+      onPrevious={handlePrevious}
+      onSaveAndContinueLater={handleSaveAndContinueLater}
+      onContinue={handleContinue}
+    >
+      <MappingsTable
+        dataTestId="sh-raster-mappings-table"
+        headerCells={[
+          t('datasets.mappings.table.detected_layers'),
+          t('datasets.mappings.table.map_to'),
+          t('datasets.mappings.table.original_unit'),
+          t('datasets.mappings.table.min_max_depth'),
+        ]}
+        columnMappings={columnMappings}
+        renderRow={columnName => {
+          const mapping = columnMappingByName[columnName];
+          const unitOptions = mapping.conceptId ? (unitOptionsByConcept[mapping.conceptId] ?? []) : [];
+          const isDetailsEnabled = mapping.conceptId !== null;
+          return (
+            <MappingRow
+              key={columnName}
+              columnName={columnName}
+              isMapped={mapping.conceptId !== null}
+              conceptOptions={conceptOptionsByColumn[columnName] ?? []}
+              unitOptions={unitOptions}
+              conceptValue={mapping.conceptId}
+              unitValue={mapping.unitId}
+              isExpanded={expandedRows.has(columnName)}
+              isUnitEnabled={mapping.conceptId !== null && unitOptions.length > 0}
+              isDetailsEnabled={isDetailsEnabled}
+              isGeometryDetectedField={mapping.isGeometryDetectedField}
+              onToggle={toggleRow}
+              onConceptChange={handleConceptChange}
+              onUnitChange={handleUnitChange}
+              extraCell={
+                <div className={styles.DepthCell}>
+                  <TextInput
+                    className={styles.DepthInput}
+                    size="small"
+                    type="number"
+                    placeholder={t('datasets.mappings.row.depth_from_placeholder')}
+                    value={mapping.minDepth ?? ''}
+                    onChange={value => handleMinDepthChange(columnName, value)}
+                  />
+                  <TextInput
+                    className={styles.DepthInput}
+                    size="small"
+                    type="number"
+                    placeholder={t('datasets.mappings.row.depth_to_placeholder')}
+                    value={mapping.maxDepth ?? ''}
+                    onChange={value => handleMaxDepthChange(columnName, value)}
+                  />
+                </div>
+              }
+              detailsContent={
+                <RasterMappingRowDetails
+                  columnName={columnName}
+                  details={mapping.details}
+                  detailOptions={detailOptions}
+                  referencePeriodStart={mapping.referencePeriodStart}
+                  referencePeriodStop={mapping.referencePeriodStop}
+                  layerDescription={mapping.layerDescription}
+                  additionalResources={mapping.additionalResources}
+                  onDetailChange={handleDetailChange}
+                  onReferencePeriodStartChange={handleReferencePeriodStartChange}
+                  onReferencePeriodStopChange={handleReferencePeriodStopChange}
+                  onLayerDescriptionChange={handleLayerDescriptionChange}
+                  onAdditionalResourcesChange={handleAdditionalResourcesChange}
+                />
+              }
+            />
+          );
+        }}
+      />
+    </MappingsStep>
   );
 }

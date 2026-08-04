@@ -16,11 +16,11 @@ jest.mock('../../../../src/pages/AdminPortal/DatasetsMappingsStep/MappingsBanner
   MappingsBanner: ({ isRaster }: { isRaster?: boolean }) => <div data-testid="sh-mappings-banner" data-israster={String(!!isRaster)} />,
 }));
 
-// RasterMappingsTable's own rendering/derivation logic is covered by RasterMappingsTable.test.tsx —
+// MappingsTable's own rendering/derivation logic is covered by MappingsTable.test.tsx —
 // stub it here so these tests stay focused on RasterMappingsStep's layout/wiring.
-jest.mock('../../../../src/pages/AdminPortal/DatasetsMappingsStep/RasterMappingsTable', () => ({
-  RasterMappingsTable: ({ columnMappings }: { columnMappings: ColumnMapping[] }) => (
-    <div data-testid="sh-raster-mappings-table">
+jest.mock('../../../../src/pages/AdminPortal/DatasetsMappingsStep/MappingsTable', () => ({
+  MappingsTable: ({ columnMappings, dataTestId }: { columnMappings: ColumnMapping[]; dataTestId: string }) => (
+    <div data-testid={dataTestId}>
       {columnMappings.map(m => (
         <div key={m.columnName} data-testid="sh-mapping-row" />
       ))}
