@@ -583,6 +583,30 @@ describe('useMappingsStep', () => {
     });
   });
 
+  describe('isSaveEnabled', () => {
+    it('is false while files are still loading', () => {
+      mockUseApiQuery.mockImplementation(({ endpoint }: { endpoint: string }) => {
+        if (endpoint.includes('/files')) return { data: undefined, isLoading: true };
+        if (endpoint.includes('dataset-file-mapping')) return { data: defaultDatasetFileMappings, isLoading: false };
+        return { data: undefined, isLoading: false };
+      });
+      const { result } = renderHook(() => useMappingsStep('1'));
+      expect(result.current.isSaveEnabled).toBe(false);
+    });
+
+    it('is true once loading finishes and geometry/depth conditions are satisfied', () => {
+      setupWithColumns(['col1'], undefined, true);
+      const { result } = renderHook(() => useMappingsStep('1'));
+      expect(result.current.isSaveEnabled).toBe(true);
+    });
+
+    it('is false when geometry is missing even after loading finishes', () => {
+      setupWithColumns(['col1'], undefined, false);
+      const { result } = renderHook(() => useMappingsStep('1'));
+      expect(result.current.isSaveEnabled).toBe(false);
+    });
+  });
+
   describe('depthConflictMessage', () => {
     it('is null when only depth is mapped', () => {
       setupWithColumns(['d', 'other'], undefined, true);

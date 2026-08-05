@@ -385,6 +385,10 @@ export function useRasterMappingStep(datasetId?: string) {
 
   const isContinueEnabled = useMemo(() => mappedCount > 0 && invalidDepthColumns.size === 0, [mappedCount, invalidDepthColumns]);
 
+  // Disabled while loading: columnMappings is empty until the initial fetches
+  // resolve, so saving early would persist an empty mapping over any saved data.
+  const isSaveEnabled = useMemo(() => !isLoading, [isLoading]);
+
   const handleConceptChange = useCallback((columnName: string, value: string) => {
     const conceptId = value || null;
 
@@ -509,6 +513,7 @@ export function useRasterMappingStep(datasetId?: string) {
     datasetGisDataType,
     isImporting,
     showLoadingPanel,
+    isSaveEnabled,
     isContinueEnabled,
     columnMappings,
     conceptOptionsByColumn,

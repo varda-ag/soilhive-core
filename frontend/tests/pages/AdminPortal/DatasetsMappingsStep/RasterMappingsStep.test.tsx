@@ -49,11 +49,13 @@ function stubHookReturn(
   showLoadingPanel = false,
   invalidDepthColumns: Set<string> = new Set(),
   depthValidationMessage: { message: string; type: 'error' } | null = null,
+  isSaveEnabled = true,
 ) {
   return {
     isLoading: false,
     isImporting: false,
     showLoadingPanel,
+    isSaveEnabled,
     isContinueEnabled,
     columnMappings: columnNames.map(columnName => ({
       columnName,
@@ -131,6 +133,12 @@ describe('RasterMappingsStep', () => {
       render(<RasterMappingsStep id="1" />);
       expect(screen.getByTestId('sh-mappings-continue')).not.toBeDisabled();
       expect(screen.getByTestId('sh-mappings-save-later')).not.toBeDisabled();
+    });
+
+    it('disables save-later when isSaveEnabled is false', () => {
+      (useRasterMappingStep as jest.Mock).mockReturnValue(stubHookReturn([], false, false, new Set(), null, false));
+      render(<RasterMappingsStep id="1" />);
+      expect(screen.getByTestId('sh-mappings-save-later')).toBeDisabled();
     });
   });
 

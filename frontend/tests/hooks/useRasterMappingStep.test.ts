@@ -544,6 +544,24 @@ describe('useRasterMappingStep', () => {
     });
   });
 
+  describe('isSaveEnabled', () => {
+    it('is false while files are still loading', () => {
+      mockUseApiQuery.mockImplementation(({ endpoint }: { endpoint: string }) => {
+        if (endpoint.includes('/files')) return { data: undefined, isLoading: true };
+        if (endpoint.includes('dataset-file-mapping')) return { data: [], isLoading: false };
+        return { data: undefined, isLoading: false };
+      });
+      const { result } = renderHook(() => useRasterMappingStep('1'));
+      expect(result.current.isSaveEnabled).toBe(false);
+    });
+
+    it('is true once loading finishes, regardless of mapping/depth state', () => {
+      setupWithColumns(['col1']);
+      const { result } = renderHook(() => useRasterMappingStep('1'));
+      expect(result.current.isSaveEnabled).toBe(true);
+    });
+  });
+
   describe('invalidDepthColumns and depthValidationMessage', () => {
     it('are empty/null when no rows are mapped', () => {
       setupWithColumns(['col1']);

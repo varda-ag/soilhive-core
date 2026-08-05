@@ -26,6 +26,7 @@ export function RasterMappingsStep({ id }: Props) {
     datasetName,
     isImporting,
     showLoadingPanel,
+    isSaveEnabled,
     isContinueEnabled,
     columnMappings,
     conceptOptionsByColumn,
@@ -71,6 +72,7 @@ export function RasterMappingsStep({ id }: Props) {
       mappedCount={mappedCount}
       unmappedCount={unmappedCount}
       messages={[depthValidationMessage]}
+      isSaveEnabled={isSaveEnabled}
       isContinueEnabled={isContinueEnabled}
       onPrevious={handlePrevious}
       onSaveAndContinueLater={handleSaveAndContinueLater}

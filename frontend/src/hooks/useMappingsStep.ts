@@ -424,9 +424,12 @@ export function useMappingsStep(datasetId?: string) {
     return null;
   }, [columnMappings, t]);
 
+  // columnMappings is only populated once files/mappings/etc. finish loading, so
+  // saving while isLoading is true would persist an empty mapping ({}) and
+  // clobber any previously saved data.
   const isSaveEnabled = useMemo(
-    () => geometryDetected !== undefined && geometryMessage?.type !== 'warning' && depthConflictMessage === null,
-    [geometryDetected, geometryMessage, depthConflictMessage],
+    () => !isLoading && geometryDetected !== undefined && geometryMessage?.type !== 'warning' && depthConflictMessage === null,
+    [isLoading, geometryDetected, geometryMessage, depthConflictMessage],
   );
 
   const isContinueEnabled = useMemo(() => soilPropertyMappedCount > 0 && isSaveEnabled, [soilPropertyMappedCount, isSaveEnabled]);
