@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import type { AuthConfig } from './AuthConfig';
 import { AuthProvider as ReactOidcProvider, useAuth as useReactOidcAuth } from 'react-oidc-context';
 import { type AuthContext } from './AuthContext';
@@ -7,6 +7,7 @@ import { LoginModal } from './LoginModal';
 import { AuthModes, type AuthModesType } from './types';
 import { clearToken, saveToken, getToken } from './tokenStore';
 import { setTokenRefresher } from './tokenRefresher';
+import { getEmailFromAccessToken } from './tokenClaims';
 import { WebStorageStateStore } from 'oidc-client-ts';
 import { useApiQuery } from 'hooks/useApiQuery';
 
@@ -114,6 +115,14 @@ function OidcAuthProvider({ children }: { children: React.ReactNode }) {
     return () => setTokenRefresher(undefined);
   }, [signinSilent]);
 
+  // Entitlements are keyed by the Subject, which the backend resolves email-first from the access
+  // token. If this IdP does not put `email` there, no Subject is ever an email address and every
+  // grant a data admin types is unreachable — silently, since the grant still stores fine. Probe
+  // the current token to find out, and let the Admin Portal say so. Token validity is irrelevant
+  // here: an expired token still reports this IdP's claim mapping accurately.
+  const accessToken = reactOidcAuth.user?.access_token;
+  const isEmailBasedAuth = useMemo(() => !!getEmailFromAccessToken(accessToken), [accessToken]);
+
   const value: AuthContext = {
     isAuthenticated: !!reactOidcAuth.isAuthenticated,
     isLoading: reactOidcAuth.isLoading,
@@ -125,6 +134,7 @@ function OidcAuthProvider({ children }: { children: React.ReactNode }) {
       reactOidcAuth.signoutRedirect();
     },
     authMode: AuthModes.OIDC,
+    isEmailBasedAuth,
   };
 
   return <authContext.Provider value={value}>{reactOidcAuth.isLoading ? null : children}</authContext.Provider>;
@@ -142,6 +152,10 @@ function PasswordAuthProvider({ children }: { children: React.ReactNode }) {
     login: () => setShowLoginModal(true),
     logout: passwordAuth.logout,
     authMode: AuthModes.PASSWORD,
+    // Password-mode tokens do carry an `email` claim, but a synthetic one per role
+    // (`data-admin@localhost`, `super-admin@localhost` — see backend `AuthService.getTokenPayload`).
+    // Those are the only Subjects reachable, so granting a real person's address is still futile.
+    isEmailBasedAuth: false,
   };
 
   return (
@@ -166,6 +180,7 @@ function NoAuthProvider({ children }: { children: React.ReactNode }) {
     login: () => {},
     logout: () => {},
     authMode: AuthModes.NONE,
+    isEmailBasedAuth: false,
   };
 
   return <authContext.Provider value={value}>{children}</authContext.Provider>;
@@ -181,6 +196,7 @@ export function SsrAuthContextProvider({ children }: { children: React.ReactNode
     login: () => {},
     logout: () => {},
     authMode: AuthModes.NONE,
+    isEmailBasedAuth: false,
   };
   return <authContext.Provider value={value}>{children}</authContext.Provider>;
 }

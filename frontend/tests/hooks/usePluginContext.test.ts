@@ -56,6 +56,7 @@ const MOCK_AVAILABILITY_MAP = {
 };
 
 const MOCK_AUTH_CONTEXT = {
+  isEmailBasedAuth: false,
   isAuthenticated: false,
   isLoading: false,
   login: jest.fn(),

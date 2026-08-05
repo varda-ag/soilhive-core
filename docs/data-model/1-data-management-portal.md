@@ -158,9 +158,65 @@ Once you're satisfied with the preview, confirm to load the data into the SoilHi
 
 ### Publication
 
-After loading, your dataset will appear in the dataset list in the administrative portal. It remains invisible to other users until you explicitly publish it.
+Loading your data and publishing it are two separate things. Once the load finishes, the dataset exists in the SoilHive database but no one outside the administrative portal can see it: it does not appear in the search results, on the map, in downloads, or in any statistics. **Publishing is the step that makes a dataset live.**
 
-To publish, click the **Publish** button and:
+**Finding your dataset in the list**
 
-- **Review metadata** — verify that all user-supplied and automatically inferred metadata (spatial extent, temporal coverage, variables measured, etc.) is correct.
-- **Set visibility** — choose between a public dataset, visible and downloadable by all users subject to the license terms, or a private dataset, visible only to administrators, with the option to grant access to named users by email.
+Every dataset you have created is listed in the administrative portal, with a status that tells you where it is in the process. Loaded datasets — the ones waiting to be published — are highlighted so they are easy to spot. You can search by name and filter by data type (Point, Polygonal, Raster) and by visibility (Public, Private).
+
+| Status | What it means | What you can do |
+|---|---|---|
+| **Draft** | The dataset was created but the upload wizard was never completed | Edit (resumes the wizard at the furthest step you reached), Delete |
+| **Loading** | The file is being processed and loaded | Wait for it to finish |
+| **Loaded** | The data is in the database but is not visible to users | **Publish**, Delete |
+| **Published** | The dataset is live | Edit (opens the settings page), Delete |
+
+If something went wrong during loading, the row is marked with a warning icon and an **Error details** link that opens a summary of what failed and how to fix it. Deleting a dataset requires the delete entitlement, so the bin icon is not shown to every administrator.
+
+**The Publish button — dataset settings**
+
+Clicking **Publish** on a Loaded dataset opens the *Dataset settings* page. Nothing is published until you confirm from this page, and the page has two sections.
+
+*1. Metadata preview*
+
+The **Check your metadata** link opens the dataset's public metadata page in a new tab. As an administrator you can edit each field directly on that page.
+
+The metadata page is always visible to everyone, **even when the dataset is private**. That is intentional: people can discover that the data exists and see how it was produced, and then request access. Only the data itself is restricted.
+
+Publishing is blocked until every mandatory metadata field is filled in — the **Publish** button stays disabled and a warning tells you what is missing. The mandatory fields are:
+
+| Mandatory metadata | Notes |
+|---|---|
+| Name, Full name, Version, Description, Author | Name, Full name, Description and Author are collected in the General Info step; Version and the fields below are edited on the metadata page |
+| Citation | How the dataset should be cited by whoever uses it |
+| GIS data type | Point, Polygonal or Raster |
+| Spatial resolution | Raster datasets only |
+| Min and max soil depth | The depth range covered by the dataset |
+| Reference coverage start and end | The period the measurements refer to |
+| License | At least one |
+| Variables measured | At least one soil property |
+
+*2. Data visibility*
+
+Choose one of the two cards:
+
+| Choice | Who can see the metadata | Who can preview and download the data |
+|---|---|---|
+| **Public dataset** | Everyone | Everyone, subject to the license terms you specify |
+| **Private dataset** | Everyone | Data administrators, plus the users you list explicitly |
+
+Choosing **Private** opens the *Who can access this dataset* panel, where you add the email addresses of the people allowed in. Each address you add is granted preview and download rights on this dataset only. The list is saved as a whole when you publish: whatever is on screen replaces the previous list, so removing an address here revokes that person's access.
+
+> **Note:** Granting access by email only works if your platform signs users in with an identifiable email address. If it doesn't, the panel is disabled and a warning explains that no one on the list will actually be granted access — a private dataset then stays restricted to data administrators. Contact your platform administrator if per-user access is required.
+
+**Confirming publication**
+
+Press **Publish** to confirm. If the platform has no Terms & Conditions and Privacy Policy configured, a dialog warns you first: a dataset license covers the data, but not how users of the platform may access, use, and handle it. You can either cancel and configure those documents (see the Look & Feel section of the administrative portal) or proceed anyway.
+
+On confirmation the platform sets the status to **Published**, records today's date as the publication date — only the first time, so re-publishing later does not overwrite the original date — saves the access list if the dataset is private, and returns you to the dataset list.
+
+**After publication**
+
+The dataset is now included in everything the consumer portal does: search, preview, downloads. Only published datasets are ever returned by these queries.
+
+Publication is not final. Clicking the edit icon on a published dataset takes you straight back to the same settings page, where you can correct metadata, switch between public and private, or change who has access — press **Publish** again to save your changes. There is no separate "unpublish" action: to withdraw a dataset from circulation, either switch it to private or delete it.

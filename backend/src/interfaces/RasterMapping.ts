@@ -64,6 +64,12 @@ export interface ResolvedBandMapping {
   standardUnit: string | null;
   originalUnit: string | null;
   conversionFormula: string | null;
+  /**
+   * Whether the band's values are class codes rather than measurements, so nothing may interpolate
+   * between them. Derived from the soil property's conversions, not from `conversion_id`, which a
+   * mapping need not set — see UnitConversionService.getCategoricalPropertyIds.
+   */
+  isCategorical: boolean;
   /** Passed through verbatim: prose resolves to nothing, and the loader is what stores it. */
   layerDescription: string | null;
   /** Passed through unvalidated for the same reason band numbers are — the loader checks these. */

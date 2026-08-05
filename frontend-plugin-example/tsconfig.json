@@ -18,9 +18,10 @@
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
+    "rootDir": ".",
     "paths": {
       "*": ["./@mf-types/*"]
     }
   },
-  "include": ["src"]
+  "include": ["src", "UI"]
 }

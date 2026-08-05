@@ -17,9 +17,9 @@ jest.mock('components/UI', () => ({
       {children}
     </button>
   ),
-  TextInput: ({ value, onChange, onBlur, errorMessage }: any) => (
+  TextInput: ({ value, onChange, onBlur, errorMessage, isDisabled }: any) => (
     <>
-      <input data-testid="sh-ui-text-input" value={value} onChange={e => onChange(e.target.value)} onBlur={onBlur} />
+      <input data-testid="sh-ui-text-input" value={value} disabled={isDisabled} onChange={e => onChange(e.target.value)} onBlur={onBlur} />
       {errorMessage && <span data-testid="sh-ui-text-input-error">{errorMessage}</span>}
     </>
   ),
@@ -76,7 +76,7 @@ const handleCancel = jest.fn();
 const baseHookValue = {
   isLoading: false,
   isSaving: false,
-  isOidcAuth: true,
+  isEmailBasedAuth: true,
   hasMandatoryMetadata: true,
   visibility: 'public' as const,
   setVisibility,
@@ -115,16 +115,31 @@ describe('DatasetsSettingsPage', () => {
     expect(screen.queryByTestId('sh-ui-text-input')).not.toBeInTheDocument();
   });
 
-  it('shows the access section when visibility is private and auth is oidc', () => {
-    (useDatasetsSettings as jest.Mock).mockReturnValue({ ...baseHookValue, visibility: 'private', isOidcAuth: true });
+  it('shows the access section when visibility is private and access is email-based', () => {
+    (useDatasetsSettings as jest.Mock).mockReturnValue({ ...baseHookValue, visibility: 'private', isEmailBasedAuth: true });
     render(<DatasetsSettingsPage />);
     expect(screen.getByTestId('sh-ui-text-input')).toBeInTheDocument();
+    expect(screen.getByTestId('sh-ui-text-input')).not.toBeDisabled();
+    expect(screen.queryByTestId('email-claim-warning')).not.toBeInTheDocument();
   });
 
-  it('does not show the access section when visibility is private but auth is not oidc', () => {
-    (useDatasetsSettings as jest.Mock).mockReturnValue({ ...baseHookValue, visibility: 'private', isOidcAuth: false });
+  it('warns and disables the grant form when private but access is not email-based', () => {
+    (useDatasetsSettings as jest.Mock).mockReturnValue({ ...baseHookValue, visibility: 'private', isEmailBasedAuth: false });
     render(<DatasetsSettingsPage />);
-    expect(screen.queryByTestId('sh-ui-text-input')).not.toBeInTheDocument();
+    expect(screen.getByTestId('email-claim-warning')).toBeInTheDocument();
+    expect(screen.getByTestId('sh-ui-text-input')).toBeDisabled();
+  });
+
+  it('keeps existing grants readable but not removable when access is not email-based', () => {
+    (useDatasetsSettings as jest.Mock).mockReturnValue({
+      ...baseHookValue,
+      visibility: 'private',
+      isEmailBasedAuth: false,
+      accessEmails: [{ email: 'a@example.com', capabilities: ['preview'] }],
+    });
+    render(<DatasetsSettingsPage />);
+    expect(screen.getByText('a@example.com')).toBeInTheDocument();
+    expect(screen.getByTestId('sh-ui-icon-button')).toBeDisabled();
   });
 
   it('clicking the private radio card calls setVisibility with private', () => {
@@ -135,7 +150,7 @@ describe('DatasetsSettingsPage', () => {
   });
 
   it('clicking the public radio card calls setVisibility with public', () => {
-    (useDatasetsSettings as jest.Mock).mockReturnValue({ ...baseHookValue, visibility: 'private', isOidcAuth: true });
+    (useDatasetsSettings as jest.Mock).mockReturnValue({ ...baseHookValue, visibility: 'private', isEmailBasedAuth: true });
     render(<DatasetsSettingsPage />);
     const [publicCard] = screen.getAllByRole('radio');
     fireEvent.click(publicCard);
