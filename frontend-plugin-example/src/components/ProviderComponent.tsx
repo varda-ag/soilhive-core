@@ -1,5 +1,7 @@
 import React from 'react';
 import type { PluginContext } from 'frontend-plugin-types';
+// After running `soilhive-plugin` against this plugin, UI/ is synced in from the host and
+// its components become available like this: import { Button } from '../../UI/Button/Button';
 import './ProviderComponent.css';
 
 const Page: React.FC<{ context: PluginContext }> = ({ context }) => {
@@ -77,6 +79,7 @@ const Page: React.FC<{ context: PluginContext }> = ({ context }) => {
       <p>
         Soil data from host: {isSoilDataLoading ? 'loading…' : `${soilData.length} sample(s)`}
         {hasMoreSoilData && (
+          // Once UI/ is synced in, swap this for: <Button onClick={loadMoreSoilData}>Load more</Button>
           <button type="button" onClick={loadMoreSoilData}>
             Load more
           </button>

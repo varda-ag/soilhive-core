@@ -105,7 +105,7 @@ const soilData: PluginSoilDataResult = {
     },
   ],
   isLoading: false,
-  hasMore: false,
+  hasMore: true,
   loadMore: () => {},
   reset: () => {},
 };

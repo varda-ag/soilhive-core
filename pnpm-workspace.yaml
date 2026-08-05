@@ -1,3 +1,6 @@
+allowBuilds:
+  esbuild: true
+  unrs-resolver: true
 overrides:
   ajv@<6.12.6: '6.12.6'
   brace-expansion@<1.1.12: '1.1.12'
