@@ -15,6 +15,8 @@ import ShieldGlobeIcon from 'assets/icons/shield-globe-icon.svg?react';
 import { Dialog } from 'components/Dialog/Dialog';
 import { Table } from 'components/Table/Table';
 import { Button, TextInput } from 'components/UI';
+import { DocumentationLink } from 'components/AdminPortal/DocumentationLink/DocumentationLink';
+import { INGESTION_DOCS_URL } from 'configuration/ingestion';
 import { isValidEmail } from '../../../utilities/validation';
 import { useDatasetsSettings } from '../../../hooks/useDatasetsSettings';
 import type { AccessEmail } from '../../../hooks/useDatasetsSettings';
@@ -85,6 +87,7 @@ export function DatasetsSettingsPage() {
           <h2 className={styles.PageTitle}>{t('datasets.settings.title')}</h2>
           <div className={styles.Separator} />
           <span className={styles.DatasetName}>{id}</span>
+          <DocumentationLink href={`${INGESTION_DOCS_URL}#publication`} />
         </div>
 
         <hr className={styles.Divider} />
