@@ -22,6 +22,7 @@ const makeUser = (scope: string): User => ({
 });
 
 const baseAuthContext: ReturnType<typeof useAuthContext> = {
+  isEmailBasedAuth: false,
   isAuthenticated: false,
   isLoading: false,
   login: jest.fn(),

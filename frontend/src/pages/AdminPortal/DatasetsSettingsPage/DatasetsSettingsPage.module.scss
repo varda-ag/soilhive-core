@@ -109,6 +109,15 @@
   margin-top: 2px;
 }
 
+.AccessWarning {
+  @extend .MandatoryWarning;
+  margin-bottom: 12px;
+}
+
+.AccessWarningIcon {
+  @extend .MandatoryWarningIcon;
+}
+
 .RadioCards {
   display: flex;
   flex-direction: column;

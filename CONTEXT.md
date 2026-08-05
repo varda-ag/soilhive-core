@@ -69,7 +69,7 @@ A Dataset attribute: `public` or `private`. Private Datasets are still discovera
 _Avoid_: Access level, permission, "my datasets" (entitlement concepts — a different axis)
 
 **Subject**:
-The identity a caller acts under: the token's `email` claim, else its `client_id`, else its `sub`. It is what **Entitlements** are keyed by and what every `created_by`/`updated_by` record holds — a job's included, so a job resolves the same Entitlements its submitter had. Not a synonym for the token's `sub` claim, which is only the last fallback and in general is a different string.
+The identity a caller acts under: the token's `email` claim, else its `client_id`, else its `sub`. It is what **Entitlements** are keyed by and what every `created_by`/`updated_by` record holds — a job's included, so a job resolves the same Entitlements its submitter had. Not a synonym for the token's `sub` claim, which is only the last fallback and in general is a different string. Which branch supplies the Subject is a property of the deployment's identity provider rather than of the caller: on a deployment whose IdP omits `email` from access tokens, *no* Subject is ever an email address, and every **Entitlement** granted to one is unreachable.
 _Avoid_: sub, user, user id, owner, caller (the requester; the Subject is the resolved value it acts under)
 
 **Entitlement**:

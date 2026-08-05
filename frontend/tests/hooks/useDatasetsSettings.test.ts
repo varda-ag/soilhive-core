@@ -56,13 +56,13 @@ const fullyFilledDataset = {
 };
 
 function setupMocks({
-  authMode = 'oidc',
+  isEmailBasedAuth = true,
   dataset = { visibility: 'public' } as any,
   entitlements = {},
   privacyPolicyHtml = '',
   termsAndConditionsHtml = '',
 } = {}) {
-  (useAuthContext as jest.Mock).mockReturnValue({ authMode });
+  (useAuthContext as jest.Mock).mockReturnValue({ isEmailBasedAuth });
   (useDataset as jest.Mock).mockReturnValue({ data: dataset, isLoading: false });
   (useDatasetEntitlements as jest.Mock).mockReturnValue({ data: entitlements, isLoading: false });
   (useUpdateDatasetMutation as jest.Mock).mockReturnValue({ mutateAsync: mockMutateAsync, isPending: false });
@@ -80,22 +80,27 @@ describe('useDatasetsSettings', () => {
     await waitFor(() => expect(result.current.visibility).toBe('public'));
   });
 
-  it('initialises accessEmails from entitlements API response', async () => {
+  it('initialises accessEmails from entitlements API response, preserving capabilities', async () => {
     setupMocks({ entitlements: { 'a@example.com': ['preview'], 'b@example.com': ['download'] } });
     const { result } = renderHook(() => useDatasetsSettings('dataset-123'), { wrapper: queryClientWrapper });
-    await waitFor(() => expect(result.current.accessEmails).toEqual([{ email: 'a@example.com' }, { email: 'b@example.com' }]));
+    await waitFor(() =>
+      expect(result.current.accessEmails).toEqual([
+        { email: 'a@example.com', capabilities: ['preview'] },
+        { email: 'b@example.com', capabilities: ['download'] },
+      ]),
+    );
   });
 
-  it('isOidcAuth is true when authMode is oidc', () => {
-    setupMocks({ authMode: 'oidc' });
+  it('forwards isEmailBasedAuth from the auth context when true', () => {
+    setupMocks({ isEmailBasedAuth: true });
     const { result } = renderHook(() => useDatasetsSettings('dataset-123'), { wrapper: queryClientWrapper });
-    expect(result.current.isOidcAuth).toBe(true);
+    expect(result.current.isEmailBasedAuth).toBe(true);
   });
 
-  it('isOidcAuth is false when authMode is password', () => {
-    setupMocks({ authMode: 'password' });
+  it('forwards isEmailBasedAuth from the auth context when false', () => {
+    setupMocks({ isEmailBasedAuth: false });
     const { result } = renderHook(() => useDatasetsSettings('dataset-123'), { wrapper: queryClientWrapper });
-    expect(result.current.isOidcAuth).toBe(false);
+    expect(result.current.isEmailBasedAuth).toBe(false);
   });
 
   it('initialises with empty email state and no dialogs open', () => {
@@ -143,7 +148,7 @@ describe('useDatasetsSettings', () => {
       const { result } = renderHook(() => useDatasetsSettings('dataset-123'), { wrapper: queryClientWrapper });
       act(() => result.current.handleEmailChange('user@example.com'));
       act(() => result.current.handleAddEmail());
-      expect(result.current.accessEmails).toEqual([{ email: 'user@example.com' }]);
+      expect(result.current.accessEmails).toEqual([{ email: 'user@example.com', capabilities: ['preview', 'download'] }]);
       expect(result.current.emailInput).toBe('');
     });
 
@@ -201,7 +206,7 @@ describe('useDatasetsSettings', () => {
       act(() => result.current.handleAddEmail());
       act(() => result.current.handleRequestRemoveEmail('a@example.com'));
       act(() => result.current.handleConfirmRemoveEmail());
-      expect(result.current.accessEmails).toEqual([{ email: 'b@example.com' }]);
+      expect(result.current.accessEmails).toEqual([{ email: 'b@example.com', capabilities: ['preview', 'download'] }]);
     });
   });
 
@@ -304,6 +309,30 @@ describe('useDatasetsSettings', () => {
       await act(() => result.current.handlePublishProceed());
       expect(mockMutateAsync).toHaveBeenCalledWith({ visibility: 'private', status: 'PUBLISHED' });
       expect(mockMutateAsync).toHaveBeenCalledWith({});
+    });
+
+    it('preserves the capabilities loaded from the API rather than flattening them', async () => {
+      setupMocks({
+        dataset: { visibility: 'private', publication_date: '2026-07-09' },
+        entitlements: { 'a@example.com': ['preview', 'obfuscate_as_points'] },
+      });
+      const { result } = renderHook(() => useDatasetsSettings('dataset-123'), { wrapper: queryClientWrapper });
+      await waitFor(() => expect(result.current.accessEmails).toHaveLength(1));
+      await act(() => result.current.handlePublishProceed());
+      expect(mockMutateAsync).toHaveBeenCalledWith({ 'a@example.com': ['preview', 'obfuscate_as_points'] });
+    });
+
+    it('does not update entitlements when private but access is not email-based', async () => {
+      setupMocks({
+        isEmailBasedAuth: false,
+        dataset: { visibility: 'private', publication_date: '2026-07-09' },
+        entitlements: { 'a@example.com': ['preview'] },
+      });
+      const { result } = renderHook(() => useDatasetsSettings('dataset-123'), { wrapper: queryClientWrapper });
+      await waitFor(() => expect(result.current.visibility).toBe('private'));
+      await act(() => result.current.handlePublishProceed());
+      expect(mockMutateAsync).toHaveBeenCalledTimes(1);
+      expect(mockMutateAsync).toHaveBeenCalledWith({ visibility: 'private', status: 'PUBLISHED' });
     });
 
     it('does not update entitlements when public', async () => {
