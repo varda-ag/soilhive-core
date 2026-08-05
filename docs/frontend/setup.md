@@ -3,17 +3,18 @@
 ## Prerequisites
 
 - **Node.js 24** — use [nvm](https://github.com/nvm-sh/nvm) or [fnm](https://github.com/Schniz/fnm) to manage versions
-- **pnpm** — the workspace uses pnpm workspaces; do not use npm or yarn
+- **pnpm** — do not use npm or yarn
 
 ## Install dependencies
 
-From the repo root:
+`frontend/` is installed independently — it is **not** a member of the repo root's pnpm workspace (root's `pnpm-workspace.yaml` has no `packages:` list, so `pnpm install -r` from the repo root only installs the root's own tooling dependencies, not `frontend/`'s). Install from inside `frontend/` itself:
 
 ```sh
-pnpm install -r
+cd frontend
+pnpm install
 ```
 
-This installs dependencies for both `frontend/` and any other workspace packages.
+The same applies to `backend/` (npm-managed, installed via `npm i` from inside `backend/`) and to `frontend-plugin-example/` (see `docs/frontend/plugin-development.md`) — each subproject is installed on its own; there is no single command that installs all of them.
 
 ## Environment variables
 
