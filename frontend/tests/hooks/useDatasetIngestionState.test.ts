@@ -61,7 +61,7 @@ beforeEach(() => {
   mockMarkAsChanged.mockClear();
   (useNavigate as jest.Mock).mockReturnValue(mockNavigate);
   mockUseApiQuery.mockReturnValue({ data: undefined, isLoading: false });
-  (useIngestionFlow as jest.Mock).mockReturnValue({ markAsChanged: mockMarkAsChanged, resetChanges: mockResetChanges, isRaster: false });
+  (useIngestionFlow as jest.Mock).mockReturnValue({ markAsChanged: mockMarkAsChanged, resetChanges: mockResetChanges });
   (useDataset as jest.Mock).mockReturnValue({ data: { name: 'Mock-dataset' } });
   (useJobsQueries as jest.Mock).mockReturnValue([]);
 });
@@ -149,8 +149,8 @@ describe('useDatasetIngestionState', () => {
   });
 
   describe('job-polling completion effect', () => {
-    it('sets showLoadingPanel and does not navigate when isRaster is true and all jobs complete', async () => {
-      (useIngestionFlow as jest.Mock).mockReturnValue({ markAsChanged: mockMarkAsChanged, resetChanges: mockResetChanges, isRaster: true });
+    it('sets showLoadingPanel and does not navigate when dataset gis_datatype is raster and all jobs complete', async () => {
+      (useDataset as jest.Mock).mockReturnValue({ data: { name: 'Mock-dataset', gis_datatype: 'raster' } });
       mockUseApiQuery.mockImplementation(({ endpoint }: { endpoint: string }) => {
         if (endpoint.includes('/files')) return { data: [{ status: 'PENDING' }], isLoading: false };
         return { data: undefined, isLoading: false };
@@ -167,7 +167,8 @@ describe('useDatasetIngestionState', () => {
       expect(mockNavigate).not.toHaveBeenCalledWith(expect.stringContaining('/preview'));
     });
 
-    it('navigates to preview and leaves showLoadingPanel false when isRaster is false and all jobs complete', () => {
+    it('navigates to preview and leaves showLoadingPanel false when dataset gis_datatype is not raster and all jobs complete', () => {
+      (useDataset as jest.Mock).mockReturnValue({ data: { name: 'Mock-dataset', gis_datatype: 'point' } });
       mockUseApiQuery.mockImplementation(({ endpoint }: { endpoint: string }) => {
         if (endpoint.includes('/files')) return { data: [{ status: 'PENDING' }], isLoading: false };
         return { data: undefined, isLoading: false };

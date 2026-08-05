@@ -782,7 +782,7 @@ describe('useMappingsStep', () => {
       (useJobsQueries as jest.Mock).mockImplementation((ids: string[]) => ids.map(id => ({ data: { id, status: 'completed' } })));
     });
 
-    it('navigates to preview and keeps showLoadingPanel false when isRaster is false', async () => {
+    it('navigates to preview and keeps showLoadingPanel false when dataset gis_datatype is not raster', async () => {
       const { result } = renderHook(() => useMappingsStep('42'));
       await act(async () => {
         await result.current.handleContinue();
@@ -791,12 +791,8 @@ describe('useMappingsStep', () => {
       expect(mockNavigate).toHaveBeenCalledWith('/admin/datasets/edit/42/preview');
     });
 
-    it('sets showLoadingPanel to true and does not navigate when isRaster is true', async () => {
-      (useIngestionFlow as jest.Mock).mockReturnValue({
-        markAsChanged: mockMarkAsChanged,
-        resetChanges: mockResetChanges,
-        isRaster: true,
-      });
+    it('sets showLoadingPanel to true and does not navigate when dataset gis_datatype is raster', async () => {
+      (useDataset as jest.Mock).mockReturnValue({ data: { name: 'Mock-dataset', gis_datatype: 'raster' } });
       const { result } = renderHook(() => useMappingsStep('42'));
       await act(async () => {
         await result.current.handleContinue();

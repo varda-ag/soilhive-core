@@ -8,7 +8,7 @@ import { useCreateMappingsMutation } from './useCreateMappingsMutation';
 import { useUpdateDatasetFileMappingMutation } from './useDatasetMutation';
 import { useCreateJobMutation, useJobsQueries } from './useJobsApi';
 import { ADMIN_PATHS } from '../configuration/admin';
-import { IngestionStatus } from 'types/backend';
+import { GISDataType, IngestionStatus } from 'types/backend';
 import useIngestionFlow from './useIngestionFlow';
 import type { FileDescriptor, DataMappingResponse, DatasetFileMappingResponse } from 'types/backend';
 import { useDataset } from './useDatasets';
@@ -21,7 +21,7 @@ import { useDataset } from './useDatasets';
 export function useDatasetIngestionState(datasetId?: string) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { markAsChanged, resetChanges, isRaster } = useIngestionFlow();
+  const { markAsChanged, resetChanges } = useIngestionFlow();
   const [showLoadingPanel, setShowLoadingPanel] = useState(false);
   const { isLoading: isIngestionLoading, updateFurthestStep } = useIngestionStatus();
   const hasTracked = useRef(false);
@@ -47,6 +47,7 @@ export function useDatasetIngestionState(datasetId?: string) {
   const [activeJobIds, setActiveJobIds] = useState<string[]>([]);
 
   const { data: dataset } = useDataset(datasetId);
+  const datasetGisDataType = useMemo(() => dataset?.gis_datatype ?? null, [dataset]);
 
   const { data: files, isLoading: isLoadingFiles } = useApiQuery<FileDescriptor[]>({
     endpoint: `/datasets/${datasetId}/files`,
@@ -90,13 +91,13 @@ export function useDatasetIngestionState(datasetId?: string) {
       setIsImportingState(false);
       setActiveJobIds([]);
       updateFurthestStep(datasetId, 'preview');
-      if (isRaster) {
+      if (datasetGisDataType === GISDataType.RASTER) {
         setShowLoadingPanel(true);
       } else {
         navigate(`${ADMIN_PATHS.DATASETS}/edit/${datasetId}/preview`);
       }
     }
-  }, [isImportingState, activeJobIds, jobsData, isIngestionLoading, datasetId, updateFurthestStep, navigate, isRaster]);
+  }, [isImportingState, activeJobIds, jobsData, isIngestionLoading, datasetId, updateFurthestStep, navigate, datasetGisDataType]);
 
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
@@ -125,13 +126,11 @@ export function useDatasetIngestionState(datasetId?: string) {
   );
 
   const datasetName = useMemo(() => dataset?.name || '', [dataset]);
-  const datasetGisDataType = useMemo(() => dataset?.gis_datatype ?? null, [dataset]);
 
   return {
     navigate,
     queryClient,
     resetChanges,
-    isRaster,
     showLoadingPanel,
     setShowLoadingPanel,
     createProcedure,

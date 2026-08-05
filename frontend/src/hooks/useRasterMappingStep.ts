@@ -5,6 +5,7 @@ import { ADMIN_PATHS } from '../configuration/admin';
 import { useDatasetIngestionState } from './useDatasetIngestionState';
 import { useProcedureByColumn } from './useProcedureByColumn';
 import { useSoilPropertyOptions } from './useSoilPropertyOptions';
+import { GISDataType } from 'types/backend';
 import type {
   FileDescriptor,
   RasterFileDescriptorMetadata,
@@ -186,7 +187,6 @@ export function useRasterMappingStep(datasetId?: string) {
     navigate,
     queryClient,
     resetChanges,
-    isRaster,
     showLoadingPanel,
     setShowLoadingPanel,
     createProcedure,
@@ -475,7 +475,7 @@ export function useRasterMappingStep(datasetId?: string) {
     const changed = isMappingChanged(columnMappings, dataMappingByFileId, procedureByColumn);
 
     if (!changed && allFilesStaged) {
-      if (isRaster) {
+      if (datasetGisDataType === GISDataType.RASTER) {
         setShowLoadingPanel(true);
       } else {
         navigate(`${ADMIN_PATHS.DATASETS}/edit/${datasetId}/preview`);
@@ -501,7 +501,7 @@ export function useRasterMappingStep(datasetId?: string) {
     datasetId,
     datasetFileMappings,
     createJob,
-    isRaster,
+    datasetGisDataType,
     setShowLoadingPanel,
     setIsImportingState,
     setActiveJobIds,
