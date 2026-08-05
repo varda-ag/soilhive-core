@@ -35,6 +35,7 @@ jest.mock('hooks/useDatasetErrors', () => ({
 jest.mock('../../src/App', () => ({
   queryClient: {
     invalidateQueries: jest.fn(),
+    setQueryData: jest.fn(),
   },
 }));
 
@@ -365,6 +366,25 @@ describe('useDatasetsPublicationList', () => {
     expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['datasets'] });
     expect(result.current.isDeleteModalOpened).toBe(false);
     expect(result.current.selectedDataset).toBeNull();
+  });
+
+  it('onDeletionConfirm removes the deleted dataset from the cached list immediately', async () => {
+    // The delete runs as an async job, so createJob resolving does not mean the dataset is gone
+    // yet server-side — the list must not wait on the next poll to stop showing it.
+    const { result } = renderHook(() => useDatasetsPublicationList());
+
+    act(() => {
+      result.current.onDelete(datasets[1] as any);
+    });
+
+    await act(async () => {
+      await result.current.onDeletionConfirm();
+    });
+
+    expect(queryClient.setQueryData).toHaveBeenCalledWith(['datasets'], expect.any(Function));
+    const [, updater] = (queryClient.setQueryData as jest.Mock).mock.calls[0];
+    expect(updater(datasets)).toEqual(datasets.filter(d => d.id !== '2'));
+    expect(updater(undefined)).toBeUndefined();
   });
 
   it('onPublish navigates to the dataset settings page', () => {

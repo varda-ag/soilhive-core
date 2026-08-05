@@ -1,10 +1,6 @@
 import { renderHook } from '@testing-library/react';
 import { useApiMutation } from 'hooks/useApiMutation';
-import {
-  useCreateDatasetMutation,
-  useUpdateDatasetMutation,
-  useCreateDatasetFileMapping,
-} from 'hooks/useDatasetMutation';
+import { useCreateDatasetMutation, useUpdateDatasetMutation, useCreateDatasetFileMapping } from 'hooks/useDatasetMutation';
 
 jest.mock('hooks/useApiMutation', () => ({
   useApiMutation: jest.fn(() => ({ mutateAsync: jest.fn() })),

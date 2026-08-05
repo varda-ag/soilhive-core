@@ -82,7 +82,12 @@ export function useDatasetsPublicationList(): DatasetsPublicationListType {
     if (!selectedDataset) {
       return;
     }
-    await Promise.all([createJob({ type: 'bulk-delete', dataset_id: selectedDataset.id }), clearDatasetStatus(selectedDataset.id)]);
+    const deletedId = selectedDataset.id;
+    await Promise.all([createJob({ type: 'bulk-delete', dataset_id: deletedId }), clearDatasetStatus(deletedId)]);
+    // Deletion runs as an async job — createJob only resolves once it's enqueued, not once
+    // processBulkDeletion has actually removed the dataset. Hide it from the cached list right
+    // away instead of waiting on the next poll (useDatasets refetches every 2s) to catch up.
+    queryClient.setQueryData<Dataset[]>(['datasets'], old => old?.filter(dataset => dataset.id !== deletedId));
     onDeleteModalClose();
     await queryClient.invalidateQueries({ queryKey: ['datasets'] });
   }, [createJob, onDeleteModalClose, selectedDataset, clearDatasetStatus]);
