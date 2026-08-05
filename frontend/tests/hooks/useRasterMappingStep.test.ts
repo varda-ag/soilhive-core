@@ -731,6 +731,25 @@ describe('useRasterMappingStep', () => {
       expect(payload).toEqual({ '0': { property_id: 'soil-ph' } });
     });
 
+    it('reconciles a file down to an empty mapping when all of its bands are unmapped', async () => {
+      // col1 had a saved mapping; clearing its only band must still send an (empty) request for
+      // that file so the stale server-side mapping gets overwritten instead of left untouched.
+      setupWithColumnsAndExistingMapping(['col1'], { col1: 'min_depth' });
+      const { result } = renderHook(() => useRasterMappingStep('42'));
+      act(() => {
+        result.current.handleConceptChange('col1', '');
+      });
+      await act(async () => {
+        await result.current.handleContinue();
+      });
+      expect(mockCreateMapping).toHaveBeenCalledWith({});
+      expect(mockUpdateDatasetFileMapping).toHaveBeenCalledWith({
+        datasetId: '42',
+        datasetFileMappingId: 'dfm-col1',
+        mappingId: 'new-mapping-1',
+      });
+    });
+
     it('creates one mapping request per distinct file and links each to its own dataset-file-mapping', async () => {
       const { result } = renderHook(() => useRasterMappingStep('42'));
       act(() => {

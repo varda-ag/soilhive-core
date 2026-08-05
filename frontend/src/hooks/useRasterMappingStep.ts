@@ -108,8 +108,14 @@ async function createMappingProcedures(
 function buildDataMappingRequestsByFile(
   mappings: ColumnMapping[],
   procedureIds: Record<string, string>,
+  fileIdsWithExistingMapping: Iterable<string>,
 ): Record<string, DataMappingRequest> {
   const requestsByFile: Record<string, DataMappingRequest> = {};
+  // Seed every file that currently has a saved mapping so it still gets reconciled (down to an
+  // empty mapping) even when all of its bands have just been unmapped — otherwise such a file
+  // would have no entry below and save() would skip it, leaving its dataset-file-mapping pointed
+  // at the stale mapping that still contains the removed band(s).
+  for (const fileId of fileIdsWithExistingMapping) requestsByFile[fileId] = {};
   for (const m of mappings) {
     if (!m.conceptId) continue;
     const request = (requestsByFile[m.fileId] ??= {});
@@ -443,7 +449,7 @@ export function useRasterMappingStep(datasetId?: string) {
 
   const save = useCallback(async () => {
     const procedureIds = await createMappingProcedures(columnMappings, procedureByColumn, createProcedure);
-    const requestsByFile = buildDataMappingRequestsByFile(columnMappings, procedureIds);
+    const requestsByFile = buildDataMappingRequestsByFile(columnMappings, procedureIds, Object.keys(dataMappingByFileId));
 
     // One mapping per file — each keyed by band number — linked to that file via dataset-file-mapping.
     await Promise.all(
@@ -470,6 +476,7 @@ export function useRasterMappingStep(datasetId?: string) {
     updateDatasetFileMapping,
     datasetId,
     datasetFileMappings,
+    dataMappingByFileId,
     queryClient,
     resetChanges,
   ]);
