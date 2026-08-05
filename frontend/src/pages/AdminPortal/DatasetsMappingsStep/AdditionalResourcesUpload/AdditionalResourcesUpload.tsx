@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FileUploadBox } from 'components/UI';
 import { useApiQueries } from 'hooks/useApiQueries';
@@ -16,6 +16,14 @@ interface Props {
 export function AdditionalResourcesUpload({ value, onChange }: Props) {
   const { t } = useTranslation('admin');
   const [knownNames, setKnownNames] = useState<Record<string, string>>({});
+
+  // Mirrors `value`, but is also mutated synchronously below whenever this component computes
+  // a new list, so that parallel upload completions (or an upload racing a removal) always
+  // build on the latest list instead of the same stale `value` prop closed over at render time.
+  const valueRef = useRef(value);
+  useEffect(() => {
+    valueRef.current = value;
+  }, [value]);
 
   const unresolvedFileIds = useMemo(
     () => Array.from(new Set(value.map(r => r.file_id).filter(id => !knownNames[id]))),
@@ -39,11 +47,15 @@ export function AdditionalResourcesUpload({ value, onChange }: Props) {
 
   const { fileInputRef, uploadingFiles, uploadProgress, uploadErrors, handleFiles } = useAdditionalResourceUpload(resource => {
     setKnownNames(prev => ({ ...prev, [resource.file_id]: resource.name }));
-    onChange([...value, { file_id: resource.file_id }]);
+    const nextValue = [...valueRef.current, { file_id: resource.file_id }];
+    valueRef.current = nextValue;
+    onChange(nextValue);
   });
 
   const handleRemove = (fileId: string) => {
-    onChange(value.filter(r => r.file_id !== fileId));
+    const nextValue = valueRef.current.filter(r => r.file_id !== fileId);
+    valueRef.current = nextValue;
+    onChange(nextValue);
   };
 
   return (
