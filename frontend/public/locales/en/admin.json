@@ -335,6 +335,9 @@
             "geometry_conflict": "The 'geometry' field cannot be used together with 'latitude' or 'longitude'. Please remove one of these mappings to continue.",
             "depth_conflict": "The 'depth' field cannot be used together with 'min depth' or 'max depth'. Please remove one of these mappings to continue.",
             "range_depth_missing": "Both 'min depth' and 'max depth' must be mapped together. Please map the missing field or remove the other to continue.",
+            "depth_required": "Min and max depth are required for every mapped layer.",
+            "depth_must_be_numeric": "Min and max depth must be numbers.",
+            "depth_range_invalid": "Min depth must be less than max depth.",
             "importing": {
                 "title": "Mapping fields",
                 "description_1": "This operation may take a few minutes to complete.",

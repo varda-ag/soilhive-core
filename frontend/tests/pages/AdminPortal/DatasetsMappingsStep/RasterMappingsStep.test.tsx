@@ -1,4 +1,5 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import type { ReactNode } from 'react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import { useNavigate } from 'react-router';
 import { RasterMappingsStep } from '../../../../src/pages/AdminPortal/DatasetsMappingsStep/RasterMappingsStep';
 import { useRasterMappingStep, type RowDetails, type DetailOptionMap, type ColumnMapping } from 'hooks/useRasterMappingStep';
@@ -19,13 +20,15 @@ jest.mock('../../../../src/pages/AdminPortal/DatasetsMappingsStep/MappingsBanner
 // MappingsTable's own rendering/derivation logic is covered by MappingsTable.test.tsx —
 // stub it here so these tests stay focused on RasterMappingsStep's layout/wiring.
 jest.mock('../../../../src/pages/AdminPortal/DatasetsMappingsStep/MappingsTable', () => ({
-  MappingsTable: ({ columnMappings, dataTestId }: { columnMappings: ColumnMapping[]; dataTestId: string }) => (
-    <div data-testid={dataTestId}>
-      {columnMappings.map(m => (
-        <div key={m.columnName} data-testid="sh-mapping-row" />
-      ))}
-    </div>
-  ),
+  MappingsTable: ({
+    columnMappings,
+    dataTestId,
+    renderRow,
+  }: {
+    columnMappings: ColumnMapping[];
+    dataTestId: string;
+    renderRow: (columnName: string) => ReactNode;
+  }) => <div data-testid={dataTestId}>{columnMappings.map(m => renderRow(m.columnName))}</div>,
 }));
 
 // ---------------------------------------------------------------------------
@@ -40,7 +43,13 @@ const DETAIL_OPTIONS: DetailOptionMap = {
   laboratoryMethod: [],
 };
 
-function stubHookReturn(columnNames: string[] = [], isContinueEnabled = false, showLoadingPanel = false) {
+function stubHookReturn(
+  columnNames: string[] = [],
+  isContinueEnabled = false,
+  showLoadingPanel = false,
+  invalidDepthColumns: Set<string> = new Set(),
+  depthValidationMessage: { message: string; type: 'error' } | null = null,
+) {
   return {
     isLoading: false,
     isImporting: false,
@@ -50,22 +59,33 @@ function stubHookReturn(columnNames: string[] = [], isContinueEnabled = false, s
       columnName,
       conceptId: null,
       unitId: null,
+      minDepth: null,
+      maxDepth: null,
+      referencePeriodStart: null,
+      referencePeriodStop: null,
+      layerDescription: null,
+      additionalResources: [],
+      isGeometryDetectedField: false,
       details: { ...EMPTY_DETAILS },
     })),
     conceptOptionsByColumn: {},
-    unitOptions: [],
+    unitOptionsByConcept: {},
     detailOptions: DETAIL_OPTIONS,
     mappedCount: 0,
     unmappedCount: columnNames.length,
+    invalidDepthColumns,
+    depthValidationMessage,
     expandedRows: new Set<string>(),
-    isUnitEnabled: jest.fn().mockReturnValue(false),
     toggleRow: jest.fn(),
     handleConceptChange: jest.fn(),
     handleUnitChange: jest.fn(),
+    handleMinDepthChange: jest.fn(),
+    handleMaxDepthChange: jest.fn(),
     handleDetailChange: jest.fn(),
     handleReferencePeriodStartChange: jest.fn(),
     handleReferencePeriodStopChange: jest.fn(),
     handleLayerDescriptionChange: jest.fn(),
+    handleAdditionalResourcesChange: jest.fn(),
     handlePrevious: jest.fn(),
     handleSaveAndContinueLater: jest.fn(),
     handleContinue: jest.fn(),
@@ -149,6 +169,42 @@ describe('RasterMappingsStep', () => {
       (useRasterMappingStep as jest.Mock).mockReturnValue(stubHookReturn(['Carbon_organic', 'Sand', 'PH']));
       render(<RasterMappingsStep id="1" />);
       expect(screen.getAllByTestId('sh-mapping-row')).toHaveLength(3);
+    });
+  });
+
+  describe('depth validation', () => {
+    it('shows no message when depthValidationMessage is null', () => {
+      (useRasterMappingStep as jest.Mock).mockReturnValue(stubHookReturn(['col1'], false, false, new Set(), null));
+      render(<RasterMappingsStep id="1" />);
+      expect(screen.queryByTestId('sh-form-message')).not.toBeInTheDocument();
+    });
+
+    it('shows the depth validation message when the hook provides one', () => {
+      (useRasterMappingStep as jest.Mock).mockReturnValue(
+        stubHookReturn(['col1'], false, false, new Set(['col1']), {
+          message: 'Min and max depth are required for every mapped layer.',
+          type: 'error',
+        }),
+      );
+      render(<RasterMappingsStep id="1" />);
+      expect(screen.getByText('Min and max depth are required for every mapped layer.')).toBeInTheDocument();
+    });
+
+    it('marks the min/max depth inputs as errored only for columns in invalidDepthColumns', () => {
+      (useRasterMappingStep as jest.Mock).mockReturnValue(
+        stubHookReturn(['col1', 'col2'], false, false, new Set(['col1']), {
+          message: 'Min and max depth are required for every mapped layer.',
+          type: 'error',
+        }),
+      );
+      render(<RasterMappingsStep id="1" />);
+      const rows = screen.getAllByTestId('sh-mapping-row');
+      const [col1Row, col2Row] = rows;
+
+      expect(within(col1Row).getByPlaceholderText('From').closest('[data-testid="sh-ui-textinput"]')).toHaveClass('Invalid');
+      expect(within(col1Row).getByPlaceholderText('To').closest('[data-testid="sh-ui-textinput"]')).toHaveClass('Invalid');
+      expect(within(col2Row).getByPlaceholderText('From').closest('[data-testid="sh-ui-textinput"]')).not.toHaveClass('Invalid');
+      expect(within(col2Row).getByPlaceholderText('To').closest('[data-testid="sh-ui-textinput"]')).not.toHaveClass('Invalid');
     });
   });
 });

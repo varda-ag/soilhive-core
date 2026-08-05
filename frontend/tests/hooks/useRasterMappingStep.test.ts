@@ -489,13 +489,122 @@ describe('useRasterMappingStep', () => {
       expect(result.current.isContinueEnabled).toBe(false);
     });
 
-    it('is true when at least one soil property is mapped', () => {
+    it('is true when at least one soil property is mapped with valid depth', () => {
+      setupWithColumns(['col1']);
+      const { result } = renderHook(() => useRasterMappingStep('1'));
+      act(() => {
+        result.current.handleConceptChange('col1', 'ph');
+        result.current.handleMinDepthChange('col1', '10');
+        result.current.handleMaxDepthChange('col1', '20');
+      });
+      expect(result.current.isContinueEnabled).toBe(true);
+    });
+
+    it('is false when a mapped row is missing depth', () => {
       setupWithColumns(['col1']);
       const { result } = renderHook(() => useRasterMappingStep('1'));
       act(() => {
         result.current.handleConceptChange('col1', 'ph');
       });
+      expect(result.current.isContinueEnabled).toBe(false);
+    });
+
+    it('is false when a mapped row has non-numeric depth', () => {
+      setupWithColumns(['col1']);
+      const { result } = renderHook(() => useRasterMappingStep('1'));
+      act(() => {
+        result.current.handleConceptChange('col1', 'ph');
+        result.current.handleMinDepthChange('col1', 'abc');
+        result.current.handleMaxDepthChange('col1', '20');
+      });
+      expect(result.current.isContinueEnabled).toBe(false);
+    });
+
+    it('is false when min depth is not less than max depth', () => {
+      setupWithColumns(['col1']);
+      const { result } = renderHook(() => useRasterMappingStep('1'));
+      act(() => {
+        result.current.handleConceptChange('col1', 'ph');
+        result.current.handleMinDepthChange('col1', '20');
+        result.current.handleMaxDepthChange('col1', '10');
+      });
+      expect(result.current.isContinueEnabled).toBe(false);
+    });
+
+    it('ignores depth on unmapped rows', () => {
+      setupWithColumns(['col1', 'col2']);
+      const { result } = renderHook(() => useRasterMappingStep('1'));
+      act(() => {
+        result.current.handleConceptChange('col1', 'ph');
+        result.current.handleMinDepthChange('col1', '10');
+        result.current.handleMaxDepthChange('col1', '20');
+        // col2 is left unmapped, with no depth set
+      });
       expect(result.current.isContinueEnabled).toBe(true);
+    });
+  });
+
+  describe('invalidDepthColumns and depthValidationMessage', () => {
+    it('are empty/null when no rows are mapped', () => {
+      setupWithColumns(['col1']);
+      const { result } = renderHook(() => useRasterMappingStep('1'));
+      expect(result.current.invalidDepthColumns.size).toBe(0);
+      expect(result.current.depthValidationMessage).toBeNull();
+    });
+
+    it('flags a mapped column missing depth with a "required" message', () => {
+      setupWithColumns(['col1']);
+      const { result } = renderHook(() => useRasterMappingStep('1'));
+      act(() => {
+        result.current.handleConceptChange('col1', 'ph');
+      });
+      expect(result.current.invalidDepthColumns.has('col1')).toBe(true);
+      expect(result.current.depthValidationMessage).toEqual({
+        message: 'Min and max depth are required for every mapped layer.',
+        type: 'error',
+      });
+    });
+
+    it('flags a mapped column with non-numeric depth with a "numeric" message', () => {
+      setupWithColumns(['col1']);
+      const { result } = renderHook(() => useRasterMappingStep('1'));
+      act(() => {
+        result.current.handleConceptChange('col1', 'ph');
+        result.current.handleMinDepthChange('col1', 'abc');
+        result.current.handleMaxDepthChange('col1', '20');
+      });
+      expect(result.current.invalidDepthColumns.has('col1')).toBe(true);
+      expect(result.current.depthValidationMessage).toEqual({
+        message: 'Min and max depth must be numbers.',
+        type: 'error',
+      });
+    });
+
+    it('flags a mapped column where min depth is not less than max depth with a "range" message', () => {
+      setupWithColumns(['col1']);
+      const { result } = renderHook(() => useRasterMappingStep('1'));
+      act(() => {
+        result.current.handleConceptChange('col1', 'ph');
+        result.current.handleMinDepthChange('col1', '20');
+        result.current.handleMaxDepthChange('col1', '10');
+      });
+      expect(result.current.invalidDepthColumns.has('col1')).toBe(true);
+      expect(result.current.depthValidationMessage).toEqual({
+        message: 'Min depth must be less than max depth.',
+        type: 'error',
+      });
+    });
+
+    it('clears once a valid min/max depth is provided', () => {
+      setupWithColumns(['col1']);
+      const { result } = renderHook(() => useRasterMappingStep('1'));
+      act(() => {
+        result.current.handleConceptChange('col1', 'ph');
+        result.current.handleMinDepthChange('col1', '10');
+        result.current.handleMaxDepthChange('col1', '20');
+      });
+      expect(result.current.invalidDepthColumns.size).toBe(0);
+      expect(result.current.depthValidationMessage).toBeNull();
     });
   });
 

@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useApiQuery } from './useApiQuery';
 import { ADMIN_PATHS } from '../configuration/admin';
 import { useDatasetIngestionState } from './useDatasetIngestionState';
@@ -125,6 +126,17 @@ function buildDataMappingRequestsByFile(
 // Helpers
 // ---------------------------------------------------------------------------
 
+type DepthErrorType = 'missing' | 'non_numeric' | 'range';
+
+function getDepthError(minDepth: string | null, maxDepth: string | null): DepthErrorType | null {
+  if (!minDepth || !maxDepth) return 'missing';
+  const min = Number(minDepth);
+  const max = Number(maxDepth);
+  if (!Number.isFinite(min) || !Number.isFinite(max)) return 'non_numeric';
+  if (min >= max) return 'range';
+  return null;
+}
+
 function isMappingChanged(
   columnMappings: ColumnMapping[],
   dataMappingByFileId: Record<string, DataMappingObject>,
@@ -169,6 +181,7 @@ function isMappingChanged(
 // ---------------------------------------------------------------------------
 
 export function useRasterMappingStep(datasetId?: string) {
+  const { t } = useTranslation('admin');
   const {
     navigate,
     queryClient,
@@ -342,7 +355,35 @@ export function useRasterMappingStep(datasetId?: string) {
     return { mappedCount: mapped, unmappedCount: columnMappings.length - mapped };
   }, [columnMappings]);
 
-  const isContinueEnabled = useMemo(() => mappedCount > 0, [mappedCount]);
+  const invalidDepthColumns = useMemo(() => {
+    const columns = new Set<string>();
+    for (const m of columnMappings) {
+      if (m.conceptId === null) continue;
+      if (getDepthError(m.minDepth, m.maxDepth) !== null) columns.add(m.columnName);
+    }
+    return columns;
+  }, [columnMappings]);
+
+  const depthValidationMessage = useMemo((): { message: string; type: 'error' } | null => {
+    let worstError: DepthErrorType | null = null;
+    for (const m of columnMappings) {
+      if (m.conceptId === null) continue;
+      const error = getDepthError(m.minDepth, m.maxDepth);
+      if (error === 'missing') {
+        worstError = 'missing';
+        break;
+      }
+      if (error === 'non_numeric' && worstError !== 'non_numeric') worstError = 'non_numeric';
+      if (error === 'range' && worstError === null) worstError = 'range';
+    }
+
+    if (worstError === 'missing') return { message: t('datasets.mappings.depth_required'), type: 'error' };
+    if (worstError === 'non_numeric') return { message: t('datasets.mappings.depth_must_be_numeric'), type: 'error' };
+    if (worstError === 'range') return { message: t('datasets.mappings.depth_range_invalid'), type: 'error' };
+    return null;
+  }, [columnMappings, t]);
+
+  const isContinueEnabled = useMemo(() => mappedCount > 0 && invalidDepthColumns.size === 0, [mappedCount, invalidDepthColumns]);
 
   const handleConceptChange = useCallback((columnName: string, value: string) => {
     const conceptId = value || null;
@@ -475,6 +516,8 @@ export function useRasterMappingStep(datasetId?: string) {
     detailOptions,
     mappedCount,
     unmappedCount,
+    invalidDepthColumns,
+    depthValidationMessage,
     expandedRows,
     toggleRow,
     handleConceptChange,
