@@ -14,6 +14,7 @@ import UnitConversionService from './UnitConversionService';
 import SoilPropertyService from './SoilPropertyService';
 import ProcedureService from './ProcedureService';
 import { sanitizeField } from '../utils/utils';
+import { UnitConversionType } from '../types/data';
 
 export default class DataMappingService {
   postDataMapping = async (requestData: RequestData, dataMapping: DataMappingObject): Promise<DataMappingEntity> => {
@@ -197,6 +198,14 @@ export default class DataMappingService {
       procedureSlugs.length ? new ProcedureService().getProceduresBySlug(requestData, procedureSlugs) : Promise.resolve([]),
     ]);
 
+    // Sequential because it keys on the resolved ids. One extra query over reference data, and the
+    // question it answers cannot be asked of `conversions`: those are only the ones the mapping
+    // named, and what makes a band categorical is a property of the property.
+    const categoricalPropertyIds = await new UnitConversionService().getCategoricalPropertyIds(
+      requestData,
+      properties.map(p => p.id),
+    );
+
     const propertyBySlug = new Map(properties.map(p => [p.slug, p]));
     const conversionBySlug = new Map(conversions.map(c => [c.slug, c]));
     const procedureBySlug = new Map(procedures.map(p => [p.slug, p]));
@@ -218,7 +227,9 @@ export default class DataMappingService {
         standardUnit: property?.standard_unit ?? null,
         originalUnit: conversion?.original_unit_of_measurement ?? null,
         conversionFormula: conversion?.conversion_formula ?? null,
-        unitType: conversion?.type ?? null,
+        // The named conversion is checked too so an entry whose conversion belongs to some other
+        // property is not read as continuous.
+        isCategorical: (!!property && categoricalPropertyIds.has(property.id)) || conversion?.type === UnitConversionType.CATEGORY_MAPPING,
         layerDescription: bandMapping.layer_description ?? null,
         additionalResources: Array.isArray(bandMapping.additional_resources) ? bandMapping.additional_resources : [],
       };

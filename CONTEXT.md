@@ -69,7 +69,7 @@ A Dataset attribute: `public` or `private`. Private Datasets are still discovera
 _Avoid_: Access level, permission, "my datasets" (entitlement concepts — a different axis)
 
 **Subject**:
-The identity a caller acts under: the token's `email` claim, else its `client_id`, else its `sub`. It is what **Entitlements** are keyed by and what every `created_by`/`updated_by` record holds — a job's included, so a job resolves the same Entitlements its submitter had. Not a synonym for the token's `sub` claim, which is only the last fallback and in general is a different string.
+The identity a caller acts under: the token's `email` claim, else its `client_id`, else its `sub`. It is what **Entitlements** are keyed by and what every `created_by`/`updated_by` record holds — a job's included, so a job resolves the same Entitlements its submitter had. Not a synonym for the token's `sub` claim, which is only the last fallback and in general is a different string. Which branch supplies the Subject is a property of the deployment's identity provider rather than of the caller: on a deployment whose IdP omits `email` from access tokens, *no* Subject is ever an email address, and every **Entitlement** granted to one is unreachable.
 _Avoid_: sub, user, user id, owner, caller (the requester; the Subject is the resolved value it acts under)
 
 **Entitlement**:
@@ -114,7 +114,7 @@ _Avoid_: Raster ingest (the per-file operation Raster Load invokes), raster uplo
 
 **Raster Ingest**:
 The operation that takes one Band of a *single* Cloud Optimized GeoTIFF and registers it as one Raster Layer with its footprints. One Band in, one Raster Layer out — a multiband file is ingested by one Raster Ingest per mapped Band, each carrying its own soil property. A Raster Ingest is reached only through a Raster Load: it presumes the Dataset and the File already exist and never creates either, and it never records Dataset-level metadata.
-_Avoid_: Raster load (the Dataset-scoped orchestration above it), conversion (producing the COG is a separate, prior step), "ingesting a file" (a Raster Ingest consumes a Band, not a whole file)
+_Avoid_: Raster load (the Dataset-scoped orchestration above it), conversion or normalization (a Raster Load step: a deviating file is normalized once, before any of its Bands is ingested — ADR 0024), "ingesting a file" (a Raster Ingest consumes a Band, not a whole file)
 
 **Raster Layer**:
 The catalog record for one Band of one raster File within a Dataset, carrying that Band's soil property, depth range, reference period, resolution, nodata marker, bounding box and footprints. The raster counterpart of a DatasetLayer, and identified by the pair (File, Band) — a File and Band together have at most one Raster Layer. Unlike a Layer, a Raster Layer holds no Observations: its measurements stay in the File's pixels, which is why the File must survive the Raster Load.

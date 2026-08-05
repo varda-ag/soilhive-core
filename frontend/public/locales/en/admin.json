@@ -33,7 +33,7 @@
             "message": "New terms and conditions applied"
         }
     },
-     "privacy_policy": {
+    "privacy_policy": {
         "title": "Privacy policy",
         "subtitle": "Paste a text here",
         "save": "Save",
@@ -435,6 +435,7 @@
                 "table_column_email": "Email",
                 "email_invalid": "Please enter a valid email address",
                 "email_duplicate": "This email has already been added",
+                "email_unavailable_warning": "This platform's authentication method cannot identify individual users. As a result, no one, including the emails listed below, will be granted access to the data. Contact your platform administrator if per-user access is required.",
                 "remove_dialog": {
                     "title": "Delete a data administrator",
                     "message": "Do you really want to delete this admin?",

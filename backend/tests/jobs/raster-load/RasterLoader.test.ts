@@ -13,7 +13,7 @@ import { RasterLoadJob } from '../../../src/interfaces/Job';
 import { RasterFileMetadata } from '../../../src/interfaces/File';
 import { processRasterLoad } from '../../../src/jobs/raster-load/RasterLoader';
 import * as PgBossModule from '../../../src/services/PgBoss';
-import { GISDataType, IngestionStatus } from '../../../src/types/data';
+import { GISDataType, IngestionStatus, UnitConversionType } from '../../../src/types/data';
 import { getDataSource } from '../../../src/utils/data-source';
 import { GdalCLI } from '../../../src/utils/GdalCLI';
 import { addCategory, addDataMapping, addDataset, addFile, addSoilProperty, addUnitConversion } from '../../../src/utils/mock';
@@ -510,6 +510,52 @@ describe('RasterLoader', () => {
       ]);
       expect(Number(row.xmin)).toBeGreaterThanOrEqual(-180);
       expect(Number(row.xmax)).toBeLessThanOrEqual(180);
+    });
+
+    it('resamples a categorical raster with nearest neighbour rather than averaging its classes', async () => {
+      useScratchStorage(EPSG3857_FILE);
+      const { dataset, property } = await setUpRasterLoad(uniqueName('categorical'), slug => ({ '1': bandEntry(slug, 0, 5) }), {
+        fileName: EPSG3857_FILE,
+      });
+      // bandEntry names no conversion, so being categorical has to be recognised from the
+      // property's own conversions — the point of asking the property rather than whichever
+      // conversion a band mapping happens to select, since conversion_id is optional.
+      await addUnitConversion(property.id, 'code 1-12', 'x', UnitConversionType.CATEGORY_MAPPING);
+
+      const warp = jest.spyOn(GdalCLI, 'warp');
+      const translate = jest.spyOn(GdalCLI, 'translate');
+      try {
+        await processRasterLoad(getJob(dataset.slug));
+
+        // Reprojection and overview building both interpolate by default, and both have to be
+        // stopped from inventing a class that is the average of two others.
+        expect((warp.mock.calls[0]?.[2] ?? []).join(' ')).toContain('-r near');
+        const cogArgs = translate.mock.calls.find(([, dst]) => dst.endsWith('_cog.tif'))?.[2] ?? [];
+        expect(cogArgs).toContain('OVERVIEW_RESAMPLING=NEAREST');
+      } finally {
+        warp.mockRestore();
+        translate.mockRestore();
+      }
+    });
+
+    it('averages a continuous raster, which is what every other conversion here relies on', async () => {
+      useScratchStorage(EPSG3857_FILE);
+      const { dataset } = await setUpRasterLoad(uniqueName('continuous'), slug => ({ '1': bandEntry(slug, 0, 5) }), {
+        fileName: EPSG3857_FILE,
+      });
+
+      const warp = jest.spyOn(GdalCLI, 'warp');
+      const translate = jest.spyOn(GdalCLI, 'translate');
+      try {
+        await processRasterLoad(getJob(dataset.slug));
+
+        expect((warp.mock.calls[0]?.[2] ?? []).join(' ')).toContain('-r bilinear');
+        const cogArgs = translate.mock.calls.find(([, dst]) => dst.endsWith('_cog.tif'))?.[2] ?? [];
+        expect(cogArgs).toContain('OVERVIEW_RESAMPLING=AVERAGE');
+      } finally {
+        warp.mockRestore();
+        translate.mockRestore();
+      }
     });
 
     it('scales each band by its own conversion factor', async () => {

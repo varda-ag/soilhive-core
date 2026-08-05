@@ -13,7 +13,6 @@ import ConfigService from './ConfigService';
 import { StorageModes } from '../types/enums';
 import { GdalCLI, type GdalProgressCallback } from '../utils/GdalCLI';
 import { JobError } from '../errors/JobError';
-import { UnitConversionType } from '../types/data';
 
 /**
  * Input for one Raster Ingest: one band of one already-uploaded COG.
@@ -58,7 +57,12 @@ export interface RasterBandUnit {
   standardUnit?: string | null | undefined;
   originalUnit?: string | null | undefined;
   conversionFormula?: string | null | undefined;
-  unitType?: string | null | undefined;
+  /**
+   * Whether the band's values are class codes. Required, like the depths on an ingest: defaulting
+   * it would silently pick AVERAGE resampling and interpolate classes into meaningless
+   * intermediate values.
+   */
+  isCategorical: boolean;
 }
 
 export interface RasterFormatCheckOptions {
@@ -212,7 +216,7 @@ async function convertRasterFile(
     // Resampling applies to the whole file, not per band: if any mapped band is categorical
     // (e.g. soil texture classes), NEAREST is used for all of them rather than averaging classes
     // in the rest into meaningless intermediate values.
-    const resampling = opts.bands.some(b => b.unitType === UnitConversionType.CATEGORY_MAPPING) ? 'NEAREST' : 'AVERAGE';
+    const resampling = opts.bands.some(b => b.isCategorical) ? 'NEAREST' : 'AVERAGE';
     const producedPath = await timed('convertRaster', () => convertRaster(inputPath, outputPath, deviations, resampling, opts.onProgress));
 
     // Deterministic so re-running a failed load overwrites its own output instead of piling up.
@@ -320,6 +324,17 @@ async function convertRaster(
     let translateSrc = src;
     const unscaleArgs: string[] = [];
     if (deviations.unitFactors) {
+      // gdal_edit.py broadcasts a lone -scale across every band, so a factor list shorter than the
+      // band count would silently rescale bands nobody asked about — wrong pixel values rather than
+      // a failure. checkFileFormat builds one factor per band; this asserts they still line up with
+      // the raster actually being edited, which is the warp output when there was one.
+      const srcBandCount = (await GdalCLI.gdalinfo(src)).bands?.length ?? 0;
+      if (deviations.unitFactors.length !== srcBandCount) {
+        throw new Error(
+          `expected one conversion factor per band, got ${deviations.unitFactors.length} for a raster reporting ${srcBandCount} band(s)`,
+        );
+      }
+
       const vrtPath = `${tmpPrefix}.vrt`;
       await GdalCLI.translate(src, vrtPath, ['-of', 'VRT']);
       cleanup.push(vrtPath);
