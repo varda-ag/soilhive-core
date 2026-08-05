@@ -1,11 +1,17 @@
 import { describe, it, expect } from '@jest/globals';
+import path from 'path';
 import { Job } from 'pg-boss';
 import DatasetEntity from '../../../src/entities/Dataset';
 import { BulkDeleteJob } from '../../../src/interfaces/Job';
 import * as BulkDeleterModule from '../../../src/jobs/bulk-delete/BulkDeleter';
 import { IngestionStatus } from '../../../src/types/data';
 import { getDataSource } from '../../../src/utils/data-source';
-import { addSyntheticData, getLoadedDataCount, syntheticDataOptions } from '../../../src/utils/mock';
+import {
+  addRasterData,
+  addSyntheticData,
+  getLoadedDataCount,
+  syntheticDataOptions,
+} from '../../../src/utils/mock';
 
 const getJob = (dataset_id: string): Job<BulkDeleteJob> => {
   return {
@@ -72,5 +78,46 @@ describe('BulkDeleter class', () => {
     const datasets = await repo.find({ withDeleted: true });
     expect(datasets.length).toBe(2);
     expect(datasets.filter(d => d.id === datasetToDelete.id)[0].status).toBe(IngestionStatus.ARCHIVED);
+  });
+});
+
+describe('BulkDeleter class - raster datasets', () => {
+  it('deletes raster_layers and their footprint links, and archives the dataset', async () => {
+    const rasterLayer = await addRasterData(undefined, { dataset: 'bulk-delete-raster-basic' });
+
+    const dataSource = await getDataSource();
+    const footprintLinksBefore = await dataSource.query(`SELECT raster_footprint_id FROM raster_layer_footprints WHERE raster_layer_id = $1`, [
+      rasterLayer.id,
+    ]);
+    expect(footprintLinksBefore.length).toBeGreaterThan(0);
+
+    await BulkDeleterModule.processBulkDeletion(getJob(rasterLayer.dataset.slug));
+
+    const layers = await dataSource.query(`SELECT id FROM raster_layers WHERE id = $1`, [rasterLayer.id]);
+    expect(layers).toHaveLength(0);
+
+    // The FK from raster_layer_footprints to raster_layers is ON DELETE CASCADE (see the
+    // CreateSchema migration): deleting the layer must take its footprint links with it.
+    const footprintLinksAfter = await dataSource.query(`SELECT raster_footprint_id FROM raster_layer_footprints WHERE raster_layer_id = $1`, [
+      rasterLayer.id,
+    ]);
+    expect(footprintLinksAfter).toHaveLength(0);
+
+    const repo = dataSource.getRepository(DatasetEntity);
+    const archived = await repo.findOne({ where: { id: rasterLayer.dataset_id }, withDeleted: true });
+    expect(archived?.status).toBe(IngestionStatus.ARCHIVED);
+  });
+
+  it('does not delete raster layers belonging to a different dataset', async () => {
+    const keep = await addRasterData(undefined, { dataset: 'bulk-delete-raster-keep' });
+    const remove = await addRasterData(path.join(__dirname, '../../assets/raster/bdod_5-15cm_mean.tif'), { dataset: 'bulk-delete-raster-remove' });
+
+    await BulkDeleterModule.processBulkDeletion(getJob(remove.dataset.slug));
+
+    const dataSource = await getDataSource();
+    const kept = await dataSource.query(`SELECT id FROM raster_layers WHERE id = $1`, [keep.id]);
+    expect(kept).toHaveLength(1);
+    const removed = await dataSource.query(`SELECT id FROM raster_layers WHERE id = $1`, [remove.id]);
+    expect(removed).toHaveLength(0);
   });
 });

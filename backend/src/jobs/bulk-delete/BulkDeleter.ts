@@ -4,6 +4,8 @@ import { Token } from '../../interfaces/Token';
 import DatasetService from '../../services/DatasetService';
 import { getEntityManager } from '../../utils/data-source';
 import DatasetLayerEntity from '../../entities/DatasetLayer';
+import { GISDataType } from '../../types/data';
+import RasterLayerEntity from '../../entities/RasterLayer';
 
 export async function processBulkDeletion(job: Job<BulkDeleteJob>): Promise<void> {
   const { data } = job;
@@ -11,7 +13,9 @@ export async function processBulkDeletion(job: Job<BulkDeleteJob>): Promise<void
   const entityManager = await getEntityManager();
   const token = { sub: data.created_by } as Token; // Only sub is required
   const requestData = { entityManager, token, entitlements: {} };
-  const datasetId = (await datasetService.getDataset(requestData, data.dataset_id)).id;
+  const dataset = await datasetService.getDataset(requestData, data.dataset_id);
+  const datasetId = dataset.id;
+  const chunkSize = 1000;
 
   // First set dataset as deleted; the DAI refresh must be synchronous here so it
   // still sees the dataset_layers rows deleted below
@@ -19,7 +23,33 @@ export async function processBulkDeletion(job: Job<BulkDeleteJob>): Promise<void
   // Then, remove linked entities in a separate transaction
   await entityManager.transaction(async manager => {
     await manager.query(`SET LOCAL statement_timeout = '5min'`);
-    const chunkSize = 1000;
+
+    if (dataset.gis_datatype === GISDataType.RASTER) {
+      // For raster datasets, only raster_layer entity deletion is required. The assets and footprints
+      // that reference it get deleted, and the delete_orphan_raster_footprints trigger removes raster_footprints
+      const subQuery = manager
+        .getRepository(RasterLayerEntity)
+        .createQueryBuilder('rl')
+        .select('rl.id')
+        .where('rl.dataset_id = :datasetId', { datasetId })
+        .limit(chunkSize)
+        .getQuery();
+
+      while (true) {
+        const deleted = await manager
+          .getRepository(RasterLayerEntity)
+          .createQueryBuilder()
+          .delete()
+          .where(`id IN (${subQuery})`)
+          .setParameter('datasetId', datasetId)
+          .returning(['id'])
+          .execute()
+          .then(res => res.raw);
+
+        if (deleted.length === 0) break;
+      }
+      return;
+    }
     const subQuery = manager
       .getRepository(DatasetLayerEntity)
       .createQueryBuilder('dl')
