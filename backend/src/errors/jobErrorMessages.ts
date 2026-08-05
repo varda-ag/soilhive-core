@@ -171,10 +171,7 @@ const JOB_ERROR_MESSAGES: Record<string, JobErrorMessage> = {
   },
   BD_TIMEOUT: {
     message: "Deleting '{dataset_name}' took too long and was stopped partway through.",
-    actions: [
-      'Run the deletion again — it will pick up where it left off rather than starting over.',
-      'If it keeps timing out, contact support so the dataset can be removed in the background.',
-    ],
+    actions: ['Try deleting again; if it keeps timing out, contact support'],
   },
   // FTD_GDAL_NOT_INSTALLED: reserved for future use — GdalCLI already emits a
   // 'GDAL_NOT_INSTALLED:' prefix on ENOENT so the code is detectable, but by

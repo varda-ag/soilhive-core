@@ -142,4 +142,35 @@ describe('BulkDeleter class - errors', () => {
       spy.mockRestore();
     }
   });
+
+  it('rolls back dataset status and soft-deletion when the delete transaction fails', async () => {
+    const { dataset } = await addSyntheticData({ ...syntheticDataOptions, id: 105, featureCount: 1 });
+    expect(dataset.status).toBe(IngestionStatus.PUBLISHED);
+
+    const entityManager = await getEntityManager();
+    const timeoutError = new QueryFailedError(
+      'DELETE ...',
+      [],
+      Object.assign(new Error('canceling statement due to statement timeout'), { code: '57014' }),
+    );
+    const spy = jest.spyOn(entityManager, 'transaction').mockRejectedValueOnce(timeoutError);
+
+    try {
+      await expect(BulkDeleterModule.processBulkDeletion(getJob(dataset.slug))).rejects.toMatchObject({
+        name: 'JobError',
+        code: 'BD_TIMEOUT',
+      });
+    } finally {
+      spy.mockRestore();
+    }
+
+    const dataSource = await getDataSource();
+    const repo = dataSource.getRepository(DatasetEntity);
+    // Not withDeleted: true — a default query excludes soft-deleted rows, so finding it here
+    // proves deleted_at was actually cleared, not just that status was reverted.
+    const reloaded = await repo.findOneBy({ id: dataset.id });
+    expect(reloaded).not.toBeNull();
+    expect(reloaded?.status).toBe(IngestionStatus.PUBLISHED);
+    expect(reloaded?.deleted_at).toBeNull();
+  });
 });

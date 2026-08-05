@@ -89,7 +89,6 @@ export function useDatasetsPublicationList(): DatasetsPublicationListType {
     // away instead of waiting on the next poll (useDatasets refetches every 2s) to catch up.
     queryClient.setQueryData<Dataset[]>(['datasets'], old => old?.filter(dataset => dataset.id !== deletedId));
     onDeleteModalClose();
-    await queryClient.invalidateQueries({ queryKey: ['datasets'] });
   }, [createJob, onDeleteModalClose, selectedDataset, clearDatasetStatus]);
 
   const onPublish = useCallback(

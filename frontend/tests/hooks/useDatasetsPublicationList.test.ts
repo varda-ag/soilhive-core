@@ -363,7 +363,6 @@ describe('useDatasetsPublicationList', () => {
     });
 
     expect(createJob).toHaveBeenCalledWith({ type: 'bulk-delete', dataset_id: '2' });
-    expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['datasets'] });
     expect(result.current.isDeleteModalOpened).toBe(false);
     expect(result.current.selectedDataset).toBeNull();
   });

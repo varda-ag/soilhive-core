@@ -8,6 +8,9 @@ import { JobError } from '../../errors/JobError';
 import DatasetLayerEntity from '../../entities/DatasetLayer';
 import { GISDataType } from '../../types/data';
 import RasterLayerEntity from '../../entities/RasterLayer';
+import { refreshDaiStats } from '../../data-layer/DaiStats';
+import { bumpCacheEpoch } from '../../utils/cache-epoch';
+import ErrorService from '../../services/ErrorService';
 
 // Postgres: query_canceled — raised when a statement exceeds the `statement_timeout` set below.
 const STATEMENT_TIMEOUT_CODE = '57014';
@@ -16,6 +19,7 @@ export async function processBulkDeletion(job: Job<BulkDeleteJob>): Promise<void
   const { data } = job;
   const datasetService = new DatasetService();
   const entityManager = await getEntityManager();
+  await new ErrorService().clearDatasetErrors(data.dataset_id, entityManager);
   const token = { sub: data.created_by } as Token; // Only sub is required
   const requestData = { entityManager, token, entitlements: {} };
   const dataset = await datasetService.getDataset(requestData, data.dataset_id);
@@ -112,6 +116,10 @@ export async function processBulkDeletion(job: Job<BulkDeleteJob>): Promise<void
       }
     });
   } catch (error) {
+    // Roll back dataset status and soft-deletion, refresh DAI and invalidate cache
+    await dataset.save();
+    await refreshDaiStats(entityManager, [datasetId]);
+    await bumpCacheEpoch();
     if (error instanceof QueryFailedError && (error.driverError as { code?: string })?.code === STATEMENT_TIMEOUT_CODE) {
       throw new JobError('BD_TIMEOUT', { dataset_name: dataset.name });
     }
