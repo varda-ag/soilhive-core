@@ -328,7 +328,9 @@
                 "unit_placeholder": "Unit",
                 "no_unit": "No unit",
                 "depth_from_placeholder": "From",
-                "depth_to_placeholder": "To"
+                "depth_to_placeholder": "To",
+                "collapse_row": "Collapse row",
+                "expand_row": "Expand row"
             },
             "geometry_detected": "Geometry was automatically detected. You don't need to map the geometry or lat/lon fields.",
             "geometry_not_detected": "No geometry was detected. You must map the geometry field or both latitude and longitude fields to continue.",

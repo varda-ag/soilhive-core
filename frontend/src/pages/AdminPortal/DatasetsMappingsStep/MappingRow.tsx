@@ -58,7 +58,7 @@ export function MappingRow({
           })}
           onClick={() => onToggle(columnName)}
           aria-expanded={isExpanded}
-          aria-label={isExpanded ? 'Collapse row' : 'Expand row'}
+          aria-label={isExpanded ? t('datasets.mappings.row.collapse_row') : t('datasets.mappings.row.expand_row')}
           tabIndex={isDetailsEnabled ? 0 : -1}
         >
           <ArrowDownIcon className={styles.ChevronIcon} />

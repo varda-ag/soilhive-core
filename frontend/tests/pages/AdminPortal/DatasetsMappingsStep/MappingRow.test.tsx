@@ -83,6 +83,16 @@ describe('MappingRow', () => {
       expect(props.onToggle).toHaveBeenCalledWith('Carbon_organic');
     });
 
+    it('uses a translated "expand row" aria-label when collapsed', () => {
+      render(<MappingRow {...defaultProps({ isExpanded: false })} />);
+      expect(screen.getByRole('button', { name: 'Expand row' })).toBeInTheDocument();
+    });
+
+    it('uses a translated "collapse row" aria-label when expanded', () => {
+      render(<MappingRow {...defaultProps({ isExpanded: true })} />);
+      expect(screen.getByRole('button', { name: 'Collapse row' })).toBeInTheDocument();
+    });
+
     it('does not render detailsContent when isExpanded is false', () => {
       render(<MappingRow {...defaultProps({ detailsContent: <div data-testid="sh-mapping-row-details" /> })} />);
       expect(screen.queryByTestId('sh-mapping-row-details')).not.toBeInTheDocument();
