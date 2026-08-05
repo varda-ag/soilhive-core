@@ -5,13 +5,12 @@ import styles from './MappingsTable.module.scss';
 interface Props {
   columnMappings: { columnName: string }[];
   headerCells: string[];
+  hasExtraColumn?: boolean;
   dataTestId: string;
   renderRow: (columnName: string) => ReactNode;
 }
 
-export function MappingsTable({ columnMappings, headerCells, dataTestId, renderRow }: Props) {
-  const hasExtraColumn = headerCells.length > 3;
-
+export function MappingsTable({ columnMappings, headerCells, hasExtraColumn = false, dataTestId, renderRow }: Props) {
   return (
     <div className={styles.MappingsTable} data-testid={dataTestId}>
       <div className={classnames(styles.Header, { [styles.HeaderWithExtra]: hasExtraColumn })}>

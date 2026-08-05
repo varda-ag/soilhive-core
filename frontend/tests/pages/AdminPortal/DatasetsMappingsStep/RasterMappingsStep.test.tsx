@@ -23,12 +23,18 @@ jest.mock('../../../../src/pages/AdminPortal/DatasetsMappingsStep/MappingsTable'
   MappingsTable: ({
     columnMappings,
     dataTestId,
+    hasExtraColumn,
     renderRow,
   }: {
     columnMappings: ColumnMapping[];
     dataTestId: string;
+    hasExtraColumn?: boolean;
     renderRow: (columnName: string) => ReactNode;
-  }) => <div data-testid={dataTestId}>{columnMappings.map(m => renderRow(m.columnName))}</div>,
+  }) => (
+    <div data-testid={dataTestId} data-has-extra-column={String(!!hasExtraColumn)}>
+      {columnMappings.map(m => renderRow(m.columnName))}
+    </div>
+  ),
 }));
 
 // ---------------------------------------------------------------------------
@@ -118,6 +124,11 @@ describe('RasterMappingsStep', () => {
   it('renders the mappings table', () => {
     render(<RasterMappingsStep id="1" />);
     expect(screen.getByTestId('sh-raster-mappings-table')).toBeInTheDocument();
+  });
+
+  it('tells the mappings table to render the extra (depth) column', () => {
+    render(<RasterMappingsStep id="1" />);
+    expect(screen.getByTestId('sh-raster-mappings-table')).toHaveAttribute('data-has-extra-column', 'true');
   });
 
   describe('action buttons', () => {

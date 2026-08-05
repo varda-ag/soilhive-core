@@ -80,6 +80,7 @@ export function RasterMappingsStep({ id }: Props) {
     >
       <MappingsTable
         dataTestId="sh-raster-mappings-table"
+        hasExtraColumn
         headerCells={[
           t('datasets.mappings.table.detected_layers'),
           t('datasets.mappings.table.map_to'),

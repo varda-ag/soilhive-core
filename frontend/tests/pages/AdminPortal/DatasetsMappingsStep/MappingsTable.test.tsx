@@ -28,8 +28,36 @@ describe('MappingsTable', () => {
   });
 
   it('renders an additional header cell for variants with a 4th column (e.g. raster depth)', () => {
-    render(<MappingsTable {...defaultProps({ headerCells: ['Detected layers', 'Map to', 'Original Unit', 'Min-max depth (cm)'] })} />);
+    render(
+      <MappingsTable
+        {...defaultProps({ headerCells: ['Detected layers', 'Map to', 'Original Unit', 'Min-max depth (cm)'], hasExtraColumn: true })}
+      />,
+    );
     expect(screen.getByText('Min-max depth (cm)')).toBeInTheDocument();
+  });
+
+  describe('hasExtraColumn', () => {
+    it('does not add the HeaderWithExtra class by default', () => {
+      const { container } = render(<MappingsTable {...defaultProps()} />);
+      expect(container.querySelector('.Header')).not.toHaveClass('HeaderWithExtra');
+    });
+
+    it('does not add the HeaderWithExtra class when explicitly false, regardless of header count', () => {
+      const { container } = render(
+        <MappingsTable
+          {...defaultProps({
+            headerCells: ['Detected layers', 'Map to', 'Original Unit', 'Min-max depth (cm)'],
+            hasExtraColumn: false,
+          })}
+        />,
+      );
+      expect(container.querySelector('.Header')).not.toHaveClass('HeaderWithExtra');
+    });
+
+    it('adds the HeaderWithExtra class when hasExtraColumn is true', () => {
+      const { container } = render(<MappingsTable {...defaultProps({ hasExtraColumn: true })} />);
+      expect(container.querySelector('.Header')).toHaveClass('HeaderWithExtra');
+    });
   });
 
   it('renders no rows when columnMappings is empty', () => {
