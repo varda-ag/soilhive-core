@@ -431,14 +431,19 @@ describe('useRasterMappingStep', () => {
   });
 
   describe('row naming from raster bands', () => {
-    function setupWithFiles(files: { name: string; bandCount: number }[]) {
+    // bandCount undefined models a file with no raster metadata, e.g. a non-spatial additional
+    // resource (a document) attached to the dataset.
+    function setupWithFiles(files: { name: string; bandCount?: number }[]) {
       const filesData = files.map((f, i) => ({
         id: `file-${i}`,
         name: f.name,
-        metadata: {
-          is_raster: true,
-          raster_bands: Array.from({ length: f.bandCount }, (_, i) => ({ band_number: i + 1 })),
-        },
+        metadata:
+          f.bandCount === undefined
+            ? undefined
+            : {
+                is_raster: true,
+                raster_bands: Array.from({ length: f.bandCount }, (_, i) => ({ band_number: i + 1 })),
+              },
       }));
       const datasetFileMappings: never[] = [];
       mockUseApiQuery.mockImplementation(({ endpoint }: { endpoint: string }) => {
@@ -473,6 +478,12 @@ describe('useRasterMappingStep', () => {
       const { result } = renderHook(() => useRasterMappingStep('1'));
       expect(result.current.columnMappings.map(m => m.columnName)).toEqual(['single.tif', 'multi.tif (band 1)', 'multi.tif (band 2)']);
       expect(result.current.columnMappings.map(m => m.fileId)).toEqual(['file-0', 'file-1', 'file-1']);
+    });
+
+    it('excludes files with no raster metadata, e.g. non-spatial additional resources', () => {
+      setupWithFiles([{ name: 'raster.tif', bandCount: 1 }, { name: 'notes.pdf' }]);
+      const { result } = renderHook(() => useRasterMappingStep('1'));
+      expect(result.current.columnMappings.map(m => m.columnName)).toEqual(['raster.tif']);
     });
   });
 

@@ -38,14 +38,19 @@ export interface ColumnMapping {
   isGeometryDetectedField: boolean;
 }
 
+const isRasterFile = (file: FileDescriptor): file is FileDescriptor & { metadata: RasterFileDescriptorMetadata } =>
+  !!file.metadata && !!file.metadata.is_raster;
+
 // One row per raster band, named after the file it came from — a raster with multiple bands
 // gets one row per band (e.g. "file_bulk_raster.tif (band 1)"), while a single-band raster is
 // just named after the file, with no band number. The displayed band number (from the file's
 // metadata) is 1-indexed for readability, but bandKey — the key used to serialize into a file's
 // data_mapping — is the band's zero-based position within the file (0, 1, 2, ...).
+// Files that aren't rasters (e.g. non-spatial additional resources) are excluded.
 function buildColumns(files: FileDescriptor[]): { columnName: string; fileId: string; bandKey: number }[] {
   return files.flatMap(f => {
-    const bands = (f.metadata as RasterFileDescriptorMetadata).raster_bands;
+    if (!isRasterFile(f)) return [];
+    const bands = f.metadata.raster_bands;
     if (bands.length <= 1) {
       return [{ columnName: f.name, fileId: f.id, bandKey: 0 }];
     }
