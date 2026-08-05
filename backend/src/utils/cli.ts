@@ -8,6 +8,7 @@ import { dbRestore } from './db-restore';
 import { log } from './logger';
 import { refreshDaiStats } from '../data-layer/DaiStats';
 import { bumpCacheEpoch } from './cache-epoch';
+import { syncVocabularies } from '../scripts/syncVocabularies';
 
 export const setupCLI = async () => {
   program
@@ -17,6 +18,8 @@ export const setupCLI = async () => {
     .option('--bbox <minx,miny,maxx,maxy>', 'Synthetic data bounds')
     .option('--load-raster-filter <file.dump>', 'Load raster filter')
     .option('--refresh-dai-stats', 'Fully rebuild the precomputed DAI stats (feature_dai_stats)')
+    .option('--sync-vocabularies', 'Upsert licenses and unit_conversions from backend/docs/data-model/*.csv')
+    .option('--dry-run', 'With --sync-vocabularies, report counts without writing to the DB')
     .parse();
 
   const options = program.opts();
@@ -45,6 +48,20 @@ export const setupCLI = async () => {
       await refreshAllDaiStats();
     } catch (e) {
       log.error(`DAI stats rebuild error: ${e}`);
+      process.exitCode = 1;
+    } finally {
+      process.exit();
+    }
+  }
+  if (options['syncVocabularies']) {
+    log.info(options['dryRun'] ? 'Syncing vocabularies from CSV (dry run)' : 'Syncing vocabularies from CSV');
+    try {
+      while (!(await isDBAvailable())) {
+        await sleep(1000);
+      }
+      await syncVocabularies(!!options['dryRun']);
+    } catch (e) {
+      log.error(`Vocabulary sync error: ${e}`);
       process.exitCode = 1;
     } finally {
       process.exit();
