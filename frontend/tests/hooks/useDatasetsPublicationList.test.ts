@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router';
 
 import { useDatasetsPublicationList } from 'hooks/useDatasetsPublicationList';
 import { useDatasets } from 'hooks/useDatasets';
-import { useDeleteDatasetMutation } from 'hooks/useDatasetMutation';
+import { useCreateJobMutation } from 'hooks/useJobsApi';
 import { queryClient } from '../../src/App';
 import { ADMIN_PATHS } from '../../src/configuration/admin';
 
@@ -24,8 +24,8 @@ jest.mock('hooks/useDatasets', () => ({
   useDatasets: jest.fn(),
 }));
 
-jest.mock('hooks/useDatasetMutation', () => ({
-  useDeleteDatasetMutation: jest.fn(),
+jest.mock('hooks/useJobsApi', () => ({
+  useCreateJobMutation: jest.fn(),
 }));
 
 jest.mock('hooks/useDatasetErrors', () => ({
@@ -35,6 +35,7 @@ jest.mock('hooks/useDatasetErrors', () => ({
 jest.mock('../../src/App', () => ({
   queryClient: {
     invalidateQueries: jest.fn(),
+    setQueryData: jest.fn(),
   },
 }));
 
@@ -54,12 +55,12 @@ const datasets = [
 
 describe('useDatasetsPublicationList', () => {
   const navigate = jest.fn();
-  const deleteDataset = jest.fn();
+  const createJob = jest.fn();
 
   beforeEach(() => {
     (useNavigate as jest.Mock).mockReturnValue(navigate);
     (useDatasets as jest.Mock).mockReturnValue({ datasets, isLoading: false });
-    (useDeleteDatasetMutation as jest.Mock).mockReturnValue({ mutateAsync: deleteDataset, isPending: false });
+    (useCreateJobMutation as jest.Mock).mockReturnValue({ mutateAsync: createJob, isPending: false });
   });
 
   afterEach(() => {
@@ -89,8 +90,8 @@ describe('useDatasetsPublicationList', () => {
     expect(result.current.isLoading).toBe(true);
   });
 
-  it('isLoading is true when delete mutation is pending', () => {
-    (useDeleteDatasetMutation as jest.Mock).mockReturnValue({ mutateAsync: deleteDataset, isPending: true });
+  it('isLoading is true when the delete job creation is pending', () => {
+    (useCreateJobMutation as jest.Mock).mockReturnValue({ mutateAsync: createJob, isPending: true });
 
     const { result } = renderHook(() => useDatasetsPublicationList());
 
@@ -346,11 +347,11 @@ describe('useDatasetsPublicationList', () => {
       await result.current.onDeletionConfirm();
     });
 
-    expect(deleteDataset).not.toHaveBeenCalled();
+    expect(createJob).not.toHaveBeenCalled();
     expect(queryClient.invalidateQueries).not.toHaveBeenCalled();
   });
 
-  it('onDeletionConfirm deletes the dataset, closes the modal and invalidates queries', async () => {
+  it('onDeletionConfirm creates a bulk-delete job, closes the modal and invalidates queries', async () => {
     const { result } = renderHook(() => useDatasetsPublicationList());
 
     act(() => {
@@ -361,10 +362,28 @@ describe('useDatasetsPublicationList', () => {
       await result.current.onDeletionConfirm();
     });
 
-    expect(deleteDataset).toHaveBeenCalledWith({ datasetId: '2' });
-    expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['datasets'] });
+    expect(createJob).toHaveBeenCalledWith({ type: 'bulk-delete', dataset_id: '2' });
     expect(result.current.isDeleteModalOpened).toBe(false);
     expect(result.current.selectedDataset).toBeNull();
+  });
+
+  it('onDeletionConfirm removes the deleted dataset from the cached list immediately', async () => {
+    // The delete runs as an async job, so createJob resolving does not mean the dataset is gone
+    // yet server-side — the list must not wait on the next poll to stop showing it.
+    const { result } = renderHook(() => useDatasetsPublicationList());
+
+    act(() => {
+      result.current.onDelete(datasets[1] as any);
+    });
+
+    await act(async () => {
+      await result.current.onDeletionConfirm();
+    });
+
+    expect(queryClient.setQueryData).toHaveBeenCalledWith(['datasets'], expect.any(Function));
+    const [, updater] = (queryClient.setQueryData as jest.Mock).mock.calls[0];
+    expect(updater(datasets)).toEqual(datasets.filter(d => d.id !== '2'));
+    expect(updater(undefined)).toBeUndefined();
   });
 
   it('onPublish navigates to the dataset settings page', () => {

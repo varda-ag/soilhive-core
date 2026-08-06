@@ -169,6 +169,10 @@ const JOB_ERROR_MESSAGES: Record<string, JobErrorMessage> = {
     message: "'{statistics_type}' is not a kind of statistics this server can compute.",
     actions: ['Start the job again with one of: {supported}.'],
   },
+  BD_TIMEOUT: {
+    message: "Deleting '{dataset_name}' took too long and was stopped partway through.",
+    actions: ['Try deleting again; if it keeps timing out, contact support'],
+  },
   // FTD_GDAL_NOT_INSTALLED: reserved for future use — GdalCLI already emits a
   // 'GDAL_NOT_INSTALLED:' prefix on ENOENT so the code is detectable, but by
   // the time fileToDB runs GDAL has already been used (ogrinfo during metadata
