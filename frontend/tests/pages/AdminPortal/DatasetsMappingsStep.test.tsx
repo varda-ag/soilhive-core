@@ -1,218 +1,62 @@
-import { render, screen, fireEvent } from '@testing-library/react';
-import { useNavigate, useParams } from 'react-router';
+import { render, screen } from '@testing-library/react';
+import { useParams } from 'react-router';
 import { DatasetsMappingsStep } from '../../../src/pages/AdminPortal/DatasetsMappingsStep/DatasetsMappingsStep';
-import { useMappingsStep, type RowDetails, type DetailOptionMap } from 'hooks/useMappingsStep';
-import { ADMIN_PATHS } from 'configuration/admin';
+import { useDataset } from 'hooks/useDatasets';
+import { GISDataType } from 'types/backend';
 
 jest.mock('react-router', () => ({
-  useNavigate: jest.fn(),
   useParams: jest.fn(),
 }));
 
-jest.mock('hooks/useMappingsStep', () => ({
-  useMappingsStep: jest.fn(),
+jest.mock('hooks/useDatasets', () => ({
+  useDataset: jest.fn(),
 }));
 
-// ---------------------------------------------------------------------------
-// Fixtures
-// ---------------------------------------------------------------------------
+jest.mock('../../../src/pages/AdminPortal/DatasetsMappingsStep/DefaultMappingsStep', () => ({
+  DefaultMappingsStep: ({ id }: { id?: string }) => <div data-testid="sh-default-mappings-step" data-id={id} />,
+}));
 
-const EMPTY_DETAILS: RowDetails = {
-  samplePretreatment: null,
-  technique: null,
-  laboratoryMethod: null,
-  extractantConcentration: null,
-  extractionRatio: null,
-  extractionBase: null,
-  measurementProcedure: null,
-  limitOfDetection: null,
-};
-
-const DETAIL_OPTIONS: DetailOptionMap = {
-  samplePretreatment: [],
-  technique: [],
-  laboratoryMethod: [],
-  extractantConcentration: [],
-  extractionRatio: [],
-  extractionBase: [],
-  measurementProcedure: [],
-  limitOfDetection: [],
-};
-
-function stubHookReturn(
-  columnNames: string[] = [],
-  geometryMessage: { message: string; type: 'info' | 'warning' } | null = null,
-  isContinueEnabled = false,
-  depthConflictMessage: { message: string; type: 'warning' } | null = null,
-  isSaveEnabled = false,
-  showLoadingPanel = false,
-) {
-  return {
-    isLoading: false,
-    isImporting: false,
-    showLoadingPanel,
-    geometryMessage,
-    depthConflictMessage,
-    isSaveEnabled,
-    isContinueEnabled,
-    columnMappings: columnNames.map(columnName => ({
-      columnName,
-      conceptId: null,
-      unitId: null,
-      details: { ...EMPTY_DETAILS },
-    })),
-    conceptOptionsByColumn: {},
-    unitOptions: [],
-    detailOptions: DETAIL_OPTIONS,
-    mappedCount: 0,
-    unmappedCount: columnNames.length,
-    expandedRows: new Set<string>(),
-    isUnitEnabled: jest.fn().mockReturnValue(false),
-    toggleRow: jest.fn(),
-    handleConceptChange: jest.fn(),
-    handleUnitChange: jest.fn(),
-    handleDetailChange: jest.fn(),
-    handlePrevious: jest.fn(),
-    handleSaveAndContinueLater: jest.fn(),
-    handleContinue: jest.fn(),
-  };
-}
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
+jest.mock('../../../src/pages/AdminPortal/DatasetsMappingsStep/RasterMappingsStep', () => ({
+  RasterMappingsStep: ({ id }: { id?: string }) => <div data-testid="sh-raster-mappings-step" data-id={id} />,
+}));
 
 describe('DatasetsMappingsStep', () => {
   beforeEach(() => {
-    (useNavigate as jest.Mock).mockReturnValue(jest.fn());
     (useParams as jest.Mock).mockReturnValue({ id: '1' });
-    (useMappingsStep as jest.Mock).mockReturnValue(stubHookReturn());
   });
 
-  it('renders the page title', () => {
+  it('shows a loader while the dataset is loading', () => {
+    (useDataset as jest.Mock).mockReturnValue({ data: undefined, isLoading: true });
     render(<DatasetsMappingsStep />);
-    expect(screen.getByText('Map fields')).toBeInTheDocument();
+    expect(screen.queryByTestId('sh-default-mappings-step')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('sh-raster-mappings-step')).not.toBeInTheDocument();
   });
 
-  it('renders the banner', () => {
+  it('shows a loader when the dataset has not loaded yet even if isLoading is false', () => {
+    (useDataset as jest.Mock).mockReturnValue({ data: undefined, isLoading: false });
     render(<DatasetsMappingsStep />);
-    expect(screen.getByTestId('sh-mappings-banner')).toBeInTheDocument();
+    expect(screen.queryByTestId('sh-default-mappings-step')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('sh-raster-mappings-step')).not.toBeInTheDocument();
   });
 
-  it('renders the mappings table', () => {
+  it('renders RasterMappingsStep with the dataset id when gis_datatype is raster', () => {
+    (useDataset as jest.Mock).mockReturnValue({ data: { gis_datatype: GISDataType.RASTER }, isLoading: false });
     render(<DatasetsMappingsStep />);
-    expect(screen.getByTestId('sh-mappings-table')).toBeInTheDocument();
+    expect(screen.getByTestId('sh-raster-mappings-step')).toHaveAttribute('data-id', '1');
+    expect(screen.queryByTestId('sh-default-mappings-step')).not.toBeInTheDocument();
   });
 
-  describe('geometry detection message', () => {
-    it('shows the info message when hook provides an info geometry message', () => {
-      (useMappingsStep as jest.Mock).mockReturnValue(stubHookReturn([], { message: 'Geometry was automatically detected.', type: 'info' }));
-      render(<DatasetsMappingsStep />);
-      expect(screen.getByText('Geometry was automatically detected.')).toBeInTheDocument();
-    });
-
-    it('shows the warning message when hook provides a warning geometry message', () => {
-      (useMappingsStep as jest.Mock).mockReturnValue(stubHookReturn([], { message: 'No geometry was detected.', type: 'warning' }));
-      render(<DatasetsMappingsStep />);
-      expect(screen.getByText('No geometry was detected.')).toBeInTheDocument();
-    });
-
-    it('shows no geometry message when hook returns null', () => {
-      render(<DatasetsMappingsStep />);
-      expect(screen.queryByTestId('sh-form-message')).not.toBeInTheDocument();
-    });
+  it('renders DefaultMappingsStep with the dataset id when gis_datatype is point', () => {
+    (useDataset as jest.Mock).mockReturnValue({ data: { gis_datatype: GISDataType.POINT }, isLoading: false });
+    render(<DatasetsMappingsStep />);
+    expect(screen.getByTestId('sh-default-mappings-step')).toHaveAttribute('data-id', '1');
+    expect(screen.queryByTestId('sh-raster-mappings-step')).not.toBeInTheDocument();
   });
 
-  describe('depth conflict message', () => {
-    it('shows the warning when hook provides a depth conflict message', () => {
-      (useMappingsStep as jest.Mock).mockReturnValue(
-        stubHookReturn([], null, false, {
-          message: "The 'depth' field cannot be used together with 'min depth' or 'max depth'.",
-          type: 'warning',
-        }),
-      );
-      render(<DatasetsMappingsStep />);
-      expect(screen.getByTestId('sh-form-message')).toBeInTheDocument();
-    });
-
-    it('shows no depth conflict message when hook returns null (other messages can still render)', () => {
-      (useMappingsStep as jest.Mock).mockReturnValue(
-        stubHookReturn([], { message: 'Geometry was automatically detected.', type: 'info' }, false, null),
-      );
-      render(<DatasetsMappingsStep />);
-      expect(screen.getAllByTestId('sh-form-message')).toHaveLength(1);
-    });
-
-    it('renders both messages when geometry and depth conflict messages are both non-null', () => {
-      (useMappingsStep as jest.Mock).mockReturnValue(
-        stubHookReturn([], { message: 'No geometry was detected.', type: 'warning' }, false, {
-          message: "The 'depth' field cannot be used together with 'min depth' or 'max depth'.",
-          type: 'warning',
-        }),
-      );
-      render(<DatasetsMappingsStep />);
-      expect(screen.getAllByTestId('sh-form-message')).toHaveLength(2);
-    });
-  });
-
-  describe('action buttons', () => {
-    it('disables both buttons when neither flag is set', () => {
-      (useMappingsStep as jest.Mock).mockReturnValue(stubHookReturn([], null, false, null, false));
-      render(<DatasetsMappingsStep />);
-      expect(screen.getByTestId('sh-mappings-continue')).toBeDisabled();
-      expect(screen.getByTestId('sh-mappings-save-later')).toBeDisabled();
-    });
-
-    it('enables save-later but not continue when only isSaveEnabled is true', () => {
-      (useMappingsStep as jest.Mock).mockReturnValue(stubHookReturn([], null, false, null, true));
-      render(<DatasetsMappingsStep />);
-      expect(screen.getByTestId('sh-mappings-continue')).toBeDisabled();
-      expect(screen.getByTestId('sh-mappings-save-later')).not.toBeDisabled();
-    });
-
-    it('enables both buttons when isContinueEnabled and isSaveEnabled are both true', () => {
-      (useMappingsStep as jest.Mock).mockReturnValue(stubHookReturn([], null, true, null, true));
-      render(<DatasetsMappingsStep />);
-      expect(screen.getByTestId('sh-mappings-continue')).not.toBeDisabled();
-      expect(screen.getByTestId('sh-mappings-save-later')).not.toBeDisabled();
-    });
-  });
-
-  describe('DataLoadingStartedPanel', () => {
-    it('does not render the panel when showLoadingPanel is false', () => {
-      render(<DatasetsMappingsStep />);
-      expect(screen.queryByText('Data loading started')).not.toBeInTheDocument();
-    });
-
-    it('renders the panel and hides the regular content when showLoadingPanel is true', () => {
-      (useMappingsStep as jest.Mock).mockReturnValue(stubHookReturn([], null, false, null, false, true));
-      render(<DatasetsMappingsStep />);
-      expect(screen.getByText('Data loading started')).toBeInTheDocument();
-      expect(screen.queryByTestId('sh-mappings-banner')).not.toBeInTheDocument();
-      expect(screen.queryByTestId('sh-mappings-table')).not.toBeInTheDocument();
-      expect(screen.queryByTestId('sh-mappings-continue')).not.toBeInTheDocument();
-    });
-
-    it('calls navigate with the datasets path when the panel Continue button is clicked', () => {
-      const navigateMock = jest.fn();
-      (useNavigate as jest.Mock).mockReturnValue(navigateMock);
-      (useMappingsStep as jest.Mock).mockReturnValue(stubHookReturn([], null, false, null, false, true));
-      render(<DatasetsMappingsStep />);
-      fireEvent.click(screen.getByText('Continue'));
-      expect(navigateMock).toHaveBeenCalledWith(ADMIN_PATHS.DATASETS);
-    });
-  });
-
-  describe('mapping rows', () => {
-    it('renders no rows when the hook returns an empty column list', () => {
-      render(<DatasetsMappingsStep />);
-      expect(screen.queryAllByTestId('sh-mapping-row')).toHaveLength(0);
-    });
-
-    it('renders one row per column mapping returned by the hook', () => {
-      (useMappingsStep as jest.Mock).mockReturnValue(stubHookReturn(['Carbon_organic', 'Sand', 'PH']));
-      render(<DatasetsMappingsStep />);
-      expect(screen.getAllByTestId('sh-mapping-row')).toHaveLength(3);
-    });
+  it('renders DefaultMappingsStep when gis_datatype is missing', () => {
+    (useDataset as jest.Mock).mockReturnValue({ data: {}, isLoading: false });
+    render(<DatasetsMappingsStep />);
+    expect(screen.getByTestId('sh-default-mappings-step')).toBeInTheDocument();
+    expect(screen.queryByTestId('sh-raster-mappings-step')).not.toBeInTheDocument();
   });
 });

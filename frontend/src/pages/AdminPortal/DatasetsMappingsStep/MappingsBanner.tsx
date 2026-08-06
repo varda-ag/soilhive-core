@@ -8,9 +8,10 @@ import styles from './MappingsBanner.module.scss';
 interface Props {
   mappedCount: number;
   unmappedCount: number;
+  isRaster?: boolean;
 }
 
-export function MappingsBanner({ mappedCount, unmappedCount }: Props) {
+export function MappingsBanner({ mappedCount, unmappedCount, isRaster = false }: Props) {
   const { t } = useTranslation('admin');
 
   return (
@@ -27,7 +28,9 @@ export function MappingsBanner({ mappedCount, unmappedCount }: Props) {
       </div>
       <div className={styles.Warning}>
         <QuestionIcon className={styles.WarningIcon} />
-        <span className={styles.WarningText}>{t('datasets.mappings.banner.warning')}</span>
+        <span className={styles.WarningText}>
+          {isRaster ? t('datasets.mappings.banner.warning_raster') : t('datasets.mappings.banner.warning')}
+        </span>
       </div>
     </div>
   );

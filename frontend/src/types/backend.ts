@@ -240,6 +240,12 @@ export interface PropertyMapping {
   min_val?: number;
   max_val?: number;
   procedure_id?: string;
+  min_depth?: number;
+  max_depth?: number;
+  reference_period_start?: string;
+  reference_period_stop?: string;
+  layer_description?: string;
+  additional_resources?: { file_id: string }[];
 }
 
 export interface DataMappingObject {
@@ -293,6 +299,47 @@ export interface VocabularyItem {
 export type EntitlementCapability = 'preview' | 'download' | 'obfuscate_as_points' | 'obfuscate_as_polygons';
 export type DatasetEntitlements = Record<string, EntitlementCapability[]>;
 
+export interface FileRasterBandDescriptor {
+  band_number: number;
+  data_type: string;
+  min_value?: number;
+  max_value?: number;
+  no_data_value?: number;
+  overviews?: Array<[number, number]>; // [width, height] in pixels
+}
+
+export interface RasterFileDescriptorMetadata {
+  is_raster: true;
+  driver?: string;
+  epsg?: number;
+  extent?: [number, number, number, number]; // If empty the raster is not georeferenced
+  size: [number, number]; // [width, height] in pixels
+  band_count: number;
+  raster_bands: FileRasterBandDescriptor[];
+}
+
+export interface VectorFileDescriptorMetadata {
+  is_raster?: false;
+  detected_fields?: {
+    geometry?: string | null;
+    latitude?: string | null;
+    longitude?: string | null;
+    sampling_date?: string | null;
+    license?: string | null;
+    depth?: string | null;
+    min_depth?: string | null;
+    max_depth?: string | null;
+    horizon?: string | null;
+  };
+  detected_mapping: DataMappingObject;
+  field_names?: string[];
+  geometry_detected?: boolean;
+  driver?: string | null;
+  epsg?: number | null;
+}
+
+export type FileDescriptorMetadata = RasterFileDescriptorMetadata | VectorFileDescriptorMetadata;
+
 export interface FileDescriptor {
   // required
   id: string;
@@ -303,25 +350,7 @@ export interface FileDescriptor {
   // optional
   file_path?: string;
   status?: string;
-  metadata?: {
-    detected_fields?: {
-      geometry?: string | null;
-      latitude?: string | null;
-      longitude?: string | null;
-      sampling_date?: string | null;
-      license?: string | null;
-      depth?: string | null;
-      min_depth?: string | null;
-      max_depth?: string | null;
-      horizon?: string | null;
-    };
-    detected_mapping: DataMappingObject;
-    field_names?: string[];
-    geometry_detected?: boolean;
-    driver?: string | null;
-    epsg?: number | null;
-    [key: string]: unknown; // additionalProperties: true
-  };
+  metadata?: FileDescriptorMetadata;
   is_archived?: boolean;
   updated_at?: string;
   updated_by?: string;

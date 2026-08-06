@@ -2032,6 +2032,93 @@ components:
     Geometry:
       $ref: '../src/GeoJSON-OAS3.yaml#/components/schemas/Geometry'
 
+    RasterBandMetadata:
+      type: object
+      properties:
+        band_number:
+          type: integer
+        data_type:
+          type: string
+        min_value:
+          type: number
+        max_value:
+          type: number
+        no_data_value:
+          type: number
+        overviews:
+          type: array
+          description: '[width, height] pairs, in pixels'
+          items:
+            type: array
+            items:
+              type: number
+            minItems: 2
+            maxItems: 2
+      required:
+        - band_number
+        - data_type
+
+    RasterFileMetadata:
+      type: object
+      description: Metadata for raster files
+      properties:
+        is_raster:
+          type: boolean
+          enum: [true]
+        driver:
+          type: string
+        epsg:
+          type: integer
+        extent:
+          type: array
+          description: '[minx, miny, maxx, maxy]. If empty the raster is not georeferenced'
+          items:
+            type: number
+          minItems: 4
+          maxItems: 4
+        size:
+          type: array
+          description: '[width, height] in pixels'
+          items:
+            type: number
+          minItems: 2
+          maxItems: 2
+        band_count:
+          type: integer
+        raster_bands:
+          type: array
+          items:
+            $ref: '#/components/schemas/RasterBandMetadata'
+      required:
+        - is_raster
+        - size
+        - band_count
+        - raster_bands
+
+    VectorFileMetadata:
+      type: object
+      description: Metadata for vector files
+      properties:
+        is_raster:
+          type: boolean
+          enum: [false]
+        detected_fields:
+          type: object
+          additionalProperties: true
+        detected_mapping:
+          type: object
+          additionalProperties: true
+        field_names:
+          type: array
+          items:
+            type: string
+        geometry_detected:
+          type: boolean
+        driver:
+          type: string
+        epsg:
+          type: integer
+
     FilterGeometry:
       type: object
       description: One stored filter geometry — one Aggregation Unit of soil-statistics output.
@@ -2099,9 +2186,12 @@ components:
           type: string
           readOnly: true
         metadata:
-          type: object
           description: Spatial file fields, CRS and geometry information
-          additionalProperties: true
+          oneOf:
+            - $ref: '#/components/schemas/RasterFileMetadata'
+            - $ref: '#/components/schemas/VectorFileMetadata'
+          discriminator:
+            propertyName: is_raster
         created_at:
           type: string
           format: date-time
