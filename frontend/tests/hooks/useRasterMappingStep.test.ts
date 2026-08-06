@@ -228,8 +228,8 @@ describe('useRasterMappingStep', () => {
       expect(mockNavigate).toHaveBeenCalledWith('/admin/datasets');
     });
 
-    it('handleContinue creates a file-to-db job for each dataset-file-mapping when mapping has changed', async () => {
-      // No existing mapping → isMappingChanged returns true → normal path (save + fire jobs).
+    it('handleContinue creates a single raster-load job for the dataset when mapping has changed', async () => {
+      // No existing mapping → isMappingChanged returns true → normal path (save + fire job).
       setupWithColumns(['col1']);
       const mockCreateJob = jest.fn().mockResolvedValue({ id: 'job-1' });
       (useCreateJobMutation as jest.Mock).mockReturnValue({ mutateAsync: mockCreateJob });
@@ -237,10 +237,11 @@ describe('useRasterMappingStep', () => {
       await act(async () => {
         await result.current.handleContinue();
       });
-      expect(mockCreateJob).toHaveBeenCalledWith({ dataset_id: '42', type: 'file-to-db', file_id: fileIdFor('col1') });
+      expect(mockCreateJob).toHaveBeenCalledWith({ dataset_id: '42', type: 'raster-load' });
+      expect(mockCreateJob).toHaveBeenCalledTimes(1);
     });
 
-    it('handleContinue creates jobs when files are not yet STAGED even if mapping is unchanged', async () => {
+    it('handleContinue creates a raster-load job when files are not yet STAGED even if mapping is unchanged', async () => {
       // Files still PENDING → allFilesUploaded=false → fast-path blocked → jobs must fire.
       const filesData = [
         { id: fileIdFor('col1'), status: 'PENDING', name: 'col1', metadata: { is_raster: true, raster_bands: [{ band_number: 1 }] } },
@@ -259,7 +260,8 @@ describe('useRasterMappingStep', () => {
       await act(async () => {
         await result.current.handleContinue();
       });
-      expect(mockCreateJob).toHaveBeenCalledWith({ dataset_id: '42', type: 'file-to-db', file_id: fileIdFor('col1') });
+      expect(mockCreateJob).toHaveBeenCalledWith({ dataset_id: '42', type: 'raster-load' });
+      expect(mockCreateJob).toHaveBeenCalledTimes(1);
     });
   });
 

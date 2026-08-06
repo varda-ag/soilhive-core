@@ -497,12 +497,10 @@ export function useRasterMappingStep(datasetId?: string) {
 
     setIsImportingState(true);
     await save();
-    // NOTE: the backend's file-to-db job currently rejects raster files (FTD_RASTER_NOT_SUPPORTED) —
-    // this will fail server-side until a raster ingestion job is implemented.
-    const jobs = await Promise.all(
-      datasetFileMappings!.map(dfm => createJob({ type: 'file-to-db', file_id: dfm.fileID, dataset_id: datasetId })),
-    );
-    setActiveJobIds(jobs.map(j => j.id));
+    // Unlike the vector flow's file-to-db job, raster-load is scoped to the whole dataset
+    // (not per file), so we fire a single job and track it as the sole active job id.
+    const job = await createJob({ type: 'raster-load', dataset_id: datasetId });
+    setActiveJobIds([job.id]);
   }, [
     columnMappings,
     dataMappingByFileId,
@@ -511,7 +509,6 @@ export function useRasterMappingStep(datasetId?: string) {
     save,
     navigate,
     datasetId,
-    datasetFileMappings,
     createJob,
     datasetGisDataType,
     setShowLoadingPanel,
