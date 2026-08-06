@@ -6,7 +6,7 @@
 
 `dataset_file_mappings` is unique on `(data_mapping_id, file_id, dataset_id)`, so one File in one Dataset can carry any number of mapping rows as long as each points at a different Data Mapping. `createMapping` inserts unconditionally and only rejects the exact triple, so this is reachable through the API today.
 
-The admin UI never produces it. It POSTs one placeholder row per new File with no `mappingId`, then PATCHes that same row in the mapping and preview steps — so re-declaring a mapping overwrites `data_mapping_id` in place and accumulates no history. Multiple rows for one File therefore only arise from direct API use.
+The Admin console never produces it. It POSTs one placeholder row per new File with no `mappingId`, then PATCHes that same row in the mapping and preview steps — so re-declaring a mapping overwrites `data_mapping_id` in place and accumulates no history. Multiple rows for one File therefore only arise from direct API use.
 
 Both loaders nevertheless had to pick one, and both did it with `mappings.find(m => m.file_id === file.id)` over the result of a `find()` with no `ORDER BY`. That is not "the first" or "the latest" mapping — it is whichever row Postgres happened to return, which makes what a load ingests depend on physical row order. A Raster Ingest writes layers and footprints, so the cost of loading the wrong declaration is not cheap to discover or undo.
 

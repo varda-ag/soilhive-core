@@ -41,7 +41,7 @@ Class names are locally scoped — `.container` in one module never collides wit
 
 ### Admin-controlled colors
 
-The admin portal allows operators to customize brand colors. These are stored in the backend and fetched by `ThemeContext` at startup.
+The Admin console allows operators to customize brand colors. These are stored in the backend and fetched by `ThemeContext` at startup.
 
 The `LookAndFeelContext` manages the editing flow and applies changes via CSS custom properties on the `:root` element. Components reference these properties in their SCSS:
 
@@ -119,7 +119,7 @@ Each language has these namespaces:
 | File | Contents |
 |---|---|
 | `common.json` | Shared labels, error messages, navigation |
-| `admin.json` | Admin portal strings |
+| `admin.json` | Admin console strings |
 | `availability.json` | Data explorer strings |
 | `download.json` | Download flow strings |
 | `metadata.json` | Dataset metadata page strings |

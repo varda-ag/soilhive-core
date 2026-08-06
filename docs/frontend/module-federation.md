@@ -31,7 +31,7 @@ This used to run at module-evaluation time via top-level await against a hardcod
 
 ## Configuring remotes
 
-Remotes are **not** hardcoded in the frontend source. Each one is an entry in the host's theme configuration — `ThemeConfig.plugins`, typed as `Plugin[]` in `src/types/plugins.ts` — fetched from the backend via `GET /config/theme`. There is currently no admin-portal UI for editing this list (unlike colors, map settings, terms/privacy content, which do have dedicated admin screens) — it has to be set directly, e.g. via `PUT /config/theme` or the DB:
+Remotes are **not** hardcoded in the frontend source. Each one is an entry in the host's theme configuration — `ThemeConfig.plugins`, typed as `Plugin[]` in `src/types/plugins.ts` — fetched from the backend via `GET /config/theme`. There is currently no Admin console UI for editing this list (unlike colors, map settings, terms/privacy content, which do have dedicated admin screens) — it has to be set directly, e.g. via `PUT /config/theme` or the DB:
 
 | Field | Meaning |
 |---|---|
@@ -99,7 +99,7 @@ export { name, route, type, Page };
 
 ### 3. Register the remote with the host
 
-There's no file in this repo to edit, and (currently) no admin-portal UI either. Add an entry to the host's theme configuration (`ThemeConfig.plugins`) directly — e.g. via `PUT /config/theme` or the DB — pointing `url` at your remote's `mf-manifest.json` and setting `enabled: true` (plus `mustBeLoggedIn` / `enableACL` / `acl` if the plugin should be access-restricted). The host picks this up on next load — no rebuild or redeploy of the host is required.
+There's no file in this repo to edit, and (currently) no Admin console UI either. Add an entry to the host's theme configuration (`ThemeConfig.plugins`) directly — e.g. via `PUT /config/theme` or the DB — pointing `url` at your remote's `mf-manifest.json` and setting `enabled: true` (plus `mustBeLoggedIn` / `enableACL` / `acl` if the plugin should be access-restricted). The host picks this up on next load — no rebuild or redeploy of the host is required.
 
 ### 4. Start the remote dev server
 

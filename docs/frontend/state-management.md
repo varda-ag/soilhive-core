@@ -119,7 +119,7 @@ Notification types: `'success' | 'error' | 'warning' | 'info'`.
 **File:** `src/contexts/LookAndFeelContext.tsx`  
 **Hook:** `useLookAndFeel()` from `src/hooks/useLookAndFeel.ts`
 
-Manages the admin-controlled branding customization: logo upload and color palette. Changes here are written to the backend and immediately reflected in `ThemeContext`. Only used inside the admin portal.
+Manages the admin-controlled branding customization: logo upload and color palette. Changes here are written to the backend and immediately reflected in `ThemeContext`. Only used inside the Admin console.
 
 ---
 
