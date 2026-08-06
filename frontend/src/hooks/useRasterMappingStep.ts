@@ -43,18 +43,18 @@ const isRasterFile = (file: FileDescriptor): file is FileDescriptor & { metadata
 
 // One row per raster band, named after the file it came from — a raster with multiple bands
 // gets one row per band (e.g. "file_bulk_raster.tif (band 1)"), while a single-band raster is
-// just named after the file, with no band number. The displayed band number (from the file's
-// metadata) is 1-indexed for readability, but bandKey — the key used to serialize into a file's
-// data_mapping — is the band's zero-based position within the file (0, 1, 2, ...).
+// just named after the file, with no band number. bandKey — the key used to serialize into a
+// file's data_mapping — is the band's 1-based band_number (1, 2, 3, ...), matching the backend's
+// convention (GDAL band numbering; see backend/src/interfaces/RasterMapping.ts).
 // Files that aren't rasters (e.g. non-spatial additional resources) are excluded.
 function buildColumns(files: FileDescriptor[]): { columnName: string; fileId: string; bandKey: number }[] {
   return files.flatMap(f => {
     if (!isRasterFile(f)) return [];
     const bands = f.metadata.raster_bands;
     if (bands.length <= 1) {
-      return [{ columnName: f.name, fileId: f.id, bandKey: 0 }];
+      return [{ columnName: f.name, fileId: f.id, bandKey: bands[0]?.band_number ?? 1 }];
     }
-    return bands.map((b, index) => ({ columnName: `${f.name} (band ${b.band_number})`, fileId: f.id, bandKey: index }));
+    return bands.map(b => ({ columnName: `${f.name} (band ${b.band_number})`, fileId: f.id, bandKey: b.band_number }));
   });
 }
 
@@ -101,9 +101,9 @@ async function createMappingProcedures(
   return procedureIds;
 }
 
-// Builds one mapping payload per file, keyed by the band's zero-based position within that file
+// Builds one mapping payload per file, keyed by the band's 1-based band_number within that file
 // (not by column name) — a file's mapping only needs to distinguish its own bands, so the key
-// is just e.g. "0", "1". The value is an object that may include the concept id, unit
+// is just e.g. "1", "2". The value is an object that may include the concept id, unit
 // conversion id, and procedure id.
 function buildDataMappingRequestsByFile(
   mappings: ColumnMapping[],

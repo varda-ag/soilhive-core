@@ -84,7 +84,7 @@ beforeEach(() => {
 });
 
 // Maps a column name 1:1 to a single-band file named after it, with the file id derived from
-// the name — so a data_mapping keyed by fileID/"0" can be built for `setupWithColumnsAndExistingMapping`.
+// the name — so a data_mapping keyed by fileID/"1" can be built for `setupWithColumnsAndExistingMapping`.
 function fileIdFor(columnName: string) {
   return `${columnName}-file`;
 }
@@ -131,7 +131,7 @@ function setupWithColumnsAndExistingMapping(columns: string[], dataMappingByColu
   const datasetFileMappings = datasetFileMappingsFor(columns);
   const mappingsData = columns
     .filter(name => name in dataMappingByColumn)
-    .map(name => ({ id: `mapping-${name}`, data_mapping: { '0': dataMappingByColumn[name] } }));
+    .map(name => ({ id: `mapping-${name}`, data_mapping: { '1': dataMappingByColumn[name] } }));
   mockUseApiQuery.mockImplementation(({ endpoint }: { endpoint: string }) => {
     if (endpoint.includes('/files')) return { data: filesData, isLoading: false };
     if (endpoint.includes('/mappings')) return { data: mappingsData, isLoading: false };
@@ -459,17 +459,17 @@ describe('useRasterMappingStep', () => {
       setupWithFiles([{ name: 'file_a.tif', bandCount: 1 }]);
       const { result } = renderHook(() => useRasterMappingStep('1'));
       expect(result.current.columnMappings.map(m => m.columnName)).toEqual(['file_a.tif']);
-      expect(result.current.columnMappings[0].bandKey).toBe(0);
+      expect(result.current.columnMappings[0].bandKey).toBe(1);
     });
 
-    it('names each row after its band number for a multi-band file, with a zero-based bandKey', () => {
+    it('names each row after its band number for a multi-band file, with a 1-based bandKey', () => {
       setupWithFiles([{ name: 'file_bulk_raster.tif', bandCount: 2 }]);
       const { result } = renderHook(() => useRasterMappingStep('1'));
       expect(result.current.columnMappings.map(m => m.columnName)).toEqual([
         'file_bulk_raster.tif (band 1)',
         'file_bulk_raster.tif (band 2)',
       ]);
-      expect(result.current.columnMappings.map(m => m.bandKey)).toEqual([0, 1]);
+      expect(result.current.columnMappings.map(m => m.bandKey)).toEqual([1, 2]);
     });
 
     it('produces one row set per file when multiple files are uploaded, each with its own fileId', () => {
@@ -662,7 +662,7 @@ describe('useRasterMappingStep', () => {
       await act(async () => {
         await result.current.handleContinue();
       });
-      expect(mockCreateMapping).toHaveBeenCalledWith(expect.objectContaining({ '0': { property_id: 'soil-ph' } }));
+      expect(mockCreateMapping).toHaveBeenCalledWith(expect.objectContaining({ '1': { property_id: 'soil-ph' } }));
       expect(mockCreateProcedure).not.toHaveBeenCalled();
     });
 
@@ -675,7 +675,7 @@ describe('useRasterMappingStep', () => {
       await act(async () => {
         await result.current.handleContinue();
       });
-      expect(mockCreateMapping).toHaveBeenCalledWith(expect.objectContaining({ '0': { property_id: 'soil-ph', conversion_id: 'mg/kg' } }));
+      expect(mockCreateMapping).toHaveBeenCalledWith(expect.objectContaining({ '1': { property_id: 'soil-ph', conversion_id: 'mg/kg' } }));
       expect(mockCreateProcedure).not.toHaveBeenCalled();
     });
 
@@ -694,7 +694,7 @@ describe('useRasterMappingStep', () => {
       });
       expect(mockCreateMapping).toHaveBeenCalledWith(
         expect.objectContaining({
-          '0': {
+          '1': {
             property_id: 'soil-ph',
             min_depth: 10,
             max_depth: 20,
@@ -716,7 +716,7 @@ describe('useRasterMappingStep', () => {
         await result.current.handleContinue();
       });
       expect(mockCreateProcedure).toHaveBeenCalledWith(expect.objectContaining({ laboratory_method: 'ICP-OES' }));
-      expect(mockCreateMapping).toHaveBeenCalledWith(expect.objectContaining({ '0': { property_id: 'soil-ph', procedure_id: 'proc-1' } }));
+      expect(mockCreateMapping).toHaveBeenCalledWith(expect.objectContaining({ '1': { property_id: 'soil-ph', procedure_id: 'proc-1' } }));
     });
 
     it('excludes unmapped columns from the mapping request', async () => {
@@ -730,7 +730,7 @@ describe('useRasterMappingStep', () => {
       });
       // col2 lives on a separate file (separate mapping request), so it must never be created.
       const payload = mockCreateMapping.mock.calls[0][0];
-      expect(payload).toEqual({ '0': { property_id: 'soil-ph' } });
+      expect(payload).toEqual({ '1': { property_id: 'soil-ph' } });
     });
 
     it('reconciles a file down to an empty mapping when all of its bands are unmapped', async () => {
@@ -762,8 +762,8 @@ describe('useRasterMappingStep', () => {
         await result.current.handleContinue();
       });
       expect(mockCreateMapping).toHaveBeenCalledTimes(2);
-      expect(mockCreateMapping).toHaveBeenCalledWith({ '0': { property_id: 'soil-ph' } });
-      expect(mockCreateMapping).toHaveBeenCalledWith({ '0': { property_id: 'soil-om' } });
+      expect(mockCreateMapping).toHaveBeenCalledWith({ '1': { property_id: 'soil-ph' } });
+      expect(mockCreateMapping).toHaveBeenCalledWith({ '1': { property_id: 'soil-om' } });
       expect(mockUpdateDatasetFileMapping).toHaveBeenCalledWith({
         datasetId: '42',
         datasetFileMappingId: 'dfm-col1',
