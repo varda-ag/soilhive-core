@@ -21,6 +21,7 @@ export function DatasetsSoilDataStep() {
     uploadErrors,
     uploadProgress,
     isContinueEnabled,
+    isSaving,
     handleFiles,
     handleCrsChange,
     removeFile,
@@ -90,11 +91,11 @@ export function DatasetsSoilDataStep() {
         </Button>
 
         <div className={styles.FooterRight}>
-          <Button type="secondary" size="small" onClick={handleSaveAndContinueLater} isDisabled={!isContinueEnabled}>
+          <Button type="secondary" size="small" onClick={handleSaveAndContinueLater} isDisabled={!isContinueEnabled || isSaving}>
             {t('datasets.actions.save_and_continue_later')}
           </Button>
 
-          <Button type="primary" size="small" onClick={handleContinue} isDisabled={!isContinueEnabled}>
+          <Button type="primary" size="small" onClick={handleContinue} isDisabled={!isContinueEnabled || isSaving}>
             {t('datasets.actions.continue')}
           </Button>
         </div>
