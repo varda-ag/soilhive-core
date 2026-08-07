@@ -728,9 +728,49 @@ describe('useRasterMappingStep', () => {
       await act(async () => {
         await result.current.handleContinue();
       });
-      // col2 lives on a separate file (separate mapping request), so it must never be created.
       const payload = mockCreateMapping.mock.calls[0][0];
       expect(payload).toEqual({ '1': { property_id: 'soil-ph' } });
+    });
+
+    it('still seeds an empty mapping request for a file whose bands were never mapped, so it always ends up with a mappingId', async () => {
+      // col2's file has no prior saved mapping and none of its bands get mapped here — it must
+      // still resolve to a mappingId pointing at an empty mapping. Otherwise the raster-load job's
+      // prepareStagedBands throws RL_MAPPING_NOT_CONFIGURED for it, failing the whole job.
+      const { result } = renderHook(() => useRasterMappingStep('42'));
+      act(() => {
+        result.current.handleConceptChange('col1', 'soil-ph');
+        // col2 intentionally left unmapped
+      });
+      await act(async () => {
+        await result.current.handleContinue();
+      });
+      expect(mockCreateMapping).toHaveBeenCalledTimes(2);
+      expect(mockCreateMapping).toHaveBeenCalledWith({});
+      expect(mockUpdateDatasetFileMapping).toHaveBeenCalledWith({
+        datasetId: '42',
+        datasetFileMappingId: 'dfm-col2',
+        mappingId: 'new-mapping-1',
+      });
+    });
+
+    it('seeds an empty mapping request for a file mapped then unmapped in the same sitting, with no prior saved mapping', async () => {
+      // Reproduces the reported bug: a file that's never been saved before gets a field mapped
+      // and then unmapped before Continue/Save — it must still end up with a mappingId pointing
+      // at an empty mapping, not with no mappingId at all.
+      const { result } = renderHook(() => useRasterMappingStep('42'));
+      act(() => {
+        result.current.handleConceptChange('col1', 'soil-ph');
+        result.current.handleConceptChange('col1', '');
+      });
+      await act(async () => {
+        await result.current.handleContinue();
+      });
+      expect(mockCreateMapping).toHaveBeenCalledWith({});
+      expect(mockUpdateDatasetFileMapping).toHaveBeenCalledWith({
+        datasetId: '42',
+        datasetFileMappingId: 'dfm-col1',
+        mappingId: 'new-mapping-1',
+      });
     });
 
     it('reconciles a file down to an empty mapping when all of its bands are unmapped', async () => {
@@ -774,6 +814,35 @@ describe('useRasterMappingStep', () => {
         datasetFileMappingId: 'dfm-col2',
         mappingId: 'new-mapping-1',
       });
+    });
+
+    it('reconciles the mapping via save() even when handleContinue takes the "nothing changed" fast path', async () => {
+      // Regression test: handleContinue used to return before ever calling save() when nothing
+      // had changed and all files were staged, so it could skip the mappingId/data_mapping
+      // reconciliation that handleSaveAndContinueLater always performs. Continue must persist
+      // identically to Save for later regardless of that fast path.
+      const filesData = [
+        { id: fileIdFor('col1'), name: 'col1', metadata: { is_raster: true, raster_bands: [{ band_number: 1 }] }, status: 'STAGED' },
+      ];
+      const datasetFileMappings = [{ id: 'dfm-col1', fileID: fileIdFor('col1'), mappingId: 'mapping-col1' }];
+      const mappingsData = [{ id: 'mapping-col1', data_mapping: { '1': { property_id: 'soil-ph' } } }];
+      mockUseApiQuery.mockImplementation(({ endpoint }: { endpoint: string }) => {
+        if (endpoint.includes('/files')) return { data: filesData, isLoading: false };
+        if (endpoint.includes('/mappings')) return { data: mappingsData, isLoading: false };
+        if (endpoint.includes('dataset-file-mapping')) return { data: datasetFileMappings, isLoading: false };
+        return { data: undefined, isLoading: false };
+      });
+      const { result } = renderHook(() => useRasterMappingStep('42'));
+      await act(async () => {
+        await result.current.handleContinue();
+      });
+      expect(mockCreateMapping).toHaveBeenCalledWith({ '1': { property_id: 'soil-ph' } });
+      expect(mockUpdateDatasetFileMapping).toHaveBeenCalledWith({
+        datasetId: '42',
+        datasetFileMappingId: 'dfm-col1',
+        mappingId: 'new-mapping-1',
+      });
+      expect(mockNavigate).toHaveBeenCalledWith('/admin/datasets/edit/42/preview');
     });
   });
 
