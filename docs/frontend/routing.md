@@ -42,7 +42,7 @@ ADMIN_ROOT/* (default: /admin)     → AdminPortalGuard (requires auth + admin e
 Large feature areas are split into **module files** that own their sub-route definitions:
 
 - `src/modules/AvailabilityModule.tsx` — the main data explorer flow
-- `src/modules/AdminPortalModule.tsx` — the admin portal
+- `src/modules/AdminPortalModule.tsx` — the Admin console
 
 This keeps `Routes.tsx` short and lets each feature area manage its own sub-routes independently.
 
