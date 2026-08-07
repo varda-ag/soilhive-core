@@ -68,13 +68,6 @@ const JOB_ERROR_MESSAGES: Record<string, JobErrorMessage> = {
     message: "The band mapping for '{file_name}' has not been configured yet.",
     actions: ["Go to the dataset's mapping step, declare what each band of '{file_name}' measures, save, then retry data loading."],
   },
-  RL_MISSING_BAND_MAPPING: {
-    message: "The mapping for '{file_name}' declares no bands.",
-    actions: [
-      "Open the mapping for '{file_name}' and map at least one band to a soil property, then retry data loading.",
-      'If this file was mapped as a table rather than a raster, re-do the mapping step for the dataset — a raster mapping is keyed by band number, not by column name.',
-    ],
-  },
   RL_INVALID_BAND: {
     message: "The band mapping for '{file_name}' refers to band {band}, which the file does not have (it has {band_count}).",
     actions: [
