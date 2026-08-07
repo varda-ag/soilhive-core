@@ -110,19 +110,15 @@ function buildDataMappingRequestsByFile(
   procedureIds: Record<string, string>,
 ): Record<string, DataMappingRequest> {
   const requestsByFile: Record<string, DataMappingRequest> = {};
-  // Seed every file appearing in the table — not just ones that already have a saved mapping —
-  // so a file with none of its bands mapped still gets an explicit (if empty) mapping request.
-  // Without this, a file that's never been saved before (or one reconciled down to zero mapped
-  // bands) would have no entry below and save() would skip it, leaving its dataset-file-mapping
-  // with no mappingId at all. That's not just cosmetic: RasterLoader's prepareStagedBands throws
-  // RL_MAPPING_NOT_CONFIGURED — failing the *whole* raster-load job — for any file whose
-  // dataset-file-mapping has no data_mapping_id, whereas one pointed at an empty mapping is
-  // skipped gracefully. There's also no way to PATCH a dataset-file-mapping's mappingId back to
-  // "unset", so every file must always end up pointing at *some* mapping.
-  for (const m of mappings) requestsByFile[m.fileId] ??= {};
   for (const m of mappings) {
-    if (!m.conceptId) continue;
+    // Seed every file with an entry (even if empty) before checking conceptId — a file with none
+    // of its bands mapped must still get a request here, or save() will skip it and its
+    // dataset-file-mapping will end up with no mappingId at all. RasterLoader's prepareStagedBands
+    // throws RL_MAPPING_NOT_CONFIGURED (failing the whole raster-load job) for a file with no
+    // data_mapping_id, but skips gracefully over one pointed at an empty mapping — and there's no
+    // way to PATCH a mappingId back to "unset", so every file must always point at some mapping.
     const request = (requestsByFile[m.fileId] ??= {});
+    if (!m.conceptId) continue;
     const bandKey = String(m.bandKey);
     const pm: PropertyMapping = { property_id: m.conceptId };
     if (m.unitId) pm.conversion_id = m.unitId;
