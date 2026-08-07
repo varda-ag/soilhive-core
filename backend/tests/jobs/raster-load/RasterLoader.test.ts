@@ -16,6 +16,7 @@ import * as PgBossModule from '../../../src/services/PgBoss';
 import { GISDataType, IngestionStatus, UnitConversionType } from '../../../src/types/data';
 import { getDataSource } from '../../../src/utils/data-source';
 import { GdalCLI } from '../../../src/utils/GdalCLI';
+import { log } from '../../../src/utils/logger';
 import { addCategory, addDataMapping, addDataset, addFile, addSoilProperty, addUnitConversion } from '../../../src/utils/mock';
 
 const rasterAssetsPath = path.join(__dirname, '../../assets/raster');
@@ -679,6 +680,60 @@ describe('RasterLoader', () => {
     expect(layers.map(l => [l.min_depth, l.max_depth])).toEqual([[20, 40]]);
   });
 
+  describe('empty mapping', () => {
+    it('skips a file whose mapping declares no bands, without failing the job', async () => {
+      const { dataset, file } = await setUpRasterLoad(uniqueName('empty-mapping'), () => ({}));
+      const spy = jest.spyOn(log, 'warn');
+
+      try {
+        await processRasterLoad(getJob(dataset.slug));
+
+        expect(await getLayers(file.id)).toHaveLength(0);
+        expect(spy).toHaveBeenCalledWith('Skipping file with an empty data mapping', expect.objectContaining({ file_id: file.id }));
+
+        const dataSource = await getDataSource();
+        const reloadedFile = await dataSource.getRepository(FileEntity).findOneByOrFail({ id: file.id });
+        expect(reloadedFile.status).toBe(IngestionStatus.PENDING);
+      } finally {
+        spy.mockRestore();
+      }
+    });
+
+    it('still loads a sibling file when another file in the dataset has an empty mapping', async () => {
+      const {
+        dataset,
+        file: emptyFile,
+        property,
+      } = await setUpRasterLoad(uniqueName('empty-plus-valid'), () => ({}), { fileName: NON_COG_FILE });
+
+      const dataSource = await getDataSource();
+      const fileRepo = dataSource.getRepository(FileEntity);
+      const validFile = await fileRepo.save(
+        fileRepo.create({
+          name: uniqueName('valid-file'),
+          file_path: MULTIBAND_FILE,
+          created_by: 'tests',
+          status: IngestionStatus.PENDING,
+          metadata: rasterMetadata(2),
+        }),
+      );
+      const dataMapping = await addDataMapping({ '1': bandEntry(property.slug, 0, 5) });
+      const mappingRepo = dataSource.getRepository(DatasetFileMappingEntity);
+      await mappingRepo.save(mappingRepo.create({ dataset_id: dataset.id, file_id: validFile.id, data_mapping_id: dataMapping.id }));
+
+      await processRasterLoad(getJob(dataset.slug));
+
+      expect(await getLayers(emptyFile.id)).toHaveLength(0);
+      const validLayers = await getLayers(validFile.id);
+      expect(validLayers.map(l => l.band)).toEqual([1]);
+
+      const reloadedEmptyFile = await fileRepo.findOneByOrFail({ id: emptyFile.id });
+      expect(reloadedEmptyFile.status).toBe(IngestionStatus.PENDING);
+      const reloadedValidFile = await fileRepo.findOneByOrFail({ id: validFile.id });
+      expect(reloadedValidFile.status).toBe(IngestionStatus.LOADED);
+    });
+  });
+
   describe('failures', () => {
     it('RL_MAPPING_NOT_CONFIGURED when the file has no data mapping linked', async () => {
       const { dataset, file } = await setUpRasterLoad(uniqueName('no-mapping'), () => null);
@@ -686,16 +741,6 @@ describe('RasterLoader', () => {
       await expect(processRasterLoad(getJob(dataset.slug))).rejects.toMatchObject({
         name: 'JobError',
         code: 'RL_MAPPING_NOT_CONFIGURED',
-        params: { file_name: file.name },
-      });
-    });
-
-    it('RL_MISSING_BAND_MAPPING when the mapping names no bands', async () => {
-      const { dataset, file } = await setUpRasterLoad(uniqueName('empty-mapping'), () => ({}));
-
-      await expect(processRasterLoad(getJob(dataset.slug))).rejects.toMatchObject({
-        name: 'JobError',
-        code: 'RL_MISSING_BAND_MAPPING',
         params: { file_name: file.name },
       });
     });

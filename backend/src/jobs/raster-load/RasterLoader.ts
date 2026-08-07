@@ -16,6 +16,7 @@ import { EntityType, IngestionStatus } from '../../types/data';
 import { getEntityManager } from '../../utils/data-source';
 import { getEntity } from '../../utils/slugs';
 import { ErrorResponse } from '../../utils/error';
+import { log } from '../../utils/logger';
 import { JobError } from '../../errors/JobError';
 import ErrorService from '../../services/ErrorService';
 import { checkFileFormat, ingestRaster } from '../../services/RasterIngestService';
@@ -240,7 +241,11 @@ const prepareStagedBands = async (
 
     const bandMappings = await service.parseRasterDataMapping(requestData, datasetFileMapping.data_mapping_id);
     if (bandMappings.length === 0) {
-      throw new JobError('RL_MISSING_BAND_MAPPING', { file_name: file.name });
+      // Distinct from RL_MAPPING_NOT_CONFIGURED: a mapping exists but is an empty object,
+      // which is an accepted scenario to allow a file with one or more previously mapped
+      // bands to be unmapped — so this file is skipped, not failed.
+      log.warn('Skipping file with an empty data mapping', { file_id: file.id, file_name: file.name });
+      continue;
     }
 
     const rasterMetadata: RasterFileMetadata | null = file.metadata?.is_raster ? file.metadata : null;
