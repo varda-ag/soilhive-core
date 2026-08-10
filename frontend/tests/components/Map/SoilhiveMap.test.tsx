@@ -2,7 +2,6 @@ import { createRef } from 'react';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import SoilhiveMap, { type SoilhiveMapRef } from 'components/Map/SoilhiveMap';
 import { __setIsMobileLayout, __setIsDesktopLayout, __resetIsMobileLayout, __resetIsDesktopLayout } from 'hooks/useDevice';
-import useTheme from 'hooks/useTheme';
 
 jest.mock('hooks/useDevice');
 
@@ -52,49 +51,9 @@ jest.mock('maplibre-gl', () => ({
   LngLatBounds: jest.fn(),
 }));
 
-jest.mock('hooks/useAvailabilityMap', () => ({
-  __esModule: true,
-  default: jest.fn().mockReturnValue({
-    selectedPoint: null,
-    selectedH3Cell: null,
-    h3Cells: null,
-    emptySelection: { type: 'FeatureCollection', features: [] },
-    selection: { type: 'FeatureCollection', features: [] },
-    showDrawControl: false,
-    showSelectionToolbar: false,
-    selectionType: 'drawn-polygon',
-    isDaiEnabled: false,
-    daiOpacity: 80,
-    setSelectedPoint: jest.fn(),
-    setSelectedH3Cell: jest.fn(),
-    setH3Cells: jest.fn(),
-    setSelection: jest.fn(),
-    setShowDrawControl: jest.fn(),
-    setShowSelectionToolbar: jest.fn(),
-    setSelectionType: jest.fn(),
-    setIsDaiEnabled: jest.fn(),
-    setDaiOpacity: jest.fn(),
-  }),
-}));
-
-jest.mock('hooks/useAvailability', () => ({
-  __esModule: true,
-  default: jest.fn().mockReturnValue({ filterId: undefined }),
-}));
-
-jest.mock('hooks/useDai', () => ({
-  useDai: jest.fn().mockReturnValue({ dai: null }),
-}));
-
-jest.mock('hooks/useTheme', () => ({
-  __esModule: true,
-  default: jest.fn(),
-}));
-
 jest.mock('components/DrawControl', () => ({ __esModule: true, default: () => null }));
 jest.mock('components/Map/SoilhiveMapToolbar', () => ({ __esModule: true, default: () => null }));
 jest.mock('components/Map/SoilhiveMapSelectionToolbar', () => ({ __esModule: true, default: () => null }));
-jest.mock('components/Map/AreaInfo', () => ({ AreaInfoPopup: () => null, AreaInfoBar: () => null }));
 jest.mock('components/Map/MapStyleSwitcher/MapStyleSwitcher', () => ({
   __esModule: true,
   MapStyleSwitcher: () => <div data-testid="map-style-switcher" />,
@@ -117,27 +76,68 @@ jest.mock('@turf/turf', () => ({
   centerOfMass: jest.fn().mockReturnValue({ geometry: { coordinates: [0, 0] } }),
 }));
 
+function makeSelectionState(overrides: Record<string, any> = {}) {
+  return {
+    selectedPoint: null,
+    setSelectedPoint: jest.fn(),
+    selectedH3Cell: null,
+    setSelectedH3Cell: jest.fn(),
+    h3Cells: null,
+    setH3Cells: jest.fn(),
+    selection: { type: 'FeatureCollection', features: [] },
+    setSelection: jest.fn(),
+    showDrawControl: false,
+    setShowDrawControl: jest.fn(),
+    showSelectionToolbar: false,
+    setShowSelectionToolbar: jest.fn(),
+    ...overrides,
+  };
+}
+
+function makeProps({ selectionState, ...rest }: Record<string, any> = {}) {
+  return {
+    selectionState: makeSelectionState(selectionState),
+    ...rest,
+  };
+}
+
 describe('SoilhiveMap', () => {
-  beforeEach(() => {
-    (useTheme as jest.Mock).mockReturnValue({
-      isLoadingThemeConfig: false,
-      themeConfig: {
-        daiConfig: {
-          isEnabled: true,
-          defaultValue: false,
-        },
-      },
-    });
-  });
   afterEach(() => {
     __resetIsMobileLayout();
     __resetIsDesktopLayout();
     jest.clearAllMocks();
   });
 
+  it('renders given only its controlled props, with no host context provider of any kind', () => {
+    expect(() => render(<SoilhiveMap {...makeProps()} />)).not.toThrow();
+  });
+
+  it('does not render any built-in area-info card even when a point is selected (that composition now lives on the host)', () => {
+    __setIsDesktopLayout(true);
+    expect(() => render(<SoilhiveMap {...makeProps({ selectionState: { selectedPoint: { lng: 1, lat: 2 } } })} />)).not.toThrow();
+    expect(screen.queryByTestId('sh-areainfopopup-close')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('sh-areainfobar-close')).not.toBeInTheDocument();
+  });
+
+  it('renders children inside the map', () => {
+    render(
+      <SoilhiveMap {...makeProps()}>
+        <div data-testid="plugin-overlay">custom card</div>
+      </SoilhiveMap>,
+    );
+    expect(screen.getByTestId('plugin-overlay')).toBeInTheDocument();
+    expect(screen.getByTestId('map')).toContainElement(screen.getByTestId('plugin-overlay'));
+  });
+
+  it('renders footer as a flex sibling of the map, not nested inside it', () => {
+    render(<SoilhiveMap {...makeProps()} footer={<div data-testid="footer-content">Footer</div>} />);
+    expect(screen.getByTestId('footer-content')).toBeInTheDocument();
+    expect(screen.getByTestId('map')).not.toContainElement(screen.getByTestId('footer-content'));
+  });
+
   it('closes the attribution control on render when on mobile', () => {
     __setIsMobileLayout(true);
-    render(<SoilhiveMap />);
+    render(<SoilhiveMap {...makeProps()} />);
     const attributionEl = document.querySelector('.maplibregl-ctrl-attrib')!;
     expect(attributionEl.getAttribute('open')).not.toBeNull();
 
@@ -148,7 +148,7 @@ describe('SoilhiveMap', () => {
   });
 
   it('does not touch the attribution control on render when on desktop', () => {
-    render(<SoilhiveMap />);
+    render(<SoilhiveMap {...makeProps()} />);
     const attributionEl = document.querySelector('.maplibregl-ctrl-attrib')!;
 
     fireEvent.click(screen.getByTestId('trigger-render'));
@@ -157,18 +157,18 @@ describe('SoilhiveMap', () => {
     expect(attributionEl.classList.contains('maplibregl-compact-show')).toBe(true);
   });
 
-  it('renders DaiWidget if DAI is enabled in the config', () => {
+  it('renders DaiWidget when dai.showWidget is true', () => {
     __setIsDesktopLayout(true);
 
-    render(<SoilhiveMap />);
+    render(<SoilhiveMap {...makeProps({ dai: { showWidget: true } })} />);
 
     expect(screen.getByTestId('dai-widget')).toBeInTheDocument();
   });
 
-  it('renders the mobile DAI toggle button with an accessible label when DAI is enabled', () => {
+  it('renders the mobile DAI toggle button with an accessible label when dai.showWidget is true', () => {
     __setIsMobileLayout(true);
 
-    render(<SoilhiveMap />);
+    render(<SoilhiveMap {...makeProps({ dai: { showWidget: true } })} />);
 
     expect(screen.getByRole('button', { name: 'Toggle DAI' })).toBeInTheDocument();
   });
@@ -176,35 +176,53 @@ describe('SoilhiveMap', () => {
   it('does not render the mobile DAI toggle button on desktop', () => {
     __setIsDesktopLayout(true);
 
-    render(<SoilhiveMap />);
+    render(<SoilhiveMap {...makeProps({ dai: { showWidget: true } })} />);
 
     expect(screen.queryByRole('button', { name: 'Toggle DAI' })).not.toBeInTheDocument();
   });
 
-  it('does not render DaiWidget if DAI is disabled in the config', () => {
-    (useTheme as jest.Mock).mockReturnValue({
-      isLoadingThemeConfig: false,
-      themeConfig: {
-        daiConfig: {
-          isEnabled: false,
-          defaultValue: false,
-        },
-      },
-    });
+  it('does not render DaiWidget when the dai prop is omitted (the plugin scenario)', () => {
     __setIsDesktopLayout(true);
 
-    render(<SoilhiveMap />);
+    render(<SoilhiveMap {...makeProps()} />);
 
     expect(screen.queryByTestId('dai-widget')).not.toBeInTheDocument();
   });
 
+  it('calls dai.onViewportChange with bbox/resolution when the viewport changes and showH3Cells is true', () => {
+    const onViewportChange = jest.fn();
+    render(<SoilhiveMap {...makeProps({ dai: { onViewportChange } })} showH3Cells />);
+
+    fireEvent.click(screen.getByTestId('trigger-zoom-end'));
+
+    expect(onViewportChange).toHaveBeenCalledWith({ bbox: [0, 0, 1, 1], resolution: 5 });
+  });
+
+  it('calls dai.onViewportChange with null when showH3Cells is false', () => {
+    const onViewportChange = jest.fn();
+    render(<SoilhiveMap {...makeProps({ dai: { onViewportChange } })} showH3Cells={false} />);
+
+    fireEvent.click(screen.getByTestId('trigger-zoom-end'));
+
+    expect(onViewportChange).toHaveBeenCalledWith(null);
+  });
+
+  it('computes and sets h3Cells on viewport change when showH3Cells is true', () => {
+    const setH3Cells = jest.fn();
+    render(<SoilhiveMap {...makeProps({ selectionState: { setH3Cells } })} showH3Cells />);
+
+    fireEvent.click(screen.getByTestId('trigger-zoom-end'));
+
+    expect(setH3Cells).toHaveBeenCalledWith({ type: 'FeatureCollection', features: [] });
+  });
+
   it('does not render ScaleControl before any zoom interaction', () => {
-    render(<SoilhiveMap />);
+    render(<SoilhiveMap {...makeProps()} />);
     expect(screen.queryByTestId('scale-control')).not.toBeInTheDocument();
   });
 
   it('renders and makes ScaleControl visible when zoom starts', () => {
-    render(<SoilhiveMap />);
+    render(<SoilhiveMap {...makeProps()} />);
     fireEvent.click(screen.getByTestId('trigger-zoom-start'));
     const scaleControl = screen.getByTestId('scale-control');
     expect(scaleControl).toBeInTheDocument();
@@ -212,7 +230,7 @@ describe('SoilhiveMap', () => {
   });
 
   it('never renders ScaleControl when showScale is false, even after zoom start/end', () => {
-    render(<SoilhiveMap showScale={false} />);
+    render(<SoilhiveMap {...makeProps()} showScale={false} />);
     fireEvent.click(screen.getByTestId('trigger-zoom-start'));
     expect(screen.queryByTestId('scale-control')).not.toBeInTheDocument();
     fireEvent.click(screen.getByTestId('trigger-zoom-end'));
@@ -221,7 +239,7 @@ describe('SoilhiveMap', () => {
 
   it('always renders ScaleControl on desktop, without fading, even through zoom start/end', () => {
     __setIsDesktopLayout(true);
-    render(<SoilhiveMap />);
+    render(<SoilhiveMap {...makeProps()} />);
 
     expect(screen.getByTestId('scale-control')).toBeInTheDocument();
     expect(screen.getByTestId('scale-control').style.opacity).toBe('');
@@ -249,7 +267,7 @@ describe('SoilhiveMap', () => {
     });
 
     it('keeps ScaleControl visible immediately after zoom ends, fades it after SCALE_LINGER_MS, and unmounts it after SCALE_FADE_MS', () => {
-      render(<SoilhiveMap />);
+      render(<SoilhiveMap {...makeProps()} />);
       fireEvent.click(screen.getByTestId('trigger-zoom-start'));
       fireEvent.click(screen.getByTestId('trigger-zoom-end'));
 
@@ -267,7 +285,7 @@ describe('SoilhiveMap', () => {
     });
 
     it('cancels the pending hide/unmount when a new zoom starts before the timers elapse', () => {
-      render(<SoilhiveMap />);
+      render(<SoilhiveMap {...makeProps()} />);
       fireEvent.click(screen.getByTestId('trigger-zoom-start'));
       fireEvent.click(screen.getByTestId('trigger-zoom-end'));
 
@@ -289,7 +307,7 @@ describe('SoilhiveMap', () => {
 
   it('exposes onUpload via the forwarded ref', () => {
     const ref = createRef<SoilhiveMapRef>();
-    render(<SoilhiveMap ref={ref} />);
+    render(<SoilhiveMap {...makeProps()} ref={ref} />);
     expect(ref.current).not.toBeNull();
     expect(typeof ref.current?.onUpload).toBe('function');
   });

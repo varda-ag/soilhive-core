@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback, useEffect, useMemo, forwardRef, useImperativeHandle } from 'react';
+import { useRef, useState, useCallback, useEffect, useMemo, forwardRef, useImperativeHandle, type ReactNode } from 'react';
 import classnames from 'classnames';
 import { useTranslation } from 'react-i18next';
 import {
@@ -12,7 +12,7 @@ import {
   Layer,
 } from 'react-map-gl/maplibre';
 import { LngLat, LngLatBounds, type MapLayerMouseEvent, type MapLibreEvent } from 'maplibre-gl';
-import type { Polygon, MultiPolygon, Point } from 'geojson';
+import type { Polygon, MultiPolygon, Point, FeatureCollection } from 'geojson';
 import GeocoderControl from './GeocoderControl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import '@maplibre/maplibre-gl-geocoder/dist/maplibre-gl-geocoder.css';
@@ -33,16 +33,58 @@ import { largestPolygon as largestPolygonFn } from '../../utilities/geo';
 import type { SoilhiveMapSelectionChangeEvent } from './SoilhiveMapSelectionChangeEvent';
 import { simplifyGeometry } from '../../utilities/simplifyGeometry';
 import useDevice from 'hooks/useDevice';
-import useAvailabilityMap from 'hooks/useAvailabilityMap';
-import { useDai } from 'hooks/useDai';
-import useAvailability from '../../hooks/useAvailability';
-import useTheme from 'hooks/useTheme';
-import { AreaInfoPopup, AreaInfoBar } from './AreaInfo';
+import type { DataAvailabilityIndex } from '../../types/backend';
 import { DaiWidget } from './DaiWidget/DaiWidget';
 import LayersIcon from 'assets/icons/layers-icon.svg?react';
 import type { MapStyles } from 'types/components';
 import { MapStyleSwitcher } from './MapStyleSwitcher/MapStyleSwitcher';
 import LoadingLine from './LoadingLine/LoadingLine';
+
+/**
+ * Kept structurally identical to (but independent of) AvailabilityMapContext's own MapSelection —
+ * this component must not import from `contexts/` so it can be vendored into plugins standalone.
+ */
+export type MapSelection = { type: string; features: GeoJSON.GeoJSON[] };
+
+/**
+ * Selection/draw state — previously read from AvailabilityMapContext, now fully controlled so this
+ * component has no import-time dependency on any host context (required to be vendorable into a
+ * plugin, which isn't a descendant of AvailabilityMapProvider). Shaped identically to
+ * AvailabilityMapContext's own relevant fields, so the host can pass `useAvailabilityMap()`'s
+ * return value straight through without repackaging it.
+ */
+export interface SoilhiveMapSelectionState {
+  selectedPoint: LngLat | null;
+  setSelectedPoint: React.Dispatch<React.SetStateAction<LngLat | null>>;
+  selectedH3Cell: MapGeoJSONFeature | null;
+  setSelectedH3Cell: React.Dispatch<React.SetStateAction<MapGeoJSONFeature | null>>;
+  h3Cells: FeatureCollection | null;
+  setH3Cells: React.Dispatch<React.SetStateAction<FeatureCollection | null>>;
+  selection: MapSelection;
+  setSelection: React.Dispatch<React.SetStateAction<MapSelection>>;
+  showDrawControl: boolean;
+  setShowDrawControl: React.Dispatch<React.SetStateAction<boolean>>;
+  showSelectionToolbar: boolean;
+  setShowSelectionToolbar: React.Dispatch<React.SetStateAction<boolean>>;
+}
+
+/**
+ * DAI overlay — entirely optional as a whole. Omitting this prop (the plugin scenario) renders no
+ * DAI UI and triggers no DAI network activity, since the query itself now lives on the host (see
+ * useDai's dependency on the host-only useApiQuery/useAvailability).
+ */
+export interface SoilhiveMapDaiProps {
+  data?: DataAvailabilityIndex;
+  isLoading?: boolean;
+  isEnabled?: boolean;
+  opacity?: number;
+  showWidget?: boolean;
+  isWidgetDefaultExpanded?: boolean;
+  onToggle?: () => void;
+  onOpacityChange?: (value: number) => void;
+  /** Reports the current viewport's bbox/H3 resolution so the host can drive its own DAI query. */
+  onViewportChange?: (params: { bbox: [number, number, number, number]; resolution: number } | null) => void;
+}
 
 interface SoilhiveMapProps {
   initialViewBoundingBox?: [number, number, number, number];
@@ -57,6 +99,25 @@ interface SoilhiveMapProps {
   dragPan?: boolean;
   onSelectionChange?: (event: SoilhiveMapSelectionChangeEvent) => void;
   onSelectionToolbarVisibilityChange?: (isVisible: boolean) => void;
+
+  selectionState: SoilhiveMapSelectionState;
+  dai?: SoilhiveMapDaiProps;
+
+  /**
+   * Rendered inside the underlying <Map>, the same way MapStyleSwitcher/DaiWidget already are —
+   * lets a consumer (host or plugin) layer its own overlays (e.g. a selection info card) on top
+   * of the map. react-map-gl primitives (Popup, Marker, Source, Layer) must be real descendants
+   * of <Map> to access its context, so this is the only way to add one from outside.
+   */
+  children?: ReactNode;
+
+  /**
+   * Rendered as a flex sibling of <Map>, inside the outer .soilhive-map wrapper (which is
+   * `display: flex; flex-direction: column`) — for content that must stack *below* the map rather
+   * than overlay it, and that doesn't need react-map-gl's context (e.g. a mobile info bar). Using
+   * `children` for this instead would nest it inside <Map>'s own DOM and break that layout.
+   */
+  footer?: ReactNode;
 }
 
 export interface SoilhiveMapRef {
@@ -91,6 +152,8 @@ const dataLayerBorders: LayerProps = {
   },
 };
 
+const emptySelection: MapSelection = { type: 'FeatureCollection', features: [] };
+
 // How long the ScaleControl stays visible after zooming stops before it starts fading out
 const SCALE_LINGER_MS = 1000;
 // How long the ScaleControl's fade-out transition takes
@@ -110,42 +173,51 @@ const SoilhiveMap = forwardRef<SoilhiveMapRef, SoilhiveMapProps>(function Soilhi
     dragPan = true,
     onSelectionChange,
     onSelectionToolbarVisibilityChange,
+    selectionState,
+    dai: daiProps,
+    children,
+    footer,
   },
   ref,
 ) {
   const { t } = useTranslation('availability');
-  const {
-    selectedPoint,
-    selectedH3Cell,
-    h3Cells,
-    emptySelection,
-    selection,
-    showDrawControl,
-    showSelectionToolbar,
-    isDaiEnabled,
-    daiOpacity,
-    setSelectedPoint,
-    setSelectedH3Cell,
-    setH3Cells,
-    setSelection,
-    setShowDrawControl,
-    setShowSelectionToolbar,
-    setIsDaiEnabled,
-    setDaiOpacity,
-  } = useAvailabilityMap();
 
-  const { filterId, isLoadingPartialFilter } = useAvailability();
+  // selectedPoint itself is intentionally not read here — SoilhiveMap only ever *writes* it via
+  // setSelectedPoint; the value is for whoever renders this component (host or plugin) to read
+  // back, e.g. to decide what to show via `children`.
+  const {
+    setSelectedPoint,
+    selectedH3Cell,
+    setSelectedH3Cell,
+    h3Cells,
+    setH3Cells,
+    selection,
+    setSelection,
+    showDrawControl,
+    setShowDrawControl,
+    showSelectionToolbar,
+    setShowSelectionToolbar,
+  } = selectionState;
+
+  const {
+    data: dai,
+    isLoading: isDaiLoading,
+    isEnabled: isDaiEnabled,
+    opacity: daiOpacity,
+    showWidget: showDaiWidget,
+    isWidgetDefaultExpanded: isDaiWidgetDefaultExpanded,
+    onToggle: onDaiToggle,
+    onOpacityChange: onDaiOpacityChange,
+    onViewportChange,
+  } = daiProps ?? {};
 
   const mapRef = useRef<any>(null);
-  const [isPointResultSelection, setIsPointResultSelection] = useState(false);
-  const [selectedLocationName, setSelectedLocationName] = useState<string | undefined>(undefined);
   const [mapBounds, setMapBounds] = useState<LngLatBounds | null>(null);
   const [currentMapStyleIndex, setCurrentMapStyleIndex] = useState<number>(0);
   const [isScaleMounted, setIsScaleMounted] = useState(false);
   const [isScaleVisible, setIsScaleVisible] = useState(false);
   const scaleHideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scaleUnmountTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const { themeConfig } = useTheme();
   const drawControlRef = useRef<DrawControlRef>(null);
   const selectionTypeRef = useRef<'drawn-polygon' | 'h3-cell' | 'country'>('drawn-polygon');
   const locationNameRef = useRef<string>(undefined);
@@ -161,7 +233,7 @@ const SoilhiveMap = forwardRef<SoilhiveMapRef, SoilhiveMapProps>(function Soilhi
         'fill-opacity': [
           'case',
           ['has', 'dai'],
-          ['*', daiOpacity / 100, ['interpolate', ['linear'], ['get', 'dai'], 0, 0.0, 0.01, 0.1, 0.5, 0.25, 1.0, 0.75]],
+          ['*', (daiOpacity ?? 0) / 100, ['interpolate', ['linear'], ['get', 'dai'], 0, 0.0, 0.01, 0.1, 0.5, 0.25, 1.0, 0.75]],
           0,
         ],
         'fill-color': ['interpolate', ['linear'], ['get', 'dai'], 0, '#ffffcc', 0.5, '#fd8d3c', 1.0, '#800026'],
@@ -169,33 +241,22 @@ const SoilhiveMap = forwardRef<SoilhiveMapRef, SoilhiveMapProps>(function Soilhi
     }),
     [daiOpacity],
   );
-  const [daiParams, setDaiParams] = useState<{ bbox: [number, number, number, number]; resolution: number } | null>(null);
-
-  // const ENABLE_DAI = ((window._env_ as any)?.['ENABLE_DAI'] as string) === 'true';
-
-  const { dai, isLoading: isDaiLoading } = useDai(
-    filterId,
-    daiParams?.bbox,
-    daiParams?.resolution,
-    isDaiEnabled && !!filterId && !isLoadingPartialFilter && daiParams !== null && showH3Cells,
-  );
+  const [viewportParams, setViewportParams] = useState<{ bbox: [number, number, number, number]; resolution: number } | null>(null);
+  const [isPointResultSelection, setIsPointResultSelection] = useState(false);
 
   useEffect(() => {
-    if (!daiParams || !showH3Cells || (isDaiEnabled && !dai)) return;
+    if (!viewportParams || !showH3Cells || (isDaiEnabled && !dai)) return;
     try {
-      const h3Indexes = bBoxToH3Cells(daiParams?.bbox, h3ResolutionForZoomLevel(daiParams?.resolution));
-      const h3CellsFeatureCollection = isDaiEnabled ? dataAvailabilityIndexToGeoJSONPolygons(dai!) : h3IndexesToGeoJSONPolygons(h3Indexes);
+      const h3Indexes = bBoxToH3Cells(viewportParams.bbox, viewportParams.resolution);
+      const h3CellsFeatureCollection =
+        isDaiEnabled && dai ? dataAvailabilityIndexToGeoJSONPolygons(dai) : h3IndexesToGeoJSONPolygons(h3Indexes);
       setH3Cells(h3CellsFeatureCollection);
     } catch (error) {
       console.error('Error while updating the H3 Cells:', error);
     }
-  }, [dai, daiParams, showH3Cells, setH3Cells, isDaiEnabled]);
+  }, [dai, viewportParams, showH3Cells, setH3Cells, isDaiEnabled]);
 
   const { isMobileLayout, isDesktopLayout } = useDevice();
-
-  const onAreaInfoClose = useCallback(() => {
-    setSelectedPoint(null);
-  }, [setSelectedPoint]);
 
   const onDrawClick = useCallback(() => {
     setSelectedPoint(null);
@@ -238,7 +299,6 @@ const SoilhiveMap = forwardRef<SoilhiveMapRef, SoilhiveMapProps>(function Soilhi
     (geometry: Polygon | MultiPolygon) => {
       // Uploading a polygon from file
       selectionTypeRef.current = 'drawn-polygon';
-      setSelectedLocationName(undefined);
       applySelection(geometry, undefined, true);
     },
     [applySelection],
@@ -250,12 +310,15 @@ const SoilhiveMap = forwardRef<SoilhiveMapRef, SoilhiveMapProps>(function Soilhi
     ({ bounds, zoomLevel }: { bounds: number[]; zoomLevel: number }) => {
       if (!showH3Cells) {
         setH3Cells(null);
-        setDaiParams(null);
+        setViewportParams(null);
+        onViewportChange?.(null);
         return;
       }
-      setDaiParams({ bbox: bounds as [number, number, number, number], resolution: h3ResolutionForZoomLevel(zoomLevel) });
+      const params = { bbox: bounds as [number, number, number, number], resolution: h3ResolutionForZoomLevel(zoomLevel) };
+      setViewportParams(params);
+      onViewportChange?.(params);
     },
-    [showH3Cells, setH3Cells],
+    [showH3Cells, setH3Cells, onViewportChange],
   );
 
   const onMapMoveEnd = useCallback(
@@ -335,7 +398,6 @@ const SoilhiveMap = forwardRef<SoilhiveMapRef, SoilhiveMapProps>(function Soilhi
     setSelectedPoint(null);
     setSelection(emptySelection);
     selectionTypeRef.current = 'drawn-polygon';
-    setSelectedLocationName(undefined);
     setShowDrawControl(false);
     setShowSelectionToolbar(false);
     onSelectionToolbarVisibilityChange?.(false);
@@ -344,7 +406,6 @@ const SoilhiveMap = forwardRef<SoilhiveMapRef, SoilhiveMapProps>(function Soilhi
       selectionType: selectionTypeRef.current,
     });
   }, [
-    emptySelection,
     onSelectionChange,
     onSelectionToolbarVisibilityChange,
     selectedH3Cell,
@@ -365,7 +426,6 @@ const SoilhiveMap = forwardRef<SoilhiveMapRef, SoilhiveMapProps>(function Soilhi
       } else if (features.length > 0) {
         // H3 cell selection
         selectionTypeRef.current = 'h3-cell';
-        setSelectedLocationName(undefined);
         applySelection(features[0].geometry as Polygon, { type: 'Point', coordinates: [event.lngLat.lng, event.lngLat.lat] }, false);
         setSelectedH3Cell(features[0]);
       }
@@ -377,7 +437,6 @@ const SoilhiveMap = forwardRef<SoilhiveMapRef, SoilhiveMapProps>(function Soilhi
     ({ feature }: { feature: MapGeoJSONFeature; center: Point }) => {
       selectionTypeRef.current = 'country';
       locationNameRef.current = feature?.properties?.display_name;
-      setSelectedLocationName(feature?.properties?.display_name);
 
       if (feature.geometry.type === 'Polygon' || feature.geometry.type === 'MultiPolygon') {
         // Selecting a search result from the geocoder
@@ -396,7 +455,6 @@ const SoilhiveMap = forwardRef<SoilhiveMapRef, SoilhiveMapProps>(function Soilhi
     (feature: MapGeoJSONFeature) => {
       // Drawing a polygon on the map
       selectionTypeRef.current = 'drawn-polygon';
-      setSelectedLocationName(undefined);
       applySelection(feature.geometry as Polygon);
       setShowDrawControl(false);
     },
@@ -430,10 +488,6 @@ const SoilhiveMap = forwardRef<SoilhiveMapRef, SoilhiveMapProps>(function Soilhi
     }
     return 'clear';
   }, [showDrawControl, selection, mapBounds]);
-
-  const isAreaInfoVisible = useMemo(() => {
-    return selectedPoint && !showDrawControl;
-  }, [selectedPoint, showDrawControl]);
 
   const attributionControl = useMemo(() => {
     return isMobileLayout ? { compact: true } : { compact: false };
@@ -482,15 +536,6 @@ const SoilhiveMap = forwardRef<SoilhiveMapRef, SoilhiveMapProps>(function Soilhi
 
         {showSelectionToolbar && <SoilhiveMapSelectionToolbar mode={toolbarMode} onCancel={resetSelection} onReset={resetDrawing} />}
 
-        {isDesktopLayout && isAreaInfoVisible && (
-          <AreaInfoPopup
-            selectedPoint={selectedPoint as LngLat}
-            onClose={onAreaInfoClose}
-            locationName={selectedLocationName}
-            selection={selection}
-          />
-        )}
-
         {showH3Cells && h3Cells && !showDrawControl && (
           <>
             <Source id="data" type="geojson" data={h3Cells} promoteId="h3Index">
@@ -534,27 +579,26 @@ const SoilhiveMap = forwardRef<SoilhiveMapRef, SoilhiveMapProps>(function Soilhi
             onMapStyleChange={setCurrentMapStyleIndex}
           />
         )}
-        {themeConfig.daiConfig?.isEnabled && !isDesktopLayout && (
+        {showDaiWidget && !isDesktopLayout && (
           <button className="soilhive-map-dai-btn" onClick={() => setIsDaiWidgetOpen(v => !v)} aria-label={t('dai_widget.toggle_aria')}>
             <LayersIcon />
           </button>
         )}
-        {themeConfig.daiConfig?.isEnabled && (isDesktopLayout || isDaiWidgetOpen) && (
+        {showDaiWidget && (isDesktopLayout || isDaiWidgetOpen) && (
           <DaiWidget
-            isEnabled={isDaiEnabled}
-            isLoading={isDaiEnabled && !dai}
-            isDefaultExpanded={isDesktopLayout && themeConfig.daiConfig.defaultValue}
-            opacity={daiOpacity}
+            isEnabled={!!isDaiEnabled}
+            isLoading={!!isDaiEnabled && !dai}
+            isDefaultExpanded={isDesktopLayout && !!isDaiWidgetDefaultExpanded}
+            opacity={daiOpacity ?? 0}
             className="soilhive-map-dai"
-            onToggle={() => setIsDaiEnabled(prevValue => !prevValue)}
-            onOpacityChange={setDaiOpacity}
+            onToggle={() => onDaiToggle?.()}
+            onOpacityChange={value => onDaiOpacityChange?.(value)}
           />
         )}
-        {themeConfig.daiConfig?.isEnabled && <LoadingLine isLoading={isDaiEnabled && !dai} />}
+        {showDaiWidget && <LoadingLine isLoading={!!isDaiEnabled && !dai} />}
+        {children}
       </Map>
-      {!isDesktopLayout && isAreaInfoVisible && (
-        <AreaInfoBar onClose={onAreaInfoClose} locationName={selectedLocationName} selection={selection} />
-      )}
+      {footer}
     </div>
   );
 });
