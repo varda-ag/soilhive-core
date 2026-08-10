@@ -23,6 +23,17 @@ exports[`Availability renders availability page on desktop 1`] = `
         Mock SoilhiveMap
       </div>
       <div
+        data-testid="mock-upload-polygon-modal"
+        data-visible="false"
+      >
+        <button>
+          Close UploadPolygonModal
+        </button>
+        <button>
+          Upload from modal
+        </button>
+      </div>
+      <div
         data-opened="true"
         data-testid="mock-datasets-sidebar"
       >
@@ -74,6 +85,17 @@ exports[`Availability renders availability page on mobile 1`] = `
         data-test-id="mock-soilhive-map"
       >
         Mock SoilhiveMap
+      </div>
+      <div
+        data-testid="mock-upload-polygon-modal"
+        data-visible="false"
+      >
+        <button>
+          Close UploadPolygonModal
+        </button>
+        <button>
+          Upload from modal
+        </button>
       </div>
       <div
         data-opened="false"

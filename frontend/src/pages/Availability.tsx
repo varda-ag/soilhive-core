@@ -4,6 +4,7 @@ import type { LngLat } from 'maplibre-gl';
 
 import SoilhiveMap, { type SoilhiveMapRef } from 'components/Map/SoilhiveMap';
 import { AreaInfoPopup, AreaInfoBar } from 'components/Map/AreaInfo';
+import { UploadPolygonModal } from 'components/Map/UploadPolygonModal/UploadPolygonModal';
 import DatasetsIcon from 'assets/icons/paste-icon.svg?react';
 import FiltersIcon from 'assets/icons/filter2-icon.svg?react';
 import UploadIcon from 'assets/icons/big-cloud-upload-icon.svg?react';
@@ -34,6 +35,7 @@ function Availability() {
   const [isFiltersOpened, setIsFiltersOpened] = useState<boolean>(false);
   const [activeMobileTab, setActiveMobileTab] = useState<string>(DEFAULT_AVAILABILITY_MOBILE_TAB);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [daiViewport, setDaiViewport] = useState<{ bbox: [number, number, number, number]; resolution: number } | null>(null);
   const dragCounterRef = useRef(0);
   const mapRef = useRef<SoilhiveMapRef>(null);
@@ -131,6 +133,12 @@ function Availability() {
     [showNotification],
   );
 
+  // UploadPolygonModal calls its own onClose after a successful upload — this just forwards the
+  // geometry to the same SoilhiveMapRef.onUpload path drag-and-drop already uses.
+  const onUploadFromModal = useCallback((geometry: Parameters<SoilhiveMapRef['onUpload']>[0]) => {
+    mapRef.current?.onUpload(geometry);
+  }, []);
+
   return (
     <div className={styles.Availability} onDragEnter={onDragEnter} onDragOver={onDragOver} onDragLeave={onDragLeave} onDrop={onDrop}>
       {isDragOver && (
@@ -153,6 +161,7 @@ function Availability() {
           showGeocoder={true}
           showH3Cells={true}
           onSelectionChange={handleMapSelectionChange}
+          onUploadClick={() => setIsUploadModalOpen(true)}
           geocoder={localStorage.getItem('MAP_GEOCODER') ?? ('nominatim' as any)}
           mapStyles={getMapStyles()}
           selectionState={availabilityMap}
@@ -182,6 +191,7 @@ function Availability() {
             />
           )}
         </SoilhiveMap>
+        <UploadPolygonModal visible={isUploadModalOpen} onUpload={onUploadFromModal} onClose={() => setIsUploadModalOpen(false)} />
         <DatasetsSidebar
           isOpened={isDesktopLayout ? isDatasetsOpened : activeMobileTab === AVAILABILITY_MOBILE_TABS.DATASETS}
           onClose={() => setIsDatasetsOpened(false)}

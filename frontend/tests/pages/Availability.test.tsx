@@ -7,13 +7,15 @@ import { parseGeoJSONFile } from '../../src/utilities/parseGeoJSONFile';
 import useNotifications from 'hooks/useNotifications';
 
 let mockOnMapSelectionChange: ((event: any) => void) | undefined;
+let mockOnUploadClick: (() => void) | undefined;
 const mockOnUpload = jest.fn();
 const mockShowNotification = jest.fn();
 
 /* eslint-disable react-hooks/globals */
 jest.mock('components/Map/SoilhiveMap', () => {
-  const MockSoilhiveMap = React.forwardRef(function SoilhiveMap({ onSelectionChange, children, footer }: any, ref: any) {
+  const MockSoilhiveMap = React.forwardRef(function SoilhiveMap({ onSelectionChange, onUploadClick, children, footer }: any, ref: any) {
     mockOnMapSelectionChange = onSelectionChange;
+    mockOnUploadClick = onUploadClick;
     React.useImperativeHandle(ref, () => ({ onUpload: mockOnUpload }));
     return (
       <div data-test-id="mock-soilhive-map">
@@ -26,6 +28,15 @@ jest.mock('components/Map/SoilhiveMap', () => {
   return MockSoilhiveMap;
 });
 /* eslint-enable react-hooks/globals */
+
+jest.mock('components/Map/UploadPolygonModal/UploadPolygonModal', () => ({
+  UploadPolygonModal: ({ visible, onClose, onUpload }: any) => (
+    <div data-testid="mock-upload-polygon-modal" data-visible={String(visible)}>
+      <button onClick={onClose}>Close UploadPolygonModal</button>
+      <button onClick={() => onUpload({ type: 'Polygon', coordinates: [] })}>Upload from modal</button>
+    </div>
+  ),
+}));
 
 jest.mock('components/Map/AreaInfo', () => ({
   AreaInfoPopup: ({ onClose, locationName }: any) => (
@@ -345,6 +356,37 @@ describe('Availability', () => {
 
       expect(screen.queryByTestId('mock-area-info-popup')).not.toBeInTheDocument();
       expect(screen.queryByTestId('mock-area-info-bar')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('upload polygon modal', () => {
+    it('is closed by default and opens when the map requests it via onUploadClick', () => {
+      render(<Availability />);
+
+      expect(screen.getByTestId('mock-upload-polygon-modal')).toHaveAttribute('data-visible', 'false');
+
+      act(() => mockOnUploadClick!());
+
+      expect(screen.getByTestId('mock-upload-polygon-modal')).toHaveAttribute('data-visible', 'true');
+    });
+
+    it('closes when the modal calls onClose', () => {
+      render(<Availability />);
+      act(() => mockOnUploadClick!());
+      expect(screen.getByTestId('mock-upload-polygon-modal')).toHaveAttribute('data-visible', 'true');
+
+      fireEvent.click(screen.getByText('Close UploadPolygonModal'));
+
+      expect(screen.getByTestId('mock-upload-polygon-modal')).toHaveAttribute('data-visible', 'false');
+    });
+
+    it('forwards an uploaded geometry to the map ref onUpload, the same path drag-and-drop uses', () => {
+      render(<Availability />);
+      act(() => mockOnUploadClick!());
+
+      fireEvent.click(screen.getByText('Upload from modal'));
+
+      expect(mockOnUpload).toHaveBeenCalledWith({ type: 'Polygon', coordinates: [] });
     });
   });
 

@@ -99,6 +99,14 @@ interface SoilhiveMapProps {
   dragPan?: boolean;
   onSelectionChange?: (event: SoilhiveMapSelectionChangeEvent) => void;
   onSelectionToolbarVisibilityChange?: (isVisible: boolean) => void;
+  /**
+   * Optional — shows an "Upload a polygon" option in the toolbar's dropdown when provided. This
+   * component no longer owns any upload-via-modal UI itself (UploadPolygonModal pulls in Dialog ->
+   * primereact, which isn't vendored to plugins); the caller decides what happens on click, e.g.
+   * opening its own modal and eventually calling this ref's own `onUpload`. Uploading via
+   * drag-and-drop (through the ref) is unaffected either way.
+   */
+  onUploadClick?: () => void;
 
   selectionState: SoilhiveMapSelectionState;
   dai?: SoilhiveMapDaiProps;
@@ -173,6 +181,7 @@ const SoilhiveMap = forwardRef<SoilhiveMapRef, SoilhiveMapProps>(function Soilhi
     dragPan = true,
     onSelectionChange,
     onSelectionToolbarVisibilityChange,
+    onUploadClick,
     selectionState,
     dai: daiProps,
     children,
@@ -532,7 +541,7 @@ const SoilhiveMap = forwardRef<SoilhiveMapRef, SoilhiveMapProps>(function Soilhi
         // Note: attributionControl is used only during the onLoad so it won't be updated if it changes after that (e.g. when in Desktop you resize the window to make it small as a Mobile device)
         attributionControl={attributionControl}
       >
-        <SoilhiveMapToolbar visible={!showDrawControl} onDrawClick={onDrawClick} onUpload={onUpload} />
+        <SoilhiveMapToolbar visible={!showDrawControl} onDrawClick={onDrawClick} onUploadClick={onUploadClick} />
 
         {showSelectionToolbar && <SoilhiveMapSelectionToolbar mode={toolbarMode} onCancel={resetSelection} onReset={resetDrawing} />}
 
