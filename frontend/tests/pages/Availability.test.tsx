@@ -12,14 +12,47 @@ const mockShowNotification = jest.fn();
 
 /* eslint-disable react-hooks/globals */
 jest.mock('components/Map/SoilhiveMap', () => {
-  const MockSoilhiveMap = React.forwardRef(function SoilhiveMap({ onSelectionChange }: any, ref: any) {
+  const MockSoilhiveMap = React.forwardRef(function SoilhiveMap({ onSelectionChange, children, footer }: any, ref: any) {
     mockOnMapSelectionChange = onSelectionChange;
     React.useImperativeHandle(ref, () => ({ onUpload: mockOnUpload }));
-    return <div data-test-id="mock-soilhive-map">Mock SoilhiveMap</div>;
+    return (
+      <div data-test-id="mock-soilhive-map">
+        Mock SoilhiveMap
+        {children}
+        {footer}
+      </div>
+    );
   });
   return MockSoilhiveMap;
 });
 /* eslint-enable react-hooks/globals */
+
+jest.mock('components/Map/AreaInfo', () => ({
+  AreaInfoPopup: ({ onClose, locationName }: any) => (
+    <div data-testid="mock-area-info-popup">
+      Mock AreaInfoPopup - {locationName}
+      <button onClick={onClose}>Close AreaInfoPopup</button>
+    </div>
+  ),
+  AreaInfoBar: ({ onClose, locationName }: any) => (
+    <div data-testid="mock-area-info-bar">
+      Mock AreaInfoBar - {locationName}
+      <button onClick={onClose}>Close AreaInfoBar</button>
+    </div>
+  ),
+}));
+
+jest.mock('hooks/useTheme', () => ({
+  __esModule: true,
+  default: jest.fn().mockReturnValue({
+    isLoadingThemeConfig: false,
+    themeConfig: { daiConfig: { isEnabled: false, defaultValue: false } },
+  }),
+}));
+
+jest.mock('hooks/useDai', () => ({
+  useDai: jest.fn().mockReturnValue({ dai: null, isLoading: false }),
+}));
 
 jest.mock('../../src/utilities/parseGeoJSONFile', () => ({
   parseGeoJSONFile: jest.fn(),
@@ -67,25 +100,56 @@ jest.mock('../../src/contexts/AvailabilityContext', () => {
 });
 
 jest.mock('../../src/contexts/AvailabilityMapContext', () => {
-  // let's define the setGeometryFilter mock function here and export here down below
-  // so that we can later grab it
+  // let's define the mock functions here and export them here down below
+  // so that we can later grab them
   const mockSetGeometryFilter = jest.fn();
+  const mockSetSelectedPoint = jest.fn();
+  const mockSetIsDaiEnabled = jest.fn();
+  const mockSetDaiOpacity = jest.fn();
+
+  const mockContextValue = {
+    boundingBox: [0, 0, 0, 0],
+    setGeometryFilter: mockSetGeometryFilter,
+    setBoundingBox: jest.fn(),
+    setLocationName: jest.fn(),
+    setSelectionType: jest.fn(),
+    // Fields SoilhiveMap itself used to read directly from this context — now passed through
+    // Availability.tsx as `selectionState`, and also used by Availability.tsx's own info-card
+    // composition (isAreaInfoVisible, AreaInfoPopup/AreaInfoBar).
+    selectedPoint: null,
+    setSelectedPoint: mockSetSelectedPoint,
+    selectedH3Cell: null,
+    setSelectedH3Cell: jest.fn(),
+    h3Cells: null,
+    setH3Cells: jest.fn(),
+    selection: { type: 'FeatureCollection', features: [] },
+    setSelection: jest.fn(),
+    showDrawControl: false,
+    setShowDrawControl: jest.fn(),
+    showSelectionToolbar: false,
+    setShowSelectionToolbar: jest.fn(),
+    isDaiEnabled: false,
+    setIsDaiEnabled: mockSetIsDaiEnabled,
+    daiOpacity: 80,
+    setDaiOpacity: mockSetDaiOpacity,
+    locationName: undefined,
+  };
 
   return {
     __esModule: true,
-    AvailabilityMapContext: React.createContext({
-      boundingBox: [0, 0, 0, 0],
-      setGeometryFilter: mockSetGeometryFilter,
-      setBoundingBox: jest.fn(),
-      setLocationName: jest.fn(),
-      setSelectionType: jest.fn(),
-    }),
+    AvailabilityMapContext: React.createContext(mockContextValue),
+    mockContextValue,
     mockSetGeometryFilter,
+    mockSetSelectedPoint,
+    mockSetIsDaiEnabled,
+    mockSetDaiOpacity,
   };
 });
 
-// grab the mock setGeometryFilter function that was passed to availability map context
-const { mockSetGeometryFilter } = jest.requireMock('../../src/contexts/AvailabilityMapContext');
+// grab the mocked context and its mock functions
+const { AvailabilityMapContext, mockContextValue, mockSetGeometryFilter, mockSetSelectedPoint } = jest.requireMock(
+  '../../src/contexts/AvailabilityMapContext',
+);
 
 describe('Availability', () => {
   beforeEach(() => {
@@ -230,6 +294,58 @@ describe('Availability', () => {
     expect(geometries).toHaveLength(1);
     expect(geometries[0].type).toBe('Polygon');
     expect(geometries[0].coordinates).toBeDefined();
+  });
+
+  describe('info card composition', () => {
+    it('shows AreaInfoPopup (not AreaInfoBar) on desktop when a point is selected, and closing it clears the selection', () => {
+      __setIsDesktopLayout(true);
+      render(
+        <AvailabilityMapContext.Provider value={{ ...mockContextValue, selectedPoint: { lng: 1, lat: 2 }, showDrawControl: false }}>
+          <Availability />
+        </AvailabilityMapContext.Provider>,
+      );
+
+      expect(screen.getByTestId('mock-area-info-popup')).toBeInTheDocument();
+      expect(screen.queryByTestId('mock-area-info-bar')).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByText('Close AreaInfoPopup'));
+      expect(mockSetSelectedPoint).toHaveBeenCalledWith(null);
+    });
+
+    it('shows AreaInfoBar (not AreaInfoPopup) on mobile when a point is selected, and closing it clears the selection', () => {
+      __setIsDesktopLayout(false);
+      render(
+        <AvailabilityMapContext.Provider value={{ ...mockContextValue, selectedPoint: { lng: 1, lat: 2 }, showDrawControl: false }}>
+          <Availability />
+        </AvailabilityMapContext.Provider>,
+      );
+
+      expect(screen.getByTestId('mock-area-info-bar')).toBeInTheDocument();
+      expect(screen.queryByTestId('mock-area-info-popup')).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByText('Close AreaInfoBar'));
+      expect(mockSetSelectedPoint).toHaveBeenCalledWith(null);
+    });
+
+    it('shows neither AreaInfoPopup nor AreaInfoBar while drawing, even if a point was previously selected', () => {
+      __setIsDesktopLayout(true);
+      render(
+        <AvailabilityMapContext.Provider value={{ ...mockContextValue, selectedPoint: { lng: 1, lat: 2 }, showDrawControl: true }}>
+          <Availability />
+        </AvailabilityMapContext.Provider>,
+      );
+
+      expect(screen.queryByTestId('mock-area-info-popup')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('mock-area-info-bar')).not.toBeInTheDocument();
+    });
+
+    it('shows neither AreaInfoPopup nor AreaInfoBar when no point is selected', () => {
+      __setIsDesktopLayout(true);
+      render(<Availability />);
+
+      expect(screen.queryByTestId('mock-area-info-popup')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('mock-area-info-bar')).not.toBeInTheDocument();
+    });
   });
 
   describe('drag and drop', () => {
