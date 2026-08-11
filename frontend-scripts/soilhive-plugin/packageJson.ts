@@ -10,6 +10,19 @@ const ROOT_PACKAGE_JSON = join(REPO_ROOT, 'package.json');
 const HANDLED_SEPARATELY = new Set(['react', 'react-dom', 'frontend-plugin-types']);
 
 /**
+ * Runtime companions that must be pinned alongside a scanned package even though nothing scanned
+ * ever imports them directly — e.g. react-i18next's own required peer, `i18next`, which Map/ only
+ * ever reaches indirectly (via `useTranslation`), never with its own `import ... from 'i18next'`.
+ * Without this, `i18next` would resolve to whatever version pnpm happens to install transitively,
+ * which can drift from the host's exact pinned version — breaking module federation's
+ * shared-singleton version negotiation for it (both must agree on a version to actually dedupe;
+ * see frontend/src/utilities/moduleFederation.ts and frontend-plugin-example/module-federation.config.ts).
+ */
+const RUNTIME_COMPANIONS: Record<string, string[]> = {
+  'react-i18next': ['i18next'],
+};
+
+/**
  * frontend/tsconfig.json's own path aliases (mirrored by jest's moduleNameMapper). UI/ never uses
  * these ("its own icons, its own prop types, relative imports only" — ADR 0024), which is why this
  * distinction never mattered before; Map/ does use several of them (assets/, hooks/), so a bare
@@ -127,6 +140,10 @@ export function mergeManagedDependencies(pluginPath: string, options: MergeManag
   const scanPaths = [uiDir, ...(options.extraScanPaths ?? [])];
   for (const packageName of scanDependencies(scanPaths)) {
     pkg.dependencies[packageName] = pinnedVersion(packageName, packageJsonPaths);
+
+    for (const companionName of RUNTIME_COMPANIONS[packageName] ?? []) {
+      pkg.dependencies[companionName] = pinnedVersion(companionName, packageJsonPaths);
+    }
 
     // A runtime package without its own bundled type declarations needs a matching @types/<name>
     // companion (e.g. geojson -> @types/geojson) — merge it in as a devDependency if one exists.

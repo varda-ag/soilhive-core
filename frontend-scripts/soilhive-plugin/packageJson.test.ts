@@ -182,6 +182,26 @@ describe('mergeManagedDependencies', () => {
     expect(pkg.devDependencies?.['@types/classnames']).toBeUndefined();
   });
 
+  it("pins i18next alongside react-i18next even though Map/ never imports i18next directly — needed for module federation's shared-singleton version negotiation", () => {
+    const uiDir = join(tempDir, 'fixture-ui-empty-5');
+    const mapDir = join(tempDir, 'fixture-map-i18next');
+    const frontendPackageJsonPath = join(tempDir, 'fixture-frontend-package-5.json');
+    mkdirSync(uiDir, { recursive: true });
+    mkdirSync(mapDir, { recursive: true });
+    writeFileSync(join(mapDir, 'SoilhiveMap.tsx'), "import { useTranslation } from 'react-i18next';");
+    writeFileSync(
+      frontendPackageJsonPath,
+      JSON.stringify({ dependencies: { react: '19.2.0', 'react-dom': '19.2.0', 'react-i18next': '16.5.4', i18next: '25.8.13' } }),
+    );
+    writeFileSync(join(pluginPath, 'package.json'), JSON.stringify({ name: 'demo-plugin', dependencies: {} }));
+
+    mergeManagedDependencies(pluginPath, { uiDir, frontendPackageJsonPath, extraScanPaths: [mapDir] });
+
+    const pkg = JSON.parse(readFileSync(join(pluginPath, 'package.json'), 'utf-8'));
+    expect(pkg.dependencies['react-i18next']).toBe('16.5.4');
+    expect(pkg.dependencies.i18next).toBe('25.8.13');
+  });
+
   it('does not scan extraScanPaths when omitted (the no-map-plugin default)', () => {
     const uiDir = join(tempDir, 'fixture-ui-empty-2');
     const frontendPackageJsonPath = join(tempDir, 'fixture-frontend-package-2.json');

@@ -1,6 +1,8 @@
 import { createInstance, type ModuleFederationRuntimePlugin } from '@module-federation/enhanced/runtime';
 import React from 'react';
 import ReactDOM from 'react-dom';
+import i18next from 'i18next';
+import * as ReactI18next from 'react-i18next';
 import { PluginType, type NewTabPlugin, type Plugin, type RemotePlugin, type SinglePagePlugin } from '../types/plugins';
 
 export const isSinglePageModule = (module: RemotePlugin): module is SinglePagePlugin =>
@@ -53,6 +55,32 @@ mf.registerShared({
     shareConfig: {
       singleton: true,
       requiredVersion: '19.2.0',
+    },
+  },
+  // Shared so a --with-map plugin's vendored Map/ files (DaiWidget, GeocoderControl,
+  // SoilhiveMapToolbar, SoilhiveMapSelectionToolbar, SoilhiveMap itself — all call
+  // useTranslation('availability')) resolve against this app's own already-initialized i18next
+  // instance instead of bundling and initializing a disconnected copy of their own. Both packages
+  // must be shared, not just i18next: react-i18next's useTranslation reads a module-scoped
+  // instance reference set by initReactI18next's init hook (see frontend/src/utilities/i18n.ts) —
+  // if react-i18next itself weren't deduped too, a plugin's separately-bundled copy would have its
+  // own unset reference, even with the same underlying i18next instance shared.
+  i18next: {
+    version: '25.8.13',
+    scope: 'default',
+    lib: () => i18next,
+    shareConfig: {
+      singleton: true,
+      requiredVersion: '25.8.13',
+    },
+  },
+  'react-i18next': {
+    version: '16.5.4',
+    scope: 'default',
+    lib: () => ReactI18next,
+    shareConfig: {
+      singleton: true,
+      requiredVersion: '16.5.4',
     },
   },
 });
