@@ -1,17 +1,23 @@
 import { mkdtempSync, readFileSync, readdirSync, rmSync, statSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { syncMap, rewriteMapFileImports } from './syncMap';
+import { dirname, join, resolve } from 'node:path';
+import { syncMap, rewriteMapFileImports, CROSS_CUTTING_FILES } from './syncMap';
 
 const REPO_ROOT = join(__dirname, '..', '..');
 const MAP_SRC = join(REPO_ROOT, 'frontend', 'src', 'components', 'Map');
 
 describe('rewriteMapFileImports', () => {
-  it('collapses a double-relative import to single-relative', () => {
-    expect(rewriteMapFileImports("import { geo } from '../../utilities/geo';")).toBe("import { geo } from '../utilities/geo';");
+  it('rewrites a double-relative utilities import to a relative Map/_shared/ path, for a file directly in Map/', () => {
+    expect(rewriteMapFileImports("import { geo } from '../../utilities/geo';")).toBe("import { geo } from './_shared/utilities/geo';");
   });
 
-  it('collapses a double-relative side-effect (CSS) import to single-relative', () => {
+  it('rewrites a double-relative types import to a relative Map/_shared/ path', () => {
+    expect(rewriteMapFileImports("import type { DataAvailabilityIndex } from '../../types/backend';")).toBe(
+      "import type { DataAvailabilityIndex } from './_shared/types/backend';",
+    );
+  });
+
+  it('collapses a double-relative styles side-effect (CSS) import to single-relative — styles/ is not moved into Map/_shared/', () => {
     expect(rewriteMapFileImports("import '../../styles/SoilhiveMap.scss';")).toBe("import '../styles/SoilhiveMap.scss';");
   });
 
@@ -33,13 +39,20 @@ describe('rewriteMapFileImports', () => {
     );
   });
 
-  it('leaves single-level relative imports untouched', () => {
-    expect(rewriteMapFileImports("import DrawControl from '../DrawControl';")).toBe("import DrawControl from '../DrawControl';");
+  it('rewrites the single-relative DrawControl import to a relative Map/_shared/ path, for a file directly in Map/', () => {
+    expect(rewriteMapFileImports("import DrawControl from '../DrawControl';")).toBe("import DrawControl from './_shared/DrawControl';");
   });
 
-  it('leaves bare assets/ and hooks/ aliases untouched (resolved via the plugin scaffold aliases instead)', () => {
-    const source = "import Icon from 'assets/icons/layers-icon.svg?react';\nimport useDevice from 'hooks/useDevice';";
-    expect(rewriteMapFileImports(source)).toBe(source);
+  it('rewrites bare assets/icons/ and hooks/ aliases to relative Map/_shared/ paths, for a file directly in Map/', () => {
+    expect(rewriteMapFileImports("import Icon from 'assets/icons/layers-icon.svg?react';\nimport useDevice from 'hooks/useDevice';")).toBe(
+      "import Icon from './_shared/assets/icons/layers-icon.svg?react';\nimport useDevice from './_shared/hooks/useDevice';",
+    );
+  });
+
+  it('rewrites bare assets/icons/ and hooks/ aliases with one extra ../ per subfolder level, for a file nested inside Map/ (e.g. Map/DaiWidget/DaiWidget.tsx)', () => {
+    expect(
+      rewriteMapFileImports("import Icon from 'assets/icons/layers-icon.svg?react';\nimport useDevice from 'hooks/useDevice';", 1),
+    ).toBe("import Icon from '../_shared/assets/icons/layers-icon.svg?react';\nimport useDevice from '../_shared/hooks/useDevice';");
   });
 
   it('leaves npm package imports untouched', () => {
@@ -73,22 +86,24 @@ describe('syncMap', () => {
     expect(existsSync(join(mapDest, 'DaiWidget', 'DaiWidget.tsx'))).toBe(true);
   });
 
-  it('vendors the cross-cutting files flat, mirroring how UI/ already sits flat', () => {
+  it('vendors the cross-cutting files nested under Map/_shared/, not flat at the plugin root', () => {
     syncMap(pluginPath);
 
-    expect(existsSync(join(pluginPath, 'DrawControl.tsx'))).toBe(true);
-    expect(existsSync(join(pluginPath, 'hooks', 'useDevice.ts'))).toBe(true);
-    expect(existsSync(join(pluginPath, 'configuration', 'layout.ts'))).toBe(true);
-    expect(existsSync(join(pluginPath, 'utilities', 'geo.ts'))).toBe(true);
-    expect(existsSync(join(pluginPath, 'utilities', 'geometry.ts'))).toBe(true);
-    expect(existsSync(join(pluginPath, 'utilities', 'map.ts'))).toBe(true);
-    expect(existsSync(join(pluginPath, 'utilities', 'simplifyGeometry.ts'))).toBe(true);
-    expect(existsSync(join(pluginPath, 'utilities', 'environmentVariables.ts'))).toBe(true);
-    expect(existsSync(join(pluginPath, 'types', 'backend.ts'))).toBe(true);
+    const sharedDest = join(pluginPath, 'Map', '_shared');
+    expect(existsSync(join(sharedDest, 'DrawControl.tsx'))).toBe(true);
+    expect(existsSync(join(sharedDest, 'hooks', 'useDevice.ts'))).toBe(true);
+    expect(existsSync(join(sharedDest, 'configuration', 'layout.ts'))).toBe(true);
+    expect(existsSync(join(sharedDest, 'utilities', 'geo.ts'))).toBe(true);
+    expect(existsSync(join(sharedDest, 'utilities', 'geometry.ts'))).toBe(true);
+    expect(existsSync(join(sharedDest, 'utilities', 'map.ts'))).toBe(true);
+    expect(existsSync(join(sharedDest, 'utilities', 'simplifyGeometry.ts'))).toBe(true);
+    expect(existsSync(join(sharedDest, 'utilities', 'environmentVariables.ts'))).toBe(true);
+    expect(existsSync(join(sharedDest, 'types', 'backend.ts'))).toBe(true);
+    // styles/ is deliberately NOT moved into Map/_shared/ — it stays at the plugin root, same as before.
     expect(existsSync(join(pluginPath, 'styles', 'SoilhiveMap.scss'))).toBe(true);
   });
 
-  it('vendors every icon the remaining Map/ files reference', () => {
+  it('vendors every icon the remaining Map/ files reference, nested under Map/_shared/assets/icons/', () => {
     syncMap(pluginPath);
 
     for (const icon of [
@@ -107,7 +122,7 @@ describe('syncMap', () => {
       'small-search-icon.svg',
       'small-upload-icon.svg',
     ]) {
-      expect(existsSync(join(pluginPath, 'assets', 'icons', icon))).toBe(true);
+      expect(existsSync(join(pluginPath, 'Map', '_shared', 'assets', 'icons', icon))).toBe(true);
     }
   });
 
@@ -116,9 +131,17 @@ describe('syncMap', () => {
 
     const soilhiveMap = readFileSync(join(pluginPath, 'Map', 'SoilhiveMap.tsx'), 'utf-8');
     expect(soilhiveMap).not.toContain("'../../utilities/geo'");
-    expect(soilhiveMap).toContain("'../utilities/geo'");
+    expect(soilhiveMap).toContain("'./_shared/utilities/geo'");
     expect(soilhiveMap).not.toContain("'../../styles/SoilhiveMap.scss'");
     expect(soilhiveMap).toContain("'../styles/SoilhiveMap.scss'");
+  });
+
+  it('rewrites the single-relative DrawControl import inside SoilhiveMap.tsx to a relative Map/_shared/ path', () => {
+    syncMap(pluginPath);
+
+    const soilhiveMap = readFileSync(join(pluginPath, 'Map', 'SoilhiveMap.tsx'), 'utf-8');
+    expect(soilhiveMap).not.toContain("'../DrawControl'");
+    expect(soilhiveMap).toContain("'./_shared/DrawControl'");
   });
 
   it('rewrites bare components/UI imports with a depth-correct relative path — regression test for Map/DaiWidget/DaiWidget.tsx, which is nested one level deeper than SoilhiveMap.tsx', () => {
@@ -133,12 +156,17 @@ describe('syncMap', () => {
     expect(daiWidget).toContain("'../../UI/RangeSlider/RangeSlider'");
   });
 
-  it('leaves bare assets/ and hooks/ imports untouched in the vendored files (resolved via scaffold aliases)', () => {
+  it('rewrites bare assets/ and hooks/ imports to relative Map/_shared/ paths in the vendored files, depth-correct for a nested file (Map/DaiWidget/DaiWidget.tsx)', () => {
     syncMap(pluginPath);
 
     const soilhiveMap = readFileSync(join(pluginPath, 'Map', 'SoilhiveMap.tsx'), 'utf-8');
-    expect(soilhiveMap).toContain("'assets/icons/layers-icon.svg?react'");
-    expect(soilhiveMap).toContain("'hooks/useDevice'");
+    expect(soilhiveMap).toContain("'./_shared/assets/icons/layers-icon.svg?react'");
+    expect(soilhiveMap).toContain("'./_shared/hooks/useDevice'");
+
+    const daiWidget = readFileSync(join(pluginPath, 'Map', 'DaiWidget', 'DaiWidget.tsx'), 'utf-8');
+    expect(daiWidget).not.toContain("'hooks/useDevice'");
+    expect(daiWidget).not.toContain("'assets/icons/");
+    expect(daiWidget).toContain("'../_shared/hooks/useDevice'");
   });
 
   it('is idempotent and host-authoritative — re-running discards a hand-edit', () => {
@@ -238,7 +266,7 @@ describe("drift detection: Map/'s actual cross-cutting imports match what syncMa
         }
 
         if (KNOWN_ALIAS_PREFIXES.some(prefix => specifier.startsWith(prefix))) {
-          continue; // resolved via the plugin scaffold's unconditional aliases
+          continue; // hooks/useDevice is vendored via CROSS_CUTTING_FILES and rewritten to a Map/_shared/ path at sync time
         }
 
         // Everything else is either a same-folder relative import (./x, ../x — single level,
@@ -253,5 +281,30 @@ describe("drift detection: Map/'s actual cross-cutting imports match what syncMa
     const files = listMapFilesExcluding(MAP_SRC, EXCLUDED_SUBFOLDERS);
     const dialogImporters = files.filter(file => readFileSync(file, 'utf-8').includes('components/Dialog/Dialog'));
     expect(dialogImporters).toEqual([]);
+  });
+
+  // The scan above only covers Map/'s own direct imports — it has no visibility into whether the
+  // cross-cutting files it depends on (CROSS_CUTTING_FILES) reach outside their own folder for
+  // something *not* in that same list. That blind spot is exactly how configuration/layout.ts
+  // slipped through: it was briefly (and wrongly) judged dead because nothing in Map/ imports it
+  // directly — only hooks/useDevice.ts does, via a plain relative `../configuration/layout`. This
+  // guards against that recurring for any cross-cutting file's own relative imports.
+  it("accounts for every relative import the cross-cutting files themselves make, not just Map/'s own", () => {
+    const crossCuttingSrcPaths = new Set(CROSS_CUTTING_FILES.map(({ src }) => src));
+    const missing: string[] = [];
+
+    for (const { src } of CROSS_CUTTING_FILES) {
+      const content = readFileSync(src, 'utf-8');
+      for (const match of content.matchAll(/(?:from\s+|^import\s+)['"](\.\.?\/[^'"]+)['"]/gm)) {
+        const specifier = match[1];
+        const resolvedBase = resolve(dirname(src), specifier);
+        const candidates = [resolvedBase, `${resolvedBase}.ts`, `${resolvedBase}.tsx`];
+        if (!candidates.some(candidate => crossCuttingSrcPaths.has(candidate))) {
+          missing.push(`${src}: relative import '${specifier}' isn't one of CROSS_CUTTING_FILES' own src entries`);
+        }
+      }
+    }
+
+    expect(missing).toEqual([]);
   });
 });

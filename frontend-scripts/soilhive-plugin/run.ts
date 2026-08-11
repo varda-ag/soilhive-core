@@ -36,15 +36,10 @@ export function runSoilhivePlugin(fullPath: string, options: RunSoilhivePluginOp
       ? {
           // Scan the plugin's own already-vendored output rather than the host source: syncMap
           // has already excluded AreaInfo/UploadPolygonModal/MapStyleSwitcher, so this reflects
-          // exactly what's actually there, no need to re-derive the same exclusions here.
-          extraScanPaths: [
-            join(fullPath, 'Map'),
-            join(fullPath, 'DrawControl.tsx'),
-            join(fullPath, 'hooks'),
-            join(fullPath, 'configuration'),
-            join(fullPath, 'utilities'),
-            join(fullPath, 'types'),
-          ],
+          // exactly what's actually there, no need to re-derive the same exclusions here. Map/'s
+          // cross-cutting files (DrawControl.tsx, hooks/, utilities/, types/, configuration/) all
+          // live nested under Map/_shared/ now, so scanning Map/ alone covers them too.
+          extraScanPaths: [join(fullPath, 'Map')],
         }
       : {},
   );

@@ -28,5 +28,5 @@
       "*": ["./@mf-types/*"]
     }
   },
-  "include": ["src", "UI", "Map", "DrawControl.tsx", "hooks", "types", "utilities", "configuration"]
+  "include": ["src", "UI", "Map", "hooks", "types", "utilities", "configuration"]
 }

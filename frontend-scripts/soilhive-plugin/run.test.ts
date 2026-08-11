@@ -99,8 +99,8 @@ describe('runSoilhivePlugin end-to-end', () => {
     const files = listFilesRecursive(pluginPath);
     expect(files).toContain(join('Map', 'SoilhiveMap.tsx'));
     expect(files).not.toContain(join('Map', 'AreaInfo', 'index.ts'));
-    expect(files).toContain('DrawControl.tsx');
-    expect(files).toContain(join('hooks', 'useDevice.ts'));
+    expect(files).toContain(join('Map', '_shared', 'DrawControl.tsx'));
+    expect(files).toContain(join('Map', '_shared', 'hooks', 'useDevice.ts'));
     expect(files).toContain(join('styles', 'SoilhiveMap.scss'));
 
     const pkg = JSON.parse(readFileSync(join(pluginPath, 'package.json'), 'utf-8'));
