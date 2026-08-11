@@ -4,6 +4,7 @@ import { extname, join } from 'node:path';
 const REPO_ROOT = join(__dirname, '..', '..');
 const UI_SRC = join(REPO_ROOT, 'frontend', 'src', 'components', 'UI');
 const FRONTEND_PACKAGE_JSON = join(REPO_ROOT, 'frontend', 'package.json');
+const ROOT_PACKAGE_JSON = join(REPO_ROOT, 'package.json');
 
 /** Handled separately from the dynamic scan: fixed MF shared singletons plus the synced types package. */
 const HANDLED_SEPARATELY = new Set(['react', 'react-dom', 'frontend-plugin-types']);
@@ -76,18 +77,34 @@ function stripRange(version: string): string {
   return version.replace(/^[\^~]/, '');
 }
 
-function pinnedVersion(packageName: string, frontendPackageJsonPath: string): string {
-  const frontendPkg = JSON.parse(readFileSync(frontendPackageJsonPath, 'utf-8'));
-  const version = frontendPkg.dependencies?.[packageName];
-  if (typeof version !== 'string') {
-    throw new Error(`"${packageName}" is not declared in frontend/package.json`);
+/** Looks a package up in dependencies or devDependencies, across candidate package.json files in order. */
+function findVersion(packageName: string, packageJsonPaths: string[]): string | undefined {
+  for (const path of packageJsonPaths) {
+    const pkg = JSON.parse(readFileSync(path, 'utf-8'));
+    const version = pkg.dependencies?.[packageName] ?? pkg.devDependencies?.[packageName];
+    if (typeof version === 'string') {
+      return stripRange(version);
+    }
   }
-  return stripRange(version);
+  return undefined;
+}
+
+function pinnedVersion(packageName: string, packageJsonPaths: string[]): string {
+  const version = findVersion(packageName, packageJsonPaths);
+  if (version === undefined) {
+    throw new Error(`"${packageName}" is not declared in ${packageJsonPaths.join(' or ')}`);
+  }
+  return version;
 }
 
 export interface MergeManagedDependenciesOptions {
   uiDir?: string;
   frontendPackageJsonPath?: string;
+  /** Fallback lookup source for a dependency not declared in frontend/package.json itself — e.g.
+   * `@types/geojson`, a monorepo-root devDependency hoisted to frontend/ by pnpm's workspace
+   * resolution. A standalone plugin repo needs it declared explicitly, since it isn't part of
+   * that workspace. */
+  rootPackageJsonPath?: string;
   /** Additional directories/files to scan for dependencies — e.g. the vendored Map/ folder and
    * its cross-cutting files, when --with-map is set. Omitted entirely for a map-free plugin. */
   extraScanPaths?: string[];
@@ -96,18 +113,29 @@ export interface MergeManagedDependenciesOptions {
 export function mergeManagedDependencies(pluginPath: string, options: MergeManagedDependenciesOptions = {}): void {
   const uiDir = options.uiDir ?? UI_SRC;
   const frontendPackageJsonPath = options.frontendPackageJsonPath ?? FRONTEND_PACKAGE_JSON;
+  const rootPackageJsonPath = options.rootPackageJsonPath ?? ROOT_PACKAGE_JSON;
+  const packageJsonPaths = [frontendPackageJsonPath, rootPackageJsonPath];
 
   const pluginPackageJsonPath = join(pluginPath, 'package.json');
   const pkg = JSON.parse(readFileSync(pluginPackageJsonPath, 'utf-8'));
   pkg.dependencies = pkg.dependencies ?? {};
 
-  pkg.dependencies.react = pinnedVersion('react', frontendPackageJsonPath);
-  pkg.dependencies['react-dom'] = pinnedVersion('react-dom', frontendPackageJsonPath);
+  pkg.dependencies.react = pinnedVersion('react', packageJsonPaths);
+  pkg.dependencies['react-dom'] = pinnedVersion('react-dom', packageJsonPaths);
   pkg.dependencies['frontend-plugin-types'] = 'link:../frontend-plugin-types';
 
   const scanPaths = [uiDir, ...(options.extraScanPaths ?? [])];
   for (const packageName of scanDependencies(scanPaths)) {
-    pkg.dependencies[packageName] = pinnedVersion(packageName, frontendPackageJsonPath);
+    pkg.dependencies[packageName] = pinnedVersion(packageName, packageJsonPaths);
+
+    // A runtime package without its own bundled type declarations needs a matching @types/<name>
+    // companion (e.g. geojson -> @types/geojson) — merge it in as a devDependency if one exists.
+    const typesPackageName = `@types/${packageName}`;
+    const typesVersion = findVersion(typesPackageName, packageJsonPaths);
+    if (typesVersion !== undefined) {
+      pkg.devDependencies = pkg.devDependencies ?? {};
+      pkg.devDependencies[typesPackageName] = typesVersion;
+    }
   }
 
   writeFileSync(pluginPackageJsonPath, `${JSON.stringify(pkg, null, 2)}\n`);

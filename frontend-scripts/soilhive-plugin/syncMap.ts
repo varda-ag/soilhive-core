@@ -1,5 +1,5 @@
 import { readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, relative, sep } from 'node:path';
 import { alwaysOverwrite } from './copyEngine';
 
 const REPO_ROOT = join(__dirname, '..', '..');
@@ -68,15 +68,26 @@ const MAP_ICONS = [
 /**
  * Vendored Map/ files use two import shapes that don't resolve as-is once flattened into a
  * plugin: a double-relative `../../x` (host: components/Map/ is 2 levels below src/; plugin:
- * <plugin>/Map/ is only 1 level below plugin root, so it collapses to `../x`), and a bare
- * `components/UI/x` alias (rewritten to `../UI/x` since UI/ is vendored flat, not under
- * <plugin>/components/). `assets/x` and `hooks/x` bare aliases are left untouched — the plugin
+ * <plugin>/Map/ is only 1 level below plugin root, so it collapses to `../x` — this offset is a
+ * constant -1 regardless of how deep the importing file sits within Map/, since both the host and
+ * plugin nesting grow by the same amount per subfolder level), and a bare `components/UI/x` alias.
+ *
+ * The `components/UI/x` case is depth-*dependent*, unlike the double-relative case: a bare alias
+ * carries no positional information, so the correct number of `../` to reach the plugin's flat
+ * `UI/` depends on how many subfolders deep the importing file is within Map/ (`depthWithinMap`,
+ * 0 for a file directly in Map/ like SoilhiveMap.tsx, 1 for e.g. Map/DaiWidget/DaiWidget.tsx, which
+ * needs `../../UI/x` rather than `../UI/x`). Getting this wrong compiles fine (no bad path is
+ * unambiguously invalid syntax) but silently produces an unresolvable import — this was caught by
+ * an end-to-end test against a real plugin, not by unit-testing the string transform in isolation.
+ *
+ * `assets/x` and `hooks/x` bare aliases are left untouched regardless of depth — the plugin
  * scaffold carries matching aliases unconditionally (see frontend-plugin-example/rsbuild.config.ts)
  * specifically so retrofitting --with-map onto an existing plugin never needs to touch its
  * (dev-owned-after-creation) build config.
  */
-export function rewriteMapFileImports(content: string): string {
-  return content.replace(/(['"])\.\.\/\.\.\//g, '$1../').replace(/(['"])components\/UI\//g, '$1../UI/');
+export function rewriteMapFileImports(content: string, depthWithinMap = 0): string {
+  const uiPrefix = '../'.repeat(depthWithinMap + 1);
+  return content.replace(/(['"])\.\.\/\.\.\//g, '$1../').replace(/(['"])components\/UI\//g, `$1${uiPrefix}UI/`);
 }
 
 function listSourceFilesRecursive(dir: string): string[] {
@@ -95,8 +106,9 @@ function listSourceFilesRecursive(dir: string): string[] {
 function rewriteMapFilesInPlace(mapDest: string): void {
   for (const file of listSourceFilesRecursive(mapDest)) {
     if (!file.endsWith('.ts') && !file.endsWith('.tsx')) continue;
+    const depthWithinMap = relative(mapDest, file).split(sep).length - 1;
     const original = readFileSync(file, 'utf-8');
-    const rewritten = rewriteMapFileImports(original);
+    const rewritten = rewriteMapFileImports(original, depthWithinMap);
     if (rewritten !== original) {
       writeFileSync(file, rewritten);
     }

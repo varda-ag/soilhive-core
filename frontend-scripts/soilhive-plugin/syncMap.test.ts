@@ -15,7 +15,19 @@ describe('rewriteMapFileImports', () => {
     expect(rewriteMapFileImports("import '../../styles/SoilhiveMap.scss';")).toBe("import '../styles/SoilhiveMap.scss';");
   });
 
-  it('rewrites a bare components/UI alias to a flat relative import', () => {
+  it('rewrites a bare components/UI alias to a flat relative import, for a file directly in Map/', () => {
+    expect(rewriteMapFileImports("import { Button } from 'components/UI/Button/Button';", 0)).toBe(
+      "import { Button } from '../UI/Button/Button';",
+    );
+  });
+
+  it('rewrites a bare components/UI alias with one extra ../ per subfolder level, for a file nested inside Map/ (e.g. Map/DaiWidget/DaiWidget.tsx)', () => {
+    expect(rewriteMapFileImports("import { ToggleButton } from 'components/UI/ToggleButton/ToggleButton';", 1)).toBe(
+      "import { ToggleButton } from '../../UI/ToggleButton/ToggleButton';",
+    );
+  });
+
+  it('defaults depth to 0 when omitted', () => {
     expect(rewriteMapFileImports("import { Button } from 'components/UI/Button/Button';")).toBe(
       "import { Button } from '../UI/Button/Button';",
     );
@@ -99,7 +111,7 @@ describe('syncMap', () => {
     }
   });
 
-  it('rewrites double-relative imports and bare components/UI imports inside the vendored Map/ files', () => {
+  it('rewrites double-relative imports inside a Map/ file that is not nested in a subfolder', () => {
     syncMap(pluginPath);
 
     const soilhiveMap = readFileSync(join(pluginPath, 'Map', 'SoilhiveMap.tsx'), 'utf-8');
@@ -107,10 +119,18 @@ describe('syncMap', () => {
     expect(soilhiveMap).toContain("'../utilities/geo'");
     expect(soilhiveMap).not.toContain("'../../styles/SoilhiveMap.scss'");
     expect(soilhiveMap).toContain("'../styles/SoilhiveMap.scss'");
+  });
 
+  it('rewrites bare components/UI imports with a depth-correct relative path — regression test for Map/DaiWidget/DaiWidget.tsx, which is nested one level deeper than SoilhiveMap.tsx', () => {
+    syncMap(pluginPath);
+
+    // syncMap() alone doesn't vendor UI/ (only the full runSoilhivePlugin pipeline does — see
+    // run.test.ts for an end-to-end check that this actually resolves to a real file), so this
+    // only checks the rewritten specifier's shape.
     const daiWidget = readFileSync(join(pluginPath, 'Map', 'DaiWidget', 'DaiWidget.tsx'), 'utf-8');
     expect(daiWidget).not.toContain("'components/UI/");
-    expect(daiWidget).toContain("'../UI/ToggleButton/ToggleButton'");
+    expect(daiWidget).toContain("'../../UI/ToggleButton/ToggleButton'");
+    expect(daiWidget).toContain("'../../UI/RangeSlider/RangeSlider'");
   });
 
   it('leaves bare assets/ and hooks/ imports untouched in the vendored files (resolved via scaffold aliases)', () => {

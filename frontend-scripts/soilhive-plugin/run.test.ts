@@ -1,6 +1,6 @@
-import { mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, sep } from 'node:path';
 import { runSoilhivePlugin } from './run';
 
 const REPO_ROOT = join(__dirname, '..', '..');
@@ -106,6 +106,28 @@ describe('runSoilhivePlugin end-to-end', () => {
     const pkg = JSON.parse(readFileSync(join(pluginPath, 'package.json'), 'utf-8'));
     expect(pkg.dependencies['react-map-gl']).not.toMatch(/^[\^~]/);
     expect(pkg.dependencies['maplibre-gl']).not.toMatch(/^[\^~]/);
+  });
+
+  it('rewrites every relative import inside the vendored Map/ tree to a path that actually resolves — catches depth-dependent rewrite bugs unit tests on the string transform alone would miss', () => {
+    runSoilhivePlugin(pluginPath, { withMap: true });
+
+    const mapFiles = listFilesRecursive(pluginPath).filter(file => file.startsWith(`Map${sep}`) && file.endsWith('.tsx'));
+    expect(mapFiles.length).toBeGreaterThan(0);
+
+    const missing: string[] = [];
+    for (const relativeFile of mapFiles) {
+      const absoluteFile = join(pluginPath, relativeFile);
+      const content = readFileSync(absoluteFile, 'utf-8');
+      for (const match of content.matchAll(/from ['"](\.\.?\/[^'"]+)['"]/g)) {
+        const specifier = match[1].replace(/\?react$/, '');
+        const resolved = join(absoluteFile, '..', specifier);
+        const candidates = [resolved, `${resolved}.ts`, `${resolved}.tsx`, `${resolved}.svg`, `${resolved}.scss`, `${resolved}.css`];
+        if (!candidates.some(candidate => existsSync(candidate))) {
+          missing.push(`${relativeFile}: '${specifier}' does not resolve to any of ${JSON.stringify(candidates)}`);
+        }
+      }
+    }
+    expect(missing).toEqual([]);
   });
 
   it('keeps the map in sync on a later run that omits --with-map, once a plugin has opted in', () => {
