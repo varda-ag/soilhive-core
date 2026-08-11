@@ -1,11 +1,50 @@
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { mergeManagedDependencies, scanUiDependencies } from './packageJson';
+import { mergeManagedDependencies, scanDependencies, scanUiDependencies } from './packageJson';
 
 describe('scanUiDependencies', () => {
   it('detects the non-relative packages frontend/src/components/UI/ actually imports today', () => {
     expect(scanUiDependencies()).toEqual(['classnames', 'react-router', 'react-tooltip', 'react-use']);
+  });
+});
+
+describe('scanDependencies', () => {
+  let tempDir: string;
+
+  beforeEach(() => {
+    tempDir = mkdtempSync(join(tmpdir(), 'sh-plugin-scan-'));
+  });
+
+  afterEach(() => {
+    rmSync(tempDir, { recursive: true, force: true });
+  });
+
+  it('does not mistake known path aliases (assets/, hooks/, etc.) for npm packages', () => {
+    const dir = join(tempDir, 'fixture');
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(
+      join(dir, 'File.tsx'),
+      [
+        "import Icon from 'assets/icons/foo.svg?react';",
+        "import useDevice from 'hooks/useDevice';",
+        "import { MapStyles } from 'types/whatever';",
+        "import { geo } from 'utilities/geo';",
+        "import { real } from 'a-real-package';",
+      ].join('\n'),
+    );
+
+    expect(scanDependencies([dir])).toEqual(['a-real-package']);
+  });
+
+  it('accepts a mix of directories and individual files', () => {
+    const dir = join(tempDir, 'fixture-dir');
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, 'A.tsx'), "import { a } from 'package-a';");
+    const singleFile = join(tempDir, 'B.ts');
+    writeFileSync(singleFile, "import { b } from 'package-b';");
+
+    expect(scanDependencies([dir, singleFile])).toEqual(['package-a', 'package-b']);
   });
 });
 
@@ -81,5 +120,37 @@ describe('mergeManagedDependencies', () => {
     mergeManagedDependencies(pluginPath, { uiDir, frontendPackageJsonPath });
     pkg = JSON.parse(readFileSync(join(pluginPath, 'package.json'), 'utf-8'));
     expect(pkg.dependencies['brand-new-package']).toBe('3.1.0');
+  });
+
+  it('also merges dependencies discovered in extraScanPaths (e.g. the vendored Map/ and its cross-cutting files) when provided', () => {
+    const uiDir = join(tempDir, 'fixture-ui-empty');
+    const mapDir = join(tempDir, 'fixture-map');
+    const frontendPackageJsonPath = join(tempDir, 'fixture-frontend-package.json');
+    mkdirSync(uiDir, { recursive: true });
+    mkdirSync(mapDir, { recursive: true });
+    writeFileSync(join(mapDir, 'SoilhiveMap.tsx'), "import { Map } from 'react-map-gl/maplibre';");
+    writeFileSync(
+      frontendPackageJsonPath,
+      JSON.stringify({ dependencies: { react: '19.2.0', 'react-dom': '19.2.0', 'react-map-gl': '^8.1.0' } }),
+    );
+    writeFileSync(join(pluginPath, 'package.json'), JSON.stringify({ name: 'demo-plugin', dependencies: {} }));
+
+    mergeManagedDependencies(pluginPath, { uiDir, frontendPackageJsonPath, extraScanPaths: [mapDir] });
+
+    const pkg = JSON.parse(readFileSync(join(pluginPath, 'package.json'), 'utf-8'));
+    expect(pkg.dependencies['react-map-gl']).toBe('8.1.0');
+  });
+
+  it('does not scan extraScanPaths when omitted (the no-map-plugin default)', () => {
+    const uiDir = join(tempDir, 'fixture-ui-empty-2');
+    const frontendPackageJsonPath = join(tempDir, 'fixture-frontend-package-2.json');
+    mkdirSync(uiDir, { recursive: true });
+    writeFileSync(frontendPackageJsonPath, JSON.stringify({ dependencies: { react: '19.2.0', 'react-dom': '19.2.0' } }));
+    writeFileSync(join(pluginPath, 'package.json'), JSON.stringify({ name: 'demo-plugin', dependencies: {} }));
+
+    mergeManagedDependencies(pluginPath, { uiDir, frontendPackageJsonPath });
+
+    const pkg = JSON.parse(readFileSync(join(pluginPath, 'package.json'), 'utf-8'));
+    expect(pkg.dependencies['react-map-gl']).toBeUndefined();
   });
 });

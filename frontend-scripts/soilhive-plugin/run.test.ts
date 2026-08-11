@@ -85,6 +85,36 @@ describe('runSoilhivePlugin end-to-end', () => {
     expect(forbidden).toEqual([]);
   });
 
+  it('does not vendor the map at all without --with-map', () => {
+    runSoilhivePlugin(pluginPath);
+
+    expect(listFilesRecursive(pluginPath)).not.toContain('Map/SoilhiveMap.tsx');
+    const pkg = JSON.parse(readFileSync(join(pluginPath, 'package.json'), 'utf-8'));
+    expect(pkg.dependencies['react-map-gl']).toBeUndefined();
+  });
+
+  it('vendors the map and merges its dependencies when --with-map is passed', () => {
+    runSoilhivePlugin(pluginPath, { withMap: true });
+
+    const files = listFilesRecursive(pluginPath);
+    expect(files).toContain(join('Map', 'SoilhiveMap.tsx'));
+    expect(files).not.toContain(join('Map', 'AreaInfo', 'index.ts'));
+    expect(files).toContain('DrawControl.tsx');
+    expect(files).toContain(join('hooks', 'useDevice.ts'));
+    expect(files).toContain(join('styles', 'SoilhiveMap.scss'));
+
+    const pkg = JSON.parse(readFileSync(join(pluginPath, 'package.json'), 'utf-8'));
+    expect(pkg.dependencies['react-map-gl']).not.toMatch(/^[\^~]/);
+    expect(pkg.dependencies['maplibre-gl']).not.toMatch(/^[\^~]/);
+  });
+
+  it('keeps the map in sync on a later run that omits --with-map, once a plugin has opted in', () => {
+    runSoilhivePlugin(pluginPath, { withMap: true });
+    runSoilhivePlugin(pluginPath); // no flag this time — opt-in should persist
+
+    expect(listFilesRecursive(pluginPath)).toContain(join('Map', 'SoilhiveMap.tsx'));
+  });
+
   it('ends with a copy-pasteable next-steps block (cd, install, dev)', () => {
     const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
 

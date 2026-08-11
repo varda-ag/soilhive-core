@@ -37,6 +37,31 @@ describe('alwaysOverwrite', () => {
     expect(() => alwaysOverwrite(srcDir, join(tempDir, '.', 'shared'))).toThrow();
     expect(readFileSync(join(srcDir, 'a.txt'), 'utf-8')).toBe('content');
   });
+
+  it('copies SoilhiveMap.scss when allowMapAssets is set, but still blocks prime.react.override.scss', () => {
+    const srcDir = join(tempDir, 'src');
+    const destDir = join(tempDir, 'dest');
+    mkdirSync(srcDir);
+    writeFileSync(join(srcDir, 'SoilhiveMap.scss'), '.soilhive-map {}');
+    writeFileSync(join(srcDir, 'prime.react.override.scss'), '.p-dialog {}');
+
+    alwaysOverwrite(srcDir, destDir, { allowMapAssets: true });
+
+    expect(readdirSync(destDir).sort()).toEqual(['SoilhiveMap.scss']);
+  });
+
+  it('excludes directories listed in excludeBasenames, without copying their contents', () => {
+    const srcDir = join(tempDir, 'src');
+    const destDir = join(tempDir, 'dest');
+    mkdirSync(join(srcDir, 'Keep'), { recursive: true });
+    mkdirSync(join(srcDir, 'Drop'), { recursive: true });
+    writeFileSync(join(srcDir, 'Keep', 'a.tsx'), 'keep');
+    writeFileSync(join(srcDir, 'Drop', 'b.tsx'), 'drop');
+
+    alwaysOverwrite(srcDir, destDir, { excludeBasenames: ['Drop'] });
+
+    expect(readdirSync(destDir).sort()).toEqual(['Keep']);
+  });
 });
 
 describe('copyOnceIfMissing', () => {
@@ -70,5 +95,10 @@ describe('neverCopy', () => {
 
   it('does not throw for a non-forbidden path', () => {
     expect(() => neverCopy('/some/path/base.scss')).not.toThrow();
+  });
+
+  it('allows SoilhiveMap.scss when allowMapAssets is set, but never prime.react.override.scss', () => {
+    expect(() => neverCopy('/some/path/SoilhiveMap.scss', { allowMapAssets: true })).not.toThrow();
+    expect(() => neverCopy('/some/path/prime.react.override.scss', { allowMapAssets: true })).toThrow();
   });
 });

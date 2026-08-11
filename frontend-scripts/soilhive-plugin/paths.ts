@@ -56,3 +56,29 @@ export function resolveMode(fullPath: string): PluginMode {
 
   return 'sync';
 }
+
+function hasMapDependency(packageJsonPath: string): boolean {
+  if (!existsSync(packageJsonPath)) {
+    return false;
+  }
+
+  try {
+    const pkg = JSON.parse(readFileSync(packageJsonPath, 'utf-8'));
+    return typeof pkg?.dependencies?.['react-map-gl'] === 'string';
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Whether the map should be synced this run — either the flag was passed explicitly, or the
+ * plugin already opted in on a previous run (detected via `react-map-gl` already present in its
+ * package.json, the same way `resolveMode` detects an existing plugin). This means `--with-map`
+ * only ever needs to be passed once, on first scaffold or first retrofit.
+ */
+export function resolveWithMap(fullPath: string, cliFlag: boolean): boolean {
+  if (cliFlag) {
+    return true;
+  }
+  return hasMapDependency(join(fullPath, 'package.json'));
+}

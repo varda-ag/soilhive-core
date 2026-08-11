@@ -8,6 +8,8 @@ import {
   ScaleControl,
   type MapGeoJSONFeature,
   type LayerProps,
+  type ImmutableLike,
+  type StyleSpecification,
   Source,
   Layer,
 } from 'react-map-gl/maplibre';
@@ -36,7 +38,6 @@ import useDevice from 'hooks/useDevice';
 import type { DataAvailabilityIndex } from '../../types/backend';
 import { DaiWidget } from './DaiWidget/DaiWidget';
 import LayersIcon from 'assets/icons/layers-icon.svg?react';
-import type { MapStyles } from 'types/components';
 import LoadingLine from './LoadingLine/LoadingLine';
 
 /**
@@ -44,6 +45,15 @@ import LoadingLine from './LoadingLine/LoadingLine';
  * this component must not import from `contexts/` so it can be vendored into plugins standalone.
  */
 export type MapSelection = { type: string; features: GeoJSON.GeoJSON[] };
+
+/**
+ * Kept structurally identical to (but independent of) `types/components.ts`'s own MapStyles —
+ * that file is a grab-bag of unrelated types, one of which (`TableColumn`) imports
+ * `primereact/column`; importing it here would drag primereact back into this component, which
+ * must stay primereact-free to be vendorable into plugins.
+ */
+export type MapStyle = string | StyleSpecification | ImmutableLike<StyleSpecification>;
+export type MapStyles = Array<{ name: string; mapStyle: MapStyle; type: string }>;
 
 /**
  * Selection/draw state — previously read from AvailabilityMapContext, now fully controlled so this

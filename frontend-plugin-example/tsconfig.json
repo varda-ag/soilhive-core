@@ -20,8 +20,13 @@
     "noUnusedParameters": true,
     "rootDir": ".",
     "paths": {
+      "assets/*": ["./assets/*"],
+      "hooks/*": ["./hooks/*"],
+      "types/*": ["./types/*"],
+      "utilities/*": ["./utilities/*"],
+      "configuration/*": ["./configuration/*"],
       "*": ["./@mf-types/*"]
     }
   },
-  "include": ["src", "UI"]
+  "include": ["src", "UI", "Map", "DrawControl.tsx", "hooks", "types", "utilities", "configuration"]
 }
