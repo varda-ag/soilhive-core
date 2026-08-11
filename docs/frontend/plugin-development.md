@@ -125,38 +125,30 @@ i18n.use(initReactI18next).init({
 
 ### Uploading a polygon (drag-and-drop or your own UI)
 
-`SoilhiveMapRef.onUpload(geometry: Polygon | MultiPolygon)` only accepts an already-parsed geometry — reading the dropped file and parsing it into GeoJSON is your page's job, the same way it's `Availability.tsx`'s job in the host. `Map/_shared/utilities/parseGeoJSONFile` is vendored specifically for this (same validation/error handling as the host); wire it up to a `ref` and your own drop-zone handlers:
+`SoilhiveMapRef.onUpload(geometry: Polygon | MultiPolygon)` only accepts an already-parsed geometry — reading the dropped file and parsing it into GeoJSON is your page's job, the same way it's `Availability.tsx`'s job in the host. `Map/_shared/hooks/useDragAndDropUpload` is vendored specifically for this — it's the exact same hook the host itself uses (not a hand-rolled equivalent), handling the nested-element drag-enter/leave counter dance and the `parseGeoJSONFile` → `onUpload` glue for you. Spread its returned handlers onto whatever element should act as the drop zone (your whole page, like the host, or just the map container — that part's up to you), and use `isDragOver` for your own drop overlay:
 
 ```tsx
 import { useRef } from 'react';
 import SoilhiveMap, { type SoilhiveMapRef } from '../Map/SoilhiveMap';
-import { parseGeoJSONFile } from '../Map/_shared/utilities/parseGeoJSONFile';
+import { useDragAndDropUpload } from '../Map/_shared/hooks/useDragAndDropUpload';
 
 function MyMapPage() {
   const mapRef = useRef<SoilhiveMapRef>(null);
-
-  const onDrop = async (event: React.DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    const file = event.dataTransfer.files?.[0];
-    if (!file) return;
-
-    const result = await parseGeoJSONFile(file);
-    if (result.error) {
-      // result.error.id / result.error.message — surface however you like
-      return;
-    }
-    mapRef.current?.onUpload(result.polygon);
-  };
+  const { isDragOver, onDragEnter, onDragOver, onDragLeave, onDrop } = useDragAndDropUpload({
+    onUpload: geometry => mapRef.current?.onUpload(geometry),
+    onError: error => console.error(error.message), // surface however you like
+  });
 
   return (
-    <div onDragOver={event => event.preventDefault()} onDrop={onDrop}>
+    <div onDragEnter={onDragEnter} onDragOver={onDragOver} onDragLeave={onDragLeave} onDrop={onDrop}>
+      {isDragOver && <div className="my-drop-overlay">Drop a GeoJSON polygon to upload</div>}
       <SoilhiveMap ref={mapRef} /* ...selectionState, onSelectionChange, etc. */ />
     </div>
   );
 }
 ```
 
-`onUploadClick` (a `SoilhiveMap` prop, shows an "Upload a polygon" toolbar item) follows the same shape without the drag events — call `parseGeoJSONFile` on whatever file your own upload UI collects, then `mapRef.current?.onUpload(result.polygon)`.
+`onUploadClick` (a `SoilhiveMap` prop, shows an "Upload a polygon" toolbar item) covers the "upload via a button, not drag-and-drop" case instead — call `Map/_shared/utilities/parseGeoJSONFile` directly on whatever file your own upload UI collects, then `mapRef.current?.onUpload(result.polygon)`.
 
 ## Using host data and hooks (`PluginContext`)
 

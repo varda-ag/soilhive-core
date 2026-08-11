@@ -16,11 +16,12 @@ const ICONS_SRC = join(FRONTEND_SRC, 'assets', 'icons');
  *   - UploadPolygonModal/ -> superseded by SoilhiveMapRef.onUpload as the *destination* for an
  *                        upload — but onUpload only ever accepts an already-parsed geometry, not
  *                        a File. The drop-zone wiring and File->geometry parsing themselves are
- *                        page-level code (see Availability.tsx's onDrop), not something Map/
- *                        provides automatically; parseGeoJSONFile below is vendored specifically
- *                        so a plugin's own page can reproduce that pattern, the same as the host's
- *                        does. SoilhiveMapToolbar's onUploadClick prop covers the "upload via a
- *                        button, not drag-and-drop" case instead.
+ *                        page-level code (see Availability.tsx's use of useDragAndDropUpload),
+ *                        not something Map/ provides automatically; parseGeoJSONFile and
+ *                        useDragAndDropUpload below are vendored specifically so a plugin's own
+ *                        page can reproduce that pattern, the same as the host's does.
+ *                        SoilhiveMapToolbar's onUploadClick prop covers the "upload via a button,
+ *                        not drag-and-drop" case instead.
  *   - MapStyleSwitcher/  -> style-switching UI moved to the host (see Availability.tsx); a plugin
  *                        can build its own using SoilhiveMap's currentMapStyleIndex prop.
  */
@@ -49,10 +50,12 @@ const EXCLUDED_MAP_SUBFOLDERS = ['AreaInfo', 'UploadPolygonModal', 'MapStyleSwit
  * importing configuration/layout.ts below); a second-order dependency here has to be caught by
  * eye, the same way this list itself does.
  *
- * `parseGeoJSONFile.ts` is the one entry here Map/'s own files never actually import — it's
- * vendored anyway because a plugin author's own page needs it to reproduce the host's
- * drag-and-drop-upload pattern (parse the dropped File, then call SoilhiveMapRef.onUpload with
- * the result — see Availability.tsx's onDrop for the pattern this mirrors). Its own dependency,
+ * `parseGeoJSONFile.ts` and `useDragAndDropUpload.ts` are the two entries here Map/'s own files
+ * never actually import — both are vendored anyway because a plugin author's own page needs them
+ * to reproduce the host's drag-and-drop-upload pattern (parse the dropped File, then call
+ * SoilhiveMapRef.onUpload with the result — see Availability.tsx's own use of
+ * useDragAndDropUpload for the pattern this mirrors exactly; the host uses the identical hook,
+ * not a hand-rolled equivalent). `parseGeoJSONFile.ts`'s own dependency,
  * `@placemarkio/check-geojson`, is picked up automatically by the existing dynamic npm-dependency
  * scan, same as everything else here.
  */
@@ -61,6 +64,10 @@ const MAP_SHARED_DIRNAME = '_shared';
 export const CROSS_CUTTING_FILES: Array<{ src: string; dest: string }> = [
   { src: join(FRONTEND_SRC, 'components', 'DrawControl.tsx'), dest: join(MAP_SHARED_DIRNAME, 'DrawControl.tsx') },
   { src: join(FRONTEND_SRC, 'hooks', 'useDevice.ts'), dest: join(MAP_SHARED_DIRNAME, 'hooks', 'useDevice.ts') },
+  {
+    src: join(FRONTEND_SRC, 'hooks', 'useDragAndDropUpload.ts'),
+    dest: join(MAP_SHARED_DIRNAME, 'hooks', 'useDragAndDropUpload.ts'),
+  },
   { src: join(FRONTEND_SRC, 'configuration', 'layout.ts'), dest: join(MAP_SHARED_DIRNAME, 'configuration', 'layout.ts') },
   { src: join(FRONTEND_SRC, 'utilities', 'geo.ts'), dest: join(MAP_SHARED_DIRNAME, 'utilities', 'geo.ts') },
   { src: join(FRONTEND_SRC, 'utilities', 'geometry.ts'), dest: join(MAP_SHARED_DIRNAME, 'utilities', 'geometry.ts') },

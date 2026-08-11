@@ -92,6 +92,7 @@ describe('syncMap', () => {
     const sharedDest = join(pluginPath, 'Map', '_shared');
     expect(existsSync(join(sharedDest, 'DrawControl.tsx'))).toBe(true);
     expect(existsSync(join(sharedDest, 'hooks', 'useDevice.ts'))).toBe(true);
+    expect(existsSync(join(sharedDest, 'hooks', 'useDragAndDropUpload.ts'))).toBe(true);
     expect(existsSync(join(sharedDest, 'configuration', 'layout.ts'))).toBe(true);
     expect(existsSync(join(sharedDest, 'utilities', 'geo.ts'))).toBe(true);
     expect(existsSync(join(sharedDest, 'utilities', 'geometry.ts'))).toBe(true);

@@ -24,8 +24,8 @@ import useAvailability from 'hooks/useAvailability';
 import useNotifications from 'hooks/useNotifications';
 import useTheme from 'hooks/useTheme';
 import { useDai } from 'hooks/useDai';
+import { useDragAndDropUpload } from 'hooks/useDragAndDropUpload';
 import type { SoilhiveMapSelectionChangeEvent } from 'components/Map/SoilhiveMapSelectionChangeEvent';
-import { parseGeoJSONFile } from '../utilities/parseGeoJSONFile';
 
 import styles from './Availability.module.scss';
 import { useTranslation } from 'react-i18next';
@@ -35,11 +35,9 @@ function Availability() {
   const [isDatasetsOpened, setIsDatasetsOpened] = useState<boolean>(true);
   const [isFiltersOpened, setIsFiltersOpened] = useState<boolean>(false);
   const [activeMobileTab, setActiveMobileTab] = useState<string>(DEFAULT_AVAILABILITY_MOBILE_TAB);
-  const [isDragOver, setIsDragOver] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [daiViewport, setDaiViewport] = useState<{ bbox: [number, number, number, number]; resolution: number } | null>(null);
   const [currentMapStyleIndex, setCurrentMapStyleIndex] = useState(0);
-  const dragCounterRef = useRef(0);
   const mapRef = useRef<SoilhiveMapRef>(null);
   const mapStyles = getMapStyles();
 
@@ -101,40 +99,10 @@ function Availability() {
     }
   };
 
-  const onDragEnter = useCallback((event: React.DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    dragCounterRef.current += 1;
-    if (dragCounterRef.current === 1) setIsDragOver(true);
-  }, []);
-
-  const onDragOver = useCallback((event: React.DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-  }, []);
-
-  const onDragLeave = useCallback((_event: React.DragEvent<HTMLDivElement>) => {
-    dragCounterRef.current -= 1;
-    if (dragCounterRef.current === 0) setIsDragOver(false);
-  }, []);
-
-  const onDrop = useCallback(
-    async (event: React.DragEvent<HTMLDivElement>) => {
-      event.preventDefault();
-      dragCounterRef.current = 0;
-      setIsDragOver(false);
-
-      const file = event.dataTransfer.files?.[0];
-      if (!file) return;
-
-      const result = await parseGeoJSONFile(file);
-      if (result.error) {
-        showNotification({ id: result.error.id, title: 'Upload failed', message: result.error.message });
-        return;
-      }
-
-      mapRef.current?.onUpload(result.polygon);
-    },
-    [showNotification],
-  );
+  const { isDragOver, onDragEnter, onDragOver, onDragLeave, onDrop } = useDragAndDropUpload({
+    onUpload: geometry => mapRef.current?.onUpload(geometry),
+    onError: error => showNotification({ id: error.id, title: 'Upload failed', message: error.message }),
+  });
 
   // UploadPolygonModal calls its own onClose after a successful upload — this just forwards the
   // geometry to the same SoilhiveMapRef.onUpload path drag-and-drop already uses.
