@@ -12,7 +12,7 @@ This is the how-to for building a module-federation plugin against this host —
 From the `soilhive-core` checkout:
 
 ```
-pnpm soilhive-plugin <full-path-to-new-plugin>
+pnpm soilhive-plugin <full-path-to-new-plugin> [--with-map]
 ```
 
 `<full-path-to-new-plugin>` can point anywhere on disk, inside or outside the repo — e.g. `~/Documents/repo/plugins/my-plugin`. The command:
@@ -20,7 +20,8 @@ pnpm soilhive-plugin <full-path-to-new-plugin>
 1. Scaffolds a working plugin project at that path (rsbuild + module-federation config, a placeholder `App`/`bootstrap`/`ProviderComponent`, a mock context for local preview).
 2. Syncs in the host's `UI/` component library and design tokens.
 3. Syncs `frontend-plugin-types` into `<parent-of-plugin>/frontend-plugin-types` — a sibling folder shared by every plugin under that same parent, not copied per-plugin.
-4. Merges the dependencies the CLI manages into `package.json` without touching any you've added yourself.
+4. If `--with-map` is passed (or the plugin already opted in on a previous run — see [Using the map](#using-the-map---with-map)), also syncs in the host's interactive map component and its dependencies.
+5. Merges the dependencies the CLI manages into `package.json` without touching any you've added yourself.
 
 It ends with the next steps to run:
 
@@ -42,13 +43,13 @@ Not everything is treated the same way. Each category has a deliberate overwrite
 
 | Category | Policy | What's in it |
 |---|---|---|
-| **Always overwritten** — host is authoritative | Every sync fully replaces the destination. Any hand-edit is discarded on the next run. | The entire `UI/` folder ([`syncUi.ts`](../../frontend-scripts/soilhive-plugin/syncUi.ts)); `frontend-plugin-types` ([`syncPluginTypes.ts`](../../frontend-scripts/soilhive-plugin/syncPluginTypes.ts)); the design-token partials `styles/variables/_colors.scss` and `_typography.scss` |
-| **Copied once, then dev-owned** | Only written if missing. Yours to edit afterward; the CLI never touches it again. | All scaffold files — `rsbuild.config.ts`, `module-federation.config.ts`, `tsconfig.json`, `pnpm-workspace.yaml`, `src/App.tsx`, `src/bootstrap.tsx`, `src/components/ProviderComponent.tsx`, `src/mockContext.ts`, etc. ([`scaffold.ts`](../../frontend-scripts/soilhive-plugin/scaffold.ts)); `styles/base.scss`, `styles/fonts.scss`, `styles/variables/_breakpoints.scss`, and the plugin's `styles/index.scss` |
+| **Always overwritten** — host is authoritative | Every sync fully replaces the destination. Any hand-edit is discarded on the next run. | The entire `UI/` folder ([`syncUi.ts`](../../frontend-scripts/soilhive-plugin/syncUi.ts)); `frontend-plugin-types` ([`syncPluginTypes.ts`](../../frontend-scripts/soilhive-plugin/syncPluginTypes.ts)); the design-token partials `styles/variables/_colors.scss` and `_typography.scss`; with `--with-map`, also `Map/` and its cross-cutting files ([`syncMap.ts`](../../frontend-scripts/soilhive-plugin/syncMap.ts) — see [Using the map](#using-the-map---with-map)) |
+| **Copied once, then dev-owned** | Only written if missing. Yours to edit afterward; the CLI never touches it again. | All scaffold files — `rsbuild.config.ts`, `module-federation.config.ts`, `tsconfig.json`, `pnpm-workspace.yaml`, `src/App.tsx`, `src/bootstrap.tsx`, `src/components/ProviderComponent.tsx`, `src/mockContext.ts`, etc. ([`scaffold.ts`](../../frontend-scripts/soilhive-plugin/scaffold.ts)); `styles/base.scss`, `styles/fonts.scss`, `styles/variables/_breakpoints.scss`, and the plugin's `styles/index.scss`. This includes the `resolve.alias`/`paths` entries for `assets`/`hooks`/`types`/`utilities`/`configuration` in `rsbuild.config.ts`/`tsconfig.json` — added unconditionally, whether or not the plugin ever uses `--with-map`, specifically so opting into the map later never needs to touch this dev-owned config |
 | **Generated, then dev-owned** | Written once from a filtered copy of the host's file, not a byte-for-byte copy. | `styles/index.scss` — mirrors the host's `frontend/src/styles/index.scss` but drops the `prime.react.override` import and the `primereact`/`react-loading-skeleton` package CSS, since nothing in `UI/` depends on either ([`syncUi.ts`](../../frontend-scripts/soilhive-plugin/syncUi.ts)) |
-| **Merged, not overwritten** | `package.json`'s CLI-managed keys are updated in place; anything you've added stays. | `dependencies.react`, `dependencies['react-dom']`, `dependencies['frontend-plugin-types']`, plus every non-relative package a live scan of `UI/`'s actual imports turns up — each pinned to the exact version in the host's `frontend/package.json` ([`packageJson.ts`](../../frontend-scripts/soilhive-plugin/packageJson.ts)) |
-| **Never copied** | Refused even if a `neverCopy` path is passed to the copy engine. | `SoilhiveMap.scss`, `prime.react.override.scss` — nothing in `UI/` needs either, and the plugin template deliberately doesn't carry a `primereact` dependency |
+| **Merged, not overwritten** | `package.json`'s CLI-managed keys are updated in place; anything you've added stays. | `dependencies.react`, `dependencies['react-dom']`, `dependencies['frontend-plugin-types']`, plus every non-relative package a live scan of `UI/`'s actual imports turns up (and, with `--with-map`, of the vendored `Map/` + cross-cutting files too) — each pinned to the exact version in the host's `frontend/package.json` ([`packageJson.ts`](../../frontend-scripts/soilhive-plugin/packageJson.ts)) |
+| **Never copied** | Refused even if a `neverCopy` path is passed to the copy engine. | `prime.react.override.scss`, unconditionally. `SoilhiveMap.scss` is blocked *unless* `--with-map` is active, in which case it's vendored alongside the map — see [Using the map](#using-the-map---with-map) |
 
-Practical consequence: **don't hand-edit anything inside `UI/`.** It's meant to be used as-is; the next sync silently discards changes there. Everything else the CLI writes is yours from the moment it's created — the CLI never re-touches it after the first write.
+Practical consequence: **don't hand-edit anything inside `UI/`** (or, with `--with-map`, `Map/`). Both are meant to be used as-is; the next sync silently discards changes there. Everything else the CLI writes is yours from the moment it's created — the CLI never re-touches it after the first write.
 
 ## Using a host UI component
 
@@ -69,6 +70,40 @@ The barrel re-exports every component in `UI/`, so importing through it pulls in
 
 `frontend-plugin-example/src/components/ProviderComponent.tsx` has a commented-out example of both the import and the usage, ready to uncomment once `UI/` has been synced into your plugin.
 
+## Using the map (`--with-map`)
+
+Passing `--with-map` (see [Creating a plugin](#creating-a-plugin)) syncs in `SoilhiveMap` — the same interactive map the host uses on its Availability page — plus everything it needs: `DrawControl`, `useDevice`, the map utilities, and the `maplibre-gl`/`react-map-gl`/`@turf/turf`/`h3-js`/etc. dependencies, merged into your `package.json` the same way `UI/`'s are. It's opt-in rather than always-synced because that dependency tree is meaningfully heavier than anything else vendored so far — not every plugin needs a map.
+
+```tsx
+import SoilhiveMap from '../Map/SoilhiveMap';
+
+function MyMapPage() {
+  const [selectionState, setSelectionState] = useState(/* selectedPoint, selectedH3Cell, h3Cells, selection, showDrawControl, showSelectionToolbar — see SoilhiveMapSelectionState */);
+
+  return (
+    <SoilhiveMap
+      showGeocoder
+      showH3Cells
+      selectionState={selectionState}
+      onSelectionChange={event => {
+        /* update your own state from event.geometries/bounds/selectionType/locationName */
+      }}
+    />
+  );
+}
+```
+
+`SoilhiveMap` is a fully controlled component — it owns no context of its own, only the props you pass it (`selectionState` is required; everything else, including the optional `dai` prop group, is opt-in). See `frontend/src/components/Map/SoilhiveMap.tsx` for the full prop reference once synced.
+
+**Three things the host's map has that yours won't, by design** (see [ADR 0025](../adr/0025-map-is-vendored-behind-an-opt-in-flag.md) for the full rationale — each transitively needed `primereact`, which plugins deliberately don't depend on, or in DAI's case a host-only network hook):
+
+| Host feature | Not vendored because | What you get instead |
+|---|---|---|
+| DAI overlay | Needs a host-only network hook tied to a live backend filter session | Nothing equivalent — omit the `dai` prop entirely |
+| Selection info card (`AreaInfo`) | Also the planned future home of a `map-info-card` capability that must stay host-only (ADR 9997) | `PluginContext.mapSelection` — build your own card, rendered via `SoilhiveMap`'s `children` (needs `react-map-gl` context, e.g. a `Popup`) or `footer` (a plain flex-sibling, e.g. a bottom bar) slot |
+| Style switcher UI | Needs `primereact` via `Dialog` | `currentMapStyleIndex` prop — build your own switcher and feed the index back in |
+| "Upload a polygon" toolbar modal | Needs `primereact` via `Dialog` | Drag-and-drop already works via `SoilhiveMapRef.onUpload` (see the ref's `onUpload` method); or pass your own `onUploadClick` to `SoilhiveMap` to show your own upload UI, then call the same ref method |
+
 ## Using host data and hooks (`PluginContext`)
 
 Your exposed page component receives a `context: PluginContext` prop (typed via `frontend-plugin-types`, synced in as described above) giving access to host data and hooks — theme colors, soil data queries, coverage/filter queries, map selection, the logged-in user. See `frontend-plugin-example/src/components/ProviderComponent.tsx` for a full example using every field, and [Module Federation § Building a remote module](./module-federation.md#building-a-remote-module) for the exact export shape the host expects (`name`, `route`, `type`, `Page` as named exports).
@@ -85,3 +120,5 @@ Scaffolding and syncing a plugin doesn't make it appear in the host — that's a
 | `[ERR_PNPM_IGNORED_BUILDS]` | A dependency's install script needs approval | Already scaffolded into `pnpm-workspace.yaml`'s `allowBuilds`; if a new dependency trips this, add it there |
 | `Module not found: Can't resolve './App.css'` (or similar) | A scaffold file is missing | Re-run `pnpm soilhive-plugin <full-path>` — scaffold files are copy-once, so this only backfills what's actually missing |
 | A CSS custom property (e.g. `--color-cta-default-solid`) resolves to nothing at runtime | `styles/index.scss` isn't imported anywhere | Check `src/bootstrap.tsx` imports `../styles/index.scss` |
+| `Module not found: Can't resolve 'hooks/useDevice'` (or `assets/...`, `types/...`, `utilities/...`) after adding `--with-map` | Plugin was scaffolded before these aliases existed — `rsbuild.config.ts`/`tsconfig.json` are copy-once, so re-syncing won't add missing entries to a file that already exists | Manually add the `assets`/`hooks`/`types`/`utilities`/`configuration` entries to `resolve.alias` in `rsbuild.config.ts` and to `paths` in `tsconfig.json`, matching `frontend-plugin-example`'s versions |
+| `Module not found: Can't resolve 'primereact/confirmdialog'` (or similar) inside `Map/` | Hand-edited something under `Map/` to pull in a component that needs `primereact` | Don't — `Map/` is host-authoritative like `UI/`, and `primereact` is deliberately excluded (see [ADR 0025](../adr/0025-map-is-vendored-behind-an-opt-in-flag.md)) |
