@@ -97,6 +97,23 @@ function MyMapPage() {
 
 Everything `Map/` reaches outside its own folder for — `DrawControl`, `useDevice`, the map utilities, `types/backend`, `configuration/layout`, and the icons it references — lands nested under `Map/_shared/`, not flat at your plugin root. This is deliberate: it keeps everything map-related visually contained in one place, distinct from your own top-level `hooks/`/`utilities/`/`types/`/`configuration`/`assets` (those aliases still exist unconditionally for your own code — see the scaffold table above — they're just not what `Map/`'s own files use). Treat `Map/_shared/` the same as `Map/` itself: host-authoritative, never hand-edited.
 
+### Map/'s translations
+
+`Map/`'s own strings (the toolbar, the selection bar, the DAI widget) are translated via `useTranslation('availability')`, same as the host. Rather than vendoring a copy of the locale data, `i18next`/`react-i18next` are shared as module-federation singletons ([`frontend/src/utilities/moduleFederation.ts`](../../frontend/src/utilities/moduleFederation.ts), `module-federation.config.ts`'s `shared` — added unconditionally for every plugin, whether or not it uses `--with-map`, same reasoning as the aliases above): once your plugin is embedded in the host, `Map/`'s translations resolve against the host's own already-initialized instance for free — full namespace, live language switching, nothing to maintain on your side.
+
+That only takes effect once the host loads your plugin. Running it standalone (`pnpm dev`) has no host to share with, so nothing initializes `react-i18next`'s default instance — `Map/`'s strings render as raw keys (e.g. `dai_widget.title`) until something does. For standalone preview, initialize your own in `bootstrap.tsx` (a commented pointer is already there), the same way the host does in `frontend/src/utilities/i18n.ts`:
+
+```tsx
+import i18n from 'i18next';
+import { initReactI18next } from 'react-i18next';
+
+i18n.use(initReactI18next).init({
+  lng: 'en',
+  fallbackLng: 'en',
+  resources: { en: { availability: { /* whatever subset of frontend/public/locales/en/availability.json you need for preview */ } } },
+});
+```
+
 **Three things the host's map has that yours won't, by design** (see [ADR 0025](../adr/0025-map-is-vendored-behind-an-opt-in-flag.md) for the full rationale — each transitively needed `primereact`, which plugins deliberately don't depend on, or in DAI's case a host-only network hook):
 
 | Host feature | Not vendored because | What you get instead |
@@ -104,7 +121,42 @@ Everything `Map/` reaches outside its own folder for — `DrawControl`, `useDevi
 | DAI overlay | Needs a host-only network hook tied to a live backend filter session | Nothing equivalent — omit the `dai` prop entirely |
 | Selection info card (`AreaInfo`) | Also the planned future home of a `map-info-card` capability that must stay host-only (ADR 9997) | `PluginContext.mapSelection` — build your own card, rendered via `SoilhiveMap`'s `children` (needs `react-map-gl` context, e.g. a `Popup`) or `footer` (a plain flex-sibling, e.g. a bottom bar) slot |
 | Style switcher UI | Needs `primereact` via `Dialog` | `currentMapStyleIndex` prop — build your own switcher and feed the index back in |
-| "Upload a polygon" toolbar modal | Needs `primereact` via `Dialog` | Drag-and-drop already works via `SoilhiveMapRef.onUpload` (see the ref's `onUpload` method); or pass your own `onUploadClick` to `SoilhiveMap` to show your own upload UI, then call the same ref method |
+| "Upload a polygon" toolbar modal | Needs `primereact` via `Dialog` | `SoilhiveMapRef.onUpload` is the destination for an *already-parsed* geometry — it doesn't read files or wire up a drop zone itself. Pass your own `onUploadClick` to show your own upload UI, or wire up drag-and-drop yourself — see below |
+
+### Uploading a polygon (drag-and-drop or your own UI)
+
+`SoilhiveMapRef.onUpload(geometry: Polygon | MultiPolygon)` only accepts an already-parsed geometry — reading the dropped file and parsing it into GeoJSON is your page's job, the same way it's `Availability.tsx`'s job in the host. `Map/_shared/utilities/parseGeoJSONFile` is vendored specifically for this (same validation/error handling as the host); wire it up to a `ref` and your own drop-zone handlers:
+
+```tsx
+import { useRef } from 'react';
+import SoilhiveMap, { type SoilhiveMapRef } from '../Map/SoilhiveMap';
+import { parseGeoJSONFile } from '../Map/_shared/utilities/parseGeoJSONFile';
+
+function MyMapPage() {
+  const mapRef = useRef<SoilhiveMapRef>(null);
+
+  const onDrop = async (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    const file = event.dataTransfer.files?.[0];
+    if (!file) return;
+
+    const result = await parseGeoJSONFile(file);
+    if (result.error) {
+      // result.error.id / result.error.message — surface however you like
+      return;
+    }
+    mapRef.current?.onUpload(result.polygon);
+  };
+
+  return (
+    <div onDragOver={event => event.preventDefault()} onDrop={onDrop}>
+      <SoilhiveMap ref={mapRef} /* ...selectionState, onSelectionChange, etc. */ />
+    </div>
+  );
+}
+```
+
+`onUploadClick` (a `SoilhiveMap` prop, shows an "Upload a polygon" toolbar item) follows the same shape without the drag events — call `parseGeoJSONFile` on whatever file your own upload UI collects, then `mapRef.current?.onUpload(result.polygon)`.
 
 ## Using host data and hooks (`PluginContext`)
 

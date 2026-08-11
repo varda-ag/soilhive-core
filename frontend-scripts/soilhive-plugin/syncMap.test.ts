@@ -98,6 +98,7 @@ describe('syncMap', () => {
     expect(existsSync(join(sharedDest, 'utilities', 'map.ts'))).toBe(true);
     expect(existsSync(join(sharedDest, 'utilities', 'simplifyGeometry.ts'))).toBe(true);
     expect(existsSync(join(sharedDest, 'utilities', 'environmentVariables.ts'))).toBe(true);
+    expect(existsSync(join(sharedDest, 'utilities', 'parseGeoJSONFile.ts'))).toBe(true);
     expect(existsSync(join(sharedDest, 'types', 'backend.ts'))).toBe(true);
     // styles/ is deliberately NOT moved into Map/_shared/ — it stays at the plugin root, same as before.
     expect(existsSync(join(pluginPath, 'styles', 'SoilhiveMap.scss'))).toBe(true);
