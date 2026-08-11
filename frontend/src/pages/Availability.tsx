@@ -5,6 +5,7 @@ import type { LngLat } from 'maplibre-gl';
 import SoilhiveMap, { type SoilhiveMapRef } from 'components/Map/SoilhiveMap';
 import { AreaInfoPopup, AreaInfoBar } from 'components/Map/AreaInfo';
 import { UploadPolygonModal } from 'components/Map/UploadPolygonModal/UploadPolygonModal';
+import { MapStyleSwitcher } from 'components/Map/MapStyleSwitcher/MapStyleSwitcher';
 import DatasetsIcon from 'assets/icons/paste-icon.svg?react';
 import FiltersIcon from 'assets/icons/filter2-icon.svg?react';
 import UploadIcon from 'assets/icons/big-cloud-upload-icon.svg?react';
@@ -37,8 +38,10 @@ function Availability() {
   const [isDragOver, setIsDragOver] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [daiViewport, setDaiViewport] = useState<{ bbox: [number, number, number, number]; resolution: number } | null>(null);
+  const [currentMapStyleIndex, setCurrentMapStyleIndex] = useState(0);
   const dragCounterRef = useRef(0);
   const mapRef = useRef<SoilhiveMapRef>(null);
+  const mapStyles = getMapStyles();
 
   const { isDesktopLayout } = useDevice();
   const { showNotification } = useNotifications();
@@ -163,7 +166,8 @@ function Availability() {
           onSelectionChange={handleMapSelectionChange}
           onUploadClick={() => setIsUploadModalOpen(true)}
           geocoder={localStorage.getItem('MAP_GEOCODER') ?? ('nominatim' as any)}
-          mapStyles={getMapStyles()}
+          mapStyles={mapStyles}
+          currentMapStyleIndex={currentMapStyleIndex}
           selectionState={availabilityMap}
           dai={{
             data: dai,
@@ -188,6 +192,14 @@ function Availability() {
               onClose={onAreaInfoClose}
               locationName={locationName}
               selection={selection}
+            />
+          )}
+          {mapStyles.length > 1 && (
+            <MapStyleSwitcher
+              className="map-style-switcher"
+              mapStyles={mapStyles}
+              currentValue={currentMapStyleIndex}
+              onMapStyleChange={setCurrentMapStyleIndex}
             />
           )}
         </SoilhiveMap>

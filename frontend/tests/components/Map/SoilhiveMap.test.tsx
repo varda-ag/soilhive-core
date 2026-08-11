@@ -11,8 +11,8 @@ jest.mock('utilities/map', () => ({
 }));
 
 jest.mock('react-map-gl/maplibre', () => ({
-  Map: ({ children, attributionControl, onRender, onZoomStart, onZoomEnd }: any) => (
-    <div data-testid="map" data-attribution-control={JSON.stringify(attributionControl)}>
+  Map: ({ children, attributionControl, mapStyle, onRender, onZoomStart, onZoomEnd }: any) => (
+    <div data-testid="map" data-attribution-control={JSON.stringify(attributionControl)} data-map-style={mapStyle}>
       <div className="maplibregl-ctrl-attrib maplibregl-compact-show" ref={(el: HTMLDivElement | null) => el?.setAttribute('open', '')} />
       <button
         data-testid="trigger-render"
@@ -54,10 +54,6 @@ jest.mock('maplibre-gl', () => ({
 jest.mock('components/DrawControl', () => ({ __esModule: true, default: () => null }));
 jest.mock('components/Map/SoilhiveMapToolbar', () => ({ __esModule: true, default: () => null }));
 jest.mock('components/Map/SoilhiveMapSelectionToolbar', () => ({ __esModule: true, default: () => null }));
-jest.mock('components/Map/MapStyleSwitcher/MapStyleSwitcher', () => ({
-  __esModule: true,
-  MapStyleSwitcher: () => <div data-testid="map-style-switcher" />,
-}));
 jest.mock('components/Map/DaiWidget/DaiWidget', () => ({ __esModule: true, DaiWidget: () => <div data-testid="dai-widget" /> }));
 jest.mock('components/Map/GeocoderControl', () => ({ __esModule: true, default: () => null }));
 
@@ -133,6 +129,33 @@ describe('SoilhiveMap', () => {
     render(<SoilhiveMap {...makeProps()} footer={<div data-testid="footer-content">Footer</div>} />);
     expect(screen.getByTestId('footer-content')).toBeInTheDocument();
     expect(screen.getByTestId('map')).not.toContainElement(screen.getByTestId('footer-content'));
+  });
+
+  it('does not render a built-in style switcher (that composition now lives on the host, like AreaInfoPopup)', () => {
+    const mapStyles = [
+      { name: 'Satellite', mapStyle: 'satellite-url', type: 'satellite' },
+      { name: 'Streets', mapStyle: 'streets-url', type: 'streets' },
+    ];
+    render(<SoilhiveMap {...makeProps()} mapStyles={mapStyles} />);
+    expect(screen.queryByTestId('map-style-switcher')).not.toBeInTheDocument();
+  });
+
+  it('renders the map style at the default index (0) when currentMapStyleIndex is omitted', () => {
+    const mapStyles = [
+      { name: 'Satellite', mapStyle: 'satellite-url', type: 'satellite' },
+      { name: 'Streets', mapStyle: 'streets-url', type: 'streets' },
+    ];
+    render(<SoilhiveMap {...makeProps()} mapStyles={mapStyles} />);
+    expect(screen.getByTestId('map')).toHaveAttribute('data-map-style', 'satellite-url');
+  });
+
+  it('renders the map style at the given currentMapStyleIndex prop', () => {
+    const mapStyles = [
+      { name: 'Satellite', mapStyle: 'satellite-url', type: 'satellite' },
+      { name: 'Streets', mapStyle: 'streets-url', type: 'streets' },
+    ];
+    render(<SoilhiveMap {...makeProps()} mapStyles={mapStyles} currentMapStyleIndex={1} />);
+    expect(screen.getByTestId('map')).toHaveAttribute('data-map-style', 'streets-url');
   });
 
   it('closes the attribution control on render when on mobile', () => {

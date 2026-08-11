@@ -21,6 +21,14 @@ exports[`Availability renders availability page on desktop 1`] = `
         data-test-id="mock-soilhive-map"
       >
         Mock SoilhiveMap
+        <div
+          data-current-value="0"
+          data-testid="mock-map-style-switcher"
+        >
+          <button>
+            Switch to style 1
+          </button>
+        </div>
       </div>
       <div
         data-testid="mock-upload-polygon-modal"
@@ -85,6 +93,14 @@ exports[`Availability renders availability page on mobile 1`] = `
         data-test-id="mock-soilhive-map"
       >
         Mock SoilhiveMap
+        <div
+          data-current-value="0"
+          data-testid="mock-map-style-switcher"
+        >
+          <button>
+            Switch to style 1
+          </button>
+        </div>
       </div>
       <div
         data-testid="mock-upload-polygon-modal"

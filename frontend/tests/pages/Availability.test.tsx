@@ -8,14 +8,19 @@ import useNotifications from 'hooks/useNotifications';
 
 let mockOnMapSelectionChange: ((event: any) => void) | undefined;
 let mockOnUploadClick: (() => void) | undefined;
+let mockCurrentMapStyleIndex: number | undefined;
 const mockOnUpload = jest.fn();
 const mockShowNotification = jest.fn();
 
 /* eslint-disable react-hooks/globals */
 jest.mock('components/Map/SoilhiveMap', () => {
-  const MockSoilhiveMap = React.forwardRef(function SoilhiveMap({ onSelectionChange, onUploadClick, children, footer }: any, ref: any) {
+  const MockSoilhiveMap = React.forwardRef(function SoilhiveMap(
+    { onSelectionChange, onUploadClick, currentMapStyleIndex, children, footer }: any,
+    ref: any,
+  ) {
     mockOnMapSelectionChange = onSelectionChange;
     mockOnUploadClick = onUploadClick;
+    mockCurrentMapStyleIndex = currentMapStyleIndex;
     React.useImperativeHandle(ref, () => ({ onUpload: mockOnUpload }));
     return (
       <div data-test-id="mock-soilhive-map">
@@ -36,6 +41,21 @@ jest.mock('components/Map/UploadPolygonModal/UploadPolygonModal', () => ({
       <button onClick={() => onUpload({ type: 'Polygon', coordinates: [] })}>Upload from modal</button>
     </div>
   ),
+}));
+
+jest.mock('components/Map/MapStyleSwitcher/MapStyleSwitcher', () => ({
+  MapStyleSwitcher: ({ currentValue, onMapStyleChange }: any) => (
+    <div data-testid="mock-map-style-switcher" data-current-value={currentValue}>
+      <button onClick={() => onMapStyleChange(1)}>Switch to style 1</button>
+    </div>
+  ),
+}));
+
+jest.mock('utilities/map', () => ({
+  getMapStyles: jest.fn().mockReturnValue([
+    { name: 'Style A', mapStyle: 'a-style', type: 'map' },
+    { name: 'Style B', mapStyle: 'b-style', type: 'satellite' },
+  ]),
 }));
 
 jest.mock('components/Map/AreaInfo', () => ({
@@ -387,6 +407,24 @@ describe('Availability', () => {
       fireEvent.click(screen.getByText('Upload from modal'));
 
       expect(mockOnUpload).toHaveBeenCalledWith({ type: 'Polygon', coordinates: [] });
+    });
+  });
+
+  describe('map style switcher composition', () => {
+    it('renders MapStyleSwitcher (host-owned, like AreaInfoPopup) and starts at index 0', () => {
+      render(<Availability />);
+
+      expect(screen.getByTestId('mock-map-style-switcher')).toHaveAttribute('data-current-value', '0');
+      expect(mockCurrentMapStyleIndex).toBe(0);
+    });
+
+    it('updates the index passed to SoilhiveMap when a style is picked', () => {
+      render(<Availability />);
+
+      fireEvent.click(screen.getByText('Switch to style 1'));
+
+      expect(screen.getByTestId('mock-map-style-switcher')).toHaveAttribute('data-current-value', '1');
+      expect(mockCurrentMapStyleIndex).toBe(1);
     });
   });
 

@@ -37,7 +37,6 @@ import type { DataAvailabilityIndex } from '../../types/backend';
 import { DaiWidget } from './DaiWidget/DaiWidget';
 import LayersIcon from 'assets/icons/layers-icon.svg?react';
 import type { MapStyles } from 'types/components';
-import { MapStyleSwitcher } from './MapStyleSwitcher/MapStyleSwitcher';
 import LoadingLine from './LoadingLine/LoadingLine';
 
 /**
@@ -95,6 +94,13 @@ interface SoilhiveMapProps {
   showScale?: boolean;
   showH3Cells?: boolean;
   mapStyles?: MapStyles;
+  /**
+   * Which entry of `mapStyles` is active. Defaults to 0 when omitted. This component no longer
+   * renders a built-in style switcher itself (MapStyleSwitcher -> Dialog -> primereact, which
+   * isn't vendored to plugins) — the caller owns that UI (e.g. via `children`) and controls this
+   * value, the same way AreaInfoPopup's composition moved to the host.
+   */
+  currentMapStyleIndex?: number;
   scrollZoom?: boolean;
   dragPan?: boolean;
   onSelectionChange?: (event: SoilhiveMapSelectionChangeEvent) => void;
@@ -177,6 +183,7 @@ const SoilhiveMap = forwardRef<SoilhiveMapRef, SoilhiveMapProps>(function Soilhi
     showScale = true,
     showH3Cells = false,
     mapStyles = getMapStyles(),
+    currentMapStyleIndex = 0,
     scrollZoom = true,
     dragPan = true,
     onSelectionChange,
@@ -222,7 +229,6 @@ const SoilhiveMap = forwardRef<SoilhiveMapRef, SoilhiveMapProps>(function Soilhi
 
   const mapRef = useRef<any>(null);
   const [mapBounds, setMapBounds] = useState<LngLatBounds | null>(null);
-  const [currentMapStyleIndex, setCurrentMapStyleIndex] = useState<number>(0);
   const [isScaleMounted, setIsScaleMounted] = useState(false);
   const [isScaleVisible, setIsScaleVisible] = useState(false);
   const scaleHideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -578,14 +584,6 @@ const SoilhiveMap = forwardRef<SoilhiveMapRef, SoilhiveMapProps>(function Soilhi
         {showScale && (isDesktopLayout || isScaleMounted) && (
           <ScaleControl
             style={isDesktopLayout ? undefined : { opacity: isScaleVisible ? 1 : 0, transition: `opacity ${SCALE_FADE_MS}ms ease` }}
-          />
-        )}
-        {mapStyles.length > 1 && (
-          <MapStyleSwitcher
-            className="map-style-switcher"
-            mapStyles={mapStyles}
-            currentValue={currentMapStyleIndex}
-            onMapStyleChange={setCurrentMapStyleIndex}
           />
         )}
         {showDaiWidget && !isDesktopLayout && (
