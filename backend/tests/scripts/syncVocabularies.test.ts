@@ -10,7 +10,6 @@ import SoilPropertyEntity from '../../src/entities/SoilProperty';
 import UnitConversionEntity from '../../src/entities/UnitConversion';
 import { JsonStorage } from '../../src/entities/JsonStorage';
 
-
 const DEFAULT_CSVS: Record<string, string> = {
   '6-license_options.csv': 'License,License full name,Description,Documentation\n',
   '4f-soil-property-category-table.csv': 'category_name,category_acronym,description\nChemical,chem,Chemical properties\n',

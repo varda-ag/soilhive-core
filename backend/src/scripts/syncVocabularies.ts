@@ -27,7 +27,7 @@ import { VocabularyType } from '../types/data';
 
 const DEFAULT_DATA_MODEL_DIR = path.join(__dirname, '../../docs/data-model');
 const CSV_HASHES_CONFIG_ID = 'vocabulary-csv-hashes';
-// Arbitrary but stable key for the boot-time sync's advisory lock — 
+// Arbitrary but stable key for the boot-time sync's advisory lock —
 // chosen so a multi-pod deploy has exactly one pod doing the sync instead of every pod
 // redoing the same upserts concurrently at once.
 export const ADVISORY_LOCK_KEY = 727_501_001;
