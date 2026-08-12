@@ -245,7 +245,6 @@ export default function Metadata() {
             placeholder={t('placeholders.version')}
             property="version"
             variant="text"
-            isRequired={isAdmin}
             onStartEditing={onStartEditing}
             onSave={onSave}
             onCancel={onCancel}
@@ -392,7 +391,6 @@ export default function Metadata() {
             isEditable={isAdmin && !isEditing}
             placeholder={t('placeholders.citation')}
             property="citation"
-            isRequired={isAdmin}
             onStartEditing={onStartEditing}
             onSave={onSave}
             onCancel={onCancel}

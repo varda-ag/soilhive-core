@@ -59,10 +59,8 @@ export function useDatasetsSettings(datasetId: string | undefined) {
   const requiredTextFields: (string | null | undefined)[] = [
     dataset?.name,
     dataset?.full_name,
-    dataset?.version,
     dataset?.author,
     dataset?.description,
-    dataset?.citation,
     dataset?.gis_datatype,
     dataset?.reference_period_start,
     dataset?.reference_period_stop,
