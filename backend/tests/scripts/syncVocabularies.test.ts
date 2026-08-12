@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach } from '@jest/globals';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import { syncVocabularies } from '../../src/scripts/syncVocabularies';
+import { syncVocabularies, ADVISORY_LOCK_KEY } from '../../src/scripts/syncVocabularies';
 import { getDataSource } from '../../src/utils/data-source';
 import { addCategory, addLicense, addSoilProperty, addUnitConversion } from '../../src/utils/mock';
 import LicenseEntity from '../../src/entities/License';
@@ -10,15 +10,9 @@ import SoilPropertyEntity from '../../src/entities/SoilProperty';
 import UnitConversionEntity from '../../src/entities/UnitConversion';
 import { JsonStorage } from '../../src/entities/JsonStorage';
 
-/**
- * These exercise data-safety guarantees against a database that already has real rows, not just
- * whether a fresh sync populates correctly — orphan preservation, id/slug stability, and resilience
- * to a partial failure or a concurrent run are the properties that matter once this runs against a
- * real environment rather than a fixture-only test DB.
- */
 
 const DEFAULT_CSVS: Record<string, string> = {
-  '6-license_options.csv': 'License,Description,Documentation\n',
+  '6-license_options.csv': 'License,License full name,Description,Documentation\n',
   '4f-soil-property-category-table.csv': 'category_name,category_acronym,description\nChemical,chem,Chemical properties\n',
   '4c-soil-property-vocabulary-table.csv': 'Property,property_Code,subproperty,subproperty_code,standard_unit,Classification,Description\n',
   '4e-analytical-methodology-table.csv':
@@ -53,7 +47,7 @@ describe('syncVocabularies - data safety', () => {
     const category = await addCategory('Existing Category');
     const property = await addSoilProperty('Pre-existing Property', category.id);
 
-    useVocabDataDir(); // every CSV is header-only — nothing in it matches these rows
+    useVocabDataDir();
 
     await syncVocabularies();
 
@@ -70,7 +64,7 @@ describe('syncVocabularies - data safety', () => {
     const property = await addSoilProperty('Referenced Property', category.id);
     const conversion = await addUnitConversion(property.id, 'test_unit');
 
-    useVocabDataDir(); // the property this conversion depends on is not in any CSV
+    useVocabDataDir();
 
     await syncVocabularies();
 
@@ -85,7 +79,8 @@ describe('syncVocabularies - data safety', () => {
 
   it('keeps id and slug stable when a non-identity field changes on a real re-sync', async () => {
     useVocabDataDir({
-      '6-license_options.csv': 'License,Description,Documentation\nStable License — Full Name,desc,https://example.com/v1\n',
+      '6-license_options.csv':
+        'License,License full name,Description,Documentation\nStable License,Full Name,desc,https://example.com/v1\n',
     });
     await syncVocabularies();
 
@@ -93,25 +88,26 @@ describe('syncVocabularies - data safety', () => {
     const repo = dataSource.getRepository(LicenseEntity);
     const first = await repo.findOneByOrFail({ name: 'Stable License' });
 
-    // Same name (the natural key), different url — a genuine content change, not a no-op.
     useVocabDataDir({
-      '6-license_options.csv': 'License,Description,Documentation\nStable License — Full Name,desc,https://example.com/v2\n',
+      '6-license_options.csv':
+        'License,License full name,Description,Documentation\nStable License,Full Name V2,desc,https://example.com/v2\n',
     });
     await syncVocabularies();
 
     const second = await repo.findOneByOrFail({ name: 'Stable License' });
     expect(second.id).toBe(first.id);
     expect(second.slug).toBe(first.slug);
+    expect(second.full_name).toBe('Full Name V2');
     expect(second.url).toBe('https://example.com/v2');
   });
 
-  it('produces no duplicates when two syncs race against the same database', async () => {
+  it('does not corrupt data when calls overlap — the advisory lock skips the second rather than racing it at the DB', async () => {
     useVocabDataDir({
       '6-license_options.csv':
-        'License,Description,Documentation\n' +
-        'Race License A,desc,https://example.com/a\n' +
-        'Race License B,desc,https://example.com/b\n' +
-        'Race License C,desc,https://example.com/c\n',
+        'License,License full name,Description,Documentation\n' +
+        'Race License A,,desc,https://example.com/a\n' +
+        'Race License B,,desc,https://example.com/b\n' +
+        'Race License C,,desc,https://example.com/c\n',
     });
 
     await expect(Promise.all([syncVocabularies(), syncVocabularies()])).resolves.toBeDefined();
@@ -122,11 +118,51 @@ describe('syncVocabularies - data safety', () => {
     expect(new Set(licenses.map(l => l.name)).size).toBe(3);
   });
 
+  it('does no work at all when another connection already holds the sync lock', async () => {
+    useVocabDataDir({
+      '6-license_options.csv': 'License,License full name,Description,Documentation\nShould Not Sync,,desc,https://example.com\n',
+    });
+
+    const dataSource = await getDataSource();
+    const holder = dataSource.createQueryRunner();
+    await holder.connect();
+    try {
+      const [{ locked }] = await holder.query('SELECT pg_try_advisory_lock($1) AS locked', [ADVISORY_LOCK_KEY]);
+      expect(locked).toBe(true);
+
+      await syncVocabularies();
+
+      const licenses = await dataSource.getRepository(LicenseEntity).find();
+      expect(licenses.map(l => l.name)).not.toContain('Should Not Sync');
+      // Not even a hash write — the skip happens before any table is touched.
+      const hashRow = await dataSource.getRepository(JsonStorage).findOneBy({ id: 'vocabulary-csv-hashes' });
+      expect(hashRow).toBeNull();
+    } finally {
+      await holder.query('SELECT pg_advisory_unlock($1)', [ADVISORY_LOCK_KEY]);
+      await holder.release();
+    }
+  });
+
+  it('releases the lock even when the run throws, so a later call can still sync', async () => {
+    useVocabDataDir({
+      '6-license_options.csv': 'License,License full name,Description,Documentation\nSurvives Throw,,desc,https://example.com\n',
+      '4c-soil-property-vocabulary-table.csv': 'Property,property_Code\n"unterminated',
+    });
+    await expect(syncVocabularies()).rejects.toThrow();
+
+    useVocabDataDir({
+      '6-license_options.csv': 'License,License full name,Description,Documentation\nAfter Throw,,desc,https://example.com\n',
+    });
+    await syncVocabularies();
+
+    const dataSource = await getDataSource();
+    const licenses = await dataSource.getRepository(LicenseEntity).find();
+    expect(licenses.map(l => l.name)).toContain('After Throw');
+  });
+
   it('persists the hash of each table that succeeded even when a later table fails', async () => {
     useVocabDataDir({
-      '6-license_options.csv': 'License,Description,Documentation\nSurvives Partial Failure,desc,https://example.com\n',
-      // Malformed: an unterminated quoted field makes csv-parse throw synchronously, simulating a
-      // hard failure partway through the pipeline (licenses and categories already ran by then).
+      '6-license_options.csv': 'License,License full name,Description,Documentation\nSurvives Partial Failure,,desc,https://example.com\n',
       '4c-soil-property-vocabulary-table.csv': 'Property,property_Code\n"unterminated',
     });
 

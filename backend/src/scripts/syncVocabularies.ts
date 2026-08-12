@@ -10,14 +10,7 @@ import ConfigService from '../services/ConfigService';
 import { VocabularyType } from '../types/data';
 
 /**
- * Syncs vocabulary tables from the CSVs in backend/docs/data-model/. They live under backend/
- * rather than the repo-root docs/ so the Docker image (built with backend/ as its context) can
- * include them; the narrative docs in docs/data-model/ link out to them by relative path.
- *
- * Called automatically on every boot (app.ts) — the CSVs only change via a new image, so a deploy
- * is the only thing that makes this data stale, the same way the automatic refreshDaiStats hooks
- * fire whenever their underlying data changes. Also exposed as --sync-vocabularies (utils/cli.ts)
- * for an on-demand re-run without a redeploy.
+ * Syncs vocabulary tables from the CSVs in backend/docs/data-model/, automatically on every boot (app.ts).
  *
  * Upserts by natural key so ids/slugs of existing rows never change (both are referenced by FK
  * from datasets/observations, and slugs feed slug_history). A row that exists in the DB but is no
@@ -34,6 +27,10 @@ import { VocabularyType } from '../types/data';
 
 const DEFAULT_DATA_MODEL_DIR = path.join(__dirname, '../../docs/data-model');
 const CSV_HASHES_CONFIG_ID = 'vocabulary-csv-hashes';
+// Arbitrary but stable key for the boot-time sync's advisory lock — 
+// chosen so a multi-pod deploy has exactly one pod doing the sync instead of every pod
+// redoing the same upserts concurrently at once.
+export const ADVISORY_LOCK_KEY = 727_501_001;
 const LICENSES_CSV = '6-license_options.csv';
 const CATEGORIES_CSV = '4f-soil-property-category-table.csv';
 const SOIL_PROPERTIES_CSV = '4c-soil-property-vocabulary-table.csv';
@@ -79,16 +76,11 @@ interface csvHashes {
 
 interface LicenseRow {
   License: string;
+  'License full name': string;
   Description: string;
   Documentation: string;
 }
 
-/**
- * name/full_name are split from the CSV's "<name> — <full name>" column. full_name is only ever
- * set on first insert: several existing rows carry a more precise official name than the CSV's own
- * text (e.g. "Attribution 3.0 Unported" vs. the CSV's "Attribution"), so a sync must never
- * overwrite it on an already-existing row.
- */
 async function syncLicenses(manager: EntityManager, dryRun: boolean, storedHash: string | undefined): Promise<FileSyncResult> {
   const raw = readRawCsv(LICENSES_CSV);
   const hash = hashContent(raw);
@@ -102,9 +94,8 @@ async function syncLicenses(manager: EntityManager, dryRun: boolean, storedHash:
   let updated = 0;
 
   for (const row of rows) {
-    const dashIndex = row.License.indexOf('—');
-    const name = (dashIndex === -1 ? row.License : row.License.slice(0, dashIndex)).trim();
-    const fullName = dashIndex === -1 ? null : row.License.slice(dashIndex + 1).trim();
+    const name = row.License?.trim();
+    const fullName = row['License full name']?.trim() || null;
     const url = row.Documentation?.trim() || null;
     if (!name) continue;
     names.add(name);
@@ -119,7 +110,7 @@ async function syncLicenses(manager: EntityManager, dryRun: boolean, storedHash:
       }
       const [result] = await manager.query(
         `INSERT INTO licenses (name, full_name, url) VALUES ($1, $2, $3)
-         ON CONFLICT (name) DO UPDATE SET url = EXCLUDED.url
+         ON CONFLICT (name) DO UPDATE SET full_name = EXCLUDED.full_name, url = EXCLUDED.url
          RETURNING (xmax = 0) AS inserted`,
         [name, fullName, url],
       );
@@ -163,7 +154,6 @@ async function syncCategories(manager: EntityManager, dryRun: boolean, storedHas
 
     try {
       if (dryRun) {
-        // Read-only classification: does this name already exist? No write happens either way.
         const [existingRow] = await manager.query(`SELECT 1 FROM soil_property_categories WHERE category_name = $1`, [categoryName]);
         if (existingRow) updated++;
         else inserted++;
@@ -200,8 +190,7 @@ interface SoilPropertyRow {
 
 /**
  * Each CSV row carries a level-1 Property and, when it has a subproperty, a level-2 child that
- * narrows it — "Acid Saturation" (level 1) appears on every row that names one of its subproperties
- * ("Acid Saturation total", "Hydrogen Saturation", ...), so the parent is upserted once per row it
+ * narrows it, so the parent is upserted once per row it
  * appears on (idempotent, if redundant) and only the child row carries this row's own
  * description/standard_unit — the parent's own values, if any, come from wherever they were first
  * set, not from whichever sibling row happened to sync last.
@@ -223,6 +212,11 @@ async function syncSoilProperties(manager: EntityManager, dryRun: boolean, store
   let inserted = 0;
   let updated = 0;
 
+  const categoryRows: { id: string; category_name: string }[] = await manager.query(
+    `SELECT id, category_name FROM soil_property_categories`,
+  );
+  const categoryIdByName = new Map(categoryRows.map(row => [row.category_name, row.id]));
+
   for (const row of rows) {
     const propertyName = row.Property?.trim();
     const propertyAcronym = row.property_Code?.trim();
@@ -242,20 +236,17 @@ async function syncSoilProperties(manager: EntityManager, dryRun: boolean, store
 
     const category = row.Classification?.trim();
     if (!category) continue;
-    const [categoryRow] = await manager.query(`SELECT id FROM soil_property_categories WHERE category_name = $1`, [category]);
-    if (!categoryRow) {
+    const categoryId = categoryIdByName.get(category);
+    if (!categoryId) {
       missingCategories.add(category);
       continue;
     }
-    const categoryId = categoryRow.id;
 
     const description = row.Description?.trim() || null;
     const standardUnit = row.standard_unit?.trim() || null;
 
     try {
       if (dryRun) {
-        // Read-only classification: does the parent (and, if present, the child) already exist?
-        // No write happens either way.
         const [existingParent] = await manager.query(`SELECT 1 FROM soil_properties WHERE property_name = $1`, [propertyName]);
         if (existingParent) updated++;
         else inserted++;
@@ -349,8 +340,7 @@ interface ProcedureRow {
   limit_of_detection?: string;
 }
 
-// One column of the CSV per VocabularyType category — the header names match the enum values
-// exactly, so this is the whole mapping.
+// One column of the CSV per VocabularyType category — the header names match the enum values exactly
 const PROCEDURE_COLUMN_CATEGORIES: Record<keyof ProcedureRow, VocabularyType> = {
   sample_pretreatment: VocabularyType.SAMPLE_PRETREATMENT,
   laboratory_method: VocabularyType.LABORATORY_METHOD,
@@ -361,16 +351,6 @@ const PROCEDURE_COLUMN_CATEGORIES: Record<keyof ProcedureRow, VocabularyType> = 
   limit_of_detection: VocabularyType.LIMIT_OF_DETECTION,
 };
 
-/**
- * Each CSV column is its own vocabulary category (VocabularyType); each cell under it is one term
- * of that category. A term is deduplicated across the whole file — the same value (e.g. a common
- * sample pretreatment) legitimately repeats across many analytical-methodology rows, but is one
- * vocabulary row, not one per row it appears on.
- *
- * Upserts by (category, name) — see 1785800000000-UnitConversionSlugTriggerColumns.ts, which added
- * the unique index this relies on. Nothing else on VocabularyEntity to update on conflict, so the
- * DO UPDATE is a same-value no-op purely to get a RETURNING row for the insert/update count.
- */
 async function syncProcedures(manager: EntityManager, dryRun: boolean, storedHash: string | undefined): Promise<FileSyncResult> {
   const raw = readRawCsv(PROCEDURES_CSV);
   const hash = hashContent(raw);
@@ -394,8 +374,6 @@ async function syncProcedures(manager: EntityManager, dryRun: boolean, storedHas
 
       try {
         if (dryRun) {
-          // Read-only classification: does this (category, name) pair already exist? No write
-          // happens either way.
           const [existingRow] = await manager.query(`SELECT 1 FROM vocabulary WHERE category = $1 AND name = $2`, [category, name]);
           if (existingRow) updated++;
           else inserted++;
@@ -432,12 +410,6 @@ interface ConversionRow {
   notes: string;
 }
 
-/**
- * property_id is resolved from soil_properties.property_acronym = CSV.subproperty_code — the same
- * join the original seed SQL used. A row whose property doesn't exist yet is skipped and warned
- * about rather than failing the whole sync: soil_properties has its own CSV (out of scope here),
- * so this can legitimately run before that vocabulary is fully populated.
- */
 async function syncUnitConversions(manager: EntityManager, dryRun: boolean, storedHash: string | undefined): Promise<FileSyncResult> {
   const raw = readRawCsv(UNIT_CONVERSIONS_CSV);
   const hash = hashContent(raw);
@@ -451,25 +423,26 @@ async function syncUnitConversions(manager: EntityManager, dryRun: boolean, stor
   let inserted = 0;
   let updated = 0;
 
+  const propertyRows: { id: string; property_acronym: string }[] = await manager.query(`SELECT id, property_acronym FROM soil_properties`);
+  const propertyIdByAcronym = new Map(propertyRows.map(row => [row.property_acronym, row.id]));
+
   for (const row of rows) {
     const acronym = row.subproperty_code?.trim();
     const originalUnit = row.original_unit?.trim();
     if (!acronym || !originalUnit) continue;
 
-    const [property] = await manager.query(`SELECT id FROM soil_properties WHERE property_acronym = $1`, [acronym]);
-    if (!property) {
+    const propertyId = propertyIdByAcronym.get(acronym);
+    if (!propertyId) {
       missingAcronyms.add(acronym);
       continue;
     }
-    seen.add(`${property.id}::${originalUnit}`);
+    seen.add(`${propertyId}::${originalUnit}`);
 
     try {
       if (dryRun) {
-        // Read-only classification: does this (property, unit) pair already exist? No write
-        // happens either way.
         const [existingRow] = await manager.query(
           `SELECT 1 FROM unit_conversions WHERE property_id = $1 AND original_unit_of_measurement = $2`,
-          [property.id, originalUnit],
+          [propertyId, originalUnit],
         );
         if (existingRow) updated++;
         else inserted++;
@@ -487,7 +460,7 @@ async function syncUnitConversions(manager: EntityManager, dryRun: boolean, stor
          ON CONFLICT (property_id, original_unit_of_measurement)
          DO UPDATE SET conversion_formula = EXCLUDED.conversion_formula, type = EXCLUDED.type, metadata = EXCLUDED.metadata
          RETURNING (xmax = 0) AS inserted`,
-        [property.id, originalUnit, row.formula?.trim() || null, row.conversion_type?.trim(), JSON.stringify(metadata)],
+        [propertyId, originalUnit, row.formula?.trim() || null, row.conversion_type?.trim(), JSON.stringify(metadata)],
       );
       if (result?.inserted) inserted++;
       else updated++;
@@ -517,16 +490,32 @@ async function syncUnitConversions(manager: EntityManager, dryRun: boolean, stor
 
 export async function syncVocabularies(dryRun: boolean = false): Promise<void> {
   const dataSource = await getDataSource();
-  const manager = dataSource.manager;
+  // Advisory locks are session-scoped, so acquiring and releasing one needs a single pinned connection.
+  const queryRunner = dataSource.createQueryRunner();
+  await queryRunner.connect();
+  try {
+    const [{ locked }] = await queryRunner.query('SELECT pg_try_advisory_lock($1) AS locked', [ADVISORY_LOCK_KEY]);
+    if (!locked) {
+      log.info('Vocabulary sync already running on another connection — skipping');
+      return;
+    }
+    try {
+      await runSync(queryRunner.manager, dryRun);
+    } finally {
+      await queryRunner.query('SELECT pg_advisory_unlock($1)', [ADVISORY_LOCK_KEY]);
+    }
+  } finally {
+    await queryRunner.release();
+  }
+}
+
+async function runSync(manager: EntityManager, dryRun: boolean): Promise<void> {
   const label = dryRun ? 'would sync' : 'synced';
   const configService = new ConfigService();
 
   const hashRepo = manager.getRepository(JsonStorage);
   const storedHashesRow = await hashRepo.findOneBy({ id: CSV_HASHES_CONFIG_ID });
   const storedHashes = (storedHashesRow?.data as csvHashes | undefined) ?? {};
-  // Persisted after each table rather than once at the end: if a later table throws, the tables
-  // that already succeeded this run must not redo their work on the next one just because the
-  // run as a whole didn't finish. Never runs in dry-run mode, per its no-writes contract.
   const currentHashes: csvHashes = { ...storedHashes };
   const persistHash = async (key: keyof csvHashes, hash: string): Promise<void> => {
     currentHashes[key] = hash;
@@ -557,8 +546,6 @@ export async function syncVocabularies(dryRun: boolean = false): Promise<void> {
     await persistHash('soil_property_categories', categories.hash);
   }
 
-  // Must run after categories (looks up category_id) and before unit conversions (looks up
-  // property_id) — both by natural key, so this is the only place the ordering is enforced.
   const soilProperties = await syncSoilProperties(manager, dryRun, storedHashes.soil_properties);
   if (soilProperties.skipped) {
     log.info('Soil properties unchanged since last sync — skipped');

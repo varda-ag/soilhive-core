@@ -83,9 +83,6 @@ amended in place rather than adding a fourth migration this same change already 
   because the Docker image is built with `backend/` as its context and could not otherwise include
   them (`Dockerfile`'s `COPY docs/data-model ./docs/data-model`). The narrative docs under
   `docs/data-model/` link out to them by relative path instead of holding a duplicate copy.
-- `licenses.full_name` is set only on first insert, never overwritten on update: several existing
-  rows carry a more precise official name than the CSV's own `"<name> — <full name>"` column (e.g.
-  "Attribution 3.0 Unported" vs. the CSV's "Attribution"), and a sync must not regress that.
 - A `unit_conversions` row whose `subproperty_code` has no matching `soil_properties.property_acronym`,
   or a `soil_properties` row whose `Classification` has no matching `soil_property_categories.category_name`,
   is skipped and logged, not fatal — either can sync legitimately before its dependency has caught up,
@@ -93,12 +90,21 @@ amended in place rather than adding a fourth migration this same change already 
   conversions) within one call but each tolerates the others being incomplete.
 - Adds `csv-parse` as a dependency: the CSVs' quoted fields (license descriptions, conversion notes)
   contain embedded commas that a hand-rolled splitter would corrupt.
-- A boot against unchanged CSVs costs five hash comparisons; a boot where any changed costs a
-  handful of upsert/select statements per row of that file (licenses: ~11 rows; unit_conversions:
-  on the order of hundreds) before the server starts accepting traffic. Multiple replicas booting
-  the same image concurrently can still race past a hash check and both do a real sync for that
-  file — safe but redundant (`ON CONFLICT DO UPDATE` serializes at the DB, and the last hash write
-  wins); no coordination between them exists or is needed.
+- A boot against unchanged CSVs costs five hash comparisons; a boot where any changed costs one
+  upsert statement per row of that file (licenses: ~11 rows; unit_conversions: on the order of
+  hundreds) before the server starts accepting traffic.
+- `syncVocabularies()` acquires a non-blocking Postgres advisory lock (`pg_try_advisory_lock` on a
+  fixed key, via a `queryRunner` pinned to one connection for the lock's session-scoped lifetime)
+  before doing any work. A replica that doesn't get the lock logs that another one is already
+  syncing and returns immediately. This isn't needed for correctness — every upsert is
+  independently idempotent, so two replicas racing past the hash check and both syncing the same
+  file can't corrupt anything — it exists to stop a simultaneous rolling restart of many replicas
+  from all redoing the same couple hundred upserts and hash writes at once.
+- `syncSoilProperties` and `syncUnitConversions` each resolve a foreign key by natural key
+  (`category_id` from `Classification`, `property_id` from `subproperty_code`). Both load their
+  small, read-only reference table into an in-memory `Map` once per call rather than querying it
+  per CSV row — categories and properties don't change mid-sync, and the table is small enough to
+  hold outright, so this trades one query for what used to be one query per row.
 - `vocabulary` rows are keyed by `(category, name)`, not by any single CSV row: the same term can
   legitimately be the *n*th repeat of the same cell value across many analytical-methodology rows,
   so orphan detection for this file means "no CSV cell anywhere still produces this
@@ -150,3 +156,17 @@ amended in place rather than adding a fourth migration this same change already 
 - **Refuse to sync when any row would be orphaned** — rejected. It turns a routine, low-risk sync into
   a blocker on every run where the CSV simply hasn't caught up with every historical row yet, for a
   problem (an unwanted row lingering) that isn't actually urgent.
+- **Wrap each table's upserts in one transaction instead of auto-committing every row** — rejected.
+  Postgres aborts the whole transaction on the first statement error, not just that statement, so a
+  single malformed CSV row would roll back every row that had already succeeded before it in that
+  table's sync — the opposite of the per-row `try`/`catch` isolation this sync relies on to skip a
+  bad row and keep going. Recovering that isolation inside one transaction would need a `SAVEPOINT`
+  around every row, reintroducing roughly the per-row overhead being avoided. The advisory lock
+  above already removes the actual problem (concurrent replicas contending over the same rows)
+  batching into a transaction would have been reached for.
+- **Bulk multi-row `INSERT ... VALUES (...), (...) ON CONFLICT ... DO UPDATE`** — rejected for the
+  same error-isolation reason, and `syncSoilProperties` specifically has a row-to-row dependency (a
+  subproperty's `INSERT` needs the `id` its parent row's `INSERT` just returned), which doesn't
+  bulk without restructuring into a two-phase parents-then-children batch. Row counts here are in
+  the low hundreds across all five files, and this only runs at all on the rare boot where a CSV
+  actually changed — not enough round-trip cost to justify trading the resilience away for.

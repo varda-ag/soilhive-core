@@ -84,10 +84,6 @@ export const initApp = async (app: Application) => {
   await initPgBoss();
   await initializeSchema();
   try {
-    // The CSVs are baked into the image (see backend/Dockerfile), so a new deploy is the only
-    // thing that changes them — boot is therefore the natural trigger, same idea as the automatic
-    // refreshDaiStats hooks. Never blocks startup: a bad CSV/DB hiccup here shouldn't take the
-    // whole app down. --sync-vocabularies (utils/cli.ts) remains for an on-demand re-run.
     await syncVocabularies();
   } catch (error) {
     log.error('Vocabulary sync failed at startup', { error: error instanceof Error ? error.message : String(error) });
