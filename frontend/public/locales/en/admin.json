@@ -451,7 +451,7 @@
                 },
                 "private": {
                     "title": "Private dataset",
-                    "description": "Only data administrators can view and download the full dataset, subject to the license terms you specify"
+                    "description": "Only authorized users can view and download the full dataset, subject to the license terms you specify"
                 }
             },
             "access": {
