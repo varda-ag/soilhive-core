@@ -41,7 +41,7 @@ import { isAxisAlignedBboxPolygon } from '../../utils/geometry';
 
 export async function processExportJob(job: Job<ExportJob>): Promise<void> {
   const { id: jobId, data } = job;
-  const { created_by } = job as unknown as ExportJob;
+  const { created_by } = data;
   const { filter_id, formats, dataset_ids } = data;
 
   const entityManager = await getEntityManager();

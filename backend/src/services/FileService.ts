@@ -701,8 +701,12 @@ export default class FileService {
 
       if (!fileMetadata.geometry_detected) {
         if (mappingGeomFields.geomField) {
+          // GEOM_POSSIBLE_NAMES is a no-op for some drivers (e.g. XLSX warns "does not support
+          // open option" and ignores it), so the column still arrives as a plain string. CAST ...
+          // AS GEOMETRY parses it from WKT/WKB/GeoJSON regardless of whether the driver-level
+          // option took effect — without it, the column round-trips as text.
           ogr2ogrOpts.push('-oo', `GEOM_POSSIBLE_NAMES=${mappingGeomFields.geomField}`);
-          selectClause = `${selectClause}, "${mappingGeomFields.geomField}" AS geometry`;
+          selectClause = `${selectClause}, CAST("${mappingGeomFields.geomField}" AS GEOMETRY) AS geometry`;
           keepGeomColumn = 'NO';
         } else if (mappingGeomFields.latField && mappingGeomFields.lonField) {
           if (fileMetadata.driver === 'XLSX') {
@@ -718,7 +722,7 @@ export default class FileService {
           }
         } else if (fileMetadata.detected_fields[DetectableFields.GEOMETRY]) {
           ogr2ogrOpts.push('-oo', `GEOM_POSSIBLE_NAMES=${fileMetadata.detected_fields[DetectableFields.GEOMETRY]}`);
-          selectClause = `${selectClause}, "${fileMetadata.detected_fields[DetectableFields.GEOMETRY]}" AS geometry`;
+          selectClause = `${selectClause}, CAST("${fileMetadata.detected_fields[DetectableFields.GEOMETRY]}" AS GEOMETRY) AS geometry`;
           keepGeomColumn = 'NO';
         } else if (fileMetadata.detected_fields[DetectableFields.LATITUDE] && fileMetadata.detected_fields[DetectableFields.LONGITUDE]) {
           if (fileMetadata.driver === 'XLSX') {
