@@ -9,16 +9,16 @@ Each filter provides **global coverage** and is distributed as a **separate pack
 3. Open terminal inside SoilHive instance
 4. Run command `node dist/app.js --load-raster-filter ./<filter>.dump`
 5. Wait for the process to complete
-6. Access SoilHive admin portal to confirm filter has been enabled
+6. Access SoilHive Admin console to confirm filter has been enabled
 
 ## Turning On/Off Installed Filters
 
-Installing a filter (see above) is a one-time step that makes the filter **available** to the instance, or **active**. Whether an installed filter is actually **on** is controlled separately by a toggle in the admin portal — no CLI reload is needed to switch it on or off.
+Installing a filter (see above) is a one-time step that makes the filter **available** to the instance, or **active**. Whether an installed filter is actually **on** is controlled separately by a toggle in the Admin console — no CLI reload is needed to switch it on or off.
 
 > **Prerequisite:** the filter must already be installed. The toggle only appears for filters that have been loaded via `--load-raster-filter`.
 
 To turn on or off an installed filter:
-1. Open the SoilHive admin portal and go to the **Map-based filters** page
+1. Open the SoilHive Admin console and go to the **Map-based filters** page
 2. Scroll to the **Activate the filters** list inside the **Activate the filters** section
 3. Each filter shows its installation status (**Installed** or **Not installed**) next to a toggle switch
 4. Flip the toggle to turn on or off the filter — the change is saved immediately (the toggle is briefly disabled while saving)

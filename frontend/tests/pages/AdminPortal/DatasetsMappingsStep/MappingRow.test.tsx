@@ -1,6 +1,7 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MappingRow } from 'pages/AdminPortal/DatasetsMappingsStep/MappingRow';
-import type { ColumnMapping, DetailOptionMap } from 'hooks/useMappingsStep';
+import type { MenuOption } from 'components/UI/types';
+import type { ComponentProps } from 'react';
 
 // All SVGs are globally mocked via moduleNameMapper → svgMock.tsx.
 // svgMock passes through the className prop, and identity-obj-proxy returns
@@ -21,45 +22,17 @@ jest.mock('components/AutocompleteDropdown/AutocompleteDropdown', () => {
 // Fixtures
 // ---------------------------------------------------------------------------
 
-const EMPTY_DETAILS = {
-  samplePretreatment: null,
-  technique: null,
-  laboratoryMethod: null,
-  extractantConcentration: null,
-  extractionRatio: null,
-  extractionBase: null,
-  measurementProcedure: null,
-  limitOfDetection: null,
-};
+const conceptOptions: MenuOption[] = [{ code: 'ph', name: 'pH' }];
+const unitOptions: MenuOption[] = [{ code: 'percent', name: '%' }];
 
-const DETAIL_OPTIONS: DetailOptionMap = {
-  samplePretreatment: [],
-  technique: [],
-  laboratoryMethod: [],
-  extractantConcentration: [],
-  extractionRatio: [],
-  extractionBase: [],
-  measurementProcedure: [],
-  limitOfDetection: [],
-};
-
-function unmappedMapping(overrides?: Partial<ColumnMapping>): ColumnMapping {
+function defaultProps(overrides?: Partial<ComponentProps<typeof MappingRow>>): ComponentProps<typeof MappingRow> {
   return {
     columnName: 'Carbon_organic',
-    conceptId: null,
-    unitId: null,
-    details: { ...EMPTY_DETAILS },
-    isGeometryDetectedField: false,
-    ...overrides,
-  };
-}
-
-function defaultProps(overrides?: Partial<ColumnMapping>) {
-  return {
-    mapping: unmappedMapping(overrides),
-    conceptOptions: [{ code: 'ph', name: 'pH' }],
-    unitOptions: [{ code: 'percent', name: '%' }],
-    detailOptions: DETAIL_OPTIONS,
+    isMapped: false,
+    conceptOptions,
+    unitOptions,
+    conceptValue: null,
+    unitValue: null,
     isExpanded: false,
     isUnitEnabled: false,
     isDetailsEnabled: true,
@@ -67,7 +40,7 @@ function defaultProps(overrides?: Partial<ColumnMapping>) {
     onToggle: jest.fn(),
     onConceptChange: jest.fn(),
     onUnitChange: jest.fn(),
-    onDetailChange: jest.fn(),
+    ...overrides,
   };
 }
 
@@ -81,17 +54,22 @@ describe('MappingRow', () => {
       render(<MappingRow {...defaultProps()} />);
       expect(screen.getByText('Carbon_organic')).toBeInTheDocument();
     });
+
+    it('sets the full column name as the title attribute for a hover tooltip', () => {
+      render(<MappingRow {...defaultProps({ columnName: 'Carbon_organic_content_percent_0_30cm' })} />);
+      expect(screen.getByText('Carbon_organic_content_percent_0_30cm')).toHaveAttribute('title', 'Carbon_organic_content_percent_0_30cm');
+    });
   });
 
   describe('status icon', () => {
-    it('shows the warning icon when the row is unmapped (conceptId is null)', () => {
-      const { container } = render(<MappingRow {...defaultProps({ conceptId: null })} />);
+    it('shows the warning icon when isMapped is false', () => {
+      const { container } = render(<MappingRow {...defaultProps({ isMapped: false })} />);
       expect(container.querySelector('.WarningIcon')).toBeInTheDocument();
       expect(container.querySelector('.CheckIcon')).not.toBeInTheDocument();
     });
 
-    it('shows the check icon when the row is mapped (conceptId is set)', () => {
-      const { container } = render(<MappingRow {...defaultProps({ conceptId: 'ph' })} />);
+    it('shows the check icon when isMapped is true', () => {
+      const { container } = render(<MappingRow {...defaultProps({ isMapped: true })} />);
       expect(container.querySelector('.CheckIcon')).toBeInTheDocument();
       expect(container.querySelector('.WarningIcon')).not.toBeInTheDocument();
     });
@@ -105,27 +83,73 @@ describe('MappingRow', () => {
       expect(props.onToggle).toHaveBeenCalledWith('Carbon_organic');
     });
 
-    it('does not render the details panel when isExpanded is false', () => {
-      render(<MappingRow {...defaultProps()} />);
+    it('uses a translated "expand row" aria-label when collapsed', () => {
+      render(<MappingRow {...defaultProps({ isExpanded: false })} />);
+      expect(screen.getByRole('button', { name: 'Expand row' })).toBeInTheDocument();
+    });
+
+    it('uses a translated "collapse row" aria-label when expanded', () => {
+      render(<MappingRow {...defaultProps({ isExpanded: true })} />);
+      expect(screen.getByRole('button', { name: 'Collapse row' })).toBeInTheDocument();
+    });
+
+    it('does not render detailsContent when isExpanded is false', () => {
+      render(<MappingRow {...defaultProps({ detailsContent: <div data-testid="sh-mapping-row-details" /> })} />);
       expect(screen.queryByTestId('sh-mapping-row-details')).not.toBeInTheDocument();
     });
 
-    it('renders the details panel when isExpanded is true', () => {
-      const props = { ...defaultProps(), isExpanded: true };
-      render(<MappingRow {...props} />);
+    it('renders detailsContent when isExpanded and isDetailsEnabled are both true', () => {
+      render(<MappingRow {...defaultProps({ isExpanded: true, detailsContent: <div data-testid="sh-mapping-row-details" /> })} />);
       expect(screen.getByTestId('sh-mapping-row-details')).toBeInTheDocument();
+    });
+
+    it('does not render detailsContent when isDetailsEnabled is false even if isExpanded is true', () => {
+      render(
+        <MappingRow
+          {...defaultProps({
+            isExpanded: true,
+            isDetailsEnabled: false,
+            detailsContent: <div data-testid="sh-mapping-row-details" />,
+          })}
+        />,
+      );
+      expect(screen.queryByTestId('sh-mapping-row-details')).not.toBeInTheDocument();
     });
   });
 
   describe('unit dropdown disabled state', () => {
     it('disables the unit dropdown when isUnitEnabled is false', () => {
-      render(<MappingRow {...defaultProps()} isUnitEnabled={false} />);
+      render(<MappingRow {...defaultProps({ isUnitEnabled: false })} />);
       expect(screen.getByTestId('sh-ui-dropdown')).toHaveClass('Disabled');
     });
 
     it('enables the unit dropdown when isUnitEnabled is true', () => {
-      render(<MappingRow {...defaultProps()} isUnitEnabled={true} />);
+      render(<MappingRow {...defaultProps({ isUnitEnabled: true })} />);
       expect(screen.getByTestId('sh-ui-dropdown')).not.toHaveClass('Disabled');
+    });
+  });
+
+  describe('concept dropdown disabled state', () => {
+    it('disables the concept dropdown when isGeometryDetectedField is true', () => {
+      render(<MappingRow {...defaultProps({ isGeometryDetectedField: true })} />);
+      expect(screen.getByTestId('sh-autocomplete-dropdown')).toHaveAttribute('aria-disabled', 'true');
+    });
+
+    it('leaves the concept dropdown enabled when isGeometryDetectedField is false', () => {
+      render(<MappingRow {...defaultProps({ isGeometryDetectedField: false })} />);
+      expect(screen.getByTestId('sh-autocomplete-dropdown')).toHaveAttribute('aria-disabled', 'false');
+    });
+  });
+
+  describe('extraCell slot', () => {
+    it('does not render an extra cell by default (e.g. the default variant)', () => {
+      render(<MappingRow {...defaultProps()} />);
+      expect(screen.queryByTestId('sh-extra-cell')).not.toBeInTheDocument();
+    });
+
+    it('renders the extraCell when provided (e.g. the raster variant depth inputs)', () => {
+      render(<MappingRow {...defaultProps({ extraCell: <div data-testid="sh-extra-cell" /> })} />);
+      expect(screen.getByTestId('sh-extra-cell')).toBeInTheDocument();
     });
   });
 });

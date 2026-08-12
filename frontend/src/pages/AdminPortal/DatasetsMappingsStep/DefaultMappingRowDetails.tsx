@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { AutocompleteDropdown } from 'components/AutocompleteDropdown/AutocompleteDropdown';
 import InfoIcon from 'assets/icons/small-info-icon.svg?react';
 import type { RowDetails, DetailOptionMap } from 'hooks/useMappingsStep';
-import styles from './MappingRowDetails.module.scss';
+import styles from './DefaultMappingRowDetails.module.scss';
 
 interface Props {
   columnName: string;
@@ -11,7 +11,7 @@ interface Props {
   onDetailChange: (columnName: string, field: keyof RowDetails, value: string) => void;
 }
 
-export function MappingRowDetails({ columnName, details, detailOptions, onDetailChange }: Props) {
+export function DefaultMappingRowDetails({ columnName, details, detailOptions, onDetailChange }: Props) {
   const { t } = useTranslation('admin');
 
   const fields: { key: keyof RowDetails; label: string }[] = [

@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.2.0 (2026-08-05)
+
+## What's Changed
+* perf: running suite on deployed server by @svaccari in https://github.com/varda-ag/soilhive-core/pull/762
+* refactor: convert_raster.sh by @d-rom in https://github.com/varda-ag/soilhive-core/pull/764
+* feat(UI): sp-5506 soilhive plugin cli by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/763
+* Feature/sp 5529 email claim by @svaccari in https://github.com/varda-ag/soilhive-core/pull/761
+* feat(UI): sp-5506 add plugin cli doc by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/766
+* fix(fe): sp-5529 clarify email-unavailable warning copy by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/768
+* feat(fe): sp-5546 add open documentation link to dataset settings page by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/769
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v1.1.0...v1.2.0
+
 ## 1.1.0 (2026-08-03)
 
 ## What's Changed

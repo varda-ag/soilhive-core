@@ -14,6 +14,10 @@
   padding: 12px 8px;
 }
 
+.RowMainWithExtra {
+  grid-template-columns: 32px 24px 2fr 1fr 1fr 1.4fr;
+}
+
 // Chevron toggle button
 .Chevron {
   display: flex;
@@ -92,4 +96,16 @@
   min-width: 0;
   font-size: var(--font-size-md);
   font-weight: var(--font-weight-regular);
+}
+
+.DepthCell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.DepthInput {
+  flex: 1;
+  min-width: 0;
 }

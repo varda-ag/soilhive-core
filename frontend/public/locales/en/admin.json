@@ -307,27 +307,39 @@
             "step_description": "Match your data",
             "title": "Map fields",
             "subtitle": "Map your fields to standard concepts and units",
+            "title_raster": "Map layers",
+            "subtitle_raster": "Map your layers to standard concepts and units",
             "banner": {
                 "mapped": "Mapped",
                 "unmapped": "Unmapped",
-                "warning": "Unmapped columns won't be loaded in the platform"
+                "warning": "Unmapped columns won't be loaded in the platform",
+                "warning_raster": "Unmapped layers won’t be loaded in the platform"
             },
             "table": {
                 "detected_columns": "Detected columns",
+                "detected_layers": "Detected layers",
                 "map_to": "Map to",
-                "original_unit": "Original Unit"
+                "original_unit": "Original Unit",
+                "min_max_depth": "Min-max depth (cm)"
             },
             "row": {
                 "select_concept": "Select a concept",
                 "select_one": "Select one",
                 "unit_placeholder": "Unit",
-                "no_unit": "No unit"
+                "no_unit": "No unit",
+                "depth_from_placeholder": "From",
+                "depth_to_placeholder": "To",
+                "collapse_row": "Collapse row",
+                "expand_row": "Expand row"
             },
             "geometry_detected": "Geometry was automatically detected. You don't need to map the geometry or lat/lon fields.",
             "geometry_not_detected": "No geometry was detected. You must map the geometry field or both latitude and longitude fields to continue.",
             "geometry_conflict": "The 'geometry' field cannot be used together with 'latitude' or 'longitude'. Please remove one of these mappings to continue.",
             "depth_conflict": "The 'depth' field cannot be used together with 'min depth' or 'max depth'. Please remove one of these mappings to continue.",
             "range_depth_missing": "Both 'min depth' and 'max depth' must be mapped together. Please map the missing field or remove the other to continue.",
+            "depth_required": "Min and max depth are required for every mapped layer.",
+            "depth_must_be_numeric": "Min and max depth must be numbers.",
+            "depth_range_invalid": "Min depth must be less than max depth.",
             "importing": {
                 "title": "Mapping fields",
                 "description_1": "This operation may take a few minutes to complete.",
@@ -338,11 +350,26 @@
                 "sample_pretreatment": "Sample pretreatment",
                 "technique": "Technique",
                 "laboratory_method": "Laboratory method",
+                "laboratory_method_placeholder": "Select one method",
                 "extractant_concentration": "Extractant concentration",
                 "extraction_ratio": "Extraction ratio",
                 "extraction_base": "Extraction base",
                 "measurement_procedure": "Measurement procedure",
-                "limit_of_detection": "Limit of detection"
+                "limit_of_detection": "Limit of detection",
+                "reference_period_start": "Reference period start",
+                "reference_period_stop": "Reference period stop",
+                "reference_period_start_placeholder": "i.e. 1977",
+                "reference_period_stop_placeholder": "i.e. 2015",
+                "layer_description": "Layer description",
+                "layer_description_placeholder": "i.e. This layer is about how we discovered an ancient alien race with a really advance society that lives at 80cm deep in the vast land of Ciudad Real",
+                "additional_resources_title": "Additional resources",
+                "additional_resources_subtitle": "(e.g. prediction layer)",
+                "additional_resources_upload_caption": "Supported formats: CSV, GeoPackage, GeoJSON, Shapefile, XLSX and ZIP.",
+                "additional_resources_added_title": "Added resources",
+                "additional_resources_file_badge": "File",
+                "additional_resources_remove_aria": "Remove resource",
+                "additional_resources_invalid_file_type": "Invalid file type",
+                "additional_resources_upload_error": "Failed to upload file"
             }
         },
         "preview": {
@@ -435,7 +462,7 @@
                 "table_column_email": "Email",
                 "email_invalid": "Please enter a valid email address",
                 "email_duplicate": "This email has already been added",
-                "email_unavailable_warning": "This platform's authentication method cannot identify individual users. As a result, no one, including the emails listed below, will be granted access to the data. Contact your platform administrator if per-user access is required.",
+                "email_unavailable_warning": "This platform's authentication method cannot identify individual users. As a result, access cannot be granted to specific individuals, even if emails are listed below. Contact your platform administrator if per-user access is required.",
                 "remove_dialog": {
                     "title": "Delete a data administrator",
                     "message": "Do you really want to delete this admin?",

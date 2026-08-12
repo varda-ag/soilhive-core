@@ -45,6 +45,7 @@ export function useDatasetsSoilData() {
 
   const [soilDataFiles, setSoilDataFiles] = useState<SoilDataFile[]>([]);
   const [dataFormatErrors, setDataFormatErrors] = useState<string[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
   const existingFileIds = useRef<Set<string>>(new Set());
   // Tracks the format established by the first uploaded/loaded file.
   // undefined = no files yet; true = raster; false = vector
@@ -135,8 +136,8 @@ export function useDatasetsSoilData() {
         name: f.name,
         crs: null, // manually added by user
         inferredCrs: f.metadata?.epsg ? `EPSG:${f.metadata.epsg}` : undefined,
-        fieldNames: f.metadata?.field_names,
-        isRaster: f.metadata?.['is_raster'] as boolean | undefined,
+        fieldNames: f.metadata && !f.metadata.is_raster ? f.metadata.field_names : undefined,
+        isRaster: f.metadata?.is_raster,
         progress: 100,
       }));
     establishedIsRasterRef.current = mapped[0]?.isRaster;
@@ -193,11 +194,14 @@ export function useDatasetsSoilData() {
       ),
     );
 
-    await updateDataset({ gis_datatype: isRaster ? GISDataType.RASTER : null });
+    const updatedDataset = await updateDataset({ gis_datatype: isRaster ? GISDataType.RASTER : null });
 
     await queryClient.invalidateQueries({ queryKey: ['datasets', datasetId, 'files'] }); // if we save successfully, refetch files to make sure UI is in sync with backend
     await queryClient.invalidateQueries({ queryKey: ['datasets', datasetId, 'dataset-file-mapping'] });
-    await queryClient.invalidateQueries({ queryKey: ['datasets', datasetId] });
+    // Write the fresh gis_datatype straight into the cache the mappings step reads (['dataset', id]) so it
+    // renders the correct raster/default variant immediately on navigation instead of showing stale data
+    // until its own background refetch resolves.
+    queryClient.setQueryData(['dataset', datasetId], updatedDataset);
   }, [datasetId, soilDataFiles, createFileMapping, request, queryClient, resetChanges, isRaster, updateDataset]);
 
   const datasetName = useMemo(() => {
@@ -219,13 +223,24 @@ export function useDatasetsSoilData() {
     removeFile,
     clearAll,
     handlePrevious: () => navigate(`${ADMIN_PATHS.DATASETS}/edit/${datasetId}/general-info`),
+    isSaving,
     handleSaveAndContinueLater: async () => {
-      await handleSave();
-      navigate(ADMIN_PATHS.DATASETS);
+      setIsSaving(true);
+      try {
+        await handleSave();
+        navigate(ADMIN_PATHS.DATASETS);
+      } finally {
+        setIsSaving(false);
+      }
     },
-    handleContinue: () => {
-      handleSave();
-      navigate(`${ADMIN_PATHS.DATASETS}/edit/${datasetId}/mappings`);
+    handleContinue: async () => {
+      setIsSaving(true);
+      try {
+        await handleSave();
+        navigate(`${ADMIN_PATHS.DATASETS}/edit/${datasetId}/mappings`);
+      } finally {
+        setIsSaving(false);
+      }
     },
   };
 }

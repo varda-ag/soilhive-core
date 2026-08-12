@@ -68,13 +68,6 @@ const JOB_ERROR_MESSAGES: Record<string, JobErrorMessage> = {
     message: "The band mapping for '{file_name}' has not been configured yet.",
     actions: ["Go to the dataset's mapping step, declare what each band of '{file_name}' measures, save, then retry data loading."],
   },
-  RL_MISSING_BAND_MAPPING: {
-    message: "The mapping for '{file_name}' declares no bands.",
-    actions: [
-      "Open the mapping for '{file_name}' and map at least one band to a soil property, then retry data loading.",
-      'If this file was mapped as a table rather than a raster, re-do the mapping step for the dataset — a raster mapping is keyed by band number, not by column name.',
-    ],
-  },
   RL_INVALID_BAND: {
     message: "The band mapping for '{file_name}' refers to band {band}, which the file does not have (it has {band_count}).",
     actions: [
@@ -168,6 +161,10 @@ const JOB_ERROR_MESSAGES: Record<string, JobErrorMessage> = {
   SST_UNKNOWN_STATISTICS_TYPE: {
     message: "'{statistics_type}' is not a kind of statistics this server can compute.",
     actions: ['Start the job again with one of: {supported}.'],
+  },
+  BD_TIMEOUT: {
+    message: "Deleting '{dataset_name}' took too long and was stopped partway through.",
+    actions: ['Try deleting again; if it keeps timing out, contact support'],
   },
   // FTD_GDAL_NOT_INSTALLED: reserved for future use — GdalCLI already emits a
   // 'GDAL_NOT_INSTALLED:' prefix on ENOENT so the code is detectable, but by

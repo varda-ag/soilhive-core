@@ -20,7 +20,7 @@ This documentation is intended for:
 
 1. Sign up to the platform.
 2. Make sure you've been assigned the **Data Administrator** role. Only users with this role can load data into the platform.
-3. Sign in to the platform, navigate to your profile, and select **Admin Console**.
+3. Sign in to the platform, navigate to your profile, and select **Admin console**.
 4. Open the **Data Publication** panel.
 5. Click **Add a Dataset** in the top-right corner to begin.
 
@@ -158,11 +158,11 @@ Once you're satisfied with the preview, confirm to load the data into the SoilHi
 
 ### Publication
 
-Loading your data and publishing it are two separate things. Once the load finishes, the dataset exists in the SoilHive database but no one outside the administrative portal can see it: it does not appear in the search results, on the map, in downloads, or in any statistics. **Publishing is the step that makes a dataset live.**
+Loading your data and publishing it are two separate things. Once the load finishes, the dataset exists in the SoilHive database but no one outside the Admin console can see it: it does not appear in the search results, on the map, in downloads, or in any statistics. **Publishing is the step that makes a dataset live.**
 
 **Finding your dataset in the list**
 
-Every dataset you have created is listed in the administrative portal, with a status that tells you where it is in the process. Loaded datasets — the ones waiting to be published — are highlighted so they are easy to spot. You can search by name and filter by data type (Point, Polygonal, Raster) and by visibility (Public, Private).
+Every dataset you have created is listed in the Admin console, with a status that tells you where it is in the process. Loaded datasets — the ones waiting to be published — are highlighted so they are easy to spot. You can search by name and filter by data type (Point, Polygonal, Raster) and by visibility (Public, Private).
 
 | Status | What it means | What you can do |
 |---|---|---|
@@ -211,7 +211,7 @@ Choosing **Private** opens the *Who can access this dataset* panel, where you ad
 
 **Confirming publication**
 
-Press **Publish** to confirm. If the platform has no Terms & Conditions and Privacy Policy configured, a dialog warns you first: a dataset license covers the data, but not how users of the platform may access, use, and handle it. You can either cancel and configure those documents (see the Look & Feel section of the administrative portal) or proceed anyway.
+Press **Publish** to confirm. If the platform has no Terms & Conditions and Privacy Policy configured, a dialog warns you first: a dataset license covers the data, but not how users of the platform may access, use, and handle it. You can either cancel and configure those documents (see the Look & Feel section of the Admin console) or proceed anyway.
 
 On confirmation the platform sets the status to **Published**, records today's date as the publication date — only the first time, so re-publishing later does not overwrite the original date — saves the access list if the dataset is private, and returns you to the dataset list.
 

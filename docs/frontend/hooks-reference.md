@@ -37,7 +37,7 @@ Returns `ThemeContext`: brand colors, terms HTML, privacy HTML, initial map boun
 Returns `{ showNotification, dismissNotification }` from `NotificationsContext`. Call `showNotification` to display a toast from any component.
 
 ### `useLookAndFeel()`
-Returns `LookAndFeelContext`: logo URL, current colors, and mutations for saving changes. Only used in the admin portal.
+Returns `LookAndFeelContext`: logo URL, current colors, and mutations for saving changes. Only used in the Admin console.
 
 ---
 
@@ -94,7 +94,7 @@ Drives the download preview panel. Fetches coverage data for the selected datase
 Fetches the summary for a completed or in-progress download. Used on the Download Summary page.
 
 ### `useDatasetsPublicationList()`
-Admin-only. Fetches the full list of datasets for the admin portal table, including unpublished ones. Provides mutations for creating, updating, and deleting datasets.
+Admin-only. Fetches the full list of datasets for the Admin console table, including unpublished ones. Provides mutations for creating, updating, and deleting datasets.
 
 ### `useDatasetsSettings(datasetId)`
 Fetches and manages settings for a specific dataset (visibility, publication status, etc.).

@@ -1,0 +1,39 @@
+.MappingsStep {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  padding: 24px;
+}
+
+.TitleRow {
+  margin-bottom: 4px;
+}
+
+.Subtitle {
+  font-size: var(--font-size-sm);
+  color: var(--color-neutral-dark-500);
+  margin: 0 0 20px;
+}
+
+.Messages {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0 0 20px;
+}
+
+.Actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 24px;
+  background-color: var(--color-neutral-white);
+  box-shadow: 0 -0.15rem 0.625rem var(--color-shadow-interface);
+}
+
+.ActionsSpacer {
+  flex: 1;
+}

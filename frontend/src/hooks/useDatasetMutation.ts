@@ -37,13 +37,6 @@ export function useCreateDatasetFileMapping() {
   });
 }
 
-export function useDeleteDatasetMutation() {
-  return useApiMutation<void, { datasetId: string }>({
-    endpoint: ({ datasetId }) => `/datasets/${datasetId}`,
-    method: 'DELETE',
-  });
-}
-
 export function useCreateLicenseMutation() {
   return useApiMutation<License, { name: string; full_name?: string; url?: string }>({
     endpoint: '/licenses',

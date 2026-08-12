@@ -269,4 +269,25 @@ describe('DatasetsSettingsPage', () => {
     render(<DatasetsSettingsPage />);
     expect(screen.getByTestId('sh-ui-button-primary')).not.toBeDisabled();
   });
+
+  it('shows the documentation link with the publication anchor in the header', () => {
+    render(<DatasetsSettingsPage />);
+    const link = screen.getByTestId('sh-documentaion-link');
+    expect(link).toHaveTextContent('Open documentation');
+    expect(link).toHaveAttribute(
+      'href',
+      'https://github.com/varda-ag/soilhive-core/blob/main/docs/data-model/1-data-management-portal.md#publication',
+    );
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('rel', 'noreferrer');
+  });
+
+  it('keeps the documentation link visible and unchanged regardless of visibility and mandatory metadata state', () => {
+    const { rerender } = render(<DatasetsSettingsPage />);
+    const initialHref = screen.getByTestId('sh-documentaion-link').getAttribute('href');
+
+    (useDatasetsSettings as jest.Mock).mockReturnValue({ ...baseHookValue, visibility: 'private', hasMandatoryMetadata: false });
+    rerender(<DatasetsSettingsPage />);
+    expect(screen.getByTestId('sh-documentaion-link')).toHaveAttribute('href', initialHref);
+  });
 });

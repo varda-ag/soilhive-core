@@ -2,14 +2,15 @@ import { renderHook, act, waitFor } from '@testing-library/react';
 import { useDatasetsSoilData } from 'hooks/useDatasetsSoilData';
 import { useFileManagement } from 'hooks/useFileManagement';
 import { useApiQuery } from 'hooks/useApiQuery';
-import { useCreateDatasetFileMapping } from 'hooks/useDatasetMutation';
+import { useCreateDatasetFileMapping, useUpdateDatasetMutation } from 'hooks/useDatasetMutation';
 import useIngestionFlow from 'hooks/useIngestionFlow';
 import { useDataset } from 'hooks/useDatasets';
+import { useNavigate } from 'react-router';
 
 // --- Module mocks -----------------------------------------------------------
 
 jest.mock('react-router', () => ({
-  useNavigate: () => jest.fn(),
+  useNavigate: jest.fn(() => jest.fn()),
   useParams: () => ({ id: 'dataset-123' }),
 }));
 
@@ -45,8 +46,11 @@ jest.mock('hooks/useFileUpload', () => ({
   })),
 }));
 
+const mockInvalidateQueries = jest.fn();
+const mockSetQueryData = jest.fn();
+
 jest.mock('@tanstack/react-query', () => ({
-  useQueryClient: jest.fn(() => ({ invalidateQueries: jest.fn() })),
+  useQueryClient: jest.fn(() => ({ invalidateQueries: mockInvalidateQueries, setQueryData: mockSetQueryData })),
 }));
 
 jest.mock('../../src/api-client', () => ({
@@ -72,6 +76,8 @@ const mockResetChanges = jest.fn();
 const useFileManagementMock = useFileManagement as jest.MockedFunction<typeof useFileManagement>;
 const useApiQueryMock = useApiQuery as jest.MockedFunction<typeof useApiQuery>;
 const useCreateDatasetFileMappingMock = useCreateDatasetFileMapping as jest.MockedFunction<typeof useCreateDatasetFileMapping>;
+const useUpdateDatasetMutationMock = useUpdateDatasetMutation as jest.MockedFunction<typeof useUpdateDatasetMutation>;
+const useNavigateMock = useNavigate as jest.MockedFunction<typeof useNavigate>;
 
 function buildDefaultMocks(overrides: { deleteFileAndMapping?: jest.Mock; existingFiles?: any[] } = {}) {
   const deleteFileAndMapping = overrides.deleteFileAndMapping ?? jest.fn().mockResolvedValue(undefined);
@@ -597,6 +603,89 @@ describe('useDatasetsSoilData', () => {
       const { result } = renderHook(() => useDatasetsSoilData());
       await act(async () => result.current.handleSaveAndContinueLater());
       expect(mockResetChanges).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  // --- handleContinue / isSaving --------------------------------------------
+  // Regression coverage for the race where navigating to the mappings step
+  // before the save completed could leave it reading a stale gis_datatype
+  // and rendering the wrong (empty) mappings variant.
+
+  describe('handleContinue', () => {
+    afterEach(() => {
+      // avoid leaking the per-test navigate spy into later tests/describe blocks
+      useNavigateMock.mockImplementation(() => jest.fn());
+    });
+
+    function deferred<T = void>() {
+      let resolve!: (value: T) => void;
+      const promise = new Promise<T>(res => {
+        resolve = res;
+      });
+      return { promise, resolve };
+    }
+
+    it('awaits handleSave before navigating', async () => {
+      buildDefaultMocks();
+      const { promise: updateDatasetPromise, resolve: resolveUpdateDataset } = deferred();
+      useUpdateDatasetMutationMock.mockReturnValue({ mutateAsync: jest.fn(() => updateDatasetPromise) } as any);
+
+      const navigateSpy = jest.fn();
+      useNavigateMock.mockReturnValue(navigateSpy);
+
+      const { result } = renderHook(() => useDatasetsSoilData());
+
+      let continuePromise!: Promise<void>;
+      act(() => {
+        continuePromise = result.current.handleContinue();
+      });
+
+      // handleSave hasn't resolved yet (updateDataset is still pending) — must not navigate yet
+      expect(navigateSpy).not.toHaveBeenCalled();
+
+      await act(async () => {
+        resolveUpdateDataset();
+        await continuePromise;
+      });
+
+      expect(navigateSpy).toHaveBeenCalledWith(expect.stringContaining('/mappings'));
+    });
+
+    it('sets isSaving to true while saving and back to false once the save completes', async () => {
+      buildDefaultMocks();
+      const { promise: updateDatasetPromise, resolve: resolveUpdateDataset } = deferred();
+      useUpdateDatasetMutationMock.mockReturnValue({ mutateAsync: jest.fn(() => updateDatasetPromise) } as any);
+
+      const { result } = renderHook(() => useDatasetsSoilData());
+      expect(result.current.isSaving).toBe(false);
+
+      let continuePromise!: Promise<void>;
+      act(() => {
+        continuePromise = result.current.handleContinue();
+      });
+
+      expect(result.current.isSaving).toBe(true);
+
+      await act(async () => {
+        resolveUpdateDataset();
+        await continuePromise;
+      });
+
+      expect(result.current.isSaving).toBe(false);
+    });
+
+    it('writes the dataset returned by updateDataset directly into the ["dataset", id] cache, so the mappings step never renders stale gis_datatype while its own background refetch is in flight', async () => {
+      buildDefaultMocks();
+      const updatedDataset = { id: 'dataset-123', gis_datatype: 'raster' };
+      useUpdateDatasetMutationMock.mockReturnValue({ mutateAsync: jest.fn().mockResolvedValue(updatedDataset) } as any);
+
+      const { result } = renderHook(() => useDatasetsSoilData());
+
+      await act(async () => {
+        await result.current.handleContinue();
+      });
+
+      expect(mockSetQueryData).toHaveBeenCalledWith(['dataset', 'dataset-123'], updatedDataset);
     });
   });
 });

@@ -2,9 +2,9 @@ import { useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 
 import { useDatasets } from './useDatasets';
-import { useDeleteDatasetMutation } from './useDatasetMutation';
 import { useIngestionStatus } from './useIngestionStatus';
 import { useDatasetErrors } from './useDatasetErrors';
+import { useCreateJobMutation } from './useJobsApi';
 import { queryClient } from '../App';
 import { ADMIN_PATHS } from '../configuration/admin';
 import type { DatasetsPublicationListItem } from 'types/datasetsPublication';
@@ -48,7 +48,7 @@ export function useDatasetsPublicationList(): DatasetsPublicationListType {
   const [isErrorModalOpened, setIsErrorModalOpened] = useState<boolean>(false);
   const [selectedErrorDataset, setSelectedErrorDataset] = useState<DatasetsPublicationListItem | null>(null);
 
-  const { mutateAsync: deleteDataset, isPending: isDeleting } = useDeleteDatasetMutation();
+  const { mutateAsync: createJob, isPending: isDeleting } = useCreateJobMutation();
   const { clearDatasetStatus } = useIngestionStatus();
 
   const onEdit = useCallback(
@@ -82,10 +82,14 @@ export function useDatasetsPublicationList(): DatasetsPublicationListType {
     if (!selectedDataset) {
       return;
     }
-    await Promise.all([deleteDataset({ datasetId: selectedDataset.id }), clearDatasetStatus(selectedDataset.id)]);
+    const deletedId = selectedDataset.id;
+    await Promise.all([createJob({ type: 'bulk-delete', dataset_id: deletedId }), clearDatasetStatus(deletedId)]);
+    // Deletion runs as an async job — createJob only resolves once it's enqueued, not once
+    // processBulkDeletion has actually removed the dataset. Hide it from the cached list right
+    // away instead of waiting on the next poll (useDatasets refetches every 2s) to catch up.
+    queryClient.setQueryData<Dataset[]>(['datasets'], old => old?.filter(dataset => dataset.id !== deletedId));
     onDeleteModalClose();
-    await queryClient.invalidateQueries({ queryKey: ['datasets'] });
-  }, [deleteDataset, onDeleteModalClose, selectedDataset, clearDatasetStatus]);
+  }, [createJob, onDeleteModalClose, selectedDataset, clearDatasetStatus]);
 
   const onPublish = useCallback(
     (id: string) => {

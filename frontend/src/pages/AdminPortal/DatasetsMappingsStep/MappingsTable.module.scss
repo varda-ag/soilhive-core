@@ -16,6 +16,10 @@
   border-bottom: 1px solid var(--color-neutral-dark-100);
 }
 
+.HeaderWithExtra {
+  grid-template-columns: 68px 2fr 1fr 1fr 1.4fr;
+}
+
 .HeaderSpacer {
   // occupies the chevron + status icon space
 }

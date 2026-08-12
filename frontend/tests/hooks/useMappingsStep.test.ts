@@ -166,6 +166,26 @@ describe('useMappingsStep', () => {
     });
   });
 
+  describe('datasetGisDataType', () => {
+    it('returns the dataset gis_datatype', () => {
+      (useDataset as jest.Mock).mockReturnValue({ data: { name: 'Mock-dataset', gis_datatype: 'raster' } });
+      const { result } = renderHook(() => useMappingsStep('1'));
+      expect(result.current.datasetGisDataType).toBe('raster');
+    });
+
+    it('is null when the dataset has no gis_datatype', () => {
+      (useDataset as jest.Mock).mockReturnValue({ data: { name: 'Mock-dataset' } });
+      const { result } = renderHook(() => useMappingsStep('1'));
+      expect(result.current.datasetGisDataType).toBeNull();
+    });
+
+    it('is null when the dataset has not loaded yet', () => {
+      (useDataset as jest.Mock).mockReturnValue({ data: undefined });
+      const { result } = renderHook(() => useMappingsStep('1'));
+      expect(result.current.datasetGisDataType).toBeNull();
+    });
+  });
+
   describe('navigation', () => {
     it('handlePrevious navigates to the soil-data step', () => {
       const { result } = renderHook(() => useMappingsStep('42'));
@@ -563,6 +583,30 @@ describe('useMappingsStep', () => {
     });
   });
 
+  describe('isSaveEnabled', () => {
+    it('is false while files are still loading', () => {
+      mockUseApiQuery.mockImplementation(({ endpoint }: { endpoint: string }) => {
+        if (endpoint.includes('/files')) return { data: undefined, isLoading: true };
+        if (endpoint.includes('dataset-file-mapping')) return { data: defaultDatasetFileMappings, isLoading: false };
+        return { data: undefined, isLoading: false };
+      });
+      const { result } = renderHook(() => useMappingsStep('1'));
+      expect(result.current.isSaveEnabled).toBe(false);
+    });
+
+    it('is true once loading finishes and geometry/depth conditions are satisfied', () => {
+      setupWithColumns(['col1'], undefined, true);
+      const { result } = renderHook(() => useMappingsStep('1'));
+      expect(result.current.isSaveEnabled).toBe(true);
+    });
+
+    it('is false when geometry is missing even after loading finishes', () => {
+      setupWithColumns(['col1'], undefined, false);
+      const { result } = renderHook(() => useMappingsStep('1'));
+      expect(result.current.isSaveEnabled).toBe(false);
+    });
+  });
+
   describe('depthConflictMessage', () => {
     it('is null when only depth is mapped', () => {
       setupWithColumns(['d', 'other'], undefined, true);
@@ -738,7 +782,7 @@ describe('useMappingsStep', () => {
       (useJobsQueries as jest.Mock).mockImplementation((ids: string[]) => ids.map(id => ({ data: { id, status: 'completed' } })));
     });
 
-    it('navigates to preview and keeps showLoadingPanel false when isRaster is false', async () => {
+    it('navigates to preview and keeps showLoadingPanel false when dataset gis_datatype is not raster', async () => {
       const { result } = renderHook(() => useMappingsStep('42'));
       await act(async () => {
         await result.current.handleContinue();
@@ -747,12 +791,8 @@ describe('useMappingsStep', () => {
       expect(mockNavigate).toHaveBeenCalledWith('/admin/datasets/edit/42/preview');
     });
 
-    it('sets showLoadingPanel to true and does not navigate when isRaster is true', async () => {
-      (useIngestionFlow as jest.Mock).mockReturnValue({
-        markAsChanged: mockMarkAsChanged,
-        resetChanges: mockResetChanges,
-        isRaster: true,
-      });
+    it('sets showLoadingPanel to true and does not navigate when dataset gis_datatype is raster', async () => {
+      (useDataset as jest.Mock).mockReturnValue({ data: { name: 'Mock-dataset', gis_datatype: 'raster' } });
       const { result } = renderHook(() => useMappingsStep('42'));
       await act(async () => {
         await result.current.handleContinue();
