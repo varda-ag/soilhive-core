@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.2.1 (2026-08-12)
+
+## What's Changed
+* chore(hotfix/v1.2.1): release 1.2.1 by @release-please-varda[bot] in https://github.com/varda-ag/soilhive-core/pull/780
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v1.2.0...v1.2.1
+
 ## 1.2.0 (2026-08-05)
 
 ## What's Changed

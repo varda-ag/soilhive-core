@@ -2,7 +2,7 @@
   "name": "soilhive-project",
   "private": true,
   "license": "MIT",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "",
   "engines": {
     "node": ">=24.0.0"
