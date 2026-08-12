@@ -87,7 +87,9 @@ export function DatasetsSettingsPage() {
           <h2 className={styles.PageTitle}>{t('datasets.settings.title')}</h2>
           <div className={styles.Separator} />
           <span className={styles.DatasetName}>{id}</span>
-          <DocumentationLink href={`${INGESTION_DOCS_URL}#publication`} />
+          <div className={styles.HeaderDocumentationLink}>
+            <DocumentationLink href={`${INGESTION_DOCS_URL}#publication`} />
+          </div>
         </div>
 
         <hr className={styles.Divider} />

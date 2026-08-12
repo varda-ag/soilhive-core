@@ -59,10 +59,8 @@ export function useDatasetsSettings(datasetId: string | undefined) {
   const requiredTextFields: (string | null | undefined)[] = [
     dataset?.name,
     dataset?.full_name,
-    dataset?.version,
     dataset?.author,
     dataset?.description,
-    dataset?.citation,
     dataset?.gis_datatype,
     dataset?.reference_period_start,
     dataset?.reference_period_stop,
@@ -74,7 +72,10 @@ export function useDatasetsSettings(datasetId: string | undefined) {
 
   const soilDepth = dataset?.soil_depth as { min?: number; max?: number } | null | undefined;
   const hasSoilDepth = soilDepth?.min != null && soilDepth?.max != null;
-  const hasLicenses = Array.isArray(dataset?.licenses) && dataset.licenses.length > 0;
+  // `dataset.licenses` can come back from the API as a placeholder array like `[null]` (a slot
+  // reserved for a license that was never set) rather than `[]`, so a plain length check isn't
+  // enough — at least one entry must actually resolve to a license id.
+  const hasLicenses = Array.isArray(dataset?.licenses) && dataset.licenses.some(licenseId => !!licenseId);
 
   const hasMandatoryMetadata =
     !!dataset &&
