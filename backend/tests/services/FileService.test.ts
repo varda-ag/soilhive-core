@@ -645,6 +645,36 @@ describe('FileService', () => {
       expect(tableColumns.map(c => c.column_name)).toContain('geometry');
     });
 
+    it('parses a WKT text column into real geometry via CAST when mapped explicitly (XLSX)', async () => {
+      const fileEntity = await fileService.createFile(requestData, {
+        name: 'excel_geom.xlsx',
+        file_path: 'excel_geom.xlsx',
+      });
+      expect((fileEntity.metadata as VectorFileMetadata).geometry_detected).toBe(false);
+
+      const dataset = await addDataset('test_xlsx_wkt_mapping', [0, 0, 60, 60]);
+      const cat = await addCategory();
+      const prop = await addSoilProperty('pH', cat.id);
+      const dataMapping = await addDataMapping({ geometry: 'geometry', ph_h20: { property_id: prop.slug } });
+      const dfm = await addDatasetFileMapping(dataset.id, dataMapping.id);
+      dfm.file_id = fileEntity.id;
+      await dfm.save();
+
+      await fileService.fileToDB(requestData, fileEntity.slug);
+
+      const dataSource = await getDataSource();
+      const rows = await dataSource.query(
+        `SELECT ST_GeometryType(geometry) AS geom_type, ST_X(geometry) AS x, ST_Y(geometry) AS y
+         FROM "${process.env.POSTGRES_SCHEMA}"."${getRawTableName(fileEntity.id)}" WHERE geometry IS NOT NULL LIMIT 1`,
+      );
+      expect(rows.length).toBeGreaterThan(0);
+      expect(rows[0].geom_type).toBe('ST_Point');
+      expect(parseFloat(rows[0].x)).toBeGreaterThanOrEqual(39.5);
+      expect(parseFloat(rows[0].x)).toBeLessThanOrEqual(39.6);
+      expect(parseFloat(rows[0].y)).toBeGreaterThanOrEqual(-2.68);
+      expect(parseFloat(rows[0].y)).toBeLessThanOrEqual(-2.66);
+    });
+
     it('auto-detected WKT column takes precedence over auto-detected lat/lon fields', async () => {
       const fileEntity = await fileService.createFile(requestData, {
         name: 'test_geom_override.csv',
