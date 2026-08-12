@@ -604,6 +604,7 @@ export const addRasterData = async (
       reference_period_start?: string | null;
       reference_period_stop?: string | null;
       laboratoryMethod?: string | null;
+      isCategorical?: boolean;
     };
     visibility?: 'public' | 'private';
     dataset_status?: IngestionStatus;
@@ -660,6 +661,7 @@ export const addRasterData = async (
     referencePeriodStart: options?.layerFields?.reference_period_start ?? null,
     referencePeriodStop: options?.layerFields?.reference_period_stop ?? null,
     procedureSlug,
+    isCategorical: options?.layerFields?.isCategorical ?? false,
   });
 
   if (options?.visibility) {

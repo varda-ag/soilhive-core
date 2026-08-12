@@ -1,6 +1,11 @@
-# ADR 0024: Raster normalization happens inside the loader; `convert_raster.sh` is removed
+# ADR 0025: Raster normalization happens inside the loader; `convert_raster.sh` is removed
 
 **Status:** Accepted — supersedes ADR 0004 (`ingest-raster-requires-pre-converted-cog`)
+
+> **Amended by ADR 0026:** the "optional warp to EPSG:4326" described in the Decision below was
+> removed — rasters are now normalized (COG, unit scaling) without reprojection and kept in their
+> native CRS. Everything else in this ADR (moving conversion into `RasterIngestService`, deleting
+> `convert_raster.sh`) is still current.
 
 ## Context
 

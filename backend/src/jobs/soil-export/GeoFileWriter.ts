@@ -9,12 +9,16 @@ import { GdalCLI } from '../../utils/GdalCLI';
 export class GeoFileWriter {
   private outputDir: string = '';
   private fileFormat: VectorFileFormat;
+  private targetCrs: number | undefined = undefined;
   private createdLayers = new Set<string>();
   private batchBuffer = new Map<string, ExportRecord[]>();
   private currentPropertyAcronym: string | null = null;
 
-  constructor(fileFormat: VectorFileFormat) {
+  constructor(fileFormat: VectorFileFormat, targetCrs?: number) {
     this.fileFormat = fileFormat;
+    if (targetCrs) {
+      this.targetCrs = targetCrs;
+    }
   }
 
   async openFile(outputDir: string): Promise<void> {
@@ -46,7 +50,7 @@ export class GeoFileWriter {
       fs.writeFileSync(batchPath, JSON.stringify(featureCollection));
 
       try {
-        await GdalCLI.ogr2ogr(this.buildOgr2ogrArgs(propertyAcronym, batchPath));
+        await GdalCLI.ogr2ogr(this.buildOgr2ogrArgs(propertyAcronym, batchPath, this.targetCrs));
       } finally {
         fs.unlinkSync(batchPath);
       }
@@ -80,7 +84,7 @@ export class GeoFileWriter {
     return props;
   }
 
-  private buildOgr2ogrArgs(propertyAcronym: string, batchPath: string): string[] {
+  private buildOgr2ogrArgs(propertyAcronym: string, batchPath: string, target_crs?: number): string[] {
     const isExistingLayer = this.createdLayers.has(propertyAcronym);
     const isExistingFile = this.isSingleFileFormat() && this.createdLayers.size > 0;
     const outputPath = this.getOutputPath(propertyAcronym);
@@ -103,7 +107,10 @@ export class GeoFileWriter {
 
     args.push(outputPath, batchPath, '-nln', propertyAcronym);
 
-    if (!this.isTabularFormat() && !isExistingLayer) {
+    if (target_crs) {
+      args.push('-s_srs', 'EPSG:4326');
+      args.push('-t_srs', `EPSG:${target_crs}`);
+    } else if (!this.isTabularFormat() && !isExistingLayer) {
       args.push('-a_srs', 'EPSG:4326');
     }
 

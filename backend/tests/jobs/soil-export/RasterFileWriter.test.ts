@@ -19,6 +19,7 @@ function makeLayer(overrides: Partial<FilteredRasterLayer> = {}): FilteredRaster
     dataset_name: 'SoilGrids 250m',
     path: 'uploads/raster/SoilGrids 250m/bdod_5-15cm_mean.tif',
     band: 1,
+    epsg: 4326,
     min_depth: 5,
     max_depth: 15,
     reference_period_start: null,
@@ -26,6 +27,7 @@ function makeLayer(overrides: Partial<FilteredRasterLayer> = {}): FilteredRaster
     soil_property_name: 'Bulk density',
     standard_unit: null,
     laboratory_method: null,
+    is_categorical: false,
     ...overrides,
   };
 }
@@ -137,6 +139,50 @@ describe('RasterFileWriter', () => {
       expect(minY).toBeGreaterThanOrEqual(-33.79 - 0.01);
       expect(maxY).toBeLessThanOrEqual(-33.74 + 0.01);
     });
+
+    it('never warps when no target CRS is requested', async () => {
+      const warp = jest.spyOn(GdalCLI, 'warp');
+      const writer = new RasterFileWriter(RasterFileFormat.TIFF, TEST_OUTPUT_DIR);
+      await writer.writeLayer(makeLayer(), MASK_TIFF);
+
+      expect(warp).not.toHaveBeenCalled();
+    });
+
+    it('warps to the requested target CRS using nearest-neighbour for a categorical layer', async () => {
+      const warp = jest.spyOn(GdalCLI, 'warp');
+      const writer = new RasterFileWriter(RasterFileFormat.TIFF, TEST_OUTPUT_DIR);
+      await writer.writeLayer(makeLayer({ is_categorical: true }), MASK_TIFF, 3857);
+
+      expect(warp).toHaveBeenCalledTimes(1);
+      const args = warp.mock.calls[0]![2];
+      expect(args).toContain(`EPSG:3857`);
+      expect(args[args.indexOf('-r') + 1]).toBe('near');
+    });
+
+    it('warps to the requested target CRS using bilinear for a continuous layer', async () => {
+      const warp = jest.spyOn(GdalCLI, 'warp');
+      const writer = new RasterFileWriter(RasterFileFormat.TIFF, TEST_OUTPUT_DIR);
+      await writer.writeLayer(makeLayer({ is_categorical: false }), MASK_TIFF, 3857);
+
+      const args = warp.mock.calls[0]![2];
+      expect(args[args.indexOf('-r') + 1]).toBe('bilinear');
+    });
+
+    it('removes the intermediate file once the warp to a target CRS completes', async () => {
+      const writer = new RasterFileWriter(RasterFileFormat.TIFF, TEST_OUTPUT_DIR);
+      await writer.writeLayer(makeLayer(), MASK_TIFF, 3857);
+
+      expect(outputFiles().some(f => f.includes('.tmp.'))).toBe(false);
+    });
+
+    it('removes the intermediate file even when the warp fails', async () => {
+      jest.spyOn(GdalCLI, 'warp').mockRejectedValueOnce(new Error('warp failed'));
+      const writer = new RasterFileWriter(RasterFileFormat.TIFF, TEST_OUTPUT_DIR);
+
+      await expect(writer.writeLayer(makeLayer(), MASK_TIFF, 3857)).rejects.toThrow('warp failed');
+
+      expect(outputFiles().some(f => f.includes('.tmp.'))).toBe(false);
+    });
   });
 
   describe('cropToAoiBbox', () => {
@@ -206,20 +252,76 @@ describe('RasterFileWriter', () => {
       expect(info.bands?.length).toBe(1);
       expect(info.bands?.[0]?.type).toBe('Float32');
     });
+
+    it('never warps when no target CRS is requested', async () => {
+      const warp = jest.spyOn(GdalCLI, 'warp');
+      const writer = new RasterFileWriter(RasterFileFormat.TIFF, TEST_OUTPUT_DIR);
+      await writer.cropToAoiBbox(makeLayer(), bboxAoi);
+
+      expect(warp).not.toHaveBeenCalled();
+    });
+
+    it('crops a non-4326 source to the AOI without inverting the north/south bounds', async () => {
+      // Same real-world area as bdod_5-15cm_mean.tif, reprojected to EPSG:3857 — bboxAoi above
+      // fits inside both, so this isolates the CRS handling rather than the crop math itself.
+      const EPSG3857_RASTER = path.join(__dirname, '../../assets/raster/epsg3857_2b_250m.tif');
+      jest.spyOn(FileService, 'getMainFilePath').mockResolvedValue({ mainFilePath: EPSG3857_RASTER, tempZipExtractPath: null });
+      const writer = new RasterFileWriter(RasterFileFormat.TIFF, TEST_OUTPUT_DIR);
+
+      await writer.cropToAoiBbox(makeLayer({ epsg: 3857 }), bboxAoi);
+
+      const tif = outputFiles().find(f => f.endsWith('.tif'));
+      if (!tif) throw new Error('No .tif output file produced');
+
+      const info = await GdalCLI.gdalinfo(path.join(TEST_OUTPUT_DIR, tif));
+      const gt = info.geoTransform!;
+      const [w, h] = info.size!;
+      const nativeMinX = gt[0]!;
+      const nativeMaxY = gt[3]!;
+      const nativeMaxX = nativeMinX + gt[1]! * w!;
+      const nativeMinY = nativeMaxY + gt[5]! * h!;
+
+      // A swapped uly/lry would either make GDAL compute a negative window (and fail outright,
+      // never reaching this assertion) or land the output far from the requested AOI.
+      expect(nativeMinX).toBeLessThan(nativeMaxX);
+      expect(nativeMinY).toBeLessThan(nativeMaxY);
+
+      const corners = await GdalCLI.transformPoints('EPSG:3857', [
+        [nativeMinX, nativeMinY],
+        [nativeMaxX, nativeMaxY],
+      ]);
+      const [lonMin, latMin] = corners[0]!;
+      const [lonMax, latMax] = corners[1]!;
+
+      const tolerance = 0.05;
+      expect(lonMin).toBeGreaterThanOrEqual(-80.9 - tolerance);
+      expect(lonMax).toBeLessThanOrEqual(-80.7 + tolerance);
+      expect(latMin).toBeGreaterThanOrEqual(-33.9 - tolerance);
+      expect(latMax).toBeLessThanOrEqual(-33.7 + tolerance);
+    });
+
+    it('removes the intermediate file even when the warp to a target CRS fails', async () => {
+      jest.spyOn(GdalCLI, 'warp').mockRejectedValueOnce(new Error('warp failed'));
+      const writer = new RasterFileWriter(RasterFileFormat.TIFF, TEST_OUTPUT_DIR);
+
+      await expect(writer.cropToAoiBbox(makeLayer(), bboxAoi, 3857)).rejects.toThrow('warp failed');
+
+      expect(outputFiles().some(f => f.includes('.tmp.'))).toBe(false);
+    });
   });
 
   describe('layer naming', () => {
-    it('builds filename from sanitized dataset and property names', async () => {
+    it('builds filename from sanitized dataset and property names and layer EPSG (default 4326)', async () => {
       const writer = new RasterFileWriter(RasterFileFormat.TIFF, TEST_OUTPUT_DIR);
       // sanitizeField: toLowerCase → replace '-' with '_' → strip non-[a-z0-9_]
       await writer.writeLayer(
         makeLayer({ dataset_name: 'My Dataset', soil_property_name: 'pH', min_depth: null, max_depth: null }),
         MASK_TIFF,
       );
-      expect(outputFiles()).toContain('mydataset_ph.tif');
+      expect(outputFiles()).toContain('mydataset_ph_4326.tif');
     });
 
-    it('appends laboratroy method and unit info if available', async () => {
+    it('appends laboratroy method, unit info and layer EPSG if available', async () => {
       const writer = new RasterFileWriter(RasterFileFormat.TIFF, TEST_OUTPUT_DIR);
       await writer.writeLayer(
         makeLayer({
@@ -229,11 +331,12 @@ describe('RasterFileWriter', () => {
           standard_unit: 'pH*10',
           min_depth: null,
           max_depth: null,
+          epsg: 3857,
         }),
         MASK_TIFF,
       );
       // sanitizeField: toLowerCase → replace '-' with '_' → strip non-[a-z0-9_]
-      expect(outputFiles()).toContain('mydataset_ph_h2o_ph10.tif');
+      expect(outputFiles()).toContain('mydataset_ph_h2o_ph10_3857.tif');
     });
 
     it('appends depth range when both min and max depth are set', async () => {

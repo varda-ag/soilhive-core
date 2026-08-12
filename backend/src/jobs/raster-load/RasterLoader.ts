@@ -97,6 +97,7 @@ export async function processRasterLoad(job: Job<RasterLoadJob>): Promise<void> 
         soilPropertySlug: bandMapping.soilPropertySlug,
         minDepth: bandMapping.minDepth,
         maxDepth: bandMapping.maxDepth,
+        isCategorical: bandMapping.isCategorical,
         referencePeriodStart: bandMapping.referencePeriodStart,
         referencePeriodStop: bandMapping.referencePeriodStop,
         procedureSlug: bandMapping.procedureSlug,

@@ -38,11 +38,12 @@ import { getExportBatchSize } from '../../utils/utils';
 import { getRasterMask } from '../../data-layer/FilteringMasks';
 import { hasRasterFilters } from '../../data-layer/SoilDataStorage';
 import { isAxisAlignedBboxPolygon } from '../../utils/geometry';
+import { FilteredRasterLayer } from 'src/interfaces/DatasetFilter';
 
 export async function processExportJob(job: Job<ExportJob>): Promise<void> {
   const { id: jobId, data } = job;
   const { created_by } = job as unknown as ExportJob;
-  const { filter_id, formats, dataset_ids } = data;
+  const { filter_id, formats, dataset_ids, target_crs } = data;
 
   const entityManager = await getEntityManager();
   const entitlementService = new EntitlementService();
@@ -99,11 +100,11 @@ export async function processExportJob(job: Job<ExportJob>): Promise<void> {
     const downloadPromises: Promise<Partial<ExportOutputs>>[] = [];
 
     if (vectorRequested && vectorFormat) {
-      downloadPromises.push(exportVectorData(jobId, requestData, vectorData, vectorFormat, tempDir));
+      downloadPromises.push(exportVectorData(jobId, requestData, vectorData, vectorFormat, tempDir, target_crs));
     }
 
     if (rasterRequested && rasterFormat) {
-      downloadPromises.push(exportRasterData(jobId, requestData, rasterData, rasterFormat, tempDir));
+      downloadPromises.push(exportRasterData(jobId, requestData, rasterData, rasterFormat, tempDir, target_crs));
     }
 
     const results = await Promise.all(downloadPromises);
@@ -153,10 +154,11 @@ async function exportVectorData(
   data: any,
   fileFormat: VectorFileFormat,
   tempDir: string,
+  targetCrs?: number,
 ): Promise<Partial<ExportOutputs>> {
   if (!data.dataset_ids?.length) return { total_records_processed: 0 };
 
-  const writer = new GeoFileWriter(fileFormat);
+  const writer = new GeoFileWriter(fileFormat, targetCrs);
 
   let cursor: string | undefined = data.current_cursor ?? undefined;
   let totalRecordsProcessed = data.total_records_processed ?? 0;
@@ -215,6 +217,7 @@ async function exportRasterData(
   data: any,
   fileFormat: RasterFileFormat,
   tempDir: string,
+  targetCrs?: number,
 ): Promise<Partial<ExportOutputs>> {
   if (!data.dataset_ids?.length) return { total_layers_processed: 0 };
 
@@ -225,45 +228,53 @@ async function exportRasterData(
   if (!layers.length) return { total_layers_processed: 0 };
 
   const useBboxFastPath = isAxisAlignedBboxPolygon(aoi) && !hasRasterFilters(filter.parameters);
-  const rasterMaskFile = useBboxFastPath ? null : await getRasterMask(requestData.entityManager, filter, 'file');
-
-  if (!useBboxFastPath && !rasterMaskFile) return { total_layers_processed: 0 };
-
-  const writer = new RasterFileWriter(fileFormat, tempDir);
+  const layersByEpsg = new Map<number, FilteredRasterLayer[]>();
+  for (const layer of layers) {
+    const epsg = layer.epsg ?? 4326;
+    const group = layersByEpsg.get(epsg) ?? [];
+    group.push(layer);
+    layersByEpsg.set(epsg, group);
+  }
   let totalLayersProcessed = 0;
 
-  try {
-    for (const layer of layers) {
-      if (await isJobCancelled(jobId)) break;
+  for (const [epsg, group] of layersByEpsg) {
+    const rasterMaskFile = useBboxFastPath ? null : await getRasterMask(requestData.entityManager, filter, 'file', undefined, epsg);
+    if (!useBboxFastPath && !rasterMaskFile) return { total_layers_processed: 0 };
+    const writer = new RasterFileWriter(fileFormat, tempDir);
 
-      if (useBboxFastPath) {
-        await writer.cropToAoiBbox(layer, aoi!);
-      } else {
-        await writer.writeLayer(layer, rasterMaskFile!);
+    try {
+      for (const layer of group) {
+        if (await isJobCancelled(jobId)) break;
+
+        if (useBboxFastPath) {
+          await writer.cropToAoiBbox(layer, aoi!, targetCrs);
+        } else {
+          await writer.writeLayer(layer, rasterMaskFile!, targetCrs);
+        }
+        totalLayersProcessed++;
+
+        const stored_data = await getJobData(jobId);
+        const progress_percentage = computeCombinedProgress(
+          stored_data.total_records_processed ?? 0,
+          stored_data.total_records_estimate,
+          totalLayersProcessed,
+          stored_data.total_layers_estimate,
+          stored_data.aoi_area_km2,
+        );
+        const progress_description_vector =
+          (stored_data.total_records_processed ?? 0) > 0 ? `${stored_data.total_records_processed} records` : null;
+        const progress_description_raster = totalLayersProcessed > 0 ? `${totalLayersProcessed} raster layers` : null;
+
+        await updateJobState(jobId, {
+          ...data,
+          total_layers_processed: totalLayersProcessed,
+          progress_percentage,
+          progress_description: `Processed ${[progress_description_vector, progress_description_raster].filter(e => e !== null).join(' and ')}...`,
+        });
       }
-      totalLayersProcessed++;
-
-      const stored_data = await getJobData(jobId);
-      const progress_percentage = computeCombinedProgress(
-        stored_data.total_records_processed ?? 0,
-        stored_data.total_records_estimate,
-        totalLayersProcessed,
-        stored_data.total_layers_estimate,
-        stored_data.aoi_area_km2,
-      );
-      const progress_description_vector =
-        (stored_data.total_records_processed ?? 0) > 0 ? `${stored_data.total_records_processed} records` : null;
-      const progress_description_raster = totalLayersProcessed > 0 ? `${totalLayersProcessed} raster layers` : null;
-
-      await updateJobState(jobId, {
-        ...data,
-        total_layers_processed: totalLayersProcessed,
-        progress_percentage,
-        progress_description: `Processed ${[progress_description_vector, progress_description_raster].filter(e => e !== null).join(' and ')}...`,
-      });
+    } finally {
+      if (rasterMaskFile) fs.unlinkSync(rasterMaskFile);
     }
-  } finally {
-    if (rasterMaskFile) fs.unlinkSync(rasterMaskFile);
   }
 
   return { total_layers_processed: totalLayersProcessed };

@@ -100,8 +100,34 @@ export class GdalCLI {
     await GdalCLI.run('gdal_edit.py', [...args, filePath]);
   }
 
-  private static async run(cmd: string, args: string[], onProgress?: GdalProgressCallback): Promise<string> {
+  /**
+   * Transforms points from `srcSrs` to `dstSrs` (each an EPSG code like `EPSG:3857`, or a WKT
+   * string as returned by gdalinfo's `coordinateSystem.wkt`) in one process rather than one per
+   * point — the caller batches everything it needs transformed into a single call. `dstSrs`
+   * defaults to EPSG:4326, the CRS footprints/bboxes are always stored in.
+   */
+  static async transformPoints(srcSrs: string, points: [number, number][], dstSrs: string = 'EPSG:4326'): Promise<[number, number][]> {
+    if (points.length === 0) return [];
+    const stdin = points.map(([x, y]) => `${x} ${y}`).join('\n') + '\n';
+    const stdout = await GdalCLI.run('gdaltransform', ['-s_srs', srcSrs, '-t_srs', dstSrs], undefined, stdin);
+    const lines = stdout
+      .trim()
+      .split('\n')
+      .filter(line => line.trim().length > 0);
+    if (lines.length !== points.length) {
+      throw new Error(`gdaltransform returned ${lines.length} point(s) for ${points.length} input(s)`);
+    }
+    return lines.map(line => {
+      const [x, y] = line.trim().split(/\s+/).map(Number);
+      return [x!, y!];
+    });
+  }
+
+  private static async run(cmd: string, args: string[], onProgress?: GdalProgressCallback, stdin?: string): Promise<string> {
     const proc = spawn(cmd, args);
+    if (stdin !== undefined) {
+      proc.stdin.end(stdin);
+    }
     let stdout = '';
     let stderr = '';
     proc.stderr.on('data', chunk => {

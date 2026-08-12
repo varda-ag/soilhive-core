@@ -32,6 +32,7 @@ export interface IngestRasterOptions {
   /** Required keys: a caller must state the depth, and null is a legitimate answer. */
   minDepth: number | null;
   maxDepth: number | null;
+  isCategorical: boolean;
   referencePeriodStart?: string | null;
   referencePeriodStop?: string | null;
   procedureSlug?: string | null;
@@ -43,7 +44,6 @@ export interface IngestRasterOptions {
 /** What a file fails to satisfy, and therefore what the conversion has to fix. */
 interface FormatDeviations {
   notCog: boolean;
-  wrongCrs: number | undefined;
   /** One factor per band of the file, in band order; 1 leaves a band untouched. */
   unitFactors: number[] | null;
 }
@@ -98,7 +98,7 @@ function parseConversionFactor(formula: string): number | null {
 }
 
 /**
- * Checks the file against the format a raster layer requires — Cloud Optimized GeoTIFF, EPSG:4326,
+ * Checks the file against the format a raster layer requires — Cloud Optimized GeoTIFF
  * and pixels already in the soil property's standard unit — and normalizes it with
  * convertRaster function when it deviates, repointing the file record at the converted output.
  *
@@ -127,8 +127,6 @@ export async function checkFileFormat(opts: RasterFormatCheckOptions): Promise<R
       const bandInfo = info.bands?.[band - 1];
       return (bandInfo?.block?.[0] ?? 0) >= 256 && (bandInfo?.block?.[1] ?? 0) >= 256 && (bandInfo?.overviews?.length ?? 0) > 0;
     });
-
-  const epsg = GdalCLI.extractEpsgFromWkt(info.coordinateSystem?.wkt);
 
   // One factor per band of the file, in band order. Bands the caller did not mention keep 1 and
   // pass through untouched — the factor list must be complete because a partial one would be
@@ -160,10 +158,9 @@ export async function checkFileFormat(opts: RasterFormatCheckOptions): Promise<R
 
   const deviations: FormatDeviations = {
     notCog: !isCog,
-    wrongCrs: epsg !== 4326 ? epsg : undefined,
     unitFactors: anyScaling ? unitFactors : null,
   };
-  if (!deviations.notCog && deviations.wrongCrs === undefined && deviations.unitFactors === null) {
+  if (!deviations.notCog && deviations.unitFactors === null) {
     return { filePath, converted: false };
   }
 
@@ -190,7 +187,6 @@ async function convertRasterFile(
 ): Promise<string> {
   const reasons = [
     deviations.notCog ? 'not a COG' : null,
-    deviations.wrongCrs !== undefined ? `EPSG:${deviations.wrongCrs} rather than EPSG:4326` : null,
     deviations.unitFactors !== null ? `unit conversion x${deviations.unitFactors.join('/x')}` : null,
   ].filter(Boolean);
   log.info('Normalizing raster before ingest', { filePath, bands: opts.bands.map(b => b.band), reasons });
@@ -262,7 +258,7 @@ async function insertFootprintBatch(
 
 /**
  * Reports progress across a fixed [20, 85] sub-range of the overall conversion — the caller owns
- * 0-20 (fetching the input) and 85-100 (storing the result). Only the warp and final COG translate
+ * 0-20 (fetching the input) and 85-100 (storing the result). Only the COG translate
  * are slow enough to need their own live GDAL progress bar; the VRT + gdal_edit.py scale step just
  * edits metadata and returns near-instantly, so it gets no slice of its own.
  */
@@ -285,50 +281,16 @@ async function convertRaster(
 ): Promise<string> {
   const tmpPrefix = outPath.replace(/\.tif$/i, '');
   const cleanup: string[] = [];
-  const willWarp = deviations.wrongCrs !== undefined;
-  const [translateStart, translateEnd] = willWarp ? [50, 85] : [20, 85];
 
   try {
-    let src = inPath;
-    if (willWarp) {
-      const warped = `${tmpPrefix}.warped.tif`;
-      await GdalCLI.warp(
-        src,
-        warped,
-        [
-          '--config',
-          'GDAL_CACHEMAX',
-          '512',
-          '--config',
-          'GDAL_NUM_THREADS',
-          'ALL_CPUS',
-          '-t_srs',
-          'EPSG:4326',
-          '-r',
-          resampling === 'NEAREST' ? 'near' : 'bilinear',
-          '-of',
-          'GTiff',
-          '-co',
-          'TILED=YES',
-          '-co',
-          'COMPRESS=DEFLATE',
-          '-co',
-          'BIGTIFF=YES',
-        ],
-        stepProgress(onProgress, 20, 50, 'Reprojecting to EPSG:4326...'),
-      );
-      cleanup.push(warped);
-      src = warped;
-    }
-
-    let translateSrc = src;
+    let translateSrc = inPath;
     const unscaleArgs: string[] = [];
     if (deviations.unitFactors) {
       // gdal_edit.py broadcasts a lone -scale across every band, so a factor list shorter than the
       // band count would silently rescale bands nobody asked about — wrong pixel values rather than
       // a failure. checkFileFormat builds one factor per band; this asserts they still line up with
       // the raster actually being edited, which is the warp output when there was one.
-      const srcBandCount = (await GdalCLI.gdalinfo(src)).bands?.length ?? 0;
+      const srcBandCount = (await GdalCLI.gdalinfo(inPath)).bands?.length ?? 0;
       if (deviations.unitFactors.length !== srcBandCount) {
         throw new Error(
           `expected one conversion factor per band, got ${deviations.unitFactors.length} for a raster reporting ${srcBandCount} band(s)`,
@@ -336,7 +298,7 @@ async function convertRaster(
       }
 
       const vrtPath = `${tmpPrefix}.vrt`;
-      await GdalCLI.translate(src, vrtPath, ['-of', 'VRT']);
+      await GdalCLI.translate(inPath, vrtPath, ['-of', 'VRT']);
       cleanup.push(vrtPath);
       // Grouped rather than interleaved (-scale a -scale b -offset 0 -offset 0): gdal_edit.py
       // collects each option into its own list and pairs them with bands by position.
@@ -374,7 +336,7 @@ async function convertRaster(
         '-co',
         `OVERVIEW_RESAMPLING=${resampling}`,
       ],
-      stepProgress(onProgress, translateStart, translateEnd, 'Converting to Cloud Optimized GeoTIFF...'),
+      stepProgress(onProgress, 20, 85, 'Converting to Cloud Optimized GeoTIFF...'),
     );
 
     return outPath;
@@ -432,7 +394,7 @@ export async function ingestRaster(opts: IngestRasterOptions): Promise<string> {
      INSERT INTO raster_layers (
        file_id, dataset_id, band, soil_property_id, resolution_m,
        nodata_value, bbox, procedure_id, min_depth, max_depth,
-       reference_period_start, reference_period_stop, description
+       reference_period_start, reference_period_stop, description, is_categorical
      )
      SELECT
        $1::uuid, $2::uuid, $3::int, sp.id, $6::int,
@@ -440,7 +402,7 @@ export async function ingestRaster(opts: IngestRasterOptions): Promise<string> {
        $11, $12,
        -- Wrapped rather than stored as a bare jsonb string so the column keeps saying what is in
        -- it and a second descriptive facet is an added key (docs/adr/0019).
-       CASE WHEN $13::text IS NULL THEN NULL ELSE jsonb_build_object('description', $13::text) END
+       CASE WHEN $13::text IS NULL THEN NULL ELSE jsonb_build_object('description', $13::text) END, $14::boolean
      FROM sp LEFT JOIN proc ON true
      ON CONFLICT (file_id, band) WHERE deleted_at IS NULL DO UPDATE SET
        updated_at = now(),
@@ -472,6 +434,7 @@ export async function ingestRaster(opts: IngestRasterOptions): Promise<string> {
         opts.referencePeriodStart ?? null,
         opts.referencePeriodStop ?? null,
         opts.description ?? null,
+        opts.isCategorical,
       ],
     ),
   );
