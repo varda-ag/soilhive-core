@@ -452,6 +452,12 @@ describe('useDatasetsSettings', () => {
       expect(result.current.hasMandatoryMetadata).toBe(false);
     });
 
+    it('is false when licenses only contains a null placeholder', () => {
+      setupMocks({ dataset: { ...fullyFilledDataset, licenses: [null] } });
+      const { result } = renderHook(() => useDatasetsSettings('dataset-123'), { wrapper: queryClientWrapper });
+      expect(result.current.hasMandatoryMetadata).toBe(false);
+    });
+
     it('is false when measured_properties is empty', () => {
       setupMocks({ dataset: { ...fullyFilledDataset, measured_properties: [] } });
       const { result } = renderHook(() => useDatasetsSettings('dataset-123'), { wrapper: queryClientWrapper });
