@@ -409,7 +409,7 @@ describe('useDatasetPreview', () => {
     expect(createJobMutateAsync).toHaveBeenCalledWith({
       type: 'bulk-load',
       dataset_id: DATASET_ID,
-      delete_source_files: true,
+      delete_source_files: false,
     });
     expect(result.current.showLoadingPanel).toBe(true);
     expect(mockNavigate).not.toHaveBeenCalled();

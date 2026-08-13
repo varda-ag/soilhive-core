@@ -42,7 +42,7 @@ import { FilteredRasterLayer } from 'src/interfaces/DatasetFilter';
 
 export async function processExportJob(job: Job<ExportJob>): Promise<void> {
   const { id: jobId, data } = job;
-  const { created_by } = job as unknown as ExportJob;
+  const { created_by } = data;
   const { filter_id, formats, dataset_ids, target_crs } = data;
 
   const entityManager = await getEntityManager();
@@ -238,6 +238,7 @@ async function exportRasterData(
   let totalLayersProcessed = 0;
 
   for (const [epsg, group] of layersByEpsg) {
+    if (await isJobCancelled(jobId)) break;
     const rasterMaskFile = useBboxFastPath ? null : await getRasterMask(requestData.entityManager, filter, 'file', undefined, epsg);
     if (!useBboxFastPath && !rasterMaskFile) return { total_layers_processed: 0 };
     const writer = new RasterFileWriter(fileFormat, tempDir);

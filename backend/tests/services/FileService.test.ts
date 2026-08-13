@@ -8,7 +8,7 @@ import { getTableColumns } from '../helper';
 import { getRawTableName, sanitizeField } from '../../src/utils/utils';
 import { DetectableFields } from '../../src/types/DataMapping';
 import { getDataSource, getEntityManager } from '../../src/utils/data-source';
-import { addDataset, addDataMapping, addDatasetFileMapping, addSoilProperty, addCategory } from '../../src/utils/mock';
+import { addDataset, addDataMapping, addDatasetFileMapping, addSoilProperty, addCategory, linkMapping } from '../../src/utils/mock';
 import { RequestData } from '../../src/interfaces/RequestData';
 import { Token } from '../../src/interfaces/Token';
 import { EntityManager } from 'typeorm';
@@ -19,19 +19,6 @@ import { IngestionStatus } from '../../src/types/data';
 const vectorFilesPassPath = path.join(__dirname, '../assets/vector_files/pass');
 const vectorFilesFailPath = path.join(__dirname, '../assets/vector_files/fail');
 const rasterFilesPath = path.join(__dirname, '../assets/raster');
-
-/**
- * Links a mapping to fileEntity covering the given columns — fileToDB now requires one to exist
- * at all. Values are irrelevant here unless a column plays a geometry/lat/lon role: fileToDB only
- * looks at Object.keys(mapping) to decide which columns to stage.
- */
-const linkMapping = async (fileEntity: FileEntity, mappingBody: Record<string, unknown>): Promise<void> => {
-  const dataset = await addDataset(`mapping-${fileEntity.id}`, [0, 0, 30, 60]);
-  const dataMapping = await addDataMapping(mappingBody);
-  const dfm = await addDatasetFileMapping(dataset.id, dataMapping.id);
-  dfm.file_id = fileEntity.id;
-  await dfm.save();
-};
 
 const mockToken: Token = {
   sub: 'test-user-id',
@@ -662,6 +649,36 @@ describe('FileService', () => {
 
       const tableColumns = await getTableColumns(getRawTableName(fileEntity.id));
       expect(tableColumns.map(c => c.column_name)).toContain('geometry');
+    });
+
+    it('parses a WKT text column into real geometry via CAST when mapped explicitly (XLSX)', async () => {
+      const fileEntity = await fileService.createFile(requestData, {
+        name: 'excel_geom.xlsx',
+        file_path: 'excel_geom.xlsx',
+      });
+      expect((fileEntity.metadata as VectorFileMetadata).geometry_detected).toBe(false);
+
+      const dataset = await addDataset('test_xlsx_wkt_mapping', [0, 0, 60, 60]);
+      const cat = await addCategory();
+      const prop = await addSoilProperty('pH', cat.id);
+      const dataMapping = await addDataMapping({ geometry: 'geometry', ph_h20: { property_id: prop.slug } });
+      const dfm = await addDatasetFileMapping(dataset.id, dataMapping.id);
+      dfm.file_id = fileEntity.id;
+      await dfm.save();
+
+      await fileService.fileToDB(requestData, fileEntity.slug);
+
+      const dataSource = await getDataSource();
+      const rows = await dataSource.query(
+        `SELECT ST_GeometryType(geometry) AS geom_type, ST_X(geometry) AS x, ST_Y(geometry) AS y
+         FROM "${process.env.POSTGRES_SCHEMA}"."${getRawTableName(fileEntity.id)}" WHERE geometry IS NOT NULL LIMIT 1`,
+      );
+      expect(rows.length).toBeGreaterThan(0);
+      expect(rows[0].geom_type).toBe('ST_Point');
+      expect(parseFloat(rows[0].x)).toBeGreaterThanOrEqual(39.5);
+      expect(parseFloat(rows[0].x)).toBeLessThanOrEqual(39.6);
+      expect(parseFloat(rows[0].y)).toBeGreaterThanOrEqual(-2.68);
+      expect(parseFloat(rows[0].y)).toBeLessThanOrEqual(-2.66);
     });
 
     it('auto-detected WKT column takes precedence over auto-detected lat/lon fields', async () => {

@@ -385,16 +385,16 @@ describe('useDatasetsSettings', () => {
       expect(result.current.hasMandatoryMetadata).toBe(false);
     });
 
-    it('is false when version is missing', () => {
+    it('is true when version is missing', () => {
       setupMocks({ dataset: { ...fullyFilledDataset, version: null } });
       const { result } = renderHook(() => useDatasetsSettings('dataset-123'), { wrapper: queryClientWrapper });
-      expect(result.current.hasMandatoryMetadata).toBe(false);
+      expect(result.current.hasMandatoryMetadata).toBe(true);
     });
 
-    it('is false when citation is missing', () => {
+    it('is true when citation is missing', () => {
       setupMocks({ dataset: { ...fullyFilledDataset, citation: null } });
       const { result } = renderHook(() => useDatasetsSettings('dataset-123'), { wrapper: queryClientWrapper });
-      expect(result.current.hasMandatoryMetadata).toBe(false);
+      expect(result.current.hasMandatoryMetadata).toBe(true);
     });
 
     it('is false when reference_period_start is missing', () => {
@@ -448,6 +448,12 @@ describe('useDatasetsSettings', () => {
 
     it('is false when licenses array is empty', () => {
       setupMocks({ dataset: { ...fullyFilledDataset, licenses: [] } });
+      const { result } = renderHook(() => useDatasetsSettings('dataset-123'), { wrapper: queryClientWrapper });
+      expect(result.current.hasMandatoryMetadata).toBe(false);
+    });
+
+    it('is false when licenses only contains a null placeholder', () => {
+      setupMocks({ dataset: { ...fullyFilledDataset, licenses: [null] } });
       const { result } = renderHook(() => useDatasetsSettings('dataset-123'), { wrapper: queryClientWrapper });
       expect(result.current.hasMandatoryMetadata).toBe(false);
     });

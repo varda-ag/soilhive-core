@@ -720,3 +720,11 @@ export const addSyntheticIngestionDataManyCols = async (): Promise<{ datasetId: 
 
   return { datasetId: dataset.id, fileId: file.id, dataMappingId: mapping.data_mapping_id };
 };
+
+export const linkMapping = async (fileEntity: FileEntity, mappingBody: Record<string, unknown>, datasetId?: string): Promise<void> => {
+  const targetDatasetId = datasetId ?? (await addDataset(`mapping-${fileEntity.id}`, [0, 0, 30, 60])).id;
+  const dataMapping = await addDataMapping(mappingBody);
+  const dfm = await addDatasetFileMapping(targetDatasetId, dataMapping.id);
+  dfm.file_id = fileEntity.id;
+  await dfm.save();
+};
