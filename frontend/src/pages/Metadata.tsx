@@ -369,7 +369,6 @@ export default function Metadata() {
             placeholder={t('placeholders.publication_date')}
             property="publication_date"
             variant="text"
-            isRequired={isAdmin}
             onStartEditing={onStartEditing}
             onSave={onSave}
             onCancel={onCancel}

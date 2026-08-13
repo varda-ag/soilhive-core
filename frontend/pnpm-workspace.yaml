@@ -1,3 +1,6 @@
+allowBuilds:
+  core-js: set this to true or false
+  esbuild: set this to true or false
 overrides:
   ajv@>=7.0.0-alpha.0 <8.18.0: '>=8.18.0'
   axios@<1.15.2: '>=1.15.2'
