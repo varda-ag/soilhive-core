@@ -13,7 +13,7 @@ import FileService from '../../src/services/FileService';
 import * as BulkLoaderModule from '../../src/jobs/bulk-load/BulkLoader';
 import * as SoilExportJobModule from '../../src/jobs/soil-export/soilExportJob';
 import { VectorFileMetadata } from '../../src/interfaces/File';
-import { addDataset } from '../../src/utils/mock';
+import { addDataset, linkMapping } from '../../src/utils/mock';
 import { GISDataType } from '../../src/types/data';
 
 const mockToken: Token = {
@@ -201,7 +201,7 @@ describe('Testing /jobs routes', () => {
         metadata,
       };
       const fileEntity = await fileService.createFile(requestData, file);
-
+      await linkMapping(fileEntity, Object.fromEntries(metadata.field_names.map(f => [f, {}])));
       const queue = JobQueues.FILE_TO_DB;
       const jobResponse = await request(app)
         .post('/jobs')

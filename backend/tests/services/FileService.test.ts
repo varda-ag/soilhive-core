@@ -8,7 +8,7 @@ import { getTableColumns } from '../helper';
 import { getRawTableName, sanitizeField } from '../../src/utils/utils';
 import { DetectableFields } from '../../src/types/DataMapping';
 import { getDataSource, getEntityManager } from '../../src/utils/data-source';
-import { addDataset, addDataMapping, addDatasetFileMapping, addSoilProperty, addCategory } from '../../src/utils/mock';
+import { addDataset, addDataMapping, addDatasetFileMapping, addSoilProperty, addCategory, linkMapping } from '../../src/utils/mock';
 import { RequestData } from '../../src/interfaces/RequestData';
 import { Token } from '../../src/interfaces/Token';
 import { EntityManager } from 'typeorm';
@@ -110,12 +110,13 @@ describe('FileService', () => {
 
     it('should load to DB sample_point GeoJSON file', async () => {
       const fileId = fileEntity.slug;
+      const metadata = fileEntity.metadata as VectorFileMetadata;
+      await linkMapping(fileEntity, Object.fromEntries(metadata.field_names.map(f => [f, {}])));
 
       await fileService.fileToDB(requestData, fileId);
       const tableName = getRawTableName(fileEntity.id);
       const tableColumns = await getTableColumns(tableName);
       expect(fileEntity.metadata).toBeDefined();
-      const metadata = fileEntity.metadata as VectorFileMetadata;
       const originalGeomFields = [
         metadata.detected_fields[DetectableFields.GEOMETRY],
         metadata.detected_fields[DetectableFields.LONGITUDE],
@@ -168,6 +169,7 @@ describe('FileService', () => {
 
     it('should fail to load to DB only area GeoJSON file', async () => {
       const fileId = fileEntity.slug;
+      await linkMapping(fileEntity, {});
       await expect(fileService.fileToDB(requestData, fileId)).rejects.toMatchObject({ name: 'JobError', code: 'FTD_NO_DATA_COLUMNS' });
     });
   });
@@ -194,6 +196,7 @@ describe('FileService', () => {
 
     it('should fail to load to DB only area GeoJSON file', async () => {
       const fileId = fileEntity.slug;
+      await linkMapping(fileEntity, {});
       await expect(fileService.fileToDB(requestData, fileId)).rejects.toMatchObject({ name: 'JobError', code: 'FTD_NO_DATA_COLUMNS' });
     });
   });
@@ -230,6 +233,7 @@ describe('FileService', () => {
     });
     it('should create table in DB with column names as sanitized field_names', async () => {
       const fileId = fileEntity.slug;
+      await linkMapping(fileEntity, Object.fromEntries(metadata.field_names.map(f => [f, {}])));
       await fileService.fileToDB(requestData, fileId);
       const tableName = getRawTableName(fileEntity.id);
       const tableColumns = await getTableColumns(tableName);
@@ -276,6 +280,7 @@ describe('FileService', () => {
 
     it('should load to DB same layer as detected in metadata', async () => {
       const fileId = fileEntity.slug;
+      await linkMapping(fileEntity, Object.fromEntries(metadata.field_names.map(f => [f, {}])));
       await fileService.fileToDB(requestData, fileId);
       const tableName = getRawTableName(fileEntity.id);
       const tableColumns = await getTableColumns(tableName);
@@ -324,6 +329,7 @@ describe('FileService', () => {
 
       it('should throw error when trying to load to DB', async () => {
         const fileId = fileEntity.slug;
+        await linkMapping(fileEntity, Object.fromEntries(metadata.field_names.map(f => [f, {}])));
         await expect(fileService.fileToDB(requestData, fileId)).rejects.toThrow(
           'Geometry not found: no geometry column in user mapping or auto-detected fields',
         );
@@ -697,17 +703,18 @@ describe('FileService', () => {
       expect(parseFloat(rows[0].x)).toBeCloseTo(20.0, 4);
     });
 
-    it('falls back to auto-detected lat/lon when no mapping exists for the file', async () => {
-      // Uses standard lat/lon column names so extractMetadata auto-detects them (no geometry mapping needed)
+    it('throws FTD_MISSING_COLUMN_MAPPING when no mapping exists for the file, even with auto-detected lat/lon', async () => {
+      // Uses standard lat/lon column names so extractMetadata auto-detects them — geometry
+      // detection alone is not enough; a mapping must still be linked before staging.
       const fileEntity = await fileService.createFile(requestData, {
         name: 'test_geom_latlon_std.csv',
         file_path: 'test_geom_latlon_std.csv',
       });
 
-      await fileService.fileToDB(requestData, fileEntity.slug);
-
-      const tableColumns = await getTableColumns(getRawTableName(fileEntity.id));
-      expect(tableColumns.map(c => c.column_name)).toContain('geometry');
+      await expect(fileService.fileToDB(requestData, fileEntity.slug)).rejects.toMatchObject({
+        name: 'JobError',
+        code: 'FTD_MISSING_COLUMN_MAPPING',
+      });
     });
 
     it.each(['basic-soil-example_wkt.csv', 'test_geom_wkt2.csv'])('CSV contains geometry column named WKT', async fileKey => {
@@ -753,6 +760,8 @@ describe('FileService', () => {
     });
 
     it('should load XLSX to DB using auto-detected lat/lon columns (VRT path)', async () => {
+      const metadata = fileEntity.metadata as VectorFileMetadata;
+      await linkMapping(fileEntity, Object.fromEntries(metadata.field_names.map(f => [f, {}])));
       await fileService.fileToDB(requestData, fileEntity.slug);
 
       const tableName = getRawTableName(fileEntity.id);

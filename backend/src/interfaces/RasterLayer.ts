@@ -11,6 +11,7 @@ export interface RasterLayer {
   reference_period_stop: string | null;
   dataset_id: string;
   soil_property_id: string;
+  is_categorical: boolean;
   description: object | null;
   nodata_value: number | null;
   bbox: Polygon;

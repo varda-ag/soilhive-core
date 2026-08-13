@@ -114,7 +114,7 @@ _Avoid_: Raster ingest (the per-file operation Raster Load invokes), raster uplo
 
 **Raster Ingest**:
 The operation that takes one Band of a *single* Cloud Optimized GeoTIFF and registers it as one Raster Layer with its footprints. One Band in, one Raster Layer out — a multiband file is ingested by one Raster Ingest per mapped Band, each carrying its own soil property. A Raster Ingest is reached only through a Raster Load: it presumes the Dataset and the File already exist and never creates either, and it never records Dataset-level metadata.
-_Avoid_: Raster load (the Dataset-scoped orchestration above it), conversion or normalization (a Raster Load step: a deviating file is normalized once, before any of its Bands is ingested — ADR 0024), "ingesting a file" (a Raster Ingest consumes a Band, not a whole file)
+_Avoid_: Raster load (the Dataset-scoped orchestration above it), conversion or normalization (a Raster Load step: a deviating file is normalized once, before any of its Bands is ingested — ADR 0025), "ingesting a file" (a Raster Ingest consumes a Band, not a whole file)
 
 **Raster Layer**:
 The catalog record for one Band of one raster File within a Dataset, carrying that Band's soil property, depth range, reference period, resolution, nodata marker, bounding box and footprints. The raster counterpart of a DatasetLayer, and identified by the pair (File, Band) — a File and Band together have at most one Raster Layer. Unlike a Layer, a Raster Layer holds no Observations: its measurements stay in the File's pixels, which is why the File must survive the Raster Load.

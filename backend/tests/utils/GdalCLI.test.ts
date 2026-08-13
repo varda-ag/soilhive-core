@@ -1,4 +1,4 @@
-import { describe, it, expect, afterAll } from '@jest/globals';
+import { describe, it, expect, afterAll, jest } from '@jest/globals';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
@@ -207,5 +207,63 @@ describe('GdalCLI.translate progress reporting', () => {
     ).resolves.toBeUndefined();
 
     expect(fs.existsSync(path.join(outputDir, 'throws.tif'))).toBe(true);
+  });
+});
+
+describe('GdalCLI.transformPoints', () => {
+  it('transforms EPSG:3857 to EPSG:4326 by default', async () => {
+    // Pseudo-Mercator's false origin coincides exactly with lon 0, lat 0 — a fixed point any
+    // correct implementation must hit exactly, unlike an arbitrary coordinate.
+    const [[lon, lat]] = await GdalCLI.transformPoints('EPSG:3857', [[0, 0]]);
+    expect(lon).toBeCloseTo(0, 6);
+    expect(lat).toBeCloseTo(0, 6);
+  });
+
+  it('transforms a real corner coordinate within the accuracy gdaltransform itself reports', async () => {
+    const [[lon, lat]] = await GdalCLI.transformPoints('EPSG:3857', [[-9034969.932, -3952516.771]]);
+    expect(lon).toBeCloseTo(-81.1625158147591, 6);
+    expect(lat).toBeCloseTo(-33.4299806691591, 6);
+  });
+
+  it('transforms to a custom destination SRS rather than always landing on EPSG:4326', async () => {
+    // The reverse of the default-direction case above — needed by RasterFileWriter.cropToAoiBbox,
+    // which reprojects an EPSG:4326 AOI into a layer's native CRS rather than the other way round.
+    const [[x, y]] = await GdalCLI.transformPoints('EPSG:4326', [[0, 0]], 'EPSG:3857');
+    expect(x).toBeCloseTo(0, 6);
+    expect(y).toBeCloseTo(0, 6);
+  });
+
+  it('transforms multiple points in one call, preserving order', async () => {
+    const points = await GdalCLI.transformPoints('EPSG:3857', [
+      [0, 0],
+      [-9034969.932, -3952516.771],
+    ]);
+    expect(points).toHaveLength(2);
+    expect(points[0]![0]).toBeCloseTo(0, 6);
+    expect(points[1]![0]).toBeCloseTo(-81.1625158147591, 6);
+  });
+
+  it('returns an empty array without spawning a process', async () => {
+    const runSpy = jest.spyOn(GdalCLI as any, 'run');
+    try {
+      expect(await GdalCLI.transformPoints('EPSG:3857', [])).toEqual([]);
+      expect(runSpy).not.toHaveBeenCalled();
+    } finally {
+      runSpy.mockRestore();
+    }
+  });
+
+  it('throws when gdaltransform returns a different number of points than requested', async () => {
+    const runSpy = jest.spyOn(GdalCLI as any, 'run').mockResolvedValueOnce('1 2 0\n');
+    try {
+      await expect(
+        GdalCLI.transformPoints('EPSG:3857', [
+          [0, 0],
+          [1, 1],
+        ]),
+      ).rejects.toThrow(/returned 1 point\(s\) for 2 input\(s\)/);
+    } finally {
+      runSpy.mockRestore();
+    }
   });
 });

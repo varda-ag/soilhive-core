@@ -19,6 +19,7 @@ import * as FilteringMasksModule from '../../src/data-layer/FilteringMasks';
 import { invalidGeometryPayload } from './invalidGeometryPayload.ts';
 import { getRasterMask, getVectorMask } from '../../src/data-layer/FilteringMasks';
 import { DataFilter, FilterCriteria } from '../../src/interfaces/DatasetFilter';
+import { GdalCLI } from '../../src/utils/GdalCLI';
 import path from 'path';
 
 const bbox = [0, 0, 1, 1];
@@ -1009,6 +1010,80 @@ describe('SoilDataStorage class', () => {
           expect(results).toHaveLength(expectedCount);
         },
       );
+    });
+  });
+
+  describe('getRasterLayers', () => {
+    it('returns the real file path and the source epsg from file metadata — neither clobbering the other', async () => {
+      const layer = await addRasterData(undefined, { dataset_status: IngestionStatus.PUBLISHED, visibility: 'public' });
+      const entityManager = await getEntityManager();
+      await entityManager.query(`UPDATE files SET metadata = jsonb_set(coalesce(metadata, '{}'::jsonb), '{epsg}', '3857') WHERE id = $1`, [
+        layer.file.id,
+      ]);
+
+      const sds = new SoilDataStorage();
+      const filter = await makeFilter(entityManager, getPolygonFromBbox([-82, -35, -80, -33]));
+      const { layers } = await sds.getRasterLayers({ entityManager, entitlements }, filter, [layer.dataset.slug]);
+
+      expect(layers).toHaveLength(1);
+      expect(layers[0]!.path).toBe(layer.file.file_path);
+      expect(layers[0]!.epsg).toBe(3857);
+    });
+
+    it('omits epsg when the file has none recorded, rather than defaulting it to a wrong value', async () => {
+      const layer = await addRasterData(undefined, { dataset_status: IngestionStatus.PUBLISHED, visibility: 'public' });
+
+      const sds = new SoilDataStorage();
+      const entityManager = await getEntityManager();
+      const filter = await makeFilter(entityManager, getPolygonFromBbox([-82, -35, -80, -33]));
+      const { layers } = await sds.getRasterLayers({ entityManager, entitlements }, filter, [layer.dataset.slug]);
+
+      expect(layers).toHaveLength(1);
+      expect(layers[0]!.epsg).toBeUndefined();
+    });
+
+    it.each([
+      [true, true],
+      [false, false],
+    ])('returns is_categorical=%s as recorded on the layer', async (isCategorical, expected) => {
+      const layer = await addRasterData(undefined, {
+        dataset_status: IngestionStatus.PUBLISHED,
+        visibility: 'public',
+        layerFields: { isCategorical },
+      });
+
+      const sds = new SoilDataStorage();
+      const entityManager = await getEntityManager();
+      const filter = await makeFilter(entityManager, getPolygonFromBbox([-82, -35, -80, -33]));
+      const { layers } = await sds.getRasterLayers({ entityManager, entitlements }, filter, [layer.dataset.slug]);
+
+      expect(layers).toHaveLength(1);
+      expect(layers[0]!.is_categorical).toBe(expected);
+    });
+  });
+
+  describe('getRasterMask with outputEpsg', () => {
+    const filteringRectangle: Polygon = { coordinates: [filteringMaskCoordinates], type: 'Polygon' };
+    it('builds the mask in EPSG:4326 by default', async () => {
+      const entityManager = await getEntityManager();
+      const filter = await makeFilter(entityManager, filteringRectangle);
+      const filePath = await getRasterMask(entityManager, filter, 'file', true);
+      expect(filePath).toBeDefined();
+
+      const info = await GdalCLI.gdalinfo(filePath!);
+      expect(GdalCLI.extractEpsgFromWkt(info.coordinateSystem?.wkt)).toBe(4326);
+      fs.unlinkSync(filePath!);
+    });
+
+    it('reprojects the output file to the requested CRS', async () => {
+      const entityManager = await getEntityManager();
+      const filter = await makeFilter(entityManager, filteringRectangle);
+      const filePath = await getRasterMask(entityManager, filter, 'file', true, 3857);
+      expect(filePath).toBeDefined();
+
+      const info = await GdalCLI.gdalinfo(filePath!);
+      expect(GdalCLI.extractEpsgFromWkt(info.coordinateSystem?.wkt)).toBe(3857);
+      fs.unlinkSync(filePath!);
     });
   });
 });
