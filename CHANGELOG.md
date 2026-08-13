@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.2.4 (2026-08-13)
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v1.2.3...v1.2.4
+
 ## 1.2.3 (2026-08-12)
 
 **Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v1.2.2...v1.2.3
