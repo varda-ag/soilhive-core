@@ -137,6 +137,13 @@ export function mergeManagedDependencies(pluginPath: string, options: MergeManag
   pkg.dependencies['react-dom'] = pinnedVersion('react-dom', packageJsonPaths);
   pkg.dependencies['frontend-plugin-types'] = 'link:../frontend-plugin-types';
 
+  // Pinned for every plugin, not just --with-map ones: vendored host code (UI/ or Map/) is only
+  // ever type-checked against the host's own compiler version, and the scaffold's typescript is
+  // otherwise copy-once/dev-owned — it can silently drift far enough behind to reject valid host
+  // code (e.g. a DOM lib typing change) with no indication that the compiler itself is the cause.
+  pkg.devDependencies = pkg.devDependencies ?? {};
+  pkg.devDependencies.typescript = pinnedVersion('typescript', packageJsonPaths);
+
   const scanPaths = [uiDir, ...(options.extraScanPaths ?? [])];
   for (const packageName of scanDependencies(scanPaths)) {
     pkg.dependencies[packageName] = pinnedVersion(packageName, packageJsonPaths);

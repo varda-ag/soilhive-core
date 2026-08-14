@@ -87,6 +87,7 @@ describe('mergeManagedDependencies', () => {
     expect(pkg.dependencies.react).toBe('19.2.0');
     expect(pkg.dependencies['react-dom']).toBe('19.2.0');
     expect(pkg.dependencies['frontend-plugin-types']).toBe('link:../frontend-plugin-types');
+    expect(pkg.devDependencies.typescript).toBe('5.9.3');
     expect(pkg.dependencies.classnames).toBe('2.5.1');
     expect(pkg.dependencies['react-router']).toBe('7.9.4');
     expect(pkg.dependencies['react-tooltip']).toBe('5.30.0');
@@ -96,12 +97,36 @@ describe('mergeManagedDependencies', () => {
     expect(pkg.dependencies['react-loading-skeleton']).toBeUndefined();
   });
 
+  it("pins typescript to the host's exact version too, for every plugin — not just --with-map ones, since vendored host code (UI/ or Map/) may need a newer compiler than an old scaffold's pinned version", () => {
+    const uiDir = join(tempDir, 'fixture-ui-ts');
+    const frontendPackageJsonPath = join(tempDir, 'fixture-frontend-package-ts.json');
+    mkdirSync(uiDir, { recursive: true });
+    writeFileSync(
+      frontendPackageJsonPath,
+      JSON.stringify({ dependencies: { react: '19.2.0', 'react-dom': '19.2.0' }, devDependencies: { typescript: '5.9.3' } }),
+    );
+    writeFileSync(
+      join(pluginPath, 'package.json'),
+      JSON.stringify({ name: 'demo-plugin', dependencies: {}, devDependencies: { typescript: '5.7.2', '@types/react': '19.2.0' } }),
+    );
+
+    mergeManagedDependencies(pluginPath, { uiDir, frontendPackageJsonPath });
+
+    const pkg = JSON.parse(readFileSync(join(pluginPath, 'package.json'), 'utf-8'));
+    expect(pkg.devDependencies.typescript).toBe('5.9.3');
+    // dev-added/scaffold-owned devDependencies stay untouched
+    expect(pkg.devDependencies['@types/react']).toBe('19.2.0');
+  });
+
   it('adds a new external package automatically the next time UI/ starts importing it', () => {
     const uiDir = join(tempDir, 'fixture-ui');
     const frontendPackageJsonPath = join(tempDir, 'fixture-frontend-package.json');
     mkdirSync(uiDir, { recursive: true });
     writeFileSync(join(uiDir, 'Widget.tsx'), "import React from 'react';\nexport const Widget = () => null;\n");
-    writeFileSync(frontendPackageJsonPath, JSON.stringify({ dependencies: { react: '19.2.0', 'react-dom': '19.2.0' } }));
+    writeFileSync(
+      frontendPackageJsonPath,
+      JSON.stringify({ dependencies: { react: '19.2.0', 'react-dom': '19.2.0' }, devDependencies: { typescript: '5.9.3' } }),
+    );
     writeFileSync(join(pluginPath, 'package.json'), JSON.stringify({ name: 'demo-plugin', dependencies: {} }));
 
     mergeManagedDependencies(pluginPath, { uiDir, frontendPackageJsonPath });
@@ -114,7 +139,10 @@ describe('mergeManagedDependencies', () => {
     );
     writeFileSync(
       frontendPackageJsonPath,
-      JSON.stringify({ dependencies: { react: '19.2.0', 'react-dom': '19.2.0', 'brand-new-package': '^3.1.0' } }),
+      JSON.stringify({
+        dependencies: { react: '19.2.0', 'react-dom': '19.2.0', 'brand-new-package': '^3.1.0' },
+        devDependencies: { typescript: '5.9.3' },
+      }),
     );
 
     mergeManagedDependencies(pluginPath, { uiDir, frontendPackageJsonPath });
@@ -131,7 +159,10 @@ describe('mergeManagedDependencies', () => {
     writeFileSync(join(mapDir, 'SoilhiveMap.tsx'), "import { Map } from 'react-map-gl/maplibre';");
     writeFileSync(
       frontendPackageJsonPath,
-      JSON.stringify({ dependencies: { react: '19.2.0', 'react-dom': '19.2.0', 'react-map-gl': '^8.1.0' } }),
+      JSON.stringify({
+        dependencies: { react: '19.2.0', 'react-dom': '19.2.0', 'react-map-gl': '^8.1.0' },
+        devDependencies: { typescript: '5.9.3' },
+      }),
     );
     writeFileSync(join(pluginPath, 'package.json'), JSON.stringify({ name: 'demo-plugin', dependencies: {} }));
 
@@ -150,7 +181,13 @@ describe('mergeManagedDependencies', () => {
     mkdirSync(mapDir, { recursive: true });
     writeFileSync(join(mapDir, 'SoilhiveMap.tsx'), "import type { Feature } from 'geojson';");
     // geojson itself is declared in frontend/package.json...
-    writeFileSync(frontendPackageJsonPath, JSON.stringify({ dependencies: { react: '19.2.0', 'react-dom': '19.2.0', geojson: '^0.5.0' } }));
+    writeFileSync(
+      frontendPackageJsonPath,
+      JSON.stringify({
+        dependencies: { react: '19.2.0', 'react-dom': '19.2.0', geojson: '^0.5.0' },
+        devDependencies: { typescript: '5.9.3' },
+      }),
+    );
     // ...but its type declarations are a separate package, hoisted from the monorepo root only.
     writeFileSync(rootPackageJsonPath, JSON.stringify({ devDependencies: { '@types/geojson': '^7946.0.16' } }));
     writeFileSync(join(pluginPath, 'package.json'), JSON.stringify({ name: 'demo-plugin', dependencies: {} }));
@@ -171,7 +208,10 @@ describe('mergeManagedDependencies', () => {
     writeFileSync(join(mapDir, 'SoilhiveMap.tsx'), "import { thing } from 'classnames';");
     writeFileSync(
       frontendPackageJsonPath,
-      JSON.stringify({ dependencies: { react: '19.2.0', 'react-dom': '19.2.0', classnames: '2.5.1' } }),
+      JSON.stringify({
+        dependencies: { react: '19.2.0', 'react-dom': '19.2.0', classnames: '2.5.1' },
+        devDependencies: { typescript: '5.9.3' },
+      }),
     );
     writeFileSync(join(pluginPath, 'package.json'), JSON.stringify({ name: 'demo-plugin', dependencies: {} }));
 
@@ -191,7 +231,10 @@ describe('mergeManagedDependencies', () => {
     writeFileSync(join(mapDir, 'SoilhiveMap.tsx'), "import { useTranslation } from 'react-i18next';");
     writeFileSync(
       frontendPackageJsonPath,
-      JSON.stringify({ dependencies: { react: '19.2.0', 'react-dom': '19.2.0', 'react-i18next': '16.5.4', i18next: '25.8.13' } }),
+      JSON.stringify({
+        dependencies: { react: '19.2.0', 'react-dom': '19.2.0', 'react-i18next': '16.5.4', i18next: '25.8.13' },
+        devDependencies: { typescript: '5.9.3' },
+      }),
     );
     writeFileSync(join(pluginPath, 'package.json'), JSON.stringify({ name: 'demo-plugin', dependencies: {} }));
 
@@ -206,7 +249,10 @@ describe('mergeManagedDependencies', () => {
     const uiDir = join(tempDir, 'fixture-ui-empty-2');
     const frontendPackageJsonPath = join(tempDir, 'fixture-frontend-package-2.json');
     mkdirSync(uiDir, { recursive: true });
-    writeFileSync(frontendPackageJsonPath, JSON.stringify({ dependencies: { react: '19.2.0', 'react-dom': '19.2.0' } }));
+    writeFileSync(
+      frontendPackageJsonPath,
+      JSON.stringify({ dependencies: { react: '19.2.0', 'react-dom': '19.2.0' }, devDependencies: { typescript: '5.9.3' } }),
+    );
     writeFileSync(join(pluginPath, 'package.json'), JSON.stringify({ name: 'demo-plugin', dependencies: {} }));
 
     mergeManagedDependencies(pluginPath, { uiDir, frontendPackageJsonPath });
