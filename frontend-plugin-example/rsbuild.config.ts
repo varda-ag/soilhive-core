@@ -10,20 +10,15 @@ export default defineConfig({
   // `*.svg?react`. The `styles` alias mirrors the host's, so UI/ SCSS that imports design
   // tokens as `styles/variables/...` resolves against this plugin's own styles/ directory.
   //
-  // assets/hooks/types/utilities/configuration mirror the host's own aliases too, unconditionally
-  // — not just for plugins that opt into --with-map. Since rsbuild.config.ts is dev-owned after
-  // the first scaffold (ADR 0024), adding these upfront means retrofitting --with-map onto an
-  // existing plugin later never needs to touch this file: the aliases are already there, `syncMap`
-  // just has to drop files into the folders they point at.
+  // Map/'s cross-cutting files (hooks/, utilities/, types/, configuration/, assets/icons/) live
+  // nested under Map/_shared/, not at the plugin root — `syncMap` rewrites all of Map/'s own
+  // references to relative Map/_shared/ paths at sync time, so no matching alias is needed here.
+  // This means retrofitting --with-map onto an existing plugin never needs to touch this
+  // dev-owned file at all, for any of Map/'s dependencies.
   plugins: [pluginReact(), pluginSass(), pluginSvgr(), pluginModuleFederation(moduleFederationConfig)],
   resolve: {
     alias: {
       styles: './styles',
-      assets: './assets',
-      hooks: './hooks',
-      types: './types',
-      utilities: './utilities',
-      configuration: './configuration',
     },
   },
   server: {

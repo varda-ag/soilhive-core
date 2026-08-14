@@ -20,13 +20,8 @@
     "noUnusedParameters": true,
     "rootDir": ".",
     "paths": {
-      "assets/*": ["./assets/*"],
-      "hooks/*": ["./hooks/*"],
-      "types/*": ["./types/*"],
-      "utilities/*": ["./utilities/*"],
-      "configuration/*": ["./configuration/*"],
       "*": ["./@mf-types/*"]
     }
   },
-  "include": ["src", "UI", "Map", "hooks", "types", "utilities", "configuration"]
+  "include": ["src", "UI", "Map"]
 }
