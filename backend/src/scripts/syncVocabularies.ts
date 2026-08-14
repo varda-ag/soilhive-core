@@ -381,7 +381,7 @@ async function syncProcedures(manager: EntityManager, dryRun: boolean, storedHas
         }
         const [result] = await manager.query(
           `INSERT INTO vocabulary (category, name) VALUES ($1, $2)
-           ON CONFLICT (category, name) WHERE "deleted_at" IS NULL DO UPDATE SET name = EXCLUDED.name
+           ON CONFLICT (category, name) WHERE "deleted_at" IS NULL DO UPDATE SET category = EXCLUDED.category
            RETURNING (xmax = 0) AS inserted`,
           [category, name],
         );
