@@ -83,11 +83,12 @@ export const initApp = async (app: Application) => {
 
   await initPgBoss();
   await initializeSchema();
-  try {
-    await syncVocabularies();
-  } catch (error) {
-    log.error('Vocabulary sync failed at startup', { error: error instanceof Error ? error.message : String(error) });
-  }
+  // TODO: implement this
+  // try {
+  //   await syncVocabularies();
+  // } catch (error) {
+  //   log.error('Vocabulary sync failed at startup', { error: error instanceof Error ? error.message : String(error) });
+  // }
   await startCacheEpochWatcher();
 
   const port = getServerPort();
