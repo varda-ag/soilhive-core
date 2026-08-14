@@ -10,8 +10,11 @@ import { GdalCLI } from '../../../src/utils/GdalCLI';
 
 const TEST_OUTPUT_DIR = path.join(__dirname, 'raster-test-output');
 const TEST_RASTER = path.join(__dirname, '../../assets/raster/bdod_5-15cm_mean.tif');
+const EPSG3857_RASTER = path.join(__dirname, '../../assets/raster/epsg3857_2b_250m.tif');
 // Kept outside the per-test cleanup sweep; covers the test AOI with all-valid pixels.
 const MASK_TIFF = path.join(TEST_OUTPUT_DIR, 'test-mask.tif');
+// A mask in the same EPSG:3857 metres as EPSG3857_RASTER, overlapping its extent
+const MASK_TIFF_3857 = path.join(TEST_OUTPUT_DIR, 'test-mask-3857.tif');
 
 function makeLayer(overrides: Partial<FilteredRasterLayer> = {}): FilteredRasterLayer {
   return {
@@ -32,8 +35,10 @@ function makeLayer(overrides: Partial<FilteredRasterLayer> = {}): FilteredRaster
   };
 }
 
+const MASK_BASENAMES = new Set([path.basename(MASK_TIFF), path.basename(MASK_TIFF_3857)]);
+
 function outputFiles(): string[] {
-  return fs.readdirSync(TEST_OUTPUT_DIR).filter(f => f !== path.basename(MASK_TIFF));
+  return fs.readdirSync(TEST_OUTPUT_DIR).filter(f => !MASK_BASENAMES.has(f));
 }
 
 describe('RasterFileWriter', () => {
@@ -59,6 +64,23 @@ describe('RasterFileWriter', () => {
       ModelPixelScale: [0.001, 0.001, 0],
     });
     fs.writeFileSync(MASK_TIFF, Buffer.from(maskBuffer));
+
+    // Small all-ones Byte mask in EPSG:3857 metres, overlapping EPSG3857_RASTER's native extent
+    const mask3857W = 40;
+    const mask3857H = 40;
+    const mask3857Buffer = writeArrayBuffer(new Uint8Array(mask3857W * mask3857H).fill(1), {
+      height: mask3857H,
+      width: mask3857W,
+      SamplesPerPixel: 1,
+      BitsPerSample: [8],
+      SampleFormat: [1], // UInt
+      GTModelTypeGeoKey: 1, // ModelTypeProjected
+      GTRasterTypeGeoKey: 1, // RasterPixelIsArea
+      ProjectedCSTypeGeoKey: 3857,
+      ModelTiepoint: [0, 0, 0, -9000000, -4000000, 0],
+      ModelPixelScale: [250, 250, 0],
+    });
+    fs.writeFileSync(MASK_TIFF_3857, Buffer.from(mask3857Buffer));
   });
 
   beforeEach(() => {
@@ -69,12 +91,13 @@ describe('RasterFileWriter', () => {
     jest.restoreAllMocks();
     // Note: comment out to inspect output files after a test run
     fs.readdirSync(TEST_OUTPUT_DIR)
-      .filter(f => f !== path.basename(MASK_TIFF))
+      .filter(f => !MASK_BASENAMES.has(f))
       .forEach(f => fs.rmSync(path.join(TEST_OUTPUT_DIR, f), { recursive: true }));
   });
 
   afterAll(() => {
     fs.unlinkSync(MASK_TIFF);
+    fs.unlinkSync(MASK_TIFF_3857);
   });
   describe('writeLayer', () => {
     it('resolves layer.path via FileService.getMainFilePath', async () => {
@@ -138,6 +161,34 @@ describe('RasterFileWriter', () => {
       expect(maxX).toBeLessThanOrEqual(-80.77 + 0.01);
       expect(minY).toBeGreaterThanOrEqual(-33.79 - 0.01);
       expect(maxY).toBeLessThanOrEqual(-33.74 + 0.01);
+    });
+
+    it('writes a non-4326 source when the mask is in the same CRS, without requesting a target CRS', async () => {
+      jest.spyOn(FileService, 'getMainFilePath').mockResolvedValue({ mainFilePath: EPSG3857_RASTER, tempZipExtractPath: null });
+      const writer = new RasterFileWriter(RasterFileFormat.TIFF, TEST_OUTPUT_DIR);
+
+      const wrote = await writer.writeLayer(makeLayer({ epsg: 3857 }), MASK_TIFF_3857);
+
+      expect(wrote).toBe(true);
+      const tif = outputFiles().find(f => f.endsWith('.tif'));
+      if (!tif) throw new Error('No .tif output file produced');
+
+      const info = await GdalCLI.gdalinfo(path.join(TEST_OUTPUT_DIR, tif));
+      expect(info.bands?.length).toBeGreaterThan(0);
+      const gt = info.geoTransform!;
+      // Output must land in EPSG:3857 metres (in the millions), not be mistaken for degrees.
+      expect(Math.abs(gt[0]!)).toBeGreaterThan(1_000_000);
+      expect(Math.abs(gt[3]!)).toBeGreaterThan(1_000_000);
+    });
+
+    it('returns false and writes nothing when the mask CRS does not match the source (mismatched extents)', async () => {
+      jest.spyOn(FileService, 'getMainFilePath').mockResolvedValue({ mainFilePath: EPSG3857_RASTER, tempZipExtractPath: null });
+      const writer = new RasterFileWriter(RasterFileFormat.TIFF, TEST_OUTPUT_DIR);
+
+      const wrote = await writer.writeLayer(makeLayer({ epsg: 3857 }), MASK_TIFF);
+
+      expect(wrote).toBe(false);
+      expect(outputFiles()).toHaveLength(0);
     });
 
     it('never warps when no target CRS is requested', async () => {
@@ -262,9 +313,6 @@ describe('RasterFileWriter', () => {
     });
 
     it('crops a non-4326 source to the AOI without inverting the north/south bounds', async () => {
-      // Same real-world area as bdod_5-15cm_mean.tif, reprojected to EPSG:3857 — bboxAoi above
-      // fits inside both, so this isolates the CRS handling rather than the crop math itself.
-      const EPSG3857_RASTER = path.join(__dirname, '../../assets/raster/epsg3857_2b_250m.tif');
       jest.spyOn(FileService, 'getMainFilePath').mockResolvedValue({ mainFilePath: EPSG3857_RASTER, tempZipExtractPath: null });
       const writer = new RasterFileWriter(RasterFileFormat.TIFF, TEST_OUTPUT_DIR);
 

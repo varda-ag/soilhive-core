@@ -1062,9 +1062,9 @@ describe('SoilDataStorage class', () => {
     });
   });
 
-  describe('getRasterMask with outputEpsg', () => {
+  describe('getRasterMask', () => {
     const filteringRectangle: Polygon = { coordinates: [filteringMaskCoordinates], type: 'Polygon' };
-    it('builds the mask in EPSG:4326 by default', async () => {
+    it('builds the mask in EPSG:4326', async () => {
       const entityManager = await getEntityManager();
       const filter = await makeFilter(entityManager, filteringRectangle);
       const filePath = await getRasterMask(entityManager, filter, 'file', true);
@@ -1072,17 +1072,6 @@ describe('SoilDataStorage class', () => {
 
       const info = await GdalCLI.gdalinfo(filePath!);
       expect(GdalCLI.extractEpsgFromWkt(info.coordinateSystem?.wkt)).toBe(4326);
-      fs.unlinkSync(filePath!);
-    });
-
-    it('reprojects the output file to the requested CRS', async () => {
-      const entityManager = await getEntityManager();
-      const filter = await makeFilter(entityManager, filteringRectangle);
-      const filePath = await getRasterMask(entityManager, filter, 'file', true, 3857);
-      expect(filePath).toBeDefined();
-
-      const info = await GdalCLI.gdalinfo(filePath!);
-      expect(GdalCLI.extractEpsgFromWkt(info.coordinateSystem?.wkt)).toBe(3857);
       fs.unlinkSync(filePath!);
     });
   });

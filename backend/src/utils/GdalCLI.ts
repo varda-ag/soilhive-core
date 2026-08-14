@@ -239,13 +239,22 @@ export class GdalCLI {
     return epsg ? Number(epsg.code) : undefined;
   }
 
-  // gdalinfo's raster output has no structured authority code (unlike ogrinfo's projjson), so the
-  // CRS's own EPSG code is read off the last ID["EPSG", n] entry in the WKT, which is the outermost one.
+  // The CRS's own EPSG code is a depth-1 ID["EPSG", n] (a direct child of the outer PROJCRS[/
+  // GEOGCRS[). A custom/unregistered projection has no depth-1 ID at all
   static extractEpsgFromWkt(wkt?: string): number | undefined {
     if (!wkt) return undefined;
-    const matches = [...wkt.matchAll(/ID\["EPSG",\s*(\d+)\]/g)];
-    const last = matches.at(-1);
-    return last ? Number(last[1]) : undefined;
+    let depth = 0;
+    let topLevelEpsg: number | undefined;
+    for (let i = 0; i < wkt.length; i++) {
+      const ch = wkt[i];
+      if (ch === '[') depth++;
+      else if (ch === ']') depth--;
+      else if (depth === 1 && wkt.startsWith('ID["EPSG",', i)) {
+        const match = /^ID\["EPSG",\s*(\d+)\]/.exec(wkt.slice(i));
+        if (match) topLevelEpsg = Number(match[1]);
+      }
+    }
+    return topLevelEpsg;
   }
 
   private static extractGeomType(layer: any): string {

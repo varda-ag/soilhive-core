@@ -166,7 +166,6 @@ export const getRasterMask = async (
   filter: DataFilter,
   output: 'file' | 'table', // It is caller responsability to drop the temp table after use (if output is 'table') or delete temp file (if output is 'file')
   rasterize: boolean = true, // If true, will rasterize the AOI and apply raster filters in a single step; if false, will create a vector mask and then rasterize it
-  outputEpsg?: number, // CRS of the output raster; defaults to EPSG:4326 (the CRS everything is built in internally), in which case no reprojection step is added
 ): Promise<string | undefined> => {
   if (filter.geometryIds.length === 0) {
     return undefined;
@@ -253,36 +252,6 @@ export const getRasterMask = async (
     )`);
   }
 
-  // Every CTE branch above builds `rasterized` in EPSG:4326 — the CRS the raster filter tables and
-  // user geometries are stored in. A non-4326 request is honoured by warping that raster once, here,
-  // rather than threading a target SRID through every intermediate CTE. NearestNeighbor is not a
-  // choice so much as the only valid option for a boolean/reclassed mask: any interpolation would
-  // invent pixel values between 0 and 1. The pre-transform width/height/pixel_size/bounds columns
-  // describe the 4326 raster, so they are recomputed from the transformed raster rather than reused.
-  let maskCte = 'rasterized';
-  const targetEpsg = outputEpsg ?? 4326;
-  if (targetEpsg !== 4326) {
-    params.push(targetEpsg);
-    const epsgParam = `$${params.length}`;
-    ctes.push(`rasterized_reprojected AS MATERIALIZED (
-      SELECT ST_Transform(rast, ${epsgParam}::integer, 'NearestNeighbor'::text) AS rast
-      FROM rasterized
-    )`);
-    ctes.push(`rasterized_reprojected_meta AS MATERIALIZED (
-      SELECT
-        r.rast,
-        ST_Width(r.rast) AS width,
-        ST_Height(r.rast) AS height,
-        ST_ScaleX(r.rast) AS pixel_size,
-        ST_UpperLeftX(r.rast) AS min_x,
-        ST_UpperLeftY(r.rast) + ST_Height(r.rast) * ST_ScaleY(r.rast) AS min_y,
-        ST_UpperLeftX(r.rast) + ST_Width(r.rast) * ST_ScaleX(r.rast) AS max_x,
-        ST_UpperLeftY(r.rast) AS max_y
-      FROM rasterized_reprojected r
-    )`);
-    maskCte = 'rasterized_reprojected_meta';
-  }
-
   await entityManager.query("SET LOCAL work_mem = '256MB';");
 
   const dateTimeString = getDateTimeString();
@@ -293,7 +262,7 @@ export const getRasterMask = async (
     await entityManager.query(
       `CREATE TEMP TABLE "${tableName}" AS
         WITH ${ctes.join(',\n        ')}
-        SELECT rast, width, height, pixel_size, min_x, min_y, max_x, max_y FROM ${maskCte}`,
+        SELECT rast, width, height, pixel_size, min_x, min_y, max_x, max_y FROM rasterized`,
       params,
     );
     return tableName;
@@ -303,7 +272,7 @@ export const getRasterMask = async (
   const sql = `
       WITH ${ctes.join(',\n      ')}
       SELECT ST_AsGDALRaster(r.rast, 'GTiff') AS raster_data
-      FROM ${maskCte} r
+      FROM rasterized r
     `;
   const results = await entityManager.query(sql, params);
   if (results.length === 0 || results[0].raster_data === null) {
