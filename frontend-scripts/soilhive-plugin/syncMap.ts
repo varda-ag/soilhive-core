@@ -11,7 +11,7 @@ const ICONS_SRC = join(FRONTEND_SRC, 'assets', 'icons');
 /**
  * Subfolders of Map/ that are never vendored, because each transitively needs `primereact`
  * (via components/Dialog/Dialog), which plugins deliberately don't depend on:
- *   - AreaInfo/       -> also excluded because it's the planned home of ADR 0025's map-info-card
+ *   - AreaInfo/       -> also excluded because it's the planned home of ADR 0027's map-info-card
  *                        capability; a plugin must never ship remote-loading logic of its own.
  *   - UploadPolygonModal/ -> superseded by SoilhiveMapRef.onUpload as the *destination* for an
  *                        upload — but onUpload only ever accepts an already-parsed geometry, not
@@ -34,11 +34,10 @@ const EXCLUDED_MAP_SUBFOLDERS = ['AreaInfo', 'UploadPolygonModal', 'MapStyleSwit
  * Nested under Map/_shared/ (not flat at the plugin root, unlike UI/) so a plugin author scanning
  * the tree can tell at a glance "this is part of the map system" rather than finding map internals
  * scattered across five unrelated-looking top-level folders (hooks/, utilities/, types/, ...).
- * The plugin scaffold's assets/hooks/types/utilities/configuration aliases (still added
- * unconditionally, see ADR 0025) stay pointed at the plugin root regardless — they remain
- * available for a plugin author's own code; Map/'s own references to them are rewritten to
- * relative Map/_shared/ paths at sync time instead (see rewriteMapFileImports) specifically so
- * retrofitting --with-map never needs those aliases to point anywhere new.
+ * The plugin scaffold defines no assets/hooks/types/utilities/configuration aliases at all (see
+ * ADR 0027) — Map/'s own references to them are rewritten to relative Map/_shared/ paths at sync
+ * time instead (see rewriteMapFileImports), specifically so retrofitting --with-map never needs
+ * to add or point any alias anywhere new.
  *
  * Kept as an explicit, reviewed list rather than dynamically scanned (contrast with
  * scanUiDependencies in packageJson.ts) because unlike UI/'s *npm* dependencies — which
