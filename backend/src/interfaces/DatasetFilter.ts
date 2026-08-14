@@ -58,6 +58,7 @@ export interface FilteredRasterLayer {
   dataset_name: string;
   path: string;
   epsg?: number;
+  wkt?: string;
   band: number; // 1-based band within "path": a file may contain several bands/layers
   is_categorical: boolean;
   min_depth: number | null;
