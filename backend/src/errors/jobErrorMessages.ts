@@ -32,6 +32,10 @@ const JOB_ERROR_MESSAGES: Record<string, JobErrorMessage> = {
     message: "File metadata is incomplete and can't be processed.",
     actions: ['Delete the file and re-upload it to regenerate its metadata. If this happens again, contact support.'],
   },
+  FTD_MISSING_COLUMN_MAPPING: {
+    message: "The column mapping for '{file_name}' has not been configured yet.",
+    actions: ["Go to the dataset's mapping step, configure the columns of '{file_name}', save, then retry file staging."],
+  },
   FTD_RASTER_NOT_SUPPORTED: {
     message: "This file is a raster and can't be loaded through file staging yet.",
     actions: ['Raster ingestion is not yet available through this pipeline.'],

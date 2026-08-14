@@ -335,7 +335,7 @@ export function useDatasetPreview(datasetId?: string) {
 
   const handleContinue = useCallback(async () => {
     await save();
-    await createJob({ type: 'bulk-load', dataset_id: datasetId!, delete_source_files: true });
+    await createJob({ type: 'bulk-load', dataset_id: datasetId!, delete_source_files: false });
     setShowLoadingPanel(true);
   }, [save, createJob, datasetId]);
 

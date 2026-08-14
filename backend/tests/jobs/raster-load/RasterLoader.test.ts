@@ -489,77 +489,7 @@ describe('RasterLoader', () => {
       expect(info.metadata?.IMAGE_STRUCTURE?.LAYOUT).toBe('COG');
     });
 
-    it('reprojects a raster that is not EPSG:4326', async () => {
-      const storageDir = useScratchStorage(EPSG3857_FILE);
-      const { dataset, file } = await setUpRasterLoad(uniqueName('convert-crs'), slug => ({ '1': bandEntry(slug, 0, 5) }), {
-        fileName: EPSG3857_FILE,
-      });
-
-      await processRasterLoad(getJob(dataset.slug));
-
-      expect(await getLayers(file.id)).toHaveLength(1);
-      const converted = await filePathOf(file.id);
-      expect(converted).not.toBe(EPSG3857_FILE);
-
-      const info = await GdalCLI.gdalinfo(path.join(storageDir, converted));
-      expect(GdalCLI.extractEpsgFromWkt(info.coordinateSystem?.wkt)).toBe(4326);
-
-      // bbox is stored in 4326; unreprojected 3857 metres would be far outside these bounds.
-      const dataSource = await getDataSource();
-      const [row] = await dataSource.query(`SELECT ST_XMin(bbox) AS xmin, ST_XMax(bbox) AS xmax FROM raster_layers WHERE file_id = $1`, [
-        file.id,
-      ]);
-      expect(Number(row.xmin)).toBeGreaterThanOrEqual(-180);
-      expect(Number(row.xmax)).toBeLessThanOrEqual(180);
-    });
-
-    it('resamples a categorical raster with nearest neighbour rather than averaging its classes', async () => {
-      useScratchStorage(EPSG3857_FILE);
-      const { dataset, property } = await setUpRasterLoad(uniqueName('categorical'), slug => ({ '1': bandEntry(slug, 0, 5) }), {
-        fileName: EPSG3857_FILE,
-      });
-      // bandEntry names no conversion, so being categorical has to be recognised from the
-      // property's own conversions — the point of asking the property rather than whichever
-      // conversion a band mapping happens to select, since conversion_id is optional.
-      await addUnitConversion(property.id, 'code 1-12', 'x', UnitConversionType.CATEGORY_MAPPING);
-
-      const warp = jest.spyOn(GdalCLI, 'warp');
-      const translate = jest.spyOn(GdalCLI, 'translate');
-      try {
-        await processRasterLoad(getJob(dataset.slug));
-
-        // Reprojection and overview building both interpolate by default, and both have to be
-        // stopped from inventing a class that is the average of two others.
-        expect((warp.mock.calls[0]?.[2] ?? []).join(' ')).toContain('-r near');
-        const cogArgs = translate.mock.calls.find(([, dst]) => dst.endsWith('_cog.tif'))?.[2] ?? [];
-        expect(cogArgs).toContain('OVERVIEW_RESAMPLING=NEAREST');
-      } finally {
-        warp.mockRestore();
-        translate.mockRestore();
-      }
-    });
-
-    it('averages a continuous raster, which is what every other conversion here relies on', async () => {
-      useScratchStorage(EPSG3857_FILE);
-      const { dataset } = await setUpRasterLoad(uniqueName('continuous'), slug => ({ '1': bandEntry(slug, 0, 5) }), {
-        fileName: EPSG3857_FILE,
-      });
-
-      const warp = jest.spyOn(GdalCLI, 'warp');
-      const translate = jest.spyOn(GdalCLI, 'translate');
-      try {
-        await processRasterLoad(getJob(dataset.slug));
-
-        expect((warp.mock.calls[0]?.[2] ?? []).join(' ')).toContain('-r bilinear');
-        const cogArgs = translate.mock.calls.find(([, dst]) => dst.endsWith('_cog.tif'))?.[2] ?? [];
-        expect(cogArgs).toContain('OVERVIEW_RESAMPLING=AVERAGE');
-      } finally {
-        warp.mockRestore();
-        translate.mockRestore();
-      }
-    });
-
-    it('scales each band by its own conversion factor', async () => {
+    it('scales each band by its own conversion factor, averaging resampled overviews', async () => {
       const storageDir = useScratchStorage(MULTIBAND_FILE);
       const dataSource = await getDataSource();
       const category = await addCategory('category-per-band');
@@ -585,7 +515,14 @@ describe('RasterLoader', () => {
       const mappingRepo = dataSource.getRepository(DatasetFileMappingEntity);
       await mappingRepo.save(mappingRepo.create({ dataset_id: dataset.id, file_id: file.id, data_mapping_id: dataMapping.id }));
 
-      await processRasterLoad(getJob(dataset.slug));
+      const translate = jest.spyOn(GdalCLI, 'translate');
+      try {
+        await processRasterLoad(getJob(dataset.slug));
+        const cogArgs = translate.mock.calls.find(([, dst]) => dst.endsWith('_cog.tif'))?.[2] ?? [];
+        expect(cogArgs).toContain('OVERVIEW_RESAMPLING=AVERAGE');
+      } finally {
+        translate.mockRestore();
+      }
 
       expect((await getLayers(file.id)).map(l => l.band)).toEqual([1, 2]);
 
@@ -611,6 +548,42 @@ describe('RasterLoader', () => {
       await processRasterLoad(getJob(dataset.slug));
 
       expect(await filePathOf(file.id)).toBe(MULTIBAND_FILE);
+    });
+
+    it('leaves a non-4326 raster untouched but stores its bbox and footprints reprojected to EPSG:4326', async () => {
+      const { dataset, file } = await setUpRasterLoad(uniqueName('non-4326'), slug => ({ '1': bandEntry(slug, 0, 5) }), {
+        fileName: EPSG3857_FILE,
+      });
+
+      await processRasterLoad(getJob(dataset.slug));
+
+      // Already a COG, and CRS is no longer a conversion trigger — the file passes through as-is.
+      expect(await filePathOf(file.id)).toBe(EPSG3857_FILE);
+
+      const [layer] = await getLayers(file.id);
+      expect(layer).toBeDefined();
+
+      // Native extent is Web Mercator metres (~-9.03M..-8.96M, ~-4.03M..-3.95M) around 81°W, 34°S.
+      // Unreprojected metres would fail every one of these bounds, by sign or by magnitude.
+      const dataSource = await getDataSource();
+      const [bboxRow] = await dataSource.query(
+        `SELECT ST_XMin(bbox) AS xmin, ST_XMax(bbox) AS xmax, ST_YMin(bbox) AS ymin, ST_YMax(bbox) AS ymax
+         FROM raster_layers WHERE id = $1`,
+        [layer!.id],
+      );
+      expect(Number(bboxRow.xmin)).toBeGreaterThanOrEqual(-82);
+      expect(Number(bboxRow.xmax)).toBeLessThanOrEqual(-80);
+      expect(Number(bboxRow.ymin)).toBeGreaterThanOrEqual(-35);
+      expect(Number(bboxRow.ymax)).toBeLessThanOrEqual(-33);
+
+      const [footprintRow] = await dataSource.query(
+        `SELECT ST_XMin(ST_Collect(rf.geom)) AS xmin, ST_XMax(ST_Collect(rf.geom)) AS xmax
+         FROM raster_layer_footprints rlf JOIN raster_footprints rf ON rf.id = rlf.raster_footprint_id
+         WHERE rlf.raster_layer_id = $1`,
+        [layer!.id],
+      );
+      expect(Number(footprintRow.xmin)).toBeGreaterThanOrEqual(-82);
+      expect(Number(footprintRow.xmax)).toBeLessThanOrEqual(-80);
     });
 
     it('gives conversion the first 40% of progress, and starts band ingestion there', async () => {
@@ -649,6 +622,27 @@ describe('RasterLoader', () => {
       } finally {
         spy.mockRestore();
       }
+    });
+  });
+
+  describe('is_categorical', () => {
+    it('persists is_categorical=true when the property has a categorical unit conversion', async () => {
+      const { dataset, file, property } = await setUpRasterLoad(uniqueName('categorical'), slug => ({ '1': bandEntry(slug, 0, 5) }));
+      await addUnitConversion(property.id, 'code 1-12', 'x', UnitConversionType.CATEGORY_MAPPING);
+
+      await processRasterLoad(getJob(dataset.slug));
+
+      const [layer] = await getLayers(file.id);
+      expect(layer!.is_categorical).toBe(true);
+    });
+
+    it('persists is_categorical=false for a plain numeric mapping', async () => {
+      const { dataset, file } = await setUpRasterLoad(uniqueName('continuous'), slug => ({ '1': bandEntry(slug, 0, 5) }));
+
+      await processRasterLoad(getJob(dataset.slug));
+
+      const [layer] = await getLayers(file.id);
+      expect(layer!.is_categorical).toBe(false);
     });
   });
 

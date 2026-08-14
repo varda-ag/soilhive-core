@@ -463,28 +463,28 @@ export class CreateSchema1775600000000 implements MigrationInterface {
     await queryRunner.query(`CREATE INDEX IF NOT EXISTS "IDX_raster_layers_bbox" ON "raster_layers" USING GiST ("bbox")`);
     await queryRunner.query(
       `DO $$ BEGIN
-         IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'FK_raster_layers_file_id_files_id') THEN
+         IF NOT EXISTS (SELECT 1 FROM pg_constraint con JOIN pg_namespace nsp ON nsp.oid = con.connamespace WHERE con.conname = 'FK_raster_layers_file_id_files_id' AND nsp.nspname='${process.env.POSTGRES_SCHEMA}') THEN
            ALTER TABLE "raster_layers" ADD CONSTRAINT "FK_raster_layers_file_id_files_id" FOREIGN KEY ("file_id") REFERENCES "files"("id") ON DELETE CASCADE ON UPDATE NO ACTION DEFERRABLE INITIALLY DEFERRED;
          END IF;
        END $$`,
     );
     await queryRunner.query(
       `DO $$ BEGIN
-         IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'FK_raster_layers_procedure_id_procedures_id') THEN
+         IF NOT EXISTS (SELECT 1 FROM pg_constraint con JOIN pg_namespace nsp ON nsp.oid = con.connamespace WHERE con.conname = 'FK_raster_layers_procedure_id_procedures_id' AND nsp.nspname='${process.env.POSTGRES_SCHEMA}') THEN
           ALTER TABLE "raster_layers" ADD CONSTRAINT "FK_raster_layers_procedure_id_procedures_id" FOREIGN KEY ("procedure_id") REFERENCES "procedures"("id") ON DELETE NO ACTION ON UPDATE NO ACTION DEFERRABLE INITIALLY DEFERRED;
          END IF;
        END $$`,
     );
     await queryRunner.query(
       `DO $$ BEGIN
-         IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'FK_raster_layers_dataset_id_datasets_id') THEN
+         IF NOT EXISTS (SELECT 1 FROM pg_constraint con JOIN pg_namespace nsp ON nsp.oid = con.connamespace WHERE con.conname = 'FK_raster_layers_dataset_id_datasets_id' AND nsp.nspname='${process.env.POSTGRES_SCHEMA}') THEN
            ALTER TABLE "raster_layers" ADD CONSTRAINT "FK_raster_layers_dataset_id_datasets_id" FOREIGN KEY ("dataset_id") REFERENCES "datasets"("id") ON DELETE CASCADE ON UPDATE NO ACTION DEFERRABLE INITIALLY DEFERRED;
          END IF;
        END $$`,
     );
     await queryRunner.query(
       `DO $$ BEGIN
-         IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'FK_raster_layers_soil_property_id_soil_properties_id') THEN
+         IF NOT EXISTS (SELECT 1 FROM pg_constraint con JOIN pg_namespace nsp ON nsp.oid = con.connamespace WHERE con.conname = 'FK_raster_layers_soil_property_id_soil_properties_id' AND nsp.nspname='${process.env.POSTGRES_SCHEMA}') THEN
            ALTER TABLE "raster_layers" ADD CONSTRAINT "FK_raster_layers_soil_property_id_soil_properties_id" FOREIGN KEY ("soil_property_id") REFERENCES "soil_properties"("id") ON DELETE CASCADE ON UPDATE NO ACTION DEFERRABLE INITIALLY DEFERRED;
          END IF;
        END $$`,
@@ -495,14 +495,14 @@ export class CreateSchema1775600000000 implements MigrationInterface {
     );
     await queryRunner.query(
       `DO $$ BEGIN
-         IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'FK_raster_layer_assets_file_id_files_id') THEN
+         IF NOT EXISTS (SELECT 1 FROM pg_constraint con JOIN pg_namespace nsp ON nsp.oid = con.connamespace WHERE con.conname = 'FK_raster_layer_assets_file_id_files_id' AND nsp.nspname='${process.env.POSTGRES_SCHEMA}') THEN
            ALTER TABLE "raster_layer_assets" ADD CONSTRAINT "FK_raster_layer_assets_file_id_files_id" FOREIGN KEY ("file_id") REFERENCES "files"("id") ON DELETE CASCADE ON UPDATE NO ACTION DEFERRABLE INITIALLY DEFERRED;
          END IF;
        END $$`,
     );
     await queryRunner.query(
       `DO $$ BEGIN
-         IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'FK_raster_layer_assets_raster_layer_id_raster_layers_id') THEN
+         IF NOT EXISTS (SELECT 1 FROM pg_constraint con JOIN pg_namespace nsp ON nsp.oid = con.connamespace WHERE con.conname = 'FK_raster_layer_assets_raster_layer_id_raster_layers_id' AND nsp.nspname='${process.env.POSTGRES_SCHEMA}') THEN
            ALTER TABLE "raster_layer_assets" ADD CONSTRAINT "FK_raster_layer_assets_raster_layer_id_raster_layers_id" FOREIGN KEY ("raster_layer_id") REFERENCES "raster_layers"("id") ON DELETE CASCADE ON UPDATE NO ACTION DEFERRABLE INITIALLY DEFERRED;
          END IF;
        END $$`,
@@ -529,14 +529,14 @@ export class CreateSchema1775600000000 implements MigrationInterface {
     );
     await queryRunner.query(
       `DO $$ BEGIN
-         IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'FK_raster_layer_footprints_raster_layer_id') THEN
+         IF NOT EXISTS (SELECT 1 FROM pg_constraint con JOIN pg_namespace nsp ON nsp.oid = con.connamespace WHERE con.conname = 'FK_raster_layer_footprints_raster_layer_id' AND nsp.nspname='${process.env.POSTGRES_SCHEMA}') THEN
            ALTER TABLE "raster_layer_footprints" ADD CONSTRAINT "FK_raster_layer_footprints_raster_layer_id" FOREIGN KEY ("raster_layer_id") REFERENCES "raster_layers"("id") ON DELETE CASCADE ON UPDATE NO ACTION;
          END IF;
        END $$`,
     );
     await queryRunner.query(
       `DO $$ BEGIN
-         IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'FK_raster_layer_footprints_raster_footprint_id') THEN
+         IF NOT EXISTS (SELECT 1 FROM pg_constraint con JOIN pg_namespace nsp ON nsp.oid = con.connamespace WHERE con.conname = 'FK_raster_layer_footprints_raster_footprint_id' AND nsp.nspname='${process.env.POSTGRES_SCHEMA}') THEN
            ALTER TABLE "raster_layer_footprints" ADD CONSTRAINT "FK_raster_layer_footprints_raster_footprint_id" FOREIGN KEY ("raster_footprint_id") REFERENCES "raster_footprints"("id") ON DELETE CASCADE ON UPDATE NO ACTION;
          END IF;
        END $$`,

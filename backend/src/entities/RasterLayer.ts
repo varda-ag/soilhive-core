@@ -54,6 +54,9 @@ export default class RasterLayerEntity extends BaseTable implements RasterLayer 
   @Column({ type: 'uuid' })
   soil_property_id: string;
 
+  @Column({ type: 'boolean', default: false })
+  is_categorical: boolean;
+
   @ManyToOne(() => SoilPropertyEntity, soil_property => soil_property.id)
   @JoinColumn({ name: 'soil_property_id' })
   soil_property: SoilPropertyEntity;

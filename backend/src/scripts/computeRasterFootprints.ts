@@ -54,12 +54,19 @@ export async function streamRasterFootprints(
     nRows,
     nodata,
     overviewTempPath,
+    srcSrs,
   } = await timed('footprint extraction setup', async () => {
     const { mainFilePath } = await FileService.getMainFilePath(cogPath);
 
     const info = await GdalCLI.gdalinfo(mainFilePath);
     const gt = info.geoTransform;
     if (!gt) throw new Error('Raster has no geoTransform');
+
+    // Footprints are always stored in EPSG:4326 (see insertFootprintBatch); a raster in any other
+    // CRS has its batches reprojected below. Missing CRS metadata is treated as already-4326,
+    // matching how vector files with no declared CRS are handled (FileService.fileToDB).
+    const epsg = GdalCLI.extractEpsgFromWkt(info.coordinateSystem?.wkt);
+    const srcSrs = epsg !== undefined && epsg !== 4326 ? info.coordinateSystem!.wkt! : null;
 
     const [rasterNativeWidth, rasterNativeHeight] = info.size ?? [0, 0];
     const xMin = gt[0]!;
@@ -68,15 +75,31 @@ export async function streamRasterFootprints(
     const pixHFull = gt[5]!;
     const xMax = xMin + rasterNativeWidth * pixWFull;
     const yMin = yMax + rasterNativeHeight * pixHFull;
-    const rasterWidthDeg = xMax - xMin;
-    const rasterHeightDeg = yMax - yMin;
+    // Tile bounds and pixel windows below are computed in the raster's native units throughout —
+    // only the grid's own sizing needs a real degree extent, since a Web Mercator raster's native
+    // width is in metres and would otherwise be compared against computeGrid's degree-based
+    // earthArea constant as if it were one.
+    const rasterWidthNative = xMax - xMin;
+    const rasterHeightNative = yMax - yMin;
+    let gridWidthDeg = rasterWidthNative;
+    let gridHeightDeg = rasterHeightNative;
+    if (srcSrs) {
+      const corners = await GdalCLI.transformPoints(srcSrs, [
+        [xMin, yMin],
+        [xMax, yMax],
+      ]);
+      const [lonMin, latMin] = corners[0]!;
+      const [lonMax, latMax] = corners[1]!;
+      gridWidthDeg = Math.abs(lonMax - lonMin);
+      gridHeightDeg = Math.abs(latMax - latMin);
+    }
 
     const nodata: number | null = info.bands?.[band - 1]?.noDataValue ?? null;
     const nativePixelSize = Math.abs(pixWFull);
 
-    const { nCols, nRows } = computeGrid(rasterWidthDeg, rasterHeightDeg);
-    const tileW = rasterWidthDeg / nCols;
-    const tileH = rasterHeightDeg / nRows;
+    const { nCols, nRows } = computeGrid(gridWidthDeg, gridHeightDeg);
+    const tileW = rasterWidthNative / nCols;
+    const tileH = rasterHeightNative / nRows;
     const tileMinDim = Math.min(tileW, tileH);
 
     const tiff = await openTiff(cogPath);
@@ -98,8 +121,8 @@ export async function streamRasterFootprints(
     let selectedImage = await tiff.getImage(selectedIndex);
     const ovWidth = selectedImage.getWidth();
     const ovHeight = selectedImage.getHeight();
-    const ovPixelW = rasterWidthDeg / ovWidth;
-    const ovPixelH = rasterHeightDeg / ovHeight;
+    const ovPixelW = rasterWidthNative / ovWidth;
+    const ovPixelH = rasterHeightNative / ovHeight;
 
     // The index to read from `selectedImage` differs between the two paths below, so it is
     // decided here alongside the image itself rather than at the read site: the S3 path
@@ -122,8 +145,9 @@ export async function streamRasterFootprints(
           '-outsize',
           String(ovWidth),
           String(ovHeight),
-          '-r',
-          'nearest',
+          // TODO: review if needed
+          // '-r',
+          // 'nearest',
           '-co',
           'TILED=YES',
           '-co',
@@ -155,6 +179,7 @@ export async function streamRasterFootprints(
       nRows,
       nodata,
       overviewTempPath,
+      srcSrs,
     };
   });
 
@@ -234,7 +259,7 @@ export async function streamRasterFootprints(
 
         if (batch.length >= INSERT_BATCH_SIZE) {
           t = Date.now();
-          await onBatch(batch);
+          await onBatch(srcSrs ? await reprojectToWgs84(batch, srcSrs) : batch);
           dbMs += Date.now() - t;
           batch = [];
         }
@@ -243,7 +268,7 @@ export async function streamRasterFootprints(
 
     if (batch.length > 0) {
       const t = Date.now();
-      await onBatch(batch);
+      await onBatch(srcSrs ? await reprojectToWgs84(batch, srcSrs) : batch);
       dbMs += Date.now() - t;
     }
 
@@ -262,6 +287,31 @@ export async function streamRasterFootprints(
       await fs.unlink(overviewTempPath).catch(() => {});
     }
   }
+}
+
+/**
+ * Reprojects every vertex of a batch of footprints from `srcSrs` to EPSG:4326 in one
+ * `gdaltransform` call, rather than one per tile — batches land here only once every
+ * INSERT_BATCH_SIZE footprints, keeping the number of GDAL processes proportional to that instead
+ * of to the (much larger) number of tiles visited.
+ */
+async function reprojectToWgs84(batch: MultiPolygon[], srcSrs: string): Promise<MultiPolygon[]> {
+  const points: [number, number][] = [];
+  for (const { coordinates } of batch) {
+    for (const polygon of coordinates) {
+      for (const ring of polygon) {
+        for (const [x, y] of ring) points.push([x!, y!]);
+      }
+    }
+  }
+
+  const transformed = await GdalCLI.transformPoints(srcSrs, points);
+
+  let i = 0;
+  return batch.map(({ coordinates }) => ({
+    type: 'MultiPolygon',
+    coordinates: coordinates.map(polygon => polygon.map(ring => ring.map(() => transformed[i++]!))),
+  }));
 }
 
 function traceMaskToPolygons(

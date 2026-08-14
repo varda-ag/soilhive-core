@@ -30,25 +30,23 @@ const makeFileEntity = (metaOverrides: Partial<FileMetadata> = {}): FileEntity =
     metadata: { ...BASE_METADATA, ...metaOverrides },
   }) as FileEntity;
 
-const makeEntityManager = () =>
+// mapping === null mirrors no dataset_file_mapping row (or one with no data_mapping) linked to
+// the file — fileToDB must throw FTD_MISSING_COLUMN_MAPPING rather than fall back to field_names.
+const makeEntityManagerWithMapping = (mapping: Record<string, unknown> | null) =>
   ({
     getRepository: jest.fn().mockReturnValue({
       update: jest.fn().mockResolvedValue({} as never),
-      findOne: jest.fn().mockReturnValue(Promise.resolve(null)),
+      findOne: jest.fn().mockResolvedValue((mapping === null ? null : { data_mapping: { data_mapping: mapping } }) as never),
     }),
     query: jest.fn().mockResolvedValue([] as never),
   }) as any;
 
+// The default for tests that aren't exercising mapping-related behaviour: a plain mapping
+// covering BASE_METADATA's field_names, with no depth/geometry fields.
+const makeEntityManager = () => makeEntityManagerWithMapping({ col1: 'mapped_col1', col2: 'mapped_col2' });
+
 const makeEntityManagerWithDepthMapping = (depthColName: string) =>
-  ({
-    getRepository: jest.fn().mockReturnValue({
-      update: jest.fn().mockResolvedValue({} as never),
-      findOne: jest.fn().mockResolvedValue({
-        data_mapping: { data_mapping: { [depthColName]: DetectableFields.DEPTH } },
-      } as never),
-    }),
-    query: jest.fn().mockResolvedValue([] as never),
-  }) as any;
+  makeEntityManagerWithMapping({ [depthColName]: DetectableFields.DEPTH });
 
 describe('FileService.fileToDB — JobError surfacing', () => {
   let fileService: FileService;
@@ -85,7 +83,7 @@ describe('FileService.fileToDB — JobError surfacing', () => {
     });
   });
 
-  it('E03 — FTD_NO_DATA_COLUMNS when field_names is empty', async () => {
+  it('E03 — FTD_NO_DATA_COLUMNS when the mapping names no non-geometry columns', async () => {
     jest.spyOn(fileService, 'getFile').mockResolvedValue(makeFileEntity({ field_names: [] }));
     jest.spyOn(fileService as any, 'extractGeomFieldsFromMapping').mockResolvedValue({
       geomField: null,
@@ -93,9 +91,22 @@ describe('FileService.fileToDB — JobError surfacing', () => {
       lonField: null,
     });
 
-    await expect(fileService.fileToDB({ entityManager: makeEntityManager(), entitlements: {} }, 'file-id')).rejects.toMatchObject({
+    await expect(
+      fileService.fileToDB({ entityManager: makeEntityManagerWithMapping({}), entitlements: {} }, 'file-id'),
+    ).rejects.toMatchObject({
       name: 'JobError',
       code: 'FTD_NO_DATA_COLUMNS',
+    });
+  });
+
+  it('FTD_MISSING_COLUMN_MAPPING when no dataset_file_mapping links the file', async () => {
+    jest.spyOn(fileService, 'getFile').mockResolvedValue(makeFileEntity());
+
+    await expect(
+      fileService.fileToDB({ entityManager: makeEntityManagerWithMapping(null), entitlements: {} }, 'file-id'),
+    ).rejects.toMatchObject({
+      name: 'JobError',
+      code: 'FTD_MISSING_COLUMN_MAPPING',
     });
   });
 

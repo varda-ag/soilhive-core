@@ -36,6 +36,7 @@ describe('RasterIngestService', () => {
         band: 1,
         datasetId: dataset.id,
         soilPropertySlug: property.slug,
+        isCategorical: false,
         minDepth: 5,
         maxDepth: 15,
       });
@@ -63,6 +64,7 @@ describe('RasterIngestService', () => {
         band: 1,
         datasetId: dataset.id,
         soilPropertySlug: property.slug,
+        isCategorical: false,
         minDepth: null,
         maxDepth: null,
       });
@@ -84,6 +86,7 @@ describe('RasterIngestService', () => {
         band: 1,
         datasetId: dataset.id,
         soilPropertySlug: property.slug,
+        isCategorical: false,
         minDepth: 0,
         maxDepth: 5,
       });
@@ -92,6 +95,7 @@ describe('RasterIngestService', () => {
         band: 2,
         datasetId: dataset.id,
         soilPropertySlug: property.slug,
+        isCategorical: false,
         minDepth: 5,
         maxDepth: 15,
       });
@@ -127,6 +131,7 @@ describe('RasterIngestService', () => {
         band: 1,
         datasetId: dataset.id,
         soilPropertySlug: property.slug,
+        isCategorical: false,
         minDepth: 0,
         maxDepth: 5,
       });
@@ -135,6 +140,7 @@ describe('RasterIngestService', () => {
         band: 1,
         datasetId: dataset.id,
         soilPropertySlug: property.slug,
+        isCategorical: false,
         minDepth: 15,
         maxDepth: 30,
       });
@@ -146,6 +152,24 @@ describe('RasterIngestService', () => {
       expect(layers).toHaveLength(1);
       expect(layers[0].min_depth).toBe(15);
       expect(layers[0].max_depth).toBe(30);
+    });
+
+    it('defaults is_categorical to false at the schema level, independent of ingestRaster always passing it explicitly', async () => {
+      // ingestRaster always supplies is_categorical itself, so this bypasses it and inserts
+      // directly — the column's own DEFAULT is what a future insert path with no opinion on
+      // categorical-ness would actually get, and what the entity's own @Column default must match.
+      const { dataset, property, file } = await setUpDataset('test-raster-default-categorical', TEST_FILE);
+      const ds = await getDataSource();
+      const [{ id: soilPropertyId }] = await ds.query(`SELECT id FROM soil_properties WHERE slug = $1`, [property.slug]);
+
+      const [row] = await ds.query(
+        `INSERT INTO raster_layers (file_id, dataset_id, band, soil_property_id, resolution_m, bbox)
+         VALUES ($1, $2, 1, $3, 250, ST_SetSRID(ST_GeomFromText('POLYGON((0 0,1 0,1 1,0 1,0 0))'), 4326))
+         RETURNING is_categorical`,
+        [file.id, dataset.id, soilPropertyId],
+      );
+
+      expect(row.is_categorical).toBe(false);
     });
   });
 
@@ -163,6 +187,7 @@ describe('RasterIngestService', () => {
         band: 1,
         datasetId: dataset.id,
         soilPropertySlug: property.slug,
+        isCategorical: false,
         minDepth: 0,
         maxDepth: 5,
         referencePeriodStart: '1990-01-01',
@@ -173,6 +198,7 @@ describe('RasterIngestService', () => {
         band: 2,
         datasetId: dataset.id,
         soilPropertySlug: property.slug,
+        isCategorical: false,
         minDepth: 5,
         maxDepth: 15,
         referencePeriodStart: '2001-01-01',
@@ -211,6 +237,7 @@ describe('RasterIngestService', () => {
         band: 1,
         datasetId: dataset.id,
         soilPropertySlug: property.slug,
+        isCategorical: false,
         minDepth: null,
         maxDepth: null,
       });
@@ -238,6 +265,7 @@ describe('RasterIngestService', () => {
         band: 1,
         datasetId: dataset.id,
         soilPropertySlug: property.slug,
+        isCategorical: false,
         minDepth: null,
         maxDepth: null,
       });
@@ -266,6 +294,7 @@ describe('RasterIngestService', () => {
         band: 2,
         datasetId: dataset.id,
         soilPropertySlug: property.slug,
+        isCategorical: false,
         minDepth: null,
         maxDepth: null,
       });

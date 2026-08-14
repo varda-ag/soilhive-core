@@ -57,15 +57,33 @@ export async function analyzeRasterMeta(cogPath: string, band: number): Promise<
   const isGeo = (info.coordinateSystem?.wkt?.includes('GEOGCS') || info.coordinateSystem?.wkt?.includes('GEOGCRS')) ?? true;
   const resolution = Math.round(Math.abs(pixW) * (isGeo ? 111320 : 1));
 
+  // raster_layers.bbox is always stored in EPSG:4326, so a raster kept in its native CRS (see
+  // RasterIngestService.checkFileFormat, which no longer warps non-4326 rasters at ingest) has its
+  // extent reprojected here — the same way computeRasterFootprints reprojects footprint geometries
+  // — rather than storing native-CRS coordinates mislabeled as degrees.
+  const epsg = GdalCLI.extractEpsgFromWkt(info.coordinateSystem?.wkt);
+  let bboxMinX = xMin;
+  let bboxMinY = yMin;
+  let bboxMaxX = xMax;
+  let bboxMaxY = yMax;
+  if (epsg !== undefined && epsg !== 4326) {
+    const corners = await GdalCLI.transformPoints(info.coordinateSystem!.wkt!, [
+      [xMin, yMin],
+      [xMax, yMax],
+    ]);
+    [bboxMinX, bboxMinY] = corners[0]!;
+    [bboxMaxX, bboxMaxY] = corners[1]!;
+  }
+
   const bbox: Polygon = {
     type: 'Polygon',
     coordinates: [
       [
-        [xMin, yMin],
-        [xMax, yMin],
-        [xMax, yMax],
-        [xMin, yMax],
-        [xMin, yMin],
+        [bboxMinX, bboxMinY],
+        [bboxMaxX, bboxMinY],
+        [bboxMaxX, bboxMaxY],
+        [bboxMinX, bboxMaxY],
+        [bboxMinX, bboxMinY],
       ],
     ],
   };

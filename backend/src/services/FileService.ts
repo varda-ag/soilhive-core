@@ -643,6 +643,9 @@ export default class FileService {
       relations: ['data_mapping'],
     });
     const mapping: DataMappingObject | undefined = datasetFileMapping?.data_mapping?.data_mapping;
+    if (!mapping) {
+      throw new JobError('FTD_MISSING_COLUMN_MAPPING', { file_name: fileEntity.name });
+    }
 
     const mappingGeomFields = await this.extractGeomFieldsFromMapping(mapping);
 
@@ -668,20 +671,10 @@ export default class FileService {
       tableName,
     ];
 
-    const originalGeomFields = [
-      fileMetadata.detected_fields[DetectableFields.GEOMETRY],
-      fileMetadata.detected_fields[DetectableFields.LONGITUDE],
-      fileMetadata.detected_fields[DetectableFields.LATITUDE],
-      mappingGeomFields.geomField,
-      mappingGeomFields.lonField,
-      mappingGeomFields.latField,
-    ].map(item => item?.toLowerCase());
-    let mappingNonGeomFields: string[];
-    if (mapping) {
-      mappingNonGeomFields = Object.keys(mapping).filter(item => !originalGeomFields.includes(item.toLowerCase()));
-    } else {
-      mappingNonGeomFields = fileMetadata.field_names.filter(item => !originalGeomFields.includes(item.toLowerCase()));
-    }
+    const originalGeomFields = [mappingGeomFields.geomField, mappingGeomFields.lonField, mappingGeomFields.latField].map(item =>
+      item?.toLowerCase(),
+    );
+    const mappingNonGeomFields = Object.keys(mapping).filter(item => !originalGeomFields.includes(item.toLowerCase()));
     let selectClause = mappingNonGeomFields.map(field => `"${field}" AS ${sanitizeField(field)}`).join(', ');
 
     try {

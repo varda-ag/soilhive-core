@@ -1,8 +1,8 @@
 # ADR 0004: `ingestRaster` requires a pre-converted COG; conversion stays in `convert_raster.sh`
 
-**Status:** Superseded by ADR 0024 (and, earlier, in part by ADR 0018)
+**Status:** Superseded by ADR 0025 (and, earlier, in part by ADR 0018)
 
-> **Note:** nothing below is current. ADR 0018 removed the CLI ingestion this ADR framed as a supported context, and ADR 0024 then moved the conversion into `RasterIngestService` and deleted `convert_raster.sh` — so the split this ADR decided, and the precondition it gave `ingestRaster`, are both gone. Kept for the reasoning: ADR 0024 supersedes this one because its premises stopped holding, not because the argument was wrong.
+> **Note:** nothing below is current. ADR 0018 removed the CLI ingestion this ADR framed as a supported context, and ADR 0025 then moved the conversion into `RasterIngestService` and deleted `convert_raster.sh` — so the split this ADR decided, and the precondition it gave `ingestRaster`, are both gone. Kept for the reasoning: ADR 0025 supersedes this one because its premises stopped holding, not because the argument was wrong.
 
 ## Context
 

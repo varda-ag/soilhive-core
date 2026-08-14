@@ -55,18 +55,35 @@ export class RasterFileWriter {
    * directory. This is a rectangular crop (via gdal_translate -projwin), not a polygon clip — pixels
    * inside the bbox but outside the AOI's actual shape are still included. Only safe to use when the
    * AOI is itself an axis-aligned bbox, so the crop extent matches the AOI exactly.
-   * Output layer naming convention is {outputDir}/{dataset_slug}_{soil_property}{_depth}{_date}
+   * Output layer naming convention is {outputDir}/{dataset_slug}_{soil_property}{_depth}{_date}_{target_crs}
    */
-  async cropToAoiBbox(layer: FilteredRasterLayer, aoi: Polygon | MultiPolygon): Promise<void> {
-    const layerName = this.buildLayerName(layer);
+  async cropToAoiBbox(layer: FilteredRasterLayer, aoi: Polygon | MultiPolygon, targetCrs?: number): Promise<void> {
+    const layerName = this.buildLayerName(layer, targetCrs);
     fs.mkdirSync(path.dirname(this.outputDir), { recursive: true });
+    const srs = `EPSG:${layer.epsg ?? 4326}`;
 
     const { mainFilePath } = await FileService.getMainFilePath(layer.path);
     const [minX, minY, maxX, maxY] = turf.bbox(aoi);
-    const ulx = minX;
-    const uly = maxY;
-    const lrx = maxX;
-    const lry = minY;
+    let ulx = minX;
+    let uly = maxY;
+    let lrx = maxX;
+    let lry = minY;
+
+    if (layer.epsg) {
+      // aoi (and therefore minX/minY/maxX/maxY) is always in EPSG:4326, but the source raster is
+      // still in its own native CRS (layer.epsg) — the crop window has to go the opposite direction
+      // from every other reprojection in this codebase, which always lands on 4326.
+      const corners = await GdalCLI.transformPoints(
+        'EPSG:4326',
+        [
+          [minX, maxY],
+          [maxX, minY],
+        ],
+        srs,
+      );
+      [ulx, uly] = corners[0]!;
+      [lrx, lry] = corners[1]!;
+    }
 
     // -b selects the layer's band from the source, which may hold several. It applies to both
     // formats: without it a multiband source would export every band under a name that promises
@@ -78,7 +95,7 @@ export class RasterFileWriter {
       String(lrx),
       String(lry),
       '-projwin_srs',
-      'EPSG:4326',
+      srs,
       '-b',
       String(layer.band),
       '-of',
@@ -92,7 +109,19 @@ export class RasterFileWriter {
     }
 
     const filePath = path.join(this.outputDir, `${layerName}.${this.getFileExtension()}`);
-    await GdalCLI.translate(mainFilePath, filePath, translateArgs);
+    const dstTranslate = targetCrs ? path.join(this.outputDir, `${layerName}.tmp.${this.getFileExtension()}`) : filePath;
+    await GdalCLI.translate(mainFilePath, dstTranslate, translateArgs);
+    if (targetCrs) {
+      try {
+        await GdalCLI.warp(dstTranslate, filePath, this.warpToTargetCrsArgs(targetCrs, layer.is_categorical));
+      } finally {
+        try {
+          fs.unlinkSync(dstTranslate);
+        } catch {
+          // ignore cleanup errors
+        }
+      }
+    }
   }
 
   /**
@@ -101,7 +130,7 @@ export class RasterFileWriter {
    * Each tile is written to a temp TIFF on disk; a VRT mosaics them for the final gdal_translate.
    * Output extent = intersection of source bbox and mask bbox, at source resolution.
    */
-  async writeLayer(layer: FilteredRasterLayer, rasterMaskFile: string): Promise<void> {
+  async writeLayer(layer: FilteredRasterLayer, rasterMaskFile: string, targetCrs?: number): Promise<void> {
     const sourceTiff = await openTiff(layer.path);
     const maskTiff = await fromFile(rasterMaskFile);
 
@@ -141,7 +170,7 @@ export class RasterFileWriter {
     const nodata = nodataFromImage(sourceImage);
     const nodataFill = Number.isNaN(nodata) ? Number.NaN : nodata;
     const nodataStr = Number.isNaN(nodata) ? 'nan' : String(nodata);
-    const layerName = this.buildLayerName(layer);
+    const layerName = this.buildLayerName(layer, targetCrs);
 
     fs.mkdirSync(this.outputDir, { recursive: true });
 
@@ -181,13 +210,26 @@ export class RasterFileWriter {
 
       const filePath = path.join(this.outputDir, `${layerName}.${this.getFileExtension()}`);
       const vrtPath = path.join(this.outputDir, `${layerName}.tmp.vrt`);
-      fs.writeFileSync(vrtPath, this.buildVrt(tiles, outW, outH, alignedOutMinX, alignedOutMaxY, srcPixW, srcPixH, nodataStr));
+      const srs = `EPSG:${layer.epsg ?? 4326}`;
+      fs.writeFileSync(vrtPath, this.buildVrt(tiles, outW, outH, alignedOutMinX, alignedOutMaxY, srcPixW, srcPixH, nodataStr, srs));
 
       try {
+        const dstTranslate = targetCrs ? path.join(this.outputDir, `${layerName}.tmp.${this.getFileExtension()}`) : filePath;
         if (this.fileFormat === RasterFileFormat.TIFF) {
-          await GdalCLI.translate(vrtPath, filePath, ['-of', 'GTiff', '-co', 'COMPRESS=DEFLATE', '-co', 'TILED=YES', '-ot', 'Float32']);
+          await GdalCLI.translate(vrtPath, dstTranslate, [
+            '-of',
+            'GTiff',
+            '-co',
+            'COMPRESS=DEFLATE',
+            '-co',
+            'TILED=YES',
+            '-ot',
+            'Float32',
+            '-a_srs',
+            srs,
+          ]);
         } else {
-          await GdalCLI.translate(vrtPath, filePath, [
+          await GdalCLI.translate(vrtPath, dstTranslate, [
             '-of',
             'GPKG',
             '-b',
@@ -198,7 +240,20 @@ export class RasterFileWriter {
             'TILE_FORMAT=TIFF',
             '-ot',
             'Float32',
+            '-a_srs',
+            srs,
           ]);
+        }
+        if (targetCrs) {
+          try {
+            await GdalCLI.warp(dstTranslate, filePath, this.warpToTargetCrsArgs(targetCrs, layer.is_categorical));
+          } finally {
+            try {
+              fs.unlinkSync(dstTranslate);
+            } catch {
+              // ignore cleanup errors
+            }
+          }
         }
       } finally {
         fs.unlinkSync(vrtPath);
@@ -299,6 +354,7 @@ export class RasterFileWriter {
     pixW: number,
     pixH: number,
     nodataStr: string,
+    srs: string,
   ): string {
     const sources = tiles
       .map(
@@ -312,7 +368,7 @@ export class RasterFileWriter {
       )
       .join('\n');
     return `<VRTDataset rasterXSize="${outW}" rasterYSize="${outH}">
-  <SRS dataAxisToSRSAxisMapping="2,1">GEOGCS["WGS 84",DATUM["WGS_1984",SPHEROID["WGS 84",6378137,298.257223563]],PRIMEM["Greenwich",0],UNIT["degree",0.0174532925199433,AUTHORITY["EPSG","9122"]],AUTHORITY["EPSG","4326"]]</SRS>
+  <SRS dataAxisToSRSAxisMapping="2,1">${srs}</SRS>
   <GeoTransform>${xMin}, ${pixW}, 0.0, ${yMax}, 0.0, ${-pixH}</GeoTransform>
   <VRTRasterBand dataType="Float32" band="1">
     <NoDataValue>${nodataStr}</NoDataValue>
@@ -321,7 +377,7 @@ ${sources}
 </VRTDataset>`;
   }
 
-  private buildLayerName(layer: FilteredRasterLayer): string {
+  private buildLayerName(layer: FilteredRasterLayer, targetCrs?: number): string {
     const depthPart = layer.min_depth !== null && layer.max_depth !== null ? `_${layer.min_depth}-${layer.max_depth}cm` : '';
     let datePart = '';
     if (layer.reference_period_start !== null && layer.reference_period_stop !== null) {
@@ -331,7 +387,37 @@ ${sources}
     }
     const lmPart = layer.laboratory_method !== null ? `_${sanitizeField(layer.laboratory_method)}` : '';
     const suPart = layer.standard_unit !== null ? `_${sanitizeField(layer.standard_unit)}` : '';
-    return `${sanitizeField(layer.dataset_name)}_${sanitizeField(layer.soil_property_name)}${lmPart}${suPart}${depthPart}${datePart}`;
+    const crsPart = targetCrs ?? layer.epsg ?? 4326;
+    return `${sanitizeField(layer.dataset_name)}_${sanitizeField(layer.soil_property_name)}${lmPart}${suPart}${depthPart}${datePart}_${crsPart}`;
+  }
+
+  /**
+   * Nearest-neighbour for a categorical layer (never invent a class value between two others);
+   * bilinear otherwise — mirrors RasterIngestService.convertRaster's ingest-time resampling choice.
+   * `isCategorical` is persisted on raster_layers at ingest time from the band mapping, so it's read
+   * back here rather than re-derived.
+   */
+  private warpToTargetCrsArgs(targetCrs: number, isCategorical: boolean): string[] {
+    return [
+      '--config',
+      'GDAL_CACHEMAX',
+      '512',
+      '--config',
+      'GDAL_NUM_THREADS',
+      'ALL_CPUS',
+      '-t_srs',
+      `EPSG:${targetCrs}`,
+      '-r',
+      isCategorical ? 'near' : 'bilinear',
+      '-of',
+      'GTiff',
+      '-co',
+      'TILED=YES',
+      '-co',
+      'COMPRESS=DEFLATE',
+      '-co',
+      'BIGTIFF=YES',
+    ];
   }
 
   private getDriverName(): string {
