@@ -88,6 +88,8 @@ describe('mergeManagedDependencies', () => {
     expect(pkg.dependencies['react-dom']).toBe('19.2.0');
     expect(pkg.dependencies['frontend-plugin-types']).toBe('link:../frontend-plugin-types');
     expect(pkg.devDependencies.typescript).toBe('5.9.3');
+    expect(pkg.devDependencies['@types/react']).toBe('19.2.0');
+    expect(pkg.devDependencies['@types/react-dom']).toBe('19.2.0');
     expect(pkg.dependencies.classnames).toBe('2.5.1');
     expect(pkg.dependencies['react-router']).toBe('7.9.4');
     expect(pkg.dependencies['react-tooltip']).toBe('5.30.0');
@@ -95,6 +97,33 @@ describe('mergeManagedDependencies', () => {
     // UI/ never imports these — depending on them would be unnecessary for a plugin
     expect(pkg.dependencies.primereact).toBeUndefined();
     expect(pkg.dependencies['react-loading-skeleton']).toBeUndefined();
+  });
+
+  it('pins @types/react and @types/react-dom alongside react/react-dom — react/react-dom are pinned via a separate code path from the scanned-dependency loop, so their @types companions need the same explicit treatment @types/geojson gets', () => {
+    const uiDir = join(tempDir, 'fixture-ui-react-types');
+    const frontendPackageJsonPath = join(tempDir, 'fixture-frontend-package-react-types.json');
+    mkdirSync(uiDir, { recursive: true });
+    writeFileSync(
+      frontendPackageJsonPath,
+      JSON.stringify({
+        dependencies: { react: '19.2.0', 'react-dom': '19.2.0' },
+        devDependencies: { typescript: '5.9.3', '@types/react': '19.2.5', '@types/react-dom': '19.2.3' },
+      }),
+    );
+    writeFileSync(
+      join(pluginPath, 'package.json'),
+      JSON.stringify({
+        name: 'demo-plugin',
+        dependencies: {},
+        devDependencies: { '@types/react': '19.0.0', '@types/react-dom': '19.0.0' },
+      }),
+    );
+
+    mergeManagedDependencies(pluginPath, { uiDir, frontendPackageJsonPath });
+
+    const pkg = JSON.parse(readFileSync(join(pluginPath, 'package.json'), 'utf-8'));
+    expect(pkg.devDependencies['@types/react']).toBe('19.2.5');
+    expect(pkg.devDependencies['@types/react-dom']).toBe('19.2.3');
   });
 
   it("pins typescript to the host's exact version too, for every plugin — not just --with-map ones, since vendored host code (UI/ or Map/) may need a newer compiler than an old scaffold's pinned version", () => {

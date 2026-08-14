@@ -123,6 +123,22 @@ export interface MergeManagedDependenciesOptions {
   extraScanPaths?: string[];
 }
 
+/**
+ * A runtime package without its own bundled type declarations needs a matching @types/<name>
+ * companion (e.g. geojson -> @types/geojson, react -> @types/react) — merges it into
+ * devDependencies if one exists in either candidate package.json. Applied both to react/react-dom
+ * (pinned explicitly, below, rather than through the scanned-dependency loop) and to every scanned
+ * package, so neither path silently misses its own @types companion.
+ */
+function mergeTypesCompanion(pkg: any, packageName: string, packageJsonPaths: string[]): void {
+  const typesPackageName = `@types/${packageName}`;
+  const typesVersion = findVersion(typesPackageName, packageJsonPaths);
+  if (typesVersion !== undefined) {
+    pkg.devDependencies = pkg.devDependencies ?? {};
+    pkg.devDependencies[typesPackageName] = typesVersion;
+  }
+}
+
 export function mergeManagedDependencies(pluginPath: string, options: MergeManagedDependenciesOptions = {}): void {
   const uiDir = options.uiDir ?? UI_SRC;
   const frontendPackageJsonPath = options.frontendPackageJsonPath ?? FRONTEND_PACKAGE_JSON;
@@ -136,6 +152,8 @@ export function mergeManagedDependencies(pluginPath: string, options: MergeManag
   pkg.dependencies.react = pinnedVersion('react', packageJsonPaths);
   pkg.dependencies['react-dom'] = pinnedVersion('react-dom', packageJsonPaths);
   pkg.dependencies['frontend-plugin-types'] = 'link:../frontend-plugin-types';
+  mergeTypesCompanion(pkg, 'react', packageJsonPaths);
+  mergeTypesCompanion(pkg, 'react-dom', packageJsonPaths);
 
   // Pinned for every plugin, not just --with-map ones: vendored host code (UI/ or Map/) is only
   // ever type-checked against the host's own compiler version, and the scaffold's typescript is
@@ -152,14 +170,7 @@ export function mergeManagedDependencies(pluginPath: string, options: MergeManag
       pkg.dependencies[companionName] = pinnedVersion(companionName, packageJsonPaths);
     }
 
-    // A runtime package without its own bundled type declarations needs a matching @types/<name>
-    // companion (e.g. geojson -> @types/geojson) — merge it in as a devDependency if one exists.
-    const typesPackageName = `@types/${packageName}`;
-    const typesVersion = findVersion(typesPackageName, packageJsonPaths);
-    if (typesVersion !== undefined) {
-      pkg.devDependencies = pkg.devDependencies ?? {};
-      pkg.devDependencies[typesPackageName] = typesVersion;
-    }
+    mergeTypesCompanion(pkg, packageName, packageJsonPaths);
   }
 
   writeFileSync(pluginPackageJsonPath, `${JSON.stringify(pkg, null, 2)}\n`);
