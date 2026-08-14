@@ -27,6 +27,7 @@ export interface RasterFileMetadata {
   is_raster: true;
   driver?: string;
   epsg?: number;
+  wkt?: string;
   extent?: [number, number, number, number]; // If empty the raster is not georeferenced
   size: [number, number]; // [width, height] in pixels
   band_count: number;
@@ -41,6 +42,7 @@ export interface VectorFileMetadata {
   geometry_detected: boolean;
   driver?: string;
   epsg?: number;
+  wkt?: string;
   layer_name?: string;
   geom_column?: string;
 }

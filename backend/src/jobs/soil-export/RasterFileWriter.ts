@@ -60,7 +60,10 @@ export class RasterFileWriter {
   async cropToAoiBbox(layer: FilteredRasterLayer, aoi: Polygon | MultiPolygon, targetCrs?: number): Promise<void> {
     const layerName = this.buildLayerName(layer, targetCrs);
     fs.mkdirSync(path.dirname(this.outputDir), { recursive: true });
-    const srs = `EPSG:${layer.epsg ?? 4326}`;
+    // wkt (a raw WKT string GDAL accepts directly) is authoritative; epsg is a best-effort label
+    // that may be absent, or wrong, for a custom/unregistered projection.
+    const srs = layer.wkt ?? `EPSG:${layer.epsg ?? 4326}`;
+    const isNative4326 = layer.epsg !== undefined ? layer.epsg === 4326 : !layer.wkt;
 
     const { mainFilePath } = await FileService.getMainFilePath(layer.path);
     const [minX, minY, maxX, maxY] = turf.bbox(aoi);
@@ -69,10 +72,10 @@ export class RasterFileWriter {
     let lrx = maxX;
     let lry = minY;
 
-    if (layer.epsg) {
+    if (!isNative4326) {
       // aoi (and therefore minX/minY/maxX/maxY) is always in EPSG:4326, but the source raster is
-      // still in its own native CRS (layer.epsg) — the crop window has to go the opposite direction
-      // from every other reprojection in this codebase, which always lands on 4326.
+      // still in its own native CRS — the crop window has to go the opposite direction from every
+      // other reprojection in this codebase, which always lands on 4326.
       const corners = await GdalCLI.transformPoints(
         'EPSG:4326',
         [
@@ -129,8 +132,10 @@ export class RasterFileWriter {
    * Reads source and mask in TILE_SIZE×TILE_SIZE windows to bound per-tile memory usage.
    * Each tile is written to a temp TIFF on disk; a VRT mosaics them for the final gdal_translate.
    * Output extent = intersection of source bbox and mask bbox, at source resolution.
+   * Returns whether a file was actually written — `false` when the source and mask extents
+   * (both read in the source's own CRS) don't overlap, or the overlap contains no valid pixels.
    */
-  async writeLayer(layer: FilteredRasterLayer, rasterMaskFile: string, targetCrs?: number): Promise<void> {
+  async writeLayer(layer: FilteredRasterLayer, rasterMaskFile: string, targetCrs?: number): Promise<boolean> {
     const sourceTiff = await openTiff(layer.path);
     const maskTiff = await fromFile(rasterMaskFile);
 
@@ -148,7 +153,7 @@ export class RasterFileWriter {
     const outMinY = Math.max(srcMinY, maskMinY);
     const outMaxX = Math.min(srcMaxX, maskMaxX);
     const outMaxY = Math.min(srcMaxY, maskMaxY);
-    if (outMinX >= outMaxX || outMinY >= outMaxY) return;
+    if (outMinX >= outMaxX || outMinY >= outMaxY) return false;
 
     const srcPixW = (srcMaxX - srcMinX) / srcW;
     const srcPixH = (srcMaxY - srcMinY) / srcH;
@@ -206,11 +211,11 @@ export class RasterFileWriter {
         }
       }
 
-      if (tiles.length === 0) return;
+      if (tiles.length === 0) return false;
 
       const filePath = path.join(this.outputDir, `${layerName}.${this.getFileExtension()}`);
       const vrtPath = path.join(this.outputDir, `${layerName}.tmp.vrt`);
-      const srs = `EPSG:${layer.epsg ?? 4326}`;
+      const srs = layer.wkt ?? `EPSG:${layer.epsg ?? 4326}`;
       fs.writeFileSync(vrtPath, this.buildVrt(tiles, outW, outH, alignedOutMinX, alignedOutMaxY, srcPixW, srcPixH, nodataStr, srs));
 
       try {
@@ -267,6 +272,7 @@ export class RasterFileWriter {
         }
       }
     }
+    return true;
   }
 
   private async writeTile(ctx: TileWriteContext, tileX: number, tileY: number, tw: number, th: number): Promise<string | null> {
@@ -387,7 +393,7 @@ ${sources}
     }
     const lmPart = layer.laboratory_method !== null ? `_${sanitizeField(layer.laboratory_method)}` : '';
     const suPart = layer.standard_unit !== null ? `_${sanitizeField(layer.standard_unit)}` : '';
-    const crsPart = targetCrs ?? layer.epsg ?? 4326;
+    const crsPart = targetCrs ?? layer.epsg ?? (layer.wkt ? 'custom' : 4326);
     return `${sanitizeField(layer.dataset_name)}_${sanitizeField(layer.soil_property_name)}${lmPart}${suPart}${depthPart}${datePart}_${crsPart}`;
   }
 

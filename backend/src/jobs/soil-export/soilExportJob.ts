@@ -38,7 +38,8 @@ import { getExportBatchSize } from '../../utils/utils';
 import { getRasterMask } from '../../data-layer/FilteringMasks';
 import { hasRasterFilters } from '../../data-layer/SoilDataStorage';
 import { isAxisAlignedBboxPolygon } from '../../utils/geometry';
-import { FilteredRasterLayer } from 'src/interfaces/DatasetFilter';
+import { FilteredRasterLayer } from '../../interfaces/DatasetFilter';
+import { GdalCLI } from '../../utils/GdalCLI';
 
 export async function processExportJob(job: Job<ExportJob>): Promise<void> {
   const { id: jobId, data } = job;
@@ -228,57 +229,94 @@ async function exportRasterData(
   if (!layers.length) return { total_layers_processed: 0 };
 
   const useBboxFastPath = isAxisAlignedBboxPolygon(aoi) && !hasRasterFilters(filter.parameters);
-  const layersByEpsg = new Map<number, FilteredRasterLayer[]>();
-  for (const layer of layers) {
-    const epsg = layer.epsg ?? 4326;
-    const group = layersByEpsg.get(epsg) ?? [];
-    group.push(layer);
-    layersByEpsg.set(epsg, group);
-  }
+  // getRasterMask always builds in EPSG:4326 (the CRS user geometries and raster filter tables are
+  // stored in) — one call covers every layer regardless of native CRS. Each layer's own CRS is
+  // handled below, once per distinct CRS, via getMaskForLayer's cache.
+  const rasterMaskFile = useBboxFastPath ? null : await getRasterMask(requestData.entityManager, filter, 'file');
+  if (!useBboxFastPath && !rasterMaskFile) return { total_layers_processed: 0 };
+
+  const writer = new RasterFileWriter(fileFormat, tempDir);
+  const maskCache = new Map<string, string>();
   let totalLayersProcessed = 0;
 
-  for (const [epsg, group] of layersByEpsg) {
-    if (await isJobCancelled(jobId)) break;
-    const rasterMaskFile = useBboxFastPath ? null : await getRasterMask(requestData.entityManager, filter, 'file', undefined, epsg);
-    if (!useBboxFastPath && !rasterMaskFile) return { total_layers_processed: 0 };
-    const writer = new RasterFileWriter(fileFormat, tempDir);
+  try {
+    for (const layer of layers) {
+      if (await isJobCancelled(jobId)) break;
 
-    try {
-      for (const layer of group) {
-        if (await isJobCancelled(jobId)) break;
-
-        if (useBboxFastPath) {
-          await writer.cropToAoiBbox(layer, aoi!, targetCrs);
-        } else {
-          await writer.writeLayer(layer, rasterMaskFile!, targetCrs);
-        }
-        totalLayersProcessed++;
-
-        const stored_data = await getJobData(jobId);
-        const progress_percentage = computeCombinedProgress(
-          stored_data.total_records_processed ?? 0,
-          stored_data.total_records_estimate,
-          totalLayersProcessed,
-          stored_data.total_layers_estimate,
-          stored_data.aoi_area_km2,
-        );
-        const progress_description_vector =
-          (stored_data.total_records_processed ?? 0) > 0 ? `${stored_data.total_records_processed} records` : null;
-        const progress_description_raster = totalLayersProcessed > 0 ? `${totalLayersProcessed} raster layers` : null;
-
-        await updateJobState(jobId, {
-          ...data,
-          total_layers_processed: totalLayersProcessed,
-          progress_percentage,
-          progress_description: `Processed ${[progress_description_vector, progress_description_raster].filter(e => e !== null).join(' and ')}...`,
-        });
+      let wrote = true;
+      if (useBboxFastPath) {
+        await writer.cropToAoiBbox(layer, aoi!, targetCrs);
+      } else {
+        const layerMaskFile = await getMaskForLayer(rasterMaskFile!, layer, maskCache, tempDir);
+        wrote = await writer.writeLayer(layer, layerMaskFile, targetCrs);
       }
-    } finally {
-      if (rasterMaskFile) fs.unlinkSync(rasterMaskFile);
+
+      if (!wrote) {
+        log.warn('Raster layer produced no output: source and mask extents do not overlap', {
+          jobId,
+          layerId: layer.id,
+          crs: layer.wkt ?? layer.epsg ?? 4326,
+        });
+        continue;
+      }
+
+      totalLayersProcessed++;
+
+      const stored_data = await getJobData(jobId);
+      const progress_percentage = computeCombinedProgress(
+        stored_data.total_records_processed ?? 0,
+        stored_data.total_records_estimate,
+        totalLayersProcessed,
+        stored_data.total_layers_estimate,
+        stored_data.aoi_area_km2,
+      );
+      const progress_description_vector =
+        (stored_data.total_records_processed ?? 0) > 0 ? `${stored_data.total_records_processed} records` : null;
+      const progress_description_raster = totalLayersProcessed > 0 ? `${totalLayersProcessed} raster layers` : null;
+
+      await updateJobState(jobId, {
+        ...data,
+        total_layers_processed: totalLayersProcessed,
+        progress_percentage,
+        progress_description: `Processed ${[progress_description_vector, progress_description_raster].filter(e => e !== null).join(' and ')}...`,
+      });
+    }
+  } finally {
+    if (rasterMaskFile) fs.unlinkSync(rasterMaskFile);
+    for (const cachedMaskFile of maskCache.values()) {
+      try {
+        fs.unlinkSync(cachedMaskFile);
+      } catch {
+        // ignore cleanup errors
+      }
     }
   }
 
   return { total_layers_processed: totalLayersProcessed };
+}
+
+function layerCrsKey(layer: FilteredRasterLayer): string {
+  const isNative4326 = layer.epsg !== undefined ? layer.epsg === 4326 : !layer.wkt;
+  if (isNative4326) return 'EPSG:4326';
+  return layer.wkt ?? `EPSG:${layer.epsg ?? 4326}`;
+}
+
+async function getMaskForLayer(
+  baseMaskFile: string,
+  layer: FilteredRasterLayer,
+  cache: Map<string, string>,
+  tempDir: string,
+): Promise<string> {
+  const key = layerCrsKey(layer);
+  if (key === 'EPSG:4326') return baseMaskFile;
+
+  const cached = cache.get(key);
+  if (cached) return cached;
+
+  const warpedMaskFile = path.join(tempDir, `mask_${cache.size}.tif`);
+  await GdalCLI.warp(baseMaskFile, warpedMaskFile, ['-t_srs', key, '-r', 'near', '-of', 'GTiff']);
+  cache.set(key, warpedMaskFile);
+  return warpedMaskFile;
 }
 
 async function isJobCancelled(jobId: string): Promise<boolean> {
