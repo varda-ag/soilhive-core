@@ -267,3 +267,46 @@ describe('GdalCLI.transformPoints', () => {
     }
   });
 });
+
+describe('GdalCLI.extractEpsgFromWkt', () => {
+  it('returns undefined for an empty or missing wkt', () => {
+    expect(GdalCLI.extractEpsgFromWkt(undefined)).toBeUndefined();
+    expect(GdalCLI.extractEpsgFromWkt('')).toBeUndefined();
+  });
+
+  it('reads the depth-1 ID off a WKT2 PROJCRS, skipping nested DATUM/METHOD/PARAMETER ids', () => {
+    const wkt = `PROJCRS["WGS 84 / Pseudo-Mercator",
+      BASEGEOGCRS["WGS 84", DATUM["World Geodetic System 1984"], ID["EPSG",4326]],
+      CONVERSION["Popular Visualisation Pseudo-Mercator",
+        METHOD["Popular Visualisation Pseudo Mercator", ID["EPSG",1024]],
+        PARAMETER["Latitude of natural origin",0, ID["EPSG",8801]],
+        PARAMETER["False northing",0, ID["EPSG",8807]]],
+      CS[Cartesian,2],
+      ID["EPSG",3857]]`;
+    expect(GdalCLI.extractEpsgFromWkt(wkt)).toBe(3857);
+  });
+
+  it('returns undefined for a custom/unregistered projection with no depth-1 id, instead of a nested parameter id', () => {
+    // A Lambert Azimuthal Equal Area with no EPSG code of its own — the WKT ends after CS/AXIS
+    // with no depth-1 ID at all. The only ID present is the "False northing" parameter's own code
+    // (8807), nested inside CONVERSION/PARAMETER — a real, unrelated CRS in spatial_ref_sys
+    // (NAD83 / Alaska zone 5 + NAVD88 height), so returning it here would silently reproject to
+    // the wrong place instead of failing.
+    const wkt = `PROJCRS["Lambert_Azimuthal_Equal_Area",
+      BASEGEOGCRS["WGS 84", DATUM["World Geodetic System 1984"], ID["EPSG",4326]],
+      CONVERSION["Lambert Azimuthal Equal Area",
+        METHOD["Lambert Azimuthal Equal Area", ID["EPSG",9820]],
+        PARAMETER["Latitude of natural origin",5, ID["EPSG",8801]],
+        PARAMETER["Longitude of natural origin",20, ID["EPSG",8802]],
+        PARAMETER["False easting",0, ID["EPSG",8806]],
+        PARAMETER["False northing",0, ID["EPSG",8807]]],
+      CS[Cartesian,2],
+      AXIS["(E)",east], AXIS["(N)",north]]`;
+    expect(GdalCLI.extractEpsgFromWkt(wkt)).toBeUndefined();
+  });
+
+  it('reads a depth-1 id off a plain GEOGCRS with no nested ids to skip', () => {
+    const wkt = `GEOGCRS["WGS 84", DATUM["World Geodetic System 1984"], CS[ellipsoidal,2], ID["EPSG",4326]]`;
+    expect(GdalCLI.extractEpsgFromWkt(wkt)).toBe(4326);
+  });
+});

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterEach } from '@jest/globals';
+import { describe, it, expect, beforeAll, afterEach, jest } from '@jest/globals';
 import * as path from 'path';
 import * as fs from 'fs';
 import { GeoFileWriter } from '../../../src/jobs/soil-export/GeoFileWriter';
@@ -232,6 +232,52 @@ describe('GeoFileWriter', () => {
       await writer.setProperty('Al');
       await writer.closeFile();
       expect(fs.readdirSync(TEST_OUTPUT_DIR)).toHaveLength(0);
+    });
+  });
+
+  describe('target_crs reprojection', () => {
+    it('writes output in EPSG:4326 by default (no target_crs)', async () => {
+      const writer = new GeoFileWriter(VectorFileFormat.GEOJSON);
+      await writer.openFile(TEST_OUTPUT_DIR);
+      await writer.setProperty('Al');
+      await writer.writeRecord(soilSampleToExportRecord(makeSample({ id: '1' })));
+      await writer.closeFile();
+
+      const info = await GdalCLI.ogrinfo(path.join(TEST_OUTPUT_DIR, 'Al.geojson'));
+      expect(info.layers[0]?.epsg).toBe(4326);
+    });
+
+    it('reprojects spatial output to the requested target_crs', async () => {
+      const writer = new GeoFileWriter(VectorFileFormat.GEOJSON, 3857);
+      await writer.openFile(TEST_OUTPUT_DIR);
+      await writer.setProperty('Al');
+      // Source sample is (-124.1303482, 40.4684982) in EPSG:4326 — a real reprojection to Web
+      // Mercator must land in the millions of metres, not stay as small lon/lat-shaped numbers.
+      await writer.writeRecord(soilSampleToExportRecord(makeSample({ id: '1' })));
+      await writer.closeFile();
+
+      const outputPath = path.join(TEST_OUTPUT_DIR, 'Al.geojson');
+      const info = await GdalCLI.ogrinfo(outputPath);
+      expect(info.layers[0]?.epsg).toBe(3857);
+
+      const geojson = JSON.parse(fs.readFileSync(outputPath, 'utf-8'));
+      const [x, y] = geojson.features[0].geometry.coordinates;
+      expect(Math.abs(x)).toBeGreaterThan(1_000_000);
+      expect(Math.abs(y)).toBeGreaterThan(1_000_000);
+    });
+
+    it('passes -s_srs/-t_srs to ogr2ogr instead of -a_srs when target_crs is set', async () => {
+      const ogr2ogr = jest.spyOn(GdalCLI, 'ogr2ogr');
+      const writer = new GeoFileWriter(VectorFileFormat.GEOJSON, 3857);
+      await writer.openFile(TEST_OUTPUT_DIR);
+      await writer.setProperty('Al');
+      await writer.writeRecord(soilSampleToExportRecord(makeSample({ id: '1' })));
+      await writer.closeFile();
+
+      const args = ogr2ogr.mock.calls[0]![0];
+      expect(args).toEqual(expect.arrayContaining(['-s_srs', 'EPSG:4326', '-t_srs', 'EPSG:3857']));
+      expect(args).not.toContain('-a_srs');
+      ogr2ogr.mockRestore();
     });
   });
 

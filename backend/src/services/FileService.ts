@@ -594,6 +594,7 @@ export default class FileService {
         raster_bands,
         ...(gdalInfo.driverShortName && { driver: gdalInfo.driverShortName }),
         ...(epsg !== undefined && { epsg }),
+        ...(gdalInfo.coordinateSystem?.wkt && { wkt: gdalInfo.coordinateSystem.wkt }),
         ...(extent && { extent }),
       };
 

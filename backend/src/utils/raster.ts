@@ -11,6 +11,8 @@ export interface RasterMeta {
   nodata: number | null;
   resolution: number;
   bbox: Polygon;
+  epsg?: number;
+  wkt?: string;
 }
 
 /**
@@ -29,6 +31,24 @@ export async function openTiff(storagePath: string): Promise<GeoTIFF> {
 export function nodataFromImage(image: GeoTIFFImage): number {
   const raw: string | undefined = image.fileDirectory.getValue('GDAL_NODATA');
   return raw === undefined ? Number.NaN : Number.parseFloat(raw);
+}
+
+function haversineDistanceMeters([lon1, lat1]: [number, number], [lon2, lat2]: [number, number]): number {
+  const earthRadiusM = 6371000;
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return 2 * earthRadiusM * Math.asin(Math.sqrt(a));
+}
+
+// A CRS's WKT is identified by its outermost keyword: PROJCRS/PROJCS for projected, GEOGCRS/GEOGCS
+// for geographic. A projected CRS's WKT2 form wraps a BASEGEOGCRS definition, whose keyword contains
+// "GEOGCRS" as a substring, so the projected check must run first.
+export function isGeographicCrs(wkt?: string): boolean {
+  if (!wkt) return true;
+  if (/PROJCRS\[|PROJCS\[/.test(wkt)) return false;
+  return /GEOGCRS\[|GEOGCS\[/.test(wkt);
 }
 
 /**
@@ -54,8 +74,19 @@ export async function analyzeRasterMeta(cogPath: string, band: number): Promise<
 
   const nodata: number | null = info.bands?.[band - 1]?.noDataValue ?? null;
 
-  const isGeo = (info.coordinateSystem?.wkt?.includes('GEOGCS') || info.coordinateSystem?.wkt?.includes('GEOGCRS')) ?? true;
-  const resolution = Math.round(Math.abs(pixW) * (isGeo ? 111320 : 1));
+  const isGeo = isGeographicCrs(info.coordinateSystem?.wkt);
+  let resolution: number;
+  if (isGeo) {
+    resolution = Math.round(Math.abs(pixW) * 111320);
+  } else {
+    // Projected CRS units aren't necessarily meters (e.g. state-plane feet), so measure the ground
+    // distance between two adjacent pixel corners .
+    const [corner0, corner1] = await GdalCLI.transformPoints(info.coordinateSystem!.wkt!, [
+      [xMin, yMax],
+      [xMin + pixW, yMax],
+    ]);
+    resolution = Math.round(haversineDistanceMeters(corner0!, corner1!));
+  }
 
   // raster_layers.bbox is always stored in EPSG:4326, so a raster kept in its native CRS (see
   // RasterIngestService.checkFileFormat, which no longer warps non-4326 rasters at ingest) has its
@@ -66,7 +97,8 @@ export async function analyzeRasterMeta(cogPath: string, band: number): Promise<
   let bboxMinY = yMin;
   let bboxMaxX = xMax;
   let bboxMaxY = yMax;
-  if (epsg !== undefined && epsg !== 4326) {
+  // A projected CRS always needs reprojecting, whether or not it has a registered EPSG code
+  if (!isGeo || (epsg !== undefined && epsg !== 4326)) {
     const corners = await GdalCLI.transformPoints(info.coordinateSystem!.wkt!, [
       [xMin, yMin],
       [xMax, yMax],
@@ -88,7 +120,13 @@ export async function analyzeRasterMeta(cogPath: string, band: number): Promise<
     ],
   };
 
-  return { nodata, resolution, bbox };
+  return {
+    nodata,
+    resolution,
+    bbox,
+    ...(epsg !== undefined && { epsg }),
+    ...(info.coordinateSystem?.wkt && { wkt: info.coordinateSystem.wkt }),
+  };
 }
 
 /**
