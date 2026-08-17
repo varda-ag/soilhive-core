@@ -1,6 +1,4 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
-import * as fs from 'fs';
-import * as path from 'path';
 
 // See docs/adr/0006-precomputed-geometry-subdivision-table.md
 const SUBDIVIDE_MAX_VERTICES = 64;
@@ -458,19 +456,6 @@ export class CreateSchema1775600000000 implements MigrationInterface {
       INSERT INTO "raster_filters" (id,name,description) VALUES ('soil_groups', 'Soil Groups', 'This filter refers to the categories defined by the WRB, an international soil classification system developed by the IUSS. These groups classify soils based on their physical and chemical properties, providing a standardized framework for naming soils and creating legends for soil maps. FAO & IIASA. 2023. Harmonized World Soil Database version 2.0. Rome and Laxenburg.');
       `,
     );
-
-    const base = path.resolve(__dirname, './data');
-    const files = [
-      '0_licenses_data_insert.sql',
-      '0_procedures_data_insert.sql',
-      '0_soil_property_categories_data_insert.sql',
-      '1_soil_properties_data_insert.sql',
-      '2_unit_conversions_data_insert.sql',
-    ];
-    for (const file of files) {
-      const sql = fs.readFileSync(path.join(base, file), 'utf8');
-      await queryRunner.query(sql);
-    }
 
     await queryRunner.query(
       `CREATE TABLE IF NOT EXISTS "raster_layers" ("created_at" TIMESTAMP NOT NULL DEFAULT now(), "updated_at" TIMESTAMP NOT NULL DEFAULT now(), "deleted_at" TIMESTAMP, "id" uuid NOT NULL DEFAULT uuidv7(), "file_id" uuid NOT NULL, "resolution_m" int NOT NULL, "min_depth" int, "max_depth" int, "reference_period_start" text, "reference_period_stop" text, "dataset_id" uuid NOT NULL, "soil_property_id" uuid NOT NULL, "procedure_id" uuid, "description" jsonb, "nodata_value" int, "bbox" geometry(Polygon,4326) NOT NULL, CONSTRAINT "PK_raster_layers_id" PRIMARY KEY ("id"))`,

@@ -6,6 +6,8 @@ import { requireSub } from '../utils/auth';
 import { CreateVocabularyInput } from '../types/VocabularyInput';
 import { CACHE_TTL_REFERENCE_MS } from '../utils/query-cache';
 import { bumpCacheEpoch } from '../utils/cache-epoch';
+import { StatusCodes } from 'http-status-codes';
+import { ErrorResponse } from '../utils/error';
 
 export default class VocabularyService {
   getVocabulary = async (requestData: RequestData): Promise<VocabularyEntity[]> => {
@@ -22,9 +24,17 @@ export default class VocabularyService {
     const repo = requestData.entityManager.getRepository(VocabularyEntity);
     const vocabulary = repo.create(data);
 
-    const saved = await repo.save(vocabulary);
-    await bumpCacheEpoch();
-    const reloaded = await repo.findOneBy({ id: saved.id });
-    return reloaded!;
+    try {
+      const saved = await repo.save(vocabulary);
+      await bumpCacheEpoch();
+      const reloaded = await repo.findOneBy({ id: saved.id });
+      return reloaded!;
+    } catch (error: any) {
+      if (error.code === '23505') {
+        // unique violation
+        throw new ErrorResponse(`Vocabulary '${data.name}' already exists in category '${data.category}'`, StatusCodes.CONFLICT);
+      }
+      throw error;
+    }
   };
 }

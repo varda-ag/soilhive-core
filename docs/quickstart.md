@@ -80,7 +80,7 @@ POINT (36.8219 -1.2921),20,6.2,21.5,1.9,32,40,15.6
 ...
 ```
 
-It doesn't include a `licence` column — during the **Field Mapping** or dataset settings step, set a single fixed license for the whole dataset instead (see the platform's [supported licenses list](data-model/6-license_options.csv)).
+It doesn't include a `licence` column — during the **Field Mapping** or dataset settings step, set a single fixed license for the whole dataset instead (see the platform's [supported licenses list](../backend/docs/data-model/6-license_options.csv)).
 
 [quickstart-sample-data/random_east_west_africa_soil_samples.csv](../quickstart-sample-data/random_east_west_africa_soil_samples.csv) is a second sample file, with WKT polygon geometries and multiple depth ranges per location. Its values were randomly generated and have no real-world meaning — they exist solely to provide sample data for testing the ingestion flow. Use [quickstart-sample-data/data_mappings_for_east_west_africa_soil_samples.md](../quickstart-sample-data/data_mappings_for_east_west_africa_soil_samples.md) as the **Field Mapping** reference when uploading it.
 

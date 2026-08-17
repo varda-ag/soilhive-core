@@ -37,6 +37,10 @@
 **/Thumbs.db
 **/.md
 **/docs
+# backend/docs/data-model un-ignored for vocabulariesSync process
+!/docs
+!/docs/data-model
+!/docs/data-model/**
 *.config.js
 !vite.config.ts
 !esbuild.config.js
