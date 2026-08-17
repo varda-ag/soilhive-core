@@ -67,7 +67,7 @@ export function SoilDataFileRow({ soilDataFile, onCrsChange, onRemove, crsOption
 
         <div className={styles.CrsSection}>
           <label className={styles.CrsLabel} htmlFor={`crs-${id}`}>
-            {t('datasets.soil_data.crs_label')}
+            {isReadOnly ? t('datasets.soil_data.crs_label_readonly') : t('datasets.soil_data.crs_label')}
           </label>
           <AutoComplete
             ref={autoCompleteRef}
