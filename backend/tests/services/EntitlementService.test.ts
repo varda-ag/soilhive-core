@@ -108,6 +108,79 @@ describe('EntitlementService', () => {
     expect(entitlements).toEqual(payload);
   });
 
+  describe('deleteEntityEntitlements', () => {
+    // The fixture renames dataset-1 to dataset-1-renamed and only then inserts entitlements
+    // keyed under the now-historical "dataset-1", which is exactly the case that used to be
+    // missed: the read side resolves slug history, so those keys were honoured, but the
+    // delete side stripped only the slug it was handed.
+    it('strips keys stored under a historical slug when given the current one', async () => {
+      await service.deleteEntityEntitlements(requestData, 'dataset-1-renamed');
+
+      const entitlements = await service.getEntityEntitlements(requestData, 'dataset-1-renamed');
+      expect(entitlements).toEqual({});
+    });
+
+    it('strips keys when given a historical slug', async () => {
+      await service.deleteEntityEntitlements(requestData, 'dataset-1');
+
+      const entitlements = await service.getEntityEntitlements(requestData, 'dataset-1');
+      expect(entitlements).toEqual({});
+    });
+
+    it('leaves entitlements to other entities untouched', async () => {
+      await service.deleteEntityEntitlements(requestData, 'dataset-1-renamed');
+
+      // user3 held both dataset-1 and dataset-3; only the dataset-1 key should be gone
+      expect(await service.getEntityEntitlements(requestData, 'dataset-2')).toEqual({
+        'user2@example.com': [Capability.OBFUSCATE_AS_POINTS],
+      });
+      expect(await service.getEntityEntitlements(requestData, 'dataset-3')).toEqual({
+        'user3@example.com': [Capability.OBFUSCATE_AS_POINTS],
+      });
+      // A key with no slug_history row at all must survive
+      expect(await service.getEntityEntitlements(requestData, 'spatial_filter')).toEqual({ 'user4@example.com': 'world' });
+    });
+
+    it('keeps rows whose data becomes empty', async () => {
+      await service.deleteEntityEntitlements(requestData, 'dataset-1-renamed');
+
+      // user1 held only dataset-1, so its data is now {} — the row is a subject record, not
+      // an entitlement, and is deliberately retained
+      const rows = await entityManager.query(`SELECT data FROM entitlements WHERE id = 'user1@example.com'`);
+      expect(rows).toHaveLength(1);
+      expect(rows[0].data).toEqual({});
+    });
+
+    it('strips a non-entity key that has no slug history', async () => {
+      await service.deleteEntityEntitlements(requestData, 'spatial_filter');
+
+      expect(await service.getEntityEntitlements(requestData, 'spatial_filter')).toEqual({});
+    });
+
+    it('is idempotent and a no-op for an unknown slug', async () => {
+      await service.deleteEntityEntitlements(requestData, 'dataset-1-renamed');
+      await service.deleteEntityEntitlements(requestData, 'dataset-1-renamed');
+      await service.deleteEntityEntitlements(requestData, 'never-existed');
+
+      expect(await service.getEntityEntitlements(requestData, 'dataset-2')).toEqual({
+        'user2@example.com': [Capability.OBFUSCATE_AS_POINTS],
+      });
+    });
+
+    it('only touches rows that hold one of the slugs', async () => {
+      // xmin is the transaction that last wrote the row: unchanged means the row was not
+      // rewritten at all. Without the WHERE predicate the update rewrites and row-locks
+      // every row in the table, which a caller inside a long transaction would hold for
+      // that transaction's whole duration.
+      const before = await entityManager.query(`SELECT xmin::text FROM entitlements WHERE id = 'user2@example.com'`);
+
+      await service.deleteEntityEntitlements(requestData, 'dataset-1-renamed');
+
+      const after = await entityManager.query(`SELECT xmin::text FROM entitlements WHERE id = 'user2@example.com'`);
+      expect(after[0].xmin).toEqual(before[0].xmin);
+    });
+  });
+
   describe('enforceEntitlements', () => {
     beforeEach(async () => {
       // Make dataset-1 public, dataset-2 and dataset-3 remain private (default)

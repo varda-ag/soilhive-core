@@ -20,14 +20,25 @@ export default class EntitlementService {
     }, {} as Entitlements);
   };
 
-  getEntityEntitlements = async (requestData: RequestData, slug: string): Promise<Entitlements> => {
-    // 1. Get all slugs related to the same entity (this handles slug history)
+  /**
+   * All the keys an entitlement to this entity may be stored under: every slug the entity has
+   * ever had, since entitlements are written with whatever slug was current at the time. Reads
+   * and deletes must resolve identity the same way, or a rename leaves keys that are still
+   * honoured on read but missed on delete — hence the single helper (see ADR 0027).
+   */
+  private resolveSlugs = async (requestData: RequestData, slug: string): Promise<string[]> => {
     const slugs = await getEntitySlugs(requestData, slug);
     if (slugs.length === 0) {
       // This handles entitlements for "non-entities" (e.g.: "spatial_filter")
       // that do not have a slug in the system
       slugs.push(slug);
     }
+    return slugs;
+  };
+
+  getEntityEntitlements = async (requestData: RequestData, slug: string): Promise<Entitlements> => {
+    // 1. Get all slugs related to the same entity (this handles slug history)
+    const slugs = await this.resolveSlugs(requestData, slug);
     // 2. Get all entitlements that match any of the slugs
     const repo = requestData.entityManager.getRepository(EntitlementsEntity);
     const entities = await repo.createQueryBuilder('ent').where('ent.data ?| array[:...slugs]', { slugs }).getMany();
@@ -60,15 +71,27 @@ export default class EntitlementService {
     return this.entitiesToEntitlements(entities, [slug]);
   };
 
+  /**
+   * Strips every key this entity's entitlements may be stored under, across all subjects.
+   * Rows left with an empty `data` are kept: the row is a subject record rather than an
+   * entitlement, and the subject is retained throughout the schema anyway (`created_by`).
+   */
   deleteEntityEntitlements = async (requestData: RequestData, slug: string): Promise<void> => {
+    const slugs = await this.resolveSlugs(requestData, slug);
     const repo = requestData.entityManager.getRepository(EntitlementsEntity);
     await repo
       .createQueryBuilder('ent')
       .update(EntitlementsEntity)
       .set({
-        data: () => 'data - :slug',
+        // `jsonb - text[]` drops every listed key in one pass
+        data: () => 'data - array[:...slugs]::text[]',
       })
-      .setParameter('slug', slug)
+      // Without this predicate the update rewrites and row-locks the whole table, which a
+      // caller running inside a long transaction (the purge) would hold for its duration.
+      // Matches the GIN index on `data` (idx_entitlements_data_gin). Unaliased: an UPDATE
+      // emits no table alias, so `ent.` would not resolve here.
+      .where('data ?| array[:...slugs]')
+      .setParameter('slugs', slugs)
       .execute();
   };
 
