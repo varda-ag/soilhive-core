@@ -156,6 +156,18 @@ _Avoid_: System filter, temporary filter, virtual filter (it is persisted and pe
 One of the pixel planes of a raster file, identified by a 1-based number. The unit a Raster Ingest consumes: every Raster Layer names exactly one Band of exactly one file. Bands of a file share its resolution and geographic extent, but each carries its own values and its own nodata marker, and therefore its own footprints. Distinct from a Layer — a Band is a property of the file, not of the soil model.
 _Avoid_: Layer (the soil data depth/date slice), channel, raster layer (the catalog record that points at a Band)
 
+**Plugin**:
+An externally hosted module-federation remote that the frontend loads at runtime into a page, a new tab, or the map's info card. Has two distinct, unrelated contract halves: the data the host feeds *into* the Plugin (its **Plugin Context**), and the metadata the Plugin exposes *back* to the host describing how to mount it (a **Remote Plugin**). Never assume "plugin" alone disambiguates which half is meant.
+_Avoid_: Module, remote, extension (all name one aspect — the file, the transport mechanism, the capability — not the concept as a whole)
+
+**Plugin Context** (`PluginContext`):
+The data and host-injected query hooks a Plugin receives as its one prop: map selection, theme, and hooks for filters, coverage, soil properties, and soil data. Defined in `frontend-plugin-types`, decoupled from the host's own domain types. The host-to-Plugin half of the contract.
+_Avoid_: Plugin props, context (too generic — always say "Plugin Context")
+
+**Remote Plugin** (`RemotePlugin`):
+The metadata a Plugin exposes describing how the host should mount it: its `PluginType` (`single-page`, `new-tab`, or `map-info-card`), whether it gets a menu item, its route, and its `Page` component. Defined in the host's `src/types/plugins.ts`, not in `frontend-plugin-types`. The Plugin-to-host half of the contract — the mirror image of Plugin Context, not an overlapping concept.
+_Avoid_: Plugin (too generic when the mounting metadata specifically is meant), plugin config
+
 ## Relationships
 
 - A **Dataset** *references* one or more **Features** through its **DatasetLayers**; it does not contain them, and the same **Feature** may be referenced by several **Datasets**
@@ -174,6 +186,7 @@ _Avoid_: Layer (the soil data depth/date slice), channel, raster layer (the cata
 - A soil-statistics run has exactly one **Statistics Type** and one set of **Aggregation Units**; the Units are resolved identically for every type, and only what is computed over them differs
 - An **Entitlement** grants one **Capability** over one **Dataset** to one **Subject** (or to `everyone`); a Subject's effective Entitlements are the union of its own and `everyone`'s
 - A job is recorded under the **Subject** that submitted it, and resolves its Entitlements under that same Subject — so what a job may read is what its submitter may read, minus whatever only the external endpoint knows
+- A **Plugin** receives exactly one **Plugin Context** (host → Plugin) and exposes exactly one **Remote Plugin** (Plugin → host); neither implies the other
 
 ## Example dialogue
 
@@ -218,5 +231,7 @@ _Avoid_: Links, references, attachments, additional resources (the Band Mapping 
 - **`related_resources` and `additional_resources` are unrelated.** `related_resources` is a Dataset column holding external URLs; `additional_resources` is a Band Mapping key declaring that Band's **Raster Layer Assets**, which are Files. The near-identical names are the only thing they share. In domain discussions say **Related Resources** for the Dataset's URLs and **Raster Layer Asset** for an attached File — never "resources" bare.
 
 - The Dataset field holding its soil properties is called **`measured_properties`** in code but stored in a column named `variables_measured` (an older name, retained). They are one field, not two. Prefer **measured properties** in discussion.
+
+- `docs/frontend/module-federation.md` describes Plugin loading as a hardcoded, top-level-await `loadRemotesConfig()` and registration by `path`. The actual code (`src/utilities/moduleFederation.ts`, `src/contexts/RemotesContext.tsx`) loads Plugins on demand via `loadRemotes(configs)`, sourced from the backend-driven `themeConfig.plugins`, and registers by `route` — the doc is stale. `frontend/remotes.json` is dead leftover configuration from before this change (unreferenced by any code, and its port doesn't match the example Plugin's actual dev port) — do not treat it as a source of truth for anything.
 
 - "active" is used in two unrelated senses in the raster filtering code: the persisted `active` column on `raster_filters` (admin-controlled catalog availability — see **Raster Filter**), and query-time variables/comments like `hasActiveFilters` in `FilteringMasks.ts` (whether the current Filter's `raster_filters` criterion has non-empty selected values for a given raster table). Toggling a Raster Filter's `active` flag has no effect on the query-time check, and vice versa. In domain discussions, say "active Raster Filter" for the catalog flag and "selected raster filter values" for the query-time notion.

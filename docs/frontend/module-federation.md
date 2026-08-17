@@ -11,6 +11,7 @@ The frontend uses [Module Federation](https://module-federation.io/) to support 
 | **Manifest** | A `mf-manifest.json` file exposed by each remote that describes its exports |
 | **Plugin config** | An entry in the host's theme config (`ThemeConfig.plugins`) that registers a remote's manifest URL and access rules |
 | **PluginContext** | The typed contract (`frontend-plugin-types`) passed as a `context` prop to a remote's page component, giving it access to host data and hooks |
+| **Map info card** | A `RemotePlugin` capability (`type: 'map-info-card'`) that contributes content into the map's native selection card instead of a routed page.
 
 The host discovers remotes through its theme configuration (see [Configuring remotes](#configuring-remotes)) and loads them via `src/utilities/moduleFederation.ts` and `src/contexts/RemotesContext.tsx`.
 

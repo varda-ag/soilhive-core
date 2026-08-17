@@ -1,6 +1,6 @@
-import { mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, sep } from 'node:path';
 import { runSoilhivePlugin } from './run';
 
 const REPO_ROOT = join(__dirname, '..', '..');
@@ -83,6 +83,58 @@ describe('runSoilhivePlugin end-to-end', () => {
     const forbidden = allFiles.filter(file => file.endsWith('SoilhiveMap.scss') || file.endsWith('prime.react.override.scss'));
 
     expect(forbidden).toEqual([]);
+  });
+
+  it('does not vendor the map at all without --with-map', () => {
+    runSoilhivePlugin(pluginPath);
+
+    expect(listFilesRecursive(pluginPath)).not.toContain('Map/SoilhiveMap.tsx');
+    const pkg = JSON.parse(readFileSync(join(pluginPath, 'package.json'), 'utf-8'));
+    expect(pkg.dependencies['react-map-gl']).toBeUndefined();
+  });
+
+  it('vendors the map and merges its dependencies when --with-map is passed', () => {
+    runSoilhivePlugin(pluginPath, { withMap: true });
+
+    const files = listFilesRecursive(pluginPath);
+    expect(files).toContain(join('Map', 'SoilhiveMap.tsx'));
+    expect(files).not.toContain(join('Map', 'AreaInfo', 'index.ts'));
+    expect(files).toContain(join('Map', '_shared', 'DrawControl.tsx'));
+    expect(files).toContain(join('Map', '_shared', 'hooks', 'useDevice.ts'));
+    expect(files).toContain(join('styles', 'SoilhiveMap.scss'));
+
+    const pkg = JSON.parse(readFileSync(join(pluginPath, 'package.json'), 'utf-8'));
+    expect(pkg.dependencies['react-map-gl']).not.toMatch(/^[\^~]/);
+    expect(pkg.dependencies['maplibre-gl']).not.toMatch(/^[\^~]/);
+  });
+
+  it('rewrites every relative import inside the vendored Map/ tree to a path that actually resolves — catches depth-dependent rewrite bugs unit tests on the string transform alone would miss', () => {
+    runSoilhivePlugin(pluginPath, { withMap: true });
+
+    const mapFiles = listFilesRecursive(pluginPath).filter(file => file.startsWith(`Map${sep}`) && file.endsWith('.tsx'));
+    expect(mapFiles.length).toBeGreaterThan(0);
+
+    const missing: string[] = [];
+    for (const relativeFile of mapFiles) {
+      const absoluteFile = join(pluginPath, relativeFile);
+      const content = readFileSync(absoluteFile, 'utf-8');
+      for (const match of content.matchAll(/from ['"](\.\.?\/[^'"]+)['"]/g)) {
+        const specifier = match[1].replace(/\?react$/, '');
+        const resolved = join(absoluteFile, '..', specifier);
+        const candidates = [resolved, `${resolved}.ts`, `${resolved}.tsx`, `${resolved}.svg`, `${resolved}.scss`, `${resolved}.css`];
+        if (!candidates.some(candidate => existsSync(candidate))) {
+          missing.push(`${relativeFile}: '${specifier}' does not resolve to any of ${JSON.stringify(candidates)}`);
+        }
+      }
+    }
+    expect(missing).toEqual([]);
+  });
+
+  it('keeps the map in sync on a later run that omits --with-map, once a plugin has opted in', () => {
+    runSoilhivePlugin(pluginPath, { withMap: true });
+    runSoilhivePlugin(pluginPath); // no flag this time — opt-in should persist
+
+    expect(listFilesRecursive(pluginPath)).toContain(join('Map', 'SoilhiveMap.tsx'));
   });
 
   it('ends with a copy-pasteable next-steps block (cd, install, dev)', () => {

@@ -4,21 +4,26 @@ import SmallPolygonIcon from 'assets/icons/small-polygon-icon.svg?react';
 import ArrowDownIcon from 'assets/icons/arrow-down-icon.svg?react';
 import PencilIcon from 'assets/icons/pencil-icon.svg?react';
 import UploadIcon from 'assets/icons/small-upload-icon.svg?react';
-import type { Polygon, MultiPolygon } from 'geojson';
 import useDevice from 'hooks/useDevice';
 import { useTranslation } from 'react-i18next';
-import { UploadPolygonModal } from './UploadPolygonModal/UploadPolygonModal';
 
 interface SoilhiveMapToolbarProps {
   visible: boolean;
   onDrawClick: () => void;
-  onUpload: (geometry: Polygon | MultiPolygon) => void;
+  /**
+   * Optional — this toolbar no longer owns the "upload via modal" flow itself (that pulls in
+   * UploadPolygonModal -> Dialog -> primereact, which isn't vendored to plugins). When provided,
+   * a "Upload a polygon" option appears in the dropdown and this is called on click; the caller
+   * (e.g. the host page) owns showing whatever upload UI it wants. Omit to hide the option
+   * entirely — the map's drag-and-drop upload (via SoilhiveMapRef.onUpload) is unaffected either
+   * way.
+   */
+  onUploadClick?: () => void;
 }
 
-export default function SoilhiveMapToolbar({ visible, onDrawClick, onUpload }: SoilhiveMapToolbarProps) {
+export default function SoilhiveMapToolbar({ visible, onDrawClick, onUploadClick }: SoilhiveMapToolbarProps) {
   const { t } = useTranslation('availability');
   const [open, setOpen] = useState(false);
-  const [isUploadOpen, setIsUploadOpen] = useState(false);
   const selectionButtonRef = useRef<HTMLButtonElement>(null);
   const selectionListRef = useRef<HTMLDivElement>(null);
 
@@ -69,17 +74,18 @@ export default function SoilhiveMapToolbar({ visible, onDrawClick, onUpload }: S
           <PencilIcon />
           {t('map.draw_a_polygon')}
         </button>
-        <button
-          onClick={() => {
-            setOpen(false);
-            setIsUploadOpen(true);
-          }}
-        >
-          <UploadIcon />
-          {t('map.upload_a_polygon')}
-        </button>
+        {onUploadClick && (
+          <button
+            onClick={() => {
+              setOpen(false);
+              onUploadClick();
+            }}
+          >
+            <UploadIcon />
+            {t('map.upload_a_polygon')}
+          </button>
+        )}
       </div>
-      <UploadPolygonModal visible={isUploadOpen} onUpload={onUpload} onClose={() => setIsUploadOpen(false)} />
     </div>
   );
 }

@@ -4,21 +4,10 @@ import { __setIsMobileLayout, __resetIsMobileLayout } from 'hooks/useDevice';
 
 jest.mock('hooks/useDevice');
 
-jest.mock('components/Map/UploadPolygonModal/UploadPolygonModal', () => ({
-  UploadPolygonModal: ({ visible, onClose, onUpload }: any) => (
-    <div data-testid="upload-polygon-modal" data-visible={String(visible)}>
-      <button data-testid="modal-close" onClick={onClose} />
-      <button data-testid="modal-upload" onClick={onUpload} />
-    </div>
-  ),
-}));
-
 describe('SoilhiveMapToolbar', () => {
-  const mockOnUpload = jest.fn();
   const defaultProps = {
     visible: true,
     onDrawClick: jest.fn(),
-    onUpload: mockOnUpload,
   };
 
   afterEach(() => {
@@ -37,26 +26,18 @@ describe('SoilhiveMapToolbar', () => {
     expect(screen.queryByText('Polygon')).not.toBeInTheDocument();
   });
 
-  it('opens the UploadPolygonModal when the upload button is clicked', () => {
-    const { container } = render(<SoilhiveMapToolbar {...defaultProps} />);
-    const uploadButton = container.querySelector('.selection-list')!.querySelectorAll('button')[1];
-    fireEvent.click(uploadButton);
-    expect(screen.getByTestId('upload-polygon-modal')).toHaveAttribute('data-visible', 'true');
+  it('does not render an upload option when onUploadClick is omitted (the plugin scenario)', () => {
+    render(<SoilhiveMapToolbar {...defaultProps} />);
+    expect(screen.queryByText('Upload a polygon')).not.toBeInTheDocument();
   });
 
-  it('closes the UploadPolygonModal when its onClose is called', () => {
-    const { container } = render(<SoilhiveMapToolbar {...defaultProps} />);
-    const uploadButton = container.querySelector('.selection-list')!.querySelectorAll('button')[1];
-    fireEvent.click(uploadButton);
-    fireEvent.click(screen.getByTestId('modal-close'));
-    expect(screen.getByTestId('upload-polygon-modal')).toHaveAttribute('data-visible', 'false');
-  });
+  it('renders an upload option and calls onUploadClick when clicked, without importing/rendering any modal itself', () => {
+    const onUploadClick = jest.fn();
+    const { container } = render(<SoilhiveMapToolbar {...defaultProps} onUploadClick={onUploadClick} />);
 
-  it('calls onUpload when upload is triggered by the UploadPolygonModal', () => {
-    const { container } = render(<SoilhiveMapToolbar {...defaultProps} />);
     const uploadButton = container.querySelector('.selection-list')!.querySelectorAll('button')[1];
     fireEvent.click(uploadButton);
-    fireEvent.click(screen.getByTestId('modal-upload'));
-    expect(mockOnUpload).toHaveBeenCalled();
+
+    expect(onUploadClick).toHaveBeenCalledTimes(1);
   });
 });
