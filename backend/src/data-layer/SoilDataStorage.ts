@@ -450,6 +450,7 @@ export default class SoilDataStorage {
         .addSelect('ds.name', 'dataset_name')
         .addSelect('f.file_path', 'path')
         .addSelect("f.metadata->>'epsg'", 'epsg')
+        .addSelect("f.metadata->>'wkt'", 'wkt')
         .addSelect('rl.band', 'band')
         .addSelect('rl.is_categorical', 'is_categorical')
         .addSelect('rl.min_depth', 'min_depth')
@@ -476,6 +477,7 @@ export default class SoilDataStorage {
         dataset_name: row.dataset_name,
         path: row.path,
         ...(row.epsg ? { epsg: Number(row.epsg) } : {}),
+        ...(row.wkt ? { wkt: row.wkt } : {}),
         band: Number(row.band),
         is_categorical: row.is_categorical,
         min_depth: row.min_depth,

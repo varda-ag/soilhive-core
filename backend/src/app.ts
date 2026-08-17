@@ -13,6 +13,7 @@ import { getEntityManager, initializeSchema } from './utils/data-source';
 import { log } from './utils/logger';
 import { isQueryDebugEnabled, queryDebugMiddleware } from './utils/query-debug';
 import { getServerPort, isJest, setupEnv } from './utils/utils';
+import { syncVocabularies } from './scripts/syncVocabularies';
 
 setupEnv();
 
@@ -82,6 +83,11 @@ export const initApp = async (app: Application) => {
 
   await initPgBoss();
   await initializeSchema();
+  try {
+    await syncVocabularies();
+  } catch (error) {
+    log.error('Vocabulary sync failed at startup', { error: error instanceof Error ? error.message : String(error) });
+  }
   await startCacheEpochWatcher();
 
   const port = getServerPort();

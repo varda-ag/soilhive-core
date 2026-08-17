@@ -36,6 +36,18 @@ describe('analyzeRasterMeta', () => {
     expect(ne![0]).toBeCloseTo(-80.4645993, 6);
     expect(ne![1]).toBeCloseTo(-33.4299807, 6);
   });
+
+  it('computes resolution in metres for a geographic (degrees) CRS', async () => {
+    const { resolution } = await analyzeRasterMeta('multiband_2b_250m.tif', 1);
+    expect(resolution).toBeGreaterThan(150);
+    expect(resolution).toBeLessThan(350);
+  });
+
+  it('computes resolution in metres for a projected (WKT2 PROJCRS) CRS, not degrees-as-metres', async () => {
+    const { resolution } = await analyzeRasterMeta(EPSG3857_FILE, 1);
+    expect(resolution).toBeGreaterThan(100);
+    expect(resolution).toBeLessThan(252);
+  });
 });
 
 describe('raster tests', () => {

@@ -8,7 +8,7 @@ import ConfigService from '../services/ConfigService';
 import { StorageModes } from '../types/enums';
 import { GdalCLI } from '../utils/GdalCLI';
 import { log, timed } from '../utils/logger';
-import { openTiff } from '../utils/raster';
+import { openTiff, isGeographicCrs } from '../utils/raster';
 
 const MAX_TILES = 256 * 256;
 const MIN_TILES = 256;
@@ -66,7 +66,8 @@ export async function streamRasterFootprints(
     // CRS has its batches reprojected below. Missing CRS metadata is treated as already-4326,
     // matching how vector files with no declared CRS are handled (FileService.fileToDB).
     const epsg = GdalCLI.extractEpsgFromWkt(info.coordinateSystem?.wkt);
-    const srcSrs = epsg !== undefined && epsg !== 4326 ? info.coordinateSystem!.wkt! : null;
+    const isGeo = isGeographicCrs(info.coordinateSystem?.wkt);
+    const srcSrs = !isGeo || (epsg !== undefined && epsg !== 4326) ? info.coordinateSystem!.wkt! : null;
 
     const [rasterNativeWidth, rasterNativeHeight] = info.size ?? [0, 0];
     const xMin = gt[0]!;

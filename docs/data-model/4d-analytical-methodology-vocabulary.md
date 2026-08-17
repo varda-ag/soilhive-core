@@ -29,4 +29,4 @@ Note: **Technique** (Lab procedure, Spectral, or Calculated) is not part of this
 - **Spectral** — the value was derived from NIR or MIR spectroscopy using calibration models.
 - **Calculated** — the value was computed from other variables using formulas, statistical models, or process-based models.
 
-See [Analytical Methodology Table](4e-analytical-methodology-table.csv) for the full vocabulary table.
+See [Analytical Methodology Table](../../backend/docs/data-model/4e-analytical-methodology-table.csv) for the full vocabulary table.

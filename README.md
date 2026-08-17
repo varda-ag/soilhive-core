@@ -31,7 +31,7 @@ Soil data is abundant but siloed: collected by different institutions, at differ
 - [Soil Property Vocabulary](docs/data-model/4b-soil-property-vocabulary.md): Design principles and structure of the controlled vocabulary
 - [Analytical Methodology Vocabulary](docs/data-model/4d-analytical-methodology-vocabulary.md): Controlled terms describing how a reported value was produced
 - [Unit Conversion Reference](docs/data-model/5a-unit-conversion-reference.md): How original units are converted to SoilHive's standard units
-- [Supported Licenses](docs/data-model/6-license_options.csv): Licenses recognized for published datasets
+- [Supported Licenses](backend/docs/data-model/6-license_options.csv): Licenses recognized for published datasets
 - [Data Output](docs/data-model/2-data-output.md): Structure and contents of downloaded data packages
 - [Coverage Map](docs/user-guides/coverage-map.md): How the Data Availability Index is calculated from loaded data
 

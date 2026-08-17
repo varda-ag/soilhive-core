@@ -14,6 +14,9 @@ import { SoilDataSample } from '../../../src/interfaces/SoilDataSample';
 import * as exportHelpers from '../../../src/jobs/soil-export/exportHelpers';
 import DatasetEntity from '../../../src/entities/Dataset';
 import RasterLayerEntity from '../../../src/entities/RasterLayer';
+import FileEntity from '../../../src/entities/File';
+import { RasterFileMetadata } from '../../../src/interfaces/File';
+import { getDataSource } from '../../../src/utils/data-source';
 import { GdalCLI } from '../../../src/utils/GdalCLI';
 import { IngestionStatus } from '../../../src/types/data';
 import * as FilteringMasksModule from '../../../src/data-layer/FilteringMasks';
@@ -22,6 +25,36 @@ import * as RasterUtilsModule from '../../../src/utils/raster';
 import { fromFile } from 'geotiff';
 
 const storageRoot = process.env.LOCAL_STORAGE_ROOT_FOLDER!;
+
+async function ensureFileWithRealCrsMetadata(filePath: string): Promise<void> {
+  const info = await GdalCLI.gdalinfo(filePath);
+  const epsg = GdalCLI.extractEpsgFromWkt(info.coordinateSystem?.wkt);
+  const metadata: RasterFileMetadata = {
+    is_raster: true,
+    size: info.size ?? [0, 0],
+    band_count: info.bands?.length ?? 1,
+    raster_bands: [],
+    ...(epsg !== undefined && { epsg }),
+    ...(info.coordinateSystem?.wkt && { wkt: info.coordinateSystem.wkt }),
+  };
+  const dataSource = await getDataSource();
+  const repo = dataSource.getRepository(FileEntity);
+  const existing = await repo.findOneBy({ file_path: filePath });
+  if (existing) {
+    existing.metadata = metadata;
+    await repo.save(existing);
+    return;
+  }
+  await repo.save(
+    repo.create({
+      name: path.basename(filePath),
+      file_path: filePath,
+      created_by: 'tests',
+      status: IngestionStatus.LOADED,
+      metadata,
+    }),
+  );
+}
 
 async function readPixelValue(tifPath: string, lon: number, lat: number): Promise<number> {
   const tiff = await fromFile(tifPath);
@@ -35,6 +68,17 @@ async function readPixelValue(tifPath: string, lon: number, lat: number): Promis
   const py = Math.floor((maxY - lat) / pixH);
   const rasters = await image.readRasters({ window: [px, py, px + 1, py + 1], samples: [0] });
   return (rasters[0] as ArrayLike<number>)[0] as number;
+}
+
+async function hasNonNodataPixel(tifPath: string, nodataValue: number): Promise<boolean> {
+  const tiff = await fromFile(tifPath);
+  const image = await tiff.getImage(0);
+  const rasters = await image.readRasters({ samples: [0] });
+  const data = rasters[0] as ArrayLike<number>;
+  for (let i = 0; i < data.length; i++) {
+    if (data[i] !== nodataValue) return true;
+  }
+  return false;
 }
 
 describe('Soil Export Job Integration Test', () => {
@@ -926,6 +970,119 @@ describe('Soil Export Job Integration Test', () => {
 
       expect(spy).toHaveBeenCalled();
       spy.mockRestore();
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    });
+
+    it('should export a raster with a custom, unregistered CRS via the mask path, with no target_crs', async () => {
+      // epsg8807_1b_250m.tif's CRS is a Lambert Azimuthal Equal Area with no EPSG code
+      const customCrsPath = path.join(__dirname, '../../assets/raster/epsg8807_1b_250m.tif');
+      await ensureFileWithRealCrsMetadata(customCrsPath);
+      const customCrsLayer = await addRasterData(customCrsPath, {
+        dataset: 'custom-crs-lambert-azimuthal',
+        visibility: 'public',
+        dataset_status: IngestionStatus.PUBLISHED,
+      });
+
+      const irregularPolygon = {
+        type: 'Polygon' as const,
+        coordinates: [
+          [
+            [-16.465478, 16.139242],
+            [-16.523365, 16.088731],
+            [-16.524428, 15.994562],
+            [-16.420336, 15.992265],
+            [-16.407856, 16.065001],
+            [-16.461495, 16.081332],
+            [-16.465478, 16.139242],
+          ],
+        ],
+      };
+
+      const filterResponse = await request(app)
+        .post('/data-filters')
+        .send({ geometries: [irregularPolygon], parameters: {} });
+      expect(filterResponse.statusCode).toBe(201);
+      const filterId = filterResponse.body.id;
+      expect(filterId).toBeDefined();
+
+      const exportJobResponse = await request(app)
+        .post('/jobs')
+        .send({
+          type: 'export',
+          filter_id: filterId,
+          dataset_ids: [customCrsLayer.dataset.slug],
+          formats: [RasterFileFormat.TIFF],
+        });
+      expect(exportJobResponse.statusCode).toBe(201);
+      const jobId = exportJobResponse.body.id;
+      expect(jobId).toBeDefined();
+
+      let jobStatus = 'created';
+      let attempts = 0;
+      const maxAttempts = 60;
+      let completedJob: any;
+
+      while (jobStatus !== 'completed' && attempts < maxAttempts) {
+        await sleep(1000);
+        attempts++;
+
+        const statusResponse = await request(app).get(`/jobs/${jobId}`);
+        expect(statusResponse.statusCode).toBe(200);
+
+        completedJob = statusResponse.body;
+        jobStatus = completedJob.status;
+
+        if (jobStatus === 'failed') {
+          throw new Error(`Job failed: ${JSON.stringify(completedJob)}`);
+        }
+      }
+
+      expect(jobStatus).toBe('completed');
+      expect(completedJob.data.download_path).toBeDefined();
+
+      const downloadPath = completedJob.data.download_path;
+      const escapedDownloadPath = downloadPath.replace(/\//g, '%2F');
+
+      const downloadResponse = await request(app)
+        .get(`/downloads/${escapedDownloadPath}`)
+        .buffer()
+        .parse((res, callback) => {
+          res.setEncoding('binary');
+          let data = '';
+          res.on('data', chunk => {
+            data += chunk;
+          });
+          res.on('end', () => {
+            callback(null, Buffer.from(data, 'binary'));
+          });
+        });
+
+      expect(downloadResponse.statusCode).toBe(StatusCodes.OK);
+
+      const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'export-test-'));
+      const zipPath = path.join(tempDir, 'export.zip');
+      fs.writeFileSync(zipPath, downloadResponse.body);
+
+      const extractDir = path.join(tempDir, 'extracted');
+      fs.mkdirSync(extractDir, { recursive: true });
+      await extractZip(zipPath, { dir: extractDir });
+
+      const extractedFiles = fs.readdirSync(extractDir);
+      const tiffFiles = extractedFiles.filter((file: string) => file.toLowerCase().endsWith('.tif'));
+      expect(tiffFiles.length).toBe(1);
+      const outputTif = path.join(extractDir, tiffFiles[0]!);
+
+      expect(tiffFiles[0]).toContain('_custom.tif');
+
+      // Must retain real data somewhere inside the AOI
+      expect(await hasNonNodataPixel(outputTif, 255)).toBe(true);
+
+      // The output must still be tagged with the raster's own custom projection
+      const outputInfo = await GdalCLI.gdalinfo(outputTif);
+      expect(outputInfo.coordinateSystem?.wkt).toContain('Lambert_Azimuthal_Equal_Area');
+      const gt = outputInfo.geoTransform!;
+      expect(Math.abs(gt[0]!)).toBeGreaterThan(100_000);
+
       fs.rmSync(tempDir, { recursive: true, force: true });
     });
   });

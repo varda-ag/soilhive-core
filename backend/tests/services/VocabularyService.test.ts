@@ -80,5 +80,30 @@ describe('VocabularyService', () => {
         service.createVocabulary(requestData, { name: 'air dry', category: VocabularyType.SAMPLE_PRETREATMENT }),
       ).rejects.toMatchObject({ status: StatusCodes.UNAUTHORIZED });
     });
+
+    it('throws 409 when the (category, name) pair already exists', async () => {
+      await addVocabulary('air dry', VocabularyType.SAMPLE_PRETREATMENT);
+      const requestData = await getRequestData(mockToken);
+
+      await expect(
+        service.createVocabulary(requestData, { name: 'air dry', category: VocabularyType.SAMPLE_PRETREATMENT }),
+      ).rejects.toMatchObject({
+        status: StatusCodes.CONFLICT,
+        message: "Vocabulary 'air dry' already exists in category 'sample_pretreatment'",
+      });
+    });
+
+    it('allows the same name in a different category', async () => {
+      await addVocabulary('air dry', VocabularyType.SAMPLE_PRETREATMENT);
+      const requestData = await getRequestData(mockToken);
+
+      const result = await service.createVocabulary(requestData, {
+        name: 'air dry',
+        category: VocabularyType.LABORATORY_METHOD,
+      });
+
+      expect(result.name).toBe('air dry');
+      expect(result.category).toBe(VocabularyType.LABORATORY_METHOD);
+    });
   });
 });

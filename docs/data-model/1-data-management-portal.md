@@ -81,7 +81,7 @@ A geometry field, or separate latitude and longitude columns, is required — th
 
 - Sampling date, in `YYYY`, `YYYY-MM`, or `YYYY-MM-DD` format
 - Depth, as upper and lower values in centimetres, either in separate columns or as a single depth range value with the upper and lower bounds separated by a dash (e.g. `10-15` or `10 cm - 15 cm`)
-- License at the record level, if individual observations carry different licenses (if the whole dataset shares a single license, it can instead be set as a fixed value in a later step — see the [list of supported licenses](6-license_options.csv))
+- License at the record level, if individual observations carry different licenses (if the whole dataset shares a single license, it can instead be set as a fixed value in a later step — see the [list of supported licenses](../../backend/docs/data-model/6-license_options.csv))
 - Soil properties, each in its own column: one column per property, unit, and analytical procedure
 
 > **Note:** If sampling date, depth, or license are not present in the file, fixed values can be applied at the dataset level in a later step.

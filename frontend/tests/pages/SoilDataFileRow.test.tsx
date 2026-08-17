@@ -1,6 +1,11 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { SoilDataFileRow } from '../../src/pages/AdminPortal/DatasetsSoilDataStep/SoilDataFileRow/SoilDataFileRow';
 
+jest.mock('react-i18next', () => ({
+  ...jest.requireActual('react-i18next'),
+  useTranslation: () => ({ t: (key: string) => key }),
+}));
+
 jest.mock('components/UI', () => ({
   Button: ({ children, onClick, dataTestId }: any) => (
     <button onClick={onClick} data-testid={dataTestId ?? 'sh-ui-button'}>
@@ -62,6 +67,22 @@ describe('SoilDataFileRow', () => {
 
     const input = screen.getByRole('combobox');
     expect(input).toBeDisabled();
+  });
+
+  it('renders the read-only CRS label when an inferredCrs exists', () => {
+    const readOnlyFile = { ...mockFile, inferredCrs: 'EPSG:4326' };
+
+    render(<SoilDataFileRow soilDataFile={readOnlyFile} onCrsChange={onCrsChange} onRemove={onRemove} crsOptions={mockCrsOptions} />);
+
+    expect(screen.getByLabelText('datasets.soil_data.crs_label_readonly')).toBe(screen.getByRole('combobox'));
+    expect(screen.queryByText('datasets.soil_data.crs_label')).not.toBeInTheDocument();
+  });
+
+  it('renders the editable CRS label when no inferredCrs exists', () => {
+    render(<SoilDataFileRow soilDataFile={mockFile} onCrsChange={onCrsChange} onRemove={onRemove} crsOptions={mockCrsOptions} />);
+
+    expect(screen.getByLabelText('datasets.soil_data.crs_label')).toBe(screen.getByRole('combobox'));
+    expect(screen.queryByText('datasets.soil_data.crs_label_readonly')).not.toBeInTheDocument();
   });
 
   it('calls onCrsChange when the user types in the autocomplete', () => {

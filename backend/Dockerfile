@@ -95,6 +95,8 @@ COPY --from=build --chown=nodejs:nodejs /app/dist ./dist
 COPY src/GeoJSON-OAS3.yaml ./src/GeoJSON-OAS3.yaml
 COPY src/openapi.yaml ./src/openapi.yaml
 COPY src/assets ./src/assets
+# Copy vocabulary CSVs read by --sync-vocabularies (see src/scripts/syncVocabularies.ts)
+COPY docs/data-model ./docs/data-model
 
 # Switch to non-root user for security
 USER nodejs
