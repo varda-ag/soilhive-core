@@ -292,6 +292,7 @@
             "upload_error": "Error uploading file. Check the template documentation in Github.",
             "network_error": "Network error. Please check your connection and try again.",
             "crs_label": "Add a Coordinate Reference System (CRS)",
+            "crs_label_readonly": "Detected Coordinate Reference System (CRS)",
             "crs_placeholder": "EPSG code, e.g. 4326",
             "invalid_file_type": "Invalid file type",
             "mixed_format_error": "{{count}} file(s) were discarded. All files must be the same data type — either all vector or all raster.",
