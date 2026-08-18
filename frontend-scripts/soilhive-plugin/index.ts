@@ -4,10 +4,11 @@ import { runSoilhivePlugin } from './run';
 function main(): void {
   const fullPathArg = process.argv[2];
   if (!fullPathArg) {
-    throw new Error('Usage: soilhive-plugin <full-path>');
+    throw new Error('Usage: soilhive-plugin <full-path> [--with-map]');
   }
 
-  runSoilhivePlugin(resolve(fullPathArg));
+  const withMap = process.argv.includes('--with-map');
+  runSoilhivePlugin(resolve(fullPathArg), { withMap });
 }
 
 try {

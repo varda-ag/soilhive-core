@@ -23,5 +23,5 @@
       "*": ["./@mf-types/*"]
     }
   },
-  "include": ["src", "UI"]
+  "include": ["src", "UI", "Map"]
 }
