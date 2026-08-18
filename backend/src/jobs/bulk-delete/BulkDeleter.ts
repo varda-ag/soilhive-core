@@ -11,6 +11,7 @@ import RasterLayerEntity from '../../entities/RasterLayer';
 import { refreshDaiStats } from '../../data-layer/DaiStats';
 import { bumpCacheEpoch } from '../../utils/cache-epoch';
 import ErrorService from '../../services/ErrorService';
+import EntitlementService from '../../services/EntitlementService';
 
 // Postgres: query_canceled — raised when a statement exceeds the `statement_timeout` set below.
 const STATEMENT_TIMEOUT_CODE = '57014';
@@ -33,6 +34,12 @@ export async function processBulkDeletion(job: Job<BulkDeleteJob>): Promise<void
   try {
     await entityManager.transaction(async manager => {
       await manager.query(`SET LOCAL statement_timeout = '5min'`);
+
+      // Entitlements to the dataset die with its data, not with the soft-deletion above: a
+      // stripped jsonb key has no `deleted_at`, so it can only be undone by rolling back this
+      // transaction. Above the data-type fork because it applies to both, and because the
+      // raster branch returns early (ADR 0027).
+      await new EntitlementService().deleteEntityEntitlements({ ...requestData, entityManager: manager }, dataset.slug);
 
       if (dataset.gis_datatype === GISDataType.RASTER) {
         // For raster datasets, only raster_layer entity deletion is required. The assets and footprints

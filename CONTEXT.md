@@ -73,7 +73,7 @@ The identity a caller acts under: the token's `email` claim, else its `client_id
 _Avoid_: sub, user, user id, owner, caller (the requester; the Subject is the resolved value it acts under)
 
 **Entitlement**:
-A **Capability** (`preview`, `download`, `obfuscate_as_points`) granted over a Dataset either to one **Subject** or to `everyone`. Consulted only for private Datasets — a public Dataset needs none — and granted from two independent sources: rows held locally, and an external entitlements endpoint reachable only while the caller's raw token exists. Entitlements are the access axis; **Visibility** is the attribute axis, and neither substitutes for the other.
+A **Capability** (`preview`, `download`, `obfuscate_as_points`) granted over a Dataset either to one **Subject** or to `everyone`. Consulted only for private Datasets — a public Dataset needs none — and granted from two independent sources: rows held locally, and an external entitlements endpoint reachable only while the caller's raw token exists. Entitlements are the access axis; **Visibility** is the attribute axis, and neither substitutes for the other. An Entitlement's lifetime is bound to a Dataset's *data*, not to its record: it survives an **Archive** and is destroyed by a **Purge** — and only the locally held rows are, since the external endpoint's answers are outside the system's reach.
 _Avoid_: Permission, access right, grant, role
 
 **Data Availability Index (DAI)**:
@@ -152,6 +152,14 @@ _Avoid_: Mode, algorithm, variant, "generic" (says nothing about what is compute
 A **Filter** created by the system rather than submitted by a user, whose UserGeometries come from a source file. It carries the criteria of the Filter it was derived from and is a fully usable Filter, but it is deliberately outside Filter **content identity**: it never deduplicates against a user's submission, and its stored raw form holds no geometries at all — the only way to read its geometries is to ask for them.
 _Avoid_: System filter, temporary filter, virtual filter (it is persisted and permanent), copy (its geometries differ from the Filter it derives from)
 
+**Archive**:
+The reversible retirement of a Dataset: it stops appearing in every query, but all of its soil data, **Raster Layers** and **Entitlements** remain intact. A Dataset can be un-archived and be exactly what it was — which is why an Archive destroys nothing, and why a failed **Purge** falls back to one.
+_Avoid_: Delete (says nothing about reversibility — see Flagged ambiguities), soft delete (a mechanism), deactivate, retire
+
+**Purge**:
+The irreversible destruction of one Dataset's data: its **DatasetLayers** or **Raster Layers** and their **Observations**, every **Feature** and **Layer** no longer referenced by any other Dataset, and every locally held **Entitlement** to it. Always preceded by an **Archive**, and if the Purge fails the Archive is undone — so a Dataset is either wholly present or wholly gone, never half-purged. The Dataset's own record and its slug history survive a Purge, so its slugs are never reissued.
+_Avoid_: Bulk delete (the job queue that performs it — see Flagged ambiguities), hard delete (a mechanism), bulk load's counterpart (Bulk Load is named for what it consumes; a Purge is scoped to a Dataset), wipe
+
 **Band**:
 One of the pixel planes of a raster file, identified by a 1-based number. The unit a Raster Ingest consumes: every Raster Layer names exactly one Band of exactly one file. Bands of a file share its resolution and geographic extent, but each carries its own values and its own nodata marker, and therefore its own footprints. Distinct from a Layer — a Band is a property of the file, not of the soil model.
 _Avoid_: Layer (the soil data depth/date slice), channel, raster layer (the catalog record that points at a Band)
@@ -185,6 +193,7 @@ _Avoid_: Plugin (too generic when the mounting metadata specifically is meant), 
 - **Soil Statistics** are reported per (**Aggregation Unit**, **Dataset**, **Soil Property**) and, one level finer, per sampling year and depth interval; a **Feature** inside two Aggregation Units contributes its **Observations** to both
 - A soil-statistics run has exactly one **Statistics Type** and one set of **Aggregation Units**; the Units are resolved identically for every type, and only what is computed over them differs
 - An **Entitlement** grants one **Capability** over one **Dataset** to one **Subject** (or to `everyone`); a Subject's effective Entitlements are the union of its own and `everyone`'s
+- A **Purge** is preceded by exactly one **Archive** and destroys every locally held **Entitlement** to the Dataset; an **Archive** on its own destroys none
 - A job is recorded under the **Subject** that submitted it, and resolves its Entitlements under that same Subject — so what a job may read is what its submitter may read, minus whatever only the external endpoint knows
 - A **Plugin** receives exactly one **Plugin Context** (host → Plugin) and exposes exactly one **Remote Plugin** (Plugin → host); neither implies the other
 
@@ -195,6 +204,9 @@ _Avoid_: Plugin (too generic when the mounting metadata specifically is meant), 
 
 > **Dev:** "If a filter has no geometries, what's the AOI?"
 > **Domain expert:** "The viewport bounding box is the AOI. Geometries clip the bbox; without them, the whole viewport is in scope."
+
+> **Dev:** "An admin deletes a private **Dataset**. Do the people who were entitled to download it lose that?"
+> **Domain expert:** "Depends which delete. An **Archive** changes nothing — the **Entitlements** are still there, because the data is still there and we might bring it back. A **Purge** takes them with it: once the **Observations** are gone there is nothing left to be entitled to. And only ours — if the external endpoint still hands out `download` for that Dataset, that is its business, not ours."
 
 > **Dev:** "Two of my fields overlap, and there's one sampling point in the overlap. Does it count once or twice?"
 > **Domain expert:** "Twice — once in each **Aggregation Unit**. 'Mean pH in this field' has to be the mean pH in that field, whatever else it overlaps. But the `overall` figure counts that **Observation** once, so don't expect the per-unit counts to add up to it."
@@ -231,6 +243,8 @@ _Avoid_: Links, references, attachments, additional resources (the Band Mapping 
 - **`related_resources` and `additional_resources` are unrelated.** `related_resources` is a Dataset column holding external URLs; `additional_resources` is a Band Mapping key declaring that Band's **Raster Layer Assets**, which are Files. The near-identical names are the only thing they share. In domain discussions say **Related Resources** for the Dataset's URLs and **Raster Layer Asset** for an attached File — never "resources" bare.
 
 - The Dataset field holding its soil properties is called **`measured_properties`** in code but stored in a column named `variables_measured` (an older name, retained). They are one field, not two. Prefer **measured properties** in discussion.
+
+- **"Delete a Dataset" is never a single operation, and the code's names invert the distinction.** `DatasetService.deleteDataset` performs an **Archive**, not a delete; the **Purge** is the `bulk-delete` job, whose first step is to call `deleteDataset`. So "we do X on delete" is always under-specified — an Archive keeps everything and can be undone, a Purge destroys soil data and **Entitlements** and cannot. Say **Archive** or **Purge**; reserve "bulk-delete" for the queue, never for the concept. Note also that the published `DELETE /datasets/{id}` endpoint is an Archive alone: it reaches no Purge, so a Dataset deleted through it keeps all of its data and Entitlements.
 
 - `docs/frontend/module-federation.md` describes Plugin loading as a hardcoded, top-level-await `loadRemotesConfig()` and registration by `path`. The actual code (`src/utilities/moduleFederation.ts`, `src/contexts/RemotesContext.tsx`) loads Plugins on demand via `loadRemotes(configs)`, sourced from the backend-driven `themeConfig.plugins`, and registers by `route` — the doc is stale. `frontend/remotes.json` is dead leftover configuration from before this change (unreferenced by any code, and its port doesn't match the example Plugin's actual dev port) — do not treat it as a source of truth for anything.
 
