@@ -225,10 +225,7 @@ describe('LicenseRow', () => {
       fireEvent.change(screen.getByRole('textbox', { name: 'Name' }), { target: { value: 'CC-BY-4.0' } });
       fireEvent.click(screen.getByRole('button', { name: 'Create' }));
 
-      expect(mockMutate).toHaveBeenCalledWith(
-        { name: 'CC-BY-4.0', full_name: undefined, url: undefined },
-        expect.any(Object),
-      );
+      expect(mockMutate).toHaveBeenCalledWith({ name: 'CC-BY-4.0', full_name: undefined, url: undefined }, expect.any(Object));
     });
 
     it('on success calls onChange with new license id and hides the form', () => {
