@@ -33,15 +33,30 @@
  * hence the same `dai:{filterId}:{bbox}:{resolution}` cache key. In managed
  * mode the spawned process starts with an empty cache and every row measures
  * real work. In attached mode the target has been serving traffic for hours, so
- * DAI and coverage rows may measure a cache lookup rather than a query, and
- * consecutive iterations of one row may land on nodes in different cache
- * states. This is accepted, not worked around: the only cache-busting lever
- * would be perturbing geometries, bbox or resolution, which changes the asset
- * fingerprint and voids comparability with every existing baseline. For
- * cold-cache numbers from a deployed environment, disable its query cache
- * (QUERY_CACHE_ENABLED=false) or restart it. PERF_WARMUP correspondingly loses
- * its point in attached mode: it exists to shed process-start cost, and there
- * is no process start to shed.
+ * by default DAI and coverage rows may measure a cache lookup rather than a
+ * query, and consecutive iterations of one row may land on nodes in different
+ * cache states. Perturbing geometries, bbox or resolution to defeat that is
+ * still rejected — it changes the asset fingerprint and voids comparability
+ * with every existing baseline.
+ *
+ * PERF_CACHE_BYPASS=true instead leaves the inputs untouched and makes each
+ * request opt out of the cache, via the secret-gated X-SoilHive-Cache-Bypass
+ * header (docs/adr/0028). Bypassed requests neither read nor write the target's
+ * cache, so a run costs the target the full work of every iteration and leaves
+ * its cache untouched for other clients. The secret comes from
+ * PERF_CACHE_BYPASS_SECRET in .env and must match CACHE_BYPASS_SECRET on the
+ * target, which ignores the header entirely without one; the run aborts unless
+ * the target echoes the header back, because a target that quietly ignores it
+ * is otherwise indistinguishable from one that honoured it. A bypassed run is
+ * recorded as such in the fingerprint and only ever auto-diffed against another
+ * bypassed run. Note the bypass reaches the application cache only: Postgres
+ * shared_buffers and the OS page cache stay warm and remain the dominant source
+ * of run-to-run variance. The precomputed tables (docs/adr/0006, docs/adr/0009)
+ * are deliberately not bypassed — they are the path production takes.
+ *
+ * PERF_WARMUP correspondingly loses its point in attached mode: it exists to
+ * shed process-start cost, and there is no process start to shed. Combined with
+ * the bypass it is contradictory rather than merely pointless, and aborts.
  *
  * Flow: for every *.geojson asset in tests/assets/geojson (or only the assets
  * named in PERF_ASSETS, comma-separated, exact names without the extension —
@@ -94,6 +109,7 @@ import path from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { config } from 'dotenv';
 import { Client } from 'pg';
+import { CACHE_BYPASS_APPLIED_VALUE, CACHE_BYPASS_HEADER } from '../../utils/cache-bypass';
 import { getDBPassword, getSSL } from '../../utils/db-credentials';
 import { renderRunHtml } from './report';
 import { AssetFingerprint, computeStats, DatasetFingerprint, PERF_RUN_VERSION, PerfRun, ResultRow, rowKey } from './types';
@@ -108,8 +124,23 @@ import { AssetFingerprint, computeStats, DatasetFingerprint, PERF_RUN_VERSION, P
  */
 const BASE_URL_FROM_SHELL = (process.env['PERF_BASE_URL'] || '').trim();
 
+/*
+ * Also read before .env, for the same reason and with the same load-bearing
+ * ordering: this decides how much work the target is made to do — under bypass
+ * its database performs 100% of the work on every iteration of every row — so a
+ * forgotten .env line must not be able to turn an ordinary run into a
+ * load-generating one (docs/adr/0028). The *secret* is deliberately not read
+ * here: the justification for shell-first is that the value is visible in the
+ * command and in shell history, which inverts for a production credential.
+ */
+const CACHE_BYPASS = process.env['PERF_CACHE_BYPASS'] === 'true';
+
 const BACKEND_ROOT = path.resolve(__dirname, '..', '..', '..');
 config({ path: path.join(BACKEND_ROOT, '.env'), quiet: true });
+
+// From .env, after dotenv, so it never enters shell history. Must match
+// CACHE_BYPASS_SECRET on the target, which ignores the header without it.
+const CACHE_BYPASS_SECRET = (process.env['PERF_CACHE_BYPASS_SECRET'] || '').trim();
 
 const ITERATIONS = Number(process.env['PERF_ITERATIONS']) || 1;
 // Untimed warmup request before the timed iterations. Off by default; set PERF_WARMUP=true to enable.
@@ -289,6 +320,22 @@ const discoverAssets = (): AssetSpec[] => {
 };
 
 // ---------------------------------------------------------------------------
+// Requests
+// ---------------------------------------------------------------------------
+
+const BYPASS_HEADERS: Record<string, string> = CACHE_BYPASS ? { [CACHE_BYPASS_HEADER]: CACHE_BYPASS_SECRET } : {};
+
+/**
+ * Every request the suite makes goes through here, so the bypass header cannot
+ * be forgotten on one call path — including the untimed ones. That is not merely
+ * for consistency: a warm target could answer the GET /datasets data
+ * fingerprint from cache with counts that no longer describe its data,
+ * defeating the one guarantee the fingerprint exists to provide (docs/adr/0028).
+ */
+const perfFetch = (url: string, init: RequestInit = {}): Promise<Response> =>
+  fetch(url, { ...init, headers: { ...((init.headers as Record<string, string> | undefined) ?? {}), ...BYPASS_HEADERS } });
+
+// ---------------------------------------------------------------------------
 // Server lifecycle
 // ---------------------------------------------------------------------------
 
@@ -307,13 +354,68 @@ const validateAttachedTarget = (): void => {
 };
 
 /**
+ * Rejects incoherent bypass configuration before anything is measured. A warmup
+ * request cannot warm a cache it is forbidden to write to, so the combination is
+ * contradictory rather than merely pointless (docs/adr/0024 already notes warmup
+ * loses its point in attached mode) — and it is rejected the way an unknown
+ * PERF_ENDPOINT is, not silently accepted.
+ */
+const validateCacheBypass = (): void => {
+  if (!CACHE_BYPASS) return;
+  if (CACHE_BYPASS_SECRET.length === 0) {
+    throw new RunAbort(
+      "PERF_CACHE_BYPASS=true but PERF_CACHE_BYPASS_SECRET is empty — set it in backend/.env to the target's CACHE_BYPASS_SECRET. " +
+        'Without it the target ignores the header and the run would silently measure a warm cache.',
+    );
+  }
+  if (WARMUP) {
+    throw new RunAbort(
+      'PERF_WARMUP=true cannot be combined with PERF_CACHE_BYPASS=true: a warmup request cannot warm a cache the run is bypassing.',
+    );
+  }
+};
+
+/**
+ * Positive proof that the target honoured the bypass, checked before a single
+ * row is measured. Without it, a target whose secret is misconfigured, whose
+ * build predates the feature, or that sits behind a proxy stripping unknown
+ * headers returns an ordinary 200, and the run would record cacheBypass: true
+ * over numbers measured against a warm cache — every one wrong in the same
+ * direction, and pairable with genuinely cold runs. A 403 on a bad secret could
+ * not detect the latter two cases, hence the echo (docs/adr/0028). This is a
+ * precondition failure, so it aborts rather than warning: the alternative is
+ * learning the run was invalid after paying for all of it.
+ */
+const verifyCacheBypassHonoured = async (): Promise<void> => {
+  if (!CACHE_BYPASS) return;
+  const url = `${BASE_URL}/ready`;
+  let res: Response;
+  try {
+    res = await perfFetch(url, { signal: AbortSignal.timeout(READY_PROBE_TIMEOUT_MS) });
+  } catch (err) {
+    throw new RunAbort(`Could not verify the cache bypass against ${url} (${(err as Error).message})`);
+  }
+  const echoed = res.headers.get(CACHE_BYPASS_HEADER);
+  if (echoed !== CACHE_BYPASS_APPLIED_VALUE) {
+    throw new RunAbort(
+      `The target did not confirm the cache bypass: GET ${url} answered ${res.status} without ` +
+        `${CACHE_BYPASS_HEADER}: ${CACHE_BYPASS_APPLIED_VALUE}${echoed === null ? '' : ` (got "${echoed}")`}. ` +
+        "Either PERF_CACHE_BYPASS_SECRET does not match the target's CACHE_BYPASS_SECRET, the target has none configured, " +
+        'its build predates the header, or something between here and it strips unknown headers. ' +
+        'Continuing would record cold-cache results for a warm run.',
+    );
+  }
+  console.log('Cache bypass confirmed by the target');
+};
+
+/**
  * Attached-mode precondition. Returns null when the target is ready, otherwise a
  * description of why it is not. Localhost is a legitimate target here: attaching
  * to a server you started yourself is the only way to measure a dev server.
  */
 const probeTargetReady = async (): Promise<string | null> => {
   try {
-    const res = await fetch(`${BASE_URL}/ready`, { signal: AbortSignal.timeout(READY_PROBE_TIMEOUT_MS) });
+    const res = await perfFetch(`${BASE_URL}/ready`, { signal: AbortSignal.timeout(READY_PROBE_TIMEOUT_MS) });
     return res.ok ? null : `responded ${res.status}`;
   } catch (err) {
     return (err as Error).message;
@@ -322,7 +424,7 @@ const probeTargetReady = async (): Promise<string | null> => {
 
 const isServerResponding = async (): Promise<boolean> => {
   try {
-    const res = await fetch(`${BASE_URL}/health`, { signal: AbortSignal.timeout(2_000) });
+    const res = await perfFetch(`${BASE_URL}/health`, { signal: AbortSignal.timeout(2_000) });
     return res.ok;
   } catch {
     return false;
@@ -357,7 +459,7 @@ const startServer = async (): Promise<{ child: ChildProcess; outputTail: () => s
       throw new RunAbort(`Server exited with code ${child.exitCode} during startup.\n--- server output ---\n${outputTail()}`);
     }
     try {
-      const res = await fetch(`${BASE_URL}/ready`, { signal: AbortSignal.timeout(2_000) });
+      const res = await perfFetch(`${BASE_URL}/ready`, { signal: AbortSignal.timeout(2_000) });
       if (res.ok) return { child, outputTail };
     } catch {
       // not ready yet
@@ -480,7 +582,7 @@ const timedRequest = async (
   let bodyText: string;
   const start = performance.now();
   try {
-    response = await fetch(url, init);
+    response = await perfFetch(url, init);
     bodyText = await response.text();
   } catch (err) {
     return {
@@ -607,6 +709,7 @@ const extractSoilDataDatasetIds = (datasetsBody: string): string[] | null => {
 const main = async () => {
   const wallClockStart = performance.now();
   validateAttachedTarget();
+  validateCacheBypass();
   const endpointFilter = parseEndpointFilter();
   const assets = discoverAssets();
   const gitSha = git('rev-parse HEAD');
@@ -621,6 +724,12 @@ const main = async () => {
       ? `Target: ${BASE_URL} (server spawned and managed by the suite)`
       : `Target: ${ATTACHED_BASE_URL} (attached via PERF_BASE_URL — server not managed by the suite, caches uncontrolled)`,
   );
+  if (CACHE_BYPASS) {
+    console.log(
+      'Cache bypass: ON — every request carries the bypass header, so the target answers nothing from its query cache. ' +
+        'Its database performs the full work of every iteration; against a shared environment this is a load-generating run.',
+    );
+  }
   console.log(
     `Performance suite: ${assets.length} asset(s)${ASSET_FILTER.length > 0 ? ' (selected via PERF_ASSETS)' : ''}, ${ITERATIONS} iterations/row, warmup ${WARMUP ? 'on' : 'off'}, DAI resolutions [${DAI_RESOLUTIONS.join(', ')}]${endpointFilter ? `, endpoint=${endpointFilter} (selected via PERF_ENDPOINT)` : ''}`,
   );
@@ -642,6 +751,7 @@ const main = async () => {
     }
     console.log(`Target is ready`);
   }
+  await verifyCacheBypassHonoured();
 
   const results: ResultRow[] = [];
   try {
@@ -817,6 +927,9 @@ const main = async () => {
         iterations: ITERATIONS,
         daiResolutions: DAI_RESOLUTIONS,
         ...(endpointFilter ? { endpoint: endpointFilter } : {}),
+        // Omitted rather than false for warm runs, so result files predating the
+        // field classify as warm; diff.ts pairs on it as well as on the target.
+        ...(CACHE_BYPASS ? { cacheBypass: true } : {}),
         assets: assetFingerprints,
         ...(dbCounts === null ? {} : { db: dbCounts }),
         datasets: datasetsFingerprint,

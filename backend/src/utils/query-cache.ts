@@ -2,6 +2,7 @@ import { LRUCache } from 'lru-cache';
 import { EntityManager } from 'typeorm';
 import { QueryResultCache } from 'typeorm/cache/QueryResultCache';
 import { QueryResultCacheOptions } from 'typeorm/cache/QueryResultCacheOptions';
+import { isCacheBypassed } from './cache-bypass';
 import { log } from './logger';
 import { isJest } from './utils';
 
@@ -57,7 +58,7 @@ export const resetQueryCache = (): void => {
  * key mechanically from SQL + parameters.
  */
 export const cachedCompute = async <T extends object>(key: string, ttlMs: number, compute: () => Promise<T>): Promise<T> => {
-  if (!isQueryCacheEnabled()) {
+  if (!isQueryCacheEnabled() || isCacheBypassed()) {
     return compute();
   }
   const hit = trackLookup(cache.get(key));
@@ -98,11 +99,19 @@ export class InMemoryQueryResultCache implements QueryResultCache {
 
   async synchronize(): Promise<void> {}
 
+  // Reporting a miss (rather than returning undefined through trackLookup) would
+  // let a bypassed run inflate the miss counter for lookups it never made.
   async getFromCache(options: QueryResultCacheOptions): Promise<QueryResultCacheOptions | undefined> {
+    if (isCacheBypassed()) {
+      return undefined;
+    }
     return trackLookup(cache.get(this.key(options)) as QueryResultCacheOptions | undefined);
   }
 
   async storeInCache(options: QueryResultCacheOptions): Promise<void> {
+    if (isCacheBypassed()) {
+      return;
+    }
     cache.set(this.key(options), options, { ttl: options.duration });
   }
 

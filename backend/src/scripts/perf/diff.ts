@@ -51,11 +51,23 @@ const RESULTS_DIR = path.resolve(__dirname, '..', '..', '..', 'perf-results');
  */
 const targetOf = (fp: Fingerprint): string => fp.baseUrl ?? 'localhost (server managed by the suite)';
 
+/** How the run related to the query cache; absent means an ordinary warm run. */
+const cacheModeOf = (fp: Fingerprint): string => (fp.cacheBypass ? 'cache bypassed' : 'cache warm');
+
 /**
- * Zero-argument default: the newest run, paired with the newest *older run
- * against the same target*. Taking the last two files outright would happily
- * diff a run against a deployed environment with yesterday's localhost run, and
- * a warning on a report you did not want is not a fix (docs/adr/0024).
+ * What makes two runs an eligible default pair. The target alone is not enough:
+ * a bypassed run and a warm run against the same deployment share a baseUrl, so
+ * pairing on target only would diff cold against warm and report the bypass as
+ * a catastrophic regression (docs/adr/0028).
+ */
+const pairingKeyOf = (fp: Fingerprint): string => `${targetOf(fp)} — ${cacheModeOf(fp)}`;
+
+/**
+ * Zero-argument default: the newest run, paired with the newest *older run that
+ * measured the same target the same way* — same system, and cold or warm alike
+ * (see pairingKeyOf). Taking the last two files outright would happily diff a
+ * run against a deployed environment with yesterday's localhost run, and a
+ * warning on a report you did not want is not a fix (docs/adr/0024).
  *
  * Run files are named <ISO-timestamp>-<sha>.json, so a lexicographic sort is
  * chronological. Candidates that fail to load are skipped: walking backwards
@@ -73,11 +85,11 @@ const findLastTwoRuns = (): [string, string] => {
     throw new Error(`Need at least two run files in ${RESULTS_DIR} to compare without arguments (found ${files.length})`);
   }
   const currentFile = path.join(RESULTS_DIR, files[files.length - 1]!);
-  const target = targetOf(loadRun(currentFile).fingerprint);
+  const pairingKey = pairingKeyOf(loadRun(currentFile).fingerprint);
   for (let i = files.length - 2; i >= 0; i--) {
     const candidateFile = path.join(RESULTS_DIR, files[i]!);
     try {
-      if (targetOf(loadRun(candidateFile).fingerprint) === target) {
+      if (pairingKeyOf(loadRun(candidateFile).fingerprint) === pairingKey) {
         return [candidateFile, currentFile];
       }
     } catch {
@@ -85,7 +97,7 @@ const findLastTwoRuns = (): [string, string] => {
     }
   }
   throw new Error(
-    `No earlier run against ${target} found in ${RESULTS_DIR} to compare ${path.basename(currentFile)} with — ` +
+    `No earlier run matching "${pairingKey}" found in ${RESULTS_DIR} to compare ${path.basename(currentFile)} with — ` +
       'pass a baseline and a current file explicitly',
   );
 };
@@ -150,6 +162,9 @@ const fingerprintMismatches = (a: PerfRun, b: PerfRun): string[] => {
   // localhost run to a deployed one compares two different systems.
   if (targetOf(fpA) !== targetOf(fpB)) {
     mismatches.push(`target: ${targetOf(fpA)} vs ${targetOf(fpB)}`);
+  }
+  if (cacheModeOf(fpA) !== cacheModeOf(fpB)) {
+    mismatches.push(`cache mode: ${cacheModeOf(fpA)} vs ${cacheModeOf(fpB)}`);
   }
   if (fpA.iterations !== fpB.iterations) {
     mismatches.push(`iterations: ${fpA.iterations} vs ${fpB.iterations}`);
