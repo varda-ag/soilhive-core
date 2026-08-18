@@ -9,10 +9,6 @@
   position: relative;
   border: 1px dashed transparent;
 
-  &.RowAdmin {
-    padding-right: 28px;
-  }
-
   &:has(.EditButton:hover) {
     border-color: var(--color-neutral-dark-100);
   }

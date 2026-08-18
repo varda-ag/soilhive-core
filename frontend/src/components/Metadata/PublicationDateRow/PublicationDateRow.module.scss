@@ -9,45 +9,12 @@
   position: relative;
   border: 1px dashed transparent;
 
-  &:has(.EditButton:hover) {
-    border-color: var(--color-neutral-dark-100);
-  }
-
   @media screen and (min-width: $bp-tablet) {
     flex-direction: row;
   }
 
-  &:nth-child(odd),
-  &:last-child {
+  &:nth-child(odd) {
     background-color: var(--color-neutral-light);
-  }
-
-  .EditButton {
-    position: absolute;
-    top: 8px;
-    right: 12px;
-    background: none;
-    border: none;
-    padding: 4px;
-    cursor: pointer;
-    color: #c0c0c0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    line-height: 0;
-
-    svg {
-      width: 18px;
-      height: 18px;
-
-      path {
-        stroke: currentColor;
-      }
-    }
-
-    &:hover {
-      color: #0f0f0f;
-    }
   }
 
   .Label {
@@ -72,19 +39,28 @@
     flex: 1;
     display: flex;
     align-items: flex-start;
-    gap: 15px;
     padding: 8px 16px 8px 0;
   }
 
-  .EditorWrapper {
+  .CalendarWrapper {
     flex: 1;
+
+    &.CalendarWrapperError {
+      :global(.p-inputtext) {
+        border-color: var(--color-accent-danger-1000);
+      }
+    }
   }
 
-  .EditActions {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: 10px;
-    flex-shrink: 0;
+  .Calendar {
+    width: 100%;
+    max-width: 220px;
+  }
+
+  .CalendarInput {
+    width: 100%;
+    font-size: var(--font-size-md);
+    padding: 0.5rem 0.75rem;
+    color: var(--color-neutral-black);
   }
 }
