@@ -57,6 +57,7 @@ export interface FilteredDatasetSummary extends FilterCriteria {
   visibility: 'public' | 'private';
   dataset_layer_count: number;
   raster_layer_count: number;
+  capabilities?: Capability[];
 }
 
 export interface FilteredData {
@@ -69,6 +70,7 @@ export interface FilteredDataset {
   name: string;
   data_type: GISDataType;
   visibility: string;
+  capabilities?: Capability[];
 }
 
 export interface ResultItem {

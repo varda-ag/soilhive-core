@@ -1,3 +1,5 @@
+import type { Capability } from './backend';
+
 export type DatasetProperties = {
   points?: number;
   layers?: number;
@@ -14,6 +16,7 @@ export type AvailabilityDataset = {
   tags: string[];
   dataType?: string;
   visibility?: string;
+  capabilities?: Capability[];
   properties: DatasetProperties;
 };
 

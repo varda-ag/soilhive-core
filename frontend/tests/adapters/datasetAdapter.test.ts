@@ -1,6 +1,6 @@
 import { register, unregister, type TimeZone } from 'timezone-mock';
 import type { AvailabilityDataset } from 'types/availability';
-import { GISDataType, type FilteredDataset, type FilteredDatasetSummary } from 'types/backend';
+import { Capability, GISDataType, type FilteredDataset, type FilteredDatasetSummary } from 'types/backend';
 import {
   getYear,
   mapFilteredDatasetToAvailabilityDataset,
@@ -105,6 +105,37 @@ describe.each(testTimezones)('datasetAdapter (multiple-timezones)', testTimezone
       // Assert
       expect(actualAvailabilityDataset).toEqual(expectedAvailabilityDataset);
     });
+
+    it('propagates capabilities unchanged', () => {
+      const filteredDataset: FilteredDatasetSummary = {
+        id: 'dataset-3',
+        name: 'dataset-name-3',
+        dataset_layer_count: 0,
+        raster_layer_count: 0,
+        visibility: 'private',
+        data_type: GISDataType.POINT,
+        capabilities: [Capability.DOWNLOAD],
+      };
+
+      const actualAvailabilityDataset = mapFilteredDatasetSummaryToAvailabilityDataset(filteredDataset);
+
+      expect(actualAvailabilityDataset.capabilities).toEqual([Capability.DOWNLOAD]);
+    });
+
+    it('does not throw and leaves capabilities undefined when absent (old-backend response)', () => {
+      const filteredDataset: FilteredDatasetSummary = {
+        id: 'dataset-4',
+        name: 'dataset-name-4',
+        dataset_layer_count: 0,
+        raster_layer_count: 0,
+        visibility: 'private',
+        data_type: GISDataType.POINT,
+      };
+
+      const actualAvailabilityDataset = mapFilteredDatasetSummaryToAvailabilityDataset(filteredDataset);
+
+      expect(actualAvailabilityDataset.capabilities).toBeUndefined();
+    });
   });
 
   describe('mapFilteredDatasetToAvailabilityDataset adapter', () => {
@@ -147,6 +178,27 @@ describe.each(testTimezones)('datasetAdapter (multiple-timezones)', testTimezone
       };
 
       expect(mapFilteredDatasetToAvailabilityDataset(filteredDataset)).toEqual(expectedAvailabilityDataset);
+    });
+
+    it('propagates capabilities unchanged', () => {
+      const filteredDataset = {
+        id: 'dataset-3',
+        name: 'dataset-name-3',
+        visibility: 'private',
+        capabilities: [Capability.DOWNLOAD],
+      } as FilteredDataset;
+
+      expect(mapFilteredDatasetToAvailabilityDataset(filteredDataset).capabilities).toEqual([Capability.DOWNLOAD]);
+    });
+
+    it('does not throw and leaves capabilities undefined when absent (old-backend response)', () => {
+      const filteredDataset = {
+        id: 'dataset-4',
+        name: 'dataset-name-4',
+        visibility: 'private',
+      } as FilteredDataset;
+
+      expect(mapFilteredDatasetToAvailabilityDataset(filteredDataset).capabilities).toBeUndefined();
     });
   });
 
