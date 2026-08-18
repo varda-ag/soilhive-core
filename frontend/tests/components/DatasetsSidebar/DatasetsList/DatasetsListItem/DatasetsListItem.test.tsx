@@ -1,11 +1,7 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { DatasetsListItem } from 'components/DatasetsSidebar/DatasetsList/DatasetsListItem/DatasetsListItem';
-import { useAuthContext } from '../../../../../src/auth/AuthContextProvider';
 import useAvailability from 'hooks/useAvailability';
-
-jest.mock('../../../../../src/auth/AuthContextProvider', () => ({
-  useAuthContext: jest.fn(),
-}));
+import { Capability } from 'types/backend';
 
 jest.mock('hooks/useAvailability', () => ({
   __esModule: true,
@@ -38,6 +34,7 @@ const mockDataset = {
   tags: ['Global', 'Primary'],
   visibility: 'public',
   dataType: 'point',
+  capabilities: [Capability.DOWNLOAD],
   properties: {
     points: 34546,
     layers: 12,
@@ -56,9 +53,6 @@ describe('DatasetsListItem', () => {
     (useAvailability as jest.Mock).mockReturnValue({
       selectedDatasets: ['dataset-1'],
       selectDataset: mockSelectDataset,
-    });
-    (useAuthContext as jest.Mock).mockReturnValue({
-      isAuthenticated: true,
     });
   });
 
@@ -128,5 +122,19 @@ describe('DatasetsListItem', () => {
     expect(screen.getByText('34546 points')).toBeInTheDocument();
     expect(screen.getByText('0-60 cm')).toBeInTheDocument();
     expect(screen.getByText('2012 - 2024')).toBeInTheDocument();
+  });
+
+  it('renders a selectable checkbox for a private dataset with the download capability', () => {
+    render(<DatasetsListItem dataset={{ ...mockDataset, visibility: 'private', capabilities: [Capability.DOWNLOAD] }} />);
+
+    expect(screen.getByTestId('mock-checkbox')).toBeInTheDocument();
+    expect(screen.queryByText(mockDataset.name, { selector: 'p' })).not.toBeInTheDocument();
+  });
+
+  it('suppresses the checkbox and renders fallback text for a private dataset without the download capability', () => {
+    render(<DatasetsListItem dataset={{ ...mockDataset, visibility: 'private', capabilities: [] }} />);
+
+    expect(screen.queryByTestId('mock-checkbox')).not.toBeInTheDocument();
+    expect(screen.getByText(mockDataset.name, { selector: 'p' })).toBeInTheDocument();
   });
 });
