@@ -118,7 +118,8 @@ export default function Metadata() {
 
   if (isLoading) return <p>{t('loading')}</p>;
   if (isError) return <p>{t('error_load_failed')}</p>;
-  if (!isAuthLoading && dataset?.status !== IngestionStatus.PUBLISHED && !can(ADMIN_PORTAL_ACCESS)) {
+
+  if (!isAuthLoading && dataset?.status && dataset?.status !== IngestionStatus.PUBLISHED && !can(ADMIN_PORTAL_ACCESS)) {
     return <Navigate to="/" replace />;
   }
 
