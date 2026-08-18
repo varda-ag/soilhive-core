@@ -5,9 +5,10 @@ import { app } from '../../src/app';
 import { FilteredDatasetSummary, FilteredData, FilteredDataset } from '../../src/interfaces/DatasetFilter';
 import { getDataSource } from '../../src/utils/data-source';
 import { addRasterData, addSyntheticData, syntheticDataOptions } from '../../src/utils/mock';
-import { getDataAdminToken, getSuperAdminToken } from '../helper';
+import { getDataAdminToken, getSuperAdminToken, getUserToken } from '../helper';
 import { StatusCodes } from 'http-status-codes';
 import { IngestionStatus } from '../../src/types/data';
+import { Capability } from '../../src/types/enums';
 
 const filteringPolygon = {
   coordinates: [
@@ -581,6 +582,64 @@ describe('Testing /data-filters routes', () => {
     expect(datasets.length).toBeGreaterThan(0);
     expect(datasets.every(ds => ds.data_type === 'raster')).toBe(true);
     datasets.forEach(ds => expect(ds.visibility).toBe('private'));
+  });
+
+  describe('capabilities on coverage and datasets', () => {
+    it('resolves the download entitlement for a private dataset when the request is authenticated', async () => {
+      const { dataset } = await addSyntheticData({ ...syntheticDataOptions, id: 60 });
+      const adminToken = await getDataAdminToken();
+      await request(app).patch(`/datasets/${dataset.slug}`).set('Authorization', `Bearer ${adminToken}`).send({ visibility: 'private' });
+
+      const dataSource = await getDataSource();
+      await dataSource.manager.query(`INSERT INTO entitlements (id, data) VALUES ('user@example.com', $1)`, [
+        JSON.stringify({ [dataset.slug]: [Capability.DOWNLOAD] }),
+      ]);
+      const userToken = getUserToken('user-sub', 'user@example.com');
+      const userAuthHeader = { Authorization: `Bearer ${userToken}` };
+
+      const resPost = await request(app)
+        .post('/data-filters')
+        .set(userAuthHeader)
+        .send({ parameters: {}, geometries: [filteringPolygon] });
+      const filterId = resPost.body.id;
+
+      const resCoverage = await request(app).get(`/data-filters/${filterId}/coverage`).set(userAuthHeader);
+      const coverageDatasets: FilteredDatasetSummary[] = resCoverage.body.datasets;
+      expect(coverageDatasets.find(ds => ds.id === dataset.slug)?.capabilities).toContain(Capability.DOWNLOAD);
+
+      const resDatasets = await request(app).get(`/data-filters/${filterId}/datasets`).set(userAuthHeader);
+      const datasets: FilteredDataset[] = resDatasets.body;
+      expect(datasets.find(ds => ds.id === dataset.slug)?.capabilities).toContain(Capability.DOWNLOAD);
+    });
+
+    it('grants no capabilities for a private dataset and full capabilities for a public one on anonymous requests', async () => {
+      const { dataset: privateDataset } = await addSyntheticData({
+        ...syntheticDataOptions,
+        id: 61,
+        soilPropertyNames: ['prop_anon_priv'],
+      });
+      const { dataset: publicDataset } = await addSyntheticData({ ...syntheticDataOptions, id: 62, soilPropertyNames: ['prop_anon_pub'] });
+      const adminToken = await getDataAdminToken();
+      await request(app)
+        .patch(`/datasets/${privateDataset.slug}`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ visibility: 'private' });
+
+      const resPost = await request(app)
+        .post('/data-filters')
+        .send({ parameters: {}, geometries: [filteringPolygon] });
+      const filterId = resPost.body.id;
+
+      const resCoverage = await request(app).get(`/data-filters/${filterId}/coverage`);
+      const coverageDatasets: FilteredDatasetSummary[] = resCoverage.body.datasets;
+      expect(coverageDatasets.find(ds => ds.id === privateDataset.slug)?.capabilities).toEqual([]);
+      expect(coverageDatasets.find(ds => ds.id === publicDataset.slug)?.capabilities).toEqual([Capability.PREVIEW, Capability.DOWNLOAD]);
+
+      const resDatasets = await request(app).get(`/data-filters/${filterId}/datasets`);
+      const datasets: FilteredDataset[] = resDatasets.body;
+      expect(datasets.find(ds => ds.id === privateDataset.slug)?.capabilities).toEqual([]);
+      expect(datasets.find(ds => ds.id === publicDataset.slug)?.capabilities).toEqual([Capability.PREVIEW, Capability.DOWNLOAD]);
+    });
   });
 
   describe('GET /data-filters/{filterId}/geometries', () => {

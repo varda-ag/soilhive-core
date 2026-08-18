@@ -1,5 +1,6 @@
 import { Polygon, MultiPolygon } from 'geojson';
 import { GISDataType } from '../types/data';
+import { Capability } from '../types/enums';
 
 export interface FilterCriteria {
   data_types?: GISDataType[]; // Enum
@@ -39,6 +40,7 @@ export interface FilteredDatasetSummary extends FilterCriteria {
   visibility: 'public' | 'private';
   dataset_layer_count?: number;
   raster_layer_count?: number;
+  capabilities?: Capability[];
 }
 
 export interface FilteredData {
@@ -51,6 +53,7 @@ export interface FilteredDataset {
   name: string;
   data_type: GISDataType;
   visibility: 'public' | 'private';
+  capabilities?: Capability[];
 }
 
 export interface FilteredRasterLayer {

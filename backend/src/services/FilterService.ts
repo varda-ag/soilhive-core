@@ -25,8 +25,12 @@ import { timed } from '../utils/logger';
 import { CACHE_TTL_SPATIAL_MS, cachedCompute } from '../utils/query-cache';
 import { DaiPointRow, getDaiPointDataPrecomputed, isPrecomputableDaiParameters } from '../data-layer/DaiStats';
 import { GISDataType } from '../types/data';
+import { Capability } from '../types/enums';
+import EntitlementService from './EntitlementService';
+import { Entitlements } from '../types/Entitlements';
 
 const sds = new SoilDataStorage();
+const entitlementService = new EntitlementService();
 
 const sortedUnique = <T extends string | number | null>(values: T[]): T[] =>
   [...new Set(values)].sort((a, b) => {
@@ -338,7 +342,9 @@ export default class FilterService {
       timed('coverage.filterRaster', () => sds.filterRaster(requestData.entityManager, effectiveFilter), { filterId }),
       timed('coverage.getRasterCoverage', () => sds.getRasterCoverage(requestData.entityManager, effectiveFilter), { filterId }),
     ]);
-    const datasets = mergeDatasetSummaries([vectorDatasets, rasterDatasets]);
+    const datasets = mergeDatasetSummaries([vectorDatasets, rasterDatasets]).map(dataset =>
+      decorateWithCapabilities(dataset, requestData.entitlements),
+    );
     return { datasets, raster_filters: rasterCoverage };
   };
 
@@ -350,7 +356,7 @@ export default class FilterService {
         .filterRaster(requestData.entityManager, filter)
         .then(results => results.map(({ id, name, data_type, visibility }) => ({ id, name, data_type, visibility }))),
     ]);
-    return [...vectorDatasets, ...rasterDatasets];
+    return [...vectorDatasets, ...rasterDatasets].map(dataset => decorateWithCapabilities(dataset, requestData.entitlements));
   };
 
   // Cached at the service boundary rather than the query layer: the entry
@@ -423,6 +429,18 @@ export default class FilterService {
     };
   };
 }
+
+// FilterService's results are plain interfaces, not DatasetEntity, and per the Public
+// Identifier convention (CONTEXT.md) carry the slug under `id` rather than `slug` — hence
+// calling EntitlementService.getCapabilities directly instead of DatasetService's entity-typed
+// wrapper.
+const decorateWithCapabilities = <T extends { id: string; visibility: 'public' | 'private' }>(
+  dataset: T,
+  entitlements: Entitlements,
+): T & { capabilities: Capability[] } => ({
+  ...dataset,
+  capabilities: entitlementService.getCapabilities(dataset.visibility, entitlements, dataset.id),
+});
 
 export const mergeDatasetSummaries = (batches: FilteredDatasetSummary[][]): FilteredDatasetSummary[] => {
   const acc = new Map<string, FilteredDatasetSummary>();

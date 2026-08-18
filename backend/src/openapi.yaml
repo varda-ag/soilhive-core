@@ -1181,6 +1181,7 @@ paths:
     get:
       x-eov-operation-handler: controllers/data-filters
       x-eov-operation-id: getDataFilterCoverage
+      x-entitlements-required: true
       summary: Retrieves what data is available for the given filter
       tags:
         - data-filters
@@ -1209,6 +1210,7 @@ paths:
     get:
       x-eov-operation-handler: controllers/data-filters
       x-eov-operation-id: getDataFilterDatasets
+      x-entitlements-required: true
       summary: Retrieves available datasets matching the area of interest
       tags:
         - data-filters
@@ -2309,6 +2311,12 @@ components:
           type: string
           enum: [public, private]
           default: private
+        capabilities:
+          type: array
+          items:
+            type: string
+            enum: [preview, download, obfuscate_as_points, obfuscate_as_polygons]
+          readOnly: true
 
     FilteredDatasetSummary:
       allOf:
@@ -2335,6 +2343,12 @@ components:
             dataset_layer_count:
               type: integer
               description: Number of features matching the filter in this dataset
+            capabilities:
+              type: array
+              items:
+                type: string
+                enum: [preview, download, obfuscate_as_points, obfuscate_as_polygons]
+              readOnly: true
           required:
             - id
             - name
