@@ -640,6 +640,30 @@ describe('Testing /data-filters routes', () => {
       expect(datasets.find(ds => ds.id === privateDataset.slug)?.capabilities).toEqual([]);
       expect(datasets.find(ds => ds.id === publicDataset.slug)?.capabilities).toEqual([Capability.PREVIEW, Capability.DOWNLOAD]);
     });
+
+    it('grants preview and download capabilities to a data-admin on a private dataset with no entitlements row (e.g. the uploader)', async () => {
+      // Uploading a dataset does not create an entitlements row for the uploader (see
+      // EntitlementService.getCapabilities), so without the admin bypass a data-admin
+      // querying their own private dataset here would incorrectly see capabilities: [].
+      const { dataset } = await addSyntheticData({ ...syntheticDataOptions, id: 63, soilPropertyNames: ['prop_admin_priv'] });
+      const adminToken = await getDataAdminToken();
+      const adminAuthHeader = { Authorization: `Bearer ${adminToken}` };
+      await request(app).patch(`/datasets/${dataset.slug}`).set(adminAuthHeader).send({ visibility: 'private' });
+
+      const resPost = await request(app)
+        .post('/data-filters')
+        .set(adminAuthHeader)
+        .send({ parameters: {}, geometries: [filteringPolygon] });
+      const filterId = resPost.body.id;
+
+      const resCoverage = await request(app).get(`/data-filters/${filterId}/coverage`).set(adminAuthHeader);
+      const coverageDatasets: FilteredDatasetSummary[] = resCoverage.body.datasets;
+      expect(coverageDatasets.find(ds => ds.id === dataset.slug)?.capabilities).toEqual([Capability.PREVIEW, Capability.DOWNLOAD]);
+
+      const resDatasets = await request(app).get(`/data-filters/${filterId}/datasets`).set(adminAuthHeader);
+      const datasets: FilteredDataset[] = resDatasets.body;
+      expect(datasets.find(ds => ds.id === dataset.slug)?.capabilities).toEqual([Capability.PREVIEW, Capability.DOWNLOAD]);
+    });
   });
 
   describe('GET /data-filters/{filterId}/geometries', () => {

@@ -4,6 +4,7 @@ import { In } from 'typeorm';
 import { EVERYONE } from '../constants/constants';
 import { EntitlementsEntity } from '../entities/Entitlements';
 import { RequestData } from '../interfaces/RequestData';
+import { Token } from '../interfaces/Token';
 import { type Entitlements } from '../types/Entitlements';
 import { Capability } from '../types/enums';
 import { ErrorResponse } from '../utils/error';
@@ -134,21 +135,41 @@ export default class EntitlementService {
   }
 
   /**
+   * Internal requests and admins bypass entitlements checks entirely (see enforceEntitlements) —
+   * regardless of dataset ownership, not just for datasets they created themselves. Shared here
+   * so the bypass has one definition instead of drifting between the enforcement check and the
+   * capability list the frontend renders from.
+   */
+  private isEntitlementsBypassed = (token?: Token): boolean => {
+    return Boolean(token?.isInternalRequest || token?.isDataAdmin || token?.isSuperAdmin);
+  };
+
+  /**
    * Takes explicit arguments rather than an entity so
    * callers whose dataset shape carries the slug under a different field (e.g. the
    * Public Identifier `id` on FilterService's results) can call it directly.
+   *
+   * `token` is optional and caller-opt-in: passing it mirrors the bypass in
+   * `enforceEntitlements`, so an admin/internal-request token always gets PREVIEW+DOWNLOAD
+   * on a private dataset with no entitlements row (e.g. the admin who uploaded it — uploading
+   * grants no entitlements row for the uploader) — matching what a direct call to the
+   * download/preview endpoint would actually allow via `enforceEntitlements`.
+   * DatasetService's admin `/datasets` routes deliberately omit it: those surface the *actual*
+   * entitlement grants for dataset/entitlement management (see PUT /datasets/{id}/entitlements),
+   * where an admin needs to see what other subjects are really entitled to, not a bypassed view.
+   * FilterService's map/availability routes pass it: their `capabilities` field only drives the
+   * frontend's own download affordance, so it should reflect what the caller can actually do.
    */
-  getCapabilities = (visibility: 'public' | 'private', entitlements: Entitlements, slug: string): Capability[] => {
-    return visibility === 'private' ? entitlements[slug] || [] : [Capability.PREVIEW, Capability.DOWNLOAD];
+  getCapabilities = (visibility: 'public' | 'private', entitlements: Entitlements, slug: string, token?: Token): Capability[] => {
+    if (visibility === 'public' || this.isEntitlementsBypassed(token)) {
+      return [Capability.PREVIEW, Capability.DOWNLOAD];
+    }
+    return entitlements[slug] || [];
   };
 
   async enforceEntitlements(requestData: RequestData, datasetSlugs: string[], capability: Capability): Promise<void> {
-    if (requestData.token?.isInternalRequest) {
-      // Internal requests are trusted and bypass entitlements checks
-      return;
-    }
-    if (requestData.token?.isDataAdmin || requestData.token?.isSuperAdmin) {
-      // Admins bypass entitlements checks
+    if (this.isEntitlementsBypassed(requestData.token)) {
+      // Internal requests and admins bypass entitlements checks
       return;
     }
     const repo = requestData.entityManager.getRepository(DatasetEntity);
