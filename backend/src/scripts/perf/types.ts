@@ -116,6 +116,15 @@ export interface PerfRun {
 
 export const PERF_RUN_VERSION = 2;
 
+/**
+ * Renders an ISO timestamp as a file-name component: colons and dots are legal
+ * in an S3 key but awkward in a local path, and a URL-encoded key is unpleasant
+ * to read in a bucket listing. Shared by the run files and the diff report so
+ * both sort chronologically in the same listing, and so a diff sorts next to the
+ * run it describes.
+ */
+export const fileTimestamp = (isoTimestamp: string): string => isoTimestamp.replace(/[:.]/g, '-');
+
 export const rowKey = (
   method: string,
   pathTemplate: string,

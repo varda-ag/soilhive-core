@@ -15,12 +15,19 @@
  * older run that measured the *same target* — runs against different targets
  * (localhost versus a deployed environment reached via PERF_BASE_URL) measure
  * different systems, so they are neither paired by default nor comparable when
- * paired by hand.
+ * paired by hand. A bypassed run pairs only with another bypassed run, for the
+ * same reason (docs/adr/0028).
+ *
+ * With STORAGE_MODE=s3 the report is also uploaded to
+ * s3://$S3_STORAGE_BUCKET/perf-results/ alongside the runs it compares. Its
+ * default name leads with the current run's timestamp, so it is unique per pair
+ * and sorts next to the run it describes.
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import { escapeHtml, formatBytes, formatMs, PAGE_CSS, renderFingerprintHtml } from './report';
-import { Fingerprint, LatencyStats, PERF_RUN_VERSION, PerfRun, ResultRow } from './types';
+import { publishPerfArtifacts } from './publish';
+import { Fingerprint, fileTimestamp, LatencyStats, PERF_RUN_VERSION, PerfRun, ResultRow } from './types';
 
 const THRESHOLD = Number(process.env['PERF_DIFF_THRESHOLD']) || 0.15;
 
@@ -356,7 +363,7 @@ ${onlyTable}
 </html>`;
 };
 
-const main = () => {
+const main = async () => {
   const args = process.argv.slice(2);
   // eslint-disable-next-line prefer-const
   let [baselineFile, currentFile, outputFile] = args;
@@ -406,7 +413,15 @@ const main = () => {
   const removed = [...baselineRows.values()].filter(row => !currentRows.has(row.key));
   const mismatches = fingerprintMismatches(baseline, current);
 
-  const defaultName = `diff-${baseline.fingerprint.gitSha.slice(0, 7)}-vs-${current.fingerprint.gitSha.slice(0, 7)}.html`;
+  /*
+   * Led by the current run's timestamp, matching the run files' own
+   * <timestamp>-<sha> convention: the shas alone are not unique, so diffing two
+   * different pairs of runs built from one commit — a cold and a warm run of the
+   * same checkout, say — used to produce the same name and overwrite the earlier
+   * report. Locally that was a visible clobber; once reports are published to a
+   * shared bucket it is a silent one.
+   */
+  const defaultName = `${fileTimestamp(current.fingerprint.timestamp)}-diff-${baseline.fingerprint.gitSha.slice(0, 7)}-vs-${current.fingerprint.gitSha.slice(0, 7)}.html`;
   const htmlPath = outputFile ?? path.join(path.dirname(path.resolve(currentFile)), defaultName);
   fs.writeFileSync(htmlPath, renderDiffHtml(baseline, current, compared, incomparable, added, removed, mismatches));
 
@@ -427,11 +442,10 @@ const main = () => {
     console.log(`  REGRESSION ${formatDelta(row.medianDelta).padStart(8)}  ${row.current.key}`);
   }
   console.log(`HTML: ${htmlPath}`);
+  await publishPerfArtifacts([htmlPath]);
 };
 
-try {
-  main();
-} catch (err) {
+main().catch(err => {
   console.error(err instanceof Error ? err.message : err);
   process.exit(1);
-}
+});

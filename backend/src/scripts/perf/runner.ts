@@ -98,7 +98,12 @@
  * than gated: a confirmation prompt would make the suite unusable from CI, and
  * a host allowlist would bake environment names into the repo.
  *
- * Output: perf-results/<timestamp>-<short-sha>.json + .html.
+ * Output: perf-results/<timestamp>-<short-sha>.json + .html. With
+ * STORAGE_MODE=s3 both files are also uploaded to s3://$S3_STORAGE_BUCKET/
+ * perf-results/ under the same names (see publish.ts), so a run against a
+ * deployed target survives the machine that measured it. The upload is best
+ * effort: it is reported but never fails the run, since the artifacts are
+ * already on disk and the measurement stands regardless.
  * Compare runs with `npm run perf:diff -- <baseline.json> <current.json>`
  * (without arguments the two most recent runs are compared).
  */
@@ -111,8 +116,9 @@ import { config } from 'dotenv';
 import { Client } from 'pg';
 import { CACHE_BYPASS_APPLIED_VALUE, CACHE_BYPASS_HEADER } from '../../utils/cache-bypass';
 import { getDBPassword, getSSL } from '../../utils/db-credentials';
+import { publishPerfArtifacts } from './publish';
 import { renderRunHtml } from './report';
-import { AssetFingerprint, computeStats, DatasetFingerprint, PERF_RUN_VERSION, PerfRun, ResultRow, rowKey } from './types';
+import { AssetFingerprint, computeStats, DatasetFingerprint, fileTimestamp, PERF_RUN_VERSION, PerfRun, ResultRow, rowKey } from './types';
 
 /*
  * Read BEFORE .env is loaded, deliberately — the ordering is load-bearing, not
@@ -942,11 +948,13 @@ const main = async () => {
     };
 
     fs.mkdirSync(RESULTS_DIR, { recursive: true });
-    const runId = `${timestamp.replace(/[:.]/g, '-')}-${gitSha.slice(0, 7)}`;
+    const runId = `${fileTimestamp(timestamp)}-${gitSha.slice(0, 7)}`;
     const jsonPath = path.join(RESULTS_DIR, `${runId}.json`);
     const htmlPath = path.join(RESULTS_DIR, `${runId}.html`);
     fs.writeFileSync(jsonPath, JSON.stringify(run, null, 2));
     fs.writeFileSync(htmlPath, renderRunHtml(run));
+    // After both files exist, so a publish failure can never cost us the run.
+    await publishPerfArtifacts([jsonPath, htmlPath]);
 
     console.log('\nMedian latency per row:');
     for (const row of results) {
