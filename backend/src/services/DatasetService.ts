@@ -7,11 +7,12 @@ import { CreateDatasetInput, UpdateDatasetInput } from '../types/DatasetInput';
 import { getEntity } from '../utils/slugs';
 import { EntityType, IngestionStatus } from '../types/data';
 import { epsgMap } from '../assets/epsgMap';
-import { Capability, JobQueues } from '../types/enums';
+import { JobQueues, } from '../types/enums';
 import { Entitlements } from '../types/Entitlements';
 import VectorDataLoad from '../data-layer/VectorDataLoad';
 import DataMappingService from './DataMappingService';
 import DatasetFileMappingService from './DatasetFileMappingService';
+import EntitlementService from './EntitlementService';
 import { CleaningReport } from '../interfaces/CleaningReport';
 import { bumpCacheEpoch } from '../utils/cache-epoch';
 import { refreshDaiStats } from '../data-layer/DaiStats';
@@ -22,6 +23,7 @@ import { ProcessingSteps } from '../interfaces/Dataset';
 const vdl = new VectorDataLoad();
 const dmService = new DataMappingService();
 const dfmService = new DatasetFileMappingService();
+const entitlementService = new EntitlementService();
 
 // Delay (seconds) before a REFRESH_DAI_STATS job becomes visible to workers,
 // so the enqueuing request's transaction has committed by the time it runs
@@ -146,9 +148,7 @@ export default class DatasetService {
   };
 
   decorateWithCapabilities = (dataset: DatasetEntity, entitlements: Entitlements) => {
-    // For private datasets, capabilities are determined by entitlements.
-    // For public datasets, all capabilities are granted.
-    dataset.capabilities = dataset.visibility === 'private' ? entitlements[dataset.slug] || [] : [Capability.PREVIEW, Capability.DOWNLOAD];
+    dataset.capabilities = entitlementService.getCapabilities(dataset.visibility, entitlements, dataset.slug);
   };
 
   decoratePreprocessingSteps = (dataset: DatasetEntity) => {

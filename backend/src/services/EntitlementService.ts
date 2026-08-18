@@ -133,6 +133,15 @@ export default class EntitlementService {
     }
   }
 
+  /**
+   * Takes explicit arguments rather than an entity so
+   * callers whose dataset shape carries the slug under a different field (e.g. the
+   * Public Identifier `id` on FilterService's results) can call it directly.
+   */
+  getCapabilities = (visibility: 'public' | 'private', entitlements: Entitlements, slug: string): Capability[] => {
+    return visibility === 'private' ? entitlements[slug] || [] : [Capability.PREVIEW, Capability.DOWNLOAD];
+  };
+
   async enforceEntitlements(requestData: RequestData, datasetSlugs: string[], capability: Capability): Promise<void> {
     if (requestData.token?.isInternalRequest) {
       // Internal requests are trusted and bypass entitlements checks
