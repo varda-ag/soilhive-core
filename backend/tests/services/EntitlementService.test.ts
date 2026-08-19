@@ -211,6 +211,43 @@ describe('EntitlementService', () => {
     });
   });
 
+  describe('callEntitlementsEndpoint', () => {
+    const originalEndpoint = process.env.ENTITLEMENTS_ENDPOINT;
+    let fetchSpy: jest.SpiedFunction<typeof fetch>;
+
+    beforeEach(() => {
+      process.env.ENTITLEMENTS_ENDPOINT = 'http://mock-entitlements';
+      fetchSpy = jest.spyOn(global, 'fetch');
+    });
+
+    afterEach(() => {
+      process.env.ENTITLEMENTS_ENDPOINT = originalEndpoint;
+      fetchSpy.mockRestore();
+    });
+
+    it('returns the parsed entitlements on a successful response', async () => {
+      const remoteEntitlements = { 'dataset-1': [Capability.DOWNLOAD] };
+      fetchSpy.mockResolvedValue({ ok: true, json: async () => remoteEntitlements } as Response);
+
+      const entitlements = await service.callEntitlementsEndpoint(requestData);
+      expect(entitlements).toEqual(remoteEntitlements);
+    });
+
+    it('degrades to local entitlements (empty object) when the endpoint responds with an error status', async () => {
+      fetchSpy.mockResolvedValue({ ok: false, status: 503, text: async () => 'service unavailable' } as Response);
+
+      const entitlements = await service.callEntitlementsEndpoint(requestData);
+      expect(entitlements).toEqual({});
+    });
+
+    it('degrades to local entitlements (empty object) when the fetch itself fails', async () => {
+      fetchSpy.mockRejectedValue(new Error('network error'));
+
+      const entitlements = await service.callEntitlementsEndpoint(requestData);
+      expect(entitlements).toEqual({});
+    });
+  });
+
   describe('enforceEntitlements', () => {
     beforeEach(async () => {
       // Make dataset-1 public, dataset-2 and dataset-3 remain private (default)

@@ -7,7 +7,8 @@ import { RequestData } from '../interfaces/RequestData';
 import { Token } from '../interfaces/Token';
 import { type Entitlements } from '../types/Entitlements';
 import { Capability } from '../types/enums';
-import { ErrorResponse } from '../utils/error';
+import { ErrorResponse, getErrorMessage } from '../utils/error';
+import { log } from '../utils/logger';
 import { getEntitySlugs } from '../utils/slugs';
 import DatasetEntity from '../entities/Dataset';
 
@@ -126,11 +127,14 @@ export default class EntitlementService {
       });
       if (!response.ok) {
         const message = await response.text();
-        throw new ErrorResponse(`Failed to fetch entitlements from endpoint: ${message}`, response.status);
+        throw new Error(`status ${response.status}: ${message}`);
       }
       return await response.json();
     } catch (error) {
-      throw new ErrorResponse(`Failed to fetch entitlements from endpoint: ${error}`, StatusCodes.INTERNAL_SERVER_ERROR);
+      log.warn('Failed to fetch entitlements from external endpoint, degrading to local entitlements only', {
+        error: getErrorMessage(error),
+      });
+      return {};
     }
   }
 
