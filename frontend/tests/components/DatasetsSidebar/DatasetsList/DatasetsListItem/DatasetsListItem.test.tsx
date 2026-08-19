@@ -137,4 +137,20 @@ describe('DatasetsListItem', () => {
     expect(screen.queryByTestId('mock-checkbox')).not.toBeInTheDocument();
     expect(screen.getByText(mockDataset.name, { selector: 'p' })).toBeInTheDocument();
   });
+
+  it('renders a selectable checkbox for a public dataset with no capabilities field (old backend response)', () => {
+    const { capabilities, ...datasetWithoutCapabilities } = mockDataset;
+    render(<DatasetsListItem dataset={{ ...datasetWithoutCapabilities, visibility: 'public' }} />);
+
+    expect(screen.getByTestId('mock-checkbox')).toBeInTheDocument();
+    expect(screen.queryByText(mockDataset.name, { selector: 'p' })).not.toBeInTheDocument();
+  });
+
+  it('suppresses the checkbox for a private dataset with no capabilities field (old backend response)', () => {
+    const { capabilities, ...datasetWithoutCapabilities } = mockDataset;
+    render(<DatasetsListItem dataset={{ ...datasetWithoutCapabilities, visibility: 'private' }} />);
+
+    expect(screen.queryByTestId('mock-checkbox')).not.toBeInTheDocument();
+    expect(screen.getByText(mockDataset.name, { selector: 'p' })).toBeInTheDocument();
+  });
 });

@@ -23,7 +23,7 @@ export function DatasetsListItem({ dataset }: Props) {
   const { selectedDatasets, selectDataset, isCoverageLoading } = useAvailability();
   const [isOpened, setIsOpened] = useState<boolean>(false);
   const { t } = useTranslation('availability');
-  const canDownload = dataset.capabilities?.includes(Capability.DOWNLOAD) ?? false;
+  const canDownload = dataset.capabilities?.includes(Capability.DOWNLOAD) ?? dataset.visibility === 'public'; // fallback to check against public, should backend be not updated
 
   return (
     <div data-testid="sh-datasets-list-item" className={classnames(styles.DatasetsListItem, { [styles.Opened]: isOpened })}>

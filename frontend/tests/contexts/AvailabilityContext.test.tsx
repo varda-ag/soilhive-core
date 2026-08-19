@@ -55,6 +55,25 @@ const privateNonDownloadableDataset: FilteredDatasetSummary = {
   capabilities: [],
 };
 
+// No `capabilities` field at all, as an old backend not yet carrying this ADR's change would send.
+const publicDatasetNoCapabilities: FilteredDatasetSummary = {
+  id: 'dataset-public-no-capabilities',
+  name: 'Public Dataset From Old Backend',
+  data_type: GISDataType.POINT,
+  visibility: 'public',
+  dataset_layer_count: 1,
+  raster_layer_count: 0,
+};
+
+const privateDatasetNoCapabilities: FilteredDatasetSummary = {
+  id: 'dataset-private-no-capabilities',
+  name: 'Private Dataset From Old Backend',
+  data_type: GISDataType.POINT,
+  visibility: 'private',
+  dataset_layer_count: 1,
+  raster_layer_count: 0,
+};
+
 describe('AvailabilityContext', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -62,7 +81,16 @@ describe('AvailabilityContext', () => {
     (useAvailabilityMap as jest.Mock).mockReturnValue({ geometryFilter: [] });
     (useDataFilterQuery as jest.Mock).mockReturnValue({ filterId: 'filter-1', selectedFilters: undefined, isLoading: false });
     (useFilteredCoverageQuery as jest.Mock).mockReturnValue({
-      data: { datasets: [publicDataset, privateDownloadableDataset, privateNonDownloadableDataset], raster_filters: {} },
+      data: {
+        datasets: [
+          publicDataset,
+          privateDownloadableDataset,
+          privateNonDownloadableDataset,
+          publicDatasetNoCapabilities,
+          privateDatasetNoCapabilities,
+        ],
+        raster_filters: {},
+      },
       isLoading: false,
     });
     (useFilteredDatasetsQuery as jest.Mock).mockReturnValue({ data: undefined, isLoading: false });
@@ -80,6 +108,14 @@ describe('AvailabilityContext', () => {
     expect(availableIds).not.toContain(privateNonDownloadableDataset.id);
   });
 
+  it('availableDatasets falls back to visibility when capabilities is absent (old backend response)', () => {
+    const { result } = renderHook(() => useAvailability(), { wrapper: AvailabilityProvider });
+
+    const availableIds = result.current.availableDatasets.map(dataset => dataset.id);
+    expect(availableIds).toContain(publicDatasetNoCapabilities.id);
+    expect(availableIds).not.toContain(privateDatasetNoCapabilities.id);
+  });
+
   it('selectAllDatasets(true) only selects datasets with the download capability', () => {
     const { result } = renderHook(() => useAvailability(), { wrapper: AvailabilityProvider });
 
@@ -87,7 +123,20 @@ describe('AvailabilityContext', () => {
       result.current.selectAllDatasets(true);
     });
 
-    expect(result.current.selectedDatasets.sort()).toEqual([privateDownloadableDataset.id, publicDataset.id].sort());
+    expect(result.current.selectedDatasets.sort()).toEqual(
+      [privateDownloadableDataset.id, publicDataset.id, publicDatasetNoCapabilities.id].sort(),
+    );
     expect(result.current.selectedDatasets).not.toContain(privateNonDownloadableDataset.id);
+  });
+
+  it('selectAllDatasets(true) falls back to visibility when capabilities is absent (old backend response)', () => {
+    const { result } = renderHook(() => useAvailability(), { wrapper: AvailabilityProvider });
+
+    act(() => {
+      result.current.selectAllDatasets(true);
+    });
+
+    expect(result.current.selectedDatasets).toContain(publicDatasetNoCapabilities.id);
+    expect(result.current.selectedDatasets).not.toContain(privateDatasetNoCapabilities.id);
   });
 });

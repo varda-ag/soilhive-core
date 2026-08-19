@@ -125,7 +125,9 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
       const datasets = fullFilterResults?.datasets || fullFilterDatasets;
       setSelectedDatasets(
         select && datasets
-          ? datasets.filter(dataset => dataset.capabilities?.includes(Capability.DOWNLOAD) ?? false).map(result => result.id)
+          ? datasets
+              .filter(dataset => dataset.capabilities?.includes(Capability.DOWNLOAD) ?? dataset.visibility === 'public')  // fallback to check against public, should backend be not updated
+              .map(result => result.id)
           : [],
       );
       setIsAllSelected(select);
@@ -221,7 +223,9 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
 
   const availableDatasets = useMemo(() => {
     const datasets = fullFilterResults ? fullFilterResults.datasets : fullFilterDatasets || [];
-    const allowedDatasets = datasets.filter(dataset => dataset.capabilities?.includes(Capability.DOWNLOAD) ?? false);
+    const allowedDatasets = datasets.filter(
+      dataset => dataset.capabilities?.includes(Capability.DOWNLOAD) ?? dataset.visibility === 'public', // fallback to check against public, should backend be not updated
+    );
     if (selectedDatasets.length > 0) {
       const datasetIds = new Set(allowedDatasets.map(dataset => dataset.id));
       // Excludes the selected datasets that are not available anymore in the current
