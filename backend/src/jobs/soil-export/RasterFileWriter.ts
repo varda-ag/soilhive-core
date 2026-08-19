@@ -9,6 +9,8 @@ import FileService from '../../services/FileService';
 import { openTiff, nodataFromImage } from '../../utils/raster';
 import { sanitizeField } from '../../utils/utils';
 import { GdalCLI } from '../../utils/GdalCLI';
+import { log } from '../../utils/logger';
+import { getErrorMessage } from '../../utils/error';
 
 const TILE_SIZE = 512;
 
@@ -125,6 +127,8 @@ export class RasterFileWriter {
         }
       }
     }
+
+    await this.embedBandStatistics(filePath, layer);
   }
 
   /**
@@ -263,6 +267,8 @@ export class RasterFileWriter {
       } finally {
         fs.unlinkSync(vrtPath);
       }
+
+      await this.embedBandStatistics(filePath, layer);
     } finally {
       for (const tile of tiles) {
         try {
@@ -395,6 +401,43 @@ ${sources}
     const suPart = layer.standard_unit !== null ? `_${sanitizeField(layer.standard_unit)}` : '';
     const crsPart = targetCrs ?? layer.epsg ?? (layer.wkt ? 'custom' : 4326);
     return `${sanitizeField(layer.dataset_name)}_${sanitizeField(layer.soil_property_name)}${lmPart}${suPart}${depthPart}${datePart}_${crsPart}`;
+  }
+
+  /**
+   * Writes the finished file's **Band Statistics** — minimum, maximum, mean, standard deviation and
+   * the share of valid pixels — into the file itself, as the `STATISTICS_*` band metadata every GDAL
+   * reader (and QGIS, and ArcGIS) already knows how to read. They describe the pixels actually
+   * delivered: the AOI crop, after the mask, after any reprojection — never the whole source Band,
+   * whose range is a catalog fact rather than a property of this file.
+   *
+   * A separate in-place pass, not `-stats` on the `gdal_translate` that produced the file, even
+   * though that flag would compute the same numbers during a pass GDAL is already making. Three
+   * reasons, all invisible at the translate call site:
+   *   - `-stats` caches its result in a PAM sidecar *next to the source*. In `cropToAoiBbox` that
+   *     source is the ingested COG in file storage, which an export must never write to; in
+   *     `writeLayer` it is the temp VRT in the job's directory, so the sidecar outlives the VRT and
+   *     `zipFiles` sweeps a stray `*.tmp.vrt.aux.xml` into the user's download.
+   *   - `gdalwarp` has no `-stats` and drops the metadata its source carried, so every `target_crs`
+   *     export would end up with no Band Statistics at all.
+   *   - One post-step covers all four path endings (crop or mask, warped or not) instead of three
+   *     partially-overlapping ones.
+   * The cost is one extra read pass over an AOI-sized crop. Suppressing it means reintroducing the
+   * three problems above.
+   *
+   * Never fatal: a file whose pixels are complete still ships. The expected trigger is a bbox crop
+   * containing no valid pixels — `gdal_edit.py -stats` exits non-zero on an all-nodata band, where
+   * the mask path cannot reach this at all (it returns `false` and writes nothing instead).
+   */
+  private async embedBandStatistics(filePath: string, layer: FilteredRasterLayer): Promise<void> {
+    try {
+      await GdalCLI.editInPlace(filePath, ['-stats']);
+    } catch (error) {
+      log.warn('Could not embed band statistics in exported raster; file ships without them', {
+        layerId: layer.id,
+        file: path.basename(filePath),
+        error: getErrorMessage(error),
+      });
+    }
   }
 
   /**

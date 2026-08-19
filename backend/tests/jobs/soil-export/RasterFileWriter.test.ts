@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, beforeEach, afterEach, jest, afterAll } from '@jest/globals';
 import * as path from 'path';
 import * as fs from 'node:fs';
+import { execFileSync } from 'child_process';
 import { writeArrayBuffer } from 'geotiff';
 import { RasterFileWriter } from '../../../src/jobs/soil-export/RasterFileWriter';
 import { RasterFileFormat } from '../../../src/jobs/soil-export/types';
@@ -126,6 +127,38 @@ describe('RasterFileWriter', () => {
 
       const info = await GdalCLI.gdalinfo(path.join(TEST_OUTPUT_DIR, gpkg));
       expect(info.bands?.length).toBeGreaterThan(0);
+    });
+
+    // gdalinfo is called without -stats, so a min/max coming back at all proves the numbers are
+    // stored in the file rather than computed on read; -mm then forces a fresh scan of the same
+    // pixels, which is what they have to agree with. No hardcoded values: the point is that the
+    // stored Band Statistics describe the delivered crop, whatever the mask happens to cover.
+    it('embeds band statistics describing the delivered pixels', async () => {
+      const writer = new RasterFileWriter(RasterFileFormat.TIFF, TEST_OUTPUT_DIR);
+      await writer.writeLayer(makeLayer(), MASK_TIFF);
+
+      const tif = outputFiles().find(f => f.endsWith('.tif'));
+      if (!tif) throw new Error('No .tif output file produced');
+      const outPath = path.join(TEST_OUTPUT_DIR, tif);
+
+      const stored = (await GdalCLI.gdalinfo(outPath)).bands?.[0];
+      const computed = JSON.parse(execFileSync('gdalinfo', ['-json', '-mm', '--config', 'GDAL_PAM_ENABLED', 'NO', outPath]).toString())
+        .bands[0];
+
+      expect(stored?.min).toBe(computed.computedMin);
+      expect(stored?.max).toBe(computed.computedMax);
+    });
+
+    it('embeds band statistics in a GeoPackage output too', async () => {
+      const writer = new RasterFileWriter(RasterFileFormat.GPKG, TEST_OUTPUT_DIR);
+      await writer.writeLayer(makeLayer(), MASK_TIFF);
+
+      const gpkg = outputFiles().find(f => f.endsWith('.gpkg'));
+      if (!gpkg) throw new Error('No .gpkg output file produced');
+
+      const stored = (await GdalCLI.gdalinfo(path.join(TEST_OUTPUT_DIR, gpkg))).bands?.[0];
+      expect(stored?.min).toBeDefined();
+      expect(stored?.max).toBeDefined();
     });
 
     it('clips output extent to within the mask bounding box', async () => {
@@ -355,6 +388,38 @@ describe('RasterFileWriter', () => {
       await expect(writer.cropToAoiBbox(makeLayer(), bboxAoi, 3857)).rejects.toThrow('warp failed');
 
       expect(outputFiles().some(f => f.includes('.tmp.'))).toBe(false);
+    });
+
+    // gdalwarp has no -stats and drops the metadata its source carried, so the stats pass has to run
+    // on the warped file — computing them earlier would leave a target_crs export with none.
+    it('embeds band statistics after the warp to a target CRS', async () => {
+      const warp = jest.spyOn(GdalCLI, 'warp');
+      const editInPlace = jest.spyOn(GdalCLI, 'editInPlace');
+      const writer = new RasterFileWriter(RasterFileFormat.TIFF, TEST_OUTPUT_DIR);
+      await writer.cropToAoiBbox(makeLayer(), bboxAoi, 3857);
+
+      expect(editInPlace).toHaveBeenCalledWith(expect.stringContaining('_3857.tif'), ['-stats']);
+      expect(warp.mock.invocationCallOrder[0]!).toBeLessThan(editInPlace.mock.invocationCallOrder[0]!);
+
+      const tif = outputFiles().find(f => f.endsWith('.tif'));
+      if (!tif) throw new Error('No .tif output file produced');
+      const stored = (await GdalCLI.gdalinfo(path.join(TEST_OUTPUT_DIR, tif))).bands?.[0];
+      expect(stored?.min).toBeDefined();
+      expect(stored?.max).toBeDefined();
+    });
+
+    // An all-nodata crop makes gdal_edit.py exit non-zero; the pixels are still complete, so the
+    // export must ship the file rather than lose the job over its metadata.
+    it('still ships the file when the band statistics pass fails', async () => {
+      jest.spyOn(GdalCLI, 'editInPlace').mockRejectedValueOnce(new Error('no valid pixels found in sampling'));
+      const writer = new RasterFileWriter(RasterFileFormat.TIFF, TEST_OUTPUT_DIR);
+
+      await expect(writer.cropToAoiBbox(makeLayer(), bboxAoi)).resolves.toBeUndefined();
+
+      const tif = outputFiles().find(f => f.endsWith('.tif'));
+      if (!tif) throw new Error('No .tif output file produced');
+      const stored = (await GdalCLI.gdalinfo(path.join(TEST_OUTPUT_DIR, tif))).bands?.[0];
+      expect(stored?.min).toBeUndefined();
     });
   });
 
