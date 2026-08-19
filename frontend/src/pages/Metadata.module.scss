@@ -273,6 +273,20 @@
         margin-bottom: 24px;
       }
     }
+    .SaveRow {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 16px;
+      margin-top: 24px;
+    }
+    .SaveRowError {
+      align-items: center;
+
+      svg {
+        margin-top: 0;
+      }
+    }
   }
 
   .Footer {

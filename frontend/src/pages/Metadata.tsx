@@ -1,16 +1,17 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, Navigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
-import { useMetadata, type SaveCallbacks } from 'hooks/useMetadata';
+import { useMetadata } from 'hooks/useMetadata';
 import { useEntitlements, ADMIN_PORTAL_ACCESS } from 'hooks/useEntitlementsHook';
 import { useAuthContext } from '../auth/AuthContextProvider';
 import { IngestionStatus } from 'types/backend';
 import useDevice from 'hooks/useDevice';
+import useNotifications from 'hooks/useNotifications';
 import styles from './Metadata.module.scss';
 import Worm from 'assets/images/worm.svg?react';
 import SoilhiveSimpleMap from 'components/Map/SoilhiveSimpleMap';
 import { Logo } from 'components/Logo/Logo';
-import { Button, SplitButton } from 'components/UI';
+import { Button, SplitButton, FormMessage } from 'components/UI';
 import { getMetadataHeadValues } from 'utilities/buildMetadataHead';
 import { upsertMeta } from 'utilities/upsertMeta';
 import EyeIcon from 'assets/icons/small-eye-icon.svg?react';
@@ -19,6 +20,7 @@ import { EditorRow } from 'components/Metadata/EditorRow/EditorRow';
 import { LicenseRow } from 'components/Metadata/LicenseRow/LicenseRow';
 import { NumberRow } from 'components/Metadata/NumberRow/NumberRow';
 import { RelatedResourcesRow } from 'components/Metadata/RelatedResourcesRow/RelatedResourcesRow';
+import { PublicationDateRow } from 'components/Metadata/PublicationDateRow/PublicationDateRow';
 import { dateStringToDDMMYYYY } from 'utilities/date';
 
 const GIS_DATATYPE_OPTIONS = [
@@ -32,47 +34,39 @@ export default function Metadata() {
   const { t } = useTranslation('metadata');
   const [isMounted, setIsMounted] = useState(false);
   const [isMapPopupOpen, setIsMapPopupOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   useEffect(() => setIsMounted(true), []);
-  const { dataset, allLicenses, inferredProperties, isLoading, isError, updateProperty, updateRelatedResources } = useMetadata(id);
+  const { dataset, allLicenses, inferredProperties, isLoading, isError, handleFieldChange, fieldErrors, validate, saveAll } =
+    useMetadata(id);
   const { can } = useEntitlements();
   const { isLoading: isAuthLoading } = useAuthContext();
   const { isMobileLayout } = useDevice();
+  const { showNotification } = useNotifications();
   const isAdmin = isMounted && !isMobileLayout && can(ADMIN_PORTAL_ACCESS);
-  const [isEditing, setIsEditing] = useState(false);
 
-  const onStartEditing: (property: string) => void = useCallback(() => {
-    setIsEditing(true);
-  }, []);
-
-  const onSave = useCallback(
-    (property: string, newValue: string, callbacks: SaveCallbacks) => {
-      updateProperty(property, newValue, {
-        onSuccess: () => {
-          setIsEditing(false);
-          callbacks.onSuccess();
-        },
-        onError: callbacks.onError,
-      });
-    },
-    [updateProperty],
-  );
-
-  const onSaveRelatedResources = useCallback(
-    (_property: string, newValue: string[], callbacks: SaveCallbacks) => {
-      updateRelatedResources(newValue, {
-        onSuccess: () => {
-          setIsEditing(false);
-          callbacks.onSuccess();
-        },
-        onError: callbacks.onError,
-      });
-    },
-    [updateRelatedResources],
-  );
-
-  const onCancel: (property: string) => void = useCallback(() => {
-    setIsEditing(false);
-  }, []);
+  const handleSave = useCallback(() => {
+    if (!validate()) return;
+    setIsSaving(true);
+    saveAll({
+      onSuccess: () => {
+        setIsSaving(false);
+        showNotification({
+          id: 'metadata-save-success',
+          title: t('editor.saved'),
+          type: 'success',
+        });
+      },
+      onError: error => {
+        setIsSaving(false);
+        showNotification({
+          id: 'metadata-save-error',
+          title: t('editor.failed_to_save'),
+          message: error.message,
+          type: 'error',
+        });
+      },
+    });
+  }, [validate, saveAll, showNotification, t]);
 
   useEffect(() => {
     if (!isMapPopupOpen) return;
@@ -124,7 +118,8 @@ export default function Metadata() {
 
   if (isLoading) return <p>{t('loading')}</p>;
   if (isError) return <p>{t('error_load_failed')}</p>;
-  if (!isAuthLoading && dataset?.status !== IngestionStatus.PUBLISHED && !can(ADMIN_PORTAL_ACCESS)) {
+
+  if (!isAuthLoading && dataset?.status && dataset?.status !== IngestionStatus.PUBLISHED && !can(ADMIN_PORTAL_ACCESS)) {
     return <Navigate to="/" replace />;
   }
 
@@ -137,7 +132,7 @@ export default function Metadata() {
         <div className={styles.Banner}>
           <div className={styles.Left}>
             <Worm className={styles.Worm} />
-            <h1 className={styles.Title}>{t('title', { name: dataset!.name })}</h1>
+            <h1 className={styles.Title}>{t('title', { name: datasetName })}</h1>
             <p className={styles.Introduction}>{t('introduction')}</p>
             <div className={styles.Buttons}>
               <SplitButton
@@ -217,72 +212,64 @@ export default function Metadata() {
           <EditorRow
             label={t('fields.name')}
             value={dataset?.name}
-            isEditable={isAdmin && !isEditing}
+            isEditable={isAdmin}
             placeholder={t('placeholders.name')}
             property="name"
             variant="text"
             isRequired={isAdmin}
-            onStartEditing={onStartEditing}
-            onSave={onSave}
-            onCancel={onCancel}
+            hasError={fieldErrors.has('name')}
+            onChange={handleFieldChange}
           />
           <EditorRow
             label={t('fields.full_name')}
             value={dataset?.full_name}
-            isEditable={isAdmin && !isEditing}
+            isEditable={isAdmin}
             placeholder={t('placeholders.full_name')}
             property="full_name"
             variant="text"
             isRequired={isAdmin}
-            onStartEditing={onStartEditing}
-            onSave={onSave}
-            onCancel={onCancel}
+            hasError={fieldErrors.has('full_name')}
+            onChange={handleFieldChange}
           />
           <EditorRow
             label={t('fields.version')}
             value={dataset?.version}
-            isEditable={isAdmin && !isEditing}
+            isEditable={isAdmin}
             placeholder={t('placeholders.version')}
             property="version"
             variant="text"
-            onStartEditing={onStartEditing}
-            onSave={onSave}
-            onCancel={onCancel}
+            onChange={handleFieldChange}
           />
           <EditorRow
             label={t('fields.description')}
             value={dataset?.description}
-            isEditable={isAdmin && !isEditing}
+            isEditable={isAdmin}
             placeholder={t('placeholders.description')}
             property="description"
             isRequired={isAdmin}
-            onStartEditing={onStartEditing}
-            onSave={onSave}
-            onCancel={onCancel}
+            hasError={fieldErrors.has('description')}
+            onChange={handleFieldChange}
           />
           <EditorRow
             label={t('fields.author')}
             value={dataset?.author}
-            isEditable={isAdmin && !isEditing}
+            isEditable={isAdmin}
             placeholder={t('placeholders.author')}
             property="author"
             variant="text"
             isRequired={isAdmin}
-            onStartEditing={onStartEditing}
-            onSave={onSave}
-            onCancel={onCancel}
+            hasError={fieldErrors.has('author')}
+            onChange={handleFieldChange}
           />
           {/* TODO: will be used in the future */}
           {/* <EditorRow
             label={t('fields.data_producer')}
             value={dataset?.data_producer}
-            isEditable={isAdmin && !isEditing}
+            isEditable={isAdmin}
             placeholder="Organization responsible for data collection and production"
             property="data_producer"
             variant="text"
-            onStartEditing={onStartEditing}
-            onSave={onSave}
-            onCancel={onCancel}
+            onChange={handleFieldChange}
           /> */}
           {/* `variables_measured` will always be present in inferredProperties in newly ingested datasets. So it will always be uneditable. */}
           <EditorRow
@@ -291,29 +278,25 @@ export default function Metadata() {
             isEditable={false}
             property="soilProperties"
             variant="text"
-            onStartEditing={onStartEditing}
-            onSave={onSave}
-            onCancel={onCancel}
+            onChange={handleFieldChange}
           />
           <NumberRow
             label={t('fields.min_soil_depth_cm')}
             value={(dataset?.soil_depth as { min?: number } | null | undefined)?.min}
-            isEditable={isAdmin && !inferredProperties.has('soil_depth') && !isEditing}
+            isEditable={isAdmin && !inferredProperties.has('soil_depth')}
             property="soil_depth_min"
             isRequired={isAdmin && !inferredProperties.has('soil_depth')}
-            onStartEditing={onStartEditing}
-            onSave={onSave}
-            onCancel={onCancel}
+            hasError={fieldErrors.has('soil_depth_min')}
+            onChange={handleFieldChange}
           />
           <NumberRow
             label={t('fields.max_soil_depth_cm')}
             value={(dataset?.soil_depth as { max?: number } | null | undefined)?.max}
-            isEditable={isAdmin && !inferredProperties.has('soil_depth') && !isEditing}
+            isEditable={isAdmin && !inferredProperties.has('soil_depth')}
             property="soil_depth_max"
             isRequired={isAdmin && !inferredProperties.has('soil_depth')}
-            onStartEditing={onStartEditing}
-            onSave={onSave}
-            onCancel={onCancel}
+            hasError={fieldErrors.has('soil_depth_max')}
+            onChange={handleFieldChange}
           />
           <EditorRow
             label={t('fields.gis_datatype')}
@@ -321,9 +304,7 @@ export default function Metadata() {
             isEditable={false}
             property="gis_datatype"
             variant="text"
-            onStartEditing={onStartEditing}
-            onSave={onSave}
-            onCancel={onCancel}
+            onChange={handleFieldChange}
           />
           {dataset?.gis_datatype === 'raster' && (
             <EditorRow
@@ -333,89 +314,85 @@ export default function Metadata() {
               placeholder={t('placeholders.spatial_resolution')}
               property="spatial_resolution"
               variant="text"
-              onStartEditing={onStartEditing}
-              onSave={onSave}
-              onCancel={onCancel}
+              onChange={handleFieldChange}
             />
           )}
           <EditorRow
             label={t('fields.reference_period_start')}
             value={dataset?.reference_period_start}
-            isEditable={isAdmin && !inferredProperties.has('reference_period_start') && !isEditing}
+            isEditable={isAdmin && !inferredProperties.has('reference_period_start')}
             placeholder={t('placeholders.reference_period_start')}
             property="reference_period_start"
             variant="text"
             isRequired={isAdmin && !inferredProperties.has('reference_period_start')}
-            onStartEditing={onStartEditing}
-            onSave={onSave}
-            onCancel={onCancel}
+            hasError={fieldErrors.has('reference_period_start')}
+            onChange={handleFieldChange}
           />
           <EditorRow
             label={t('fields.reference_period_stop')}
             value={dataset?.reference_period_stop}
-            isEditable={isAdmin && !inferredProperties.has('reference_period_stop') && !isEditing}
+            isEditable={isAdmin && !inferredProperties.has('reference_period_stop')}
             placeholder={t('placeholders.reference_period_stop')}
             property="reference_period_stop"
             variant="text"
             isRequired={isAdmin && !inferredProperties.has('reference_period_stop')}
-            onStartEditing={onStartEditing}
-            onSave={onSave}
-            onCancel={onCancel}
+            hasError={fieldErrors.has('reference_period_stop')}
+            onChange={handleFieldChange}
           />
-          <EditorRow
+          <PublicationDateRow
             label={t('fields.publication_date')}
             value={dataset?.publication_date}
-            isEditable={isAdmin && !isEditing}
-            placeholder={t('placeholders.publication_date')}
+            isEditable={isAdmin}
             property="publication_date"
-            variant="text"
             isRequired={isAdmin}
-            onStartEditing={onStartEditing}
-            onSave={onSave}
-            onCancel={onCancel}
+            hasError={fieldErrors.has('publication_date')}
+            onChange={handleFieldChange}
           />
           <LicenseRow
             label={t('fields.license')}
             currentLicenseIds={dataset?.licenses?.map(l => l.id) ?? []}
             allLicenses={allLicenses ?? []}
-            isEditable={isAdmin && !inferredProperties.has('licenses') && !isEditing}
+            isEditable={isAdmin && !inferredProperties.has('licenses')}
             property="licenses"
             isRequired={isAdmin && !inferredProperties.has('licenses')}
-            onStartEditing={onStartEditing}
-            onSave={onSave}
-            onCancel={onCancel}
+            hasError={fieldErrors.has('licenses')}
+            onChange={handleFieldChange}
           />
           <EditorRow
             label={t('fields.citation')}
             value={dataset?.citation}
-            isEditable={isAdmin && !isEditing}
+            isEditable={isAdmin}
             placeholder={t('placeholders.citation')}
             property="citation"
-            onStartEditing={onStartEditing}
-            onSave={onSave}
-            onCancel={onCancel}
+            onChange={handleFieldChange}
           />
           <EditorRow
             label={t('fields.preprocessing_steps')}
             value={dataset?.preprocessing_steps}
-            isEditable={isAdmin && !isEditing}
+            isEditable={isAdmin}
             placeholder={t('placeholders.preprocessing_steps')}
             displayPlaceholder="-"
             property="preprocessing_steps"
-            onStartEditing={onStartEditing}
-            onSave={onSave}
-            onCancel={onCancel}
+            onChange={handleFieldChange}
           />
           <RelatedResourcesRow
             label={t('fields.related_resources')}
             value={dataset?.related_resources}
-            isEditable={isAdmin && !isEditing}
+            isEditable={isAdmin}
             displayPlaceholder="-"
             property="related_resources"
-            onStartEditing={onStartEditing}
-            onSave={onSaveRelatedResources}
-            onCancel={onCancel}
+            onChange={handleFieldChange}
           />
+          {isAdmin && (
+            <div className={styles.SaveRow}>
+              {fieldErrors.size > 0 && (
+                <FormMessage className={styles.SaveRowError} message={t('editor.validation_error')} type="error" withBackground />
+              )}
+              <Button size="small" onClick={handleSave} isDisabled={isSaving || fieldErrors.size > 0}>
+                {isSaving ? t('editor.saving') : t('editor.save')}
+              </Button>
+            </div>
+          )}
         </div>
       </div>
 

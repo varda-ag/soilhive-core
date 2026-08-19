@@ -1,43 +1,22 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { NumberRow } from 'components/Metadata/NumberRow/NumberRow';
-import useNotifications from 'hooks/useNotifications';
 
-jest.mock('hooks/useNotifications', () => ({
-  __esModule: true,
-  default: jest.fn(),
-}));
-
-const mockShowNotification = jest.fn();
+const mockOnChange = jest.fn();
 
 const defaultProps = {
   label: 'Min depth',
-  value: 10,
+  value: 10 as number | null | undefined,
   isEditable: false,
   property: 'soil_depth_min',
-  onStartEditing: jest.fn(),
-  onSave: jest.fn(),
-  onCancel: jest.fn(),
+  onChange: mockOnChange,
 };
 
 describe('NumberRow', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    (useNotifications as jest.Mock).mockReturnValue({ showNotification: mockShowNotification });
   });
 
-  describe('display mode', () => {
-    it('renders an asterisk next to the label when isRequired', () => {
-      const { container } = render(<NumberRow {...defaultProps} isRequired />);
-      const label = container.querySelector('p > strong');
-      expect(label?.textContent).toBe('Min depth*');
-      expect(label?.querySelector('sup')).toHaveTextContent('*');
-    });
-
-    it('does not render an asterisk when isRequired is not set', () => {
-      const { container } = render(<NumberRow {...defaultProps} />);
-      expect(container.querySelector('p > strong sup')).not.toBeInTheDocument();
-    });
-
+  describe('view mode (isEditable=false)', () => {
     it('renders label and numeric value', () => {
       render(<NumberRow {...defaultProps} />);
       expect(screen.getByText('Min depth')).toBeInTheDocument();
@@ -49,147 +28,65 @@ describe('NumberRow', () => {
       expect(screen.queryByText('10')).not.toBeInTheDocument();
     });
 
-    it('does not show edit button when isEditable=false', () => {
-      render(<NumberRow {...defaultProps} isEditable={false} />);
-      expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument();
+    it('renders empty when value is undefined', () => {
+      render(<NumberRow {...defaultProps} value={undefined} />);
+      expect(screen.queryByText('10')).not.toBeInTheDocument();
     });
 
-    it('shows edit button when isEditable=true', () => {
-      render(<NumberRow {...defaultProps} isEditable={true} />);
-      expect(screen.getByRole('button', { name: 'Edit' })).toBeInTheDocument();
+    it('renders an asterisk when isRequired', () => {
+      const { container } = render(<NumberRow {...defaultProps} isRequired />);
+      const label = container.querySelector('p > strong');
+      expect(label?.textContent).toBe('Min depth*');
+      expect(label?.querySelector('sup')).toHaveTextContent('*');
+    });
+
+    it('does not render an asterisk when isRequired is not set', () => {
+      const { container } = render(<NumberRow {...defaultProps} />);
+      expect(container.querySelector('p > strong sup')).not.toBeInTheDocument();
+    });
+
+    it('does not render an input in view mode', () => {
+      render(<NumberRow {...defaultProps} />);
+      expect(screen.queryByTestId('sh-ui-textinputfield')).not.toBeInTheDocument();
     });
   });
 
-  describe('entering edit mode', () => {
-    it('clicking Edit calls onStartEditing and shows number input', () => {
-      const onStartEditing = jest.fn();
-      render(<NumberRow {...defaultProps} isEditable={true} onStartEditing={onStartEditing} />);
-
-      fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
-
-      expect(onStartEditing).toHaveBeenCalledWith('soil_depth_min');
+  describe('edit mode (isEditable=true)', () => {
+    it('renders TextInput immediately without an Edit button', () => {
+      render(<NumberRow {...defaultProps} isEditable={true} />);
       expect(screen.getByTestId('sh-ui-textinputfield')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument();
     });
 
-    it('number input starts with current value', () => {
+    it('TextInput shows the numeric value', () => {
       render(<NumberRow {...defaultProps} isEditable={true} value={42} />);
-
-      fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
-
       expect(screen.getByTestId('sh-ui-textinputfield')).toHaveValue(42);
+    });
+
+    it('TextInput is empty when value is null', () => {
+      render(<NumberRow {...defaultProps} isEditable={true} value={null} />);
+      expect(screen.getByTestId('sh-ui-textinputfield')).toHaveValue(null);
+    });
+
+    it('TextInput is empty when value is undefined', () => {
+      render(<NumberRow {...defaultProps} isEditable={true} value={undefined} />);
+      expect(screen.getByTestId('sh-ui-textinputfield')).toHaveValue(null);
+    });
+
+    it('calls onChange with property and new string value on input change', () => {
+      render(<NumberRow {...defaultProps} isEditable={true} />);
+      fireEvent.change(screen.getByTestId('sh-ui-textinputfield'), { target: { value: '25' } });
+      expect(mockOnChange).toHaveBeenCalledWith('soil_depth_min', '25');
     });
 
     it('shows min–max placeholder when both min and max are defined', () => {
       render(<NumberRow {...defaultProps} isEditable={true} min={0} max={100} />);
-
-      fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
-
-      expect(screen.getByPlaceholderText('0–100')).toBeInTheDocument();
+      expect(screen.getByTestId('sh-ui-textinputfield')).toHaveAttribute('placeholder', '0–100');
     });
 
-    it('shows empty placeholder when min or max are omitted', () => {
+    it('has no placeholder when min and max are omitted', () => {
       render(<NumberRow {...defaultProps} isEditable={true} />);
-
-      fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
-
-      // TextInput defaults placeholder to '' when undefined is passed
       expect(screen.getByTestId('sh-ui-textinputfield')).toHaveAttribute('placeholder', '');
-    });
-  });
-
-  describe('save flow', () => {
-    it('clicking Save calls onSave with property, string value, and callbacks', () => {
-      const onSave = jest.fn();
-      render(<NumberRow {...defaultProps} isEditable={true} onSave={onSave} />);
-
-      fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
-      fireEvent.change(screen.getByTestId('sh-ui-textinputfield'), { target: { value: '25' } });
-      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-
-      expect(onSave).toHaveBeenCalledWith(
-        'soil_depth_min',
-        '25',
-        expect.objectContaining({ onSuccess: expect.any(Function), onError: expect.any(Function) }),
-      );
-    });
-
-    it('onSuccess exits editing mode', () => {
-      const onSave = jest.fn((_property: string, _value: string, { onSuccess }: any) => onSuccess());
-      render(<NumberRow {...defaultProps} isEditable={true} onSave={onSave} />);
-
-      fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
-      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-
-      expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Edit' })).toBeInTheDocument();
-    });
-
-    it('onError shows notification and stays in editing mode', () => {
-      const error = new Error('Save failed');
-      const onSave = jest.fn((_property: string, _value: string, { onError }: any) => onError(error));
-      render(<NumberRow {...defaultProps} isEditable={true} onSave={onSave} />);
-
-      fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
-      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-
-      expect(mockShowNotification).toHaveBeenCalledWith(expect.objectContaining({ type: 'error', message: 'Save failed' }));
-      expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument();
-    });
-
-    it('shows "Saving…" and disables Cancel while save is in flight', () => {
-      const onSave = jest.fn(); // never calls callbacks — simulates pending request
-      render(<NumberRow {...defaultProps} isEditable={true} onSave={onSave} />);
-
-      fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
-      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-
-      expect(screen.getByText('Saving…')).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled();
-    });
-  });
-
-  describe('isRequired', () => {
-    it('disables Save when field is empty', () => {
-      render(<NumberRow {...defaultProps} isEditable={true} isRequired value={10} />);
-
-      fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
-      fireEvent.change(screen.getByTestId('sh-ui-textinputfield'), { target: { value: '' } });
-
-      expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
-    });
-
-    it('enables Save when field has a value', () => {
-      render(<NumberRow {...defaultProps} isEditable={true} isRequired value={undefined} />);
-
-      fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
-      fireEvent.change(screen.getByTestId('sh-ui-textinputfield'), { target: { value: '25' } });
-
-      expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled();
-    });
-  });
-
-  describe('cancel flow', () => {
-    it('clicking Cancel calls onCancel and exits editing mode', () => {
-      const onCancel = jest.fn();
-      render(<NumberRow {...defaultProps} isEditable={true} onCancel={onCancel} />);
-
-      fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
-      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
-
-      expect(onCancel).toHaveBeenCalledWith('soil_depth_min');
-      expect(screen.queryByRole('button', { name: 'Cancel' })).not.toBeInTheDocument();
-    });
-
-    it('Cancel resets editValue to original prop value', () => {
-      render(<NumberRow {...defaultProps} isEditable={true} value={10} />);
-
-      fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
-      fireEvent.change(screen.getByTestId('sh-ui-textinputfield'), { target: { value: '99' } });
-      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
-
-      // Re-enter editing to confirm value was reset
-      fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
-      expect(screen.getByTestId('sh-ui-textinputfield')).toHaveValue(10);
     });
   });
 });

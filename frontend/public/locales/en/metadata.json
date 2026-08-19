@@ -22,6 +22,8 @@
         "cancel": "Cancel",
         "edit_aria": "Edit",
         "failed_to_save": "Failed to save",
+        "validation_error": "Please fill in all required fields before saving",
+        "saved": "Changes saved successfully",
         "add": "Add",
         "added_resources": "Added resources",
         "remove_resource_aria": "Remove resource",
@@ -31,6 +33,7 @@
     },
     "license_row": {
         "custom_license": "Custom license",
+        "create": "Create",
         "failed_to_save": "Failed to save license",
         "failed_to_create": "Failed to create license",
         "select_placeholder": "Select a license",

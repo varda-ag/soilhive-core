@@ -1,10 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { type SaveCallbacks } from 'hooks/useMetadata';
-import useNotifications from 'hooks/useNotifications';
 import styles from './RelatedResourcesRow.module.scss';
 import { Button, TextInput } from 'components/UI';
-import EditIcon from 'assets/icons/pencil-icon.svg?react';
 import CrossIcon from 'assets/icons/cross-icon.svg?react';
 import ChainIcon from 'assets/icons/chain-icon.svg?react';
 
@@ -17,7 +14,7 @@ function isValidUrl(value: string): boolean {
   }
 }
 
-function ResourceItem({ url, onRemove, isSaving }: { url: string; onRemove?: () => void; isSaving?: boolean }) {
+function ResourceItem({ url, onRemove }: { url: string; onRemove?: () => void }) {
   const { t } = useTranslation('metadata');
   return (
     <li className={styles.ResourceItem}>
@@ -34,7 +31,6 @@ function ResourceItem({ url, onRemove, isSaving }: { url: string; onRemove?: () 
               e.stopPropagation();
               onRemove();
             }}
-            disabled={isSaving}
             aria-label={t('editor.remove_resource_aria')}
           >
             <CrossIcon width={24} height={24} />
@@ -52,9 +48,7 @@ export function RelatedResourcesRow({
   property,
   displayPlaceholder,
   disableBackground,
-  onStartEditing,
-  onSave,
-  onCancel,
+  onChange,
 }: {
   label: string;
   value: string[] | undefined | null;
@@ -62,60 +56,33 @@ export function RelatedResourcesRow({
   property: string;
   displayPlaceholder?: string;
   disableBackground?: boolean;
-  onStartEditing: (property: string) => void;
-  onSave: (property: string, value: string[], callbacks: SaveCallbacks) => void;
-  onCancel: (property: string) => void;
+  onChange: (property: string, value: string[]) => void;
 }) {
   const { t } = useTranslation('metadata');
-  const [isEditing, setIsEditing] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [editValues, setEditValues] = useState<string[]>(value ?? []);
   const [inputValue, setInputValue] = useState('');
-
-  const { showNotification } = useNotifications();
-
-  const isDirty = JSON.stringify(editValues) !== JSON.stringify(value ?? []);
 
   const handleAdd = () => {
     const trimmed = inputValue.trim();
-    if (!trimmed) return;
-    setEditValues(prev => [...prev, trimmed]);
+    if (!trimmed || !isValidUrl(trimmed)) return;
+    onChange(property, [...(value ?? []), trimmed]);
     setInputValue('');
   };
 
   const handleRemove = (index: number) => {
-    setEditValues(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const handleSave = () => {
-    setIsSaving(true);
-    onSave(property, editValues, {
-      onSuccess: () => {
-        setIsEditing(false);
-        setIsSaving(false);
-      },
-      onError: error => {
-        setIsSaving(false);
-        showNotification({
-          id: `${property}-save-error`,
-          title: t('editor.failed_to_save'),
-          message: error.message,
-          type: 'error',
-        });
-      },
-    });
+    onChange(
+      property,
+      (value ?? []).filter((_, i) => i !== index),
+    );
   };
 
   return (
     <div
-      className={[styles.Row, isEditable && !isEditing ? styles.RowAdmin : '', disableBackground ? styles.RowNoBackground : '']
-        .filter(Boolean)
-        .join(' ')}
+      className={[styles.Row, isEditable ? styles.RowAdmin : '', disableBackground ? styles.RowNoBackground : ''].filter(Boolean).join(' ')}
     >
       <p className={styles.Label}>
         <strong>{label}</strong>
       </p>
-      {isEditing ? (
+      {isEditable ? (
         <div className={styles.EditArea}>
           <div className={styles.EditContent}>
             <p className={styles.AddLinkLabel}>
@@ -133,79 +100,38 @@ export function RelatedResourcesRow({
                 size="small"
                 value={inputValue}
                 onChange={v => setInputValue(v)}
-                isDisabled={isSaving}
                 placeholder={t('editor.url_placeholder')}
                 isError={!!inputValue.trim() && !isValidUrl(inputValue)}
                 errorMessage={t('editor.invalid_url')}
               />
-              <Button
-                size="small"
-                type="secondary"
-                onClick={handleAdd}
-                isDisabled={isSaving || !inputValue.trim() || !isValidUrl(inputValue)}
-              >
+              <Button size="small" type="secondary" onClick={handleAdd} isDisabled={!inputValue.trim() || !isValidUrl(inputValue)}>
                 {t('editor.add')}
               </Button>
             </form>
-            {editValues.length > 0 && (
+            {value && value.length > 0 && (
               <div className={styles.AddedResources}>
                 <p className={styles.AddedResourcesTitle}>{t('editor.added_resources')}</p>
                 <ul className={styles.ResourceList}>
-                  {editValues.map((url, i) => (
-                    <ResourceItem key={i} url={url} onRemove={() => handleRemove(i)} isSaving={isSaving} />
+                  {value.map((url, i) => (
+                    <ResourceItem key={i} url={url} onRemove={() => handleRemove(i)} />
                   ))}
                 </ul>
               </div>
             )}
           </div>
-          <div className={styles.EditActions}>
-            <Button size="small" onClick={handleSave} isDisabled={isSaving || !isDirty}>
-              {isSaving ? t('editor.saving') : t('editor.save')}
-            </Button>
-            <Button
-              type="secondary"
-              size="small"
-              onClick={() => {
-                setEditValues(value ?? []);
-                setInputValue('');
-                setIsEditing(false);
-                onCancel(property);
-              }}
-              isDisabled={isSaving}
-            >
-              {t('editor.cancel')}
-            </Button>
-          </div>
         </div>
       ) : (
-        <>
-          <div className={styles.Text}>
-            {value && value.length > 0 ? (
-              <ul className={styles.ResourceList}>
-                {value.map((url, i) => (
-                  <ResourceItem key={i} url={url} />
-                ))}
-              </ul>
-            ) : (
-              displayPlaceholder
-            )}
-          </div>
-          {isEditable && (
-            <button
-              type="button"
-              className={styles.EditButton}
-              onClick={() => {
-                setEditValues(value ?? []);
-                setInputValue('');
-                setIsEditing(true);
-                onStartEditing(property);
-              }}
-              aria-label={t('editor.edit_aria')}
-            >
-              <EditIcon />
-            </button>
+        <div className={styles.Text}>
+          {value && value.length > 0 ? (
+            <ul className={styles.ResourceList}>
+              {value.map((url, i) => (
+                <ResourceItem key={i} url={url} />
+              ))}
+            </ul>
+          ) : (
+            displayPlaceholder
           )}
-        </>
+        </div>
       )}
     </div>
   );

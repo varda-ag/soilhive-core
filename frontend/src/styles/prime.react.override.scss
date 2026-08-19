@@ -136,6 +136,15 @@
       color: var(--color-cta-default-hover);
     }
   }
+  .p-highlight {
+    background-color: var(--color-cta-default-solid);
+    border-color: var(--color-cta-default-solid);
+
+    &:hover {
+      background-color: var(--color-cta-default-hover);
+      border-color: var(--color-cta-default-hover);
+    }
+  }
   .p-datepicker-prev,
   .p-datepicker-next {
     color: var(--color-cta-default-solid);
@@ -211,9 +220,9 @@
         background-color: transparent;
 
         &.sh-row-error {
-          background-color: #F4E1E4;
+          background-color: #f4e1e4;
           > td {
-            background-color: #F4E1E4;
+            background-color: #f4e1e4;
           }
         }
 
