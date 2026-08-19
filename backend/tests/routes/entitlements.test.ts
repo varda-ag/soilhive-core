@@ -6,7 +6,7 @@ import EntitlementService from '../../src/services/EntitlementService';
 import { Capability } from '../../src/types/enums';
 import { getEntityManager } from '../../src/utils/data-source';
 import { addSyntheticData, syntheticDataOptions } from '../../src/utils/mock';
-import { getDataAdminToken } from '../helper';
+import { getDataAdminToken, getUserToken } from '../helper';
 import DatasetService from '../../src/services/DatasetService';
 import { Token } from '../../src/interfaces/Token';
 
@@ -71,17 +71,24 @@ describe('Testing entitlements routes', () => {
     );
 
     it('updates capabilities for a dataset and reflects them in GET /datasets/:datasetId', async () => {
-      const initialRes = await request(app).get(`/datasets/${slug}`).set('Authorization', `Bearer ${token}`);
-      expect(initialRes.statusCode).toBe(StatusCodes.OK);
-      expect(initialRes.body.capabilities).toEqual([Capability.DOWNLOAD, Capability.PREVIEW]); // "everyone" + "${email}" entitlements
+      // A non-admin token: an admin/data-admin token bypasses entitlements outright on
+      // GET /datasets/:datasetId (see getCapabilities), so it would pass this test vacuously —
+      // same reasoning as getUserToken's own doc comment.
+      const subjectEmail = 'entitled-subject@example.com';
+      const subjectToken = getUserToken('entitled-subject-id', subjectEmail);
 
-      const newEntitlements = { [email]: [Capability.OBFUSCATE_AS_POINTS] };
+      const initialRes = await request(app).get(`/datasets/${slug}`).set('Authorization', `Bearer ${subjectToken}`);
+      expect(initialRes.statusCode).toBe(StatusCodes.OK);
+      expect(initialRes.body.capabilities).toEqual([Capability.DOWNLOAD]); // "everyone" entitlement only, seeded in beforeEach
+
+      const newEntitlements = { everyone: [Capability.DOWNLOAD], [subjectEmail]: [Capability.OBFUSCATE_AS_POINTS] };
       const putRes = await request(app).put(`/datasets/${slug}/entitlements`).set('Authorization', `Bearer ${token}`).send(newEntitlements);
       expect(putRes.statusCode).toBe(StatusCodes.OK);
 
-      const updatedRes = await request(app).get(`/datasets/${slug}`).set('Authorization', `Bearer ${token}`);
+      const updatedRes = await request(app).get(`/datasets/${slug}`).set('Authorization', `Bearer ${subjectToken}`);
       expect(updatedRes.statusCode).toBe(StatusCodes.OK);
-      expect(updatedRes.body.capabilities).toEqual([Capability.OBFUSCATE_AS_POINTS]); // Updated entitlements should be reflected in dataset capabilities
+      // Updated entitlements should be reflected in dataset capabilities: "everyone" + this subject's own grant
+      expect(updatedRes.body.capabilities).toEqual([Capability.DOWNLOAD, Capability.OBFUSCATE_AS_POINTS]);
     });
   });
 

@@ -126,7 +126,7 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
       setSelectedDatasets(
         select && datasets
           ? datasets
-              .filter(dataset => dataset.capabilities?.includes(Capability.DOWNLOAD) ?? dataset.visibility === 'public')  // fallback to check against public, should backend be not updated
+              .filter(dataset => dataset.capabilities?.includes(Capability.DOWNLOAD) ?? dataset.visibility === 'public') // fallback to check against public, should backend be not updated
               .map(result => result.id)
           : [],
       );

@@ -209,18 +209,19 @@ export default class EntitlementService {
    * callers whose dataset shape carries the slug under a different field (e.g. the
    * Public Identifier `id` on FilterService's results) can call it directly.
    *
-   * `token` is optional and caller-opt-in: passing it mirrors the bypass in
-   * `enforceEntitlements`, so an admin/internal-request token always gets PREVIEW+DOWNLOAD
-   * on a private dataset with no entitlements row (e.g. the admin who uploaded it — uploading
-   * grants no entitlements row for the uploader) — matching what a direct call to the
-   * download/preview endpoint would actually allow via `enforceEntitlements`.
-   * DatasetService's admin `/datasets` routes deliberately omit it: those surface the *actual*
-   * entitlement grants for dataset/entitlement management (see PUT /datasets/{id}/entitlements),
-   * where an admin needs to see what other subjects are really entitled to, not a bypassed view.
-   * FilterService's map/availability routes pass it: their `capabilities` field only drives the
-   * frontend's own download affordance, so it should reflect what the caller can actually do.
+   * `token` mirrors the bypass in `enforceEntitlements`: an admin/internal-request token always
+   * gets PREVIEW+DOWNLOAD on a private dataset with no entitlements row (e.g. the admin who
+   * uploaded it — uploading grants no entitlements row for the uploader), matching what a direct
+   * call to the download/preview endpoint would actually allow. Every caller of `getCapabilities`
+   * passes it, so `capabilities` means the same thing everywhere it appears: what this caller can
+   * actually do, not just what an entitlements row happens to say.
    */
-  getCapabilities = (visibility: 'public' | 'private', entitlements: Entitlements, slug: string, token?: Token): Capability[] => {
+  getCapabilities = (
+    visibility: 'public' | 'private',
+    entitlements: Entitlements,
+    slug: string,
+    token: Token | undefined,
+  ): Capability[] => {
     if (visibility === 'public' || this.isEntitlementsBypassed(token)) {
       return [Capability.PREVIEW, Capability.DOWNLOAD];
     }

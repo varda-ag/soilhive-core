@@ -251,12 +251,12 @@ describe('EntitlementService', () => {
 
   describe('getCapabilities', () => {
     it('returns the entitled capabilities for a private dataset with an entry for the slug', () => {
-      const capabilities = service.getCapabilities('private', { 'dataset-1': [Capability.DOWNLOAD] }, 'dataset-1');
+      const capabilities = service.getCapabilities('private', { 'dataset-1': [Capability.DOWNLOAD] }, 'dataset-1', undefined);
       expect(capabilities).toEqual([Capability.DOWNLOAD]);
     });
 
     it('returns an empty array for a private dataset with no entry for the slug', () => {
-      const capabilities = service.getCapabilities('private', {}, 'dataset-1');
+      const capabilities = service.getCapabilities('private', {}, 'dataset-1', undefined);
       expect(capabilities).toEqual([]);
     });
 

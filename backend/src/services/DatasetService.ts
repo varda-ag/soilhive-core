@@ -3,7 +3,6 @@ import { RequestData } from '../interfaces/RequestData';
 import { ErrorResponse } from '../utils/error';
 import { getSubject } from '../utils/auth';
 import DatasetEntity from '../entities/Dataset';
-import { Entitlements } from '../types/Entitlements';
 import { CreateDatasetInput, UpdateDatasetInput } from '../types/DatasetInput';
 import { getEntity } from '../utils/slugs';
 import { EntityType, IngestionStatus } from '../types/data';
@@ -33,7 +32,7 @@ export default class DatasetService {
     const repo = requestData.entityManager.getRepository(DatasetEntity);
     const entities = await repo.find();
     entities.map(e => {
-      this.decorateWithCapabilities(e, requestData.entitlements);
+      this.decorateWithCapabilities(e, requestData);
       this.decoratePreprocessingSteps(e);
     });
     return entities;
@@ -41,7 +40,7 @@ export default class DatasetService {
 
   getDataset = async (requestData: RequestData, slug: string): Promise<DatasetEntity> => {
     const entity = await getEntity(requestData, DatasetEntity, EntityType.DATASET, slug);
-    this.decorateWithCapabilities(entity, requestData.entitlements);
+    this.decorateWithCapabilities(entity, requestData);
     this.decoratePreprocessingSteps(entity);
     return entity;
   };
@@ -60,7 +59,7 @@ export default class DatasetService {
     try {
       const saved = await repo.save(dataset);
       const reloaded = await repo.findOneBy({ id: saved.id });
-      this.decorateWithCapabilities(reloaded!, requestData.entitlements);
+      this.decorateWithCapabilities(reloaded!, requestData);
       this.decoratePreprocessingSteps(reloaded!);
       return reloaded!;
     } catch (error: any) {
@@ -110,7 +109,7 @@ export default class DatasetService {
     }
     await bumpCacheEpoch();
     const reloaded = await repo.findOneBy({ id: saved.id });
-    this.decorateWithCapabilities(reloaded!, requestData.entitlements);
+    this.decorateWithCapabilities(reloaded!, requestData);
     this.decoratePreprocessingSteps(reloaded!);
     return reloaded!;
   };
@@ -147,8 +146,13 @@ export default class DatasetService {
     return Object.entries(epsgMap).map(([code, name]) => ({ code: Number(code), name }));
   };
 
-  decorateWithCapabilities = (dataset: DatasetEntity, entitlements: Entitlements) => {
-    dataset.capabilities = entitlementService.getCapabilities(dataset.visibility, entitlements, dataset.slug);
+  decorateWithCapabilities = (dataset: DatasetEntity, requestData: RequestData) => {
+    dataset.capabilities = entitlementService.getCapabilities(
+      dataset.visibility,
+      requestData.entitlements,
+      dataset.slug,
+      requestData.token,
+    );
   };
 
   decoratePreprocessingSteps = (dataset: DatasetEntity) => {

@@ -139,7 +139,7 @@ describe('DatasetsListItem', () => {
   });
 
   it('renders a selectable checkbox for a public dataset with no capabilities field (old backend response)', () => {
-    const { capabilities, ...datasetWithoutCapabilities } = mockDataset;
+    const { capabilities: _capabilities, ...datasetWithoutCapabilities } = mockDataset;
     render(<DatasetsListItem dataset={{ ...datasetWithoutCapabilities, visibility: 'public' }} />);
 
     expect(screen.getByTestId('mock-checkbox')).toBeInTheDocument();
@@ -147,7 +147,7 @@ describe('DatasetsListItem', () => {
   });
 
   it('suppresses the checkbox for a private dataset with no capabilities field (old backend response)', () => {
-    const { capabilities, ...datasetWithoutCapabilities } = mockDataset;
+    const { capabilities: _capabilities, ...datasetWithoutCapabilities } = mockDataset;
     render(<DatasetsListItem dataset={{ ...datasetWithoutCapabilities, visibility: 'private' }} />);
 
     expect(screen.queryByTestId('mock-checkbox')).not.toBeInTheDocument();
