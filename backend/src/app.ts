@@ -8,6 +8,7 @@ import { getOpenApiMiddleware, getSwaggerDocument } from './middlewares/openapi'
 import { transactionMiddleware } from './middlewares/transaction';
 import { initPgBoss } from './services/PgBoss';
 import { setupCLI } from './utils/cli';
+import { cacheBypassMiddleware, isCacheBypassEnabled } from './utils/cache-bypass';
 import { startCacheEpochWatcher } from './utils/cache-epoch';
 import { getEntityManager, initializeSchema } from './utils/data-source';
 import { log } from './utils/logger';
@@ -36,6 +37,11 @@ export const initApp = async (app: Application) => {
 
   if (isQueryDebugEnabled()) {
     app.use(queryDebugMiddleware);
+  }
+  if (isCacheBypassEnabled()) {
+    // Before /health and /ready, so the perf suite's echo preflight can use the
+    // cheapest endpoint on the target (docs/adr/0028).
+    app.use(cacheBypassMiddleware);
   }
   app.use(loggingMiddleware);
   app.use(
