@@ -310,10 +310,16 @@ describe('Testing /datasets routes', () => {
   });
 
   describe('GET /epsg', () => {
-    it('GET /epsg responds with a list of supported EPSG codes', async () => {
+    it('GET /epsg responds with a list of supported EPSG codes and their names', async () => {
       const res = await request(app).get('/epsg');
       expect(Array.isArray(res.body)).toBe(true);
       expect(res.body.length).toBeGreaterThan(0);
+      for (const entry of res.body) {
+        expect(typeof entry.code).toBe('number');
+        expect(typeof entry.name).toBe('string');
+        expect(entry.name.length).toBeGreaterThan(0);
+      }
+      expect(res.body).toContainEqual({ code: 4326, name: 'WGS 84' });
     });
   });
 

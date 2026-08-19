@@ -6,7 +6,7 @@ import DatasetEntity from '../entities/Dataset';
 import { CreateDatasetInput, UpdateDatasetInput } from '../types/DatasetInput';
 import { getEntity } from '../utils/slugs';
 import { EntityType, IngestionStatus } from '../types/data';
-import { epsgList } from '../assets/epsg';
+import { epsgMap } from '../assets/epsgMap';
 import { Capability, JobQueues } from '../types/enums';
 import { Entitlements } from '../types/Entitlements';
 import VectorDataLoad from '../data-layer/VectorDataLoad';
@@ -141,8 +141,8 @@ export default class DatasetService {
     await bumpCacheEpoch();
   };
 
-  getEpsgCodes = (): number[] => {
-    return epsgList;
+  getEpsgCodes = (): { code: number; name: string }[] => {
+    return Object.entries(epsgMap).map(([code, name]) => ({ code: Number(code), name }));
   };
 
   decorateWithCapabilities = (dataset: DatasetEntity, entitlements: Entitlements) => {

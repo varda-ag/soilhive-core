@@ -43,7 +43,11 @@ const mockFile = {
   progress: 100,
 };
 
-const mockCrsOptions = [4326, 3857, 25832];
+const mockCrsOptions = [
+  { code: 4326, name: 'WGS 84' },
+  { code: 3857, name: 'WGS 84 / Pseudo-Mercator' },
+  { code: 25832, name: 'ETRS89 / UTM zone 32N' },
+];
 
 describe('SoilDataFileRow', () => {
   const onCrsChange = jest.fn();
@@ -92,6 +96,24 @@ describe('SoilDataFileRow', () => {
     fireEvent.change(input, { target: { value: 'EPSG:3857' } });
 
     expect(onCrsChange).toHaveBeenCalledWith('file-123', 'EPSG:3857');
+  });
+
+  it('renders a previously selected "EPSG:<code> — <name>" value in the input', () => {
+    const fileWithNamedCrs = { ...mockFile, crs: 'EPSG:3857 — WGS 84 / Pseudo-Mercator' };
+
+    render(<SoilDataFileRow soilDataFile={fileWithNamedCrs} onCrsChange={onCrsChange} onRemove={onRemove} crsOptions={mockCrsOptions} />);
+
+    expect(screen.getByRole('combobox')).toHaveValue('EPSG:3857 — WGS 84 / Pseudo-Mercator');
+  });
+
+  it('does not reset a valid "EPSG:<code> — <name>" crs value on blur', () => {
+    const fileWithNamedCrs = { ...mockFile, crs: 'EPSG:3857 — WGS 84 / Pseudo-Mercator', inferredCrs: undefined };
+
+    render(<SoilDataFileRow soilDataFile={fileWithNamedCrs} onCrsChange={onCrsChange} onRemove={onRemove} crsOptions={mockCrsOptions} />);
+
+    fireEvent.blur(screen.getByRole('combobox'));
+
+    expect(onCrsChange).not.toHaveBeenCalled();
   });
 
   it('resets to inferredCrs on blur if the entered value is invalid', () => {

@@ -52,7 +52,7 @@ export function useDatasetsSoilData() {
   const establishedIsRasterRef = useRef<boolean | undefined>(undefined);
 
   const { data: dataset } = useDataset(datasetId);
-  const { data: crsOptions = [] } = useApiQuery<number[]>({
+  const { data: crsOptions = [] } = useApiQuery<{ code: number; name: string }[]>({
     endpoint: '/epsg',
     method: 'GET',
     queryKey: ['epsg'],
@@ -188,7 +188,7 @@ export function useDatasetsSoilData() {
         request({
           url: `${BACKEND_BASE_URL}/files/${f.id}`,
           method: 'PATCH',
-          body: { epsg: Number(f.crs!.replace('EPSG:', '')) },
+          body: { epsg: Number(f.crs!.match(/^EPSG:(\d+)/)?.[1]) },
           showErrorNotification: true,
         }),
       ),

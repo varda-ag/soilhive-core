@@ -14,7 +14,7 @@ interface Props {
   soilDataFile: SoilDataFile;
   onCrsChange: (fileId: string, crs: string) => void;
   onRemove: (fileId: string) => void;
-  crsOptions: number[];
+  crsOptions: { code: number; name: string }[];
 }
 
 function formatFileSize(bytes: number | undefined): string {
@@ -35,7 +35,7 @@ export function SoilDataFileRow({ soilDataFile, onCrsChange, onRemove, crsOption
 
   const isReadOnly = !!inferredCrs;
 
-  const allCrsOptions = useMemo(() => crsOptions.map(n => `EPSG:${n}`), [crsOptions]);
+  const allCrsOptions = useMemo(() => crsOptions.map(o => `EPSG:${o.code} - ${o.name}`), [crsOptions]);
 
   const filterCrsOptions = (e: AutoCompleteCompleteEvent) => {
     const query = e.query.trim().toLowerCase();
