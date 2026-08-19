@@ -91,6 +91,15 @@ export interface Fingerprint {
    */
   db?: Record<string, number>;
   /**
+   * True when the run sent the cache-bypass header on every request, so its
+   * rows measure cold application work (docs/adr/0028). Absent — rather than
+   * false — for ordinary warm runs, so result files predating the field
+   * classify as warm rather than as unknown, and PERF_RUN_VERSION stays put.
+   * A bypassed run is not comparable to a warm one against the same target,
+   * which is why diff.ts pairs on it as well as on baseUrl.
+   */
+  cacheBypass?: boolean;
+  /**
    * Data fingerprint derived from GET /datasets — the API-visible substitute
    * for `db`, and the only data signal a run against a deployed target has.
    * Absent in result files recorded before the field existed.
@@ -106,6 +115,15 @@ export interface PerfRun {
 }
 
 export const PERF_RUN_VERSION = 2;
+
+/**
+ * Renders an ISO timestamp as a file-name component: colons and dots are legal
+ * in an S3 key but awkward in a local path, and a URL-encoded key is unpleasant
+ * to read in a bucket listing. Shared by the run files and the diff report so
+ * both sort chronologically in the same listing, and so a diff sorts next to the
+ * run it describes.
+ */
+export const fileTimestamp = (isoTimestamp: string): string => isoTimestamp.replace(/[:.]/g, '-');
 
 export const rowKey = (
   method: string,
