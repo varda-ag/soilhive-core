@@ -359,6 +359,22 @@ describe('DatasetService', () => {
     });
   });
 
+  describe('getEpsgCodes', () => {
+    it('returns every supported EPSG code paired with its name', () => {
+      const service = new DatasetService();
+
+      const result = service.getEpsgCodes();
+
+      expect(result.length).toBeGreaterThan(0);
+      expect(result).toContainEqual({ code: 4326, name: 'WGS 84' });
+      for (const entry of result) {
+        expect(typeof entry.code).toBe('number');
+        expect(typeof entry.name).toBe('string');
+        expect(entry.name.length).toBeGreaterThan(0);
+      }
+    });
+  });
+
   describe('deleteDataset', () => {
     it('should successfully soft-delete an existing dataset', async () => {
       const service = new DatasetService();

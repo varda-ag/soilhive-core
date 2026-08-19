@@ -231,7 +231,15 @@ paths:
               schema:
                 type: array
                 items:
-                  type: number
+                  type: object
+                  required:
+                    - code
+                    - name
+                  properties:
+                    code:
+                      type: number
+                    name:
+                      type: string
   /datasets:
     get:
       x-eov-operation-handler: controllers/datasets

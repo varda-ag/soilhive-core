@@ -6,6 +6,7 @@ import { useCreateDatasetFileMapping, useUpdateDatasetMutation } from 'hooks/use
 import useIngestionFlow from 'hooks/useIngestionFlow';
 import { useDataset } from 'hooks/useDatasets';
 import { useNavigate } from 'react-router';
+import { useRequest } from '../../src/api-client';
 
 // --- Module mocks -----------------------------------------------------------
 
@@ -590,6 +591,37 @@ describe('useDatasetsSoilData', () => {
   });
 
   // --- leave Ingestion flow ---------------------------------------------------
+
+  describe('handleSave — crs patching', () => {
+    it('parses a "EPSG:<code> — <name>" crs value into just the numeric code when saving', async () => {
+      buildDefaultMocks();
+      const mockRequest = jest.fn().mockResolvedValue(undefined);
+      (useRequest as jest.Mock).mockReturnValue({ request: mockRequest });
+
+      const { result } = renderHook(() => useDatasetsSoilData());
+
+      act(() => {
+        const { useFileUpload } = jest.requireMock('hooks/useFileUpload');
+        const onFileUploaded = useFileUpload.mock.calls[0][0];
+        onFileUploaded(buildSoilDataFile('1', 'a.csv', null));
+      });
+
+      act(() => {
+        result.current.handleCrsChange('1', 'EPSG:3857 — WGS 84 / Pseudo-Mercator');
+      });
+
+      await act(async () => {
+        await result.current.handleSaveAndContinueLater();
+      });
+
+      expect(mockRequest).toHaveBeenCalledWith(
+        expect.objectContaining({
+          url: expect.stringContaining('/files/1'),
+          body: { epsg: 3857 },
+        }),
+      );
+    });
+  });
 
   describe('leave Ingestion flow', () => {
     it('calls markAsChanged on mount', () => {
