@@ -3,12 +3,13 @@ import { EntityManager } from 'typeorm';
 import { RequestData } from '../../src/interfaces/RequestData';
 import { getEntityManager } from '../../src/utils/data-source';
 import { Token } from '../../src/interfaces/Token';
-import { addDataset } from '../../src/utils/mock';
+import { addDataset, addLicense } from '../../src/utils/mock';
 import EntitlementService from '../../src/services/EntitlementService';
 import DatasetService from '../../src/services/DatasetService';
 import { Entitlements } from '../../src/types/Entitlements';
 import { Capability } from '../../src/types/enums';
 import DatasetEntity from '../../src/entities/Dataset';
+import LicenseEntity from '../../src/entities/License';
 
 const mockToken: Token = {
   sub: 'test-user-id',
@@ -57,18 +58,85 @@ describe('EntitlementService', () => {
     `);
   });
 
+  // Grants below are seeded under 'dataset-1', the slug from *before* the rename in this
+  // beforeEach — getUserEntitlements is expected to re-key them to the current slug,
+  // 'dataset-1-renamed', so a grant made before a rename keeps applying afterwards.
   it.each([
-    [undefined, { 'dataset-1': [Capability.DOWNLOAD] }],
-    ['not-existing', { 'dataset-1': [Capability.DOWNLOAD] }],
-    ['user1@example.com', { 'dataset-1': [Capability.DOWNLOAD, Capability.OBFUSCATE_AS_POINTS, Capability.PREVIEW] }],
-    ['user2@example.com', { 'dataset-1': [Capability.DOWNLOAD], 'dataset-2': [Capability.OBFUSCATE_AS_POINTS] }],
+    [undefined, { 'dataset-1-renamed': [Capability.DOWNLOAD] }],
+    ['not-existing', { 'dataset-1-renamed': [Capability.DOWNLOAD] }],
+    ['user1@example.com', { 'dataset-1-renamed': [Capability.DOWNLOAD, Capability.OBFUSCATE_AS_POINTS, Capability.PREVIEW] }],
+    ['user2@example.com', { 'dataset-1-renamed': [Capability.DOWNLOAD], 'dataset-2': [Capability.OBFUSCATE_AS_POINTS] }],
     [
       'user3@example.com',
-      { 'dataset-1': [Capability.DOWNLOAD, Capability.OBFUSCATE_AS_POINTS], 'dataset-3': [Capability.OBFUSCATE_AS_POINTS] },
+      { 'dataset-1-renamed': [Capability.DOWNLOAD, Capability.OBFUSCATE_AS_POINTS], 'dataset-3': [Capability.OBFUSCATE_AS_POINTS] },
     ],
-  ])('should retrieve user entitlements by ID', async (id, expectedEntitlements) => {
+  ])('should retrieve user entitlements by ID, re-keyed to the current slug after a rename', async (id, expectedEntitlements) => {
     const entitlements = await service.getUserEntitlements(requestData, id);
     expect(entitlements).toEqual(expectedEntitlements);
+  });
+
+  it('leaves a key with no matching Dataset untouched, alongside one that does get re-keyed', async () => {
+    await entityManager.query(`
+      INSERT INTO entitlements (id, data) VALUES ('user5@example.com', '{"totally-unrelated-key": ["preview"]}')
+    `);
+
+    const entitlements = await service.getUserEntitlements(requestData, 'user5@example.com');
+    // 'dataset-1' (EVERYONE's grant) is re-keyed to the current slug; the unrelated key is passed through as-is.
+    expect(entitlements).toEqual({
+      'dataset-1-renamed': [Capability.DOWNLOAD],
+      'totally-unrelated-key': [Capability.PREVIEW],
+    });
+  });
+
+  it('merges a grant under a historical slug with one already under the current slug for the same Dataset', async () => {
+    await entityManager.query(`
+      INSERT INTO entitlements (id, data) VALUES
+      ('user6@example.com', '{"dataset-1": ["preview"], "dataset-1-renamed": ["download"]}')
+    `);
+
+    const entitlements = await service.getUserEntitlements(requestData, 'user6@example.com');
+    expect(entitlements).toEqual({ 'dataset-1-renamed': [Capability.DOWNLOAD, Capability.PREVIEW] });
+  });
+
+  it('re-keys a grant on a renamed entity of a type other than Dataset (e.g. License)', async () => {
+    const license = await addLicense('license-a');
+    await entityManager.query(
+      `INSERT INTO entitlements (id, data) VALUES ('user7@example.com', jsonb_build_object($1::text, '["preview"]'::jsonb))`,
+      [license.slug],
+    );
+
+    const licenseRepo = entityManager.getRepository(LicenseEntity);
+    await licenseRepo.update({ id: license.id }, { name: 'license-a-renamed' });
+    const renamed = await licenseRepo.findOneByOrFail({ id: license.id });
+    expect(renamed.slug).not.toBe(license.slug);
+
+    const entitlements = await service.getUserEntitlements(requestData, 'user7@example.com');
+    expect(entitlements).toEqual({
+      'dataset-1-renamed': [Capability.DOWNLOAD], // EVERYONE's grant, always merged in
+      [renamed.slug]: [Capability.PREVIEW],
+    });
+  });
+
+  it('resolves a grant made before a chain of renames to the final slug, not just the next one', async () => {
+    const datasetService = new DatasetService();
+    const originalSlug = 'dataset-2';
+
+    await entityManager.query(
+      `INSERT INTO entitlements (id, data) VALUES ('user8@example.com', jsonb_build_object($1::text, '["preview"]'::jsonb))`,
+      [originalSlug],
+    );
+
+    const afterFirstRename = await datasetService.updateDataset(requestData, originalSlug, { name: 'dataset-2-renamed-once' });
+    const afterSecondRename = await datasetService.updateDataset(requestData, afterFirstRename.slug, { name: 'dataset-2-renamed-twice' });
+    const afterThirdRename = await datasetService.updateDataset(requestData, afterSecondRename.slug, { name: 'dataset-2-renamed-thrice' });
+    // Three distinct slugs, none equal to the original — otherwise this test would not exercise a chain.
+    expect(new Set([originalSlug, afterFirstRename.slug, afterSecondRename.slug, afterThirdRename.slug]).size).toBe(4);
+
+    const entitlements = await service.getUserEntitlements(requestData, 'user8@example.com');
+    expect(entitlements).toEqual({
+      'dataset-1-renamed': [Capability.DOWNLOAD], // EVERYONE's grant, always merged in
+      [afterThirdRename.slug]: [Capability.PREVIEW],
+    });
   });
 
   it.each([

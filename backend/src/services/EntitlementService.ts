@@ -12,6 +12,10 @@ import { log } from '../utils/logger';
 import { getEntitySlugs } from '../utils/slugs';
 import DatasetEntity from '../entities/Dataset';
 
+/** De-duplicated union, for two grants that land on the same slug after `normalizeToCurrentSlugs`. */
+const mergeCapabilities = (existing: Capability[] | undefined, incoming: Capability[]): Capability[] =>
+  Array.from(new Set([...(existing ?? []), ...incoming]));
+
 export default class EntitlementService {
   private entitiesToEntitlements = (entities: EntitlementsEntity[], slugs: string[]): Entitlements => {
     return entities.reduce((acc, { id, data }) => {
@@ -102,7 +106,7 @@ export default class EntitlementService {
     const externalEntitlements = await this.callEntitlementsEndpoint(requestData);
     const repo = requestData.entityManager.getRepository(EntitlementsEntity);
     const entitlements = (await repo.find({ where: { id: In([EVERYONE, id]) } })).sort((a, _) => (a.id === EVERYONE ? -1 : 1));
-    return entitlements.reduce((acc, { data }) => {
+    const merged = entitlements.reduce((acc, { data }) => {
       for (const key in data) {
         if (!acc[key]) {
           acc[key] = [];
@@ -112,7 +116,59 @@ export default class EntitlementService {
       }
       return acc;
     }, externalEntitlements); // Using external entitlements as the accumulator base
+    return this.normalizeToCurrentSlugs(requestData, merged);
   }
+
+  /**
+   * `entitlements` is keyed by slug, and some keys may be historical — a grant is written under
+   * whatever slug is current at the time (see `setEntityEntitlements`) and is never rewritten on
+   * a later rename. `getCapabilities`/`enforceEntitlements` look up by an entity's *current*
+   * slug, so a stale key would make the grant silently stop applying. This re-keys the whole map
+   * to current slugs, once, in one batched query — cost scales with grants held, not with
+   * whatever listing a caller later checks them against.
+   *
+   * Not scoped to Dataset: any entity type can hold entitlements, and slug_history's rename
+   * trigger already covers several (datasets, soil_properties, procedures, licenses, ...). "The
+   * most recent slug_history row for this entity_id" is a safe definition of "current slug" here
+   * because that trigger never reuses a slug value — a rename back to a prior name is
+   * disambiguated (`name-1`) instead.
+   *
+   * A key matching no entity at all (e.g. `spatial_filter`) is left exactly as given.
+   */
+  private normalizeToCurrentSlugs = async (requestData: RequestData, entitlements: Entitlements): Promise<Entitlements> => {
+    const slugs = Object.keys(entitlements);
+    if (slugs.length === 0) {
+      return entitlements;
+    }
+
+    const currentSlugByHistoricalSlug = await this.getCurrentSlugsFor(requestData, slugs);
+    if (currentSlugByHistoricalSlug.size === 0) {
+      return entitlements;
+    }
+
+    const normalized: Entitlements = {};
+    for (const [slug, capabilities] of Object.entries(entitlements)) {
+      const currentSlug = currentSlugByHistoricalSlug.get(slug) ?? slug; // unmatched (e.g. spatial_filter): keep as-is
+      normalized[currentSlug] = mergeCapabilities(normalized[currentSlug], capabilities);
+    }
+    return normalized;
+  };
+
+  /** Maps each of `slugs` that matches a known entity to that entity's current slug. Omits any that don't. */
+  private getCurrentSlugsFor = async (requestData: RequestData, slugs: string[]): Promise<Map<string, string>> => {
+    const rows: { historical_slug: string; current_slug: string }[] = await requestData.entityManager.query(
+      `SELECT sh.slug AS historical_slug, latest.slug AS current_slug
+       FROM slug_history sh
+       INNER JOIN (
+         SELECT DISTINCT ON (entity_id) entity_id, slug
+         FROM slug_history
+         ORDER BY entity_id, created_at DESC
+       ) latest ON latest.entity_id = sh.entity_id
+       WHERE sh.slug = ANY($1::text[])`,
+      [slugs],
+    );
+    return new Map(rows.map(({ historical_slug, current_slug }) => [historical_slug, current_slug]));
+  };
 
   async callEntitlementsEndpoint(requestData: RequestData): Promise<Entitlements> {
     if (!process.env.ENTITLEMENTS_ENDPOINT || !requestData.token?.raw) {
