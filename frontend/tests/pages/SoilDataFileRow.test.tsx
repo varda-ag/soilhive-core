@@ -98,16 +98,16 @@ describe('SoilDataFileRow', () => {
     expect(onCrsChange).toHaveBeenCalledWith('file-123', 'EPSG:3857');
   });
 
-  it('renders a previously selected "EPSG:<code> — <name>" value in the input', () => {
-    const fileWithNamedCrs = { ...mockFile, crs: 'EPSG:3857 — WGS 84 / Pseudo-Mercator' };
+  it('renders a previously selected "EPSG:<code> - <name>" value in the input', () => {
+    const fileWithNamedCrs = { ...mockFile, crs: 'EPSG:3857 - WGS 84 / Pseudo-Mercator' };
 
     render(<SoilDataFileRow soilDataFile={fileWithNamedCrs} onCrsChange={onCrsChange} onRemove={onRemove} crsOptions={mockCrsOptions} />);
 
-    expect(screen.getByRole('combobox')).toHaveValue('EPSG:3857 — WGS 84 / Pseudo-Mercator');
+    expect(screen.getByRole('combobox')).toHaveValue('EPSG:3857 - WGS 84 / Pseudo-Mercator');
   });
 
-  it('does not reset a valid "EPSG:<code> — <name>" crs value on blur', () => {
-    const fileWithNamedCrs = { ...mockFile, crs: 'EPSG:3857 — WGS 84 / Pseudo-Mercator', inferredCrs: undefined };
+  it('does not reset a valid "EPSG:<code> - <name>" crs value on blur', () => {
+    const fileWithNamedCrs = { ...mockFile, crs: 'EPSG:3857 - WGS 84 / Pseudo-Mercator', inferredCrs: undefined };
 
     render(<SoilDataFileRow soilDataFile={fileWithNamedCrs} onCrsChange={onCrsChange} onRemove={onRemove} crsOptions={mockCrsOptions} />);
 
