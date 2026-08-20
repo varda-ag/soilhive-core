@@ -4,7 +4,7 @@ import { DatasetsSidebar } from 'components/DatasetsSidebar/DatasetsSidebar';
 import useDevice from 'hooks/useDevice';
 import { useNavigate } from 'react-router';
 import { AvailabilityContext } from '../../../src/contexts/AvailabilityContext';
-import { GISDataType } from 'types/backend';
+import { Capability, GISDataType } from 'types/backend';
 
 jest.mock('hooks/useDevice', () => ({
   __esModule: true,
@@ -36,7 +36,8 @@ jest.mock('../../../src/contexts/AvailabilityContext', () => {
   return {
     __esModule: true,
     AvailabilityContext: React.createContext({
-      availableDatasets: [{ id: 'test-dataset' }],
+      // string literals, not Capability.*: jest hoists this factory above the module's imports
+      availableDatasets: [{ id: 'test-dataset', capabilities: ['preview', 'download'] }],
       filterId: 'mock-filter-id',
       datasetFrontendFilters: { type: [] },
       datasetsSummary: { count: 5, dataPoints: 1000, layers: 3, depth: '0-30', date: '2020 - 2024' },
@@ -115,9 +116,27 @@ describe('DatasetsSidebar', () => {
   it('enables explore button when only raster datasets are available', () => {
     (useDevice as jest.Mock).mockReturnValue({ isDesktopLayout: true, isMobileLayout: false });
 
-    renderWithDatasets([{ id: 'raster-dataset', data_type: GISDataType.RASTER }]);
+    renderWithDatasets([{ id: 'raster-dataset', data_type: GISDataType.RASTER, capabilities: [Capability.PREVIEW] }]);
 
     expect(screen.getByRole('button', { name: /explore/i })).toBeEnabled();
+  });
+
+  it('enables only explore for a dataset with PREVIEW but not DOWNLOAD', () => {
+    (useDevice as jest.Mock).mockReturnValue({ isDesktopLayout: true, isMobileLayout: false });
+
+    renderWithDatasets([{ id: 'preview-only-dataset', capabilities: [Capability.PREVIEW] }]);
+
+    expect(screen.getByRole('button', { name: /explore/i })).toBeEnabled();
+    expect(screen.getByRole('button', { name: /download/i })).toBeDisabled();
+  });
+
+  it('enables only download for a dataset with DOWNLOAD but not PREVIEW', () => {
+    (useDevice as jest.Mock).mockReturnValue({ isDesktopLayout: true, isMobileLayout: false });
+
+    renderWithDatasets([{ id: 'download-only-dataset', capabilities: [Capability.DOWNLOAD] }]);
+
+    expect(screen.getByRole('button', { name: /explore/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /download/i })).toBeEnabled();
   });
 
   it.skip('passes isOpened correctly to PageSidebar', () => {

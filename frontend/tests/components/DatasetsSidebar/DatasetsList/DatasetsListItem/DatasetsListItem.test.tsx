@@ -131,6 +131,13 @@ describe('DatasetsListItem', () => {
     expect(screen.queryByText(mockDataset.name, { selector: 'p' })).not.toBeInTheDocument();
   });
 
+  it('renders a selectable checkbox for a private dataset with only the preview capability', () => {
+    render(<DatasetsListItem dataset={{ ...mockDataset, visibility: 'private', capabilities: [Capability.PREVIEW] }} />);
+
+    expect(screen.getByTestId('mock-checkbox')).toBeInTheDocument();
+    expect(screen.queryByText(mockDataset.name, { selector: 'p' })).not.toBeInTheDocument();
+  });
+
   it('suppresses the checkbox and renders fallback text for a private dataset without the download capability', () => {
     render(<DatasetsListItem dataset={{ ...mockDataset, visibility: 'private', capabilities: [] }} />);
 

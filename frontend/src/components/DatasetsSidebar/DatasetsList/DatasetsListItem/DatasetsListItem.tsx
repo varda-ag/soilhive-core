@@ -15,6 +15,7 @@ import useAvailability from 'hooks/useAvailability';
 import { useTranslation } from 'react-i18next';
 import { MetaItem } from './MetaItem/MetaItem';
 import { Capability, GISDataType } from '../../../../types/backend';
+import { hasCapability } from '../../../../domain';
 
 type Props = {
   dataset: AvailabilityDataset;
@@ -23,14 +24,14 @@ export function DatasetsListItem({ dataset }: Props) {
   const { selectedDatasets, selectDataset, isCoverageLoading } = useAvailability();
   const [isOpened, setIsOpened] = useState<boolean>(false);
   const { t } = useTranslation('availability');
-  const canDownload = dataset.capabilities?.includes(Capability.DOWNLOAD) ?? dataset.visibility === 'public'; // fallback to check against public, should backend be not updated
+  const isSelectable = hasCapability(dataset, Capability.DOWNLOAD) || hasCapability(dataset, Capability.PREVIEW);
 
   return (
     <div data-testid="sh-datasets-list-item" className={classnames(styles.DatasetsListItem, { [styles.Opened]: isOpened })}>
       <div className={styles.Main}>
         <div className={styles.Top}>
           <div className={styles.Title}>
-            {canDownload && (
+            {isSelectable && (
               <Checkbox
                 label={dataset.name}
                 size="small"
@@ -39,7 +40,7 @@ export function DatasetsListItem({ dataset }: Props) {
                 onChange={() => selectDataset(dataset.id)}
               />
             )}
-            {!canDownload && <p>{dataset.name}</p>}
+            {!isSelectable && <p>{dataset.name}</p>}
             <ArrowDownIcon className={styles.DropdownIcon} onClick={() => setIsOpened(!isOpened)} />
           </div>
           <div className={styles.Tags}>

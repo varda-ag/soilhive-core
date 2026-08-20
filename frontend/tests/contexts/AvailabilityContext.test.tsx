@@ -55,6 +55,16 @@ const privateNonDownloadableDataset: FilteredDatasetSummary = {
   capabilities: [],
 };
 
+const privatePreviewOnlyDataset: FilteredDatasetSummary = {
+  id: 'dataset-private-preview-only',
+  name: 'Private Preview-only Dataset',
+  data_type: GISDataType.POINT,
+  visibility: 'private',
+  dataset_layer_count: 1,
+  raster_layer_count: 0,
+  capabilities: [Capability.PREVIEW],
+};
+
 // No `capabilities` field at all, as an old backend not yet carrying this ADR's change would send.
 const publicDatasetNoCapabilities: FilteredDatasetSummary = {
   id: 'dataset-public-no-capabilities',
@@ -86,6 +96,7 @@ describe('AvailabilityContext', () => {
           publicDataset,
           privateDownloadableDataset,
           privateNonDownloadableDataset,
+          privatePreviewOnlyDataset,
           publicDatasetNoCapabilities,
           privateDatasetNoCapabilities,
         ],
@@ -99,12 +110,13 @@ describe('AvailabilityContext', () => {
     (useRaster as jest.Mock).mockReturnValue({ allCategories: [], isLoading: false, setCategoryActive: jest.fn() });
   });
 
-  it('availableDatasets only includes datasets with the download capability', () => {
+  it('availableDatasets includes datasets with the download or the preview capability', () => {
     const { result } = renderHook(() => useAvailability(), { wrapper: AvailabilityProvider });
 
     const availableIds = result.current.availableDatasets.map(dataset => dataset.id);
     expect(availableIds).toContain(publicDataset.id);
     expect(availableIds).toContain(privateDownloadableDataset.id);
+    expect(availableIds).toContain(privatePreviewOnlyDataset.id);
     expect(availableIds).not.toContain(privateNonDownloadableDataset.id);
   });
 
@@ -116,7 +128,7 @@ describe('AvailabilityContext', () => {
     expect(availableIds).not.toContain(privateDatasetNoCapabilities.id);
   });
 
-  it('selectAllDatasets(true) only selects datasets with the download capability', () => {
+  it('selectAllDatasets(true) selects datasets with the download or the preview capability', () => {
     const { result } = renderHook(() => useAvailability(), { wrapper: AvailabilityProvider });
 
     act(() => {
@@ -124,7 +136,7 @@ describe('AvailabilityContext', () => {
     });
 
     expect(result.current.selectedDatasets.sort()).toEqual(
-      [privateDownloadableDataset.id, publicDataset.id, publicDatasetNoCapabilities.id].sort(),
+      [privateDownloadableDataset.id, publicDataset.id, privatePreviewOnlyDataset.id, publicDatasetNoCapabilities.id].sort(),
     );
     expect(result.current.selectedDatasets).not.toContain(privateNonDownloadableDataset.id);
   });

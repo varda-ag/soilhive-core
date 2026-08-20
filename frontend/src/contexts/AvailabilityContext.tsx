@@ -13,7 +13,7 @@ import {
   type FilteredData,
   type FilteredDataset,
 } from 'types/backend';
-import { applyDataScopeCriteria, computeDatasetSummary } from '../domain';
+import { applyDataScopeCriteria, computeDatasetSummary, hasCapability } from '../domain';
 import { useDataFilterQuery } from 'hooks/useDataFilterQuery';
 import { useSoilProperties } from '../hooks/useSoilProperties';
 import { usePropertiesCategories } from 'hooks/usePropertiesCategories';
@@ -126,7 +126,7 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
       setSelectedDatasets(
         select && datasets
           ? datasets
-              .filter(dataset => dataset.capabilities?.includes(Capability.DOWNLOAD) ?? dataset.visibility === 'public') // fallback to check against public, should backend be not updated
+              .filter(dataset => hasCapability(dataset, Capability.DOWNLOAD) || hasCapability(dataset, Capability.PREVIEW))
               .map(result => result.id)
           : [],
       );
@@ -224,7 +224,7 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
   const availableDatasets = useMemo(() => {
     const datasets = fullFilterResults ? fullFilterResults.datasets : fullFilterDatasets || [];
     const allowedDatasets = datasets.filter(
-      dataset => dataset.capabilities?.includes(Capability.DOWNLOAD) ?? dataset.visibility === 'public', // fallback to check against public, should backend be not updated
+      dataset => hasCapability(dataset, Capability.DOWNLOAD) || hasCapability(dataset, Capability.PREVIEW),
     );
     if (selectedDatasets.length > 0) {
       const datasetIds = new Set(allowedDatasets.map(dataset => dataset.id));
