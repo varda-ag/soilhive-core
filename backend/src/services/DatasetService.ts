@@ -7,7 +7,7 @@ import { CreateDatasetInput, UpdateDatasetInput } from '../types/DatasetInput';
 import { getEntity } from '../utils/slugs';
 import { EntityType, IngestionStatus } from '../types/data';
 import { epsgMap } from '../assets/epsgMap';
-import { JobQueues, } from '../types/enums';
+import { JobQueues } from '../types/enums';
 import VectorDataLoad from '../data-layer/VectorDataLoad';
 import DataMappingService from './DataMappingService';
 import DatasetFileMappingService from './DatasetFileMappingService';

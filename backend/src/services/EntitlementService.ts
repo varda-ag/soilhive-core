@@ -12,7 +12,7 @@ import { log } from '../utils/logger';
 import { getEntitySlugs } from '../utils/slugs';
 import DatasetEntity from '../entities/Dataset';
 
-/** De-duplicated union, for two grants that land on the same slug after `normalizeToCurrentSlugs`. */
+/** De-duplicated union, for two grants that land on the same slug after `expandAcrossSlugHistory`. */
 const mergeCapabilities = (existing: Capability[] | undefined, incoming: Capability[]): Capability[] =>
   Array.from(new Set([...(existing ?? []), ...incoming]));
 
@@ -116,58 +116,78 @@ export default class EntitlementService {
       }
       return acc;
     }, externalEntitlements); // Using external entitlements as the accumulator base
-    return this.normalizeToCurrentSlugs(requestData, merged);
+    return this.expandAcrossSlugHistory(requestData, merged);
   }
 
   /**
    * `entitlements` is keyed by slug, and some keys may be historical — a grant is written under
    * whatever slug is current at the time (see `setEntityEntitlements`) and is never rewritten on
-   * a later rename. `getCapabilities`/`enforceEntitlements` look up by an entity's *current*
-   * slug, so a stale key would make the grant silently stop applying. This re-keys the whole map
-   * to current slugs, once, in one batched query — cost scales with grants held, not with
-   * whatever listing a caller later checks them against.
+   * a later rename. A caller should be able to look up an entity's entitlement by *any* slug it
+   * has ever had, old or current, and get the same value. This expands the merged map so every
+   * slug in an entity's history carries the same, merged capability list — cost scales with
+   * grants held, not with whatever listing a caller later checks them against.
    *
    * Not scoped to Dataset: any entity type can hold entitlements, and slug_history's rename
-   * trigger already covers several (datasets, soil_properties, procedures, licenses, ...). "The
-   * most recent slug_history row for this entity_id" is a safe definition of "current slug" here
-   * because that trigger never reuses a slug value — a rename back to a prior name is
-   * disambiguated (`name-1`) instead.
+   * trigger already covers several (datasets, soil_properties, procedures, licenses, ...).
    *
    * A key matching no entity at all (e.g. `spatial_filter`) is left exactly as given.
    */
-  private normalizeToCurrentSlugs = async (requestData: RequestData, entitlements: Entitlements): Promise<Entitlements> => {
+  private expandAcrossSlugHistory = async (requestData: RequestData, entitlements: Entitlements): Promise<Entitlements> => {
     const slugs = Object.keys(entitlements);
     if (slugs.length === 0) {
       return entitlements;
     }
 
-    const currentSlugByHistoricalSlug = await this.getCurrentSlugsFor(requestData, slugs);
-    if (currentSlugByHistoricalSlug.size === 0) {
-      return entitlements;
-    }
-
-    const normalized: Entitlements = {};
-    for (const [slug, capabilities] of Object.entries(entitlements)) {
-      const currentSlug = currentSlugByHistoricalSlug.get(slug) ?? slug; // unmatched (e.g. spatial_filter): keep as-is
-      normalized[currentSlug] = mergeCapabilities(normalized[currentSlug], capabilities);
-    }
-    return normalized;
-  };
-
-  /** Maps each of `slugs` that matches a known entity to that entity's current slug. Omits any that don't. */
-  private getCurrentSlugsFor = async (requestData: RequestData, slugs: string[]): Promise<Map<string, string>> => {
-    const rows: { historical_slug: string; current_slug: string }[] = await requestData.entityManager.query(
-      `SELECT sh.slug AS historical_slug, latest.slug AS current_slug
+    // For each input slug that matches a known entity, this returns one row per slug that
+    // entity has ever had (including the input slug itself). No "latest row only" restriction:
+    // we want the full set of related slugs, not just the current one.
+    const rows: { input_slug: string; entity_id: string; related_slug: string }[] = await requestData.entityManager.query(
+      `SELECT sh.slug AS input_slug, sh.entity_id, all_slugs.slug AS related_slug
        FROM slug_history sh
-       INNER JOIN (
-         SELECT DISTINCT ON (entity_id) entity_id, slug
-         FROM slug_history
-         ORDER BY entity_id, created_at DESC
-       ) latest ON latest.entity_id = sh.entity_id
+       INNER JOIN slug_history all_slugs ON all_slugs.entity_id = sh.entity_id
        WHERE sh.slug = ANY($1::text[])`,
       [slugs],
     );
-    return new Map(rows.map(({ historical_slug, current_slug }) => [historical_slug, current_slug]));
+    if (rows.length === 0) {
+      return entitlements;
+    }
+
+    // Group by entity: which of the input slugs matched it (to gather capabilities from), and
+    // every slug it has ever had (to write the merged result to).
+    const inputSlugsByEntity = new Map<string, Set<string>>();
+    const relatedSlugsByEntity = new Map<string, Set<string>>();
+    for (const { input_slug, entity_id, related_slug } of rows) {
+      if (!inputSlugsByEntity.has(entity_id)) {
+        inputSlugsByEntity.set(entity_id, new Set());
+        relatedSlugsByEntity.set(entity_id, new Set());
+      }
+      inputSlugsByEntity.get(entity_id)!.add(input_slug);
+      relatedSlugsByEntity.get(entity_id)!.add(related_slug);
+    }
+
+    const matchedInputSlugs = new Set(rows.map(row => row.input_slug));
+    const expanded: Entitlements = {};
+
+    // Unmatched keys (e.g. spatial_filter) pass through unchanged.
+    for (const slug of slugs) {
+      if (!matchedInputSlugs.has(slug)) {
+        expanded[slug] = entitlements[slug]!;
+      }
+    }
+
+    // For each entity, merge the capabilities held under any of its matched input slugs, then
+    // write that merged list under every slug the entity has ever had.
+    for (const [entityId, matchedSlugsForEntity] of inputSlugsByEntity) {
+      let merged: Capability[] = [];
+      for (const inputSlug of matchedSlugsForEntity) {
+        merged = mergeCapabilities(merged, entitlements[inputSlug]!);
+      }
+      for (const relatedSlug of relatedSlugsByEntity.get(entityId)!) {
+        expanded[relatedSlug] = merged;
+      }
+    }
+
+    return expanded;
   };
 
   async callEntitlementsEndpoint(requestData: RequestData): Promise<Entitlements> {
