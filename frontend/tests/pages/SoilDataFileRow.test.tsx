@@ -196,4 +196,35 @@ describe('SoilDataFileRow', () => {
     expect(screen.getByText('lat')).toBeInTheDocument();
     expect(screen.getByText('lon')).toBeInTheDocument();
   });
+
+  describe('CRS panel width', () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it('does not apply an explicit panel width when a 2D canvas context is unavailable (e.g. in jsdom)', () => {
+      render(<SoilDataFileRow soilDataFile={mockFile} onCrsChange={onCrsChange} onRemove={onRemove} crsOptions={mockCrsOptions} />);
+
+      fireEvent.focus(screen.getByRole('combobox'));
+
+      const panel = document.querySelector('.p-autocomplete-panel') as HTMLElement;
+      expect(panel).toBeInTheDocument();
+      expect(panel.style.width).toBe('');
+    });
+
+    it('sizes the panel to the longest "EPSG:<code> - <name>" option, measuring only that one', () => {
+      const measureText = jest.fn((text: string) => ({ width: text.length * 10 }) as TextMetrics);
+      jest.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({ measureText, font: '' } as any);
+
+      render(<SoilDataFileRow soilDataFile={mockFile} onCrsChange={onCrsChange} onRemove={onRemove} crsOptions={mockCrsOptions} />);
+      fireEvent.focus(screen.getByRole('combobox'));
+
+      const longestOption = 'EPSG:3857 - WGS 84 / Pseudo-Mercator';
+      expect(measureText).toHaveBeenCalledTimes(1);
+      expect(measureText).toHaveBeenCalledWith(longestOption);
+
+      const panel = document.querySelector('.p-autocomplete-panel') as HTMLElement;
+      expect(panel.style.width).toBe(`${longestOption.length * 10 + 32}px`);
+    });
+  });
 });
