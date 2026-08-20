@@ -4,11 +4,16 @@ import { DatasetsSidebar } from 'components/DatasetsSidebar/DatasetsSidebar';
 import useDevice from 'hooks/useDevice';
 import { useNavigate } from 'react-router';
 import { AvailabilityContext } from '../../../src/contexts/AvailabilityContext';
+import { useEntitlements } from 'hooks/useEntitlementsHook';
 import { Capability, GISDataType } from 'types/backend';
 
 jest.mock('hooks/useDevice', () => ({
   __esModule: true,
   default: jest.fn(),
+}));
+
+jest.mock('hooks/useEntitlementsHook', () => ({
+  useEntitlements: jest.fn(),
 }));
 
 jest.mock('react-router', () => ({
@@ -35,9 +40,10 @@ jest.mock('components/DatasetsSidebar/DatasetsList/DatasetsList', () => ({
 jest.mock('../../../src/contexts/AvailabilityContext', () => {
   return {
     __esModule: true,
+    // Public visibility grants both Explore and Download on its own, without an entitlements
+    // row — matches the old default fixture's "preview" + "download" capabilities.
     AvailabilityContext: React.createContext({
-      // string literals, not Capability.*: jest hoists this factory above the module's imports
-      availableDatasets: [{ id: 'test-dataset', capabilities: ['preview', 'download'] }],
+      availableDatasets: [{ id: 'test-dataset', visibility: 'public' }],
       filterId: 'mock-filter-id',
       datasetFrontendFilters: { type: [] },
       datasetsSummary: { count: 5, dataPoints: 1000, layers: 3, depth: '0-30', date: '2020 - 2024' },
@@ -54,6 +60,13 @@ jest.mock('../../../src/contexts/AvailabilityMapContext', () => {
     }),
   };
 });
+
+function mockCan(capabilitiesById: Record<string, Capability[]>) {
+  (useEntitlements as jest.Mock).mockReturnValue({
+    can: (capability: Capability, id?: string) => (id ? (capabilitiesById[id] ?? []).includes(capability) : false),
+    isLoading: false,
+  });
+}
 
 function renderWithDatasets(availableDatasets: unknown[]) {
   const contextValue = {
@@ -73,6 +86,7 @@ function renderWithDatasets(availableDatasets: unknown[]) {
 describe('DatasetsSidebar', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockCan({});
   });
 
   it('renders the sidebar with header on desktop layout', () => {
@@ -115,16 +129,18 @@ describe('DatasetsSidebar', () => {
 
   it('enables explore button when only raster datasets are available', () => {
     (useDevice as jest.Mock).mockReturnValue({ isDesktopLayout: true, isMobileLayout: false });
+    mockCan({ 'raster-dataset': [Capability.PREVIEW] });
 
-    renderWithDatasets([{ id: 'raster-dataset', data_type: GISDataType.RASTER, capabilities: [Capability.PREVIEW] }]);
+    renderWithDatasets([{ id: 'raster-dataset', data_type: GISDataType.RASTER, visibility: 'private' }]);
 
     expect(screen.getByRole('button', { name: /explore/i })).toBeEnabled();
   });
 
   it('enables only explore for a dataset with PREVIEW but not DOWNLOAD', () => {
     (useDevice as jest.Mock).mockReturnValue({ isDesktopLayout: true, isMobileLayout: false });
+    mockCan({ 'preview-only-dataset': [Capability.PREVIEW] });
 
-    renderWithDatasets([{ id: 'preview-only-dataset', capabilities: [Capability.PREVIEW] }]);
+    renderWithDatasets([{ id: 'preview-only-dataset', visibility: 'private' }]);
 
     expect(screen.getByRole('button', { name: /explore/i })).toBeEnabled();
     expect(screen.getByRole('button', { name: /download/i })).toBeDisabled();
@@ -132,8 +148,9 @@ describe('DatasetsSidebar', () => {
 
   it('enables only download for a dataset with DOWNLOAD but not PREVIEW', () => {
     (useDevice as jest.Mock).mockReturnValue({ isDesktopLayout: true, isMobileLayout: false });
+    mockCan({ 'download-only-dataset': [Capability.DOWNLOAD] });
 
-    renderWithDatasets([{ id: 'download-only-dataset', capabilities: [Capability.DOWNLOAD] }]);
+    renderWithDatasets([{ id: 'download-only-dataset', visibility: 'private' }]);
 
     expect(screen.getByRole('button', { name: /explore/i })).toBeDisabled();
     expect(screen.getByRole('button', { name: /download/i })).toBeEnabled();

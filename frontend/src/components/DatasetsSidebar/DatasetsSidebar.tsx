@@ -8,7 +8,7 @@ import useAvailability from 'hooks/useAvailability';
 import useAvailabilityMap from 'hooks/useAvailabilityMap';
 import { useTranslation } from 'react-i18next';
 import { Capability } from 'types/backend';
-import { hasCapability } from '../../domain';
+import { useEntitlements } from 'hooks/useEntitlementsHook';
 
 import styles from './DatasetsSidebar.module.scss';
 import { useNavigate } from 'react-router';
@@ -25,16 +25,17 @@ export function DatasetsSidebar({ isOpened, onClose }: Props) {
   const { isDesktopLayout, isMobileLayout } = useDevice();
   const { availableDatasets, filterId, datasetFrontendFilters, datasetsSummary, isCoverageLoading, isDatasetsLoading } = useAvailability();
   const { selectionType, locationName } = useAvailabilityMap();
+  const { can } = useEntitlements();
 
   const navigate = useNavigate();
 
   const previewDatasetIds = useMemo(
-    () => availableDatasets.filter(dataset => hasCapability(dataset, Capability.PREVIEW)).map(dataset => dataset.id),
-    [availableDatasets],
+    () => availableDatasets.filter(dataset => dataset.visibility === 'public' || can(Capability.PREVIEW, dataset.id)).map(dataset => dataset.id),
+    [availableDatasets, can],
   );
   const downloadDatasetIds = useMemo(
-    () => availableDatasets.filter(dataset => hasCapability(dataset, Capability.DOWNLOAD)).map(dataset => dataset.id),
-    [availableDatasets],
+    () => availableDatasets.filter(dataset => dataset.visibility === 'public' || can(Capability.DOWNLOAD, dataset.id)).map(dataset => dataset.id),
+    [availableDatasets, can],
   );
 
   const handleDownloadClick = () => {

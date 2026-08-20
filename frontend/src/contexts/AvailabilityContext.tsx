@@ -13,7 +13,7 @@ import {
   type FilteredData,
   type FilteredDataset,
 } from 'types/backend';
-import { applyDataScopeCriteria, computeDatasetSummary, hasCapability } from '../domain';
+import { applyDataScopeCriteria, computeDatasetSummary } from '../domain';
 import { useDataFilterQuery } from 'hooks/useDataFilterQuery';
 import { useSoilProperties } from '../hooks/useSoilProperties';
 import { usePropertiesCategories } from 'hooks/usePropertiesCategories';
@@ -21,6 +21,7 @@ import { useRaster } from 'hooks/useRaster';
 import useAvailabilityMap from '../hooks/useAvailabilityMap';
 import { useFilteredCoverageQuery } from 'hooks/useFilteredCoverageQuery';
 import { useFilteredDatasetsQuery } from 'hooks/useFilteredDatasetsQuery';
+import { useEntitlements } from 'hooks/useEntitlementsHook';
 
 type AvailabilityContextType = {
   allSoilProperties: SoilProperty[];
@@ -97,6 +98,13 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
   const [selectedSoilProperties, setSelectedSoilProperties] = useState<string[]>([]);
   const [selectedTimeFilter, setSelectedTimeFilter] = useState<TimeFilterState>({});
 
+  const { can } = useEntitlements();
+  const isAvailableDataset = useCallback(
+    (dataset: { id: string; visibility: string }) =>
+      dataset.visibility === 'public' || can(Capability.DOWNLOAD, dataset.id) || can(Capability.PREVIEW, dataset.id),
+    [can],
+  );
+
   const selectDataset = useCallback(
     (id: string) => {
       const newValue = selectedDatasets.includes(id) ? selectedDatasets.filter(selectedId => selectedId !== id) : [...selectedDatasets, id];
@@ -123,16 +131,10 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
   const selectAllDatasets = useCallback(
     (select: boolean) => {
       const datasets = fullFilterResults?.datasets || fullFilterDatasets;
-      setSelectedDatasets(
-        select && datasets
-          ? datasets
-              .filter(dataset => hasCapability(dataset, Capability.DOWNLOAD) || hasCapability(dataset, Capability.PREVIEW))
-              .map(result => result.id)
-          : [],
-      );
+      setSelectedDatasets(select && datasets ? datasets.filter(isAvailableDataset).map(result => result.id) : []);
       setIsAllSelected(select);
     },
-    [fullFilterResults, fullFilterDatasets],
+    [fullFilterResults, fullFilterDatasets, isAvailableDataset],
   );
 
   const allDatasets = useMemo(() => {
@@ -223,9 +225,7 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
 
   const availableDatasets = useMemo(() => {
     const datasets = fullFilterResults ? fullFilterResults.datasets : fullFilterDatasets || [];
-    const allowedDatasets = datasets.filter(
-      dataset => hasCapability(dataset, Capability.DOWNLOAD) || hasCapability(dataset, Capability.PREVIEW),
-    );
+    const allowedDatasets = datasets.filter(isAvailableDataset);
     if (selectedDatasets.length > 0) {
       const datasetIds = new Set(allowedDatasets.map(dataset => dataset.id));
       // Excludes the selected datasets that are not available anymore in the current
@@ -236,7 +236,7 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
       }
     }
     return allowedDatasets.sort((a, b) => a.name.localeCompare(b.name, 'en', { sensitivity: 'base' }));
-  }, [fullFilterResults, fullFilterDatasets, selectedDatasets]);
+  }, [fullFilterResults, fullFilterDatasets, selectedDatasets, isAvailableDataset]);
 
   return (
     <AvailabilityContext.Provider

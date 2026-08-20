@@ -1,11 +1,16 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { DatasetsListItem } from 'components/DatasetsSidebar/DatasetsList/DatasetsListItem/DatasetsListItem';
 import useAvailability from 'hooks/useAvailability';
+import { useEntitlements } from 'hooks/useEntitlementsHook';
 import { Capability } from 'types/backend';
 
 jest.mock('hooks/useAvailability', () => ({
   __esModule: true,
   default: jest.fn(),
+}));
+
+jest.mock('hooks/useEntitlementsHook', () => ({
+  useEntitlements: jest.fn(),
 }));
 
 jest.mock('components/UI', () => ({
@@ -34,7 +39,6 @@ const mockDataset = {
   tags: ['Global', 'Primary'],
   visibility: 'public',
   dataType: 'point',
-  capabilities: [Capability.DOWNLOAD],
   properties: {
     points: 34546,
     layers: 12,
@@ -45,6 +49,13 @@ const mockDataset = {
   },
 };
 
+function mockCapabilities(capabilities: Capability[]) {
+  (useEntitlements as jest.Mock).mockReturnValue({
+    can: (capability: Capability) => capabilities.includes(capability),
+    isLoading: false,
+  });
+}
+
 describe('DatasetsListItem', () => {
   const mockSelectDataset = jest.fn();
 
@@ -54,6 +65,7 @@ describe('DatasetsListItem', () => {
       selectedDatasets: ['dataset-1'],
       selectDataset: mockSelectDataset,
     });
+    mockCapabilities([Capability.DOWNLOAD]);
   });
 
   it('renders main dataset info', () => {
@@ -125,39 +137,34 @@ describe('DatasetsListItem', () => {
   });
 
   it('renders a selectable checkbox for a private dataset with the download capability', () => {
-    render(<DatasetsListItem dataset={{ ...mockDataset, visibility: 'private', capabilities: [Capability.DOWNLOAD] }} />);
+    mockCapabilities([Capability.DOWNLOAD]);
+    render(<DatasetsListItem dataset={{ ...mockDataset, visibility: 'private' }} />);
 
     expect(screen.getByTestId('mock-checkbox')).toBeInTheDocument();
     expect(screen.queryByText(mockDataset.name, { selector: 'p' })).not.toBeInTheDocument();
   });
 
   it('renders a selectable checkbox for a private dataset with only the preview capability', () => {
-    render(<DatasetsListItem dataset={{ ...mockDataset, visibility: 'private', capabilities: [Capability.PREVIEW] }} />);
+    mockCapabilities([Capability.PREVIEW]);
+    render(<DatasetsListItem dataset={{ ...mockDataset, visibility: 'private' }} />);
 
     expect(screen.getByTestId('mock-checkbox')).toBeInTheDocument();
     expect(screen.queryByText(mockDataset.name, { selector: 'p' })).not.toBeInTheDocument();
   });
 
   it('suppresses the checkbox and renders fallback text for a private dataset without the download capability', () => {
-    render(<DatasetsListItem dataset={{ ...mockDataset, visibility: 'private', capabilities: [] }} />);
+    mockCapabilities([]);
+    render(<DatasetsListItem dataset={{ ...mockDataset, visibility: 'private' }} />);
 
     expect(screen.queryByTestId('mock-checkbox')).not.toBeInTheDocument();
     expect(screen.getByText(mockDataset.name, { selector: 'p' })).toBeInTheDocument();
   });
 
-  it('renders a selectable checkbox for a public dataset with no capabilities field (old backend response)', () => {
-    const { capabilities: _capabilities, ...datasetWithoutCapabilities } = mockDataset;
-    render(<DatasetsListItem dataset={{ ...datasetWithoutCapabilities, visibility: 'public' }} />);
+  it('renders a selectable checkbox for a public dataset even with no entitlements at all', () => {
+    mockCapabilities([]);
+    render(<DatasetsListItem dataset={{ ...mockDataset, visibility: 'public' }} />);
 
     expect(screen.getByTestId('mock-checkbox')).toBeInTheDocument();
     expect(screen.queryByText(mockDataset.name, { selector: 'p' })).not.toBeInTheDocument();
-  });
-
-  it('suppresses the checkbox for a private dataset with no capabilities field (old backend response)', () => {
-    const { capabilities: _capabilities, ...datasetWithoutCapabilities } = mockDataset;
-    render(<DatasetsListItem dataset={{ ...datasetWithoutCapabilities, visibility: 'private' }} />);
-
-    expect(screen.queryByTestId('mock-checkbox')).not.toBeInTheDocument();
-    expect(screen.getByText(mockDataset.name, { selector: 'p' })).toBeInTheDocument();
   });
 });

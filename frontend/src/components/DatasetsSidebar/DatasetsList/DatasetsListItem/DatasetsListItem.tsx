@@ -15,16 +15,17 @@ import useAvailability from 'hooks/useAvailability';
 import { useTranslation } from 'react-i18next';
 import { MetaItem } from './MetaItem/MetaItem';
 import { Capability, GISDataType } from '../../../../types/backend';
-import { hasCapability } from '../../../../domain';
+import { useEntitlements } from 'hooks/useEntitlementsHook';
 
 type Props = {
   dataset: AvailabilityDataset;
 };
 export function DatasetsListItem({ dataset }: Props) {
   const { selectedDatasets, selectDataset, isCoverageLoading } = useAvailability();
+  const { can } = useEntitlements();
   const [isOpened, setIsOpened] = useState<boolean>(false);
   const { t } = useTranslation('availability');
-  const isSelectable = hasCapability(dataset, Capability.DOWNLOAD) || hasCapability(dataset, Capability.PREVIEW);
+  const isSelectable = dataset.visibility === 'public' || can(Capability.DOWNLOAD, dataset.id) || can(Capability.PREVIEW, dataset.id);
 
   return (
     <div data-testid="sh-datasets-list-item" className={classnames(styles.DatasetsListItem, { [styles.Opened]: isOpened })}>

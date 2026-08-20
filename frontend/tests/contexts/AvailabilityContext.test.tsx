@@ -9,6 +9,7 @@ import { useSoilProperties } from 'hooks/useSoilProperties';
 import { usePropertiesCategories } from 'hooks/usePropertiesCategories';
 import { useRaster } from 'hooks/useRaster';
 import useAvailabilityMap from 'hooks/useAvailabilityMap';
+import { useEntitlements } from 'hooks/useEntitlementsHook';
 import { Capability, GISDataType, type FilteredDatasetSummary } from 'types/backend';
 
 jest.mock('../../src/auth/AuthContextProvider', () => ({
@@ -24,6 +25,7 @@ jest.mock('hooks/useAvailabilityMap', () => ({
   __esModule: true,
   default: jest.fn(),
 }));
+jest.mock('hooks/useEntitlementsHook', () => ({ useEntitlements: jest.fn() }));
 
 const publicDataset: FilteredDatasetSummary = {
   id: 'dataset-public',
@@ -32,7 +34,6 @@ const publicDataset: FilteredDatasetSummary = {
   visibility: 'public',
   dataset_layer_count: 1,
   raster_layer_count: 0,
-  capabilities: [Capability.PREVIEW, Capability.DOWNLOAD],
 };
 
 const privateDownloadableDataset: FilteredDatasetSummary = {
@@ -42,7 +43,6 @@ const privateDownloadableDataset: FilteredDatasetSummary = {
   visibility: 'private',
   dataset_layer_count: 1,
   raster_layer_count: 0,
-  capabilities: [Capability.DOWNLOAD],
 };
 
 const privateNonDownloadableDataset: FilteredDatasetSummary = {
@@ -52,7 +52,6 @@ const privateNonDownloadableDataset: FilteredDatasetSummary = {
   visibility: 'private',
   dataset_layer_count: 1,
   raster_layer_count: 0,
-  capabilities: [],
 };
 
 const privatePreviewOnlyDataset: FilteredDatasetSummary = {
@@ -62,26 +61,14 @@ const privatePreviewOnlyDataset: FilteredDatasetSummary = {
   visibility: 'private',
   dataset_layer_count: 1,
   raster_layer_count: 0,
-  capabilities: [Capability.PREVIEW],
 };
 
-// No `capabilities` field at all, as an old backend not yet carrying this ADR's change would send.
-const publicDatasetNoCapabilities: FilteredDatasetSummary = {
-  id: 'dataset-public-no-capabilities',
-  name: 'Public Dataset From Old Backend',
-  data_type: GISDataType.POINT,
-  visibility: 'public',
-  dataset_layer_count: 1,
-  raster_layer_count: 0,
-};
-
-const privateDatasetNoCapabilities: FilteredDatasetSummary = {
-  id: 'dataset-private-no-capabilities',
-  name: 'Private Dataset From Old Backend',
-  data_type: GISDataType.POINT,
-  visibility: 'private',
-  dataset_layer_count: 1,
-  raster_layer_count: 0,
+// Entitlements map backing the mocked `can()`, keyed by dataset id. `publicDataset` has no
+// entry: public access comes from `visibility`, not from an entitlements row.
+const capabilitiesById: Record<string, Capability[]> = {
+  [privateDownloadableDataset.id]: [Capability.DOWNLOAD],
+  [privateNonDownloadableDataset.id]: [],
+  [privatePreviewOnlyDataset.id]: [Capability.PREVIEW],
 };
 
 describe('AvailabilityContext', () => {
@@ -92,14 +79,7 @@ describe('AvailabilityContext', () => {
     (useDataFilterQuery as jest.Mock).mockReturnValue({ filterId: 'filter-1', selectedFilters: undefined, isLoading: false });
     (useFilteredCoverageQuery as jest.Mock).mockReturnValue({
       data: {
-        datasets: [
-          publicDataset,
-          privateDownloadableDataset,
-          privateNonDownloadableDataset,
-          privatePreviewOnlyDataset,
-          publicDatasetNoCapabilities,
-          privateDatasetNoCapabilities,
-        ],
+        datasets: [publicDataset, privateDownloadableDataset, privateNonDownloadableDataset, privatePreviewOnlyDataset],
         raster_filters: {},
       },
       isLoading: false,
@@ -108,6 +88,10 @@ describe('AvailabilityContext', () => {
     (useSoilProperties as jest.Mock).mockReturnValue({ data: [], isLoading: false });
     (usePropertiesCategories as jest.Mock).mockReturnValue({ data: [], isLoading: false });
     (useRaster as jest.Mock).mockReturnValue({ allCategories: [], isLoading: false, setCategoryActive: jest.fn() });
+    (useEntitlements as jest.Mock).mockReturnValue({
+      can: (capability: Capability, id?: string) => (id ? (capabilitiesById[id] ?? []).includes(capability) : false),
+      isLoading: false,
+    });
   });
 
   it('availableDatasets includes datasets with the download or the preview capability', () => {
@@ -120,14 +104,6 @@ describe('AvailabilityContext', () => {
     expect(availableIds).not.toContain(privateNonDownloadableDataset.id);
   });
 
-  it('availableDatasets falls back to visibility when capabilities is absent (old backend response)', () => {
-    const { result } = renderHook(() => useAvailability(), { wrapper: AvailabilityProvider });
-
-    const availableIds = result.current.availableDatasets.map(dataset => dataset.id);
-    expect(availableIds).toContain(publicDatasetNoCapabilities.id);
-    expect(availableIds).not.toContain(privateDatasetNoCapabilities.id);
-  });
-
   it('selectAllDatasets(true) selects datasets with the download or the preview capability', () => {
     const { result } = renderHook(() => useAvailability(), { wrapper: AvailabilityProvider });
 
@@ -136,19 +112,8 @@ describe('AvailabilityContext', () => {
     });
 
     expect(result.current.selectedDatasets.sort()).toEqual(
-      [privateDownloadableDataset.id, publicDataset.id, privatePreviewOnlyDataset.id, publicDatasetNoCapabilities.id].sort(),
+      [privateDownloadableDataset.id, publicDataset.id, privatePreviewOnlyDataset.id].sort(),
     );
     expect(result.current.selectedDatasets).not.toContain(privateNonDownloadableDataset.id);
-  });
-
-  it('selectAllDatasets(true) falls back to visibility when capabilities is absent (old backend response)', () => {
-    const { result } = renderHook(() => useAvailability(), { wrapper: AvailabilityProvider });
-
-    act(() => {
-      result.current.selectAllDatasets(true);
-    });
-
-    expect(result.current.selectedDatasets).toContain(publicDatasetNoCapabilities.id);
-    expect(result.current.selectedDatasets).not.toContain(privateDatasetNoCapabilities.id);
   });
 });
