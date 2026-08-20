@@ -106,6 +106,16 @@
  * already on disk and the measurement stands regardless.
  * Compare runs with `npm run perf:diff -- <baseline.json> <current.json>`
  * (without arguments the two most recent runs are compared).
+ *
+ * In a container (the `soilhive-core-perf` image, docs/adr/0029) four of the
+ * assumptions above do not hold, and each has its own escape hatch here:
+ * there is no `git` (PERF_GIT_SHA/PERF_GIT_BRANCH stand in), no .env (every
+ * knob arrives through the environment, so the read ordering above still
+ * executes but no longer discriminates), no durable disk
+ * (PERF_REQUIRE_PUBLISH=true makes the S3 upload a precondition and a failed
+ * one a failed run) and no reason for the runner and the server it spawns to
+ * share a heap (PERF_SERVER_NODE_OPTIONS sets the child's). None of them
+ * change how a developer's run behaves.
  */
 import { ChildProcess, execSync, spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -116,7 +126,7 @@ import { config } from 'dotenv';
 import { Client } from 'pg';
 import { CACHE_BYPASS_APPLIED_VALUE, CACHE_BYPASS_HEADER } from '../../utils/cache-bypass';
 import { getDBPassword, getSSL } from '../../utils/db-credentials';
-import { publishPerfArtifacts } from './publish';
+import { isPerfPublishEnabled, isPerfPublishRequired, publishPerfArtifacts } from './publish';
 import { renderRunHtml } from './report';
 import { AssetFingerprint, computeStats, DatasetFingerprint, fileTimestamp, PERF_RUN_VERSION, PerfRun, ResultRow, rowKey } from './types';
 
@@ -162,6 +172,16 @@ const DAI_RESOLUTIONS = (process.env['PERF_DAI_RESOLUTIONS'] || '3,5,7').split('
 // row consumes. The plain GET /data-filters/{filterId} row only runs unrestricted.
 const ENDPOINT_OPTIONS = ['coverage', 'datasets', 'soil-data', 'dai'] as const;
 type PerfEndpoint = (typeof ENDPOINT_OPTIONS)[number];
+/*
+ * NODE_OPTIONS for the server spawned in managed mode, replacing the one this
+ * process runs with. They have to be separable: the backend image runs
+ * production on --max-old-space-size=256, while this process parses every asset
+ * up front and holds each row's response bodies, so one shared cap either
+ * measures a heap production does not have or risks an OOM in the measuring
+ * tool near the end of a long run (docs/adr/0029). Empty = the child inherits
+ * ours, which is what a developer run has always done.
+ */
+const SERVER_NODE_OPTIONS = (process.env['PERF_SERVER_NODE_OPTIONS'] || '').trim();
 const REQUEST_TIMEOUT_MS = Number(process.env['PERF_TIMEOUT_MS']) || 120_000;
 const SERVER_START_TIMEOUT_MS = Number(process.env['PERF_SERVER_TIMEOUT_MS']) || 60_000;
 const PORT = Number(process.env.PORT) || 4001;
@@ -216,7 +236,22 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 const sha256 = (content: string | Buffer): string => createHash('sha256').update(content).digest('hex');
 
-const git = (args: string): string => execSync(`git ${args}`, { cwd: BACKEND_ROOT, encoding: 'utf8' }).trim();
+/*
+ * Git metadata, or the build-time value baked in its place. There is no `git`
+ * and no .git in the perf image — .dockerignore excludes it — so a container
+ * run falls back to PERF_GIT_SHA/PERF_GIT_BRANCH, set from build args
+ * (docs/adr/0029). That is the semantically right value rather than a
+ * workaround: ADR 0024 notes the recorded sha describes *the suite*, and in a
+ * container the suite is the image. `diff.ts` never compares these fields — they
+ * name result files and head the reports — so a fallback costs no comparability.
+ */
+const git = (args: string, fallback: string): string => {
+  try {
+    return execSync(`git ${args}`, { cwd: BACKEND_ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+  } catch {
+    return fallback;
+  }
+};
 
 // ---------------------------------------------------------------------------
 // Asset discovery
@@ -280,6 +315,22 @@ const discoverParamsVariants = (assetName: string, files: string[]): ParamsVaria
     });
   // The unfiltered default always runs first, so every asset has a worst-case baseline row
   return [defaultVariant, ...sidecars];
+};
+
+/*
+ * Refuses to measure anything when the run is required to publish but has
+ * nowhere to publish to. A precondition rather than a check at the end: the
+ * upload is the only durable record a container leaves, so discovering the
+ * misconfiguration after the measuring is discovering it too late — the work is
+ * spent and unrecoverable (docs/adr/0029).
+ */
+const validatePublishTarget = (): void => {
+  if (isPerfPublishRequired() && !isPerfPublishEnabled()) {
+    throw new RunAbort(
+      'PERF_REQUIRE_PUBLISH=true but STORAGE_MODE is not s3, so the results could not be published anywhere. ' +
+        'Set STORAGE_MODE=s3 (with the S3_* variables), or unset PERF_REQUIRE_PUBLISH to keep results on local disk only.',
+    );
+  }
 };
 
 const parseEndpointFilter = (): PerfEndpoint | null => {
@@ -449,7 +500,10 @@ const startServer = async (): Promise<{ child: ChildProcess; outputTail: () => s
   let output = '';
   const child = spawn(process.execPath, [distApp], {
     cwd: BACKEND_ROOT,
-    env: process.env,
+    // The child is the system under test, so its heap is part of what is being
+    // measured and must be settable independently of ours (see
+    // SERVER_NODE_OPTIONS).
+    env: { ...process.env, ...(SERVER_NODE_OPTIONS.length > 0 ? { NODE_OPTIONS: SERVER_NODE_OPTIONS } : {}) },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   const append = (chunk: Buffer) => {
@@ -714,13 +768,16 @@ const extractSoilDataDatasetIds = (datasetsBody: string): string[] | null => {
 
 const main = async () => {
   const wallClockStart = performance.now();
+  validatePublishTarget();
   validateAttachedTarget();
   validateCacheBypass();
   const endpointFilter = parseEndpointFilter();
   const assets = discoverAssets();
-  const gitSha = git('rev-parse HEAD');
-  const gitBranch = git('rev-parse --abbrev-ref HEAD');
-  const gitDirty = git('status --porcelain') !== '';
+  const gitSha = git('rev-parse HEAD', (process.env['PERF_GIT_SHA'] || 'unknown').trim());
+  const gitBranch = git('rev-parse --abbrev-ref HEAD', (process.env['PERF_GIT_BRANCH'] || 'unknown').trim());
+  // An image is built from a committed tree, so false is a fact about it rather
+  // than a default: with no working tree there is nothing that could be dirty.
+  const gitDirty = git('status --porcelain', '') !== '';
   const timestamp = new Date().toISOString();
 
   // The target is stated up front, before any measuring: it decides what the run
@@ -954,7 +1011,11 @@ const main = async () => {
     fs.writeFileSync(jsonPath, JSON.stringify(run, null, 2));
     fs.writeFileSync(htmlPath, renderRunHtml(run));
     // After both files exist, so a publish failure can never cost us the run.
-    await publishPerfArtifacts([jsonPath, htmlPath]);
+    const published = await publishPerfArtifacts([jsonPath, htmlPath]);
+    if (!published && isPerfPublishRequired()) {
+      console.error('\n✗ PERF_REQUIRE_PUBLISH=true and the artifacts were not all published — this run leaves no durable record.');
+      process.exitCode = 1;
+    }
 
     console.log('\nMedian latency per row:');
     for (const row of results) {

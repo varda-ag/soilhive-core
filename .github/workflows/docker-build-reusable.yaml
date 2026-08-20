@@ -12,10 +12,29 @@ on:
         type: string
         required: false
         default: .
+      file:
+        description: >-
+          Path to the Dockerfile, relative to the repository root. Defaults to
+          <context>/Dockerfile, which is what the backend and frontend images
+          use. Set it only when the Dockerfile lives outside its own build
+          context — the perf image keeps its Dockerfile beside the code it
+          packages (backend/src/scripts/perf) while building from `backend`,
+          because a context holding only that directory cannot reach
+          package.json or tests/assets (docs/adr/0029)
+        type: string
+        required: false
+        default: ''
       image-version:
         description: The version tag to apply to the built Docker image
         type: string
         required: true
+      build-args:
+        description: >-
+          Newline-separated KEY=VALUE build arguments. Empty for images that
+          declare no ARG, since buildx warns about build args nothing consumed
+        type: string
+        required: false
+        default: ''
       cleanup-on-failure:
         description: Wether to delete or not the images on any failure (image tags can't be pushed twice)
         type: boolean
@@ -87,6 +106,8 @@ jobs:
         uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7.1.0
         with:
           context: ${{ inputs.context }}
+          file: ${{ inputs.file }}
+          build-args: ${{ inputs.build-args }}
           platforms: ${{ matrix.platform.dockerName }}
           push: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
           tags: ${{ steps.meta.outputs.tags }}

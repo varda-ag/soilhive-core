@@ -22,14 +22,63 @@
  * s3://$S3_STORAGE_BUCKET/perf-results/ alongside the runs it compares. Its
  * default name leads with the current run's timestamp, so it is unique per pair
  * and sorts next to the run it describes.
+ *
+ * `--after-run` is the mode the perf image's entrypoint uses, and it inverts two
+ * of the assumptions above (docs/adr/0029). The current run is the newest local
+ * file — runner.ts has just written it — but the *baseline* is looked up in the
+ * results bucket, because a container's local directory is not a run history: it
+ * holds that one file and nothing else. And "no eligible baseline" stops being
+ * an error, since it is exactly what a first scheduled run against a target
+ * looks like; a bucket that cannot be read still fails, because confusing the
+ * two would let a revoked permission pass for a fresh start indefinitely.
+ *
+ * PERF_DIFF_FAIL_ON_REGRESSION=true additionally makes this process exit
+ * non-zero on newly failing rows and on regressions beyond
+ * PERF_DIFF_FAIL_THRESHOLD — a second, higher threshold than the report's
+ * PERF_DIFF_THRESHOLD, for the reason given at its declaration. Off by default:
+ * a developer's diff reports, it does not judge.
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import { escapeHtml, formatBytes, formatMs, PAGE_CSS, renderFingerprintHtml } from './report';
-import { publishPerfArtifacts } from './publish';
+import { fetchPerfArtifact, isPerfPublishEnabled, isPerfPublishRequired, listPerfRunNames, publishPerfArtifacts } from './publish';
 import { Fingerprint, fileTimestamp, LatencyStats, PERF_RUN_VERSION, PerfRun, ResultRow } from './types';
 
 const THRESHOLD = Number(process.env['PERF_DIFF_THRESHOLD']) || 0.15;
+
+/*
+ * Whether a regression makes this process exit non-zero. Off by default, so a
+ * developer's diff still just prints a report. A schedule turns it on — the
+ * image deliberately does not, since whether a regression should page someone
+ * is the schedule's policy, not a property of the image (docs/adr/0029).
+ */
+const FAIL_ON_REGRESSION = process.env['PERF_DIFF_FAIL_ON_REGRESSION'] === 'true';
+
+/*
+ * The threshold that decides the *exit code*, deliberately separate from
+ * THRESHOLD, which decides how rows are coloured in the report. One knob cannot
+ * do both jobs: raising it to stop a noisy schedule from flapping would also
+ * stop the report from highlighting the regressions it is meant to show. The
+ * noise floor is the operator's to measure — PERF_ITERATIONS=1 makes a median a
+ * single sample, and consecutive attached-mode iterations may land on nodes in
+ * different cache states (docs/adr/0024).
+ */
+const FAIL_THRESHOLD = Number(process.env['PERF_DIFF_FAIL_THRESHOLD']) || 0.3;
+
+/*
+ * How far back through the published runs to look for a baseline. The bucket is
+ * shared by every target and both cache modes, so the newest file is very often
+ * not an eligible pair; the cap is what stops "no eligible baseline" from
+ * turning into an unbounded download of run history.
+ */
+const S3_LOOKBACK = Number(process.env['PERF_DIFF_LOOKBACK']) || 25;
+
+/**
+ * Selects the mode the perf image's entrypoint uses: diff the run that just
+ * finished against the newest eligible earlier one, wherever it lives, and treat
+ * "there isn't one" as a normal outcome rather than an error.
+ */
+const AFTER_RUN_FLAG = '--after-run';
 
 type RowClass = 'regression' | 'improvement' | 'neutral';
 
@@ -81,32 +130,120 @@ const pairingKeyOf = (fp: Fingerprint): string => `${targetOf(fp)} — ${cacheMo
  * touches older files than the previous "last two" rule did, and one
  * incompatible leftover in the directory must not break the default comparison.
  */
-const findLastTwoRuns = (): [string, string] => {
-  const files = fs.existsSync(RESULTS_DIR)
+const localRunFiles = (): string[] =>
+  fs.existsSync(RESULTS_DIR)
     ? fs
         .readdirSync(RESULTS_DIR)
         .filter(f => f.endsWith('.json'))
         .sort()
     : [];
-  if (files.length < 2) {
-    throw new Error(`Need at least two run files in ${RESULTS_DIR} to compare without arguments (found ${files.length})`);
-  }
-  const currentFile = path.join(RESULTS_DIR, files[files.length - 1]!);
-  const pairingKey = pairingKeyOf(loadRun(currentFile).fingerprint);
-  for (let i = files.length - 2; i >= 0; i--) {
+
+/**
+ * Newest local run older than `files[from]` whose pairing key matches, or null.
+ * Candidates that fail to load are skipped rather than fatal — see
+ * findLastTwoRuns.
+ */
+const findLocalBaseline = (files: string[], from: number, pairingKey: string): string | null => {
+  for (let i = from; i >= 0; i--) {
     const candidateFile = path.join(RESULTS_DIR, files[i]!);
     try {
       if (pairingKeyOf(loadRun(candidateFile).fingerprint) === pairingKey) {
-        return [candidateFile, currentFile];
+        return candidateFile;
       }
     } catch {
       // Unreadable or incompatible run file — not a candidate baseline
     }
   }
+  return null;
+};
+
+const findLastTwoRuns = (): [string, string] => {
+  const files = localRunFiles();
+  if (files.length < 2) {
+    throw new Error(`Need at least two run files in ${RESULTS_DIR} to compare without arguments (found ${files.length})`);
+  }
+  const currentFile = path.join(RESULTS_DIR, files[files.length - 1]!);
+  const pairingKey = pairingKeyOf(loadRun(currentFile).fingerprint);
+  const baselineFile = findLocalBaseline(files, files.length - 2, pairingKey);
+  if (baselineFile !== null) {
+    return [baselineFile, currentFile];
+  }
   throw new Error(
     `No earlier run matching "${pairingKey}" found in ${RESULTS_DIR} to compare ${path.basename(currentFile)} with — ` +
       'pass a baseline and a current file explicitly',
   );
+};
+
+/**
+ * Newest *published* run that pairs with `pairingKey`, downloaded into
+ * RESULTS_DIR, or null when the bucket holds none within PERF_DIFF_LOOKBACK.
+ *
+ * This walk exists because the local directory is not the run history in a
+ * container: it holds exactly the run just written (docs/adr/0029). It mirrors
+ * findLocalBaseline deliberately — same reverse-chronological order, same
+ * skip-on-unloadable rule, same pairingKeyOf — so a change to what makes two
+ * runs comparable has to be made in both places.
+ *
+ * `excludeName` is the current run, which runner.ts has already published by the
+ * time this runs, so it is normally the *first* entry in the listing.
+ *
+ * Candidates that did not match are left in RESULTS_DIR rather than cleaned up.
+ * They are genuine run files named by their own timestamps, so they sort
+ * correctly and a later local diff can legitimately use them; in a container the
+ * directory is discarded with the process anyway.
+ *
+ * Errors from the bucket are not caught: "cannot list" and "nothing to pair
+ * with" are different outcomes and only the second is benign.
+ */
+const findPublishedBaseline = async (pairingKey: string, excludeName: string): Promise<string | null> => {
+  const names = (await listPerfRunNames()).filter(name => name !== excludeName);
+  if (names.length === 0) {
+    return null;
+  }
+  for (const name of names.slice(0, S3_LOOKBACK)) {
+    let candidateFile: string;
+    try {
+      candidateFile = await fetchPerfArtifact(name, RESULTS_DIR);
+    } catch (err) {
+      // A single unreadable object should not end the walk; a broken bucket
+      // will fail the listing above instead.
+      console.warn(`⚠ Could not download ${name}: ${err instanceof Error ? err.message : err}`);
+      continue;
+    }
+    try {
+      if (pairingKeyOf(loadRun(candidateFile).fingerprint) === pairingKey) {
+        return candidateFile;
+      }
+    } catch {
+      // Incompatible run file (a PERF_RUN_VERSION bump, say) — not a candidate
+    }
+  }
+  return null;
+};
+
+/**
+ * Resolves the pair for --after-run: the newest local run is the current one,
+ * since runner.ts has just written it, and the baseline is the newest eligible
+ * run from the local directory if there is one, else from the bucket. Returns
+ * null for the baseline when nothing pairs, which is the ordinary state of a
+ * first run against a target — see main().
+ */
+const findPairAfterRun = async (): Promise<{ currentFile: string; baselineFile: string | null; pairingKey: string }> => {
+  const files = localRunFiles();
+  if (files.length === 0) {
+    throw new Error(`No run file found in ${RESULTS_DIR} — --after-run expects the run it follows to have written one`);
+  }
+  const currentName = files[files.length - 1]!;
+  const currentFile = path.join(RESULTS_DIR, currentName);
+  const pairingKey = pairingKeyOf(loadRun(currentFile).fingerprint);
+  const localBaseline = findLocalBaseline(files, files.length - 2, pairingKey);
+  if (localBaseline !== null) {
+    return { currentFile, baselineFile: localBaseline, pairingKey };
+  }
+  if (!isPerfPublishEnabled()) {
+    return { currentFile, baselineFile: null, pairingKey };
+  }
+  return { currentFile, baselineFile: await findPublishedBaseline(pairingKey, currentName), pairingKey };
 };
 
 const loadRun = (file: string): PerfRun => {
@@ -367,16 +504,37 @@ const main = async () => {
   const args = process.argv.slice(2);
   // eslint-disable-next-line prefer-const
   let [baselineFile, currentFile, outputFile] = args;
-  if (args.length === 1 || args.length > 3) {
+  if (args[0] === AFTER_RUN_FLAG) {
+    if (args.length > 1) {
+      console.error(`Usage: node dist/scripts/perf/diff.js ${AFTER_RUN_FLAG}`);
+      process.exit(1);
+    }
+    const pair = await findPairAfterRun();
+    if (pair.baselineFile === null) {
+      /*
+       * Not a failure. This is what the first scheduled run of any target looks
+       * like, and equally the first run after PERF_BASE_URL changes,
+       * PERF_CACHE_BYPASS flips, or PERF_RUN_VERSION is bumped — all deliberate
+       * acts. A bucket that could not be *read* threw further up instead
+       * (docs/adr/0029).
+       */
+      console.log(
+        `No earlier run matching "${pair.pairingKey}" to compare ${path.basename(pair.currentFile)} with — ` +
+          'nothing to diff yet, this run becomes the baseline for the next one.',
+      );
+      return;
+    }
+    [baselineFile, currentFile] = [pair.baselineFile, pair.currentFile];
+    console.log(`Comparing against the newest eligible earlier run:\n  baseline: ${baselineFile}\n  current:  ${currentFile}`);
+  } else if (args.length === 1 || args.length > 3) {
     console.error('Usage: npm run perf:diff [-- <baseline.json> <current.json> [output.html]]');
     process.exit(1);
-  }
-  if (!baselineFile || !currentFile) {
+  } else if (!baselineFile || !currentFile) {
     [baselineFile, currentFile] = findLastTwoRuns();
     console.log(`Comparing the two most recent runs:\n  baseline: ${baselineFile}\n  current:  ${currentFile}`);
   }
-  const baseline = loadRun(baselineFile);
-  const current = loadRun(currentFile);
+  const baseline = loadRun(baselineFile!);
+  const current = loadRun(currentFile!);
 
   const baselineRows = new Map(baseline.results.map(row => [row.key, row]));
   const currentRows = new Map(current.results.map(row => [row.key, row]));
@@ -442,10 +600,33 @@ const main = async () => {
     console.log(`  REGRESSION ${formatDelta(row.medianDelta).padStart(8)}  ${row.current.key}`);
   }
   console.log(`HTML: ${htmlPath}`);
-  await publishPerfArtifacts([htmlPath]);
+  const published = await publishPerfArtifacts([htmlPath]);
+  if (!published && isPerfPublishRequired()) {
+    console.error('✗ PERF_REQUIRE_PUBLISH=true and the diff report was not published — this comparison leaves no durable record.');
+    process.exitCode = 1;
+  }
+
+  /*
+   * Newly failing rows fail regardless of latency: a row that succeeded in the
+   * baseline and errors now is a binary fact, not a measurement, so no
+   * threshold applies to it. Latency regressions are judged against
+   * FAIL_THRESHOLD rather than the report's THRESHOLD — see its comment.
+   */
+  if (FAIL_ON_REGRESSION) {
+    const failing = regressions.filter(row => row.medianDelta >= FAIL_THRESHOLD);
+    if (failing.length > 0 || newlyFailing.length > 0) {
+      console.error(
+        `\n✗ ${newlyFailing.length} newly failing row(s) and ${failing.length} regression(s) beyond ` +
+          `${(FAIL_THRESHOLD * 100).toFixed(0)}% (PERF_DIFF_FAIL_THRESHOLD)`,
+      );
+      process.exitCode = 1;
+    }
+  }
 };
 
-main().catch(err => {
-  console.error(err instanceof Error ? err.message : err);
-  process.exit(1);
-});
+main()
+  .then(() => process.exit(process.exitCode ?? 0))
+  .catch(err => {
+    console.error(err instanceof Error ? err.message : err);
+    process.exit(1);
+  });

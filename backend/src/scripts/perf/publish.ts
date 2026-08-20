@@ -3,6 +3,14 @@
  * diff.ts — to object storage, so a run's record outlives the machine that
  * produced it. Opt-in via STORAGE_MODE=s3: with any other mode (including the
  * default `local`) the artifacts stay on local disk only and nothing here runs.
+ *
+ * It also reads back: `listPerfRunNames` and `fetchPerfArtifact` let diff.ts
+ * select a baseline from the bucket when the local directory holds only the run
+ * just written, which is the normal state in a container (docs/adr/0029). Those
+ * two deliberately let their errors escape, unlike the upload path: a bucket
+ * that cannot be listed must not be indistinguishable from a bucket holding no
+ * eligible baseline, since the first is a broken deployment and the second is
+ * simply a first run.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -27,6 +35,15 @@ const MIME_TYPES: Record<string, string> = { '.json': 'application/json', '.html
 
 /** True when perf artifacts should be published as well as written locally. */
 export const isPerfPublishEnabled = (): boolean => (process.env['STORAGE_MODE'] ?? '') === StorageModes.S3;
+
+/**
+ * True when publishing is the point rather than a bonus, so a failed upload is
+ * a failed run. Set by the perf image, because this module's best-effort
+ * rationale — "the artifacts are already on local disk" — is false in a
+ * container, where that disk dies with the process (docs/adr/0029). Off by
+ * default, so a developer's run is unaffected.
+ */
+export const isPerfPublishRequired = (): boolean => process.env['PERF_REQUIRE_PUBLISH'] === 'true';
 
 /**
  * Built from ConfigService.getStorageConfig() rather than by reading the S3
@@ -55,15 +72,20 @@ const getPerfResultStorage = (): { storage: FileStorage; bucket: string } => {
  * <ISO-timestamp>-<sha>.{json,html}, so they are unique per run and sort
  * chronologically in a bucket listing.
  *
- * Best effort by design: a failed upload is reported but does not fail the
- * caller and does not change its exit code. The artifacts are already on local
- * disk at this point and the measurement itself is unaffected, so turning a
- * storage problem into a failed perf run would misreport a valid — and, against
- * a deployed target, expensive — measurement as invalid.
+ * Best effort by design: a failed upload is reported but never throws, so a
+ * storage problem cannot turn a valid — and, against a deployed target,
+ * expensive — measurement into an aborted run. What it does do is *report* the
+ * outcome: the returned boolean is false when anything did not make it, which
+ * is how a caller running under `isPerfPublishRequired()` turns the same
+ * failure into a non-zero exit without this function having to know why.
+ *
+ * Publishing being disabled counts as success, not failure: nothing was asked
+ * of it. A caller that requires publishing must check `isPerfPublishEnabled()`
+ * as a precondition instead, ideally before it spends anything measuring.
  */
-export const publishPerfArtifacts = async (files: string[]): Promise<void> => {
+export const publishPerfArtifacts = async (files: string[]): Promise<boolean> => {
   if (!isPerfPublishEnabled() || files.length === 0) {
-    return;
+    return true;
   }
   let storage: FileStorage;
   let bucket: string;
@@ -71,8 +93,9 @@ export const publishPerfArtifacts = async (files: string[]): Promise<void> => {
     ({ storage, bucket } = getPerfResultStorage());
   } catch (err) {
     console.warn(`\n⚠ Could not configure S3 storage, artifacts kept locally only: ${err instanceof Error ? err.message : err}`);
-    return;
+    return false;
   }
+  let allPublished = true;
   for (const file of files) {
     const name = path.basename(file);
     try {
@@ -84,6 +107,45 @@ export const publishPerfArtifacts = async (files: string[]): Promise<void> => {
       console.log(`S3:    s3://${bucket}/${PERF_RESULTS_PREFIX}/${name}`);
     } catch (err) {
       console.warn(`⚠ Upload of ${name} failed, it is kept locally only: ${err instanceof Error ? err.message : err}`);
+      allPublished = false;
     }
   }
+  return allPublished;
+};
+
+/**
+ * Names of the published run files, newest first. Run artifacts are named
+ * <ISO-timestamp>-<sha>.json, so a reverse lexicographic sort is reverse
+ * chronological — the same property findLastTwoRuns relies on when it sorts a
+ * directory listing.
+ *
+ * The `.json` filter is what separates run files from diff reports, which are
+ * only ever published as `.html`. Errors are *not* caught here — see the module
+ * comment.
+ */
+export const listPerfRunNames = async (): Promise<string[]> => {
+  if (!isPerfPublishEnabled()) {
+    return [];
+  }
+  const { storage } = getPerfResultStorage();
+  const entries = await storage.list('').toArray();
+  return entries
+    .filter(entry => entry.isFile && entry.path.endsWith('.json'))
+    .map(entry => path.basename(entry.path))
+    .sort()
+    .reverse();
+};
+
+/**
+ * Downloads one published artifact into `destDir` under its own name and
+ * returns the local path. Errors are not caught — see the module comment.
+ */
+export const fetchPerfArtifact = async (name: string, destDir: string): Promise<string> => {
+  const { storage } = getPerfResultStorage();
+  const contents = await storage.readToBuffer(name);
+  await fs.promises.mkdir(destDir, { recursive: true });
+  // basename, so a key from the listing can never write outside destDir
+  const localPath = path.join(destDir, path.basename(name));
+  await fs.promises.writeFile(localPath, contents);
+  return localPath;
 };
