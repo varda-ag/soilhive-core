@@ -61,6 +61,20 @@
   width: 240px;
 }
 
+.CrsPanel {
+  // The actual width (sized to the longest CRS name) is set inline via panelStyle
+  // in SoilDataFileRow.tsx — measuring text beats guessing a fixed px value here.
+  max-width: 90vw; // keep panel on-screen on narrow viewports
+
+  .p-autocomplete-item {
+    // Safety net: if the width estimate is ever short, truncate with an ellipsis
+    // instead of a hard clip.
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
 .RemoveButtonIcon {
   color: var(--color-neutral-dark-400);
 }

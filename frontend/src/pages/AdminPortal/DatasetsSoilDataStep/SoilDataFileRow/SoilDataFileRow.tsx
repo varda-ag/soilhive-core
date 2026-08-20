@@ -17,6 +17,22 @@ interface Props {
   crsOptions: { code: number; name: string }[];
 }
 
+// Matches .p-autocomplete-item's font (prime.react.override.scss) plus its 16px
+// horizontal padding on each side, so the panel can be sized to the longest name.
+const CRS_ITEM_FONT = '16px Inter, Arial, Helvetica, sans-serif';
+const CRS_ITEM_HORIZONTAL_PADDING = 32;
+
+function getLongestTextWidth(options: string[]): number | undefined {
+  if (options.length === 0) return undefined;
+  const context = document.createElement('canvas').getContext('2d');
+  if (!context) return undefined;
+  context.font = CRS_ITEM_FONT;
+  // Longest by character count as a stand-in for widest rendered: measuring every
+  // option would be needlessly expensive when this list can have thousands of entries.
+  const longestOption = options.reduce((longest, option) => (option.length > longest.length ? option : longest));
+  return context.measureText(longestOption).width;
+}
+
 function formatFileSize(bytes: number | undefined): string {
   if (bytes === undefined) return '-';
   if (bytes < 1024) return `${bytes} B`;
@@ -36,6 +52,11 @@ export function SoilDataFileRow({ soilDataFile, onCrsChange, onRemove, crsOption
   const isReadOnly = !!inferredCrs;
 
   const allCrsOptions = useMemo(() => crsOptions.map(o => `EPSG:${o.code} - ${o.name}`), [crsOptions]);
+
+  const crsPanelWidth = useMemo(() => {
+    const longestTextWidth = getLongestTextWidth(allCrsOptions);
+    return longestTextWidth === undefined ? undefined : Math.ceil(longestTextWidth) + CRS_ITEM_HORIZONTAL_PADDING;
+  }, [allCrsOptions]);
 
   const filterCrsOptions = (e: AutoCompleteCompleteEvent) => {
     const query = e.query.trim().toLowerCase();
@@ -84,6 +105,7 @@ export function SoilDataFileRow({ soilDataFile, onCrsChange, onRemove, crsOption
             className={styles.CrsDropdown}
             inputClassName={styles.CrsInput}
             panelClassName={styles.CrsPanel}
+            panelStyle={crsPanelWidth === undefined ? undefined : { width: crsPanelWidth }}
             dropdown={false}
             disabled={isReadOnly}
             onFocus={handleFocus}
