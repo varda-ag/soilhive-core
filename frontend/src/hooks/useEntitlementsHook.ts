@@ -1,6 +1,8 @@
 import { decodeTokenFromString, type Role } from '../auth/tokenScopes';
 import { useAuthContext } from '../auth/AuthContextProvider';
 import { FEATURE_FLAGS } from '../utilities/environmentVariables';
+import { useApiQuery } from './useApiQuery';
+import { Capability, type Entitlements } from 'types/backend';
 
 // Special roles — not in token, resolved at runtime
 export const ANYONE = 'anyone' as const;
@@ -32,6 +34,10 @@ type Action =
   | typeof ADMIN_PORTAL_DATA_MENU
   | typeof DELETE_DATASET;
 
+// Checked against the fetched entitlements map (by entityId), not the role matrix — the action
+// itself is the capability to look up, so no separate action-to-capability mapping is needed.
+type EntityScopedAction = Capability.DOWNLOAD | Capability.PREVIEW;
+
 const ENTITLEMENT_MATRIX: Record<Action, AllRoles[]> = {
   [TERMS_AND_CONDITIONS]: [],
   [MAP_SETTINGS]: [],
@@ -51,7 +57,27 @@ export function useEntitlements() {
 
   const userRoles: AllRoles[] = [...(isAuthenticated ? [LOGGED_IN] : []), ...tokenRoles];
 
-  const can = (action: Action): boolean => {
+  // GET /entitlements requires a bearer token; for an anonymous user this stays disabled, so
+  // `entitlements` is undefined and the entity-scoped checks below fall back to false. Public
+  // access for anonymous users is handled separately, via dataset.visibility.
+  const { data: entitlements, isLoading } = useApiQuery<Entitlements>({
+    endpoint: '/entitlements',
+    method: 'GET',
+    queryKey: ['entitlements'],
+    enabled: isAuthenticated,
+  });
+
+  const can = (action: Action | EntityScopedAction, entityId?: string): boolean => {
+    if (action === Capability.DOWNLOAD || action === Capability.PREVIEW) {
+      if (!entityId) {
+        throw new Error(`Action ${action} requires an entityId.`);
+      }
+      if (isLoading) {
+        return false;
+      }
+      return (entitlements?.[entityId] ?? []).includes(action);
+    }
+
     if (!(action in ENTITLEMENT_MATRIX)) {
       throw new Error(`Action ${action} is not defined in the entitlement matrix.`);
     }
@@ -70,5 +96,5 @@ export function useEntitlements() {
     return allowedRoles.some(role => userRoles.includes(role));
   };
 
-  return { can };
+  return { can, isLoading };
 }
