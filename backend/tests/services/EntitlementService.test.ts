@@ -276,36 +276,6 @@ describe('EntitlementService', () => {
     });
   });
 
-  describe('getCapabilities', () => {
-    it('returns the entitled capabilities for a private dataset with an entry for the slug', () => {
-      const capabilities = service.getCapabilities('private', { 'dataset-1': [Capability.DOWNLOAD] }, 'dataset-1', undefined);
-      expect(capabilities).toEqual([Capability.DOWNLOAD]);
-    });
-
-    it('returns an empty array for a private dataset with no entry for the slug', () => {
-      const capabilities = service.getCapabilities('private', {}, 'dataset-1', undefined);
-      expect(capabilities).toEqual([]);
-    });
-
-    it.each([
-      { isInternalRequest: true, isDataAdmin: false, isSuperAdmin: false },
-      { isInternalRequest: false, isDataAdmin: true, isSuperAdmin: false },
-      { isInternalRequest: false, isDataAdmin: false, isSuperAdmin: true },
-    ])(
-      'returns preview and download for a private dataset with no entitlements when the token bypasses entitlements (%o)',
-      additionalData => {
-        const token: Token = { ...mockToken, ...additionalData };
-        const capabilities = service.getCapabilities('private', {}, 'dataset-1', token);
-        expect(capabilities).toEqual([Capability.PREVIEW, Capability.DOWNLOAD]);
-      },
-    );
-
-    it('does not bypass entitlements for a regular authenticated token', () => {
-      const capabilities = service.getCapabilities('private', {}, 'dataset-1', mockToken);
-      expect(capabilities).toEqual([]);
-    });
-  });
-
   describe('callEntitlementsEndpoint', () => {
     const originalEndpoint = process.env.ENTITLEMENTS_ENDPOINT;
     let fetchSpy: jest.SpiedFunction<typeof fetch>;

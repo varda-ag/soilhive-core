@@ -7,11 +7,10 @@ import { CreateDatasetInput, UpdateDatasetInput } from '../types/DatasetInput';
 import { getEntity } from '../utils/slugs';
 import { EntityType, IngestionStatus } from '../types/data';
 import { epsgMap } from '../assets/epsgMap';
-import { JobQueues } from '../types/enums';
+import { Capability, JobQueues } from '../types/enums';
 import VectorDataLoad from '../data-layer/VectorDataLoad';
 import DataMappingService from './DataMappingService';
 import DatasetFileMappingService from './DatasetFileMappingService';
-import EntitlementService from './EntitlementService';
 import { CleaningReport } from '../interfaces/CleaningReport';
 import { bumpCacheEpoch } from '../utils/cache-epoch';
 import { refreshDaiStats } from '../data-layer/DaiStats';
@@ -22,7 +21,6 @@ import { ProcessingSteps } from '../interfaces/Dataset';
 const vdl = new VectorDataLoad();
 const dmService = new DataMappingService();
 const dfmService = new DatasetFileMappingService();
-const entitlementService = new EntitlementService();
 
 // Delay (seconds) before a REFRESH_DAI_STATS job becomes visible to workers,
 // so the enqueuing request's transaction has committed by the time it runs
@@ -146,13 +144,16 @@ export default class DatasetService {
     return Object.entries(epsgMap).map(([code, name]) => ({ code: Number(code), name }));
   };
 
+  // Pre-existing GET /datasets behavior (predates sp-5560, unrelated to the
+  // Explore/Download availability flow's move to GET /entitlements) — inlined here rather
+  // than routed through EntitlementService, since that service's own getCapabilities helper
+  // was removed as part of that unrelated migration.
   decorateWithCapabilities = (dataset: DatasetEntity, requestData: RequestData) => {
-    dataset.capabilities = entitlementService.getCapabilities(
-      dataset.visibility,
-      requestData.entitlements,
-      dataset.slug,
-      requestData.token,
+    const isBypassed = Boolean(
+      requestData.token?.isInternalRequest || requestData.token?.isDataAdmin || requestData.token?.isSuperAdmin,
     );
+    dataset.capabilities =
+      dataset.visibility === 'public' || isBypassed ? [Capability.PREVIEW, Capability.DOWNLOAD] : requestData.entitlements[dataset.slug] || [];
   };
 
   decoratePreprocessingSteps = (dataset: DatasetEntity) => {

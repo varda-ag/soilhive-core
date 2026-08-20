@@ -224,30 +224,6 @@ export default class EntitlementService {
     return Boolean(token?.isInternalRequest || token?.isDataAdmin || token?.isSuperAdmin);
   };
 
-  /**
-   * Takes explicit arguments rather than an entity so
-   * callers whose dataset shape carries the slug under a different field (e.g. the
-   * Public Identifier `id` on FilterService's results) can call it directly.
-   *
-   * `token` mirrors the bypass in `enforceEntitlements`: an admin/internal-request token always
-   * gets PREVIEW+DOWNLOAD on a private dataset with no entitlements row (e.g. the admin who
-   * uploaded it — uploading grants no entitlements row for the uploader), matching what a direct
-   * call to the download/preview endpoint would actually allow. Every caller of `getCapabilities`
-   * passes it, so `capabilities` means the same thing everywhere it appears: what this caller can
-   * actually do, not just what an entitlements row happens to say.
-   */
-  getCapabilities = (
-    visibility: 'public' | 'private',
-    entitlements: Entitlements,
-    slug: string,
-    token: Token | undefined,
-  ): Capability[] => {
-    if (visibility === 'public' || this.isEntitlementsBypassed(token)) {
-      return [Capability.PREVIEW, Capability.DOWNLOAD];
-    }
-    return entitlements[slug] || [];
-  };
-
   async enforceEntitlements(requestData: RequestData, datasetSlugs: string[], capability: Capability): Promise<void> {
     if (this.isEntitlementsBypassed(requestData.token)) {
       // Internal requests and admins bypass entitlements checks
