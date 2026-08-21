@@ -4,6 +4,8 @@ import type { PluginContext } from 'frontend-plugin-types';
 // its components become available like this: import { Button } from '../../UI/Button/Button';
 import './ProviderComponent.css';
 
+const pluginId = '★ unique-id-of-remote-module ★'; // must be unique across every plugin registered with the host
+
 const Page: React.FC<{ context: PluginContext }> = ({ context }) => {
   const {
     user,
@@ -15,7 +17,9 @@ const Page: React.FC<{ context: PluginContext }> = ({ context }) => {
     usePropertiesCategories,
     useRasterCategories,
     useSoilData,
+    usePluginConfig,
   } = context;
+  const { config: settings, saveConfig: saveSettings } = usePluginConfig(pluginId, 'settings', { clickCount: 0 });
   const { data: theme } = useTheme();
   const { data: filterId, isLoading: isFilterLoading } = useDataFilterQuery({
     geometries: mapSelection?.geometryFilter ?? [],
@@ -85,6 +89,12 @@ const Page: React.FC<{ context: PluginContext }> = ({ context }) => {
           </button>
         )}
       </p>
+      <p>
+        Own persisted config: clicked {settings?.clickCount ?? 0} time(s).{' '}
+        <button type="button" onClick={() => saveSettings({ clickCount: (settings?.clickCount ?? 0) + 1 })}>
+          Click me
+        </button>
+      </p>
     </div>
   );
 };
@@ -92,4 +102,4 @@ const Page: React.FC<{ context: PluginContext }> = ({ context }) => {
 const name = '★ Name of remote module ★';
 const type = 'single-page';
 const route = 'remote-module';
-export { name, route, type, Page };
+export { pluginId, name, route, type, Page };

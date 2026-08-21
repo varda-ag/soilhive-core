@@ -11,6 +11,7 @@ The frontend uses [Module Federation](https://module-federation.io/) to support 
 | **Manifest** | A `mf-manifest.json` file exposed by each remote that describes its exports |
 | **Plugin config** | An entry in the host's theme config (`ThemeConfig.plugins`) that registers a remote's manifest URL and access rules |
 | **PluginContext** | The typed contract (`frontend-plugin-types`) passed as a `context` prop to a remote's page component, giving it access to host data and hooks |
+| **pluginId** | A required, plugin-authored named export (like `name`/`route`/`type`/`Page`) that uniquely identifies the plugin — used both to detect duplicate registrations and to namespace `context.usePluginConfig` |
 | **Map info card** | A `RemotePlugin` capability (`type: 'map-info-card'`) that contributes content into the map's native selection card instead of a routed page.
 
 The host discovers remotes through its theme configuration (see [Configuring remotes](#configuring-remotes)) and loads them via `src/utilities/moduleFederation.ts` and `src/contexts/RemotesContext.tsx`.
@@ -21,8 +22,8 @@ The host discovers remotes through its theme configuration (see [Configuring rem
 
 Loading is split across two files:
 
-1. `src/utilities/moduleFederation.ts` creates the MF runtime instance (`mf`) once, at module load, with no remotes registered yet — it's a singleton and must never be recreated. It exposes `loadRemotes(configs)`, which registers and loads a given list of remotes on demand, returning the resolved modules (a remote that fails to load resolves to `null` and is filtered out).
-2. `src/contexts/RemotesContext.tsx` (`RemotesProvider`) calls `loadRemotes(themeConfig.plugins)` once the theme config has finished loading, guarded so it only runs once, and exposes the result through `useRemotes()` as `{ plugins, isLoadingRemotes }`.
+1. `src/utilities/moduleFederation.ts` creates the MF runtime instance (`mf`) once, at module load, with no remotes registered yet — it's a singleton and must never be recreated. It exposes `loadRemotes(configs)`, which registers and loads a given list of remotes on demand, returning the resolved modules (a remote that fails to load resolves to `null` and is filtered out). It also exposes `partitionDuplicatePluginIds(modules)`, a pure helper that splits resolved modules into `unique` (first plugin seen for each `pluginId`) and `duplicates` (every later plugin reusing an id already taken).
+2. `src/contexts/RemotesContext.tsx` (`RemotesProvider`) calls `loadRemotes(themeConfig.plugins)` once the theme config has finished loading, guarded so it only runs once, then calls `partitionDuplicatePluginIds` on the result: it shows an error notification (via `useNotifications`) for each duplicate and exposes only the deduplicated list through `useRemotes()` as `{ plugins, isLoadingRemotes }`.
 
 This used to run at module-evaluation time via top-level await against a hardcoded remote list. It now runs inside `RemotesProvider`'s effect because the remote list itself is no longer hardcoded — it comes from the theme config (see below).
 
@@ -79,7 +80,7 @@ Expose the page component at `'.'` (the remote's root) — the host loads it by 
 
 ### 2. Export plugin metadata from the exposed module
 
-The host treats the loaded remote module as a `RemotePlugin` (see `src/types/plugins.ts`). For a routable page, export `type`, `name`, `route`, and a `Page` component as **named exports** — not a default export:
+The host treats the loaded remote module as a `RemotePlugin` (see `src/types/plugins.ts`). For a routable page, export `type`, `pluginId`, `name`, `route`, and a `Page` component as **named exports** — not a default export:
 
 ```ts
 // src/MyPage.tsx in the remote — exposed at '.' in module-federation.config.ts
@@ -89,14 +90,17 @@ const Page: React.FC<{ context: PluginContext }> = ({ context }) => {
   return <div>Hello from my plugin</div>;
 };
 
+const pluginId = 'my-plugin'; // must be unique across every plugin registered with the host
 const name = 'My Plugin';
 const type = 'single-page';
 const route = 'my-plugin-page'; // becomes the URL path /my-plugin-page in the host app
 
-export { name, route, type, Page };
+export { pluginId, name, route, type, Page };
 ```
 
-`Page` receives a `context: PluginContext` prop (from `frontend-plugin-types`) giving access to host data and hooks — theme, soil data queries, map selection, the logged-in user. See `frontend-plugin-example/src/components/ProviderComponent.tsx` for a full example, and `docs/frontend/plugin-development.md` for the complete contract.
+`pluginId` is authored by the plugin, not derived from its config `url`, so it stays stable if the plugin is re-hosted at a different URL. It's also the id you pass to `context.usePluginConfig` (see [PluginContext](#plugincontext)) to namespace your plugin's own persisted settings. If two enabled plugins resolve to the same `pluginId`, the host keeps whichever loaded first, drops the rest, and shows an error notification — it does not crash the app.
+
+`Page` receives a `context: PluginContext` prop (from `frontend-plugin-types`) giving access to host data and hooks — theme, soil data queries, map selection, the logged-in user, and its own persisted config. See `frontend-plugin-example/src/components/ProviderComponent.tsx` for a full example, and `docs/frontend/plugin-development.md` for the complete contract.
 
 ### 3. Register the remote with the host
 

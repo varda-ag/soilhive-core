@@ -207,9 +207,36 @@ For an "upload via a button" flow instead of drag-and-drop, use the `onUploadCli
 
 ## Using host data and hooks (`PluginContext`)
 
-Your exposed page component receives a `context: PluginContext` prop, typed through `frontend-plugin-types` (synced in as described above). It gives you access to host data and hooks: theme colors, soil data queries, coverage and filter queries, map selection, and the logged-in user.
+Your exposed page component receives a `context: PluginContext` prop, typed through `frontend-plugin-types` (synced in as described above). It gives you access to host data and hooks: theme colors, soil data queries, coverage and filter queries, map selection, the logged-in user, and your plugin's own persisted config.
 
-See `frontend-plugin-example/src/components/ProviderComponent.tsx` for a full example that uses every field. See [Module Federation § Building a remote module](./module-federation.md#building-a-remote-module) for the exact export shape the host expects: named exports `name`, `route`, `type`, and `Page`.
+See `frontend-plugin-example/src/components/ProviderComponent.tsx` for a full example that uses every field. See [Module Federation § Building a remote module](./module-federation.md#building-a-remote-module) for the exact export shape the host expects: named exports `pluginId`, `name`, `route`, `type`, and `Page`.
+
+### Persisting your plugin's own config
+
+Call `context.usePluginConfig(pluginId, id, defaultConfig)` with the same `pluginId` you export from your page module. It reads and writes a config object scoped to `pluginId:id`, so it can never collide with another plugin's or the host's own config:
+
+```tsx
+import type { PluginContext } from 'frontend-plugin-types';
+
+const pluginId = 'my-plugin';
+
+type MySettings = { showAdvancedOptions: boolean };
+const defaultSettings: MySettings = { showAdvancedOptions: false };
+
+const Page: React.FC<{ context: PluginContext }> = ({ context }) => {
+  const { config, isLoading, saveConfig } = context.usePluginConfig<MySettings>(pluginId, 'settings', defaultSettings);
+
+  if (isLoading || !config) return null;
+
+  return (
+    <button onClick={() => saveConfig({ ...config, showAdvancedOptions: !config.showAdvancedOptions })}>
+      Advanced options: {config.showAdvancedOptions ? 'on' : 'off'}
+    </button>
+  );
+};
+
+export { pluginId, name, route, type, Page };
+```
 
 ## Registering your plugin with the host
 

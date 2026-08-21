@@ -10,6 +10,26 @@ export const isSinglePageModule = (module: RemotePlugin): module is SinglePagePl
 
 export const isNewTabModule = (module: RemotePlugin): module is NewTabPlugin => module.type === PluginType.NEW_TAB && !!module.targetUrl;
 
+// Splits out modules whose pluginId collides with an earlier one. The first-seen
+// plugin for a given id wins and the rest are reported as duplicates rather than
+// thrown as an error: there's no ErrorBoundary mounted anywhere in the app, so a
+// throw here would surface as a blank page instead of the notification the caller
+// (RemotesContext) shows the user.
+export function partitionDuplicatePluginIds(modules: RemotePlugin[]): { unique: RemotePlugin[]; duplicates: RemotePlugin[] } {
+  const seen = new Set<string>();
+  const unique: RemotePlugin[] = [];
+  const duplicates: RemotePlugin[] = [];
+  for (const module of modules) {
+    if (seen.has(module.pluginId)) {
+      duplicates.push(module);
+    } else {
+      seen.add(module.pluginId);
+      unique.push(module);
+    }
+  }
+  return { unique, duplicates };
+}
+
 // Custom fallback plugin implementing errorLoadRemote hook
 const fallbackPlugin = (): ModuleFederationRuntimePlugin => {
   return {

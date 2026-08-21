@@ -15,6 +15,7 @@ jest.mock('hooks/useTheme', () => ({
 const Page = () => null;
 
 const singlePageModule: SinglePagePlugin = {
+  pluginId: 'single-page-module',
   name: 'single-page-module',
   type: PluginType.SINGLE_PAGE,
   route: '/remote',

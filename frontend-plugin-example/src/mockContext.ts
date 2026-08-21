@@ -1,4 +1,5 @@
 import type {
+  PluginConfigResult,
   PluginContext,
   PluginFilteredData,
   PluginMapSelection,
@@ -110,6 +111,15 @@ const soilData: PluginSoilDataResult = {
   reset: () => {},
 };
 
+// Mirrors the other mocks above: a static value, no real persistence. saveConfig
+// is a no-op since there's no host-backed /config endpoint in local preview.
+const pluginConfig = <T>(defaultConfig?: T): PluginConfigResult<T> => ({
+  config: defaultConfig,
+  isLoading: false,
+  isError: false,
+  saveConfig: async () => {},
+});
+
 export const createMockContext = (overrides: Partial<PluginContext> = {}): PluginContext => ({
   user: { profile: { name: 'Local Preview User' } },
   mapSelection,
@@ -120,5 +130,6 @@ export const createMockContext = (overrides: Partial<PluginContext> = {}): Plugi
   usePropertiesCategories: () => query(propertiesCategories),
   useRasterCategories: () => query(rasterCategories),
   useSoilData: () => soilData,
+  usePluginConfig: (_pluginId, _id, defaultConfig) => pluginConfig(defaultConfig),
   ...overrides,
 });

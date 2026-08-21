@@ -22,6 +22,7 @@ import { useRaster as useHostRaster } from './useRaster';
 import { useSoilData as useHostSoilData } from './useSoilData';
 import { useSoilProperties as useHostSoilProperties } from './useSoilProperties';
 import useHostTheme from './useTheme';
+import usePluginConfig from './usePluginConfig';
 
 function usePluginTheme(): PluginQueryResult<PluginTheme> {
   const { themeConfig, logo, isLoadingThemeConfig, isLogoLoading } = useHostTheme();
@@ -90,6 +91,9 @@ export function usePluginContext(): PluginContext {
       usePropertiesCategories: usePluginPropertiesCategories,
       useRasterCategories: usePluginRasterCategories,
       useSoilData: usePluginSoilData,
+      // Already matches PluginContext's signature (pluginId, id, defaultConfig),
+      // so it's passed through directly rather than wrapped like the hooks above.
+      usePluginConfig,
       // Narrow explicitly too: selectedPoint/selectedH3Cell are maplibre-gl
       // classes, not plain data, which PluginContext's thin contract must not depend on.
       mapSelection: {
