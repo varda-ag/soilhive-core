@@ -8,6 +8,18 @@ import { PluginType, type RemotePlugin } from '../../src/types/plugins';
 
 jest.mock('hooks/useTheme', () => ({ __esModule: true, default: jest.fn() }));
 jest.mock('hooks/useNotifications', () => ({ __esModule: true, default: jest.fn() }));
+jest.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string, options?: Record<string, string>) =>
+      options
+        ? key.split('.').pop() +
+          ' ' +
+          Object.entries(options)
+            .map(([k, v]) => `${k}=${v}`)
+            .join(' ')
+        : key,
+  }),
+}));
 
 // Only loadRemotes is mocked; partitionDuplicatePluginIds runs for real so this
 // test exercises the actual dedup behavior, not a stubbed version of it.

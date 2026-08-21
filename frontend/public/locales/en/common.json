@@ -65,11 +65,17 @@
     "errors": {
         "network_error": {
             "title": "Network error",
-            "message": "No connection to the server." 
+            "message": "No connection to the server."
         },
         "timeout_error": {
             "title": "Timeout",
-            "message": "Operation timed out." 
+            "message": "Operation timed out."
+        }
+    },
+    "plugins": {
+        "duplicate_id": {
+            "title": "Duplicate plugin id",
+            "message": "Plugin \"{{name}}\" uses pluginId \"{{pluginId}}\", which is already registered by another plugin. It has been disabled."
         }
     },
     "components": {
