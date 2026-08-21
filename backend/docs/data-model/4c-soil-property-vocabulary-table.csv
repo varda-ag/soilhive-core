@@ -130,7 +130,7 @@ Soils are placed into wind erodibility groups on the basis of the properties of 
 Source: U.S. Department of Agriculture, Natural Resources Conservation Service. National soil survey handbook, title 430-VI. Available online. Accessed 2/25/2014.",,,,,
 Zinc,Zin,Zinc extractable,Zinext,mg/kg,Chemical,Zinc bound to the soil matrix but that can be released into the soil solution (i.e. become bio-available),http://w3id.org/glosis/model/codelists/physioChemicalPropertyCode-Zinext,,,,
 Zinc,Zin,Zinc total,zintotal,mg/kg,Chemical,"Zinc is a micronutrient essential for plant enzyme systems, protein synthesis, and growth regulation. Deficiency is common in calcareous soils and results in stunted growth and chlorosis. Zinc fertilizers or soil pH adjustments can address deficiencies. Source: Havlin et al. (2014).",http://w3id.org/glosis/model/codelists/physioChemicalPropertyCode-Zin,,,,
-Test,test,test,test,-,Chemical,,,,,
+Test,test,test,test,-,Chemical,,,,,,
 ,,,,,,,,,,,
 ,,,,,,,,,,,
 ,,,,,,,,,,,
