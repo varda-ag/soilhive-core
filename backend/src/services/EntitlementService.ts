@@ -207,7 +207,7 @@ export default class EntitlementService {
       }
       return await response.json();
     } catch (error) {
-      log.warn('Failed to fetch entitlements from external endpoint, degrading to local entitlements only', {
+      log.error('Failed to fetch entitlements from external endpoint, degrading to local entitlements only', {
         error: getErrorMessage(error),
       });
       return {};
