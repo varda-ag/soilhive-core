@@ -1,15 +1,22 @@
 // Stub the MF runtime so importing moduleFederation.ts doesn't spin up the real
 // host at module load; these tests only exercise the pure plugin type guards.
+const loadRemote = jest.fn();
 jest.mock('@module-federation/enhanced/runtime', () => ({
   createInstance: jest.fn(() => ({
     registerShared: jest.fn(),
     registerRemotes: jest.fn(),
-    loadRemote: jest.fn(),
+    loadRemote,
   })),
 }));
 
-import { isNewTabModule, isSinglePageModule, partitionDuplicatePluginIds, partitionInvalidPlugins } from 'utilities/moduleFederation';
-import { PluginType, type RemotePlugin } from '../../src/types/plugins';
+import {
+  isNewTabModule,
+  isSinglePageModule,
+  loadRemotes,
+  partitionDuplicatePluginIds,
+  partitionInvalidPlugins,
+} from 'utilities/moduleFederation';
+import { PluginType, type Plugin, type RemotePlugin } from '../../src/types/plugins';
 
 const Page = () => null;
 
@@ -110,5 +117,36 @@ describe('partitionDuplicatePluginIds', () => {
       unique: [singlePage, newTab],
       duplicates: [singlePageDuplicate, newTabDuplicate],
     });
+  });
+});
+
+describe('loadRemotes', () => {
+  const toConfig = (url: string): Plugin => ({ url, enabled: true, mustBeLoggedIn: false, enableACL: false, acl: [] });
+
+  beforeEach(() => {
+    loadRemote.mockReset();
+  });
+
+  it('separates modules that resolved from remotes whose load rejected', async () => {
+    const okUrl = 'https://good-remote.example/mf-manifest.json';
+    const badUrl = 'https://bad-remote.example/mf-manifest.json';
+
+    loadRemote.mockImplementation((url: string) =>
+      url === okUrl ? Promise.resolve(singlePage) : Promise.reject(new Error('network error')),
+    );
+
+    const result = await loadRemotes([toConfig(okUrl), toConfig(badUrl)]);
+
+    expect(result).toEqual({ loaded: [singlePage], failed: [badUrl] });
+  });
+
+  it('ignores disabled remotes entirely', async () => {
+    const disabledUrl = 'https://disabled-remote.example/mf-manifest.json';
+    loadRemote.mockResolvedValue(singlePage);
+
+    const result = await loadRemotes([{ ...toConfig(disabledUrl), enabled: false }]);
+
+    expect(result).toEqual({ loaded: [], failed: [] });
+    expect(loadRemote).not.toHaveBeenCalled();
   });
 });

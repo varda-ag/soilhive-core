@@ -39,7 +39,19 @@ export const RemotesProvider: React.FC<RemotesProviderProps> = ({ children }) =>
 
     const load = async () => {
       try {
-        const loaded = await loadRemotes(themeConfig.plugins ?? EMPTY_REMOTES);
+        const { loaded, failed } = await loadRemotes(themeConfig.plugins ?? EMPTY_REMOTES);
+
+        // Report remotes that couldn't be loaded at all (e.g. unreachable
+        // server/url) separately from the missing-fields notification below:
+        // a remote that never loaded has no pluginId/name to report as missing.
+        failed.forEach(url => {
+          showNotification({
+            id: `remote-load-failed-${url}`,
+            title: t('plugins.load_failed.title'),
+            message: t('plugins.load_failed.message', { url }),
+            type: 'error',
+          });
+        });
 
         const { valid, invalid } = partitionInvalidPlugins(loaded);
         // Report modules missing required exports via a notification, rather than

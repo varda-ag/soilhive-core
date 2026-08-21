@@ -52,7 +52,7 @@ describe('RemotesProvider', () => {
   });
 
   it('keeps the first plugin loaded for a pluginId and reports every later duplicate', async () => {
-    loadRemotesMock.mockResolvedValue([pluginA, pluginB]);
+    loadRemotesMock.mockResolvedValue({ loaded: [pluginA, pluginB], failed: [] });
 
     const { findByTestId } = render(
       <RemotesProvider>
@@ -69,7 +69,7 @@ describe('RemotesProvider', () => {
   });
 
   it('does not notify when every loaded plugin has a distinct pluginId', async () => {
-    loadRemotesMock.mockResolvedValue([pluginA, { ...pluginB, pluginId: 'not-a-dup' }]);
+    loadRemotesMock.mockResolvedValue({ loaded: [pluginA, { ...pluginB, pluginId: 'not-a-dup' }], failed: [] });
 
     const { findByTestId } = render(
       <RemotesProvider>
@@ -84,7 +84,7 @@ describe('RemotesProvider', () => {
 
   it('excludes a plugin missing a required field and reports it via notification', async () => {
     const malformed: RemotePlugin = { ...pluginB, pluginId: 'not-a-dup', route: undefined as unknown as string };
-    loadRemotesMock.mockResolvedValue([pluginA, malformed]);
+    loadRemotesMock.mockResolvedValue({ loaded: [pluginA, malformed], failed: [] });
 
     const { findByTestId } = render(
       <RemotesProvider>
@@ -98,5 +98,24 @@ describe('RemotesProvider', () => {
     expect(showNotification).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'invalid-plugin-Plugin B', type: 'error', message: expect.stringContaining('route') }),
     );
+  });
+
+  it('notifies about a remote that failed to load without treating it as an invalid plugin', async () => {
+    const failedUrl = 'https://bad-remote.example/mf-manifest.json';
+    loadRemotesMock.mockResolvedValue({ loaded: [pluginA], failed: [failedUrl] });
+
+    const { findByTestId } = render(
+      <RemotesProvider>
+        <Consumer />
+      </RemotesProvider>,
+    );
+
+    await waitFor(async () => expect((await findByTestId('plugins')).textContent).toBe('Plugin A'));
+
+    expect(showNotification).toHaveBeenCalledTimes(1);
+    expect(showNotification).toHaveBeenCalledWith(
+      expect.objectContaining({ id: `remote-load-failed-${failedUrl}`, type: 'error', message: expect.stringContaining(failedUrl) }),
+    );
+    expect(showNotification).not.toHaveBeenCalledWith(expect.objectContaining({ id: expect.stringContaining('invalid-plugin-') }));
   });
 });
