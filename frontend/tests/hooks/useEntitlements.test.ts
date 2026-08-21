@@ -170,18 +170,15 @@ describe('useEntitlements', () => {
       expect(result.current.can(Capability.DOWNLOAD, 'not-existing')).toBe(false);
     });
 
-    it.each([['data-admin'], ['super-admin']])(
-      'bypasses the entitlements map for a %s, even with an empty map or while loading',
-      role => {
-        mockUseAuthContext.mockReturnValue({ ...baseAuthContext, user: makeUser(`openid ${role}`) });
-        mockUseApiQuery.mockReturnValue({ data: {}, isLoading: true } as any);
+    it.each([['data-admin'], ['super-admin']])('bypasses the entitlements map for a %s, even with an empty map or while loading', role => {
+      mockUseAuthContext.mockReturnValue({ ...baseAuthContext, user: makeUser(`openid ${role}`) });
+      mockUseApiQuery.mockReturnValue({ data: {}, isLoading: true } as any);
 
-        const { result } = renderHook(() => useEntitlements());
+      const { result } = renderHook(() => useEntitlements());
 
-        expect(result.current.can(Capability.DOWNLOAD, 'not-existing')).toBe(true);
-        expect(result.current.can(Capability.PREVIEW, 'not-existing')).toBe(true);
-      },
-    );
+      expect(result.current.can(Capability.DOWNLOAD, 'not-existing')).toBe(true);
+      expect(result.current.can(Capability.PREVIEW, 'not-existing')).toBe(true);
+    });
 
     it('still throws for an admin when entityId is missing', () => {
       mockUseAuthContext.mockReturnValue({ ...baseAuthContext, user: makeUser('openid super-admin') });

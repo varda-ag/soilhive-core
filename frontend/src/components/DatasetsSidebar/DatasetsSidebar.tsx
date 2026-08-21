@@ -30,11 +30,17 @@ export function DatasetsSidebar({ isOpened, onClose }: Props) {
   const navigate = useNavigate();
 
   const previewDatasetIds = useMemo(
-    () => availableDatasets.filter(dataset => dataset.visibility === 'public' || can(Capability.PREVIEW, dataset.id)).map(dataset => dataset.id),
+    () =>
+      availableDatasets
+        .filter(dataset => dataset.visibility === 'public' || can(Capability.PREVIEW, dataset.id))
+        .map(dataset => dataset.id),
     [availableDatasets, can],
   );
   const downloadDatasetIds = useMemo(
-    () => availableDatasets.filter(dataset => dataset.visibility === 'public' || can(Capability.DOWNLOAD, dataset.id)).map(dataset => dataset.id),
+    () =>
+      availableDatasets
+        .filter(dataset => dataset.visibility === 'public' || can(Capability.DOWNLOAD, dataset.id))
+        .map(dataset => dataset.id),
     [availableDatasets, can],
   );
 

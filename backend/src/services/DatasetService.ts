@@ -149,11 +149,11 @@ export default class DatasetService {
   // than routed through EntitlementService, since that service's own getCapabilities helper
   // was removed as part of that unrelated migration.
   decorateWithCapabilities = (dataset: DatasetEntity, requestData: RequestData) => {
-    const isBypassed = Boolean(
-      requestData.token?.isInternalRequest || requestData.token?.isDataAdmin || requestData.token?.isSuperAdmin,
-    );
+    const isBypassed = Boolean(requestData.token?.isInternalRequest || requestData.token?.isDataAdmin || requestData.token?.isSuperAdmin);
     dataset.capabilities =
-      dataset.visibility === 'public' || isBypassed ? [Capability.PREVIEW, Capability.DOWNLOAD] : requestData.entitlements[dataset.slug] || [];
+      dataset.visibility === 'public' || isBypassed
+        ? [Capability.PREVIEW, Capability.DOWNLOAD]
+        : requestData.entitlements[dataset.slug] || [];
   };
 
   decoratePreprocessingSteps = (dataset: DatasetEntity) => {

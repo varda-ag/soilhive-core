@@ -54,14 +54,13 @@ const ENTITLEMENT_MATRIX: Record<Action, AllRoles[]> = {
 export function useEntitlements() {
   const { user } = useAuthContext();
   const isAuthenticated = !!user;
-  const tokenRoles: Role[] = user?.access_token ? decodeTokenFromString(user.access_token) : [];
 
-  const userRoles: AllRoles[] = useMemo(
-    () => [...(isAuthenticated ? [LOGGED_IN] : []), ...tokenRoles],
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- tokenRoles is derived fresh from
-    // user?.access_token each render; keying on the token string itself keeps this stable.
-    [isAuthenticated, user?.access_token],
-  );
+  // Memoized on `user` itself (not just its access_token) so the dependency the React Compiler
+  // lint rule infers from `user.access_token` matches the one declared here — otherwise it
+  // reports the manual memoization as unpreservable.
+  const tokenRoles: Role[] = useMemo(() => (user?.access_token ? decodeTokenFromString(user.access_token) : []), [user]);
+
+  const userRoles: AllRoles[] = useMemo(() => [...(isAuthenticated ? [LOGGED_IN] : []), ...tokenRoles], [isAuthenticated, tokenRoles]);
 
   // Mirrors EntitlementService.isEntitlementsBypassed on the backend — isInternalRequest has no
   // frontend equivalent (that bypass is for service-to-service calls, not browser tokens).

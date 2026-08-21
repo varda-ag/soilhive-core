@@ -105,7 +105,6 @@ describe.each(testTimezones)('datasetAdapter (multiple-timezones)', testTimezone
       // Assert
       expect(actualAvailabilityDataset).toEqual(expectedAvailabilityDataset);
     });
-
   });
 
   describe('mapFilteredDatasetToAvailabilityDataset adapter', () => {
@@ -149,7 +148,6 @@ describe.each(testTimezones)('datasetAdapter (multiple-timezones)', testTimezone
 
       expect(mapFilteredDatasetToAvailabilityDataset(filteredDataset)).toEqual(expectedAvailabilityDataset);
     });
-
   });
 
   describe('yearRangeToDatasetFilters', () => {
