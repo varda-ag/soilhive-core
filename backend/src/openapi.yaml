@@ -1181,7 +1181,6 @@ paths:
     get:
       x-eov-operation-handler: controllers/data-filters
       x-eov-operation-id: getDataFilterCoverage
-      x-entitlements-required: true
       summary: Retrieves what data is available for the given filter
       tags:
         - data-filters
