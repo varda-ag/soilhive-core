@@ -57,6 +57,10 @@ export function useEntitlements() {
 
   const userRoles: AllRoles[] = [...(isAuthenticated ? [LOGGED_IN] : []), ...tokenRoles];
 
+  // Mirrors EntitlementService.isEntitlementsBypassed on the backend — isInternalRequest has no
+  // frontend equivalent (that bypass is for service-to-service calls, not browser tokens).
+  const isAdminBypassed = userRoles.includes('data-admin') || userRoles.includes('super-admin');
+
   // GET /entitlements requires a bearer token; for an anonymous user this stays disabled, so
   // `entitlements` is undefined and the entity-scoped checks below fall back to false. Public
   // access for anonymous users is handled separately, via dataset.visibility.
@@ -71,6 +75,9 @@ export function useEntitlements() {
     if (action === Capability.DOWNLOAD || action === Capability.PREVIEW) {
       if (!entityId) {
         throw new Error(`Action ${action} requires an entityId.`);
+      }
+      if (isAdminBypassed) {
+        return true;
       }
       if (isLoading) {
         return false;
