@@ -131,6 +131,11 @@
 }
 
 .p-datepicker {
+  .p-datepicker-title {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+  }
   .p-link {
     &:hover {
       color: var(--color-cta-default-hover);
@@ -138,6 +143,7 @@
   }
   .p-highlight {
     background-color: var(--color-cta-default-solid);
+    color: var(--color-cta-default-text);
     border-color: var(--color-cta-default-solid);
 
     &:hover {
