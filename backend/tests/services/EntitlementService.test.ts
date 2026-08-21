@@ -10,6 +10,7 @@ import { Entitlements } from '../../src/types/Entitlements';
 import { Capability } from '../../src/types/enums';
 import DatasetEntity from '../../src/entities/Dataset';
 import LicenseEntity from '../../src/entities/License';
+import { log } from '../../src/utils/logger';
 
 const mockToken: Token = {
   sub: 'test-user-id',
@@ -290,12 +291,14 @@ describe('EntitlementService', () => {
       fetchSpy.mockRestore();
     });
 
-    it('returns the parsed entitlements on a successful response', async () => {
-      const remoteEntitlements = { 'dataset-1': [Capability.DOWNLOAD] };
-      fetchSpy.mockResolvedValue({ ok: true, json: async () => remoteEntitlements } as Response);
+    // Agreed contract: an array of {slug: capabilities} entries, one per grant — not one flat
+    // object. This is what the real external provider replies with.
+    it('adapts the array-of-entries reply into a flat entitlements map', async () => {
+      const remoteReply = [{ 'dataset-1': [Capability.DOWNLOAD] }, { 'dataset-2': [Capability.PREVIEW] }];
+      fetchSpy.mockResolvedValue({ ok: true, json: async () => remoteReply } as Response);
 
       const entitlements = await service.callEntitlementsEndpoint(requestData);
-      expect(entitlements).toEqual(remoteEntitlements);
+      expect(entitlements).toEqual({ 'dataset-1': [Capability.DOWNLOAD], 'dataset-2': [Capability.PREVIEW] });
     });
 
     it('degrades to local entitlements (empty object) when the endpoint responds with an error status', async () => {
@@ -310,6 +313,36 @@ describe('EntitlementService', () => {
 
       const entitlements = await service.callEntitlementsEndpoint(requestData);
       expect(entitlements).toEqual({});
+    });
+
+    describe('when the reply does not match the agreed array-of-entries shape', () => {
+      let errorSpy: jest.SpiedFunction<typeof log.error>;
+
+      beforeEach(() => {
+        errorSpy = jest.spyOn(log, 'error').mockImplementation(() => undefined);
+      });
+
+      afterEach(() => {
+        errorSpy.mockRestore();
+      });
+
+      it.each([
+        ['a flat object instead of an array', { 'dataset-1': [Capability.DOWNLOAD] }],
+        ['an array with a non-object entry', ['dataset-1']],
+        ['an array with an entry whose value is not an array', [{ 'dataset-1': Capability.DOWNLOAD }]],
+        ['a plain string', 'download'],
+        ['null', null],
+      ])('discards the reply and logs an error for %s', async (_description, malformedReply) => {
+        fetchSpy.mockResolvedValue({ ok: true, json: async () => malformedReply } as Response);
+
+        const entitlements = await service.callEntitlementsEndpoint(requestData);
+
+        expect(entitlements).toEqual({});
+        expect(errorSpy).toHaveBeenCalledWith(
+          'External entitlements endpoint replied in an unexpected shape, discarding its response',
+          expect.any(Object),
+        );
+      });
     });
   });
 
