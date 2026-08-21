@@ -299,6 +299,9 @@ export interface VocabularyItem {
 export type EntitlementCapability = 'preview' | 'download' | 'obfuscate_as_points' | 'obfuscate_as_polygons';
 export type DatasetEntitlements = Record<string, EntitlementCapability[]>;
 
+/** Response shape of `GET /entitlements`: the current user's capabilities, keyed by entity slug. */
+export type Entitlements = Record<string, Capability[]>;
+
 export interface FileRasterBandDescriptor {
   band_number: number;
   data_type: string;

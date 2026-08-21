@@ -2,6 +2,7 @@ import { renderHook } from '@testing-library/react';
 import { useEntitlements, DELETE_DATASET, DATASET_PUBLICATIONS } from 'hooks/useEntitlementsHook';
 import { useAuthContext } from '../../src/auth/AuthContextProvider';
 import { decodeTokenFromString } from '../../src/auth/tokenScopes';
+import { useApiQuery } from 'hooks/useApiQuery';
 
 let mockFeatureFlags: string | undefined;
 
@@ -20,6 +21,10 @@ jest.mock('../../src/auth/tokenScopes', () => ({
   decodeTokenFromString: jest.fn(),
 }));
 
+jest.mock('hooks/useApiQuery', () => ({
+  useApiQuery: jest.fn(),
+}));
+
 describe('useEntitlements - DISABLE_DELETE_DATASET feature flag', () => {
   const setAuthenticatedAs = (roles: string[]) => {
     (useAuthContext as jest.Mock).mockReturnValue({ user: { access_token: 'token' } });
@@ -29,6 +34,7 @@ describe('useEntitlements - DISABLE_DELETE_DATASET feature flag', () => {
   beforeEach(() => {
     mockFeatureFlags = undefined;
     setAuthenticatedAs(['data-admin']);
+    (useApiQuery as jest.Mock).mockReturnValue({ data: undefined, isLoading: false });
   });
 
   afterEach(() => {

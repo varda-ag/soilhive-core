@@ -4,11 +4,17 @@ import { In } from 'typeorm';
 import { EVERYONE } from '../constants/constants';
 import { EntitlementsEntity } from '../entities/Entitlements';
 import { RequestData } from '../interfaces/RequestData';
+import { Token } from '../interfaces/Token';
 import { type Entitlements } from '../types/Entitlements';
 import { Capability } from '../types/enums';
-import { ErrorResponse } from '../utils/error';
+import { ErrorResponse, getErrorMessage } from '../utils/error';
+import { log } from '../utils/logger';
 import { getEntitySlugs } from '../utils/slugs';
 import DatasetEntity from '../entities/Dataset';
+
+/** De-duplicated union, for two grants that land on the same slug after `expandAcrossSlugHistory`. */
+const mergeCapabilities = (existing: Capability[] | undefined, incoming: Capability[]): Capability[] =>
+  Array.from(new Set([...(existing ?? []), ...incoming])).sort();
 
 export default class EntitlementService {
   private entitiesToEntitlements = (entities: EntitlementsEntity[], slugs: string[]): Entitlements => {
@@ -100,7 +106,7 @@ export default class EntitlementService {
     const externalEntitlements = await this.callEntitlementsEndpoint(requestData);
     const repo = requestData.entityManager.getRepository(EntitlementsEntity);
     const entitlements = (await repo.find({ where: { id: In([EVERYONE, id]) } })).sort((a, _) => (a.id === EVERYONE ? -1 : 1));
-    return entitlements.reduce((acc, { data }) => {
+    const merged = entitlements.reduce((acc, { data }) => {
       for (const key in data) {
         if (!acc[key]) {
           acc[key] = [];
@@ -110,7 +116,79 @@ export default class EntitlementService {
       }
       return acc;
     }, externalEntitlements); // Using external entitlements as the accumulator base
+    return this.expandAcrossSlugHistory(requestData, merged);
   }
+
+  /**
+   * `entitlements` is keyed by slug, and some keys may be historical — a grant is written under
+   * whatever slug is current at the time (see `setEntityEntitlements`) and is never rewritten on
+   * a later rename. A caller should be able to look up an entity's entitlement by *any* slug it
+   * has ever had, old or current, and get the same value. This expands the merged map so every
+   * slug in an entity's history carries the same, merged capability list — cost scales with
+   * grants held, not with whatever listing a caller later checks them against.
+   *
+   * Not scoped to Dataset: any entity type can hold entitlements, and slug_history's rename
+   * trigger already covers several (datasets, soil_properties, procedures, licenses, ...).
+   *
+   * A key matching no entity at all (e.g. `spatial_filter`) is left exactly as given.
+   */
+  private expandAcrossSlugHistory = async (requestData: RequestData, entitlements: Entitlements): Promise<Entitlements> => {
+    const slugs = Object.keys(entitlements);
+    if (slugs.length === 0) {
+      return entitlements;
+    }
+
+    // For each input slug that matches a known entity, this returns one row per slug that
+    // entity has ever had (including the input slug itself). No "latest row only" restriction:
+    // we want the full set of related slugs, not just the current one.
+    const rows: { input_slug: string; entity_id: string; related_slug: string }[] = await requestData.entityManager.query(
+      `SELECT sh.slug AS input_slug, sh.entity_id, all_slugs.slug AS related_slug
+       FROM slug_history sh
+       INNER JOIN slug_history all_slugs ON all_slugs.entity_id = sh.entity_id
+       WHERE sh.slug = ANY($1::text[])`,
+      [slugs],
+    );
+    if (rows.length === 0) {
+      return entitlements;
+    }
+
+    // Group by entity: which of the input slugs matched it (to gather capabilities from), and
+    // every slug it has ever had (to write the merged result to).
+    const inputSlugsByEntity = new Map<string, Set<string>>();
+    const relatedSlugsByEntity = new Map<string, Set<string>>();
+    for (const { input_slug, entity_id, related_slug } of rows) {
+      if (!inputSlugsByEntity.has(entity_id)) {
+        inputSlugsByEntity.set(entity_id, new Set());
+        relatedSlugsByEntity.set(entity_id, new Set());
+      }
+      inputSlugsByEntity.get(entity_id)!.add(input_slug);
+      relatedSlugsByEntity.get(entity_id)!.add(related_slug);
+    }
+
+    const matchedInputSlugs = new Set(rows.map(row => row.input_slug));
+    const expanded: Entitlements = {};
+
+    // Unmatched keys (e.g. spatial_filter) pass through unchanged.
+    for (const slug of slugs) {
+      if (!matchedInputSlugs.has(slug)) {
+        expanded[slug] = entitlements[slug]!;
+      }
+    }
+
+    // For each entity, merge the capabilities held under any of its matched input slugs, then
+    // write that merged list under every slug the entity has ever had.
+    for (const [entityId, matchedSlugsForEntity] of inputSlugsByEntity) {
+      let merged: Capability[] = [];
+      for (const inputSlug of matchedSlugsForEntity) {
+        merged = mergeCapabilities(merged, entitlements[inputSlug]!);
+      }
+      for (const relatedSlug of relatedSlugsByEntity.get(entityId)!) {
+        expanded[relatedSlug] = merged;
+      }
+    }
+
+    return expanded;
+  };
 
   async callEntitlementsEndpoint(requestData: RequestData): Promise<Entitlements> {
     if (!process.env.ENTITLEMENTS_ENDPOINT || !requestData.token?.raw) {
@@ -125,21 +203,30 @@ export default class EntitlementService {
       });
       if (!response.ok) {
         const message = await response.text();
-        throw new ErrorResponse(`Failed to fetch entitlements from endpoint: ${message}`, response.status);
+        throw new Error(`status ${response.status}: ${message}`);
       }
       return await response.json();
     } catch (error) {
-      throw new ErrorResponse(`Failed to fetch entitlements from endpoint: ${error}`, StatusCodes.INTERNAL_SERVER_ERROR);
+      log.error('Failed to fetch entitlements from external endpoint, degrading to local entitlements only', {
+        error: getErrorMessage(error),
+      });
+      return {};
     }
   }
 
+  /**
+   * Internal requests and admins bypass entitlements checks entirely (see enforceEntitlements) —
+   * regardless of dataset ownership, not just for datasets they created themselves. Shared here
+   * so the bypass has one definition instead of drifting between the enforcement check and the
+   * capability list the frontend renders from.
+   */
+  private isEntitlementsBypassed = (token?: Token): boolean => {
+    return Boolean(token?.isInternalRequest || token?.isDataAdmin || token?.isSuperAdmin);
+  };
+
   async enforceEntitlements(requestData: RequestData, datasetSlugs: string[], capability: Capability): Promise<void> {
-    if (requestData.token?.isInternalRequest) {
-      // Internal requests are trusted and bypass entitlements checks
-      return;
-    }
-    if (requestData.token?.isDataAdmin || requestData.token?.isSuperAdmin) {
-      // Admins bypass entitlements checks
+    if (this.isEntitlementsBypassed(requestData.token)) {
+      // Internal requests and admins bypass entitlements checks
       return;
     }
     const repo = requestData.entityManager.getRepository(DatasetEntity);

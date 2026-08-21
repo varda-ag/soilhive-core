@@ -1,6 +1,9 @@
+import { useCallback, useMemo } from 'react';
 import { decodeTokenFromString, type Role } from '../auth/tokenScopes';
 import { useAuthContext } from '../auth/AuthContextProvider';
 import { FEATURE_FLAGS } from '../utilities/environmentVariables';
+import { useApiQuery } from './useApiQuery';
+import { Capability, type Entitlements } from 'types/backend';
 
 // Special roles — not in token, resolved at runtime
 export const ANYONE = 'anyone' as const;
@@ -32,6 +35,10 @@ type Action =
   | typeof ADMIN_PORTAL_DATA_MENU
   | typeof DELETE_DATASET;
 
+// Checked against the fetched entitlements map (by entityId), not the role matrix — the action
+// itself is the capability to look up, so no separate action-to-capability mapping is needed.
+type EntityScopedAction = Capability.DOWNLOAD | Capability.PREVIEW;
+
 const ENTITLEMENT_MATRIX: Record<Action, AllRoles[]> = {
   [TERMS_AND_CONDITIONS]: [],
   [MAP_SETTINGS]: [],
@@ -47,28 +54,62 @@ const ENTITLEMENT_MATRIX: Record<Action, AllRoles[]> = {
 export function useEntitlements() {
   const { user } = useAuthContext();
   const isAuthenticated = !!user;
-  const tokenRoles: Role[] = user?.access_token ? decodeTokenFromString(user.access_token) : [];
 
-  const userRoles: AllRoles[] = [...(isAuthenticated ? [LOGGED_IN] : []), ...tokenRoles];
+  // Memoized on `user` itself (not just its access_token) so the dependency the React Compiler
+  // lint rule infers from `user.access_token` matches the one declared here — otherwise it
+  // reports the manual memoization as unpreservable.
+  const tokenRoles: Role[] = useMemo(() => (user?.access_token ? decodeTokenFromString(user.access_token) : []), [user]);
 
-  const can = (action: Action): boolean => {
-    if (!(action in ENTITLEMENT_MATRIX)) {
-      throw new Error(`Action ${action} is not defined in the entitlement matrix.`);
-    }
+  const userRoles: AllRoles[] = useMemo(() => [...(isAuthenticated ? [LOGGED_IN] : []), ...tokenRoles], [isAuthenticated, tokenRoles]);
 
-    if (FEATURE_FLAGS?.includes('DISABLE_DELETE_DATASET') && action === DELETE_DATASET) {
-      return false;
-    }
+  // Mirrors EntitlementService.isEntitlementsBypassed on the backend — isInternalRequest has no
+  // frontend equivalent (that bypass is for service-to-service calls, not browser tokens).
+  const isAdminBypassed = userRoles.includes('data-admin') || userRoles.includes('super-admin');
 
-    const allowedRoles = ENTITLEMENT_MATRIX[action];
+  // GET /entitlements requires a bearer token; for an anonymous user this stays disabled, so
+  // `entitlements` is undefined and the entity-scoped checks below fall back to false. Public
+  // access for anonymous users is handled separately, via dataset.visibility.
+  const { data: entitlements, isLoading } = useApiQuery<Entitlements>({
+    endpoint: '/entitlements',
+    method: 'GET',
+    queryKey: ['entitlements'],
+    enabled: isAuthenticated,
+  });
 
-    if (allowedRoles.includes(ANYONE)) return true;
+  const can = useCallback(
+    (action: Action | EntityScopedAction, entityId?: string): boolean => {
+      if (action === Capability.DOWNLOAD || action === Capability.PREVIEW) {
+        if (!entityId) {
+          throw new Error(`Action ${action} requires an entityId.`);
+        }
+        if (isAdminBypassed) {
+          return true;
+        }
+        if (isLoading) {
+          return false;
+        }
+        return (entitlements?.[entityId] ?? []).includes(action);
+      }
 
-    // Grants SUPER_ADMIN universal access regardless of matrix
-    if (userRoles.includes('super-admin')) return true;
+      if (!(action in ENTITLEMENT_MATRIX)) {
+        throw new Error(`Action ${action} is not defined in the entitlement matrix.`);
+      }
 
-    return allowedRoles.some(role => userRoles.includes(role));
-  };
+      if (FEATURE_FLAGS?.includes('DISABLE_DELETE_DATASET') && action === DELETE_DATASET) {
+        return false;
+      }
 
-  return { can };
+      const allowedRoles = ENTITLEMENT_MATRIX[action];
+
+      if (allowedRoles.includes(ANYONE)) return true;
+
+      // Grants SUPER_ADMIN universal access regardless of matrix
+      if (userRoles.includes('super-admin')) return true;
+
+      return allowedRoles.some(role => userRoles.includes(role));
+    },
+    [isAdminBypassed, isLoading, entitlements, userRoles],
+  );
+
+  return { can, isLoading };
 }
