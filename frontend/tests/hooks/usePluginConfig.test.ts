@@ -13,21 +13,21 @@ describe('usePluginConfig', () => {
     const defaultConfig = { foo: 'bar' };
     renderHook(() => usePluginConfig('myPlugin', 'settings', defaultConfig));
 
-    expect(useConfig).toHaveBeenCalledWith('myPlugin:settings', defaultConfig);
+    expect(useConfig).toHaveBeenCalledWith('plugin:myPlugin:settings', defaultConfig);
   });
 
   it('forwards undefined when no default config is given', () => {
     renderHook(() => usePluginConfig('myPlugin', 'settings'));
 
-    expect(useConfig).toHaveBeenCalledWith('myPlugin:settings', undefined);
+    expect(useConfig).toHaveBeenCalledWith('plugin:myPlugin:settings', undefined);
   });
 
   it('namespaces different plugins separately so ids cannot collide', () => {
     renderHook(() => usePluginConfig('pluginA', 'settings'));
     renderHook(() => usePluginConfig('pluginB', 'settings'));
 
-    expect(useConfig).toHaveBeenNthCalledWith(1, 'pluginA:settings', undefined);
-    expect(useConfig).toHaveBeenNthCalledWith(2, 'pluginB:settings', undefined);
+    expect(useConfig).toHaveBeenNthCalledWith(1, 'plugin:pluginA:settings', undefined);
+    expect(useConfig).toHaveBeenNthCalledWith(2, 'plugin:pluginB:settings', undefined);
   });
 
   it('returns whatever useConfig returns, unchanged', () => {

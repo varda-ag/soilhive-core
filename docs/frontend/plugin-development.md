@@ -213,7 +213,7 @@ See `frontend-plugin-example/src/components/ProviderComponent.tsx` for a full ex
 
 ### Persisting your plugin's own config
 
-Call `context.usePluginConfig(pluginId, id, defaultConfig)` with the same `pluginId` you export from your page module. It reads and writes a config object scoped to `pluginId:id`, so it can never collide with another plugin's or the host's own config:
+Call `context.usePluginConfig(pluginId, id, defaultConfig)` with the same `pluginId` you export from your page module. It reads and writes a config object scoped to `plugin:pluginId:id`, so it can never collide with another plugin's or the host's own config:
 
 ```tsx
 import type { PluginContext } from 'frontend-plugin-types';
