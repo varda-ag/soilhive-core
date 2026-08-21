@@ -8,7 +8,7 @@ jest.mock('@module-federation/enhanced/runtime', () => ({
   })),
 }));
 
-import { isNewTabModule, isSinglePageModule, partitionDuplicatePluginIds } from 'utilities/moduleFederation';
+import { isNewTabModule, isSinglePageModule, partitionDuplicatePluginIds, partitionInvalidPlugins } from 'utilities/moduleFederation';
 import { PluginType, type RemotePlugin } from '../../src/types/plugins';
 
 const Page = () => null;
@@ -45,6 +45,43 @@ describe('isNewTabModule', () => {
 
   it('rejects a new-tab plugin missing a targetUrl', () => {
     expect(isNewTabModule({ pluginId: 'no-url', type: PluginType.NEW_TAB, name: 'no-url' })).toBe(false);
+  });
+});
+
+describe('partitionInvalidPlugins', () => {
+  it('treats a well-formed plugin of each type as valid', () => {
+    expect(partitionInvalidPlugins([singlePage, newTab, mapInfoCard])).toEqual({
+      valid: [singlePage, newTab, mapInfoCard],
+      invalid: [],
+    });
+  });
+
+  it('flags a plugin missing pluginId or name', () => {
+    const noId = { ...singlePage, pluginId: '' };
+    const noName = { ...singlePage, name: '' };
+
+    expect(partitionInvalidPlugins([noId])).toEqual({ valid: [], invalid: [{ module: noId, missingFields: ['pluginId'] }] });
+    expect(partitionInvalidPlugins([noName])).toEqual({ valid: [], invalid: [{ module: noName, missingFields: ['name'] }] });
+  });
+
+  it('flags a single-page plugin missing route or Page', () => {
+    const noRoute = { pluginId: 'no-route', type: PluginType.SINGLE_PAGE, name: 'no-route', Page } as RemotePlugin;
+    const noPage = { pluginId: 'no-page', type: PluginType.SINGLE_PAGE, name: 'no-page', route: '/x' } as RemotePlugin;
+
+    expect(partitionInvalidPlugins([noRoute])).toEqual({ valid: [], invalid: [{ module: noRoute, missingFields: ['route'] }] });
+    expect(partitionInvalidPlugins([noPage])).toEqual({ valid: [], invalid: [{ module: noPage, missingFields: ['Page'] }] });
+  });
+
+  it('flags a new-tab plugin missing targetUrl', () => {
+    const noUrl = { pluginId: 'no-url', type: PluginType.NEW_TAB, name: 'no-url' } as RemotePlugin;
+
+    expect(partitionInvalidPlugins([noUrl])).toEqual({ valid: [], invalid: [{ module: noUrl, missingFields: ['targetUrl'] }] });
+  });
+
+  it('flags a plugin with an unrecognized type', () => {
+    const badType = { pluginId: 'bad-type', name: 'bad-type', type: 'not-a-type' } as unknown as RemotePlugin;
+
+    expect(partitionInvalidPlugins([badType])).toEqual({ valid: [], invalid: [{ module: badType, missingFields: ['type'] }] });
   });
 });
 

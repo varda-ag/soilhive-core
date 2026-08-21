@@ -10,6 +10,45 @@ export const isSinglePageModule = (module: RemotePlugin): module is SinglePagePl
 
 export const isNewTabModule = (module: RemotePlugin): module is NewTabPlugin => module.type === PluginType.NEW_TAB && !!module.targetUrl;
 
+const REQUIRED_FIELDS_BY_TYPE: Record<PluginType, (keyof RemotePlugin)[]> = {
+  [PluginType.SINGLE_PAGE]: ['route', 'Page'],
+  [PluginType.NEW_TAB]: ['targetUrl'],
+  [PluginType.MAP_INFO_CARD]: ['Page'],
+};
+
+function getMissingRequiredFields(module: RemotePlugin): string[] {
+  const missing: string[] = (['pluginId', 'name'] as const).filter(field => !module[field]);
+  const typeFields = module.type ? REQUIRED_FIELDS_BY_TYPE[module.type] : undefined;
+  if (!typeFields) {
+    missing.push('type');
+  } else {
+    missing.push(...typeFields.filter(field => !module[field]));
+  }
+  return missing;
+}
+
+// Splits out modules missing pluginId, name, type, or a type-specific required
+// field (e.g. route for a single-page plugin). Reported via notification rather
+// than thrown, same reasoning as partitionDuplicatePluginIds below. Must run
+// before partitionDuplicatePluginIds, since that function keys a Set on
+// module.pluginId and a missing pluginId would corrupt the dedup.
+export function partitionInvalidPlugins(modules: RemotePlugin[]): {
+  valid: RemotePlugin[];
+  invalid: { module: RemotePlugin; missingFields: string[] }[];
+} {
+  const valid: RemotePlugin[] = [];
+  const invalid: { module: RemotePlugin; missingFields: string[] }[] = [];
+  for (const module of modules) {
+    const missingFields = getMissingRequiredFields(module);
+    if (missingFields.length === 0) {
+      valid.push(module);
+    } else {
+      invalid.push({ module, missingFields });
+    }
+  }
+  return { valid, invalid };
+}
+
 // Splits out modules whose pluginId collides with an earlier one. The first-seen
 // plugin for a given id wins and the rest are reported as duplicates rather than
 // thrown as an error: there's no ErrorBoundary mounted anywhere in the app, so a

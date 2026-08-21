@@ -1,6 +1,6 @@
 import React, { createContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { loadRemotes, partitionDuplicatePluginIds } from '../utilities/moduleFederation';
+import { loadRemotes, partitionDuplicatePluginIds, partitionInvalidPlugins } from '../utilities/moduleFederation';
 import type { Plugin, RemotePlugin } from '../types/plugins';
 import useTheme from '../hooks/useTheme';
 import useNotifications from '../hooks/useNotifications';
@@ -40,7 +40,26 @@ export const RemotesProvider: React.FC<RemotesProviderProps> = ({ children }) =>
     const load = async () => {
       try {
         const loaded = await loadRemotes(themeConfig.plugins ?? EMPTY_REMOTES);
-        const { unique, duplicates } = partitionDuplicatePluginIds(loaded);
+
+        const { valid, invalid } = partitionInvalidPlugins(loaded);
+        // Report modules missing required exports via a notification, rather than
+        // throwing, so a single misconfigured plugin doesn't take down the rest of
+        // the app. Runs before dedup below, since that keys a Set on pluginId and
+        // a missing pluginId would corrupt it.
+        invalid.forEach(({ module, missingFields }) => {
+          const identifier = module.name || module.pluginId || t('plugins.invalid_module.unknown_plugin');
+          showNotification({
+            id: `invalid-plugin-${identifier}`,
+            title: t('plugins.invalid_module.title'),
+            message: t('plugins.invalid_module.message', {
+              identifier,
+              missingFields: missingFields.join(', '),
+            }),
+            type: 'error',
+          });
+        });
+
+        const { unique, duplicates } = partitionDuplicatePluginIds(valid);
         // Report duplicates via a notification, rather than throwing, so a single
         // misconfigured plugin doesn't take down the rest of the app.
         duplicates.forEach(duplicate => {

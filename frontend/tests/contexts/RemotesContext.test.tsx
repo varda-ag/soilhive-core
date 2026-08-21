@@ -81,4 +81,22 @@ describe('RemotesProvider', () => {
 
     expect(showNotification).not.toHaveBeenCalled();
   });
+
+  it('excludes a plugin missing a required field and reports it via notification', async () => {
+    const malformed: RemotePlugin = { ...pluginB, pluginId: 'not-a-dup', route: undefined as unknown as string };
+    loadRemotesMock.mockResolvedValue([pluginA, malformed]);
+
+    const { findByTestId } = render(
+      <RemotesProvider>
+        <Consumer />
+      </RemotesProvider>,
+    );
+
+    await waitFor(async () => expect((await findByTestId('plugins')).textContent).toBe('Plugin A'));
+
+    expect(showNotification).toHaveBeenCalledTimes(1);
+    expect(showNotification).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'invalid-plugin-Plugin B', type: 'error', message: expect.stringContaining('route') }),
+    );
+  });
 });
