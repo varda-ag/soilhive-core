@@ -4,7 +4,7 @@ import type { PluginContext } from 'frontend-plugin-types';
 // its components become available like this: import { Button } from '../../UI/Button/Button';
 import './ProviderComponent.css';
 
-const pluginId = '★ unique-id-of-remote-module ★'; // must be unique across every plugin registered with the host
+const pluginId = 'unique-id-of-remote-module'; // must be unique across every plugin registered with the host
 
 const Page: React.FC<{ context: PluginContext }> = ({ context }) => {
   const {
@@ -99,7 +99,7 @@ const Page: React.FC<{ context: PluginContext }> = ({ context }) => {
   );
 };
 
-const name = '★ Name of remote module ★';
+const name = 'Name of remote module';
 const type = 'single-page';
 const route = 'remote-module';
 export { pluginId, name, route, type, Page };
