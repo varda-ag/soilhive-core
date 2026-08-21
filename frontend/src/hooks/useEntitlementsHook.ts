@@ -57,7 +57,7 @@ export function useEntitlements() {
   const tokenRoles: Role[] = user?.access_token ? decodeTokenFromString(user.access_token) : [];
 
   const userRoles: AllRoles[] = useMemo(
-    () => [...(isAuthenticated ? [LOGGED_IN] : []), ...tokenRoles],
+    () => [...(isAuthenticated ? [LOGGED_IN] : []), ...tokenRoles].sort(),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- tokenRoles is derived fresh from
     // user?.access_token each render; keying on the token string itself keeps this stable.
     [isAuthenticated, user?.access_token],
