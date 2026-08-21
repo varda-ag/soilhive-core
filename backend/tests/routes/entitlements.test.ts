@@ -99,7 +99,7 @@ describe('Testing entitlements routes', () => {
       const expectedEntitlements = {
         'dataset-1': [Capability.DOWNLOAD],
         'dataset-2': [Capability.PREVIEW],
-        test_dataset_1: [Capability.OBFUSCATE_AS_POINTS, Capability.PREVIEW, Capability.DOWNLOAD],
+        test_dataset_1: [Capability.DOWNLOAD, Capability.OBFUSCATE_AS_POINTS, Capability.PREVIEW],
       };
 
       // Mock callEntitlementsEndpoint function

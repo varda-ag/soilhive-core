@@ -14,7 +14,7 @@ import DatasetEntity from '../entities/Dataset';
 
 /** De-duplicated union, for two grants that land on the same slug after `expandAcrossSlugHistory`. */
 const mergeCapabilities = (existing: Capability[] | undefined, incoming: Capability[]): Capability[] =>
-  Array.from(new Set([...(existing ?? []), ...incoming]));
+  Array.from(new Set([...(existing ?? []), ...incoming])).sort();
 
 export default class EntitlementService {
   private entitiesToEntitlements = (entities: EntitlementsEntity[], slugs: string[]): Entitlements => {
