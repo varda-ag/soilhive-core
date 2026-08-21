@@ -1,3 +1,4 @@
+import { useCallback, useMemo } from 'react';
 import { decodeTokenFromString, type Role } from '../auth/tokenScopes';
 import { useAuthContext } from '../auth/AuthContextProvider';
 import { FEATURE_FLAGS } from '../utilities/environmentVariables';
@@ -55,7 +56,12 @@ export function useEntitlements() {
   const isAuthenticated = !!user;
   const tokenRoles: Role[] = user?.access_token ? decodeTokenFromString(user.access_token) : [];
 
-  const userRoles: AllRoles[] = [...(isAuthenticated ? [LOGGED_IN] : []), ...tokenRoles];
+  const userRoles: AllRoles[] = useMemo(
+    () => [...(isAuthenticated ? [LOGGED_IN] : []), ...tokenRoles],
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- tokenRoles is derived fresh from
+    // user?.access_token each render; keying on the token string itself keeps this stable.
+    [isAuthenticated, user?.access_token],
+  );
 
   // Mirrors EntitlementService.isEntitlementsBypassed on the backend — isInternalRequest has no
   // frontend equivalent (that bypass is for service-to-service calls, not browser tokens).
@@ -71,37 +77,40 @@ export function useEntitlements() {
     enabled: isAuthenticated,
   });
 
-  const can = (action: Action | EntityScopedAction, entityId?: string): boolean => {
-    if (action === Capability.DOWNLOAD || action === Capability.PREVIEW) {
-      if (!entityId) {
-        throw new Error(`Action ${action} requires an entityId.`);
+  const can = useCallback(
+    (action: Action | EntityScopedAction, entityId?: string): boolean => {
+      if (action === Capability.DOWNLOAD || action === Capability.PREVIEW) {
+        if (!entityId) {
+          throw new Error(`Action ${action} requires an entityId.`);
+        }
+        if (isAdminBypassed) {
+          return true;
+        }
+        if (isLoading) {
+          return false;
+        }
+        return (entitlements?.[entityId] ?? []).includes(action);
       }
-      if (isAdminBypassed) {
-        return true;
+
+      if (!(action in ENTITLEMENT_MATRIX)) {
+        throw new Error(`Action ${action} is not defined in the entitlement matrix.`);
       }
-      if (isLoading) {
+
+      if (FEATURE_FLAGS?.includes('DISABLE_DELETE_DATASET') && action === DELETE_DATASET) {
         return false;
       }
-      return (entitlements?.[entityId] ?? []).includes(action);
-    }
 
-    if (!(action in ENTITLEMENT_MATRIX)) {
-      throw new Error(`Action ${action} is not defined in the entitlement matrix.`);
-    }
+      const allowedRoles = ENTITLEMENT_MATRIX[action];
 
-    if (FEATURE_FLAGS?.includes('DISABLE_DELETE_DATASET') && action === DELETE_DATASET) {
-      return false;
-    }
+      if (allowedRoles.includes(ANYONE)) return true;
 
-    const allowedRoles = ENTITLEMENT_MATRIX[action];
+      // Grants SUPER_ADMIN universal access regardless of matrix
+      if (userRoles.includes('super-admin')) return true;
 
-    if (allowedRoles.includes(ANYONE)) return true;
-
-    // Grants SUPER_ADMIN universal access regardless of matrix
-    if (userRoles.includes('super-admin')) return true;
-
-    return allowedRoles.some(role => userRoles.includes(role));
-  };
+      return allowedRoles.some(role => userRoles.includes(role));
+    },
+    [isAdminBypassed, isLoading, entitlements, userRoles],
+  );
 
   return { can, isLoading };
 }
