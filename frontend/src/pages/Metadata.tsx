@@ -20,7 +20,7 @@ import { EditorRow } from 'components/Metadata/EditorRow/EditorRow';
 import { LicenseRow } from 'components/Metadata/LicenseRow/LicenseRow';
 import { NumberRow } from 'components/Metadata/NumberRow/NumberRow';
 import { RelatedResourcesRow } from 'components/Metadata/RelatedResourcesRow/RelatedResourcesRow';
-import { PublicationDateRow } from 'components/Metadata/PublicationDateRow/PublicationDateRow';
+import { DateRow } from 'components/Metadata/DateRow/DateRow';
 import { dateStringToDDMMYYYY } from 'utilities/date';
 
 const GIS_DATATYPE_OPTIONS = [
@@ -317,29 +317,25 @@ export default function Metadata() {
               onChange={handleFieldChange}
             />
           )}
-          <EditorRow
+          <DateRow
             label={t('fields.reference_period_start')}
             value={dataset?.reference_period_start}
             isEditable={isAdmin && !inferredProperties.has('reference_period_start')}
-            placeholder={t('placeholders.reference_period_start')}
             property="reference_period_start"
-            variant="text"
             isRequired={isAdmin && !inferredProperties.has('reference_period_start')}
             hasError={fieldErrors.has('reference_period_start')}
             onChange={handleFieldChange}
           />
-          <EditorRow
+          <DateRow
             label={t('fields.reference_period_stop')}
             value={dataset?.reference_period_stop}
             isEditable={isAdmin && !inferredProperties.has('reference_period_stop')}
-            placeholder={t('placeholders.reference_period_stop')}
             property="reference_period_stop"
-            variant="text"
             isRequired={isAdmin && !inferredProperties.has('reference_period_stop')}
             hasError={fieldErrors.has('reference_period_stop')}
             onChange={handleFieldChange}
           />
-          <PublicationDateRow
+          <DateRow
             label={t('fields.publication_date')}
             value={dataset?.publication_date}
             isEditable={isAdmin}

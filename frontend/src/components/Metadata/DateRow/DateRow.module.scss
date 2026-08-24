@@ -38,7 +38,8 @@
   .EditArea {
     flex: 1;
     display: flex;
-    align-items: flex-start;
+    align-items: center;
+    gap: 8px;
     padding: 8px 16px 8px 0;
   }
 
@@ -54,7 +55,6 @@
 
   .Calendar {
     width: 100%;
-    max-width: 220px;
   }
 
   .CalendarInput {
@@ -62,5 +62,40 @@
     font-size: var(--font-size-md);
     padding: 0.5rem 0.75rem;
     color: var(--color-neutral-black);
+  }
+
+  .GranularityToggle {
+    display: flex;
+    align-items: center;
+    border: 1px solid var(--color-neutral-300);
+    border-radius: 6px;
+    overflow: hidden;
+    height: fit-content;
+    flex-shrink: 0;
+  }
+
+  .GranularityBtn {
+    padding: 4px 10px;
+    font-size: var(--font-size-sm);
+    border: none;
+    border-right: 1px solid var(--color-neutral-300);
+    background: transparent;
+    cursor: pointer;
+    color: var(--color-neutral-black);
+    white-space: nowrap;
+
+    &:last-child {
+      border-right: none;
+    }
+
+    &:hover {
+      background-color: var(--color-cta-default-hover);
+      color: var(--color-cta-default-text);
+    }
+
+    &.GranularityBtnActive {
+      background-color: var(--color-cta-default-solid);
+      color: var(--color-cta-default-text);
+    }
   }
 }
