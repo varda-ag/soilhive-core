@@ -14,7 +14,39 @@ import DatasetEntity from '../entities/Dataset';
 
 /** De-duplicated union, for two grants that land on the same slug after `expandAcrossSlugHistory`. */
 const mergeCapabilities = (existing: Capability[] | undefined, incoming: Capability[]): Capability[] =>
-  Array.from(new Set([...(existing ?? []), ...incoming])).sort();
+  Array.from(new Set([...(existing ?? []), ...(Array.isArray(incoming) ? incoming : [])])).sort();
+
+/** One entry of the external provider's reply: a plain object whose own values are all capability lists. */
+const isEntitlementsEntry = (entry: unknown): entry is Record<string, Capability[]> =>
+  typeof entry === 'object' &&
+  entry !== null &&
+  !Array.isArray(entry) &&
+  Object.values(entry as Record<string, unknown>).every(value => Array.isArray(value));
+
+/**
+ * External entitlement providers are expected to reply with an array of `{slug: capabilities}`
+ * entries — one per grant — not a single flat object, for example:
+ *
+ * ```json
+ * [
+ *   { "dataset-1": ["preview", "download"] },
+ *   { "dataset-2": ["preview"] }
+ * ]
+ * ```
+ *
+ * Adapts that agreed shape into the flat `Entitlements` map used everywhere else (in the
+ * example above: `{ "dataset-1": ["preview", "download"], "dataset-2": ["preview"] }`).
+ * Anything that doesn't match it is untrusted: log it and discard the whole reply, the same
+ * "degrade to local-only" behavior already used for a failed fetch, rather than guessing at a
+ * shape nobody has agreed to.
+ */
+const parseExternalEntitlements = (body: unknown): Entitlements => {
+  if (!Array.isArray(body) || !body.every(isEntitlementsEntry)) {
+    log.error('External entitlements endpoint replied in an unexpected shape, discarding its response', { body: JSON.stringify(body) });
+    return {};
+  }
+  return Object.assign({}, ...body);
+};
 
 export default class EntitlementService {
   private entitiesToEntitlements = (entities: EntitlementsEntity[], slugs: string[]): Entitlements => {
@@ -205,7 +237,7 @@ export default class EntitlementService {
         const message = await response.text();
         throw new Error(`status ${response.status}: ${message}`);
       }
-      return await response.json();
+      return parseExternalEntitlements(await response.json());
     } catch (error) {
       log.error('Failed to fetch entitlements from external endpoint, degrading to local entitlements only', {
         error: getErrorMessage(error),
