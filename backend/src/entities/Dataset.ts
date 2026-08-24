@@ -46,7 +46,7 @@ export default class DatasetEntity extends BaseTable implements Dataset {
   @Column({ type: 'text', nullable: true })
   spatial_resolution?: string | null;
 
-  @Column({ type: 'date', nullable: true })
+  @Column({ type: 'text', nullable: true })
   publication_date?: string | null;
 
   @Column({ type: 'text', nullable: true })
