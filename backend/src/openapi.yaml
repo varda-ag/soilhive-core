@@ -2518,7 +2518,7 @@ components:
           nullable: true
         publication_date:
           type: string
-          format: date
+          pattern: '^\d{4}(-\d{2}){0,2}$'
           nullable: true
         reference_period_start:
           type: string
