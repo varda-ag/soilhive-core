@@ -10,6 +10,12 @@ export class PublicationDateFormat1787577738964 implements MigrationInterface {
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`ALTER TABLE "datasets" DROP CONSTRAINT chk_date_format_publication`);
-    await queryRunner.query(`ALTER TABLE "datasets" ALTER COLUMN "publication_date" TYPE date USING publication_date::date`);
+    await queryRunner.query(`ALTER TABLE "datasets" ALTER COLUMN "publication_date" TYPE date USING (
+      CASE
+        WHEN length(publication_date) = 4 THEN (publication_date || '-01-01')::date
+        WHEN length(publication_date) = 7 THEN (publication_date || '-01')::date
+        ELSE publication_date::date
+      END
+    )`);
   }
 }
