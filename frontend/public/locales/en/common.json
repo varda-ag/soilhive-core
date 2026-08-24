@@ -65,11 +65,26 @@
     "errors": {
         "network_error": {
             "title": "Network error",
-            "message": "No connection to the server." 
+            "message": "No connection to the server."
         },
         "timeout_error": {
             "title": "Timeout",
-            "message": "Operation timed out." 
+            "message": "Operation timed out."
+        }
+    },
+    "plugins": {
+        "duplicate_id": {
+            "title": "Duplicate plugin id",
+            "message": "Plugin \"{{name}}\" uses pluginId \"{{pluginId}}\", which is already registered by another plugin. It has been disabled."
+        },
+        "invalid_module": {
+            "title": "Invalid plugin",
+            "unknown_plugin": "unknown plugin",
+            "message": "Plugin \"{{identifier}}\" is missing required properties: {{missingFields}}. It has been disabled."
+        },
+        "load_failed": {
+            "title": "Plugin unavailable",
+            "message": "The plugin at \"{{url}}\" could not be loaded. It has been disabled."
         }
     },
     "components": {

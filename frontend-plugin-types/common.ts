@@ -10,3 +10,10 @@ export interface PluginQueryResult<T> {
   isLoading: boolean;
   isError: boolean;
 }
+
+export interface PluginConfigResult<T> {
+  config: T | undefined;
+  isLoading: boolean;
+  isError: boolean;
+  saveConfig: (config: T) => Promise<void>;
+}

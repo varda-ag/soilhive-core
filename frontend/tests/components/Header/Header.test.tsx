@@ -74,6 +74,7 @@ jest.mock('components/Logo/Logo', () => ({
 }));
 
 const singlePagePlugin: SinglePagePlugin = {
+  pluginId: 'single-page-module',
   name: 'single-page-module',
   type: PluginType.SINGLE_PAGE,
   hasMenuItem: true,
@@ -82,6 +83,7 @@ const singlePagePlugin: SinglePagePlugin = {
 };
 
 const newTabPlugin: NewTabPlugin = {
+  pluginId: 'new-tab-module',
   name: 'new-tab-module',
   type: PluginType.NEW_TAB,
   hasMenuItem: true,
