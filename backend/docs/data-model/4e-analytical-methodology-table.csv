@@ -3,21 +3,21 @@ sieved over 2 mm sieve,Sodium hydroxide [NaOH],0.01 M,01:02.5,mass / mass,UV-Vis
 sieved over 2 mm sieve and field pH,Hydrochloric acid [HCl],0.2 M,01:50,mass / volume,"Elemental analyzer or combustion apparatus with CO2 detection (IR, GC, titrimetry,conductometry, or gravimetry conductometry, or gravimetry)",10
 "Sample pretreated per ISO 11464:2006 (air-dried, ground, sieved <2 mm).carbonate removal with HCl",acid digestion Hydrochloric acid [HCl] Nitric acid [HNO3],0.5 M,saturated paste,volume / volume,field hand estimate,10000
 field moist,dissolution of Carbonates by Sulphuric acid [H2SO4],0.02 M,01:05,,pipette,20
-"Sample pretreated per ISO 11464:2006 (air-dried, ground, sieved <2 mm).","dissolution of Carbonates by Hydrochloric acid [HCl], or Perchloric acid [HClO4]",0.1 M,00:01,,"kPa=33, cm water head=337.1, bar=0.33, pF=2.5",0.2
+"Sample pretreated per ISO 11464:2006 (air-dried, ground, sieved <2 mm).","dissolution of Carbonates by Hydrochloric acid [HCl], or Perchloric acid [HClO4]",0.1 M,00:01,,matric potential = 330 hPa,0.2
 "air dry, then saturated",DTPA,1 M,01:01,,Gravimetric,1
 sieved over 2mm sieve and Hydrogen peroxide [H2O2],Sugar flotation centrifugation,4 M,01:02,,colorimetry,2-10
 oven dry (at 105-110 degrees),Hot water [H2O],,01:10,,Laser diffraction,
 "field moist condition, then saturated",Ammonium chloride [NH4Cl],,01:20,,titrimetric,
 sieved over 1 mm sieve,Bray 1,,01:25,,Glass electrode,
 buffered at 8,Olsen,,,,gravimetric,
-sieved over 2 mm sieve and buffered at 7,Mehlich 3,,,,"kPa=200, cm water head=2043.2, bar=2.00, pF=3.3",
+sieved over 2 mm sieve and buffered at 7,Mehlich 3,,,,matric potential = 2000 hPa,
 sieved over 2 mm,Cotton-wool filter,,,,Scheibler apparatus (volumetric CO2 measurement),
 sieved over 2 mm sieve and buffered at 8,Dry oxidation,,,,electrode,
 air dry,aqua regia and sulphuric acid/nitric acid,,,,Metal electrode,
-equilibrated at 33 kPa,Barium acetate,,,,"kPa=6, cm water head=61.3, bar=0.06, pF=1.8",
-buffered at 7,water [H2O],,,,"kPa=500, pF 3.7",
-sieved over 2mm sieve and Hydrogen peroxide [H2O2] plus Hydrochloric acid [HCl] or Acetic acid [CH3COOH] (if pH-H2O >6.5),Whitehead tray,,,,"kPa=10, cm water head=102.2, bar=0.10, pF=2.0",
-,Acid ammonium oxalate solution,,,,"kPa=100, cm water head=1021.6, bar=1.00, pF=3.0",
+equilibrated at 33 kPa,Barium acetate,,,,matric potential = 60 hPa,
+buffered at 7,water [H2O],,,,matric potential = 5000 hPa,
+sieved over 2mm sieve and Hydrogen peroxide [H2O2] plus Hydrochloric acid [HCl] or Acetic acid [CH3COOH] (if pH-H2O >6.5),Whitehead tray,,,,matric potential = 100 hPa,
+,Acid ammonium oxalate solution,,,,matric potential = 1000 hPa,
 ,Calcium chloride [CaCl2],,,,0,
 ,Sodium hexametaphosphate [(NaPO3)6],,,,pressure,
 ,Kjeldahl,,,,element analyzer,
@@ -29,7 +29,7 @@ sieved over 2mm sieve and Hydrogen peroxide [H2O2] plus Hydrochloric acid [HCl] 
 ,Modified Baermann,,,,sieve,
 ,AZC,,,,Flame emission (AAS) or ICP-OES,
 ,MIR,,,,NIR,
-,Oostenbrink elutriator,,,,"kPa=1500, cm water head=15324.0, bar=15.00, pF=4.2",
+,Oostenbrink elutriator,,,,matric potential = 15000 hPa,
 ,Sodium fluoride [NaF],,,,Preprocessing details provided in the README file,
 ,Modified Kjeldahl method,,,,Kjeldahl digestion unit + distillation apparatus,
 ,Seinhorst elutriator,,,,loss on ignition,
@@ -58,13 +58,6 @@ sieved over 2mm sieve and Hydrogen peroxide [H2O2] plus Hydrochloric acid [HCl] 
 "Air-dried soil, sieved to 2 mm",,,,,,
 ,,,,,matric potential = 10 hPa,
 ,,,,,matric potential = 30 hPa,
-,,,,,matric potential = 60 hPa,
-,,,,,matric potential = 100 hPa,
 ,,,,,matric potential = 300 hPa,
 ,,,,,matric potential = 800 hPa,
-,,,,,matric potential = 1000 hPa,
-,,,,,matric potential = 2000 hPa,
 ,,,,,matric potential = 3000 hPa,
-,,,,,matric potential = 5000 hPa,
-,,,,,matric potential = 15000 hPa,
-
