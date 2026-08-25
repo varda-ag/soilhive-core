@@ -197,6 +197,9 @@ LOCAL_STORAGE_ROOT_FOLDER=/tmp/soilhive-storage
 # S3_STORAGE_BUCKET=my-bucket
 # S3_STORAGE_ROOT_FOLDER=soilhive
 
+## Maximum size of an uploaded file (POST /files and POST /frontend/logo), in MB
+MAX_UPLOAD_SIZE_MB=500
+
 # ── Logging ───────────────────────────────────────────────────────────────────
 LOG_LEVEL=info    # debug | info | warn | error
 ```
