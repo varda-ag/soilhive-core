@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Calendar } from 'primereact/calendar';
 import type { Nullable } from 'primereact/ts-helpers';
 import { useTranslation } from 'react-i18next';
@@ -63,6 +63,14 @@ export function DateRow({
 }) {
   const { t } = useTranslation('metadata');
   const [granularity, setGranularity] = useState<Granularity>(() => detectGranularity(value));
+  const initialized = useRef(!!value);
+
+  useEffect(() => {
+    if (!initialized.current && value) {
+      initialized.current = true;
+      setGranularity(detectGranularity(value));
+    }
+  }, [value]);
 
   const selectedDate: Nullable<Date> = parseToDate(value);
 
@@ -71,6 +79,7 @@ export function DateRow({
   };
 
   const handleGranularityChange = (next: Granularity) => {
+    initialized.current = true;
     setGranularity(next);
     if (selectedDate) {
       onChange(property, formatDate(selectedDate, next));
