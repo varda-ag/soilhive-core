@@ -7,6 +7,7 @@ import { CropLogoModal } from '../CropLogoModal/CropLogoModal';
 import { LogoPreview } from '../LogoPreview/LogoPreview';
 import useLookAndFeel from 'hooks/useLookAndFeel';
 import { useStorageConfig } from 'hooks/useStorageConfig';
+import { formatUploadSize } from 'utilities/formatUploadSize';
 
 import styles from './UploadLogo.module.scss';
 
@@ -56,7 +57,7 @@ export function UploadLogo() {
       }
 
       if (maxUploadSizeMB !== undefined && files[0].size > maxUploadSizeMB * 1024 * 1024) {
-        setErrorMessage(t('look_and_feel.logo.file_too_large', { size: maxUploadSizeMB }));
+        setErrorMessage(t('look_and_feel.logo.file_too_large', { size: formatUploadSize(maxUploadSizeMB) }));
 
         if (fileInputRef.current) {
           fileInputRef.current.value = '';
@@ -105,7 +106,7 @@ export function UploadLogo() {
           handleFiles={handleFileChange}
           caption={
             maxUploadSizeMB !== undefined
-              ? `${t('look_and_feel.logo.supported_formats')} ${t('look_and_feel.logo.max_size_caption', { size: maxUploadSizeMB })}`
+              ? `${t('look_and_feel.logo.supported_formats')} ${t('look_and_feel.logo.max_size_caption', { size: formatUploadSize(maxUploadSizeMB) })}`
               : t('look_and_feel.logo.supported_formats')
           }
           title={

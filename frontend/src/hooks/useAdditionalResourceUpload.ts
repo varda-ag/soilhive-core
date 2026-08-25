@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { BACKEND_BASE_URL } from '../configuration/api';
 import { getToken } from '../auth/tokenStore';
 import { useStorageConfig } from './useStorageConfig';
+import { formatUploadSize } from 'utilities/formatUploadSize';
 
 export const ADDITIONAL_RESOURCE_EXTENSIONS = ['.csv', '.gpkg', '.geojson', '.shp', '.xlsx', '.zip'];
 
@@ -75,7 +76,7 @@ export function useAdditionalResourceUpload(onFileUploaded: (resource: { file_id
         }
         if (maxUploadSizeMB !== undefined && file.size > maxUploadSizeMB * 1024 * 1024) {
           extensionErrors.push(
-            `${file.name}: ${t('datasets.mappings.details.additional_resources_file_too_large', { size: maxUploadSizeMB })}`,
+            `${file.name}: ${t('datasets.mappings.details.additional_resources_file_too_large', { size: formatUploadSize(maxUploadSizeMB) })}`,
           );
           return;
         }

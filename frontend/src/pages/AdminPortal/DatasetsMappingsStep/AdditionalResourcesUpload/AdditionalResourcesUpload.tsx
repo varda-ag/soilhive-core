@@ -4,6 +4,7 @@ import { FileUploadBox } from 'components/UI';
 import { useApiQueries } from 'hooks/useApiQueries';
 import { useAdditionalResourceUpload, ADDITIONAL_RESOURCE_EXTENSIONS } from 'hooks/useAdditionalResourceUpload';
 import { useStorageConfig } from 'hooks/useStorageConfig';
+import { formatUploadSize } from 'utilities/formatUploadSize';
 import type { FileDescriptor } from 'types/backend';
 import FileIcon from 'assets/icons/small-file-icon.svg?react';
 import CrossIcon from 'assets/icons/cross-icon.svg?react';
@@ -69,7 +70,7 @@ export function AdditionalResourcesUpload({ value, onChange }: Props) {
         fileInputRef={fileInputRef}
         caption={
           maxUploadSizeMB !== undefined
-            ? `${t('datasets.mappings.details.additional_resources_upload_caption')} ${t('datasets.mappings.details.additional_resources_max_size_caption', { size: maxUploadSizeMB })}`
+            ? `${t('datasets.mappings.details.additional_resources_upload_caption')} ${t('datasets.mappings.details.additional_resources_max_size_caption', { size: formatUploadSize(maxUploadSizeMB) })}`
             : t('datasets.mappings.details.additional_resources_upload_caption')
         }
         handleFiles={handleFiles}

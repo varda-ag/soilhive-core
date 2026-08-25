@@ -5,6 +5,7 @@ import { IngestionStepTitleRow } from 'components/AdminPortal/IngestionStepTitle
 import { SoilDataFileRow } from './SoilDataFileRow/SoilDataFileRow';
 import { useDatasetsSoilData, ALLOWED_EXTENSIONS } from '../../../hooks/useDatasetsSoilData';
 import { useStorageConfig } from 'hooks/useStorageConfig';
+import { formatUploadSize } from 'utilities/formatUploadSize';
 import { INGESTION_DOCS_URL } from 'configuration/ingestion';
 
 import styles from './DatasetsSoilDataStep.module.scss';
@@ -50,7 +51,7 @@ export function DatasetsSoilDataStep() {
         fileInputRef={fileInputRef}
         caption={
           maxUploadSizeMB !== undefined
-            ? `${t('datasets.soil_data.upload_caption')} ${t('datasets.soil_data.max_size_caption', { size: maxUploadSizeMB })}`
+            ? `${t('datasets.soil_data.upload_caption')} ${t('datasets.soil_data.max_size_caption', { size: formatUploadSize(maxUploadSizeMB) })}`
             : t('datasets.soil_data.upload_caption')
         }
         title={

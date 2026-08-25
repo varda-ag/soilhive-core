@@ -72,6 +72,6 @@ describe('DatasetsSoilDataStep', () => {
   it('appends the max upload size to the caption', () => {
     render(<DatasetsSoilDataStep />);
 
-    expect(screen.getByText('datasets.soil_data.upload_caption datasets.soil_data.max_size_caption {"size":500}')).toBeInTheDocument();
+    expect(screen.getByText('datasets.soil_data.upload_caption datasets.soil_data.max_size_caption {"size":"500 MB"}')).toBeInTheDocument();
   });
 });

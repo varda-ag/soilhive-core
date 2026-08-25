@@ -4,6 +4,7 @@ import { BACKEND_BASE_URL } from '../configuration/api';
 import { getToken } from '../auth/tokenStore';
 import { ALLOWED_EXTENSIONS } from './useDatasetsSoilData';
 import { useStorageConfig } from './useStorageConfig';
+import { formatUploadSize } from 'utilities/formatUploadSize';
 import type { SoilDataFile } from '../types/soilDataFile';
 
 export function useFileUpload(onFileUploaded: (file: SoilDataFile) => void) {
@@ -81,7 +82,7 @@ export function useFileUpload(onFileUploaded: (file: SoilDataFile) => void) {
           return;
         }
         if (maxUploadSizeMB !== undefined && file.size > maxUploadSizeMB * 1024 * 1024) {
-          extensionErrors.push(`${file.name}: ${t('datasets.soil_data.file_too_large', { size: maxUploadSizeMB })}`);
+          extensionErrors.push(`${file.name}: ${t('datasets.soil_data.file_too_large', { size: formatUploadSize(maxUploadSizeMB) })}`);
           return;
         }
         validFiles.push(file);
