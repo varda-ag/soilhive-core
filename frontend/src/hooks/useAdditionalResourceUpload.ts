@@ -2,11 +2,14 @@ import { useRef, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { BACKEND_BASE_URL } from '../configuration/api';
 import { getToken } from '../auth/tokenStore';
+import { useStorageConfig } from './useStorageConfig';
 
 export const ADDITIONAL_RESOURCE_EXTENSIONS = ['.csv', '.gpkg', '.geojson', '.shp', '.xlsx', '.zip'];
 
 export function useAdditionalResourceUpload(onFileUploaded: (resource: { file_id: string; name: string }) => void) {
   const { t } = useTranslation('admin');
+  const { storageConfig } = useStorageConfig();
+  const maxUploadSizeMB = storageConfig?.maxUploadSizeMB;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadingFiles, setUploadingFiles] = useState<File[]>([]);
   const [uploadProgress, setUploadProgress] = useState<Record<string, number[]>>({});
@@ -66,11 +69,17 @@ export function useAdditionalResourceUpload(onFileUploaded: (resource: { file_id
 
       fileArray.forEach(file => {
         const extension = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
-        if (ADDITIONAL_RESOURCE_EXTENSIONS.includes(extension)) {
-          validFiles.push(file);
-        } else {
+        if (!ADDITIONAL_RESOURCE_EXTENSIONS.includes(extension)) {
           extensionErrors.push(`${file.name}: ${t('datasets.mappings.details.additional_resources_invalid_file_type')}`);
+          return;
         }
+        if (maxUploadSizeMB !== undefined && file.size > maxUploadSizeMB * 1024 * 1024) {
+          extensionErrors.push(
+            `${file.name}: ${t('datasets.mappings.details.additional_resources_file_too_large', { size: maxUploadSizeMB })}`,
+          );
+          return;
+        }
+        validFiles.push(file);
       });
 
       if (extensionErrors.length > 0) setUploadErrors(extensionErrors);
@@ -94,7 +103,7 @@ export function useAdditionalResourceUpload(onFileUploaded: (resource: { file_id
       setUploadingFiles([]);
       if (fileInputRef.current) fileInputRef.current.value = '';
     },
-    [uploadFile, onFileUploaded, t],
+    [uploadFile, onFileUploaded, t, maxUploadSizeMB],
   );
 
   return { fileInputRef, uploadingFiles, uploadProgress, uploadErrors, handleFiles };

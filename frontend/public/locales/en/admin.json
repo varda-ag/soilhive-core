@@ -368,10 +368,12 @@
                 "additional_resources_title": "Additional resources",
                 "additional_resources_subtitle": "(e.g. prediction layer)",
                 "additional_resources_upload_caption": "Supported formats: CSV, GeoPackage, GeoJSON, Shapefile, XLSX and ZIP.",
+                "additional_resources_max_size_caption": "Max file size: {{size}} MB.",
                 "additional_resources_added_title": "Added resources",
                 "additional_resources_file_badge": "File",
                 "additional_resources_remove_aria": "Remove resource",
                 "additional_resources_invalid_file_type": "Invalid file type",
+                "additional_resources_file_too_large": "File exceeds the maximum size of {{size}} MB",
                 "additional_resources_upload_error": "Failed to upload file"
             }
         },
