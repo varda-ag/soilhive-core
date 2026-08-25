@@ -4,6 +4,7 @@ import { Button, FileUploadBox } from 'components/UI';
 import { IngestionStepTitleRow } from 'components/AdminPortal/IngestionStepTitleRow/IngestionStepTitleRow';
 import { SoilDataFileRow } from './SoilDataFileRow/SoilDataFileRow';
 import { useDatasetsSoilData, ALLOWED_EXTENSIONS } from '../../../hooks/useDatasetsSoilData';
+import { useStorageConfig } from 'hooks/useStorageConfig';
 import { INGESTION_DOCS_URL } from 'configuration/ingestion';
 
 import styles from './DatasetsSoilDataStep.module.scss';
@@ -13,6 +14,8 @@ const DOCS_URL = `${INGESTION_DOCS_URL}#soil-data--upload-your-files`;
 export function DatasetsSoilDataStep() {
   const { t } = useTranslation('admin');
   const { t: tCommon } = useTranslation('common');
+  const { storageConfig } = useStorageConfig();
+  const maxUploadSizeMB = storageConfig?.maxUploadSizeMB;
   const {
     datasetName,
     fileInputRef,
@@ -45,7 +48,11 @@ export function DatasetsSoilDataStep() {
         files={uploadingFiles}
         uploadProgress={uploadProgress}
         fileInputRef={fileInputRef}
-        caption={t('datasets.soil_data.upload_caption')}
+        caption={
+          maxUploadSizeMB !== undefined
+            ? `${t('datasets.soil_data.upload_caption')} ${t('datasets.soil_data.max_size_caption', { size: maxUploadSizeMB })}`
+            : t('datasets.soil_data.upload_caption')
+        }
         title={
           <Trans
             t={tCommon}

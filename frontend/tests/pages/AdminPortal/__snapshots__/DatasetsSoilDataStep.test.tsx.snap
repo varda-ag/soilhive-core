@@ -56,7 +56,7 @@ exports[`DatasetsSoilDataStep renders matches snapshot 1`] = `
           <p
             class="Caption"
           >
-            datasets.soil_data.upload_caption
+            datasets.soil_data.upload_caption datasets.soil_data.max_size_caption {"size":500}
           </p>
           <input
             accept=""
