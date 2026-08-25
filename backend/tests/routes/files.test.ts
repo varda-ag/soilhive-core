@@ -243,6 +243,42 @@ describe('Testing /files routes (local storage)', () => {
       expect(patchRes.body.metadata.epsg).toEqual(epsg);
     });
   });
+
+  describe('POST /files — multer fileSize limit (Subtask 3, end-to-end)', () => {
+    const originalMaxUploadSizeMB = process.env.MAX_UPLOAD_SIZE_MB;
+
+    afterEach(() => {
+      if (originalMaxUploadSizeMB === undefined) {
+        delete process.env.MAX_UPLOAD_SIZE_MB;
+      } else {
+        process.env.MAX_UPLOAD_SIZE_MB = originalMaxUploadSizeMB;
+      }
+    });
+
+    // MAX_UPLOAD_SIZE_MB is read once, at app startup, into multer's `limits.fileSize` (see
+    // middlewares/openapi.ts) — so exercising a different limit requires a freshly imported app.
+    // The upload also omits a Content-Length header (a plain Readable has no known length, so
+    // superagent falls back to chunked transfer-encoding), bypassing uploadSizeLimit's earlier
+    // Content-Length gate and proving multer's own limit is the authoritative backstop.
+    it('rejects an oversized file with 413 via multer, independent of the Content-Length gate', async () => {
+      process.env.MAX_UPLOAD_SIZE_MB = '1';
+      jest.resetModules();
+      const { app: freshApp } = await import('../../src/app');
+      const { destroyDataSource } = await import('../../src/utils/data-source');
+
+      try {
+        const oversized = Buffer.alloc(2 * 1024 * 1024, 'a');
+        const res = await request(freshApp)
+          .post('/files')
+          .set(dataAdminAuthHeader)
+          .attach('file', Readable.from([oversized]), 'big.geojson');
+
+        expect(res.statusCode).toBe(StatusCodes.REQUEST_TOO_LONG);
+      } finally {
+        await destroyDataSource();
+      }
+    });
+  });
 });
 
 describe('Testing /download route', () => {
