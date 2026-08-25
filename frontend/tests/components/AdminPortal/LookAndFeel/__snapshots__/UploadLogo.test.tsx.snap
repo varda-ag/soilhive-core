@@ -26,6 +26,11 @@ exports[`UploadLogo renders LogoPreview when preview logo exists 1`] = `
         >
           invalid file
         </button>
+        <button
+          data-testid="file-upload-oversized"
+        >
+          oversized file
+        </button>
       </div>
     </div>
     <div
@@ -110,6 +115,11 @@ exports[`UploadLogo renders upload state without preview logo 1`] = `
           data-testid="file-upload-invalid"
         >
           invalid file
+        </button>
+        <button
+          data-testid="file-upload-oversized"
+        >
+          oversized file
         </button>
       </div>
     </div>

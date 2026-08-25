@@ -103,11 +103,13 @@
             "title": "Upload the logo for your platform",
             "label": "Your picture will appear in the header",
             "supported_formats": "Supported formats: jpg, png or svg.",
+            "max_size_caption": "Max file size: {{size}} MB.",
             "logo_preview": "Logo preview",
             "actual_logo": "Actual logo",
             "change_button": "Change picture",
             "delete_button": "Delete picture",
             "unsupported_format_error": "Unsupported file format. Please upload a PNG, JPG or SVG file.",
+            "file_too_large": "File exceeds the maximum size of {{size}} MB",
             "crop": {
                 "title": "Upload a logo",
                 "upload_button": "Upload",
