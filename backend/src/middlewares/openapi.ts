@@ -5,6 +5,7 @@ import { middleware as OpenApiValidator } from 'express-openapi-validator';
 import { tokenValidator } from './tokenValidator';
 import FileService from '../services/FileService';
 import { authMiddleware } from './auth';
+import ConfigService from '../services/ConfigService';
 
 let cachedSwaggerDocument = undefined;
 
@@ -35,6 +36,10 @@ export const getOpenApiMiddleware = async () => {
       // Internally Multer is used for file uploads.
       // Storage destination is configured based on environment variables.
       storage: FileService.getUploadStorageEngine(),
+      // Authoritative size check for both multipart routes (POST /files, POST /frontend/logo -
+      // see ADR 0029 for why they share one limit). Stops those uploads that don't specify
+      // content-length and are not caught by the uploadSizeLimit middleware (e.g. chunked transfer-encoding).
+      limits: { fileSize: ConfigService.getMaxUploadSizeBytes() },
     },
   });
 

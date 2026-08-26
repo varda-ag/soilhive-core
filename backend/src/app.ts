@@ -6,6 +6,7 @@ import { errorMiddleware } from './middlewares/error';
 import { loggingMiddleware } from './middlewares/logging';
 import { getOpenApiMiddleware, getSwaggerDocument } from './middlewares/openapi';
 import { transactionMiddleware } from './middlewares/transaction';
+import { uploadSizeLimit } from './middlewares/uploadSizeLimit';
 import { initPgBoss } from './services/PgBoss';
 import { setupCLI } from './utils/cli';
 import { cacheBypassMiddleware, isCacheBypassEnabled } from './utils/cache-bypass';
@@ -54,6 +55,7 @@ export const initApp = async (app: Application) => {
     }),
   );
 
+  app.use(uploadSizeLimit);
   app.use(express.urlencoded({ extended: true }));
   app.use(express.json({ limit: process.env.JSON_PAYLOAD_LIMIT || undefined }));
 

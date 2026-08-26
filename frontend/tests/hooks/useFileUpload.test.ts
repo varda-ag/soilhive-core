@@ -1,9 +1,14 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { useFileUpload } from 'hooks/useFileUpload';
+import { useStorageConfig } from 'hooks/useStorageConfig';
 
 jest.mock('hooks/useDatasetsSoilData', () => ({
   ALLOWED_EXTENSIONS: ['.csv', '.gpkg', '.geojson', '.shp', '.xlsx', '.zip', '.tif', '.tiff'],
   useDatasetsSoilData: jest.fn(),
+}));
+
+jest.mock('hooks/useStorageConfig', () => ({
+  useStorageConfig: jest.fn(),
 }));
 
 jest.mock('../../src/configuration/api', () => ({
@@ -52,6 +57,12 @@ describe('useFileUpload', () => {
     // `useFileUpload` checks static property `XMLHttpRequest.DONE` to resolve the promise.
     XhrCtor.DONE = originalXhr.DONE;
     global.XMLHttpRequest = XhrCtor;
+
+    (useStorageConfig as jest.Mock).mockReturnValue({
+      storageConfig: { storageMode: 'local', maxUploadSizeMB: 500 },
+      isLoading: false,
+      isError: false,
+    });
   });
 
   afterEach(() => {
@@ -156,6 +167,50 @@ describe('useFileUpload', () => {
         await result.current.handleFiles([file]);
       });
 
+      await waitFor(() => {
+        expect(result.current.uploadErrors).toHaveLength(1);
+        expect(result.current.uploadErrors[0]).toContain('layer.csv');
+      });
+    });
+  });
+
+  describe('handleFiles — size validation', () => {
+    function createFileWithSize(name: string, sizeInBytes: number): File {
+      const file = new File(['data'], name, { type: 'text/csv' });
+      Object.defineProperty(file, 'size', { value: sizeInBytes, configurable: true });
+      return file;
+    }
+
+    it('uploads a file under the size limit unchanged', async () => {
+      const onFileUploaded = jest.fn();
+      const { result } = renderHook(() => useFileUpload(onFileUploaded));
+      const file = createFileWithSize('layer.csv', 1024);
+
+      await act(async () => {
+        await result.current.handleFiles([file]);
+      });
+
+      expect(xhrMock.send).toHaveBeenCalledTimes(1);
+      expect(onFileUploaded).toHaveBeenCalledWith(expect.objectContaining({ name: 'layer.csv' }));
+      expect(result.current.uploadErrors).toHaveLength(0);
+    });
+
+    it('rejects a file over the size limit without sending a request', async () => {
+      (useStorageConfig as jest.Mock).mockReturnValue({
+        storageConfig: { storageMode: 'local', maxUploadSizeMB: 1 },
+        isLoading: false,
+        isError: false,
+      });
+      const onFileUploaded = jest.fn();
+      const { result } = renderHook(() => useFileUpload(onFileUploaded));
+      const file = createFileWithSize('layer.csv', 2 * 1024 * 1024);
+
+      await act(async () => {
+        await result.current.handleFiles([file]);
+      });
+
+      expect(xhrMock.send).not.toHaveBeenCalled();
+      expect(onFileUploaded).not.toHaveBeenCalled();
       await waitFor(() => {
         expect(result.current.uploadErrors).toHaveLength(1);
         expect(result.current.uploadErrors[0]).toContain('layer.csv');

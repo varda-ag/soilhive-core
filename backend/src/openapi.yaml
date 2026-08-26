@@ -157,6 +157,21 @@ paths:
         '200':
           description: Object containing all the stored configurations
 
+  /storage/config:
+    get:
+      x-eov-operation-handler: controllers/storage
+      x-eov-operation-id: getConfig
+      summary: Retrieve public storage configuration
+      tags:
+        - storage
+      responses:
+        '200':
+          description: Public storage configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicStorageConfig'
+
   /frontend/logo:
     post:
       x-eov-operation-handler: controllers/files
@@ -1974,6 +1989,19 @@ components:
               detail:
                 type: string
                 nullable: true
+
+    PublicStorageConfig:
+      type: object
+      required:
+        - storageMode
+        - maxUploadSizeMB
+      properties:
+        storageMode:
+          type: string
+          description: Configured storage mode
+        maxUploadSizeMB:
+          type: number
+          description: Maximum upload size, in megabytes, enforced on file uploads
 
     AuthConfig:
       type: object
