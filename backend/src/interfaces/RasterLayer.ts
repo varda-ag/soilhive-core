@@ -25,12 +25,6 @@ export interface RasterLayerAsset {
   description: object | null;
 }
 
-export interface RasterLayerMatch {
-  id: string;
-  file_path: string;
-  band: number;
-  resolution_m: number;
-}
 export interface Envelope {
   minX: number;
   minY: number;
