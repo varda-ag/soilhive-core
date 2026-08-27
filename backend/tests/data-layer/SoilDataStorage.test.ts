@@ -4,13 +4,14 @@ import * as turf from '@turf/turf';
 import { MultiPolygon, Polygon } from 'geojson';
 import { getEntityManager } from '../../src/utils/data-source';
 import { getPolygonFromBbox } from '../../src/utils/geometry';
-import { addDataset, addRasterData, addRasterDataset, addSyntheticData, syntheticDataOptions } from '../../src/utils/mock';
+import { addDataset, addFile, addRasterData, addRasterDataset, addSyntheticData, syntheticDataOptions } from '../../src/utils/mock';
 import SoilDataStorage, {
   buildDatasetFilterClauses,
   hasRasterFilters,
   resetEnabledRasterFilterTablesCache,
 } from '../../src/data-layer/SoilDataStorage';
 import DatasetEntity from '../../src/entities/Dataset';
+import RasterLayerAssetEntity from '../../src/entities/RasterLayerAsset';
 import { decodeCursor } from '../../src/utils/cursor';
 import { addRasterFilterData, addRasterFilterMappings } from '../helper';
 import { GISDataType, IngestionStatus } from '../../src/types/data';
@@ -1059,6 +1060,42 @@ describe('SoilDataStorage class', () => {
 
       expect(layers).toHaveLength(1);
       expect(layers[0]!.is_categorical).toBe(expected);
+    });
+  });
+
+  describe('getRasterLayerAssets', () => {
+    const addAsset = async (rasterLayerId: string, fileId: string): Promise<RasterLayerAssetEntity> => {
+      const entityManager = await getEntityManager();
+      const repo = entityManager.getRepository(RasterLayerAssetEntity);
+      return await repo.save(repo.create({ raster_layer_id: rasterLayerId, file_id: fileId }));
+    };
+
+    it('groups Raster Layer Assets by raster_layer_id, joined with their file', async () => {
+      const layer = await addRasterData(undefined, { dataset_status: IngestionStatus.PUBLISHED, visibility: 'public' });
+      const manual = await addFile('manual.pdf');
+      const companion = await addFile('companion.pdf');
+      await addAsset(layer.id, manual.id);
+      await addAsset(layer.id, companion.id);
+
+      const sds = new SoilDataStorage();
+      const entityManager = await getEntityManager();
+      const grouped = await sds.getRasterLayerAssets({ entityManager, entitlements } as any, [layer.id]);
+
+      const assets = grouped.get(layer.id) ?? [];
+      expect(assets).toHaveLength(2);
+      expect(assets.map(a => a.file_id).sort()).toEqual([companion.id, manual.id].sort());
+      expect(assets.map(a => a.name).sort()).toEqual(['companion.pdf', 'manual.pdf']);
+      expect(assets.every(a => a.raster_layer_id === layer.id)).toBe(true);
+    });
+
+    it('returns an empty list for a layer with zero assets, not an error', async () => {
+      const layer = await addRasterData(undefined, { dataset_status: IngestionStatus.PUBLISHED, visibility: 'public' });
+
+      const sds = new SoilDataStorage();
+      const entityManager = await getEntityManager();
+      const grouped = await sds.getRasterLayerAssets({ entityManager, entitlements } as any, [layer.id]);
+
+      expect(grouped.get(layer.id) ?? []).toHaveLength(0);
     });
   });
 
