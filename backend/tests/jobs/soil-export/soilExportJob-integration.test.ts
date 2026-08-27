@@ -4,8 +4,19 @@ import * as path from 'path';
 import * as os from 'os';
 import extractZip from 'extract-zip';
 import request from 'supertest';
+import { FileStorage } from '@flystorage/file-storage';
 import { app } from '../../../src/app';
-import { addDataset, addSyntheticData, syntheticDataOptions, addRasterData, addSoilProperty, addCategory } from '../../../src/utils/mock';
+import {
+  addDataset,
+  addSyntheticData,
+  syntheticDataOptions,
+  addRasterData,
+  addSoilProperty,
+  addCategory,
+  addFile,
+  addAssetToRasterLayer,
+  addRasterLayerAsset,
+} from '../../../src/utils/mock';
 import { initPgBoss, stopPgBoss } from '../../../src/services/PgBoss';
 import { getExportBatchSize, sanitizeField, sleep } from '../../../src/utils/utils';
 import { RasterFileFormat, VectorFileFormat } from '../../../src/jobs/soil-export/types';
@@ -14,7 +25,6 @@ import { SoilDataSample } from '../../../src/interfaces/SoilDataSample';
 import * as exportHelpers from '../../../src/jobs/soil-export/exportHelpers';
 import DatasetEntity from '../../../src/entities/Dataset';
 import RasterLayerEntity from '../../../src/entities/RasterLayer';
-import RasterLayerAssetEntity from '../../../src/entities/RasterLayerAsset';
 import FileEntity from '../../../src/entities/File';
 import { RasterFileMetadata } from '../../../src/interfaces/File';
 import { getDataSource } from '../../../src/utils/data-source';
@@ -81,45 +91,6 @@ async function hasNonNodataPixel(tifPath: string, nodataValue: number): Promise<
     if (data[i] !== nodataValue) return true;
   }
   return false;
-}
-
-let assetFixtureCounter = 0;
-
-/**
- * Creates a Raster Layer Asset attached to `rasterLayerId`: a real FileEntity backed by bytes
- * actually written under LOCAL_STORAGE_ROOT_FOLDER (so FileService can read it back), plus the
- * RasterLayerAssetEntity join row. Each call gets its own storage key so fixtures never collide.
- */
-async function attachRasterLayerAsset(rasterLayerId: string, filename: string, content: string): Promise<FileEntity> {
-  const relativePath = path.join('raster-layer-assets', `${assetFixtureCounter++}-${filename}`);
-  const absolutePath = path.join(storageRoot, relativePath);
-  fs.mkdirSync(path.dirname(absolutePath), { recursive: true });
-  fs.writeFileSync(absolutePath, content);
-
-  const dataSource = await getDataSource();
-  const file = await dataSource
-    .getRepository(FileEntity)
-    .save(dataSource.getRepository(FileEntity).create({ name: filename, file_path: relativePath, created_by: 'tests' }));
-  await dataSource
-    .getRepository(RasterLayerAssetEntity)
-    .save(dataSource.getRepository(RasterLayerAssetEntity).create({ raster_layer_id: rasterLayerId, file_id: file.id }));
-  return file;
-}
-
-/**
- * Points a Raster Layer Asset's File at a path that is never written to storage — reproduces
- * the missing/unreadable asset case without touching disk.
- */
-async function attachUnreadableRasterLayerAsset(rasterLayerId: string, filename: string): Promise<FileEntity> {
-  const relativePath = path.join('raster-layer-assets', `${assetFixtureCounter++}-missing-${filename}`);
-  const dataSource = await getDataSource();
-  const file = await dataSource
-    .getRepository(FileEntity)
-    .save(dataSource.getRepository(FileEntity).create({ name: filename, file_path: relativePath, created_by: 'tests' }));
-  await dataSource
-    .getRepository(RasterLayerAssetEntity)
-    .save(dataSource.getRepository(RasterLayerAssetEntity).create({ raster_layer_id: rasterLayerId, file_id: file.id }));
-  return file;
 }
 
 describe('Soil Export Job Integration Test', () => {
@@ -1128,7 +1099,7 @@ describe('Soil Export Job Integration Test', () => {
     });
 
     describe('raster layer assets', () => {
-      async function runRasterExportJob(datasetSlug: string): Promise<any> {
+      async function runRasterExportJob(datasetSlugs: string | string[]): Promise<any> {
         const filterResponse = await request(app)
           .post('/data-filters')
           .send({ geometries: [filterPolygon], parameters: {} });
@@ -1140,7 +1111,7 @@ describe('Soil Export Job Integration Test', () => {
           .send({
             type: 'export',
             filter_id: filterId,
-            dataset_ids: [datasetSlug],
+            dataset_ids: Array.isArray(datasetSlugs) ? datasetSlugs : [datasetSlugs],
             formats: [RasterFileFormat.TIFF],
           });
         expect(exportJobResponse.statusCode).toBe(201);
@@ -1199,7 +1170,7 @@ describe('Soil Export Job Integration Test', () => {
       }
 
       it('includes a raster layer asset in the zip under assets/{layerName}/, alongside its raster output', async () => {
-        const assetFile = await attachRasterLayerAsset(raster_layer!.id, 'manual.pdf', 'technical manual content');
+        const assetFile = await addRasterLayerAsset(raster_layer!.id, 'manual.pdf', 'technical manual content');
 
         const completedJob = await runRasterExportJob(raster_layer!.dataset.slug);
         const extractDir = await downloadAndExtract(completedJob.data.download_path);
@@ -1218,7 +1189,10 @@ describe('Soil Export Job Integration Test', () => {
 
       it('skips an unreadable asset with a warning, and still ships the layer output and completes the job', async () => {
         const warnSpy = jest.spyOn(log, 'warn');
-        const unreadableFile = await attachUnreadableRasterLayerAsset(raster_layer!.id, 'missing-manual.pdf');
+        // addFile only creates the DB row — file_path never gets written to storage, reproducing
+        // the missing/unreadable asset case without touching disk.
+        const unreadableFile = await addFile('missing-manual.pdf');
+        await addAssetToRasterLayer(raster_layer!.id, unreadableFile.id);
 
         const completedJob = await runRasterExportJob(raster_layer!.dataset.slug);
         const extractDir = await downloadAndExtract(completedJob.data.download_path);
@@ -1236,6 +1210,45 @@ describe('Soil Export Job Integration Test', () => {
         );
 
         warnSpy.mockRestore();
+        fs.rmSync(path.dirname(extractDir), { recursive: true, force: true });
+      });
+
+      it('reads a Raster Layer Asset from storage only once, even when two exported layers share it', async () => {
+        // A distinct source file: raster_layers upserts on (file_id, band), so reusing the
+        // default source tif here would update raster_layer's own row instead of creating a
+        // second, independent layer.
+        const secondLayer = await addRasterData(path.join(__dirname, '../../assets/raster/bdod_5-15cm_mean.tif'), {
+          dataset: 'shared-asset-second-ds',
+          soilProperty: 'Second Property',
+          dataset_status: IngestionStatus.PUBLISHED,
+          visibility: 'public',
+        });
+
+        const sharedFile = await addRasterLayerAsset(raster_layer!.id, 'shared-manual.pdf', 'shared manual content');
+        await addAssetToRasterLayer(secondLayer.id, sharedFile.id);
+
+        const readSpy = jest.spyOn(FileStorage.prototype, 'read');
+
+        const completedJob = await runRasterExportJob([raster_layer!.dataset.slug, secondLayer.dataset.slug]);
+        const extractDir = await downloadAndExtract(completedJob.data.download_path);
+
+        const extractedFiles = fs.readdirSync(extractDir);
+        const tiffFiles = extractedFiles.filter(f => f.toLowerCase().endsWith('.tif'));
+        expect(tiffFiles.length).toBe(2);
+
+        // The dedup trade-off: read once, but written into both layers' own subfolders — the ZIP
+        // is not smaller, each layer's folder just stays self-contained.
+        for (const tiffFile of tiffFiles) {
+          const layerName = path.basename(tiffFile, '.tif');
+          const assetPath = path.join(extractDir, 'assets', layerName, sharedFile.name);
+          expect(fs.existsSync(assetPath)).toBe(true);
+          expect(fs.readFileSync(assetPath, 'utf-8')).toBe('shared manual content');
+        }
+
+        const readsOfSharedFile = readSpy.mock.calls.filter(call => call[0] === sharedFile.file_path);
+        expect(readsOfSharedFile).toHaveLength(1);
+
+        readSpy.mockRestore();
         fs.rmSync(path.dirname(extractDir), { recursive: true, force: true });
       });
     });

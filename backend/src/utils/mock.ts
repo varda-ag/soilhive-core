@@ -23,6 +23,7 @@ import { getRawTableName } from './utils';
 import DatasetFileMappingEntity from '../entities/DatasetFileMapping';
 import VocabularyEntity from '../entities/Vocabulary';
 import RasterLayerEntity from '../entities/RasterLayer';
+import RasterLayerAssetEntity from '../entities/RasterLayerAsset';
 import { log } from './logger';
 import { ingestRaster } from '../services/RasterIngestService';
 
@@ -144,6 +145,31 @@ export const addFile = async (name: string = 'test_file'): Promise<FileEntity> =
   });
   const newFile = await repo.save(file, { reload: true });
   return await repo.findOneByOrFail({ id: newFile.id });
+};
+
+// Attaches an already-existing File to a Raster Layer as a Raster Layer Asset — used to give
+// two exported layers the same underlying File (the export job's dedup-vs-layout scenario).
+export const addAssetToRasterLayer = async (rasterLayerId: string, fileId: string): Promise<RasterLayerAssetEntity> => {
+  const dataSource = await getDataSource();
+  const repo = dataSource.getRepository(RasterLayerAssetEntity);
+  return await repo.save(repo.create({ raster_layer_id: rasterLayerId, file_id: fileId }));
+};
+
+// Creates a Raster Layer Asset backed by a real File whose bytes are actually written under
+// LOCAL_STORAGE_ROOT_FOLDER, so FileService can read it back (unlike addFile, which only
+// creates the DB row). Each call gets its own storage key so fixtures never collide.
+export const addRasterLayerAsset = async (rasterLayerId: string, filename: string, content: string): Promise<FileEntity> => {
+  const storageRoot = process.env.LOCAL_STORAGE_ROOT_FOLDER!;
+  const relativePath = path.join('raster-layer-assets', `${uuidv7()}-${filename}`);
+  fs.mkdirSync(path.dirname(path.join(storageRoot, relativePath)), { recursive: true });
+  fs.writeFileSync(path.join(storageRoot, relativePath), content);
+
+  const dataSource = await getDataSource();
+  const file = await dataSource
+    .getRepository(FileEntity)
+    .save(dataSource.getRepository(FileEntity).create({ name: filename, file_path: relativePath, created_by: 'tests' }));
+  await addAssetToRasterLayer(rasterLayerId, file.id);
+  return file;
 };
 
 export const addDataMapping = async (data_mapping: object): Promise<DataMappingEntity> => {
