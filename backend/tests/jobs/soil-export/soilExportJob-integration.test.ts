@@ -14,11 +14,13 @@ import { SoilDataSample } from '../../../src/interfaces/SoilDataSample';
 import * as exportHelpers from '../../../src/jobs/soil-export/exportHelpers';
 import DatasetEntity from '../../../src/entities/Dataset';
 import RasterLayerEntity from '../../../src/entities/RasterLayer';
+import RasterLayerAssetEntity from '../../../src/entities/RasterLayerAsset';
 import FileEntity from '../../../src/entities/File';
 import { RasterFileMetadata } from '../../../src/interfaces/File';
 import { getDataSource } from '../../../src/utils/data-source';
 import { GdalCLI } from '../../../src/utils/GdalCLI';
 import { IngestionStatus } from '../../../src/types/data';
+import { log } from '../../../src/utils/logger';
 import * as FilteringMasksModule from '../../../src/data-layer/FilteringMasks';
 import { addRasterFilterData, addRasterFilterMappings } from '../../helper';
 import * as RasterUtilsModule from '../../../src/utils/raster';
@@ -79,6 +81,45 @@ async function hasNonNodataPixel(tifPath: string, nodataValue: number): Promise<
     if (data[i] !== nodataValue) return true;
   }
   return false;
+}
+
+let assetFixtureCounter = 0;
+
+/**
+ * Creates a Raster Layer Asset attached to `rasterLayerId`: a real FileEntity backed by bytes
+ * actually written under LOCAL_STORAGE_ROOT_FOLDER (so FileService can read it back), plus the
+ * RasterLayerAssetEntity join row. Each call gets its own storage key so fixtures never collide.
+ */
+async function attachRasterLayerAsset(rasterLayerId: string, filename: string, content: string): Promise<FileEntity> {
+  const relativePath = path.join('raster-layer-assets', `${assetFixtureCounter++}-${filename}`);
+  const absolutePath = path.join(storageRoot, relativePath);
+  fs.mkdirSync(path.dirname(absolutePath), { recursive: true });
+  fs.writeFileSync(absolutePath, content);
+
+  const dataSource = await getDataSource();
+  const file = await dataSource
+    .getRepository(FileEntity)
+    .save(dataSource.getRepository(FileEntity).create({ name: filename, file_path: relativePath, created_by: 'tests' }));
+  await dataSource
+    .getRepository(RasterLayerAssetEntity)
+    .save(dataSource.getRepository(RasterLayerAssetEntity).create({ raster_layer_id: rasterLayerId, file_id: file.id }));
+  return file;
+}
+
+/**
+ * Points a Raster Layer Asset's File at a path that is never written to storage — reproduces
+ * the missing/unreadable asset case without touching disk.
+ */
+async function attachUnreadableRasterLayerAsset(rasterLayerId: string, filename: string): Promise<FileEntity> {
+  const relativePath = path.join('raster-layer-assets', `${assetFixtureCounter++}-missing-${filename}`);
+  const dataSource = await getDataSource();
+  const file = await dataSource
+    .getRepository(FileEntity)
+    .save(dataSource.getRepository(FileEntity).create({ name: filename, file_path: relativePath, created_by: 'tests' }));
+  await dataSource
+    .getRepository(RasterLayerAssetEntity)
+    .save(dataSource.getRepository(RasterLayerAssetEntity).create({ raster_layer_id: rasterLayerId, file_id: file.id }));
+  return file;
 }
 
 describe('Soil Export Job Integration Test', () => {
@@ -1084,6 +1125,119 @@ describe('Soil Export Job Integration Test', () => {
       expect(Math.abs(gt[0]!)).toBeGreaterThan(100_000);
 
       fs.rmSync(tempDir, { recursive: true, force: true });
+    });
+
+    describe('raster layer assets', () => {
+      async function runRasterExportJob(datasetSlug: string): Promise<any> {
+        const filterResponse = await request(app)
+          .post('/data-filters')
+          .send({ geometries: [filterPolygon], parameters: {} });
+        expect(filterResponse.statusCode).toBe(201);
+        const filterId = filterResponse.body.id;
+
+        const exportJobResponse = await request(app)
+          .post('/jobs')
+          .send({
+            type: 'export',
+            filter_id: filterId,
+            dataset_ids: [datasetSlug],
+            formats: [RasterFileFormat.TIFF],
+          });
+        expect(exportJobResponse.statusCode).toBe(201);
+        const jobId = exportJobResponse.body.id;
+
+        let jobStatus = 'created';
+        let attempts = 0;
+        const maxAttempts = 60;
+        let completedJob: any;
+
+        while (jobStatus !== 'completed' && attempts < maxAttempts) {
+          await sleep(1000);
+          attempts++;
+
+          const statusResponse = await request(app).get(`/jobs/${jobId}`);
+          expect(statusResponse.statusCode).toBe(200);
+
+          completedJob = statusResponse.body;
+          jobStatus = completedJob.status;
+
+          if (jobStatus === 'failed') {
+            throw new Error(`Job failed: ${JSON.stringify(completedJob)}`);
+          }
+        }
+
+        expect(jobStatus).toBe('completed');
+        expect(completedJob.data.download_path).toBeDefined();
+        return completedJob;
+      }
+
+      async function downloadAndExtract(downloadPath: string): Promise<string> {
+        const escapedDownloadPath = downloadPath.replace(/\//g, '%2F');
+        const downloadResponse = await request(app)
+          .get(`/downloads/${escapedDownloadPath}`)
+          .buffer()
+          .parse((res, callback) => {
+            res.setEncoding('binary');
+            let data = '';
+            res.on('data', chunk => {
+              data += chunk;
+            });
+            res.on('end', () => {
+              callback(null, Buffer.from(data, 'binary'));
+            });
+          });
+        expect(downloadResponse.statusCode).toBe(StatusCodes.OK);
+
+        const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'export-test-'));
+        const zipPath = path.join(tempDir, 'export.zip');
+        fs.writeFileSync(zipPath, downloadResponse.body);
+
+        const extractDir = path.join(tempDir, 'extracted');
+        fs.mkdirSync(extractDir, { recursive: true });
+        await extractZip(zipPath, { dir: extractDir });
+        return extractDir;
+      }
+
+      it('includes a raster layer asset in the zip under assets/{layerName}/, alongside its raster output', async () => {
+        const assetFile = await attachRasterLayerAsset(raster_layer!.id, 'manual.pdf', 'technical manual content');
+
+        const completedJob = await runRasterExportJob(raster_layer!.dataset.slug);
+        const extractDir = await downloadAndExtract(completedJob.data.download_path);
+
+        const extractedFiles = fs.readdirSync(extractDir);
+        const tiffFiles = extractedFiles.filter(f => f.toLowerCase().endsWith('.tif'));
+        expect(tiffFiles.length).toBe(1);
+        const layerName = path.basename(tiffFiles[0]!, '.tif');
+
+        const assetPath = path.join(extractDir, 'assets', layerName, assetFile.name);
+        expect(fs.existsSync(assetPath)).toBe(true);
+        expect(fs.readFileSync(assetPath, 'utf-8')).toBe('technical manual content');
+
+        fs.rmSync(path.dirname(extractDir), { recursive: true, force: true });
+      });
+
+      it('skips an unreadable asset with a warning, and still ships the layer output and completes the job', async () => {
+        const warnSpy = jest.spyOn(log, 'warn');
+        const unreadableFile = await attachUnreadableRasterLayerAsset(raster_layer!.id, 'missing-manual.pdf');
+
+        const completedJob = await runRasterExportJob(raster_layer!.dataset.slug);
+        const extractDir = await downloadAndExtract(completedJob.data.download_path);
+
+        const extractedFiles = fs.readdirSync(extractDir);
+        const tiffFiles = extractedFiles.filter(f => f.toLowerCase().endsWith('.tif'));
+        expect(tiffFiles.length).toBe(1);
+        const layerName = path.basename(tiffFiles[0]!, '.tif');
+
+        expect(fs.existsSync(path.join(extractDir, 'assets', layerName, unreadableFile.name))).toBe(false);
+
+        expect(warnSpy).toHaveBeenCalledWith(
+          expect.any(String),
+          expect.objectContaining({ layerId: raster_layer!.id, fileId: unreadableFile.id }),
+        );
+
+        warnSpy.mockRestore();
+        fs.rmSync(path.dirname(extractDir), { recursive: true, force: true });
+      });
     });
   });
 
