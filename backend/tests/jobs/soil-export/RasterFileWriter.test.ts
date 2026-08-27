@@ -477,4 +477,29 @@ describe('RasterFileWriter', () => {
       expect(files.some(f => f.includes('_2015'))).toBe(true);
     });
   });
+
+  describe('writeAsset', () => {
+    it('writes a buffer to assets/{layerName}/{filename}', () => {
+      const writer = new RasterFileWriter(RasterFileFormat.TIFF, TEST_OUTPUT_DIR);
+      const layerName = writer.buildLayerName(makeLayer());
+
+      const writtenPath = writer.writeAsset(layerName, 'manual.pdf', Buffer.from('technical manual'));
+
+      const expectedPath = path.join(TEST_OUTPUT_DIR, 'assets', layerName, 'manual.pdf');
+      expect(writtenPath).toBe(expectedPath);
+      expect(fs.readFileSync(expectedPath, 'utf-8')).toBe('technical manual');
+    });
+
+    it('disambiguates two same-layer assets that share an original filename, rather than overwriting', () => {
+      const writer = new RasterFileWriter(RasterFileFormat.TIFF, TEST_OUTPUT_DIR);
+      const layerName = writer.buildLayerName(makeLayer());
+
+      const firstPath = writer.writeAsset(layerName, 'manual.pdf', Buffer.from('first'));
+      const secondPath = writer.writeAsset(layerName, 'manual.pdf', Buffer.from('second'));
+
+      expect(firstPath).not.toBe(secondPath);
+      expect(fs.readFileSync(firstPath, 'utf-8')).toBe('first');
+      expect(fs.readFileSync(secondPath, 'utf-8')).toBe('second');
+    });
+  });
 });
