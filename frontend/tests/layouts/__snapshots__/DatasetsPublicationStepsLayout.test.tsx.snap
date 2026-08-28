@@ -21,14 +21,18 @@ exports[`DatasetsPublicationStepsLayout renders DatasetsPublicationStepsLayout a
           </svg>
         </div>
         <div
-          class="Title"
+          class="TextWrapper"
         >
-          General info
-        </div>
-        <div
-          class="Description"
-        >
-          Describe dataset
+          <div
+            class="Title"
+          >
+            General info
+          </div>
+          <div
+            class="Description"
+          >
+            Describe dataset
+          </div>
         </div>
       </div>
       <div
@@ -44,14 +48,18 @@ exports[`DatasetsPublicationStepsLayout renders DatasetsPublicationStepsLayout a
           </svg>
         </div>
         <div
-          class="Title"
+          class="TextWrapper"
         >
-          Soil data
-        </div>
-        <div
-          class="Description"
-        >
-          Upload your files
+          <div
+            class="Title"
+          >
+            Soil data
+          </div>
+          <div
+            class="Description"
+          >
+            Upload your files
+          </div>
         </div>
       </div>
       <div
@@ -63,14 +71,18 @@ exports[`DatasetsPublicationStepsLayout renders DatasetsPublicationStepsLayout a
           3
         </div>
         <div
-          class="Title"
+          class="TextWrapper"
         >
-          Mappings
-        </div>
-        <div
-          class="Description"
-        >
-          Match your data
+          <div
+            class="Title"
+          >
+            Mappings
+          </div>
+          <div
+            class="Description"
+          >
+            Match your data
+          </div>
         </div>
       </div>
       <div
@@ -82,14 +94,18 @@ exports[`DatasetsPublicationStepsLayout renders DatasetsPublicationStepsLayout a
           4
         </div>
         <div
-          class="Title"
+          class="TextWrapper"
         >
-          Preview
-        </div>
-        <div
-          class="Description"
-        >
-          Review data
+          <div
+            class="Title"
+          >
+            Preview
+          </div>
+          <div
+            class="Description"
+          >
+            Review data
+          </div>
         </div>
       </div>
     </div>

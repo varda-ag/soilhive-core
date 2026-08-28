@@ -1,57 +1,71 @@
 .Steps {
-    display: flex;
-    gap: 49px;
-    justify-content: center;
-    // background-color: red;
+  display: flex;
+  gap: 49px;
+  justify-content: center;
+  --active-icon-color: var(--color-neutral-white);
+  --active-icon-background-color: var(--color-accent-warning-1700);
+  --active-title-color: var(--color-accent-warning-1700);
 
-    .Step {
+  .Step {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    align-items: center;
+    color: #868686;
+    text-align: center;
+
+    &.Horizontal {
+      flex-direction: row;
+      gap: 0.5rem;
+      text-align: left;
+    }
+
+    .Index {
+      width: 32px;
+      height: 32px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      border-radius: 90px;
+      border: 1px solid #dddddd;
+      color: #666666;
+      font-weight: 700;
+      font-size: 16px;
+      svg {
+        width: 24px;
+        height: 24px;
+      }
+    }
+
+    .TextWrapper {
       display: flex;
       flex-direction: column;
       gap: 1px;
-      align-items: center;
-      color: #868686;
-      text-align: center;
+    }
 
+    .Title {
+      font-weight: 700;
+      font-size: 16px;
+    }
+
+    .Description {
+      font-weight: 400;
+      font-size: 12px;
+    }
+
+    &.Visited {
       .Index {
-        width: 32px;
-        height: 32px;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        border-radius: 90px;
-        border: 1px solid #DDDDDD;
-        color: #666666;
-        font-weight: 700;
-        font-size: 16px;
-        svg {
-          width: 24px;
-          height: 24px;
-        }
+        color: var(--active-icon-color);
+        background-color: var(--active-icon-background-color);
       }
 
       .Title {
-        font-weight: 700;
-        font-size: 16px;
+        color: var(--active-title-color);
       }
 
       .Description {
-        font-weight: 400;
-        font-size: 12px;
-      }
-
-      &.Visited {
-        .Index {
-          color: white;
-          background-color: #6F3B21;
-        }
-
-        .Title {
-          color: #6F3B21;
-        }
-
-        .Description {
-          color: black;
-        }
+        color: black;
       }
     }
+  }
 }
