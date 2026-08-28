@@ -384,7 +384,7 @@ function traceMaskToPolygons(
 
       // Tracer produces CW exterior (area < 0) and CCW holes (area > 0).
       // GeoJSON requires CCW exterior and CW holes — reverse both.
-      const closed = [...ring, ring[0]!];
+      const closed = collapseCollinear([...ring, ring[0]!]);
       if (area < 0) exterior.push(closed.reverse());
       else holes.push(closed.slice().reverse());
     }
@@ -399,6 +399,30 @@ function traceMaskToPolygons(
   }
 
   return result;
+}
+
+/**
+ * Drops ring points that sit exactly on the line between their neighbors. Boundary tracing walks
+ * one pixel-edge at a time, so a straight run of collinear steps is represented by a matching run of
+ * strictly collinear vertices — removing them is lossless (same polygon, fewer points).
+ */
+function collapseCollinear(ring: number[][]): number[][] {
+  const n = ring.length - 1; // last point duplicates the first (closed ring)
+  if (n <= 3) return ring;
+
+  const out: number[][] = [];
+  for (let i = 0; i < n; i++) {
+    const prev = ring[(i - 1 + n) % n]!;
+    const cur = ring[i]!;
+    const next = ring[i + 1]!;
+    const dx1 = cur[0]! - prev[0]!;
+    const dy1 = cur[1]! - prev[1]!;
+    const dx2 = next[0]! - cur[0]!;
+    const dy2 = next[1]! - cur[1]!;
+    if (dx1 * dy2 - dy1 * dx2 !== 0) out.push(cur);
+  }
+  out.push(out[0]!);
+  return out;
 }
 
 function pointInRing(x: number, y: number, ring: number[][]): boolean {
