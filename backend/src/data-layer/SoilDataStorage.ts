@@ -14,6 +14,8 @@ import { getDataSource } from '../utils/data-source';
 import { RequestData } from '../interfaces/RequestData';
 import EntitlementService from '../services/EntitlementService';
 import RasterLayerEntity from '../entities/RasterLayer';
+import RasterLayerAssetEntity from '../entities/RasterLayerAsset';
+import { RasterLayerAssetFile } from '../interfaces/RasterLayer';
 import { GISDataType } from '../types/data';
 import { getVectorMaskCtes, type CteDef } from './FilteringMasks';
 import { viewportAoiParams, viewportAoiSql } from './ViewportAoi';
@@ -568,6 +570,32 @@ export default class SoilDataStorage {
       const result = await candidateQuery.cache(CACHE_TTL_SPATIAL_MS).getRawOne<{ count: string }>();
       return parseInt(result?.count ?? '0', 10);
     });
+  };
+
+  // Sibling of getRasterLayers: batch-fetches Raster Layer Assets for a set of already-filtered
+  // raster_layers.id values, joined with their File. No entitlement check here — the caller has
+  // already run getRasterLayers, which enforces Capability.DOWNLOAD on the parent dataset.
+  getRasterLayerAssets = async (requestData: RequestData, rasterLayerIds: string[]): Promise<Map<string, RasterLayerAssetFile[]>> => {
+    const grouped = new Map<string, RasterLayerAssetFile[]>();
+    if (rasterLayerIds.length === 0) return grouped;
+
+    const rows = await requestData.entityManager
+      .getRepository(RasterLayerAssetEntity)
+      .createQueryBuilder('rla')
+      .innerJoin('rla.file', 'f', 'f.deleted_at IS NULL')
+      .where('rla.raster_layer_id IN (:...rasterLayerIds)', { rasterLayerIds })
+      .select('rla.raster_layer_id', 'raster_layer_id')
+      .addSelect('rla.file_id', 'file_id')
+      .addSelect('f.name', 'name')
+      .addSelect('f.file_path', 'file_path')
+      .getRawMany<RasterLayerAssetFile>();
+
+    for (const row of rows) {
+      const existing = grouped.get(row.raster_layer_id) ?? [];
+      existing.push(row);
+      grouped.set(row.raster_layer_id, existing);
+    }
+    return grouped;
   };
 
   getSoilData = async (

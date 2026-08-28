@@ -16,7 +16,7 @@ jest.mock('hooks/useStorageConfig', () => ({
 // the accumulation bug — real XHR upload behavior is already covered by useAdditionalResourceUpload.test.ts.
 jest.mock('hooks/useAdditionalResourceUpload', () => ({
   useAdditionalResourceUpload: jest.fn(),
-  ADDITIONAL_RESOURCE_EXTENSIONS: ['.csv', '.gpkg', '.geojson', '.shp', '.xlsx', '.zip'],
+  ADDITIONAL_RESOURCE_EXTENSIONS: ['.txt', '.pdf', '.doc', '.docx', '.tif', '.tiff'],
 }));
 
 describe('AdditionalResourcesUpload', () => {

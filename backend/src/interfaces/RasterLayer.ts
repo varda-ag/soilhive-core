@@ -25,6 +25,16 @@ export interface RasterLayerAsset {
   description: object | null;
 }
 
+// A Raster Layer Asset joined with the File it points to — the shape the raster export
+// job needs to write the asset under its layer's subfolder (name for the on-disk filename,
+// file_path for the storage read).
+export interface RasterLayerAssetFile {
+  raster_layer_id: string;
+  file_id: string;
+  name: string;
+  file_path: string;
+}
+
 export interface Envelope {
   minX: number;
   minY: number;
