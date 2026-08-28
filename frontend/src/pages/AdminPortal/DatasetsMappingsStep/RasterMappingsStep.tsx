@@ -6,7 +6,6 @@ import { MappingsStep } from './MappingsStep';
 import { MappingsTable } from './MappingsTable';
 import { MappingRow } from './MappingRow';
 import { RasterMappingRowDetails } from './RasterMappingRowDetails';
-import { MappingFieldsPane } from './MappingFieldsPane';
 import { INGESTION_DOCS_URL } from 'configuration/ingestion';
 import { DataLoadingStartedPanel } from 'pages/AdminPortal/DatasetsPreviewStep/DataLoadingStartedPanel';
 import { ADMIN_PATHS } from 'configuration/admin';
@@ -52,12 +51,11 @@ export function RasterMappingsStep({ id }: Props) {
     handleContinue,
   } = useRasterMappingStep(id);
 
-  if (showLoadingPanel) {
+  // Raster loading is a background job with no meaningful in-progress UI of its own, so both
+  // an explicit "continue" trigger (showLoadingPanel) and the backend still reporting an
+  // in-flight import on mount/reload (isImporting) route to the same "started" panel.
+  if (showLoadingPanel || isImporting) {
     return <DataLoadingStartedPanel onContinue={() => navigate(ADMIN_PATHS.DATASETS)} />;
-  }
-
-  if (isImporting) {
-    return <MappingFieldsPane />;
   }
 
   const columnMappingByName = Object.fromEntries(columnMappings.map(m => [m.columnName, m]));

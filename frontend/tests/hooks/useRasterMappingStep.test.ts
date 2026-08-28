@@ -870,6 +870,20 @@ describe('useRasterMappingStep', () => {
       expect(result.current.showLoadingPanel).toBe(true);
       expect(mockNavigate).not.toHaveBeenCalled();
     });
+
+    it('sets showLoadingPanel to true for raster datasets even though the raster-load job has not completed', async () => {
+      // useJobsQueries returns [] here (module default), so the job-completion effect never
+      // fires — showLoadingPanel can only become true if handleContinue sets it directly on click,
+      // rather than waiting on job polling to flip it once the job resolves.
+      (useJobsQueries as jest.Mock).mockImplementation(() => []);
+      (useDataset as jest.Mock).mockReturnValue({ data: { name: 'Mock-dataset', gis_datatype: 'raster' } });
+      const { result } = renderHook(() => useRasterMappingStep('42'));
+      await act(async () => {
+        await result.current.handleContinue();
+      });
+      expect(result.current.showLoadingPanel).toBe(true);
+      expect(mockNavigate).not.toHaveBeenCalled();
+    });
   });
 
   describe('leave Ingestion flow', () => {
