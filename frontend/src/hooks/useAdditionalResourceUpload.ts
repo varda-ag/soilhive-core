@@ -5,7 +5,7 @@ import { getToken } from '../auth/tokenStore';
 import { useStorageConfig } from './useStorageConfig';
 import { formatUploadSize } from 'utilities/formatUploadSize';
 
-export const ADDITIONAL_RESOURCE_EXTENSIONS = ['.csv', '.gpkg', '.geojson', '.shp', '.xlsx', '.zip'];
+export const ADDITIONAL_RESOURCE_EXTENSIONS = ['.txt', '.pdf', '.doc', '.docx', '.tif', '.tiff'];
 
 export function useAdditionalResourceUpload(onFileUploaded: (resource: { file_id: string; name: string }) => void) {
   const { t } = useTranslation('admin');
