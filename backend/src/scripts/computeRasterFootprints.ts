@@ -265,7 +265,8 @@ export async function streamRasterFootprints(
 
         if (batch.length >= INSERT_BATCH_SIZE) {
           t = Date.now();
-          await onBatch(srcSrs ? await reprojectToWgs84(batch, srcSrs) : batch);
+          const projected = srcSrs ? await reprojectToWgs84(batch, srcSrs) : batch;
+          await onBatch(collapseCollinearBatch(projected));
           dbMs += Date.now() - t;
           batch = [];
         }
@@ -274,7 +275,8 @@ export async function streamRasterFootprints(
 
     if (batch.length > 0) {
       const t = Date.now();
-      await onBatch(srcSrs ? await reprojectToWgs84(batch, srcSrs) : batch);
+      const projected = srcSrs ? await reprojectToWgs84(batch, srcSrs) : batch;
+      await onBatch(collapseCollinearBatch(projected));
       dbMs += Date.now() - t;
     }
 
@@ -389,7 +391,11 @@ function traceMaskToPolygons(
 
       // Tracer produces CW exterior (area < 0) and CCW holes (area > 0).
       // GeoJSON requires CCW exterior and CW holes — reverse both.
-      const closed = collapseCollinear([...ring, ring[0]!]);
+      // Left dense here (one vertex per pixel-edge step) rather than collapsed: a straight run in
+      // this native/projected space can reproject into a true curve in EPSG:4326, and that density
+      // is what lets reprojectToWgs84 trace the curve instead of chording between sparse corners.
+      // Collinear points are collapsed after reprojection instead — see streamRasterFootprints.
+      const closed = [...ring, ring[0]!];
       if (area < 0) exterior.push(closed.reverse());
       else holes.push(closed.slice().reverse());
     }
@@ -428,6 +434,14 @@ function collapseCollinear(ring: number[][]): number[][] {
   }
   out.push(out[0]!);
   return out;
+}
+
+/** Applies collapseCollinear to every ring of every footprint, once they're in their final CRS. */
+function collapseCollinearBatch(batch: MultiPolygon[]): MultiPolygon[] {
+  return batch.map(({ coordinates }) => ({
+    type: 'MultiPolygon',
+    coordinates: coordinates.map(polygon => polygon.map(ring => collapseCollinear(ring))),
+  }));
 }
 
 function pointInRing(x: number, y: number, ring: number[][]): boolean {
