@@ -52,7 +52,7 @@ export async function streamRasterFootprints(
     tileH,
     nCols,
     nRows,
-    nodata,
+    nodataF32,
     overviewTempPath,
     srcSrs,
   } = await timed('footprint extraction setup', async () => {
@@ -95,7 +95,12 @@ export async function streamRasterFootprints(
       gridHeightDeg = Math.abs(latMax - latMin);
     }
 
+    // gdalinfo reports noDataValue as a plain double parsed from the TIFF's text tag, but pixel
+    // data here is read as Float32 — the same decimal sentinel rounds to a different nearest value
+    // in each precision, so an exact double comparison against it never matches. Round through
+    // float32 first so the threshold lands on the same value the pixel data was already quantized to.
     const nodata: number | null = info.bands?.[band - 1]?.noDataValue ?? null;
+    const nodataF32 = nodata === null ? null : Math.fround(nodata);
     const nativePixelSize = Math.abs(pixWFull);
 
     const { nCols, nRows } = computeGrid(gridWidthDeg, gridHeightDeg);
@@ -178,7 +183,7 @@ export async function streamRasterFootprints(
       tileH,
       nCols,
       nRows,
-      nodata,
+      nodataF32,
       overviewTempPath,
       srcSrs,
     };
@@ -239,7 +244,7 @@ export async function streamRasterFootprints(
         let hasValid = false;
         for (let i = 0; i < rawData.length; i++) {
           const v = rawData[i] as number;
-          const valid = !Number.isNaN(v) && (nodata === null || v !== nodata);
+          const valid = !Number.isNaN(v) && (nodataF32 === null || v !== nodataF32);
           if (valid) {
             mask[i] = 1;
             hasValid = true;
