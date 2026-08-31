@@ -4,7 +4,6 @@
 - [Environment configuration](backend/environment-configuration.md)
 - [Command Line Interface](backend/cli.md)
 - [Asynchronous jobs](backend/async.md)
-- [Performance suite](backend/perf.md)
 
 # Logo
 

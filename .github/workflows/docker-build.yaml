@@ -72,31 +72,3 @@ jobs:
       packages: write
       pull-requests: write
 
-  # The performance suite as a scheduled job (docs/adr/0029). Note the context
-  # is `backend`, not the Dockerfile's own directory: a context holding only
-  # src/scripts/perf could not reach package.json or tests/assets/geojson, which
-  # the suite reads at runtime. Built on pull requests like the other two, so a
-  # change to the container's behaviour can be validated from a PR-tagged image
-  # rather than only after merging.
-  build-push-docker-perf:
-    uses: ./.github/workflows/docker-build-reusable.yaml
-    needs: 
-      - gate
-      - image-version
-    if: always() && (needs.gate.result == 'skipped' || needs.gate.outputs.allowed == 'true')
-    with:
-      context: backend
-      file: backend/src/scripts/perf/Dockerfile
-      image-name: soilhive-core-perf
-      image-version: ${{ needs.image-version.outputs.imageVersion }}
-      # There is no .git in the image, so the run fingerprint's provenance has
-      # to be baked in. head_ref is only set for pull requests; ref_name is the
-      # branch or tag otherwise.
-      build-args: |
-        GIT_SHA=${{ github.event.pull_request.head.sha || github.sha }}
-        GIT_BRANCH=${{ github.head_ref || github.ref_name }}
-    permissions:
-      contents: read
-      packages: write
-      pull-requests: write
-
