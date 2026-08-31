@@ -14,6 +14,8 @@ export interface S3StorageConfig {
   rootFolder?: string;
   endpoint?: string;
   credentials?: S3Credentials;
+  uploadPartSizeBytes: number;
+  uploadQueueSize: number;
 }
 
 export interface AzureStorageConfig {
