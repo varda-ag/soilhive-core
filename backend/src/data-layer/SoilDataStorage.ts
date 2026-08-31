@@ -13,8 +13,9 @@ import RasterFilterService from '../services/RasterFilterService';
 import { getDataSource } from '../utils/data-source';
 import { RequestData } from '../interfaces/RequestData';
 import EntitlementService from '../services/EntitlementService';
-import { RasterLayerMatch } from '../interfaces/RasterLayer';
 import RasterLayerEntity from '../entities/RasterLayer';
+import RasterLayerAssetEntity from '../entities/RasterLayerAsset';
+import { RasterLayerAssetFile } from '../interfaces/RasterLayer';
 import { GISDataType } from '../types/data';
 import { getVectorMaskCtes, type CteDef } from './FilteringMasks';
 import { viewportAoiParams, viewportAoiSql } from './ViewportAoi';
@@ -318,69 +319,103 @@ export default class SoilDataStorage {
       return [];
     }
 
+    const schema = process.env.POSTGRES_SCHEMA;
+    const params: any[] = [];
+    const p = (val: any) => {
+      params.push(val);
+      return `$${params.length}`;
+    };
+    const geometryIdsParam = p(geometryIds);
+
     const aoiCtes: CteDef[] = hasRasterFilters(filters)
       ? await timed('filterRaster.vectorMaskCtes', () => getVectorMaskCtes(entityManager, filter))
-      : [{ name: 'aoi', sql: selectGeometryPiecesByIds() }];
+      : [{ name: 'aoi', sql: selectGeometryPiecesByIds(), materialized: true }];
 
-    await entityManager.query(SET_LOCAL_WORK_MEM_SQL);
-    // Step 1 — candidate raster layer IDs matching FilterCriteria + coarse spatial pre-filter
-    const candidateQuery = entityManager
-      .getRepository(RasterLayerEntity)
-      .createQueryBuilder('rl')
-      .innerJoin(
-        'rl.dataset',
-        'ds',
-        `ds.deleted_at IS NULL AND ds.status = 'PUBLISHED' AND ds.spatial_extent && (SELECT ST_SetSRID(ST_Extent(geom), 4326) FROM aoi)`,
-      )
-      .innerJoin('rl.soil_property', 'sp')
-      .select('rl.id', 'id');
-
-    for (const cte of aoiCtes) {
-      candidateQuery.addCommonTableExpression(cte.sql, cte.name, cte.materialized ? { materialized: true } : undefined);
-    }
-    candidateQuery.setParameter('geometryIds', geometryIds);
-    candidateQuery.andWhere('EXISTS (SELECT 1 FROM aoi WHERE rl.bbox && aoi.geom)');
-    candidateQuery.andWhere('ds.gis_datatype=:gis_datatype', { gis_datatype: GISDataType.RASTER });
-    applyRasterLayerFilters(candidateQuery, filters);
-
-    const candidateIds = (
-      await timed('filterRaster.candidateLayers', () => candidateQuery.cache(CACHE_TTL_SPATIAL_MS).getRawMany<{ id: string }>())
-    ).map(r => r.id);
-    // Step 2 — precise spatial filter via footprint tile intersection
-    const candidates = await timed('filterRaster.spatialFilter', () =>
-      spatialFilterByCte(entityManager, aoiCtes, { name: 'geometryIds', value: geometryIds }, candidateIds),
+    const cteStrings = aoiCtes.map(
+      cte => `${cte.name}${cte.materialized ? ' AS MATERIALIZED' : ''} (${cte.sql.replace(/:geometryIds/g, geometryIdsParam)})`,
     );
 
-    // Aggregate over the layers that actually survived the footprint intersection, not over their
-    // files: a file backs one layer per band, and sibling bands have their own footprints, so
-    // matching by file_path would fold in bands that are not in the AOI at all.
-    const survivingLayerIds = candidates.map(r => r.id);
-    if (survivingLayerIds.length === 0) return [];
+    const candidateWhere: string[] = [
+      'ds.deleted_at IS NULL',
+      `ds.status = 'PUBLISHED'`,
+      `ds.gis_datatype = ${p(GISDataType.RASTER)}`,
+      'ds.spatial_extent && aoi.geom',
+    ];
+    if (filters.min_depth === null) {
+      candidateWhere.push('rl.min_depth IS NULL');
+    } else if (filters.min_depth !== undefined) {
+      candidateWhere.push(`rl.max_depth >= ${p(filters.min_depth)}`);
+    }
+    if (filters.max_depth === null) {
+      candidateWhere.push('rl.max_depth IS NULL');
+    } else if (filters.max_depth !== undefined) {
+      candidateWhere.push(`rl.min_depth <= ${p(filters.max_depth)}`);
+    }
+    if (filters.min_sampling_date === null) {
+      candidateWhere.push('rl.reference_period_start IS NULL');
+    } else if (filters.min_sampling_date) {
+      candidateWhere.push(`rl.reference_period_stop >= ${p(filters.min_sampling_date)}`);
+    }
+    if (filters.max_sampling_date === null) {
+      candidateWhere.push('rl.reference_period_stop IS NULL');
+    } else if (filters.max_sampling_date) {
+      candidateWhere.push(`rl.reference_period_start <= ${p(filters.max_sampling_date)}`);
+    }
+    if (filters.soil_properties?.length) {
+      candidateWhere.push(`sp.slug IN (${filters.soil_properties.map(v => p(v)).join(', ')})`);
+    }
+    if (filters.licenses?.length) {
+      candidateWhere.push(`ds.licenses && ARRAY[${filters.licenses.map(v => p(v)).join(', ')}]`);
+    }
+    if (filters.visibility) {
+      candidateWhere.push(`ds.visibility = ${p(filters.visibility)}`);
+    }
 
-    // Step 3 — aggregate surviving layers into dataset summaries
-    // Assess whether this performs better calculated in memory (one less query, up to ~1.5k records in memory)
-    const aggregateQuery = entityManager
-      .getRepository(RasterLayerEntity)
-      .createQueryBuilder('rl')
-      .innerJoin('rl.dataset', 'ds')
-      .innerJoin('rl.file', 'f')
-      .innerJoin('rl.soil_property', 'sp')
-      .select('ds.slug', 'id')
-      .addSelect('ds.name', 'name')
-      .addSelect('ds.gis_datatype', 'data_type')
-      .addSelect('ds.visibility', 'visibility')
-      .addSelect('ds.licenses', 'licenses')
-      .addSelect('COUNT(rl.id)', 'raster_layer_count')
-      .addSelect("COALESCE(MIN(rl.min_depth), (ds.soil_depth->>'min')::int)", 'min_depth')
-      .addSelect("COALESCE(MAX(rl.max_depth), (ds.soil_depth->>'max')::int)", 'max_depth')
-      .addSelect('COALESCE(MIN(rl.reference_period_start), ds.reference_period_start)', 'min_sampling_date')
-      .addSelect('COALESCE(MAX(rl.reference_period_stop), ds.reference_period_stop)', 'max_sampling_date')
-      .addSelect("STRING_AGG(DISTINCT sp.slug, ',')", 'soil_properties')
-      .where('rl.id IN (:...survivingLayerIds)', { survivingLayerIds })
-      .groupBy(
-        'ds.slug, ds.name, ds.gis_datatype, ds.visibility, ds.licenses, ds.soil_depth, ds.reference_period_start, ds.reference_period_stop',
-      );
-    const rows = await timed('filterRaster.aggregate', () => aggregateQuery.cache(CACHE_TTL_SPATIAL_MS).getRawMany());
+    const sql = `
+      WITH ${cteStrings.join(',\n      ')}
+      , candidate_layers AS MATERIALIZED (
+        SELECT DISTINCT rl.id
+        FROM ${schema}.raster_layers rl
+        INNER JOIN ${schema}.datasets ds ON ds.id = rl.dataset_id
+        INNER JOIN ${schema}.soil_properties sp ON sp.id = rl.soil_property_id
+        INNER JOIN aoi ON rl.bbox && aoi.geom
+        WHERE ${candidateWhere.join('\n          AND ')}
+      )
+      -- Footprint ids intersecting the aoi, computed once via the GiST index on
+      -- raster_footprints.geom (this is the whole schema's footprints, not scoped to the
+      -- candidate layers — but only the id column is carried, so it stays narrow).
+      , aoi_footprints AS MATERIALIZED (
+        SELECT DISTINCT rf.id
+        FROM ${schema}.raster_footprints rf
+        INNER JOIN aoi ON ST_Intersects(rf.geom, aoi.geom)
+      )
+      , surviving_layers AS MATERIALIZED (
+        SELECT DISTINCT rlf.raster_layer_id AS id
+        FROM candidate_layers cl
+        INNER JOIN ${schema}.raster_layer_footprints rlf ON rlf.raster_layer_id = cl.id
+        INNER JOIN aoi_footprints af ON af.id = rlf.raster_footprint_id
+      )
+      SELECT
+        ds.slug AS id,
+        ds.name AS name,
+        ds.gis_datatype AS data_type,
+        ds.visibility AS visibility,
+        ds.licenses AS licenses,
+        COUNT(rl.id) AS raster_layer_count,
+        COALESCE(MIN(rl.min_depth), (ds.soil_depth->>'min')::int) AS min_depth,
+        COALESCE(MAX(rl.max_depth), (ds.soil_depth->>'max')::int) AS max_depth,
+        COALESCE(MIN(rl.reference_period_start), ds.reference_period_start) AS min_sampling_date,
+        COALESCE(MAX(rl.reference_period_stop), ds.reference_period_stop) AS max_sampling_date,
+        STRING_AGG(DISTINCT sp.slug, ',') AS soil_properties
+      FROM surviving_layers sl
+      INNER JOIN ${schema}.raster_layers rl ON rl.id = sl.id
+      INNER JOIN ${schema}.datasets ds ON ds.id = rl.dataset_id
+      INNER JOIN ${schema}.soil_properties sp ON sp.id = rl.soil_property_id
+      GROUP BY ds.slug, ds.name, ds.gis_datatype, ds.visibility, ds.licenses, ds.soil_depth, ds.reference_period_start, ds.reference_period_stop
+    `;
+
+    await entityManager.query(SET_LOCAL_WORK_MEM_SQL);
+    const rows = await timed('filterRaster.query', () => cachedQuery<any>(entityManager, sql, params, CACHE_TTL_SPATIAL_MS));
 
     return rows.map(row => ({
       id: row.id,
@@ -535,6 +570,32 @@ export default class SoilDataStorage {
       const result = await candidateQuery.cache(CACHE_TTL_SPATIAL_MS).getRawOne<{ count: string }>();
       return parseInt(result?.count ?? '0', 10);
     });
+  };
+
+  // Sibling of getRasterLayers: batch-fetches Raster Layer Assets for a set of already-filtered
+  // raster_layers.id values, joined with their File. No entitlement check here — the caller has
+  // already run getRasterLayers, which enforces Capability.DOWNLOAD on the parent dataset.
+  getRasterLayerAssets = async (requestData: RequestData, rasterLayerIds: string[]): Promise<Map<string, RasterLayerAssetFile[]>> => {
+    const grouped = new Map<string, RasterLayerAssetFile[]>();
+    if (rasterLayerIds.length === 0) return grouped;
+
+    const rows = await requestData.entityManager
+      .getRepository(RasterLayerAssetEntity)
+      .createQueryBuilder('rla')
+      .innerJoin('rla.file', 'f', 'f.deleted_at IS NULL')
+      .where('rla.raster_layer_id IN (:...rasterLayerIds)', { rasterLayerIds })
+      .select('rla.raster_layer_id', 'raster_layer_id')
+      .addSelect('rla.file_id', 'file_id')
+      .addSelect('f.name', 'name')
+      .addSelect('f.file_path', 'file_path')
+      .getRawMany<RasterLayerAssetFile>();
+
+    for (const row of rows) {
+      const existing = grouped.get(row.raster_layer_id) ?? [];
+      existing.push(row);
+      grouped.set(row.raster_layer_id, existing);
+    }
+    return grouped;
   };
 
   getSoilData = async (
@@ -1459,32 +1520,6 @@ const selectGeometryPiecesByIds = (): string => {
   const schema = process.env.POSTGRES_SCHEMA;
   return `SELECT ugs.geom
           FROM ${schema}.user_geometry_subdivisions ugs WHERE ugs.user_geometry_id = ANY(:geometryIds::uuid[])`;
-};
-
-const spatialFilterByCte = async (
-  entityManager: EntityManager,
-  aoiCtes: CteDef[],
-  cteParam: { name: string; value: string | string[] },
-  candidateLayers: string[],
-): Promise<RasterLayerMatch[]> => {
-  if (candidateLayers.length === 0) return [];
-  const query = entityManager.getRepository(RasterLayerEntity).createQueryBuilder('rl');
-  for (const cte of aoiCtes) {
-    query.addCommonTableExpression(cte.sql, cte.name, cte.materialized ? { materialized: true } : undefined);
-  }
-  return query
-    .setParameter(cteParam.name, cteParam.value)
-    .innerJoin('rl.file', 'f')
-    .innerJoin('raster_layer_footprints', 'rlf', 'rlf.raster_layer_id = rl.id')
-    .innerJoin('raster_footprints', 'rf', 'rf.id = rlf.raster_footprint_id')
-    .select('rl.id', 'id')
-    .addSelect('f.file_path', 'file_path')
-    .addSelect('rl.band', 'band')
-    .addSelect('rl.resolution_m', 'resolution_m')
-    .where('rl.id IN (:...candidateLayers)', { candidateLayers })
-    .andWhere('EXISTS (SELECT 1 FROM aoi WHERE ST_Intersects(rf.geom, aoi.geom))')
-    .cache(CACHE_TTL_SPATIAL_MS)
-    .getRawMany();
 };
 
 const applyRasterLayerFilters = (query: SelectQueryBuilder<RasterLayerEntity>, filters: FilterCriteria): void => {

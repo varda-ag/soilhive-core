@@ -4,10 +4,11 @@ import { ErrorResponse } from '../utils/error';
 import { Repository } from 'typeorm';
 import { AuthConfig, OIDCConfig } from '../interfaces/AuthConfig';
 import { StatusCodes } from 'http-status-codes';
-import { StorageConfig } from '../interfaces/StorageConfig';
+import { PublicStorageConfig, StorageConfig } from '../interfaces/StorageConfig';
 import assert from 'assert';
 
 const FRONTEND_LOGO = 'frontend-logo';
+const DEFAULT_MAX_UPLOAD_SIZE_MB = 500;
 
 export interface LogoData {
   fileKey: string;
@@ -126,5 +127,19 @@ export default class ConfigService {
       default:
         throw new Error(`Unsupported storage mode: ${storageMode}`);
     }
+  };
+
+  static getMaxUploadSizeBytes = (): number => {
+    const parsed = Number(process.env.MAX_UPLOAD_SIZE_MB);
+    const maxUploadSizeMB = Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_MAX_UPLOAD_SIZE_MB;
+    return maxUploadSizeMB * 1024 * 1024;
+  };
+
+  static getPublicStorageConfig = (): PublicStorageConfig => {
+    const { storageMode } = ConfigService.getStorageConfig();
+    return {
+      storageMode,
+      maxUploadSizeMB: ConfigService.getMaxUploadSizeBytes() / (1024 * 1024),
+    };
   };
 }

@@ -52,7 +52,7 @@ export async function streamRasterFootprints(
     tileH,
     nCols,
     nRows,
-    nodata,
+    nodataF32,
     overviewTempPath,
     srcSrs,
   } = await timed('footprint extraction setup', async () => {
@@ -95,7 +95,12 @@ export async function streamRasterFootprints(
       gridHeightDeg = Math.abs(latMax - latMin);
     }
 
+    // gdalinfo reports noDataValue as a plain double parsed from the TIFF's text tag, but pixel
+    // data here is read as Float32 — the same decimal sentinel rounds to a different nearest value
+    // in each precision, so an exact double comparison against it never matches. Round through
+    // float32 first so the threshold lands on the same value the pixel data was already quantized to.
     const nodata: number | null = info.bands?.[band - 1]?.noDataValue ?? null;
+    const nodataF32 = nodata === null ? null : Math.fround(nodata);
     const nativePixelSize = Math.abs(pixWFull);
 
     const { nCols, nRows } = computeGrid(gridWidthDeg, gridHeightDeg);
@@ -178,7 +183,7 @@ export async function streamRasterFootprints(
       tileH,
       nCols,
       nRows,
-      nodata,
+      nodataF32,
       overviewTempPath,
       srcSrs,
     };
@@ -239,7 +244,7 @@ export async function streamRasterFootprints(
         let hasValid = false;
         for (let i = 0; i < rawData.length; i++) {
           const v = rawData[i] as number;
-          const valid = !Number.isNaN(v) && (nodata === null || v !== nodata);
+          const valid = !Number.isNaN(v) && (nodataF32 === null || v !== nodataF32);
           if (valid) {
             mask[i] = 1;
             hasValid = true;
@@ -260,7 +265,8 @@ export async function streamRasterFootprints(
 
         if (batch.length >= INSERT_BATCH_SIZE) {
           t = Date.now();
-          await onBatch(srcSrs ? await reprojectToWgs84(batch, srcSrs) : batch);
+          const projected = srcSrs ? await reprojectToWgs84(batch, srcSrs) : batch;
+          await onBatch(collapseCollinearBatch(projected));
           dbMs += Date.now() - t;
           batch = [];
         }
@@ -269,7 +275,8 @@ export async function streamRasterFootprints(
 
     if (batch.length > 0) {
       const t = Date.now();
-      await onBatch(srcSrs ? await reprojectToWgs84(batch, srcSrs) : batch);
+      const projected = srcSrs ? await reprojectToWgs84(batch, srcSrs) : batch;
+      await onBatch(collapseCollinearBatch(projected));
       dbMs += Date.now() - t;
     }
 
@@ -384,6 +391,10 @@ function traceMaskToPolygons(
 
       // Tracer produces CW exterior (area < 0) and CCW holes (area > 0).
       // GeoJSON requires CCW exterior and CW holes — reverse both.
+      // Left dense here (one vertex per pixel-edge step) rather than collapsed: a straight run in
+      // this native/projected space can reproject into a true curve in EPSG:4326, and that density
+      // is what lets reprojectToWgs84 trace the curve instead of chording between sparse corners.
+      // Collinear points are collapsed after reprojection instead — see streamRasterFootprints.
       const closed = [...ring, ring[0]!];
       if (area < 0) exterior.push(closed.reverse());
       else holes.push(closed.slice().reverse());
@@ -399,6 +410,38 @@ function traceMaskToPolygons(
   }
 
   return result;
+}
+
+/**
+ * Drops ring points that sit exactly on the line between their neighbors. Boundary tracing walks
+ * one pixel-edge at a time, so a straight run of collinear steps is represented by a matching run of
+ * strictly collinear vertices — removing them is lossless (same polygon, fewer points).
+ */
+function collapseCollinear(ring: number[][]): number[][] {
+  const n = ring.length - 1; // last point duplicates the first (closed ring)
+  if (n <= 3) return ring;
+
+  const out: number[][] = [];
+  for (let i = 0; i < n; i++) {
+    const prev = ring[(i - 1 + n) % n]!;
+    const cur = ring[i]!;
+    const next = ring[i + 1]!;
+    const dx1 = cur[0]! - prev[0]!;
+    const dy1 = cur[1]! - prev[1]!;
+    const dx2 = next[0]! - cur[0]!;
+    const dy2 = next[1]! - cur[1]!;
+    if (dx1 * dy2 - dy1 * dx2 !== 0) out.push(cur);
+  }
+  out.push(out[0]!);
+  return out;
+}
+
+/** Applies collapseCollinear to every ring of every footprint, once they're in their final CRS. */
+function collapseCollinearBatch(batch: MultiPolygon[]): MultiPolygon[] {
+  return batch.map(({ coordinates }) => ({
+    type: 'MultiPolygon',
+    coordinates: coordinates.map(polygon => polygon.map(ring => collapseCollinear(ring))),
+  }));
 }
 
 function pointInRing(x: number, y: number, ring: number[][]): boolean {

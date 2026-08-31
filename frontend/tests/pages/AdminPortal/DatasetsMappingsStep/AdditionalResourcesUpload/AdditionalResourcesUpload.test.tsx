@@ -2,16 +2,21 @@ import { act, render, screen } from '@testing-library/react';
 import { AdditionalResourcesUpload } from 'pages/AdminPortal/DatasetsMappingsStep/AdditionalResourcesUpload/AdditionalResourcesUpload';
 import { useAdditionalResourceUpload } from 'hooks/useAdditionalResourceUpload';
 import { useApiQueries } from 'hooks/useApiQueries';
+import { useStorageConfig } from 'hooks/useStorageConfig';
 
 jest.mock('hooks/useApiQueries', () => ({
   useApiQueries: jest.fn(),
+}));
+
+jest.mock('hooks/useStorageConfig', () => ({
+  useStorageConfig: jest.fn(),
 }));
 
 // The component only needs `handleFiles` and the captured `onFileUploaded` callback to exercise
 // the accumulation bug — real XHR upload behavior is already covered by useAdditionalResourceUpload.test.ts.
 jest.mock('hooks/useAdditionalResourceUpload', () => ({
   useAdditionalResourceUpload: jest.fn(),
-  ADDITIONAL_RESOURCE_EXTENSIONS: ['.csv', '.gpkg', '.geojson', '.shp', '.xlsx', '.zip'],
+  ADDITIONAL_RESOURCE_EXTENSIONS: ['.txt', '.pdf', '.doc', '.docx', '.tif', '.tiff'],
 }));
 
 describe('AdditionalResourcesUpload', () => {
@@ -19,6 +24,11 @@ describe('AdditionalResourcesUpload', () => {
 
   beforeEach(() => {
     (useApiQueries as jest.Mock).mockReturnValue([]);
+    (useStorageConfig as jest.Mock).mockReturnValue({
+      storageConfig: { storageMode: 'local', maxUploadSizeMB: 500 },
+      isLoading: false,
+      isError: false,
+    });
     (useAdditionalResourceUpload as jest.Mock).mockImplementation(onFileUploaded => {
       capturedOnFileUploaded = onFileUploaded;
       return {

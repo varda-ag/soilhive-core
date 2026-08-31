@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
+import { Readable } from 'stream';
 import { Job } from 'pg-boss';
 import { ExportJob, ExportOutputs } from '../../interfaces/Job';
 import { EXPORT_CONFIG, VectorFileFormat, RasterFileFormat } from './types';
@@ -12,6 +13,7 @@ import {
   groupByProperty,
   getTotalLayersCount,
   fetchRasterLayers,
+  fetchRasterLayerAssets,
   validateFileFormats,
   computeCombinedProgress,
 } from './exportHelpers';
@@ -33,13 +35,16 @@ import { RequestData } from '../../interfaces/RequestData';
 import { log } from '../../utils/logger';
 import DatasetService from '../../services/DatasetService';
 import FilterService from '../../services/FilterService';
+import FileService from '../../services/FileService';
 import { GISDataType } from '../../types/data';
 import { getExportBatchSize } from '../../utils/utils';
 import { getRasterMask } from '../../data-layer/FilteringMasks';
 import { hasRasterFilters } from '../../data-layer/SoilDataStorage';
 import { isAxisAlignedBboxPolygon } from '../../utils/geometry';
 import { FilteredRasterLayer } from '../../interfaces/DatasetFilter';
+import { RasterLayerAssetFile } from '../../interfaces/RasterLayer';
 import { GdalCLI } from '../../utils/GdalCLI';
+import { getErrorMessage } from '../../utils/error';
 
 export async function processExportJob(job: Job<ExportJob>): Promise<void> {
   const { id: jobId, data } = job;
@@ -228,6 +233,13 @@ async function exportRasterData(
 
   if (!layers.length) return { total_layers_processed: 0 };
 
+  // Batch-fetched once for every candidate layer, ahead of the write loop, rather than per
+  // layer: one round-trip regardless of how many layers end up producing output.
+  const assetsByLayerId = await fetchRasterLayerAssets(
+    requestData,
+    layers.map(layer => layer.id),
+  );
+
   const useBboxFastPath = isAxisAlignedBboxPolygon(aoi) && !hasRasterFilters(filter.parameters);
   // getRasterMask always builds in EPSG:4326 (the CRS user geometries and raster filter tables are
   // stored in) — one call covers every layer regardless of native CRS. Each layer's own CRS is
@@ -237,6 +249,11 @@ async function exportRasterData(
 
   const writer = new RasterFileWriter(fileFormat, tempDir);
   const maskCache = new Map<string, string>();
+  // Raster Layer Asset content, memoized per file_id for the duration of this job run: a File
+  // referenced by several exported layers is read from storage once, but still written into
+  // every referencing layer's own assets subfolder — the ZIP is not smaller in that case, each
+  // layer's folder just stays self-contained.
+  const assetContentCache = new Map<string, Buffer>();
   let totalLayersProcessed = 0;
 
   try {
@@ -261,6 +278,8 @@ async function exportRasterData(
       }
 
       totalLayersProcessed++;
+
+      await writeRasterLayerAssets(writer, layer, targetCrs, assetsByLayerId.get(layer.id) ?? [], assetContentCache, jobId);
 
       const stored_data = await getJobData(jobId);
       const progress_percentage = computeCombinedProgress(
@@ -317,6 +336,46 @@ async function getMaskForLayer(
   await GdalCLI.warp(baseMaskFile, warpedMaskFile, ['-t_srs', key, '-r', 'near', '-of', 'GTiff']);
   cache.set(key, warpedMaskFile);
   return warpedMaskFile;
+}
+
+/**
+ * Writes a layer's Raster Layer Assets into its assets subfolder, once its raster output has
+ * already been written to the ZIP. Each unique File is read from storage once per job run
+ * (memoized in `assetContentCache` by file_id) and written into every referencing layer's own
+ * subfolder. A storage read failure is logged and only that asset is skipped — never fatal to
+ * the export job, and never cached, so a later layer referencing the same File gets its own
+ * attempt (and its own warning) rather than silently inheriting the first failure.
+ */
+async function writeRasterLayerAssets(
+  writer: RasterFileWriter,
+  layer: FilteredRasterLayer,
+  targetCrs: number | undefined,
+  assets: RasterLayerAssetFile[],
+  assetContentCache: Map<string, Buffer>,
+  jobId: string,
+): Promise<void> {
+  if (assets.length === 0) return;
+
+  const layerName = writer.buildLayerName(layer, targetCrs);
+  for (const asset of assets) {
+    let content = assetContentCache.get(asset.file_id);
+    if (!content) {
+      try {
+        const stream = await FileService.getStorageEngine().read(asset.file_path);
+        content = await FileService.streamToBuffer(stream as Readable);
+        assetContentCache.set(asset.file_id, content);
+      } catch (error) {
+        log.warn('Could not read Raster Layer Asset from storage; skipping', {
+          jobId,
+          layerId: layer.id,
+          fileId: asset.file_id,
+          error: getErrorMessage(error),
+        });
+        continue;
+      }
+    }
+    writer.writeAsset(layerName, asset.name, content);
+  }
 }
 
 async function isJobCancelled(jobId: string): Promise<boolean> {

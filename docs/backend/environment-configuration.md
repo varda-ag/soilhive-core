@@ -22,6 +22,10 @@ S3_STORAGE_BUCKET=...
 S3_STORAGE_ROOT_FOLDER=...
 ```
 
+### Upload size limit
+
+- `MAX_UPLOAD_SIZE_MB` (default `500`): maximum size of an uploaded file, in MB. Shared by `POST /files` and `POST /frontend/logo` rather than a per-route limit — see `docs/adr/0029`.
+
 ### Asynchronous jobs
 
 [pg-boss](https://github.com/timgit/pg-boss) is used to manage long running jobs. Following environment variables are used to manage concurrency:

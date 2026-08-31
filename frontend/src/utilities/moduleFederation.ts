@@ -10,6 +10,73 @@ export const isSinglePageModule = (module: RemotePlugin): module is SinglePagePl
 
 export const isNewTabModule = (module: RemotePlugin): module is NewTabPlugin => module.type === PluginType.NEW_TAB && !!module.targetUrl;
 
+const REQUIRED_FIELDS_BY_TYPE: Record<PluginType, (keyof RemotePlugin)[]> = {
+  [PluginType.SINGLE_PAGE]: ['route', 'Page'],
+  [PluginType.NEW_TAB]: ['targetUrl'],
+  [PluginType.MAP_INFO_CARD]: ['Page'],
+};
+
+function getMissingRequiredFields(module: RemotePlugin): string[] {
+  const missing: string[] = (['pluginId', 'name'] as const).filter(field => !module[field]);
+  const typeFields = module.type ? REQUIRED_FIELDS_BY_TYPE[module.type] : undefined;
+  if (!typeFields) {
+    missing.push('type');
+  } else {
+    missing.push(...typeFields.filter(field => !module[field]));
+  }
+  return missing;
+}
+
+// Splits out modules missing pluginId, name, type, or a type-specific required
+// field (e.g. route for a single-page plugin). Reported via notification rather
+// than thrown, same reasoning as partitionDuplicatePluginIds below. Must run
+// before partitionDuplicatePluginIds, since that function keys a Set on
+// module.pluginId and a missing pluginId would corrupt the dedup.
+export function partitionInvalidPlugins(modules: RemotePlugin[]): {
+  valid: RemotePlugin[];
+  invalid: { module: RemotePlugin; missingFields: string[] }[];
+} {
+  const valid: RemotePlugin[] = [];
+  const invalid: { module: RemotePlugin; missingFields: string[] }[] = [];
+  for (const module of modules) {
+    const missingFields = getMissingRequiredFields(module);
+    if (missingFields.length === 0) {
+      valid.push(module);
+    } else {
+      invalid.push({ module, missingFields });
+    }
+  }
+  return { valid, invalid };
+}
+
+// Splits out modules whose pluginId collides with an earlier one. The first-seen
+// plugin for a given id wins and the rest are reported as duplicates rather than
+// thrown as an error: there's no ErrorBoundary mounted anywhere in the app, so a
+// throw here would surface as a blank page instead of the notification the caller
+// (RemotesContext) shows the user.
+export function partitionDuplicatePluginIds(modules: RemotePlugin[]): { unique: RemotePlugin[]; duplicates: RemotePlugin[] } {
+  const seen = new Set<string>();
+  const unique: RemotePlugin[] = [];
+  const duplicates: RemotePlugin[] = [];
+  for (const module of modules) {
+    if (seen.has(module.pluginId)) {
+      duplicates.push(module);
+    } else {
+      seen.add(module.pluginId);
+      unique.push(module);
+    }
+  }
+  return { unique, duplicates };
+}
+
+// Populated by fallbackPlugin's errorLoadRemote below, keyed by remote url
+// (the `id` passed to mf.loadRemote). Lets loadRemotes tell "remote failed to
+// load" apart from "remote loaded but its module content is invalid": the MF
+// runtime resolves loadRemote() successfully with the fallback object below
+// rather than rejecting, so the failure would otherwise be indistinguishable
+// from a real (if malformed) loaded module.
+const failedRemoteUrls = new Set<string>();
+
 // Custom fallback plugin implementing errorLoadRemote hook
 const fallbackPlugin = (): ModuleFederationRuntimePlugin => {
   return {
@@ -19,6 +86,7 @@ const fallbackPlugin = (): ModuleFederationRuntimePlugin => {
       // remotes (e.g. localhost:3333 not running in local dev) produce no
       // console output. The onLoad fallback prevents the app from crashing.
       if (args.lifecycle === 'onLoad') {
+        failedRemoteUrls.add(args.id);
         return {
           fallback: '<div />',
         };
@@ -88,16 +156,16 @@ mf.registerShared({
 const store = {};
 
 /**
- * Register and load the given remotes, returning the resolved remote modules.
- * Failed remotes resolve to null and are filtered out.
+ * Register and load the given remotes, returning the modules that loaded
+ * successfully and the urls of the ones that didn't.
  *
  * This was previously done at module-init time via top-level await; it now runs
  * on demand so the remotes config can be fetched from the configuration service
  * at runtime (see RemotesProvider).
  */
-async function loadRemotes(configs: Plugin[]): Promise<RemotePlugin[]> {
+async function loadRemotes(configs: Plugin[]): Promise<{ loaded: RemotePlugin[]; failed: string[] }> {
   const enabled = configs.filter(remote => remote.enabled);
-  if (enabled.length === 0) return [];
+  if (enabled.length === 0) return { loaded: [], failed: [] };
 
   mf.registerRemotes(enabled.map(({ url: name, url: entry }) => ({ name, entry })));
 
@@ -113,7 +181,21 @@ async function loadRemotes(configs: Plugin[]): Promise<RemotePlugin[]> {
   console.error = _origConsoleError;
   console.warn = _origConsoleWarn;
 
-  return remoteModules.filter((module): module is RemotePlugin => !!module);
+  const loaded: RemotePlugin[] = [];
+  const failed: string[] = [];
+  remoteModules.forEach((module, index) => {
+    const { url } = enabled[index];
+    // A remote that failed to load still resolves (to fallbackPlugin's
+    // placeholder object above) rather than rejecting, so a failure is only
+    // detectable via failedRemoteUrls, not via truthiness of `module`.
+    if (!module || failedRemoteUrls.delete(url)) {
+      failed.push(url);
+    } else {
+      loaded.push(module);
+    }
+  });
+
+  return { loaded, failed };
 }
 
 export { mf, loadRemotes, store };

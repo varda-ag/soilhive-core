@@ -3,10 +3,14 @@ import { useTranslation } from 'react-i18next';
 import { BACKEND_BASE_URL } from '../configuration/api';
 import { getToken } from '../auth/tokenStore';
 import { ALLOWED_EXTENSIONS } from './useDatasetsSoilData';
+import { useStorageConfig } from './useStorageConfig';
+import { formatUploadSize } from 'utilities/formatUploadSize';
 import type { SoilDataFile } from '../types/soilDataFile';
 
 export function useFileUpload(onFileUploaded: (file: SoilDataFile) => void) {
   const { t } = useTranslation('admin');
+  const { storageConfig } = useStorageConfig();
+  const maxUploadSizeMB = storageConfig?.maxUploadSizeMB;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadingFiles, setUploadingFiles] = useState<File[]>([]);
   const [uploadProgress, setUploadProgress] = useState<Record<string, number[]>>({});
@@ -73,11 +77,15 @@ export function useFileUpload(onFileUploaded: (file: SoilDataFile) => void) {
 
       fileArray.forEach(file => {
         const extension = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
-        if (ALLOWED_EXTENSIONS.includes(extension)) {
-          validFiles.push(file);
-        } else {
+        if (!ALLOWED_EXTENSIONS.includes(extension)) {
           extensionErrors.push(`${file.name}: ${t('datasets.soil_data.invalid_file_type')}`);
+          return;
         }
+        if (maxUploadSizeMB !== undefined && file.size > maxUploadSizeMB * 1024 * 1024) {
+          extensionErrors.push(`${file.name}: ${t('datasets.soil_data.file_too_large', { size: formatUploadSize(maxUploadSizeMB) })}`);
+          return;
+        }
+        validFiles.push(file);
       });
 
       if (extensionErrors.length > 0) setUploadErrors(extensionErrors);
@@ -100,7 +108,7 @@ export function useFileUpload(onFileUploaded: (file: SoilDataFile) => void) {
       setUploadingFiles([]);
       if (fileInputRef.current) fileInputRef.current.value = '';
     },
-    [uploadFile, onFileUploaded, t],
+    [uploadFile, onFileUploaded, t, maxUploadSizeMB],
   );
 
   return { fileInputRef, uploadingFiles, uploadProgress, uploadErrors, handleFiles };

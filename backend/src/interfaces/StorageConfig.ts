@@ -30,3 +30,9 @@ export interface StorageConfig {
   storageMode: StorageModes;
   config: LocalStorageConfig | S3StorageConfig | AzureStorageConfig | GCPStorageConfig;
 }
+
+// Safe, frontend-facing subset of StorageConfig: no credentials or provider-specific fields.
+export interface PublicStorageConfig {
+  storageMode: StorageModes;
+  maxUploadSizeMB: number;
+}

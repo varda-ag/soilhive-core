@@ -1,4 +1,4 @@
-import type { PluginQueryResult, PluginUser } from './common';
+import type { PluginConfigResult, PluginQueryResult, PluginUser } from './common';
 import type { PluginMapSelection } from './map';
 import type { PluginDataFilterInput, PluginFilteredData } from './filter';
 import type {
@@ -26,4 +26,7 @@ export interface PluginContext {
   usePropertiesCategories: () => PluginQueryResult<PluginSoilPropertyCategory[]>;
   useRasterCategories: () => PluginQueryResult<PluginRasterFilterCategory[]>;
   useSoilData: (parameters: PluginSoilDataParameters) => PluginSoilDataResult;
+  // pluginId is the plugin's own exported id (see plugin-development.md), passed
+  // back in so the same config namespace is used no matter which plugin calls it.
+  usePluginConfig: <T>(pluginId: string, id: string, defaultConfig?: T) => PluginConfigResult<T>;
 }

@@ -21,6 +21,11 @@ export enum PluginType {
 // Shape of a loaded remote module as consumed across the app.
 export interface RemotePlugin {
   type: PluginType;
+  // Authored by the plugin itself (not derived from its config url) so it stays
+  // stable across re-hosting/URL changes, and so the plugin can reuse the same
+  // id when it calls context.usePluginConfig. Must be globally unique; see
+  // partitionDuplicatePluginIds in utilities/moduleFederation.ts.
+  pluginId: string;
   name: string;
   description?: string;
   hasMenuItem?: boolean;

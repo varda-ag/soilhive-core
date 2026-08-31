@@ -1,14 +1,21 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { UploadLogo } from 'components/AdminPortal/LookAndFeel/UploadLogo/UploadLogo';
 import useLookAndFeel from 'hooks/useLookAndFeel';
+import { useStorageConfig } from 'hooks/useStorageConfig';
 
 jest.mock('react-i18next', () => ({
   ...jest.requireActual('react-i18next'),
-  useTranslation: () => ({ t: (key: string) => key }),
+  useTranslation: () => ({
+    t: (key: string, options?: Record<string, unknown>) => (options ? `${key} ${JSON.stringify(options)}` : key),
+  }),
   Trans: ({ i18nKey }: { i18nKey: string }) => <>{i18nKey}</>,
 }));
 
 jest.mock('hooks/useLookAndFeel', jest.fn);
+
+jest.mock('hooks/useStorageConfig', () => ({
+  useStorageConfig: jest.fn(),
+}));
 
 const fileUploadBoxMock = jest.fn();
 const cropLogoModalMock = jest.fn();
@@ -24,6 +31,16 @@ jest.mock('components/UI', () => ({
         </button>
         <button data-testid="file-upload-invalid" onClick={() => props.handleFiles([new File(['img'], 'logo.gif', { type: 'image/gif' })])}>
           invalid file
+        </button>
+        <button
+          data-testid="file-upload-oversized"
+          onClick={() => {
+            const oversizedFile = new File(['img'], 'logo.png', { type: 'image/png' });
+            Object.defineProperty(oversizedFile, 'size', { value: 600 * 1024 * 1024, configurable: true });
+            props.handleFiles([oversizedFile]);
+          }}
+        >
+          oversized file
         </button>
       </div>
     );
@@ -81,6 +98,12 @@ describe('UploadLogo', () => {
       isActualLogo: true,
       handleLogoChange,
       deleteLogo,
+    });
+
+    (useStorageConfig as jest.Mock).mockReturnValue({
+      storageConfig: { storageMode: 'local', maxUploadSizeMB: 500 },
+      isLoading: false,
+      isError: false,
     });
 
     URL.createObjectURL = jest.fn(() => 'blob:source-logo');
@@ -294,5 +317,37 @@ describe('UploadLogo', () => {
 
     expect(URL.createObjectURL).not.toHaveBeenCalled();
     expect(screen.getByTestId('crop-modal-opened')).toHaveTextContent('false');
+  });
+
+  describe('size validation', () => {
+    it('opens crop modal with created object url for a file under the size limit', async () => {
+      render(<UploadLogo />);
+
+      fireEvent.click(screen.getByTestId('file-upload-valid'));
+
+      await waitFor(() => {
+        expect(URL.createObjectURL).toHaveBeenCalledTimes(1);
+      });
+      expect(screen.getByTestId('crop-modal-opened')).toHaveTextContent('true');
+    });
+
+    it('shows an error and does not open the crop modal for an oversized file', () => {
+      render(<UploadLogo />);
+
+      const fileInputRef = fileUploadBoxMock.mock.calls[0][0].fileInputRef;
+      fileInputRef.current = { value: 'logo.png' };
+
+      fireEvent.click(screen.getByTestId('file-upload-oversized'));
+
+      expect(URL.createObjectURL).not.toHaveBeenCalled();
+      expect(screen.getByTestId('crop-modal-opened')).toHaveTextContent('false');
+      expect(handleLogoChange).not.toHaveBeenCalled();
+      expect(fileInputRef.current.value).toBe('');
+      expect(fileUploadBoxMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          errorMessage: expect.stringContaining('look_and_feel.logo.file_too_large'),
+        }),
+      );
+    });
   });
 });

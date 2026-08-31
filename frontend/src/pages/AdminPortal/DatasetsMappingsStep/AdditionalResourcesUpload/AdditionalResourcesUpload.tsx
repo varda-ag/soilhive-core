@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { FileUploadBox } from 'components/UI';
 import { useApiQueries } from 'hooks/useApiQueries';
 import { useAdditionalResourceUpload, ADDITIONAL_RESOURCE_EXTENSIONS } from 'hooks/useAdditionalResourceUpload';
+import { useStorageConfig } from 'hooks/useStorageConfig';
+import { formatUploadSize } from 'utilities/formatUploadSize';
 import type { FileDescriptor } from 'types/backend';
 import FileIcon from 'assets/icons/small-file-icon.svg?react';
 import CrossIcon from 'assets/icons/cross-icon.svg?react';
@@ -15,6 +17,8 @@ interface Props {
 
 export function AdditionalResourcesUpload({ value, onChange }: Props) {
   const { t } = useTranslation('admin');
+  const { storageConfig } = useStorageConfig();
+  const maxUploadSizeMB = storageConfig?.maxUploadSizeMB;
   const [knownNames, setKnownNames] = useState<Record<string, string>>({});
 
   // Mirrors `value`, but is also mutated synchronously below whenever this component computes
@@ -64,7 +68,11 @@ export function AdditionalResourcesUpload({ value, onChange }: Props) {
         files={uploadingFiles}
         uploadProgress={uploadProgress}
         fileInputRef={fileInputRef}
-        caption={t('datasets.mappings.details.additional_resources_upload_caption')}
+        caption={
+          maxUploadSizeMB !== undefined
+            ? `${t('datasets.mappings.details.additional_resources_upload_caption')} ${t('datasets.mappings.details.additional_resources_max_size_caption', { size: formatUploadSize(maxUploadSizeMB) })}`
+            : t('datasets.mappings.details.additional_resources_upload_caption')
+        }
         handleFiles={handleFiles}
         accept={ADDITIONAL_RESOURCE_EXTENSIONS.join(', ')}
         errorMessage={uploadErrors}

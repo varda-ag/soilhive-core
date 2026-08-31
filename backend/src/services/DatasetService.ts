@@ -8,7 +8,6 @@ import { getEntity } from '../utils/slugs';
 import { EntityType, IngestionStatus } from '../types/data';
 import { epsgMap } from '../assets/epsgMap';
 import { Capability, JobQueues } from '../types/enums';
-import { Entitlements } from '../types/Entitlements';
 import VectorDataLoad from '../data-layer/VectorDataLoad';
 import DataMappingService from './DataMappingService';
 import DatasetFileMappingService from './DatasetFileMappingService';
@@ -31,7 +30,7 @@ export default class DatasetService {
     const repo = requestData.entityManager.getRepository(DatasetEntity);
     const entities = await repo.find();
     entities.map(e => {
-      this.decorateWithCapabilities(e, requestData.entitlements);
+      this.decorateWithCapabilities(e, requestData);
       this.decoratePreprocessingSteps(e);
     });
     return entities;
@@ -39,7 +38,7 @@ export default class DatasetService {
 
   getDataset = async (requestData: RequestData, slug: string): Promise<DatasetEntity> => {
     const entity = await getEntity(requestData, DatasetEntity, EntityType.DATASET, slug);
-    this.decorateWithCapabilities(entity, requestData.entitlements);
+    this.decorateWithCapabilities(entity, requestData);
     this.decoratePreprocessingSteps(entity);
     return entity;
   };
@@ -58,7 +57,7 @@ export default class DatasetService {
     try {
       const saved = await repo.save(dataset);
       const reloaded = await repo.findOneBy({ id: saved.id });
-      this.decorateWithCapabilities(reloaded!, requestData.entitlements);
+      this.decorateWithCapabilities(reloaded!, requestData);
       this.decoratePreprocessingSteps(reloaded!);
       return reloaded!;
     } catch (error: any) {
@@ -108,7 +107,7 @@ export default class DatasetService {
     }
     await bumpCacheEpoch();
     const reloaded = await repo.findOneBy({ id: saved.id });
-    this.decorateWithCapabilities(reloaded!, requestData.entitlements);
+    this.decorateWithCapabilities(reloaded!, requestData);
     this.decoratePreprocessingSteps(reloaded!);
     return reloaded!;
   };
@@ -145,10 +144,16 @@ export default class DatasetService {
     return Object.entries(epsgMap).map(([code, name]) => ({ code: Number(code), name }));
   };
 
-  decorateWithCapabilities = (dataset: DatasetEntity, entitlements: Entitlements) => {
-    // For private datasets, capabilities are determined by entitlements.
-    // For public datasets, all capabilities are granted.
-    dataset.capabilities = dataset.visibility === 'private' ? entitlements[dataset.slug] || [] : [Capability.PREVIEW, Capability.DOWNLOAD];
+  // Pre-existing GET /datasets behavior (predates sp-5560, unrelated to the
+  // Explore/Download availability flow's move to GET /entitlements) — inlined here rather
+  // than routed through EntitlementService, since that service's own getCapabilities helper
+  // was removed as part of that unrelated migration.
+  decorateWithCapabilities = (dataset: DatasetEntity, requestData: RequestData) => {
+    const isBypassed = Boolean(requestData.token?.isInternalRequest || requestData.token?.isDataAdmin || requestData.token?.isSuperAdmin);
+    dataset.capabilities =
+      dataset.visibility === 'public' || isBypassed
+        ? [Capability.PREVIEW, Capability.DOWNLOAD]
+        : requestData.entitlements[dataset.slug] || [];
   };
 
   decoratePreprocessingSteps = (dataset: DatasetEntity) => {

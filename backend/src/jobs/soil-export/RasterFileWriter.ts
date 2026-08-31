@@ -7,7 +7,7 @@ import { RasterFileFormat } from './types';
 import { FilteredRasterLayer } from '../../interfaces/DatasetFilter';
 import FileService from '../../services/FileService';
 import { openTiff, nodataFromImage } from '../../utils/raster';
-import { sanitizeField } from '../../utils/utils';
+import { sanitizeField, sanitizeFilename } from '../../utils/utils';
 import { GdalCLI } from '../../utils/GdalCLI';
 import { log } from '../../utils/logger';
 import { getErrorMessage } from '../../utils/error';
@@ -389,7 +389,31 @@ ${sources}
 </VRTDataset>`;
   }
 
-  private buildLayerName(layer: FilteredRasterLayer, targetCrs?: number): string {
+  /**
+   * Writes a Raster Layer Asset's bytes into this layer's assets subfolder
+   * ({outputDir}/assets/{layerName}/{sanitized original filename}), creating the subfolder as
+   * needed. When two assets on the same layer sanitize to the same filename, later ones are
+   * disambiguated with a numeric suffix rather than overwriting the first.
+   */
+  writeAsset(layerName: string, originalFilename: string, content: Buffer): string {
+    const assetsDir = path.join(this.outputDir, 'assets', layerName);
+    fs.mkdirSync(assetsDir, { recursive: true });
+
+    const safeName = sanitizeFilename(originalFilename);
+    const ext = path.extname(safeName);
+    const stem = safeName.slice(0, safeName.length - ext.length);
+
+    let candidate = safeName;
+    for (let suffix = 1; fs.existsSync(path.join(assetsDir, candidate)); suffix++) {
+      candidate = `${stem}_${suffix}${ext}`;
+    }
+
+    const filePath = path.join(assetsDir, candidate);
+    fs.writeFileSync(filePath, content);
+    return filePath;
+  }
+
+  buildLayerName(layer: FilteredRasterLayer, targetCrs?: number): string {
     const depthPart = layer.min_depth !== null && layer.max_depth !== null ? `_${layer.min_depth}-${layer.max_depth}cm` : '';
     let datePart = '';
     if (layer.reference_period_start !== null && layer.reference_period_stop !== null) {

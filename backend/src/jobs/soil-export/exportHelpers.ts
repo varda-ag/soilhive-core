@@ -15,6 +15,7 @@ import DatasetEntity from '../../entities/Dataset';
 import { EntityType } from '../../types/data';
 import { ExportJobParameters } from '../../interfaces/Job';
 import { FilterCriteria, FilteredRasterLayer } from '../../interfaces/DatasetFilter';
+import { RasterLayerAssetFile } from '../../interfaces/RasterLayer';
 import { GISDataType } from '../../types/data';
 import { getExportBatchSize } from '../../utils/utils';
 
@@ -159,6 +160,19 @@ export async function fetchRasterLayers(
   // Set includeProcedureInfo to true (required for output layer naming)
   const { layers, aoi } = await soilDataStorage.getRasterLayers(requestData, filter, payload.dataset_ids, true);
   return { layers, aoi };
+}
+
+/**
+ * Batch-fetches the Raster Layer Assets for a set of exported raster layers, grouped by
+ * raster_layer_id. No entitlement check here — the caller has already fetched these layers
+ * via fetchRasterLayers, which enforces Capability.DOWNLOAD on the parent dataset.
+ */
+export async function fetchRasterLayerAssets(
+  requestData: RequestData,
+  rasterLayerIds: string[],
+): Promise<Map<string, RasterLayerAssetFile[]>> {
+  if (!rasterLayerIds.length) return new Map();
+  return await soilDataStorage.getRasterLayerAssets(requestData, rasterLayerIds);
 }
 
 /**

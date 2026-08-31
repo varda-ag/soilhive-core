@@ -484,19 +484,21 @@ export function useRasterMappingStep(datasetId?: string) {
 
   const handleContinue = useCallback(async () => {
     const changed = isMappingChanged(columnMappings, dataMappingByFileId, procedureByColumn);
+    const isRaster = datasetGisDataType === GISDataType.RASTER;
 
     // Always reconcile mappingId/data_mapping the same way handleSaveAndContinueLater does —
     // an unmapped file must still end up pointed at an empty mapping (see save()'s seeding
     // logic), even on the "nothing changed" path below. "Changed" only decides whether it's
     // worth kicking off a new raster-load job.
     setIsImportingState(true);
+    // Raster loading happens as a background job, so tell the user it has started right away
+    // instead of showing the "mapping fields" spinner for the whole save + job duration.
+    if (isRaster) setShowLoadingPanel(true);
     await save();
 
     if (!changed && allFilesStaged) {
       setIsImportingState(false);
-      if (datasetGisDataType === GISDataType.RASTER) {
-        setShowLoadingPanel(true);
-      } else {
+      if (!isRaster) {
         navigate(`${ADMIN_PATHS.DATASETS}/edit/${datasetId}/preview`);
       }
       return;

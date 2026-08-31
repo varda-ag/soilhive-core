@@ -176,6 +176,17 @@ describe('RasterMappingsStep', () => {
       fireEvent.click(screen.getByText('Continue'));
       expect(navigateMock).toHaveBeenCalledWith(ADMIN_PATHS.DATASETS);
     });
+
+    it('also renders the panel when isImporting is true, even though showLoadingPanel is false', () => {
+      // Covers mount/reload while the backend still reports an in-flight import (isImporting via
+      // serverIsImporting) — this now routes to the same "started" panel as a fresh Continue click,
+      // instead of the old separate "Mapping fields" spinner.
+      (useRasterMappingStep as jest.Mock).mockReturnValue({ ...stubHookReturn(), isImporting: true });
+      render(<RasterMappingsStep id="1" />);
+      expect(screen.getByText('Data loading started')).toBeInTheDocument();
+      expect(screen.queryByTestId('sh-mappings-banner')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('sh-raster-mappings-table')).not.toBeInTheDocument();
+    });
   });
 
   describe('mapping rows', () => {
