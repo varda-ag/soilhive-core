@@ -23,6 +23,7 @@ export const ADMIN_PORTAL_ACCESS = 5;
 export const ADMIN_PORTAL_UI_MENU = 6;
 export const ADMIN_PORTAL_DATA_MENU = 7;
 export const DELETE_DATASET = 8;
+export const UPDATE_CONFIG = 9;
 
 type Action =
   | typeof TERMS_AND_CONDITIONS
@@ -33,7 +34,8 @@ type Action =
   | typeof ADMIN_PORTAL_ACCESS
   | typeof ADMIN_PORTAL_UI_MENU
   | typeof ADMIN_PORTAL_DATA_MENU
-  | typeof DELETE_DATASET;
+  | typeof DELETE_DATASET
+  | typeof UPDATE_CONFIG;
 
 // Checked against the fetched entitlements map (by entityId), not the role matrix — the action
 // itself is the capability to look up, so no separate action-to-capability mapping is needed.
@@ -49,6 +51,7 @@ const ENTITLEMENT_MATRIX: Record<Action, AllRoles[]> = {
   [ADMIN_PORTAL_ACCESS]: ['data-admin'],
   [ADMIN_PORTAL_DATA_MENU]: ['data-admin'],
   [DELETE_DATASET]: ['data-admin'],
+  [UPDATE_CONFIG]: [],
 };
 
 export function useEntitlements() {
