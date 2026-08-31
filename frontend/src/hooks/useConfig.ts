@@ -1,10 +1,12 @@
 import { useApiQuery } from './useApiQuery';
 import { useApiMutation } from './useApiMutation';
 import { queryClient } from '../App';
+import { UPDATE_CONFIG, useEntitlements } from './useEntitlementsHook';
 
 const getConfigEndpoint = (id: string) => `/config/${id}`;
 
 const useConfig = <T>(id: string, defaultConfig?: T) => {
+  const { can } = useEntitlements();
   const endpoint = getConfigEndpoint(id);
   const saveMutation = useApiMutation<{ id: string }, unknown>({
     endpoint,
@@ -28,8 +30,10 @@ const useConfig = <T>(id: string, defaultConfig?: T) => {
   const config: T | undefined = isObject(data) && isObject(defaultConfig) ? { ...defaultConfig, ...data } : (data ?? defaultConfig);
 
   const saveConfig = async (newConfig: unknown): Promise<void> => {
-    await saveMutation.mutateAsync(newConfig);
-    await queryClient.invalidateQueries({ queryKey: [endpoint] });
+    if (can(UPDATE_CONFIG)) {
+      await saveMutation.mutateAsync(newConfig);
+      await queryClient.invalidateQueries({ queryKey: [endpoint] });
+    }
   };
 
   return { config, isLoading, isError, saveConfig };
