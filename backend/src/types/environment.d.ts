@@ -40,8 +40,8 @@ declare namespace NodeJS {
     readonly S3_STORAGE_ROOT_FOLDER?: string;
     readonly S3_STORAGE_ENDPOINT?: string;
     readonly MAX_UPLOAD_SIZE_MB?: string;
-    readonly S3_UPLOAD_PART_SIZE_MB?: string;
-    readonly S3_UPLOAD_QUEUE_SIZE?: string;
+    readonly S3_STORAGE_PART_SIZE_MB?: string;
+    readonly S3_STORAGE_QUEUE_SIZE?: string;
     readonly AWS_S3_ENDPOINT?: string;
     readonly AWS_ACCESS_KEY_ID?: string;
     readonly AWS_SECRET_ACCESS_KEY?: string;

@@ -1,5 +1,6 @@
 import { describe, it, expect, afterEach } from '@jest/globals';
 import ConfigService from '../../src/services/ConfigService';
+import { S3StorageConfig } from '../../src/interfaces/StorageConfig';
 
 describe('ConfigService.getMaxUploadSizeBytes', () => {
   const originalValue = process.env.MAX_UPLOAD_SIZE_MB;
@@ -74,5 +75,50 @@ describe('ConfigService.getPublicStorageConfig', () => {
     expect(JSON.stringify(config)).not.toContain('credentials');
     expect(JSON.stringify(config)).not.toContain('bucketName');
     expect(JSON.stringify(config)).not.toContain('region');
+  });
+});
+
+describe('ConfigService.getStorageConfig', () => {
+  const originalStorageMode = process.env.STORAGE_MODE;
+  const originalPartSize = process.env.S3_STORAGE_PART_SIZE_MB;
+  const originalQueueSize = process.env.S3_STORAGE_QUEUE_SIZE;
+
+  afterEach(() => {
+    process.env.STORAGE_MODE = originalStorageMode;
+    process.env.S3_STORAGE_PART_SIZE_MB = originalPartSize;
+    process.env.S3_STORAGE_QUEUE_SIZE = originalQueueSize;
+  });
+
+  it('returns defaults for uploadPartSizeBytes and uploadQueueSize when not set', () => {
+    process.env.STORAGE_MODE = 's3';
+    const storageConfig = ConfigService.getStorageConfig().config as S3StorageConfig;
+
+    expect(storageConfig.uploadPartSizeBytes).toBe(64 * 1024 * 1024);
+    expect(storageConfig.uploadQueueSize).toBe(4);
+  });
+
+  it.each([
+    ['128MB', '-1'],
+    ['4', '0'],
+  ])('returns defaults for uploadPartSizeBytes and uploadQueueSize when invalid values are set', (partSizeMB, queueSize) => {
+    process.env.STORAGE_MODE = 's3';
+    process.env.S3_STORAGE_PART_SIZE_MB = partSizeMB;
+    process.env.S3_STORAGE_QUEUE_SIZE = queueSize;
+
+    const storageConfig = ConfigService.getStorageConfig().config as S3StorageConfig;
+
+    expect(storageConfig.uploadPartSizeBytes).toBe(64 * 1024 * 1024);
+    expect(storageConfig.uploadQueueSize).toBe(4);
+  });
+
+  it('returns set values for uploadPartSizeBytes and uploadQueueSize', () => {
+    process.env.STORAGE_MODE = 's3';
+    process.env.S3_STORAGE_PART_SIZE_MB = '128';
+    process.env.S3_STORAGE_QUEUE_SIZE = '10';
+
+    const storageConfig = ConfigService.getStorageConfig().config as S3StorageConfig;
+
+    expect(storageConfig.uploadPartSizeBytes).toBe(128 * 1024 * 1024);
+    expect(storageConfig.uploadQueueSize).toBe(10);
   });
 });

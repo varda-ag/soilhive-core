@@ -42,14 +42,12 @@ export async function streamRasterFootprints(
   const {
     selectedImage,
     sampleIndex,
-    ovWidth,
-    ovHeight,
     ovPixelW,
     ovPixelH,
     xMin,
     yMax,
-    tileW,
-    tileH,
+    colBounds,
+    rowBounds,
     nCols,
     nRows,
     nodataF32,
@@ -170,6 +168,11 @@ export async function streamRasterFootprints(
       sampleIndex = 0;
     }
 
+    // Shared boundaries, not independent per-tile floor/ceil: avoids duplicate footprints
+    // in reprojected tiles that become overlapping and share a pixel row in WGS84.
+    const colBounds = Array.from({ length: nCols + 1 }, (_, c) => Math.min(ovWidth, Math.round((c * tileW) / ovPixelW)));
+    const rowBounds = Array.from({ length: nRows + 1 }, (_, r) => Math.min(ovHeight, Math.round((r * tileH) / ovPixelH)));
+
     return {
       selectedImage,
       sampleIndex,
@@ -179,8 +182,8 @@ export async function streamRasterFootprints(
       ovPixelH,
       xMin,
       yMax,
-      tileW,
-      tileH,
+      colBounds,
+      rowBounds,
       nCols,
       nRows,
       nodataF32,
@@ -218,15 +221,10 @@ export async function streamRasterFootprints(
           await onProgress?.(tilesProcessed, totalTiles);
         }
 
-        const tileXMin = xMin + iCol * tileW;
-        const tileXMax = xMin + (iCol + 1) * tileW;
-        const tileYMax = yMax - iRow * tileH;
-        const tileYMin = yMax - (iRow + 1) * tileH;
-
-        const pxStart = Math.max(0, Math.floor((tileXMin - xMin) / ovPixelW));
-        const pxEnd = Math.min(ovWidth, Math.ceil((tileXMax - xMin) / ovPixelW));
-        const pyStart = Math.max(0, Math.floor((yMax - tileYMax) / ovPixelH));
-        const pyEnd = Math.min(ovHeight, Math.ceil((yMax - tileYMin) / ovPixelH));
+        const pxStart = colBounds[iCol]!;
+        const pxEnd = colBounds[iCol + 1]!;
+        const pyStart = rowBounds[iRow]!;
+        const pyEnd = rowBounds[iRow + 1]!;
 
         const tilePixW = pxEnd - pxStart;
         const tilePixH = pyEnd - pyStart;
