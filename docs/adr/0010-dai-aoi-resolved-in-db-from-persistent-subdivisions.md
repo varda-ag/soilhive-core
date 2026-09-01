@@ -20,7 +20,7 @@ WHERE ugs.user_geometry_id = ANY($1::uuid[])
 - A Filter geometry touching the viewport only along an edge now yields an empty polygonal AOI (zero CTE rows) instead of `turf.intersect → null`; both end in the same zero response through `computeDai`'s empty-cells branch — there is no Node-side early return anymore, just a cheap indexed query that matches nothing.
 - The subdivision trigger's remaining purpose is Filter creation: `insertUserGeometry` is no longer on any read path. It keeps its dedup/hash contract unchanged.
 - DAI correctness now depends on `user_geometry_subdivisions` being populated for all Filter geometries (already true — the live path read them before, via the ephemeral row; stale schemas rebuilt per SP-5286 notes).
-- Cell scores can shift marginally against old baselines: GEOS clipping replaces turf's clipper, so borderline features on the viewport edge may flip in or out. The perf runner (`src/scripts/perf/runner.ts`, `dai` endpoint) measures the before/after.
+- Cell scores can shift marginally against old baselines: GEOS clipping replaces turf's clipper, so borderline features on the viewport edge may flip in or out.
 
 ## Considered options
 
