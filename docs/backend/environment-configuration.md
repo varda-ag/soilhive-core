@@ -22,6 +22,12 @@ S3_STORAGE_BUCKET=...
 S3_STORAGE_ROOT_FOLDER=...
 ```
 
+Additionally, these variables control multipart uploads (via `@aws-sdk/lib-storage`'s `Upload`):
+- `S3_STORAGE_PART_SIZE_MB` (default `64`): size of each part, in MB. Values below S3's 5MB minimum fall back to the default. A larger part size means fewer parts — and fewer round trips — for a given file size.
+- `S3_STORAGE_QUEUE_SIZE` (default `4`): number of parts uploaded concurrently per file.
+
+Per-upload memory use is bounded by `queueSize × partSize`; size these together against your available memory and expected concurrent-upload count, not independently.
+
 ### Upload size limit
 
 - `MAX_UPLOAD_SIZE_MB` (default `500`): maximum size of an uploaded file, in MB. Shared by `POST /files` and `POST /frontend/logo` rather than a per-route limit — see `docs/adr/0029`.

@@ -9,6 +9,8 @@ import assert from 'assert';
 
 const FRONTEND_LOGO = 'frontend-logo';
 const DEFAULT_MAX_UPLOAD_SIZE_MB = 500;
+const DEFAULT_S3_STORAGE_PART_SIZE_MB = 64;
+const DEFAULT_S3_STORAGE_QUEUE_SIZE = 4;
 
 export interface LogoData {
   fileKey: string;
@@ -108,10 +110,15 @@ export default class ConfigService {
             rootFolder: process.env.LOCAL_STORAGE_ROOT_FOLDER || '/tmp/soilhive-storage',
           },
         };
-      case StorageModes.S3:
+      case StorageModes.S3: {
         for (const name of ['S3_STORAGE_REGION', 'S3_STORAGE_BUCKET', 'S3_STORAGE_ROOT_FOLDER']) {
           assert(process.env[name], `Environment variable ${name} must be set for S3 storage mode`);
         }
+        const parsedPartSizeMB = Number(process.env.S3_STORAGE_PART_SIZE_MB);
+        const uploadPartSizeMB =
+          Number.isFinite(parsedPartSizeMB) && parsedPartSizeMB >= 5 ? parsedPartSizeMB : DEFAULT_S3_STORAGE_PART_SIZE_MB;
+        const parsedQueueSize = Number(process.env.S3_STORAGE_QUEUE_SIZE);
+        const uploadQueueSize = Number.isFinite(parsedQueueSize) && parsedQueueSize > 0 ? parsedQueueSize : DEFAULT_S3_STORAGE_QUEUE_SIZE;
         return {
           storageMode,
           config: {
@@ -122,8 +129,11 @@ export default class ConfigService {
             ...(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY
               ? { credentials: { accessKeyId: process.env.AWS_ACCESS_KEY_ID, secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY } }
               : {}),
+            uploadPartSizeBytes: uploadPartSizeMB * 1024 * 1024,
+            uploadQueueSize,
           },
         };
+      }
       default:
         throw new Error(`Unsupported storage mode: ${storageMode}`);
     }
