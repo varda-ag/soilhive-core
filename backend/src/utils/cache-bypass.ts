@@ -4,7 +4,7 @@ import { NextFunction, Request, Response } from 'express';
 
 /**
  * Per-request opt-out from the query-result cache (docs/adr/0028), so a
- * performance run can measure cold application work against a deployed
+ * measurement client can observe cold application work against a deployed
  * environment without changing that deployment or perturbing its inputs.
  *
  * The header is namespaced so no proxy, CDN or framework header can collide
@@ -18,12 +18,12 @@ import { NextFunction, Request, Response } from 'express';
 export const CACHE_BYPASS_HEADER = 'x-soilhive-cache-bypass';
 
 /**
- * Echoed back on every bypassed response. A target whose secret is
+ * Echoed back on every bypassed response. A deployment whose secret is
  * misconfigured, whose build predates this feature, or that sits behind a proxy
  * stripping unknown headers answers with an ordinary 200 — indistinguishable
- * from a honoured bypass without this echo, which would let a run record cold
- * numbers it never measured. The perf suite checks for it before measuring
- * anything (docs/adr/0028).
+ * from a honoured bypass without this echo, which would let a client record cold
+ * numbers it never measured. A client is expected to require the echo as a
+ * precondition before it measures anything (docs/adr/0028).
  */
 export const CACHE_BYPASS_APPLIED_VALUE = 'applied';
 
@@ -57,8 +57,8 @@ const secretMatches = (provided: string, expected: string): boolean =>
 
 /**
  * Opens the bypass context for requests carrying the correct secret and leaves
- * every other request untouched. Registered before /health and /ready so the
- * suite's cheapest endpoint can serve as its echo preflight.
+ * every other request untouched. Registered before /health and /ready so a
+ * client's echo preflight can use the cheapest endpoint here.
  */
 export const cacheBypassMiddleware = (req: Request, res: Response, next: NextFunction): void => {
   const expected = process.env['CACHE_BYPASS_SECRET'] ?? '';
