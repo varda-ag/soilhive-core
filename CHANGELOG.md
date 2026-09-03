@@ -1,5 +1,54 @@
 # Changelog
 
+## 1.3.0 (2026-09-03)
+
+## What's Changed
+* feat: sp-5542 bulk-delete updates by @d-rom in https://github.com/varda-ag/soilhive-core/pull/767
+* feat: sp-5440 raster mapping by @cristbello in https://github.com/varda-ag/soilhive-core/pull/760
+* docs: sp-5547 normalize admin console terminology across docs by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/772
+* feat: sp-5441 start raster ingest job by @cristbello in https://github.com/varda-ag/soilhive-core/pull/773
+* fix: remove raster-load error RL_MISSING_BAND_MAPPING by @d-rom in https://github.com/varda-ag/soilhive-core/pull/774
+* fear: sp-5441 raster ingest job fix by @cristbello in https://github.com/varda-ag/soilhive-core/pull/775
+* fix: sp-5440 mapping page now loads immediately as raster or not by @cristbello in https://github.com/varda-ag/soilhive-core/pull/776
+* feat(ci): add support for hotfix branches in release workflow by @Butterneck in https://github.com/varda-ag/soilhive-core/pull/779
+* feat: sp-5557 and sp-5558 by @d-rom in https://github.com/varda-ag/soilhive-core/pull/782
+* fix(fe): sp-5562 cumulative hot fixes by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/787
+* feat: remove CRS raster standardization from load, apply on export by @d-rom in https://github.com/varda-ag/soilhive-core/pull/777
+* feat: support rasters with custom CRS by @d-rom in https://github.com/varda-ag/soilhive-core/pull/790
+* feat: sync vocabularies on app startup by @d-rom in https://github.com/varda-ag/soilhive-core/pull/770
+* feat: raster CRS selection, docker compose healthcheck by @svaccari in https://github.com/varda-ag/soilhive-core/pull/791
+* feat(fe): sp-5541 share map component with plugins by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/789
+* fix: entitlements deletion by @svaccari in https://github.com/varda-ag/soilhive-core/pull/792
+* feat: epsg map by @svaccari in https://github.com/varda-ag/soilhive-core/pull/793
+* feat: added cache bypass header to backend and perf suite by @svaccari in https://github.com/varda-ag/soilhive-core/pull/794
+* feat: sp-5505 metadata fields are editable all at once by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/795
+* feat: writing raster band stats by @svaccari in https://github.com/varda-ag/soilhive-core/pull/797
+* feat: sp.5572 added names and autocomplete in the CRS dropdown by @cristbello in https://github.com/varda-ag/soilhive-core/pull/798
+* feat: sp-5572 made autocomplete panel bigger to see all names by @cristbello in https://github.com/varda-ag/soilhive-core/pull/799
+* test: fixed test by @cristbello in https://github.com/varda-ag/soilhive-core/pull/801
+* feat: sp-5560 filter and coverage dataset listings expose per-dataset capabilities by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/796
+* fix: sp-5560 fix external entitlement provider payload by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/805
+* feat: sp-5527 implement plugin configuration storage by @cristbello in https://github.com/varda-ag/soilhive-core/pull/804
+* feat: sp-5590 - publication date formats change by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/806
+* feat: sp-5571 - date formats with datepicker for date fields on metadata by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/802
+* feat: sp-5571 - metadata datepicker switcher initial state fix by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/807
+* docs: update 4e-analytical-methodology-table.csv by @federicodelsanto in https://github.com/varda-ag/soilhive-core/pull/809
+* feat: sp-5587 limit max upload size via config by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/808
+* perf: filterRaster query optimization by @d-rom in https://github.com/varda-ag/soilhive-core/pull/810
+* fix: raster mapping continue goes straight to data-loading-started panel by @cristbello in https://github.com/varda-ag/soilhive-core/pull/811
+* fix: simplify raster footprints on load by @d-rom in https://github.com/varda-ag/soilhive-core/pull/813
+* feat: sp-5584 add raster layer assets to raster export zip by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/812
+* feat: sp-5592 - steps component extension by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/814
+* feat: sp-5526 - entitlements check before config saving by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/815
+* feat: perf image by @svaccari in https://github.com/varda-ag/soilhive-core/pull/800
+* fix: s3 multipart upload config by @d-rom in https://github.com/varda-ag/soilhive-core/pull/816
+* fix: increase request timeout default by @d-rom in https://github.com/varda-ag/soilhive-core/pull/817
+
+## New Contributors
+* @federicodelsanto made their first contribution in https://github.com/varda-ag/soilhive-core/pull/809
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v1.2.0...v1.3.0
+
 ## 1.2.0 (2026-08-05)
 
 ## What's Changed
