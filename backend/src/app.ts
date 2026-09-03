@@ -40,8 +40,8 @@ export const initApp = async (app: Application) => {
     app.use(queryDebugMiddleware);
   }
   if (isCacheBypassEnabled()) {
-    // Before /health and /ready, so the perf suite's echo preflight can use the
-    // cheapest endpoint on the target (docs/adr/0028).
+    // Before /health and /ready, so a client's echo preflight can use the
+    // cheapest endpoint here (docs/adr/0028).
     app.use(cacheBypassMiddleware);
   }
   app.use(loggingMiddleware);
