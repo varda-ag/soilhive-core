@@ -140,6 +140,23 @@ function buildDataMappingRequestsByFile(
 
 type DepthErrorType = 'missing' | 'non_numeric' | 'range';
 
+/**
+ * A reference period is stored as text and rolled up into the Dataset verbatim, and both
+ * `raster_layers` and `datasets` accept only a four-digit year, a year and month, or a full date.
+ * Kept identical to the loader's check and to those constraints rather than narrowed to the year
+ * this numeric input can produce, so a mapping written through the API with month precision is not
+ * flagged here for being something the database would have taken.
+ *
+ * Unvalidated, an extra digit passed straight through: every band ingested cleanly, and the load
+ * then failed writing the same value up to the Dataset, where a check constraint could name
+ * neither the band nor the field that supplied it.
+ */
+const REFERENCE_PERIOD_FORMAT = /^\d{4}(-\d{2}(-\d{2})?)?$/;
+
+function hasReferencePeriodError(value: string | null): boolean {
+  return value !== null && value.trim() !== '' && !REFERENCE_PERIOD_FORMAT.test(value.trim());
+}
+
 function getDepthError(minDepth: string | null, maxDepth: string | null): DepthErrorType | null {
   if (!minDepth || !maxDepth) return 'missing';
   const min = Number(minDepth);
@@ -375,6 +392,31 @@ export function useRasterMappingStep(datasetId?: string) {
     return columns;
   }, [columnMappings]);
 
+  // Keyed per row and per field so the offending input is the one that turns red, rather than the
+  // whole row. Unmapped rows are skipped for the same reason the depth check skips them: their
+  // details are never written to the Band Mapping.
+  const referencePeriodErrors = useMemo((): Record<string, { start: boolean; stop: boolean }> => {
+    return Object.fromEntries(
+      columnMappings.map(m => [
+        m.columnName,
+        m.conceptId === null
+          ? { start: false, stop: false }
+          : { start: hasReferencePeriodError(m.referencePeriodStart), stop: hasReferencePeriodError(m.referencePeriodStop) },
+      ]),
+    );
+  }, [columnMappings]);
+
+  const hasInvalidReferencePeriod = useMemo(
+    () => Object.values(referencePeriodErrors).some(({ start, stop }) => start || stop),
+    [referencePeriodErrors],
+  );
+
+  const referencePeriodValidationMessage = useMemo(
+    (): { message: string; type: 'error' } | null =>
+      hasInvalidReferencePeriod ? { message: t('datasets.mappings.reference_period_invalid'), type: 'error' } : null,
+    [hasInvalidReferencePeriod, t],
+  );
+
   const depthValidationMessage = useMemo((): { message: string; type: 'error' } | null => {
     let worstError: DepthErrorType | null = null;
     for (const m of columnMappings) {
@@ -394,7 +436,10 @@ export function useRasterMappingStep(datasetId?: string) {
     return null;
   }, [columnMappings, t]);
 
-  const isContinueEnabled = useMemo(() => mappedCount > 0 && invalidDepthColumns.size === 0, [mappedCount, invalidDepthColumns]);
+  const isContinueEnabled = useMemo(
+    () => mappedCount > 0 && invalidDepthColumns.size === 0 && !hasInvalidReferencePeriod,
+    [mappedCount, invalidDepthColumns, hasInvalidReferencePeriod],
+  );
 
   // Disabled while loading: columnMappings is empty until the initial fetches
   // resolve, so saving early would persist an empty mapping over any saved data.
@@ -539,6 +584,8 @@ export function useRasterMappingStep(datasetId?: string) {
     unmappedCount,
     invalidDepthColumns,
     depthValidationMessage,
+    referencePeriodErrors,
+    referencePeriodValidationMessage,
     expandedRows,
     toggleRow,
     handleConceptChange,

@@ -79,6 +79,12 @@ const JOB_ERROR_MESSAGES: Record<string, JobErrorMessage> = {
       'If you expected more bands, re-upload the file and check it converted correctly.',
     ],
   },
+  RL_INVALID_REFERENCE_PERIOD: {
+    message: "Band {band} of '{file_name}' declares a {field} of '{value}', which is not a valid date.",
+    actions: [
+      "Open the mapping for '{file_name}' and give band {band} a valid date in any of supported formats (YYYY, YYYY-MM, YYYY-MM-DD).",
+    ],
+  },
   RL_ASSET_URL_UNSUPPORTED: {
     message: "An additional resource for band {band} of '{file_name}' is declared by URL, which cannot be loaded yet.",
     actions: [
@@ -151,7 +157,7 @@ const JOB_ERROR_MESSAGES: Record<string, JobErrorMessage> = {
     ],
   },
   SST_NON_POLYGON_GEOMETRY: {
-    message: '{count} of the file’s geometries are not polygons, so they cannot define an aggregation area.',
+    message: "{count} of the file's geometries are not polygons, so they cannot define an aggregation area.",
     actions: ['Remove the point and line geometries from the file, or supply a polygon-only file, then start the job again.'],
   },
   SST_NO_GEOMETRIES: {
@@ -184,6 +190,9 @@ const FALLBACK: JobErrorMessage = {
   message: 'An unexpected error occurred during processing.',
   actions: ['Try again. If the problem persists, contact support.'],
 };
+
+// The code recorded for a failure that is not a JobError (check-constraint violation, statement timeout, dropped connection)
+export const UNEXPECTED_JOB_ERROR_CODE = 'UNEXPECTED_ERROR';
 
 const interpolate = (template: string, params: Record<string, unknown>): string =>
   template.replace(/\{(\w+)\}/g, (_, key) => (params[key] !== undefined ? String(params[key]) : `{${key}}`));

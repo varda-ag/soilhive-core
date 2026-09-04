@@ -49,6 +49,7 @@ function defaultProps(overrides?: {
   details?: Partial<RowDetails>;
   referencePeriodStart?: string | null;
   referencePeriodStop?: string | null;
+  referencePeriodErrors?: { start: boolean; stop: boolean };
   layerDescription?: string | null;
 }) {
   return {
@@ -57,6 +58,7 @@ function defaultProps(overrides?: {
     detailOptions: DETAIL_OPTIONS,
     referencePeriodStart: overrides?.referencePeriodStart ?? null,
     referencePeriodStop: overrides?.referencePeriodStop ?? null,
+    referencePeriodErrors: overrides?.referencePeriodErrors ?? { start: false, stop: false },
     layerDescription: overrides?.layerDescription ?? null,
     additionalResources: [],
     onDetailChange: jest.fn(),
