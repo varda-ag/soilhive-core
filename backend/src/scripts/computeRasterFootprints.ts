@@ -2,7 +2,7 @@ import type { MultiPolygon } from 'geojson';
 import fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
-import { fromFile } from 'geotiff';
+import { fromFile, type GeoTIFF } from 'geotiff';
 import FileService from '../services/FileService';
 import ConfigService from '../services/ConfigService';
 import { StorageModes } from '../types/enums';
@@ -13,7 +13,7 @@ import { openTiff, isGeographicCrs } from '../utils/raster';
 const MAX_TILES = 256 * 256;
 const MIN_TILES = 256;
 const PIXELS_PER_TILE_MIN_DIM = 512;
-const INSERT_BATCH_SIZE = 100;
+const INSERT_BATCH_SIZE = 50;
 
 export type FootprintBatchCallback = (tiles: MultiPolygon[]) => Promise<void>;
 
@@ -53,6 +53,8 @@ export async function streamRasterFootprints(
     nodataF32,
     overviewTempPath,
     srcSrs,
+    tiff,
+    localTiff,
   } = await timed('footprint extraction setup', async () => {
     const { mainFilePath } = await FileService.getMainFilePath(cogPath);
 
@@ -140,6 +142,7 @@ export async function streamRasterFootprints(
     // copy instead. -outsize matches the overview's own dimensions exactly, so GDAL reads the
     // COG's embedded overview data as-is rather than resampling from full resolution.
     let overviewTempPath: string | null = null;
+    let localTiff: GeoTIFF | null = null;
     if (ConfigService.getStorageConfig().storageMode === StorageModes.S3) {
       overviewTempPath = path.join(os.tmpdir(), `footprint-overview-${Date.now()}-${Math.random().toString(36).slice(2)}.tif`);
       await timed('download overview locally', () =>
@@ -162,7 +165,7 @@ export async function streamRasterFootprints(
           'COMPRESS=DEFLATE',
         ]),
       );
-      const localTiff = await fromFile(overviewTempPath);
+      localTiff = await fromFile(overviewTempPath);
       selectedImage = await localTiff.getImage(0);
       // -b above already collapsed the file to the single requested band.
       sampleIndex = 0;
@@ -189,6 +192,8 @@ export async function streamRasterFootprints(
       nodataF32,
       overviewTempPath,
       srcSrs,
+      tiff,
+      localTiff,
     };
   });
 
@@ -289,6 +294,8 @@ export async function streamRasterFootprints(
       dbMs,
     });
   } finally {
+    await Promise.resolve(tiff.close()).catch(() => {});
+    await Promise.resolve(localTiff?.close()).catch(() => {});
     if (overviewTempPath) {
       await fs.unlink(overviewTempPath).catch(() => {});
     }
