@@ -7,6 +7,7 @@ import { streamRasterFootprints, type FootprintProgressCallback } from '../scrip
 import { analyzeRasterMeta } from '../utils/raster';
 import { getEntityManager } from '../utils/data-source';
 import { log, timed } from '../utils/logger';
+import { multiPolygonToWkb } from '../utils/wkb';
 import { MultiPolygon } from 'geojson';
 import FileService from './FileService';
 import ConfigService from './ConfigService';
@@ -242,17 +243,17 @@ async function insertFootprintBatch(
   rasterLayerId: string,
   batch: MultiPolygon[],
 ): Promise<void> {
-  const geomJsons = batch.map(fp => JSON.stringify(fp));
+  const geomWkb = batch.map(fp => multiPolygonToWkb(fp));
   await em.query(
     `WITH fp_ins AS (INSERT INTO raster_footprints (geom)
-     SELECT ST_SetSRID(ST_GeomFromGeoJSON(v), 4326)
-     FROM unnest($1::text[]) AS v
+     SELECT ST_SetSRID(ST_GeomFromWKB(v), 4326)
+     FROM unnest($1::bytea[]) AS v
      ON CONFLICT (geom_hash) DO UPDATE SET id = raster_footprints.id
      RETURNING id)
      INSERT INTO raster_layer_footprints (raster_layer_id, raster_footprint_id)
      SELECT $2, id FROM fp_ins
      ON CONFLICT (raster_layer_id, raster_footprint_id) DO NOTHING;`,
-    [geomJsons, rasterLayerId],
+    [geomWkb, rasterLayerId],
   );
 }
 
