@@ -56,6 +56,8 @@ function stubHookReturn(
   invalidDepthColumns: Set<string> = new Set(),
   depthValidationMessage: { message: string; type: 'error' } | null = null,
   isSaveEnabled = true,
+  referencePeriodErrors: Record<string, { start: boolean; stop: boolean }> | null = null,
+  referencePeriodValidationMessage: { message: string; type: 'error' } | null = null,
 ) {
   return {
     isLoading: false,
@@ -83,6 +85,12 @@ function stubHookReturn(
     unmappedCount: columnNames.length,
     invalidDepthColumns,
     depthValidationMessage,
+    // The hook keys these per column, error-free by default, rather than leaving the record
+    // empty — so the component's `?? { start: false, stop: false }` fallback stays a genuine
+    // guard instead of the path every test happens to take.
+    referencePeriodErrors:
+      referencePeriodErrors ?? Object.fromEntries(columnNames.map(columnName => [columnName, { start: false, stop: false }])),
+    referencePeriodValidationMessage,
     expandedRows: new Set<string>(),
     toggleRow: jest.fn(),
     handleConceptChange: jest.fn(),

@@ -345,6 +345,7 @@
             "depth_required": "Min and max depth are required for every mapped layer.",
             "depth_must_be_numeric": "Min and max depth must be numbers.",
             "depth_range_invalid": "Min depth must be less than max depth.",
+            "reference_period_invalid": "Reference period start and stop must be a four-digit year, for example 2025.",
             "importing": {
                 "title": "Mapping fields",
                 "description_1": "This operation may take a few minutes to complete.",

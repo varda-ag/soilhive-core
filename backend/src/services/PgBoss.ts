@@ -19,6 +19,7 @@ import { processBulkDeletion } from '../jobs/bulk-delete/BulkDeleter';
 import { processOrphanCleanup } from '../jobs/orphan-cleanup/OrphanCleanupJob';
 import { log } from '../utils/logger';
 import { JobError } from '../errors/JobError';
+import { UNEXPECTED_JOB_ERROR_CODE } from '../errors/jobErrorMessages';
 import { getEntityManager } from '../utils/data-source';
 import { getErrorMessage } from '../utils/error';
 import { bumpCacheEpoch } from '../utils/cache-epoch';
@@ -96,19 +97,25 @@ export const runJob = async <T>(queue: JobQueues, job: Job<T>, processor: (job: 
       error: getErrorMessage(error),
       stack: error instanceof Error ? error.stack : undefined,
     });
-    if (JobError.isJobError(error)) {
-      try {
-        const entityManager = await getEntityManager();
-        await entityManager.query(`UPDATE ${PG_BOSS_SCHEMA}.job SET data = data || $1::jsonb WHERE id = $2`, [
-          JSON.stringify({ errors: [{ code: error.code, params: error.params, detail: error.detail }] }),
-          job.id,
-        ]);
-      } catch (writeErr) {
-        log.error('Failed to write JobError to pg-boss data', {
-          job_id: job.id,
-          error: getErrorMessage(writeErr),
-        });
-      }
+    // Every failure is recorded. A JobError carries a translatable code.
+    // Anything else — a check-constraint violation, a statement timeout — is
+    // recorded under UNEXPECTED_JOB_ERROR_CODE with its raw message as the detail.
+    // Written while the job is still active, so it lands before pg-boss moves the row to `failed`;
+    // failJobs copies `data` across unchanged, so the entry survives the transition.
+    try {
+      const entityManager = await getEntityManager();
+      const item = JobError.isJobError(error)
+        ? { code: error.code, params: error.params, detail: error.detail }
+        : { code: UNEXPECTED_JOB_ERROR_CODE, params: {}, detail: getErrorMessage(error) };
+      await entityManager.query(`UPDATE ${PG_BOSS_SCHEMA}.job SET data = data || $1::jsonb WHERE id = $2`, [
+        JSON.stringify({ errors: [item] }),
+        job.id,
+      ]);
+    } catch (writeErr) {
+      log.error('Failed to write job error to pg-boss data', {
+        job_id: job.id,
+        error: getErrorMessage(writeErr),
+      });
     }
     throw error;
   } finally {

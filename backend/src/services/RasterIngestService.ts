@@ -5,7 +5,7 @@ import path from 'path';
 import { Readable } from 'stream';
 import { streamRasterFootprints, type FootprintProgressCallback } from '../scripts/computeRasterFootprints';
 import { analyzeRasterMeta } from '../utils/raster';
-import { getEntityManager } from '../utils/data-source';
+import { getDataSource, getEntityManager } from '../utils/data-source';
 import { log, timed } from '../utils/logger';
 import { MultiPolygon } from 'geojson';
 import FileService from './FileService';
@@ -446,24 +446,34 @@ export async function ingestRaster(opts: IngestRasterOptions): Promise<string> {
 
   // Phase 2: stream footprint tiles in batches — each batch is inserted and released immediately.
   // Footprints are per band: a sibling band's mask can cover different ground.
-  //
-  // Drop this layer's existing links first so a re-ingest cannot leave footprints from a previous
-  // run behind. For unchanged pixels the links are simply rebuilt identically; the reset only
-  // matters when the file's contents changed under the same path. raster_footprints rows are
-  // shared between layers by geom_hash, so only the links are removed here, never the geometry.
-  await em.query(`DELETE FROM raster_layer_footprints WHERE raster_layer_id = $1`, [rasterLayerId]);
-
-  await em.query("SET statement_timeout = '600s';");
+  const dataSource = await getDataSource();
+  const queryRunner = dataSource.createQueryRunner();
   let totalFootprints = 0;
-  await streamRasterFootprints(
-    filePath,
-    opts.band,
-    async batch => {
-      await insertFootprintBatch(em, rasterLayerId, batch);
-      totalFootprints += batch.length;
-    },
-    opts.onFootprintProgress,
-  );
+  try {
+    await queryRunner.connect();
+    await queryRunner.query("SET statement_timeout = '600s';");
+
+    // Drop this layer's existing links first so a re-ingest cannot leave footprints from a previous
+    // run behind. For unchanged pixels the links are simply rebuilt identically; the reset only
+    // matters when the file's contents changed under the same path. raster_footprints rows are
+    // shared between layers by geom_hash, so only the links are removed here, never the geometry.
+    await queryRunner.query(`DELETE FROM raster_layer_footprints WHERE raster_layer_id = $1`, [rasterLayerId]);
+
+    await streamRasterFootprints(
+      filePath,
+      opts.band,
+      async batch => {
+        await insertFootprintBatch(queryRunner.manager, rasterLayerId, batch);
+        totalFootprints += batch.length;
+      },
+      opts.onFootprintProgress,
+    );
+  } finally {
+    // Put the connection back as it was found. Best-effort: a connection that cannot be reset is
+    // being released anyway, and failing here would mask whatever went wrong above.
+    await queryRunner.query('RESET statement_timeout').catch(() => {});
+    await queryRunner.release();
+  }
 
   log.info('Raster ingest complete', { filePath, band: opts.band, rasterLayerId, footprintCount: totalFootprints });
   return rasterLayerId;

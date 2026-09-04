@@ -14,6 +14,8 @@ interface Props {
   detailOptions: DetailOptionMap;
   referencePeriodStart: string | null;
   referencePeriodStop: string | null;
+  /** Which of the two reference period fields hold a value the catalogue cannot store. */
+  referencePeriodErrors: { start: boolean; stop: boolean };
   layerDescription: string | null;
   additionalResources: { file_id: string }[];
   onDetailChange: (columnName: string, field: keyof RowDetails, value: string) => void;
@@ -29,6 +31,7 @@ export function RasterMappingRowDetails({
   detailOptions,
   referencePeriodStart,
   referencePeriodStop,
+  referencePeriodErrors,
   layerDescription,
   additionalResources,
   onDetailChange,
@@ -64,6 +67,7 @@ export function RasterMappingRowDetails({
             label={t('datasets.mappings.details.reference_period_start')}
             placeholder={t('datasets.mappings.details.reference_period_start_placeholder')}
             value={referencePeriodStart ?? ''}
+            isError={referencePeriodErrors.start}
             onChange={value => onReferencePeriodStartChange(columnName, value)}
           />
           <TextInput
@@ -72,6 +76,7 @@ export function RasterMappingRowDetails({
             label={t('datasets.mappings.details.reference_period_stop')}
             placeholder={t('datasets.mappings.details.reference_period_stop_placeholder')}
             value={referencePeriodStop ?? ''}
+            isError={referencePeriodErrors.stop}
             onChange={value => onReferencePeriodStopChange(columnName, value)}
           />
         </div>

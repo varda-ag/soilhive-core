@@ -34,6 +34,9 @@ const LOAD_PROGRESS_CEILING = 90;
 // instead of at 0. When nothing needs converting, bands own the whole range as before.
 const CONVERSION_PROGRESS_CEILING = 40;
 
+// Either year, a year and month, or a full date
+const REFERENCE_PERIOD_FORMAT = /^\d{4}(-\d{2}(-\d{2})?)?$/;
+
 interface StagedBand {
   file: FileEntity;
   bandMapping: ResolvedBandMapping;
@@ -56,6 +59,8 @@ export async function processRasterLoad(job: Job<RasterLoadJob>): Promise<void> 
   const requestData = { entityManager, token, entitlements };
   const dataset = await datasetService.getDataset(requestData, data.dataset_id);
   const reportProgress = progressReporter(jobId);
+  // Defined here so the catch can undo it putting back to PENDING.
+  let ingestedFileIds: string[] = [];
   try {
     await reportProgress(0, `Raster load started for dataset '${dataset.name}'`);
 
@@ -65,8 +70,8 @@ export async function processRasterLoad(job: Job<RasterLoadJob>): Promise<void> 
     const mappingService = new DatasetFileMappingService();
     const datasetFileMappings = await mappingService.getMappings(requestData, dataset.slug);
 
-    // Process all pending files associated with this mapping
-    const files = await getPendingFilesWithMapping(entityManager, datasetFileMappings);
+    // Every File the mappings name, whatever its status — see getMappedFiles.
+    const files = await getMappedFiles(entityManager, datasetFileMappings);
 
     // Resolve every band mapping and validate it against the file before writing anything, so the
     // progress denominator spans the whole job and a bad mapping aborts before a partial load.
@@ -134,7 +139,7 @@ export async function processRasterLoad(job: Job<RasterLoadJob>): Promise<void> 
     // Written as a targeted UPDATE rather than file.save(): these entities were loaded before
     // normalization repointed files.file_path, and save() diffs the whole entity against the row
     // it reloads — so it would write the pre-conversion path back over the converted one.
-    const ingestedFileIds = [...new Set(stagedBands.map(staged => staged.file.id))];
+    ingestedFileIds = [...new Set(stagedBands.map(staged => staged.file.id))];
     if (ingestedFileIds.length > 0) {
       await entityManager.getRepository(FileEntity).update({ id: In(ingestedFileIds) }, { status: IngestionStatus.LOADED });
     }
@@ -154,14 +159,45 @@ export async function processRasterLoad(job: Job<RasterLoadJob>): Promise<void> 
     // already have rewritten this row, and saving the entity loaded at the top of the job would
     // restore its stale metadata along with the status.
     await entityManager.getRepository(DatasetEntity).update({ id: dataset.id }, { status: IngestionStatus.PENDING });
+    // Roll the files back with it, so the two agree on what happened.
+    if (ingestedFileIds.length > 0) {
+      await entityManager.getRepository(FileEntity).update({ id: In(ingestedFileIds) }, { status: IngestionStatus.PENDING });
+    }
     throw error;
   }
 }
 
-const getPendingFilesWithMapping = async (entityManager: EntityManager, mappings: DatasetFileMappingEntity[]): Promise<FileEntity[]> => {
-  const repo = entityManager.getRepository(FileEntity);
-  const files = await repo.find({ where: { status: IngestionStatus.PENDING, id: In(mappings.map(m => m.file_id)) } });
-  return files;
+/**
+ * Every File the Dataset's mappings name, whatever its ingestion status.
+ *
+ * Deliberately unfiltered: an ingest is idempotent per (file, band) and the loader is the only writer of Raster Layers,
+ * so re-reading a file that is already LOADED costs time and changes nothing — while *skipping* it made two situations
+ * unrecoverable:
+ *
+ *   - a load that failed after marking its files LOADED could not be retried. File status is
+ *     written before the dataset metadata rollup, so a rollup failure left every file LOADED; the
+ *     retry then found nothing to ingest and went straight back to the rollup that had just failed,
+ *     with the same stale rows behind it. Correcting the Band Mapping changed nothing.
+ *   - a Band Mapping edited after a successful load was never applied. Attaching an additional
+ *     resource is the common case: no file was left in PENDING to carry it, so the job ran to
+ *     completion having attached nothing.
+ *
+ * Re-running a load therefore costs what running it costs. That is the price of it being repeatable.
+ */
+const getMappedFiles = async (entityManager: EntityManager, mappings: DatasetFileMappingEntity[]): Promise<FileEntity[]> => {
+  // A mapping with no file_id belongs to no File — currentMappingsByFile drops those too.
+  const fileIds = [...new Set(mappings.map(mapping => mapping.file_id).filter((id): id is string => !!id))];
+  if (fileIds.length === 0) {
+    return [];
+  }
+  return await entityManager.getRepository(FileEntity).find({ where: { id: In(fileIds) } });
+};
+
+const assertReferencePeriod = (fileName: string, band: number, field: string, value: string | null): void => {
+  // Rejects an invalid reference period, naming the band that declared it
+  if (value !== null && !REFERENCE_PERIOD_FORMAT.test(String(value))) {
+    throw new JobError('RL_INVALID_REFERENCE_PERIOD', { file_name: fileName, band: String(band), field, value: String(value) });
+  }
 };
 
 const bandPercentage = (bandsProcessed: number, totalBands: number, floor: number): number =>
@@ -258,6 +294,8 @@ const prepareStagedBands = async (
       if (!Number.isInteger(band) || band < 1 || (bandCount > 0 && !availableBands.has(band))) {
         throw new JobError('RL_INVALID_BAND', { file_name: file.name, band: String(band), band_count: String(bandCount) });
       }
+      assertReferencePeriod(file.name, band, 'reference period start', bandMapping.referencePeriodStart);
+      assertReferencePeriod(file.name, band, 'reference period stop', bandMapping.referencePeriodStop);
       stagedBands.push({ file, bandMapping, assetFileIds: [] });
     }
   }

@@ -35,6 +35,8 @@ export function RasterMappingsStep({ id }: Props) {
     unmappedCount,
     invalidDepthColumns,
     depthValidationMessage,
+    referencePeriodErrors,
+    referencePeriodValidationMessage,
     expandedRows,
     toggleRow,
     handleConceptChange,
@@ -69,7 +71,7 @@ export function RasterMappingsStep({ id }: Props) {
       isRaster={true}
       mappedCount={mappedCount}
       unmappedCount={unmappedCount}
-      messages={[depthValidationMessage]}
+      messages={[depthValidationMessage, referencePeriodValidationMessage]}
       isSaveEnabled={isSaveEnabled}
       isContinueEnabled={isContinueEnabled}
       onPrevious={handlePrevious}
@@ -135,6 +137,7 @@ export function RasterMappingsStep({ id }: Props) {
                   detailOptions={detailOptions}
                   referencePeriodStart={mapping.referencePeriodStart}
                   referencePeriodStop={mapping.referencePeriodStop}
+                  referencePeriodErrors={referencePeriodErrors[columnName] ?? { start: false, stop: false }}
                   layerDescription={mapping.layerDescription}
                   additionalResources={mapping.additionalResources}
                   onDetailChange={handleDetailChange}
