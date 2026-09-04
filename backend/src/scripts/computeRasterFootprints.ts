@@ -13,7 +13,7 @@ import { openTiff, isGeographicCrs } from '../utils/raster';
 const MAX_TILES = 256 * 256;
 const MIN_TILES = 256;
 const PIXELS_PER_TILE_MIN_DIM = 512;
-const INSERT_BATCH_SIZE = 50;
+const INSERT_BATCH_SIZE = 100;
 
 export type FootprintBatchCallback = (tiles: MultiPolygon[]) => Promise<void>;
 
