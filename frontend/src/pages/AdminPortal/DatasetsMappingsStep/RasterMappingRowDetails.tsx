@@ -60,10 +60,13 @@ export function RasterMappingRowDetails({
             onClear={() => onDetailChange(columnName, 'laboratoryMethod', '')}
           />
         </div>
+        {/* Text, not number: the catalogue stores a year, a year and month, or a full date, and a
+            number input can express only the first of the three. REFERENCE_PERIOD_FORMAT is what
+            decides validity here — see hasReferencePeriodError in useRasterMappingStep. */}
         <div className={styles.ReferencePeriodRow}>
           <TextInput
             size="small"
-            type="number"
+            type="text"
             label={t('datasets.mappings.details.reference_period_start')}
             placeholder={t('datasets.mappings.details.reference_period_start_placeholder')}
             value={referencePeriodStart ?? ''}
@@ -72,7 +75,7 @@ export function RasterMappingRowDetails({
           />
           <TextInput
             size="small"
-            type="number"
+            type="text"
             label={t('datasets.mappings.details.reference_period_stop')}
             placeholder={t('datasets.mappings.details.reference_period_stop_placeholder')}
             value={referencePeriodStop ?? ''}

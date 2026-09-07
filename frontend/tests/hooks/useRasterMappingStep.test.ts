@@ -626,6 +626,90 @@ describe('useRasterMappingStep', () => {
       });
     });
 
+    /** The message the hook reports for a mapped column carrying this min/max depth pair. */
+    const depthMessageFor = (minDepth: string, maxDepth: string) => {
+      setupWithColumns(['col1']);
+      const { result } = renderHook(() => useRasterMappingStep('1'));
+      act(() => {
+        result.current.handleConceptChange('col1', 'ph');
+        result.current.handleMinDepthChange('col1', minDepth);
+        result.current.handleMaxDepthChange('col1', maxDepth);
+      });
+      return { message: result.current.depthValidationMessage, isFlagged: result.current.invalidDepthColumns.has('col1') };
+    };
+
+    // Both depths land in an `int` column, so Postgres rounds a fraction on the way in and the
+    // layer ends up describing an interval nobody chose.
+    it.each([
+      ['10.5', '20'],
+      ['10', '20.5'],
+      ['0.1', '0.9'],
+    ])('flags a fractional depth pair %s / %s with a "whole numbers" message', (minDepth, maxDepth) => {
+      const { message, isFlagged } = depthMessageFor(minDepth, maxDepth);
+      expect(isFlagged).toBe(true);
+      expect(message).toEqual({ message: 'Min and max depth must be whole numbers of centimetres.', type: 'error' });
+    });
+
+    it.each([
+      ['-10', '20'],
+      ['-20', '-10'],
+    ])('flags a negative depth pair %s / %s with a "cannot be negative" message', (minDepth, maxDepth) => {
+      const { message, isFlagged } = depthMessageFor(minDepth, maxDepth);
+      expect(isFlagged).toBe(true);
+      expect(message).toEqual({ message: 'Min and max depth cannot be negative.', type: 'error' });
+    });
+
+    // 0–30cm is the commonest topsoil interval there is, so the surface must stay expressible.
+    it('accepts a min depth of zero', () => {
+      const { message, isFlagged } = depthMessageFor('0', '30');
+      expect(isFlagged).toBe(false);
+      expect(message).toBeNull();
+    });
+
+    // A trailing zero is still a whole number of centimetres, whatever the string looks like.
+    it('accepts a depth written as 10.0', () => {
+      const { message, isFlagged } = depthMessageFor('10.0', '20');
+      expect(isFlagged).toBe(false);
+      expect(message).toBeNull();
+    });
+
+    // Whichever row comes first, the reported message is the most fundamental problem present —
+    // fixing the fraction is pointless while another row has no depth at all.
+    it('reports the most fundamental problem across rows, not the first one found', () => {
+      setupWithColumns(['col1', 'col2']);
+      const { result } = renderHook(() => useRasterMappingStep('1'));
+      act(() => {
+        result.current.handleConceptChange('col1', 'ph');
+        result.current.handleConceptChange('col2', 'ph');
+        // col1 is fractional; col2 has no depth at all.
+        result.current.handleMinDepthChange('col1', '10.5');
+        result.current.handleMaxDepthChange('col1', '20');
+      });
+      expect(result.current.depthValidationMessage).toEqual({
+        message: 'Min and max depth are required for every mapped layer.',
+        type: 'error',
+      });
+      expect(result.current.invalidDepthColumns.has('col1')).toBe(true);
+      expect(result.current.invalidDepthColumns.has('col2')).toBe(true);
+    });
+
+    it('blocks continue while a depth is fractional or negative, and allows it once corrected', () => {
+      setupWithColumns(['col1']);
+      const { result } = renderHook(() => useRasterMappingStep('1'));
+      act(() => {
+        result.current.handleConceptChange('col1', 'ph');
+        result.current.handleMinDepthChange('col1', '-10.5');
+        result.current.handleMaxDepthChange('col1', '20');
+      });
+      expect(result.current.isContinueEnabled).toBe(false);
+
+      act(() => {
+        result.current.handleMinDepthChange('col1', '0');
+      });
+      expect(result.current.isContinueEnabled).toBe(true);
+      expect(result.current.depthValidationMessage).toBeNull();
+    });
+
     it('clears once a valid min/max depth is provided', () => {
       setupWithColumns(['col1']);
       const { result } = renderHook(() => useRasterMappingStep('1'));
@@ -636,6 +720,156 @@ describe('useRasterMappingStep', () => {
       });
       expect(result.current.invalidDepthColumns.size).toBe(0);
       expect(result.current.depthValidationMessage).toBeNull();
+    });
+  });
+
+  describe('referencePeriodErrors and referencePeriodValidationMessage', () => {
+    const INVALID_MESSAGE = {
+      message:
+        'Reference period start and stop must be a valid year, year and month, or full date — for example 2025, 2025-06 or 2025-06-15.',
+      type: 'error',
+    };
+
+    it('reports no error for a mapped column that leaves the reference period empty', () => {
+      setupWithColumns(['col1']);
+      const { result } = renderHook(() => useRasterMappingStep('1'));
+      act(() => {
+        result.current.handleConceptChange('col1', 'ph');
+      });
+      expect(result.current.referencePeriodErrors.col1).toEqual({ start: false, stop: false });
+      expect(result.current.referencePeriodValidationMessage).toBeNull();
+    });
+
+    // All three precisions the catalogue stores, so a mapping written with month or day precision
+    // is not flagged for being more specific than a bare year.
+    it.each(['1977', '1977-06', '1977-06-15'])('accepts %s, which the catalogue can store', value => {
+      setupWithColumns(['col1']);
+      const { result } = renderHook(() => useRasterMappingStep('1'));
+      act(() => {
+        result.current.handleConceptChange('col1', 'ph');
+        result.current.handleReferencePeriodStartChange('col1', value);
+        result.current.handleReferencePeriodStopChange('col1', value);
+      });
+      expect(result.current.referencePeriodErrors.col1).toEqual({ start: false, stop: false });
+      expect(result.current.referencePeriodValidationMessage).toBeNull();
+    });
+
+    /** Whether the hook flags `value` as the reference period start of a mapped column. */
+    const startErrorFor = (value: string): boolean => {
+      setupWithColumns(['col1']);
+      const { result } = renderHook(() => useRasterMappingStep('1'));
+      act(() => {
+        result.current.handleConceptChange('col1', 'ph');
+        result.current.handleReferencePeriodStartChange('col1', value);
+      });
+      return result.current.referencePeriodErrors.col1.start;
+    };
+
+    // The digit pattern alone let these through, and it is all the check constraint on either
+    // table tests — so a month of 13 or a 31st of February would have been stored and rolled up
+    // into the Dataset, to be read back as a date by anything that parses it.
+    it.each([
+      ['2025-00', 'month zero'],
+      ['2025-13', 'a month past December'],
+      ['2025-06-00', 'day zero'],
+      ['2025-06-31', 'a 31st of a 30-day month'],
+      ['2025-02-30', 'a 30th of February'],
+      ['2023-02-29', 'a leap day in a common year'],
+      ['1900-02-29', 'a leap day in a century that is not a leap year'],
+      ['0000', 'a year that does not exist'],
+    ])('flags %s (%s)', value => {
+      expect(startErrorFor(value)).toBe(true);
+    });
+
+    it.each([
+      ['2024-02-29', 'a leap day in a leap year'],
+      ['2000-02-29', 'a leap day in a 400-year leap century'],
+      ['2025-01-01', 'the first day of a year'],
+      ['2025-12-31', 'the last day of a year'],
+      ['0001-01-01', 'the earliest real year'],
+    ])('accepts %s (%s)', value => {
+      expect(startErrorFor(value)).toBe(false);
+    });
+
+    // The regression this guards: unvalidated, an extra digit ingested every band cleanly and
+    // then failed a check constraint as the load rolled the value up to the Dataset, where the
+    // error could name neither the band nor the field that supplied it.
+    it('flags a five-digit year on start, leaving stop clean', () => {
+      setupWithColumns(['col1']);
+      const { result } = renderHook(() => useRasterMappingStep('1'));
+      act(() => {
+        result.current.handleConceptChange('col1', 'ph');
+        result.current.handleReferencePeriodStartChange('col1', '20255');
+        result.current.handleReferencePeriodStopChange('col1', '2015');
+      });
+      expect(result.current.referencePeriodErrors.col1).toEqual({ start: true, stop: false });
+      expect(result.current.referencePeriodValidationMessage).toEqual(INVALID_MESSAGE);
+    });
+
+    it('flags stop independently of start', () => {
+      setupWithColumns(['col1']);
+      const { result } = renderHook(() => useRasterMappingStep('1'));
+      act(() => {
+        result.current.handleConceptChange('col1', 'ph');
+        result.current.handleReferencePeriodStartChange('col1', '1977');
+        result.current.handleReferencePeriodStopChange('col1', '15/06/2015');
+      });
+      expect(result.current.referencePeriodErrors.col1).toEqual({ start: false, stop: true });
+      expect(result.current.referencePeriodValidationMessage).toEqual(INVALID_MESSAGE);
+    });
+
+    // Same reason the depth check skips unmapped rows: their details are never written to the
+    // Band Mapping, so nothing malformed can reach the catalogue from them.
+    it('leaves an unmapped row unflagged however malformed its reference period', () => {
+      setupWithColumns(['col1']);
+      const { result } = renderHook(() => useRasterMappingStep('1'));
+      act(() => {
+        result.current.handleReferencePeriodStartChange('col1', '20255');
+      });
+      expect(result.current.referencePeriodErrors.col1).toEqual({ start: false, stop: false });
+      expect(result.current.referencePeriodValidationMessage).toBeNull();
+    });
+
+    it('flags only the offending row when another mapped row is valid', () => {
+      setupWithColumns(['col1', 'col2']);
+      const { result } = renderHook(() => useRasterMappingStep('1'));
+      act(() => {
+        result.current.handleConceptChange('col1', 'ph');
+        result.current.handleConceptChange('col2', 'ph');
+        result.current.handleReferencePeriodStartChange('col1', '20255');
+        result.current.handleReferencePeriodStartChange('col2', '1977');
+      });
+      expect(result.current.referencePeriodErrors.col1.start).toBe(true);
+      expect(result.current.referencePeriodErrors.col2.start).toBe(false);
+    });
+
+    it('blocks continue while a reference period is invalid, and allows it once corrected', () => {
+      setupWithColumns(['col1']);
+      const { result } = renderHook(() => useRasterMappingStep('1'));
+      act(() => {
+        result.current.handleConceptChange('col1', 'ph');
+        result.current.handleMinDepthChange('col1', '10');
+        result.current.handleMaxDepthChange('col1', '20');
+        result.current.handleReferencePeriodStartChange('col1', '20255');
+      });
+      expect(result.current.isContinueEnabled).toBe(false);
+
+      act(() => {
+        result.current.handleReferencePeriodStartChange('col1', '2025');
+      });
+      expect(result.current.isContinueEnabled).toBe(true);
+      expect(result.current.referencePeriodValidationMessage).toBeNull();
+    });
+
+    // Save is deliberately not gated: a half-finished mapping must still be storable.
+    it('leaves save enabled while a reference period is invalid', () => {
+      setupWithColumns(['col1']);
+      const { result } = renderHook(() => useRasterMappingStep('1'));
+      act(() => {
+        result.current.handleConceptChange('col1', 'ph');
+        result.current.handleReferencePeriodStartChange('col1', '20255');
+      });
+      expect(result.current.isSaveEnabled).toBe(true);
     });
   });
 

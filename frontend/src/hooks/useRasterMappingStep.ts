@@ -138,30 +138,95 @@ function buildDataMappingRequestsByFile(
 // Helpers
 // ---------------------------------------------------------------------------
 
-type DepthErrorType = 'missing' | 'non_numeric' | 'range';
+type DepthErrorType = 'missing' | 'non_numeric' | 'not_integer' | 'negative' | 'range';
+
+/**
+ * Most fundamental first, so the message names the thing to fix rather than a consequence: a
+ * value that is absent cannot be judged numeric, one that is not a number cannot be judged for
+ * wholeness or sign, and a pair failing any of those cannot be compared as a range.
+ */
+const DEPTH_ERROR_PRIORITY: DepthErrorType[] = ['missing', 'non_numeric', 'not_integer', 'negative', 'range'];
+
+const DEPTH_ERROR_MESSAGE_KEYS: Record<DepthErrorType, string> = {
+  missing: 'datasets.mappings.depth_required',
+  non_numeric: 'datasets.mappings.depth_must_be_numeric',
+  not_integer: 'datasets.mappings.depth_must_be_integer',
+  negative: 'datasets.mappings.depth_must_not_be_negative',
+  range: 'datasets.mappings.depth_range_invalid',
+};
 
 /**
  * A reference period is stored as text and rolled up into the Dataset verbatim, and both
  * `raster_layers` and `datasets` accept only a four-digit year, a year and month, or a full date.
- * Kept identical to the loader's check and to those constraints rather than narrowed to the year
- * this numeric input can produce, so a mapping written through the API with month precision is not
- * flagged here for being something the database would have taken.
+ * The three precisions are all honoured rather than narrowing to the bare year, so a mapping
+ * written through the API with month precision is not flagged for being something the database
+ * would have taken.
  *
  * Unvalidated, an extra digit passed straight through: every band ingested cleanly, and the load
  * then failed writing the same value up to the Dataset, where a check constraint could name
  * neither the band nor the field that supplied it.
  */
-const REFERENCE_PERIOD_FORMAT = /^\d{4}(-\d{2}(-\d{2})?)?$/;
+const REFERENCE_PERIOD_FORMAT = /^(\d{4})(?:-(\d{2})(?:-(\d{2}))?)?$/;
 
+const DAYS_IN_MONTH = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+
+const isLeapYear = (year: number): boolean => (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+
+/**
+ * Computed rather than taken from `Date`: `Date.UTC` maps a two-digit year into the 1900s, so a
+ * four-digit year below 0100 would be measured against the wrong century's February.
+ */
+const daysInMonth = (year: number, month: number): number => (month === 2 && isLeapYear(year) ? 29 : DAYS_IN_MONTH[month - 1]);
+
+/**
+ * Whether a reference period names something other than a real point on the calendar.
+ *
+ * The shape is only half the rule: `2025-13` and `2025-02-31` satisfy the check constraint on
+ * both tables — which tests the digit pattern alone — while naming no month and no day. They
+ * would be stored, rolled up into the Dataset, and read back later as a date by anything that
+ * parses them. So each component is range-checked at the precision the value declares, February
+ * against the year's own leap rule.
+ *
+ * An empty value is not an error: the reference period is optional per band.
+ */
 function hasReferencePeriodError(value: string | null): boolean {
-  return value !== null && value.trim() !== '' && !REFERENCE_PERIOD_FORMAT.test(value.trim());
+  const trimmed = value?.trim();
+  if (!trimmed) return false;
+
+  const match = REFERENCE_PERIOD_FORMAT.exec(trimmed);
+  if (!match) return true;
+  const [, yearPart, monthPart, dayPart] = match;
+
+  // There is no year zero in the Gregorian calendar, and it is far likelier to be an unfilled
+  // field than a claim about 1 BC. Years are otherwise unbounded: dating a survey to the future
+  // is a different kind of mistake, and not one this field should refuse.
+  const year = Number(yearPart);
+  if (year === 0) return true;
+  if (monthPart === undefined) return false;
+
+  const month = Number(monthPart);
+  if (month < 1 || month > 12) return true;
+  if (dayPart === undefined) return false;
+
+  const day = Number(dayPart);
+  return day < 1 || day > daysInMonth(year, month);
 }
 
+/**
+ * Both depths are centimetres below the surface and land in an `int` column on `raster_layers`,
+ * so a fractional value is not stored as given — Postgres rounds it on the way in, and the layer
+ * then describes an interval nobody chose. A negative depth describes nothing at all.
+ *
+ * Zero is allowed as a min: it is the surface, and `0`–`30` is the commonest topsoil interval
+ * there is. Max needs no separate floor, since `min < max` already puts it at 1 or above.
+ */
 function getDepthError(minDepth: string | null, maxDepth: string | null): DepthErrorType | null {
   if (!minDepth || !maxDepth) return 'missing';
   const min = Number(minDepth);
   const max = Number(maxDepth);
   if (!Number.isFinite(min) || !Number.isFinite(max)) return 'non_numeric';
+  if (!Number.isInteger(min) || !Number.isInteger(max)) return 'not_integer';
+  if (min < 0 || max < 0) return 'negative';
   if (min >= max) return 'range';
   return null;
 }
@@ -417,23 +482,18 @@ export function useRasterMappingStep(datasetId?: string) {
     [hasInvalidReferencePeriod, t],
   );
 
+  // One message for the whole table, so with several rows wrong it reports the most fundamental
+  // problem present rather than whichever row happens to come first.
   const depthValidationMessage = useMemo((): { message: string; type: 'error' } | null => {
-    let worstError: DepthErrorType | null = null;
+    const errors = new Set<DepthErrorType>();
     for (const m of columnMappings) {
       if (m.conceptId === null) continue;
       const error = getDepthError(m.minDepth, m.maxDepth);
-      if (error === 'missing') {
-        worstError = 'missing';
-        break;
-      }
-      if (error === 'non_numeric' && worstError !== 'non_numeric') worstError = 'non_numeric';
-      if (error === 'range' && worstError === null) worstError = 'range';
+      if (error !== null) errors.add(error);
     }
 
-    if (worstError === 'missing') return { message: t('datasets.mappings.depth_required'), type: 'error' };
-    if (worstError === 'non_numeric') return { message: t('datasets.mappings.depth_must_be_numeric'), type: 'error' };
-    if (worstError === 'range') return { message: t('datasets.mappings.depth_range_invalid'), type: 'error' };
-    return null;
+    const worstError = DEPTH_ERROR_PRIORITY.find(error => errors.has(error));
+    return worstError ? { message: t(DEPTH_ERROR_MESSAGE_KEYS[worstError]), type: 'error' } : null;
   }, [columnMappings, t]);
 
   const isContinueEnabled = useMemo(

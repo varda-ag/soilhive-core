@@ -247,6 +247,7 @@
                 "uploaded_prefix": "Uploaded",
                 "what_happened_label": "What happened",
                 "error_prefix": "Error {{index}}:",
+                "detail_label": "Technical detail:",
                 "suggested_fixes_title": "Suggested fix/es"
             },
             "delete_modal": {
@@ -345,7 +346,9 @@
             "depth_required": "Min and max depth are required for every mapped layer.",
             "depth_must_be_numeric": "Min and max depth must be numbers.",
             "depth_range_invalid": "Min depth must be less than max depth.",
-            "reference_period_invalid": "Reference period start and stop must be a four-digit year, for example 2025.",
+            "depth_must_be_integer": "Min and max depth must be whole numbers of centimetres.",
+            "depth_must_not_be_negative": "Min and max depth cannot be negative.",
+            "reference_period_invalid": "Reference period start and stop must be a valid year, year and month, or full date — for example 2025, 2025-06 or 2025-06-15.",
             "importing": {
                 "title": "Mapping fields",
                 "description_1": "This operation may take a few minutes to complete.",
@@ -364,8 +367,8 @@
                 "limit_of_detection": "Limit of detection",
                 "reference_period_start": "Reference period start",
                 "reference_period_stop": "Reference period stop",
-                "reference_period_start_placeholder": "i.e. 1977",
-                "reference_period_stop_placeholder": "i.e. 2015",
+                "reference_period_start_placeholder": "i.e. 1977 or 1977-06",
+                "reference_period_stop_placeholder": "i.e. 2015 or 2015-12",
                 "layer_description": "Layer description",
                 "layer_description_placeholder": "i.e. This layer is about how we discovered an ancient alien race with a really advance society that lives at 80cm deep in the vast land of Ciudad Real",
                 "additional_resources_title": "Additional resources",
