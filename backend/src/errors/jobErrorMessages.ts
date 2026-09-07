@@ -85,6 +85,17 @@ const JOB_ERROR_MESSAGES: Record<string, JobErrorMessage> = {
       "Open the mapping for '{file_name}' and give band {band} a valid date in any of supported formats (YYYY, YYYY-MM, YYYY-MM-DD).",
     ],
   },
+  RL_INVALID_DEPTH: {
+    message: "Band {band} of '{file_name}' declares a {field} of {value}, which is not a whole number of centimetres from 0 to {limit}.",
+    actions: [
+      "Open the mapping for '{file_name}' and give band {band} a whole number of centimetres, from 0 to {limit}, as its {field}.",
+      'Depths are stored as whole centimetres below the surface, so a fraction cannot be kept as written.',
+    ],
+  },
+  RL_INVALID_DEPTH_RANGE: {
+    message: "Band {band} of '{file_name}' declares a min depth of {min_depth}, which is not less than its max depth of {max_depth}.",
+    actions: ["Open the mapping for '{file_name}' and give band {band} a min depth below its max depth."],
+  },
   RL_ASSET_URL_UNSUPPORTED: {
     message: "An additional resource for band {band} of '{file_name}' is declared by URL, which cannot be loaded yet.",
     actions: [

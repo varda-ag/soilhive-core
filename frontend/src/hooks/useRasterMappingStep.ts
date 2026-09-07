@@ -138,20 +138,24 @@ function buildDataMappingRequestsByFile(
 // Helpers
 // ---------------------------------------------------------------------------
 
-type DepthErrorType = 'missing' | 'non_numeric' | 'not_integer' | 'negative' | 'range';
+type DepthErrorType = 'missing' | 'non_numeric' | 'not_integer' | 'negative' | 'too_deep' | 'range';
+
+// 50 m below the surface, well past any soil survey
+const MAX_DEPTH_CM = 5000;
 
 /**
  * Most fundamental first, so the message names the thing to fix rather than a consequence: a
  * value that is absent cannot be judged numeric, one that is not a number cannot be judged for
  * wholeness or sign, and a pair failing any of those cannot be compared as a range.
  */
-const DEPTH_ERROR_PRIORITY: DepthErrorType[] = ['missing', 'non_numeric', 'not_integer', 'negative', 'range'];
+const DEPTH_ERROR_PRIORITY: DepthErrorType[] = ['missing', 'non_numeric', 'not_integer', 'negative', 'too_deep', 'range'];
 
 const DEPTH_ERROR_MESSAGE_KEYS: Record<DepthErrorType, string> = {
   missing: 'datasets.mappings.depth_required',
   non_numeric: 'datasets.mappings.depth_must_be_numeric',
   not_integer: 'datasets.mappings.depth_must_be_integer',
   negative: 'datasets.mappings.depth_must_not_be_negative',
+  too_deep: 'datasets.mappings.depth_too_deep',
   range: 'datasets.mappings.depth_range_invalid',
 };
 
@@ -219,6 +223,10 @@ function hasReferencePeriodError(value: string | null): boolean {
  *
  * Zero is allowed as a min: it is the surface, and `0`–`30` is the commonest topsoil interval
  * there is. Max needs no separate floor, since `min < max` already puts it at 1 or above.
+ *
+ * The ceiling is checked on both depths rather than on max alone: an inverted pair like
+ * `6000`-`100` is out of range on the min, and saying so is more use than reporting only that
+ * min is not less than max.
  */
 function getDepthError(minDepth: string | null, maxDepth: string | null): DepthErrorType | null {
   if (!minDepth || !maxDepth) return 'missing';
@@ -227,6 +235,7 @@ function getDepthError(minDepth: string | null, maxDepth: string | null): DepthE
   if (!Number.isFinite(min) || !Number.isFinite(max)) return 'non_numeric';
   if (!Number.isInteger(min) || !Number.isInteger(max)) return 'not_integer';
   if (min < 0 || max < 0) return 'negative';
+  if (min > MAX_DEPTH_CM || max > MAX_DEPTH_CM) return 'too_deep';
   if (min >= max) return 'range';
   return null;
 }

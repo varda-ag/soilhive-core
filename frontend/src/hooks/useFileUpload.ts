@@ -5,6 +5,7 @@ import { getToken } from '../auth/tokenStore';
 import { ALLOWED_EXTENSIONS } from './useDatasetsSoilData';
 import { useStorageConfig } from './useStorageConfig';
 import { formatUploadSize } from 'utilities/formatUploadSize';
+import { hasCustomCrs } from 'utilities/crs';
 import type { SoilDataFile } from '../types/soilDataFile';
 
 export function useFileUpload(onFileUploaded: (file: SoilDataFile) => void) {
@@ -17,7 +18,7 @@ export function useFileUpload(onFileUploaded: (file: SoilDataFile) => void) {
   const [uploadErrors, setUploadErrors] = useState<string[]>([]);
 
   const uploadFile = useCallback(
-    (file: File): Promise<{ id: string; crs?: string; fieldNames?: string[]; isRaster?: boolean }> => {
+    (file: File): Promise<{ id: string; crs?: string; hasCustomCrs: boolean; fieldNames?: string[]; isRaster?: boolean }> => {
       return new Promise((resolve, reject) => {
         const formData = new FormData();
         formData.append('file', file);
@@ -38,6 +39,7 @@ export function useFileUpload(onFileUploaded: (file: SoilDataFile) => void) {
               resolve({
                 id: response.id,
                 crs: response.metadata?.epsg ? `EPSG:${response.metadata.epsg}` : undefined,
+                hasCustomCrs: hasCustomCrs(response.metadata),
                 fieldNames: response.metadata?.field_names as string[] | undefined,
                 isRaster: response.metadata?.is_raster === true,
               });
@@ -96,8 +98,19 @@ export function useFileUpload(onFileUploaded: (file: SoilDataFile) => void) {
       await Promise.allSettled(
         validFiles.map(async file => {
           try {
-            const { id, crs, fieldNames, isRaster } = await uploadFile(file);
-            onFileUploaded({ id, file, name: file.name, crs: crs ?? null, inferredCrs: crs, fieldNames, isRaster, progress: 100 });
+            const { id, crs, hasCustomCrs: isCustomCrs, fieldNames, isRaster } = await uploadFile(file);
+            // `crs` stays null on upload: it means "the user chose this"
+            onFileUploaded({
+              id,
+              file,
+              name: file.name,
+              crs: null,
+              inferredCrs: crs,
+              hasCustomCrs: isCustomCrs,
+              fieldNames,
+              isRaster,
+              progress: 100,
+            });
           } catch (err) {
             const message = err instanceof Error && err.message ? err.message : t('datasets.soil_data.upload_error');
             setUploadErrors(prev => [...prev, `${file.name}: ${message}`]);

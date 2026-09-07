@@ -659,6 +659,43 @@ describe('useRasterMappingStep', () => {
       expect(message).toEqual({ message: 'Min and max depth cannot be negative.', type: 'error' });
     });
 
+    // 5000cm is 50m down — an order of magnitude past routine sampling, so anything beyond it is
+    // a units slip or a stray digit.
+    it.each([
+      ['0', '5001', 'a max just past the ceiling'],
+      ['10', '50000', 'millimetres entered as centimetres'],
+      ['6000', '7000', 'both depths past the ceiling'],
+      // Inverted as well as out of range: naming the ceiling is more use than naming the inversion.
+      ['6000', '100', 'an inverted pair whose min is past the ceiling'],
+    ])('flags %s / %s (%s) with a "cannot be greater" message', (minDepth, maxDepth) => {
+      const { message, isFlagged } = depthMessageFor(minDepth, maxDepth);
+      expect(isFlagged).toBe(true);
+      expect(message).toEqual({ message: 'Min and max depth cannot be greater than 5000 cm.', type: 'error' });
+    });
+
+    it('accepts a max depth of exactly 5000', () => {
+      const { message, isFlagged } = depthMessageFor('0', '5000');
+      expect(isFlagged).toBe(false);
+      expect(message).toBeNull();
+    });
+
+    it('blocks continue while a depth is past the ceiling, and allows it once corrected', () => {
+      setupWithColumns(['col1']);
+      const { result } = renderHook(() => useRasterMappingStep('1'));
+      act(() => {
+        result.current.handleConceptChange('col1', 'ph');
+        result.current.handleMinDepthChange('col1', '0');
+        result.current.handleMaxDepthChange('col1', '50000');
+      });
+      expect(result.current.isContinueEnabled).toBe(false);
+
+      act(() => {
+        result.current.handleMaxDepthChange('col1', '5000');
+      });
+      expect(result.current.isContinueEnabled).toBe(true);
+      expect(result.current.depthValidationMessage).toBeNull();
+    });
+
     // 0–30cm is the commonest topsoil interval there is, so the surface must stay expressible.
     it('accepts a min depth of zero', () => {
       const { message, isFlagged } = depthMessageFor('0', '30');

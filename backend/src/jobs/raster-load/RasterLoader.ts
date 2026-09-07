@@ -37,6 +37,10 @@ const CONVERSION_PROGRESS_CEILING = 40;
 // Either year, a year and month, or a full date
 const REFERENCE_PERIOD_FORMAT = /^\d{4}(-\d{2}(-\d{2})?)?$/;
 
+// 50 m below the surface, well past any soil survey.
+// Kept in sync with MAX_DEPTH_CM in frontend/src/hooks/useRasterMappingStep.ts.
+const MAX_DEPTH_CM = 5000;
+
 interface StagedBand {
   file: FileEntity;
   bandMapping: ResolvedBandMapping;
@@ -200,6 +204,33 @@ const assertReferencePeriod = (fileName: string, band: number, field: string, va
   }
 };
 
+const assertDepths = (fileName: string, band: number, minDepth: number | null, maxDepth: number | null): void => {
+  const fields = [
+    ['min depth', minDepth],
+    ['max depth', maxDepth],
+  ] as const;
+  for (const [field, value] of fields) {
+    if (value === null) continue;
+    if (!Number.isInteger(value) || value < 0 || value > MAX_DEPTH_CM) {
+      throw new JobError('RL_INVALID_DEPTH', {
+        file_name: fileName,
+        band: String(band),
+        field,
+        value: String(value),
+        limit: String(MAX_DEPTH_CM),
+      });
+    }
+  }
+  if (minDepth !== null && maxDepth !== null && minDepth >= maxDepth) {
+    throw new JobError('RL_INVALID_DEPTH_RANGE', {
+      file_name: fileName,
+      band: String(band),
+      min_depth: String(minDepth),
+      max_depth: String(maxDepth),
+    });
+  }
+};
+
 const bandPercentage = (bandsProcessed: number, totalBands: number, floor: number): number =>
   totalBands > 0 ? floor + Math.round(((LOAD_PROGRESS_CEILING - floor) * bandsProcessed) / totalBands) : floor;
 
@@ -296,6 +327,7 @@ const prepareStagedBands = async (
       }
       assertReferencePeriod(file.name, band, 'reference period start', bandMapping.referencePeriodStart);
       assertReferencePeriod(file.name, band, 'reference period stop', bandMapping.referencePeriodStop);
+      assertDepths(file.name, band, bandMapping.minDepth, bandMapping.maxDepth);
       stagedBands.push({ file, bandMapping, assetFileIds: [] });
     }
   }
