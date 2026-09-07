@@ -49,6 +49,7 @@ function defaultProps(overrides?: {
   details?: Partial<RowDetails>;
   referencePeriodStart?: string | null;
   referencePeriodStop?: string | null;
+  referencePeriodErrors?: { start: boolean; stop: boolean };
   layerDescription?: string | null;
 }) {
   return {
@@ -57,6 +58,7 @@ function defaultProps(overrides?: {
     detailOptions: DETAIL_OPTIONS,
     referencePeriodStart: overrides?.referencePeriodStart ?? null,
     referencePeriodStop: overrides?.referencePeriodStop ?? null,
+    referencePeriodErrors: overrides?.referencePeriodErrors ?? { start: false, stop: false },
     layerDescription: overrides?.layerDescription ?? null,
     additionalResources: [],
     onDetailChange: jest.fn(),
@@ -99,22 +101,61 @@ describe('RasterMappingRowDetails', () => {
   describe('reference period inputs', () => {
     it('reflects referencePeriodStart/referencePeriodStop as the input values', () => {
       render(<RasterMappingRowDetails {...defaultProps({ referencePeriodStart: '1977', referencePeriodStop: '2015' })} />);
-      expect(screen.getByPlaceholderText('i.e. 1977')).toHaveValue(1977);
-      expect(screen.getByPlaceholderText('i.e. 2015')).toHaveValue(2015);
+      expect(screen.getByPlaceholderText('i.e. 1977 or 1977-06')).toHaveValue('1977');
+      expect(screen.getByPlaceholderText('i.e. 2015 or 2015-12')).toHaveValue('2015');
     });
 
     it('calls onReferencePeriodStartChange with the column name and new value', () => {
       const props = defaultProps();
       render(<RasterMappingRowDetails {...props} />);
-      fireEvent.change(screen.getByPlaceholderText('i.e. 1977'), { target: { value: '1980' } });
+      fireEvent.change(screen.getByPlaceholderText('i.e. 1977 or 1977-06'), { target: { value: '1980' } });
       expect(props.onReferencePeriodStartChange).toHaveBeenCalledWith('Carbon_organic', '1980');
     });
 
     it('calls onReferencePeriodStopChange with the column name and new value', () => {
       const props = defaultProps();
       render(<RasterMappingRowDetails {...props} />);
-      fireEvent.change(screen.getByPlaceholderText('i.e. 2015'), { target: { value: '2020' } });
+      fireEvent.change(screen.getByPlaceholderText('i.e. 2015 or 2015-12'), { target: { value: '2020' } });
       expect(props.onReferencePeriodStopChange).toHaveBeenCalledWith('Carbon_organic', '2020');
+    });
+
+    // These were number inputs, which silently discard anything but digits — so the two thirds of
+    // REFERENCE_PERIOD_FORMAT that carry month and day precision could never be entered.
+    it.each(['1977-06', '1977-06-15'])('carries %s through to onChange', value => {
+      const props = defaultProps();
+      render(<RasterMappingRowDetails {...props} />);
+      fireEvent.change(screen.getByPlaceholderText('i.e. 1977 or 1977-06'), { target: { value } });
+      expect(props.onReferencePeriodStartChange).toHaveBeenCalledWith('Carbon_organic', value);
+    });
+
+    // referencePeriodErrors is keyed per field rather than per row so only the offending input
+    // turns red — a row with a good start and a bad stop must not mark both.
+    const textInputFor = (placeholder: string) => screen.getByPlaceholderText(placeholder).closest('[data-testid="sh-ui-textinput"]');
+
+    it('marks neither input when both values are storable', () => {
+      render(
+        <RasterMappingRowDetails
+          {...defaultProps({
+            referencePeriodStart: '1977',
+            referencePeriodStop: '2015',
+            referencePeriodErrors: { start: false, stop: false },
+          })}
+        />,
+      );
+      expect(textInputFor('i.e. 1977 or 1977-06')).not.toHaveClass('Invalid');
+      expect(textInputFor('i.e. 2015 or 2015-12')).not.toHaveClass('Invalid');
+    });
+
+    it('marks only start when start is the offending field', () => {
+      render(<RasterMappingRowDetails {...defaultProps({ referencePeriodErrors: { start: true, stop: false } })} />);
+      expect(textInputFor('i.e. 1977 or 1977-06')).toHaveClass('Invalid');
+      expect(textInputFor('i.e. 2015 or 2015-12')).not.toHaveClass('Invalid');
+    });
+
+    it('marks only stop when stop is the offending field', () => {
+      render(<RasterMappingRowDetails {...defaultProps({ referencePeriodErrors: { start: false, stop: true } })} />);
+      expect(textInputFor('i.e. 1977 or 1977-06')).not.toHaveClass('Invalid');
+      expect(textInputFor('i.e. 2015 or 2015-12')).toHaveClass('Invalid');
     });
   });
 

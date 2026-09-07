@@ -755,6 +755,38 @@ describe('RasterLoader', () => {
       expect(await getLayers(file.id)).toHaveLength(0);
     });
 
+    it('RL_INVALID_REFERENCE_PERIOD when a band declares a year outside four digits', async () => {
+      const { dataset, file } = await setUpRasterLoad(uniqueName('bad-period'), slug => ({
+        '1': { ...bandEntry(slug, 0, 5), reference_period_start: '20255' },
+        '2': bandEntry(slug, 5, 15),
+      }));
+
+      await expect(processRasterLoad(getJob(dataset.slug))).rejects.toMatchObject({
+        name: 'JobError',
+        code: 'RL_INVALID_REFERENCE_PERIOD',
+        params: { band: '1', field: 'reference period start', value: '20255' },
+      });
+
+      // Checked with the band numbers, before the first ingest writes anything — the value used to
+      // reach every layer intact and fail only when it was rolled up into the dataset.
+      expect(await getLayers(file.id)).toHaveLength(0);
+    });
+
+    it('accepts a year, a year and month, or a full date as a reference period', async () => {
+      const { dataset, file } = await setUpRasterLoad(uniqueName('good-period'), slug => ({
+        '1': { ...bandEntry(slug, 0, 5), reference_period_start: '1977', reference_period_stop: '2015-06' },
+        '2': { ...bandEntry(slug, 5, 15), reference_period_start: '2016-01-31' },
+      }));
+
+      await processRasterLoad(getJob(dataset.slug));
+
+      expect((await getLayers(file.id)).map(layer => layer.reference_period_start)).toEqual(['1977', '2016-01-31']);
+      const dataSource = await getDataSource();
+      const reloaded = await dataSource.getRepository(DatasetEntity).findOneByOrFail({ id: dataset.id });
+      expect(reloaded.status).toBe(IngestionStatus.LOADED);
+      expect(reloaded.reference_period_start).toBe('1977');
+    });
+
     it('returns the dataset to PENDING and leaves the file pending when a load fails', async () => {
       const { dataset, file } = await setUpRasterLoad(uniqueName('failure-status'), () => null);
 
@@ -799,17 +831,21 @@ describe('RasterLoader', () => {
       expect(await getLayers(file.id)).toHaveLength(0);
     });
 
-    it('ignores files that are not pending', async () => {
-      const { dataset, file } = await setUpRasterLoad(uniqueName('not-pending'), slug => ({ '1': bandEntry(slug, 0, 5) }));
+    it('re-ingests a file that is already loaded, so a corrected mapping can be re-run', async () => {
+      const { dataset, file } = await setUpRasterLoad(uniqueName('already-loaded'), slug => ({ '1': bandEntry(slug, 0, 5) }));
       const dataSource = await getDataSource();
+      // The state a load that failed at the metadata rollup leaves behind: file status is written
+      // before the rollup runs. Skipping non-pending files made that unrecoverable — the retry
+      // found nothing to ingest and went straight back to the rollup that had just failed. It also
+      // meant a Band Mapping edited after a successful load was never applied.
       await dataSource.getRepository(FileEntity).update({ id: file.id }, { status: IngestionStatus.LOADED });
 
       await processRasterLoad(getJob(dataset.slug));
 
-      expect(await getLayers(file.id)).toHaveLength(0);
+      expect((await getLayers(file.id)).map(layer => layer.band)).toEqual([1]);
       const reloaded = await dataSource.getRepository(DatasetEntity).findOneByOrFail({ id: dataset.id });
       expect(reloaded.status).toBe(IngestionStatus.LOADED);
-      expect(reloaded.n_raster_layers).toBe(0);
+      expect(reloaded.n_raster_layers).toBe(1);
     });
   });
 });

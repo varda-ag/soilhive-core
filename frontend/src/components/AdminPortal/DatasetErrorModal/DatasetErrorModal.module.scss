@@ -43,6 +43,20 @@
   color: var(--color-neutral-darkest);
 }
 
+.ErrorDetail {
+  margin: 0.25rem 0 0;
+  color: var(--color-neutral-dark);
+  font-size: var(--font-size-xs);
+  // The raw failure text is unwrapped server output — keep newlines and let long identifiers
+  // break rather than widen the dialog.
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.ErrorDetailLabel {
+  font-weight: var(--font-weight-bold);
+}
+
 .SuggestedFixes {
   background-color: var(--color-brand-light-green-100);
   border-radius: var(--border-radius-md);

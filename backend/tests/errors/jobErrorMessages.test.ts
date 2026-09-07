@@ -1,6 +1,6 @@
 import { describe, it, expect } from '@jest/globals';
 import { JobError } from '../../src/errors/JobError';
-import { translateJobError } from '../../src/errors/jobErrorMessages';
+import { translateJobError, UNEXPECTED_JOB_ERROR_CODE } from '../../src/errors/jobErrorMessages';
 
 describe('JobError', () => {
   it('stores detail when provided', () => {
@@ -29,6 +29,7 @@ describe('translateJobError', () => {
     'BL_RECORD_VALIDATION_FAILED',
     'RL_MAPPING_NOT_CONFIGURED',
     'RL_INVALID_BAND',
+    'RL_INVALID_REFERENCE_PERIOD',
     'RL_CONVERSION_FAILED',
     'RL_UNIT_NOT_CONVERTIBLE',
   ];
@@ -38,6 +39,12 @@ describe('translateJobError', () => {
     expect(result.message).toBeTruthy();
     expect(result.actions.length).toBeGreaterThan(0);
     result.actions.forEach(a => expect(a).toBeTruthy());
+  });
+
+  it('resolves the code recorded for an unmapped failure to the fallback', () => {
+    // UNEXPECTED_JOB_ERROR_CODE is deliberately absent from JOB_ERROR_MESSAGES: the useful text is
+    // the raw one carried in the error's detail, and this only has to say something.
+    expect(translateJobError(UNEXPECTED_JOB_ERROR_CODE)).toEqual(translateJobError('SOME_CODE_THAT_IS_NOT_DEFINED'));
   });
 
   it('returns a generic fallback for an unknown code', () => {

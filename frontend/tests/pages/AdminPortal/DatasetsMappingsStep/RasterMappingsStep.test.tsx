@@ -37,6 +37,26 @@ jest.mock('../../../../src/pages/AdminPortal/DatasetsMappingsStep/MappingsTable'
   ),
 }));
 
+// RasterMappingRowDetails renders AutocompleteDropdown (PrimeReact) and AdditionalResourcesUpload
+// (which hits /files) — stub it and surface the props these tests care about as data attributes.
+// Its own rendering is covered by RasterMappingRowDetails.test.tsx.
+jest.mock('../../../../src/pages/AdminPortal/DatasetsMappingsStep/RasterMappingRowDetails', () => ({
+  RasterMappingRowDetails: ({
+    columnName,
+    referencePeriodErrors,
+  }: {
+    columnName: string;
+    referencePeriodErrors: { start: boolean; stop: boolean };
+  }) => (
+    <div
+      data-testid="sh-raster-row-details"
+      data-column={columnName}
+      data-start-error={String(referencePeriodErrors.start)}
+      data-stop-error={String(referencePeriodErrors.stop)}
+    />
+  ),
+}));
+
 // ---------------------------------------------------------------------------
 // Fixtures
 // ---------------------------------------------------------------------------
@@ -56,6 +76,8 @@ function stubHookReturn(
   invalidDepthColumns: Set<string> = new Set(),
   depthValidationMessage: { message: string; type: 'error' } | null = null,
   isSaveEnabled = true,
+  referencePeriodErrors: Record<string, { start: boolean; stop: boolean }> | null = null,
+  referencePeriodValidationMessage: { message: string; type: 'error' } | null = null,
 ) {
   return {
     isLoading: false,
@@ -83,6 +105,12 @@ function stubHookReturn(
     unmappedCount: columnNames.length,
     invalidDepthColumns,
     depthValidationMessage,
+    // The hook keys these per column, error-free by default, rather than leaving the record
+    // empty — so the component's `?? { start: false, stop: false }` fallback stays a genuine
+    // guard instead of the path every test happens to take.
+    referencePeriodErrors:
+      referencePeriodErrors ?? Object.fromEntries(columnNames.map(columnName => [columnName, { start: false, stop: false }])),
+    referencePeriodValidationMessage,
     expandedRows: new Set<string>(),
     toggleRow: jest.fn(),
     handleConceptChange: jest.fn(),
@@ -235,6 +263,85 @@ describe('RasterMappingsStep', () => {
       expect(within(col1Row).getByPlaceholderText('To').closest('[data-testid="sh-ui-textinput"]')).toHaveClass('Invalid');
       expect(within(col2Row).getByPlaceholderText('From').closest('[data-testid="sh-ui-textinput"]')).not.toHaveClass('Invalid');
       expect(within(col2Row).getByPlaceholderText('To').closest('[data-testid="sh-ui-textinput"]')).not.toHaveClass('Invalid');
+    });
+  });
+
+  describe('reference period validation', () => {
+    const REFERENCE_PERIOD_MESSAGE = {
+      message:
+        'Reference period start and stop must be a valid year, year and month, or full date — for example 2025, 2025-06 or 2025-06-15.',
+      type: 'error' as const,
+    };
+
+    /**
+     * The details panel only renders for a mapped, expanded row, so give every column a concept
+     * and expand them all — otherwise the reference-period wiring is never reached.
+     */
+    function stubWithExpandedRows(
+      columnNames: string[],
+      referencePeriodErrors: Record<string, { start: boolean; stop: boolean }> | null,
+      referencePeriodValidationMessage: { message: string; type: 'error' } | null = null,
+    ) {
+      const base = stubHookReturn(
+        columnNames,
+        false,
+        false,
+        new Set(),
+        null,
+        true,
+        referencePeriodErrors,
+        referencePeriodValidationMessage,
+      );
+      return {
+        ...base,
+        columnMappings: base.columnMappings.map(m => ({ ...m, conceptId: 'ph' })),
+        expandedRows: new Set(columnNames),
+      };
+    }
+
+    it('shows the reference period message when the hook provides one', () => {
+      (useRasterMappingStep as jest.Mock).mockReturnValue(stubWithExpandedRows(['col1'], null, REFERENCE_PERIOD_MESSAGE));
+      render(<RasterMappingsStep id="1" />);
+      expect(screen.getByText(REFERENCE_PERIOD_MESSAGE.message)).toBeInTheDocument();
+    });
+
+    it('shows the depth and reference period messages together when both are present', () => {
+      (useRasterMappingStep as jest.Mock).mockReturnValue({
+        ...stubWithExpandedRows(['col1'], null, REFERENCE_PERIOD_MESSAGE),
+        depthValidationMessage: { message: 'Min and max depth are required for every mapped layer.', type: 'error' },
+      });
+      render(<RasterMappingsStep id="1" />);
+      expect(screen.getByText('Min and max depth are required for every mapped layer.')).toBeInTheDocument();
+      expect(screen.getByText(REFERENCE_PERIOD_MESSAGE.message)).toBeInTheDocument();
+    });
+
+    it("routes each column its own start/stop errors rather than the first row's", () => {
+      (useRasterMappingStep as jest.Mock).mockReturnValue(
+        stubWithExpandedRows(
+          ['col1', 'col2'],
+          { col1: { start: true, stop: false }, col2: { start: false, stop: true } },
+          REFERENCE_PERIOD_MESSAGE,
+        ),
+      );
+      render(<RasterMappingsStep id="1" />);
+      const [col1Details, col2Details] = screen.getAllByTestId('sh-raster-row-details');
+
+      expect(col1Details).toHaveAttribute('data-column', 'col1');
+      expect(col1Details).toHaveAttribute('data-start-error', 'true');
+      expect(col1Details).toHaveAttribute('data-stop-error', 'false');
+      expect(col2Details).toHaveAttribute('data-column', 'col2');
+      expect(col2Details).toHaveAttribute('data-start-error', 'false');
+      expect(col2Details).toHaveAttribute('data-stop-error', 'true');
+    });
+
+    // A column can be absent from the record while columnMappings is a render ahead of the memo
+    // that derives it; the row must render error-free rather than throw on the missing entry.
+    it('falls back to no errors for a column the hook has no entry for', () => {
+      (useRasterMappingStep as jest.Mock).mockReturnValue(stubWithExpandedRows(['col1'], {}));
+      render(<RasterMappingsStep id="1" />);
+      const details = screen.getByTestId('sh-raster-row-details');
+      expect(details).toHaveAttribute('data-start-error', 'false');
+      expect(details).toHaveAttribute('data-stop-error', 'false');
     });
   });
 });
