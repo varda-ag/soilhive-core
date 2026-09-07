@@ -116,7 +116,7 @@ describe('SoilDataFileRow', () => {
     expect(onCrsChange).not.toHaveBeenCalled();
   });
 
-  it('resets to inferredCrs on blur if the entered value is invalid', () => {
+  it('clears a half-typed crs on blur, leaving the detected one to show through', () => {
     const fileWithInferred = { ...mockFile, crs: 'INVALID', inferredCrs: 'EPSG:4326' };
 
     render(<SoilDataFileRow soilDataFile={fileWithInferred} onCrsChange={onCrsChange} onRemove={onRemove} crsOptions={mockCrsOptions} />);
@@ -124,8 +124,64 @@ describe('SoilDataFileRow', () => {
     const input = screen.getByRole('combobox');
     fireEvent.blur(input);
 
-    // Should call onCrsChange with the inferredCrs value to reset it
-    expect(onCrsChange).toHaveBeenCalledWith('file-123', 'EPSG:4326');
+    // Cleared rather than overwritten with the detected value: `crs` records a user choice, and
+    // the field falls back to the detected CRS on its own.
+    expect(onCrsChange).toHaveBeenCalledWith('file-123', '');
+  });
+
+  describe('detected CRS', () => {
+    // The three states the upload step can be in, as the file metadata reports them.
+    const rasterWithEpsg = { ...mockFile, name: 'a.tif', crs: null, isRaster: true, inferredCrs: 'EPSG:3857', hasCustomCrs: false };
+    const rasterWithCustomCrs = { ...mockFile, name: 'a.tif', crs: null, isRaster: true, inferredCrs: undefined, hasCustomCrs: true };
+    const rasterWithNoCrs = { ...mockFile, name: 'a.tif', crs: null, isRaster: true, inferredCrs: undefined, hasCustomCrs: false };
+
+    it('pre-selects the detected EPSG as its full list entry and locks the field', () => {
+      render(<SoilDataFileRow soilDataFile={rasterWithEpsg} onCrsChange={onCrsChange} onRemove={onRemove} crsOptions={mockCrsOptions} />);
+
+      // The bare code is what detection yields; the row shows the entry it belongs to so the
+      // field reads as a selection. Locked because the file already declares it — correcting a
+      // wrong one means correcting the file.
+      expect(screen.getByRole('combobox')).toHaveValue('EPSG:3857 - WGS 84 / Pseudo-Mercator');
+      expect(screen.getByRole('combobox')).toBeDisabled();
+    });
+
+    it('falls back to the bare code when the detected EPSG is not in the list', () => {
+      const unlisted = { ...rasterWithEpsg, inferredCrs: 'EPSG:99999' };
+
+      render(<SoilDataFileRow soilDataFile={unlisted} onCrsChange={onCrsChange} onRemove={onRemove} crsOptions={mockCrsOptions} />);
+
+      expect(screen.getByRole('combobox')).toHaveValue('EPSG:99999');
+    });
+
+    it('shows the custom-CRS message and disables the field for a raster with no EPSG code', () => {
+      render(
+        <SoilDataFileRow soilDataFile={rasterWithCustomCrs} onCrsChange={onCrsChange} onRemove={onRemove} crsOptions={mockCrsOptions} />,
+      );
+
+      expect(screen.getByRole('combobox')).toHaveValue('datasets.soil_data.crs_custom_detected');
+      expect(screen.getByRole('combobox')).toBeDisabled();
+    });
+
+    it('leaves the field empty and editable for a raster that declares no CRS', () => {
+      render(<SoilDataFileRow soilDataFile={rasterWithNoCrs} onCrsChange={onCrsChange} onRemove={onRemove} crsOptions={mockCrsOptions} />);
+
+      expect(screen.getByRole('combobox')).toHaveValue('');
+      expect(screen.getByRole('combobox')).not.toBeDisabled();
+      expect(screen.getByLabelText('datasets.soil_data.crs_label')).toBe(screen.getByRole('combobox'));
+    });
+
+    // Vector staging passes the EPSG code to ogr2ogr and assumes WGS 84 without one, so a custom
+    // CRS is not enough there and the field must stay open for the user to supply a code.
+    it('does not lock the field for a vector file on a custom CRS', () => {
+      const vectorWithCustomCrs = { ...mockFile, crs: null, isRaster: false, inferredCrs: undefined, hasCustomCrs: true };
+
+      render(
+        <SoilDataFileRow soilDataFile={vectorWithCustomCrs} onCrsChange={onCrsChange} onRemove={onRemove} crsOptions={mockCrsOptions} />,
+      );
+
+      expect(screen.getByRole('combobox')).not.toBeDisabled();
+      expect(screen.getByRole('combobox')).toHaveValue('');
+    });
   });
 
   it('calls onRemove when the cross button is clicked', () => {

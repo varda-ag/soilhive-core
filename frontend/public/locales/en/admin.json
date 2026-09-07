@@ -297,6 +297,7 @@
             "network_error": "Network error. Please check your connection and try again.",
             "crs_label": "Add a Coordinate Reference System (CRS)",
             "crs_label_readonly": "Detected Coordinate Reference System (CRS)",
+            "crs_custom_detected": "Custom CRS detected",
             "crs_placeholder": "EPSG code, e.g. 4326",
             "invalid_file_type": "Invalid file type",
             "file_too_large": "File exceeds the maximum size of {{size}}",
