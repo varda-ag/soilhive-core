@@ -92,6 +92,30 @@ After upload, the system will ask you to specify the coordinate reference system
 
 SoilHive stores all spatial data in EPSG:4326 (WGS 84). If your file uses a different CRS, the platform will reproject it automatically. For most file formats the CRS is detected without any input; you only need to specify it manually if the system can't determine it from the file.
 
+For raster files, what the upload step shows you depends on what the file itself declares:
+
+| What the file declares | What you see |
+|---|---|
+| An EPSG code | The code is selected for you, the selector is disabled, and you can continue straight away. If the file declares the wrong code, correct it in the file rather than here. |
+| A coordinate system carrying no EPSG code | **Custom CRS detected**. The selector is disabled and you can continue — the projection is read from the file itself, and no entry in the EPSG list could describe it. |
+| No coordinate system at all | The selector is empty and you cannot continue until you pick one. Only codes in the list can be picked; if your raster's CRS isn't among them, write it into the file before uploading. |
+
+**Setting a CRS on a raster file**
+
+If a raster arrives with no coordinate system, or with the wrong one recorded, you can write one into the file with GDAL before uploading it:
+
+```sh
+gdal_edit.py -a_srs <SRS_DEF> file.tif
+```
+
+`<SRS_DEF>` accepts any form GDAL understands — an authority code, a `.prj` file, or a WKT string:
+
+```sh
+gdal_edit.py -a_srs EPSG:3035 soil_ph.tif
+```
+
+This only labels the pixel coordinates already in the file; it does not move them. Use it when the CRS is missing or recorded incorrectly - including when the portal shows a detected code you know to be wrong, since the selector cannot be used to override what the file says. To actually reproject the data, use `gdalwarp -t_srs` instead - though you don't need to, since SoilHive reprojects on your behalf.
+
 ### Field Mapping — Match Your Data
 
 This is the first harmonisation step. It's required to align the property names in your dataset with a common, shared vocabulary, and to determine which conversion formula should be applied to transform each value into its standard unit of measurement. The system reads all fields in your file and attempts to map them automatically using field-name matching.

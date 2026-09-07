@@ -42,16 +42,22 @@ function formatFileSize(bytes: number | undefined): string {
 
 export function SoilDataFileRow({ soilDataFile, onCrsChange, onRemove, crsOptions }: Props) {
   const { t } = useTranslation('admin');
-  const { id, name, file, crs, inferredCrs, error, missingFields, extraFields } = soilDataFile;
+  const { id, name, file, crs, inferredCrs, hasCustomCrs, isRaster, error, missingFields, extraFields } = soilDataFile;
   const [filteredCrs, setFilteredCrs] = useState<string[]>([]);
   const [diffOpen, setDiffOpen] = useState(false);
   const autoCompleteRef = useRef<AutoComplete>(null);
   // PrimeReact refocuses the input after a selection; this flag keeps that programmatic focus from reopening the panel
   const skipNextFocusOpen = useRef(false);
 
-  const isReadOnly = !!inferredCrs;
+  const isCustomCrsRaster = !!isRaster && !!hasCustomCrs;
+  const isReadOnly = !!inferredCrs || isCustomCrsRaster;
 
   const allCrsOptions = useMemo(() => crsOptions.map(o => `EPSG:${o.code} - ${o.name}`), [crsOptions]);
+
+  const inferredCrsOption = useMemo(
+    () => (inferredCrs ? (allCrsOptions.find(option => option.startsWith(`${inferredCrs} -`)) ?? inferredCrs) : ''),
+    [allCrsOptions, inferredCrs],
+  );
 
   const crsPanelWidth = useMemo(() => {
     const longestTextWidth = getLongestTextWidth(allCrsOptions);
@@ -73,8 +79,9 @@ export function SoilDataFileRow({ soilDataFile, onCrsChange, onRemove, crsOption
 
   const handleBlur = () => {
     skipNextFocusOpen.current = false;
+    // Drop a half-typed entry rather than replacing it with the detected CRS
     if (crs && !allCrsOptions.includes(crs)) {
-      onCrsChange(id, inferredCrs ?? '');
+      onCrsChange(id, '');
     }
   };
 
@@ -93,7 +100,7 @@ export function SoilDataFileRow({ soilDataFile, onCrsChange, onRemove, crsOption
           <AutoComplete
             ref={autoCompleteRef}
             inputId={`crs-${id}`}
-            value={crs ? crs : (inferredCrs ?? '')}
+            value={isCustomCrsRaster ? t('datasets.soil_data.crs_custom_detected') : crs || inferredCrsOption}
             suggestions={filteredCrs}
             completeMethod={filterCrsOptions}
             virtualScrollerOptions={{ itemSize: 38 }}

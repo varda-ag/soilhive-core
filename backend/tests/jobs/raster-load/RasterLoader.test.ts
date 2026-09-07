@@ -787,6 +787,61 @@ describe('RasterLoader', () => {
       expect(reloaded.reference_period_start).toBe('1977');
     });
 
+    // Depths land in `int` columns, so a fraction was rounded on the way in and the layer then
+    // described an interval nobody chose. The mapping step refuses these at entry; this is the
+    // same rule for a Band Mapping written straight through the API.
+    it.each([
+      ['a fractional depth', { min_depth: 0, max_depth: 5.5 }, 'max depth', '5.5'],
+      ['a negative depth', { min_depth: -10, max_depth: 5 }, 'min depth', '-10'],
+      ['a depth past the 5000cm ceiling', { min_depth: 0, max_depth: 50000 }, 'max depth', '50000'],
+    ])('RL_INVALID_DEPTH when a band declares %s', async (_label, depths, field, value) => {
+      const { dataset, file } = await setUpRasterLoad(uniqueName('bad-depth'), slug => ({
+        '1': { ...bandEntry(slug, 0, 5), ...depths },
+        '2': bandEntry(slug, 5, 15),
+      }));
+
+      await expect(processRasterLoad(getJob(dataset.slug))).rejects.toMatchObject({
+        name: 'JobError',
+        code: 'RL_INVALID_DEPTH',
+        params: { band: '1', field, value, limit: '5000' },
+      });
+
+      // Checked with the band numbers, before the first ingest writes anything — so the valid
+      // band 2 must not have been loaded either.
+      expect(await getLayers(file.id)).toHaveLength(0);
+    });
+
+    it('RL_INVALID_DEPTH_RANGE when a band declares a min depth that is not below its max', async () => {
+      const { dataset, file } = await setUpRasterLoad(uniqueName('bad-depth-range'), slug => ({
+        '1': { ...bandEntry(slug, 30, 10) },
+      }));
+
+      await expect(processRasterLoad(getJob(dataset.slug))).rejects.toMatchObject({
+        name: 'JobError',
+        code: 'RL_INVALID_DEPTH_RANGE',
+        params: { band: '1', min_depth: '30', max_depth: '10' },
+      });
+
+      expect(await getLayers(file.id)).toHaveLength(0);
+    });
+
+    // The surface, the ceiling itself, and a band that declares no depth at all: the columns are
+    // nullable, and requiring a depth here would fail datasets that have always loaded without one.
+    it('accepts a depth of zero, the ceiling itself, and no depth at all', async () => {
+      const { dataset, file } = await setUpRasterLoad(uniqueName('good-depth'), slug => ({
+        '1': { ...bandEntry(slug, 0, 5000) },
+        '2': { property_id: slug, conversion_id: null, min_depth: null, max_depth: null },
+      }));
+
+      await processRasterLoad(getJob(dataset.slug));
+
+      const layers = await getLayers(file.id);
+      expect(layers.map(layer => [layer.min_depth, layer.max_depth])).toEqual([
+        [0, 5000],
+        [null, null],
+      ]);
+    });
+
     it('returns the dataset to PENDING and leaves the file pending when a load fails', async () => {
       const { dataset, file } = await setUpRasterLoad(uniqueName('failure-status'), () => null);
 

@@ -315,6 +315,7 @@ export interface RasterFileDescriptorMetadata {
   is_raster: true;
   driver?: string;
   epsg?: number;
+  wkt?: string; // Coordinate system as GDAL reports it as WKT string
   extent?: [number, number, number, number]; // If empty the raster is not georeferenced
   size: [number, number]; // [width, height] in pixels
   band_count: number;

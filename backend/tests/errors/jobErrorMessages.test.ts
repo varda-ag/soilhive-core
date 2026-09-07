@@ -30,6 +30,8 @@ describe('translateJobError', () => {
     'RL_MAPPING_NOT_CONFIGURED',
     'RL_INVALID_BAND',
     'RL_INVALID_REFERENCE_PERIOD',
+    'RL_INVALID_DEPTH',
+    'RL_INVALID_DEPTH_RANGE',
     'RL_CONVERSION_FAILED',
     'RL_UNIT_NOT_CONVERTIBLE',
   ];
@@ -57,6 +59,30 @@ describe('translateJobError', () => {
     const result = translateJobError('BL_RECORD_VALIDATION_FAILED', { field: 'geometry', issue: 'must be object' });
     expect(result.message).toBe("A record was rejected because field 'geometry' must be object.");
     expect(result.actions[0]).toContain("'geometry'");
+  });
+
+  it('interpolates the offending field, its value and the ceiling in RL_INVALID_DEPTH', () => {
+    const result = translateJobError('RL_INVALID_DEPTH', {
+      file_name: 'soil.tif',
+      band: '2',
+      field: 'max depth',
+      value: '50000',
+      limit: '5000',
+    });
+    expect(result.message).toBe(
+      "Band 2 of 'soil.tif' declares a max depth of 50000, which is not a whole number of centimetres from 0 to 5000.",
+    );
+    expect(result.actions[0]).toContain('from 0 to 5000');
+  });
+
+  it('interpolates both depths in RL_INVALID_DEPTH_RANGE', () => {
+    const result = translateJobError('RL_INVALID_DEPTH_RANGE', {
+      file_name: 'soil.tif',
+      band: '1',
+      min_depth: '30',
+      max_depth: '10',
+    });
+    expect(result.message).toBe("Band 1 of 'soil.tif' declares a min depth of 30, which is not less than its max depth of 10.");
   });
 
   it('fallback differs from any defined message to confirm it is truly generic', () => {

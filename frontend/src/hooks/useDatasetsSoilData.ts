@@ -5,6 +5,7 @@ import { useApiQuery } from './useApiQuery';
 import { useCreateDatasetFileMapping, useUpdateDatasetMutation } from 'hooks/useDatasetMutation';
 import { useFileUpload } from './useFileUpload';
 import { arraysMatch } from '../utilities/validation';
+import { hasCustomCrs } from '../utilities/crs';
 import { useFileManagement } from './useFileManagement';
 import { useIngestionStatus } from './useIngestionStatus';
 import { ADMIN_PATHS } from '../configuration/admin';
@@ -76,7 +77,9 @@ export function useDatasetsSoilData() {
     });
   }, [soilDataFiles, t]);
 
-  const isContinueEnabled = annotatedFiles.length > 0 && annotatedFiles.every(f => (!!f.crs || !!f.inferredCrs) && !f.error);
+  // A file needs a CRS: an EPSG code, chosen or detected
+  const isContinueEnabled =
+    annotatedFiles.length > 0 && annotatedFiles.every(f => (!!f.crs || !!f.inferredCrs || !!f.hasCustomCrs) && !f.error);
 
   const updateSoilDataFile = useCallback((id: string, updates: Partial<SoilDataFile>) => {
     setSoilDataFiles(prev => prev.map(f => (f.id === id ? { ...f, ...updates } : f)));
@@ -136,6 +139,7 @@ export function useDatasetsSoilData() {
         name: f.name,
         crs: null, // manually added by user
         inferredCrs: f.metadata?.epsg ? `EPSG:${f.metadata.epsg}` : undefined,
+        hasCustomCrs: hasCustomCrs(f.metadata),
         fieldNames: f.metadata && !f.metadata.is_raster ? f.metadata.field_names : undefined,
         isRaster: f.metadata?.is_raster,
         progress: 100,

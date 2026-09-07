@@ -165,6 +165,48 @@ describe('useDatasetsSoilData', () => {
       });
     });
 
+    // A raster's own coordinate system can name no EPSG code. GDAL reprojects it from the file's
+    // WKT, so there is nothing for the user to add and nothing in the EPSG list that could say it.
+    it('is true when a raster declares a custom CRS with no EPSG code', async () => {
+      buildDefaultMocks({
+        existingFiles: [{ id: '1', name: 'a.tif', metadata: { is_raster: true, wkt: 'PROJCRS["custom",...]' } }],
+      });
+      const { result } = renderHook(() => useDatasetsSoilData());
+
+      await waitFor(() => {
+        expect(result.current.soilDataFiles[0]).toMatchObject({ hasCustomCrs: true, inferredCrs: undefined });
+        expect(result.current.isContinueEnabled).toBe(true);
+      });
+    });
+
+    // A recognised CRS reports both fields; the EPSG code is what the pipeline acts on, so the
+    // file is not a "custom CRS" case at all.
+    it('does not treat a raster carrying both an EPSG code and a WKT as a custom CRS', async () => {
+      buildDefaultMocks({
+        existingFiles: [
+          { id: '1', name: 'a.tif', metadata: { is_raster: true, epsg: 3857, wkt: 'PROJCRS["WGS 84 / Pseudo-Mercator",...]' } },
+        ],
+      });
+      const { result } = renderHook(() => useDatasetsSoilData());
+
+      await waitFor(() => {
+        expect(result.current.soilDataFiles[0]).toMatchObject({ hasCustomCrs: false, inferredCrs: 'EPSG:3857' });
+        expect(result.current.isContinueEnabled).toBe(true);
+      });
+    });
+
+    it('is false when a file declares no CRS at all', async () => {
+      buildDefaultMocks({
+        existingFiles: [{ id: '1', name: 'a.tif', metadata: { is_raster: true } }],
+      });
+      const { result } = renderHook(() => useDatasetsSoilData());
+
+      await waitFor(() => {
+        expect(result.current.soilDataFiles[0]).toMatchObject({ hasCustomCrs: false, inferredCrs: undefined });
+      });
+      expect(result.current.isContinueEnabled).toBe(false);
+    });
+
     it('is false when files have mismatched fieldNames even if all have a crs', async () => {
       buildDefaultMocks({
         existingFiles: [
@@ -318,6 +360,7 @@ describe('useDatasetsSoilData', () => {
             name: 'soil.csv',
             crs: null,
             inferredCrs: 'EPSG:4326',
+            hasCustomCrs: false,
             fieldNames: ['lat', 'lon'],
             progress: 100,
             error: null,
@@ -328,6 +371,7 @@ describe('useDatasetsSoilData', () => {
             name: 'geo.geojson',
             crs: null,
             inferredCrs: undefined,
+            hasCustomCrs: false,
             fieldNames: undefined,
             progress: 100,
             error: null,
