@@ -1,6 +1,7 @@
 import { getEntityManager } from '../../utils/data-source';
 import FileEntity from '../../entities/File';
 import DatasetFileMappingEntity from '../../entities/DatasetFileMapping';
+import RasterLayerAssetEntity from '../../entities/RasterLayerAsset';
 import FileService from '../../services/FileService';
 import { IngestionStatus } from '../../types/data';
 import { getRawTableName } from '../../utils/utils';
@@ -18,13 +19,16 @@ export async function processOrphanCleanup(): Promise<void> {
 
 // Hard-deletes PENDING files older than ORPHAN_FILE_TTL_DAYS that have no DatasetFileMapping,
 // i.e. files uploaded but never associated with a dataset and left dangling.
+// Raster layer assets should be excluded from this cleanup.
 async function processOrphanFileCleanup(entityManager: Awaited<ReturnType<typeof getEntityManager>>): Promise<void> {
   const orphanFiles = await entityManager
     .getRepository(FileEntity)
     .createQueryBuilder('f')
     .leftJoin(DatasetFileMappingEntity, 'dfm', 'dfm.file_id = f.id')
+    .leftJoin(RasterLayerAssetEntity, 'rla', 'rla.file_id = f.id AND rla.deleted_at IS NULL')
     .where('f.status = :status', { status: IngestionStatus.PENDING })
     .andWhere('dfm.id IS NULL')
+    .andWhere('rla.id IS NULL')
     .andWhere(`f.created_at < NOW() - INTERVAL '${ORPHAN_FILE_TTL_DAYS} days'`)
     .getMany();
 

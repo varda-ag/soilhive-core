@@ -2,7 +2,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { DatasetErrorModal } from 'components/AdminPortal/DatasetErrorModal/DatasetErrorModal';
 import { IngestionStatus } from 'types/backend';
 import type { DatasetsPublicationListItem } from 'types/datasetsPublication';
-import type { DatasetErrorItem } from 'types/datasetErrors';
+import { UNEXPECTED_JOB_ERROR_CODE, type DatasetErrorItem } from 'types/datasetErrors';
 
 jest.mock('components/Dialog/Dialog', () => ({
   Dialog: ({ visible, primaryText, onPrimary, children }: any) =>
@@ -91,5 +91,55 @@ describe('DatasetErrorModal', () => {
     render(<DatasetErrorModal {...defaultProps} dataset={null} />);
 
     expect(screen.getByTestId('mock-dialog')).toBeInTheDocument();
+  });
+
+  describe('unexpected error detail', () => {
+    // UNEXPECTED_ERROR's message is the generic fallback, so without the detail the modal said
+    // nothing at all about what actually failed.
+    const unexpected: DatasetErrorItem = {
+      code: UNEXPECTED_JOB_ERROR_CODE,
+      message: 'An unexpected error occurred during processing.',
+      actions: ['Try again. If the problem persists, contact support.'],
+      params: {},
+      detail: 'violates check constraint "chk_raster_layers_date_format_start"',
+    };
+
+    it('renders the raw detail alongside the fallback message', () => {
+      render(<DatasetErrorModal {...defaultProps} errors={[unexpected]} />);
+
+      expect(screen.getByTestId('dialog-content')).toHaveTextContent('An unexpected error occurred during processing.');
+      expect(screen.getByTestId('dialog-content')).toHaveTextContent('violates check constraint "chk_raster_layers_date_format_start"');
+      expect(screen.getByText('Technical detail:')).toBeInTheDocument();
+    });
+
+    it('omits the detail line when an unexpected error carries none', () => {
+      render(<DatasetErrorModal {...defaultProps} errors={[{ ...unexpected, detail: undefined }]} />);
+
+      expect(screen.getByTestId('dialog-content')).toHaveTextContent('An unexpected error occurred during processing.');
+      expect(screen.queryByText('Technical detail:')).not.toBeInTheDocument();
+    });
+
+    // A mapped code already spells the cause out in its own message; its detail is supplementary
+    // and belongs in the message, not in a raw technical line.
+    it('does not render the detail for a translated error code', () => {
+      const translated: DatasetErrorItem = {
+        code: 'RL_INVALID_BAND',
+        message: "The band mapping for 'soil.tif' refers to band 5, which the file does not have (it has 2).",
+        actions: [],
+        params: {},
+        detail: 'the file has 2',
+      };
+      render(<DatasetErrorModal {...defaultProps} errors={[translated]} />);
+
+      expect(screen.queryByText('Technical detail:')).not.toBeInTheDocument();
+      expect(screen.getByTestId('dialog-content')).not.toHaveTextContent('the file has 2');
+    });
+
+    it('shows the detail only for the unexpected error when errors are mixed', () => {
+      render(<DatasetErrorModal {...defaultProps} errors={[errors[0], unexpected]} />);
+
+      expect(screen.getByTestId('dialog-content')).toHaveTextContent('Your file was removed from storage.');
+      expect(screen.getAllByText('Technical detail:')).toHaveLength(1);
+    });
   });
 });

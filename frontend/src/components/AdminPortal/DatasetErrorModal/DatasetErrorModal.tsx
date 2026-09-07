@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import WarningIcon from 'assets/icons/small-warning-icon.svg?react';
 import BulbIcon from 'assets/icons/bulb-icon.svg?react';
 import { Dialog } from 'components/Dialog/Dialog';
-import type { DatasetErrorItem } from 'types/datasetErrors';
+import { UNEXPECTED_JOB_ERROR_CODE, type DatasetErrorItem } from 'types/datasetErrors';
 import type { DatasetsPublicationListItem } from 'types/datasetsPublication';
 import { dateStringToDDMMYYYY } from '../../../utilities/date';
 import { linkify } from '../../../utilities/linkify';
@@ -48,9 +48,19 @@ export function DatasetErrorModal({ visible, dataset, errors, onClose }: Props) 
       <div className={styles.Section}>
         <p className={styles.SectionLabel}>{t('datasets.list.error_modal.what_happened_label')}</p>
         {errors.map((error, index) => (
-          <p key={error.code + index} className={styles.ErrorMessage}>
-            {t('datasets.list.error_modal.error_prefix', { index: index + 1 })} {error.message}
-          </p>
+          <div key={error.code + index}>
+            <p className={styles.ErrorMessage}>
+              {t('datasets.list.error_modal.error_prefix', { index: index + 1 })} {error.message}
+            </p>
+            {/* An unexpected failure has no translated message beyond the generic fallback, so the
+                raw detail is the only account of what went wrong — worth showing verbatim, and
+                worth quoting to support. Mapped codes already say it in their own message. */}
+            {error.code === UNEXPECTED_JOB_ERROR_CODE && error.detail && (
+              <p className={styles.ErrorDetail}>
+                <span className={styles.ErrorDetailLabel}>{t('datasets.list.error_modal.detail_label')}</span> {error.detail}
+              </p>
+            )}
+          </div>
         ))}
       </div>
 
