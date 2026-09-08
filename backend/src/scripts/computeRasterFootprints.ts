@@ -21,12 +21,15 @@ const MAX_BATCH_VERTICES = 200_000;
 // Backstop against many degenerate, near-empty footprints trickling through the vertex budget
 // almost one at a time.
 const MAX_BATCH_FOOTPRINTS = 500;
-// This runs as a pg-boss worker in the same process (and event loop) as the API server. Mask
-// tracing is synchronous CPU work with only one `await` per tile (the read), so a long run of
-// complex tiles back-to-back can starve the event loop long enough to fail the liveness and readiness probes —
-// yielding here periodically guarantees other pending callbacks get a
-// turn regardless of how expensive any given tile's tracing is.
-const EVENT_LOOP_YIELD_INTERVAL = 25;
+// This runs as a pg-boss worker in the same process (and event loop) as the API server, and
+// neither liveness nor readiness probes override Kubernetes' 1-second default timeoutSeconds — so
+// any single uninterrupted synchronous stretch over ~1s can fail them, not just a slow
+// accumulation over many tiles. Yielding every tile (rather than every N) keeps the tile loop's
+// own contribution to that stretch to about one tile's read+trace time; the batch-flush work
+// (reprojection, collinear collapse) is chunked separately below since it isn't bounded by this.
+const EVENT_LOOP_YIELD_INTERVAL = 1;
+
+const yieldToEventLoop = (): Promise<void> => new Promise(resolve => setImmediate(resolve));
 
 export type FootprintBatchCallback = (tiles: MultiPolygon[]) => Promise<void>;
 
@@ -241,7 +244,7 @@ export async function streamRasterFootprints(
         }
 
         if (tilesProcessed % EVENT_LOOP_YIELD_INTERVAL === 0) {
-          await new Promise<void>(resolve => setImmediate(resolve));
+          await yieldToEventLoop();
         }
 
         const pxStart = colBounds[iCol]!;
@@ -287,9 +290,10 @@ export async function streamRasterFootprints(
           for (const ring of polygon) batchVertexCount += ring.length;
         }
 
-        if (batchVertexCount >= MAX_BATCH_VERTICES || batch.length >= MAX_BATCH_FOOTPRINTS) {          t = Date.now();
+        if (batchVertexCount >= MAX_BATCH_VERTICES || batch.length >= MAX_BATCH_FOOTPRINTS) {
+          t = Date.now();
           const projected = srcSrs ? await reprojectToWgs84(batch, srcSrs) : batch;
-          await onBatch(collapseCollinearBatch(projected));
+          await onBatch(await collapseCollinearBatch(projected));
           dbMs += Date.now() - t;
           batch = [];
           batchVertexCount = 0;
@@ -300,7 +304,7 @@ export async function streamRasterFootprints(
     if (batch.length > 0) {
       const t = Date.now();
       const projected = srcSrs ? await reprojectToWgs84(batch, srcSrs) : batch;
-      await onBatch(collapseCollinearBatch(projected));
+      await onBatch(await collapseCollinearBatch(projected));
       dbMs += Date.now() - t;
     }
 
@@ -463,12 +467,24 @@ function collapseCollinear(ring: number[][]): number[][] {
   return out;
 }
 
+// Footprints per event-loop-yield: a batch's total vertex count (up to MAX_BATCH_VERTICES) can
+// still be large enough on its own to blow the 1s default probe timeout in one synchronous pass,
+// even though the tile loop yields every tile — this bounds that pass to about one footprint's
+// worth of collinearity checks between yields, independent of tile-loop timing.
+const COLLAPSE_YIELD_INTERVAL = 5;
+
 /** Applies collapseCollinear to every ring of every footprint, once they're in their final CRS. */
-function collapseCollinearBatch(batch: MultiPolygon[]): MultiPolygon[] {
-  return batch.map(({ coordinates }) => ({
-    type: 'MultiPolygon',
-    coordinates: coordinates.map(polygon => polygon.map(ring => collapseCollinear(ring))),
-  }));
+async function collapseCollinearBatch(batch: MultiPolygon[]): Promise<MultiPolygon[]> {
+  const result: MultiPolygon[] = [];
+  for (let i = 0; i < batch.length; i++) {
+    if (i > 0 && i % COLLAPSE_YIELD_INTERVAL === 0) await yieldToEventLoop();
+    const { coordinates } = batch[i]!;
+    result.push({
+      type: 'MultiPolygon',
+      coordinates: coordinates.map(polygon => polygon.map(ring => collapseCollinear(ring))),
+    });
+  }
+  return result;
 }
 
 function pointInRing(x: number, y: number, ring: number[][]): boolean {
