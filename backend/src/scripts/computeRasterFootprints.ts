@@ -13,7 +13,20 @@ import { openTiff, isGeographicCrs } from '../utils/raster';
 const MAX_TILES = 256 * 256;
 const MIN_TILES = 256;
 const PIXELS_PER_TILE_MIN_DIM = 512;
-const INSERT_BATCH_SIZE = 50;
+// A footprint's vertex count depends on how fragmented the valid-data mask is within its tile —
+// not on raster shape — so batches are sized by accumulated vertex count rather than by footprint
+// count. Each vertex costs 16 bytes as WKB (two float64s); 200_000 keeps one batch's payload in the
+// low tens of MB, comfortable even under a constrained heap.
+const MAX_BATCH_VERTICES = 200_000;
+// Backstop against many degenerate, near-empty footprints trickling through the vertex budget
+// almost one at a time.
+const MAX_BATCH_FOOTPRINTS = 500;
+// This runs as a pg-boss worker in the same process (and event loop) as the API server. Mask
+// tracing is synchronous CPU work with only one `await` per tile (the read), so a long run of
+// complex tiles back-to-back can starve the event loop long enough to fail the liveness and readiness probes —
+// yielding here periodically guarantees other pending callbacks get a
+// turn regardless of how expensive any given tile's tracing is.
+const EVENT_LOOP_YIELD_INTERVAL = 25;
 
 export type FootprintBatchCallback = (tiles: MultiPolygon[]) => Promise<void>;
 
@@ -199,6 +212,7 @@ export async function streamRasterFootprints(
 
   try {
     let batch: MultiPolygon[] = [];
+    let batchVertexCount = 0;
 
     const totalTiles = nRows * nCols;
     const progressLogInterval = Math.max(1, Math.floor(totalTiles / 20));
@@ -224,6 +238,10 @@ export async function streamRasterFootprints(
             dbMs,
           });
           await onProgress?.(tilesProcessed, totalTiles);
+        }
+
+        if (tilesProcessed % EVENT_LOOP_YIELD_INTERVAL === 0) {
+          await new Promise<void>(resolve => setImmediate(resolve));
         }
 
         const pxStart = colBounds[iCol]!;
@@ -265,13 +283,16 @@ export async function streamRasterFootprints(
 
         batch.push({ type: 'MultiPolygon', coordinates: polygonCoords });
         footprintsFound++;
+        for (const polygon of polygonCoords) {
+          for (const ring of polygon) batchVertexCount += ring.length;
+        }
 
-        if (batch.length >= INSERT_BATCH_SIZE) {
-          t = Date.now();
+        if (batchVertexCount >= MAX_BATCH_VERTICES || batch.length >= MAX_BATCH_FOOTPRINTS) {          t = Date.now();
           const projected = srcSrs ? await reprojectToWgs84(batch, srcSrs) : batch;
           await onBatch(collapseCollinearBatch(projected));
           dbMs += Date.now() - t;
           batch = [];
+          batchVertexCount = 0;
         }
       }
     }
@@ -304,9 +325,10 @@ export async function streamRasterFootprints(
 
 /**
  * Reprojects every vertex of a batch of footprints from `srcSrs` to EPSG:4326 in one
- * `gdaltransform` call, rather than one per tile — batches land here only once every
- * INSERT_BATCH_SIZE footprints, keeping the number of GDAL processes proportional to that instead
- * of to the (much larger) number of tiles visited.
+ * `gdaltransform` call, rather than one per tile — batches land here only once their accumulated
+ * vertex count crosses MAX_BATCH_VERTICES (or footprint count crosses MAX_BATCH_FOOTPRINTS),
+ * keeping the number of GDAL processes proportional to that instead of to the (much larger) number
+ * of tiles visited.
  */
 async function reprojectToWgs84(batch: MultiPolygon[], srcSrs: string): Promise<MultiPolygon[]> {
   const points: [number, number][] = [];
