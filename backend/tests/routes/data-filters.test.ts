@@ -8,6 +8,11 @@ import { addRasterData, addSyntheticData, syntheticDataOptions } from '../../src
 import { getDataAdminToken, getSuperAdminToken } from '../helper';
 import { StatusCodes } from 'http-status-codes';
 import { IngestionStatus } from '../../src/types/data';
+import * as computeRasterFootprints from '../../src/scripts/computeRasterFootprints';
+
+// addRasterData ingests through the real pipeline — at the production MIN_TILES=256 floor that's 60s+ per call even for
+// these tiny fixtures.
+(computeRasterFootprints as unknown as { MIN_TILES: number }).MIN_TILES = 16;
 
 const filteringPolygon = {
   coordinates: [

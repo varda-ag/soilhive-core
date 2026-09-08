@@ -10,6 +10,11 @@ import * as BulkDeleterModule from '../../../src/jobs/bulk-delete/BulkDeleter';
 import { IngestionStatus } from '../../../src/types/data';
 import { getDataSource, getEntityManager } from '../../../src/utils/data-source';
 import { addRasterData, addSyntheticData, getLoadedDataCount, syntheticDataOptions } from '../../../src/utils/mock';
+import * as computeRasterFootprints from '../../../src/scripts/computeRasterFootprints';
+
+// addRasterData ingests through the real pipeline — at the production MIN_TILES=256 floor that's 60s+ per call even for
+// these tiny fixtures. Lowering it here doesn't affect production (see computeRasterFootprints.ts).
+(computeRasterFootprints as unknown as { MIN_TILES: number }).MIN_TILES = 16;
 
 const getJob = (dataset_id: string): Job<BulkDeleteJob> => {
   return {

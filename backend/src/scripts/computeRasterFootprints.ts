@@ -8,7 +8,8 @@ import { log, timed } from '../utils/logger';
 import { isGeographicCrs } from '../utils/raster';
 
 const MAX_TILES = 256 * 256;
-const MIN_TILES = 256;
+// Exported so tests can override it directly.
+export let MIN_TILES = 256;
 const PIXELS_PER_TILE_MIN_DIM = 512;
 // A footprint's vertex count depends on how fragmented the valid-data mask is within its tile —
 // not on raster shape — so batches are sized by accumulated vertex count rather than by footprint
@@ -18,6 +19,7 @@ const MAX_BATCH_VERTICES = 200_000;
 // Backstop against many degenerate, near-empty footprints trickling through the vertex budget
 // almost one at a time.
 const MAX_BATCH_FOOTPRINTS = 500;
+const FOOTPRINT_CONCURRENCY = 10;
 
 export type FootprintBatchCallback = (tiles: MultiPolygon[]) => Promise<void>;
 
@@ -152,13 +154,70 @@ export async function streamRasterFootprints(
     let footprintMs = 0;
     let dbMs = 0;
     const startedAt = Date.now();
-    // Avoids two runs silently colliding on the same tile VRT filenames in os.tmpdir() 
-    // in a potential future implementation of parallel per-band ingestion or localConcurrency bump.
+    // Avoids two runs silently colliding on the same tile VRT filenames in os.tmpdir()
     const runId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-    for (let iRow = 0; iRow < nRows; iRow++) {
-      for (let iCol = 0; iCol < nCols; iCol++) {
+    const computeTileFootprint = async (iRow: number, iCol: number): Promise<{ multiPolygon: MultiPolygon | null; vrtMs: number; footprintMs: number }> => {
+      const pxStart = colBounds[iCol]!;
+      const pxEnd = colBounds[iCol + 1]!;
+      const pyStart = rowBounds[iRow]!;
+      const pyEnd = rowBounds[iRow + 1]!;
+
+      const tilePixW = pxEnd - pxStart;
+      const tilePixH = pyEnd - pyStart;
+      if (tilePixW <= 0 || tilePixH <= 0) return { multiPolygon: null, vrtMs: 0, footprintMs: 0 };
+
+      const vrtPath = path.join(os.tmpdir(), `footprint-tile-${runId}-${iRow}-${iCol}.vrt`);
+      let t = Date.now();
+      await GdalCLI.translate(overviewPath, vrtPath, [
+        '-of',
+        'VRT',
+        '-srcwin',
+        String(pxStart),
+        String(pyStart),
+        String(tilePixW),
+        String(tilePixH),
+      ]);
+      const vrtMs = Date.now() - t;
+
+      let footprintMs = 0;
+      let geojson: { features: Array<{ geometry: MultiPolygon }> };
+      try {
+        t = Date.now();
+        const stdout = await GdalCLI.footprint(vrtPath, '/vsistdout/', [
+          '-b',
+          '1',
+          '-max_points',
+          'unlimited',
+          '-t_srs',
+          'EPSG:4326',
+          '-of',
+          'GeoJSON',
+          '-q',
+        ]);
+        footprintMs = Date.now() - t;
+        geojson = JSON.parse(stdout);
+      } finally {
+        await fs.unlink(vrtPath).catch(() => {});
+      }
+
+      return { multiPolygon: geojson.features[0]?.geometry ?? null, vrtMs, footprintMs };
+    };
+
+    for (let chunkStart = 0; chunkStart < totalTiles; chunkStart += FOOTPRINT_CONCURRENCY) {
+      const chunkEnd = Math.min(chunkStart + FOOTPRINT_CONCURRENCY, totalTiles);
+      const results = await Promise.all(
+        Array.from({ length: chunkEnd - chunkStart }, (_, offset) => {
+          const linearIndex = chunkStart + offset;
+          return computeTileFootprint(Math.floor(linearIndex / nCols), linearIndex % nCols);
+        }),
+      );
+
+      for (const { multiPolygon, vrtMs: tileVrtMs, footprintMs: tileFootprintMs } of results) {
         tilesProcessed++;
+        vrtMs += tileVrtMs;
+        footprintMs += tileFootprintMs;
+
         if (tilesProcessed % progressLogInterval === 0) {
           log.info('Footprint extraction progress', {
             band,
@@ -173,49 +232,6 @@ export async function streamRasterFootprints(
           await onProgress?.(tilesProcessed, totalTiles);
         }
 
-        const pxStart = colBounds[iCol]!;
-        const pxEnd = colBounds[iCol + 1]!;
-        const pyStart = rowBounds[iRow]!;
-        const pyEnd = rowBounds[iRow + 1]!;
-
-        const tilePixW = pxEnd - pxStart;
-        const tilePixH = pyEnd - pyStart;
-        if (tilePixW <= 0 || tilePixH <= 0) continue;
-
-        const vrtPath = path.join(os.tmpdir(), `footprint-tile-${runId}-${iRow}-${iCol}.vrt`);
-        let t = Date.now();
-        await GdalCLI.translate(overviewPath, vrtPath, [
-          '-of',
-          'VRT',
-          '-srcwin',
-          String(pxStart),
-          String(pyStart),
-          String(tilePixW),
-          String(tilePixH),
-        ]);
-        vrtMs += Date.now() - t;
-
-        let geojson: { features: Array<{ geometry: MultiPolygon }> };
-        try {
-          t = Date.now();
-          const stdout = await GdalCLI.footprint(vrtPath, '/vsistdout/', [
-            '-b',
-            '1',
-            '-max_points',
-            'unlimited',
-            '-t_srs',
-            'EPSG:4326',
-            '-of',
-            'GeoJSON',
-            '-q',
-          ]);
-          footprintMs += Date.now() - t;
-          geojson = JSON.parse(stdout);
-        } finally {
-          await fs.unlink(vrtPath).catch(() => {});
-        }
-
-        const multiPolygon = geojson.features[0]?.geometry;
         if (!multiPolygon) continue;
 
         batch.push(multiPolygon);
@@ -225,7 +241,7 @@ export async function streamRasterFootprints(
         }
 
         if (batchVertexCount >= MAX_BATCH_VERTICES || batch.length >= MAX_BATCH_FOOTPRINTS) {
-          t = Date.now();
+          const t = Date.now();
           await onBatch(batch);
           dbMs += Date.now() - t;
           batch = [];
