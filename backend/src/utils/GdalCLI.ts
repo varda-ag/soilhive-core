@@ -93,6 +93,16 @@ export class GdalCLI {
   }
 
   /**
+   * Computes a raster's footprint as a vector geometry, natively in GDAL.
+   * Writing to `/vsistdout/` (GDAL's stdout VSI) rather than a real file lets the caller read the
+   * result straight from this call's return value instead of managing another temp file; `-q` is
+   * required whenever doing that, to keep GDAL's own progress bar out of the same stream.
+   */
+  static async footprint(src: string, dst: string, args: string[]): Promise<string> {
+    return GdalCLI.run('gdal_footprint', [...args, src, dst]);
+  }
+
+  /**
    * Edits a raster's metadata in place with `gdal_edit.py` — used here to set per-band
    * Scale/Offset on a VRT so reads apply a unit conversion without rewriting pixel data.
    */
