@@ -575,11 +575,11 @@ describe('useRasterMappingStep', () => {
     });
   });
 
-  describe('invalidDepthColumns and depthValidationMessage', () => {
+  describe('depthErrors and depthValidationMessage', () => {
     it('are empty/null when no rows are mapped', () => {
       setupWithColumns(['col1']);
       const { result } = renderHook(() => useRasterMappingStep('1'));
-      expect(result.current.invalidDepthColumns.size).toBe(0);
+      expect(result.current.depthErrors.col1).toEqual({ min: false, max: false });
       expect(result.current.depthValidationMessage).toBeNull();
     });
 
@@ -589,7 +589,7 @@ describe('useRasterMappingStep', () => {
       act(() => {
         result.current.handleConceptChange('col1', 'ph');
       });
-      expect(result.current.invalidDepthColumns.has('col1')).toBe(true);
+      expect(result.current.depthErrors.col1).toEqual({ min: true, max: true });
       expect(result.current.depthValidationMessage).toEqual({
         message: 'Min and max depth are required for every mapped layer.',
         type: 'error',
@@ -604,7 +604,7 @@ describe('useRasterMappingStep', () => {
         result.current.handleMinDepthChange('col1', 'abc');
         result.current.handleMaxDepthChange('col1', '20');
       });
-      expect(result.current.invalidDepthColumns.has('col1')).toBe(true);
+      expect(result.current.depthErrors.col1).toEqual({ min: true, max: false });
       expect(result.current.depthValidationMessage).toEqual({
         message: 'Min and max depth must be numbers.',
         type: 'error',
@@ -619,7 +619,7 @@ describe('useRasterMappingStep', () => {
         result.current.handleMinDepthChange('col1', '20');
         result.current.handleMaxDepthChange('col1', '10');
       });
-      expect(result.current.invalidDepthColumns.has('col1')).toBe(true);
+      expect(result.current.depthErrors.col1).toEqual({ min: true, max: true });
       expect(result.current.depthValidationMessage).toEqual({
         message: 'Min depth must be less than max depth.',
         type: 'error',
@@ -635,7 +635,8 @@ describe('useRasterMappingStep', () => {
         result.current.handleMinDepthChange('col1', minDepth);
         result.current.handleMaxDepthChange('col1', maxDepth);
       });
-      return { message: result.current.depthValidationMessage, isFlagged: result.current.invalidDepthColumns.has('col1') };
+      const errors = result.current.depthErrors.col1;
+      return { message: result.current.depthValidationMessage, errors, isFlagged: errors.min || errors.max };
     };
 
     // Both depths land in an `int` column, so Postgres rounds a fraction on the way in and the
@@ -726,8 +727,8 @@ describe('useRasterMappingStep', () => {
         message: 'Min and max depth are required for every mapped layer.',
         type: 'error',
       });
-      expect(result.current.invalidDepthColumns.has('col1')).toBe(true);
-      expect(result.current.invalidDepthColumns.has('col2')).toBe(true);
+      expect(result.current.depthErrors.col1).toEqual({ min: true, max: false });
+      expect(result.current.depthErrors.col2).toEqual({ min: true, max: true });
     });
 
     it('blocks continue while a depth is fractional or negative, and allows it once corrected', () => {
@@ -755,8 +756,29 @@ describe('useRasterMappingStep', () => {
         result.current.handleMinDepthChange('col1', '10');
         result.current.handleMaxDepthChange('col1', '20');
       });
-      expect(result.current.invalidDepthColumns.size).toBe(0);
+      expect(result.current.depthErrors.col1).toEqual({ min: false, max: false });
       expect(result.current.depthValidationMessage).toBeNull();
+    });
+
+    // Only the offending input should turn red: with one depth wrong, flagging both leaves the
+    // user hunting for which of the two the message is about.
+    it.each([
+      ['a fractional min', '10.5', '20', { min: true, max: false }],
+      ['a fractional max', '10', '20.5', { min: false, max: true }],
+      ['both depths fractional', '0.1', '0.9', { min: true, max: true }],
+      ['a non-numeric max', '10', 'abc', { min: false, max: true }],
+      ['a negative min', '-10', '20', { min: true, max: false }],
+      ['both depths negative', '-20', '-10', { min: true, max: true }],
+      ['a max past the ceiling', '0', '5001', { min: false, max: true }],
+      ['both depths past the ceiling', '6000', '7000', { min: true, max: true }],
+      ['an inverted pair whose min is past the ceiling', '6000', '100', { min: true, max: false }],
+      ['a missing max', '10', '', { min: false, max: true }],
+      ['a missing min', '', '20', { min: true, max: false }],
+      // The one error that belongs to the pair rather than to either value.
+      ['an inverted pair both depths valid on their own', '20', '10', { min: true, max: true }],
+    ])('flags only the failing field for %s', (_case, minDepth, maxDepth, expected) => {
+      const { errors } = depthMessageFor(minDepth, maxDepth);
+      expect(errors).toEqual(expected);
     });
   });
 
