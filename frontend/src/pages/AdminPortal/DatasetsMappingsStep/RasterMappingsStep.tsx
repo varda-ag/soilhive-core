@@ -33,7 +33,7 @@ export function RasterMappingsStep({ id }: Props) {
     detailOptions,
     mappedCount,
     unmappedCount,
-    invalidDepthColumns,
+    depthErrors,
     depthValidationMessage,
     referencePeriodErrors,
     referencePeriodValidationMessage,
@@ -116,7 +116,7 @@ export function RasterMappingsStep({ id }: Props) {
                     type="number"
                     placeholder={t('datasets.mappings.row.depth_from_placeholder')}
                     value={mapping.minDepth ?? ''}
-                    isError={invalidDepthColumns.has(columnName)}
+                    isError={depthErrors[columnName]?.min ?? false}
                     onChange={value => handleMinDepthChange(columnName, value)}
                   />
                   <TextInput
@@ -125,7 +125,7 @@ export function RasterMappingsStep({ id }: Props) {
                     type="number"
                     placeholder={t('datasets.mappings.row.depth_to_placeholder')}
                     value={mapping.maxDepth ?? ''}
-                    isError={invalidDepthColumns.has(columnName)}
+                    isError={depthErrors[columnName]?.max ?? false}
                     onChange={value => handleMaxDepthChange(columnName, value)}
                   />
                 </div>

@@ -217,27 +217,41 @@ function hasReferencePeriodError(value: string | null): boolean {
 }
 
 /**
- * Both depths are centimetres below the surface and land in an `int` column on `raster_layers`,
- * so a fractional value is not stored as given — Postgres rounds it on the way in, and the layer
- * then describes an interval nobody chose. A negative depth describes nothing at all.
+ * The rules a single depth answers on its own, in the order DEPTH_ERROR_PRIORITY gives.
  *
- * Zero is allowed as a min: it is the surface, and `0`–`30` is the commonest topsoil interval
- * there is. Max needs no separate floor, since `min < max` already puts it at 1 or above.
+ * A depth is centimetres below the surface and lands in an `int` column on `raster_layers`, so a
+ * fractional value is not stored as given — Postgres rounds it on the way in, and the layer then
+ * describes an interval nobody chose. A negative depth describes nothing at all.
  *
- * The ceiling is checked on both depths rather than on max alone: an inverted pair like
- * `6000`-`100` is out of range on the min, and saying so is more use than reporting only that
- * min is not less than max.
+ * Zero is allowed: it is the surface, and `0`–`30` is the commonest topsoil interval there is.
+ * Max needs no separate floor, since `min < max` already puts it at 1 or above.
+ *
+ * The ceiling is checked here rather than on max alone: an inverted pair like `6000`-`100` is out
+ * of range on the min, and saying so is more use than reporting only that min is not less
+ * than max.
  */
-function getDepthError(minDepth: string | null, maxDepth: string | null): DepthErrorType | null {
-  if (!minDepth || !maxDepth) return 'missing';
-  const min = Number(minDepth);
-  const max = Number(maxDepth);
-  if (!Number.isFinite(min) || !Number.isFinite(max)) return 'non_numeric';
-  if (!Number.isInteger(min) || !Number.isInteger(max)) return 'not_integer';
-  if (min < 0 || max < 0) return 'negative';
-  if (min > MAX_DEPTH_CM || max > MAX_DEPTH_CM) return 'too_deep';
-  if (min >= max) return 'range';
+function getDepthValueError(depth: string | null): DepthErrorType | null {
+  if (!depth) return 'missing';
+  const value = Number(depth);
+  if (!Number.isFinite(value)) return 'non_numeric';
+  if (!Number.isInteger(value)) return 'not_integer';
+  if (value < 0) return 'negative';
+  if (value > MAX_DEPTH_CM) return 'too_deep';
   return null;
+}
+
+/**
+ * Keyed per field, so a pair with one bad value turns only that input red rather than both.
+ *
+ * `range` is the one error belonging to the pair and not to either value, so it marks both. It is
+ * reached only once each depth is individually valid, for the reason the priority list gives: a
+ * pair failing any single-value rule cannot be compared as a range.
+ */
+function getDepthErrors(minDepth: string | null, maxDepth: string | null): { min: DepthErrorType | null; max: DepthErrorType | null } {
+  const min = getDepthValueError(minDepth);
+  const max = getDepthValueError(maxDepth);
+  if (min !== null || max !== null) return { min, max };
+  return Number(minDepth) >= Number(maxDepth) ? { min: 'range', max: 'range' } : { min: null, max: null };
 }
 
 function isMappingChanged(
@@ -457,18 +471,23 @@ export function useRasterMappingStep(datasetId?: string) {
     return { mappedCount: mapped, unmappedCount: columnMappings.length - mapped };
   }, [columnMappings]);
 
-  const invalidDepthColumns = useMemo(() => {
-    const columns = new Set<string>();
-    for (const m of columnMappings) {
-      if (m.conceptId === null) continue;
-      if (getDepthError(m.minDepth, m.maxDepth) !== null) columns.add(m.columnName);
-    }
-    return columns;
+  // Keyed per row and per field so the offending input is the one that turns red: a row giving a
+  // min but no max has only its max flagged. Unmapped rows are skipped — their depths are never
+  // written to the Band Mapping.
+  const depthErrors = useMemo((): Record<string, { min: boolean; max: boolean }> => {
+    return Object.fromEntries(
+      columnMappings.map(m => {
+        if (m.conceptId === null) return [m.columnName, { min: false, max: false }];
+        const { min, max } = getDepthErrors(m.minDepth, m.maxDepth);
+        return [m.columnName, { min: min !== null, max: max !== null }];
+      }),
+    );
   }, [columnMappings]);
 
-  // Keyed per row and per field so the offending input is the one that turns red, rather than the
-  // whole row. Unmapped rows are skipped for the same reason the depth check skips them: their
-  // details are never written to the Band Mapping.
+  const hasInvalidDepth = useMemo(() => Object.values(depthErrors).some(({ min, max }) => min || max), [depthErrors]);
+
+  // Keyed per row and per field for the same reason depthErrors is, and skipping unmapped rows
+  // for the same reason: their details are never written to the Band Mapping.
   const referencePeriodErrors = useMemo((): Record<string, { start: boolean; stop: boolean }> => {
     return Object.fromEntries(
       columnMappings.map(m => [
@@ -497,8 +516,9 @@ export function useRasterMappingStep(datasetId?: string) {
     const errors = new Set<DepthErrorType>();
     for (const m of columnMappings) {
       if (m.conceptId === null) continue;
-      const error = getDepthError(m.minDepth, m.maxDepth);
-      if (error !== null) errors.add(error);
+      const { min, max } = getDepthErrors(m.minDepth, m.maxDepth);
+      if (min !== null) errors.add(min);
+      if (max !== null) errors.add(max);
     }
 
     const worstError = DEPTH_ERROR_PRIORITY.find(error => errors.has(error));
@@ -506,8 +526,8 @@ export function useRasterMappingStep(datasetId?: string) {
   }, [columnMappings, t]);
 
   const isContinueEnabled = useMemo(
-    () => mappedCount > 0 && invalidDepthColumns.size === 0 && !hasInvalidReferencePeriod,
-    [mappedCount, invalidDepthColumns, hasInvalidReferencePeriod],
+    () => mappedCount > 0 && !hasInvalidDepth && !hasInvalidReferencePeriod,
+    [mappedCount, hasInvalidDepth, hasInvalidReferencePeriod],
   );
 
   // Disabled while loading: columnMappings is empty until the initial fetches
@@ -651,7 +671,7 @@ export function useRasterMappingStep(datasetId?: string) {
     detailOptions,
     mappedCount,
     unmappedCount,
-    invalidDepthColumns,
+    depthErrors,
     depthValidationMessage,
     referencePeriodErrors,
     referencePeriodValidationMessage,

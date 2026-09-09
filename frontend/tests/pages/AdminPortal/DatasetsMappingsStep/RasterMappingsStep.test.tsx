@@ -73,7 +73,7 @@ function stubHookReturn(
   columnNames: string[] = [],
   isContinueEnabled = false,
   showLoadingPanel = false,
-  invalidDepthColumns: Set<string> = new Set(),
+  depthErrors: Record<string, { min: boolean; max: boolean }> | null = null,
   depthValidationMessage: { message: string; type: 'error' } | null = null,
   isSaveEnabled = true,
   referencePeriodErrors: Record<string, { start: boolean; stop: boolean }> | null = null,
@@ -103,11 +103,11 @@ function stubHookReturn(
     detailOptions: DETAIL_OPTIONS,
     mappedCount: 0,
     unmappedCount: columnNames.length,
-    invalidDepthColumns,
+    // The hook keys these per column and per field, error-free by default, rather than leaving
+    // the record empty — so the component's fallbacks stay genuine guards instead of the path
+    // every test happens to take.
+    depthErrors: depthErrors ?? Object.fromEntries(columnNames.map(columnName => [columnName, { min: false, max: false }])),
     depthValidationMessage,
-    // The hook keys these per column, error-free by default, rather than leaving the record
-    // empty — so the component's `?? { start: false, stop: false }` fallback stays a genuine
-    // guard instead of the path every test happens to take.
     referencePeriodErrors:
       referencePeriodErrors ?? Object.fromEntries(columnNames.map(columnName => [columnName, { start: false, stop: false }])),
     referencePeriodValidationMessage,
@@ -175,7 +175,7 @@ describe('RasterMappingsStep', () => {
     });
 
     it('disables save-later when isSaveEnabled is false', () => {
-      (useRasterMappingStep as jest.Mock).mockReturnValue(stubHookReturn([], false, false, new Set(), null, false));
+      (useRasterMappingStep as jest.Mock).mockReturnValue(stubHookReturn([], false, false, null, null, false));
       render(<RasterMappingsStep id="1" />);
       expect(screen.getByTestId('sh-mappings-save-later')).toBeDisabled();
     });
@@ -232,28 +232,40 @@ describe('RasterMappingsStep', () => {
 
   describe('depth validation', () => {
     it('shows no message when depthValidationMessage is null', () => {
-      (useRasterMappingStep as jest.Mock).mockReturnValue(stubHookReturn(['col1'], false, false, new Set(), null));
+      (useRasterMappingStep as jest.Mock).mockReturnValue(stubHookReturn(['col1'], false, false, null, null));
       render(<RasterMappingsStep id="1" />);
       expect(screen.queryByTestId('sh-form-message')).not.toBeInTheDocument();
     });
 
     it('shows the depth validation message when the hook provides one', () => {
       (useRasterMappingStep as jest.Mock).mockReturnValue(
-        stubHookReturn(['col1'], false, false, new Set(['col1']), {
-          message: 'Min and max depth are required for every mapped layer.',
-          type: 'error',
-        }),
+        stubHookReturn(
+          ['col1'],
+          false,
+          false,
+          { col1: { min: true, max: true } },
+          {
+            message: 'Min and max depth are required for every mapped layer.',
+            type: 'error',
+          },
+        ),
       );
       render(<RasterMappingsStep id="1" />);
       expect(screen.getByText('Min and max depth are required for every mapped layer.')).toBeInTheDocument();
     });
 
-    it('marks the min/max depth inputs as errored only for columns in invalidDepthColumns', () => {
+    it('marks the min/max depth inputs as errored only for the columns the hook flags', () => {
       (useRasterMappingStep as jest.Mock).mockReturnValue(
-        stubHookReturn(['col1', 'col2'], false, false, new Set(['col1']), {
-          message: 'Min and max depth are required for every mapped layer.',
-          type: 'error',
-        }),
+        stubHookReturn(
+          ['col1', 'col2'],
+          false,
+          false,
+          { col1: { min: true, max: true }, col2: { min: false, max: false } },
+          {
+            message: 'Min and max depth are required for every mapped layer.',
+            type: 'error',
+          },
+        ),
       );
       render(<RasterMappingsStep id="1" />);
       const rows = screen.getAllByTestId('sh-mapping-row');
@@ -263,6 +275,31 @@ describe('RasterMappingsStep', () => {
       expect(within(col1Row).getByPlaceholderText('To').closest('[data-testid="sh-ui-textinput"]')).toHaveClass('Invalid');
       expect(within(col2Row).getByPlaceholderText('From').closest('[data-testid="sh-ui-textinput"]')).not.toHaveClass('Invalid');
       expect(within(col2Row).getByPlaceholderText('To').closest('[data-testid="sh-ui-textinput"]')).not.toHaveClass('Invalid');
+    });
+
+    // depthErrors is keyed per field rather than per row, so a pair with only one bad value turns
+    // only that input red — flagging both leaves the user hunting for which one the message means.
+    it.each([
+      ['min', { min: true, max: false }, 'From', 'To'],
+      ['max', { min: false, max: true }, 'To', 'From'],
+    ])('marks only the %s input as errored when just that field fails', (_field, errors, erroredLabel, cleanLabel) => {
+      (useRasterMappingStep as jest.Mock).mockReturnValue(
+        stubHookReturn(
+          ['col1'],
+          false,
+          false,
+          { col1: errors },
+          {
+            message: 'Min and max depth must be whole numbers of centimetres.',
+            type: 'error',
+          },
+        ),
+      );
+      render(<RasterMappingsStep id="1" />);
+      const [row] = screen.getAllByTestId('sh-mapping-row');
+
+      expect(within(row).getByPlaceholderText(erroredLabel).closest('[data-testid="sh-ui-textinput"]')).toHaveClass('Invalid');
+      expect(within(row).getByPlaceholderText(cleanLabel).closest('[data-testid="sh-ui-textinput"]')).not.toHaveClass('Invalid');
     });
   });
 
@@ -282,16 +319,7 @@ describe('RasterMappingsStep', () => {
       referencePeriodErrors: Record<string, { start: boolean; stop: boolean }> | null,
       referencePeriodValidationMessage: { message: string; type: 'error' } | null = null,
     ) {
-      const base = stubHookReturn(
-        columnNames,
-        false,
-        false,
-        new Set(),
-        null,
-        true,
-        referencePeriodErrors,
-        referencePeriodValidationMessage,
-      );
+      const base = stubHookReturn(columnNames, false, false, null, null, true, referencePeriodErrors, referencePeriodValidationMessage);
       return {
         ...base,
         columnMappings: base.columnMappings.map(m => ({ ...m, conceptId: 'ph' })),
