@@ -204,50 +204,62 @@ export async function streamRasterFootprints(
       return { multiPolygon: geojson.features[0]?.geometry ?? null, vrtMs, footprintMs };
     };
 
-    for (let chunkStart = 0; chunkStart < totalTiles; chunkStart += FOOTPRINT_CONCURRENCY) {
-      const chunkEnd = Math.min(chunkStart + FOOTPRINT_CONCURRENCY, totalTiles);
-      const results = await Promise.all(
-        Array.from({ length: chunkEnd - chunkStart }, (_, offset) => {
-          const linearIndex = chunkStart + offset;
-          return computeTileFootprint(Math.floor(linearIndex / nCols), linearIndex % nCols);
-        }),
-      );
+    const handleResult = async (result: { multiPolygon: MultiPolygon | null; vrtMs: number; footprintMs: number }): Promise<void> => {
+      tilesProcessed++;
+      vrtMs += result.vrtMs;
+      footprintMs += result.footprintMs;
 
-      for (const { multiPolygon, vrtMs: tileVrtMs, footprintMs: tileFootprintMs } of results) {
-        tilesProcessed++;
-        vrtMs += tileVrtMs;
-        footprintMs += tileFootprintMs;
-
-        if (tilesProcessed % progressLogInterval === 0) {
-          log.info('Footprint extraction progress', {
-            band,
-            tilesProcessed,
-            totalTiles,
-            footprintsFound,
-            elapsedMs: Date.now() - startedAt,
-            vrtMs,
-            footprintMs,
-            dbMs,
-          });
-          await onProgress?.(tilesProcessed, totalTiles);
-        }
-
-        if (!multiPolygon) continue;
-
-        batch.push(multiPolygon);
-        footprintsFound++;
-        for (const polygon of multiPolygon.coordinates) {
-          for (const ring of polygon) batchVertexCount += ring.length;
-        }
-
-        if (batchVertexCount >= MAX_BATCH_VERTICES || batch.length >= MAX_BATCH_FOOTPRINTS) {
-          const t = Date.now();
-          await onBatch(batch);
-          dbMs += Date.now() - t;
-          batch = [];
-          batchVertexCount = 0;
-        }
+      if (tilesProcessed % progressLogInterval === 0) {
+        log.info('Footprint extraction progress', {
+          band,
+          tilesProcessed,
+          totalTiles,
+          footprintsFound,
+          elapsedMs: Date.now() - startedAt,
+          vrtMs,
+          footprintMs,
+          dbMs,
+        });
+        await onProgress?.(tilesProcessed, totalTiles);
       }
+
+      if (!result.multiPolygon) return;
+
+      batch.push(result.multiPolygon);
+      footprintsFound++;
+      for (const polygon of result.multiPolygon.coordinates) {
+        for (const ring of polygon) batchVertexCount += ring.length;
+      }
+
+      if (batchVertexCount >= MAX_BATCH_VERTICES || batch.length >= MAX_BATCH_FOOTPRINTS) {
+        const t = Date.now();
+        await onBatch(batch);
+        dbMs += Date.now() - t;
+        batch = [];
+        batchVertexCount = 0;
+      }
+    };
+
+    const linearToTile = (linearIndex: number): [number, number] => [Math.floor(linearIndex / nCols), linearIndex % nCols];
+    const launch = (linearIndex: number) => {
+      const [iRow, iCol] = linearToTile(linearIndex);
+      return computeTileFootprint(iRow, iCol).then(result => ({ linearIndex, result }));
+    };
+
+    const inFlight = new Map<number, ReturnType<typeof launch>>();
+    let nextIndex = 0;
+    for (; nextIndex < Math.min(FOOTPRINT_CONCURRENCY, totalTiles); nextIndex++) {
+      inFlight.set(nextIndex, launch(nextIndex));
+    }
+
+    while (inFlight.size > 0) {
+      const { linearIndex, result } = await Promise.race(inFlight.values());
+      inFlight.delete(linearIndex);
+      if (nextIndex < totalTiles) {
+        inFlight.set(nextIndex, launch(nextIndex));
+        nextIndex++;
+      }
+      await handleResult(result);
     }
 
     if (batch.length > 0) {
