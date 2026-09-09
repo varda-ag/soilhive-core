@@ -26,6 +26,48 @@ export type FootprintBatchCallback = (tiles: MultiPolygon[]) => Promise<void>;
 /** Reports tile progress within a single band's footprint pass. */
 export type FootprintProgressCallback = (tilesProcessed: number, totalTiles: number) => Promise<void>;
 
+/**
+ * Produces a single tile VRT using a reference template, by substituting only the fields that vary per tile —
+ * dataset size, the GeoTransform's origin (its pixel size/rotation stay the overview's own), and
+ * the source/destination windows.
+ */
+function buildTileVrt(
+  referenceVrtXml: string,
+  tilePixW: number,
+  tilePixH: number,
+  srcOffX: number,
+  srcOffY: number,
+  tileGeoXMin: number,
+  tileGeoYMax: number,
+): string {
+  let xml = referenceVrtXml.replace(
+    /<VRTDataset rasterXSize="\d+" rasterYSize="\d+">/,
+    `<VRTDataset rasterXSize="${tilePixW}" rasterYSize="${tilePixH}">`,
+  );
+
+  xml = xml.replace(/<GeoTransform>([^<]+)<\/GeoTransform>/, (_match, body: string) => {
+    const parts = body
+      .trim()
+      .split(',')
+      .map(s => s.trim());
+    parts[0] = tileGeoXMin.toExponential(16);
+    parts[3] = tileGeoYMax.toExponential(16);
+    return `<GeoTransform> ${parts.join(',  ')}</GeoTransform>`;
+  });
+
+  xml = xml.replace(
+    /<SrcRect xOff="\d+" yOff="\d+" xSize="\d+" ySize="\d+" \/>/,
+    `<SrcRect xOff="${srcOffX}" yOff="${srcOffY}" xSize="${tilePixW}" ySize="${tilePixH}" />`,
+  );
+
+  xml = xml.replace(
+    /<DstRect xOff="\d+" yOff="\d+" xSize="\d+" ySize="\d+" \/>/,
+    `<DstRect xOff="0" yOff="0" xSize="${tilePixW}" ySize="${tilePixH}" />`,
+  );
+
+  return xml;
+}
+
 function computeGrid(rasterWidth: number, rasterHeight: number): { nCols: number; nRows: number } {
   const rasterArea = rasterWidth * rasterHeight;
   const earthArea = 360 * 180;
@@ -48,99 +90,109 @@ export async function streamRasterFootprints(
   onBatch: FootprintBatchCallback,
   onProgress?: FootprintProgressCallback,
 ): Promise<void> {
-  const { colBounds, rowBounds, nCols, nRows, overviewPath } = await timed('footprint extraction setup', async () => {
-    const { mainFilePath } = await FileService.getMainFilePath(cogPath);
+  const { colBounds, rowBounds, nCols, nRows, overviewPath, xMin, yMax, ovPixelW, ovPixelH, referenceVrtXml } = await timed(
+    'footprint extraction setup',
+    async () => {
+      const { mainFilePath } = await FileService.getMainFilePath(cogPath);
 
-    const info = await GdalCLI.gdalinfo(mainFilePath);
-    const gt = info.geoTransform;
-    if (!gt) throw new Error('Raster has no geoTransform');
+      const info = await GdalCLI.gdalinfo(mainFilePath);
+      const gt = info.geoTransform;
+      if (!gt) throw new Error('Raster has no geoTransform');
 
-    const epsg = GdalCLI.extractEpsgFromWkt(info.coordinateSystem?.wkt);
-    const isGeo = isGeographicCrs(info.coordinateSystem?.wkt);
-    const srcSrs = !isGeo || (epsg !== undefined && epsg !== 4326) ? info.coordinateSystem!.wkt! : null;
+      const epsg = GdalCLI.extractEpsgFromWkt(info.coordinateSystem?.wkt);
+      const isGeo = isGeographicCrs(info.coordinateSystem?.wkt);
+      const srcSrs = !isGeo || (epsg !== undefined && epsg !== 4326) ? info.coordinateSystem!.wkt! : null;
 
-    const [rasterNativeWidth, rasterNativeHeight] = info.size ?? [0, 0];
-    const xMin = gt[0]!;
-    const yMax = gt[3]!;
-    const pixWFull = gt[1]!;
-    const pixHFull = gt[5]!;
-    const xMax = xMin + rasterNativeWidth * pixWFull;
-    const yMin = yMax + rasterNativeHeight * pixHFull;
-    // Tile bounds below are computed in the raster's native units throughout — only the grid's
-    // own sizing needs a real degree extent, since a Web Mercator raster's native width is in
-    // metres and would otherwise be compared against computeGrid's degree-based earthArea
-    // constant as if it were one.
-    const rasterWidthNative = xMax - xMin;
-    const rasterHeightNative = yMax - yMin;
-    let gridWidthDeg = rasterWidthNative;
-    let gridHeightDeg = rasterHeightNative;
-    if (srcSrs) {
-      const corners = await GdalCLI.transformPoints(srcSrs, [
-        [xMin, yMin],
-        [xMax, yMax],
-      ]);
-      const [lonMin, latMin] = corners[0]!;
-      const [lonMax, latMax] = corners[1]!;
-      gridWidthDeg = Math.abs(lonMax - lonMin);
-      gridHeightDeg = Math.abs(latMax - latMin);
-    }
-
-    const nativePixelSize = Math.abs(pixWFull);
-    const { nCols, nRows } = computeGrid(gridWidthDeg, gridHeightDeg);
-    const tileW = rasterWidthNative / nCols;
-    const tileH = rasterHeightNative / nRows;
-    const tileMinDim = Math.min(tileW, tileH);
-
-    // Select overview: mirrors original GDAL logic — coarsest overview satisfying the resolution
-    // criterion, falling back to the finest overview, or to full resolution if none exist at all.
-    const overviews = info.bands?.[band - 1]?.overviews ?? [];
-    let selectedSize: [number, number] | undefined;
-    for (let i = overviews.length - 1; i >= 0; i--) {
-      const [w] = overviews[i]!.size;
-      const ovPixelSize = nativePixelSize * (rasterNativeWidth / w);
-      if (ovPixelSize < tileMinDim / PIXELS_PER_TILE_MIN_DIM) {
-        selectedSize = overviews[i]!.size;
-        break;
+      const [rasterNativeWidth, rasterNativeHeight] = info.size ?? [0, 0];
+      const xMin = gt[0]!;
+      const yMax = gt[3]!;
+      const pixWFull = gt[1]!;
+      const pixHFull = gt[5]!;
+      const xMax = xMin + rasterNativeWidth * pixWFull;
+      const yMin = yMax + rasterNativeHeight * pixHFull;
+      // Tile bounds below are computed in the raster's native units throughout — only the grid's
+      // own sizing needs a real degree extent, since a Web Mercator raster's native width is in
+      // metres and would otherwise be compared against computeGrid's degree-based earthArea
+      // constant as if it were one.
+      const rasterWidthNative = xMax - xMin;
+      const rasterHeightNative = yMax - yMin;
+      let gridWidthDeg = rasterWidthNative;
+      let gridHeightDeg = rasterHeightNative;
+      if (srcSrs) {
+        const corners = await GdalCLI.transformPoints(srcSrs, [
+          [xMin, yMin],
+          [xMax, yMax],
+        ]);
+        const [lonMin, latMin] = corners[0]!;
+        const [lonMax, latMax] = corners[1]!;
+        gridWidthDeg = Math.abs(lonMax - lonMin);
+        gridHeightDeg = Math.abs(latMax - latMin);
       }
-    }
-    if (!selectedSize) selectedSize = overviews[0]?.size ?? [rasterNativeWidth, rasterNativeHeight];
-    const [ovWidth, ovHeight] = selectedSize;
 
-    // Every tile's footprint is computed from a VRT window into this file, so it always needs to
-    // exist as its own flat, single-resolution, single-band file regardless of storage mode — a
-    // VRT SrcRect window addresses pixels of the file it points to directly, with no way to select
-    // "overview level N" of a multi-resolution source. -outsize matches the overview's own
-    // dimensions exactly, so GDAL reads the COG's embedded overview data as-is rather than
-    // resampling from full resolution.
-    const overviewPath = path.join(os.tmpdir(), `footprint-overview-${Date.now()}-${Math.random().toString(36).slice(2)}.tif`);
-    await timed('extract overview locally', () =>
-      GdalCLI.translate(mainFilePath, overviewPath, [
-        '-b',
-        String(band),
-        '-outsize',
-        String(ovWidth),
-        String(ovHeight),
-        '-co',
-        'TILED=YES',
-        '-co',
-        'BLOCKXSIZE=256',
-        '-co',
-        'BLOCKYSIZE=256',
-        '-co',
-        'COMPRESS=DEFLATE',
-      ]),
-    );
+      const nativePixelSize = Math.abs(pixWFull);
+      const { nCols, nRows } = computeGrid(gridWidthDeg, gridHeightDeg);
+      const tileW = rasterWidthNative / nCols;
+      const tileH = rasterHeightNative / nRows;
+      const tileMinDim = Math.min(tileW, tileH);
 
-    const ovPixelW = rasterWidthNative / ovWidth;
-    const ovPixelH = rasterHeightNative / ovHeight;
+      // Select overview: mirrors original GDAL logic — coarsest overview satisfying the resolution
+      // criterion, falling back to the finest overview, or to full resolution if none exist at all.
+      const overviews = info.bands?.[band - 1]?.overviews ?? [];
+      let selectedSize: [number, number] | undefined;
+      for (let i = overviews.length - 1; i >= 0; i--) {
+        const [w] = overviews[i]!.size;
+        const ovPixelSize = nativePixelSize * (rasterNativeWidth / w);
+        if (ovPixelSize < tileMinDim / PIXELS_PER_TILE_MIN_DIM) {
+          selectedSize = overviews[i]!.size;
+          break;
+        }
+      }
+      if (!selectedSize) selectedSize = overviews[0]?.size ?? [rasterNativeWidth, rasterNativeHeight];
+      const [ovWidth, ovHeight] = selectedSize;
 
-    // Shared boundaries, not independent per-tile floor/ceil: avoids duplicate footprints
-    // in reprojected tiles that become overlapping and share a pixel row in WGS84.
-    const colBounds = Array.from({ length: nCols + 1 }, (_, c) => Math.min(ovWidth, Math.round((c * tileW) / ovPixelW)));
-    const rowBounds = Array.from({ length: nRows + 1 }, (_, r) => Math.min(ovHeight, Math.round((r * tileH) / ovPixelH)));
+      // Every tile's footprint is computed from a VRT window into this file, so it always needs to
+      // exist as its own flat, single-resolution, single-band file regardless of storage mode — a
+      // VRT SrcRect window addresses pixels of the file it points to directly, with no way to select
+      // "overview level N" of a multi-resolution source. -outsize matches the overview's own
+      // dimensions exactly, so GDAL reads the COG's embedded overview data as-is rather than
+      // resampling from full resolution.
+      const overviewPath = path.join(os.tmpdir(), `footprint-overview-${Date.now()}-${Math.random().toString(36).slice(2)}.tif`);
+      await timed('extract overview locally', () =>
+        GdalCLI.translate(mainFilePath, overviewPath, [
+          '-b',
+          String(band),
+          '-outsize',
+          String(ovWidth),
+          String(ovHeight),
+          '-co',
+          'TILED=YES',
+          '-co',
+          'BLOCKXSIZE=256',
+          '-co',
+          'BLOCKYSIZE=256',
+          '-co',
+          'COMPRESS=DEFLATE',
+        ]),
+      );
 
-    return { colBounds, rowBounds, nCols, nRows, overviewPath };
-  });
+      const ovPixelW = rasterWidthNative / ovWidth;
+      const ovPixelH = rasterHeightNative / ovHeight;
+
+      // A one-time whole-file VRT, used purely as a text template: every tile's VRT is
+      // built by substituting its own size/offset/origin into a copy of this via buildTileVrt
+      const referenceVrtPath = path.join(os.tmpdir(), `footprint-reference-${Date.now()}-${Math.random().toString(36).slice(2)}.vrt`);
+      await GdalCLI.translate(overviewPath, referenceVrtPath, ['-of', 'VRT']);
+      const referenceVrtXml = await fs.readFile(referenceVrtPath, 'utf-8');
+      await fs.unlink(referenceVrtPath).catch(() => {});
+
+      // Shared boundaries, not independent per-tile floor/ceil: avoids duplicate footprints
+      // in reprojected tiles that become overlapping and share a pixel row in WGS84.
+      const colBounds = Array.from({ length: nCols + 1 }, (_, c) => Math.min(ovWidth, Math.round((c * tileW) / ovPixelW)));
+      const rowBounds = Array.from({ length: nRows + 1 }, (_, r) => Math.min(ovHeight, Math.round((r * tileH) / ovPixelH)));
+
+      return { colBounds, rowBounds, nCols, nRows, overviewPath, xMin, yMax, ovPixelW, ovPixelH, referenceVrtXml };
+    },
+  );
 
   try {
     let batch: MultiPolygon[] = [];
@@ -157,7 +209,10 @@ export async function streamRasterFootprints(
     // Avoids two runs silently colliding on the same tile VRT filenames in os.tmpdir()
     const runId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-    const computeTileFootprint = async (iRow: number, iCol: number): Promise<{ multiPolygon: MultiPolygon | null; vrtMs: number; footprintMs: number }> => {
+    const computeTileFootprint = async (
+      iRow: number,
+      iCol: number,
+    ): Promise<{ multiPolygon: MultiPolygon | null; vrtMs: number; footprintMs: number }> => {
       const pxStart = colBounds[iCol]!;
       const pxEnd = colBounds[iCol + 1]!;
       const pyStart = rowBounds[iRow]!;
@@ -169,15 +224,10 @@ export async function streamRasterFootprints(
 
       const vrtPath = path.join(os.tmpdir(), `footprint-tile-${runId}-${iRow}-${iCol}.vrt`);
       let t = Date.now();
-      await GdalCLI.translate(overviewPath, vrtPath, [
-        '-of',
-        'VRT',
-        '-srcwin',
-        String(pxStart),
-        String(pyStart),
-        String(tilePixW),
-        String(tilePixH),
-      ]);
+      const tileGeoXMin = xMin + pxStart * ovPixelW;
+      const tileGeoYMax = yMax - pyStart * ovPixelH;
+      const tileVrtXml = buildTileVrt(referenceVrtXml, tilePixW, tilePixH, pxStart, pyStart, tileGeoXMin, tileGeoYMax);
+      await fs.writeFile(vrtPath, tileVrtXml);
       const vrtMs = Date.now() - t;
 
       let footprintMs = 0;
