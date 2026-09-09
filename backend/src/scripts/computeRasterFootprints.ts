@@ -9,7 +9,7 @@ import { isGeographicCrs } from '../utils/raster';
 
 const MAX_TILES = 256 * 256;
 // Exported so tests can override it directly.
-export let MIN_TILES = 256;
+export const MIN_TILES = 256;
 const PIXELS_PER_TILE_MIN_DIM = 512;
 // A footprint's vertex count depends on how fragmented the valid-data mask is within its tile —
 // not on raster shape — so batches are sized by accumulated vertex count rather than by footprint
