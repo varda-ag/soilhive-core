@@ -10,7 +10,7 @@ const pluginId = 'unique-id-of-remote-module'; // must be unique across every pl
 
 // Registers this plugin's own translation namespace on the shared i18next singleton. Call once,
 // before rendering anything that calls t() — see docs/frontend/plugin-development.md and
-// docs/adr/0030-plugin-i18n-resource-registration-is-a-reusable-helper-not-a-fixed-file.md.
+// docs/adr/0031-plugin-i18n-resource-registration-is-a-reusable-helper-not-a-fixed-file.md.
 // registerResourceBundle('my-plugin', myPluginResources);
 
 const Page: React.FC<{ context: PluginContext }> = ({ context }) => {

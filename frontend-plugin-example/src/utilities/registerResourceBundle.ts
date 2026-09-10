@@ -2,7 +2,7 @@ import i18next from 'i18next';
 
 // i18next is a Module Federation singleton: the host owns init(), this plugin only adds its own
 // namespace to the shared instance. See
-// docs/adr/0030-plugin-i18n-resource-registration-is-a-reusable-helper-not-a-fixed-file.md.
+// docs/adr/0031-plugin-i18n-resource-registration-is-a-reusable-helper-not-a-fixed-file.md.
 // Guarded with hasResourceBundle so a StrictMode double-render or a Module Federation remount of
 // the plugin's exposed entry point can't register a bundle twice or log a duplicate-registration
 // warning.
