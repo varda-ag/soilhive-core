@@ -3,8 +3,15 @@ import type { PluginContext } from 'frontend-plugin-types';
 // After running `soilhive-plugin` against this plugin, UI/ is synced in from the host and
 // its components become available like this: import { Button } from '../../UI/Button/Button';
 import './ProviderComponent.css';
+// import { registerResourceBundle } from '../utilities/registerResourceBundle';
+// import myPluginResources from '../locales/en/my-plugin.json';
 
 const pluginId = 'unique-id-of-remote-module'; // must be unique across every plugin registered with the host
+
+// Registers this plugin's own translation namespace on the shared i18next singleton. Call once,
+// before rendering anything that calls t() — see docs/frontend/plugin-development.md and
+// docs/adr/0030-plugin-i18n-resource-registration-is-a-reusable-helper-not-a-fixed-file.md.
+// registerResourceBundle('my-plugin', myPluginResources);
 
 const Page: React.FC<{ context: PluginContext }> = ({ context }) => {
   const {
